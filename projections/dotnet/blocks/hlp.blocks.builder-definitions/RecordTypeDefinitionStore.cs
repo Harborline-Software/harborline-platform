@@ -1,6 +1,5 @@
 using System.Text;
 using System.Text.Json;
-using System.Text.RegularExpressions;
 using Harborline.Contracts.Fields;
 using Harborline.Foundation.Definitions;
 using Harborline.Kernel.SchemaValidation;
@@ -17,6 +16,11 @@ namespace Harborline.Blocks.BuilderDefinitions;
 /// <param name="Contract">The authored definition contract version.</param>
 /// <param name="Traits">The exact Trait revisions and their slot bindings.</param>
 /// <param name="RetentionClockFieldId">The <c>field_key</c> of the field whose date starts the retention clock.</param>
+/// <param name="ClassId">The type's one Class, required before publication.</param>
+/// <param name="RecordClass">Reference, master or transactional, required before publication.</param>
+/// <param name="PackageId">The owning package, required before publication.</param>
+/// <param name="Requires">The declared package dependencies, each <c>pack-key@interfaceVersion</c>.</param>
+/// <param name="Exposes">The target-side declaration, when other packages may reference the type.</param>
 public sealed record NewRecordType(
     string Tenant,
     string Section,
@@ -25,7 +29,12 @@ public sealed record NewRecordType(
     IReadOnlyList<FieldDefinition> Fields,
     DefinitionContractVersion? Contract,
     IReadOnlyList<TraitReference>? Traits = null,
-    string? RetentionClockFieldId = null);
+    string? RetentionClockFieldId = null,
+    string? ClassId = null,
+    RecordClass? RecordClass = null,
+    string? PackageId = null,
+    IReadOnlyList<RecordsRequirement>? Requires = null,
+    RecordsExposure? Exposes = null);
 
 /// <summary>A created Record Type draft and the id the authoring boundary minted for it.</summary>
 public sealed record RecordTypeDraft(string RecordTypeId, DefinitionRevision Revision);
@@ -49,7 +58,7 @@ public sealed record RecordTypePublication(DefinitionRevision Revision, Schema S
 /// or compiled, is raised before the store or the schema registry changes. Publication registers the compiled
 /// schema before the store makes the version visible, so a published version always has its schema.
 /// </remarks>
-public sealed partial class RecordTypeDefinitionStore
+public sealed class RecordTypeDefinitionStore
 {
     private readonly IVersionedDefinitionStore _store;
     private readonly RecordTypeSchemaCompiler _compiler;
@@ -105,30 +114,15 @@ public sealed partial class RecordTypeDefinitionStore
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
-        // The section is checked by structural admission below; only an empty slug needs refusing here, since
-        // a name of punctuation alone is not blank yet would mint the id "section.".
-        var slug = Slug(request.Name ?? "");
-        if (slug.Length == 0)
-            throw new DefinitionRefusalException(DefinitionAdmissionPhase.Author, [new("records.identity.name_required", "/name")]);
-
-        var recordTypeId = $"{request.Section}.{slug}";
+        var recordTypeId = RecordsCatalogueIdentity.Mint(request.Section, request.Name);
         var document = Materialize(new RecordTypeDocument(
-            new(request.Tenant, request.Section, request.Contract),
-            request.Name!, recordTypeId, request.Fields, request.Traits, request.RetentionClockFieldId));
+            new(request.Tenant, request.Section, request.Contract, request.PackageId, request.Requires, request.Exposes),
+            request.Name!, recordTypeId, request.Fields, request.Traits, request.RetentionClockFieldId,
+            request.ClassId, request.RecordClass));
         var candidate = await AdmitAsync(Catalogue(document, recordTypeId, request.Version), DefinitionAdmissionPhase.Author,
             cancellationToken).ConfigureAwait(false);
-        try
-        {
-            // Creation is the zero-revision fence: a stream already at this key fails it, so the collision
-            // check and the write are one atomic step, and an identical replay still returns its draft.
-            return new(recordTypeId, await _store.SaveDraftAsync(candidate.Document, 0, requestId, cancellationToken)
-                .ConfigureAwait(false));
-        }
-        catch (DefinitionRefusalException refused) when (refused.Refusals is [{ Code: "definition.revision_conflict" }])
-        {
-            throw new DefinitionRefusalException(DefinitionAdmissionPhase.Author,
-                [new("records.identity.record_type_id_collision", "/record_type_id")]);
-        }
+        return new(recordTypeId, await RecordsCatalogueIdentity.CreateAsync(_store, candidate.Document, requestId,
+            "record_type_id", cancellationToken).ConfigureAwait(false));
     }
 
     /// <summary>
@@ -143,9 +137,8 @@ public sealed partial class RecordTypeDefinitionStore
         ArgumentNullException.ThrowIfNull(document);
         var catalogue = Catalogue(Materialize(document), recordTypeId, version);
         var candidate = await AdmitAsync(catalogue, DefinitionAdmissionPhase.Author, cancellationToken).ConfigureAwait(false);
-        if ((await _store.ListHistoryAsync(catalogue.Key, cancellationToken).ConfigureAwait(false)).Count == 0)
-            throw new DefinitionRefusalException(DefinitionAdmissionPhase.Author,
-                [new("records.identity.record_type_id_unminted", "/record_type_id")]);
+        await RecordsCatalogueIdentity.RequireMintedAsync(_store, catalogue.Key, "record_type_id", cancellationToken)
+            .ConfigureAwait(false);
         return await _store.SaveDraftAsync(candidate.Document, expectedRevision, requestId, cancellationToken)
             .ConfigureAwait(false);
     }
@@ -157,25 +150,199 @@ public sealed partial class RecordTypeDefinitionStore
     /// <paramref name="expectedRevision"/> refuses before registration; one that goes stale between that check and
     /// the store's own fence is still refused by the store, leaving at most an unreferenced registered schema. The
     /// store commits only at <paramref name="expectedRevision"/>, so the published body is the one compiled.
+    /// Referenced published heads are fenced atomically at that commit. A head that changes after schema
+    /// registration refuses publication and may leave an unreferenced content-addressed schema. Exact request
+    /// replays recover the committed body and original target observations before consulting live heads.
     /// </summary>
     public async ValueTask<RecordTypePublication> PublishAsync(string tenant, string recordTypeId, string version,
         long expectedRevision, string requestId, CancellationToken cancellationToken = default)
     {
         var key = KeyOf(tenant, recordTypeId);
+        var replay = await _store.GetPublicationReplayAsync(key, version, expectedRevision, requestId, cancellationToken)
+            .ConfigureAwait(false);
+        if (replay is not null)
+        {
+            // Conditions are observations belonging to the first committed operation, not new input
+            // from a retry. Recover its immutable body before consulting any live target catalogue.
+            var replayAdmission = await AdmitAsync(replay.Document, DefinitionAdmissionPhase.Publish, cancellationToken)
+                .ConfigureAwait(false);
+            var replaySchema = await _registry.RegisterAsync(replayAdmission.JsonSchemaText, cancellationToken: cancellationToken)
+                .ConfigureAwait(false);
+            return new(replay, replaySchema);
+        }
         var history = await _store.ListHistoryAsync(key, cancellationToken).ConfigureAwait(false);
         var source = history.LastOrDefault(revision => revision.Document.VersionId == version)
             ?? throw new DefinitionRefusalException(DefinitionAdmissionPhase.Publish, [new("definition.not_found", "/versionId")]);
 
         var admitted = await AdmitAsync(source.Document, DefinitionAdmissionPhase.Publish, cancellationToken).ConfigureAwait(false);
+        // The registered validator cannot see other definitions, so this boundary resolves the type's catalogue
+        // edges before the store publishes: its home (records-ck-18) and every reference target (records-ck-10).
+        var document = RecordTypeDefinitionJson.Deserialize(Encoding.UTF8.GetBytes(source.Document.BodyJson));
+        var conditions = new List<DefinitionPublishedHeadCondition>();
+        var unresolved = await ResolveCatalogueEdgesAsync(tenant, document, cancellationToken, conditions).ConfigureAwait(false);
+        if (unresolved.Count > 0)
+            throw new DefinitionRefusalException(DefinitionAdmissionPhase.Publish, unresolved);
         // A published source is a replay, which the store answers from its record at any revision.
         if (source.Status != DefinitionStatus.Published && history[^1].Revision != expectedRevision)
             throw new DefinitionRefusalException(DefinitionAdmissionPhase.Publish, [new("definition.revision_conflict", "/expectedRevision")]);
         var schema = await _registry.RegisterAsync(admitted.JsonSchemaText, cancellationToken: cancellationToken)
             .ConfigureAwait(false);
-        var published = await _store.PublishAsync(key, version, expectedRevision, requestId, cancellationToken)
-            .ConfigureAwait(false);
-        return new(published, schema);
+        try
+        {
+            var published = await _store.PublishAsync(key, version, expectedRevision, requestId, conditions, cancellationToken)
+                .ConfigureAwait(false);
+            return new(published, schema);
+        }
+        catch (DefinitionRefusalException refused) when (refused.Refusals.Any(item => item.Code == "definition.published_head_conflict"))
+        {
+            throw new DefinitionRefusalException(DefinitionAdmissionPhase.Publish, refused.Refusals.Select(item =>
+                item.Code == "definition.published_head_conflict" ? new DefinitionRefusal("records.reference.pin_stale", item.Pointer) : item).ToArray());
+        }
     }
+
+    /// <summary>
+    /// Authoring diagnostics (records-ck-41): every catalogue-edge refusal publication would raise against current state,
+    /// reported at the Author stage without writing anything.
+    /// </summary>
+    public async ValueTask<DefinitionRefusalReport> DiagnoseAsync(string tenant, RecordTypeDocument document,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(document);
+        return new(DefinitionAdmissionPhase.Author,
+            await ResolveCatalogueEdgesAsync(tenant, document, cancellationToken).ConfigureAwait(false));
+    }
+
+    /// <summary>
+    /// Writes each cross-package reference's pin from current state (records-ck-41): the target's package, id, published
+    /// version, body digest and exposed interface version. A same-package reference loses any pin; a target that is
+    /// unpublished or unexposed gets none, for publication to refuse. The author saves the result as a draft, and
+    /// publication seals it by refusing any pin that no longer matches.
+    /// </summary>
+    public async ValueTask<RecordTypeDocument> PinReferencesAsync(string tenant, RecordTypeDocument document,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(document);
+        var fields = new List<FieldDefinition>();
+        foreach (var field in document.Fields ?? [])
+        {
+            if (field.Reference is not { } reference)
+            {
+                fields.Add(field);
+                continue;
+            }
+            var target = await TargetAsync(tenant, document, reference, cancellationToken).ConfigureAwait(false);
+            var pin = target is { Revision: { } revision, Envelope.Exposes: { } exposes }
+                && !SamePackage(document.Envelope, target.Envelope)
+                ? new RecordReferencePin(target.Envelope.PackageId!, revision.Document.Key.DefinitionId, revision.Document.Version,
+                    CatalogueFieldSource.DigestOf(revision), exposes.InterfaceVersion)
+                : null;
+            fields.Add(field with { Reference = reference with { Pin = pin } });
+        }
+        return document with { Fields = fields };
+    }
+
+    private async ValueTask<List<DefinitionRefusal>> ResolveCatalogueEdgesAsync(string tenant, RecordTypeDocument document,
+        CancellationToken cancellationToken, List<DefinitionPublishedHeadCondition>? conditions = null)
+    {
+        var refusals = new List<DefinitionRefusal>();
+        if (document.ClassId is { } classId
+            && await _store.GetPublishedHeadAsync(ClassDefinitionStore.KeyOf(tenant, classId), cancellationToken).ConfigureAwait(false) is null)
+            refusals.Add(new("records.class.unresolved", "/class_id"));
+        foreach (var (field, index) in (document.Fields ?? []).Select((field, index) => (field, index)))
+        {
+            if (field.Reference is not { } reference)
+                continue;
+            var pointer = $"/fields/{index}/reference";
+            var target = await TargetAsync(tenant, document, reference, cancellationToken).ConfigureAwait(false);
+            if (target is null)
+            {
+                refusals.Add(new("records.reference.target_unresolved",
+                    pointer + (string.IsNullOrWhiteSpace(reference.TargetClassId) ? "/target_type_id" : "/target_class_id")));
+                continue;
+            }
+
+            if (target.Revision is { } observed)
+                conditions?.Add(new(observed.Document.Key, observed.Revision, pointer));
+
+            // A required trait is checked against a target type; Class membership is derived (ADR-0054), so a Class
+            // target's trait is checked per record at write time.
+            if (reference.RequiredTraitId is { } trait && target.Traits is { } traits
+                && !traits.Any(declared => StringComparer.Ordinal.Equals(declared.TraitId, trait)))
+                refusals.Add(new("records.reference.trait_absent", pointer + "/required_trait_id"));
+            refusals.AddRange(CrossPackage(document, reference, target, pointer));
+        }
+        return refusals;
+    }
+
+    // records-ck-41 / records-auth-38: an edge into another package needs this definition's requires entry for that
+    // package, the target's exposure at the same interface version, and a pin equal to the target's current published
+    // version, digest and exposure. An edge inside one package carries no pin.
+    // The shared K9 check reports at the author stage; Records raises its refusals at its own stage.
+    private static IEnumerable<DefinitionRefusal> CrossPackage(RecordTypeDocument document, RecordReferenceDefinition reference,
+        EdgeTarget target, string pointer)
+    {
+        if (SamePackage(document.Envelope, target.Envelope))
+        {
+            if (reference.Pin is not null)
+                yield return new("records.reference.pin_unexpected", pointer + "/pin");
+            yield break;
+        }
+
+        var requires = (document.Envelope?.Requires ?? [])
+            .Select(requirement => RecordsRequirement.TryParse(requirement?.Capability, out var package, out var version)
+                ? (Package: package, Version: version) : (Package: "", Version: 0))
+            .Where(requirement => requirement.Package.Length > 0)
+            .ToArray();
+        var targetPackage = target.Envelope.PackageId ?? "";
+        var revision = target.Revision;
+        var current = revision is null ? null
+            : new CrossPackageEndpoint(targetPackage, revision.Document.Key.DefinitionId, revision.Document.Version, CatalogueFieldSource.DigestOf(revision));
+        if (reference.Pin is not { } pin)
+        {
+            yield return new("records.reference.pin_required", pointer + "/pin");
+            yield break;
+        }
+
+        var report = CrossPackageEdges.Check(requires.Select(requirement => requirement.Package),
+            [new(pointer, new(document.Envelope?.PackageId ?? "", document.RecordTypeId, "", ""),
+                new(pin.PackageId, pin.DefinitionId, pin.Version, pin.Digest))],
+            target.Envelope.Exposes is null || current is null ? [] : [new(targetPackage, [current])],
+            "records.reference.dependency_undeclared", "records.reference.not_exposed", "records.reference.pin_stale");
+        foreach (var refusal in report.Refusals)
+            yield return refusal;
+        if (report.Refusals.Count > 0)
+            yield break;
+
+        if (!StringComparer.Ordinal.Equals(pin.PackageId, targetPackage) || pin.InterfaceVersion != target.Envelope.Exposes!.InterfaceVersion)
+            yield return new("records.reference.pin_stale", pointer);
+        else if (!requires.Any(requirement => requirement.Package == targetPackage && requirement.Version == pin.InterfaceVersion))
+            yield return new("records.reference.interface_incompatible", pointer);
+    }
+
+    private static bool SamePackage(RecordsDefinitionEnvelope? source, RecordsDefinitionEnvelope target)
+        => StringComparer.Ordinal.Equals(source?.PackageId ?? "", target.PackageId ?? "");
+
+    // The target's published head, its envelope, and for a type target its declared traits. A self-reference resolves
+    // to the type being authored, which has no published revision of its own to pin and is always in its own package.
+    private async ValueTask<EdgeTarget?> TargetAsync(string tenant, RecordTypeDocument document, RecordReferenceDefinition reference,
+        CancellationToken cancellationToken)
+    {
+        if (!string.IsNullOrWhiteSpace(reference.TargetClassId))
+        {
+            var head = await _store.GetPublishedHeadAsync(ClassDefinitionStore.KeyOf(tenant, reference.TargetClassId), cancellationToken).ConfigureAwait(false);
+            return head is null ? null
+                : new(head, RecordsJson.Deserialize<ClassDocument>(Encoding.UTF8.GetBytes(head.Document.BodyJson)).Envelope, null);
+        }
+        if (StringComparer.Ordinal.Equals(reference.TargetTypeId, document.RecordTypeId))
+            return new(null, document.Envelope, document.Traits ?? []);
+        var typeHead = await _store.GetPublishedHeadAsync(KeyOf(tenant, reference.TargetTypeId!), cancellationToken).ConfigureAwait(false);
+        if (typeHead is null)
+            return null;
+        var type = RecordTypeDefinitionJson.Deserialize(Encoding.UTF8.GetBytes(typeHead.Document.BodyJson));
+        return new(typeHead, type.Envelope, type.Traits ?? []);
+    }
+
+    private sealed record EdgeTarget(DefinitionRevision? Revision, RecordsDefinitionEnvelope Envelope, IReadOnlyList<TraitReference>? Traits);
 
     /// <summary>Copies a published body into a new draft version through the shared store.</summary>
     public ValueTask<DefinitionRevision> RestoreAsDraftAsync(string tenant, string recordTypeId, string sourceVersion,
@@ -192,23 +359,77 @@ public sealed partial class RecordTypeDefinitionStore
     }
 
     /// <summary>
-    /// Runs Install-phase admission and the schema compile over an exported entry, as a receiving host would
-    /// before it installs it. Returns every refusal; it writes nothing.
+    /// The installation gate (records-ck-41): Install-phase admission and the schema compile over an exported entry, then
+    /// every reference checked against what the installing host was handed, never its live catalogue. An unpinned
+    /// reference must target a definition the same pack ships; a pinned one needs this definition's <c>requires</c> entry
+    /// at the pin's interface version and must equal the exposure its pinned dependency closure declares. Every refusal
+    /// comes back together and nothing is written, so a host installs the edge set whole or not at all.
     /// </summary>
     public async ValueTask<DefinitionRefusalReport> AdmitInstallAsync(string tenant, RecordTypeDefinitionPackageEntry entry,
-        CancellationToken cancellationToken = default)
+        RecordsInstallClosure closure, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(entry);
+        ArgumentNullException.ThrowIfNull(closure);
         var document = new DefinitionDocument(KeyOf(tenant, entry.DefinitionId), entry.Version, entry.Version,
             Encoding.UTF8.GetString(entry.Content.Payload.Span));
         try
         {
             await AdmitAsync(document, DefinitionAdmissionPhase.Install, cancellationToken).ConfigureAwait(false);
-            return new(DefinitionAdmissionPhase.Install, []);
         }
         catch (DefinitionRefusalException refused)
         {
             return new(refused.Stage, refused.Refusals);
+        }
+        var parsed = RecordTypeDefinitionJson.Deserialize(entry.Content.Payload.Span);
+        return new(DefinitionAdmissionPhase.Install, InstallEdges(parsed, closure).ToArray());
+    }
+
+    private static IEnumerable<DefinitionRefusal> InstallEdges(RecordTypeDocument document, RecordsInstallClosure closure)
+    {
+        var own = document.Envelope?.PackageId ?? "";
+        var requires = (document.Envelope?.Requires ?? [])
+            .Select(requirement => RecordsRequirement.TryParse(requirement?.Capability, out var package, out var version)
+                ? (Package: package, Version: version) : (Package: "", Version: 0))
+            .ToArray();
+        foreach (var (field, index) in (document.Fields ?? []).Select((field, index) => (field, index)))
+        {
+            if (field.Reference is not { } reference)
+                continue;
+            var pointer = $"/fields/{index}/reference";
+            var classTarget = !string.IsNullOrWhiteSpace(reference.TargetClassId);
+            var targetKind = classTarget ? DefinitionKind.Classes : DefinitionKind.Records;
+            var targetId = classTarget ? reference.TargetClassId! : reference.TargetTypeId!;
+            if (reference.Pin is not { } pin)
+            {
+                // An edge inside the pack: its target ships beside it, or is this type itself.
+                if (!(targetKind == DefinitionKind.Records && StringComparer.Ordinal.Equals(targetId, document.RecordTypeId))
+                    && !closure.PackDefinitions.Contains(new InstallDefinitionTarget(targetKind, targetId)))
+                    yield return new("records.reference.target_unresolved", pointer + (classTarget ? "/target_class_id" : "/target_type_id"));
+                continue;
+            }
+
+            if (StringComparer.Ordinal.Equals(pin.PackageId, own))
+            {
+                yield return new("records.reference.pin_unexpected", pointer + "/pin");
+                continue;
+            }
+            if (!StringComparer.Ordinal.Equals(pin.DefinitionId, targetId))
+            {
+                yield return new("records.reference.pin_stale", pointer);
+                continue;
+            }
+            if (!requires.Any(requirement => requirement.Package == pin.PackageId))
+                yield return new("records.reference.dependency_undeclared", pointer);
+            else if (!requires.Any(requirement => requirement.Package == pin.PackageId && requirement.Version == pin.InterfaceVersion))
+                yield return new("records.reference.interface_incompatible", pointer);
+
+            var declared = closure.Exposures.FirstOrDefault(exposure =>
+                StringComparer.Ordinal.Equals(exposure.PackageId, pin.PackageId) && exposure.Kind == targetKind
+                && StringComparer.Ordinal.Equals(exposure.DefinitionId, pin.DefinitionId));
+            if (declared is null)
+                yield return new("records.reference.closure_missing", pointer + "/pin");
+            else if (declared != new PinnedExposure(pin.PackageId, targetKind, pin.DefinitionId, pin.Version, pin.Digest, pin.InterfaceVersion))
+                yield return new("records.reference.closure_changed", pointer + "/pin");
         }
     }
 
@@ -235,30 +456,21 @@ public sealed partial class RecordTypeDefinitionStore
         if (RecordTypeDefinitionJson.FirstMissing(parsed) is { } missing)
             return (null, [new("records.document_invalid", missing)]);
 
-        var refusals = new List<DefinitionRefusal>();
         if (parsed.Envelope is null)
             return (null, [new("records.envelope_required", "/envelope")]);
-        if (window.Check(parsed.Envelope.Contract, null) is { } contract)
-            refusals.Add(contract);
-        if (phase != DefinitionAdmissionPhase.Install
-            && !StringComparer.Ordinal.Equals(parsed.Envelope.Tenant, document.Key.Tenant))
-            refusals.Add(new("definition.catalogue_mismatch", "/envelope/tenant"));
-        var sectionValid = IsSection(parsed.Envelope.Section);
-        if (!sectionValid)
-            refusals.Add(new("records.identity.section_invalid", "/envelope/section"));
-        if (string.IsNullOrWhiteSpace(parsed.Name))
-            refusals.Add(new("records.identity.name_required", "/name"));
 
+        var refusals = new List<DefinitionRefusal>(RecordsCatalogueIdentity.CheckEnvelope(
+            parsed.Envelope, parsed.Name, parsed.RecordTypeId, "record_type_id", document.Key, phase, window));
         refusals.AddRange(validator.Validate(parsed.ToDefinition(), previousVersion: null)
             .Select(refusal => new DefinitionRefusal(refusal.Code, refusal.JsonPointer)));
-        if (!string.IsNullOrWhiteSpace(parsed.RecordTypeId))
+        // A draft may still be choosing its home and its data category; a published type has exactly one of each
+        // (records-ck-17, records-ck-18, records-auth-1), with no default (DES-0046 ck-1, ADR 0025).
+        if (phase != DefinitionAdmissionPhase.Author)
         {
-            // The catalogue key is the id every earlier version was stored under, so a body naming any other
-            // id changes the type's identity, whether inside one version or across versions.
-            if (!StringComparer.Ordinal.Equals(parsed.RecordTypeId, document.Key.DefinitionId))
-                refusals.Add(new("records.identity.record_type_id_immutable", "/record_type_id"));
-            else if (sectionValid && !parsed.RecordTypeId.StartsWith(parsed.Envelope.Section + ".", StringComparison.Ordinal))
-                refusals.Add(new("records.identity.section_mismatch", "/record_type_id"));
+            if (string.IsNullOrWhiteSpace(parsed.ClassId))
+                refusals.Add(new("records.class.required", "/class_id"));
+            if (parsed.RecordClass is null)
+                refusals.Add(new("records.record_class.required", "/record_class"));
         }
         return (parsed, refusals);
     }
@@ -272,17 +484,6 @@ public sealed partial class RecordTypeDefinitionStore
         => new(KeyOf(document.Envelope?.Tenant ?? "", recordTypeId), version, version,
             Encoding.UTF8.GetString(RecordTypeDefinitionJson.SerializeCanonical(document)));
 
-    private static bool IsSection(string? section) => section is not null && SectionPattern().IsMatch(section);
-
-    // The same lowercase ASCII kebab slug the builders suggest keys with (DefinitionKeySuggester), without its
-    // version suffix or collision sequencing: a Record Type id collision is loud, never renumbered.
-    private static string Slug(string name) => NonAsciiAlphaNumeric().Replace(name.Trim().ToLowerInvariant(), "-").Trim('-');
-
-    [GeneratedRegex("^[a-z0-9]+(-[a-z0-9]+)*$", RegexOptions.CultureInvariant)]
-    private static partial Regex SectionPattern();
-
-    [GeneratedRegex("[^a-z0-9]+", RegexOptions.CultureInvariant)]
-    private static partial Regex NonAsciiAlphaNumeric();
 }
 
 /// <summary>A provider-neutral Record Type entry; publication lifecycle belongs to the shared catalogue.</summary>
@@ -313,3 +514,19 @@ public static class RecordTypeDefinitionPackageExporter
             PlatformPackageContent.PresentJson(Encoding.UTF8.GetBytes(published.Document.BodyJson)));
     }
 }
+
+/// <summary>A definition the installing pack ships, identified by its catalogue kind and id.</summary>
+public sealed record InstallDefinitionTarget(DefinitionKind Kind, string DefinitionId);
+
+/// <summary>
+/// One exposure the pinned dependency closure declares (records-ck-41): a producer package's definition kind and id, at the exact
+/// version and <c>sha256:</c> body digest its signed pack carries, exposed at an interface version.
+/// </summary>
+public sealed record PinnedExposure(string PackageId, DefinitionKind Kind, string DefinitionId, string Version, string Digest, int InterfaceVersion);
+
+/// <summary>
+/// What an installing host hands the Records install gate: the definition kinds and ids the pack itself ships, and the exposures
+/// declared by the exact producer versions in the pack's pinned dependency closure. It is read from the signed packs,
+/// never from the node's live catalogue.
+/// </summary>
+public sealed record RecordsInstallClosure(IReadOnlyCollection<InstallDefinitionTarget> PackDefinitions, IReadOnlyList<PinnedExposure> Exposures);

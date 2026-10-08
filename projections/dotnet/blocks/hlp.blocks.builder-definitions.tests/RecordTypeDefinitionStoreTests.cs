@@ -16,14 +16,14 @@ namespace Harborline.Blocks.BuilderDefinitions.Tests;
 /// </summary>
 public sealed class RecordTypeDefinitionStoreTests
 {
-    private const string Tenant = "tenant-a";
-    private static readonly DefinitionContractWindow Window = new(1, 0, 1);
+    internal const string Tenant = "tenant-a";
+    internal static readonly DefinitionContractWindow Window = new(1, 0, 1);
     private static readonly DefinitionContractVersion Contract = new(1, 0);
 
     // The canonical body of the asset-class fixture, as the store holds it and the fixture file carries it: the
     // created bound fields carry their kind's governance defaults and that kind revision as provenance.
-    private const string AssetClassJson =
-        """{"envelope":{"contract":{"major":1,"minor":0},"section":"eam","tenant":"tenant-a"},"fields":[{"binding":{"constraints":{"maximum_count":1,"minimum_count":0,"read_role_ids":[],"required":true},"kind":{"kind_id":"text","parameters":{},"version":"1.0.0"}},"defaults_provenance":{"kind_id":"text","kind_version":"1.0.0"},"display_name":"Asset tag","field_key":"asset_tag","governance":{"classification":"internal","confidential":false,"masked":true,"personal_data":true}},{"binding":{"constraints":{"maximum_count":1,"minimum_count":0,"read_role_ids":[],"required":false},"kind":{"kind_id":"count","parameters":{},"version":"1.0.0"}},"defaults_provenance":{"kind_id":"count","kind_version":"1.0.0"},"display_name":"Quantity","field_key":"quantity"},{"display_name":"Notes","field_key":"notes"}],"name":"Asset Class","record_type_id":"eam.asset-class"}""" + "\n";
+    internal const string AssetClassJson =
+        """{"class_id":"eam.equipment","envelope":{"contract":{"major":1,"minor":0},"package_id":"eam-core","section":"eam","tenant":"tenant-a"},"fields":[{"binding":{"constraints":{"maximum_count":1,"minimum_count":0,"read_role_ids":[],"required":true},"kind":{"kind_id":"text","parameters":{},"version":"1.0.0"}},"defaults_provenance":{"kind_id":"text","kind_version":"1.0.0"},"display_name":"Asset tag","field_key":"asset_tag","governance":{"classification":"internal","confidential":false,"masked":true,"personal_data":true}},{"binding":{"constraints":{"maximum_count":1,"minimum_count":0,"read_role_ids":[],"required":false},"kind":{"kind_id":"count","parameters":{},"version":"1.0.0"}},"defaults_provenance":{"kind_id":"count","kind_version":"1.0.0"},"display_name":"Quantity","field_key":"quantity"},{"display_name":"Notes","field_key":"notes"}],"name":"Asset Class","record_class":"master","record_type_id":"eam.asset-class"}""" + "\n";
 
     [Fact]
     [Trait("Holds", "records-ck-1")]
@@ -56,7 +56,7 @@ public sealed class RecordTypeDefinitionStoreTests
 
         Assert.Equal(AssetClassJson, Encoding.UTF8.GetString(bytes));
         var report = await Host().Records.AdmitInstallAsync(Tenant,
-            new("eam.asset-class", "1.0.0", PlatformPackageContent.PresentJson(bytes)));
+            new("eam.asset-class", "1.0.0", PlatformPackageContent.PresentJson(bytes)), NoDependencies);
         Assert.Equal(DefinitionAdmissionPhase.Install, report.Stage);
         Assert.Empty(report.Refusals);
     }
@@ -282,7 +282,7 @@ public sealed class RecordTypeDefinitionStoreTests
             (entry.DefinitionId, entry.Version, entry.ContentKind, entry.Primitive, entry.Kind));
         Assert.Equal(AssetClassJson, Encoding.UTF8.GetString(entry.Content.Payload.Span));
         var receiving = Host();
-        Assert.Empty((await receiving.Records.AdmitInstallAsync("tenant-b", entry)).Refusals);
+        Assert.Empty((await receiving.Records.AdmitInstallAsync("tenant-b", entry, NoDependencies)).Refusals);
 
         var retargeted = entry with { DefinitionId = "eam.asset-kind" };
         var outOfWindow = entry with
@@ -291,9 +291,9 @@ public sealed class RecordTypeDefinitionStoreTests
                 AssetClassJson.Replace("""{"major":1,"minor":0}""", """{"major":2,"minor":0}""", StringComparison.Ordinal))),
         };
         Assert.Equal([("records.identity.record_type_id_immutable", "/record_type_id")],
-            Pairs(await receiving.Records.AdmitInstallAsync("tenant-b", retargeted)));
+            Pairs(await receiving.Records.AdmitInstallAsync("tenant-b", retargeted, NoDependencies)));
         Assert.Equal([("definition.contract.out_of_window", "/envelope/contract")],
-            Pairs(await receiving.Records.AdmitInstallAsync("tenant-b", outOfWindow)));
+            Pairs(await receiving.Records.AdmitInstallAsync("tenant-b", outOfWindow, NoDependencies)));
     }
 
     [Fact]
@@ -302,8 +302,8 @@ public sealed class RecordTypeDefinitionStoreTests
     {
         var host = Host();
         await host.Records.CreateDraftAsync(AssetClass("1.0.0"), "create");
-        var otherTenant = Document() with { Envelope = new("tenant-b", "eam", Contract) };
-        var otherSection = Document() with { Envelope = new(Tenant, "finance", Contract) };
+        var otherTenant = Document() with { Envelope = new("tenant-b", "eam", Contract, "eam-core") };
+        var otherSection = Document() with { Envelope = new(Tenant, "finance", Contract, "eam-core") };
 
         var tenant = await Assert.ThrowsAsync<DefinitionRefusalException>(
             () => host.Records.SaveDraftAsync("eam.asset-class", otherTenant, "1.0.0", 1, "tenant").AsTask());
@@ -335,6 +335,8 @@ public sealed class RecordTypeDefinitionStoreTests
     [InlineData("""{"envelope":{"contract":{"major":1,"minor":0},"section":"eam","tenant":"tenant-a"},"name":"Asset Class","record_type_id":"eam.asset-class","fields":[{"field_key":"a","display_name":"A","binding":{"kind":{"kind_id":"text","version":"1.0.0","parameters":{}}}}]}""", "records.document_invalid", "/fields/0/binding/constraints")]
     [InlineData("""{"envelope":{"contract":{"major":1,"minor":0},"section":"eam","tenant":"tenant-a"},"name":"Asset Class","record_type_id":"eam.asset-class","fields":[],"traits":[null]}""", "records.document_invalid", "/traits/0")]
     [InlineData("""{"envelope":{"contract":{"major":1,"minor":0},"section":"eam","tenant":"tenant-a"},"name":"Asset Class","record_type_id":"eam.asset-class","fields":[{"field_key":"a","display_name":"A","defaults_provenance":{"kind_id":"text"}}]}""", "records.document_invalid", "/fields/0/defaults_provenance/kind_version")]
+    [InlineData("""{"envelope":{"contract":{"major":1,"minor":0},"section":"eam","tenant":"tenant-a"},"name":"Asset Class","record_type_id":"eam.asset-class","fields":[{"field_key":"a","display_name":"A","reference":{"target_type_id":"eam.meter","cardinality":"one","on_delete":"block","pin":{"package_id":"eam-core","definition_id":"eam.meter","version":"1.0.0","interface_version":1}}}]}""", "records.document_invalid", "/fields/0/reference/pin/digest")]
+    [InlineData("""{"envelope":{"contract":{"major":1,"minor":0},"section":"eam","tenant":"tenant-a","requires":[null]},"name":"Asset Class","record_type_id":"eam.asset-class","fields":[]}""", "records.document_invalid", "/envelope/requires/0")]
     [InlineData("""{"envelope":{"contract":{"major":1,"minor":0},"section":"eam","tenant":"tenant-a"},"name":"Asset Class","record_type_id":"eam.asset-class","fields":[{"display_name":"A","field_key":"a"},{"display_name":"B","field_key":"a"}]}""", "records.identity.duplicate_field_key", "/fields/1/field_key")]
     public async Task the_registered_validator_refuses_a_malformed_body_before_any_write(string body, string code, string pointer)
     {
@@ -394,7 +396,7 @@ public sealed class RecordTypeDefinitionStoreTests
         Assert.Equal("document", Assert.Throws<ArgumentNullException>(() => RecordTypeDefinitionJson.SerializeCanonical(null!)).ParamName);
         Assert.Equal("request", (await Assert.ThrowsAsync<ArgumentNullException>(() => host.Records.CreateDraftAsync(null!, "r").AsTask())).ParamName);
         Assert.Equal("document", (await Assert.ThrowsAsync<ArgumentNullException>(() => host.Records.SaveDraftAsync("eam.asset-class", null!, "1.0.0", 0, "r").AsTask())).ParamName);
-        Assert.Equal("entry", (await Assert.ThrowsAsync<ArgumentNullException>(() => host.Records.AdmitInstallAsync(Tenant, null!).AsTask())).ParamName);
+        Assert.Equal("entry", (await Assert.ThrowsAsync<ArgumentNullException>(() => host.Records.AdmitInstallAsync(Tenant, null!, NoDependencies).AsTask())).ParamName);
     }
 
     [Fact]
@@ -523,8 +525,15 @@ public sealed class RecordTypeDefinitionStoreTests
         return RecordTypeDefinitionJson.Deserialize(Encoding.UTF8.GetBytes(history.Last(revision => revision.Document.Version == version).Document.BodyJson));
     }
 
-    private sealed record TestHost(InMemoryVersionedDefinitionStore Catalogue, RecordTypeDefinitionStore Records,
-        RecordTypeSchemaCompiler Compiler, InMemorySchemaRegistry Registry);
+    // One slotless Trait, so a test type can declare a trait a reference requires.
+    private sealed class LocatableTraitSource : IRecordTraitSource
+    {
+        public TraitDefinition? Resolve(string traitId, string version)
+            => traitId == "locatable" && version == "1.0.0" ? new("locatable", "1.0.0", []) : null;
+    }
+
+    internal sealed record TestHost(InMemoryVersionedDefinitionStore Catalogue, RecordTypeDefinitionStore Records,
+        RecordTypeSchemaCompiler Compiler, InMemorySchemaRegistry Registry, ClassDefinitionStore Classes, RecordFieldDefaults Defaults);
 
     private static readonly RecordFieldDefaults Defaults = new(new FieldKindRuntime(new FieldKindRegistry([])));
 
@@ -543,7 +552,7 @@ public sealed class RecordTypeDefinitionStoreTests
         Assert.Empty(await Registered(host.Registry));
     }
 
-    private static TestHost Host(SchemaRegistryOptions? registryOptions = null)
+    internal static TestHost Host(SchemaRegistryOptions? registryOptions = null)
     {
         var kinds = new FieldKindRuntime(new FieldKindRegistry([
             new("count", "1.0.0", null, FieldScalarValueShape.Integer),
@@ -551,25 +560,33 @@ public sealed class RecordTypeDefinitionStoreTests
             new("date", "1.0.0", null, FieldScalarValueShape.Text, [FieldKindCapability.RetentionClock]),
             new("date", "2.0.0", null, FieldScalarValueShape.Text),
         ]));
-        var validator = new RecordsIntentValidator();
+        var validator = new RecordsIntentValidator(new LocatableTraitSource());
         var compiler = new RecordTypeSchemaCompiler(validator, kinds, new SharedValueDomainAdmission());
         var registry = new InMemorySchemaRegistry(registryOptions, fieldKindRuntime: kinds);
         var catalogue = new InMemoryVersionedDefinitionStore(new Dictionary<DefinitionKind, DefinitionAdmission>
         {
             [DefinitionKind.Records] = RecordTypeDefinitionStore.Admission(Window, validator),
+            [DefinitionKind.Classes] = ClassDefinitionStore.Admission(Window),
         });
-        return new(catalogue, new RecordTypeDefinitionStore(catalogue, compiler, new RecordFieldDefaults(kinds), registry, Window), compiler, registry);
+        var classes = new ClassDefinitionStore(catalogue);
+        classes.CreateDraftAsync(new(Tenant, "eam", "Equipment", "1.0.0", Contract, "eam-core"), "equipment").AsTask().GetAwaiter().GetResult();
+        classes.PublishAsync(Tenant, "eam.equipment", "1.0.0", 1, "equipment-publish").AsTask().GetAwaiter().GetResult();
+        var defaults = new RecordFieldDefaults(kinds);
+        return new(catalogue, new RecordTypeDefinitionStore(catalogue, compiler, defaults, registry, Window), compiler, registry, classes, defaults);
     }
 
-    private static NewRecordType AssetClass(string version) => new(Tenant, "eam", "Asset Class", version,
-        Document().Fields, Contract);
+    // A pack that ships only the type under test and depends on no other package.
+    internal static readonly RecordsInstallClosure NoDependencies = new([new(DefinitionKind.Records, "eam.asset-class")], []);
 
-    private static RecordTypeDocument Document() => new(new(Tenant, "eam", Contract), "Asset Class", "eam.asset-class",
+    internal static NewRecordType AssetClass(string version) => new(Tenant, "eam", "Asset Class", version,
+        Document().Fields, Contract, ClassId: "eam.equipment", RecordClass: RecordClass.Master, PackageId: "eam-core");
+
+    private static RecordTypeDocument Document() => new(new(Tenant, "eam", Contract, "eam-core"), "Asset Class", "eam.asset-class",
     [
         new("asset_tag", "Asset tag", Bound("text", required: true)),
         new("quantity", "Quantity", Bound("count", required: false)),
         new("notes", "Notes"),
-    ]);
+    ], ClassId: "eam.equipment", RecordClass: RecordClass.Master);
 
     private static FieldBindingDefinition Bound(string kind, bool required)
         => new(new(kind, "1.0.0", new Dictionary<string, string>()), new(required, 0, 1, [], null));
