@@ -56,7 +56,7 @@ public sealed class RecordTypeDefinitionStoreTests
 
         Assert.Equal(AssetClassJson, Encoding.UTF8.GetString(bytes));
         var report = await Host().Records.AdmitInstallAsync(Tenant,
-            new("eam.asset-class", "1.0.0", PlatformPackageContent.PresentJson(bytes)));
+            new("eam.asset-class", "1.0.0", PlatformPackageContent.PresentJson(bytes)), NoDependencies);
         Assert.Equal(DefinitionAdmissionPhase.Install, report.Stage);
         Assert.Empty(report.Refusals);
     }
@@ -282,7 +282,7 @@ public sealed class RecordTypeDefinitionStoreTests
             (entry.DefinitionId, entry.Version, entry.ContentKind, entry.Primitive, entry.Kind));
         Assert.Equal(AssetClassJson, Encoding.UTF8.GetString(entry.Content.Payload.Span));
         var receiving = Host();
-        Assert.Empty((await receiving.Records.AdmitInstallAsync("tenant-b", entry)).Refusals);
+        Assert.Empty((await receiving.Records.AdmitInstallAsync("tenant-b", entry, NoDependencies)).Refusals);
 
         var retargeted = entry with { DefinitionId = "eam.asset-kind" };
         var outOfWindow = entry with
@@ -291,9 +291,9 @@ public sealed class RecordTypeDefinitionStoreTests
                 AssetClassJson.Replace("""{"major":1,"minor":0}""", """{"major":2,"minor":0}""", StringComparison.Ordinal))),
         };
         Assert.Equal([("records.identity.record_type_id_immutable", "/record_type_id")],
-            Pairs(await receiving.Records.AdmitInstallAsync("tenant-b", retargeted)));
+            Pairs(await receiving.Records.AdmitInstallAsync("tenant-b", retargeted, NoDependencies)));
         Assert.Equal([("definition.contract.out_of_window", "/envelope/contract")],
-            Pairs(await receiving.Records.AdmitInstallAsync("tenant-b", outOfWindow)));
+            Pairs(await receiving.Records.AdmitInstallAsync("tenant-b", outOfWindow, NoDependencies)));
     }
 
     [Fact]
@@ -396,7 +396,7 @@ public sealed class RecordTypeDefinitionStoreTests
         Assert.Equal("document", Assert.Throws<ArgumentNullException>(() => RecordTypeDefinitionJson.SerializeCanonical(null!)).ParamName);
         Assert.Equal("request", (await Assert.ThrowsAsync<ArgumentNullException>(() => host.Records.CreateDraftAsync(null!, "r").AsTask())).ParamName);
         Assert.Equal("document", (await Assert.ThrowsAsync<ArgumentNullException>(() => host.Records.SaveDraftAsync("eam.asset-class", null!, "1.0.0", 0, "r").AsTask())).ParamName);
-        Assert.Equal("entry", (await Assert.ThrowsAsync<ArgumentNullException>(() => host.Records.AdmitInstallAsync(Tenant, null!).AsTask())).ParamName);
+        Assert.Equal("entry", (await Assert.ThrowsAsync<ArgumentNullException>(() => host.Records.AdmitInstallAsync(Tenant, null!, NoDependencies).AsTask())).ParamName);
     }
 
     [Fact]
@@ -574,6 +574,9 @@ public sealed class RecordTypeDefinitionStoreTests
         var defaults = new RecordFieldDefaults(kinds);
         return new(catalogue, new RecordTypeDefinitionStore(catalogue, compiler, defaults, registry, Window), compiler, registry, classes, defaults);
     }
+
+    // A pack that ships only the type under test and depends on no other package.
+    internal static readonly RecordsInstallClosure NoDependencies = new([new(DefinitionKind.Records, "eam.asset-class")], []);
 
     internal static NewRecordType AssetClass(string version) => new(Tenant, "eam", "Asset Class", version,
         Document().Fields, Contract, ClassId: "eam.equipment", RecordClass: RecordClass.Master, PackageId: "eam-core");
