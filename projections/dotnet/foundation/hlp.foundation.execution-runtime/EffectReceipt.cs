@@ -280,6 +280,11 @@ public sealed class EffectReceiptLedger
             ?? throw new ExecutionRuntimeRefusedException(
                 ExecutionRuntimeRefusals.EffectReceiptInvalid,
                 $"Original effect receipt '{effectId}' names compensation receipt '{compensationEffectId}', which the tenant does not hold.");
+        if (compensation.CompensatesEffectId is { } originalEffectId)
+        {
+            RequireEffectId(originalEffectId);
+        }
+
         if (compensation.TenantId != tenantId || compensation.EffectId != compensationEffectId || compensation.CompensatesEffectId != effectId)
         {
             Refuse(ExecutionRuntimeRefusals.EffectReceiptInvalid, $"Compensation receipt '{compensationEffectId}' does not identify original effect '{effectId}' in the same tenant.");

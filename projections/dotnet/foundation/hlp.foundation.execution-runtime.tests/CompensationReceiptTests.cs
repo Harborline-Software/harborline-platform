@@ -245,6 +245,21 @@ public sealed class CompensationReceiptTests
         Assert.Single(store.Reads);
     }
 
+    [Theory]
+    [InlineData(EffectStatus.Compensated)]
+    [InlineData(EffectStatus.CompensationFailed)]
+    public async Task Stored_malformed_compensation_backlink_retains_identity_refusal(EffectStatus status)
+    {
+        var store = new ReadOnlyStore(
+            OriginalReceipt(status), TargetReceipt() with { CompensatesEffectId = default(EffectId) });
+
+        var refused = await Assert.ThrowsAsync<ExecutionRuntimeRefusedException>(
+            () => new EffectReceiptLedger(store).CheckCompensationAsync(Tenant, Original).AsTask());
+
+        Assert.Equal("execution.effect_identity_invalid", refused.Code);
+        Assert.Equal(new[] { (Tenant, Original), (Tenant, Compensation) }, store.Reads);
+    }
+
     [Fact]
     public async Task Recording_refuses_a_default_backlink()
     {
