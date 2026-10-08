@@ -18,8 +18,9 @@ shape carries its stable key and the complete DES-0004 section 1 member list (ke
 requiredness, cardinality and reference target), so no catalogue seed is read to describe it. A
 package may not replace a floor shape by either its key or identity, case-insensitively.
 
-A floor member key is lowercase snake case with no empty segment, so it is one flat catalogue column and never a
-dotted path; any other key refuses with `kernel.compiled-member-key-invalid`. The floor describes the kernel's system
+A floor member key starts with `a-z`, uses only `a-z`, `0-9` and `_`, and contains neither doubled nor trailing
+underscores. It is one flat catalogue column and never a dotted path; any other key refuses with
+`kernel.compiled-member-key-invalid`. The floor describes the kernel's system
 records, not the authored Records grammar: DES-0004 §1 documents the correspondence (`field_key` to `key`,
 `reference.required_trait_id` to `reference_trait_id` and so on). Record Type carries `record_class`, and Field carries
 a reference's `reference_target_type_id` or `reference_target_class_id`, `reference_cardinality`, `reference_on_delete`,

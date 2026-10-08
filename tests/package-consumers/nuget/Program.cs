@@ -710,17 +710,85 @@ if (packedBatchAdmission.Refusal is not { Code: "kernel.multi-command-batch", St
     throw new InvalidOperationException("Packed work-item kernel did not refuse a multi-command request before execution.");
 if (typeof(KernelClock).Assembly.GetName().Name != "Harborline.Kernel.Core")
     throw new InvalidOperationException("Kernel Core assembly identity changed.");
+// Literal oracle: DES-0004 section 1 and R-0095's 2026-10-08 Q3/Q4 rulings,
+// control #993 at 4dd7d909d44c252a0bbb405acaff207a373b2bc0. Record class is required
+// (DES-0015 records-ck-17); reference configuration is optional on non-reference fields.
+(string Identity, string Key, string Name, int Revision,
+    (string Key, CompiledMemberKind Kind, bool Required, bool Many, string? Target)[] Members)[] expectedPackedFloor =
+[
+    ("kernel.definition-package", "definition-package", "Definition Package", 1,
+    [
+        ("name", CompiledMemberKind.Text, true, false, null),
+        ("key", CompiledMemberKind.Key, true, false, null),
+        ("version", CompiledMemberKind.Version, true, false, null),
+        ("contract_version", CompiledMemberKind.Version, true, false, null),
+        ("provenance", CompiledMemberKind.Enum, true, false, null),
+        ("declared_dependencies", CompiledMemberKind.Reference, false, true, "kernel.definition-package"),
+        ("channel", CompiledMemberKind.Enum, true, false, null),
+        ("digest", CompiledMemberKind.Digest, true, false, null),
+    ]),
+    ("kernel.record-type", "record-type", "Record Type", 2,
+    [
+        ("name", CompiledMemberKind.Text, true, false, null),
+        ("key", CompiledMemberKind.Key, true, false, null),
+        ("class_id", CompiledMemberKind.Reference, true, false, "class"),
+        ("traits", CompiledMemberKind.Reference, false, true, "trait"),
+        ("creation_gate", CompiledMemberKind.Enum, true, false, null),
+        ("amendment_policy", CompiledMemberKind.Enum, true, false, null),
+        ("history_policy", CompiledMemberKind.Enum, true, false, null),
+        ("visibility_policy", CompiledMemberKind.Enum, true, false, null),
+        ("retention_policy", CompiledMemberKind.Enum, true, false, null),
+        ("retention_clock_field_id", CompiledMemberKind.Reference, false, false, "kernel.field"),
+        ("categories", CompiledMemberKind.Text, false, true, null),
+        ("package_id", CompiledMemberKind.Reference, true, false, "kernel.definition-package"),
+        ("record_class", CompiledMemberKind.Enum, true, false, null),
+    ]),
+    ("kernel.field", "field", "Field", 2,
+    [
+        ("type_id", CompiledMemberKind.Reference, true, false, "kernel.record-type"),
+        ("name", CompiledMemberKind.Text, true, false, null),
+        ("key", CompiledMemberKind.Key, true, false, null),
+        ("kind", CompiledMemberKind.Enum, true, false, null),
+        ("required_condition", CompiledMemberKind.Expression, false, false, null),
+        ("default_expression", CompiledMemberKind.Expression, false, false, null),
+        ("write_role_id", CompiledMemberKind.Reference, false, false, "role"),
+        ("reference_target_type_id", CompiledMemberKind.Reference, false, false, "kernel.record-type"),
+        ("reference_target_class_id", CompiledMemberKind.Reference, false, false, "class"),
+        ("reference_cardinality", CompiledMemberKind.Enum, false, false, null),
+        ("reference_on_delete", CompiledMemberKind.Enum, false, false, null),
+        ("reference_parent", CompiledMemberKind.Flag, false, false, null),
+        ("reference_trait_id", CompiledMemberKind.Reference, false, false, "trait"),
+        ("personal_data", CompiledMemberKind.Flag, true, false, null),
+        ("confidential", CompiledMemberKind.Flag, true, false, null),
+        ("masked", CompiledMemberKind.Flag, true, false, null),
+        ("classification", CompiledMemberKind.Enum, true, false, null),
+        ("unique_in", CompiledMemberKind.Text, false, true, null),
+        ("conflict_policy", CompiledMemberKind.Enum, true, false, null),
+        ("show_in_lists_hint", CompiledMemberKind.Flag, true, false, null),
+    ]),
+];
 var packedFloorReader = new EmptyCatalogueReader();
 var packedFloor = new CompiledBootstrapCatalogue(packedFloorReader);
-foreach (var shape in CompiledBootstrapCatalogue.Shapes)
+var packedShapes = CompiledBootstrapCatalogue.Shapes;
+if (!packedShapes.Select(shape => shape.Identity.Value).OrderBy(identity => identity, StringComparer.Ordinal)
+    .SequenceEqual(expectedPackedFloor.Select(shape => shape.Identity).OrderBy(identity => identity, StringComparer.Ordinal)))
+    throw new InvalidOperationException("Packed Kernel Core changed the exact three compiled floor identities.");
+foreach (var expected in expectedPackedFloor)
 {
-    if (await packedFloor.ResolveAsync(shape.Identity) != shape)
-        throw new InvalidOperationException($"Packed Kernel Core did not resolve compiled shape {shape.Identity}.");
+    var shape = packedShapes.Single(shape => shape.Identity.Value == expected.Identity);
+    var resolved = await packedFloor.ResolveAsync(new CompiledShapeIdentity(expected.Identity));
+    if (resolved != shape)
+        throw new InvalidOperationException($"Packed Kernel Core did not resolve compiled shape {expected.Identity}.");
+    if (shape.Key != expected.Key || shape.Name != expected.Name || shape.Revision != expected.Revision)
+        throw new InvalidOperationException($"Packed Kernel Core changed compiled shape metadata for {expected.Identity}.");
+    // DES-0004 declares the complete member set, not its enumeration order. Both sides are
+    // ordered only for comparison; every expected tuple above is independent of packed output.
+    if (!shape.Members.Select(member => (member.Key, member.Kind, member.Required, member.Many, member.Target))
+        .OrderBy(member => member.Key, StringComparer.Ordinal)
+        .SequenceEqual(expected.Members.OrderBy(member => member.Key, StringComparer.Ordinal)))
+        throw new InvalidOperationException($"Packed Kernel Core changed the complete member contract for {expected.Identity}.");
 }
-if (packedFloorReader.Reads != 0 || CompiledBootstrapCatalogue.Shapes.Count != 3
-    || CompiledBootstrapCatalogue.Shapes.Single(shape => shape.Identity == CompiledBootstrapCatalogue.DefinitionPackage).Members.Count != 8
-    || CompiledBootstrapCatalogue.Shapes.Single(shape => shape.Identity == CompiledBootstrapCatalogue.RecordType).Members.Count != 12
-    || CompiledBootstrapCatalogue.Shapes.Single(shape => shape.Identity == CompiledBootstrapCatalogue.Field).Members.Count != 15)
+if (packedFloorReader.Reads != 0)
     throw new InvalidOperationException("Packed Kernel Core read the seed store before resolving its exact compiled floor.");
 if (!KernelProfile.Capabilities.Contains(KernelProfile.ConfigurationRecovery)
     || typeof(ConfigurationRecovery).Assembly.GetName().Name != "Harborline.Kernel.Core")
