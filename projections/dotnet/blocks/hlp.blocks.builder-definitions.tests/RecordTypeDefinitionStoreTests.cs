@@ -17,7 +17,7 @@ namespace Harborline.Blocks.BuilderDefinitions.Tests;
 public sealed class RecordTypeDefinitionStoreTests
 {
     internal const string Tenant = "tenant-a";
-    private static readonly DefinitionContractWindow Window = new(1, 0, 1);
+    internal static readonly DefinitionContractWindow Window = new(1, 0, 1);
     private static readonly DefinitionContractVersion Contract = new(1, 0);
 
     // The canonical body of the asset-class fixture, as the store holds it and the fixture file carries it: the
@@ -531,7 +531,7 @@ public sealed class RecordTypeDefinitionStoreTests
     }
 
     internal sealed record TestHost(InMemoryVersionedDefinitionStore Catalogue, RecordTypeDefinitionStore Records,
-        RecordTypeSchemaCompiler Compiler, InMemorySchemaRegistry Registry, ClassDefinitionStore Classes);
+        RecordTypeSchemaCompiler Compiler, InMemorySchemaRegistry Registry, ClassDefinitionStore Classes, RecordFieldDefaults Defaults);
 
     private static readonly RecordFieldDefaults Defaults = new(new FieldKindRuntime(new FieldKindRegistry([])));
 
@@ -569,7 +569,8 @@ public sealed class RecordTypeDefinitionStoreTests
         var classes = new ClassDefinitionStore(catalogue);
         classes.CreateDraftAsync(new(Tenant, "eam", "Equipment", "1.0.0", Contract), "equipment").AsTask().GetAwaiter().GetResult();
         classes.PublishAsync(Tenant, "eam.equipment", "1.0.0", 1, "equipment-publish").AsTask().GetAwaiter().GetResult();
-        return new(catalogue, new RecordTypeDefinitionStore(catalogue, compiler, new RecordFieldDefaults(kinds), registry, Window), compiler, registry, classes);
+        var defaults = new RecordFieldDefaults(kinds);
+        return new(catalogue, new RecordTypeDefinitionStore(catalogue, compiler, defaults, registry, Window), compiler, registry, classes, defaults);
     }
 
     internal static NewRecordType AssetClass(string version) => new(Tenant, "eam", "Asset Class", version,
