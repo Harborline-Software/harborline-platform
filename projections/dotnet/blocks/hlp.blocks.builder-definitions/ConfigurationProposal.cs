@@ -288,7 +288,8 @@ public static class ConfigurationProposal
                 .OfType<string>().ToArray()
             : [];
         int? interfaceVersion = envelope.TryGetProperty("exposes", out var exposes) && exposes.ValueKind == JsonValueKind.Object
-            && exposes.TryGetProperty("interface_version", out var declared) && declared.TryGetInt32(out var parsed) ? parsed : null;
+            && exposes.TryGetProperty("interface_version", out var declared) && declared.ValueKind == JsonValueKind.Number
+            && declared.TryGetInt32(out var parsed) && parsed > 0 ? parsed : null;
         return (requires, interfaceVersion);
     }
 

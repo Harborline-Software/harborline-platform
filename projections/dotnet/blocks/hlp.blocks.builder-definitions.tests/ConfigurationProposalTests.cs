@@ -481,6 +481,23 @@ public sealed class ConfigurationProposalTests
         Assert.False(unexposed.RootElement.TryGetProperty("interfaceVersion", out _));
     }
 
+    // Only an exposes object holding an integer interface_version is an exposure declaration; any other shape
+    // declares nothing, so the release exposes nothing rather than failing on a member it does not read.
+    [Theory]
+    [InlineData("""{"exposes":2}""")]
+    [InlineData("""{"exposes":[2]}""")]
+    [InlineData("""{"exposes":{"interface_version":"2"}}""")]
+    [InlineData("""{"exposes":{"interface_version":0}}""")]
+    [InlineData("""{"exposes":{}}""")]
+    public void An_exposes_member_that_is_not_an_exposure_declaration_exposes_nothing(string envelope)
+    {
+        var baseline = TwoPackageBaseline();
+        var released = Released(baseline, EditedWith(baseline, Enveloped(envelope)));
+        Assert.Null(released.Refusal);
+        using var document = JsonDocument.Parse(released.Released!.Document);
+        Assert.False(document.RootElement.TryGetProperty("exposes", out _));
+    }
+
     // A package has one interface version, so definitions exposed at two refuse rather than picking one.
     [Fact]
     public void Definitions_exposed_at_different_interface_versions_refuse()
