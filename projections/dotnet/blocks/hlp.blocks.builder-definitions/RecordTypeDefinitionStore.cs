@@ -154,12 +154,12 @@ public sealed class RecordTypeDefinitionStore
             ?? throw new DefinitionRefusalException(DefinitionAdmissionPhase.Publish, [new("definition.not_found", "/versionId")]);
 
         var admitted = await AdmitAsync(source.Document, DefinitionAdmissionPhase.Publish, cancellationToken).ConfigureAwait(false);
-        // records-ck-18: the catalogue home must be a published Class of this tenant. The registered validator
-        // cannot see other definitions, so this boundary resolves it before the store publishes.
-        var classId = RecordTypeDefinitionJson.Deserialize(Encoding.UTF8.GetBytes(source.Document.BodyJson)).ClassId!;
-        if (await _store.GetPublishedHeadAsync(ClassDefinitionStore.KeyOf(tenant, classId), cancellationToken)
-                .ConfigureAwait(false) is null)
-            throw new DefinitionRefusalException(DefinitionAdmissionPhase.Publish, [new("records.class.unresolved", "/class_id")]);
+        // The registered validator cannot see other definitions, so this boundary resolves the type's catalogue
+        // edges before the store publishes: its home (records-ck-18) and every reference target (records-ck-10).
+        var document = RecordTypeDefinitionJson.Deserialize(Encoding.UTF8.GetBytes(source.Document.BodyJson));
+        var unresolved = await ResolveCatalogueEdgesAsync(tenant, document, cancellationToken).ConfigureAwait(false);
+        if (unresolved.Count > 0)
+            throw new DefinitionRefusalException(DefinitionAdmissionPhase.Publish, unresolved);
         // A published source is a replay, which the store answers from its record at any revision.
         if (source.Status != DefinitionStatus.Published && history[^1].Revision != expectedRevision)
             throw new DefinitionRefusalException(DefinitionAdmissionPhase.Publish, [new("definition.revision_conflict", "/expectedRevision")]);
@@ -169,6 +169,43 @@ public sealed class RecordTypeDefinitionStore
             .ConfigureAwait(false);
         return new(published, schema);
     }
+
+    private async ValueTask<List<DefinitionRefusal>> ResolveCatalogueEdgesAsync(string tenant, RecordTypeDocument document,
+        CancellationToken cancellationToken)
+    {
+        var refusals = new List<DefinitionRefusal>();
+        if (!await IsPublishedAsync(ClassDefinitionStore.KeyOf(tenant, document.ClassId!), cancellationToken).ConfigureAwait(false))
+            refusals.Add(new("records.class.unresolved", "/class_id"));
+        foreach (var (field, index) in (document.Fields ?? []).Select((field, index) => (field, index)))
+        {
+            if (field.Reference is not { } reference)
+                continue;
+            var pointer = $"/fields/{index}/reference";
+            if (!string.IsNullOrWhiteSpace(reference.TargetClassId))
+            {
+                // Class membership is derived (ADR-0054), so a required trait is checked per target record at write time.
+                if (!await IsPublishedAsync(ClassDefinitionStore.KeyOf(tenant, reference.TargetClassId), cancellationToken).ConfigureAwait(false))
+                    refusals.Add(new("records.reference.target_unresolved", pointer + "/target_class_id"));
+                continue;
+            }
+
+            // A self-reference (a hierarchy of one type, such as folder within folder) targets the type being published.
+            var target = StringComparer.Ordinal.Equals(reference.TargetTypeId, document.RecordTypeId)
+                ? document
+                : await _store.GetPublishedHeadAsync(KeyOf(tenant, reference.TargetTypeId!), cancellationToken).ConfigureAwait(false) is { } head
+                    ? RecordTypeDefinitionJson.Deserialize(Encoding.UTF8.GetBytes(head.Document.BodyJson))
+                    : null;
+            if (target is null)
+                refusals.Add(new("records.reference.target_unresolved", pointer + "/target_type_id"));
+            else if (reference.RequiredTraitId is { } trait
+                && !(target.Traits ?? []).Any(declared => StringComparer.Ordinal.Equals(declared.TraitId, trait)))
+                refusals.Add(new("records.reference.trait_absent", pointer + "/required_trait_id"));
+        }
+        return refusals;
+    }
+
+    private async ValueTask<bool> IsPublishedAsync(DefinitionKey key, CancellationToken cancellationToken)
+        => await _store.GetPublishedHeadAsync(key, cancellationToken).ConfigureAwait(false) is not null;
 
     /// <summary>Copies a published body into a new draft version through the shared store.</summary>
     public ValueTask<DefinitionRevision> RestoreAsDraftAsync(string tenant, string recordTypeId, string sourceVersion,
