@@ -18,6 +18,15 @@ shape carries its stable key and the complete DES-0004 section 1 member list (ke
 requiredness, cardinality and reference target), so no catalogue seed is read to describe it. A
 package may not replace a floor shape by either its key or identity, case-insensitively.
 
+A floor member key starts with `a-z`, uses only `a-z`, `0-9` and `_`, and contains neither doubled nor trailing
+underscores. It is one flat catalogue column and never a dotted path; any other key refuses with
+`kernel.compiled-member-key-invalid`. The floor describes the kernel's system
+records, not the authored Records grammar: DES-0004 §1 documents the correspondence (`field_key` to `key`,
+`reference.required_trait_id` to `reference_trait_id` and so on). Record Type carries `record_class`, and Field carries
+a reference's `reference_target_type_id` or `reference_target_class_id`, `reference_cardinality`, `reference_on_delete`,
+`reference_parent` and `reference_trait_id` (L091, L092, L1424). A member change bumps the shape's revision: Record Type
+and Field are at 2.
+
 ## Package closure (T-979)
 
 `KernelPackageClosure.Resolve(roots, packages, active)` is a pure resolver: the host supplies the root keys, the package manifests it holds and each active key's version, and gets back the closure in install order or a `KernelClosureRefusalException` carrying a `Code` and the dependency `Path` from the root. The walk is transitive over the manifests themselves, never over an author-claimed dependency list. `harborline.platform` is the implicit first root of every closure (DES-0029 ck-2, kernel-floor first), and every dependency precedes its dependents; ties break by ordinal key, so input order never changes the result. A closure holds one version per key, which must be the key's active version (`kernel.closure.version-conflict`). A pin is a minimum-inclusive SemVer 2.0.0 floor checked against the active version on every edge, so a diamond checks each pin on the shared package. The refusals are `kernel.closure.dependency-missing`, `kernel.closure.dependency-inactive`, `kernel.closure.dependency-below-pin`, `kernel.closure.cycle` (the path ends at the repeated key), `kernel.closure.version-conflict` and `kernel.closure.version-invalid`. Prior art: NuGet dependency resolution (one version per package, a bare version is a `>=` floor) and NU1108 for cycles.

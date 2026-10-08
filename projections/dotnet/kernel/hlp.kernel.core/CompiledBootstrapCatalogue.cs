@@ -5,6 +5,9 @@ public static class KernelBootstrapErrors
 {
     /// <summary>A package tried to redefine a shape that the kernel compiles in.</summary>
     public const string CompiledShapeReplacement = "kernel.compiled-shape-replacement";
+
+    /// <summary>A compiled member key that is not lowercase snake case, such as one holding a <c>.</c> path separator.</summary>
+    public const string MemberKeyInvalid = "kernel.compiled-member-key-invalid";
 }
 
 /// <summary>The stable identity of a bootstrap shape, such as <c>kernel.record-type</c>; compared ordinally.</summary>
@@ -47,7 +50,25 @@ public sealed record CompiledShapeMember(
     CompiledMemberKind Kind,
     bool Required,
     bool Many,
-    string? Target);
+    string? Target)
+{
+    private readonly string _key = MemberKey(Key);
+
+    /// <summary>
+    /// The member's key: lowercase snake case, a letter first and no empty segment. A floor member is one flat catalogue
+    /// column, so a <c>.</c> is refused rather than read as a path into a nested document (DES-0004 §1, 2026-10-08).
+    /// </summary>
+    public string Key { get => _key; init => _key = MemberKey(value); }
+
+    private static string MemberKey(string key)
+    {
+        ArgumentNullException.ThrowIfNull(key);
+        var valid = key.Length > 0 && key[0] is >= 'a' and <= 'z' && key[^1] != '_'
+            && !key.Contains("__", StringComparison.Ordinal)
+            && key.All(character => character is >= 'a' and <= 'z' or >= '0' and <= '9' or '_');
+        return valid ? key : throw new ArgumentException(KernelBootstrapErrors.MemberKeyInvalid, nameof(key));
+    }
+}
 
 /// <summary>A shape the kernel compiles in, so it resolves before, and cannot be replaced by, any catalogue content.</summary>
 /// <param name="Identity">The shape's stable identity.</param>
@@ -106,11 +127,12 @@ public sealed class CompiledBootstrapCatalogue
                 new("channel", CompiledMemberKind.Enum, true, false, null),
                 new("digest", CompiledMemberKind.Digest, true, false, null),
             ]),
-            [RecordType] = new(RecordType, "record-type", "Record Type", 1,
+            [RecordType] = new(RecordType, "record-type", "Record Type", 2,
             [
                 new("name", CompiledMemberKind.Text, true, false, null),
                 new("key", CompiledMemberKind.Key, true, false, null),
                 new("class_id", CompiledMemberKind.Reference, true, false, "class"),
+                new("record_class", CompiledMemberKind.Enum, true, false, null),
                 new("traits", CompiledMemberKind.Reference, false, true, "trait"),
                 new("creation_gate", CompiledMemberKind.Enum, true, false, null),
                 new("amendment_policy", CompiledMemberKind.Enum, true, false, null),
@@ -121,7 +143,7 @@ public sealed class CompiledBootstrapCatalogue
                 new("categories", CompiledMemberKind.Text, false, true, null),
                 new("package_id", CompiledMemberKind.Reference, true, false, DefinitionPackage.Value),
             ]),
-            [Field] = new(Field, "field", "Field", 1,
+            [Field] = new(Field, "field", "Field", 2,
             [
                 new("type_id", CompiledMemberKind.Reference, true, false, RecordType.Value),
                 new("name", CompiledMemberKind.Text, true, false, null),
@@ -130,6 +152,11 @@ public sealed class CompiledBootstrapCatalogue
                 new("required_condition", CompiledMemberKind.Expression, false, false, null),
                 new("default_expression", CompiledMemberKind.Expression, false, false, null),
                 new("write_role_id", CompiledMemberKind.Reference, false, false, "role"),
+                new("reference_target_type_id", CompiledMemberKind.Reference, false, false, RecordType.Value),
+                new("reference_target_class_id", CompiledMemberKind.Reference, false, false, "class"),
+                new("reference_cardinality", CompiledMemberKind.Enum, false, false, null),
+                new("reference_on_delete", CompiledMemberKind.Enum, false, false, null),
+                new("reference_parent", CompiledMemberKind.Flag, false, false, null),
                 new("reference_trait_id", CompiledMemberKind.Reference, false, false, "trait"),
                 new("personal_data", CompiledMemberKind.Flag, true, false, null),
                 new("confidential", CompiledMemberKind.Flag, true, false, null),

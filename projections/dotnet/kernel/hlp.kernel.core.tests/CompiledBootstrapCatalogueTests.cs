@@ -46,6 +46,7 @@ public sealed class CompiledBootstrapCatalogueTests
             ("name", CompiledMemberKind.Text, true, false, null),
             ("key", CompiledMemberKind.Key, true, false, null),
             ("class_id", CompiledMemberKind.Reference, true, false, "class"),
+            ("record_class", CompiledMemberKind.Enum, true, false, null),
             ("traits", CompiledMemberKind.Reference, false, true, "trait"),
             ("creation_gate", CompiledMemberKind.Enum, true, false, null),
             ("amendment_policy", CompiledMemberKind.Enum, true, false, null),
@@ -63,6 +64,11 @@ public sealed class CompiledBootstrapCatalogueTests
             ("required_condition", CompiledMemberKind.Expression, false, false, null),
             ("default_expression", CompiledMemberKind.Expression, false, false, null),
             ("write_role_id", CompiledMemberKind.Reference, false, false, "role"),
+            ("reference_target_type_id", CompiledMemberKind.Reference, false, false, "kernel.record-type"),
+            ("reference_target_class_id", CompiledMemberKind.Reference, false, false, "class"),
+            ("reference_cardinality", CompiledMemberKind.Enum, false, false, null),
+            ("reference_on_delete", CompiledMemberKind.Enum, false, false, null),
+            ("reference_parent", CompiledMemberKind.Flag, false, false, null),
             ("reference_trait_id", CompiledMemberKind.Reference, false, false, "trait"),
             ("personal_data", CompiledMemberKind.Flag, true, false, null),
             ("confidential", CompiledMemberKind.Flag, true, false, null),
@@ -72,6 +78,54 @@ public sealed class CompiledBootstrapCatalogueTests
             ("conflict_policy", CompiledMemberKind.Enum, true, false, null),
             ("show_in_lists_hint", CompiledMemberKind.Flag, true, false, null)]);
     }
+
+    // A member change bumps the shape's revision (DES-0029 ck-1, owner ruling 2026-09-28): record_class and the five
+    // reference members (2026-10-08) took Record Type and Field to 2.
+    [Fact]
+    public void Floor_shapes_carry_their_compiled_revisions() =>
+        Assert.Equal([1, 2, 2], CompiledBootstrapCatalogue.Shapes.Select(shape => shape.Revision).ToArray());
+
+    // A floor member is one flat catalogue column, so its key is lowercase snake case and never a dotted path.
+    [Theory]
+    [InlineData("key")]
+    [InlineData("reference_trait_id")]
+    [InlineData("unique_in")]
+    [InlineData("a1")]
+    [InlineData("a")]
+    [InlineData("z")]
+    [InlineData("a0")]
+    [InlineData("z9")]
+    public void A_lowercase_snake_case_member_key_is_admitted(string key) =>
+        Assert.Equal(key, new CompiledShapeMember(key, CompiledMemberKind.Text, false, false, null).Key);
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("reference.trait_id")]
+    [InlineData("Reference_trait_id")]
+    [InlineData("referenceTraitId")]
+    [InlineData("_key")]
+    [InlineData("1key")]
+    [InlineData("key_")]
+    [InlineData("reference__trait_id")]
+    [InlineData("key-name")]
+    [InlineData("k\u00e9y")]
+    [InlineData("a`")]
+    [InlineData("a{")]
+    [InlineData("a/")]
+    [InlineData("a:")]
+    [InlineData("`a")]
+    [InlineData("{a")]
+    public void A_member_key_that_is_not_lowercase_snake_case_refuses(string key)
+    {
+        var constructed = Assert.Throws<ArgumentException>("key", () => new CompiledShapeMember(key, CompiledMemberKind.Text, false, false, null));
+        Assert.StartsWith(KernelBootstrapErrors.MemberKeyInvalid, constructed.Message, StringComparison.Ordinal);
+        var valid = new CompiledShapeMember("key", CompiledMemberKind.Text, false, false, null);
+        Assert.Throws<ArgumentException>("key", () => valid with { Key = key });
+    }
+
+    [Fact]
+    public void A_null_member_key_refuses() =>
+        Assert.Throws<ArgumentNullException>("key", () => new CompiledShapeMember(null!, CompiledMemberKind.Text, false, false, null));
 
     [Theory]
     [InlineData("kernel.definition-package")]

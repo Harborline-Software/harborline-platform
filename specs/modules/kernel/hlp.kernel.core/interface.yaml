@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.kernel.core",
-  "interfaceRevision": 4,
+  "interfaceRevision": 5,
   "status": "frozen",
   "purpose": "Own the shared one-command atomic transaction boundary, authoritative injected clock, three immutable compiled shapes available before catalogue seed installation, the platform-first package closure resolver, and configuration recovery under the kernel profile's own constrained capability.",
   "dependencies": [],
@@ -24,7 +24,7 @@
     "The boundary stages one record and its audit evidence under one operation identity, commits them together, and rolls back after any staging or commit fault.",
     "Host persistence stays behind IKernelTransactionPort; the kernel package contains no database, filesystem, or transport adapter.",
     "Definition Package, Record Type, and Field are the exact compiled bootstrap floor and resolve without a host catalogue read.",
-    "A package cannot replace a compiled bootstrap identity or key.",
+    "A package cannot replace a compiled bootstrap identity or key.", "A compiled floor member key is lowercase snake case with no empty segment: one flat catalogue column, never a dotted path into a nested document.",
     "The package closure is transitive over the manifests supplied, never an author-claimed dependency list; harborline.platform is its implicit first root, and every dependency precedes its dependents in a deterministic order independent of input order.",
     "A closure holds one version per key: two supplied manifests for one key, or a manifest that is not the key's active version, refuse with kernel.closure.version-conflict.",
     "A pin is a minimum-inclusive SemVer 2.0.0 floor checked against the dependency's active version on every edge; a missing, inactive, below-pin, malformed-version or cyclic dependency refuses with its kernel.closure code and the dependency path from the root.",
@@ -36,7 +36,7 @@
     "A prepared generation left by a crash is abandoned, never activated; an effective pointer bound to a committed evidence intent is confirmed and never moved; an unpublished evidence intent is published. A pointer bound to no intent refuses with kernel.effective-pointer-unbound.",
     "A recovery without a reason or an authority snapshot refuses before the profile is read; every committed recovery carries both in its record and in the audit evidence staged through the one-command boundary."
   ],
-  "errors": ["kernel.multi-command-batch", "kernel.compiled-shape-replacement", "kernel.closure.dependency-missing", "kernel.closure.dependency-inactive", "kernel.closure.dependency-below-pin", "kernel.closure.cycle", "kernel.closure.version-conflict", "kernel.closure.version-invalid", "kernel.backdate-capability-required", "kernel.configuration-recovery-capability-required", "kernel.recovery-reason-required", "kernel.recovery-authority-snapshot-required", "kernel.recovery-tenant-mismatch", "kernel.effective-generation-missing", "kernel.effective-generation-corrupt", "kernel.effective-pointer-unbound"],
+  "errors": ["kernel.multi-command-batch", "kernel.compiled-shape-replacement", "kernel.compiled-member-key-invalid", "kernel.closure.dependency-missing", "kernel.closure.dependency-inactive", "kernel.closure.dependency-below-pin", "kernel.closure.cycle", "kernel.closure.version-conflict", "kernel.closure.version-invalid", "kernel.backdate-capability-required", "kernel.configuration-recovery-capability-required", "kernel.recovery-reason-required", "kernel.recovery-authority-snapshot-required", "kernel.recovery-tenant-mismatch", "kernel.effective-generation-missing", "kernel.effective-generation-corrupt", "kernel.effective-pointer-unbound"],
   "fixture": "conformance/hlp.kernel.core/fixtures.yaml",
   "package": {"nuget": "Harborline.Kernel.Core", "assembly": "Harborline.Kernel.Core", "distribution": "internal-only"}
 }

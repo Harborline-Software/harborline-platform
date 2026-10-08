@@ -5,6 +5,8 @@ cases:
     contract: Definition Package, Record Type, and Field resolve from stable compiled identities before the first catalogue read.
   - id: compiled-floor-replacement-refusal
     contract: A package cannot replace any compiled floor identity and refuses with kernel.compiled-shape-replacement.
+  - id: compiled-floor-member-keys
+    contract: A compiled floor member key is lowercase snake case; a dotted, uppercase, camel-case, digit-first, underscore-edged or doubled-underscore key refuses with kernel.compiled-member-key-invalid.
   - id: package-closure-platform-first
     contract: A transitive closure resolves harborline.platform first and every dependency before its dependents, one version per key, independent of input order.
   - id: package-closure-refusals
