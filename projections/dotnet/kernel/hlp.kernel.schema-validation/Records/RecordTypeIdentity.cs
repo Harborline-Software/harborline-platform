@@ -29,12 +29,72 @@ public sealed record RecordTypeDefinition(
 /// The kind revision whose creation defaults were materialized into this field, once (records-ck-38). Absent
 /// until the field is first created through <see cref="RecordFieldDefaults"/>.
 /// </param>
+/// <param name="Reference">
+/// Makes the field a reference to other records (records-ck-10..12; ADR-0026). A reference field has no
+/// field-kind binding: its value is a qualified record reference, never a scalar.
+/// </param>
 public sealed record FieldDefinition(
     string FieldKey,
     string DisplayName,
     FieldBindingDefinition? Binding = null,
     FieldGovernanceDefinition? Governance = null,
-    FieldKindDefaultProvenance? DefaultsProvenance = null);
+    FieldKindDefaultProvenance? DefaultsProvenance = null,
+    RecordReferenceDefinition? Reference = null);
+
+/// <summary>How many records one reference value names.</summary>
+public enum ReferenceCardinality
+{
+    /// <summary>At most one target record.</summary>
+    One,
+    /// <summary>Any number of target records.</summary>
+    Many,
+}
+
+/// <summary>What happens to referring records when a target record is deleted (its tombstone is written).</summary>
+public enum ReferenceDeleteBehavior
+{
+    /// <summary>The delete is refused while referring records exist.</summary>
+    Block,
+    /// <summary>The reference is cleared.</summary>
+    Orphan,
+    /// <summary>The referring records are deleted too.</summary>
+    Cascade,
+}
+
+/// <summary>
+/// A record reference: a real foreign key to records of exactly one target Record Type or of one target Class,
+/// whose membership is derived (records-ck-10; ADR-0026; ADR-0054; L091, L1424). Its stored value is qualified,
+/// carrying the target's type with its id (L1426). Cardinality and delete behaviour are declared, never defaulted.
+/// </summary>
+/// <param name="TargetTypeId">The one target Record Type; exclusive with <paramref name="TargetClassId"/>.</param>
+/// <param name="TargetClassId">The one target Class; exclusive with <paramref name="TargetTypeId"/>.</param>
+/// <param name="Cardinality">One or many target records.</param>
+/// <param name="OnDelete">Block, orphan or cascade, applied when a target's tombstone is written (DES-0046).</param>
+/// <param name="RequiredTraitId">
+/// A Trait every target must declare (records-ck-11, records-auth-15): a requirement on the named target, not a
+/// third target kind (owner ruling 2026-10-07).
+/// </param>
+/// <param name="Parent">Marks this reference as the type's one hierarchy edge (records-ck-12; L092).</param>
+/// <param name="Pin">
+/// For a target in another package only: the sealed cross-package pin (records-ck-41). Authoring writes it from
+/// current state, publication refuses unless it still matches, and installation checks it against the pinned
+/// dependency closure.
+/// </param>
+public sealed record RecordReferenceDefinition(
+    string? TargetTypeId,
+    string? TargetClassId,
+    ReferenceCardinality? Cardinality,
+    ReferenceDeleteBehavior? OnDelete,
+    string? RequiredTraitId = null,
+    bool Parent = false,
+    RecordReferencePin? Pin = null);
+
+/// <summary>
+/// One sealed cross-package edge (records-ck-41): the target's package, definition id, exact published version and
+/// algorithm-qualified body digest, and the interface version at which the target declared itself exposed. The source
+/// side's declaration is the referencing definition's own envelope <c>requires</c> entry, in the same signed body.
+/// </summary>
+public sealed record RecordReferencePin(string PackageId, string DefinitionId, string Version, string Digest, int InterfaceVersion);
 
 /// <summary>
 /// Materializes a field kind's creation defaults into each newly created bound field (DES-0015 records-ck-38,
@@ -188,8 +248,82 @@ public sealed class RecordsIntentValidator
         }
 
         ValidateTraitBindings(candidate, fieldKeys, refusals);
+        ValidateReferences(candidate, refusals);
 
         return refusals;
+    }
+
+    // records-ck-10..12: a reference names exactly one target, declares its cardinality and delete behaviour, and a
+    // type has at most one parent edge, which names one parent. Whether a target is published, and whether a
+    // target type declares the required trait, needs the catalogue and is checked at publication.
+    private static void ValidateReferences(RecordTypeDefinition candidate, List<FieldRefusal> refusals)
+    {
+        var parents = 0;
+        foreach (var (field, index) in (candidate.Fields ?? []).Select((field, index) => (field, index)))
+        {
+            if (field.Reference is not { } reference)
+            {
+                continue;
+            }
+
+            var pointer = $"/fields/{index}/reference";
+            if (field.Binding is not null)
+            {
+                refusals.Add(new("records.reference.binding_conflict", pointer,
+                    "A reference field's value is a record reference, so it has no field-kind binding."));
+            }
+
+            if (string.IsNullOrWhiteSpace(reference.TargetTypeId) == string.IsNullOrWhiteSpace(reference.TargetClassId))
+            {
+                refusals.Add(new("records.reference.target_ambiguous", pointer,
+                    "A reference names exactly one target type or one target class."));
+            }
+
+            if (reference.Cardinality is null)
+            {
+                refusals.Add(new("records.reference.cardinality_required", pointer + "/cardinality",
+                    "A reference declares whether it names one record or many."));
+            }
+            else if (!Enum.IsDefined(reference.Cardinality.Value))
+            {
+                refusals.Add(new("records.reference.cardinality_invalid", pointer + "/cardinality",
+                    "A reference cardinality is one or many."));
+            }
+
+            if (reference.OnDelete is null)
+            {
+                refusals.Add(new("records.reference.on_delete_required", pointer + "/on_delete",
+                    "A reference declares block, orphan or cascade."));
+            }
+            else if (!Enum.IsDefined(reference.OnDelete.Value))
+            {
+                refusals.Add(new("records.reference.on_delete_invalid", pointer + "/on_delete",
+                    "A reference delete behaviour is block, orphan or cascade."));
+            }
+
+            if (reference.RequiredTraitId is { } trait && string.IsNullOrWhiteSpace(trait))
+            {
+                refusals.Add(new("records.reference.trait_invalid", pointer + "/required_trait_id",
+                    "A required trait names a Trait."));
+            }
+
+            if (!reference.Parent)
+            {
+                continue;
+            }
+
+            if (++parents > 1)
+            {
+                refusals.Add(new("records.reference.parent_ambiguous", pointer + "/parent",
+                    "A Record Type has at most one hierarchy edge."));
+            }
+
+            if (reference.Cardinality == ReferenceCardinality.Many)
+            {
+                refusals.Add(new("records.reference.parent_cardinality", pointer + "/cardinality",
+                    "A hierarchy edge names exactly one parent."));
+            }
+        }
     }
 
     internal TraitDefinition? ResolveTrait(string traitId, string version)
@@ -330,7 +464,7 @@ public sealed class RecordTypeSchemaCompiler
         // requires a shared field to satisfy every bound slot's admitted intersection.
         // C:/Projects/Harborline/harborline-control/designs/DES-0015-records/design.md:104 (records-ck-39)
         // permits narrowing a slot floor but forbids widening its domain.
-        await NarrowTraitBindingsAsync(candidate, fieldDomainScope, refusals, cancellationToken);
+        await NarrowTraitBindingsAsync(candidate, fieldDomainScope, refusals, cancellationToken).ConfigureAwait(false);
         var properties = new Dictionary<string, object>(StringComparer.Ordinal);
         var boundKinds = new Dictionary<string, AdmittedFieldKind>(StringComparer.Ordinal);
         foreach (var (field, index) in (candidate.Fields ?? []).Select((field, index) => (field, index)))
@@ -345,7 +479,9 @@ public sealed class RecordTypeSchemaCompiler
             }
             else if (field.Binding is null && refusals.Count == 0)
             {
-                properties.Add(field.FieldKey, new Dictionary<string, string> { ["type"] = "string" });
+                properties.Add(field.FieldKey, field.Reference is { } reference
+                    ? ReferenceSchema(reference)
+                    : new Dictionary<string, string> { ["type"] = "string" });
             }
         }
 
@@ -417,7 +553,7 @@ public sealed class RecordTypeSchemaCompiler
                         field.Binding?.Constraints ?? Unconstrained,
                         fieldDomainScope,
                         pointer,
-                        cancellationToken);
+                        cancellationToken).ConfigureAwait(false);
                 }
                 catch (FieldAdmissionException exception)
                 {
@@ -425,6 +561,29 @@ public sealed class RecordTypeSchemaCompiler
                 }
             }
         }
+    }
+
+    // L1426 / ADR-0054: a stored reference is qualified, carrying the target's type with its id. A type-targeted
+    // reference pins the type; a class target admits any type here, and membership is checked at write time.
+    private static object ReferenceSchema(RecordReferenceDefinition reference)
+    {
+        object type = string.IsNullOrWhiteSpace(reference.TargetTypeId)
+            ? new Dictionary<string, object> { ["type"] = "string", ["minLength"] = 1 }
+            : new Dictionary<string, object> { ["const"] = reference.TargetTypeId };
+        var qualified = new Dictionary<string, object>
+        {
+            ["type"] = "object",
+            ["properties"] = new Dictionary<string, object>
+            {
+                ["type"] = type,
+                ["id"] = new Dictionary<string, object> { ["type"] = "string", ["minLength"] = 1 },
+            },
+            ["required"] = new[] { "type", "id" },
+            ["additionalProperties"] = false,
+        };
+        return reference.Cardinality == ReferenceCardinality.Many
+            ? new Dictionary<string, object> { ["type"] = "array", ["items"] = qualified }
+            : qualified;
     }
 
     // records-ck-38 / ADR 0095 ruling 3: the clock field must be this type's own and its bound kind revision must
