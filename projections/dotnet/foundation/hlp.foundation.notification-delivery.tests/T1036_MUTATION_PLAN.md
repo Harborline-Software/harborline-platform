@@ -4,7 +4,7 @@
 
 Prepared from Platform main `b10d86e5045a2acd89e6522f04b95ccda788b1eb` and Control main `ecff5fe6b15030e23908c27f4d201e876317b19e`, fetched on 2026-10-07. T-1036 is still `ready` / `NeedsFix`; the open Platform PR search for notification-delivery returned no competing implementation. The original five test methods are present: four facts and one two-row theory.
 
-Owned paths are `projections/dotnet/foundation/hlp.foundation.notification-delivery/`, this test directory, and Control's `tickets/T-1036-notification-delivery-stryker-baseline-is-42-percent/ticket.md`. The candidate changes tests and their audit material; production behavior is unchanged. It adds 23 test methods, giving 28 methods and 61 authored cases (21 facts, 19 InlineData rows and 21 MemberData rows). Those counts are a source inventory, pending real discovery and execution.
+Owned paths are `projections/dotnet/foundation/hlp.foundation.notification-delivery/`, this test directory, and Control's `tickets/T-1036-notification-delivery-stryker-baseline-is-42-percent/ticket.md`. The candidate changes tests and their audit material; production behavior is unchanged. It adds 23 test methods, giving 28 methods and 61 authored cases (21 facts, 19 InlineData rows and 21 MemberData rows). The hosted full-project run subsequently discovered and executed all 61 cases, as recorded below.
 
 Reserve **only** this JSON key for the later measured ratchet:
 
@@ -12,7 +12,7 @@ Reserve **only** this JSON key for the later measured ratchet:
 projections/dotnet/foundation/hlp.foundation.notification-delivery.tests/Harborline.Foundation.NotificationDelivery.Tests.csproj
 ```
 
-The current `tooling/stryker-baselines.json` entry remains score 42.37, break 42, 59 tested, 80 total, 25 detected, 34 undetected, measured 2026-09-30 at `8ee91fc61b305d39b12cfa41d3f879b3064ba2a4`. The existing config remains coverage-analysis off, JSON-only reporting and thresholds high 80 / low 60 / break 42. Only this project's baseline entry and its config thresholds are reserved for the measured ratchet. Shared T-498 is owned by the controller; Control's isolated generated test references may be regenerated under the controller's authorization. The controller must integrate any shared dispatch/index change separately.
+At preparation, the `tooling/stryker-baselines.json` entry recorded score 42.37, break 42, 59 tested, 80 total, 25 detected, 34 undetected, measured 2026-09-30 at `8ee91fc61b305d39b12cfa41d3f879b3064ba2a4`. The preparation config had coverage-analysis off, JSON-only reporting and thresholds high 80 / low 60 / break 42. The measured ratchet below retains coverage and reporting policy while raising thresholds. Only this project's baseline entry and its config thresholds are reserved for the measured ratchet. Shared T-498 is owned by the controller; Control's isolated generated test references may be regenerated under the controller's authorization. The controller must integrate any shared dispatch/index change separately.
 
 ## Observed surviving mutants
 
@@ -44,9 +44,9 @@ Audit priority 1 is silent scope disclosure/state corruption and fail-closed per
 | InboxChannel 55–60 | `Notification_delivery_ck_7_mark_all_read_changes_only_scoped_unread_entries_and_is_idempotent` | Cross-scope bulk mutation and unread-only state / 1 |
 | InboxChannel 63 | `Notification_delivery_ck_10_null_request_refuses_before_any_append` | Null request refusal / 1 |
 | InboxChannel 66, 67, 69, 70, 79 | `Notification_delivery_ck_10_missing_required_content_refuses_before_any_append` | Invalid content persistence / 1; diagnostic 79 / 3 |
-| InboxChannel 71 | `Notification_delivery_ck_10_write_preserves_all_content_and_stamps_a_new_unread_entry` | False answer-owed fixture / 1 |
+| InboxChannel 71 | No named kill; the originally proposed payload test does not distinguish it | `ConfigureAwait(false)` → `true`, continuation-context compatibility / 3; corrected after real report |
 
-These are planned killing tests. No newly authored test has executed, and no new kill or improved score is claimed.
+This table records the original intended test mapping, corrected for mutant71 after execution. Actual named killing tests and outcomes are in the measured report below; the supplemental hand replay did not run.
 
 ## Oracle and negative-control review
 
@@ -54,13 +54,13 @@ DES-0055 ck-1 supplies the literal `inbox`; ck-2 supplies tenant binding fields;
 
 Expectations use literal payloads/codes, a fixed clock, literal ID sequences/counts, fixture input and before/after properties. They never sort production output to construct expected order or read production refusal constants as expected values. The persistence spy asserts that all seven null/empty/whitespace required fields fail before any append. The mixed fixture includes same-tenant/other-recipient, other-tenant/same-recipient, both different, case variants, read and dismissed entries. Successful and refused read operations assert complete entries, not just counts. Extra coverage pins input snapshots, duplicate-ID refusal, idempotence, commit waiting, committed return values, persistence failures and token forwarding.
 
-An independent GPT-6.1 sol reviewer inspected the tests, historical survivor mapping and evidence plan on 2026-10-07. Its read-only test review found no blocking defect; all 34 survivors have a plausible distinguishing test. Review clarifications about local API requirements, dismissed-state preservation and tie-order provenance were applied. Driver review identified an incomplete provenance risk from untracked files: execution now rejects untracked owned files and any unstaged working-tree change, and records the candidate index tree plus SHA-256 of every tracked owned file. Read-only review does not establish compilation or execution.
+An independent GPT-6.1 sol reviewer inspected the tests, historical survivor mapping and evidence plan on 2026-10-07. Its read-only test review found no blocking defect; the initial survivor mapping was provisionally accepted; actual execution later corrected mutant71, which remains an explicit counted continuation-context survivor. Review clarifications about local API requirements, dismissed-state preservation and tie-order provenance were applied. Driver review identified an incomplete provenance risk from untracked files: execution now rejects untracked owned files and any unstaged working-tree change, and records the candidate index tree plus SHA-256 of every tracked owned file. Read-only review does not establish compilation or execution.
 
 The replay driver [run_negative_controls.py](run_negative_controls.py) is optional supplemental evidence. Its default mode is a lightweight read-only recipe check. It verifies the historical hash, exact source, all survivor mappings and named test presence. Execution requires a fully staged/committed candidate, then compiles/tests the clean candidate, replays each historical mutant against its named test, restores source in `finally`, then verifies the clean suite again. A compiler/tool failure or empty TRX never counts as a behavioral kill; a named target test must fail in TRX. Receipts/logs are written only to an explicitly supplied fresh output directory. Do not run `--execute` until the controller explicitly grants the heavy lane.
 
 ## Required publication and hosted evidence
 
-The isolated candidate integrates Platform main `c0f66f451cd0feff5d7dbef67dbbcbed252d3121` and Control main `2ea70c17bcf63ca335e6331fab82964aab375fd6`. The original reviewed test code and independent oracles are unchanged. The notification config already has `coverage-analysis: off` for its MemberData theory; thresholds remain high 80 / low 60 / break 42.
+The isolated candidate integrates Platform main `c0f66f451cd0feff5d7dbef67dbbcbed252d3121` and Control main `2ea70c17bcf63ca335e6331fab82964aab375fd6`. The original reviewed test code and independent oracles are unchanged. The notification config already has `coverage-analysis: off` for its MemberData theory; the pre-measurement thresholds were high 80 / low 60 / break 42.
 
 [Platform CONTRIBUTING at the integrated authority](https://github.com/Harborline-Software/harborline-platform/blob/c0f66f451cd0feff5d7dbef67dbbcbed252d3121/CONTRIBUTING.md#before-you-push) requires fetching `origin/main` and running `node tooling/run-pr-preflight.mjs` before push. That preflight builds nothing and creates no gate receipt. The earlier local full-validation staging hold was controller-added and has been lifted. User authorization covers draft publication after the actual required cheap checks and independent review. No local .NET work or mini lease is authorized; API owners retain the native reservation.
 
@@ -78,7 +78,7 @@ Normal readiness must trigger the actual hosted PR checks. Required verify and S
 
 The task-local native driver reuses T-1012's repaired reviewed profile SHA `916f4d4f72a538bf2c58b5e4851a69724dfe913ade40669ad3a8b96b5bd71626`. Its own exact reviewed adaptation, source pins and synthetic checks are in the external handoff. It was never admitted: no local test, control, mutation or full gate ran and no lease was acquired. Its frozen pins predate this main integration; any future granted local use needs refreshed exact-candidate binding and review.
 
-If a future genuine evidence gap requires the supplemental replays, the source entry point is `run_negative_controls.py --execute --output <fresh-directory>` under a separately granted lease. Its default mode checks recipes without compiling. The historical audit remains 34 survivors; 61 authored cases remain pending real discovery.
+If a future genuine evidence gap requires the supplemental replays, the source entry point is `run_negative_controls.py --execute --output <fresh-directory>` under a separately granted lease. Its default mode checks recipes without compiling. The historical audit remains 34 survivors; the hosted report now contains61 discovered cases.
 
 Duration calibration only: T-1012's actual native full Platform gate ran all 23 steps without reuse in 586.536628 seconds. A later separate local gate would merit a 15–20 minute planning slot, with normal resource admission. This does not measure T-1036, grant a slot or replace hosted qualification.
 
@@ -97,4 +97,14 @@ Duration calibration only: T-1012's actual native full Platform gate ran all 23 
 - Platform's fast pre-commit scanners passed when the existing hook was invoked through `sh`. Its tracked hook mode is 100644; local freezing uses an executable task-local wrapper that delegates to the unchanged repository hook.
 - **Stale checked-in Platform receipt:** `node tooling/validate-repository.mjs` exits 1 with `phase-4 gate shared-result count differs from fixtures`, identically on the candidate and a pristine worktree at base `b10d86e5`. The old receipt records 1224 shared results; current fixtures expect 1227 because data-exchange grew from two cases to five. The actual gate collects fresh results and compares them to current fixtures. This is stale evidence, not a demonstrated source/tooling defect; no count or gate code was hand-edited.
 
-Actual compiled discovery, behavioral/named-mutation results, measured ratchet, required hosted gates and protected merge evidence remain pending. Draft publication follows the required cheap local checks; no local heavy reservation is requested by this hosted route.
+Hosted compiled discovery and named mutation proof are recorded below. Required current-head hosted checks and protected full native/gallery landing proof remain pending. No local heavy reservation is requested by this hosted route.
+
+## Measured hosted result and ratchet
+
+[Run37718895656](https://github.com/Harborline-Software/harborline-platform/actions/runs/37718895656) executed the full unique project on head `4eb8e0515b6ea7918ed24381fab212aa8999b023`, tree `28ab08195ffcc8fd576adb0b85f939821081d07a`, with Control `2ea70c17bcf63ca335e6331fab82964aab375fd6`. The existing executor used Stryker.NET5.0.0; its log records61 initial tests and34.9217181seconds. Raw [report](evidence/t1036-hosted-after.json) SHA256 `e9ef82216fb04be27817bf13da70f64983530e64095481218d4ff0cea5a38b93`; artifact11524881645 ZIP digest `786fe029af756ca21c755ad160a677ea44e6d333e488df650c1abfed356fee12` matches GitHub metadata.
+
+80generated,59tested:58Killed,1Survived,16Ignored(block-already-covered filter),5CompileError,0Timeout/NoCoverage/RuntimeError. The repository wrapper truncates the score to98.30%; Stryker prints98.31% rounded. Compile errors remain5/80=6.25%, unchanged from baseline. Independent GPT-6.1-sol review verified raw hashes, both embedded production files, all four embedded test files and all34historical joins by file/location/mutator/replacement. The [summary](evidence/t1036-hosted-after-summary.json) lists the actual named `killedBy`/`testFiles` witnesses:33historical survivors are Killed, with all genuine scope/state/refusal/persistence risks covered. Four kills name a different valid behavioral witness than the initially planned method; actual report attribution is preserved.
+
+The sole survivor71 changes `ConfigureAwait(false)` to `true` atInboxChannel.cs178. The initial audit mistakenly described it as an AnswerOwed mutation. DES-0055 sets no continuation-context requirement. This remains **Survived**, with no exclusion, ignore or waiver; no additional required proof gap was found. Payload true/false coverage remains valuable and executed, but is not claimed to kill this context mutant. The33named observed kills satisfy the actual ticket mutation requirement; the optional34hand replays were not executed.
+
+The ratchet changes only the reserved notification baseline entry toscore98.30/break98, with58detected/1undetected and the actual tested head/date; high98/low98/break98 follow the repository formula. Every other baseline entry is unchanged. Protected native/gallery gate evidence is still required before T-1036 closes.

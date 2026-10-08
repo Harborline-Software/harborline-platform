@@ -24,7 +24,12 @@
       "test": "Harborline.Foundation.NotificationDelivery.Tests.DeliveryChannelBoundaryTests.Notification_delivery_ck_1_inbox_key_renders_its_stable_name_and_default_renders_empty",
       "priority": "2: stable channel identity and empty default rendering",
       "oracle": "DES-0055 ck-1 literal inbox; default rendering is local compatibility",
-      "status": "planned-not-executed"
+      "status": "observed-killed-with-named-tests",
+      "actualKillingTests": [
+        "Harborline.Foundation.NotificationDelivery.Tests.DeliveryChannelBoundaryTests.Notification_delivery_ck_1_inbox_key_renders_its_stable_name_and_default_renders_empty",
+        "Harborline.Foundation.NotificationDelivery.Tests.DeliveryChannelBoundaryTests.Notification_delivery_ck_2_empty_binding_preserves_tenant_channel_enablement_and_sender",
+        "Harborline.Foundation.NotificationDelivery.Tests.DeliveryChannelBoundaryTests.Notification_delivery_ck_2_inbox_secrets_refuse_even_when_the_binding_is_disabled"
+      ]
     },
     {
       "historicalId": 1,
@@ -34,7 +39,10 @@
       "test": "Harborline.Foundation.NotificationDelivery.Tests.DeliveryChannelBoundaryTests.Notification_delivery_ck_1_inbox_key_renders_its_stable_name_and_default_renders_empty",
       "priority": "2: stable channel identity and empty default rendering",
       "oracle": "DES-0055 ck-1 literal inbox; default rendering is local compatibility",
-      "status": "planned-not-executed"
+      "status": "observed-killed-with-named-tests",
+      "actualKillingTests": [
+        "Harborline.Foundation.NotificationDelivery.Tests.DeliveryChannelBoundaryTests.Notification_delivery_ck_2_inbox_secrets_refuse_even_when_the_binding_is_disabled"
+      ]
     },
     {
       "historicalId": 2,
@@ -44,7 +52,12 @@
       "test": "Harborline.Foundation.NotificationDelivery.Tests.DeliveryChannelBoundaryTests.Notification_delivery_ck_1_inbox_key_renders_its_stable_name_and_default_renders_empty",
       "priority": "2: stable channel identity and empty default rendering",
       "oracle": "DES-0055 ck-1 literal inbox; default rendering is local compatibility",
-      "status": "planned-not-executed"
+      "status": "observed-killed-with-named-tests",
+      "actualKillingTests": [
+        "Harborline.Foundation.NotificationDelivery.Tests.DeliveryChannelBoundaryTests.Notification_delivery_ck_1_inbox_key_renders_its_stable_name_and_default_renders_empty",
+        "Harborline.Foundation.NotificationDelivery.Tests.DeliveryChannelBoundaryTests.Notification_delivery_ck_1_unknown_channel_refuses_with_a_code_and_operator_explanation",
+        "Harborline.Foundation.NotificationDelivery.Tests.DeliveryChannelBoundaryTests.Notification_delivery_ck_2_binding_an_unknown_channel_refuses_even_without_secrets"
+      ]
     },
     {
       "historicalId": 4,
@@ -54,7 +67,10 @@
       "test": "Harborline.Foundation.NotificationDelivery.Tests.DeliveryChannelBoundaryTests.Notification_delivery_ck_2_null_reference_collection_is_refused_before_binding",
       "priority": "1: fail-closed configuration boundary",
       "oracle": "local public API null argument and literal parameter name",
-      "status": "planned-not-executed"
+      "status": "observed-killed-with-named-tests",
+      "actualKillingTests": [
+        "Harborline.Foundation.NotificationDelivery.Tests.DeliveryChannelBoundaryTests.Notification_delivery_ck_2_null_reference_collection_is_refused_before_binding"
+      ]
     },
     {
       "historicalId": 5,
@@ -64,7 +80,11 @@
       "test": "Harborline.Foundation.NotificationDelivery.Tests.DeliveryChannelBoundaryTests.Notification_delivery_ck_2_empty_binding_preserves_tenant_channel_enablement_and_sender",
       "priority": "2: valid binding availability and tenant configuration",
       "oracle": "DES-0055 ck-2 fixture fields; inbox has no secret requirements",
-      "status": "planned-not-executed"
+      "status": "observed-killed-with-named-tests",
+      "actualKillingTests": [
+        "Harborline.Foundation.NotificationDelivery.Tests.DeliveryChannelBoundaryTests.Notification_delivery_ck_2_binding_copies_references_instead_of_retaining_the_callers_list",
+        "Harborline.Foundation.NotificationDelivery.Tests.DeliveryChannelBoundaryTests.Notification_delivery_ck_2_empty_binding_preserves_tenant_channel_enablement_and_sender"
+      ]
     },
     {
       "historicalId": 13,
@@ -74,7 +94,10 @@
       "test": "Harborline.Foundation.NotificationDelivery.Tests.DeliveryChannelBoundaryTests.Notification_delivery_ck_2_inbox_secrets_refuse_even_when_the_binding_is_disabled",
       "priority": "3: operator diagnostics",
       "oracle": "literal local refusal message",
-      "status": "planned-not-executed"
+      "status": "observed-killed-with-named-tests",
+      "actualKillingTests": [
+        "Harborline.Foundation.NotificationDelivery.Tests.DeliveryChannelBoundaryTests.Notification_delivery_ck_2_inbox_secrets_refuse_even_when_the_binding_is_disabled"
+      ]
     },
     {
       "historicalId": 17,
@@ -84,7 +107,11 @@
       "test": "Harborline.Foundation.NotificationDelivery.Tests.DeliveryChannelBoundaryTests.Notification_delivery_ck_1_unknown_channel_refuses_with_a_code_and_operator_explanation",
       "priority": "3: operator diagnostics",
       "oracle": "literal local refusal message",
-      "status": "planned-not-executed"
+      "status": "observed-killed-with-named-tests",
+      "actualKillingTests": [
+        "Harborline.Foundation.NotificationDelivery.Tests.DeliveryChannelBoundaryTests.Notification_delivery_ck_1_unknown_channel_refuses_with_a_code_and_operator_explanation",
+        "Harborline.Foundation.NotificationDelivery.Tests.DeliveryChannelBoundaryTests.Notification_delivery_ck_2_binding_an_unknown_channel_refuses_even_without_secrets"
+      ]
     },
     {
       "historicalId": 19,
@@ -94,7 +121,10 @@
       "test": "Harborline.Foundation.NotificationDelivery.Tests.InboxStoreBoundaryTests.Notification_delivery_ck_10_append_rejects_null_and_duplicate_ids_without_losing_the_first_entry",
       "priority": "1: fail-closed persistence boundary",
       "oracle": "local API null argument and duplicate-ID integrity property",
-      "status": "planned-not-executed"
+      "status": "observed-killed-with-named-tests",
+      "actualKillingTests": [
+        "Harborline.Foundation.NotificationDelivery.Tests.InboxStoreBoundaryTests.Notification_delivery_ck_10_append_rejects_null_and_duplicate_ids_without_losing_the_first_entry"
+      ]
     },
     {
       "historicalId": 20,
@@ -104,7 +134,11 @@
       "test": "Harborline.Foundation.NotificationDelivery.Tests.InboxStoreBoundaryTests.Inbox_cancelled_operation_throws_without_changing_any_inbox",
       "priority": "2: cancellation and unchanged durable data",
       "oracle": "cancelled token plus complete independent before/after fixture",
-      "status": "planned-not-executed"
+      "status": "observed-killed-with-named-tests",
+      "actualKillingTests": [
+        "Harborline.Foundation.NotificationDelivery.Tests.InboxStoreBoundaryTests.Inbox_cancelled_operation_throws_without_changing_any_inbox",
+        "Harborline.Foundation.NotificationDelivery.Tests.InboxWriteBoundaryTests.Notification_delivery_ck_10_cancelled_write_never_persists_an_entry"
+      ]
     },
     {
       "historicalId": 24,
@@ -114,7 +148,10 @@
       "test": "Harborline.Foundation.NotificationDelivery.Tests.InboxStoreBoundaryTests.Inbox_cancelled_operation_throws_without_changing_any_inbox",
       "priority": "2: cancellation and unchanged durable data",
       "oracle": "cancelled token plus complete independent before/after fixture",
-      "status": "planned-not-executed"
+      "status": "observed-killed-with-named-tests",
+      "actualKillingTests": [
+        "Harborline.Foundation.NotificationDelivery.Tests.InboxStoreBoundaryTests.Inbox_cancelled_operation_throws_without_changing_any_inbox"
+      ]
     },
     {
       "historicalId": 26,
@@ -124,7 +161,10 @@
       "test": "Harborline.Foundation.NotificationDelivery.Tests.InboxStoreBoundaryTests.Inbox_equal_timestamp_entries_use_ascending_id_as_a_repeatable_tiebreak",
       "priority": "3: deterministic compatibility ordering",
       "oracle": "hand-picked literal ID sequence; DES-0055 leaves ties unspecified",
-      "status": "planned-not-executed"
+      "status": "observed-killed-with-named-tests",
+      "actualKillingTests": [
+        "Harborline.Foundation.NotificationDelivery.Tests.InboxStoreBoundaryTests.Inbox_equal_timestamp_entries_use_ascending_id_as_a_repeatable_tiebreak"
+      ]
     },
     {
       "historicalId": 27,
@@ -134,7 +174,11 @@
       "test": "Harborline.Foundation.NotificationDelivery.Tests.InboxStoreBoundaryTests.Notification_delivery_cc_2_entries_are_newest_first_even_when_appended_out_of_order",
       "priority": "2: inbox presentation ordering",
       "oracle": "DES-0055 cc-2 newest first, fixed timestamp fixture and literal ID sequence",
-      "status": "planned-not-executed"
+      "status": "observed-killed-with-named-tests",
+      "actualKillingTests": [
+        "Harborline.Foundation.NotificationDelivery.Tests.InboxStoreBoundaryTests.Inbox_cancelled_operation_throws_without_changing_any_inbox",
+        "Harborline.Foundation.NotificationDelivery.Tests.InboxStoreBoundaryTests.Notification_delivery_ck_7_wrong_scope_or_missing_entry_refuses_without_changing_any_inbox"
+      ]
     },
     {
       "historicalId": 28,
@@ -144,7 +188,10 @@
       "test": "Harborline.Foundation.NotificationDelivery.Tests.InboxStoreBoundaryTests.Notification_delivery_cc_2_list_isolates_both_tenant_and_recipient",
       "priority": "1: silent disclosure across tenant or recipient",
       "oracle": "DES-0055 ck-10 per-person tenant data; explicit owned ID sequence",
-      "status": "planned-not-executed"
+      "status": "observed-killed-with-named-tests",
+      "actualKillingTests": [
+        "Harborline.Foundation.NotificationDelivery.Tests.InboxStoreBoundaryTests.Notification_delivery_ck_7_wrong_scope_or_missing_entry_refuses_without_changing_any_inbox"
+      ]
     },
     {
       "historicalId": 32,
@@ -154,7 +201,10 @@
       "test": "Harborline.Foundation.NotificationDelivery.Tests.InboxStoreBoundaryTests.Inbox_cancelled_operation_throws_without_changing_any_inbox",
       "priority": "2: cancellation and unchanged durable data",
       "oracle": "cancelled token plus complete independent before/after fixture",
-      "status": "planned-not-executed"
+      "status": "observed-killed-with-named-tests",
+      "actualKillingTests": [
+        "Harborline.Foundation.NotificationDelivery.Tests.InboxStoreBoundaryTests.Inbox_cancelled_operation_throws_without_changing_any_inbox"
+      ]
     },
     {
       "historicalId": 36,
@@ -164,7 +214,10 @@
       "test": "Harborline.Foundation.NotificationDelivery.Tests.InboxStoreBoundaryTests.Notification_delivery_cc_2_unread_count_excludes_read_dismissed_and_other_inboxes",
       "priority": "1: silent scope and read-state count corruption",
       "oracle": "DES-0055 ck-7 and cc-2; literal counts from mixed-scope fixture",
-      "status": "planned-not-executed"
+      "status": "observed-killed-with-named-tests",
+      "actualKillingTests": [
+        "Harborline.Foundation.NotificationDelivery.Tests.InboxStoreBoundaryTests.Notification_delivery_ck_7_mark_all_read_changes_only_scoped_unread_entries_and_is_idempotent"
+      ]
     },
     {
       "historicalId": 41,
@@ -174,7 +227,10 @@
       "test": "Harborline.Foundation.NotificationDelivery.Tests.InboxStoreBoundaryTests.Inbox_cancelled_operation_throws_without_changing_any_inbox",
       "priority": "2: cancellation and unchanged durable data",
       "oracle": "cancelled token plus complete independent before/after fixture",
-      "status": "planned-not-executed"
+      "status": "observed-killed-with-named-tests",
+      "actualKillingTests": [
+        "Harborline.Foundation.NotificationDelivery.Tests.InboxStoreBoundaryTests.Inbox_cancelled_operation_throws_without_changing_any_inbox"
+      ]
     },
     {
       "historicalId": 43,
@@ -184,7 +240,10 @@
       "test": "Harborline.Foundation.NotificationDelivery.Tests.InboxStoreBoundaryTests.Notification_delivery_ck_7_wrong_scope_or_missing_entry_refuses_without_changing_any_inbox",
       "priority": "1: silent unauthorized state mutation; 51 diagnostics",
       "oracle": "DES-0055 ck-7/ck-10 per-person state; literal local code and diagnostic; complete fixture unchanged",
-      "status": "planned-not-executed"
+      "status": "observed-killed-with-named-tests",
+      "actualKillingTests": [
+        "Harborline.Foundation.NotificationDelivery.Tests.InboxStoreBoundaryTests.Notification_delivery_ck_7_wrong_scope_or_missing_entry_refuses_without_changing_any_inbox"
+      ]
     },
     {
       "historicalId": 45,
@@ -194,7 +253,10 @@
       "test": "Harborline.Foundation.NotificationDelivery.Tests.InboxStoreBoundaryTests.Notification_delivery_ck_7_wrong_scope_or_missing_entry_refuses_without_changing_any_inbox",
       "priority": "1: silent unauthorized state mutation; 51 diagnostics",
       "oracle": "DES-0055 ck-7/ck-10 per-person state; literal local code and diagnostic; complete fixture unchanged",
-      "status": "planned-not-executed"
+      "status": "observed-killed-with-named-tests",
+      "actualKillingTests": [
+        "Harborline.Foundation.NotificationDelivery.Tests.InboxStoreBoundaryTests.Notification_delivery_ck_7_wrong_scope_or_missing_entry_refuses_without_changing_any_inbox"
+      ]
     },
     {
       "historicalId": 50,
@@ -204,7 +266,10 @@
       "test": "Harborline.Foundation.NotificationDelivery.Tests.InboxStoreBoundaryTests.Notification_delivery_ck_7_wrong_scope_or_missing_entry_refuses_without_changing_any_inbox",
       "priority": "1: silent unauthorized state mutation; 51 diagnostics",
       "oracle": "DES-0055 ck-7/ck-10 per-person state; literal local code and diagnostic; complete fixture unchanged",
-      "status": "planned-not-executed"
+      "status": "observed-killed-with-named-tests",
+      "actualKillingTests": [
+        "Harborline.Foundation.NotificationDelivery.Tests.InboxStoreBoundaryTests.Notification_delivery_ck_7_wrong_scope_or_missing_entry_refuses_without_changing_any_inbox"
+      ]
     },
     {
       "historicalId": 51,
@@ -214,7 +279,10 @@
       "test": "Harborline.Foundation.NotificationDelivery.Tests.InboxStoreBoundaryTests.Notification_delivery_ck_7_wrong_scope_or_missing_entry_refuses_without_changing_any_inbox",
       "priority": "1: silent unauthorized state mutation; 51 diagnostics",
       "oracle": "DES-0055 ck-7/ck-10 per-person state; literal local code and diagnostic; complete fixture unchanged",
-      "status": "planned-not-executed"
+      "status": "observed-killed-with-named-tests",
+      "actualKillingTests": [
+        "Harborline.Foundation.NotificationDelivery.Tests.InboxStoreBoundaryTests.Notification_delivery_ck_7_wrong_scope_or_missing_entry_refuses_without_changing_any_inbox"
+      ]
     },
     {
       "historicalId": 53,
@@ -224,7 +292,10 @@
       "test": "Harborline.Foundation.NotificationDelivery.Tests.InboxStoreBoundaryTests.Inbox_cancelled_operation_throws_without_changing_any_inbox",
       "priority": "2: cancellation and unchanged durable data",
       "oracle": "cancelled token plus complete independent before/after fixture",
-      "status": "planned-not-executed"
+      "status": "observed-killed-with-named-tests",
+      "actualKillingTests": [
+        "Harborline.Foundation.NotificationDelivery.Tests.InboxStoreBoundaryTests.Inbox_cancelled_operation_throws_without_changing_any_inbox"
+      ]
     },
     {
       "historicalId": 55,
@@ -234,7 +305,10 @@
       "test": "Harborline.Foundation.NotificationDelivery.Tests.InboxStoreBoundaryTests.Notification_delivery_ck_7_mark_all_read_changes_only_scoped_unread_entries_and_is_idempotent",
       "priority": "1: silent cross-scope bulk state corruption",
       "oracle": "DES-0055 ck-7/cc-2; public API unread-only operation; fixture IDs1,2 alone become Read",
-      "status": "planned-not-executed"
+      "status": "observed-killed-with-named-tests",
+      "actualKillingTests": [
+        "Harborline.Foundation.NotificationDelivery.Tests.InboxStoreBoundaryTests.Notification_delivery_ck_7_mark_all_read_changes_only_scoped_unread_entries_and_is_idempotent"
+      ]
     },
     {
       "historicalId": 56,
@@ -244,7 +318,11 @@
       "test": "Harborline.Foundation.NotificationDelivery.Tests.InboxStoreBoundaryTests.Notification_delivery_ck_7_mark_all_read_changes_only_scoped_unread_entries_and_is_idempotent",
       "priority": "1: silent cross-scope bulk state corruption",
       "oracle": "DES-0055 ck-7/cc-2; public API unread-only operation; fixture IDs1,2 alone become Read",
-      "status": "planned-not-executed"
+      "status": "observed-killed-with-named-tests",
+      "actualKillingTests": [
+        "Harborline.Foundation.NotificationDelivery.Tests.InboxStoreBoundaryTests.Notification_delivery_ck_7_mark_all_read_changes_only_scoped_unread_entries_and_is_idempotent",
+        "Harborline.Foundation.NotificationDelivery.Tests.InboxStoreBoundaryTests.Notification_delivery_ck_7_mark_all_read_of_missing_scope_leaves_all_inboxes_unchanged"
+      ]
     },
     {
       "historicalId": 57,
@@ -254,7 +332,10 @@
       "test": "Harborline.Foundation.NotificationDelivery.Tests.InboxStoreBoundaryTests.Notification_delivery_ck_7_mark_all_read_changes_only_scoped_unread_entries_and_is_idempotent",
       "priority": "1: silent cross-scope bulk state corruption",
       "oracle": "DES-0055 ck-7/cc-2; public API unread-only operation; fixture IDs1,2 alone become Read",
-      "status": "planned-not-executed"
+      "status": "observed-killed-with-named-tests",
+      "actualKillingTests": [
+        "Harborline.Foundation.NotificationDelivery.Tests.InboxStoreBoundaryTests.Notification_delivery_ck_7_mark_all_read_changes_only_scoped_unread_entries_and_is_idempotent"
+      ]
     },
     {
       "historicalId": 58,
@@ -264,7 +345,11 @@
       "test": "Harborline.Foundation.NotificationDelivery.Tests.InboxStoreBoundaryTests.Notification_delivery_ck_7_mark_all_read_changes_only_scoped_unread_entries_and_is_idempotent",
       "priority": "1: silent cross-scope bulk state corruption",
       "oracle": "DES-0055 ck-7/cc-2; public API unread-only operation; fixture IDs1,2 alone become Read",
-      "status": "planned-not-executed"
+      "status": "observed-killed-with-named-tests",
+      "actualKillingTests": [
+        "Harborline.Foundation.NotificationDelivery.Tests.InboxStoreBoundaryTests.Notification_delivery_ck_7_mark_all_read_changes_only_scoped_unread_entries_and_is_idempotent",
+        "Harborline.Foundation.NotificationDelivery.Tests.InboxStoreBoundaryTests.Notification_delivery_ck_7_mark_all_read_of_missing_scope_leaves_all_inboxes_unchanged"
+      ]
     },
     {
       "historicalId": 59,
@@ -274,7 +359,10 @@
       "test": "Harborline.Foundation.NotificationDelivery.Tests.InboxStoreBoundaryTests.Notification_delivery_ck_7_mark_all_read_changes_only_scoped_unread_entries_and_is_idempotent",
       "priority": "1: silent cross-scope bulk state corruption",
       "oracle": "DES-0055 ck-7/cc-2; public API unread-only operation; fixture IDs1,2 alone become Read",
-      "status": "planned-not-executed"
+      "status": "observed-killed-with-named-tests",
+      "actualKillingTests": [
+        "Harborline.Foundation.NotificationDelivery.Tests.InboxStoreBoundaryTests.Notification_delivery_ck_7_mark_all_read_changes_only_scoped_unread_entries_and_is_idempotent"
+      ]
     },
     {
       "historicalId": 60,
@@ -284,7 +372,10 @@
       "test": "Harborline.Foundation.NotificationDelivery.Tests.InboxStoreBoundaryTests.Notification_delivery_ck_7_mark_all_read_changes_only_scoped_unread_entries_and_is_idempotent",
       "priority": "1: silent cross-scope bulk state corruption",
       "oracle": "DES-0055 ck-7/cc-2; public API unread-only operation; fixture IDs1,2 alone become Read",
-      "status": "planned-not-executed"
+      "status": "observed-killed-with-named-tests",
+      "actualKillingTests": [
+        "Harborline.Foundation.NotificationDelivery.Tests.InboxStoreBoundaryTests.Notification_delivery_ck_7_mark_all_read_changes_only_scoped_unread_entries_and_is_idempotent"
+      ]
     },
     {
       "historicalId": 63,
@@ -294,7 +385,10 @@
       "test": "Harborline.Foundation.NotificationDelivery.Tests.InboxWriteBoundaryTests.Notification_delivery_ck_10_null_request_refuses_before_any_append",
       "priority": "1: fail-closed write boundary",
       "oracle": "local public API null argument and recording store append count0",
-      "status": "planned-not-executed"
+      "status": "observed-killed-with-named-tests",
+      "actualKillingTests": [
+        "Harborline.Foundation.NotificationDelivery.Tests.InboxWriteBoundaryTests.Notification_delivery_ck_10_null_request_refuses_before_any_append"
+      ]
     },
     {
       "historicalId": 66,
@@ -304,7 +398,10 @@
       "test": "Harborline.Foundation.NotificationDelivery.Tests.InboxWriteBoundaryTests.Notification_delivery_ck_10_missing_required_content_refuses_before_any_append",
       "priority": "1: silent invalid content persistence; 79 diagnostics",
       "oracle": "local public API required fields and literal code/message; recording store append count0",
-      "status": "planned-not-executed"
+      "status": "observed-killed-with-named-tests",
+      "actualKillingTests": [
+        "Harborline.Foundation.NotificationDelivery.Tests.InboxWriteBoundaryTests.Notification_delivery_ck_10_missing_required_content_refuses_before_any_append"
+      ]
     },
     {
       "historicalId": 67,
@@ -314,7 +411,10 @@
       "test": "Harborline.Foundation.NotificationDelivery.Tests.InboxWriteBoundaryTests.Notification_delivery_ck_10_missing_required_content_refuses_before_any_append",
       "priority": "1: silent invalid content persistence; 79 diagnostics",
       "oracle": "local public API required fields and literal code/message; recording store append count0",
-      "status": "planned-not-executed"
+      "status": "observed-killed-with-named-tests",
+      "actualKillingTests": [
+        "Harborline.Foundation.NotificationDelivery.Tests.InboxWriteBoundaryTests.Notification_delivery_ck_10_missing_required_content_refuses_before_any_append"
+      ]
     },
     {
       "historicalId": 69,
@@ -324,7 +424,10 @@
       "test": "Harborline.Foundation.NotificationDelivery.Tests.InboxWriteBoundaryTests.Notification_delivery_ck_10_missing_required_content_refuses_before_any_append",
       "priority": "1: silent invalid content persistence; 79 diagnostics",
       "oracle": "local public API required fields and literal code/message; recording store append count0",
-      "status": "planned-not-executed"
+      "status": "observed-killed-with-named-tests",
+      "actualKillingTests": [
+        "Harborline.Foundation.NotificationDelivery.Tests.InboxWriteBoundaryTests.Notification_delivery_ck_10_missing_required_content_refuses_before_any_append"
+      ]
     },
     {
       "historicalId": 70,
@@ -334,7 +437,10 @@
       "test": "Harborline.Foundation.NotificationDelivery.Tests.InboxWriteBoundaryTests.Notification_delivery_ck_10_missing_required_content_refuses_before_any_append",
       "priority": "1: silent invalid content persistence; 79 diagnostics",
       "oracle": "local public API required fields and literal code/message; recording store append count0",
-      "status": "planned-not-executed"
+      "status": "observed-killed-with-named-tests",
+      "actualKillingTests": [
+        "Harborline.Foundation.NotificationDelivery.Tests.InboxWriteBoundaryTests.Notification_delivery_ck_10_missing_required_content_refuses_before_any_append"
+      ]
     },
     {
       "historicalId": 71,
@@ -342,9 +448,11 @@
       "line": 178,
       "mutator": "Boolean mutation",
       "test": "Harborline.Foundation.NotificationDelivery.Tests.InboxWriteBoundaryTests.Notification_delivery_ck_10_write_preserves_all_content_and_stamps_a_new_unread_entry",
-      "priority": "1: silent answer-owed corruption",
-      "oracle": "DES-0055 ck-10; true/false input fixtures, literal payload and fixed clock",
-      "status": "planned-not-executed"
+      "priority": "3: continuation-context compatibility; ConfigureAwait(false) captures no context",
+      "oracle": "No DES-0055 continuation-context requirement. Original planned payload test does not distinguish ConfigureAwait(false)->true; this mutant remains counted Survived.",
+      "status": "observed-survived; supplemental replay not executed",
+      "actualKillingTests": [],
+      "classificationCorrection": "Originally mislabeled as AnswerOwed corruption; exact source span is ConfigureAwait(false) at InboxChannel.cs178."
     },
     {
       "historicalId": 79,
@@ -354,7 +462,10 @@
       "test": "Harborline.Foundation.NotificationDelivery.Tests.InboxWriteBoundaryTests.Notification_delivery_ck_10_missing_required_content_refuses_before_any_append",
       "priority": "1: silent invalid content persistence; 79 diagnostics",
       "oracle": "local public API required fields and literal code/message; recording store append count0",
-      "status": "planned-not-executed"
+      "status": "observed-killed-with-named-tests",
+      "actualKillingTests": [
+        "Harborline.Foundation.NotificationDelivery.Tests.InboxWriteBoundaryTests.Notification_delivery_ck_10_missing_required_content_refuses_before_any_append"
+      ]
     }
   ]
 }
