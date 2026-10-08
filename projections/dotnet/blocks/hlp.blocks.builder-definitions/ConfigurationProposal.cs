@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text.Json;
+using Harborline.Foundation.RuleAuthoring;
 
 namespace Harborline.Blocks.BuilderDefinitions;
 
@@ -238,9 +239,9 @@ public static class ConfigurationProposal
             .ToDictionary(reference => reference.GetProperty("key").GetString()!, reference => reference.GetProperty("revision").GetString()!, StringComparer.Ordinal);
         var owners = references.GetProperty("ownership").EnumerateArray().ToDictionary(
             owner => owner.GetProperty("definitionKey").GetString()!, owner => owner.GetProperty("packageKey").GetString()!, StringComparer.Ordinal);
-        // An edited definition's own envelope can also name packages: each ADR-0006 requires entry spelled
-        // pack-key@interfaceVersion is a package its cross-package references depend on (records-ck-41).
-        var declarations = version.Edits.Select(edit => (edit, Declared: DeclaredPackages(edit.BodyJson))).ToArray();
+        // The producer contracts differ: Rules name packages with strings, Layout with bare capability
+        // objects, and Records with pack-key@interfaceVersion objects (records-ck-41).
+        var declarations = version.Edits.Select(edit => (edit, Declared: DeclaredPackages(edit.BodyJson, edit.ContentKind))).ToArray();
         var dependencies = new List<PlatformPackageDependency>();
         foreach (var referenced in declarations
             .SelectMany(declared => (owners.TryGetValue(declared.edit.DefinitionKey, out var owner) ? [owner, declared.edit.PackageKey] : new[] { declared.edit.PackageKey })
@@ -271,26 +272,41 @@ public static class ConfigurationProposal
             revision, document, Convert.ToHexStringLower(SHA256.HashData(document))), null);
     }
 
-    // Reads only the envelope members every kind spells the same way: requires entries (ADR-0006, the api installer's
-    // pack-key@interfaceVersion capability) and the exposure declaration's interface version. Anything else, including a
-    // requires entry naming a platform capability rather than a package, is not a package declaration.
-    private static (string[] Requires, int? InterfaceVersion) DeclaredPackages(string bodyJson)
+    // Reads the existing producer spellings without inventing interface versions for bare package IDs.
+    // Layout's sealed platform capability is not a package dependency (layout-ck-42).
+    private static (string[] Requires, int? InterfaceVersion) DeclaredPackages(string bodyJson, string contentKind)
     {
         using var body = JsonDocument.Parse(bodyJson);
         if (body.RootElement.ValueKind != JsonValueKind.Object
             || !body.RootElement.TryGetProperty("envelope", out var envelope) || envelope.ValueKind != JsonValueKind.Object)
             return ([], null);
-        var requires = envelope.TryGetProperty("requires", out var entries) && entries.ValueKind == JsonValueKind.Array
-            ? entries.EnumerateArray()
-                .Select(entry => entry.ValueKind == JsonValueKind.Object && entry.TryGetProperty("capability", out var capability)
-                    && capability.ValueKind == JsonValueKind.String
-                    && RecordsRequirement.TryParse(capability.GetString(), out var package, out _) ? package : null)
-                .OfType<string>().ToArray()
-            : [];
+        // The Rule codec identifies its own source shape; no Rule transport kind is invented here.
+        // Its Requires values are exact package IDs (RuleCrossPackageAuthoring), never @version syntax.
+        var rule = RuleDefinitionCodec.Parse(bodyJson, RuleIntentPhase.Publish).Document
+            // Stored Rule bodies omit shared identity metadata (SerializeBody/ParseBody). These
+            // empty read-only header values supply no identity/version claim: only Requires is used.
+            ?? RuleDefinitionCodec.ParseBody(bodyJson, "", "", "", RuleIntentPhase.Publish).Document;
+        var requires = rule is not null ? rule.Envelope.Requires.ToArray()
+            : envelope.TryGetProperty("requires", out var entries) && entries.ValueKind == JsonValueKind.Array
+                ? entries.EnumerateArray().Select(entry => RequiredPackage(entry, contentKind)).OfType<string>().ToArray()
+                : [];
         int? interfaceVersion = envelope.TryGetProperty("exposes", out var exposes) && exposes.ValueKind == JsonValueKind.Object
             && exposes.TryGetProperty("interface_version", out var declared) && declared.ValueKind == JsonValueKind.Number
             && declared.TryGetInt32(out var parsed) && parsed > 0 ? parsed : null;
         return (requires, interfaceVersion);
+    }
+
+    private static string? RequiredPackage(JsonElement entry, string contentKind)
+    {
+        if (entry.ValueKind != JsonValueKind.Object || !entry.TryGetProperty("capability", out var capability)
+            || capability.ValueKind != JsonValueKind.String)
+            return null;
+        var value = capability.GetString();
+        // LayoutCrossPackageAuthoring compares the bare capability to the exact target PackageId;
+        // its minimum_platform_version belongs to host admission, never the package's revision pin.
+        if (contentKind == "Layout")
+            return string.IsNullOrWhiteSpace(value) || value == LayoutPackIdentity.Capability ? null : value;
+        return RecordsRequirement.TryParse(value, out var package, out _) ? package : null;
     }
 
     private static string Digest(string proposalId, string tenantKey, string baselineDigest,

@@ -453,8 +453,8 @@ public sealed class ConfigurationProposalTests
         Assert.Equal("eam-core", refused.Refusal.Target);
     }
 
-    // Only the ADR-0006 package spelling is a package declaration. A platform capability with no interface
-    // version, a bare string and a non-positive version name no package, so the closure is the edit's alone.
+    // In a Records object requirement, only pack-key@interfaceVersion names a package. A platform capability
+    // with no interface version, a string entry and a non-positive version name no package here.
     [Theory]
     [InlineData("""{"requires":[{"capability":"layout.grid"}]}""")]
     [InlineData("""{"requires":["payroll@2"]}""")]
@@ -464,6 +464,129 @@ public sealed class ConfigurationProposalTests
     {
         var baseline = TwoPackageBaseline();
         Assert.Equal(["finance@1.2.0"], Closure(Released(baseline, EditedWith(baseline, Enveloped(envelope))).Released!.Document));
+    }
+
+    // Literal oracles from RuleDefinitionCodec/RuleCrossPackageAuthoring and
+    // LayoutDefinitionJson/LayoutCrossPackageAuthoring: package IDs are compared exactly; the
+    // baseline's package revision, not an interface or platform version, is the dependency pin.
+    // The Rule transport name is intentionally opaque: ConfigurationProposal preserves the caller's
+    // stated kind; these controls qualify source extraction, not consumer admission or a new kind.
+    [Theory]
+    [InlineData("opaque-rule-kind", """{"requires":["payroll"]}""")]
+    [InlineData("Layout", """{"requires":[{"capability":"payroll","minimum_platform_version":"8.0.0"},{"capability":"platform.layout","minimum_platform_version":"9.0.0"}]}""")]
+    public void Bare_package_requirements_join_the_closure_at_the_exact_baseline_pin(string contentKind, string envelope)
+    {
+        var baseline = TwoPackageBaseline();
+        var state = ConfigurationProposal.Autosave(ConfigurationProposal.Start("proposal-1", baseline),
+            new("new/consumer", "finance", RequirementSource(contentKind, envelope), contentKind));
+        var released = Released(baseline, state);
+        Assert.Null(released.Refusal);
+        Assert.Equal(["finance@1.2.0", "payroll@3.0.0"], Closure(released.Released!.Document));
+    }
+
+    [Theory]
+    [InlineData("opaque-rule-kind", """{"requires":["eam-core"]}""")]
+    [InlineData("Layout", """{"requires":[{"capability":"eam-core"}]}""")]
+    public void Bare_package_requirements_outside_the_baseline_refuse_without_a_release(string contentKind, string envelope)
+    {
+        var baseline = TwoPackageBaseline();
+        var state = ConfigurationProposal.Autosave(ConfigurationProposal.Start("proposal-1", baseline),
+            new("new/consumer", "finance", RequirementSource(contentKind, envelope), contentKind));
+        var refused = Released(baseline, state);
+        Assert.Null(refused.Released);
+        Assert.Equal("configuration-release-dependency-unpinned", refused.Refusal!.Code);
+        Assert.Equal("eam-core", refused.Refusal.Target);
+    }
+
+    [Theory]
+    [InlineData("opaque-rule-kind", """{"requires":["payroll@2"]}""")]
+    [InlineData("Layout", """{"requires":[{"capability":"payroll@2"}]}""")]
+    public void Bare_requirement_contracts_preserve_the_exact_package_id_without_guessing_an_interface_version(string contentKind, string envelope)
+    {
+        var baseline = TwoPackageBaseline();
+        var state = ConfigurationProposal.Autosave(ConfigurationProposal.Start("proposal-1", baseline),
+            new("new/consumer", "finance", RequirementSource(contentKind, envelope), contentKind));
+        var refused = Released(baseline, state);
+        Assert.Null(refused.Released);
+        Assert.Equal("configuration-release-dependency-unpinned", refused.Refusal!.Code);
+        Assert.Equal("payroll@2", refused.Refusal.Target);
+    }
+
+    [Theory]
+    [InlineData("payroll", null, null)]
+    [InlineData("eam-core", "configuration-release-dependency-unpinned", "eam-core")]
+    public void Stored_rule_bodies_use_the_same_exact_package_requirements_without_inventing_shared_metadata(
+        string package, string? refusalCode, string? refusalTarget)
+    {
+        var baseline = TwoPackageBaseline();
+        // Literal stored-body shape from RuleDefinitionCodec.SerializeBody: id, tenant and version
+        // are absent, as the shared definition header owns them. No header is synthesized for release.
+        var body = $$$$"""
+            {"envelope":{"cascadeLayer":"domain-package","provenance":{"kind":"package","id":"finance"},
+             "requires":["{{{{package}}}}"],"contract":{"major":1,"minor":0}},
+             "name":"Amount rule","tier":"JsonLogic","draft":{"kind":"Formula","scope":"Field",
+             "scopeTarget":"total","outputType":"Compute","inputs":[],
+             "expression":{"kind":"Literal","value":"1","valueType":"Number"}}}
+            """;
+        var state = ConfigurationProposal.Autosave(ConfigurationProposal.Start("proposal-1", baseline),
+            new("new/rule", "finance", body, "opaque-rule-kind"));
+        var released = Released(baseline, state);
+        Assert.Equal(refusalCode, released.Refusal?.Code);
+        Assert.Equal(refusalTarget, released.Refusal?.Target);
+        if (refusalCode is null)
+        {
+            Assert.Equal(["finance@1.2.0", "payroll@3.0.0"], Closure(released.Released!.Document));
+            using var document = JsonDocument.Parse(released.Released.Document);
+            var definition = document.RootElement.GetProperty("items").EnumerateArray()
+                .Single(item => item.GetProperty("id").GetString() == "tenant-a.release.definition-1")
+                .GetProperty("content").GetProperty("payload");
+            // Existing export format wraps the exact authored body; dependency extraction may not
+            // inject the read-only codec header values into it.
+            Assert.Equal("opaque-rule-kind", definition.GetProperty("contentKind").GetString());
+            var envelope = definition.GetProperty("body").GetProperty("envelope");
+            Assert.False(envelope.TryGetProperty("id", out _));
+            Assert.False(envelope.TryGetProperty("tenant", out _));
+            Assert.False(envelope.TryGetProperty("version", out _));
+        }
+        else Assert.Null(released.Released);
+    }
+
+    [Theory]
+    [InlineData("""{"requires":["payroll"]}""")]
+    [InlineData("""{"requires":[null,7,{}, {"capability":7}, {"capability":null}, {"capability":""}, {"capability":" "}]}""")]
+    public void Layout_requirement_shapes_other_than_nonblank_capability_objects_add_no_packages(string envelope)
+    {
+        var baseline = TwoPackageBaseline();
+        var state = ConfigurationProposal.Autosave(ConfigurationProposal.Start("proposal-1", baseline),
+            new("new/surface", "finance", Enveloped(envelope), "Layout"));
+        var released = Released(baseline, state);
+        Assert.Null(released.Refusal);
+        Assert.Equal(["finance@1.2.0"], Closure(released.Released!.Document));
+    }
+
+    [Fact]
+    public void Layouts_sealed_platform_capability_is_not_a_package_even_when_the_baseline_has_that_key()
+    {
+        var baseline = ConfigurationGeneration.Resolve(new ResolvedConfiguration("tenant-a", ["platform.layout"],
+            [new(Ref("platform.layout", "7.0.0", 'a'), [], [])], [], Ref("platform", "1.0.0", 'd'), []));
+        var state = ConfigurationProposal.Autosave(ConfigurationProposal.Start("proposal-1", baseline),
+            new("new/surface", "tenant-a.release", Enveloped("""{"requires":[{"capability":"platform.layout","minimum_platform_version":"1.0.0"}]}"""), "Layout"));
+        var released = Released(baseline, state);
+        Assert.Null(released.Refusal);
+        Assert.Empty(Closure(released.Released!.Document));
+    }
+
+    [Fact]
+    public void Requirements_deduplicate_edit_owners_and_exclude_the_released_package_across_producer_shapes()
+    {
+        var baseline = TwoPackageBaseline();
+        var state = ConfigurationProposal.Autosave(ConfigurationProposal.Start("proposal-1", baseline),
+            new("new/rule", "finance", RequirementSource("opaque-rule-kind", """{"requires":["finance","payroll","payroll","tenant-a.release"]}"""), "opaque-rule-kind"));
+        state = ConfigurationProposal.Autosave(state,
+            new("new/surface", "tenant-a.release", Enveloped("""{"requires":[{"capability":"finance"},{"capability":"payroll"},{"capability":"tenant-a.release"}]}"""), "Layout"));
+        var released = Released(baseline, state);
+        Assert.Null(released.Refusal);
+        Assert.Equal(["finance@1.2.0", "payroll@3.0.0"], Closure(released.Released!.Document));
     }
 
     // ADR-0028: the released manifest lists the definitions that declare themselves exposed, at the package's one
@@ -511,6 +634,22 @@ public sealed class ConfigurationProposalTests
         Assert.Equal("configuration-release-interface-ambiguous", refused.Refusal!.Code);
         Assert.Equal("exposes", refused.Refusal.Target);
         Assert.Contains("1, 2", refused.Refusal.Message, StringComparison.Ordinal);
+    }
+
+    private static string RequirementSource(string contentKind, string envelope)
+    {
+        if (contentKind == "Layout") return Enveloped(envelope);
+        // Literal Rule source from the RuleDefinitionCodec contract and the existing rule catalogue
+        // source fixture; the requires entries are authored input, never expected production output.
+        using var requirements = JsonDocument.Parse(envelope);
+        return $$$$"""
+            {"envelope":{"id":"new/rule","version":"1.0.0","tenant":"tenant-a",
+             "cascadeLayer":"domain-package","provenance":{"kind":"package","id":"finance"},
+             "requires":{{{{requirements.RootElement.GetProperty("requires").GetRawText()}}}},"contract":{"major":1,"minor":0}},
+             "name":"Amount rule","tier":"JsonLogic","draft":{"kind":"Formula","scope":"Field",
+             "scopeTarget":"total","outputType":"Compute","inputs":[],
+             "expression":{"kind":"Literal","value":"1","valueType":"Number"}}}
+            """;
     }
 
     private static ConfigurationGeneration TwoPackageBaseline() => ConfigurationGeneration.Resolve(new ResolvedConfiguration("tenant-a", ["finance", "payroll"],
