@@ -3,6 +3,7 @@
   "stryker-config": {
     "project": "Harborline.Foundation.ExecutionRuntime.csproj",
     "coverage-analysis": "off",
+    "disable-bail": true,
     "since": {
       "enabled": true,
       "target": "origin/main"
