@@ -56,7 +56,7 @@ public sealed class InboxChannelTests
             senderIdentity: null,
             secretReferenceIds: ["secret://smtp/password"]));
 
-        Assert.Equal(NotificationDeliveryRefusals.SecretReferenceNotAllowed, exception.Code);
+        Assert.Equal("notification_delivery.secret_reference_not_allowed", exception.Code);
     }
 
     [Fact]
@@ -74,7 +74,7 @@ public sealed class InboxChannelTests
             "/records/17",
             false)));
 
-        Assert.Equal(NotificationDeliveryRefusals.InboxEntryInvalid, exception.Code);
+        Assert.Equal("notification_delivery.inbox_entry_invalid", exception.Code);
     }
 
     [Theory]
@@ -95,7 +95,7 @@ public sealed class InboxChannelTests
             "/records/17",
             false)));
 
-        Assert.Equal(NotificationDeliveryRefusals.InboxEntryInvalid, exception.Code);
+        Assert.Equal("notification_delivery.inbox_entry_invalid", exception.Code);
         Assert.Empty(await inbox.ListAsync(tenant, recipient));
     }
 }

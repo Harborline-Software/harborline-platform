@@ -1,0 +1,897 @@
+{
+  "run": 37718895656,
+  "artifactId": 11524881645,
+  "artifactDigest": "sha256:786fe029af756ca21c755ad160a677ea44e6d333e488df650c1abfed356fee12",
+  "reportSha256": "e9ef82216fb04be27817bf13da70f64983530e64095481218d4ff0cea5a38b93",
+  "head": "4eb8e0515b6ea7918ed24381fab212aa8999b023",
+  "tree": "28ab08195ffcc8fd576adb0b85f939821081d07a",
+  "controlHead": "2ea70c17bcf63ca335e6331fab82964aab375fd6",
+  "command": "node tooling/stryker.mjs full hlp.foundation.notification-delivery.tests",
+  "tool": "Stryker.NET5.0.0",
+  "durationSeconds": 34.9217181,
+  "scope": "full notification project; coverage-analysisoff; noPRtest-onlyskip",
+  "sourceConfigBlob": "b24ce06627901247a8f161b255d8b09c92d60e13",
+  "wrapperBlob": "d455509a70f3a178fc421ef8826bb8992f3d4c17",
+  "rawReportThresholds": {
+    "high": 80,
+    "low": 60
+  },
+  "counts": {
+    "Killed": 58,
+    "Ignored": 16,
+    "CompileError": 5,
+    "Survived": 1
+  },
+  "tested": 59,
+  "total": 80,
+  "score": 98.3,
+  "toolPrintedRoundedScore": 98.31,
+  "reportedTestCases": 61,
+  "historicalSurvivorsKilledWithNamedTests": 33,
+  "plannedNamedTestAlsoReported": 29,
+  "remainingSurvivor": 71,
+  "compileErrorRatio": 0.0625,
+  "compileErrorRatioChange": 0,
+  "productionAndTestSourceBindings": [
+    {
+      "file": "projections/dotnet/foundation/hlp.foundation.notification-delivery/DeliveryChannels.cs",
+      "sha256": "bfbcf824d0c8f05c43a6a5b29f87dfa8bb657bf511b42ab3139a0d9ec5824a72",
+      "reportEmbeddedSourceMatches": true
+    },
+    {
+      "file": "projections/dotnet/foundation/hlp.foundation.notification-delivery/InboxChannel.cs",
+      "sha256": "545de34184c07056403dbcc21ac6ba639a3a1a7acd84a8e23dc082bcd7925568",
+      "reportEmbeddedSourceMatches": true
+    },
+    {
+      "file": "projections/dotnet/foundation/hlp.foundation.notification-delivery.tests/DeliveryChannelBoundaryTests.cs",
+      "sha256": "956f0cc8e6ad3db8fd27e0df3f48f848af52472ba3b46d2c1a8450728ad26c09",
+      "reportEmbeddedSourceMatches": true
+    },
+    {
+      "file": "projections/dotnet/foundation/hlp.foundation.notification-delivery.tests/InboxChannelTests.cs",
+      "sha256": "9416c9f26a4e5a5d6872dea536dc77d04fed3f32a996870f0bdf51a8efe1d2dd",
+      "reportEmbeddedSourceMatches": true
+    },
+    {
+      "file": "projections/dotnet/foundation/hlp.foundation.notification-delivery.tests/InboxStoreBoundaryTests.cs",
+      "sha256": "679db8172086d33500b173aebd5cc21312a5cff16b3fef5e4d596b0fe49ee6dd",
+      "reportEmbeddedSourceMatches": true
+    },
+    {
+      "file": "projections/dotnet/foundation/hlp.foundation.notification-delivery.tests/InboxWriteBoundaryTests.cs",
+      "sha256": "958089a9b4bb2419de08f5d2e911ff4d52aff18599fc74b54ac3b658357118df",
+      "reportEmbeddedSourceMatches": true
+    }
+  ],
+  "survivorAudit": [
+    {
+      "historicalId": 0,
+      "file": "DeliveryChannels.cs",
+      "location": {
+        "start": {
+          "line": 12,
+          "column": 59
+        },
+        "end": {
+          "line": 12,
+          "column": 66
+        }
+      },
+      "mutator": "String mutation",
+      "replacement": "\"\"",
+      "freshId": "0",
+      "status": "Killed",
+      "killingTests": [
+        "Harborline.Foundation.NotificationDelivery.Tests.DeliveryChannelBoundaryTests.Notification_delivery_ck_1_inbox_key_renders_its_stable_name_and_default_renders_empty",
+        "Harborline.Foundation.NotificationDelivery.Tests.DeliveryChannelBoundaryTests.Notification_delivery_ck_2_empty_binding_preserves_tenant_channel_enablement_and_sender",
+        "Harborline.Foundation.NotificationDelivery.Tests.DeliveryChannelBoundaryTests.Notification_delivery_ck_2_inbox_secrets_refuse_even_when_the_binding_is_disabled"
+      ],
+      "initiallyPlannedTest": "Harborline.Foundation.NotificationDelivery.Tests.DeliveryChannelBoundaryTests.Notification_delivery_ck_1_inbox_key_renders_its_stable_name_and_default_renders_empty",
+      "initiallyPlannedTestNamed": true,
+      "classification": "2: stable channel identity and empty default rendering"
+    },
+    {
+      "historicalId": 1,
+      "file": "DeliveryChannels.cs",
+      "location": {
+        "start": {
+          "line": 18,
+          "column": 42
+        },
+        "end": {
+          "line": 18,
+          "column": 63
+        }
+      },
+      "mutator": "Null coalescing mutation (remove left)",
+      "replacement": "string.Empty",
+      "freshId": "1",
+      "status": "Killed",
+      "killingTests": [
+        "Harborline.Foundation.NotificationDelivery.Tests.DeliveryChannelBoundaryTests.Notification_delivery_ck_2_inbox_secrets_refuse_even_when_the_binding_is_disabled"
+      ],
+      "initiallyPlannedTest": "Harborline.Foundation.NotificationDelivery.Tests.DeliveryChannelBoundaryTests.Notification_delivery_ck_1_inbox_key_renders_its_stable_name_and_default_renders_empty",
+      "initiallyPlannedTestNamed": false,
+      "classification": "2: stable channel identity and empty default rendering"
+    },
+    {
+      "historicalId": 2,
+      "file": "DeliveryChannels.cs",
+      "location": {
+        "start": {
+          "line": 18,
+          "column": 51
+        },
+        "end": {
+          "line": 18,
+          "column": 63
+        }
+      },
+      "mutator": "String mutation",
+      "replacement": "\"Stryker was here!\"",
+      "freshId": "2",
+      "status": "Killed",
+      "killingTests": [
+        "Harborline.Foundation.NotificationDelivery.Tests.DeliveryChannelBoundaryTests.Notification_delivery_ck_1_inbox_key_renders_its_stable_name_and_default_renders_empty",
+        "Harborline.Foundation.NotificationDelivery.Tests.DeliveryChannelBoundaryTests.Notification_delivery_ck_1_unknown_channel_refuses_with_a_code_and_operator_explanation",
+        "Harborline.Foundation.NotificationDelivery.Tests.DeliveryChannelBoundaryTests.Notification_delivery_ck_2_binding_an_unknown_channel_refuses_even_without_secrets"
+      ],
+      "initiallyPlannedTest": "Harborline.Foundation.NotificationDelivery.Tests.DeliveryChannelBoundaryTests.Notification_delivery_ck_1_inbox_key_renders_its_stable_name_and_default_renders_empty",
+      "initiallyPlannedTestNamed": true,
+      "classification": "2: stable channel identity and empty default rendering"
+    },
+    {
+      "historicalId": 4,
+      "file": "DeliveryChannels.cs",
+      "location": {
+        "start": {
+          "line": 57,
+          "column": 9
+        },
+        "end": {
+          "line": 57,
+          "column": 63
+        }
+      },
+      "mutator": "Statement mutation",
+      "replacement": ";",
+      "freshId": "4",
+      "status": "Killed",
+      "killingTests": [
+        "Harborline.Foundation.NotificationDelivery.Tests.DeliveryChannelBoundaryTests.Notification_delivery_ck_2_null_reference_collection_is_refused_before_binding"
+      ],
+      "initiallyPlannedTest": "Harborline.Foundation.NotificationDelivery.Tests.DeliveryChannelBoundaryTests.Notification_delivery_ck_2_null_reference_collection_is_refused_before_binding",
+      "initiallyPlannedTestNamed": true,
+      "classification": "1: fail-closed configuration boundary"
+    },
+    {
+      "historicalId": 5,
+      "file": "DeliveryChannels.cs",
+      "location": {
+        "start": {
+          "line": 59,
+          "column": 13
+        },
+        "end": {
+          "line": 59,
+          "column": 96
+        }
+      },
+      "mutator": "Logical mutation",
+      "replacement": "secretReferenceIds.Count != 0 || registered.RequiredSecretReferenceNames.Count == 0",
+      "freshId": "5",
+      "status": "Killed",
+      "killingTests": [
+        "Harborline.Foundation.NotificationDelivery.Tests.DeliveryChannelBoundaryTests.Notification_delivery_ck_2_binding_copies_references_instead_of_retaining_the_callers_list",
+        "Harborline.Foundation.NotificationDelivery.Tests.DeliveryChannelBoundaryTests.Notification_delivery_ck_2_empty_binding_preserves_tenant_channel_enablement_and_sender"
+      ],
+      "initiallyPlannedTest": "Harborline.Foundation.NotificationDelivery.Tests.DeliveryChannelBoundaryTests.Notification_delivery_ck_2_empty_binding_preserves_tenant_channel_enablement_and_sender",
+      "initiallyPlannedTestNamed": true,
+      "classification": "2: valid binding availability and tenant configuration"
+    },
+    {
+      "historicalId": 13,
+      "file": "DeliveryChannels.cs",
+      "location": {
+        "start": {
+          "line": 63,
+          "column": 17
+        },
+        "end": {
+          "line": 63,
+          "column": 70
+        }
+      },
+      "mutator": "String mutation",
+      "replacement": "$\"\"",
+      "freshId": "13",
+      "status": "Killed",
+      "killingTests": [
+        "Harborline.Foundation.NotificationDelivery.Tests.DeliveryChannelBoundaryTests.Notification_delivery_ck_2_inbox_secrets_refuse_even_when_the_binding_is_disabled"
+      ],
+      "initiallyPlannedTest": "Harborline.Foundation.NotificationDelivery.Tests.DeliveryChannelBoundaryTests.Notification_delivery_ck_2_inbox_secrets_refuse_even_when_the_binding_is_disabled",
+      "initiallyPlannedTestNamed": true,
+      "classification": "3: operator diagnostics"
+    },
+    {
+      "historicalId": 17,
+      "file": "DeliveryChannels.cs",
+      "location": {
+        "start": {
+          "line": 134,
+          "column": 17
+        },
+        "end": {
+          "line": 134,
+          "column": 54
+        }
+      },
+      "mutator": "String mutation",
+      "replacement": "$\"\"",
+      "freshId": "17",
+      "status": "Killed",
+      "killingTests": [
+        "Harborline.Foundation.NotificationDelivery.Tests.DeliveryChannelBoundaryTests.Notification_delivery_ck_1_unknown_channel_refuses_with_a_code_and_operator_explanation",
+        "Harborline.Foundation.NotificationDelivery.Tests.DeliveryChannelBoundaryTests.Notification_delivery_ck_2_binding_an_unknown_channel_refuses_even_without_secrets"
+      ],
+      "initiallyPlannedTest": "Harborline.Foundation.NotificationDelivery.Tests.DeliveryChannelBoundaryTests.Notification_delivery_ck_1_unknown_channel_refuses_with_a_code_and_operator_explanation",
+      "initiallyPlannedTestNamed": true,
+      "classification": "3: operator diagnostics"
+    },
+    {
+      "historicalId": 19,
+      "file": "InboxChannel.cs",
+      "location": {
+        "start": {
+          "line": 70,
+          "column": 9
+        },
+        "end": {
+          "line": 70,
+          "column": 50
+        }
+      },
+      "mutator": "Statement mutation",
+      "replacement": ";",
+      "freshId": "19",
+      "status": "Killed",
+      "killingTests": [
+        "Harborline.Foundation.NotificationDelivery.Tests.InboxStoreBoundaryTests.Notification_delivery_ck_10_append_rejects_null_and_duplicate_ids_without_losing_the_first_entry"
+      ],
+      "initiallyPlannedTest": "Harborline.Foundation.NotificationDelivery.Tests.InboxStoreBoundaryTests.Notification_delivery_ck_10_append_rejects_null_and_duplicate_ids_without_losing_the_first_entry",
+      "initiallyPlannedTestNamed": true,
+      "classification": "1: fail-closed persistence boundary"
+    },
+    {
+      "historicalId": 20,
+      "file": "InboxChannel.cs",
+      "location": {
+        "start": {
+          "line": 71,
+          "column": 9
+        },
+        "end": {
+          "line": 71,
+          "column": 58
+        }
+      },
+      "mutator": "Statement mutation",
+      "replacement": ";",
+      "freshId": "20",
+      "status": "Killed",
+      "killingTests": [
+        "Harborline.Foundation.NotificationDelivery.Tests.InboxStoreBoundaryTests.Inbox_cancelled_operation_throws_without_changing_any_inbox",
+        "Harborline.Foundation.NotificationDelivery.Tests.InboxWriteBoundaryTests.Notification_delivery_ck_10_cancelled_write_never_persists_an_entry"
+      ],
+      "initiallyPlannedTest": "Harborline.Foundation.NotificationDelivery.Tests.InboxStoreBoundaryTests.Inbox_cancelled_operation_throws_without_changing_any_inbox",
+      "initiallyPlannedTestNamed": true,
+      "classification": "2: cancellation and unchanged durable data"
+    },
+    {
+      "historicalId": 24,
+      "file": "InboxChannel.cs",
+      "location": {
+        "start": {
+          "line": 82,
+          "column": 9
+        },
+        "end": {
+          "line": 82,
+          "column": 58
+        }
+      },
+      "mutator": "Statement mutation",
+      "replacement": ";",
+      "freshId": "24",
+      "status": "Killed",
+      "killingTests": [
+        "Harborline.Foundation.NotificationDelivery.Tests.InboxStoreBoundaryTests.Inbox_cancelled_operation_throws_without_changing_any_inbox"
+      ],
+      "initiallyPlannedTest": "Harborline.Foundation.NotificationDelivery.Tests.InboxStoreBoundaryTests.Inbox_cancelled_operation_throws_without_changing_any_inbox",
+      "initiallyPlannedTestNamed": true,
+      "classification": "2: cancellation and unchanged durable data"
+    },
+    {
+      "historicalId": 26,
+      "file": "InboxChannel.cs",
+      "location": {
+        "start": {
+          "line": 85,
+          "column": 49
+        },
+        "end": {
+          "line": 88,
+          "column": 24
+        }
+      },
+      "mutator": "Linq method mutation (ThenBy() to ThenByDescending())",
+      "replacement": "_entries.Values\n                .Where(entry => entry.Tenant == tenant && entry.Recipient == recipient)\n                .OrderByDescending(entry => entry.CreatedAt)\n                .ThenByDescending",
+      "freshId": "26",
+      "status": "Killed",
+      "killingTests": [
+        "Harborline.Foundation.NotificationDelivery.Tests.InboxStoreBoundaryTests.Inbox_equal_timestamp_entries_use_ascending_id_as_a_repeatable_tiebreak"
+      ],
+      "initiallyPlannedTest": "Harborline.Foundation.NotificationDelivery.Tests.InboxStoreBoundaryTests.Inbox_equal_timestamp_entries_use_ascending_id_as_a_repeatable_tiebreak",
+      "initiallyPlannedTestNamed": true,
+      "classification": "3: deterministic compatibility ordering"
+    },
+    {
+      "historicalId": 27,
+      "file": "InboxChannel.cs",
+      "location": {
+        "start": {
+          "line": 85,
+          "column": 49
+        },
+        "end": {
+          "line": 87,
+          "column": 35
+        }
+      },
+      "mutator": "Linq method mutation (OrderByDescending() to OrderBy())",
+      "replacement": "_entries.Values\n                .Where(entry => entry.Tenant == tenant && entry.Recipient == recipient)\n                .OrderBy",
+      "freshId": "27",
+      "status": "Killed",
+      "killingTests": [
+        "Harborline.Foundation.NotificationDelivery.Tests.InboxStoreBoundaryTests.Inbox_cancelled_operation_throws_without_changing_any_inbox",
+        "Harborline.Foundation.NotificationDelivery.Tests.InboxStoreBoundaryTests.Notification_delivery_ck_7_wrong_scope_or_missing_entry_refuses_without_changing_any_inbox"
+      ],
+      "initiallyPlannedTest": "Harborline.Foundation.NotificationDelivery.Tests.InboxStoreBoundaryTests.Notification_delivery_cc_2_entries_are_newest_first_even_when_appended_out_of_order",
+      "initiallyPlannedTestNamed": false,
+      "classification": "2: inbox presentation ordering"
+    },
+    {
+      "historicalId": 28,
+      "file": "InboxChannel.cs",
+      "location": {
+        "start": {
+          "line": 86,
+          "column": 33
+        },
+        "end": {
+          "line": 86,
+          "column": 87
+        }
+      },
+      "mutator": "Logical mutation",
+      "replacement": "entry.Tenant == tenant || entry.Recipient == recipient",
+      "freshId": "28",
+      "status": "Killed",
+      "killingTests": [
+        "Harborline.Foundation.NotificationDelivery.Tests.InboxStoreBoundaryTests.Notification_delivery_ck_7_wrong_scope_or_missing_entry_refuses_without_changing_any_inbox"
+      ],
+      "initiallyPlannedTest": "Harborline.Foundation.NotificationDelivery.Tests.InboxStoreBoundaryTests.Notification_delivery_cc_2_list_isolates_both_tenant_and_recipient",
+      "initiallyPlannedTestNamed": false,
+      "classification": "1: silent disclosure across tenant or recipient"
+    },
+    {
+      "historicalId": 32,
+      "file": "InboxChannel.cs",
+      "location": {
+        "start": {
+          "line": 97,
+          "column": 9
+        },
+        "end": {
+          "line": 97,
+          "column": 58
+        }
+      },
+      "mutator": "Statement mutation",
+      "replacement": ";",
+      "freshId": "32",
+      "status": "Killed",
+      "killingTests": [
+        "Harborline.Foundation.NotificationDelivery.Tests.InboxStoreBoundaryTests.Inbox_cancelled_operation_throws_without_changing_any_inbox"
+      ],
+      "initiallyPlannedTest": "Harborline.Foundation.NotificationDelivery.Tests.InboxStoreBoundaryTests.Inbox_cancelled_operation_throws_without_changing_any_inbox",
+      "initiallyPlannedTestNamed": true,
+      "classification": "2: cancellation and unchanged durable data"
+    },
+    {
+      "historicalId": 36,
+      "file": "InboxChannel.cs",
+      "location": {
+        "start": {
+          "line": 100,
+          "column": 67
+        },
+        "end": {
+          "line": 101,
+          "column": 48
+        }
+      },
+      "mutator": "Logical mutation",
+      "replacement": "entry.Tenant == tenant\n                || entry.Recipient == recipient",
+      "freshId": "36",
+      "status": "Killed",
+      "killingTests": [
+        "Harborline.Foundation.NotificationDelivery.Tests.InboxStoreBoundaryTests.Notification_delivery_ck_7_mark_all_read_changes_only_scoped_unread_entries_and_is_idempotent"
+      ],
+      "initiallyPlannedTest": "Harborline.Foundation.NotificationDelivery.Tests.InboxStoreBoundaryTests.Notification_delivery_cc_2_unread_count_excludes_read_dismissed_and_other_inboxes",
+      "initiallyPlannedTestNamed": false,
+      "classification": "1: silent scope and read-state count corruption"
+    },
+    {
+      "historicalId": 41,
+      "file": "InboxChannel.cs",
+      "location": {
+        "start": {
+          "line": 109,
+          "column": 9
+        },
+        "end": {
+          "line": 109,
+          "column": 58
+        }
+      },
+      "mutator": "Statement mutation",
+      "replacement": ";",
+      "freshId": "41",
+      "status": "Killed",
+      "killingTests": [
+        "Harborline.Foundation.NotificationDelivery.Tests.InboxStoreBoundaryTests.Inbox_cancelled_operation_throws_without_changing_any_inbox"
+      ],
+      "initiallyPlannedTest": "Harborline.Foundation.NotificationDelivery.Tests.InboxStoreBoundaryTests.Inbox_cancelled_operation_throws_without_changing_any_inbox",
+      "initiallyPlannedTestNamed": true,
+      "classification": "2: cancellation and unchanged durable data"
+    },
+    {
+      "historicalId": 43,
+      "file": "InboxChannel.cs",
+      "location": {
+        "start": {
+          "line": 112,
+          "column": 17
+        },
+        "end": {
+          "line": 112,
+          "column": 120
+        }
+      },
+      "mutator": "Logical mutation",
+      "replacement": "!_entries.TryGetValue(entryId, out var entry) || entry.Tenant != tenant && entry.Recipient != recipient",
+      "freshId": "43",
+      "status": "Killed",
+      "killingTests": [
+        "Harborline.Foundation.NotificationDelivery.Tests.InboxStoreBoundaryTests.Notification_delivery_ck_7_wrong_scope_or_missing_entry_refuses_without_changing_any_inbox"
+      ],
+      "initiallyPlannedTest": "Harborline.Foundation.NotificationDelivery.Tests.InboxStoreBoundaryTests.Notification_delivery_ck_7_wrong_scope_or_missing_entry_refuses_without_changing_any_inbox",
+      "initiallyPlannedTestNamed": true,
+      "classification": "1: silent unauthorized state mutation; 51 diagnostics"
+    },
+    {
+      "historicalId": 45,
+      "file": "InboxChannel.cs",
+      "location": {
+        "start": {
+          "line": 112,
+          "column": 17
+        },
+        "end": {
+          "line": 112,
+          "column": 88
+        }
+      },
+      "mutator": "Logical mutation",
+      "replacement": "!_entries.TryGetValue(entryId, out var entry) && entry.Tenant != tenant",
+      "freshId": "45",
+      "status": "Killed",
+      "killingTests": [
+        "Harborline.Foundation.NotificationDelivery.Tests.InboxStoreBoundaryTests.Notification_delivery_ck_7_wrong_scope_or_missing_entry_refuses_without_changing_any_inbox"
+      ],
+      "initiallyPlannedTest": "Harborline.Foundation.NotificationDelivery.Tests.InboxStoreBoundaryTests.Notification_delivery_ck_7_wrong_scope_or_missing_entry_refuses_without_changing_any_inbox",
+      "initiallyPlannedTestNamed": true,
+      "classification": "1: silent unauthorized state mutation; 51 diagnostics"
+    },
+    {
+      "historicalId": 50,
+      "file": "InboxChannel.cs",
+      "location": {
+        "start": {
+          "line": 114,
+          "column": 17
+        },
+        "end": {
+          "line": 116,
+          "column": 83
+        }
+      },
+      "mutator": "Statement mutation",
+      "replacement": ";",
+      "freshId": "50",
+      "status": "Killed",
+      "killingTests": [
+        "Harborline.Foundation.NotificationDelivery.Tests.InboxStoreBoundaryTests.Notification_delivery_ck_7_wrong_scope_or_missing_entry_refuses_without_changing_any_inbox"
+      ],
+      "initiallyPlannedTest": "Harborline.Foundation.NotificationDelivery.Tests.InboxStoreBoundaryTests.Notification_delivery_ck_7_wrong_scope_or_missing_entry_refuses_without_changing_any_inbox",
+      "initiallyPlannedTestNamed": true,
+      "classification": "1: silent unauthorized state mutation; 51 diagnostics"
+    },
+    {
+      "historicalId": 51,
+      "file": "InboxChannel.cs",
+      "location": {
+        "start": {
+          "line": 116,
+          "column": 21
+        },
+        "end": {
+          "line": 116,
+          "column": 81
+        }
+      },
+      "mutator": "String mutation",
+      "replacement": "$\"\"",
+      "freshId": "51",
+      "status": "Killed",
+      "killingTests": [
+        "Harborline.Foundation.NotificationDelivery.Tests.InboxStoreBoundaryTests.Notification_delivery_ck_7_wrong_scope_or_missing_entry_refuses_without_changing_any_inbox"
+      ],
+      "initiallyPlannedTest": "Harborline.Foundation.NotificationDelivery.Tests.InboxStoreBoundaryTests.Notification_delivery_ck_7_wrong_scope_or_missing_entry_refuses_without_changing_any_inbox",
+      "initiallyPlannedTestNamed": true,
+      "classification": "1: silent unauthorized state mutation; 51 diagnostics"
+    },
+    {
+      "historicalId": 53,
+      "file": "InboxChannel.cs",
+      "location": {
+        "start": {
+          "line": 127,
+          "column": 9
+        },
+        "end": {
+          "line": 127,
+          "column": 58
+        }
+      },
+      "mutator": "Statement mutation",
+      "replacement": ";",
+      "freshId": "53",
+      "status": "Killed",
+      "killingTests": [
+        "Harborline.Foundation.NotificationDelivery.Tests.InboxStoreBoundaryTests.Inbox_cancelled_operation_throws_without_changing_any_inbox"
+      ],
+      "initiallyPlannedTest": "Harborline.Foundation.NotificationDelivery.Tests.InboxStoreBoundaryTests.Inbox_cancelled_operation_throws_without_changing_any_inbox",
+      "initiallyPlannedTestNamed": true,
+      "classification": "2: cancellation and unchanged durable data"
+    },
+    {
+      "historicalId": 55,
+      "file": "InboxChannel.cs",
+      "location": {
+        "start": {
+          "line": 130,
+          "column": 66
+        },
+        "end": {
+          "line": 132,
+          "column": 60
+        }
+      },
+      "mutator": "Logical mutation",
+      "replacement": "entry.Tenant == tenant\n                && entry.Recipient == recipient\n                || entry.ReadState == InboxReadState.Unread",
+      "freshId": "55",
+      "status": "Killed",
+      "killingTests": [
+        "Harborline.Foundation.NotificationDelivery.Tests.InboxStoreBoundaryTests.Notification_delivery_ck_7_mark_all_read_changes_only_scoped_unread_entries_and_is_idempotent"
+      ],
+      "initiallyPlannedTest": "Harborline.Foundation.NotificationDelivery.Tests.InboxStoreBoundaryTests.Notification_delivery_ck_7_mark_all_read_changes_only_scoped_unread_entries_and_is_idempotent",
+      "initiallyPlannedTestNamed": true,
+      "classification": "1: silent cross-scope bulk state corruption"
+    },
+    {
+      "historicalId": 56,
+      "file": "InboxChannel.cs",
+      "location": {
+        "start": {
+          "line": 130,
+          "column": 66
+        },
+        "end": {
+          "line": 131,
+          "column": 48
+        }
+      },
+      "mutator": "Logical mutation",
+      "replacement": "entry.Tenant == tenant\n                || entry.Recipient == recipient",
+      "freshId": "56",
+      "status": "Killed",
+      "killingTests": [
+        "Harborline.Foundation.NotificationDelivery.Tests.InboxStoreBoundaryTests.Notification_delivery_ck_7_mark_all_read_changes_only_scoped_unread_entries_and_is_idempotent",
+        "Harborline.Foundation.NotificationDelivery.Tests.InboxStoreBoundaryTests.Notification_delivery_ck_7_mark_all_read_of_missing_scope_leaves_all_inboxes_unchanged"
+      ],
+      "initiallyPlannedTest": "Harborline.Foundation.NotificationDelivery.Tests.InboxStoreBoundaryTests.Notification_delivery_ck_7_mark_all_read_changes_only_scoped_unread_entries_and_is_idempotent",
+      "initiallyPlannedTestNamed": true,
+      "classification": "1: silent cross-scope bulk state corruption"
+    },
+    {
+      "historicalId": 57,
+      "file": "InboxChannel.cs",
+      "location": {
+        "start": {
+          "line": 130,
+          "column": 66
+        },
+        "end": {
+          "line": 130,
+          "column": 88
+        }
+      },
+      "mutator": "Equality mutation",
+      "replacement": "entry.Tenant != tenant",
+      "freshId": "57",
+      "status": "Killed",
+      "killingTests": [
+        "Harborline.Foundation.NotificationDelivery.Tests.InboxStoreBoundaryTests.Notification_delivery_ck_7_mark_all_read_changes_only_scoped_unread_entries_and_is_idempotent"
+      ],
+      "initiallyPlannedTest": "Harborline.Foundation.NotificationDelivery.Tests.InboxStoreBoundaryTests.Notification_delivery_ck_7_mark_all_read_changes_only_scoped_unread_entries_and_is_idempotent",
+      "initiallyPlannedTestNamed": true,
+      "classification": "1: silent cross-scope bulk state corruption"
+    },
+    {
+      "historicalId": 58,
+      "file": "InboxChannel.cs",
+      "location": {
+        "start": {
+          "line": 131,
+          "column": 20
+        },
+        "end": {
+          "line": 131,
+          "column": 48
+        }
+      },
+      "mutator": "Equality mutation",
+      "replacement": "entry.Recipient != recipient",
+      "freshId": "58",
+      "status": "Killed",
+      "killingTests": [
+        "Harborline.Foundation.NotificationDelivery.Tests.InboxStoreBoundaryTests.Notification_delivery_ck_7_mark_all_read_changes_only_scoped_unread_entries_and_is_idempotent",
+        "Harborline.Foundation.NotificationDelivery.Tests.InboxStoreBoundaryTests.Notification_delivery_ck_7_mark_all_read_of_missing_scope_leaves_all_inboxes_unchanged"
+      ],
+      "initiallyPlannedTest": "Harborline.Foundation.NotificationDelivery.Tests.InboxStoreBoundaryTests.Notification_delivery_ck_7_mark_all_read_changes_only_scoped_unread_entries_and_is_idempotent",
+      "initiallyPlannedTestNamed": true,
+      "classification": "1: silent cross-scope bulk state corruption"
+    },
+    {
+      "historicalId": 59,
+      "file": "InboxChannel.cs",
+      "location": {
+        "start": {
+          "line": 132,
+          "column": 20
+        },
+        "end": {
+          "line": 132,
+          "column": 60
+        }
+      },
+      "mutator": "Equality mutation",
+      "replacement": "entry.ReadState != InboxReadState.Unread",
+      "freshId": "59",
+      "status": "Killed",
+      "killingTests": [
+        "Harborline.Foundation.NotificationDelivery.Tests.InboxStoreBoundaryTests.Notification_delivery_ck_7_mark_all_read_changes_only_scoped_unread_entries_and_is_idempotent"
+      ],
+      "initiallyPlannedTest": "Harborline.Foundation.NotificationDelivery.Tests.InboxStoreBoundaryTests.Notification_delivery_ck_7_mark_all_read_changes_only_scoped_unread_entries_and_is_idempotent",
+      "initiallyPlannedTestNamed": true,
+      "classification": "1: silent cross-scope bulk state corruption"
+    },
+    {
+      "historicalId": 60,
+      "file": "InboxChannel.cs",
+      "location": {
+        "start": {
+          "line": 133,
+          "column": 13
+        },
+        "end": {
+          "line": 135,
+          "column": 14
+        }
+      },
+      "mutator": "Block removal mutation",
+      "replacement": "{}",
+      "freshId": "60",
+      "status": "Killed",
+      "killingTests": [
+        "Harborline.Foundation.NotificationDelivery.Tests.InboxStoreBoundaryTests.Notification_delivery_ck_7_mark_all_read_changes_only_scoped_unread_entries_and_is_idempotent"
+      ],
+      "initiallyPlannedTest": "Harborline.Foundation.NotificationDelivery.Tests.InboxStoreBoundaryTests.Notification_delivery_ck_7_mark_all_read_changes_only_scoped_unread_entries_and_is_idempotent",
+      "initiallyPlannedTestNamed": true,
+      "classification": "1: silent cross-scope bulk state corruption"
+    },
+    {
+      "historicalId": 63,
+      "file": "InboxChannel.cs",
+      "location": {
+        "start": {
+          "line": 158,
+          "column": 9
+        },
+        "end": {
+          "line": 158,
+          "column": 52
+        }
+      },
+      "mutator": "Statement mutation",
+      "replacement": ";",
+      "freshId": "63",
+      "status": "Killed",
+      "killingTests": [
+        "Harborline.Foundation.NotificationDelivery.Tests.InboxWriteBoundaryTests.Notification_delivery_ck_10_null_request_refuses_before_any_append"
+      ],
+      "initiallyPlannedTest": "Harborline.Foundation.NotificationDelivery.Tests.InboxWriteBoundaryTests.Notification_delivery_ck_10_null_request_refuses_before_any_append",
+      "initiallyPlannedTestNamed": true,
+      "classification": "1: fail-closed write boundary"
+    },
+    {
+      "historicalId": 66,
+      "file": "InboxChannel.cs",
+      "location": {
+        "start": {
+          "line": 161,
+          "column": 9
+        },
+        "end": {
+          "line": 161,
+          "column": 60
+        }
+      },
+      "mutator": "Statement mutation",
+      "replacement": ";",
+      "freshId": "66",
+      "status": "Killed",
+      "killingTests": [
+        "Harborline.Foundation.NotificationDelivery.Tests.InboxWriteBoundaryTests.Notification_delivery_ck_10_missing_required_content_refuses_before_any_append"
+      ],
+      "initiallyPlannedTest": "Harborline.Foundation.NotificationDelivery.Tests.InboxWriteBoundaryTests.Notification_delivery_ck_10_missing_required_content_refuses_before_any_append",
+      "initiallyPlannedTestNamed": true,
+      "classification": "1: silent invalid content persistence; 79 diagnostics"
+    },
+    {
+      "historicalId": 67,
+      "file": "InboxChannel.cs",
+      "location": {
+        "start": {
+          "line": 162,
+          "column": 9
+        },
+        "end": {
+          "line": 162,
+          "column": 62
+        }
+      },
+      "mutator": "Statement mutation",
+      "replacement": ";",
+      "freshId": "67",
+      "status": "Killed",
+      "killingTests": [
+        "Harborline.Foundation.NotificationDelivery.Tests.InboxWriteBoundaryTests.Notification_delivery_ck_10_missing_required_content_refuses_before_any_append"
+      ],
+      "initiallyPlannedTest": "Harborline.Foundation.NotificationDelivery.Tests.InboxWriteBoundaryTests.Notification_delivery_ck_10_missing_required_content_refuses_before_any_append",
+      "initiallyPlannedTestNamed": true,
+      "classification": "1: silent invalid content persistence; 79 diagnostics"
+    },
+    {
+      "historicalId": 69,
+      "file": "InboxChannel.cs",
+      "location": {
+        "start": {
+          "line": 164,
+          "column": 9
+        },
+        "end": {
+          "line": 164,
+          "column": 88
+        }
+      },
+      "mutator": "Statement mutation",
+      "replacement": ";",
+      "freshId": "69",
+      "status": "Killed",
+      "killingTests": [
+        "Harborline.Foundation.NotificationDelivery.Tests.InboxWriteBoundaryTests.Notification_delivery_ck_10_missing_required_content_refuses_before_any_append"
+      ],
+      "initiallyPlannedTest": "Harborline.Foundation.NotificationDelivery.Tests.InboxWriteBoundaryTests.Notification_delivery_ck_10_missing_required_content_refuses_before_any_append",
+      "initiallyPlannedTestNamed": true,
+      "classification": "1: silent invalid content persistence; 79 diagnostics"
+    },
+    {
+      "historicalId": 70,
+      "file": "InboxChannel.cs",
+      "location": {
+        "start": {
+          "line": 165,
+          "column": 9
+        },
+        "end": {
+          "line": 165,
+          "column": 74
+        }
+      },
+      "mutator": "Statement mutation",
+      "replacement": ";",
+      "freshId": "70",
+      "status": "Killed",
+      "killingTests": [
+        "Harborline.Foundation.NotificationDelivery.Tests.InboxWriteBoundaryTests.Notification_delivery_ck_10_missing_required_content_refuses_before_any_append"
+      ],
+      "initiallyPlannedTest": "Harborline.Foundation.NotificationDelivery.Tests.InboxWriteBoundaryTests.Notification_delivery_ck_10_missing_required_content_refuses_before_any_append",
+      "initiallyPlannedTestNamed": true,
+      "classification": "1: silent invalid content persistence; 79 diagnostics"
+    },
+    {
+      "historicalId": 71,
+      "file": "InboxChannel.cs",
+      "location": {
+        "start": {
+          "line": 178,
+          "column": 82
+        },
+        "end": {
+          "line": 178,
+          "column": 87
+        }
+      },
+      "mutator": "Boolean mutation",
+      "replacement": "true",
+      "freshId": "71",
+      "status": "Survived",
+      "killingTests": [],
+      "initiallyPlannedTest": "Harborline.Foundation.NotificationDelivery.Tests.InboxWriteBoundaryTests.Notification_delivery_ck_10_write_preserves_all_content_and_stamps_a_new_unread_entry",
+      "initiallyPlannedTestNamed": false,
+      "classification": "continuation-context compatibility; ConfigureAwait(false)->true; not AnswerOwed corruption"
+    },
+    {
+      "historicalId": 79,
+      "file": "InboxChannel.cs",
+      "location": {
+        "start": {
+          "line": 187,
+          "column": 17
+        },
+        "end": {
+          "line": 187,
+          "column": 68
+        }
+      },
+      "mutator": "String mutation",
+      "replacement": "$\"\"",
+      "freshId": "79",
+      "status": "Killed",
+      "killingTests": [
+        "Harborline.Foundation.NotificationDelivery.Tests.InboxWriteBoundaryTests.Notification_delivery_ck_10_missing_required_content_refuses_before_any_append"
+      ],
+      "initiallyPlannedTest": "Harborline.Foundation.NotificationDelivery.Tests.InboxWriteBoundaryTests.Notification_delivery_ck_10_missing_required_content_refuses_before_any_append",
+      "initiallyPlannedTestNamed": true,
+      "classification": "1: silent invalid content persistence; 79 diagnostics"
+    }
+  ],
+  "ratchetApplied": false,
+  "independentReportReview": "approved-read-only GPT6.1-sol; scoped98.30/break98; no required named-proof gap",
+  "requiredProtectedGate": "pending",
+  "localCompiledExecuted": false
+}

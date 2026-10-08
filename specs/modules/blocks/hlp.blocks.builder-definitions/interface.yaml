@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.blocks.builder-definitions",
-  "interfaceRevision": 13,
+  "interfaceRevision": 14,
   "status": "draft",
   "purpose": "Own the shared definition catalogue substrate: registry-neutral versioned definitions, key suggestion, archive lifecycle, projection-neutral platform package export and empty-store replay, package safety-floor reattachment, and the install receipt that binds a released artifact to installed identity, capabilities, authorization outcomes and digests.",
   "dependencies": [{"moduleId": "hlp.foundation.rule-authoring", "minimumRevision": 3}, {"moduleId": "hlp.foundation.definitions", "minimumRevision": 1}, {"moduleId": "hlp.foundation.taxonomy", "minimumRevision": 1}],
@@ -30,6 +30,7 @@
     "ruling": "No implementation in revision 1; either UI-suggested plus server-validated or server-allocated policy may bind later."
   },
   "invariants": [
+    "LayoutFieldControlRegistry.Released ships the text and currency declarations in the library. Currency accepts only decimals (integer), currencyCode (string), min and max (number) parameters; precision and other names refuse. Hosts consume this register rather than restating descriptors. LayoutValidationRuleRegistry.Released is empty until an admitted installed Rules catalogue supplies published Validate-action rules; it invents no required-value rule. Both schema-form lane implementations are checked against the released control ids and parameter names (T-1012, layout-bound-3 and layout-bound-8).",
     "A Layout submit_gate is the shared hlp.contracts.authorization SubmitGate. A surface that pins a form refuses its own submit_gate by name at /submit_gate (layout.capture.submit_gate_on_pinned_form), at whichever stage admission runs; the pinned form's gate is the sole gate for that submit, and only a surface that pins no form keeps its own (layout-ck-31, layout-auth-23, T-724 ruling 81).",
     "The versioned store exposes no member-specific type; host-supplied pure validators admit each supported registry.",
     "TaxonomyDefinitionStore composes Taxonomy admission with the shared store under DefinitionKind.Taxonomy (T-493 S7, DES-0024); a reference that names no exact three-part version refuses definition.reference_unpinned at /version and never resolves to a published head, and an absent, draft or other-tenant version resolves to TaxonomyDefinitionNotFound.",

@@ -505,6 +505,7 @@ if (BuilderDefinitions.DefinitionKeySuggester.Suggest("Tenant Intake", new HashS
     throw new InvalidOperationException("Packed Builder Definitions key suggestion changed.");
 if (typeof(BuilderDefinitions.IDefinitionKeyAuthority).IsInterface is false)
     throw new InvalidOperationException("Packed Builder Definitions key-authority seam is absent.");
+LayoutReleasedRegisterProof.Run();
 var platformManifest = new BuilderDefinitions.PlatformPackageManifest(
     1,
     "harborline.platform",
