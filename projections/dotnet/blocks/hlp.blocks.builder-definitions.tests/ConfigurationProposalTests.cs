@@ -429,6 +429,91 @@ public sealed class ConfigurationProposalTests
         Assert.Contains("payroll", refused.Refusal.Message, StringComparison.Ordinal);
     }
 
+    // records-ck-41 (T-615 slice 11): a definition's envelope requires entry spelled pack-key@interfaceVersion
+    // (ADR-0006) is a package the release depends on, so it joins the closure at the baseline's pin, the same
+    // pin an edit naming that package would carry.
+    [Fact]
+    public void A_definition_that_requires_another_package_adds_it_to_the_closure_at_its_baseline_pin()
+    {
+        var baseline = TwoPackageBaseline();
+        var released = Released(baseline, EditedWith(baseline, Enveloped("""{"requires":[{"capability":"payroll@2"}]}""")));
+        Assert.Null(released.Refusal);
+        Assert.Equal(["finance@1.2.0", "payroll@3.0.0"], Closure(released.Released!.Document));
+    }
+
+    // A required package the baseline does not resolve has no pin to carry, so the release refuses by its name,
+    // the code an edit naming an unresolved package already refuses with.
+    [Fact]
+    public void A_required_package_outside_the_baseline_refuses_by_name()
+    {
+        var baseline = TwoPackageBaseline();
+        var refused = Released(baseline, EditedWith(baseline, Enveloped("""{"requires":[{"capability":"eam-core@1"}]}""")));
+        Assert.Null(refused.Released);
+        Assert.Equal("configuration-release-dependency-unpinned", refused.Refusal!.Code);
+        Assert.Equal("eam-core", refused.Refusal.Target);
+    }
+
+    // Only the ADR-0006 package spelling is a package declaration. A platform capability with no interface
+    // version, a bare string and a non-positive version name no package, so the closure is the edit's alone.
+    [Theory]
+    [InlineData("""{"requires":[{"capability":"layout.grid"}]}""")]
+    [InlineData("""{"requires":["payroll@2"]}""")]
+    [InlineData("""{"requires":[{"capability":"payroll@0"}]}""")]
+    [InlineData("""{"requires":{"capability":"payroll@2"}}""")]
+    public void A_requires_entry_that_names_no_package_adds_nothing_to_the_closure(string envelope)
+    {
+        var baseline = TwoPackageBaseline();
+        Assert.Equal(["finance@1.2.0"], Closure(Released(baseline, EditedWith(baseline, Enveloped(envelope))).Released!.Document));
+    }
+
+    // ADR-0028: the released manifest lists the definitions that declare themselves exposed, at the package's one
+    // interface version, under the api manifest's own member names; a release exposing nothing writes neither member.
+    [Fact]
+    public void The_released_manifest_lists_the_exposed_definitions_at_their_interface_version()
+    {
+        var baseline = TwoPackageBaseline();
+        using var document = JsonDocument.Parse(Released(baseline, EditedWith(baseline, Enveloped("""{"exposes":{"interface_version":2}}"""))).Released!.Document);
+        Assert.Equal(["records/invoice"], document.RootElement.GetProperty("exposes").EnumerateArray().Select(item => item.GetString()));
+        Assert.Equal(2, document.RootElement.GetProperty("interfaceVersion").GetInt32());
+
+        using var unexposed = JsonDocument.Parse(Released(baseline, EditedWith(baseline, Enveloped("""{"requires":[]}"""))).Released!.Document);
+        Assert.False(unexposed.RootElement.TryGetProperty("exposes", out _));
+        Assert.False(unexposed.RootElement.TryGetProperty("interfaceVersion", out _));
+    }
+
+    // A package has one interface version, so definitions exposed at two refuse rather than picking one.
+    [Fact]
+    public void Definitions_exposed_at_different_interface_versions_refuse()
+    {
+        var baseline = TwoPackageBaseline();
+        var state = EditedWith(baseline, Enveloped("""{"exposes":{"interface_version":1}}"""));
+        state = ConfigurationProposal.Autosave(state, new("records/payslip", "payroll",
+            Enveloped("""{"exposes":{"interface_version":2}}"""), RecordsKind));
+        var refused = Released(baseline, state);
+        Assert.Null(refused.Released);
+        Assert.Equal("configuration-release-interface-ambiguous", refused.Refusal!.Code);
+        Assert.Equal("exposes", refused.Refusal.Target);
+        Assert.Contains("1, 2", refused.Refusal.Message, StringComparison.Ordinal);
+    }
+
+    private static ConfigurationGeneration TwoPackageBaseline() => ConfigurationGeneration.Resolve(new ResolvedConfiguration("tenant-a", ["finance", "payroll"],
+        [new(Ref("finance", "1.2.0", 'a'), [Ref("records/invoice", "1.2.0", 'b')], []),
+         new(Ref("payroll", "3.0.0", 'e'), [Ref("records/payslip", "3.0.0", 'f')], [])],
+        [new("records/invoice", "finance"), new("records/payslip", "payroll")],
+        Ref("platform", "1.0.0", 'd'), []));
+
+    private static string Enveloped(string envelope) => $$"""{"envelope":{{envelope}},"recordType":"invoice"}""";
+
+    private static ProposedChangeState EditedWith(ConfigurationGeneration baseline, string records) => ConfigurationProposal.Autosave(
+        ConfigurationProposal.Start("proposal-1", baseline), new("records/invoice", "finance", records, RecordsKind));
+
+    private static ConfigurationReleaseResult Released(ConfigurationGeneration baseline, ProposedChangeState state)
+    {
+        var version = Save(state);
+        return ConfigurationProposal.Release(state, version, new ProposedChangeCheck("proposal-1", version.Digest, "receipt-1"),
+            baseline, "tenant-a.release", "1.0.0");
+    }
+
     private static string[] Closure(ReadOnlyMemory<byte> document)
     {
         using var parsed = JsonDocument.Parse(document);

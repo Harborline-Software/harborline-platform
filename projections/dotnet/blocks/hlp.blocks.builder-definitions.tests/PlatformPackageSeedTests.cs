@@ -69,6 +69,56 @@ public sealed class PlatformPackageSeedTests
         Assert.Equal("dependencies", Assert.Throws<ArgumentNullException>(() => new PlatformPackageManifest(1, "p", "1.0.0", items, null!)).ParamName);
     }
 
+    // ADR-0028 / T-396: an exposure is exported after the closure as the api manifest's exposes and interfaceVersion,
+    // in ordinal order whatever order the producer listed it in; a manifest exposing nothing exports the bytes it did.
+    [Fact]
+    public void Export_writes_the_exposure_in_ordinal_order_and_omits_it_when_absent()
+    {
+        PlatformPackageItem[] items = [Entry("package", PlatformSeedStage.PackageRecord, "{}")];
+        var exposed = new PlatformPackageManifest(1, "tenant.release", "1.0.0", items, [],
+            new PlatformPackageExposure(3, ["records/payslip", "records/invoice"]));
+        var reordered = new PlatformPackageManifest(1, "tenant.release", "1.0.0", items, [],
+            new PlatformPackageExposure(3, ["records/invoice", "records/payslip"]));
+
+        var exported = PlatformPackageExporter.Export(exposed);
+        Assert.Equal(exported, PlatformPackageExporter.Export(reordered));
+        Assert.Equal(["records/invoice", "records/payslip"], exposed.Exposure!.Definitions);
+        using var document = JsonDocument.Parse(exported);
+        Assert.Equal(["schemaVersion", "packageKey", "revision", "closure", "exposes", "interfaceVersion", "items", "digest"],
+            document.RootElement.EnumerateObject().Select(member => member.Name));
+        Assert.Equal(["records/invoice", "records/payslip"], document.RootElement.GetProperty("exposes").EnumerateArray().Select(item => item.GetString()));
+        Assert.Equal(3, document.RootElement.GetProperty("interfaceVersion").GetInt32());
+
+        var plain = new PlatformPackageManifest(1, "tenant.release", "1.0.0", items, []);
+        Assert.Null(plain.Exposure);
+        Assert.Equal(PlatformPackageExporter.Export(plain),
+            PlatformPackageExporter.Export(new PlatformPackageManifest(1, "tenant.release", "1.0.0", items, [], exposure: null)));
+        Assert.NotEqual(exported, PlatformPackageExporter.Export(plain));
+    }
+
+    // A consumer requires one positive interface version, and each exposed definition is named once.
+    [Theory]
+    [InlineData(1, new string[0])]
+    [InlineData(1, new[] { "records/invoice", " " })]
+    [InlineData(1, new[] { "records/invoice", "records/invoice" })]
+    public void A_malformed_exposure_refuses_by_name(int interfaceVersion, string[] definitions)
+    {
+        var exception = Assert.Throws<ArgumentException>(() => new PlatformPackageManifest(1, "tenant.release", "1.0.0",
+            [Entry("package", PlatformSeedStage.PackageRecord, "{}")], [], new PlatformPackageExposure(interfaceVersion, definitions)));
+        Assert.StartsWith("platform-package-exposure-malformed", exception.Message, StringComparison.Ordinal);
+        Assert.Equal("exposure", exception.ParamName);
+    }
+
+    [Fact]
+    public void An_exposure_below_interface_version_one_or_without_definitions_refuses()
+    {
+        PlatformPackageItem[] items = [Entry("package", PlatformSeedStage.PackageRecord, "{}")];
+        Assert.Equal("exposure", Assert.Throws<ArgumentOutOfRangeException>(() => new PlatformPackageManifest(1, "p", "1.0.0", items, [],
+            new PlatformPackageExposure(0, ["records/invoice"]))).ParamName);
+        Assert.Equal("exposure", Assert.Throws<ArgumentNullException>(() => new PlatformPackageManifest(1, "p", "1.0.0", items, [],
+            new PlatformPackageExposure(1, null!))).ParamName);
+    }
+
     [Fact]
     public void Content_classification_can_represent_an_unresolved_absence_without_a_payload()
     {
