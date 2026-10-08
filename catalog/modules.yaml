@@ -128,7 +128,7 @@
       }
     },
     "hlp.kernel.core": {
-      "interface": {"path": "specs/modules/kernel/hlp.kernel.core/interface.yaml", "revision": 4},
+      "interface": {"path": "specs/modules/kernel/hlp.kernel.core/interface.yaml", "revision": 5},
       "moduleKind": "runtime",
       "presentation": {"disposition": "not-applicable", "rationale": "The kernel clock, atomic command transaction, and compiled bootstrap floor are host runtime contracts with no visual presentation surface."},
       "owner": "platform-kernel",
