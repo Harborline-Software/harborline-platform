@@ -79,6 +79,54 @@ public sealed class FieldKindRegistryTests
         Assert.Equal("field.kind_registration_invalid", Assert.Single(unsupported.Refusals).Code);
     }
 
+    [Theory]
+    [InlineData(-1, false)]
+    [InlineData(1, false)]
+    [InlineData(int.MaxValue, false)]
+    [InlineData(-1, true)]
+    [InlineData(1, true)]
+    [InlineData(int.MaxValue, true)]
+    public void Undefined_capabilities_refuse_even_alongside_a_known_capability(int undefined, bool includeKnown)
+    {
+        // Oracle: requested closed-enum registration property, with literal refusal code and root pointer.
+        // This is consistency hardening, not a claim that an unknown value grants retention eligibility.
+        FieldKindCapability[] capabilities = includeKnown
+            ? [(FieldKindCapability)0, (FieldKindCapability)undefined]
+            : [(FieldKindCapability)undefined];
+
+        var error = Assert.Throws<FieldAdmissionException>(() => new FieldKindRegistry(
+            [new("date", "1.0.0", null, FieldScalarValueShape.Text, capabilities)]));
+
+        var refusal = Assert.Single(error.Refusals);
+        Assert.Equal("field.kind_registration_invalid", refusal.Code);
+        Assert.Equal("", refusal.JsonPointer);
+    }
+
+    [Theory]
+    [InlineData(-1)]
+    [InlineData(0)]
+    [InlineData(1)]
+    public void Absent_empty_and_known_capabilities_remain_admitted(int declaration)
+    {
+        // Oracle: null and empty declare no capabilities; literal zero declares retention_clock.
+        FieldKindCapability[]? capabilities = declaration switch
+        {
+            -1 => null,
+            0 => [],
+            _ => [(FieldKindCapability)0],
+        };
+        var registry = new FieldKindRegistry(
+            [new("date", "1.0.0", null, FieldScalarValueShape.Text, capabilities)]);
+
+        var resolved = registry.Resolve(new("date", "1.0.0", new Dictionary<string, string>()), "/kind");
+
+        if (declaration == -1)
+            Assert.Null(resolved.Capabilities);
+        else
+            Assert.Equal(declaration == 0 ? Array.Empty<int>() : new[] { 0 },
+                resolved.Capabilities!.Select(value => (int)value));
+    }
+
     [Fact]
     public void Admission_refusals_cannot_be_rewritten_by_their_original_list()
     {
