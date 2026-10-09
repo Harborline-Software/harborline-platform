@@ -1,0 +1,288 @@
+{
+  "schemaVersion": 1,
+  "artifact": "records-refusal-cases",
+  "description": "Reproducible inputs and literal expected refusal lists taken from existing tests. Each refusal list is complete and in order, as the source test asserts with Assert.Equal on the full (code, pointer) array.",
+  "verifiedByExecution": false,
+  "conventions": {
+    "pointerSyntax": "RFC 6901",
+    "baseValidBody": "G1-asset-class (records-current-grammar.json)",
+    "expansionRule": "\"createRequestFrom\": \"G1-asset-class\" means the G1 createRequest.newRecordType, with only the members listed under \"replace\" substituted wholesale. Arrays are replaced as a whole, never merged. This is a fixture notation, not a runtime patch protocol.",
+    "host": "RecordTypeDefinitionStoreTests.Host() with no registry options (RecordTypeDefinitionStoreTests.cs:555-576): tenant tenant-a, window (1,0,1), class eam.equipment published, kinds as in records-current-grammar testHostKindRegistry.",
+    "postconditionWhenRefused": "No catalogue key is written unless a case states otherwise."
+  },
+  "cases": [
+    {
+      "id": "R1-punctuation-name",
+      "operation": "CreateDraftAsync",
+      "requestId": "create",
+      "createRequestFrom": "G1-asset-class",
+      "replace": {
+        "name": " -- "
+      },
+      "preconditions": [],
+      "expected": {
+        "outcome": "refused",
+        "stage": "Author",
+        "refusals": [
+          {
+            "code": "records.identity.name_required",
+            "pointer": "/name"
+          }
+        ]
+      },
+      "aggregation": "Single. Mint throws before materialization or compile (RecordsCatalogueIdentity.cs:18-24; RecordTypeDefinitionStore.cs:117).",
+      "postcondition": "ListKeysAsync(tenant-a, Records) is empty",
+      "source": [
+        "RecordTypeDefinitionStoreTests.cs:92-108 (InlineData line 97)",
+        "platform/projections/dotnet/blocks/hlp.blocks.builder-definitions/RecordsCatalogueIdentity.cs:18-24,105"
+      ],
+      "stageSource": "Mint raises DefinitionAdmissionPhase.Author (RecordsCatalogueIdentity.cs:22). This test does not assert the stage."
+    },
+    {
+      "id": "R2-zero-revision-collision",
+      "operation": "CreateDraftAsync",
+      "preconditions": [
+        {
+          "operation": "CreateDraftAsync",
+          "requestId": "eam",
+          "createRequestFrom": "G1-asset-class",
+          "replace": {},
+          "expectedRevision": 1
+        }
+      ],
+      "requestId": "again-asset-class",
+      "createRequestFrom": "G1-asset-class",
+      "replace": {
+        "name": "asset-class"
+      },
+      "alsoEquivalentNames": [
+        "Asset Class",
+        "  ASSET  class "
+      ],
+      "alsoEquivalentRequestIdPattern": "\"again-\" + name",
+      "expected": {
+        "outcome": "refused",
+        "stage": "Author",
+        "refusals": [
+          {
+            "code": "records.identity.record_type_id_collision",
+            "pointer": "/record_type_id"
+          }
+        ]
+      },
+      "mechanism": "SaveDraftAsync at expected revision 0 returns definition.revision_conflict, which is mapped to the collision (RecordsCatalogueIdentity.cs:31-43)",
+      "postcondition": "ListHistoryAsync(eam.asset-class) has exactly 1 revision. Replaying requestId \"eam\" with the original request returns revision 1 and is not a collision.",
+      "source": [
+        "RecordTypeDefinitionStoreTests.cs:64-90"
+      ]
+    },
+    {
+      "id": "R3-duplicate-field-key",
+      "operation": "CreateDraftAsync",
+      "requestId": "create",
+      "createRequestFrom": "G1-asset-class",
+      "replace": {
+        "fields": [
+          {
+            "field_key": "asset_tag",
+            "display_name": "Asset tag"
+          },
+          {
+            "field_key": "asset_tag",
+            "display_name": "Asset tag again"
+          }
+        ]
+      },
+      "preconditions": [],
+      "expected": {
+        "outcome": "refused",
+        "refusals": [
+          {
+            "code": "records.identity.duplicate_field_key",
+            "pointer": "/fields/1/field_key"
+          }
+        ]
+      },
+      "postcondition": "ListKeysAsync(tenant-a, Records) is empty",
+      "source": [
+        "RecordTypeDefinitionStoreTests.cs:165-180",
+        "platform/projections/dotnet/kernel/hlp.kernel.schema-validation/Records/RecordTypeIdentity.cs:241-247"
+      ]
+    },
+    {
+      "id": "R4-duplicate-field-key-raw-complete-body",
+      "operation": "IVersionedDefinitionStore.SaveDraftAsync (raw catalogue)",
+      "preconditions": [
+        {
+          "operation": "CreateDraftAsync",
+          "requestId": "create",
+          "createRequestFrom": "G1-asset-class",
+          "replace": {}
+        }
+      ],
+      "rawSave": {
+        "key": {
+          "tenant": "tenant-a",
+          "kind": "Records",
+          "definitionId": "eam.asset-class"
+        },
+        "versionId": "1.0.0",
+        "version": "1.0.0",
+        "expectedRevision": 1,
+        "requestId": "raw",
+        "bodyJson": "{\"envelope\":{\"contract\":{\"major\":1,\"minor\":0},\"section\":\"eam\",\"tenant\":\"tenant-a\"},\"name\":\"Asset Class\",\"record_type_id\":\"eam.asset-class\",\"fields\":[{\"display_name\":\"A\",\"field_key\":\"a\"},{\"display_name\":\"B\",\"field_key\":\"a\"}]}"
+      },
+      "expected": {
+        "outcome": "refused",
+        "refusals": [
+          {
+            "code": "records.identity.duplicate_field_key",
+            "pointer": "/fields/1/field_key"
+          }
+        ]
+      },
+      "postcondition": "ListHistoryAsync(eam.asset-class) still has exactly 1 revision",
+      "source": [
+        "RecordTypeDefinitionStoreTests.cs:322-351 (InlineData line 340)",
+        "RecordTypeDefinitionStore.cs:452-465"
+      ]
+    },
+    {
+      "id": "R5-reference-binding-conflict",
+      "operation": "CreateDraftAsync",
+      "requestId": "create-Space",
+      "createRequest": {
+        "tenant": "tenant-a",
+        "section": "eam",
+        "name": "Space",
+        "version": "1.0.0",
+        "contract": {
+          "major": 1,
+          "minor": 0
+        },
+        "classId": "eam.equipment",
+        "recordClass": "transactional",
+        "packageId": "eam-core",
+        "fields": [
+          {
+            "field_key": "asset",
+            "display_name": "asset",
+            "reference": {
+              "target_type_id": "eam.asset-class",
+              "cardinality": "one",
+              "on_delete": "block",
+              "parent": false
+            },
+            "binding": {
+              "kind": {
+                "kind_id": "text",
+                "version": "1.0.0",
+                "parameters": {}
+              },
+              "constraints": {
+                "required": false,
+                "minimum_count": 0,
+                "maximum_count": 1,
+                "read_role_ids": []
+              }
+            }
+          }
+        ]
+      },
+      "preconditions": [],
+      "expected": {
+        "outcome": "refused",
+        "refusals": [
+          {
+            "code": "records.reference.binding_conflict",
+            "pointer": "/fields/0/reference"
+          }
+        ]
+      },
+      "postcondition": "ListKeysAsync(tenant-a, Records) is empty",
+      "hostNote": "Uses the RecordReferenceTests Host() helper. Its definition was not inspected in this job.",
+      "constraintFloorLabel": "binding.constraints.required=false is the existing Boolean floor carried by the conflicting binding. It is not a required-condition value.",
+      "source": [
+        "platform/projections/dotnet/blocks/hlp.blocks.builder-definitions.tests/RecordReferenceTests.cs:64-87 (case line 71), 198-205 (Create, Reference helpers)",
+        "RecordTypeIdentity.cs:269-274"
+      ]
+    },
+    {
+      "id": "R6-unknown-kind",
+      "operation": "CreateDraftAsync",
+      "requestId": "create",
+      "createRequestFrom": "G1-asset-class",
+      "replace": {
+        "fields": [
+          {
+            "field_key": "asset_tag",
+            "display_name": "Asset tag",
+            "binding": {
+              "kind": {
+                "kind_id": "unknown-kind",
+                "version": "1.0.0",
+                "parameters": {}
+              },
+              "constraints": {
+                "required": true,
+                "minimum_count": 0,
+                "maximum_count": 1,
+                "read_role_ids": []
+              }
+            }
+          }
+        ]
+      },
+      "preconditions": [],
+      "expected": {
+        "outcome": "refused",
+        "stage": "Author",
+        "refusals": [
+          {
+            "code": "field.kind_unresolved",
+            "pointer": "/fields/0/binding/kind"
+          }
+        ]
+      },
+      "postcondition": "ListKeysAsync is empty and no schema is registered",
+      "constraintFloorLabel": "constraints.required=true is the existing Boolean floor from the source test's Bound(..., required: true). It is not a required-condition value.",
+      "source": [
+        "RecordTypeDefinitionStoreTests.cs:201-218",
+        "platform/projections/dotnet/foundation/hlp.foundation.field-runtime/FieldKindRegistry.cs:42",
+        "RecordTypeIdentity.cs:644-653"
+      ]
+    },
+    {
+      "id": "R7-same-name-other-section-positive",
+      "operation": "CreateDraftAsync",
+      "preconditions": [
+        {
+          "operation": "CreateDraftAsync",
+          "requestId": "eam",
+          "createRequestFrom": "G1-asset-class",
+          "replace": {}
+        }
+      ],
+      "requestId": "finance",
+      "createRequestFrom": "G1-asset-class",
+      "replace": {
+        "section": "finance"
+      },
+      "expected": {
+        "outcome": "admitted",
+        "mintedRecordTypeId": "finance.asset-class",
+        "catalogueKeysAfter": [
+          "eam.asset-class",
+          "finance.asset-class"
+        ]
+      },
+      "meaning": "A duplicate name is legal across sections and is never an identity (RecordTypeDocument.cs:58)",
+      "source": [
+        "RecordTypeDefinitionStoreTests.cs:71-73,88-89"
+      ]
+    }
+  ],
+  "notCovered": {
+    "parameterRefusalWithExistingTestInput": "No existing Records store test binds a non-empty kind parameter. Field-runtime tests use kind \"amount\" with test-local pointers (FieldKindRuntimeTests.cs:12-38, 55-59, 121-124). No Records-level parameter case is invented here; R6 covers the kind refusal."
+  }
+}

@@ -1,0 +1,133 @@
+{
+  "schemaVersion": 1,
+  "artifact": "records-parity-inputs",
+  "description": "Shared inputs that the React and Blazor lanes must both consume, with identical expected producer code+pointer lists. The Records editor consumption is not implemented in either lane.",
+  "verifiedByExecution": false,
+  "recordsEditorConsumption": {
+    "react": "notImplemented",
+    "blazor": "notImplemented",
+    "nativeRecordsAdapter": "does not exist; nothing here asserts one"
+  },
+  "nativeExemplar": {
+    "note": "The existing Rules authoring editor is the lane-pattern reference only. Its types are not the Records contract.",
+    "react": {
+      "source": "platform/projections/react/ui/hlp.ui.rule-authoring/src/RulesAuthoringEditor.tsx",
+      "props": "value, onChange(value), onOperation(request), response, authority (tsx:25)",
+      "refusalShape": "{ code, pointer, target? } rendered as given (tsx:21-22)",
+      "requestFence": "requestId, identity, expectedRevision, generation (tsx:18,20)",
+      "revisionKey": "identity \\u0000 expectedRevision \\u0000 materialization.contentDigest (tsx:39)",
+      "incomingWhenDirty": "setIncoming reason 'Revision changed.' (tsx:76)",
+      "operationPermissions": "save-draft:[rules:author] preview:[rules:evaluate-explain,records:read] publish:[rules:publish] archive:[rules:author] (tsx:49)"
+    },
+    "blazor": {
+      "source": "platform/projections/blazor/ui/hlp.ui.rule-authoring/HarborlineRulesAuthoringEditor.razor",
+      "parameters": "Value, ValueChanged, OperationRequested, Response, Authority (razor:51-58)",
+      "refusalRender": "li data-code / data-pointer (razor:45)",
+      "revisionKey": "razor:82",
+      "incomingWhenDirty": "_incoming + 'Revision changed.' with explicit Keep edits / Discard edits (razor:46,76)",
+      "responseMatch": "requestId outstanding and identity, expectedRevision and generation equal (razor:83)",
+      "readOnly": "ReadOnly => !Allowed(\"save-draft\"); fieldset disabled (razor:43,132)"
+    },
+    "fixtureLoadConvention": {
+      "dotnetProducer": "AppContext.BaseDirectory/rules-editor-contract-fixtures.json (RuleDefinitionCatalogTests.cs:355-363,412-416)",
+      "blazorTests": "walk up to conformance/hlp.blocks.builder-definitions/<name> (RulesAuthoringTests.cs:527-531)",
+      "reactTests": "process.cwd()/../../../../conformance/hlp.blocks.builder-definitions/... (RulesAuthoringEditor.test.tsx:10-11)",
+      "fixtureShape": "schemaVersion, description, lifecycle.sourceJson/requests/responses with refusal {code,pointer} (platform/conformance/hlp.blocks.builder-definitions/rules-editor-contract-fixtures.json:1-80)"
+    }
+  },
+  "cases": [
+    {
+      "id": "P1-refusal-rendering-parity",
+      "inputs": [
+        "R1-punctuation-name",
+        "R2-zero-revision-collision",
+        "R3-duplicate-field-key",
+        "R5-reference-binding-conflict",
+        "R6-unknown-kind"
+      ],
+      "bothLanesExpect": "Render each producer refusal list exactly as given, in order (code and pointer from records-refusal-cases.json), with no reordering, merging or client-originated codes.",
+      "status": "expectationMetadata"
+    },
+    {
+      "id": "P2-identity-revision-reset",
+      "inputSequence": [
+        {
+          "step": "loaded",
+          "identity": "eam.asset-class",
+          "versionId": "1.0.0",
+          "expectedRevision": 1,
+          "body": "G1-asset-class expectedStoredBody"
+        },
+        {
+          "step": "externalRevisionChange",
+          "identity": "eam.asset-class",
+          "versionId": "1.0.0",
+          "expectedRevision": 2,
+          "source": "RecordTypeDefinitionStoreTests.cs:182-197 (resave gives revision 2; a stale save at 1 refuses definition.revision_conflict /expectedRevision)"
+        },
+        {
+          "step": "identityChange",
+          "identity": "finance.asset-class",
+          "versionId": "1.0.0",
+          "expectedRevision": 1,
+          "source": "R7"
+        }
+      ],
+      "bothLanesExpect": {
+        "clean": "Replace the value, advance the generation and clear refusals (exemplar razor:76, tsx:76)",
+        "dirty": "Hold the incoming value pending an explicit Keep or Discard; never replace silently",
+        "staleResponse": "Ignore a response whose identity, expectedRevision or generation does not match"
+      },
+      "producerFact": {
+        "staleSave": [
+          {
+            "code": "definition.revision_conflict",
+            "pointer": "/expectedRevision"
+          }
+        ]
+      },
+      "status": "expectationMetadata; no Records state machine is implemented"
+    },
+    {
+      "id": "P3-kind-version-change",
+      "inputs": {
+        "base": "G1 fields + {field_key:acquired_on, display_name:\"Acquired on\", binding:{kind:{kind_id:date,version:1.0.0,parameters:{}},constraints:{required:true,minimum_count:0,maximum_count:1,read_role_ids:[]}}}, retention_clock_field_id:acquired_on",
+        "changed": "same, with binding.kind.version 2.0.0"
+      },
+      "expected": {
+        "base": {
+          "outcome": "admitted",
+          "source": "RecordTypeDefinitionStoreTests.cs:481-496"
+        },
+        "changed": {
+          "outcome": "refused",
+          "refusals": [
+            {
+              "code": "records.retention.clock_capability_absent",
+              "pointer": "/retention_clock_field_id"
+            }
+          ],
+          "source": "RecordTypeDefinitionStoreTests.cs:498-520 (InlineData line 500)"
+        }
+      },
+      "constraintFloorLabel": "required=true is the existing floor from the source tests",
+      "bothLanesExpect": "Treat a kind VERSION change as its own case, separate from an identity or revision change. No value or metadata clearing rule is applied (none is approved).",
+      "status": "producer outcome is test-grounded; lane behaviour is expectationMetadata"
+    },
+    {
+      "id": "P4-read-only-and-ordering",
+      "readOnly": {
+        "authority": {
+          "granted": []
+        },
+        "bothLanesExpect": "Controls disabled; no change or operation callback is emitted (exemplar razor:43,132)."
+      },
+      "producerOrdering": {
+        "fact": "CreateDraftAsync mints the name (RecordTypeDocument identity) before materializing or compiling kinds (RecordTypeDefinitionStore.cs:117 before 122). A request carrying both R1's name and R6's kind therefore refuses only records.identity.name_required at /name.",
+        "status": "sourceDerivedExpected from code reading; not asserted by any existing test"
+      },
+      "uiOrderingNote": "Any 'kind-before-name' or pending-revision UI ordering is expectation metadata only and must not reorder producer refusals.",
+      "status": "expectationMetadata"
+    }
+  ]
+}

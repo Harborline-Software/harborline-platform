@@ -12,5 +12,9 @@
   <ItemGroup>
     <None Include="../../../../conformance/hlp.foundation.rule-authoring/definition-intent-cases.json" Link="definition-intent-cases.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../../../../conformance/hlp.blocks.builder-definitions/rules-editor-contract-fixtures.json" Link="rules-editor-contract-fixtures.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../../../conformance/hlp.blocks.builder-definitions/records-editor-contract-fixtures/records-current-grammar.json" Link="records-editor-contract-fixtures/records-current-grammar.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../../../conformance/hlp.blocks.builder-definitions/records-editor-contract-fixtures/records-refusal-cases.json" Link="records-editor-contract-fixtures/records-refusal-cases.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../../../conformance/hlp.blocks.builder-definitions/records-editor-contract-fixtures/records-parity-inputs.json" Link="records-editor-contract-fixtures/records-parity-inputs.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../../../conformance/hlp.blocks.builder-definitions/records-editor-contract-fixtures/manifest.json" Link="records-editor-contract-fixtures/manifest.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>
