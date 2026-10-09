@@ -429,6 +429,396 @@ public sealed class ConfigurationProposalTests
         Assert.Contains("payroll", refused.Refusal.Message, StringComparison.Ordinal);
     }
 
+    // records-ck-41 (T-615 slice 11): a definition's envelope requires entry spelled pack-key@interfaceVersion
+    // (ADR-0006) is a package the release depends on, so it joins the closure at the baseline's pin, the same
+    // pin an edit naming that package would carry.
+    [Fact]
+    public void A_definition_that_requires_another_package_adds_it_to_the_closure_at_its_baseline_pin()
+    {
+        var baseline = TwoPackageBaseline();
+        var released = Released(baseline, EditedWith(baseline, Enveloped("""{"requires":[{"capability":"payroll@2"}]}""")));
+        Assert.Null(released.Refusal);
+        Assert.Equal(["finance@1.2.0", "payroll@3.0.0"], Closure(released.Released!.Document));
+    }
+
+    // A required package the baseline does not resolve has no pin to carry, so the release refuses by its name,
+    // the code an edit naming an unresolved package already refuses with.
+    [Fact]
+    public void A_required_package_outside_the_baseline_refuses_by_name()
+    {
+        var baseline = TwoPackageBaseline();
+        var refused = Released(baseline, EditedWith(baseline, Enveloped("""{"requires":[{"capability":"eam-core@1"}]}""")));
+        Assert.Null(refused.Released);
+        Assert.Equal("configuration-release-dependency-unpinned", refused.Refusal!.Code);
+        Assert.Equal("eam-core", refused.Refusal.Target);
+    }
+
+    // In a Records object requirement, only pack-key@interfaceVersion names a package. A platform capability
+    // with no interface version, a string entry and a non-positive version name no package here.
+    [Theory]
+    [InlineData("""{"requires":[{"capability":"layout.grid"}]}""")]
+    [InlineData("""{"requires":["payroll@2"]}""")]
+    [InlineData("""{"requires":[{"capability":"payroll@0"}]}""")]
+    [InlineData("""{"requires":{"capability":"payroll@2"}}""")]
+    public void A_requires_entry_that_names_no_package_adds_nothing_to_the_closure(string envelope)
+    {
+        var baseline = TwoPackageBaseline();
+        var released = Released(baseline, EditedWith(baseline, Enveloped(envelope)));
+        Assert.Null(released.Refusal);
+        Assert.NotNull(released.Released);
+        Assert.Equal(["finance@1.2.0"], Closure(released.Released.Document));
+    }
+
+    // Literal oracles from RuleDefinitionCodec/RuleCrossPackageAuthoring and
+    // LayoutDefinitionJson/LayoutCrossPackageAuthoring: package IDs are compared exactly; the
+    // baseline's package revision, not an interface or platform version, is the dependency pin.
+    // The Rule transport name is intentionally opaque: ConfigurationProposal preserves the caller's
+    // stated kind; these controls qualify source extraction, not consumer admission or a new kind.
+    [Theory]
+    [InlineData("opaque-rule-kind", """{"requires":["payroll"]}""")]
+    [InlineData("Layout", """{"requires":[{"capability":"payroll","minimum_platform_version":"8.0.0"},{"capability":"platform.layout","minimum_platform_version":"9.0.0"}]}""")]
+    public void Bare_package_requirements_join_the_closure_at_the_exact_baseline_pin(string contentKind, string envelope)
+    {
+        var baseline = TwoPackageBaseline();
+        var state = ConfigurationProposal.Autosave(ConfigurationProposal.Start("proposal-1", baseline),
+            new("new/consumer", "finance", RequirementSource(contentKind, envelope), contentKind));
+        var released = Released(baseline, state);
+        Assert.Null(released.Refusal);
+        Assert.Equal(["finance@1.2.0", "payroll@3.0.0"], Closure(released.Released!.Document));
+    }
+
+    [Theory]
+    [InlineData("opaque-rule-kind", """{"requires":["eam-core"]}""")]
+    [InlineData("Layout", """{"requires":[{"capability":"eam-core"}]}""")]
+    public void Bare_package_requirements_outside_the_baseline_refuse_without_a_release(string contentKind, string envelope)
+    {
+        var baseline = TwoPackageBaseline();
+        var state = ConfigurationProposal.Autosave(ConfigurationProposal.Start("proposal-1", baseline),
+            new("new/consumer", "finance", RequirementSource(contentKind, envelope), contentKind));
+        var refused = Released(baseline, state);
+        Assert.Null(refused.Released);
+        Assert.Equal("configuration-release-dependency-unpinned", refused.Refusal!.Code);
+        Assert.Equal("eam-core", refused.Refusal.Target);
+    }
+
+    [Theory]
+    [InlineData("opaque-rule-kind", """{"requires":["payroll@2"]}""")]
+    [InlineData("Layout", """{"requires":[{"capability":"payroll@2"}]}""")]
+    public void Bare_requirement_contracts_preserve_the_exact_package_id_without_guessing_an_interface_version(string contentKind, string envelope)
+    {
+        var baseline = TwoPackageBaseline();
+        var state = ConfigurationProposal.Autosave(ConfigurationProposal.Start("proposal-1", baseline),
+            new("new/consumer", "finance", RequirementSource(contentKind, envelope), contentKind));
+        var refused = Released(baseline, state);
+        Assert.Null(refused.Released);
+        Assert.Equal("configuration-release-dependency-unpinned", refused.Refusal!.Code);
+        Assert.Equal("payroll@2", refused.Refusal.Target);
+    }
+
+    [Theory]
+    [InlineData("payroll", null, null)]
+    [InlineData("eam-core", "configuration-release-dependency-unpinned", "eam-core")]
+    public void Stored_rule_bodies_use_the_same_exact_package_requirements_without_inventing_shared_metadata(
+        string package, string? refusalCode, string? refusalTarget)
+    {
+        var baseline = TwoPackageBaseline();
+        // Literal stored-body shape from RuleDefinitionCodec.SerializeBody: id, tenant and version
+        // are absent, as the shared definition header owns them. No header is synthesized for release.
+        var body = $$$$"""
+            {"envelope":{"cascadeLayer":"domain-package","provenance":{"kind":"package","id":"finance"},
+             "requires":["{{{{package}}}}"],"contract":{"major":1,"minor":0}},
+             "name":"Amount rule","tier":"JsonLogic","draft":{"kind":"Formula","scope":"Field",
+             "scopeTarget":"total","outputType":"Compute","inputs":[],
+             "expression":{"kind":"Literal","value":"1","valueType":"Number"}}}
+            """;
+        var state = ConfigurationProposal.Autosave(ConfigurationProposal.Start("proposal-1", baseline),
+            new("new/rule", "finance", body, "opaque-rule-kind"));
+        var released = Released(baseline, state);
+        Assert.Equal(refusalCode, released.Refusal?.Code);
+        Assert.Equal(refusalTarget, released.Refusal?.Target);
+        if (refusalCode is null)
+        {
+            Assert.Equal(["finance@1.2.0", "payroll@3.0.0"], Closure(released.Released!.Document));
+            using var document = JsonDocument.Parse(released.Released.Document);
+            var definition = document.RootElement.GetProperty("items").EnumerateArray()
+                .Single(item => item.GetProperty("id").GetString() == "tenant-a.release.definition-1")
+                .GetProperty("content").GetProperty("payload");
+            // Existing export format wraps the exact authored body; dependency extraction may not
+            // inject the read-only codec header values into it.
+            Assert.Equal("opaque-rule-kind", definition.GetProperty("contentKind").GetString());
+            var envelope = definition.GetProperty("body").GetProperty("envelope");
+            Assert.False(envelope.TryGetProperty("id", out _));
+            Assert.False(envelope.TryGetProperty("tenant", out _));
+            Assert.False(envelope.TryGetProperty("version", out _));
+        }
+        else Assert.Null(released.Released);
+    }
+
+    [Theory]
+    [InlineData("""{"requires":["payroll"]}""")]
+    [InlineData("""{"requires":[null,7,{}, {"capability":7}, {"capability":null}, {"capability":""}, {"capability":" "}]}""")]
+    public void Layout_requirement_shapes_other_than_nonblank_capability_objects_add_no_packages(string envelope)
+    {
+        var baseline = TwoPackageBaseline();
+        var state = ConfigurationProposal.Autosave(ConfigurationProposal.Start("proposal-1", baseline),
+            new("new/surface", "finance", Enveloped(envelope), "Layout"));
+        var released = Released(baseline, state);
+        Assert.Null(released.Refusal);
+        Assert.Equal(["finance@1.2.0"], Closure(released.Released!.Document));
+    }
+
+    [Fact]
+    public void Layouts_sealed_platform_capability_is_not_a_package_even_when_the_baseline_has_that_key()
+    {
+        var baseline = ConfigurationGeneration.Resolve(new ResolvedConfiguration("tenant-a", ["platform.layout"],
+            [new(Ref("platform.layout", "7.0.0", 'a'), [], [])], [], Ref("platform", "1.0.0", 'd'), []));
+        var state = ConfigurationProposal.Autosave(ConfigurationProposal.Start("proposal-1", baseline),
+            new("new/surface", "tenant-a.release", Enveloped("""{"requires":[{"capability":"platform.layout","minimum_platform_version":"1.0.0"}]}"""), "Layout"));
+        var released = Released(baseline, state);
+        Assert.Null(released.Refusal);
+        Assert.Empty(Closure(released.Released!.Document));
+    }
+
+    [Fact]
+    public void Requirements_deduplicate_edit_owners_and_exclude_the_released_package_across_producer_shapes()
+    {
+        var baseline = TwoPackageBaseline();
+        var state = ConfigurationProposal.Autosave(ConfigurationProposal.Start("proposal-1", baseline),
+            new("new/rule", "finance", RequirementSource("opaque-rule-kind", """{"requires":["finance","payroll","payroll","tenant-a.release"]}"""), "opaque-rule-kind"));
+        state = ConfigurationProposal.Autosave(state,
+            new("new/surface", "tenant-a.release", Enveloped("""{"requires":[{"capability":"finance"},{"capability":"payroll"},{"capability":"tenant-a.release"}]}"""), "Layout"));
+        try
+        {
+            var released = Released(baseline, state);
+            Assert.Null(released.Refusal);
+            Assert.NotNull(released.Released);
+            Assert.Equal(["finance@1.2.0", "payroll@3.0.0"], Closure(released.Released.Document));
+        }
+        catch (ArgumentException exception) when (exception.ParamName == "dependencies"
+            && exception.Message == "platform-package-dependency-duplicate (Parameter 'dependencies')")
+        {
+            // The producer must deduplicate before the manifest validator sees these references.
+            // Assert that this exact business rejection is absent; other exceptions still escape.
+            Assert.Null(exception);
+        }
+    }
+
+    // ADR-0028 plus the approved own-only exposure decision: literal keys and versions below
+    // belong to the release in the complete baseline; foreign narrowing never advertises ownership.
+    [Fact]
+    public void The_released_manifest_lists_the_exposed_definitions_at_their_interface_version()
+    {
+        var baseline = OwnedExposureBaseline();
+        using var document = JsonDocument.Parse(Released(baseline, OwnedEditedWith(baseline, Enveloped("""{"exposes":{"interface_version":2}}"""))).Released!.Document);
+        Assert.True(document.RootElement.TryGetProperty("exposes", out var exposes));
+        Assert.True(document.RootElement.TryGetProperty("interfaceVersion", out var interfaceVersion));
+        Assert.Equal(["records/owned-a"], exposes.EnumerateArray().Select(item => item.GetString()));
+        Assert.Equal(2, interfaceVersion.GetInt32());
+
+        using var unexposed = JsonDocument.Parse(Released(baseline, OwnedEditedWith(baseline, Enveloped("""{"requires":[]}"""))).Released!.Document);
+        Assert.False(unexposed.RootElement.TryGetProperty("exposes", out _));
+        Assert.False(unexposed.RootElement.TryGetProperty("interfaceVersion", out _));
+    }
+
+    // Only an exposes object holding an integer interface_version is an exposure declaration; any other shape
+    // declares nothing, so the release exposes nothing rather than failing on a member it does not read.
+    [Theory]
+    [InlineData("""{"exposes":2}""")]
+    [InlineData("""{"exposes":[2]}""")]
+    [InlineData("""{"exposes":{"interface_version":"2"}}""")]
+    [InlineData("""{"exposes":{"interface_version":0}}""")]
+    [InlineData("""{"exposes":{}}""")]
+    public void An_exposes_member_that_is_not_an_exposure_declaration_exposes_nothing(string envelope)
+    {
+        var baseline = OwnedExposureBaseline();
+        var released = Released(baseline, OwnedEditedWith(baseline, Enveloped(envelope)));
+        Assert.Null(released.Refusal);
+        using var document = JsonDocument.Parse(released.Released!.Document);
+        Assert.False(document.RootElement.TryGetProperty("exposes", out _));
+        Assert.False(document.RootElement.TryGetProperty("interfaceVersion", out _));
+    }
+
+    // A package has one interface version, so definitions exposed at two refuse rather than picking one.
+    [Fact]
+    public void Definitions_exposed_at_different_interface_versions_refuse()
+    {
+        var baseline = OwnedExposureBaseline();
+        var state = OwnedEditedWith(baseline, Enveloped("""{"exposes":{"interface_version":1}}"""));
+        state = ConfigurationProposal.Autosave(state, new("records/owned-z", "tenant-a.release",
+            Enveloped("""{"exposes":{"interface_version":2}}"""), RecordsKind));
+        var refused = Released(baseline, state);
+        Assert.Null(refused.Released);
+        Assert.Equal("configuration-release-interface-ambiguous", refused.Refusal!.Code);
+        Assert.Equal("exposes", refused.Refusal.Target);
+        Assert.Contains("1, 2", refused.Refusal.Message, StringComparison.Ordinal);
+    }
+
+    // The original narrowing payload and exact baseline pins remain transport inputs, even
+    // when that foreign definition declares exposure for its own package.
+    [Fact]
+    public void Foreign_only_exposure_preserves_the_narrowing_body_and_pin_without_manifest_exposure()
+    {
+        var baseline = TwoPackageBaseline();
+        var state = EditedWith(baseline, Enveloped("""{"exposes":{"interface_version":97}}"""));
+        state = ConfigurationProposal.Autosave(state,
+            new("records/payslip", "payroll", Enveloped("""{"exposes":{"interface_version":98}}"""), RecordsKind));
+        var released = Released(baseline, state);
+        Assert.Null(released.Refusal);
+        Assert.Equal(["finance@1.2.0", "payroll@3.0.0"], Closure(released.Released!.Document));
+        using var document = JsonDocument.Parse(released.Released.Document);
+        Assert.False(document.RootElement.TryGetProperty("exposes", out _));
+        Assert.False(document.RootElement.TryGetProperty("interfaceVersion", out _));
+        var payload = document.RootElement.GetProperty("items")[1].GetProperty("content").GetProperty("payload");
+        Assert.Equal("records/invoice", payload.GetProperty("definitionKey").GetString());
+        Assert.Equal("finance", payload.GetProperty("packageKey").GetString());
+        Assert.Equal(97, payload.GetProperty("body").GetProperty("envelope").GetProperty("exposes").GetProperty("interface_version").GetInt32());
+    }
+
+    [Fact]
+    public void Foreign_versions_do_not_make_owned_exposure_ambiguous_and_owned_keys_are_ordinal()
+    {
+        var baseline = OwnedExposureBaseline();
+        var state = ConfigurationProposal.Autosave(ConfigurationProposal.Start("proposal-1", baseline),
+            new("records/owned-z", "tenant-a.release", Enveloped("""{"exposes":{"interface_version":2}}"""), RecordsKind));
+        state = ConfigurationProposal.Autosave(state,
+            new("records/invoice", "finance", Enveloped("""{"exposes":{"interface_version":97}}"""), RecordsKind));
+        state = ConfigurationProposal.Autosave(state,
+            new("records/owned-a", "tenant-a.release", Enveloped("""{"exposes":{"interface_version":2}}"""), RecordsKind));
+        var released = Released(baseline, state);
+        Assert.Null(released.Refusal);
+        Assert.Equal(["finance@1.2.0"], Closure(released.Released!.Document));
+        using var document = JsonDocument.Parse(released.Released.Document);
+        Assert.True(document.RootElement.TryGetProperty("exposes", out var exposes));
+        Assert.True(document.RootElement.TryGetProperty("interfaceVersion", out var interfaceVersion));
+        Assert.Equal(["records/owned-a", "records/owned-z"], exposes.EnumerateArray().Select(item => item.GetString()));
+        Assert.Equal(2, interfaceVersion.GetInt32());
+        var foreign = document.RootElement.GetProperty("items").EnumerateArray()
+            .Select(item => item.GetProperty("content").GetProperty("payload"))
+            .Single(payload => payload.TryGetProperty("definitionKey", out var key) && key.GetString() == "records/invoice");
+        Assert.Equal("finance", foreign.GetProperty("packageKey").GetString());
+        Assert.Equal(97, foreign.GetProperty("body").GetProperty("envelope").GetProperty("exposes").GetProperty("interface_version").GetInt32());
+    }
+
+    // These authored claims conflict with canonical ownership. Neither a forged package claim
+    // nor a key prefix can turn an existing foreign definition into the release's interface.
+    [Theory]
+    [InlineData("records/invoice", "finance@1.2.0")]
+    [InlineData("records/payslip", "payroll@3.0.0")]
+    [InlineData("tenant-a.release/foreign", "finance@1.2.0")]
+    public void A_claimed_release_owner_cannot_expose_a_baseline_foreign_definition(string key, string pin)
+    {
+        var baseline = OwnedExposureBaseline();
+        var state = ConfigurationProposal.Autosave(ConfigurationProposal.Start("proposal-1", baseline),
+            new(key, "tenant-a.release", Enveloped("""{"exposes":{"interface_version":2}}"""), RecordsKind));
+        var released = Released(baseline, state);
+        Assert.Null(released.Refusal);
+        Assert.Equal([pin], Closure(released.Released!.Document));
+        using var document = JsonDocument.Parse(released.Released.Document);
+        Assert.False(document.RootElement.TryGetProperty("exposes", out _));
+        Assert.False(document.RootElement.TryGetProperty("interfaceVersion", out _));
+        Assert.Equal("tenant-a.release", document.RootElement.GetProperty("items")[1]
+            .GetProperty("content").GetProperty("payload").GetProperty("packageKey").GetString());
+    }
+
+    [Theory]
+    [InlineData("records/owned-a")]
+    [InlineData("finance/owned")]
+    public void Baseline_owned_exposure_uses_the_selected_owner_without_rewriting_the_edit_claim(string key)
+    {
+        var baseline = OwnedExposureBaseline();
+        var state = ConfigurationProposal.Autosave(ConfigurationProposal.Start("proposal-1", baseline),
+            new(key, "finance", Enveloped("""{"exposes":{"interface_version":2}}"""), RecordsKind));
+        var released = Released(baseline, state);
+        Assert.Null(released.Refusal);
+        Assert.Equal(["finance@1.2.0"], Closure(released.Released!.Document));
+        using var document = JsonDocument.Parse(released.Released.Document);
+        Assert.True(document.RootElement.TryGetProperty("exposes", out var exposes));
+        Assert.True(document.RootElement.TryGetProperty("interfaceVersion", out var interfaceVersion));
+        Assert.Equal([key], exposes.EnumerateArray().Select(item => item.GetString()));
+        Assert.Equal(2, interfaceVersion.GetInt32());
+        Assert.Equal("finance", document.RootElement.GetProperty("items")[1]
+            .GetProperty("content").GetProperty("payload").GetProperty("packageKey").GetString());
+    }
+
+    [Fact]
+    public void A_new_definition_without_a_baseline_selection_uses_its_stated_owner_for_exposure()
+    {
+        var baseline = TwoPackageBaseline();
+        var state = ConfigurationProposal.Autosave(ConfigurationProposal.Start("proposal-1", baseline),
+            new("new/owned", "tenant-a.release", Enveloped("""{"exposes":{"interface_version":2}}"""), RecordsKind));
+        state = ConfigurationProposal.Autosave(state,
+            new("new/foreign", "finance", Enveloped("""{"exposes":{"interface_version":97}}"""), RecordsKind));
+        var released = Released(baseline, state);
+        Assert.Null(released.Refusal);
+        Assert.Equal(["finance@1.2.0"], Closure(released.Released!.Document));
+        using var document = JsonDocument.Parse(released.Released.Document);
+        Assert.True(document.RootElement.TryGetProperty("exposes", out var exposes));
+        Assert.True(document.RootElement.TryGetProperty("interfaceVersion", out var interfaceVersion));
+        Assert.Equal(["new/owned"], exposes.EnumerateArray().Select(item => item.GetString()));
+        Assert.Equal(2, interfaceVersion.GetInt32());
+    }
+
+    [Fact]
+    public void Exposure_owner_keys_are_case_sensitive()
+    {
+        var baseline = ConfigurationGeneration.Resolve(new ResolvedConfiguration("tenant-a", ["Tenant-a.release"],
+            [new(Ref("Tenant-a.release", "4.0.0", 'a'), [Ref("records/case", "4.0.0", 'b')], [])],
+            [new("records/case", "Tenant-a.release")], Ref("platform", "1.0.0", 'd'), []));
+        var state = ConfigurationProposal.Autosave(ConfigurationProposal.Start("proposal-1", baseline),
+            new("records/case", "Tenant-a.release", Enveloped("""{"exposes":{"interface_version":2}}"""), RecordsKind));
+        var released = Released(baseline, state);
+        Assert.Null(released.Refusal);
+        Assert.Equal(["Tenant-a.release@4.0.0"], Closure(released.Released!.Document));
+        using var document = JsonDocument.Parse(released.Released.Document);
+        Assert.False(document.RootElement.TryGetProperty("exposes", out _));
+        Assert.False(document.RootElement.TryGetProperty("interfaceVersion", out _));
+    }
+
+    private static string RequirementSource(string contentKind, string envelope)
+    {
+        if (contentKind == "Layout") return Enveloped(envelope);
+        // Literal Rule source from the RuleDefinitionCodec contract and the existing rule catalogue
+        // source fixture; the requires entries are authored input, never expected production output.
+        using var requirements = JsonDocument.Parse(envelope);
+        return $$$$"""
+            {"envelope":{"id":"new/rule","version":"1.0.0","tenant":"tenant-a",
+             "cascadeLayer":"domain-package","provenance":{"kind":"package","id":"finance"},
+             "requires":{{{{requirements.RootElement.GetProperty("requires").GetRawText()}}}},"contract":{"major":1,"minor":0}},
+             "name":"Amount rule","tier":"JsonLogic","draft":{"kind":"Formula","scope":"Field",
+             "scopeTarget":"total","outputType":"Compute","inputs":[],
+             "expression":{"kind":"Literal","value":"1","valueType":"Number"}}}
+            """;
+    }
+
+    private static ConfigurationGeneration TwoPackageBaseline() => ConfigurationGeneration.Resolve(new ResolvedConfiguration("tenant-a", ["finance", "payroll"],
+        [new(Ref("finance", "1.2.0", 'a'), [Ref("records/invoice", "1.2.0", 'b')], []),
+         new(Ref("payroll", "3.0.0", 'e'), [Ref("records/payslip", "3.0.0", 'f')], [])],
+        [new("records/invoice", "finance"), new("records/payslip", "payroll")],
+        Ref("platform", "1.0.0", 'd'), []));
+
+    private static ConfigurationGeneration OwnedExposureBaseline() => ConfigurationGeneration.Resolve(new ResolvedConfiguration("tenant-a", ["tenant-a.release", "finance", "payroll"],
+        [new(Ref("tenant-a.release", "0.9.0", 'c'), [Ref("records/owned-a", "0.9.0", 'a'), Ref("records/owned-z", "0.9.0", 'b'), Ref("finance/owned", "0.9.0", 'c')], []),
+         new(Ref("finance", "1.2.0", 'a'), [Ref("records/invoice", "1.2.0", 'b'), Ref("tenant-a.release/foreign", "1.2.0", 'c')], []),
+         new(Ref("payroll", "3.0.0", 'e'), [Ref("records/payslip", "3.0.0", 'f')], [])],
+        [new("records/owned-a", "tenant-a.release"), new("records/owned-z", "tenant-a.release"), new("finance/owned", "tenant-a.release"),
+         new("records/invoice", "finance"), new("tenant-a.release/foreign", "finance"), new("records/payslip", "payroll")],
+        Ref("platform", "1.0.0", 'd'), []));
+
+    private static ProposedChangeState OwnedEditedWith(ConfigurationGeneration baseline, string records) => ConfigurationProposal.Autosave(
+        ConfigurationProposal.Start("proposal-1", baseline), new("records/owned-a", "tenant-a.release", records, RecordsKind));
+
+    private static string Enveloped(string envelope) => $$"""{"envelope":{{envelope}},"recordType":"invoice"}""";
+
+    private static ProposedChangeState EditedWith(ConfigurationGeneration baseline, string records) => ConfigurationProposal.Autosave(
+        ConfigurationProposal.Start("proposal-1", baseline), new("records/invoice", "finance", records, RecordsKind));
+
+    private static ConfigurationReleaseResult Released(ConfigurationGeneration baseline, ProposedChangeState state)
+    {
+        var version = Save(state);
+        return ConfigurationProposal.Release(state, version, new ProposedChangeCheck("proposal-1", version.Digest, "receipt-1"),
+            baseline, "tenant-a.release", "1.0.0");
+    }
+
     private static string[] Closure(ReadOnlyMemory<byte> document)
     {
         using var parsed = JsonDocument.Parse(document);
