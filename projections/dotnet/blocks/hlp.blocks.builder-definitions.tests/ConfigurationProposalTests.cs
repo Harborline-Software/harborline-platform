@@ -463,7 +463,10 @@ public sealed class ConfigurationProposalTests
     public void A_requires_entry_that_names_no_package_adds_nothing_to_the_closure(string envelope)
     {
         var baseline = TwoPackageBaseline();
-        Assert.Equal(["finance@1.2.0"], Closure(Released(baseline, EditedWith(baseline, Enveloped(envelope))).Released!.Document));
+        var released = Released(baseline, EditedWith(baseline, Enveloped(envelope)));
+        Assert.Null(released.Refusal);
+        Assert.NotNull(released.Released);
+        Assert.Equal(["finance@1.2.0"], Closure(released.Released.Document));
     }
 
     // Literal oracles from RuleDefinitionCodec/RuleCrossPackageAuthoring and
@@ -584,9 +587,20 @@ public sealed class ConfigurationProposalTests
             new("new/rule", "finance", RequirementSource("opaque-rule-kind", """{"requires":["finance","payroll","payroll","tenant-a.release"]}"""), "opaque-rule-kind"));
         state = ConfigurationProposal.Autosave(state,
             new("new/surface", "tenant-a.release", Enveloped("""{"requires":[{"capability":"finance"},{"capability":"payroll"},{"capability":"tenant-a.release"}]}"""), "Layout"));
-        var released = Released(baseline, state);
-        Assert.Null(released.Refusal);
-        Assert.Equal(["finance@1.2.0", "payroll@3.0.0"], Closure(released.Released!.Document));
+        try
+        {
+            var released = Released(baseline, state);
+            Assert.Null(released.Refusal);
+            Assert.NotNull(released.Released);
+            Assert.Equal(["finance@1.2.0", "payroll@3.0.0"], Closure(released.Released.Document));
+        }
+        catch (ArgumentException exception) when (exception.ParamName == "dependencies"
+            && exception.Message == "platform-package-dependency-duplicate (Parameter 'dependencies')")
+        {
+            // The producer must deduplicate before the manifest validator sees these references.
+            // Assert that this exact business rejection is absent; other exceptions still escape.
+            Assert.Null(exception);
+        }
     }
 
     // ADR-0028 plus the approved own-only exposure decision: literal keys and versions below
@@ -596,8 +610,10 @@ public sealed class ConfigurationProposalTests
     {
         var baseline = OwnedExposureBaseline();
         using var document = JsonDocument.Parse(Released(baseline, OwnedEditedWith(baseline, Enveloped("""{"exposes":{"interface_version":2}}"""))).Released!.Document);
-        Assert.Equal(["records/owned-a"], document.RootElement.GetProperty("exposes").EnumerateArray().Select(item => item.GetString()));
-        Assert.Equal(2, document.RootElement.GetProperty("interfaceVersion").GetInt32());
+        Assert.True(document.RootElement.TryGetProperty("exposes", out var exposes));
+        Assert.True(document.RootElement.TryGetProperty("interfaceVersion", out var interfaceVersion));
+        Assert.Equal(["records/owned-a"], exposes.EnumerateArray().Select(item => item.GetString()));
+        Assert.Equal(2, interfaceVersion.GetInt32());
 
         using var unexposed = JsonDocument.Parse(Released(baseline, OwnedEditedWith(baseline, Enveloped("""{"requires":[]}"""))).Released!.Document);
         Assert.False(unexposed.RootElement.TryGetProperty("exposes", out _));
@@ -672,8 +688,10 @@ public sealed class ConfigurationProposalTests
         Assert.Null(released.Refusal);
         Assert.Equal(["finance@1.2.0"], Closure(released.Released!.Document));
         using var document = JsonDocument.Parse(released.Released.Document);
-        Assert.Equal(["records/owned-a", "records/owned-z"], document.RootElement.GetProperty("exposes").EnumerateArray().Select(item => item.GetString()));
-        Assert.Equal(2, document.RootElement.GetProperty("interfaceVersion").GetInt32());
+        Assert.True(document.RootElement.TryGetProperty("exposes", out var exposes));
+        Assert.True(document.RootElement.TryGetProperty("interfaceVersion", out var interfaceVersion));
+        Assert.Equal(["records/owned-a", "records/owned-z"], exposes.EnumerateArray().Select(item => item.GetString()));
+        Assert.Equal(2, interfaceVersion.GetInt32());
         var foreign = document.RootElement.GetProperty("items").EnumerateArray()
             .Select(item => item.GetProperty("content").GetProperty("payload"))
             .Single(payload => payload.TryGetProperty("definitionKey", out var key) && key.GetString() == "records/invoice");
@@ -714,8 +732,10 @@ public sealed class ConfigurationProposalTests
         Assert.Null(released.Refusal);
         Assert.Equal(["finance@1.2.0"], Closure(released.Released!.Document));
         using var document = JsonDocument.Parse(released.Released.Document);
-        Assert.Equal([key], document.RootElement.GetProperty("exposes").EnumerateArray().Select(item => item.GetString()));
-        Assert.Equal(2, document.RootElement.GetProperty("interfaceVersion").GetInt32());
+        Assert.True(document.RootElement.TryGetProperty("exposes", out var exposes));
+        Assert.True(document.RootElement.TryGetProperty("interfaceVersion", out var interfaceVersion));
+        Assert.Equal([key], exposes.EnumerateArray().Select(item => item.GetString()));
+        Assert.Equal(2, interfaceVersion.GetInt32());
         Assert.Equal("finance", document.RootElement.GetProperty("items")[1]
             .GetProperty("content").GetProperty("payload").GetProperty("packageKey").GetString());
     }
@@ -732,8 +752,10 @@ public sealed class ConfigurationProposalTests
         Assert.Null(released.Refusal);
         Assert.Equal(["finance@1.2.0"], Closure(released.Released!.Document));
         using var document = JsonDocument.Parse(released.Released.Document);
-        Assert.Equal(["new/owned"], document.RootElement.GetProperty("exposes").EnumerateArray().Select(item => item.GetString()));
-        Assert.Equal(2, document.RootElement.GetProperty("interfaceVersion").GetInt32());
+        Assert.True(document.RootElement.TryGetProperty("exposes", out var exposes));
+        Assert.True(document.RootElement.TryGetProperty("interfaceVersion", out var interfaceVersion));
+        Assert.Equal(["new/owned"], exposes.EnumerateArray().Select(item => item.GetString()));
+        Assert.Equal(2, interfaceVersion.GetInt32());
     }
 
     [Fact]
