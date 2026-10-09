@@ -67,7 +67,7 @@
     "nativeTests": {
       "dotnet": 29
     },
-    "nativeTestNote": "The count of 29 is the historical executed T-528 slice-1 run contract, not a new revision-2 result. Its existing lifecycle, retry, identity, tenant and store cases remain unchanged. CompensationReceiptTests.cs authors revision-2 pair-check cases; their compiled execution, per-status mutations and full gate remain pending the controller's validation reservation.",
+    "nativeTestNote": "The count of 29 is the historical executed T-528 slice-1 run contract, not a new revision-2 result. Its existing lifecycle, retry, identity, tenant and store cases remain unchanged. CompensationReceiptTests.cs authors 37 revision-2 pair-check cases. Hosted PR verify 37720364564 passed the native summary at candidate 95e3351fd4d2406fa6c29898c70bdf9cf975dc2b (116 execution-runtime tests); its detailed output is truncated and supplies no per-case pass list. Hosted mutation 37720377170 independently attributes both named missing-target kills. Complete protected native/gallery merge-group qualification remains pending.",
     "compensationAssociation": {
       "source": "projections/dotnet/foundation/hlp.foundation.execution-runtime.tests/CompensationReceiptTests.cs",
       "oracle": "Owner approval 2026-10-07 recorded in Control T-1028 and DES-0056 execution-runtime-ck-5: exact forward/reverse ids, tenant isolation, delayed checking, legacy no-backfill and no outcome/run/chain inference",
@@ -85,7 +85,7 @@
         "Other_original_statuses_impose_no_compensation_check",
         "Checker_uses_two_tenant_scoped_reads_without_writes"
       ],
-      "validation": "authored; execution and mutation evidence pending"
+      "validation": "Candidate 95e3351fd4d2406fa6c29898c70bdf9cf975dc2b: hosted mutation 37720377170 scores 94.02 against unchanged floor 94; named missing-target facts kill mutants 52 and 53 separately. Hosted PR verify 37720364564 passed the native summary. These historical reports bind the receipt/test/config bytes; full protected merge-group qualification and landing remain pending."
     }
   },
   "selectedDesign": {
