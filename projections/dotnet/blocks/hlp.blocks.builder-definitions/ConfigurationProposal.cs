@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text.Json;
+using Harborline.Foundation.RuleAuthoring;
 
 namespace Harborline.Blocks.BuilderDefinitions;
 
@@ -15,7 +16,7 @@ namespace Harborline.Blocks.BuilderDefinitions;
 /// a name the transport does not define is that consumer's named refusal, not a value this block ranks.
 /// </remarks>
 /// <param name="DefinitionKey">The definition being edited, as it is named in the baseline closure.</param>
-/// <param name="PackageKey">The package that will own the edited definition.</param>
+/// <param name="PackageKey">The package stated by the edit; it cannot override baseline ownership for release exposure.</param>
 /// <param name="BodyJson">The provider-neutral definition source; never repaired by this producer.</param>
 /// <param name="ContentKind">The transport content-kind name this definition is, stated by the producer.</param>
 public sealed record ProposedDefinitionEdit(string DefinitionKey, string PackageKey, string BodyJson,
@@ -238,9 +239,13 @@ public static class ConfigurationProposal
             .ToDictionary(reference => reference.GetProperty("key").GetString()!, reference => reference.GetProperty("revision").GetString()!, StringComparer.Ordinal);
         var owners = references.GetProperty("ownership").EnumerateArray().ToDictionary(
             owner => owner.GetProperty("definitionKey").GetString()!, owner => owner.GetProperty("packageKey").GetString()!, StringComparer.Ordinal);
+        // The producer contracts differ: Rules name packages with strings, Layout with bare capability
+        // objects, and Records with pack-key@interfaceVersion objects (records-ck-41).
+        var declarations = version.Edits.Select(edit => (edit, Declared: DeclaredPackages(edit.BodyJson, edit.ContentKind))).ToArray();
         var dependencies = new List<PlatformPackageDependency>();
-        foreach (var referenced in version.Edits
-            .SelectMany(edit => owners.TryGetValue(edit.DefinitionKey, out var owner) ? [owner, edit.PackageKey] : new[] { edit.PackageKey })
+        foreach (var referenced in declarations
+            .SelectMany(declared => (owners.TryGetValue(declared.edit.DefinitionKey, out var owner) ? [owner, declared.edit.PackageKey] : new[] { declared.edit.PackageKey })
+                .Concat(declared.Declared.Requires))
             .Where(key => key != packageKey).Distinct(StringComparer.Ordinal))
         {
             if (!pinned.TryGetValue(referenced, out var pin))
@@ -248,7 +253,19 @@ public static class ConfigurationProposal
                     $"The saved version references package {referenced}, which the baseline generation does not resolve, so it has no pinned version.");
             dependencies.Add(new(referenced, pin));
         }
-        var manifest = new PlatformPackageManifest(1, packageKey, revision, items.Prepend(record), dependencies);
+        // A package exposes only its own definitions. The canonical baseline owner takes precedence
+        // over the edit's claim; only a new key without a baseline selection uses the stated owner.
+        // Foreign narrowing keeps its body and dependency pins, but does not set this package's interface.
+        var exposed = declarations.Where(declared => declared.Declared.InterfaceVersion is not null
+            && string.Equals(owners.TryGetValue(declared.edit.DefinitionKey, out var owner)
+                ? owner : declared.edit.PackageKey, packageKey, StringComparison.Ordinal)).ToArray();
+        var interfaces = exposed.Select(declared => declared.Declared.InterfaceVersion!.Value).Distinct().ToArray();
+        if (interfaces.Length > 1)
+            return Refuse("configuration-release-interface-ambiguous", "exposes",
+                $"The saved version exposes definitions at interface versions {string.Join(", ", interfaces.Order())}; a package has one interface version.");
+        var exposure = interfaces.Length == 0 ? null
+            : new PlatformPackageExposure(interfaces[0], exposed.Select(declared => declared.edit.DefinitionKey).ToArray());
+        var manifest = new PlatformPackageManifest(1, packageKey, revision, items.Prepend(record), dependencies, exposure);
         var validation = PlatformPackageReplayer.Validate(manifest);
         if (!validation.Succeeded)
             return Refuse(validation.RefusalCode!, validation.ItemId ?? "savedVersion",
@@ -256,6 +273,43 @@ public static class ConfigurationProposal
         var document = PlatformPackageExporter.Export(manifest);
         return new(new ReleasedPackage(state.ProposalId, state.BaselineDigest, version.Digest, packageKey,
             revision, document, Convert.ToHexStringLower(SHA256.HashData(document))), null);
+    }
+
+    // Reads the existing producer spellings without inventing interface versions for bare package IDs.
+    // Layout's sealed platform capability is not a package dependency (layout-ck-42).
+    private static (string[] Requires, int? InterfaceVersion) DeclaredPackages(string bodyJson, string contentKind)
+    {
+        using var body = JsonDocument.Parse(bodyJson);
+        if (body.RootElement.ValueKind != JsonValueKind.Object
+            || !body.RootElement.TryGetProperty("envelope", out var envelope) || envelope.ValueKind != JsonValueKind.Object)
+            return ([], null);
+        // The Rule codec identifies its own source shape; no Rule transport kind is invented here.
+        // Its Requires values are exact package IDs (RuleCrossPackageAuthoring), never @version syntax.
+        var rule = RuleDefinitionCodec.Parse(bodyJson, RuleIntentPhase.Publish).Document
+            // Stored Rule bodies omit shared identity metadata (SerializeBody/ParseBody). These
+            // empty read-only header values supply no identity/version claim: only Requires is used.
+            ?? RuleDefinitionCodec.ParseBody(bodyJson, "", "", "", RuleIntentPhase.Publish).Document;
+        var requires = rule is not null ? rule.Envelope.Requires.ToArray()
+            : envelope.TryGetProperty("requires", out var entries) && entries.ValueKind == JsonValueKind.Array
+                ? entries.EnumerateArray().Select(entry => RequiredPackage(entry, contentKind)).OfType<string>().ToArray()
+                : [];
+        int? interfaceVersion = envelope.TryGetProperty("exposes", out var exposes) && exposes.ValueKind == JsonValueKind.Object
+            && exposes.TryGetProperty("interface_version", out var declared) && declared.ValueKind == JsonValueKind.Number
+            && declared.TryGetInt32(out var parsed) && parsed > 0 ? parsed : null;
+        return (requires, interfaceVersion);
+    }
+
+    private static string? RequiredPackage(JsonElement entry, string contentKind)
+    {
+        if (entry.ValueKind != JsonValueKind.Object || !entry.TryGetProperty("capability", out var capability)
+            || capability.ValueKind != JsonValueKind.String)
+            return null;
+        var value = capability.GetString();
+        // LayoutCrossPackageAuthoring compares the bare capability to the exact target PackageId;
+        // its minimum_platform_version belongs to host admission, never the package's revision pin.
+        if (contentKind == "Layout")
+            return string.IsNullOrWhiteSpace(value) || value == LayoutPackIdentity.Capability ? null : value;
+        return RecordsRequirement.TryParse(value, out var package, out _) ? package : null;
     }
 
     private static string Digest(string proposalId, string tenantKey, string baselineDigest,
