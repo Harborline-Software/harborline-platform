@@ -20,14 +20,29 @@ public sealed class RecordsEditorContractFixtureTests
     private const string ParityFile = "records-parity-inputs.json";
     private const string BaseCase = "G1-asset-class";
 
-    // P1 is lane rendering only. P2 and P4 replay only their producer facts; their lane behaviour stays deferred.
-    private static readonly string[] ProducerReplayed =
-    [
-        "G1-asset-class", "R1-punctuation-name", "R2-zero-revision-collision", "R3-duplicate-field-key",
-        "R4-duplicate-field-key-raw-complete-body", "R5-reference-binding-conflict", "R6-unknown-kind",
-        "R7-same-name-other-section-positive", "P2-identity-revision-reset", "P3-kind-version-change",
-        "P4-read-only-and-ordering",
-    ];
+    // The same executable dispatch supplies both xUnit's case rows and the manifest inventory.
+    private static readonly IReadOnlyDictionary<string, Func<RecordsEditorContractFixtureTests, Task>> ProducerCases =
+        new Dictionary<string, Func<RecordsEditorContractFixtureTests, Task>>(StringComparer.Ordinal)
+        {
+            ["G1-asset-class"] = test => test.g1_creates_the_fixture_canonical_body_at_its_catalogue_identity_and_round_trips_it(),
+            ["R1-punctuation-name"] = test => test.a_create_refusal_case_refuses_its_complete_list_and_writes_nothing("R1-punctuation-name"),
+            ["R2-zero-revision-collision"] = test => test.r2_a_name_that_slugs_to_a_held_id_refuses_as_a_collision_and_the_original_request_replays(),
+            ["R3-duplicate-field-key"] = test => test.a_create_refusal_case_refuses_its_complete_list_and_writes_nothing("R3-duplicate-field-key"),
+            ["R4-duplicate-field-key-raw-complete-body"] = test => test.r4_the_raw_catalogue_refuses_a_complete_body_with_a_duplicate_field_key(),
+            ["R5-reference-binding-conflict"] = test => test.a_create_refusal_case_refuses_its_complete_list_and_writes_nothing("R5-reference-binding-conflict"),
+            ["R6-unknown-kind"] = test => test.a_create_refusal_case_refuses_its_complete_list_and_writes_nothing("R6-unknown-kind"),
+            ["R7-same-name-other-section-positive"] = test => test.r7_the_same_name_in_another_section_admits_as_another_type(),
+            ["P2-identity-revision-reset"] = test => test.p2_a_save_at_the_loaded_revision_after_an_external_change_refuses_as_stale(),
+            ["P3-kind-version-change"] = test => test.p3_a_kind_version_without_the_retention_capability_refuses_the_clock_the_base_version_admits(),
+            ["P4-read-only-and-ordering"] = test => test.p4_a_request_with_an_unusable_name_and_an_unknown_kind_refuses_only_the_name(),
+        };
+
+    public static IEnumerable<object[]> ProducerCaseIds => ProducerCases.Keys.Select(id => new object[] { id });
+
+    [Theory]
+    [MemberData(nameof(ProducerCaseIds))]
+    public Task a_producer_fixture_case_runs_its_bound_producer_assertions(string id) => ProducerCases[id](this);
+
     private static readonly string[] DeferredToNativeLanes = ["P1-refusal-rendering-parity"];
 
     private static readonly string[] RequestMembers =
@@ -52,13 +67,12 @@ public sealed class RecordsEditorContractFixtureTests
 
         // An inventory binding only: it proves no case is silently skipped, not that any lane is at parity.
         Assert.Equal(manifest["caseCount"]!.GetValue<int>(), ids.Count);
-        Assert.Equal(ids.Order(StringComparer.Ordinal), ProducerReplayed.Concat(DeferredToNativeLanes).Order(StringComparer.Ordinal));
+        Assert.Equal(ids.Order(StringComparer.Ordinal), ProducerCases.Keys.Concat(DeferredToNativeLanes).Order(StringComparer.Ordinal));
         var refusalIds = Load(RefusalFile)["cases"]!.AsArray().Select(row => Text(row!["id"])).ToArray();
         Assert.All(Case(ParityFile, "P1-refusal-rendering-parity")["inputs"]!.AsArray(), input => Assert.Contains(Text(input), refusalIds));
     }
 
-    [Fact]
-    public async Task g1_creates_the_fixture_canonical_body_at_its_catalogue_identity_and_round_trips_it()
+    private async Task g1_creates_the_fixture_canonical_body_at_its_catalogue_identity_and_round_trips_it()
     {
         var g1 = Case(GrammarFile, BaseCase);
         var catalogue = g1["catalogue"]!;
@@ -81,12 +95,7 @@ public sealed class RecordsEditorContractFixtureTests
             RecordTypeDefinitionJson.Deserialize(Encoding.UTF8.GetBytes(canonical)))));
     }
 
-    [Theory]
-    [InlineData("R1-punctuation-name")]
-    [InlineData("R3-duplicate-field-key")]
-    [InlineData("R5-reference-binding-conflict")]
-    [InlineData("R6-unknown-kind")]
-    public async Task a_create_refusal_case_refuses_its_complete_list_and_writes_nothing(string id)
+    private async Task a_create_refusal_case_refuses_its_complete_list_and_writes_nothing(string id)
     {
         var refusal = Case(RefusalFile, id);
         RequireOperation(refusal["operation"], "CreateDraftAsync");
@@ -102,8 +111,7 @@ public sealed class RecordsEditorContractFixtureTests
         Assert.Empty(await Registered(host.Registry));
     }
 
-    [Fact]
-    public async Task r2_a_name_that_slugs_to_a_held_id_refuses_as_a_collision_and_the_original_request_replays()
+    private async Task r2_a_name_that_slugs_to_a_held_id_refuses_as_a_collision_and_the_original_request_replays()
     {
         var r2 = Case(RefusalFile, "R2-zero-revision-collision");
         RequireOperation(r2["operation"], "CreateDraftAsync");
@@ -128,8 +136,7 @@ public sealed class RecordsEditorContractFixtureTests
         Assert.Equal(original["expectedRevision"]!.GetValue<long>(), replay.Revision.Revision);
     }
 
-    [Fact]
-    public async Task r4_the_raw_catalogue_refuses_a_complete_body_with_a_duplicate_field_key()
+    private async Task r4_the_raw_catalogue_refuses_a_complete_body_with_a_duplicate_field_key()
     {
         var r4 = Case(RefusalFile, "R4-duplicate-field-key-raw-complete-body");
         RequireOperation(r4["operation"], "IVersionedDefinitionStore.SaveDraftAsync (raw catalogue)");
@@ -148,8 +155,7 @@ public sealed class RecordsEditorContractFixtureTests
         Assert.Single(await host.Catalogue.ListHistoryAsync(document.Key));
     }
 
-    [Fact]
-    public async Task r7_the_same_name_in_another_section_admits_as_another_type()
+    private async Task r7_the_same_name_in_another_section_admits_as_another_type()
     {
         var r7 = Case(RefusalFile, "R7-same-name-other-section-positive");
         RequireOperation(r7["operation"], "CreateDraftAsync");
@@ -166,8 +172,7 @@ public sealed class RecordsEditorContractFixtureTests
             (await host.Catalogue.ListKeysAsync(Tenant, DefinitionKind.Records)).Select(key => key.DefinitionId));
     }
 
-    [Fact]
-    public async Task p2_a_save_at_the_loaded_revision_after_an_external_change_refuses_as_stale()
+    private async Task p2_a_save_at_the_loaded_revision_after_an_external_change_refuses_as_stale()
     {
         var p2 = Case(ParityFile, "P2-identity-revision-reset");
         var loaded = Step(p2, "loaded");
@@ -195,16 +200,14 @@ public sealed class RecordsEditorContractFixtureTests
         Assert.Empty(await Registered(host.Registry));
     }
 
-    [Fact]
-    public async Task p3_a_kind_version_without_the_retention_capability_refuses_the_clock_the_base_version_admits()
+    private async Task p3_a_kind_version_without_the_retention_capability_refuses_the_clock_the_base_version_admits()
     {
         var p3 = Case(ParityFile, "P3-kind-version-change");
         var inputs = p3["inputs"]!;
         var expected = p3["expected"]!;
-        // The fixture spells the added field in prose; these guards bind the literal below to that prose.
-        Assert.Contains("field_key:acquired_on", Text(inputs["base"]), StringComparison.Ordinal);
-        Assert.Contains("kind_id:date,version:1.0.0", Text(inputs["base"]), StringComparison.Ordinal);
-        Assert.Contains("retention_clock_field_id:acquired_on", Text(inputs["base"]), StringComparison.Ordinal);
+        // This frozen recipe is prose, not JSON. Pin it whole so every property of the literal below
+        // is bound to the fixture; changing even a property outside the retention condition fails here.
+        Assert.Equal("""G1 fields + {field_key:acquired_on, display_name:"Acquired on", binding:{kind:{kind_id:date,version:1.0.0,parameters:{}},constraints:{required:true,minimum_count:0,maximum_count:1,read_role_ids:[]}}}, retention_clock_field_id:acquired_on""", Text(inputs["base"]));
         Assert.Equal("same, with binding.kind.version 2.0.0", Text(inputs["changed"]));
         Assert.Equal("admitted", Text(expected["base"]!["outcome"]));
 
@@ -221,8 +224,7 @@ public sealed class RecordsEditorContractFixtureTests
         Assert.Empty(await Registered(changedHost.Registry));
     }
 
-    [Fact]
-    public async Task p4_a_request_with_an_unusable_name_and_an_unknown_kind_refuses_only_the_name()
+    private async Task p4_a_request_with_an_unusable_name_and_an_unknown_kind_refuses_only_the_name()
     {
         var p4 = Case(ParityFile, "P4-read-only-and-ordering");
         Assert.Contains("records.identity.name_required at /name", Text(p4["producerOrdering"]!["fact"]), StringComparison.Ordinal);
