@@ -16,7 +16,7 @@ namespace Harborline.Blocks.BuilderDefinitions;
 /// a name the transport does not define is that consumer's named refusal, not a value this block ranks.
 /// </remarks>
 /// <param name="DefinitionKey">The definition being edited, as it is named in the baseline closure.</param>
-/// <param name="PackageKey">The package that will own the edited definition.</param>
+/// <param name="PackageKey">The package stated by the edit; it cannot override baseline ownership for release exposure.</param>
 /// <param name="BodyJson">The provider-neutral definition source; never repaired by this producer.</param>
 /// <param name="ContentKind">The transport content-kind name this definition is, stated by the producer.</param>
 public sealed record ProposedDefinitionEdit(string DefinitionKey, string PackageKey, string BodyJson,
@@ -253,9 +253,12 @@ public static class ConfigurationProposal
                     $"The saved version references package {referenced}, which the baseline generation does not resolve, so it has no pinned version.");
             dependencies.Add(new(referenced, pin));
         }
-        // The exposure is derived from the edited definitions that declare themselves exposed (ADR-0028), at the package's
-        // one interface version; definitions that disagree on it have no single version a consumer could require.
-        var exposed = declarations.Where(declared => declared.Declared.InterfaceVersion is not null).ToArray();
+        // A package exposes only its own definitions. The canonical baseline owner takes precedence
+        // over the edit's claim; only a new key without a baseline selection uses the stated owner.
+        // Foreign narrowing keeps its body and dependency pins, but does not set this package's interface.
+        var exposed = declarations.Where(declared => declared.Declared.InterfaceVersion is not null
+            && string.Equals(owners.TryGetValue(declared.edit.DefinitionKey, out var owner)
+                ? owner : declared.edit.PackageKey, packageKey, StringComparison.Ordinal)).ToArray();
         var interfaces = exposed.Select(declared => declared.Declared.InterfaceVersion!.Value).Distinct().ToArray();
         if (interfaces.Length > 1)
             return Refuse("configuration-release-interface-ambiguous", "exposes",
