@@ -103,7 +103,7 @@
         "app-shell.conversation-context-chips",
         "app-shell.live-block-and-approval",
         "app-shell.conversation-participants",
-        "app-shell.action-catalogue"
+        "app-shell.action-catalog"
       ],
       "sourceQualityCaseIds": [
         "app-shell.quality.conversation-rows"
@@ -129,7 +129,7 @@
         "The answer contains a list labeled Live with an Open in tab control.",
         "The proposal shows Before and After values for each affected record, and nothing changes until someone who can approve it does.",
         "Messages from the Assistant carry an agent label in text.",
-        "The composer says that / runs an action from the action catalogue."
+        "The composer says that / runs an action from the action catalog."
       ]
     },
     {
@@ -1052,7 +1052,7 @@
       ],
       "sourceCaseIds": [
         "app-shell.search-enter-acts",
-        "app-shell.action-catalogue"
+        "app-shell.action-catalog"
       ],
       "sourceQualityCaseIds": [
         "app-shell.quality.search-dialog",
@@ -1246,14 +1246,14 @@
       ],
       "sourceCaseIds": [
         "app-shell.selection-bar",
-        "app-shell.action-catalogue",
+        "app-shell.action-catalog",
         "app-shell.esc-ladder"
       ],
       "sourceQualityCaseIds": [
         "app-shell.quality.keyboard"
       ],
       "content": {
-        "blurb": "While rows are selected, the selection bar replaces the context bar. Its actions come from the same catalogue as every other action surface.",
+        "blurb": "While rows are selected, the selection bar replaces the context bar. Its actions come from the same catalog as every other action surface.",
         "environment": {
           "locale": "en-US",
           "direction": "ltr",
@@ -1269,7 +1269,7 @@
         }
       },
       "expect": [
-        "The bar reads 2 selected and offers the catalogue actions for the selection.",
+        "The bar reads 2 selected and offers the catalog actions for the selection.",
         "The context bar is not shown while rows are selected.",
         "Esc clears the selection before it closes anything beneath it."
       ]
@@ -1903,7 +1903,7 @@
       ],
       "sourceCaseIds": [
         "app-shell.denied-actions",
-        "app-shell.action-catalogue",
+        "app-shell.action-catalog",
         "app-shell.ownership-boundary"
       ],
       "sourceQualityCaseIds": [
@@ -2495,7 +2495,7 @@
         "The row shows a text field holding the current title, with focus in it.",
         "Enter emits a rename request with the new title, and the shell does not commit the value itself.",
         "Escape emits a cancel request and returns focus to the row.",
-        "Shell shortcuts do not fire while the field has focus."
+        "While the field has focus, J and K type text, and Enter and Escape go to the field rather than the shell."
       ]
     },
     {
@@ -2585,6 +2585,7 @@
       },
       "expect": [
         "With focus in the composer, typing J or K enters text and moves no selection.",
+        "With focus in the composer, Ctrl K still opens search and Ctrl Shift I still hides the panel.",
         "Ctrl Alt W closes no tab and shows as off on the shortcut sheet.",
         "An event the focused control already handled triggers no shell shortcut."
       ]

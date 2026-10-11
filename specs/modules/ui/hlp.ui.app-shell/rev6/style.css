@@ -5,7 +5,7 @@
 /* The docking script reads these constants (P12). CSS never enforces the main minimum, so phone
    and floating layouts can go narrower than it. */
 .hl-app-shell {
-  --hl-app-shell-rail-size: 56px; --hl-app-shell-rail-size-labelled: 80px; --hl-app-shell-sidebar-size: 240px;
+  --hl-app-shell-rail-size: 56px; --hl-app-shell-rail-size-labeled: 80px; --hl-app-shell-sidebar-size: 240px;
   --hl-app-shell-main-minimum: 560px; --hl-app-shell-panel-size: 380px;
   position: relative; display: grid; min-inline-size: 0; block-size: 100%; overflow: hidden;
   grid-template: "rail sidebar main panel" minmax(0, 1fr) / auto auto minmax(0, 1fr) auto;
@@ -71,7 +71,7 @@
   position: relative; flex: none; display: inline-flex; align-items: center; justify-content: center;
   inline-size: 32px; block-size: 32px; border-radius: 8px; color: var(--hl-muted-foreground, #777);
 }
-/* Links stay underlined so they never rely on colour alone (WCAG 1.4.1). */
+/* Links stay underlined so they never rely on color alone (WCAG 1.4.1). */
 .hl-app-shell__link { color: var(--hl-primary, #0f62fe); font-size: 13px; text-decoration: underline; text-underline-offset: 2px; }
 .hl-app-shell__segments { display: inline-flex; flex-wrap: wrap; gap: 2px; padding: 2px; border-radius: 999px; background: var(--hl-muted, #eee); }
 .hl-app-shell__segment { min-block-size: 28px; padding: 0 12px; border-radius: 999px; font-size: 13px; text-align: center; }
@@ -90,7 +90,7 @@
   min-block-size: 0; padding-block: 10px; box-sizing: border-box; overflow: auto;
   border-inline-end: 1px solid var(--hl-border, #d5d5d5); background: var(--hl-muted, #eee);
 }
-.hl-app-shell__rail[data-rail-labels] { inline-size: var(--hl-app-shell-rail-size-labelled); }
+.hl-app-shell__rail[data-rail-labels] { inline-size: var(--hl-app-shell-rail-size-labeled); }
 .hl-app-shell__rail-item {
   position: relative; flex: none; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
   inline-size: 44px; min-block-size: 44px; border-radius: 10px; color: var(--hl-muted-foreground, #777);
@@ -212,7 +212,7 @@
 .hl-app-shell__sync-strip { min-block-size: 0; padding-block: 8px; background: var(--hl-surface, #fff); font-size: 13px; }
 .hl-app-shell__sync-strip[data-sync-state=offline] { border-block-end-color: var(--hl-pending, #9a4d00); }
 .hl-app-shell__sync-strip[data-sync-state=conflict] { border-block-end: 2px solid var(--hl-attention, #4f46b8); }
-.hl-app-shell__sync-strip[data-sync-state=stale] { border-block-end-color: var(--color-text-faint, #777); }
+.hl-app-shell__sync-strip[data-sync-state=stale] { border-block-end-color: var(--hl-control-border, #777); }
 .hl-app-shell__sync-marker { flex: none; padding: 0 6px; border: 1px solid transparent; border-radius: 999px; color: var(--hl-ok, #23703f); font-size: 12px; white-space: nowrap; }
 /* Dashed means "not sent yet" and nothing else. This is the only dashed rule in the shell. */
 .hl-app-shell__sync-strip[data-sync-state=queued] { border-block-end-style: dashed; border-block-end-color: var(--hl-pending, #9a4d00); }
@@ -230,9 +230,9 @@
 .hl-app-shell__event-body { display: flex; flex-direction: column; gap: 10px; max-inline-size: 70ch; }
 .hl-app-shell__event[data-own] .hl-app-shell__event-body { align-self: flex-start; padding: 8px 12px; border-radius: 12px; background: var(--hl-selected, #e8f0fe); }
 .hl-app-shell__event[data-event-kind=system] { flex-direction: row; align-items: center; gap: 8px; color: var(--hl-muted-foreground, #777); font-size: 12px; }
-.hl-app-shell__event-marker { flex: none; inline-size: 8px; block-size: 8px; box-sizing: border-box; border: 2px solid var(--color-text-faint, #777); border-radius: 50%; }
+.hl-app-shell__event-marker { flex: none; inline-size: 8px; block-size: 8px; box-sizing: border-box; border: 2px solid var(--hl-control-border, #777); border-radius: 50%; }
 .hl-app-shell__agent-tag, .hl-app-shell__ai-label {
-  display: inline-flex; align-items: center; gap: 3px; padding: 0 5px; border: 1px solid var(--color-text-faint, #777); border-radius: 3px; font-size: 11px;
+  display: inline-flex; align-items: center; gap: 3px; padding: 0 5px; border: 1px solid var(--hl-control-border, #777); border-radius: 3px; font-size: 11px;
 }
 .hl-app-shell__ai-label { padding: 0 6px; border-radius: 999px; font-weight: 600; line-height: 18px; }
 .hl-app-shell__live-block {
@@ -249,7 +249,7 @@
 .hl-app-shell__mini-table :is(th, td) { padding: 5px 6px; border-block-end: 1px solid var(--hl-border, #d5d5d5); text-align: start; vertical-align: middle; }
 .hl-app-shell__mini-table th { color: var(--hl-muted-foreground, #777); font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; }
 .hl-app-shell__mini-table tr:last-child td { border-block-end: 0; }
-/* An approval prompt is a needs-you surface (A2), so the card takes the attention colour. */
+/* An approval prompt is a needs-you surface (A2), so the card takes the attention color. */
 .hl-app-shell__proposal { display: flex; flex-direction: column; gap: 8px; padding: 12px; border: 1px solid var(--hl-attention, #4f46b8); border-radius: 12px; }
 .hl-app-shell__composer {
   display: flex; align-items: center; gap: 4px; padding: 6px; border: 1px solid var(--hl-control-border, #767676);
@@ -368,7 +368,7 @@ button.hl-app-shell__list-row { cursor: pointer; }
   position: absolute; inset-block: 0; inset-inline-start: var(--hl-app-shell-span-start, 0%); inline-size: var(--hl-app-shell-span-size, 0%);
   border-radius: 4px; background: var(--hl-foreground, #111);
 }
-.hl-app-shell__timeline-span[data-planned] { background: var(--hl-selected, #e8f0fe); box-shadow: inset 0 0 0 2px var(--color-text-faint, #777); }
+.hl-app-shell__timeline-span[data-planned] { background: var(--hl-selected, #e8f0fe); box-shadow: inset 0 0 0 2px var(--hl-control-border, #777); }
 .hl-app-shell__timeline-now {
   position: absolute; inset-block: 18px 0; inline-size: 2px; background: var(--hl-foreground, #111);
   inset-inline-start: calc(var(--hl-app-shell-timeline-label) + (100% - var(--hl-app-shell-timeline-label)) * var(--hl-app-shell-now, 0));
@@ -436,7 +436,7 @@ button.hl-app-shell__list-row { cursor: pointer; }
 .hl-app-shell__setting-label { flex: 1; min-inline-size: 0; }
 .hl-app-shell__setting-value { display: flex; flex-direction: column; align-items: flex-end; text-align: end; }
 .hl-app-shell__setting-source { display: inline-flex; align-items: center; gap: 4px; }
-/* The lock icon is the non-colour cue for a value the organization set for everyone. */
+/* The lock icon is the non-color cue for a value the organization set for everyone. */
 .hl-app-shell__setting-lock { display: none; flex: none; inline-size: 12px; block-size: 12px; }
 .hl-app-shell__setting[data-locked] .hl-app-shell__setting-lock { display: inline-block; }
 .hl-app-shell[data-form=phone] .hl-app-shell__settings-main { flex-direction: column; }
