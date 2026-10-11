@@ -1,0 +1,2972 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.app-shell",
+  "sourceFixture": "conformance/hlp.ui.app-shell/fixtures.yaml",
+  "qualityFixture": "conformance/hlp.ui.app-shell/quality-fixtures.yaml",
+  "galleryInterface": {
+    "probeAttribute": "data-gallery-probe",
+    "scenarioAttribute": "data-gallery-scenario",
+    "projectionTitles": {
+      "react": "Platform/App Shell",
+      "blazor": "Platform/App Shell"
+    }
+  },
+  "placeholders": {
+    "$<n>": "In dest, the pack destination at index n, so $0 is its first destination and a scenario runs in every pack.",
+    "$r<n>": "In rec or a tab target, row n of the current destination record kind, falling back to row 0."
+  },
+  "stateKeys": {
+    "mode": "chat or workspace.",
+    "dest": "Destination id, a placeholder, or home, mywork, convos, browse, or conv.",
+    "conv": "Conversation id when dest is conv.",
+    "view": "record shows the record conversation face in Chat mode.",
+    "rec": "Selected record.",
+    "panel": "Side panel open.",
+    "tabs": "Open panel tabs. k is the kind, t the target, pv a preview tab, pin a pinned tab, g the group index.",
+    "act": "Active tab index per group.",
+    "closed": "Recently closed tabs.",
+    "newTab": "New tab page showing.",
+    "split": "Second tab group open.",
+    "tabGrid": "Phone tab grid showing.",
+    "search": "Search dialog open.",
+    "query": "Search text.",
+    "keys": "Shortcut sheet open.",
+    "selected": "Number of selected rows.",
+    "working": "A background job is running.",
+    "offline": "offline, conflict, or stale sync state.",
+    "menu": "Open menu.",
+    "single": "Only one tenant membership.",
+    "acct": "Pending account actions.",
+    "settings": "Settings showing.",
+    "ss": "Settings section.",
+    "focus": "Focus mode.",
+    "firstRun": "No work exists yet.",
+    "drawer": "Phone drawer open.",
+    "railLabels": "Rail labels on.",
+    "packPatch": "Fields that replace the named pack fields for this scenario."
+  },
+  "scenarios": [
+    {
+      "id": "app-shell.chat-home",
+      "name": "Chat home",
+      "group": "Two modes, one set of parts",
+      "surface": "chat-home",
+      "decisionIds": [
+        "M2",
+        "M10",
+        "M6"
+      ],
+      "sourceCaseIds": [
+        "app-shell.chat-home",
+        "app-shell.mode-compositions",
+        "app-shell.rail-order",
+        "app-shell.my-work-count"
+      ],
+      "sourceQualityCaseIds": [
+        "app-shell.quality.landmarks"
+      ],
+      "content": {
+        "blurb": "Chat mode is the default face. Home is a composer with what needs you as cards above it and recent conversations below.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "pack": "neutral",
+        "width": 1440,
+        "state": {
+          "mode": "chat"
+        }
+      },
+      "expect": [
+        "The main area shows a composer with Needs you cards above it and a Recent conversations list below it.",
+        "The Needs you heading shows the same number as the My work count on the rail.",
+        "The rail shows the tenant mark as Home, the mode switch, My work, Conversations, and Browse in that order, with the avatar last.",
+        "No pack destination appears on the rail in Chat mode."
+      ]
+    },
+    {
+      "id": "app-shell.conversation",
+      "name": "A conversation with the Assistant",
+      "group": "Two modes, one set of parts",
+      "surface": "conversation",
+      "decisionIds": [
+        "M8",
+        "M9",
+        "M15",
+        "P11",
+        "C1"
+      ],
+      "sourceCaseIds": [
+        "app-shell.stream-faces",
+        "app-shell.conversation-context-chips",
+        "app-shell.live-block-and-approval",
+        "app-shell.conversation-participants",
+        "app-shell.action-catalogue"
+      ],
+      "sourceQualityCaseIds": [
+        "app-shell.quality.conversation-rows"
+      ],
+      "content": {
+        "blurb": "A conversation with the Assistant is a stream whose answer carries a live list bound to a query, not a pasted snapshot. The change it suggests is a proposal with before and after values.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "pack": "clinic",
+        "width": 1440,
+        "state": {
+          "mode": "chat",
+          "dest": "conv",
+          "conv": "c-agent"
+        }
+      },
+      "expect": [
+        "The stream header shows context chips for the current place and a record, each with a remove button, plus an Add chip.",
+        "The answer contains a list labeled Live with an Open in tab control.",
+        "The proposal shows Before and After values for each affected record, and nothing changes until someone who can approve it does.",
+        "Messages from the Assistant carry an agent label in text.",
+        "The composer says that / runs an action from the action catalogue."
+      ]
+    },
+    {
+      "id": "app-shell.team-chat",
+      "name": "A team conversation",
+      "group": "Two modes, one set of parts",
+      "surface": "team-chat",
+      "decisionIds": [
+        "M3",
+        "M15",
+        "M9",
+        "M11"
+      ],
+      "sourceCaseIds": [
+        "app-shell.conversation-participants",
+        "app-shell.conversation-context-chips",
+        "app-shell.conversation-rows",
+        "app-shell.stream-faces"
+      ],
+      "sourceQualityCaseIds": [
+        "app-shell.quality.conversation-rows",
+        "app-shell.quality.keyboard"
+      ],
+      "content": {
+        "blurb": "People and agents share one kind of conversation. The Assistant joins by @mention, and status changes on records show in the stream as events.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "pack": "retail",
+        "width": 1440,
+        "state": {
+          "mode": "chat",
+          "dest": "conv",
+          "conv": "c-place"
+        }
+      },
+      "expect": [
+        "Messages from people, a system event for a record status change, and an Assistant reply appear in one stream in time order.",
+        "A record mentioned in the conversation is offered with an Add to context control and is not added to the context chips on its own.",
+        "The conversation sidebar groups rows under Pinned, Recent, and a user section, with All, People, Agents, and Places filters.",
+        "The open conversation row is marked as the current page."
+      ]
+    },
+    {
+      "id": "app-shell.record-chat",
+      "name": "A record in Chat mode",
+      "group": "Two modes, one set of parts",
+      "surface": "record-chat",
+      "decisionIds": [
+        "M6",
+        "M7",
+        "M14"
+      ],
+      "sourceCaseIds": [
+        "app-shell.stream-faces",
+        "app-shell.mode-compositions",
+        "app-shell.tab-identity-dedupe"
+      ],
+      "sourceQualityCaseIds": [
+        "app-shell.quality.tablist"
+      ],
+      "content": {
+        "blurb": "Every record is a stream. In Chat mode its conversation face fills the main area and Details opens as a panel tab.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "pack": "legal",
+        "width": 1440,
+        "state": {
+          "mode": "chat",
+          "dest": "$0",
+          "view": "record",
+          "rec": "$r0",
+          "panel": true,
+          "tabs": [
+            {
+              "k": "details",
+              "t": "$r0",
+              "pv": true
+            }
+          ]
+        }
+      },
+      "expect": [
+        "The main area shows the record's events and messages, with a composer addressed to everyone on the record.",
+        "The side panel holds one Details tab for the same record.",
+        "The Details button in the stream header focuses the existing Details tab instead of opening a second one.",
+        "The breadcrumb names the destination and the record id."
+      ]
+    },
+    {
+      "id": "app-shell.workspace",
+      "name": "Workspace mode",
+      "group": "Two modes, one set of parts",
+      "surface": "workspace",
+      "decisionIds": [
+        "M6",
+        "M4",
+        "M14",
+        "M11"
+      ],
+      "sourceCaseIds": [
+        "app-shell.mode-compositions",
+        "app-shell.mode-resolution",
+        "app-shell.mode-switch-keeps-tabs",
+        "app-shell.rail-order",
+        "app-shell.activation-navigation-policy",
+        "app-shell.announcements"
+      ],
+      "sourceQualityCaseIds": [
+        "app-shell.quality.live-announcements",
+        "app-shell.quality.keyboard"
+      ],
+      "content": {
+        "blurb": "Workspace mode shows the same parts with the structured face first, with destinations on the rail, the list in the main area, and the record in a panel tab. Switching mode keeps your tabs.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "pack": "neutral",
+        "width": 1440,
+        "state": {
+          "mode": "workspace",
+          "dest": "$0",
+          "rec": "$r0",
+          "panel": true,
+          "tabs": [
+            {
+              "k": "details",
+              "t": "$r0",
+              "pv": true
+            }
+          ]
+        }
+      },
+      "expect": [
+        "The rail lists My work, the pack destinations, a separator, the secondary destinations, and Conversations, in that order.",
+        "The main area shows the destination list under a context bar, and the record shows in a Details panel tab.",
+        "Switching to Chat mode and back keeps the same open tabs in the same order.",
+        "The mode switch is announced in a polite live region and focus stays on the mode button.",
+        "Activating a rail destination emits one activation request with its id, and the shell does no routing of its own."
+      ]
+    },
+    {
+      "id": "app-shell.browse",
+      "name": "Browse",
+      "group": "Two modes, one set of parts",
+      "surface": "browse",
+      "decisionIds": [
+        "M11"
+      ],
+      "sourceCaseIds": [
+        "app-shell.mode-compositions",
+        "app-shell.rail-order"
+      ],
+      "sourceQualityCaseIds": [
+        "app-shell.quality.targets"
+      ],
+      "content": {
+        "blurb": "In Chat mode every list is one click away in Browse. Each list opens as a page, or as a panel tab from a conversation.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "pack": "retail",
+        "width": 1440,
+        "state": {
+          "mode": "chat",
+          "dest": "browse"
+        }
+      },
+      "expect": [
+        "Browse shows one card for each pack destination, primary and secondary.",
+        "Each card shows how many records the destination holds and its first two views.",
+        "The Browse rail item is marked as the current page."
+      ]
+    },
+    {
+      "id": "app-shell.workspace-home",
+      "name": "Workspace home",
+      "group": "Two modes, one set of parts",
+      "surface": "workspace-home",
+      "decisionIds": [
+        "M4",
+        "A1"
+      ],
+      "sourceCaseIds": [
+        "app-shell.mode-compositions",
+        "app-shell.mode-resolution",
+        "app-shell.my-work-count"
+      ],
+      "sourceQualityCaseIds": [
+        "app-shell.quality.landmarks"
+      ],
+      "content": {
+        "blurb": "Workspace mode keeps the dashboard home, with conversations one click away.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "pack": "clinic",
+        "width": 1440,
+        "state": {
+          "mode": "workspace"
+        }
+      },
+      "expect": [
+        "Home shows the pack figures as cards and a Needs you list whose length matches the My work count.",
+        "A Conversations card lists recent conversations as links.",
+        "The page title greets the user by first name."
+      ]
+    },
+    {
+      "id": "app-shell.rail-labels",
+      "name": "Rail labels",
+      "group": "Rail and navigation",
+      "surface": "rail-labels",
+      "decisionIds": [
+        "T6"
+      ],
+      "sourceCaseIds": [
+        "app-shell.rail-labels",
+        "app-shell.rail-order"
+      ],
+      "sourceQualityCaseIds": [
+        "app-shell.quality.targets",
+        "app-shell.quality.reflow"
+      ],
+      "content": {
+        "blurb": "With rail labels on, the rail widens from 56 to 80 pixels and the avatar shows your first name.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "pack": "legal",
+        "width": 1440,
+        "state": {
+          "mode": "workspace",
+          "dest": "$0",
+          "railLabels": true
+        }
+      },
+      "expect": [
+        "The rail is 80 pixels wide and every rail item shows its short label under the icon.",
+        "The avatar button shows the user's first name, and its accessible name includes the tenant.",
+        "Turning labels off returns the rail to 56 pixels with icons only and the same accessible names."
+      ]
+    },
+    {
+      "id": "app-shell.first-run",
+      "name": "First run",
+      "group": "Rail and navigation",
+      "surface": "first-run",
+      "decisionIds": [
+        "M10"
+      ],
+      "sourceCaseIds": [
+        "app-shell.first-run",
+        "app-shell.my-work-count",
+        "app-shell.chat-home"
+      ],
+      "sourceQualityCaseIds": [],
+      "content": {
+        "blurb": "Before any work exists, no counts appear anywhere and Home says what it is for.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "pack": "retail",
+        "width": 1440,
+        "state": {
+          "mode": "chat",
+          "firstRun": true
+        }
+      },
+      "expect": [
+        "No count appears on the rail or on Home.",
+        "Home welcomes the user to the tenant by first name and says nothing needs them yet.",
+        "Starter chips name the tenant and the first destination."
+      ]
+    },
+    {
+      "id": "app-shell.drawer",
+      "name": "Phone drawer",
+      "group": "Rail and navigation",
+      "surface": "drawer",
+      "decisionIds": [
+        "M12",
+        "A3"
+      ],
+      "sourceCaseIds": [
+        "app-shell.phone-sheet-and-grid",
+        "app-shell.my-work-count",
+        "app-shell.semantic-counts-addresses",
+        "app-shell.mode-resolution"
+      ],
+      "sourceQualityCaseIds": [
+        "app-shell.quality.reflow",
+        "app-shell.quality.dismissal",
+        "app-shell.quality.focus"
+      ],
+      "content": {
+        "blurb": "On a phone there is no rail, and the drawer carries the same items with the needs-you count as a number. Each device class remembers its own mode.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "pack": "clinic",
+        "width": 390,
+        "state": {
+          "mode": "chat",
+          "drawer": true
+        }
+      },
+      "expect": [
+        "No rail renders at 390 pixels, and a menu button opens the drawer.",
+        "The drawer lists Home, My work, Conversations, and Browse, with the My work count shown as a number.",
+        "The menu button's accessible name includes the needs-you count.",
+        "Choosing a mode on a phone leaves the mode remembered for laptop width unchanged."
+      ]
+    },
+    {
+      "id": "app-shell.tabs",
+      "name": "Tabs of many kinds",
+      "group": "Side panel tabs",
+      "surface": "tabs",
+      "decisionIds": [
+        "P1",
+        "P2",
+        "P8",
+        "P9"
+      ],
+      "sourceCaseIds": [
+        "app-shell.tab-identity-dedupe",
+        "app-shell.tab-kind-applicability",
+        "app-shell.tab-overflow",
+        "app-shell.tab-persistence",
+        "app-shell.announcements"
+      ],
+      "sourceQualityCaseIds": [
+        "app-shell.quality.tablist",
+        "app-shell.quality.live-announcements",
+        "app-shell.quality.color-not-alone"
+      ],
+      "content": {
+        "blurb": "The side panel is a tab host where a tab is a kind plus a target, so two records can stay open side by side. Pinned tabs shrink to icons, the rest shrink and then scroll, and the chevron searches every open tab.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "pack": "neutral",
+        "width": 1440,
+        "state": {
+          "mode": "workspace",
+          "dest": "$0",
+          "rec": "$r0",
+          "panel": true,
+          "tabs": [
+            {
+              "k": "asst",
+              "t": "c-agent",
+              "pin": true
+            },
+            {
+              "k": "details",
+              "t": "$r1"
+            },
+            {
+              "k": "log",
+              "t": "$r0"
+            },
+            {
+              "k": "timeline",
+              "t": "$r0"
+            },
+            {
+              "k": "files",
+              "t": "$r2"
+            },
+            {
+              "k": "details",
+              "t": "$r0",
+              "pv": true
+            }
+          ],
+          "act": [
+            5,
+            0
+          ]
+        }
+      },
+      "expect": [
+        "The tab strip is a tablist, and the pinned Assistant tab shows as an icon while keeping its name for assistive technology.",
+        "Details tabs for two different records are open at once, and opening Details for a record that already has one focuses that tab.",
+        "The preview tab is set in italics and its title and subline also say preview in text.",
+        "The chevron control's name gives the number of open tabs, and it lists every open tab.",
+        "Opening or closing a tab is announced in a polite live region without moving focus."
+      ]
+    },
+    {
+      "id": "app-shell.preview",
+      "name": "Preview tab follows the list",
+      "group": "Side panel tabs",
+      "surface": "preview",
+      "decisionIds": [
+        "P4",
+        "S3"
+      ],
+      "sourceCaseIds": [
+        "app-shell.preview-tab",
+        "app-shell.list-jk-scoped"
+      ],
+      "sourceQualityCaseIds": [
+        "app-shell.quality.no-single-letter-keys",
+        "app-shell.quality.color-not-alone",
+        "app-shell.quality.tablist"
+      ],
+      "content": {
+        "blurb": "Clicking a row, or pressing J or K while the list has focus, moves the preview tab, shown in italics, to that record. Keep open, Pin, or an edit makes the tab stay.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "pack": "legal",
+        "width": 1440,
+        "state": {
+          "mode": "workspace",
+          "dest": "$0",
+          "rec": "$r0",
+          "panel": true,
+          "tabs": [
+            {
+              "k": "details",
+              "t": "$r0",
+              "pv": true
+            }
+          ]
+        }
+      },
+      "expect": [
+        "Selecting another row retargets the preview tab instead of opening a new tab.",
+        "J and K move the selection only while the list has focus.",
+        "Keep open turns the preview tab into a kept tab and drops its italics and its preview text.",
+        "The row shown in the panel carries aria-current."
+      ]
+    },
+    {
+      "id": "app-shell.newtab",
+      "name": "New tab",
+      "group": "Side panel tabs",
+      "surface": "newtab",
+      "decisionIds": [
+        "P5"
+      ],
+      "sourceCaseIds": [
+        "app-shell.new-tab-page",
+        "app-shell.tab-kind-applicability"
+      ],
+      "sourceQualityCaseIds": [
+        "app-shell.quality.keyboard"
+      ],
+      "content": {
+        "blurb": "New tab offers the kinds that apply here, suggestions from the selection, and tabs you closed.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "pack": "retail",
+        "width": 1440,
+        "state": {
+          "mode": "workspace",
+          "dest": "$0",
+          "rec": "$r0",
+          "panel": true,
+          "newTab": true,
+          "tabs": [
+            {
+              "k": "details",
+              "t": "$r0",
+              "pv": true
+            }
+          ],
+          "closed": [
+            {
+              "k": "log",
+              "t": "$r0"
+            }
+          ]
+        }
+      },
+      "expect": [
+        "Tools lists only the kinds the pack allows for this record kind, plus Page and Assistant.",
+        "Suggested offers a Timeline for the selected record and a conversation about it.",
+        "Recents lists the closed Log tab, and choosing it reopens that tab.",
+        "No inapplicable kind appears, disabled or otherwise."
+      ]
+    },
+    {
+      "id": "app-shell.na",
+      "name": "A tab that doesn't apply",
+      "group": "Side panel tabs",
+      "surface": "na",
+      "decisionIds": [
+        "P7",
+        "P2"
+      ],
+      "sourceCaseIds": [
+        "app-shell.tab-not-applicable",
+        "app-shell.tab-kind-applicability"
+      ],
+      "sourceQualityCaseIds": [],
+      "content": {
+        "blurb": "The preview Files tab followed the selection to a record kind with no files. It stays and says why instead of vanishing.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "pack": "clinic",
+        "width": 1440,
+        "state": {
+          "mode": "workspace",
+          "dest": "$2",
+          "rec": "$r0",
+          "panel": true,
+          "tabs": [
+            {
+              "k": "files",
+              "t": "$r0",
+              "pv": true
+            }
+          ]
+        }
+      },
+      "expect": [
+        "The Files tab stays in the strip, and its body says this record kind does not have files.",
+        "The message names the selected record and offers Show Details instead.",
+        "The tab leaves the strip only when the user closes it."
+      ]
+    },
+    {
+      "id": "app-shell.log",
+      "name": "Log",
+      "group": "Side panel tabs",
+      "surface": "log",
+      "decisionIds": [
+        "P3"
+      ],
+      "sourceCaseIds": [
+        "app-shell.log-filters"
+      ],
+      "sourceQualityCaseIds": [
+        "app-shell.quality.color-not-alone",
+        "app-shell.quality.keyboard"
+      ],
+      "content": {
+        "blurb": "Log lists a record's events and messages in order, filtered by People, System, or Agents. Agent actions name who proposed and who approved.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "pack": "legal",
+        "width": 1440,
+        "state": {
+          "mode": "workspace",
+          "dest": "$0",
+          "rec": "$r0",
+          "panel": true,
+          "tabs": [
+            {
+              "k": "log",
+              "t": "$r0"
+            }
+          ]
+        }
+      },
+      "expect": [
+        "Log shows All, People, System, and Agents filters, with All pressed.",
+        "Choosing Agents leaves only the Assistant's entry, which says it proposed a change that the current user approved.",
+        "Agent and system entries carry a text label, not only a color."
+      ]
+    },
+    {
+      "id": "app-shell.timeline",
+      "name": "Timeline",
+      "group": "Side panel tabs",
+      "surface": "timeline",
+      "decisionIds": [
+        "P2"
+      ],
+      "sourceCaseIds": [
+        "app-shell.timeline-axis"
+      ],
+      "sourceQualityCaseIds": [
+        "app-shell.quality.color-not-alone"
+      ],
+      "content": {
+        "blurb": "Timeline is a time axis that shows spans, overlaps, and planned work. The order of events lives in Log.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "pack": "neutral",
+        "width": 1440,
+        "state": {
+          "mode": "workspace",
+          "dest": "$0",
+          "rec": "$r0",
+          "panel": true,
+          "tabs": [
+            {
+              "k": "timeline",
+              "t": "$r0"
+            }
+          ]
+        }
+      },
+      "expect": [
+        "Timeline shows month labels and one bar per span, with planned work marked planned in text.",
+        "A Today marker sits on the axis.",
+        "The timeline has a text alternative that describes its spans."
+      ]
+    },
+    {
+      "id": "app-shell.page",
+      "name": "A page",
+      "group": "Side panel tabs",
+      "surface": "page",
+      "decisionIds": [
+        "P10",
+        "P11"
+      ],
+      "sourceCaseIds": [
+        "app-shell.pages-and-outputs",
+        "app-shell.live-block-and-approval"
+      ],
+      "sourceQualityCaseIds": [],
+      "content": {
+        "blurb": "Pages are lasting documents in a tree. A change the Assistant suggests shows inline to accept or reject, with attribution.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "pack": "clinic",
+        "width": 1440,
+        "state": {
+          "mode": "workspace",
+          "dest": "$0",
+          "rec": "$r0",
+          "panel": true,
+          "tabs": [
+            {
+              "k": "page",
+              "t": "page"
+            }
+          ]
+        }
+      },
+      "expect": [
+        "The page tree lists the pack pages with the open page marked.",
+        "The suggested change shows the removed and the inserted text, labeled as AI, with Accept and Reject controls.",
+        "The page names who wrote it, including the Assistant."
+      ]
+    },
+    {
+      "id": "app-shell.output",
+      "name": "Results ready",
+      "group": "Side panel tabs",
+      "surface": "output",
+      "decisionIds": [
+        "P6",
+        "P10",
+        "C2"
+      ],
+      "sourceCaseIds": [
+        "app-shell.auto-open-rules",
+        "app-shell.pages-and-outputs",
+        "app-shell.background-job",
+        "app-shell.announcements"
+      ],
+      "sourceQualityCaseIds": [
+        "app-shell.quality.live-announcements"
+      ],
+      "content": {
+        "blurb": "A job you started finished while Open results when ready was on and the panel was visible, so its output tab opened. The output stays a draft until you save it to a record or a page.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "pack": "retail",
+        "width": 1440,
+        "state": {
+          "mode": "workspace",
+          "dest": "$0",
+          "rec": "$r0",
+          "panel": true,
+          "tabs": [
+            {
+              "k": "details",
+              "t": "$r0"
+            },
+            {
+              "k": "output",
+              "t": "run"
+            }
+          ],
+          "act": [
+            1,
+            0
+          ]
+        }
+      },
+      "expect": [
+        "An Output tab opens after the Details tab and becomes the active tab.",
+        "The output is labeled as a draft not saved anywhere yet, with Save to the record, Save as page, and Discard.",
+        "Focus stays where it was when the tab opens, and the opening is announced politely.",
+        "With Open results when ready off, the finished job adds a My work item and a badge instead of opening a tab."
+      ]
+    },
+    {
+      "id": "app-shell.split",
+      "name": "Two tab groups",
+      "group": "Side panel tabs",
+      "surface": "split",
+      "decisionIds": [
+        "P8",
+        "P12"
+      ],
+      "sourceCaseIds": [
+        "app-shell.tab-groups",
+        "app-shell.dock-budget"
+      ],
+      "sourceQualityCaseIds": [
+        "app-shell.quality.tablist"
+      ],
+      "content": {
+        "blurb": "When there is room, a tab can move into a second group. Nothing forces Details and the Assistant side by side.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "pack": "legal",
+        "width": 1920,
+        "state": {
+          "mode": "workspace",
+          "dest": "$0",
+          "rec": "$r0",
+          "panel": true,
+          "split": true,
+          "tabs": [
+            {
+              "k": "details",
+              "t": "$r0"
+            },
+            {
+              "k": "log",
+              "t": "$r0"
+            },
+            {
+              "k": "asst",
+              "t": "c-agent",
+              "g": 1
+            }
+          ],
+          "act": [
+            0,
+            2
+          ]
+        }
+      },
+      "expect": [
+        "Two panel groups render at 1920 pixels, and the second holds the Assistant tab.",
+        "Each group has its own tablist and its own active tab.",
+        "The second group offers Merge this group back.",
+        "Search tabs lists the tabs of both groups and marks those in group 2."
+      ]
+    },
+    {
+      "id": "app-shell.budget",
+      "name": "Floating when space is short",
+      "group": "Side panel tabs",
+      "surface": "budget",
+      "decisionIds": [
+        "P12"
+      ],
+      "sourceCaseIds": [
+        "app-shell.dock-budget"
+      ],
+      "sourceQualityCaseIds": [
+        "app-shell.quality.reflow",
+        "app-shell.quality.dismissal",
+        "app-shell.quality.focus"
+      ],
+      "content": {
+        "blurb": "At 1024 pixels a docked panel would leave the list about 348 pixels, so the panel floats. It docks only when the main area keeps 560 pixels.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "pack": "neutral",
+        "width": 1024,
+        "state": {
+          "mode": "workspace",
+          "dest": "$0",
+          "rec": "$r0",
+          "panel": true,
+          "tabs": [
+            {
+              "k": "details",
+              "t": "$r0",
+              "pv": true
+            }
+          ]
+        }
+      },
+      "expect": [
+        "The panel floats over a scrim instead of docking beside the list.",
+        "The list keeps its full width behind the panel.",
+        "Clicking the scrim or pressing Esc closes the panel and returns focus to the control that opened it.",
+        "The same state at 1440 pixels docks the panel."
+      ]
+    },
+    {
+      "id": "app-shell.sheet",
+      "name": "Tabs on a phone",
+      "group": "Side panel tabs",
+      "surface": "sheet",
+      "decisionIds": [
+        "P8"
+      ],
+      "sourceCaseIds": [
+        "app-shell.phone-sheet-and-grid"
+      ],
+      "sourceQualityCaseIds": [
+        "app-shell.quality.reflow",
+        "app-shell.quality.targets"
+      ],
+      "content": {
+        "blurb": "On a phone the panel is a bottom sheet, and its tabs show as a grid.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "pack": "retail",
+        "width": 390,
+        "state": {
+          "mode": "chat",
+          "dest": "$0",
+          "rec": "$r0",
+          "panel": true,
+          "tabGrid": true,
+          "tabs": [
+            {
+              "k": "details",
+              "t": "$r0"
+            },
+            {
+              "k": "log",
+              "t": "$r0"
+            },
+            {
+              "k": "asst",
+              "t": "c-agent"
+            }
+          ]
+        }
+      },
+      "expect": [
+        "The panel renders as a bottom sheet.",
+        "A button that names the tab count opens a grid with one card per open tab and a New tab card.",
+        "Choosing a card makes that tab active."
+      ]
+    },
+    {
+      "id": "app-shell.search",
+      "name": "Search open",
+      "group": "Search and keys",
+      "surface": "search",
+      "decisionIds": [
+        "S1"
+      ],
+      "sourceCaseIds": [
+        "app-shell.search-enter-acts",
+        "app-shell.action-catalogue"
+      ],
+      "sourceQualityCaseIds": [
+        "app-shell.quality.search-dialog",
+        "app-shell.quality.keyboard",
+        "app-shell.quality.focus",
+        "app-shell.quality.dismissal"
+      ],
+      "content": {
+        "blurb": "One box finds and asks. Enter opens the highlighted row, Ctrl Enter asks, and Tab only moves between controls.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "pack": "clinic",
+        "width": 1440,
+        "state": {
+          "mode": "workspace",
+          "dest": "$0",
+          "search": true
+        }
+      },
+      "expect": [
+        "Search opens as a modal dialog with focus in the input.",
+        "With an empty query it shows Recent items, a New action for each pack kind, and an Ask the Assistant row.",
+        "Enter acts on the highlighted row, and Ctrl Enter always asks the Assistant.",
+        "Tab moves focus between controls and never changes the highlighted row.",
+        "Esc closes the dialog and returns focus to the Ask box."
+      ]
+    },
+    {
+      "id": "app-shell.results",
+      "name": "Results by kind",
+      "group": "Search and keys",
+      "surface": "results",
+      "decisionIds": [
+        "S1"
+      ],
+      "sourceCaseIds": [
+        "app-shell.search-enter-acts",
+        "app-shell.place-scope"
+      ],
+      "sourceQualityCaseIds": [
+        "app-shell.quality.search-dialog"
+      ],
+      "content": {
+        "blurb": "While you type, results group by kind, and Ask the Assistant is the last row.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "pack": "legal",
+        "width": 1440,
+        "state": {
+          "mode": "workspace",
+          "dest": "$0",
+          "search": true,
+          "query": "open"
+        }
+      },
+      "expect": [
+        "Results group under one heading per record kind, with an All filter and one filter per kind.",
+        "Ask the Assistant is the last row and quotes the query.",
+        "The scope chip names the current place, and the footer says in: limits results to a place."
+      ]
+    },
+    {
+      "id": "app-shell.question",
+      "name": "A question",
+      "group": "Search and keys",
+      "surface": "question",
+      "decisionIds": [
+        "S1"
+      ],
+      "sourceCaseIds": [
+        "app-shell.search-question-first",
+        "app-shell.search-enter-acts"
+      ],
+      "sourceQualityCaseIds": [
+        "app-shell.quality.search-dialog"
+      ],
+      "content": {
+        "blurb": "When what you typed reads as a question, asking comes first.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "pack": "neutral",
+        "width": 1440,
+        "state": {
+          "mode": "workspace",
+          "search": true,
+          "query": "what needs me today?"
+        }
+      },
+      "expect": [
+        "Ask the Assistant is the first row and is highlighted.",
+        "Record results follow under a Records heading.",
+        "Enter asks, because the highlighted row is the ask row."
+      ]
+    },
+    {
+      "id": "app-shell.keys",
+      "name": "Shortcuts",
+      "group": "Search and keys",
+      "surface": "keys",
+      "decisionIds": [
+        "S3",
+        "S4"
+      ],
+      "sourceCaseIds": [
+        "app-shell.shortcut-table",
+        "app-shell.shortcut-disabled"
+      ],
+      "sourceQualityCaseIds": [
+        "app-shell.quality.no-single-letter-keys",
+        "app-shell.quality.dismissal",
+        "app-shell.quality.keyboard"
+      ],
+      "content": {
+        "blurb": "Shortcuts are data, so the shortcut sheet and the remap setting read the same table. The shell binds no single letters, and the tab keys avoid the ones browsers reserve.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "pack": "retail",
+        "width": 1440,
+        "state": {
+          "mode": "workspace",
+          "dest": "$0",
+          "keys": true
+        }
+      },
+      "expect": [
+        "The sheet is a modal dialog that lists each shortcut and what it does.",
+        "No shell shortcut is a single letter, and J and K are listed as working only while a list has focus.",
+        "Panel tab shortcuts are Ctrl Alt T and Ctrl Alt W, not Ctrl T or Ctrl W.",
+        "The sheet says any shortcut can be remapped or turned off in Settings."
+      ]
+    },
+    {
+      "id": "app-shell.context",
+      "name": "Context bar",
+      "group": "Search and keys",
+      "surface": "context",
+      "decisionIds": [
+        "S2"
+      ],
+      "sourceCaseIds": [
+        "app-shell.context-bar",
+        "app-shell.primary-action-cardinality",
+        "app-shell.place-scope"
+      ],
+      "sourceQualityCaseIds": [],
+      "content": {
+        "blurb": "Status tabs sit on the left, with Filter, Sort, the view switch, and New on the right. Filter covers text contains, so there is no second search box.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "pack": "clinic",
+        "width": 1440,
+        "state": {
+          "mode": "workspace",
+          "dest": "$0"
+        }
+      },
+      "expect": [
+        "The context bar shows the destination status tabs, then Filter, Sort, the view switch when there is more than one view, and New.",
+        "The Filter control's accessible name says it includes text contains, and no second search box appears.",
+        "New names the destination record kind and is the only primary button in the bar.",
+        "The sidebar scope chip names the current place with a Last used tag."
+      ]
+    },
+    {
+      "id": "app-shell.selection",
+      "name": "Selection bar",
+      "group": "Search and keys",
+      "surface": "selection",
+      "decisionIds": [
+        "C1"
+      ],
+      "sourceCaseIds": [
+        "app-shell.selection-bar",
+        "app-shell.action-catalogue",
+        "app-shell.esc-ladder"
+      ],
+      "sourceQualityCaseIds": [
+        "app-shell.quality.keyboard"
+      ],
+      "content": {
+        "blurb": "While rows are selected, the selection bar replaces the context bar. Its actions come from the same catalogue as every other action surface.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "pack": "legal",
+        "width": 1440,
+        "state": {
+          "mode": "workspace",
+          "dest": "$0",
+          "selected": 2
+        }
+      },
+      "expect": [
+        "The bar reads 2 selected and offers the catalogue actions for the selection.",
+        "The context bar is not shown while rows are selected.",
+        "Esc clears the selection before it closes anything beneath it."
+      ]
+    },
+    {
+      "id": "app-shell.mywork",
+      "name": "My work",
+      "group": "Attention and sync",
+      "surface": "mywork",
+      "decisionIds": [
+        "A1",
+        "A3"
+      ],
+      "sourceCaseIds": [
+        "app-shell.my-work-count",
+        "app-shell.attention-color",
+        "app-shell.semantic-counts-addresses"
+      ],
+      "sourceQualityCaseIds": [
+        "app-shell.quality.color-not-alone"
+      ],
+      "content": {
+        "blurb": "The count is only what needs you. Mentions, finished work, and notices sit below as Updates and never add to it.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "pack": "neutral",
+        "width": 1440,
+        "state": {
+          "mode": "chat",
+          "dest": "mywork"
+        }
+      },
+      "expect": [
+        "The Needs you heading shows the same number as the rail count.",
+        "Updates lists mentions, status changes, and notices without a count.",
+        "Each needs-you row carries a Needs you tag in text, and counts use the attention color, never the danger color.",
+        "The rail count is part of the My work item's accessible name."
+      ]
+    },
+    {
+      "id": "app-shell.working",
+      "name": "Working in the background",
+      "group": "Attention and sync",
+      "surface": "working",
+      "decisionIds": [
+        "C2",
+        "P6"
+      ],
+      "sourceCaseIds": [
+        "app-shell.background-job",
+        "app-shell.auto-open-rules",
+        "app-shell.announcements"
+      ],
+      "sourceQualityCaseIds": [
+        "app-shell.quality.live-announcements"
+      ],
+      "content": {
+        "blurb": "A job runs while the panel is closed. Progress shows in the Ask box, and a badge sits on the panel toggle.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "pack": "retail",
+        "width": 1440,
+        "state": {
+          "mode": "workspace",
+          "dest": "$0",
+          "working": true
+        }
+      },
+      "expect": [
+        "The Ask box shows the job verb and its progress as done of total.",
+        "The panel toggle shows a numeric badge.",
+        "The panel does not open and focus does not move while the job runs.",
+        "When the job finishes, it is announced politely and becomes a My work item."
+      ]
+    },
+    {
+      "id": "app-shell.offline",
+      "name": "Offline",
+      "group": "Attention and sync",
+      "surface": "offline",
+      "decisionIds": [
+        "A4"
+      ],
+      "sourceCaseIds": [
+        "app-shell.sync-strip"
+      ],
+      "sourceQualityCaseIds": [
+        "app-shell.quality.color-not-alone"
+      ],
+      "content": {
+        "blurb": "Work goes on offline, and the strip says what is still only on this device.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "pack": "clinic",
+        "width": 1440,
+        "state": {
+          "mode": "workspace",
+          "dest": "$0",
+          "offline": "offline"
+        }
+      },
+      "expect": [
+        "A status strip says Offline and how many changes are still on this device.",
+        "Items not sent yet are marked with the words not sent yet, not only an icon or a color.",
+        "The list status bar says Offline and how many changes are not sent.",
+        "The list and its actions stay usable."
+      ]
+    },
+    {
+      "id": "app-shell.conflict",
+      "name": "A conflict",
+      "group": "Attention and sync",
+      "surface": "conflict",
+      "decisionIds": [
+        "A4"
+      ],
+      "sourceCaseIds": [
+        "app-shell.sync-strip",
+        "app-shell.my-work-count"
+      ],
+      "sourceQualityCaseIds": [
+        "app-shell.quality.color-not-alone"
+      ],
+      "content": {
+        "blurb": "Nothing is overwritten. A conflict shows in the strip and becomes a My work item.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "pack": "legal",
+        "width": 1440,
+        "state": {
+          "mode": "workspace",
+          "dest": "$0",
+          "offline": "conflict"
+        }
+      },
+      "expect": [
+        "The strip says 1 change needs a decision, names the record, and says nothing was overwritten.",
+        "The strip offers a Review button.",
+        "My work gains a Sync conflict item, and the count rises by one."
+      ]
+    },
+    {
+      "id": "app-shell.stale",
+      "name": "Out of date",
+      "group": "Attention and sync",
+      "surface": "stale",
+      "decisionIds": [
+        "A4"
+      ],
+      "sourceCaseIds": [
+        "app-shell.sync-strip"
+      ],
+      "sourceQualityCaseIds": [
+        "app-shell.quality.relative-time"
+      ],
+      "content": {
+        "blurb": "The app never says Synced. When the last confirmation is old, the strip says how old.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "pack": "retail",
+        "width": 1440,
+        "state": {
+          "mode": "workspace",
+          "dest": "$0",
+          "offline": "stale"
+        }
+      },
+      "expect": [
+        "The strip reads Last confirmed 3 hours ago and offers Try now.",
+        "The words Synced and Up to date never appear.",
+        "The relative age and the clock time are formatted for the active locale from the recency the API returns."
+      ]
+    },
+    {
+      "id": "app-shell.account",
+      "name": "Avatar menu",
+      "group": "Account and settings",
+      "surface": "account",
+      "decisionIds": [
+        "T1",
+        "T2",
+        "T3",
+        "T6"
+      ],
+      "sourceCaseIds": [
+        "app-shell.tenant-menu",
+        "app-shell.tenant-boundary"
+      ],
+      "sourceQualityCaseIds": [
+        "app-shell.quality.menu-button",
+        "app-shell.quality.dismissal",
+        "app-shell.quality.keyboard"
+      ],
+      "content": {
+        "blurb": "The avatar menu shows who you are, the tenants you belong to with what needs you in each, Settings, sync, help, and Sign out last. Picking a tenant switches everything to that tenant.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "pack": "neutral",
+        "width": 1440,
+        "state": {
+          "mode": "chat",
+          "menu": "account"
+        }
+      },
+      "expect": [
+        "The avatar button opens a menu, and its accessible name includes the user, the tenant, and account menu.",
+        "The menu header names the user, role, and tenant, and tenants are menu item radios with the current one checked.",
+        "Other tenants show their needs-you counts as numbers inside the menu only.",
+        "Sign out is the last item.",
+        "Choosing another tenant replaces the open tabs, mode, and place with that tenant's own, and nothing carries across."
+      ]
+    },
+    {
+      "id": "app-shell.one-tenant",
+      "name": "One tenant",
+      "group": "Account and settings",
+      "surface": "one-tenant",
+      "decisionIds": [
+        "T1",
+        "T2"
+      ],
+      "sourceCaseIds": [
+        "app-shell.single-tenant",
+        "app-shell.tenant-menu"
+      ],
+      "sourceQualityCaseIds": [
+        "app-shell.quality.menu-button"
+      ],
+      "content": {
+        "blurb": "With one tenant the switcher section disappears, and the header still names the tenant.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "pack": "retail",
+        "width": 1440,
+        "state": {
+          "mode": "chat",
+          "menu": "account",
+          "single": true
+        }
+      },
+      "expect": [
+        "The menu shows no tenant list.",
+        "The menu header still names the role and the tenant.",
+        "Settings, Sync, Help and shortcuts, and Sign out keep their order."
+      ]
+    },
+    {
+      "id": "app-shell.acct-action",
+      "name": "An account action",
+      "group": "Account and settings",
+      "surface": "acct-action",
+      "decisionIds": [
+        "T5"
+      ],
+      "sourceCaseIds": [
+        "app-shell.account-badge",
+        "app-shell.semantic-counts-addresses"
+      ],
+      "sourceQualityCaseIds": [
+        "app-shell.quality.menu-button"
+      ],
+      "content": {
+        "blurb": "The avatar badge counts account actions only, such as signing in again before an offline lease ends.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "pack": "legal",
+        "width": 1440,
+        "state": {
+          "mode": "chat",
+          "acct": 1,
+          "menu": "account"
+        }
+      },
+      "expect": [
+        "The avatar shows a badge of 1, and its accessible name includes 1 account action.",
+        "The first item after the menu header is Sign in again before Friday.",
+        "Needs-you counts from other tenants do not add to the avatar badge."
+      ]
+    },
+    {
+      "id": "app-shell.settings",
+      "name": "Settings",
+      "group": "Account and settings",
+      "surface": "settings",
+      "decisionIds": [
+        "T2"
+      ],
+      "sourceCaseIds": [
+        "app-shell.settings-surface",
+        "app-shell.mode-resolution"
+      ],
+      "sourceQualityCaseIds": [
+        "app-shell.quality.color-not-alone",
+        "app-shell.quality.focus"
+      ],
+      "content": {
+        "blurb": "One Settings surface is sectioned by scope. Every value says where it comes from, and a lock means the organization set it.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "pack": "clinic",
+        "width": 1440,
+        "state": {
+          "settings": true,
+          "ss": "you"
+        }
+      },
+      "expect": [
+        "Settings shows You, This device, and Workspace, and Organization appears only for people who can change it.",
+        "Every value shows its source in text, and a locked value also shows a lock.",
+        "Mode shows the role default and says the user can change it.",
+        "Back returns to the tenant."
+      ]
+    },
+    {
+      "id": "app-shell.settings-device",
+      "name": "This device",
+      "group": "Account and settings",
+      "surface": "settings-device",
+      "decisionIds": [],
+      "sourceCaseIds": [
+        "app-shell.settings-surface"
+      ],
+      "sourceQualityCaseIds": [],
+      "content": {
+        "blurb": "Because the app is offline first, what happens to this device's data is set here, not decided at sign-out.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "pack": "neutral",
+        "width": 1440,
+        "state": {
+          "settings": true,
+          "ss": "device"
+        }
+      },
+      "expect": [
+        "This device lists Shared device, When I sign out, Offline storage, Last confirmed, and Remove this device's data.",
+        "Shared device is locked and says the tenant set it.",
+        "Remove this device's data is a button that asks before it acts."
+      ]
+    },
+    {
+      "id": "app-shell.focus",
+      "name": "Focus mode",
+      "group": "Account and settings",
+      "surface": "focus",
+      "decisionIds": [],
+      "sourceCaseIds": [
+        "app-shell.focus-mode",
+        "app-shell.esc-ladder"
+      ],
+      "sourceQualityCaseIds": [
+        "app-shell.quality.dismissal",
+        "app-shell.quality.keyboard"
+      ],
+      "content": {
+        "blurb": "In Focus mode the rail, sidebar, and panel leave. A slim bar offers the panels back and exits with Esc.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "pack": "legal",
+        "width": 1440,
+        "state": {
+          "mode": "workspace",
+          "dest": "$0",
+          "focus": true
+        }
+      },
+      "expect": [
+        "No rail, sidebar, or panel renders.",
+        "The header shows a Focus tag, a Panels button, and Exit focus with Esc.",
+        "Esc exits focus mode only when no higher layer is open."
+      ]
+    },
+    {
+      "id": "app-shell.tablet",
+      "name": "Tablet",
+      "group": "Account and settings",
+      "surface": "tablet",
+      "decisionIds": [],
+      "sourceCaseIds": [
+        "app-shell.dock-budget",
+        "app-shell.visual-tab-order"
+      ],
+      "sourceQualityCaseIds": [
+        "app-shell.quality.reflow",
+        "app-shell.quality.targets"
+      ],
+      "content": {
+        "blurb": "At tablet width the header stays the same but tighter. Share loses its label, the sidebar goes, and the rail stays.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "pack": "retail",
+        "width": 834,
+        "state": {
+          "mode": "workspace",
+          "dest": "$0"
+        }
+      },
+      "expect": [
+        "The rail renders and the destination sidebar does not.",
+        "Share shows only its icon and keeps the accessible name Share.",
+        "Tab order follows the visual order of rail, header, context bar, and list."
+      ]
+    },
+    {
+      "id": "app-shell.structure",
+      "name": "Shell structure",
+      "group": "Contract",
+      "surface": "structure",
+      "decisionIds": [
+        "V0",
+        "X1"
+      ],
+      "sourceCaseIds": [
+        "app-shell.structure",
+        "app-shell.host-attributes",
+        "app-shell.ownership-boundary",
+        "app-shell.visual-tab-order"
+      ],
+      "sourceQualityCaseIds": [
+        "app-shell.quality.landmarks",
+        "app-shell.quality.forced-colors"
+      ],
+      "content": {
+        "blurb": "Sets up the neutral pack in Workspace mode with a shell id and one host attribute, to check landmarks and what the shell leaves to its host.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "pack": "neutral",
+        "width": 1440,
+        "state": {
+          "shellId": "example-shell",
+          "hostAttributes": {
+            "data-case": "structure"
+          },
+          "mode": "workspace",
+          "dest": "$0"
+        }
+      },
+      "expect": [
+        "The shell root carries data-shell-id set to example-shell and the host data-case attribute.",
+        "One rail navigation landmark, one header, and one main region render.",
+        "Every label, count, and row comes from the pack, and the shell adds only chrome labels from its catalog.",
+        "In forced colors every control boundary and the current item stay visible."
+      ]
+    },
+    {
+      "id": "app-shell.missing-id",
+      "name": "Missing shell id",
+      "group": "Contract",
+      "surface": "missing-id",
+      "decisionIds": [
+        "V0"
+      ],
+      "sourceCaseIds": [
+        "app-shell.id-required"
+      ],
+      "sourceQualityCaseIds": [],
+      "content": {
+        "blurb": "Sets up the neutral pack with no shell id.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "pack": "neutral",
+        "width": 1440,
+        "state": {
+          "shellId": null,
+          "mode": "workspace"
+        }
+      },
+      "expect": [
+        "Rendering raises app-shell-id-required.",
+        "No partial shell renders."
+      ]
+    },
+    {
+      "id": "app-shell.duplicate-id",
+      "name": "Duplicate destination id",
+      "group": "Contract",
+      "surface": "duplicate-id",
+      "decisionIds": [
+        "E4"
+      ],
+      "sourceCaseIds": [
+        "app-shell.duplicate-identity"
+      ],
+      "sourceQualityCaseIds": [],
+      "content": {
+        "blurb": "Sets up the neutral pack with two destinations that share the id records.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "pack": "neutral",
+        "width": 1440,
+        "state": {
+          "shellId": "example-shell",
+          "mode": "workspace",
+          "packPatch": {
+            "destinations": [
+              {
+                "id": "records",
+                "label": "Records",
+                "kind": "record"
+              },
+              {
+                "id": "records",
+                "label": "Records again",
+                "kind": "record"
+              }
+            ]
+          }
+        }
+      },
+      "expect": [
+        "Rendering raises duplicate-nav-identity.",
+        "The error names the repeated id records."
+      ]
+    },
+    {
+      "id": "app-shell.unsupported-shape",
+      "name": "Nested destination",
+      "group": "Contract",
+      "surface": "unsupported-shape",
+      "decisionIds": [
+        "E4"
+      ],
+      "sourceCaseIds": [
+        "app-shell.unsupported-shape"
+      ],
+      "sourceQualityCaseIds": [],
+      "content": {
+        "blurb": "Sets up the neutral pack with a destination that nests another destination inside it.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "pack": "neutral",
+        "width": 1440,
+        "state": {
+          "shellId": "example-shell",
+          "mode": "workspace",
+          "packPatch": {
+            "destinations": [
+              {
+                "id": "records",
+                "label": "Records",
+                "kind": "record",
+                "children": [
+                  {
+                    "id": "archive",
+                    "label": "Archive",
+                    "kind": "record"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      },
+      "expect": [
+        "Rendering raises unsupported-nav-shape.",
+        "Nothing nested renders as a rail item."
+      ]
+    },
+    {
+      "id": "app-shell.denied-actions",
+      "name": "Denied actions",
+      "group": "Contract",
+      "surface": "denied-actions",
+      "decisionIds": [
+        "C3",
+        "C1"
+      ],
+      "sourceCaseIds": [
+        "app-shell.denied-actions",
+        "app-shell.action-catalogue",
+        "app-shell.ownership-boundary"
+      ],
+      "sourceQualityCaseIds": [
+        "app-shell.quality.color-not-alone"
+      ],
+      "content": {
+        "blurb": "Sets up a selection where the API returns one action available, one disabled with a reason, and one hidden, and hides the Admin destination.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "pack": "neutral",
+        "width": 1440,
+        "state": {
+          "mode": "workspace",
+          "dest": "$0",
+          "selected": 2,
+          "actions": [
+            {
+              "id": "assign",
+              "availability": "available"
+            },
+            {
+              "id": "change-status",
+              "availability": "disabled",
+              "reason": "Only the owner can change status."
+            },
+            {
+              "id": "export",
+              "availability": "hidden"
+            }
+          ],
+          "hiddenDestinations": [
+            "admin"
+          ]
+        }
+      },
+      "expect": [
+        "Assign is enabled, Change status is disabled and shows the server reason in text, and Export is absent.",
+        "Admin does not appear on the rail, in Browse, or in search.",
+        "The shell derives no availability from the user role."
+      ]
+    },
+    {
+      "id": "app-shell.contribution-validation",
+      "name": "Contribution validation",
+      "group": "Contract",
+      "surface": "contribution-validation",
+      "decisionIds": [
+        "E4",
+        "E1"
+      ],
+      "sourceCaseIds": [
+        "app-shell.contribution-validation"
+      ],
+      "sourceQualityCaseIds": [],
+      "content": {
+        "blurb": "Sets up three pack contributions, one valid, one for an unknown contribution point, and one with an unsupported schema version.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "pack": "neutral",
+        "width": 1440,
+        "state": {
+          "mode": "workspace",
+          "dest": "$0",
+          "contributions": [
+            {
+              "point": "tabKinds",
+              "id": "neutral.record-tabs",
+              "schemaVersion": 1,
+              "recordKind": "record",
+              "kinds": [
+                "details",
+                "log"
+              ]
+            },
+            {
+              "point": "floatingWidgets",
+              "id": "neutral.widget",
+              "schemaVersion": 1
+            },
+            {
+              "point": "homeCards",
+              "id": "neutral.card",
+              "schemaVersion": 99
+            }
+          ]
+        }
+      },
+      "expect": [
+        "The record tab list contribution applies, so records offer only Details and Log.",
+        "The unknown point and the unsupported schema version are skipped.",
+        "Each skipped contribution produces one diagnostic that names its id and the reason.",
+        "The rest of the pack renders as if the skipped contributions were absent."
+      ]
+    },
+    {
+      "id": "app-shell.admin-arrangement",
+      "name": "Admin arrangement",
+      "group": "Contract",
+      "surface": "admin-arrangement",
+      "decisionIds": [
+        "E3"
+      ],
+      "sourceCaseIds": [
+        "app-shell.admin-arrangement",
+        "app-shell.tab-kind-applicability"
+      ],
+      "sourceQualityCaseIds": [],
+      "content": {
+        "blurb": "Sets up an organization arrangement that hides the Timeline tab and a user arrangement that hides Files, then opens New tab.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "pack": "neutral",
+        "width": 1440,
+        "state": {
+          "mode": "workspace",
+          "dest": "$0",
+          "rec": "$r0",
+          "panel": true,
+          "newTab": true,
+          "tabs": [
+            {
+              "k": "details",
+              "t": "$r0"
+            }
+          ],
+          "arrangement": {
+            "organization": {
+              "hiddenTabKinds": [
+                "timeline"
+              ]
+            },
+            "user": {
+              "hiddenTabKinds": [
+                "files"
+              ]
+            }
+          }
+        }
+      },
+      "expect": [
+        "New tab offers neither Timeline nor Files.",
+        "An arrangement can hide or reorder pack contributions but never adds one the pack did not declare.",
+        "Settings shows each arrangement value with its source."
+      ]
+    },
+    {
+      "id": "app-shell.behavior-flags",
+      "name": "Behavior flag off",
+      "group": "Contract",
+      "surface": "behavior-flags",
+      "decisionIds": [
+        "V2"
+      ],
+      "sourceCaseIds": [
+        "app-shell.behavior-flags",
+        "app-shell.tab-groups"
+      ],
+      "sourceQualityCaseIds": [],
+      "content": {
+        "blurb": "Sets up a wide window with the tenant flag for panel tab groups turned off.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "pack": "neutral",
+        "width": 1920,
+        "state": {
+          "mode": "workspace",
+          "dest": "$0",
+          "rec": "$r0",
+          "panel": true,
+          "tabs": [
+            {
+              "k": "details",
+              "t": "$r0"
+            },
+            {
+              "k": "log",
+              "t": "$r0"
+            }
+          ],
+          "flags": {
+            "panel-tab-groups": "off"
+          }
+        }
+      },
+      "expect": [
+        "At 1920 pixels there is room for two groups, yet no Move this tab to a second group control renders.",
+        "With the flag on, the same state shows the control.",
+        "The flag value comes from the tenant, not from the user or the pack."
+      ]
+    },
+    {
+      "id": "app-shell.minimum-revision",
+      "name": "Minimum harness revision",
+      "group": "Contract",
+      "surface": "minimum-revision",
+      "decisionIds": [
+        "V2"
+      ],
+      "sourceCaseIds": [
+        "app-shell.minimum-harness-revision"
+      ],
+      "sourceQualityCaseIds": [],
+      "content": {
+        "blurb": "Sets up the neutral pack declaring that it needs harness revision 7.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "pack": "neutral",
+        "width": 1440,
+        "state": {
+          "mode": "workspace",
+          "packPatch": {
+            "minimumHarnessRevision": 7
+          }
+        }
+      },
+      "expect": [
+        "The shell does not load the pack and reports a diagnostic that names revision 7 and the running revision 6.",
+        "No partial pack content renders."
+      ]
+    },
+    {
+      "id": "app-shell.restore-saved",
+      "name": "Restore saved tabs",
+      "group": "Contract",
+      "surface": "restore-saved",
+      "decisionIds": [
+        "P9",
+        "P7"
+      ],
+      "sourceCaseIds": [
+        "app-shell.restore-uncontrolled",
+        "app-shell.tab-persistence"
+      ],
+      "sourceQualityCaseIds": [],
+      "content": {
+        "blurb": "Sets up injectable storage holding a saved record for this user and workspace with a pinned tab, a kept tab, and a preview tab.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "pack": "neutral",
+        "width": 1440,
+        "state": {
+          "shellId": "example-shell",
+          "storage": {
+            "record": {
+              "version": 6,
+              "mode": "workspace",
+              "dest": "$0",
+              "tabs": [
+                {
+                  "k": "details",
+                  "t": "$r0",
+                  "pin": true
+                },
+                {
+                  "k": "log",
+                  "t": "$r1"
+                },
+                {
+                  "k": "details",
+                  "t": "$r2",
+                  "pv": true
+                }
+              ]
+            }
+          }
+        }
+      },
+      "expect": [
+        "Defaults paint first, then the saved mode and tabs apply in one update.",
+        "The pinned and kept tabs come back, and the preview tab resets when the destination changes.",
+        "Each restored tab reloads through the permission check before it shows content.",
+        "A mode controlled by the host wins over the restored mode."
+      ]
+    },
+    {
+      "id": "app-shell.restore-corrupt",
+      "name": "Unreadable saved state",
+      "group": "Contract",
+      "surface": "restore-corrupt",
+      "decisionIds": [
+        "P9"
+      ],
+      "sourceCaseIds": [
+        "app-shell.persistence-fallback"
+      ],
+      "sourceQualityCaseIds": [],
+      "content": {
+        "blurb": "Sets up injectable storage whose saved record cannot be parsed.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "pack": "neutral",
+        "width": 1440,
+        "state": {
+          "shellId": "example-shell",
+          "storage": {
+            "read": "corrupt"
+          }
+        }
+      },
+      "expect": [
+        "The shell renders its declared defaults.",
+        "No error is shown to the user.",
+        "An old record version or a failing read behaves the same way."
+      ]
+    },
+    {
+      "id": "app-shell.workspace-switcher",
+      "name": "Workspace switcher",
+      "group": "Rail and navigation",
+      "surface": "workspace-switcher",
+      "decisionIds": [
+        "T4"
+      ],
+      "sourceCaseIds": [
+        "app-shell.workspace-switch",
+        "app-shell.switcher-active-first",
+        "app-shell.switcher-filter-threshold",
+        "app-shell.switcher-directory-item",
+        "app-shell.switcher-trigger-truncation"
+      ],
+      "sourceQualityCaseIds": [
+        "app-shell.quality.switcher-menu",
+        "app-shell.quality.menu-button",
+        "app-shell.quality.dismissal",
+        "app-shell.quality.keyboard"
+      ],
+      "content": {
+        "blurb": "Sets up nine workspaces in the rail switcher with the third active, two pinned, a long active name, and a directory entry, then opens the switcher.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "pack": "neutral",
+        "width": 1440,
+        "state": {
+          "mode": "workspace",
+          "dest": "$0",
+          "workspaces": [
+            {
+              "id": "ws-1",
+              "label": "Workspace 1"
+            },
+            {
+              "id": "ws-2",
+              "label": "Workspace 2"
+            },
+            {
+              "id": "ws-3",
+              "label": "Workspace 3 with a long name that cannot fit the trigger"
+            },
+            {
+              "id": "ws-4",
+              "label": "Workspace 4"
+            },
+            {
+              "id": "ws-5",
+              "label": "Workspace 5"
+            },
+            {
+              "id": "ws-6",
+              "label": "Workspace 6"
+            },
+            {
+              "id": "ws-7",
+              "label": "Workspace 7"
+            },
+            {
+              "id": "ws-8",
+              "label": "Workspace 8"
+            },
+            {
+              "id": "ws-9",
+              "label": "Workspace 9"
+            }
+          ],
+          "activeWorkspace": "ws-3",
+          "pinnedWorkspaces": [
+            "ws-8",
+            "ws-2"
+          ],
+          "directory": {
+            "label": "All workspaces"
+          },
+          "menu": "workspaces"
+        }
+      },
+      "expect": [
+        "The trigger shows the active workspace name on one line, truncated, with the full name still available.",
+        "The menu lists the active workspace first, then the pinned workspaces in pin order, then the rest.",
+        "A filter input appears because there are more than seven workspaces.",
+        "All workspaces is the menu footer.",
+        "Choosing a workspace emits one change request, closes the menu, and returns focus to the trigger."
+      ]
+    },
+    {
+      "id": "app-shell.single-workspace",
+      "name": "One workspace",
+      "group": "Rail and navigation",
+      "surface": "single-workspace",
+      "decisionIds": [
+        "T4"
+      ],
+      "sourceCaseIds": [
+        "app-shell.single-workspace-hides-switcher",
+        "app-shell.rail-order"
+      ],
+      "sourceQualityCaseIds": [],
+      "content": {
+        "blurb": "Sets up a single workspace.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "pack": "neutral",
+        "width": 1440,
+        "state": {
+          "mode": "workspace",
+          "dest": "$0",
+          "workspaces": [
+            {
+              "id": "ws-1",
+              "label": "Workspace 1"
+            }
+          ],
+          "activeWorkspace": "ws-1"
+        }
+      },
+      "expect": [
+        "No workspace switcher renders on the rail.",
+        "The remaining rail zones keep their order."
+      ]
+    },
+    {
+      "id": "app-shell.nav-pins",
+      "name": "Pinned views",
+      "group": "Rail and navigation",
+      "surface": "nav-pins",
+      "decisionIds": [
+        "M11"
+      ],
+      "sourceCaseIds": [
+        "app-shell.pin-lifecycle",
+        "app-shell.pin-moved-not-copied",
+        "app-shell.pin-toggle-isolation"
+      ],
+      "sourceQualityCaseIds": [
+        "app-shell.quality.pin-toggle",
+        "app-shell.quality.targets"
+      ],
+      "content": {
+        "blurb": "Sets up the Mine view of Records as the only pin.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "pack": "neutral",
+        "width": 1440,
+        "state": {
+          "mode": "workspace",
+          "dest": "$0",
+          "pins": [
+            "records/mine"
+          ]
+        }
+      },
+      "expect": [
+        "Mine renders once under Pinned, and the Views list omits it.",
+        "Each pin toggle sits beside its item, is at least 44 pixels, and is reachable by keyboard.",
+        "Activating a pin toggle neither navigates nor moves focus off the toggle.",
+        "Unpinning returns the view to its place in the Views list."
+      ]
+    },
+    {
+      "id": "app-shell.pin-cap",
+      "name": "Pin cap and orphaned pin",
+      "group": "Rail and navigation",
+      "surface": "pin-cap",
+      "decisionIds": [
+        "M11"
+      ],
+      "sourceCaseIds": [
+        "app-shell.pin-cap",
+        "app-shell.pin-orphan-retention"
+      ],
+      "sourceQualityCaseIds": [
+        "app-shell.quality.pin-toggle"
+      ],
+      "content": {
+        "blurb": "Sets up eight stored pins, the cap, where records/archived-2024 names a view the pack no longer has.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "pack": "neutral",
+        "width": 1440,
+        "state": {
+          "mode": "workspace",
+          "dest": "$0",
+          "pins": [
+            "records/all-records",
+            "records/mine",
+            "records/recently-changed",
+            "projects/active",
+            "projects/planned",
+            "tasks/assigned-to-me",
+            "tasks/team",
+            "records/archived-2024"
+          ]
+        }
+      },
+      "expect": [
+        "Seven pins render, and the orphaned pin does not.",
+        "The orphaned pin stays in storage so it returns if the view comes back.",
+        "With eight pins stored, a pin toggle on an unpinned view emits no request."
+      ]
+    },
+    {
+      "id": "app-shell.conversation-rename",
+      "name": "Rename a conversation",
+      "group": "Rail and navigation",
+      "surface": "conversation-rename",
+      "decisionIds": [
+        "M11",
+        "M15"
+      ],
+      "sourceCaseIds": [
+        "app-shell.conversation-rename",
+        "app-shell.conversation-rows",
+        "app-shell.shortcut-editable-guard"
+      ],
+      "sourceQualityCaseIds": [
+        "app-shell.quality.conversation-rows",
+        "app-shell.quality.focus"
+      ],
+      "content": {
+        "blurb": "Sets up a direct conversation in Chat mode with its sidebar row in inline rename.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "pack": "neutral",
+        "width": 1440,
+        "state": {
+          "mode": "chat",
+          "dest": "conv",
+          "conv": "c-dm",
+          "renaming": "c-dm"
+        }
+      },
+      "expect": [
+        "The row shows a text field holding the current title, with focus in it.",
+        "Enter emits a rename request with the new title, and the shell does not commit the value itself.",
+        "Escape emits a cancel request and returns focus to the row.",
+        "Shell shortcuts do not fire while the field has focus."
+      ]
+    },
+    {
+      "id": "app-shell.conversation-actions",
+      "name": "Conversation actions menu",
+      "group": "Rail and navigation",
+      "surface": "conversation-actions",
+      "decisionIds": [
+        "M11"
+      ],
+      "sourceCaseIds": [
+        "app-shell.conversation-actions-menu",
+        "app-shell.conversation-rows"
+      ],
+      "sourceQualityCaseIds": [
+        "app-shell.quality.menu-button",
+        "app-shell.quality.dismissal",
+        "app-shell.quality.conversation-rows"
+      ],
+      "content": {
+        "blurb": "Sets up the actions menu of a team conversation row, opened from its More button.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "pack": "neutral",
+        "width": 1440,
+        "state": {
+          "mode": "chat",
+          "dest": "conv",
+          "conv": "c-ch2",
+          "menu": "conversation-actions",
+          "menuFor": "c-ch2"
+        }
+      },
+      "expect": [
+        "The row More button opens a menu of conversation actions.",
+        "Destructive actions sit after a divider at the end of the menu.",
+        "Esc or a click outside closes the menu and returns focus to the More button."
+      ]
+    },
+    {
+      "id": "app-shell.shortcut-guards",
+      "name": "Shortcut guards",
+      "group": "Search and keys",
+      "surface": "shortcut-guards",
+      "decisionIds": [
+        "S3"
+      ],
+      "sourceCaseIds": [
+        "app-shell.shortcut-editable-guard",
+        "app-shell.shortcut-disabled",
+        "app-shell.list-jk-scoped"
+      ],
+      "sourceQualityCaseIds": [
+        "app-shell.quality.no-single-letter-keys",
+        "app-shell.quality.keyboard"
+      ],
+      "content": {
+        "blurb": "Sets up focus in the conversation composer, with Ctrl Alt W turned off in the user's shortcut settings.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "pack": "neutral",
+        "width": 1440,
+        "state": {
+          "mode": "chat",
+          "dest": "conv",
+          "conv": "c-agent",
+          "focusIn": "composer",
+          "panel": true,
+          "tabs": [
+            {
+              "k": "asst",
+              "t": "c-agent"
+            }
+          ],
+          "shortcuts": {
+            "Ctrl Alt W": "off"
+          }
+        }
+      },
+      "expect": [
+        "With focus in the composer, typing J or K enters text and moves no selection.",
+        "Ctrl Alt W closes no tab and shows as off on the shortcut sheet.",
+        "An event the focused control already handled triggers no shell shortcut."
+      ]
+    },
+    {
+      "id": "app-shell.locale-en",
+      "name": "English locale",
+      "group": "Quality",
+      "surface": "locale-en",
+      "decisionIds": [],
+      "sourceCaseIds": [
+        "app-shell.structure",
+        "app-shell.projection-equivalence"
+      ],
+      "sourceQualityCaseIds": [
+        "app-shell.quality.locales"
+      ],
+      "content": {
+        "blurb": "English chrome frames the neutral pack in Workspace mode with a record open in the panel.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "pack": "neutral",
+        "width": 1440,
+        "state": {
+          "mode": "workspace",
+          "dest": "$0",
+          "rec": "$r0",
+          "panel": true,
+          "tabs": [
+            {
+              "k": "details",
+              "t": "$r0",
+              "pv": true
+            },
+            {
+              "k": "log",
+              "t": "$r0"
+            }
+          ]
+        }
+      },
+      "expect": [
+        "Every chrome label comes from the en-US catalog.",
+        "React and Blazor produce the same landmarks, accessible names, and order."
+      ]
+    },
+    {
+      "id": "app-shell.locale-pseudo",
+      "name": "Pseudo locale",
+      "group": "Quality",
+      "surface": "locale-pseudo",
+      "decisionIds": [],
+      "sourceCaseIds": [
+        "app-shell.switcher-trigger-truncation",
+        "app-shell.tab-overflow"
+      ],
+      "sourceQualityCaseIds": [
+        "app-shell.quality.pseudo"
+      ],
+      "content": {
+        "blurb": "Expanded pseudo-localized chrome labels check truncation without clipping the shell.",
+        "environment": {
+          "locale": "en-XA",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "pack": "clinic",
+        "width": 1440,
+        "state": {
+          "mode": "workspace",
+          "dest": "$0",
+          "rec": "$r0",
+          "panel": true,
+          "tabs": [
+            {
+              "k": "details",
+              "t": "$r0",
+              "pv": true
+            },
+            {
+              "k": "log",
+              "t": "$r0"
+            }
+          ]
+        }
+      },
+      "expect": [
+        "Expanded labels truncate inside tabs, rail labels, and switcher triggers without clipping any control.",
+        "No chrome string is left unlocalized."
+      ]
+    },
+    {
+      "id": "app-shell.locale-ar",
+      "name": "Arabic locale",
+      "group": "Quality",
+      "surface": "locale-ar",
+      "decisionIds": [],
+      "sourceCaseIds": [
+        "app-shell.rtl-safe-area",
+        "app-shell.sync-strip"
+      ],
+      "sourceQualityCaseIds": [
+        "app-shell.quality.rtl",
+        "app-shell.quality.safe-area",
+        "app-shell.quality.relative-time"
+      ],
+      "content": {
+        "blurb": "Arabic direction places the rail, sidebar, and panel on logical edges, with the sync strip showing an old confirmation.",
+        "environment": {
+          "locale": "ar-SA",
+          "direction": "rtl",
+          "theme": "light",
+          "catalog": {}
+        },
+        "pack": "legal",
+        "width": 1440,
+        "state": {
+          "mode": "workspace",
+          "dest": "$0",
+          "rec": "$r0",
+          "panel": true,
+          "tabs": [
+            {
+              "k": "details",
+              "t": "$r0",
+              "pv": true
+            },
+            {
+              "k": "log",
+              "t": "$r0"
+            }
+          ],
+          "offline": "stale"
+        }
+      },
+      "expect": [
+        "The rail sits on the inline-start edge and the panel on the inline-end edge.",
+        "Safe-area insets apply to the logical edges.",
+        "The sync strip formats its relative age and clock time in Arabic."
+      ]
+    },
+    {
+      "id": "app-shell.theme-light",
+      "name": "Light theme",
+      "group": "Quality",
+      "surface": "theme-light",
+      "decisionIds": [
+        "A2"
+      ],
+      "sourceCaseIds": [
+        "app-shell.projection-equivalence",
+        "app-shell.themed-scroll-regions",
+        "app-shell.attention-color"
+      ],
+      "sourceQualityCaseIds": [
+        "app-shell.quality.themes",
+        "app-shell.quality.tokens",
+        "app-shell.quality.contrast",
+        "app-shell.quality.reduced-motion",
+        "app-shell.quality.shell-scrollbars",
+        "app-shell.quality.visual-parity",
+        "app-shell.quality.forced-colors"
+      ],
+      "content": {
+        "blurb": "Light public tokens render the shell with a record in the panel and a sync conflict in the strip.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "pack": "retail",
+        "width": 1440,
+        "state": {
+          "mode": "workspace",
+          "dest": "$0",
+          "rec": "$r0",
+          "panel": true,
+          "tabs": [
+            {
+              "k": "details",
+              "t": "$r0",
+              "pv": true
+            },
+            {
+              "k": "log",
+              "t": "$r0"
+            }
+          ],
+          "offline": "conflict"
+        }
+      },
+      "expect": [
+        "Text, icons, and control boundaries meet contrast against the theme tokens.",
+        "Shell scroll regions use themed scrollbars whose thumb meets 3:1 against its surface.",
+        "Needs-you counts use the attention color, and only the conflict uses a danger state.",
+        "With reduced motion, the panel and menus appear without sliding."
+      ]
+    },
+    {
+      "id": "app-shell.theme-dark",
+      "name": "Dark theme",
+      "group": "Quality",
+      "surface": "theme-dark",
+      "decisionIds": [
+        "A2"
+      ],
+      "sourceCaseIds": [
+        "app-shell.projection-equivalence",
+        "app-shell.themed-scroll-regions",
+        "app-shell.attention-color"
+      ],
+      "sourceQualityCaseIds": [
+        "app-shell.quality.themes",
+        "app-shell.quality.tokens",
+        "app-shell.quality.contrast",
+        "app-shell.quality.reduced-motion",
+        "app-shell.quality.shell-scrollbars",
+        "app-shell.quality.visual-parity",
+        "app-shell.quality.forced-colors"
+      ],
+      "content": {
+        "blurb": "Dark public tokens keep the same hierarchy and affordances as the light theme.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "dark",
+          "catalog": {}
+        },
+        "pack": "retail",
+        "width": 1440,
+        "state": {
+          "mode": "workspace",
+          "dest": "$0",
+          "rec": "$r0",
+          "panel": true,
+          "tabs": [
+            {
+              "k": "details",
+              "t": "$r0",
+              "pv": true
+            },
+            {
+              "k": "log",
+              "t": "$r0"
+            }
+          ],
+          "offline": "conflict"
+        }
+      },
+      "expect": [
+        "Text, icons, and control boundaries meet contrast against the theme tokens.",
+        "Shell scroll regions use themed scrollbars whose thumb meets 3:1 against its surface.",
+        "Needs-you counts use the attention color, and only the conflict uses a danger state.",
+        "With reduced motion, the panel and menus appear without sliding."
+      ]
+    },
+    {
+      "id": "app-shell.long-content",
+      "name": "Long content",
+      "group": "Quality",
+      "surface": "long-content",
+      "decisionIds": [
+        "P8"
+      ],
+      "sourceCaseIds": [
+        "app-shell.switcher-trigger-truncation",
+        "app-shell.tab-overflow",
+        "app-shell.conversation-rows"
+      ],
+      "sourceQualityCaseIds": [
+        "app-shell.quality.reflow",
+        "app-shell.quality.targets"
+      ],
+      "content": {
+        "blurb": "Sets up every pack label lengthened to 120 characters and 24 open tabs.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "pack": "neutral",
+        "width": 1440,
+        "state": {
+          "mode": "chat",
+          "dest": "conv",
+          "conv": "c-place",
+          "panel": true,
+          "tabs": [
+            {
+              "k": "details",
+              "t": "$r0"
+            }
+          ],
+          "longLabels": true,
+          "tabCount": 24
+        }
+      },
+      "expect": [
+        "Long titles truncate or wrap with the full text still available, and no control overlaps another.",
+        "Tabs shrink to their minimum width and the strip then scrolls, keeping the active tab in view.",
+        "Conversation rows keep the title to one line and keep the unread count visible."
+      ]
+    },
+    {
+      "id": "app-shell.performance",
+      "name": "Shell under load",
+      "group": "Quality",
+      "surface": "performance",
+      "decisionIds": [],
+      "sourceCaseIds": [
+        "app-shell.projection-equivalence"
+      ],
+      "sourceQualityCaseIds": [
+        "app-shell.performance.repeated-update",
+        "app-shell.performance.large-navigation"
+      ],
+      "content": {
+        "blurb": "Sets up 256 navigation items and 96 sequential state updates.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "pack": "neutral",
+        "width": 1440,
+        "state": {
+          "mode": "workspace",
+          "dest": "$0",
+          "navigationItems": 256,
+          "updates": 96
+        }
+      },
+      "expect": [
+        "React and Blazor resolve the 256 items into the same rail, sidebar, and search observations.",
+        "After 96 updates there is still one landmark set and no repeated live announcement."
+      ]
+    },
+    {
+      "id": "app-shell.many-tabs",
+      "name": "Two hundred open tabs",
+      "group": "Quality",
+      "surface": "many-tabs",
+      "decisionIds": [
+        "P8"
+      ],
+      "sourceCaseIds": [
+        "app-shell.tab-overflow",
+        "app-shell.tab-identity-dedupe"
+      ],
+      "sourceQualityCaseIds": [
+        "app-shell.performance.many-tabs"
+      ],
+      "content": {
+        "blurb": "Sets up 200 open panel tabs.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "pack": "neutral",
+        "width": 1440,
+        "state": {
+          "mode": "workspace",
+          "dest": "$0",
+          "rec": "$r0",
+          "panel": true,
+          "tabCount": 200
+        }
+      },
+      "expect": [
+        "The strip scrolls and Search tabs lists all 200 tabs.",
+        "Opening a kind and target that is already open still focuses the existing tab."
+      ]
+    }
+  ]
+}
