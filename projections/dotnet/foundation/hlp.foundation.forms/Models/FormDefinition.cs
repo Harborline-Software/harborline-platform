@@ -89,6 +89,10 @@ namespace Harborline.Foundation.Forms.Models;
 /// <param name="SubmitGate">Who may submit this form (DES-0016 forms-ck-4): exactly one of a role, a
 /// standing or a registered authorization capability. It is optional while the definition is a Draft and
 /// required before the definition may be Published.</param>
+/// <param name="RecordTypeId">The Records record type a submission of this form creates (DES-0016 forms-ck-3,
+/// ADR 0099 decision 7, T-485). Optional and additive: a definition without a target is unaffected. When present it is
+/// nonblank, captured once for the immutable (tenant, id, version) revision, and publication resolves the type's
+/// creation policy through <see cref="IFormRecordTypePolicyReader"/>; a form_only target requires a submit gate.</param>
 public sealed record FormDefinition(
     FormDefinitionId Id,
     SemanticVersion Version,
@@ -101,4 +105,5 @@ public sealed record FormDefinition(
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt,
     FormDefinitionAuthoring? Authoring = null,
-    SubmitGate? SubmitGate = null);
+    SubmitGate? SubmitGate = null,
+    string? RecordTypeId = null);

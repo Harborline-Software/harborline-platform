@@ -23,6 +23,12 @@ callback. It makes a fresh row check before validation and returns the gate's st
 Commit only after validation succeeds inside the host's transaction. A stage-one allow is never
 an input to this method and cannot bypass the check.
 
+`CheckWithEvidenceAsync` is the same fresh row check returned with the decider's own
+`AuthorizationDecisionEvidence`, for a writer that must keep the enforcing decision's trace
+(RW-1) without asking the gate twice. The decider is called once; an invalid context never
+reaches it, and evidence for any other principal, tenant, instant, operation or record is
+withheld and refuses `access.decision_mismatch`. `CheckAsync` is this check reduced to its result.
+
 Persist `AuthorizationDecisionEvidence.Project()` and the original counterfactual when the host
 records its decision. The storage adapter returns only `AuthorizationTraceSnapshot`, not audit
 payloads, signatures or diagnostic secrets. The reader authorizes the current `audit:trace-read`

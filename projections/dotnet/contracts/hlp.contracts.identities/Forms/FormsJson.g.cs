@@ -1673,6 +1673,12 @@ public static class FormsJson
               "name": "FormFieldAuthoringMetadata"
             }
           }
+        },
+        "recordTypeId": {
+          "optional": true,
+          "shape": {
+            "kind": "string"
+          }
         }
       }
     },

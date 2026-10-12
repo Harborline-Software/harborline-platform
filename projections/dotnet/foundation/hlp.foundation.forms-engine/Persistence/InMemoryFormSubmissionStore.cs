@@ -68,7 +68,7 @@ public sealed class InMemoryFormSubmissionStore : IFormSubmissionTransactionStor
             var key = (commit.Submission.Tenant, commit.Submission.FormId.Value, commit.IdempotencyKey);
             if (state.Idempotency.TryGetValue(key, out var existing))
                 return ValueTask.FromResult(string.Equals(existing.Submission.RequestFingerprint, commit.Submission.RequestFingerprint, StringComparison.Ordinal)
-                    ? new FormSubmissionCommitResult(FormSubmissionCommitDisposition.Replayed, existing.Receipt)
+                    ? new FormSubmissionCommitResult(FormSubmissionCommitDisposition.Replayed, existing.Receipt, FormSubmissionStoreModel.Clone(existing))
                     : new FormSubmissionCommitResult(FormSubmissionCommitDisposition.Conflict, null));
 
             if (state.Submissions.ContainsKey((commit.Submission.Tenant, commit.Submission.InstanceId.ToString()))

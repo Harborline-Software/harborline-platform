@@ -17,6 +17,9 @@
     <ProjectReference Include="../../kernel/hlp.kernel.schema-validation/Harborline.Kernel.SchemaValidation.csproj" />
     <!-- T-493 S7: TaxonomyDefinitionStore binds Taxonomy admission to DefinitionKind.Taxonomy. -->
     <ProjectReference Include="../../foundation/hlp.foundation.taxonomy/Harborline.Foundation.Taxonomy.csproj" />
+    <!-- T-616: RecordWriteOperation authorizes through the host's sole gate and commits through the kernel boundary. -->
+    <ProjectReference Include="../../kernel/hlp.kernel.core/Harborline.Kernel.Core.csproj" />
+    <ProjectReference Include="../../foundation/hlp.foundation.actor/Harborline.Foundation.Authorization.csproj" />
     <!-- T-582 (T-724 ruling 38): a field control's parameters validate against the schema it declares. -->
     <PackageReference Include="JsonSchema.Net" />
     <EmbeddedResource Include="../../../../_shared/layout/placement.schema.json" LogicalName="Harborline.Layout.PlacementSchema" />

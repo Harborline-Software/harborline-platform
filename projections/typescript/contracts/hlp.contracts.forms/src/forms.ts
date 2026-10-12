@@ -776,6 +776,8 @@ export interface FormDefinition {
   updatedAt: string
   /** Optional immutable Harborline App authoring snapshot; absent on legacy/runtime-only definitions. */
   fieldsMeta?: Record<string, FormFieldAuthoringMetadata>
+  /** Records record type a submission creates (T-485, forms-ck-3); additive and absent for a form without a target. */
+  recordTypeId?: string
 }
 
 // ── View (render side — mirrors foundation-forms-engine + FormsRoutes DTOs) ────

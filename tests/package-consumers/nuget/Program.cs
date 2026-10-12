@@ -63,6 +63,7 @@ if (FieldRuntime.ValueDomainAdmission.Validate(
 
 await FieldRuntimeSchemaProbe.VerifyAsync();
 await FieldRuntimeDomainProbe.VerifyAsync();
+await RecordWriteOperationProbe.VerifyAsync();
 
 if (typeof(HarborlineButton).Assembly.GetName().Name != "Harborline.UIAdapters.Blazor")
     throw new InvalidOperationException("UI assembly identity changed.");

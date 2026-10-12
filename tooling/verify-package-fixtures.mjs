@@ -1294,6 +1294,10 @@ function verifyCalculationsCapability() {
     // T-732: RuleEngine now compiles the JsonSchema tier against the kernel's own dialect.
     'Harborline.Kernel.SchemaValidation',
     'Harborline.Contracts',
+    // T-616: BuilderDefinitions' Records write authorizes through Authorization and commits through Kernel.Core.
+    'Harborline.Foundation.Authorization',
+    'Harborline.Foundation.MultiTenancy',
+    'Harborline.Kernel.Core',
   ], 'Calculations engine')
 
   return {
@@ -1352,7 +1356,8 @@ function verifyViewsCapability() {
     // T-572 slice 2: the envelope carries Definitions' contract version, and authoring stamps the
     // platform seed's window (BuilderDefinitions' PlatformPackageSeed, which brings RuleAuthoring).
     // T-493 S7: BuilderDefinitions binds DefinitionKind.Taxonomy through Foundation.Taxonomy.
-    ['Harborline.Blocks.EntityViews', 'Harborline.Blocks.MeasureCatalogue', 'Harborline.Blocks.Aggregates', 'Harborline.Blocks.BuilderDefinitions', 'Harborline.Foundation.Taxonomy', 'Harborline.Contracts', 'Harborline.Foundation.Authorization', 'Harborline.Foundation.Definitions', 'Harborline.Foundation.MultiTenancy', 'Harborline.Foundation.RuleAuthoring', 'Harborline.Foundation.RuleEngine', 'Harborline.Kernel.SchemaValidation'],
+    // T-616: BuilderDefinitions' Records write commits through Kernel.Core.
+    ['Harborline.Blocks.EntityViews', 'Harborline.Blocks.MeasureCatalogue', 'Harborline.Blocks.Aggregates', 'Harborline.Blocks.BuilderDefinitions', 'Harborline.Foundation.Taxonomy', 'Harborline.Contracts', 'Harborline.Foundation.Authorization', 'Harborline.Foundation.Definitions', 'Harborline.Foundation.MultiTenancy', 'Harborline.Foundation.RuleAuthoring', 'Harborline.Foundation.RuleEngine', 'Harborline.Kernel.Core', 'Harborline.Kernel.SchemaValidation'],
     'Views engine',
     /Forms.*(?:Builder|Authoring)|(?:Builder|Authoring).*Forms/i,
   )

@@ -16,6 +16,9 @@ internal static class FormSubmissionStoreModel
             throw new ArgumentException("Submission and projection must name one Party and actor.", nameof(commit));
         if (commit.Submission.FormId != commit.Projection.FormId || commit.Submission.DefinitionVersion != commit.Projection.DefinitionVersion)
             throw new ArgumentException("Submission and projection must name one form definition version.", nameof(commit));
+        if (commit.Submission.SchemaRef != commit.Projection.SchemaRef
+            || !string.Equals(commit.Submission.RecordTypeId, commit.Projection.RecordTypeId, StringComparison.Ordinal))
+            throw new ArgumentException("Submission and projection must name one schema reference and record type target.", nameof(commit));
         if (commit.Submission.SubmittedAt != commit.Audit.RecordedAt
             || commit.Submission.SubmittedAt != commit.Projection.SubmittedAt
             || commit.Submission.SubmittedAt != commit.Receipt.SubmittedAt)

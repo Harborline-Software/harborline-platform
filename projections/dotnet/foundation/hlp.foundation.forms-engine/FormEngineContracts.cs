@@ -43,6 +43,18 @@ public interface IFormSubmitGateAccess
 {
     /// <summary>Returns whether the submitter in the scope meets the form's submit gate.</summary>
     ValueTask<bool> SatisfiesAsync(FormExecutionScope scope, Harborline.Foundation.Forms.Models.FormDefinition definition, SubmitGate gate, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Decides the gate for one intended write and returns the host decider's own evidence (decision D3). The engine
+    /// calls this member. The default answers from <see cref="SatisfiesAsync"/> with no evidence, which a form with a
+    /// record type target refuses; <see cref="AccessProviderFormSubmitGateAccess"/> returns the decider's evidence.
+    /// </summary>
+    async ValueTask<FormSubmitGateDecision> DecideAsync(FormSubmitGateRequest request, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        var satisfied = await SatisfiesAsync(request.Scope, request.Definition, request.Gate, cancellationToken).ConfigureAwait(false);
+        return new FormSubmitGateDecision(request.Intent, satisfied, null);
+    }
 }
 
 /// <summary>Carries an idempotent candidate submission and its tenant-visible correlation data.</summary>
@@ -65,11 +77,19 @@ public enum FormProjectionStatus
 public sealed record FormProjectionSkip(string Reason, string FieldPointer, string? Target = null);
 
 /// <summary>Returns the created or replayed instance together with projection delivery outcomes.</summary>
+/// <param name="InstanceId">The created or replayed form instance.</param>
+/// <param name="SubmittedAt">The engine submit instant.</param>
+/// <param name="ProjectionStatus">Whether projection delivery is pending or complete.</param>
+/// <param name="ProjectionSkips">Typed projection skips.</param>
+/// <param name="Authorization">The submit-gate evidence bound to this write (D3), present when the gate's decider
+/// returned evidence; absent for an ungated form or a verdict-only port on a form without a record type target.
+/// Returned to the caller only; the stored receipt never carries it.</param>
 public sealed record FormSubmitReceipt(
     EntityId InstanceId,
     DateTimeOffset SubmittedAt,
     FormProjectionStatus ProjectionStatus,
-    IReadOnlyList<FormProjectionSkip> ProjectionSkips);
+    IReadOnlyList<FormProjectionSkip> ProjectionSkips,
+    FormSubmitAuthorization? Authorization = null);
 
 /// <summary>Reports the number of projection deliveries attempted, completed, and left pending.</summary>
 public sealed record FormProjectionRecoveryResult(int Attempted, int Completed, int Pending);

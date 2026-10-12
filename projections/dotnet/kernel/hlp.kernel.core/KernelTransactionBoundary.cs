@@ -58,6 +58,16 @@ public sealed record KernelAuditEvidence(
     DateTimeOffset RecordedAt,
     ReadOnlyMemory<byte> Payload)
 {
+    /// <summary>
+    /// The audit entry's authority snapshot (DES-0004 <c>authority_snapshot</c>, ADR 0068): the enforcing decision's own
+    /// evidence, written at the act. It is opaque to the kernel and empty unless the producer supplies one. It travels
+    /// inside this evidence, so every boundary path stages it in the same <c>StageAuditAsync</c> call as the audit, and it
+    /// commits or rolls back with the record: there is no second append. A host port serving a producer that supplies one
+    /// persists it beside the audit in that transaction and never copies it into the payload, telemetry or a refusal; a
+    /// port whose producers supply none is unaffected.
+    /// </summary>
+    public ReadOnlyMemory<byte> AuthoritySnapshot { get; init; }
+
     /// <summary>Returns this evidence; throws <see cref="ArgumentException"/> when the audit or actor id is null or blank.</summary>
     public KernelAuditEvidence Validate()
     {
@@ -102,7 +112,7 @@ public interface IKernelTransaction<TRecord, TResult> : IAsyncDisposable
 {
     /// <summary>Stages the command's record; it stays invisible until commit.</summary>
     ValueTask StageRecordAsync(TRecord record, CancellationToken cancellationToken = default);
-    /// <summary>Stages the audit evidence that commits or rolls back with the record.</summary>
+    /// <summary>Stages the audit evidence, with its <see cref="KernelAuditEvidence.AuthoritySnapshot"/>, that commits or rolls back with the record.</summary>
     ValueTask StageAuditAsync(KernelAuditEvidence audit, CancellationToken cancellationToken = default);
     /// <summary>Atomically publishes every staged value and returns the host's result.</summary>
     ValueTask<TResult> CommitAsync(CancellationToken cancellationToken = default);
@@ -129,7 +139,7 @@ public interface IKernelPreparedTransaction<TRecord, TResult> : IAsyncDisposable
     ValueTask StageOperationAsync(KernelOperationIdentity operation, CancellationToken cancellationToken = default);
     /// <summary>Stages the command's record; it stays invisible until commit.</summary>
     ValueTask StageRecordAsync(TRecord record, CancellationToken cancellationToken = default);
-    /// <summary>Stages the audit evidence that commits or rolls back with the record.</summary>
+    /// <summary>Stages the audit evidence, with its <see cref="KernelAuditEvidence.AuthoritySnapshot"/>, that commits or rolls back with the record.</summary>
     ValueTask StageAuditAsync(KernelAuditEvidence audit, CancellationToken cancellationToken = default);
     /// <summary>Atomically publishes every staged value and returns the host's result.</summary>
     ValueTask<TResult> CommitAsync(CancellationToken cancellationToken = default);
@@ -154,7 +164,7 @@ public interface IKernelTransactionParticipant<TRecord>
     ValueTask StageOperationAsync(KernelOperationIdentity operation, CancellationToken cancellationToken = default);
     /// <summary>Stages the joined command's record into the enclosing transaction; it stays invisible until that commit.</summary>
     ValueTask StageRecordAsync(TRecord record, CancellationToken cancellationToken = default);
-    /// <summary>Stages the audit evidence that commits or rolls back with the joined record.</summary>
+    /// <summary>Stages the audit evidence, with its <see cref="KernelAuditEvidence.AuthoritySnapshot"/>, that commits or rolls back with the joined record.</summary>
     ValueTask StageAuditAsync(KernelAuditEvidence audit, CancellationToken cancellationToken = default);
 }
 
