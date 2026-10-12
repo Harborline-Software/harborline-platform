@@ -1,5 +1,5 @@
 /* hlp.ui.app-shell rev 6 authority stylesheet.
-   Frame: rail | sidebar | main | side panel (tab host). Decision ids refer to rev6/decisions.md. */
+   Frame: rail | sidebar | main | side panel (tab host). Decision ids refer to harborline-control DES-0008 supporting/harness-rev6-decisions.md. */
 
 /* ---------- Root frame ---------- */
 /* The docking script reads these constants (P12). CSS never enforces the main minimum, so phone

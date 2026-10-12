@@ -10,7 +10,8 @@
     "promotion": "Promote in the change that makes both projections conform: move these files over the rev 5 files, bump catalog/modules.yaml to interface revision 6 and quality profile revision 2, set its dependencies to this file's list (hlp.contracts.authorization and hlp.ui.app-layout go), rewrite conformance/hlp.ui.app-shell fixtures to these case ids in this order, refresh the provenance hashes and the design-review surface, regenerate the lane stylesheets with npm run ui-specs:generate, and delete this folder."
   },
   "decisionRecord": {
-    "path": "specs/modules/ui/hlp.ui.app-shell/rev6/decisions.md",
+    "repository": "harborline-control",
+    "path": "designs/DES-0008-chrome/supporting/harness-rev6-decisions.md",
     "title": "Harness rev 6 decisions",
     "asOf": "2026-10-11",
     "governingRule": "The harness decides how things look and behave on screen. It never decides what is true or allowed. If two people could disagree about an answer, or it changes when data changes, it comes from the API. If it is only about this person's screen, the harness owns it.",
