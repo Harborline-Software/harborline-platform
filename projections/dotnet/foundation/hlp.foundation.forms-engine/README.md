@@ -74,15 +74,13 @@ idempotently on the original operation. `FormAcceptedCommandCancellation` cancel
 `records.command.cancel` permission; cancel and execution contend on the store's claim, so exactly one wins, and a cancel
 after the claim is `records.command.cancel_too_late`. Ordinary submissions, and forms targeting a `role` type, keep the
 existing delivery path. A `role` target's failed inline delivery is retried only through the port's single-row lease in
-its submitter's replay, so a store without `IFormAcceptedCommandStore` refuses any targeted submit
-(`form.engine.provider-unavailable`), including an idempotent replay of an existing targeted submission, as it refuses
-a `form_only` one. Under the decision 1 reading the host's submit-gate decider runs while the store scope is held,
-so it must not open its own kernel transaction (the submit is then denied) and should be fast. Host enablement stays
-held.
+its submitter's replay (revision 17 states what a store without the port does). Under the decision 1 reading the host's
+submit-gate decider runs while the store scope is held, so it must not open its own kernel transaction (the submit is
+then denied) and should be fast. Host enablement stays held.
 
 Revision 16 also adds: an audit envelope with every cancellation and refusal, in the same atomic
 transition; queue-ordered leasing (least recently enqueued first) and a bounded retry before a claimed command with a
-broken binding is refused; `IFormProjectionSink.ExecutesAcceptedCommands`, without which a command is never claimed;
+broken binding is quarantined; `IFormProjectionSink.ExecutesAcceptedCommands`, without which a command is never claimed;
 no recovery of a targeted row without a command (never acting as the submitter); the acceptance snapshot bound to the
 command's own decision (`FormAcceptedCommandEvidence`); the mapped Records body digest bound at acceptance
 (`IFormAcceptedRecordBodies`); and
@@ -98,6 +96,17 @@ cannot commit, and leaves quarantine as completed only through `FormAcceptedComm
 lookup finds its effect committed (`CompleteProjectionAsync` refuses a quarantined row). Leasing rotates (least recently enqueued first; a failed row goes to the back), so no row waits forever
 and stalled rows never starve fresh ones; the mapped-body digest is held to the acceptance bound;
 and a `role` target's failed inline delivery is retried only by its own submitter's replay.
+
+Revision 17 changes text only and makes the interface describe the merged behaviour. A store without
+`IFormAcceptedCommandStore` refuses any targeted submit (`form.engine.provider-unavailable`) before the gate is asked,
+including an idempotent replay of an existing targeted submission, as it refuses a `form_only` one. Recovery on such a
+store rotates a targeted row without a command to the back of the queue with `RetryProjectionAsync` (one recorded
+attempt) instead of releasing it in place, and still never delivers it. The base port's `LeasePendingAsync` defines no
+order, so the rotation protects deliverable rows only on a store that leases a newly retried row behind the rows already
+waiting, as both built-in stores do; a host store that ignores recorded attempts is not protected (a documented limit).
+The lease-order sentence that said "by attempts, then submit instant, then outbox id" now names the queue order, and
+the sentence that said a claimed command with a broken binding "is refused after" the retry limit now says it is
+quarantined.
 
 This is an implementation checkpoint, not HLF-055 completion. All 80 captured source cases and all
 38 migration-gap cases pass. The package and its destination-neutral authoring-host boundary are
