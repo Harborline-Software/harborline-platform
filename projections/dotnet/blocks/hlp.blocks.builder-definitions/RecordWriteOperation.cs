@@ -29,16 +29,33 @@ public sealed record RecordWriteScope(string Tenant, string ActorId);
 public sealed record RecordCreateRequest(string RecordTypeId, string OperationId, JsonObject Body, string? Version = null);
 
 /// <summary>
-/// The lookup scope of a committed operation: ambient tenant, authenticated caller and stable operation id. Another
-/// caller or tenant is another scope and never sees this scope's receipt.
+/// The lookup scope of a committed operation: ambient tenant, the operation's originator and its stable operation id.
+/// Another originator or tenant is another scope and never sees this scope's receipt. The originator is never the executor
+/// of a recovery (K5, plan W8): for a direct create it is the authenticated caller, and for an accepted command it is the
+/// submitter, so a delegate or a second worker recovering the original operation finds the same receipt and never inserts
+/// twice.
 /// </summary>
 /// <param name="Tenant">The ambient tenant.</param>
-/// <param name="CallerId">The authenticated caller.</param>
-/// <param name="OperationId">The caller's stable operation id.</param>
+/// <param name="CallerId">The originator: the authenticated caller of a direct create, or an accepted command's submitter.</param>
+/// <param name="OperationId">The originator's stable operation id.</param>
 public sealed record RecordWriteOperationKey(string Tenant, string CallerId, string OperationId)
 {
-    /// <summary>The kernel idempotency key: each member length-framed in UTF-16 code units, so no two scopes share one.</summary>
-    public string IdempotencyKey => Framed(Tenant) + Framed(CallerId) + Framed(OperationId);
+    /// <summary>
+    /// The origin of the operation, or null for a principal's direct create. An accepted command's key carries
+    /// <see cref="AcceptedCommandOrigin"/>, so its operation id never shares a scope with a direct create the same principal
+    /// chose (an accepted command's operation id is server-derived; a direct create's is the caller's).
+    /// </summary>
+    public string? Origin { get; init; }
+
+    /// <summary>The origin of a durably accepted command's key (ADR-0110, plan W8).</summary>
+    public const string AcceptedCommandOrigin = "accepted-command";
+
+    /// <summary>
+    /// The kernel idempotency key: each member length-framed in UTF-16 code units, so no two scopes share one. A key without
+    /// an origin is the three frames it always was, so every direct-create key is byte-unchanged; an origin is a fourth
+    /// frame, and a framed sequence parses one way only, so no three-frame key equals a four-frame key.
+    /// </summary>
+    public string IdempotencyKey => Framed(Tenant) + Framed(CallerId) + Framed(OperationId) + (Origin is null ? string.Empty : Framed(Origin));
 
     private static string Framed(string value) => value.Length.ToString(CultureInfo.InvariantCulture) + ":" + value;
 }
@@ -72,7 +89,24 @@ public sealed record RecordWriteRow(
     string IntentEncodingVersion,
     string IntentDigest,
     ReadOnlyMemory<byte> Body,
-    DateTimeOffset RecordedAt);
+    DateTimeOffset RecordedAt)
+{
+    /// <summary>
+    /// For a completed accepted command, the submitter the command was accepted for (provenance only, ADR-0110 decision 4);
+    /// <see cref="ActorId"/> is then the worker that executed it. Null for a direct create. The audit carries the same value
+    /// as <see cref="KernelAuditEvidence.OriginatorId"/>.
+    /// </summary>
+    public string? OriginatorId { get; init; }
+
+    /// <summary>For a completed accepted command, the accepting store's command id the record was created from; else null.</summary>
+    public string? AcceptedCommandId { get; init; }
+
+    /// <summary>
+    /// For a completed accepted command, the id of the acceptance audit committed with the command in the accepting store
+    /// (review L7, plan B3): the link from the materialization's audit and row back to the acceptance. Null for a direct create.
+    /// </summary>
+    public string? AcceptanceAuditId { get; init; }
+}
 
 /// <summary>What a committed create reports, with its original binding. A replay returns it unchanged.</summary>
 public sealed record RecordWriteReceipt(
@@ -92,7 +126,8 @@ public sealed record RecordWriteCommittedOperation(string IntentEncodingVersion,
 
 /// <summary>
 /// The host's read of committed operations, in the same store its transaction port commits to. It answers only the
-/// exact scope it is asked for. The atomic stage of the operation identity remains the arbiter between concurrent writers.
+/// exact scope it is asked for: tenant, originator, operation id and origin, as <see cref="RecordWriteOperationKey.IdempotencyKey"/>
+/// frames them. The atomic stage of the operation identity remains the arbiter between concurrent writers.
 /// </summary>
 /// <remarks>
 /// Null means only that no operation is accepted under the key: a lookup miss, after which the request proceeds as a
@@ -396,8 +431,9 @@ public static class RecordCreationAuthorization
 /// returned <see cref="RecordWriteOutcome.Decision"/> is the authorize stage's own verdict on the typed act, exactly as
 /// for <c>entity.validation.schema_unknown</c> at bind, and no refusal is ever reported in the authorize stage beside an
 /// allowed decision (DES-0032: the trace equals enforcement). A form invoking a <c>role</c> type's create uses this same operation and adds no
-/// creation gate. Mutate, Rules, React and the form-origin entry for <c>form_only</c> types (plan W8) are not in this
-/// slice; T-616 still owns them.</para>
+/// creation gate. The form-origin entry for <c>form_only</c> types is <see cref="CompleteAcceptedAsync"/> (plan W8,
+/// ADR-0110): it completes a durably accepted command as the host's worker, keyed by the submitter and the original
+/// operation id. Mutate, Rules and React are not in this slice; T-616 still owns them.</para>
 /// </remarks>
 public sealed class RecordWriteOperation
 {
@@ -422,6 +458,13 @@ public sealed class RecordWriteOperation
     private const string FormOnlyCreation = "records.write.form_only";
     private const string EngineOnlyCreation = "records.write.engine_only";
     private const string RecordTypePointer = "/record_type_id";
+    // ADR-0110 (accepted 2026-10-12; the terminal-state and binding-mismatch names are open item 7): an accepted
+    // command whose binding does not hold, one without its persisted acceptance evidence, and one whose bound type is
+    // no longer form_only. Provisional spellings (open item 7, accepted as provisional 2026-10-12); a host maps them and
+    // adds no competing code (D6).
+    private const string BindingMismatch = "records.command.binding_mismatch";
+    private const string NotAccepted = "records.command.not_accepted";
+    private const string CreationGateChanged = "records.command.creation_gate_changed";
 
     private static readonly IReadOnlyDictionary<string, JsonNode?> NoFields = new Dictionary<string, JsonNode?>().AsReadOnly();
 
@@ -483,19 +526,130 @@ public sealed class RecordWriteOperation
         // AccessProvider allows only with evidence that matched every context field.
         var evidence = access.Evidence ?? throw new InvalidOperationException("The gate allowed without its evidence.");
 
-        var (outcome, evidenceCommitted) = await WriteAsync(scope, request, recordId, instant, evidence, cancellationToken)
+        var plan = new WritePlan(scope.Tenant, scope.ActorId, null, null, null,
+            new RecordWriteOperationKey(scope.Tenant, scope.ActorId, request.OperationId), request);
+        var (outcome, evidenceCommitted) = await WriteAsync(plan, recordId, instant, evidence, cancellationToken)
             .ConfigureAwait(false);
         // A Created commit already committed the evidence with its record, even when its receipt is unreadable; anything else
         // returns it, persisted nowhere yet.
         return evidenceCommitted ? outcome : outcome with { Decision = evidence };
     }
 
+    /// <summary>
+    /// Completes one durably accepted Records create as the host's worker (ADR-0110 decisions 1 to 4, rulings D4, K2, K3 and
+    /// K7, plan W8): the form-origin entry that makes a <c>form_only</c> type's records creatable. It returns the receipt of
+    /// the original operation, creates the record once, or refuses; a refusal persisted nothing, with the same Created-commit
+    /// exception as <see cref="CreateAsync"/>.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Order.</b> The gate decides the worker's own bounded act on this exact command first
+    /// (<see cref="AcceptedRecordCommandAuthorization"/>, RW-1), so a refused worker reaches no lookup, binder or store and
+    /// learns nothing. The submitter is never decided for again: creation authorization was decided at acceptance
+    /// (<see cref="AcceptedRecordCommandReadings.CreationAuthorizationDecided"/>), so an ordinary revocation after acceptance
+    /// does not cancel the command. Then the command's binding is checked: the worker acts in the command's tenant and is not
+    /// its submitter (no impersonation), the acceptance snapshot is this command's own acceptance decision
+    /// (<see cref="AcceptedRecordCommandReadings.IsAcceptanceEvidence"/>: the submit-gate act on the command's form revision
+    /// at exactly its acceptance instant, allowed, for that tenant and submitter), and the body's intent digest equals the
+    /// digest bound at acceptance; otherwise <c>records.command.binding_mismatch</c> or <c>records.command.not_accepted</c>
+    /// at bind, before any lookup. Then the operation id bound, the stored-receipt settlement and the write run exactly as a direct create's.</para>
+    /// <para><b>Idempotency on the original operation.</b> The operation is keyed by tenant, the submitter and the original
+    /// operation id with the accepted-command origin (<see cref="RecordWriteOperationKey.Origin"/>), never by the executor, so
+    /// recovery by another worker or a delegate settles the original operation from its stored receipt and never creates a
+    /// second record. Another payload under the same operation refuses <c>records.write.replay_conflict</c>; an accepted
+    /// operation whose receipt is missing or unreadable refuses <c>records.write.receipt_unsupported</c> and is never written
+    /// again; only a lookup miss reaches a first write.</para>
+    /// <para><b>Execution-time invariants (decision 2).</b> The head published at execution is bound and the body validated
+    /// against its schema. A bound revision that is <c>engine</c> refuses <c>records.write.engine_only</c>, and one that is
+    /// no longer <c>form_only</c> refuses <c>records.command.creation_gate_changed</c>
+    /// (<see cref="AcceptedRecordCommandReadings.AdmitsCreationGate"/>), both at bind.</para>
+    /// <para><b>Audit.</b> The record, its operation identity and its audit commit once through
+    /// <see cref="KernelTransactionBoundary"/>: the audit actor is the worker, its authority snapshot is the worker's own
+    /// decision, and its <see cref="KernelAuditEvidence.OriginatorId"/> is the submitter; the row carries the same provenance
+    /// and the command id. The seven-key payload is unchanged.</para>
+    /// <para>The caller must hold the accepting store's execution claim on the command (the shared cancel/execute fence,
+    /// ADR-0110 decision 5): a cancelled command is never handed here.</para>
+    /// </remarks>
+    public async ValueTask<RecordWriteOutcome> CompleteAcceptedAsync(RecordWorkerScope worker, AcceptedRecordCreate command,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(worker);
+        ArgumentNullException.ThrowIfNull(command);
+        ArgumentNullException.ThrowIfNull(command.Body);
+        ArgumentException.ThrowIfNullOrWhiteSpace(worker.Tenant);
+        ArgumentException.ThrowIfNullOrWhiteSpace(worker.WorkerId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(command.Tenant);
+        ArgumentException.ThrowIfNullOrWhiteSpace(command.CommandId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(command.SubmitterId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(command.RecordTypeId);
+        ArgumentNullException.ThrowIfNull(command.OperationId);
+        ArgumentNullException.ThrowIfNull(command.BodyDigestEncoding);
+        ArgumentNullException.ThrowIfNull(command.BodyDigest);
+        ArgumentNullException.ThrowIfNull(command.FormRevision);
+        ArgumentNullException.ThrowIfNull(command.AcceptanceAuditId);
+
+        var instant = _clock.GetUtcNow();
+        var recordId = Guid.NewGuid().ToString("N");
+
+        // RW-1 and K7: the worker's own bounded act on exactly this command, never the submitter's records:write.
+        var access = await _access.CheckWithEvidenceAsync(AcceptedRecordCommandAuthorization.Request(worker, command, instant),
+            cancellationToken).ConfigureAwait(false);
+        if (!access.Check.Allowed) return Refused(AuthorizeStage, access.Check.Reason, []) with { Decision = access.Evidence };
+        var evidence = access.Evidence ?? throw new InvalidOperationException("The gate allowed without its evidence.");
+
+        // D3: validate every binding at runtime. The worker acts in the command's tenant and never as its submitter.
+        if (!StringComparer.Ordinal.Equals(worker.Tenant, command.Tenant)
+            || StringComparer.Ordinal.Equals(worker.WorkerId, command.SubmitterId))
+            return Refused(BindStage, BindingMismatch, []) with { Decision = evidence };
+        // ADR-0110 decision 1: without the persisted acceptance evidence this is not an accepted command; it is ordinary work
+        // that must be decided at commit through CreateAsync (ADR-0100 decision 3), never completed here.
+        if (!AcceptedRecordCommandReadings.IsAcceptanceEvidence(command))
+            return Refused(BindStage, NotAccepted, []) with { Decision = evidence };
+        // Review M4, plan W6: the body must be the one whose digest was bound at acceptance, recomputed here with the same
+        // intent encoder before anything is looked up or materialized. A body that cannot be encoded is left to the write's
+        // own body_invalid refusal.
+        if (!StringComparer.Ordinal.Equals(command.BodyDigestEncoding, RecordWriteIntent.EncodingVersion)
+            || BodyDigestOf(command) is { } digest && !StringComparer.Ordinal.Equals(digest, command.BodyDigest))
+            return Refused(BindStage, BindingMismatch, []) with { Decision = evidence };
+
+        var plan = new WritePlan(command.Tenant, worker.WorkerId, command.SubmitterId, command.CommandId, command.AcceptanceAuditId,
+            new RecordWriteOperationKey(command.Tenant, command.SubmitterId, command.OperationId)
+            {
+                Origin = RecordWriteOperationKey.AcceptedCommandOrigin,
+            },
+            new RecordCreateRequest(command.RecordTypeId, command.OperationId, command.Body));
+        var (outcome, evidenceCommitted) = await WriteAsync(plan, recordId, instant, evidence, cancellationToken)
+            .ConfigureAwait(false);
+        return evidenceCommitted ? outcome : outcome with { Decision = evidence };
+    }
+
+    // One write after the gate allowed it: a principal's direct create (no originator) or an accepted command's completion
+    // (the executor is the worker, the originator the submitter). The key is the originator's.
+    private sealed record WritePlan(string Tenant, string ExecutorId, string? OriginatorId, string? AcceptedCommandId,
+        string? AcceptanceAuditId, RecordWriteOperationKey Key, RecordCreateRequest Request)
+    {
+        public bool AcceptedCommand => AcceptedCommandId is not null;
+    }
+
+    // The intent digest of the command's body under this producer's encoding, or null when the body has no intent.
+    private static string? BodyDigestOf(AcceptedRecordCreate command)
+    {
+        try
+        {
+            return RecordWriteIntent.Digest(RecordWriteIntent.Encode(command.RecordTypeId, null, command.Body));
+        }
+        catch (Exception unencodable) when (unencodable is EncoderFallbackException or InvalidOperationException or FormatException)
+        {
+            return null;
+        }
+    }
+
     // Everything after the gate allowed this call. EvidenceCommitted is true only when the host's commit created the record.
-    private async ValueTask<(RecordWriteOutcome Outcome, bool EvidenceCommitted)> WriteAsync(RecordWriteScope scope, RecordCreateRequest request, string recordId,
+    private async ValueTask<(RecordWriteOutcome Outcome, bool EvidenceCommitted)> WriteAsync(WritePlan plan, string recordId,
         DateTimeOffset instant, AuthorizationDecisionEvidence evidence, CancellationToken cancellationToken)
     {
+        var request = plan.Request;
         if (!IsOperationId(request.OperationId)) return (Refused(ValidateStage, OperationIdInvalid, [OperationIdPointer]), false);
-        var key = new RecordWriteOperationKey(scope.Tenant, scope.ActorId, request.OperationId);
+        var key = plan.Key;
         string intentDigest;
         try
         {
@@ -512,7 +666,7 @@ public sealed class RecordWriteOperation
         RecordTypePublication? bound;
         try
         {
-            bound = await _recordTypes.ResolvePublishedSchemaAsync(scope.Tenant, request.RecordTypeId, request.Version,
+            bound = await _recordTypes.ResolvePublishedSchemaAsync(plan.Tenant, request.RecordTypeId, request.Version,
                 cancellationToken).ConfigureAwait(false);
         }
         catch (DefinitionRefusalException)
@@ -521,17 +675,12 @@ public sealed class RecordWriteOperation
         }
         if (bound is null) return (Refused(BindStage, SchemaUnknown, []), false);
         RecordTypePublication publication = bound;
-        // K9: the bound revision's own creation gate decides whether a principal's direct create may exist at all; the
-        // decider's allow cannot widen it. It is a fact of the bound revision, so it refuses in the bind stage and the
-        // authorize stage's allowed decision is never reported beside an authorize-stage refusal (F1). Nothing is staged.
-        switch (RecordCreationPolicy.Of(RecordTypeDefinitionJson.Deserialize(
-            Encoding.UTF8.GetBytes(publication.Revision.Document.BodyJson))).Gate)
-        {
-            case RecordCreationGate.FormOnly:
-                return (Refused(BindStage, FormOnlyCreation, [RecordTypePointer]), false);
-            case RecordCreationGate.Engine:
-                return (Refused(BindStage, EngineOnlyCreation, [RecordTypePointer]), false);
-        }
+        // K9: the bound revision's own creation gate decides whether this origin may create at all; the decider's allow
+        // cannot widen it. It is a fact of the bound revision, so it refuses in the bind stage and the authorize stage's
+        // allowed decision is never reported beside an authorize-stage refusal (F1). Nothing is staged.
+        var gate = RecordCreationPolicy.Of(RecordTypeDefinitionJson.Deserialize(
+            Encoding.UTF8.GetBytes(publication.Revision.Document.BodyJson))).Gate;
+        if (CreationRefusal(gate, plan.AcceptedCommand) is { } creationRefusal) return (creationRefusal, false);
 
         var body = Submitted(request.Body);
         KernelTransactionResult<RecordWriteCommit> transaction;
@@ -552,17 +701,24 @@ public sealed class RecordWriteOperation
                     if (!validation.IsValid)
                         throw new RefusedWriteException(new(ValidateStage, BodyInvalid, Pointers(validation)));
 
-                    var row = new RecordWriteRow(scope.Tenant, recordId, request.RecordTypeId, publication.Revision.Document.Version,
-                        publication.Revision.Digest, publication.Schema.Id, scope.ActorId, request.OperationId, request.Version,
-                        RecordWriteIntent.EncodingVersion, intentDigest, body, instant);
+                    var row = new RecordWriteRow(plan.Tenant, recordId, request.RecordTypeId, publication.Revision.Document.Version,
+                        publication.Revision.Digest, publication.Schema.Id, plan.ExecutorId, request.OperationId, request.Version,
+                        RecordWriteIntent.EncodingVersion, intentDigest, body, instant)
+                    {
+                        OriginatorId = plan.OriginatorId,
+                        AcceptedCommandId = plan.AcceptedCommandId,
+                        AcceptanceAuditId = plan.AcceptanceAuditId,
+                    };
                     // The gate's own evidence is the audit's authority snapshot: staged in the one audit call, it commits
-                    // or rolls back with the record and the operation identity (ADR 0068), never after the commit.
+                    // or rolls back with the record and the operation identity (ADR 0068), never after the commit. The
+                    // actor is the executor; an accepted command's submitter is the originator, provenance only (D6).
                     return new KernelCommand<RecordWriteRow>(
                         new(recordId, key.IdempotencyKey, intentDigest),
                         row,
-                        new(Guid.NewGuid().ToString("N"), scope.ActorId, instant, AuditPayload(row))
+                        new(Guid.NewGuid().ToString("N"), plan.ExecutorId, instant, AuditPayload(row))
                         {
                             AuthoritySnapshot = AuthoritySnapshotOf(evidence),
+                            OriginatorId = plan.OriginatorId,
                         });
                 },
                 _port,
@@ -576,6 +732,16 @@ public sealed class RecordWriteOperation
         var commit = transaction.Value
             ?? throw new InvalidOperationException(transaction.Refusal?.Code ?? "The kernel transaction did not return a result.");
         return (SettleCommit(commit, key, intentDigest), commit.Disposition == RecordWriteCommitDisposition.Created);
+    }
+
+    // The creation gate of the bound revision, by origin. A principal's direct create admits only a role type (the decider
+    // decided its role); an accepted command admits only a form_only type, whose submit gate decided creation at acceptance.
+    private static RecordWriteOutcome? CreationRefusal(RecordCreationGate gate, bool acceptedCommand)
+    {
+        if (gate == RecordCreationGate.Engine) return Refused(BindStage, EngineOnlyCreation, [RecordTypePointer]);
+        if (acceptedCommand)
+            return AcceptedRecordCommandReadings.AdmitsCreationGate(gate) ? null : Refused(BindStage, CreationGateChanged, [RecordTypePointer]);
+        return gate == RecordCreationGate.FormOnly ? Refused(BindStage, FormOnlyCreation, [RecordTypePointer]) : null;
     }
 
     // An operation that is already accepted is settled from what was stored, never re-executed, by this one rule: a lookup
@@ -692,33 +858,9 @@ public sealed class RecordWriteOperation
         return buffer.WrittenSpan.ToArray();
     }
 
-    // The enforcing gate's evidence exactly as it froze it: tenant, principal, trace version and the four projected steps
-    // (the AuthorizationTraceSnapshot read shape). Nothing is re-derived or added (proposed byte grammar, for review).
-    private static byte[] AuthoritySnapshotOf(AuthorizationDecisionEvidence evidence)
-    {
-        var buffer = new ArrayBufferWriter<byte>();
-        using (var writer = new Utf8JsonWriter(buffer))
-        {
-            writer.WriteStartObject();
-            writer.WriteString("tenant", evidence.Tenant);
-            writer.WriteString("principal", evidence.Principal);
-            writer.WriteNumber("version", evidence.Version);
-            writer.WriteStartArray("steps");
-            foreach (var step in evidence.Project())
-            {
-                writer.WriteStartObject();
-                writer.WriteNumber("ordinal", step.Ordinal);
-                writer.WriteString("stage", step.Stage);
-                writer.WriteStartArray("facts");
-                foreach (var fact in step.Facts) writer.WriteStringValue(fact);
-                writer.WriteEndArray();
-                writer.WriteEndObject();
-            }
-            writer.WriteEndArray();
-            writer.WriteEndObject();
-        }
-        return buffer.WrittenSpan.ToArray();
-    }
+    // The enforcing gate's evidence exactly as it froze it, in the one shared snapshot grammar (foundation.actor revision 6,
+    // byte-identical to the grammar this operation committed since 003c). Nothing is re-derived or added.
+    private static byte[] AuthoritySnapshotOf(AuthorizationDecisionEvidence evidence) => AuthoritySnapshotEncoding.Encode(evidence);
 
     private sealed class RefusedWriteException(RecordWriteRefusal refusal) : Exception(refusal.Code)
     {

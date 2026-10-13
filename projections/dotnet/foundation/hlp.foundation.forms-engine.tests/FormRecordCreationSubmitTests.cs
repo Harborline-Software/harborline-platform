@@ -124,7 +124,8 @@ public sealed class FormRecordCreationSubmitTests
         var receipt = await harness.Engine.SubmitAsync(new(harness.Definition.Id, candidate, "op-1"));
 
         Assert.Equal(Declared, Assert.IsType<FormSubmitAuthorization>(receipt.Authorization).Intent.RecordTypeId);
-        Assert.Equal((1, 1, 0, 1), await harness.Store.CountsAsync());
+        // A form_only target: accepted (ADR-0110, W6) and pending for the worker, not delivered inline.
+        Assert.Equal((1, 1, 1, 0), await harness.Store.CountsAsync());
     }
 
     [Fact(DisplayName = "K9: a form the sink declares nothing for keeps its untargeted behaviour and asks no policy")]
@@ -162,8 +163,12 @@ public sealed class FormRecordCreationSubmitTests
         new(new AccessProvider(decider), new FixedClock(FormEngineOrchestrationTests.Now));
 
     // A host projection sink that creates Records records and declares which type it creates for which form.
-    private sealed class DeclaringSink(params string[] created) : IFormProjectionSink, IFormRecordCreationDeclarations
+    private sealed class DeclaringSink(params string[] created) : IFormProjectionSink, IFormRecordCreationDeclarations, IFormAcceptedRecordBodies
     {
+        // Review M4: the host's mapped-body digest an accepted form_only submit binds (any stable value here).
+        public ValueTask<FormAcceptedRecordBodyDigest> DigestAsync(FormAcceptedRecordBodyRequest request, CancellationToken cancellationToken = default) =>
+            ValueTask.FromResult(new FormAcceptedRecordBodyDigest("records-write-intent/1", "declaring-sink-digest"));
+
         public List<(string Tenant, string FormId)> Asked { get; } = [];
         public List<FormProjectionEnvelope> Delivered { get; } = [];
 

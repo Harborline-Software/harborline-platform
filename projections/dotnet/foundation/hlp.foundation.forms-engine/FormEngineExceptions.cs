@@ -62,6 +62,15 @@ public sealed class FormEngineValidationException(IReadOnlyList<Harborline.Contr
 public sealed class FormEngineProviderUnavailableException(Exception? innerException = null)
     : FormEngineException("form.engine.provider-unavailable", "A required form provider is unavailable.", innerException);
 
+/// <summary>
+/// Signals that code running while a Forms submission store's exclusion scope is held on this async flow (a host port the
+/// engine calls inside the submit transaction, such as the submit-gate decider of an accepted command) called back into a
+/// built-in submission store. The scope is not re-entrant, so the call is refused at once instead of waiting forever
+/// (review M5): <c>form.engine.store-reentrant</c>.
+/// </summary>
+public sealed class FormEngineStoreReentrancyException()
+    : FormEngineException("form.engine.store-reentrant", "A Forms submission store was called while its own scope is held on this flow.");
+
 /// <summary>Signals reuse of an idempotency key with a different request fingerprint.</summary>
 public sealed class FormEngineIdempotencyConflictException()
     : FormEngineException("form.engine.idempotency-conflict", "The idempotency key is already bound to another request.");

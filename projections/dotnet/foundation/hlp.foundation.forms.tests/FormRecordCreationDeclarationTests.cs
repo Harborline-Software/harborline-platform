@@ -250,13 +250,15 @@ public sealed class FormRecordCreationDeclarationTests
         Assert.Equal([("tenant:acme", "capture")], producer.Asked);
     }
 
-    [Fact(DisplayName = "K9 (F4): an explicit port wins over the producer, and a producer that declares nothing is ignored")]
+    // N2: the store's producer is typed as the declaration port, so a producer that declares nothing can no
+    // longer be passed to it (a compile error, not a silent absence); the engine's Select keeps the object fallback for its sink.
+    [Fact(DisplayName = "K9 (F4, N2): an explicit port wins over the producer, and a store given neither declares nothing")]
     public async Task ExplicitPortWinsAndNonDeclaringProducerIsIgnored()
     {
         var producer = new Declarations(("capture", "notes.entry"));
         var explicitPort = new Declarations();
         using var explicitStore = new InMemoryFormDefinitionStore(new FixedClock(Now), recordCreations: explicitPort, recordCreationProducer: producer);
-        using var plainProducerStore = new InMemoryFormDefinitionStore(new FixedClock(Now), recordCreationProducer: new object());
+        using var plainProducerStore = new InMemoryFormDefinitionStore(new FixedClock(Now), recordCreationProducer: null);
 
         var withExplicit = await explicitStore.RegisterAndPublishAsync(Form(InspectorGate, "capture"));
         var withPlainProducer = await plainProducerStore.RegisterAndPublishAsync(Form(InspectorGate, "capture"));

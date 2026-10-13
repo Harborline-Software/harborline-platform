@@ -70,7 +70,11 @@ public enum FormProjectionStatus
     /// <summary>Projection delivery remains outstanding.</summary>
     Pending,
     /// <summary>Projection delivery completed.</summary>
-    Complete
+    Complete,
+    /// <summary>The submission's accepted Records command was refused terminally at execution (ADR-0110 decision 2).</summary>
+    Refused,
+    /// <summary>The submission's accepted Records command was cancelled before execution (ADR-0110 decision 5).</summary>
+    Cancelled,
 }
 
 /// <summary>Records a projection item that could not be delivered and why.</summary>
@@ -92,7 +96,14 @@ public sealed record FormSubmitReceipt(
     FormSubmitAuthorization? Authorization = null);
 
 /// <summary>Reports the number of projection deliveries attempted, completed, and left pending.</summary>
-public sealed record FormProjectionRecoveryResult(int Attempted, int Completed, int Pending);
+public sealed record FormProjectionRecoveryResult(int Attempted, int Completed, int Pending)
+{
+    /// <summary>
+    /// Accepted commands this run settled without completing them: refused terminally, or found cancelled or already
+    /// settled at the claim. They are neither completed nor pending; zero for ordinary projections.
+    /// </summary>
+    public int Settled { get; init; }
+}
 
 /// <summary>Exposes the public render, validation, submission, and projection-recovery operations.</summary>
 public interface IFormEngine
