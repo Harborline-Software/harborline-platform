@@ -24,8 +24,9 @@ underscores. It is one flat catalogue column and never a dotted path; any other 
 records, not the authored Records grammar: DES-0004 §1 documents the correspondence (`field_key` to `key`,
 `reference.required_trait_id` to `reference_trait_id` and so on). Record Type carries `record_class`, and Field carries
 a reference's `reference_target_type_id` or `reference_target_class_id`, `reference_cardinality`, `reference_on_delete`,
-`reference_parent` and `reference_trait_id` (L091, L092, L1424). A member change bumps the shape's revision: Record Type
-and Field are at 2.
+`reference_parent` and `reference_trait_id` (L091, L092, L1424). Record Type also carries `creation_role_id`, an
+optional reference to the one role that creates a `role`-gated type (decision D1, 2026-10-10). A member change bumps the
+shape's revision: Record Type is at 3 and Field is at 2.
 
 ## Package closure (T-979)
 

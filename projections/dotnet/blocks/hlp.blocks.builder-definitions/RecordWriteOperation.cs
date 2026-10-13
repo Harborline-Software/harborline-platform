@@ -14,6 +14,8 @@ namespace Harborline.Blocks.BuilderDefinitions;
 /// <summary>The ambient scope a host supplies for one write (DES-0015 records-eng-28): never read from the body.</summary>
 /// <param name="Tenant">The host's tenant binding.</param>
 /// <param name="ActorId">The authenticated caller; the gate decides for it, the audit carries it, and it scopes the operation id.</param>
+/// <remarks>A scope is a principal's direct create. It names no form or engine origin, so it never creates a record of a
+/// <c>form_only</c> or <c>engine</c> Record Type (records-ck-22, K9).</remarks>
 public sealed record RecordWriteScope(string Tenant, string ActorId);
 
 /// <summary>One record create: the Record Type it instantiates, the caller's stable operation id, the body and an optional pin.</summary>
@@ -328,6 +330,41 @@ public static partial class RecordWriteIntent
 }
 
 /// <summary>
+/// The host decider contract for a Records create (decision D1, plan W9 and W10): the one request
+/// <see cref="RecordWriteOperation.CreateAsync"/> sends to <see cref="IAuthorizationDecider"/> for a create, and what a
+/// conforming host adapter must decide on it. Platform calculates no verdict (the AccessDecider fence); it states the
+/// question, and it enforces only the type-level rule that needs no verdict (a <c>form_only</c> or <c>engine</c> bound
+/// revision admits no direct create).
+/// </summary>
+/// <remarks>
+/// <para><b>What Platform sends, exactly once per call, before any other stage:</b> operation <see cref="Act"/>,
+/// the authenticated principal and ambient tenant, an <see cref="AccessRecord"/> of kind <see cref="RecordKind"/> whose id
+/// is the record id minted for this attempt, whose <see cref="AccessRecord.RecordTypeId"/> is the requested Record Type,
+/// and whose <see cref="AccessRecord.Fields"/> are empty, and the act instant. The request carries no version pin, no
+/// creation role and no form: a pinned create is decided on the type, not on the pinned version.</para>
+/// <para><b>What a conforming adapter decides:</b> it reads the type's published head policy through
+/// <see cref="RecordTypeDefinitionStore.GetCreationPolicyAsync"/> (version null) and allows only when that policy is
+/// <see cref="RecordCreationGate.Role"/> and the principal holds its <c>creation_role_id</c> in the tenant; it denies a
+/// <c>form_only</c> or <c>engine</c> head, an unpublished type and a principal in an engine or reserved namespace
+/// (W10). Its evidence copies the request, so it names the same typed target.</para>
+/// <para><b>Consequences, accepted as the lead convention (E4):</b> the newest publication's creation policy governs
+/// every create of the type. A pin to an older version whose role differs is decided under the head's role, so a holder
+/// of the head's role creates a record bound to the older version, and a holder of only the older version's role is
+/// denied. A pin to an older <c>role</c> version under a <c>form_only</c> head is denied by the adapter; a pin to a
+/// <c>form_only</c> version under a <c>role</c> head is refused by Platform at bind.</para>
+/// <para><b>L152 (role-gated creation) is therefore met only when a W10 adapter honours this contract.</b> Platform tests
+/// that use a role-aware fixture decider prove the contract's specification, not production enforcement.</para>
+/// </remarks>
+public static class RecordCreationAuthorization
+{
+    /// <summary>The act a Records create is decided under, the API gate's spelling.</summary>
+    public const string Act = "records:write";
+
+    /// <summary>The access record kind of a Records create's target.</summary>
+    public const string RecordKind = "record";
+}
+
+/// <summary>
 /// The first public Records write (T-616, DES-0015 section 3): one record create of a published Record Type.
 /// It authorizes through the host's sole gate, then settles a committed operation from its stored receipt, or binds the
 /// Record Type, validates the submitted bytes against that schema and commits the record, its operation identity and its
@@ -348,14 +385,24 @@ public static partial class RecordWriteIntent
 /// refuses persists nothing (RW-2); a registry fault, timeout or cancellation propagates after rollback (RW-5). The
 /// atomic stage of the operation identity arbitrates concurrent first writes. The gate is asked once. A create commits
 /// the gate's own decision evidence as its audit's <see cref="KernelAuditEvidence.AuthoritySnapshot"/>, atomically with
-/// the record; every other outcome returns it as <see cref="RecordWriteOutcome.Decision"/> for the host's trace plumbing.
-/// Mutate, Rules, React and the record-type and form-origin creation binding are not in this slice; T-616 still owns
-/// them.</para>
+/// the record; every other outcome returns it as <see cref="RecordWriteOutcome.Decision"/> for the host's trace plumbing.</para>
+/// <para>Creation policy (decision D1, K9, plan W2/W9): the gate is asked for a typed target, the requested Record Type
+/// (<see cref="AccessRecord.RecordTypeId"/>), under the contract <see cref="RecordCreationAuthorization"/> states for the
+/// host's decider. The evidence must name the same type. Independently of the decider, the bound revision's own policy is
+/// enforced before anything is staged: this entry is a principal's direct create, so a <c>form_only</c> type refuses
+/// <c>records.write.form_only</c> and an <c>engine</c> type refuses <c>records.write.engine_only</c>, whatever the gate
+/// answered and whatever form metadata a caller had. Both refuse in the bind stage (ADR 0038 order authorize, bind, ...)
+/// at <c>/record_type_id</c>, because the refusing fact is a property of the bound revision, not of the principal: the
+/// returned <see cref="RecordWriteOutcome.Decision"/> is the authorize stage's own verdict on the typed act, exactly as
+/// for <c>entity.validation.schema_unknown</c> at bind, and no refusal is ever reported in the authorize stage beside an
+/// allowed decision (DES-0032: the trace equals enforcement). A form invoking a <c>role</c> type's create uses this same operation and adds no
+/// creation gate. Mutate, Rules, React and the form-origin entry for <c>form_only</c> types (plan W8) are not in this
+/// slice; T-616 still owns them.</para>
 /// </remarks>
 public sealed class RecordWriteOperation
 {
-    private const string WriteAct = "records:write";
-    private const string RecordKind = "record";
+    private const string WriteAct = RecordCreationAuthorization.Act;
+    private const string RecordKind = RecordCreationAuthorization.RecordKind;
     private const string AuthorizeStage = "authorize";
     private const string BindStage = "bind";
     private const string ValidateStage = "validate";
@@ -370,6 +417,11 @@ public sealed class RecordWriteOperation
     // D6: an operation id is nonempty and at most 255 UTF-8 bytes, taken exactly as sent.
     private const string OperationIdInvalid = "records.write.operation_id_invalid";
     private const int MaxOperationIdBytes = 255;
+    // K9 (approved 2026-10-10): a principal's direct create of a type whose creation gate admits no such create. The
+    // spellings are proposed for owner review.
+    private const string FormOnlyCreation = "records.write.form_only";
+    private const string EngineOnlyCreation = "records.write.engine_only";
+    private const string RecordTypePointer = "/record_type_id";
 
     private static readonly IReadOnlyDictionary<string, JsonNode?> NoFields = new Dictionary<string, JsonNode?>().AsReadOnly();
 
@@ -423,8 +475,10 @@ public sealed class RecordWriteOperation
         var instant = _clock.GetUtcNow();
         var recordId = Guid.NewGuid().ToString("N");
 
+        // W9: the target is typed by the requested Record Type, so the decider decides a create of exactly that type.
         var access = await _access.CheckWithEvidenceAsync(new AccessRequest(WriteAct, scope.ActorId, scope.Tenant,
-            new AccessRecord(scope.Tenant, RecordKind, recordId, NoFields), instant), cancellationToken).ConfigureAwait(false);
+            new AccessRecord(scope.Tenant, RecordKind, recordId, NoFields) { RecordTypeId = request.RecordTypeId }, instant),
+            cancellationToken).ConfigureAwait(false);
         if (!access.Check.Allowed) return Refused(AuthorizeStage, access.Check.Reason, []) with { Decision = access.Evidence };
         // AccessProvider allows only with evidence that matched every context field.
         var evidence = access.Evidence ?? throw new InvalidOperationException("The gate allowed without its evidence.");
@@ -467,6 +521,17 @@ public sealed class RecordWriteOperation
         }
         if (bound is null) return (Refused(BindStage, SchemaUnknown, []), false);
         RecordTypePublication publication = bound;
+        // K9: the bound revision's own creation gate decides whether a principal's direct create may exist at all; the
+        // decider's allow cannot widen it. It is a fact of the bound revision, so it refuses in the bind stage and the
+        // authorize stage's allowed decision is never reported beside an authorize-stage refusal (F1). Nothing is staged.
+        switch (RecordCreationPolicy.Of(RecordTypeDefinitionJson.Deserialize(
+            Encoding.UTF8.GetBytes(publication.Revision.Document.BodyJson))).Gate)
+        {
+            case RecordCreationGate.FormOnly:
+                return (Refused(BindStage, FormOnlyCreation, [RecordTypePointer]), false);
+            case RecordCreationGate.Engine:
+                return (Refused(BindStage, EngineOnlyCreation, [RecordTypePointer]), false);
+        }
 
         var body = Submitted(request.Body);
         KernelTransactionResult<RecordWriteCommit> transaction;

@@ -1,4 +1,5 @@
 using System.Text;
+using Harborline.Contracts.Authorization;
 using Harborline.Contracts.Fields;
 using Harborline.Foundation.Definitions;
 using Harborline.Foundation.FieldRuntime;
@@ -572,8 +573,22 @@ public sealed class RecordTypeDefinitionStoreTests
         classes.CreateDraftAsync(new(Tenant, "eam", "Equipment", "1.0.0", Contract, "eam-core"), "equipment").AsTask().GetAwaiter().GetResult();
         classes.PublishAsync(Tenant, "eam.equipment", "1.0.0", 1, "equipment-publish").AsTask().GetAwaiter().GetResult();
         var defaults = new RecordFieldDefaults(kinds);
-        return new(catalogue, new RecordTypeDefinitionStore(catalogue, compiler, defaults, registry, Window), compiler, registry, classes, defaults);
+        return new(catalogue, new RecordTypeDefinitionStore(catalogue, compiler, defaults, registry, Window, roles: CreationRoles),
+            compiler, registry, classes, defaults);
     }
+
+    // Access's role vocabulary the test host resolves a role gate's creation_role_id through at publication (decision D1):
+    // two domain roles, so a type gated on one is never created by a holder of the other.
+    internal static readonly RoleVocabulary CreationRoles = RoleVocabulary.FromApi([
+        new(Guid.Parse("0f5e2a54-7f2b-4d55-9d4c-000000000001"), RoleReference.Domain("asset-author"), "Asset author",
+            new(RoleOwnerKind.Package, "eam-core"), false),
+        new(Guid.Parse("0f5e2a54-7f2b-4d55-9d4c-000000000002"), RoleReference.Domain("meter-author"), "Meter author",
+            new(RoleOwnerKind.Package, "eam-core"), false),
+    ]);
+
+    // The asset class as a role-gated type: the shape the direct Records write creates (decision D1).
+    internal static NewRecordType RoleGatedAssetClass(string version) =>
+        AssetClass(version) with { CreationGate = RecordCreationGate.Role, CreationRoleId = "asset-author" };
 
     // A pack that ships only the type under test and depends on no other package.
     internal static readonly RecordsInstallClosure NoDependencies = new([new(DefinitionKind.Records, "eam.asset-class")], []);

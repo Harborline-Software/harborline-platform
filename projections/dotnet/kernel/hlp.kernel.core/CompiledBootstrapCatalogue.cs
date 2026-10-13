@@ -127,7 +127,9 @@ public sealed class CompiledBootstrapCatalogue
                 new("channel", CompiledMemberKind.Enum, true, false, null),
                 new("digest", CompiledMemberKind.Digest, true, false, null),
             ]),
-            [RecordType] = new(RecordType, "record-type", "Record Type", 2,
+            // creation_role_id (D1, 2026-10-10): the one role a role-gated type is created by, a reference to a role like
+            // Field write_role_id, optional because only creation_gate role carries it. It took Record Type to 3.
+            [RecordType] = new(RecordType, "record-type", "Record Type", 3,
             [
                 new("name", CompiledMemberKind.Text, true, false, null),
                 new("key", CompiledMemberKind.Key, true, false, null),
@@ -135,6 +137,7 @@ public sealed class CompiledBootstrapCatalogue
                 new("record_class", CompiledMemberKind.Enum, true, false, null),
                 new("traits", CompiledMemberKind.Reference, false, true, "trait"),
                 new("creation_gate", CompiledMemberKind.Enum, true, false, null),
+                new("creation_role_id", CompiledMemberKind.Reference, false, false, "role"),
                 new("amendment_policy", CompiledMemberKind.Enum, true, false, null),
                 new("history_policy", CompiledMemberKind.Enum, true, false, null),
                 new("visibility_policy", CompiledMemberKind.Enum, true, false, null),

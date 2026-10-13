@@ -6,6 +6,8 @@ Local-shadow .NET package for the shared definition catalogue substrate. It prov
 
 `PlatformPackageSeed` is the ADR-0097 fixture for `platform-package-ck-1` through `-ck-14`. Its checked-in `_shared/packs/platform/platform-pack.export.json` is embedded in and packed with the assembly; `VerifyCheckedInExport` proves it is byte-identical to the provider-neutral closure, manifest, and SHA-256 digest document produced by the exporter. The fixture does not choose the still-open first-authority source or preloaded Access-pack provenance kind.
 
+The ck-14 governance default `creationGate` is read only through `PlatformCreationGateCompatibility` (decision K6). The released revision 1.0.0 keeps its bytes and signatures, so it still spells the default `"form-only"`, and that exact spelling is read as `RecordCreationGate.FormOnly` for 1.0.0 only. The seed writes `SeedSpelling(revision)`: the released spelling for 1.0.0 and `form_only` for every new revision. A new revision reads exactly `form_only`, `role` or `engine`. Any other value, a value spelled for another revision, a non-string, an absent member, or a `ck-1` version that disagrees with the export's `revision` refuses `platform-package-creation-gate-malformed`; no published revision defines a default for an absent value. `PlatformPackageSeed.CreationGate` reads the checked-in export this way.
+
 `PackageSafetyFloorReattachment` owns the released raise-only rule for a reattached package candidate. It restores a missing `safetyFloors` object or seeded member, clamps a lower integer to the seed value, and refuses `platform-package-safety-floor-malformed` with the member name when a seeded floor is present as a non-integer. It returns an independent content snapshot and never mutates either input. Each restored or raised member is reported in `Clamps`. `SafetyFloorAuthoring` is the authoring side: a read reports each sealed member's writability and reason, and authoring refuses every lowered, missing or malformed member as a code and RFC 6901 pointer without changing anything, or refuses outright without the host-supplied Access verdict for `rules:author-floor`. `RuleDefinitionCatalog` takes the host's `RulesCapabilityCheck`: authoring operations need `rules:author`, publication and release materialisation need `rules:publish`. `RuleCrossPackageAuthoring` is an authoring-only check of cross-package references against the consumer `requires` clause and the producer's exposure; publication and installation gates are T-615's. `LayoutCrossPackageAuthoring` applies the same authoring-only check to a Layout surface's edges (`layout-auth-30`), reading a `requires` entry that names the producer's package as the declared dependency. Layout admission raises every refusal as a `DefinitionRefusalException` whose stage the caller states: authoring is `Author`, publication and pack export are `Publish`, a host's page register is `Install`, and the persisted-value gate before render is `Render`.
 
 The 13 Workshop navigation item IDs and the `catalogue:read`, `records:read`, and `audit:read` bindings preserve the migration authority in `harborline-api/_shared/packs/platform/platform-pack.export.json`. DES-0007's broader grouping remains future authoring grammar; this fixture does not silently mint replacement identities.
@@ -161,6 +163,8 @@ authority evidence. The codes are:
 | `records.write.operation_id_invalid` | validate | `/operation_id` |
 | `records.write.replay_conflict` | commit | `/operation_id` |
 | `records.write.receipt_unsupported` | commit | none |
+| `records.write.form_only` | bind | `/record_type_id` |
+| `records.write.engine_only` | bind | `/record_type_id` |
 
 Under D6 (approved 2026-10-10), `records.write.replay_conflict` and `records.write.receipt_unsupported` are the only
 codes for their conditions. A host adapter maps them as they are and emits no competing code for the same condition,
@@ -201,8 +205,69 @@ its operation by tenant, caller, `operation_id` and instant, never to a receipt 
 gate propagates without `Decision` and commits nothing. Hosts do not log the authority snapshot, the operation's
 fingerprint or a stored intent digest, and the operation itself emits no telemetry.
 
-This slice does not build Mutate, Rules or React. It also does not build the Record Type and form-origin creation
-binding (no creation-policy producer exists yet; root is ruling on origin authentication and the one-gate reading).
+### Creation policy (decision D1, K9; plan W2 and W9)
+
+A Record Type declares who may create its records (records-ck-22):
+
+- `creation_gate`: `form_only` (the default), `role` or `engine`, spelled exactly so. Any other spelling, a different
+  case or a number is `records.document_invalid`. An absent gate means `form_only`, the default DES-0004 section 1
+  defines. The canonical body omits an explicit `form_only`, so every existing body, digest and the goal-4 canonical
+  literal are byte-identical.
+- `creation_role_id`: for a `role` gate only, the one role whose holders create the type's records, a domain role name
+  as Records names roles elsewhere. Outside the Author stage a `role` gate without one refuses
+  `records.creation_role.required`, and any other gate with one refuses `records.creation_role.unexpected`, both at
+  `/creation_role_id`.
+
+Publication resolves a `role` gate's creation role through the `RoleVocabulary` the store was constructed with. With no
+vocabulary, or a role it does not define, publication refuses `records.creation_role.unknown` at `/creation_role_id`. A
+supplied vocabulary is honoured by `DiagnoseAsync` too. The bind path never re-resolves the role, so a later vocabulary
+change cannot make a published type unbindable.
+
+`RecordCreationPolicy.Of(document)` and `RecordTypeDefinitionStore.GetCreationPolicyAsync(tenant, recordTypeId,
+version?)` are the one governing policy read. The second reads the published head or a pinned published version and
+returns null when it is not published.
+
+`CreateAsync` asks the gate for a typed target: `AccessRecord.RecordTypeId` is the requested Record Type, and the
+evidence must name the same type (`hlp.foundation.actor` revision 5). It adds no trace fact.
+
+**Host decider contract (W10), stated on `RecordCreationAuthorization`.** Platform sends exactly one request per call,
+before any other stage:
+
+- act `records:write` (`RecordCreationAuthorization.Act`), the principal, the tenant and the act instant;
+- record kind `record` (`RecordCreationAuthorization.RecordKind`), the record id minted for the attempt, and the
+  requested type as `RecordTypeId`;
+- empty `Fields`: no version pin, no creation role and no form.
+
+A conforming adapter reads the type's published head policy through `GetCreationPolicyAsync` (version null). It allows
+only when that policy is `role` and the principal holds its `creation_role_id`. It denies `form_only`, `engine`, an
+unpublished type and an engine or reserved principal.
+
+So the newest publication's policy governs every create of the type (lead convention E4). A pin to an older version
+whose role differs is decided under the head's role: a holder of the head's role creates a record bound to the older
+version, and a holder of only the older role is denied.
+
+**L152 (role-gated creation) is met only when a W10 adapter honours this contract.** Platform itself enforces the
+type-level rule that needs no verdict. Tests whose trait `Proves` is `w10-decider-contract-fixture` prove the
+contract's specification against a fixture decider, not production enforcement.
+
+`CreateAsync` is a principal's direct create. After the gate allows and the type binds, the bound revision's own gate is
+enforced before anything is staged, whatever the gate answered and whatever form metadata existed:
+
+- `form_only` refuses `records.write.form_only`;
+- `engine` refuses `records.write.engine_only`;
+- `role` proceeds on the decider's allow.
+
+Both refusals are in the **bind** stage at `/record_type_id`, because the refusing fact belongs to the bound revision,
+not to the principal (ADR 0038 order: authorize, bind, ...). They return `Decision`, which is the authorize stage's own
+verdict on the typed act, exactly as `entity.validation.schema_unknown` does at bind. No refusal is ever reported in the
+authorize stage beside an allowed decision, so the trace equals enforcement (DES-0032). The two layers together mean that a
+pin to an older `role` version cannot widen a newer `form_only` head (the decider refuses), and a pin to a `form_only`
+version is refused although the head is `role` (the bound revision refuses). A form that invokes a `role` type's create
+uses this same single decision and adds no creation gate (D1). The two refusal spellings are proposed.
+
+This slice does not build Mutate, Rules or React, or the form-origin entry through which a `form_only` type's records
+are created from an accepted form submission (plan W8). Until it lands, no `form_only` record can be created through
+this package, which is the fail-closed reading of K9.
 
 ## Configuration generations (T-459)
 

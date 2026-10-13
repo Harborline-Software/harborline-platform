@@ -21,6 +21,8 @@ namespace Harborline.Blocks.BuilderDefinitions.Tests;
 /// <c>entity.validation.body_invalid</c>); the act and target kind are the API gate's (<c>records:write</c>,
 /// <c>record</c>). Every expected value is a literal here, never read from the operation. Intent encodings and their
 /// SHA-256 digests were frozen by an independent reference encoder (records-write-intent/1, proposed), not by this code.
+/// The fixture types are role-gated (decision D1): a principal's direct create of a form_only type, the default, is refused
+/// (K9; RecordCreationAuthorizationTests), so this slice's write path is exercised on the creation gate that admits it.
 /// </summary>
 public sealed class RecordWriteOperationTests
 {
@@ -49,6 +51,9 @@ public sealed class RecordWriteOperationTests
         Assert.Equal("record", asked.Record.Kind);
         Assert.Matches("^[0-9a-f]{32}$", asked.Record.Id);
         Assert.Empty(asked.Record.Fields);
+        // W9: the target is typed by the requested Record Type; it is a context field, never a record field.
+        Assert.Equal("eam.asset-class", asked.Record.RecordTypeId);
+        Assert.Equal("eam.asset-class", outcome.Decision!.RecordTypeId);
         Assert.Equal(At, asked.At);
         Assert.Equal(0, fixture.Catalogue.HeadReads);
         Assert.Equal(0, fixture.Registry.Registrations);
@@ -1385,7 +1390,7 @@ public sealed class RecordWriteOperationTests
         DefinitionContractWindow? window = null)
     {
         var host = Host();
-        await host.Records.CreateDraftAsync(AssetClass("1.0.0"), "create");
+        await host.Records.CreateDraftAsync(RoleGatedAssetClass("1.0.0"), "create");
         var publication = await host.Records.PublishAsync(Tenant, "eam.asset-class", "1.0.0", 1, "publish");
         var catalogue = new CountingCatalogue(host.Catalogue);
         var registry = new CountingRegistry(validatingRegistry ?? host.Registry);
@@ -1413,10 +1418,11 @@ public sealed class RecordWriteOperationTests
         await classes.CreateDraftAsync(new(Tenant, "eam", "Equipment", "1.0.0", new(1, 0), "eam-core"), "equipment");
         await classes.PublishAsync(Tenant, "eam.equipment", "1.0.0", 1, "equipment-publish");
         var defaults = new RecordFieldDefaults(kinds);
-        var authoring = new RecordTypeDefinitionStore(store, compiler, defaults, registry, Window);
+        var authoring = new RecordTypeDefinitionStore(store, compiler, defaults, registry, Window, roles: CreationRoles);
         await authoring.CreateDraftAsync(new(Tenant, "eam", "Measured", "1.0.0",
             [Amount("amount", "Amount", "4", "0"), Amount("price", "Price", "4", "1"), Amount("measure", "Measure", null, null)],
-            new(1, 0), ClassId: "eam.equipment", RecordClass: RecordClass.Master, PackageId: "eam-core"), "measured");
+            new(1, 0), ClassId: "eam.equipment", RecordClass: RecordClass.Master, PackageId: "eam-core",
+            CreationGate: RecordCreationGate.Role, CreationRoleId: "asset-author"), "measured");
         var publication = await authoring.PublishAsync(Tenant, "eam.measured", "1.0.0", 1, "measured-publish");
         var catalogue = new CountingCatalogue(store);
         var counting = new CountingRegistry(registry);

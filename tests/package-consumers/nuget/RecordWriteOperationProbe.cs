@@ -6,6 +6,7 @@ using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
 using Harborline.Blocks.BuilderDefinitions;
+using Harborline.Contracts.Authorization;
 using Harborline.Contracts.Fields;
 using Harborline.Foundation.Authorization;
 using Harborline.Foundation.Definitions;
@@ -19,6 +20,8 @@ using Harborline.Kernel.SchemaValidation.Records;
 // caller's equivalent retry (3.0, 3, 3e0) returns the first receipt without re-executing; another caller's reuse of the
 // operation id is its own operation. 003c (D6): a create commits the gate's evidence as its audit's AuthoritySnapshot with a
 // seven-key payload, a conflict refuses records.write.replay_conflict at /operation_id, and a 256-byte id refuses.
+// D1/K9/W9: the gate is asked for a typed target (the requested Record Type), the probed type is role-gated, and a direct
+// create of a form_only type refuses records.write.form_only at /record_type_id even when the gate allows.
 internal static class RecordWriteOperationProbe
 {
     private const string Tenant = "tenant-consumer";
@@ -32,11 +35,17 @@ internal static class RecordWriteOperationProbe
 
         var denied = await Operation(records, registry, port, allow: false).CreateAsync(Scope, Request("op-deny", """{"notes":"spare"}"""));
         if (denied.Refusal is not { Stage: "authorize", Code: "NoEffectiveRole" } || port.Begun != 0 || port.Lookups != 0
-            || denied.Decision is not { Allowed: false, Refusal: "NoEffectiveRole", Principal: "operator-7" }
+            || denied.Decision is not { Allowed: false, Refusal: "NoEffectiveRole", Principal: "operator-7", RecordTypeId: "eam.asset-class" }
             || denied.Decision.Project().Count != 4)
-            throw new InvalidOperationException("Packed Records write did not refuse at the gate, with its trace, before any lookup or store.");
+            throw new InvalidOperationException("Packed Records write did not refuse at the gate, with its typed trace, before any lookup or store.");
 
         var operation = Operation(records, registry, port, allow: true);
+        var formOnly = await operation.CreateAsync(Scope,
+            new("eam.note", "op-form-only", JsonNode.Parse("""{"notes":"spare"}""")!.AsObject()));
+        if (formOnly.Refusal is not { Stage: "bind", Code: "records.write.form_only" }
+            || formOnly.Refusal.Pointers.Count != 1 || formOnly.Refusal.Pointers[0] != "/record_type_id"
+            || formOnly.Decision is not { Allowed: true, RecordTypeId: "eam.note" } || port.Begun != 0)
+            throw new InvalidOperationException("Packed Records write created a form_only type directly.");
         var unknown = await operation.CreateAsync(Scope,
             new("eam.unpublished-type", "op-unknown", JsonNode.Parse("""{"notes":"spare"}""")!.AsObject()));
         if (unknown.Refusal is not { Stage: "bind", Code: "entity.validation.schema_unknown" } || port.Begun != 0)
@@ -91,7 +100,7 @@ internal static class RecordWriteOperationProbe
             || tooLong.Refusal.Pointers.Count != 1 || tooLong.Refusal.Pointers[0] != "/operation_id" || port.Committed.Count != 2)
             throw new InvalidOperationException("Packed Records write did not refuse a 256-byte operation id at its pointer.");
 
-        Console.WriteLine("RECORDS_WRITE_PACKAGE_PASS: gate before lookup with its decision trace, named bind and body refusals, submitted lexemes, one committed set with its authority snapshot and seven-key audit, caller-scoped exact-intent replay, replay_conflict at /operation_id, bounded operation id");
+        Console.WriteLine("RECORDS_WRITE_PACKAGE_PASS: typed gate target, form_only direct create refused, gate before lookup with its decision trace, named bind and body refusals, submitted lexemes, one committed set with its authority snapshot and seven-key audit, caller-scoped exact-intent replay, replay_conflict at /operation_id, bounded operation id");
     }
 
     private static RecordCreateRequest Request(string operationId, string body)
@@ -116,7 +125,12 @@ internal static class RecordWriteOperationProbe
         await classes.CreateDraftAsync(new NewClass(Tenant, "eam", "Equipment", "1.0.0", contract, "eam-core"), "equipment");
         await classes.PublishAsync(Tenant, "eam.equipment", "1.0.0", 1, "equipment-publish");
         var compiler = new RecordTypeSchemaCompiler(validator, kinds, new SharedValueDomainAdmission());
-        var records = new RecordTypeDefinitionStore(catalogue, compiler, new RecordFieldDefaults(kinds), registry, window);
+        var roles = RoleVocabulary.FromApi(new[]
+        {
+            new RoleDefinition(Guid.Parse("0f5e2a54-7f2b-4d55-9d4c-000000000001"), RoleReference.Domain("asset-author"), "Asset author",
+                new RoleOwner(RoleOwnerKind.Package, "eam-core"), false),
+        });
+        var records = new RecordTypeDefinitionStore(catalogue, compiler, new RecordFieldDefaults(kinds), registry, window, roles: roles);
         var fields = new[]
         {
             new FieldDefinition("notes", "Notes"),
@@ -124,8 +138,15 @@ internal static class RecordWriteOperationProbe
             Amount("measure", "Measure", new Dictionary<string, string>()),
         };
         await records.CreateDraftAsync(new NewRecordType(Tenant, "eam", "Asset Class", "1.0.0", fields,
-            contract, ClassId: "eam.equipment", RecordClass: RecordClass.Master, PackageId: "eam-core"), "create");
+            contract, ClassId: "eam.equipment", RecordClass: RecordClass.Master, PackageId: "eam-core",
+            CreationGate: RecordCreationGate.Role, CreationRoleId: "asset-author"), "create");
         await records.PublishAsync(Tenant, "eam.asset-class", "1.0.0", 1, "publish");
+        await records.CreateDraftAsync(new NewRecordType(Tenant, "eam", "Note", "1.0.0", fields,
+            contract, ClassId: "eam.equipment", RecordClass: RecordClass.Master, PackageId: "eam-core"), "create-note");
+        await records.PublishAsync(Tenant, "eam.note", "1.0.0", 1, "publish-note");
+        if (await records.GetCreationPolicyAsync(Tenant, "eam.asset-class") != new RecordCreationPolicy(RecordCreationGate.Role, "asset-author")
+            || await records.GetCreationPolicyAsync(Tenant, "eam.note") != new RecordCreationPolicy(RecordCreationGate.FormOnly, null))
+            throw new InvalidOperationException("Packed Records type store did not read the governing creation policy.");
         return (records, registry);
 
         static FieldDefinition Amount(string key, string name, Dictionary<string, string> parameters)

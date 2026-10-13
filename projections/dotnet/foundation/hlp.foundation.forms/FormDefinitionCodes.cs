@@ -261,4 +261,19 @@ public static class FormDefinitionCodes
     /// Withdrawn revision of the same definition id already captured (ADR 0099 decision 7: a captured record-type change
     /// is blocked; withdrawal is not a migration decision). Adding a target where no such revision has one is allowed.</summary>
     public const string RecordTypeChanged = "form.record_type.changed";
+
+    // ── Declared record creation (K9, approved 2026-10-10) ──────────────────────
+
+    /// <summary>A definition reaching Published status has no <c>record_type_id</c> target, but the host's submission producers
+    /// declare that its submissions create records of a Record Type. Missing target metadata never exempts a form that
+    /// creates Records; a new revision must state the target.</summary>
+    public const string RecordTypeTargetRequired = "form.record_type.target_required";
+
+    /// <summary>A definition reaching Published status targets one Record Type while the host's submission producers declare
+    /// that its submissions create another.</summary>
+    public const string RecordTypeTargetMismatch = "form.record_type.target_mismatch";
+
+    /// <summary>The host's submission producers declare more than one Record Type for one form id. A form captures one type
+    /// (ADR 0099 decision 7), so there is no unambiguous target to publish or map to.</summary>
+    public const string RecordTypeTargetAmbiguous = "form.record_type.target_ambiguous";
 }

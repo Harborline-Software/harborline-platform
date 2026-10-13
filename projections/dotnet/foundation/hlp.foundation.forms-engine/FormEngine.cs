@@ -32,8 +32,16 @@ public sealed class FormEngine : IFormEngine
     private readonly FormFieldBinding? _fieldBinding;
     private readonly IFormSubmitGateAccess? _submitGates;
     private readonly Harborline.Foundation.Forms.IFormRecordTypePolicyReader? _recordTypePolicies;
+    private readonly Harborline.Foundation.Forms.IFormRecordCreationDeclarations? _recordCreations;
 
-    /// <summary>Creates an engine with the providers required to authorize, evaluate, protect, persist, and project forms.</summary>
+    /// <summary>
+    /// Creates an engine with the providers required to authorize, evaluate, protect, persist, and project forms.
+    /// <paramref name="recordCreations"/> is the host producers' declaration of the Record Types a form's submissions create
+    /// (K9); when it is null and <paramref name="projections"/> implements
+    /// <see cref="Harborline.Foundation.Forms.IFormRecordCreationDeclarations"/>, the sink's own declaration is used. The
+    /// definition store applies the same rule (<see cref="Harborline.Foundation.Forms.RecordCreationDeclarations.Select"/>)
+    /// when given the same sink as its producer.
+    /// </summary>
     public FormEngine(
         IFormExecutionContextProvider contexts,
         Harborline.Foundation.Forms.IFormDefinitionStore definitions,
@@ -49,10 +57,12 @@ public sealed class FormEngine : IFormEngine
         Harborline.Contracts.Fields.IFieldKindRuntime? fieldKinds = null,
         Harborline.Contracts.Fields.IFieldDomainRuntime? fieldDomains = null,
         IFormSubmitGateAccess? submitGates = null,
-        Harborline.Foundation.Forms.IFormRecordTypePolicyReader? recordTypePolicies = null)
+        Harborline.Foundation.Forms.IFormRecordTypePolicyReader? recordTypePolicies = null,
+        Harborline.Foundation.Forms.IFormRecordCreationDeclarations? recordCreations = null)
     {
         _submitGates = submitGates;
         _recordTypePolicies = recordTypePolicies;
+        _recordCreations = Harborline.Foundation.Forms.RecordCreationDeclarations.Select(recordCreations, projections);
         _contexts = contexts ?? throw new ArgumentNullException(nameof(contexts));
         _definitions = definitions ?? throw new ArgumentNullException(nameof(definitions));
         _reuse = reuse ?? throw new ArgumentNullException(nameof(reuse));
@@ -261,9 +271,25 @@ public sealed class FormEngine : IFormEngine
     // form_only or engine target with no gate is refused outright. A form without a target keeps the verdict-only path.
     // The intent, and its one clock read, exist only when a gate is asked, so an ungated submit keeps its single
     // in-scope submit instant.
+    // K9: the host producers' declaration of what the submission creates is authoritative over missing form metadata. A
+    // declaration that fails or names more than one type denies, and so does a head whose target is not exactly the
+    // declared type, including a head with no target: K9 permits a legacy mapping only "where the compatibility contract
+    // permits it", and no Platform contract defines one (Platform has no legacy Records-creating form, census A1), so the
+    // write is refused until the form is migrated to a revision that targets the type. Binding a mapped type into the
+    // accepted command is a W8 dependency; until then this guard stays fail closed.
     private async ValueTask<FormSubmitGateDecision?> RequireSubmitGateAsync(
         FormExecutionScope scope, State.FormDefinition head, string? operationId, string? caseReference, CancellationToken cancellationToken)
     {
+        string? declared;
+        try
+        {
+            declared = await Harborline.Foundation.Forms.RecordCreationDeclarations
+                .ResolveAsync(_recordCreations, head.Tenant, head.Id, cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
+        catch { throw new FormEngineDeniedException(); }
+        if (declared is not null && !StringComparer.Ordinal.Equals(head.RecordTypeId, declared))
+            throw new FormEngineDeniedException();
         var targeted = head.RecordTypeId is not null;
         if (head.RecordTypeId is { } target)
         {

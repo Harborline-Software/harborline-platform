@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using Harborline.Contracts.Authorization;
 using Harborline.Contracts.Fields;
 using Harborline.Foundation.Definitions;
 using Harborline.Kernel.SchemaValidation;
@@ -21,6 +22,8 @@ namespace Harborline.Blocks.BuilderDefinitions;
 /// <param name="PackageId">The owning package, required before publication.</param>
 /// <param name="Requires">The declared package dependencies, each <c>pack-key@interfaceVersion</c>.</param>
 /// <param name="Exposes">The target-side declaration, when other packages may reference the type.</param>
+/// <param name="CreationGate">The type's creation gate; absent is <c>form_only</c> (records-ck-22).</param>
+/// <param name="CreationRoleId">For a <c>role</c> gate, the one creation role (decision D1).</param>
 public sealed record NewRecordType(
     string Tenant,
     string Section,
@@ -34,7 +37,9 @@ public sealed record NewRecordType(
     RecordClass? RecordClass = null,
     string? PackageId = null,
     IReadOnlyList<RecordsRequirement>? Requires = null,
-    RecordsExposure? Exposes = null);
+    RecordsExposure? Exposes = null,
+    RecordCreationGate? CreationGate = null,
+    string? CreationRoleId = null);
 
 /// <summary>A created Record Type draft and the id the authoring boundary minted for it.</summary>
 public sealed record RecordTypeDraft(string RecordTypeId, DefinitionRevision Revision);
@@ -66,14 +71,17 @@ public sealed class RecordTypeDefinitionStore
     private readonly ISchemaRegistry _registry;
     private readonly DefinitionContractWindow _window;
     private readonly FieldDomainScope? _fieldDomainScope;
+    private readonly RoleVocabulary? _roles;
 
     /// <summary>
     /// Wraps a host's shared store. The host registers <see cref="Admission"/> for
-    /// <see cref="DefinitionKind.Records"/> with the same validator the compiler uses.
+    /// <see cref="DefinitionKind.Records"/> with the same validator the compiler uses. <paramref name="roles"/> is Access's
+    /// role vocabulary a <c>role</c> gate's <c>creation_role_id</c> resolves through at publication (decision D1); absent,
+    /// publishing a role-gated type refuses <c>records.creation_role.unknown</c>, and diagnostics skip the check.
     /// </summary>
     public RecordTypeDefinitionStore(IVersionedDefinitionStore store, RecordTypeSchemaCompiler compiler,
         RecordFieldDefaults defaults, ISchemaRegistry registry, DefinitionContractWindow window,
-        FieldDomainScope? fieldDomainScope = null)
+        FieldDomainScope? fieldDomainScope = null, RoleVocabulary? roles = null)
     {
         ArgumentNullException.ThrowIfNull(store);
         ArgumentNullException.ThrowIfNull(compiler);
@@ -86,6 +94,7 @@ public sealed class RecordTypeDefinitionStore
         _registry = registry;
         _window = window;
         _fieldDomainScope = fieldDomainScope;
+        _roles = roles;
     }
 
     /// <summary>
@@ -118,7 +127,7 @@ public sealed class RecordTypeDefinitionStore
         var document = Materialize(new RecordTypeDocument(
             new(request.Tenant, request.Section, request.Contract, request.PackageId, request.Requires, request.Exposes),
             request.Name!, recordTypeId, request.Fields, request.Traits, request.RetentionClockFieldId,
-            request.ClassId, request.RecordClass));
+            request.ClassId, request.RecordClass, request.CreationGate, request.CreationRoleId));
         var candidate = await AdmitAsync(Catalogue(document, recordTypeId, request.Version), DefinitionAdmissionPhase.Author,
             cancellationToken).ConfigureAwait(false);
         return new(recordTypeId, await RecordsCatalogueIdentity.CreateAsync(_store, candidate.Document, requestId,
@@ -179,7 +188,7 @@ public sealed class RecordTypeDefinitionStore
         // edges before the store publishes: its home (records-ck-18) and every reference target (records-ck-10).
         var document = RecordTypeDefinitionJson.Deserialize(Encoding.UTF8.GetBytes(source.Document.BodyJson));
         var conditions = new List<DefinitionPublishedHeadCondition>();
-        var unresolved = await ResolveCatalogueEdgesAsync(tenant, document, cancellationToken, conditions).ConfigureAwait(false);
+        var unresolved = await ResolveCatalogueEdgesAsync(tenant, document, cancellationToken, conditions, publishing: true).ConfigureAwait(false);
         if (unresolved.Count > 0)
             throw new DefinitionRefusalException(DefinitionAdmissionPhase.Publish, unresolved);
         // A published source is a replay, which the store answers from its record at any revision.
@@ -242,12 +251,13 @@ public sealed class RecordTypeDefinitionStore
     }
 
     private async ValueTask<List<DefinitionRefusal>> ResolveCatalogueEdgesAsync(string tenant, RecordTypeDocument document,
-        CancellationToken cancellationToken, List<DefinitionPublishedHeadCondition>? conditions = null)
+        CancellationToken cancellationToken, List<DefinitionPublishedHeadCondition>? conditions = null, bool publishing = false)
     {
         var refusals = new List<DefinitionRefusal>();
         if (document.ClassId is { } classId
             && await _store.GetPublishedHeadAsync(ClassDefinitionStore.KeyOf(tenant, classId), cancellationToken).ConfigureAwait(false) is null)
             refusals.Add(new("records.class.unresolved", "/class_id"));
+        refusals.AddRange(CreationRoleRefusals(document, publishing));
         foreach (var (field, index) in (document.Fields ?? []).Select((field, index) => (field, index)))
         {
             if (field.Reference is not { } reference)
@@ -344,6 +354,30 @@ public sealed class RecordTypeDefinitionStore
 
     private sealed record EdgeTarget(DefinitionRevision? Revision, RecordsDefinitionEnvelope Envelope, IReadOnlyList<TraitReference>? Traits);
 
+    // D1: a role gate's one creation role resolves through Access's role vocabulary. Publication and installation fail
+    // closed without the vocabulary; a supplied vocabulary is honoured in diagnostics too (layout-auth-23's pattern). The
+    // bind path never re-runs this, so a later vocabulary change cannot make an already published type unbindable.
+    private IEnumerable<DefinitionRefusal> CreationRoleRefusals(RecordTypeDocument document, bool required)
+    {
+        if (RecordCreationPolicy.Of(document) is { Gate: RecordCreationGate.Role, RoleId: { } roleId }
+            && !string.IsNullOrWhiteSpace(roleId) && (_roles is not null || required) && !IsDefinedRole(roleId))
+            yield return new("records.creation_role.unknown", "/creation_role_id");
+    }
+
+    // A creation role is a domain role name, as Records names read roles (RoleReference.Domain); an unresolvable or
+    // malformed one is undefined.
+    private bool IsDefinedRole(string roleId)
+    {
+        try
+        {
+            return _roles?.Resolve(RoleReference.Domain(roleId)) is not null;
+        }
+        catch (ArgumentException)
+        {
+            return false;
+        }
+    }
+
     /// <summary>Copies a published body into a new draft version through the shared store.</summary>
     public ValueTask<DefinitionRevision> RestoreAsDraftAsync(string tenant, string recordTypeId, string sourceVersion,
         string draftVersion, long expectedRevision, string requestId, CancellationToken cancellationToken = default)
@@ -356,6 +390,24 @@ public sealed class RecordTypeDefinitionStore
     {
         var head = await _store.GetPublishedHeadAsync(KeyOf(tenant, recordTypeId), cancellationToken).ConfigureAwait(false);
         return head is null ? null : RecordTypeDefinitionJson.Deserialize(Encoding.UTF8.GetBytes(head.Document.BodyJson));
+    }
+
+    /// <summary>
+    /// The one governing creation policy (decision D1) of the published <paramref name="version"/>, or of the published head
+    /// when it is null; null when that version, or any version, is not published. It reads the catalogue on every call and
+    /// caches nothing. A host's decider adapter reads it to decide a typed <c>records:write</c> create on the head (the role
+    /// gate's creation role), and a host's Forms policy reader reads it to admit a form's record type target. It parses
+    /// the stored body only; admission and the schema are the bind path's.
+    /// </summary>
+    public async ValueTask<RecordCreationPolicy?> GetCreationPolicyAsync(string tenant, string recordTypeId,
+        string? version = null, CancellationToken cancellationToken = default)
+    {
+        var key = KeyOf(tenant, recordTypeId);
+        var published = version is null
+            ? await _store.GetPublishedHeadAsync(key, cancellationToken).ConfigureAwait(false)
+            : await _store.ResolvePublishedAsync(new DefinitionBinding(key, version), cancellationToken).ConfigureAwait(false);
+        return published is null ? null
+            : RecordCreationPolicy.Of(RecordTypeDefinitionJson.Deserialize(Encoding.UTF8.GetBytes(published.Document.BodyJson)));
     }
 
     /// <summary>
@@ -380,8 +432,10 @@ public sealed class RecordTypeDefinitionStore
     }
 
     /// <summary>
-    /// The installation gate (records-ck-41): Install-phase admission and the schema compile over an exported entry, then
-    /// every reference checked against what the installing host was handed, never its live catalogue. An unpinned
+    /// The installation gate (records-ck-41): Install-phase admission and the schema compile over an exported entry, a
+    /// role gate's creation role resolved through the store's role vocabulary (fails closed without one, as publication
+    /// does; <c>records.creation_role.unknown</c>), then every reference checked against what the installing host was
+    /// handed, never its live catalogue. An unpinned
     /// reference must target a definition the same pack ships; a pinned one needs this definition's <c>requires</c> entry
     /// at the pin's interface version and must equal the exposure its pinned dependency closure declares. Every refusal
     /// comes back together and nothing is written, so a host installs the edge set whole or not at all.
@@ -402,7 +456,9 @@ public sealed class RecordTypeDefinitionStore
             return new(refused.Stage, refused.Refusals);
         }
         var parsed = RecordTypeDefinitionJson.Deserialize(entry.Content.Payload.Span);
-        return new(DefinitionAdmissionPhase.Install, InstallEdges(parsed, closure).ToArray());
+        // F5: a pack cannot install a role-gated type whose creation role this host's vocabulary does not define: a gate
+        // nothing can satisfy is worse than an open one (ADR 0043).
+        return new(DefinitionAdmissionPhase.Install, CreationRoleRefusals(parsed, required: true).Concat(InstallEdges(parsed, closure)).ToArray());
     }
 
     private static IEnumerable<DefinitionRefusal> InstallEdges(RecordTypeDocument document, RecordsInstallClosure closure)
@@ -492,6 +548,12 @@ public sealed class RecordTypeDefinitionStore
                 refusals.Add(new("records.class.required", "/class_id"));
             if (parsed.RecordClass is null)
                 refusals.Add(new("records.record_class.required", "/record_class"));
+            // D1: a role gate names its one creation role, and no other gate names one. A draft may still be choosing.
+            var creation = RecordCreationPolicy.Of(parsed);
+            if (creation.Gate == RecordCreationGate.Role && string.IsNullOrWhiteSpace(creation.RoleId))
+                refusals.Add(new("records.creation_role.required", "/creation_role_id"));
+            else if (creation.Gate != RecordCreationGate.Role && creation.RoleId is not null)
+                refusals.Add(new("records.creation_role.unexpected", "/creation_role_id"));
         }
         return (parsed, refusals);
     }

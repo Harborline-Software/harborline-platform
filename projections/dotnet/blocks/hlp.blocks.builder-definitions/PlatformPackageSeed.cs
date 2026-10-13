@@ -7,6 +7,8 @@ namespace Harborline.Blocks.BuilderDefinitions;
 public static class PlatformPackageSeed
 {
     private const string ResourceName = "Harborline.Blocks.BuilderDefinitions.platform-pack.export.json";
+    // The released revision. Its ck-14 creationGate keeps the released spelling (K6); a new revision writes form_only.
+    private const string PackageRevision = PlatformCreationGateCompatibility.LegacyRevision;
     private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
     private static readonly PlatformPackageManifest CanonicalManifest = BuildManifest();
 
@@ -31,6 +33,12 @@ public static class PlatformPackageSeed
 
     /// <summary>Reports whether the embedded checked-in document is the byte-identical canonical export.</summary>
     public static bool VerifyCheckedInExport() => PlatformPackageExporter.Verify(CanonicalManifest, LoadCheckedInExport());
+
+    /// <summary>
+    /// Reads the record creation default (ck-14 <c>creationGate</c>) from the checked-in export through its
+    /// version-specific reader (K6): the released 1.0.0 spelling <c>form-only</c> is <see cref="RecordCreationGate.FormOnly"/>.
+    /// </summary>
+    public static RecordCreationGate CreationGate => PlatformCreationGateCompatibility.ReadCreationGate(LoadCheckedInExport());
 
     /// <summary>Reads and validates the ck-1 contract declaration from a platform package export.</summary>
     public static DefinitionContractWindow ReadContractWindow(ReadOnlySpan<byte> export)
@@ -139,13 +147,13 @@ public static class PlatformPackageSeed
             shape = "table",
         })).ToArray();
 
-        return new PlatformPackageManifest(1, "harborline.platform", "1.0.0", new[]
+        return new PlatformPackageManifest(1, "harborline.platform", PackageRevision, new[]
         {
             Item("platform-package-ck-1", PlatformSeedStage.PackageRecord, new
             {
                 id = "harborline.platform",
                 provenance = new { kind = "platform" },
-                version = "1.0.0",
+                version = PackageRevision,
                 contract = new { major = 1, minor = 0, window = new[] { 1, 1 } },
             }),
             Item("platform-package-ck-2", PlatformSeedStage.SystemRecordTypes, new { members = definitionTypes }, "platform-package-ck-1"),
@@ -320,7 +328,7 @@ public static class PlatformPackageSeed
             }, "platform-package-ck-12"),
             Item("platform-package-ck-14", PlatformSeedStage.GovernanceDefaults, new
             {
-                creationGate = "form-only",
+                creationGate = PlatformCreationGateCompatibility.SeedSpelling(PackageRevision),
                 uninterpretableRestriction = "refuse",
                 unknownPermittingDefinition = "inert",
                 unknownRestrictingDefinition = "refuse",
