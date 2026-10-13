@@ -73,15 +73,19 @@ after every stored binding is validated again and after a durable claim; recover
 idempotently on the original operation. `FormAcceptedCommandCancellation` cancels a pending command under the dedicated
 `records.command.cancel` permission; cancel and execution contend on the store's claim, so exactly one wins, and a cancel
 after the claim is `records.command.cancel_too_late`. Ordinary submissions, and forms targeting a `role` type, keep the
-existing delivery path. Under the decision 1 reading the host's submit-gate decider runs while the store scope is held,
+existing delivery path. A `role` target's failed inline delivery is retried only through the port's single-row lease in
+its submitter's replay, so a store without `IFormAcceptedCommandStore` refuses any targeted submit
+(`form.engine.provider-unavailable`), including an idempotent replay of an existing targeted submission, as it refuses
+a `form_only` one. Under the decision 1 reading the host's submit-gate decider runs while the store scope is held,
 so it must not open its own kernel transaction (the submit is then denied) and should be fast. Host enablement stays
 held.
 
 Revision 16 also adds: an audit envelope with every cancellation and refusal, in the same atomic
-transition; attempt-ordered leasing and a bounded retry before a claimed command with a broken binding is refused;
-`IFormProjectionSink.ExecutesAcceptedCommands`, without which a command is never claimed; no recovery of a targeted
-row without a command (never acting as the submitter); the acceptance snapshot bound to the command's own decision
-(`FormAcceptedCommandEvidence`); the mapped Records body digest bound at acceptance (`IFormAcceptedRecordBodies`); and
+transition; queue-ordered leasing (least recently enqueued first) and a bounded retry before a claimed command with a
+broken binding is refused; `IFormProjectionSink.ExecutesAcceptedCommands`, without which a command is never claimed;
+no recovery of a targeted row without a command (never acting as the submitter); the acceptance snapshot bound to the
+command's own decision (`FormAcceptedCommandEvidence`); the mapped Records body digest bound at acceptance
+(`IFormAcceptedRecordBodies`); and
 `form.engine.store-reentrant` plus `AcceptanceDecisionTimeout`, so a decider inside the acceptance can neither deadlock
 the store nor hold its scope indefinitely.
 

@@ -80,6 +80,28 @@ public sealed class FormAcceptedCommandGuardTests
         Assert.Equal((0, 0, 0, 0), await harness.Store.CountsAsync().AsTask().WaitAsync(Bound));
     }
 
+    public static TheoryData<string> BoundedCalls => ["gate", "digest"];
+
+    [Theory(DisplayName = "F2: when the acceptance bound fires and the bounded call then completes before the bound's continuation runs, the submit is still refused form.engine.resource-bound, for the gate and the digest alike")]
+    [MemberData(nameof(BoundedCalls))]
+    public async Task BoundRace_DeadlineFiresBeforeTheCallCompletes_IsResourceBound(string bounded)
+    {
+        var clock = new RacingClock();
+        var gate = bounded == "gate" ? (IFormSubmitGateAccess)new RacingGate(clock) : Port(new Decider());
+        var harness = await Harness.CreateAsync(definitionFactory: Targeted, submitGates: gate, recordTypePolicies: new FormOnlyReader(),
+            projectionSink: new RacingBodiesSink(bounded == "digest" ? clock : null), clock: clock);
+        using var ada = JsonDocument.Parse("""{"name":"Ada"}""");
+
+        var refused = await Assert.ThrowsAsync<FormEngineResourceBoundException>(
+            async () => await harness.Engine.SubmitAsync(new(harness.Definition.Id, ada, "op-1")).AsTask().WaitAsync(Bound));
+
+        Assert.Equal("form.engine.resource-bound", refused.Code);
+        // The race took place: the bound's timer fired once, and the call had completed successfully before the refusal.
+        Assert.Equal(1, clock.Fired);
+        Assert.True(clock.CompletedCall is { IsCompletedSuccessfully: true });
+        Assert.Equal((0, 0, 0, 0), await harness.Store.CountsAsync().AsTask().WaitAsync(Bound));
+    }
+
     public static TheoryData<string> InvalidOptions => ["zero-timeout", "zero-retry-limit"];
 
     [Theory(DisplayName = "M2/M5: the acceptance bound and the binding retry limit must be positive")]
@@ -103,6 +125,80 @@ public sealed class FormAcceptedCommandGuardTests
             Token = cancellationToken;
             await Task.Delay(TimeSpan.FromSeconds(30), cancellationToken);
             return new("records-write-intent/1", "never");
+        }
+
+        public ValueTask<Projection.FormProjectionDeliveryResult> DeliverAsync(Persistence.FormProjectionEnvelope envelope, CancellationToken cancellationToken = default) =>
+            ValueTask.FromResult(new Projection.FormProjectionDeliveryResult([]));
+    }
+
+    // Review F2: a fake clock that stages the bound's race deterministically, on one thread. Its instant is the fixture's. A
+    // timer created while a call has armed it is that call's acceptance bound: it fires as it is created, so the bound has
+    // expired, and only then is the call completed, so the call has completed before the bound's continuation can run. Any
+    // other timer never fires.
+    private sealed class RacingClock : TimeProvider
+    {
+        private Func<Task>? _armed;
+
+        public int Fired { get; private set; }
+        public Task? CompletedCall { get; private set; }
+
+        public void Arm(Func<Task> completeCall) => _armed = completeCall;
+
+        public override DateTimeOffset GetUtcNow() => Now;
+
+        public override ITimer CreateTimer(TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period)
+        {
+            if (Interlocked.Exchange(ref _armed, null) is { } completeCall)
+            {
+                callback(state);
+                Fired++;
+                CompletedCall = completeCall();
+            }
+            return new InertTimer();
+        }
+
+        private sealed class InertTimer : ITimer
+        {
+            public bool Change(TimeSpan dueTime, TimeSpan period) => true;
+            public void Dispose() { }
+            public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+        }
+    }
+
+    // A submit-gate port whose decision is pending until the racing clock completes it, with a refusing decision, so a
+    // submit that used the late decision would be denied rather than resource-bound.
+    private sealed class RacingGate(RacingClock clock) : IFormSubmitGateAccess
+    {
+        public ValueTask<bool> SatisfiesAsync(FormExecutionScope scope, Harborline.Foundation.Forms.Models.FormDefinition definition,
+            Harborline.Contracts.Authorization.SubmitGate gate, CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException("the engine asks DecideAsync");
+
+        public ValueTask<FormSubmitGateDecision> DecideAsync(FormSubmitGateRequest request, CancellationToken cancellationToken = default)
+        {
+            var decision = new TaskCompletionSource<FormSubmitGateDecision>();
+            clock.Arm(() =>
+            {
+                decision.SetResult(new FormSubmitGateDecision(request.Intent, false, null));
+                return decision.Task;
+            });
+            return new(decision.Task);
+        }
+    }
+
+    // A sink whose mapped-body digest is pending until the racing clock completes it; without a clock it answers at once.
+    private sealed class RacingBodiesSink(RacingClock? clock) : Projection.IFormProjectionSink, IFormAcceptedRecordBodies
+    {
+        public ValueTask<FormAcceptedRecordBodyDigest> DigestAsync(FormAcceptedRecordBodyRequest request, CancellationToken cancellationToken = default)
+        {
+            var digest = new FormAcceptedRecordBodyDigest("records-write-intent/1", "body-digest");
+            if (clock is null) return ValueTask.FromResult(digest);
+            var body = new TaskCompletionSource<FormAcceptedRecordBodyDigest>();
+            clock.Arm(() =>
+            {
+                body.SetResult(digest);
+                return body.Task;
+            });
+            return new(body.Task);
         }
 
         public ValueTask<Projection.FormProjectionDeliveryResult> DeliverAsync(Persistence.FormProjectionEnvelope envelope, CancellationToken cancellationToken = default) =>

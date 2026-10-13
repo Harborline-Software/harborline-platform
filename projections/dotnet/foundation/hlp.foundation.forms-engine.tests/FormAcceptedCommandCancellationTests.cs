@@ -333,6 +333,84 @@ public sealed class FormAcceptedCommandCancellationTests
         Assert.Equal(FormAcceptedCommandState.Quarantined, Assert.Single(quarantinedHarness.State.Commands.Values).Command.State);
     }
 
+    public static TheoryData<string> BuiltInStores => ["in-memory", "file-journal"];
+
+    [Theory(DisplayName = "F3 (revision 16, M1): a pending cancel's audit and an abandonment's audit each carry the command id, operation id, Record Type, code and after_claim, false included, on both built-in stores and across a journal reopen")]
+    [MemberData(nameof(BuiltInStores))]
+    public async Task CancelAudit_PendingAndAbandon_CarryCommandOperationTypeCodeAndAfterClaim(string store)
+    {
+        using var directory = new TemporaryDirectory();
+        var journalPath = Path.Combine(directory.Path, "submissions.hlfj");
+        var state = new InMemoryFormSubmissionState();
+        using var journal = store == "file-journal" ? new FileJournalFormSubmissionStore(new() { JournalPath = journalPath }) : null;
+        IFormSubmissionTransactionStore submissions = (IFormSubmissionTransactionStore?)journal ?? new InMemoryFormSubmissionStore(state);
+        var commands = (IFormAcceptedCommandStore)submissions;
+        var decider = new Decider();
+        decider.CancelGrants.Add(Admin);
+        var harness = await AcceptingAsync(decider: decider, storeDecorator: _ => submissions);
+        using var ada = JsonDocument.Parse("""{"name":"Ada"}""");
+        var pendingReceipt = await harness.Engine.SubmitAsync(new(harness.Definition.Id, ada, "op-pending"));
+        var abandonReceipt = await harness.Engine.SubmitAsync(new(harness.Definition.Id, ada, "op-abandon"));
+        var rows = await commands.LeasePendingAsync(10, FormProjectionLeaseKinds.AcceptedCommands);
+        foreach (var row in rows) await submissions.ReleaseProjectionLeaseAsync(row.OutboxId);
+        var pendingId = Assert.Single(rows, row => row.InstanceId == pendingReceipt.InstanceId).OutboxId;
+        var abandonId = Assert.Single(rows, row => row.InstanceId == abandonReceipt.InstanceId).OutboxId;
+        await commands.ClaimAcceptedCommandAsync(abandonId, Worker, Now);
+        await commands.QuarantineAcceptedCommandAsync(abandonId, "records.command.binding_mismatch",
+            new Harborline.Kernel.Core.KernelAuditEvidence("quarantine-audit", Worker, Now, "{\"op\":\"accepted-command-quarantined\"}"u8.ToArray()));
+        var cancellation = new FormAcceptedCommandCancellation(submissions, new AccessProvider(decider), new FixedClock(Now),
+            new Effects(FormAcceptedCommandEffect.Absent));
+
+        var pending = await cancellation.CancelAsync(new(Tenant, Admin), pendingId);
+        var abandoned = await cancellation.CancelAsync(new(Tenant, Admin), abandonId);
+        IReadOnlyList<FormMutationAuditEnvelope> audits;
+        if (journal is null) audits = state.Audits.Values.ToArray();
+        else
+        {
+            // The round trip: the frames are written, the journal is closed, and a reopened store replays them.
+            journal.Dispose();
+            using var reopened = new FileJournalFormSubmissionStore(new() { JournalPath = journalPath });
+            audits = await reopened.AuditsAsync();
+        }
+
+        Assert.Equal((FormAcceptedCommandCancelStatus.Cancelled, false), (pending.Status, pending.Replayed));
+        Assert.Equal((FormAcceptedCommandCancelStatus.Cancelled, false), (abandoned.Status, abandoned.Replayed));
+        // Two acceptances, the quarantine, the pending cancel and the abandonment.
+        Assert.Equal(5, audits.Count);
+        AssertCancelAudit(audits, pendingId, pendingReceipt.InstanceId.ToString(), afterClaim: false);
+        AssertCancelAudit(audits, abandonId, abandonReceipt.InstanceId.ToString(), afterClaim: true);
+    }
+
+    // Revision 16, line 60: the canceller's audit names the command, its original operation (the committed instance, open item
+    // 3) and its Record Type, the cancelled code and after_claim, in exactly these members (R2-L5 spellings).
+    private static void AssertCancelAudit(IReadOnlyList<FormMutationAuditEnvelope> audits, string commandId, string operationId, bool afterClaim)
+    {
+        var audit = Assert.Single(audits, envelope =>
+            System.Text.Json.Nodes.JsonNode.Parse(envelope.Payload.Span)!["command_id"]?.GetValue<string>() == commandId
+            && envelope.ActorId == Admin);
+        var payload = System.Text.Json.Nodes.JsonNode.Parse(audit.Payload.Span)!.AsObject();
+        Assert.Equal(["after_claim", "code", "command_id", "op", "operation_id", "record_type_id"],
+            payload.Select(member => member.Key).Order(StringComparer.Ordinal));
+        Assert.Equal("accepted-command-cancelled", payload["op"]!.GetValue<string>());
+        Assert.Equal(operationId, payload["operation_id"]!.GetValue<string>());
+        Assert.Equal("notes.entry", payload["record_type_id"]!.GetValue<string>());
+        Assert.Equal("records.command.cancelled", payload["code"]!.GetValue<string>());
+        Assert.Equal(afterClaim, payload["after_claim"]!.GetValue<bool>());
+    }
+
+    // A fresh directory under the temp path, removed with everything in it.
+    private sealed class TemporaryDirectory : IDisposable
+    {
+        public string Path { get; } = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"harborline-forms-cancel-audit-{Guid.NewGuid():N}");
+
+        public TemporaryDirectory() => Directory.CreateDirectory(Path);
+
+        public void Dispose()
+        {
+            if (Directory.Exists(Path)) Directory.Delete(Path, recursive: true);
+        }
+    }
+
     // One form_only submit accepted by alice, claimed by the worker and then quarantined (review R2-M1), with its audit.
     private static async Task<(FormEngineOrchestrationTests.Harness Harness, string CommandId)> QuarantinedAsync(Decider decider)
     {
