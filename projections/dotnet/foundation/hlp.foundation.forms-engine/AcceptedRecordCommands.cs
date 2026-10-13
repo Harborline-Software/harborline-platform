@@ -151,10 +151,12 @@ internal static class FormAcceptedCommandAudit
     internal const string CodeKey = "code";
     internal const string AfterClaimKey = "after_claim";
 
-    // A cancel of a pending command (afterClaim false), or the abandonment of a quarantined one (afterClaim true).
-    internal static KernelAuditEvidence Cancelled(string commandId, string actorId, DateTimeOffset at, byte[] authoritySnapshot, bool afterClaim = false) =>
+    // A cancel of a pending command (afterClaim false), or the abandonment of a quarantined one (afterClaim true). Like a
+    // refusal, it names the command, its original operation and Record Type, the code and after_claim, false included
+    // (revision 16, M1; review F3).
+    internal static KernelAuditEvidence Cancelled(FormAcceptedRecordCommand command, string actorId, DateTimeOffset at, byte[] authoritySnapshot, bool afterClaim) =>
         new(Guid.NewGuid().ToString("N"), actorId, at,
-            Payload(CancelledOperation, commandId, null, null, FormAcceptedCommandAuthority.Cancelled, afterClaim ? true : (bool?)null))
+            Payload(CancelledOperation, command.CommandId, command.OperationId, command.RecordTypeId, FormAcceptedCommandAuthority.Cancelled, afterClaim))
         {
             AuthoritySnapshot = authoritySnapshot,
         };
@@ -176,7 +178,8 @@ internal static class FormAcceptedCommandAudit
             Payload(ResolvedOperation, command.CommandId, command.OperationId, command.RecordTypeId,
                 command.RefusalCode ?? FormAcceptedCommandAuthority.BindingMismatch, true));
 
-    private static byte[] Payload(string operation, string commandId, string? operationId, string? recordTypeId, string code, bool? afterClaim)
+    // Every lifecycle audit has the one shape: all six members, always written.
+    private static byte[] Payload(string operation, string commandId, string operationId, string recordTypeId, string code, bool afterClaim)
     {
         var buffer = new ArrayBufferWriter<byte>();
         using (var writer = new Utf8JsonWriter(buffer))
@@ -184,10 +187,10 @@ internal static class FormAcceptedCommandAudit
             writer.WriteStartObject();
             writer.WriteString(OperationKey, operation);
             writer.WriteString(CommandIdKey, commandId);
-            if (operationId is not null) writer.WriteString(OperationIdKey, operationId);
-            if (recordTypeId is not null) writer.WriteString(RecordTypeIdKey, recordTypeId);
+            writer.WriteString(OperationIdKey, operationId);
+            writer.WriteString(RecordTypeIdKey, recordTypeId);
             writer.WriteString(CodeKey, code);
-            if (afterClaim is { } claimed) writer.WriteBoolean(AfterClaimKey, claimed);
+            writer.WriteBoolean(AfterClaimKey, afterClaim);
             writer.WriteEndObject();
         }
         return buffer.WrittenSpan.ToArray();
@@ -363,9 +366,13 @@ public sealed class FormAcceptedCommandCancellation
         FormAcceptedCommandTransition? transition;
         try
         {
+            // Review F3: the audit names the command's operation and Record Type, so the command is read first. Its id, operation
+            // and type never change after acceptance, so this read cannot race the transition, which still decides the state.
+            var command = await commands.GetAcceptedCommandAsync(scope.Tenant, commandId, cancellationToken).ConfigureAwait(false);
+            if (command is null) return new(FormAcceptedCommandCancelStatus.NotFound, FormAcceptedCommandAuthority.NotFound, false, evidence);
             // Review M1: the cancellation is audited through the existing audit contract, atomically with the transition.
             transition = await commands.CancelAcceptedCommandAsync(scope.Tenant, commandId,
-                FormAcceptedCommandAudit.Cancelled(commandId, scope.ActorId, at, AuthoritySnapshotEncoding.Encode(evidence)),
+                FormAcceptedCommandAudit.Cancelled(command, scope.ActorId, at, AuthoritySnapshotEncoding.Encode(evidence), afterClaim: false),
                 cancellationToken).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
@@ -390,7 +397,7 @@ public sealed class FormAcceptedCommandCancellation
             var effect = await _effects.FindAsync(new(scope.Tenant, command), cancellationToken).ConfigureAwait(false);
             if (effect != FormAcceptedCommandEffect.Absent) return null;
             return await commands.AbandonQuarantinedCommandAsync(scope.Tenant, command.CommandId,
-                FormAcceptedCommandAudit.Cancelled(command.CommandId, scope.ActorId, at, AuthoritySnapshotEncoding.Encode(evidence), afterClaim: true),
+                FormAcceptedCommandAudit.Cancelled(command, scope.ActorId, at, AuthoritySnapshotEncoding.Encode(evidence), afterClaim: true),
                 cancellationToken).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }

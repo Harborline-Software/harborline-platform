@@ -385,6 +385,14 @@ public sealed class FileJournalFormSubmissionStore : IFormSubmissionTransactionS
         finally { _gate.Release(); }
     }
 
+    // The audit envelopes as replayed from the journal, so a test can read a persisted audit shape back (review F3).
+    internal async ValueTask<IReadOnlyList<FormMutationAuditEnvelope>> AuditsAsync()
+    {
+        await EnterAsync(default).ConfigureAwait(false);
+        try { return _audits.Values.Select(audit => FormSubmissionStoreModel.Clone(audit)).ToArray(); }
+        finally { _gate.Release(); }
+    }
+
     /// <inheritdoc />
     public void Dispose()
     {

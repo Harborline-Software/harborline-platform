@@ -766,6 +766,55 @@ public sealed class FormAcceptedRecordCommandTests
         Assert.Empty(state.Commands);
     }
 
+    [Fact(DisplayName = "F1 (fail closed, I-1): a role target's submit to a store without the command port is refused provider-unavailable before the gate is asked, and nothing persists")]
+    public async Task RoleTargetOnStoreWithoutCommandPort_IsRefusedAtSubmit()
+    {
+        var decider = new Decider();
+        var sink = new RecordsSink();
+        var plain = await Harness.CreateAsync(definitionFactory: Targeted, submitGates: Port(decider), recordTypePolicies: new RoleReader(),
+            projectionSink: sink, storeDecorator: inner => new PlainStore(inner));
+        var withPort = await Harness.CreateAsync(definitionFactory: Targeted, submitGates: Port(decider), recordTypePolicies: new RoleReader(),
+            projectionSink: sink);
+        using var ada = JsonDocument.Parse("""{"name":"Ada"}""");
+
+        var refused = await Assert.ThrowsAsync<FormEngineProviderUnavailableException>(
+            async () => await plain.Engine.SubmitAsync(new(plain.Definition.Id, ada, "op-role")));
+        var askedBeforeRefusal = decider.Requests.Count;
+        var delivered = await withPort.Engine.SubmitAsync(new(withPort.Definition.Id, ada, "op-role"));
+
+        Assert.Equal("form.engine.provider-unavailable", refused.Code);
+        Assert.Equal(0, askedBeforeRefusal);
+        Assert.Equal((0, 0, 0, 0), await plain.Store.CountsAsync());
+        // The control: the same role-targeted form on a store with the port is ordinary work, gated and delivered inline (D1).
+        Assert.Single(decider.Requests);
+        Assert.Equal(FormProjectionStatus.Complete, delivered.ProjectionStatus);
+        Assert.Equal(Target, Assert.Single(sink.Delivered).RecordTypeId);
+        Assert.Empty(withPort.State.Commands);
+    }
+
+    [Fact(DisplayName = "F5: on a store without the command port, recovery rotates stranded targeted rows undelivered, so more of them than a batch holds never starve an untargeted row")]
+    public async Task Recovery_StoreWithoutCommandPort_StrandedTargetedRowsDoNotStarveUntargetedRows()
+    {
+        var state = new InMemoryFormSubmissionState();
+        var store = new InMemoryFormSubmissionStore(state);
+        // Three targeted rows without a command (rows written before revision 16) wait ahead of one untargeted row.
+        for (var index = 0; index < 3; index++) await CommitOrdinaryAsync(store, $"stranded-{index}", Now, recordTypeId: Target);
+        await CommitOrdinaryAsync(store, "deliverable", Now);
+        var sink = new RecordsSink();
+        var recovery = await Harness.CreateAsync(state: state, projectionSink: sink, storeDecorator: inner => new PlainStore(inner));
+
+        var first = await recovery.Engine.RecoverProjectionsAsync(2);
+        var second = await recovery.Engine.RecoverProjectionsAsync(2);
+
+        // A release would keep stranded-0 and stranded-1 at the head and lease them again in every two-row batch.
+        Assert.Equal(new FormProjectionRecoveryResult(2, 0, 2), first);
+        Assert.Equal(new FormProjectionRecoveryResult(2, 1, 1), second);
+        Assert.Equal("outbox-deliverable", Assert.Single(sink.Delivered).OutboxId);
+        // Fail closed (review I-1): no targeted row is delivered; each leased one recorded one attempt and stays pending.
+        Assert.Equal(["outbox-stranded-0", "outbox-stranded-1", "outbox-stranded-2"], state.Pending.Keys.Order(StringComparer.Ordinal));
+        Assert.All(state.Pending.Values, row => Assert.Equal((1, "form.engine.projection-pending"), (row.Attempts, row.LastErrorCode)));
+    }
+
     [Fact(DisplayName = "L2: a refusal names the state it saw; a stale expected state changes nothing and adds no audit")]
     public async Task RefusalWithAStaleExpectedStateChangesNothing()
     {
@@ -872,22 +921,25 @@ public sealed class FormAcceptedRecordCommandTests
         Assert.Equal(2, state.Audits.Count);
     }
 
-    // One ordinary (untargeted) submission committed at the given instant, its lease released.
-    private static async Task CommitOrdinaryAsync(InMemoryFormSubmissionStore store, string id, DateTimeOffset at)
+    // One ordinary submission committed at the given instant, its lease released: untargeted, or, given a Record Type, a
+    // targeted row without a command (a role target, or a row written before revision 16).
+    private static async Task CommitOrdinaryAsync(InMemoryFormSubmissionStore store, string id, DateTimeOffset at, string? recordTypeId = null)
     {
         var tenant = new TenantId("tenant-engine");
         var party = Guid.Parse("11111111-1111-1111-1111-111111111111");
         var instance = new EntityId("harborline", "forms", id);
         var form = new FormDefinitionId("inspection");
         var version = new SemanticVersion(1, 0, 0);
+        var schema = recordTypeId is null ? (SchemaId?)null : new SchemaId("sha256:targeted");
         var bytes = "{}"u8.ToArray();
         await using (var scope = await store.BeginTransactionAsync())
         {
             await scope.CommitAsync(new FormSubmissionCommit(
                 "key-" + id,
-                new FormSubmissionRecord(instance, tenant, party, "alice", form, version, "fingerprint-" + id, bytes, at),
+                new FormSubmissionRecord(instance, tenant, party, "alice", form, version, "fingerprint-" + id, bytes, at, schema, recordTypeId),
                 new FormMutationAuditEnvelope("audit-" + id, instance, tenant, "alice", bytes, at),
-                new FormProjectionEnvelope("outbox-" + id, instance, tenant, party, "alice", form, version, null, bytes, at),
+                new FormProjectionEnvelope("outbox-" + id, instance, tenant, party, "alice", form, version, null, bytes, at,
+                    SchemaRef: schema, RecordTypeId: recordTypeId),
                 new FormSubmitReceipt(instance, at, FormProjectionStatus.Pending, [])));
         }
         await store.ReleaseProjectionLeaseAsync("outbox-" + id);

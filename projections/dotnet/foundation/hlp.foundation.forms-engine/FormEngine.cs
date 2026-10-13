@@ -165,6 +165,11 @@ public sealed class FormEngine : IFormEngine
         // store that holds the command and its fence; a store that would drop them refuses before anything is decided.
         var accepted = FormAcceptedCommandReadings.Qualifies(head, creationGate);
         if (accepted && (_submissions is not IFormAcceptedCommandStore || _recordBodies is null)) throw new FormEngineProviderUnavailableException();
+        // Review F1 (fail closed, rule I-1): a role target's failed inline delivery is redelivered only through the port's
+        // single-row lease, inside its own submitter's replay, and recovery never delivers it. A store without the port would
+        // strand that row with no error reaching anyone, so the submit is refused here, before the gate is asked, as a
+        // form_only submit is.
+        if (head.RecordTypeId is not null && _submissions is not IFormAcceptedCommandStore) throw new FormEngineProviderUnavailableException();
         // Decision 1's revocation ordering (reading, accepted 2026-10-12): an accepted command's gate is decided inside
         // the acceptance transaction, so it is ordered against a revocation contending on the store's scope.
         var decideInside = accepted && FormAcceptedCommandReadings.DecideAcceptanceInsideTransaction;
@@ -361,8 +366,9 @@ public sealed class FormEngine : IFormEngine
     }
 
     // Review R2-L2: one inline redelivery of a role target's pending row inside its submitter's own request. The row is
-    // leased first, so a concurrent replay or the original submit cannot deliver it twice; a store without the lease port, or
-    // a row another delivery holds, answers the stored pending receipt. A failure records an attempt and stays pending.
+    // leased first, so a concurrent replay or the original submit cannot deliver it twice; a store without the lease port
+    // (a targeted submit to one is refused before this point since review F1), or a row another delivery holds, answers
+    // the stored pending receipt. A failure records an attempt and stays pending.
     private async ValueTask<FormSubmitReceipt> RedeliverToSubmitterAsync(FormProjectionEnvelope stored, FormSubmitReceipt answer, CancellationToken cancellationToken)
     {
         if (_submissions is not IFormAcceptedCommandStore commands) return answer;
@@ -404,6 +410,9 @@ public sealed class FormEngine : IFormEngine
     // Review M5 and R2-L3: host code called while the acceptance holds the store scope waits at most
     // FormEngineOptions.AcceptanceDecisionTimeout. On expiry its own token is cancelled and the submit is refused
     // form.engine.resource-bound, so the scope is released; only the bound's own expiry is resource-bound.
+    // Review F2: the expiry is told apart by which task faulted, never by whether the call has completed, which can change
+    // between the deadline firing and the filter running. A TimeoutException that is the call's own fault (WaitAsync passes the
+    // call's exception through as the same instance) is the host's and passes on; any other one is the deadline's.
     private async ValueTask<T> BoundedAsync<T>(Func<CancellationToken, ValueTask<T>> call, CancellationToken cancellationToken)
     {
         using var expiry = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -413,12 +422,15 @@ public sealed class FormEngine : IFormEngine
             running = call(expiry.Token).AsTask();
             return await running.WaitAsync(_options.AcceptanceDecisionTimeout, _clock, cancellationToken).ConfigureAwait(false);
         }
-        catch (TimeoutException timeout) when (running is { IsCompleted: false })
+        catch (TimeoutException timeout) when (running is not null && !IsOwnFault(running, timeout))
         {
             await expiry.CancelAsync().ConfigureAwait(false);
             throw new FormEngineResourceBoundException(new AcceptanceBoundExpiredException(timeout));
         }
     }
+
+    private static bool IsOwnFault(Task task, Exception exception) =>
+        task.IsFaulted && task.Exception is { } faults && faults.InnerExceptions.Contains(exception);
 
     // Marks the resource-bound refusal BoundedAsync raises for its own expiry, which no host code can construct, so a host
     // port's own FormEngineResourceBoundException is never mistaken for it.
