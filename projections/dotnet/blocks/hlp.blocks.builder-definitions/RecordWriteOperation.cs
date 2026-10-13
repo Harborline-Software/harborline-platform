@@ -1,6 +1,5 @@
 using System.Buffers;
 using System.Globalization;
-using System.Numerics;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -184,7 +183,13 @@ public sealed record RecordWriteOutcome(RecordWriteReceipt? Receipt, bool Replay
 /// otherwise <c>D</c>, a sign, <c>&lt;length&gt;:</c>, the coefficient digits without leading or trailing zeros, then a
 /// signed base-10 exponent and <c>;</c>. So <c>3</c>, <c>3.0</c> and <c>3e0</c> are one value and the string
 /// <c>"3"</c> is another. Counts and lengths are decimal without leading zeros.</para>
-/// <para>No number is converted to binary64, and an exponent is never expanded: its size costs only its own digits.</para>
+/// <para>No number is converted to binary64, and an exponent is never expanded or parsed at arbitrary precision: the
+/// written exponent's leading zeros are skipped, and one with more than 18 significant digits (a magnitude of 10^18 or
+/// more) has no intent and throws <see cref="FormatException"/>, which a create refuses as
+/// <c>entity.validation.body_invalid</c> before any lookup. The bound is lexical, on the exponent as written, whatever
+/// the significand (so <c>0e1000000000000000000</c> refuses too); every number within it encodes exactly, and its
+/// normalized exponent may pass 10^18 by the significand's own digit counts. Encoding costs time and memory linear in
+/// the lexeme.</para>
 /// </remarks>
 public static partial class RecordWriteIntent
 {
@@ -193,6 +198,10 @@ public static partial class RecordWriteIntent
 
     // UTF-8 that throws on a lone surrogate instead of substituting U+FFFD; the operation id bound measures with it too.
     internal static readonly UTF8Encoding Strict = new(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true);
+
+    // The most significant digits a written exponent may have: its magnitude is below 10^18, so it and the normalized
+    // exponent fit a long exactly. A longer one has no intent (FormatException; a create refuses it as body_invalid).
+    private const int MaxExponentDigits = 18;
 
     /// <summary>Encodes one create's intent: version, Record Type, pin (or none) and body.</summary>
     public static byte[] Encode(string recordTypeId, string? version, JsonObject body)
@@ -273,8 +282,7 @@ public static partial class RecordWriteIntent
         var negative = number[0] == '-';
         if (negative) number = number[1..];
         var exponentAt = number.IndexOfAny('e', 'E');
-        var exponent = exponentAt < 0 ? BigInteger.Zero
-            : BigInteger.Parse(number[(exponentAt + 1)..], NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture);
+        var exponent = exponentAt < 0 ? 0L : WrittenExponent(number[(exponentAt + 1)..]);
         var significand = exponentAt < 0 ? number : number[..exponentAt];
         var point = significand.IndexOf('.');
         var fraction = point < 0 ? ReadOnlySpan<char>.Empty : significand[(point + 1)..];
@@ -285,9 +293,24 @@ public static partial class RecordWriteIntent
             return;
         }
         var coefficient = digits.TrimEnd('0');
-        var power = exponent - fraction.Length + (digits.Length - coefficient.Length);
+        // |exponent| < 10^18 and both lengths are below 2^31, so this is exact in a long.
+        var power = checked(exponent - fraction.Length + (digits.Length - coefficient.Length));
         Write(output, "D" + (negative ? "-" : "+") + coefficient.Length.ToString(CultureInfo.InvariantCulture) + ":" + coefficient
-            + (power.Sign < 0 ? "-" : "+") + BigInteger.Abs(power).ToString(CultureInfo.InvariantCulture) + ";");
+            + (power < 0 ? "-" : "+") + (power < 0 ? -power : power).ToString(CultureInfo.InvariantCulture) + ";");
+    }
+
+    // The written exponent: an optional sign, then ASCII digits (the lexeme already matched JsonNumber). Leading zeros
+    // are skipped at the cost of their own digits; more than MaxExponentDigits significant digits refuses before any
+    // arithmetic, so no arbitrary-precision parse ever runs and the accumulator cannot overflow.
+    private static long WrittenExponent(ReadOnlySpan<char> written)
+    {
+        var negative = written[0] == '-';
+        if (written[0] is '-' or '+') written = written[1..];
+        var significant = written.TrimStart('0');
+        if (significant.Length > MaxExponentDigits) throw new FormatException("The exponent is outside the encodable range.");
+        var magnitude = 0L;
+        foreach (var digit in significant) magnitude = magnitude * 10 + (digit - '0');
+        return negative ? -magnitude : magnitude;
     }
 
     private static void WriteString(ArrayBufferWriter<byte> output, string value) => WriteFramed(output, Strict.GetBytes(value));

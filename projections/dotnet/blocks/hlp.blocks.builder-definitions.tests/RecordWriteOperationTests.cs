@@ -452,6 +452,9 @@ public sealed class RecordWriteOperationTests
         Assert.NotEqual(Digest("-9223372036854775808"), Digest("-9223372036854775809"));
         Assert.NotEqual(Digest("12345678901234567890"), Digest("12345678901234567890.000000000000000001"));
         Assert.Equal(Digest("1e1000000000"), Digest("10e999999999"));
+        Assert.Equal(Digest("1e5"), Digest("1e00005"));
+        Assert.Equal(Digest("1e5"), Digest("1E+0000000000000000000000005"));
+        Assert.Equal(Digest("1e-1000000000"), Digest("1e-00000000000000000000001000000000"));
         Assert.NotEqual(Digest("1e1000000000"), Digest("1e1000000001"));
         Assert.Equal(Digest("""{"a":1,"b":{"d":[null,true],"c":"x"}}"""), Digest("""{"b":{"c":"x","d":[null,true]},"a":1.0}"""));
         Assert.NotEqual(Digest("[1,2]"), Digest("[2,1]"));
@@ -465,21 +468,80 @@ public sealed class RecordWriteOperationTests
         static string Digest(string json) => RecordWriteIntent.Digest(RecordWriteIntent.EncodeValue(JsonNode.Parse(json)));
     }
 
+    // ---- Exponent bound. A written exponent is read without arbitrary precision: leading zeros are skipped and more than
+    // ---- 18 significant digits has no intent. Encodings and digests below were computed by an independent reference
+    // ---- encoder of the documented grammar; each row also re-hashes its literal encoding here.
+
+    [Theory]
+    [Trait("Holds", "records-run-3")]
+    [InlineData("1e999999999999999999", "D+1:1+999999999999999999;", "ad6fd4447335c316068bdee49f894be45c763c314b8010bd63b7ca709d4cb2fa")]
+    [InlineData("1E+999999999999999999", "D+1:1+999999999999999999;", "ad6fd4447335c316068bdee49f894be45c763c314b8010bd63b7ca709d4cb2fa")]
+    [InlineData("1e-999999999999999999", "D+1:1-999999999999999999;", "1637c9c60c9f2e1b703ad1e1e75e9032c90691b8bba39412cace00398bd015e0")]
+    [InlineData("-9.99e999999999999999999", "D-3:999+999999999999999997;", "7c3033381758258cb26becfc8c5fb3e11418bc5fcd0a02958ebfba6218b0e13a")]
+    // The bound is on the written exponent; the normalized exponent may pass it by the significand's own digit counts.
+    [InlineData("10e999999999999999999", "D+1:1+1000000000000000000;", "c2433c72d359c74611328f709130105297745873bd19f1989e8e23b3a9a21391")]
+    [InlineData("0.1e-999999999999999999", "D+1:1-1000000000000000000;", "764fcee705f2db1e373ee4b350468a265ab7933909760a5a5af2ff8fce35a942")]
+    [InlineData("1e000000000000000000000000005", "D+1:1+5;", "aa865a6dea57b162e9c63076db53540409465b24d5b63c4420edcb79cd60206a")]
+    [InlineData("1e-0000000000000000000000000001000000000", "D+1:1-1000000000;", "e9eef74d8b914e4c9f4eab67331b4576d3a371d5058caaee96abc63c07e01f0a")]
+    [InlineData("1e00000000000000000000999999999999999999", "D+1:1+999999999999999999;", "ad6fd4447335c316068bdee49f894be45c763c314b8010bd63b7ca709d4cb2fa")]
+    [InlineData("1e+0", "D+1:1+0;", "a60e9c8ce63e03e8b4e59d9af89eb77f831d4c24ddd7db4c395abf933c1908a6")]
+    [InlineData("1e-0", "D+1:1+0;", "a60e9c8ce63e03e8b4e59d9af89eb77f831d4c24ddd7db4c395abf933c1908a6")]
+    [InlineData("0e999999999999999999", "Z", "bbeebd879e1dff6918546dc0c179fdde505f2a21591c9a9c96e36b054ec5af83")]
+    public void an_exponent_within_the_bound_encodes_exactly_byte_for_byte(string json, string encoding, string sha256)
+    {
+        var bytes = RecordWriteIntent.EncodeValue(JsonNode.Parse(json));
+
+        Assert.Equal(encoding, Encoding.UTF8.GetString(bytes));
+        Assert.Equal(sha256, RecordWriteIntent.Digest(bytes));
+        Assert.Equal(sha256, Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(encoding))));
+    }
+
+    [Theory]
+    [Trait("Holds", "records-run-3")]
+    [InlineData("1e1000000000000000000")]
+    [InlineData("1e-1000000000000000000")]
+    [InlineData("1e+99999999999999999999")]
+    [InlineData("-1E-99999999999999999999")]
+    [InlineData("0e1000000000000000000")]
+    [InlineData("-0.0e-1000000000000000000")]
+    [InlineData("1e00000000000000000001000000000000000000")]
+    [InlineData("[1,{\"a\":2.5E+1000000000000000000}]")]
+    public void an_exponent_beyond_the_bound_has_no_intent(string json)
+    {
+        var value = JsonNode.Parse(json);
+
+        Assert.Throws<FormatException>(() => RecordWriteIntent.EncodeValue(value));
+    }
+
+    [Theory]
+    [Trait("Holds", "records-run-3")]
+    [InlineData("", 4096)]
+    [InlineData("-", 4096)]
+    [InlineData("", 1_000_000)]
+    [InlineData("+", 1_000_000)]
+    public void an_enormous_exponent_has_no_intent(string sign, int nines)
+    {
+        var number = JsonNode.Parse("1e" + sign + new string('9', nines));
+
+        Assert.Throws<FormatException>(() => RecordWriteIntent.EncodeValue(number));
+    }
+
     [Fact]
     [Trait("Holds", "records-run-3")]
-    public void an_enormous_exponent_encodes_in_allocation_bounded_by_its_own_digits()
+    public void a_zero_padded_exponent_encodes_as_its_short_form_in_allocation_bounded_by_its_own_digits()
     {
-        var exponent = new string('9', 4096);
-        var number = JsonNode.Parse("1e" + exponent);
-        _ = RecordWriteIntent.EncodeValue(JsonNode.Parse("1e5"));
+        var lexeme = "1e" + new string('0', 1_000_000) + "5";
+        var number = JsonNode.Parse(lexeme);
+        _ = RecordWriteIntent.EncodeValue(JsonNode.Parse("1e05"));
 
         var before = GC.GetAllocatedBytesForCurrentThread();
         var bytes = RecordWriteIntent.EncodeValue(number);
         var allocated = GC.GetAllocatedBytesForCurrentThread() - before;
 
-        Assert.Equal("D+1:1+" + exponent + ";", Encoding.ASCII.GetString(bytes));
-        // Expanding 10^(10^4096 - 1) is impossible; one mebibyte bounds a parse of 4096 exponent digits many times over.
-        Assert.InRange(allocated, 0, 1_048_576);
+        Assert.Equal("D+1:1+5;", Encoding.ASCII.GetString(bytes));
+        Assert.Equal(RecordWriteIntent.EncodeValue(JsonNode.Parse("1e5")), bytes);
+        // The lexeme's own UTF-16 copy is about two bytes per character; twice that bounds everything else.
+        Assert.InRange(allocated, 0, 4L * lexeme.Length);
     }
 
     [Fact]
@@ -561,6 +623,53 @@ public sealed class RecordWriteOperationTests
         Assert.Equal("commit", text.Refusal!.Stage);
         Assert.Equal("records.write.replay_conflict", text.Refusal.Code);
         Assert.Null(text.Receipt);
+    }
+
+    [Fact]
+    [Trait("Holds", "records-run-3")]
+    public async Task a_zero_padded_exponent_retry_replays_and_an_exponent_beyond_the_bound_refuses_before_any_lookup()
+    {
+        var fixture = await Measured();
+        var first = await fixture.Operation.CreateAsync(new("tenant-a", Actor), Request("op-e", """{"measure":3.0}""", null, "eam.measured"));
+        var events = fixture.Port.Events.ToArray();
+
+        var padded = await fixture.Operation.CreateAsync(new("tenant-a", Actor),
+            Request("op-e", """{"measure":3e+0000000000000000000000000000}""", null, "eam.measured"));
+        var lookups = fixture.Port.Lookups.Count;
+        var beyond = await fixture.Operation.CreateAsync(new("tenant-a", Actor),
+            Request("op-e", """{"measure":3e+99999999999999999999}""", null, "eam.measured"));
+
+        Assert.True(padded.Replayed);
+        Assert.Equal(first.Receipt, padded.Receipt);
+        Assert.Equal(("validate", "entity.validation.body_invalid"), (beyond.Refusal!.Stage, beyond.Refusal.Code));
+        Assert.Empty(beyond.Refusal.Pointers);
+        Assert.Null(beyond.Receipt);
+        Assert.Equal(lookups, fixture.Port.Lookups.Count);
+        Assert.Equal(events, fixture.Port.Events);
+        Assert.Equal(1, fixture.Registry.Validations);
+    }
+
+    [Theory]
+    [Trait("Holds", "records-eng-8")]
+    [InlineData("", 19)]
+    [InlineData("+", 20)]
+    [InlineData("-", 19)]
+    [InlineData("", 1_000_000)]
+    public async Task a_body_number_whose_exponent_exceeds_the_bound_refuses_before_any_lookup(string sign, int nines)
+    {
+        var fixture = await Published();
+        var body = """{"asset_tag":"A-1","quantity":1e""" + sign + new string('9', nines) + "}";
+
+        var outcome = await fixture.Operation.CreateAsync(new("tenant-a", Actor), Request("op-exponent", body));
+
+        Assert.Equal(("validate", "entity.validation.body_invalid"), (outcome.Refusal!.Stage, outcome.Refusal.Code));
+        Assert.Empty(outcome.Refusal.Pointers);
+        Assert.Null(outcome.Receipt);
+        Assert.Same(Assert.Single(fixture.Gate.Returned), outcome.Decision);
+        Assert.Empty(fixture.Port.Lookups);
+        Assert.Empty(fixture.Port.Events);
+        Assert.Equal(0, fixture.Catalogue.HeadReads);
+        Assert.Equal(0, fixture.Registry.Validations);
     }
 
     [Fact]

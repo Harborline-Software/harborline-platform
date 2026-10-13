@@ -140,11 +140,15 @@ Insert-freedom differs by path:
 Retry identity is the intent, `records-write-intent/1` (proposed; byte grammar on `RecordWriteIntent`). It is
 structural and exact: `3`, `3.0` and `3e0` are one number and the string `"3"` is another; object member order is
 ignored at every depth; array order and `null` versus a missing member are meaningful. Numbers are never converted to
-binary64, and an exponent is never expanded. That normalization is for comparison only. The validator and the store
+binary64, and an exponent is never expanded or parsed at arbitrary precision: its leading zeros are skipped, and a
+written exponent with more than 18 significant digits (magnitude 10^18 or more, whatever the significand) has no intent,
+so encoding costs time and memory linear in the body. Every number within that bound encodes exactly. That
+normalization is for comparison only. The validator and the store
 receive the submitted body with object members in ordinal key order, every number in its submitted text, and every other
 value equal to the submitted one (the JSON writer may re-escape strings). So `3.0` under `fraction_digits` 0 still
 refuses `field.fraction_digits_exceeded`, and the committed body keeps `3.0`. A body string that is not Unicode text
-(a lone surrogate) has no intent and refuses `entity.validation.body_invalid` before any lookup (a provisional mapping). The encoding version is
+(a lone surrogate), or a body number whose exponent is beyond that bound, has no intent and refuses
+`entity.validation.body_invalid` with no pointer before any lookup (a provisional mapping). The encoding version is
 persisted with the committed operation.
 
 Refusals carry an ADR 0038 stage, a stable code and RFC 6901 pointers. They never carry the body, an intent digest or
