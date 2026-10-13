@@ -26,8 +26,8 @@ public sealed class FieldKindLimits
         MaxBytes = maxBytes;
         Minimum = minimum;
         Maximum = maximum;
-        _minimumNumber = minimum is null ? null : new(minimum);
-        _maximumNumber = maximum is null ? null : new(maximum);
+        _minimumNumber = minimum is null ? null : Admitted(minimum);
+        _maximumNumber = maximum is null ? null : Admitted(maximum);
     }
 
     /// <summary>The declared significant-digit cap, or no cap when absent.</summary>
@@ -86,7 +86,7 @@ public sealed class FieldKindLimits
             refusals.Add(new("field.kind_parameter_bounds_conflict", jsonPointer + "/max_length",
                 "max_length cannot be below min_length."));
         if (minimum is not null && maximum is not null
-            && new FieldNumber(minimum).CompareTo(new FieldNumber(maximum)) > 0)
+            && Admitted(minimum).CompareTo(Admitted(maximum)) > 0)
             refusals.Add(new("field.kind_parameter_bounds_conflict", jsonPointer + "/maximum",
                 "maximum cannot be below minimum."));
         if (refusals.Count != 0) throw new FieldAdmissionException(refusals);
@@ -112,7 +112,13 @@ public sealed class FieldKindLimits
                 {
                     using var document = JsonDocument.Parse(text);
                     if (document.RootElement.ValueKind == JsonValueKind.Number
-                        && string.Equals(document.RootElement.GetRawText(), text, StringComparison.Ordinal)) return text;
+                        && string.Equals(document.RootElement.GetRawText(), text, StringComparison.Ordinal))
+                    {
+                        if (FieldNumber.TryParse(text, out _)) return text;
+                        refusals.Add(FieldNumber.ExponentOutOfRange(
+                            "field.kind_parameter_invalid", jsonPointer + "/" + name));
+                        return null;
+                    }
                 }
             }
             catch (JsonException) { }
@@ -136,7 +142,8 @@ public sealed class FieldKindLimits
         var refusals = new List<FieldRefusal>();
         if (HasNumericLimits)
         {
-            var number = new FieldNumber(value.GetRawText());
+            if (!FieldNumber.TryParse(value.GetRawText(), out var number))
+                return [FieldNumber.ExponentOutOfRange("field.value_malformed", jsonPointer)];
             if (TotalDigits is { } maximumTotal && number.TotalDigits > maximumTotal)
                 refusals.Add(new("field.total_digits_exceeded", jsonPointer,
                     "The number exceeds the declared total_digits limit."));
@@ -188,6 +195,11 @@ public sealed class FieldKindLimits
 
     /// <summary>Produces the schema facet together with the mandatory runtime validator.</summary>
     public CompiledFieldKindLimits Compile() => new(this);
+
+    // Bounds reach here only after ReadNumber admitted them, so each is within the readable exponent range.
+    private static FieldNumber Admitted(string bound) => FieldNumber.TryParse(bound, out var number)
+        ? number
+        : throw new InvalidOperationException("An admitted numeric bound must be readable.");
 
     private static string Child(string pointer, string member)
         => pointer + "/" + member.Replace("~", "~0", StringComparison.Ordinal).Replace("/", "~1", StringComparison.Ordinal);
