@@ -6,6 +6,17 @@ exist before a catalogue seed is installed.
 
 It contains no host persistence, member interpreter, package installer, or HTTP adapter.
 
+## Audit evidence envelope
+
+`KernelAuditEvidence` is the audit envelope the boundary stages with each record, in one `StageAuditAsync` call:
+its id, the actor, the instant, the opaque payload, the `AuthoritySnapshot` of the enforcing decision (DES-0004
+`authority_snapshot`) and, since revision 8, the optional `OriginatorId`. `OriginatorId` is provenance for a durably
+accepted command executed by someone other than its submitter (decision D6, ADR-0110 decision 4): `ActorId` is the
+actual executor, the snapshot is the executor's own decision, and the originator is the submitter recorded beside them.
+It authorizes nothing. It is null for every producer that acts for itself, and when present it is nonblank and differs
+from the actor, or `Validate` refuses it before anything is staged. A host port persists it with the audit in the same
+transaction and never substitutes it for the actor.
+
 ## Clock and compiled bootstrap floor
 
 `KernelClock.GetUtcNow()` assigns the recorded instant from the host's injected authoritative

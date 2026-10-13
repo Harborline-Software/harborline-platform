@@ -265,9 +265,48 @@ pin to an older `role` version cannot widen a newer `form_only` head (the decide
 version is refused although the head is `role` (the bound revision refuses). A form that invokes a `role` type's create
 uses this same single decision and adds no creation gate (D1). The two refusal spellings are proposed.
 
-This slice does not build Mutate, Rules or React, or the form-origin entry through which a `form_only` type's records
-are created from an accepted form submission (plan W8). Until it lands, no `form_only` record can be created through
-this package, which is the fail-closed reading of K9.
+### Accepted commands: the form-origin entry (plan W8, ADR-0110 accepted 2026-10-12)
+
+A `form_only` type's records are created only from a durably accepted form submission. The accepting store (the Forms
+submission store) commits the exact command, the submit gate's authority snapshot and the delivery row together; the
+host's recovery worker then calls `RecordWriteOperation.CompleteAcceptedAsync(RecordWorkerScope, AcceptedRecordCreate)`
+while it holds the store's execution claim on the command. In order:
+
+1. **The worker's own act is decided first** (RW-1): act `records:complete-accepted` on record kind `accepted-command`,
+   id the command id, typed by the command's Record Type, with the submitter and operation id as fields
+   (`AcceptedRecordCommandAuthorization`; the spellings are accepted 2026-10-12, ADR-0110 open item 4). A conforming
+   host adapter allows only its recovery worker, only for a command its store holds and has claimed, and never through
+   a tenant-wide or root grant (K7). A refused worker learns nothing and the command stays pending.
+2. **The submitter is never decided for again.** Creation authorization was decided at acceptance by the form's submit
+   gate (ADR-0043), so an ordinary revocation after acceptance does not cancel the command (D4, K2). This is ADR-0110
+   decision 1's reading, accepted 2026-10-12, `AcceptedRecordCommandReadings.CreationAuthorizationDecided`.
+3. **The binding is validated at runtime.** The worker must act in the command's tenant and must not be the submitter
+   (`records.command.binding_mismatch`). The acceptance snapshot must be this command's own acceptance decision
+   (`AcceptedRecordCommandReadings.IsAcceptanceEvidence`, revision 2): a gate decision of `forms:submit-gate` on
+   `form/{FormRevision}`, allowed, for that tenant and submitter, at exactly `AcceptanceDecidedAt`
+   (`records.command.not_accepted`). The body's `records-write-intent/1` digest must equal the `BodyDigest` bound at
+   acceptance (`records.command.binding_mismatch`). A command without that evidence is ordinary queued work and goes
+   through `CreateAsync`, decided at commit (ADR-0100 decision 3). Bytes alone cannot prove that the accepting store holds
+   the command; that residual is escalated.
+4. **Idempotency on the original operation.** The key is the command's tenant, the submitter and the original operation
+   id, with the fourth frame `accepted-command` (`RecordWriteOperationKey.Origin`). Direct-create keys are byte-unchanged.
+   Duplicate delivery and recovery by another worker or a delegate replay the stored receipt and never insert twice;
+   another payload under the operation is `records.write.replay_conflict`; a missing or unreadable receipt is
+   `records.write.receipt_unsupported` and never authorizes another insertion.
+5. **Execution-time invariants.** The head published at execution binds and validates the body. An `engine` head refuses
+   `records.write.engine_only`; any other head that is no longer `form_only` refuses
+   `records.command.creation_gate_changed` (open item 11 reading: only a form-originated create of a `form_only` type is
+   an accepted command).
+6. **One atomic commit with provenance.** The row and the audit name the worker as actor and the submitter as
+   originator (`RecordWriteRow.OriginatorId`, `KernelAuditEvidence.OriginatorId`), the row links the command
+   (`AcceptedCommandId`) and its acceptance audit (`AcceptanceAuditId`), and the authority snapshot is the worker's own
+   decision.
+
+`AcceptedRecordCreateOutcomes.IsTerminalRefusal` tells the worker which outcomes end the command: authorize-stage
+refusals and `records.write.receipt_unsupported` stay pending, every other refusal is terminal. The three
+`records.command.*` spellings are provisional (ADR-0110 open item 7).
+
+This slice does not build Mutate, Rules or React.
 
 ## Configuration generations (T-459)
 

@@ -38,6 +38,14 @@ or adding one, is `access.decision_mismatch`. The evidence copies it as
 `AuthorizationDecisionEvidence.RecordTypeId` and adds no trace fact, so the four steps and their
 stored bytes are the same as for an untyped request. Existing requests set no type and are unchanged.
 
+`AuthoritySnapshotEncoding` (revision 6) is the one byte grammar of a stored authority snapshot: the
+evidence's tenant, principal, version and four projected steps, exactly as Records has committed them
+since T-616 003c. A writer that persists a decision's snapshot atomically with its outcome encodes it
+with `Encode`; another module reads it back with `TryDecode`, which returns the stored
+`AuthorizationTraceSnapshot` or null for anything that is not exactly that grammar, and `Fact` returns
+one recorded fact such as `verdict:allowed`. Nothing is re-derived and no verdict is calculated; a
+snapshot is evidence for a reader and must not be disclosed to clients (D6).
+
 Persist `AuthorizationDecisionEvidence.Project()` and the original counterfactual when the host
 records its decision. The storage adapter returns only `AuthorizationTraceSnapshot`, not audit
 payloads, signatures or diagnostic secrets. The reader authorizes the current `audit:trace-read`

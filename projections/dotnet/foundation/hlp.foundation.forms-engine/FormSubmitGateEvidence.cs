@@ -135,7 +135,7 @@ public sealed record FormSubmitAuthorization(
 /// exactly that request (D3). DES-0016 section 6 defines no act spelling; it forbids only a generic form-submit grant
 /// or a per-form capability. The act below is not a grant: it asks the host decider to evaluate the form's own declared
 /// gate, which travels in the record fields, so the host adapter must evaluate that field and never a grant on the act.
-/// The spellings are provisional until the owner ratifies them with the host decider adapter (W10).
+/// The spellings are accepted as implemented 2026-10-12 (ADR-0110 open item 4); host enablement (W10) stays held.
 /// </summary>
 public static class FormSubmitGateAuthority
 {

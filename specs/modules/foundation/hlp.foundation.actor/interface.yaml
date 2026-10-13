@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.foundation.actor",
-  "interfaceRevision": 5,
+  "interfaceRevision": 6,
   "status": "frozen",
   "purpose": "Expose authenticated actor resolution and Access set filtering, predicate-time row checks and stored trace projection/read contracts. The host authorization gate remains the sole decider; audit storage and HTTP remain host adapters.",
   "dependencies": [
@@ -28,6 +28,7 @@
     "AccessDecisionCheck": {"members": ["AccessCheck Check", "AuthorizationDecisionEvidence? Evidence; present only when the decider's evidence matches every request context field"]},
     "AccessRecord": {"members": ["string Tenant", "string Kind", "string Id", "IReadOnlyDictionary<string, JsonNode?> Fields", "string? RecordTypeId { init; }; the typed Records record-type target, revision 5"]},
     "AuthorizationDecisionEvidence": {"members": ["Project() -> four immutable AuthorizationTraceStep values; verdict supplied only by the enforcing gate", "string? RecordTypeId; copied from the request's typed target, revision 5; adds no trace fact"]},
+    "AuthoritySnapshotEncoding": {"members": ["Encode(AuthorizationDecisionEvidence) -> byte[]; the one stored authority-snapshot grammar, revision 6", "TryDecode(bytes) -> AuthorizationTraceSnapshot? ; null unless exactly that grammar", "Fact(snapshot, stage, prefix) -> string? ; one recorded fact, no verdict calculated"]},
     "IAuthorizationTraceStore": {"members": ["FindAsync(tenant, entryId) -> stored AuthorizationTraceSnapshot or absence"]},
     "AuthorizationTraceReader": {"members": ["ReadAsync(tenant, caller, entryId, instant) -> Available | NotAvailable | Refused | PreDecisionRefusal"]}
   },
@@ -55,6 +56,7 @@
     "Validation executes a fresh row check at its predicate instant; stage-one evidence cannot substitute for it.",
     "CheckWithEvidenceAsync is the same row check as CheckAsync with the decider's own evidence returned: the decider is called once, an invalid context never reaches it, and evidence naming any other principal, tenant, instant, operation, record kind or record id is withheld and refuses access.decision_mismatch. It calculates no verdict; a writer persists the returned evidence through its host trace plumbing (revision 4).",
     "A typed Records target (AccessRecord.RecordTypeId, revision 5, plan W9) is a request context field: a blank one refuses access.context_invalid before the decider, and evidence whose RecordTypeId differs ordinally from the request's, including a dropped or an added type, is withheld and refuses access.decision_mismatch. Untyped requests are unchanged, and the type adds no trace fact.",
+    "AuthoritySnapshotEncoding (revision 6, plan W6/W8, decision D6) is the one byte grammar of a stored authority snapshot: one JSON object of exactly tenant, principal, version and steps, the four projected steps as ordinal, stage and string facts, byte-identical to the grammar Records committed at T-616 003c. TryDecode returns null for anything else (not JSON, trailing content or comments, a missing, repeated, reordered or extra member, a blank tenant or principal, a non-integer version, or steps that are not act, effective-roles, standings and verdict at ordinals 1 to 4) and never repairs a snapshot. Fact returns the one fact of a stage with a prefix, or null when there is none or more than one; reading a snapshot calculates no verdict.",
     "Evidence projection never calculates a verdict. Trace reads authorize the current read and return frozen historical steps and counterfactual without replay.",
     "Unauthorized reads hide existence; no decision is absence; pre-decision refusal is distinct from a four-step decision."
   ],

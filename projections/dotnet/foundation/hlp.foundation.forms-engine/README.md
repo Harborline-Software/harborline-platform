@@ -61,6 +61,40 @@ unacknowledged sensitive connector inputs. A disposable minimal HTTP authoring h
 the seven-artifact transitive Harborline closure, and proves zero source/project fallback or assembly
 ambiguity.
 
+Revision 16 adds durably accepted Records commands (plan W6/W7, ADR-0110 accepted 2026-10-12; its readings
+are isolated in `FormAcceptedCommandReadings`). A submit whose published head targets a `form_only` Record Type is
+accepted, not delivered: its submit gate is decided inside the acceptance transaction, and the one existing atomic
+commit carries the submission, the audit with the gate's own evidence as its authority snapshot, and the delivery row
+with a `FormAcceptedRecordCommand` (command id, a server-derived operation id, the target, the payload fingerprint, the
+acceptance instant and snapshot). The submission store must implement `IFormAcceptedCommandStore`; both built-in stores
+do, and the journal writes such frames as format 3. The command executes only as the configured
+`FormEngineOptions.AcceptedCommandWorkerId`, never as the submitter, through `IFormProjectionSink.DeliverAcceptedAsync`,
+after every stored binding is validated again and after a durable claim; recovery executes an interrupted claim again,
+idempotently on the original operation. `FormAcceptedCommandCancellation` cancels a pending command under the dedicated
+`records.command.cancel` permission; cancel and execution contend on the store's claim, so exactly one wins, and a cancel
+after the claim is `records.command.cancel_too_late`. Ordinary submissions, and forms targeting a `role` type, keep the
+existing delivery path. Under the decision 1 reading the host's submit-gate decider runs while the store scope is held,
+so it must not open its own kernel transaction (the submit is then denied) and should be fast. Host enablement stays
+held.
+
+Revision 16 also adds: an audit envelope with every cancellation and refusal, in the same atomic
+transition; attempt-ordered leasing and a bounded retry before a claimed command with a broken binding is refused;
+`IFormProjectionSink.ExecutesAcceptedCommands`, without which a command is never claimed; no recovery of a targeted
+row without a command (never acting as the submitter); the acceptance snapshot bound to the command's own decision
+(`FormAcceptedCommandEvidence`); the mapped Records body digest bound at acceptance (`IFormAcceptedRecordBodies`); and
+`form.engine.store-reentrant` plus `AcceptanceDecisionTimeout`, so a decider inside the acceptance can neither deadlock
+the store nor hold its scope indefinitely.
+
+Revision 16 also never makes a claimed command terminal while an earlier run may have committed its
+effect (DES-0029 section 9): such a command is `Quarantined` instead, audited, non-terminal, visible in the pending pool
+and never leased again, after `AcceptedCommandBindingRetryLimit` binding failures (only binding failures count; a form
+revision that is not found is an infrastructure failure) or a Records refusal after a resumed claim. A cancel abandons a
+quarantined command only when the host's `IFormAcceptedCommandEffects` lookup establishes that its effect did not and
+cannot commit, and leaves quarantine as completed only through `FormAcceptedCommandResolution`, audited, when the same
+lookup finds its effect committed (`CompleteProjectionAsync` refuses a quarantined row). Leasing rotates (least recently enqueued first; a failed row goes to the back), so no row waits forever
+and stalled rows never starve fresh ones; the mapped-body digest is held to the acceptance bound;
+and a `role` target's failed inline delivery is retried only by its own submitter's replay.
+
 This is an implementation checkpoint, not HLF-055 completion. All 80 captured source cases and all
 38 migration-gap cases pass. The package and its destination-neutral authoring-host boundary are
 package/consumer green. HLF-055 remains open for the authenticated inspection-review vertical slice.

@@ -64,8 +64,12 @@ public sealed class FormSubmitGateEvidenceTests
         Assert.Equal(Target, stored.Submission.RecordTypeId);
         Assert.Equal(harness.Definition.SchemaRef, stored.Projection.SchemaRef);
         Assert.Equal(Target, stored.Projection.RecordTypeId);
-        Assert.Equal(Target, Assert.Single(harness.Projection.Delivered).RecordTypeId);
-        Assert.Equal((1, 1, 0, 1), await harness.Store.CountsAsync());
+        // ADR-0110 (W6): a form_only target's submit is a durably accepted command, executed only by the configured worker,
+        // never delivered inline as the submitter; with no worker configured its row stays pending.
+        Assert.Equal(Target, Assert.IsType<FormAcceptedRecordCommand>(stored.Projection.AcceptedCommand).RecordTypeId);
+        Assert.Empty(harness.Projection.Delivered);
+        Assert.Equal(FormProjectionStatus.Pending, receipt.ProjectionStatus);
+        Assert.Equal((1, 1, 1, 0), await harness.Store.CountsAsync());
 
         // The one request the decider saw: act, principal, tenant, form revision, instant and gate fields, all literal.
         var asked = Assert.Single(decider.Requests);
@@ -110,7 +114,7 @@ public sealed class FormSubmitGateEvidenceTests
         var harness = await Harness.CreateAsync(definitionFactory: Targeted, submitGates: Port(decider), recordTypePolicies: FormOnly());
         using var ada = JsonDocument.Parse("""{"name":"Ada"}""");
         await harness.Engine.SubmitAsync(new(harness.Definition.Id, ada, "op-1"));
-        Assert.Equal((1, 1, 0, 1), await harness.Store.CountsAsync());
+        Assert.Equal((1, 1, 1, 0), await harness.Store.CountsAsync());
 
         decider.Allowed = false;
 
@@ -122,7 +126,7 @@ public sealed class FormSubmitGateEvidenceTests
         Assert.False(Assert.IsType<AuthorizationDecisionEvidence>(fresh.Evidence).Allowed);
         Assert.False(Assert.IsType<AuthorizationDecisionEvidence>(replay.Evidence).Allowed);
         Assert.Equal(3, decider.Produced.Count);
-        Assert.Equal((1, 1, 0, 1), await harness.Store.CountsAsync());
+        Assert.Equal((1, 1, 1, 0), await harness.Store.CountsAsync());
     }
 
     // ---- forged or mismatched evidence --------------------------------------------------------------------------------
@@ -354,7 +358,7 @@ public sealed class FormSubmitGateEvidenceTests
         Assert.Same(decider.Produced[2], replayAuthorization.Evidence);
         Assert.NotSame(firstAuthorization.Evidence, replayAuthorization.Evidence);
         Assert.Equal(AdaFingerprint, Assert.Single(harness.State.Idempotency.Values).Submission.RequestFingerprint);
-        Assert.Equal((1, 1, 0, 1), await harness.Store.CountsAsync());
+        Assert.Equal((1, 1, 1, 0), await harness.Store.CountsAsync());
     }
 
     [Fact(DisplayName = "D3: a port replaying the first operation's decision for a second operation is refused")]
@@ -371,7 +375,7 @@ public sealed class FormSubmitGateEvidenceTests
 
         Assert.Null(denied.Evidence);
         Assert.Single(decider.Produced);
-        Assert.Equal((1, 1, 0, 1), await harness.Store.CountsAsync());
+        Assert.Equal((1, 1, 1, 0), await harness.Store.CountsAsync());
     }
 
     [Fact(DisplayName = "D3: stale evidence from an earlier decision, re-wrapped for the new intent, is refused by its instant")]
@@ -399,7 +403,7 @@ public sealed class FormSubmitGateEvidenceTests
 
         Assert.Null(denied.Evidence);
         Assert.Equal(Now, Assert.IsType<AuthorizationDecisionEvidence>(firstEvidence).At);
-        Assert.Equal((1, 1, 0, 1), await harness.Store.CountsAsync());
+        Assert.Equal((1, 1, 1, 0), await harness.Store.CountsAsync());
     }
 
     // ---- idempotent replay binds the stored write (F1) ----------------------------------------------------------------
@@ -423,7 +427,7 @@ public sealed class FormSubmitGateEvidenceTests
         var stored = Assert.Single(state.Idempotency.Values);
         Assert.Equal(Actor, stored.Submission.ActorId);
         Assert.Equal(original.InstanceId, stored.Submission.InstanceId);
-        Assert.Equal((1, 1, 0, 1), await alice.Store.CountsAsync());
+        Assert.Equal((1, 1, 1, 0), await alice.Store.CountsAsync());
     }
 
     [Fact(DisplayName = "D3 (F1): replaying an operation accepted on version 1.0.0 against published 1.1.0 conflicts")]
@@ -442,7 +446,7 @@ public sealed class FormSubmitGateEvidenceTests
             async () => await later.Engine.SubmitAsync(new(later.Definition.Id, candidate, "op-1")));
 
         Assert.Equal(new SemanticVersion(1, 0, 0), Assert.Single(state.Idempotency.Values).Submission.DefinitionVersion);
-        Assert.Equal((1, 1, 0, 1), await first.Store.CountsAsync());
+        Assert.Equal((1, 1, 1, 0), await first.Store.CountsAsync());
     }
 
     [Fact(DisplayName = "D3 (F1, F8): replaying an operation under another case reference conflicts; the same case replays")]
@@ -461,7 +465,7 @@ public sealed class FormSubmitGateEvidenceTests
         Assert.Equal(first.InstanceId, sameAuthorization.InstanceId);
         Assert.Equal("case-1", sameAuthorization.Intent.CaseReference);
         Assert.Equal("case-1", Assert.Single(harness.State.Idempotency.Values).Projection.CaseReference);
-        Assert.Equal((1, 1, 0, 1), await harness.Store.CountsAsync());
+        Assert.Equal((1, 1, 1, 0), await harness.Store.CountsAsync());
     }
 
     [Theory(DisplayName = "D4 (R2-7): a replay without evidence is refused for any caller but the original submitter, who still replays")]

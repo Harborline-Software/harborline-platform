@@ -53,15 +53,16 @@ public sealed class InMemoryFormDefinitionStore : IFormDefinitionStore, IDisposa
     /// refuses (<c>form.record_type.policy_unavailable</c>, <c>form.record_type.target_ambiguous</c>). Absent, no form is
     /// declared to create Records.</param>
     /// <param name="recordCreationProducer">The host's submission producer, for example the projection sink the form engine
-    /// is given. When <paramref name="recordCreations"/> is null and this producer implements
-    /// <see cref="IFormRecordCreationDeclarations"/>, its declaration is used: the same fallback the form engine applies to
-    /// its sink (<see cref="RecordCreationDeclarations.Select"/>), so publication and submit refuse consistently.</param>
+    /// is given, typed as the declaration it must implement (N2): passing a producer that declares nothing is a compile error
+    /// rather than a silent absence of any declaration. When <paramref name="recordCreations"/> is null its declaration is
+    /// used: the same fallback the form engine applies to its sink (<see cref="RecordCreationDeclarations.Select"/>), so
+    /// publication and submit refuse consistently.</param>
     public InMemoryFormDefinitionStore(
         TimeProvider time,
         AuthorizationCapabilityRegister? capabilities = null,
         IFormRecordTypePolicyReader? recordTypePolicies = null,
         IFormRecordCreationDeclarations? recordCreations = null,
-        object? recordCreationProducer = null)
+        IFormRecordCreationDeclarations? recordCreationProducer = null)
     {
         ArgumentNullException.ThrowIfNull(time);
         _time = time;

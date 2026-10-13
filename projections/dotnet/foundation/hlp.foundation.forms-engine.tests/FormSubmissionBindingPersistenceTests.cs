@@ -67,11 +67,12 @@ public sealed class FormSubmissionBindingPersistenceTests
         Assert.Null(submission.RecordTypeId);
     }
 
+    // Format 3 now carries accepted Records commands (ADR-0110, W6); 4 is the first unknown format.
     [Fact(DisplayName = "F4: a frame of an unknown journal format is refused")]
     public void UnknownFormatIsRefused()
     {
         using var fixture = new Fixture();
-        File.WriteAllBytes(fixture.JournalPath, Frame(3, LegacyCommitPayload()));
+        File.WriteAllBytes(fixture.JournalPath, Frame(4, LegacyCommitPayload()));
 
         var refusal = Assert.Throws<InvalidDataException>(() => fixture.Open());
 

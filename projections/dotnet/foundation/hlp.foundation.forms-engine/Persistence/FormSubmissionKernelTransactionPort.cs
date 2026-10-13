@@ -61,7 +61,11 @@ public sealed class FormSubmissionKernelTransactionPort(IFormSubmissionTransacti
             if (!StringComparer.Ordinal.Equals(audit.AuditId, recordAudit.AuditId)
                 || !StringComparer.Ordinal.Equals(audit.ActorId, recordAudit.ActorId)
                 || audit.RecordedAt != recordAudit.RecordedAt
-                || !audit.Payload.Span.SequenceEqual(recordAudit.Payload.Span))
+                || !audit.Payload.Span.SequenceEqual(recordAudit.Payload.Span)
+                // ADR-0110 decision 1: the acceptance snapshot staged with the kernel audit is the one the store commits.
+                || !audit.AuthoritySnapshot.Span.SequenceEqual(recordAudit.AuthoritySnapshot.Span)
+                // A submitter acts for itself: a Forms submission audit names no originator.
+                || audit.OriginatorId is not null)
                 throw new InvalidOperationException("The Forms audit does not match the staged commit.");
             _audit = audit;
             return ValueTask.CompletedTask;
