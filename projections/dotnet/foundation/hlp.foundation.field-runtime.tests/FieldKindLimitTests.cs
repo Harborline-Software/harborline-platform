@@ -117,6 +117,99 @@ public sealed class FieldKindLimitTests
         Assert.Equal("field.fraction_digits_exceeded", refusal.Code);
     }
 
+    // ---- Exponent bound. A written exponent is read without arbitrary precision: leading zeros are skipped and more
+    // ---- than 18 significant digits refuses as field.value_malformed. Expected codes below are hand-derived from the
+    // ---- documented counting rules and hold on the unbounded parser as well (in-bound behavior is unchanged).
+
+    [Theory]
+    [InlineData("1e999999999999999999", 3, 1, "field.total_digits_exceeded")]
+    [InlineData("-9.99E+999999999999999999", 3, 1, "field.total_digits_exceeded")]
+    [InlineData("1e-999999999999999999", 3, 1, "field.fraction_digits_exceeded")]
+    [InlineData("0.1e-999999999999999999", 3, 1, "field.fraction_digits_exceeded")]
+    [InlineData("10e999999999999999999", 3, 1, "field.total_digits_exceeded")]
+    [InlineData("0e999999999999999999", 1, 0, "")]
+    [InlineData("0e-999999999999999999", 1, 0, "field.total_digits_exceeded field.fraction_digits_exceeded")]
+    [InlineData("1e000000000000000000000000005", 6, 0, "")]
+    [InlineData("1e000000000000000000000000005", 5, 0, "field.total_digits_exceeded")]
+    [InlineData("1e-0000000000000000000000000001", 1, 1, "")]
+    [InlineData("1e-0000000000000000000000000001", 1, 0, "field.fraction_digits_exceeded")]
+    [InlineData("1e00000000000000000000999999999999999999", 3, 1, "field.total_digits_exceeded")]
+    [InlineData("1e+0", 1, 0, "")]
+    [InlineData("1e-0", 1, 0, "")]
+    public void An_exponent_within_the_bound_counts_digits_exactly(
+        string number, int totalDigits, int fractionDigits, string codes)
+    {
+        var refusals = Limits(totalDigits, fractionDigits).ValidateJson(number, "/price");
+
+        Assert.Equal(codes.Split(' ', StringSplitOptions.RemoveEmptyEntries), refusals.Select(refusal => refusal.Code));
+    }
+
+    [Theory]
+    [InlineData("1e1000000000000000000")]
+    [InlineData("1e-1000000000000000000")]
+    [InlineData("1E+99999999999999999999")]
+    [InlineData("-1e-99999999999999999999")]
+    [InlineData("0e1000000000000000000")]
+    [InlineData("-0.0e-1000000000000000000")]
+    [InlineData("1e00000000000000000001000000000000000000")]
+    public void An_exponent_beyond_the_bound_refuses_as_malformed(string number)
+    {
+        var refusal = Assert.Single(Limits(3, 1).ValidateJson(number, "/items/0/price"));
+
+        Assert.Equal("field.value_malformed", refusal.Code);
+        Assert.Equal("/items/0/price", refusal.JsonPointer);
+    }
+
+    [Theory]
+    [InlineData("", 4096)]
+    [InlineData("-", 1_000_000)]
+    [InlineData("+", 1_000_000)]
+    public void An_enormous_exponent_refuses_as_malformed_in_allocation_bounded_by_its_own_digits(string sign, int nines)
+    {
+        var lexeme = "1e" + sign + new string('9', nines);
+        using var document = JsonDocument.Parse(lexeme);
+        var limits = Limits(3, 1);
+        _ = limits.Validate(document.RootElement, "/price");
+
+        var before = GC.GetAllocatedBytesForCurrentThread();
+        var refusals = limits.Validate(document.RootElement, "/price");
+        var allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+
+        Assert.Equal("field.value_malformed", Assert.Single(refusals).Code);
+        // The lexeme's own UTF-16 copy is about two bytes per character; twice that bounds everything else.
+        Assert.InRange(allocated, 0, 4L * lexeme.Length);
+    }
+
+    [Fact]
+    public void A_zero_padded_exponent_counts_as_its_short_form_in_allocation_bounded_by_its_own_digits()
+    {
+        var lexeme = "1e" + new string('0', 1_000_000) + "5";
+        using var document = JsonDocument.Parse(lexeme);
+        var limits = Limits(5, 0);
+        _ = limits.ValidateJson("1e05", "/price");
+
+        var before = GC.GetAllocatedBytesForCurrentThread();
+        var refusals = limits.Validate(document.RootElement, "/price");
+        var allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+
+        Assert.Equal("field.total_digits_exceeded", Assert.Single(refusals).Code);
+        Assert.Empty(Limits(6, 0).Validate(document.RootElement, "/price"));
+        Assert.InRange(allocated, 0, 4L * lexeme.Length);
+    }
+
+    [Theory]
+    [InlineData("minimum", "1e1000000000000000000")]
+    [InlineData("maximum", "-1E-99999999999999999999")]
+    public void A_bound_whose_exponent_is_beyond_the_bound_is_refused_at_declaration(string name, string bound)
+    {
+        var error = Assert.Throws<FieldAdmissionException>(() => FieldKindLimits.FromKindParameters(
+            new Dictionary<string, string> { [name] = bound }, "/kind/parameters"));
+
+        var refusal = Assert.Single(error.Refusals);
+        Assert.Equal("field.kind_parameter_invalid", refusal.Code);
+        Assert.Equal("/kind/parameters/" + name, refusal.JsonPointer);
+    }
+
     private static FieldKindLimits Limits(int totalDigits, int fractionDigits)
         => FieldKindLimits.FromKindParameters(new Dictionary<string, string>
         {

@@ -1,5 +1,6 @@
-using System.Globalization;
+using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
+using Harborline.Contracts.Fields;
 
 namespace Harborline.Foundation.FieldRuntime;
 
@@ -12,14 +13,13 @@ internal sealed class FieldNumber
     private readonly bool _negative;
     private readonly bool _zero;
 
-    internal FieldNumber(string raw)
+    // The most significant digits a written exponent may have: its magnitude is below 10^18, so it fits a long
+    // exactly. A longer one is never read, so no arbitrary-precision parse runs on an authored exponent.
+    private const int MaxExponentDigits = 18;
+
+    private FieldNumber(ReadOnlySpan<char> number, bool negative, BigInteger exponent)
     {
-        var number = raw.AsSpan();
-        var negative = number[0] == '-';
-        if (negative) number = number[1..];
         var exponentOffset = number.IndexOfAny('e', 'E');
-        var exponent = exponentOffset < 0 ? BigInteger.Zero : BigInteger.Parse(
-            number[(exponentOffset + 1)..], NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture);
         var significand = exponentOffset < 0 ? number : number[..exponentOffset];
         var point = significand.IndexOf('.');
         var authoredFraction = point < 0 ? 0 : significand.Length - point - 1;
@@ -35,6 +35,45 @@ internal sealed class FieldNumber
         var trailingZeroes = 0;
         for (var index = _digits.Length - 1; index >= 0 && _digits[index] == '0'; index--) trailingZeroes++;
         IsInteger = _zero || _power >= 0 || -_power <= trailingZeroes;
+    }
+
+    /// <summary>
+    /// Reads a JSON-number lexeme in time and memory linear in its length. False, with no number, when the written
+    /// exponent has more than <see cref="MaxExponentDigits"/> significant digits once leading zeros are skipped.
+    /// </summary>
+    internal static bool TryParse(string raw, [NotNullWhen(true)] out FieldNumber? parsed)
+    {
+        var number = raw.AsSpan();
+        var negative = number[0] == '-';
+        if (negative) number = number[1..];
+        var exponentOffset = number.IndexOfAny('e', 'E');
+        var exponent = 0L;
+        if (exponentOffset >= 0 && !TryReadExponent(number[(exponentOffset + 1)..], out exponent))
+        {
+            parsed = null;
+            return false;
+        }
+        parsed = new(number, negative, exponent);
+        return true;
+    }
+
+    /// <summary>The refusal for a JSON number whose written exponent is outside the readable range.</summary>
+    internal static FieldRefusal ExponentOutOfRange(string code, string jsonPointer)
+        => new(code, jsonPointer, "The number's exponent is outside the supported range.");
+
+    // The written exponent: an optional sign, then ASCII digits (the lexeme is already a JSON number). Leading zeros
+    // are skipped at the cost of their own digits; more than MaxExponentDigits significant digits refuses before any
+    // arithmetic, so the accumulator cannot overflow.
+    private static bool TryReadExponent(ReadOnlySpan<char> written, out long exponent)
+    {
+        var negative = written[0] == '-';
+        if (written[0] is '-' or '+') written = written[1..];
+        var significant = written.TrimStart('0');
+        exponent = 0L;
+        if (significant.Length > MaxExponentDigits) return false;
+        foreach (var digit in significant) exponent = exponent * 10 + (digit - '0');
+        if (negative) exponent = -exponent;
+        return true;
     }
 
     internal BigInteger TotalDigits { get; }

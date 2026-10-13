@@ -124,6 +124,45 @@ public sealed class FieldKindRuntimeTests
         Assert.Equal("/kind/parameters/max_length", Assert.Single(length.Refusals).JsonPointer);
     }
 
+    [Theory]
+    [InlineData("1e999999999999999999", "field.above_maximum")]
+    [InlineData("-1e999999999999999999", "field.below_minimum")]
+    [InlineData("1e-999999999999999999", null)]
+    [InlineData("-1e-999999999999999999", null)]
+    [InlineData("1.23e000000000000000000000000000", null)]
+    [InlineData("1.2301e-000000000000000000000000000", "field.above_maximum")]
+    [InlineData("1e1000000000000000000", "field.value_malformed")]
+    [InlineData("-1e-1000000000000000000", "field.value_malformed")]
+    public void Range_checks_read_an_exponent_within_the_bound_exactly_and_refuse_one_beyond_it(
+        string number, string? expectedCode)
+    {
+        var compiled = Runtime(FieldScalarValueShape.Number).Bind(new("amount", "1.0.0",
+            new Dictionary<string, string> { ["minimum"] = "-0.1", ["maximum"] = "1.2300" }), "/kind");
+
+        var refusals = compiled.ValidateJson(number, "/price");
+
+        if (expectedCode is null) Assert.Empty(refusals);
+        else Assert.Equal(expectedCode, Assert.Single(refusals).Code);
+    }
+
+    [Theory]
+    [InlineData("1e999999999999999999", null)]
+    [InlineData("1e-999999999999999999", "field.value_type_mismatch")]
+    [InlineData("100e-0000000000000000000000002", null)]
+    [InlineData("1e1000000000000000000", "field.value_malformed")]
+    [InlineData("1e-1000000000000000000", "field.value_malformed")]
+    public void Integer_shapes_read_an_exponent_within_the_bound_exactly_and_refuse_one_beyond_it(
+        string json, string? expectedCode)
+    {
+        var compiled = Runtime(FieldScalarValueShape.Integer).Bind(
+            new("amount", "1.0.0", new Dictionary<string, string>()), "/kind");
+
+        var refusals = compiled.ValidateJson(json, "/value");
+
+        if (expectedCode is null) Assert.Empty(refusals);
+        else Assert.Equal(expectedCode, Assert.Single(refusals).Code);
+    }
+
     private static IFieldKindRuntime Runtime(FieldScalarValueShape shape)
         => new FieldKindRuntime(new FieldKindRegistry([new("amount", "1.0.0", null, shape)]));
 }
