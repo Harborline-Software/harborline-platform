@@ -119,6 +119,87 @@ public sealed class PlatformPackageSeedTests
             new PlatformPackageExposure(1, null!))).ParamName);
     }
 
+    // Goal 3 P1 (Option A; records-ck-40/41): an exposure bound to exact published revisions is exported as
+    // exposedDefinitions right after interfaceVersion, one {definitionKey, version, digest} per bound key in ordinal key
+    // order. The expected document is a literal written outside the exporter; its digest value is the SHA-256 of the same
+    // bytes without the digest member, computed with Python hashlib.
+    [Fact]
+    [Trait("Holds", "records-ck-41")]
+    public void Export_writes_bound_exposed_definitions_after_the_interface_version_in_ordinal_key_order()
+    {
+        PlatformPackageItem[] items = [Entry("package", PlatformSeedStage.PackageRecord, "{}")];
+        var manifest = new PlatformPackageManifest(1, "tenant.release", "1.0.0", items, [],
+            new PlatformPackageExposure(3, ["records/payslip", "records/invoice"])
+            {
+                ExposedDefinitions =
+                [
+                    new("records/payslip", "1.4.0", PayslipDigest),
+                    new("records/invoice", "2.0.0", InvoiceDigest),
+                ],
+            });
+
+        Assert.Equal(["records/invoice", "records/payslip"], manifest.Exposure!.ExposedDefinitions.Select(entry => entry.DefinitionKey));
+        Assert.Equal(
+            """{"schemaVersion":1,"packageKey":"tenant.release","revision":"1.0.0","closure":{"dependencies":[]},"exposes":["records/invoice","records/payslip"],"interfaceVersion":3,"exposedDefinitions":[{"definitionKey":"records/invoice","version":"2.0.0","digest":"sha256:52d6e3de4fa0dcc29946695f93940c3e7f26f30e1e39f4b1a49ad98839112786"},{"definitionKey":"records/payslip","version":"1.4.0","digest":"sha256:1f336ef65e2a7a09bd57675fe6e32456c3a0aca423f4083c8db031c336e0845d"}],"items":[{"id":"package","stage":1,"dependencies":[],"content":{"classification":"present","mediaType":"application/json","payload":{}}}],"digest":{"algorithm":"sha256","value":"52dd65469f5d93f6f90178f21ffafe1fa937f685aa881eb102942c3d0e4c7ebb"}}""" + "\n",
+            Encoding.UTF8.GetString(PlatformPackageExporter.Export(manifest)));
+    }
+
+    // K6 for the carrier: an exposure with no bound entries (the default, or an explicit empty list) exports exactly the
+    // bytes an exposure exported before Goal 3 P1, with no exposedDefinitions member.
+    [Fact]
+    public void An_unbound_exposure_exports_no_exposed_definitions_and_the_bytes_it_did()
+    {
+        PlatformPackageItem[] items = [Entry("package", PlatformSeedStage.PackageRecord, "{}")];
+        var unbound = new PlatformPackageManifest(1, "tenant.release", "1.0.0", items, [],
+            new PlatformPackageExposure(3, ["records/invoice"]));
+        var empty = new PlatformPackageManifest(1, "tenant.release", "1.0.0", items, [],
+            new PlatformPackageExposure(3, ["records/invoice"]) { ExposedDefinitions = [] });
+
+        Assert.Empty(unbound.Exposure!.ExposedDefinitions);
+        var exported = PlatformPackageExporter.Export(unbound);
+        Assert.Equal(exported, PlatformPackageExporter.Export(empty));
+        using var document = JsonDocument.Parse(exported);
+        Assert.Equal(["schemaVersion", "packageKey", "revision", "closure", "exposes", "interfaceVersion", "items", "digest"],
+            document.RootElement.EnumerateObject().Select(member => member.Name));
+    }
+
+    // Each bound entry names an exposed key once, with a non-blank version and the store digest spelled exactly as
+    // sha256: plus 64 lowercase hex digits; anything else refuses rather than exporting an unverifiable fact.
+    [Theory]
+    [InlineData("records/other", "1.0.0", "sha256:52d6e3de4fa0dcc29946695f93940c3e7f26f30e1e39f4b1a49ad98839112786")]
+    [InlineData("records/invoice", "1.0.0", "sha256:52d6e3de4fa0dcc29946695f93940c3e7f26f30e1e39f4b1a49ad98839112786")]
+    [InlineData("records/payslip", " ", "sha256:1f336ef65e2a7a09bd57675fe6e32456c3a0aca423f4083c8db031c336e0845d")]
+    [InlineData("records/payslip", "1.0.0", "1f336ef65e2a7a09bd57675fe6e32456c3a0aca423f4083c8db031c336e0845d")]
+    [InlineData("records/payslip", "1.0.0", "sha256:1F336EF65E2A7A09BD57675FE6E32456C3A0ACA423F4083C8DB031C336E0845D")]
+    [InlineData("records/payslip", "1.0.0", "sha256:1f336ef65e2a7a09bd57675fe6e32456c3a0aca423f4083c8db031c336e0845")]
+    [InlineData("records/payslip", "1.0.0", "sha512:1f336ef65e2a7a09bd57675fe6e32456c3a0aca423f4083c8db031c336e0845d")]
+    [InlineData("records/payslip", "1.0.0", "")]
+    public void A_malformed_exposed_definition_refuses_by_name(string key, string version, string digest)
+    {
+        var exception = Assert.Throws<ArgumentException>(() => new PlatformPackageManifest(1, "tenant.release", "1.0.0",
+            [Entry("package", PlatformSeedStage.PackageRecord, "{}")], [],
+            new PlatformPackageExposure(1, ["records/invoice", "records/payslip"])
+            {
+                ExposedDefinitions = [new("records/invoice", "2.0.0", InvoiceDigest), new(key, version, digest)],
+            }));
+        Assert.StartsWith("platform-package-exposure-malformed", exception.Message, StringComparison.Ordinal);
+        Assert.Equal("exposure", exception.ParamName);
+    }
+
+    [Fact]
+    public void A_null_exposed_definition_list_or_entry_refuses()
+    {
+        PlatformPackageItem[] items = [Entry("package", PlatformSeedStage.PackageRecord, "{}")];
+        Assert.Equal("exposure", Assert.Throws<ArgumentNullException>(() => new PlatformPackageManifest(1, "p", "1.0.0", items, [],
+            new PlatformPackageExposure(1, ["records/invoice"]) { ExposedDefinitions = null! })).ParamName);
+        var exception = Assert.Throws<ArgumentException>(() => new PlatformPackageManifest(1, "p", "1.0.0", items, [],
+            new PlatformPackageExposure(1, ["records/invoice"]) { ExposedDefinitions = [null!] }));
+        Assert.StartsWith("platform-package-exposure-malformed", exception.Message, StringComparison.Ordinal);
+    }
+
+    private const string InvoiceDigest = "sha256:52d6e3de4fa0dcc29946695f93940c3e7f26f30e1e39f4b1a49ad98839112786";
+    private const string PayslipDigest = "sha256:1f336ef65e2a7a09bd57675fe6e32456c3a0aca423f4083c8db031c336e0845d";
+
     [Fact]
     public void Content_classification_can_represent_an_unresolved_absence_without_a_payload()
     {

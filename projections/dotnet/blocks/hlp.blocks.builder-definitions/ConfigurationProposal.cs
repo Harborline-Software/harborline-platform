@@ -172,8 +172,48 @@ public static class ConfigurationProposal
     /// baseline is compared against the generation effective right now, so a baseline that moved
     /// underneath the author refuses rather than releasing against a generation nobody reviewed.
     /// </summary>
+    /// <remarks>
+    /// This overload binds no exposed definition to a published revision, so the released exposure names its keys and
+    /// interface version only, exactly as before Goal 3 P1, and a consumer's pin to one of them finds no signed version
+    /// or digest and refuses <c>records.reference.closure_missing</c> at install. Use the overload that takes a
+    /// published-revision resolver to carry them.
+    /// </remarks>
     public static ConfigurationReleaseResult Release(ProposedChangeState state, SavedVersion version,
         ProposedChangeCheck? check, ConfigurationGeneration effectiveNow, string packageKey, string revision)
+        => ReleaseCore(state, version, check, effectiveNow, packageKey, revision, publishedRevision: null);
+
+    /// <summary>
+    /// Releases exactly as the overload without a resolver does, and binds every exposed definition to the exact
+    /// published catalogue revision the host resolves for its key (Goal 3 P1, Option A; DES-0015 records-ck-40,
+    /// records-ck-41). The bound revision must be Published in the proposal's tenant, of kind
+    /// <see cref="DefinitionKind.Records"/>, hold the edit's body byte for byte (ordinal), be catalogued under the
+    /// top-level <c>record_type_id</c> string that body names (ordinal; review #282 identity), and name
+    /// <paramref name="packageKey"/> as its envelope <c>package_id</c>; otherwise the release refuses
+    /// <c>configuration-release-exposure-unpublished</c> (also for a body naming no such id, or a revision catalogued
+    /// under another id), <c>configuration-release-exposure-not-records</c>,
+    /// <c>configuration-release-exposure-body-mismatch</c> or <c>configuration-release-exposure-package-mismatch</c>,
+    /// naming the definition key. An exposed Class is not a Record Type, so under the Class hold it refuses
+    /// <c>configuration-release-exposure-not-records</c> and a package exposing one cannot be released bound. The released exposure then
+    /// carries, per key, that revision's catalogue version and <see cref="CatalogueFieldSource.DigestOf"/> digest, never
+    /// the package revision. An edited definition that is not exposed is never resolved and may still be unpublished.
+    /// The resolver is the host's read of its catalogue: the published revision an exposed definition key stands for, or
+    /// <see langword="null"/> when there is none. It is trusted composition and is asked only for this package's own
+    /// exposed definitions, in ordinal key order.
+    /// The exposed key is the baseline-closure name, not a catalogue key, and this block derives no catalogue id from it:
+    /// mapping the key to the definition it names stays the resolver's (host) duty. The identity check refuses a revision
+    /// that is not the definition its own body names; it does not choose which definition a key names.
+    /// </summary>
+    public static ConfigurationReleaseResult Release(ProposedChangeState state, SavedVersion version,
+        ProposedChangeCheck? check, ConfigurationGeneration effectiveNow, string packageKey, string revision,
+        Func<string, DefinitionRevision?> publishedRevision)
+    {
+        ArgumentNullException.ThrowIfNull(publishedRevision);
+        return ReleaseCore(state, version, check, effectiveNow, packageKey, revision, publishedRevision);
+    }
+
+    private static ConfigurationReleaseResult ReleaseCore(ProposedChangeState state, SavedVersion version,
+        ProposedChangeCheck? check, ConfigurationGeneration effectiveNow, string packageKey, string revision,
+        Func<string, DefinitionRevision?>? publishedRevision)
     {
         ArgumentNullException.ThrowIfNull(state);
         ArgumentNullException.ThrowIfNull(version);
@@ -263,8 +303,52 @@ public static class ConfigurationProposal
         if (interfaces.Length > 1)
             return Refuse("configuration-release-interface-ambiguous", "exposes",
                 $"The saved version exposes definitions at interface versions {string.Join(", ", interfaces.Order())}; a package has one interface version.");
+        // Option A: each exposed definition's version and digest come from the exact published revision its body is,
+        // never from the package revision, a content id or the body. An edit is a working body, so it is bound only
+        // when it is byte for byte the published body; otherwise the release refuses rather than exposing it unbound.
+        var bound = new List<PlatformPackageExposedDefinition>();
+        if (publishedRevision is not null)
+            foreach (var (edit, declared) in exposed.OrderBy(pair => pair.edit.DefinitionKey, StringComparer.Ordinal))
+            {
+                var key = edit.DefinitionKey;
+                var published = publishedRevision(key);
+                // A revision in another tenant's catalogue is not this tenant's published revision (review B-2).
+                if (published is null || published.Status != DefinitionStatus.Published
+                    || !string.Equals(published.Document.Key.Tenant, state.TenantKey, StringComparison.Ordinal))
+                    return Refuse("configuration-release-exposure-unpublished", key,
+                        $"The saved version exposes '{key}', which has no published catalogue revision in tenant {state.TenantKey} to state its version and digest.");
+                if (published.Document.Key.Kind != DefinitionKind.Records)
+                    return Refuse("configuration-release-exposure-not-records", key,
+                        $"The saved version exposes '{key}', whose published revision is a {published.Document.Key.Kind} definition, not a Record Type.");
+                if (!string.Equals(edit.BodyJson, published.Document.BodyJson, StringComparison.Ordinal))
+                    return Refuse("configuration-release-exposure-body-mismatch", key,
+                        $"The saved version exposes '{key}', but its body is not byte for byte the published revision {published.Document.Version}.");
+                // Records admission makes a Record Type's body id its catalogue key, so the revision must be filed under the
+                // record_type_id its own body names. Another definition's revision is not this definition's published
+                // revision, even with a byte-equal body (review #282 identity); naming the key's definition is the resolver's.
+                var bodyId = RecordTypeId(published.Document.BodyJson);
+                if (bodyId is null || !string.Equals(published.Document.Key.DefinitionId, bodyId, StringComparison.Ordinal))
+                {
+                    var named = bodyId is null ? "no record_type_id" : $"record_type_id '{bodyId}'";
+                    return Refuse("configuration-release-exposure-unpublished", key,
+                        $"The saved version exposes '{key}', but the resolved revision {published.Document.Version} is catalogued as '{published.Document.Key.DefinitionId}' while its body names {named}, so it is not this definition's published revision.");
+                }
+                // A consumer's pin names the producer body's envelope package_id, so a carrier released under another
+                // package key could never match one (review B-1; lead decision 2026-10-12 within P10). The bodies are
+                // equal, so the edit's declared package is the published revision's.
+                if (!string.Equals(declared.PackageId, packageKey, StringComparison.Ordinal))
+                {
+                    var named = declared.PackageId is null ? "no package" : $"package '{declared.PackageId}'";
+                    return Refuse("configuration-release-exposure-package-mismatch", key,
+                        $"The saved version exposes '{key}', whose published body names {named}, not {packageKey}, so no consumer pin could match this release.");
+                }
+                bound.Add(new(key, published.Document.Version, CatalogueFieldSource.DigestOf(published)));
+            }
         var exposure = interfaces.Length == 0 ? null
-            : new PlatformPackageExposure(interfaces[0], exposed.Select(declared => declared.edit.DefinitionKey).ToArray());
+            : new PlatformPackageExposure(interfaces[0], exposed.Select(declared => declared.edit.DefinitionKey).ToArray())
+            {
+                ExposedDefinitions = bound,
+            };
         var manifest = new PlatformPackageManifest(1, packageKey, revision, items.Prepend(record), dependencies, exposure);
         var validation = PlatformPackageReplayer.Validate(manifest);
         if (!validation.Succeeded)
@@ -275,14 +359,24 @@ public static class ConfigurationProposal
             revision, document, Convert.ToHexStringLower(SHA256.HashData(document))), null);
     }
 
+    // The body's own top-level Records record_type_id; null when the body is not an object or the member is absent or
+    // not a string.
+    private static string? RecordTypeId(string bodyJson)
+    {
+        using var body = JsonDocument.Parse(bodyJson);
+        return body.RootElement.ValueKind == JsonValueKind.Object
+            && body.RootElement.TryGetProperty("record_type_id", out var id) && id.ValueKind == JsonValueKind.String
+            ? id.GetString() : null;
+    }
+
     // Reads the existing producer spellings without inventing interface versions for bare package IDs.
     // Layout's sealed platform capability is not a package dependency (layout-ck-42).
-    private static (string[] Requires, int? InterfaceVersion) DeclaredPackages(string bodyJson, string contentKind)
+    private static (string[] Requires, int? InterfaceVersion, string? PackageId) DeclaredPackages(string bodyJson, string contentKind)
     {
         using var body = JsonDocument.Parse(bodyJson);
         if (body.RootElement.ValueKind != JsonValueKind.Object
             || !body.RootElement.TryGetProperty("envelope", out var envelope) || envelope.ValueKind != JsonValueKind.Object)
-            return ([], null);
+            return ([], null, null);
         // The Rule codec identifies its own source shape; no Rule transport kind is invented here.
         // Its Requires values are exact package IDs (RuleCrossPackageAuthoring), never @version syntax.
         var rule = RuleDefinitionCodec.Parse(bodyJson, RuleIntentPhase.Publish).Document
@@ -296,7 +390,10 @@ public static class ConfigurationProposal
         int? interfaceVersion = envelope.TryGetProperty("exposes", out var exposes) && exposes.ValueKind == JsonValueKind.Object
             && exposes.TryGetProperty("interface_version", out var declared) && declared.ValueKind == JsonValueKind.Number
             && declared.TryGetInt32(out var parsed) && parsed > 0 ? parsed : null;
-        return (requires, interfaceVersion);
+        // The envelope's own package (records package_id); null when it is absent or not a string.
+        var packageId = envelope.TryGetProperty("package_id", out var package) && package.ValueKind == JsonValueKind.String
+            ? package.GetString() : null;
+        return (requires, interfaceVersion, packageId);
     }
 
     private static string? RequiredPackage(JsonElement entry, string contentKind)
