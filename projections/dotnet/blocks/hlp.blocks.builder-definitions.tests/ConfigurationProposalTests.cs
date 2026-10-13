@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Harborline.Kernel.Core;
 using Xunit;
 
@@ -774,6 +775,202 @@ public sealed class ConfigurationProposalTests
         Assert.False(document.RootElement.TryGetProperty("interfaceVersion", out _));
     }
 
+    // Goal 3 P1 (Option A), P-REL: a bound release carries each own exposed definition's catalogue version and store
+    // digest from the exact published revision the host resolves, never the package revision ("1.0.0" here). Only own
+    // exposed definitions are resolved, in ordinal key order; a foreign or unexposed edit is never asked for.
+    [Fact]
+    [Trait("Holds", "records-ck-41")]
+    public void A_bound_release_carries_each_exposed_definitions_published_version_and_store_digest()
+    {
+        var baseline = OwnedExposureBaseline();
+        var exposedA = RecordsEnveloped("""{"exposes":{"interface_version":2},"package_id":"tenant-a.release"}""", "owned-a");
+        var exposedZ = RecordsEnveloped("""{"exposes":{"interface_version":2},"package_id":"tenant-a.release","section":"records"}""", "owned-z");
+        var state = ConfigurationProposal.Autosave(ConfigurationProposal.Start("proposal-1", baseline),
+            new("records/owned-z", "tenant-a.release", exposedZ, RecordsKind));
+        state = ConfigurationProposal.Autosave(state, new("records/owned-a", "tenant-a.release", exposedA, RecordsKind));
+        state = ConfigurationProposal.Autosave(state,
+            new("records/invoice", "finance", Enveloped("""{"exposes":{"interface_version":97}}"""), RecordsKind));
+        state = ConfigurationProposal.Autosave(state,
+            new("finance/owned", "tenant-a.release", Enveloped("""{"requires":[]}"""), RecordsKind));
+        var asked = new List<string>();
+        var revisions = new Dictionary<string, DefinitionRevision>(StringComparer.Ordinal)
+        {
+            ["records/owned-a"] = Revision("owned-a", exposedA, "2.4.0", OwnedADigest),
+            ["records/owned-z"] = Revision("owned-z", exposedZ, "5.0.1", OwnedZDigest),
+        };
+
+        var released = BoundReleased(baseline, state, key => { asked.Add(key); return revisions.GetValueOrDefault(key); });
+
+        Assert.Null(released.Refusal);
+        Assert.Equal(["records/owned-a", "records/owned-z"], asked);
+        using var document = JsonDocument.Parse(released.Released!.Document);
+        var root = document.RootElement;
+        Assert.Equal(["schemaVersion", "packageKey", "revision", "closure", "exposes", "interfaceVersion", "exposedDefinitions", "items", "digest"],
+            root.EnumerateObject().Select(member => member.Name));
+        Assert.Equal("1.0.0", root.GetProperty("revision").GetString());
+        Assert.Equal(["records/owned-a", "records/owned-z"], root.GetProperty("exposes").EnumerateArray().Select(item => item.GetString()));
+        Assert.Equal(
+            [("records/owned-a", "2.4.0", "sha256:" + OwnedADigest), ("records/owned-z", "5.0.1", "sha256:" + OwnedZDigest)],
+            root.GetProperty("exposedDefinitions").EnumerateArray().Select(entry => (
+                entry.GetProperty("definitionKey").GetString(), entry.GetProperty("version").GetString(), entry.GetProperty("digest").GetString())));
+        Assert.All(root.GetProperty("exposedDefinitions").EnumerateArray(),
+            entry => Assert.Equal(["definitionKey", "version", "digest"], entry.EnumerateObject().Select(member => member.Name)));
+    }
+
+    // P-BYTES: binding adds exactly the exposedDefinitions member. Every other member, the items' carried bodies and the
+    // closure included, is what the unbound release exports.
+    [Fact]
+    public void A_bound_release_differs_from_the_unbound_release_only_by_its_exposed_definitions()
+    {
+        var baseline = OwnedExposureBaseline();
+        var exposed = RecordsEnveloped("""{"exposes":{"interface_version":2},"package_id":"tenant-a.release"}""", "owned-a");
+        var state = OwnedEditedWith(baseline, exposed);
+
+        var bound = JsonNode.Parse(BoundReleased(baseline, state,
+            key => key == "records/owned-a" ? Revision("owned-a", exposed, "2.4.0", OwnedADigest) : null).Released!.Document.Span)!.AsObject();
+        var unbound = JsonNode.Parse(Released(baseline, state).Released!.Document.Span)!.AsObject();
+
+        Assert.True(bound.Remove("exposedDefinitions"));
+        Assert.True(bound.Remove("digest"));
+        Assert.True(unbound.Remove("digest"));
+        Assert.Equal(unbound.ToJsonString(), bound.ToJsonString());
+    }
+
+    // P-BYTES (K6): a bound release that exposes nothing asks for no revision and exports the unbound release's bytes.
+    [Fact]
+    public void A_bound_release_exposing_nothing_resolves_nothing_and_exports_the_unbound_bytes()
+    {
+        var baseline = OwnedExposureBaseline();
+        var state = OwnedEditedWith(baseline, Enveloped("""{"requires":[]}"""));
+        var asked = new List<string>();
+
+        var bound = BoundReleased(baseline, state, key => { asked.Add(key); return null; });
+
+        Assert.Null(bound.Refusal);
+        Assert.Empty(asked);
+        Assert.Equal(Released(baseline, state).Released!.Document.ToArray(), bound.Released!.Document.ToArray());
+    }
+
+    // An exposed edit is bound only to a revision Published in the proposal's tenant, of kind Records, holding its exact
+    // body and naming the released package as its envelope package_id; otherwise the release refuses by name, naming the
+    // definition key, rather than exposing it unbound. A body that differs only by the stored trailing newline is a
+    // different body (records-ck-40). Another tenant's revision is not this tenant's published revision (review B-2), and
+    // a body naming another package could never match a consumer pin (review B-1). An exposed Class refuses
+    // not-records under the Class hold.
+    [Theory]
+    [InlineData("none", "configuration-release-exposure-unpublished")]
+    [InlineData("draft", "configuration-release-exposure-unpublished")]
+    [InlineData("tenant", "configuration-release-exposure-unpublished")]
+    [InlineData("class", "configuration-release-exposure-not-records")]
+    [InlineData("newline", "configuration-release-exposure-body-mismatch")]
+    [InlineData("reordered", "configuration-release-exposure-body-mismatch")]
+    [InlineData("package", "configuration-release-exposure-package-mismatch")]
+    [InlineData("unpackaged", "configuration-release-exposure-package-mismatch")]
+    public void An_exposed_edit_without_its_exact_published_records_revision_refuses(string bound, string code)
+    {
+        var baseline = OwnedExposureBaseline();
+        var exposed = bound switch
+        {
+            "package" => RecordsEnveloped("""{"exposes":{"interface_version":2},"package_id":"other.pack"}""", "owned-a"),
+            "unpackaged" => RecordsEnveloped("""{"exposes":{"interface_version":2}}""", "owned-a"),
+            _ => RecordsEnveloped("""{"exposes":{"interface_version":2},"package_id":"tenant-a.release"}""", "owned-a"),
+        };
+        DefinitionRevision? revision = bound switch
+        {
+            "none" => null,
+            "draft" => Revision("owned-a", exposed, "2.4.0", OwnedADigest, DefinitionStatus.Draft),
+            "tenant" => Revision("owned-a", exposed, "2.4.0", OwnedADigest, tenant: "tenant-b"),
+            "class" => Revision("owned-a", exposed, "2.4.0", OwnedADigest, kind: DefinitionKind.Classes),
+            "newline" => Revision("owned-a", exposed + "\n", "2.4.0", OwnedADigest),
+            "reordered" => Revision("owned-a",
+                """{"record_type_id":"owned-a","recordType":"invoice","envelope":{"package_id":"tenant-a.release","exposes":{"interface_version":2}}}""", "2.4.0", OwnedADigest),
+            _ => Revision("owned-a", exposed, "2.4.0", OwnedADigest),
+        };
+
+        var refused = BoundReleased(baseline, OwnedEditedWith(baseline, exposed), _ => revision);
+
+        Assert.Null(refused.Released);
+        Assert.Equal(code, refused.Refusal!.Code);
+        Assert.Equal("records/owned-a", refused.Refusal.Target);
+        Assert.Contains("records/owned-a", refused.Refusal.Message, StringComparison.Ordinal);
+    }
+
+    // Review #282 identity: a resolver may return a revision of another definition. Records admission makes a Record Type's
+    // body id its catalogue key, so the bound revision must be catalogued under the record_type_id its own byte-equal body
+    // names. A Published Records revision in the proposal's tenant, holding the edit's exact body and naming the released
+    // package, but catalogued as owned-b (with its own version and digest), refuses -unpublished naming the requested key
+    // rather than binding owned-b's facts under it; so does a body naming no record_type_id, or one that is not a string.
+    [Theory]
+    [InlineData("another-definition")]
+    [InlineData("no-record-type-id")]
+    [InlineData("non-string-record-type-id")]
+    public void A_resolved_revision_not_catalogued_under_its_bodys_record_type_id_refuses(string identity)
+    {
+        var baseline = OwnedExposureBaseline();
+        const string envelope = """{"exposes":{"interface_version":2},"package_id":"tenant-a.release"}""";
+        var (exposed, id) = identity switch
+        {
+            "another-definition" => (RecordsEnveloped(envelope, "owned-a"), "owned-b"),
+            "no-record-type-id" => (Enveloped(envelope), "owned-a"),
+            _ => ($$"""{"envelope":{{envelope}},"recordType":"invoice","record_type_id":7}""", "owned-a"),
+        };
+        var asked = new List<string>();
+
+        var refused = BoundReleased(baseline, OwnedEditedWith(baseline, exposed),
+            key => { asked.Add(key); return Revision(id, exposed, "9.9.9", OwnedZDigest); });
+
+        Assert.Equal(["records/owned-a"], asked);
+        Assert.Null(refused.Released);
+        Assert.Equal("configuration-release-exposure-unpublished", refused.Refusal!.Code);
+        Assert.Equal("records/owned-a", refused.Refusal.Target);
+        Assert.Contains("records/owned-a", refused.Refusal.Message, StringComparison.Ordinal);
+    }
+
+    // The control for the identity regression: the same resolver shape, returning the revision catalogued under the id its
+    // byte-equal body names, releases and carries that revision's version and store digest under the requested key.
+    [Fact]
+    public void A_resolved_revision_catalogued_under_its_bodys_record_type_id_is_bound()
+    {
+        var baseline = OwnedExposureBaseline();
+        var exposed = RecordsEnveloped("""{"exposes":{"interface_version":2},"package_id":"tenant-a.release"}""", "owned-a");
+
+        var released = BoundReleased(baseline, OwnedEditedWith(baseline, exposed), _ => Revision("owned-a", exposed, "2.4.0", OwnedADigest));
+
+        Assert.Null(released.Refusal);
+        using var document = JsonDocument.Parse(released.Released!.Document);
+        var carrier = Assert.Single(document.RootElement.GetProperty("exposedDefinitions").EnumerateArray());
+        Assert.Equal(("records/owned-a", "2.4.0", "sha256:" + OwnedADigest), (carrier.GetProperty("definitionKey").GetString(),
+            carrier.GetProperty("version").GetString(), carrier.GetProperty("digest").GetString()));
+    }
+
+    [Fact]
+    public void A_bound_release_requires_a_resolver()
+    {
+        var baseline = OwnedExposureBaseline();
+        var state = OwnedEditedWith(baseline, Enveloped("""{"exposes":{"interface_version":2}}"""));
+        var version = Save(state);
+        Assert.Equal("publishedRevision", Assert.Throws<ArgumentNullException>(() => ConfigurationProposal.Release(state, version,
+            new ProposedChangeCheck("proposal-1", version.Digest, "receipt-1"), baseline, "tenant-a.release", "1.0.0", null!)).ParamName);
+    }
+
+    // Store digests are bare lowercase SHA-256 hex (VersionedDefinitionStore); these are the SHA-256 of the UTF-8 strings
+    // "owned-a" and "owned-z", computed with Python hashlib. The carrier prefixes them with sha256: (records-ck-40).
+    private const string OwnedADigest = "e2dd5c3d8ee7986ed06f169e952e22178ca2ae135512b2e0f6d7fbc58b8d7751";
+    private const string OwnedZDigest = "36d90e55c63b9a722740fe34329b809425bb85ed48ea4e804c290446ddd632d4";
+
+    private static DefinitionRevision Revision(string id, string body, string version, string digest,
+        DefinitionStatus status = DefinitionStatus.Published, DefinitionKind kind = DefinitionKind.Records,
+        string tenant = "tenant-a") =>
+        new(new(new(tenant, kind, id), $"{id}@{version}", version, body), 3, status, digest);
+
+    private static ConfigurationReleaseResult BoundReleased(ConfigurationGeneration baseline, ProposedChangeState state,
+        Func<string, DefinitionRevision?> publishedRevision)
+    {
+        var version = Save(state);
+        return ConfigurationProposal.Release(state, version, new ProposedChangeCheck("proposal-1", version.Digest, "receipt-1"),
+            baseline, "tenant-a.release", "1.0.0", publishedRevision);
+    }
+
     private static string RequirementSource(string contentKind, string envelope)
     {
         if (contentKind == "Layout") return Enveloped(envelope);
@@ -808,6 +1005,11 @@ public sealed class ConfigurationProposalTests
         ConfigurationProposal.Start("proposal-1", baseline), new("records/owned-a", "tenant-a.release", records, RecordsKind));
 
     private static string Enveloped(string envelope) => $$"""{"envelope":{{envelope}},"recordType":"invoice"}""";
+
+    // A Records body that names its own record_type_id, as admitted Record Type bodies do; a bound release requires the
+    // resolved revision to be catalogued under it (review #282 identity).
+    private static string RecordsEnveloped(string envelope, string recordTypeId) =>
+        $$"""{"envelope":{{envelope}},"recordType":"invoice","record_type_id":"{{recordTypeId}}"}""";
 
     private static ProposedChangeState EditedWith(ConfigurationGeneration baseline, string records) => ConfigurationProposal.Autosave(
         ConfigurationProposal.Start("proposal-1", baseline), new("records/invoice", "finance", records, RecordsKind));

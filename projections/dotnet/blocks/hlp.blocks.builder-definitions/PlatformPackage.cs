@@ -110,7 +110,26 @@ public sealed record PlatformPackageDependency(string Key, string Version);
 /// </summary>
 /// <param name="InterfaceVersion">The package interface version a consumer's <c>pack-key@N</c> requirement names.</param>
 /// <param name="Definitions">The exposed definition keys.</param>
-public sealed record PlatformPackageExposure(int InterfaceVersion, IReadOnlyList<string> Definitions);
+public sealed record PlatformPackageExposure(int InterfaceVersion, IReadOnlyList<string> Definitions)
+{
+    /// <summary>
+    /// The signed catalogue facts of exposed definitions the release bound to exact published revisions (Goal 3 P1,
+    /// Option A; DES-0015 records-ck-40, records-ck-41), at most one per exposed key. Empty for an exposure that was not
+    /// bound, which then exports exactly the bytes it always did.
+    /// </summary>
+    public IReadOnlyList<PlatformPackageExposedDefinition> ExposedDefinitions { get; init; } = [];
+}
+
+/// <summary>
+/// One exposed definition's catalogue facts, taken from the exact published revision the release bound it to: the
+/// catalogue's immutable version of that revision and its <c>sha256:</c> store digest
+/// (<see cref="CatalogueFieldSource.DigestOf"/>), which is what a consumer's pin carries. Never a package revision, a
+/// content id or a member of the body.
+/// </summary>
+/// <param name="DefinitionKey">The exposed definition key, one of the exposure's <c>Definitions</c>.</param>
+/// <param name="Version">The bound revision's catalogue version.</param>
+/// <param name="Digest">The bound revision's store digest, <c>sha256:</c> and 64 lowercase hex digits.</param>
+public sealed record PlatformPackageExposedDefinition(string DefinitionKey, string Version, string Digest);
 
 /// <summary>A versioned, ordered platform package manifest.</summary>
 public sealed record PlatformPackageManifest
@@ -133,7 +152,9 @@ public sealed record PlatformPackageManifest
 
     /// <summary>
     /// Creates a manifest with its closure and, when the package exposes definitions to other packages, its exposure:
-    /// a positive interface version and distinct, non-blank definition keys, held in ordinal order.
+    /// a positive interface version and distinct, non-blank definition keys, held in ordinal order. Any exposed
+    /// definition entries name distinct exposed keys, each with a non-blank version and a <c>sha256:</c> digest of 64
+    /// lowercase hex digits, and are held in ordinal key order.
     /// </summary>
     public PlatformPackageManifest(int schemaVersion, string packageKey, string revision, IEnumerable<PlatformPackageItem> items,
         IEnumerable<PlatformPackageDependency> dependencies, PlatformPackageExposure? exposure)
@@ -165,9 +186,24 @@ public sealed record PlatformPackageManifest
             if (exposed.Length == 0 || exposed.Any(string.IsNullOrWhiteSpace)
                 || exposed.Distinct(StringComparer.Ordinal).Count() != exposed.Length)
                 throw new ArgumentException("platform-package-exposure-malformed", nameof(exposure));
-            Exposure = exposure with { Definitions = Array.AsReadOnly(exposed) };
+            ArgumentNullException.ThrowIfNull(exposure.ExposedDefinitions, nameof(exposure));
+            var entries = exposure.ExposedDefinitions.ToArray();
+            if (entries.Any(entry => entry is null || !exposed.Contains(entry.DefinitionKey, StringComparer.Ordinal)
+                    || string.IsNullOrWhiteSpace(entry.Version) || !IsStoreDigest(entry.Digest))
+                || entries.Select(entry => entry.DefinitionKey).Distinct(StringComparer.Ordinal).Count() != entries.Length)
+                throw new ArgumentException("platform-package-exposure-malformed", nameof(exposure));
+            Exposure = exposure with
+            {
+                Definitions = Array.AsReadOnly(exposed),
+                ExposedDefinitions = Array.AsReadOnly(entries.OrderBy(entry => entry.DefinitionKey, StringComparer.Ordinal).ToArray()),
+            };
         }
     }
+
+    // records-ck-40: the algorithm-qualified store digest, exactly as CatalogueFieldSource.DigestOf spells it.
+    private static bool IsStoreDigest(string? digest) =>
+        digest is { Length: 71 } && digest.StartsWith("sha256:", StringComparison.Ordinal)
+        && digest.AsSpan(7).IndexOfAnyExcept("0123456789abcdef") < 0;
 
     /// <summary>The manifest wire-schema version.</summary>
     public int SchemaVersion { get; }
@@ -227,6 +263,21 @@ public static class PlatformPackageExporter
                 foreach (var definition in exposure.Definitions) writer.WriteStringValue(definition);
                 writer.WriteEndArray();
                 writer.WriteNumber("interfaceVersion", exposure.InterfaceVersion);
+                // Written only for an exposure bound to exact published revisions (Goal 3 P1, Option A), so an unbound
+                // exposure, like a package exposing nothing, exports the bytes it always did.
+                if (exposure.ExposedDefinitions.Count > 0)
+                {
+                    writer.WriteStartArray("exposedDefinitions");
+                    foreach (var entry in exposure.ExposedDefinitions)
+                    {
+                        writer.WriteStartObject();
+                        writer.WriteString("definitionKey", entry.DefinitionKey);
+                        writer.WriteString("version", entry.Version);
+                        writer.WriteString("digest", entry.Digest);
+                        writer.WriteEndObject();
+                    }
+                    writer.WriteEndArray();
+                }
             }
             writer.WriteStartArray("items");
             foreach (var item in manifest.Items)
