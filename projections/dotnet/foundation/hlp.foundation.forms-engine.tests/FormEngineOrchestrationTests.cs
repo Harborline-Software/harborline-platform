@@ -378,7 +378,9 @@ public sealed class FormEngineOrchestrationTests
             Harborline.Contracts.Fields.IFieldDomainRuntime? fieldDomains = null,
             IFormSubmitGateAccess? submitGates = null,
             IReadOnlySet<FormEngineAction>? grantedActions = null,
-            Func<IFormSubmissionTransactionStore, IFormSubmissionTransactionStore>? storeDecorator = null)
+            Func<IFormSubmissionTransactionStore, IFormSubmissionTransactionStore>? storeDecorator = null,
+            IFormRecordTypePolicyReader? recordTypePolicies = null,
+            string actorId = "alice")
         {
             var schemas = schemaRegistry ?? new InMemorySchemaRegistry();
             var schema = await schemas.RegisterAsync(schemaJson ?? """{"type":"object","properties":{"name":{"type":"string","minLength":1},"secret":{"type":"string"}},"required":["name"],"additionalProperties":false}""");
@@ -399,13 +401,13 @@ public sealed class FormEngineOrchestrationTests
             var roleVocabulary = RoleVocabulary.FromApi(vocabularyReferences.Select(role => new RoleDefinition(
                 Guid.NewGuid(), role, role.Name, new(RoleOwnerKind.Package, "forms-engine-tests"), false)));
             var context = new RecordingContext(
-                new(scopeTenant ?? Tenant, Guid.Parse("11111111-1111-1111-1111-111111111111"), "alice", heldNames,
+                new(scopeTenant ?? Tenant, Guid.Parse("11111111-1111-1111-1111-111111111111"), actorId, heldNames,
                     roleVocabulary, new HeldRoleSet(heldReferences)), contextFailure, grantedActions);
             var recordingProjection = projection ?? new RecordingProjection();
             var sink = projectionSink ?? recordingProjection;
             var actualSecurity = security ?? new RecordingSecurity();
             var engine = new FormEngine(context, new DefinitionStore(definition), reuseResolver ?? new IdentityReuseResolver(), schemas, actualSecurity,
-                readAudit ?? new RecordingReadAudit(), storeDecorator?.Invoke(store) ?? store, sink, options, clock ?? new FixedClock(Now), fieldBindings, fieldKinds, fieldDomains, submitGates);
+                readAudit ?? new RecordingReadAudit(), storeDecorator?.Invoke(store) ?? store, sink, options, clock ?? new FixedClock(Now), fieldBindings, fieldKinds, fieldDomains, submitGates, recordTypePolicies);
             return new(definition, actualState, store, context, recordingProjection, engine);
         }
 

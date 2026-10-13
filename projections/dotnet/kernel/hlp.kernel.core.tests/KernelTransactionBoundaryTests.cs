@@ -1,3 +1,4 @@
+using System.Text;
 using Harborline.Kernel.Core;
 using Xunit;
 
@@ -427,6 +428,121 @@ public sealed class KernelTransactionBoundaryTests
         Assert.True(result.Committed);
     }
 
+    // ---- The audit's authority snapshot (DES-0004 authority_snapshot, ADR 0068) travels inside the audit evidence:
+    // ---- additive for existing callers, staged in the one audit call, and published only by the commit.
+
+    [Fact]
+    public void AuditEvidenceBuiltByAnExistingCallerCarriesNoAuthoritySnapshot()
+    {
+        var audit = new KernelAuditEvidence("audit-one", "actor", DateTimeOffset.Parse("2030-01-02T03:04:05Z"), "evidence"u8.ToArray());
+
+        Assert.True(audit.AuthoritySnapshot.IsEmpty);
+        Assert.Same(audit, audit.Validate());
+        // The positional shape is unchanged: four members construct and deconstruct it.
+        var (auditId, actorId, recordedAt, payload) = audit;
+        Assert.Equal("audit-one", auditId);
+        Assert.Equal("actor", actorId);
+        Assert.Equal(DateTimeOffset.Parse("2030-01-02T03:04:05Z"), recordedAt);
+        Assert.Equal("evidence", Encoding.UTF8.GetString(payload.Span));
+    }
+
+    [Fact]
+    public void ACopyOfAuditEvidenceKeepsItsAuthoritySnapshot()
+    {
+        var audit = Command().Audit with { AuthoritySnapshot = "snapshot-one"u8.ToArray() };
+
+        var copy = audit with { AuditId = "audit-two" };
+
+        Assert.Equal("snapshot-one", Encoding.UTF8.GetString(copy.AuthoritySnapshot.Span));
+        Assert.Equal("evidence", Encoding.UTF8.GetString(copy.Payload.Span));
+    }
+
+    [Fact]
+    public async Task AnAuthoritySnapshotCommitsInTheSameSetAsTheRecordAndAudit()
+    {
+        var port = new RecordingPort();
+        var command = Command() with { Audit = Command().Audit with { AuthoritySnapshot = "snapshot-one"u8.ToArray() } };
+
+        var result = await KernelTransactionBoundary.ExecuteAsync([command], port);
+
+        Assert.True(result.Committed);
+        // One audit stage carries it: there is no second append.
+        Assert.Equal(["begin", "record", "audit", "commit", "dispose"], port.Events);
+        Assert.Equal(1, port.Published);
+        Assert.Equal("record-one", port.PublishedSet!.Value.Record);
+        Assert.Equal("audit-one", port.PublishedSet.Value.Audit.AuditId);
+        Assert.Equal("snapshot-one", Encoding.UTF8.GetString(port.PublishedSet.Value.Audit.AuthoritySnapshot.Span));
+        Assert.Equal("evidence", Encoding.UTF8.GetString(port.PublishedSet.Value.Audit.Payload.Span));
+    }
+
+    [Theory]
+    [InlineData("record", new[] { "begin", "record", "rollback", "dispose" })]
+    [InlineData("audit", new[] { "begin", "record", "audit", "rollback", "dispose" })]
+    [InlineData("commit", new[] { "begin", "record", "audit", "commit", "rollback", "dispose" })]
+    public async Task AFaultBeforeCommitCompletesPublishesNeitherTheRecordNorItsAuthoritySnapshot(string fault, string[] events)
+    {
+        var port = new RecordingPort(fault);
+        var command = Command() with { Audit = Command().Audit with { AuthoritySnapshot = "snapshot-one"u8.ToArray() } };
+
+        await Assert.ThrowsAsync<InjectedFault>(async () => await KernelTransactionBoundary.ExecuteAsync([command], port));
+
+        Assert.Equal(events, port.Events);
+        Assert.Null(port.PublishedSet);
+        Assert.Equal(0, port.Published);
+    }
+
+    [Fact]
+    public async Task APreparedCommandStagesItsAuthoritySnapshotInTheOneAuditCallBeforeCommit()
+    {
+        var port = new PreparedRecordingPort();
+        var command = Command() with { Audit = Command().Audit with { AuthoritySnapshot = "snapshot-prepared"u8.ToArray() } };
+
+        var result = await KernelTransactionBoundary.ExecutePreparedAsync<string, string>(_ => ValueTask.FromResult(command), port);
+
+        Assert.True(result.Committed);
+        Assert.Equal(["begin", "operation", "record", "audit", "commit", "dispose"], port.Events);
+        var staged = Assert.Single(port.StagedAudits);
+        Assert.Equal("audit-one", staged.AuditId);
+        Assert.Equal("snapshot-prepared", Encoding.UTF8.GetString(staged.AuthoritySnapshot.Span));
+    }
+
+    [Fact]
+    public async Task ADoomedPreparedCommitRollsBackTheStagedAuthoritySnapshot()
+    {
+        var port = new PreparedRecordingPort();
+        var command = Command() with { Audit = Command().Audit with { AuthoritySnapshot = "snapshot-prepared"u8.ToArray() } };
+
+        var error = await Assert.ThrowsAsync<KernelTransactionStateException>(async () =>
+            await KernelTransactionBoundary.ExecutePreparedAsync<string, string>(async ct =>
+            {
+                await SwallowAsync(KernelTransactionBoundary.JoinAsync(Command("joined"), new RecordingParticipant(port.Events, "record"), ct));
+                return command;
+            }, port));
+
+        Assert.Equal(KernelTransactionErrors.EnclosingExecutionDoomed, error.Code);
+        // The snapshot was staged with its audit, then the doomed execution rolled back instead of committing.
+        Assert.Equal(["begin", "join-operation:joined", "operation", "record", "audit", "rollback", "dispose"], port.Events);
+        Assert.Equal("snapshot-prepared", Encoding.UTF8.GetString(Assert.Single(port.StagedAudits).AuthoritySnapshot.Span));
+    }
+
+    [Fact]
+    public async Task AJoinedCommandStagesItsOwnAuthoritySnapshotIntoTheEnclosingTransaction()
+    {
+        var port = new PreparedRecordingPort();
+        var participant = new AuditCapturingParticipant();
+        var joined = Command("joined") with { Audit = Command("joined").Audit with { AuthoritySnapshot = "snapshot-joined"u8.ToArray() } };
+
+        var result = await KernelTransactionBoundary.ExecutePreparedAsync<string, string>(async ct =>
+        {
+            await KernelTransactionBoundary.JoinAsync(joined, participant, ct);
+            return Command();
+        }, port);
+
+        Assert.True(result.Committed);
+        Assert.Equal("snapshot-joined", Encoding.UTF8.GetString(Assert.Single(participant.Audits).AuthoritySnapshot.Span));
+        Assert.True(Assert.Single(port.StagedAudits).AuthoritySnapshot.IsEmpty);
+    }
+
     private static async ValueTask SwallowAsync(ValueTask join)
     {
         try
@@ -528,14 +644,15 @@ public sealed class KernelTransactionBoundaryTests
     private sealed class PreparedRecordingPort : IKernelPreparedTransactionPort<string, string>
     {
         public List<string> Events { get; } = [];
+        public List<KernelAuditEvidence> StagedAudits { get; } = [];
 
         public ValueTask<IKernelPreparedTransaction<string, string>> BeginAsync(CancellationToken cancellationToken = default)
         {
             Events.Add("begin");
-            return ValueTask.FromResult<IKernelPreparedTransaction<string, string>>(new Transaction(Events));
+            return ValueTask.FromResult<IKernelPreparedTransaction<string, string>>(new Transaction(Events, StagedAudits));
         }
 
-        private sealed class Transaction(List<string> events) : IKernelPreparedTransaction<string, string>
+        private sealed class Transaction(List<string> events, List<KernelAuditEvidence> audits) : IKernelPreparedTransaction<string, string>
         {
             public ValueTask StageOperationAsync(KernelOperationIdentity operation, CancellationToken cancellationToken = default)
             {
@@ -552,6 +669,7 @@ public sealed class KernelTransactionBoundaryTests
             public ValueTask StageAuditAsync(KernelAuditEvidence audit, CancellationToken cancellationToken = default)
             {
                 events.Add("audit");
+                audits.Add(audit);
                 return ValueTask.CompletedTask;
             }
 
@@ -592,6 +710,22 @@ public sealed class KernelTransactionBoundaryTests
         {
             if (fault == step) throw new InjectedFault();
             events.Add($"join-{step}:{value}");
+            return ValueTask.CompletedTask;
+        }
+    }
+
+    private sealed class AuditCapturingParticipant : IKernelTransactionParticipant<string>
+    {
+        public List<KernelAuditEvidence> Audits { get; } = [];
+
+        public ValueTask StageOperationAsync(KernelOperationIdentity operation, CancellationToken cancellationToken = default) =>
+            ValueTask.CompletedTask;
+
+        public ValueTask StageRecordAsync(string record, CancellationToken cancellationToken = default) => ValueTask.CompletedTask;
+
+        public ValueTask StageAuditAsync(KernelAuditEvidence audit, CancellationToken cancellationToken = default)
+        {
+            Audits.Add(audit);
             return ValueTask.CompletedTask;
         }
     }

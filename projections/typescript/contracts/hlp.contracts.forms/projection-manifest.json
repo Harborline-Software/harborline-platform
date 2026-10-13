@@ -1,12 +1,13 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.contracts.forms",
-  "interfaceRevision": 7,
+  "interfaceRevision": 8,
   "generatedFrom": {
     "source": "pinned packages/contracts/src/forms.ts revision 1",
     "additiveGaps": [
       "Options vocabulary proven by both pinned Rule Runtime tiers",
-      "lossless Harborline App fieldsMeta authoring snapshot"
+      "lossless Harborline App fieldsMeta authoring snapshot",
+      "form record_type_id target (T-485, forms-ck-3)"
     ]
   },
   "surfaceCounts": {
@@ -1595,6 +1596,12 @@
                 "kind": "ref",
                 "name": "FormFieldAuthoringMetadata"
               }
+            }
+          },
+          "recordTypeId": {
+            "optional": true,
+            "shape": {
+              "kind": "string"
             }
           }
         }

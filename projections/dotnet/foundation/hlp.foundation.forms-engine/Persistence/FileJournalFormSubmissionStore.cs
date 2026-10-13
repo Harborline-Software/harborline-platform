@@ -33,7 +33,11 @@ public sealed class FileJournalFormSubmissionStoreOptions
 public sealed class FileJournalFormSubmissionStore : IFormSubmissionTransactionStore, IDisposable
 {
     private const uint Magic = 0x4A464C48; // HLFJ in little-endian byte order.
-    private const byte FormatVersion = 1;
+    // Format 2 adds the D3 binding members (schema reference and record type target) to the submission and projection
+    // rows. Format 1 frames still load, with those members absent; a format-1-only reader refuses a format 2 frame
+    // instead of silently dropping the binding.
+    private const byte FormatVersion = 2;
+    private const byte LegacyFormatVersion = 1;
     private const int HeaderBytes = 12;
     private const int HeaderChecksumBytes = 32;
     private const int ChecksumBytes = 32;
@@ -220,7 +224,7 @@ public sealed class FileJournalFormSubmissionStore : IFormSubmissionTransactionS
             var key = (commit.Submission.Tenant, commit.Submission.FormId.Value, commit.IdempotencyKey);
             if (store._idempotency.TryGetValue(key, out var existing))
                 return string.Equals(existing.Submission.RequestFingerprint, commit.Submission.RequestFingerprint, StringComparison.Ordinal)
-                    ? new(FormSubmissionCommitDisposition.Replayed, existing.Receipt)
+                    ? new(FormSubmissionCommitDisposition.Replayed, existing.Receipt, FormSubmissionStoreModel.Clone(existing))
                     : new(FormSubmissionCommitDisposition.Conflict, null);
 
             var snapshot = FormSubmissionStoreModel.Clone(commit);
@@ -308,7 +312,7 @@ public sealed class FileJournalFormSubmissionStore : IFormSubmissionTransactionS
             _journal.ReadExactly(header);
             if (BinaryPrimitives.ReadUInt32LittleEndian(header.AsSpan(0, 4)) != Magic)
                 throw new InvalidDataException("The Forms submission journal contains an invalid frame marker.");
-            if (header[4] != FormatVersion)
+            if (header[4] is not (FormatVersion or LegacyFormatVersion))
                 throw new InvalidDataException("The Forms submission journal version is unsupported.");
             if (_journal.Length - _journal.Position < HeaderChecksumBytes)
             {
@@ -433,25 +437,29 @@ public sealed class FileJournalFormSubmissionStore : IFormSubmissionTransactionS
         value.IdempotencyKey,
         new(value.Submission.InstanceId.ToString(), value.Submission.Tenant.Value, value.Submission.PartyId.ToString("D"), value.Submission.ActorId,
             value.Submission.FormId.Value, value.Submission.DefinitionVersion.Major, value.Submission.DefinitionVersion.Minor,
-            value.Submission.DefinitionVersion.Patch, value.Submission.RequestFingerprint, value.Submission.ProtectedAcceptedCandidate.ToArray(), Format(value.Submission.SubmittedAt)),
+            value.Submission.DefinitionVersion.Patch, value.Submission.RequestFingerprint, value.Submission.ProtectedAcceptedCandidate.ToArray(), Format(value.Submission.SubmittedAt),
+            value.Submission.SchemaRef?.Value, value.Submission.RecordTypeId),
         new(value.Audit.AuditId, value.Audit.InstanceId.ToString(), value.Audit.Tenant.Value, value.Audit.ActorId, value.Audit.Payload.ToArray(), Format(value.Audit.RecordedAt)),
         new(value.Projection.OutboxId, value.Projection.InstanceId.ToString(), value.Projection.Tenant.Value, value.Projection.PartyId.ToString("D"),
             value.Projection.ActorId, value.Projection.FormId.Value, value.Projection.DefinitionVersion.Major, value.Projection.DefinitionVersion.Minor,
             value.Projection.DefinitionVersion.Patch, value.Projection.CaseReference, value.Projection.ProtectedAcceptedValues.ToArray(),
-            Format(value.Projection.SubmittedAt), value.Projection.Attempts, value.Projection.LastErrorCode),
+            Format(value.Projection.SubmittedAt), value.Projection.Attempts, value.Projection.LastErrorCode,
+            value.Projection.SchemaRef?.Value, value.Projection.RecordTypeId),
         new(value.Receipt.InstanceId.ToString(), Format(value.Receipt.SubmittedAt), (int)value.Receipt.ProjectionStatus, value.Receipt.ProjectionSkips.Select(ToDto).ToArray()));
 
     private static FormSubmissionCommit FromDto(CommitDto value)
     {
         var submission = new FormSubmissionRecord(EntityId.Parse(value.Submission.InstanceId), new(value.Submission.Tenant), Guid.Parse(value.Submission.PartyId),
             value.Submission.ActorId, new(value.Submission.FormId), new(value.Submission.VersionMajor, value.Submission.VersionMinor, value.Submission.VersionPatch),
-            value.Submission.RequestFingerprint, value.Submission.ProtectedAcceptedCandidate, Parse(value.Submission.SubmittedAt));
+            value.Submission.RequestFingerprint, value.Submission.ProtectedAcceptedCandidate, Parse(value.Submission.SubmittedAt),
+            SchemaOrNull(value.Submission.SchemaRef), value.Submission.RecordTypeId);
         var audit = new FormMutationAuditEnvelope(value.Audit.AuditId, EntityId.Parse(value.Audit.InstanceId), new(value.Audit.Tenant),
             value.Audit.ActorId, value.Audit.Payload, Parse(value.Audit.RecordedAt));
         var projection = new FormProjectionEnvelope(value.Projection.OutboxId, EntityId.Parse(value.Projection.InstanceId), new(value.Projection.Tenant),
             Guid.Parse(value.Projection.PartyId), value.Projection.ActorId, new(value.Projection.FormId),
             new(value.Projection.VersionMajor, value.Projection.VersionMinor, value.Projection.VersionPatch), value.Projection.CaseReference,
-            value.Projection.ProtectedAcceptedValues, Parse(value.Projection.SubmittedAt), value.Projection.Attempts, value.Projection.LastErrorCode);
+            value.Projection.ProtectedAcceptedValues, Parse(value.Projection.SubmittedAt), value.Projection.Attempts, value.Projection.LastErrorCode,
+            SchemaOrNull(value.Projection.SchemaRef), value.Projection.RecordTypeId);
         if (!Enum.IsDefined((FormProjectionStatus)value.Receipt.ProjectionStatus))
             throw new InvalidDataException("The Forms submission receipt status is invalid.");
         var receipt = new FormSubmitReceipt(EntityId.Parse(value.Receipt.InstanceId), Parse(value.Receipt.SubmittedAt),
@@ -459,6 +467,13 @@ public sealed class FileJournalFormSubmissionStore : IFormSubmissionTransactionS
         return new(value.IdempotencyKey, submission, audit, projection, receipt);
     }
 
+    // SchemaId converts implicitly from string, so a bare `null` arm would bind to that conversion; return the nullable
+    // explicitly instead.
+    private static SchemaId? SchemaOrNull(string? value)
+    {
+        if (value is null) return default(SchemaId?);
+        return new SchemaId(value);
+    }
     private static SkipDto ToDto(FormProjectionSkip value) => new(value.Reason, value.FieldPointer, value.Target);
     private static FormProjectionSkip FromDto(SkipDto value) => new(value.Reason, value.FieldPointer, value.Target);
     private static string Format(DateTimeOffset value) => value.ToString("O", CultureInfo.InvariantCulture);
@@ -466,9 +481,9 @@ public sealed class FileJournalFormSubmissionStore : IFormSubmissionTransactionS
 
     private enum JournalRecordType : byte { Commit = 1, ProjectionRetried = 2, ProjectionCompleted = 3 }
     private sealed record CommitDto(string IdempotencyKey, SubmissionDto Submission, AuditDto Audit, ProjectionDto Projection, ReceiptDto Receipt);
-    private sealed record SubmissionDto(string InstanceId, string Tenant, string PartyId, string ActorId, string FormId, int VersionMajor, int VersionMinor, int VersionPatch, string RequestFingerprint, byte[] ProtectedAcceptedCandidate, string SubmittedAt);
+    private sealed record SubmissionDto(string InstanceId, string Tenant, string PartyId, string ActorId, string FormId, int VersionMajor, int VersionMinor, int VersionPatch, string RequestFingerprint, byte[] ProtectedAcceptedCandidate, string SubmittedAt, string? SchemaRef = null, string? RecordTypeId = null);
     private sealed record AuditDto(string AuditId, string InstanceId, string Tenant, string ActorId, byte[] Payload, string RecordedAt);
-    private sealed record ProjectionDto(string OutboxId, string InstanceId, string Tenant, string PartyId, string ActorId, string FormId, int VersionMajor, int VersionMinor, int VersionPatch, string? CaseReference, byte[] ProtectedAcceptedValues, string SubmittedAt, int Attempts, string? LastErrorCode);
+    private sealed record ProjectionDto(string OutboxId, string InstanceId, string Tenant, string PartyId, string ActorId, string FormId, int VersionMajor, int VersionMinor, int VersionPatch, string? CaseReference, byte[] ProtectedAcceptedValues, string SubmittedAt, int Attempts, string? LastErrorCode, string? SchemaRef = null, string? RecordTypeId = null);
     private sealed record ReceiptDto(string InstanceId, string SubmittedAt, int ProjectionStatus, SkipDto[] Skips);
     private sealed record SkipDto(string Reason, string FieldPointer, string? Target);
     private sealed record RetryDto(string OutboxId, string StableErrorCode);

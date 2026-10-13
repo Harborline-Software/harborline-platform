@@ -1,15 +1,15 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.foundation.forms-engine",
-  "interfaceRevision": 13,
+  "interfaceRevision": 14,
   "status": "frozen",
   "purpose": "Own the complete tenant-scoped Dynamic Forms authoring admission, render, validate, calculate, protect, submit, audit, projection-outbox, and recovery behavior behind narrow caller interfaces and production-safe ports.",
   "dependencies": [
     {"moduleId": "hlp.contracts.forms", "minimumRevision": 7},
     {"moduleId": "hlp.contracts.identities", "minimumRevision": 1},
     {"moduleId": "hlp.contracts.fields", "minimumRevision": 1},
-    {"moduleId": "hlp.foundation.actor", "minimumRevision": 1},
-    {"moduleId": "hlp.foundation.forms", "minimumRevision": 5},
+    {"moduleId": "hlp.foundation.actor", "minimumRevision": 4},
+    {"moduleId": "hlp.foundation.forms", "minimumRevision": 6},
     {"moduleId": "hlp.foundation.rule-runtime", "minimumRevision": 2},
     {"moduleId": "hlp.foundation.tenancy", "minimumRevision": 1},
     {"moduleId": "hlp.kernel.core", "minimumRevision": 1},
@@ -33,6 +33,8 @@
     "context": "The authoring host routes save-and-publish through one fail-closed boundary that compiles every Tier-2 rule and page guard, validates classification/lifecycle/access/residency/connector policy, admits configured shared field bindings under the authenticated caller and matching active tenant, and then commits registration plus publication through one atomic definition-store operation. Publication authorization remains host-owned."
   },
   "ownedPorts": {
+    "submitGate": "IFormSubmitGateAccess.DecideAsync answers the form's own gate for one FormSubmitIntent (tenant, submitter, form id and version, schema reference, record_type_id target, operation id, decision instant, the evaluated Gate, and the request's CaseReference) with the host decider's own AuthorizationDecisionEvidence. AccessProviderFormSubmitGateAccess decides through AccessProvider.CheckWithEvidenceAsync on the FormSubmitGateAuthority request (provisional act forms:submit-gate on record kind form, id {formId}@{version}). The bool SatisfiesAsync member remains; the default DecideAsync answers from it with no evidence.",
+    "recordTypePolicy": "IFormRecordTypePolicyReader (hlp.foundation.forms) resolves a targeted form's creation gate at submit. Forms never defaults a policy (K6): with no reader, a failing reader or an unknown type, a targeted submit is denied.",
     "fieldBindings": "Optionally resolve the host's admitted field-kind and constraint bindings for the exact tenant and SchemaRef. A configured binding source requires both shared runtime ports and refuses missing, mismatched or incomplete bindings rather than using an unbound fallback.",
     "requestContext": "Resolve one current authenticated tenant/Party/actor/roles scope and verify the operation capability; preserve the pinned Forms macaroon wire/HMAC chain, require one action-bound Harborline identifier plus exactly one matching action caveat so an actionless legacy token cannot gain authority through holder attenuation, reject malformed, expired, unknown, duplicate, empty, or missing capability material with one opaque denial, and discard bearer roles before current-role authorization.",
     "fieldSecurity": "Resolve inherited form/section/container/field governance over the reuse-expanded definition; refuse unknown policy, impossible residency, ineligible jurisdiction, and missing subject scope. Apply tenant-bound versioned AES-256-GCM protection-at-rest, decrypt permission, and redaction. Return typed per-field dispositions; only the engine constructs readable JSON, and inconsistent adapter output fails closed.",
@@ -47,6 +49,8 @@
     "recovery": ["lease pending outbox rows", "idempotent delivery", "complete or retry", "restart recovery", "duplicate-attempt suppression"]
   },
   "invariants": [
+    "Revision 14 (decision D3, W5): for a form with a record_type_id target, submit is denied unless the gate port returns evidence that the host decider produced for exactly the asked intent (act, submitter, tenant, form revision and instant), with an echoed intent equal to it and a verdict equal to the evidence's; the evidence is then bound to the staged commit (operation id, instance, tenant, submitter, form revision, accepted-payload fingerprint) inside the kernel transaction, and the reuse-resolved definition must keep the head's revision, schema reference, target and gate. A form_only or engine target with no gate, an engine target with any gate, or an unresolvable policy (no reader, failing reader, unknown type) denies before any port, reuse or persistence. The intent also names the evaluated gate and the request's case reference; the binding check covers schema reference, record type target and case reference on the submission and projection rows, which now persist the schema reference and target (journal format 2; format 1 frames load with them absent; a format-1-only reader refuses format 2). On an idempotent replay the authorization is attached only when the stored write (returned by the store as FormSubmissionCommitResult.Stored) has the same tenant, submitter, form id and version, schema reference, target, case reference and payload fingerprint; otherwise the replay refuses with form.engine.idempotency-conflict and discloses nothing, and a store that returns no stored write is denied. Every replay, with or without an authorization, also requires the stored write's tenant and submitter to equal the current caller's, or refuses with form.engine.idempotency-conflict and discloses no receipt (D4: a caller-triggered retry needs current authorization before receipt disclosure; R2-7). The receipt carries the bound FormSubmitAuthorization when evidence was returned (never stored); a gate denial bound to the intent carries the decider's evidence on FormEngineDeniedException, and evidence for any other request is withheld. A form without a target keeps the verdict-only path and its single in-scope clock read when ungated.",
+    "Decision D3 / plan W5: a submit whose scope names an engine or reserved principal (exact system, or the sys., system: and installer: prefixes, case-insensitive) is denied with the generic form.engine.denied before the form is loaded, whatever context provider produced the scope.",
     "Submit checks the form's own submit gate on the published head through the host's IFormSubmitGateAccess port, which receives the shared hlp.contracts.authorization SubmitGate (T-755), before reuse, bindings or the candidate are resolved; a declared gate with no port, an unsatisfied gate or a failing port refuses with the generic denial and writes nothing.",
     "Render decides each declared page's visibility through its Rules guard in the Render phase, over the same sensitive-stripped candidate its field rules read with resolved computed values materialised first, and projects the verdict, never the guard; a guard that does not evaluate hides its page.",
     "Bound fields use the shared field runtime for complete-membership narrowing, inherited domain authority, kind-limit execution and readable-domain editor choice; author-carried ControlHint does not select the rendered editor, including for unbound schemas.",

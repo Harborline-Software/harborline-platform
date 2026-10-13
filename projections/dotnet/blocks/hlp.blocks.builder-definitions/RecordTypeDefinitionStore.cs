@@ -359,6 +359,27 @@ public sealed class RecordTypeDefinitionStore
     }
 
     /// <summary>
+    /// The record write path's bind (T-616; DES-0015 records-eng-1, RW-3, RW-6): the published <paramref name="version"/>,
+    /// or the published head when it is null, and the schema compiled from exactly that body, registered as publication
+    /// registers it (content-addressed, so a repeat registers nothing new). Null when that version, or any version, is not
+    /// published. It reads the catalogue on every call and caches nothing, so a newer publication governs the next unpinned
+    /// write. A published body that no longer admits refuses by <see cref="DefinitionRefusalException"/>.
+    /// </summary>
+    public async ValueTask<RecordTypePublication?> ResolvePublishedSchemaAsync(string tenant, string recordTypeId,
+        string? version = null, CancellationToken cancellationToken = default)
+    {
+        var key = KeyOf(tenant, recordTypeId);
+        var head = version is null
+            ? await _store.GetPublishedHeadAsync(key, cancellationToken).ConfigureAwait(false)
+            : await _store.ResolvePublishedAsync(new DefinitionBinding(key, version), cancellationToken).ConfigureAwait(false);
+        if (head is null) return null;
+        var admitted = await AdmitAsync(head.Document, DefinitionAdmissionPhase.Publish, cancellationToken).ConfigureAwait(false);
+        var schema = await _registry.RegisterAsync(admitted.JsonSchemaText, cancellationToken: cancellationToken)
+            .ConfigureAwait(false);
+        return new(head, schema);
+    }
+
+    /// <summary>
     /// The installation gate (records-ck-41): Install-phase admission and the schema compile over an exported entry, then
     /// every reference checked against what the installing host was handed, never its live catalogue. An unpinned
     /// reference must target a definition the same pack ships; a pinned one needs this definition's <c>requires</c> entry

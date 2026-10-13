@@ -16,8 +16,27 @@ public sealed class FormEngineNotFoundException()
     : FormEngineException("form.engine.not-found", "The requested form resource was not found.");
 
 /// <summary>Signals that the caller is not authorized for the requested form operation.</summary>
-public sealed class FormEngineDeniedException()
-    : FormEngineException("form.engine.denied", "The form operation was denied.");
+public sealed class FormEngineDeniedException : FormEngineException
+{
+    /// <summary>Initializes the generic denial with no decider evidence.</summary>
+    public FormEngineDeniedException()
+        : this(null)
+    {
+    }
+
+    /// <summary>
+    /// Initializes the generic denial carrying the submit-gate decider's own evidence for the asked intent (D3). Evidence
+    /// that names any other intent is never attached; the message and code stay generic either way.
+    /// </summary>
+    public FormEngineDeniedException(Harborline.Foundation.Authorization.AuthorizationDecisionEvidence? evidence)
+        : base("form.engine.denied", "The form operation was denied.") => Evidence = evidence;
+
+    /// <summary>
+    /// Gets the decider's evidence for a denied submit gate bound to the asked intent, when one was returned. It carries
+    /// role-binding facts, so a host must not serialize it to clients (D6 disclosure).
+    /// </summary>
+    public Harborline.Foundation.Authorization.AuthorizationDecisionEvidence? Evidence { get; }
+}
 
 /// <summary>
 /// Signals from an execution-context adapter that the requested tenant is not available for the

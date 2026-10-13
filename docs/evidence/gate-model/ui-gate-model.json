@@ -3890,7 +3890,7 @@
         {
           "id": "assertEmptyAndErrorStates",
           "status": "UNBUILT",
-          "note": "no empty or error property, but bindings, expressionContracts, granted, palette, refusals can be handed an empty collection; that state is reachable and undesigned"
+          "note": "no empty or error property, but bindings, expressionContracts, fieldBindings, granted, palette, refusals, rules can be handed an empty collection; that state is reachable and undesigned"
         },
         {
           "id": "assertContentResilience",

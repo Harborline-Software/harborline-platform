@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.foundation.actor",
-  "interfaceRevision": 3,
+  "interfaceRevision": 4,
   "status": "frozen",
   "purpose": "Expose authenticated actor resolution and Access set filtering, predicate-time row checks and stored trace projection/read contracts. The host authorization gate remains the sole decider; audit storage and HTTP remain host adapters.",
   "dependencies": [
@@ -24,7 +24,8 @@
     "PrincipalPartyResolutionException": {"members": ["PrincipalPartyResolutionFailure Failure"]},
     "IAuthorizationDecider": {"members": ["DecideAsync(AccessRequest, CancellationToken) -> AuthorizationDecisionEvidence; adapter to the existing host gate"]},
     "IAccessSetFilter": {"members": ["Bind(operation, principal, tenant, recordKind, instant) -> AccessSetPredicate"]},
-    "AccessProvider": {"members": ["CheckAsync(request) -> AccessCheck", "ValidateAsync(request, validationAtSameInstant) -> AccessCheck"]},
+    "AccessProvider": {"members": ["CheckAsync(request) -> AccessCheck", "CheckWithEvidenceAsync(request) -> AccessDecisionCheck; revision 4", "ValidateAsync(request, validationAtSameInstant) -> AccessCheck"]},
+    "AccessDecisionCheck": {"members": ["AccessCheck Check", "AuthorizationDecisionEvidence? Evidence; present only when the decider's evidence matches every request context field"]},
     "AuthorizationDecisionEvidence": {"members": ["Project() -> four immutable AuthorizationTraceStep values; verdict supplied only by the enforcing gate"]},
     "IAuthorizationTraceStore": {"members": ["FindAsync(tenant, entryId) -> stored AuthorizationTraceSnapshot or absence"]},
     "AuthorizationTraceReader": {"members": ["ReadAsync(tenant, caller, entryId, instant) -> Available | NotAvailable | Refused | PreDecisionRefusal"]}
@@ -51,6 +52,7 @@
     "Roles do not authorize operations in this module; the existing host gate remains the sole decider.",
     "The Access predicate filters the complete candidate set before counts, groups, sums, exports or pages.",
     "Validation executes a fresh row check at its predicate instant; stage-one evidence cannot substitute for it.",
+    "CheckWithEvidenceAsync is the same row check as CheckAsync with the decider's own evidence returned: the decider is called once, an invalid context never reaches it, and evidence naming any other principal, tenant, instant, operation, record kind or record id is withheld and refuses access.decision_mismatch. It calculates no verdict; a writer persists the returned evidence through its host trace plumbing (revision 4).",
     "Evidence projection never calculates a verdict. Trace reads authorize the current read and return frozen historical steps and counterfactual without replay.",
     "Unauthorized reads hide existence; no decision is absence; pre-decision refusal is distinct from a four-step decision."
   ],

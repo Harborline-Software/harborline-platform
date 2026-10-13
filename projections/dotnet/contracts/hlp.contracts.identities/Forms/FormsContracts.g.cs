@@ -1032,6 +1032,10 @@ public sealed record FormDefinition
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public Optional<IReadOnlyDictionary<string, FormFieldAuthoringMetadata>> FieldsMeta { get; init; }
 
+    [JsonPropertyName("recordTypeId")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public Optional<string> RecordTypeId { get; init; }
+
 }
 
 public sealed record FormViewFieldRules

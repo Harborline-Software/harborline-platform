@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.foundation.forms",
-  "interfaceRevision": 5,
+  "interfaceRevision": 6,
   "status": "frozen",
   "purpose": "Own complete caller-backed Dynamic Forms definition, immutable version, bounded reuse, authenticated draft, and pre-auth capture state without exposing persistence choreography or executable engine behavior.",
   "dependencies": [
@@ -11,7 +11,7 @@
     {"moduleId": "hlp.foundation.actor", "minimumRevision": 1}
   ],
   "capabilities": {
-    "definitions": ["atomically create first revision", "register immutable revision", "atomically register and publish one admitted Draft revision", "load exact revision", "load highest published revision", "list full history by tenant", "list one current published revision per id", "publish", "deprecate", "withdraw", "restore system pack projection", "validate lineage, overlay, and authoring metadata", "admit a submit gate naming exactly one of role, standing or an Access-registered capability", "preserve exact field type, validations, and options"],
+    "definitions": ["atomically create first revision", "register immutable revision", "atomically register and publish one admitted Draft revision", "load exact revision", "load highest published revision", "list full history by tenant", "list one current published revision per id", "publish", "deprecate", "withdraw", "restore system pack projection", "validate lineage, overlay, and authoring metadata", "admit a submit gate naming exactly one of role, standing or an Access-registered capability", "admit an optional record_type_id target and, at publication, resolve its creation gate through the host IFormRecordTypePolicyReader seam", "preserve exact field type, validations, and options"],
     "reuse": ["register immutable unit revision", "lifecycle transitions", "latest-published or pinned resolution", "CP-locked form-component expansion", "bounded tree validation", "workflow-subgraph fail-closed fence"],
     "drafts": ["save", "form-bound resume", "list mine", "form-bound abandon", "preserve creation time on resave", "atomic tenant-party-actor scope", "defensive body copy"],
     "preAuth": ["short-TTL capture", "promote after identification", "retain on failed identification", "discard", "sweep expired"]
@@ -29,7 +29,8 @@
     "Resume and abandon require both form id and case id; a mismatched route form cannot observe or delete the draft.",
     "Unresolved actors, tenants, parties, reusable units, and invalid trees fail before mutation.",
     "Pre-auth captures are ephemeral, defensively copied, and must promote or purge.",
-    "A declared submit gate names exactly one of role, standing or capability, and its capability arm resolves only through Access's capability register; with no register every capability arm is refused, so a form never owns a capability of its own. The gate is the shared hlp.contracts.authorization SubmitGate (T-755)."
+    "A declared submit gate names exactly one of role, standing or capability, and its capability arm resolves only through Access's capability register; with no register every capability arm is refused, so a form never owns a capability of its own. The gate is the shared hlp.contracts.authorization SubmitGate (T-755).",
+    "Revision 6 (T-485, decision D3): a definition may declare a record_type_id target, captured once for its immutable (tenant,id,version) revision. A declared target is nonblank (form.record_type.required at /record_type_id). Publication resolves the target's creation gate through the host IFormRecordTypePolicyReader and never defaults one (K6: the host's version-specific reader owns every default): no reader, a failing reader or a value outside form_only/role/engine refuses with form.record_type.policy_unavailable, and a type the tenant does not have with form.record_type.unknown, both at /record_type_id, read before the store lock. A form_only target without a submit gate refuses with form.submit_gate.required at /submit_gate, an engine target refuses with form.record_type.not_form_creatable at /record_type_id, and a role target adds no gate of its own. Once a Published, Deprecated or Withdrawn revision of the same tenant and id captures a target, a revision that changes or removes it refuses at publication with form.record_type.changed at /record_type_id (ADR 0099 decision 7; withdrawal is not a migration decision, lead ruling R2-2); adding a target where no such revision has one is allowed (K9 migration). Lead ruling R3-1: the rule is intended to count only revisions that were actually published (Published, Deprecated, or Withdrawn after publication); revision state keeps no durable was-published marker, so a never-published Withdrawn Draft also captures its target today, which fails closed (an authoring trap, never a bypass) until W6 adds the marker and narrows capture. Drafts save without the lookup, pack restore re-runs every check, and a definition without a target is unchanged and needs no reader. No standing-gate prohibition applies (K1)."
   ],
   "resourceLimits": {"treeDepth": 32, "treeNodes": 4096, "contentNodesPerBlock": 256},
   "nativeEvidence": {"tests": 130, "sourceSuites": 8, "implementedGapCases": 9},

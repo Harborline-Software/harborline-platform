@@ -84,6 +84,126 @@ is pinned-only: `ResolveAsync` returns the exact published version or `TaxonomyD
 `definition.reference_unpinned` at `/version` rather than resolving to a head. Foundation never
 depends on blocks.
 
+## Records write: one record create (T-616, bounded)
+
+`RecordWriteOperation.CreateAsync` is the first public Records write. It composes existing producers only:
+`AccessProvider` over the host's sole `IAuthorizationDecider`, `RecordTypeDefinitionStore` and its registered
+schema, `ISchemaRegistry` validation, and `KernelTransactionBoundary.ExecutePreparedAsync`. The host supplies one
+transaction port and one `IRecordWriteReceiptReader` over the same committed state. Hosts do not enable the operation
+yet; the API adapter is T-619.
+
+The gate decides every call first, a retry included, so a denial discloses no receipt and no conflict. A committed
+operation is looked up by ambient tenant, authenticated caller and stable `operation_id`
+(`RecordWriteOperationKey`). Another caller or tenant is another scope and never sees that receipt. A committed
+operation is never re-executed. The same intent returns the original receipt with its original version, definition
+digest and schema, even after a newer publication. A changed body, Record Type or explicit pin refuses
+`records.write.replay_conflict` with the pointer `/operation_id`. A first-seen operation binds its explicit pin, or the
+published head when unpinned, so a newer publication governs the next new write.
+
+The operation id is the request's `operation_id` member, taken exactly as sent: nonempty, at most 255 UTF-8 bytes,
+compared ordinally, and never trimmed or normalized. So `" op"`, `"op "` and `"op"` are three operations, and so are
+the NFC and NFD spellings of one name. An empty, longer or non-text id refuses `records.write.operation_id_invalid` at
+`/operation_id` in the validate stage, after the gate and before any lookup. The rule is approved (D6); the spelling of
+that code is proposed.
+
+A lookup miss (the reader returns null) is the only way to a first-seen write. An operation that is already accepted
+is settled from what was stored, by one rule, wherever it is found:
+
+- the lookup returns it, or
+- the host's commit settles the staged operation identity as `Replayed` or `Conflict` (a concurrent first write) and
+  returns the stored operation as `RecordWriteCommit.Stored`.
+
+The rule:
+
+- a stored encoding version this producer does not write, or a blank stored digest, refuses
+  `records.write.receipt_unsupported`;
+- another intent refuses `records.write.replay_conflict`, whether or not a receipt is readable;
+- the same intent needs the stored receipt for this operation id, or refuses `records.write.receipt_unsupported`.
+
+A commit that reports `Replayed` or `Conflict` without `Stored` refuses `records.write.receipt_unsupported`. Nothing
+is disclosed on any of these refusals. A host reader returns an accepted operation even when its receipt is unreadable,
+never null. A `Created` commit must return the new receipt naming the requested operation id. Otherwise it refuses
+`records.write.receipt_unsupported`; the record and its authority snapshot were committed by the host, so no `Decision`
+is returned, and a retry settles from the stored operation.
+
+Insert-freedom differs by path:
+
+- On the lookup path it is structural: nothing is staged.
+- On the commit path it rests on the host. **Host conformance (T-619 qualification):**
+  - the store keys committed operations by `RecordWriteOperationKey.IdempotencyKey` under a uniqueness constraint
+    enforced inside the commit;
+  - a `Replayed` or `Conflict` commit publishes no record, audit or authority snapshot;
+  - it returns the operation exactly as stored.
+
+  Test this against the real store, including two concurrent first writes.
+
+Retry identity is the intent, `records-write-intent/1` (proposed; byte grammar on `RecordWriteIntent`). It is
+structural and exact: `3`, `3.0` and `3e0` are one number and the string `"3"` is another; object member order is
+ignored at every depth; array order and `null` versus a missing member are meaningful. Numbers are never converted to
+binary64, and an exponent is never expanded or parsed at arbitrary precision: its leading zeros are skipped, and a
+written exponent with more than 18 significant digits (magnitude 10^18 or more, whatever the significand) has no intent,
+so encoding costs time and memory linear in the body. Every number within that bound encodes exactly. That
+normalization is for comparison only. The validator and the store
+receive the submitted body with object members in ordinal key order, every number in its submitted text, and every other
+value equal to the submitted one (the JSON writer may re-escape strings). So `3.0` under `fraction_digits` 0 still
+refuses `field.fraction_digits_exceeded`, and the committed body keeps `3.0`. A body string that is not Unicode text
+(a lone surrogate), or a body number whose exponent is beyond that bound, has no intent and refuses
+`entity.validation.body_invalid` with no pointer before any lookup (a provisional mapping). The encoding version is
+persisted with the committed operation.
+
+Refusals carry an ADR 0038 stage, a stable code and RFC 6901 pointers. They never carry the body, an intent digest or
+authority evidence. The codes are:
+
+| Code | Stage | Pointer |
+|---|---|---|
+| `entity.validation.schema_unknown` | bind or validate | none |
+| `entity.validation.body_invalid` | validate | the body's pointers |
+| `records.write.operation_id_invalid` | validate | `/operation_id` |
+| `records.write.replay_conflict` | commit | `/operation_id` |
+| `records.write.receipt_unsupported` | commit | none |
+
+Under D6 (approved 2026-10-10), `records.write.replay_conflict` and `records.write.receipt_unsupported` are the only
+codes for their conditions. A host adapter maps them as they are and emits no competing code for the same condition,
+for example `authorization.idempotency_key_reused`, a forms idempotency code or `definition.replay_conflict`. So a
+Records write route does not also pass through a generic idempotency-key layer.
+
+The audit payload of a create has exactly seven identifier keys, in this order: `act` (`records:write`),
+`operation_id`, `record_id`, `record_type_id`, `version`, `definition_digest`, `schema_id`. `version` is the published
+Record Type definition version the write bound to, the same version the receipt reports. It is not the intent
+encoding version, a schema version or a payload format version. The payload has no body value, no intent digest and no
+authority evidence. Format versioning, tenant, the actual executor, submitter provenance and outcome belong to the
+audit envelope, never the payload. `KernelAuditEvidence` carries the audit id, the executor (`ActorId`), the recorded
+instant and the authority snapshot. It has no format-version, tenant, on-behalf-of or outcome member yet; that is an
+open envelope gap, not a payload key.
+
+The gate is asked once, through `AccessProvider.CheckWithEvidenceAsync`. A create stages the gate's own
+`AuthorizationDecisionEvidence` as its audit's `KernelAuditEvidence.AuthoritySnapshot` inside the one prepared
+command. The snapshot therefore commits or rolls back with the record, its operation identity and its audit in one
+transaction through `KernelTransactionBoundary` (ADR 0068). There is no append after the commit, and the create's
+outcome returns no `Decision`. The snapshot bytes are the evidence's tenant, principal, trace version and four projected
+steps (the `AuthorizationTraceSnapshot` shape; byte grammar proposed for review).
+
+The payload and the snapshot are compact UTF-8 JSON written by the default `Utf8JsonWriter`. Its encoder escapes `+`
+as `\u002B` (for example in the snapshot's `at:` fact), and escapes non-ASCII and HTML-sensitive characters as
+`\uXXXX` (for example in a non-ASCII `operation_id`). The bytes are deterministic, but consumers parse the JSON and
+never compare it byte for byte.
+
+Every other outcome (a denial, a refusal after the gate, a replay or a conflict) commits nothing and returns `Decision`
+for the host to persist through its existing trace plumbing, so a denial keeps its four-step trace (RW-1). `Decision`
+is null only when the request never reached the gate or the gate's evidence named another context.
+
+There is one exception: `records.write.receipt_unsupported` after the host's `Created` commit returned a missing or
+foreign receipt. It is the only refusal after which something persisted: the record, its identity, its audit and the
+snapshot all committed. So `Decision` is null, `Committed` is false (no usable receipt came back), and a retry with the
+same `operation_id` settles from the stored operation. The trace's target
+is the record id minted for that attempt; for a replay or a refusal no such record exists, so a host joins a trace to
+its operation by tenant, caller, `operation_id` and instant, never to a receipt by record id. A fault after an allowed
+gate propagates without `Decision` and commits nothing. Hosts do not log the authority snapshot, the operation's
+fingerprint or a stored intent digest, and the operation itself emits no telemetry.
+
+This slice does not build Mutate, Rules or React. It also does not build the Record Type and form-origin creation
+binding (no creation-policy producer exists yet; root is ruling on origin authentication and the one-gate reading).
+
 ## Configuration generations (T-459)
 
 `ConfigurationGeneration.Resolve` identifies a complete host-resolved tenant configuration. Pass active package keys, the full transitive package closure (manifest references, all content references and direct dependency keys), one package ownership selection per distinct content key, the platform contract reference, and all applicable policy references. Empty policy is an explicit host resolution, never an inferred default. Public keys and revisions are case-sensitive; digests are lowercase SHA-256. Duplicate identities, unresolved dependencies, unreachable packages and incomplete or invalid ownership refuse admission.

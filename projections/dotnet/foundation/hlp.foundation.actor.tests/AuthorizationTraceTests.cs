@@ -216,6 +216,65 @@ public sealed class AuthorizationTraceTests
         Assert.Equal(1, read.Version);
     }
 
+    [Fact]
+    public async Task A_denied_write_check_returns_the_enforcing_deciders_four_step_trace_exactly()
+    {
+        var request = new AccessRequest("records:write", "alice", "a", new("a", "record", "r-1",
+            new Dictionary<string, System.Text.Json.Nodes.JsonNode?>()), At);
+        var gate = new DenyingWriteGate();
+
+        var decision = await new AccessProvider(gate).CheckWithEvidenceAsync(request);
+
+        Assert.Equal(new AccessCheck(false, "NoEffectiveRole"), decision.Check);
+        var steps = decision.Evidence!.Project();
+        Assert.Equal(["act", "effective-roles", "standings", "verdict"], steps.Select(step => step.Stage));
+        Assert.Equal([1, 2, 3, 4], steps.Select(step => step.Ordinal));
+        Assert.Equal(["kind:Gate", "act:records:write", "target:record/r-1", "principal:alice", "tenant:a",
+            "at:2026-09-18T12:00:00.0000000+00:00"], steps[0].Facts.ToArray());
+        Assert.Equal(["roles:none", "deciding:none"], steps[1].Facts.ToArray());
+        Assert.Equal(["standings:none"], steps[2].Facts.ToArray());
+        Assert.Equal(["verdict:denied", "refusal:NoEffectiveRole", "version:2"], steps[3].Facts.ToArray());
+        Assert.Equal(1, gate.Calls);
+    }
+
+    [Fact]
+    public async Task A_trace_for_another_actor_time_or_record_is_never_returned()
+    {
+        var request = new AccessRequest("records:write", "alice", "a", new("a", "record", "r-1",
+            new Dictionary<string, System.Text.Json.Nodes.JsonNode?>()), At);
+        AccessRequest[] decided =
+        [
+            request with { Principal = "mallory" },
+            request with { At = At.AddMinutes(1) },
+            request with { Record = request.Record with { Id = "r-2" } },
+        ];
+
+        foreach (var other in decided)
+        {
+            var evidence = new AuthorizationDecisionEvidence(other, false, "denied", "none", [], []);
+            var decision = await new AccessProvider(new Fixed(evidence)).CheckWithEvidenceAsync(request);
+            Assert.Equal(new AccessCheck(false, "access.decision_mismatch"), decision.Check);
+            Assert.Null(decision.Evidence);
+        }
+    }
+
+    // The enforcing gate's adapter for a write it denies with no effective role.
+    private sealed class DenyingWriteGate : IAuthorizationDecider
+    {
+        public int Calls { get; private set; }
+        public ValueTask<AuthorizationDecisionEvidence> DecideAsync(AccessRequest request, CancellationToken cancellationToken = default)
+        {
+            Calls++;
+            return ValueTask.FromResult(new AuthorizationDecisionEvidence(request, false, "NoEffectiveRole", "none", [], []));
+        }
+    }
+
+    private sealed class Fixed(AuthorizationDecisionEvidence evidence) : IAuthorizationDecider
+    {
+        public ValueTask<AuthorizationDecisionEvidence> DecideAsync(AccessRequest request, CancellationToken cancellationToken = default)
+            => ValueTask.FromResult(evidence);
+    }
+
     private sealed class Store(AuthorizationTraceSnapshot snapshot) : IAuthorizationTraceStore
     {
         public ValueTask<AuthorizationTraceSnapshot?> FindAsync(string tenant, string entryId, CancellationToken cancellationToken = default) =>

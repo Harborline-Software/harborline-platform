@@ -4,6 +4,18 @@ using Harborline.Foundation.Forms.Models;
 namespace Harborline.Foundation.Forms.Engine.Persistence;
 
 /// <summary>Stores the protected, tenant-scoped record created by a form submission.</summary>
+/// <param name="InstanceId">The form instance.</param>
+/// <param name="Tenant">The submission tenant.</param>
+/// <param name="PartyId">The submitter's server-derived Party.</param>
+/// <param name="ActorId">The submitter.</param>
+/// <param name="FormId">The submitted definition id.</param>
+/// <param name="DefinitionVersion">The submitted definition version.</param>
+/// <param name="RequestFingerprint">The canonical accepted-candidate fingerprint.</param>
+/// <param name="ProtectedAcceptedCandidate">The protected accepted values.</param>
+/// <param name="SubmittedAt">The engine submit instant.</param>
+/// <param name="SchemaRef">The submitted revision's schema reference (D3 binding, kept for recovery); absent on rows
+/// written before journal format 2.</param>
+/// <param name="RecordTypeId">The submitted revision's record type target, or absent for a form without one.</param>
 public sealed record FormSubmissionRecord(
     EntityId InstanceId,
     TenantId Tenant,
@@ -13,7 +25,9 @@ public sealed record FormSubmissionRecord(
     SemanticVersion DefinitionVersion,
     string RequestFingerprint,
     ReadOnlyMemory<byte> ProtectedAcceptedCandidate,
-    DateTimeOffset SubmittedAt);
+    DateTimeOffset SubmittedAt,
+    SchemaId? SchemaRef = null,
+    string? RecordTypeId = null);
 
 /// <summary>Carries the immutable audit payload associated with a committed mutation.</summary>
 public sealed record FormMutationAuditEnvelope(
@@ -25,6 +39,20 @@ public sealed record FormMutationAuditEnvelope(
     DateTimeOffset RecordedAt);
 
 /// <summary>Carries the protected values and routing data awaiting projection delivery.</summary>
+/// <param name="OutboxId">The outbox row id.</param>
+/// <param name="InstanceId">The form instance.</param>
+/// <param name="Tenant">The submission tenant.</param>
+/// <param name="PartyId">The submitter's Party.</param>
+/// <param name="ActorId">The submitter.</param>
+/// <param name="FormId">The submitted definition id.</param>
+/// <param name="DefinitionVersion">The submitted definition version.</param>
+/// <param name="CaseReference">The caller-supplied case reference, bound by the submit-gate authorization when one is attached.</param>
+/// <param name="ProtectedAcceptedValues">The protected accepted values.</param>
+/// <param name="SubmittedAt">The engine submit instant.</param>
+/// <param name="Attempts">Delivery attempts so far.</param>
+/// <param name="LastErrorCode">The last stable delivery error.</param>
+/// <param name="SchemaRef">The submitted revision's schema reference, equal to the submission row's.</param>
+/// <param name="RecordTypeId">The submitted revision's record type target, equal to the submission row's.</param>
 public sealed record FormProjectionEnvelope(
     string OutboxId,
     EntityId InstanceId,
@@ -37,7 +65,9 @@ public sealed record FormProjectionEnvelope(
     ReadOnlyMemory<byte> ProtectedAcceptedValues,
     DateTimeOffset SubmittedAt,
     int Attempts = 0,
-    string? LastErrorCode = null);
+    string? LastErrorCode = null,
+    SchemaId? SchemaRef = null,
+    string? RecordTypeId = null);
 
 /// <summary>Groups the submission, audit, projection, and receipt committed as one unit.</summary>
 public sealed record FormSubmissionCommit(
@@ -59,9 +89,14 @@ public enum FormSubmissionCommitDisposition
 }
 
 /// <summary>Returns the commit disposition and receipt when one exists.</summary>
+/// <param name="Disposition">New, replayed or conflicting.</param>
+/// <param name="Receipt">The receipt of the new or replayed submission.</param>
+/// <param name="Stored">On a replay, a copy of the stored commit the idempotency key is bound to, so the engine can
+/// bind a replay's authorization to the write that actually exists (D3).</param>
 public sealed record FormSubmissionCommitResult(
     FormSubmissionCommitDisposition Disposition,
-    FormSubmitReceipt? Receipt);
+    FormSubmitReceipt? Receipt,
+    FormSubmissionCommit? Stored = null);
 
 /// <summary>One real submission-store exclusion scope. A commit publishes its complete envelope once.</summary>
 public interface IFormSubmissionTransactionScope : IAsyncDisposable
