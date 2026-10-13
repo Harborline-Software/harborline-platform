@@ -792,6 +792,82 @@ public sealed class FormAcceptedRecordCommandTests
         Assert.Empty(withPort.State.Commands);
     }
 
+    public static TheoryData<string> StoredRoleSubmissions => ["completed", "pending"];
+
+    [Theory(DisplayName = "F1 (fail closed, I-1, revision 17): replaying an existing role-targeted submission on a store without the command port is refused provider-unavailable before the gate or the store's replay detection, and nothing changes")]
+    [MemberData(nameof(StoredRoleSubmissions))]
+    public async Task RoleTargetReplayOnStoreWithoutCommandPort_IsRefusedBeforeReplayDetection(string stored)
+    {
+        var events = new List<string>();
+        var decider = new Decider { Events = events };
+        var sink = new RecordsSink();
+        var plain = await Harness.CreateAsync(definitionFactory: Targeted, submitGates: Port(decider), recordTypePolicies: new RoleReader(),
+            projectionSink: sink, storeDecorator: inner => new PlainStore(new ObservedStore(inner, events)));
+        // The submission already exists in the port-less store under alice's key, written through the store's own API: a
+        // completed one (delivered inline), or a pending one whose inline delivery failed (a submission from before the repair).
+        await SeedRoleSubmissionAsync(plain, "op-role", stored);
+        using var ada = JsonDocument.Parse("""{"name":"Ada"}""");
+
+        var refused = await Assert.ThrowsAsync<FormEngineProviderUnavailableException>(
+            async () => await plain.Engine.SubmitAsync(new(plain.Definition.Id, ada, "op-role")));
+
+        Assert.Equal("form.engine.provider-unavailable", refused.Code);
+        // No gate decision and no store scope: the store's commit, its only replay detector, never ran, so no stored receipt
+        // was disclosed and the stranded row was not answered.
+        Assert.Empty(events);
+        Assert.Empty(decider.Requests);
+        // Nothing written: the one submission, its audit and its row are exactly as seeded, and nothing was delivered.
+        var stillStored = Assert.Single(plain.State.Idempotency.Values);
+        Assert.Equal(new EntityId("harborline", "forms", "seeded-role"), stillStored.Submission.InstanceId);
+        Assert.Empty(plain.State.Leased);
+        Assert.Empty(plain.State.Commands);
+        Assert.Empty(sink.Delivered);
+        if (stored == "completed")
+        {
+            Assert.Equal((1, 1, 0, 1), await plain.Store.CountsAsync());
+            Assert.Equal("outbox-seeded-role", Assert.Single(plain.State.Completed));
+            Assert.Equal(FormProjectionStatus.Complete, stillStored.Receipt.ProjectionStatus);
+        }
+        else
+        {
+            Assert.Equal((1, 1, 1, 0), await plain.Store.CountsAsync());
+            var row = Assert.Single(plain.State.Pending.Values);
+            Assert.Equal(("outbox-seeded-role", 1, "form.engine.projection-pending"), (row.OutboxId, row.Attempts, row.LastErrorCode));
+            Assert.Equal(FormProjectionStatus.Pending, stillStored.Receipt.ProjectionStatus);
+        }
+    }
+
+    [Fact(DisplayName = "F1 (revision 17) control: the same replay on a store with the command port is gated, detected by the store's commit and answered with the stored receipt, and nothing is written or delivered")]
+    public async Task RoleTargetReplayOnStoreWithCommandPort_ReturnsTheStoredReceipt()
+    {
+        var events = new List<string>();
+        var decider = new Decider { Events = events };
+        var sink = new RecordsSink();
+        var withPort = await Harness.CreateAsync(definitionFactory: Targeted, submitGates: Port(decider), recordTypePolicies: new RoleReader(),
+            projectionSink: sink, storeDecorator: inner => new ObservedStore(inner, events));
+        await SeedRoleSubmissionAsync(withPort, "op-role", "completed");
+        using var ada = JsonDocument.Parse("""{"name":"Ada"}""");
+
+        var replay = await withPort.Engine.SubmitAsync(new(withPort.Definition.Id, ada, "op-role"));
+
+        // Ordinary work's order (ADR-0100 decision 3): the gate first, then the store scope whose commit detects the replay.
+        Assert.Equal(["decide:alice", "begin", "commit"], events);
+        // The stored receipt: the seeded instance, its own instant and its completed status, not a fresh submission.
+        Assert.Equal(new EntityId("harborline", "forms", "seeded-role"), replay.InstanceId);
+        Assert.Equal(Now.AddDays(-1), replay.SubmittedAt);
+        Assert.Equal(FormProjectionStatus.Complete, replay.ProjectionStatus);
+        // The gate's evidence is attached only when the stored write is exactly the one this request authorizes (D3), so the
+        // seeded submission is the engine's own write for this key, payload and head, and the replay is a real one.
+        var authorization = Assert.IsType<FormSubmitAuthorization>(replay.Authorization);
+        Assert.Equal(new EntityId("harborline", "forms", "seeded-role"), authorization.InstanceId);
+        Assert.Equal(AdaFingerprint, authorization.PayloadFingerprint);
+        Assert.Single(decider.Requests);
+        Assert.Equal((1, 1, 0, 1), await withPort.Store.CountsAsync());
+        Assert.Single(withPort.State.Idempotency);
+        Assert.Empty(withPort.State.Commands);
+        Assert.Empty(sink.Delivered);
+    }
+
     [Fact(DisplayName = "F5: on a store without the command port, recovery rotates stranded targeted rows undelivered, so more of them than a batch holds never starve an untargeted row")]
     public async Task Recovery_StoreWithoutCommandPort_StrandedTargetedRowsDoNotStarveUntargetedRows()
     {
@@ -943,6 +1019,32 @@ public sealed class FormAcceptedRecordCommandTests
                 new FormSubmitReceipt(instance, at, FormProjectionStatus.Pending, [])));
         }
         await store.ReleaseProjectionLeaseAsync("outbox-" + id);
+    }
+
+    // One existing role-targeted submission of alice's {"name":"Ada"} under the given key, committed through the harness's
+    // in-memory store as the engine commits ordinary work: the head's form, version, schema and target, Ada's accepted-payload
+    // fingerprint, no case reference and no command. "completed" was delivered inline; "pending" failed its inline delivery once.
+    private static async Task SeedRoleSubmissionAsync(Harness harness, string idempotencyKey, string stored)
+    {
+        var tenant = new TenantId("tenant-engine");
+        var party = Guid.Parse("11111111-1111-1111-1111-111111111111");
+        var instance = new EntityId("harborline", "forms", "seeded-role");
+        var head = harness.Definition;
+        var at = Now.AddDays(-1);
+        var bytes = "{}"u8.ToArray();
+        await using (var scope = await harness.Store.BeginTransactionAsync())
+        {
+            var result = await scope.CommitAsync(new FormSubmissionCommit(
+                idempotencyKey,
+                new FormSubmissionRecord(instance, tenant, party, "alice", head.Id, head.Version, AdaFingerprint, bytes, at, head.SchemaRef, Target),
+                new FormMutationAuditEnvelope("audit-seeded-role", instance, tenant, "alice", bytes, at),
+                new FormProjectionEnvelope("outbox-seeded-role", instance, tenant, party, "alice", head.Id, head.Version, null, bytes, at,
+                    SchemaRef: head.SchemaRef, RecordTypeId: Target),
+                new FormSubmitReceipt(instance, at, FormProjectionStatus.Pending, [])));
+            Assert.Equal(FormSubmissionCommitDisposition.Created, result.Disposition);
+        }
+        if (stored == "completed") await harness.Store.CompleteProjectionAsync("outbox-seeded-role", []);
+        else await harness.Store.RetryProjectionAsync("outbox-seeded-role", "form.engine.projection-pending");
     }
 
     private static FormDefinition UngatedTargeted(string schemaId, TenantId tenant) =>
