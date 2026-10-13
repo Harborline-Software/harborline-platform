@@ -714,6 +714,7 @@ if (typeof(KernelClock).Assembly.GetName().Name != "Harborline.Kernel.Core")
 // Literal oracle: DES-0004 section 1 and R-0095's 2026-10-08 Q3/Q4 rulings,
 // control #993 at 4dd7d909d44c252a0bbb405acaff207a373b2bc0. Record class is required
 // (DES-0015 records-ck-17); reference configuration is optional on non-reference fields.
+// Decision D1 (approved 2026-10-10): Record Type carries one optional creation_role_id, a role reference, at revision 3.
 (string Identity, string Key, string Name, int Revision,
     (string Key, CompiledMemberKind Kind, bool Required, bool Many, string? Target)[] Members)[] expectedPackedFloor =
 [
@@ -728,13 +729,14 @@ if (typeof(KernelClock).Assembly.GetName().Name != "Harborline.Kernel.Core")
         ("channel", CompiledMemberKind.Enum, true, false, null),
         ("digest", CompiledMemberKind.Digest, true, false, null),
     ]),
-    ("kernel.record-type", "record-type", "Record Type", 2,
+    ("kernel.record-type", "record-type", "Record Type", 3,
     [
         ("name", CompiledMemberKind.Text, true, false, null),
         ("key", CompiledMemberKind.Key, true, false, null),
         ("class_id", CompiledMemberKind.Reference, true, false, "class"),
         ("traits", CompiledMemberKind.Reference, false, true, "trait"),
         ("creation_gate", CompiledMemberKind.Enum, true, false, null),
+        ("creation_role_id", CompiledMemberKind.Reference, false, false, "role"),
         ("amendment_policy", CompiledMemberKind.Enum, true, false, null),
         ("history_policy", CompiledMemberKind.Enum, true, false, null),
         ("visibility_policy", CompiledMemberKind.Enum, true, false, null),

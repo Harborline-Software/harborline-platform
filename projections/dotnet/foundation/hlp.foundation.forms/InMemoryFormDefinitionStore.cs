@@ -33,6 +33,7 @@ public sealed class InMemoryFormDefinitionStore : IFormDefinitionStore, IDisposa
     private readonly TimeProvider _time;
     private readonly AuthorizationCapabilityRegister? _capabilities;
     private readonly IFormRecordTypePolicyReader? _recordTypePolicies;
+    private readonly IFormRecordCreationDeclarations? _recordCreations;
 
     // tenant → id → version → definition
     private Dictionary<TenantId, Dictionary<FormDefinitionId, Dictionary<SemanticVersion, FormDefinition>>> _store = new();
@@ -46,15 +47,27 @@ public sealed class InMemoryFormDefinitionStore : IFormDefinitionStore, IDisposa
     /// <param name="recordTypePolicies">The host's lookup of a targeted record type's creation gate (T-485, D3, K6).
     /// Absent, publishing any definition with a <c>record_type_id</c> target refuses with
     /// <c>form.record_type.policy_unavailable</c>; Forms never defaults a policy.</param>
+    /// <param name="recordCreations">The host producers' declaration of which Record Types a form's submissions create (K9).
+    /// When it declares a type for a form id, publishing a revision of that form without that exact target refuses
+    /// (<c>form.record_type.target_required</c>, <c>form.record_type.target_mismatch</c>); a failing or ambiguous declaration
+    /// refuses (<c>form.record_type.policy_unavailable</c>, <c>form.record_type.target_ambiguous</c>). Absent, no form is
+    /// declared to create Records.</param>
+    /// <param name="recordCreationProducer">The host's submission producer, for example the projection sink the form engine
+    /// is given. When <paramref name="recordCreations"/> is null and this producer implements
+    /// <see cref="IFormRecordCreationDeclarations"/>, its declaration is used: the same fallback the form engine applies to
+    /// its sink (<see cref="RecordCreationDeclarations.Select"/>), so publication and submit refuse consistently.</param>
     public InMemoryFormDefinitionStore(
         TimeProvider time,
         AuthorizationCapabilityRegister? capabilities = null,
-        IFormRecordTypePolicyReader? recordTypePolicies = null)
+        IFormRecordTypePolicyReader? recordTypePolicies = null,
+        IFormRecordCreationDeclarations? recordCreations = null,
+        object? recordCreationProducer = null)
     {
         ArgumentNullException.ThrowIfNull(time);
         _time = time;
         _capabilities = capabilities;
         _recordTypePolicies = recordTypePolicies;
+        _recordCreations = RecordCreationDeclarations.Select(recordCreations, recordCreationProducer);
     }
 
     /// <summary>Constructs a registry using <see cref="TimeProvider.System"/>.</summary>
@@ -319,16 +332,25 @@ public sealed class InMemoryFormDefinitionStore : IFormDefinitionStore, IDisposa
     {
         // The record type policy is an external read, so it is resolved before the mutation lock is taken. A revision's
         // content is immutable per (tenant, id, version); only its status changes, so the resolution stays valid.
+        // The producers' declaration (K9) is keyed by tenant and form id only, so it is resolved the same way.
         FormDefinition? preValidated = null;
         RecordTypeCreationGate? preResolved = null;
+        var declarationResolved = false;
+        string? preDeclared = null;
         if (target == FormDefinitionStatus.Published
-            && Find(_store, tenant, id, version) is { RecordTypeId: not null } pending
-            && pending.Status != target
-            && allowedFrom.Contains(pending.Status)
-            && PassesSynchronousValidation(pending))
+            && Find(_store, tenant, id, version) is { } candidate
+            && candidate.Status != target
+            && allowedFrom.Contains(candidate.Status)
+            && PassesSynchronousValidation(candidate))
         {
-            preResolved = await ResolvePublicationGateAsync(pending, ct).ConfigureAwait(false);
-            preValidated = pending;
+            preDeclared = await ResolveDeclaredCreationAsync(candidate, ct).ConfigureAwait(false);
+            declarationResolved = true;
+            FormDefinitionValidation.ValidateDeclaredCreationOrThrow(candidate, preDeclared);
+            if (candidate.RecordTypeId is not null)
+            {
+                preResolved = await ResolvePublicationGateAsync(candidate, ct).ConfigureAwait(false);
+                preValidated = candidate;
+            }
         }
 
         await _mutationLock.WaitAsync(ct).ConfigureAwait(false);
@@ -352,6 +374,9 @@ public sealed class InMemoryFormDefinitionStore : IFormDefinitionStore, IDisposa
             {
                 var publishing = existing.Status != target;
                 ValidateDefinition(existing, requireSubmitGate: publishing);
+                if (publishing)
+                    FormDefinitionValidation.ValidateDeclaredCreationOrThrow(existing,
+                        declarationResolved ? preDeclared : await ResolveDeclaredCreationAsync(existing, ct).ConfigureAwait(false));
                 if (publishing && existing.RecordTypeId is not null)
                 {
                     // A concurrent registration can make the revision visible only now; resolve it here in that rare case.
@@ -425,6 +450,9 @@ public sealed class InMemoryFormDefinitionStore : IFormDefinitionStore, IDisposa
     private async ValueTask ValidateDefinitionAsync(FormDefinition definition, bool requireSubmitGate, CancellationToken ct)
     {
         ValidateDefinition(definition, requireSubmitGate);
+        if (requireSubmitGate)
+            FormDefinitionValidation.ValidateDeclaredCreationOrThrow(
+                definition, await ResolveDeclaredCreationAsync(definition, ct).ConfigureAwait(false));
         if (requireSubmitGate && definition.RecordTypeId is not null)
             FormDefinitionValidation.ValidateRecordTypePublicationOrThrow(
                 definition, await ResolvePublicationGateAsync(definition, ct).ConfigureAwait(false));
@@ -460,6 +488,20 @@ public sealed class InMemoryFormDefinitionStore : IFormDefinitionStore, IDisposa
         {
             return await RecordTypeCreationPolicy
                 .ResolveAsync(_recordTypePolicies, definition.Tenant, definition.RecordTypeId!, ct).ConfigureAwait(false);
+        }
+        catch (RecordTypeCreationPolicyException refusal)
+        {
+            throw new FormDefinitionValidationException(definition.Id, refusal.Message, refusal.Code, "/record_type_id");
+        }
+    }
+
+    // K9: a failing or ambiguous declaration refuses publication with a stable code at the target's pointer.
+    private async ValueTask<string?> ResolveDeclaredCreationAsync(FormDefinition definition, CancellationToken ct)
+    {
+        try
+        {
+            return await RecordCreationDeclarations
+                .ResolveAsync(_recordCreations, definition.Tenant, definition.Id, ct).ConfigureAwait(false);
         }
         catch (RecordTypeCreationPolicyException refusal)
         {

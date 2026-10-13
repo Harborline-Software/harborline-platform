@@ -67,6 +67,8 @@ public sealed class AccessProvider(IAuthorizationDecider decider) : IAccessSetFi
     /// Executes the same fresh row check as <see cref="CheckAsync"/> and also returns the decider's evidence, so a writer
     /// can keep the enforcing decision's trace without asking the gate twice. The decider is called once; an invalid
     /// context never reaches it, and evidence for any other context is withheld and refuses. No verdict is calculated here.
+    /// A typed target (<see cref="AccessRecord.RecordTypeId"/>) is part of the context: a blank one is invalid, and evidence
+    /// naming another record type, or none for a typed request, or one for an untyped request, is a mismatch.
     /// </summary>
     public async ValueTask<AccessDecisionCheck> CheckWithEvidenceAsync(AccessRequest request, CancellationToken cancellationToken = default)
     {
@@ -74,11 +76,13 @@ public sealed class AccessProvider(IAuthorizationDecider decider) : IAccessSetFi
         cancellationToken.ThrowIfCancellationRequested();
         if (string.IsNullOrWhiteSpace(request.Principal) || string.IsNullOrWhiteSpace(request.Tenant)
             || string.IsNullOrWhiteSpace(request.Operation) || string.IsNullOrWhiteSpace(request.Record.Id)
-            || string.IsNullOrWhiteSpace(request.Record.Kind) || request.Tenant != request.Record.Tenant)
+            || string.IsNullOrWhiteSpace(request.Record.Kind) || request.Tenant != request.Record.Tenant
+            || (request.Record.RecordTypeId is { } recordType && string.IsNullOrWhiteSpace(recordType)))
             return new(new(false, "access.context_invalid"), null);
         var evidence = await _decider.DecideAsync(request, cancellationToken).ConfigureAwait(false);
         if (evidence.Principal != request.Principal || evidence.Tenant != request.Tenant || evidence.At != request.At
-            || evidence.Operation != request.Operation || evidence.RecordKind != request.Record.Kind || evidence.RecordId != request.Record.Id)
+            || evidence.Operation != request.Operation || evidence.RecordKind != request.Record.Kind || evidence.RecordId != request.Record.Id
+            || !string.Equals(evidence.RecordTypeId, request.Record.RecordTypeId, StringComparison.Ordinal))
             return new(new(false, "access.decision_mismatch"), null);
         return new(new(evidence.Allowed, evidence.Allowed ? "access.allowed" : evidence.Refusal), evidence);
     }

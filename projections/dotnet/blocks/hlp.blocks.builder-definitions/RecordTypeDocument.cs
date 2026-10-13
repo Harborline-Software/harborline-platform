@@ -63,6 +63,12 @@ public sealed record RecordsExposure(int InterfaceVersion);
 /// <param name="ClassId">The type's one Class, its catalogue home (records-ck-18). Required at publication.</param>
 /// <param name="RecordClass">Whether the type's records are reference, master or transactional data (records-ck-17).
 /// Required at publication with no default: it decides whether the records may travel in a pack (ADR 0025).</param>
+/// <param name="CreationGate">Who may create the type's records (records-ck-22, <c>creation_gate</c>). Absent means
+/// <see cref="RecordCreationGate.FormOnly"/>, the default DES-0004 section 1 defines; the canonical body omits an explicit
+/// <c>form_only</c>, so one meaning has one encoding and one digest.</param>
+/// <param name="CreationRoleId">For <see cref="RecordCreationGate.Role"/> only, the one role whose holders create the type's
+/// records (decision D1, <c>creation_role_id</c>): a domain role name, as Records names roles elsewhere. Required at
+/// publication for a role gate and refused for any other gate.</param>
 public sealed record RecordTypeDocument(
     RecordsDefinitionEnvelope Envelope,
     string Name,
@@ -71,10 +77,46 @@ public sealed record RecordTypeDocument(
     IReadOnlyList<TraitReference>? Traits = null,
     string? RetentionClockFieldId = null,
     string? ClassId = null,
-    RecordClass? RecordClass = null)
+    RecordClass? RecordClass = null,
+    RecordCreationGate? CreationGate = null,
+    string? CreationRoleId = null)
 {
     /// <summary>The typed Records grammar the validator and schema compiler read.</summary>
     public RecordTypeDefinition ToDefinition() => new(RecordTypeId, Fields, Traits, RetentionClockFieldId);
+}
+
+/// <summary>
+/// A Record Type's creation gate (DES-0004 section 1, DES-0015 records-ck-22, L1004): a sealed literal set whose exact
+/// spellings are <c>form_only</c>, <c>role</c> and <c>engine</c>. Any other spelling, case or a number is malformed.
+/// </summary>
+public enum RecordCreationGate
+{
+    /// <summary><c>form_only</c>, the default: records are created only by submitting a form whose submit gate is the create
+    /// gate (ADR 0043). There is no direct create.</summary>
+    FormOnly,
+    /// <summary><c>role</c>: holders of the type's one <c>creation_role_id</c> create records, directly or through a form that
+    /// invokes the same role-gated operation without adding another creation gate (decision D1).</summary>
+    Role,
+    /// <summary><c>engine</c>: only the engine creates the type's records, from an effect or an import. No principal and no
+    /// form creates them.</summary>
+    Engine,
+}
+
+/// <summary>
+/// The one governing creation policy of a Record Type: its effective gate and, for a role gate, its creation role. Every
+/// Records consumer (the Records write, the host's decider adapter and the host's Forms policy reader) reads it from the
+/// published body through here, so the answer is in one place.
+/// </summary>
+/// <param name="Gate">The effective gate: the declared one, or <see cref="RecordCreationGate.FormOnly"/> when absent.</param>
+/// <param name="RoleId">The declared <c>creation_role_id</c>, or null.</param>
+public sealed record RecordCreationPolicy(RecordCreationGate Gate, string? RoleId)
+{
+    /// <summary>The policy <paramref name="document"/> declares, with the DES-0004 default for an absent gate.</summary>
+    public static RecordCreationPolicy Of(RecordTypeDocument document)
+    {
+        ArgumentNullException.ThrowIfNull(document);
+        return new(document.CreationGate ?? RecordCreationGate.FormOnly, document.CreationRoleId);
+    }
 }
 
 /// <summary>The data category of a Record Type's records (DES-0015 records-ck-17; ADR 0025; L088, L191-L194).</summary>
@@ -91,8 +133,18 @@ public enum RecordClass
 /// <summary>Canonical, projection-neutral Record Type definition JSON.</summary>
 public static class RecordTypeDefinitionJson
 {
-    /// <summary>Serializes a Record Type definition to canonical UTF-8 JSON with a trailing newline.</summary>
-    public static byte[] SerializeCanonical(RecordTypeDocument document) => RecordsJson.SerializeCanonical(document);
+    /// <summary>
+    /// Serializes a Record Type definition to canonical UTF-8 JSON with a trailing newline. An explicit
+    /// <c>creation_gate</c> of <c>form_only</c> is the default and is omitted, so a body that spells it and one that does
+    /// not have the same bytes and digest.
+    /// </summary>
+    public static byte[] SerializeCanonical(RecordTypeDocument document)
+    {
+        ArgumentNullException.ThrowIfNull(document);
+        return RecordsJson.SerializeCanonical(document.CreationGate == RecordCreationGate.FormOnly
+            ? document with { CreationGate = null }
+            : document);
+    }
 
     /// <summary>
     /// Deserializes a Record Type definition. An unknown member, a null payload or an explicit null for a non-nullable
@@ -187,8 +239,37 @@ internal static class RecordsJson
             RespectNullableAnnotations = true,
         };
         options.Converters.Add(new RecordClassJsonConverter());
+        options.Converters.Add(new RecordCreationGateJsonConverter());
         options.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.SnakeCaseLower, allowIntegerValues: false));
         return options;
+    }
+
+    // The creation gate is a sealed literal set with exact lowercase spellings (records-ck-22); the general enum converter
+    // would accept case variants, and the platform pack's legacy "form-only" spelling is read only by its own
+    // version-specific reader (PlatformCreationGateCompatibility), never here.
+    private sealed class RecordCreationGateJsonConverter : JsonConverter<RecordCreationGate>
+    {
+        public override RecordCreationGate Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        {
+            if (reader.TokenType != JsonTokenType.String)
+                throw new JsonException("A creation gate must be a lowercase named value.");
+            return reader.GetString() switch
+            {
+                "form_only" => RecordCreationGate.FormOnly,
+                "role" => RecordCreationGate.Role,
+                "engine" => RecordCreationGate.Engine,
+                _ => throw new JsonException("Unknown creation gate."),
+            };
+        }
+
+        public override void Write(Utf8JsonWriter writer, RecordCreationGate value, JsonSerializerOptions options)
+            => writer.WriteStringValue(value switch
+            {
+                RecordCreationGate.FormOnly => "form_only",
+                RecordCreationGate.Role => "role",
+                RecordCreationGate.Engine => "engine",
+                _ => throw new JsonException("Unknown creation gate."),
+            });
     }
 
     // Record class has an exact lowercase grammar; the general enum converter accepts case variants.

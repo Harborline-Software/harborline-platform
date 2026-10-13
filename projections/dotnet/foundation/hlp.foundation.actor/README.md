@@ -29,6 +29,15 @@ an input to this method and cannot bypass the check.
 reaches it, and evidence for any other principal, tenant, instant, operation or record is
 withheld and refuses `access.decision_mismatch`. `CheckAsync` is this check reduced to its result.
 
+A request may name a typed Records target, `AccessRecord.RecordTypeId` (revision 5, plan W9). It
+names the Record Type a record belongs to or is about to be created as, so the decider can decide
+an act on one type: for a create, the type's creation policy, including the one `creation_role_id`
+of a `role`-gated type (decision D1). It is part of the context. A blank one is
+`access.context_invalid` and never reaches the decider. Evidence naming another type, or dropping
+or adding one, is `access.decision_mismatch`. The evidence copies it as
+`AuthorizationDecisionEvidence.RecordTypeId` and adds no trace fact, so the four steps and their
+stored bytes are the same as for an untyped request. Existing requests set no type and are unchanged.
+
 Persist `AuthorizationDecisionEvidence.Project()` and the original counterfactual when the host
 records its decision. The storage adapter returns only `AuthorizationTraceSnapshot`, not audit
 payloads, signatures or diagnostic secrets. The reader authorizes the current `audit:trace-read`

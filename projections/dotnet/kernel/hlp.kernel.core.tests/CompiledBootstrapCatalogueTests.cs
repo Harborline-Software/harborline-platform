@@ -49,6 +49,7 @@ public sealed class CompiledBootstrapCatalogueTests
             ("record_class", CompiledMemberKind.Enum, true, false, null),
             ("traits", CompiledMemberKind.Reference, false, true, "trait"),
             ("creation_gate", CompiledMemberKind.Enum, true, false, null),
+            ("creation_role_id", CompiledMemberKind.Reference, false, false, "role"),
             ("amendment_policy", CompiledMemberKind.Enum, true, false, null),
             ("history_policy", CompiledMemberKind.Enum, true, false, null),
             ("visibility_policy", CompiledMemberKind.Enum, true, false, null),
@@ -80,10 +81,10 @@ public sealed class CompiledBootstrapCatalogueTests
     }
 
     // A member change bumps the shape's revision (DES-0029 ck-1, owner ruling 2026-09-28): record_class and the five
-    // reference members (2026-10-08) took Record Type and Field to 2.
+    // reference members (2026-10-08) took Record Type and Field to 2; creation_role_id (D1, 2026-10-10) took Record Type to 3.
     [Fact]
     public void Floor_shapes_carry_their_compiled_revisions() =>
-        Assert.Equal([1, 2, 2], CompiledBootstrapCatalogue.Shapes.Select(shape => shape.Revision).ToArray());
+        Assert.Equal([1, 3, 2], CompiledBootstrapCatalogue.Shapes.Select(shape => shape.Revision).ToArray());
 
     // A floor member is one flat catalogue column, so its key is lowercase snake case and never a dotted path.
     [Theory]

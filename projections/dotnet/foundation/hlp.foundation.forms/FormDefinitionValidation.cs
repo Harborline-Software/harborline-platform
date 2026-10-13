@@ -76,6 +76,27 @@ internal static class FormDefinitionValidation
     }
 
     /// <summary>
+    /// K9 publication check against the host producers' declaration (<see cref="IFormRecordCreationDeclarations"/>): when the
+    /// producers declare that submissions of this form create records of <paramref name="declaredRecordTypeId"/>, the
+    /// definition must target exactly that type. Missing target metadata is refused, never treated as "creates nothing";
+    /// a form the producers declare nothing for is unaffected.
+    /// </summary>
+    public static void ValidateDeclaredCreationOrThrow(FormDefinition definition, string? declaredRecordTypeId)
+    {
+        if (declaredRecordTypeId is null) return;
+        if (definition.RecordTypeId is null)
+            throw new FormDefinitionValidationException(
+                definition.Id,
+                $"submissions of this form create records of '{declaredRecordTypeId}'; a Published revision must declare record_type_id.",
+                FormDefinitionCodes.RecordTypeTargetRequired, "/record_type_id");
+        if (!StringComparer.Ordinal.Equals(definition.RecordTypeId, declaredRecordTypeId))
+            throw new FormDefinitionValidationException(
+                definition.Id,
+                $"submissions of this form create records of '{declaredRecordTypeId}', not '{definition.RecordTypeId}'.",
+                FormDefinitionCodes.RecordTypeTargetMismatch, "/record_type_id");
+    }
+
+    /// <summary>
     /// ADR 0099 decision 7 (captured record-type change is blocked): once a Published, Deprecated or Withdrawn revision of
     /// the same tenant and definition id declares a target, every revision reaching Published must declare the same one.
     /// Withdrawal is not a migration decision, so a withdrawn revision's target stays captured (lead ruling, R2-2).
