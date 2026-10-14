@@ -16,16 +16,16 @@
   <div role="tablist" aria-label="Workspace tabs">
    @foreach (var tab in current.Tabs.OrderByDescending(t => t.Pinned))
    {
-    <button @key="tab.Id" type="button" role="tab" id="@TabDomId(tab.Id)" aria-controls="@PanelDomId(tab.Id)" aria-selected="@(current.Active == tab.Id ? "true" : "false")" tabindex="@(current.Active == tab.Id ? 0 : -1)" style="@(tab.Preview ? "font-style:italic" : null)" @onclick="() => Emit(new("open", tab.Id, Kind: tab.Kind, Target: tab.Target))" @ondblclick="() => Emit(new("keep", tab.Id))">@tab.Kind: @tab.Target @(tab.Pinned ? "Pinned" : "") @(tab.Dirty ? "• Unsaved" : tab.Preview ? "Preview" : "")</button>
+    <button @key="tab.Id" type="button" role="tab" id="@TabDomId(tab.Id)" aria-controls="@PanelDomId(tab.Id)" aria-selected="@(current.Active == tab.Id ? "true" : "false")" tabindex="@(current.Active == tab.Id ? 0 : -1)" style="@(tab.Preview ? "font-style:italic" : null)" @onclick='() => Emit(new("open", tab.Id, Kind: tab.Kind, Target: tab.Target))' @ondblclick='() => Emit(new("keep", tab.Id))'>@tab.Kind: @tab.Target @(tab.Pinned ? "Pinned" : "") @(tab.Dirty ? "• Unsaved" : tab.Preview ? "Preview" : "")</button>
    }
   </div>
   @foreach (var tab in current.Tabs)
   {
    <section role="tabpanel" id="@PanelDomId(tab.Id)" aria-labelledby="@TabDomId(tab.Id)" hidden="@(tab.Id != current.Active)" tabindex="0">
     @if (TabContent is not null) { @TabContent(tab) } else { <p>@tab.Target</p> }
-    <button type="button" @onclick="() => Emit(new("keep", tab.Id))">Keep open</button>
-    <button type="button" @onclick="() => Emit(new(tab.Pinned ? "unpin" : "pin", tab.Id))">@(tab.Pinned ? "Unpin" : "Pin")</button>
-    <button type="button" disabled="@tab.Pinned" @onclick="() => Emit(new("close", tab.Id))">Close</button>
+    <button type="button" @onclick='() => Emit(new("keep", tab.Id))'>Keep open</button>
+    <button type="button" @onclick='() => Emit(new(tab.Pinned ? "unpin" : "pin", tab.Id))'>@(tab.Pinned ? "Unpin" : "Pin")</button>
+    <button type="button" disabled="@tab.Pinned" @onclick='() => Emit(new("close", tab.Id))'>Close</button>
    </section>
   }
   </div>
