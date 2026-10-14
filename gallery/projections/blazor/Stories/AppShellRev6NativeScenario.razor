@@ -1,0 +1,115 @@
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+@using System.Text.Json
+@using Harborline.UIAdapters.Blazor.Components.Layout
+
+<h1>@name</h1>
+<p>Experimental rev6 native tab-host slice. The story owns the shared reducer state.</p>
+@if (error is not null) { <p role="alert">@error</p> }
+<div aria-label="Story adapter controls">
+ <button type="button" disabled="@(state is null)" @onclick="SwitchIdentity">Switch person</button>
+ <button type="button" disabled="@(owner is null)" @onclick='() => Apply(new { type = "sign-out" }, true)'>Sign out</button>
+ <button type="button" disabled="@(owner is null)" @onclick='() => Apply(new { type = "open", kind = "Details", target = "record-b", preview = true })'>Open preview</button>
+ <button type="button" disabled="@(owner is null)" @onclick='() => Apply(new { type = "navigate", destination = "records" })'>Navigate to records</button>
+ @if (view?.SaveRequest is not null)
+ {
+  <button type="button" @onclick="AcknowledgeSave">Adapter: acknowledge successful save</button>
+  <p>The Save button only requests a save. This explicit adapter control echoes the request owner, id, requestId and generation.</p>
+ }
+</div>
+<HarborlineAppShellRev6TabHost ShellId="rev6-native-story" Owner="owner" Presentation="view" Intent="HandleIntent">
+ <TabContent Context="tab">
+  <p>@tab.Kind / @tab.Target</p>
+  <label>Draft <textarea @bind:get="Draft(tab.Id)" @bind:set="value => EditDraft(tab.Id, value)"></textarea></label>
+ </TabContent>
+</HarborlineAppShellRev6TabHost>
+
+@code {
+ [Parameter] public string ScenarioId { get; set; } = "dirty-navigation";
+ private static readonly JsonSerializerOptions jsonOptions = new() { PropertyNameCaseInsensitive = true };
+ private string name = "Rev6 native tab host";
+ private string? error;
+ private string? loadedScenario;
+ private long epoch;
+ private bool disposed;
+ private JsonElement? state;
+ private AppShellRev6Owner? owner;
+ private AppShellRev6Presentation? view;
+ private IJSObjectReference? module;
+ private readonly System.Threading.SemaphoreSlim events = new(1, 1);
+ protected override void OnParametersSet()
+ {
+  if (loadedScenario != ScenarioId) { epoch++; state = null; owner = null; view = null; error = null; name = "Rev6 native tab host"; }
+ }
+ protected override async Task OnAfterRenderAsync(bool firstRender)
+ {
+  if (loadedScenario == ScenarioId || disposed) return;
+  var loadingScenario = ScenarioId;
+  var loadingEpoch = epoch;
+  loadedScenario = loadingScenario;
+  try
+  {
+   using var stream = typeof(AppShellRev6NativeScenario).Assembly.GetManifestResourceStream("app-shell-rev6-state-scenarios.json")!;
+   using var fixture = await JsonDocument.ParseAsync(stream);
+   var scenario = fixture.RootElement.GetProperty("scenarios").EnumerateArray().Single(s => s.GetProperty("id").GetString() == loadingScenario);
+   module ??= await JS.InvokeAsync<IJSObjectReference>("import", "./rev6/tab-identity-state.mjs");
+   var result = await module.InvokeAsync<JsonElement>("runScenario", scenario.GetProperty("events"));
+   var presentation = await module.InvokeAsync<JsonElement>("presentation", result);
+   if (disposed || epoch != loadingEpoch || ScenarioId != loadingScenario) return;
+   name = scenario.GetProperty("name").GetString()!;
+   Publish(result, presentation);
+  }
+  catch (Exception ex) { if (!disposed && epoch == loadingEpoch) error = ex.Message; }
+  if (!disposed) StateHasChanged();
+ }
+ private void Publish(JsonElement result, JsonElement presentation)
+ {
+  state = result;
+  owner = result.GetProperty("owner").Deserialize<AppShellRev6Owner>(jsonOptions);
+  view = owner is null || presentation.ValueKind == JsonValueKind.Null ? null : new(owner,
+   presentation.GetProperty("destination").GetString()!, presentation.GetProperty("tabs").Deserialize<AppShellRev6Tab[]>(jsonOptions)!,
+   presentation.GetProperty("active").GetString(), presentation.GetProperty("pendingClose").GetString(),
+   presentation.GetProperty("saveRequest").Deserialize<AppShellRev6SaveRequest>(jsonOptions));
+ }
+ private async Task Apply(object intent, bool identityBoundary = false)
+ {
+  if (identityBoundary) { epoch++; owner = null; view = null; StateHasChanged(); }
+  var requestEpoch = epoch;
+  await events.WaitAsync();
+  try
+  {
+   if (disposed || requestEpoch != epoch || state is null || module is null) return;
+   var result = await module.InvokeAsync<JsonElement>("transition", state.Value, intent);
+   var presentation = await module.InvokeAsync<JsonElement>("presentation", result);
+   if (disposed || requestEpoch != epoch) return;
+   Publish(result, presentation);
+  }
+  catch (Exception ex) { if (!disposed && requestEpoch == epoch) error = ex.Message; }
+  finally { events.Release(); }
+ }
+ private string Draft(string id)
+ {
+  // Only the published current-owner state is inspected by this host render fragment.
+  if (state is null || owner is null) return "";
+  var key = JsonSerializer.Serialize(new[] { owner.Person, owner.Tenant, owner.Workspace });
+  var drafts = state.Value.GetProperty("owners").GetProperty(key).GetProperty("drafts");
+  return drafts.TryGetProperty(id, out var draft) ? draft.ToString() : "";
+ }
+ private Task EditDraft(string id, string value) => Apply(new { type = "edit", id, draft = value });
+ private Task HandleIntent(AppShellRev6Intent intent)
+ {
+  if (intent.Type == "resolve-close") return Apply(new { type = intent.Type, choice = intent.Choice!.Value.ToString().ToLowerInvariant() });
+  if (intent.Type == "open")
+  {
+   return Apply(new { type = "open", kind = intent.Kind, target = intent.Target });
+  }
+  return Apply(new { type = intent.Type, id = intent.Id });
+ }
+ private Task SwitchIdentity() => Apply(new { type = "identity", owner = new { person = owner?.Person == "bob" ? "alice" : "bob", tenant = "north", workspace = "work" } }, true);
+ private Task AcknowledgeSave()
+ {
+  var request = view?.SaveRequest;
+  return request is null ? Task.CompletedTask : Apply(new { type = "saved", owner = new { person = request.Owner.Person, tenant = request.Owner.Tenant, workspace = request.Owner.Workspace }, id = request.Id, requestId = request.RequestId, generation = request.Generation });
+ }
+ public async ValueTask DisposeAsync() { disposed = true; epoch++; if (module is not null) await module.DisposeAsync(); }
+}

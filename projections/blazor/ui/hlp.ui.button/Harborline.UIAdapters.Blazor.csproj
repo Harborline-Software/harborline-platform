@@ -164,6 +164,7 @@
     <RazorComponent Include="../hlp.ui.app-shell/**/*.razor" Link="Components/Layout/%(Filename)%(Extension)" />
     <Compile Include="../hlp.ui.app-shell/**/*.cs" Link="Components/Layout/%(Filename)%(Extension)" />
     <Content Include="../hlp.ui.app-shell/wwwroot/**" Link="wwwroot/%(Filename)%(Extension)" />
+    <Content Include="../hlp.ui.app-shell/rev6/wwwroot/**" Link="wwwroot/%(Filename)%(Extension)" />
     <RazorComponent Include="../hlp.ui.detail-panel/**/*.razor" Link="Components/Layout/%(Filename)%(Extension)" />
     <Compile Include="../hlp.ui.detail-panel/**/*.cs" Link="Components/Layout/%(Filename)%(Extension)" />
     <Content Include="../hlp.ui.detail-panel/wwwroot/**" Link="wwwroot/%(Filename)%(Extension)" />

@@ -1,0 +1,80 @@
+@namespace Harborline.UIAdapters.Blazor.Components.Layout
+@using Microsoft.AspNetCore.Components.Web
+@using Microsoft.JSInterop
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+
+<main @ref="root" class="hl-app-shell-rev6-tab-host" data-shell-id="@ShellId" data-revision="6" aria-label="Workspace tab host" tabindex="-1">
+ @if (current is null)
+ {
+  <p>No current workspace presentation.</p>
+ }
+ else
+ {
+  <div inert="@(current.PendingClose is not null ? "" : null)" aria-hidden="@(current.PendingClose is not null ? "true" : null)">
+  <h2>@current.Destination</h2>
+  <div role="tablist" aria-label="Workspace tabs">
+   @foreach (var tab in current.Tabs.OrderByDescending(t => t.Pinned))
+   {
+    <button @key="tab.Id" type="button" role="tab" id="@TabDomId(tab.Id)" aria-controls="@PanelDomId(tab.Id)" aria-selected="@(current.Active == tab.Id ? "true" : "false")" tabindex="@(current.Active == tab.Id ? 0 : -1)" style="@(tab.Preview ? "font-style:italic" : null)" @onclick="() => Emit(new("open", tab.Id, Kind: tab.Kind, Target: tab.Target))" @ondblclick="() => Emit(new("keep", tab.Id))">@tab.Kind: @tab.Target @(tab.Pinned ? "Pinned" : "") @(tab.Dirty ? "• Unsaved" : tab.Preview ? "Preview" : "")</button>
+   }
+  </div>
+  @foreach (var tab in current.Tabs)
+  {
+   <section role="tabpanel" id="@PanelDomId(tab.Id)" aria-labelledby="@TabDomId(tab.Id)" hidden="@(tab.Id != current.Active)" tabindex="0">
+    @if (TabContent is not null) { @TabContent(tab) } else { <p>@tab.Target</p> }
+    <button type="button" @onclick="() => Emit(new("keep", tab.Id))">Keep open</button>
+    <button type="button" @onclick="() => Emit(new(tab.Pinned ? "unpin" : "pin", tab.Id))">@(tab.Pinned ? "Unpin" : "Pin")</button>
+    <button type="button" disabled="@tab.Pinned" @onclick="() => Emit(new("close", tab.Id))">Close</button>
+   </section>
+  }
+  </div>
+  @if (current.PendingClose is not null)
+  {
+   <div role="dialog" aria-modal="true" aria-labelledby="@dialogTitle" @onkeydown="DialogKey">
+    <h3 id="@dialogTitle">Save changes before closing?</h3>
+    <p>Unsaved changes remain until the host confirms a successful save.</p>
+    <button type="button" disabled="@(current.SaveRequest is not null)" @onclick="() => Resolve(AppShellRev6CloseChoice.Save)">Save</button>
+    <button type="button" @onclick="() => Resolve(AppShellRev6CloseChoice.Discard)">Discard</button>
+    <button type="button" @onclick="() => Resolve(AppShellRev6CloseChoice.Cancel)">Cancel</button>
+    @if (current.SaveRequest is not null) { <p role="status" tabindex="-1">Save requested; waiting for adapter acknowledgment.</p> }
+   </div>
+  }
+ }
+</main>
+
+@code {
+ [Parameter, EditorRequired] public string ShellId { get; set; } = "";
+ [Parameter] public AppShellRev6Owner? Owner { get; set; }
+ [Parameter] public AppShellRev6Presentation? Presentation { get; set; }
+ [Parameter] public EventCallback<AppShellRev6Intent> Intent { get; set; }
+ [Parameter] public RenderFragment<AppShellRev6Tab>? TabContent { get; set; }
+ private AppShellRev6Presentation? current;
+ private AppShellRev6Owner? previousOwner;
+ private readonly string prefix = "hl-rev6-" + Guid.NewGuid().ToString("N");
+ private string dialogTitle => prefix + "-dialog-title";
+ private ElementReference root;
+ private IJSObjectReference? module;
+ private bool disposed;
+ protected override void OnParametersSet()
+ {
+  if (!System.Text.RegularExpressions.Regex.IsMatch(ShellId, "^[a-z0-9-]+$")) throw new ArgumentException("ShellId must match [a-z0-9-]+.", nameof(ShellId));
+  if (previousOwner != Owner) { current = null; previousOwner = Owner; }
+  current = Owner is not null && Presentation?.Owner == Owner ? Presentation : null;
+ }
+ private string TabDomId(string id) => prefix + "-tab-" + Convert.ToHexString(System.Text.Encoding.UTF8.GetBytes(id));
+ private string PanelDomId(string id) => TabDomId(id) + "-panel";
+ private Task Emit(AppShellRev6Intent intent) => current is null ? Task.CompletedTask : Intent.InvokeAsync(intent);
+ private Task Resolve(AppShellRev6CloseChoice choice) => Emit(new("resolve-close", Choice: choice));
+ private Task DialogKey(KeyboardEventArgs e) => e.Key == "Escape" ? Resolve(AppShellRev6CloseChoice.Cancel) : Task.CompletedTask;
+ protected override async Task OnAfterRenderAsync(bool firstRender)
+ {
+  module ??= await JS.InvokeAsync<IJSObjectReference>("import", "./_content/Harborline.UIAdapters.Blazor/app-shell-rev6-focus.mjs");
+  if (!disposed) await module.InvokeVoidAsync("bind", root, current is null ? null : System.Text.Json.JsonSerializer.Serialize(current.Owner));
+ }
+ public async ValueTask DisposeAsync()
+ {
+  disposed = true;
+  if (module is not null) { await module.InvokeVoidAsync("unbind", root); await module.DisposeAsync(); }
+ }
+}

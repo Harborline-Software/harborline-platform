@@ -10,5 +10,12 @@
   "reactStory": "gallery/projections/react/src/AppShellRev6State.stories.tsx",
   "blazorStory": "gallery/projections/blazor/Stories/AppShellRev6State.stories.razor",
   "projectionKind": "shared-state-observation",
-  "acceptance": "Bounded presentation transitions only; not full native rev6 shell conformance."
+  "nativeReactStory": "gallery/projections/react/src/AppShellRev6Native.stories.tsx",
+  "nativeBlazorStory": "gallery/projections/blazor/Stories/AppShellRev6Native.stories.razor",
+  "nativeReactSource": "projections/react/ui/hlp.ui.app-shell/src/rev6/AppShellRev6.tsx",
+  "nativeBlazorSource": "projections/blazor/ui/hlp.ui.app-shell/rev6/HarborlineAppShellRev6TabHost.razor",
+  "nativeReactTest": "conformance/hlp.ui.app-shell/rev6/react-native.test.mjs",
+  "nativeBlazorTest": "conformance/hlp.ui.app-shell/rev6/blazor-native.test.mjs",
+  "nativeStatus": "source-reviewed; native-build-and-browser-unexecuted",
+  "acceptance": "Bounded presentation and interactive tab-host slice only; not full native rev6 shell conformance."
 }
