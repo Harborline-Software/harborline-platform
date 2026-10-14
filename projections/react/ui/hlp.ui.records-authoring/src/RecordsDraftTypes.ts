@@ -13,13 +13,13 @@ export interface RecordTypeFieldReference { readonly target_type_id?: string; re
  * survive). The editor carries it byte-exactly and never parses, rounds, increments or defaults it. Absent means none: undefined, or a
  * JSON null as the host wire's string? ExpectedRevision serializes it (RecordsDraftHostContract.cs:156); a null is carried unchanged.
  */
-export interface RecordsDraft { readonly identity: string; readonly versionId: string; readonly expectedRevision?: string; readonly definitionKind?: 'Records'; readonly body: RecordTypeBody }
+export interface RecordsDraft { readonly identity: string; readonly versionId: string; readonly expectedRevision?: string | null; readonly definitionKind?: 'Records'; readonly body: RecordTypeBody }
 /** A field kind and version the host offers. The editor never selects one on its own. */
 export interface RecordsKindOption { readonly kindId: string; readonly version: string }
 /** A producer diagnostic rendered as given: a stable code at an RFC 6901 pointer. */
 export interface RecordsDiagnostic { readonly code: string; readonly pointer: string }
 /** Host-supplied diagnostics for one exact draft identity, revision and local generation. */
-export interface RecordsDiagnosticSet { readonly identity: string; readonly expectedRevision?: string; readonly generation: number; readonly diagnostics: readonly RecordsDiagnostic[] }
+export interface RecordsDiagnosticSet { readonly identity: string; readonly expectedRevision?: string | null; readonly generation: number; readonly diagnostics: readonly RecordsDiagnostic[] }
 /** A local change: the draft and the generation it belongs to. The generation is a local counter, never a revision. Local state only; nothing is persisted. */
 export interface RecordsDraftChange { readonly draft: RecordsDraft; readonly generation: number }
 
