@@ -22,7 +22,7 @@ public sealed record AppShellRev6Tab(string Id, string Kind, string Target, bool
 /// <param name="RequestId">The request identity used to match the save acknowledgment.</param>
 public sealed record AppShellRev6SaveRequest(AppShellRev6Owner Owner, string Id, long Generation, long RequestId);
 
-/// <summary>The current owner's visible tab state; private state for other owners stays in the host.</summary>
+/// <summary>The current owner's visible tab state; private state for other users stays in the host.</summary>
 /// <param name="Owner">The owner to whom this presentation belongs.</param>
 /// <param name="Destination">The current destination shown by the host.</param>
 /// <param name="Tabs">The tabs visible to this owner.</param>
