@@ -1,0 +1,47 @@
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+<main data-revision="6" data-scenario="@ScenarioId">
+  <h1>@Name</h1>
+  <p>Experimental rev6 state slice. Live App Shell remains rev5.</p>
+  @if (Result is null) { <p>Loading state scenario</p> }
+  else
+  {
+    var owner = Result.Value.GetProperty("owner");
+    <p>Identity: @(owner.ValueKind == System.Text.Json.JsonValueKind.Null ? "Signed out" : $"{owner.GetProperty("person").GetString()} / {owner.GetProperty("tenant").GetString()} / {owner.GetProperty("workspace").GetString()}")</p>
+    <p>Destination: @Destination</p>
+    <ul>@foreach (var tab in Tabs) { <li>@tab.GetProperty("kind").GetString(): @tab.GetProperty("target").GetString()  -  @(tab.GetProperty("dirty").GetBoolean() ? "Unsaved" : tab.GetProperty("preview").GetBoolean() ? "Preview" : "Permanent")</li> }</ul>
+    <p>@Tabs.Length visible tabs</p>
+  }
+</main>
+@code {
+  [Parameter] public string ScenarioId { get; set; } = "dirty-navigation";
+  private string Name = "Rev6 state";
+  private string Destination = "None";
+  private System.Text.Json.JsonElement? Result;
+  private System.Text.Json.JsonElement[] Tabs = [];
+  private IJSObjectReference? Module;
+  private string? LoadedScenarioId;
+  protected override void OnParametersSet()
+  {
+    if (LoadedScenarioId != ScenarioId) { Name = "Rev6 state"; Result = null; Tabs = []; Destination = "None"; }
+  }
+  protected override async Task OnAfterRenderAsync(bool firstRender)
+  {
+    if (LoadedScenarioId == ScenarioId) return;
+    var loadingId = ScenarioId;
+    LoadedScenarioId = loadingId;
+    using var stream = typeof(AppShellRev6StateScenario).Assembly.GetManifestResourceStream("app-shell-rev6-state-scenarios.json")!;
+    using var fixture = await System.Text.Json.JsonDocument.ParseAsync(stream);
+    var scenario = fixture.RootElement.GetProperty("scenarios").EnumerateArray().Single(s => s.GetProperty("id").GetString() == loadingId);
+    Module ??= await JS.InvokeAsync<IJSObjectReference>("import", "./rev6/tab-identity-state.mjs");
+    var result = await Module.InvokeAsync<System.Text.Json.JsonElement>("runScenario", scenario.GetProperty("events"));
+    var view = await Module.InvokeAsync<System.Text.Json.JsonElement>("presentation", result);
+    if (ScenarioId != loadingId) return;
+    Name = scenario.GetProperty("name").GetString()!;
+    Result = result;
+    Tabs = []; Destination = "None";
+    if (view.ValueKind != System.Text.Json.JsonValueKind.Null) { Destination = view.GetProperty("destination").GetString()!; Tabs = view.GetProperty("tabs").EnumerateArray().Select(t => t.Clone()).ToArray(); }
+    StateHasChanged();
+  }
+  public async ValueTask DisposeAsync() { if (Module is not null) await Module.DisposeAsync(); }
+}

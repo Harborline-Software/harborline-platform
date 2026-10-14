@@ -1,0 +1,14 @@
+{
+  "moduleId": "hlp.ui.app-shell",
+  "revision": 6,
+  "status": "experimental-first-slice",
+  "defaultEnabled": false,
+  "liveRevision": 5,
+  "fixture": "conformance/hlp.ui.app-shell/rev6/state-scenarios.json",
+  "model": "projections/shared/ui/hlp.ui.app-shell/rev6/tab-identity-state.mjs",
+  "test": "conformance/hlp.ui.app-shell/rev6/tab-identity-state.test.mjs",
+  "reactStory": "gallery/projections/react/src/AppShellRev6State.stories.tsx",
+  "blazorStory": "gallery/projections/blazor/Stories/AppShellRev6State.stories.razor",
+  "projectionKind": "shared-state-observation",
+  "acceptance": "Bounded presentation transitions only; not full native rev6 shell conformance."
+}

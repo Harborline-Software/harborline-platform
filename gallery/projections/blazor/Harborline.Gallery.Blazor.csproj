@@ -26,6 +26,8 @@
     <!-- The App Shell story's panel table is the conformance fixture itself, embedded so the story reads
          one authority instead of restating it (the React story imports the same file). -->
     <EmbeddedResource Include="..\..\..\conformance\hlp.ui.app-shell\chrome-v1.json" LogicalName="app-shell-chrome-v1.json" />
+    <EmbeddedResource Include="..\..\..\conformance\hlp.ui.app-shell\rev6\state-scenarios.json" LogicalName="app-shell-rev6-state-scenarios.json" />
+    <Content Include="..\..\..\projections\shared\ui\hlp.ui.app-shell\rev6\tab-identity-state.mjs" Link="wwwroot\rev6\tab-identity-state.mjs" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="BlazingStory" />
