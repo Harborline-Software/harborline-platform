@@ -3,7 +3,8 @@
 <main data-revision="6" data-scenario="@ScenarioId">
   <h1>@Name</h1>
   <p>Experimental rev6 state slice. Live App Shell remains rev5.</p>
-  @if (Result is null) { <p>Loading state scenario</p> }
+  @if (Error is not null) { <p role="alert">@Error</p> }
+  else if (Result is null) { <p>Loading state scenario</p> }
   else
   {
     var owner = Result.Value.GetProperty("owner");
@@ -17,31 +18,43 @@
   [Parameter] public string ScenarioId { get; set; } = "dirty-navigation";
   private string Name = "Rev6 state";
   private string Destination = "None";
+  private string? Error;
   private System.Text.Json.JsonElement? Result;
   private System.Text.Json.JsonElement[] Tabs = [];
   private IJSObjectReference? Module;
   private string? LoadedScenarioId;
+  private long Epoch;
+  private bool Disposed;
   protected override void OnParametersSet()
   {
-    if (LoadedScenarioId != ScenarioId) { Name = "Rev6 state"; Result = null; Tabs = []; Destination = "None"; }
+    if (LoadedScenarioId != ScenarioId) { Epoch++; Name = "Rev6 state"; Result = null; Tabs = []; Destination = "None"; Error = null; }
   }
   protected override async Task OnAfterRenderAsync(bool firstRender)
   {
-    if (LoadedScenarioId == ScenarioId) return;
+    if (LoadedScenarioId == ScenarioId || Disposed) return;
     var loadingId = ScenarioId;
+    var loadingEpoch = Epoch;
     LoadedScenarioId = loadingId;
-    using var stream = typeof(AppShellRev6StateScenario).Assembly.GetManifestResourceStream("app-shell-rev6-state-scenarios.json")!;
-    using var fixture = await System.Text.Json.JsonDocument.ParseAsync(stream);
-    var scenario = fixture.RootElement.GetProperty("scenarios").EnumerateArray().Single(s => s.GetProperty("id").GetString() == loadingId);
-    Module ??= await JS.InvokeAsync<IJSObjectReference>("import", "./rev6/tab-identity-state.mjs");
-    var result = await Module.InvokeAsync<System.Text.Json.JsonElement>("runScenario", scenario.GetProperty("events"));
-    var view = await Module.InvokeAsync<System.Text.Json.JsonElement>("presentation", result);
-    if (ScenarioId != loadingId) return;
-    Name = scenario.GetProperty("name").GetString()!;
-    Result = result;
-    Tabs = []; Destination = "None";
-    if (view.ValueKind != System.Text.Json.JsonValueKind.Null) { Destination = view.GetProperty("destination").GetString()!; Tabs = view.GetProperty("tabs").EnumerateArray().Select(t => t.Clone()).ToArray(); }
-    StateHasChanged();
+    try
+    {
+      using var stream = typeof(AppShellRev6StateScenario).Assembly.GetManifestResourceStream("app-shell-rev6-state-scenarios.json")!;
+      using var fixture = await System.Text.Json.JsonDocument.ParseAsync(stream);
+      var scenario = fixture.RootElement.GetProperty("scenarios").EnumerateArray().Single(s => s.GetProperty("id").GetString() == loadingId);
+      Module ??= await JS.InvokeAsync<IJSObjectReference>("import", "./rev6/tab-identity-state.mjs");
+      var result = await Module.InvokeAsync<System.Text.Json.JsonElement>("runScenario", scenario.GetProperty("events"));
+      var view = await Module.InvokeAsync<System.Text.Json.JsonElement>("presentation", result);
+      if (Disposed || Epoch != loadingEpoch || ScenarioId != loadingId) return;
+      Name = scenario.GetProperty("name").GetString()!;
+      Result = result;
+      Tabs = []; Destination = "None";
+      if (view.ValueKind != System.Text.Json.JsonValueKind.Null) { Destination = view.GetProperty("destination").GetString()!; Tabs = view.GetProperty("tabs").EnumerateArray().Select(t => t.Clone()).ToArray(); }
+    }
+    catch (Exception ex)
+    {
+      if (Disposed || Epoch != loadingEpoch || ScenarioId != loadingId) return;
+      Name = "Rev6 state"; Result = null; Tabs = []; Destination = "None"; Error = ex.Message;
+    }
+    if (!Disposed) StateHasChanged();
   }
-  public async ValueTask DisposeAsync() { if (Module is not null) await Module.DisposeAsync(); }
+  public async ValueTask DisposeAsync() { Disposed = true; Epoch++; if (Module is not null) await Module.DisposeAsync(); }
 }
