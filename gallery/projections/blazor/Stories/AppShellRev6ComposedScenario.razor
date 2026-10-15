@@ -1,0 +1,276 @@
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+@using System.Text.Json
+@using Harborline.UIAdapters.Blazor.Components.Layout
+
+@* The rail, records, search, and details are gallery fixtures. The tab host and reducer are rev6 code. *@
+<div class="hl-r6-demo" data-panel-open="@(panelOpen ? "true" : "false")">
+ <nav class="hl-r6-rail" aria-label="Sample workspace rail">
+  <span class="hl-r6-tenant" aria-label="Example organization">EO</span>
+  <span class="hl-r6-rail-icon" title="Conversations">@Icon("chat")</span>
+  <span class="hl-r6-rail-icon is-current" title="Records">@Icon("grid")</span>
+  <span class="hl-r6-rail-icon" title="My work">@Icon("inbox")<b>2</b></span>
+  <span class="hl-r6-rail-rule"></span>
+  <span class="hl-r6-rail-icon" title="Pages">@Icon("folder")</span>
+  <span class="hl-r6-rail-icon" title="Browse">@Icon("apps")</span>
+  <span class="hl-r6-rail-icon" title="Tasks">@Icon("check")</span>
+  <span class="hl-r6-rail-rule"></span>
+  <span class="hl-r6-rail-icon" title="Reports">@Icon("chart")</span>
+  <span class="hl-r6-rail-spacer"></span>
+  <span class="hl-r6-rail-icon" title="Settings">@Icon("settings")</span>
+  <span class="hl-r6-avatar" aria-label="Sample user A. Rivera">AR</span>
+ </nav>
+ <aside class="hl-r6-sidebar" aria-label="Sample records navigation">
+  <strong class="hl-r6-sidebar-title">Records</strong>
+  <div class="hl-r6-scope"><span><i class="hl-r6-scope-dot" aria-hidden="true"></i> Site 1</span><span>Last used</span></div>
+  <div class="hl-r6-scope-link">Everywhere</div>
+  <div class="hl-r6-side-label">Views</div>
+  <div class="hl-r6-side-current">All records</div>
+  <div class="hl-r6-side-item">Mine</div>
+  <div class="hl-r6-side-item">Recently changed</div>
+  <div class="hl-r6-side-label hl-r6-side-label-space">Pinned</div>
+  <div class="hl-r6-side-item">Mine, open</div>
+  <div class="hl-r6-mock-note"><strong>Gallery mock</strong><span>Rail, records, search and Assistant are sample UI. Tab state is live; no backend, AI or persistence is connected.</span></div>
+ </aside>
+ <main class="hl-r6-workspace">
+  <header class="hl-r6-topbar">
+   <div class="hl-r6-location"><strong>Records</strong><small>Site 1 &gt; Records</small></div>
+   <label class="hl-r6-search">@Icon("search")<span class="hl-r6-sr">Search sample records</span><input @bind="query" @bind:event="oninput" placeholder="Ask or search Site 1" /><kbd>Ctrl K</kbd></label>
+   <button class="hl-r6-share" @onclick='() => ShowNotice("Sharing is simulated in this gallery.")'>@Icon("share") Share</button>
+   <button class="hl-r6-panel-toggle" aria-label="@(panelOpen ? "Hide sample side panel" : "Show sample side panel")" aria-pressed="@panelOpen" @onclick="() => panelOpen = !panelOpen">@Icon("panel")</button>
+  </header>
+  <div class="hl-r6-contextbar">
+   <div class="hl-r6-segments" role="group" aria-label="Filter sample records by status">
+    @foreach (var value in statuses)
+    {
+     <button aria-pressed="@(status == value)" @onclick="() => status = value">@value</button>
+    }
+   </div>
+   <div class="hl-r6-context-actions">
+    <button title="Show all sample records" aria-label="Show all sample records" @onclick='() => { status = "All"; query = ""; }'>@Icon("filter")</button>
+    <button title="Reverse sample records" aria-label="Reverse sample records" @onclick='() => ShowNotice("Sort is illustrative in this gallery.")'>@Icon("sort")</button>
+    <div class="hl-r6-view-switch" role="group" aria-label="Sample record view"><button aria-pressed="@(layout == "Grid")" @onclick='() => layout = "Grid"'>Grid</button><button aria-pressed="@(layout == "Board")" @onclick='() => layout = "Board"'>Board</button></div>
+    <button class="hl-r6-new" @onclick='() => ShowNotice("Record creation is simulated in this gallery.")'>@Icon("plus", 13) New record @Icon("chevron", 12)</button>
+   </div>
+  </div>
+  @if (layout == "Grid")
+  {
+   <div class="hl-r6-table-scroll"><table class="hl-r6-table"><thead><tr><th><span class="hl-r6-check"></span></th><th>ID</th><th>Record</th><th>Status</th><th>Owner</th><th>Type</th><th>Updated</th></tr></thead><tbody>
+    @foreach (var record in Filtered)
+    {
+     <tr class="@(selected == record.Id ? "is-selected" : "")" @onclick="() => SelectRecord(record)"><td><span class="hl-r6-check"></span></td><td>@record.Id</td><td><button class="hl-r6-record-link" @onclick:stopPropagation="true" @onclick="() => SelectRecord(record)">@record.Title</button></td><td><span class="hl-r6-status">@record.Status</span></td><td>@record.Owner</td><td>@record.Type</td><td>@record.Updated</td></tr>
+    }
+   </tbody></table>@if (Filtered.Count == 0) { <p class="hl-r6-empty">No sample records match this view.</p> }</div>
+  }
+  else
+  {
+   <div class="hl-r6-board">
+    @foreach (var column in statuses.Take(3))
+    {
+     <section><h2>@column <span>@Filtered.Count(record => record.Status == column)</span></h2>
+      @foreach (var record in Filtered.Where(record => record.Status == column))
+      {
+       <button @onclick="() => SelectRecord(record)"><small>@record.Id</small><strong>@record.Title</strong><span>@record.Owner</span></button>
+      }
+     </section>
+    }
+   </div>
+  }
+  <footer class="hl-r6-list-footer"><span>@Filtered.Count sample records <span class="hl-r6-footer-hint">Select a row to retarget the preview tab</span></span><span>Local fixture · no live data</span></footer>
+  <div class="hl-r6-mobile-note">Gallery mock · no backend, persistence or AI connected.</div>
+ </main>
+ @if (panelOpen)
+ {
+  <aside class="hl-r6-panel" aria-label="Rev6 tab host with sample record details">
+   <div class="hl-r6-native">
+    <HarborlineAppShellRev6TabHost ShellId="gallery-rev6-composed-blazor" Owner="owner" Presentation="view" Intent="HandleIntent">
+     <TabContent Context="tab"><p>@tab.Kind / @tab.Target</p><label>Draft note <textarea @bind:get="Draft(tab.Id)" @bind:set="value => EditDraft(tab.Id, value)" @bind:event="oninput"></textarea></label></TabContent>
+    </HarborlineAppShellRev6TabHost>
+   </div>
+   <div class="hl-r6-panel-actions"><button aria-label="Open sample tab" aria-expanded="@toolsOpen" @onclick="() => toolsOpen = !toolsOpen">@Icon("plus", 13)</button><button aria-label="Hide sample side panel" @onclick="() => panelOpen = false">@Icon("close", 13)</button></div>
+   @if (toolsOpen)
+   {
+    <div class="hl-r6-tools" role="group" aria-label="Sample tab kinds">
+     @foreach (var kind in tabKinds) { <button @onclick="() => OpenTool(kind)">@kind</button> }
+    </div>
+   }
+   @if (ActiveRecord is { } activeRecord)
+   {
+    <div class="hl-r6-details"><dl><div><dt>Status</dt><dd><span class="hl-r6-status">@activeRecord.Status</span></dd></div><div><dt>Owner</dt><dd>@activeRecord.Owner</dd></div><div><dt>Type</dt><dd>@activeRecord.Type</dd></div><div><dt>Updated</dt><dd>@activeRecord.Updated</dd></div><div><dt>Place</dt><dd>@activeRecord.Place</dd></div></dl></div>
+   }
+   else
+   {
+    <div class="hl-r6-details hl-r6-tool-details">@Icon(ActiveTab?.Kind == "Assistant" ? "spark" : "list", 20)<p>@(ActiveTab is null ? "Select a record to preview its details." : $"{ActiveTab.Kind} for {ActiveTab.Target}")</p><small>Representative content is mocked for this gallery.</small></div>
+   }
+   <div class="hl-r6-ask">@Icon("spark", 13)<span>Ask about @(ActiveRecord?.Title ?? "this view")</span><kbd>Ctrl J</kbd></div>
+  </aside>
+ }
+ @if (error is not null) { <div class="hl-r6-toast" role="alert">@error</div> }
+ else if (notice is not null) { <div class="hl-r6-toast" role="status">@notice</div> }
+</div>
+
+@code {
+ private sealed record SampleRecord(string Id, string Title, string Status, string Owner, string Type, string Updated, string Place);
+ private static readonly SampleRecord[] records = [
+  new("R-1042", "Record 1042", "Open", "A. Rivera", "Type A", "Today", "Site 1"),
+  new("R-1038", "Record 1038", "In review", "J. Kim", "Type B", "Yesterday", "Site 1"),
+  new("R-1031", "Record 1031", "Open", "S. Patel", "Type A", "Mon", "Site 1"),
+  new("R-1027", "Record 1027", "Closed", "A. Rivera", "Type C", "2 Oct", "Site 1"),
+  new("R-1019", "Record 1019", "Open", "M. Osei", "Type B", "30 Sep", "Site 1"),
+  new("R-1012", "Record 1012", "In review", "J. Kim", "Type A", "28 Sep", "Site 1")
+ ];
+ private static readonly string[] statuses = ["Open", "In review", "Closed", "All"];
+ private static readonly string[] tabKinds = ["Details", "Log", "Timeline", "Files", "Assistant"];
+ private static readonly Dictionary<string, string> paths = new() {
+  ["chat"] = "M4 5h16v11H9l-5 4V5Z", ["grid"] = "M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z",
+  ["inbox"] = "M3 5h18v13H3V5Zm0 8h5l2 3h4l2-3h5", ["folder"] = "M3 6h7l2 2h9v11H3V6Z",
+  ["apps"] = "M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z", ["check"] = "M4 12l5 5L20 6",
+  ["chart"] = "M4 20V10m5 10V5m5 15v-8m5 8V8M2 20h20", ["settings"] = "M12 3v3m0 12v3M3 12h3m12 0h3M5.6 5.6l2.1 2.1m8.6 8.6 2.1 2.1m0-12.8-2.1 2.1M7.7 16.3l-2.1 2.1M16 12a4 4 0 1 1-8 0 4 4 0 0 1 8 0Z",
+  ["search"] = "M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14Zm5-2 5 5", ["share"] = "M12 16V3m0 0L8 7m4-4 4 4M4 13v7h16v-7",
+  ["panel"] = "M3 4h18v16H3V4Zm12 0v16", ["filter"] = "M3 5h18l-7 8v6l-4 2v-8L3 5Z",
+  ["sort"] = "M7 4v16m0-16L4 7m3-3 3 3M17 20V4m0 16-3-3m3 3 3-3", ["plus"] = "M12 4v16M4 12h16",
+  ["chevron"] = "m6 9 6 6 6-6", ["close"] = "M5 5l14 14M19 5 5 19",
+  ["spark"] = "m12 2 1.8 7.2L21 11l-7.2 1.8L12 20l-1.8-7.2L3 11l7.2-1.8L12 2Z",
+  ["list"] = "M8 5h13M8 12h13M8 19h13M3 5h1M3 12h1M3 19h1"
+ };
+ private static RenderFragment Icon(string name, int size = 16) => @<svg width="@size" height="@size" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="@paths[name]"></path></svg>;
+ private static readonly JsonSerializerOptions jsonOptions = new() { PropertyNameCaseInsensitive = true };
+ private JsonElement? state;
+ private AppShellRev6Owner? owner;
+ private AppShellRev6Presentation? view;
+ private IJSObjectReference? module;
+ private readonly SemaphoreSlim events = new(1, 1);
+ private CancellationTokenSource? saveTimer;
+ private CancellationTokenSource? noticeTimer;
+ private string? saveRequestKey;
+ private string selected = "R-1042";
+ private string status = "All";
+ private string layout = "Grid";
+ private string query = "";
+ private bool panelOpen = true;
+ private bool toolsOpen;
+ private string? notice;
+ private string? error;
+ private long epoch;
+ private bool disposed;
+ private IReadOnlyList<SampleRecord> Filtered => records.Where(record => (status == "All" || record.Status == status) && $"{record.Id} {record.Title} {record.Owner}".Contains(query, StringComparison.OrdinalIgnoreCase)).ToArray();
+ private AppShellRev6Tab? ActiveTab => view?.Tabs.FirstOrDefault(tab => tab.Id == view.Active);
+ private SampleRecord? ActiveRecord => records.FirstOrDefault(record => record.Id == ActiveTab?.Target);
+
+ protected override async Task OnAfterRenderAsync(bool firstRender)
+ {
+  if (!firstRender || disposed) return;
+  try
+  {
+   module = await JS.InvokeAsync<IJSObjectReference>("import", "./rev6/tab-identity-state.mjs");
+   var initialEvents = new object[] {
+    new { type = "identity", owner = new { person = "alice", tenant = "north", workspace = "work" } },
+    new { type = "navigate", destination = "records" },
+    new { type = "open", kind = "Assistant", target = "conversation-a" },
+    new { type = "pin", id = "[\"Assistant\",\"conversation-a\"]" },
+    new { type = "open", kind = "Details", target = "R-1042", preview = true }
+   };
+   var result = await module.InvokeAsync<JsonElement>("runScenario", (object)initialEvents);
+   var presentation = await module.InvokeAsync<JsonElement>("presentation", result);
+   if (disposed) return;
+   Publish(result, presentation);
+  }
+  catch (Exception ex) { if (!disposed) error = ex.Message; }
+  if (!disposed) StateHasChanged();
+ }
+ private void Publish(JsonElement result, JsonElement presentation)
+ {
+  state = result;
+  owner = result.GetProperty("owner").Deserialize<AppShellRev6Owner>(jsonOptions);
+  view = owner is null || presentation.ValueKind == JsonValueKind.Null ? null : new(owner,
+   presentation.GetProperty("destination").GetString()!, presentation.GetProperty("tabs").Deserialize<AppShellRev6Tab[]>(jsonOptions)!,
+   presentation.GetProperty("active").GetString(), presentation.GetProperty("pendingClose").GetString(),
+   presentation.GetProperty("saveRequest").Deserialize<AppShellRev6SaveRequest>(jsonOptions));
+  ScheduleSaveAcknowledgment();
+ }
+ private async Task Apply(object intent)
+ {
+  var requestEpoch = epoch;
+  await events.WaitAsync();
+  try
+  {
+   if (disposed || requestEpoch != epoch || state is null || module is null) return;
+   var result = await module.InvokeAsync<JsonElement>("transition", state.Value, intent);
+   var presentation = await module.InvokeAsync<JsonElement>("presentation", result);
+   if (disposed || requestEpoch != epoch) return;
+   Publish(result, presentation);
+  }
+  catch (Exception ex) { if (!disposed && requestEpoch == epoch) error = ex.Message; }
+  finally { events.Release(); }
+ }
+ private void ScheduleSaveAcknowledgment()
+ {
+  var request = view?.SaveRequest;
+  var key = request is null ? null : $"{request.Owner.Person}/{request.Owner.Tenant}/{request.Owner.Workspace}/{request.Id}/{request.RequestId}/{request.Generation}";
+  if (key == saveRequestKey) return;
+  saveTimer?.Cancel(); saveTimer?.Dispose(); saveTimer = null; saveRequestKey = key;
+  if (request is null) return;
+  saveTimer = new CancellationTokenSource();
+  _ = AcknowledgeSaveLater(request, key!, epoch, saveTimer.Token);
+ }
+ private async Task AcknowledgeSaveLater(AppShellRev6SaveRequest request, string key, long requestEpoch, CancellationToken token)
+ {
+  try
+  {
+   await Task.Delay(700, token);
+   await InvokeAsync(async () => {
+    if (disposed || requestEpoch != epoch || token.IsCancellationRequested || key != saveRequestKey) return;
+    await Apply(new { type = "saved", owner = new { person = request.Owner.Person, tenant = request.Owner.Tenant, workspace = request.Owner.Workspace }, id = request.Id, requestId = request.RequestId, generation = request.Generation });
+    if (!disposed && error is null && view?.SaveRequest is null) { ShowNotice("Demo save acknowledged locally. No server write occurred."); StateHasChanged(); }
+   });
+  }
+  catch (TaskCanceledException) { }
+ }
+ private string Draft(string id)
+ {
+  if (state is null || owner is null) return "";
+  var key = JsonSerializer.Serialize(new[] { owner.Person, owner.Tenant, owner.Workspace });
+  var drafts = state.Value.GetProperty("owners").GetProperty(key).GetProperty("drafts");
+  return drafts.TryGetProperty(id, out var draft) ? draft.ToString() : "";
+ }
+ private Task EditDraft(string id, string value) => Apply(new { type = "edit", id, draft = value });
+ private Task HandleIntent(AppShellRev6Intent intent)
+ {
+  if (intent.Type == "resolve-close") return Apply(new { type = intent.Type, choice = intent.Choice!.Value.ToString().ToLowerInvariant() });
+  if (intent.Type == "open") return Apply(new { type = "open", kind = intent.Kind, target = intent.Target });
+  return Apply(new { type = intent.Type, id = intent.Id });
+ }
+ private async Task SelectRecord(SampleRecord record)
+ {
+  selected = record.Id; panelOpen = true;
+  await Apply(new { type = "open", kind = "Details", target = record.Id, preview = true });
+ }
+ private async Task OpenTool(string kind)
+ {
+  toolsOpen = false;
+  await Apply(new { type = "open", kind, target = kind == "Assistant" ? "conversation-a" : selected });
+ }
+ private void ShowNotice(string message)
+ {
+  notice = message;
+  noticeTimer?.Cancel(); noticeTimer?.Dispose();
+  noticeTimer = new CancellationTokenSource();
+  _ = ClearNoticeLater(noticeTimer.Token);
+ }
+ private async Task ClearNoticeLater(CancellationToken token)
+ {
+  try
+  {
+   await Task.Delay(4200, token);
+   await InvokeAsync(() => { if (!disposed && !token.IsCancellationRequested) { notice = null; StateHasChanged(); } });
+  }
+  catch (TaskCanceledException) { }
+ }
+ public async ValueTask DisposeAsync()
+ {
+  disposed = true; epoch++;
+  saveTimer?.Cancel(); saveTimer?.Dispose();
+  noticeTimer?.Cancel(); noticeTimer?.Dispose();
+  if (module is not null) await module.DisposeAsync();
+ }
+}
