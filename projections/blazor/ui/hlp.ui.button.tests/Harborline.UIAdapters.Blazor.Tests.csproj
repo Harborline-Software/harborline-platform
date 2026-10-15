@@ -100,6 +100,7 @@
     <Compile Include="../hlp.ui.data-grid.tests/**/*.cs" Link="DataDisplay/DataGrid/%(Filename)%(Extension)" />
     <Compile Include="../hlp.ui.view-runtime.tests/**/*.cs" Link="DataDisplay/ViewRuntime/%(Filename)%(Extension)" />
     <Compile Include="../hlp.ui.rule-authoring.tests/**/*.cs" Link="RuleAuthoring/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.records-authoring.tests/**/*.cs" Link="RecordsAuthoring/%(Filename)%(Extension)" />
     <Compile Include="../hlp.ui.layout-runtime.tests/**/*.cs" Link="Layout/LayoutRuntime/%(Filename)%(Extension)" />
     <Compile Include="../hlp.ui.data-exchange.tests/**/*.cs" Link="DataExchange/%(Filename)%(Extension)" />
     <Compile Include="../hlp.ui.scroll-affordance.tests/**/*.cs" Link="Layout/ScrollAffordance/%(Filename)%(Extension)" />
@@ -117,6 +118,10 @@
     <Content Remove="fixtures/legacy-button-provider-fixtures.json" />
     <Content Include="fixtures/legacy-button-provider-fixtures.json"
              Link="compatibility/legacy-button-provider-fixtures.json"
+             CopyToOutputDirectory="PreserveNewest" />
+    <!-- The four native T618 Records source fixtures, read by RecordsDraftTests from records-draft-fixtures. -->
+    <Content Include="../../../../conformance/hlp.ui.records-authoring/source-fixtures/*.json"
+             Link="records-draft-fixtures/%(Filename)%(Extension)"
              CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
   <ItemGroup>

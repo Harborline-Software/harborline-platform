@@ -1,0 +1,142 @@
+@namespace Harborline.UIAdapters.Blazor.Components.RecordsAuthoring
+@using System.Globalization
+@using System.Text.Json
+@using System.Text.Json.Nodes
+@using Harborline.UIAdapters.Blazor.Components.Buttons
+
+@{ var body = Current.Body; var fields = FieldList; var fieldKeys = fields.Select(field => Str(field?["field_key"])).OfType<string>().Where(key => key != "").ToArray(); var retention = Str(body["retention_clock_field_id"]); var kindChosen = Current.DefinitionKind == "Records";
+    RenderFragment content = @<text>
+    <header class="hl-records-authoring__header">
+        <label>Definition kind<select aria-label="Definition kind" value="@(Current.DefinitionKind ?? "")" @onchange="ChooseKind">@if (!kindChosen) { <option value="">Choose a definition kind</option> }<option value="Records">Record type</option></select></label>
+        <output aria-label="Record type identity">@(Current.Identity == "" ? "Not yet assigned" : Current.Identity)</output>
+        <output aria-label="Version">@(Current.VersionId == "" ? "Not yet assigned" : Current.VersionId)</output>
+        <output aria-label="Expected revision">@(Current.ExpectedRevision ?? "None")</output>
+    </header>
+    @if (kindChosen)
+    {
+        <div class="hl-records-authoring__grid"><label>Name<input aria-label="Record type name" value="@(Str(body["name"]))" @onchange="ChangeName" /></label><label>Section<input aria-label="Section" value="@(Section(body))" @onchange="ChangeSection" /></label></div>
+        @for (var index = 0; index < fields.Count; index++)
+        {
+            var current = index; var n = current + 1; var field = fields[current];
+            if (field is null) { continue; }
+            var kind = KindOf(field); var offered = kind is null ? -1 : IndexOfOption(kind); var reference = field["reference"] as JsonObject;
+            <fieldset class="hl-records-authoring__field"><legend>Field @n</legend>
+                <div class="hl-records-authoring__grid">
+                    <label>Field key<input aria-label="@($"Field {n} key")" value="@(Str(field["field_key"]))" @onchange="eventArgs => ChangeFieldKey(current, eventArgs)" /></label>
+                    <label>Display name<input aria-label="@($"Field {n} display name")" value="@(Str(field["display_name"]))" @onchange="eventArgs => ChangeDisplayName(current, eventArgs)" /></label>
+                    @if (kind is not null)
+                    {
+                        <label>Kind and version<select aria-label="@($"Field {n} kind")" value="@(offered >= 0 ? offered.ToString(CultureInfo.InvariantCulture) : "")" @onchange="eventArgs => ChooseFieldKind(current, eventArgs)">@if (offered < 0) { <option value="">@($"{Str(kind["kind_id"])} {Str(kind["version"])} (not offered)")</option> }@for (var option = 0; option < KindOptions.Count; option++) { var currentOption = option; <option value="@(currentOption.ToString(CultureInfo.InvariantCulture))">@($"{KindOptions[currentOption].KindId} {KindOptions[currentOption].Version}")</option> }</select></label>
+                        @foreach (var parameter in Parameters(kind)) { var name = parameter.Name; var numeric = parameter.Numeric; <label>Parameter @name<input aria-label="@($"Field {n} parameter {name}")" type="@(numeric ? "number" : "text")" value="@parameter.Text" @onchange="eventArgs => ChangeParameter(current, name, numeric, eventArgs)" /></label> }
+                    }
+                </div>
+                @if (field["binding"] is null) { <p class="hl-records-authoring__note">Unbound field. Bindings are not authored here.</p> }
+                @if (reference is not null)
+                {
+                    var cardinality = Str(reference["cardinality"]); var onDelete = Str(reference["on_delete"]);
+                    <fieldset class="hl-records-authoring__grid"><legend>Field @n reference</legend>
+                        <label>Target type<input aria-label="@($"Field {n} reference target type")" value="@(Str(reference["target_type_id"]))" @onchange="eventArgs => ChangeReferenceTarget(current, eventArgs)" /></label>
+                        <label>Cardinality<select aria-label="@($"Field {n} reference cardinality")" value="@(cardinality ?? "")" @onchange="eventArgs => ChangeReferenceCardinality(current, eventArgs)">@if (cardinality is null || !Cardinalities.Contains(cardinality)) { <option value="@(cardinality ?? "")">@(cardinality is null ? "Not set" : $"{cardinality} (not a current spelling)")</option> }@foreach (var spelling in Cardinalities) { <option value="@spelling">@spelling</option> }</select></label>
+                        <label>On delete<select aria-label="@($"Field {n} reference on delete")" value="@(onDelete ?? "")" @onchange="eventArgs => ChangeReferenceOnDelete(current, eventArgs)">@if (onDelete is null || !OnDeletes.Contains(onDelete)) { <option value="@(onDelete ?? "")">@(onDelete is null ? "Not set" : $"{onDelete} (not a current spelling)")</option> }@foreach (var spelling in OnDeletes) { <option value="@spelling">@spelling</option> }</select></label>
+                    </fieldset>
+                }
+                <HarborlineButton ButtonType="ButtonType.Button" Variant="ButtonVariant.Secondary" Size="ButtonSize.Small" OnClick="() => RemoveField(current)">Remove field @n</HarborlineButton>
+            </fieldset>
+        }
+        <HarborlineButton ButtonType="ButtonType.Button" Variant="ButtonVariant.Secondary" Size="ButtonSize.Small" OnClick="AddField">Add field</HarborlineButton>
+        <label>Retention clock field<select aria-label="Retention clock field" value="@(retention ?? "")" @onchange="ChooseRetention"><option value="">None</option>@if (retention is not null && !fieldKeys.Contains(retention)) { <option value="@retention">@($"{retention} (not a field)")</option> }@foreach (var key in fieldKeys) { <option value="@key">@key</option> }</select></label>
+    }
+</text>; }
+<form class="hl-records-authoring" aria-label="Record type draft" data-read-only="@(ReadOnly ? "" : null)" data-generation="@_generation" @onsubmit:preventDefault="true">
+    <p class="hl-records-authoring__scope">Local draft. Edits stay in this editor and are not saved.</p>
+    @if (!RecordsRevisionText.IsAcceptable(Value.ExpectedRevision)) { <p role="status" class="hl-records-authoring__note">@RejectedRevision</p> }
+    @if (Adopted) { if (ReadOnly) { <fieldset class="hl-records-authoring__read-only" disabled>@content</fieldset> } else { @content } }
+    @if (ShownDiagnostics.Count > 0) { <ul class="hl-records-authoring__diagnostics" aria-label="Diagnostics">@foreach (var diagnostic in ShownDiagnostics) { <li data-code="@diagnostic.Code" data-pointer="@diagnostic.Pointer">@diagnostic.Code at @diagnostic.Pointer</li> }</ul> }
+    @if (_incoming is not null) { <aside role="alert" class="hl-records-authoring__incoming">A different draft or revision arrived while you have local edits.<HarborlineButton ButtonType="ButtonType.Button" Enabled="!ReadOnly" OnClick="Keep">Keep edits</HarborlineButton><HarborlineButton ButtonType="ButtonType.Button" Enabled="!ReadOnly" OnClick="Discard">Discard edits</HarborlineButton></aside> }
+</form>
+
+@code {
+    /// <summary>The host's draft. A different identity, version or revision replaces a clean draft and waits behind Keep/Discard on a dirty one.</summary>
+    [Parameter, EditorRequired] public RecordsDraft Value { get; set; } = RecordsDraft.Empty;
+    /// <summary>The field kinds and versions the host offers for a binding.</summary>
+    [Parameter] public IReadOnlyList<RecordsKindOption> KindOptions { get; set; } = [];
+    /// <summary>Host-supplied diagnostics; shown only when identity, revision and generation all match the current draft.</summary>
+    [Parameter] public RecordsDiagnosticSet? Diagnostics { get; set; }
+    /// <summary>A local flag that disables every control and edit handler. It is not an authorization decision.</summary>
+    [Parameter] public bool ReadOnly { get; set; }
+    /// <summary>Receives each local change with its generation. Local state only; nothing is persisted.</summary>
+    [Parameter] public EventCallback<RecordsDraftChange> DraftChanged { get; set; }
+
+    // Reference spellings of the current grammar (RecordTypeIdentity.cs:45-62). A value outside them is shown, never rewritten.
+    private static readonly string[] Cardinalities = ["one", "many"];
+    private static readonly string[] OnDeletes = ["block", "orphan", "cascade"];
+    private const string RejectedRevision = "A host draft was not loaded because its revision is not a canonical decimal string.";
+    private RecordsDraft Current = RecordsDraft.Empty; private RecordsDraft? _incoming; private string? _lifecycle; private string? _held; private bool _dirty; private int _generation;
+    // No draft exists until the first host value with an acceptable revision; the Empty placeholder is never shown or reported.
+    private bool Adopted => _lifecycle is not null;
+
+    // A host echo of the same identity, version and revision is not a replacement.
+    // A host value whose revision is present but not canonical is rejected: never adopted, held, repaired or emitted, and nothing else changes.
+    // The generation is local and separate: it never reads, derives or changes the revision.
+    protected override void OnParametersSet()
+    {
+        if (!RecordsRevisionText.IsAcceptable(Value.ExpectedRevision)) return;
+        var key = LifecycleKey(Value);
+        if (_lifecycle is null) { Current = Value; _lifecycle = key; return; }
+        if (key == _lifecycle) { _incoming = null; _held = null; return; }
+        if (key == _held) return;
+        if (_dirty) { _held = key; _incoming = Value; } else { Current = Value; _lifecycle = key; _generation++; }
+    }
+
+    // The revision is part of the key as its exact string. A canonical revision is never empty, so an absent one cannot collide.
+    private static string LifecycleKey(RecordsDraft value) => $"{value.Identity}\u0000{value.VersionId}\u0000{value.ExpectedRevision}";
+    // Revisions match only as identical canonical strings (ordinal); a noncanonical diagnostic revision never matches.
+    private IReadOnlyList<RecordsDiagnostic> ShownDiagnostics => Adopted && Diagnostics is { } supplied && RecordsRevisionText.IsAcceptable(supplied.ExpectedRevision) && supplied.Identity == Current.Identity && string.Equals(supplied.ExpectedRevision, Current.ExpectedRevision, StringComparison.Ordinal) && supplied.Generation == _generation ? supplied.Diagnostics : [];
+    private IReadOnlyList<JsonObject?> FieldList => Current.Body["fields"] is JsonArray array ? [.. array.Select(node => node as JsonObject)] : [];
+    private static string? Str(JsonNode? node) => node is JsonValue value && value.TryGetValue<string>(out var text) ? text : null;
+    private static string? Section(JsonObject body) => body["envelope"] is JsonObject envelope ? Str(envelope["section"]) : null;
+    private static JsonObject? KindOf(JsonObject field) => field["binding"] is JsonObject binding ? binding["kind"] as JsonObject : null;
+    private int IndexOfOption(JsonObject kind) { var kindId = Str(kind["kind_id"]); var version = Str(kind["version"]); for (var index = 0; index < KindOptions.Count; index++) if (KindOptions[index].KindId == kindId && KindOptions[index].Version == version) return index; return -1; }
+    private static IEnumerable<(string Name, bool Numeric, string Text)> Parameters(JsonObject kind) => kind["parameters"] is JsonObject parameters
+        ? parameters.Where(item => item.Value is JsonValue value && (value.GetValueKind() is JsonValueKind.String or JsonValueKind.Number)).Select(item => { var node = item.Value!; var numeric = node.GetValueKind() == JsonValueKind.Number; return (item.Key, numeric, numeric ? node.ToJsonString() : node.GetValue<string>()); }).ToArray()
+        : [];
+    private static string Text(ChangeEventArgs eventArgs) => eventArgs.Value?.ToString() ?? "";
+
+    private Task Change(RecordsDraft next) { if (ReadOnly || !Adopted) return Task.CompletedTask; Current = next; _dirty = true; _generation++; return DraftChanged.InvokeAsync(new RecordsDraftChange(next, _generation)); }
+    // Every edit works on a copy, so the host's body is never mutated and unedited members survive.
+    private Task Edit(Action<JsonObject> mutate) { if (ReadOnly || !Adopted) return Task.CompletedTask; var body = Current.Body.DeepClone().AsObject(); mutate(body); return Change(Current with { Body = body }); }
+    private Task EditField(int index, Action<JsonObject> mutate) => Edit(body => { if (body["fields"] is JsonArray fields && index < fields.Count && fields[index] is JsonObject field) mutate(field); });
+    private Task ChooseKind(ChangeEventArgs eventArgs) => Text(eventArgs) == "Records" ? Change(Current with { DefinitionKind = "Records" }) : Task.CompletedTask;
+    private Task ChangeName(ChangeEventArgs eventArgs) => Edit(body => body["name"] = Text(eventArgs));
+    private Task ChangeSection(ChangeEventArgs eventArgs) => Edit(body => { if (body["envelope"] is not JsonObject envelope) { envelope = new JsonObject(); body["envelope"] = envelope; } envelope["section"] = Text(eventArgs); });
+    private Task ChangeFieldKey(int index, ChangeEventArgs eventArgs) => EditField(index, field => field["field_key"] = Text(eventArgs));
+    private Task ChangeDisplayName(int index, ChangeEventArgs eventArgs) => EditField(index, field => field["display_name"] = Text(eventArgs));
+    private Task ChooseFieldKind(int index, ChangeEventArgs eventArgs)
+    {
+        if (!int.TryParse(Text(eventArgs), NumberStyles.None, CultureInfo.InvariantCulture, out var choice) || choice >= KindOptions.Count) return Task.CompletedTask;
+        var option = KindOptions[choice];
+        return EditField(index, field => { if (KindOf(field) is { } kind) { kind["kind_id"] = option.KindId; kind["version"] = option.Version; } });
+    }
+    private Task ChangeParameter(int index, string name, bool numeric, ChangeEventArgs eventArgs)
+    {
+        var raw = Text(eventArgs);
+        var number = 0m;
+        if (numeric && !decimal.TryParse(raw, NumberStyles.Float, CultureInfo.InvariantCulture, out number)) return Task.CompletedTask;
+        return EditField(index, field => { if (KindOf(field)?["parameters"] is JsonObject parameters) parameters[name] = numeric ? JsonValue.Create(number) : JsonValue.Create(raw); });
+    }
+    private Task EditReference(int index, string member, ChangeEventArgs eventArgs) => EditField(index, field => { if (field["reference"] is JsonObject reference) reference[member] = Text(eventArgs); });
+    private Task ChangeReferenceTarget(int index, ChangeEventArgs eventArgs) => EditReference(index, "target_type_id", eventArgs);
+    private Task ChangeReferenceCardinality(int index, ChangeEventArgs eventArgs) => EditReference(index, "cardinality", eventArgs);
+    private Task ChangeReferenceOnDelete(int index, ChangeEventArgs eventArgs) => EditReference(index, "on_delete", eventArgs);
+    private Task ChooseRetention(ChangeEventArgs eventArgs) => Edit(body => { var key = Text(eventArgs); if (key == "") body.Remove("retention_clock_field_id"); else body["retention_clock_field_id"] = key; });
+    private Task AddField() => Edit(body => { if (body["fields"] is not JsonArray fields) { fields = new JsonArray(); body["fields"] = fields; } fields.Add(new JsonObject { ["field_key"] = "", ["display_name"] = "" }); });
+    private Task RemoveField(int index) => Edit(body => { if (body["fields"] is JsonArray fields && index < fields.Count) fields.RemoveAt(index); });
+    private Task Keep() { if (ReadOnly) return Task.CompletedTask; _incoming = null; return Task.CompletedTask; }
+    private Task Discard()
+    {
+        if (ReadOnly) return Task.CompletedTask;
+        if (_incoming is not { } next) return Task.CompletedTask;
+        Current = next; _incoming = null; _held = null; _dirty = false; _generation++; _lifecycle = LifecycleKey(next);
+        return DraftChanged.InvokeAsync(new RecordsDraftChange(next, _generation));
+    }
+}

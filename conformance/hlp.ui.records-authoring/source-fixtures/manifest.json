@@ -1,0 +1,133 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Preparatory T618 Records editor contract fixtures extracted from existing producer source and tests. Not T618 completion, not a production editor, and no new runtime, API or refusal contract.",
+  "frozenPins": {
+    "platform": "33670aabe43dac0d65d2a5c767ae6250836728f0",
+    "control": "9399d2b0d87808f60664ace6701d82f168a21c46",
+    "api": "bb3a67af (not inspected)"
+  },
+  "snapshotRoot": "sources/platform (per queue-source-manifest.json:111-112)",
+  "verifiedByExecution": false,
+  "hashes": {
+    "algorithm": "sha256",
+    "payloadFiles": {
+      "records-current-grammar.json": "3c0ff7b29a15117fd32b519e7a166dadbbc2677f68f848a51e8cc3d212234a96",
+      "records-refusal-cases.json": "3d4f2109741d955b2166a17cc98fba03cf9648a3e1aa469eeb0ee6e587584031",
+      "records-parity-inputs.json": "49d709a7d69ce3641187b1d592494687857086746564d66d34eed197954c5ea0"
+    },
+    "manifestSelfHashLocation": "SHA256SUMS"
+  },
+  "files": [
+    {
+      "path": "records-current-grammar.json",
+      "cases": [
+        "G1-asset-class"
+      ],
+      "verifiedByExecution": false
+    },
+    {
+      "path": "records-refusal-cases.json",
+      "cases": [
+        "R1-punctuation-name",
+        "R2-zero-revision-collision",
+        "R3-duplicate-field-key",
+        "R4-duplicate-field-key-raw-complete-body",
+        "R5-reference-binding-conflict",
+        "R6-unknown-kind",
+        "R7-same-name-other-section-positive"
+      ],
+      "verifiedByExecution": false
+    },
+    {
+      "path": "records-parity-inputs.json",
+      "cases": [
+        "P1-refusal-rendering-parity",
+        "P2-identity-revision-reset",
+        "P3-kind-version-change",
+        "P4-read-only-and-ordering"
+      ],
+      "verifiedByExecution": false
+    },
+    {
+      "path": "manifest.json",
+      "verifiedByExecution": false
+    }
+  ],
+  "caseCount": 12,
+  "expectedOutcomeSummary": {
+    "G1-asset-class": "admitted; minted eam.asset-class; draft revision 1; canonical text is sourceDerivedExpected",
+    "R1-punctuation-name": "records.identity.name_required /name",
+    "R2-zero-revision-collision": "records.identity.record_type_id_collision /record_type_id",
+    "R3-duplicate-field-key": "records.identity.duplicate_field_key /fields/1/field_key",
+    "R4-duplicate-field-key-raw-complete-body": "records.identity.duplicate_field_key /fields/1/field_key",
+    "R5-reference-binding-conflict": "records.reference.binding_conflict /fields/0/reference",
+    "R6-unknown-kind": "field.kind_unresolved /fields/0/binding/kind",
+    "R7-same-name-other-section-positive": "admitted finance.asset-class",
+    "P1-refusal-rendering-parity": "lanes render refusals verbatim",
+    "P2-identity-revision-reset": "definition.revision_conflict /expectedRevision on stale save; lane behaviour is expectation only",
+    "P3-kind-version-change": "records.retention.clock_capability_absent /retention_clock_field_id at date 2.0.0",
+    "P4-read-only-and-ordering": "no emission; name refusal precedes kind compile"
+  },
+  "sourceReferences": [
+    "platform/projections/dotnet/blocks/hlp.blocks.builder-definitions/RecordTypeDocument.cs:22-28,58,66-78,92-153,157-231",
+    "platform/projections/dotnet/blocks/hlp.blocks.builder-definitions/RecordsCatalogueIdentity.cs:18-24,31-43,62-87,105",
+    "platform/projections/dotnet/blocks/hlp.blocks.builder-definitions/RecordTypeDefinitionStore.cs:24-37,97-102,113-126,452-465",
+    "platform/projections/dotnet/kernel/hlp.kernel.schema-validation/Records/RecordTypeIdentity.cs:36-62,83-90,121-150,203-254,269-274,592-618,623-654",
+    "platform/projections/dotnet/contracts/hlp.contracts.identities/Fields/FieldDefinitions.cs:10-13,39-48,79-97",
+    "platform/projections/dotnet/contracts/hlp.contracts.identities/Fields/FieldBindingDefinition.cs:6",
+    "platform/projections/dotnet/foundation/hlp.foundation.field-runtime/FieldKindLimits.cs:12-15,62-93",
+    "platform/projections/dotnet/foundation/hlp.foundation.field-runtime/FieldKindRuntime.cs:24-30",
+    "platform/projections/dotnet/foundation/hlp.foundation.field-runtime/FieldKindRegistry.cs:42",
+    "platform/projections/dotnet/blocks/hlp.blocks.builder-definitions.tests/RecordTypeDefinitionStoreTests.cs:19-26,28-108,165-218,322-351,481-520,555-592",
+    "platform/projections/dotnet/blocks/hlp.blocks.builder-definitions.tests/RecordReferenceTests.cs:64-87,198-205",
+    "platform/conformance/hlp.blocks.builder-definitions/rules-editor-contract-fixtures.json:1-80",
+    "platform/projections/dotnet/blocks/hlp.blocks.builder-definitions.tests/RuleDefinitionCatalogTests.cs:355-363,412-416",
+    "platform/projections/blazor/ui/hlp.ui.rule-authoring/HarborlineRulesAuthoringEditor.razor:42-46,51-58,73-87,132",
+    "platform/projections/blazor/ui/hlp.ui.rule-authoring.tests/RulesAuthoringTests.cs:523-531",
+    "platform/projections/react/ui/hlp.ui.rule-authoring/src/RulesAuthoringEditor.tsx:14-25,39-40,49,72-76",
+    "platform/projections/react/ui/hlp.ui.rule-authoring/src/RulesAuthoringEditor.test.tsx:10-13",
+    "L104-the-field-property-editor-must-group-properties-by-who-enforces-them-int.md:3-4",
+    "L1150-a-new-field-definition-s-required-value-must-be-an-unset-condition-rathe.md:3-4",
+    "L1374-the-ui-must-represent-required-as-a-condition-rather-than-as-a-boolean-c.md:3-4",
+    "t618-reviewed-disposition.md:5,9-14",
+    "ready-fixture-slice-disposition.md:16-22"
+  ],
+  "notInspectedInThisJob": [
+    "RecordsIdentityTests.cs",
+    "RefusalContractTests.cs",
+    "FieldKindRuntimeTests.cs (beyond grep lines)",
+    "platform/_shared/records/record-type.asset-class.json",
+    "RecordReferenceTests Host() definition",
+    "API sources"
+  ],
+  "excluded": [
+    "required-condition serialization or authoring (L1150, L1374): no property, null or false sentinel",
+    "Class export kind",
+    "warning channel",
+    "kind compatibility clearing policy",
+    "Publish diagnostic port and Publish completeness",
+    "new refusal codes",
+    "install provenance and classifier",
+    "property-to-L104-group assignment"
+  ],
+  "integrationPrerequisites": [
+    "Root assigns a writer and the physical paths (proposed conformance/hlp.blocks.builder-definitions/records-editor-contract-fixtures.json and RecordsEditorContractFixtureTests.cs) under normal ownership checks",
+    "A producer consumer test that replays R1-R7/G1 against RecordTypeDefinitionStoreTests.Host() and the canonical serializer; byte equality of G1 is unconfirmed until run",
+    "Test-project copy/registration for the fixture file, matching the AppContext.BaseDirectory convention, still to be identified",
+    "Native React/Blazor Records adapters do not exist; parity cases stay expectations until they do"
+  ],
+  "materialization": {
+    "method": "single Claude read-only structured response, coordinator JSON-only writes into this fixture-output directory",
+    "canonicalLiteralMatchesFrozenSharedFile": true,
+    "canonicalSerializerExecuted": false,
+    "producerTestsExecuted": false,
+    "caseCount": 12,
+    "nextTaskProposal": "Root-assigned source-only producer fixture consumer test adapter for these cases, with project copy registration; reuse the existing test-host composition recipe, not an inaccessible private Host() method. No launch, writer claim or physical validation grant here."
+  },
+  "coordinatorQualifications": [
+    "These are artifact metadata/input recipes, not a new runtime or wire contract.",
+    "Existing Boolean binding constraint floors retained from frozen producer fixture; no required-condition serialization supplied.",
+    "Expected outcomes are source-derived and require future producer/native lane execution.",
+    "New consumer test class must compose its own host matching source recipes; private Host() methods are not public APIs."
+  ]
+}

@@ -1,0 +1,342 @@
+{
+  "schemaVersion": 1,
+  "artifact": "records-current-grammar",
+  "description": "A Record Type body that the current grammar can already represent, copied from the existing producer test fixture. Preparatory data only; it adds no runtime or API contract.",
+  "verifiedByExecution": false,
+  "frozenPins": {
+    "platform": "33670aabe43dac0d65d2a5c767ae6250836728f0",
+    "control": "9399d2b0d87808f60664ace6701d82f168a21c46",
+    "api": "bb3a67af (not inspected in this job)"
+  },
+  "grammarFacts": {
+    "serializer": {
+      "source": "platform/projections/dotnet/blocks/hlp.blocks.builder-definitions/RecordTypeDocument.cs:157-231",
+      "propertyNaming": "snake_case_lower",
+      "nullHandling": "members that are null are omitted when writing (WhenWritingNull)",
+      "unmappedMembers": "disallowed: an unknown member throws JsonException, which admission maps to records.document_invalid at \"\"",
+      "keyOrder": "object keys sorted ordinal at every depth",
+      "trailingNewline": true,
+      "recordClassSpellings": [
+        "reference",
+        "master",
+        "transactional"
+      ],
+      "recordClassSource": "RecordTypeDocument.cs:195-218",
+      "generalEnumSpelling": "snake_case_lower, integers rejected (RecordTypeDocument.cs:190)",
+      "referenceCardinalitySpellings": [
+        "one",
+        "many"
+      ],
+      "referenceOnDeleteSpellings": [
+        "block",
+        "orphan",
+        "cascade"
+      ],
+      "referenceEnumSource": "platform/projections/dotnet/kernel/hlp.kernel.schema-validation/Records/RecordTypeIdentity.cs:45-62"
+    },
+    "documentMembers": {
+      "source": "RecordTypeDocument.cs:22-28,66-74",
+      "root": [
+        "envelope",
+        "name",
+        "record_type_id",
+        "fields",
+        "traits",
+        "retention_clock_field_id",
+        "class_id",
+        "record_class"
+      ],
+      "envelope": [
+        "tenant",
+        "section",
+        "contract",
+        "package_id",
+        "requires",
+        "exposes"
+      ],
+      "requiredWalk": "RecordTypeDocument.cs:109-153 (FirstMissing)"
+    },
+    "fieldMembers": {
+      "source": "RecordTypeIdentity.cs:36-42; platform/projections/dotnet/contracts/hlp.contracts.identities/Fields/FieldDefinitions.cs:10-13,39-48,92-97; Fields/FieldBindingDefinition.cs:6",
+      "field": [
+        "field_key",
+        "display_name",
+        "binding",
+        "governance",
+        "defaults_provenance",
+        "reference"
+      ],
+      "binding": [
+        "kind",
+        "constraints"
+      ],
+      "bindingKind": [
+        "kind_id",
+        "version",
+        "parameters"
+      ],
+      "bindingConstraints": [
+        "required",
+        "minimum_count",
+        "maximum_count",
+        "read_role_ids",
+        "value_domain"
+      ],
+      "governance": [
+        "personal_data",
+        "confidential",
+        "masked",
+        "classification"
+      ],
+      "defaultsProvenance": [
+        "kind_id",
+        "kind_version"
+      ],
+      "reference": [
+        "target_type_id",
+        "target_class_id",
+        "cardinality",
+        "on_delete",
+        "required_trait_id",
+        "parent",
+        "pin"
+      ]
+    },
+    "admittedKindParameterNames": {
+      "source": "platform/projections/dotnet/foundation/hlp.foundation.field-runtime/FieldKindLimits.cs:12-15",
+      "names": [
+        "total_digits",
+        "fraction_digits",
+        "min_length",
+        "max_length",
+        "max_bytes",
+        "minimum",
+        "maximum"
+      ],
+      "unknownNameCode": "field.kind_parameter_unknown",
+      "unknownNamePointerPattern": "<kindPointer>/parameters/<name> (FieldKindLimits.cs:67-71)"
+    },
+    "testHostKindRegistry": {
+      "source": "platform/projections/dotnet/blocks/hlp.blocks.builder-definitions.tests/RecordTypeDefinitionStoreTests.cs:557-562",
+      "kinds": [
+        {
+          "kind_id": "count",
+          "version": "1.0.0",
+          "governanceDefaults": null,
+          "valueShape": "Integer",
+          "capabilities": []
+        },
+        {
+          "kind_id": "text",
+          "version": "1.0.0",
+          "governanceDefaults": {
+            "personal_data": true,
+            "confidential": false,
+            "masked": true,
+            "classification": "internal"
+          },
+          "valueShape": "Text",
+          "capabilities": []
+        },
+        {
+          "kind_id": "date",
+          "version": "1.0.0",
+          "governanceDefaults": null,
+          "valueShape": "Text",
+          "capabilities": [
+            "RetentionClock"
+          ]
+        },
+        {
+          "kind_id": "date",
+          "version": "2.0.0",
+          "governanceDefaults": null,
+          "valueShape": "Text",
+          "capabilities": []
+        }
+      ],
+      "note": "These kinds are registered only by the test host. They are not a production kind catalogue."
+    }
+  },
+  "constraintFloorNotice": {
+    "fact": "binding.constraints.required is the existing non-nullable Boolean floor in FieldConstraintDefinition (FieldDefinitions.cs:87,92-97). Every bound field must carry it (FirstMissing requires binding/constraints, RecordTypeDocument.cs:136-137), so it cannot be left out of this bound scalar fixture.",
+    "isRequiredCondition": false,
+    "excluded": "Required-condition authoring and serialization (L1150, L1374) are not represented. These fixtures add no requiredcondition member, null value or false sentinel."
+  },
+  "cases": [
+    {
+      "id": "G1-asset-class",
+      "kind": "validBody",
+      "origin": "exact existing fixture",
+      "source": {
+        "canonicalText": "platform/projections/dotnet/blocks/hlp.blocks.builder-definitions.tests/RecordTypeDefinitionStoreTests.cs:25-26 (AssetClassJson)",
+        "authoredInput": "RecordTypeDefinitionStoreTests.cs:581-592 (AssetClass, Document, Bound)",
+        "roundTripAssertion": "RecordTypeDefinitionStoreTests.cs:28-49",
+        "sharedFileAssertion": "RecordTypeDefinitionStoreTests.cs:51-62 asserts that platform/_shared/records/record-type.asset-class.json equals AssetClassJson. That file was not opened in this job."
+      },
+      "catalogue": {
+        "tenant": "tenant-a",
+        "definitionKind": "Records",
+        "definitionId": "eam.asset-class",
+        "definitionVersion": "1.0.0",
+        "versionPlacement": "The catalogue version id lives outside the body (RecordTypeDocument.cs:12-14)",
+        "contractWindow": {
+          "major": 1,
+          "minimumMinor": 0,
+          "maximumMinor": 1,
+          "source": "RecordTypeDefinitionStoreTests.cs:20"
+        },
+        "expectedCreateRevision": 1,
+        "expectedStatus": "Draft"
+      },
+      "createRequest": {
+        "operation": "RecordTypeDefinitionStore.CreateDraftAsync(NewRecordType, requestId)",
+        "source": "platform/projections/dotnet/blocks/hlp.blocks.builder-definitions/RecordTypeDefinitionStore.cs:24-37,113-126",
+        "requestId": "create",
+        "newRecordType": {
+          "tenant": "tenant-a",
+          "section": "eam",
+          "name": "Asset Class",
+          "version": "1.0.0",
+          "contract": {
+            "major": 1,
+            "minor": 0
+          },
+          "classId": "eam.equipment",
+          "recordClass": "master",
+          "packageId": "eam-core",
+          "fields": [
+            {
+              "field_key": "asset_tag",
+              "display_name": "Asset tag",
+              "binding": {
+                "kind": {
+                  "kind_id": "text",
+                  "version": "1.0.0",
+                  "parameters": {}
+                },
+                "constraints": {
+                  "required": true,
+                  "minimum_count": 0,
+                  "maximum_count": 1,
+                  "read_role_ids": []
+                }
+              }
+            },
+            {
+              "field_key": "quantity",
+              "display_name": "Quantity",
+              "binding": {
+                "kind": {
+                  "kind_id": "count",
+                  "version": "1.0.0",
+                  "parameters": {}
+                },
+                "constraints": {
+                  "required": false,
+                  "minimum_count": 0,
+                  "maximum_count": 1,
+                  "read_role_ids": []
+                }
+              }
+            },
+            {
+              "field_key": "notes",
+              "display_name": "Notes"
+            }
+          ]
+        },
+        "inputNote": "The authored fields carry no governance or defaults_provenance. The producer materializes these once at creation (RecordTypeIdentity.cs:121-150).",
+        "mintedRecordTypeId": "eam.asset-class"
+      },
+      "expectedStoredBody": {
+        "class_id": "eam.equipment",
+        "envelope": {
+          "contract": {
+            "major": 1,
+            "minor": 0
+          },
+          "package_id": "eam-core",
+          "section": "eam",
+          "tenant": "tenant-a"
+        },
+        "fields": [
+          {
+            "binding": {
+              "constraints": {
+                "maximum_count": 1,
+                "minimum_count": 0,
+                "read_role_ids": [],
+                "required": true
+              },
+              "kind": {
+                "kind_id": "text",
+                "parameters": {},
+                "version": "1.0.0"
+              }
+            },
+            "defaults_provenance": {
+              "kind_id": "text",
+              "kind_version": "1.0.0"
+            },
+            "display_name": "Asset tag",
+            "field_key": "asset_tag",
+            "governance": {
+              "classification": "internal",
+              "confidential": false,
+              "masked": true,
+              "personal_data": true
+            }
+          },
+          {
+            "binding": {
+              "constraints": {
+                "maximum_count": 1,
+                "minimum_count": 0,
+                "read_role_ids": [],
+                "required": false
+              },
+              "kind": {
+                "kind_id": "count",
+                "parameters": {},
+                "version": "1.0.0"
+              }
+            },
+            "defaults_provenance": {
+              "kind_id": "count",
+              "kind_version": "1.0.0"
+            },
+            "display_name": "Quantity",
+            "field_key": "quantity"
+          },
+          {
+            "display_name": "Notes",
+            "field_key": "notes"
+          }
+        ],
+        "name": "Asset Class",
+        "record_class": "master",
+        "record_type_id": "eam.asset-class"
+      },
+      "canonicalJsonText": "{\"class_id\":\"eam.equipment\",\"envelope\":{\"contract\":{\"major\":1,\"minor\":0},\"package_id\":\"eam-core\",\"section\":\"eam\",\"tenant\":\"tenant-a\"},\"fields\":[{\"binding\":{\"constraints\":{\"maximum_count\":1,\"minimum_count\":0,\"read_role_ids\":[],\"required\":true},\"kind\":{\"kind_id\":\"text\",\"parameters\":{},\"version\":\"1.0.0\"}},\"defaults_provenance\":{\"kind_id\":\"text\",\"kind_version\":\"1.0.0\"},\"display_name\":\"Asset tag\",\"field_key\":\"asset_tag\",\"governance\":{\"classification\":\"internal\",\"confidential\":false,\"masked\":true,\"personal_data\":true}},{\"binding\":{\"constraints\":{\"maximum_count\":1,\"minimum_count\":0,\"read_role_ids\":[],\"required\":false},\"kind\":{\"kind_id\":\"count\",\"parameters\":{},\"version\":\"1.0.0\"}},\"defaults_provenance\":{\"kind_id\":\"count\",\"kind_version\":\"1.0.0\"},\"display_name\":\"Quantity\",\"field_key\":\"quantity\"},{\"display_name\":\"Notes\",\"field_key\":\"notes\"}],\"name\":\"Asset Class\",\"record_class\":\"master\",\"record_type_id\":\"eam.asset-class\"}\n",
+      "canonicalTextStatus": "sourceDerivedExpected. This is the exact existing test literal that the test asserts equals the SerializeCanonical output. The bytes were not produced or verified in this job.",
+      "constraintFloorLabel": "fields[0..1].binding.constraints.required is the existing Boolean floor, not required-condition authoring."
+    }
+  ],
+  "fixtureMetadata": {
+    "note": "Authoring metadata kept separate from the RecordType body. Nothing here is written into the body.",
+    "fieldPropertyGroups": {
+      "source": "L104-the-field-property-editor-must-group-properties-by-who-enforces-them-int.md:3-4 (control ledger/L104-.../row.md at 9399d2b0)",
+      "orderedNames": [
+        "Meaning",
+        "Shape",
+        "Processes",
+        "Behaviour",
+        "Presentation",
+        "Governance",
+        "Lifecycle & integration"
+      ],
+      "propertyToGroupAssignment": "No source assigns individual properties to groups. No assignment is invented here."
+    }
+  }
+}
