@@ -6,6 +6,7 @@ settings:
 
 overrides:
   source-map-js@>=1.0.0 <1.2.2: '>=1.2.2'
+  qs@>=6.11.1 <6.15.2: '>=6.15.2'
 
 patchedDependencies:
   '@stryker-mutator/core@10.0.0': aaa9352ad292c7442e4dfda7c8b4e14b5812355737b7cc1b842d7b8dfdcb225c
@@ -1389,8 +1390,8 @@ packages:
     resolution: {integrity: sha512-vYt7UD1U9Wg6138shLtLOvdAu+8DsC/ilFtEVHcH+wydcSpNE20AfSOduf6MkRFahL5FY7X1oU7nKVZFtfq8Fg==}
     engines: {node: '>=6'}
 
-  qs@6.15.1:
-    resolution: {integrity: sha512-6YHEFRL9mfgcAvql/XhwTvf5jKcOiiupt2FiJxHkiX1z4j7WL8J/jRHYLluORvc1XxB5rV20KoeK00gVJamspg==}
+  qs@6.16.1:
+    resolution: {integrity: sha512-5Px6J7rfHBAGUhNQ3es4YzcOdBBw0SDcVtThJml4RdnKw4tKs2epA0kPZ+K8X+WiHktT93RHVcQ/3ym5aTCgtg==}
     engines: {node: '>=0.6'}
 
   react-dom@19.2.8:
@@ -2880,8 +2881,9 @@ snapshots:
 
   punycode@2.3.1: {}
 
-  qs@6.15.1:
+  qs@6.16.1:
     dependencies:
+      es-define-property: 1.0.1
       side-channel: 1.1.1
 
   react-dom@19.2.8(react@19.2.8):
@@ -3028,7 +3030,7 @@ snapshots:
     dependencies:
       des.js: 1.1.0
       js-md4: 0.3.2
-      qs: 6.15.1
+      qs: 6.16.1
       tunnel: 0.0.6
       underscore: 1.13.8
 
