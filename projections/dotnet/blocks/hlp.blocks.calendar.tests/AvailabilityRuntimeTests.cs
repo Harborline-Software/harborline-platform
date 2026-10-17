@@ -312,6 +312,32 @@ public sealed class AvailabilityRuntimeTests
         Assert.Equal(0, IntervalMath.MaxDepth([a, b, c, d], new TimeInterval(Utc(15), Utc(17))));
     }
 
+    [Fact]
+    public async Task Read_LaterBusySpanDoesNotExtendFreeTimePastSupply_WhenRequestIsWider()
+    {
+        var sut = NewSut();
+        await sut.Availability.SaveAsync(
+            ResourceAvailability.Create(Acme, Doctor, "UTC")
+                .AddWindow(AvailabilityWindow.Create(Day, new TimeOnly(9, 0), new TimeOnly(10, 0))));
+        var ev = CalendarEvent.Create(Acme, "After closing time", Day, Day, Actor,
+            timezone: "UTC", startTime: new TimeOnly(11, 0), endTime: new TimeOnly(12, 0),
+            occupancy: Occupancy.Bookable, padding: EventPadding.None);
+        ev.SetResource(Doctor, Actor);
+        await sut.Events.SaveAsync(ev);
+
+        var answer = await sut.Runtime.Read(Acme,
+            Window(Utc(9), Utc(12), ResourceCapacity.Exclusive(Doctor, EventPadding.None)));
+
+        Assert.Null(answer.Refusal);
+        Assert.False(answer.Available);
+        var resource = Assert.Single(answer.Resources);
+        Assert.False(resource.Available);
+        Assert.Equal(Unavailability.OutsideSupply, resource.Unavailability);
+        // OutsideSupply still exposes intervals; the later event cannot extend the literal supply.
+        Assert.Equal(new TimeInterval(Utc(9), Utc(10)), Assert.Single(resource.Free));
+        Assert.Empty(resource.Busy);
+    }
+
     /// <summary>Counts reads so the window refusal can be proven to happen before any store is touched.</summary>
     private sealed class CountingAvailabilityStore : IResourceAvailabilityStore
     {
