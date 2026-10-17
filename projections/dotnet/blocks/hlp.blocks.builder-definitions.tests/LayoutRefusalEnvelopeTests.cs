@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 
 using Xunit;
 
@@ -49,18 +50,21 @@ public sealed class LayoutRefusalEnvelopeTests
         }
     }
 
+    // The same surface with each fault corrected.
+    private static readonly LayoutDefinition ValidControl = ThreeFaults with
+    {
+        Blocks =
+        [
+            ThreeFaults.Blocks[0] with { Kind = "layout.table" },
+            ThreeFaults.Blocks[1] with { Binding = new LayoutMeasureBinding("orders.total") },
+            ThreeFaults.Blocks[2] with { Container = ThreeFaults.Blocks[2].Container! with { Wrap = LayoutWrap.Wrap } },
+        ],
+    };
+
     [Fact(DisplayName = "T-583 item 2: the valid control surface reports zero refusals at author, publish and render")]
     public void TheValidControlReportsNoRefusals()
     {
-        var valid = ThreeFaults with
-        {
-            Blocks =
-            [
-                ThreeFaults.Blocks[0] with { Kind = "layout.table" },
-                ThreeFaults.Blocks[1] with { Binding = new LayoutMeasureBinding("orders.total") },
-                ThreeFaults.Blocks[2] with { Container = ThreeFaults.Blocks[2].Container! with { Wrap = LayoutWrap.Wrap } },
-            ],
-        };
+        var valid = ValidControl;
         LayoutDefinitionAdmission.ValidateForAuthoring(valid, LayoutTestAccess.GrantsAll);
         LayoutDefinitionAdmission.ValidateForPublish(valid, LayoutTestAccess.GrantsAll);
         LayoutPersistedValueAdmission.ValidateForRuntime(valid);
@@ -123,6 +127,66 @@ public sealed class LayoutRefusalEnvelopeTests
 
         Assert.Equal(DefinitionAdmissionPhase.Install, refused.Stage);
         Assert.Equal([new DefinitionRefusal(LayoutDefinitionCodes.BlockKindUnknown, "/blocks/0/kind", "surface.orders@1.0.0")], refused.Refusals);
+    }
+
+    private static LayoutDefinitionPackageEntry RawEntry(string definitionId, string version, byte[] payload)
+        => new(definitionId, version, PlatformPackageContent.PresentJson(payload));
+
+    // The canonical valid control with one root member the Layout contract does not define.
+    private static byte[] WithUnknownRootMember(LayoutDefinition definition)
+    {
+        var root = JsonNode.Parse(LayoutDefinitionJson.SerializeCanonical(definition))!.AsObject();
+        root.Add("unexpected_member", true);
+        return JsonSerializer.SerializeToUtf8Bytes(root);
+    }
+
+    [Fact(DisplayName = "T-1034: a canonical Layout payload with an unknown root member refuses once at install with layout.definition.body_invalid, no pointer and its target")]
+    public void AnUnknownRootMemberRefusesBodyInvalidAtInstall()
+    {
+        var refused = Assert.Throws<DefinitionRefusalException>(() => LayoutPackHostAdmission.Admit(
+            [RawEntry("surface.orders", "1.0.0", WithUnknownRootMember(ValidControl))], Host));
+
+        Assert.Equal(DefinitionAdmissionPhase.Install, refused.Stage);
+        Assert.Equal([new DefinitionRefusal(LayoutDefinitionCodes.BodyInvalid, "", "surface.orders@1.0.0")], refused.Refusals);
+    }
+
+    [Fact(DisplayName = "T-1034: a JSON null payload refuses once at install with layout.definition.body_invalid, no pointer and its target")]
+    public void ANullPayloadRefusesBodyInvalidAtInstall()
+    {
+        var refused = Assert.Throws<DefinitionRefusalException>(() => LayoutPackHostAdmission.Admit(
+            [RawEntry("surface.orders", "1.0.0", "null"u8.ToArray())], Host));
+
+        Assert.Equal(DefinitionAdmissionPhase.Install, refused.Stage);
+        Assert.Equal([new DefinitionRefusal(LayoutDefinitionCodes.BodyInvalid, "", "surface.orders@1.0.0")], refused.Refusals);
+    }
+
+    [Fact(DisplayName = "T-1034: an undecodable entry and an entry with a capability refusal both report under their own targets, and the whole pack is refused")]
+    public void AnUndecodableEntryAccumulatesWithOtherEntriesRefusals()
+    {
+        var stripped = ThreeFaults with
+        {
+            Envelope = ThreeFaults.Envelope with { Identity = "surface.stripped", Requires = [] },
+            Blocks = [ThreeFaults.Blocks[0] with { Kind = "layout.table" }],
+        };
+
+        var refused = Assert.Throws<DefinitionRefusalException>(() => LayoutPackHostAdmission.Admit(
+            [RawEntry("surface.orders", "1.0.0", WithUnknownRootMember(ValidControl)), Entry(stripped)], Host));
+
+        Assert.Equal(DefinitionAdmissionPhase.Install, refused.Stage);
+        Assert.Equal(
+            [new DefinitionRefusal(LayoutDefinitionCodes.BodyInvalid, "", "surface.orders@1.0.0"),
+             new DefinitionRefusal(LayoutDefinitionCodes.CapabilityUndeclared, "/envelope/requires", "surface.stripped@1.0.0")],
+            refused.Refusals);
+    }
+
+    [Fact(DisplayName = "T-1034: a payload that decodes but carries an invalid envelope still refuses layout.definition.envelope_invalid at install, not body_invalid")]
+    public void ADecodableInvalidEnvelopeStillRefusesEnvelopeInvalid()
+    {
+        var refused = Assert.Throws<DefinitionRefusalException>(() => LayoutPackHostAdmission.Admit(
+            [Entry(ValidControl with { SchemaVersion = 0 })], Host));
+
+        Assert.Equal(DefinitionAdmissionPhase.Install, refused.Stage);
+        Assert.Equal([new DefinitionRefusal(LayoutDefinitionCodes.EnvelopeInvalid, "/schema_version", "surface.orders@1.0.0")], refused.Refusals);
     }
 
     [Fact(DisplayName = "T-583 item 2: authorless pack export refuses in the shared envelope at the publish stage")]
