@@ -126,8 +126,13 @@ describe('Chart React projection quality', () => {
     const path = document.querySelector('.hl-chart__line')?.getAttribute('d') ?? ''
     expect(path.match(/[ML]/g)).toEqual(['M', 'L', 'M', 'L'])
     expect(screen.getAllByRole('cell').map(cell => cell.textContent)).toEqual(['1', '2', 'null', '3', '4'])
+    expect(screen.getAllByRole('cell').map(cell => cell.getAttribute('data-value-state'))).toEqual(['present', 'present', 'missing', 'present', 'present'])
     expect(screen.getByRole('cell', { name: 'null' })).toHaveAttribute('data-value-state', 'missing')
     expect(document.querySelector('[data-category="Mar"]')).toHaveAttribute('data-point-state', 'missing')
+    for (const category of ['Jan', 'Feb', 'Apr', 'May']) {
+      expect(document.querySelector(`[data-category="${category}"]`)).toHaveAttribute('data-point-state', 'present')
+    }
+    expect(document.querySelector('[data-category="Mar"] circle')).toBeNull()
   })
 
   it('disables line tooltips while retaining formatted and missing accessible values', () => {
