@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.contracts.identities",
-  "interfaceRevision": 1,
+  "interfaceRevision": 2,
   "cases": [
     {"id": "tenant-valid", "operation": "tenant.construct", "input": "tenant-acme", "expected": {"value": "tenant-acme", "isSystemSentinel": false}},
     {"id": "tenant-empty-rejected", "operation": "tenant.construct", "input": "", "expectedError": "invalid-tenant-id"},

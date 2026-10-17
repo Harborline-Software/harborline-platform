@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.foundation.actor",
-  "interfaceRevision": 2,
+  "interfaceRevision": 6,
   "cases": [
     {"id": "current-user-values", "operation": "actor.read", "input": {"userId": "alice", "roles": ["inspector", "reviewer"]}, "expected": {"userId": "alice", "roles": ["inspector", "reviewer"]}},
     {"id": "empty-roles-allowed", "operation": "actor.read", "input": {"userId": "alice", "roles": []}, "expected": {"userId": "alice", "roles": []}},

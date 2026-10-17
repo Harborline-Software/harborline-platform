@@ -68,6 +68,27 @@ function load(path) {
   return JSON.parse(readFileSync(resolve(root, path), 'utf8'))
 }
 
+// Fixtures are JSON except for the existing block-YAML kernel.core corpus. Read only
+// its top-level scalar revision metadata; do not treat malformed JSON as omitted YAML.
+function fixtureInterfaceRevision(path) {
+  const text = readFileSync(resolve(root, path), 'utf8').replace(/^\uFEFF/, '')
+  if (text.trimStart().startsWith('{') || text.trimStart().startsWith('[')) {
+    const fixture = JSON.parse(text)
+    if (fixture === null || typeof fixture !== 'object' || Array.isArray(fixture)) throw new Error('expected a fixture mapping')
+    return {declared: Object.hasOwn(fixture, 'interfaceRevision'), value: fixture.interfaceRevision}
+  }
+  const lines = text.split(/\r?\n/).filter(line => line.trim() && !/^\s*(?:#|---(?:\s|$)|\.\.\.(?:\s|$)|%)/.test(line))
+  const indent = Math.min(...lines.map(line => line.match(/^ */)[0].length))
+  const declarations = lines.filter(line => line.match(/^ */)[0].length === indent)
+    .map(line => line.trimStart()).filter(line => /^(?:\?\s+)?["']?interfaceRevision\b/.test(line))
+  if (declarations.length === 0) return {declared: false}
+  if (declarations.length !== 1) throw new Error('duplicate top-level interfaceRevision declarations')
+  const match = declarations[0].match(/^(?:interfaceRevision|"interfaceRevision"|'interfaceRevision')\s*:\s*(.*?)\s*$/)
+  if (!match) throw new Error('expected a top-level interfaceRevision scalar')
+  const value = match[1].replace(/\s+#.*$/, '').trim()
+  return {declared: true, value: /^(?:0|[1-9]\d*)$/.test(value) ? Number(value) : value}
+}
+
 function exists(path) {
   return statSync(resolve(root, path), { throwIfNoEntry: false })?.isFile() === true
 }
@@ -186,6 +207,20 @@ for (const [moduleId, module] of Object.entries(catalog.modules ?? {})) {
     const moduleInterface = load(module.interface.path)
     if (moduleInterface.moduleId !== moduleId) errors.push(`${moduleId}: interface module mismatch`)
     if (moduleInterface.interfaceRevision !== module.interface.revision) errors.push(`${moduleId}: interface revision mismatch`)
+    const fixturePath = `conformance/${moduleId}/fixtures.yaml`
+    if (exists(fixturePath)) {
+      try {
+        // T686 keeps legacy omission optional; a declared revision must be valid and match.
+        const revision = fixtureInterfaceRevision(fixturePath)
+        if (revision.declared && (!Number.isSafeInteger(revision.value) || revision.value < 1)) {
+          errors.push(`${moduleId}: ${fixturePath}: fixture interfaceRevision must be a positive safe integer (actual ${JSON.stringify(revision.value)})`)
+        } else if (revision.declared && revision.value !== moduleInterface.interfaceRevision) {
+          errors.push(`${moduleId}: ${fixturePath}: fixture interfaceRevision mismatch (expected ${moduleInterface.interfaceRevision}, actual ${revision.value})`)
+        }
+      } catch (cause) {
+        errors.push(`${moduleId}: ${fixturePath}: invalid fixture metadata (${cause.message})`)
+      }
+    }
     const dependencyMismatch = interfaceDependencyMismatch(moduleId, module.dependencies, moduleInterface.dependencies)
     if (dependencyMismatch !== null) errors.push(dependencyMismatch)
   }

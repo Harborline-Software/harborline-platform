@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.blocks.workflow",
-  "interfaceRevision": 2,
+  "interfaceRevision": 5,
   "durableCases": [
     {"id": "atomic-advance-crash-rolls-back", "expect": "staging-throw-appends-nothing; resume posts exactly once"},
     {"id": "advance-survives-process-restart", "probe": "write-crash", "expect": "effect committed exactly once after kill without dispose"},
