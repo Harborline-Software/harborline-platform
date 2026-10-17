@@ -179,7 +179,9 @@ public sealed class RecordInstallClosureContractTests
         RecordsExposure? exposes = null)
     {
         var host = Host();
-        await host.Records.CreateDraftAsync(AssetClass(version) with { Exposes = exposes }, "create");
+        // These compatibility assertions concern the frozen legacy bytes, not the new-create policy defaults.
+        await host.Catalogue.SaveDraftAsync(new(RecordTypeDefinitionStore.KeyOf(Tenant, "eam.asset-class"), version, version,
+            exposes is null ? AssetClassJson : ExposedAssetClassJson), 0, "create");
         var publication = await host.Records.PublishAsync(Tenant, "eam.asset-class", version, 1, "publish");
         return (host, publication.Revision);
     }

@@ -29,6 +29,11 @@ public sealed class RecordTypeDefinitionStoreTests
     internal const string AssetClassJson =
         """{"class_id":"eam.equipment","envelope":{"contract":{"major":1,"minor":0},"package_id":"eam-core","section":"eam","tenant":"tenant-a"},"fields":[{"binding":{"constraints":{"maximum_count":1,"minimum_count":0,"read_role_ids":[],"required":true},"kind":{"kind_id":"text","parameters":{},"version":"1.0.0"}},"defaults_provenance":{"kind_id":"text","kind_version":"1.0.0"},"display_name":"Asset tag","field_key":"asset_tag","governance":{"classification":"internal","confidential":false,"masked":true,"personal_data":true}},{"binding":{"constraints":{"maximum_count":1,"minimum_count":0,"read_role_ids":[],"required":false},"kind":{"kind_id":"count","parameters":{},"version":"1.0.0"}},"defaults_provenance":{"kind_id":"count","kind_version":"1.0.0"},"display_name":"Quantity","field_key":"quantity"},{"display_name":"Notes","field_key":"notes"}],"name":"Asset Class","record_class":"master","record_type_id":"eam.asset-class"}""" + "\n";
 
+    // ADR-0097 create-only policy declarations, spelled independently of the producer serializer. The legacy fixture
+    // above stays unchanged; new authoring has a distinct canonical body and digest.
+    internal const string CreatedAssetClassJson =
+        """{"amendment_policy":{"reason_required":true},"class_id":"eam.equipment","envelope":{"contract":{"major":1,"minor":0},"package_id":"eam-core","section":"eam","tenant":"tenant-a"},"fields":[{"binding":{"constraints":{"maximum_count":1,"minimum_count":0,"read_role_ids":[],"required":true},"kind":{"kind_id":"text","parameters":{},"version":"1.0.0"}},"defaults_provenance":{"kind_id":"text","kind_version":"1.0.0"},"display_name":"Asset tag","field_key":"asset_tag","governance":{"classification":"internal","confidential":false,"masked":true,"personal_data":true}},{"binding":{"constraints":{"maximum_count":1,"minimum_count":0,"read_role_ids":[],"required":false},"kind":{"kind_id":"count","parameters":{},"version":"1.0.0"}},"defaults_provenance":{"kind_id":"count","kind_version":"1.0.0"},"display_name":"Quantity","field_key":"quantity"},{"display_name":"Notes","field_key":"notes"}],"history_policy":"enabled","name":"Asset Class","record_class":"master","record_type_id":"eam.asset-class"}""" + "\n";
+
     [Fact]
     [Trait("Holds", "records-ck-1")]
     public async Task a_created_record_type_publishes_reads_back_at_its_head_and_round_trips_byte_identically()
@@ -39,14 +44,14 @@ public sealed class RecordTypeDefinitionStoreTests
         Assert.Equal("eam.asset-class", created.RecordTypeId);
         Assert.Equal(1, created.Revision.Revision);
         Assert.Equal(DefinitionStatus.Draft, created.Revision.Status);
-        Assert.Equal(AssetClassJson, created.Revision.Document.BodyJson);
+        Assert.Equal(CreatedAssetClassJson, created.Revision.Document.BodyJson);
 
         var published = await host.Records.PublishAsync(Tenant, "eam.asset-class", "1.0.0", 1, "publish");
         Assert.Equal(DefinitionStatus.Published, published.Revision.Status);
         Assert.Equal(2, published.Revision.Revision);
 
         var head = Assert.IsType<RecordTypeDocument>(await host.Records.GetPublishedHeadAsync(Tenant, "eam.asset-class"));
-        Assert.Equal(AssetClassJson, Encoding.UTF8.GetString(RecordTypeDefinitionJson.SerializeCanonical(head)));
+        Assert.Equal(CreatedAssetClassJson, Encoding.UTF8.GetString(RecordTypeDefinitionJson.SerializeCanonical(head)));
         Assert.Equal(AssetClassJson,
             Encoding.UTF8.GetString(RecordTypeDefinitionJson.SerializeCanonical(
                 RecordTypeDefinitionJson.Deserialize(Encoding.UTF8.GetBytes(AssetClassJson)))));
@@ -262,12 +267,12 @@ public sealed class RecordTypeDefinitionStoreTests
 
         var restored = await host.Records.RestoreAsDraftAsync(Tenant, "eam.asset-class", "1.0.0", "1.1.0", 2, "restore");
         Assert.Equal("1.0.0", restored.RestoredFromVersionId);
-        Assert.Equal(AssetClassJson, restored.Document.BodyJson);
+        Assert.Equal(CreatedAssetClassJson, restored.Document.BodyJson);
         await host.Records.PublishAsync(Tenant, "eam.asset-class", "1.1.0", 3, "publish-1.1.0");
 
         var head = await host.Catalogue.GetPublishedHeadAsync(RecordTypeDefinitionStore.KeyOf(Tenant, "eam.asset-class"));
         Assert.Equal("1.1.0", head!.Document.Version);
-        Assert.Equal(AssetClassJson, head.Document.BodyJson);
+        Assert.Equal(CreatedAssetClassJson, head.Document.BodyJson);
     }
 
     [Fact]
@@ -284,7 +289,7 @@ public sealed class RecordTypeDefinitionStoreTests
 
         Assert.Equal(("eam.asset-class", "1.0.0", 5, 0, DefinitionKind.Records),
             (entry.DefinitionId, entry.Version, entry.ContentKind, entry.Primitive, entry.Kind));
-        Assert.Equal(AssetClassJson, Encoding.UTF8.GetString(entry.Content.Payload.Span));
+        Assert.Equal(CreatedAssetClassJson, Encoding.UTF8.GetString(entry.Content.Payload.Span));
         var receiving = Host();
         Assert.Empty((await receiving.Records.AdmitInstallAsync("tenant-b", entry, NoDependencies)).Refusals);
 

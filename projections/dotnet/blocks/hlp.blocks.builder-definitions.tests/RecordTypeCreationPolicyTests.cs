@@ -185,7 +185,8 @@ public sealed class RecordTypeCreationPolicyTests
     public async Task An_existing_body_without_the_member_still_publishes_binds_and_reads_as_form_only()
     {
         var host = Host();
-        await host.Records.CreateDraftAsync(AssetClass("1.0.0"), "create");
+        await host.Catalogue.SaveDraftAsync(new(RecordTypeDefinitionStore.KeyOf(Tenant, "eam.asset-class"), "1.0.0", "1.0.0",
+            AssetClassJson), 0, "create");
         var published = await host.Records.PublishAsync(Tenant, "eam.asset-class", "1.0.0", 1, "publish");
 
         Assert.Equal(AssetClassJson, published.Revision.Document.BodyJson);
