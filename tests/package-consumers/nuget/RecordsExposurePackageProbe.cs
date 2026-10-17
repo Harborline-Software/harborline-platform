@@ -29,6 +29,7 @@ internal static class RecordsExposurePackageProbe
             [DefinitionKind.Records] = RecordTypeDefinitionStore.Admission(Window, validator),
         });
         var key = new DefinitionKey("tenant-a", DefinitionKind.Records, "eam.asset-class");
+        // Publish raw to preserve the specimen's bytes; unit tests own authoring-boundary serialization.
         await catalogue.SaveDraftAsync(new(key, "exposed-version", "3.1.4", Body), 0, "exposure-draft");
         var published = await catalogue.PublishAsync(key, "exposed-version", 1, "exposure-publish");
         var exported = RecordTypeDefinitionPackageExporter.Export(published);
@@ -80,11 +81,20 @@ internal static class RecordsExposurePackageProbe
         var unbound = ConfigurationProposal.Release(state, saved, check, baseline, "eam-core", "7.0.0");
         Require(unbound.Refusal is null && unbound.Released is not null, "The resolver-free release unexpectedly refused.");
         using var unboundDocument = JsonDocument.Parse(unbound.Released!.Document);
-        Require(!unboundDocument.RootElement.TryGetProperty("exposedDefinitions", out _)
-            && unboundDocument.RootElement.GetProperty("exposes").EnumerateArray().Single().GetString() == "records/eam.asset-class",
+        var unboundRoot = unboundDocument.RootElement;
+        var hasUnboundDefinitions = unboundRoot.TryGetProperty("exposedDefinitions", out var unboundDefinitions);
+        var unboundExposures = hasUnboundDefinitions
+            ? unboundDefinitions.EnumerateArray().Select(definition => new PinnedExposure(
+                unboundRoot.GetProperty("packageKey").GetString()!, DefinitionKind.Records,
+                definition.GetProperty("definitionKey").GetString()!["records/".Length..],
+                definition.GetProperty("version").GetString()!, definition.GetProperty("digest").GetString()!,
+                unboundRoot.GetProperty("interfaceVersion").GetInt32())).ToArray()
+            : Array.Empty<PinnedExposure>();
+        Require(!hasUnboundDefinitions
+            && unboundRoot.GetProperty("exposes").EnumerateArray().Single().GetString() == "records/eam.asset-class",
             "A resolver-free release invented a bound version/digest carrier.");
         Refusal(await installGate.AdmitInstallAsync("tenant-b", Consumer(StoredDigest),
-            new RecordsInstallClosure([new(DefinitionKind.Records, "fleet-ops.work-order")], [])),
+            new RecordsInstallClosure([new(DefinitionKind.Records, "fleet-ops.work-order")], unboundExposures)),
             "records.reference.closure_missing");
 
         var wrongIdentity = published with
