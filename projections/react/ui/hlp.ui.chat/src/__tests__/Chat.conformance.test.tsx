@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 
@@ -102,6 +102,62 @@ describe('Chat revision-1 conformance', () => {
     expect(screen.queryByRole('button', { name: 'Explain' })).toBeNull()
   })
 
+  it.each(['assistant', 'system'] as const)('retains suggestions after %s messages until a user message arrives', role => {
+    const submitted = vi.fn()
+    const suggestions = [{ title: 'Explain', prompt: 'explain' }, { title: 'Retry', prompt: 'retry' }]
+    const view = render(<Chat messages={[{ ...messages[1]!, role }]} user={participant} onSubmit={submitted} suggestions={suggestions} />)
+    expect(within(screen.getByRole('group')).getAllByRole('button').map(button => button.textContent))
+      .toEqual(['Explain', 'Retry'])
+
+    view.rerender(<Chat messages={[{ ...messages[1]!, role }, messages[0]!]} user={participant} onSubmit={submitted} suggestions={suggestions} />)
+    expect(screen.queryByRole('group')).toBeNull()
+    expect(submitted).not.toHaveBeenCalled()
+  })
+
+  it('ignores a whitespace-only suggestion and submits a nonblank suggestion exactly once', async () => {
+    const submitted = vi.fn()
+    const changed = vi.fn()
+    const view = render(
+      <Chat messages={[]} user={participant} inputValue="draft" onInputValueChange={changed} onSubmit={submitted}
+        suggestions={[{ title: 'Blank prompt', prompt: ' \t\n ' }]} />,
+    )
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Blank prompt' }))
+    expect(submitted).not.toHaveBeenCalled()
+    expect(changed).not.toHaveBeenCalled()
+    expect(screen.getByRole('textbox')).toHaveValue('draft')
+
+    view.rerender(
+      <Chat messages={[]} user={participant} inputValue="draft" onInputValueChange={changed} onSubmit={submitted}
+        suggestions={[{ title: 'Explain', prompt: '  explain finding  ' }]} />,
+    )
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Explain' }))
+    expect(submitted).toHaveBeenCalledOnce()
+    expect(submitted).toHaveBeenCalledWith('explain finding')
+    expect(changed).toHaveBeenCalledOnce()
+    expect(changed).toHaveBeenCalledWith('')
+  })
+
+  it('renders literal default message content before replacing it without stale text', () => {
+    const view = render(<Chat messages={[messages[1]!]} user={participant} />)
+    expect(within(screen.getByRole('article')).getByText('Inspection ready')).toBeInTheDocument()
+
+    view.rerender(<Chat messages={[{ id: 'replacement', author: assistant, role: 'assistant', text: 'Replacement content' }]} user={participant} />)
+    expect(within(screen.getByRole('article')).getByText('Replacement content')).toBeInTheDocument()
+    expect(screen.queryByText('Inspection ready')).toBeNull()
+  })
+
+  it('invokes a function no-data slot only for an empty conversation and preserves the log shell', () => {
+    const empty = () => <strong>Nothing yet</strong>
+    const view = render(<Chat messages={[]} user={participant} empty={empty} />)
+    expect(screen.getByRole('log')).toContainElement(screen.getByText('Nothing yet'))
+    expect(screen.queryAllByRole('article')).toHaveLength(0)
+
+    view.rerender(<Chat messages={[messages[1]!]} user={participant} empty={empty} />)
+    expect(screen.queryByText('Nothing yet')).toBeNull()
+    expect(screen.getByRole('log')).toContainElement(screen.getByRole('article'))
+    expect(within(screen.getByRole('article')).getByText('Inspection ready')).toBeInTheDocument()
+  })
+
   it('retains bounded content slots and accessible typing/streaming behavior', () => {
     fixture(sharedCases, 'chat.typing')
     fixture(sharedCases, 'chat.streaming-announcement')
@@ -158,6 +214,13 @@ describe('Chat revision-1 conformance', () => {
     expect(() => render(<Chat messages={[]} user={participant} inputValue="draft" onSubmit={() => undefined} />)).toThrow('controlled-composer-handler-required')
     expect(() => render(<Chat messages={[]} user={{ name: ' ' }} />)).toThrow('accessible-user-name-required')
     expect(() => render(<Chat messages={[{ ...messages[0]!, timestamp: new Date(Number.NaN) }]} user={participant} />)).toThrow('invalid-message-timestamp')
+  })
+
+  it.each(['user', 'assistant', 'system'] as const)('rejects a blank %s message author even when the root user is valid', role => {
+    // The interface error applies to every participant, not only the root user.
+    expect(() => render(
+      <Chat messages={[{ id: 'blank-author', author: { name: '   ' }, role, text: 'A message' }]} user={participant} />,
+    )).toThrow('accessible-user-name-required')
   })
 
   it('keeps projection and private scroll details outside the public contract', () => {

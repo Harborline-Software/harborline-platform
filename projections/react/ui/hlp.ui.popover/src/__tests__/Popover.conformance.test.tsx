@@ -221,6 +221,45 @@ describe('Popover shared fixtures', () => {
     }
   })
 
+  // The placement contract uses logical alignment before viewport clamping. Interior literals
+  // distinguish each alignment; the frozen edge corpus legitimately clamps several to one point.
+  it.each([
+    ['start', 'ltr', 300],
+    ['center', 'ltr', 290],
+    ['end', 'ltr', 280],
+    ['start', 'rtl', 280],
+    ['center', 'rtl', 290],
+    ['end', 'rtl', 300],
+  ] as const)('places an unclamped bottom surface with %s alignment in %s', (align, direction, left) => {
+    const anchor = { left: 300, top: 300, right: 380, bottom: 330, width: 80, height: 30 }
+    expect(place(anchor, { width: 100, height: 40 }, 'bottom', align, 6, direction, { width: 1000, height: 800 }))
+      .toEqual({ side: 'bottom', left, top: 336 })
+  })
+
+  it.each([
+    ['start', 300],
+    ['center', 295],
+    ['end', 290],
+  ] as const)('places an unclamped right surface with %s alignment', (align, top) => {
+    const anchor = { left: 300, top: 300, right: 380, bottom: 330, width: 80, height: 30 }
+    expect(place(anchor, { width: 100, height: 40 }, 'right', align, 6, 'ltr', { width: 1000, height: 800 }))
+      .toEqual({ side: 'right', left: 386, top })
+  })
+
+  it('retains the requested side when the surface fits exactly within the eight-pixel margin', () => {
+    // 46px of bottom room exactly fits 40px of content plus the literal 6px side offset.
+    const anchor = { left: 300, top: 716, right: 380, bottom: 746, width: 80, height: 30 }
+    expect(place(anchor, { width: 100, height: 40 }, 'bottom', 'start', 6, 'ltr', { width: 1000, height: 800 }))
+      .toEqual({ side: 'bottom', left: 300, top: 752 })
+  })
+
+  it('retains the requested side when neither side fits and the opposite has equal room', () => {
+    // Both sides have 32px of room. Equal room is not the contract's strictly greater room.
+    const anchor = { left: 300, top: 40, right: 380, bottom: 60, width: 80, height: 20 }
+    expect(place(anchor, { width: 100, height: 40 }, 'bottom', 'start', 6, 'ltr', { width: 1000, height: 100 }))
+      .toEqual({ side: 'bottom', left: 300, top: 52 })
+  })
+
   // The class list of the root, the anchor and the content, from the fixture. The Blazor lane used
   // to style hl-popover-root, hl-popover-anchor and an hl-popover-content alias out of its own
   // wwwroot copy, none of which the authority defined, so the two lanes styled the same surface
