@@ -54,6 +54,8 @@ internal static class AcceptedRecordCreatePackageProbe
         gate.Allow = false;
         var denied = await operation.CompleteAcceptedAsync(new(Tenant, Worker), command);
         Refusal(denied, "authorize", "NoGrant");
+        Require(denied.Decision is { Allowed: false, Principal: "consumer-worker" },
+            "Denied completion lost the worker's own denied decision.");
         Require(events.SequenceEqual(["gate:" + Worker]) && port.Begun == 0 && port.Lookups.Count == 0,
             "Denied completion reached lookup or staging before the worker's bounded decision.");
 
@@ -113,6 +115,7 @@ internal static class AcceptedRecordCreatePackageProbe
         Require(!AcceptedRecordCreateOutcomes.IsTerminalRefusal(unreadable) && port.Begun == 1 && port.Commits == 1
             && events.SequenceEqual(["gate:" + Delegate, "lookup"]),
             "An unreadable accepted receipt authorized another insertion or became a terminal refusal.");
+        // Keep the acceptance-time invariant explicit beside the outcomes, even though Gate also rejects other principals.
         Require(gate.Asked.All(request => request.Principal != Submitter),
             "Completion re-decided the submitter instead of preserving acceptance-time authority.");
         Console.WriteLine("ACCEPTED_RECORD_CREATE_PACKAGE_PASS: bounded worker before lookup, immutable acceptance, form_only completion, actor/provenance, delegate replay and unreadable receipt refusal");
