@@ -14,8 +14,7 @@ public sealed class WorkItemKernelTests
     public async Task SharedLifecycleFixture_PassesInMemoryAndFileJournal(bool durable)
     {
         using var fixtures = JsonDocument.Parse(await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, "fixtures.yaml")));
-        Assert.Equal("hlp.kernel.work-items", fixtures.RootElement.GetProperty("moduleId").GetString());
-        Assert.Equal(8, fixtures.RootElement.GetProperty("cases").GetArrayLength());
+        AssertFixtureInventory(fixtures.RootElement);
         var path = TempPath();
         IWorkItemStore store = durable ? new FileJournalWorkItemStore(path) : new InMemoryWorkItemStore();
         try
@@ -34,6 +33,62 @@ public sealed class WorkItemKernelTests
             if (store is IAsyncDisposable asyncDisposable) await asyncDisposable.DisposeAsync();
             File.Delete(path);
         }
+    }
+
+    [Fact]
+    public async Task SharedLifecycleFixture_AdmitsAnAdditionalUnrelatedCase()
+    {
+        using var fixtures = JsonDocument.Parse(await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, "fixtures.yaml")));
+        var cases = fixtures.RootElement.GetProperty("cases").EnumerateArray().Select(row => row.Clone())
+            .Append(JsonSerializer.SerializeToElement(new {id = "independent-added-case"})).ToArray();
+        var extended = JsonSerializer.SerializeToElement(new
+        {
+            moduleId = fixtures.RootElement.GetProperty("moduleId").GetString(),
+            cases,
+        });
+
+        AssertFixtureInventory(extended);
+    }
+
+    [Theory]
+    [InlineData("approve")]
+    [InlineData("rework")]
+    [InlineData("idempotency-conflict")]
+    [InlineData("tenant-isolation")]
+    [InlineData("concurrent-version")]
+    [InlineData("restart-recovery")]
+    [InlineData("multi-command-request")]
+    public async Task SharedLifecycleFixture_RejectsEachMissingMaintainedCaseDespiteUnrelatedReplacement(string removedId)
+    {
+        using var fixtures = JsonDocument.Parse(await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, "fixtures.yaml")));
+        var cases = fixtures.RootElement.GetProperty("cases").EnumerateArray()
+            .Where(row => row.GetProperty("id").GetString() != removedId).Select(row => row.Clone())
+            .Append(JsonSerializer.SerializeToElement(new {id = "independent-replacement-case"})).ToArray();
+        var replaced = JsonSerializer.SerializeToElement(new
+        {
+            moduleId = fixtures.RootElement.GetProperty("moduleId").GetString(),
+            cases,
+        });
+
+        var error = Assert.ThrowsAny<Xunit.Sdk.XunitException>(() => AssertFixtureInventory(replaced));
+        Assert.Contains(removedId, error.Message, StringComparison.Ordinal);
+    }
+
+    private static void AssertFixtureInventory(JsonElement fixture)
+    {
+        Assert.Equal("hlp.kernel.work-items", fixture.GetProperty("moduleId").GetString());
+        var cases = fixture.GetProperty("cases").EnumerateArray().ToArray();
+        Assert.NotEmpty(cases);
+        var ids = cases.Select(row => row.GetProperty("id").GetString()).ToArray();
+        Assert.All(ids, id => Assert.False(string.IsNullOrWhiteSpace(id)));
+        Assert.Equal(ids.Length, ids.Distinct(StringComparer.Ordinal).Count());
+        Assert.DoesNotContain("definition-contract-window", ids);
+        // T686's maintained cases are required members, not an exact inventory: new cases fit.
+        foreach (var requiredId in new[]
+        {
+            "approve", "rework", "idempotency-conflict", "tenant-isolation",
+            "concurrent-version", "restart-recovery", "multi-command-request",
+        }) Assert.Contains(requiredId, ids);
     }
 
     [Fact]
