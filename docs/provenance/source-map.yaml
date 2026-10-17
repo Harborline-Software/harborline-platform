@@ -2199,7 +2199,7 @@
         "projections/react/ui/hlp.ui.action-menu/src/ActionMenu.tsx": "b99fea14f1f57f4d2f24c6f88792826567c2f4e0d654232fa147a2ded419e891",
         "projections/react/ui/hlp.ui.action-menu/src/__tests__/ActionMenu.conformance.test.tsx": "8848f362990f6dbe74f90d228d4346d34f497d3c16c523fea7e26ef0cdca7eb2",
         "projections/react/ui/hlp.ui.action-menu/src/__tests__/ActionMenu.disclosure.test.tsx": "51223461658180746ef1ea315383f7b1ac283df0bfce9214234bc7ff43444f26",
-        "projections/react/ui/hlp.ui.action-menu/src/__tests__/ActionMenu.native.test.tsx": "89146861d91da89782ca877971e90323187908c34641f24e95b23611a792b714",
+        "projections/react/ui/hlp.ui.action-menu/src/__tests__/ActionMenu.native.test.tsx": "0f87a04ca25ff9812b36cfc7ffc0ac5570d2cfbf3f6393d3d84bd8653d001d60",
         "projections/react/ui/hlp.ui.action-menu/src/__tests__/fixtures.ts": "929659ac00c229c10bd2892ba9d51f7093177198f5b5e63dda797c10a0561fa8",
         "projections/react/ui/hlp.ui.action-menu/src/index.ts": "6f828b8b2181b9d2bb2b97fe9f2eb31eb0bb83860a76193ead8043458d51495c",
         "projections/react/ui/hlp.ui.action-menu/src/test-setup.ts": "977afde26bba6a51325908cd7713cbfdc87d18f06b78b237c8f364c44864b7de",
