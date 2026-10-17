@@ -112,6 +112,38 @@ public sealed class CalendarEventExpansionServiceTests
         Assert.Equal(new DateOnly(2026, 2, 2), occ[0].End);
     }
 
+    [Fact]
+    public void SingleEvent_EndingOnInclusiveWindowStart_IsKeptUnchanged_ButEarlierEndIsExcluded()
+    {
+        var ev = CalendarEvent.Create(
+            Tenant, "Conference", new DateOnly(2026, 1, 28), new DateOnly(2026, 2, 1), Actor);
+
+        var occurrence = Assert.Single(NewSut().Expand(ev, new DateOnly(2026, 2, 1), new DateOnly(2026, 2, 28)));
+
+        Assert.Equal(new DateOnly(2026, 1, 28), occurrence.RecurrenceId);
+        Assert.Equal(new DateOnly(2026, 1, 28), occurrence.Start);
+        Assert.Equal(new DateOnly(2026, 2, 1), occurrence.End);
+        var before = CalendarEvent.Create(
+            Tenant, "Earlier conference", new DateOnly(2026, 1, 28), new DateOnly(2026, 1, 31), Actor);
+        Assert.Empty(NewSut().Expand(before, new DateOnly(2026, 2, 1), new DateOnly(2026, 2, 28)));
+    }
+
+    [Fact]
+    public void SingleEvent_StartingOnInclusiveWindowEnd_IsKeptUnchanged_ButLaterStartIsExcluded()
+    {
+        var ev = CalendarEvent.Create(
+            Tenant, "Conference", new DateOnly(2026, 2, 28), new DateOnly(2026, 3, 2), Actor);
+
+        var occurrence = Assert.Single(NewSut().Expand(ev, new DateOnly(2026, 2, 1), new DateOnly(2026, 2, 28)));
+
+        Assert.Equal(new DateOnly(2026, 2, 28), occurrence.RecurrenceId);
+        Assert.Equal(new DateOnly(2026, 2, 28), occurrence.Start);
+        Assert.Equal(new DateOnly(2026, 3, 2), occurrence.End);
+        var after = CalendarEvent.Create(
+            Tenant, "Later conference", new DateOnly(2026, 3, 1), new DateOnly(2026, 3, 2), Actor);
+        Assert.Empty(NewSut().Expand(after, new DateOnly(2026, 2, 1), new DateOnly(2026, 2, 28)));
+    }
+
     // ----------------------------------------------------------------
     // EXDATE cancels one occurrence
     // ----------------------------------------------------------------
