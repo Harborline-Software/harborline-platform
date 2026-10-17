@@ -10,6 +10,7 @@
     <PackageReleaseNotes>Internal-only projection; public distribution is not authorized.</PackageReleaseNotes>
   </PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="JsonSchema.Net" />
     <PackageReference Include="Microsoft.AspNetCore.Components.Web" />
     <ProjectReference Include="../../../dotnet/contracts/hlp.contracts.identities/Harborline.Contracts.csproj" />
     <ProjectReference Include="../../../dotnet/foundation/hlp.ui.button/Harborline.Foundation.csproj" />
