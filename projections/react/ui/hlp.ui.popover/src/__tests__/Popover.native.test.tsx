@@ -69,6 +69,142 @@ describe('Popover React projection', () => {
     expect(onOpenChange).not.toHaveBeenCalled()
   })
 
+  it('exposes the original outside event and a readable cancellation state', () => {
+    const onOpenChange = vi.fn()
+    const observed: Array<boolean | Event> = []
+    render(
+      <Popover defaultOpen onOpenChange={onOpenChange}>
+        <PopoverTrigger>Open</PopoverTrigger>
+        <PopoverContent aria-label="Details" onInteractOutside={event => {
+          observed.push(event.detail.originalEvent, event.defaultPrevented)
+          event.preventDefault()
+          observed.push(event.defaultPrevented)
+        }}>Body</PopoverContent>
+      </Popover>,
+    )
+    const originalEvent = new Event('pointerdown', { bubbles: true })
+    fireEvent(document.body, originalEvent)
+    expect(observed[0]).toBe(originalEvent)
+    expect(observed.slice(1)).toEqual([false, true])
+    expect(screen.getByRole('dialog', { name: 'Details' })).toBeInTheDocument()
+    expect(onOpenChange).not.toHaveBeenCalled()
+  })
+
+  it('ignores unrelated keys and an Escape already prevented by content', () => {
+    const onOpenChange = vi.fn()
+    render(
+      <Popover defaultOpen onOpenChange={onOpenChange}>
+        <PopoverTrigger>Open</PopoverTrigger>
+        <PopoverContent aria-label="Details">
+          <button type="button" onKeyDown={event => event.preventDefault()}>Keep open</button>
+        </PopoverContent>
+      </Popover>,
+    )
+    fireEvent.keyDown(document, { key: 'ArrowRight' })
+    expect(screen.getByRole('dialog', { name: 'Details' })).toBeInTheDocument()
+    expect(onOpenChange).not.toHaveBeenCalled()
+
+    const escape = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })
+    fireEvent(screen.getByRole('button', { name: 'Keep open' }), escape)
+    expect(escape.defaultPrevented).toBe(true)
+    expect(screen.getByRole('dialog', { name: 'Details' })).toBeInTheDocument()
+    expect(onOpenChange).not.toHaveBeenCalled()
+  })
+
+  it('prevents the default of an unhandled Escape while requesting one dismissal', () => {
+    const onOpenChange = vi.fn()
+    render(
+      <Popover defaultOpen onOpenChange={onOpenChange}>
+        <PopoverTrigger>Open</PopoverTrigger>
+        <PopoverContent aria-label="Details">Body</PopoverContent>
+      </Popover>,
+    )
+    const escape = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })
+    fireEvent(document, escape)
+    expect(escape.defaultPrevented).toBe(true)
+    expect(onOpenChange).toHaveBeenCalledOnce()
+    expect(onOpenChange).toHaveBeenCalledWith(false)
+    expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
+  it.each(['trigger', 'close'] as const)('honors cancellation by the %s caller handler', async part => {
+    const onOpenChange = vi.fn()
+    const canceled = vi.fn()
+    render(
+      <Popover defaultOpen={part === 'close'} onOpenChange={onOpenChange}>
+        <PopoverTrigger onClick={event => {
+          if (part === 'trigger') { event.preventDefault(); canceled() }
+        }}>Open</PopoverTrigger>
+        <PopoverContent aria-label="Details">
+          <PopoverClose onClick={event => {
+            if (part === 'close') { event.preventDefault(); canceled() }
+          }}>Done</PopoverClose>
+        </PopoverContent>
+      </Popover>,
+    )
+    await userEvent.setup().click(screen.getByRole('button', { name: part === 'trigger' ? 'Open' : 'Done' }))
+    expect(canceled).toHaveBeenCalledOnce()
+    expect(onOpenChange).not.toHaveBeenCalled()
+    if (part === 'close') expect(screen.getByRole('dialog', { name: 'Details' })).toBeInTheDocument()
+    else expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
+  it.each(['trigger', 'close'] as const)('honors cancellation by an asChild %s before the wrapper handler', async part => {
+    const onOpenChange = vi.fn()
+    const wrapperClick = vi.fn()
+    const canceled = vi.fn()
+    render(
+      <Popover defaultOpen={part === 'close'} onOpenChange={onOpenChange}>
+        <PopoverTrigger asChild onClick={wrapperClick}>
+          <button type="button" onClick={event => {
+            if (part === 'trigger') { event.preventDefault(); canceled() }
+          }}>Open</button>
+        </PopoverTrigger>
+        <PopoverContent aria-label="Details">
+          <PopoverClose asChild onClick={wrapperClick}>
+            <button type="button" onClick={event => {
+              if (part === 'close') { event.preventDefault(); canceled() }
+            }}>Done</button>
+          </PopoverClose>
+        </PopoverContent>
+      </Popover>,
+    )
+    await userEvent.setup().click(screen.getByRole('button', { name: part === 'trigger' ? 'Open' : 'Done' }))
+    expect(canceled).toHaveBeenCalledOnce()
+    expect(wrapperClick).not.toHaveBeenCalled()
+    expect(onOpenChange).not.toHaveBeenCalled()
+    if (part === 'close') expect(screen.getByRole('dialog', { name: 'Details' })).toBeInTheDocument()
+    else expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
+  it('sends controlled state requests to the latest callback after each host rerender', async () => {
+    const first = vi.fn()
+    const second = vi.fn()
+    const third = vi.fn()
+    const content = (open: boolean, onOpenChange: (next: boolean) => void) => (
+      <Popover open={open} onOpenChange={onOpenChange}>
+        <PopoverTrigger>Open</PopoverTrigger>
+        <PopoverContent aria-label="Details">Body</PopoverContent>
+      </Popover>
+    )
+    const view = render(content(false, first))
+    view.rerender(content(false, second))
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Open' }))
+    expect(first).not.toHaveBeenCalled()
+    expect(second).toHaveBeenCalledOnce()
+    expect(second).toHaveBeenCalledWith(true)
+    expect(screen.queryByRole('dialog')).toBeNull()
+
+    view.rerender(content(true, second))
+    view.rerender(content(true, third))
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(first).not.toHaveBeenCalled()
+    expect(second).toHaveBeenCalledOnce()
+    expect(third).toHaveBeenCalledOnce()
+    expect(third).toHaveBeenCalledWith(false)
+    expect(screen.getByRole('dialog', { name: 'Details' })).toBeInTheDocument()
+  })
+
   it('treats the explicit anchor as inside the dismissal region', () => {
     const onOpenChange = vi.fn()
     render(
