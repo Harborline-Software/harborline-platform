@@ -978,6 +978,12 @@ function verifyNuget() {
   if (!fieldRuntimeSchemaBehavior) throw new Error('Packed field-runtime schema consumer did not emit its completion proof')
   const fieldRuntimeDomainBehavior = consumerOutputLines.find(line => line.startsWith('FIELD_RUNTIME_DOMAIN_PACKAGE_PASS:'))
   if (!fieldRuntimeDomainBehavior) throw new Error('Packed field-runtime domain consumer did not emit its completion proof')
+  const recordsWriteBehavior = consumerOutputLines.find(line => line.startsWith('RECORDS_WRITE_PACKAGE_PASS:'))
+  if (!recordsWriteBehavior) throw new Error('Packed Records write consumer did not emit its completion proof')
+  const acceptedRecordCreateBehavior = consumerOutputLines.find(line => line.startsWith('ACCEPTED_RECORD_CREATE_PACKAGE_PASS:'))
+  if (!acceptedRecordCreateBehavior) throw new Error('Packed Records accepted-create consumer did not emit its completion proof')
+  const recordsExposureBehavior = consumerOutputLines.find(line => line.startsWith('RECORDS_EXPOSURE_PACKAGE_PASS:'))
+  if (!recordsExposureBehavior) throw new Error('Packed Records exposure consumer did not emit its completion proof')
   const assets = readFileSync(resolve(consumer, 'obj/project.assets.json'), 'utf8')
   if (assets.includes(resolve(root, 'projections')) || /"type"\s*:\s*"project"/.test(assets)) {
     throw new Error('NuGet consumer resolved a source or project dependency')
@@ -1147,6 +1153,9 @@ function verifyNuget() {
     harborlineArtifactsFromSingleCohort: true,
     fieldRuntimeSchemaBehavior,
     fieldRuntimeDomainBehavior,
+    recordsWriteBehavior,
+    acceptedRecordCreateBehavior,
+    recordsExposureBehavior,
     formsEngineDirectPackageReferences: formsEngineDirectReferences,
     formsEngineTransitiveHarborlineArtifacts: formsEngineHarborlineNodes.length,
     formsEngineAuthoringHostBehavior: formsEngineConsumerOutput,
