@@ -575,7 +575,7 @@ function verifyNpm() {
 
 function verifyCopilotContractsNpm() {
   const copilotRoot = resolve(root, 'projections/typescript/application/hlp.copilot.contracts')
-  run('npm', ['install', '--ignore-scripts', '--no-audit', '--no-fund'], { cwd: copilotRoot })
+  run('pnpm', ['install', '--frozen-lockfile', '--ignore-scripts'], { cwd: copilotRoot })
   run('npm', ['run', 'build'], { cwd: copilotRoot })
   const packed = JSON.parse(run('npm', ['pack', '--json', '--pack-destination', npmArtifacts], { cwd: copilotRoot }))[0]
   const artifact = resolve(npmArtifacts, packed.filename)
