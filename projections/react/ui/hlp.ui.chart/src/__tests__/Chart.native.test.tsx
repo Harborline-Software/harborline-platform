@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 
@@ -68,6 +68,89 @@ describe('Chart React projection quality', () => {
     expect(document.querySelector('[data-chart-legend]')).toBeNull()
     expect(document.querySelector('svg title')).toBeNull()
     expect(screen.getByRole('rowheader', { name: 'Palm' })).toBeInTheDocument()
+  })
+
+  // Revision-1 interface errors and chart.labels-and-values apply to both series and slice labels.
+  it.each(['', ' ', '\t\n'])('rejects a blank donut slice label %j with the public error code', label => {
+    expect(() => render(<Chart definition={{ kind: 'donut', slices: [{ label, value: 10 }] }} />)).toThrow('label-required')
+  })
+
+  it('preserves two positive donut slices, localized data headings, and enabled formatted tooltips', () => {
+    // Palm10/Bay20 is the independent chart.donut fixture; the catalog and formatter are test-owned oracles.
+    render(
+      <HarborlineLocaleProvider
+        catalog={{ 'charts.item': 'Item label', 'charts.value': 'Measured value' }}
+        locale="fr-FR"
+        numberFormatter={value => `amount:${value}`}
+      >
+        <Chart definition={{
+          kind: 'donut',
+          tooltip: 'enabled',
+          slices: [{ label: 'Palm', value: 10 }, { label: 'Bay', value: 20 }],
+        }} />
+      </HarborlineLocaleProvider>,
+    )
+
+    expect(screen.getByRole('figure')).toHaveAttribute('data-tooltip', 'enabled')
+    expect(document.querySelector('.hl-chart__visual')).toHaveAttribute('data-chart-state', 'plotted')
+    const table = screen.getByRole('table')
+    expect(within(table).getAllByRole('columnheader').map(cell => cell.textContent)).toEqual(['Item label', 'Measured value'])
+    expect(within(table).getAllByRole('rowheader').map(cell => cell.textContent)).toEqual(['Palm', 'Bay'])
+    expect(within(table).getAllByRole('cell').map(cell => cell.textContent)).toEqual(['amount:10', 'amount:20'])
+    expect(within(table).getAllByRole('cell').map(cell => cell.getAttribute('data-value-state'))).toEqual(['present', 'present'])
+
+    const slices = [...document.querySelectorAll<SVGPathElement>('[data-slice]')]
+    expect(slices.map(slice => slice.getAttribute('data-slice'))).toEqual(['Palm', 'Bay'])
+    const tooltips = slices.map(slice => slice.querySelector('title')?.textContent ?? '')
+    expect(tooltips).toEqual([expect.stringContaining('Palm'), expect.stringContaining('Bay')])
+    expect(tooltips).toEqual([expect.stringContaining('amount:10'), expect.stringContaining('amount:20')])
+
+    // Private native-renderer validity only: no coordinate constants, formulas, or cross-projection geometry.
+    for (const slice of slices) {
+      const path = slice.getAttribute('d') ?? ''
+      expect(path).toMatch(/^[Mm](?:\s|,)/)
+      expect(path).toMatch(/[Zz]$/)
+      const numbers = path.replace(/[MmZzLlHhVvCcSsQqTtAa]/g, ' ').trim().split(/[,\s]+/).filter(Boolean).map(Number)
+      expect(numbers.length).toBeGreaterThan(0)
+      expect(numbers.every(Number.isFinite)).toBe(true)
+    }
+  })
+
+  it('continues each line segment while keeping a null gap missing', () => {
+    render(<Chart definition={{
+      categories: ['Jan', 'Feb', 'Mar', 'Apr', 'May'],
+      series: [{ name: 'Inspected', values: [1, 2, null, 3, 4] }],
+    }} />)
+
+    // Native command kinds describe continuity around a gap, without freezing numeric coordinates.
+    const path = document.querySelector('.hl-chart__line')?.getAttribute('d') ?? ''
+    expect(path.match(/[ML]/g)).toEqual(['M', 'L', 'M', 'L'])
+    expect(screen.getAllByRole('cell').map(cell => cell.textContent)).toEqual(['1', '2', 'null', '3', '4'])
+    expect(screen.getByRole('cell', { name: 'null' })).toHaveAttribute('data-value-state', 'missing')
+    expect(document.querySelector('[data-category="Mar"]')).toHaveAttribute('data-point-state', 'missing')
+  })
+
+  it('disables line tooltips while retaining formatted and missing accessible values', () => {
+    render(
+      <HarborlineLocaleProvider numberFormatter={value => `amount:${value}`}>
+        <Chart definition={{
+          tooltip: 'disabled',
+          categories: ['Jan', 'Feb'],
+          series: [{ name: 'Inspected', values: [12, null] }],
+        }} />
+      </HarborlineLocaleProvider>,
+    )
+
+    expect(screen.getByRole('figure')).toHaveAttribute('data-tooltip', 'disabled')
+    expect(document.querySelector('svg title')).toBeNull()
+    expect(screen.getByRole('rowheader', { name: 'Inspected' })).toBeInTheDocument()
+    expect(screen.getAllByRole('cell').map(cell => cell.textContent)).toEqual(['amount:12', 'null'])
+    expect(screen.getByRole('cell', { name: 'null' })).toHaveAttribute('data-value-state', 'missing')
+  })
+
+  it('retains caller classes alongside the authoritative chart styling hook', () => {
+    render(<Chart className="report-chart highlighted" definition={{ categories: ['Jan'], series: [{ name: 'Inspected', values: [12] }] }} />)
+    expect(screen.getByRole('figure')).toHaveClass('hl-chart', 'report-chart', 'highlighted')
   })
 
   it('publishes semantic themes, non-color patterns, reflow, focus, forced-color, and motion styles', () => {
