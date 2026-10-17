@@ -76,6 +76,15 @@ function blazorBudgetFiles() {
 
 const rowIds = text => [...text.matchAll(/['"]((?:react|blazor)-[a-z0-9-]+)['"]/g)].map(match => match[1])
 
+function assertBudgetedRowSet(text, marked) {
+  const declared = [...new Set([...text.matchAll(/rows: \[([^\]]+)\]/g)].flatMap(match => rowIds(match[1])))].sort()
+  const expected = [...marked].sort()
+  const observed = `perf-budget-stability.mjs: saw declared ${JSON.stringify(declared)}; marked ${JSON.stringify(expected)}`
+  // T-703: a failed extractor must not certify two empty sets, but the inventory may grow.
+  assert.ok(declared.length > 0, `no budgeted row IDs extracted; ${observed}`)
+  assert.deepEqual(declared, expected, `the marked rows and the rows the perf step declares must be the same set; ${observed}`)
+}
+
 test('the parallel fan-outs exclude the budgeted rows and the serial step runs exactly them', () => {
   // Blazor: run-native.mjs is the fan-out (twenty-five projects in parallel); the perf step is the inverse.
   assert.match(nativeText, /const EXCLUDE_PERF_BUDGET = 'Category!=PerfBudget'/, 'run-native.mjs must declare the exclusion')
@@ -102,8 +111,6 @@ test('the parallel fan-outs exclude the budgeted rows and the serial step runs e
 })
 
 test('every budgeted row is marked and every marked test is a budgeted row', () => {
-  const declared = new Set([...stabilityText.matchAll(/rows: \[([^\]]+)\]/g)].flatMap(match => rowIds(match[1])))
-  assert.equal(declared.size, 10, `perf-budget-stability.mjs declares ten budgeted rows, saw ${declared.size}`)
   const marked = new Set()
 
   const reactFiles = budgetedReactFiles()
@@ -128,5 +135,32 @@ test('every budgeted row is marked and every marked test is a budgeted row', () 
     }
   }
 
-  assert.deepEqual([...marked].sort(), [...declared].sort(), 'the marked rows and the rows the perf step declares must be the same set')
+  assertBudgetedRowSet(stabilityText, marked)
+})
+
+test('adding a budgeted declaration and its marked row needs no count update', () => {
+  const original = "const targets = [{rows: ['react-fixture-original']}]"
+  const extended = original.replace("'react-fixture-original'", "'react-fixture-original', 'blazor-fixture-added'")
+  assert.doesNotThrow(() => assertBudgetedRowSet(original, new Set(['react-fixture-original'])))
+  assert.doesNotThrow(() => assertBudgetedRowSet(extended, new Set(['react-fixture-original', 'blazor-fixture-added'])))
+})
+
+test('a non-matching or entirely truncated extractor names its empty result', () => {
+  for (const text of ["rowIds: ['react-fixture-original']", "rows: ['react-fixture-original'"]) {
+    assert.throws(() => assertBudgetedRowSet(text, new Set(['react-fixture-original'])),
+      /no budgeted row IDs extracted; perf-budget-stability\.mjs: saw declared \[\]; marked \["react-fixture-original"\]/)
+  }
+  assert.throws(() => assertBudgetedRowSet("rows: ['react-fixture-original'", new Set()),
+    /no budgeted row IDs extracted; perf-budget-stability\.mjs: saw declared \[\]; marked \[\]/)
+})
+
+test('a partially truncated declaration names the rows it found and the missing marked row', () => {
+  const truncated = "rows: ['react-fixture-original'], rows: ['blazor-fixture-added'"
+  assert.throws(() => assertBudgetedRowSet(truncated, new Set(['react-fixture-original', 'blazor-fixture-added'])),
+    /saw declared \["react-fixture-original"\]; marked \["blazor-fixture-added","react-fixture-original"\]/)
+})
+
+test('a declared row without a marked test still refuses with both inventories', () => {
+  assert.throws(() => assertBudgetedRowSet("rows: ['react-fixture-original', 'blazor-fixture-added']", new Set(['react-fixture-original'])),
+    /saw declared \["blazor-fixture-added","react-fixture-original"\]; marked \["react-fixture-original"\]/)
 })
