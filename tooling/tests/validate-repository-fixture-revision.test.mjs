@@ -17,7 +17,11 @@ function runFixture(text) {
     encoding: 'utf8',
     timeout: 60_000,
     maxBuffer: 4 * 1024 * 1024,
-    env: {...process.env, HARBORLINE_VALIDATE_REPOSITORY_FIXTURE: JSON.stringify({path: fixturePath, text})},
+    env: {
+      ...process.env,
+      HARBORLINE_VALIDATE_REPOSITORY_FILES: '',
+      HARBORLINE_VALIDATE_REPOSITORY_FIXTURE: JSON.stringify({path: fixturePath, text}),
+    },
   })
   assert.ifError(run.error)
   assert.equal(run.signal, null, run.stderr)
@@ -81,3 +85,44 @@ test('duplicate YAML revision metadata refuses instead of selecting one declarat
     'hlp.kernel.work-items: conformance/hlp.kernel.work-items/fixtures.yaml: invalid fixture metadata (duplicate top-level interfaceRevision declarations)',
   ])
 })
+
+for (const text of ['null', 'true', 'false', '4', '"text"', '[]', '[{"interfaceRevision":4}]']) {
+  test(`JSON root ${text} is refused as a non-mapping rather than optional YAML omission`, () => {
+    const {run, report, fixtureErrors} = runFixture(text)
+    assert.equal(run.status, 1)
+    assert.equal(report.status, 'FAIL')
+    assert.deepEqual(fixtureErrors, [
+      'hlp.kernel.work-items: conformance/hlp.kernel.work-items/fixtures.yaml: invalid fixture metadata (expected a fixture mapping)',
+    ])
+  })
+}
+
+for (const [name, text] of [
+  ['stale then current', '{"interfaceRevision":3,"interfaceRevision":4}'],
+  ['two current declarations', '{"interfaceRevision":4,"interfaceRevision":4}'],
+  ['escaped second key', String.raw`{"interfaceRevision":3,"\u0069nterfaceRevision":4}`],
+  ['escaped first key', String.raw`{"\u0069nterfaceRevision":3,"interfaceRevision":4}`],
+]) {
+  test(`JSON duplicate root revision is refused: ${name}`, () => {
+    const {run, report, fixtureErrors} = runFixture(text)
+    assert.equal(run.status, 1)
+    assert.equal(report.status, 'FAIL')
+    assert.deepEqual(fixtureErrors, [
+      'hlp.kernel.work-items: conformance/hlp.kernel.work-items/fixtures.yaml: invalid fixture metadata (duplicate top-level interfaceRevision declarations)',
+    ])
+  })
+}
+
+for (const [name, text] of [
+  ['empty mapping retains optional omission', '{}'],
+  ['one escaped revision key is one declaration', String.raw`{"\u0069nterfaceRevision":4}`],
+  ['nested declarations are not root duplicates', '{"interfaceRevision":4,"nested":{"interfaceRevision":3,"interfaceRevision":4},"cases":[{"interfaceRevision":2}]}'],
+  ['a nested key alone is not a root declaration', '{"cases":[{"interfaceRevision":3}]}'],
+  ['a similar property name is not a revision key', '{"interfaceRevision":4,"interfaceRevisionNote":3}'],
+  ['escaped quotes and braces in values are not property tokens', String.raw`{"note":"literal \"interfaceRevision\":3 { [ ] }","interfaceRevision":4}`],
+]) {
+  test(`JSON mapping control is admitted: ${name}`, () => {
+    const {fixtureErrors} = runFixture(text)
+    assert.deepEqual(fixtureErrors, [])
+  })
+}

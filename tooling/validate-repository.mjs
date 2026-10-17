@@ -72,9 +72,30 @@ function load(path) {
 // its top-level scalar revision metadata; do not treat malformed JSON as omitted YAML.
 function fixtureInterfaceRevision(path) {
   const text = readFileSync(resolve(root, path), 'utf8').replace(/^\uFEFF/, '')
-  if (text.trimStart().startsWith('{') || text.trimStart().startsWith('[')) {
-    const fixture = JSON.parse(text)
+  let fixture
+  let parsedJson = false
+  try {
+    fixture = JSON.parse(text)
+    parsedJson = true
+  } catch (cause) {
+    // Preserve the named malformed-JSON route; only non-JSON uses the bounded YAML reader.
+    if (text.trimStart().startsWith('{') || text.trimStart().startsWith('[')) throw cause
+  }
+  if (parsedJson) {
     if (fixture === null || typeof fixture !== 'object' || Array.isArray(fixture)) throw new Error('expected a fixture mapping')
+    // JSON.parse validates the grammar but keeps the last duplicate key. Tokenize strings
+    // and nesting separately so only decoded root property names count as declarations.
+    let depth = 0
+    let declarations = 0
+    for (const match of text.matchAll(/"(?:\\.|[^"\\])*"|[{}\[\]]/g)) {
+      const token = match[0]
+      if (token.startsWith('"')) {
+        if (depth === 1 && /^\s*:/.test(text.slice(match.index + token.length))
+            && JSON.parse(token) === 'interfaceRevision') declarations += 1
+      } else if (token === '{' || token === '[') depth += 1
+      else depth -= 1
+    }
+    if (declarations > 1) throw new Error('duplicate top-level interfaceRevision declarations')
     return {declared: Object.hasOwn(fixture, 'interfaceRevision'), value: fixture.interfaceRevision}
   }
   const lines = text.split(/\r?\n/).filter(line => line.trim() && !/^\s*(?:#|---(?:\s|$)|\.\.\.(?:\s|$)|%)/.test(line))
