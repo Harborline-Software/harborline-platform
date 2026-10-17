@@ -6,7 +6,13 @@ using Harborline.Kernel.SchemaValidation;
 namespace Harborline.Blocks.BuilderDefinitions;
 
 /// <summary>A file-backed Records transaction port and receipt reader, composed into no host.</summary>
-/// <remarks>Coordinates writers in this process only; cross-process locking awaits an owner decision.</remarks>
+/// <remarks>
+/// Coordinates writers in this process only; cross-process locking awaits an owner decision.
+/// Replacement is crash-safe, not power-loss-safe: the rename has no directory fsync on Unix or write-through on Windows.
+/// A lost Created result followed by a retry could create a second record; BCL-only code cannot close this T-619 adapter gap.
+/// A missing journal directory reads as empty and commit recreates it; this remains an owner decision.
+/// External Windows handles can refuse replacement; the commit fails without changing the journal.
+/// </remarks>
 public sealed class FileJournalRecordWriteStore : IKernelPreparedTransactionPort<RecordWriteRow, RecordWriteCommit>, IRecordWriteReceiptReader
 {
     // Proposed for review; no released journal-format identifier has been ruled.
@@ -150,6 +156,7 @@ public sealed class FileJournalRecordWriteStore : IKernelPreparedTransactionPort
         public ValueTask StageOperationAsync(KernelOperationIdentity operation, CancellationToken cancellationToken = default)
         {
             Open(cancellationToken);
+            ArgumentNullException.ThrowIfNull(operation);
             if (_operation is not null) throw new InvalidOperationException("Records operation is already staged.");
             _operation = operation.Validate();
             return ValueTask.CompletedTask;
@@ -167,6 +174,7 @@ public sealed class FileJournalRecordWriteStore : IKernelPreparedTransactionPort
         public ValueTask StageAuditAsync(KernelAuditEvidence audit, CancellationToken cancellationToken = default)
         {
             Open(cancellationToken);
+            ArgumentNullException.ThrowIfNull(audit);
             audit.Validate();
             if (_audit is not null) throw new InvalidOperationException("Records audit is already staged.");
             _audit = audit with { Payload = audit.Payload.ToArray(), AuthoritySnapshot = audit.AuthoritySnapshot.ToArray() };
