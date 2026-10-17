@@ -342,7 +342,7 @@
         "projections/dotnet/kernel/hlp.kernel.work-items.tests/CommandRequestBoundaryTests.cs": "ac9ba063caac634ad663380649db91fff8c2fbdb16555df09c996889153de838",
         "projections/dotnet/kernel/hlp.kernel.work-items.tests/Harborline.Kernel.WorkItems.Tests.csproj": "5e4767a208bb9a78ae64b59191e391ed5ebc6072558b1feda3cd024ae1b427ea",
         "projections/dotnet/kernel/hlp.kernel.work-items.tests/WorkItemCompositionTests.cs": "b48a62da9d2ff0a31ce839d7b13da0b653ebe3fe98ee350e2e5eb89dce778a39",
-        "projections/dotnet/kernel/hlp.kernel.work-items.tests/WorkItemKernelTests.cs": "8cfe9cf9c41a7974a14cb1befd8294ec14dc0a0db47246bd211d70a334e76cbf",
+        "projections/dotnet/kernel/hlp.kernel.work-items.tests/WorkItemKernelTests.cs": "8c7905635e47e9779ba98f3dadd6b052486628c05a6f137753dab6affeca051d",
         "projections/dotnet/kernel/hlp.kernel.work-items/CommandRequestBoundary.cs": "3fddcbda34a886d8c35a5c5fe2ea05ce841186d5f9cc5d5397b5a33168e450f3",
         "projections/dotnet/kernel/hlp.kernel.work-items/DependencyInjection/WorkItemServiceCollectionExtensions.cs": "00f6c1b05076e9dd0eb1b2cbb691869f4e467e611d82a47bbbe249d25bf076e0",
         "projections/dotnet/kernel/hlp.kernel.work-items/FileJournalWorkItemStore.cs": "bebc530696ee0289bfd9fce1023dcee79161fc3723fb610ed4f493ece51aa05b",
