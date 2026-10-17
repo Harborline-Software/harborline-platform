@@ -97,7 +97,7 @@ describe('ActionMenu React projection quality', () => {
     render(<><ActionMenu items={[{ label: 'Edit', onClick: invoked }]} /><button>Outside</button></>)
     await user.click(screen.getByRole('button', { name: 'More actions' }))
     expect(screen.getByRole('menuitem', { name: 'Edit' })).toHaveFocus()
-    // Keep keydown and user-event's Tab default together before React removes the active item.
+    // Outer async act defers removal until user-event computes Tab from the still-mounted item.
     await act(async () => { await user.tab() })
     await Promise.resolve()
     expect(screen.queryByRole('menu')).not.toBeInTheDocument()
@@ -167,7 +167,7 @@ describe('ActionMenu React projection quality', () => {
     expect(trigger).toHaveAttribute('aria-expanded', 'false')
     fireEvent.keyDown(trigger, { key: 'ArrowDown' })
     expect(screen.getByRole('menuitem', { name: 'Edit' })).toHaveFocus()
-    trigger.focus()
+    expect(trigger).not.toHaveFocus()
     fireEvent.keyDown(trigger, { key: 'Escape' })
     await Promise.resolve()
     expect(screen.queryByRole('menu')).not.toBeInTheDocument()
