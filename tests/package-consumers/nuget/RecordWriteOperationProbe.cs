@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json.Nodes;
 using System.Threading;
@@ -27,6 +28,14 @@ internal static class RecordWriteOperationProbe
     private const string Tenant = "tenant-consumer";
     private static readonly DateTimeOffset At = new(2030, 1, 2, 3, 4, 5, TimeSpan.Zero);
     private static readonly RecordWriteScope Scope = new(Tenant, "operator-7");
+    private const string OriginalDefinition =
+        """{"class_id":"eam.equipment","creation_gate":"role","creation_role_id":"asset-author","envelope":{"contract":{"major":1,"minor":0},"package_id":"eam-core","section":"eam","tenant":"tenant-consumer"},"fields":[{"display_name":"Original note","field_key":"original_note"}],"name":"Schema Note","record_class":"master","record_type_id":"eam.schema-note"}""" + "\n";
+    private const string RevisedDefinition =
+        """{"class_id":"eam.equipment","creation_gate":"role","creation_role_id":"asset-author","envelope":{"contract":{"major":1,"minor":0},"package_id":"eam-core","section":"eam","tenant":"tenant-consumer"},"fields":[{"display_name":"Revised note","field_key":"revised_note"}],"name":"Schema Note","record_class":"master","record_type_id":"eam.schema-note"}""" + "\n";
+    private const string OriginalSchema =
+        """{"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","properties":{"original_note":{"type":"string"}},"additionalProperties":false}""";
+    private const string RevisedSchema =
+        """{"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","properties":{"revised_note":{"type":"string"}},"additionalProperties":false}""";
 
     internal static async Task VerifyAsync()
     {
@@ -100,7 +109,94 @@ internal static class RecordWriteOperationProbe
             || tooLong.Refusal.Pointers.Count != 1 || tooLong.Refusal.Pointers[0] != "/operation_id" || port.Committed.Count != 2)
             throw new InvalidOperationException("Packed Records write did not refuse a 256-byte operation id at its pointer.");
 
+        await VerifyRepublishedBindingAndReceiptsAsync(records, registry);
+
         Console.WriteLine("RECORDS_WRITE_PACKAGE_PASS: typed gate target, form_only direct create refused, gate before lookup with its decision trace, named bind and body refusals, submitted lexemes, one committed set with its authority snapshot and seven-key audit, caller-scoped exact-intent replay, replay_conflict at /operation_id, bounded operation id");
+    }
+
+    private static async Task VerifyRepublishedBindingAndReceiptsAsync(RecordTypeDefinitionStore records, ISchemaRegistry registry)
+    {
+        await records.CreateDraftAsync(new NewRecordType(Tenant, "eam", "Schema Note", "1.0.0",
+            [new("original_note", "Original note")], new(1, 0), ClassId: "eam.equipment", RecordClass: RecordClass.Master,
+            PackageId: "eam-core", CreationGate: RecordCreationGate.Role, CreationRoleId: "asset-author"), "schema-note-create");
+        await records.PublishAsync(Tenant, "eam.schema-note", "1.0.0", 1, "schema-note-publish");
+        var port = new Port();
+        var operation = Operation(records, registry, port, allow: true);
+        var original = await operation.CreateAsync(Scope, SchemaRequest("schema-original", """{"original_note":"accepted"}"""));
+        if (!original.Committed || original.Replayed || original.Receipt is null || port.Committed.Count != 1)
+            throw new InvalidOperationException("Packed schema fixture did not create its first operation.");
+        await VerifyBindingAsync(original.Receipt, registry, "1.0.0", OriginalDefinition, OriginalSchema);
+
+        var head = await records.GetPublishedHeadAsync(Tenant, "eam.schema-note")
+            ?? throw new InvalidOperationException("Packed schema fixture has no published head.");
+        await records.SaveDraftAsync("eam.schema-note", head with { Fields = [new("revised_note", "Revised note")] },
+            "1.1.0", 2, "schema-note-revise");
+        await records.PublishAsync(Tenant, "eam.schema-note", "1.1.0", 3, "schema-note-publish-revised");
+
+        var stale = await operation.CreateAsync(Scope, SchemaRequest("schema-stale", """{"original_note":"accepted"}"""));
+        if (stale.Refusal is not { Stage: "validate", Code: "entity.validation.body_invalid" } || stale.Receipt is not null
+            || port.Committed.Count != 1)
+            throw new InvalidOperationException("A first-seen unpinned write admitted a body belonging only to the old schema.");
+        var current = await operation.CreateAsync(Scope, SchemaRequest("schema-current", """{"revised_note":"new head"}"""));
+        if (!current.Committed || current.Replayed || current.Receipt is null || port.Committed.Count != 2)
+            throw new InvalidOperationException("A first-seen unpinned write did not commit under the revised head.");
+        await VerifyBindingAsync(current.Receipt, registry, "1.1.0", RevisedDefinition, RevisedSchema);
+        if (current.Receipt.Schema == original.Receipt.Schema)
+            throw new InvalidOperationException("Changed schema inputs retained the old schema identity.");
+
+        var begun = port.Begun;
+        var replay = await operation.CreateAsync(Scope, SchemaRequest("schema-original", """{"original_note":"accepted"}"""));
+        if (!replay.Replayed || replay.Receipt != original.Receipt || port.Begun != begun || port.Committed.Count != 2)
+            throw new InvalidOperationException("Replay under a new head changed the original immutable receipt or began another transaction.");
+        var pinned = await operation.CreateAsync(Scope, SchemaRequest("schema-pinned", """{"original_note":"accepted"}""", "1.0.0"));
+        if (!pinned.Committed || pinned.Replayed || pinned.Receipt is null || port.Committed.Count != 3)
+            throw new InvalidOperationException("An explicit old published pin did not create a new operation.");
+        await VerifyBindingAsync(pinned.Receipt, registry, "1.0.0", OriginalDefinition, OriginalSchema);
+
+        begun = port.Begun;
+        var movedPin = await operation.CreateAsync(Scope, SchemaRequest("schema-original", """{"original_note":"accepted"}""", "1.1.0"));
+        if (movedPin.Refusal is not { Stage: "commit", Code: "records.write.replay_conflict" } || movedPin.Receipt is not null
+            || movedPin.Refusal.Pointers.Count != 1 || movedPin.Refusal.Pointers[0] != "/operation_id"
+            || port.Begun != begun || port.Committed.Count != 3)
+            throw new InvalidOperationException("A changed explicit pin did not conflict before another transaction.");
+
+        var lookups = port.Lookups;
+        var denied = await Operation(records, registry, port, allow: false).CreateAsync(Scope,
+            SchemaRequest("schema-original", """{"original_note":"accepted"}"""));
+        if (denied.Refusal is not { Stage: "authorize", Code: "NoEffectiveRole" } || denied.Receipt is not null
+            || denied.Decision is not { Allowed: false, Principal: "operator-7", RecordTypeId: "eam.schema-note" }
+            || port.Lookups != lookups || port.Begun != begun || port.Committed.Count != 3)
+            throw new InvalidOperationException("Current authority was not checked before an accepted receipt could be disclosed.");
+
+        var key = new RecordWriteOperationKey(Tenant, "operator-7", "schema-original").IdempotencyKey;
+        var stored = port.Committed[key];
+        foreach (var unreadable in new[]
+        {
+            stored with { Receipt = null },
+            stored with { Receipt = original.Receipt with { OperationId = "different-operation" } },
+            stored with { IntentEncodingVersion = "records-write-intent/99" },
+        })
+        {
+            port.Committed[key] = unreadable;
+            var refused = await operation.CreateAsync(Scope, SchemaRequest("schema-original", """{"original_note":"accepted"}"""));
+            if (refused.Refusal is not { Stage: "commit", Code: "records.write.receipt_unsupported" } || refused.Receipt is not null
+                || port.Begun != begun || port.Committed.Count != 3 || port.Bodies.Count != 3 || port.Audits.Count != 3)
+                throw new InvalidOperationException("An unreadable accepted operation disclosed a receipt or authorized another insertion.");
+        }
+    }
+
+    private static RecordCreateRequest SchemaRequest(string operationId, string body, string? version = null)
+        => new("eam.schema-note", operationId, JsonNode.Parse(body)!.AsObject(), version);
+
+    // Expected bytes and schemas are authored above, independently of the publication/receipt being checked.
+    private static async Task VerifyBindingAsync(RecordWriteReceipt receipt, ISchemaRegistry registry, string version,
+        string definition, string expectedSchema)
+    {
+        var schema = await registry.GetAsync(receipt.Schema);
+        var digest = Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(definition)));
+        if (receipt.RecordTypeId != "eam.schema-note" || receipt.Version != version || receipt.DefinitionDigest != digest
+            || schema is null || !JsonNode.DeepEquals(JsonNode.Parse(schema.JsonSchemaText), JsonNode.Parse(expectedSchema)))
+            throw new InvalidOperationException("Packed write binding differs from its independent version, definition bytes or schema fixture.");
     }
 
     private static RecordCreateRequest Request(string operationId, string body)
