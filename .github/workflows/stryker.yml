@@ -80,6 +80,8 @@ jobs:
 
       # Provision the pinned toolchain on every route, using the hosted Node version.
       - uses: actions/setup-dotnet@v6
+        env:
+          DOTNET_INSTALL_DIR: ${{ runner.temp }}/dotnet
         with:
           global-json-file: global.json
 
