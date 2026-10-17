@@ -484,3 +484,12 @@ names are checked against both schema-form lane implementations.
 published Validate-action rules. A host can construct a register from its admitted closure using
 the existing constructor. The release invents no named rule for capture's `required` property.
 Hosts supply these registers to the existing `LayoutHostRegisters` seam; API adoption is T-1013.
+
+## Durable Records write store
+
+`FileJournalRecordWriteStore` implements the existing prepared transaction port and receipt reader,
+composed into no host. It atomically replaces a file journal containing the record, operation and
+opaque audit evidence, preserves replay across reopen, and refuses corrupt journals. Writers are
+serialized within one process; cross-process locking and the proposed `records-write-file-journal/1`
+format await review. It adds no public record read or amendment evidence. API adapter qualification
+remains held under T-619.
