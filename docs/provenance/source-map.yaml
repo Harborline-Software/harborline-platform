@@ -259,7 +259,7 @@
         "projections/dotnet/contracts/hlp.contracts.identities/TenantId.cs": "ecd0027d76942eb8ece2a15c936920b3521fa96af94c28b09f57b28a0c6043aa",
         "projections/dotnet/contracts/hlp.contracts.identities/EntityId.cs": "00b43910d1f8d87d3929caa1b019d3bf47adf37953f429cc525e70dae23b6825",
         "projections/dotnet/contracts/hlp.contracts.identities.tests/IdentityContractTests.cs": "f309427a4625ef94e0b75dc332f1b11565e4c1fad17dae74b9c4f6cda9523a98",
-        "conformance/hlp.contracts.identities/fixtures.yaml": "ae5669d0f9688d78414a199e653401e44b38cc1c0e0e51c14297609df1da200e",
+        "conformance/hlp.contracts.identities/fixtures.yaml": "689f2b6aa53fcde89ea0692996c627caa2cddb68494009e42af42b2e9e185c71",
         "specs/modules/contracts/hlp.contracts.identities/interface.yaml": "52018f99edc2dd75272b1daf7a2c034b936f999a14a6bb2baf1fdc240a936641"
       },
       "nextGate": "Consume through the completed tenancy package and continue the next dependency-ready Wave-0 contract without changing aggregate authority."
@@ -294,7 +294,7 @@
         "projections/dotnet/foundation/hlp.foundation.actor/PrincipalPartyResolutionFailure.cs": "b1104954438bf5087db71fe82184cd3991703af11f337bccfad3ca077b5f3b24",
         "projections/dotnet/foundation/hlp.foundation.actor/PrincipalPartyResolutionException.cs": "a0c18aec1cdaafc116695b64a0d2e92f7222e58793344180882f5fa6f9b5bdfd",
         "projections/dotnet/foundation/hlp.foundation.actor.tests/ActorContractTests.cs": "c7945d1136828437d42c2f9b43d6fd8d8ad03139567baf0e7fe46a44526aef88",
-        "conformance/hlp.foundation.actor/fixtures.yaml": "679bb8ae5e85124ba11ff6d6f9d9b0db1f7fa6f7437651c768b7400fe40e037e",
+        "conformance/hlp.foundation.actor/fixtures.yaml": "8ffc0599e0dede5d9412b9a80415b48528404d5803edfc7a8d12d0dda1a97b35",
         "specs/modules/foundation/hlp.foundation.actor/interface.yaml": "bba605bbf68aa709f5a875911e76725f7d399801fa06b20809f33e14097d82e7",
         "projections/dotnet/foundation/hlp.foundation.actor/AccessScope.cs": "b13593d6d1b4ce151b51f1378ee47dd87bbf1dce9e8774860cf02194f114110f",
         "projections/dotnet/foundation/hlp.foundation.actor/AccessProvider.cs": "81d4cd522cf3fcc8b2486f78c43bf42b3eccef9a119a7422e2ae3ee1917231f3",
@@ -338,11 +338,11 @@
       "sourceExtracted": true,
       "sourceState": "Revision 2 retains the durable work-item behavior and adds common request admission fences: multi-command requests refuse with structured 400 evidence before dispatch, and definition-backed writes outside their half-open contract window refuse with structured 422 evidence before execution. The general workflow interpreter, host object unit-of-work effect delegate, Carrier UI, and direct Workflow authoring-contract dependency remain excluded.",
       "contentHashes": {
-        "conformance/hlp.kernel.work-items/fixtures.yaml": "1697544ca7bc0bd5bbd0a7b41ec511fcd68c2a5af23b3c244e04c19abac0557c",
+        "conformance/hlp.kernel.work-items/fixtures.yaml": "43e553184896fd4ea336926c0fe6a37057148e93b4cee3efdf90809071ae5690",
         "projections/dotnet/kernel/hlp.kernel.work-items.tests/CommandRequestBoundaryTests.cs": "ac9ba063caac634ad663380649db91fff8c2fbdb16555df09c996889153de838",
         "projections/dotnet/kernel/hlp.kernel.work-items.tests/Harborline.Kernel.WorkItems.Tests.csproj": "5e4767a208bb9a78ae64b59191e391ed5ebc6072558b1feda3cd024ae1b427ea",
         "projections/dotnet/kernel/hlp.kernel.work-items.tests/WorkItemCompositionTests.cs": "b48a62da9d2ff0a31ce839d7b13da0b653ebe3fe98ee350e2e5eb89dce778a39",
-        "projections/dotnet/kernel/hlp.kernel.work-items.tests/WorkItemKernelTests.cs": "0ce877e678e4b291cbcf2212230960a3cbea1803ffeb0d34ef1f5e9958b5f5e8",
+        "projections/dotnet/kernel/hlp.kernel.work-items.tests/WorkItemKernelTests.cs": "8cfe9cf9c41a7974a14cb1befd8294ec14dc0a0db47246bd211d70a334e76cbf",
         "projections/dotnet/kernel/hlp.kernel.work-items/CommandRequestBoundary.cs": "3fddcbda34a886d8c35a5c5fe2ea05ce841186d5f9cc5d5397b5a33168e450f3",
         "projections/dotnet/kernel/hlp.kernel.work-items/DependencyInjection/WorkItemServiceCollectionExtensions.cs": "00f6c1b05076e9dd0eb1b2cbb691869f4e467e611d82a47bbbe249d25bf076e0",
         "projections/dotnet/kernel/hlp.kernel.work-items/FileJournalWorkItemStore.cs": "bebc530696ee0289bfd9fce1023dcee79161fc3723fb610ed4f493ece51aa05b",
@@ -389,7 +389,7 @@
       "sourceState": "Revision 1 is implemented and engine-substrate package green: the typed runtime, durable ports, dispatcher with iteration caps, fail-closed admission over a Harborline-owned capability-authority registry, SoD-gated effect broker, and the two-faced definition-store port (in-process implementation replacing the Shipyard EntityStore topology) with all 157 blocks-workflow ledger cases green natively. The 66 local-node-host durable-seam rows remain open under ticket 074 item 4.",
       "contentHashes": {
         "conformance/hlp.blocks.workflow/admission-mirror-cases.json": "bebe7d8774fb01a8cbc75cc37ebf37be905416d08c3ba2fa8b971970c2da2048",
-        "conformance/hlp.blocks.workflow/fixtures.yaml": "5d6d41331b918f85ab2ff6ad092616013767c61c5e8c874d5044fa088af55ab4",
+        "conformance/hlp.blocks.workflow/fixtures.yaml": "f945c5784ab33eb30b4a1f85ab519c0524cba99c358ff7a5b5e9d436b1b89228",
         "projections/dotnet/blocks/hlp.blocks.workflow.restart-probe/Program.cs": "14ca9f7e56882c2a75a2a0d1b6d836097f8888e6cbb6126aa6d28e42fc6db56c",
         "projections/dotnet/blocks/hlp.blocks.workflow.restart-probe/Harborline.Blocks.Workflow.RestartProbe.csproj": "52d44796dac092b902bb26a2e7c212fd1113eb0abec88eb7e094ad00109a5fff",
         "projections/dotnet/blocks/hlp.blocks.workflow.tests/CapabilityAuthorityRegistryTests.cs": "b8b696e1456427e4207afe9c81caf0272ad99dd3cc54a7c0ec06e8daffd5fa97",
