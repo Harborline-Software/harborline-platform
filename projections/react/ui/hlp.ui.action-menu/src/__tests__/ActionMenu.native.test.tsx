@@ -151,8 +151,9 @@ describe('ActionMenu React projection quality', () => {
     moved.unmount()
   })
 
-  it('toggles a text-node trigger with linked ARIA and dismisses Escape on that trigger', async () => {
+  it('toggles a text-node trigger with linked ARIA and returns focus after Escape from the active item', async () => {
     const invoked = vi.fn()
+    const user = userEvent.setup()
     render(<ActionMenu items={[{ label: 'Edit', onClick: invoked }]} trigger="Tools" />)
     const trigger = screen.getByRole('button', { name: 'Tools' })
     expect(trigger).toHaveAttribute('aria-haspopup', 'menu')
@@ -168,7 +169,7 @@ describe('ActionMenu React projection quality', () => {
     fireEvent.keyDown(trigger, { key: 'ArrowDown' })
     expect(screen.getByRole('menuitem', { name: 'Edit' })).toHaveFocus()
     expect(trigger).not.toHaveFocus()
-    fireEvent.keyDown(trigger, { key: 'Escape' })
+    await user.keyboard('{Escape}')
     await Promise.resolve()
     expect(screen.queryByRole('menu')).not.toBeInTheDocument()
     expect(trigger).toHaveFocus()
