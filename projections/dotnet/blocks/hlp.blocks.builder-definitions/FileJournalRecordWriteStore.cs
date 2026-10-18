@@ -26,6 +26,8 @@ public sealed class FileJournalRecordWriteStore : IKernelPreparedTransactionPort
     private const string JournalFormat = "records-write-file-journal/1";
     // Only the current-row read has this resource bound; the existing journal write format is unchanged.
     private const long MaxCurrentReadBytes = 16 * 1024 * 1024;
+    private const int LegacyJournalMaxDepth = 64;
+    private const int BoundJournalMaxDepth = 65;
     private static readonly SemaphoreSlim Mutation = new(1, 1);
     private static readonly JsonSerializerOptions Json = new()
     {
@@ -44,7 +46,7 @@ public sealed class FileJournalRecordWriteStore : IKernelPreparedTransactionPort
             var property = info.Properties.Single(item => item.Name == nameof(RecordWriteRow.PublicationVersionId));
             info.Properties.Remove(property);
         });
-        return new(Json) { TypeInfoResolver = resolver };
+        return new(Json) { TypeInfoResolver = resolver, MaxDepth = LegacyJournalMaxDepth };
     }
     private readonly string _path;
     private readonly Action<long>? _currentReadProgress;
@@ -160,7 +162,7 @@ public sealed class FileJournalRecordWriteStore : IKernelPreparedTransactionPort
                 await using (var stream = new FileStream(temporary, FileMode.CreateNew, FileAccess.Write, FileShare.None,
                     4096, FileOptions.Asynchronous | FileOptions.WriteThrough))
                 {
-                    using (var writer = new Utf8JsonWriter(stream))
+                using (var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { MaxDepth = BoundJournalMaxDepth }))
                     {
                         writer.WriteStartObject();
                         writer.WriteString("Format", RecordWriteJournalBinding.Format);
@@ -195,7 +197,15 @@ public sealed class FileJournalRecordWriteStore : IKernelPreparedTransactionPort
                     await stream.FlushAsync(ct).ConfigureAwait(false);
                     stream.Flush(flushToDisk: true);
                 }
-                _beforeReplace?.Invoke();
+            ct.ThrowIfCancellationRequested();
+            try
+            {
+                _ = Decode(File.ReadAllBytes(temporary), out var legacyOutput, ct);
+                if (legacyOutput) throw Corrupt();
+            }
+            catch (Exception error) when (error is JsonException or ArgumentException or InvalidOperationException)
+            { throw Corrupt(); }
+            _beforeReplace?.Invoke();
                 ct.ThrowIfCancellationRequested();
                 File.Move(temporary, _path, overwrite: true);
             }
@@ -260,7 +270,7 @@ public sealed class FileJournalRecordWriteStore : IKernelPreparedTransactionPort
     private static List<Entry> Decode(byte[] bytes, out bool legacy, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        using var document = JsonDocument.Parse(bytes);
+        using var document = JsonDocument.Parse(bytes, new JsonDocumentOptions { MaxDepth = BoundJournalMaxDepth });
         var root = document.RootElement;
         if (root.ValueKind != JsonValueKind.Object) throw Corrupt();
         if (!root.TryGetProperty("Format", out var formatElement)) throw Corrupt();

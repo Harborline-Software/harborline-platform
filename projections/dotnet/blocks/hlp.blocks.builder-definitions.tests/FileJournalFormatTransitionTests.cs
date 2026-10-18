@@ -269,5 +269,199 @@ public sealed class FileJournalFormatTransitionTests : IDisposable
         Assert.Equal(old, File.ReadAllBytes(PathName));
     }
 
+    [Fact]
+    public async Task Legacy_depth_64_converts_and_reopens_without_losing_rows_or_receipts()
+    {
+        var original = OldCopy();
+        var depth64 = LegacyWithIgnoredArrays(original, 61);
+        using var source = JsonDocument.Parse(depth64);
+        var originals = source.RootElement.GetProperty("Entries").EnumerateArray().ToArray();
+        Assert.Equal(4, originals.Length);
+        File.WriteAllBytes(PathName, depth64);
+        var store = new FileJournalRecordWriteStore(PathName);
+        var rows = new List<RecordWriteRow>();
+        foreach (var entry in originals)
+        {
+            var row = entry.GetProperty("Row");
+            rows.Add((await store.FindAsync(row.GetProperty("Tenant").GetString()!,
+                row.GetProperty("RecordId").GetString()!))!);
+        }
+        await AssertDepthLegacyRows(store, originals, rows);
+        Assert.Equal(depth64, File.ReadAllBytes(PathName));
+
+        for (var append = 0; append < 2; append++)
+        {
+            var added = Row("depth-record-" + append, "depth-operation-" + append);
+            var committed = await Append(store, added);
+            Assert.Equal(RecordWriteCommitDisposition.Created, committed.Disposition);
+            Assert.Equal(added.RecordId, committed.Receipt!.RecordId);
+            var converted = File.ReadAllBytes(PathName);
+            AssertDepthPrefix(depth64, converted, 5 + append);
+            store = new FileJournalRecordWriteStore(PathName);
+            await AssertDepthLegacyRows(store, originals, rows);
+            for (var retained = 0; retained <= append; retained++)
+            {
+                var expected = Row("depth-record-" + retained, "depth-operation-" + retained);
+                var current = await store.FindAsync("acme", expected.RecordId);
+                Assert.NotNull(current);
+                Assert.Equal(expected with { Body = default }, current with { Body = default });
+                Assert.Equal("{}"u8.ToArray(), current.Body.ToArray());
+                var settlement = await store.FindAsync(new RecordWriteOperationKey("acme", "alice", expected.OperationId));
+                Assert.NotNull(settlement);
+                Assert.Equal(expected.RecordId, settlement.Receipt.RecordId);
+                Assert.Equal(expected.OperationId, settlement.Receipt.OperationId);
+            }
+            Assert.Equal(converted, File.ReadAllBytes(PathName));
+        }
+        Assert.Equal(original, File.ReadAllBytes(Fixture("Q31/journal/records.json")));
+    }
+
+    [Fact]
+    public async Task Legacy_depth_65_remains_refused_by_every_journal_path()
+    {
+        var original = OldCopy();
+        var depth65 = LegacyWithIgnoredArrays(original, 62);
+        Assert.Throws<JsonException>(() => { using var document = JsonDocument.Parse(depth65); });
+        await AllPaths(depth65, false);
+        Assert.Equal(original, File.ReadAllBytes(Fixture("Q31/journal/records.json")));
+    }
+
+    [Fact]
+    public async Task Independent_v2_depth_65_is_readable_replayable_and_appendable()
+    {
+        var original = OldCopy();
+        var legacy64 = LegacyWithIgnoredArrays(original, 61);
+        var bound65 = WrapDepthLegacy(legacy64);
+        using var source = JsonDocument.Parse(legacy64);
+        var originals = source.RootElement.GetProperty("Entries").EnumerateArray().ToArray();
+        File.WriteAllBytes(PathName, bound65);
+        var store = new FileJournalRecordWriteStore(PathName);
+        var rows = new List<RecordWriteRow>();
+        foreach (var entry in originals)
+        {
+            var row = entry.GetProperty("Row");
+            rows.Add((await store.FindAsync(row.GetProperty("Tenant").GetString()!,
+                row.GetProperty("RecordId").GetString()!))!);
+        }
+        await AssertDepthLegacyRows(store, originals, rows);
+        Assert.Equal(bound65, File.ReadAllBytes(PathName));
+        AssertDepthPrefix(legacy64, bound65, 5);
+        var added = Row("independent-depth-record", "independent-depth-operation");
+        var committed = await Append(store, added);
+        Assert.Equal(RecordWriteCommitDisposition.Created, committed.Disposition);
+        Assert.Equal("independent-depth-record", committed.Receipt!.RecordId);
+        var appended = File.ReadAllBytes(PathName);
+        AssertDepthPrefix(legacy64, appended, 6);
+        store = new FileJournalRecordWriteStore(PathName);
+        await AssertDepthLegacyRows(store, originals, rows);
+        var current = await store.FindAsync("acme", "independent-depth-record");
+        Assert.NotNull(current);
+        Assert.Equal(added with { Body = default }, current with { Body = default });
+        Assert.Equal("{}"u8.ToArray(), current.Body.ToArray());
+        Assert.Equal(appended, File.ReadAllBytes(PathName));
+        Assert.Equal(original, File.ReadAllBytes(Fixture("Q31/journal/records.json")));
+    }
+
+    [Fact]
+    public async Task Independent_v2_depth_66_is_refused_by_every_journal_path()
+    {
+        var original = OldCopy();
+        var depth66 = WrapDepthLegacy(LegacyWithIgnoredArrays(original, 62));
+        Assert.Throws<JsonException>(() =>
+        {
+            using var document = JsonDocument.Parse(depth66, new JsonDocumentOptions { MaxDepth = 65 });
+        });
+        await AllPaths(depth66, false);
+        Assert.Equal(original, File.ReadAllBytes(Fixture("Q31/journal/records.json")));
+    }
+
+    [Fact]
+    public async Task Commit_refuses_an_overdepth_replacement_before_publication()
+    {
+        var original = OldCopy();
+        var reached = 0;
+        var store = new FileJournalRecordWriteStore(PathName, () => reached++);
+        var depth66 = WrapDepthLegacy(LegacyWithIgnoredArrays(original, 62));
+        File.WriteAllBytes(PathName, depth66);
+        await Assert.ThrowsAsync<InvalidDataException>(() =>
+            Append(store, Row("refused-depth-record", "refused-depth-operation")));
+        Assert.Equal(0, reached);
+        Assert.Equal(depth66, File.ReadAllBytes(PathName));
+        Assert.Empty(Directory.GetFiles(_directory, "*.tmp"));
+        Assert.Equal(original, File.ReadAllBytes(Fixture("Q31/journal/records.json")));
+    }
+
+    private static byte[] LegacyWithIgnoredArrays(byte[] original, int arrays)
+    {
+        using var document = JsonDocument.Parse(original);
+        var first = document.RootElement.GetProperty("Entries")[0].GetRawText();
+        var extended = first[..^1] + ",\"IgnoredDepth\":" + new string('[', arrays) +
+            "0" + new string(']', arrays) + "}";
+        return Encoding.UTF8.GetBytes(Encoding.UTF8.GetString(original)
+            .Replace(first, extended, StringComparison.Ordinal));
+    }
+
+    private static byte[] WrapDepthLegacy(byte[] legacy)
+    {
+        using var document = JsonDocument.Parse(legacy, new JsonDocumentOptions { MaxDepth = 65 });
+        var entries = document.RootElement.GetProperty("Entries").EnumerateArray()
+            .Select(entry => "{\"Tag\":\"legacy/1\",\"Legacy\":" + entry.GetRawText() + "}");
+        return Encoding.UTF8.GetBytes("{\"Format\":\"records-write-file-journal/2\",\"LegacyEntryCount\":4,\"Entries\":[" +
+            string.Join(",", entries) + "," + Bound().ToJsonString() + "]}");
+    }
+
+    private static void AssertDepthPrefix(byte[] legacy, byte[] converted, int count)
+    {
+        using var original = JsonDocument.Parse(legacy);
+        using var document = JsonDocument.Parse(converted, new JsonDocumentOptions { MaxDepth = 65 });
+        Assert.Equal("records-write-file-journal/2", document.RootElement.GetProperty("Format").GetString());
+        Assert.Equal(4, document.RootElement.GetProperty("LegacyEntryCount").GetInt32());
+        var oldEntries = original.RootElement.GetProperty("Entries").EnumerateArray().ToArray();
+        var entries = document.RootElement.GetProperty("Entries").EnumerateArray().ToArray();
+        Assert.Equal(4, oldEntries.Length);
+        Assert.Equal(count, entries.Length);
+        for (var i = 0; i < 4; i++)
+        {
+            Assert.Equal("legacy/1", entries[i].GetProperty("Tag").GetString());
+            Assert.Equal(Encoding.UTF8.GetBytes(oldEntries[i].GetRawText()),
+                Encoding.UTF8.GetBytes(entries[i].GetProperty("Legacy").GetRawText()));
+        }
+    }
+
+    private async Task AssertDepthLegacyRows(FileJournalRecordWriteStore store, JsonElement[] originals,
+        IReadOnlyList<RecordWriteRow> rows)
+    {
+        for (var i = 0; i < 4; i++)
+        {
+            var original = originals[i].GetProperty("Row");
+            var tenant = original.GetProperty("Tenant").GetString()!;
+            var recordId = original.GetProperty("RecordId").GetString()!;
+            var key = new RecordWriteOperationKey(tenant, original.GetProperty("ActorId").GetString()!,
+                original.GetProperty("OperationId").GetString()!);
+            var settlement = await store.FindAsync(key);
+            Assert.NotNull(settlement);
+            AssertOriginalReceipt(originals[i].GetProperty("Receipt"), settlement.Receipt);
+            var current = await store.FindAsync(tenant, recordId);
+            Assert.NotNull(current);
+            Assert.Equal(tenant, current.Tenant);
+            Assert.Equal(recordId, current.RecordId);
+            Assert.Null(current.PublicationVersionId);
+            Assert.Equal(rows[i] with { Body = default }, current with { Body = default });
+            Assert.Equal(Convert.FromBase64String(original.GetProperty("Body").GetString()!), current.Body.ToArray());
+            var before = File.ReadAllBytes(PathName);
+            var replay = await Append(store, rows[i] with { PublicationVersionId = "1.0.0" });
+            Assert.Equal(RecordWriteCommitDisposition.Replayed, replay.Disposition);
+            AssertOriginalReceipt(originals[i].GetProperty("Receipt"), replay.Receipt);
+            var conflict = await Append(store, rows[i] with
+            {
+                PublicationVersionId = "1.0.0",
+                IntentDigest = "different-depth-intent"
+            });
+            Assert.Equal(RecordWriteCommitDisposition.Conflict, conflict.Disposition);
+            AssertOriginalReceipt(originals[i].GetProperty("Receipt"), conflict.Receipt);
+            Assert.Equal(before, File.ReadAllBytes(PathName));
+        }
+    }
+
     public void Dispose() { if (Directory.Exists(_directory)) Directory.Delete(_directory, true); }
 }
