@@ -34,6 +34,87 @@ public sealed class TaxonomyInterpreterTests
         Assert.Equal([null], interpreter.ResolveClassifications(definition, [Reference(null!)]));
     }
 
+    [Theory]
+    [InlineData("null-node")]
+    [InlineData("null-code")]
+    [InlineData("empty-code")]
+    [InlineData("duplicate-code")]
+    public void Malformed_node_inventories_refuse_with_the_typed_integrity_code(string scenario)
+    {
+        var root = Node("root");
+        var nodes = scenario switch
+        {
+            "null-node" => new TaxonomyNode[] { root, null! },
+            "null-code" => new[] { root, Node(null!) },
+            "empty-code" => new[] { root, Node("") },
+            "duplicate-code" => new[] { root, Node("root", display: "Another root") },
+            _ => throw new ArgumentOutOfRangeException(nameof(scenario)),
+        };
+        var definition = Definition(nodes);
+
+        var refusal = Assert.Throws<TaxonomyTraversalException>(() =>
+            Interpreter(definition).ResolveClassification(definition, Reference("root")));
+
+        Assert.Equal("taxonomy.definition_malformed", refusal.Code);
+    }
+
+    [Theory]
+    [InlineData("root")]
+    [InlineData(" ")]
+    public void Unique_nonempty_node_codes_remain_resolvable_including_opaque_whitespace(string code)
+    {
+        var node = Node(code);
+        var definition = Definition([node]);
+
+        var result = Assert.IsType<ResolvedTaxonomyClassification>(
+            Interpreter(definition).ResolveClassification(definition, Reference(code)));
+
+        Assert.Same(node, result.Node);
+        Assert.Equal(code, result.Node.Code);
+        Assert.True(result.IsActive);
+    }
+
+    [Theory]
+    [InlineData("tenant")]
+    [InlineData("definition")]
+    [InlineData("version")]
+    public void Classification_references_must_pin_the_supplied_definition(string coordinate)
+    {
+        var node = Node("root");
+        var definition = Definition([node]);
+        var interpreter = Interpreter(definition);
+        var matching = Reference("root");
+        var mismatched = coordinate switch
+        {
+            "tenant" => matching with { Tenant = "tenant-b" },
+            "definition" => matching with { DefinitionId = new("different-vendor", "different-domain", "different-scheme") },
+            "version" => matching with { Version = "9.0.0" },
+            _ => throw new ArgumentOutOfRangeException(nameof(coordinate)),
+        };
+
+        Assert.Same(node, Assert.IsType<ResolvedTaxonomyClassification>(
+            interpreter.ResolveClassification(definition, matching)).Node);
+        var refusal = Assert.Throws<ArgumentException>(() =>
+            interpreter.ResolveClassification(definition, mismatched));
+
+        Assert.Equal("reference", refusal.ParamName);
+    }
+
+    [Fact]
+    public void Batch_null_references_preserve_positions_among_real_results()
+    {
+        var definition = Definition();
+
+        var results = Interpreter(definition).ResolveClassifications(definition,
+            [null!, Reference("child"), Reference("missing"), Reference("root")]);
+
+        Assert.Collection(results,
+            first => Assert.Null(first),
+            second => Assert.Equal("child", Assert.IsType<ResolvedTaxonomyClassification>(second).Node.Code),
+            third => Assert.Null(third),
+            fourth => Assert.Equal("root", Assert.IsType<ResolvedTaxonomyClassification>(fourth).Node.Code));
+    }
+
     [Fact] public void Tombstoned_classification_resolves_as_inactive()
     {
         var definition = Definition(); var result = Interpreter(definition).ResolveClassification(definition, Reference("retired"));
