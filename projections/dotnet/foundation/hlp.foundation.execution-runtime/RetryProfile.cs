@@ -1,3 +1,5 @@
+using System.Collections.Frozen;
+
 namespace Harborline.Foundation.ExecutionRuntime;
 
 /// <summary>
@@ -123,7 +125,7 @@ public sealed class CapabilityRetryPolicy
         }
 
         Default = defaultProfile;
-        Allowed = allowedSet;
+        Allowed = allowedSet.ToFrozenSet();
     }
 
     /// <summary>The profile a binding gets when it selects none.</summary>
