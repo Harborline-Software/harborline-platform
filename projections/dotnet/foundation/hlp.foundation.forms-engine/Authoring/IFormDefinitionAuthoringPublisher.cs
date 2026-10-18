@@ -14,4 +14,18 @@ public interface IFormDefinitionAuthoringPublisher
     ValueTask<FormDefinition> RegisterAndPublishAsync(
         FormDefinition definition,
         CancellationToken cancellationToken = default);
+
+    /// <summary>Publishes through the same admission boundary and returns compute-only impact evidence.</summary>
+    /// <param name="definition">The Draft revision to admit and atomically publish.</param>
+    /// <param name="context">Trusted historical and opaque publication bindings.</param>
+    /// <param name="cancellationToken">Caller cancellation.</param>
+    async ValueTask<FormDefinitionPublicationResult> RegisterAndPublishWithImpactAsync(
+        FormDefinition definition, FormPublicationAssessmentContext context,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        var published = await RegisterAndPublishAsync(definition, cancellationToken).ConfigureAwait(false);
+        // Existing third-party implementations remain source-compatible. They do not pretend to assess.
+        return new(published, FormPublicationAssessment.Unavailable("publisher_assessment_unsupported"));
+    }
 }

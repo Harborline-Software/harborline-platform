@@ -14,6 +14,7 @@
                       Condition="'$(PackageId)' == 'Harborline.Blocks.ActivityTimeline'
                         or '$(PackageId)' == 'Harborline.Blocks.BuilderDefinitions'
                         or '$(PackageId)' == 'Harborline.Blocks.Calendar'
+                        or '$(PackageId)' == 'Harborline.Blocks.LayoutRuntime'
                         or '$(PackageId)' == 'Harborline.Blocks.Reports'
                         or '$(PackageId)' == 'Harborline.Blocks.Scheduling'
                         or '$(PackageId)' == 'Harborline.Blocks.Workflow'
