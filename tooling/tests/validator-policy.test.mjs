@@ -108,6 +108,19 @@ test("the gate's own failure evidence is not repository source", () => {
   assert.equal(isGateFailureEvidence('docs/gate-evidence/gate.log'), false)
 })
 
+test('only the exact full shared-schedule JSON is exempt alongside existing gate logs', () => {
+  // Oracle: the Mac319 rev3 artifact path; sibling JSON and lookalikes remain repository bans.
+  assert.equal(isGateFailureEvidence('.claude/gate-evidence/ui-shared-schedule.json'), true)
+  for (const path of [
+    '.claude/gate-evidence/report.json',
+    '.claude/gate-evidence/nested/ui-shared-schedule.json',
+    '.claude/gate-evidence/ui-shared-schedule.json.bak',
+    '.claude/gate-evidence/UI-shared-schedule.json',
+    '.claude/settings.json',
+    'docs/gate-evidence/ui-shared-schedule.json',
+  ]) assert.equal(isGateFailureEvidence(path), false, path)
+})
+
 test('optional error-contract pilot metadata and canonical literal consistency', () => {
   // Oracles: Chris's approved T1034 tuple and the reviewed pilot applicability contract, not
   // production Codes constants. This synthetic C# input is independent of the actual producer.
