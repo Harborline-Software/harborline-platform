@@ -29,7 +29,7 @@ public sealed class BookableClaimTests
     private static readonly BookableClaimResource Room = new(RoomRef, Resource("Room", CapacityKind.Exclusive, null, 0, 30));
     private static readonly BookableClaimResource Nurses = new(NursesRef, Resource("Nurses", CapacityKind.Pool, 2, 15, 0));
 
-    private static readonly BookingBookableDefinition SeatBooking = Bookable("Seat booking", "Seats");
+    private static readonly BookingBookableDefinition SeatBooking = Bookable("Seat booking", "Seats") with { DurationIntervalsMinutes = [30, 60] };
     private static readonly BookingBookableDefinition RoomBooking = Bookable("Room booking", "Room");
     private static readonly BookingBookableDefinition NurseVisit = Bookable("Nurse visit", "Nurses");
     private static readonly BookingBookableDefinition Procedure = Bookable("Procedure", "Room", "Nurses");
@@ -37,6 +37,135 @@ public sealed class BookableClaimTests
     private static readonly BookableClaimResource[] All = [Seats, Room, Nurses];
 
     private static DateTimeOffset Utc(int hour, int minute = 0) => new(2026, 3, 4, hour, minute, 0, TimeSpan.Zero);
+
+    // DES-0025 booking-ck-10 / booking-eng-3: the caller chooses an exact declared duration.
+    [Theory]
+    [InlineData(10, 30)]
+    [InlineData(11, 0)]
+    public async Task Each_declared_duration_commits_the_requested_window(int endHour, int endMinute)
+    {
+        var store = new InMemoryCalendarEventStore();
+        var claims = await SutAsync(store);
+
+        var outcome = await claims.Claim(Acme, SeatBooking, All, Utc(10), Utc(endHour, endMinute));
+
+        Assert.True(outcome.Claimed);
+        var claimed = Assert.Single(outcome.Events);
+        Assert.Equal(new DateOnly(2026, 3, 4), claimed.Start);
+        Assert.Equal(new DateOnly(2026, 3, 4), claimed.End);
+        Assert.Equal(new TimeOnly(10, 0), claimed.StartTime);
+        Assert.Equal(new TimeOnly(endHour, endMinute), claimed.EndTime);
+        Assert.Equal("UTC", claimed.Timezone);
+        Assert.Equal(Actor, claimed.CreatedBy);
+        Assert.Equal(SeatsRef, claimed.ResourceRef);
+        Assert.Single(await store.ListAsync(Acme));
+    }
+
+    [Theory]
+    [InlineData(10, 45)]
+    [InlineData(10, 0)]
+    [InlineData(9, 30)]
+    public async Task Undeclared_zero_and_inverted_durations_stop_before_capacity(int endHour, int endMinute)
+        => await AssertInvalidDurationBeforeCapacityAsync(Utc(10), Utc(endHour, endMinute), [30, 60]);
+
+    [Theory]
+    [InlineData(1L)]
+    [InlineData(300_000_000L)]
+    public async Task A_fractional_minute_is_not_rounded_to_a_declared_duration(long extraTicks)
+        => await AssertInvalidDurationBeforeCapacityAsync(Utc(10), Utc(10, 30).AddTicks(extraTicks), [30, 60]);
+
+    [Fact]
+    public async Task Empty_and_nonpositive_declarations_authorize_no_window()
+    {
+        await AssertInvalidDurationBeforeCapacityAsync(Utc(10), Utc(10, 30), []);
+        await AssertInvalidDurationBeforeCapacityAsync(Utc(10), Utc(10, 30), [0, -30]);
+    }
+
+    [Fact]
+    public async Task Duration_uses_elapsed_instants_rather_than_offset_clock_labels()
+    {
+        var store = new InMemoryCalendarEventStore();
+        var claims = await SutAsync(store);
+        var start = new DateTimeOffset(2026, 3, 4, 11, 0, 0, TimeSpan.FromHours(1));
+        var end = new DateTimeOffset(2026, 3, 4, 12, 30, 0, TimeSpan.FromHours(2));
+
+        var outcome = await claims.Claim(Acme, SeatBooking, All, start, end);
+
+        Assert.True(outcome.Claimed);
+        var claimed = Assert.Single(outcome.Events);
+        Assert.Equal(new TimeOnly(10, 0), claimed.StartTime);
+        Assert.Equal(new TimeOnly(10, 30), claimed.EndTime);
+        Assert.Equal(Actor, claimed.CreatedBy);
+        await AssertInvalidDurationBeforeCapacityAsync(start,
+            new DateTimeOffset(2026, 3, 4, 12, 0, 0, TimeSpan.FromHours(2)), [30, 60]);
+    }
+
+    [Fact]
+    public async Task An_available_declared_duration_across_midnight_keeps_both_event_dates()
+    {
+        // Capacity is a granted port answer here; this checks the claim's duration and event boundary,
+        // not the availability substrate's separate overnight-supply rules.
+        var store = new InMemoryCalendarEventStore();
+        var start = new DateTimeOffset(2026, 3, 4, 23, 45, 0, TimeSpan.Zero);
+        var end = new DateTimeOffset(2026, 3, 5, 0, 15, 0, TimeSpan.Zero);
+        var runtime = new AvailableSeatRuntime(start, end);
+        var claims = new BookableClaimService(runtime, store, new FixedRequester(Actor));
+
+        var outcome = await claims.Claim(Acme, SeatBooking, All, start, end);
+
+        Assert.True(outcome.Claimed);
+        var claimed = Assert.Single(outcome.Events);
+        Assert.Equal(new DateOnly(2026, 3, 4), claimed.Start);
+        Assert.Equal(new DateOnly(2026, 3, 5), claimed.End);
+        Assert.Equal(new TimeOnly(23, 45), claimed.StartTime);
+        Assert.Equal(new TimeOnly(0, 15), claimed.EndTime);
+        Assert.Equal(Actor, claimed.CreatedBy);
+        var request = Assert.IsType<AvailabilityRequest>(runtime.Request);
+        Assert.Equal<DateTimeOffset?>(start, request.FromUtc);
+        Assert.Equal<DateTimeOffset?>(end, request.ToUtc);
+        Assert.Single(await store.ListAsync(Acme));
+    }
+
+    [Fact]
+    public async Task A_large_whole_minute_interval_cannot_wrap_into_a_declared_duration()
+    {
+        // Literal interval: 4,294,967,326 minutes (2^32 + 30), which aliases 30 under an int cast.
+        await AssertInvalidDurationBeforeCapacityAsync(
+            new DateTimeOffset(1, 1, 1, 0, 0, 0, TimeSpan.Zero),
+            new DateTimeOffset(8167, 2, 16, 4, 46, 0, TimeSpan.Zero), [30, 60]);
+    }
+
+    [Fact]
+    public async Task An_unresolved_resource_keeps_precedence_over_duration_and_requester()
+    {
+        var capacity = new CapacityTrap();
+        var requesterCalls = 0;
+        var claims = new BookableClaimService(capacity, capacity,
+            new FixedRequester(() => { requesterCalls++; return Actor; }));
+
+        var outcome = await claims.Claim(Acme, Procedure, [Room], Utc(10), Utc(10, 45));
+
+        Assert.Equal("booking.claim.requirement_unresolved", outcome.Refusal);
+        Assert.Empty(outcome.Events);
+        Assert.Equal(0, requesterCalls);
+        Assert.Equal(0, capacity.Calls);
+    }
+
+    [Fact]
+    public async Task An_unresolved_requester_keeps_precedence_over_duration()
+    {
+        foreach (var requester in new[] { FixedRequester.Unauthenticated, new FixedRequester(Guid.Empty) })
+        {
+            var capacity = new CapacityTrap();
+            var claims = new BookableClaimService(capacity, capacity, requester);
+
+            var outcome = await claims.Claim(Acme, SeatBooking, All, Utc(10), Utc(10, 45));
+
+            Assert.Equal("booking.claim.no_requester", outcome.Refusal);
+            Assert.Empty(outcome.Events);
+            Assert.Equal(0, capacity.Calls);
+        }
+    }
 
     // ----------------------------------------------------------------
     // Pool: a pool of two holds two overlapping claims and refuses the third.
@@ -338,6 +467,62 @@ public sealed class BookableClaimTests
     // ----------------------------------------------------------------
     // Fixtures
     // ----------------------------------------------------------------
+
+    private static async Task AssertInvalidDurationBeforeCapacityAsync(
+        DateTimeOffset start, DateTimeOffset end, IReadOnlyList<int> durations)
+    {
+        var capacity = new CapacityTrap();
+        var requesterCalls = 0;
+        var claims = new BookableClaimService(capacity, capacity,
+            new FixedRequester(() => { requesterCalls++; return Actor; }));
+
+        var outcome = await claims.Claim(Acme, SeatBooking with { DurationIntervalsMinutes = durations }, All, start, end);
+
+        Assert.Equal("booking.claim.window_invalid", outcome.Refusal);
+        Assert.Empty(outcome.Events);
+        Assert.Equal(1, requesterCalls);
+        Assert.Equal(0, capacity.Calls);
+    }
+
+    private sealed class AvailableSeatRuntime(DateTimeOffset start, DateTimeOffset end) : IAvailabilityRuntime
+    {
+        public AvailabilityRequest? Request { get; private set; }
+
+        public Task<AvailabilityAnswer> Read(TenantId tenantId, AvailabilityRequest request, CancellationToken ct = default)
+        {
+            Request = request;
+            return Task.FromResult(new AvailabilityAnswer(null,
+                [new ResourceAvailabilityRead(SeatsRef, [new(start, end)], [], 2, Unavailability.None)]));
+        }
+    }
+
+    private sealed class CapacityTrap : IAvailabilityRuntime, ICalendarEventStore
+    {
+        public int Calls { get; private set; }
+
+        private Exception Unexpected()
+        {
+            Calls++;
+            return new InvalidOperationException("An invalid duration must stop before capacity, availability or event-store work.");
+        }
+
+        public Task<AvailabilityAnswer> Read(TenantId tenantId, AvailabilityRequest request, CancellationToken ct = default)
+            => throw Unexpected();
+        public Task<long> GetCapacityEpochAsync(TenantId tenantId, ParticipantRef resource, CancellationToken ct = default)
+            => throw Unexpected();
+        public Task<bool> SaveAllIfCapacityUnchangedAsync(TenantId tenantId, IReadOnlyList<CalendarEvent> calendarEvents,
+            IReadOnlyDictionary<ParticipantRef, long> expectedEpochs, CancellationToken ct = default)
+            => throw Unexpected();
+        public Task SaveAsync(CalendarEvent calendarEvent, CancellationToken ct = default) => throw Unexpected();
+        public Task<bool> SaveIfCapacityUnchangedAsync(CalendarEvent calendarEvent, ParticipantRef resource,
+            long expectedEpoch, CancellationToken ct = default) => throw Unexpected();
+        public Task<CalendarEvent?> GetAsync(TenantId tenantId, CalendarEventId id, CancellationToken ct = default)
+            => throw Unexpected();
+        public Task<IReadOnlyList<CalendarEvent>> ListAsync(TenantId tenantId, CancellationToken ct = default)
+            => throw Unexpected();
+        public Task<bool> RemoveAsync(TenantId tenantId, CalendarEventId id, CancellationToken ct = default)
+            => throw Unexpected();
+    }
 
     private static BookingResourceDefinition Resource(string name, CapacityKind kind, int? size, int setup, int cleanup)
         => new(name, "type-asset", kind, size, setup, cleanup, [], "base-hours");
