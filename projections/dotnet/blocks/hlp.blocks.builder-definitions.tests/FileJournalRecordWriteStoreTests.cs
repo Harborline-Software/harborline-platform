@@ -521,7 +521,9 @@ public sealed class FileJournalRecordWriteStoreTests : IDisposable
         var host = Host();
         await host.Records.CreateDraftAsync(accepted ? AssetClass("1.0.0") : RoleGatedAssetClass("1.0.0"), "create");
         await host.Records.PublishAsync(Tenant, "eam.asset-class", "1.0.0", 1, "publish");
-        return new(new AccessProvider(new Gate()), host.Records, host.Registry, store, store, new Clock());
+        return new(new AccessProvider(new Gate()), host.Records, host.Registry, store, store, new Clock(),
+            Harborline.Blocks.BuilderDefinitions.Tests.RecordWriteFieldRuntimeTests.FixtureKinds(),
+            Harborline.Blocks.BuilderDefinitions.Tests.RecordWriteFieldRuntimeTests.FixtureDomains(new Clock()));
     }
 
     private sealed class Gate : IAuthorizationDecider

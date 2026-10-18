@@ -310,7 +310,7 @@ public sealed class RecordWriteOperationTests
     [Trait("Holds", "records-eng-26")]
     public async Task nested_members_are_validated_and_staged_in_recursive_ordinal_order_with_nulls_and_array_order_kept()
     {
-        var fixture = await Published();
+        var fixture = await Published(unboundFieldsForCanonicalBytes: true);
         // The validator admits the body so the staged bytes are observable; this case is about canonical form only.
         fixture.Registry.StubResult = new(true, []);
         const string submitted = """{"z":{"b":[3,null,{"d":null,"c":"x"},1],"a":null},"n":null,"m":[],"a":{},"B":1}""";
@@ -332,7 +332,7 @@ public sealed class RecordWriteOperationTests
     [Trait("Holds", "records-run-3")]
     public async Task a_body_reordered_at_every_depth_replays_the_first_record()
     {
-        var fixture = await Published();
+        var fixture = await Published(unboundFieldsForCanonicalBytes: true);
         fixture.Registry.StubResult = new(true, []);
         var first = await fixture.Operation.CreateAsync(new("tenant-a", Actor),
             Request("op-depth", """{"z":{"b":[3,null,{"d":null,"c":"x"},1],"a":null},"n":null,"m":[],"a":{},"B":1}"""));
@@ -1337,12 +1337,14 @@ public sealed class RecordWriteOperationTests
         var port = new RecordingRecordPort();
         var clock = new FixedClock(At);
 
-        Assert.Throws<ArgumentNullException>(() => new RecordWriteOperation(null!, host.Records, host.Registry, port, port, clock));
-        Assert.Throws<ArgumentNullException>(() => new RecordWriteOperation(access, null!, host.Registry, port, port, clock));
-        Assert.Throws<ArgumentNullException>(() => new RecordWriteOperation(access, host.Records, null!, port, port, clock));
-        Assert.Throws<ArgumentNullException>(() => new RecordWriteOperation(access, host.Records, host.Registry, null!, port, clock));
-        Assert.Throws<ArgumentNullException>(() => new RecordWriteOperation(access, host.Records, host.Registry, port, null!, clock));
-        Assert.Throws<ArgumentNullException>(() => new RecordWriteOperation(access, host.Records, host.Registry, port, port, null!));
+        var kinds = RecordWriteFieldRuntimeTests.FixtureKinds();
+        var domains = RecordWriteFieldRuntimeTests.FixtureDomains(clock);
+        Assert.Throws<ArgumentNullException>(() => new RecordWriteOperation(null!, host.Records, host.Registry, port, port, clock, kinds, domains));
+        Assert.Throws<ArgumentNullException>(() => new RecordWriteOperation(access, null!, host.Registry, port, port, clock, kinds, domains));
+        Assert.Throws<ArgumentNullException>(() => new RecordWriteOperation(access, host.Records, null!, port, port, clock, kinds, domains));
+        Assert.Throws<ArgumentNullException>(() => new RecordWriteOperation(access, host.Records, host.Registry, null!, port, clock, kinds, domains));
+        Assert.Throws<ArgumentNullException>(() => new RecordWriteOperation(access, host.Records, host.Registry, port, null!, clock, kinds, domains));
+        Assert.Throws<ArgumentNullException>(() => new RecordWriteOperation(access, host.Records, host.Registry, port, port, null!, kinds, domains));
     }
 
     [Fact]
@@ -1387,10 +1389,15 @@ public sealed class RecordWriteOperationTests
 
     // The real catalogue and registry from the Record Type store tests, with the asset class published at 1.0.0.
     private static async Task<Fixture> Published(bool allow = true, ISchemaRegistry? validatingRegistry = null,
-        DefinitionContractWindow? window = null)
+        DefinitionContractWindow? window = null, bool unboundFieldsForCanonicalBytes = false)
     {
         var host = Host();
-        await host.Records.CreateDraftAsync(RoleGatedAssetClass("1.0.0"), "create");
+        var type = RoleGatedAssetClass("1.0.0");
+        // Only the two arbitrary-body canonical-byte tests use this genuine unbound declaration.
+        // Their existing schema stub isolates encoding; the field runtime itself is never replaced.
+        if (unboundFieldsForCanonicalBytes)
+            type = type with { Fields = type.Fields.Select(field => field with { Binding = null }).ToArray() };
+        await host.Records.CreateDraftAsync(type, "create");
         var publication = await host.Records.PublishAsync(Tenant, "eam.asset-class", "1.0.0", 1, "publish");
         var catalogue = new CountingCatalogue(host.Catalogue);
         var registry = new CountingRegistry(validatingRegistry ?? host.Registry);
@@ -1398,7 +1405,9 @@ public sealed class RecordWriteOperationTests
             validatingRegistry is null ? registry : new CountingRegistry(host.Registry), window ?? Window);
         var gate = new FixtureGate(allow);
         var port = new RecordingRecordPort();
-        var operation = new RecordWriteOperation(new AccessProvider(gate), records, registry, port, port, new FixedClock(At));
+        var clock = new FixedClock(At);
+        var operation = new RecordWriteOperation(new AccessProvider(gate), records, registry, port, port, clock,
+            RecordWriteFieldRuntimeTests.FixtureKinds(), RecordWriteFieldRuntimeTests.FixtureDomains(clock));
         return new(host, publication, operation, gate, catalogue, registry, port);
     }
 
@@ -1429,7 +1438,9 @@ public sealed class RecordWriteOperationTests
         var records = new RecordTypeDefinitionStore(catalogue, compiler, defaults, counting, Window);
         var gate = new FixtureGate(true);
         var port = new RecordingRecordPort();
-        var operation = new RecordWriteOperation(new AccessProvider(gate), records, counting, port, port, new FixedClock(At));
+        var clock = new FixedClock(At);
+        var operation = new RecordWriteOperation(new AccessProvider(gate), records, counting, port, port, clock, kinds,
+            RecordWriteFieldRuntimeTests.FixtureDomains(clock));
         return new(Host(), publication, operation, gate, catalogue, counting, port);
 
         static FieldDefinition Amount(string key, string name, string? totalDigits, string? fractionDigits)

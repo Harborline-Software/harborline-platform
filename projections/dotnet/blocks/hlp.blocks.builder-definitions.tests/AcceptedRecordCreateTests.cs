@@ -444,7 +444,9 @@ public sealed class AcceptedRecordCreateTests
             await PublishAsync(host, AssetClass("1.0.0") with { Name = "Ledger Line", CreationGate = RecordCreationGate.Engine }, "eam.ledger-line");
             var gate = new WorkerGate(workers ?? [Worker, Delegate]);
             var port = new AcceptedCommandPort();
-            return new(gate, port, new RecordWriteOperation(new AccessProvider(gate), host.Records, host.Registry, port, port, new FixedClock(At)));
+            var clock = new FixedClock(At);
+            return new(gate, port, new RecordWriteOperation(new AccessProvider(gate), host.Records, host.Registry, port, port, clock,
+                RecordWriteFieldRuntimeTests.FixtureKinds(), RecordWriteFieldRuntimeTests.FixtureDomains(clock)));
         }
 
         private static async Task PublishAsync(TestHost host, NewRecordType type, string expectedId)

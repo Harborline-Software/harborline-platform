@@ -16,6 +16,35 @@ using Harborline.Kernel.SchemaValidation.Records;
 
 internal static class AcceptedRecordCreatePackageProbe
 {
+    // Existing probe types declare no value domain. The real runtime still receives a complete
+    // immutable empty source and an explicit read adapter, rather than a passing field evaluator.
+    internal static IFieldDomainRuntime FieldDomains(TimeProvider clock)
+    {
+        var source = new EmptyFieldSource();
+        return new ValueDomainRuntime(source, source, clock);
+    }
+
+    private sealed class EmptyFieldSource : IFieldDomainSource, IFieldDomainReadAuthority
+    {
+        public ValueTask<IFieldDomainSnapshot> OpenSnapshotAsync(Harborline.Foundation.Assets.Common.TenantId tenant,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return ValueTask.FromResult<IFieldDomainSnapshot>(new Snapshot(tenant));
+        }
+        public ValueTask<bool> CanReadAsync(FieldDomainScope scope, ValueDomainDefinition domain, FieldDomainMember member,
+            CancellationToken cancellationToken = default) => ValueTask.FromResult(false);
+
+        private sealed class Snapshot(Harborline.Foundation.Assets.Common.TenantId tenant) : IFieldDomainSnapshot
+        {
+            public Harborline.Foundation.Assets.Common.TenantId Tenant => tenant;
+            public string Revision => "consumer-empty@1";
+            public bool IsComplete => true;
+            public IReadOnlyList<FieldDomainMember>? GetTaxonomyScheme(TaxonomySchemeReference scheme) => null;
+            public IReadOnlyList<FieldDomainMember>? GetRecords(string recordTypeId) => null;
+        }
+    }
+
     private const string Tenant = "tenant-a";
     private const string Submitter = "submitter-a";
     private const string Worker = "consumer-worker";
@@ -48,7 +77,8 @@ internal static class AcceptedRecordCreatePackageProbe
         var events = new List<string>();
         var gate = new Gate(events);
         var port = new Port(events);
-        var operation = new RecordWriteOperation(new AccessProvider(gate), records, schemas, port, port, new Clock());
+        var operation = new RecordWriteOperation(new AccessProvider(gate), records, schemas, port, port, new Clock(), kinds,
+            FieldDomains(new Clock()));
         var command = Command();
 
         gate.Allow = false;
