@@ -75,6 +75,32 @@ public sealed class BookableClaimTests
         => await AssertInvalidDurationBeforeCapacityAsync(Utc(10), Utc(10, 30).AddTicks(extraTicks), [30, 60]);
 
     [Fact]
+    public async Task Nonpositive_windows_are_refused_even_when_the_declaration_matches()
+    {
+        await AssertInvalidDurationBeforeCapacityAsync(Utc(10), Utc(10), [0]);
+        await AssertInvalidDurationBeforeCapacityAsync(Utc(10), Utc(9, 30), [-30]);
+    }
+
+    [Fact]
+    public async Task An_availability_runtime_refusal_maps_to_window_invalid_without_mutation()
+    {
+        var probe = new RefusedAvailabilityProbe();
+        var claims = new BookableClaimService(probe, probe, new FixedRequester(Actor));
+
+        var outcome = await claims.Claim(Acme, SeatBooking, All, Utc(10), Utc(11));
+
+        Assert.Equal("booking.claim.window_invalid", outcome.Refusal);
+        Assert.Empty(outcome.Events);
+        Assert.Equal(1, probe.EpochReads);
+        Assert.Equal(1, probe.RuntimeCalls);
+        Assert.Equal(0, probe.MutationCalls);
+        Assert.Equal<TenantId?>(Acme, probe.Tenant);
+        var request = Assert.IsType<AvailabilityRequest>(probe.Request);
+        Assert.Equal<DateTimeOffset?>(Utc(10), request.FromUtc);
+        Assert.Equal<DateTimeOffset?>(Utc(11), request.ToUtc);
+    }
+
+    [Fact]
     public async Task Empty_and_nonpositive_declarations_authorize_no_window()
     {
         await AssertInvalidDurationBeforeCapacityAsync(Utc(10), Utc(10, 30), []);
@@ -522,6 +548,48 @@ public sealed class BookableClaimTests
             => throw Unexpected();
         public Task<bool> RemoveAsync(TenantId tenantId, CalendarEventId id, CancellationToken ct = default)
             => throw Unexpected();
+    }
+
+    private sealed class RefusedAvailabilityProbe : IAvailabilityRuntime, ICalendarEventStore
+    {
+        public int EpochReads { get; private set; }
+        public int RuntimeCalls { get; private set; }
+        public int MutationCalls { get; private set; }
+        public TenantId? Tenant { get; private set; }
+        public AvailabilityRequest? Request { get; private set; }
+
+        public Task<long> GetCapacityEpochAsync(TenantId tenantId, ParticipantRef resource, CancellationToken ct = default)
+        {
+            ct.ThrowIfCancellationRequested();
+            EpochReads++;
+            return Task.FromResult(0L);
+        }
+
+        public Task<AvailabilityAnswer> Read(TenantId tenantId, AvailabilityRequest request, CancellationToken ct = default)
+        {
+            ct.ThrowIfCancellationRequested();
+            RuntimeCalls++;
+            Tenant = tenantId;
+            Request = request;
+            return Task.FromResult(AvailabilityAnswer.Refused("availability.window_invalid", "/window"));
+        }
+
+        private Exception UnexpectedMutation()
+        {
+            MutationCalls++;
+            return new InvalidOperationException("A refused availability answer must not mutate capacity.");
+        }
+
+        public Task SaveAsync(CalendarEvent calendarEvent, CancellationToken ct = default) => throw UnexpectedMutation();
+        public Task<bool> SaveIfCapacityUnchangedAsync(CalendarEvent calendarEvent, ParticipantRef resource,
+            long expectedEpoch, CancellationToken ct = default) => throw UnexpectedMutation();
+        public Task<bool> SaveAllIfCapacityUnchangedAsync(TenantId tenantId, IReadOnlyList<CalendarEvent> calendarEvents,
+            IReadOnlyDictionary<ParticipantRef, long> expectedEpochs, CancellationToken ct = default) => throw UnexpectedMutation();
+        public Task<bool> RemoveAsync(TenantId tenantId, CalendarEventId id, CancellationToken ct = default) => throw UnexpectedMutation();
+        public Task<CalendarEvent?> GetAsync(TenantId tenantId, CalendarEventId id, CancellationToken ct = default)
+            => throw new InvalidOperationException("The refused runtime needs no event read.");
+        public Task<IReadOnlyList<CalendarEvent>> ListAsync(TenantId tenantId, CancellationToken ct = default)
+            => throw new InvalidOperationException("The refused runtime needs no event read.");
     }
 
     private static BookingResourceDefinition Resource(string name, CapacityKind kind, int? size, int setup, int cleanup)
