@@ -12,6 +12,7 @@
 import assert from 'node:assert/strict'
 import {test} from 'node:test'
 import {
+  errorContractPolicyErrors,
   dependencylessVitestConfigError, interfaceDependencyMismatch, isGateFailureEvidence,
   npmPublicDistributionAuthorized, nugetPublicDistributionAuthorized,
   presentationPolicyErrors, requiresQualityProfile, retiredProvenanceFieldErrors,
@@ -104,4 +105,130 @@ test("the gate's own failure evidence is not repository source", () => {
   assert.equal(isGateFailureEvidence('.claude/settings.json'), false)
   assert.equal(isGateFailureEvidence('.claude/agents/gate.log'), false)
   assert.equal(isGateFailureEvidence('docs/gate-evidence/gate.log'), false)
+})
+
+test('optional error-contract pilot metadata and canonical literal consistency', () => {
+  // Oracles: Chris's approved T1034 tuple and the reviewed pilot applicability contract, not
+  // production Codes constants. This synthetic C# input is independent of the actual producer.
+  const sourcePath = 'projections/dotnet/LayoutDefinitionAdmission.cs'
+  const source = [
+    'public static class LayoutDefinitionCodes', '{',
+    '    public const string BodyInvalid = "layout.definition.body_invalid";',
+    '    public const string Mirror = "layout.definition.body_invalid";', '}',
+  ].join('\n')
+  const sources = new Map([[sourcePath, source]])
+  const entry = () => ({
+    code: 'layout.definition.body_invalid',
+    when: 'A verified entry fails syntax or strict typed-body decode, not semantic admission.',
+    errorContract: {
+      owner: 'Layout', canonicalSource: `${sourcePath}#LayoutDefinitionCodes.BodyInvalid`,
+      meaning: 'One whole-entry refusal, skip its later checks, continue other entries and reject the pack.',
+      recovery: {category: 'correct_input', action: 'Correct the entry and resubmit; no automatic retry.'},
+      pointer: {applicability: 'required', relativeTo: 'layout-entry-payload', wholeDocument: true, examples: ['']},
+      target: {applicability: 'conditional', rule: 'Verified DefinitionId@Version only when safe, authorized and fetchable.'},
+      stage: {applicability: 'required', vocabulary: 'DefinitionAdmissionPhase', allowed: ['Install']},
+      presentation: {rule: 'Client-derived localized code; no exception Message/Path or submitted body.', arguments: []},
+    },
+  })
+  const diagnose = (row, inputs = sources) => errorContractPolicyErrors('pilot', [row], inputs)
+  const refuses = (mutate, expected) => {
+    const row = entry()
+    mutate(row)
+    assert.ok(diagnose(row).some(message => message.includes(expected)), expected)
+  }
+
+  assert.deepEqual(diagnose(entry()), [])
+  assert.deepEqual(errorContractPolicyErrors('legacy', undefined), [])
+  assert.deepEqual(errorContractPolicyErrors('legacy', [
+    {code: 'verification-outcome-missing', when: 'Existing published spelling.'},
+    {code: 'pack.install.refused.unsupported_content_kind.terminology_override', when: 'Existing variable-depth spelling.'},
+  ]), [])
+  for (const code of ['legacy-code', 'definition.missing', 'pack.install.refused.unsupported']) {
+    const row = entry()
+    row.code = code
+    const literal = source.replaceAll('layout.definition.body_invalid', code)
+    assert.deepEqual(diagnose(row, new Map([[sourcePath, literal]])), [], 'naming is guidance even for annotated published identities')
+  }
+
+  assert.ok(diagnose(entry(), new Map()).some(message => message.includes('one readable, unambiguous direct string literal')))
+  assert.ok(diagnose(entry(), new Map([[sourcePath, source.replaceAll('layout.definition.body_invalid', 'layout.definition.other')]])).some(message => message.includes('exact canonical source literal')))
+  assert.ok(diagnose(entry(), new Map([[sourcePath, source.replace('BodyInvalid', 'Other')]])).some(message => message.includes('one readable, unambiguous direct string literal')))
+  for (const ambiguous of [source + '\n' + source, source.replace('    public const string Mirror', '    public const string BodyInvalid')]) {
+    assert.ok(diagnose(entry(), new Map([[sourcePath, ambiguous]])).some(message => message.includes('one readable, unambiguous direct string literal')))
+  }
+  const computed = source.replace('"layout.definition.body_invalid";', '"layout.definition." + "body_invalid";')
+  assert.ok(diagnose(entry(), new Map([[sourcePath, computed]])).some(message => message.includes('one readable, unambiguous direct string literal')))
+  // F1: a literal in an inactive preprocessor branch is not an available compiled symbol.
+  // Reject directives conservatively rather than interpret C# conditions or configured symbols.
+  assert.deepEqual(diagnose(entry(), sources), [], 'ordinary direct source remains the positive control')
+  for (const conditional of [`#if false\n${source}\n#endif`, `#define PILOT\n#if PILOT\n${source}\n#endif`]) {
+    assert.ok(diagnose(entry(), new Map([[sourcePath, conditional]])).some(message => message.includes('one readable, unambiguous direct string literal')))
+  }
+  const commented = '// public class LayoutDefinitionCodes { fake }\n' + source.replace('    public const string Mirror', '    /* direct literal only */ public const string Mirror')
+  assert.deepEqual(diagnose(entry(), new Map([[sourcePath, commented]])), [])
+  for (const unsupported of [
+    source.replace('    public const string BodyInvalid', '    const string BodyInvalid'),
+    ['public static class LayoutDefinitionCodes', '{', '    public static class Nested', '    {',
+      '        public const string BodyInvalid = "layout.definition.body_invalid";', '    }', '}',
+    ].join('\n'),
+    source + '\npublic class Other\n{\n    public const string Raw = """not a bounded source""";\n}',
+  ]) {
+    assert.ok(diagnose(entry(), new Map([[sourcePath, unsupported]])).some(message => message.includes('one readable, unambiguous direct string literal')))
+  }
+  for (const reference of ['../outside.cs#Codes.Value', '/absolute.cs#Codes.Value', 'C:/outside.cs#Codes.Value', 'a\\outside.cs#Codes.Value', 'a/./outside.cs#Codes.Value', 'a//outside.cs#Codes.Value', `${sourcePath}#LayoutDefinitionCodes.BodyInvalid\n`]) {
+    refuses(row => { row.errorContract.canonicalSource = reference }, 'safe repository-relative')
+  }
+  refuses(row => { row.code = 'Layout.definition.body_invalid' }, 'exact canonical source literal')
+  refuses(row => { row.errorContract = null }, 'must be an object')
+  refuses(row => { delete row.errorContract.meaning }, 'meaning must be nonblank')
+  refuses(row => { delete row.errorContract.recovery }, 'recovery must declare')
+  refuses(row => { row.errorContract.recovery.action = ' ' }, 'recovery must declare nonblank')
+  refuses(row => { row.errorContract.recovery.category = '' }, 'recovery must declare nonblank')
+  const explicitCategory = entry()
+  explicitCategory.errorContract.recovery.category = 'caller_declared_category'
+  assert.deepEqual(diagnose(explicitCategory), [], 'there is no global or prefix-derived recovery enum')
+
+  refuses(row => { delete row.errorContract.pointer.relativeTo }, 'coordinate base')
+  refuses(row => { row.errorContract.pointer.examples = ['/'] }, 'wholeDocument attribution')
+  for (const pointer of ['bare', '\n', '/bad~', '/bad~2']) {
+    refuses(row => { row.errorContract.pointer = {applicability: 'required', relativeTo: 'entry', wholeDocument: false, examples: [pointer]} }, 'not an RFC6901 pointer')
+  }
+  const memberPointers = entry()
+  memberPointers.errorContract.pointer = {applicability: 'optional', relativeTo: 'entry', wholeDocument: false, examples: ['/', '/a~1b/~0', '/~01']}
+  assert.deepEqual(diagnose(memberPointers), [], 'slash is an empty-name member; escaping is syntax, not resolution')
+  const notApplicable = entry()
+  notApplicable.errorContract.pointer = {applicability: 'not-applicable', reason: 'No implicated document in this synthetic contract.'}
+  notApplicable.errorContract.target = {applicability: 'not-applicable', reason: 'No safe fetchable target.'}
+  notApplicable.errorContract.stage = {applicability: 'not-applicable', reason: 'This synthetic boundary is not stage-bearing.'}
+  assert.deepEqual(diagnose(notApplicable), [])
+  notApplicable.errorContract.pointer.examples = ['']
+  assert.ok(diagnose(notApplicable).some(message => message.includes('omit document coordinates and examples')))
+  refuses(row => { row.errorContract.pointer = {applicability: 'not-applicable'} }, 'pointer needs a reason')
+  refuses(row => { row.errorContract.pointer.examples = [] }, 'explicit RFC6901 examples')
+  refuses(row => { delete row.errorContract.pointer.wholeDocument }, 'declare wholeDocument explicitly')
+  refuses(row => { delete row.errorContract.target.rule }, 'disclosure rule')
+  refuses(row => { row.errorContract.target = {applicability: 'not-applicable', reason: 'No target.', rule: 'A contradictory target.'} }, 'omit its applicable fields')
+  refuses(row => { delete row.errorContract.stage.vocabulary }, 'actual vocabulary')
+  refuses(row => { row.errorContract.stage = {applicability: 'not-applicable'} }, 'stage needs a reason')
+  refuses(row => { row.errorContract.stage.allowed = ['Decode'] }, 'outside the declared DefinitionAdmissionPhase vocabulary')
+  refuses(row => { row.errorContract.stage.allowed = [] }, 'explicit allowed values')
+  refuses(row => { row.errorContract.presentation.arguments = [{name: 'exception.Message'}] }, 'only empty presentation arguments')
+  refuses(row => { row.errorContract.presentation.detail = {payload: 'private'} }, 'outside this bounded metadata pilot')
+  refuses(row => { row.errorContract.presentation.rule = '' }, 'presentation needs a safe rule')
+
+  const mirror = entry()
+  mirror.errorContract = {...mirror.errorContract, recovery: {action: 'Correct the entry and resubmit; no automatic retry.', category: 'correct_input'}}
+  assert.deepEqual(errorContractPolicyErrors('pilot', [entry(), mirror], sources), [], 'canonical mirrors are not blanket duplicate-code failures')
+  for (const mutate of [
+    row => { row.errorContract.meaning = 'Different meaning.' },
+    row => { row.errorContract.recovery.category = 'different_category' },
+    row => { row.errorContract.pointer.relativeTo = 'outer-http-request' },
+    row => { row.errorContract.target.rule = 'Different disclosure rule.' },
+    row => { row.errorContract.stage.allowed = ['Publish'] },
+    row => { row.errorContract.canonicalSource = `${sourcePath}#LayoutDefinitionCodes.Mirror` },
+  ]) {
+    const conflict = entry()
+    mutate(conflict)
+    assert.ok(errorContractPolicyErrors('pilot', [entry(), conflict], sources).some(message => message.includes('conflicting')), 'conflicting meaning/canonical metadata must not silently merge')
+  }
 })

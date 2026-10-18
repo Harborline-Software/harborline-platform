@@ -7,7 +7,7 @@ import { dirname, relative, resolve } from 'node:path'
 
 import { npmPackageContributionErrors } from './package-contribution-policy.mjs'
 import {requiredStepIds} from './gate-contract.mjs'
-import {moduleStatusErrors,
+import {errorContractPolicyErrors, moduleStatusErrors,
   allowedPresentationDispositions, dependencylessVitestConfigError, interfaceDependencyMismatch, isGateFailureEvidence, npmPublicDistributionAuthorized, nugetPublicDistributionAuthorized, presentationPolicyErrors, requiresQualityProfile, retiredProvenanceFieldErrors, rootScopedThemeAliasError, themingPolicyErrors} from './validator-policy.mjs'
 import {uiClassVocabularyErrors} from './ui-class-vocabulary.mjs'
 import {validateGallery} from './validate-gallery.mjs'
@@ -228,6 +228,28 @@ for (const [moduleId, module] of Object.entries(catalog.modules ?? {})) {
     const moduleInterface = load(module.interface.path)
     if (moduleInterface.moduleId !== moduleId) errors.push(`${moduleId}: interface module mismatch`)
     if (moduleInterface.interfaceRevision !== module.interface.revision) errors.push(`${moduleId}: interface revision mismatch`)
+    const errorContractSources = new Map()
+    for (const row of Array.isArray(moduleInterface.errors) ? moduleInterface.errors : []) {
+      const reference = row?.errorContract?.canonicalSource
+      const sourceMatch = typeof reference === 'string'
+        ? /^((?:[A-Za-z0-9_-][A-Za-z0-9_.-]*\/)*[A-Za-z0-9_-][A-Za-z0-9_.-]*\.cs)#[A-Za-z_]\w*\.[A-Za-z_]\w*$/.exec(reference) : null
+      const sourcePath = sourceMatch && sourceMatch[0] === reference ? sourceMatch[1] : undefined
+      if (!sourcePath || errorContractSources.has(sourcePath)) continue
+      try {
+        // Walk only the declared relative path and reject symlinks before reading source text.
+        let directory = root
+        const segments = sourcePath.split('/')
+        for (const [index, segment] of segments.entries()) {
+          const entry = readdirSync(directory, {withFileTypes: true}).find(value => value.name === segment)
+          if (!entry || entry.isSymbolicLink() || (index < segments.length - 1 ? !entry.isDirectory() : !entry.isFile())) throw new Error('canonical source unavailable')
+          directory = resolve(directory, segment)
+        }
+        errorContractSources.set(sourcePath, readFileSync(directory, 'utf8'))
+      } catch {
+        // The pure predicate diagnoses an unreadable input without an exception message or path.
+      }
+    }
+    errors.push(...errorContractPolicyErrors(moduleId, moduleInterface.errors, errorContractSources))
     const fixturePath = `conformance/${moduleId}/fixtures.yaml`
     if (exists(fixturePath)) {
       try {
