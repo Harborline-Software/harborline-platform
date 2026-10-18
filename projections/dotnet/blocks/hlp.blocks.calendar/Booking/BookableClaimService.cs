@@ -11,7 +11,7 @@ public sealed record BookableClaimResource(ParticipantRef Resource, BookingResou
 /// <summary>Stable refusal codes of a Bookable claim (T-606).</summary>
 public static class BookableClaimCodes
 {
-    /// <summary>The window is not a positive exact whole-minute duration declared by the Bookable.</summary>
+    /// <summary>The window is not a positive exact whole-minute duration declared by the Bookable, or the availability runtime refuses the window.</summary>
     public const string WindowInvalid = "booking.claim.window_invalid";
     /// <summary>A Resource the Bookable requires has no resolved supplier, or it requires none.</summary>
     public const string RequirementUnresolved = "booking.claim.requirement_unresolved";
@@ -120,7 +120,7 @@ public sealed class BookableClaimService
 
         var durationTicks = (endUtc - startUtc).Ticks;
         if (durationTicks <= 0 || !bookable.DurationIntervalsMinutes.Any(minutes =>
-                minutes > 0 && durationTicks == minutes * TimeSpan.TicksPerMinute))
+                durationTicks == minutes * TimeSpan.TicksPerMinute))
             return BookableClaimOutcome.Refused(BookableClaimCodes.WindowInvalid);
 
         var capacities = required.Select(Capacity).ToArray();
