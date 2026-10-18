@@ -100,6 +100,9 @@ public sealed class RecordReadOperation
         var fields = new Dictionary<string, JsonNode?>(StringComparer.Ordinal);
         try
         {
+            if (!System.Text.Unicode.Utf8.IsValid(body))
+                throw new InvalidDataException("The committed record body is not a JSON object.");
+
             var parsed = JsonNode.Parse(body) as JsonObject
                 ?? throw new InvalidDataException("The committed record body is not a JSON object.");
             foreach (var member in parsed) fields.Add(member.Key, member.Value?.DeepClone());

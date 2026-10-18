@@ -281,16 +281,21 @@ public sealed class RecordReadOperationTests
     }
 
     [Theory]
-    [InlineData(true)]
-    [InlineData(false)]
-    public async Task lazy_duplicate_or_invalid_utf8_members_are_safe_corruption_before_authorization(bool duplicate)
+    [InlineData("duplicate")]
+    [InlineData("invalid-name")]
+    [InlineData("invalid-value")]
+    public async Task lazy_duplicate_or_invalid_utf8_members_are_safe_corruption_before_authorization(string bodyCase)
     {
         var fixture = await Published();
-        // The second literal is {"<invalid UTF8>":1}; materializing its member name must not
-        // escape the same corruption boundary as a duplicate dictionary member.
-        byte[] body = duplicate
-            ? Encoding.UTF8.GetBytes("""{"a":1,"a":2}""")
-            : [0x7b, 0x22, 0xc3, 0x28, 0x22, 0x3a, 0x31, 0x7d];
+        // Invalid string values can remain undecoded through lazy JSON field projection.
+        // Both invalid encodings must refuse before authorization, like duplicate members.
+        byte[] body = bodyCase switch
+        {
+            "duplicate" => Encoding.UTF8.GetBytes("""{"a":1,"a":2}"""),
+            "invalid-name" => [0x7b, 0x22, 0xc3, 0x28, 0x22, 0x3a, 0x31, 0x7d],
+            "invalid-value" => [0x7b, 0x22, 0x61, 0x22, 0x3a, 0x22, 0xc3, 0x28, 0x22, 0x7d],
+            _ => throw new ArgumentOutOfRangeException(nameof(bodyCase)),
+        };
         var expectedBody = body.ToArray();
         fixture.Store.Rows[0] = fixture.Store.Rows[0] with { Body = body };
 
