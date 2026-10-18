@@ -166,6 +166,89 @@ public sealed class FileJournalRecordReadStoreTests : IDisposable
     }
 
     [Fact]
+    public async Task a_literal_utf8_bom_is_corruption_for_current_open_and_receipt_reads_without_rewriting()
+    {
+        var store = new FileJournalRecordWriteStore(PathName);
+        await using var transaction = await Stage(store, Row("Record-7", "operation-a", new("schema:fixture")));
+        var committed = await transaction.CommitAsync();
+        Assert.Equal(RecordWriteCommitDisposition.Created, committed.Disposition);
+        var original = File.ReadAllBytes(PathName);
+        Assert.Equal("operation-a", (await store.FindAsync(Tenant, "Record-7"))!.OperationId);
+        var prefixed = new byte[original.Length + 3];
+        prefixed[0] = 0xef;
+        prefixed[1] = 0xbb;
+        prefixed[2] = 0xbf;
+        original.CopyTo(prefixed, 3);
+        File.WriteAllBytes(PathName, prefixed);
+
+        var current = await Assert.ThrowsAsync<InvalidDataException>(() => store.FindAsync(Tenant, "Record-7").AsTask());
+        var opening = Assert.Throws<InvalidDataException>(() => new FileJournalRecordWriteStore(PathName));
+        var receipt = await Assert.ThrowsAsync<InvalidDataException>(
+            () => store.FindAsync(new RecordWriteOperationKey(Tenant, Actor, "operation-a")).AsTask());
+
+        Assert.Equal("Records journal is invalid.", current.Message);
+        Assert.Equal("Records journal is invalid.", opening.Message);
+        Assert.Equal("Records journal is invalid.", receipt.Message);
+        Assert.Null(current.InnerException);
+        Assert.Null(opening.InnerException);
+        Assert.Null(receipt.InnerException);
+        Assert.Equal(prefixed, File.ReadAllBytes(PathName));
+        File.WriteAllBytes(PathName, original);
+        Assert.Equal("operation-a", (await store.FindAsync(Tenant, "Record-7"))!.OperationId);
+        Assert.Equal(committed.Receipt, (await store.FindAsync(new RecordWriteOperationKey(Tenant, Actor, "operation-a")))!.Receipt);
+        Assert.Equal(original, File.ReadAllBytes(PathName));
+    }
+
+    [Fact]
+    public async Task cancellation_after_an_incomplete_real_file_read_propagates_and_releases_the_same_stores_semaphore()
+    {
+        var writer = new FileJournalRecordWriteStore(PathName);
+        await using var transaction = await Stage(writer, Row("Record-7", "operation-a", new("schema:fixture")));
+        var committed = await transaction.CommitAsync();
+        Assert.Equal(RecordWriteCommitDisposition.Created, committed.Disposition);
+        var original = File.ReadAllBytes(PathName);
+        const int paddedLength = 1048576; // Literal lawful 1MiB fixture, below the separate16MiB cap.
+        Assert.True(original.Length < paddedLength);
+        var journal = new byte[paddedLength];
+        original.CopyTo(journal, 0);
+        journal.AsSpan(original.Length).Fill((byte)' ');
+        File.WriteAllBytes(PathName, journal);
+        Assert.Equal("operation-a", (await writer.FindAsync(Tenant, "Record-7"))!.OperationId);
+
+        using var cancellation = new CancellationTokenSource();
+        long firstObservedBytes = 0;
+        var callbacks = 0;
+        var store = new FileJournalRecordWriteStore(PathName, consumed =>
+        {
+            callbacks++;
+            if (callbacks != 1) return;
+            firstObservedBytes = consumed;
+            Assert.False(cancellation.IsCancellationRequested);
+            Assert.True(firstObservedBytes > 0 && firstObservedBytes < journal.LongLength);
+            // This is after actual FileStream IO, with unread bytes remaining, not a timer or
+            // a pre-cancelled token. If a runtime reads the whole fixture at once, the test fails.
+            cancellation.Cancel();
+        });
+        Assert.Equal(0, callbacks); // Constructor/open did not invoke the current-read observer.
+        Assert.False(cancellation.IsCancellationRequested);
+
+        var error = await Assert.ThrowsAnyAsync<OperationCanceledException>(
+            () => store.FindAsync(Tenant, "Record-7", cancellation.Token).AsTask());
+
+        Assert.Equal(cancellation.Token, error.CancellationToken);
+        Assert.Equal(1, callbacks);
+        Assert.True(firstObservedBytes > 0 && firstObservedBytes < journal.LongLength);
+        Assert.Equal(journal, File.ReadAllBytes(PathName));
+        Assert.Equal("operation-a", (await store.FindAsync(Tenant, "Record-7", CancellationToken.None))!.OperationId);
+        Assert.True(callbacks > 1); // The one-shot cancellation does not suppress the later real read.
+        var afterRecovery = callbacks;
+        Assert.Equal(committed.Receipt, (await store.FindAsync(new RecordWriteOperationKey(Tenant, Actor, "operation-a")))!.Receipt);
+        Assert.Equal(afterRecovery, callbacks); // Receipt lookup still uses the original whole Load path.
+        Assert.Equal("operation-a", (await new FileJournalRecordWriteStore(PathName).FindAsync(Tenant, "Record-7"))!.OperationId);
+        Assert.Equal(journal, File.ReadAllBytes(PathName));
+    }
+
+    [Fact]
     public async Task invalid_committed_json_uses_corruption_before_gate_and_leaves_journal_bytes_unchanged()
     {
         var fixture = await Published();

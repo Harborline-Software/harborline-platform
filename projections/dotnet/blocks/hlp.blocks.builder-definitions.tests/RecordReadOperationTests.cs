@@ -280,6 +280,31 @@ public sealed class RecordReadOperationTests
         Assert.Empty(fixture.Catalogue.Pins);
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task lazy_duplicate_or_invalid_utf8_members_are_safe_corruption_before_authorization(bool duplicate)
+    {
+        var fixture = await Published();
+        // The second literal is {"<invalid UTF8>":1}; materializing its member name must not
+        // escape the same corruption boundary as a duplicate dictionary member.
+        byte[] body = duplicate
+            ? Encoding.UTF8.GetBytes("""{"a":1,"a":2}""")
+            : [0x7b, 0x22, 0xc3, 0x28, 0x22, 0x3a, 0x31, 0x7d];
+        var expectedBody = body.ToArray();
+        fixture.Store.Rows[0] = fixture.Store.Rows[0] with { Body = body };
+
+        var error = await Assert.ThrowsAsync<InvalidDataException>(
+            () => fixture.Operation.ReadAsync(new(Tenant, Actor), new(RecordId)).AsTask());
+
+        Assert.Equal("The committed record body is not a JSON object.", error.Message);
+        Assert.Null(error.InnerException);
+        Assert.Equal(["lookup"], fixture.Events);
+        Assert.Empty(fixture.Gate.Requests);
+        Assert.Empty(fixture.Catalogue.Pins);
+        Assert.Equal(expectedBody, fixture.Store.Rows[0].Body.ToArray());
+    }
+
     [Fact]
     public async Task returned_bytes_are_detached_from_the_store_and_from_a_later_read()
     {

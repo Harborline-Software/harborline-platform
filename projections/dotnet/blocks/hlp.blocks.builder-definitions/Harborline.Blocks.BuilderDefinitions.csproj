@@ -33,4 +33,7 @@
     <None Include="../../../../_shared/packs/platform/platform-pack.export.json" Pack="true" PackagePath="_shared/packs/platform/" />
     <None Include="../../../../LICENSE" Link="LICENSE" Pack="true" PackagePath="/" />
   </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Harborline.Blocks.BuilderDefinitions.Tests" />
+  </ItemGroup>
 </Project>

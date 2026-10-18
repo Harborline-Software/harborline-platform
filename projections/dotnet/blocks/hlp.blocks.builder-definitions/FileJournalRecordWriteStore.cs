@@ -12,6 +12,9 @@ namespace Harborline.Blocks.BuilderDefinitions;
 /// A lost Created result followed by a retry could create a second record; BCL-only code cannot close this T-619 adapter gap.
 /// A missing journal directory reads as empty and commit recreates it; this remains an owner decision.
 /// External Windows handles can refuse replacement; the commit fails without changing the journal.
+/// Constructor/open, receipt lookup and commit still load the whole journal without a byte cap.
+/// Only current-row lookup is bounded to 16 MiB; a larger journal refuses as corrupt even if otherwise valid.
+/// Current lookup remains an O(N) scan and neither refusal nor cancellation resets or rewrites the journal.
 /// </remarks>
 public sealed class FileJournalRecordWriteStore : IKernelPreparedTransactionPort<RecordWriteRow, RecordWriteCommit>, IRecordWriteReceiptReader, IRecordReadStore
 {
@@ -27,6 +30,7 @@ public sealed class FileJournalRecordWriteStore : IKernelPreparedTransactionPort
         Converters = { new SchemaConverter() },
     };
     private readonly string _path;
+    private readonly Action<long>? _currentReadProgress;
 
     /// <summary>Opens the journal, refusing corrupt content without resetting it.</summary>
     public FileJournalRecordWriteStore(string path)
@@ -36,6 +40,14 @@ public sealed class FileJournalRecordWriteStore : IKernelPreparedTransactionPort
         Mutation.Wait();
         try { _ = Load(); }
         finally { Mutation.Release(); }
+    }
+
+    /// <summary>Observes positive actual async-read progress for isolated current-read verification.</summary>
+    /// <param name="path">The same real journal path the public constructor opens.</param>
+    /// <param name="currentReadProgress">Per-instance observation after positive current-read IO, before its token check.</param>
+    internal FileJournalRecordWriteStore(string path, Action<long> currentReadProgress) : this(path)
+    {
+        _currentReadProgress = currentReadProgress ?? throw new ArgumentNullException(nameof(currentReadProgress));
     }
 
     /// <inheritdoc />
@@ -147,7 +159,7 @@ public sealed class FileJournalRecordWriteStore : IKernelPreparedTransactionPort
         await using (stream)
         {
             if (stream.Length > MaxCurrentReadBytes) throw new InvalidDataException("Records journal is invalid.");
-            await using var bounded = new CurrentReadStream(stream, MaxCurrentReadBytes);
+            await using var bounded = new CurrentReadStream(stream, MaxCurrentReadBytes, _currentReadProgress);
             try
             {
                 var journal = await JsonSerializer.DeserializeAsync<Journal>(bounded, Json, cancellationToken).ConfigureAwait(false);
@@ -181,9 +193,10 @@ public sealed class FileJournalRecordWriteStore : IKernelPreparedTransactionPort
 
     // Bound bytes actually consumed as well as the opening length, including a journal that grows
     // externally while read. The extra byte distinguishes an exactly-at-limit EOF from oversize.
-    private sealed class CurrentReadStream(Stream inner, long limit) : Stream
+    private sealed class CurrentReadStream(Stream inner, long limit, Action<long>? progress) : Stream
     {
         private long _consumed;
+        private int _bomBytesMatched;
         public override bool CanRead => inner.CanRead;
         public override bool CanSeek => false;
         public override bool CanWrite => false;
@@ -197,7 +210,7 @@ public sealed class FileJournalRecordWriteStore : IKernelPreparedTransactionPort
         public override int Read(Span<byte> buffer)
         {
             var count = inner.Read(buffer[..(int)Math.Min(buffer.Length, limit - _consumed + 1)]);
-            return Count(count);
+            return Count(buffer[..count]);
         }
         public override Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
             => ReadAsync(buffer.AsMemory(offset, count), cancellationToken).AsTask();
@@ -206,14 +219,24 @@ public sealed class FileJournalRecordWriteStore : IKernelPreparedTransactionPort
             cancellationToken.ThrowIfCancellationRequested();
             var count = await inner.ReadAsync(buffer[..(int)Math.Min(buffer.Length, limit - _consumed + 1)], cancellationToken)
                 .ConfigureAwait(false);
+            if (count > 0) progress?.Invoke(_consumed + count);
             cancellationToken.ThrowIfCancellationRequested();
-            return Count(count);
+            return Count(buffer.Span[..count]);
         }
-        private int Count(int count)
+        private int Count(ReadOnlySpan<byte> bytes)
         {
-            _consumed += count;
+            _consumed += bytes.Length;
             if (_consumed > limit) throw new InvalidDataException("Records journal is invalid.");
-            return count;
+            // DeserializeAsync can consume a BOM that the existing byte-array Load rejects.
+            // Match only the initial three bytes, retaining progress across short reads.
+            ReadOnlySpan<byte> bom = [0xef, 0xbb, 0xbf];
+            foreach (var value in bytes)
+            {
+                if (_bomBytesMatched < 0) break;
+                if (value != bom[_bomBytesMatched]) { _bomBytesMatched = -1; break; }
+                if (++_bomBytesMatched == bom.Length) throw new InvalidDataException("Records journal is invalid.");
+            }
+            return bytes.Length;
         }
     }
 

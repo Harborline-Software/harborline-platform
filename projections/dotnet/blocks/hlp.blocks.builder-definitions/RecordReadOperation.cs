@@ -97,18 +97,17 @@ public sealed class RecordReadOperation
 
         // Authorization and the result describe one detached snapshot even if a store exposes an array-backed memory.
         var body = row.Body.ToArray();
-        JsonObject parsed;
+        var fields = new Dictionary<string, JsonNode?>(StringComparer.Ordinal);
         try
         {
-            parsed = JsonNode.Parse(body) as JsonObject
+            var parsed = JsonNode.Parse(body) as JsonObject
                 ?? throw new InvalidDataException("The committed record body is not a JSON object.");
+            foreach (var member in parsed) fields.Add(member.Key, member.Value?.DeepClone());
         }
-        catch (JsonException)
+        catch (Exception error) when (error is JsonException or ArgumentException or InvalidOperationException)
         {
             throw new InvalidDataException("The committed record body is not a JSON object.");
         }
-        var fields = new Dictionary<string, JsonNode?>(StringComparer.Ordinal);
-        foreach (var member in parsed) fields.Add(member.Key, member.Value?.DeepClone());
         var access = await _access.CheckWithEvidenceAsync(new AccessRequest(ReadAct, scope.ActorId, scope.Tenant,
             new AccessRecord(scope.Tenant, RecordCreationAuthorization.RecordKind, row.RecordId,
                 new ReadOnlyDictionary<string, JsonNode?>(fields)) { RecordTypeId = row.RecordTypeId }, instant),
