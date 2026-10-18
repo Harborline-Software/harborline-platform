@@ -227,8 +227,9 @@ public sealed class RecordWriteFieldRuntimeTests
         Assert.True(replay.Replayed);
         Assert.Equal(first.Receipt, replay.Receipt);
         Assert.Equal(reads, fixture.Source.Opens);
-        Assert.Single(fixture.Port.Rows);
-        Assert.Equal("""{"amount":3.0,"status":"A"}""", Encoding.UTF8.GetString(original.Body.Span));
+        var stored = Assert.Single(fixture.Port.Rows);
+        Assert.Equal("""{"amount":3.0,"status":"A"}""", Encoding.UTF8.GetString(stored.Body.Span));
+        Assert.Equal("1.0.0", stored.Version);
         fixture.Source.Poison = null;
         Refused(await fixture.WriteAsync("new-head-bad", """{"status":"A","amount":3}"""), "/status");
         var latest = await fixture.WriteAsync("new-head-good", """{"status":"B","amount":3}""");
@@ -267,6 +268,34 @@ public sealed class RecordWriteFieldRuntimeTests
         Assert.Equal(reads, fixture.Source.Opens);
         Assert.Single(fixture.Port.Rows);
         Assert.Single(fixture.Port.Audits);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task an_unbindable_kind_refuses_before_any_domain_read_on_both_write_entries(bool accepted)
+    {
+        var fixture = await Fixture.CreateAsync(accepted: accepted);
+        // The published type admitted text@1.0.0; this operation's kind runtime admits only amount@1.0.0, so Bind refuses.
+        var unbindable = new RecordWriteOperation(new AccessProvider(fixture.Gate), fixture.Records, fixture.Registry,
+            fixture.Port, fixture.Port, fixture.Clock,
+            new FieldKindRuntime(new FieldKindRegistry([new("amount", "1.0.0", null, FieldScalarValueShape.Number)])),
+            fixture.Domains);
+
+        Refused(await fixture.WriteAsync("kind-unbound", """{"status":"A"}""", via: unbindable), "/status");
+        Assert.Equal(["begin", "rollback", "dispose"], fixture.Port.Events);
+        Assert.Empty(fixture.Port.Rows);
+        Assert.Empty(fixture.Port.Audits);
+        // The domain path was never reached: neither the source nor the read authority was consulted.
+        Assert.Equal(0, fixture.Source.Opens);
+        Assert.Empty(fixture.Reads.Scopes);
+        Assert.Empty(fixture.Reads.Members);
+
+        // The same body through the compiler's own kind runtime passes the domain path and commits.
+        fixture.Port.Events.Clear();
+        Assert.True((await fixture.WriteAsync("kind-bound", """{"status":"A"}""")).Committed);
+        Assert.Equal(["A", "B"], fixture.Reads.Members);
+        Assert.Equal("""{"status":"A"}""", Encoding.UTF8.GetString(Assert.Single(fixture.Port.Rows).Body.Span));
     }
 
     [Fact]
@@ -364,10 +393,12 @@ public sealed class RecordWriteFieldRuntimeTests
             await Records.PublishAsync(Tenant, Type, "1.1.0", 3, "next-publish");
         }
 
-        public Task<RecordWriteOutcome> WriteAsync(string operation, string json, CancellationToken cancellationToken = default)
+        public Task<RecordWriteOutcome> WriteAsync(string operation, string json, CancellationToken cancellationToken = default,
+            RecordWriteOperation? via = null)
         {
+            var target = via ?? Operation;
             var body = Body(json);
-            if (!Accepted) return Operation.CreateAsync(new(Tenant, Actor), new(Type, operation, body), cancellationToken).AsTask();
+            if (!Accepted) return target.CreateAsync(new(Tenant, Actor), new(Type, operation, body), cancellationToken).AsTask();
             var acceptance = AuthoritySnapshotEncoding.Encode(new AuthorizationDecisionEvidence(
                 new AccessRequest("forms:submit-gate", "submitter-1", Tenant,
                     new AccessRecord(Tenant, "form", "capture@1.0.0", new Dictionary<string, JsonNode?>()), At),
@@ -375,7 +406,7 @@ public sealed class RecordWriteFieldRuntimeTests
             var command = new AcceptedRecordCreate(Tenant, "command-" + operation, "submitter-1", operation, Type, body,
                 "records-write-intent/1", RecordWriteIntent.Digest(RecordWriteIntent.Encode(Type, null, body)),
                 "capture@1.0.0", "acceptance-1", At, At, acceptance);
-            return Operation.CompleteAcceptedAsync(new(Tenant, Worker), command, cancellationToken).AsTask();
+            return target.CompleteAcceptedAsync(new(Tenant, Worker), command, cancellationToken).AsTask();
         }
     }
 
