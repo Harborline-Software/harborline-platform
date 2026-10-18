@@ -1,3 +1,5 @@
+using System.Text.Json;
+
 namespace Harborline.Blocks.BuilderDefinitions;
 
 /// <summary>
@@ -5,6 +7,8 @@ namespace Harborline.Blocks.BuilderDefinitions;
 /// or invalid entry refuses the entire pack: Layout content is never skipped, its requirement never
 /// stripped, and it is never down-converted to fit an older host. Every entry's refusals are
 /// reported in the shared envelope at the install stage (T-583 item 2, T-724 rulings 61 and 79).
+/// An entry whose payload cannot be decoded as a Layout definition refuses once with
+/// <see cref="LayoutDefinitionCodes.BodyInvalid"/> and no pointer, and is not validated further (T-1034).
 /// </summary>
 public static class LayoutPackHostAdmission
 {
@@ -12,7 +16,7 @@ public static class LayoutPackHostAdmission
     /// <param name="entries">The pack's Layout entries.</param>
     /// <param name="hostCapabilities">The capabilities this host provides, by id, with the platform version providing each.</param>
     /// <param name="registers">This host's registers, or the platform grammar when omitted; a kind the register lacks refuses rather than rendering blank.</param>
-    /// <exception cref="DefinitionRefusalException">At <see cref="DefinitionAdmissionPhase.Install"/>, with every refusal of every entry, each targeting its entry as <c>id@version</c>; nothing is admitted.</exception>
+    /// <exception cref="DefinitionRefusalException">At <see cref="DefinitionAdmissionPhase.Install"/>, with every refusal of every entry, each targeting its entry as <c>id@version</c>; nothing is admitted. An entry whose payload cannot be decoded as a Layout definition contributes exactly one <see cref="LayoutDefinitionCodes.BodyInvalid"/> refusal with an empty pointer and none of its decoder detail or payload text, and its validation and capability checks are skipped.</exception>
     public static void Admit(
         IEnumerable<LayoutDefinitionPackageEntry> entries,
         IReadOnlyDictionary<string, string> hostCapabilities,
@@ -26,7 +30,18 @@ public static class LayoutPackHostAdmission
         {
             // The installer supplied this entry, so naming it back is safe (T-724 ruling 61).
             var target = $"{entry.DefinitionId}@{entry.Version}";
-            var definition = LayoutDefinitionJson.Deserialize(entry.Content.Payload.Span);
+            LayoutDefinition definition;
+            try
+            {
+                definition = LayoutDefinitionJson.Deserialize(entry.Content.Payload.Span);
+            }
+            catch (JsonException)
+            {
+                // T-1034: never echo the decoder's path, message or the payload text.
+                refusals.Add(new(LayoutDefinitionCodes.BodyInvalid, "", target));
+                continue;
+            }
+
             try
             {
                 LayoutDefinitionAdmission.Validate(definition, DefinitionAdmissionPhase.Install, registers ?? LayoutHostRegisters.Platform, author: null);
