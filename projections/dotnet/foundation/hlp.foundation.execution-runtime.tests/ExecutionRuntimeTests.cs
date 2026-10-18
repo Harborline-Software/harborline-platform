@@ -371,7 +371,18 @@ public sealed class ExecutionRuntimeTests
         Assert.Equal(started, done.CreatedUtc);
         Assert.Equal(clock.GetUtcNow(), done.UpdatedUtc);
         Assert.Equal(new RunAttempt(1, started + TimeSpan.FromSeconds(1), clock.GetUtcNow(), null), Assert.Single(done.Attempts));
-        Assert.Equal(done, await store.GetAsync(Tenant, run.Id));
+        var stored = Assert.IsType<RunRecord>(await store.GetAsync(Tenant, run.Id));
+        Assert.Equal(run.Id, stored.Id);
+        Assert.Equal(Tenant, stored.TenantId);
+        Assert.Equal(RunStatus.Succeeded, stored.Status);
+        Assert.Equal(RetryProfileName.ExternalApiStandard, stored.RetryProfile);
+        Assert.Null(stored.CausedBy);
+        Assert.Equal(new RunAttempt(1, started + TimeSpan.FromSeconds(1), clock.GetUtcNow(), null), Assert.Single(stored.Attempts));
+        Assert.Null(stored.NextAttemptDueUtc);
+        Assert.Null(stored.DeadLetter);
+        Assert.Equal(started, stored.CreatedUtc);
+        Assert.Equal(clock.GetUtcNow(), stored.UpdatedUtc);
+        Assert.Equal(3, stored.Version);
     }
 
     [Fact(DisplayName = "T-528 S1: the store refuses a duplicate, an unknown run and a stale or skipped version")]
