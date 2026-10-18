@@ -189,7 +189,7 @@ public sealed class InMemoryEffectReceiptStore : IEffectReceiptStore
     {
         ArgumentNullException.ThrowIfNull(receipt);
         cancellationToken.ThrowIfCancellationRequested();
-        if (!_receipts.TryAdd((receipt.TenantId, receipt.EffectId), receipt))
+        if (!_receipts.TryAdd((receipt.TenantId, receipt.EffectId), Snapshot(receipt)))
         {
             throw new ExecutionRuntimeRefusedException(
                 ExecutionRuntimeRefusals.EffectReceiptDuplicate,
@@ -203,8 +203,15 @@ public sealed class InMemoryEffectReceiptStore : IEffectReceiptStore
     public ValueTask<EffectReceipt?> GetAsync(TenantId tenantId, EffectId effectId, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        return ValueTask.FromResult(_receipts.GetValueOrDefault((tenantId, effectId)));
+        var receipt = _receipts.GetValueOrDefault((tenantId, effectId));
+        return ValueTask.FromResult(receipt is null ? null : Snapshot(receipt));
     }
+
+    private static EffectReceipt Snapshot(EffectReceipt receipt) => receipt with
+    {
+        Attempts = receipt.Attempts?.ToArray()!,
+        SecretReferenceIds = receipt.SecretReferenceIds?.ToArray()!,
+    };
 }
 
 /// <summary>

@@ -51,8 +51,8 @@ public sealed class CompensationReceiptTests
         await ledger.RecordAsync(TargetReceipt());
         await ledger.CheckCompensationAsync(Tenant, Original);
 
-        Assert.Same(original, await ledger.GetAsync(Tenant, Original));
-        Assert.Same(otherTenantTarget, await ledger.GetAsync(OtherTenant, Compensation));
+        AssertReceiptValues(original, await ledger.GetAsync(Tenant, Original));
+        AssertReceiptValues(otherTenantTarget, await ledger.GetAsync(OtherTenant, Compensation));
     }
 
     [Theory]
@@ -70,7 +70,7 @@ public sealed class CompensationReceiptTests
         Assert.Equal(
             "execution.effect_receipt_invalid: Compensation receipt 'compensation-c' does not identify original effect 'original-a' in the same tenant.",
             refused.Message);
-        Assert.Same(legacyTarget, await ledger.GetAsync(Tenant, Compensation));
+        AssertReceiptValues(legacyTarget, await ledger.GetAsync(Tenant, Compensation));
         Assert.Null(legacyTarget.CompensatesEffectId);
     }
 
@@ -289,7 +289,7 @@ public sealed class CompensationReceiptTests
         var ledger = new EffectReceiptLedger(new InMemoryEffectReceiptStore());
         var target = await ledger.RecordAsync(TargetReceipt());
 
-        Assert.Same(target, await ledger.GetAsync(Tenant, Compensation));
+        AssertReceiptValues(target, await ledger.GetAsync(Tenant, Compensation));
         Assert.Null(await ledger.GetAsync(Tenant, Original));
     }
 
@@ -342,7 +342,7 @@ public sealed class CompensationReceiptTests
         Assert.Equal(
             "execution.effect_receipt_invalid: Original effect receipt 'original-a' names compensation receipt 'compensation-c', which the tenant does not hold.",
             refused.Message);
-        Assert.Same(original, await ledger.GetAsync(Tenant, Original));
+        AssertReceiptValues(original, await ledger.GetAsync(Tenant, Original));
         Assert.Null(await ledger.GetAsync(Tenant, Compensation));
     }
 
@@ -354,8 +354,8 @@ public sealed class CompensationReceiptTests
 
         await ledger.CheckCompensationAsync(Tenant, Original);
 
-        Assert.Same(original, await ledger.GetAsync(Tenant, Original));
-        Assert.Same(target, await ledger.GetAsync(Tenant, Compensation));
+        AssertReceiptValues(original, await ledger.GetAsync(Tenant, Original));
+        AssertReceiptValues(target, await ledger.GetAsync(Tenant, Compensation));
         Assert.Equal(new EffectId("original-a"), target.CompensatesEffectId);
     }
 
@@ -364,6 +364,31 @@ public sealed class CompensationReceiptTests
         var refused = await Assert.ThrowsAsync<ExecutionRuntimeRefusedException>(operation);
         Assert.Equal("execution.effect_receipt_invalid", refused.Code);
         return refused;
+    }
+
+    private static void AssertReceiptValues(EffectReceipt expected, EffectReceipt? actual)
+    {
+        var stored = Assert.IsType<EffectReceipt>(actual);
+        Assert.Equal(expected.EffectId, stored.EffectId);
+        Assert.Equal(expected.TenantId, stored.TenantId);
+        Assert.Equal(expected.WorkflowRunId, stored.WorkflowRunId);
+        Assert.Equal(expected.ActionNodeId, stored.ActionNodeId);
+        Assert.Equal(expected.CapabilityReference, stored.CapabilityReference);
+        Assert.Equal(expected.CapabilityVersion, stored.CapabilityVersion);
+        Assert.Equal(expected.AuthorityFloor, stored.AuthorityFloor);
+        Assert.Equal(expected.Status, stored.Status);
+        Assert.Equal(expected.StartedUtc, stored.StartedUtc);
+        Assert.Equal(expected.CompletedUtc, stored.CompletedUtc);
+        Assert.Equal(expected.RequestFingerprint, stored.RequestFingerprint);
+        Assert.Equal(expected.ExternalCorrelationId, stored.ExternalCorrelationId);
+        Assert.Equal(expected.ExternalStatus, stored.ExternalStatus);
+        Assert.Equal(expected.RetryProfile, stored.RetryProfile);
+        Assert.Equal(expected.CompensationEffectId, stored.CompensationEffectId);
+        Assert.Equal(expected.CompensatesEffectId, stored.CompensatesEffectId);
+        Assert.Equal(expected.Reconciliation, stored.Reconciliation);
+        Assert.Equal<EffectAttempt>(expected.Attempts, stored.Attempts);
+        Assert.Equal<string>(expected.SecretReferenceIds, stored.SecretReferenceIds);
+        Assert.Equal(expected.Attempts.Count, stored.AttemptCount);
     }
 
     private static EffectReceipt OriginalReceipt(EffectStatus status) => Receipt(Original) with
