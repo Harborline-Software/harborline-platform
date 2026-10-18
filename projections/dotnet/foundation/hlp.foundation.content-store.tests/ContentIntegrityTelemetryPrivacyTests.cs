@@ -23,6 +23,8 @@ public sealed class ContentIntegrityTelemetryPrivacyTests
 {
     private const string PayloadSentinel = "PAYLOAD_PRIVACY_SENTINEL_53B1C4D8";
     private const string FilenameSentinel = "FILENAME_PRIVACY_SENTINEL_79E5A2C6";
+    // Mirrors ContentStore.SegmentSizeBytes (private) so the sentinel lands in both segments 0 and 1.
+    private const int SegmentSizeBytes = 65_536;
 
     [Fact]
     public void Real_content_integrity_telemetry_emits_positive_signals_without_payload_or_filename_values()
@@ -33,7 +35,11 @@ public sealed class ContentIntegrityTelemetryPrivacyTests
         var store = new InMemoryContentStore(
             new ContentStoreOptions(200_000, 400_000, 400_000, TimeSpan.FromMinutes(1)),
             new TestKeys(), new TestClock(), new InMemoryContentStoreStorage(), log);
-        var payload = Encoding.UTF8.GetBytes(new string('x', 65_536) + PayloadSentinel);
+        // Segment 0 (intact) and segment 1 (corrupted below) each carry the sentinel, so a plaintext
+        // copy exists in decrypted segment 0 when the segment 1 failure is emitted.
+        var payload = Encoding.UTF8.GetBytes(
+            PayloadSentinel + new string('x', SegmentSizeBytes - PayloadSentinel.Length) + PayloadSentinel);
+        Assert.Equal(SegmentSizeBytes + PayloadSentinel.Length, payload.Length);
         using var upload = new MemoryStream(payload);
         var stage = store.Put(tenant, upload, "text/plain", null);
         var reference = store.Commit(
@@ -58,10 +64,10 @@ public sealed class ContentIntegrityTelemetryPrivacyTests
         var failure = Assert.Throws<ContentIntegrityException>(() => damagedBody.CopyTo(discarded));
         Assert.Equal(1, failure.SegmentIndex);
 
-        var integrity = Assert.Single(telemetry.Activities.Where(activity => activity.OperationName == "content.integrity"));
+        var integrity = Assert.Single(telemetry.Activities, activity => activity.OperationName == "content.integrity");
         Assert.Equal(ActivityStatusCode.Error, integrity.Status);
         Assert.Equal("content.integrity", integrity.GetTagItem("error.type"));
-        var measurement = Assert.Single(telemetry.Measurements.Where(item => item.Name == "content.integrity.failures"));
+        var measurement = Assert.Single(telemetry.Measurements, item => item.Name == "content.integrity.failures");
         Assert.Equal(1L, Assert.IsType<long>(measurement.Value));
         var firstLog = Assert.Single(log.Events);
         Assert.Equal("trace-fixed", firstLog.TraceId);
@@ -73,9 +79,12 @@ public sealed class ContentIntegrityTelemetryPrivacyTests
         Assert.Equal("privacy-element", firstLog.Owner.Element);
         Assert.Equal(1, firstLog.SegmentIndex);
 
+        // The filename check is a regression guard: the display name is not reachable at the
+        // integrity emission site today.
         AssertNoSentinels(telemetry.Activities.SelectMany(ActivityText));
         AssertNoSentinels(telemetry.Measurements.SelectMany(MeasurementText));
         AssertNoSentinels(log.Events.Select(integrityEvent => JsonSerializer.Serialize(integrityEvent)));
+        AssertNoSentinels([failure.Message, failure.ToString(), failure.InnerException?.ToString() ?? string.Empty]);
     }
 
     private static void AssertNoSentinels(IEnumerable<string> emitted)
