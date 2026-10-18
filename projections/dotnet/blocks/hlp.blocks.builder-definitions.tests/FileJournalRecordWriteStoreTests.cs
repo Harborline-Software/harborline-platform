@@ -15,15 +15,15 @@ public sealed class FileJournalRecordWriteStoreTests : IDisposable
     private static RecordWriteOperationKey Key(string id = "operation-1") => new("tenant-a", "alice", id);
 
     private static RecordWriteRow Row(RecordWriteOperationKey key, string recordId = "record-1", string digest = "intent-secret")
-        => new(key.Tenant, recordId, "eam.asset-class", "1.0.0", "definition-digest", new SchemaId("schema:fixture"),
+        => new(key.Tenant, recordId, "eam.asset-class", "1.0.0", "090e7e663979ab9ef3853467f8200aac3cb3db343140c0d066dccccdb9d299e5", new SchemaId("schema:fixture"),
             "worker", key.OperationId, null, "records-write-intent/1", digest, new byte[] { 123, 125 }, At)
-        { OriginatorId = "alice", AcceptedCommandId = "command-1", AcceptanceAuditId = "acceptance-1" };
+        { PublicationVersionId = "1.0.0", OriginatorId = "alice", AcceptedCommandId = "command-1", AcceptanceAuditId = "acceptance-1" };
 
     private static async Task<IKernelPreparedTransaction<RecordWriteRow, RecordWriteCommit>> Stage(
         FileJournalRecordWriteStore store, RecordWriteOperationKey key, string recordId = "record-1", string digest = "intent-secret")
     {
         var transaction = await store.BeginAsync();
-        await transaction.StageOperationAsync(new(key.OperationId, key.IdempotencyKey, digest));
+        await transaction.StageOperationAsync(new(recordId, key.IdempotencyKey, digest));
         await transaction.StageRecordAsync(Row(key, recordId, digest));
         await transaction.StageAuditAsync(new("audit-1", "worker", At, new byte[] { 0, 255, 7 })
         { AuthoritySnapshot = new byte[] { 1, 2, 3 }, OriginatorId = "alice" });
@@ -32,6 +32,21 @@ public sealed class FileJournalRecordWriteStoreTests : IDisposable
 
     private JsonObject Journal() => JsonNode.Parse(File.ReadAllText(PathName))!.AsObject();
     private void Rewrite(JsonObject journal) => File.WriteAllText(PathName, journal.ToJsonString());
+
+    // These tests exercise legacy receipt tolerance, not the strict bound-entry contract.
+    private JsonObject LegacyJournal()
+    {
+        var journal = Journal();
+        journal["Format"] = "records-write-file-journal/1";
+        journal.Remove("LegacyEntryCount");
+        foreach (var entry in journal["Entries"]!.AsArray())
+        {
+            entry!.AsObject().Remove("Tag");
+            entry.AsObject().Remove("Binding");
+            entry["Row"]!.AsObject().Remove("PublicationVersionId");
+        }
+        return journal;
+    }
 
     [Theory]
     [InlineData("intent_encoding_version", null)]
@@ -52,7 +67,7 @@ public sealed class FileJournalRecordWriteStoreTests : IDisposable
         var before = File.ReadAllBytes(PathName);
         var nextKey = Key("metadata-attempt");
         await using var transaction = await store.BeginAsync();
-        await transaction.StageOperationAsync(new(nextKey.OperationId, nextKey.IdempotencyKey, "intent-secret"));
+        await transaction.StageOperationAsync(new("record-2", nextKey.IdempotencyKey, "intent-secret"));
         var lawful = Row(nextKey, "record-2");
         var invalid = member switch
         {
@@ -92,7 +107,7 @@ public sealed class FileJournalRecordWriteStoreTests : IDisposable
         var store = new FileJournalRecordWriteStore(PathName);
         await using var transaction = await store.BeginAsync();
         var key = Key();
-        await transaction.StageOperationAsync(new("operation-1", key.IdempotencyKey, "intent-secret"));
+        await transaction.StageOperationAsync(new("record-1", key.IdempotencyKey, "intent-secret"));
         await transaction.StageRecordAsync(Row(key) with { IntentEncodingVersion = encoding });
         await transaction.StageAuditAsync(new("audit-1", "worker", At, new byte[] { 0, 255, 7 })
         { AuthoritySnapshot = new byte[] { 1, 2, 3 }, OriginatorId = "alice" });
@@ -120,7 +135,7 @@ public sealed class FileJournalRecordWriteStoreTests : IDisposable
         Assert.Equal(RecordWriteCommitDisposition.Created, result.Disposition);
         Assert.Equal("operation-1", result.Receipt!.OperationId);
         var journal = Journal();
-        Assert.Equal("records-write-file-journal/1", journal["Format"]!.GetValue<string>());
+        Assert.Equal("records-write-file-journal/2", journal["Format"]!.GetValue<string>());
         var entry = Assert.Single(journal["Entries"]!.AsArray())!;
         Assert.Equal("record-1", entry["Row"]!["RecordId"]!.GetValue<string>());
         Assert.Equal("alice", entry["Row"]!["OriginatorId"]!.GetValue<string>());
@@ -255,7 +270,7 @@ public sealed class FileJournalRecordWriteStoreTests : IDisposable
         var operation = await Operation(store);
         var created = await operation.CreateAsync(new(Tenant, "alice"), Request());
         Assert.True(created.Committed);
-        var journal = Journal();
+        var journal = LegacyJournal();
         var entry = journal["Entries"]![0]!.AsObject();
         entry["Receipt"] = corruption switch
         {
@@ -338,7 +353,7 @@ public sealed class FileJournalRecordWriteStoreTests : IDisposable
     public async Task null_required_receipt_metadata_preserves_acceptance_but_refuses_replay(string member)
     {
         await (await Operation(new(PathName))).CreateAsync(new(Tenant, "alice"), Request());
-        var journal = Journal();
+        var journal = LegacyJournal();
         var receipt = journal["Entries"]![0]!["Receipt"]!.AsObject();
         Assert.True(receipt.ContainsKey(member));
         receipt[member] = null;
@@ -430,7 +445,7 @@ public sealed class FileJournalRecordWriteStoreTests : IDisposable
         var next = Key("operation-2");
         await Assert.ThrowsAsync<InvalidOperationException>(async () =>
         {
-            await transaction.StageOperationAsync(new("operation-2", next.IdempotencyKey, "intent-secret"));
+            await transaction.StageOperationAsync(new("record-2", next.IdempotencyKey, "intent-secret"));
             await transaction.StageRecordAsync(Row(next, "record-2"));
             await transaction.StageAuditAsync(new("audit-2", "worker", At, ReadOnlyMemory<byte>.Empty));
             await transaction.CommitAsync();
@@ -550,9 +565,9 @@ public sealed class FileJournalRecordWriteStoreTests : IDisposable
         byte[] payload = [0, 255, 7];
         byte[] snapshot = [1, 2, 3];
         await using var transaction = await new FileJournalRecordWriteStore(PathName).BeginAsync();
-        await transaction.StageOperationAsync(new("operation-1", Key().IdempotencyKey, "intent-secret"));
+        await transaction.StageOperationAsync(new("record-1", Key().IdempotencyKey, "intent-secret"));
         await transaction.StageRecordAsync(Row(Key()) with { Body = body });
-        await transaction.StageAuditAsync(new("audit-1", "worker", At, payload) { AuthoritySnapshot = snapshot });
+        await transaction.StageAuditAsync(new("audit-1", "worker", At, payload) { AuthoritySnapshot = snapshot, OriginatorId = "alice" });
         Array.Fill(body, (byte)9);
         Array.Fill(payload, (byte)9);
         Array.Fill(snapshot, (byte)9);

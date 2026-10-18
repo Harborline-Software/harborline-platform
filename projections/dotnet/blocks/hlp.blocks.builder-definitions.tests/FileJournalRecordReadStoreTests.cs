@@ -351,6 +351,7 @@ public sealed class FileJournalRecordReadStoreTests : IDisposable
         var store = new FileJournalRecordWriteStore(PathName);
         await using var transaction = await Stage(store, Row("legacy-record", "legacy-write", old.Id));
         var original = (await transaction.CommitAsync()).Receipt!;
+        MakeLiteralLegacyJournal();
         var before = File.ReadAllBytes(PathName);
         var reader = Reader(fixture, new FileJournalRecordWriteStore(PathName));
         Assert.Null(await reader.Registry.GetAsync(old.Id)); // Compatibility must work after registry restart.
@@ -377,6 +378,7 @@ public sealed class FileJournalRecordReadStoreTests : IDisposable
         var store = new FileJournalRecordWriteStore(PathName);
         await using var transaction = await Stage(store, Row("legacy-record", "legacy-write", old.Id));
         var original = (await transaction.CommitAsync()).Receipt!;
+        MakeLiteralLegacyJournal();
         var before = File.ReadAllBytes(PathName);
         var events = new List<string>();
         var observed = new Catalogue(fixture.Catalogue, events) { FailOnBinding = true };
@@ -437,6 +439,7 @@ public sealed class FileJournalRecordReadStoreTests : IDisposable
         var store = new FileJournalRecordWriteStore(PathName);
         await using var transaction = await Stage(store, row);
         await transaction.CommitAsync();
+        MakeLiteralLegacyJournal(); // Exact Version lookup remains the intentionally weaker legacy control here.
         var before = File.ReadAllBytes(PathName);
         var reader = Reader(fixture, store);
         await reader.Registry.RegisterAsync("{\"type\":\"object\"}");
@@ -456,7 +459,7 @@ public sealed class FileJournalRecordReadStoreTests : IDisposable
     [Theory]
     [InlineData(OldScalarSchema)]
     [InlineData(CurrentSchema)]
-    public async Task only_the_exact_matching_schema_is_registered_and_matching_registry_outages_propagate(string expectedSchema)
+    public async Task current_then_only_on_successful_nonmatch_legacy_register_and_outages_stop_without_fallback(string expectedSchema)
     {
         var fixture = await Published();
         var pinned = await fixture.Registry.RegisterAsync(expectedSchema);
@@ -470,7 +473,7 @@ public sealed class FileJournalRecordReadStoreTests : IDisposable
         var outcome = await reader.Operation.ReadAsync(new(Tenant, Actor), new("matching"));
 
         Assert.Equal(pinned.Id, outcome.Record!.Schema);
-        Assert.Equal(expectedSchema, Assert.Single(observed.Registrations));
+        Assert.Equal(expectedSchema == CurrentSchema ? new[] { CurrentSchema } : new[] { CurrentSchema, OldScalarSchema }, observed.Registrations);
         Assert.Equal(expectedSchema, (await observed.GetAsync(pinned.Id))!.JsonSchemaText);
         Assert.Equal(before, File.ReadAllBytes(PathName));
 
@@ -479,7 +482,7 @@ public sealed class FileJournalRecordReadStoreTests : IDisposable
         var failedReader = Reader(fixture, store, unavailable);
         Assert.Same(failure, await Assert.ThrowsAsync<IOException>(
             () => failedReader.Operation.ReadAsync(new(Tenant, Actor), new("matching")).AsTask()));
-        Assert.Equal(expectedSchema, Assert.Single(unavailable.Registrations));
+        Assert.Equal(CurrentSchema, Assert.Single(unavailable.Registrations));
         Assert.Empty(await Registered(unavailable));
         Assert.Equal(["lookup", "authorize", "bind"], failedReader.Events);
         Assert.Equal(before, File.ReadAllBytes(PathName));
@@ -488,7 +491,7 @@ public sealed class FileJournalRecordReadStoreTests : IDisposable
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task a_foreign_cid_does_not_register_either_compilation_even_if_that_cid_is_known_elsewhere(bool registered)
+    public async Task a_foreign_cid_registers_only_the_two_exact_candidates_even_if_known_elsewhere(bool registered)
     {
         var fixture = await Published();
         var foreign = (await fixture.Registry.RegisterAsync("{\"type\":\"object\"}")).Id;
@@ -501,8 +504,8 @@ public sealed class FileJournalRecordReadStoreTests : IDisposable
 
         await Assert.ThrowsAsync<InvalidDataException>(() => reader.Operation.ReadAsync(new(Tenant, Actor), new("foreign")).AsTask());
 
-        Assert.Empty(observed.Registrations);
-        Assert.Empty(await Registered(observed));
+        Assert.Equal(new[] { CurrentSchema, OldScalarSchema }, observed.Registrations);
+        Assert.Equal(2, (await Registered(observed)).Count);
         Assert.Equal(before, File.ReadAllBytes(PathName));
     }
 
@@ -588,6 +591,7 @@ public sealed class FileJournalRecordReadStoreTests : IDisposable
         // is no independent original-version authenticator in the unchanged body-only digest.
         await using var relabelled = await Stage(store, Row("identical-version", "other-operation", old.Id) with { Version = "1.0.2" });
         await relabelled.CommitAsync();
+        MakeLiteralLegacyJournal(); // This test deliberately retains the weaker /1 provenance contract.
         var before = File.ReadAllBytes(PathName);
         var reader = Reader(fixture, store);
 
@@ -602,6 +606,243 @@ public sealed class FileJournalRecordReadStoreTests : IDisposable
         Assert.Equal(before, File.ReadAllBytes(PathName));
     }
 
+    private void MakeLiteralLegacyJournal()
+    {
+        var root = JsonNode.Parse(File.ReadAllBytes(PathName))!.AsObject();
+        root["Format"] = "records-write-file-journal/1"; root.Remove("LegacyEntryCount");
+        foreach (var entry in root["Entries"]!.AsArray())
+        {
+            entry!.AsObject().Remove("Tag"); entry.AsObject().Remove("Binding");
+            entry["Row"]!.AsObject().Remove("PublicationVersionId");
+        }
+        File.WriteAllText(PathName, root.ToJsonString());
+    }
+
+    [Theory]
+    [InlineData(false, "current")]
+    [InlineData(true, "current")]
+    [InlineData(false, "legacy")]
+    [InlineData(true, "legacy")]
+    [InlineData(false, "foreign")]
+    [InlineData(true, "foreign")]
+    public async Task alternate_registry_ids_have_identical_cold_and_warm_current_first_binding(bool warm, string pin)
+    {
+        var fixture = await Published();
+        var alternate = await AlternateRegistry.Create(fixture, warm);
+        var id = new SchemaId(pin == "current" ? "alternate-current" : pin == "legacy" ? "alternate-legacy" : "alternate-foreign");
+        var store = new FileJournalRecordWriteStore(PathName);
+        await using var transaction = await Stage(store, Row("alternate", "alternate-operation", id));
+        await transaction.CommitAsync();
+        var bytes = File.ReadAllBytes(PathName);
+        var reader = Reader(fixture, store, alternate);
+        if (pin == "foreign")
+            await Assert.ThrowsAsync<InvalidDataException>(() => reader.Operation.ReadAsync(new(Tenant, Actor), new("alternate")).AsTask());
+        else
+            Assert.Equal(id, (await reader.Operation.ReadAsync(new(Tenant, Actor), new("alternate"))).Record!.Schema);
+        Assert.Equal(pin == "current" ? new[] { CurrentSchema } : new[] { CurrentSchema, OldScalarSchema }, alternate.Registrations);
+        Assert.Equal(0, alternate.Lookups);
+        Assert.Equal(id, (await store.FindAsync(Tenant, "alternate"))!.Schema);
+        Assert.Equal(bytes, File.ReadAllBytes(PathName));
+    }
+
+    [Theory]
+    [InlineData(1, false)]
+    [InlineData(2, false)]
+    [InlineData(1, true)]
+    [InlineData(2, true)]
+    public async Task either_candidate_registration_failure_or_cancellation_stops_without_another_attempt(int failedCall, bool cancelled)
+    {
+        var fixture = await Published();
+        using var cancellation = new CancellationTokenSource();
+        var alternate = await AlternateRegistry.Create(fixture, false);
+        var failure = cancelled ? (Exception)new OperationCanceledException(cancellation.Token) : new IOException("registry unavailable");
+        alternate.FaultAt = failedCall; alternate.Failure = failure;
+        var store = new FileJournalRecordWriteStore(PathName);
+        await using var transaction = await Stage(store, Row("fault", "fault-operation", new("alternate-legacy")));
+        await transaction.CommitAsync();
+        var bytes = File.ReadAllBytes(PathName);
+        var reader = Reader(fixture, store, alternate);
+        var actual = await Record.ExceptionAsync(() => reader.Operation.ReadAsync(new(Tenant, Actor), new("fault"), cancellation.Token).AsTask());
+        Assert.Same(failure, actual);
+        Assert.Equal(failedCall == 1 ? new[] { CurrentSchema } : new[] { CurrentSchema, OldScalarSchema }, alternate.Registrations);
+        Assert.Equal(bytes, File.ReadAllBytes(PathName));
+    }
+
+    [Fact]
+    public async Task a_current_schema_size_refusal_never_tries_the_smaller_matching_legacy_candidate()
+    {
+        var fixture = await Published();
+        var old = await fixture.Registry.RegisterAsync(OldScalarSchema);
+        var store = new FileJournalRecordWriteStore(PathName);
+        await using var transaction = await Stage(store, Row("size", "size-operation", old.Id));
+        await transaction.CommitAsync();
+        var bytes = File.ReadAllBytes(PathName);
+        Assert.True(CurrentSchema.Length > OldScalarSchema.Length + 5);
+        var limited = new InMemorySchemaRegistry(new SchemaRegistryOptions { MaxSchemaBytes = OldScalarSchema.Length + 5 }, fieldKindRuntime: fixture.Kinds);
+        Assert.Equal(old.Id, (await limited.RegisterAsync(OldScalarSchema)).Id);
+        var observed = new ObservingRegistry(limited);
+        var reader = Reader(fixture, store, observed);
+        await Assert.ThrowsAsync<InvalidSchemaException>(() => reader.Operation.ReadAsync(new(Tenant, Actor), new("size")).AsTask());
+        Assert.Equal(CurrentSchema, Assert.Single(observed.Registrations));
+        Assert.Equal(bytes, File.ReadAllBytes(PathName));
+    }
+
+    [Theory]
+    [InlineData(false, "whitespace", true)]
+    [InlineData(true, "whitespace", true)]
+    [InlineData(false, "order", true)]
+    [InlineData(true, "order", true)]
+    [InlineData(false, "numeric-spelling", false)]
+    [InlineData(true, "numeric-spelling", false)]
+    [InlineData(false, "content", false)]
+    [InlineData(true, "content", false)]
+    public async Task warm_and_cold_paths_use_exact_registry_identity_not_semantic_JSON_equality(bool warm, string variant, bool accepts)
+    {
+        var fixture = await Published();
+        var input = variant switch
+        {
+            "whitespace" => " \n" + CurrentSchema + "\n ",
+            "order" => CurrentSchema.Replace("\"$schema\":\"https://json-schema.org/draft/2020-12/schema\",", "", StringComparison.Ordinal)
+                .Insert(1, "\"additionalProperties\":false,")
+                .Replace(",\"additionalProperties\":false}", ",\"$schema\":\"https://json-schema.org/draft/2020-12/schema\"}", StringComparison.Ordinal),
+            "numeric-spelling" => CurrentSchema.Replace("\"minItems\":0", "\"minItems\":0.0", StringComparison.Ordinal),
+            "content" => CurrentSchema.Replace("\"maxItems\":1", "\"maxItems\":2", StringComparison.Ordinal),
+            _ => throw new InvalidOperationException(),
+        };
+        var independentSource = await AlternateRegistry.Create(fixture, false);
+        var stored = (await independentSource.RegisterAsync(input)).Id;
+        if (accepts) Assert.Equal("alternate-current", stored.Value);
+        else Assert.NotEqual("alternate-current", stored.Value);
+        var store = new FileJournalRecordWriteStore(PathName);
+        await using var transaction = await Stage(store, Row("variant", "variant-operation", stored));
+        await transaction.CommitAsync();
+        var bytes = File.ReadAllBytes(PathName);
+        var configured = await AlternateRegistry.Create(fixture, warm);
+        var reader = Reader(fixture, store, configured);
+        if (accepts) Assert.Equal(stored, (await reader.Operation.ReadAsync(new(Tenant, Actor), new("variant"))).Record!.Schema);
+        else await Assert.ThrowsAsync<InvalidDataException>(() => reader.Operation.ReadAsync(new(Tenant, Actor), new("variant")).AsTask());
+        Assert.Equal(accepts ? new[] { CurrentSchema } : new[] { CurrentSchema, OldScalarSchema }, configured.Registrations);
+        Assert.Equal(bytes, File.ReadAllBytes(PathName));
+    }
+
+    [Fact]
+    public async Task bound_operation_replay_is_local_even_when_all_publication_and_registry_access_would_throw()
+    {
+        var fixture = await Published();
+        var store = new FileJournalRecordWriteStore(PathName);
+        var request = new RecordCreateRequest(TypeId, "bound-local", JsonNode.Parse("{\"value\":\"A\"}")!.AsObject());
+        var original = await Writer(fixture, store, new Gate([])).CreateAsync(new(Tenant, Actor), request);
+        Assert.True(original.Committed);
+        Assert.Equal("1.0.0", (await store.FindAsync(Tenant, original.Receipt!.RecordId))!.PublicationVersionId);
+        var before = File.ReadAllBytes(PathName);
+        var catalogue = new ReplayCatalogue();
+        var registry = new ReplayRegistry();
+        var records = new RecordTypeDefinitionStore(catalogue, fixture.Compiler, fixture.Defaults, registry, Window, roles: CreationRoles);
+        var writer = new RecordWriteOperation(new AccessProvider(new Gate([])), records, registry, store, store,
+            new Clock(Recorded), fixture.Kinds, fixture.Domains);
+        var replay = await writer.CreateAsync(new(Tenant, Actor), request);
+        Assert.True(replay.Replayed); Assert.Equal(original.Receipt, replay.Receipt);
+        Assert.Equal(0, catalogue.Calls); Assert.Equal(0, registry.Calls);
+        Assert.Equal(before, File.ReadAllBytes(PathName));
+    }
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    [InlineData(true, true)]
+    public async Task current_or_legacy_compiler_dependency_failure_or_cancellation_never_authorizes_another_candidate(bool inLegacy, bool cancelled)
+    {
+        var fixture = await Published();
+        using var cancellation = new CancellationTokenSource();
+        var failure = cancelled ? (Exception)new OperationCanceledException(cancellation.Token) : new IOException("field kind unavailable");
+        var kinds = new FailingKinds(fixture.Kinds);
+        var compiler = new RecordTypeSchemaCompiler(new RecordsIntentValidator(), kinds, new SharedValueDomainAdmission(), fixture.Domains);
+        var registry = await AlternateRegistry.Create(fixture, false);
+        if (inLegacy) registry.OnRegistered = _ => kinds.Fault = failure;
+        else kinds.Fault = failure;
+        var records = new RecordTypeDefinitionStore(fixture.Catalogue, compiler, fixture.Defaults, registry, Window, roles: CreationRoles);
+        var store = new FileJournalRecordWriteStore(PathName);
+        await using var transaction = await Stage(store, Row("compile-fault", "compile-fault-operation", new("alternate-legacy")));
+        await transaction.CommitAsync(); var bytes = File.ReadAllBytes(PathName);
+        var reader = new RecordReadOperation(store, new AccessProvider(new Gate([])), records, new Clock(Now));
+        Assert.Same(failure, await Record.ExceptionAsync(() => reader.ReadAsync(new(Tenant, Actor), new("compile-fault"), cancellation.Token).AsTask()));
+        Assert.Equal(inLegacy ? new[] { CurrentSchema } : Array.Empty<string>(), registry.Registrations);
+        Assert.Equal(bytes, File.ReadAllBytes(PathName));
+    }
+
+    private sealed class ReplayRegistry : ISchemaRegistry
+    {
+        public int Calls { get; private set; }
+        private IOException Fault() { Calls++; return new("No registry method may run during exact replay."); }
+        public ValueTask<Schema?> GetAsync(SchemaId id, CancellationToken cancellationToken = default) => throw Fault();
+        public ValueTask<Schema> RegisterAsync(string text, IReadOnlyList<SchemaId>? parents = null, IReadOnlyList<string>? tags = null,
+            CancellationToken cancellationToken = default) => throw Fault();
+        public ValueTask<SchemaValidationResult> ValidateAsync(SchemaId id, ReadOnlyMemory<byte> body, CancellationToken cancellationToken = default) => throw Fault();
+        public IAsyncEnumerable<Schema> ListAsync(string? tagFilter = null, CancellationToken cancellationToken = default) => throw Fault();
+    }
+
+    private sealed class ReplayCatalogue : IVersionedDefinitionStore
+    {
+        public int Calls { get; private set; }
+        private IOException Fault() { Calls++; return new("No catalogue method may run during exact replay."); }
+        public ValueTask<IReadOnlyList<DefinitionKey>> ListKeysAsync(string tenant, DefinitionKind kind, CancellationToken cancellationToken = default) => throw Fault();
+        public ValueTask<DefinitionRevision> SaveDraftAsync(DefinitionDocument document, long expectedRevision, string requestId, CancellationToken cancellationToken = default) => throw Fault();
+        public ValueTask<DefinitionRevision> PublishAsync(DefinitionKey key, string versionId, long expectedRevision, string requestId, CancellationToken cancellationToken = default) => throw Fault();
+        public ValueTask<DefinitionRevision> RestoreAsDraftAsync(DefinitionKey key, string sourceVersionId, string draftVersionId, string draftVersion,
+            long expectedRevision, string requestId, CancellationToken cancellationToken = default) => throw Fault();
+        public ValueTask<IReadOnlyList<DefinitionRevision>> ListHistoryAsync(DefinitionKey key, CancellationToken cancellationToken = default) => throw Fault();
+        public ValueTask<DefinitionRevision?> GetPublishedHeadAsync(DefinitionKey key, CancellationToken cancellationToken = default) => throw Fault();
+        public ValueTask<DefinitionRevision?> ResolvePublishedAsync(DefinitionBinding binding, CancellationToken cancellationToken = default) => throw Fault();
+    }
+
+    private sealed class FailingKinds(IFieldKindRuntime real) : IFieldKindRuntime
+    {
+        public Exception? Fault { get; set; }
+        public ICompiledFieldKind Bind(FieldKindReference reference, string jsonPointer)
+        {
+            if (Fault is not null) throw Fault;
+            return real.Bind(reference, jsonPointer);
+        }
+    }
+
+    private sealed class AlternateRegistry(ISchemaRegistry inner, IReadOnlyDictionary<string, string> aliases) : ISchemaRegistry
+    {
+        public List<string> Registrations { get; } = [];
+        public int Lookups { get; private set; }
+        public int FaultAt { get; set; }
+        public Exception? Failure { get; set; }
+        public Action<int>? OnRegistered { get; set; }
+        public static async Task<AlternateRegistry> Create(DefinitionFixture fixture, bool warm)
+        {
+            // Independent literal schemas establish the two aliases outside the binder under test.
+            var reference = new InMemorySchemaRegistry(fieldKindRuntime: fixture.Kinds);
+            var aliases = new Dictionary<string, string>
+            {
+                [(await reference.RegisterAsync(CurrentSchema)).ContentAddress] = "alternate-current",
+                [(await reference.RegisterAsync(OldScalarSchema)).ContentAddress] = "alternate-legacy",
+            };
+            var inner = new InMemorySchemaRegistry(fieldKindRuntime: fixture.Kinds);
+            if (warm) { await inner.RegisterAsync(CurrentSchema); await inner.RegisterAsync(OldScalarSchema); }
+            return new(inner, aliases);
+        }
+        public ValueTask<Schema?> GetAsync(SchemaId id, CancellationToken cancellationToken = default)
+        { Lookups++; throw new InvalidOperationException("Membership must not authorize this binding."); }
+        public async ValueTask<Schema> RegisterAsync(string jsonSchemaText, IReadOnlyList<SchemaId>? parents = null,
+            IReadOnlyList<string>? tags = null, CancellationToken cancellationToken = default)
+        {
+            Registrations.Add(jsonSchemaText);
+            if (Registrations.Count == FaultAt) throw Failure!;
+            var schema = await inner.RegisterAsync(jsonSchemaText, parents, tags, cancellationToken);
+            OnRegistered?.Invoke(Registrations.Count);
+            return schema with { Id = new(aliases.TryGetValue(schema.ContentAddress, out var alias) ? alias : "other-" + schema.ContentAddress) };
+        }
+        public ValueTask<SchemaValidationResult> ValidateAsync(SchemaId id, ReadOnlyMemory<byte> body, CancellationToken cancellationToken = default)
+            => throw new InvalidOperationException("Current read does not validate an instance again.");
+        public IAsyncEnumerable<Schema> ListAsync(string? tagFilter = null, CancellationToken cancellationToken = default)
+            => inner.ListAsync(tagFilter, cancellationToken);
+    }
+
     private static string BodyDigest(string body)
         => Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes(body)));
 
@@ -614,7 +855,8 @@ public sealed class FileJournalRecordReadStoreTests : IDisposable
 
     private static RecordWriteRow Row(string recordId, string operationId, SchemaId schema)
         => new(Tenant, recordId, TypeId, "1.0.0", TypeDigest, schema, Actor, operationId, null,
-            "records-write-intent/1", ScalarIntentDigest, Encoding.UTF8.GetBytes("{\"value\":\"A\"}"), Recorded);
+            "records-write-intent/1", ScalarIntentDigest, Encoding.UTF8.GetBytes("{\"value\":\"A\"}"), Recorded)
+        { PublicationVersionId = "1.0.0" };
 
     private static async Task<IKernelPreparedTransaction<RecordWriteRow, RecordWriteCommit>> Stage(
         FileJournalRecordWriteStore store, RecordWriteRow row, bool audit = true)

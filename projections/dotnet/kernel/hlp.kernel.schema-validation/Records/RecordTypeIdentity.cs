@@ -552,7 +552,8 @@ public sealed class RecordTypeSchemaCompiler
     /// <summary>
     /// Reproduces only the scalar projection emitted by compiler 5ec3cf53 before the T616 multiplicity correction.
     /// Intended solely to bind an existing stored schema identity: current admission must still succeed, and callers
-    /// must compare its content-derived identity before registration with the row's original identity.
+    /// must register the current candidate first and only after its successful nonmatch register this candidate,
+    /// comparing the configured registry's returned opaque identity with the row's original identity (Q36).
     /// Writes and publications use CompileAsync.
     /// </summary>
     /// <param name="candidate">The exact immutable published definition being read.</param>

@@ -1,0 +1,24 @@
+{
+  "format": "t617-harness-field-kinds/1",
+  "kinds": [
+    {
+      "kind_id": "count",
+      "version": "1.0.0",
+      "governance_defaults": null,
+      "value_shape": "Integer",
+      "capabilities": null
+    },
+    {
+      "kind_id": "text",
+      "version": "1.0.0",
+      "governance_defaults": {
+        "personal_data": true,
+        "confidential": false,
+        "masked": true,
+        "classification": "internal"
+      },
+      "value_shape": "Text",
+      "capabilities": null
+    }
+  ]
+}

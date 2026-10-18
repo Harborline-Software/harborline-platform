@@ -48,8 +48,8 @@ public sealed record RecordReadOutcome(RecordReadResult? Record, string? Refusal
 /// or a second policy interpreter. The producer and port are released only with the real same-store journal adapter;
 /// they do not authorize a host route or integrate independently of that adapter.
 /// Current admission can refuse an old published body as schema_unknown. Body-only definition digests and schema
-/// identities cannot distinguish identical authored bodies at different published versions; exact version lookup
-/// does not independently prove which such version originally produced a row. This producer retains that limitation.
+/// identities cannot distinguish identical authored bodies at different published versions on legacy rows. Bound rows
+/// select the recorded immutable PublicationVersionId and verify its tenant/type, label, exact body digest and schema.
 /// </remarks>
 public sealed class RecordReadOperation
 {
@@ -119,18 +119,33 @@ public sealed class RecordReadOperation
         var evidence = access.Evidence ?? throw new InvalidOperationException("The gate allowed without its evidence.");
         if (row.Version is null)
             throw new InvalidDataException("The committed record has no pinned definition version.");
+        if (row.PublicationVersionId is not null)
+        {
+            try { _ = RecordWriteJournalBinding.Encode(row); }
+            catch (InvalidOperationException)
+            { throw new InvalidDataException("The committed record publication binding is invalid."); }
+        }
 
         RecordTypePublication? publication;
         try
         {
-            publication = await _recordTypes.ResolveStoredPublishedSchemaAsync(scope.Tenant, row.RecordTypeId, row.Version, row.Schema,
-                cancellationToken).ConfigureAwait(false);
+            publication = row.PublicationVersionId is { } versionId
+                ? await _recordTypes.ResolveBoundStoredPublishedSchemaAsync(scope.Tenant, row.RecordTypeId, versionId, row.Version,
+                    row.Schema, cancellationToken).ConfigureAwait(false)
+                : await _recordTypes.ResolveStoredPublishedSchemaAsync(scope.Tenant, row.RecordTypeId, row.Version, row.Schema,
+                    cancellationToken).ConfigureAwait(false);
         }
         catch (DefinitionRefusalException)
         {
             publication = null;
         }
         if (publication is null) return new(null, SchemaUnknown, evidence);
+        if (row.PublicationVersionId is not null)
+        {
+            try { RecordWriteJournalBinding.ValidatePublication(row, publication); }
+            catch (InvalidOperationException)
+            { throw new InvalidDataException("The record's publication evidence does not match its published version."); }
+        }
         if (!string.Equals(publication.Revision.Digest, row.DefinitionDigest, StringComparison.Ordinal))
             throw new InvalidDataException("The record's definition digest does not match its published version.");
         if (publication.Schema.Id != row.Schema)

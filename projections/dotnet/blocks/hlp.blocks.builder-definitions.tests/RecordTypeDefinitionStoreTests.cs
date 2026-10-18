@@ -1,4 +1,7 @@
 using System.Text;
+using System.Text.Json;
+using System.Text.Json.Nodes;
+using Harborline.Foundation.Authorization;
 using Harborline.Contracts.Authorization;
 using Harborline.Contracts.Fields;
 using Harborline.Foundation.Definitions;
@@ -531,6 +534,97 @@ public sealed class RecordTypeDefinitionStoreTests
     {
         public TraitDefinition? Resolve(string traitId, string version)
             => traitId == "locatable" && version == "1.0.0" ? new("locatable", "1.0.0", []) : null;
+    }
+
+    [Theory]
+    [InlineData("create")]
+    [InlineData("save")]
+    [InlineData("raw-publish")]
+    public async Task actual_authoring_surrogate_reachability_cannot_commit_an_unencodable_publication_binding(string entry)
+    {
+        var host = Host();
+        RecordTypePublication? publication = null;
+        var authoringError = await Record.ExceptionAsync(async () =>
+        {
+            if (entry == "create")
+            {
+                var type = RoleGatedAssetClass("1.0.0");
+                await host.Records.CreateDraftAsync(type with { Fields = type.Fields.Select(field => field with
+                    { DisplayName = field.DisplayName + "\ud800" }).ToArray() }, "surrogate-create");
+                publication = await host.Records.PublishAsync(Tenant, "eam.asset-class", "1.0.0", 1, "surrogate-publish");
+            }
+            else if (entry == "save")
+            {
+                await host.Records.CreateDraftAsync(RoleGatedAssetClass("1.0.0"), "surrogate-create");
+                var document = Document() with { CreationGate = RecordCreationGate.Role, CreationRoleId = "asset-author",
+                    Fields = Document().Fields.Select(field => field with { DisplayName = field.DisplayName + "\ud800" }).ToArray() };
+                await host.Records.SaveDraftAsync("eam.asset-class", document, "1.0.0", 1, "surrogate-save");
+                publication = await host.Records.PublishAsync(Tenant, "eam.asset-class", "1.0.0", 2, "surrogate-publish");
+            }
+            else
+            {
+                var body = AssetClassJson.Replace("Asset tag", "Asset tag\ud800", StringComparison.Ordinal)
+                    .Insert(1, "\"creation_gate\":\"role\",\"creation_role_id\":\"asset-author\",");
+                await host.Catalogue.SaveDraftAsync(new(new(Tenant, DefinitionKind.Records, "eam.asset-class"), "1.0.0", "1.0.0", body),
+                    0, "surrogate-raw");
+                publication = await host.Records.PublishAsync(Tenant, "eam.asset-class", "1.0.0", 1, "surrogate-publish");
+            }
+        });
+        if (authoringError is not null)
+        {
+            Assert.True(authoringError is DefinitionRefusalException or JsonException or ArgumentException or InvalidOperationException);
+            Assert.DoesNotContain(await host.Catalogue.ListHistoryAsync(RecordTypeDefinitionStore.KeyOf(Tenant, "eam.asset-class")),
+                revision => revision.Status == DefinitionStatus.Published);
+            return; // The actual authoring guard refused before an immutable publication existed.
+        }
+        Assert.NotNull(publication);
+        var unicodeError = Record.Exception(() => { _ = RecordWriteIntent.Strict.GetByteCount(publication.Revision.Document.BodyJson); });
+        var directory = Path.Combine(Path.GetTempPath(), "q32-surrogate-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        var path = Path.Combine(directory, "records.json");
+        var before = Encoding.UTF8.GetBytes(RecordWriteJournalBindingTests.BaseJournal().ToJsonString()); File.WriteAllBytes(path, before);
+        try
+        {
+            var store = new FileJournalRecordWriteStore(path);
+            var clock = TimeProvider.System;
+            var writer = new RecordWriteOperation(new AccessProvider(new SurrogateGate()), host.Records, host.Registry, store, store,
+                clock, RecordWriteFieldRuntimeTests.FixtureKinds(), RecordWriteFieldRuntimeTests.FixtureDomains(clock));
+            var request = new RecordCreateRequest("eam.asset-class", "surrogate-write", JsonNode.Parse("{\"asset_tag\":\"A-1\",\"quantity\":1,\"notes\":\"kept\"}")!.AsObject());
+            if (unicodeError is not null)
+            {
+                Assert.IsType<EncoderFallbackException>(unicodeError);
+                await Assert.ThrowsAsync<InvalidOperationException>(() => writer.CreateAsync(new(Tenant, "actor"), request).AsTask());
+                Assert.Equal(before, File.ReadAllBytes(path));
+            }
+            else
+            {
+                // A typed producer may escape/substitute before storage; this is not an unencodable retained BodyJson.
+                Assert.DoesNotContain("\ud800", publication.Revision.Document.BodyJson, StringComparison.Ordinal);
+                Assert.True((await writer.CreateAsync(new(Tenant, "actor"), request)).Committed);
+            }
+        }
+        finally { Directory.Delete(directory, true); }
+    }
+
+    [Fact]
+    public async Task install_surrogate_token_reachability_never_changes_the_catalogue()
+    {
+        var host = Host();
+        var body = AssetClassJson.Replace("Asset tag", "Asset tag\\ud800", StringComparison.Ordinal);
+        var error = await Record.ExceptionAsync(async () =>
+        {
+            var report = await host.Records.AdmitInstallAsync(Tenant,
+                new("eam.asset-class", "1.0.0", PlatformPackageContent.PresentJson(Encoding.UTF8.GetBytes(body))), NoDependencies);
+            Assert.Equal(DefinitionAdmissionPhase.Install, report.Stage);
+        });
+        if (error is not null) Assert.True(error is DefinitionRefusalException or JsonException or ArgumentException or InvalidOperationException);
+        Assert.Empty(await host.Catalogue.ListHistoryAsync(RecordTypeDefinitionStore.KeyOf(Tenant, "eam.asset-class")));
+    }
+
+    private sealed class SurrogateGate : IAuthorizationDecider
+    {
+        public ValueTask<AuthorizationDecisionEvidence> DecideAsync(AccessRequest request, CancellationToken cancellationToken = default)
+            => ValueTask.FromResult(new AuthorizationDecisionEvidence(request, true, "None", "literal-test-grant", [], []));
     }
 
     internal sealed record TestHost(InMemoryVersionedDefinitionStore Catalogue, RecordTypeDefinitionStore Records,

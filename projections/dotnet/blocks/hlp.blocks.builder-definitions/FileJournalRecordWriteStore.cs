@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Text.Json.Serialization.Metadata;
 using Harborline.Kernel.Core;
 using Harborline.Kernel.SchemaValidation;
 
@@ -15,10 +16,13 @@ namespace Harborline.Blocks.BuilderDefinitions;
 /// Constructor/open, receipt lookup and commit still load the whole journal without a byte cap.
 /// Only current-row lookup is bounded to 16 MiB; a larger journal refuses as corrupt even if otherwise valid.
 /// Current lookup remains an O(N) scan and neither refusal nor cancellation resets or rewrites the journal.
+/// New commits write /2; legacy /1 reads/replays remain unchanged. Before conversion every old writer must be stopped,
+/// drained and fenced from restart. Raw legacy entries retain their original provenance and receipts. The unkeyed
+/// binding is integrity evidence, not authentication or valid-downgrade detection; no host cutover is performed here.
 /// </remarks>
 public sealed class FileJournalRecordWriteStore : IKernelPreparedTransactionPort<RecordWriteRow, RecordWriteCommit>, IRecordWriteReceiptReader, IRecordReadStore
 {
-    // Proposed for review; no released journal-format identifier has been ruled.
+    // /1 remains a read/replay format; every successful new commit writes /2.
     private const string JournalFormat = "records-write-file-journal/1";
     // Only the current-row read has this resource bound; the existing journal write format is unchanged.
     private const long MaxCurrentReadBytes = 16 * 1024 * 1024;
@@ -29,8 +33,22 @@ public sealed class FileJournalRecordWriteStore : IKernelPreparedTransactionPort
         RespectNullableAnnotations = true,
         Converters = { new SchemaConverter() },
     };
+    private static readonly JsonSerializerOptions LegacyJson = LegacyOptions();
+
+    private static JsonSerializerOptions LegacyOptions()
+    {
+        var resolver = new DefaultJsonTypeInfoResolver();
+        resolver.Modifiers.Add(info =>
+        {
+            if (info.Type != typeof(RecordWriteRow)) return;
+            var property = info.Properties.Single(item => item.Name == nameof(RecordWriteRow.PublicationVersionId));
+            info.Properties.Remove(property);
+        });
+        return new(Json) { TypeInfoResolver = resolver };
+    }
     private readonly string _path;
     private readonly Action<long>? _currentReadProgress;
+    private readonly Action? _beforeReplace;
 
     /// <summary>Opens the journal, refusing corrupt content without resetting it.</summary>
     public FileJournalRecordWriteStore(string path)
@@ -50,6 +68,11 @@ public sealed class FileJournalRecordWriteStore : IKernelPreparedTransactionPort
         _currentReadProgress = currentReadProgress ?? throw new ArgumentNullException(nameof(currentReadProgress));
     }
 
+    internal FileJournalRecordWriteStore(string path, Action beforeReplace) : this(path)
+    {
+        _beforeReplace = beforeReplace ?? throw new ArgumentNullException(nameof(beforeReplace));
+    }
+
     /// <inheritdoc />
     public ValueTask<IKernelPreparedTransaction<RecordWriteRow, RecordWriteCommit>> BeginAsync(CancellationToken cancellationToken = default)
     {
@@ -62,7 +85,7 @@ public sealed class FileJournalRecordWriteStore : IKernelPreparedTransactionPort
     {
         ArgumentNullException.ThrowIfNull(key);
         await Mutation.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try { return Load().SingleOrDefault(entry => entry.Key == key.IdempotencyKey)?.Stored(); }
+        try { return Load(cancellationToken).SingleOrDefault(entry => entry.Key == key.IdempotencyKey)?.Stored(); }
         finally { Mutation.Release(); }
     }
 
@@ -95,7 +118,7 @@ public sealed class FileJournalRecordWriteStore : IKernelPreparedTransactionPort
         await Mutation.WaitAsync(ct).ConfigureAwait(false);
         try
         {
-            var entries = Load();
+            var entries = Load(out var legacySource, ct);
             var prior = entries.SingleOrDefault(entry => entry.Key == operation.IdempotencyKey);
             if (prior is not null)
             {
@@ -108,7 +131,28 @@ public sealed class FileJournalRecordWriteStore : IKernelPreparedTransactionPort
 
             var receipt = new RecordWriteReceipt(row.RecordId, row.OperationId, row.RecordTypeId, row.Version,
                 row.DefinitionDigest, row.Schema, row.RecordedAt);
-            entries.Add(new(operation.IdempotencyKey, operation, row, audit, JsonSerializer.SerializeToElement(receipt, Json)));
+            var appended = new Entry(operation.IdempotencyKey, operation, row, audit, JsonSerializer.SerializeToElement(receipt, Json));
+            var hash = RecordWriteJournalBinding.Hash(row);
+            try
+            {
+                ValidateBound(appended);
+                RecordWriteJournalBinding.ValidateUnicode(JsonSerializer.SerializeToUtf8Bytes(appended, Json));
+            }
+            catch (Exception error) when (error is JsonException or ArgumentException or InvalidDataException or InvalidOperationException)
+            {
+                throw RecordWriteJournalBinding.InvalidBinding();
+            }
+            if (legacySource is not null)
+            {
+                // Scan the complete source, including ignored root/nested members, before creating any file.
+                try { RecordWriteJournalBinding.ValidateUnicode(legacySource); }
+                catch (Exception error) when (error is JsonException or ArgumentException or InvalidOperationException)
+                { throw Corrupt(); }
+                using var original = JsonDocument.Parse(legacySource);
+                var originals = original.RootElement.GetProperty("Entries").EnumerateArray().ToArray();
+                for (var i = 0; i < entries.Count; i++)
+                    entries[i] = entries[i] with { Raw = RecordWriteIntent.Strict.GetBytes(originals[i].GetRawText()) };
+            }
             Directory.CreateDirectory(Path.GetDirectoryName(_path)!);
             var temporary = _path + "." + Guid.NewGuid().ToString("N") + ".tmp";
             try
@@ -116,10 +160,42 @@ public sealed class FileJournalRecordWriteStore : IKernelPreparedTransactionPort
                 await using (var stream = new FileStream(temporary, FileMode.CreateNew, FileAccess.Write, FileShare.None,
                     4096, FileOptions.Asynchronous | FileOptions.WriteThrough))
                 {
-                    await JsonSerializer.SerializeAsync(stream, new Journal(JournalFormat, entries), Json, ct).ConfigureAwait(false);
+                    using (var writer = new Utf8JsonWriter(stream))
+                    {
+                        writer.WriteStartObject();
+                        writer.WriteString("Format", RecordWriteJournalBinding.Format);
+                        writer.WriteNumber("LegacyEntryCount", entries.Count(entry => entry.IsLegacy));
+                        writer.WriteStartArray("Entries");
+                        foreach (var entry in entries)
+                        {
+                            ct.ThrowIfCancellationRequested();
+                            if (entry.Wrapped) writer.WriteRawValue(entry.Raw, skipInputValidation: false);
+                            else
+                            {
+                                writer.WriteStartObject();
+                                writer.WriteString("Tag", "legacy/1");
+                                writer.WritePropertyName("Legacy");
+                                writer.WriteRawValue(entry.Raw, skipInputValidation: false);
+                                writer.WriteEndObject();
+                            }
+                        }
+                        writer.WriteStartObject();
+                        writer.WriteString("Tag", "bound/2");
+                        using var element = JsonDocument.Parse(JsonSerializer.SerializeToUtf8Bytes(appended, Json));
+                        foreach (var property in element.RootElement.EnumerateObject()) property.WriteTo(writer);
+                        writer.WriteStartObject("Binding");
+                        writer.WriteString("Encoding", RecordWriteJournalBinding.EncodingName);
+                        writer.WriteString("Hash", hash);
+                        writer.WriteEndObject();
+                        writer.WriteEndObject();
+                        writer.WriteEndArray();
+                        writer.WriteEndObject();
+                        await writer.FlushAsync(ct).ConfigureAwait(false);
+                    }
                     await stream.FlushAsync(ct).ConfigureAwait(false);
                     stream.Flush(flushToDisk: true);
                 }
+                _beforeReplace?.Invoke();
                 ct.ThrowIfCancellationRequested();
                 File.Move(temporary, _path, overwrite: true);
             }
@@ -129,15 +205,21 @@ public sealed class FileJournalRecordWriteStore : IKernelPreparedTransactionPort
         finally { Mutation.Release(); }
     }
 
-    private List<Entry> Load()
+    private List<Entry> Load(CancellationToken cancellationToken = default) => Load(out _, cancellationToken);
+
+    private List<Entry> Load(out byte[]? legacySource, CancellationToken cancellationToken = default)
     {
+        legacySource = null;
+        cancellationToken.ThrowIfCancellationRequested();
         byte[] bytes;
         try { bytes = File.ReadAllBytes(_path); }
         catch (FileNotFoundException) { return []; }
         catch (DirectoryNotFoundException) { return []; }
         try
         {
-            return ValidateJournal(JsonSerializer.Deserialize<Journal>(bytes, Json));
+            var entries = Decode(bytes, out var legacy, cancellationToken);
+            if (legacy) legacySource = bytes;
+            return entries;
         }
         catch (Exception error) when (error is JsonException or ArgumentException or InvalidOperationException)
         {
@@ -162,14 +244,118 @@ public sealed class FileJournalRecordWriteStore : IKernelPreparedTransactionPort
             await using var bounded = new CurrentReadStream(stream, MaxCurrentReadBytes, _currentReadProgress);
             try
             {
-                var journal = await JsonSerializer.DeserializeAsync<Journal>(bounded, Json, cancellationToken).ConfigureAwait(false);
-                return ValidateJournal(journal, cancellationToken);
+                using var bytes = new MemoryStream();
+                await bounded.CopyToAsync(bytes, cancellationToken).ConfigureAwait(false);
+                return Decode(bytes.ToArray(), out _, cancellationToken);
             }
             catch (Exception error) when (error is JsonException or ArgumentException or InvalidOperationException)
             {
                 throw new InvalidDataException("Records journal is invalid.");
             }
         }
+    }
+
+    private static InvalidDataException Corrupt() => new("Records journal is invalid.");
+
+    private static List<Entry> Decode(byte[] bytes, out bool legacy, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        using var document = JsonDocument.Parse(bytes);
+        var root = document.RootElement;
+        if (root.ValueKind != JsonValueKind.Object) throw Corrupt();
+        if (!root.TryGetProperty("Format", out var formatElement)) throw Corrupt();
+        var format = formatElement.GetString();
+        legacy = format == JournalFormat;
+        if (legacy)
+        {
+            var journal = JsonSerializer.Deserialize<Journal>(bytes, LegacyJson);
+            var result = ValidateJournal(journal, cancellationToken);
+            // An ignored additive property in an old object cannot manufacture provenance.
+            return result.Select(entry => entry with { Row = entry.Row with { PublicationVersionId = null }, IsLegacy = true }).ToList();
+        }
+        if (format != RecordWriteJournalBinding.Format) throw Corrupt();
+        if (!System.Text.Unicode.Utf8.IsValid(bytes) || bytes.AsSpan().StartsWith(new byte[] { 0xef, 0xbb, 0xbf })) throw Corrupt();
+        Members(root, "Format", "LegacyEntryCount", "Entries");
+        var countToken = root.GetProperty("LegacyEntryCount");
+        if (countToken.ValueKind != JsonValueKind.Number || !countToken.TryGetInt32(out var count)
+            || countToken.GetRawText().IndexOfAny(new[] { '.', 'e', 'E' }) >= 0) throw Corrupt();
+        var array = root.GetProperty("Entries");
+        if (array.ValueKind != JsonValueKind.Array || count < 0 || count >= array.GetArrayLength()) throw Corrupt();
+        var entries = new List<Entry>();
+        var index = 0;
+        foreach (var item in array.EnumerateArray())
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            Entry entry;
+            if (index++ < count)
+            {
+                Members(item, "Tag", "Legacy");
+                if (item.GetProperty("Tag").GetString() != "legacy/1") throw Corrupt();
+                var original = item.GetProperty("Legacy");
+                if (original.ValueKind != JsonValueKind.Object) throw Corrupt();
+                entry = original.Deserialize<Entry>(LegacyJson) ?? throw Corrupt();
+                if (entry.Row is null) throw Corrupt();
+                entry = entry with { Row = entry.Row with { PublicationVersionId = null }, IsLegacy = true };
+            }
+            else
+            {
+                Members(item, "Tag", "Key", "Operation", "Row", "Audit", "Receipt", "Binding");
+                if (item.GetProperty("Tag").GetString() != "bound/2") throw Corrupt();
+                RecordWriteJournalBinding.ValidateUnicode(RecordWriteIntent.Strict.GetBytes(item.GetRawText()));
+                Members(item.GetProperty("Operation"), "CommandId", "IdempotencyKey", "Fingerprint");
+                Members(item.GetProperty("Row"), "Tenant", "RecordId", "RecordTypeId", "Version", "DefinitionDigest", "Schema",
+                    "ActorId", "OperationId", "RequestedVersion", "IntentEncodingVersion", "IntentDigest", "Body", "RecordedAt",
+                    "OriginatorId", "AcceptedCommandId", "AcceptanceAuditId", "PublicationVersionId");
+                Members(item.GetProperty("Audit"), "AuditId", "ActorId", "RecordedAt", "Payload", "AuthoritySnapshot", "OriginatorId");
+                Members(item.GetProperty("Receipt"), "RecordId", "OperationId", "RecordTypeId", "Version", "DefinitionDigest", "Schema", "RecordedAt");
+                Members(item.GetProperty("Binding"), "Encoding", "Hash");
+                if (item.GetProperty("Row").GetProperty("Body").ValueKind != JsonValueKind.String
+                    || item.GetProperty("Audit").GetProperty("Payload").ValueKind != JsonValueKind.String
+                    || item.GetProperty("Audit").GetProperty("AuthoritySnapshot").ValueKind != JsonValueKind.String) throw Corrupt();
+                // Deserialize only the six original fields; Tag and Binding belong to this format's dispatch.
+                entry = new(item.GetProperty("Key").GetString()!, item.GetProperty("Operation").Deserialize<KernelOperationIdentity>(Json)!,
+                    item.GetProperty("Row").Deserialize<RecordWriteRow>(Json)!, item.GetProperty("Audit").Deserialize<KernelAuditEvidence>(Json)!,
+                    item.GetProperty("Receipt").Clone());
+                ValidateBound(entry);
+                var binding = item.GetProperty("Binding");
+                var hash = binding.GetProperty("Hash").GetString();
+                if (binding.GetProperty("Encoding").GetString() != RecordWriteJournalBinding.EncodingName
+                    || !RecordWriteJournalBinding.IsHash(hash) || RecordWriteJournalBinding.Hash(entry.Row) != hash) throw Corrupt();
+            }
+            entries.Add(entry with { Raw = RecordWriteIntent.Strict.GetBytes(item.GetRawText()), Wrapped = true });
+        }
+        return ValidateJournal(new(JournalFormat, entries), cancellationToken);
+    }
+
+    private static void Members(JsonElement value, params string[] names)
+    {
+        if (value.ValueKind != JsonValueKind.Object) throw Corrupt();
+        var remaining = new HashSet<string>(names, StringComparer.Ordinal);
+        foreach (var property in value.EnumerateObject())
+            if (!remaining.Remove(property.Name)) throw Corrupt();
+        if (remaining.Count != 0) throw Corrupt();
+    }
+
+    private static void ValidateBound(Entry entry)
+    {
+        if (entry.Operation is null || entry.Row is null || entry.Audit is null) throw Corrupt();
+        var row = entry.Row;
+        foreach (var text in new[] { entry.Key, entry.Operation.CommandId, entry.Operation.IdempotencyKey,
+            entry.Operation.Fingerprint, row.Tenant, row.RecordId, row.RecordTypeId, row.Version, row.DefinitionDigest,
+            row.Schema.Value, row.ActorId, row.OperationId, row.RequestedVersion, row.IntentEncodingVersion, row.IntentDigest,
+            row.OriginatorId, row.AcceptedCommandId, row.AcceptanceAuditId, row.PublicationVersionId,
+            entry.Audit.AuditId, entry.Audit.ActorId, entry.Audit.OriginatorId })
+            if (text is not null) _ = RecordWriteIntent.Strict.GetByteCount(text);
+        var receipt = entry.Receipt?.Deserialize<RecordWriteReceipt>(Json) ?? throw Corrupt();
+        if (receipt.RecordId != row.RecordId || receipt.OperationId != row.OperationId || receipt.RecordTypeId != row.RecordTypeId
+            || receipt.Version != row.Version || receipt.DefinitionDigest != row.DefinitionDigest || receipt.Schema != row.Schema
+            || !receipt.RecordedAt.EqualsExact(row.RecordedAt) || entry.Key != entry.Operation.IdempotencyKey
+            || entry.Operation.CommandId != row.RecordId || entry.Operation.Fingerprint != row.IntentDigest
+            || entry.Audit.ActorId != row.ActorId || !entry.Audit.RecordedAt.EqualsExact(row.RecordedAt)
+            || entry.Audit.OriginatorId != row.OriginatorId) throw Corrupt();
+        entry.Operation.Validate();
+        entry.Audit.Validate();
+        _ = RecordWriteJournalBinding.Encode(row);
     }
 
     private static List<Entry> ValidateJournal(Journal? journal, CancellationToken cancellationToken = default)
@@ -243,6 +429,9 @@ public sealed class FileJournalRecordWriteStore : IKernelPreparedTransactionPort
     private sealed record Journal(string Format, List<Entry> Entries);
     private sealed record Entry(string Key, KernelOperationIdentity Operation, RecordWriteRow Row, KernelAuditEvidence Audit, JsonElement? Receipt = null)
     {
+        [JsonIgnore] public byte[] Raw { get; init; } = [];
+        [JsonIgnore] public bool IsLegacy { get; init; }
+        [JsonIgnore] public bool Wrapped { get; init; }
         public RecordWriteCommittedOperation Stored()
         {
             RecordWriteReceipt? receipt = null;
@@ -289,6 +478,7 @@ public sealed class FileJournalRecordWriteStore : IKernelPreparedTransactionPort
             ArgumentException.ThrowIfNullOrWhiteSpace(record.IntentEncodingVersion);
             ArgumentException.ThrowIfNullOrWhiteSpace(record.IntentDigest);
             ArgumentException.ThrowIfNullOrWhiteSpace(record.Schema.Value);
+            _ = RecordWriteJournalBinding.Encode(record);
             _row = record with { Body = record.Body.ToArray() };
             return ValueTask.CompletedTask;
         }

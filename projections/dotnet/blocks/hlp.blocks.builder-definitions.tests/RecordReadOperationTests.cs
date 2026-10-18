@@ -363,6 +363,63 @@ public sealed class RecordReadOperationTests
         Assert.Equal(0, stopped.Clock.Reads);
     }
 
+    [Fact]
+    public async Task a_bound_row_uses_the_opaque_publication_id_not_its_label_stream_revision_or_newer_head()
+    {
+        var fixture = await Published();
+        var key = new DefinitionKey(Tenant, DefinitionKind.Records, TypeId);
+        await fixture.Definitions.SaveDraftAsync(new(key, "opaque-A", "1.0.1", TypeJson), 2, "opaque-draft-A");
+        await fixture.Definitions.PublishAsync(key, "opaque-A", 3, "opaque-publish-A");
+        await fixture.Definitions.SaveDraftAsync(new(key, "opaque-B", "1.0.2", TypeJson), 4, "opaque-draft-B");
+        await fixture.Definitions.PublishAsync(key, "opaque-B", 5, "opaque-publish-B");
+        fixture.Store.Rows[0] = fixture.Store.Rows[0] with { PublicationVersionId = "opaque-A", Version = "1.0.1" };
+
+        var outcome = await fixture.Operation.ReadAsync(new(Tenant, Actor), new(RecordId));
+
+        Assert.Equal("1.0.1", outcome.Record!.Version);
+        Assert.Equal(ExpectedSchemaId, outcome.Record.Schema.Value);
+        Assert.Equal(TypeDigest, outcome.Record.DefinitionDigest);
+        Assert.Equal("opaque-A", Assert.Single(fixture.Catalogue.Pins).VersionId);
+        Assert.Equal(0, fixture.Catalogue.RecordHeadReads);
+        Assert.Equal(BodyText, Encoding.UTF8.GetString(outcome.Record.Body.Span));
+    }
+
+    [Theory]
+    [InlineData("missing")]
+    [InlineData("draft")]
+    [InlineData("tenant")]
+    [InlineData("kind")]
+    [InlineData("type")]
+    [InlineData("identity")]
+    [InlineData("label")]
+    [InlineData("digest")]
+    public async Task exact_bound_evidence_never_falls_back_to_another_identity_or_head(string poison)
+    {
+        var fixture = await Published();
+        fixture.Store.Rows[0] = fixture.Store.Rows[0] with { PublicationVersionId = "1.0.0" };
+        fixture.Catalogue.ResolveAs = (_, revision) => poison switch
+        {
+            "missing" => null,
+            "draft" => revision! with { Status = DefinitionStatus.Draft },
+            "tenant" => revision! with { Document = revision.Document with { Key = revision.Document.Key with { Tenant = "other" } } },
+            "kind" => revision! with { Document = revision.Document with { Key = revision.Document.Key with { Kind = DefinitionKind.Forms } } },
+            "type" => revision! with { Document = revision.Document with { Key = revision.Document.Key with { DefinitionId = "work.other" } } },
+            "identity" => revision! with { Document = revision.Document with { VersionId = "other-id" } },
+            "label" => revision! with { Document = revision.Document with { Version = "1.0.1" } },
+            "digest" => revision! with { Digest = new string('a', 64) },
+            _ => throw new InvalidOperationException(),
+        };
+        var expectedBody = fixture.Store.Rows[0].Body.ToArray();
+        if (poison is "missing" or "draft")
+        {
+            var outcome = await fixture.Operation.ReadAsync(new(Tenant, Actor), new(RecordId));
+            Assert.Equal("entity.validation.schema_unknown", outcome.Refusal); Assert.Null(outcome.Record);
+        }
+        else await Assert.ThrowsAsync<InvalidDataException>(() => fixture.Operation.ReadAsync(new(Tenant, Actor), new(RecordId)).AsTask());
+        Assert.Single(fixture.Catalogue.Pins); Assert.Equal(0, fixture.Catalogue.RecordHeadReads);
+        Assert.Equal(expectedBody, fixture.Store.Rows[0].Body.ToArray());
+    }
+
     private sealed record Fixture(RecordReadOperation Operation, RowStore Store, Gate Gate, ObservingCatalogue Catalogue,
         CountingClock Clock, InMemoryVersionedDefinitionStore Definitions, RecordTypeDefinitionStore Publisher,
         SchemaId Schema, List<string> Events);
@@ -454,6 +511,7 @@ public sealed class RecordReadOperationTests
 
     private sealed class ObservingCatalogue(IVersionedDefinitionStore inner, List<string> events) : IVersionedDefinitionStore
     {
+        public Func<DefinitionBinding, DefinitionRevision?, DefinitionRevision?>? ResolveAs { get; set; }
         public List<DefinitionBinding> Pins { get; } = [];
         public int RecordHeadReads { get; private set; }
         public Exception? Fault { get; set; }
@@ -478,7 +536,7 @@ public sealed class RecordReadOperationTests
             if (key.Kind == DefinitionKind.Records) RecordHeadReads++;
             return inner.GetPublishedHeadAsync(key, cancellationToken);
         }
-        public ValueTask<DefinitionRevision?> ResolvePublishedAsync(DefinitionBinding binding, CancellationToken cancellationToken = default)
+        public async ValueTask<DefinitionRevision?> ResolvePublishedAsync(DefinitionBinding binding, CancellationToken cancellationToken = default)
         {
             if (binding.Key.Kind == DefinitionKind.Records)
             {
@@ -487,7 +545,8 @@ public sealed class RecordReadOperationTests
                 LastToken = cancellationToken;
                 if (Fault is not null) throw Fault;
             }
-            return inner.ResolvePublishedAsync(binding, cancellationToken);
+            var revision = await inner.ResolvePublishedAsync(binding, cancellationToken);
+            return ResolveAs is null ? revision : ResolveAs(binding, revision);
         }
     }
 }

@@ -92,6 +92,9 @@ public sealed record RecordWriteRow(
     ReadOnlyMemory<byte> Body,
     DateTimeOffset RecordedAt)
 {
+    /// <summary>The admitted immutable publication identity for a bound journal row; null for a genuine legacy row.</summary>
+    public string? PublicationVersionId { get; init; }
+
     /// <summary>
     /// For a completed accepted command, the submitter the command was accepted for (provenance only, ADR-0110 decision 4);
     /// <see cref="ActorId"/> is then the worker that executed it. Null for a direct create. The audit carries the same value
@@ -749,10 +752,12 @@ public sealed class RecordWriteOperation
                         publication.Revision.Digest, publication.Schema.Id, plan.ExecutorId, request.OperationId, request.Version,
                         RecordWriteIntent.EncodingVersion, intentDigest, body, instant)
                     {
+                        PublicationVersionId = publication.Revision.Document.VersionId,
                         OriginatorId = plan.OriginatorId,
                         AcceptedCommandId = plan.AcceptedCommandId,
                         AcceptanceAuditId = plan.AcceptanceAuditId,
                     };
+                    RecordWriteJournalBinding.ValidatePublication(row, publication);
                     // The gate's own evidence is the audit's authority snapshot: staged in the one audit call, it commits
                     // or rolls back with the record and the operation identity (ADR 0068), never after the commit. The
                     // actor is the executor; an accepted command's submitter is the originator, provenance only (D6).

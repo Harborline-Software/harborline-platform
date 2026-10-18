@@ -438,6 +438,8 @@ public sealed class RecordTypeDefinitionStore
     /// Current admission still governs historical bodies; a body it now refuses cannot bind. The definition digest
     /// hashes only BodyJson, so identical bodies at distinct published versions are not independently distinguished
     /// by that digest or compiled schema; this resolver proves the requested version exists, not its original provenance.
+    /// Registers current first on every call. Only its successful nonmatch permits the explicit legacy candidate;
+    /// either failure or cancellation stops. At most two external registrations may remain after a refused read.
     /// </summary>
     /// <param name="tenant">The host-bound tenant.</param>
     /// <param name="recordTypeId">The stored Record Type identity.</param>
@@ -446,36 +448,40 @@ public sealed class RecordTypeDefinitionStore
     /// <param name="cancellationToken">Cancellation for exact resolution, admission and registration.</param>
     public async ValueTask<RecordTypePublication?> ResolveStoredPublishedSchemaAsync(string tenant, string recordTypeId,
         string version, SchemaId storedSchema, CancellationToken cancellationToken = default)
+        => await ResolveStoredSchemaAsync(tenant, recordTypeId, version, null, storedSchema, cancellationToken).ConfigureAwait(false);
+
+    internal ValueTask<RecordTypePublication?> ResolveBoundStoredPublishedSchemaAsync(string tenant, string recordTypeId,
+        string publicationVersionId, string version, SchemaId storedSchema, CancellationToken cancellationToken)
+        => ResolveStoredSchemaAsync(tenant, recordTypeId, publicationVersionId, version, storedSchema, cancellationToken);
+
+    private async ValueTask<RecordTypePublication?> ResolveStoredSchemaAsync(string tenant, string recordTypeId,
+        string versionId, string? expectedLabel, SchemaId storedSchema, CancellationToken cancellationToken)
     {
-        ArgumentNullException.ThrowIfNull(version);
-        var revision = await _store.ResolvePublishedAsync(new DefinitionBinding(KeyOf(tenant, recordTypeId), version),
+        ArgumentNullException.ThrowIfNull(versionId);
+        var key = KeyOf(tenant, recordTypeId);
+        var revision = await _store.ResolvePublishedAsync(new DefinitionBinding(key, versionId),
             cancellationToken).ConfigureAwait(false);
         if (revision is null) return null;
+        if (revision.Status != DefinitionStatus.Published) return null;
+        if (revision.Document.Key != key || revision.Document.VersionId != versionId
+            || (expectedLabel is not null && revision.Document.Version != expectedLabel))
+            throw new InvalidDataException("The record's publication identity does not match its published version.");
         var admitted = await AdmitAsync(revision.Document, DefinitionAdmissionPhase.Publish, cancellationToken).ConfigureAwait(false);
-        var text = admitted.JsonSchemaText;
-        if (IdentityOf(text) != storedSchema)
-        {
-            var document = RecordTypeDefinitionJson.Deserialize(Encoding.UTF8.GetBytes(revision.Document.BodyJson));
-            var predecessor = await _compiler.CompilePreT616ScalarForStoredReadAsync(document.ToDefinition(), null,
-                _fieldDomainScope, cancellationToken).ConfigureAwait(false);
-            if (predecessor.JsonSchemaText is null)
-                throw new DefinitionRefusalException(DefinitionAdmissionPhase.Publish,
-                    predecessor.Refusals.Select(refusal => new DefinitionRefusal(refusal.Code, refusal.JsonPointer)));
-            text = predecessor.JsonSchemaText;
-            if (IdentityOf(text) != storedSchema)
-                throw new InvalidDataException("The record's schema identity does not match its published version.");
-        }
         cancellationToken.ThrowIfCancellationRequested();
-        var matched = await _registry.RegisterAsync(text, cancellationToken: cancellationToken).ConfigureAwait(false);
-        if (matched.Id != storedSchema)
-            throw new InvalidDataException("The record's schema identity does not match its published version.");
-        return new(revision, matched);
-
-        static SchemaId IdentityOf(string schemaText)
-        {
-            using var schema = JsonDocument.Parse(schemaText);
-            return new($"schema:{CanonicalContent.ContentAddress(CanonicalContent.Serialize(schema.RootElement))}");
-        }
+        var current = await _registry.RegisterAsync(admitted.JsonSchemaText, cancellationToken: cancellationToken).ConfigureAwait(false);
+        cancellationToken.ThrowIfCancellationRequested();
+        if (current.Id == storedSchema) return new(revision, current);
+        var document = RecordTypeDefinitionJson.Deserialize(Encoding.UTF8.GetBytes(revision.Document.BodyJson));
+        var predecessor = await _compiler.CompilePreT616ScalarForStoredReadAsync(document.ToDefinition(), null,
+            _fieldDomainScope, cancellationToken).ConfigureAwait(false);
+        if (predecessor.JsonSchemaText is null)
+            throw new DefinitionRefusalException(DefinitionAdmissionPhase.Publish,
+                predecessor.Refusals.Select(refusal => new DefinitionRefusal(refusal.Code, refusal.JsonPointer)));
+        cancellationToken.ThrowIfCancellationRequested();
+        var legacy = await _registry.RegisterAsync(predecessor.JsonSchemaText, cancellationToken: cancellationToken).ConfigureAwait(false);
+        cancellationToken.ThrowIfCancellationRequested();
+        if (legacy.Id == storedSchema) return new(revision, legacy);
+        throw new InvalidDataException("The record's schema identity does not match its published version.");
     }
 
     /// <summary>

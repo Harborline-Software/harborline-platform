@@ -6,6 +6,8 @@ namespace Harborline.Blocks.BuilderDefinitions;
 /// ordinally, without trimming or case folding. Null means a miss only; corruption and operational failures propagate.
 /// The current-read operation detaches body bytes before using or returning them. The real journal adapter is integrated
 /// with that operation by its existing owner; this port does not introduce another journal parser or storage format.
+/// PublicationVersionId is the immutable identity on bound rows and null on genuine legacy rows; adapters preserve it
+/// without inferring it from Version. A journal validates every entry's local evidence before returning any row.
 /// </remarks>
 public interface IRecordReadStore
 {
