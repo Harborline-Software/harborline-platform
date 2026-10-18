@@ -24,7 +24,7 @@
     "Free/busy never leaks event detail beyond the visibility policy; viewer free/busy folds shared-calendar layers under that policy.",
     "Booking respects padding envelopes and occupancy limits with typed outcomes — never a silent double-book.",
     "A prior availability read is advisory and cannot authorize an unconditional save: a claim reads the resource's capacity epoch before the capacity read and commits conditional on it, so two concurrent claims on one exclusive slot yield exactly one success without a caller-side lock, and release or expiry restores capacity exactly once (control ticket T-659, DES-0025 booking-eng-24, ADR 0095 ruling 8).",
-    "Every booking is attributed to the authenticated requester (the Party the host's IPartyContext resolves); a call with no authenticated identity is refused with NO_REQUESTER and writes nothing (control ticket T-568, ledger L535).",
+    "Every booking is attributed to the authenticated requester (the Party the host's IPartyContext resolves); requester-resolution failure refuses with NO_REQUESTER on IBookingService and booking.claim.no_requester on BookableClaimService, with nothing written (control ticket T-568, ledger L535).",
     "Participation invariants hold as pinned (the two participation theories expand to their six pinned rows).",
     "All 163 pinned executable cases are preserved under their pinned names."
   ],
