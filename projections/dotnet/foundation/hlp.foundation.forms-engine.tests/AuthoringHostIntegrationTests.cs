@@ -57,7 +57,10 @@ public sealed class AuthoringHostIntegrationTests
     public async Task Actual_atomic_store_failure_does_not_return_a_successful_assessment_result()
     {
         var fixture = await ImpactFixture.CreateAsync();
-        await fixture.Store.RegisterAndPublishAsync(fixture.Candidate);
+        // Same tenant, id and version but a different CreatedAt, so the store's identical-retry check fails
+        // and the atomic register-and-publish raises a real version conflict.
+        var conflicting = fixture.Candidate with { CreatedAt = fixture.Candidate.CreatedAt.AddSeconds(1) };
+        await fixture.Store.RegisterAndPublishAsync(conflicting);
         var services = new ServiceCollection();
         services.AddSingleton<IFormDefinitionStore>(fixture.Store);
         services.AddHarborlineFormsAuthoringPublisher();
@@ -66,6 +69,9 @@ public sealed class AuthoringHostIntegrationTests
         var publisher = scope.ServiceProvider.GetRequiredService<IFormDefinitionAuthoringPublisher>();
         await Assert.ThrowsAsync<FormDefinitionConflictException>(() => publisher.RegisterAndPublishWithImpactAsync(
             fixture.Candidate, fixture.Context).AsTask());
+        var stored = await fixture.Store.GetAsync(fixture.Candidate.Tenant, fixture.Candidate.Id, fixture.Candidate.Version);
+        Assert.Equal(FormDefinitionStatus.Published, stored.Status);
+        Assert.Equal(conflicting.CreatedAt, stored.CreatedAt);
     }
 
     [Fact]
