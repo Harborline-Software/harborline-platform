@@ -1,8 +1,11 @@
 import assert from 'node:assert/strict'
-import {readFileSync} from 'node:fs'
+import {readFileSync, mkdtempSync, rmSync, writeFileSync} from 'node:fs'
+import {tmpdir} from 'node:os'
+import {resolve} from 'node:path'
 import test from 'node:test'
-import {createSharedModuleScheduler, selectSharedSchedule} from '../shared-module-scheduler.mjs'
+import {createSharedModuleScheduler, selectSharedSchedule, writeSharedScheduleReport} from '../shared-module-scheduler.mjs'
 import {moduleEvidence} from '../shared-module-evidence.mjs'
+import {boundedReport} from '../phase4-step-runner.mjs'
 
 // Oracles: Chris Q5's six workers / 79 total / 77 ordinary / Chat then Grid / one retry,
 // the external catalog roster, and independently controlled completion times and results.
@@ -321,5 +324,86 @@ test('an executor throw or rejection remains a failure and never starts an exclu
     await assert.rejects(running, error => error === failure)
     assert.deepEqual(calls, ['broken'])
     assert.deepEqual(phases.map(event => `${event.phase}:${event.boundary}`), ['ordinary-pool:start'])
+  }
+})
+
+test('the uploaded full schedule artifact keeps PASS and FAIL observations beyond the gate excerpt', () => {
+  // Oracle: the granted fixed artifact path, exact stdout/file equivalence and literal evidence
+  // after 18,000 padding characters. The real gate excerpt remains bounded to 16,384 characters.
+  const directory = mkdtempSync(resolve(tmpdir(), 'shared-schedule-artifact-'))
+  try {
+    const artifact = resolve(directory, '.claude/gate-evidence/ui-shared-schedule.json')
+    for (const [status, gridExit] of [['PASS', 0], ['FAIL', 9]]) {
+      const report = {
+        schemaVersion: 1,
+        status,
+        padding: 'x'.repeat(18000),
+        schedule: {
+          mode: 'exclusive-tail',
+          configuredConcurrency: 6,
+          attempts: [
+            {moduleId: 'ordinary-a', attempt: 1, exitCode: 7, startOffsetMs: 1, endOffsetMs: 3},
+            {moduleId: 'ordinary-b', attempt: 1, exitCode: 0, startOffsetMs: 1, endOffsetMs: 3},
+            {moduleId: 'ordinary-a', attempt: 2, exitCode: 0, startOffsetMs: 3, endOffsetMs: 8},
+            {moduleId: 'hlp.ui.chat', attempt: 1, exitCode: 0, startOffsetMs: 8, endOffsetMs: 10},
+            {moduleId: 'hlp.ui.data-grid', attempt: 1, exitCode: 9, startOffsetMs: 10, endOffsetMs: 12},
+            {moduleId: 'hlp.ui.data-grid', attempt: 2, exitCode: gridExit, startOffsetMs: 12, endOffsetMs: 14},
+          ],
+          observedOverlap: {maxActiveAttempts: 2, overlappingDurationMs: 2, intervals: [
+            {startOffsetMs: 1, endOffsetMs: 3, activeAttempts: [
+              {moduleId: 'ordinary-a', attempt: 1, phase: 'ordinary-pool'},
+              {moduleId: 'ordinary-b', attempt: 1, phase: 'ordinary-pool'},
+            ]},
+          ]},
+          phaseResources: [{phase: 'ordinary-pool', boundary: 'end', offsetMs: 8,
+            hostCpu: {available: true, value: {logicalCount: 4, models: ['literal-host-model']}},
+            freeMemoryBytes: {available: true, value: 123456789}}],
+          resourceScope: 'host OS observations, not effective CPU/memory quotas or causal contention evidence',
+        },
+        modules: [
+          {moduleId: 'ordinary-a', durationMs: 5, attempts: 2,
+            firstAttempt: {exitCode: 7, durationMs: 2, reportStatus: 'FAIL',
+              failures: [{caseId: 'literal-first-failure'}], stderrTail: 'literal failed first attempt'}},
+          {moduleId: 'hlp.ui.data-grid', durationMs: 2, attempts: 2, exitCode: gridExit,
+            firstAttempt: {exitCode: 9, durationMs: 2, reportStatus: 'FAIL',
+              failures: [{caseId: 'literal-grid-first-failure'}]}},
+        ],
+        endSentinel: `complete-${status}`,
+      }
+      const expectedBytes = `${JSON.stringify(report, null, 2)}\n`
+
+      const stdout = writeSharedScheduleReport(directory, report)
+      const savedBytes = readFileSync(artifact, 'utf8')
+      assert.equal(stdout, expectedBytes)
+      assert.equal(savedBytes, stdout)
+      assert.ok(Buffer.byteLength(savedBytes, 'utf8') > 16384)
+      const saved = JSON.parse(savedBytes)
+      assert.deepEqual(saved, report)
+      assert.equal(saved.status, status)
+      assert.deepEqual(saved.schedule.attempts.map(entry => entry.exitCode), [7, 0, 0, 0, 9, gridExit])
+      assert.equal(saved.modules[0].firstAttempt.failures[0].caseId, 'literal-first-failure')
+      assert.equal(saved.schedule.observedOverlap.overlappingDurationMs, 2)
+      assert.equal(saved.schedule.phaseResources[0].freeMemoryBytes.value, 123456789)
+      assert.equal(saved.endSentinel, `complete-${status}`)
+
+      const excerpt = boundedReport(report)
+      assert.equal(typeof excerpt, 'string')
+      assert.equal(excerpt.length, 16384)
+      assert.ok(excerpt.endsWith('[truncated after 16384 characters]'))
+      assert.ok(!excerpt.includes('endSentinel'))
+    }
+  } finally {
+    rmSync(directory, {recursive: true, force: true})
+  }
+})
+
+test('a full schedule artifact write failure propagates instead of returning successful stdout', () => {
+  const directory = mkdtempSync(resolve(tmpdir(), 'shared-schedule-artifact-failure-'))
+  try {
+    writeFileSync(resolve(directory, '.claude'), 'occupied', 'utf8')
+    assert.throws(() => writeSharedScheduleReport(directory, {status: 'PASS'}))
+    assert.equal(readFileSync(resolve(directory, '.claude'), 'utf8'), 'occupied')
+  } finally {
+    rmSync(directory, {recursive: true, force: true})
   }
 })

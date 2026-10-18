@@ -8,7 +8,7 @@ import {cpus, loadavg, freemem, totalmem} from 'node:os'
 import {resolveCommand, runnerEnvironment} from './resolve-command.mjs'
 import {resolvePinnedDotnet} from './resolve-dotnet.mjs'
 import {moduleEvidence} from './shared-module-evidence.mjs'
-import {createSharedModuleScheduler} from './shared-module-scheduler.mjs'
+import {createSharedModuleScheduler, writeSharedScheduleReport} from './shared-module-scheduler.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const reactRoot = resolve(root, 'projections/react/ui/hlp.ui.button')
@@ -131,7 +131,7 @@ const passed = setupPassed
   && reports.every(report => report.status === 'PASS')
   && passedResults === expectedResults
 
-process.stdout.write(`${JSON.stringify({
+const report = {
   schemaVersion: 1,
   status: passed ? 'PASS' : 'FAIL',
   strategy: scheduler.mode === 'original'
@@ -179,5 +179,6 @@ process.stdout.write(`${JSON.stringify({
       ...moduleEvidence(result, passed),
     }
   }),
-}, null, 2)}\n`)
+}
+process.stdout.write(writeSharedScheduleReport(root, report))
 process.exitCode = passed ? 0 : 1

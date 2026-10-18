@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import {execFileSync} from 'node:child_process'
+import {execFileSync, spawnSync} from 'node:child_process'
 import {mkdtempSync, rmSync, writeFileSync, mkdirSync} from 'node:fs'
 import {tmpdir} from 'node:os'
 import {resolve} from 'node:path'
@@ -47,7 +47,7 @@ test('a UI-touching tree change forces ui-shared-conformance to run', () => {
 
     assert.notEqual(hashB, hashA)
     assert.deepEqual(
-      decideStepReuse({stepId: 'ui-shared-conformance', inputHash: hashB, previousPass: passEvidence(hashA)}),
+      decideStepReuse({stepId: 'ui-shared-conformance', inputHash: hashB, previousPass: passEvidence(hashA), sharedSchedule: 'original'}),
       {mode: 'run-step', reason: 'declared input hash changed'},
     )
   } finally {
@@ -70,7 +70,7 @@ test('changing a released detail definition invalidates native and shared render
       assert.notEqual(hashB, hashA, `${stepId} must observe the released definition change`)
       const previousPass = passEvidence(hashA)
       previousPass.gate.results[0].id = stepId
-      assert.deepEqual(decideStepReuse({stepId, inputHash: hashB, previousPass}),
+      assert.deepEqual(decideStepReuse({stepId, inputHash: hashB, previousPass, sharedSchedule: 'original'}),
         {mode: 'run-step', reason: 'declared input hash changed'})
     }
   } finally {
@@ -80,7 +80,7 @@ test('changing a released detail definition invalidates native and shared render
 
 test('only an exact complete prior PASS is reusable', () => {
   const inputHash = 'a'.repeat(64)
-  const exact = decideStepReuse({stepId: 'ui-shared-conformance', inputHash, previousPass: passEvidence(inputHash)})
+  const exact = decideStepReuse({stepId: 'ui-shared-conformance', inputHash, previousPass: passEvidence(inputHash), sharedSchedule: 'original'})
   assert.equal(exact.mode, 'reuse')
   assert.deepEqual(exact.previous.report, {counts: {passedResults: 2}})
 
@@ -94,7 +94,7 @@ test('only an exact complete prior PASS is reusable', () => {
   ]
   for (const [previousPass, reason] of cases) {
     assert.deepEqual(
-      decideStepReuse({stepId: 'ui-shared-conformance', inputHash, previousPass}),
+      decideStepReuse({stepId: 'ui-shared-conformance', inputHash, previousPass, sharedSchedule: 'original'}),
       {mode: 'run-step', reason},
     )
   }
@@ -130,5 +130,66 @@ test('unknown steps, invalid trees, and empty matches fail closed', () => {
     )
   } finally {
     rmSync(repositoryRoot, {recursive: true, force: true})
+  }
+})
+
+test('changing the actual shared scheduler helper invalidates only its declared reusable step', () => {
+  const repositoryRoot = mkdtempSync(resolve(tmpdir(), 'harborline-shared-helper-evidence-'))
+  try {
+    execFileSync('git', ['init', '--quiet'], {cwd: repositoryRoot})
+    execFileSync('git', ['config', 'user.email', 'gate-test@harborline.invalid'], {cwd: repositoryRoot})
+    execFileSync('git', ['config', 'user.name', 'Gate Test'], {cwd: repositoryRoot})
+    commitTree(repositoryRoot, 'name: button\n')
+    const treeA = commitTree(repositoryRoot, 'export const fixture = "first"\n', 'tooling/shared-module-scheduler.mjs')
+    const treeB = commitTree(repositoryRoot, 'export const fixture = "second"\n', 'tooling/shared-module-scheduler.mjs')
+    const sharedA = hashStepInputs({repositoryRoot, testedTree: treeA, stepId: 'ui-shared-conformance'})
+    const sharedB = hashStepInputs({repositoryRoot, testedTree: treeB, stepId: 'ui-shared-conformance'})
+    assert.notEqual(sharedB, sharedA)
+    assert.equal(hashStepInputs({repositoryRoot, testedTree: treeA, stepId: 'native-tests'}),
+      hashStepInputs({repositoryRoot, testedTree: treeB, stepId: 'native-tests'}))
+    assert.deepEqual(decideStepReuse({stepId: 'ui-shared-conformance', inputHash: sharedB,
+      previousPass: passEvidence(sharedA), sharedSchedule: 'original'}),
+    {mode: 'run-step', reason: 'declared input hash changed'})
+  } finally {
+    rmSync(repositoryRoot, {recursive: true, force: true})
+  }
+})
+
+test('non-original schedules cannot reuse a UI PASS while unrelated steps retain their exact evidence', () => {
+  const inputHash = 'b'.repeat(64)
+  for (const sharedSchedule of ['exclusive-tail', '', 'unknown']) {
+    assert.deepEqual(decideStepReuse({stepId: 'ui-shared-conformance', inputHash,
+      previousPass: passEvidence(inputHash), sharedSchedule}),
+    {mode: 'run-step', reason: 'ui-shared-conformance reuse requires original scheduling'})
+    for (const stepId of ['native-tests', 'gallery-gate']) {
+      const previousPass = passEvidence(inputHash)
+      previousPass.gate.results[0].id = stepId
+      assert.equal(decideStepReuse({stepId, inputHash, previousPass, sharedSchedule}).mode, 'reuse')
+    }
+  }
+  assert.equal(decideStepReuse({stepId: 'ui-shared-conformance', inputHash,
+    previousPass: passEvidence(inputHash), sharedSchedule: 'original'}).mode, 'reuse')
+})
+
+test('the real default reuse boundary reads each isolated child schedule environment', () => {
+  const moduleUrl = new URL('../gate-step-evidence.mjs', import.meta.url).href
+  const source = `
+    import {decideStepReuse} from ${JSON.stringify(moduleUrl)}
+    const inputHash = 'c'.repeat(64)
+    const previousPass = {gate: {schemaVersion: 3, phase: 4, status: 'PASS',
+      subject: {testedTree: 'literal-tree'}, results: [{id: 'ui-shared-conformance',
+        passed: true, exitCode: 0, inputHash, report: {status: 'PASS'}}]}}
+    process.stdout.write(JSON.stringify(decideStepReuse({stepId: 'ui-shared-conformance', inputHash, previousPass})))
+  `
+  for (const [selector, mode] of [[undefined, 'reuse'], ['original', 'reuse'],
+    ['exclusive-tail', 'run-step'], ['', 'run-step'], ['unknown', 'run-step']]) {
+    const env = {...process.env}
+    if (selector === undefined) delete env.HARBORLINE_SHARED_SCHEDULE
+    else env.HARBORLINE_SHARED_SCHEDULE = selector
+    const child = spawnSync(process.execPath, ['--input-type=module', '--eval', source], {env, encoding: 'utf8'})
+    assert.equal(child.status, 0, child.stderr)
+    const outcome = JSON.parse(child.stdout)
+    assert.equal(outcome.mode, mode, `selector ${String(selector)}`)
+    if (mode === 'run-step') assert.equal(outcome.reason, 'ui-shared-conformance reuse requires original scheduling')
   }
 })

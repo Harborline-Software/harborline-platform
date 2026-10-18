@@ -1,5 +1,18 @@
 // Shared module orchestration only: the caller owns the unchanged build and module commands.
 // Keeping this separate lets selftests control completion without importing the CLI's builds.
+import {mkdirSync, writeFileSync} from 'node:fs'
+import {resolve} from 'node:path'
+
+// The gate receipt deliberately bounds its inline report. Preserve the complete observation in
+// the existing evidence upload directory, and print these same bytes rather than a second copy.
+export function writeSharedScheduleReport(repositoryRoot, report) {
+  const serialized = `${JSON.stringify(report, null, 2)}\n`
+  const directory = resolve(repositoryRoot, '.claude/gate-evidence')
+  mkdirSync(directory, {recursive: true})
+  writeFileSync(resolve(directory, 'ui-shared-schedule.json'), serialized, 'utf8')
+  return serialized
+}
+
 const exclusiveModules = ['hlp.ui.chat', 'hlp.ui.data-grid']
 
 export function selectSharedSchedule(value) {

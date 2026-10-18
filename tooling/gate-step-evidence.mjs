@@ -53,6 +53,7 @@ export const reusableStepInputs = {
     'tooling/run-ui-module-shared.mjs',
     'tooling/dotnet-conformance-batch.mjs',
     'tooling/shared-module-evidence.mjs',
+    'tooling/shared-module-scheduler.mjs',
     'tooling/resolve-command.mjs',
     'tooling/resolve-dotnet.mjs',
   ],
@@ -108,7 +109,13 @@ export function loadPreviousPassEvidence(evidencePath) {
   }
 }
 
-export function decideStepReuse({stepId, inputHash, previousPass}) {
+export function decideStepReuse({stepId, inputHash, previousPass,
+  sharedSchedule = process.env.HARBORLINE_SHARED_SCHEDULE ?? 'original'}) {
+  // The schedule is not part of the recorded input hash. Every experiment must execute rather
+  // than inherit an original-mode PASS; empty/unknown selectors also cannot borrow that proof.
+  if (stepId === 'ui-shared-conformance' && sharedSchedule !== 'original') {
+    return {mode: 'run-step', reason: 'ui-shared-conformance reuse requires original scheduling'}
+  }
   if (!previousPass?.gate) return {mode: 'run-step', reason: previousPass?.reason ?? 'recorded gate evidence is unavailable'}
   if (previousPass.gate.schemaVersion !== 3 || previousPass.gate.phase !== 4 || previousPass.gate.status !== 'PASS') {
     return {mode: 'run-step', reason: 'recorded gate evidence is not a schema-v3 phase-4 PASS'}

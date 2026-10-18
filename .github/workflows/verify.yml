@@ -18,6 +18,15 @@ on:
     types: [opened, synchronize, reopened, ready_for_review]
   merge_group:
   workflow_dispatch:
+    inputs:
+      shared_schedule:
+        description: Shared UI module schedule
+        type: choice
+        required: true
+        default: original
+        options:
+          - original
+          - exclusive-tail
 
 concurrency:
   group: verify-${{ github.event.pull_request.number || github.ref }}
@@ -164,6 +173,7 @@ jobs:
           HARBORLINE_API_REPO: ${{ runner.temp }}/harborline-api
           HARBORLINE_CONTROL_REPO: ${{ runner.temp }}/harborline-control
           HARBORLINE_GATE_HEADLESS: "1"
+          HARBORLINE_SHARED_SCHEDULE: ${{ inputs.shared_schedule || 'original' }}
 
       - name: Evidence
         if: always()
