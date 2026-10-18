@@ -167,6 +167,9 @@ public sealed class FileJournalRecordWriteStore : IKernelPreparedTransactionPort
             Open(cancellationToken);
             ArgumentNullException.ThrowIfNull(record);
             if (_row is not null) throw new InvalidOperationException("Records row is already staged.");
+            ArgumentException.ThrowIfNullOrWhiteSpace(record.IntentEncodingVersion);
+            ArgumentException.ThrowIfNullOrWhiteSpace(record.IntentDigest);
+            ArgumentException.ThrowIfNullOrWhiteSpace(record.Schema.Value);
             _row = record with { Body = record.Body.ToArray() };
             return ValueTask.CompletedTask;
         }
