@@ -108,6 +108,32 @@ The lease-order sentence that said "by attempts, then submit instant, then outbo
 the sentence that said a claimed command with a broken binding "is refused after" the retry limit now says it is
 quarantined.
 
+Revision 18 (T-688, ADR 0099 decision 7) is additive. `IFormDefinitionAuthoringPublisher.RegisterAndPublishWithImpactAsync`
+admits the Draft exactly as `RegisterAndPublishAsync` does. It then has `FormPublicationImpactAssessment` compute an
+assessment, commits through the same atomic register-and-publish, and returns `FormDefinitionPublicationResult` (the
+committed revision and the assessment). No outcome refuses or changes the publication. `Block` is a compatibility result,
+not a lifecycle refusal, and there is no migration approval or new error code. The `FormPublicationAssessmentContext`
+carries a `FormPublicationBasis` and the `ISchemaRegistry` and `IFormPublishedSurfaceSource` to read. The basis holds
+host-attested bindings for the candidate and the exact predecessor (tenant, Form id, semantic version label, a distinct
+opaque `VersionId` and trusted provenance), `NoPredecessor` (true only for a declared first publication, never inferred
+from a failed lookup) and both recorded environments, each known or explicitly unknown. No opaque identity is derived
+from a semantic label, and host provenance is a trusted composition input, not cryptographic authenticity. The assessor
+reads the actual current and predecessor Forms revisions and both schema bodies. An additive optional field or a
+presentation-only change is `ProposalEligible`. A changed field identity, a removed field, or a type, rule, submit gate,
+lineage, async check, aspect, wizard callback or redirect, or environment change is `AuthorResolution`. A newly required
+field without a default, or a changed captured record type, is `Block`, and `Block` takes precedence. Only an eligible assessment with a known predecessor carries a `FormRepublishProposal`, naming exact impacted surface
+versions and never a latest head. The proposal is data, and nothing applies it. Missing, mismatched, unknown, failed or
+unsupported input returns `FormPublicationAssessment.Unavailable` with no compatibility, surfaces or proposal, never a
+healthy empty set. This covers an unknown environment, a predecessor that is not the current published head, a schema
+outside the first interpreter's flat object of primitive fields, and an incomplete census. Its reasons are local
+diagnostics, not wire codes. `IFormPublishedSurfaceSource` is read-only, and a complete read is an observed census, not
+a cross-store atomic snapshot. `FormPublicationContext(basis)` composes the context from the registered schema registry
+and surface source. `AddHarborlineFormsEngine` registers no surface source and no new mandatory port; the opt-in Layout
+census is `hlp.blocks.layout-runtime` revision 10. `RegisterAndPublishAsync` keeps its behaviour, and the interface's
+default member keeps existing implementations source-compatible, answering `Unavailable`. Shipping writer emission of
+historical identity and environment, latest-compatible surface selection for new instances, and the required
+`record_type_id` rollout (T-484, T-485) are not part of this revision.
+
 This is an implementation checkpoint, not HLF-055 completion. All 80 captured source cases and all
 38 migration-gap cases pass. The package and its destination-neutral authoring-host boundary are
 package/consumer green. HLF-055 remains open for the authenticated inspection-review vertical slice.
