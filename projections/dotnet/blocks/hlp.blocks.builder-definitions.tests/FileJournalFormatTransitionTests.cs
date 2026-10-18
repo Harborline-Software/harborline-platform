@@ -37,6 +37,7 @@ public sealed class FileJournalFormatTransitionTests : IDisposable
             var key = new RecordWriteOperationKey(row.GetProperty("Tenant").GetString()!, row.GetProperty("ActorId").GetString()!,
                 row.GetProperty("OperationId").GetString()!);
             settlements.Add((await store.FindAsync(key))!);
+            AssertOriginalReceipt(entry.GetProperty("Receipt"), settlements[^1].Receipt);
             rows.Add((await store.FindAsync(row.GetProperty("Tenant").GetString()!, row.GetProperty("RecordId").GetString()!))!);
         }
         Assert.Equal(original, File.ReadAllBytes(PathName)); // Open/read/receipt lookup did not convert.
@@ -56,6 +57,7 @@ public sealed class FileJournalFormatTransitionTests : IDisposable
                 var row = rows[i];
                 var key = new RecordWriteOperationKey(row.Tenant, row.ActorId, row.OperationId);
                 Assert.Equal(settlements[i], await store.FindAsync(key));
+                AssertOriginalReceipt(originals[i].GetProperty("Receipt"), (await store.FindAsync(key))!.Receipt);
                 var current = (await store.FindAsync(row.Tenant, row.RecordId))!;
                 Assert.Null(current.PublicationVersionId);
                 Assert.Equal(row with { Body = default }, current with { Body = default });
@@ -64,13 +66,28 @@ public sealed class FileJournalFormatTransitionTests : IDisposable
                 var replay = await Append(store, row with { PublicationVersionId = "1.0.0" });
                 Assert.Equal(RecordWriteCommitDisposition.Replayed, replay.Disposition);
                 Assert.Equal(settlements[i].Receipt, replay.Receipt);
+                AssertOriginalReceipt(originals[i].GetProperty("Receipt"), replay.Receipt);
                 var conflict = await Append(store, row with { PublicationVersionId = "1.0.0", IntentDigest = "different-intent" });
                 Assert.Equal(RecordWriteCommitDisposition.Conflict, conflict.Disposition);
                 Assert.Equal(settlements[i].Receipt, conflict.Receipt);
+                AssertOriginalReceipt(originals[i].GetProperty("Receipt"), conflict.Receipt);
                 Assert.Equal(bytes, File.ReadAllBytes(PathName));
             }
         }
         Assert.Equal(original, File.ReadAllBytes(Fixture("Q31/journal/records.json")));
+    }
+
+    private static void AssertOriginalReceipt(JsonElement original, RecordWriteReceipt? actual)
+    {
+        Assert.NotNull(actual);
+        Assert.Equal(original.GetProperty("RecordId").GetString(), actual.RecordId);
+        Assert.Equal(original.GetProperty("OperationId").GetString(), actual.OperationId);
+        Assert.Equal(original.GetProperty("RecordTypeId").GetString(), actual.RecordTypeId);
+        Assert.Equal(original.GetProperty("Version").GetString(), actual.Version);
+        Assert.Equal(original.GetProperty("DefinitionDigest").GetString(), actual.DefinitionDigest);
+        Assert.Equal(original.GetProperty("Schema").GetString(), actual.Schema.Value);
+        Assert.True(DateTimeOffset.Parse(original.GetProperty("RecordedAt").GetString()!, System.Globalization.CultureInfo.InvariantCulture)
+            .EqualsExact(actual.RecordedAt));
     }
 
     [Fact]

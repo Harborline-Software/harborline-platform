@@ -135,6 +135,35 @@ public sealed class RecordWriteJournalBindingTests
         await AllPaths(Encoding.UTF8.GetBytes(raw), false);
     }
 
+    [Fact]
+    public async Task a_distinct_valid_other_entry_keeps_both_current_row_lookups_unambiguous()
+    {
+        var root = BaseJournal(); var other = Bound();
+        other["Key"] = "other-key"; other["Operation"]!["IdempotencyKey"] = "other-key";
+        other["Row"]!["RecordId"] = "other-record";
+        other["Operation"]!["CommandId"] = "other-record";
+        other["Receipt"]!["RecordId"] = "other-record";
+        root["Entries"]!.AsArray().Add(other);
+        var input = Encoding.UTF8.GetBytes(root.ToJsonString());
+        await AllPaths(input, true);
+        var directory = Path.Combine(Path.GetTempPath(), "q32-distinct-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        var path = Path.Combine(directory, "records.json");
+        try
+        {
+            File.WriteAllBytes(path, input);
+            var store = new FileJournalRecordWriteStore(path);
+            var requested = await store.FindAsync("acme", "bound-record");
+            Assert.NotNull(requested);
+            Assert.Equal("bound-record", requested.RecordId);
+            var another = await store.FindAsync("acme", "other-record");
+            Assert.NotNull(another);
+            Assert.Equal("other-record", another.RecordId);
+            Assert.Equal(input, File.ReadAllBytes(path));
+        }
+        finally { Directory.Delete(directory, true); }
+    }
+
     [Theory]
     [InlineData("RecordId")]
     [InlineData("OperationId")]
@@ -147,6 +176,9 @@ public sealed class RecordWriteJournalBindingTests
     {
         var root = BaseJournal(); var other = Bound();
         other["Key"] = "other-key"; other["Operation"]!["IdempotencyKey"] = "other-key";
+        other["Row"]!["RecordId"] = "other-record";
+        other["Operation"]!["CommandId"] = "other-record";
+        other["Receipt"]!["RecordId"] = "other-record";
         other["Receipt"]![member] = member == "RecordedAt" ? "2030-01-02T04:04:05+01:00" : "different";
         root["Entries"]!.AsArray().Add(other);
         await AllPaths(Encoding.UTF8.GetBytes(root.ToJsonString()), false);
@@ -347,6 +379,9 @@ public sealed class RecordWriteJournalBindingTests
             case 47: bound["Operation"]!["CommandId"] = "other"; break;
             case 48: bound["Audit"]!["ActorId"] = "other"; break;
             case 49: var extra = bound.DeepClone(); extra["Key"] = "other-key"; extra["Operation"]!["IdempotencyKey"] = "other-key";
+                extra["Row"]!["RecordId"] = "other-record";
+                extra["Operation"]!["CommandId"] = "other-record";
+                extra["Receipt"]!["RecordId"] = "other-record";
                 extra["Receipt"]!["Version"] = "other"; entries.Add(extra); break;
             case 50: bound["Row"]!["Body"] = Convert.ToBase64String("{\"x\":1,\"x\":2,\"unknown\":0}"u8); break;
             case 51: bound["Row"]!["PublicationVersionId"] = "1.0.1"; break;
