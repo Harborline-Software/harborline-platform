@@ -82,7 +82,11 @@ public sealed record TaxonomySuccessionRefusal(string Code, string Reason) : Tax
 public abstract record TaxonomySuccessionResult;
 
 /// <summary>A successful succession resolution.</summary>
-public sealed record ResolvedTaxonomySuccession(TaxonomyNode Node) : TaxonomySuccessionResult;
+public sealed record ResolvedTaxonomySuccession(TaxonomyNode Node) : TaxonomySuccessionResult
+{
+    /// <summary>The number of successor edges followed; an already-active node has zero hops.</summary>
+    public int HopCount { get; init; }
+}
 
 /// <summary>Identifies node fields changed between two definition versions.</summary>
 [Flags]
@@ -198,7 +202,7 @@ public sealed class TaxonomyInterpreter
         while (true)
         {
             if (!seen.Add(current.Code)) return new TaxonomySuccessionRefusal(code, "successor_cycle");
-            if (current.Status == TaxonomyNodeStatus.Active) return new ResolvedTaxonomySuccession(current);
+            if (current.Status == TaxonomyNodeStatus.Active) return new ResolvedTaxonomySuccession(current) { HopCount = depth };
             if (current.SuccessorCode is null) return new TaxonomySuccessionRefusal(code, "successor_missing");
             if (depth >= TaxonomyDefinitionAdmission.MaximumParentTraversalDepth) return new TaxonomySuccessionRefusal(code, "successor_depth_exceeded");
             if (!byCode.TryGetValue(current.SuccessorCode, out var successor)) return new TaxonomySuccessionRefusal(code, "successor_unknown");
