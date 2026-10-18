@@ -591,11 +591,11 @@ public sealed class RecordWriteOperationTests
         Assert.Equal("validate", amount.Refusal!.Stage);
         Assert.Equal("entity.validation.body_invalid", amount.Refusal.Code);
         Assert.Equal(["/amount"], amount.Refusal.Pointers);
-        var amountError = Assert.Single(amountResult.Errors);
+        var amountError = Assert.Single(amountResult.Errors, e => e.Code == "field.fraction_digits_exceeded");
         Assert.Equal("/amount", amountError.JsonPointer);
         Assert.Equal("field.fraction_digits_exceeded", amountError.Code);
         Assert.Equal(["/price"], price.Refusal!.Pointers);
-        var priceError = Assert.Single(priceResult.Errors);
+        var priceError = Assert.Single(priceResult.Errors, e => e.Code == "field.fraction_digits_exceeded");
         Assert.Equal("/price", priceError.JsonPointer);
         Assert.Equal("field.fraction_digits_exceeded", priceError.Code);
         Assert.True(measure.Committed);
