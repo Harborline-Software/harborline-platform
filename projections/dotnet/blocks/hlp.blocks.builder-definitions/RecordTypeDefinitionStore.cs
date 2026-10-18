@@ -435,6 +435,9 @@ public sealed class RecordTypeDefinitionStore
     /// Binds a stored row's exact published version and schema. Only the current compilation or the explicitly
     /// versioned pre-T616 scalar projection of that same admitted immutable body can match. This read-only binding
     /// never changes the row, publication or write resolver; arbitrary registry membership proves no binding.
+    /// Current admission still governs historical bodies; a body it now refuses cannot bind. The definition digest
+    /// hashes only BodyJson, so identical bodies at distinct published versions are not independently distinguished
+    /// by that digest or compiled schema; this resolver proves the requested version exists, not its original provenance.
     /// </summary>
     /// <param name="tenant">The host-bound tenant.</param>
     /// <param name="recordTypeId">The stored Record Type identity.</param>
@@ -449,21 +452,30 @@ public sealed class RecordTypeDefinitionStore
             cancellationToken).ConfigureAwait(false);
         if (revision is null) return null;
         var admitted = await AdmitAsync(revision.Document, DefinitionAdmissionPhase.Publish, cancellationToken).ConfigureAwait(false);
-        var current = await _registry.RegisterAsync(admitted.JsonSchemaText, cancellationToken: cancellationToken)
-            .ConfigureAwait(false);
-        if (current.Id == storedSchema) return new(revision, current);
-
-        var document = RecordTypeDefinitionJson.Deserialize(Encoding.UTF8.GetBytes(revision.Document.BodyJson));
-        var predecessor = await _compiler.CompilePreT616ScalarForStoredReadAsync(document.ToDefinition(), null,
-            _fieldDomainScope, cancellationToken).ConfigureAwait(false);
-        if (predecessor.JsonSchemaText is null)
-            throw new DefinitionRefusalException(DefinitionAdmissionPhase.Publish,
-                predecessor.Refusals.Select(refusal => new DefinitionRefusal(refusal.Code, refusal.JsonPointer)));
-        var legacy = await _registry.RegisterAsync(predecessor.JsonSchemaText, cancellationToken: cancellationToken)
-            .ConfigureAwait(false);
-        if (legacy.Id != storedSchema)
+        var text = admitted.JsonSchemaText;
+        if (IdentityOf(text) != storedSchema)
+        {
+            var document = RecordTypeDefinitionJson.Deserialize(Encoding.UTF8.GetBytes(revision.Document.BodyJson));
+            var predecessor = await _compiler.CompilePreT616ScalarForStoredReadAsync(document.ToDefinition(), null,
+                _fieldDomainScope, cancellationToken).ConfigureAwait(false);
+            if (predecessor.JsonSchemaText is null)
+                throw new DefinitionRefusalException(DefinitionAdmissionPhase.Publish,
+                    predecessor.Refusals.Select(refusal => new DefinitionRefusal(refusal.Code, refusal.JsonPointer)));
+            text = predecessor.JsonSchemaText;
+            if (IdentityOf(text) != storedSchema)
+                throw new InvalidDataException("The record's schema identity does not match its published version.");
+        }
+        cancellationToken.ThrowIfCancellationRequested();
+        var matched = await _registry.RegisterAsync(text, cancellationToken: cancellationToken).ConfigureAwait(false);
+        if (matched.Id != storedSchema)
             throw new InvalidDataException("The record's schema identity does not match its published version.");
-        return new(revision, legacy);
+        return new(revision, matched);
+
+        static SchemaId IdentityOf(string schemaText)
+        {
+            using var schema = JsonDocument.Parse(schemaText);
+            return new($"schema:{CanonicalContent.ContentAddress(CanonicalContent.Serialize(schema.RootElement))}");
+        }
     }
 
     /// <summary>

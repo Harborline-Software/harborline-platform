@@ -17,6 +17,8 @@ public sealed class FileJournalRecordWriteStore : IKernelPreparedTransactionPort
 {
     // Proposed for review; no released journal-format identifier has been ruled.
     private const string JournalFormat = "records-write-file-journal/1";
+    // Only the current-row read has this resource bound; the existing journal write format is unchanged.
+    private const long MaxCurrentReadBytes = 16 * 1024 * 1024;
     private static readonly SemaphoreSlim Mutation = new(1, 1);
     private static readonly JsonSerializerOptions Json = new()
     {
@@ -60,10 +62,17 @@ public sealed class FileJournalRecordWriteStore : IKernelPreparedTransactionPort
         await Mutation.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            var matches = Load().Where(entry => string.Equals(entry.Row.Tenant, tenant, StringComparison.Ordinal)
-                && string.Equals(entry.Row.RecordId, recordId, StringComparison.Ordinal)).Take(2).ToArray();
-            if (matches.Length > 1) throw new InvalidDataException("Records journal has ambiguous record identities.");
-            return matches.Length == 0 ? null : matches[0].Row with { Body = matches[0].Row.Body.ToArray() };
+            var entries = await LoadForCurrentReadAsync(cancellationToken).ConfigureAwait(false);
+            RecordWriteRow? match = null;
+            foreach (var entry in entries)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (!string.Equals(entry.Row.Tenant, tenant, StringComparison.Ordinal)
+                    || !string.Equals(entry.Row.RecordId, recordId, StringComparison.Ordinal)) continue;
+                if (match is not null) throw new InvalidDataException("Records journal has ambiguous record identities.");
+                match = entry.Row;
+            }
+            return match is null ? null : match with { Body = match.Body.ToArray() };
         }
         finally { Mutation.Release(); }
     }
@@ -116,24 +125,95 @@ public sealed class FileJournalRecordWriteStore : IKernelPreparedTransactionPort
         catch (DirectoryNotFoundException) { return []; }
         try
         {
-            var journal = JsonSerializer.Deserialize<Journal>(bytes, Json);
-            if (journal?.Format != JournalFormat || journal.Entries is null) throw new InvalidDataException("Records journal is invalid.");
-            var keys = new HashSet<string>(StringComparer.Ordinal);
-            foreach (var entry in journal.Entries)
-            {
-                if (entry is null || string.IsNullOrWhiteSpace(entry.Key) || !keys.Add(entry.Key)
-                    || entry.Operation is null || entry.Row is null || entry.Audit is null
-                    || entry.Operation.IdempotencyKey != entry.Key || string.IsNullOrWhiteSpace(entry.Row.IntentEncodingVersion)
-                    || string.IsNullOrWhiteSpace(entry.Row.IntentDigest) || string.IsNullOrWhiteSpace(entry.Row.Schema.Value))
-                    throw new InvalidDataException("Records journal is invalid.");
-                entry.Operation.Validate();
-                entry.Audit.Validate();
-            }
-            return journal.Entries;
+            return ValidateJournal(JsonSerializer.Deserialize<Journal>(bytes, Json));
         }
         catch (Exception error) when (error is JsonException or ArgumentException or InvalidOperationException)
         {
             throw new InvalidDataException("Records journal is invalid.");
+        }
+    }
+
+    private async ValueTask<List<Entry>> LoadForCurrentReadAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        FileStream stream;
+        try
+        {
+            stream = new FileStream(_path, FileMode.Open, FileAccess.Read, FileShare.Read, 4096,
+                FileOptions.Asynchronous | FileOptions.SequentialScan);
+        }
+        catch (FileNotFoundException) { cancellationToken.ThrowIfCancellationRequested(); return []; }
+        catch (DirectoryNotFoundException) { cancellationToken.ThrowIfCancellationRequested(); return []; }
+        await using (stream)
+        {
+            if (stream.Length > MaxCurrentReadBytes) throw new InvalidDataException("Records journal is invalid.");
+            await using var bounded = new CurrentReadStream(stream, MaxCurrentReadBytes);
+            try
+            {
+                var journal = await JsonSerializer.DeserializeAsync<Journal>(bounded, Json, cancellationToken).ConfigureAwait(false);
+                return ValidateJournal(journal, cancellationToken);
+            }
+            catch (Exception error) when (error is JsonException or ArgumentException or InvalidOperationException)
+            {
+                throw new InvalidDataException("Records journal is invalid.");
+            }
+        }
+    }
+
+    private static List<Entry> ValidateJournal(Journal? journal, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (journal?.Format != JournalFormat || journal.Entries is null) throw new InvalidDataException("Records journal is invalid.");
+        var keys = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var entry in journal.Entries)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (entry is null || string.IsNullOrWhiteSpace(entry.Key) || !keys.Add(entry.Key)
+                || entry.Operation is null || entry.Row is null || entry.Audit is null
+                || entry.Operation.IdempotencyKey != entry.Key || string.IsNullOrWhiteSpace(entry.Row.IntentEncodingVersion)
+                || string.IsNullOrWhiteSpace(entry.Row.IntentDigest) || string.IsNullOrWhiteSpace(entry.Row.Schema.Value))
+                throw new InvalidDataException("Records journal is invalid.");
+            entry.Operation.Validate();
+            entry.Audit.Validate();
+        }
+        return journal.Entries;
+    }
+
+    // Bound bytes actually consumed as well as the opening length, including a journal that grows
+    // externally while read. The extra byte distinguishes an exactly-at-limit EOF from oversize.
+    private sealed class CurrentReadStream(Stream inner, long limit) : Stream
+    {
+        private long _consumed;
+        public override bool CanRead => inner.CanRead;
+        public override bool CanSeek => false;
+        public override bool CanWrite => false;
+        public override long Length => throw new NotSupportedException();
+        public override long Position { get => throw new NotSupportedException(); set => throw new NotSupportedException(); }
+        public override void Flush() => throw new NotSupportedException();
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+        public override void SetLength(long value) => throw new NotSupportedException();
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+        public override int Read(byte[] buffer, int offset, int count) => Read(buffer.AsSpan(offset, count));
+        public override int Read(Span<byte> buffer)
+        {
+            var count = inner.Read(buffer[..(int)Math.Min(buffer.Length, limit - _consumed + 1)]);
+            return Count(count);
+        }
+        public override Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
+            => ReadAsync(buffer.AsMemory(offset, count), cancellationToken).AsTask();
+        public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var count = await inner.ReadAsync(buffer[..(int)Math.Min(buffer.Length, limit - _consumed + 1)], cancellationToken)
+                .ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
+            return Count(count);
+        }
+        private int Count(int count)
+        {
+            _consumed += count;
+            if (_consumed > limit) throw new InvalidDataException("Records journal is invalid.");
+            return count;
         }
     }
 

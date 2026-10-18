@@ -17,4 +17,7 @@
     <None Include="README.md" Pack="true" PackagePath="/" />
     <None Include="../../../../LICENSE" Link="LICENSE" Pack="true" PackagePath="/" />
   </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Harborline.Blocks.BuilderDefinitions" />
+  </ItemGroup>
 </Project>

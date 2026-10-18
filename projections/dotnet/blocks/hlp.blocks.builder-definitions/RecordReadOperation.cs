@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Text.Json;
 using System.Text.Json.Nodes;
 using Harborline.Foundation.Authorization;
 using Harborline.Kernel.SchemaValidation;
@@ -46,6 +47,9 @@ public sealed record RecordReadOutcome(RecordReadResult? Record, string? Refusal
 /// The row's version, definition digest and schema identity govern this bounded binding, without a dependency on T-615
 /// or a second policy interpreter. The producer and port are released only with the real same-store journal adapter;
 /// they do not authorize a host route or integrate independently of that adapter.
+/// Current admission can refuse an old published body as schema_unknown. Body-only definition digests and schema
+/// identities cannot distinguish identical authored bodies at different published versions; exact version lookup
+/// does not independently prove which such version originally produced a row. This producer retains that limitation.
 /// </remarks>
 public sealed class RecordReadOperation
 {
@@ -93,8 +97,16 @@ public sealed class RecordReadOperation
 
         // Authorization and the result describe one detached snapshot even if a store exposes an array-backed memory.
         var body = row.Body.ToArray();
-        if (JsonNode.Parse(body) is not JsonObject parsed)
+        JsonObject parsed;
+        try
+        {
+            parsed = JsonNode.Parse(body) as JsonObject
+                ?? throw new InvalidDataException("The committed record body is not a JSON object.");
+        }
+        catch (JsonException)
+        {
             throw new InvalidDataException("The committed record body is not a JSON object.");
+        }
         var fields = new Dictionary<string, JsonNode?>(StringComparer.Ordinal);
         foreach (var member in parsed) fields.Add(member.Key, member.Value?.DeepClone());
         var access = await _access.CheckWithEvidenceAsync(new AccessRequest(ReadAct, scope.ActorId, scope.Tenant,

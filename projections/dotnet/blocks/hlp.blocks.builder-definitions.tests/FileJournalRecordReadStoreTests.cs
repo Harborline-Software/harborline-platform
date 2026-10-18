@@ -31,6 +31,10 @@ public sealed class FileJournalRecordReadStoreTests : IDisposable
     // Independently hashed from the literal LF-terminated authored bytes above.
     private const string TypeDigest = "d3f07ac15fefe060d138f0e7edcde56883b7c88821cd4cd417d3fae2a66820b0";
     private const string OldScalarSchema = """{"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","properties":{"value":{"type":"string","x-harborline-field-kind":{"kind_id":"text","version":"1.0.0","parameters":{}}}},"additionalProperties":false}""";
+    private const string CurrentSchema = """{"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","properties":{"value":{"anyOf":[{"type":"string","x-harborline-field-kind":{"kind_id":"text","version":"1.0.0","parameters":{}}},{"type":"array","items":{"type":"string","x-harborline-field-kind":{"kind_id":"text","version":"1.0.0","parameters":{}}},"minItems":0,"maxItems":1},{"type":"null"}]}},"additionalProperties":false}""";
+    // Deliberately nonalphabetical authored order; expected schema is a separate full literal, never sorted output.
+    private const string MixedTypeJson = """{"class_id":"eam.equipment","creation_gate":"role","creation_role_id":"asset-author","envelope":{"contract":{"major":1,"minor":0},"package_id":"eam-core","section":"eam","tenant":"tenant-a"},"fields":[{"binding":{"constraints":{"maximum_count":1,"minimum_count":0,"read_role_ids":[],"required":false},"kind":{"kind_id":"text","parameters":{},"version":"1.0.0"}},"display_name":"Zeta","field_key":"zeta"},{"display_name":"Loose","field_key":"loose"},{"display_name":"Related","field_key":"related","reference":{"target_class_id":"eam.equipment","cardinality":"one","on_delete":"block"}},{"binding":{"constraints":{"maximum_count":1,"minimum_count":0,"read_role_ids":[],"required":false},"kind":{"kind_id":"text","parameters":{},"version":"1.0.0"}},"display_name":"Alpha","field_key":"alpha"}],"name":"Reading","record_class":"master","record_type_id":"eam.reading"}""" + "\n";
+    private const string OldMixedSchema = """{"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","properties":{"zeta":{"type":"string","x-harborline-field-kind":{"kind_id":"text","version":"1.0.0","parameters":{}}},"loose":{"type":"string"},"related":{"type":"object","properties":{"type":{"type":"string","minLength":1},"id":{"type":"string","minLength":1}},"required":["type","id"],"additionalProperties":false},"alpha":{"type":"string","x-harborline-field-kind":{"kind_id":"text","version":"1.0.0","parameters":{}}}},"additionalProperties":false}""";
     // SHA-256 of the literal reference encoding S22:records-write-intent/1S11:eam.readingNO1:S5:valueS1:A.
     private const string ScalarIntentDigest = "8ece0c0734271d2cf1fa2289474600828b22a37935b7faa41bbc6daaa97cb3ae";
     private static readonly DateTimeOffset Recorded = new(2026, 2, 3, 4, 5, 6, TimeSpan.Zero);
@@ -135,6 +139,55 @@ public sealed class FileJournalRecordReadStoreTests : IDisposable
     }
 
     [Fact]
+    public async Task the_current_read_accepts_the_literal_16MiB_boundary_and_refuses_oversize_without_rewriting()
+    {
+        var store = new FileJournalRecordWriteStore(PathName);
+        await using var transaction = await Stage(store, Row("Record-7", "operation-a", new("schema:fixture")));
+        await transaction.CommitAsync();
+        var original = File.ReadAllBytes(PathName);
+        const int limit = 16777216; // Mac F1's finite read budget, independently stated in the assignment.
+        var atLimit = new byte[limit];
+        original.CopyTo(atLimit, 0);
+        atLimit.AsSpan(original.Length).Fill((byte)' '); // Valid trailing JSON whitespace, not corrupt syntax.
+        File.WriteAllBytes(PathName, atLimit);
+        Assert.Equal("operation-a", (await store.FindAsync(Tenant, "Record-7"))!.OperationId);
+        Assert.Equal(atLimit, File.ReadAllBytes(PathName));
+        using (var append = new FileStream(PathName, FileMode.Append, FileAccess.Write)) append.WriteByte((byte)' ');
+        var oversized = File.ReadAllBytes(PathName);
+
+        var refused = await Assert.ThrowsAsync<InvalidDataException>(() => store.FindAsync(Tenant, "Record-7").AsTask());
+
+        Assert.Equal("Records journal is invalid.", refused.Message);
+        Assert.Equal(16777217, oversized.Length);
+        Assert.Equal(oversized, File.ReadAllBytes(PathName));
+        File.WriteAllBytes(PathName, original);
+        Assert.Equal("operation-a", (await store.FindAsync(Tenant, "Record-7"))!.OperationId);
+        Assert.Equal(original, File.ReadAllBytes(PathName)); // Refusal released the shared semaphore.
+    }
+
+    [Fact]
+    public async Task invalid_committed_json_uses_corruption_before_gate_and_leaves_journal_bytes_unchanged()
+    {
+        var fixture = await Published();
+        var store = new FileJournalRecordWriteStore(PathName);
+        await using var transaction = await Stage(store, Row("invalid-body", "operation-a", new("schema:fixture"))
+            with { Body = Encoding.UTF8.GetBytes("{\"value\":") });
+        await transaction.CommitAsync();
+        var before = File.ReadAllBytes(PathName);
+        var reader = Reader(fixture, store);
+
+        var refused = await Assert.ThrowsAsync<InvalidDataException>(
+            () => reader.Operation.ReadAsync(new(Tenant, Actor), new("invalid-body")).AsTask());
+
+        Assert.Equal("The committed record body is not a JSON object.", refused.Message);
+        Assert.Null(refused.InnerException);
+        Assert.Equal(["lookup"], reader.Events);
+        Assert.Empty(reader.Gate.Requests);
+        Assert.Empty(reader.Catalogue.Pins);
+        Assert.Equal(before, File.ReadAllBytes(PathName));
+    }
+
+    [Fact]
     public async Task actual_current_write_reopen_and_read_preserve_gate_order_binding_bytes_and_original_instant()
     {
         var fixture = await Published();
@@ -207,10 +260,6 @@ public sealed class FileJournalRecordReadStoreTests : IDisposable
     {
         var fixture = await Published();
         var old = await fixture.Registry.RegisterAsync(OldScalarSchema);
-        var document = RecordTypeDefinitionJson.Deserialize(Encoding.UTF8.GetBytes(TypeJson)).ToDefinition();
-        var predecessor = await fixture.Compiler.CompilePreT616ScalarForStoredReadAsync(document, null);
-        Assert.Empty(predecessor.Refusals);
-        Assert.Equal(OldScalarSchema, predecessor.JsonSchemaText);
         var current = (await fixture.Records.ResolvePublishedSchemaAsync(Tenant, TypeId, "1.0.0"))!;
         Assert.NotEqual(old.Id, current.Schema.Id);
         Assert.True((await fixture.Registry.ValidateAsync(old.Id, Encoding.UTF8.GetBytes("{\"value\":\"A\"}"))).IsValid);
@@ -321,6 +370,165 @@ public sealed class FileJournalRecordReadStoreTests : IDisposable
         Assert.Equal(before, File.ReadAllBytes(PathName));
     }
 
+    [Theory]
+    [InlineData(OldScalarSchema)]
+    [InlineData(CurrentSchema)]
+    public async Task only_the_exact_matching_schema_is_registered_and_matching_registry_outages_propagate(string expectedSchema)
+    {
+        var fixture = await Published();
+        var pinned = await fixture.Registry.RegisterAsync(expectedSchema);
+        var store = new FileJournalRecordWriteStore(PathName);
+        await using var transaction = await Stage(store, Row("matching", "operation-a", pinned.Id));
+        await transaction.CommitAsync();
+        var before = File.ReadAllBytes(PathName);
+        var observed = new ObservingRegistry(new InMemorySchemaRegistry(fieldKindRuntime: fixture.Kinds));
+        var reader = Reader(fixture, store, observed);
+
+        var outcome = await reader.Operation.ReadAsync(new(Tenant, Actor), new("matching"));
+
+        Assert.Equal(pinned.Id, outcome.Record!.Schema);
+        Assert.Equal(expectedSchema, Assert.Single(observed.Registrations));
+        Assert.Equal(expectedSchema, (await observed.GetAsync(pinned.Id))!.JsonSchemaText);
+        Assert.Equal(before, File.ReadAllBytes(PathName));
+
+        var failure = new IOException("literal registry unavailable");
+        var unavailable = new ObservingRegistry(new InMemorySchemaRegistry(fieldKindRuntime: fixture.Kinds)) { Fault = failure };
+        var failedReader = Reader(fixture, store, unavailable);
+        Assert.Same(failure, await Assert.ThrowsAsync<IOException>(
+            () => failedReader.Operation.ReadAsync(new(Tenant, Actor), new("matching")).AsTask()));
+        Assert.Equal(expectedSchema, Assert.Single(unavailable.Registrations));
+        Assert.Empty(await Registered(unavailable));
+        Assert.Equal(["lookup", "authorize", "bind"], failedReader.Events);
+        Assert.Equal(before, File.ReadAllBytes(PathName));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task a_foreign_cid_does_not_register_either_compilation_even_if_that_cid_is_known_elsewhere(bool registered)
+    {
+        var fixture = await Published();
+        var foreign = (await fixture.Registry.RegisterAsync("{\"type\":\"object\"}")).Id;
+        var store = new FileJournalRecordWriteStore(PathName);
+        await using var transaction = await Stage(store, Row("foreign", "operation-a", registered ? foreign : new("schema:foreign-unknown")));
+        await transaction.CommitAsync();
+        var observed = new ObservingRegistry(new InMemorySchemaRegistry(fieldKindRuntime: fixture.Kinds));
+        var reader = Reader(fixture, store, observed);
+        var before = File.ReadAllBytes(PathName);
+
+        await Assert.ThrowsAsync<InvalidDataException>(() => reader.Operation.ReadAsync(new(Tenant, Actor), new("foreign")).AsTask());
+
+        Assert.Empty(observed.Registrations);
+        Assert.Empty(await Registered(observed));
+        Assert.Equal(before, File.ReadAllBytes(PathName));
+    }
+
+    [Fact]
+    public async Task a_mixed_legacy_projection_preserves_reference_unbound_and_nonalphabetical_authored_field_order()
+    {
+        var fixture = await Published(MixedTypeJson);
+        var old = await fixture.Registry.RegisterAsync(OldMixedSchema);
+        var store = new FileJournalRecordWriteStore(PathName);
+        const string body = """{"zeta":"Z","loose":"kept","related":{"type":"eam.asset","id":"Asset-7"},"alpha":"A"}""";
+        var row = Row("mixed", "operation-a", old.Id) with
+        { DefinitionDigest = BodyDigest(MixedTypeJson), Body = Encoding.UTF8.GetBytes(body) };
+        await using var transaction = await Stage(store, row);
+        await transaction.CommitAsync();
+        var before = File.ReadAllBytes(PathName);
+        var reader = Reader(fixture, new FileJournalRecordWriteStore(PathName));
+
+        var outcome = await reader.Operation.ReadAsync(new(Tenant, Actor), new("mixed"));
+
+        Assert.Equal(body, Encoding.UTF8.GetString(outcome.Record!.Body.Span));
+        Assert.Equal(old.Id, outcome.Record.Schema);
+        var schema = (await reader.Registry.GetAsync(old.Id))!;
+        Assert.Equal(OldMixedSchema, schema.JsonSchemaText);
+        using var parsed = JsonDocument.Parse(schema.JsonSchemaText);
+        Assert.Equal(["zeta", "loose", "related", "alpha"],
+            parsed.RootElement.GetProperty("properties").EnumerateObject().Select(property => property.Name));
+        Assert.True((await reader.Registry.ValidateAsync(old.Id, Encoding.UTF8.GetBytes(body))).IsValid);
+        Assert.False((await reader.Registry.ValidateAsync(old.Id,
+            Encoding.UTF8.GetBytes("""{"related":{"type":"eam.asset"}}"""))).IsValid);
+        Assert.False((await reader.Registry.ValidateAsync(old.Id,
+            Encoding.UTF8.GetBytes("""{"zeta":["Z"]}"""))).IsValid);
+        Assert.False((await reader.Registry.ValidateAsync(old.Id,
+            Encoding.UTF8.GetBytes("""{"loose":3}"""))).IsValid);
+        var current = (await fixture.Records.ResolvePublishedSchemaAsync(Tenant, TypeId, "1.0.0"))!;
+        Assert.NotEqual(old.Id, current.Schema.Id);
+        Assert.True((await fixture.Registry.ValidateAsync(current.Schema.Id,
+            Encoding.UTF8.GetBytes("""{"zeta":["Z"],"alpha":["A"]}"""))).IsValid);
+        Assert.Equal(before, File.ReadAllBytes(PathName));
+    }
+
+    [Fact]
+    public async Task historical_structural_publication_that_current_schema_admission_refuses_is_schema_unknown()
+    {
+        var historical = TypeJson.Replace("\"maximum_count\":1", "\"maximum_count\":0", StringComparison.Ordinal)
+            .Replace("\"required\":false", "\"required\":true", StringComparison.Ordinal);
+        var fixture = await Published(historical, structuralPublication: true);
+        var rejected = await fixture.Compiler.CompileAsync(RecordTypeDefinitionJson.Deserialize(Encoding.UTF8.GetBytes(historical)).ToDefinition(), null);
+        Assert.Null(rejected.JsonSchemaText);
+        var refusal = Assert.Single(rejected.Refusals);
+        Assert.Equal("field.constraint_intersection_empty", refusal.Code);
+        Assert.Equal("/fields/0/binding/constraints", refusal.JsonPointer);
+        var old = await fixture.Registry.RegisterAsync(OldScalarSchema);
+        var store = new FileJournalRecordWriteStore(PathName);
+        await using var transaction = await Stage(store, Row("historical", "operation-a", old.Id)
+            with { DefinitionDigest = BodyDigest(historical) });
+        await transaction.CommitAsync();
+        var before = File.ReadAllBytes(PathName);
+        var reader = Reader(fixture, store);
+
+        var outcome = await reader.Operation.ReadAsync(new(Tenant, Actor), new("historical"));
+
+        Assert.Null(outcome.Record);
+        Assert.Equal("entity.validation.schema_unknown", outcome.Refusal);
+        Assert.Same(Assert.Single(reader.Gate.Decisions), outcome.Decision);
+        Assert.Empty(await Registered(reader.Registry));
+        Assert.Equal(before, File.ReadAllBytes(PathName));
+    }
+
+    [Fact]
+    public async Task body_only_digest_does_not_independently_bind_the_original_version_when_published_bodies_are_identical()
+    {
+        var fixture = await Published();
+        var key = RecordTypeDefinitionStore.KeyOf(Tenant, TypeId);
+        await fixture.Catalogue.RestoreAsDraftAsync(key, "1.0.0", "1.0.2", "1.0.2", 2, "restore-identical");
+        var restored = await fixture.Records.PublishAsync(Tenant, TypeId, "1.0.2", 3, "publish-identical");
+        Assert.Equal(TypeJson, restored.Revision.Document.BodyJson);
+        Assert.Equal(TypeDigest, restored.Revision.Digest);
+        var old = await fixture.Registry.RegisterAsync(OldScalarSchema);
+        var store = new FileJournalRecordWriteStore(PathName);
+        await using var original = await Stage(store, Row("original", "original-operation", old.Id));
+        var receipt = (await original.CommitAsync()).Receipt!;
+        // Deliberately label the same body/CID/digest with another actual published version. There
+        // is no independent original-version authenticator in the unchanged body-only digest.
+        await using var relabelled = await Stage(store, Row("identical-version", "other-operation", old.Id) with { Version = "1.0.2" });
+        await relabelled.CommitAsync();
+        var before = File.ReadAllBytes(PathName);
+        var reader = Reader(fixture, store);
+
+        var outcome = await reader.Operation.ReadAsync(new(Tenant, Actor), new("identical-version"));
+
+        Assert.Equal("1.0.2", outcome.Record!.Version);
+        Assert.Equal(TypeDigest, outcome.Record.DefinitionDigest);
+        Assert.Equal(old.Id, outcome.Record.Schema);
+        Assert.Equal("1.0.2", Assert.Single(reader.Catalogue.Pins).VersionId);
+        Assert.Equal("1.0.0", (await store.FindAsync(Tenant, "original"))!.Version);
+        Assert.Equal(receipt, (await store.FindAsync(new RecordWriteOperationKey(Tenant, Actor, "original-operation")))!.Receipt);
+        Assert.Equal(before, File.ReadAllBytes(PathName));
+    }
+
+    private static string BodyDigest(string body)
+        => Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes(body)));
+
+    private static async Task<IReadOnlyList<Schema>> Registered(ISchemaRegistry registry)
+    {
+        var schemas = new List<Schema>();
+        await foreach (var schema in registry.ListAsync()) schemas.Add(schema);
+        return schemas;
+    }
+
     private static RecordWriteRow Row(string recordId, string operationId, SchemaId schema)
         => new(Tenant, recordId, TypeId, "1.0.0", TypeDigest, schema, Actor, operationId, null,
             "records-write-intent/1", ScalarIntentDigest, Encoding.UTF8.GetBytes("{\"value\":\"A\"}"), Recorded);
@@ -342,7 +550,7 @@ public sealed class FileJournalRecordReadStoreTests : IDisposable
         RecordTypeSchemaCompiler Compiler, InMemorySchemaRegistry Registry, RecordFieldDefaults Defaults,
         IFieldKindRuntime Kinds, IFieldDomainRuntime Domains);
 
-    private static async Task<DefinitionFixture> Published()
+    private static async Task<DefinitionFixture> Published(string? body = null, bool structuralPublication = false)
     {
         var host = Host(); // Real shared catalogue and a freshly published eam.equipment Class.
         var kinds = RecordWriteFieldRuntimeTests.FixtureKinds();
@@ -351,9 +559,18 @@ public sealed class FileJournalRecordReadStoreTests : IDisposable
         var registry = new InMemorySchemaRegistry(fieldKindRuntime: kinds);
         var defaults = new RecordFieldDefaults(kinds);
         var records = new RecordTypeDefinitionStore(host.Catalogue, compiler, defaults, registry, Window, roles: CreationRoles);
-        await host.Catalogue.SaveDraftAsync(new(new(Tenant, DefinitionKind.Records, TypeId), "1.0.0", "1.0.0", TypeJson), 0, "reading-draft");
-        var publication = await records.PublishAsync(Tenant, TypeId, "1.0.0", 1, "reading-publish");
-        Assert.Equal(TypeDigest, publication.Revision.Digest);
+        await host.Catalogue.SaveDraftAsync(new(new(Tenant, DefinitionKind.Records, TypeId), "1.0.0", "1.0.0", body ?? TypeJson), 0, "reading-draft");
+        if (structuralPublication)
+        {
+            // A historical catalogue snapshot, not a claim that the current compiler would admit it
+            // or that this fixture came from a genuine old binary. The real structural validator runs.
+            await host.Catalogue.PublishAsync(RecordTypeDefinitionStore.KeyOf(Tenant, TypeId), "1.0.0", 1, "reading-publish");
+        }
+        else
+        {
+            var publication = await records.PublishAsync(Tenant, TypeId, "1.0.0", 1, "reading-publish");
+            Assert.Equal(body is null ? TypeDigest : BodyDigest(body), publication.Revision.Digest);
+        }
         return new(host.Catalogue, records, compiler, registry, defaults, kinds, domains);
     }
 
@@ -361,13 +578,13 @@ public sealed class FileJournalRecordReadStoreTests : IDisposable
         => new(new AccessProvider(gate), fixture.Records, fixture.Registry, store, store, new Clock(Recorded), fixture.Kinds, fixture.Domains);
 
     private sealed record ReadFixture(RecordReadOperation Operation, Gate Gate, Catalogue Catalogue,
-        InMemorySchemaRegistry Registry, Clock Clock, List<string> Events);
+        ISchemaRegistry Registry, Clock Clock, List<string> Events);
 
-    private static ReadFixture Reader(DefinitionFixture fixture, IRecordReadStore store)
+    private static ReadFixture Reader(DefinitionFixture fixture, IRecordReadStore store, ISchemaRegistry? registryOverride = null)
     {
         var events = new List<string>();
         var catalogue = new Catalogue(fixture.Catalogue, events);
-        var registry = new InMemorySchemaRegistry(fieldKindRuntime: fixture.Kinds);
+        var registry = registryOverride ?? new InMemorySchemaRegistry(fieldKindRuntime: fixture.Kinds);
         var records = new RecordTypeDefinitionStore(catalogue, fixture.Compiler, fixture.Defaults, registry, Window, roles: CreationRoles);
         var gate = new Gate(events);
         var clock = new Clock(Now);
@@ -378,6 +595,26 @@ public sealed class FileJournalRecordReadStoreTests : IDisposable
     {
         public ValueTask<RecordWriteRow?> FindAsync(string tenant, string recordId, CancellationToken cancellationToken = default)
         { events.Add("lookup"); return inner.FindAsync(tenant, recordId, cancellationToken); }
+    }
+
+    private sealed class ObservingRegistry(ISchemaRegistry inner) : ISchemaRegistry
+    {
+        public List<string> Registrations { get; } = [];
+        public Exception? Fault { get; init; }
+        public ValueTask<Schema?> GetAsync(SchemaId id, CancellationToken cancellationToken = default)
+            => inner.GetAsync(id, cancellationToken);
+        public ValueTask<Schema> RegisterAsync(string jsonSchemaText, IReadOnlyList<SchemaId>? parents = null,
+            IReadOnlyList<string>? tags = null, CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            Registrations.Add(jsonSchemaText);
+            if (Fault is not null) throw Fault;
+            return inner.RegisterAsync(jsonSchemaText, parents, tags, cancellationToken);
+        }
+        public ValueTask<SchemaValidationResult> ValidateAsync(SchemaId id, ReadOnlyMemory<byte> documentBytes,
+            CancellationToken cancellationToken = default) => inner.ValidateAsync(id, documentBytes, cancellationToken);
+        public IAsyncEnumerable<Schema> ListAsync(string? tagFilter = null, CancellationToken cancellationToken = default)
+            => inner.ListAsync(tagFilter, cancellationToken);
     }
 
     private sealed class Gate(List<string> events) : IAuthorizationDecider

@@ -552,13 +552,14 @@ public sealed class RecordTypeSchemaCompiler
     /// <summary>
     /// Reproduces only the scalar projection emitted by compiler 5ec3cf53 before the T616 multiplicity correction.
     /// Intended solely to bind an existing stored schema identity: current admission must still succeed, and callers
-    /// must compare the registered result with the row's original identity. Writes and publications use CompileAsync.
+    /// must compare its content-derived identity before registration with the row's original identity.
+    /// Writes and publications use CompileAsync.
     /// </summary>
     /// <param name="candidate">The exact immutable published definition being read.</param>
     /// <param name="previousVersion">The existing identity validator's previous-version context, when applicable.</param>
     /// <param name="fieldDomainScope">The real tenant/principal scope for Trait narrowing admission.</param>
     /// <param name="cancellationToken">Cancellation for current admission and Trait narrowing.</param>
-    public async ValueTask<RecordTypeSchemaDraft> CompilePreT616ScalarForStoredReadAsync(
+    internal async ValueTask<RecordTypeSchemaDraft> CompilePreT616ScalarForStoredReadAsync(
         RecordTypeDefinition candidate, RecordTypeDefinition? previousVersion,
         FieldDomainScope? fieldDomainScope = null, CancellationToken cancellationToken = default)
     {

@@ -265,6 +265,22 @@ public sealed class RecordReadOperationTests
     }
 
     [Fact]
+    public async Task malformed_committed_json_is_the_same_safe_corruption_before_authorization()
+    {
+        var fixture = await Published();
+        fixture.Store.Rows[0] = fixture.Store.Rows[0] with { Body = Encoding.UTF8.GetBytes("{\"value\":") };
+
+        var error = await Assert.ThrowsAsync<InvalidDataException>(
+            () => fixture.Operation.ReadAsync(new(Tenant, Actor), new(RecordId)).AsTask());
+
+        Assert.Equal("The committed record body is not a JSON object.", error.Message);
+        Assert.Null(error.InnerException);
+        Assert.Equal(["lookup"], fixture.Events);
+        Assert.Empty(fixture.Gate.Requests);
+        Assert.Empty(fixture.Catalogue.Pins);
+    }
+
+    [Fact]
     public async Task returned_bytes_are_detached_from_the_store_and_from_a_later_read()
     {
         var fixture = await Published();
