@@ -15,4 +15,4 @@
 /* Specificity, not order, decides this one. The rule above scores (0,3,0) and the reverse arc
    carries both classes, so a bare `.hl-spinner__arc--reverse` at (0,1,0) lost the whole animation
    shorthand and the two arcs turned the same way -- a converging spinner that never converged. */
-.hl-spinner[data-hl-type='converging'] .hl-spinner__arc--reverse{animation-name:hl-spinner-reverse}@keyframes hl-spinner-spin{to{transform:rotate(360deg)}}@keyframes hl-spinner-reverse{to{transform:rotate(-360deg)}}@media(prefers-reduced-motion:reduce){.hl-spinner,.hl-spinner__arc,.hl-spinner__arc--reverse{animation:none}}
+.hl-spinner[data-hl-type='converging'] .hl-spinner__arc--reverse{animation-name:hl-spinner-reverse}@keyframes hl-spinner-spin{to{transform:rotate(360deg)}}@keyframes hl-spinner-reverse{to{transform:rotate(-360deg)}}@media(prefers-reduced-motion:reduce){.hl-spinner,.hl-spinner[data-hl-type] .hl-spinner__arc,.hl-spinner[data-hl-type] .hl-spinner__arc--reverse{animation:none}}
