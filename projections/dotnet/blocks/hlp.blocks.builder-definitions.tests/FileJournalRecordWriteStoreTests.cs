@@ -33,6 +33,82 @@ public sealed class FileJournalRecordWriteStoreTests : IDisposable
     private JsonObject Journal() => JsonNode.Parse(File.ReadAllText(PathName))!.AsObject();
     private void Rewrite(JsonObject journal) => File.WriteAllText(PathName, journal.ToJsonString());
 
+    [Theory]
+    [InlineData("intent_encoding_version", null)]
+    [InlineData("intent_encoding_version", "")]
+    [InlineData("intent_encoding_version", " ")]
+    [InlineData("intent_encoding_version", "\t\r\n")]
+    [InlineData("intent_digest", null)]
+    [InlineData("intent_digest", "")]
+    [InlineData("intent_digest", " ")]
+    [InlineData("intent_digest", "\t\r\n")]
+    [InlineData("schema", null)]
+    public async Task malformed_row_metadata_refuses_at_stage_without_poisoning_the_journal_or_transaction(
+        string member, string? value)
+    {
+        var store = new FileJournalRecordWriteStore(PathName);
+        await using var seed = await Stage(store, Key());
+        Assert.Equal(RecordWriteCommitDisposition.Created, (await seed.CommitAsync()).Disposition);
+        var before = File.ReadAllBytes(PathName);
+        var nextKey = Key("metadata-attempt");
+        await using var transaction = await store.BeginAsync();
+        await transaction.StageOperationAsync(new(nextKey.OperationId, nextKey.IdempotencyKey, "intent-secret"));
+        var lawful = Row(nextKey, "record-2");
+        var invalid = member switch
+        {
+            "intent_encoding_version" => lawful with { IntentEncodingVersion = value! },
+            "intent_digest" => lawful with { IntentDigest = value! },
+            "schema" => lawful with { Schema = default },
+            _ => throw new InvalidOperationException("Unknown literal metadata fixture."),
+        };
+
+        await Assert.ThrowsAnyAsync<ArgumentException>(() => transaction.StageRecordAsync(invalid).AsTask());
+
+        Assert.Equal(before, File.ReadAllBytes(PathName));
+        var reopened = new FileJournalRecordWriteStore(PathName);
+        Assert.Equal("record-1", (await reopened.FindAsync(Key()))!.Receipt!.RecordId);
+        Assert.Null(await reopened.FindAsync(nextKey));
+
+        // The refused row never occupied _row: a lawful stage in this same transaction still works.
+        await transaction.StageRecordAsync(lawful);
+        await transaction.StageAuditAsync(new("audit-2", "worker", At, new byte[] { 0, 255, 7 })
+        { AuthoritySnapshot = new byte[] { 1, 2, 3 }, OriginatorId = "alice" });
+        Assert.Equal(RecordWriteCommitDisposition.Created, (await transaction.CommitAsync()).Disposition);
+        reopened = new FileJournalRecordWriteStore(PathName);
+        Assert.Equal("record-1", (await reopened.FindAsync(Key()))!.Receipt!.RecordId);
+        var stored = await reopened.FindAsync(nextKey);
+        Assert.NotNull(stored);
+        var receipt = stored.Receipt!;
+        Assert.Equal("record-2", receipt.RecordId);
+        Assert.Equal("metadata-attempt", receipt.OperationId);
+        Assert.Equal("schema:fixture", receipt.Schema.Value);
+    }
+
+    [Theory]
+    [InlineData("records-write-intent/1")]
+    [InlineData("future-intent/9")]
+    public async Task store_preserves_nonblank_metadata_without_imposing_an_encoding_or_registry_policy(string encoding)
+    {
+        var store = new FileJournalRecordWriteStore(PathName);
+        await using var transaction = await store.BeginAsync();
+        var key = Key();
+        await transaction.StageOperationAsync(new("operation-1", key.IdempotencyKey, "intent-secret"));
+        await transaction.StageRecordAsync(Row(key) with { IntentEncodingVersion = encoding });
+        await transaction.StageAuditAsync(new("audit-1", "worker", At, new byte[] { 0, 255, 7 })
+        { AuthoritySnapshot = new byte[] { 1, 2, 3 }, OriginatorId = "alice" });
+
+        var committed = await transaction.CommitAsync();
+
+        Assert.Equal(RecordWriteCommitDisposition.Created, committed.Disposition);
+        var stored = await new FileJournalRecordWriteStore(PathName).FindAsync(key);
+        Assert.NotNull(stored);
+        Assert.Equal(encoding, stored.IntentEncodingVersion);
+        Assert.Equal("intent-secret", stored.IntentDigest);
+        var receipt = stored.Receipt!;
+        Assert.Equal("record-1", receipt.RecordId);
+        Assert.Equal("schema:fixture", receipt.Schema.Value);
+    }
+
     [Fact]
     public async Task staged_values_are_invisible_and_commit_publishes_all_evidence_exactly_once()
     {
