@@ -203,13 +203,15 @@ public sealed class TaxonomyInterpreter
         ArgumentNullException.ThrowIfNull(code);
         var byCode = Index(definition); if (!byCode.TryGetValue(code, out var current)) return new TaxonomySuccessionRefusal(code, "classification_unknown");
         var seen = new HashSet<string>(StringComparer.Ordinal); var depth = 0;
+        var previous = current;
         while (true)
         {
-            if (!seen.Add(current.Code)) return new TaxonomySuccessionRefusal(code, "successor_cycle") { LastHopCode = current.Code };
+            if (!seen.Add(current.Code)) return new TaxonomySuccessionRefusal(code, "successor_cycle") { LastHopCode = previous.Code };
             if (current.Status == TaxonomyNodeStatus.Active) return new ResolvedTaxonomySuccession(current) { HopCount = depth };
             if (current.SuccessorCode is null) return new TaxonomySuccessionRefusal(code, "successor_missing") { LastHopCode = current.Code };
             if (depth >= TaxonomyDefinitionAdmission.MaximumParentTraversalDepth) return new TaxonomySuccessionRefusal(code, "successor_depth_exceeded") { LastHopCode = current.Code };
             if (!byCode.TryGetValue(current.SuccessorCode, out var successor)) return new TaxonomySuccessionRefusal(code, "successor_unknown") { LastHopCode = current.Code };
+            previous = current;
             current = successor;
             depth++;
         }

@@ -236,7 +236,7 @@ public sealed class TaxonomyInterpreterTests
     [InlineData("direct-missing", "a", "successor_missing", "a")]
     [InlineData("transitive-missing", "a", "successor_missing", "c")]
     [InlineData("unknown-successor", "a", "successor_unknown", "b")]
-    [InlineData("prefixed-cycle", "a", "successor_cycle", "b")]
+    [InlineData("prefixed-cycle", "a", "successor_cycle", "c")]
     public void Succession_refusals_name_the_last_resolved_hop(
         string scenario, string startCode, string expectedReason, string? expectedLastHopCode)
     {
@@ -278,7 +278,7 @@ public sealed class TaxonomyInterpreterTests
     [InlineData("sixty-fifth-edge", "successor_depth_exceeded", "n64")]
     [InlineData("missing-before-depth", "successor_missing", "n64")]
     [InlineData("depth-before-lookup", "successor_depth_exceeded", "n64")]
-    [InlineData("cycle-before-depth", "successor_cycle", "n0")]
+    [InlineData("cycle-before-depth", "successor_cycle", "n63")]
     public void Succession_last_hop_preserves_the_existing_boundary_guard_order(
         string scenario, string expectedReason, string expectedLastHopCode)
     {
