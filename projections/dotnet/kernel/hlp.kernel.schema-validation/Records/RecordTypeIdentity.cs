@@ -466,15 +466,52 @@ public sealed class RecordTypeSchemaCompiler
         // permits narrowing a slot floor but forbids widening its domain.
         await NarrowTraitBindingsAsync(candidate, fieldDomainScope, refusals, cancellationToken).ConfigureAwait(false);
         var properties = new Dictionary<string, object>(StringComparer.Ordinal);
+        var required = new List<string>();
         var boundKinds = new Dictionary<string, AdmittedFieldKind>(StringComparer.Ordinal);
         foreach (var (field, index) in (candidate.Fields ?? []).Select((field, index) => (field, index)))
         {
             if (BindField(field.Binding, $"/fields/{index}/binding", refusals) is { } compiled)
             {
                 boundKinds.TryAdd(field.FieldKey, compiled.Kind);
+                var constraints = field.Binding!.Constraints;
+                var minimum = Math.Max(constraints.MinimumCount, constraints.Required ? 1 : 0);
+                if (constraints.MinimumCount < 0 || constraints.MaximumCount < 0
+                    || constraints.MaximumCount < minimum)
+                {
+                    refusals.Add(new(
+                        "field.constraint_intersection_empty",
+                        $"/fields/{index}/binding/constraints",
+                        "The declared field multiplicity has no permitted value count."));
+                }
                 if (refusals.Count == 0)
                 {
-                    properties.Add(field.FieldKey, compiled.Schema);
+                    // IFieldDomainRuntime counts absence/null as zero, a scalar as one and an array
+                    // by its length. Keep the admitted kind executable on every original scalar.
+                    var shapes = new List<object>();
+                    if (minimum <= 1 && (constraints.MaximumCount is null || constraints.MaximumCount >= 1))
+                    {
+                        shapes.Add(compiled.Schema);
+                    }
+                    var repeated = new Dictionary<string, object>
+                    {
+                        ["type"] = "array",
+                        ["items"] = compiled.Schema,
+                        ["minItems"] = minimum,
+                    };
+                    if (constraints.MaximumCount is { } maximum)
+                    {
+                        repeated["maxItems"] = maximum;
+                    }
+                    shapes.Add(repeated);
+                    if (minimum == 0)
+                    {
+                        shapes.Add(new Dictionary<string, string> { ["type"] = "null" });
+                    }
+                    else
+                    {
+                        required.Add(field.FieldKey);
+                    }
+                    properties.Add(field.FieldKey, new Dictionary<string, object> { ["anyOf"] = shapes });
                 }
             }
             else if (field.Binding is null && refusals.Count == 0)
@@ -499,6 +536,11 @@ public sealed class RecordTypeSchemaCompiler
             ["properties"] = properties,
             ["additionalProperties"] = false,
         };
+        // Do not change the compiled bytes of a type containing only unbound/reference fields.
+        if (required.Count > 0)
+        {
+            document["required"] = required;
+        }
         return new(JsonSerializer.Serialize(document), []);
     }
 

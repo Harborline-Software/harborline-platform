@@ -26,7 +26,7 @@ public sealed class RecordsFieldBindingTests
         Assert.Empty(result.Refusals);
         var schema = Assert.IsType<Schema>(result.Schema);
         using var document = JsonDocument.Parse(schema.JsonSchemaText);
-        var quantity = document.RootElement.GetProperty("properties").GetProperty("quantity");
+        var quantity = document.RootElement.GetProperty("properties").GetProperty("quantity").GetProperty("anyOf")[0];
         Assert.Equal("integer", quantity.GetProperty("type").GetString());
         Assert.Equal("count", quantity.GetProperty("x-harborline-field-kind").GetProperty("kind_id").GetString());
         Assert.True((await registry.ValidateAsync(schema.Id, Encoding.UTF8.GetBytes("""{"quantity":3}"""))).IsValid);
