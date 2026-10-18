@@ -10,6 +10,7 @@
 // was asserted but had no counter, so three of these assertions were invisible even to the
 // four-counter report they sat beside.
 import assert from 'node:assert/strict'
+import {readFileSync} from 'node:fs'
 import {test} from 'node:test'
 import {
   errorContractPolicyErrors,
@@ -119,10 +120,10 @@ test('optional error-contract pilot metadata and canonical literal consistency',
   const sources = new Map([[sourcePath, source]])
   const entry = () => ({
     code: 'layout.definition.body_invalid',
-    when: 'A verified entry fails syntax or strict typed-body decode, not semantic admission.',
+    when: 'A verified entry fails syntax or strict typed-body decode, including an object missing binding_kind at an owned Layout binding position, not semantic admission.',
     errorContract: {
       owner: 'Layout', canonicalSource: `${sourcePath}#LayoutDefinitionCodes.BodyInvalid`,
-      meaning: 'One whole-entry refusal, skip its later checks, continue other entries and reject the pack.',
+      meaning: 'One whole-entry refusal, including the owned missing-binding_kind failure; skip its later checks, continue other entries and reject the pack.',
       recovery: {category: 'correct_input', action: 'Correct the entry and resubmit; no automatic retry.'},
       pointer: {applicability: 'required', relativeTo: 'layout-entry-payload', wholeDocument: true, examples: ['']},
       target: {applicability: 'conditional', rule: 'Verified DefinitionId@Version only when safe, authorized and fetchable.'},
@@ -231,4 +232,13 @@ test('optional error-contract pilot metadata and canonical literal consistency',
     mutate(conflict)
     assert.ok(errorContractPolicyErrors('pilot', [entry(), conflict], sources).some(message => message.includes('conflicting')), 'conflicting meaning/canonical metadata must not silently merge')
   }
+})
+
+test('checked-in Layout pilot metadata conforms with its actual canonical source', () => {
+  const definition = JSON.parse(readFileSync(new URL('../../specs/modules/blocks/hlp.blocks.builder-definitions/interface.yaml', import.meta.url), 'utf8'))
+  const rows = definition.errors.filter(row => row.code === 'layout.definition.body_invalid')
+  assert.equal(rows.length, 1)
+  const sourcePath = 'projections/dotnet/blocks/hlp.blocks.builder-definitions/LayoutDefinitionAdmission.cs'
+  const source = readFileSync(new URL(`../../${sourcePath}`, import.meta.url), 'utf8')
+  assert.deepEqual(errorContractPolicyErrors(definition.moduleId, rows, new Map([[sourcePath, source]])), [])
 })

@@ -29,9 +29,39 @@ public static class LayoutDefinitionJson
     /// <returns>The projection-neutral Layout definition.</returns>
     public static LayoutDefinition Deserialize(ReadOnlySpan<byte> json)
     {
+        using var document = JsonDocument.Parse(json.ToArray());
+        ValidateBindingDiscriminators(document.RootElement);
         var definition = JsonSerializer.Deserialize<LayoutDefinition>(json, Options)
             ?? throw new JsonException("The Layout definition payload is null.");
         return definition;
+    }
+
+    private static void ValidateBindingDiscriminators(JsonElement definition)
+    {
+        if (definition.ValueKind != JsonValueKind.Object) return;
+        foreach (var property in definition.EnumerateObject())
+            if (property.Name.Equals("blocks", StringComparison.OrdinalIgnoreCase))
+                ValidateBlockBindings(property.Value);
+    }
+
+    private static void ValidateBlockBindings(JsonElement blocks)
+    {
+        if (blocks.ValueKind != JsonValueKind.Array) return;
+        foreach (var block in blocks.EnumerateArray())
+        {
+            if (block.ValueKind != JsonValueKind.Object) continue;
+            foreach (var property in block.EnumerateObject())
+            {
+                // Ordinary properties follow the web options; polymorphic metadata stays exact.
+                // Inspect every occurrence, as deserialization also reads duplicate properties.
+                if (property.Name.Equals("binding", StringComparison.OrdinalIgnoreCase)
+                    && property.Value.ValueKind == JsonValueKind.Object
+                    && !property.Value.TryGetProperty("binding_kind", out _))
+                    throw new JsonException("A Layout binding object requires binding_kind.");
+                if (property.Name.Equals("children", StringComparison.OrdinalIgnoreCase))
+                    ValidateBlockBindings(property.Value);
+            }
+        }
     }
 
     private static JsonSerializerOptions CreateOptions()
