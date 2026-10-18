@@ -147,6 +147,29 @@ public sealed class RecordsFieldMultiplicitySchemaTests
         Assert.Empty(domains.Validate(resolved, kinds.Bind(Binding("text", permitted).Kind, "/kind"), values.RootElement, "/value"));
     }
 
+    [Fact]
+    public async Task Impossible_floor_is_reported_alongside_an_unresolved_kind()
+    {
+        var kinds = Kinds();
+        var registry = new InMemorySchemaRegistry(fieldKindRuntime: kinds);
+        var candidate = Candidate(Binding("missing", new(false, 2, 1, [], null)));
+        var compiler = Compiler(kinds, Domains(new LiteralSource()));
+        (string Code, string Pointer)[] expected =
+        [
+            ("field.kind_unresolved", "/fields/0/binding/kind"),
+            ("field.constraint_intersection_empty", "/fields/0/binding/constraints"),
+        ];
+
+        var draft = await compiler.CompileAsync(candidate, null);
+        var result = await compiler.CompileAndRegisterAsync(candidate, null, registry);
+
+        Assert.Null(draft.JsonSchemaText);
+        Assert.Equal(expected, draft.Refusals.Select(refusal => (refusal.Code, refusal.JsonPointer)).ToArray());
+        Assert.Null(result.Schema);
+        Assert.Equal(expected, result.Refusals.Select(refusal => (refusal.Code, refusal.JsonPointer)).ToArray());
+        Assert.Empty(await Registered(registry));
+    }
+
     [Theory]
     [InlineData("measure", "{\"measure\":3.0}", "{\"measure\":3.000}", "/measure")]
     [InlineData("measure", "{\"measure\":[3.0]}", "{\"measure\":[3.000]}", "/measure/0")]

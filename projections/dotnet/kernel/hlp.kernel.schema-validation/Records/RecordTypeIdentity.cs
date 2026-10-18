@@ -470,19 +470,24 @@ public sealed class RecordTypeSchemaCompiler
         var boundKinds = new Dictionary<string, AdmittedFieldKind>(StringComparer.Ordinal);
         foreach (var (field, index) in (candidate.Fields ?? []).Select((field, index) => (field, index)))
         {
-            if (BindField(field.Binding, $"/fields/{index}/binding", refusals) is { } compiled)
+            var compiledField = BindField(field.Binding, $"/fields/{index}/binding", refusals);
+            // The count bounds do not depend on the kind, so an unbound or invalid kind still reports them;
+            // CompileAsync collects every refusal. They follow the binding's own refusals, as before.
+            var bounds = field.Binding?.Constraints;
+            var minimum = bounds is null ? 0 : Math.Max(bounds.MinimumCount, bounds.Required ? 1 : 0);
+            if (bounds is not null && (bounds.MinimumCount < 0 || bounds.MaximumCount < 0
+                || bounds.MaximumCount < minimum))
+            {
+                refusals.Add(new(
+                    "field.constraint_intersection_empty",
+                    $"/fields/{index}/binding/constraints",
+                    "The declared field multiplicity has no permitted value count."));
+            }
+
+            if (compiledField is { } compiled)
             {
                 boundKinds.TryAdd(field.FieldKey, compiled.Kind);
                 var constraints = field.Binding!.Constraints;
-                var minimum = Math.Max(constraints.MinimumCount, constraints.Required ? 1 : 0);
-                if (constraints.MinimumCount < 0 || constraints.MaximumCount < 0
-                    || constraints.MaximumCount < minimum)
-                {
-                    refusals.Add(new(
-                        "field.constraint_intersection_empty",
-                        $"/fields/{index}/binding/constraints",
-                        "The declared field multiplicity has no permitted value count."));
-                }
                 if (refusals.Count == 0)
                 {
                     // IFieldDomainRuntime counts absence/null as zero, a scalar as one and an array
