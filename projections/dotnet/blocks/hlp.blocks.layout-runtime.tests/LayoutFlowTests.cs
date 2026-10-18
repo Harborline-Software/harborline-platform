@@ -236,6 +236,82 @@ public sealed class LayoutFlowTests
         Assert.Equal("layout.persisted_body_invalid", refused.Message);
     }
 
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(2)]
+    public async Task OutOfOrderBindingKindInAStoredPublishedBodyRefusesBeforeFlow(int depth)
+    {
+        var key = new DefinitionKey("tenant-a", DefinitionKind.Layout, "invoice");
+        var store = new InMemoryVersionedDefinitionStore(new Dictionary<DefinitionKind, DefinitionAdmission>
+        {
+            [DefinitionKind.Layout] = (_, _) => [],
+        });
+        var body = BindingOrderBody(depth, discriminatorFirst: false);
+        await store.SaveDraftAsync(new(key, "version-order-bad", "1.0.0", body), 0, "draft-order-bad");
+        await store.PublishAsync(key, "version-order-bad", 1, "publish-order-bad");
+        var binding = new DefinitionBinding(key, "version-order-bad");
+
+        var published = await store.ResolvePublishedAsync(binding);
+        Assert.NotNull(published);
+        Assert.Equal(body, published.Document.BodyJson);
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await new LayoutPublishedSurfaceResolver(store).ResolveAsync(binding, GrantsAllAuthor.Instance, GrantsAllAuthor.Instance));
+
+        Assert.Equal("layout.persisted_body_invalid", exception.Message);
+        Assert.IsType<JsonException>(exception.InnerException);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(2)]
+    public async Task FirstBindingKindInAnAuthoredPublishedBodyStillResolves(int depth)
+    {
+        var key = new DefinitionKey("tenant-a", DefinitionKind.Layout, "invoice");
+        var store = new InMemoryVersionedDefinitionStore(new Dictionary<DefinitionKind, DefinitionAdmission>
+        {
+            [DefinitionKind.Layout] = (_, _) => [],
+        });
+        var body = BindingOrderBody(depth, discriminatorFirst: true);
+        await store.SaveDraftAsync(new(key, "version-order-good", "1.0.0", body), 0, "draft-order-good");
+        await store.PublishAsync(key, "version-order-good", 1, "publish-order-good");
+
+        var resolved = await new LayoutPublishedSurfaceResolver(store).ResolveAsync(
+            new(key, "version-order-good"), GrantsAllAuthor.Instance, GrantsAllAuthor.Instance);
+
+        Assert.Equal("version-order-good", resolved.VersionId);
+        Assert.Equal("invoice", resolved.Definition.Envelope.Identity);
+        Assert.Equal("screen", resolved.Plan.Fragmentainer.Kind);
+        var block = Assert.Single(resolved.Definition.Blocks);
+        for (var index = 0; index < depth; index++) block = Assert.Single(block.Children);
+        Assert.Equal("leaf", block.Id);
+        Assert.Equal("control", Assert.IsType<LayoutStaticBinding>(block.Binding).Content.GetString());
+    }
+
+    private static string BindingOrderBody(int depth, bool discriminatorFirst)
+    {
+        // Independently authored member order is the Q16 oracle; canonical serialization must
+        // not manufacture the negative input. The real shared store retains these exact bytes.
+        const string document = """
+            {"envelope":{"identity":"invoice","version":"1.0.0","tenant":"tenant-a",
+            "cascade_layer":"domain_package","provenance":{},"retention_class":"standard",
+            "legal_hold":false,"requires":[{"capability":"platform.layout","minimum_platform_version":"1.0.0"}],
+            "contract":{"major":1,"minor":0}},"schema_version":1,"medium":"screen","default_intent":"observe",
+            "blocks":[BLOCK],"page_layouts":[],"page_masters":[],"page_runs":[],"drill_through_targets":[]}
+            """;
+        var binding = discriminatorFirst
+            ? """{"binding_kind":"static","content":"control"}"""
+            : """{"content":"control","binding_kind":"static"}""";
+        var block = "{\"id\":\"leaf\",\"kind\":\"layout.text\",\"binding\":" + binding
+            + ",\"children\":[],\"container\":{\"kind\":\"stack\"}}";
+        for (var index = 0; index < depth; index++)
+            block = "{\"id\":\"parent-" + index
+                + "\",\"kind\":\"layout.text\",\"binding\":{\"binding_kind\":\"static\",\"content\":\"parent\"},\"children\":["
+                + block + "],\"container\":{\"kind\":\"stack\"}}";
+        return document.Replace("BLOCK", block, StringComparison.Ordinal);
+    }
+
     private static LayoutPageRegistry PackPages() => new(
         [new("pack.letter", "letter", LayoutPageOrientation.Portrait, new("sm", "sm", "sm", "sm"), new("sm", "sm"))],
         [new("pack.master", "pack.letter", new(null, "first.center", null), new(null, "left.center", null), new(null, "right.center", null))]);

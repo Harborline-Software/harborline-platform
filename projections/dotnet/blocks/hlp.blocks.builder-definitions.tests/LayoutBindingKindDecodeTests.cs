@@ -258,6 +258,120 @@ public sealed class LayoutBindingKindDecodeTests
         AssertBodyInvalid(payload);
     }
 
+    [Theory]
+    [InlineData("record_field", """{"field_path":"orders.customer","binding_kind":"record_field"}""")]
+    [InlineData("query", """{"view_definition_id":"view.orders","binding_kind":"query"}""")]
+    [InlineData("measure", """{"measure_path":"orders.total","binding_kind":"measure"}""")]
+    [InlineData("template", """{"template_definition_id":"template.invoice","binding_kind":"template","template_version":"1.0.0"}""")]
+    [InlineData("template", """{"template_definition_id":"template.invoice","template_version":"1.0.0","binding_kind":"template"}""")]
+    [InlineData("static", """{"content":"control","binding_kind":"static"}""")]
+    [InlineData("text", """{"runs":[{"text":"control"}],"binding_kind":"text"}""")]
+    public void OutOfOrderTagInEveryVariantAndTypedPositionRefusesTheEntry(string kind, string lateBinding)
+    {
+        // Q16's first-member rule is the oracle. These ordered inputs are authored independently
+        // of SerializeCanonical; that producer would put the tag first and hide the regression.
+        foreach (var depth in new[] { 0, 1, 2 })
+        {
+            Assert.NotNull(Decode(Payload(AtDepth(Binding(kind), depth))));
+            AssertOutOfOrderBodyInvalid(Payload(AtDepth(lateBinding, depth)));
+        }
+    }
+
+    [Fact]
+    public void MixedCaseAndLaterBranchesCannotHideAnOutOfOrderTag()
+    {
+        var mixedCase = MixedCase(Payload(AtDepth(LateStaticBinding, 2)));
+        AssertOutOfOrderBodyInvalid(mixedCase);
+
+        var first = Block(Binding("static"), id: "first");
+        var deep = AtDepth(LateStaticBinding, 8);
+        AssertOutOfOrderBodyInvalid(Payload(first + "," + deep));
+        AssertOutOfOrderBodyInvalid(Payload(Block(Binding("static"), "[" + first + "," + deep + "]", "branch")));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void DuplicateBindingAndArrayOccurrencesCannotHideAnOutOfOrderTag(bool badFirst)
+    {
+        var firstBinding = badFirst ? LateStaticBinding : Binding("static");
+        var secondBinding = badFirst ? Binding("static") : LateStaticBinding;
+        var duplicateBindings = Block(firstBinding).Replace("\"children\":", "\"Binding\":" + secondBinding + ",\"children\":", StringComparison.Ordinal);
+        AssertOutOfOrderBodyInvalid(Payload(duplicateBindings));
+
+        var firstBlock = Block(firstBinding);
+        var secondBlock = Block(secondBinding);
+        var duplicateRoots = Payload(firstBlock).Replace("\"page_layouts\":", "\"Blocks\":[" + secondBlock + "],\"page_layouts\":", StringComparison.Ordinal);
+        AssertOutOfOrderBodyInvalid(duplicateRoots);
+
+        var duplicateChildren = Block(Binding("static"), "[" + firstBlock + "]");
+        duplicateChildren = duplicateChildren[..^1] + ",\"Children\":[" + secondBlock + "]}";
+        AssertOutOfOrderBodyInvalid(Payload(duplicateChildren));
+    }
+
+    [Fact]
+    public void OpaqueLateTagObjectsRemainOpaque()
+    {
+        const string opaque = """{"binding":{"content":"opaque-control","binding_kind":"static"},"children":[{"binding":{}}],"blocks":[{"binding":{}}]}""";
+        var root = JsonNode.Parse(Payload(Block(Binding("static"))))!.AsObject();
+        root["envelope"]!["provenance"] = JsonNode.Parse(opaque);
+        var block = root["blocks"]![0]!;
+        block["binding"]!["content"] = JsonNode.Parse(opaque);
+        block["capture"] = JsonNode.Parse("{\"required\":null,\"validation_rules\":[],\"control\":{\"id\":\"opaque\",\"parameters\":" + opaque + "}}");
+        block["default_selection"] = JsonNode.Parse(opaque);
+        block["live_selection"] = JsonNode.Parse(opaque);
+
+        var definition = Decode(root.ToJsonString());
+        var decoded = Assert.Single(definition.Blocks);
+        foreach (var value in new[]
+        {
+            definition.Envelope.Provenance,
+            Assert.IsType<LayoutStaticBinding>(decoded.Binding).Content,
+            decoded.Capture!.Control!.Parameters!.Value,
+            decoded.DefaultSelection!.Value,
+            decoded.LiveSelection!.Value,
+        })
+        {
+            Assert.Equal("opaque-control", value.GetProperty("binding").GetProperty("content").GetString());
+            Assert.Equal("static", value.GetProperty("binding").GetProperty("binding_kind").GetString());
+            Assert.Equal(JsonValueKind.Object, value.GetProperty("children")[0].GetProperty("binding").ValueKind);
+        }
+
+        var text = Decode(Payload(Block("""{"binding_kind":"text","runs":[{"text":"{binding:{content:control,binding_kind:static}}"}]}""")));
+        Assert.Equal("{binding:{content:control,binding_kind:static}}", Assert.Single(Assert.IsType<LayoutTextBinding>(text.Blocks[0].Binding).Runs).Text);
+        // Opaque capture/live-selection JSON values are decoder controls, not semantic install claims.
+    }
+
+    [Fact]
+    public void OutOfOrderEntriesKeepExistingAggregationAndPrivacy()
+    {
+        var bad = JsonNode.Parse(Payload(Block("""{"content":"PAYLOAD_MARKER","binding_kind":"static"}""")))!;
+        bad["envelope"]!["requires"] = new JsonArray();
+        bad["blocks"]![0]!["kind"] = "layout.unregistered";
+        var otherBad = Payload(AtDepth("""{"field_path":"PAYLOAD_MARKER","binding_kind":"record_field"}""", 2));
+        var stripped = JsonNode.Parse(Payload(Block(Binding("static"))))!;
+        stripped["envelope"]!["requires"] = new JsonArray();
+
+        var refused = Assert.Throws<DefinitionRefusalException>(() => LayoutPackHostAdmission.Admit(
+            [Entry("surface.first", bad.ToJsonString()), Entry("surface.second", otherBad), Entry("surface.stripped", stripped.ToJsonString())], Host));
+
+        Assert.Equal(DefinitionAdmissionPhase.Install, refused.Stage);
+        Assert.Equal(
+            [new DefinitionRefusal("layout.definition.body_invalid", "", "surface.first@1.0.0"),
+             new DefinitionRefusal("layout.definition.body_invalid", "", "surface.second@1.0.0"),
+             new DefinitionRefusal("layout.pack.capability_undeclared", "/envelope/requires", "surface.stripped@1.0.0")],
+            refused.Refusals);
+        Assert.DoesNotContain("PAYLOAD_MARKER", JsonSerializer.Serialize(new { refused.Stage, refused.Refusals }));
+    }
+
+    private const string LateStaticBinding = """{"content":"control","binding_kind":"static"}""";
+
+    private static void AssertOutOfOrderBodyInvalid(string payload)
+    {
+        Assert.Throws<JsonException>(() => Decode(payload));
+        AssertBodyInvalid(payload);
+    }
+
     private static LayoutDefinition Decode(string payload) => LayoutDefinitionJson.Deserialize(Encoding.UTF8.GetBytes(payload));
 
     private static LayoutDefinitionPackageEntry Entry(string id, string payload)
