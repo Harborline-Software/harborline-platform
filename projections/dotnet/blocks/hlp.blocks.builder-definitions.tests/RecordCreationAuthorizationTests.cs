@@ -307,7 +307,8 @@ public sealed class RecordCreationAuthorizationTests
         public RoleAwareDecider RoleAware(params (string Principal, string Role)[] held) => new(Host.Records, held);
 
         public RecordWriteOperation Operation(IAuthorizationDecider decider)
-            => new(new AccessProvider(decider), Host.Records, Host.Registry, Port, Port, new FixedClock(At));
+            => new(new AccessProvider(decider), Host.Records, Host.Registry, Port, Port, new FixedClock(At),
+                RecordWriteFieldRuntimeTests.FixtureKinds(), RecordWriteFieldRuntimeTests.FixtureDomains(new FixedClock(At)));
 
         private static async Task PublishAsync(TestHost host, NewRecordType type, string expectedId)
         {

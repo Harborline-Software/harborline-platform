@@ -203,7 +203,9 @@ internal static class RecordWriteOperationProbe
         => new("eam.asset-class", operationId, JsonNode.Parse(body)!.AsObject());
 
     private static RecordWriteOperation Operation(RecordTypeDefinitionStore records, ISchemaRegistry registry, Port port, bool allow)
-        => new(new AccessProvider(new FixtureGate(allow)), records, registry, port, port, new FixedClock(At));
+        => new(new AccessProvider(new FixtureGate(allow)), records, registry, port, port, new FixedClock(At),
+            new FieldKindRuntime(new FieldKindRegistry([new("amount", "1.0.0", null, FieldScalarValueShape.Number)])),
+            AcceptedRecordCreatePackageProbe.FieldDomains(new FixedClock(At)));
 
     private static async Task<(RecordTypeDefinitionStore Records, ISchemaRegistry Registry)> PublishedAsync()
     {

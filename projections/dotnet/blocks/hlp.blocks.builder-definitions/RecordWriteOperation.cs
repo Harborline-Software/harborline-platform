@@ -5,6 +5,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
+using Harborline.Contracts.Fields;
 using Harborline.Foundation.Authorization;
 using Harborline.Kernel.Core;
 using Harborline.Kernel.SchemaValidation;
@@ -474,14 +475,27 @@ public sealed class RecordWriteOperation
     private readonly IKernelPreparedTransactionPort<RecordWriteRow, RecordWriteCommit> _port;
     private readonly IRecordWriteReceiptReader _receipts;
     private readonly TimeProvider _clock;
+    private readonly IFieldKindRuntime _fieldKinds;
+    private readonly IFieldDomainRuntime _fieldDomains;
 
     /// <summary>
     /// Composes the existing producers. <paramref name="registry"/> must be the registry
     /// <paramref name="recordTypes"/> registers into; any other refuses every new write as an unknown schema.
     /// <paramref name="receipts"/> must read the store <paramref name="port"/> commits to.
+    /// The mandatory field runtimes replace the former six-argument constructor (a source and binary break).
+    /// The host must use the same admitted kind registry as the Record Type compiler.
     /// </summary>
+    /// <param name="access">The enforcing authorization provider.</param>
+    /// <param name="recordTypes">The published Record Type binder.</param>
+    /// <param name="registry">The binder's schema registry.</param>
+    /// <param name="port">The atomic operation, row and audit transaction port.</param>
+    /// <param name="receipts">The same store's committed-operation reader.</param>
+    /// <param name="clock">The authority and audit clock.</param>
+    /// <param name="fieldKinds">The compiler's admitted field-kind runtime.</param>
+    /// <param name="fieldDomains">The runtime over complete tenant sources and the executor's read authority.</param>
     public RecordWriteOperation(AccessProvider access, RecordTypeDefinitionStore recordTypes, ISchemaRegistry registry,
-        IKernelPreparedTransactionPort<RecordWriteRow, RecordWriteCommit> port, IRecordWriteReceiptReader receipts, TimeProvider clock)
+        IKernelPreparedTransactionPort<RecordWriteRow, RecordWriteCommit> port, IRecordWriteReceiptReader receipts, TimeProvider clock,
+        IFieldKindRuntime fieldKinds, IFieldDomainRuntime fieldDomains)
     {
         ArgumentNullException.ThrowIfNull(access);
         ArgumentNullException.ThrowIfNull(recordTypes);
@@ -489,12 +503,16 @@ public sealed class RecordWriteOperation
         ArgumentNullException.ThrowIfNull(port);
         ArgumentNullException.ThrowIfNull(receipts);
         ArgumentNullException.ThrowIfNull(clock);
+        ArgumentNullException.ThrowIfNull(fieldKinds);
+        ArgumentNullException.ThrowIfNull(fieldDomains);
         _access = access;
         _recordTypes = recordTypes;
         _registry = registry;
         _port = port;
         _receipts = receipts;
         _clock = clock;
+        _fieldKinds = fieldKinds;
+        _fieldDomains = fieldDomains;
     }
 
     /// <summary>
@@ -678,8 +696,8 @@ public sealed class RecordWriteOperation
         // K9: the bound revision's own creation gate decides whether this origin may create at all; the decider's allow
         // cannot widen it. It is a fact of the bound revision, so it refuses in the bind stage and the authorize stage's
         // allowed decision is never reported beside an authorize-stage refusal (F1). Nothing is staged.
-        var gate = RecordCreationPolicy.Of(RecordTypeDefinitionJson.Deserialize(
-            Encoding.UTF8.GetBytes(publication.Revision.Document.BodyJson))).Gate;
+        var definition = RecordTypeDefinitionJson.Deserialize(Encoding.UTF8.GetBytes(publication.Revision.Document.BodyJson));
+        var gate = RecordCreationPolicy.Of(definition).Gate;
         if (CreationRefusal(gate, plan.AcceptedCommand) is { } creationRefusal) return (creationRefusal, false);
 
         var body = Submitted(request.Body);
@@ -700,6 +718,32 @@ public sealed class RecordWriteOperation
                     }
                     if (!validation.IsValid)
                         throw new RefusedWriteException(new(ValidateStage, BodyInvalid, Pointers(validation)));
+
+                    // Validate the bound declarations against the submitted JSON, not the retry intent encoding.
+                    // A field key is one literal property; dots and slashes never introduce traversal.
+                    using var instance = JsonDocument.Parse(body);
+                    var scope = new FieldDomainScope(Harborline.Foundation.Assets.Common.TenantId.FromString(plan.Tenant),
+                        plan.ExecutorId);
+                    foreach (var field in definition.Fields)
+                    {
+                        if (field.Binding is not { } binding) continue;
+                        var pointer = "/" + field.FieldKey.Replace("~", "~0", StringComparison.Ordinal)
+                            .Replace("/", "~1", StringComparison.Ordinal);
+                        instance.RootElement.TryGetProperty(field.FieldKey, out var value); // Undefined when absent.
+                        try
+                        {
+                            var kind = _fieldKinds.Bind(binding.Kind, pointer);
+                            var constraints = await _fieldDomains.IntersectAsync([binding.Constraints], scope, pointer, token)
+                                .ConfigureAwait(false);
+                            if (_fieldDomains.Validate(constraints, kind, value, pointer).Count > 0)
+                                throw new RefusedWriteException(new(ValidateStage, BodyInvalid, [pointer]));
+                        }
+                        catch (FieldAdmissionException)
+                        {
+                            // Substrate diagnostics and authored definition coordinates are not public instance errors.
+                            throw new RefusedWriteException(new(ValidateStage, BodyInvalid, [pointer]));
+                        }
+                    }
 
                     var row = new RecordWriteRow(plan.Tenant, recordId, request.RecordTypeId, publication.Revision.Document.Version,
                         publication.Revision.Digest, publication.Schema.Id, plan.ExecutorId, request.OperationId, request.Version,
