@@ -233,6 +233,30 @@ test('an original UI run refuses every non-original or unrecorded previous sched
   }
 })
 
+test('a truncated UI report keeps the existing reason before checking its mode or removing stale evidence', () => {
+  const repositoryRoot = mkdtempSync(resolve(tmpdir(), 'harborline-gate-truncated-schedule-'))
+  try {
+    const artifact = resolve(repositoryRoot, '.claude/gate-evidence/ui-shared-schedule.json')
+    mkdirSync(resolve(artifact, '..'), {recursive: true})
+    writeFileSync(artifact, 'literal stale evidence must remain on refusal\n')
+    const inputHash = '7'.repeat(64)
+    const previousPass = passEvidence(inputHash)
+    // Independent literal of the existing bounded report format; all PASS/hash/tree/current-mode
+    // conditions otherwise permit reuse, so the former mode-first guard gives the wrong reason.
+    previousPass.gate.results[0].report = '{"status":"PASS"}\n[truncated after 16384 characters]'
+    const before = JSON.stringify(previousPass)
+
+    assert.deepEqual(decideStepReuse({stepId: 'ui-shared-conformance', inputHash,
+      previousPass, sharedSchedule: 'original', repositoryRoot}),
+    {mode: 'run-step', reason: 'previous step report was truncated'})
+
+    assert.equal(readFileSync(artifact, 'utf8'), 'literal stale evidence must remain on refusal\n')
+    assert.equal(JSON.stringify(previousPass), before)
+  } finally {
+    rmSync(repositoryRoot, {recursive: true, force: true})
+  }
+})
+
 test('successful UI reuse removes only the exact stale schedule artifact and permits its absence', () => {
   const repositoryRoot = mkdtempSync(resolve(tmpdir(), 'harborline-gate-clean-schedule-'))
   try {

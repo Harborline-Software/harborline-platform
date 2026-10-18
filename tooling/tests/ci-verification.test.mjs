@@ -78,18 +78,35 @@ test('manual shared scheduling is explicit and defaults to original in every hea
   assert.ok(block('phase-4-gate').includes('            .claude/gate-evidence/\n'))
 })
 
-test('the existing Phase4 evidence upload includes its hidden full shared-schedule artifact', () => {
-  // Oracle: the Mac319 rev3 upload grant, scoped to the existing action and evidence path.
+test('the general Phase4 evidence upload retains its original hidden-file behavior', () => {
+  // Oracle: Mac319 rev4 restores this general step; only the separate manual step includes hidden files.
   const evidence = block('phase-4-gate').split('      - name: Evidence\n')[1]
     .split('\n      - name:')[0]
   assert.match(evidence, /^        if: always\(\)\n/)
   assert.match(evidence, /\n        uses: actions\/upload-artifact@v7\n/)
   assert.ok(evidence.includes('          name: verify-evidence-${{ github.run_id }}\n'))
-  assert.match(evidence, /\n          include-hidden-files: true\n/)
+  assert.doesNotMatch(evidence, /include-hidden-files:/)
   assert.match(evidence, /\n          if-no-files-found: ignore\n/)
   assert.match(evidence, /\n          retention-days: 14\n/)
   assert.ok(evidence.includes('            .claude/gate-evidence/\n'))
   assert.equal(workflow.match(/include-hidden-files:/g)?.length, 1)
+})
+
+test('only manual shared scheduling uploads the one exact hidden report with the existing full action pin', () => {
+  // Oracles: Mac319 rev4 exact scope and the release/validate action pin, not a production symbol.
+  const upload = block('phase-4-gate').split('      - name: Shared schedule evidence (manual)\n')[1]
+    .split('\n      - name:')[0]
+  const condition = upload.match(/^        if: ([^\n]+)$/m)?.[1]
+  assert.equal(condition, "always() && github.event_name == 'workflow_dispatch'")
+  assert.doesNotMatch(condition, /pull_request|merge_group|push/)
+  assert.match(upload, /\n        uses: actions\/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7\n/)
+  assert.ok(upload.includes('          name: ui-shared-schedule-${{ github.run_id }}\n'))
+  assert.deepEqual([...upload.matchAll(/^          path: ([^\n]+)$/gm)].map(match => match[1]),
+    ['.claude/gate-evidence/ui-shared-schedule.json'])
+  assert.match(upload, /\n          include-hidden-files: true\n/)
+  assert.match(upload, /\n          if-no-files-found: error\n/)
+  assert.match(upload, /\n          retention-days: 14\n/)
+  assert.equal(workflow.match(/- name: Shared schedule evidence \(manual\)/g)?.length, 1)
 })
 
 test('implementation and uncertain inputs retain early headless behavioral validation', () => {

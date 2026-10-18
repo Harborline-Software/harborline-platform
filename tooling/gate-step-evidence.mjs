@@ -137,6 +137,9 @@ export function decideStepReuse({stepId, inputHash, previousPass,
     return {mode: 'run-step', reason: 'previous gate testedTree is absent'}
   }
   if (stepId === 'ui-shared-conformance') {
+    if (typeof previous.report === 'string') {
+      return {mode: 'run-step', reason: 'previous step report was truncated'}
+    }
     if (previous.report.schedule?.mode !== 'original') {
       return {mode: 'run-step', reason: 'previous ui-shared-conformance scheduling is not original'}
     }

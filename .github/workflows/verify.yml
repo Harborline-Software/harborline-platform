@@ -180,7 +180,6 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: verify-evidence-${{ github.run_id }}
-          include-hidden-files: true
           if-no-files-found: ignore
           retention-days: 14
           path: |
@@ -188,6 +187,16 @@ jobs:
             docs/evidence/phase-4/gate.json
             .claude/gate-evidence/
             gallery/tests/playwright-report/
+
+      - name: Shared schedule evidence (manual)
+        if: always() && github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: ui-shared-schedule-${{ github.run_id }}
+          path: .claude/gate-evidence/ui-shared-schedule.json
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 14
 
   # T-349. The browser suite, split across a MATRIX of ubuntu jobs -- one shard per job, each on its
   # own hosted runner.
