@@ -73,6 +73,83 @@ public sealed class TaxonomyInterpreterTests
         Assert.Equal("child", Assert.IsType<ResolvedTaxonomySuccession>(result).Node.Code);
     }
 
+    [Theory]
+    [InlineData(0, "n0")]
+    [InlineData(1, "n1")]
+    [InlineData(2, "n2")]
+    [InlineData(64, "n64")]
+    public void Succession_reports_the_number_of_followed_edges(int expectedHops, string expectedActiveCode)
+    {
+        // Raw graph fixtures exercise defensive traversal without relaxing admission of tombstoned successors.
+        var nodes = Enumerable.Range(0, expectedHops)
+            .Select(index => Node($"n{index}", status: TaxonomyNodeStatus.Tombstoned, successor: $"n{index + 1}"))
+            .Append(Node(expectedActiveCode))
+            .ToArray();
+        var definition = Definition(nodes);
+
+        var result = Assert.IsType<ResolvedTaxonomySuccession>(Interpreter(definition).ResolveSuccession(definition, "n0"));
+
+        Assert.Equal(expectedActiveCode, result.Node.Code);
+        Assert.Same(nodes[^1], result.Node);
+        Assert.Equal(expectedHops, result.HopCount);
+    }
+
+    [Fact]
+    public void Successful_succession_retains_the_one_node_constructor_and_deconstruction()
+    {
+        var node = Node("active");
+        var result = new ResolvedTaxonomySuccession(node);
+
+        result.Deconstruct(out var deconstructedNode);
+
+        Assert.Same(node, result.Node);
+        Assert.Same(node, deconstructedNode);
+        Assert.Equal(0, result.HopCount);
+    }
+
+    [Fact]
+    public void Succession_refuses_a_sixty_fifth_edge_with_the_existing_refusal_data()
+    {
+        var nodes = Enumerable.Range(0, 65)
+            .Select(index => Node($"n{index}", status: TaxonomyNodeStatus.Tombstoned, successor: $"n{index + 1}"))
+            .Append(Node("n65"))
+            .ToArray();
+        var definition = Definition(nodes);
+
+        var refusal = Assert.IsType<TaxonomySuccessionRefusal>(Interpreter(definition).ResolveSuccession(definition, "n0"));
+
+        Assert.Equal("n0", refusal.Code);
+        Assert.Equal("successor_depth_exceeded", refusal.Reason);
+    }
+
+    [Theory]
+    [InlineData("unknown-start", "missing", "missing", "classification_unknown")]
+    [InlineData("missing-successor", "a", "a", "successor_missing")]
+    [InlineData("unknown-successor", "a", "a", "successor_unknown")]
+    [InlineData("cycle", "a", "a", "successor_cycle")]
+    public void Succession_preserves_the_existing_typed_refusal_data(
+        string scenario, string startCode, string expectedCode, string expectedReason)
+    {
+        var nodes = scenario switch
+        {
+            "unknown-start" => new[] { Node("active") },
+            "missing-successor" => new[] { Node("a", status: TaxonomyNodeStatus.Tombstoned) },
+            "unknown-successor" => new[] { Node("a", status: TaxonomyNodeStatus.Tombstoned, successor: "missing") },
+            "cycle" => new[]
+            {
+                Node("a", status: TaxonomyNodeStatus.Tombstoned, successor: "b"),
+                Node("b", status: TaxonomyNodeStatus.Tombstoned, successor: "a"),
+            },
+            _ => throw new ArgumentOutOfRangeException(nameof(scenario)),
+        };
+        var definition = Definition(nodes);
+
+        var refusal = Assert.IsType<TaxonomySuccessionRefusal>(Interpreter(definition).ResolveSuccession(definition, startCode));
+
+        Assert.Equal(expectedCode, refusal.Code);
+        Assert.Equal(expectedReason, refusal.Reason);
+    }
+
     [Fact] public void Succession_returns_typed_refusal_for_cycle_or_unknown_target()
     {
         var cycle = Definition([Node("a", status: TaxonomyNodeStatus.Tombstoned, successor: "b"), Node("b", status: TaxonomyNodeStatus.Tombstoned, successor: "a")]);
