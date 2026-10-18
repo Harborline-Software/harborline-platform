@@ -1,6 +1,8 @@
 import {createHash} from 'node:crypto'
 import {execFileSync} from 'node:child_process'
-import {readFileSync} from 'node:fs'
+import {readFileSync, rmSync} from 'node:fs'
+import {dirname, resolve} from 'node:path'
+import {fileURLToPath} from 'node:url'
 import {designReviewMessage, designReviewSummary} from './gates/design-review-status.mjs'
 
 // Every path a reusable step reads. Under-declaring is unsound -- the step would reuse a result its
@@ -110,7 +112,8 @@ export function loadPreviousPassEvidence(evidencePath) {
 }
 
 export function decideStepReuse({stepId, inputHash, previousPass,
-  sharedSchedule = process.env.HARBORLINE_SHARED_SCHEDULE ?? 'original'}) {
+  sharedSchedule = process.env.HARBORLINE_SHARED_SCHEDULE ?? 'original',
+  repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')}) {
   // The schedule is not part of the recorded input hash. Every experiment must execute rather
   // than inherit an original-mode PASS; empty/unknown selectors also cannot borrow that proof.
   if (stepId === 'ui-shared-conformance' && sharedSchedule !== 'original') {
@@ -132,6 +135,14 @@ export function decideStepReuse({stepId, inputHash, previousPass,
   }
   if (typeof previousPass.gate.subject?.testedTree !== 'string') {
     return {mode: 'run-step', reason: 'previous gate testedTree is absent'}
+  }
+  if (stepId === 'ui-shared-conformance') {
+    if (previous.report.schedule?.mode !== 'original') {
+      return {mode: 'run-step', reason: 'previous ui-shared-conformance scheduling is not original'}
+    }
+    // Reused evidence is labelled in gate.json; an old full artifact must not look like a new run.
+    // Missing is fine, but other IO errors must reach the caller's existing run-step fallback.
+    rmSync(resolve(repositoryRoot, '.claude/gate-evidence/ui-shared-schedule.json'), {force: true})
   }
   return {mode: 'reuse', previous}
 }

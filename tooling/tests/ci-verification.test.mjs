@@ -78,6 +78,20 @@ test('manual shared scheduling is explicit and defaults to original in every hea
   assert.ok(block('phase-4-gate').includes('            .claude/gate-evidence/\n'))
 })
 
+test('the existing Phase4 evidence upload includes its hidden full shared-schedule artifact', () => {
+  // Oracle: the Mac319 rev3 upload grant, scoped to the existing action and evidence path.
+  const evidence = block('phase-4-gate').split('      - name: Evidence\n')[1]
+    .split('\n      - name:')[0]
+  assert.match(evidence, /^        if: always\(\)\n/)
+  assert.match(evidence, /\n        uses: actions\/upload-artifact@v7\n/)
+  assert.ok(evidence.includes('          name: verify-evidence-${{ github.run_id }}\n'))
+  assert.match(evidence, /\n          include-hidden-files: true\n/)
+  assert.match(evidence, /\n          if-no-files-found: ignore\n/)
+  assert.match(evidence, /\n          retention-days: 14\n/)
+  assert.ok(evidence.includes('            .claude/gate-evidence/\n'))
+  assert.equal(workflow.match(/include-hidden-files:/g)?.length, 1)
+})
+
 test('implementation and uncertain inputs retain early headless behavioral validation', () => {
   assert.equal(requiresPrHeadless(['CONTRIBUTING.md', 'tooling/tests/ci-verification.test.mjs']), false)
   // Wiring and policy changes always take the headless gate (owner 2026-10-01).

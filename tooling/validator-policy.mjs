@@ -136,10 +136,12 @@ export function retiredProvenanceFieldErrors(records) {
 //
 // The gate's own evidence is not repository content, so it is not scanned at all: the content rules
 // would also fire on paths and imports quoted in a captured stack. The exemption is exactly the
-// shape the gate writes and nothing else -- a single `.log` directly inside that one directory --
-// so anything nested below it, any other extension, and every other path under .claude/ stay banned.
+// shapes the gate writes and nothing else -- a single `.log` directly inside that one directory,
+// or the exact full shared-schedule JSON artifact. Nested paths, other JSON names and every other
+// path under .claude/ stay banned.
 export function isGateFailureEvidence(localPath) {
-  return /^\.claude\/gate-evidence\/[^/]+\.log$/.test(localPath)
+  return localPath === '.claude/gate-evidence/ui-shared-schedule.json'
+    || /^\.claude\/gate-evidence\/[^/]+\.log$/.test(localPath)
 }
 
 // Approved bounded error-contract pilot. Only an explicit errorContract opts a row in; neither
