@@ -4,9 +4,11 @@ import {spawn} from 'node:child_process'
 import {dirname, resolve} from 'node:path'
 import {fileURLToPath} from 'node:url'
 import {readFileSync} from 'node:fs'
+import {cpus, loadavg, freemem, totalmem} from 'node:os'
 import {resolveCommand, runnerEnvironment} from './resolve-command.mjs'
 import {resolvePinnedDotnet} from './resolve-dotnet.mjs'
 import {moduleEvidence} from './shared-module-evidence.mjs'
+import {createSharedModuleScheduler} from './shared-module-scheduler.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const reactRoot = resolve(root, 'projections/react/ui/hlp.ui.button')
@@ -16,11 +18,43 @@ const modules = Object.entries(catalog.modules)
     && Object.values(module.projections ?? {}).some(projection => projection.conformanceRunner))
   .map(([moduleId]) => moduleId)
   .sort()
-const dotnet = resolvePinnedDotnet(root)
 const requestedConcurrency = Number.parseInt(process.env.HARBORLINE_SHARED_CONCURRENCY ?? '6', 10)
 const concurrency = Number.isFinite(requestedConcurrency)
   ? Math.max(1, Math.min(requestedConcurrency, modules.length))
   : 6
+const observationOrigin = performance.now()
+const observationNow = () => performance.now() - observationOrigin
+const phaseResources = []
+const scheduler = createSharedModuleScheduler({
+  moduleIds: modules,
+  concurrency,
+  mode: process.env.HARBORLINE_SHARED_SCHEDULE,
+  now: observationNow,
+  onPhase: recordPhaseResources,
+})
+// Validate the selector/experiment before resolving a toolchain or launching any setup.
+const dotnet = resolvePinnedDotnet(root)
+
+function observed(read) {
+  try {
+    return {available: true, value: read()}
+  } catch {
+    return {available: false, value: null}
+  }
+}
+
+function recordPhaseResources(phase) {
+  phaseResources.push({
+    ...phase,
+    hostCpu: observed(() => {
+      const entries = cpus()
+      return {logicalCount: entries.length, models: [...new Set(entries.map(entry => entry.model))]}
+    }),
+    loadAverage: observed(loadavg),
+    freeMemoryBytes: observed(freemem),
+    totalMemoryBytes: observed(totalmem),
+  })
+}
 
 function execute(id, executable, args, cwd = root, extraEnv = {}) {
   const started = performance.now()
@@ -54,53 +88,28 @@ function execute(id, executable, args, cwd = root, extraEnv = {}) {
   })
 }
 
-async function executeModules(moduleIds) {
-  const results = new Array(moduleIds.length)
-  let nextIndex = 0
-  const workers = Array.from({length: Math.min(concurrency, moduleIds.length)}, async () => {
-    while (nextIndex < moduleIds.length) {
-      const index = nextIndex++
-      const moduleId = moduleIds[index]
-      const first = await execute(
-        moduleId,
-        process.execPath,
-        [`conformance/${moduleId}/runners/run-shared.mjs`],
-        root,
-        {HARBORLINE_SHARED_SKIP_BUILD: '1'},
-      )
-      if (first.exitCode === 0) {
-        results[index] = {...first, attempts: 1}
-        continue
-      }
-      // One retry, mirroring run-native.mjs: a test host can die on teardown (observed as
-      // 0xC0000005 after its own summary printed Failed: 0) under parallel dotnet load. A
-      // genuine failure fails twice; both attempts are recorded so a retried pass is visible, and
-      // the first attempt keeps its output so a failure that clears on retry can still be named.
-      const second = await execute(
-        moduleId,
-        process.execPath,
-        [`conformance/${moduleId}/runners/run-shared.mjs`],
-        root,
-        {HARBORLINE_SHARED_SKIP_BUILD: '1'},
-      )
-      results[index] = {...second, attempts: 2, firstAttempt: first}
-    }
-  })
-  await Promise.all(workers)
-  return results
-}
-
+recordPhaseResources({phase: 'setup', boundary: 'start', at: new Date().toISOString(), offsetMs: observationNow()})
 const setup = await Promise.all([
   execute('react-aggregate-build', 'npm', ['run', 'build'], reactRoot),
   execute('dotnet-solution-build', dotnet.executable, [
     'build', 'Harborline.Platform.slnx', '--configuration', 'Release', '-v:minimal',
   ]),
 ])
+recordPhaseResources({phase: 'setup', boundary: 'end', at: new Date().toISOString(), offsetMs: observationNow()})
 const setupPassed = setup.every(result => result.exitCode === 0)
 
 let moduleResults = []
+let scheduleEvidence = {mode: scheduler.mode, status: 'not-started', configuredConcurrency: concurrency, attempts: []}
 if (setupPassed) {
-  moduleResults = await executeModules(modules)
+  const scheduled = await scheduler.run(moduleId => execute(
+    moduleId,
+    process.execPath,
+    [`conformance/${moduleId}/runners/run-shared.mjs`],
+    root,
+    {HARBORLINE_SHARED_SKIP_BUILD: '1'},
+  ))
+  moduleResults = scheduled.results
+  scheduleEvidence = scheduled.evidence
 }
 
 const reports = []
@@ -125,8 +134,16 @@ const passed = setupPassed
 process.stdout.write(`${JSON.stringify({
   schemaVersion: 1,
   status: passed ? 'PASS' : 'FAIL',
-  strategy: 'one shared build followed by bounded parallel read-only module runners',
+  strategy: scheduler.mode === 'original'
+    ? 'one shared build followed by bounded parallel read-only module runners'
+    : 'one shared build, ordinary module pool drained, then exclusive Chat and Grid module runners',
   concurrency,
+  schedule: {
+    ...scheduleEvidence,
+    clock: 'monotonic milliseconds since shared-runner observation start',
+    phaseResources,
+    resourceScope: 'host OS observations, not effective CPU/memory quotas or causal contention evidence',
+  },
   dotnetSdk: dotnet.version,
   moduleIds: modules,
   counts: {
@@ -156,6 +173,7 @@ process.stdout.write(`${JSON.stringify({
       durationMs: result.durationMs,
       passed,
       counts: report?.counts,
+      executionIntervals: scheduleEvidence.attempts.filter(attempt => attempt.moduleId === result.id),
       // A failing module's report is still on its stdout; the evidence names its failing cases
       // instead of the passing tail of the pretty-printed results array.
       ...moduleEvidence(result, passed),
