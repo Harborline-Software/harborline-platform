@@ -55,9 +55,12 @@ public static class LayoutDefinitionJson
                 // Ordinary properties follow the web options; polymorphic metadata stays exact.
                 // Inspect every occurrence, as deserialization also reads duplicate properties.
                 if (property.Name.Equals("binding", StringComparison.OrdinalIgnoreCase)
-                    && property.Value.ValueKind == JsonValueKind.Object
-                    && !property.Value.TryGetProperty("binding_kind", out _))
-                    throw new JsonException("A Layout binding object requires binding_kind.");
+                    && property.Value.ValueKind == JsonValueKind.Object)
+                {
+                    var members = property.Value.EnumerateObject();
+                    if (!members.MoveNext() || !members.Current.NameEquals("binding_kind"))
+                        throw new JsonException("A Layout binding object requires binding_kind.");
+                }
                 if (property.Name.Equals("children", StringComparison.OrdinalIgnoreCase))
                     ValidateBlockBindings(property.Value);
             }

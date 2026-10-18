@@ -300,7 +300,7 @@
       }
     },
     "hlp.blocks.builder-definitions": {
-      "interface": {"path": "specs/modules/blocks/hlp.blocks.builder-definitions/interface.yaml", "revision": 24},
+      "interface": {"path": "specs/modules/blocks/hlp.blocks.builder-definitions/interface.yaml", "revision": 25},
       "moduleKind": "runtime",
       "presentation": {"disposition": "not-applicable", "rationale": "Definition catalogue, package export, and replay are projection-neutral and have no presentation surface."},
       "owner": "platform-foundation",
@@ -554,7 +554,7 @@
       }
     },
     "hlp.blocks.calendar": {
-      "interface": {"path": "specs/modules/blocks/hlp.blocks.calendar/interface.yaml", "revision": 4},
+      "interface": {"path": "specs/modules/blocks/hlp.blocks.calendar/interface.yaml", "revision": 5},
       "moduleKind": "runtime",
       "presentation": {"disposition": "not-applicable", "rationale": "The calendar engine produces occurrences, free/busy results, booking outcomes, and context answers consumed by scheduler/gantt renderers; it renders nothing."},
       "owner": "platform-blocks",
@@ -864,7 +864,7 @@
       }
     },
     "hlp.foundation.taxonomy": {
-      "interface": {"path": "specs/modules/foundation/hlp.foundation.taxonomy/interface.yaml", "revision": 1},
+      "interface": {"path": "specs/modules/foundation/hlp.foundation.taxonomy/interface.yaml", "revision": 2},
       "moduleKind": "runtime",
       "presentation": {"disposition": "not-applicable", "rationale": "The foundation package owns the projection-neutral TaxonomyDefinition and its admission; the scheme/overlay editor and catalogue views are separate projections over this interface."},
       "owner": "platform-foundation",

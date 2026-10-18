@@ -1,3 +1,5 @@
+using System.Collections.Frozen;
+
 namespace Harborline.Foundation.NotificationDelivery;
 
 /// <summary>
@@ -118,8 +120,8 @@ public static class DeliveryChannels
 {
     private static readonly DeliveryChannel Inbox = new(
         DeliveryChannelKey.Inbox,
-        new HashSet<string>(StringComparer.Ordinal),
-        new HashSet<string>(StringComparer.Ordinal),
+        Array.Empty<string>().ToFrozenSet(StringComparer.Ordinal),
+        Array.Empty<string>().ToFrozenSet(StringComparer.Ordinal),
         ChannelContentClass.OnNodeFull);
 
     /// <summary>The mandatory privacy class with which a future off-node channel must begin.</summary>

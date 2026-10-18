@@ -13,7 +13,7 @@ public sealed class ExecutionRuntimeMutationTests
         RetryProfileName.ExternalApiStandard,
         [RetryProfileName.ExternalApiStandard]);
 
-    [Fact(DisplayName = "T-1039 RetryProfile.cs:73: a delay already at its cap is returned without doubling")]
+    [Fact(DisplayName = "T-1039 RetryProfile.cs:75: a delay already at its cap is returned without doubling")]
     public void Delay_at_cap_does_not_overflow_when_calculating_the_next_delay()
     {
         var profile = CreateProfile(TimeSpan.MaxValue, TimeSpan.MaxValue);
@@ -21,7 +21,7 @@ public sealed class ExecutionRuntimeMutationTests
         Assert.Equal(TimeSpan.MaxValue, profile.DelayAfter(2));
     }
 
-    [Fact(DisplayName = "T-1039 RetryProfile.cs:111: a null allowed collection names the public parameter")]
+    [Fact(DisplayName = "T-1039 RetryProfile.cs:113: a null allowed collection names the public parameter")]
     public void Null_allowed_collection_names_the_public_parameter()
     {
         var exception = Assert.Throws<ArgumentNullException>(() => new CapabilityRetryPolicy(
@@ -31,7 +31,7 @@ public sealed class ExecutionRuntimeMutationTests
         Assert.Equal("allowed", exception.ParamName);
     }
 
-    [Fact(DisplayName = "T-1039 RetryProfile.cs:113: allowed profiles are validated before the default profile")]
+    [Fact(DisplayName = "T-1039 RetryProfile.cs:115: allowed profiles are validated before the default profile")]
     public void Allowed_profiles_are_validated_before_the_default_profile()
     {
         var allowedUnknown = CreateUnknownProfileName("allowed-unknown");
