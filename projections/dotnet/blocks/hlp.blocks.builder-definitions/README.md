@@ -484,3 +484,20 @@ names are checked against both schema-form lane implementations.
 published Validate-action rules. A host can construct a register from its admitted closure using
 the existing constructor. The release invents no named rule for capture's `required` property.
 Hosts supply these registers to the existing `LayoutHostRegisters` seam; API adoption is T-1013.
+
+## Durable Records write store
+
+`FileJournalRecordWriteStore` implements the existing prepared transaction port and receipt reader,
+composed into no host. It atomically replaces a file journal containing the record, operation and
+opaque audit evidence, preserves replay across reopen, and refuses corrupt journals. Writers are
+serialized within one process; cross-process locking and the proposed `records-write-file-journal/1`
+format await review. It adds no public record read or amendment evidence. API adapter qualification
+remains held under T-619.
+
+Replacement is crash-safe, not power-loss-safe: the rename has no parent-directory fsync on Unix
+and no write-through on Windows. A lost Created result followed by a retry could create a second
+record. BCL-only code cannot close this gap; production-adapter durability remains owner/T-619
+work (seam gap 6). A missing journal directory reads as an empty store, and commit recreates it,
+matching the lifecycle-store pattern; this behavior remains an owner decision (seam gap 7).
+External Windows handles can refuse replacement, in which case commit fails without changing
+the journal. The writer gate is process-wide across all instances and paths.
