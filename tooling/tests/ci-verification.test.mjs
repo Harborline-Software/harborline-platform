@@ -62,17 +62,17 @@ test('PR event types produce preliminary feedback; full lanes are reserved for q
   }
 })
 
-test('manual shared scheduling is explicit and defaults to original in every headless event', () => {
-  // Oracle: Mac Q5/319 grants only this choice and this input-or-original environment fallback.
+test('manual shared scheduling is explicit and defaults to exclusive-tail in every headless event', () => {
+  // Oracle: Mac Q5/319 rev5 adopts this default while retaining the explicit original choice.
   const dispatch = workflow.split('\n  workflow_dispatch:\n')[1].split('\nconcurrency:')[0]
   assert.match(dispatch, /\n      shared_schedule:\n/)
   assert.match(dispatch, /\n        type: choice\n/)
   assert.match(dispatch, /\n        required: true\n/)
-  assert.match(dispatch, /\n        default: original\n/)
+  assert.match(dispatch, /\n        default: exclusive-tail\n/)
   assert.match(dispatch, /\n        options:\n          - original\n          - exclusive-tail\n/)
   const headless = block('phase-4-gate').split('      - name: Phase-4 gate (headless)')[1]
     .split('\n      - name: Evidence')[0]
-  assert.ok(headless.includes("          HARBORLINE_SHARED_SCHEDULE: ${{ inputs.shared_schedule || 'original' }}\n"))
+  assert.ok(headless.includes("          HARBORLINE_SHARED_SCHEDULE: ${{ inputs.shared_schedule || 'exclusive-tail' }}\n"))
   assert.equal(workflow.match(/HARBORLINE_SHARED_SCHEDULE:/g)?.length, 1)
   assert.doesNotMatch(workflow, /HARBORLINE_SHARED_CONCURRENCY\s*[:=]/)
   assert.ok(block('phase-4-gate').includes('            .claude/gate-evidence/\n'))

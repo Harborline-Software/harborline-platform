@@ -23,7 +23,7 @@ on:
         description: Shared UI module schedule
         type: choice
         required: true
-        default: original
+        default: exclusive-tail
         options:
           - original
           - exclusive-tail
@@ -173,7 +173,7 @@ jobs:
           HARBORLINE_API_REPO: ${{ runner.temp }}/harborline-api
           HARBORLINE_CONTROL_REPO: ${{ runner.temp }}/harborline-control
           HARBORLINE_GATE_HEADLESS: "1"
-          HARBORLINE_SHARED_SCHEDULE: ${{ inputs.shared_schedule || 'original' }}
+          HARBORLINE_SHARED_SCHEDULE: ${{ inputs.shared_schedule || 'exclusive-tail' }}
 
       - name: Evidence
         if: always()

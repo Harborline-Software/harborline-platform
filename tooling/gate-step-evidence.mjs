@@ -4,6 +4,7 @@ import {readFileSync, rmSync} from 'node:fs'
 import {dirname, resolve} from 'node:path'
 import {fileURLToPath} from 'node:url'
 import {designReviewMessage, designReviewSummary} from './gates/design-review-status.mjs'
+import {selectSharedSchedule} from './shared-module-scheduler.mjs'
 
 // Every path a reusable step reads. Under-declaring is unsound -- the step would reuse a result its
 // inputs no longer justify -- so the script half of each list is checked by
@@ -112,12 +113,16 @@ export function loadPreviousPassEvidence(evidencePath) {
 }
 
 export function decideStepReuse({stepId, inputHash, previousPass,
-  sharedSchedule = process.env.HARBORLINE_SHARED_SCHEDULE ?? 'original',
+  sharedSchedule = process.env.HARBORLINE_SHARED_SCHEDULE,
   repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')}) {
-  // The schedule is not part of the recorded input hash. Every experiment must execute rather
-  // than inherit an original-mode PASS; empty/unknown selectors also cannot borrow that proof.
-  if (stepId === 'ui-shared-conformance' && sharedSchedule !== 'original') {
-    return {mode: 'run-step', reason: 'ui-shared-conformance reuse requires original scheduling'}
+  // The schedule is not in the input hash; compare actual normalized mode with recorded evidence.
+  let effectiveSharedSchedule
+  if (stepId === 'ui-shared-conformance') {
+    try {
+      effectiveSharedSchedule = selectSharedSchedule(sharedSchedule)
+    } catch {
+      return {mode: 'run-step', reason: 'ui-shared-conformance scheduling selector is invalid'}
+    }
   }
   if (!previousPass?.gate) return {mode: 'run-step', reason: previousPass?.reason ?? 'recorded gate evidence is unavailable'}
   if (previousPass.gate.schemaVersion !== 3 || previousPass.gate.phase !== 4 || previousPass.gate.status !== 'PASS') {
@@ -140,8 +145,10 @@ export function decideStepReuse({stepId, inputHash, previousPass,
     if (typeof previous.report === 'string') {
       return {mode: 'run-step', reason: 'previous step report was truncated'}
     }
-    if (previous.report.schedule?.mode !== 'original') {
-      return {mode: 'run-step', reason: 'previous ui-shared-conformance scheduling is not original'}
+    const recordedMode = previous.report.schedule?.mode
+    if ((recordedMode !== 'original' && recordedMode !== 'exclusive-tail')
+      || recordedMode !== effectiveSharedSchedule) {
+      return {mode: 'run-step', reason: 'previous ui-shared-conformance scheduling does not match the current mode'}
     }
     // Reused evidence is labelled in gate.json; an old full artifact must not look like a new run.
     // Missing is fine, but other IO errors must reach the caller's existing run-step fallback.

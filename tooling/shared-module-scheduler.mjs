@@ -16,7 +16,7 @@ export function writeSharedScheduleReport(repositoryRoot, report) {
 const exclusiveModules = ['hlp.ui.chat', 'hlp.ui.data-grid']
 
 export function selectSharedSchedule(value) {
-  const mode = value ?? 'original'
+  const mode = value === undefined || value === null || value === '' ? 'exclusive-tail' : value
   if (mode !== 'original' && mode !== 'exclusive-tail') {
     throw new Error('HARBORLINE_SHARED_SCHEDULE must be original or exclusive-tail')
   }

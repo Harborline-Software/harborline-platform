@@ -20,8 +20,7 @@ function result(id, exitCode = 0, stdout = 'module output', stderr = '') {
   return {id, exitCode, durationMs: 17, stdout, stderr}
 }
 
-test('original remains the default and retains the general roster and concurrency override', async () => {
-  assert.equal(selectSharedSchedule(undefined), 'original')
+test('original remains selectable and retains the general roster and concurrency override', async () => {
   assert.equal(selectSharedSchedule('original'), 'original')
   assert.equal(selectSharedSchedule('exclusive-tail'), 'exclusive-tail')
   const input = Object.freeze(['hlp.ui.chat', 'ordinary', 'hlp.ui.data-grid'])
@@ -29,7 +28,7 @@ test('original remains the default and retains the general roster and concurrenc
   const calls = []
   let active = 0
   let peak = 0
-  const scheduler = createSharedModuleScheduler({moduleIds: input, concurrency: 2})
+  const scheduler = createSharedModuleScheduler({moduleIds: input, concurrency: 2, mode: 'original'})
   const running = scheduler.run(async id => {
     calls.push(id)
     peak = Math.max(peak, ++active)
@@ -52,16 +51,67 @@ test('original remains the default and retains the general roster and concurrenc
   const small = await createSharedModuleScheduler({moduleIds: ['only'], concurrency: 3, mode: 'original'})
     .run(async id => result(id))
   assert.deepEqual(small.results.map(entry => entry.id), ['only'])
-  const empty = await createSharedModuleScheduler({moduleIds: [], concurrency: 1}).run(() => {
+  const empty = await createSharedModuleScheduler({moduleIds: [], concurrency: 1, mode: 'original'}).run(() => {
     assert.fail('empty original roster must not launch a module')
   })
   assert.deepEqual(empty.results, [])
 })
 
+test('unset and empty selectors use six ordinary workers then the drained Chat and Grid tail', async () => {
+  for (const mode of [undefined, null, '']) {
+    assert.equal(selectSharedSchedule(mode), 'exclusive-tail')
+    const ordinary = ['one', 'two', 'three', 'four', 'five', 'six', 'seven']
+    const input = ['hlp.ui.chat', ...ordinary, 'hlp.ui.data-grid']
+    const pool = deferred()
+    const chat = deferred()
+    const chatStarted = deferred()
+    const calls = []
+    const active = new Set()
+    const tailActives = []
+    let peak = 0
+    const running = createSharedModuleScheduler({moduleIds: input, concurrency: 6, mode}).run(async id => {
+      calls.push(id)
+      active.add(id)
+      peak = Math.max(peak, active.size)
+      try {
+        if (id === 'hlp.ui.chat') {
+          tailActives.push([...active])
+          chatStarted.resolve()
+          await chat.promise
+        } else if (id === 'hlp.ui.data-grid') {
+          tailActives.push([...active])
+        } else {
+          await pool.promise
+        }
+        return result(id)
+      } finally {
+        active.delete(id)
+      }
+    })
+    const initial = [...calls]
+    pool.resolve()
+    await chatStarted.promise
+    const beforeChatCompletes = [...calls]
+    chat.resolve()
+    const completed = await running
+
+    assert.deepEqual(initial, ['one', 'two', 'three', 'four', 'five', 'six'])
+    assert.equal(peak, 6)
+    assert.deepEqual(beforeChatCompletes, [...ordinary, 'hlp.ui.chat'])
+    assert.deepEqual(calls, [...ordinary, 'hlp.ui.chat', 'hlp.ui.data-grid'])
+    assert.deepEqual(tailActives, [['hlp.ui.chat'], ['hlp.ui.data-grid']])
+    assert.deepEqual(completed.results.map(entry => entry.id), input)
+    assert.equal(completed.evidence.mode, 'exclusive-tail')
+    assert.deepEqual(completed.evidence.phases.map(phase => phase.name), [
+      'ordinary-pool', 'exclusive:hlp.ui.chat', 'exclusive:hlp.ui.data-grid',
+    ])
+  }
+})
+
 test('unknown selectors and invalid proposed inputs refuse before any module launch', () => {
   let calls = 0
   const execute = async id => { calls += 1; return result(id) }
-  for (const mode of ['', 'Original', 'exclusive', 'unknown']) {
+  for (const mode of [' ', 'Original', 'exclusive', 'unknown']) {
     assert.throws(() => createSharedModuleScheduler({moduleIds: ['one'], concurrency: 6, mode}).run(execute),
       /HARBORLINE_SHARED_SCHEDULE/)
   }
@@ -215,7 +265,7 @@ test('one retry retains the complete failed result and diagnosis even when the s
     stdout: '{"status":"FAIL","results":[{"caseId":"literal-first-failure","passed":false}]}',
     stderr: 'first attempt stderr',
   }
-  const completed = await createSharedModuleScheduler({moduleIds: ['passes', 'recovers', 'fails', 'after'], concurrency: 1})
+  const completed = await createSharedModuleScheduler({moduleIds: ['passes', 'recovers', 'fails', 'after'], concurrency: 1, mode: 'original'})
     .run(async id => {
       const attempt = (attempts.get(id) ?? 0) + 1
       attempts.set(id, attempt)
@@ -250,7 +300,7 @@ test('literal attempt intervals include a failed first attempt and use half-open
   const phases = []
   let callsA = 0
   const running = createSharedModuleScheduler({
-    moduleIds: ['a', 'b'], concurrency: 2,
+    moduleIds: ['a', 'b'], concurrency: 2, mode: 'original',
     now: () => { assert.ok(clock.length > 0); return clock.shift() },
     wallNow: () => { assert.ok(dates.length > 0); return dates.shift() },
     onPhase: event => phases.push(event),
@@ -300,7 +350,7 @@ test('literal attempt intervals include a failed first attempt and use half-open
   const touchingTimes = [0, 0, 5, 5, 9, 9]
   let attempt = 0
   const touching = await createSharedModuleScheduler({
-    moduleIds: ['touching'], concurrency: 1, now: () => touchingTimes.shift(),
+    moduleIds: ['touching'], concurrency: 1, mode: 'original', now: () => touchingTimes.shift(),
   }).run(async id => result(id, ++attempt === 1 ? 1 : 0))
   assert.equal(touching.evidence.observedOverlap.maxActiveAttempts, 1)
   assert.equal(touching.evidence.observedOverlap.overlappingDurationMs, 0)

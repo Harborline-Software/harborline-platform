@@ -16,7 +16,7 @@ function commitTree(repositoryRoot, content, targetPath = 'specs/modules/ui/hlp.
   return execFileSync('git', ['rev-parse', 'HEAD^{tree}'], {cwd: repositoryRoot, encoding: 'utf8'}).trim()
 }
 
-function passEvidence(inputHash) {
+function passEvidence(inputHash, recordedMode = 'original') {
   return {
     gate: {
       schemaVersion: 3,
@@ -28,7 +28,7 @@ function passEvidence(inputHash) {
         passed: true,
         exitCode: 0,
         inputHash,
-        report: {counts: {passedResults: 2}, schedule: {mode: 'original'}},
+        report: {counts: {passedResults: 2}, schedule: {mode: recordedMode}},
       }],
     },
   }
@@ -160,22 +160,41 @@ test('changing the actual shared scheduler helper invalidates only its declared 
   }
 })
 
-test('non-original schedules cannot reuse a UI PASS while unrelated steps retain their exact evidence', () => {
+test('UI reuse requires the same effective recorded mode while unrelated steps remain independent', () => {
   const repositoryRoot = mkdtempSync(resolve(tmpdir(), 'harborline-gate-current-schedule-'))
   try {
     const inputHash = 'b'.repeat(64)
-    for (const sharedSchedule of ['exclusive-tail', '', 'unknown']) {
+    // Literal mode matrix from the adopted Q5 policy; unset environment is exercised below.
+    for (const [sharedSchedule, recordedMode, expected] of [
+      ['original', 'original', 'reuse'],
+      ['original', 'exclusive-tail', 'run-step'],
+      ['exclusive-tail', 'original', 'run-step'],
+      ['exclusive-tail', 'exclusive-tail', 'reuse'],
+      ['', 'original', 'run-step'],
+      ['', 'exclusive-tail', 'reuse'],
+      [null, 'original', 'run-step'],
+      [null, 'exclusive-tail', 'reuse'],
+    ]) {
+      const previousPass = passEvidence(inputHash, recordedMode)
+      const outcome = decideStepReuse({stepId: 'ui-shared-conformance', inputHash,
+        previousPass, sharedSchedule, repositoryRoot})
+      assert.equal(outcome.mode, expected)
+      if (expected === 'run-step') assert.equal(outcome.reason,
+        'previous ui-shared-conformance scheduling does not match the current mode')
+      else assert.equal(outcome.previous, previousPass.gate.results[0])
+    }
+    for (const sharedSchedule of ['unknown', ' ', 'Original']) {
       assert.deepEqual(decideStepReuse({stepId: 'ui-shared-conformance', inputHash,
-        previousPass: passEvidence(inputHash), sharedSchedule, repositoryRoot}),
-      {mode: 'run-step', reason: 'ui-shared-conformance reuse requires original scheduling'})
+        previousPass: passEvidence(inputHash, 'exclusive-tail'), sharedSchedule, repositoryRoot}),
+      {mode: 'run-step', reason: 'ui-shared-conformance scheduling selector is invalid'})
+    }
+    for (const sharedSchedule of ['original', 'exclusive-tail', '', 'unknown']) {
       for (const stepId of ['native-tests', 'gallery-gate']) {
         const previousPass = passEvidence(inputHash)
         previousPass.gate.results[0].id = stepId
         assert.equal(decideStepReuse({stepId, inputHash, previousPass, sharedSchedule, repositoryRoot}).mode, 'reuse')
       }
     }
-    assert.equal(decideStepReuse({stepId: 'ui-shared-conformance', inputHash,
-      previousPass: passEvidence(inputHash), sharedSchedule: 'original', repositoryRoot}).mode, 'reuse')
   } finally {
     rmSync(repositoryRoot, {recursive: true, force: true})
   }
@@ -184,49 +203,60 @@ test('non-original schedules cannot reuse a UI PASS while unrelated steps retain
 test('the real default reuse boundary reads each isolated child schedule environment', () => {
   const repositoryRoot = mkdtempSync(resolve(tmpdir(), 'harborline-gate-child-schedule-'))
   const moduleUrl = new URL('../gate-step-evidence.mjs', import.meta.url).href
-  const source = `
-    import {decideStepReuse} from ${JSON.stringify(moduleUrl)}
-    const inputHash = 'c'.repeat(64)
-    const previousPass = {gate: {schemaVersion: 3, phase: 4, status: 'PASS',
-      subject: {testedTree: 'literal-tree'}, results: [{id: 'ui-shared-conformance',
-        passed: true, exitCode: 0, inputHash, report: {status: 'PASS', schedule: {mode: 'original'}}}]}}
-    process.stdout.write(JSON.stringify(decideStepReuse({stepId: 'ui-shared-conformance', inputHash, previousPass,
-      repositoryRoot: ${JSON.stringify(repositoryRoot)}})))
-  `
   try {
-    for (const [selector, mode] of [[undefined, 'reuse'], ['original', 'reuse'],
-      ['exclusive-tail', 'run-step'], ['', 'run-step'], ['unknown', 'run-step']]) {
-      const env = {...process.env}
-      if (selector === undefined) delete env.HARBORLINE_SHARED_SCHEDULE
-      else env.HARBORLINE_SHARED_SCHEDULE = selector
-      const child = spawnSync(process.execPath, ['--input-type=module', '--eval', source], {env, encoding: 'utf8'})
-      assert.equal(child.status, 0, child.stderr)
-      const outcome = JSON.parse(child.stdout)
-      assert.equal(outcome.mode, mode, `selector ${String(selector)}`)
-      if (mode === 'run-step') assert.equal(outcome.reason, 'ui-shared-conformance reuse requires original scheduling')
+    for (const [recordedMode, cases] of [
+      ['original', [[undefined, 'run-step'], ['', 'run-step'], ['original', 'reuse'],
+        ['exclusive-tail', 'run-step'], ['unknown', 'run-step'], [' ', 'run-step']]],
+      ['exclusive-tail', [[undefined, 'reuse'], ['', 'reuse'], ['original', 'run-step'],
+        ['exclusive-tail', 'reuse'], ['unknown', 'run-step'], [' ', 'run-step']]],
+    ]) {
+      const source = `
+        import {decideStepReuse} from ${JSON.stringify(moduleUrl)}
+        const inputHash = 'c'.repeat(64)
+        const previousPass = {gate: {schemaVersion: 3, phase: 4, status: 'PASS',
+          subject: {testedTree: 'literal-tree'}, results: [{id: 'ui-shared-conformance',
+            passed: true, exitCode: 0, inputHash,
+            report: {status: 'PASS', schedule: {mode: ${JSON.stringify(recordedMode)}}}}]}}
+        process.stdout.write(JSON.stringify(decideStepReuse({stepId: 'ui-shared-conformance', inputHash, previousPass,
+          repositoryRoot: ${JSON.stringify(repositoryRoot)}})))
+      `
+      for (const [selector, mode] of cases) {
+        const env = {...process.env}
+        if (selector === undefined) delete env.HARBORLINE_SHARED_SCHEDULE
+        else env.HARBORLINE_SHARED_SCHEDULE = selector
+        const child = spawnSync(process.execPath, ['--input-type=module', '--eval', source], {env, encoding: 'utf8'})
+        assert.equal(child.status, 0, child.stderr)
+        const outcome = JSON.parse(child.stdout)
+        assert.equal(outcome.mode, mode, `selector ${String(selector)}, recorded ${recordedMode}`)
+        if (mode === 'run-step') assert.equal(outcome.reason, selector === 'unknown' || selector === ' '
+          ? 'ui-shared-conformance scheduling selector is invalid'
+          : 'previous ui-shared-conformance scheduling does not match the current mode')
+      }
     }
   } finally {
     rmSync(repositoryRoot, {recursive: true, force: true})
   }
 })
 
-test('an original UI run refuses every non-original or unrecorded previous schedule', () => {
+test('either UI mode refuses every missing or unknown recorded schedule without defaulting it', () => {
   const repositoryRoot = mkdtempSync(resolve(tmpdir(), 'harborline-gate-previous-schedule-'))
   try {
     const artifact = resolve(repositoryRoot, '.claude/gate-evidence/ui-shared-schedule.json')
     mkdirSync(resolve(artifact, '..'), {recursive: true})
     writeFileSync(artifact, 'literal old schedule evidence\n')
     const inputHash = 'd'.repeat(64)
-    for (const schedule of [undefined, null, {}, {mode: null}, {mode: ''}, {mode: 'exclusive-tail'}, {mode: 'unknown'}]) {
-      const previousPass = passEvidence(inputHash)
-      if (schedule === undefined) delete previousPass.gate.results[0].report.schedule
-      else previousPass.gate.results[0].report.schedule = schedule
-      const before = JSON.stringify(previousPass)
-      assert.deepEqual(decideStepReuse({stepId: 'ui-shared-conformance', inputHash,
-        previousPass, sharedSchedule: 'original', repositoryRoot}),
-      {mode: 'run-step', reason: 'previous ui-shared-conformance scheduling is not original'})
-      assert.equal(readFileSync(artifact, 'utf8'), 'literal old schedule evidence\n')
-      assert.equal(JSON.stringify(previousPass), before)
+    for (const sharedSchedule of ['original', 'exclusive-tail', '']) {
+      for (const schedule of [undefined, null, {}, {mode: null}, {mode: ''}, {mode: 'unknown'}, {mode: false}]) {
+        const previousPass = passEvidence(inputHash)
+        if (schedule === undefined) delete previousPass.gate.results[0].report.schedule
+        else previousPass.gate.results[0].report.schedule = schedule
+        const before = JSON.stringify(previousPass)
+        assert.deepEqual(decideStepReuse({stepId: 'ui-shared-conformance', inputHash,
+          previousPass, sharedSchedule, repositoryRoot}),
+        {mode: 'run-step', reason: 'previous ui-shared-conformance scheduling does not match the current mode'})
+        assert.equal(readFileSync(artifact, 'utf8'), 'literal old schedule evidence\n')
+        assert.equal(JSON.stringify(previousPass), before)
+      }
     }
   } finally {
     rmSync(repositoryRoot, {recursive: true, force: true})
@@ -251,6 +281,62 @@ test('a truncated UI report keeps the existing reason before checking its mode o
     {mode: 'run-step', reason: 'previous step report was truncated'})
 
     assert.equal(readFileSync(artifact, 'utf8'), 'literal stale evidence must remain on refusal\n')
+    assert.equal(JSON.stringify(previousPass), before)
+  } finally {
+    rmSync(repositoryRoot, {recursive: true, force: true})
+  }
+})
+
+test('matching exclusive-tail still requires every existing PASS hash tree and complete-report guard', () => {
+  const repositoryRoot = mkdtempSync(resolve(tmpdir(), 'harborline-gate-exclusive-guards-'))
+  try {
+    const artifact = resolve(repositoryRoot, '.claude/gate-evidence/ui-shared-schedule.json')
+    mkdirSync(resolve(artifact, '..'), {recursive: true})
+    writeFileSync(artifact, 'literal exclusive evidence must remain on refusal\n')
+    const inputHash = '6'.repeat(64)
+    for (const [change, reason] of [
+      [gate => { gate.schemaVersion = 2 }, 'recorded gate evidence is not a schema-v3 phase-4 PASS'],
+      [gate => { gate.phase = 3 }, 'recorded gate evidence is not a schema-v3 phase-4 PASS'],
+      [gate => { gate.status = 'FAIL' }, 'recorded gate evidence is not a schema-v3 phase-4 PASS'],
+      [gate => { gate.results[0].passed = false }, 'previous step evidence is not a complete PASS'],
+      [gate => { gate.results[0].exitCode = 1 }, 'previous step evidence is not a complete PASS'],
+      [gate => { delete gate.results[0].report }, 'previous step evidence is not a complete PASS'],
+      [gate => { delete gate.results[0].inputHash }, 'previous step inputHash is absent'],
+      [gate => { gate.results[0].inputHash = 'different' }, 'declared input hash changed'],
+      [gate => { delete gate.subject.testedTree }, 'previous gate testedTree is absent'],
+      [gate => { gate.results[0].report = '{"status":"PASS"}\n[truncated after 16384 characters]' },
+        'previous step report was truncated'],
+    ]) {
+      const previousPass = passEvidence(inputHash, 'exclusive-tail')
+      change(previousPass.gate)
+      const before = JSON.stringify(previousPass)
+      assert.deepEqual(decideStepReuse({stepId: 'ui-shared-conformance', inputHash,
+        previousPass, sharedSchedule: 'exclusive-tail', repositoryRoot}), {mode: 'run-step', reason})
+      assert.equal(readFileSync(artifact, 'utf8'), 'literal exclusive evidence must remain on refusal\n')
+      assert.equal(JSON.stringify(previousPass), before)
+    }
+  } finally {
+    rmSync(repositoryRoot, {recursive: true, force: true})
+  }
+})
+
+test('same exclusive-tail reuse removes only its stale artifact after all guards pass', () => {
+  const repositoryRoot = mkdtempSync(resolve(tmpdir(), 'harborline-gate-exclusive-clean-'))
+  try {
+    const evidence = resolve(repositoryRoot, '.claude/gate-evidence')
+    mkdirSync(evidence, {recursive: true})
+    const artifact = resolve(evidence, 'ui-shared-schedule.json')
+    writeFileSync(artifact, 'literal stale exclusive intervals\n')
+    writeFileSync(resolve(evidence, 'report.json'), 'literal sibling remains\n')
+    const inputHash = '5'.repeat(64)
+    const previousPass = passEvidence(inputHash, 'exclusive-tail')
+    const before = JSON.stringify(previousPass)
+    const outcome = decideStepReuse({stepId: 'ui-shared-conformance', inputHash,
+      previousPass, sharedSchedule: 'exclusive-tail', repositoryRoot})
+    assert.equal(outcome.mode, 'reuse')
+    assert.equal(outcome.previous, previousPass.gate.results[0])
+    assert.equal(existsSync(artifact), false)
+    assert.equal(readFileSync(resolve(evidence, 'report.json'), 'utf8'), 'literal sibling remains\n')
     assert.equal(JSON.stringify(previousPass), before)
   } finally {
     rmSync(repositoryRoot, {recursive: true, force: true})
@@ -303,7 +389,7 @@ test('unrelated or refused reuse leaves the exact schedule artifact untouched', 
     const previousPass = passEvidence(inputHash)
     assert.deepEqual(decideStepReuse({stepId: 'ui-shared-conformance', inputHash,
       previousPass, sharedSchedule: 'exclusive-tail', repositoryRoot}),
-    {mode: 'run-step', reason: 'ui-shared-conformance reuse requires original scheduling'})
+    {mode: 'run-step', reason: 'previous ui-shared-conformance scheduling does not match the current mode'})
     assert.deepEqual(decideStepReuse({stepId: 'ui-shared-conformance', inputHash: 'different',
       previousPass, sharedSchedule: 'original', repositoryRoot}),
     {mode: 'run-step', reason: 'declared input hash changed'})
