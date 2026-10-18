@@ -90,9 +90,18 @@ depends on blocks.
 
 `RecordWriteOperation.CreateAsync` is the first public Records write. It composes existing producers only:
 `AccessProvider` over the host's sole `IAuthorizationDecider`, `RecordTypeDefinitionStore` and its registered
-schema, `ISchemaRegistry` validation, and `KernelTransactionBoundary.ExecutePreparedAsync`. The host supplies one
+schema, `ISchemaRegistry` validation, `KernelTransactionBoundary.ExecutePreparedAsync`, and, since interface
+revision 21 (records-eng-15), the two field runtimes from `Harborline.Contracts.Fields`: `IFieldKindRuntime fieldKinds`
+(the compiler's admitted field-kind runtime) and `IFieldDomainRuntime fieldDomains` (the runtime over the tenant's
+complete domain sources and the executor's read authority). Both are mandatory constructor inputs. The host supplies one
 transaction port and one `IRecordWriteReceiptReader` over the same committed state. Hosts do not enable the operation
 yet; the API adapter is T-619.
+
+On both create paths (`CreateAsync` and `CompleteAcceptedAsync`), after schema validation and before anything is
+staged, each bound field's kind binds (`Bind`), its declared constraints intersect over the tenant's domain sources in
+the executor's scope (`IntersectAsync`), and its submitted value validates (`Validate`). The first failing field refuses
+with the existing `validate` / `entity.validation.body_invalid` at that field's escaped RFC 6901 pointer, and nothing is
+staged; no field-runtime diagnostic is disclosed.
 
 The gate decides every call first, a retry included, so a denial discloses no receipt and no conflict. A committed
 operation is looked up by ambient tenant, authenticated caller and stable `operation_id`
