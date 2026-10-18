@@ -26,6 +26,9 @@ public sealed class RecordReadOperationTests
         """{"class_id":"work.items","envelope":{"contract":{"major":1,"minor":0},"package_id":"read-fixture","section":"work","tenant":"tenant-a"},"fields":[{"display_name":"Note","field_key":"note"}],"name":"Inspection","record_class":"transactional","record_type_id":"work.inspection"}""" + "\n";
     // Independently SHA-256 hashed from the 277 literal UTF-8 bytes above, not from the read operation or serializer.
     private const string TypeDigest = "012a4e41806914f6092dd5846857c99129622f6a28a348895c1e18dbf78a6147";
+    // Independently hashed from the 143-byte canonical note schema, not publication or read output.
+    // Reference InMemorySchemaRegistry fixture only; not a universal registry identity encoding.
+    private const string ExpectedSchemaId = "schema:bafkreihry7iuohvcoezx2ppsgomu3fnwi74gb7nqtzupst3ccbdzo6xo44";
     private static readonly DefinitionContractWindow Window = new(1, 0, 1);
     private static readonly DateTimeOffset At = new(2030, 1, 2, 3, 4, 5, TimeSpan.Zero);
     private static readonly DateTimeOffset Recorded = new(2026, 2, 3, 4, 5, 6, TimeSpan.Zero);
@@ -44,8 +47,8 @@ public sealed class RecordReadOperationTests
         Assert.Equal("work.inspection", record.RecordTypeId);
         Assert.Equal("1.0.0", record.Version);
         Assert.Equal(TypeDigest, record.DefinitionDigest);
-        // Schema is an independently published fixture input, not a value read back from this operation.
-        Assert.Equal(fixture.Schema, record.Schema);
+        // Schema identity is pinned independently of both publication and read derivation.
+        Assert.Equal(new SchemaId(ExpectedSchemaId), record.Schema);
         Assert.Equal("""{"note":"kept"}""", Encoding.UTF8.GetString(record.Body.Span));
         Assert.Equal(new DateTimeOffset(2026, 2, 3, 4, 5, 6, TimeSpan.Zero), record.RecordedAt);
         Assert.Equal(["lookup", "authorize", "bind"], fixture.Events);
@@ -383,11 +386,12 @@ public sealed class RecordReadOperationTests
             0, "fresh-type");
         var publication = await publisher.PublishAsync(Tenant, TypeId, "1.0.0", 1, "fresh-publish");
         Assert.Equal(TypeDigest, publication.Revision.Digest);
+        Assert.Equal(new SchemaId(ExpectedSchemaId), publication.Schema.Id);
         var events = new List<string>();
         var observed = new ObservingCatalogue(definitions, events);
         var readerTypes = new RecordTypeDefinitionStore(observed, compiler, defaults, registry, readerWindow ?? Window);
         var rows = new RowStore(events);
-        rows.Rows.Add(new(Tenant, RecordId, TypeId, "1.0.0", TypeDigest, publication.Schema.Id, "writer-secret",
+        rows.Rows.Add(new(Tenant, RecordId, TypeId, "1.0.0", TypeDigest, new SchemaId(ExpectedSchemaId), "writer-secret",
             "write-operation-secret", null, "intent-encoding-secret", "fingerprint-secret", Encoding.UTF8.GetBytes(BodyText), Recorded)
         {
             OriginatorId = "origin-secret",
