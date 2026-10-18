@@ -114,6 +114,26 @@ public sealed class LayoutFlowTests
         Assert.Same(failure, observed);
     }
 
+    [Fact]
+    public async Task ANullProviderBodyFailsInsideTheDecodeTryWithoutBeingWrapped()
+    {
+        var key = new DefinitionKey("tenant-a", DefinitionKind.Layout, "invoice");
+        var binding = new DefinitionBinding(key, "version-corrupt");
+        // Deliberately corrupt provider data: the reference store rejects null JSON at write time.
+        // The provider returns a public record; Encoding inside the resolver creates the exception.
+        var revision = new DefinitionRevision(new(key, "version-corrupt", "1.0.0", null!),
+            2, DefinitionStatus.Published, "");
+        var store = new ReturnedRevisionStore(revision);
+
+        var exception = await Assert.ThrowsAsync<ArgumentNullException>(async () =>
+            await new LayoutPublishedSurfaceResolver(store).ResolveAsync(binding, GrantsAllAuthor.Instance, GrantsAllAuthor.Instance));
+
+        Assert.Equal("s", exception.ParamName);
+        Assert.Null(exception.InnerException);
+        Assert.Equal(1, store.ResolveCalls);
+        Assert.Equal(binding, store.RequestedBinding);
+    }
+
     [Theory]
     [InlineData("layout.table")]
     [InlineData("layout.list")]
@@ -240,6 +260,38 @@ public sealed class LayoutFlowTests
                 .Select(block => block with { Children = [] })
                 .ToArray(),
         };
+    }
+
+    private sealed class ReturnedRevisionStore(DefinitionRevision revision) : IVersionedDefinitionStore
+    {
+        public int ResolveCalls { get; private set; }
+        public DefinitionBinding? RequestedBinding { get; private set; }
+
+        public ValueTask<DefinitionRevision?> ResolvePublishedAsync(DefinitionBinding binding,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            ResolveCalls++;
+            RequestedBinding = binding;
+            return ValueTask.FromResult<DefinitionRevision?>(revision);
+        }
+
+        public ValueTask<IReadOnlyList<DefinitionKey>> ListKeysAsync(string tenant, DefinitionKind kind,
+            CancellationToken cancellationToken = default) => throw Unexpected();
+        public ValueTask<DefinitionRevision> SaveDraftAsync(DefinitionDocument document, long expectedRevision,
+            string requestId, CancellationToken cancellationToken = default) => throw Unexpected();
+        public ValueTask<DefinitionRevision> PublishAsync(DefinitionKey key, string versionId, long expectedRevision,
+            string requestId, CancellationToken cancellationToken = default) => throw Unexpected();
+        public ValueTask<DefinitionRevision> RestoreAsDraftAsync(DefinitionKey key, string sourceVersionId,
+            string draftVersionId, string draftVersion, long expectedRevision, string requestId,
+            CancellationToken cancellationToken = default) => throw Unexpected();
+        public ValueTask<IReadOnlyList<DefinitionRevision>> ListHistoryAsync(DefinitionKey key,
+            CancellationToken cancellationToken = default) => throw Unexpected();
+        public ValueTask<DefinitionRevision?> GetPublishedHeadAsync(DefinitionKey key,
+            CancellationToken cancellationToken = default) => throw Unexpected();
+
+        private static Exception Unexpected()
+            => new InvalidOperationException("Only exact published resolution is used by this provider-corruption fixture.");
     }
 
     private sealed class FailingOpenAccess(NotSupportedException failure) : ILayoutAccess

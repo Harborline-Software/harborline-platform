@@ -194,8 +194,8 @@ public sealed class LayoutBindingKindDecodeTests
     {
         var valid = Payload(Block(Binding("static")));
         AssertBodyInvalid(valid[..^1] + ",\"unknown\":true}");
-        Assert.Throws<JsonException>(() => Decode(valid + " {}"));
-        Assert.Throws<JsonException>(() => Decode(valid.Replace("\"provenance\":{}", "\"provenance\":" + new string('[', 65) + "0" + new string(']', 65), StringComparison.Ordinal)));
+        Assert.ThrowsAny<JsonException>(() => Decode(valid + " {}"));
+        Assert.ThrowsAny<JsonException>(() => Decode(valid.Replace("\"provenance\":{}", "\"provenance\":" + new string('[', 65) + "0" + new string(']', 65), StringComparison.Ordinal)));
         AssertBodyInvalid(Payload(Block("{\"binding_kind\":\"unregistered\"}")));
         var withinDepth = valid.Replace("\"provenance\":{}", "\"provenance\":" + new string('[', 20) + "0" + new string(']', 20), StringComparison.Ordinal);
         Assert.Equal("control", Assert.IsType<LayoutStaticBinding>(Decode(withinDepth).Blocks[0].Binding).Content.GetString());
@@ -231,6 +231,31 @@ public sealed class LayoutBindingKindDecodeTests
             [Entry("surface.binding", Payload(Block(Binding("static"))))], new FailingCapabilities(failure)));
 
         Assert.Same(failure, observed);
+    }
+
+    [Fact]
+    public void ANullContentFailureInsideTheInstallDecodeTryIsNotClassifiedAsBodyInvalid()
+    {
+        // The public positional entry permits this corrupt CLR input. Its Content dereference is
+        // inside the real decode try; no factory or collaborator throws the expected exception.
+        var entry = new LayoutDefinitionPackageEntry("surface.binding", "1.0.0", null!);
+
+        var exception = Assert.Throws<NullReferenceException>(() => LayoutPackHostAdmission.Admit([entry], Host));
+
+        Assert.Null(exception.InnerException);
+    }
+
+    [Theory]
+    [InlineData("null")]
+    [InlineData("17")]
+    public void PresentNullOrNumericDiscriminatorIsRefusedByTypedDecoding(string discriminator)
+    {
+        // The exact tag is first and present: these are valid JSON documents, so PresentJson
+        // succeeds and the invalid value belongs to the unchanged typed serializer.
+        var payload = Payload(Block("{\"binding_kind\":" + discriminator + ",\"content\":\"control\"}"));
+
+        Assert.Throws<JsonException>(() => Decode(payload));
+        AssertBodyInvalid(payload);
     }
 
     private static LayoutDefinition Decode(string payload) => LayoutDefinitionJson.Deserialize(Encoding.UTF8.GetBytes(payload));
