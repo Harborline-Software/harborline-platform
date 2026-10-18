@@ -13,7 +13,7 @@ namespace Harborline.Blocks.BuilderDefinitions;
 /// A missing journal directory reads as empty and commit recreates it; this remains an owner decision.
 /// External Windows handles can refuse replacement; the commit fails without changing the journal.
 /// </remarks>
-public sealed class FileJournalRecordWriteStore : IKernelPreparedTransactionPort<RecordWriteRow, RecordWriteCommit>, IRecordWriteReceiptReader
+public sealed class FileJournalRecordWriteStore : IKernelPreparedTransactionPort<RecordWriteRow, RecordWriteCommit>, IRecordWriteReceiptReader, IRecordReadStore
 {
     // Proposed for review; no released journal-format identifier has been ruled.
     private const string JournalFormat = "records-write-file-journal/1";
@@ -49,6 +49,22 @@ public sealed class FileJournalRecordWriteStore : IKernelPreparedTransactionPort
         ArgumentNullException.ThrowIfNull(key);
         await Mutation.WaitAsync(cancellationToken).ConfigureAwait(false);
         try { return Load().SingleOrDefault(entry => entry.Key == key.IdempotencyKey)?.Stored(); }
+        finally { Mutation.Release(); }
+    }
+
+    /// <inheritdoc />
+    public async ValueTask<RecordWriteRow?> FindAsync(string tenant, string recordId, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(tenant);
+        ArgumentException.ThrowIfNullOrWhiteSpace(recordId);
+        await Mutation.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            var matches = Load().Where(entry => string.Equals(entry.Row.Tenant, tenant, StringComparison.Ordinal)
+                && string.Equals(entry.Row.RecordId, recordId, StringComparison.Ordinal)).Take(2).ToArray();
+            if (matches.Length > 1) throw new InvalidDataException("Records journal has ambiguous record identities.");
+            return matches.Length == 0 ? null : matches[0].Row with { Body = matches[0].Row.Body.ToArray() };
+        }
         finally { Mutation.Release(); }
     }
 

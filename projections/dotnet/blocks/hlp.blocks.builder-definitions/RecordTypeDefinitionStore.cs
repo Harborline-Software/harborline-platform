@@ -432,6 +432,41 @@ public sealed class RecordTypeDefinitionStore
     }
 
     /// <summary>
+    /// Binds a stored row's exact published version and schema. Only the current compilation or the explicitly
+    /// versioned pre-T616 scalar projection of that same admitted immutable body can match. This read-only binding
+    /// never changes the row, publication or write resolver; arbitrary registry membership proves no binding.
+    /// </summary>
+    /// <param name="tenant">The host-bound tenant.</param>
+    /// <param name="recordTypeId">The stored Record Type identity.</param>
+    /// <param name="version">The row's exact non-null published version, never the current head.</param>
+    /// <param name="storedSchema">The original schema identity retained by the row and receipt.</param>
+    /// <param name="cancellationToken">Cancellation for exact resolution, admission and registration.</param>
+    public async ValueTask<RecordTypePublication?> ResolveStoredPublishedSchemaAsync(string tenant, string recordTypeId,
+        string version, SchemaId storedSchema, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(version);
+        var revision = await _store.ResolvePublishedAsync(new DefinitionBinding(KeyOf(tenant, recordTypeId), version),
+            cancellationToken).ConfigureAwait(false);
+        if (revision is null) return null;
+        var admitted = await AdmitAsync(revision.Document, DefinitionAdmissionPhase.Publish, cancellationToken).ConfigureAwait(false);
+        var current = await _registry.RegisterAsync(admitted.JsonSchemaText, cancellationToken: cancellationToken)
+            .ConfigureAwait(false);
+        if (current.Id == storedSchema) return new(revision, current);
+
+        var document = RecordTypeDefinitionJson.Deserialize(Encoding.UTF8.GetBytes(revision.Document.BodyJson));
+        var predecessor = await _compiler.CompilePreT616ScalarForStoredReadAsync(document.ToDefinition(), null,
+            _fieldDomainScope, cancellationToken).ConfigureAwait(false);
+        if (predecessor.JsonSchemaText is null)
+            throw new DefinitionRefusalException(DefinitionAdmissionPhase.Publish,
+                predecessor.Refusals.Select(refusal => new DefinitionRefusal(refusal.Code, refusal.JsonPointer)));
+        var legacy = await _registry.RegisterAsync(predecessor.JsonSchemaText, cancellationToken: cancellationToken)
+            .ConfigureAwait(false);
+        if (legacy.Id != storedSchema)
+            throw new InvalidDataException("The record's schema identity does not match its published version.");
+        return new(revision, legacy);
+    }
+
+    /// <summary>
     /// The installation gate (records-ck-41): Install-phase admission and the schema compile over an exported entry, a
     /// role gate's creation role resolved through the store's role vocabulary (fails closed without one, as publication
     /// does; <c>records.creation_role.unknown</c>), then every reference checked against what the installing host was
