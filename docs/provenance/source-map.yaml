@@ -2122,7 +2122,7 @@
         "specs/modules/ui/hlp.ui.spinner/interface.yaml": "307ce7f41bddf648ba7dcb72d2f90822ba372276c287fa38952da1175cac3440",
         "specs/modules/ui/hlp.ui.spinner/quality.yaml": "becba25138818ba79322aba483c5eb3bdf5cc621543a222d1c8937aafe2f3ff2",
         "specs/modules/ui/hlp.ui.spinner/scenarios.json": "601f56a91584f793d3bb35d77e72248784dc168d0479cfc737bb7d5c13a2d33a",
-        "specs/modules/ui/hlp.ui.spinner/style.css": "24d54134381dea9a89963e4340ce3aa7d8fc84a39e1fee39fb2a85686ee6860b"
+        "specs/modules/ui/hlp.ui.spinner/style.css": "e7e3a0942e004f4868ab48e73da2822756dcada2197af5efaa3707d1f947550a"
       },
       "nextGate": "Retain this conformant aggregate contribution while HLF-052 advances to the next Carrier-essential dependency wave."
     },
