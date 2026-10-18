@@ -111,7 +111,7 @@ quarantined.
 Revision 18 (T-688, ADR 0099 decision 7) is additive. `IFormDefinitionAuthoringPublisher.RegisterAndPublishWithImpactAsync`
 admits the Draft exactly as `RegisterAndPublishAsync` does. It then has `FormPublicationImpactAssessment` compute an
 assessment, commits through the same atomic register-and-publish, and returns `FormDefinitionPublicationResult` (the
-committed revision and the assessment). No outcome refuses or changes the publication. `Block` is a compatibility result,
+committed revision and the assessment). The assessment itself never refuses or changes the publication; the store's existing checks still apply at commit. `Block` is a compatibility result,
 not a lifecycle refusal, and there is no migration approval or new error code. The `FormPublicationAssessmentContext`
 carries a `FormPublicationBasis` and the `ISchemaRegistry` and `IFormPublishedSurfaceSource` to read. The basis holds
 host-attested bindings for the candidate and the exact predecessor (tenant, Form id, semantic version label, a distinct
@@ -132,7 +132,7 @@ and surface source. `AddHarborlineFormsEngine` registers no surface source and n
 census is `hlp.blocks.layout-runtime` revision 10. `RegisterAndPublishAsync` keeps its behaviour, and the interface's
 default member keeps existing implementations source-compatible, answering `Unavailable`. Shipping writer emission of
 historical identity and environment, latest-compatible surface selection for new instances, and the required
-`record_type_id` rollout (T-484, T-485) are not part of this revision.
+`record_type_id` rollout (T-484, T-485) are not part of this revision. The exact compatibility rules, including record-type and sectioned-field handling and the first-publication case, are stated in the revision 18 invariant of `specs/modules/foundation/hlp.foundation.forms-engine/interface.yaml`.
 
 This is an implementation checkpoint, not HLF-055 completion. All 80 captured source cases and all
 38 migration-gap cases pass. The package and its destination-neutral authoring-host boundary are
