@@ -147,7 +147,7 @@ public sealed class LayoutRefusalEnvelopeTests
             [RawEntry("surface.orders", "1.0.0", WithUnknownRootMember(ValidControl))], Host));
 
         Assert.Equal(DefinitionAdmissionPhase.Install, refused.Stage);
-        Assert.Equal([new DefinitionRefusal(LayoutDefinitionCodes.BodyInvalid, "", "surface.orders@1.0.0")], refused.Refusals);
+        Assert.Equal([new DefinitionRefusal("layout.definition.body_invalid", "", "surface.orders@1.0.0")], refused.Refusals);
     }
 
     [Fact(DisplayName = "T-1034: a JSON null payload refuses once at install with layout.definition.body_invalid, no pointer and its target")]
@@ -157,7 +157,7 @@ public sealed class LayoutRefusalEnvelopeTests
             [RawEntry("surface.orders", "1.0.0", "null"u8.ToArray())], Host));
 
         Assert.Equal(DefinitionAdmissionPhase.Install, refused.Stage);
-        Assert.Equal([new DefinitionRefusal(LayoutDefinitionCodes.BodyInvalid, "", "surface.orders@1.0.0")], refused.Refusals);
+        Assert.Equal([new DefinitionRefusal("layout.definition.body_invalid", "", "surface.orders@1.0.0")], refused.Refusals);
     }
 
     [Fact(DisplayName = "T-1034: an undecodable entry and an entry with a capability refusal both report under their own targets, and the whole pack is refused")]
@@ -174,8 +174,8 @@ public sealed class LayoutRefusalEnvelopeTests
 
         Assert.Equal(DefinitionAdmissionPhase.Install, refused.Stage);
         Assert.Equal(
-            [new DefinitionRefusal(LayoutDefinitionCodes.BodyInvalid, "", "surface.orders@1.0.0"),
-             new DefinitionRefusal(LayoutDefinitionCodes.CapabilityUndeclared, "/envelope/requires", "surface.stripped@1.0.0")],
+            [new DefinitionRefusal("layout.definition.body_invalid", "", "surface.orders@1.0.0"),
+             new DefinitionRefusal("layout.pack.capability_undeclared", "/envelope/requires", "surface.stripped@1.0.0")],
             refused.Refusals);
     }
 
@@ -186,7 +186,7 @@ public sealed class LayoutRefusalEnvelopeTests
             [Entry(ValidControl with { SchemaVersion = 0 })], Host));
 
         Assert.Equal(DefinitionAdmissionPhase.Install, refused.Stage);
-        Assert.Equal([new DefinitionRefusal(LayoutDefinitionCodes.EnvelopeInvalid, "/schema_version", "surface.orders@1.0.0")], refused.Refusals);
+        Assert.Equal([new DefinitionRefusal("layout.definition.envelope_invalid", "/schema_version", "surface.orders@1.0.0")], refused.Refusals);
     }
 
     [Fact(DisplayName = "T-583 item 2: authorless pack export refuses in the shared envelope at the publish stage")]
