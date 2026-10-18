@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Text;
 using Harborline.Blocks.BuilderDefinitions;
 using Harborline.Blocks.LayoutRuntime;
@@ -61,6 +62,56 @@ public sealed class LayoutFlowTests
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(async () => await new LayoutPublishedSurfaceResolver(store).ResolveAsync(new(key, "version-2"), GrantsAllAuthor.Instance, GrantsAllAuthor.Instance));
 
         Assert.Equal("layout.persisted_body_invalid", exception.Message);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(2)]
+    public async Task MissingBindingKindInAPublishedRootOrDescendantRefusesBeforeFlow(int depth)
+    {
+        var key = new DefinitionKey("tenant-a", DefinitionKind.Layout, "invoice");
+        var store = new InMemoryVersionedDefinitionStore(new Dictionary<DefinitionKind, DefinitionAdmission>
+        {
+            [DefinitionKind.Layout] = (_, _) => [],
+        });
+        var root = JsonNode.Parse(LayoutDefinitionJson.SerializeCanonical(ValidScreenDefinition()))!;
+        var block = root["blocks"]![0]!;
+        for (var index = 0; index < depth; index++)
+        {
+            var child = block.DeepClone();
+            child["id"] = "nested-" + index;
+            child["children"] = new JsonArray();
+            block["container"] = JsonNode.Parse("{\"kind\":\"stack\"}");
+            block["children"] = new JsonArray(child);
+            block = child;
+        }
+        Assert.True(block["binding"]!.AsObject().Remove("binding_kind"));
+        await store.SaveDraftAsync(new(key, "version-bad", "1.0.0", root.ToJsonString()), 0, "draft-bad");
+        await store.PublishAsync(key, "version-bad", 1, "publish-bad");
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await new LayoutPublishedSurfaceResolver(store).ResolveAsync(new(key, "version-bad"), GrantsAllAuthor.Instance, GrantsAllAuthor.Instance));
+
+        Assert.Equal("layout.persisted_body_invalid", exception.Message);
+        Assert.IsType<JsonException>(exception.InnerException);
+    }
+
+    [Fact]
+    public async Task AnUnrelatedOpenOperationFailurePropagatesTheOriginalInstance()
+    {
+        var store = new InMemoryVersionedDefinitionStore(new Dictionary<DefinitionKind, DefinitionAdmission>
+        {
+            [DefinitionKind.Layout] = (_, _) => [],
+        });
+        var failure = new NotSupportedException("operational-marker");
+        var reader = new FailingOpenAccess(failure);
+
+        var observed = await Assert.ThrowsAsync<NotSupportedException>(async () =>
+            await new LayoutPublishedSurfaceResolver(store).ResolveAsync(
+                new(new("tenant-a", DefinitionKind.Layout, "invoice"), "version-1"), reader, GrantsAllAuthor.Instance));
+
+        Assert.Same(failure, observed);
     }
 
     [Theory]
@@ -189,6 +240,14 @@ public sealed class LayoutFlowTests
                 .Select(block => block with { Children = [] })
                 .ToArray(),
         };
+    }
+
+    private sealed class FailingOpenAccess(NotSupportedException failure) : ILayoutAccess
+    {
+        public bool CanAuthor() => true;
+        public bool CanPublish() => true;
+        public bool CanRead(LayoutBinding binding) => true;
+        public bool CanOpen(string surfaceId) => throw failure;
     }
 }
 
