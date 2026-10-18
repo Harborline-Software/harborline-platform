@@ -289,7 +289,73 @@ public sealed class LayoutFlowTests
         Assert.Equal("control", Assert.IsType<LayoutStaticBinding>(block.Binding).Content.GetString());
     }
 
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    public async Task AnEscapedFirstBindingKindInAStoredPublishedBodyStillResolves(int depth)
+    {
+        // The raw literal keeps the six-character JSON escape in the stored text.
+        Assert.Contains(@"\u0062inding_kind", EscapedFirstStaticBinding, StringComparison.Ordinal);
+        Assert.DoesNotContain("\"binding_kind\"", EscapedFirstStaticBinding, StringComparison.Ordinal);
+        var key = new DefinitionKey("tenant-a", DefinitionKind.Layout, "invoice");
+        var store = new InMemoryVersionedDefinitionStore(new Dictionary<DefinitionKind, DefinitionAdmission>
+        {
+            [DefinitionKind.Layout] = (_, _) => [],
+        });
+        var body = BindingOrderBody(depth, EscapedFirstStaticBinding);
+        await store.SaveDraftAsync(new(key, "version-escaped", "1.0.0", body), 0, "draft-escaped");
+        await store.PublishAsync(key, "version-escaped", 1, "publish-escaped");
+        var binding = new DefinitionBinding(key, "version-escaped");
+
+        var published = await store.ResolvePublishedAsync(binding);
+        Assert.NotNull(published);
+        Assert.Equal(body, published.Document.BodyJson);
+        Assert.Contains(@"\u0062inding_kind", published.Document.BodyJson, StringComparison.Ordinal);
+        var resolved = await new LayoutPublishedSurfaceResolver(store).ResolveAsync(
+            binding, GrantsAllAuthor.Instance, GrantsAllAuthor.Instance);
+
+        Assert.Equal("version-escaped", resolved.VersionId);
+        Assert.Equal("invoice", resolved.Definition.Envelope.Identity);
+        Assert.Equal("screen", resolved.Plan.Fragmentainer.Kind);
+        var block = Assert.Single(resolved.Definition.Blocks);
+        for (var index = 0; index < depth; index++) block = Assert.Single(block.Children);
+        Assert.Equal("leaf", block.Id);
+        Assert.Equal("control", Assert.IsType<LayoutStaticBinding>(block.Binding).Content.GetString());
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    public async Task AnEmptyBindingObjectInAStoredPublishedBodyRefusesBeforeFlow(int depth)
+    {
+        var key = new DefinitionKey("tenant-a", DefinitionKind.Layout, "invoice");
+        var store = new InMemoryVersionedDefinitionStore(new Dictionary<DefinitionKind, DefinitionAdmission>
+        {
+            [DefinitionKind.Layout] = (_, _) => [],
+        });
+        var body = BindingOrderBody(depth, "{}");
+        await store.SaveDraftAsync(new(key, "version-empty", "1.0.0", body), 0, "draft-empty");
+        await store.PublishAsync(key, "version-empty", 1, "publish-empty");
+        var binding = new DefinitionBinding(key, "version-empty");
+
+        var published = await store.ResolvePublishedAsync(binding);
+        Assert.NotNull(published);
+        Assert.Equal(body, published.Document.BodyJson);
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await new LayoutPublishedSurfaceResolver(store).ResolveAsync(binding, GrantsAllAuthor.Instance, GrantsAllAuthor.Instance));
+
+        Assert.Equal("layout.persisted_body_invalid", exception.Message);
+        Assert.IsType<JsonException>(exception.InnerException);
+    }
+
+    private const string EscapedFirstStaticBinding = """{"\u0062inding_kind":"static","content":"control"}""";
+
     private static string BindingOrderBody(int depth, bool discriminatorFirst)
+        => BindingOrderBody(depth, discriminatorFirst
+            ? """{"binding_kind":"static","content":"control"}"""
+            : """{"content":"control","binding_kind":"static"}""");
+
+    private static string BindingOrderBody(int depth, string binding)
     {
         // Independently authored member order is the Q16 oracle; canonical serialization must
         // not manufacture the negative input. The real shared store retains these exact bytes.
@@ -300,9 +366,6 @@ public sealed class LayoutFlowTests
             "contract":{"major":1,"minor":0}},"schema_version":1,"medium":"screen","default_intent":"observe",
             "blocks":[BLOCK],"page_layouts":[],"page_masters":[],"page_runs":[],"drill_through_targets":[]}
             """;
-        var binding = discriminatorFirst
-            ? """{"binding_kind":"static","content":"control"}"""
-            : """{"content":"control","binding_kind":"static"}""";
         var block = "{\"id\":\"leaf\",\"kind\":\"layout.text\",\"binding\":" + binding
             + ",\"children\":[],\"container\":{\"kind\":\"stack\"}}";
         for (var index = 0; index < depth; index++)

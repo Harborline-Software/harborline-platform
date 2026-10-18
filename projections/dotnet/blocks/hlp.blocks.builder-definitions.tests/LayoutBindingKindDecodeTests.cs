@@ -364,7 +364,38 @@ public sealed class LayoutBindingKindDecodeTests
         Assert.DoesNotContain("PAYLOAD_MARKER", JsonSerializer.Serialize(new { refused.Stage, refused.Refusals }));
     }
 
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    public void AnEscapedExactTagAsTheFirstMemberDecodesAndInstalls(int depth)
+    {
+        // The raw literal keeps the six-character JSON escape in the text; the first-member rule
+        // compares the unescaped name, so this is the exact tag and not a near miss.
+        Assert.Contains(@"\u0062inding_kind", EscapedFirstStaticBinding, StringComparison.Ordinal);
+        Assert.DoesNotContain("\"binding_kind\"", EscapedFirstStaticBinding, StringComparison.Ordinal);
+        var payload = Payload(AtDepth(EscapedFirstStaticBinding, depth));
+        Assert.Contains(@"\u0062inding_kind", payload, StringComparison.Ordinal);
+
+        var block = Assert.Single(Decode(payload).Blocks);
+        for (var index = 0; index < depth; index++) block = Assert.Single(block.Children);
+        Assert.Equal("leaf", block.Id);
+        Assert.Equal("control", Assert.IsType<LayoutStaticBinding>(block.Binding).Content.GetString());
+        LayoutPackHostAdmission.Admit([Entry("surface.binding", payload)], Host);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    public void AnEmptyBindingObjectRefusesTheEntry(int depth)
+    {
+        var payload = Payload(AtDepth("{}", depth));
+
+        Assert.Throws<JsonException>(() => Decode(payload));
+        AssertBodyInvalid(payload);
+    }
+
     private const string LateStaticBinding = """{"content":"control","binding_kind":"static"}""";
+    private const string EscapedFirstStaticBinding = """{"\u0062inding_kind":"static","content":"control"}""";
 
     private static void AssertOutOfOrderBodyInvalid(string payload)
     {
