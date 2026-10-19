@@ -476,6 +476,18 @@ public sealed class RecordTypeDefinitionStore
         return new(head, schema);
     }
 
+    internal sealed record RecordTemporalPublication(RecordTypePublication Publication, bool PolicyEnabled);
+
+    internal async ValueTask<RecordTemporalPublication?> ResolveTemporalPublicationAsync(string tenant, string recordTypeId,
+        string? version = null, CancellationToken cancellationToken = default)
+    {
+        var publication = await ResolvePublishedSchemaAsync(tenant, recordTypeId, version, cancellationToken).ConfigureAwait(false);
+        if (publication is null) return null;
+        var document = RecordTypeDefinitionJson.Deserialize(Encoding.UTF8.GetBytes(publication.Revision.Document.BodyJson));
+        return new(publication, document.AmendmentPolicy is { ReasonRequired: true, Mode: RecordAmendmentMode.Supersession }
+            && document.HistoryPolicy == RecordHistoryPolicy.Enabled);
+    }
+
     /// <summary>
     /// Binds a stored row's exact published version and schema. Only the current compilation or the explicitly
     /// versioned pre-T616 scalar projection of that same admitted immutable body can match. This read-only binding

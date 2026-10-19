@@ -101,7 +101,18 @@ public sealed record RecordTypeDocument(
 /// This declaration alone implements no runtime amendment operation.
 /// </summary>
 /// <param name="ReasonRequired">True: an amendment requires a reason. False is not an admitted policy in this contract.</param>
-public sealed record RecordAmendmentPolicy(bool ReasonRequired);
+public sealed record RecordAmendmentPolicy(bool ReasonRequired)
+{
+    /// <summary>The explicitly declared amendment mode; absence never selects a mode.</summary>
+    public RecordAmendmentMode? Mode { get; init; }
+}
+
+/// <summary>An explicitly admitted amendment mode.</summary>
+public enum RecordAmendmentMode
+{
+    /// <summary>Append an immutable causal event which supersedes its visible effective interval.</summary>
+    Supersession = 0,
+}
 
 /// <summary>A declared history policy (ADR-0040, ADR-0097). Absence is a legacy body, not an implicit default.</summary>
 public enum RecordHistoryPolicy
@@ -279,19 +290,33 @@ internal static class RecordsJson
     {
         public override RecordAmendmentPolicy Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
         {
-            if (reader.TokenType != JsonTokenType.StartObject
-                || !reader.Read() || reader.TokenType != JsonTokenType.PropertyName || reader.GetString() != "reason_required"
-                || !reader.Read() || reader.TokenType != JsonTokenType.True
-                || !reader.Read() || reader.TokenType != JsonTokenType.EndObject)
+            if (reader.TokenType != JsonTokenType.StartObject)
                 throw new JsonException("An amendment policy must declare exactly reason_required: true.");
-            return new(true);
+            var reason = false;
+            RecordAmendmentMode? mode = null;
+            var names = new HashSet<string>(StringComparer.Ordinal);
+            while (reader.Read() && reader.TokenType != JsonTokenType.EndObject)
+            {
+                if (reader.TokenType != JsonTokenType.PropertyName)
+                    throw new JsonException("Unknown amendment policy.");
+                var name = reader.GetString()!;
+                if (!names.Add(name) || !reader.Read()) throw new JsonException("Unknown amendment policy.");
+                if (name == "reason_required" && reader.TokenType == JsonTokenType.True) reason = true;
+                else if (name == "mode" && reader.TokenType == JsonTokenType.String && reader.GetString() == "supersession")
+                    mode = RecordAmendmentMode.Supersession;
+                else throw new JsonException("Unknown amendment policy.");
+            }
+            if (reader.TokenType != JsonTokenType.EndObject || !reason)
+                throw new JsonException("An amendment policy must declare exactly reason_required: true.");
+            return new(true) { Mode = mode };
         }
 
         public override void Write(Utf8JsonWriter writer, RecordAmendmentPolicy value, JsonSerializerOptions options)
         {
-            if (!value.ReasonRequired)
+            if (!value.ReasonRequired || value.Mode is not (null or RecordAmendmentMode.Supersession))
                 throw new JsonException("Unknown amendment policy.");
             writer.WriteStartObject();
+            if (value.Mode is not null) writer.WriteString("mode", "supersession");
             writer.WriteBoolean("reason_required", true);
             writer.WriteEndObject();
         }

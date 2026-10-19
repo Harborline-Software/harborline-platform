@@ -212,6 +212,155 @@ public sealed record RecordWriteOutcome(RecordWriteReceipt? Receipt, bool Replay
     public bool Committed => Refusal is null;
 }
 
+/// <summary>A direct temporal command; no accepted-command adoption is implied.</summary>
+public enum RecordTemporalCommandKind
+{
+    /// <summary>Mint a new logical record.</summary>
+    Create = 1,
+    /// <summary>Append against an exact causal predecessor.</summary>
+    Amend = 2,
+}
+/// <summary>The exact causal event observed by a caller.</summary>
+/// <param name="Revision">Positive causal ordinal.</param>
+/// <param name="Hash">Lowercase temporal binding hash.</param>
+public sealed record RecordTemporalBasis(long Revision, string Hash);
+/// <summary>A first person-declared effective interval.</summary>
+/// <param name="RecordTypeId">Requested type.</param>
+/// <param name="OperationId">Caller-scoped operation identity.</param>
+/// <param name="Body">Candidate application fields.</param>
+/// <param name="EffectiveFrom">Explicit inclusive start.</param>
+/// <param name="EffectiveTo">Explicit exclusive end or infinity.</param>
+/// <param name="Version">Optional publication selector.</param>
+public sealed record RecordTemporalCreateRequest(string RecordTypeId, string OperationId,
+    JsonObject Body, DateTimeOffset EffectiveFrom, DateTimeOffset? EffectiveTo, string? Version = null);
+/// <summary>A causal supersession declaration.</summary>
+/// <param name="RecordId">Exact logical target.</param>
+/// <param name="OperationId">Caller-scoped operation identity.</param>
+/// <param name="ExpectedPredecessor">Latest observed causal event.</param>
+/// <param name="Body">Candidate application fields.</param>
+/// <param name="EffectiveFrom">Explicit inclusive start.</param>
+/// <param name="EffectiveTo">Explicit exclusive end or infinity.</param>
+/// <param name="Reason">Exact nonblank justification.</param>
+/// <param name="Version">Optional publication selector.</param>
+public sealed record RecordTemporalAmendRequest(string RecordId, string OperationId,
+    RecordTemporalBasis ExpectedPredecessor, JsonObject Body, DateTimeOffset EffectiveFrom,
+    DateTimeOffset? EffectiveTo, string Reason, string? Version = null);
+/// <summary>A computed maximal visible segment.</summary>
+/// <param name="Revision">Contributing historical basis.</param>
+/// <param name="EffectiveFrom">Computed UTC start.</param>
+/// <param name="EffectiveTo">Computed UTC exclusive end or infinity.</param>
+public sealed record RecordTemporalSupersededSegment(RecordTemporalBasis Revision,
+    DateTimeOffset EffectiveFrom, DateTimeOffset? EffectiveTo);
+/// <summary>Accepted effective and causal facts, distinct from gate time.</summary>
+/// <param name="Revision">Positive causal ordinal.</param>
+/// <param name="Predecessor">Previous causal event, or null on create.</param>
+/// <param name="Supersedes">Computed segments in effective order.</param>
+/// <param name="EffectiveFrom">Declared start including its original offset.</param>
+/// <param name="EffectiveTo">Declared end or infinity.</param>
+/// <param name="Reason">Exact amendment reason, or null on create.</param>
+/// <param name="AuthorityRecordedAt">Acceptance stamp allocated inside the commit critical section.</param>
+public sealed record RecordTemporalEvidence(long Revision, RecordTemporalBasis? Predecessor,
+    IReadOnlyList<RecordTemporalSupersededSegment> Supersedes, DateTimeOffset EffectiveFrom,
+    DateTimeOffset? EffectiveTo, string? Reason, DateTimeOffset AuthorityRecordedAt);
+/// <summary>Original receipt and temporal integrity evidence.</summary>
+/// <param name="Receipt">Unchanged seven gate-act facts.</param>
+/// <param name="Temporal">Accepted temporal facts.</param>
+/// <param name="BindingHash">Unkeyed local integrity hash.</param>
+public sealed record RecordTemporalReceipt(RecordWriteReceipt Receipt, RecordTemporalEvidence Temporal, string BindingHash);
+/// <summary>A committed storage version, not the public read projection.</summary>
+/// <param name="Row">Committed application row.</param>
+/// <param name="Temporal">Accepted temporal evidence.</param>
+/// <param name="BindingHash">Temporal integrity hash.</param>
+public sealed record RecordTemporalVersion(RecordWriteRow Row, RecordTemporalEvidence Temporal, string BindingHash);
+/// <summary>A prepared declaration without caller-selected committed evidence.</summary>
+/// <param name="Kind">Create or amendment.</param>
+/// <param name="Row">Prepared row with its gate-act timestamp.</param>
+/// <param name="ExpectedPredecessor">Amendment fence or null for create.</param>
+/// <param name="EffectiveFrom">Explicit start.</param>
+/// <param name="EffectiveTo">Explicit end or infinity.</param>
+/// <param name="Reason">Amendment reason or null for create.</param>
+public sealed record RecordTemporalWrite(RecordTemporalCommandKind Kind, RecordWriteRow Row,
+    RecordTemporalBasis? ExpectedPredecessor, DateTimeOffset EffectiveFrom, DateTimeOffset? EffectiveTo, string? Reason);
+/// <summary>Accepted state is never treated as an unaccepted operation.</summary>
+/// <param name="IntentEncodingVersion">Original comparable encoding.</param>
+/// <param name="IntentDigest">Original digest.</param>
+/// <param name="Receipt">Original receipt when readable.</param>
+public sealed record RecordTemporalCommittedOperation(string IntentEncodingVersion, string IntentDigest, RecordTemporalReceipt? Receipt);
+/// <summary>Atomic temporal settlement.</summary>
+public enum RecordTemporalCommitDisposition
+{
+    /// <summary>A new event was published.</summary>
+    Created = 0,
+    /// <summary>An accepted key was found; examine Stored.</summary>
+    Replayed = 1,
+    /// <summary>An accepted key was found; examine Stored.</summary>
+    Conflict = 2,
+    /// <summary>The causal fence does not match.</summary>
+    BasisMismatch = 3,
+    /// <summary>No temporal provenance exists for the target.</summary>
+    UnsupportedLegacyBasis = 4,
+    /// <summary>No explicit authority clock is configured.</summary>
+    TemporalClockRequired = 5,
+}
+/// <summary>Atomic commit result.</summary>
+/// <param name="Disposition">Actual settlement.</param>
+/// <param name="Receipt">New receipt only on Created.</param>
+public sealed record RecordTemporalCommit(RecordTemporalCommitDisposition Disposition, RecordTemporalReceipt? Receipt)
+{
+    /// <summary>Original accepted state only on replay or conflict.</summary>
+    public RecordTemporalCommittedOperation? Stored { get; init; }
+}
+/// <summary>The integrated store's temporal prepared port.</summary>
+public interface IRecordTemporalWritePort : IKernelPreparedTransactionPort<RecordTemporalWrite, RecordTemporalCommit>
+{
+    /// <summary>True only for an explicitly supplied authority clock.</summary>
+    bool HasAuthorityClock { get; }
+}
+/// <summary>Local temporal settlement lookup without publication binding.</summary>
+public interface IRecordTemporalReceiptReader
+{
+    /// <summary>Null means no accepted operation, never an unreadable accepted receipt.</summary>
+    ValueTask<RecordTemporalCommittedOperation?> FindTemporalOperationAsync(
+        RecordWriteOperationKey key, CancellationToken cancellationToken = default);
+}
+/// <summary>Typed producer outcomes, without new catalogue codes.</summary>
+public enum RecordTemporalWriteStatus
+{
+    /// <summary>A new event was accepted.</summary>
+    Created = 0,
+    /// <summary>The original event was returned.</summary>
+    Replayed = 1,
+    /// <summary>An existing staged refusal.</summary>
+    Refused = 2,
+    /// <summary>Invalid declared temporal input.</summary>
+    InvalidTemporalInput = 3,
+    /// <summary>The selected publication does not opt in.</summary>
+    PolicyNotEnabled = 4,
+    /// <summary>The causal fence does not match.</summary>
+    BasisMismatch = 5,
+    /// <summary>The target has no temporal provenance.</summary>
+    UnsupportedLegacyBasis = 6,
+    /// <summary>No explicit accepting clock.</summary>
+    TemporalClockRequired = 7,
+    /// <summary>No explicit integrated temporal composition.</summary>
+    TemporalStoreUnavailable = 8,
+    /// <summary>Exact target not found.</summary>
+    RecordNotFound = 9,
+}
+/// <summary>A lost Created receipt can refuse after persistence.</summary>
+/// <param name="Status">Typed settlement.</param>
+/// <param name="Receipt">Usable detached receipt.</param>
+/// <param name="Refusal">Existing staged refusal only on Refused.</param>
+/// <param name="Pointers">Fixed input pointers or the refusal pointers.</param>
+/// <param name="Decision">Current enforcing evidence unless a Created commit persisted it.</param>
+public sealed record RecordTemporalWriteOutcome(RecordTemporalWriteStatus Status, RecordTemporalReceipt? Receipt,
+    RecordWriteRefusal? Refusal, IReadOnlyList<string> Pointers, AuthorizationDecisionEvidence? Decision = null)
+{
+    /// <summary>True only for a usable successful settlement.</summary>
+    public bool Committed => Receipt is not null && Refusal is null
+        && (Status is RecordTemporalWriteStatus.Created or RecordTemporalWriteStatus.Replayed);
+}
+
 /// <summary>
 /// The versioned semantic intent of a record create (encoding <c>records-write-intent/1</c>, proposed for review). It is
 /// the identity a retry is compared by, never the bytes that are validated or stored.
@@ -481,6 +630,10 @@ public sealed class RecordWriteOperation
     private readonly IFieldKindRuntime _fieldKinds;
     private readonly IFieldDomainRuntime _fieldDomains;
 
+    private readonly IRecordTemporalWritePort? _temporalPort;
+    private readonly IRecordTemporalReceiptReader? _temporalReceipts;
+    private readonly IRecordTemporalReadStore? _temporalRecords;
+
     /// <summary>
     /// Composes the existing producers. <paramref name="registry"/> must be the registry
     /// <paramref name="recordTypes"/> registers into; any other refuses every new write as an unknown schema.
@@ -517,6 +670,284 @@ public sealed class RecordWriteOperation
         _fieldKinds = fieldKinds;
         _fieldDomains = fieldDomains;
     }
+
+    /// <summary>Explicitly composes temporal methods over the same integrated store.</summary>
+    /// <param name="access">Enforcing current access provider.</param>
+    /// <param name="recordTypes">Immutable publication binder.</param>
+    /// <param name="registry">The binder's registry.</param>
+    /// <param name="port">Ordinary prepared port on the integrated store.</param>
+    /// <param name="receipts">Ordinary receipt reader on that same object.</param>
+    /// <param name="clock">Operation gate-act clock.</param>
+    /// <param name="fieldKinds">Admitted field-kind runtime.</param>
+    /// <param name="fieldDomains">Field-domain runtime.</param>
+    /// <param name="temporalPort">Temporal prepared port on that same object.</param>
+    /// <param name="temporalReceipts">Temporal receipt reader on that same object.</param>
+    /// <param name="temporalRecords">Bounded target/history reader on that same object.</param>
+    public RecordWriteOperation(AccessProvider access, RecordTypeDefinitionStore recordTypes,
+        ISchemaRegistry registry, IKernelPreparedTransactionPort<RecordWriteRow, RecordWriteCommit> port,
+        IRecordWriteReceiptReader receipts, TimeProvider clock, IFieldKindRuntime fieldKinds,
+        IFieldDomainRuntime fieldDomains, IRecordTemporalWritePort temporalPort,
+        IRecordTemporalReceiptReader temporalReceipts, IRecordTemporalReadStore temporalRecords)
+        : this(access, recordTypes, registry, port, receipts, clock, fieldKinds, fieldDomains)
+    {
+        ArgumentNullException.ThrowIfNull(temporalPort);
+        ArgumentNullException.ThrowIfNull(temporalReceipts);
+        ArgumentNullException.ThrowIfNull(temporalRecords);
+        if (!ReferenceEquals(port, receipts) || !ReferenceEquals(port, temporalPort)
+            || !ReferenceEquals(port, temporalReceipts) || !ReferenceEquals(port, temporalRecords))
+            throw new ArgumentException("Temporal storage interfaces must reference the same store.", nameof(temporalPort));
+        _temporalPort = temporalPort;
+        _temporalReceipts = temporalReceipts;
+        _temporalRecords = temporalRecords;
+    }
+
+    /// <summary>Creates a new logical record with an explicitly declared business interval.</summary>
+    public ValueTask<RecordTemporalWriteOutcome> CreateEffectiveAsync(RecordWriteScope scope,
+        RecordTemporalCreateRequest request, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        ArgumentNullException.ThrowIfNull(request.Body);
+        ArgumentException.ThrowIfNullOrWhiteSpace(request.RecordTypeId);
+        return TemporalWriteAsync(scope, RecordTemporalCommandKind.Create, request.RecordTypeId, null,
+            request.OperationId, null, request.Body, request.EffectiveFrom, request.EffectiveTo, null,
+            request.Version, cancellationToken);
+    }
+
+    /// <summary>Appends an immutable amendment against the exact observed causal head.</summary>
+    public ValueTask<RecordTemporalWriteOutcome> AmendAsync(RecordWriteScope scope,
+        RecordTemporalAmendRequest request, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        ArgumentNullException.ThrowIfNull(request.Body);
+        ArgumentNullException.ThrowIfNull(request.ExpectedPredecessor);
+        ArgumentNullException.ThrowIfNull(request.Reason);
+        ArgumentException.ThrowIfNullOrWhiteSpace(request.RecordId);
+        return TemporalWriteAsync(scope, RecordTemporalCommandKind.Amend, null, request.RecordId,
+            request.OperationId, request.ExpectedPredecessor, request.Body, request.EffectiveFrom, request.EffectiveTo,
+            request.Reason, request.Version, cancellationToken);
+    }
+
+    private async ValueTask<RecordTemporalWriteOutcome> TemporalWriteAsync(RecordWriteScope scope,
+        RecordTemporalCommandKind kind, string? type, string? target, string operationId, RecordTemporalBasis? basis,
+        JsonObject suppliedBody, DateTimeOffset from, DateTimeOffset? to, string? reason, string? version,
+        CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(scope);
+        ArgumentException.ThrowIfNullOrWhiteSpace(scope.Tenant);
+        ArgumentException.ThrowIfNullOrWhiteSpace(scope.ActorId);
+        ArgumentNullException.ThrowIfNull(operationId);
+        ct.ThrowIfCancellationRequested();
+        if (_temporalPort is null || _temporalReceipts is null || _temporalRecords is null)
+            return TemporalStatus(RecordTemporalWriteStatus.TemporalStoreUnavailable);
+        if (!IsOperationId(operationId)) return TemporalRefused(new(ValidateStage, OperationIdInvalid, [OperationIdPointer]));
+        if (to is { } end && end.UtcTicks <= from.UtcTicks)
+            return TemporalStatus(RecordTemporalWriteStatus.InvalidTemporalInput, "/effective_to");
+        if (kind == RecordTemporalCommandKind.Amend && (basis is null || basis.Revision <= 0 || basis.Revision == long.MaxValue
+            || !RecordWriteJournalBinding.IsHash(basis.Hash)))
+            return TemporalStatus(RecordTemporalWriteStatus.InvalidTemporalInput, "/expected_predecessor");
+        if (kind == RecordTemporalCommandKind.Amend && TemporalBlank(reason))
+            return TemporalStatus(RecordTemporalWriteStatus.InvalidTemporalInput, "/reason");
+        if (version is not null && TemporalBlank(version))
+            return TemporalStatus(RecordTemporalWriteStatus.InvalidTemporalInput, "/version");
+        JsonObject body;
+        try
+        {
+            body = (JsonObject)suppliedBody.DeepClone();
+            _ = RecordWriteIntent.Encode(type ?? "temporal-target", version, body);
+            _ = RecordWriteIntent.Strict.GetByteCount(scope.Tenant);
+            _ = RecordWriteIntent.Strict.GetByteCount(scope.ActorId);
+            if (target is not null) _ = RecordWriteIntent.Strict.GetByteCount(target);
+            if (version is not null) _ = RecordWriteIntent.Strict.GetByteCount(version);
+            if (reason is not null) _ = RecordWriteIntent.Strict.GetByteCount(reason);
+        }
+        catch (Exception error) when (error is EncoderFallbackException or InvalidOperationException or FormatException)
+        { return TemporalRefused(new(ValidateStage, BodyInvalid, [])); }
+        basis = basis is null ? null : new(basis.Revision, basis.Hash);
+        RecordTemporalTarget? metadata = null;
+        if (kind == RecordTemporalCommandKind.Amend)
+        {
+            metadata = await _temporalRecords.FindTemporalTargetAsync(scope.Tenant, target!, ct).ConfigureAwait(false);
+            if (metadata is null) return TemporalStatus(RecordTemporalWriteStatus.RecordNotFound, "/record_id");
+            if (TemporalBlank(metadata.RecordTypeId)) throw new InvalidOperationException("The temporal target has no type.");
+            type = metadata.RecordTypeId;
+        }
+        string digest;
+        try
+        {
+            digest = RecordWriteIntent.Digest(RecordTemporalJournalBinding.EncodeIntent(scope.Tenant, type!, kind,
+                target, basis, from, to, reason, version, body));
+        }
+        catch (Exception error) when (error is EncoderFallbackException or InvalidOperationException or FormatException or OverflowException)
+        { return TemporalRefused(new(ValidateStage, BodyInvalid, [])); }
+        var key = new RecordWriteOperationKey(scope.Tenant, scope.ActorId, operationId);
+        var instant = _clock.GetUtcNow();
+        var recordId = target ?? Guid.NewGuid().ToString("N");
+        IReadOnlyDictionary<string, JsonNode?> fields = kind == RecordTemporalCommandKind.Create ? NoFields
+            : new Dictionary<string, JsonNode?>(body.Select(member =>
+                new KeyValuePair<string, JsonNode?>(member.Key, member.Value?.DeepClone())), StringComparer.Ordinal).AsReadOnly();
+        var access = await _access.CheckWithEvidenceAsync(new AccessRequest(WriteAct, scope.ActorId, scope.Tenant,
+            new AccessRecord(scope.Tenant, RecordKind, recordId, fields) { RecordTypeId = type }, instant), ct).ConfigureAwait(false);
+        if (!access.Check.Allowed)
+            return TemporalRefused(new(AuthorizeStage, access.Check.Reason, [])) with { Decision = access.Evidence };
+        var evidence = access.Evidence ?? throw new InvalidOperationException("The gate allowed without its evidence.");
+        var prior = await _temporalReceipts.FindTemporalOperationAsync(key, ct).ConfigureAwait(false);
+        if (prior is not null) return SettleTemporal(prior, key, type!, target, digest) with { Decision = evidence };
+        if (metadata is { IsTemporal: false })
+            return TemporalStatus(RecordTemporalWriteStatus.UnsupportedLegacyBasis, "/record_id") with { Decision = evidence };
+        if (!_temporalPort.HasAuthorityClock)
+            return TemporalStatus(RecordTemporalWriteStatus.TemporalClockRequired) with { Decision = evidence };
+        RecordTypeDefinitionStore.RecordTemporalPublication? selected;
+        try { selected = await _recordTypes.ResolveTemporalPublicationAsync(scope.Tenant, type!, version, ct).ConfigureAwait(false); }
+        catch (DefinitionRefusalException) { selected = null; }
+        if (selected is null) return TemporalRefused(new(BindStage, SchemaUnknown, [])) with { Decision = evidence };
+        if (!selected.PolicyEnabled)
+            return TemporalStatus(RecordTemporalWriteStatus.PolicyNotEnabled, "/amendment_policy", "/history_policy") with { Decision = evidence };
+        var publication = selected.Publication;
+        var definition = RecordTypeDefinitionJson.Deserialize(Encoding.UTF8.GetBytes(publication.Revision.Document.BodyJson));
+        if (kind == RecordTemporalCommandKind.Create)
+        {
+            var refusal = CreationRefusal(RecordCreationPolicy.Of(definition).Gate, false);
+            if (refusal is not null) return TemporalRefused(refusal.Refusal!) with { Decision = evidence };
+        }
+        var submitted = Submitted(body);
+        try
+        {
+            var transaction = await KernelTransactionBoundary.ExecutePreparedAsync(async token =>
+            {
+                SchemaValidationResult validation;
+                try { validation = await _registry.ValidateAsync(publication.Schema.Id, submitted, token).ConfigureAwait(false); }
+                catch (SchemaNotFoundException) { throw new RefusedWriteException(new(ValidateStage, SchemaUnknown, [])); }
+                if (!validation.IsValid) throw new RefusedWriteException(new(ValidateStage, BodyInvalid, Pointers(validation)));
+                using (var parsed = JsonDocument.Parse(submitted))
+                {
+                    var domainScope = new FieldDomainScope(Harborline.Foundation.Assets.Common.TenantId.FromString(scope.Tenant), scope.ActorId);
+                    foreach (var field in definition.Fields)
+                    {
+                        if (field.Binding is not { } binding) continue;
+                        var pointer = "/" + field.FieldKey.Replace("~", "~0", StringComparison.Ordinal).Replace("/", "~1", StringComparison.Ordinal);
+                        parsed.RootElement.TryGetProperty(field.FieldKey, out var value);
+                        try
+                        {
+                            var boundKind = _fieldKinds.Bind(binding.Kind, pointer);
+                            var constraints = await _fieldDomains.IntersectAsync([binding.Constraints], domainScope, pointer, token).ConfigureAwait(false);
+                            if (_fieldDomains.Validate(constraints, boundKind, value, pointer).Count > 0)
+                                throw new RefusedWriteException(new(ValidateStage, BodyInvalid, [pointer]));
+                        }
+                        catch (FieldAdmissionException) { throw new RefusedWriteException(new(ValidateStage, BodyInvalid, [pointer])); }
+                    }
+                }
+                var row = new RecordWriteRow(scope.Tenant, recordId, type!, publication.Revision.Document.Version,
+                    publication.Revision.Digest, publication.Schema.Id, scope.ActorId, operationId, version,
+                    RecordTemporalJournalBinding.IntentEncodingVersion, digest, submitted, instant)
+                    { PublicationVersionId = publication.Revision.Document.VersionId };
+                RecordWriteJournalBinding.ValidatePublication(row, publication);
+                return new KernelCommand<RecordTemporalWrite>(new(recordId, key.IdempotencyKey, digest),
+                    new(kind, row, basis, from, to, reason),
+                    new(Guid.NewGuid().ToString("N"), scope.ActorId, instant, AuditPayload(row))
+                        { AuthoritySnapshot = AuthoritySnapshotOf(evidence) });
+            }, _temporalPort, ct).ConfigureAwait(false);
+            var commit = transaction.Value ?? throw new InvalidOperationException(transaction.Refusal?.Code ?? "The temporal transaction did not return a result.");
+            var outcome = SettleTemporalCommit(commit, key, type!, target, digest);
+            return commit.Disposition == RecordTemporalCommitDisposition.Created ? outcome : outcome with { Decision = evidence };
+        }
+        catch (RefusedWriteException refusal) { return TemporalRefused(refusal.Refusal) with { Decision = evidence }; }
+    }
+
+    private static RecordTemporalWriteOutcome SettleTemporalCommit(RecordTemporalCommit commit,
+        RecordWriteOperationKey key, string type, string? target, string digest)
+    {
+        switch (commit.Disposition)
+        {
+            case RecordTemporalCommitDisposition.Created:
+                if (commit.Stored is not null) throw new InvalidOperationException("A Created result contains prior state.");
+                return UsableTemporalReceipt(commit.Receipt, key, type, target)
+                    ? new(RecordTemporalWriteStatus.Created, DetachTemporalReceipt(commit.Receipt!), null, Array.Empty<string>())
+                    : TemporalRefused(new(CommitStage, ReceiptUnsupported, []));
+            case RecordTemporalCommitDisposition.Replayed:
+            case RecordTemporalCommitDisposition.Conflict:
+                if (commit.Receipt is not null) throw new InvalidOperationException("A replay result contains a new receipt.");
+                return commit.Stored is null ? TemporalRefused(new(CommitStage, ReceiptUnsupported, []))
+                    : SettleTemporal(commit.Stored, key, type, target, digest);
+            case RecordTemporalCommitDisposition.BasisMismatch:
+            case RecordTemporalCommitDisposition.UnsupportedLegacyBasis:
+            case RecordTemporalCommitDisposition.TemporalClockRequired:
+                if (commit.Receipt is not null || commit.Stored is not null)
+                    throw new InvalidOperationException("A non-writing result contains accepted state.");
+                return commit.Disposition switch
+                {
+                    RecordTemporalCommitDisposition.BasisMismatch => TemporalStatus(RecordTemporalWriteStatus.BasisMismatch, "/expected_predecessor"),
+                    RecordTemporalCommitDisposition.UnsupportedLegacyBasis => TemporalStatus(RecordTemporalWriteStatus.UnsupportedLegacyBasis, "/record_id"),
+                    _ => TemporalStatus(RecordTemporalWriteStatus.TemporalClockRequired),
+                };
+            default: throw new InvalidOperationException("The temporal commit status is unknown.");
+        }
+    }
+
+    private static RecordTemporalWriteOutcome SettleTemporal(RecordTemporalCommittedOperation stored,
+        RecordWriteOperationKey key, string type, string? target, string digest)
+    {
+        if (stored.IntentEncodingVersion != RecordTemporalJournalBinding.IntentEncodingVersion
+            || !RecordWriteJournalBinding.IsHash(stored.IntentDigest) || !RecordWriteJournalBinding.IsHash(digest))
+            return TemporalRefused(new(CommitStage, ReceiptUnsupported, []));
+        if (!string.Equals(stored.IntentDigest, digest, StringComparison.Ordinal))
+            return TemporalRefused(new(CommitStage, ReplayConflict, [OperationIdPointer]));
+        return UsableTemporalReceipt(stored.Receipt, key, type, target)
+            ? new(RecordTemporalWriteStatus.Replayed, DetachTemporalReceipt(stored.Receipt!), null, Array.Empty<string>())
+            : TemporalRefused(new(CommitStage, ReceiptUnsupported, []));
+    }
+
+    private static bool UsableTemporalReceipt(RecordTemporalReceipt? value, RecordWriteOperationKey key, string type, string? target)
+        => value?.Receipt is { } receipt && receipt.OperationId == key.OperationId && receipt.RecordTypeId == type
+            && !TemporalBlank(receipt.RecordId) && (target is null || receipt.RecordId == target)
+            && !TemporalBlank(receipt.Version) && !TemporalBlank(receipt.Schema.Value)
+            && RecordWriteJournalBinding.IsHash(receipt.DefinitionDigest)
+            && RecordWriteJournalBinding.IsHash(value.BindingHash) && ValidTemporalEvidence(value.Temporal);
+
+    private static bool ValidTemporalEvidence(RecordTemporalEvidence? value)
+    {
+        if (value is null || value.Revision <= 0 || value.Supersedes is null
+            || value.EffectiveTo is { } end && end.UtcTicks <= value.EffectiveFrom.UtcTicks) return false;
+        if (value.Revision == 1)
+        {
+            if (value.Predecessor is not null || value.Reason is not null || value.Supersedes.Count != 0) return false;
+        }
+        else if (value.Predecessor is not { } predecessor || predecessor.Revision != value.Revision - 1
+            || !RecordWriteJournalBinding.IsHash(predecessor.Hash) || TemporalBlank(value.Reason)) return false;
+        long? previousEnd = null;
+        foreach (var segment in value.Supersedes)
+        {
+            if (segment?.Revision is not { } basis || basis.Revision <= 0 || basis.Revision >= value.Revision
+                || !RecordWriteJournalBinding.IsHash(basis.Hash) || segment.EffectiveFrom.Offset != TimeSpan.Zero
+                || segment.EffectiveTo is { } to && (to.Offset != TimeSpan.Zero || to.UtcTicks <= segment.EffectiveFrom.UtcTicks)
+                || previousEnd is { } prior && prior > segment.EffectiveFrom.UtcTicks) return false;
+            previousEnd = segment.EffectiveTo?.UtcTicks ?? long.MaxValue;
+        }
+        return true;
+    }
+
+    private static RecordTemporalReceipt DetachTemporalReceipt(RecordTemporalReceipt value)
+        => new(value.Receipt with { }, DetachTemporalEvidence(value.Temporal), value.BindingHash);
+
+    private static RecordTemporalEvidence DetachTemporalEvidence(RecordTemporalEvidence value)
+        => value with
+        {
+            Predecessor = value.Predecessor is null ? null : new(value.Predecessor.Revision, value.Predecessor.Hash),
+            Supersedes = Array.AsReadOnly(value.Supersedes.Select(segment => new RecordTemporalSupersededSegment(
+                new(segment.Revision.Revision, segment.Revision.Hash), segment.EffectiveFrom, segment.EffectiveTo)).ToArray()),
+        };
+
+    private static RecordTemporalWriteOutcome TemporalStatus(RecordTemporalWriteStatus status, params string[] pointers)
+        => new(status, null, null, Array.AsReadOnly(pointers));
+
+    private static RecordTemporalWriteOutcome TemporalRefused(RecordWriteRefusal refusal)
+    {
+        var pointers = Array.AsReadOnly(refusal.Pointers.ToArray());
+        return new(RecordTemporalWriteStatus.Refused, null, refusal with { Pointers = pointers }, pointers);
+    }
+
+    private static bool TemporalBlank(string? value) => value is null || value.Length == 0 || value.All(c =>
+        c is >= '\u0009' and <= '\u000d' or '\u0020' or '\u0085' or '\u00a0' or '\u1680'
+            or >= '\u2000' and <= '\u200a' or '\u2028' or '\u2029' or '\u202f' or '\u205f' or '\u3000');
 
     /// <summary>
     /// Creates one record, returns the receipt of the same committed operation, or refuses. A refusal persisted nothing,
