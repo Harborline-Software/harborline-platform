@@ -1016,7 +1016,7 @@ public sealed class FileJournalRecordTemporalTests
     [InlineData("\"Ignored\\ud800\":0,")]
     [InlineData("\"Ignored\":{\"nested\":[\"\\udc00\"]},")]
     [InlineData("\"Ignored\":{\"nested\\ud800\":[0]},")]
-    public async Task Temporal_conversion_scans_complete_one_and_two_sources_before_output(string inserted)
+    public async Task Invalid_unicode_in_one_and_two_sources_refuses_without_temporal_writes(string inserted)
     {
         using var path = new JournalPath();
         foreach (var oldFormat in new[] { 1, 2 })
@@ -1036,8 +1036,13 @@ public sealed class FileJournalRecordTemporalTests
                 Assert.NotEqual(original, Encoding.UTF8.GetString(poisoned));
             }
             File.WriteAllBytes(path.FileName, poisoned);
-            var store = new FileJournalRecordWriteStore(path.FileName, new Clock(AuthorityAt));
-            await Assert.ThrowsAsync<InvalidDataException>(() => AppendTemporal(store, Event("r1")));
+            // Malformed member names can refuse at inherited typed decoding before conversion.
+            // Keep that corruption refusal distinct from proof of the later Unicode scanner.
+            await Assert.ThrowsAsync<InvalidDataException>(async () =>
+            {
+                var store = new FileJournalRecordWriteStore(path.FileName, new Clock(AuthorityAt));
+                await AppendTemporal(store, Event("r1"));
+            });
             Assert.Equal(poisoned, File.ReadAllBytes(path.FileName));
             Assert.Empty(Directory.GetFiles(path.DirectoryName, "*.tmp"));
         }

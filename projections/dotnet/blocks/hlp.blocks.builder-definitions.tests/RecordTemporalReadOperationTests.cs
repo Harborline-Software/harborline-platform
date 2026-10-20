@@ -266,12 +266,12 @@ public sealed class RecordTemporalReadOperationTests
         var original = (await fixture.RawDefinitions.ResolvePublishedAsync(new(key, "1.0.0")))!;
         var originalBody = original.Document.BodyJson;
         Assert.Contains("\"field_key\":\"status\"", originalBody, StringComparison.Ordinal);
-        await fixture.RawDefinitions.SaveDraftAsync(new(key, "opaque-A", "1.0.0", originalBody), 2, "opaque-a-draft");
+        await fixture.RawDefinitions.SaveDraftAsync(new(key, "opaque-A", "1.0.1", originalBody), 2, "opaque-a-draft");
         await fixture.Publisher.PublishAsync(RecordTemporalWriteOperationTests.Tenant, RecordTemporalWriteOperationTests.Type, "opaque-A", 3, "opaque-a-publish");
-        await fixture.RawDefinitions.SaveDraftAsync(new(key, "opaque-B", "1.0.0", originalBody), 4, "opaque-b-draft");
+        await fixture.RawDefinitions.SaveDraftAsync(new(key, "opaque-B", "1.0.2", originalBody), 4, "opaque-b-draft");
         await fixture.Publisher.PublishAsync(RecordTemporalWriteOperationTests.Tenant, RecordTemporalWriteOperationTests.Type, "opaque-B", 5, "opaque-b-publish");
         var variantBody = originalBody.Replace("\"field_key\":\"status\"", "\"field_key\":\"alternate_status\"", StringComparison.Ordinal);
-        await fixture.RawDefinitions.SaveDraftAsync(new(key, "opaque-C", "1.0.0", variantBody), 6, "opaque-c-draft");
+        await fixture.RawDefinitions.SaveDraftAsync(new(key, "opaque-C", "1.0.3", variantBody), 6, "opaque-c-draft");
         await fixture.Publisher.PublishAsync(RecordTemporalWriteOperationTests.Tenant, RecordTemporalWriteOperationTests.Type, "opaque-C", 7, "opaque-c-publish");
         var registry = new IndependentIds(new InMemorySchemaRegistry(fieldKindRuntime: fixture.Kinds));
         var types = Types(fixture, registry);
@@ -291,7 +291,7 @@ public sealed class RecordTemporalReadOperationTests
         Assert.NotEqual(first.Receipt.DefinitionDigest, third.Receipt.DefinitionDigest);
         var durable = await fixture.Storage.Inner.HistoryAsync(RecordTemporalWriteOperationTests.Tenant, first.Receipt.RecordId);
         Assert.Equal(new[] { "opaque-A", "opaque-B", "opaque-C" }, durable.Versions.Select(value => value.Row.PublicationVersionId));
-        Assert.Equal(new[] { "1.0.0", "1.0.0", "1.0.0" }, durable.Versions.Select(value => value.Row.Version));
+        Assert.Equal(new[] { "1.0.1", "1.0.2", "1.0.3" }, durable.Versions.Select(value => value.Row.Version));
         var before = fixture.Bytes();
         var heads = fixture.Definitions.Heads;
         foreach (var cold in new[] { false, true })

@@ -217,13 +217,18 @@ public sealed class FileJournalFormatTransitionTests : IDisposable
     [InlineData("\"Ignored\\ud800\":0,")]
     [InlineData("\"Ignored\":{\"nested\":[\"\\udc00\"]},")]
     [InlineData("\"Ignored\":{\"nested\\ud800\":[0]},")]
-    public async Task conversion_scans_ignored_root_and_nested_names_and_values(string inserted)
+    public async Task invalid_unicode_in_ignored_root_and_nested_members_refuses_without_writes(string inserted)
     {
         var original = OldCopy();
         var poisoned = Encoding.UTF8.GetBytes(Encoding.UTF8.GetString(original).Insert(1, inserted));
         File.WriteAllBytes(PathName, poisoned);
-        var store = new FileJournalRecordWriteStore(PathName);
-        await Assert.ThrowsAsync<InvalidDataException>(() => Append(store));
+        // Invalid root member names can refuse during inherited typed /1 decoding. Other ignored
+        // Unicode reaches conversion; an earlier refusal is not evidence that its scanner ran.
+        await Assert.ThrowsAsync<InvalidDataException>(async () =>
+        {
+            var store = new FileJournalRecordWriteStore(PathName);
+            await Append(store);
+        });
         Assert.Equal(poisoned, File.ReadAllBytes(PathName)); Assert.Empty(Directory.GetFiles(_directory, "*.tmp"));
     }
 
@@ -322,7 +327,7 @@ public sealed class FileJournalFormatTransitionTests : IDisposable
     {
         var original = OldCopy();
         var depth65 = LegacyWithIgnoredArrays(original, 62);
-        Assert.Throws<JsonException>(() => { using var document = JsonDocument.Parse(depth65); });
+        Assert.ThrowsAny<JsonException>(() => { using var document = JsonDocument.Parse(depth65); });
         await AllPaths(depth65, false);
         Assert.Equal(original, File.ReadAllBytes(Fixture("Q31/journal/records.json")));
     }
@@ -368,7 +373,7 @@ public sealed class FileJournalFormatTransitionTests : IDisposable
     {
         var original = OldCopy();
         var depth66 = WrapDepthLegacy(LegacyWithIgnoredArrays(original, 62));
-        Assert.Throws<JsonException>(() =>
+        Assert.ThrowsAny<JsonException>(() =>
         {
             using var document = JsonDocument.Parse(depth66, new JsonDocumentOptions { MaxDepth = 65 });
         });

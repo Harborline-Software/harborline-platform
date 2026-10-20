@@ -119,7 +119,10 @@ public sealed class RecordTypeCreationPolicyTests
         var draft = await host.Records.CreateDraftAsync(RoleGatedAssetClass("1.0.0"), "create");
         var published = await host.Records.PublishAsync(Tenant, "eam.asset-class", "1.0.0", 1, "publish");
 
-        Assert.Equal(WithCreation("\"creation_gate\":\"role\",\"creation_role_id\":\"asset-author\","), draft.Revision.Document.BodyJson);
+        // Independent fresh-authoring literal includes ADR-0097 defaults; legacy round-trip literals stay absent.
+        Assert.Equal(CreatedAssetClassJson.Replace(ClassIdMember,
+            ClassIdMember + "\"creation_gate\":\"role\",\"creation_role_id\":\"asset-author\",", StringComparison.Ordinal),
+            draft.Revision.Document.BodyJson);
         Assert.Equal(DefinitionStatus.Published, published.Revision.Status);
         Assert.Equal(new RecordCreationPolicy(RecordCreationGate.Role, "asset-author"),
             await host.Records.GetCreationPolicyAsync(Tenant, "eam.asset-class"));
