@@ -47,6 +47,7 @@ public sealed class FileJournalRecordWriteStore : IKernelPreparedTransactionPort
     private readonly string _path;
     private readonly Action<long>? _currentReadProgress;
     private readonly Action? _beforeReplace;
+    private readonly Action<string>? _completedTemporaryBeforeDecode;
 
     private readonly TimeProvider? _authorityClock;
 
@@ -86,6 +87,15 @@ public sealed class FileJournalRecordWriteStore : IKernelPreparedTransactionPort
     {
         _currentReadProgress = currentReadProgress;
         _beforeReplace = beforeReplace;
+    }
+
+    /// <summary>Synchronously observes this attempt's closed completed temporal candidate before validation.</summary>
+    internal FileJournalRecordWriteStore(string path, TimeProvider authorityClock,
+        Action<long>? currentReadProgress, Action? beforeReplace, Action<string> completedTemporaryBeforeDecode)
+        : this(path, authorityClock, currentReadProgress, beforeReplace)
+    {
+        _completedTemporaryBeforeDecode = completedTemporaryBeforeDecode
+            ?? throw new ArgumentNullException(nameof(completedTemporaryBeforeDecode));
     }
 
     private static string ClockPath(string path, TimeProvider authorityClock)
@@ -327,6 +337,7 @@ public sealed class FileJournalRecordWriteStore : IKernelPreparedTransactionPort
                 stream.Flush(flushToDisk: true);
             }
             ct.ThrowIfCancellationRequested();
+            _completedTemporaryBeforeDecode?.Invoke(temporary);
             try
             {
                 _ = Decode(File.ReadAllBytes(temporary), out var legacyOutput, ct);

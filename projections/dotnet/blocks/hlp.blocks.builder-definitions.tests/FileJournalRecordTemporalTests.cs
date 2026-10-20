@@ -734,6 +734,249 @@ public sealed class FileJournalRecordTemporalTests
         return Encoding.UTF8.GetBytes("{\"Format\":\"records-write-file-journal/3\",\"LegacyEntryCount\":1,\"Entries\":[" + string.Join(",", spans) + "]}");
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task J09_completed_candidate_validation_is_inside_the_real_amendment_transaction(bool corrupt)
+    {
+        using var fixture = await Fixture.Create();
+        var first = Committed(await fixture.CreateEvent());
+        var before = fixture.Bytes();
+        var beforeHash = SHA256.HashData(before);
+        var foreign = Path.Combine(fixture.DirectoryName, "foreign.tmp");
+        var foreignBytes = "j09 foreign scratch evidence"u8.ToArray();
+        File.WriteAllBytes(foreign, foreignBytes);
+        var observed = 0;
+        var beforeReplace = 0;
+        string? candidatePath = null;
+        byte[]? cleanCandidate = null;
+        byte[]? cleanHash = null;
+        var journal = new FileJournalRecordWriteStore(fixture.PathName, fixture.AuthorityClock, null,
+            () => beforeReplace++, temporary =>
+            {
+                observed++;
+                candidatePath = temporary;
+                Assert.Equal(fixture.DirectoryName, Path.GetDirectoryName(temporary));
+                Assert.StartsWith(fixture.PathName + ".", temporary, StringComparison.Ordinal);
+                Assert.EndsWith(".tmp", temporary, StringComparison.Ordinal);
+                Assert.NotEqual(foreign, temporary);
+                Assert.Equal(before, fixture.Bytes());
+                // Exclusive open proves the writer and stream have disposed before this own-temp observation.
+                using var closed = new FileStream(temporary, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+                cleanCandidate = new byte[closed.Length];
+                closed.ReadExactly(cleanCandidate);
+                cleanHash = SHA256.HashData(cleanCandidate);
+                Assert.Equal((byte)'{', cleanCandidate[0]);
+                using var document = JsonDocument.Parse(cleanCandidate);
+                Assert.Equal("records-write-file-journal/3", document.RootElement.GetProperty("Format").GetString());
+                Assert.Equal(2, document.RootElement.GetProperty("Entries").GetArrayLength());
+                if (corrupt)
+                {
+                    closed.Position = 0;
+                    closed.WriteByte((byte)'!');
+                    closed.Flush(flushToDisk: true);
+                    closed.Position = 0;
+                    var changed = new byte[closed.Length];
+                    closed.ReadExactly(changed);
+                    Assert.Equal((byte)'!', changed[0]);
+                    Assert.Equal(cleanCandidate.AsSpan(1).ToArray(), changed.AsSpan(1).ToArray());
+                    Assert.NotEqual(Convert.ToHexString(cleanHash), Convert.ToHexString(SHA256.HashData(changed)));
+                    Console.WriteLine($"J09 B0={Convert.ToHexString(beforeHash)} B1={Convert.ToHexString(cleanHash)} corrupt={Convert.ToHexString(SHA256.HashData(changed))}");
+                }
+            });
+        var storage = new Store(journal);
+        var writer = fixture.Compose(storage);
+        var request = new RecordTemporalAmendRequest(first.Receipt.RecordId, "j09-amend", Basis(first), Body(20),
+            Date("2031-06-01T00:00:00-04:00"), null, "j09 reviewed");
+        RecordTemporalReceipt accepted;
+        if (corrupt)
+        {
+            var error = await Assert.ThrowsAsync<InvalidDataException>(() =>
+                writer.AmendAsync(new(Tenant, Actor), request).AsTask());
+            Assert.Equal("Records journal is invalid.", error.Message);
+            Assert.Null(error.InnerException);
+            Assert.Equal(0, beforeReplace);
+            Console.WriteLine("J09 failed kernel events=" + string.Join(",", storage.Events));
+            Assert.Equal(new[] { "begin", "operation", "record", "audit", "commit", "rollback", "dispose" }, storage.Events);
+            Assert.Equal(before, fixture.Bytes());
+            Assert.Equal(beforeHash, SHA256.HashData(fixture.Bytes()));
+            var reopenedBeforeRetry = new FileJournalRecordWriteStore(fixture.PathName);
+            Assert.Single((await reopenedBeforeRetry.HistoryAsync(Tenant, first.Receipt.RecordId)).Versions);
+            var originalCurrent = await fixture.Reader.ReadAsync(new(Tenant, Actor), new(first.Receipt.RecordId));
+            Assert.Null(originalCurrent.Refusal);
+            Assert.NotNull(originalCurrent.Record);
+            using var originalBody = JsonDocument.Parse(originalCurrent.Record.Body);
+            Assert.Equal(10, originalBody.RootElement.GetProperty("value").GetInt32());
+            Assert.Null(await reopenedBeforeRetry.FindTemporalOperationAsync(new(Tenant, Actor, "j09-amend")));
+            Assert.Equal(first.Receipt, (await reopenedBeforeRetry.FindTemporalOperationAsync(new(Tenant, Actor, "r1")))!.Receipt!.Receipt);
+            storage = new Store(new FileJournalRecordWriteStore(fixture.PathName, fixture.AuthorityClock));
+            writer = fixture.Compose(storage);
+            accepted = Committed(await writer.AmendAsync(new(Tenant, Actor), request));
+        }
+        else
+        {
+            accepted = Committed(await writer.AmendAsync(new(Tenant, Actor), request));
+            Assert.Equal(1, beforeReplace);
+            Assert.NotNull(cleanCandidate);
+            Assert.Equal(cleanCandidate, fixture.Bytes());
+        }
+        Assert.Equal(1, observed);
+        Assert.NotNull(candidatePath);
+        Assert.NotNull(cleanCandidate);
+        Assert.NotNull(cleanHash);
+        Assert.Equal(cleanHash, SHA256.HashData(cleanCandidate));
+        Assert.False(File.Exists(candidatePath));
+        Assert.Equal(foreignBytes, File.ReadAllBytes(foreign));
+        Assert.Equal(new[] { "foreign.tmp", "records.json" }, Directory.GetFiles(fixture.DirectoryName)
+            .Select(Path.GetFileName).Order(StringComparer.Ordinal));
+        Assert.Equal(new[] { "begin", "operation", "record", "audit", "commit", "dispose" }, storage.Events);
+        Assert.Equal(first.Receipt.RecordId, accepted.Receipt.RecordId);
+        Assert.Equal("j09-amend", accepted.Receipt.OperationId);
+        Assert.Equal("temporal.entry", accepted.Receipt.RecordTypeId);
+        Assert.Equal("1.0.0", accepted.Receipt.Version);
+        Assert.Equal(first.Receipt.DefinitionDigest, accepted.Receipt.DefinitionDigest);
+        Assert.Equal(first.Receipt.Schema, accepted.Receipt.Schema);
+        Assert.True(GateAt.EqualsExact(accepted.Receipt.RecordedAt));
+        Assert.Equal(2, accepted.Temporal.Revision);
+        Assert.Equal(Basis(first), accepted.Temporal.Predecessor);
+        Assert.True(AuthorityAt.EqualsExact(accepted.Temporal.AuthorityRecordedAt));
+        Assert.True(Date("2031-06-01T00:00:00-04:00").EqualsExact(accepted.Temporal.EffectiveFrom));
+        Assert.Null(accepted.Temporal.EffectiveTo);
+        Assert.Equal("j09 reviewed", accepted.Temporal.Reason);
+        var current = await fixture.Reader.ReadAsync(new(Tenant, Actor), new(first.Receipt.RecordId));
+        Assert.Null(current.Refusal);
+        Assert.NotNull(current.Record);
+        using var publicCurrentBody = JsonDocument.Parse(current.Record.Body);
+        Assert.Equal(20, publicCurrentBody.RootElement.GetProperty("value").GetInt32());
+        var durable = fixture.Bytes();
+        var stamps = fixture.AuthorityClock.Reads;
+        storage.Events.Clear();
+        var replay = await writer.AmendAsync(new(Tenant, Actor), request);
+        Assert.Equal(RecordTemporalWriteStatus.Replayed, replay.Status);
+        Assert.Equal(accepted.Receipt, replay.Receipt!.Receipt);
+        Assert.Equal(accepted.BindingHash, replay.Receipt.BindingHash);
+        Assert.Equal(stamps, fixture.AuthorityClock.Reads);
+        Assert.Empty(storage.Events);
+        var conflict = await writer.AmendAsync(new(Tenant, Actor), request with { Reason = "changed reason" });
+        Assert.Equal("records.write.replay_conflict", conflict.Refusal!.Code);
+        Assert.Equal(new[] { "/operation_id" }, conflict.Pointers);
+        var refusedObservations = 0;
+        var refusedStorage = new Store(new FileJournalRecordWriteStore(fixture.PathName, fixture.AuthorityClock,
+            null, null, _ => refusedObservations++));
+        var refusedWriter = fixture.Compose(refusedStorage);
+        var stale = await refusedWriter.AmendAsync(new(Tenant, Actor), request with { OperationId = "j09-stale" });
+        Assert.Equal(RecordTemporalWriteStatus.BasisMismatch, stale.Status);
+        Assert.Equal(new[] { "/expected_predecessor" }, stale.Pointers);
+        var invalid = await refusedWriter.AmendAsync(new(Tenant, Actor), request with
+        {
+            OperationId = "j09-invalid", ExpectedPredecessor = Basis(accepted), Body = Body(status: "INVALID"),
+        });
+        Assert.Equal("entity.validation.body_invalid", invalid.Refusal!.Code);
+        Assert.Equal(0, refusedObservations);
+        Assert.Equal(1, observed);
+        Assert.Equal(durable, fixture.Bytes());
+        var reopened = new FileJournalRecordWriteStore(fixture.PathName);
+        var history = await reopened.HistoryAsync(Tenant, first.Receipt.RecordId);
+        Assert.Equal(new[] { 1L, 2L }, history.Versions.Select(value => value.Temporal.Revision));
+        using var currentBody = JsonDocument.Parse((await reopened.FindAtAsync(Tenant, first.Receipt.RecordId,
+            Date("2031-07-01T00:00:00-04:00"))).Temporal!.Row.Body);
+        Assert.Equal(20, currentBody.RootElement.GetProperty("value").GetInt32());
+        using var oldBody = JsonDocument.Parse((await reopened.FindAtAsync(Tenant, first.Receipt.RecordId,
+            Date("2031-05-01T00:00:00-04:00"))).Temporal!.Row.Body);
+        Assert.Equal(10, oldBody.RootElement.GetProperty("value").GetInt32());
+        Assert.Equal(accepted.Receipt, (await reopened.FindTemporalOperationAsync(new(Tenant, Actor, "j09-amend")))!.Receipt!.Receipt);
+        Assert.Equal(foreignBytes, File.ReadAllBytes(foreign));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task J09_observer_cancellation_and_io_preserve_their_identity_and_roll_back(bool cancel)
+    {
+        using var fixture = await Fixture.Create();
+        var first = Committed(await fixture.CreateEvent());
+        var before = fixture.Bytes();
+        using var cancellation = new CancellationTokenSource();
+        var fault = new IOException("j09 observer io");
+        var observed = 0;
+        var beforeReplace = 0;
+        string? ownTemporary = null;
+        var storage = new Store(new FileJournalRecordWriteStore(fixture.PathName, fixture.AuthorityClock, null,
+            () => beforeReplace++, temporary =>
+            {
+                observed++;
+                ownTemporary = temporary;
+                using var closed = new FileStream(temporary, FileMode.Open, FileAccess.Read, FileShare.None);
+                Assert.Equal((int)'{', closed.ReadByte());
+                if (cancel) cancellation.Cancel();
+                else throw fault;
+            }));
+        var request = new RecordTemporalAmendRequest(first.Receipt.RecordId, "j09-negative", Basis(first), Body(20),
+            Date("2031-06-01T00:00:00-04:00"), null, "j09 reviewed");
+        var writer = fixture.Compose(storage);
+        if (cancel)
+        {
+            var error = await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+                writer.AmendAsync(new(Tenant, Actor), request, cancellation.Token).AsTask());
+            Assert.Equal(cancellation.Token, error.CancellationToken);
+        }
+        else Assert.Same(fault, await Assert.ThrowsAsync<IOException>(() => writer.AmendAsync(new(Tenant, Actor), request).AsTask()));
+        Assert.Equal(1, observed);
+        Assert.Equal(0, beforeReplace);
+        Assert.Equal(new[] { "begin", "operation", "record", "audit", "commit", "rollback", "dispose" }, storage.Events);
+        Assert.Equal(before, fixture.Bytes());
+        Assert.NotNull(ownTemporary);
+        Assert.False(File.Exists(ownTemporary));
+        Assert.Empty(Directory.GetFiles(fixture.DirectoryName, "*.tmp"));
+        var reopened = new FileJournalRecordWriteStore(fixture.PathName);
+        Assert.Single((await reopened.HistoryAsync(Tenant, first.Receipt.RecordId)).Versions);
+        Assert.Null(await reopened.FindTemporalOperationAsync(new(Tenant, Actor, "j09-negative")));
+    }
+
+    [Fact]
+    public async Task J09_clean_completed_vector_retains_prefix_receipt7_and_exact_replay()
+    {
+        using var path = new JournalPath();
+        var before = Mixed("M1-ordinary-converts-to-2");
+        File.WriteAllBytes(path.FileName, before);
+        using var original = JsonDocument.Parse(before);
+        var originals = original.RootElement.GetProperty("Entries").EnumerateArray().Select(value => value.GetRawText()).ToArray();
+        var reference = Event("r1");
+        var observed = 0;
+        var moved = 0;
+        var clock = new Clock(Evidence(reference.GetProperty("entry").GetProperty("Temporal")).AuthorityRecordedAt);
+        byte[]? completed = null;
+        var store = new FileJournalRecordWriteStore(path.FileName, clock, null, () => moved++, temporary =>
+        {
+            observed++;
+            Assert.Equal(before, File.ReadAllBytes(path.FileName));
+            using var closed = new FileStream(temporary, FileMode.Open, FileAccess.Read, FileShare.None);
+            completed = new byte[closed.Length];
+            closed.ReadExactly(completed);
+            Assert.Equal((byte)'{', completed[0]);
+        });
+        var created = await AppendTemporal(store, reference);
+        Assert.Equal(RecordTemporalCommitDisposition.Created, created.Disposition);
+        Assert.Equal(1, observed);
+        Assert.Equal(1, moved);
+        Assert.NotNull(completed);
+        Assert.Equal(completed, File.ReadAllBytes(path.FileName));
+        OriginalReceipt(reference.GetProperty("entry").GetProperty("Receipt"), created.Receipt!.Receipt);
+        Assert.Equal(reference.GetProperty("temporal_binding_sha256").GetString(), created.Receipt.BindingHash);
+        using var published = JsonDocument.Parse(completed);
+        var entries = published.RootElement.GetProperty("Entries").EnumerateArray().ToArray();
+        Assert.Equal(originals.Length + 1, entries.Length);
+        for (var i = 0; i < originals.Length; i++) Assert.Equal(originals[i], entries[i].GetRawText());
+        var reopened = new FileJournalRecordWriteStore(path.FileName);
+        var replay = await AppendTemporal(reopened, reference);
+        Assert.Equal(RecordTemporalCommitDisposition.Replayed, replay.Disposition);
+        OriginalReceipt(reference.GetProperty("entry").GetProperty("Receipt"), replay.Stored!.Receipt!.Receipt);
+        Assert.Equal(reference.GetProperty("temporal_binding_sha256").GetString(), replay.Stored.Receipt.BindingHash);
+        Assert.Equal(completed, File.ReadAllBytes(path.FileName));
+        Assert.Single((await reopened.HistoryAsync("acme", "rec-001")).Versions);
+        Assert.Empty(Directory.GetFiles(path.DirectoryName, "*.tmp"));
+    }
+
     [Fact]
     public async Task Depth_and_full_completed_output_validation_preserve_old_limits()
     {
