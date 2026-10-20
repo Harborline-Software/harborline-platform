@@ -771,4 +771,3 @@ public sealed class RecordTemporalReadOperationTests
         { Calls++; return inner.FindAsync(tenant, recordId, cancellationToken); }
     }
 }
-
