@@ -149,7 +149,7 @@ public sealed class InMemoryProtectedEffectPayloadStore : IProtectedEffectPayloa
     };
 
     private static object? SnapshotValue(object? value) =>
-        value is object?[] vector ? vector.Clone() : value;
+        value is Array vector ? vector.Clone() : value;
 }
 
 /// <summary>Caller and source inputs for one dry run: requester, fingerprints, boundaries, snapshot, authorization and retention references, and expected checkpoint.</summary>

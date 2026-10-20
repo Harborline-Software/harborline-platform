@@ -110,6 +110,73 @@ public sealed class ProtectedEffectPayloadSnapshotTests
     }
 
     [Fact]
+    public async Task Value_type_scalar_vectors_are_detached_on_save_and_every_read()
+    {
+        long[] integers = [7L, 11L];
+        decimal[] decimals = [12.5m, 3.25m];
+        bool[] booleans = [true, false];
+        DateOnly[] dates = [new(2026, 10, 18), new(2026, 10, 19)];
+        DateTimeOffset[] timestamps =
+        [
+            new(2026, 10, 18, 9, 30, 0, TimeSpan.FromHours(2)),
+            new(2026, 10, 19, 10, 0, 0, TimeSpan.Zero),
+        ];
+        var inputs = new Dictionary<string, object?>
+        {
+            ["/integers"] = integers,
+            ["/decimals"] = decimals,
+            ["/booleans"] = booleans,
+            ["/dates"] = dates,
+            ["/timestamps"] = timestamps,
+        };
+        var payloads = new InMemoryProtectedEffectPayloadStore();
+        var reference = await payloads.SaveAsync(new DryRunId("value-vectors"), 0,
+            new CanonicalEffectPayload("records.types/v1", inputs));
+
+        // Mutate every source after save, before the first export.
+        integers[0] = 99L;
+        decimals[0] = 99m;
+        booleans[0] = false;
+        dates[0] = new(2000, 1, 1);
+        timestamps[0] = DateTimeOffset.MinValue;
+
+        var first = Assert.IsType<CanonicalEffectPayload>(await payloads.GetAsync(reference));
+        AssertOriginalVectors(first);
+        foreach (var (key, input) in inputs)
+            Assert.NotSame(input, first.Values[key]);
+
+        // Mutate every export and verify two subsequent reads remain detached.
+        for (var read = 0; read < 2; read++)
+        {
+            foreach (var value in first.Values.Values)
+                Array.Clear(Assert.IsAssignableFrom<Array>(value));
+            var next = Assert.IsType<CanonicalEffectPayload>(await payloads.GetAsync(reference));
+            AssertOriginalVectors(next);
+            foreach (var key in inputs.Keys)
+                Assert.NotSame(first.Values[key], next.Values[key]);
+            first = next;
+        }
+
+        // Oracle: literal fixtures, independent of the store and its snapshot implementation.
+        static void AssertOriginalVectors(CanonicalEffectPayload payload)
+        {
+            Assert.Equal(new long[] { 7L, 11L }, Assert.IsType<long[]>(payload.Values["/integers"]));
+            Assert.Equal(new decimal[] { 12.5m, 3.25m }, Assert.IsType<decimal[]>(payload.Values["/decimals"]));
+            Assert.Equal(new[] { true, false }, Assert.IsType<bool[]>(payload.Values["/booleans"]));
+            Assert.Equal(new DateOnly[] { new(2026, 10, 18), new(2026, 10, 19) },
+                Assert.IsType<DateOnly[]>(payload.Values["/dates"]));
+            var copiedTimestamps = Assert.IsType<DateTimeOffset[]>(payload.Values["/timestamps"]);
+            Assert.Equal(new DateTimeOffset[]
+            {
+                new(2026, 10, 18, 9, 30, 0, TimeSpan.FromHours(2)),
+                new(2026, 10, 19, 10, 0, 0, TimeSpan.Zero),
+            }, copiedTimestamps);
+            Assert.Equal(TimeSpan.FromHours(2), copiedTimestamps[0].Offset);
+            Assert.Equal(TimeSpan.Zero, copiedTimestamps[1].Offset);
+        }
+    }
+
+    [Fact]
     public async Task Snapshots_preserve_scalar_types_nulls_array_types_and_ordinal_keys()
     {
         var date = new DateOnly(2026, 10, 18);
