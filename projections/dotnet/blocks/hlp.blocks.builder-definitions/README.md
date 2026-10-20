@@ -86,6 +86,33 @@ is pinned-only: `ResolveAsync` returns the exact published version or `TaxonomyD
 `definition.reference_unpinned` at `/version` rather than resolving to a head. Foundation never
 depends on blocks.
 
+## Record Type policy declarations (T-615, partial)
+
+`RecordTypeDocument` and `NewRecordType` add nullable init-only `AmendmentPolicy` and
+`HistoryPolicy`, preserving their positional constructors. The admitted wire values are exactly
+`"amendment_policy":{"reason_required":true}` and `"history_policy":"enabled"`. Dedicated
+converters refuse unsupported shapes, spellings and typed values with the existing
+`records.document_invalid` code and empty pointer. Absent or null members remain legacy absence;
+canonical serialization retains an explicitly declared default.
+
+Only `CreateDraftAsync` initializes missing declarations to reason required and history enabled.
+Save carries an omitted declaration from the accepted expected revision, so a positional resave
+retains it and an exact historical retry retains its original payload. Shared catalogue replay and
+CAS still refuse an unseen stale write. Save, publish, restore and install supply no policy default.
+The unchanged legacy body and its digest remain valid; new creation has a different canonical body
+and digest. A create retried across the upgrade can refuse `definition.replay_conflict`, and older
+readers reject the new body. The held T618 grammar fixture keeps its original bytes.
+
+`RecordTypePublication.PolicyWarnings` defaults to empty. Fresh and replayed `PublishAsync`
+return `records.retention.unset` at `/retention_policy`, computed from the returned immutable body.
+`ResolvePublishedSchemaAsync` binds without publication warnings; warnings are absent from refusal
+and authoring diagnostics. Publication continues warning until retention becomes authorable.
+
+These declarations implement the bounded default, carry-forward and warning slice. The amendment
+constraint requires a reason across ADR-0040's modes; it selects no mode. History `enabled`
+requests effective-dated rows without implementing temporal writes/reads or changing `RecordedAt`.
+Runtime amendment, history, retention, ck-20/ck-21 and host qualification remain open.
+
 ## Records write: one record create (T-616, bounded)
 
 `RecordWriteOperation.CreateAsync` is the first public Records write. It composes existing producers only:
@@ -496,17 +523,38 @@ Hosts supply these registers to the existing `LayoutHostRegisters` seam; API ado
 
 ## Durable Records write store
 
-`FileJournalRecordWriteStore` implements the existing prepared transaction port and receipt reader,
-composed into no host. It atomically replaces a file journal containing the record, operation and
-opaque audit evidence, preserves replay across reopen, and refuses corrupt journals. Writers are
-serialized within one process; cross-process locking and the proposed `records-write-file-journal/1`
-format await review. It adds no public record read or amendment evidence. API adapter qualification
-remains held under T-619.
+`FileJournalRecordWriteStore` implements the prepared transaction port, receipt reader and committed
+record read port over the same journal. It is composed into no host. Its source writes the record,
+operation identity, receipt and opaque audit evidence into a completed temporary file, flushes and
+validates that entire candidate, then replaces the journal. The writer gate is process-wide across
+instances and paths; it supplies no cross-process exclusion. Native qualification remains owed.
 
-Replacement is crash-safe, not power-loss-safe: the rename has no parent-directory fsync on Unix
-and no write-through on Windows. A lost Created result followed by a retry could create a second
-record. BCL-only code cannot close this gap; production-adapter durability remains owner/T-619
-work (seam gap 6). A missing journal directory reads as an empty store, and commit recreates it,
-matching the lifecycle-store pattern; this behavior remains an owner decision (seam gap 7).
-External Windows handles can refuse replacement, in which case commit fails without changing
-the journal. The writer gate is process-wide across all instances and paths.
+`records-write-file-journal/2` retains a contiguous prefix of raw legacy `/1` entries and appends
+bound `/2` entries. A new Created commit converts and appends atomically; open, read, replay and
+conflict preserve the existing bytes. Whole-journal validation runs on all four load paths, checks
+the versioned eight-field binding and all seven receipt fields, and refuses corruption anywhere
+without a `/1` fallback. Legacy provenance and raw spans remain legacy. The binding hash supplies
+integrity evidence, not authentication or valid-downgrade detection.
+
+Current reads are bounded at16MiB; other journal loads remain uncapped. Legacy `/1` retains its
+JSON depth64 limit; `/2` allows65 for the retained legacy wrapper, and the writer validates its
+complete temporary output before replacement. Cancellation and I/O errors keep their distinct
+behavior. These source limits and replacement behavior require qualification on the final head.
+
+A bound row's nullable init-only `PublicationVersionId` identifies its exact immutable Published
+revision. Current read resolves that identity, verifies tenant/type, label, exact body digest and
+stored schema, and preserves the stored opaque schema id. Warm and cold schema binding register
+current first, try legacy only after a successful nonmatch, and stop on match, failure or
+cancellation; at most two registrations are permitted. A legacy row retains its exact version
+lookup and identical-body identity limitation. No current-head fallback is supplied.
+
+Before first `/2` write, stop and drain all `/1` writers and fence their restart sources. Preserve
+a read-only backup/hash and stray temporary files, use one qualified writer, and verify the complete
+converted prefix, original receipts and replay before reopening traffic. Restoring `/1` requires
+explicit reconciliation. This source contract grants no operational cutover or host enablement.
+
+Ordinary retry settles from the committed operation receipt. The replacement has no Unix
+parent-directory fsync or Windows write-through, so it supplies no power-loss durability guarantee.
+A missing directory reads as empty and commit recreates it, retaining the existing behavior and
+owner/T619 boundary. External Windows handles can refuse replacement. Runtime amendment/history,
+cross-process races and production-adapter durability remain separate qualification and T619 work.
