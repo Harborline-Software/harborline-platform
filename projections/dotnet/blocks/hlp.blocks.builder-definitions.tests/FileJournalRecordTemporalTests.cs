@@ -437,7 +437,7 @@ public sealed class FileJournalRecordTemporalTests
     public async Task Cross_encoding_keys_never_become_fresh_writes()
     {
         using var ordinary = await Fixture.Create();
-        var old = await ordinary.Writer.CreateAsync(new(Tenant, Actor), new(Type, "shared", Body()));
+        var old = await ordinary.Writer.CreateAsync(new(Tenant, Actor), new(RecordTemporalWriteOperationTests.Type, "shared", Body()));
         Assert.True(old.Committed);
         var oldBytes = ordinary.Bytes();
         var temporal = await ordinary.CreateEvent("shared");
@@ -449,13 +449,13 @@ public sealed class FileJournalRecordTemporalTests
         using var fresh = await Fixture.Create();
         var accepted = Committed(await fresh.CreateEvent("shared"));
         var before = fresh.Bytes();
-        var oldRetry = await fresh.Writer.CreateAsync(new(Tenant, Actor), new(Type, "shared", Body()));
+        var oldRetry = await fresh.Writer.CreateAsync(new(Tenant, Actor), new(RecordTemporalWriteOperationTests.Type, "shared", Body()));
         Assert.Equal("records.write.receipt_unsupported", oldRetry.Refusal!.Code);
         Assert.Equal(before, fresh.Bytes());
         var actor = "worker-1";
-        var row = new RecordWriteRow(Tenant, "accepted-separate", Type, accepted.Receipt.Version,
+        var row = new RecordWriteRow(Tenant, "accepted-separate", RecordTemporalWriteOperationTests.Type, accepted.Receipt.Version,
             accepted.Receipt.DefinitionDigest, accepted.Receipt.Schema, actor, "shared", null, "records-write-intent/1",
-            RecordWriteIntent.Digest(RecordWriteIntent.Encode(Type, null, Body())),
+            RecordWriteIntent.Digest(RecordWriteIntent.Encode(RecordTemporalWriteOperationTests.Type, null, Body())),
             """{"status":"A","value":10}"""u8.ToArray(), GateAt)
         {
             PublicationVersionId = "1.0.0", OriginatorId = Actor,
@@ -833,7 +833,7 @@ public sealed class FileJournalRecordTemporalTests
         using var stagedCancellation = new CancellationTokenSource();
         fixture.Storage.OnStep = step => { if (step == "record") stagedCancellation.Cancel(); };
         var stagedError = await Assert.ThrowsAnyAsync<OperationCanceledException>(() => fixture.Writer.CreateEffectiveAsync(
-            new(Tenant, Actor), new(Type, "stage-cancel", Body(), GateAt, null), stagedCancellation.Token).AsTask());
+            new(Tenant, Actor), new(RecordTemporalWriteOperationTests.Type, "stage-cancel", Body(), GateAt, null), stagedCancellation.Token).AsTask());
         Assert.Equal(stagedCancellation.Token, stagedError.CancellationToken);
         Assert.Contains("operation", fixture.Storage.Events);
         Assert.Contains("rollback", fixture.Storage.Events);
@@ -880,7 +880,7 @@ public sealed class FileJournalRecordTemporalTests
             fixture.Schemas.DuringValidate = null;
             var accepted = Committed(await fixture.CreateEvent());
             var reopened = new FileJournalRecordWriteStore(fixture.PathName);
-            Assert.Equal(1, (await reopened.HistoryAsync(Tenant, accepted.Receipt.RecordId)).Versions.Count);
+            Assert.Single((await reopened.HistoryAsync(Tenant, accepted.Receipt.RecordId)).Versions);
         }
         using var path = new JournalPath();
         var parent = Path.Combine(path.DirectoryName, "blocked-parent");
@@ -914,7 +914,7 @@ public sealed class FileJournalRecordTemporalTests
     public async Task Mixed_identity_and_key_collision_cannot_drop_or_strengthen_data()
     {
         using var fixture = await Fixture.Create();
-        var ordinary = await fixture.Writer.CreateAsync(new(Tenant, Actor), new(Type, "ordinary", Body()));
+        var ordinary = await fixture.Writer.CreateAsync(new(Tenant, Actor), new(RecordTemporalWriteOperationTests.Type, "ordinary", Body()));
         var before = fixture.Bytes();
         var refused = await fixture.Writer.AmendAsync(new(Tenant, Actor), new(ordinary.Receipt!.RecordId, "amend-old",
             new(1, new string('a', 64)), Body(20), GateAt, null, "reviewed"));
@@ -923,7 +923,7 @@ public sealed class FileJournalRecordTemporalTests
         Assert.Equal(before, fixture.Bytes());
         var temporal = Committed(await fixture.CreateEvent());
         var after = fixture.Bytes();
-        var collision = new RecordWriteRow(Tenant, temporal.Receipt.RecordId, Type, temporal.Receipt.Version,
+        var collision = new RecordWriteRow(Tenant, temporal.Receipt.RecordId, RecordTemporalWriteOperationTests.Type, temporal.Receipt.Version,
             temporal.Receipt.DefinitionDigest, temporal.Receipt.Schema, Actor, "identity-collision", null,
             "records-write-intent/1", "ordinary-intent", "{}"u8.ToArray(), GateAt) { PublicationVersionId = "1.0.0" };
         await Assert.ThrowsAsync<InvalidOperationException>(() => AppendOrdinary(fixture.Storage.Inner, collision));
@@ -1064,7 +1064,7 @@ public sealed class FileJournalRecordTemporalTests
         var retry = await AppendTemporal(new FileJournalRecordWriteStore(path.FileName, clock), Event("r1"));
         Assert.Equal(RecordTemporalCommitDisposition.Created, retry.Disposition);
         Assert.Equal("a1462eba94b9c7726fe9608c89485091538f5afb77961e0210191a3a0569ea5b", retry.Receipt!.BindingHash);
-        Assert.Equal(1, (await new FileJournalRecordWriteStore(path.FileName).HistoryAsync("acme", "rec-001")).Versions.Count);
+        Assert.Single((await new FileJournalRecordWriteStore(path.FileName).HistoryAsync("acme", "rec-001")).Versions);
     }
 
     // A separate SPEC-framed reference, used only to retain valid hashes while attacking association rules.

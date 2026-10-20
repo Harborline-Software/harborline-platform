@@ -308,6 +308,7 @@ public sealed class FileJournalFormatTransitionTests : IDisposable
                 Assert.Equal("{}"u8.ToArray(), current.Body.ToArray());
                 var settlement = await store.FindAsync(new RecordWriteOperationKey("acme", "alice", expected.OperationId));
                 Assert.NotNull(settlement);
+                Assert.NotNull(settlement.Receipt);
                 Assert.Equal(expected.RecordId, settlement.Receipt.RecordId);
                 Assert.Equal(expected.OperationId, settlement.Receipt.OperationId);
             }

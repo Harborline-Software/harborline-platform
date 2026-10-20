@@ -19,7 +19,7 @@ namespace Harborline.Blocks.BuilderDefinitions.Tests;
 /// <summary>Explicit effective reads and current authority over real prepared, committed journal revisions.</summary>
 public sealed class RecordTemporalReadOperationTests
 {
-    private static readonly RecordReadScope Scope = new(Tenant, Actor);
+    private static readonly RecordReadScope Scope = new(RecordTemporalWriteOperationTests.Tenant, Actor);
     private static int Value(RecordReadResult record)
     {
         using var body = JsonDocument.Parse(record.Body);
@@ -139,7 +139,7 @@ public sealed class RecordTemporalReadOperationTests
             Assert.Empty(fixture.Access.Requests);
             Assert.Empty(fixture.Definitions.Pins);
         }
-        var ordinary = await fixture.Writer.CreateAsync(new(Tenant, Actor), new(Type, "ordinary", Body(90)));
+        var ordinary = await fixture.Writer.CreateAsync(new(RecordTemporalWriteOperationTests.Tenant, Actor), new(RecordTemporalWriteOperationTests.Type, "ordinary", Body(90)));
         Assert.True(ordinary.Committed);
         Reset(fixture);
         var unsupported = await fixture.Reader.ReadAtAsync(Scope, new(ordinary.Receipt!.RecordId, GateAt));
@@ -197,22 +197,22 @@ public sealed class RecordTemporalReadOperationTests
     {
         using var fixture = await Fixture.Create();
         var temporal = Committed(await fixture.CreateEvent());
-        var ordinary = await fixture.Writer.CreateAsync(new(Tenant, Actor), new(Type, "ordinary", Body(90)));
+        var ordinary = await fixture.Writer.CreateAsync(new(RecordTemporalWriteOperationTests.Tenant, Actor), new(RecordTemporalWriteOperationTests.Type, "ordinary", Body(90)));
         var before = fixture.Bytes();
         var clockless = new FileJournalRecordWriteStore(fixture.PathName);
-        Assert.Equal(90, Value(newRecord((await clockless.FindAsync(Tenant, ordinary.Receipt!.RecordId))!)));
-        var error = await Assert.ThrowsAsync<NotSupportedException>(() => clockless.FindAsync(Tenant, temporal.Receipt.RecordId).AsTask());
+        Assert.Equal(90, Value(newRecord((await clockless.FindAsync(RecordTemporalWriteOperationTests.Tenant, ordinary.Receipt!.RecordId))!)));
+        var error = await Assert.ThrowsAsync<NotSupportedException>(() => clockless.FindAsync(RecordTemporalWriteOperationTests.Tenant, temporal.Receipt.RecordId).AsTask());
         Assert.Equal("Temporal point reads require an explicit authority clock.", error.Message);
         Assert.Equal(RecordTemporalLookupKind.Temporal,
-            (await clockless.FindAtAsync(Tenant, temporal.Receipt.RecordId, GateAt)).Kind);
-        Assert.Single((await clockless.HistoryAsync(Tenant, temporal.Receipt.RecordId)).Versions);
+            (await clockless.FindAtAsync(RecordTemporalWriteOperationTests.Tenant, temporal.Receipt.RecordId, GateAt)).Kind);
+        Assert.Single((await clockless.HistoryAsync(RecordTemporalWriteOperationTests.Tenant, temporal.Receipt.RecordId)).Versions);
         Assert.Equal(temporal.BindingHash,
-            (await clockless.FindTemporalOperationAsync(new(Tenant, Actor, "r1")))!.Receipt!.BindingHash);
+            (await clockless.FindTemporalOperationAsync(new(RecordTemporalWriteOperationTests.Tenant, Actor, "r1")))!.Receipt!.BindingHash);
         var clock = new Clock(Date("2031-05-15T00:00:00-04:00"));
         var clocked = new FileJournalRecordWriteStore(fixture.PathName, clock);
-        Assert.Equal(10, Value(newRecord((await clocked.FindAsync(Tenant, temporal.Receipt.RecordId))!)));
+        Assert.Equal(10, Value(newRecord((await clocked.FindAsync(RecordTemporalWriteOperationTests.Tenant, temporal.Receipt.RecordId))!)));
         Assert.Equal(1, clock.Reads);
-        _ = await clocked.FindAsync(Tenant, ordinary.Receipt.RecordId);
+        _ = await clocked.FindAsync(RecordTemporalWriteOperationTests.Tenant, ordinary.Receipt.RecordId);
         Assert.Equal(1, clock.Reads);
         var reader = new RecordReadOperation(clockless, new AccessProvider(fixture.Access), fixture.Types, clock);
         var current = await reader.ReadAsync(Scope, new(temporal.Receipt.RecordId));
@@ -227,7 +227,7 @@ public sealed class RecordTemporalReadOperationTests
     public async Task Old_only_reader_and_current_projection_remain_compatible()
     {
         using var fixture = await Fixture.Create();
-        var accepted = await fixture.Writer.CreateAsync(new(Tenant, Actor), new(Type, "old-port-row", Body(42)));
+        var accepted = await fixture.Writer.CreateAsync(new(RecordTemporalWriteOperationTests.Tenant, Actor), new(RecordTemporalWriteOperationTests.Type, "old-port-row", Body(42)));
         var oldOnly = new OldOnly(fixture.Storage.Inner);
         var reader = new RecordReadOperation(oldOnly, new AccessProvider(fixture.Access), fixture.Types, fixture.OperationClock);
         Reset(fixture);
@@ -262,26 +262,26 @@ public sealed class RecordTemporalReadOperationTests
     public async Task Selected_revision_uses_its_own_exact_immutable_publication()
     {
         using var fixture = await Fixture.Create();
-        var key = new DefinitionKey(Tenant, DefinitionKind.Records, Type);
+        var key = new DefinitionKey(RecordTemporalWriteOperationTests.Tenant, DefinitionKind.Records, RecordTemporalWriteOperationTests.Type);
         var original = (await fixture.RawDefinitions.ResolvePublishedAsync(new(key, "1.0.0")))!;
         var originalBody = original.Document.BodyJson;
         Assert.Contains("\"field_key\":\"status\"", originalBody, StringComparison.Ordinal);
         await fixture.RawDefinitions.SaveDraftAsync(new(key, "opaque-A", "1.0.0", originalBody), 2, "opaque-a-draft");
-        await fixture.Publisher.PublishAsync(Tenant, Type, "opaque-A", 3, "opaque-a-publish");
+        await fixture.Publisher.PublishAsync(RecordTemporalWriteOperationTests.Tenant, RecordTemporalWriteOperationTests.Type, "opaque-A", 3, "opaque-a-publish");
         await fixture.RawDefinitions.SaveDraftAsync(new(key, "opaque-B", "1.0.0", originalBody), 4, "opaque-b-draft");
-        await fixture.Publisher.PublishAsync(Tenant, Type, "opaque-B", 5, "opaque-b-publish");
+        await fixture.Publisher.PublishAsync(RecordTemporalWriteOperationTests.Tenant, RecordTemporalWriteOperationTests.Type, "opaque-B", 5, "opaque-b-publish");
         var variantBody = originalBody.Replace("\"field_key\":\"status\"", "\"field_key\":\"alternate_status\"", StringComparison.Ordinal);
         await fixture.RawDefinitions.SaveDraftAsync(new(key, "opaque-C", "1.0.0", variantBody), 6, "opaque-c-draft");
-        await fixture.Publisher.PublishAsync(Tenant, Type, "opaque-C", 7, "opaque-c-publish");
+        await fixture.Publisher.PublishAsync(RecordTemporalWriteOperationTests.Tenant, RecordTemporalWriteOperationTests.Type, "opaque-C", 7, "opaque-c-publish");
         var registry = new IndependentIds(new InMemorySchemaRegistry(fieldKindRuntime: fixture.Kinds));
         var types = Types(fixture, registry);
         var writer = new RecordWriteOperation(new AccessProvider(fixture.Access), types, registry, fixture.Storage,
             fixture.Storage, fixture.OperationClock, fixture.Kinds, fixture.Domains, fixture.Storage, fixture.Storage, fixture.Storage);
-        var first = Committed(await writer.CreateEffectiveAsync(new(Tenant, Actor),
-            new(Type, "pin-a", Body(10), Date("2031-04-01T00:00:00-04:00"), null, "opaque-A")));
-        var second = Committed(await writer.AmendAsync(new(Tenant, Actor), new(first.Receipt.RecordId, "pin-b",
+        var first = Committed(await writer.CreateEffectiveAsync(new(RecordTemporalWriteOperationTests.Tenant, Actor),
+            new(RecordTemporalWriteOperationTests.Type, "pin-a", Body(10), Date("2031-04-01T00:00:00-04:00"), null, "opaque-A")));
+        var second = Committed(await writer.AmendAsync(new(RecordTemporalWriteOperationTests.Tenant, Actor), new(first.Receipt.RecordId, "pin-b",
             Basis(first), Body(20), Date("2031-06-01T00:00:00-04:00"), null, "use B", "opaque-B")));
-        var third = Committed(await writer.AmendAsync(new(Tenant, Actor), new(first.Receipt.RecordId, "pin-c",
+        var third = Committed(await writer.AmendAsync(new(RecordTemporalWriteOperationTests.Tenant, Actor), new(first.Receipt.RecordId, "pin-c",
             Basis(second), Body(30, key: "alternate_status"), Date("2031-07-01T00:00:00-04:00"), null, "use C", "opaque-C")));
         // These identities are literal provider contracts, not values copied out of the producer's read result.
         Assert.Equal("schema-provider:status-v1", first.Receipt.Schema.Value);
@@ -289,7 +289,7 @@ public sealed class RecordTemporalReadOperationTests
         Assert.Equal("schema-provider:alternate-status-v1", third.Receipt.Schema.Value);
         Assert.Equal(first.Receipt.DefinitionDigest, second.Receipt.DefinitionDigest);
         Assert.NotEqual(first.Receipt.DefinitionDigest, third.Receipt.DefinitionDigest);
-        var durable = await fixture.Storage.Inner.HistoryAsync(Tenant, first.Receipt.RecordId);
+        var durable = await fixture.Storage.Inner.HistoryAsync(RecordTemporalWriteOperationTests.Tenant, first.Receipt.RecordId);
         Assert.Equal(new[] { "opaque-A", "opaque-B", "opaque-C" }, durable.Versions.Select(value => value.Row.PublicationVersionId));
         Assert.Equal(new[] { "1.0.0", "1.0.0", "1.0.0" }, durable.Versions.Select(value => value.Row.Version));
         var before = fixture.Bytes();
@@ -352,14 +352,14 @@ public sealed class RecordTemporalReadOperationTests
             Assert.True(Date("2040-08-09T10:11:12+03:00").EqualsExact(request.At));
             Assert.Equal("records:read", request.Operation);
             Assert.Equal(chain.First.Receipt.RecordId, request.Record.Id);
-            Assert.Equal(Type, request.Record.RecordTypeId);
+            Assert.Equal(RecordTemporalWriteOperationTests.Type, request.Record.RecordTypeId);
         });
         var serialized = JsonSerializer.Serialize(denied);
         Assert.DoesNotContain("\"Body\"", serialized, StringComparison.Ordinal);
         Assert.DoesNotContain(chain.First.BindingHash, serialized, StringComparison.Ordinal);
         Assert.DoesNotContain(chain.Third.BindingHash, serialized, StringComparison.Ordinal);
         Reset(fixture);
-        var otherActor = await fixture.Reader.ReadHistoryAsync(new(Tenant, "reader-without-access"), chain.First.Receipt.RecordId);
+        var otherActor = await fixture.Reader.ReadHistoryAsync(new(RecordTemporalWriteOperationTests.Tenant, "reader-without-access"), chain.First.Receipt.RecordId);
         Assert.Equal(RecordTemporalReadStatus.Refused, otherActor.Status);
         Assert.Empty(otherActor.Records);
         Assert.Single(otherActor.Decisions);
@@ -454,7 +454,7 @@ public sealed class RecordTemporalReadOperationTests
         Assert.Equal(before, fixture.Bytes());
         // The durable history is still intact and was never "repaired" by a refused bind.
         fixture.Definitions.PinTransform = null;
-        var durable = await fixture.Storage.Inner.HistoryAsync(Tenant, first.Receipt.RecordId);
+        var durable = await fixture.Storage.Inner.HistoryAsync(RecordTemporalWriteOperationTests.Tenant, first.Receipt.RecordId);
         Assert.Equal(new[] { first.BindingHash, second.BindingHash }, durable.Versions.Select(value => value.BindingHash));
     }
 
@@ -506,7 +506,7 @@ public sealed class RecordTemporalReadOperationTests
         => new(fixture.Definitions,
             new RecordTypeSchemaCompiler(new RecordsIntentValidator(), fixture.Kinds, new SharedValueDomainAdmission(), fixture.Domains),
             new RecordFieldDefaults(fixture.Kinds), registry, window ?? new(1, 0, 1),
-            new(TenantId.FromString(Tenant), "type-author"), CreationRoles);
+            new(TenantId.FromString(RecordTemporalWriteOperationTests.Tenant), "type-author"), CreationRoles);
 
     // A concrete lawful alternate-ID provider: exact schema texts from the real compiler remain the source content.
     // Only the provider's returned IDs define stored identity; read expectations pin its two literals independently.
@@ -619,7 +619,7 @@ public sealed class RecordTemporalReadOperationTests
         var receipt = Committed(await fixture.AmendEvent(chain.Second, "r3", "2031-05-01T00:00:00-04:00",
             "2031-06-01T00:00:00-04:00", 15, "correct May"));
         Attack(receipt.Temporal.Supersedes, new(new(55, new string('e', 64)), GateAt, null));
-        var receiptAgain = (await fixture.Storage.Inner.FindTemporalOperationAsync(new(Tenant, Actor, "r3")))!.Receipt!;
+        var receiptAgain = (await fixture.Storage.Inner.FindTemporalOperationAsync(new(RecordTemporalWriteOperationTests.Tenant, Actor, "r3")))!.Receipt!;
         Assert.Equal(chain.Third.BindingHash, receiptAgain.BindingHash);
         Assert.Equal(1, Assert.Single(receiptAgain.Temporal.Supersedes).Revision.Revision);
         var historyAgain = await fixture.Reader.ReadHistoryAsync(Scope, chain.First.Receipt.RecordId);
@@ -641,7 +641,7 @@ public sealed class RecordTemporalReadOperationTests
         static void ChangeBytes(ReadOnlyMemory<byte> memory)
         {
             Assert.True(MemoryMarshal.TryGetArray(memory, out ArraySegment<byte> bytes));
-            Assert.NotEmpty(bytes);
+            Assert.True(bytes.Count > 0);
             bytes.Array![bytes.Offset] = (byte)'!';
         }
         static void Attack<T>(IReadOnlyList<T> values, T replacement)

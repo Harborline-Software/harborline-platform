@@ -58,7 +58,7 @@ public sealed class RecordTemporalWriteOperationTests
     {
         using var fixture = await Fixture.Create(mode: false);
         var declaration = (await fixture.Publisher.GetPublishedHeadAsync(Tenant, Type))!;
-        Assert.Equal(true, declaration.AmendmentPolicy!.ReasonRequired);
+        Assert.True(declaration.AmendmentPolicy!.ReasonRequired);
         Assert.Null(declaration.AmendmentPolicy.Mode);
         Assert.Equal(RecordHistoryPolicy.Enabled, declaration.HistoryPolicy);
         var outcome = await fixture.CreateEvent();
