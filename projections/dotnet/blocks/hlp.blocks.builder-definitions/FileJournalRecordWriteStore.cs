@@ -788,7 +788,8 @@ public sealed class FileJournalRecordWriteStore : IKernelPreparedTransactionPort
             }
             else
             {
-                var tag = item.GetProperty("Tag").GetString();
+                if (!item.TryGetProperty("Tag", out var tagElement)) throw Corrupt();
+                var tag = tagElement.GetString();
                 var isTemporal = temporalFormat && tag == "temporal/3";
                 if (isTemporal) Members(item, "Tag", "Key", "Operation", "Row", "Audit", "Receipt", "Binding", "Temporal", "TemporalBinding");
                 else

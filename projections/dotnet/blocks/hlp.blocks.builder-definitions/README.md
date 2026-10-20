@@ -89,13 +89,17 @@ depends on blocks.
 ## Record Type policy declarations (T-615, partial)
 
 `RecordTypeDocument` and `NewRecordType` add nullable init-only `AmendmentPolicy` and
-`HistoryPolicy`, preserving their positional constructors. The admitted wire values are exactly
-`"amendment_policy":{"reason_required":true}` and `"history_policy":"enabled"`. Dedicated
-converters refuse unsupported shapes, spellings and typed values with the existing
-`records.document_invalid` code and empty pointer. Absent or null members remain legacy absence;
-canonical serialization retains an explicitly declared default.
+`HistoryPolicy`, preserving their positional constructors. Amendment policy accepts exactly
+`{"reason_required":true}` or `{"reason_required":true,"mode":"supersession"}`;
+`"history_policy":"enabled"` remains the only history declaration. `RecordAmendmentPolicy.Mode`
+is nullable and supports only `RecordAmendmentMode.Supersession`. Dedicated converters reject
+unknown or duplicate decoded members, unsupported values and explicit null mode with the existing
+`records.document_invalid` code and empty pointer. Absent or null policy members remain legacy
+absence. Reason-only canonical bytes stay unchanged; explicit mode serializes as
+`{"mode":"supersession","reason_required":true}`. Canonical serialization retains explicit defaults.
 
-Only `CreateDraftAsync` initializes missing declarations to reason required and history enabled.
+Only `CreateDraftAsync` initializes missing declarations to reason required and history enabled;
+it does not select an amendment mode or enable temporal writes.
 Save carries an omitted declaration from the accepted expected revision, so a positional resave
 retains it and an exact historical retry retains its original payload. Shared catalogue replay and
 CAS still refuse an unseen stale write. Save, publish, restore and install supply no policy default.
@@ -108,10 +112,11 @@ return `records.retention.unset` at `/retention_policy`, computed from the retur
 `ResolvePublishedSchemaAsync` binds without publication warnings; warnings are absent from refusal
 and authoring diagnostics. Publication continues warning until retention becomes authorable.
 
-These declarations implement the bounded default, carry-forward and warning slice. The amendment
-constraint requires a reason across ADR-0040's modes; it selects no mode. History `enabled`
-requests effective-dated rows without implementing temporal writes/reads or changing `RecordedAt`.
-Runtime amendment, history, retention, ck-20/ck-21 and host qualification remain open.
+The reason-only declaration implements the bounded default, carry-forward and warning slice;
+it selects no mode. The additive temporal library below requires explicit supersession mode,
+reason required and history enabled in the selected admitted immutable publication. History or a
+reason-only policy never implies that opt-in. Retention, wider ck-20/ck-21 and host qualification
+remain open; the temporal library does not change the meaning of `RecordedAt`.
 
 ## Records write: one record create (T-616, bounded)
 
@@ -530,15 +535,19 @@ validates that entire candidate, then replaces the journal. The writer gate is p
 instances and paths; it supplies no cross-process exclusion. Native qualification remains owed.
 
 `records-write-file-journal/2` retains a contiguous prefix of raw legacy `/1` entries and appends
-bound `/2` entries. A new Created commit converts and appends atomically; open, read, replay and
-conflict preserve the existing bytes. Whole-journal validation runs on all four load paths, checks
+bound `/2` entries. The first temporal Created converts `/1` or `/2` directly to
+`records-write-file-journal/3`, retaining the raw legacy prefix and bound entries and appending
+`temporal/3` entries. Ordinary and accepted Created writes on `/3` preserve that format and every
+existing temporal span before appending an unchanged bound entry. Open, read, replay and conflict
+do not convert; only a new Created atomically converts and appends. Whole-journal validation checks
 the versioned eight-field binding and all seven receipt fields, and refuses corruption anywhere
 without a `/1` fallback. Legacy provenance and raw spans remain legacy. The binding hash supplies
 integrity evidence, not authentication or valid-downgrade detection.
 
-Current reads are bounded at16MiB; other journal loads remain uncapped. Legacy `/1` retains its
-JSON depth64 limit; `/2` allows65 for the retained legacy wrapper, and the writer validates its
-complete temporary output before replacement. Cancellation and I/O errors keep their distinct
+Current, effective, history and amendment-target reads share the existing async16MiB bound;
+constructor, receipt and commit loads remain uncapped. Even target metadata can refuse an oversized
+journal before authorization or replay. Legacy `/1` retains JSON depth64; `/2` and `/3` allow65 for
+the retained legacy wrapper, and the writer validates its complete temporary output before replacement. Cancellation and I/O errors keep their distinct
 behavior. These source limits and replacement behavior require qualification on the final head.
 
 A bound row's nullable init-only `PublicationVersionId` identifies its exact immutable Published
@@ -548,13 +557,64 @@ current first, try legacy only after a successful nonmatch, and stop on match, f
 cancellation; at most two registrations are permitted. A legacy row retains its exact version
 lookup and identical-body identity limitation. No current-head fallback is supplied.
 
-Before first `/2` write, stop and drain all `/1` writers and fence their restart sources. Preserve
+Before first `/2` write, stop and drain all `/1` writers and fence their restart sources. Before
+first `/3` write, do the same for every writer unable to preserve `/3`, including a `/2` writer
+loaded before conversion. A newly opened old reader's refusal does not prove that exclusion. Preserve
 a read-only backup/hash and stray temporary files, use one qualified writer, and verify the complete
-converted prefix, original receipts and replay before reopening traffic. Restoring `/1` requires
-explicit reconciliation. This source contract grants no operational cutover or host enablement.
+converted prefix, original receipts, exact replay and later ordinary preservation before reopening
+traffic. Restoring `/1` or `/2` requires explicit reconciliation of newer events and operation
+identities. This source contract grants no operational cutover or host enablement.
 
 Ordinary retry settles from the committed operation receipt. The replacement has no Unix
 parent-directory fsync or Windows write-through, so it supplies no power-loss durability guarantee.
 A missing directory reads as empty and commit recreates it, retaining the existing behavior and
-owner/T619 boundary. External Windows handles can refuse replacement. Runtime amendment/history,
-cross-process races and production-adapter durability remain separate qualification and T619 work.
+owner/T619 boundary. External Windows handles can refuse replacement. Cross-process races and
+production-adapter durability remain separate qualification and T619 work.
+
+## Opt-in temporal Records library (T-617, unqualified)
+
+`RecordWriteOperation.CreateEffectiveAsync` creates a new logical record with an explicit
+`EffectiveFrom` and nullable exclusive `EffectiveTo`; `AmendAsync` appends an immutable revision
+with a required reason and exact `RecordTemporalBasis` revision/hash. No existing row is retrofitted.
+The half-open UTC interval requires an end later than its start. Later causal revisions overlay
+that interval and retain unaffected segments and gaps; history follows causal revision order,
+not authority time. The amendment basis is the latest causal head, which can differ from the
+revision selected by an effective-time read. A stale basis returns `BasisMismatch` without writing.
+
+The explicit constructor takes temporal prepared, receipt and read ports on the same object as
+the ordinary ports. Existing composition returns `TemporalStoreUnavailable` for temporal writes.
+A new Created requires an explicitly configured journal authority clock; an exact accepted retry
+can replay without a fresh stamp. `AuthorityRecordedAt` is sampled inside the commit critical
+section after replay and CAS, and differs from the unchanged gate-act `Receipt.RecordedAt`.
+The caller supplies every interval/AsOf value; this library supplies no request-JSON adapter.
+
+Validate and detach the request first. Amendment uses bounded same-journal target metadata to
+establish its tenant/type before current `records:write` authorization. Only after current access
+may an exact operation-key/intent retry return its original detached receipt, without rechecking
+publication, temporal policy, basis or head. Unsupported receipts and conflicting intents retain
+the existing refusal codes. A genuinely new write selects one admitted immutable publication,
+requires the explicit temporal policy and validates existing schema/field/domain constraints;
+only creation uses the creation-only gate. The prepared transaction stages the row, operation,
+receipt and audit together. Locked replay precedes exact-head CAS and clock allocation; complete
+finished-output validation precedes one atomic replacement. Refusal publishes no partial event,
+audit or stamp; registry side effects can remain. No sidecar journal or post-commit audit is added.
+
+`RecordReadOperation.ReadAsync` selects the effective revision at its single sampled current
+instant on a temporal-capable store; an old-only store retains its old `FindAsync` path.
+`ReadAtAsync` uses the supplied AsOf for selection and a separately sampled current instant for
+access. `ReadHistoryAsync` authorizes every causal revision at one current act instant and returns
+all detached results or no bodies, prefix or count. Each selected row binds its own exact immutable
+publication and current-first stored-schema sequence. No historical grant is reconstructed.
+Explicit temporal reads distinguish `NoEffectiveRevision` and `UnsupportedLegacyBasis`; the old
+current read retains its public miss semantics. Direct untimed journal `FindAsync` on a temporal
+identity requires an explicit authority clock; effective/history reads need no implicit clock.
+
+All current/effective/history/target, constructor, receipt and commit routes validate the whole
+local journal before returning data. Missing owned members, malformed unrelated entries and broken
+receipt/binding/chain evidence refuse as existing journal corruption; dependency, I/O and
+cancellation exceptions retain their classes. Binding hashes are integrity evidence, not authority.
+The existing test controls, fault distinctions and old-writer fencing require final-head proof.
+This is an additive producer library, with no host enablement/cutover, accepted-command or Forms
+temporal adoption, broad queries/paging, historical grants, retention/legal hold, offline policy,
+cross-process/power-loss durability or full T-617/M11 qualification. T-616 literal defaults remain
+outside this implementation slice.
