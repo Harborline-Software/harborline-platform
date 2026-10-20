@@ -105,6 +105,54 @@ public sealed class EffectReceiptStoreSnapshotTests
         AssertOriginal(await ledger.GetAsync(Tenant, Effect), false);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Validation_and_storage_use_the_first_copied_sequence_values(bool changeAttempts)
+    {
+        var ledger = new EffectReceiptLedger(new InMemoryEffectReceiptStore());
+        var attempts = new ChangingList<EffectAttempt>(OriginalAttempt(),
+            new(99, Started, Started.AddSeconds(1), "changed", "500"));
+        var references = new ChangingList<string>("secretref:original", "raw-secret-value");
+        var input = Receipt(changeAttempts ? attempts : new[] { OriginalAttempt() },
+            changeAttempts ? new[] { "secretref:original" } : references, false);
+
+        await ledger.RecordAsync(input);
+        AssertOriginal(await ledger.GetAsync(Tenant, Effect), false);
+        Assert.Equal(1, changeAttempts ? attempts.Enumerations : references.Enumerations);
+    }
+
+    [Fact]
+    public async Task Invalid_copied_attempt_is_refused_even_when_the_indexer_is_valid()
+    {
+        var ledger = new EffectReceiptLedger(new InMemoryEffectReceiptStore());
+        var attempts = new ChangingList<EffectAttempt>(OriginalAttempt(),
+            new(99, Started, Started.AddSeconds(1), "changed", "500"), firstEnumerationChanges: true);
+
+        var refused = await Assert.ThrowsAsync<ExecutionRuntimeRefusedException>(() => ledger.RecordAsync(
+            Receipt(attempts, new[] { "secretref:original" }, false)).AsTask());
+
+        Assert.Equal("execution.effect_receipt_invalid", refused.Code);
+        Assert.Null(await ledger.GetAsync(Tenant, Effect));
+    }
+
+    // Indexing and successive enumerations deliberately disagree, exposing the ownership boundary
+    // without thread timing. The expected receipt above is pinned by AssertOriginal's literals.
+    private sealed class ChangingList<T>(T original, T changed, bool firstEnumerationChanges = false) : IReadOnlyList<T>
+    {
+        public int Enumerations { get; private set; }
+        public int Count => 1;
+        public T this[int index] => index == 0 ? original : throw new ArgumentOutOfRangeException(nameof(index));
+
+        public IEnumerator<T> GetEnumerator()
+        {
+            Enumerations++;
+            yield return firstEnumerationChanges || Enumerations > 1 ? changed : original;
+        }
+
+        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
+    }
+
     private static EffectAttempt OriginalAttempt()
         => new(1, Started, Started.AddSeconds(1), "attempt-original", "202");
 

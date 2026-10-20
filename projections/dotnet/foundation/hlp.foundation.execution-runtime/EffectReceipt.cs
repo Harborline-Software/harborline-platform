@@ -229,8 +229,13 @@ public sealed class EffectReceiptLedger
     public async ValueTask<EffectReceipt> RecordAsync(EffectReceipt receipt, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(receipt);
-        Validate(receipt);
-        await _store.CreateAsync(receipt, cancellationToken).ConfigureAwait(false);
+        var snapshot = receipt with
+        {
+            Attempts = receipt.Attempts?.ToArray()!,
+            SecretReferenceIds = receipt.SecretReferenceIds?.ToArray()!,
+        };
+        Validate(snapshot);
+        await _store.CreateAsync(snapshot, cancellationToken).ConfigureAwait(false);
         return receipt;
     }
 

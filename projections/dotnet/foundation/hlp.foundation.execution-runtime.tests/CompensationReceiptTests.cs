@@ -39,7 +39,8 @@ public sealed class CompensationReceiptTests
     public async Task Compensation_cross_check_cannot_resolve_another_tenants_receipt(EffectStatus status)
     {
         var ledger = new EffectReceiptLedger(new InMemoryEffectReceiptStore());
-        var original = await ledger.RecordAsync(OriginalReceipt(status));
+        var original = OriginalReceipt(status);
+        await ledger.RecordAsync(original);
         var otherTenantTarget = TargetReceipt() with { TenantId = OtherTenant };
         await ledger.RecordAsync(otherTenantTarget);
 
@@ -63,7 +64,8 @@ public sealed class CompensationReceiptTests
         var ledger = new EffectReceiptLedger(new InMemoryEffectReceiptStore());
         await ledger.RecordAsync(OriginalReceipt(status));
         // Same run, action, capability and fingerprint as the original; no authoritative backlink.
-        var legacyTarget = await ledger.RecordAsync(Receipt(Compensation));
+        var legacyTarget = Receipt(Compensation);
+        await ledger.RecordAsync(legacyTarget);
 
         var refused = await Invalid(() => ledger.CheckCompensationAsync(Tenant, Original).AsTask());
 
@@ -71,7 +73,7 @@ public sealed class CompensationReceiptTests
             "execution.effect_receipt_invalid: Compensation receipt 'compensation-c' does not identify original effect 'original-a' in the same tenant.",
             refused.Message);
         AssertReceiptValues(legacyTarget, await ledger.GetAsync(Tenant, Compensation));
-        Assert.Null(legacyTarget.CompensatesEffectId);
+        Assert.Null((await ledger.GetAsync(Tenant, Compensation))!.CompensatesEffectId);
     }
 
     [Theory]
@@ -81,13 +83,14 @@ public sealed class CompensationReceiptTests
     {
         var ledger = new EffectReceiptLedger(new InMemoryEffectReceiptStore());
         await ledger.RecordAsync(OriginalReceipt(status));
-        var target = await ledger.RecordAsync(TargetReceipt() with { CompensatesEffectId = OtherEffect });
+        var target = TargetReceipt() with { CompensatesEffectId = OtherEffect };
+        await ledger.RecordAsync(target);
 
         var refused = await Invalid(() => ledger.CheckCompensationAsync(Tenant, Original).AsTask());
 
         Assert.Contains("'original-a'", refused.Message);
         Assert.Contains("'compensation-c'", refused.Message);
-        Assert.Equal(new EffectId("other-effect"), target.CompensatesEffectId);
+        Assert.Equal(new EffectId("other-effect"), (await ledger.GetAsync(Tenant, Compensation))!.CompensatesEffectId);
     }
 
     [Fact]
@@ -110,17 +113,18 @@ public sealed class CompensationReceiptTests
     {
         var ledger = new EffectReceiptLedger(new InMemoryEffectReceiptStore());
         await ledger.RecordAsync(OriginalReceipt(EffectStatus.Compensated));
-        var target = await ledger.RecordAsync(TargetReceipt() with
+        var target = TargetReceipt() with
         {
             Status = EffectStatus.CompensationFailed,
             CompensationEffectId = OtherEffect,
-        });
+        };
+        await ledger.RecordAsync(target);
 
         await ledger.CheckCompensationAsync(Tenant, Original);
         var missingNext = await Invalid(() => ledger.CheckCompensationAsync(Tenant, Compensation).AsTask());
 
-        Assert.Equal(new EffectId("original-a"), target.CompensatesEffectId);
-        Assert.Equal(new EffectId("other-effect"), target.CompensationEffectId);
+        Assert.Equal(new EffectId("original-a"), (await ledger.GetAsync(Tenant, Compensation))!.CompensatesEffectId);
+        Assert.Equal(new EffectId("other-effect"), (await ledger.GetAsync(Tenant, Compensation))!.CompensationEffectId);
         Assert.Contains("'compensation-c'", missingNext.Message);
         Assert.Contains("'other-effect'", missingNext.Message);
     }
@@ -287,7 +291,8 @@ public sealed class CompensationReceiptTests
     public async Task Recording_a_backlink_does_not_require_an_original_lookup()
     {
         var ledger = new EffectReceiptLedger(new InMemoryEffectReceiptStore());
-        var target = await ledger.RecordAsync(TargetReceipt());
+        var target = TargetReceipt();
+        await ledger.RecordAsync(target);
 
         AssertReceiptValues(target, await ledger.GetAsync(Tenant, Compensation));
         Assert.Null(await ledger.GetAsync(Tenant, Original));
@@ -335,7 +340,8 @@ public sealed class CompensationReceiptTests
     private static async Task MissingTarget(EffectStatus status)
     {
         var ledger = new EffectReceiptLedger(new InMemoryEffectReceiptStore());
-        var original = await ledger.RecordAsync(OriginalReceipt(status));
+        var original = OriginalReceipt(status);
+        await ledger.RecordAsync(original);
 
         var refused = await Invalid(() => ledger.CheckCompensationAsync(Tenant, Original).AsTask());
 
@@ -349,14 +355,16 @@ public sealed class CompensationReceiptTests
     private static async Task RecordedTarget(EffectStatus originalStatus, EffectStatus targetStatus)
     {
         var ledger = new EffectReceiptLedger(new InMemoryEffectReceiptStore());
-        var original = await ledger.RecordAsync(OriginalReceipt(originalStatus));
-        var target = await ledger.RecordAsync(TargetReceipt() with { Status = targetStatus });
+        var original = OriginalReceipt(originalStatus);
+        await ledger.RecordAsync(original);
+        var target = TargetReceipt() with { Status = targetStatus };
+        await ledger.RecordAsync(target);
 
         await ledger.CheckCompensationAsync(Tenant, Original);
 
         AssertReceiptValues(original, await ledger.GetAsync(Tenant, Original));
         AssertReceiptValues(target, await ledger.GetAsync(Tenant, Compensation));
-        Assert.Equal(new EffectId("original-a"), target.CompensatesEffectId);
+        Assert.Equal(new EffectId("original-a"), (await ledger.GetAsync(Tenant, Compensation))!.CompensatesEffectId);
     }
 
     private static async Task<ExecutionRuntimeRefusedException> Invalid(Func<Task> operation)
