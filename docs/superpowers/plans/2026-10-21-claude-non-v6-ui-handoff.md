@@ -13,7 +13,7 @@ The user will start this work after the current v6 delivery is finished. This do
 | Document branch | `codex/claude-non-v6-ui-handoff-20261021` |
 | Execution release | **PENDING:** lead records the post-v6 source commit/tree, reviewed document commit, active ownership exclusions and released units here before launch. |
 | Laptop work branch | Create `claude/non-v6-ui-20261021` from that released source commit. |
-| Assigned role | Claude authors the released non-v6 UI units; Mac mini lead integrates and validates returned work. |
+| Assigned role | Claude authors the released non-v6 UI units; Mac mini lead integrates returned source and owns its final package/browser qualification. |
 
 The source reference above precedes in-flight v6 and M11 work; it is not an instruction to overwrite or cherry-pick those branches.
 The document's own commit cannot be its embedded source pin. The lead supplies its exact document commit in the launch message and freezes the separate execution base here.
@@ -22,13 +22,13 @@ If the execution release is still PENDING, finish preparation and report the mis
 
 ## Mission and completion boundary
 
-Preserve the existing visual design and good behavior. Complete concrete unfinished non-v6 component behavior and meaningful React/Blazor evidence, one module family per commit.
+Preserve the existing visual design and good behavior. Implement confirmed unfinished non-v6 component behavior and source-level regressions, one module family per commit.
 Begin with the catalog-led triage below; existing acceptance is retained within its recorded scope. An old gap is a candidate to confirm, not proof that today's implementation is broken.
-Return source commits, independent review results and actual browser evidence to the Mac mini lead. Work can run independently: **no message board, shared inbox, Windows chat or remote machine access is required.**
+Return source commits, module-test results and independent review results to the Mac mini lead with status **BROWSER_PENDING**; final changed-source browser acceptance belongs to the lead. Work can run independently: **no message board, shared inbox, Windows chat or remote machine access is required.**
 
 Delivery stays in this repository's existing projects. Blazor consumers pull source and add a `ProjectReference` to the existing Razor Class Library, with its styles, required JavaScript and a minimal usage/setup example.
 Use host-supplied content and callbacks; keep backend and demo data separate. Retain the reusable .NET10+ design intent.
-Acceptance is actual component behavior in the existing Blazor gallery/Storybook and, where parity applies, React Storybook: real CSS/JS, desktop and narrow-screen interactions.
+Final acceptance requires the Mac mini lead to exercise the returned source in the existing Blazor gallery/Storybook and, where parity applies, React Storybook: real CSS/JS, desktop and narrow-screen interactions.
 NuGet publication, a new repository, MAUI certification and a separate server-host certification are not delivery requirements. Local packages used by the existing gallery are test plumbing.
 This assignment does not assert that all components can be finished in four days.
 
@@ -75,20 +75,20 @@ Keep each unit separate: B1 and B2 are separate commits and separate acceptance 
 
 For a released module ID `M` from A/B1/B2/C only, these are the complete family masks:
 
-- `projections/react/ui/M/**` and `projections/blazor/ui/M/**`.
+- `projections/react/ui/M/**`, `projections/blazor/ui/M/**` and the selected sibling `projections/blazor/ui/M.tests/**` listed below.
 - `conformance/M/**`, preserving existing fixture identities and independent literal oracles.
 - `gallery/scenarios/M.json`.
 - The corresponding React story and Blazor story/scenario files in the table below.
 - A unit-specific usage note under `docs/usage/M.md`, only if needed to explain actual source-first setup; no new package identity.
 
-| M | Exact gallery files |
-|---|---|
-| `hlp.ui.view-runtime` | `gallery/projections/react/src/ViewRuntime.stories.tsx`; `gallery/projections/blazor/Stories/ViewRuntime.stories.razor`; `gallery/projections/blazor/Stories/ViewRuntimeScenario.razor` |
-| `hlp.ui.chart` | `gallery/projections/react/src/Chart.stories.tsx`; `gallery/projections/blazor/Stories/Chart.stories.razor`; `gallery/projections/blazor/Stories/ChartScenario.razor` |
-| `hlp.ui.chat` | `gallery/projections/react/src/Chat.stories.tsx`; `gallery/projections/blazor/Stories/Chat.stories.razor`; `gallery/projections/blazor/Stories/ChatScenario.razor` |
-| `hlp.ui.scheduler` | `gallery/projections/react/src/Scheduler.stories.tsx`; `gallery/projections/blazor/Stories/Scheduler.stories.razor`; `gallery/projections/blazor/Stories/SchedulerScenario.razor` |
+| M | Exact gallery files | Exact sibling Blazor test tree |
+|---|---|---|
+| `hlp.ui.view-runtime` | `gallery/projections/react/src/ViewRuntime.stories.tsx`; `gallery/projections/blazor/Stories/ViewRuntime.stories.razor`; `gallery/projections/blazor/Stories/ViewRuntimeScenario.razor` | `projections/blazor/ui/hlp.ui.view-runtime.tests/**` |
+| `hlp.ui.chart` | `gallery/projections/react/src/Chart.stories.tsx`; `gallery/projections/blazor/Stories/Chart.stories.razor`; `gallery/projections/blazor/Stories/ChartScenario.razor` | `projections/blazor/ui/hlp.ui.chart.tests/**` |
+| `hlp.ui.chat` | `gallery/projections/react/src/Chat.stories.tsx`; `gallery/projections/blazor/Stories/Chat.stories.razor`; `gallery/projections/blazor/Stories/ChatScenario.razor` | `projections/blazor/ui/hlp.ui.chat.tests/**` |
+| `hlp.ui.scheduler` | `gallery/projections/react/src/Scheduler.stories.tsx`; `gallery/projections/blazor/Stories/Scheduler.stories.razor`; `gallery/projections/blazor/Stories/SchedulerScenario.razor` | `projections/blazor/ui/hlp.ui.scheduler.tests/**` |
 
-`M` is one literal module ID, never a glob for all UI. Before edits, enumerate existing files inside that mask and record the intended subset. Creating a missing test inside that same family is allowed after release.
+`M` is one literal module ID, never a glob for all UI. Before edits, enumerate existing files inside that mask and record the intended subset. Creating a missing test inside the released adapter or its listed sibling test tree is allowed after release.
 Specs, interface/quality revisions, authoritative `specs/.../style.css` and generated baselines remain read-only. If the fix requires their change, return a separate proposal and stop that unit; do not modify generated/approved evidence to turn a failure green.
 Module-local adapter CSS and JS stay with their module and preserve established visual tokens. Any shared style/export/build entry-point change needs a separately reviewed scope.
 
@@ -96,7 +96,7 @@ Module-local adapter CSS and JS stay with their module and preserve established 
 
 **All v6 work is excluded**, including its components, demo frame, module, fixtures, shared reducer, focus contract, specs, conformance and gallery scenarios. Do not transfer, repair or certify it here.
 Also excluded: app-shell/app-layout/layout-runtime and shared shell/scroll/tab-host infrastructure; root catalog, global dependencies/locks, project files, aggregate export surfaces, CI and `tooling/**` edits.
-The existing RCL is `projections/blazor/ui/hlp.ui.button/Harborline.UIAdapters.Blazor.csproj`; its shared project is read-only even when it includes the selected module. React aggregate/package wiring is read-only too.
+The existing RCL is `projections/blazor/ui/hlp.ui.button/Harborline.UIAdapters.Blazor.csproj`; its shared project is read-only even when it includes the selected module. React aggregate/package wiring and shared test project files, including `projections/blazor/ui/hlp.ui.button.tests/Harborline.UIAdapters.Blazor.Tests.csproj`, remain read-only too.
 
 Windows retains the actual DynamicForms five-path unit:
 
@@ -135,44 +135,49 @@ pnpm --version
 dotnet --version
 ```
 
-Read `gallery/README.md` and `tooling/prepare-galleries.mjs` before the first gallery preparation. The existing galleries consume local packed artifacts and repository-isolated dependencies; a bare clean checkout does not contain the Mac mini's prepared feed.
+Read `gallery/README.md` and `tooling/prepare-galleries.mjs` before using a prepared baseline. The existing galleries consume local packed artifacts and repository-isolated dependencies; a bare clean checkout does not contain the Mac mini's prepared feed.
 Use the current repository's documented preparation; retain logs and exact source identities. Missing packages/feeds are a prerequisite failure. Keep normal freshness checks; do not replace the gallery with source imports or set `HarborlineSkipFeedFreshnessCheck`.
 The previously accepted Mac browser005 route reused seven already-built local packages on a different v6 candidate; its result does not establish this laptop's setup or these non-v6 scenarios.
 
 The default `gallery:prepare`, `gallery:react`, `gallery:blazor` and unqualified gallery-gate commands run the full package-fixture driver and cross-repository feed preparation before browser selection. They are unsuitable under this handoff's exclusions. `GALLERY_GREP` restricts browser tests only; it does not restrict preparation.
 
-Before execution, the lead must supply an allowed, source-bound prepared-artifact set and release the exact preparation scope. Verify its archive provenance and all normal source/feed freshness checks. If those prerequisites are absent, return **BLOCKED: prepared gallery artifacts unavailable**; do not manufacture readiness or run the full fixture driver.
-The supported `--packages-ready` route reuses valid artifacts but still installs gallery dependencies, cleans gallery caches, restores and builds. It is not a held-operation waiver. Review those remaining operations against the release before running it; keep the prohibition on freshness bypasses.
+For pre-edit reproduction, the lead must supply an allowed, source-bound prepared-artifact set and release the exact preparation scope. Verify its archive provenance and normal source/feed freshness checks. If absent, return **BLOCKED: prepared baseline unavailable**; do not manufacture readiness or run the full fixture driver.
+After an adapter edit, that baseline is not final evidence: React stories import the packed `@harborline-software/ui-react` dist, and Blazor checks all adapter inputs and its content-derived package stamp. `--packages-ready` reuses packages; it does not rebuild them. Keep freshness checks intact.
 
-Only after that prerequisite and scope review, the existing driver supports focused browser tests through `GALLERY_GREP` and screenshots through `--capture`:
+### Mac mini lead: final changed-source browser qualification
+
+The laptop returns the exact source commits, source-level test results, setup/asset instructions and named browser cases as **BROWSER_PENDING**. The Mac mini lead owns post-edit package preparation and browser acceptance after independent source review. Before using the recipe below, the lead must bind ordinary source-verified preparation to those returned commits (or the reviewed integration commit), refresh affected packages, and record archive hashes, the Blazor source-derived version/stamp and normal freshness results. If that bounded preparation is not yet established, retain BROWSER_PENDING; old artifacts cannot certify the changed component. This handoff supplies no laptop repack recipe or authority to run the excluded full fixture driver.
+The supported `--packages-ready` route still installs gallery dependencies, cleans gallery caches, restores and builds. The lead must review those operations against the released qualification scope; it is not a held-operation waiver.
+
+Only after that changed-source package binding and scope review, the Mac mini lead uses the existing driver for focused browser tests through `GALLERY_GREP` and screenshots through `--capture`:
 
 ```sh
 # CASE_PATTERN must first be matched to actual test titles for the selected unit.
-# RUN_DIR is an absolute, unique laptop-local evidence directory created by you.
+# RUN_DIR is an absolute, unique qualifier-local evidence directory created by you.
 GALLERY_GREP="$CASE_PATTERN" node tooling/run-gallery-gate.mjs --packages-ready --capture \
   > "$RUN_DIR/gallery-result.json" 2> "$RUN_DIR/gallery.log"
 ```
 
-Before choosing `CASE_PATTERN`, read the selected scenarios and `gallery/tests/tests/gallery.spec.ts`; list the matching tests with the existing Playwright test script, and record their exact names/count. A zero-test run fails acceptance.
+Before choosing `CASE_PATTERN`, the lead reads the selected scenarios and `gallery/tests/tests/gallery.spec.ts`, lists the matching tests with the existing Playwright test script, and records their exact names/count. A zero-test run fails acceptance.
 The driver starts React on loopback 6106 and Blazor on 6107, builds the existing galleries, installs/checks Chromium and runs the focused browser selection. A successful focused report is `CHECKED`, not full-library `PASS`.
-Use manual gallery interaction alongside automated assertions when a named requirement lacks an existing scenario. Keep initial failures, final logs, actual screenshot dimensions and browser console findings; report warnings honestly.
-Source-verified per-gallery scripts are `pnpm --dir gallery/projections/react run typecheck` / `run build`, and `pnpm --dir gallery/tests run typecheck` / `run test`; use `pnpm --dir gallery/tests exec playwright test --list` to enumerate titles. Read selected test/runner configuration before invoking native/conformance commands; no guessed all-project command is required here.
+The lead uses manual gallery interaction alongside automated assertions when a named requirement lacks an existing scenario. Keep initial failures, final logs, actual screenshot dimensions and browser console findings; report warnings honestly.
+For that lead-owned qualification, source-verified per-gallery scripts are `pnpm --dir gallery/projections/react run typecheck` / `run build`, and `pnpm --dir gallery/tests run typecheck` / `run test`; use `pnpm --dir gallery/tests exec playwright test --list` to enumerate titles. Read selected test/runner configuration before invoking native/conformance commands; no guessed all-project command is required here.
 
-## Per-unit acceptance and review
+## Laptop source review and Mac mini final acceptance
 
-- Exercise the actual rendered Blazor component with its packaged/source-first CSS and needed JS; also exercise React for an existing parity contract. Verify desktop and a recorded narrow viewport, with keyboard and pointer behavior relevant to the unit.
+- The Mac mini lead exercises the returned source as the actual rendered Blazor component with its packaged/source-first CSS and needed JS; also exercise React for an existing parity contract. Verify desktop and a recorded narrow viewport, with keyboard and pointer behavior relevant to the unit.
 - Pin expected semantics to the existing spec/neutral fixture or literal independent oracle. A CSS text search, model round-trip or adapter declaration alone is insufficient.
-- Preserve initial failing evidence, show the smallest correction and rerun that exact case plus connected regression cases. A reporting-only mismatch gets a truthful finding, not invented component behavior.
-- Document the actual `ProjectReference`, public namespace/setup and asset URLs/imports used by the selected example after reading the current module/library instructions. Verify the example in the existing browser gallery. No new package or registry identity is implied.
+- Preserve initial failing evidence and the smallest correction. The lead reruns the named case and connected regressions against packages built from the returned source. A reporting-only mismatch gets a truthful finding, not invented component behavior.
+- Document the actual `ProjectReference`, public namespace/setup and asset URLs/imports used by the selected example after reading the current module/library instructions. The lead verifies that example against the returned source in the existing browser gallery. No new package or registry identity is implied.
 - Obtain independent Spec/Standards and adversarial review of the complete final unit where the available Claude environment supports reviewers. Record reviewer identities, source commit and findings; if unavailable, label review pending for Mac mini rather than self-certifying independence.
 - Run the normal repository pre-push requirement after fetching current main: `node tooling/run-pr-preflight.mjs`. Do not bypass hooks or protected merge. If excluded shared changes arrived upstream, return the conflict rather than silently widening the unit.
 
-Done means the whole unit delta is inside its mask, independent reviews are resolved or honestly pending, named browser cases ran, setup/asset instructions match the exercised component, and the return packet states remaining limits. No automerge or publication.
+Laptop return-ready means the whole unit delta is inside its mask, source-level test results and independent reviews are recorded or honestly pending, setup/asset instructions and named browser cases are supplied, and the packet says **BROWSER_PENDING — Mac mini lead owns final qualification**. This is not a completed-component claim. The lead marks the unit accepted only after the changed-source package binding, named desktop/narrow browser cases and actual CSS/JS/example evidence above are complete. No automerge or publication.
 
 ## Local progress and return protocol
 
 Keep an append-only log outside the checkout, for example `~/harborline-claude-return/PROGRESS.md`; put screenshots and original logs under a unique per-unit child. This path is laptop-local and has no shared-drive requirement.
-Each entry records UTC time; state (`PREPARED`, `STARTED`, `BLOCKED`, `REVIEW`, `RETURNED`); base/tree; module and writable paths; commands; exit/result; evidence filenames; next action.
+Each entry records UTC time; state (`PREPARED`, `STARTED`, `BLOCKED`, `REVIEW`, `BROWSER_PENDING`, `RETURNED`); base/tree; module and writable paths; commands; exit/result; evidence filenames; next action.
 Commit one module family at a time on the laptop work branch. Keep evidence outside packages; return a compact manifest with paths, sizes and SHA-256 values. Never record tokens or credentials.
 
 Return a self-contained summary to the user for the Mac mini lead:
@@ -181,13 +186,14 @@ Return a self-contained summary to the user for the Mac mini lead:
 Repository / branch / execution base and tree / final commit(s):
 Unit and literal requirement; source of expected behavior:
 Files changed; confirmation of excluded-file preservation:
-Initial reproduction and exact final browser/test names/counts/results:
-Desktop/narrow viewport; CSS/JS/example actually exercised:
+Initial reproduction and source-level test names/counts/results; planned browser cases:
+Final browser status: BROWSER_PENDING (Mac mini lead); baseline-only observations, if any:
+Proposed desktop/narrow viewport; CSS/JS/example and changed-source package refresh needs:
 Independent reviewers and unresolved findings:
 Original logs, screenshots and SHA-256 manifest:
 Setup prerequisites or blocked dependencies; remaining component gaps:
 Exact commits to integrate; no merge performed:
 ```
 
-A Thursday–Sunday sequence is optional: Thursday bind tools/source and confirm Unit A; Friday complete and review one family; Saturday integrate accepted returns and take the next released family; Sunday repair observed regressions and return residual gaps.
+A Thursday–Sunday sequence is optional: Thursday bind tools/source and confirm Unit A; Friday implement and review one source family; Saturday integrate accepted returns and take the next released family; Sunday repair observed regressions and return residual gaps.
 These are checkpoints, not a promise of capacity or completion. No Claude model availability, token allowance, pricing, software installation or remote-machine action is assumed.
