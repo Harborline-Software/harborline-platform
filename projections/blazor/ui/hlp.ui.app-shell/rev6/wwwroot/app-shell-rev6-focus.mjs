@@ -6,7 +6,7 @@ function searchTrigger(root, search) {
 function hideSearch(root) {
   for (const search of root.querySelectorAll('[data-tab-search]:popover-open')) search.hidePopover();
 }
-export function bind(root, ownerScope = null) {
+export function bind(root, ownerScope = null, emptyFallback = root, manageCloseRecovery = true) {
   let binding = bindings.get(root);
   if (!binding) {
     binding = { dialog: null, tabCount: 0, trigger: null, triggerPanel: null, triggerOwner: null, handler: event => {
@@ -39,7 +39,7 @@ export function bind(root, ownerScope = null) {
       if (search.matches(':popover-open')) search.hidePopover();
       const target = result.getAttribute('data-tab-search-target');
       const tab = [...root.querySelectorAll('[role="tab"]')].find(item => item.id === target);
-      (tab ?? searchTrigger(root, search) ?? root).focus();
+      (tab ?? searchTrigger(root, search) ?? emptyFallback).focus();
       tab?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
     };
     root.addEventListener('keydown', binding.handler);
@@ -60,11 +60,11 @@ export function bind(root, ownerScope = null) {
   }
   // Cancel/Escape returns to the original Close control. Destruction may remove
   // or reuse its section; verify owner and editor identity before restoring it.
-  if (!dialog && (binding.dialog || tabCount < binding.tabCount)) {
+  if (manageCloseRecovery && !dialog && (binding.dialog || tabCount < binding.tabCount)) {
     const triggerSurvives = binding.dialog && binding.trigger?.isConnected && root.contains(binding.trigger)
       && binding.triggerOwner === ownerScope && binding.triggerPanel !== null
       && binding.trigger.closest('[role="tabpanel"]')?.id === binding.triggerPanel;
-    (triggerSurvives ? binding.trigger : root.querySelector('[role="tab"][aria-selected="true"]') ?? root).focus();
+    (triggerSurvives ? binding.trigger : root.querySelector('[role="tab"][aria-selected="true"]') ?? emptyFallback).focus();
     binding.trigger = null;
   }
   binding.dialog = dialog;

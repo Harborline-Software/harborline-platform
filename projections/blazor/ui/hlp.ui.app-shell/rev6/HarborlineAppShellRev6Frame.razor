@@ -1,0 +1,293 @@
+@namespace Harborline.UIAdapters.Blazor.Components.Layout
+@using System.Globalization
+@using System.Text.Json
+@using Harborline.UIAdapters.Blazor.Components.DataDisplay
+@using Microsoft.JSInterop
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+
+<div @ref="root" class="hl-app-shell-rev6-frame" data-shell-id="@ShellId" data-revision="6" data-form="@form" data-panel-placement="@placement" data-frame-owner="@OwnerScope" data-panel-open="@(PanelVisible ? "true" : "false")" data-frame-controlled-panel-open="@(current?.PanelOpen == true ? "true" : "false")" data-frame-active="@current?.Tabs.Active" data-focus-mode="@(current?.FocusMode == true ? "true" : "false")" style="@GeometryStyle">
+ @if (current is null)
+ {
+  <main @ref="main" tabindex="-1" aria-label="Workspace"><p>No current workspace presentation.</p></main>
+ }
+ else
+ {
+  var shown = current;
+  var dirty = shown.Tabs.PendingClose is not null;
+  <div data-frame-background inert="@(dirty || phoneNavigationOpen ? "" : null)" aria-hidden="@(dirty || phoneNavigationOpen ? "true" : null)">
+   @if (form != "phone" && !shown.FocusMode)
+   {
+    @Navigation(shown, false)
+   }
+   @if (shown.Sidebar is not null && !shown.FocusMode && (form == "unmeasured" || sidebarWidth > 0))
+   {
+    <aside class="hl-rev6-sidebar" aria-label="@shown.Sidebar.Title" data-shell-scroll-region>
+     @Sidebar(shown)
+    </aside>
+   }
+   <div class="hl-rev6-workspace">
+    <header class="hl-rev6-header">
+     @if (form == "phone" && !shown.FocusMode)
+     {
+      <button type="button" data-navigation-trigger aria-label="Open navigation" aria-expanded="@(phoneNavigationOpen ? "true" : "false")" aria-controls="@drawerId" @onclick="() => OpenNavigation(shown.Owner)">@Icon("menu")</button>
+     }
+     <div class="hl-rev6-location"><strong>@shown.Header.Title</strong><span>@shown.Header.Breadcrumb</span></div>
+     <button type="button" class="hl-rev6-search" aria-label="@shown.Header.SearchLabel" title="@shown.Header.SearchLabel" @onclick='() => Command(shown.Owner, "search")'>@Icon("search")<span>@shown.Header.SearchPlaceholder</span></button>
+     <div class="hl-rev6-actions">
+      @foreach (var action in shown.Header.Actions)
+      {
+       <button @key="action.Id" type="button" disabled="@(!action.Enabled)" title="@action.DisabledReason" aria-describedby="@(action.DisabledReason is null ? null : ActionReasonId(action.Id))" @onclick="() => Request(shown.Owner, new AppShellRev6FrameActionRequested(shown.Owner, action.Id))">@action.Label</button>
+       @if (action.DisabledReason is not null) { <span class="hl-rev6-sr" id="@ActionReasonId(action.Id)">@action.DisabledReason</span> }
+      }
+      <button type="button" data-panel-toggle aria-label="@(PanelVisible ? "Hide side panel" : "Show side panel")" aria-expanded="@(PanelVisible ? "true" : "false")" aria-controls="@panelId" @onclick="() => SetPanel(shown.Owner, !PanelVisible)">@Icon("panel")</button>
+      @if (shown.FocusMode) { <button type="button" @onclick='() => Command(shown.Owner, "exit-focus")'>Exit focus</button> }
+     </div>
+    </header>
+    <main @ref="main" class="hl-rev6-main" tabindex="-1" aria-label="@shown.MainFace.AccessibleLabel" data-shell-scroll-region>
+     @if (Supported(shown.MainFace))
+     {
+      <HarborlineViewRuntime @key="shown.Owner" Plan="@(shown.MainFace.Plan!)" Rows="@(shown.MainFace.Rows!)" AccessibleLabel="@shown.MainFace.AccessibleLabel" Empty="@shown.MainFace.Empty" ActionsDisabled="shown.MainFace.ActionsDisabled"
+       OnRowActivate="@(id => Request(shown.Owner, new AppShellRev6FrameRowActivated(shown.Owner, id)))" OnAction="@(id => Request(shown.Owner, new AppShellRev6FrameActionRequested(shown.Owner, id)))" />
+     }
+     else { <p data-unsupported-face>No supported view is available.</p> }
+    </main>
+   </div>
+   @if (PanelVisible && (placement == "float" || placement == "sheet"))
+   {
+    <button type="button" class="hl-rev6-panel-scrim" tabindex="-1" aria-label="Dismiss side panel" data-panel-close @onclick="() => SetPanel(shown.Owner, false)"></button>
+   }
+   <aside class="hl-rev6-panel" id="@panelId" aria-label="Workspace tabs" hidden="@(!PanelVisible)" aria-hidden="@(!PanelVisible ? "true" : null)">
+    <HarborlineAppShellRev6TabSurface @key="shown.Owner" ShellId="@ShellId" Owner="shown.Owner" Presentation="shown.Tabs" Intent="@(value => ForwardTab(shown.Owner, value))" TabContent="TabContent" EmptyFallback="main" ManageCloseRecovery="false" SuppressDialog="true" />
+    <div class="hl-rev6-panel-actions">
+     <button type="button" aria-label="New panel tab" @onclick='() => Command(shown.Owner, "new-tab")'>@Icon("plus")</button>
+     <button type="button" aria-label="Hide side panel" data-panel-close @onclick="() => SetPanel(shown.Owner, false)">@Icon("close")</button>
+    </div>
+   </aside>
+  </div>
+  @if (phoneNavigationOpen && !dirty)
+  {
+   <div class="hl-rev6-drawer-scrim" data-drawer-dismiss @onclick="() => CloseNavigation(shown.Owner)"></div>
+   <div id="@drawerId" role="dialog" aria-modal="true" aria-label="Navigation" class="hl-rev6-drawer" data-navigation-dialog>
+    <button type="button" data-drawer-dismiss aria-label="Close navigation" @onclick="() => CloseNavigation(shown.Owner)">@Icon("close")</button>
+    @Navigation(shown, true)
+   </div>
+  }
+  @if (dirty)
+  {
+   <div class="hl-rev6-dirty-scrim" aria-hidden="true"></div>
+   <HarborlineAppShellRev6DirtyCloseDialog @key="shown.Owner" Presentation="shown.Tabs" TitleId="@dialogTitle" Intent="@(value => ResolveClose(shown.Owner, value))" />
+  }
+ }
+</div>
+
+<style>
+ .hl-app-shell-rev6-frame { position: relative; isolation: isolate; inline-size: 100%; block-size: 100%; min-inline-size: 0; min-block-size: 0; overflow: hidden; color: var(--color-foreground, var(--hl-foreground, #202123)); background: var(--color-background, var(--hl-surface, #fff)); font: 12px/1.4 Inter, ui-sans-serif, system-ui, sans-serif; }
+ .hl-app-shell-rev6-frame *, .hl-app-shell-rev6-frame *::before, .hl-app-shell-rev6-frame *::after { box-sizing: border-box; }
+ .hl-app-shell-rev6-frame [data-frame-background] { display: grid; grid-template-columns: var(--frame-rail) var(--frame-sidebar) minmax(0, 1fr) var(--frame-panel); block-size: 100%; min-inline-size: 0; min-block-size: 0; }
+ .hl-app-shell-rev6-frame [hidden] { display: none !important; }
+ .hl-app-shell-rev6-frame button, .hl-app-shell-rev6-frame a, .hl-app-shell-rev6-frame input, .hl-app-shell-rev6-frame textarea { font: inherit; }
+ .hl-app-shell-rev6-frame button, .hl-app-shell-rev6-frame a { color: inherit; }
+ .hl-app-shell-rev6-frame button { cursor: pointer; min-block-size: 32px; border: 1px solid var(--color-border, #bdbdbd); border-radius: 6px; background: var(--hl-surface, #fff); padding-inline: 8px; }
+ .hl-app-shell-rev6-frame button:disabled { cursor: default; opacity: .6; }
+ .hl-app-shell-rev6-frame button:hover:enabled, .hl-app-shell-rev6-frame a:hover { background: var(--hl-muted, #ededed); }
+ .hl-app-shell-rev6-frame :focus-visible { outline: 2px solid var(--hl-focus, #0f62fe); outline-offset: -2px; }
+ .hl-app-shell-rev6-frame .hl-rev6-nav { grid-column: 1; display: flex; flex-direction: column; align-items: stretch; gap: 5px; padding: 10px 4px; min-inline-size: 0; min-block-size: 0; overflow-y: auto; background: var(--hl-muted, #f0f0f0); border-inline-end: 1px solid var(--color-border, #dfdfdf); }
+ .hl-app-shell-rev6-frame .hl-rev6-nav a, .hl-app-shell-rev6-frame .hl-rev6-nav button { display: flex; align-items: center; justify-content: center; gap: 4px; min-block-size: 36px; flex: none; text-decoration: none; border: 0; padding: 4px; border-radius: 6px; background: transparent; overflow-wrap: anywhere; }
+ .hl-app-shell-rev6-frame .hl-rev6-nav [aria-current=page], .hl-app-shell-rev6-frame .hl-rev6-sidebar [aria-current=page] { background: var(--hl-primary, #202123); color: var(--hl-primary-foreground, #fff); font-weight: 600; }
+ .hl-app-shell-rev6-frame .hl-rev6-nav [data-account] { margin-block-start: auto; }
+ .hl-app-shell-rev6-frame .hl-rev6-count { font-weight: 600; color: inherit; }
+ .hl-app-shell-rev6-frame .hl-rev6-sidebar { grid-column: 2; min-inline-size: 0; min-block-size: 0; overflow: auto; padding: 16px 10px; background: var(--hl-muted, #f8f8f8); border-inline-end: 1px solid var(--color-border, #dfdfdf); }
+ .hl-app-shell-rev6-frame .hl-rev6-sidebar h2 { margin: 0 0 8px; font-size: 14px; }
+ .hl-app-shell-rev6-frame .hl-rev6-sidebar h3 { margin: 16px 6px 5px; font-size: 11px; color: var(--color-muted-foreground, #686b70); }
+ .hl-app-shell-rev6-frame .hl-rev6-sidebar a { display: block; padding: 6px 8px; border-radius: 6px; text-decoration: none; }
+ .hl-app-shell-rev6-frame .hl-rev6-workspace { grid-column: 3; display: grid; grid-template-rows: auto minmax(0, 1fr); min-inline-size: 0; min-block-size: 0; }
+ .hl-app-shell-rev6-frame .hl-rev6-header { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; min-inline-size: 0; min-block-size: 45px; padding: 7px 12px; border-block-end: 1px solid var(--color-border, #dfdfdf); }
+ .hl-app-shell-rev6-frame .hl-rev6-location { display: grid; min-inline-size: 0; max-inline-size: 180px; }
+ .hl-app-shell-rev6-frame .hl-rev6-location span { font-size: 10px; color: var(--color-muted-foreground, #686b70); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+ .hl-app-shell-rev6-frame .hl-rev6-search { display: flex; align-items: center; gap: 8px; flex: 1 1 160px; min-inline-size: 0; max-inline-size: 360px; text-align: start; border-radius: 18px; }
+ .hl-app-shell-rev6-frame .hl-rev6-search span { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+ .hl-app-shell-rev6-frame .hl-rev6-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 5px; }
+ .hl-app-shell-rev6-frame .hl-rev6-main { min-inline-size: 0; min-block-size: 0; overflow: auto; padding: 14px; }
+ .hl-app-shell-rev6-frame .hl-view-runtime { min-inline-size: 0; }
+ .hl-app-shell-rev6-frame .hl-view-runtime__actions { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin-block-end: clamp(.75rem, 2vw, 1rem); }
+ .hl-app-shell-rev6-frame .hl-rev6-panel { grid-column: 4; position: relative; min-inline-size: 0; min-block-size: 0; overflow: auto; background: var(--hl-surface, #fff); border-inline-start: 1px solid var(--color-border, #dfdfdf); }
+ .hl-app-shell-rev6-frame [data-tab-destination] { display: none; }
+ .hl-app-shell-rev6-frame [data-tab-header] { box-sizing: border-box; padding-inline-end: 70px; }
+ .hl-app-shell-rev6-frame .hl-rev6-panel-actions { position: absolute; z-index: 2; inset-block-start: 3px; inset-inline-end: 6px; display: flex; gap: 2px; }
+ .hl-app-shell-rev6-frame .hl-rev6-panel-actions button { display: grid; place-items: center; inline-size: 29px; min-block-size: 29px; block-size: 29px; padding: 0; border: 0; }
+ .hl-app-shell-rev6-frame .hl-rev6-panel-scrim { position: absolute; z-index: 2; inset: 0; inline-size: 100%; block-size: 100%; border: 0; border-radius: 0; background: #0002; }
+ .hl-app-shell-rev6-frame[data-panel-placement=float] .hl-rev6-panel { position: absolute; z-index: 3; inset-block: 0; inset-inline-end: 0; inline-size: min(380px, 100%); }
+ .hl-app-shell-rev6-frame[data-panel-placement=sheet] .hl-rev6-panel { position: absolute; z-index: 3; inset-block-end: 0; inset-inline: 0; block-size: min(310px, 100%); border-block-start: 1px solid var(--color-border, #dfdfdf); }
+ .hl-app-shell-rev6-frame .hl-rev6-drawer-scrim, .hl-app-shell-rev6-frame .hl-rev6-dirty-scrim { position: absolute; z-index: 4; inset: 0; background: #0005; }
+ .hl-app-shell-rev6-frame .hl-rev6-drawer { position: absolute; z-index: 5; inset-block: 0; inset-inline-start: 0; inline-size: 90%; display: flex; flex-direction: column; min-block-size: 0; background: var(--hl-surface, #fff); padding: 8px; }
+ .hl-app-shell-rev6-frame .hl-rev6-drawer > button { align-self: flex-end; }
+ .hl-app-shell-rev6-frame .hl-rev6-drawer .hl-rev6-nav { flex: 1; overflow: auto; border: 0; }
+ .hl-app-shell-rev6-frame .hl-rev6-drawer .hl-rev6-nav a, .hl-app-shell-rev6-frame .hl-rev6-drawer .hl-rev6-nav button { justify-content: flex-start; }
+ .hl-app-shell-rev6-frame [data-dirty-dialog] { position: absolute; z-index: 6; inset-block-start: 50%; inset-inline-start: 50%; transform: translate(-50%, -50%); inline-size: min(390px, calc(100% - 32px)); padding: 22px; border: 1px solid var(--color-border, #999); border-radius: 10px; background: var(--hl-surface, #fff); }
+ .hl-app-shell-rev6-frame [data-dirty-dialog] h3 { margin: 0 0 7px; font-size: 17px; }
+ .hl-app-shell-rev6-frame [data-dirty-dialog] button { margin-inline-end: 6px; }
+ .hl-app-shell-rev6-frame .hl-rev6-sr { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+ .hl-app-shell-rev6-frame [data-shell-scroll-region] { scrollbar-color: var(--color-border, var(--hl-border, #595959)) transparent; }
+ .hl-app-shell-rev6-frame [data-shell-scroll-region]:hover { scrollbar-color: var(--color-muted-foreground, var(--hl-muted-foreground, #595959)) transparent; }
+ .hl-app-shell-rev6-frame [data-shell-scroll-region]::-webkit-scrollbar { width: 24px; height: 24px; }
+ .hl-app-shell-rev6-frame [data-shell-scroll-region]::-webkit-scrollbar-track, .hl-app-shell-rev6-frame [data-shell-scroll-region]::-webkit-scrollbar-corner { background: transparent; }
+ .hl-app-shell-rev6-frame [data-shell-scroll-region]::-webkit-scrollbar-thumb { border: 3px solid transparent; border-radius: 999px; background-color: var(--color-border, var(--hl-border, #595959)); background-clip: padding-box; }
+ .hl-app-shell-rev6-frame [data-shell-scroll-region]::-webkit-scrollbar-thumb:hover { background-color: var(--color-muted-foreground, var(--hl-muted-foreground, #595959)); }
+ .hl-app-shell-rev6-frame[data-form=unmeasured] [data-frame-background] { display: flex; flex-direction: column; overflow: auto; }
+ .hl-app-shell-rev6-frame[data-form=unmeasured] .hl-rev6-panel { flex: none; }
+ @@supports selector(::-webkit-scrollbar) { .hl-app-shell-rev6-frame [data-shell-scroll-region], .hl-app-shell-rev6-frame [data-shell-scroll-region]:hover { scrollbar-color: auto; } }
+ @@media (forced-colors: active) {
+  .hl-app-shell-rev6-frame [data-shell-scroll-region], .hl-app-shell-rev6-frame [data-shell-scroll-region]:hover { scrollbar-color: auto; forced-color-adjust: auto; }
+  .hl-app-shell-rev6-frame [data-shell-scroll-region]::-webkit-scrollbar-thumb { background-color: ButtonText; }
+  .hl-app-shell-rev6-frame [data-shell-scroll-region]::-webkit-scrollbar-thumb:hover { background-color: Highlight; }
+  .hl-app-shell-rev6-frame :focus-visible { outline-color: Highlight; }
+ }
+</style>
+
+@code {
+ /// <summary>The stable shell identity.</summary>
+ [Parameter, EditorRequired] public string ShellId { get; set; } = "";
+ /// <summary>The current owner; mismatches render no private content.</summary>
+ [Parameter] public AppShellRev6Owner? Owner { get; set; }
+ /// <summary>Caller-owned current frame data.</summary>
+ [Parameter] public AppShellRev6FramePresentation? Presentation { get; set; }
+ /// <summary>Receives captured-owner requests without business effects.</summary>
+ [Parameter] public EventCallback<AppShellRev6FrameIntent> Intent { get; set; }
+ /// <summary>An optional finite nonnegative content-box measurement; null observes the root.</summary>
+ [Parameter] public double? ShellInlineSize { get; set; }
+ /// <summary>The existing typed tab-body seam.</summary>
+ [Parameter] public RenderFragment<AppShellRev6Tab>? TabContent { get; set; }
+ private readonly string instanceId = "hl-frame-" + Guid.NewGuid().ToString("N");
+ private string drawerId => instanceId + "-navigation";
+ private string panelId => instanceId + "-panel";
+ private string dialogTitle => instanceId + "-dirty-title";
+ private string ActionReasonId(string id) => instanceId + "-reason-" + Convert.ToHexString(System.Text.Encoding.UTF8.GetBytes(id));
+ private AppShellRev6FramePresentation? current;
+ private AppShellRev6Owner? previousOwner;
+ private double? measuredInlineSize;
+ private string form = "unmeasured";
+ private string placement = "none";
+ private double railWidth;
+ private double sidebarWidth;
+ private bool phoneNavigationOpen;
+ private bool disposed;
+ private ElementReference root;
+ private ElementReference main;
+ private IJSObjectReference? module;
+ private DotNetObjectReference<HarborlineAppShellRev6Frame>? callback;
+ private string? OwnerScope => current is null ? null : JsonSerializer.Serialize(current.Owner);
+ private bool PanelVisible => current is not null && current.PanelOpen && !current.FocusMode;
+ private string GeometryStyle => FormattableString.Invariant($"--frame-rail:{railWidth}px;--frame-sidebar:{sidebarWidth}px;--frame-panel:{(placement == "dock" ? 380 : 0)}px");
+ protected override void OnParametersSet()
+ {
+  if (!System.Text.RegularExpressions.Regex.IsMatch(ShellId, "^[a-z0-9-]+$")) throw new ArgumentException("ShellId must match [a-z0-9-]+.", nameof(ShellId));
+  if (ShellInlineSize is { } width && (!double.IsFinite(width) || width < 0)) throw new ArgumentOutOfRangeException(nameof(ShellInlineSize));
+  if (previousOwner != Owner) { phoneNavigationOpen = false; previousOwner = Owner; }
+  current = Owner is { } owner && Presentation is { } candidate && candidate.Owner == owner
+   && candidate.MainFace is { } face && face.Owner == owner && candidate.Tabs is { } tabs && tabs.Owner == owner ? candidate : null;
+  Layout();
+ }
+ private void Layout()
+ {
+  var width = ShellInlineSize ?? measuredInlineSize;
+  form = width is null ? "unmeasured" : width < 600 ? "phone" : width < 1024 ? "tablet" : width < 1600 ? "laptop" : "wide";
+  railWidth = current is null || current.FocusMode || form is "phone" or "unmeasured" ? 0 : current.RailLabels ? 80 : 56;
+  sidebarWidth = current?.Sidebar is not null && !current.FocusMode && (form is "laptop" or "wide") && (current.Mode == AppShellRev6FrameMode.Chat || !current.IsSystemPage) ? 240 : 0;
+  placement = !PanelVisible ? "none" : form == "unmeasured" ? "unmeasured" : form == "phone" ? "sheet"
+   : (form is "laptop" or "wide") && width - railWidth - sidebarWidth - 380 >= 560 ? "dock" : "float";
+  if (current is null || form != "phone" || current.FocusMode || current.Tabs.PendingClose is not null) phoneNavigationOpen = false;
+ }
+ private static bool Supported(AppShellRev6FrameMainFace face) => face.Kind == AppShellRev6FrameFaceKind.Structured
+  && face.Plan is { DefinitionKind: "ViewDefinition", Bindings: { ViewKind: ViewKindIds.Table, Parameters: { Fields: not null } } } && face.Rows is not null;
+ private bool SameOwner(AppShellRev6Owner renderedOwner) => !disposed && current?.Owner == renderedOwner && Owner == renderedOwner;
+ private bool BackgroundAllowed(AppShellRev6Owner renderedOwner, bool fromNavigation = false) => SameOwner(renderedOwner) && current!.Tabs.PendingClose is null && (!phoneNavigationOpen || fromNavigation);
+ private Task Request(AppShellRev6Owner renderedOwner, AppShellRev6FrameIntent request) => BackgroundAllowed(renderedOwner) ? Intent.InvokeAsync(request) : Task.CompletedTask;
+ private Task Command(AppShellRev6Owner owner, string command)
+ {
+  if (!BackgroundAllowed(owner, command == "account")) return Task.CompletedTask;
+  if (command == "account") phoneNavigationOpen = false;
+  return Request(owner, new AppShellRev6FrameCommand(owner, command));
+ }
+ private Task SetPanel(AppShellRev6Owner owner, bool open) => Request(owner, new AppShellRev6FrameSetPanelOpen(owner, open));
+ private Task ForwardTab(AppShellRev6Owner owner, AppShellRev6Intent value) => Request(owner, new AppShellRev6FrameTabIntent(owner, value));
+ private Task ResolveClose(AppShellRev6Owner owner, AppShellRev6Intent value) => SameOwner(owner) && current!.Tabs.PendingClose is not null
+  ? Intent.InvokeAsync(new AppShellRev6FrameTabIntent(owner, value)) : Task.CompletedTask;
+ private Task Navigate(AppShellRev6Owner owner, string id)
+ {
+  if (!BackgroundAllowed(owner, true)) return Task.CompletedTask;
+  phoneNavigationOpen = false;
+  return Intent.HasDelegate ? Intent.InvokeAsync(new AppShellRev6FrameNavigate(owner, id)) : Task.CompletedTask;
+ }
+ private void OpenNavigation(AppShellRev6Owner owner) { if (BackgroundAllowed(owner) && form == "phone") phoneNavigationOpen = true; }
+ private void CloseNavigation(AppShellRev6Owner owner) { if (SameOwner(owner)) phoneNavigationOpen = false; }
+ /// <summary>Dismisses navigation only for the rendered current owner.</summary>
+ [JSInvokable] public Task DismissNavigation(string renderedScope) => disposed ? Task.CompletedTask : InvokeAsync(() => { if (!disposed && renderedScope == OwnerScope) { phoneNavigationOpen = false; StateHasChanged(); } });
+ /// <summary>Requests panel dismissal only for the rendered current owner.</summary>
+ [JSInvokable] public Task DismissPanel(string renderedScope) => renderedScope == OwnerScope && current is { } shown ? SetPanel(shown.Owner, false) : Task.CompletedTask;
+ /// <summary>Requests exit from Focus mode for the rendered current owner.</summary>
+ [JSInvokable] public Task ExitFocus(string renderedScope) => renderedScope == OwnerScope && current is { } shown ? Command(shown.Owner, "exit-focus") : Task.CompletedTask;
+ /// <summary>Accepts an observed root content-box size while measurement is enabled.</summary>
+ [JSInvokable] public Task MeasureInlineSize(double width) => disposed ? Task.CompletedTask : InvokeAsync(() => {
+  if (disposed || ShellInlineSize is not null) return;
+  if (!double.IsFinite(width) || width < 0) throw new ArgumentOutOfRangeException(nameof(width));
+  if (measuredInlineSize == width) return;
+  measuredInlineSize = width; Layout(); StateHasChanged();
+ });
+ private IEnumerable<AppShellRev6FrameRailItem> RailItems(AppShellRev6FramePresentation shown)
+ {
+  var groups = shown.Mode == AppShellRev6FrameMode.Chat
+   ? new[] { AppShellRev6FrameRailGroup.MyWork, AppShellRev6FrameRailGroup.Conversations, AppShellRev6FrameRailGroup.Browse }
+   : new[] { AppShellRev6FrameRailGroup.MyWork, AppShellRev6FrameRailGroup.Primary, AppShellRev6FrameRailGroup.Secondary, AppShellRev6FrameRailGroup.Conversations };
+  return groups.SelectMany(group => shown.Rail.Items.Where(item => item.Group == group));
+ }
+ private static string LinkName(AppShellRev6FrameLink link) => link.Label + (link.Count is { } count ? " " + count.ToString(CultureInfo.InvariantCulture) : "");
+ private RenderFragment Navigation(AppShellRev6FramePresentation shown, bool phone) => @<nav class="hl-rev6-nav" aria-label="Workspace navigation" data-shell-scroll-region>
+  <a href="@shown.Rail.HomeHref" aria-label="@shown.Rail.TenantLabel" data-nav-id="home" data-drawer-row @onclick='() => Navigate(shown.Owner, "home")' @onclick:preventDefault="@(Intent.HasDelegate || shown.Tabs.PendingClose is not null)">@shown.Rail.TenantText</a>
+  @foreach (var item in RailItems(shown))
+  {
+   <a @key="item.Link.Id" href="@item.Link.Href" aria-label="@LinkName(item.Link)" title="@LinkName(item.Link)" aria-current="@(item.Link.Current ? "page" : null)" data-nav-id="@item.Link.Id" data-drawer-row @onclick="() => Navigate(shown.Owner, item.Link.Id)" @onclick:preventDefault="@(Intent.HasDelegate || shown.Tabs.PendingClose is not null)">
+    @Icon(item.Link.IconKey)
+    @if (phone || shown.RailLabels) { <span>@item.Link.Label</span> }
+    @if (item.Link.Count is { } count) { <span class="hl-rev6-count">@count</span> }
+   </a>
+  }
+  @if (phone && shown.Sidebar is not null) { <div class="hl-rev6-sidebar">@Sidebar(shown)</div> }
+  <button type="button" data-account aria-label="@shown.Rail.AccountLabel" data-drawer-row @onclick='() => Command(shown.Owner, "account")'>@shown.Rail.AccountText</button>
+ </nav>;
+ private RenderFragment Sidebar(AppShellRev6FramePresentation shown) => @<text>
+  <h2>@shown.Sidebar!.Title</h2>
+  @if (shown.Sidebar.ScopeLabel is not null) { <p>@shown.Sidebar.ScopeLabel</p> }
+  @foreach (var section in shown.Sidebar.Sections)
+  {
+   <section @key="section.Id" aria-label="@section.Label"><h3>@section.Label</h3>
+    @foreach (var link in section.Items)
+    {
+     <a @key="link.Id" href="@link.Href" aria-label="@LinkName(link)" aria-current="@(link.Current ? "page" : null)" data-nav-id="@link.Id" data-drawer-row @onclick="() => Navigate(shown.Owner, link.Id)" @onclick:preventDefault="@(Intent.HasDelegate || shown.Tabs.PendingClose is not null)">@link.Label@if (link.Count is { } count) { <span class="hl-rev6-count"> @count</span> }</a>
+    }
+   </section>
+  }
+ </text>;
+ private static RenderFragment Icon(string key) => @<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="@IconPath(key)" /></svg>;
+ private static string IconPath(string key) => key.ToLowerInvariant() switch {
+  "menu" => "M4 6h16M4 12h16M4 18h16", "close" => "M5 5l14 14M19 5 5 19", "plus" => "M12 4v16M4 12h16",
+  "search" => "M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14Zm5-2 5 5", "panel" => "M3 4h18v16H3V4Zm12 0v16",
+  "chat" => "M4 4h16v12H8l-4 4V4Z", "grid" => "M3 3h7v7H3ZM14 3h7v7h-7ZM3 14h7v7H3ZM14 14h7v7h-7Z",
+  "work" => "M4 7h16v14H4V7Zm4 0V3h8v4", "browse" => "M3 3h18v18H3V3ZM3 10h18M10 3v18", _ => "M5 3h10l4 4v14H5V3Zm10 0v5h4"
+ };
+ protected override async Task OnAfterRenderAsync(bool firstRender)
+ {
+  if (disposed) return;
+  var imported = module ?? await JS.InvokeAsync<IJSObjectReference>("import", "./_content/Harborline.UIAdapters.Blazor/app-shell-rev6-frame.mjs");
+  if (disposed) { if (module is null) await imported.DisposeAsync(); return; }
+  module = imported; callback ??= DotNetObjectReference.Create(this);
+  await module.InvokeVoidAsync("bind", root, callback, ShellInlineSize is null, OwnerScope);
+ }
+ /// <summary>Detaches frame observation, listeners and the interop callback.</summary>
+ public async ValueTask DisposeAsync()
+ {
+  disposed = true;
+  try { if (module is not null) await module.InvokeVoidAsync("unbind", root); }
+  finally { try { if (module is not null) await module.DisposeAsync(); } finally { callback?.Dispose(); } }
+ }
+}

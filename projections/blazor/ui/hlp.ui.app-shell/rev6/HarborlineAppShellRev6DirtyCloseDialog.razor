@@ -1,0 +1,40 @@
+@namespace Harborline.UIAdapters.Blazor.Components.Layout
+@using Microsoft.AspNetCore.Components.Web
+
+@{ var renderedOwner = Presentation.Owner; var pending = Presentation.PendingClose; }
+<div role="dialog" aria-modal="true" aria-labelledby="@TitleId" data-dirty-dialog @onkeydown="@(e => DialogKey(renderedOwner, pending, e))">
+ <h3 id="@TitleId">Save changes before closing?</h3>
+ <p>Unsaved changes remain until the host confirms a successful save.</p>
+ <button type="button" disabled="@(saveSent || Presentation.SaveRequest is not null)" @onclick="() => Resolve(renderedOwner, pending, AppShellRev6CloseChoice.Save)">Save</button>
+ <button type="button" @onclick="() => Resolve(renderedOwner, pending, AppShellRev6CloseChoice.Discard)">Discard</button>
+ <button type="button" @onclick="() => Resolve(renderedOwner, pending, AppShellRev6CloseChoice.Cancel)">Cancel</button>
+ @if (Presentation.SaveRequest is not null) { <p role="status" tabindex="-1">Save requested; waiting for adapter acknowledgment.</p> }
+</div>
+
+@code {
+ /// <summary>Implementation data for the current rendered tab surface.</summary>
+ [Parameter, EditorRequired] public AppShellRev6Presentation Presentation { get; set; } = default!;
+ /// <summary>Implementation data for the current rendered tab surface.</summary>
+ [Parameter, EditorRequired] public string TitleId { get; set; } = "";
+ /// <summary>Implementation data for the current rendered tab surface.</summary>
+ [Parameter] public EventCallback<AppShellRev6Intent> Intent { get; set; }
+ private AppShellRev6Owner? previousOwner;
+ private string? previousPending;
+ private bool saveSent;
+ protected override void OnParametersSet()
+ {
+  if (previousOwner != Presentation.Owner || previousPending != Presentation.PendingClose) saveSent = false;
+  previousOwner = Presentation.Owner; previousPending = Presentation.PendingClose;
+ }
+ private Task Resolve(AppShellRev6Owner renderedOwner, string? pending, AppShellRev6CloseChoice choice)
+ {
+  if (Presentation.Owner != renderedOwner || Presentation.PendingClose != pending || pending is null) return Task.CompletedTask;
+  if (choice == AppShellRev6CloseChoice.Save)
+  {
+   if (saveSent || Presentation.SaveRequest is not null) return Task.CompletedTask;
+   saveSent = true;
+  }
+  return Intent.InvokeAsync(new("resolve-close", Choice: choice));
+ }
+ private Task DialogKey(AppShellRev6Owner renderedOwner, string? pending, KeyboardEventArgs e) => e.Key == "Escape" ? Resolve(renderedOwner, pending, AppShellRev6CloseChoice.Cancel) : Task.CompletedTask;
+}

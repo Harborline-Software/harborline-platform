@@ -2,111 +2,47 @@
 @inject IJSRuntime JS
 @using System.Text.Json
 @using Harborline.UIAdapters.Blazor.Components.Layout
+@using Harborline.UIAdapters.Blazor.Components.DataDisplay
 
-@* The rail, records, search, and details are gallery fixtures. The tab host and reducer are rev6 code. *@
-<div class="hl-r6-demo" data-panel-open="@(panelOpen ? "true" : "false")">
- <nav class="hl-r6-rail" aria-label="Sample workspace rail">
-  <span class="hl-r6-tenant" aria-label="Example organization">EO</span>
-  <span class="hl-r6-rail-icon" title="Conversations">@Icon("chat")</span>
-  <span class="hl-r6-rail-icon is-current" title="Records">@Icon("grid")</span>
-  <span class="hl-r6-rail-icon" title="My work">@Icon("inbox")<b>2</b></span>
-  <span class="hl-r6-rail-rule"></span>
-  <span class="hl-r6-rail-icon" title="Pages">@Icon("folder")</span>
-  <span class="hl-r6-rail-icon" title="Browse">@Icon("apps")</span>
-  <span class="hl-r6-rail-icon" title="Tasks">@Icon("check")</span>
-  <span class="hl-r6-rail-rule"></span>
-  <span class="hl-r6-rail-icon" title="Reports">@Icon("chart")</span>
-  <span class="hl-r6-rail-spacer"></span>
-  <span class="hl-r6-rail-icon" title="Settings">@Icon("settings")</span>
-  <span class="hl-r6-avatar" aria-label="Sample user A. Rivera">AR</span>
- </nav>
- <aside class="hl-r6-sidebar" aria-label="Sample records navigation">
-  <strong class="hl-r6-sidebar-title">Records</strong>
-  <div class="hl-r6-scope"><span><i class="hl-r6-scope-dot" aria-hidden="true"></i> Site 1</span><span>Last used</span></div>
-  <div class="hl-r6-scope-link">Everywhere</div>
-  <div class="hl-r6-side-label">Views</div>
-  <div class="hl-r6-side-current">All records</div>
-  <div class="hl-r6-side-item">Mine</div>
-  <div class="hl-r6-side-item">Recently changed</div>
-  <div class="hl-r6-side-label hl-r6-side-label-space">Pinned</div>
-  <div class="hl-r6-side-item">Mine, open</div>
-  <div class="hl-r6-mock-note"><strong>Gallery mock</strong><span>Rail, records, search and Assistant are sample UI. Tab state is live; no backend, AI or persistence is connected.</span></div>
- </aside>
- <main class="hl-r6-workspace">
-  <header class="hl-r6-topbar">
-   <div class="hl-r6-location"><strong>Records</strong><small>Site 1 &gt; Records</small></div>
-   <label class="hl-r6-search">@Icon("search")<span class="hl-r6-sr">Search sample records</span><input @bind="query" @bind:event="oninput" placeholder="Ask or search Site 1" /><kbd>Ctrl K</kbd></label>
-   <button class="hl-r6-share" @onclick='() => ShowNotice("Sharing is simulated in this gallery.")'>@Icon("share") Share</button>
-   <button class="hl-r6-panel-toggle" aria-label="@(panelOpen ? "Hide sample side panel" : "Show sample side panel")" aria-pressed="@panelOpen" @onclick="() => panelOpen = !panelOpen">@Icon("panel")</button>
-  </header>
-  <div class="hl-r6-contextbar">
-   <div class="hl-r6-segments" role="group" aria-label="Filter sample records by status">
-    @foreach (var value in statuses)
-    {
-     <button aria-pressed="@(status == value)" @onclick="() => status = value">@value</button>
-    }
-   </div>
-   <div class="hl-r6-context-actions">
-    <button title="Show all sample records" aria-label="Show all sample records" @onclick='() => { status = "All"; query = ""; }'>@Icon("filter")</button>
-    <button title="Reverse sample records" aria-label="Reverse sample records" @onclick='() => ShowNotice("Sort is illustrative in this gallery.")'>@Icon("sort")</button>
-    <div class="hl-r6-view-switch" role="group" aria-label="Sample record view"><button aria-pressed="@(layout == "Grid")" @onclick='() => layout = "Grid"'>Grid</button><button aria-pressed="@(layout == "Board")" @onclick='() => layout = "Board"'>Board</button></div>
-    <button class="hl-r6-new" @onclick='() => ShowNotice("Record creation is simulated in this gallery.")'>@Icon("plus", 13) New record @Icon("chevron", 12)</button>
-   </div>
-  </div>
-  @if (layout == "Grid")
-  {
-   <div class="hl-r6-table-scroll"><table class="hl-r6-table"><thead><tr><th><span class="hl-r6-check"></span></th><th>ID</th><th>Record</th><th>Status</th><th>Owner</th><th>Type</th><th>Updated</th></tr></thead><tbody>
-    @foreach (var record in Filtered)
-    {
-     <tr class="@(selected == record.Id ? "is-selected" : "")" @onclick="() => SelectRecord(record)"><td><span class="hl-r6-check"></span></td><td>@record.Id</td><td><button class="hl-r6-record-link" @onclick:stopPropagation="true" @onclick="() => SelectRecord(record)">@record.Title</button></td><td><span class="hl-r6-status">@record.Status</span></td><td>@record.Owner</td><td>@record.Type</td><td>@record.Updated</td></tr>
-    }
-   </tbody></table>@if (Filtered.Count == 0) { <p class="hl-r6-empty">No sample records match this view.</p> }</div>
-  }
-  else
-  {
-   <div class="hl-r6-board">
-    @foreach (var column in statuses.Take(3))
-    {
-     <section><h2>@column <span>@Filtered.Count(record => record.Status == column)</span></h2>
-      @foreach (var record in Filtered.Where(record => record.Status == column))
-      {
-       <button @onclick="() => SelectRecord(record)"><small>@record.Id</small><strong>@record.Title</strong><span>@record.Owner</span></button>
-      }
-     </section>
-    }
-   </div>
-  }
-  <footer class="hl-r6-list-footer"><span>@Filtered.Count sample records <span class="hl-r6-footer-hint">Select a row to retarget the preview tab</span></span><span>Local fixture · no live data</span></footer>
-  <div class="hl-r6-mobile-note">Gallery mock · no backend, persistence or AI connected.</div>
- </main>
- @if (panelOpen)
- {
-  <aside class="hl-r6-panel" aria-label="Rev6 tab host with sample record details">
-   <div class="hl-r6-native">
-    <HarborlineAppShellRev6TabHost ShellId="gallery-rev6-composed-blazor" Owner="owner" Presentation="view" Intent="HandleIntent">
-     <TabContent Context="tab"><p>@tab.Kind / @tab.Target</p><label>Draft note <textarea @bind:get="Draft(tab.Id)" @bind:set="value => EditDraft(tab.Id, value)" @bind:event="oninput"></textarea></label></TabContent>
-    </HarborlineAppShellRev6TabHost>
-   </div>
-   <div class="hl-r6-panel-actions"><button aria-label="Open sample tab" aria-expanded="@toolsOpen" @onclick="() => toolsOpen = !toolsOpen">@Icon("plus", 13)</button><button aria-label="Hide sample side panel" @onclick="() => panelOpen = false">@Icon("close", 13)</button></div>
-   @if (toolsOpen)
-   {
-    <div class="hl-r6-tools" role="group" aria-label="Sample tab kinds">
-     @foreach (var kind in tabKinds) { <button @onclick="() => OpenTool(kind)">@kind</button> }
+<link rel="stylesheet" href="./_content/Harborline.UIAdapters.Blazor/data-grid.css" />
+@{ var renderedOwner = owner; var renderedEpoch = epoch; }
+<div class="hl-r6-frame-fixture">
+ <label class="hl-r6-fixture-identity">Fixture identity adapter
+  <select aria-label="Fixture identity" disabled="@(state is null)" value="@fixturePerson" @onchange="ChangeFixtureIdentity"><option value="alice">Alice</option><option value="bob">Bob</option><option value="signed-out">Signed out</option></select>
+ </label>
+ <fieldset class="hl-r6-fixture-controls" disabled="@(view?.PendingClose is not null)" aria-label="Fixture data selection">
+  <legend>Gallery fixture data selection · local sample data, not shell Filter</legend>
+  <label>Status <select @bind="status">@foreach (var value in statuses) { <option>@value</option> }</select></label>
+  <label>Contains <input @bind="query" @bind:event="oninput" /></label>
+  <label>Sample view <select @bind="layout"><option>Grid</option><option>Board</option></select></label>
+  <label><input type="checkbox" @bind="actionsDisabled" /> Disable view actions</label>
+  <label><input type="checkbox" @bind="embedAt700" /> Embed frame at 700px</label>
+  <span>Board, Home and Conversation have no admitted renderer in this slice.</span>
+ </fieldset>
+ <div class="hl-r6-frame-host" style="@(embedAt700 ? "inline-size:700px;max-inline-size:100%" : null)">
+  <HarborlineAppShellRev6Frame ShellId="gallery-rev6-composed-blazor" Owner="owner" Presentation="FrameView" Intent="HandleFrameIntent">
+   <TabContent Context="tab">
+    <div class="hl-r6-tab-body">
+     <p>@tab.Kind / @tab.Target</p>
+     @if (records.FirstOrDefault(record => record.Id == tab.Target) is { } record)
+     {
+      <dl><div><dt>Status</dt><dd>@record.Status</dd></div><div><dt>Owner</dt><dd>@record.Owner</dd></div><div><dt>Type</dt><dd>@record.Type</dd></div><div><dt>Updated</dt><dd>@record.Updated</dd></div><div><dt>Place</dt><dd>@record.Place</dd></div></dl>
+     }
+     <label>Draft note <textarea @bind:get="Draft(renderedOwner, renderedEpoch, tab.Id)" @bind:set="value => EditDraft(renderedOwner, renderedEpoch, tab.Id, value)" @bind:event="oninput"></textarea></label>
+     <p class="hl-r6-fixture-note">Gallery mock · no backend, persistence or AI connected.</p>
     </div>
-   }
-   @if (ActiveRecord is { } activeRecord)
-   {
-    <div class="hl-r6-details"><dl><div><dt>Status</dt><dd><span class="hl-r6-status">@activeRecord.Status</span></dd></div><div><dt>Owner</dt><dd>@activeRecord.Owner</dd></div><div><dt>Type</dt><dd>@activeRecord.Type</dd></div><div><dt>Updated</dt><dd>@activeRecord.Updated</dd></div><div><dt>Place</dt><dd>@activeRecord.Place</dd></div></dl></div>
-   }
-   else
-   {
-    <div class="hl-r6-details hl-r6-tool-details">@Icon(ActiveTab?.Kind == "Assistant" ? "spark" : "list", 20)<p>@(ActiveTab is null ? "Select a record to preview its details." : $"{ActiveTab.Kind} for {ActiveTab.Target}")</p><small>Representative content is mocked for this gallery.</small></div>
-   }
-   <div class="hl-r6-ask">@Icon("spark", 13)<span>Ask about @(ActiveRecord?.Title ?? "this view")</span><kbd>Ctrl J</kbd></div>
-  </aside>
+   </TabContent>
+  </HarborlineAppShellRev6Frame>
+ </div>
+ @if (toolsOpen && view?.PendingClose is null)
+ {
+  <fieldset class="hl-r6-fixture-tools" disabled="@(view?.PendingClose is not null)" aria-label="Sample tab kinds">
+   <legend>@Icon("plus", 13) Sample tab kinds</legend>
+   @foreach (var kind in tabKinds) { <button type="button" @onclick="() => OpenTool(kind)">@kind</button> }
+  </fieldset>
  }
- @if (error is not null) { <div class="hl-r6-toast" role="alert">@error</div> }
- else if (notice is not null) { <div class="hl-r6-toast" role="status">@notice</div> }
+ @if (error is not null) { <div class="hl-r6-fixture-notice" role="alert">@error</div> }
+ else if (notice is not null) { <div class="hl-r6-fixture-notice" role="status">@notice</div> }
 </div>
 
 @code {
@@ -149,13 +85,53 @@
  private string query = "";
  private bool panelOpen = true;
  private bool toolsOpen;
+ private bool actionsDisabled;
+ private bool embedAt700;
+ private string fixturePerson = "alice";
  private string? notice;
  private string? error;
  private long epoch;
  private bool disposed;
  private IReadOnlyList<SampleRecord> Filtered => records.Where(record => (status == "All" || record.Status == status) && $"{record.Id} {record.Title} {record.Owner}".Contains(query, StringComparison.OrdinalIgnoreCase)).ToArray();
- private AppShellRev6Tab? ActiveTab => view?.Tabs.FirstOrDefault(tab => tab.Id == view.Active);
- private SampleRecord? ActiveRecord => records.FirstOrDefault(record => record.Id == ActiveTab?.Target);
+ private ViewRenderPlan TablePlan => new("gallery-records-v1", "sample-records", "1", "gallery-sample", "1", "ViewDefinition",
+  new(layout == "Grid" ? ViewKindIds.Table : "layout.board",
+   new([new("id", "ID"), new("record", "Record"), new("status", "Status"), new("owner", "Owner"), new("type", "Type"), new("updated", "Updated")]),
+   [new("inspect", "Show sample notice")]));
+ private IReadOnlyList<ViewRuntimeRow> TableRows => Filtered.Select(record => new ViewRuntimeRow(record.Id,
+  new Dictionary<string, object?> { ["id"] = record.Id, ["record"] = record.Title, ["status"] = record.Status, ["owner"] = record.Owner, ["type"] = record.Type, ["updated"] = record.Updated })).ToArray();
+ private AppShellRev6FramePresentation? FrameView => owner is null || view is null ? null : new(owner,
+  AppShellRev6FrameMode.Workspace,
+  new("EO", "Example organization Home", "/", [
+   new(AppShellRev6FrameRailGroup.MyWork, new("my-work", "My work", "#my-work", "work", false, 2)),
+   new(AppShellRev6FrameRailGroup.Primary, new("records", "Records", "#records", "grid", view.Destination == "records")),
+   new(AppShellRev6FrameRailGroup.Secondary, new("pages", "Pages", "#pages", "page", false)),
+   new(AppShellRev6FrameRailGroup.Conversations, new("conversations", "Conversations", "#conversations", "chat", false))], "AR", "Sample user A. Rivera"),
+  new("Records", "Site 1 / Everywhere", [new("views", "Views", [new("all-records", "All records", "#records", "grid", status == "All"), new("mine", "Mine", "#mine", "grid", false)])]),
+  new("Records", "Site 1 / " + view.Destination, "Search and ask", "Ask or search Site 1", [new("share", "Share", true, null)]),
+  new(owner, view.Destination == "home" ? AppShellRev6FrameFaceKind.Home : view.Destination == "conversations" ? AppShellRev6FrameFaceKind.Conversation : AppShellRev6FrameFaceKind.Structured,
+   "sample-records", TablePlan, TableRows, "Sample records", "No sample records match this view.", actionsDisabled), view, panelOpen);
+ private async Task HandleFrameIntent(AppShellRev6FrameIntent request)
+ {
+  if (request.Owner != owner) return;
+  switch (request)
+  {
+   case AppShellRev6FrameTabIntent tab: await HandleIntent(tab.Value); break;
+   case AppShellRev6FrameSetPanelOpen panel: panelOpen = panel.Open; break;
+   case AppShellRev6FrameRowActivated row:
+    if (records.FirstOrDefault(record => record.Id == row.RowId) is { } record) await SelectRecord(record);
+    break;
+   case AppShellRev6FrameNavigate navigation:
+    if (navigation.ItemId == "all-records") status = "All";
+    else if (navigation.ItemId == "mine") ShowNotice("Mine is illustrative fixture navigation.");
+    else await Apply(new { type = "navigate", destination = navigation.ItemId });
+    break;
+   case AppShellRev6FrameActionRequested action: ShowNotice(action.ActionId == "share" ? "Sharing is simulated in this gallery." : "View action received: " + action.ActionId + ". No backend write occurred."); break;
+   case AppShellRev6FrameCommand command:
+    if (command.CommandId == "new-tab") toolsOpen = !toolsOpen;
+    else ShowNotice(command.CommandId == "search" ? "Search-and-ask trigger received; no search backend is connected." : "Account trigger received; gallery fixture only.");
+    break;
+  }
+ }
 
  protected override async Task OnAfterRenderAsync(bool firstRender)
  {
@@ -188,16 +164,19 @@
    presentation.GetProperty("saveRequest").Deserialize<AppShellRev6SaveRequest>(jsonOptions));
   ScheduleSaveAcknowledgment();
  }
- private async Task Apply(object intent)
+ private async Task Apply(object intent, AppShellRev6Owner? expectedOwner = null, long? expectedEpoch = null)
  {
-  var requestEpoch = epoch;
+  var requestOwner = expectedOwner ?? owner;
+  var requestEpoch = expectedEpoch ?? epoch;
+  if (disposed || requestEpoch != epoch || requestOwner is null || owner != requestOwner) return;
   await events.WaitAsync();
   try
   {
-   if (disposed || requestEpoch != epoch || state is null || module is null) return;
+   if (disposed || requestEpoch != epoch || owner != requestOwner || state is null || module is null) return;
    var result = await module.InvokeAsync<JsonElement>("transition", state.Value, intent);
    var presentation = await module.InvokeAsync<JsonElement>("presentation", result);
-   if (disposed || requestEpoch != epoch) return;
+   if (disposed) return;
+   if (requestEpoch != epoch || owner != requestOwner) { state = result; return; }
    Publish(result, presentation);
   }
   catch (Exception ex) { if (!disposed && requestEpoch == epoch) error = ex.Message; }
@@ -226,14 +205,39 @@
   }
   catch (TaskCanceledException) { }
  }
- private string Draft(string id)
+ private string Draft(AppShellRev6Owner? renderedOwner, long renderedEpoch, string id)
  {
-  if (state is null || owner is null) return "";
-  var key = JsonSerializer.Serialize(new[] { owner.Person, owner.Tenant, owner.Workspace });
+  if (disposed || renderedEpoch != epoch || renderedOwner is null || owner != renderedOwner || state is null) return "";
+  var key = JsonSerializer.Serialize(new[] { renderedOwner.Person, renderedOwner.Tenant, renderedOwner.Workspace });
   var drafts = state.Value.GetProperty("owners").GetProperty(key).GetProperty("drafts");
   return drafts.TryGetProperty(id, out var draft) ? draft.ToString() : "";
  }
- private Task EditDraft(string id, string value) => Apply(new { type = "edit", id, draft = value });
+ private Task EditDraft(AppShellRev6Owner? renderedOwner, long renderedEpoch, string id, string value) =>
+  disposed || renderedEpoch != epoch || renderedOwner is null || owner != renderedOwner
+   ? Task.CompletedTask : Apply(new { type = "edit", id, draft = value }, renderedOwner, renderedEpoch);
+ private async Task ChangeFixtureIdentity(ChangeEventArgs e)
+ {
+  if (disposed || state is null || module is null) return;
+  var person = e.Value?.ToString();
+  if (person is not ("alice" or "bob" or "signed-out")) throw new ArgumentException("Unknown fixture identity.");
+  fixturePerson = person;
+  var requestEpoch = ++epoch;
+  owner = null; view = null; toolsOpen = false; saveRequestKey = null;
+  saveTimer?.Cancel(); saveTimer?.Dispose(); saveTimer = null;
+  noticeTimer?.Cancel(); noticeTimer?.Dispose(); noticeTimer = null; notice = null; error = null;
+  StateHasChanged();
+  await events.WaitAsync();
+  try
+  {
+   if (disposed || requestEpoch != epoch || state is null || module is null) return;
+   object identity = person == "signed-out" ? new { type = "sign-out" } : new { type = "identity", owner = new { person, tenant = "north", workspace = "work" } };
+   var result = await module.InvokeAsync<JsonElement>("transition", state.Value, identity);
+   var presentation = await module.InvokeAsync<JsonElement>("presentation", result);
+   if (disposed || requestEpoch != epoch) return;
+   Publish(result, presentation);
+  }
+  finally { events.Release(); }
+ }
  private Task HandleIntent(AppShellRev6Intent intent)
  {
   if (intent.Type == "resolve-close") return Apply(new { type = intent.Type, choice = intent.Choice!.Value.ToString().ToLowerInvariant() });
@@ -247,6 +251,7 @@
  }
  private async Task OpenTool(string kind)
  {
+  if (view?.PendingClose is not null) return;
   toolsOpen = false;
   await Apply(new { type = "open", kind, target = kind == "Assistant" ? "conversation-a" : selected });
  }
