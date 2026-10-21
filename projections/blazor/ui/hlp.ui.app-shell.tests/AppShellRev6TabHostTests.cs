@@ -171,6 +171,63 @@ public sealed class AppShellRev6TabHostTests : BunitContext
         Assert.Equal(second.Find("[role=tabpanel]").Id, second.Find("[role=tab]").GetAttribute("aria-controls"));
     }
 
+    // interface.yaml:103 and the neutral shell-scrollbars fixture supply these
+    // literal CSS oracles. Renderer markup does not prove native size or contrast.
+    [Fact]
+    public void Both_owned_scroll_regions_have_native_scoped_theme_and_grab_rules()
+    {
+        var cut = Host(View([new("details:one", "details", "One", false, false, false)], "details:one"), []);
+        Assert.Equal("hl-app-shell-rev6-tab-host", cut.Find("main").GetAttribute("class"));
+        Assert.Equal(2, cut.FindAll(".hl-app-shell-rev6-tab-host [data-shell-scroll-region]").Count);
+        Assert.True(cut.Find("[data-tab-strip]").HasAttribute("data-shell-scroll-region"));
+        // The actual composed host declares height:36px and scrollbar-width:thin.
+        // Owned inline auto sizing must win, with space for a classic bar as well.
+        var stripStyle = cut.Find("[data-tab-strip]").GetAttribute("style")!;
+        Assert.Contains("scrollbar-width:auto;", stripStyle, StringComparison.Ordinal);
+        Assert.Contains("height:auto;", stripStyle, StringComparison.Ordinal);
+        Assert.Contains("box-sizing:border-box;", stripStyle, StringComparison.Ordinal);
+        Assert.Contains("min-height:calc(34px + 24px + 4px + 1px);", stripStyle, StringComparison.Ordinal);
+        Assert.Contains("padding:2px", stripStyle, StringComparison.Ordinal);
+        Assert.Contains("block-size:34px;", cut.Find("[role=tab]").GetAttribute("style")!, StringComparison.Ordinal);
+        Assert.True(cut.Find("[data-tab-search][popover=auto]").HasAttribute("data-shell-scroll-region"));
+        Assert.DoesNotContain("scrollbar-width:thin", cut.Markup, StringComparison.Ordinal);
+        var css = cut.Find("style").TextContent;
+        const string region = ".hl-app-shell-rev6-tab-host [data-shell-scroll-region]";
+        static string Rule(string text, string selector)
+        {
+            var match = System.Text.RegularExpressions.Regex.Match(text,
+                System.Text.RegularExpressions.Regex.Escape(selector) + @"\s*\{([^{}]*)\}");
+            Assert.True(match.Success, "Missing scroll rule: " + selector);
+            return match.Groups[1].Value;
+        }
+
+        Assert.Contains("scrollbar-gutter: stable;", Rule(css, region), StringComparison.Ordinal);
+        Assert.Contains("scrollbar-color: var(--color-border, var(--hl-border, #595959)) transparent;", Rule(css, region), StringComparison.Ordinal);
+        Assert.Contains("scrollbar-color: var(--color-muted-foreground, var(--hl-muted-foreground, #595959)) transparent;", Rule(css, region + ":hover"), StringComparison.Ordinal);
+        var grab = Rule(css, region + "::-webkit-scrollbar");
+        Assert.Contains("width: 24px;", grab, StringComparison.Ordinal);
+        Assert.Contains("height: 24px;", grab, StringComparison.Ordinal);
+        Assert.Contains(region + "::-webkit-scrollbar-track,", css, StringComparison.Ordinal);
+        Assert.Contains("background: transparent;", Rule(css, region + "::-webkit-scrollbar-corner"), StringComparison.Ordinal);
+        var thumb = Rule(css, region + "::-webkit-scrollbar-thumb");
+        Assert.Contains("border: 3px solid transparent;", thumb, StringComparison.Ordinal);
+        Assert.Contains("background-color: var(--color-border, var(--hl-border, #595959));", thumb, StringComparison.Ordinal);
+        Assert.Contains("background-clip: padding-box;", thumb, StringComparison.Ordinal);
+        Assert.Contains("background-color: var(--color-muted-foreground, var(--hl-muted-foreground, #595959));", Rule(css, region + "::-webkit-scrollbar-thumb:hover"), StringComparison.Ordinal);
+        var focus = Rule(css, region + " :focus-visible");
+        Assert.Contains("outline: 2px solid var(--hl-focus, var(--hl-primary, #0f62fe));", focus, StringComparison.Ordinal);
+        Assert.Contains("outline-offset: -2px;", focus, StringComparison.Ordinal);
+        var webkit = css[css.IndexOf("@supports selector(::-webkit-scrollbar)", StringComparison.Ordinal)..];
+        Assert.Contains("scrollbar-color: auto;", Rule(webkit, region + ":hover"), StringComparison.Ordinal);
+        var forced = css[css.IndexOf("@media (forced-colors: active)", StringComparison.Ordinal)..];
+        Assert.Contains("scrollbar-color: auto;", Rule(forced, region + ":hover"), StringComparison.Ordinal);
+        Assert.Contains("forced-color-adjust: auto;", Rule(forced, region + ":hover"), StringComparison.Ordinal);
+        Assert.Contains("background-color: ButtonText;", Rule(forced, region + "::-webkit-scrollbar-thumb"), StringComparison.Ordinal);
+        Assert.Contains("background-color: Highlight;", Rule(forced, region + "::-webkit-scrollbar-thumb:hover"), StringComparison.Ordinal);
+        Assert.Contains("outline-color: Highlight;", Rule(forced, region + " :focus-visible"), StringComparison.Ordinal);
+        Assert.DoesNotContain(".hl-app-shell [", css, StringComparison.Ordinal);
+    }
+
     private IRenderedComponent<HarborlineAppShellRev6TabHost> Host(AppShellRev6Presentation view, List<AppShellRev6Intent> intents) =>
         Render<HarborlineAppShellRev6TabHost>(parameters => parameters
             .Add(component => component.ShellId, "native-p8")

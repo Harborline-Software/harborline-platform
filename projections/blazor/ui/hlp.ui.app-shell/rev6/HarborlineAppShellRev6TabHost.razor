@@ -14,7 +14,7 @@
   <div inert="@(current.PendingClose is not null ? "" : null)" aria-hidden="@(current.PendingClose is not null ? "true" : null)">
   <h2>@current.Destination</h2>
   <div style="display:flex;align-items:flex-start;gap:4px;min-inline-size:0;max-inline-size:100%">
-  <div role="tablist" aria-label="Workspace tabs" data-tab-strip style="display:flex;flex:1 1 auto;gap:2px;min-inline-size:0;overflow-x:auto;scrollbar-width:thin;padding:2px">
+  <div role="tablist" aria-label="Workspace tabs" data-tab-strip data-shell-scroll-region style="display:flex;flex:1 1 auto;gap:2px;min-inline-size:0;overflow-x:auto;scrollbar-width:auto;height:auto;box-sizing:border-box;min-height:calc(34px + 24px + 4px + 1px);padding:2px">
    @foreach (var tab in OrderedTabs())
    {
     <button @key="tab.Id" type="button" role="tab" id="@TabDomId(tab.Id)" aria-controls="@PanelDomId(tab.Id)" aria-label="@TabName(tab)" title="@TabName(tab)" aria-selected="@(current.Active == tab.Id ? "true" : "false")" tabindex="@(current.Active == tab.Id ? 0 : -1)" data-pinned="@(tab.Pinned ? "true" : null)" style="@TabStyle(tab)" @onclick='() => Emit(new("open", tab.Id, Kind: tab.Kind, Target: tab.Target))' @ondblclick='() => Emit(new("keep", tab.Id))'>
@@ -38,7 +38,7 @@
     <svg aria-hidden="true" focusable="false" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6" /></svg>
     <span>Search tabs (@current.Tabs.Length)</span>
    </button>
-   <div id="@searchResultsId" popover="auto" data-tab-search role="region" aria-label="Search open tabs" style="position:fixed;inset:0;margin:auto;box-sizing:border-box;inline-size:min(24rem,calc(100vw - 32px));max-block-size:min(20rem,calc(100dvh - 32px));overflow:auto;padding:8px;border:1px solid var(--hl-border,#d5d5d5);background:var(--hl-surface,#fff);color:var(--hl-foreground,inherit)">
+   <div id="@searchResultsId" popover="auto" data-tab-search data-shell-scroll-region role="region" aria-label="Search open tabs" style="position:fixed;inset:0;margin:auto;box-sizing:border-box;inline-size:min(24rem,calc(100vw - 32px));max-block-size:min(20rem,calc(100dvh - 32px));overflow:auto;padding:8px;border:1px solid var(--hl-border,#d5d5d5);background:var(--hl-surface,#fff);color:var(--hl-foreground,inherit)">
     <input type="search" autofocus aria-label="Find an open tab" value="@searchQuery" @oninput="SearchTabs" style="box-sizing:border-box;inline-size:100%;min-inline-size:0" />
     <ul style="list-style:none;margin:4px 0 0;padding:0">
      @foreach (var tab in OrderedTabs().Where(SearchMatches))
@@ -74,6 +74,59 @@
   }
  }
 </main>
+
+<style>
+ .hl-app-shell-rev6-tab-host [data-shell-scroll-region] {
+  scrollbar-gutter: stable;
+  scrollbar-color: var(--color-border, var(--hl-border, #595959)) transparent;
+ }
+ .hl-app-shell-rev6-tab-host [data-shell-scroll-region]:hover {
+  scrollbar-color: var(--color-muted-foreground, var(--hl-muted-foreground, #595959)) transparent;
+ }
+ .hl-app-shell-rev6-tab-host [data-shell-scroll-region]::-webkit-scrollbar {
+  width: 24px;
+  height: 24px;
+ }
+ .hl-app-shell-rev6-tab-host [data-shell-scroll-region]::-webkit-scrollbar-track,
+ .hl-app-shell-rev6-tab-host [data-shell-scroll-region]::-webkit-scrollbar-corner {
+  background: transparent;
+ }
+ .hl-app-shell-rev6-tab-host [data-shell-scroll-region]::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background-color: var(--color-border, var(--hl-border, #595959));
+  background-clip: padding-box;
+ }
+ .hl-app-shell-rev6-tab-host [data-shell-scroll-region]::-webkit-scrollbar-thumb:hover {
+  background-color: var(--color-muted-foreground, var(--hl-muted-foreground, #595959));
+ }
+ .hl-app-shell-rev6-tab-host [data-shell-scroll-region] :focus-visible {
+  outline: 2px solid var(--hl-focus, var(--hl-primary, #0f62fe));
+  outline-offset: -2px;
+ }
+ @@supports selector(::-webkit-scrollbar) {
+  .hl-app-shell-rev6-tab-host [data-shell-scroll-region],
+  .hl-app-shell-rev6-tab-host [data-shell-scroll-region]:hover {
+   scrollbar-color: auto;
+  }
+ }
+ @@media (forced-colors: active) {
+  .hl-app-shell-rev6-tab-host [data-shell-scroll-region],
+  .hl-app-shell-rev6-tab-host [data-shell-scroll-region]:hover {
+   scrollbar-color: auto;
+   forced-color-adjust: auto;
+  }
+  .hl-app-shell-rev6-tab-host [data-shell-scroll-region]::-webkit-scrollbar-thumb {
+   background-color: ButtonText;
+  }
+  .hl-app-shell-rev6-tab-host [data-shell-scroll-region]::-webkit-scrollbar-thumb:hover {
+   background-color: Highlight;
+  }
+  .hl-app-shell-rev6-tab-host [data-shell-scroll-region] :focus-visible {
+   outline-color: Highlight;
+  }
+ }
+</style>
 
 @code {
  [Parameter, EditorRequired] public string ShellId { get; set; } = "";

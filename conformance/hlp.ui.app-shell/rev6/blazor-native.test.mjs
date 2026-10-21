@@ -194,3 +194,59 @@ test('tab traversal wraps left, scrolls the new tab and ignores editable or deta
     unbind(root); assert.equal(handlers.size, 0);
   } finally { unbind(root); delete globalThis.document; }
 });
+
+// The neutral scrollbar fixture is the literal oracle. This source guard does
+// not measure browser scrollbars, theme contrast or rendered Razor behavior.
+test('both native scroll surfaces carry the isolated themed grab contract', () => {
+  const component = read('projections/blazor/ui/hlp.ui.app-shell/rev6/HarborlineAppShellRev6TabHost.razor');
+  const caller = read('gallery/projections/blazor/Stories/AppShellRev6ComposedScenario.razor');
+  const hostCss = read('gallery/projections/blazor/Stories/AppShellRev6ComposedScenario.razor.css');
+  assert.match(caller, /<div class="hl-r6-native">\s*<HarborlineAppShellRev6TabHost /);
+  const hostStrip = hostCss.match(/\.hl-r6-native ::deep \[role="tablist"\]\s*\{([^}]*)\}/)?.[1];
+  assert.ok(hostStrip);
+  assert.match(hostStrip, /height:\s*36px;/);
+  assert.match(hostStrip, /scrollbar-width:\s*thin;/);
+  assert.match(hostStrip, /border-bottom:\s*1px solid/);
+  assert.doesNotMatch(hostStrip, /(?:height|scrollbar-width)\s*:[^;]*!important/);
+  const strip = component.match(/<div role="tablist"[^>]*>/)?.[0];
+  const search = component.match(/<div id="@searchResultsId"[^>]*>/)?.[0];
+  assert.ok(strip?.includes('data-shell-scroll-region'));
+  assert.ok(search?.includes('data-shell-scroll-region'));
+  const stripStyle = strip.match(/style="([^"]*)"/)?.[1];
+  assert.ok(stripStyle);
+  assert.match(stripStyle, /(?:^|;)scrollbar-width:auto;/);
+  assert.match(stripStyle, /(?:^|;)height:auto;/);
+  assert.ok(stripStyle.includes('box-sizing:border-box;'));
+  assert.ok(stripStyle.includes('min-height:calc(34px + 24px + 4px + 1px);'));
+  assert.ok(stripStyle.includes('padding:2px'));
+  assert.ok(component.includes('block-size:34px;'));
+  assert.doesNotMatch(component, /scrollbar-width\s*:\s*thin/);
+  const css = component.match(/<style>([\s\S]*?)<\/style>/)?.[1];
+  assert.ok(css);
+  const region = '.hl-app-shell-rev6-tab-host [data-shell-scroll-region]';
+  const rule = (text, selector) => {
+    const start = text.indexOf(selector + ' {');
+    assert.notEqual(start, -1, 'Missing scroll rule: ' + selector);
+    const body = text.slice(start + selector.length + 2);
+    return body.slice(0, body.indexOf('}'));
+  };
+  assert.ok(rule(css, region).includes('scrollbar-color: var(--color-border, var(--hl-border, #595959)) transparent;'));
+  assert.ok(rule(css, region + ':hover').includes('scrollbar-color: var(--color-muted-foreground, var(--hl-muted-foreground, #595959)) transparent;'));
+  const grab = rule(css, region + '::-webkit-scrollbar');
+  assert.ok(grab.includes('width: 24px;')); assert.ok(grab.includes('height: 24px;'));
+  assert.ok(css.includes(region + '::-webkit-scrollbar-track,'));
+  assert.ok(rule(css, region + '::-webkit-scrollbar-corner').includes('background: transparent;'));
+  const thumb = rule(css, region + '::-webkit-scrollbar-thumb');
+  assert.ok(thumb.includes('border: 3px solid transparent;'));
+  assert.ok(thumb.includes('background-color: var(--color-border, var(--hl-border, #595959));'));
+  assert.ok(thumb.includes('background-clip: padding-box;'));
+  assert.ok(rule(css, region + '::-webkit-scrollbar-thumb:hover').includes('background-color: var(--color-muted-foreground, var(--hl-muted-foreground, #595959));'));
+  const webkit = css.slice(css.indexOf('@@supports selector(::-webkit-scrollbar)'));
+  assert.ok(rule(webkit, region + ':hover').includes('scrollbar-color: auto;'));
+  const forced = css.slice(css.indexOf('@@media (forced-colors: active)'));
+  assert.ok(rule(forced, region + ':hover').includes('forced-color-adjust: auto;'));
+  assert.ok(rule(forced, region + '::-webkit-scrollbar-thumb').includes('background-color: ButtonText;'));
+  assert.ok(rule(forced, region + '::-webkit-scrollbar-thumb:hover').includes('background-color: Highlight;'));
+  assert.ok(rule(forced, region + ' :focus-visible').includes('outline-color: Highlight;'));
+  assert.doesNotMatch(css, /\.hl-app-shell \[/);
+});
