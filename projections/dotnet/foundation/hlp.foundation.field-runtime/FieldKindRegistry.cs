@@ -18,7 +18,16 @@ public sealed class FieldKindRegistry
                 throw new FieldAdmissionException([new("field.kind_registration_invalid", "",
                     "A kind registration requires an identity, version and supported scalar shape.")]);
 
-            if (!_kinds.TryAdd((kind.KindId, kind.Version), kind))
+            var capabilities = kind.Capabilities?.ToArray();
+            if (capabilities is not null && capabilities.Any(capability => !Enum.IsDefined(capability)))
+                throw new FieldAdmissionException([new("field.kind_registration_invalid", "",
+                    "A kind registration declares only supported typed capabilities.")]);
+
+            var snapshot = kind with
+            {
+                Capabilities = capabilities is null ? null : Array.AsReadOnly(capabilities),
+            };
+            if (!_kinds.TryAdd((kind.KindId, kind.Version), snapshot))
                 throw new FieldAdmissionException([new("field.kind_registration_duplicate", "",
                     "A kind revision can only be registered once.")]);
         }

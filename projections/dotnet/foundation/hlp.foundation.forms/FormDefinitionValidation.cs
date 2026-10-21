@@ -45,6 +45,82 @@ internal static class FormDefinitionValidation
                 FormDefinitionCodes.SubmitGateCapabilityUnknown, "/submit_gate/capability/name");
     }
 
+    /// <summary>
+    /// T-485 (forms-ck-3): a declared <c>record_type_id</c> target is nonblank. A definition with no target passes
+    /// unchanged; the value is never trimmed or normalized.
+    /// </summary>
+    public static void ValidateRecordTypeTargetOrThrow(FormDefinition definition)
+    {
+        if (definition.RecordTypeId is { } target && string.IsNullOrWhiteSpace(target))
+            throw new FormDefinitionValidationException(
+                definition.Id, "record_type_id, when declared, must name a record type.",
+                FormDefinitionCodes.RecordTypeRequired, "/record_type_id");
+    }
+
+    /// <summary>
+    /// D3 publication check for a targeted definition, given its target's resolved creation gate. A <c>form_only</c>
+    /// target requires a submit gate; an <c>engine</c> target cannot be created through any form. A <c>role</c> target
+    /// adds no requirement here: the form invokes the same role-gated operation (D1).
+    /// </summary>
+    public static void ValidateRecordTypePublicationOrThrow(FormDefinition definition, RecordTypeCreationGate creationGate)
+    {
+        if (definition.RecordTypeId is null) return;
+        if (creationGate == RecordTypeCreationGate.Engine)
+            throw new FormDefinitionValidationException(
+                definition.Id, $"record type '{definition.RecordTypeId}' is created only by the engine; no form may target it.",
+                FormDefinitionCodes.RecordTypeNotFormCreatable, "/record_type_id");
+        if (creationGate == RecordTypeCreationGate.FormOnly && definition.SubmitGate is null)
+            throw new FormDefinitionValidationException(
+                definition.Id, $"record type '{definition.RecordTypeId}' is form_only; a form targeting it must declare submit_gate.",
+                FormDefinitionCodes.SubmitGateRequired, "/submit_gate");
+    }
+
+    /// <summary>
+    /// K9 publication check against the host producers' declaration (<see cref="IFormRecordCreationDeclarations"/>): when the
+    /// producers declare that submissions of this form create records of <paramref name="declaredRecordTypeId"/>, the
+    /// definition must target exactly that type. Missing target metadata is refused, never treated as "creates nothing";
+    /// a form the producers declare nothing for is unaffected.
+    /// </summary>
+    public static void ValidateDeclaredCreationOrThrow(FormDefinition definition, string? declaredRecordTypeId)
+    {
+        if (declaredRecordTypeId is null) return;
+        if (definition.RecordTypeId is null)
+            throw new FormDefinitionValidationException(
+                definition.Id,
+                $"submissions of this form create records of '{declaredRecordTypeId}'; a Published revision must declare record_type_id.",
+                FormDefinitionCodes.RecordTypeTargetRequired, "/record_type_id");
+        if (!StringComparer.Ordinal.Equals(definition.RecordTypeId, declaredRecordTypeId))
+            throw new FormDefinitionValidationException(
+                definition.Id,
+                $"submissions of this form create records of '{declaredRecordTypeId}', not '{definition.RecordTypeId}'.",
+                FormDefinitionCodes.RecordTypeTargetMismatch, "/record_type_id");
+    }
+
+    /// <summary>
+    /// ADR 0099 decision 7 (captured record-type change is blocked): once a Published, Deprecated or Withdrawn revision of
+    /// the same tenant and definition id declares a target, every revision reaching Published must declare the same one.
+    /// Withdrawal is not a migration decision, so a withdrawn revision's target stays captured (lead ruling, R2-2).
+    /// Adding a target where no such revision has one is allowed, which K9 migration needs. The intended rule counts only
+    /// revisions that were actually published (lead ruling R3-1); the store keeps no durable "was published" marker, so a
+    /// Withdrawn revision that was never published also captures. That fails closed, and W6 adds the marker.
+    /// </summary>
+    public static void ValidateRecordTypeContinuityOrThrow(FormDefinition definition, IEnumerable<FormDefinition> otherRevisions)
+    {
+        ArgumentNullException.ThrowIfNull(otherRevisions);
+        foreach (var revision in otherRevisions)
+        {
+            if (revision.Version == definition.Version
+                || revision.Status is not (FormDefinitionStatus.Published or FormDefinitionStatus.Deprecated or FormDefinitionStatus.Withdrawn)
+                || revision.RecordTypeId is not { } captured)
+                continue;
+            if (!StringComparer.Ordinal.Equals(captured, definition.RecordTypeId))
+                throw new FormDefinitionValidationException(
+                    definition.Id,
+                    $"version {revision.Version} captured record type '{captured}'; a later revision cannot change or remove it.",
+                    FormDefinitionCodes.RecordTypeChanged, "/record_type_id");
+        }
+    }
+
     private static bool IsRegistered(AuthorizationCapabilityReference capability, AuthorizationCapabilityRegister? capabilities)
     {
         try { return capabilities?.Resolve(capability) is not null; }

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.contracts.forms",
-  "interfaceRevision": 7,
+  "interfaceRevision": 8,
   "status": "frozen",
   "purpose": "Provide the complete projection-neutral dynamic-forms authoring, rendering, validation, submission, draft, rule-outcome, layout, and governance wire vocabulary required by Harborline App.",
   "dependencies": ["hlp.contracts.authorization"],
@@ -16,11 +16,11 @@
   "additiveGap": {
     "reason": "The pinned wire omits dependent-choice Options outcomes, Harborline App fieldsMeta needed for a lossless save/load authoring cycle, and the complete server-side FormView field-rule projection present in the pinned Forms Engine.",
     "evidence": ["packages/foundation-forms/Models/RuleEnums.cs", "packages/foundation-rule-engine/Model/RuleOutcome.cs", "packages/rule-engine/src/model.ts", "packages/foundation-rule-engine/Conformance/corpus/output-types.json", "packages/foundation-forms-engine/FormView.cs", "packages/foundation-forms-engine/tests/RuleProjectionTests.cs", "apps/carrier/src/forms/builder/model.ts", "apps/carrier/src/forms/builder/definitionsClient.ts", "apps/local-node-host/Health/FormDefinitionRoutes.cs"],
-    "additions": ["RuleActionKind.Options", "OutputType.Options", "OptionsOutcome", "RuleOutcome.options", "FormFieldValidationCode", "FormFieldValidation", "FormFieldAuthoringMetadata", "FormDefinition.fieldsMeta", "FormViewFieldRules", "FormViewField.rules"],
+    "additions": ["RuleActionKind.Options", "OutputType.Options", "OptionsOutcome", "RuleOutcome.options", "FormFieldValidationCode", "FormFieldValidation", "FormFieldAuthoringMetadata", "FormDefinition.fieldsMeta", "FormViewFieldRules", "FormViewField.rules", "FormDefinition.recordTypeId"],
     "compatibility": "additive; every revision-1 value remains unchanged"
   },
   "surfaceCounts": {"declarations": 85, "interfaces": 56, "typeAliases": 28, "constants": 1, "closedLiteralMembers": 104},
-  "fixtureCases": 29,
+  "fixtureCases": 30,
   "exports": ["InternationalizedText", "FormDefinitionStatus", "PiiSensitivity", "RuleTier", "RuleScope", "RuleActionKind", "PresentationHint", "ControlHint", "SectionLayoutKind", "FlexDirection", "FlexWrap", "LayoutGap", "LayoutBreakpoint", "LayoutDensity", "LayoutAlign", "FieldWidth", "SectionLayout", "FieldPlacement", "SectionAccess", "FormItemKind", "ContentNode", "FormActionKind", "FormActionConfig", "ReusableUnitVersionSelector", "ReusableUnitRef", "Cardinality", "CollectionColumn", "CollectionTableConfig", "FormItem", "FormSection", "FieldConfig", "FieldOverlay", "RuleDefinition", "OutputType", "ValueState", "Severity", "RuleError", "ComputedValue", "Validity", "VisibilityState", "PresentationOutcome", "OptionsOutcome", "RuleOutcome", "OnSuccessConfig", "WizardSettings", "FormPage", "AsyncValidationCheck", "HarborlineOverlay", "FormDefinitionLineage", "IdentityRef", "FormFieldValidationCode", "FormFieldValidation", "FormFieldAuthoringMetadata", "FormDefinition", "FormViewFieldRules", "FormViewField", "FormViewItem", "FormViewSection", "FormViewPage", "FormView", "ValidationErrorKind", "ValidationError", "ValidationResult", "FormSubmitResponse", "HARBORLINE_JSONLOGIC_V1", "SubmissionBindingHeader", "SnapshotCaptureMode", "SignedDtbsHash", "SubmissionSnapshot", "SubmissionMintAuditPayload", "DraftSaveRequest", "DraftSavedResponse", "DraftView", "Immutability", "ProvenanceKind", "MeasureRole", "Tag", "ClassificationAspect", "AccessAspect", "RetentionRequirement", "ResidencyRequirement", "Provenance", "LifecycleAspect", "DiscoveryAspect", "AspectOverlay"],
   "selectedDesign": {
     "choice": "one complete hash-bound Forms wire module with additive revision-4 Options, lossless Harborline App authoring vocabulary, and complete server-side field-rule projection, generated into TypeScript and C# projections",
@@ -28,6 +28,7 @@
     "reason": "The direct import closure omits runtime FormView, submit, validation, snapshot, and draft DTOs reached through Carrier-local mirrors and HTTP clients. A partial contract would preserve two competing wire authorities and force immediate revision churn."
   },
   "invariants": [
+    "Revision 8 adds the optional FormDefinition.recordTypeId (T-485, DES-0016 forms-ck-3): the Records record type a submission of the form creates. It is omitted when absent, so every revision-7 document keeps its bytes, and a reader that does not know it ignores it.",
     "Revision 7 adds FormView.pages, present only when the definition declares pages. Each FormViewPage carries the server's visibility verdict for the caller from the page's Rules guard, never the guard expression, so a client cannot re-decide page visibility.",
     "Revision 6 adds FormViewField.permittedValues for authority-filtered domain membership. The rendered controlHint carries the shared runtime's derived editor choice, not the authored overlay hint; unreadable or withheld fields carry neither domain membership nor its editor.",
     "The immutable revision-1 capture remains provenance; revisions 2 through 4 add the pinned Options, Harborline App fieldsMeta, and Forms Engine rule projection, while revision 5 clean-breaks all role-bearing section, field, and aspect gates to qualified RoleReference values resolved through hlp.contracts.authorization.",

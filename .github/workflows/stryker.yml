@@ -80,6 +80,8 @@ jobs:
 
       # Provision the pinned toolchain on every route, using the hosted Node version.
       - uses: actions/setup-dotnet@v6
+        env:
+          DOTNET_INSTALL_DIR: ${{ runner.temp }}/dotnet
         with:
           global-json-file: global.json
 
@@ -87,7 +89,7 @@ jobs:
         with:
           node-version: 24
 
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         if: github.event_name != 'pull_request' && runner.os != 'Windows'
         with:
           python-version: '3.14'

@@ -19,7 +19,7 @@
 // row count in both directions. A ceiling that only catches growth drifts upward silently once rows
 // are removed, and then the next three registrations are free (284 slice 1 review, MINOR 2). Moving
 // this literal is the reviewable diff line that pays for a registration.
-export const REGISTERED_FLAKE_COUNT = 1
+export const REGISTERED_FLAKE_COUNT = 0
 
 // ONE identical retry. playwright.config's `retries: 1` is the enforcement; this is the statement of
 // it that the registry validates against, so a config bump has to argue with a named constant.

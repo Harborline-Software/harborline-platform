@@ -1,7 +1,10 @@
 import {createHash} from 'node:crypto'
 import {execFileSync} from 'node:child_process'
-import {readFileSync} from 'node:fs'
+import {readFileSync, rmSync} from 'node:fs'
+import {dirname, resolve} from 'node:path'
+import {fileURLToPath} from 'node:url'
 import {designReviewMessage, designReviewSummary} from './gates/design-review-status.mjs'
+import {selectSharedSchedule} from './shared-module-scheduler.mjs'
 
 // Every path a reusable step reads. Under-declaring is unsound -- the step would reuse a result its
 // inputs no longer justify -- so the script half of each list is checked by
@@ -53,6 +56,7 @@ export const reusableStepInputs = {
     'tooling/run-ui-module-shared.mjs',
     'tooling/dotnet-conformance-batch.mjs',
     'tooling/shared-module-evidence.mjs',
+    'tooling/shared-module-scheduler.mjs',
     'tooling/resolve-command.mjs',
     'tooling/resolve-dotnet.mjs',
   ],
@@ -108,7 +112,18 @@ export function loadPreviousPassEvidence(evidencePath) {
   }
 }
 
-export function decideStepReuse({stepId, inputHash, previousPass}) {
+export function decideStepReuse({stepId, inputHash, previousPass,
+  sharedSchedule = process.env.HARBORLINE_SHARED_SCHEDULE,
+  repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')}) {
+  // The schedule is not in the input hash; compare actual normalized mode with recorded evidence.
+  let effectiveSharedSchedule
+  if (stepId === 'ui-shared-conformance') {
+    try {
+      effectiveSharedSchedule = selectSharedSchedule(sharedSchedule)
+    } catch {
+      return {mode: 'run-step', reason: 'ui-shared-conformance scheduling selector is invalid'}
+    }
+  }
   if (!previousPass?.gate) return {mode: 'run-step', reason: previousPass?.reason ?? 'recorded gate evidence is unavailable'}
   if (previousPass.gate.schemaVersion !== 3 || previousPass.gate.phase !== 4 || previousPass.gate.status !== 'PASS') {
     return {mode: 'run-step', reason: 'recorded gate evidence is not a schema-v3 phase-4 PASS'}
@@ -125,6 +140,19 @@ export function decideStepReuse({stepId, inputHash, previousPass}) {
   }
   if (typeof previousPass.gate.subject?.testedTree !== 'string') {
     return {mode: 'run-step', reason: 'previous gate testedTree is absent'}
+  }
+  if (stepId === 'ui-shared-conformance') {
+    if (typeof previous.report === 'string') {
+      return {mode: 'run-step', reason: 'previous step report was truncated'}
+    }
+    const recordedMode = previous.report.schedule?.mode
+    if ((recordedMode !== 'original' && recordedMode !== 'exclusive-tail')
+      || recordedMode !== effectiveSharedSchedule) {
+      return {mode: 'run-step', reason: 'previous ui-shared-conformance scheduling does not match the current mode'}
+    }
+    // Reused evidence is labelled in gate.json; an old full artifact must not look like a new run.
+    // Missing is fine, but other IO errors must reach the caller's existing run-step fallback.
+    rmSync(resolve(repositoryRoot, '.claude/gate-evidence/ui-shared-schedule.json'), {force: true})
   }
   return {mode: 'reuse', previous}
 }

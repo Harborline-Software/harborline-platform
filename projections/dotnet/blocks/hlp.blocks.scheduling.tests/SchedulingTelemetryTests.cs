@@ -81,6 +81,57 @@ public sealed class SchedulingTelemetryTests
         Assert.Equal(proposal.ReasonCode, unassigned.Tags["reason_code"]);
     }
 
+    [Theory]
+    [InlineData(true, 10, SolveStatus.Feasible, "ALL_HARD_CONSTRAINTS_SATISFIED", 0)]
+    [InlineData(false, 10, SolveStatus.Indeterminate, "PINNED_FACTS_INCOMPLETE", 1)]
+    [InlineData(true, 0, SolveStatus.Indeterminate, "WORK_BUDGET_EXHAUSTED", 1)]
+    public void Exhaustive_plan_records_duration_and_literal_outcome(
+        bool resourcesComplete, int workBudget, SolveStatus expectedStatus, string expectedReason, int expectedUnassigned)
+    {
+        using var measurements = new SchedulingMeterMeasurements();
+        var problem = new FiniteCandidateCompiler().Compile(Profile(
+            activities: [new("activity-1", 1)],
+            timeWindows: [new("activity-1", 0, 0)],
+            resources: [new("resource-1", new HashSet<string> { "capability-1" }, new HashSet<int> { 0 })],
+            requirements: [new("requirement-1", "activity-1", "capability-1", 1)],
+            pins:
+            [
+                new(PlanningFactSets.Activities, "activities-v1", true),
+                new(PlanningFactSets.TimeWindows, "windows-v1", true),
+                new(PlanningFactSets.Resources, "resources-v1", resourcesComplete),
+                new(PlanningFactSets.ResourceRequirements, "requirements-v1", true),
+                new(PlanningFactSets.Precedence, "precedence-v1", true),
+            ]));
+
+        var proposal = new DeterministicExhaustiveProofSolver().Solve(problem, workBudget);
+
+        Assert.Equal(expectedStatus, proposal.Status);
+        Assert.Equal(expectedReason, proposal.ReasonCode);
+        if (expectedStatus == SolveStatus.Feasible)
+        {
+            var assignment = Assert.Single(proposal.Assignments);
+            Assert.Equal("activity-1", assignment.ActivityId);
+            Assert.Equal(0, assignment.StartSlot);
+            Assert.Equal(1, assignment.EndSlotExclusive);
+            Assert.Equal(["resource-1"], assignment.ResourceIds);
+        }
+        else
+            Assert.Empty(proposal.Assignments);
+        if (resourcesComplete)
+            Assert.Empty(proposal.IncompleteFactSets);
+        else
+            Assert.Equal(["resources"], proposal.IncompleteFactSets);
+
+        var duration = Assert.Single(measurements.ForInstrument("scheduling.plan.duration_ms"));
+        Assert.True(double.IsFinite(duration.Value));
+        Assert.True(duration.Value >= 0);
+        Assert.Equal("prototype.exhaustive-proof.v1", duration.Tags["solver_id"]);
+        var unassigned = Assert.Single(measurements.ForInstrument("scheduling.plan.unassigned"));
+        Assert.Equal(expectedUnassigned, unassigned.Value);
+        Assert.Equal("prototype.exhaustive-proof.v1", unassigned.Tags["solver_id"]);
+        Assert.Equal(expectedReason, unassigned.Tags["reason_code"]);
+    }
+
     [Fact]
     public async Task Stale_definition_draft_save_records_one_commit_refusal()
     {

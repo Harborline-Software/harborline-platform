@@ -31,8 +31,20 @@ public sealed class FormEngine : IFormEngine
     private readonly TimeProvider _clock;
     private readonly FormFieldBinding? _fieldBinding;
     private readonly IFormSubmitGateAccess? _submitGates;
+    private readonly Harborline.Foundation.Forms.IFormRecordTypePolicyReader? _recordTypePolicies;
+    private readonly Harborline.Foundation.Forms.IFormRecordCreationDeclarations? _recordCreations;
+    private readonly IFormAcceptedRecordBodies? _recordBodies;
 
-    /// <summary>Creates an engine with the providers required to authorize, evaluate, protect, persist, and project forms.</summary>
+    /// <summary>
+    /// Creates an engine with the providers required to authorize, evaluate, protect, persist, and project forms.
+    /// <paramref name="recordCreations"/> is the host producers' declaration of the Record Types a form's submissions create
+    /// (K9); when it is null and <paramref name="projections"/> implements
+    /// <see cref="Harborline.Foundation.Forms.IFormRecordCreationDeclarations"/>, the sink's own declaration is used. The
+    /// definition store applies the same rule (<see cref="Harborline.Foundation.Forms.RecordCreationDeclarations.Select"/>)
+    /// when given the same sink as its producer. <paramref name="recordBodies"/> maps an accepted form_only submission to the
+    /// digest of the Records body its command creates (review M4); when it is null and <paramref name="projections"/>
+    /// implements <see cref="IFormAcceptedRecordBodies"/>, the sink's own mapping is used.
+    /// </summary>
     public FormEngine(
         IFormExecutionContextProvider contexts,
         Harborline.Foundation.Forms.IFormDefinitionStore definitions,
@@ -47,9 +59,15 @@ public sealed class FormEngine : IFormEngine
         IFormFieldBindingSource? fieldBindings = null,
         Harborline.Contracts.Fields.IFieldKindRuntime? fieldKinds = null,
         Harborline.Contracts.Fields.IFieldDomainRuntime? fieldDomains = null,
-        IFormSubmitGateAccess? submitGates = null)
+        IFormSubmitGateAccess? submitGates = null,
+        Harborline.Foundation.Forms.IFormRecordTypePolicyReader? recordTypePolicies = null,
+        Harborline.Foundation.Forms.IFormRecordCreationDeclarations? recordCreations = null,
+        IFormAcceptedRecordBodies? recordBodies = null)
     {
+        _recordBodies = recordBodies ?? projections as IFormAcceptedRecordBodies;
         _submitGates = submitGates;
+        _recordTypePolicies = recordTypePolicies;
+        _recordCreations = Harborline.Foundation.Forms.RecordCreationDeclarations.Select(recordCreations, projections);
         _contexts = contexts ?? throw new ArgumentNullException(nameof(contexts));
         _definitions = definitions ?? throw new ArgumentNullException(nameof(definitions));
         _reuse = reuse ?? throw new ArgumentNullException(nameof(reuse));
@@ -81,7 +99,7 @@ public sealed class FormEngine : IFormEngine
             submitImpliesRead = true;
         }
         var head = await LoadPublishedAsync(scope, formId, cancellationToken).ConfigureAwait(false);
-        if (submitImpliesRead) await RequireSubmitGateAsync(scope, head, cancellationToken).ConfigureAwait(false);
+        if (submitImpliesRead) await RequireSubmitGateAsync(scope, head, operationId: null, caseReference: null, cancellationToken).ConfigureAwait(false);
         var definition = await ResolveEffectiveAsync(head, cancellationToken).ConfigureAwait(false);
         var instant = _clock.GetUtcNow();
         var bindings = _fieldBinding is null ? null : await _fieldBinding.ResolveAsync(scope, definition, cancellationToken);
@@ -142,13 +160,43 @@ public sealed class FormEngine : IFormEngine
         ArgumentException.ThrowIfNullOrWhiteSpace(request.IdempotencyKey);
         var scope = await RequiredScopeAsync(FormEngineAction.Submit, cancellationToken).ConfigureAwait(false);
         var head = await LoadPublishedAsync(scope, request.FormId, cancellationToken).ConfigureAwait(false);
-        await RequireSubmitGateAsync(scope, head, cancellationToken).ConfigureAwait(false);
-        var definition = await ResolveEffectiveAsync(head, cancellationToken).ConfigureAwait(false);
+        var creationGate = await AdmitRecordCreationAsync(head, cancellationToken).ConfigureAwait(false);
+        // ADR-0110 decision 1 (plan W6): a form_only target's submission is a durably accepted Records command. It needs a
+        // store that holds the command and its fence; a store that would drop them refuses before anything is decided.
+        var accepted = FormAcceptedCommandReadings.Qualifies(head, creationGate);
+        if (accepted && (_submissions is not IFormAcceptedCommandStore || _recordBodies is null)) throw new FormEngineProviderUnavailableException();
+        // Review F1 (fail closed, rule I-1): a role target's failed inline delivery is redelivered only through the port's
+        // single-row lease, inside its own submitter's replay, and recovery never delivers it. A store without the port would
+        // strand that row with no error reaching anyone, so the submit is refused here, before the gate is asked, as a
+        // form_only submit is.
+        if (head.RecordTypeId is not null && _submissions is not IFormAcceptedCommandStore) throw new FormEngineProviderUnavailableException();
+        // Decision 1's revocation ordering (reading, accepted 2026-10-12): an accepted command's gate is decided inside
+        // the acceptance transaction, so it is ordered against a revocation contending on the store's scope.
+        var decideInside = accepted && FormAcceptedCommandReadings.DecideAcceptanceInsideTransaction;
+        FormSubmitGateDecision? decision = null;
+        State.FormDefinition? effective = null;
+        if (!decideInside)
+        {
+            decision = await DecideSubmitGateAsync(scope, head, request.IdempotencyKey, request.CaseReference, bounded: false, cancellationToken).ConfigureAwait(false);
+            effective = await ResolveEffectiveAsync(head, cancellationToken).ConfigureAwait(false);
+            if (head.RecordTypeId is not null || decision?.Evidence is not null) RequireEffectiveIsHead(effective, head);
+        }
         FormSubmissionCommit? commit = null;
+        FormSubmitAuthorization? authorization = null;
         var transaction = await ProviderAsync(
             () => KernelTransactionBoundary.ExecutePreparedAsync(
                 async token =>
                 {
+                    // Review M5: host code runs here while the store scope is held; a call back into a built-in store from this
+                    // flow is refused at once (form.engine.store-reentrant) instead of deadlocking.
+                    using var held = FormStoreReentrancy.Enter();
+                    if (decideInside)
+                    {
+                        decision = await DecideSubmitGateAsync(scope, head, request.IdempotencyKey, request.CaseReference, bounded: true, token).ConfigureAwait(false);
+                        effective = await ResolveEffectiveAsync(head, token).ConfigureAwait(false);
+                        RequireEffectiveIsHead(effective, head);
+                    }
+                    var definition = effective ?? throw new InvalidOperationException("The effective definition was not resolved.");
                     var instant = _clock.GetUtcNow();
                     using var evaluation = await EvaluateAsync(scope, definition, request.Candidate, instant, token).ConfigureAwait(false);
                     if (evaluation.Errors.Count > 0) throw new FormEngineValidationException(evaluation.Errors);
@@ -160,17 +208,63 @@ public sealed class FormEngine : IFormEngine
                     var auditPayload = BuildSubmissionAuditPayload(definition, evaluation.AcceptedCandidate, protectedResult, instant);
                     var outboxId = Guid.NewGuid().ToString("N");
                     var receipt = new FormSubmitReceipt(instanceId, instant, FormProjectionStatus.Pending, Array.Empty<FormProjectionSkip>());
+                    var auditId = Guid.NewGuid().ToString("N");
+                    // ADR-0110 decision 1: the acceptance decision's own evidence is the audit's authority snapshot and the
+                    // command's, so the command, its evidence and its delivery row commit in this one atomic submit.
+                    var acceptanceEvidence = accepted ? decision?.Evidence ?? throw new FormEngineDeniedException() : null;
+                    var acceptance = acceptanceEvidence is null
+                        ? null
+                        : Harborline.Foundation.Authorization.AuthoritySnapshotEncoding.Encode(acceptanceEvidence);
+                    // Review M3: the snapshot must be exactly this acceptance's decision in the canonical spellings, or the
+                    // Records completion could not bind it; review M4: the digest of the mapped Records body is bound now.
+                    FormAcceptedRecordBodyDigest? body = null;
+                    if (acceptanceEvidence is not null && acceptance is not null)
+                    {
+                        if (!FormAcceptedCommandEvidence.IsAcceptance(acceptance, scope.Tenant.Value, scope.ActorId,
+                                FormSubmitGateAuthority.RecordId(definition.Id, definition.Version), acceptanceEvidence.At, instant))
+                            throw new FormEngineDeniedException();
+                        // Review R2-L3: host code inside the held scope, under the same bound as the acceptance decision.
+                        body = await ProviderAsync(() => BoundedAsync(bodyToken => _recordBodies!.DigestAsync(
+                            new(scope.Tenant, definition, definition.RecordTypeId!, evaluation.AcceptedCandidate), bodyToken), token), token).ConfigureAwait(false);
+                        if (body is null || string.IsNullOrWhiteSpace(body.EncodingVersion) || string.IsNullOrWhiteSpace(body.Digest))
+                            throw new FormEngineProviderUnavailableException();
+                    }
                     commit = new FormSubmissionCommit(
                         request.IdempotencyKey,
-                        new(instanceId, scope.Tenant, scope.PartyId, scope.ActorId, definition.Id, definition.Version, fingerprint, protectedResult.ProtectedCandidate, instant),
-                        new(Guid.NewGuid().ToString("N"), instanceId, scope.Tenant, scope.ActorId, auditPayload, instant),
+                        new(instanceId, scope.Tenant, scope.PartyId, scope.ActorId, definition.Id, definition.Version, fingerprint, protectedResult.ProtectedCandidate, instant,
+                            definition.SchemaRef, definition.RecordTypeId),
+                        new(auditId, instanceId, scope.Tenant, scope.ActorId, auditPayload, instant)
+                        {
+                            AuthoritySnapshot = acceptance ?? ReadOnlyMemory<byte>.Empty,
+                        },
                         new(outboxId, instanceId, scope.Tenant, scope.PartyId, scope.ActorId, definition.Id, definition.Version,
-                            request.CaseReference, protectedResult.ProtectedCandidate.ToArray(), instant),
+                            request.CaseReference, protectedResult.ProtectedCandidate.ToArray(), instant,
+                            SchemaRef: definition.SchemaRef, RecordTypeId: definition.RecordTypeId)
+                        {
+                            AcceptedCommand = acceptance is null || acceptanceEvidence is null || body is null ? null : new FormAcceptedRecordCommand(outboxId,
+                                FormAcceptedCommandReadings.OperationIdFor(instanceId), definition.RecordTypeId!, fingerprint, instant, acceptance)
+                            {
+                                AcceptanceAuditId = auditId,
+                                AcceptanceDecidedAt = acceptanceEvidence.At,
+                                BodyDigestEncoding = body.EncodingVersion,
+                                BodyDigest = body.Digest,
+                            },
+                        },
                         receipt);
+                    var operation = new KernelOperationIdentity(instanceId.ToString(), request.IdempotencyKey, fingerprint);
+                    // D3: the gate's evidence is bound to this exact write before anything is staged.
+                    if (decision is { Evidence: { } evidence })
+                    {
+                        authorization = new FormSubmitAuthorization(decision.Intent, instanceId, fingerprint, evidence);
+                        authorization.RequireBinds(commit, operation);
+                    }
                     return new KernelCommand<FormSubmissionCommit>(
-                        new(instanceId.ToString(), request.IdempotencyKey, fingerprint),
+                        operation,
                         commit,
-                        new(commit.Audit.AuditId, commit.Audit.ActorId, commit.Audit.RecordedAt, commit.Audit.Payload));
+                        new(commit.Audit.AuditId, commit.Audit.ActorId, commit.Audit.RecordedAt, commit.Audit.Payload)
+                        {
+                            AuthoritySnapshot = commit.Audit.AuthoritySnapshot,
+                        });
                 },
                 new FormSubmissionKernelTransactionPort(_submissions),
                 cancellationToken),
@@ -178,14 +272,67 @@ public sealed class FormEngine : IFormEngine
         var committed = transaction.Value
             ?? throw new InvalidOperationException(transaction.Refusal?.Code ?? "The kernel transaction did not return a result.");
         if (committed.Disposition == FormSubmissionCommitDisposition.Conflict) throw new FormEngineIdempotencyConflictException();
-        if (committed.Disposition == FormSubmissionCommitDisposition.Replayed) return committed.Receipt!;
+        if (committed.Disposition == FormSubmissionCommitDisposition.Replayed)
+        {
+            // D3 (F1): this call's evidence is attached to a replayed write only when the stored write is exactly the one
+            // it authorized. A key bound to another submitter, form version, schema, target, case or payload conflicts
+            // and discloses nothing; a store that cannot show the stored write is refused.
+            var replayed = committed.Receipt!;
+            var stored = committed.Stored ?? throw new FormEngineDeniedException();
+            // D4 (R2-7): every caller-triggered retry, with or without evidence, discloses a receipt only to the caller
+            // who submitted it; the idempotency key is not scoped by submitter.
+            if (stored.Submission.Tenant != scope.Tenant
+                || !StringComparer.Ordinal.Equals(stored.Submission.ActorId, scope.ActorId))
+                throw new FormEngineIdempotencyConflictException();
+            var answer = replayed;
+            if (authorization is not null)
+            {
+                var rebound = authorization with { InstanceId = stored.Submission.InstanceId };
+                if (!rebound.BindsCommit(stored) || replayed.InstanceId != stored.Submission.InstanceId)
+                    throw new FormEngineIdempotencyConflictException();
+                answer = replayed with { Authorization = rebound };
+            }
+            // Review R2-L2 (D4, K2): a targeted row without an accepted command (a role target) is ordinary work. Recovery
+            // never delivers it (that would act as the submitter outside the submitter's request), so a failed inline delivery
+            // is retried only here: by its own submitter's replay, after this request's current authorization, and decided
+            // again at commit by the Records create (ADR-0100 decision 3).
+            if (replayed.ProjectionStatus == FormProjectionStatus.Pending && stored.Projection.AcceptedCommand is null
+                && stored.Projection.RecordTypeId is not null)
+                return await RedeliverToSubmitterAsync(stored.Projection, answer, cancellationToken).ConfigureAwait(false);
+            return answer;
+        }
         var createdCommit = commit ?? throw new InvalidOperationException("The committed Forms submission was not prepared.");
+
+        if (createdCommit.Projection.AcceptedCommand is not null)
+        {
+            // Plan W7: an accepted command is executed only as the configured worker, never as this submitter. Without a
+            // worker it stays pending for recovery, with its fence open to a cancel.
+            var status = FormProjectionStatus.Pending;
+            if (CanExecuteAccepted && _options.AcceptedCommandWorkerId is { } worker)
+            {
+                var run = await AcceptedExecution().RunAsync(createdCommit.Projection, worker, cancellationToken).ConfigureAwait(false);
+                status = run switch
+                {
+                    FormAcceptedCommandRun.Completed => FormProjectionStatus.Complete,
+                    FormAcceptedCommandRun.Refused => FormProjectionStatus.Refused,
+                    _ => FormProjectionStatus.Pending,
+                };
+                // A command settled by another transition (a cancel that won the fence first) reports what the store holds.
+                if (run == FormAcceptedCommandRun.Settled) status = await SettledStatusAsync(createdCommit.Projection).ConfigureAwait(false);
+            }
+            else
+            {
+                try { await _submissions.ReleaseProjectionLeaseAsync(createdCommit.Projection.OutboxId, CancellationToken.None).ConfigureAwait(false); }
+                catch { }
+            }
+            return createdCommit.Receipt with { ProjectionStatus = status, Authorization = authorization };
+        }
 
         try
         {
             var delivered = await _projections.DeliverAsync(createdCommit.Projection, cancellationToken).ConfigureAwait(false);
             await _submissions.CompleteProjectionAsync(createdCommit.Projection.OutboxId, delivered.Skips, cancellationToken).ConfigureAwait(false);
-            return createdCommit.Receipt with { ProjectionStatus = FormProjectionStatus.Complete, ProjectionSkips = delivered.Skips.ToArray() };
+            return createdCommit.Receipt with { ProjectionStatus = FormProjectionStatus.Complete, ProjectionSkips = delivered.Skips.ToArray(), Authorization = authorization };
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -196,7 +343,7 @@ public sealed class FormEngine : IFormEngine
         catch
         {
             await _submissions.RetryProjectionAsync(createdCommit.Projection.OutboxId, "form.engine.projection-pending", CancellationToken.None).ConfigureAwait(false);
-            return createdCommit.Receipt;
+            return createdCommit.Receipt with { Authorization = authorization };
         }
     }
 
@@ -207,9 +354,108 @@ public sealed class FormEngine : IFormEngine
     {
         if (maximumDeliveries is <= 0 or > FormEngineOptions.MaximumRecoveryBatch) throw new ArgumentOutOfRangeException(nameof(maximumDeliveries));
         _ = await RequiredScopeAsync(FormEngineAction.RecoverProjections, cancellationToken).ConfigureAwait(false);
+        // Plan W7: the job-scoped context authorizes running recovery; an accepted command executes as the configured worker
+        // identity (host configuration), with the submitter only as provenance. Ordinary projections are delivered as before.
+        // Review M2: with no worker, or a sink that cannot execute accepted commands, they are never leased or claimed.
+        var execution = AcceptedExecution();
+        Func<FormProjectionEnvelope, CancellationToken, ValueTask<FormAcceptedCommandRun>>? runAccepted =
+            CanExecuteAccepted && _options.AcceptedCommandWorkerId is { } worker ? (row, token) => execution.RunAsync(row, worker, token) : null;
         return await ProviderAsync(
-            () => FormProjectionRecovery.RecoverAsync(_submissions, _projections, maximumDeliveries, cancellationToken),
+            () => FormProjectionRecovery.RecoverAsync(_submissions, _projections, maximumDeliveries, cancellationToken, runAccepted),
             cancellationToken).ConfigureAwait(false);
+    }
+
+    // Review R2-L2: one inline redelivery of a role target's pending row inside its submitter's own request. The row is
+    // leased first, so a concurrent replay or the original submit cannot deliver it twice; a store without the lease port
+    // (a targeted submit to one is refused before this point since review F1), or a row another delivery holds, answers
+    // the stored pending receipt. A failure records an attempt and stays pending.
+    private async ValueTask<FormSubmitReceipt> RedeliverToSubmitterAsync(FormProjectionEnvelope stored, FormSubmitReceipt answer, CancellationToken cancellationToken)
+    {
+        if (_submissions is not IFormAcceptedCommandStore commands) return answer;
+        FormProjectionEnvelope? row;
+        try { row = await commands.LeasePendingProjectionAsync(stored.Tenant, stored.OutboxId, cancellationToken).ConfigureAwait(false); }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
+        catch { return answer; }
+        if (row is null) return answer;
+        if (row.AcceptedCommand is not null || row.InstanceId != answer.InstanceId)
+        {
+            await ReleaseQuietlyAsync(row.OutboxId).ConfigureAwait(false);
+            return answer;
+        }
+        try
+        {
+            var delivered = await _projections.DeliverAsync(row, cancellationToken).ConfigureAwait(false);
+            await _submissions.CompleteProjectionAsync(row.OutboxId, delivered.Skips, cancellationToken).ConfigureAwait(false);
+            return answer with { ProjectionStatus = FormProjectionStatus.Complete, ProjectionSkips = delivered.Skips.ToArray() };
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            await ReleaseQuietlyAsync(row.OutboxId).ConfigureAwait(false);
+            throw;
+        }
+        catch
+        {
+            try { await _submissions.RetryProjectionAsync(row.OutboxId, "form.engine.projection-pending", CancellationToken.None).ConfigureAwait(false); }
+            catch { await ReleaseQuietlyAsync(row.OutboxId).ConfigureAwait(false); }
+            return answer;
+        }
+    }
+
+    private async ValueTask ReleaseQuietlyAsync(string outboxId)
+    {
+        try { await _submissions.ReleaseProjectionLeaseAsync(outboxId, CancellationToken.None).ConfigureAwait(false); }
+        catch { }
+    }
+
+    // Review M5 and R2-L3: host code called while the acceptance holds the store scope waits at most
+    // FormEngineOptions.AcceptanceDecisionTimeout. On expiry its own token is cancelled and the submit is refused
+    // form.engine.resource-bound, so the scope is released; only the bound's own expiry is resource-bound.
+    // Review F2: the expiry is told apart by which task faulted, never by whether the call has completed, which can change
+    // between the deadline firing and the filter running. A TimeoutException that is the call's own fault (WaitAsync passes the
+    // call's exception through as the same instance) is the host's and passes on; any other one is the deadline's.
+    private async ValueTask<T> BoundedAsync<T>(Func<CancellationToken, ValueTask<T>> call, CancellationToken cancellationToken)
+    {
+        using var expiry = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        Task<T>? running = null;
+        try
+        {
+            running = call(expiry.Token).AsTask();
+            return await running.WaitAsync(_options.AcceptanceDecisionTimeout, _clock, cancellationToken).ConfigureAwait(false);
+        }
+        catch (TimeoutException timeout) when (running is not null && !IsOwnFault(running, timeout))
+        {
+            await expiry.CancelAsync().ConfigureAwait(false);
+            throw new FormEngineResourceBoundException(new AcceptanceBoundExpiredException(timeout));
+        }
+    }
+
+    private static bool IsOwnFault(Task task, Exception exception) =>
+        task.IsFaulted && task.Exception is { } faults && faults.InnerExceptions.Contains(exception);
+
+    // Marks the resource-bound refusal BoundedAsync raises for its own expiry, which no host code can construct, so a host
+    // port's own FormEngineResourceBoundException is never mistaken for it.
+    private sealed class AcceptanceBoundExpiredException(Exception innerException)
+        : TimeoutException("The acceptance bound expired.", innerException);
+
+    private FormAcceptedCommandExecution AcceptedExecution() =>
+        new(_submissions, _projections, _definitions, _clock, _options.AcceptedCommandBindingRetryLimit);
+
+    // Review M2: accepted commands execute only with a configured worker and a sink that declares it executes them.
+    private bool CanExecuteAccepted => _options.AcceptedCommandWorkerId is not null && _projections.ExecutesAcceptedCommands;
+
+    private async ValueTask<FormProjectionStatus> SettledStatusAsync(FormProjectionEnvelope row)
+    {
+        try
+        {
+            return _submissions is IFormAcceptedCommandStore commands
+                && await commands.GetAcceptedCommandAsync(row.Tenant, row.OutboxId, CancellationToken.None).ConfigureAwait(false) is { } command
+                ? FormSubmissionStoreModel.ReceiptStatus(command.State)
+                : FormProjectionStatus.Pending;
+        }
+        catch
+        {
+            return FormProjectionStatus.Pending;
+        }
     }
 
     private async ValueTask<State.FormDefinition> LoadEffectiveAsync(FormExecutionScope scope, State.FormDefinitionId id, CancellationToken cancellationToken)
@@ -226,14 +472,113 @@ public sealed class FormEngine : IFormEngine
 
     // forms-eng-2: the form's own gate is checked on the published head, before reuse, bindings or the candidate
     // are resolved. A declared gate with no host port, or any port failure, refuses (deny by default).
-    private async ValueTask RequireSubmitGateAsync(FormExecutionScope scope, State.FormDefinition head, CancellationToken cancellationToken)
+    // D3: a form with a record type target is refused unless the decider's own evidence binds the asked intent; a
+    // form_only or engine target with no gate is refused outright. A form without a target keeps the verdict-only path.
+    // The intent, and its one clock read, exist only when a gate is asked, so an ungated submit keeps its single
+    // in-scope submit instant.
+    // K9: the host producers' declaration of what the submission creates is authoritative over missing form metadata. A
+    // declaration that fails or names more than one type denies, and so does a head whose target is not exactly the
+    // declared type, including a head with no target: K9 permits a legacy mapping only "where the compatibility contract
+    // permits it", and no Platform contract defines one (Platform has no legacy Records-creating form, census A1), so the
+    // write is refused until the form is migrated to a revision that targets the type. Binding a mapped type into the
+    // accepted command is a W8 dependency; until then this guard stays fail closed.
+    private async ValueTask<FormSubmitGateDecision?> RequireSubmitGateAsync(
+        FormExecutionScope scope, State.FormDefinition head, string? operationId, string? caseReference, CancellationToken cancellationToken)
     {
-        if (head.SubmitGate is not { } gate) return;
-        bool satisfied;
-        try { satisfied = gate.IsWellFormed && _submitGates is not null && await _submitGates.SatisfiesAsync(scope, head, gate, cancellationToken).ConfigureAwait(false); }
+        _ = await AdmitRecordCreationAsync(head, cancellationToken).ConfigureAwait(false);
+        return await DecideSubmitGateAsync(scope, head, operationId, caseReference, bounded: false, cancellationToken).ConfigureAwait(false);
+    }
+
+    // The record-creation half of the gate check (K9, D3, K6): the producers' declaration and the target's creation policy,
+    // read without asking the decider. Returns the target's creation gate, or null for a form without a target; denies a
+    // failing or ambiguous declaration, a head not targeting its declared type, an unresolvable policy, an engine target and
+    // an ungated form_only target.
+    private async ValueTask<Harborline.Foundation.Forms.RecordTypeCreationGate?> AdmitRecordCreationAsync(
+        State.FormDefinition head, CancellationToken cancellationToken)
+    {
+        string? declared;
+        try
+        {
+            declared = await Harborline.Foundation.Forms.RecordCreationDeclarations
+                .ResolveAsync(_recordCreations, head.Tenant, head.Id, cancellationToken).ConfigureAwait(false);
+        }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
-        catch { satisfied = false; }
-        if (!satisfied) throw new FormEngineDeniedException();
+        catch { throw new FormEngineDeniedException(); }
+        if (declared is not null && !StringComparer.Ordinal.Equals(head.RecordTypeId, declared))
+            throw new FormEngineDeniedException();
+        if (head.RecordTypeId is not { } target) return null;
+        Harborline.Foundation.Forms.RecordTypeCreationGate creationGate;
+        try
+        {
+            // K6: no reader, a failing reader or an unknown type denies; Forms never defaults a policy.
+            creationGate = await Harborline.Foundation.Forms.RecordTypeCreationPolicy
+                .ResolveAsync(_recordTypePolicies, head.Tenant, target, cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
+        catch { throw new FormEngineDeniedException(); }
+        if (creationGate == Harborline.Foundation.Forms.RecordTypeCreationGate.Engine) throw new FormEngineDeniedException();
+        if (head.SubmitGate is null && creationGate == Harborline.Foundation.Forms.RecordTypeCreationGate.FormOnly)
+            throw new FormEngineDeniedException();
+        return creationGate;
+    }
+
+    // The decider half of the gate check (forms-eng-2, D3): the form's own gate asked once for the exact intent, at one
+    // clock read. A form with a target needs the decider's evidence bound to the intent; a form without one keeps the
+    // verdict-only path. No gate asks nothing.
+    // Inside an acceptance (bounded), the decision is held to FormEngineOptions.AcceptanceDecisionTimeout and a re-entrant
+    // store call surfaces as form.engine.store-reentrant (review M5).
+    private async ValueTask<FormSubmitGateDecision?> DecideSubmitGateAsync(
+        FormExecutionScope scope, State.FormDefinition head, string? operationId, string? caseReference, bool bounded, CancellationToken cancellationToken)
+    {
+        var targeted = head.RecordTypeId is not null;
+        if (head.SubmitGate is not { } gate) return null;
+        var intent = new FormSubmitIntent(scope.Tenant, scope.ActorId, head.Id, head.Version, head.SchemaRef,
+            head.RecordTypeId, operationId, _clock.GetUtcNow(), gate, caseReference);
+        FormSubmitGateDecision? decision;
+        // Inside an acceptance the decider gets its own token, cancelled when the bound expires, so an abandoned decision
+        // is also asked to stop (review M5; BoundedAsync).
+        var gates = _submitGates;
+        try
+        {
+            if (!gate.IsWellFormed || gates is null) decision = null;
+            else if (!bounded) decision = await gates.DecideAsync(new(scope, head, gate, intent), cancellationToken).ConfigureAwait(false);
+            else
+            {
+                IFormSubmitGateAccess access = gates;
+                decision = await BoundedAsync(token => access.DecideAsync(new(scope, head, gate, intent), token), cancellationToken).ConfigureAwait(false);
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
+        // BoundedAsync maps only the bound's own expiry to resource-bound; a TimeoutException the decider raised itself is a
+        // failed decision and denied. Either way the submit is refused and nothing persists.
+        catch (FormEngineResourceBoundException expired) when (expired.InnerException is AcceptanceBoundExpiredException) { throw; }
+        catch (FormEngineStoreReentrancyException) { throw; }
+        catch { decision = null; }
+        if (decision is null || decision.Intent != intent) throw new FormEngineDeniedException();
+        if (decision.Evidence is not { } evidence)
+        {
+            if (targeted || !decision.Satisfied) throw new FormEngineDeniedException();
+            return decision;
+        }
+
+        // Evidence for any other request is withheld from the denial, as AccessProvider withholds it.
+        if (!FormSubmitGateAuthority.Binds(evidence, intent)) throw new FormEngineDeniedException();
+        if (!decision.Satisfied || !evidence.Allowed) throw new FormEngineDeniedException(evidence);
+        return decision;
+    }
+
+    // D3: for a form with a record type target, reuse expansion may rewrite the overlay only; the effective definition
+    // must still be the exact revision, schema reference, record type and gate the published head carried (and the
+    // gate decided), or the submit is denied before anything is evaluated or persisted.
+    private static void RequireEffectiveIsHead(State.FormDefinition effective, State.FormDefinition head)
+    {
+        if (effective.Tenant != head.Tenant
+            || effective.Id != head.Id
+            || effective.Version != head.Version
+            || effective.SchemaRef != head.SchemaRef
+            || !StringComparer.Ordinal.Equals(effective.RecordTypeId, head.RecordTypeId)
+            || effective.SubmitGate != head.SubmitGate)
+            throw new FormEngineDeniedException();
     }
 
     private async ValueTask<State.FormDefinition> ResolveEffectiveAsync(State.FormDefinition definition, CancellationToken cancellationToken)
@@ -454,6 +799,8 @@ public sealed class FormEngine : IFormEngine
         {
             var scope = await _contexts.GetRequiredAsync(action, cancellationToken).ConfigureAwait(false);
             if (scope.Tenant == default || scope.PartyId == Guid.Empty || string.IsNullOrWhiteSpace(scope.ActorId) || scope.Roles is null) throw new FormEngineDeniedException();
+            // D3 / plan W5: an engine or reserved principal never submits, whatever context provider produced the scope.
+            if (action == FormEngineAction.Submit && ReservedFormPrincipals.IsReserved(scope.ActorId)) throw new FormEngineDeniedException();
             return scope with { Roles = scope.Roles.Distinct(StringComparer.Ordinal).ToArray() };
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
@@ -468,6 +815,8 @@ public sealed class FormEngine : IFormEngine
         try { return await operation().ConfigureAwait(false); }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
         catch (FormEngineException) { throw; }
+        // An accepted command resolves reuse inside its transaction; a reuse refusal keeps its own type there too.
+        catch (Harborline.Foundation.Forms.Exceptions.ReuseResolutionException) { throw; }
         catch (Exception ex) { throw new FormEngineProviderUnavailableException(ex); }
     }
 

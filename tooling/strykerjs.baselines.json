@@ -522,6 +522,17 @@
       "report": "C:/hl-ab/wt-strykerjs/platform-reports/hlp.ui.rail-labels/mutation.json",
       "measured": "2026-09-26, winbox, every mutable file (--all), StrykerJS 10.0.0 vitest-runner, 15 workers, sequential"
     },
+    "projections/react/ui/hlp.ui.records-authoring": {
+      "baseline": 74,
+      "break": 74,
+      "score": 74.82,
+      "tested": 402,
+      "observed": [
+        74.82
+      ],
+      "report": "projections/react/ui/hlp.ui.records-authoring/reports/mutation/mutation.json",
+      "measured": "2026-10-14, Mac validation lane, every mutable file (--all), StrykerJS 10.0.0 vitest-runner, 7 workers"
+    },
     "projections/react/ui/hlp.ui.rule-authoring": {
       "baseline": 57,
       "break": 57,

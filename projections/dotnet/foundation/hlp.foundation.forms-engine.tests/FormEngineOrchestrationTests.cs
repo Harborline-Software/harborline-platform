@@ -378,7 +378,9 @@ public sealed class FormEngineOrchestrationTests
             Harborline.Contracts.Fields.IFieldDomainRuntime? fieldDomains = null,
             IFormSubmitGateAccess? submitGates = null,
             IReadOnlySet<FormEngineAction>? grantedActions = null,
-            Func<IFormSubmissionTransactionStore, IFormSubmissionTransactionStore>? storeDecorator = null)
+            Func<IFormSubmissionTransactionStore, IFormSubmissionTransactionStore>? storeDecorator = null,
+            IFormRecordTypePolicyReader? recordTypePolicies = null,
+            string actorId = "alice")
         {
             var schemas = schemaRegistry ?? new InMemorySchemaRegistry();
             var schema = await schemas.RegisterAsync(schemaJson ?? """{"type":"object","properties":{"name":{"type":"string","minLength":1},"secret":{"type":"string"}},"required":["name"],"additionalProperties":false}""");
@@ -399,13 +401,13 @@ public sealed class FormEngineOrchestrationTests
             var roleVocabulary = RoleVocabulary.FromApi(vocabularyReferences.Select(role => new RoleDefinition(
                 Guid.NewGuid(), role, role.Name, new(RoleOwnerKind.Package, "forms-engine-tests"), false)));
             var context = new RecordingContext(
-                new(scopeTenant ?? Tenant, Guid.Parse("11111111-1111-1111-1111-111111111111"), "alice", heldNames,
+                new(scopeTenant ?? Tenant, Guid.Parse("11111111-1111-1111-1111-111111111111"), actorId, heldNames,
                     roleVocabulary, new HeldRoleSet(heldReferences)), contextFailure, grantedActions);
             var recordingProjection = projection ?? new RecordingProjection();
             var sink = projectionSink ?? recordingProjection;
             var actualSecurity = security ?? new RecordingSecurity();
             var engine = new FormEngine(context, new DefinitionStore(definition), reuseResolver ?? new IdentityReuseResolver(), schemas, actualSecurity,
-                readAudit ?? new RecordingReadAudit(), storeDecorator?.Invoke(store) ?? store, sink, options, clock ?? new FixedClock(Now), fieldBindings, fieldKinds, fieldDomains, submitGates);
+                readAudit ?? new RecordingReadAudit(), storeDecorator?.Invoke(store) ?? store, sink, options, clock ?? new FixedClock(Now), fieldBindings, fieldKinds, fieldDomains, submitGates, recordTypePolicies);
             return new(definition, actualState, store, context, recordingProjection, engine);
         }
 
@@ -438,7 +440,11 @@ public sealed class FormEngineOrchestrationTests
     {
         public ValueTask<FormDefinition?> GetCurrentPublishedAsync(TenantId tenant, FormDefinitionId id, CancellationToken ct = default) =>
             ValueTask.FromResult<FormDefinition?>(tenant == definition.Tenant && id == definition.Id ? definition : null);
-        public ValueTask<FormDefinition> GetAsync(TenantId tenant, FormDefinitionId id, SemanticVersion version, CancellationToken ct = default) => throw new NotSupportedException();
+        // The accepted-command execution path reads the exact revision it binds (plan W7); nothing else asks for one.
+        public ValueTask<FormDefinition> GetAsync(TenantId tenant, FormDefinitionId id, SemanticVersion version, CancellationToken ct = default) =>
+            tenant == definition.Tenant && id == definition.Id && version == definition.Version
+                ? ValueTask.FromResult(definition)
+                : throw new Harborline.Foundation.Forms.Exceptions.FormDefinitionNotFoundException(id, version, tenant);
         public ValueTask<FormDefinition> RegisterAsync(FormDefinition schema, CancellationToken ct = default) => throw new NotSupportedException();
         public ValueTask<FormDefinition> RegisterAndPublishAsync(FormDefinition schema, CancellationToken ct = default) => throw new NotSupportedException();
         public ValueTask<FormDefinition> CreateAsync(FormDefinition schema, CancellationToken ct = default) => throw new NotSupportedException();
@@ -493,8 +499,13 @@ public sealed class FormEngineOrchestrationTests
         public ValueTask AppendAsync(FormSensitiveReadAudit audit, CancellationToken cancellationToken = default) => ValueTask.FromException(new IOException("audit unavailable"));
     }
 
-    internal sealed class RecordingProjection(int failures = 0, FormProjectionSkip[]? skips = null) : IFormProjectionSink
+    internal sealed class RecordingProjection(int failures = 0, FormProjectionSkip[]? skips = null) : IFormProjectionSink, IFormAcceptedRecordBodies
     {
+        // Review M4: a form_only acceptance binds the host's mapped-body digest; this default sink supplies a stable one.
+        // It does not execute accepted commands (ExecutesAcceptedCommands stays false), so it never claims one.
+        public ValueTask<FormAcceptedRecordBodyDigest> DigestAsync(FormAcceptedRecordBodyRequest request, CancellationToken cancellationToken = default) =>
+            ValueTask.FromResult(new FormAcceptedRecordBodyDigest("records-write-intent/1", "recording-projection-digest"));
+
         private int _remainingFailures = failures;
         public List<FormProjectionEnvelope> Delivered { get; } = [];
         public ValueTask<FormProjectionDeliveryResult> DeliverAsync(FormProjectionEnvelope envelope, CancellationToken cancellationToken = default)

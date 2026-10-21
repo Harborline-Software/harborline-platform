@@ -389,6 +389,110 @@ public sealed class VersionedDefinitionStoreTests
         Assert.Equal(2, (await store.ListHistoryAsync(source.Key)).Count);
     }
 
+    [Fact]
+    public async Task GuardedPublicationChecksHeadsAfterReentrantAdmissionAndDoesNotAppendOnConflict()
+    {
+        InMemoryVersionedDefinitionStore store = null!;
+        var source = Document();
+        var target = source with { Key = source.Key with { DefinitionId = "target" } };
+        var intervene = false;
+        DefinitionPublishedHeadCondition[] conditions = [new(target.Key, 2, "/edge")];
+        store = Store((document, phase) =>
+        {
+            if (intervene && document.Key == source.Key && phase == DefinitionAdmissionPhase.Publish)
+            {
+                intervene = false;
+                store.PublishAsync(target.Key, "next", 3, "next-publish").GetAwaiter().GetResult();
+                // The caller cannot replace the observed condition while admission runs.
+                conditions[0] = new(target.Key, 4, "/edge");
+            }
+            return [];
+        });
+        await store.SaveDraftAsync(target, 0, "target-draft");
+        await store.PublishAsync(target.Key, target.VersionId, 1, "target-publish");
+        await store.SaveDraftAsync(target with { VersionId = "next", Version = "2.0.0" }, 2, "next-draft");
+        await store.SaveDraftAsync(source, 0, "source-draft");
+        intervene = true;
+        var refusal = await Assert.ThrowsAsync<DefinitionRefusalException>(async () =>
+            await store.PublishAsync(source.Key, source.VersionId, 1, "source-publish", conditions));
+        AssertRefusal(refusal, "definition.published_head_conflict", "/edge");
+        Assert.Null(await store.GetPublishedHeadAsync(source.Key));
+        Assert.Single(await store.ListHistoryAsync(source.Key));
+        // A refused operation does not consume the replay id.
+        Assert.Equal(DefinitionStatus.Published, (await store.PublishAsync(source.Key, source.VersionId, 1,
+            "source-publish", [new(target.Key, 4, "/edge")])).Status);
+    }
+
+    [Fact]
+    public async Task GuardedPublicationCanonicalizesReplayConditionsAndReturnsReplayAfterTargetsMove()
+    {
+        var store = Store();
+        var source = Document();
+        var target = source with { Key = source.Key with { DefinitionId = "target" } };
+        await store.SaveDraftAsync(target, 0, "target-draft");
+        await store.PublishAsync(target.Key, target.VersionId, 1, "target-publish");
+        await store.SaveDraftAsync(source, 0, "source-draft");
+        DefinitionPublishedHeadCondition[] conditions = [new(target.Key, 2, "/b"), new(target.Key, 2, "/a")];
+        var published = await store.PublishAsync(source.Key, source.VersionId, 1, "publish", conditions);
+        await store.SaveDraftAsync(target with { VersionId = "next", Version = "2.0.0" }, 2, "next-draft");
+        await store.PublishAsync(target.Key, "next", 3, "next-publish");
+        Assert.Equal(published, await store.PublishAsync(source.Key, source.VersionId, 1, "publish", conditions.Reverse().ToArray()));
+        var refusal = await Assert.ThrowsAsync<DefinitionRefusalException>(async () =>
+            await store.PublishAsync(source.Key, source.VersionId, 1, "publish", [new(target.Key, 4, "/a"), new(target.Key, 4, "/b")]));
+        AssertRefusal(refusal, "definition.replay_conflict", "/requestId");
+    }
+
+    [Fact]
+    public async Task PublicationReplayLookupMatchesTheOriginalOperationVersionFenceAndKey()
+    {
+        var store = Store();
+        var source = Document();
+        var other = source.Key with { DefinitionId = "other" };
+        Assert.Null(await store.GetPublicationReplayAsync(source.Key, source.VersionId, 0, "missing"));
+        await store.SaveDraftAsync(source, 0, "draft");
+        var published = await store.PublishAsync(source.Key, source.VersionId, 1, "publish");
+        Assert.Equal(published, await store.GetPublicationReplayAsync(source.Key, source.VersionId, 1, "publish"));
+        Assert.Null(await store.GetPublicationReplayAsync(other, source.VersionId, 1, "publish"));
+        AssertRefusal(await Assert.ThrowsAsync<DefinitionRefusalException>(async () =>
+            await store.GetPublicationReplayAsync(source.Key, source.VersionId, 0, "draft")),
+            "definition.replay_conflict", "/requestId");
+        AssertRefusal(await Assert.ThrowsAsync<DefinitionRefusalException>(async () =>
+            await store.GetPublicationReplayAsync(source.Key, "other-version", 1, "publish")),
+            "definition.replay_conflict", "/requestId");
+        AssertRefusal(await Assert.ThrowsAsync<DefinitionRefusalException>(async () =>
+            await store.GetPublicationReplayAsync(source.Key, source.VersionId, 2, "publish")),
+            "definition.replay_conflict", "/requestId");
+        Assert.Equal(2, (await store.ListHistoryAsync(source.Key)).Count);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task GuardedPublicationWithNoPublishedTargetRefusesWithoutAppendingOrConsumingTheRequest(bool targetHasDraft)
+    {
+        var store = Store();
+        var source = Document();
+        var target = source with { Key = source.Key with { DefinitionId = "target" } };
+        await store.SaveDraftAsync(source, 0, "source-draft");
+        if (targetHasDraft) await store.SaveDraftAsync(target, 0, "target-draft");
+
+        var refused = await Assert.ThrowsAsync<DefinitionRefusalException>(async () =>
+            await store.PublishAsync(source.Key, source.VersionId, 1, "publish", [new(target.Key, 2, "/fields/0/reference")]));
+
+        // Atomic preconditions refuse absent published heads, whether the target is missing or still a draft.
+        Assert.Equal(DefinitionAdmissionPhase.Publish, refused.Stage);
+        AssertRefusal(refused, "definition.published_head_conflict", "/fields/0/reference");
+        Assert.Null(await store.GetPublishedHeadAsync(source.Key));
+        Assert.Single(await store.ListHistoryAsync(source.Key));
+        Assert.Null(await store.GetPublicationReplayAsync(source.Key, source.VersionId, 1, "publish"));
+        if (!targetHasDraft) await store.SaveDraftAsync(target, 0, "target-draft");
+        await store.PublishAsync(target.Key, target.VersionId, 1, "target-publish");
+        var published = await store.PublishAsync(source.Key, source.VersionId, 1, "publish", [new(target.Key, 2, "/fields/0/reference")]);
+        Assert.Equal(DefinitionStatus.Published, published.Status);
+        Assert.Equal(2, published.Revision);
+        Assert.Equal(2, (await store.ListHistoryAsync(source.Key)).Count);
+    }
+
     private static InMemoryVersionedDefinitionStore Store(DefinitionAdmission? admission = null)
         => new(Enum.GetValues<DefinitionKind>().ToDictionary(kind => kind,
             _ => admission ?? ((_, _) => Array.Empty<DefinitionRefusal>())));

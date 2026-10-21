@@ -234,6 +234,46 @@ public static class FormDefinitionCodes
     /// declare an authorization capability of its own (forms-auth-16, T-747).</summary>
     public const string SubmitGateCapabilityUnknown = "form.submit_gate.capability_unknown";
 
-    /// <summary>A definition reaching Published status does not declare a submit gate.</summary>
+    /// <summary>A definition reaching Published status does not declare a submit gate. A definition whose
+    /// <c>record_type_id</c> target is <c>form_only</c> is refused with this code too (D3, T-485).</summary>
     public const string SubmitGateRequired = "form.submit_gate.required";
+
+    // ── Record type target (DES-0016 forms-ck-3, ADR 0099 decision 7; T-485; decision D3) ──
+
+    /// <summary>A definition declares a <c>record_type_id</c> target with an empty or whitespace value. A
+    /// definition with no target is unaffected.</summary>
+    public const string RecordTypeRequired = "form.record_type.required";
+
+    /// <summary>A definition reaching Published status targets a record type whose creation gate is
+    /// <c>engine</c>: only the engine creates records of that type, so no form may target it.</summary>
+    public const string RecordTypeNotFormCreatable = "form.record_type.not_form_creatable";
+
+    /// <summary>A definition reaching Published status names a record type the tenant does not have, as reported by
+    /// the host's creation-policy reader.</summary>
+    public const string RecordTypeUnknown = "form.record_type.unknown";
+
+    /// <summary>A definition reaching Published status has a <c>record_type_id</c> target but its creation policy
+    /// cannot be resolved: no host reader is configured, the reader failed, or it reported a value outside
+    /// form_only, role and engine. Forms never defaults a policy (K6).</summary>
+    public const string RecordTypePolicyUnavailable = "form.record_type.policy_unavailable";
+
+    /// <summary>A definition reaching Published status changes or removes the record type a Published, Deprecated or
+    /// Withdrawn revision of the same definition id already captured (ADR 0099 decision 7: a captured record-type change
+    /// is blocked; withdrawal is not a migration decision). Adding a target where no such revision has one is allowed.</summary>
+    public const string RecordTypeChanged = "form.record_type.changed";
+
+    // ── Declared record creation (K9, approved 2026-10-10) ──────────────────────
+
+    /// <summary>A definition reaching Published status has no <c>record_type_id</c> target, but the host's submission producers
+    /// declare that its submissions create records of a Record Type. Missing target metadata never exempts a form that
+    /// creates Records; a new revision must state the target.</summary>
+    public const string RecordTypeTargetRequired = "form.record_type.target_required";
+
+    /// <summary>A definition reaching Published status targets one Record Type while the host's submission producers declare
+    /// that its submissions create another.</summary>
+    public const string RecordTypeTargetMismatch = "form.record_type.target_mismatch";
+
+    /// <summary>The host's submission producers declare more than one Record Type for one form id. A form captures one type
+    /// (ADR 0099 decision 7), so there is no unambiguous target to publish or map to.</summary>
+    public const string RecordTypeTargetAmbiguous = "form.record_type.target_ambiguous";
 }

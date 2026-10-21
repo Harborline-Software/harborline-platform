@@ -38,6 +38,7 @@ public sealed class KernelCoreBoundaryArchitectureTests
 
     private static readonly HashSet<string> AtomicAdapters = new(StringComparer.Ordinal)
     {
+        "projections/dotnet/blocks/hlp.blocks.builder-definitions/FileJournalRecordWriteStore.cs",
         "projections/dotnet/foundation/hlp.foundation.forms-engine/Persistence/FileJournalFormSubmissionStore.cs",
         "projections/dotnet/foundation/hlp.foundation.forms-engine/Persistence/FormSubmissionKernelTransactionPort.cs",
         "projections/dotnet/foundation/hlp.foundation.forms-engine/Persistence/InMemoryFormSubmissionStore.cs",

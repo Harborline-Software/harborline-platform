@@ -16,8 +16,27 @@ public sealed class FormEngineNotFoundException()
     : FormEngineException("form.engine.not-found", "The requested form resource was not found.");
 
 /// <summary>Signals that the caller is not authorized for the requested form operation.</summary>
-public sealed class FormEngineDeniedException()
-    : FormEngineException("form.engine.denied", "The form operation was denied.");
+public sealed class FormEngineDeniedException : FormEngineException
+{
+    /// <summary>Initializes the generic denial with no decider evidence.</summary>
+    public FormEngineDeniedException()
+        : this(null)
+    {
+    }
+
+    /// <summary>
+    /// Initializes the generic denial carrying the submit-gate decider's own evidence for the asked intent (D3). Evidence
+    /// that names any other intent is never attached; the message and code stay generic either way.
+    /// </summary>
+    public FormEngineDeniedException(Harborline.Foundation.Authorization.AuthorizationDecisionEvidence? evidence)
+        : base("form.engine.denied", "The form operation was denied.") => Evidence = evidence;
+
+    /// <summary>
+    /// Gets the decider's evidence for a denied submit gate bound to the asked intent, when one was returned. It carries
+    /// role-binding facts, so a host must not serialize it to clients (D6 disclosure).
+    /// </summary>
+    public Harborline.Foundation.Authorization.AuthorizationDecisionEvidence? Evidence { get; }
+}
 
 /// <summary>
 /// Signals from an execution-context adapter that the requested tenant is not available for the
@@ -42,6 +61,15 @@ public sealed class FormEngineValidationException(IReadOnlyList<Harborline.Contr
 /// <summary>Signals that a required provider failed or could not be reached.</summary>
 public sealed class FormEngineProviderUnavailableException(Exception? innerException = null)
     : FormEngineException("form.engine.provider-unavailable", "A required form provider is unavailable.", innerException);
+
+/// <summary>
+/// Signals that code running while a Forms submission store's exclusion scope is held on this async flow (a host port the
+/// engine calls inside the submit transaction, such as the submit-gate decider of an accepted command) called back into a
+/// built-in submission store. The scope is not re-entrant, so the call is refused at once instead of waiting forever
+/// (review M5): <c>form.engine.store-reentrant</c>.
+/// </summary>
+public sealed class FormEngineStoreReentrancyException()
+    : FormEngineException("form.engine.store-reentrant", "A Forms submission store was called while its own scope is held on this flow.");
 
 /// <summary>Signals reuse of an idempotency key with a different request fingerprint.</summary>
 public sealed class FormEngineIdempotencyConflictException()

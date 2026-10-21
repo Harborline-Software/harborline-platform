@@ -61,6 +61,79 @@ unacknowledged sensitive connector inputs. A disposable minimal HTTP authoring h
 the seven-artifact transitive Harborline closure, and proves zero source/project fallback or assembly
 ambiguity.
 
+Revision 16 adds durably accepted Records commands (plan W6/W7, ADR-0110 accepted 2026-10-12; its readings
+are isolated in `FormAcceptedCommandReadings`). A submit whose published head targets a `form_only` Record Type is
+accepted, not delivered: its submit gate is decided inside the acceptance transaction, and the one existing atomic
+commit carries the submission, the audit with the gate's own evidence as its authority snapshot, and the delivery row
+with a `FormAcceptedRecordCommand` (command id, a server-derived operation id, the target, the payload fingerprint, the
+acceptance instant and snapshot). The submission store must implement `IFormAcceptedCommandStore`; both built-in stores
+do, and the journal writes such frames as format 3. The command executes only as the configured
+`FormEngineOptions.AcceptedCommandWorkerId`, never as the submitter, through `IFormProjectionSink.DeliverAcceptedAsync`,
+after every stored binding is validated again and after a durable claim; recovery executes an interrupted claim again,
+idempotently on the original operation. `FormAcceptedCommandCancellation` cancels a pending command under the dedicated
+`records.command.cancel` permission; cancel and execution contend on the store's claim, so exactly one wins, and a cancel
+after the claim is `records.command.cancel_too_late`. Ordinary submissions, and forms targeting a `role` type, keep the
+existing delivery path. A `role` target's failed inline delivery is retried only through the port's single-row lease in
+its submitter's replay (revision 17 states what a store without the port does). Under the decision 1 reading the host's
+submit-gate decider runs while the store scope is held, so it must not open its own kernel transaction (the submit is
+then denied) and should be fast. Host enablement stays held.
+
+Revision 16 also adds: an audit envelope with every cancellation and refusal, in the same atomic
+transition; queue-ordered leasing (least recently enqueued first) and a bounded retry before a claimed command with a
+broken binding is quarantined; `IFormProjectionSink.ExecutesAcceptedCommands`, without which a command is never claimed;
+no recovery of a targeted row without a command (never acting as the submitter); the acceptance snapshot bound to the
+command's own decision (`FormAcceptedCommandEvidence`); the mapped Records body digest bound at acceptance
+(`IFormAcceptedRecordBodies`); and
+`form.engine.store-reentrant` plus `AcceptanceDecisionTimeout`, so a decider inside the acceptance can neither deadlock
+the store nor hold its scope indefinitely.
+
+Revision 16 also never makes a claimed command terminal while an earlier run may have committed its
+effect (DES-0029 section 9): such a command is `Quarantined` instead, audited, non-terminal, visible in the pending pool
+and never leased again, after `AcceptedCommandBindingRetryLimit` binding failures (only binding failures count; a form
+revision that is not found is an infrastructure failure) or a Records refusal after a resumed claim. A cancel abandons a
+quarantined command only when the host's `IFormAcceptedCommandEffects` lookup establishes that its effect did not and
+cannot commit, and leaves quarantine as completed only through `FormAcceptedCommandResolution`, audited, when the same
+lookup finds its effect committed (`CompleteProjectionAsync` refuses a quarantined row). Leasing rotates (least recently enqueued first; a failed row goes to the back), so no row waits forever
+and stalled rows never starve fresh ones; the mapped-body digest is held to the acceptance bound;
+and a `role` target's failed inline delivery is retried only by its own submitter's replay.
+
+Revision 17 changes text only and makes the interface describe the merged behaviour. A store without
+`IFormAcceptedCommandStore` refuses any targeted submit (`form.engine.provider-unavailable`) before the gate is asked,
+including an idempotent replay of an existing targeted submission, as it refuses a `form_only` one. Recovery on such a
+store rotates a targeted row without a command to the back of the queue with `RetryProjectionAsync` (one recorded
+attempt) instead of releasing it in place, and still never delivers it. The base port's `LeasePendingAsync` defines no
+order, so the rotation protects deliverable rows only on a store that leases a newly retried row behind the rows already
+waiting, as both built-in stores do; a host store that ignores recorded attempts is not protected (a documented limit).
+The lease-order sentence that said "by attempts, then submit instant, then outbox id" now names the queue order, and
+the sentence that said a claimed command with a broken binding "is refused after" the retry limit now says it is
+quarantined.
+
+Revision 18 (T-688, ADR 0099 decision 7) is additive. `IFormDefinitionAuthoringPublisher.RegisterAndPublishWithImpactAsync`
+admits the Draft exactly as `RegisterAndPublishAsync` does. It then has `FormPublicationImpactAssessment` compute an
+assessment, commits through the same atomic register-and-publish, and returns `FormDefinitionPublicationResult` (the
+committed revision and the assessment). The assessment itself never refuses or changes the publication; the store's existing checks still apply at commit. `Block` is a compatibility result,
+not a lifecycle refusal, and there is no migration approval or new error code. The `FormPublicationAssessmentContext`
+carries a `FormPublicationBasis` and the `ISchemaRegistry` and `IFormPublishedSurfaceSource` to read. The basis holds
+host-attested bindings for the candidate and the exact predecessor (tenant, Form id, semantic version label, a distinct
+opaque `VersionId` and trusted provenance), `NoPredecessor` (true only for a declared first publication, never inferred
+from a failed lookup) and both recorded environments, each known or explicitly unknown. No opaque identity is derived
+from a semantic label, and host provenance is a trusted composition input, not cryptographic authenticity. The assessor
+reads the actual current and predecessor Forms revisions and both schema bodies. An additive optional field or a
+presentation-only change is `ProposalEligible`. A changed field identity, a removed field, or a type, rule, submit gate,
+lineage, async check, aspect, wizard callback or redirect, or environment change is `AuthorResolution`. A newly required
+field without a default, or a changed captured record type, is `Block`, and `Block` takes precedence. Only an eligible assessment with a known predecessor carries a `FormRepublishProposal`, naming exact impacted surface
+versions and never a latest head. The proposal is data, and nothing applies it. Missing, mismatched, unknown, failed or
+unsupported input returns `FormPublicationAssessment.Unavailable` with no compatibility, surfaces or proposal, never a
+healthy empty set. This covers an unknown environment, a predecessor that is not the current published head, a schema
+outside the first interpreter's flat object of primitive fields, and an incomplete census. Its reasons are local
+diagnostics, not wire codes. `IFormPublishedSurfaceSource` is read-only, and a complete read is an observed census, not
+a cross-store atomic snapshot. `FormPublicationContext(basis)` composes the context from the registered schema registry
+and surface source. `AddHarborlineFormsEngine` registers no surface source and no new mandatory port; the opt-in Layout
+census is `hlp.blocks.layout-runtime` revision 10. `RegisterAndPublishAsync` keeps its behaviour, and the interface's
+default member keeps existing implementations source-compatible, answering `Unavailable`. Shipping writer emission of
+historical identity and environment, latest-compatible surface selection for new instances, and the required
+`record_type_id` rollout (T-484, T-485) are not part of this revision. The exact compatibility rules, including record-type and sectioned-field handling and the first-publication case, are stated in the revision 18 invariant of `specs/modules/foundation/hlp.foundation.forms-engine/interface.yaml`.
+
 This is an implementation checkpoint, not HLF-055 completion. All 80 captured source cases and all
 38 migration-gap cases pass. The package and its destination-neutral authoring-host boundary are
 package/consumer green. HLF-055 remains open for the authenticated inspection-review vertical slice.

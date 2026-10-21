@@ -57,6 +57,18 @@ public static class FormEngineServiceCollectionExtensions
         return services;
     }
 
+    /// <summary>Composes explicit publication facts with registered schema and read-only surface ports.</summary>
+    /// <param name="provider">The caller's existing scoped provider.</param>
+    /// <param name="basis">Trusted writer-supplied identities and historical environment evidence.</param>
+    public static FormPublicationAssessmentContext FormPublicationContext(
+        this IServiceProvider provider, FormPublicationBasis basis)
+    {
+        ArgumentNullException.ThrowIfNull(provider);
+        ArgumentNullException.ThrowIfNull(basis);
+        return new(basis, provider.GetRequiredService<Harborline.Kernel.SchemaValidation.ISchemaRegistry>(),
+            provider.GetRequiredService<IFormPublishedSurfaceSource>());
+    }
+
     /// <summary>Registers the core Forms Engine graph and validates production-only composition requirements.</summary>
     public static IServiceCollection AddHarborlineFormsEngine(
         this IServiceCollection services,
@@ -108,8 +120,35 @@ public static class FormEngineServiceCollectionExtensions
                 throw new InvalidOperationException("Forms Engine production composition requires an attested governance-enforcing field-security registration.");
         }
         services.TryAddSingleton(options);
+        AddSinkRecordCreationDeclarations(services);
         services.TryAddScoped<IFormEngine, FormEngine>();
         return services;
+    }
+
+    /// <summary>
+    /// N1 (K9 F4): under DI the form engine and the definition store must read one declaration source.
+    /// The engine falls back to its projection sink when no <see cref="Harborline.Foundation.Forms.IFormRecordCreationDeclarations"/>
+    /// is registered, but a DI-built definition store has no sink to fall back to, so a sink-implemented declaration would
+    /// govern submit and never publication. When the host registered no explicit port and its registered sink's
+    /// implementation type (or instance) implements the port, the port is registered as that same sink, with the sink's
+    /// lifetime, so both resolve it. A sink registered through a factory cannot be inspected; such a host registers the
+    /// port explicitly. A singleton definition store needs a singleton sink or an explicit singleton port. Only a sink
+    /// registered before <see cref="AddHarborlineFormsEngine"/> is called is seen (review L9); a host that registers its sink
+    /// later registers the port explicitly.
+    /// </summary>
+    private static void AddSinkRecordCreationDeclarations(IServiceCollection services)
+    {
+        if (services.Any(row => row.ServiceType == typeof(Harborline.Foundation.Forms.IFormRecordCreationDeclarations))) return;
+        var sink = services.LastOrDefault(row => row.ServiceType == typeof(IFormProjectionSink) && !row.IsKeyedService);
+        if (sink is null) return;
+        var declares = sink.ImplementationType is { } type
+            ? typeof(Harborline.Foundation.Forms.IFormRecordCreationDeclarations).IsAssignableFrom(type)
+            : sink.ImplementationInstance is Harborline.Foundation.Forms.IFormRecordCreationDeclarations;
+        if (!declares) return;
+        services.Add(new ServiceDescriptor(
+            typeof(Harborline.Foundation.Forms.IFormRecordCreationDeclarations),
+            provider => (Harborline.Foundation.Forms.IFormRecordCreationDeclarations)provider.GetRequiredService<IFormProjectionSink>(),
+            sink.Lifetime));
     }
 
     /// <summary>Registers tenant-bound field protection and its governance resolver.</summary>

@@ -13,6 +13,90 @@ namespace Harborline.Foundation.Forms.Engine.Tests;
 public sealed class AuthoringHostIntegrationTests
 {
     [Fact]
+    public async Task Actual_registered_publisher_exposes_prepublication_assessment_and_committed_form()
+    {
+        var fixture = await ImpactFixture.CreateAsync();
+        var services = new ServiceCollection();
+        services.AddSingleton<IFormDefinitionStore>(fixture.Store);
+        services.AddSingleton<Harborline.Kernel.SchemaValidation.ISchemaRegistry>(fixture.Schemas);
+        services.AddSingleton<IFormPublishedSurfaceSource>(fixture.Context.Surfaces);
+        services.AddHarborlineFormsAuthoringPublisher();
+        await using var provider = services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true, ValidateOnBuild = true });
+        await using var scope = provider.CreateAsyncScope();
+        var publisher = scope.ServiceProvider.GetRequiredService<IFormDefinitionAuthoringPublisher>();
+        var result = await publisher.RegisterAndPublishWithImpactAsync(fixture.Candidate,
+            scope.ServiceProvider.FormPublicationContext(fixture.Basis));
+        Assert.Equal(FormDefinitionStatus.Published, result.Definition.Status);
+        Assert.Equal(FormPublicationCompatibility.ProposalEligible, result.Assessment.Compatibility);
+        Assert.Equal("f-new-y8", result.Assessment.Proposal!.Candidate.VersionId);
+        Assert.Equal("2.2.0", (await fixture.Store.GetCurrentPublishedAsync(fixture.Candidate.Tenant, fixture.Candidate.Id))!.Version.ToString());
+    }
+
+    [Fact]
+    public async Task Impact_entry_keeps_rule_admission_before_assessment_and_persistence()
+    {
+        var fixture = await ImpactFixture.CreateAsync();
+        var definition = fixture.Candidate with { Overlay = fixture.Candidate.Overlay with { Rules =
+            [new("broken", RuleTier.JsonLogic, RuleScope.Schema, "", "{not-json", RuleActionKind.Validate)] } };
+        var read = false;
+        var source = new ImpactFixture.Source(_ => { read = true; return ValueTask.FromResult<FormPublishedSurfaceRead>(new FormPublishedSurfaceRead.Complete("tenant-a", [])); });
+        var services = new ServiceCollection();
+        services.AddSingleton<IFormDefinitionStore>(fixture.Store);
+        services.AddHarborlineFormsAuthoringPublisher();
+        await using var provider = services.BuildServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+        var publisher = scope.ServiceProvider.GetRequiredService<IFormDefinitionAuthoringPublisher>();
+        await Assert.ThrowsAsync<FormDefinitionValidationException>(() => publisher.RegisterAndPublishWithImpactAsync(definition,
+            fixture.Context with { Surfaces = source }).AsTask());
+        Assert.False(read);
+        var store = provider.GetRequiredService<IFormDefinitionStore>();
+        await Assert.ThrowsAsync<FormDefinitionNotFoundException>(() => store.GetAsync(definition.Tenant, definition.Id, definition.Version).AsTask());
+    }
+
+    [Fact]
+    public async Task Actual_atomic_store_failure_does_not_return_a_successful_assessment_result()
+    {
+        var fixture = await ImpactFixture.CreateAsync();
+        // Same tenant, id and version but a different CreatedAt, so the store's identical-retry check fails
+        // and the atomic register-and-publish raises a real version conflict.
+        var conflicting = fixture.Candidate with { CreatedAt = fixture.Candidate.CreatedAt.AddSeconds(1) };
+        await fixture.Store.RegisterAndPublishAsync(conflicting);
+        var services = new ServiceCollection();
+        services.AddSingleton<IFormDefinitionStore>(fixture.Store);
+        services.AddHarborlineFormsAuthoringPublisher();
+        await using var provider = services.BuildServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+        var publisher = scope.ServiceProvider.GetRequiredService<IFormDefinitionAuthoringPublisher>();
+        await Assert.ThrowsAsync<FormDefinitionConflictException>(() => publisher.RegisterAndPublishWithImpactAsync(
+            fixture.Candidate, fixture.Context).AsTask());
+        var stored = await fixture.Store.GetAsync(fixture.Candidate.Tenant, fixture.Candidate.Id, fixture.Candidate.Version);
+        Assert.Equal(FormDefinitionStatus.Published, stored.Status);
+        Assert.Equal(conflicting.CreatedAt, stored.CreatedAt);
+    }
+
+    [Fact]
+    public async Task Legacy_interface_implementation_publishes_without_claiming_unsupported_analysis()
+    {
+        var fixture = await ImpactFixture.CreateAsync();
+        var services = new ServiceCollection();
+        services.AddSingleton<IFormDefinitionStore>(fixture.Store);
+        services.AddHarborlineFormsAuthoringPublisher();
+        await using var provider = services.BuildServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+        IFormDefinitionAuthoringPublisher legacy = new LegacyPublisher(scope.ServiceProvider.GetRequiredService<IFormDefinitionAuthoringPublisher>());
+        var result = await legacy.RegisterAndPublishWithImpactAsync(fixture.Candidate, fixture.Context);
+        Assert.Equal(FormDefinitionStatus.Published, result.Definition.Status);
+        Assert.False(result.Assessment.IsComplete);
+        Assert.Null(result.Assessment.Proposal);
+    }
+
+    private sealed class LegacyPublisher(IFormDefinitionAuthoringPublisher inner) : IFormDefinitionAuthoringPublisher
+    {
+        public ValueTask<FormDefinition> RegisterAndPublishAsync(FormDefinition definition, CancellationToken cancellationToken = default) =>
+            inner.RegisterAndPublishAsync(definition, cancellationToken);
+    }
+
+    [Fact]
     public async Task AuthoringHost_AdmitsThenPersistsAndPublishesValidDefinition()
     {
         await using var provider = BuildHost();

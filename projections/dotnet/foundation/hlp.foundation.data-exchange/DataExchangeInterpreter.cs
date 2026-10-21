@@ -142,8 +142,14 @@ public sealed class InMemoryProtectedEffectPayloadStore : IProtectedEffectPayloa
 
     private static CanonicalEffectPayload Snapshot(CanonicalEffectPayload payload) => payload with
     {
-        Values = payload.Values.ToImmutableDictionary(StringComparer.Ordinal),
+        Values = payload.Values.ToImmutableDictionary(
+            pair => pair.Key,
+            pair => SnapshotValue(pair.Value),
+            StringComparer.Ordinal),
     };
+
+    private static object? SnapshotValue(object? value) =>
+        value is Array vector ? vector.Clone() : value;
 }
 
 /// <summary>Caller and source inputs for one dry run: requester, fingerprints, boundaries, snapshot, authorization and retention references, and expected checkpoint.</summary>

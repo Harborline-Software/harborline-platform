@@ -6,6 +6,17 @@ exist before a catalogue seed is installed.
 
 It contains no host persistence, member interpreter, package installer, or HTTP adapter.
 
+## Audit evidence envelope
+
+`KernelAuditEvidence` is the audit envelope the boundary stages with each record, in one `StageAuditAsync` call:
+its id, the actor, the instant, the opaque payload, the `AuthoritySnapshot` of the enforcing decision (DES-0004
+`authority_snapshot`) and, since revision 8, the optional `OriginatorId`. `OriginatorId` is provenance for a durably
+accepted command executed by someone other than its submitter (decision D6, ADR-0110 decision 4): `ActorId` is the
+actual executor, the snapshot is the executor's own decision, and the originator is the submitter recorded beside them.
+It authorizes nothing. It is null for every producer that acts for itself, and when present it is nonblank and differs
+from the actor, or `Validate` refuses it before anything is staged. A host port persists it with the audit in the same
+transaction and never substitutes it for the actor.
+
 ## Clock and compiled bootstrap floor
 
 `KernelClock.GetUtcNow()` assigns the recorded instant from the host's injected authoritative
@@ -17,6 +28,16 @@ The Definition Package, Record Type and Field shapes are a compiled, self-descri
 shape carries its stable key and the complete DES-0004 section 1 member list (key, kind,
 requiredness, cardinality and reference target), so no catalogue seed is read to describe it. A
 package may not replace a floor shape by either its key or identity, case-insensitively.
+
+A floor member key starts with `a-z`, uses only `a-z`, `0-9` and `_`, and contains neither doubled nor trailing
+underscores. It is one flat catalogue column and never a dotted path; any other key refuses with
+`kernel.compiled-member-key-invalid`. The floor describes the kernel's system
+records, not the authored Records grammar: DES-0004 §1 documents the correspondence (`field_key` to `key`,
+`reference.required_trait_id` to `reference_trait_id` and so on). Record Type carries `record_class`, and Field carries
+a reference's `reference_target_type_id` or `reference_target_class_id`, `reference_cardinality`, `reference_on_delete`,
+`reference_parent` and `reference_trait_id` (L091, L092, L1424). Record Type also carries `creation_role_id`, an
+optional reference to the one role that creates a `role`-gated type (decision D1, 2026-10-10). A member change bumps the
+shape's revision: Record Type is at 3 and Field is at 2.
 
 ## Package closure (T-979)
 

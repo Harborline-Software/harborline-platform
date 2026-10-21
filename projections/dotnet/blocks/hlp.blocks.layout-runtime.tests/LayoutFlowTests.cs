@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Text;
 using Harborline.Blocks.BuilderDefinitions;
 using Harborline.Blocks.LayoutRuntime;
@@ -61,6 +62,76 @@ public sealed class LayoutFlowTests
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(async () => await new LayoutPublishedSurfaceResolver(store).ResolveAsync(new(key, "version-2"), GrantsAllAuthor.Instance, GrantsAllAuthor.Instance));
 
         Assert.Equal("layout.persisted_body_invalid", exception.Message);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(2)]
+    public async Task MissingBindingKindInAPublishedRootOrDescendantRefusesBeforeFlow(int depth)
+    {
+        var key = new DefinitionKey("tenant-a", DefinitionKind.Layout, "invoice");
+        var store = new InMemoryVersionedDefinitionStore(new Dictionary<DefinitionKind, DefinitionAdmission>
+        {
+            [DefinitionKind.Layout] = (_, _) => [],
+        });
+        var root = JsonNode.Parse(LayoutDefinitionJson.SerializeCanonical(ValidScreenDefinition()))!;
+        var block = root["blocks"]![0]!;
+        for (var index = 0; index < depth; index++)
+        {
+            var child = block.DeepClone();
+            child["id"] = "nested-" + index;
+            child["children"] = new JsonArray();
+            block["container"] = JsonNode.Parse("{\"kind\":\"stack\"}");
+            block["children"] = new JsonArray(child);
+            block = child;
+        }
+        Assert.True(block["binding"]!.AsObject().Remove("binding_kind"));
+        await store.SaveDraftAsync(new(key, "version-bad", "1.0.0", root.ToJsonString()), 0, "draft-bad");
+        await store.PublishAsync(key, "version-bad", 1, "publish-bad");
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await new LayoutPublishedSurfaceResolver(store).ResolveAsync(new(key, "version-bad"), GrantsAllAuthor.Instance, GrantsAllAuthor.Instance));
+
+        Assert.Equal("layout.persisted_body_invalid", exception.Message);
+        Assert.IsType<JsonException>(exception.InnerException);
+    }
+
+    [Fact]
+    public async Task AnUnrelatedOpenOperationFailurePropagatesTheOriginalInstance()
+    {
+        var store = new InMemoryVersionedDefinitionStore(new Dictionary<DefinitionKind, DefinitionAdmission>
+        {
+            [DefinitionKind.Layout] = (_, _) => [],
+        });
+        var failure = new NotSupportedException("operational-marker");
+        var reader = new FailingOpenAccess(failure);
+
+        var observed = await Assert.ThrowsAsync<NotSupportedException>(async () =>
+            await new LayoutPublishedSurfaceResolver(store).ResolveAsync(
+                new(new("tenant-a", DefinitionKind.Layout, "invoice"), "version-1"), reader, GrantsAllAuthor.Instance));
+
+        Assert.Same(failure, observed);
+    }
+
+    [Fact]
+    public async Task ANullProviderBodyFailsInsideTheDecodeTryWithoutBeingWrapped()
+    {
+        var key = new DefinitionKey("tenant-a", DefinitionKind.Layout, "invoice");
+        var binding = new DefinitionBinding(key, "version-corrupt");
+        // Deliberately corrupt provider data: the reference store rejects null JSON at write time.
+        // The provider returns a public record; Encoding inside the resolver creates the exception.
+        var revision = new DefinitionRevision(new(key, "version-corrupt", "1.0.0", null!),
+            2, DefinitionStatus.Published, "");
+        var store = new ReturnedRevisionStore(revision);
+
+        var exception = await Assert.ThrowsAsync<ArgumentNullException>(async () =>
+            await new LayoutPublishedSurfaceResolver(store).ResolveAsync(binding, GrantsAllAuthor.Instance, GrantsAllAuthor.Instance));
+
+        Assert.Equal("s", exception.ParamName);
+        Assert.Null(exception.InnerException);
+        Assert.Equal(1, store.ResolveCalls);
+        Assert.Equal(binding, store.RequestedBinding);
     }
 
     [Theory]
@@ -165,6 +236,145 @@ public sealed class LayoutFlowTests
         Assert.Equal("layout.persisted_body_invalid", refused.Message);
     }
 
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(2)]
+    public async Task OutOfOrderBindingKindInAStoredPublishedBodyRefusesBeforeFlow(int depth)
+    {
+        var key = new DefinitionKey("tenant-a", DefinitionKind.Layout, "invoice");
+        var store = new InMemoryVersionedDefinitionStore(new Dictionary<DefinitionKind, DefinitionAdmission>
+        {
+            [DefinitionKind.Layout] = (_, _) => [],
+        });
+        var body = BindingOrderBody(depth, discriminatorFirst: false);
+        await store.SaveDraftAsync(new(key, "version-order-bad", "1.0.0", body), 0, "draft-order-bad");
+        await store.PublishAsync(key, "version-order-bad", 1, "publish-order-bad");
+        var binding = new DefinitionBinding(key, "version-order-bad");
+
+        var published = await store.ResolvePublishedAsync(binding);
+        Assert.NotNull(published);
+        Assert.Equal(body, published.Document.BodyJson);
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await new LayoutPublishedSurfaceResolver(store).ResolveAsync(binding, GrantsAllAuthor.Instance, GrantsAllAuthor.Instance));
+
+        Assert.Equal("layout.persisted_body_invalid", exception.Message);
+        Assert.IsType<JsonException>(exception.InnerException);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(2)]
+    public async Task FirstBindingKindInAnAuthoredPublishedBodyStillResolves(int depth)
+    {
+        var key = new DefinitionKey("tenant-a", DefinitionKind.Layout, "invoice");
+        var store = new InMemoryVersionedDefinitionStore(new Dictionary<DefinitionKind, DefinitionAdmission>
+        {
+            [DefinitionKind.Layout] = (_, _) => [],
+        });
+        var body = BindingOrderBody(depth, discriminatorFirst: true);
+        await store.SaveDraftAsync(new(key, "version-order-good", "1.0.0", body), 0, "draft-order-good");
+        await store.PublishAsync(key, "version-order-good", 1, "publish-order-good");
+
+        var resolved = await new LayoutPublishedSurfaceResolver(store).ResolveAsync(
+            new(key, "version-order-good"), GrantsAllAuthor.Instance, GrantsAllAuthor.Instance);
+
+        Assert.Equal("version-order-good", resolved.VersionId);
+        Assert.Equal("invoice", resolved.Definition.Envelope.Identity);
+        Assert.Equal("screen", resolved.Plan.Fragmentainer.Kind);
+        var block = Assert.Single(resolved.Definition.Blocks);
+        for (var index = 0; index < depth; index++) block = Assert.Single(block.Children);
+        Assert.Equal("leaf", block.Id);
+        Assert.Equal("control", Assert.IsType<LayoutStaticBinding>(block.Binding).Content.GetString());
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    public async Task AnEscapedFirstBindingKindInAStoredPublishedBodyStillResolves(int depth)
+    {
+        // The raw literal keeps the six-character JSON escape in the stored text.
+        Assert.Contains(@"\u0062inding_kind", EscapedFirstStaticBinding, StringComparison.Ordinal);
+        Assert.DoesNotContain("\"binding_kind\"", EscapedFirstStaticBinding, StringComparison.Ordinal);
+        var key = new DefinitionKey("tenant-a", DefinitionKind.Layout, "invoice");
+        var store = new InMemoryVersionedDefinitionStore(new Dictionary<DefinitionKind, DefinitionAdmission>
+        {
+            [DefinitionKind.Layout] = (_, _) => [],
+        });
+        var body = BindingOrderBody(depth, EscapedFirstStaticBinding);
+        await store.SaveDraftAsync(new(key, "version-escaped", "1.0.0", body), 0, "draft-escaped");
+        await store.PublishAsync(key, "version-escaped", 1, "publish-escaped");
+        var binding = new DefinitionBinding(key, "version-escaped");
+
+        var published = await store.ResolvePublishedAsync(binding);
+        Assert.NotNull(published);
+        Assert.Equal(body, published.Document.BodyJson);
+        Assert.Contains(@"\u0062inding_kind", published.Document.BodyJson, StringComparison.Ordinal);
+        var resolved = await new LayoutPublishedSurfaceResolver(store).ResolveAsync(
+            binding, GrantsAllAuthor.Instance, GrantsAllAuthor.Instance);
+
+        Assert.Equal("version-escaped", resolved.VersionId);
+        Assert.Equal("invoice", resolved.Definition.Envelope.Identity);
+        Assert.Equal("screen", resolved.Plan.Fragmentainer.Kind);
+        var block = Assert.Single(resolved.Definition.Blocks);
+        for (var index = 0; index < depth; index++) block = Assert.Single(block.Children);
+        Assert.Equal("leaf", block.Id);
+        Assert.Equal("control", Assert.IsType<LayoutStaticBinding>(block.Binding).Content.GetString());
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    public async Task AnEmptyBindingObjectInAStoredPublishedBodyRefusesBeforeFlow(int depth)
+    {
+        var key = new DefinitionKey("tenant-a", DefinitionKind.Layout, "invoice");
+        var store = new InMemoryVersionedDefinitionStore(new Dictionary<DefinitionKind, DefinitionAdmission>
+        {
+            [DefinitionKind.Layout] = (_, _) => [],
+        });
+        var body = BindingOrderBody(depth, "{}");
+        await store.SaveDraftAsync(new(key, "version-empty", "1.0.0", body), 0, "draft-empty");
+        await store.PublishAsync(key, "version-empty", 1, "publish-empty");
+        var binding = new DefinitionBinding(key, "version-empty");
+
+        var published = await store.ResolvePublishedAsync(binding);
+        Assert.NotNull(published);
+        Assert.Equal(body, published.Document.BodyJson);
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await new LayoutPublishedSurfaceResolver(store).ResolveAsync(binding, GrantsAllAuthor.Instance, GrantsAllAuthor.Instance));
+
+        Assert.Equal("layout.persisted_body_invalid", exception.Message);
+        Assert.IsType<JsonException>(exception.InnerException);
+    }
+
+    private const string EscapedFirstStaticBinding = """{"\u0062inding_kind":"static","content":"control"}""";
+
+    private static string BindingOrderBody(int depth, bool discriminatorFirst)
+        => BindingOrderBody(depth, discriminatorFirst
+            ? """{"binding_kind":"static","content":"control"}"""
+            : """{"content":"control","binding_kind":"static"}""");
+
+    private static string BindingOrderBody(int depth, string binding)
+    {
+        // Independently authored member order is the Q16 oracle; canonical serialization must
+        // not manufacture the negative input. The real shared store retains these exact bytes.
+        const string document = """
+            {"envelope":{"identity":"invoice","version":"1.0.0","tenant":"tenant-a",
+            "cascade_layer":"domain_package","provenance":{},"retention_class":"standard",
+            "legal_hold":false,"requires":[{"capability":"platform.layout","minimum_platform_version":"1.0.0"}],
+            "contract":{"major":1,"minor":0}},"schema_version":1,"medium":"screen","default_intent":"observe",
+            "blocks":[BLOCK],"page_layouts":[],"page_masters":[],"page_runs":[],"drill_through_targets":[]}
+            """;
+        var block = "{\"id\":\"leaf\",\"kind\":\"layout.text\",\"binding\":" + binding
+            + ",\"children\":[],\"container\":{\"kind\":\"stack\"}}";
+        for (var index = 0; index < depth; index++)
+            block = "{\"id\":\"parent-" + index
+                + "\",\"kind\":\"layout.text\",\"binding\":{\"binding_kind\":\"static\",\"content\":\"parent\"},\"children\":["
+                + block + "],\"container\":{\"kind\":\"stack\"}}";
+        return document.Replace("BLOCK", block, StringComparison.Ordinal);
+    }
+
     private static LayoutPageRegistry PackPages() => new(
         [new("pack.letter", "letter", LayoutPageOrientation.Portrait, new("sm", "sm", "sm", "sm"), new("sm", "sm"))],
         [new("pack.master", "pack.letter", new(null, "first.center", null), new(null, "left.center", null), new(null, "right.center", null))]);
@@ -189,6 +399,46 @@ public sealed class LayoutFlowTests
                 .Select(block => block with { Children = [] })
                 .ToArray(),
         };
+    }
+
+    private sealed class ReturnedRevisionStore(DefinitionRevision revision) : IVersionedDefinitionStore
+    {
+        public int ResolveCalls { get; private set; }
+        public DefinitionBinding? RequestedBinding { get; private set; }
+
+        public ValueTask<DefinitionRevision?> ResolvePublishedAsync(DefinitionBinding binding,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            ResolveCalls++;
+            RequestedBinding = binding;
+            return ValueTask.FromResult<DefinitionRevision?>(revision);
+        }
+
+        public ValueTask<IReadOnlyList<DefinitionKey>> ListKeysAsync(string tenant, DefinitionKind kind,
+            CancellationToken cancellationToken = default) => throw Unexpected();
+        public ValueTask<DefinitionRevision> SaveDraftAsync(DefinitionDocument document, long expectedRevision,
+            string requestId, CancellationToken cancellationToken = default) => throw Unexpected();
+        public ValueTask<DefinitionRevision> PublishAsync(DefinitionKey key, string versionId, long expectedRevision,
+            string requestId, CancellationToken cancellationToken = default) => throw Unexpected();
+        public ValueTask<DefinitionRevision> RestoreAsDraftAsync(DefinitionKey key, string sourceVersionId,
+            string draftVersionId, string draftVersion, long expectedRevision, string requestId,
+            CancellationToken cancellationToken = default) => throw Unexpected();
+        public ValueTask<IReadOnlyList<DefinitionRevision>> ListHistoryAsync(DefinitionKey key,
+            CancellationToken cancellationToken = default) => throw Unexpected();
+        public ValueTask<DefinitionRevision?> GetPublishedHeadAsync(DefinitionKey key,
+            CancellationToken cancellationToken = default) => throw Unexpected();
+
+        private static Exception Unexpected()
+            => new InvalidOperationException("Only exact published resolution is used by this provider-corruption fixture.");
+    }
+
+    private sealed class FailingOpenAccess(NotSupportedException failure) : ILayoutAccess
+    {
+        public bool CanAuthor() => true;
+        public bool CanPublish() => true;
+        public bool CanRead(LayoutBinding binding) => true;
+        public bool CanOpen(string surfaceId) => throw failure;
     }
 }
 

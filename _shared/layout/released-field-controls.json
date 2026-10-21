@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "controls": [
+    {
+      "id": "text",
+      "valueShapes": ["Text"]
+    },
+    {
+      "id": "currency",
+      "valueShapes": ["Integer", "Number"],
+      "parameterSchema": {
+        "type": "object",
+        "properties": {
+          "decimals": { "type": "integer" },
+          "currencyCode": { "type": "string" },
+          "min": { "type": "number" },
+          "max": { "type": "number" }
+        },
+        "additionalProperties": false
+      }
+    }
+  ]
+}

@@ -1,14 +1,14 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.foundation.execution-runtime",
-  "interfaceRevision": 1,
+  "interfaceRevision": 2,
   "status": "frozen",
-  "purpose": "Own the execution runtime substrate (DES-0056, T-528 slice 1): the run-kind registration every engine makes, the one run identity, the closed run status vocabulary and its legal transitions, the one retry rule an author selects a named profile from, the one dead-letter path, and the tenant-scoped store port runs are read through.",
+  "purpose": "Own the execution runtime substrate (DES-0056, T-528): run-kind registration, run identity and lifecycle, named retry profiles, dead-letter, tenant-scoped run and effect receipt storage, and T-1028's independently checked compensation association.",
   "dependencies": [
     {"moduleId": "hlp.contracts.identities", "interfaceRevision": 1}
   ],
   "callerInterface": {
-    "name": "RunKindRegistry / RunLifecycle / IRunStore",
+    "name": "RunKindRegistry / RunLifecycle / IRunStore / EffectReceiptLedger / IEffectReceiptStore",
     "operations": [
       "RunKindRegistry.Register(kind, owningEngine) -> the registration; a kind registered twice refuses execution.run_kind_duplicate, and a non-kebab kind refuses execution.run_kind_invalid",
       "RunLifecycle.StartAsync(StartRun) -> a pending run under a fresh RunId of the request's kind; an unregistered kind, a retry profile outside the capability's allowed set, and a caused_by naming no run the tenant holds all refuse",
@@ -17,9 +17,14 @@
       "RunLifecycle.DeadLetteredAsync(tenant) -> every dead-lettered run of every kind, read without touching any engine's store",
       "RetryProfileName.Parse(name) -> a substrate-defined profile name; anything else, including a raw attempt count or backoff parameter, refuses execution.retry_profile_unknown",
       "CapabilityRetryPolicy(default, allowed).Resolve(selected) -> the substrate profile, refusing execution.retry_profile_not_allowed outside the allowed set",
-      "IRunStore.CreateAsync / GetAsync / UpdateAsync(expectedVersion) / ListByStatusAsync -> tenant-scoped storage with optimistic concurrency; InMemoryRunStore is the reference implementation"
+      "IRunStore.CreateAsync / GetAsync / UpdateAsync(expectedVersion) / ListByStatusAsync -> tenant-scoped storage with optimistic concurrency; InMemoryRunStore is the reference implementation",
+      "EffectReceiptLedger.RecordAsync(receipt) -> validates and creates the tenant's sole receipt for its logical effect; effect identities are opaque and compensation links are shape-only at record time, so the original may be recorded before the compensation",
+      "EffectReceiptLedger.GetAsync(tenant, effectId) / IEffectReceiptStore.CreateAsync / GetAsync -> tenant-scoped effect receipt storage; the store port is unchanged and InMemoryEffectReceiptStore is the reference implementation",
+      "EffectReceipt.CompensationEffectId -> the separate effect compensating this receipt's effect; required and non-self for compensated/compensation-failed, optional for succeeded/failed, and null on ambiguous until reconciled",
+      "EffectReceipt.CompensatesEffectId -> optional backlink attesting to the one original effect this compensation was executed for; the workflow engine supplies it from declared compensating-step execution context; a present id is valid and non-self, and may coexist with the receipt's own forward CompensationEffectId",
+      "EffectReceiptLedger.CheckCompensationAsync(tenant, originalEffectId) -> a read-only pair check; compensated and compensation-failed originals require a target with the requested tenant and forward identity whose CompensatesEffectId equals the original effect id; missing/inconsistent receipt evidence refuses execution.effect_receipt_invalid naming the known effects, while malformed effect identities retain execution.effect_identity_invalid; a missing original is refused by its own id, and other original statuses impose no compensation check"
     ],
-    "context": "Each engine registers its run kind and keeps its own state (a workflow's position and iteration counter) in its own store keyed by the RunId; the substrate holds identity, status, attempts, the resolved retry profile, the dead-letter entry and caused_by only (owner ruling 2026-09-29 on DES-0056 open ruling 1). Engine adoption, the effect receipt and its status vocabulary (ck-5 to ck-7), the execution trace and the Access decision link (ck-2 to ck-4) and the observe channel are later T-528 slices."
+    "context": "Each engine registers its run kind and keeps its engine state in its own store (owner ruling 2026-09-29). The substrate also holds one non-secret effect receipt per logical effect. T-1028's owner-approved backlink is producer-attested linkage, not proof of external compensation correctness. T-488 must later stamp the backlink and call the pair checker after both receipts are durable, including recovery after a crash between recording and checking; recovery/audit may repeat it. That engine integration and the execution trace, Access decision link and authorized observe wiring are not claimed by this slice."
   },
   "invariants": [
     "A RunId carries its RunKind, so runs of two kinds never share an identity even when their opaque values coincide; caused_by correlates runs and never merges them.",
@@ -27,7 +32,11 @@
     "Every status change goes through the one transition table; there is no setter for status outside RunLifecycle.",
     "Retry profiles are defined once by the substrate (immediate-or-fail, external-api-standard, durable-delivery, manual-reconciliation); RetryProfile has no public constructor, so no engine or author can declare attempt counts or backoff.",
     "Exhausting a profile, or a failure the engine classifies as not retryable, dead-letters the run; there is no other failed terminal status.",
-    "Every read and write is tenant-scoped; a caused_by must name a run the same tenant holds."
+    "Every read and write is tenant-scoped; a caused_by must name a run the same tenant holds.",
+    "One logical effect has one tenant-scoped receipt; effect statuses are exactly succeeded, failed, ambiguous, compensated and compensation-failed. Ambiguous evidence requires reconciliation and refuses a forward compensation link.",
+    "The original's forward CompensationEffectId and the target's reverse CompensatesEffectId are distinct associations. A compensation attests to one original and may itself have a separate compensation. The checker validates only the requested pair; it infers no target-status or same-workflow rule and does not traverse chains.",
+    "Recording validates compensation-link shape without requiring either linked receipt to exist. Checking is separate and changes neither receipt.",
+    "Ordinary and legacy receipts may omit CompensatesEffectId and remain recordable/readable. A legacy target without that backlink fails association verification; no inferred backfill or additional storage registry exists."
   ],
   "errors": [
     "execution.run_kind_invalid",
@@ -40,18 +49,44 @@
     "execution.transition_illegal",
     "execution.retry_profile_unknown",
     "execution.retry_profile_not_allowed",
-    "execution.retry_not_due"
+    "execution.retry_not_due",
+    "execution.effect_identity_invalid",
+    "execution.effect_receipt_duplicate",
+    "execution.effect_receipt_invalid",
+    "execution.secret_reference_invalid",
+    "execution.effect_reconciliation_required",
+    "execution.blind_compensation_refused"
   ],
   "publicSeams": [
     "run-kind registration for every engine that runs something",
     "the run lifecycle (start, attempt, succeed, fail, cancel) and the dead-letter read",
-    "the IRunStore port a durable host adapter implements"
+    "the IRunStore port a durable host adapter implements",
+    "EffectReceiptLedger recording, reading and separate compensation-pair checking over the unchanged tenant-scoped IEffectReceiptStore port"
   ],
   "conformance": {
     "nativeTests": {
       "dotnet": 29
     },
-    "nativeTestNote": "Red first against a non-enforcing skeleton: an illegal status transition refuses and leaves the stored run unmoved; a retry profile outside the capability's allowed set and a raw retry parameter refuse; exhausting external-api-standard dead-letters after three attempts with 2s and 4s waits and a retry-not-due refusal; a workflow-run and the plan-run it causes keep distinct identities joined only by caused_by. Also the exact transition table over all 36 pairs, non-retryable and single-attempt dead-letters, fixed profiles and capped backoff, run-kind registration and kebab validation, tenant scoping, caused_by resolution, cancel paths, a capability allowing an undefined profile, and the store port's duplicate, unknown, stale-version, cancellation and ordering contract."
+    "nativeTestNote": "The count of 29 is the historical executed T-528 slice-1 run contract, not a new revision-2 result. Its existing lifecycle, retry, identity, tenant and store cases remain unchanged. CompensationReceiptTests.cs authors 37 revision-2 pair-check cases. Hosted PR verify 37720364564 passed the native summary at candidate 95e3351fd4d2406fa6c29898c70bdf9cf975dc2b (116 execution-runtime tests); its detailed output is truncated and supplies no per-case pass list. Hosted mutation 37720377170 independently attributes both named missing-target kills. Complete protected native/gallery merge-group qualification remains pending.",
+    "compensationAssociation": {
+      "source": "projections/dotnet/foundation/hlp.foundation.execution-runtime.tests/CompensationReceiptTests.cs",
+      "oracle": "Owner approval 2026-10-07 recorded in Control T-1028 and DES-0056 execution-runtime-ck-5: exact forward/reverse ids, tenant isolation, delayed checking, legacy no-backfill and no outcome/run/chain inference",
+      "cases": [
+        "Compensated_cross_check_reports_missing_compensation_receipt",
+        "Compensation_failed_cross_check_reports_missing_compensation_receipt",
+        "Compensated_cross_check_accepts_recorded_compensation",
+        "Compensation_failed_cross_check_accepts_recorded_compensation",
+        "Compensation_cross_check_cannot_resolve_another_tenants_receipt",
+        "Compensation_cross_check_rejects_unrelated_or_legacy_effect_receipt",
+        "Compensation_cross_check_rejects_a_binding_to_another_original_effect",
+        "One_compensation_receipt_cannot_attest_to_two_original_effects",
+        "Compensation_can_name_its_original_and_own_compensation_without_recursive_checking",
+        "Checker_attests_linkage_without_target_status_or_workflow_rules",
+        "Other_original_statuses_impose_no_compensation_check",
+        "Checker_uses_two_tenant_scoped_reads_without_writes"
+      ],
+      "validation": "Candidate 95e3351fd4d2406fa6c29898c70bdf9cf975dc2b: hosted mutation 37720377170 scores 94.02 against unchanged floor 94; named missing-target facts kill mutants 52 and 53 separately. Hosted PR verify 37720364564 passed the native summary. These historical reports bind the receipt/test/config bytes; full protected merge-group qualification and landing remain pending."
+    }
   },
   "selectedDesign": {
     "choice": "One packable foundation assembly owns run-kind registration, the kind-qualified run identity, the closed status vocabulary and transition table, the substrate retry profiles and the dead-letter path behind a tenant-scoped store port; engines adopt it in later slices and keep their own state in their own stores.",

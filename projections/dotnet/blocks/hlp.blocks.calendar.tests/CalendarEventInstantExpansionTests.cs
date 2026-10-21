@@ -49,6 +49,22 @@ public sealed class CalendarEventInstantExpansionTests
     }
 
     [Fact]
+    public void UtcWindow_RetainsTheDailyOccurrence_AndExcludesBothWidenedNeighborDays()
+    {
+        var ev = CalendarEvent.Create(
+            Tenant, "Daily intake", new DateOnly(2026, 1, 4), new DateOnly(2026, 1, 4), Actor,
+            rrule: "FREQ=DAILY", timezone: "UTC",
+            startTime: new TimeOnly(9, 0), endTime: new TimeOnly(9, 30));
+
+        var occurrences = NewSut().ExpandInstants(ev, Utc(2026, 1, 5, 8, 0), Utc(2026, 1, 5, 10, 0));
+
+        var occurrence = Assert.Single(occurrences);
+        Assert.Equal(new DateOnly(2026, 1, 5), occurrence.RecurrenceId);
+        Assert.Equal(new DateTimeOffset(2026, 1, 5, 9, 0, 0, TimeSpan.Zero), occurrence.StartUtc);
+        Assert.Equal(new DateTimeOffset(2026, 1, 5, 9, 30, 0, TimeSpan.Zero), occurrence.EndUtc);
+    }
+
+    [Fact]
     public void RecurringTimedEvent_ExpandsToTimedInstants()
     {
         // Weekly Monday 9:00 (LA) — each occurrence is a real instant, not a date.

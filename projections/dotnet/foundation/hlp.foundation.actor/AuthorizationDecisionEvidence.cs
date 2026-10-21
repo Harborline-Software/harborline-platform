@@ -55,6 +55,7 @@ public sealed class AuthorizationDecisionEvidence
         Tenant = request.Tenant;
         RecordKind = request.Record.Kind;
         RecordId = request.Record.Id;
+        RecordTypeId = request.Record.RecordTypeId;
         At = request.At;
         Allowed = allowed;
         Refusal = refusal;
@@ -86,6 +87,12 @@ public sealed class AuthorizationDecisionEvidence
     public string RecordKind { get; }
     /// <summary>The target record identity.</summary>
     public string RecordId { get; }
+    /// <summary>
+    /// The typed record-type target the decision was asked for (<see cref="AccessRecord.RecordTypeId"/>), or null for an
+    /// untyped target. It is a context field, copied from the request like the record kind and id; it adds no trace fact,
+    /// so the four projected steps and their stored bytes are unchanged.
+    /// </summary>
+    public string? RecordTypeId { get; }
     /// <summary>The predicate instant.</summary>
     public DateTimeOffset At { get; }
     /// <summary>The enforcing gate's verdict, preserved verbatim.</summary>

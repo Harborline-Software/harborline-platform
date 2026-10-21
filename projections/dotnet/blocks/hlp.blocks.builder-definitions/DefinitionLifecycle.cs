@@ -33,6 +33,8 @@ public enum DefinitionKind
     Navigation = 13,
     /// <summary>Taxonomy concept-scheme definitions (DES-0024, T-493 S7).</summary>
     Taxonomy = 14,
+    /// <summary>Record Type Class definitions, each type's one catalogue home (DES-0015 records-ck-18, records-auth-2; T-615).</summary>
+    Classes = 15,
 }
 
 /// <summary>Identifies one definition inside a tenant- and kind-scoped archive namespace.</summary>

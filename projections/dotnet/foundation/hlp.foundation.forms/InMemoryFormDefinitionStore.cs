@@ -32,6 +32,8 @@ public sealed class InMemoryFormDefinitionStore : IFormDefinitionStore, IDisposa
     private readonly SemaphoreSlim _mutationLock = new(initialCount: 1, maxCount: 1);
     private readonly TimeProvider _time;
     private readonly AuthorizationCapabilityRegister? _capabilities;
+    private readonly IFormRecordTypePolicyReader? _recordTypePolicies;
+    private readonly IFormRecordCreationDeclarations? _recordCreations;
 
     // tenant → id → version → definition
     private Dictionary<TenantId, Dictionary<FormDefinitionId, Dictionary<SemanticVersion, FormDefinition>>> _store = new();
@@ -42,11 +44,31 @@ public sealed class InMemoryFormDefinitionStore : IFormDefinitionStore, IDisposa
     /// double for deterministic clocks in tests.</param>
     /// <param name="capabilities">Access's capability register a submit gate's capability arm resolves
     /// through (forms-auth-16, T-747). Absent, every capability arm is refused.</param>
-    public InMemoryFormDefinitionStore(TimeProvider time, AuthorizationCapabilityRegister? capabilities = null)
+    /// <param name="recordTypePolicies">The host's lookup of a targeted record type's creation gate (T-485, D3, K6).
+    /// Absent, publishing any definition with a <c>record_type_id</c> target refuses with
+    /// <c>form.record_type.policy_unavailable</c>; Forms never defaults a policy.</param>
+    /// <param name="recordCreations">The host producers' declaration of which Record Types a form's submissions create (K9).
+    /// When it declares a type for a form id, publishing a revision of that form without that exact target refuses
+    /// (<c>form.record_type.target_required</c>, <c>form.record_type.target_mismatch</c>); a failing or ambiguous declaration
+    /// refuses (<c>form.record_type.policy_unavailable</c>, <c>form.record_type.target_ambiguous</c>). Absent, no form is
+    /// declared to create Records.</param>
+    /// <param name="recordCreationProducer">The host's submission producer, for example the projection sink the form engine
+    /// is given, typed as the declaration it must implement (N2): passing a producer that declares nothing is a compile error
+    /// rather than a silent absence of any declaration. When <paramref name="recordCreations"/> is null its declaration is
+    /// used: the same fallback the form engine applies to its sink (<see cref="RecordCreationDeclarations.Select"/>), so
+    /// publication and submit refuse consistently.</param>
+    public InMemoryFormDefinitionStore(
+        TimeProvider time,
+        AuthorizationCapabilityRegister? capabilities = null,
+        IFormRecordTypePolicyReader? recordTypePolicies = null,
+        IFormRecordCreationDeclarations? recordCreations = null,
+        IFormRecordCreationDeclarations? recordCreationProducer = null)
     {
         ArgumentNullException.ThrowIfNull(time);
         _time = time;
         _capabilities = capabilities;
+        _recordTypePolicies = recordTypePolicies;
+        _recordCreations = RecordCreationDeclarations.Select(recordCreations, recordCreationProducer);
     }
 
     /// <summary>Constructs a registry using <see cref="TimeProvider.System"/>.</summary>
@@ -94,7 +116,7 @@ public sealed class InMemoryFormDefinitionStore : IFormDefinitionStore, IDisposa
     public async ValueTask<FormDefinition> RegisterAsync(FormDefinition definition, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(definition);
-        ValidateDefinition(definition, requireSubmitGate: definition.Status == FormDefinitionStatus.Published);
+        await ValidateDefinitionAsync(definition, requireSubmitGate: definition.Status == FormDefinitionStatus.Published, ct).ConfigureAwait(false);
 
         await _mutationLock.WaitAsync(ct).ConfigureAwait(false);
         try
@@ -120,6 +142,8 @@ public sealed class InMemoryFormDefinitionStore : IFormDefinitionStore, IDisposa
                 }
             }
 
+            if (definition.Status == FormDefinitionStatus.Published)
+                FormDefinitionValidation.ValidateRecordTypeContinuityOrThrow(definition, Revisions(snapshot, definition.Tenant, definition.Id));
             _store = MutateStore(snapshot, definition);
             return definition;
         }
@@ -135,7 +159,7 @@ public sealed class InMemoryFormDefinitionStore : IFormDefinitionStore, IDisposa
         CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(definition);
-        ValidateDefinition(definition, requireSubmitGate: true);
+        await ValidateDefinitionAsync(definition, requireSubmitGate: true, ct).ConfigureAwait(false);
         if (definition.Status != FormDefinitionStatus.Draft)
         {
             throw new FormDefinitionValidationException(
@@ -161,6 +185,7 @@ public sealed class InMemoryFormDefinitionStore : IFormDefinitionStore, IDisposa
             }
 
             ValidateLineage(snapshot, definition);
+            FormDefinitionValidation.ValidateRecordTypeContinuityOrThrow(definition, Revisions(snapshot, definition.Tenant, definition.Id));
             var publishedAt = _time.GetUtcNow();
             ct.ThrowIfCancellationRequested();
             var published = definition with
@@ -181,7 +206,7 @@ public sealed class InMemoryFormDefinitionStore : IFormDefinitionStore, IDisposa
     public async ValueTask<FormDefinition> CreateAsync(FormDefinition definition, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(definition);
-        ValidateDefinition(definition, requireSubmitGate: definition.Status == FormDefinitionStatus.Published);
+        await ValidateDefinitionAsync(definition, requireSubmitGate: definition.Status == FormDefinitionStatus.Published, ct).ConfigureAwait(false);
 
         await _mutationLock.WaitAsync(ct).ConfigureAwait(false);
         try
@@ -288,7 +313,7 @@ public sealed class InMemoryFormDefinitionStore : IFormDefinitionStore, IDisposa
 
     /// <summary>
     /// Test-only seam: inserts <paramref name="definition"/> as-is, bypassing
-    /// <see cref="ValidateDefinition"/>. Production writes always validate; this exists solely so
+    /// <see cref="ValidateDefinitionAsync"/>. Production writes always validate; this exists solely so
     /// tests can simulate a row already persisted before submit_gate became required at publish
     /// (T-756) — data this package's own write paths can no longer produce.
     /// </summary>
@@ -306,6 +331,29 @@ public sealed class InMemoryFormDefinitionStore : IFormDefinitionStore, IDisposa
         FormDefinitionStatus[] allowedFrom,
         CancellationToken ct)
     {
+        // The record type policy is an external read, so it is resolved before the mutation lock is taken. A revision's
+        // content is immutable per (tenant, id, version); only its status changes, so the resolution stays valid.
+        // The producers' declaration (K9) is keyed by tenant and form id only, so it is resolved the same way.
+        FormDefinition? preValidated = null;
+        RecordTypeCreationGate? preResolved = null;
+        var declarationResolved = false;
+        string? preDeclared = null;
+        if (target == FormDefinitionStatus.Published
+            && Find(_store, tenant, id, version) is { } candidate
+            && candidate.Status != target
+            && allowedFrom.Contains(candidate.Status)
+            && PassesSynchronousValidation(candidate))
+        {
+            preDeclared = await ResolveDeclaredCreationAsync(candidate, ct).ConfigureAwait(false);
+            declarationResolved = true;
+            FormDefinitionValidation.ValidateDeclaredCreationOrThrow(candidate, preDeclared);
+            if (candidate.RecordTypeId is not null)
+            {
+                preResolved = await ResolvePublicationGateAsync(candidate, ct).ConfigureAwait(false);
+                preValidated = candidate;
+            }
+        }
+
         await _mutationLock.WaitAsync(ct).ConfigureAwait(false);
         try
         {
@@ -324,7 +372,28 @@ public sealed class InMemoryFormDefinitionStore : IFormDefinitionStore, IDisposa
             }
 
             if (target == FormDefinitionStatus.Published)
-                ValidateDefinition(existing, requireSubmitGate: existing.Status != target);
+            {
+                var publishing = existing.Status != target;
+                ValidateDefinition(existing, requireSubmitGate: publishing);
+                if (publishing)
+                    FormDefinitionValidation.ValidateDeclaredCreationOrThrow(existing,
+                        declarationResolved ? preDeclared : await ResolveDeclaredCreationAsync(existing, ct).ConfigureAwait(false));
+                if (publishing && existing.RecordTypeId is not null)
+                {
+                    // A concurrent registration can make the revision visible only now; resolve it here in that rare case.
+                    RecordTypeCreationGate gate;
+                    if (preValidated is not null
+                        && StringComparer.Ordinal.Equals(preValidated.RecordTypeId, existing.RecordTypeId)
+                        && preResolved is { } resolved)
+                        gate = resolved;
+                    else
+                        gate = await ResolvePublicationGateAsync(existing, ct).ConfigureAwait(false);
+                    FormDefinitionValidation.ValidateRecordTypePublicationOrThrow(existing, gate);
+                }
+
+                if (publishing)
+                    FormDefinitionValidation.ValidateRecordTypeContinuityOrThrow(existing, byVersion.Values);
+            }
 
             if (existing.Status == target)
             {
@@ -377,13 +446,81 @@ public sealed class InMemoryFormDefinitionStore : IFormDefinitionStore, IDisposa
         return rebuilt;
     }
 
-    private void ValidateDefinition(FormDefinition definition, bool requireSubmitGate = false)
+    // requireSubmitGate is true exactly when the definition is being made Published; the record type target's
+    // creation policy is resolved only then, so a Draft saves without a Records lookup.
+    private async ValueTask ValidateDefinitionAsync(FormDefinition definition, bool requireSubmitGate, CancellationToken ct)
+    {
+        ValidateDefinition(definition, requireSubmitGate);
+        if (requireSubmitGate)
+            FormDefinitionValidation.ValidateDeclaredCreationOrThrow(
+                definition, await ResolveDeclaredCreationAsync(definition, ct).ConfigureAwait(false));
+        if (requireSubmitGate && definition.RecordTypeId is not null)
+            FormDefinitionValidation.ValidateRecordTypePublicationOrThrow(
+                definition, await ResolvePublicationGateAsync(definition, ct).ConfigureAwait(false));
+    }
+
+    private void ValidateDefinition(FormDefinition definition, bool requireSubmitGate)
     {
         FormDefinitionValidation.ValidateOverlayOrThrow(definition);
         FormDefinitionValidation.ValidateSchemaRefOrThrow(definition);
         FormDefinitionAuthoringValidation.ValidateOrThrow(definition);
         FormDefinitionValidation.ValidateSubmitGateOrThrow(definition, _capabilities, requireSubmitGate);
+        FormDefinitionValidation.ValidateRecordTypeTargetOrThrow(definition);
     }
+
+    private bool PassesSynchronousValidation(FormDefinition definition)
+    {
+        try
+        {
+            ValidateDefinition(definition, requireSubmitGate: true);
+            return true;
+        }
+        catch (FormDefinitionValidationException)
+        {
+            return false;
+        }
+    }
+
+    // K6: the host reader owns every default; a missing reader, a failing reader, an unknown type or an unknown value
+    // refuses publication with a stable code at the target's pointer.
+    private async ValueTask<RecordTypeCreationGate> ResolvePublicationGateAsync(FormDefinition definition, CancellationToken ct)
+    {
+        try
+        {
+            return await RecordTypeCreationPolicy
+                .ResolveAsync(_recordTypePolicies, definition.Tenant, definition.RecordTypeId!, ct).ConfigureAwait(false);
+        }
+        catch (RecordTypeCreationPolicyException refusal)
+        {
+            throw new FormDefinitionValidationException(definition.Id, refusal.Message, refusal.Code, "/record_type_id");
+        }
+    }
+
+    // K9: a failing or ambiguous declaration refuses publication with a stable code at the target's pointer.
+    private async ValueTask<string?> ResolveDeclaredCreationAsync(FormDefinition definition, CancellationToken ct)
+    {
+        try
+        {
+            return await RecordCreationDeclarations
+                .ResolveAsync(_recordCreations, definition.Tenant, definition.Id, ct).ConfigureAwait(false);
+        }
+        catch (RecordTypeCreationPolicyException refusal)
+        {
+            throw new FormDefinitionValidationException(definition.Id, refusal.Message, refusal.Code, "/record_type_id");
+        }
+    }
+
+    private static FormDefinition? Find(
+        Dictionary<TenantId, Dictionary<FormDefinitionId, Dictionary<SemanticVersion, FormDefinition>>> snapshot,
+        TenantId tenant, FormDefinitionId id, SemanticVersion version) =>
+        snapshot.TryGetValue(tenant, out var byId) && byId.TryGetValue(id, out var byVersion)
+            && byVersion.TryGetValue(version, out var definition) ? definition : null;
+
+    private static IEnumerable<FormDefinition> Revisions(
+        Dictionary<TenantId, Dictionary<FormDefinitionId, Dictionary<SemanticVersion, FormDefinition>>> snapshot,
+        TenantId tenant, FormDefinitionId id) =>
+        snapshot.TryGetValue(tenant, out var byId) && byId.TryGetValue(id, out var byVersion)
+            ? byVersion.Values : Enumerable.Empty<FormDefinition>();
 
     private static bool IsIdenticalPublishedRetry(
         FormDefinition existing,

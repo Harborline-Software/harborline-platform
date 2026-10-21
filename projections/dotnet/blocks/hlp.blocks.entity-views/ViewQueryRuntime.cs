@@ -503,7 +503,7 @@ public sealed class ViewQueryRuntime
         _fieldDomains = fieldDomains;
     }
 
-    /// <summary>Resolves the published definition, checks the open gate, binding and field domains, then queries with the Access predicate first and the authored filter second. Throws <see cref="InvalidOperationException"/> when no definition is published, <see cref="ViewQueryException"/> for a forbidden open, unknown kind or incompatible binding, and a field-admission error for an unresolved column binding. Returns not-modified (no rows) when the ETag matches.</summary>
+    /// <summary>Resolves the published definition, checks the open gate, binding and field domains, then queries with the Access predicate first and the authored filter second. Throws <see cref="ViewQueryException"/> when no definition is published (view_definition.not_found), or for a forbidden open, unknown kind or incompatible binding, and a field-admission error for an unresolved column binding. Returns not-modified (no rows) when the ETag matches.</summary>
     public async ValueTask<ViewQueryResult> ExecuteAsync(
         ViewQueryRequest request,
         CancellationToken cancellationToken = default)
@@ -513,7 +513,7 @@ public sealed class ViewQueryRuntime
         var definition = await _definitions
             .ResolvePublishedHeadAsync(request.Tenant, request.DefinitionKey, cancellationToken)
             .ConfigureAwait(false)
-            ?? throw new InvalidOperationException("The published view definition does not exist.");
+            ?? throw new ViewQueryException("view_definition.not_found", "The published view definition does not exist.");
         var authority = await _openGate
             .AuthorizeAsync(definition, request.Principal, cancellationToken)
             .ConfigureAwait(false);

@@ -194,6 +194,73 @@ public sealed class AccessProviderTests
         Assert.Equal(0, validations);
     }
 
+    [Fact]
+    public async Task Evidence_check_decides_once_and_returns_the_deciders_own_evidence()
+    {
+        var at = DateTimeOffset.Parse("2026-09-18T12:00:00Z");
+        var request = new AccessRequest("records:write", "alice", "a", new("a", "record", "r-1",
+            new Dictionary<string, System.Text.Json.Nodes.JsonNode?>()), at);
+        var allowGate = new CountingGate(asked => new AuthorizationDecisionEvidence(asked, true, "None", "grant:1", [], []));
+        var denyGate = new CountingGate(asked => new AuthorizationDecisionEvidence(asked, false, "NoEffectiveRole", "none", [], []));
+
+        var allowed = await new AccessProvider(allowGate).CheckWithEvidenceAsync(request);
+        var denied = await new AccessProvider(denyGate).CheckWithEvidenceAsync(request);
+
+        Assert.Equal(new AccessCheck(true, "access.allowed"), allowed.Check);
+        Assert.Same(allowGate.Returned.Single(), allowed.Evidence);
+        Assert.Equal(new AccessCheck(false, "NoEffectiveRole"), denied.Check);
+        Assert.Same(denyGate.Returned.Single(), denied.Evidence);
+        Assert.False(denied.Evidence!.Allowed);
+        Assert.Equal(1, allowGate.Calls);
+        Assert.Equal(1, denyGate.Calls);
+        // The existing check is the same decision reduced to its result.
+        Assert.Equal(allowed.Check, await new AccessProvider(allowGate).CheckAsync(request));
+        Assert.Equal(denied.Check, await new AccessProvider(denyGate).CheckAsync(request));
+    }
+
+    [Fact]
+    public async Task Evidence_check_withholds_evidence_for_any_other_context()
+    {
+        var request = new AccessRequest("records:write", "alice", "a", new("a", "record", "r-1",
+            new Dictionary<string, System.Text.Json.Nodes.JsonNode?>()), DateTimeOffset.Parse("2026-09-18T12:00:00Z"));
+        AccessRequest[] otherContexts =
+        [
+            request with { Principal = "bob" },
+            request with { Tenant = "b" },
+            request with { At = request.At.AddSeconds(1) },
+            request with { Operation = "records:read" },
+            request with { Record = request.Record with { Kind = "other" } },
+            request with { Record = request.Record with { Id = "r-2" } },
+        ];
+
+        foreach (var context in otherContexts)
+        {
+            var gate = new CountingGate(_ => new AuthorizationDecisionEvidence(context, true, "None", "grant:1", [], []));
+            var result = await new AccessProvider(gate).CheckWithEvidenceAsync(request);
+            Assert.Equal(new AccessCheck(false, "access.decision_mismatch"), result.Check);
+            Assert.Null(result.Evidence);
+            Assert.Equal(1, gate.Calls);
+        }
+    }
+
+    [Fact]
+    public async Task Evidence_check_refuses_invalid_context_null_and_cancellation_without_the_decider()
+    {
+        var request = new AccessRequest("records:write", "alice", "a", new("b", "record", "r-1",
+            new Dictionary<string, System.Text.Json.Nodes.JsonNode?>()), DateTimeOffset.Parse("2026-09-18T12:00:00Z"));
+        var gate = new CountingGate(asked => new AuthorizationDecisionEvidence(asked, true, "None", "grant:1", [], []));
+        var access = new AccessProvider(gate);
+
+        var crossTenant = await access.CheckWithEvidenceAsync(request);
+
+        Assert.Equal(new AccessCheck(false, "access.context_invalid"), crossTenant.Check);
+        Assert.Null(crossTenant.Evidence);
+        await Assert.ThrowsAsync<ArgumentNullException>(() => access.CheckWithEvidenceAsync(null!).AsTask());
+        await Assert.ThrowsAsync<OperationCanceledException>(() =>
+            access.CheckWithEvidenceAsync(request with { Record = request.Record with { Tenant = "a" } }, new CancellationToken(true)).AsTask());
+        Assert.Equal(0, gate.Calls);
+    }
+
     // External host gate seam: this test changes its verdict between the two calls.
     private sealed class RevocableGate : IAuthorizationDecider
     {
@@ -211,5 +278,20 @@ public sealed class AccessProviderTests
     {
         public ValueTask<AuthorizationDecisionEvidence> DecideAsync(AccessRequest request, CancellationToken cancellationToken = default)
             => ValueTask.FromResult(evidence);
+    }
+
+    // The host gate's adapter: it reports the verdict it is given and records every decision it returned.
+    private sealed class CountingGate(Func<AccessRequest, AuthorizationDecisionEvidence> decide) : IAuthorizationDecider
+    {
+        public int Calls { get; private set; }
+        public List<AuthorizationDecisionEvidence> Returned { get; } = [];
+
+        public ValueTask<AuthorizationDecisionEvidence> DecideAsync(AccessRequest request, CancellationToken cancellationToken = default)
+        {
+            Calls++;
+            var evidence = decide(request);
+            Returned.Add(evidence);
+            return ValueTask.FromResult(evidence);
+        }
     }
 }

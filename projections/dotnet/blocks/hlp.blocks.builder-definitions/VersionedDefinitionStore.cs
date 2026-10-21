@@ -74,6 +74,49 @@ public sealed class InMemoryVersionedDefinitionStore : IVersionedDefinitionStore
     }
 
     /// <inheritdoc />
+    public ValueTask<DefinitionRevision> PublishAsync(DefinitionKey key, string versionId, long expectedRevision,
+        string requestId, IReadOnlyList<DefinitionPublishedHeadCondition> conditions,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(conditions);
+        Require(versionId, "definition.version_id_required", "/versionId", DefinitionAdmissionPhase.Publish);
+        if (conditions.Count == 0) return PublishAsync(key, versionId, expectedRevision, requestId, cancellationToken);
+        var snapshot = conditions.OrderBy(condition => condition.Key.Tenant, StringComparer.Ordinal)
+            .ThenBy(condition => condition.Key.Kind).ThenBy(condition => condition.Key.DefinitionId, StringComparer.Ordinal)
+            .ThenBy(condition => condition.Pointer, StringComparer.Ordinal).ThenBy(condition => condition.Revision).ToArray();
+        foreach (var condition in snapshot)
+        {
+            ValidateKey(condition.Key, DefinitionAdmissionPhase.Publish);
+            if (condition.Revision <= 0)
+                throw Refuse("definition.published_head_conflict", condition.Pointer, DefinitionAdmissionPhase.Publish);
+        }
+        return Apply(key, expectedRevision, requestId, Signature("publish", new { versionId, conditions = snapshot }),
+            DefinitionAdmissionPhase.Publish, () => Find(key, versionId, DefinitionAdmissionPhase.Publish),
+            cancellationToken, snapshot);
+    }
+
+    /// <inheritdoc />
+    public ValueTask<DefinitionRevision?> GetPublicationReplayAsync(DefinitionKey key, string versionId,
+        long expectedRevision, string requestId, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        ValidateKey(key, DefinitionAdmissionPhase.Publish);
+        Require(versionId, "definition.version_id_required", "/versionId", DefinitionAdmissionPhase.Publish);
+        Require(requestId, "definition.request_id_required", "/requestId", DefinitionAdmissionPhase.Publish);
+        if (expectedRevision < 0)
+            throw Refuse("definition.revision_conflict", "/expectedRevision", DefinitionAdmissionPhase.Publish);
+        lock (_gate)
+        {
+            if (!_requests.TryGetValue((key, requestId), out var replay))
+                return ValueTask.FromResult<DefinitionRevision?>(null);
+            if (replay.ExpectedRevision != expectedRevision
+                || !StringComparer.Ordinal.Equals(replay.PublicationVersionId, versionId))
+                throw Refuse("definition.replay_conflict", "/requestId", DefinitionAdmissionPhase.Publish);
+            return ValueTask.FromResult<DefinitionRevision?>(replay.Result);
+        }
+    }
+
+    /// <inheritdoc />
     public ValueTask<DefinitionRevision> RestoreAsDraftAsync(DefinitionKey key, string sourceVersionId,
         string draftVersionId, string draftVersion, long expectedRevision, string requestId,
         CancellationToken cancellationToken = default)
@@ -139,7 +182,7 @@ public sealed class InMemoryVersionedDefinitionStore : IVersionedDefinitionStore
 
     private ValueTask<DefinitionRevision> Apply(DefinitionKey key, long expectedRevision, string requestId,
         string signature, DefinitionAdmissionPhase phase, Func<DefinitionRevision> prepare,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken, IReadOnlyList<DefinitionPublishedHeadCondition>? conditions = null)
     {
         cancellationToken.ThrowIfCancellationRequested();
         ValidateKey(key, phase);
@@ -161,6 +204,15 @@ public sealed class InMemoryVersionedDefinitionStore : IVersionedDefinitionStore
         {
             var replay = ReplayOrFence(key, expectedRevision, requestId, signature, phase);
             if (replay is not null) return ValueTask.FromResult(replay);
+            if (conditions is not null)
+            {
+                var changed = conditions.Where(condition => _revisions.Values
+                    .Where(item => item.Document.Key == condition.Key && item.Status == DefinitionStatus.Published)
+                    .OrderByDescending(item => DefinitionSemanticVersion.Parse(item.Document.Version))
+                    .FirstOrDefault()?.Revision != condition.Revision)
+                    .Select(condition => new DefinitionRefusal("definition.published_head_conflict", condition.Pointer)).ToArray();
+                if (changed.Length > 0) throw new DefinitionRefusalException(phase, changed);
+            }
             if (phase == DefinitionAdmissionPhase.Publish)
             {
                 var version = DefinitionSemanticVersion.Parse(candidate.Document.Version);
@@ -171,7 +223,7 @@ public sealed class InMemoryVersionedDefinitionStore : IVersionedDefinitionStore
                     throw Refuse("definition.version_conflict", "/version", phase);
                 if (candidate.Status == DefinitionStatus.Published)
                 {
-                    _requests.Add((key, requestId), new(expectedRevision, signature, candidate));
+                    _requests.Add((key, requestId), new(expectedRevision, signature, candidate, candidate.Document.VersionId));
                     return ValueTask.FromResult(candidate);
                 }
                 candidate = candidate with { Status = DefinitionStatus.Published };
@@ -180,7 +232,8 @@ public sealed class InMemoryVersionedDefinitionStore : IVersionedDefinitionStore
             if (!_history.TryGetValue(key, out var history)) _history[key] = history = [];
             history.Add(appended);
             _revisions[(key, appended.Document.VersionId)] = appended;
-            _requests.Add((key, requestId), new(expectedRevision, signature, appended));
+            _requests.Add((key, requestId), new(expectedRevision, signature, appended,
+                phase == DefinitionAdmissionPhase.Publish ? appended.Document.VersionId : null));
             return ValueTask.FromResult(appended);
         }
     }
@@ -246,5 +299,5 @@ public sealed class InMemoryVersionedDefinitionStore : IVersionedDefinitionStore
 
     private static DefinitionRefusalException Refuse(string code, string pointer, DefinitionAdmissionPhase stage)
         => new(stage, [new(code, pointer)]);
-    private sealed record Replay(long ExpectedRevision, string Signature, DefinitionRevision Result);
+    private sealed record Replay(long ExpectedRevision, string Signature, DefinitionRevision Result, string? PublicationVersionId);
 }

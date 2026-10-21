@@ -6,6 +6,86 @@ namespace Harborline.Blocks.EntityViews.Tests;
 
 public sealed class ViewQueryRuntimeTests
 {
+    [Theory(DisplayName = "views-eng-1: an unpublished head refuses with an opaque code before every downstream port")]
+    [InlineData("empty")]
+    [InlineData("draft-only")]
+    [InlineData("other-tenant-published")]
+    public async Task MissingPublishedHeadUsesOpaqueCodedRefusal(string storedState)
+    {
+        var store = new InMemoryViewDefinitionStore();
+        var request = Request() with
+        {
+            Tenant = "tenant-sensitive-marker",
+            DefinitionKey = "view-sensitive-marker",
+            Principal = "party:sensitive-marker",
+        };
+        var definition = Definition();
+        definition = definition with
+        {
+            Envelope = definition.Envelope with
+            {
+                Identity = request.DefinitionKey,
+                Tenant = storedState == "other-tenant-published" ? "other-tenant" : request.Tenant,
+            },
+        };
+        if (storedState != "empty")
+        {
+            await store.CreateDraftAsync(definition, request.Binding);
+            Assert.Single(await store.ListHistoryAsync(definition.Tenant, definition.Key));
+        }
+        if (storedState == "other-tenant-published")
+        {
+            await store.PublishAsync(definition.Tenant, definition.Key, definition.Version);
+            Assert.NotNull(await store.ResolvePublishedHeadAsync("other-tenant", request.DefinitionKey));
+        }
+        var calls = new List<string>();
+        var runtime = RuntimeWithStore(store, calls);
+
+        var error = await Assert.ThrowsAsync<ViewQueryException>(async () =>
+            await runtime.ExecuteAsync(request));
+
+        // T-486's coded-refusal contract and the existing store code are the oracle, not a runtime constant.
+        Assert.Equal("view_definition.not_found", error.Code);
+        Assert.Equal("The published view definition does not exist.", error.Message);
+        Assert.DoesNotContain("tenant-sensitive-marker", error.Message);
+        Assert.DoesNotContain("view-sensitive-marker", error.Message);
+        Assert.DoesNotContain("party:sensitive-marker", error.Message);
+        Assert.DoesNotContain("other-tenant", error.Message);
+        Assert.Empty(calls);
+    }
+
+    [Fact(DisplayName = "views-eng-1: a cancelled real-store read remains cancellation rather than missing-head refusal")]
+    public async Task CancelledPublishedHeadReadPropagatesCancellation()
+    {
+        var calls = new List<string>();
+        var runtime = RuntimeWithStore(new InMemoryViewDefinitionStore(), calls);
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+
+        var error = await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
+            await runtime.ExecuteAsync(Request(), cancellation.Token));
+
+        Assert.Equal(cancellation.Token, error.CancellationToken);
+        Assert.Empty(calls);
+    }
+
+    [Fact(DisplayName = "views-eng-1: a real published head still runs the authorized query")]
+    public async Task PublishedHeadStillRunsTheAuthorizedQuery()
+    {
+        var store = new InMemoryViewDefinitionStore();
+        var definition = Definition();
+        var request = Request();
+        await store.CreateDraftAsync(definition, request.Binding);
+        await store.PublishAsync("tenant-a", "work.queue", "1.0.0");
+        var calls = new List<string>();
+        var runtime = RuntimeWithStore(store, calls);
+
+        var result = await runtime.ExecuteAsync(request);
+
+        Assert.True(result.Authority.CanOpen);
+        Assert.Equal(["open", "kind", "record-type", "access", "rows"], calls);
+    }
+
     [Fact(DisplayName = "a denied open decision prevents Access evaluation and every row read")]
     public async Task DeniedOpenPreventsAccessAndEveryRowRead()
     {
@@ -361,6 +441,16 @@ public sealed class ViewQueryRuntimeTests
         Assert.NotEmpty(nonMatching.Groups);
         Assert.NotNull(nonMatching.Measure);
     }
+
+    private static ViewQueryRuntime RuntimeWithStore(IViewDefinitionStore store, List<string> calls) => new(
+        store,
+        new RecordingOpenGate(calls, new ViewAuthority(CanOpen: true, Actions: [])),
+        new RecordingKinds(calls, IsRegistered: true),
+        new RecordingRecordTypes(calls),
+        new RecordingAccessFilter(calls),
+        new RecordingRows(calls),
+        new RecordingMeasures(calls),
+        new FixedTimeProvider(DateTimeOffset.UnixEpoch));
 
     private static ViewQueryRuntime Runtime(
         ViewAuthority authority,

@@ -147,6 +147,15 @@ public sealed record EffectReceipt
     /// </summary>
     public EffectId? CompensationEffectId { get; init; }
 
+    /// <summary>
+    /// The one original logical effect this effect compensates, stamped by the workflow engine from its
+    /// declared compensating-step execution context. Null for ordinary or legacy receipts. This producer
+    /// attestation is checked against the original receipt's <see cref="CompensationEffectId"/> separately;
+    /// it does not establish the external compensation's business correctness. An effect may carry this
+    /// backlink and its own <see cref="CompensationEffectId"/> independently.
+    /// </summary>
+    public EffectId? CompensatesEffectId { get; init; }
+
     /// <summary>Opaque references to secrets used by the capability; the receipt never stores their values.</summary>
     public IReadOnlyList<string> SecretReferenceIds { get; init; } = [];
 
@@ -180,7 +189,7 @@ public sealed class InMemoryEffectReceiptStore : IEffectReceiptStore
     {
         ArgumentNullException.ThrowIfNull(receipt);
         cancellationToken.ThrowIfCancellationRequested();
-        if (!_receipts.TryAdd((receipt.TenantId, receipt.EffectId), receipt))
+        if (!_receipts.TryAdd((receipt.TenantId, receipt.EffectId), Snapshot(receipt)))
         {
             throw new ExecutionRuntimeRefusedException(
                 ExecutionRuntimeRefusals.EffectReceiptDuplicate,
@@ -194,8 +203,15 @@ public sealed class InMemoryEffectReceiptStore : IEffectReceiptStore
     public ValueTask<EffectReceipt?> GetAsync(TenantId tenantId, EffectId effectId, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        return ValueTask.FromResult(_receipts.GetValueOrDefault((tenantId, effectId)));
+        var receipt = _receipts.GetValueOrDefault((tenantId, effectId));
+        return ValueTask.FromResult(receipt is null ? null : Snapshot(receipt));
     }
+
+    private static EffectReceipt Snapshot(EffectReceipt receipt) => receipt with
+    {
+        Attempts = receipt.Attempts?.ToArray()!,
+        SecretReferenceIds = receipt.SecretReferenceIds?.ToArray()!,
+    };
 }
 
 /// <summary>
@@ -213,8 +229,13 @@ public sealed class EffectReceiptLedger
     public async ValueTask<EffectReceipt> RecordAsync(EffectReceipt receipt, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(receipt);
-        Validate(receipt);
-        await _store.CreateAsync(receipt, cancellationToken).ConfigureAwait(false);
+        var snapshot = receipt with
+        {
+            Attempts = receipt.Attempts?.ToArray()!,
+            SecretReferenceIds = receipt.SecretReferenceIds?.ToArray()!,
+        };
+        Validate(snapshot);
+        await _store.CreateAsync(snapshot, cancellationToken).ConfigureAwait(false);
         return receipt;
     }
 
@@ -224,6 +245,62 @@ public sealed class EffectReceiptLedger
         RequireTenant(tenantId);
         RequireEffectId(effectId);
         return _store.GetAsync(tenantId, effectId, cancellationToken);
+    }
+
+    /// <summary>
+    /// Checks the original effect's independently recorded compensation evidence without changing either receipt.
+    /// Compensated and compensation-failed originals require a same-tenant target whose backlink names the
+    /// original; other original statuses impose no compensation check. A missing original or missing/inconsistent
+    /// compensation evidence refuses <c>execution.effect_receipt_invalid</c>, identifying the known effects.
+    /// Malformed effect identities retain the existing <c>execution.effect_identity_invalid</c> refusal.
+    /// </summary>
+    /// <remarks>
+    /// The workflow engine calls this after both receipts are durable; recovery or audit may repeat it.
+    /// Recording the original before its compensation remains permitted. A legacy target without a backlink
+    /// fails this check; no historical link is inferred. Only this pair is checked, without compensation-chain
+    /// traversal, target-status compatibility rules or same-workflow assumptions.
+    /// </remarks>
+    public async ValueTask CheckCompensationAsync(TenantId tenantId, EffectId effectId, CancellationToken cancellationToken = default)
+    {
+        RequireTenant(tenantId);
+        RequireEffectId(effectId);
+        var original = await _store.GetAsync(tenantId, effectId, cancellationToken).ConfigureAwait(false)
+            ?? throw new ExecutionRuntimeRefusedException(
+                ExecutionRuntimeRefusals.EffectReceiptInvalid,
+                $"The tenant holds no original effect receipt '{effectId}'.");
+        if (original.TenantId != tenantId || original.EffectId != effectId)
+        {
+            Refuse(ExecutionRuntimeRefusals.EffectReceiptInvalid, $"The store returned a different tenant or effect for original receipt '{effectId}'.");
+        }
+
+        if (original.Status != EffectStatus.Compensated && original.Status != EffectStatus.CompensationFailed)
+        {
+            return;
+        }
+
+        var compensationEffectId = original.CompensationEffectId
+            ?? throw new ExecutionRuntimeRefusedException(
+                ExecutionRuntimeRefusals.EffectReceiptInvalid,
+                $"Original effect receipt '{effectId}' must name its separate compensation receipt.");
+        RequireEffectId(compensationEffectId);
+        if (compensationEffectId == effectId)
+        {
+            Refuse(ExecutionRuntimeRefusals.EffectReceiptInvalid, $"Original effect receipt '{effectId}' cannot name itself as its compensation receipt.");
+        }
+
+        var compensation = await _store.GetAsync(tenantId, compensationEffectId, cancellationToken).ConfigureAwait(false)
+            ?? throw new ExecutionRuntimeRefusedException(
+                ExecutionRuntimeRefusals.EffectReceiptInvalid,
+                $"Original effect receipt '{effectId}' names compensation receipt '{compensationEffectId}', which the tenant does not hold.");
+        if (compensation.CompensatesEffectId is { } originalEffectId)
+        {
+            RequireEffectId(originalEffectId);
+        }
+
+        if (compensation.TenantId != tenantId || compensation.EffectId != compensationEffectId || compensation.CompensatesEffectId != effectId)
+        {
+            Refuse(ExecutionRuntimeRefusals.EffectReceiptInvalid, $"Compensation receipt '{compensationEffectId}' does not identify original effect '{effectId}' in the same tenant.");
+        }
     }
 
     private static void Validate(EffectReceipt receipt)
@@ -297,6 +374,15 @@ public sealed class EffectReceiptLedger
             if (receipt.Status == EffectStatus.Ambiguous)
             {
                 Refuse(ExecutionRuntimeRefusals.BlindCompensationRefused, "An ambiguous effect must reconcile before any compensation is recorded.");
+            }
+        }
+
+        if (receipt.CompensatesEffectId is { } originalEffect)
+        {
+            RequireEffectId(originalEffect);
+            if (originalEffect == receipt.EffectId)
+            {
+                Refuse(ExecutionRuntimeRefusals.EffectReceiptInvalid, "A compensation receipt cannot identify itself as its original effect.");
             }
         }
     }

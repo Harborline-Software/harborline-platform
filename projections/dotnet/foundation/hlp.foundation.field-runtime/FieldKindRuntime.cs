@@ -65,13 +65,16 @@ public sealed class FieldKindRuntime : IFieldKindRuntime
 
         public IReadOnlyList<FieldRefusal> Validate(JsonElement value, string jsonPointer)
         {
+            FieldNumber? number = null;
+            if (Kind.ValueShape == FieldScalarValueShape.Integer && value.ValueKind == JsonValueKind.Number
+                && !FieldNumber.TryParse(value.GetRawText(), out number))
+                return [FieldNumber.ExponentOutOfRange("field.value_malformed", jsonPointer)];
             var matches = Kind.ValueShape switch
             {
                 FieldScalarValueShape.Text => value.ValueKind == JsonValueKind.String,
                 FieldScalarValueShape.Boolean => value.ValueKind is JsonValueKind.True or JsonValueKind.False,
                 FieldScalarValueShape.Number => value.ValueKind == JsonValueKind.Number,
-                FieldScalarValueShape.Integer => value.ValueKind == JsonValueKind.Number
-                    && new FieldNumber(value.GetRawText()).IsInteger,
+                FieldScalarValueShape.Integer => number is { IsInteger: true },
                 _ => false,
             };
             if (!matches)
