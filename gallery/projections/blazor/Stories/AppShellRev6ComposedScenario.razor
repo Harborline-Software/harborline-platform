@@ -225,7 +225,6 @@
   owner = null; view = null; toolsOpen = false; saveRequestKey = null;
   saveTimer?.Cancel(); saveTimer?.Dispose(); saveTimer = null;
   noticeTimer?.Cancel(); noticeTimer?.Dispose(); noticeTimer = null; notice = null; error = null;
-  StateHasChanged();
   await events.WaitAsync();
   try
   {
@@ -236,6 +235,7 @@
    if (disposed || requestEpoch != epoch) return;
    Publish(result, presentation);
   }
+  catch (Exception ex) { if (!disposed && requestEpoch == epoch) error = ex.Message; }
   finally { events.Release(); }
  }
  private Task HandleIntent(AppShellRev6Intent intent)
