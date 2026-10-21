@@ -62,6 +62,53 @@ test('PR event types produce preliminary feedback; full lanes are reserved for q
   }
 })
 
+test('manual shared scheduling is explicit and defaults to exclusive-tail in every headless event', () => {
+  // Oracle: Mac Q5/319 rev5 adopts this default while retaining the explicit original choice.
+  const dispatch = workflow.split('\n  workflow_dispatch:\n')[1].split('\nconcurrency:')[0]
+  assert.match(dispatch, /\n      shared_schedule:\n/)
+  assert.match(dispatch, /\n        type: choice\n/)
+  assert.match(dispatch, /\n        required: true\n/)
+  assert.match(dispatch, /\n        default: exclusive-tail\n/)
+  assert.match(dispatch, /\n        options:\n          - original\n          - exclusive-tail\n/)
+  const headless = block('phase-4-gate').split('      - name: Phase-4 gate (headless)')[1]
+    .split('\n      - name: Evidence')[0]
+  assert.ok(headless.includes("          HARBORLINE_SHARED_SCHEDULE: ${{ inputs.shared_schedule || 'exclusive-tail' }}\n"))
+  assert.equal(workflow.match(/HARBORLINE_SHARED_SCHEDULE:/g)?.length, 1)
+  assert.doesNotMatch(workflow, /HARBORLINE_SHARED_CONCURRENCY\s*[:=]/)
+  assert.ok(block('phase-4-gate').includes('            .claude/gate-evidence/\n'))
+})
+
+test('the general Phase4 evidence upload retains its original hidden-file behavior', () => {
+  // Oracle: Mac319 rev4 restores this general step; only the separate manual step includes hidden files.
+  const evidence = block('phase-4-gate').split('      - name: Evidence\n')[1]
+    .split('\n      - name:')[0]
+  assert.match(evidence, /^        if: always\(\)\n/)
+  assert.match(evidence, /\n        uses: actions\/upload-artifact@v7\n/)
+  assert.ok(evidence.includes('          name: verify-evidence-${{ github.run_id }}\n'))
+  assert.doesNotMatch(evidence, /include-hidden-files:/)
+  assert.match(evidence, /\n          if-no-files-found: ignore\n/)
+  assert.match(evidence, /\n          retention-days: 14\n/)
+  assert.ok(evidence.includes('            .claude/gate-evidence/\n'))
+  assert.equal(workflow.match(/include-hidden-files:/g)?.length, 1)
+})
+
+test('only manual shared scheduling uploads the one exact hidden report with the existing full action pin', () => {
+  // Oracles: Mac319 rev4 exact scope and the release/validate action pin, not a production symbol.
+  const upload = block('phase-4-gate').split('      - name: Shared schedule evidence (manual)\n')[1]
+    .split('\n      - name:')[0]
+  const condition = upload.match(/^        if: ([^\n]+)$/m)?.[1]
+  assert.equal(condition, "always() && github.event_name == 'workflow_dispatch'")
+  assert.doesNotMatch(condition, /pull_request|merge_group|push/)
+  assert.match(upload, /\n        uses: actions\/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7\n/)
+  assert.ok(upload.includes('          name: ui-shared-schedule-${{ github.run_id }}\n'))
+  assert.deepEqual([...upload.matchAll(/^          path: ([^\n]+)$/gm)].map(match => match[1]),
+    ['.claude/gate-evidence/ui-shared-schedule.json'])
+  assert.match(upload, /\n          include-hidden-files: true\n/)
+  assert.match(upload, /\n          if-no-files-found: error\n/)
+  assert.match(upload, /\n          retention-days: 14\n/)
+  assert.equal(workflow.match(/- name: Shared schedule evidence \(manual\)/g)?.length, 1)
+})
+
 test('implementation and uncertain inputs retain early headless behavioral validation', () => {
   assert.equal(requiresPrHeadless(['CONTRIBUTING.md', 'tooling/tests/ci-verification.test.mjs']), false)
   // Wiring and policy changes always take the headless gate (owner 2026-10-01).

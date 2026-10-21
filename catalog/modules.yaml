@@ -300,11 +300,11 @@
       }
     },
     "hlp.blocks.builder-definitions": {
-      "interface": {"path": "specs/modules/blocks/hlp.blocks.builder-definitions/interface.yaml", "revision": 19},
+      "interface": {"path": "specs/modules/blocks/hlp.blocks.builder-definitions/interface.yaml", "revision": 24},
       "moduleKind": "runtime",
       "presentation": {"disposition": "not-applicable", "rationale": "Definition catalogue, package export, and replay are projection-neutral and have no presentation surface."},
       "owner": "platform-foundation",
-      "dependencies": ["hlp.foundation.rule-authoring", "hlp.foundation.definitions", "hlp.foundation.taxonomy", "hlp.kernel.core", "hlp.foundation.actor"],
+      "dependencies": ["hlp.foundation.rule-authoring", "hlp.foundation.definitions", "hlp.foundation.taxonomy", "hlp.kernel.core", "hlp.foundation.actor", "hlp.contracts.fields"],
       "status": "draft-native-green",
       "depth": {
         "disposition": "deep-module",
@@ -335,14 +335,14 @@
       }
     },
     "hlp.blocks.layout-runtime": {
-      "interface": {"path": "specs/modules/blocks/hlp.blocks.layout-runtime/interface.yaml", "revision": 9},
+      "interface": {"path": "specs/modules/blocks/hlp.blocks.layout-runtime/interface.yaml", "revision": 10},
       "moduleKind": "runtime",
       "presentation": {"disposition": "not-applicable", "rationale": "The definition resolver and flow planner return neutral render plans and own no framework presentation."},
       "owner": "platform-foundation",
-      "dependencies": ["hlp.blocks.builder-definitions", "hlp.foundation.rule-runtime", "hlp.foundation.actor"],
+      "dependencies": ["hlp.blocks.builder-definitions", "hlp.foundation.rule-runtime", "hlp.foundation.actor", "hlp.foundation.forms-engine"],
       "status": "draft-native-green",
       "depth": {"disposition": "deep-module", "deletionTest": "PASS", "redistributedComplexity": ["exact immutable definition binding, persisted-value admission, and recursive layout flow would otherwise fork across every renderer", "screen and page boundaries, static regions, and break planning would otherwise become inconsistent local projection policy"]},
-      "projections": {"dotnet": {"role": "implementation", "path": "projections/dotnet/blocks/hlp.blocks.layout-runtime", "status": "preview", "artifact": {"type": "nuget", "id": "Harborline.Blocks.LayoutRuntime", "assembly": "Harborline.Blocks.LayoutRuntime", "manifest": "projections/dotnet/blocks/hlp.blocks.layout-runtime/Harborline.Blocks.LayoutRuntime.csproj", "dependencies": ["Harborline.Blocks.BuilderDefinitions", "Harborline.Foundation.RuleEngine", "Harborline.Foundation.Authorization"], "identityAuthority": "Harborline", "producerRepository": "harborline-platform", "distribution": "internal-only", "candidateRole": "new-bounded-package", "registryAvailable": false}}}
+      "projections": {"dotnet": {"role": "implementation", "path": "projections/dotnet/blocks/hlp.blocks.layout-runtime", "status": "preview", "artifact": {"type": "nuget", "id": "Harborline.Blocks.LayoutRuntime", "assembly": "Harborline.Blocks.LayoutRuntime", "manifest": "projections/dotnet/blocks/hlp.blocks.layout-runtime/Harborline.Blocks.LayoutRuntime.csproj", "dependencies": ["Harborline.Blocks.BuilderDefinitions", "Harborline.Foundation.RuleEngine", "Harborline.Foundation.Authorization", "Harborline.Foundation.Forms.Engine"], "identityAuthority": "Harborline", "producerRepository": "harborline-platform", "distribution": "internal-only", "candidateRole": "new-bounded-package", "registryAvailable": false}}}
     },
     "hlp.blocks.aggregates": {
       "interface": {"path": "specs/modules/blocks/hlp.blocks.aggregates/interface.yaml", "revision": 1},
@@ -554,7 +554,7 @@
       }
     },
     "hlp.blocks.calendar": {
-      "interface": {"path": "specs/modules/blocks/hlp.blocks.calendar/interface.yaml", "revision": 4},
+      "interface": {"path": "specs/modules/blocks/hlp.blocks.calendar/interface.yaml", "revision": 5},
       "moduleKind": "runtime",
       "presentation": {"disposition": "not-applicable", "rationale": "The calendar engine produces occurrences, free/busy results, booking outcomes, and context answers consumed by scheduler/gantt renderers; it renders nothing."},
       "owner": "platform-blocks",
@@ -659,7 +659,7 @@
       }
     },
     "hlp.blocks.entity-views": {
-      "interface": {"path": "specs/modules/blocks/hlp.blocks.entity-views/interface.yaml", "revision": 6},
+      "interface": {"path": "specs/modules/blocks/hlp.blocks.entity-views/interface.yaml", "revision": 7},
       "moduleKind": "runtime",
       "presentation": {"disposition": "not-applicable", "rationale": "The entity-views read model produces list/detail/tree/condition data and navigation targets consumed by separate grid/table renderers; it renders nothing."},
       "owner": "platform-blocks",
@@ -864,7 +864,7 @@
       }
     },
     "hlp.foundation.taxonomy": {
-      "interface": {"path": "specs/modules/foundation/hlp.foundation.taxonomy/interface.yaml", "revision": 1},
+      "interface": {"path": "specs/modules/foundation/hlp.foundation.taxonomy/interface.yaml", "revision": 2},
       "moduleKind": "runtime",
       "presentation": {"disposition": "not-applicable", "rationale": "The foundation package owns the projection-neutral TaxonomyDefinition and its admission; the scheme/overlay editor and catalogue views are separate projections over this interface."},
       "owner": "platform-foundation",
@@ -1170,7 +1170,7 @@
       }
     },
     "hlp.foundation.forms-engine": {
-      "interface": {"path": "specs/modules/foundation/hlp.foundation.forms-engine/interface.yaml", "revision": 17},
+      "interface": {"path": "specs/modules/foundation/hlp.foundation.forms-engine/interface.yaml", "revision": 18},
       "moduleKind": "runtime",
       "presentation": {"disposition": "not-applicable", "rationale": "The Forms Engine produces render and submission data consumed by separate React and Blazor renderers; it owns no visual implementation."},
       "owner": "platform-foundation",

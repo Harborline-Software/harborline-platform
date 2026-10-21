@@ -575,7 +575,7 @@ function verifyNpm() {
 
 function verifyCopilotContractsNpm() {
   const copilotRoot = resolve(root, 'projections/typescript/application/hlp.copilot.contracts')
-  run('npm', ['install', '--ignore-scripts', '--no-audit', '--no-fund'], { cwd: copilotRoot })
+  run('pnpm', ['install', '--frozen-lockfile', '--ignore-scripts'], { cwd: copilotRoot })
   run('npm', ['run', 'build'], { cwd: copilotRoot })
   const packed = JSON.parse(run('npm', ['pack', '--json', '--pack-destination', npmArtifacts], { cwd: copilotRoot }))[0]
   const artifact = resolve(npmArtifacts, packed.filename)
@@ -942,9 +942,9 @@ function verifyNuget() {
   const packageCache = resolve(fixtureRoot, 'nuget-packages')
   for (const [id, version] of [
     // The pinned JsonSchema.Net comes from the central pin, so a version bump cannot strand this
-    // offline feed; its transitive JsonPointer.Net is listed by hand (9.4.0 needs 7.0.2).
+    // offline feed; its transitive JsonPointer.Net is listed by hand (9.4.1 needs 7.0.3).
     ['jsonschema.net', /Include="JsonSchema\.Net" Version="([^"]+)"/.exec(readFileSync(resolve(root, 'Directory.Packages.props'), 'utf8'))[1]],
-    ['jsonpointer.net', '7.0.2'],
+    ['jsonpointer.net', '7.0.3'],
     ['json.more.net', '3.0.1'],
     ['humanizer.core', '3.0.10'],
     ['microsoft.extensions.dependencyinjection.abstractions', '10.0.10'],
@@ -978,6 +978,12 @@ function verifyNuget() {
   if (!fieldRuntimeSchemaBehavior) throw new Error('Packed field-runtime schema consumer did not emit its completion proof')
   const fieldRuntimeDomainBehavior = consumerOutputLines.find(line => line.startsWith('FIELD_RUNTIME_DOMAIN_PACKAGE_PASS:'))
   if (!fieldRuntimeDomainBehavior) throw new Error('Packed field-runtime domain consumer did not emit its completion proof')
+  const recordsWriteBehavior = consumerOutputLines.find(line => line.startsWith('RECORDS_WRITE_PACKAGE_PASS:'))
+  if (!recordsWriteBehavior) throw new Error('Packed Records write consumer did not emit its completion proof')
+  const acceptedRecordCreateBehavior = consumerOutputLines.find(line => line.startsWith('ACCEPTED_RECORD_CREATE_PACKAGE_PASS:'))
+  if (!acceptedRecordCreateBehavior) throw new Error('Packed Records accepted-create consumer did not emit its completion proof')
+  const recordsExposureBehavior = consumerOutputLines.find(line => line.startsWith('RECORDS_EXPOSURE_PACKAGE_PASS:'))
+  if (!recordsExposureBehavior) throw new Error('Packed Records exposure consumer did not emit its completion proof')
   const assets = readFileSync(resolve(consumer, 'obj/project.assets.json'), 'utf8')
   if (assets.includes(resolve(root, 'projections')) || /"type"\s*:\s*"project"/.test(assets)) {
     throw new Error('NuGet consumer resolved a source or project dependency')
@@ -1147,6 +1153,9 @@ function verifyNuget() {
     harborlineArtifactsFromSingleCohort: true,
     fieldRuntimeSchemaBehavior,
     fieldRuntimeDomainBehavior,
+    recordsWriteBehavior,
+    acceptedRecordCreateBehavior,
+    recordsExposureBehavior,
     formsEngineDirectPackageReferences: formsEngineDirectReferences,
     formsEngineTransitiveHarborlineArtifacts: formsEngineHarborlineNodes.length,
     formsEngineAuthoringHostBehavior: formsEngineConsumerOutput,

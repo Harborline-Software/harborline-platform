@@ -57,6 +57,18 @@ public static class FormEngineServiceCollectionExtensions
         return services;
     }
 
+    /// <summary>Composes explicit publication facts with registered schema and read-only surface ports.</summary>
+    /// <param name="provider">The caller's existing scoped provider.</param>
+    /// <param name="basis">Trusted writer-supplied identities and historical environment evidence.</param>
+    public static FormPublicationAssessmentContext FormPublicationContext(
+        this IServiceProvider provider, FormPublicationBasis basis)
+    {
+        ArgumentNullException.ThrowIfNull(provider);
+        ArgumentNullException.ThrowIfNull(basis);
+        return new(basis, provider.GetRequiredService<Harborline.Kernel.SchemaValidation.ISchemaRegistry>(),
+            provider.GetRequiredService<IFormPublishedSurfaceSource>());
+    }
+
     /// <summary>Registers the core Forms Engine graph and validates production-only composition requirements.</summary>
     public static IServiceCollection AddHarborlineFormsEngine(
         this IServiceCollection services,

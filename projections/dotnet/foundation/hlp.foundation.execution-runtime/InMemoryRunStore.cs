@@ -13,7 +13,7 @@ public sealed class InMemoryRunStore : IRunStore
     {
         ArgumentNullException.ThrowIfNull(record);
         cancellationToken.ThrowIfCancellationRequested();
-        if (!_runs.TryAdd((record.TenantId, record.Id), record))
+        if (!_runs.TryAdd((record.TenantId, record.Id), Snapshot(record)))
         {
             throw new ExecutionRuntimeRefusedException(
                 ExecutionRuntimeRefusals.RunDuplicate, $"Run '{record.Id}' is already stored.");
@@ -26,7 +26,8 @@ public sealed class InMemoryRunStore : IRunStore
     public ValueTask<RunRecord?> GetAsync(TenantId tenantId, RunId id, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        return ValueTask.FromResult(_runs.GetValueOrDefault((tenantId, id)));
+        var record = _runs.GetValueOrDefault((tenantId, id));
+        return ValueTask.FromResult<RunRecord?>(record is null ? null : Snapshot(record));
     }
 
     /// <inheritdoc />
@@ -41,7 +42,7 @@ public sealed class InMemoryRunStore : IRunStore
                 ExecutionRuntimeRefusals.RunUnknown, $"Run '{record.Id}' is not stored.");
         }
 
-        if (current.Version != expectedVersion || record.Version != expectedVersion + 1 || !_runs.TryUpdate(key, record, current))
+        if (current.Version != expectedVersion || record.Version != expectedVersion + 1 || !_runs.TryUpdate(key, Snapshot(record), current))
         {
             throw new ExecutionRuntimeRefusedException(
                 ExecutionRuntimeRefusals.RunConcurrencyConflict,
@@ -62,7 +63,10 @@ public sealed class InMemoryRunStore : IRunStore
             .Where(run => run.TenantId == tenantId && run.Status == status)
             .OrderBy(run => run.CreatedUtc)
             .ThenBy(run => run.Id.ToString(), StringComparer.Ordinal)
+            .Select(Snapshot)
             .ToList();
         return ValueTask.FromResult(matches);
     }
+
+    private static RunRecord Snapshot(RunRecord record) => record with { Attempts = record.Attempts.ToArray() };
 }

@@ -192,6 +192,42 @@ public sealed class AvailabilityRuntimeTests
         Assert.Equal(Unavailability.CapacityExhausted, answer.Resources[0].Unavailability);
     }
 
+    [Fact]
+    public async Task Read_LaterEventPrePaddingExhaustsExclusiveCapacity_AndClipsFreeBusyToWindow()
+    {
+        var sut = NewSut();
+        await SeedNineToFive(sut, Doctor);
+        var request = Window(Utc(10), Utc(11), ResourceCapacity.Exclusive(Doctor, EventPadding.None));
+
+        var before = await sut.Runtime.Read(Acme, request);
+        Assert.Null(before.Refusal);
+        Assert.True(before.Available);
+        var beforeResource = Assert.Single(before.Resources);
+        Assert.True(beforeResource.Available);
+        Assert.Equal(Unavailability.None, beforeResource.Unavailability);
+        Assert.Equal(1, beforeResource.Remaining);
+        Assert.Equal(new TimeInterval(Utc(10), Utc(11)), Assert.Single(beforeResource.Free));
+        Assert.Empty(beforeResource.Busy);
+
+        // The visible event starts after the window; only its own pre-padding reaches inside.
+        var ev = CalendarEvent.Create(Acme, "Later pre-padded appointment", Day, Day, Actor,
+            timezone: "UTC", startTime: new TimeOnly(11, 10), endTime: new TimeOnly(11, 30),
+            occupancy: Occupancy.Bookable, padding: EventPadding.Of(TimeSpan.FromMinutes(20), TimeSpan.Zero));
+        ev.SetResource(Doctor, Actor);
+        await sut.Events.SaveAsync(ev);
+
+        var after = await sut.Runtime.Read(Acme, request);
+        Assert.Null(after.Refusal);
+        Assert.False(after.Available);
+        var afterResource = Assert.Single(after.Resources);
+        Assert.False(afterResource.Available);
+        Assert.Equal(Unavailability.CapacityExhausted, afterResource.Unavailability);
+        Assert.Equal(0, afterResource.Remaining);
+        // Literal UTC contract oracles: do not derive the expected footprint from ev or output.
+        Assert.Equal(new TimeInterval(Utc(10), Utc(10, 50)), Assert.Single(afterResource.Free));
+        Assert.Equal(new TimeInterval(Utc(10, 50), Utc(11)), Assert.Single(afterResource.Busy));
+    }
+
     // ================================================================
     // eng-12 — the required set is a conjunction over the interval plus each resource's buffers
     // ================================================================
@@ -274,6 +310,32 @@ public sealed class AvailabilityRuntimeTests
         Assert.Equal(3, IntervalMath.MaxDepth([a, b, c, d], new TimeInterval(Utc(9), Utc(17))));
         Assert.Equal(1, IntervalMath.MaxDepth([a, b, c, d], new TimeInterval(Utc(13), Utc(17))));
         Assert.Equal(0, IntervalMath.MaxDepth([a, b, c, d], new TimeInterval(Utc(15), Utc(17))));
+    }
+
+    [Fact]
+    public async Task Read_LaterBusySpanDoesNotExtendFreeTimePastSupply_WhenRequestIsWider()
+    {
+        var sut = NewSut();
+        await sut.Availability.SaveAsync(
+            ResourceAvailability.Create(Acme, Doctor, "UTC")
+                .AddWindow(AvailabilityWindow.Create(Day, new TimeOnly(9, 0), new TimeOnly(10, 0))));
+        var ev = CalendarEvent.Create(Acme, "After closing time", Day, Day, Actor,
+            timezone: "UTC", startTime: new TimeOnly(11, 0), endTime: new TimeOnly(12, 0),
+            occupancy: Occupancy.Bookable, padding: EventPadding.None);
+        ev.SetResource(Doctor, Actor);
+        await sut.Events.SaveAsync(ev);
+
+        var answer = await sut.Runtime.Read(Acme,
+            Window(Utc(9), Utc(12), ResourceCapacity.Exclusive(Doctor, EventPadding.None)));
+
+        Assert.Null(answer.Refusal);
+        Assert.False(answer.Available);
+        var resource = Assert.Single(answer.Resources);
+        Assert.False(resource.Available);
+        Assert.Equal(Unavailability.OutsideSupply, resource.Unavailability);
+        // OutsideSupply still exposes intervals; the later event cannot extend the literal supply.
+        Assert.Equal(new TimeInterval(Utc(9), Utc(10)), Assert.Single(resource.Free));
+        Assert.Empty(resource.Busy);
     }
 
     /// <summary>Counts reads so the window refusal can be proven to happen before any store is touched.</summary>

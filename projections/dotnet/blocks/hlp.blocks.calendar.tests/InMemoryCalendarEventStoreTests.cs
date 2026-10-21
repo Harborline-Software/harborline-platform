@@ -40,6 +40,23 @@ public sealed class InMemoryCalendarEventStoreTests
     }
 
     [Fact]
+    public async Task Create_PreservesExplicitCreatedAt_BeforeAndAfterStoreRoundTrip()
+    {
+        var store = new InMemoryCalendarEventStore();
+        var ev = CalendarEvent.Create(
+            Tenant, "Caller-timestamped event", new DateOnly(2026, 3, 5), new DateOnly(2026, 3, 5), Actor,
+            createdAt: new DateTimeOffset(2026, 3, 4, 12, 34, 56, TimeSpan.Zero));
+
+        Assert.Equal(new DateTimeOffset(2026, 3, 4, 12, 34, 56, TimeSpan.Zero), ev.CreatedAt);
+
+        await store.SaveAsync(ev);
+        var loaded = await store.GetAsync(Tenant, ev.Id);
+
+        Assert.NotNull(loaded);
+        Assert.Equal(new DateTimeOffset(2026, 3, 4, 12, 34, 56, TimeSpan.Zero), loaded!.CreatedAt);
+    }
+
+    [Fact]
     public async Task SaveThenGet_RoundTripsExdatesAndOverrides()
     {
         var store = new InMemoryCalendarEventStore();

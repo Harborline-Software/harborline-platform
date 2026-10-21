@@ -466,15 +466,57 @@ public sealed class RecordTypeSchemaCompiler
         // permits narrowing a slot floor but forbids widening its domain.
         await NarrowTraitBindingsAsync(candidate, fieldDomainScope, refusals, cancellationToken).ConfigureAwait(false);
         var properties = new Dictionary<string, object>(StringComparer.Ordinal);
+        var required = new List<string>();
         var boundKinds = new Dictionary<string, AdmittedFieldKind>(StringComparer.Ordinal);
         foreach (var (field, index) in (candidate.Fields ?? []).Select((field, index) => (field, index)))
         {
-            if (BindField(field.Binding, $"/fields/{index}/binding", refusals) is { } compiled)
+            var compiledField = BindField(field.Binding, $"/fields/{index}/binding", refusals);
+            // The count bounds do not depend on the kind, so an unbound or invalid kind still reports them;
+            // CompileAsync collects every refusal. They follow the binding's own refusals, as before.
+            var bounds = field.Binding?.Constraints;
+            var minimum = bounds is null ? 0 : Math.Max(bounds.MinimumCount, bounds.Required ? 1 : 0);
+            if (bounds is not null && (bounds.MinimumCount < 0 || bounds.MaximumCount < 0
+                || bounds.MaximumCount < minimum))
+            {
+                refusals.Add(new(
+                    "field.constraint_intersection_empty",
+                    $"/fields/{index}/binding/constraints",
+                    "The declared field multiplicity has no permitted value count."));
+            }
+
+            if (compiledField is { } compiled)
             {
                 boundKinds.TryAdd(field.FieldKey, compiled.Kind);
+                var constraints = field.Binding!.Constraints;
                 if (refusals.Count == 0)
                 {
-                    properties.Add(field.FieldKey, compiled.Schema);
+                    // IFieldDomainRuntime counts absence/null as zero, a scalar as one and an array
+                    // by its length. Keep the admitted kind executable on every original scalar.
+                    var shapes = new List<object>();
+                    if (minimum <= 1 && (constraints.MaximumCount is null || constraints.MaximumCount >= 1))
+                    {
+                        shapes.Add(compiled.Schema);
+                    }
+                    var repeated = new Dictionary<string, object>
+                    {
+                        ["type"] = "array",
+                        ["items"] = compiled.Schema,
+                        ["minItems"] = minimum,
+                    };
+                    if (constraints.MaximumCount is { } maximum)
+                    {
+                        repeated["maxItems"] = maximum;
+                    }
+                    shapes.Add(repeated);
+                    if (minimum == 0)
+                    {
+                        shapes.Add(new Dictionary<string, string> { ["type"] = "null" });
+                    }
+                    else
+                    {
+                        required.Add(field.FieldKey);
+                    }
+                    properties.Add(field.FieldKey, new Dictionary<string, object> { ["anyOf"] = shapes });
                 }
             }
             else if (field.Binding is null && refusals.Count == 0)
@@ -499,6 +541,11 @@ public sealed class RecordTypeSchemaCompiler
             ["properties"] = properties,
             ["additionalProperties"] = false,
         };
+        // Do not change the compiled bytes of a type containing only unbound/reference fields.
+        if (required.Count > 0)
+        {
+            document["required"] = required;
+        }
         return new(JsonSerializer.Serialize(document), []);
     }
 

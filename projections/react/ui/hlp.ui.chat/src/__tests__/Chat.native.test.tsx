@@ -51,6 +51,62 @@ describe('Chat React projection quality', () => {
     expect(screen.getAllByRole('article').every(article => article.tabIndex === 0)).toBe(true)
   })
 
+  it('names every article from explicit role and test-owned catalog copy', () => {
+    render(
+      <HarborlineLocaleProvider catalog={{
+        'ai.chat.roleUser': 'Test user',
+        'ai.chat.roleAssistant': 'Test assistant',
+        'ai.chat.messageArticle': 'Article [{role}]',
+      }}>
+        <Chat messages={[
+          { id: 'u', author: { name: 'Shared name' }, role: 'user', text: 'User body' },
+          { id: 'a', author: { name: 'Shared name' }, role: 'assistant', text: 'Assistant body' },
+          { id: 's', author: { name: 'Automation' }, role: 'system', text: 'System body' },
+        ]} user={user} />
+      </HarborlineLocaleProvider>,
+    )
+    expect(screen.getAllByRole('article').map(article => article.getAttribute('aria-label'))).toEqual([
+      'Article [Test user]',
+      'Article [Test assistant]',
+      'Article [Automation]',
+    ])
+    expect(screen.getByRole('article', { name: 'Article [Test user]' })).toHaveTextContent('User body')
+    expect(screen.getByRole('article', { name: 'Article [Test assistant]' })).toHaveTextContent('Assistant body')
+    expect(screen.getByRole('article', { name: 'Article [Automation]' })).toHaveTextContent('System body')
+    expect(screen.queryAllByRole('time')).toHaveLength(0)
+  })
+
+  it('uses the active locale and fixture instant in the time-bearing article template', () => {
+    const instant = new Date('2026-01-02T15:04:05Z')
+    const locales: string[] = []
+    const format = vi.fn(() => 'FORMATTED INSTANT')
+    // The formatter's output is a test-owned sentinel. No particular date/time style or timezone
+    // is frozen here: the public oracle is active locale, original instant and accessible template.
+    const formatGetter = vi.spyOn(Intl.DateTimeFormat.prototype, 'format', 'get').mockImplementation(function (this: Intl.DateTimeFormat) {
+      locales.push(this.resolvedOptions().locale)
+      return format
+    })
+    try {
+      render(
+        <HarborlineLocaleProvider locale="fr-FR" catalog={{
+          'ai.chat.roleAssistant': 'Test assistant',
+          'ai.chat.messageArticle': 'Untimed [{role}]',
+          'ai.chat.messageArticleTime': 'Article [{role}] at [{time}]',
+        }}>
+          <Chat messages={[{ id: 'timed', author: assistant, role: 'assistant', text: 'Timed body', timestamp: instant }]} user={user} />
+        </HarborlineLocaleProvider>,
+      )
+      expect(locales).toEqual(['fr-FR'])
+      expect(format).toHaveBeenCalledOnce()
+      expect(format).toHaveBeenCalledWith(instant)
+      expect(screen.getByRole('article', { name: 'Article [Test assistant] at [FORMATTED INSTANT]' })).toHaveTextContent('Timed body')
+      expect(screen.getByRole('time')).toHaveTextContent('FORMATTED INSTANT')
+      expect(screen.getByRole('time')).toHaveAttribute('datetime', '2026-01-02T15:04:05.000Z')
+    } finally {
+      formatGetter.mockRestore()
+    }
+  })
+
   it('keeps the controlled textbox focused while its host replaces the value', async () => {
     const changed = vi.fn()
     const view = render(<Chat messages={[]} user={user} inputValue="one" onInputValueChange={changed} onSubmit={() => undefined} />)

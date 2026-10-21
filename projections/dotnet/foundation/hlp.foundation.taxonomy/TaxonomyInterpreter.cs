@@ -76,13 +76,21 @@ public sealed class TaxonomyOverlayException(string code, string message) : Inva
 }
 
 /// <summary>A typed refusal for a succession chain that cannot reach an active node.</summary>
-public sealed record TaxonomySuccessionRefusal(string Code, string Reason) : TaxonomySuccessionResult;
+public sealed record TaxonomySuccessionRefusal(string Code, string Reason) : TaxonomySuccessionResult
+{
+    /// <summary>The last classification reached before refusal, or null if none was resolved.</summary>
+    public string? LastHopCode { get; init; }
+}
 
 /// <summary>The result of following succession: either an active node or a typed refusal.</summary>
 public abstract record TaxonomySuccessionResult;
 
 /// <summary>A successful succession resolution.</summary>
-public sealed record ResolvedTaxonomySuccession(TaxonomyNode Node) : TaxonomySuccessionResult;
+public sealed record ResolvedTaxonomySuccession(TaxonomyNode Node) : TaxonomySuccessionResult
+{
+    /// <summary>The number of successor edges followed; an already-active node has zero hops.</summary>
+    public int HopCount { get; init; }
+}
 
 /// <summary>Identifies node fields changed between two definition versions.</summary>
 [Flags]
@@ -195,13 +203,15 @@ public sealed class TaxonomyInterpreter
         ArgumentNullException.ThrowIfNull(code);
         var byCode = Index(definition); if (!byCode.TryGetValue(code, out var current)) return new TaxonomySuccessionRefusal(code, "classification_unknown");
         var seen = new HashSet<string>(StringComparer.Ordinal); var depth = 0;
+        var previous = current;
         while (true)
         {
-            if (!seen.Add(current.Code)) return new TaxonomySuccessionRefusal(code, "successor_cycle");
-            if (current.Status == TaxonomyNodeStatus.Active) return new ResolvedTaxonomySuccession(current);
-            if (current.SuccessorCode is null) return new TaxonomySuccessionRefusal(code, "successor_missing");
-            if (depth >= TaxonomyDefinitionAdmission.MaximumParentTraversalDepth) return new TaxonomySuccessionRefusal(code, "successor_depth_exceeded");
-            if (!byCode.TryGetValue(current.SuccessorCode, out var successor)) return new TaxonomySuccessionRefusal(code, "successor_unknown");
+            if (!seen.Add(current.Code)) return new TaxonomySuccessionRefusal(code, "successor_cycle") { LastHopCode = previous.Code };
+            if (current.Status == TaxonomyNodeStatus.Active) return new ResolvedTaxonomySuccession(current) { HopCount = depth };
+            if (current.SuccessorCode is null) return new TaxonomySuccessionRefusal(code, "successor_missing") { LastHopCode = current.Code };
+            if (depth >= TaxonomyDefinitionAdmission.MaximumParentTraversalDepth) return new TaxonomySuccessionRefusal(code, "successor_depth_exceeded") { LastHopCode = current.Code };
+            if (!byCode.TryGetValue(current.SuccessorCode, out var successor)) return new TaxonomySuccessionRefusal(code, "successor_unknown") { LastHopCode = current.Code };
+            previous = current;
             current = successor;
             depth++;
         }

@@ -23,6 +23,19 @@ public sealed class FormDefinitionAuthoringPublisher(
     public async ValueTask<FormDefinition> RegisterAndPublishAsync(
         FormDefinition definition,
         CancellationToken cancellationToken = default)
+        => (await PublishAsync(definition, null, cancellationToken).ConfigureAwait(false)).Definition;
+
+    /// <inheritdoc />
+    public ValueTask<FormDefinitionPublicationResult> RegisterAndPublishWithImpactAsync(
+        FormDefinition definition, FormPublicationAssessmentContext context,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        return PublishAsync(definition, context, cancellationToken);
+    }
+
+    private async ValueTask<FormDefinitionPublicationResult> PublishAsync(FormDefinition definition,
+        FormPublicationAssessmentContext? context, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(definition);
         cancellationToken.ThrowIfCancellationRequested();
@@ -53,6 +66,11 @@ public sealed class FormDefinitionAuthoringPublisher(
                 .ResolveAsync(new FieldDomainScope(tenant.Id, actor.UserId), definition, cancellationToken).ConfigureAwait(false);
         }
 
-        return await store.RegisterAndPublishAsync(definition, cancellationToken).ConfigureAwait(false);
+        var assessment = context is null ? FormPublicationAssessment.Unavailable("publication_basis_unavailable")
+            : await new FormPublicationImpactAssessment().AssessAsync(definition, store, context, cancellationToken)
+                .ConfigureAwait(false);
+        cancellationToken.ThrowIfCancellationRequested();
+        var published = await store.RegisterAndPublishAsync(definition, cancellationToken).ConfigureAwait(false);
+        return new(published, assessment);
     }
 }

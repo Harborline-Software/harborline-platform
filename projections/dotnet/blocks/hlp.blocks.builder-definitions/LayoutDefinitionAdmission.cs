@@ -27,6 +27,8 @@ public static class LayoutDefinitionCodes
     public const string EnvelopeInvalid = "layout.definition.envelope_invalid";
     /// <summary>The immutable definition version is malformed.</summary>
     public const string VersionInvalid = "layout.definition.version_invalid";
+    /// <summary>The definition payload could not be decoded as a Layout definition.</summary>
+    public const string BodyInvalid = "layout.definition.body_invalid";
     /// <summary>The definition contains no root blocks.</summary>
     public const string TreeEmpty = "layout.tree.empty";
     /// <summary>A block identifier is missing.</summary>

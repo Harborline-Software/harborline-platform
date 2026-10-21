@@ -1,19 +1,32 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.foundation.taxonomy",
-  "interfaceRevision": 1,
+  "interfaceRevision": 2,
   "status": "frozen",
-  "purpose": "Own the portable Taxonomy definition (content kind 8, DES-0024; the api's PackContentKind.TaxonomyDefinition, T-738), its canonical projection-neutral JSON, and the phase-aware structural admission that authoring, publish and install all run before any traversal, tenancy or authorization gate is reached.",
+  "purpose": "Own the portable Taxonomy definition (content kind 8, DES-0024; the api's PackContentKind.TaxonomyDefinition, T-738), its canonical projection-neutral JSON and phase-aware structural admission, and the pure in-memory TaxonomyInterpreter over caller-supplied pinned definitions.",
   "dependencies": [],
   "callerInterface": {
-    "name": "TaxonomyDefinitionAdmission / TaxonomyDefinitionJson / TaxonomyDefinitionPackExporter",
+    "name": "TaxonomyDefinitionAdmission / TaxonomyDefinitionJson / TaxonomyDefinitionPackExporter / TaxonomyInterpreter",
     "operations": [
       "TaxonomyDefinitionAdmission.Validate / AdmitJson(body, phase, window, catalogue, previous) -> the complete structural refusal list at the Author, Publish and Install boundaries against the required host DefinitionContractWindow; an envelope contract that is missing or outside the host window (definition.contract.missing or definition.contract.out_of_window at /envelope/contract, T-572), unpinned/malformed version, unsupported schema version, missing or mismatched envelope, Authoritative governance authored tenant-side, an Authoritative definition owned by anyone but the Harborline actor, a definition published with no nodes, duplicate node codes, an unknown parent code, a parent-edge cycle or a chain past the depth bound, a missing deprecation reason at tombstone, a successor naming an unknown or tombstoned node, and — against a supplied previous version — a tombstoned node reactivated or its display history rewritten, all refuse",
       "TaxonomyDefinitionAdmission.Require -> the definition, or throws TaxonomyAdmissionException carrying the same refusal list",
       "TaxonomyDefinitionJson.SerializeCanonical / Deserialize -> canonical snake_case, ordinal-sorted, newline-terminated UTF-8 JSON for every definition member, including the three-part TaxonomyDefinitionId as one dotted string",
-      "TaxonomyDefinitionPackExporter.Export(definition, window, previous, vendor) -> content kind 8 entry of canonical bytes after Publish-phase admission"
+      "TaxonomyDefinitionPackExporter.Export(definition, window, previous, vendor) -> content kind 8 entry of canonical bytes after Publish-phase admission",
+      "new TaxonomyInterpreter(definitions) -> index caller-supplied TaxonomyDefinition values by exact (Tenant, DefinitionId, Version); duplicate coordinates throw ArgumentException and null inputs retain the existing argument guards",
+      "TaxonomyInterpreter.ResolveDefinition(coordinates) -> TaxonomyDefinitionResolution: ResolvedTaxonomyDefinition(Definition) or TaxonomyDefinitionNotFound(Coordinates); an absent pinned definition is a typed result, not an exception",
+      "TaxonomyInterpreter.ResolveClassification(definition, reference) -> ResolvedTaxonomyClassification(Reference, Node), or null for an unknown, null or empty code; a reference that does not pin the supplied definition throws ArgumentException",
+      "TaxonomyInterpreter.ResolveClassifications(definition, references) -> an ordered IReadOnlyList<ResolvedTaxonomyClassification?> preserving null input entries and unknown-code misses",
+      "TaxonomyInterpreter.GetAncestors(definition, code) -> IReadOnlyList<TaxonomyNode> from nearest parent to root; an unknown starting code returns an empty list; malformed parent graphs retain the traversal exceptions",
+      "TaxonomyInterpreter.GetDescendants(definition, code) -> IReadOnlyList<TaxonomyNode> in pre-order with siblings in their original TaxonomyDefinition.Nodes order; an unknown starting code returns an empty list",
+      "TaxonomyInterpreter.Subsumes(definition, ancestorCode, descendantCode) -> true when both nodes exist and are equal or the first is an ancestor of the second; an unknown node returns false",
+      "TaxonomyInterpreter.ResolveSuccession(definition, code) -> TaxonomySuccessionResult: ResolvedTaxonomySuccession(Node) with HopCount, or TaxonomySuccessionRefusal(Code, Reason) with nullable LastHopCode; the original request Code is retained on refusal",
+      "TaxonomyInterpreter.ExpandWholeScheme(definition) -> IReadOnlyList<string> of all node codes in original definition order, including tombstoned nodes",
+      "TaxonomyInterpreter.ExpandCollection(definition, collectionName) -> TaxonomyCollectionExpansionResult: ResolvedTaxonomyCollectionExpansion(Codes) in the collection's declared order, or TaxonomyCollectionExpansionNotFound(CollectionName); an absent collection is not a silently empty expansion",
+      "TaxonomyInterpreter.ExpandOverlay(overlayCoordinates, vendorVersion) -> TaxonomyOverlayExpansionResult against the explicitly requested vendor version; success returns vendor codes followed by overlay codes, while missing definitions, ambiguous vendor registrations, copied vendor nodes and unknown designation codes are distinct typed results",
+      "TaxonomyInterpreter.ResolveOverlayDesignations(overlay, vendor) -> IReadOnlyList<ResolvedTaxonomyOverlayDesignation> with each effective Display and Description taken from the overlay when supplied, otherwise from the vendor; an unknown vendor node throws TaxonomyOverlayException",
+      "TaxonomyInterpreter.Diff(previous, current) -> TaxonomyDefinitionChangeSet with AddedNodes, ChangedNodes and newly TombstonedNodes; tenant and definition id must match, while versions may differ"
     ],
-    "context": "The definition is portable pack content: a concept scheme (TaxonomyDefinition) owning its own node set (TaxonomyNode), never a separate primitive and never a store. This package owns only the typed shape, canonical JSON and structural admission; it holds no catalogue, no traversal interpreter (ancestors, descendants, subsumption, succession, value-domain/overlay expansion, release diffing), no kernel-core tenancy or authorization gate, and no authoring UI. Those are later T-493 slices."
+    "context": "The definition is portable pack content: a concept scheme (TaxonomyDefinition) owning its own node set (TaxonomyNode), never a separate primitive and never a store. This package owns the typed shape, canonical JSON, structural admission and the shipped dependency-free TaxonomyInterpreter for pinned lookup, classification resolution, traversal, succession, whole-scheme/collection/overlay expansion, overlay designations and definition diffing. The interpreter indexes definitions supplied by its caller; it does not fetch versions or provide a host catalogue adapter, kernel-core tenancy/authorization gate, pack transport or authoring UI."
   },
   "invariants": [
     "A TaxonomyNode's ParentCode names at most one parent; the shape has no field through which a second parent could be expressed.",
@@ -21,8 +34,20 @@
     "A parent-edge walk is bounded at 64 hops and refuses a cycle or an excess chain at admission time, rather than looping; this is a structural check, not the interpreter's ancestor/descendant traversal.",
     "An Authoritative definition is owned by the literal Harborline actor id and is never authorable at the Author phase.",
     "A definition publishes only with a non-empty node set; an empty scheme refuses at Publish and Install.",
-    "A successor code must name an existing, Active node in the same definition; the producer does not follow succession transitively.",
-    "Canonical JSON is snake_case, ordinal-key-sorted and newline-terminated; re-serializing a deserialized definition is byte-identical."
+    "Structural admission requires a successor code to name an existing, Active node in the same definition. The separate interpreter follows succession defensively on the supplied node graph; its raw-chain behavior does not relax admission.",
+    "Canonical JSON is snake_case, ordinal-key-sorted and newline-terminated; re-serializing a deserialized definition is byte-identical.",
+    "TaxonomyDefinitionCoordinates(Tenant, DefinitionId, Version) pins a definition. TaxonomyClassificationReference(Tenant, DefinitionId, Version, Code) exposes DefinitionCoordinates with those same pinned coordinates. Node-code lookup and named-collection matching are ordinal; no new trimming or case normalization is implied.",
+    "TaxonomyDefinitionResolution has exactly the shipped ResolvedTaxonomyDefinition(Definition) and TaxonomyDefinitionNotFound(Coordinates) variants. ResolvedTaxonomyClassification(Reference, Node) exposes IsActive from Node.Status; resolving a tombstoned classification does not silently replace its identity with its successor.",
+    "TaxonomyCollectionExpansionResult has the shipped ResolvedTaxonomyCollectionExpansion(Codes) and TaxonomyCollectionExpansionNotFound(CollectionName) variants. Declared Codes retain their order; a malformed null NodeCodes collection throws taxonomy.definition_malformed.",
+    "TaxonomyOverlayExpansionResult has the shipped ResolvedTaxonomyOverlayExpansion(Codes), TaxonomyOverlayExpansionNotFound(Coordinates), TaxonomyOverlayExpansionAmbiguousVendor(VendorDefinitionId, VendorVersion, Tenants), TaxonomyOverlayExpansionCopiesVendorNode(Code), and TaxonomyOverlayExpansionUnknownDesignation(VendorNodeCode) variants.",
+    "Overlay vendor selection matches the requested vendor DefinitionId and vendorVersion across the interpreter's supplied registrations, independently of their tenant coordinate. Zero matches return a not-found result with an empty Tenant coordinate; multiple matches return their Tenants in the ambiguity result. There is no automatic latest-version lookup or history fetch.",
+    "ResolvedTaxonomyOverlayDesignation(VendorNodeCode, Display, Description) carries the effective overlay-or-vendor values without rewriting the vendor definition. Overlay expansion appends the overlay's own codes after the selected vendor's codes and refuses an overlay-owned copy of a vendor code.",
+    "TaxonomySuccessionResult has the shipped ResolvedTaxonomySuccession(Node) and TaxonomySuccessionRefusal(Code, Reason) variants. ResolvedTaxonomySuccession.HopCount is the number of successor edges followed; an already-active node has zero hops.",
+    "TaxonomySuccessionRefusal.Reason is classification_unknown, successor_cycle, successor_missing, successor_depth_exceeded or successor_unknown. Code remains the original requested code. LastHopCode is null when the start was not resolved; missing, unknown-successor and depth refusals name the last resolved current node; a cycle names the source of the closing edge, not the repeated destination.",
+    "Succession retains the existing guard order: cycle, active result, missing successor, depth bound, then successor lookup. At 64 followed edges an active terminal succeeds; a further edge refuses with successor_depth_exceeded. An already visited current node is classified as successor_cycle before the depth check; a new tombstoned current node reached at depth 64 with a non-null successor refuses with successor_depth_exceeded before following that successor, even if the edge would close a cycle. These defensive cases do not admit tombstoned successors into an authored definition.",
+    "TaxonomyTraversalException.Code identifies the existing malformed-graph conditions taxonomy.definition_malformed, taxonomy.parent_unknown, taxonomy.parent_cycle and taxonomy.traversal_depth_exceeded. TaxonomyOverlayException.Code identifies taxonomy.overlay_reference_missing or taxonomy.overlay_designation_vendor_node_unknown. Existing argument exceptions remain argument guards, not additional taxonomy error identifiers.",
+    "TaxonomyNodeChangeFields is the existing flags enum None=0, Display=1, Description=2, Status=4, ParentCode=8 and SuccessorCode=16. TaxonomyNodeChange(Code, Previous, Current, Fields) records the tracked differences; TaxonomyDefinitionChangeSet(AddedNodes, ChangedNodes, TombstonedNodes) preserves the current definition's iteration order and adds no deleted-node result.",
+    "HopCount and nullable LastHopCode are existing nonpositional CLR properties with their existing defaults. This interface documents the shipped return shapes; it does not introduce a new constructor/deconstruction signature, serialized wire protocol or persisted-schema compatibility promise."
   ],
   "errors": [
     "definition.body_invalid",
@@ -43,25 +68,31 @@
     "definition.successor_tombstoned",
     "definition.tombstone_reactivated",
     "definition.display_history_not_append_only",
-    "definition.catalogue_mismatch"
+    "definition.catalogue_mismatch",
+    "taxonomy.parent_cycle",
+    "taxonomy.parent_unknown",
+    "taxonomy.traversal_depth_exceeded",
+    "taxonomy.definition_malformed",
+    "taxonomy.overlay_reference_missing",
+    "taxonomy.overlay_designation_vendor_node_unknown"
   ],
   "publicSeams": [
     "definition intent admission (author, publish, install) and canonical JSON",
-    "content kind 8 pack entry for the platform package"
+    "content kind 8 pack entry for the platform package",
+    "pure in-memory pinned-definition and classification resolution, traversal, succession, collection/overlay expansion, overlay designations and definition diff"
   ],
   "conformance": {
     "nativeTests": {
       "dotnet": 11
     },
-    "nativeTestNote": "Byte-identical canonical JSON round trip; Authoritative governance/owner refusals with corrected counterparts; deprecation-reason, successor, duplicate-code, parent-unknown, parent-cycle, depth-bound, no-terms, envelope and catalogue-coordinate refusals each proven to refuse then admit; monotonic-tombstone and append-only-display-history checks against a previous version; two structural-impossibility reflection tests (no delete operation, single nullable ParentCode); one test proving two independent refusals accumulate in a single Validate call."
+    "nativeTestNote": "Byte-identical canonical JSON round trip; Authoritative governance/owner refusals with corrected counterparts; deprecation-reason, successor, duplicate-code, parent-unknown, parent-cycle, depth-bound, no-terms, envelope and catalogue-coordinate refusals each proven to refuse then admit; monotonic-tombstone and append-only-display-history checks against a previous version; two structural-impossibility reflection tests (no delete operation, single nullable ParentCode); one test proving two independent refusals accumulate in a single Validate call. The numeric nativeTests metadata records the original producer slice. Additional interpreter test source covers pinned and ordered resolution, typed collection/overlay outcomes, bounded traversal, succession HopCount and LastHopCode, designation fallback and tracked diff fields; this note is not a current execution or mutation receipt."
   },
   "selectedDesign": {
-    "choice": "One packable foundation assembly owns the projection-neutral TaxonomyDefinition, its canonical JSON and its structural admission; the traversal interpreter, kernel-core tenancy/authorization gates, the authoring editor and pack transport are separate, later slices behind narrow host adapters.",
+    "choice": "One packable foundation assembly owns the projection-neutral TaxonomyDefinition, canonical JSON, structural admission and the shipped pure TaxonomyInterpreter. Kernel-core tenancy/authorization gates, host catalogue adapters, the authoring editor and pack transport remain separate consumer responsibilities.",
     "rejected": [
-      "Build the traversal interpreter (ancestors, descendants, subsumption, succession) in this slice — DES-0024's own open ruling 2 (overlay vs. fork) is unruled and blocks Collection/Overlay; the interpreter is scoped out entirely rather than half-built against an unruled model.",
       "Reimplement the vendor-node-edit authorization check here — DES-0024 §6 places that gate in kernel core, not in a producer library."
     ],
-    "reason": "Mirrors how DataExchangeDefinition and the AssistanceDefinition producer each landed their own definition-and-admission slice first, before any consumer or catalogue wiring existed."
+    "reason": "The definition-and-admission slice landed first, like the DataExchangeDefinition and AssistanceDefinition producers. Subsequent Taxonomy slices shipped the dependency-free interpreter in this same assembly; the earlier interpreter exclusion no longer describes the current package. Pure pinned inputs keep host catalogue wiring, authorization and authoring outside this producer contract."
   },
   "package": {
     "nuget": "Harborline.Foundation.Taxonomy",
