@@ -86,7 +86,9 @@
 .hl-r6-mobile-note { display: none; }
 .hl-r6-panel { position: relative; min-width: 0; overflow: hidden; border-left: 1px solid var(--r6-line); background: #fff; }
 .hl-r6-demo[data-panel-open="false"] { grid-template-columns: 56px 232px minmax(0, 1fr); }
-.hl-r6-native ::deep [role="tablist"] { align-items: stretch; gap: 0 !important; height: 36px; padding-right: 66px; border-bottom: 1px solid var(--r6-line); scrollbar-width: thin; }
+/* Reserve both 29px actions, their 2px gap, the 6px edge and 4px separation beside the whole tab header. */
+.hl-r6-native ::deep .hl-app-shell-rev6-tab-host > div > div:has(> [data-tab-strip]) { box-sizing: border-box; padding-right: 70px; }
+.hl-r6-native ::deep [role="tablist"] { align-items: stretch; gap: 0 !important; height: 36px; border-bottom: 1px solid var(--r6-line); scrollbar-width: thin; }
 .hl-r6-native ::deep [role="tab"] { flex: 0 0 auto; max-width: 150px; min-width: 75px; padding: 0 9px; border: 0; border-right: 1px solid #eee; border-bottom: 2px solid transparent; background: #f8f8f8; color: #4c4c4c; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .hl-r6-native ::deep [role="tab"][aria-selected="true"] { border-bottom-color: #202020; background: white; color: #171717; }
 .hl-r6-native ::deep [role="tabpanel"] { min-height: 40px; padding: 0 10px; border-bottom: 1px solid var(--r6-line); }
