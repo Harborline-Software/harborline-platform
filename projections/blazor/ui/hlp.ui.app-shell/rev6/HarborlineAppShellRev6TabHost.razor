@@ -13,11 +13,43 @@
  {
   <div inert="@(current.PendingClose is not null ? "" : null)" aria-hidden="@(current.PendingClose is not null ? "true" : null)">
   <h2>@current.Destination</h2>
-  <div role="tablist" aria-label="Workspace tabs">
-   @foreach (var tab in current.Tabs.OrderByDescending(t => t.Pinned))
+  <div style="display:flex;align-items:flex-start;gap:4px;min-inline-size:0;max-inline-size:100%">
+  <div role="tablist" aria-label="Workspace tabs" data-tab-strip style="display:flex;flex:1 1 auto;gap:2px;min-inline-size:0;overflow-x:auto;scrollbar-width:thin;padding:2px">
+   @foreach (var tab in OrderedTabs())
    {
-    <button @key="tab.Id" type="button" role="tab" id="@TabDomId(tab.Id)" aria-controls="@PanelDomId(tab.Id)" aria-selected="@(current.Active == tab.Id ? "true" : "false")" tabindex="@(current.Active == tab.Id ? 0 : -1)" style="@(tab.Preview ? "font-style:italic" : null)" @onclick='() => Emit(new("open", tab.Id, Kind: tab.Kind, Target: tab.Target))' @ondblclick='() => Emit(new("keep", tab.Id))'>@tab.Kind: @tab.Target @(tab.Pinned ? "Pinned" : "") @(tab.Dirty ? "• Unsaved" : tab.Preview ? "Preview" : "")</button>
+    <button @key="tab.Id" type="button" role="tab" id="@TabDomId(tab.Id)" aria-controls="@PanelDomId(tab.Id)" aria-label="@TabName(tab)" title="@TabName(tab)" aria-selected="@(current.Active == tab.Id ? "true" : "false")" tabindex="@(current.Active == tab.Id ? 0 : -1)" data-pinned="@(tab.Pinned ? "true" : null)" style="@TabStyle(tab)" @onclick='() => Emit(new("open", tab.Id, Kind: tab.Kind, Target: tab.Target))' @ondblclick='() => Emit(new("keep", tab.Id))'>
+     <svg aria-hidden="true" focusable="false" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="@TabIconPath(tab.Kind)" /></svg>
+     @if (!tab.Pinned)
+     {
+      <span data-tab-label style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-style:@(tab.Preview ? "italic" : "normal")">@tab.Kind: @tab.Target</span>
+      <span aria-hidden="true" style="flex:none">@(tab.Dirty ? "• Unsaved" : tab.Preview ? "Preview" : "")</span>
+     }
+     else if (tab.Dirty)
+     {
+      <svg aria-hidden="true" focusable="false" width="6" height="6" viewBox="0 0 6 6" style="flex:none"><circle cx="3" cy="3" r="3" fill="currentColor" /></svg>
+     }
+    </button>
    }
+  </div>
+  @if (current.PendingClose is null)
+  {
+  <div @key="current.Owner" style="flex:none">
+   <button type="button" data-tab-search-trigger popovertarget="@searchResultsId" popovertargetaction="toggle" aria-controls="@searchResultsId" aria-label="@($"Search tabs ({current.Tabs.Length} open)")" style="display:flex;align-items:center;gap:4px;min-block-size:34px;padding-inline:8px;cursor:pointer">
+    <svg aria-hidden="true" focusable="false" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6" /></svg>
+    <span>Search tabs (@current.Tabs.Length)</span>
+   </button>
+   <div id="@searchResultsId" popover="auto" data-tab-search role="region" aria-label="Search open tabs" style="position:fixed;inset:0;margin:auto;box-sizing:border-box;inline-size:min(24rem,calc(100vw - 32px));max-block-size:min(20rem,calc(100dvh - 32px));overflow:auto;padding:8px;border:1px solid var(--hl-border,#d5d5d5);background:var(--hl-surface,#fff);color:var(--hl-foreground,inherit)">
+    <input type="search" autofocus aria-label="Find an open tab" value="@searchQuery" @oninput="SearchTabs" style="box-sizing:border-box;inline-size:100%;min-inline-size:0" />
+    <ul style="list-style:none;margin:4px 0 0;padding:0">
+     @foreach (var tab in OrderedTabs().Where(SearchMatches))
+     {
+      <li @key="tab.Id"><button type="button" data-tab-search-target="@TabDomId(tab.Id)" @onclick='() => Emit(new("open", tab.Id, Kind: tab.Kind, Target: tab.Target))' style="display:block;inline-size:100%;min-block-size:36px;text-align:start;overflow-wrap:anywhere">@TabName(tab)</button></li>
+     }
+    </ul>
+    @if (!OrderedTabs().Any(SearchMatches)) { <p role="status">No matching tabs.</p> }
+   </div>
+  </div>
+  }
   </div>
   @foreach (var tab in current.Tabs)
   {
@@ -53,15 +85,37 @@
  private AppShellRev6Owner? previousOwner;
  private readonly string prefix = "hl-rev6-" + Guid.NewGuid().ToString("N");
  private string dialogTitle => prefix + "-dialog-title";
+ private string searchResultsId => prefix + "-tab-search";
+ private string searchQuery = "";
  private ElementReference root;
  private IJSObjectReference? module;
  private bool disposed;
  protected override void OnParametersSet()
  {
   if (!System.Text.RegularExpressions.Regex.IsMatch(ShellId, "^[a-z0-9-]+$")) throw new ArgumentException("ShellId must match [a-z0-9-]+.", nameof(ShellId));
-  if (previousOwner != Owner) { current = null; previousOwner = Owner; }
+  if (previousOwner != Owner) { current = null; searchQuery = ""; previousOwner = Owner; }
   current = Owner is not null && Presentation?.Owner == Owner ? Presentation : null;
+  if (current is null) searchQuery = "";
  }
+ private IEnumerable<AppShellRev6Tab> OrderedTabs() => current is null ? Array.Empty<AppShellRev6Tab>()
+  : current.Tabs.Where(tab => tab.Pinned).Concat(current.Tabs.Where(tab => !tab.Pinned));
+ private static string TabName(AppShellRev6Tab tab) => $"{tab.Kind}: {tab.Target}"
+  + (tab.Pinned ? " Pinned" : "") + (tab.Preview ? " Preview" : "") + (tab.Dirty ? " Unsaved" : "");
+ private void SearchTabs(ChangeEventArgs e) => searchQuery = e.Value?.ToString() ?? "";
+ private bool SearchMatches(AppShellRev6Tab tab) => string.IsNullOrWhiteSpace(searchQuery)
+  || $"{tab.Kind}: {tab.Target}".Contains(searchQuery, StringComparison.CurrentCultureIgnoreCase);
+ private string TabStyle(AppShellRev6Tab tab) => "display:flex;align-items:center;justify-content:center;gap:4px;box-sizing:border-box;block-size:34px;"
+  + (tab.Pinned ? "flex:0 0 36px;min-inline-size:36px;max-inline-size:36px;" : "flex:1 1 168px;min-inline-size:112px;max-inline-size:168px;")
+  + "border:1px solid var(--hl-border,#d5d5d5);border-block-start:2px solid "
+  + (current?.Active == tab.Id ? "var(--hl-primary,#0f62fe);background:var(--hl-surface,#fff);font-weight:600;" : "transparent;background:var(--hl-muted,#eee);")
+  + "color:var(--hl-foreground,inherit);border-start-start-radius:8px;border-start-end-radius:8px;";
+ private static string TabIconPath(string kind) => kind.ToLowerInvariant() switch
+ {
+  "assistant" or "asst" => "M4 4h16v12H8l-4 4V4Z",
+  "files" => "M3 7V4h7l2 3h9v13H3V7Z",
+  "log" or "timeline" => "M4 5h16M4 12h16M4 19h16",
+  _ => "M6 3h8l4 4v14H6V3Zm8 0v5h4M9 12h6M9 16h6"
+ };
  private string TabDomId(string id) => prefix + "-tab-" + Convert.ToHexString(System.Text.Encoding.UTF8.GetBytes(id));
  private string PanelDomId(string id) => TabDomId(id) + "-panel";
  private Task Emit(AppShellRev6Intent intent) => current is null ? Task.CompletedTask : Intent.InvokeAsync(intent);

@@ -20,7 +20,8 @@ test('native contract exposes current owner presentation without reducer owners 
   assert.match(component, /aria-label="Workspace tab host" tabindex="-1"/);
   assert.doesNotMatch(component, /\u0007/);
   assert.match(component, /• Unsaved/);
-  assert.match(component, /tab.Pinned \? "Pinned"/);
+  assert.match(component, /aria-label="@TabName\(tab\)"/);
+  assert.match(component, /disabled="@tab.Pinned"/);
 });
 
 test('story retains shared reducer and neutral fixtures behind a guarded host boundary', () => {
@@ -47,48 +48,149 @@ test('focus module activates tabs, traps modal focus and recovers after save and
   const buttons = [element(), element(), element()];
   let dialog = null;
   let visibleTabs = tabs;
-  let handler;
+  const handlers = new Map();
   const root = {
-    addEventListener(_, fn) { handler = fn; }, removeEventListener(_, fn) { assert.equal(fn, handler); handler = null; },
+    addEventListener(type, fn) { handlers.set(type, fn); }, removeEventListener(type, fn) { assert.equal(fn, handlers.get(type)); handlers.delete(type); },
     focus() { document.activeElement = this; },
     contains(element) { return tabs.includes(element) || element === closeTrigger; },
-    querySelector(selector) { return selector === '[role="dialog"]' ? dialog : visibleTabs[0] ?? null; }, querySelectorAll() { return visibleTabs; }
+    querySelector(selector) { return selector === '[role="dialog"]' ? dialog : visibleTabs[0] ?? null; }, querySelectorAll(selector) { return selector === '[role="tab"]' ? visibleTabs : []; }
   };
   const panel = { id: 'editor-a' };
   const closeTrigger = { ...element(), closest: () => panel };
-  const key = (value, target, shiftKey = false) => { let prevented = false; handler({ key: value, target, shiftKey, preventDefault() { prevented = true; } }); assert.equal(prevented, true); };
+  const key = (value, target, shiftKey = false) => { let prevented = false; handlers.get('keydown')({ key: value, target, shiftKey, preventDefault() { prevented = true; } }); assert.equal(prevented, true); };
   bind(root);
   assert.deepEqual(tabs[0].scrollOptions, { block: 'nearest', inline: 'nearest' });
   tabs[2].focus(); key('ArrowRight', tabs[2]); assert.equal(document.activeElement, tabs[0]); assert.equal(tabs[0].clicks, 1);
   key('End', tabs[0]); assert.equal(document.activeElement, tabs[2]);
   key('Home', tabs[2]); assert.equal(document.activeElement, tabs[0]);
-  dialog = { contains: element => buttons.includes(element), querySelector: () => buttons[0].disabled ? buttons[1] : buttons[0], querySelectorAll: () => buttons };
+  dialog = { contains: element => buttons.includes(element), querySelector: () => buttons[0].disabled ? buttons[1] : buttons[0], querySelectorAll: () => buttons.filter(button => !button.disabled) };
   bind(root); assert.equal(document.activeElement, buttons[0]);
   buttons[0].disabled = true;
   bind(root); assert.equal(document.activeElement, buttons[1]);
   document.activeElement = { tagName: 'BODY' };
   bind(root); assert.equal(document.activeElement, buttons[1]);
   buttons[2].focus();
-  key('Tab', buttons[2]); assert.equal(document.activeElement, buttons[0]);
-  key('Tab', buttons[0], true); assert.equal(document.activeElement, buttons[2]);
+  key('Tab', buttons[2]); assert.equal(document.activeElement, buttons[1]);
+  key('Tab', buttons[1], true); assert.equal(document.activeElement, buttons[2]);
   dialog.querySelectorAll = () => [];
   key('Tab', buttons[2]); assert.equal(document.activeElement, buttons[2]);
   dialog = null; bind(root); assert.equal(document.activeElement, tabs[0]);
   visibleTabs = []; bind(root); assert.equal(document.activeElement, root);
   visibleTabs = tabs;
   closeTrigger.focus();
-  dialog = { contains: element => buttons.includes(element), querySelector: () => buttons[1], querySelectorAll: () => buttons };
+  dialog = { contains: element => buttons.includes(element), querySelector: () => buttons[1], querySelectorAll: () => buttons.filter(button => !button.disabled) };
   bind(root, 'alice');
   dialog = null; bind(root, 'alice'); assert.equal(document.activeElement, closeTrigger);
   closeTrigger.focus();
-  dialog = { contains: element => buttons.includes(element), querySelector: () => buttons[1], querySelectorAll: () => buttons };
+  dialog = { contains: element => buttons.includes(element), querySelector: () => buttons[1], querySelectorAll: () => buttons.filter(button => !button.disabled) };
   bind(root, 'alice');
   panel.id = 'editor-b'; // Razor reused a surviving section after Discard.
   dialog = null; bind(root, 'alice'); assert.equal(document.activeElement, tabs[0]);
   closeTrigger.focus();
-  dialog = { contains: element => buttons.includes(element), querySelector: () => buttons[1], querySelectorAll: () => buttons };
+  dialog = { contains: element => buttons.includes(element), querySelector: () => buttons[1], querySelectorAll: () => buttons.filter(button => !button.disabled) };
   bind(root, 'alice');
   dialog = null; bind(root, 'bob'); assert.equal(document.activeElement, tabs[0]);
-  unbind(root); assert.equal(handler, null);
+  unbind(root); assert.equal(handlers.size, 0);
   delete globalThis.document;
+});
+
+// P8 search addresses an existing presented tab; it never owns the host's active
+// selection. This DOM double checks event/focus calls, not browser rendering.
+test('Search tabs closes its disclosure, focuses the addressed tab and Escape returns to its trigger', () => {
+  globalThis.document = { activeElement: null };
+  const handlers = new Map();
+  let adds = 0;
+  let dialog = null;
+  const element = id => ({ id, clicks: 0, focus() { document.activeElement = this; },
+    click() { this.clicks++; }, scrollIntoView(value) { this.scrollOptions = value; } });
+  const tabs = [element('tab-details'), element('tab-files')];
+  const trigger = { ...element('search-trigger'), getAttribute: name => name === 'popovertarget' ? 'search-layer' : null };
+  const modalButton = element('save');
+  const search = { id: 'search-layer', open: true, hides: 0,
+    matches(selector) { return selector === ':popover-open' && this.open; },
+    hidePopover() { assert.equal(this.open, true); this.open = false; this.hides++; } };
+  const result = { closest: selector => selector === '[data-tab-search]' ? search : result,
+    getAttribute: name => name === 'data-tab-search-target' ? 'tab-files' : null };
+  const nestedIcon = { closest: () => result };
+  const root = {
+    addEventListener(type, fn) { adds++; handlers.set(type, fn); },
+    removeEventListener(type, fn) { assert.equal(handlers.get(type), fn); handlers.delete(type); },
+    contains(node) { return node === result; },
+    querySelector(selector) {
+      if (selector === '[role="dialog"]') return dialog;
+      if (selector === '[data-tab-search]:popover-open') return search.open ? search : null;
+      if (selector === '[role="tab"][aria-selected="true"]') return tabs[0];
+      return null;
+    },
+    querySelectorAll(selector) {
+      if (selector === '[role="tab"]') return tabs;
+      if (selector === '[data-tab-search-trigger]') return [trigger];
+      if (selector === '[data-tab-search]:popover-open') return search.open ? [search] : [];
+      return [];
+    },
+  };
+  try {
+    bind(root, 'alice'); bind(root, 'alice');
+    assert.equal(adds, 2);
+    handlers.get('click')({ target: nestedIcon });
+    assert.equal(search.open, false); assert.equal(search.hides, 1);
+    assert.equal(document.activeElement, tabs[1]);
+    assert.deepEqual(tabs[1].scrollOptions, { block: 'nearest', inline: 'nearest' });
+    assert.equal(tabs[0].clicks + tabs[1].clicks, 0);
+    search.open = true;
+    let prevented = false; let stopped = false;
+    handlers.get('keydown')({ key: 'Escape', target: trigger,
+      preventDefault() { prevented = true; }, stopPropagation() { stopped = true; } });
+    assert.equal(prevented, true); assert.equal(stopped, true);
+    assert.equal(search.open, false); assert.equal(search.hides, 2);
+    assert.equal(document.activeElement, trigger);
+    search.open = true;
+    dialog = { contains: node => node === modalButton, querySelector: () => modalButton };
+    bind(root, 'alice');
+    assert.equal(search.open, false); assert.equal(search.hides, 3);
+    assert.equal(document.activeElement, modalButton);
+    handlers.get('click')({ target: nestedIcon });
+    assert.equal(document.activeElement, modalButton); assert.equal(search.hides, 3);
+    dialog = null; bind(root, 'alice');
+    search.open = true;
+    const foreignResult = { closest: () => foreignResult };
+    handlers.get('click')({ target: { closest: () => foreignResult } });
+    assert.equal(search.open, true); assert.equal(document.activeElement, tabs[0]);
+    unbind(root); assert.equal(search.open, false); assert.equal(search.hides, 4);
+    assert.equal(handlers.size, 0);
+  } finally { unbind(root); delete globalThis.document; }
+});
+
+test('tab traversal wraps left, scrolls the new tab and ignores editable or detached targets', () => {
+  globalThis.document = { activeElement: null };
+  const handlers = new Map();
+  const element = () => ({ clicks: 0, matches: selector => selector === '[role="tab"]',
+    focus() { document.activeElement = this; }, click() { this.clicks++; },
+    scrollIntoView(value) { this.scrollOptions = value; } });
+  const tabs = [element(), element(), element()];
+  let visibleTabs = tabs;
+  const root = {
+    addEventListener(type, fn) { handlers.set(type, fn); },
+    removeEventListener(type, fn) { assert.equal(handlers.get(type), fn); handlers.delete(type); },
+    querySelector(selector) { return selector === '[role="tab"][aria-selected="true"]' ? visibleTabs[0] ?? null : null; },
+    querySelectorAll(selector) { return selector === '[role="tab"]' ? visibleTabs : []; },
+    contains() { return false; }, focus() { document.activeElement = this; },
+  };
+  const key = target => {
+    let prevented = false;
+    handlers.get('keydown')({ key: 'ArrowLeft', target, preventDefault() { prevented = true; } });
+    return prevented;
+  };
+  try {
+    bind(root);
+    assert.equal(key(tabs[0]), true);
+    assert.equal(document.activeElement, tabs[2]); assert.equal(tabs[2].clicks, 1);
+    assert.deepEqual(tabs[2].scrollOptions, { block: 'nearest', inline: 'nearest' });
+    assert.equal(key({ matches: () => false }), false);
+    assert.equal(key(element()), false);
+    visibleTabs = []; bind(root);
+    assert.equal(document.activeElement, root);
+    assert.equal(key(tabs[0]), false);
+    unbind(root); assert.equal(handlers.size, 0);
+  } finally { unbind(root); delete globalThis.document; }
 });
