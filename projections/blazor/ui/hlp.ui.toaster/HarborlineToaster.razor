@@ -1,6 +1,7 @@
 @namespace Harborline.UIAdapters.Blazor.Components.Feedback
 @inherits HarborlineComponentBase
 @implements IDisposable
+@using Harborline.UIAdapters.Blazor.Localization
 @inject IToastService Toasts
 
 <section class="@CombineClasses("hl-toaster", $"hl-toaster--{PositionToken}")" style="@CombineStyles()" data-position="@PositionToken" data-hl-semantic-colors="@(UseSemanticColors ? "true" : null)" dir="@Direction" aria-label="@AccessibleLabel" @attributes="AdditionalAttributes">
@@ -18,7 +19,7 @@
       </span>
       <div class="hl-toaster__copy"><div>@entry.Message</div>@if(entry.Description is not null){<div class="hl-toaster__description">@entry.Description</div>}</div>
       @if (entry.Action is not null) { <button type="button" class="hl-toaster__action" @onclick="() => ActivateAsync(entry)">@entry.Action.Label</button> }
-      @if (ShowCloseButton || entry.Variant == ToastVariant.Error) { <button type="button" class="hl-toaster__close" aria-label="@DismissLabel" @onclick="() => Toasts.Dismiss(entry.Id)"><svg aria-hidden="true" fill="none" focusable="false" viewBox="0 0 16 16"><path d="M3 3l10 10M13 3 3 13"></path></svg></button> }
+      @if (ShowCloseButton || entry.Variant == ToastVariant.Error) { <button type="button" class="hl-toaster__close" aria-label="@ResolvedDismissLabel" @onclick="() => Toasts.Dismiss(entry.Id)"><svg aria-hidden="true" fill="none" focusable="false" viewBox="0 0 16 16"><path d="M3 3l10 10M13 3 3 13"></path></svg></button> }
     </div>
   }
 </section>
@@ -34,15 +35,21 @@
   [Parameter] public bool UseSemanticColors { get; set; }
   [Parameter] public bool KeepErrorsPersistent { get; set; } = true;
   [Parameter] public ToastOptions? Defaults { get; set; }
-  [Parameter] public string DismissLabel { get; set; } = "Dismiss";
+  [CascadingParameter] private HarborlineLocaleContext? LocaleContext { get; set; }
+  // Null (or blank) means the current localized catalog value, common.dismissNotification; caller
+  // text overrides it. The resolved name is never empty.
+  [Parameter] public string? DismissLabel { get; set; }
   [Parameter] public string AccessibleLabel { get; set; } = "Notifications";
   [Parameter] public string? Direction { get; set; }
+  private string ResolvedDismissLabel => !string.IsNullOrWhiteSpace(DismissLabel) ? DismissLabel
+    : LocaleContext?.ResolveString("common.dismissNotification") is { } value && !string.IsNullOrWhiteSpace(value) && value != "common.dismissNotification" ? value
+    : "Dismiss notification";
   private string PositionToken => Position switch { ToastPosition.TopLeft=>"top-left",ToastPosition.TopCenter=>"top-center",ToastPosition.TopRight=>"top-right",ToastPosition.BottomLeft=>"bottom-left",ToastPosition.BottomCenter=>"bottom-center",ToastPosition.BottomRight=>"bottom-right",_=>"bottom-right" };
   private IReadOnlyList<ToastEntry> VisibleEntries => Toasts.Entries.TakeLast(MaximumVisible).ToArray();
   protected override void OnInitialized() => Toasts.Changed += OnChanged;
   protected override void OnParametersSet()
   {
-    if (string.IsNullOrWhiteSpace(DismissLabel) || string.IsNullOrWhiteSpace(AccessibleLabel)) throw new InvalidOperationException("toast-message-required");
+    if (string.IsNullOrWhiteSpace(AccessibleLabel)) throw new InvalidOperationException("toast-message-required");
     Toasts.ConfigureHost(new(DurationMilliseconds, MaximumVisible, ShowCloseButton, UseSemanticColors, KeepErrorsPersistent, Defaults));
   }
   // An action is invoked at most once per shown toast, as in React; a toast replaced under the same
