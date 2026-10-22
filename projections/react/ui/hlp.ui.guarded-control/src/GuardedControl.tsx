@@ -109,17 +109,10 @@ export function GuardedControl({
         coverRef.current?.focus()
       }
     }
-    const escape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        event.preventDefault()
-        recover('escape')
-      }
-    }
     window.addEventListener('popstate', navigate)
     window.addEventListener('blur', blur)
     window.addEventListener('focus', focus)
     document.addEventListener('visibilitychange', visibility)
-    document.addEventListener('keydown', escape)
     return () => {
       window.clearInterval(tick)
       window.clearTimeout(blurTimer)
@@ -127,7 +120,6 @@ export function GuardedControl({
       window.removeEventListener('blur', blur)
       window.removeEventListener('focus', focus)
       document.removeEventListener('visibilitychange', visibility)
-      document.removeEventListener('keydown', escape)
     }
   }, [recover, state])
 
@@ -139,7 +131,9 @@ export function GuardedControl({
     if (disabled || invalid || stateRef.current !== 'covered') return
     committed.current = false
     transition('armed')
-    setAnnouncement(wholeMessage('chrome.guard.armed.whole', 'Armed for {action}. Activate again within {duration} to commit.', { action: `\u2068${label}\u2069`, duration }))
+    // The instruction states the fresh window, not the previous attempt's last countdown value.
+    setSeconds(5)
+    setAnnouncement(wholeMessage('chrome.guard.armed.whole', 'Armed for {action}. Activate again within {duration} to commit.', { action: `\u2068${label}\u2069`, duration: formatDuration(5) }))
   }
   const commit = () => {
     if (disabled || invalid || stateRef.current !== 'armed' || committed.current) return
@@ -171,8 +165,12 @@ export function GuardedControl({
     observe?.({ type: 'commit-settled', outcome })
   }
 
-  let duration = `${formatNumber(seconds)} seconds`
-  try { duration = new Intl.RelativeTimeFormat(locale, { numeric: 'always' }).format(seconds, 'second') } catch { /* fallback is deterministic */ }
+  // A plain localized unit ("5 seconds"): the instruction already says "within", so a relative
+  // form ("in 5 seconds") would read "within in 5 seconds".
+  function formatDuration(value: number) {
+    try { return new Intl.NumberFormat(locale, { style: 'unit', unit: 'second', unitDisplay: 'long' }).format(value) } catch { return `${formatNumber(value)} seconds` }
+  }
+  const duration = formatDuration(seconds)
   const inert = disabled || invalid
   const ids = descriptionIds(describedBy)
   return (
@@ -190,7 +188,10 @@ export function GuardedControl({
           <span aria-hidden="true">▣</span><span>{label}</span>
         </button>
       ) : (
-        <button ref={armedRef} type="button" disabled={state === 'committing' || inert} aria-describedby={ids} data-guard-state={state} className="hl-guarded-control__action hl-guarded-control__action--armed" onClick={commit}>
+        <button ref={armedRef} type="button" disabled={state === 'committing' || inert} aria-describedby={ids} data-guard-state={state} className="hl-guarded-control__action hl-guarded-control__action--armed" onClick={commit} onKeyDown={event => {
+          // Escape belongs to the focused armed action, as in the Blazor lane; Escape handled elsewhere on the page is left alone.
+          if (event.key === 'Escape' && state === 'armed') { event.preventDefault(); recover('escape') }
+        }}>
           <span aria-hidden="true">□</span><span>{label}</span>
           {state === 'armed' ? <span role="timer" aria-label={duration} className="hl-guarded-control__timer">{duration}</span> : <span>{t('common.loading')}</span>}
         </button>
