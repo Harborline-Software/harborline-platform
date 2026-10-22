@@ -84,6 +84,7 @@ public sealed class ToastService : IToastService, IDisposable
     private readonly Dictionary<ToastId, CancellationTokenSource> timers = [];
     private ToastHostConfiguration configuration = new();
     private long nextId;
+    private volatile bool disposed;
     /// <summary>Raised whenever the queue changes so the host can re-render.</summary>
     public event Action? Changed;
     /// <summary>A snapshot of the toasts currently queued.</summary>
@@ -151,8 +152,10 @@ public sealed class ToastService : IToastService, IDisposable
     {
         ArgumentNullException.ThrowIfNull(operation);
         var id = Loading(loadingMessage, options);
-        try { var result = await operation; Upsert(id, successMessage(result), ToastVariant.Success, options); return result; }
-        catch (Exception error) { Upsert(id, errorMessage(error), ToastVariant.Error, options); throw; }
+        // A service disposed while the operation runs (a closed circuit) is not repopulated and starts
+        // no timers; the caller still receives the operation's own result or failure.
+        try { var result = await operation; if (!disposed) Upsert(id, successMessage(result), ToastVariant.Success, options); return result; }
+        catch (Exception error) { if (!disposed) Upsert(id, errorMessage(error), ToastVariant.Error, options); throw; }
     }
 
     /// <summary>Removes the toast with the given id, or the newest one when none is given, and cancels its timer.</summary>
@@ -169,5 +172,5 @@ public sealed class ToastService : IToastService, IDisposable
     public void Clear() => Dismiss();
     private void CancelTimer(ToastId id){if(!timers.Remove(id,out var timer))return;timer.Cancel();timer.Dispose();}
     /// <summary>Cancels all timers and clears the queue when the service is disposed.</summary>
-    public void Dispose(){lock(gate){foreach(var key in timers.Keys.ToArray())CancelTimer(key);entries.Clear();}}
+    public void Dispose(){lock(gate){disposed=true;foreach(var key in timers.Keys.ToArray())CancelTimer(key);entries.Clear();}}
 }
