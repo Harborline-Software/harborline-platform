@@ -173,6 +173,8 @@ const assertions: Record<string, (entry: Case) => void | Promise<void>> = {
     for (const message of input.messages) capture(() => service.show(message))
     for (const limit of input.limits) capture(() => service.configure({ maximumVisible: limit }))
     for (const duration of input.durations) capture(() => service.show('x', { duration: duration === 'NaN' ? Number.NaN : duration }))
-    expect([...new Set(errors)]).toEqual(expected.errors)
+    // One code per input, in input order: messages, limits, then durations.
+    const [message, limit, duration] = expected.errors
+    expect(errors).toEqual([...input.messages.map(() => message), ...input.limits.map(() => limit), ...input.durations.map(() => duration)])
   },
 }
