@@ -106,7 +106,7 @@ const assertions: Record<string, (entry: Case) => void> = {
     expect(h.published).toEqual(expected.published)
   },
   'search-input.invalid-delay': ({ input, expected }) => {
-    vi.spyOn(console, 'error').mockImplementation(() => undefined)
-    expect(() => render(<SearchInput value="" debounceMs={input.debounceMs} onChange={() => undefined}/>)).toThrow(expected.error)
+    const silence = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    try { expect(() => render(<SearchInput value="" debounceMs={input.debounceMs} onChange={() => undefined}/>)).toThrow(expected.error) } finally { silence.mockRestore() }
   },
 }

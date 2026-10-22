@@ -37,4 +37,9 @@ describe('SearchInput React projection', () => {
     expect(screen.queryByRole('button', { name: 'Clear search' })).toBeNull()
     expect(document.activeElement).toBe(screen.getByRole('searchbox'))
   })
+
+  it('falls back to the placeholder name for blank caller text', () => {
+    render(<SearchInput value="" onChange={() => undefined} accessibleLabel="  " placeholder="Find assets"/>)
+    expect(screen.getByRole('searchbox', { name: 'Find assets' })).toBeInTheDocument()
+  })
 })

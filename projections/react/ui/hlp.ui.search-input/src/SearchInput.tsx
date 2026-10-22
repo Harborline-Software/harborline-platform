@@ -21,7 +21,8 @@ export function SearchInput({
   if (!Number.isFinite(debounceMs) || debounceMs < 0) throw new Error('invalid-debounce-delay')
   const { direction: localeDirection, resolveString } = useHarborlineStrings()
   const resolvedPlaceholder = resolveString(placeholder, 'structural.search.placeholder')
-  const resolvedName = accessibleLabel ?? resolvedPlaceholder
+  // Blank caller text is not a name; fall back to the resolved placeholder, as in Blazor.
+  const resolvedName = accessibleLabel?.trim() ? accessibleLabel : resolvedPlaceholder
   if (resolvedName.trim().length === 0) throw new Error('accessible-name-required')
   const [draft, setDraft] = React.useState(value)
   const [busy, setBusy] = React.useState(false)
