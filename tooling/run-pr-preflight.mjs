@@ -41,12 +41,12 @@ export function reuseNoteAdvisories(body, {head, localExists = () => false} = {}
   else if (typeof head !== 'string' || !/^[0-9a-f]{40}$/i.test(head)) messages.push('Current review head unavailable; Reuse note revision was not verified.')
   else if (revision.toLowerCase() !== head.toLowerCase()) messages.push('Reuse note revision does not match the current review head.')
   if (substantial) {
-    if (!/\[[^\]]+\]\(/.test(fields.get('checked') ?? '')) messages.push('Substantial Reuse note needs Checked references.')
+    if (!/\[[^\]]+\]\((<[^<>]+>|[^\s)<>]+)\)/.test(fields.get('checked') ?? '')) messages.push('Substantial Reuse note needs Checked references.')
     if (!fields.get('chosen')) messages.push('Substantial Reuse note needs Chosen approach.')
     if (!fields.get('custom')) messages.push('Substantial Reuse note needs Custom rationale (or none).')
   }
   // The documented inline-link form supports fragments and angle-bracket paths with spaces.
-  for (const match of section.matchAll(/\[[^\]]+\]\((<[^>]+>|[^\s)]+)\)/g)) {
+  for (const match of section.matchAll(/\[[^\]]+\]\((<[^<>]+>|[^\s)<>]+)\)/g)) {
     const target = match[1].replace(/^<|>$/g, '')
     if (/^(?:[a-z][a-z\d+.-]*:|\/\/|#)/i.test(target)) continue
     let path

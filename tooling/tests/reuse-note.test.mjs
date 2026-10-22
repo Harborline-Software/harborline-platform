@@ -74,3 +74,18 @@ test('nested comment removal cannot supply Checked references', () => {
 `
   assert.deepEqual(check(body), ['Substantial Reuse note needs Checked references.'])
 })
+
+// A link opener is not a reference; expected advisories are independent literal review policy.
+test('Checked references require a complete inline link', () => {
+  const withChecked = value => note().replace(/^- Checked:.*$/m, '- Checked: ' + value)
+  for (const value of ['[implementation](', '[implementation]()', '[implementation](AGENTS.md', '[implementation](<AGENTS.md>', '[implementation](<AGENTS.md)']) {
+    assert.deepEqual(check(withChecked(value)), ['Substantial Reuse note needs Checked references.'], value)
+  }
+  assert.deepEqual(check(withChecked('[implementation](AGENTS.md)')), [])
+  assert.deepEqual(check(withChecked('[implementation](<AGENTS.md>)')), [])
+})
+
+test('genuine absence explanations remain human-reviewed Checked advisories', () => {
+  const body = note().replace(/^- Checked:.*$/m, '- Checked: No existing implementation or prior research covers this new capability; the gap is explained for review.')
+  assert.deepEqual(check(body), ['Substantial Reuse note needs Checked references.'])
+})
