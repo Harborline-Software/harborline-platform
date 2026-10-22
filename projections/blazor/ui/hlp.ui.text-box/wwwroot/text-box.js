@@ -4,6 +4,13 @@
 // focus in the text-entry group.
 export function focusInput(id) { document.getElementById(id)?.focus({ preventScroll: true }) }
 
+// A controlled host that applies the cleared value later replaces the input again; recover focus only
+// if it fell to the page, so focus the user moved elsewhere is never taken back.
+export function focusInputIfLost(id) {
+  const active = document.activeElement
+  if (!active || active === document.body) focusInput(id)
+}
+
 // Reveal toggles the rendered type, which can reset the selection; read it before and restore it after.
 export function readSelection(id) {
   const input = document.getElementById(id)

@@ -52,6 +52,32 @@ public sealed class TextBoxTests : BunitContext
         Assert.Empty(host.FindAll("input"));
         Assert.Empty(module.Invocations["focusInput"]);
     }
+    // A controlled host that applies the empty value in a later render replaces the input again; focus
+    // is recovered then, only if it fell to the page.
+    [Fact] public void ClearRecoversFocusWhenAControlledHostAppliesTheValueLater()
+    {
+        var module = JSInterop.SetupModule("./_content/Harborline.UIAdapters.Blazor/text-box.js"); module.Mode = JSRuntimeMode.Loose;
+        var cut = Render<HarborlineTextBox>(p => p.Add(x => x.Value, "alpha").Add(x => x.ClearButton, true).Add(x => x.ValueChanged, _ => { }));
+        var inputId = cut.Find("input").Id;
+        cut.Find("[data-hl-action=clear]").Click();
+        Assert.Single(module.Invocations["focusInput"]);
+        Assert.Empty(module.Invocations["focusInputIfLost"]);
+        cut.Render(p => p.Add(x => x.Value, string.Empty));
+        Assert.Equal(inputId, Assert.Single(module.Invocations["focusInputIfLost"]).Arguments[0]);
+        cut.Render(p => p.Add(x => x.Placeholder, "later"));
+        Assert.Single(module.Invocations["focusInputIfLost"]);
+    }
+    // A host whose change handler throws leaves no pending focus to fire on a later, unrelated render.
+    [Fact] public void ClearLeavesNoPendingFocusWhenTheHostThrows()
+    {
+        var module = JSInterop.SetupModule("./_content/Harborline.UIAdapters.Blazor/text-box.js"); module.Mode = JSRuntimeMode.Loose;
+        var cut = Render<HarborlineTextBox>(p => p.Add(x => x.Value, "alpha").Add(x => x.ClearButton, true).Add(x => x.ValueChanged, (string _) => throw new InvalidOperationException("host")));
+        Assert.ThrowsAny<Exception>(() => cut.Find("[data-hl-action=clear]").Click());
+        cut.Render(p => p.Add(x => x.Value, string.Empty));
+        cut.Render(p => p.Add(x => x.Placeholder, "later"));
+        Assert.Empty(module.Invocations["focusInput"]);
+        Assert.Empty(module.Invocations["focusInputIfLost"]);
+    }
     private sealed class RemovableTextBoxHost : ComponentBase
     {
         private bool shown = true;
@@ -167,7 +193,9 @@ public sealed class TextBoxTests : BunitContext
             {
                 var requests = new List<string>(); var cut = Box(p => p.Add(x => x.Value, input.GetProperty("value").GetString()).Add(x => x.ClearButton, input.GetProperty("clearButton").GetBoolean()).Add(x => x.Disabled, input.GetProperty("disabled").GetBoolean()).Add(x => x.ValueChanged, v => requests.Add(v)));
                 Assert.Equal(expected.GetProperty("clearActionAvailable").GetBoolean(), cut.FindAll("[data-hl-action=clear]:not([disabled])").Count > 0);
-                // Attempt every route to a request: activate any clear control present and edit the input.
+                // Attempt every route to a request: activate any clear control present and edit the input. The
+                // disabled input itself blocks the edit (removing the component's disabled guard still passes),
+                // so the guard is defence in depth and this counts what reaches the host.
                 foreach (var clear in cut.FindAll("[data-hl-action=clear]")) clear.Click();
                 cut.Find("input").Input(string.Empty);
                 Assert.Equal(expected.GetProperty("requests").GetInt32(), requests.Count);
@@ -243,7 +271,8 @@ public sealed class TextBoxTests : BunitContext
                 // Logical order: the action follows the input in DOM order inside an RTL context, so the browser
                 // places it at the inline end; the rendered position is left to the gallery's RTL check.
                 var clearAction = cut.Find("[data-hl-action=clear]");
-                Assert.Equal(expected.GetProperty("logicalOrder").GetBoolean(), (cut.Find("input").CompareDocumentPosition(clearAction) & AngleSharp.Dom.DocumentPositions.Following) != 0 && clearAction.Closest("[dir]")?.GetAttribute("dir") == "rtl");
+                Assert.Equal(expected.GetProperty("logicalOrder").GetBoolean(), (cut.Find("input").CompareDocumentPosition(clearAction) & AngleSharp.Dom.DocumentPositions.Following) != 0
+                    && Attr(cut.Find("input"), "dir") == "rtl" && clearAction.Closest(".hl-text-box__suffix")?.GetAttribute("dir") == "rtl");
                 break;
             }
             case "text-box.targets-focus":
@@ -276,7 +305,9 @@ public sealed class TextBoxTests : BunitContext
                 // Replacement itself requests nothing, and one edit afterwards requests exactly once.
                 var replacementCalls = calls;
                 cut.Find("input").Input("typed");
-                Assert.Equal(expected.GetProperty("duplicateCallbacks").GetInt32(), replacementCalls + (calls - replacementCalls - 1));
+                var editCalls = calls - replacementCalls;
+                Assert.Equal(expected.GetProperty("duplicateCallbacks").GetInt32(), replacementCalls + Math.Max(0, editCalls - 1));
+                Assert.Equal(1, editCalls);
                 break;
             }
             default:
