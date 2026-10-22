@@ -1,199 +1,136 @@
-# Claude laptop handoff: non-v6 Platform UI
+# Claude laptop handoff — evaluate and repair non-v6 UI
 
-**DRAFT — not released for execution.** Prepared 2026-10-21 for the separate 2019 Mac laptop.
-The user will start this work after the current v6 delivery is finished. This document does not start a session or move existing ownership.
+When the lead provides this reviewed assignment and the human starts the separate 2019 Mac laptop session, **evaluate, then implement demonstrated requirement-backed repairs within the exact paths below**. Earlier human approval remains valid. Ordinary source tests, project-local setup, source RCL compilation and private commits are included; no further generic permission or old defect ticket is required. This document does not launch a session/task/coordinator.
 
-## Release and source identity
+Triage ViewRuntime, then repair Scheduler C, Chart B1 and Chat B2. Preserve design; record blocked lanes and continue others. Return coherent slices/residual gaps **BROWSER_PENDING**; lead owns fresh packages/rendered acceptance. No all-components promise.
 
-| Field | Frozen value / release requirement |
-|---|---|
-| Repository | `https://github.com/Harborline-Software/harborline-platform` |
-| Reference source commit | `cec76704e322a9edbb937db6524276f0d581c41f` |
-| Reference source tree | `0c758dd9f17d6c7dff191070033aa4f4ea2abcb2` |
-| Document branch | `codex/claude-non-v6-ui-handoff-20261021` |
-| Execution release | **PENDING:** lead records the post-v6 source commit/tree, reviewed document commit, active ownership exclusions and released units here before launch. |
-| Laptop work branch | Create `claude/non-v6-ui-20261021` from that released source commit. |
-| Assigned role | Claude authors the released non-v6 UI units; Mac mini lead integrates returned source and owns its final package/browser qualification. |
+## Repository and exact startup
 
-The source reference above precedes in-flight v6 and M11 work; it is not an instruction to overwrite or cherry-pick those branches.
-The document's own commit cannot be its embedded source pin. The lead supplies its exact document commit in the launch message and freezes the separate execution base here.
-Keep a copy of this document outside the checkout before switching branches; that preserves the instructions when the execution base lacks this file.
-If the execution release is still PENDING, finish preparation and report the missing release; make no component edits.
+Repository: [Harborline Platform](https://github.com/Harborline-Software/harborline-platform). [Canonical handoff document](https://github.com/Harborline-Software/harborline-platform/blob/main/docs/superpowers/plans/2026-10-21-claude-non-v6-ui-handoff.md).
 
-## Mission and completion boundary
+Code baseline: **`ba8a3220233ffaf959e9b7a99fef32c3618aee2e`**, tree **`224bb657ede8d2ff81adadc8f52d4761b68a40c9`**. Record the later documentation revision separately. Save this reviewed document outside the checkout before switching to ba8, which contains older prose. Use the complete repository. No board/inbox/private ledger is required.
 
-Preserve the existing visual design and good behavior. Implement confirmed unfinished non-v6 component behavior and source-level regressions, one module family per commit.
-Begin with the catalog-led triage below; existing acceptance is retained within its recorded scope. An old gap is a candidate to confirm, not proof that today's implementation is broken.
-Return source commits, module-test results and independent review results to the Mac mini lead with status **BROWSER_PENDING**; final changed-source browser acceptance belongs to the lead. Work can run independently: **no message board, shared inbox, Windows chat or remote machine access is required.**
-
-Delivery stays in this repository's existing projects. Blazor consumers pull source and add a `ProjectReference` to the existing Razor Class Library, with its styles, required JavaScript and a minimal usage/setup example.
-Use host-supplied content and callbacks; keep backend and demo data separate. Retain the reusable .NET10+ design intent.
-Final acceptance requires the Mac mini lead to exercise the returned source in the existing Blazor gallery/Storybook and, where parity applies, React Storybook: real CSS/JS, desktop and narrow-screen interactions.
-NuGet publication, a new repository, MAUI certification and a separate server-host certification are not delivery requirements. Local packages used by the existing gallery are test plumbing.
-This assignment does not assert that all components can be finished in four days.
-
-## First preparation: finish before implementation
-
-1. Read root `AGENTS.md`, `CONTRIBUTING.md`, and any nearer instructions for the selected module. Preserve independent test oracles and normal hooks/review.
-2. Verify the released source commit/tree and a clean checkout. Record Git identity and installed tool versions in the local progress log.
-3. Read the selected module's catalog entry, exact interface and quality revisions, conformance fixtures, existing adapters and gallery stories. Record actual ticket references found there; an exact ticket is **not yet bound by this draft**. Do not invent an issue number.
-4. Confirm that the released unit's entire writable mask is free of another owner. The frozen release must explicitly resolve the exclusions below. If a shared-file or contract change is needed, stop that unit and return the exact proposed delta.
-5. Reproduce the named gap against that source, or record that it is already covered/only a reporting-model gap. Specify literal expected behavior from the existing spec or an independent fixture before editing.
-6. Record `STARTED` with UTC time, module, base/tree, path mask, intended acceptance cases and process ownership. Only then edit the released unit.
-
-Done means all six items are recorded, the gap is concrete and the scope is unchanged. Missing tools, source pins, ownership or contract authority produce a useful BLOCKED return, not a guessed workaround.
-
-## Catalog triage: bounded evaluation of the rest
-
-The [module catalog](../../../catalog/modules.yaml) declares 81 UI modules at the reference base; [projection declarations](../../../catalog/projections.yaml) include differing adapter coverage.
-The retained [gate-model report](../../evidence/gate-model/ui-gate-model.json) has 80 rows, 15 terminal; its top-level PASS is not an all-component PASS. The catalog's preview/nonvisual Records-authoring row is absent from that report.
-These are retained counts, not measurements from this laptop. The report lacks a current-run source/date binding.
-
-Create one local matrix from existing catalog/report metadata: module ID, declared adapters, existing accepted scope, known gap, current source reference, next action and confidence.
-Exclude v6 and held families before selecting work. Preserve accepted unchanged components; do not repeat every visual review or treat 50 expired approvals in frozen backlog 334 as a new approval campaign.
-Distinguish missing implementation, missing fixture/browser evidence, scanner vocabulary mismatch and unknown status. The retained 62 unbuilt client-performance profiles are an evidence backlog, not 62 reproduced regressions.
-For modules outside the released units below, return a prioritized candidate list with exact source/spec paths and proposed masks. This draft grants evaluation, not unrestricted edits to every catalog entry.
-
-## Frozen candidate units: release individually
-
-Each unit is **conditional**, pending the release block and current-source/ticket reconciliation. Use the priority order; do not run overlapping writers.
-All listed module IDs have catalog owner `platform-ui`. Catalog status “conformant” describes an adapter declaration, not fresh runtime proof.
-
-| Unit | Authoritative contract and retained gap | Required result after confirmation |
-|---|---|---|
-| A — View Runtime | `specs/modules/ui/hlp.ui.view-runtime/interface.yaml` rev 7; quality rev 1; report row identified by `moduleId: hlp.ui.view-runtime`. Retained direct FAIL: missing `:focus-visible`. | Confirm the actual focus route in both adapters; correct only the missing behavior. Prove visible keyboard focus, traversal and activation in rendered stories; preserve pointer behavior, callbacks and existing appearance. |
-| B1 — Chart | `specs/modules/ui/hlp.ui.chart/interface.yaml` rev 1; quality rev 1. Retained missing disabled-state scenario and locale fixtures. | Determine whether “disabled” is an actual public state or scanner mismatch from the exact interface. Add meaningful cases or a bounded implementation repair only when required; prove accessible data, locale formatting and adapter parity. |
-| B2 — Chat | `specs/modules/ui/hlp.ui.chat/interface.yaml` rev 1; quality rev 1. Retained error-state and reflow gaps; locale fixtures absent. | Exercise the existing error contract, long messages, focus/callback order, locale/RTL and narrow reflow. Repair confirmed behavior while preserving controlled ownership and established design. |
-| C — Scheduler | `specs/modules/ui/hlp.ui.scheduler/interface.yaml` rev 1; quality rev 1. Retained empty-collection and reflow gaps. | Exercise empty events/data and relevant optional collections, long labels and narrow width; preserve recurrence/date/view semantics and read-only behavior. Change only a confirmed requirement. |
-| D — Schema Form, deferred | `specs/modules/ui/hlp.ui.schema-form/interface.yaml` rev 4; quality rev 1. Retained loading/locale and Blazor performance evidence gaps. | Evaluate metadata only until lead explicitly releases it after DynamicForms integration reconciliation. No change to Rules, Forms contracts, field semantics or shared fixtures under this draft. |
-
-For each unit, authoritative neutral inputs are `conformance/<module-id>/fixtures.yaml` and `quality-fixtures.yaml`; its runner is `conformance/<module-id>/runners/run-shared.mjs`.
-Read the exact referenced bodies before choosing assertions. This handoff verified catalog references and path existence, not their complete implementation or current browser outcome.
-Keep each unit separate: B1 and B2 are separate commits and separate acceptance results. If a candidate is already fixed, report the source and observed evidence and move to the next released unit.
-
-## Exact write boundaries
-
-For a released module ID `M` from A/B1/B2/C only, these are the complete family masks:
-
-- `projections/react/ui/M/**`, `projections/blazor/ui/M/**` and the selected sibling `projections/blazor/ui/M.tests/**` listed below.
-- `conformance/M/**`, preserving existing fixture identities and independent literal oracles.
-- `gallery/scenarios/M.json`.
-- The corresponding React story and Blazor story/scenario files in the table below.
-- A unit-specific usage note under `docs/usage/M.md`, only if needed to explain actual source-first setup; no new package identity.
-
-| M | Exact gallery files | Exact sibling Blazor test tree |
-|---|---|---|
-| `hlp.ui.view-runtime` | `gallery/projections/react/src/ViewRuntime.stories.tsx`; `gallery/projections/blazor/Stories/ViewRuntime.stories.razor`; `gallery/projections/blazor/Stories/ViewRuntimeScenario.razor` | `projections/blazor/ui/hlp.ui.view-runtime.tests/**` |
-| `hlp.ui.chart` | `gallery/projections/react/src/Chart.stories.tsx`; `gallery/projections/blazor/Stories/Chart.stories.razor`; `gallery/projections/blazor/Stories/ChartScenario.razor` | `projections/blazor/ui/hlp.ui.chart.tests/**` |
-| `hlp.ui.chat` | `gallery/projections/react/src/Chat.stories.tsx`; `gallery/projections/blazor/Stories/Chat.stories.razor`; `gallery/projections/blazor/Stories/ChatScenario.razor` | `projections/blazor/ui/hlp.ui.chat.tests/**` |
-| `hlp.ui.scheduler` | `gallery/projections/react/src/Scheduler.stories.tsx`; `gallery/projections/blazor/Stories/Scheduler.stories.razor`; `gallery/projections/blazor/Stories/SchedulerScenario.razor` | `projections/blazor/ui/hlp.ui.scheduler.tests/**` |
-
-`M` is one literal module ID, never a glob for all UI. Before edits, enumerate existing files inside that mask and record the intended subset. Creating a missing test inside the released adapter or its listed sibling test tree is allowed after release.
-Specs, interface/quality revisions, authoritative `specs/.../style.css` and generated baselines remain read-only. If the fix requires their change, return a separate proposal and stop that unit; do not modify generated/approved evidence to turn a failure green.
-Module-local adapter CSS and JS stay with their module and preserve established visual tokens. Any shared style/export/build entry-point change needs a separately reviewed scope.
-
-## Other owners and excluded seams
-
-**All v6 work is excluded**, including its components, demo frame, module, fixtures, shared reducer, focus contract, specs, conformance and gallery scenarios. Do not transfer, repair or certify it here.
-Also excluded: app-shell/app-layout/layout-runtime and shared shell/scroll/tab-host infrastructure; root catalog, global dependencies/locks, project files, aggregate export surfaces, CI and `tooling/**` edits.
-The existing RCL is `projections/blazor/ui/hlp.ui.button/Harborline.UIAdapters.Blazor.csproj`; its shared project is read-only even when it includes the selected module. React aggregate/package wiring and shared test project files, including `projections/blazor/ui/hlp.ui.button.tests/Harborline.UIAdapters.Blazor.Tests.csproj`, remain read-only too.
-
-Windows retains the actual DynamicForms five-path unit:
-
-- `tooling/verify-package-fixtures.mjs`
-- `tests/package-consumers/dynamic-forms-npm/package.json`
-- `tooling/tests/package-fixture-frozen-install.test.mjs`
-- `tests/package-consumers/dynamic-forms-npm/pnpm-lock.yaml`
-- `tests/package-consumers/dynamic-forms-npm/pnpm-workspace.yaml`
-
-Do not edit these, the primary consumer/helper, producer/feed provenance, or shared Forms/Rules/Contracts/Records primitives. No additional Windows primitive assignment is established by this handoff.
-Private Q18/A5 evidence and held Records/J09/T616/e407/PR314, API9ab, Platformdaa1, unknown App state and T1100 operations remain out of scope: do not read their private bodies, retry their runtime, substitute another executor or infer release from this UI assignment.
-If a chosen component depends on one of these seams, preserve the baseline, state the exact dependency and continue only another already released independent unit.
-
-## Toolchain and source-verified recipes
-
-This section is a recipe from the reference source, **not a clean-laptop setup PASS**. No install, build, browser or product execution was performed while authoring it.
-Check 2019 Mac OS/architecture support and installed tools before starting; stop with exact missing prerequisites rather than upgrading pins or adding feeds.
-
-| Tool / project | Verified source fact |
-|---|---|
-| Git and Node | Git is needed for isolated commits. `CONTRIBUTING.md` requires Node 24 for preflight. |
-| Package manager | Root and gallery manifests pin `pnpm@11.1.3`; use repository lockfiles and frozen installs. |
-| .NET SDK | `global.json`: `11.0.100-rc.1.26425.128`, `rollForward: disable`. |
-| Blazor browser gallery | `gallery/projections/blazor/Harborline.Gallery.Blazor.csproj` targets `net11.0`; this does not authorize retargeting the library or changing .NET10+ design intent. |
-| React gallery | `gallery/projections/react/package.json`: Storybook `10.5.10`, `dev`, `build` and `typecheck` scripts. |
-| Browser tools | `gallery/tests/package.json`: Playwright `1.62.1`, axe `4.12.1`; `test`, `typecheck`, `install:browser`. |
-
-From repository root, record versions and source first:
+Read `AGENTS.md` and `CONTRIBUTING.md`; verify a clean checkout. Preserve existing branches/changes without force/reset. On a new clean checkout:
 
 ```sh
-git rev-parse HEAD
-git rev-parse 'HEAD^{tree}'
+git switch -c claude/non-v6-ui-20261022 ba8a3220233ffaf959e9b7a99fef32c3618aee2e
+git rev-parse HEAD 'HEAD^{tree}'
 git status --short
-node --version
-pnpm --version
-dotnet --version
 ```
 
-Read `gallery/README.md` and `tooling/prepare-galleries.mjs` before using a prepared baseline. The existing galleries consume local packed artifacts and repository-isolated dependencies; a bare clean checkout does not contain the Mac mini's prepared feed.
-Use the current repository's documented preparation; retain logs and exact source identities. Missing packages/feeds are a prerequisite failure. Keep normal freshness checks; do not replace the gallery with source imports or set `HarborlineSkipFeedFreshnessCheck`.
-The previously accepted Mac browser005 route reused seven already-built local packages on a different v6 candidate; its result does not establish this laptop's setup or these non-v6 scenarios.
+Resume an existing branch without replacement; report missing source/access, never substitute main. Keep evidence outside checkout. One session/writer, one family/commit. Serialize installs/shared RCL/.NET work using common node_modules/bin/obj.
 
-The default `gallery:prepare`, `gallery:react`, `gallery:blazor` and unqualified gallery-gate commands run the full package-fixture driver and cross-repository feed preparation before browser selection. They are unsuitable under this handoff's exclusions. `GALLERY_GREP` restricts browser tests only; it does not restrict preparation.
+## Requirements and writer boundary
 
-For pre-edit reproduction, the lead must supply an allowed, source-bound prepared-artifact set and release the exact preparation scope. Verify its archive provenance and normal source/feed freshness checks. If absent, return **BLOCKED: prepared baseline unavailable**; do not manufacture readiness or run the full fixture driver.
-After an adapter edit, that baseline is not final evidence: React stories import the packed `@harborline-software/ui-react` dist, and Blazor checks all adapter inputs and its content-derived package stamp. `--packages-ready` reuses packages; it does not rebuild them. Keep freshness checks intact.
+For M=`hlp.ui.view-runtime`, `hlp.ui.scheduler`, `hlp.ui.chart`, `hlp.ui.chat`, read `catalog/modules.yaml`, `specs/modules/ui/M/{interface,quality}.yaml` and `conformance/M/{fixtures.yaml,quality-fixtures.yaml,runners/run-shared.mjs}`. ViewRuntime is interface7/quality1; others interface1/quality1. These contracts/neutral cases are the requirement basis. Catalog status/old warnings are not fresh verdicts. Cite cases; invent no ticket or broader closure.
 
-### Mac mini lead: final changed-source browser qualification
+Only these existing files may be changed:
 
-The laptop returns the exact source commits, source-level test results, setup/asset instructions and named browser cases as **BROWSER_PENDING**. The Mac mini lead owns post-edit package preparation and browser acceptance after independent source review. Before using the recipe below, the lead must bind ordinary source-verified preparation to those returned commits (or the reviewed integration commit), refresh affected packages, and record archive hashes, the Blazor source-derived version/stamp and normal freshness results. If that bounded preparation is not yet established, retain BROWSER_PENDING; old artifacts cannot certify the changed component. This handoff supplies no laptop repack recipe or authority to run the excluded full fixture driver.
-The supported `--packages-ready` route still installs gallery dependencies, cleans gallery caches, restores and builds. The lead must review those operations against the released qualification scope; it is not a held-operation waiver.
+| Slice | Exact repository-relative writable paths |
+|---|---|
+| Scheduler C1/C2 | `projections/react/ui/hlp.ui.scheduler/src/Scheduler.tsx`; `projections/react/ui/hlp.ui.scheduler/src/__tests__/Scheduler.conformance.test.tsx`; `projections/blazor/ui/hlp.ui.scheduler/HarborlineScheduler.razor`; `projections/blazor/ui/hlp.ui.scheduler.tests/SchedulerTests.cs` |
+| Chart B1 locale | `projections/blazor/ui/hlp.ui.chart/HarborlineChart.razor`; `projections/blazor/ui/hlp.ui.chart.tests/ChartTests.cs` |
+| Chat B2 keyboard/catalog/semantic cases | `projections/blazor/ui/hlp.ui.chat/HarborlineChat.razor`; `projections/blazor/ui/hlp.ui.chat.tests/ChatTests.cs`; only if selective keyboard cancellation needs it, existing `projections/blazor/ui/hlp.ui.chat/wwwroot/chat.js` |
 
-Only after that changed-source package binding and scope review, the Mac mini lead uses the existing driver for focused browser tests through `GALLERY_GREP` and screenshots through `--capture`:
+Exact files only; ViewRuntime is read-only. Other tests/gallery callers/types/exports/shared modules/catalog/interface/quality/style/scenario authority/neutral fixtures/generated copies/projects/locks/workspaces/tooling/CI remain read-only. Ignored local dependency/compiler outputs are permitted. A needed shared/API/extra-path change becomes a precise return proposal; continue other slices. Later catalog triage gives no extra writers.
+
+Exclude all v6/AppShell/Frame/TabHost/reducer/focus/scroll, DataGrid/Button repairs, SchemaForm, M11/T1035/Forms/Rules/Contracts qualification and Records/API/private holds. **Gantt is unapproved/unreserved; Windows Aggregates has an active exclusive Windows source claim.** No duplicate dispatch, driver/helper/fixture changes or engine/timeline detachment. Do not open held Records/J09/T616/e407/PR314, API9ab/Platformdaa1/App retry/T1100/private Q18/A5 bodies. Reading admitted interfaces/compiling dependencies grants no ownership or unrelated test execution.
+
+## First: brief ViewRuntime A disposition
+
+Read wrappers/native tests:
+
+- `projections/react/ui/hlp.ui.view-runtime/src/ViewRuntime.tsx` and `src/__tests__/ViewRuntime.native.test.tsx`.
+- `projections/blazor/ui/hlp.ui.view-runtime/HarborlineViewRuntime.razor` and `projections/blazor/ui/hlp.ui.view-runtime.tests/ViewRuntimeTests.cs`.
+
+Missing local `:focus-visible` is not a rendered defect: focus delegates to DataGrid/Button; literal row/action forwarding has existing coverage. Record **already covered / no confirmed local defect**, or contrary evidence, distinguishing callbacks from visible focus. No A writer; optional source tests are allowed. Do not duplicate CSS/change a scanner or stall later units. T581/T820 are not an exact current focus ticket.
+
+## Scheduler C: reproduce two mechanisms, repair four files
+
+Read adapters/tests/revision1. Source mechanisms below have **UNRUN runtime reproduction**.
+
+**C1:** Blazor's narrow fallback chooses Agenda without checking EffectiveViews. `Views=[Day], DefaultView=Day, Narrow=true` validates but selects an excluded view. React already checks `viewTypes.includes('agenda')`. Repair the private fallback membership only; preserve controlled View, an explicit user selection and breakpoint semantics.
+
+**C2:** React completion handlers lack readOnly guards and render stored editor/recurrence state after `readOnly=true`. Blazor also retains those dialogs, although its completion handlers already refuse mutation. On replacement with readonly, both must cancel pending edit/recurrence state, remove mutation UI and avoid resurrection when re-enabled. No new parameter/event or recurrence redesign.
+
+Use real component rendering and literal dates/events: `2026-08-11`, event `a`/`Inspection` 09:00–10:00, recurring `r` with `FREQ=DAILY;COUNT=2`. Required independent oracles:
+
+1. Narrow Day-only: Day/one day column, no Agenda, zero unsolicited ViewChanged. Day+Agenda still defaults Agenda; explicit Day persists; controlled Day wins. Use existing matchMedia or Narrow/fake observer; preserve breakpoint.
+2. Open create/edit/recurrence-edit/delete, then replace readOnly through real props. Remove mutation dialogs/controls; add/update/delete counts exactly0. Preserve date/view/event/master/exception bytes; cover occurrence/series. Re-enable without stale resurrection/callbacks; a fresh action emits one expected neutral request. Retain a safe focus target.
+3. Check actual Day/Week/Month/Agenda with empty data/readonly at mount; retain normal editing/date/Today/recurrence/anchor/locale regressions. defaultView is initial-only: use controlled view or fresh mounts and assert view before interaction.
+
+Localized empty Agenda/responsive CSS already exist. Residual gesture evaluation: Blazor double-click hour spans have pointer-events:none in authority CSS and no event drag/drop handlers. Return reproduction/proposal, not a gesture redesign or full parity claim.
+
+## Chart B1: catalog text must win over a fallback
+
+Read Chart adapters/tests/read-only locale interfaces. Blazor `Translate` passes English `instanceOverride: fallback` to `ResolveString`; `HarborlineLocaleScope` prioritizes it over catalog chart/series/item/value text. React honors catalogs. Runtime reproduction is UNRUN.
+
+Repair only the Chart-local helper and its existing bUnit tests: resolve catalog/default text first, using the fallback only for a genuinely unresolved key. Preserve explicit public AccessibleName, Title, DataSummaryLabel and Empty precedence and the shared locale provider contract. Required literal cases:
+
+- Host catalog `charts.chart=Graphique`, `charts.series=Série`, `charts.item=Élément`, `charts.value=Mesure`: Line Jan/Feb, series A `[12,null]`, default figure name `Graphique`, first heading `Série`, summary `Graphique: Mesure`; caller order and missing null retained.
+- Donut Palm10/Bay20: headings `Élément`, `Mesure`; ordered Palm/Bay rows and a test-owned formatter yielding `amount:10`, `amount:20`.
+- Existing Arabic catalog `مخطط / السلسلة / العنصر / القيمة`, rtl and preserved caller order. A catalog replacement updates generated text without mutating input data.
+- Explicit accessible name `Revenue trend` wins; Title wins when name is absent; explicit summary `My ordered data` and Empty `Nothing measured yet` remain intact.
+
+Preserve React locale parity. No generic disabled API. Bounds/singleton-donut/fixture-coverage leads remain residual; no full Chart completion claim.
+
+## Chat B2: selective keys, existing catalog, useful fixtures
+
+Read adapters/local JS/tests/revision1/22 neutral cases. Blazor cancels all article keydown defaults while handling only adjacent arrows, cancelling Tab/Shift+Tab too; React cancels handled arrows. Blazor builds English names instead of `ai.chat.messageArticle`/`ai.chat.messageArticleTime`. Its 22-row theory repeats one empty-log assertion, not 22 semantic proofs. Reproduce these source findings.
+
+Make cancellation selective, using existing local JS only if needed. Add targeted neutral-case semantics without rewriting all 22/shared machinery. Use existing templates, preserving timestamp instant/active locale without a new cross-runtime date pattern:
+
+- For literal m1/m2/m3, m2 Up→m1 and Down→m2, without wrapping at either edge. Ordinary Tab/Shift+Tab and unrelated defaults must remain usable; source tests must exercise the real local decision/event route. A bUnit handler invocation alone cannot prove browser Tab traversal; name that remaining browser case.
+- Override roleUser=`Test user`, roleAssistant=`Test assistant`, messageArticle=`Article [{role}]`; assert `Article [Test user]`, `Article [Test assistant]`, `Article [Automation]`. Timed templates use the existing role/time placeholders and active locale.
+- Controlled `"  inspect  "` yields ordered submit(`inspect`), then change(`""`); whitespace yields neither. Evaluate click, Enter and suggestions distinctly; disabled routes neither submit nor clear. Preserve ordered roles, replacement removing stale IDs, assistant/system-only suggestions versus first-user suppression, streaming/typing semantics and slots.
+
+Within these same source/test files, optionally test explicit Placeholder versus provider precedence before repair. No React production/transport/retry/AI/error-contract rewrite. Long text/200% zoom/RTL/error callers are browser residuals, not gallery writers.
+
+## Legitimate laptop setup and ordinary source commands
+
+2019 Intel portability is **UNVERIFIED**. Use legitimate installed tools: global.json SDK `11.0.100-rc.1.26425.128`/rollForward disabled, Node24/pnpm11.1.3; libraries target net10, tests net11. No global tool/SDK install, arm64 copy, unpin/upgrade, new first-party registry fallback, cache cleanup, mtime/freshness bypass.
+
+Project-local frozen install/NuGet restore are allowed. In actual workspace `projections/react/ui/hlp.ui.button`, `CI=1 pnpm install --frozen-lockfile` must preserve locks/workspace/patches/pins. If approval/config changes are required or tracked setup files change, retain the failure/diff; do not approve scripts or force configuration. Report SETUP_BLOCKED and continue available units. Normal restore/build may write ignored bin/obj and restore central third-party pins; no new first-party feeds/projects.
+
+From repository root, the ordinary source suites are:
 
 ```sh
-# CASE_PATTERN must first be matched to actual test titles for the selected unit.
-# RUN_DIR is an absolute, unique qualifier-local evidence directory created by you.
-GALLERY_GREP="$CASE_PATTERN" node tooling/run-gallery-gate.mjs --packages-ready --capture \
-  > "$RUN_DIR/gallery-result.json" 2> "$RUN_DIR/gallery.log"
+pnpm --dir projections/react/ui/hlp.ui.button run test:scheduler
+pnpm --dir projections/react/ui/hlp.ui.button run test:chart
+pnpm --dir projections/react/ui/hlp.ui.button run test:chat
+pnpm --dir projections/react/ui/hlp.ui.button run test:view-runtime
 ```
 
-Before choosing `CASE_PATTERN`, the lead reads the selected scenarios and `gallery/tests/tests/gallery.spec.ts`, lists the matching tests with the existing Playwright test script, and records their exact names/count. A zero-test run fails acceptance.
-The driver starts React on loopback 6106 and Blazor on 6107, builds the existing galleries, installs/checks Chromium and runs the focused browser selection. A successful focused report is `CHECKED`, not full-library `PASS`.
-The lead uses manual gallery interaction alongside automated assertions when a named requirement lacks an existing scenario. Keep initial failures, final logs, actual screenshot dimensions and browser console findings; report warnings honestly.
-For that lead-owned qualification, source-verified per-gallery scripts are `pnpm --dir gallery/projections/react run typecheck` / `run build`, and `pnpm --dir gallery/tests run typecheck` / `run test`; use `pnpm --dir gallery/tests exec playwright test --list` to enumerate titles. Read selected test/runner configuration before invoking native/conformance commands; no guessed all-project command is required here.
+These use module source aliases, **no gallery feed/stamp**. Run serially; no test:native/run-native/full fixture driver. They do not certify rendered CSS/focus.
 
-## Laptop source review and Mac mini final acceptance
+The shared bUnit project includes sibling tests and directly references source RCL/dependencies. Use installed pinned dotnet. The recipe below is Scheduler; Chart's filter is `FullyQualifiedName~Harborline.UIAdapters.Blazor.Tests.ChartTests|FullyQualifiedName~Harborline.UIAdapters.Blazor.Tests.ChartPerformanceTests`; Chat's is `FullyQualifiedName~Harborline.UIAdapters.Blazor.Tests.ChatTests|FullyQualifiedName~Harborline.UIAdapters.Blazor.Tests.ChatPerformanceTests`:
 
-- The Mac mini lead exercises the returned source as the actual rendered Blazor component with its packaged/source-first CSS and needed JS; also exercise React for an existing parity contract. Verify desktop and a recorded narrow viewport, with keyboard and pointer behavior relevant to the unit.
-- Pin expected semantics to the existing spec/neutral fixture or literal independent oracle. A CSS text search, model round-trip or adapter declaration alone is insufficient.
-- Preserve initial failing evidence and the smallest correction. The lead reruns the named case and connected regressions against packages built from the returned source. A reporting-only mismatch gets a truthful finding, not invented component behavior.
-- Document the actual `ProjectReference`, public namespace/setup and asset URLs/imports used by the selected example after reading the current module/library instructions. The lead verifies that example against the returned source in the existing browser gallery. No new package or registry identity is implied.
-- Obtain independent Spec/Standards and adversarial review of the complete final unit where the available Claude environment supports reviewers. Record reviewer identities, source commit and findings; if unavailable, label review pending for Mac mini rather than self-certifying independence.
-- Run the normal repository pre-push requirement after fetching current main: `node tooling/run-pr-preflight.mjs`. Do not bypass hooks or protected merge. If excluded shared changes arrived upstream, return the conflict rather than silently widening the unit.
-
-Laptop return-ready means the whole unit delta is inside its mask, source-level test results and independent reviews are recorded or honestly pending, setup/asset instructions and named browser cases are supplied, and the packet says **BROWSER_PENDING — Mac mini lead owns final qualification**. This is not a completed-component claim. The lead marks the unit accepted only after the changed-source package binding, named desktop/narrow browser cases and actual CSS/JS/example evidence above are complete. No automerge or publication.
-
-## Local progress and return protocol
-
-Keep an append-only log outside the checkout, for example `~/harborline-claude-return/PROGRESS.md`; put screenshots and original logs under a unique per-unit child. This path is laptop-local and has no shared-drive requirement.
-Each entry records UTC time; state (`PREPARED`, `STARTED`, `BLOCKED`, `REVIEW`, `BROWSER_PENDING`, `RETURNED`); base/tree; module and writable paths; commands; exit/result; evidence filenames; next action.
-Commit one module family at a time on the laptop work branch. Keep evidence outside packages; return a compact manifest with paths, sizes and SHA-256 values. Never record tokens or credentials.
-
-Return a self-contained summary to the user for the Mac mini lead:
-
-```text
-Repository / branch / execution base and tree / final commit(s):
-Unit and literal requirement; source of expected behavior:
-Files changed; confirmation of excluded-file preservation:
-Initial reproduction and source-level test names/counts/results; planned browser cases:
-Final browser status: BROWSER_PENDING (Mac mini lead); baseline-only observations, if any:
-Proposed desktop/narrow viewport; CSS/JS/example and changed-source package refresh needs:
-Independent reviewers and unresolved findings:
-Original logs, screenshots and SHA-256 manifest:
-Setup prerequisites or blocked dependencies; remaining component gaps:
-Exact commits to integrate; no merge performed:
+```sh
+dotnet test projections/blazor/ui/hlp.ui.button.tests/Harborline.UIAdapters.Blazor.Tests.csproj --configuration Release --filter 'FullyQualifiedName~Harborline.UIAdapters.Blazor.Tests.SchedulerTests|FullyQualifiedName~Harborline.UIAdapters.Blazor.Tests.SchedulerPerformanceTests' --logger 'trx;LogFileName=scheduler.trx' --results-directory <ABSOLUTE_UNIQUE_EVIDENCE_DIR> -nodeReuse:false -maxcpucount:6 -p:UseSharedCompilation=false
 ```
 
-A Thursday–Sunday sequence is optional: Thursday bind tools/source and confirm Unit A; Friday implement and review one source family; Saturday integrate accepted returns and take the next released family; Sunday repair observed regressions and return residual gaps.
-These are checkpoints, not a promise of capacity or completion. No Claude model availability, token allowance, pricing, software installation or remote-machine action is assumed.
+Keep names/counts in fresh evidence directories. No no-build/no-restore without prerequisites. Source RCL build is permitted:
+
+```sh
+dotnet build projections/blazor/ui/hlp.ui.button/Harborline.UIAdapters.Blazor.csproj --configuration Release -nodeReuse:false -maxcpucount:6 -p:UseSharedCompilation=false
+```
+
+Recipes are source-verified, **not laptop PASS**. Missing .NET does not block React; missing gallery artifacts blocks browser only. No broad producer build/full prepare for focused tests.
+
+## Source-first integration and browser handback
+
+Keep the complete Platform structure and consumer-owned `HarborlinePlatformSourceRoot` with `<ProjectReference Include="$(HarborlinePlatformSourceRoot)/projections/blazor/ui/hlp.ui.button/Harborline.UIAdapters.Blazor.csproj" />`. Read-only setup: `projections/blazor/ui/hlp.ui.app-shell/rev6/FRAME-USAGE.md`. No new package/repository/host, publication, MAUI or separate-server certification.
+
+Namespaces: `Harborline.UIAdapters.Blazor.Components.DataDisplay` (ViewRuntime/Chart), `.Components.AI` (Chat), `.Components.Scheduling` (Scheduler). Under `_content/Harborline.UIAdapters.Blazor/`: ViewRuntime uses its uniquely mapped `style.css` plus `data-grid.css`; Chart `chart.css`; Chat `chat.css`; Scheduler `scheduler.css`, `dialog.css`, `scroll-affordance-component.css`. style.css is not aggregate CSS. Chat/Scheduler auto-import `chat.js`/`scheduler-now.js`. Scheduler needs `using Harborline.UIAdapters.Blazor;` and `builder.Services.AddHarborlineUiAdapters();`. No shared setup edits.
+
+At ba8 the lead adopted a fresh same-Mac build and 20 Blazor+18 React bounded desktop/narrow/owner/dirty-close/form observations: not 38 tests, Intel/backend/future-edit certification. Failures/limits remain preserved. Return **BROWSER_PENDING**; lead owns fresh changed-source packages/stamp/gallery, loaded-asset joins and desktop+narrow keyboard/focus/locale/reflow. Old archives/galleries cannot qualify edits; no freshness skip/new server.
+
+## Evidence, reviews and finite return
+
+For each slice: evaluate baseline → actual regression red → minimal repair → focused green. Setup/compile errors are not behavioral red. Already passing means preserve/report coverage. Tests must run production behavior with literal/spec/neutral oracles independent of production constants/output (AGENTS.md); preserve original assertions/design.
+
+Private commits/hooks only; no shared push/merge. Independent Spec and Standards/adversarial review if available; otherwise **REVIEW_PENDING**. Lead owns protected integration/CI.
+
+Log UTC checkpoints for reconciliation, Scheduler, Chart/Chat and return; no four-day promise. Return baseline/document revision, commits/patches, path/hashes, requirements/oracles, command exits/logs/TRX/counts, preserved red/green, reviews, SETUP_BLOCKED and residual proposals. Name unreached browser cases and **BROWSER_PENDING**. Human-started finite source work is authorized; unrelated/shared work, publication and other-machine actions are excluded.
+
+After these slices, triage the remaining non-v6 catalog metadata and return prioritized implementation/evidence candidates with exact requirements, paths and next checks. Held families remain metadata-only and excluded from implementation. Do not wait for a response to continue another available unit within this assignment; changes outside the listed writers remain precise proposals.
