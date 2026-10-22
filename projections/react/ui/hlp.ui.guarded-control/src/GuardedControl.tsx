@@ -48,6 +48,7 @@ export function GuardedControl({
   const coverRef = React.useRef<HTMLButtonElement>(null)
   const armedRef = React.useRef<HTMLButtonElement>(null)
   const deferredFocus = React.useRef(false)
+  const pendingCoverFocus = React.useRef(false)
 
   const wholeMessage = React.useCallback((key: string, fallback: string, variables: Record<string, string>) => {
     let message = catalog[key] ?? fallback
@@ -70,7 +71,9 @@ export function GuardedControl({
       deferredFocus.current = true
       return
     }
-    queueMicrotask(() => mounted.current && coverRef.current?.focus())
+    // The covered action does not exist until the covered state renders, so the layout effect
+    // below performs the focus; a microtask here ran before that render and focused nothing.
+    pendingCoverFocus.current = true
   }, [])
 
   const recover = React.useCallback((reason: GuardRecoveryReason) => {
@@ -125,6 +128,10 @@ export function GuardedControl({
 
   React.useLayoutEffect(() => {
     if (state === 'armed') armedRef.current?.focus()
+    else if (state === 'covered' && pendingCoverFocus.current) {
+      pendingCoverFocus.current = false
+      coverRef.current?.focus()
+    }
   }, [state])
 
   const arm = () => {
