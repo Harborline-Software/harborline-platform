@@ -139,10 +139,18 @@ describe('Sheet React projection', () => {
     const field = document.createElement('input')
     overlay.append(field)
     document.body.append(overlay)
-    field.focus()
-    fireEvent.keyDown(field, { key: 'Escape' })
-    expect(onOpenChange).not.toHaveBeenCalled()
-    overlay.remove()
+    try {
+      field.focus()
+      fireEvent.keyDown(field, { key: 'Escape' })
+      expect(onOpenChange).not.toHaveBeenCalled()
+      // A page-level Escape belongs to the topmost overlay, which is now the later one.
+      fireEvent.keyDown(document.body, { key: 'Escape' })
+      expect(onOpenChange).not.toHaveBeenCalled()
+    } finally {
+      overlay.remove()
+    }
+    fireEvent.keyDown(document.body, { key: 'Escape' })
+    expect(onOpenChange).toHaveBeenCalledExactlyOnceWith(false)
   })
 
   it('still dismisses a nonmodal sheet on an Escape from the page', () => {
