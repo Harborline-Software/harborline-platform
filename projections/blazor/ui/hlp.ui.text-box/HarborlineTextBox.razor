@@ -3,6 +3,9 @@
 @using Microsoft.AspNetCore.Components.Web
 @using Harborline.UIAdapters.Blazor.Components.Forms
 @using Harborline.UIAdapters.Blazor.Localization
+@using Microsoft.JSInterop
+@implements IAsyncDisposable
+@inject IJSRuntime JavaScript
 
 @* hlp.ui.text-box composes hlp.ui.input: the input module owns appearance, host
    attributes, prefix/suffix composition, touch sizing, and focus treatment, while
@@ -191,11 +194,27 @@
 
   private Task HandleKeyDownAsync(KeyboardEventArgs args) => KeyDown.InvokeAsync(args);
 
+  private IJSObjectReference? module;
+
   private async Task ClearAsync()
   {
     if (!ShowClear) return;
     if (!Controlled) internalValue = string.Empty;
     await ValueChanged.InvokeAsync(string.Empty);
+    // The clear action is removed with the value; keep keyboard focus in the text-entry group.
+    try
+    {
+      module ??= await JavaScript.InvokeAsync<IJSObjectReference>("import", "./_content/Harborline.UIAdapters.Blazor/text-box.js");
+      await module.InvokeVoidAsync("focusInput", ResolvedId);
+    }
+    catch (JSException) { }
+    catch (JSDisconnectedException) { }
+    catch (InvalidOperationException) { }
+  }
+
+  public async ValueTask DisposeAsync()
+  {
+    if (module is not null) try { await module.DisposeAsync(); } catch (JSDisconnectedException) { }
   }
 
   private void ToggleReveal() { if (RevealVisible) revealed = !revealed; }
