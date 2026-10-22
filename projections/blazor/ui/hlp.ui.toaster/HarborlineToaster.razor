@@ -17,7 +17,7 @@
         }
       </span>
       <div class="hl-toaster__copy"><div>@entry.Message</div>@if(entry.Description is not null){<div class="hl-toaster__description">@entry.Description</div>}</div>
-      @if (entry.Action is not null) { <button type="button" class="hl-toaster__action" @onclick="() => ActivateAsync(entry.Action)">@entry.Action.Label</button> }
+      @if (entry.Action is not null) { <button type="button" class="hl-toaster__action" @onclick="() => ActivateAsync(entry)">@entry.Action.Label</button> }
       @if (ShowCloseButton || entry.Variant == ToastVariant.Error) { <button type="button" class="hl-toaster__close" aria-label="@DismissLabel" @onclick="() => Toasts.Dismiss(entry.Id)"><svg aria-hidden="true" fill="none" focusable="false" viewBox="0 0 16 16"><path d="M3 3l10 10M13 3 3 13"></path></svg></button> }
     </div>
   }
@@ -45,7 +45,10 @@
     if (string.IsNullOrWhiteSpace(DismissLabel) || string.IsNullOrWhiteSpace(AccessibleLabel)) throw new InvalidOperationException("toast-message-required");
     Toasts.ConfigureHost(new(DurationMilliseconds, MaximumVisible, ShowCloseButton, UseSemanticColors, KeepErrorsPersistent, Defaults));
   }
-  private void OnChanged()=>_ = InvokeAsync(StateHasChanged);
-  private static Task ActivateAsync(ToastAction action)=>action.ActivateAsync();
+  // An action is invoked at most once per shown toast, as in React; a toast replaced under the same
+  // id is a new entry and may be activated again. Entries are tracked by reference.
+  private readonly HashSet<ToastEntry> activated = new(ReferenceEqualityComparer.Instance);
+  private void OnChanged(){var current=Toasts.Entries;activated.RemoveWhere(entry=>!current.Any(candidate=>ReferenceEquals(candidate,entry)));_ = InvokeAsync(StateHasChanged);}
+  private Task ActivateAsync(ToastEntry entry)=>entry.Action is not null&&activated.Add(entry)?entry.Action.ActivateAsync():Task.CompletedTask;
   protected override void Dispose(bool disposing){if(disposing)Toasts.Changed-=OnChanged;base.Dispose(disposing);}
 }
