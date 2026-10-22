@@ -76,7 +76,7 @@ describe('Dialog React projection', () => {
     expect(onOpenChange).toHaveBeenCalledExactlyOnceWith(false)
   })
 
-  it('dismisses only the topmost dialog when a second dialog opens later', () => {
+  it('dismisses only the dialog the Escape came from when a second dialog opens later', () => {
     const first = vi.fn()
     const second = vi.fn()
     const view = render(<><Dialog onOpenChange={first} open title="First"><p>First body</p></Dialog></>)
@@ -87,6 +87,29 @@ describe('Dialog React projection', () => {
       </>,
     )
     fireEvent.keyDown(screen.getByRole('textbox', { name: 'Second field' }), { key: 'Escape' })
+    expect(second).toHaveBeenCalledExactlyOnceWith(false)
+    expect(first).not.toHaveBeenCalled()
+  })
+
+  // Content portaled to body after the dialog opened (a popover) is not inert; Tab from there must
+  // still be contained by the topmost dialog.
+  it('returns Tab from content portaled outside the dialog to the dialog', () => {
+    render(<Dialog closeIcon={false} onOpenChange={vi.fn()} open title="Edit"><input aria-label="First field" /></Dialog>)
+    const popover = document.createElement('button')
+    popover.textContent = 'Popover item'
+    document.body.append(popover)
+    popover.focus()
+    fireEvent.keyDown(popover, { key: 'Tab' })
+    expect(screen.getByRole('dialog').contains(document.activeElement)).toBe(true)
+    popover.remove()
+  })
+
+  it('dismisses the topmost dialog on an Escape from the page itself', () => {
+    const first = vi.fn()
+    const second = vi.fn()
+    const view = render(<Dialog onOpenChange={first} open title="First"><p>First body</p></Dialog>)
+    view.rerender(<><Dialog onOpenChange={first} open title="First"><p>First body</p></Dialog><Dialog onOpenChange={second} open title="Second"><p>Second body</p></Dialog></>)
+    fireEvent.keyDown(document.body, { key: 'Escape' })
     expect(second).toHaveBeenCalledExactlyOnceWith(false)
     expect(first).not.toHaveBeenCalled()
   })

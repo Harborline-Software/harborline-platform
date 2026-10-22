@@ -114,9 +114,11 @@ export function Dialog({
 
   React.useEffect(() => {
     if (!open) return
-    // Bubble phase, so a widget inside the dialog (a menu, combobox or armed guard) handles its own
-    // Escape first and the dialog dismisses only on an Escape nothing inside it consumed. Only the
-    // dialog the key came from acts; a key from the page itself goes to the topmost dialog.
+    // Bubble phase, so a widget inside the dialog that handles Escape on its own element (and
+    // prevents the default) consumes it first; the dialog dismisses only on an Escape nothing
+    // consumed, and only the dialog the key came from (or the topmost one, for a key from the page
+    // itself) acts. Tab containment stays with the topmost dialog wherever focus is, including
+    // content portaled to body after the dialog opened.
     const onDocumentKeyDown = (event: KeyboardEvent) => {
       if (event.defaultPrevented) return
       const portal = portalRef.current
@@ -124,8 +126,8 @@ export function Dialog({
       const target = event.target
       const fromThisDialog = target instanceof Node && portal.contains(target)
       const fromPage = target === document || target === document.body || target === document.documentElement
-      if (!fromThisDialog && !(fromPage && isTopmostDialog(portal))) return
       if (event.key === 'Escape') {
+        if (!fromThisDialog && !(fromPage && isTopmostDialog(portal))) return
         if (!closeOnEscape) return
         event.preventDefault()
         event.stopPropagation()
@@ -133,6 +135,7 @@ export function Dialog({
         return
       }
       if (event.key !== 'Tab' || !dialogRef.current) return
+      if (!fromThisDialog && !isTopmostDialog(portal)) return
       const dialog = dialogRef.current
       const focusables = focusableElements(dialog)
       if (focusables.length === 0) {
