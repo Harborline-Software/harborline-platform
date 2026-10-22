@@ -129,7 +129,7 @@
       builder.AddAttribute(16, "data-hl-action", "reveal");
       builder.AddAttribute(17, "aria-label", ResolvedRevealLabel);
       builder.AddAttribute(18, "aria-pressed", PasswordVisible ? "true" : "false");
-      builder.AddAttribute(19, "onclick", EventCallback.Factory.Create<MouseEventArgs>(this, ToggleReveal));
+      builder.AddAttribute(19, "onclick", EventCallback.Factory.Create<MouseEventArgs>(this, ToggleRevealAsync));
       builder.AddEventPreventDefaultAttribute(20, "onmousedown", true);
       builder.OpenElement(21, "svg");
       builder.AddAttribute(22, "aria-hidden", "true");
@@ -195,27 +195,64 @@
   private Task HandleKeyDownAsync(KeyboardEventArgs args) => KeyDown.InvokeAsync(args);
 
   private IJSObjectReference? module;
+  private bool disposed;
+  private bool pendingFocus;
+  private int[]? pendingSelection;
 
+  // The clear action is removed with the value, and hlp.ui.input renders a new input element when its
+  // suffix goes away, so focus moves to the input after that render. A host that removes this field
+  // while handling the change disposes it, and a disposed component doesn't render, so no call follows.
   private async Task ClearAsync()
   {
     if (!ShowClear) return;
     if (!Controlled) internalValue = string.Empty;
+    pendingFocus = true;
     await ValueChanged.InvokeAsync(string.Empty);
-    // The clear action is removed with the value; keep keyboard focus in the text-entry group.
+  }
+
+  // Reveal changes only the rendered type; focus and the text selection return to the input after the
+  // type change renders, as the browser may reset the selection when the type changes.
+  private async Task ToggleRevealAsync()
+  {
+    if (!RevealVisible) return;
+    int[]? selection = null;
+    await InvokeModuleAsync(async js => selection = await js.InvokeAsync<int[]?>("readSelection", ResolvedId));
+    if (disposed) return;
+    revealed = !revealed;
+    pendingSelection = selection ?? [-1, -1];
+  }
+
+  protected override async Task OnAfterRenderAsync(bool firstRender)
+  {
+    if (pendingSelection is { Length: 2 } selection)
+    {
+      pendingSelection = null; pendingFocus = false;
+      await InvokeModuleAsync(js => js.InvokeVoidAsync("restoreSelection", ResolvedId, selection[0], selection[1]));
+    }
+    else if (pendingFocus)
+    {
+      pendingFocus = false;
+      await InvokeModuleAsync(js => js.InvokeVoidAsync("focusInput", ResolvedId));
+    }
+  }
+
+  private async Task InvokeModuleAsync(Func<IJSObjectReference, ValueTask> call)
+  {
+    if (disposed) return;
     try
     {
       module ??= await JavaScript.InvokeAsync<IJSObjectReference>("import", "./_content/Harborline.UIAdapters.Blazor/text-box.js");
-      await module.InvokeVoidAsync("focusInput", ResolvedId);
+      if (module is not null && !disposed) await call(module);
     }
     catch (JSException) { }
     catch (JSDisconnectedException) { }
-    catch (InvalidOperationException) { }
+    catch (InvalidOperationException) { } // includes ObjectDisposedException
+    catch (TaskCanceledException) { }
   }
 
   public async ValueTask DisposeAsync()
   {
-    if (module is not null) try { await module.DisposeAsync(); } catch (JSDisconnectedException) { }
+    disposed = true;
+    if (module is not null) try { await module.DisposeAsync(); } catch (JSDisconnectedException) { } catch (ObjectDisposedException) { }
   }
-
-  private void ToggleReveal() { if (RevealVisible) revealed = !revealed; }
 }

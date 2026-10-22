@@ -12,6 +12,8 @@ public sealed class TextBoxLabelTests : BunitContext
     private static readonly Dictionary<string, string> French = new() { ["common.clear"] = "Effacer", ["forms.textBox.showPassword"] = "Afficher le mot de passe", ["forms.textBox.hidePassword"] = "Masquer le mot de passe" };
     private static readonly Dictionary<string, string> Arabic = new() { ["common.clear"] = "امسح", ["forms.textBox.showPassword"] = "اعرض كلمة المرور", ["forms.textBox.hidePassword"] = "أخفِ كلمة المرور" };
 
+    public TextBoxLabelTests() => JSInterop.SetupModule("./_content/Harborline.UIAdapters.Blazor/text-box.js").Mode = JSRuntimeMode.Loose;
+
     private static (string Clear, string Reveal) Names<T>(IRenderedComponent<T> cut) where T : Microsoft.AspNetCore.Components.IComponent
     {
         var clear = cut.Find("[data-hl-action=clear]").GetAttribute("aria-label") ?? string.Empty;

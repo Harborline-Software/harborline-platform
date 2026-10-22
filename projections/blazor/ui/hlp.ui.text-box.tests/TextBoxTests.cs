@@ -25,6 +25,62 @@ public sealed class TextBoxTests : BunitContext
         var focus = Assert.Single(module.Invocations["focusInput"]);
         Assert.Equal(inputId, focus.Arguments[0]);
     }
+    // The component renders only its input composition: no stray text beside it.
+    [Fact] public void RendersNoTextOutsideTheInputComposition()
+    {
+        var cut = Render<HarborlineTextBox>(p => p.Add(x => x.Value, "alpha").Add(x => x.ValueChanged, _ => { }).Add(x => x.ClearButton, true));
+        Assert.All(cut.Nodes, node => Assert.True(node is AngleSharp.Dom.IElement || string.IsNullOrWhiteSpace(node.TextContent), $"stray text: '{node.TextContent}'"));
+    }
+    // Focus moves after the render that removes the clear action, because hlp.ui.input then renders a
+    // new input element; the host hears of the change before that render.
+    [Fact] public void ClearFocusesTheInputAfterTheRender()
+    {
+        var module = JSInterop.SetupModule("./_content/Harborline.UIAdapters.Blazor/text-box.js"); module.Mode = JSRuntimeMode.Loose;
+        var focusCallsSeenByHost = -1;
+        var cut = Render<HarborlineTextBox>(p => p.Add(x => x.DefaultValue, "alpha").Add(x => x.ClearButton, true)
+            .Add(x => x.ValueChanged, _ => focusCallsSeenByHost = module.Invocations["focusInput"].Count));
+        cut.Find("[data-hl-action=clear]").Click();
+        Assert.Equal(0, focusCallsSeenByHost);
+        Assert.Single(module.Invocations["focusInput"]);
+    }
+    // A host may remove the field while handling the cleared value; the disposed field makes no call.
+    [Fact] public void ClearMakesNoCallWhenTheHostRemovesTheField()
+    {
+        var module = JSInterop.SetupModule("./_content/Harborline.UIAdapters.Blazor/text-box.js"); module.Mode = JSRuntimeMode.Loose;
+        var host = Render<RemovableTextBoxHost>();
+        host.Find("[data-hl-action=clear]").Click();
+        Assert.Empty(host.FindAll("input"));
+        Assert.Empty(module.Invocations["focusInput"]);
+    }
+    private sealed class RemovableTextBoxHost : ComponentBase
+    {
+        private bool shown = true;
+        protected override void BuildRenderTree(Microsoft.AspNetCore.Components.Rendering.RenderTreeBuilder builder)
+        {
+            if (!shown) return;
+            builder.OpenComponent<HarborlineTextBox>(0);
+            builder.AddComponentParameter(1, nameof(HarborlineTextBox.DefaultValue), "alpha");
+            builder.AddComponentParameter(2, nameof(HarborlineTextBox.ClearButton), true);
+            builder.AddComponentParameter(3, nameof(HarborlineTextBox.ValueChanged), EventCallback.Factory.Create<string>(this, () => shown = false));
+            builder.CloseComponent();
+        }
+    }
+    // Contract: reveal toggles only the rendered type and preserves the selection when possible; focus
+    // returns to the input with the selection read before the type change.
+    [Fact] public void RevealRestoresFocusAndSelection()
+    {
+        var module = JSInterop.SetupModule("./_content/Harborline.UIAdapters.Blazor/text-box.js"); module.Mode = JSRuntimeMode.Loose;
+        module.Setup<int[]?>("readSelection", _ => true).SetResult([2, 5]);
+        var cut = Render<HarborlineTextBox>(p => p.Add(x => x.DefaultValue, "hunter2").Add(x => x.Type, "password").Add(x => x.ShowReveal, true));
+        var inputId = cut.Find("input").Id;
+        cut.Find("[data-hl-action=reveal]").Click();
+        Assert.Equal("text", cut.Find("input").GetAttribute("type"));
+        var restore = Assert.Single(module.Invocations["restoreSelection"]);
+        Assert.Equal(new object?[] { inputId, 2, 5 }, restore.Arguments);
+        cut.Find("[data-hl-action=reveal]").Click();
+        Assert.Equal("password", cut.Find("input").GetAttribute("type"));
+        Assert.Equal(2, module.Invocations["restoreSelection"].Count);
+    }
     [Theory, Trait("ModuleConformance", "hlp.ui.text-box")] [MemberData(nameof(SharedFixtureBatch.Cases), "hlp.ui.text-box", MemberType = typeof(SharedFixtureBatch))]
     public void SharedFixtureConforms(string caseId, string? rawFixture)
     {
