@@ -12,7 +12,9 @@ public sealed class SearchInputTests : BunitContext
     [Fact] public void ExternalValueReplacesDraft(){var cut=Render<HarborlineSearchInput>(p=>p.Add(x=>x.Value,"old"));cut.Find("input").Input("draft");cut.Render(p=>p.Add(x=>x.Value,"saved"));Assert.Equal("saved",cut.Find("input").GetAttribute("value"));Assert.Equal("false",cut.Find(".hl-search-input").GetAttribute("aria-busy"));}
     // The clear control exists only for a nonempty draft, so activating it removes the focused
     // element; focus must return to the searchbox rather than fall to the page (WCAG 2.4.3).
-    [Fact] public void ClearReturnsFocusToTheSearchbox(){JSInterop.Mode=JSRuntimeMode.Loose;var values=new List<string>();var cut=Render<HarborlineSearchInput>(p=>p.Add(x=>x.Value,"oak").Add(x=>x.ValueChanged,value=>values.Add(value)));cut.Find("button.hl-search-input__clear").Click();Assert.Equal([""],values);Assert.Empty(cut.FindAll("button.hl-search-input__clear"));var focus=JSInterop.VerifyFocusAsyncInvoke();Assert.False(string.IsNullOrEmpty(Assert.IsType<Microsoft.AspNetCore.Components.ElementReference>(focus.Arguments[0]).Id));}
+    [Fact] public void ClearReturnsFocusToTheSearchbox(){JSInterop.Mode=JSRuntimeMode.Loose;var values=new List<string>();var focusCallsWhenPublished=new List<int>();var cut=Render<HarborlineSearchInput>(p=>p.Add(x=>x.Value,"oak").Add(x=>x.ValueChanged,value=>{values.Add(value);focusCallsWhenPublished.Add(JSInterop.Invocations.Count(invocation=>invocation.Identifier.Contains("focus",StringComparison.OrdinalIgnoreCase)));}));cut.Find("button.hl-search-input__clear").Click();Assert.Equal([""],values);Assert.Empty(cut.FindAll("button.hl-search-input__clear"));Assert.Equal([1],focusCallsWhenPublished);var focus=JSInterop.VerifyFocusAsyncInvoke();Assert.False(string.IsNullOrEmpty(Assert.IsType<Microsoft.AspNetCore.Components.ElementReference>(focus.Arguments[0]).Id));}
+    // Blank caller text is not an accessible name (WCAG 4.1.2); the searchbox falls back to the placeholder.
+    [Fact] public void BlankAccessibleLabelFallsBackToThePlaceholderName(){var cut=Render<HarborlineSearchInput>(p=>p.Add(x=>x.AccessibleLabel,"  ").Add(x=>x.Placeholder,"Find assets"));Assert.Equal("Find assets",cut.Find("input").GetAttribute("aria-label"));}
     [Theory,Trait("ModuleConformance","hlp.ui.search-input")] [MemberData(nameof(SharedFixtureBatch.Cases), "hlp.ui.search-input", MemberType = typeof(SharedFixtureBatch))]
     public void SharedFixtureConforms(string caseId, string? rawFixture)
     {
@@ -35,10 +37,11 @@ public sealed class SearchInputTests : BunitContext
         public bool ClearPresent=>Cut.FindAll("button.hl-search-input__clear").Count>0;
         public void Type(string value)=>Box.Input(value);
     }
-    private Harness Mount(string value="",int debounceMs=200)
+    private Harness Mount(string value="",int? debounceMs=null)
     {
         JSInterop.Mode=JSRuntimeMode.Loose;var published=new List<string>();
-        var cut=Render<HarborlineSearchInput>(p=>p.Add(x=>x.Value,value).Add(x=>x.DebounceMs,debounceMs).Add(x=>x.ValueChanged,v=>published.Add(v)));
+        // DebounceMs is passed only when a case names one, so defaults exercises the component's own default.
+        var cut=Render<HarborlineSearchInput>(p=>{p.Add(x=>x.Value,value).Add(x=>x.ValueChanged,v=>{lock(published)published.Add(v);});if(debounceMs is int delay)p.Add(x=>x.DebounceMs,delay);});
         return new(cut,published);
     }
     private static void Wait(int milliseconds)=>Thread.Sleep(milliseconds);
@@ -82,8 +85,11 @@ public sealed class SearchInputTests : BunitContext
             case "search-input.busy":
             {
                 var h=Mount();h.Type(input.GetProperty("edit").GetString()!);
+                var boundary=input.GetProperty("advanceMs").EnumerateArray().Last().GetInt32();
                 var states=new List<bool>{h.Busy};
-                h.Cut.WaitForAssertion(()=>Assert.False(h.Busy),TimeSpan.FromSeconds(2));states.Add(h.Busy);
+                // Still busy well before the boundary, then idle once it has passed.
+                Wait(boundary/2);Assert.True(h.Busy);
+                h.Cut.WaitForAssertion(()=>Assert.False(h.Busy),TimeSpan.FromMilliseconds(boundary*10));states.Add(h.Busy);
                 Assert.Equal(expected.GetProperty("busyStates").EnumerateArray().Select(value=>value.GetBoolean()).ToArray(),states.ToArray());
                 break;
             }
