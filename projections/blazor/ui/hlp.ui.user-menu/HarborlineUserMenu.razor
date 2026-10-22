@@ -121,7 +121,7 @@
     {
       await EnsureModuleAsync();
       outsideId=await module!.InvokeAsync<long>("observeOutside",Root,reference);
-      keysId=await module!.InvokeAsync<long>("observeKeys",Panel,!HasCustom,reference);
+      keysId=await module!.InvokeAsync<long>("observeKeys",Panel,!HasCustom,reference,Trigger);
       await module!.InvokeVoidAsync("focusFirst",Panel,HasCustom);
     }
     else
