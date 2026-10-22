@@ -134,12 +134,16 @@ class HostToastService implements ToastService {
 
   async trackAsync<T>(operation: Promise<T> | (() => Promise<T>), messages: TrackAsyncMessages<T>, options: Omit<ToastOptions, 'variant'> = {}) {
     const id = this.loading(messages.loading, { ...options, duration: null })
+    // A host disposed while the operation runs (an unmounted root) takes no further toasts, and the
+    // caller still receives the operation's own result or failure.
     try {
       const value = await (typeof operation === 'function' ? operation() : operation)
+      if (this.disposed) return value
       const message = typeof messages.success === 'function' ? messages.success(value) : messages.success
       this.success(message, { ...options, id })
       return value
     } catch (reason) {
+      if (this.disposed) throw reason
       const message = typeof messages.error === 'function' ? messages.error(reason) : messages.error
       this.error(message, { ...options, id })
       throw reason
