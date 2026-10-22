@@ -32,6 +32,10 @@ function focusableElements(root: HTMLElement): HTMLElement[] {
   ].join(','))).filter(element => !element.closest('[hidden], [inert]'))
 }
 
+function isTopmostDialog(portal: HTMLElement): boolean {
+  return Array.from(document.body.children).filter(element => element.classList.contains('hl-dialog__portal')).at(-1) === portal
+}
+
 function DialogBody({ children }: { readonly children: React.ReactNode }) {
   const bodyRef = React.useRef<HTMLDivElement | null>(null)
   const scroll = useScrollAffordance(bodyRef, { orientation: 'vertical' })
@@ -110,8 +114,17 @@ export function Dialog({
 
   React.useEffect(() => {
     if (!open) return
+    // Bubble phase, so a widget inside the dialog (a menu, combobox or armed guard) handles its own
+    // Escape first and the dialog dismisses only on an Escape nothing inside it consumed. Only the
+    // dialog the key came from acts; a key from the page itself goes to the topmost dialog.
     const onDocumentKeyDown = (event: KeyboardEvent) => {
       if (event.defaultPrevented) return
+      const portal = portalRef.current
+      if (!portal) return
+      const target = event.target
+      const fromThisDialog = target instanceof Node && portal.contains(target)
+      const fromPage = target === document || target === document.body || target === document.documentElement
+      if (!fromThisDialog && !(fromPage && isTopmostDialog(portal))) return
       if (event.key === 'Escape') {
         if (!closeOnEscape) return
         event.preventDefault()
@@ -138,8 +151,8 @@ export function Dialog({
         first.focus()
       }
     }
-    document.addEventListener('keydown', onDocumentKeyDown, true)
-    return () => document.removeEventListener('keydown', onDocumentKeyDown, true)
+    document.addEventListener('keydown', onDocumentKeyDown)
+    return () => document.removeEventListener('keydown', onDocumentKeyDown)
   }, [closeOnEscape, onOpenChange, open])
 
   if (!open || typeof document === 'undefined') return null

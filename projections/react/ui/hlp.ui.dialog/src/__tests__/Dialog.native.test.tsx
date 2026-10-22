@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
 import { HarborlineLocaleProvider } from '@harborline-platform/hlp.ui.locale-provider'
@@ -57,5 +57,37 @@ describe('Dialog React projection', () => {
     expect(css).toContain('@media (prefers-reduced-motion: reduce)')
     expect(css).toMatch(/animation:\s*none/)
     expect(css).toMatch(/transition:\s*none/)
+  })
+
+  // An inner widget (a menu, combobox or armed guard) owns its Escape first; the dialog dismisses
+  // only on an Escape nothing inside it handled (WAI-ARIA APG dialog and menu patterns).
+  it('lets a widget inside the dialog handle Escape before the dialog dismisses', () => {
+    const onOpenChange = vi.fn()
+    const inner = vi.fn()
+    render(
+      <Dialog onOpenChange={onOpenChange} open title="Edit">
+        <input aria-label="Picker" onKeyDown={event => { if (event.key === 'Escape') { inner(); event.preventDefault() } }} />
+      </Dialog>,
+    )
+    fireEvent.keyDown(screen.getByRole('textbox', { name: 'Picker' }), { key: 'Escape' })
+    expect(inner).toHaveBeenCalledOnce()
+    expect(onOpenChange).not.toHaveBeenCalled()
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' })
+    expect(onOpenChange).toHaveBeenCalledExactlyOnceWith(false)
+  })
+
+  it('dismisses only the topmost dialog when a second dialog opens later', () => {
+    const first = vi.fn()
+    const second = vi.fn()
+    const view = render(<><Dialog onOpenChange={first} open title="First"><p>First body</p></Dialog></>)
+    view.rerender(
+      <>
+        <Dialog onOpenChange={first} open title="First"><p>First body</p></Dialog>
+        <Dialog onOpenChange={second} open title="Second"><input aria-label="Second field" /></Dialog>
+      </>,
+    )
+    fireEvent.keyDown(screen.getByRole('textbox', { name: 'Second field' }), { key: 'Escape' })
+    expect(second).toHaveBeenCalledExactlyOnceWith(false)
+    expect(first).not.toHaveBeenCalled()
   })
 })
