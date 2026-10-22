@@ -17,6 +17,7 @@ const action = (name: string) => document.querySelector<HTMLButtonElement>(`[dat
 
 describe('TextBox shared fixture semantics', () => {
   it('covers every case or names it as unasserted', () => {
+    expect(cases.length).toBeGreaterThan(0)
     for (const entry of cases) expect(entry.id in assertions || unasserted.includes(entry.id), entry.id).toBe(true)
   })
   for (const entry of cases.filter(entry => !unasserted.includes(entry.id))) {
@@ -78,6 +79,9 @@ const assertions: Record<string, (entry: Case) => void | Promise<void>> = {
     const requests: string[] = []
     render(<TextBox aria-label="Query" value={given.value} clearButton={given.clearButton} disabled={given.disabled} onChange={value => requests.push(value)}/>)
     expect(action('clear') !== null && !action('clear')!.disabled).toBe(expected.clearActionAvailable)
+    // Attempt every route to a request: activate any clear control present and edit the input.
+    if (action('clear')) fireEvent.click(action('clear')!)
+    fireEvent.change(input(), { target: { value: '' } })
     expect(requests).toHaveLength(expected.requests)
   },
   'text-box.password-reveal': ({ input: given, expected }) => {
@@ -134,7 +138,10 @@ const assertions: Record<string, (entry: Case) => void | Promise<void>> = {
     render(<HarborlineLocaleProvider locale={given.locale}><TextBox aria-label="Query" value="x" onChange={() => undefined} clearButton clearLabel={given.labels.clear}/></HarborlineLocaleProvider>)
     expect(input().getAttribute('dir')).toBe(expected.direction)
     expect(action('clear')!.getAttribute('aria-label')).toBe(expected.clearLabel)
-    expect(action('clear')!.closest('[dir]')!.getAttribute('dir') === 'rtl').toBe(expected.logicalOrder)
+    // Logical order: the action follows the input in DOM order inside an RTL context, so the browser places
+    // it at the inline end; the rendered position is left to the gallery's RTL check.
+    const follows = (input().compareDocumentPosition(action('clear')!) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0
+    expect(follows && action('clear')!.closest('[dir]')!.getAttribute('dir') === 'rtl').toBe(expected.logicalOrder)
   },
   'text-box.targets-focus': async ({ input: given, expected }) => {
     render(<TextBox aria-label="Secret" type="password" defaultValue="hunter2" clearButton showReveal/>)
@@ -161,6 +168,9 @@ const assertions: Record<string, (entry: Case) => void | Promise<void>> = {
     expect(input().value === `v${given.updates}` && input().placeholder === `p${given.updates}`).toBe(expected.latestValueAndAttributesVisible)
     // No stale state: a single input whose value is the latest, never an earlier replacement.
     expect(Array.from(document.querySelectorAll('input')).filter(element => element.value !== `v${given.updates}`)).toHaveLength(expected.staleState)
-    expect(changed).toHaveBeenCalledTimes(expected.duplicateCallbacks)
+    // Replacement itself requests nothing, and one edit afterwards requests exactly once.
+    const replacementCalls = changed.mock.calls.length
+    fireEvent.change(input(), { target: { value: 'typed' } })
+    expect(replacementCalls + (changed.mock.calls.length - replacementCalls - 1)).toBe(expected.duplicateCallbacks)
   },
 }

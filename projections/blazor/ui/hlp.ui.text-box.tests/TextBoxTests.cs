@@ -167,6 +167,9 @@ public sealed class TextBoxTests : BunitContext
             {
                 var requests = new List<string>(); var cut = Box(p => p.Add(x => x.Value, input.GetProperty("value").GetString()).Add(x => x.ClearButton, input.GetProperty("clearButton").GetBoolean()).Add(x => x.Disabled, input.GetProperty("disabled").GetBoolean()).Add(x => x.ValueChanged, v => requests.Add(v)));
                 Assert.Equal(expected.GetProperty("clearActionAvailable").GetBoolean(), cut.FindAll("[data-hl-action=clear]:not([disabled])").Count > 0);
+                // Attempt every route to a request: activate any clear control present and edit the input.
+                foreach (var clear in cut.FindAll("[data-hl-action=clear]")) clear.Click();
+                cut.Find("input").Input(string.Empty);
                 Assert.Equal(expected.GetProperty("requests").GetInt32(), requests.Count);
                 break;
             }
@@ -237,7 +240,10 @@ public sealed class TextBoxTests : BunitContext
                 var cut = Render<Harborline.UIAdapters.Blazor.Localization.HarborlineLocaleProvider>(p => p.Add(x => x.Locale, input.GetProperty("locale").GetString()!).AddChildContent<HarborlineTextBox>(c => c.Add(x => x.AccessibleName, "Query").Add(x => x.Value, "x").Add(x => x.ValueChanged, _ => { }).Add(x => x.ClearButton, true).Add(x => x.ClearLabel, input.GetProperty("labels").GetProperty("clear").GetString())));
                 Assert.Equal(expected.GetProperty("direction").GetString(), Attr(cut.Find("input"), "dir"));
                 Assert.Equal(expected.GetProperty("clearLabel").GetString(), Attr(cut.Find("[data-hl-action=clear]"), "aria-label"));
-                Assert.Equal(expected.GetProperty("logicalOrder").GetBoolean(), cut.Find("[data-hl-action=clear]").Closest("[dir]")?.GetAttribute("dir") == "rtl");
+                // Logical order: the action follows the input in DOM order inside an RTL context, so the browser
+                // places it at the inline end; the rendered position is left to the gallery's RTL check.
+                var clearAction = cut.Find("[data-hl-action=clear]");
+                Assert.Equal(expected.GetProperty("logicalOrder").GetBoolean(), (cut.Find("input").CompareDocumentPosition(clearAction) & AngleSharp.Dom.DocumentPositions.Following) != 0 && clearAction.Closest("[dir]")?.GetAttribute("dir") == "rtl");
                 break;
             }
             case "text-box.targets-focus":
@@ -267,7 +273,10 @@ public sealed class TextBoxTests : BunitContext
                 for (var i = 1; i <= updates; i++) cut.Render(p => p.Add(x => x.Value, $"v{i}").Add(x => x.Placeholder, $"p{i}"));
                 Assert.Equal(expected.GetProperty("latestValueAndAttributesVisible").GetBoolean(), Attr(cut.Find("input"), "value") == $"v{updates}" && Attr(cut.Find("input"), "placeholder") == $"p{updates}");
                 Assert.Equal(expected.GetProperty("staleState").GetInt32(), cut.FindAll("input").Count(element => Attr(element, "value") != $"v{updates}"));
-                Assert.Equal(expected.GetProperty("duplicateCallbacks").GetInt32(), calls);
+                // Replacement itself requests nothing, and one edit afterwards requests exactly once.
+                var replacementCalls = calls;
+                cut.Find("input").Input("typed");
+                Assert.Equal(expected.GetProperty("duplicateCallbacks").GetInt32(), replacementCalls + (calls - replacementCalls - 1));
                 break;
             }
             default:
