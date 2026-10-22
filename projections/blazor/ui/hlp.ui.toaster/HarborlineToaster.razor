@@ -2,6 +2,7 @@
 @inherits HarborlineComponentBase
 @implements IDisposable
 @using Harborline.UIAdapters.Blazor.Localization
+@using Harborline.Foundation.Localization
 @inject IToastService Toasts
 
 <section class="@CombineClasses("hl-toaster", $"hl-toaster--{PositionToken}")" style="@CombineStyles()" data-position="@PositionToken" data-hl-semantic-colors="@(UseSemanticColors ? "true" : null)" dir="@Direction" aria-label="@AccessibleLabel" @attributes="AdditionalAttributes">
@@ -43,7 +44,7 @@
   [Parameter] public string? Direction { get; set; }
   private string ResolvedDismissLabel => !string.IsNullOrWhiteSpace(DismissLabel) ? DismissLabel
     : LocaleContext?.ResolveString("common.dismissNotification") is { } value && !string.IsNullOrWhiteSpace(value) && value != "common.dismissNotification" ? value
-    : "Dismiss notification";
+    : HarborlineDefaultStrings.Get("common.dismissNotification");
   private string PositionToken => Position switch { ToastPosition.TopLeft=>"top-left",ToastPosition.TopCenter=>"top-center",ToastPosition.TopRight=>"top-right",ToastPosition.BottomLeft=>"bottom-left",ToastPosition.BottomCenter=>"bottom-center",ToastPosition.BottomRight=>"bottom-right",_=>"bottom-right" };
   private IReadOnlyList<ToastEntry> VisibleEntries => Toasts.Entries.TakeLast(MaximumVisible).ToArray();
   protected override void OnInitialized() => Toasts.Changed += OnChanged;

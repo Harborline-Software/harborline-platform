@@ -1,5 +1,6 @@
 import * as React from 'react'
 
+import { defaultStrings } from '@harborline-platform/hlp.ui.default-strings'
 import { useHarborlineStrings } from '@harborline-platform/hlp.ui.locale-provider'
 
 export type ToastVariant = 'default' | 'success' | 'error' | 'warning' | 'information' | 'loading'
@@ -280,7 +281,11 @@ export function Toaster({
   }, [defaults, duration, keepErrorsPersistent, maximumVisible, service])
   const snapshot = React.useSyncExternalStore(service.subscribe, service.getSnapshot, service.getSnapshot)
   const { resolveString } = useHarborlineStrings()
-  const resolvedDismissLabel = resolveString(dismissLabel?.trim() ? dismissLabel : undefined, 'common.dismissNotification')
+  // Caller text, then the current catalog value, then the default catalog value: never empty.
+  const catalogDismissLabel = resolveString(undefined, 'common.dismissNotification')
+  const resolvedDismissLabel = dismissLabel?.trim() ? dismissLabel
+    : catalogDismissLabel.trim() ? catalogDismissLabel
+    : defaultStrings['common.dismissNotification']
   return (
     <section {...attributes} dir={direction} aria-label="Notifications" className={`hl-toaster hl-toaster--${position}${className ? ` ${className}` : ''}`} data-position={position}>
       {snapshot.visible.map(entry => (

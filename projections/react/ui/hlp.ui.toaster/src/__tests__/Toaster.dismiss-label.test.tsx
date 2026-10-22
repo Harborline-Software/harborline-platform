@@ -56,4 +56,19 @@ describe('Toaster dismiss label', () => {
     showError(service)
     expect(closeName()).toBe('Fermer la notification')
   })
+
+  it('uses a pseudo-localized catalog value under en-XA without truncation', () => {
+    const pseudo = '⟦ Đîšmîšš ñøţîƒîçåţîøñ ···· ⟧'
+    const service = createToastService()
+    render(<HarborlineLocaleProvider locale="en-XA" catalog={{ 'common.dismissNotification': pseudo }}><Toaster service={service}/></HarborlineLocaleProvider>)
+    showError(service)
+    expect(closeName()).toBe(pseudo)
+  })
+
+  it('falls back to the default catalog value when the host catalog value is blank', () => {
+    const service = createToastService()
+    render(<HarborlineLocaleProvider locale="fr-FR" catalog={{ 'common.dismissNotification': '  ' }}><Toaster service={service}/></HarborlineLocaleProvider>)
+    showError(service)
+    expect(closeName()).toBe('Dismiss notification')
+  })
 })

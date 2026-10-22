@@ -69,4 +69,21 @@ public sealed class ToasterDismissLabelTests : BunitContext
         service.Error("Upload failed");
         Assert.Equal("Fermer la notification", CloseName(cut));
     }
+
+    [Fact]
+    public void UsesAPseudoLocalizedCatalogValueUnderEnXA()
+    {
+        const string pseudo = "⟦ Đîšmîšš ñøţîƒîçåţîøñ ···· ⟧";
+        var cut = Localized("en-XA", new Dictionary<string, string> { ["common.dismissNotification"] = pseudo });
+        service.Error("Upload failed");
+        Assert.Equal(pseudo, CloseName(cut));
+    }
+
+    [Fact]
+    public void FallsBackToTheDefaultCatalogValueWhenTheHostValueIsBlank()
+    {
+        var cut = Localized("fr-FR", new Dictionary<string, string> { ["common.dismissNotification"] = "  " });
+        service.Error("Upload failed");
+        Assert.Equal("Dismiss notification", CloseName(cut));
+    }
 }
