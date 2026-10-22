@@ -280,4 +280,13 @@ describe('Popover React projection', () => {
     fireEvent.keyDown(screen.getByRole('textbox', { name: 'Search options' }), { key: 'Escape' })
     expect(onOpenChange).not.toHaveBeenCalled()
   })
+
+  // An anchor such as a combobox input may use Escape itself (for example to clear its text) and keep
+  // the popover open; only the trigger button's Escape is taken ahead of other handlers.
+  it('lets an anchor input handle its own Escape first', () => {
+    const onOpenChange = vi.fn()
+    render(<Popover defaultOpen onOpenChange={onOpenChange}><PopoverAnchor asChild><input aria-label="Find" onKeyDown={event => { if (event.key === 'Escape') event.preventDefault() }}/></PopoverAnchor><PopoverTrigger>Filters</PopoverTrigger><PopoverContent aria-label="Filter options"><button type="button">Apply</button></PopoverContent></Popover>)
+    fireEvent.keyDown(screen.getByRole('textbox', { name: 'Find' }), { key: 'Escape' })
+    expect(onOpenChange).not.toHaveBeenCalled()
+  })
 })

@@ -209,11 +209,13 @@ export function Popover({ children, defaultOpen = false, open, onOpenChange }: P
       interactOutsideRef.current?.(outsideEvent)
       if (!prevented) requestOpen(false)
     }
-    // The open popover is the topmost layer. An Escape from its trigger or anchor is taken in the
-    // capture phase, before an outer layer (a dialog or sheet) listening on the document; an Escape
-    // from inside the content is handled on the content itself (PopoverContent), after any widget in
-    // it; an Escape from elsewhere on the page still closes it, as before.
-    const fromTrigger = (target: EventTarget | null) => target instanceof Node && (triggerRef.current?.contains(target) || anchorRef.current?.contains(target)) === true
+    // The open popover is the topmost layer. An Escape from its trigger button is taken in the capture
+    // phase, before an outer layer (a dialog or sheet) listening on the document; the trigger has no
+    // Escape behaviour of its own. An Escape from inside the content is handled on the content itself
+    // (PopoverContent), after any widget in it. Any other Escape, including one from an anchor that
+    // may use Escape itself, goes through the bubble listener and still closes it, as before. Inside
+    // a Dialog or Sheet the gain needs their bubble-phase, portal-scoped listeners (separate batches).
+    const fromTrigger = (target: EventTarget | null) => target instanceof Node && triggerRef.current?.contains(target) === true
     const onKeyDownCapture = (event: KeyboardEvent) => {
       if (event.key !== 'Escape' || event.defaultPrevented || !fromTrigger(event.target)) return
       event.preventDefault()
