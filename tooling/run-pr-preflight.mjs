@@ -13,8 +13,14 @@ export function toolingTestsPassed(run) {
 
 // Feedback for the existing PR/review note only; presence cannot establish design quality.
 export function reuseNoteAdvisories(body, {head, localExists = () => false} = {}) {
-  const sections = (typeof body === 'string' ? body : '').replace(/<!--[\s\S]*?-->/g, '')
-    .split(/^##[ \t]+/m).slice(1).filter(section => /^Reuse note[ \t]*\r?\n/i.test(section))
+  let uncommented = typeof body === 'string' ? body : ''
+  let previous
+  // Removing a comment can join surrounding text into another comment.
+  do {
+    previous = uncommented
+    uncommented = uncommented.replace(/<!--[\s\S]*?-->/g, '')
+  } while (uncommented !== previous)
+  const sections = uncommented.split(/^##[ \t]+/m).slice(1).filter(section => /^Reuse note[ \t]*\r?\n/i.test(section))
   if (sections.length === 0) return ['Reuse note missing; reviewer should confirm scope (routine changes need a reason).']
   if (sections.length !== 1) return ['Multiple Reuse note sections; keep one current note.']
   const section = sections[0]

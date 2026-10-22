@@ -62,3 +62,15 @@ test('reuse advisories never change preflight verdict, required commands or fail
   assert.deepEqual(calls[0], ['bash', ['eng/verify-boundaries.sh']])
   assert.equal(runPrPreflight(root, () => ({status: 1, stdout: ''}), {body: note(), head}), false)
 })
+
+// Literal nested input reproduces the CodeQL annotation without deriving an oracle from the parser.
+test('nested comment removal cannot supply Checked references', () => {
+  const body = `## Reuse note
+- Scope: substantial
+- Revision: ${head}
+- Checked: <<!-- ignored -->!-- [fake](AGENTS.md) -->
+- Chosen: extend the existing producer.
+- Custom: none; reuse the existing implementation.
+`
+  assert.deepEqual(check(body), ['Substantial Reuse note needs Checked references.'])
+})
