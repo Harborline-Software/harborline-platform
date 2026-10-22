@@ -37,6 +37,19 @@ public sealed class UserMenuTests : BunitContext
         foreach(var key in new[]{"s","s","s"}){panel.KeyDown(new Microsoft.AspNetCore.Components.Web.KeyboardEventArgs{Key=key});visited.Add(FocusedItem(module));}
         Assert.Equal(["settings","<sign-out>","settings"],visited);
     }
+    [Fact] public void DirectFocusMovesTheRovingPosition()
+    {
+        var (cut,module,_)=OpenMixed();
+        cut.Find("[data-hl-item=docs]").Focus();
+        cut.Find("[role=menu]").KeyDown(new Microsoft.AspNetCore.Components.Web.KeyboardEventArgs{Key="ArrowDown"});
+        Assert.Equal("settings",FocusedItem(module));
+    }
+    [Fact] public void TypeaheadIgnoresModifiedKeys()
+    {
+        var (cut,module,_)=OpenMixed();
+        cut.Find("[role=menu]").KeyDown(new Microsoft.AspNetCore.Components.Web.KeyboardEventArgs{Key="s",CtrlKey=true});
+        Assert.Null(FocusedItem(module));
+    }
     [Fact] public void TabLeavingTheMenuClosesItWithoutPullingFocusBack()
     {
         var (cut,module,changes)=OpenMixed();var focusBefore=module.Invocations["focus"].Count;
@@ -161,6 +174,7 @@ public sealed class UserMenuTests : BunitContext
                 Assert.Equal(expected.GetProperty("visible").GetBoolean(),cut.FindAll($"[data-hl-item={disabled}]").Count==1);
                 Key(cut,"ArrowDown");
                 Assert.Equal(expected.GetProperty("navigationSkips").GetBoolean(),(string?)module.Invocations["focusItem"][^1].Arguments[1]=="docs");
+                Assert.True(cut.Find($"[data-hl-item={disabled}]").HasAttribute("disabled"));
                 cut.Find($"[data-hl-item={disabled}]").Click();
                 Assert.Equal(expected.GetProperty("invocations").GetInt32(),calls);
                 Assert.Equal(expected.GetProperty("navigations").GetInt32(),cut.FindAll("[data-hl-item=help][href]").Count);
@@ -237,8 +251,8 @@ public sealed class UserMenuTests : BunitContext
             {
                 var (cut,_,_)=Menu([],p=>p.Add(x=>x.Direction,input.GetProperty("direction").GetString()).Add(x=>x.CanShowRail,input.GetProperty("canShowRail").GetBoolean()));
                 Assert.Equal(expected.GetProperty("logicalAlignment").GetBoolean(),cut.Find(".hl-user-menu").GetAttribute("dir")=="rtl");
-                Assert.Equal("true",cut.Find("button.hl-user-menu__trigger").GetAttribute("data-hl-touch"));
-                Assert.Equal(44,expected.GetProperty("minimumTriggerCssPixels").GetInt32());
+                // Touch sizing applies exactly when the rail cannot be shown; the pixel minimum is stylesheet behaviour.
+                Assert.Equal(!input.GetProperty("canShowRail").GetBoolean(),cut.Find("button.hl-user-menu__trigger").GetAttribute("data-hl-touch")=="true");
                 break;
             }
             case "user-menu.localization":

@@ -6,6 +6,10 @@ export function focusFirst(panel,custom){const selector=custom?'button:not([disa
 // By identity: nth-of-type counted same-tag siblings, so mixed links, buttons and separators moved
 // focus to the wrong entry. A null identity is the appended Sign out entry.
 export function focusItem(panel,id){const target=id==null?panel.querySelector('.hl-user-menu__sign-out'):[...panel.querySelectorAll('[data-hl-item]')].find(element=>element.dataset.hlItem===id);target?.focus()}
-// Escape closes the surface unless a control inside it already handled the key.
-export function observeEscape(panel,callback){panel.addEventListener('keydown',event=>{if(event.key==='Escape'&&!event.defaultPrevented)callback.invokeMethodAsync('OnEscapeKey')})}
+// Escape from inside the surface closes it unless a control there already handled the key. The
+// listener is on the document, after Blazor's own, so a Blazor @onkeydown:preventDefault inside
+// custom content is respected too. In the menu pattern, navigation keys do not scroll the page.
+const keys=new Map()
+export function observeKeys(panel,menu,callback){const id=nextId++;const handler=event=>{if(!panel.contains(event.target))return;if(menu&&['ArrowUp','ArrowDown','Home','End'].includes(event.key))event.preventDefault();if(event.key==='Escape'&&!event.defaultPrevented)callback.invokeMethodAsync('OnEscapeKey')};document.addEventListener('keydown',handler);keys.set(id,handler);return id}
+export function disposeKeys(id){const handler=keys.get(id);if(handler)document.removeEventListener('keydown',handler);keys.delete(id)}
 export function focus(element){element?.focus()}
