@@ -1,8 +1,9 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { vi } from 'vitest'
 
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from '../Sheet'
 import { qualityCases } from './fixtures'
@@ -107,5 +108,49 @@ describe('Sheet React projection', () => {
     expect(css).toContain('@media (prefers-reduced-motion: reduce)')
     expect(css).toMatch(/animation:\s*none/)
     expect(css).toMatch(/transition:\s*none/)
+  })
+
+  // A widget inside the sheet (a menu, combobox or armed guard) owns its Escape first; the sheet
+  // dismisses only on an Escape nothing consumed (WAI-ARIA APG dialog pattern).
+  it('lets a widget inside the sheet handle Escape before the sheet dismisses', () => {
+    const onOpenChange = vi.fn()
+    const inner = vi.fn()
+    render(
+      <Sheet open onOpenChange={onOpenChange}>
+        <SheetContent closeLabel="Close">
+          <SheetTitle>Filters</SheetTitle>
+          <input aria-label="Picker" onKeyDown={event => { if (event.key === 'Escape') { inner(); event.preventDefault() } }} />
+        </SheetContent>
+      </Sheet>,
+    )
+    fireEvent.keyDown(screen.getByRole('textbox', { name: 'Picker' }), { key: 'Escape' })
+    expect(inner).toHaveBeenCalledOnce()
+    expect(onOpenChange).not.toHaveBeenCalled()
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' })
+    expect(onOpenChange).toHaveBeenCalledExactlyOnceWith(false)
+  })
+
+  // An overlay opened above the sheet (a dialog portaled later) owns keys that come from it.
+  it('leaves an Escape from a later overlay to that overlay', () => {
+    const onOpenChange = vi.fn()
+    render(<Sheet open onOpenChange={onOpenChange}><SheetContent closeLabel="Close"><SheetTitle>Filters</SheetTitle></SheetContent></Sheet>)
+    const overlay = document.createElement('div')
+    overlay.className = 'hl-dialog__portal'
+    const field = document.createElement('input')
+    overlay.append(field)
+    document.body.append(overlay)
+    field.focus()
+    fireEvent.keyDown(field, { key: 'Escape' })
+    expect(onOpenChange).not.toHaveBeenCalled()
+    overlay.remove()
+  })
+
+  it('still dismisses a nonmodal sheet on an Escape from the page', () => {
+    const onOpenChange = vi.fn()
+    render(<><button type="button">Outside</button><Sheet open modal={false} onOpenChange={onOpenChange}><SheetContent closeLabel="Close"><SheetTitle>Filters</SheetTitle></SheetContent></Sheet></>)
+    const outside = screen.getByRole('button', { name: 'Outside' })
+    outside.focus()
+    fireEvent.keyDown(outside, { key: 'Escape' })
+    expect(onOpenChange).toHaveBeenCalledExactlyOnceWith(false)
   })
 })

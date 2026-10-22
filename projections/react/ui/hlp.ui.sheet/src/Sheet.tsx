@@ -182,6 +182,17 @@ export const SheetTrigger = React.forwardRef<HTMLButtonElement, SheetTriggerProp
   )
 })
 
+const OVERLAY_PORTALS = '.hl-dialog__portal, .hl-sheet__portal'
+
+function isTopmostOverlay(portal: HTMLElement): boolean {
+  return Array.from(document.body.children).filter(element => element.matches(OVERLAY_PORTALS)).at(-1) === portal
+}
+
+function insideOtherOverlay(target: EventTarget | null, portal: HTMLElement): boolean {
+  const overlay = target instanceof Element ? target.closest(OVERLAY_PORTALS) : null
+  return overlay !== null && overlay !== portal
+}
+
 export const SheetContent = React.forwardRef<HTMLDivElement, SheetContentProps>(function SheetContent(
   { children, className, closeLabel, id, side = 'right', ...hostAttributes },
   forwardedRef,
@@ -222,8 +233,17 @@ export const SheetContent = React.forwardRef<HTMLDivElement, SheetContentProps>(
 
   React.useEffect(() => {
     if (!context.open) return
+    // Bubble phase, so a widget inside the sheet that handles Escape (and prevents the default)
+    // consumes it first. A key from inside another overlay (a dialog opened above the sheet) is
+    // left to that overlay; a key from the page itself reaches only the topmost overlay.
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && !event.defaultPrevented) {
+      if (event.defaultPrevented) return
+      const portal = portalRef.current
+      if (!portal) return
+      const target = event.target
+      const fromThisSheet = target instanceof Node && portal.contains(target)
+      if (!fromThisSheet && (insideOtherOverlay(target, portal) || !isTopmostOverlay(portal))) return
+      if (event.key === 'Escape') {
         event.preventDefault()
         event.stopPropagation()
         context.requestOpen(false)
@@ -247,8 +267,8 @@ export const SheetContent = React.forwardRef<HTMLDivElement, SheetContentProps>(
         first.focus()
       }
     }
-    document.addEventListener('keydown', onKeyDown, true)
-    return () => document.removeEventListener('keydown', onKeyDown, true)
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
   }, [context.contentRef, context.modal, context.open, context.requestOpen])
 
   if (!context.open || typeof document === 'undefined') return null
