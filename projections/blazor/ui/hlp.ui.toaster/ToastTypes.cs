@@ -128,6 +128,8 @@ public sealed class ToastService : IToastService, IDisposable
         var entry = new ToastEntry(id, message, variant, options?.Description ?? defaults?.Description, options?.Action ?? defaults?.Action, persistent ? null : duration, persistent, DateTimeOffset.UtcNow);
         lock (gate)
         {
+            // Checked under the lock Dispose takes, so a disposed service is never repopulated.
+            if (disposed) return;
             var index = entries.FindIndex(candidate => candidate.Id == id);
             if (index < 0) entries.Add(entry); else entries[index] = entry;
             CancelTimer(id);

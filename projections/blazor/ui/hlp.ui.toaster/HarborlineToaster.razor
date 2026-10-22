@@ -48,7 +48,9 @@
   // An action is invoked at most once per shown toast, as in React; a toast replaced under the same
   // id is a new entry and may be activated again. Entries are tracked by reference.
   private readonly HashSet<ToastEntry> activated = new(ReferenceEqualityComparer.Instance);
-  private void OnChanged(){var current=Toasts.Entries;activated.RemoveWhere(entry=>!current.Any(candidate=>ReferenceEquals(candidate,entry)));_ = InvokeAsync(StateHasChanged);}
+  // Changed can be raised off the renderer thread (timers, tracked operations), so the set is only
+  // touched on the renderer, where clicks also run.
+  private void OnChanged()=>_ = InvokeAsync(()=>{var current=Toasts.Entries;activated.RemoveWhere(entry=>!current.Any(candidate=>ReferenceEquals(candidate,entry)));StateHasChanged();});
   private Task ActivateAsync(ToastEntry entry)=>entry.Action is not null&&activated.Add(entry)?entry.Action.ActivateAsync():Task.CompletedTask;
   protected override void Dispose(bool disposing){if(disposing)Toasts.Changed-=OnChanged;base.Dispose(disposing);}
 }

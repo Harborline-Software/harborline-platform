@@ -32,6 +32,9 @@ public sealed class ToasterTests : BunitContext
         Assert.Same(original,await Assert.ThrowsAsync<InvalidOperationException>(()=>rejected));
         Assert.Empty(failing.Entries);
     }
+    // Contract: action activation invokes exactly once and does not dismiss (also a fixture case,
+    // which runs only under tooling/run-ui-module-shared.mjs).
+    [Fact] public void ActionInvokesOnceHoweverOftenPressed(){var invocations=0;var cut=Render<HarborlineToaster>();service.Show("Saved",new ToastOptions(DurationMilliseconds:60_000,Action:new ToastAction("Undo",()=>{invocations++;return Task.CompletedTask;})));cut.WaitForElement(".hl-toaster__action").Click();cut.Find(".hl-toaster__action").Click();Assert.Equal(1,invocations);Assert.Single(service.Entries);}
     [Theory,Trait("ModuleConformance","hlp.ui.toaster")] [MemberData(nameof(SharedFixtureBatch.Cases), "hlp.ui.toaster", MemberType = typeof(SharedFixtureBatch))]
     public void SharedFixtureConforms(string caseId, string? rawFixture)
     {
@@ -129,8 +132,8 @@ public sealed class ToasterTests : BunitContext
             case "toaster.loading-persistence":
             {
                 var local=new ToastService();var loading=local.Loading("Saving",new ToastOptions(DurationMilliseconds:input.GetProperty("duration").GetInt32()));
-                Thread.Sleep(input.GetProperty("duration").GetInt32()+300);
-                Assert.Equal(expected.GetProperty("persistentUntilTransitionOrDismiss").GetBoolean(),local.Entries.Count==1&&local.Entries.Single().Persistent);
+                // No timer is started for a persistent entry, so its absent duration is the observable.
+                Assert.Equal(expected.GetProperty("persistentUntilTransitionOrDismiss").GetBoolean(),local.Entries.Count==1&&local.Entries.Single().Persistent&&local.Entries.Single().DurationMilliseconds is null);
                 local.Dismiss(loading);Assert.Empty(local.Entries);
                 local.Dispose();
                 break;
@@ -204,7 +207,10 @@ public sealed class ToasterTests : BunitContext
                 foreach(var limit in input.GetProperty("limits").EnumerateArray())Capture(()=>local.ConfigureHost(new ToastHostConfiguration(MaximumVisible:limit.GetInt32())));
                 foreach(var duration in input.GetProperty("durations").EnumerateArray().Where(value=>value.ValueKind==System.Text.Json.JsonValueKind.Number))Capture(()=>local.Show("x",new ToastOptions(DurationMilliseconds:duration.GetInt32())));
                 // "NaN" has no Int32 representation in this lane, so only the numeric durations run here.
-                Assert.Equal(Strings(expected.GetProperty("errors")),errors.Distinct().ToArray());
+                // One code per input, in input order: messages, limits, then durations.
+                var codes=Strings(expected.GetProperty("errors"));
+                var expectedSequence=Strings(input.GetProperty("messages")).Select(_=>codes[0]).Concat(input.GetProperty("limits").EnumerateArray().Select(_=>codes[1])).Concat(input.GetProperty("durations").EnumerateArray().Where(value=>value.ValueKind==System.Text.Json.JsonValueKind.Number).Select(_=>codes[2])).ToArray();
+                Assert.Equal(expectedSequence,errors.ToArray());
                 local.Dispose();
                 break;
             }
