@@ -1,5 +1,7 @@
 const focusable = 'a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])'
 
+const isTopmost = portal => [...document.body.children].filter(element => element.classList.contains('hl-dialog__portal')).at(-1) === portal
+
 export function connect(portal, dialog, body, callback, _closeOnEscape) {
   const placeholder = document.createComment('hl-dialog-portal')
   const opener = document.activeElement
@@ -14,7 +16,14 @@ export function connect(portal, dialog, body, callback, _closeOnEscape) {
   const measure = () => callback.invokeMethodAsync('OnBodyMeasuredAsync', {
     rawPosition: body.scrollTop, scrollSize: body.scrollHeight, clientSize: body.clientHeight, rightToLeft: false
   })
+  // A widget inside the dialog handles its own Escape first (it prevents the default), and only the
+  // dialog the key came from acts; a key from the page itself goes to the topmost dialog. Without
+  // this, one Escape dismissed every open dialog.
   const onKey = event => {
+    if (event.defaultPrevented) return
+    const target = event.target
+    const fromPage = target === document || target === document.body || target === document.documentElement
+    if (!portal.contains(target) && !(fromPage && isTopmost(portal))) return
     if (event.key === 'Escape') { event.preventDefault(); callback.invokeMethodAsync('DismissFromJavaScriptAsync'); return }
     if (event.key !== 'Tab') return
     const items = nodes()
