@@ -2705,7 +2705,7 @@
         "projections/react/ui/hlp.ui.app-shell/src/__tests__/ShellRail.test.tsx": "7076c3da7f653302c7767fdc81d313ef9211abfdcf5238cd8b0a0f552e2c1101",
         "projections/react/ui/hlp.ui.app-shell/src/__tests__/shellState.test.ts": "9b3a7b4fa7a0b540a0a9a5832f57c24b4b445ba54ee28612bfda541b266a39bc",
         "projections/react/ui/hlp.ui.app-shell/src/dock-model.ts": "563f22513e7cf48b275cb44b960489905a59d00a3b9e9b48021a7dad58be363a",
-        "projections/react/ui/hlp.ui.app-shell/src/index.ts": "c18e5ed262680b86b3c619d921c9a07b1dce27a69128f7c0e5d61e24d9addec1",
+        "projections/react/ui/hlp.ui.app-shell/src/index.ts": "1e69342258b30076d723b085ca61a1a39563966ba1412198e7b48149b0312824",
         "projections/react/ui/hlp.ui.app-shell/src/pack-navigation-mapper.ts": "267998f2df33ca0cadd6491c7beadc7ee6c3763fb3085b6fe7aa72c3cc27f1b4",
         "projections/react/ui/hlp.ui.app-shell/src/shell-state.ts": "a982b6225f0c2b78250f698b9aa4dc2529844db7e7eb971aca5b6347257340bf",
         "projections/react/ui/hlp.ui.app-shell/src/test-setup.ts": "097040beeb2cc914b87790306bc835eef4a06321fa3594a6938b6754641ac2ff",
@@ -2715,7 +2715,7 @@
         "specs/modules/ui/hlp.ui.app-shell/interface.yaml": "e164e1e9104a5308b9d6c092765247406b6b1f9cd49ef7b2f6d43589f541984a",
         "specs/modules/ui/hlp.ui.app-shell/quality.yaml": "f5f2beeffb11321ef15e1555d7e6e5ddac4da5abf0fa3e85978ab7bf2d637b0b",
         "specs/modules/ui/hlp.ui.app-shell/scenarios.json": "3e456636f25268718a805492541a892c55fe53e9b8228728f9e3960e05776256",
-        "specs/modules/ui/hlp.ui.app-shell/style.css": "fc6a003a4e97a514e16bcd68f5b9eebda9aeb14c07abb680da654fbb5a3e5957"
+        "specs/modules/ui/hlp.ui.app-shell/style.css": "36d59b0529c3b1a1258e044f7d60637fbed38426b64611674f654e6d62cb3198"
       },
       "nextGate": "Retain this conformant composition contribution while the app-shell program advances to gallery baselines and package publication decisions."
     },

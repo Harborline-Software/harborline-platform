@@ -1,8 +1,13 @@
 @implements IAsyncDisposable
+@namespace Harborline.Gallery.Blazor.Stories
+@using Microsoft.AspNetCore.Components
+@using Microsoft.AspNetCore.Components.Web
+@using Microsoft.JSInterop
 @inject IJSRuntime JS
 @using System.Text.Json
 @using Harborline.UIAdapters.Blazor.Components.Layout
 
+@{ var renderedOwner = owner; var renderedEpoch = epoch; }
 <h1>@name</h1>
 <p>Experimental rev6 native tab-host slice. The story owns the shared reducer state.</p>
 @if (error is not null) { <p role="alert">@error</p> }
@@ -20,7 +25,7 @@
 <HarborlineAppShellRev6TabHost ShellId="rev6-native-story" Owner="owner" Presentation="view" Intent="HandleIntent">
  <TabContent Context="tab">
   <p>@tab.Kind / @tab.Target</p>
-  <label>Draft <textarea @bind:get="Draft(tab.Id)" @bind:set="value => EditDraft(tab.Id, value)"></textarea></label>
+  <label>Draft <textarea @bind:get="Draft(renderedOwner, renderedEpoch, tab.Id)" @bind:set="value => EditDraft(renderedOwner, renderedEpoch, tab.Id, value)"></textarea></label>
  </TabContent>
 </HarborlineAppShellRev6TabHost>
 
@@ -71,10 +76,10 @@
    presentation.GetProperty("active").GetString(), presentation.GetProperty("pendingClose").GetString(),
    presentation.GetProperty("saveRequest").Deserialize<AppShellRev6SaveRequest>(jsonOptions));
  }
- private async Task Apply(object intent, bool identityBoundary = false)
+ private async Task Apply(object intent, bool identityBoundary = false, long? expectedEpoch = null)
  {
   if (identityBoundary) { epoch++; owner = null; view = null; StateHasChanged(); }
-  var requestEpoch = epoch;
+  var requestEpoch = expectedEpoch ?? epoch;
   await events.WaitAsync();
   try
   {
@@ -87,15 +92,16 @@
   catch (Exception ex) { if (!disposed && requestEpoch == epoch) error = ex.Message; }
   finally { events.Release(); }
  }
- private string Draft(string id)
+ private string Draft(AppShellRev6Owner? renderedOwner, long renderedEpoch, string id)
  {
-  // Only the published current-owner state is inspected by this host render fragment.
-  if (state is null || owner is null) return "";
-  var key = JsonSerializer.Serialize(new[] { owner.Person, owner.Tenant, owner.Workspace });
+  if (disposed || renderedEpoch != epoch || renderedOwner is null || owner != renderedOwner || state is null) return "";
+  var key = JsonSerializer.Serialize(new[] { renderedOwner.Person, renderedOwner.Tenant, renderedOwner.Workspace });
   var drafts = state.Value.GetProperty("owners").GetProperty(key).GetProperty("drafts");
   return drafts.TryGetProperty(id, out var draft) ? draft.ToString() : "";
  }
- private Task EditDraft(string id, string value) => Apply(new { type = "edit", id, draft = value });
+ private Task EditDraft(AppShellRev6Owner? renderedOwner, long renderedEpoch, string id, string value) =>
+  disposed || renderedEpoch != epoch || renderedOwner is null || owner != renderedOwner
+   ? Task.CompletedTask : Apply(new { type = "edit", id, draft = value }, expectedEpoch: renderedEpoch);
  private Task HandleIntent(AppShellRev6Intent intent)
  {
   if (intent.Type == "resolve-close") return Apply(new { type = intent.Type, choice = intent.Choice!.Value.ToString().ToLowerInvariant() });

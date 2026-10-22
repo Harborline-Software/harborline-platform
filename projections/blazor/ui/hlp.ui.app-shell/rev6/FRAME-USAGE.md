@@ -2,9 +2,17 @@
 
 Reference the existing aggregate Razor Class Library from a .NET10+ consumer in the same checked-out repository layout. Keep its normal repository toolchain and source closure; do not copy just a generated DLL or gallery code.
 
+Set `HarborlinePlatformSourceRoot` in your consuming app project to the absolute root of the complete Platform checkout, or pass it when building the app:
+
+```sh
+dotnet build YourApp.csproj -p:HarborlinePlatformSourceRoot=/absolute/path/to/platform-source
+```
+
+The property belongs to the consuming app. Its project reference uses that source root:
+
 ```xml
 <ItemGroup>
- <ProjectReference Include="../harborline-platform/projections/blazor/ui/hlp.ui.button/Harborline.UIAdapters.Blazor.csproj" />
+ <ProjectReference Include="$(HarborlinePlatformSourceRoot)/projections/blazor/ui/hlp.ui.button/Harborline.UIAdapters.Blazor.csproj" />
 </ItemGroup>
 ```
 

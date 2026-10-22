@@ -1840,7 +1840,7 @@
         }
       },
       "expect": [
-        "Rendering raises duplicate-nav-identity.",
+        "Rendering raises duplicate-contribution-id.",
         "The error names the repeated id records."
       ]
     },
