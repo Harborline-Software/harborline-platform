@@ -201,7 +201,7 @@ export function UserMenu({
 
   return (
     <div {...attributes} dir={direction} className={`hl-user-menu${className ? ` ${className}` : ''}`} data-placement={placement} data-alignment={alignment}>
-      <button ref={triggerRef} type="button" className="hl-user-menu__trigger" data-hl-touch={!canShowRail || undefined} aria-label={labels.trigger(identity.name)} aria-expanded={open} aria-controls={open ? surfaceId : undefined} onClick={() => requestOpen(!open, open)}>
+      <button ref={triggerRef} type="button" className="hl-user-menu__trigger" data-hl-touch={!canShowRail || undefined} aria-label={labels.trigger(identity.name)} aria-haspopup={customPattern ? 'dialog' : 'menu'} aria-expanded={open} aria-controls={open ? surfaceId : undefined} onClick={() => requestOpen(!open, open)}>
         <span className="hl-user-menu__avatar" aria-hidden="true">
           {identity.avatarUri && !avatarFailed ? <img src={identity.avatarUri} alt="" onError={() => setAvatarFailed(true)}/> : userInitials(identity.name)}
         </span>

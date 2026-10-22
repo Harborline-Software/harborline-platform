@@ -85,4 +85,12 @@ describe('UserMenu React projection', () => {
       expect(tab).toBe(!shiftKey)
     }
   })
+
+  // The trigger announces what it opens (WAI-ARIA APG menu button), as the Blazor trigger does.
+  it('announces the popup kind on the trigger', () => {
+    const view = render(<UserMenu identity={identity} items={[{ id: 'profile', kind: 'action', label: 'Profile', onActivate: vi.fn() }]}/>)
+    expect(screen.getByRole('button', { name: /^Account menu for/ })).toHaveAttribute('aria-haspopup', 'menu')
+    view.rerender(<UserMenu identity={identity} items={[{ id: 'theme', kind: 'custom', content: <span>Theme</span> }]}/>)
+    expect(screen.getByRole('button', { name: /^Account menu for/ })).toHaveAttribute('aria-haspopup', 'dialog')
+  })
 })

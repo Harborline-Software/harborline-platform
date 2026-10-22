@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { UserMenu, userInitials, type UserMenuItem } from '../UserMenu'
 import { sharedCases } from './fixtures'
@@ -98,16 +99,17 @@ const assertions: Record<string, (entry: Case) => void | Promise<void>> = {
   },
   'user-menu.disabled': async ({ input, expected }) => {
     const billing = vi.fn()
-    render(<UserMenu identity={ada} defaultOpen items={[action('profile', 'Profile'), action(input.disabled, 'Billing', billing, { disabled: true } as Partial<UserMenuItem>), { id: 'docs', kind: 'link', label: 'Docs', destination: '/docs' }]}/>)
+    render(<UserMenu identity={ada} defaultOpen items={[action('profile', 'Profile'), action(input.disabled, 'Billing', billing, { disabled: true } as Partial<UserMenuItem>), { id: 'docs', kind: 'link', label: 'Docs', destination: '/docs' }, { id: 'help', kind: 'link', label: 'Help', destination: '/help', disabled: true }]}/>)
     const disabled = screen.getByRole('menuitem', { name: 'Billing' })
     expect(disabled !== null).toBe(expected.visible)
     await waitFor(() => expect(screen.getByRole('menuitem', { name: 'Profile' })).toHaveFocus())
     fireEvent.keyDown(screen.getByRole('menu'), { key: 'ArrowDown' })
     expect(screen.getByRole('menuitem', { name: 'Docs' }).matches(':focus')).toBe(expected.navigationSkips)
+    expect(disabled).toBeDisabled()
     fireEvent.click(disabled)
-    fireEvent.keyDown(disabled, { key: 'Enter' })
     expect(billing).toHaveBeenCalledTimes(expected.invocations)
-    expect(disabled.getAttribute('href')).toBeNull()
+    // A disabled link keeps no destination, so neither pointer nor keyboard can navigate.
+    expect(document.querySelectorAll('[role=menuitem][href]').length - 1).toBe(expected.navigations)
   },
   'user-menu.sign-out': ({ expected }) => {
     const signOut = vi.fn()
@@ -151,7 +153,8 @@ const assertions: Record<string, (entry: Case) => void | Promise<void>> = {
     const wrapsBack = focused() === 'Sign out'
     fireEvent.keyDown(menu, { key: 'p' })
     const typeahead = focused() === 'Profile'
-    fireEvent.click(document.activeElement!)
+    // Activation by the real Enter key on the focused item.
+    await userEvent.setup().keyboard('{Enter}')
     expect(roving).toBe(expected.rovingFocus)
     expect(wraps && wrapsBack).toBe(expected.wraps)
     expect(typeahead).toBe(expected.typeahead)
@@ -184,8 +187,8 @@ const assertions: Record<string, (entry: Case) => void | Promise<void>> = {
   'user-menu.rtl-touch': ({ input, expected }) => {
     const view = render(<UserMenu identity={ada} direction={input.direction} canShowRail={input.canShowRail}/>)
     expect(view.container.querySelector('.hl-user-menu')!.getAttribute('dir') === 'rtl').toBe(expected.logicalAlignment)
-    expect(trigger().getAttribute('data-hl-touch')).toBe('true')
-    expect(expected.minimumTriggerCssPixels).toBe(44)
+    // Touch sizing applies exactly when the rail cannot be shown; the pixel minimum is stylesheet behaviour.
+    expect(trigger().getAttribute('data-hl-touch') === 'true').toBe(!input.canShowRail)
   },
   'user-menu.localization': ({ input, expected }) => {
     render(<UserMenu identity={ada} defaultOpen onSignOut={vi.fn()} labels={{ trigger: name => input.triggerLabel.replace('{name}', name), panel: input.panelLabel, signOut: input.signOutLabel }} items={[action('profile', 'Profile')]}/>)
