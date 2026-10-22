@@ -52,4 +52,37 @@ describe('UserMenu React projection', () => {
     fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' })
     await waitFor(() => expect(trigger).toHaveFocus())
   })
+
+  // A control inside custom content owns its Escape first; the surface closes only on an Escape
+  // nothing inside it handled (WAI-ARIA APG dialog pattern).
+  it('lets a control inside custom content handle Escape before the surface closes', () => {
+    const onOpenChange = vi.fn()
+    render(<UserMenu identity={identity} defaultOpen onOpenChange={onOpenChange} items={[{ id: 'theme', kind: 'custom', content: <input aria-label="Theme search" onKeyDown={event => { if (event.key === 'Escape') event.preventDefault() }}/> }]}/>)
+    fireEvent.keyDown(screen.getByRole('textbox', { name: 'Theme search' }), { key: 'Escape' })
+    expect(onOpenChange).not.toHaveBeenCalled()
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' })
+    expect(onOpenChange).toHaveBeenCalledExactlyOnceWith(false)
+  })
+
+  // Tab out of a nonmodal menu closes it (WAI-ARIA APG menu button). Focus moves to the trigger first
+  // so the browser's Tab continues from there instead of from a removed item; Shift+Tab lands on it.
+  it('closes the menu when Tab or Shift+Tab leaves it', async () => {
+    const onOpenChange = vi.fn()
+    const items: UserMenuItem[] = [
+      { id: 'profile', kind: 'action', label: 'Profile', onActivate: vi.fn() },
+      { id: 'settings', kind: 'link', label: 'Settings', destination: '/settings' },
+    ]
+    render(<UserMenu identity={identity} items={items} onOpenChange={onOpenChange}/>)
+    const trigger = screen.getByRole('button', { name: 'Account menu for Ada Byron Lovelace' })
+    for (const shiftKey of [false, true]) {
+      fireEvent.click(trigger)
+      await waitFor(() => expect(screen.getByRole('menuitem', { name: 'Profile' })).toHaveFocus())
+      const tab = fireEvent.keyDown(screen.getByRole('menuitem', { name: 'Profile' }), { key: 'Tab', shiftKey })
+      expect(screen.queryByRole('menu')).toBeNull()
+      expect(onOpenChange).toHaveBeenLastCalledWith(false)
+      expect(trigger).toHaveFocus()
+      expect(tab).toBe(!shiftKey)
+    }
+  })
 })
