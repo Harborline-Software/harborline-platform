@@ -72,11 +72,12 @@ export function connect(trigger, anchor, content, options, callback) {
     content.style.top = `${placement.top}px`
   }
   const dismiss = () => callback.invokeMethodAsync('DismissFromJavaScriptAsync')
-  // The open popover is the topmost layer. An Escape from its trigger or anchor is taken in the capture
-  // phase, before an outer layer (a dialog or sheet) listening on the document. Any other Escape is
-  // handled on the document after Blazor's own listener, so one a widget inside the content handled
-  // (including a Blazor @onkeydown:preventDefault) is left alone. Previously every Escape closed it.
-  const fromTrigger = target => target instanceof Node && (trigger?.contains(target) || anchor?.contains(target))
+  // The open popover is the topmost layer. An Escape from its trigger button is taken in the capture
+  // phase, before an outer layer (a dialog or sheet) listening on the document; the trigger has no
+  // Escape behaviour of its own. Any other Escape, including one from an anchor that may use Escape
+  // itself, is handled on the document after Blazor's own listener, so one already handled (including
+  // a Blazor @onkeydown:preventDefault) is left alone. Previously every Escape closed it.
+  const fromTrigger = target => target instanceof Node && trigger?.contains(target)
   const onKeyCapture = event => { if (event.key === 'Escape' && !event.defaultPrevented && fromTrigger(event.target)) { event.preventDefault(); dismiss() } }
   const onKey = event => { if (event.key === 'Escape' && !event.defaultPrevented) { event.preventDefault(); dismiss() } }
   const onPointer = event => {

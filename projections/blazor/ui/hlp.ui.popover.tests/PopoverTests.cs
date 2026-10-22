@@ -70,11 +70,11 @@ public sealed class PopoverTests : BunitContext
     }
 
     // Targeted neutral-case semantics: each case runs the production components against the fixture's
-    // own input and expected values. Escape and outside pointers reach the component through
-    // DismissFromJavaScriptAsync (popover.js observes them in a browser); focus entry and restoration
-    // live in popover.js connect/dispose, so the case asserts that wiring. placement is computed by
-    // popover.js place(); projection-equivalence compares lanes. An unknown case id fails.
-    private static readonly string[] Unasserted = ["popover.placement", "popover.projection-equivalence", "popover.class-vocabulary"];
+    // own input and expected values. escape and outside assert the component's response to a dismissal
+    // request (DismissFromJavaScriptAsync); detecting the key or pointer is popover.js, checked in a real
+    // browser. focus (entry and restoration) and placement are popover.js behaviour bUnit cannot observe;
+    // projection-equivalence compares lanes. An unknown case id fails.
+    private static readonly string[] Unasserted = ["popover.placement", "popover.projection-equivalence", "popover.class-vocabulary", "popover.focus"];
     private (IRenderedComponent<HarborlinePopover> Cut, BunitJSModuleInterop Module, List<bool> Emitted) Build(bool? open = null, bool anchor = false, bool close = false, Action<RenderTreeBuilder>? contentAttributes = null)
     {
         var module = JSInterop.SetupModule("./_content/Harborline.UIAdapters.Blazor/popover.js"); module.Mode = JSRuntimeMode.Loose;
@@ -168,15 +168,6 @@ public sealed class PopoverTests : BunitContext
                 cut.FindAll("button").Single(b => b.TextContent == "Close").Click();
                 Assert.Equal(expected.GetProperty("open").GetBoolean(), IsOpen(cut));
                 Assert.Equal(expected.GetProperty("callbacks").GetInt32(), emitted.Count);
-                break;
-            }
-            case "popover.focus":
-            {
-                var (cut, module, _) = Build(open: input.GetProperty("open").GetBoolean());
-                // popover.js connect() moves focus into the content and dispose() restores it to the trigger.
-                Assert.Equal(expected.GetProperty("focusEnteredContent").GetBoolean(), module.Invocations["connect"].Count == 1);
-                cut.InvokeAsync(() => Content(cut).Instance.DismissFromJavaScriptAsync()).GetAwaiter().GetResult();
-                Assert.Equal(expected.GetProperty("focusRestoredToTrigger").GetBoolean(), JSInterop.Invocations.Any(invocation => invocation.Identifier == "dispose"));
                 break;
             }
             default:
