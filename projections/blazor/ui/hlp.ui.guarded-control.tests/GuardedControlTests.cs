@@ -48,7 +48,8 @@ public sealed class GuardedControlTests : BunitContext
         // compared by the focus calls themselves: the first call after arming targets the armed
         // action, and a later call to a different element while covered targets the covered action.
         public string? ArmedFocus=>Module.Invocations["focus"].Count==0?null:((ElementReference)Module.Invocations["focus"][0].Arguments[0]!).Id;
-        public bool FocusedCovered=>Cut.Instance.State==GuardedControlState.Covered&&FocusCount>1&&LastFocus!=ArmedFocus;
+        public bool FocusedCovered=>Cut.Instance.State==GuardedControlState.Covered&&FocusCount>1&&!string.IsNullOrEmpty(LastFocus)&&LastFocus!=ArmedFocus;
+        public GuardedControlState? StateAtSettlement;
         public void Host(string reason)=>Cut.InvokeAsync(()=>Cut.Instance.RecoverFromHostAsync(reason)).GetAwaiter().GetResult();
     }
     private Harness Guard(bool pending=false,Func<Task>? commit=null,string label="Sign and save",string action="packages.export",string classification="new-record-type",Action<ComponentParameterCollectionBuilder<HarborlineGuardedControl>>? more=null)
@@ -57,7 +58,7 @@ public sealed class GuardedControlTests : BunitContext
         Harness? h=null;
         var cut=Render<HarborlineGuardedControl>(p=>{p.Add(x=>x.Action,action).Add(x=>x.ClassificationId,classification).Add(x=>x.Label,label)
             .Add(x=>x.OnCommit,async()=>{h!.Commits++;if(commit is not null)await commit();else if(h.Pending is not null)await h.Pending.Task;})
-            .Add(x=>x.OnEvent,e=>h!.Events.Add(e));more?.Invoke(p);});
+            .Add(x=>x.OnEvent,e=>{h!.Events.Add(e);if(e is GuardedControlCommitSettled)h.StateAtSettlement=h.Cut.Instance.State;});more?.Invoke(p);});
         h=new Harness{Cut=cut,Module=module,Pending=pending?new TaskCompletionSource():null};
         return h;
     }
@@ -129,10 +130,11 @@ public sealed class GuardedControlTests : BunitContext
             case "guarded-control.commit-rejected":
             {
                 var h=Guard(commit:()=>throw new InvalidOperationException("SECRET-RAW-ERROR"));h.Button.Click();
-                GuardedControlState? stateAtRouting=null;
-                var error=Assert.ThrowsAny<Exception>(()=>{try{h.Button.Click();}finally{stateAtRouting=h.Cut.Instance.State;}});
+                var error=Assert.ThrowsAny<Exception>(()=>h.Button.Click());
                 Assert.Contains("SECRET-RAW-ERROR",error.ToString());
-                Assert.Equal(expected.GetProperty("stateBeforeExceptionRouting").GetString(),Name(stateAtRouting!.Value));
+                // Recorded when the settlement is reported, which must precede the rethrow.
+                Assert.NotNull(h.StateAtSettlement);
+                Assert.Equal(expected.GetProperty("stateBeforeExceptionRouting").GetString(),Name(h.StateAtSettlement!.Value));
                 Assert.Equal(expected.GetProperty("settlementCount").GetInt32(),h.Settlements.Count());
                 Assert.Equal(GuardedControlCommitOutcome.Rejected,h.Settlements.Single().Outcome);
                 Assert.Equal(expected.GetProperty("rawErrorRendered").GetBoolean(),h.Cut.Markup.Contains("SECRET-RAW-ERROR",StringComparison.Ordinal));
@@ -223,7 +225,11 @@ public sealed class GuardedControlTests : BunitContext
             {
                 var h=Guard();h.Button.Click();var focusBefore=h.FocusCount;var eventsBefore=h.Events.Count;
                 var instance=h.Cut.Instance;DisposeComponentsAsync().GetAwaiter().GetResult();
-                foreach(var e in Strings(input.GetProperty("laterEvents")))instance.RecoverFromHostAsync(e).GetAwaiter().GetResult();
+                foreach(var e in Strings(input.GetProperty("laterEvents")))
+                {
+                    // "timeout": let the cancelled five-second deadline pass for real.
+                    if(e=="timeout")Thread.Sleep(5500);else instance.RecoverFromHostAsync(e).GetAwaiter().GetResult();
+                }
                 Assert.Equal(expected.GetProperty("staleEventCount").GetInt32(),h.Events.Count-eventsBefore);
                 Assert.Equal(expected.GetProperty("focusAttempted").GetBoolean(),h.FocusCount>focusBefore);
                 break;
