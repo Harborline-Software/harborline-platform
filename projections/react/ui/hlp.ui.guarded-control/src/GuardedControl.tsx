@@ -87,6 +87,21 @@ export function GuardedControl({
     stateRef.current = state
   }, [state])
   React.useEffect(() => () => { mounted.current = false }, [])
+  // A deferred restoration outlives the armed attempt (a commit can settle while the window is
+  // blurred or the document hidden), so its listeners live as long as the component, as in Blazor.
+  React.useEffect(() => {
+    const restoreDeferred = () => {
+      if (!deferredFocus.current || stateRef.current !== 'covered' || document.visibilityState === 'hidden' || !document.hasFocus()) return
+      deferredFocus.current = false
+      coverRef.current?.focus()
+    }
+    window.addEventListener('focus', restoreDeferred)
+    document.addEventListener('visibilitychange', restoreDeferred)
+    return () => {
+      window.removeEventListener('focus', restoreDeferred)
+      document.removeEventListener('visibilitychange', restoreDeferred)
+    }
+  }, [])
   React.useEffect(() => {
     if (!disabled || stateRef.current !== 'armed') return
     recover('became-disabled')
@@ -105,13 +120,7 @@ export function GuardedControl({
     const visibility = () => document.visibilityState === 'hidden' && recover('document-hidden')
     let blurTimer = 0
     const blur = () => { blurTimer = window.setTimeout(() => recover('window-blur'), BLUR_GRACE_MS) }
-    const focus = () => {
-      window.clearTimeout(blurTimer)
-      if (deferredFocus.current && stateRef.current === 'covered') {
-        deferredFocus.current = false
-        coverRef.current?.focus()
-      }
-    }
+    const focus = () => { window.clearTimeout(blurTimer) }
     window.addEventListener('popstate', navigate)
     window.addEventListener('blur', blur)
     window.addEventListener('focus', focus)

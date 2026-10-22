@@ -162,6 +162,7 @@ const assertions: Record<string, (entry: Case) => void | Promise<void>> = {
     expect(h.state()).toBe(expected.state)
     expect(h.commits).toBe(expected.commitCount)
     expect(h.recoveries()).toEqual([{ type: 'recovered', reason: expected.recoveryReason }])
+    // Not sensitive on its own: the covered and armed actions are one reused node, so focus stays.
     expect(document.activeElement).toBe(h.button())
   },
   'guarded-control.host-recovery': ({ input, expected }) => {
@@ -211,13 +212,26 @@ const assertions: Record<string, (entry: Case) => void | Promise<void>> = {
     expect(h.recoveries()).toEqual([{ type: 'recovered', reason: expected.recoveryReason }])
     expect(h.recoveries()).toHaveLength(expected.recoveryCount)
   },
-  'guarded-control.focus': async ({ expected }) => {
+  'guarded-control.focus': async ({ input, expected }) => {
     const h = guard()
     fireEvent.click(h.button())
     expect(document.activeElement === h.button() && h.state() === 'armed').toBe(expected.focusMovesToArmed)
-    fireEvent.keyDown(h.button(), { key: 'Escape' })
-    await act(async () => undefined)
-    expect(document.activeElement === h.button() && h.state() === 'covered').toBe(expected.focusReturnsAfterEverySettlement)
+    h.view.unmount()
+    // Escape and timeout keep focus on the same reused button node, so only the commit outcomes,
+    // where browsers drop focus from the disabled committing action, can exercise restoration.
+    for (const outcome of input.outcomes.filter((value: string) => value === 'completed' || value === 'rejected')) {
+      vi.useFakeTimers()
+      let settle!: () => void
+      const committing = guard({ onCommit: () => new Promise<void>((done, fail) => { settle = outcome === 'completed' ? done : () => fail(new Error('rejected')) }) })
+      fireEvent.click(committing.button())
+      fireEvent.click(committing.button())
+      dropFocusFromDisabled(committing.button())
+      await act(async () => settle())
+      expect(document.activeElement === committing.button() && committing.state() === 'covered', outcome).toBe(expected.focusReturnsAfterEverySettlement)
+      if (outcome === 'rejected') expect(() => vi.advanceTimersByTime(1)).toThrow('rejected')
+      committing.view.unmount()
+      vi.useRealTimers()
+    }
   },
   'guarded-control.disposal': ({ input, expected }) => {
     vi.useFakeTimers()

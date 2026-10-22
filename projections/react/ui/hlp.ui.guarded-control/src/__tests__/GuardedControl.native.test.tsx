@@ -58,4 +58,29 @@ describe('GuardedControl React projection', () => {
     expect(observe).toHaveBeenCalledWith({ type: 'recovered', reason: 'escape' })
     expect(screen.getByRole('button', { name: 'Publish' })).toHaveAttribute('data-guard-state', 'covered')
   })
+
+  // Contract: hidden or blurred hosts defer focus restoration until safe. A commit that settles
+  // while the window is blurred must restore focus once the window regains it; the committing
+  // action was disabled, so browsers had already moved focus to the page.
+  it('restores deferred focus after a commit settles while the window is blurred', async () => {
+    let finish!: () => void
+    const hasFocus = vi.spyOn(document, 'hasFocus').mockReturnValue(true)
+    render(<GuardedControl action="a" classificationId="c" label="Publish" onCommit={() => new Promise<void>(done => { finish = done })}/>)
+    fireEvent.click(screen.getByRole('button', { name: 'Publish' }))
+    fireEvent.click(screen.getByRole('button', { name: /Publish/ }))
+    const sink = document.createElement('div')
+    sink.tabIndex = -1
+    document.body.append(sink)
+    sink.focus()
+    sink.remove()
+    hasFocus.mockReturnValue(false)
+    await act(async () => finish())
+    const cover = screen.getByRole('button', { name: 'Publish' })
+    expect(cover).toHaveAttribute('data-guard-state', 'covered')
+    expect(document.activeElement).toBe(document.body)
+    hasFocus.mockReturnValue(true)
+    act(() => { window.dispatchEvent(new Event('focus')) })
+    expect(document.activeElement).toBe(cover)
+    hasFocus.mockRestore()
+  })
 })
