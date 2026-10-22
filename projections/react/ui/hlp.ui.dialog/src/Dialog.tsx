@@ -32,8 +32,9 @@ function focusableElements(root: HTMLElement): HTMLElement[] {
   ].join(','))).filter(element => !element.closest('[hidden], [inert]'))
 }
 
+// Dialogs and sheets are both modal overlays; the topmost is whichever was portaled last.
 function isTopmostDialog(portal: HTMLElement): boolean {
-  return Array.from(document.body.children).filter(element => element.classList.contains('hl-dialog__portal')).at(-1) === portal
+  return Array.from(document.body.children).filter(element => element.matches('.hl-dialog__portal, .hl-sheet__portal')).at(-1) === portal
 }
 
 function DialogBody({ children }: { readonly children: React.ReactNode }) {

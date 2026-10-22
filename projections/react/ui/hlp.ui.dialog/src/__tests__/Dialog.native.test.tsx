@@ -113,4 +113,22 @@ describe('Dialog React projection', () => {
     expect(second).toHaveBeenCalledExactlyOnceWith(false)
     expect(first).not.toHaveBeenCalled()
   })
+
+  // A sheet opened above the dialog is the topmost overlay: page-level Escape and Tab from inside
+  // the sheet belong to it, not to the dialog underneath.
+  it('treats a sheet opened later as the topmost overlay', () => {
+    const onOpenChange = vi.fn()
+    render(<Dialog onOpenChange={onOpenChange} open title="Edit"><input aria-label="Dialog field" /></Dialog>)
+    const sheet = document.createElement('div')
+    sheet.className = 'hl-sheet__portal'
+    const sheetField = document.createElement('input')
+    sheet.append(sheetField)
+    document.body.append(sheet)
+    fireEvent.keyDown(document.body, { key: 'Escape' })
+    expect(onOpenChange).not.toHaveBeenCalled()
+    sheetField.focus()
+    fireEvent.keyDown(sheetField, { key: 'Tab' })
+    expect(document.activeElement).toBe(sheetField)
+    sheet.remove()
+  })
 })

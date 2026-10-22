@@ -1,6 +1,7 @@
 const focusable = 'a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])'
 
-const isTopmost = portal => [...document.body.children].filter(element => element.classList.contains('hl-dialog__portal')).at(-1) === portal
+// Dialogs and sheets are both modal overlays; the topmost is whichever was portaled last.
+const isTopmost = portal => [...document.body.children].filter(element => element.matches('.hl-dialog__portal, .hl-sheet__portal')).at(-1) === portal
 
 export function connect(portal, dialog, body, callback, _closeOnEscape) {
   const placeholder = document.createComment('hl-dialog-portal')
