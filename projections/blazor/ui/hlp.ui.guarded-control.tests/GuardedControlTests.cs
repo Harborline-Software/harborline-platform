@@ -12,6 +12,9 @@ public sealed class GuardedControlTests : BunitContext
     [Fact] public void RequiresTwoDistinctActivations(){var commits=0;var cut=RenderGuard(()=>commits++);cut.Find("button").Click();Assert.Equal(GuardedControlState.Armed,cut.Instance.State);Assert.Equal(0,commits);cut.Find("button").Click();Assert.Equal(1,commits);Assert.Equal(GuardedControlState.Covered,cut.Instance.State);}
     [Fact] public async Task EscapeRecoversOnce(){var events=new List<GuardedControlEvent>();var cut=RenderGuard(observe:events.Add);cut.Find("button").Click();await cut.Find("button").KeyDownAsync(new KeyboardEventArgs{Key="Escape"});Assert.Equal(GuardedControlState.Covered,cut.Instance.State);Assert.Single(events.OfType<GuardedControlRecovered>());}
     [Fact] public void DisabledReasonIsAssociated(){var cut=Render<HarborlineGuardedControl>(p=>p.Add(x=>x.Action,"x").Add(x=>x.ClassificationId,"c").Add(x=>x.Label,"Delete").Add(x=>x.Disabled,true).Add(x=>x.DescribedBy,"denial").Add(x=>x.OnCommit,()=>{}));var button=cut.Find("button");Assert.True(button.HasAttribute("disabled"));Assert.Equal("denial",button.GetAttribute("aria-describedby"));}
+    // The armed instruction already says "within", so its duration is a plain localized unit; a
+    // relative "in 5 seconds" made it read "within in 5 seconds".
+    [Fact] public void ArmedInstructionStatesTheWindowAsAPlainDuration(){var cut=RenderGuard();cut.Find("button").Click();Assert.Equal("Armed for \u2068Sign and save\u2069. Activate again within 5 seconds to commit.",cut.Find("[role=status]").TextContent);Assert.Equal("5 seconds",cut.Find("[role=timer]").TextContent);}
     [Theory,Trait("ModuleConformance","hlp.ui.guarded-control")] [MemberData(nameof(SharedFixtureBatch.Cases), "hlp.ui.guarded-control", MemberType = typeof(SharedFixtureBatch))]
     public void SharedFixtureConforms(string caseId, string? rawFixture)
     {

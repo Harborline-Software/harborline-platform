@@ -76,7 +76,8 @@
     get
     {
       var number = LocaleContext?.FormatNumber(remainingSeconds) ?? remainingSeconds.ToString(System.Globalization.CultureInfo.InvariantCulture);
-      var fallback = remainingSeconds == 1 ? "in {seconds} second" : "in {seconds} seconds";
+      // A plain duration: the armed instruction already says "within".
+      var fallback = remainingSeconds == 1 ? "{seconds} second" : "{seconds} seconds";
       return LocaleContext?.ResolveString(remainingSeconds == 1 ? "chrome.guard.duration.one" : "chrome.guard.duration.other", new Dictionary<string, object?> { ["seconds"] = number }, fallback) ?? fallback.Replace("{seconds}", number, StringComparison.Ordinal);
     }
   }
