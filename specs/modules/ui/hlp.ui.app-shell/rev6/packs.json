@@ -1,0 +1,1235 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.app-shell",
+  "purpose": "Sample packs for rev 6 scenarios. Prototype fixture shape from the rev 6 gallery; the declaration schema is set when the projections are built. Every name and figure is made up.",
+  "packs": [
+    {
+      "id": "neutral",
+      "label": "Neutral (placeholders)",
+      "tenant": {
+        "name": "Example Org",
+        "mark": "EO"
+      },
+      "user": {
+        "name": "Alex Rivera",
+        "initials": "AR",
+        "role": "Member",
+        "admin": true
+      },
+      "places": {
+        "label": "Place",
+        "everywhere": "Everywhere",
+        "tree": [
+          "Region North",
+          "Site 1",
+          "Site 2",
+          "Region South",
+          "Site 3"
+        ],
+        "current": "Site 1"
+      },
+      "destinations": [
+        {
+          "id": "records",
+          "label": "Records",
+          "short": "Records",
+          "icon": "folder",
+          "kind": "record",
+          "views": [
+            "All records",
+            "Mine",
+            "Recently changed"
+          ],
+          "tabs": [
+            "Open",
+            "In review",
+            "Closed"
+          ],
+          "viewSwitch": [
+            "Grid",
+            "Board",
+            "Calendar"
+          ]
+        },
+        {
+          "id": "projects",
+          "label": "Projects",
+          "short": "Projects",
+          "icon": "grid",
+          "kind": "project",
+          "views": [
+            "Active",
+            "Planned",
+            "Archived"
+          ],
+          "tabs": [
+            "Active",
+            "Planned"
+          ],
+          "viewSwitch": [
+            "Grid",
+            "Board"
+          ]
+        },
+        {
+          "id": "tasks",
+          "label": "Tasks",
+          "short": "Tasks",
+          "icon": "check",
+          "kind": "task",
+          "views": [
+            "Assigned to me",
+            "Team",
+            "Overdue"
+          ],
+          "tabs": [
+            "Mine",
+            "Team",
+            "Overdue"
+          ],
+          "viewSwitch": [
+            "Grid",
+            "Calendar"
+          ]
+        }
+      ],
+      "secondary": [
+        {
+          "id": "reports",
+          "label": "Reports",
+          "short": "Reports",
+          "icon": "chart",
+          "kind": "report",
+          "views": [
+            "All reports"
+          ],
+          "tabs": [
+            "All"
+          ],
+          "viewSwitch": [
+            "Grid"
+          ]
+        },
+        {
+          "id": "admin",
+          "label": "Admin",
+          "short": "Admin",
+          "icon": "gear",
+          "kind": "member",
+          "views": [
+            "Members",
+            "Roles",
+            "Audit"
+          ],
+          "tabs": [
+            "Active",
+            "Invited"
+          ],
+          "viewSwitch": [
+            "Grid"
+          ]
+        }
+      ],
+      "kinds": {
+        "record": {
+          "one": "Record",
+          "many": "Records",
+          "extraCol": "Type",
+          "rows": [
+            {
+              "id": "R-1042",
+              "name": "Record 1042",
+              "status": "Open",
+              "owner": "A. Rivera",
+              "extra": "Type A",
+              "when": "Today"
+            },
+            {
+              "id": "R-1038",
+              "name": "Record 1038",
+              "status": "In review",
+              "owner": "J. Kim",
+              "extra": "Type B",
+              "when": "Yesterday"
+            },
+            {
+              "id": "R-1031",
+              "name": "Record 1031",
+              "status": "Open",
+              "owner": "S. Patel",
+              "extra": "Type A",
+              "when": "Mon"
+            },
+            {
+              "id": "R-1027",
+              "name": "Record 1027",
+              "status": "Closed",
+              "owner": "A. Rivera",
+              "extra": "Type C",
+              "when": "2 Oct"
+            },
+            {
+              "id": "R-1019",
+              "name": "Record 1019",
+              "status": "Open",
+              "owner": "M. Osei",
+              "extra": "Type B",
+              "when": "30 Sep"
+            },
+            {
+              "id": "R-1012",
+              "name": "Record 1012",
+              "status": "In review",
+              "owner": "J. Kim",
+              "extra": "Type A",
+              "when": "28 Sep"
+            }
+          ]
+        },
+        "project": {
+          "one": "Project",
+          "many": "Projects",
+          "extraCol": "Stage",
+          "rows": [
+            {
+              "id": "P-210",
+              "name": "Project Alpha",
+              "status": "Active",
+              "owner": "S. Patel",
+              "extra": "Stage 2",
+              "when": "Today"
+            },
+            {
+              "id": "P-207",
+              "name": "Project Beta",
+              "status": "Planned",
+              "owner": "A. Rivera",
+              "extra": "Stage 1",
+              "when": "Mon"
+            },
+            {
+              "id": "P-201",
+              "name": "Project Gamma",
+              "status": "Active",
+              "owner": "M. Osei",
+              "extra": "Stage 3",
+              "when": "1 Oct"
+            }
+          ]
+        },
+        "task": {
+          "tabs": [
+            "details",
+            "related",
+            "log",
+            "timeline"
+          ],
+          "one": "Task",
+          "many": "Tasks",
+          "extraCol": "Due",
+          "rows": [
+            {
+              "id": "T-88",
+              "name": "Review Record 1038",
+              "status": "Open",
+              "owner": "A. Rivera",
+              "extra": "Today",
+              "when": "Today"
+            },
+            {
+              "id": "T-86",
+              "name": "Approve Project Beta",
+              "status": "Open",
+              "owner": "A. Rivera",
+              "extra": "Thu",
+              "when": "Mon"
+            },
+            {
+              "id": "T-83",
+              "name": "Update Record 1019",
+              "status": "Late",
+              "owner": "A. Rivera",
+              "extra": "Fri 2 Oct",
+              "when": "29 Sep"
+            }
+          ]
+        },
+        "member": {
+          "one": "Member",
+          "many": "Members",
+          "extraCol": "Role",
+          "rows": [
+            {
+              "id": "U-01",
+              "name": "Alex Rivera",
+              "status": "Active",
+              "owner": "Admin",
+              "extra": "Admin",
+              "when": "Today"
+            },
+            {
+              "id": "U-02",
+              "name": "J. Kim",
+              "status": "Active",
+              "owner": "Admin",
+              "extra": "Reviewer",
+              "when": "Mon"
+            }
+          ]
+        },
+        "report": {
+          "one": "Report",
+          "many": "Reports",
+          "extraCol": "Period",
+          "rows": [
+            {
+              "id": "RP-12",
+              "name": "Monthly summary",
+              "status": "Ready",
+              "owner": "J. Kim",
+              "extra": "September",
+              "when": "1 Oct"
+            }
+          ]
+        }
+      },
+      "needs": [
+        {
+          "id": "T-88",
+          "title": "Review Record 1038",
+          "what": "Review · Record",
+          "due": "Today"
+        },
+        {
+          "id": "T-86",
+          "title": "Approve Project Beta",
+          "what": "Approval · Project",
+          "due": "Thu"
+        },
+        {
+          "id": "T-83",
+          "title": "Update Record 1019",
+          "what": "Task · Record",
+          "due": "Late"
+        }
+      ],
+      "stats": [
+        [
+          "Need you",
+          "3",
+          "Reviews and approvals"
+        ],
+        [
+          "Late",
+          "1",
+          "1 task"
+        ],
+        [
+          "Open",
+          "12",
+          "Assigned to you"
+        ],
+        [
+          "Due today",
+          "2",
+          "Record 1038, Record 1042"
+        ]
+      ],
+      "assistant": {
+        "ask": "Which open records have had no change for two weeks?",
+        "job": "Updating",
+        "jobTotal": 3,
+        "after": "In review · J. Kim",
+        "proposal": "Move 3 stalled records to In review and assign them to J. Kim.",
+        "answer": "Three open records have had no change since 18 Sep: Record 1019, Record 1031 and Record 1012."
+      },
+      "chats": [
+        "#general",
+        "#reviews",
+        "#planning"
+      ],
+      "pages": [
+        "Handbook",
+        "How we review records",
+        "Closing a record"
+      ],
+      "pinned": "Mine, open",
+      "memberships": [
+        {
+          "id": "clinic",
+          "name": "Fernhill Health",
+          "mark": "FH",
+          "role": "Viewer",
+          "count": 2
+        },
+        {
+          "id": "legal",
+          "name": "Calder Lane LLP",
+          "mark": "CL",
+          "role": "Guest",
+          "count": 0
+        }
+      ]
+    },
+    {
+      "id": "clinic",
+      "label": "Clinic",
+      "tenant": {
+        "name": "Fernhill Health",
+        "mark": "FH"
+      },
+      "user": {
+        "name": "Dr. Lena Ortiz",
+        "initials": "LO",
+        "role": "Clinician",
+        "admin": false
+      },
+      "places": {
+        "label": "Site",
+        "everywhere": "All sites",
+        "tree": [
+          "Fernhill Central",
+          "Riverside Clinic",
+          "Oakbank Clinic"
+        ],
+        "current": "Riverside Clinic"
+      },
+      "destinations": [
+        {
+          "id": "patients",
+          "label": "Patients",
+          "short": "Patients",
+          "icon": "user",
+          "kind": "patient",
+          "views": [
+            "My patients",
+            "Seen this week",
+            "Awaiting results"
+          ],
+          "tabs": [
+            "Active",
+            "Awaiting results",
+            "Discharged"
+          ],
+          "viewSwitch": [
+            "Grid",
+            "Board"
+          ]
+        },
+        {
+          "id": "appointments",
+          "label": "Appointments",
+          "short": "Appts",
+          "icon": "calendar",
+          "kind": "appointment",
+          "views": [
+            "Today",
+            "This week",
+            "Unconfirmed"
+          ],
+          "tabs": [
+            "Today",
+            "Week",
+            "Unconfirmed"
+          ],
+          "viewSwitch": [
+            "Grid",
+            "Calendar"
+          ]
+        },
+        {
+          "id": "referrals",
+          "label": "Referrals",
+          "short": "Referrals",
+          "icon": "send",
+          "kind": "referral",
+          "views": [
+            "Sent",
+            "Received",
+            "Overdue reply"
+          ],
+          "tabs": [
+            "Sent",
+            "Received"
+          ],
+          "viewSwitch": [
+            "Grid"
+          ]
+        }
+      ],
+      "secondary": [
+        {
+          "id": "reports",
+          "label": "Clinic reports",
+          "short": "Reports",
+          "icon": "chart",
+          "kind": "report",
+          "views": [
+            "All reports"
+          ],
+          "tabs": [
+            "All"
+          ],
+          "viewSwitch": [
+            "Grid"
+          ]
+        }
+      ],
+      "kinds": {
+        "patient": {
+          "one": "Patient",
+          "many": "Patients",
+          "extraCol": "Next visit",
+          "rows": [
+            {
+              "id": "PT-3307",
+              "name": "Sam Haddad",
+              "status": "Awaiting results",
+              "owner": "Dr. Ortiz",
+              "extra": "Thu 9:30",
+              "when": "Today"
+            },
+            {
+              "id": "PT-3291",
+              "name": "Ruth Abara",
+              "status": "Active",
+              "owner": "Dr. Ortiz",
+              "extra": "Mon 11:00",
+              "when": "Yesterday"
+            },
+            {
+              "id": "PT-3284",
+              "name": "Tomas Lind",
+              "status": "Active",
+              "owner": "Dr. Chen",
+              "extra": "—",
+              "when": "Mon"
+            },
+            {
+              "id": "PT-3270",
+              "name": "Priya Nair",
+              "status": "Awaiting results",
+              "owner": "Dr. Ortiz",
+              "extra": "Fri 14:15",
+              "when": "2 Oct"
+            },
+            {
+              "id": "PT-3255",
+              "name": "Ola Bergen",
+              "status": "Discharged",
+              "owner": "Dr. Chen",
+              "extra": "—",
+              "when": "29 Sep"
+            }
+          ]
+        },
+        "appointment": {
+          "one": "Appointment",
+          "many": "Appointments",
+          "extraCol": "Room",
+          "rows": [
+            {
+              "id": "AP-9921",
+              "name": "Sam Haddad, review",
+              "status": "Confirmed",
+              "owner": "Dr. Ortiz",
+              "extra": "Room 2",
+              "when": "9:30"
+            },
+            {
+              "id": "AP-9922",
+              "name": "New patient intake",
+              "status": "Unconfirmed",
+              "owner": "Dr. Ortiz",
+              "extra": "Room 2",
+              "when": "10:15"
+            },
+            {
+              "id": "AP-9925",
+              "name": "Ruth Abara, follow-up",
+              "status": "Confirmed",
+              "owner": "Dr. Ortiz",
+              "extra": "Room 4",
+              "when": "11:00"
+            }
+          ]
+        },
+        "referral": {
+          "tabs": [
+            "details",
+            "related",
+            "log",
+            "timeline"
+          ],
+          "one": "Referral",
+          "many": "Referrals",
+          "extraCol": "To",
+          "rows": [
+            {
+              "id": "RF-410",
+              "name": "Cardiology review, S. Haddad",
+              "status": "Overdue reply",
+              "owner": "Dr. Ortiz",
+              "extra": "Fernhill Central",
+              "when": "24 Sep"
+            },
+            {
+              "id": "RF-404",
+              "name": "Physio, T. Lind",
+              "status": "Accepted",
+              "owner": "Dr. Chen",
+              "extra": "Oakbank Clinic",
+              "when": "21 Sep"
+            }
+          ]
+        },
+        "report": {
+          "one": "Report",
+          "many": "Reports",
+          "extraCol": "Period",
+          "rows": [
+            {
+              "id": "CR-7",
+              "name": "Waiting times",
+              "status": "Ready",
+              "owner": "Clinic office",
+              "extra": "September",
+              "when": "1 Oct"
+            }
+          ]
+        }
+      },
+      "needs": [
+        {
+          "id": "PT-3307",
+          "title": "Review results for Sam Haddad",
+          "what": "Results · Patient",
+          "due": "Today"
+        },
+        {
+          "id": "AP-9922",
+          "title": "Confirm 10:15 intake",
+          "what": "Appointment",
+          "due": "Today"
+        },
+        {
+          "id": "RF-410",
+          "title": "Chase cardiology referral",
+          "what": "Referral",
+          "due": "Late"
+        }
+      ],
+      "stats": [
+        [
+          "Need you",
+          "3",
+          "Results and confirmations"
+        ],
+        [
+          "Late",
+          "1",
+          "1 referral reply"
+        ],
+        [
+          "Seeing today",
+          "7",
+          "Riverside Clinic"
+        ],
+        [
+          "Awaiting results",
+          "2",
+          "S. Haddad, P. Nair"
+        ]
+      ],
+      "assistant": {
+        "ask": "Which of my patients are still waiting on results from last week?",
+        "job": "Rebooking",
+        "jobTotal": 3,
+        "after": "Thu afternoon",
+        "proposal": "Move 3 unconfirmed appointments to Thursday afternoon and message each patient.",
+        "answer": "Two patients are waiting on results from last week: Sam Haddad and Priya Nair."
+      },
+      "chats": [
+        "#riverside",
+        "#on-call",
+        "#referrals"
+      ],
+      "pages": [
+        "Clinic handbook",
+        "Results follow-up",
+        "Referral checklist"
+      ],
+      "pinned": "Awaiting results, mine",
+      "memberships": [
+        {
+          "id": "neutral",
+          "name": "Example Org",
+          "mark": "EO",
+          "role": "Locum",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "id": "legal",
+      "label": "Law practice",
+      "tenant": {
+        "name": "Calder Lane LLP",
+        "mark": "CL"
+      },
+      "user": {
+        "name": "Nadia Brook",
+        "initials": "NB",
+        "role": "Associate",
+        "admin": false
+      },
+      "places": {
+        "label": "Practice area",
+        "everywhere": "All practice areas",
+        "tree": [
+          "Commercial",
+          "Employment",
+          "Property"
+        ],
+        "current": "Commercial"
+      },
+      "destinations": [
+        {
+          "id": "matters",
+          "label": "Matters",
+          "short": "Matters",
+          "icon": "briefcase",
+          "kind": "matter",
+          "views": [
+            "My matters",
+            "Team",
+            "Closing this month"
+          ],
+          "tabs": [
+            "Open",
+            "On hold",
+            "Closed"
+          ],
+          "viewSwitch": [
+            "Grid",
+            "Board"
+          ]
+        },
+        {
+          "id": "documents",
+          "label": "Documents",
+          "short": "Docs",
+          "icon": "file",
+          "kind": "document",
+          "views": [
+            "Drafts",
+            "For signature",
+            "Filed"
+          ],
+          "tabs": [
+            "Drafts",
+            "For signature",
+            "Filed"
+          ],
+          "viewSwitch": [
+            "Grid"
+          ]
+        },
+        {
+          "id": "deadlines",
+          "label": "Deadlines",
+          "short": "Deadlines",
+          "icon": "clock",
+          "kind": "deadline",
+          "views": [
+            "This week",
+            "Next 30 days",
+            "Missed"
+          ],
+          "tabs": [
+            "Week",
+            "30 days"
+          ],
+          "viewSwitch": [
+            "Grid",
+            "Calendar"
+          ]
+        }
+      ],
+      "secondary": [
+        {
+          "id": "billing",
+          "label": "Billing",
+          "short": "Billing",
+          "icon": "chart",
+          "kind": "invoice",
+          "views": [
+            "Unbilled time",
+            "Invoices"
+          ],
+          "tabs": [
+            "Unbilled",
+            "Sent"
+          ],
+          "viewSwitch": [
+            "Grid"
+          ]
+        }
+      ],
+      "kinds": {
+        "matter": {
+          "one": "Matter",
+          "many": "Matters",
+          "extraCol": "Client",
+          "rows": [
+            {
+              "id": "M-2291",
+              "name": "Supply agreement renewal",
+              "status": "Open",
+              "owner": "N. Brook",
+              "extra": "Harlow Foods",
+              "when": "Today"
+            },
+            {
+              "id": "M-2286",
+              "name": "Lease assignment",
+              "status": "On hold",
+              "owner": "P. Grant",
+              "extra": "Tallis Estates",
+              "when": "Mon"
+            },
+            {
+              "id": "M-2279",
+              "name": "Shareholder agreement",
+              "status": "Open",
+              "owner": "N. Brook",
+              "extra": "Vennor Tech",
+              "when": "1 Oct"
+            },
+            {
+              "id": "M-2264",
+              "name": "Distribution terms",
+              "status": "Closed",
+              "owner": "P. Grant",
+              "extra": "Harlow Foods",
+              "when": "25 Sep"
+            }
+          ]
+        },
+        "document": {
+          "one": "Document",
+          "many": "Documents",
+          "extraCol": "Matter",
+          "rows": [
+            {
+              "id": "D-8812",
+              "name": "Renewal agreement v3",
+              "status": "For signature",
+              "owner": "N. Brook",
+              "extra": "M-2291",
+              "when": "Today"
+            },
+            {
+              "id": "D-8790",
+              "name": "Assignment deed",
+              "status": "Draft",
+              "owner": "P. Grant",
+              "extra": "M-2286",
+              "when": "Mon"
+            }
+          ]
+        },
+        "deadline": {
+          "tabs": [
+            "details",
+            "related",
+            "log",
+            "timeline"
+          ],
+          "one": "Deadline",
+          "many": "Deadlines",
+          "extraCol": "Matter",
+          "rows": [
+            {
+              "id": "DL-331",
+              "name": "Notice period ends",
+              "status": "Due",
+              "owner": "N. Brook",
+              "extra": "M-2291",
+              "when": "Fri"
+            },
+            {
+              "id": "DL-328",
+              "name": "Filing deadline",
+              "status": "Missed",
+              "owner": "P. Grant",
+              "extra": "M-2286",
+              "when": "2 Oct"
+            }
+          ]
+        },
+        "invoice": {
+          "one": "Invoice",
+          "many": "Invoices",
+          "extraCol": "Client",
+          "rows": [
+            {
+              "id": "INV-5521",
+              "name": "September time",
+              "status": "Draft",
+              "owner": "Accounts",
+              "extra": "Harlow Foods",
+              "when": "1 Oct"
+            }
+          ]
+        }
+      },
+      "needs": [
+        {
+          "id": "D-8812",
+          "title": "Sign off Renewal agreement v3",
+          "what": "Approval · Document",
+          "due": "Today"
+        },
+        {
+          "id": "DL-331",
+          "title": "Notice period ends, M-2291",
+          "what": "Deadline · Matter",
+          "due": "Fri"
+        },
+        {
+          "id": "DL-328",
+          "title": "Missed filing deadline",
+          "what": "Deadline · Matter",
+          "due": "Late"
+        }
+      ],
+      "stats": [
+        [
+          "Need you",
+          "3",
+          "Sign-offs and deadlines"
+        ],
+        [
+          "Late",
+          "1",
+          "1 deadline"
+        ],
+        [
+          "Open matters",
+          "9",
+          "Assigned to you"
+        ],
+        [
+          "This week",
+          "4",
+          "Deadlines in Commercial"
+        ]
+      ],
+      "assistant": {
+        "ask": "Which of my matters have a deadline in the next seven days?",
+        "job": "Drafting",
+        "jobTotal": 3,
+        "after": "Client update drafted",
+        "proposal": "Draft three client updates for matters with a deadline this week.",
+        "answer": "Two matters have deadlines in the next seven days: Supply agreement renewal (Fri) and Shareholder agreement (Wed)."
+      },
+      "chats": [
+        "#commercial",
+        "#knowhow",
+        "#billing"
+      ],
+      "pages": [
+        "Practice manual",
+        "Matter opening",
+        "Conflict checks"
+      ],
+      "pinned": "Closing this month",
+      "memberships": [
+        {
+          "id": "retail",
+          "name": "Kestrel Outfitters",
+          "mark": "KO",
+          "role": "External counsel",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "id": "retail",
+      "label": "Retail",
+      "tenant": {
+        "name": "Kestrel Outfitters",
+        "mark": "KO"
+      },
+      "user": {
+        "name": "Jo Mensah",
+        "initials": "JM",
+        "role": "Area manager",
+        "admin": true
+      },
+      "places": {
+        "label": "Store",
+        "everywhere": "All stores",
+        "tree": [
+          "North region",
+          "Leeds Briggate",
+          "York Coney St",
+          "South region",
+          "Bath Milsom St"
+        ],
+        "current": "Leeds Briggate"
+      },
+      "destinations": [
+        {
+          "id": "products",
+          "label": "Products",
+          "short": "Products",
+          "icon": "box",
+          "kind": "product",
+          "views": [
+            "All products",
+            "Low stock",
+            "New this season"
+          ],
+          "tabs": [
+            "In stock",
+            "Low",
+            "Out"
+          ],
+          "viewSwitch": [
+            "Grid",
+            "Board"
+          ]
+        },
+        {
+          "id": "orders",
+          "label": "Orders",
+          "short": "Orders",
+          "icon": "cart",
+          "kind": "order",
+          "views": [
+            "To pick",
+            "Shipped",
+            "Returns"
+          ],
+          "tabs": [
+            "To pick",
+            "Shipped",
+            "Returns"
+          ],
+          "viewSwitch": [
+            "Grid",
+            "Board"
+          ]
+        },
+        {
+          "id": "suppliers",
+          "label": "Suppliers",
+          "short": "Suppliers",
+          "icon": "truck",
+          "kind": "supplier",
+          "views": [
+            "All suppliers",
+            "Late deliveries"
+          ],
+          "tabs": [
+            "All",
+            "Late"
+          ],
+          "viewSwitch": [
+            "Grid"
+          ]
+        }
+      ],
+      "secondary": [
+        {
+          "id": "sales",
+          "label": "Sales reports",
+          "short": "Sales",
+          "icon": "chart",
+          "kind": "report",
+          "views": [
+            "Weekly",
+            "Monthly"
+          ],
+          "tabs": [
+            "Weekly"
+          ],
+          "viewSwitch": [
+            "Grid"
+          ]
+        }
+      ],
+      "kinds": {
+        "product": {
+          "one": "Product",
+          "many": "Products",
+          "extraCol": "On hand",
+          "rows": [
+            {
+              "id": "SKU-4410",
+              "name": "Trail jacket, green, M",
+              "status": "Low",
+              "owner": "Buying",
+              "extra": "4",
+              "when": "Today"
+            },
+            {
+              "id": "SKU-4402",
+              "name": "Wool socks, 3 pack",
+              "status": "In stock",
+              "owner": "Buying",
+              "extra": "128",
+              "when": "Mon"
+            },
+            {
+              "id": "SKU-4391",
+              "name": "Day pack 25L",
+              "status": "Out",
+              "owner": "Buying",
+              "extra": "0",
+              "when": "2 Oct"
+            },
+            {
+              "id": "SKU-4377",
+              "name": "Rain shell, navy, L",
+              "status": "Low",
+              "owner": "Buying",
+              "extra": "6",
+              "when": "30 Sep"
+            }
+          ]
+        },
+        "order": {
+          "one": "Order",
+          "many": "Orders",
+          "extraCol": "Items",
+          "rows": [
+            {
+              "id": "OR-77120",
+              "name": "Web order, click and collect",
+              "status": "To pick",
+              "owner": "Store team",
+              "extra": "3",
+              "when": "9:12"
+            },
+            {
+              "id": "OR-77115",
+              "name": "Web order, delivery",
+              "status": "Shipped",
+              "owner": "Warehouse",
+              "extra": "1",
+              "when": "Yesterday"
+            }
+          ]
+        },
+        "supplier": {
+          "tabs": [
+            "details",
+            "related",
+            "log",
+            "timeline"
+          ],
+          "one": "Supplier",
+          "many": "Suppliers",
+          "extraCol": "Next delivery",
+          "rows": [
+            {
+              "id": "SUP-31",
+              "name": "Fellside Textiles",
+              "status": "Late",
+              "owner": "Buying",
+              "extra": "Overdue 2 days",
+              "when": "Mon"
+            },
+            {
+              "id": "SUP-28",
+              "name": "Moorland Packs",
+              "status": "On time",
+              "owner": "Buying",
+              "extra": "Thu",
+              "when": "1 Oct"
+            }
+          ]
+        },
+        "report": {
+          "one": "Report",
+          "many": "Reports",
+          "extraCol": "Period",
+          "rows": [
+            {
+              "id": "SR-40",
+              "name": "Week 40 sales",
+              "status": "Ready",
+              "owner": "Finance",
+              "extra": "Week 40",
+              "when": "Mon"
+            }
+          ]
+        }
+      },
+      "needs": [
+        {
+          "id": "SKU-4391",
+          "title": "Reorder Day pack 25L",
+          "what": "Stock · Product",
+          "due": "Today"
+        },
+        {
+          "id": "OR-77120",
+          "title": "Pick click-and-collect order",
+          "what": "Order",
+          "due": "Today"
+        },
+        {
+          "id": "SUP-31",
+          "title": "Chase Fellside Textiles delivery",
+          "what": "Supplier",
+          "due": "Late"
+        }
+      ],
+      "stats": [
+        [
+          "Need you",
+          "3",
+          "Reorders and picks"
+        ],
+        [
+          "Late",
+          "1",
+          "1 delivery"
+        ],
+        [
+          "Low stock",
+          "14",
+          "Leeds Briggate"
+        ],
+        [
+          "To pick",
+          "6",
+          "Web orders"
+        ]
+      ],
+      "assistant": {
+        "ask": "Which products will run out before the next delivery?",
+        "job": "Reordering",
+        "jobTotal": 3,
+        "after": "Purchase order raised",
+        "proposal": "Raise purchase orders for 3 low-stock products from their usual suppliers.",
+        "answer": "Three products will run out before Thursday’s delivery: Trail jacket M, Rain shell L and Day pack 25L."
+      },
+      "chats": [
+        "#north-stores",
+        "#buying",
+        "#web-orders"
+      ],
+      "pages": [
+        "Store handbook",
+        "Stock counts",
+        "Returns policy"
+      ],
+      "pinned": "Low stock, Leeds"
+    }
+  ]
+}

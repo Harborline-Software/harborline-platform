@@ -1,0 +1,6 @@
+@attribute [Stories("Experimental/App Shell Rev6 Native Tab Host")]
+<Stories TComponent="AppShellRev6NativeScenario" Layout="@typeof(NoMarginLayout)">
+ <Story Name="Dirty Navigation"><Arguments><Arg For="_ => _.ScenarioId" Value='"dirty-navigation"' /></Arguments><Template><AppShellRev6NativeScenario @attributes="context.Args" /></Template></Story>
+ <Story Name="Identity Boundary"><Arguments><Arg For="_ => _.ScenarioId" Value='"identity-boundary"' /></Arguments><Template><AppShellRev6NativeScenario @attributes="context.Args" /></Template></Story>
+ <Story Name="Sign Out"><Arguments><Arg For="_ => _.ScenarioId" Value='"sign-out"' /></Arguments><Template><AppShellRev6NativeScenario @attributes="context.Args" /></Template></Story>
+</Stories>

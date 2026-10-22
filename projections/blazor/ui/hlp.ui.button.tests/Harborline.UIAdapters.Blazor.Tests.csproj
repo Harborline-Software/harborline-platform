@@ -127,4 +127,11 @@
   <ItemGroup>
     <Compile Include="../../../shared.tests/SharedFixtureBatch.cs" Link="SharedFixtureBatch.cs" />
   </ItemGroup>
+  <ItemGroup>
+    <!-- Exercise the actual gallery caller without building or hosting the WASM gallery. -->
+    <RazorComponent Include="../../../../gallery/projections/blazor/Stories/AppShellRev6NativeScenario.razor"
+                    Link="AppShellRev6NativeScenario.razor" />
+    <EmbeddedResource Include="../../../../conformance/hlp.ui.app-shell/rev6/state-scenarios.json"
+                      LogicalName="app-shell-rev6-state-scenarios.json" />
+  </ItemGroup>
 </Project>

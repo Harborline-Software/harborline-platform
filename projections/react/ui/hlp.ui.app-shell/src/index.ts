@@ -12,3 +12,5 @@ export type { DockLayout, DockNode, DockNodeSnapshot, DockPane, DockSplit, DockS
 export { SHELL_BREAKPOINTS, SHELL_LAYOUT, SHELL_PANEL_SLOTS, SHELL_RAIL_ZONE_ORDER, panelEarnsOverflow, panelHeaderForm, panelMinimumHeight, panelSlotMinimum, roundHalfUp, shellAddress, shellBreakpoint } from './types'
 export type { PackDocumentSpineNode, PackNavigationAction, PackNavigationDeclaration, PackNavigationGroup, PackNavigationMode, PackNavigationModeSwitch, PackNavigationWorkspace, PackPanelDeclaration, PackPanelFooter, ShellBreakpoint, ShellFooterIdentity, ShellNavigationState, ShellNavItem, ShellNavThread, ShellRowAction, ShellScopeDirectory, ShellScopeOption, ShellSystemItem } from './types'
 export type { ShellPanelOpenItem } from './AppShell'
+export { AppShellRev6TabHost } from './rev6/AppShellRev6'
+export type { AppShellRev6Props, AppShellRev6Owner, AppShellRev6Presentation, AppShellRev6Tab, AppShellRev6TabKind, AppShellRev6Intent } from './rev6/AppShellRev6'

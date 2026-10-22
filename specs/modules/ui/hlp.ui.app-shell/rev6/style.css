@@ -1,0 +1,518 @@
+/* hlp.ui.app-shell rev 6 authority stylesheet.
+   Frame: rail | sidebar | main | side panel (tab host). Decision ids refer to harborline-control DES-0008 supporting/harness-rev6-decisions.md. */
+
+/* ---------- Root frame ---------- */
+/* The docking script reads these constants (P12). CSS never enforces the main minimum, so phone
+   and floating layouts can go narrower than it. */
+.hl-app-shell {
+  --hl-app-shell-rail-size: 56px; --hl-app-shell-rail-size-labeled: 80px; --hl-app-shell-sidebar-size: 240px;
+  --hl-app-shell-main-minimum: 560px; --hl-app-shell-panel-size: 380px;
+  position: relative; display: grid; min-inline-size: 0; block-size: 100%; overflow: hidden;
+  grid-template: "rail sidebar main panel" minmax(0, 1fr) / auto auto minmax(0, 1fr) auto;
+}
+.hl-app-shell__main { grid-area: main; display: flex; flex-direction: column; min-inline-size: 0; min-block-size: 0; }
+.hl-app-shell__body { flex: 1; min-block-size: 0; overflow: auto; }
+.hl-app-shell__spacer { flex: 1; }
+.hl-app-shell__row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.hl-app-shell__visually-hidden,
+.hl-app-shell__tab[data-pinned] .hl-app-shell__tab-label { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.hl-app-shell__group-label,
+.hl-app-shell__menu-label {
+  display: block; margin: 6px 0 4px; padding-inline: 8px; color: var(--hl-muted-foreground, #777);
+  font-size: 11px; font-weight: 650; letter-spacing: .055em; text-transform: uppercase;
+}
+.hl-app-shell__menu-label { margin: 0; padding: 8px 12px 4px; }
+
+/* ---------- Shared control reset, hover, current ---------- */
+:is(.hl-app-shell__button, .hl-app-shell__icon-button, .hl-app-shell__link, .hl-app-shell__segment, .hl-app-shell__chip-button,
+  .hl-app-shell__chip-remove, .hl-app-shell__rail-item, .hl-app-shell__mode-button, .hl-app-shell__avatar-button,
+  .hl-app-shell__side-item, .hl-app-shell__conversation, .hl-app-shell__ask, .hl-app-shell__drawer-item, .hl-app-shell__list-row,
+  .hl-app-shell__needs-card, .hl-app-shell__big-composer, .hl-app-shell__browse-card, .hl-app-shell__tab-button,
+  .hl-app-shell__tab-close, .hl-app-shell__tool, .hl-app-shell__tab-card, .hl-app-shell__result, .hl-app-shell__menu-item,
+  .hl-app-shell__menu-line, .hl-app-shell__composer-input, .hl-app-shell__search-input) {
+  margin: 0; padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: start; cursor: pointer;
+}
+:is(.hl-app-shell__button, .hl-app-shell__icon-button, .hl-app-shell__rail-item, .hl-app-shell__side-item,
+  .hl-app-shell__conversation, .hl-app-shell__drawer-item, button.hl-app-shell__list-row, .hl-app-shell__needs-card,
+  .hl-app-shell__browse-card, .hl-app-shell__tab-close, .hl-app-shell__tool, .hl-app-shell__result, .hl-app-shell__menu-item):hover {
+  background: var(--hl-hover, #f0f0f0); color: var(--hl-foreground, inherit);
+}
+/* Current and selected rows pair the fill with weight; rail and tab add a bar (below). */
+:is(.hl-app-shell__rail-item, .hl-app-shell__side-item, .hl-app-shell__conversation, .hl-app-shell__drawer-item)[aria-current=page],
+:is(.hl-app-shell__tool, .hl-app-shell__result)[aria-selected=true],
+.hl-app-shell__icon-button[aria-pressed=true] {
+  background: var(--hl-selected, #e8f0fe); color: var(--hl-foreground, inherit); font-weight: 600;
+}
+.hl-app-shell__muted,
+:is(.hl-app-shell__conversation-meta, .hl-app-shell__event-time, .hl-app-shell__mention-offer, .hl-app-shell__result-meta,
+  .hl-app-shell__menu-item-meta, .hl-app-shell__setting-source, .hl-app-shell__tab-sub-text, .hl-app-shell__dialog-foot,
+  .hl-app-shell__focus-tag, .hl-app-shell__breadcrumb) { color: var(--hl-muted-foreground, #777); font-size: 12px; font-weight: 400; }
+
+/* ---------- Counts ---------- */
+/* Counts are numbers in tabular mono. An empty count would render as a dot, which A3 forbids. */
+.hl-app-shell__count, .hl-app-shell__needs-count, .hl-app-shell__key-hint { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.hl-app-shell__count:empty, .hl-app-shell__needs-count:empty { display: none; }
+.hl-app-shell__count { flex: none; color: var(--hl-muted-foreground, #777); font-size: 11px; }
+.hl-app-shell__needs-count {
+  flex: none; min-inline-size: 16px; block-size: 16px; padding-inline: 4px; box-sizing: border-box; border-radius: 999px;
+  background: var(--hl-attention, #4f46b8); color: var(--hl-attention-foreground, #fff); font-size: 10px; font-weight: 600; line-height: 16px; text-align: center;
+}
+:is(.hl-app-shell__rail-item, .hl-app-shell__avatar, .hl-app-shell__icon-button) > .hl-app-shell__needs-count { position: absolute; inset-block-start: 0; inset-inline-end: 0; }
+.hl-app-shell__key-hint { flex: none; padding-inline: 4px; border: 1px solid var(--hl-border, #d5d5d5); border-radius: 4px; color: var(--hl-muted-foreground, #777); font-size: 11px; line-height: 16px; }
+
+/* ---------- Controls ---------- */
+.hl-app-shell__button {
+  display: inline-flex; align-items: center; gap: 6px; min-block-size: 32px; padding: 0 10px; border: 1px solid var(--hl-button-border, #767676);
+  border-radius: 8px; background: var(--hl-button-secondary, #fff); color: var(--hl-button-secondary-foreground, inherit); font-size: 13px;
+}
+.hl-app-shell__button[data-primary], .hl-app-shell__send, .hl-app-shell__send:hover { border-color: var(--hl-primary, #0f62fe); background: var(--hl-primary, #0f62fe); color: var(--hl-primary-foreground, #fff); }
+.hl-app-shell__button[data-destructive] { border-color: var(--hl-danger, #b42318); color: var(--hl-danger, #b42318); }
+.hl-app-shell__icon-button {
+  position: relative; flex: none; display: inline-flex; align-items: center; justify-content: center;
+  inline-size: 32px; block-size: 32px; border-radius: 8px; color: var(--hl-muted-foreground, #777);
+}
+/* Links stay underlined so they never rely on color alone (WCAG 1.4.1). */
+.hl-app-shell__link { color: var(--hl-primary, #0f62fe); font-size: 13px; text-decoration: underline; text-underline-offset: 2px; }
+.hl-app-shell__segments { display: inline-flex; flex-wrap: wrap; gap: 2px; padding: 2px; border-radius: 999px; background: var(--hl-muted, #eee); }
+.hl-app-shell__segment { min-block-size: 28px; padding: 0 12px; border-radius: 999px; font-size: 13px; text-align: center; }
+.hl-app-shell__segment[aria-pressed=true] { background: var(--hl-surface, #fff); box-shadow: 0 0 0 1px var(--hl-border, #d5d5d5); font-weight: 600; }
+.hl-app-shell__segments[data-size=small] .hl-app-shell__segment { min-block-size: 24px; padding: 0 8px; font-size: 12px; }
+.hl-app-shell__chip, .hl-app-shell__chip-button, .hl-app-shell__draft-tag {
+  display: inline-flex; align-items: center; gap: 4px; min-block-size: 22px; padding: 0 8px; box-sizing: border-box;
+  border: 1px solid var(--hl-control-border, #767676); border-radius: 999px; background: var(--hl-surface, #fff); font-size: 12px;
+}
+.hl-app-shell__chip { color: var(--hl-muted-foreground, #777); }
+.hl-app-shell__chip-button { min-block-size: 28px; gap: 6px; padding: 0 10px; font-size: 13px; }
+
+/* ---------- Rail ---------- */
+.hl-app-shell__rail {
+  grid-area: rail; display: flex; flex-direction: column; align-items: center; gap: 6px; inline-size: var(--hl-app-shell-rail-size);
+  min-block-size: 0; padding-block: 10px; box-sizing: border-box; overflow: auto;
+  border-inline-end: 1px solid var(--hl-border, #d5d5d5); background: var(--hl-muted, #eee);
+}
+.hl-app-shell__rail[data-rail-labels] { inline-size: var(--hl-app-shell-rail-size-labeled); }
+.hl-app-shell__rail-item {
+  position: relative; flex: none; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  inline-size: 44px; min-block-size: 44px; border-radius: 10px; color: var(--hl-muted-foreground, #777);
+}
+.hl-app-shell__rail[data-rail-labels] .hl-app-shell__rail-item { inline-size: 72px; min-block-size: 52px; }
+.hl-app-shell__rail-item[aria-current=page]::before {
+  content: ""; position: absolute; inset-block: 8px; inset-inline-start: -6px; inline-size: 3px; border-radius: 2px; background: var(--hl-primary, #0f62fe);
+}
+.hl-app-shell__rail-label { max-inline-size: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; line-height: 14px; }
+.hl-app-shell__rail-separator { flex: none; inline-size: 28px; block-size: 1px; margin-block: 4px; background: var(--hl-border, #d5d5d5); }
+.hl-app-shell__tenant-mark, .hl-app-shell__avatar {
+  position: relative; flex: none; display: inline-flex; align-items: center; justify-content: center; inline-size: 28px; block-size: 28px;
+  border-radius: 8px; background: var(--hl-foreground, #111); color: var(--hl-surface, #fff); font-size: 11px; font-weight: 700; line-height: 1;
+}
+.hl-app-shell__avatar { inline-size: 36px; block-size: 36px; border-radius: 50%; font-size: 12px; font-weight: 600; }
+.hl-app-shell__menu .hl-app-shell__tenant-mark { inline-size: 22px; block-size: 22px; border-radius: 6px; font-size: 9px; }
+.hl-app-shell__mode {
+  display: flex; flex-direction: column; gap: 2px; margin-block: 2px 6px; padding: 2px;
+  border: 1px solid var(--hl-border, #d5d5d5); border-radius: 10px; background: var(--hl-surface, #fff);
+}
+.hl-app-shell__rail[data-rail-labels] .hl-app-shell__mode { flex-direction: row; }
+.hl-app-shell__mode-button { display: inline-flex; align-items: center; justify-content: center; inline-size: 36px; block-size: 26px; border-radius: 8px; color: var(--hl-muted-foreground, #777); }
+.hl-app-shell__mode-button[aria-pressed=true] { background: var(--hl-primary, #0f62fe); color: var(--hl-primary-foreground, #fff); }
+.hl-app-shell__avatar-button { display: flex; flex-direction: column; align-items: center; gap: 2px; margin-block: auto 2px; padding: 2px; border-radius: 10px; }
+.hl-app-shell__avatar-button:hover .hl-app-shell__avatar { box-shadow: 0 0 0 3px var(--hl-selected, #e8f0fe); }
+
+/* ---------- Sidebar: destination views and Conversations ---------- */
+.hl-app-shell__sidebar, .hl-app-shell__settings-nav {
+  grid-area: sidebar; display: flex; flex-direction: column; gap: 14px; inline-size: var(--hl-app-shell-sidebar-size); min-block-size: 0;
+  padding: 14px 12px; box-sizing: border-box; overflow: auto; border-inline-end: 1px solid var(--hl-border, #d5d5d5); background: var(--hl-surface, #fff);
+}
+.hl-app-shell__sidebar-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.hl-app-shell__sidebar-title { font-size: 16px; font-weight: 650; }
+.hl-app-shell__scope { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.hl-app-shell__section { display: flex; flex-direction: column; gap: 1px; }
+.hl-app-shell__side-row { position: relative; display: flex; align-items: center; border-radius: 8px; }
+.hl-app-shell__side-item, .hl-app-shell__conversation {
+  display: flex; align-items: center; gap: 8px; flex: 1; min-inline-size: 0; min-block-size: 32px; padding: 4px 10px; border-radius: 8px; font-size: 13px;
+}
+.hl-app-shell__conversation { min-block-size: 44px; padding: 4px 8px; }
+.hl-app-shell__conversation-icon { display: inline-flex; align-items: center; justify-content: center; flex: none; inline-size: 28px; block-size: 28px; border-radius: 8px; background: var(--hl-muted, #eee); }
+.hl-app-shell__conversation-text, .hl-app-shell__list-row-text, .hl-app-shell__menu-item-text { display: flex; flex-direction: column; flex: 1; min-inline-size: 0; }
+.hl-app-shell__conversation-text > * { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hl-app-shell__conversation .hl-app-shell__count {
+  min-inline-size: 20px; block-size: 20px; padding-inline: 6px; box-sizing: border-box; border-radius: 999px;
+  background: var(--hl-muted, #eee); color: inherit; font-weight: 600; line-height: 20px; text-align: center;
+}
+.hl-app-shell__section-add { align-self: flex-start; padding-inline-start: 8px; }
+
+/* Pin toggle (carried from rev 5; reveals on its sidebar row). */
+.hl-app-shell__pin-toggle{flex:none;inline-size:44px;block-size:44px;display:inline-flex;align-items:center;justify-content:center;border:none;background:none;color:var(--hl-muted-foreground,#777);cursor:pointer;border-radius:6px;opacity:0}
+@media (pointer:fine){.hl-app-shell__pin-toggle{opacity:.35;inline-size:32px;block-size:32px}}
+.hl-app-shell__side-row:hover .hl-app-shell__pin-toggle,.hl-app-shell__side-row:focus-within .hl-app-shell__pin-toggle{opacity:1}
+@media (pointer:coarse){.hl-app-shell__pin-toggle{opacity:1}}
+
+/* Conversation row menu and inline rename (carried from rev 5 thread rows). */
+.hl-app-shell__kebab{flex:none;inline-size:44px;block-size:36px;display:inline-flex;align-items:center;justify-content:center;border:none;background:none;color:var(--hl-muted-foreground,#777);cursor:pointer;border-radius:6px;opacity:0}
+@media (pointer:fine){.hl-app-shell__kebab{inline-size:32px;block-size:30px}}
+.hl-app-shell__side-row:hover .hl-app-shell__kebab,.hl-app-shell__side-row:focus-within .hl-app-shell__kebab{opacity:1}
+@media (pointer:coarse){.hl-app-shell__kebab{opacity:1}}
+.hl-app-shell__row-menu{position:absolute;inset-block-start:100%;inset-inline-end:4px;z-index:50;min-inline-size:180px;padding:4px;border:1px solid var(--hl-border,#d5d5d5);border-radius:8px;background:var(--hl-surface,#fff);box-shadow:0 8px 24px rgb(0 0 0/.12)}
+.hl-app-shell__row-menu-item{display:flex;align-items:center;gap:8px;inline-size:100%;min-block-size:36px;padding:4px 8px;border:none;background:none;color:inherit;cursor:pointer;border-radius:6px;font:inherit;text-align:start}
+.hl-app-shell__row-menu-item[data-destructive=true]{color:var(--hl-danger,#c0392b);border-block-start:1px solid var(--hl-border,#d5d5d5)}
+.hl-app-shell__conversation-rename{flex:1;min-inline-size:0;padding:2px 5px;border:1px solid var(--hl-accent,#4479f0);border-radius:4px;background:var(--hl-background,#fafafa);color:inherit;font-size:13px}
+.hl-app-shell__kebab:focus-visible,.hl-app-shell__row-menu-item:focus-visible,.hl-app-shell__conversation-rename:focus-visible{outline:2px solid var(--hl-focus,var(--hl-primary,#0f62fe));outline-offset:2px}
+
+/* Scope switcher (carried from rev 5). */
+.hl-app-shell__switcher{position:relative;display:block;padding:6px 10px}.hl-app-shell__switcher-trigger{display:flex;align-items:center;gap:8px;inline-size:100%;min-block-size:44px;padding:6px 10px;font-size:13px;border:1px solid var(--hl-border,#d5d5d5);border-radius:8px;background:var(--hl-surface,#fff);color:inherit;cursor:pointer}.hl-app-shell__switcher-label{flex:1;min-inline-size:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:start;max-inline-size:var(--hl-app-shell-switcher-max,220px)}.hl-app-shell__switcher-static{display:flex;align-items:center;gap:8px;padding:6px 10px;min-block-size:44px}.hl-app-shell__switcher-menu{position:absolute;inset-block-start:100%;inset-inline-start:8px;z-index:40;min-inline-size:240px;max-block-size:60dvb;overflow:auto;padding:4px;border:1px solid var(--hl-border,#d5d5d5);border-radius:10px;background:var(--hl-surface,#fff);box-shadow:0 8px 24px rgb(0 0 0/.12)}.hl-app-shell__switcher-option{display:flex;align-items:center;gap:8px;min-block-size:44px;padding:4px 8px;border-radius:6px;cursor:pointer;font-size:13px}@media (pointer:fine){.hl-app-shell__switcher-option{min-block-size:36px}}.hl-app-shell__switcher-option[aria-checked=true]{background:var(--hl-selected,#e8f0fe)}.hl-app-shell__switcher-filter{inline-size:100%;box-sizing:border-box;margin-block-end:4px;padding:6px 8px;border:1px solid var(--hl-border,#d5d5d5);border-radius:6px;background:transparent;color:inherit}.hl-app-shell__monogram{inline-size:24px;block-size:24px;display:inline-flex;align-items:center;justify-content:center;border-radius:6px;background:var(--hl-muted,#eee);font-size:11px;font-weight:600;flex:none}
+
+/* ---------- Header, Ask box, focus bar ---------- */
+.hl-app-shell__header, .hl-app-shell__focus-bar {
+  flex: none; display: flex; align-items: center; gap: 12px; min-inline-size: 0; block-size: 52px; padding: 0 16px;
+  border-block-end: 1px solid var(--hl-border, #d5d5d5); background: var(--hl-surface, #fff);
+}
+.hl-app-shell__focus-bar { block-size: 40px; background: var(--hl-muted, #eee); }
+.hl-app-shell__focus-tag { display: inline-flex; align-items: center; gap: 6px; }
+.hl-app-shell__titles { display: flex; flex-direction: column; flex: 0 1 auto; min-inline-size: 0; }
+.hl-app-shell__title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 15px; font-weight: 650; }
+.hl-app-shell__breadcrumb { display: flex; gap: 6px; overflow: hidden; white-space: nowrap; line-height: 16px; }
+.hl-app-shell__breadcrumb [aria-current=page] { color: var(--hl-foreground, inherit); }
+.hl-app-shell__ask {
+  display: flex; align-items: center; gap: 8px; flex: 0 1 420px; min-inline-size: 0; block-size: 34px; margin-inline: auto; padding: 0 10px;
+  border: 1px solid var(--hl-control-border, #767676); border-radius: 999px; background: var(--hl-surface, #fff);
+  color: var(--hl-muted-foreground, #777); font-size: 13px; cursor: text;
+}
+.hl-app-shell__panel-foot .hl-app-shell__ask { inline-size: 100%; flex: none; margin: 0; }
+.hl-app-shell__ask-placeholder { flex: 1; min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hl-app-shell__job {
+  display: inline-flex; align-items: center; gap: 6px; block-size: 22px; padding: 0 8px; border-radius: 999px;
+  background: var(--hl-selected, #e8f0fe); color: var(--hl-foreground, inherit); font-size: 12px; white-space: nowrap;
+}
+.hl-app-shell__job[data-job-state=failed] { box-shadow: inset 0 0 0 1px var(--hl-danger, #b42318); color: var(--hl-danger, #b42318); }
+.hl-app-shell__job-spinner {
+  inline-size: 10px; block-size: 10px; box-sizing: border-box; border: 2px solid var(--hl-muted-foreground, #777);
+  border-block-start-color: transparent; border-radius: 50%; animation: hl-app-shell-spin 1s linear infinite;
+}
+@keyframes hl-app-shell-spin { to { transform: rotate(1turn); } }
+.hl-app-shell__header-end { display: flex; align-items: center; gap: 4px; flex: none; }
+
+/* ---------- Phone header, drawer, scrim ---------- */
+.hl-app-shell[data-form=phone] .hl-app-shell__header { gap: 4px; padding: 0 8px; }
+.hl-app-shell__drawer {
+  position: absolute; z-index: 5; inset-block: 0; inset-inline-start: 0; inline-size: min(82%, 320px); display: flex; flex-direction: column; gap: 2px;
+  padding: 12px; box-sizing: border-box; overflow: auto; background: var(--hl-surface, #fff); box-shadow: 0 12px 32px rgb(0 0 0/.18);
+}
+.hl-app-shell__drawer-head { display: flex; align-items: center; gap: 10px; padding: 4px 8px 12px; }
+.hl-app-shell__drawer-item { display: flex; align-items: center; gap: 12px; min-block-size: 44px; padding: 0 10px; border-radius: 10px; }
+.hl-app-shell__drawer .hl-app-shell__avatar-button { flex-direction: row; gap: 8px; }
+.hl-app-shell__scrim { position: absolute; z-index: 4; inset: 0; background: rgb(0 0 0/.4); }
+.hl-app-shell__scrim[data-scrim=dialog] { z-index: 6; }
+
+/* ---------- Context bar, selection bar, sync strip ---------- */
+.hl-app-shell__context-bar, .hl-app-shell__selection-bar, .hl-app-shell__sync-strip {
+  flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-block-size: 48px; padding: 6px 16px;
+  box-sizing: border-box; border-block-end: 1px solid var(--hl-border, #d5d5d5);
+}
+.hl-app-shell__selection-bar { background: var(--hl-selected, #e8f0fe); }
+/* A4: the strip shows only for offline, queued, conflict or stale; there is no "synced" state. */
+.hl-app-shell__sync-strip { min-block-size: 0; padding-block: 8px; background: var(--hl-surface, #fff); font-size: 13px; }
+.hl-app-shell__sync-strip[data-sync-state=offline] { border-block-end-color: var(--hl-pending, #9a4d00); }
+.hl-app-shell__sync-strip[data-sync-state=conflict] { border-block-end: 2px solid var(--hl-attention, #4f46b8); }
+.hl-app-shell__sync-strip[data-sync-state=stale] { border-block-end-color: var(--hl-control-border, #777); }
+.hl-app-shell__sync-marker { flex: none; padding: 0 6px; border: 1px solid transparent; border-radius: 999px; color: var(--hl-ok, #23703f); font-size: 12px; white-space: nowrap; }
+/* Dashed means "not sent yet" and nothing else. This is the only dashed rule in the shell. */
+.hl-app-shell__sync-strip[data-sync-state=queued] { border-block-end-style: dashed; border-block-end-color: var(--hl-pending, #9a4d00); }
+.hl-app-shell__sync-marker[data-sync-state=queued] { border-style: dashed; border-color: var(--hl-pending, #9a4d00); color: var(--hl-pending, #9a4d00); }
+
+/* ---------- Stream: conversation and record face ---------- */
+.hl-app-shell__stream { display: flex; flex-direction: column; block-size: 100%; min-block-size: 0; }
+.hl-app-shell__stream-head { flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px 24px; border-block-end: 1px solid var(--hl-border, #d5d5d5); }
+.hl-app-shell__stream-body, .hl-app-shell__stream-foot { inline-size: 100%; max-inline-size: 820px; padding: 16px 24px; box-sizing: border-box; }
+.hl-app-shell__stream-body { flex: 1; min-block-size: 0; overflow: auto; display: flex; flex-direction: column; gap: 14px; }
+.hl-app-shell__stream-foot { flex: none; padding-block: 12px 16px; }
+.hl-app-shell__context-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.hl-app-shell__event { display: flex; flex-direction: column; gap: 4px; }
+.hl-app-shell__event-who { display: flex; align-items: center; gap: 8px; }
+.hl-app-shell__event-body { display: flex; flex-direction: column; gap: 10px; max-inline-size: 70ch; }
+.hl-app-shell__event[data-own] .hl-app-shell__event-body { align-self: flex-start; padding: 8px 12px; border-radius: 12px; background: var(--hl-selected, #e8f0fe); }
+.hl-app-shell__event[data-event-kind=system] { flex-direction: row; align-items: center; gap: 8px; color: var(--hl-muted-foreground, #777); font-size: 12px; }
+.hl-app-shell__event-marker { flex: none; inline-size: 8px; block-size: 8px; box-sizing: border-box; border: 2px solid var(--hl-control-border, #777); border-radius: 50%; }
+.hl-app-shell__agent-tag, .hl-app-shell__ai-label {
+  display: inline-flex; align-items: center; gap: 3px; padding: 0 5px; border: 1px solid var(--hl-control-border, #777); border-radius: 3px; font-size: 11px;
+}
+.hl-app-shell__ai-label { padding: 0 6px; border-radius: 999px; font-weight: 600; line-height: 18px; }
+.hl-app-shell__live-block {
+  display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border: 1px solid var(--hl-control-border, #767676);
+  border-radius: 12px; background: var(--hl-surface, #fff);
+}
+.hl-app-shell__live-block-head, .hl-app-shell__proposal-head { display: flex; align-items: center; gap: 8px; }
+.hl-app-shell__proposal-head { justify-content: space-between; }
+.hl-app-shell__live-tag {
+  padding: 0 6px; border: 1px solid var(--hl-ok, #23703f); border-radius: 4px; color: var(--hl-ok, #23703f);
+  font-size: 10px; font-weight: 600; line-height: 16px; letter-spacing: .06em; text-transform: uppercase;
+}
+.hl-app-shell__mini-table { inline-size: 100%; border-collapse: collapse; font-size: 13px; }
+.hl-app-shell__mini-table :is(th, td) { padding: 5px 6px; border-block-end: 1px solid var(--hl-border, #d5d5d5); text-align: start; vertical-align: middle; }
+.hl-app-shell__mini-table th { color: var(--hl-muted-foreground, #777); font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; }
+.hl-app-shell__mini-table tr:last-child td { border-block-end: 0; }
+/* An approval prompt is a needs-you surface (A2), so the card takes the attention color. */
+.hl-app-shell__proposal { display: flex; flex-direction: column; gap: 8px; padding: 12px; border: 1px solid var(--hl-attention, #4f46b8); border-radius: 12px; }
+.hl-app-shell__composer {
+  display: flex; align-items: center; gap: 4px; padding: 6px; border: 1px solid var(--hl-control-border, #767676);
+  border-radius: 14px; background: var(--hl-surface, #fff);
+}
+.hl-app-shell__composer-input { flex: 1; min-inline-size: 0; min-block-size: 32px; padding: 6px 4px; resize: none; cursor: text; }
+
+/* ---------- Pages: Chat Home, My work, Browse ---------- */
+.hl-app-shell__page { display: flex; flex-direction: column; gap: 12px; padding: 16px 24px; }
+.hl-app-shell__chat-home { gap: 18px; inline-size: 100%; max-inline-size: 820px; margin-inline: auto; padding-block-start: 32px; box-sizing: border-box; }
+.hl-app-shell__chat-home-title { margin: 0; font-size: 26px; line-height: 32px; text-wrap: balance; }
+.hl-app-shell__needs-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+.hl-app-shell__needs-card, .hl-app-shell__browse-card, .hl-app-shell__tab-card {
+  display: flex; flex-direction: column; gap: 2px; padding: 12px 14px; border: 1px solid var(--hl-border, #d5d5d5);
+  border-radius: 12px; background: var(--hl-surface, #fff);
+}
+.hl-app-shell__needs-card { border-color: var(--hl-attention, #4f46b8); }
+.hl-app-shell__big-composer {
+  display: flex; align-items: center; gap: 8px; min-block-size: 64px; padding: 10px 10px 10px 18px; border: 1px solid var(--hl-control-border, #767676);
+  border-radius: 18px; background: var(--hl-surface, #fff); color: var(--hl-muted-foreground, #777); font-size: 16px; cursor: text;
+  box-shadow: 0 8px 24px rgb(0 0 0/.12);
+}
+.hl-app-shell__list { display: flex; flex-direction: column; }
+.hl-app-shell__list-row {
+  display: flex; align-items: center; gap: 12px; inline-size: 100%; padding: 10px 14px; box-sizing: border-box;
+  border-block-end: 1px solid var(--hl-border, #d5d5d5); cursor: default;
+}
+button.hl-app-shell__list-row { cursor: pointer; }
+.hl-app-shell__list-row:last-child { border-block-end: 0; }
+.hl-app-shell__needs-tag { flex: none; padding: 0 8px; border: 1px solid var(--hl-attention, #4f46b8); border-radius: 999px; color: var(--hl-attention, #4f46b8); font-size: 12px; line-height: 20px; }
+.hl-app-shell__browse { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+.hl-app-shell__browse-card { align-items: flex-start; gap: 6px; padding: 16px; }
+
+/* ---------- Side panel: placement ---------- */
+.hl-app-shell__panel-host { grid-area: panel; display: flex; min-block-size: 0; }
+.hl-app-shell__panel { display: flex; flex-direction: column; min-inline-size: 0; min-block-size: 0; overflow: hidden; background: var(--hl-surface, #fff); }
+.hl-app-shell__panel[data-panel-placement=docked] { flex: none; inline-size: var(--hl-app-shell-panel-size); border-inline-start: 1px solid var(--hl-border, #d5d5d5); }
+.hl-app-shell__panel:is([data-panel-placement=floating], [data-panel-placement=sheet]) { position: absolute; z-index: 5; box-shadow: 0 12px 32px rgb(0 0 0/.18); }
+.hl-app-shell__panel[data-panel-placement=floating] {
+  inset-block: 8px; inset-inline-end: 8px; inline-size: min(var(--hl-app-shell-panel-size), calc(100% - 16px));
+  border: 1px solid var(--hl-border, #d5d5d5); border-radius: 12px;
+}
+.hl-app-shell__panel[data-panel-placement=sheet] {
+  inset-inline: 0; inset-block-end: 0; block-size: 72%; border-block-start: 1px solid var(--hl-border, #d5d5d5);
+  border-start-start-radius: 16px; border-start-end-radius: 16px;
+}
+.hl-app-shell__panel-body { flex: 1; min-block-size: 0; overflow: auto; padding: 14px 16px; }
+.hl-app-shell__panel-foot { flex: none; padding: 10px 12px; border-block-start: 1px solid var(--hl-border, #d5d5d5); }
+
+/* ---------- Side panel: tab strip, sub-bar, tab search ---------- */
+.hl-app-shell__tab-strip {
+  flex: none; display: flex; align-items: center; gap: 2px; min-inline-size: 0; padding: 6px 6px 0;
+  border-block-end: 1px solid var(--hl-border, #d5d5d5); background: var(--hl-muted, #eee);
+}
+.hl-app-shell__panel[data-panel-placement=sheet] .hl-app-shell__tab-strip { gap: 8px; padding: 8px; background: var(--hl-surface, #fff); }
+/* P8: tabs shrink to a floor, then the strip scrolls; pinned tabs sit outside it and never shrink. */
+.hl-app-shell__tabs { display: flex; gap: 2px; flex: 0 1 auto; min-inline-size: 0; overflow-x: auto; scrollbar-width: thin; }
+.hl-app-shell__tab {
+  display: flex; align-items: center; flex: 1 1 168px; min-inline-size: 112px; max-inline-size: 168px; block-size: 34px; box-sizing: border-box;
+  border-block-start: 2px solid transparent; border-start-start-radius: 8px; border-start-end-radius: 8px; color: var(--hl-muted-foreground, #777);
+}
+.hl-app-shell__tab[data-pinned] { flex: none; min-inline-size: 0; max-inline-size: none; }
+/* Selected tab: surface fill plus a block-start bar and a heavier label. */
+.hl-app-shell__tab:has(> .hl-app-shell__tab-button[aria-selected=true]) {
+  border-block-start-color: var(--hl-primary, #0f62fe); background: var(--hl-surface, #fff); color: var(--hl-foreground, inherit);
+  box-shadow: 0 0 0 1px var(--hl-border, #d5d5d5); font-weight: 600;
+}
+.hl-app-shell__tab-button { display: flex; align-items: center; gap: 6px; flex: 1; min-inline-size: 0; block-size: 100%; padding: 0 4px 0 10px; font-size: 12px; }
+.hl-app-shell__tab[data-pinned] .hl-app-shell__tab-button { padding: 0 10px; }
+.hl-app-shell__tab-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Preview tab: italic label; the markup also carries a visually hidden "preview" marker. */
+.hl-app-shell__tab[data-preview] .hl-app-shell__tab-label { font-style: italic; }
+.hl-app-shell__tab-close {
+  display: inline-flex; align-items: center; justify-content: center; flex: none; inline-size: 24px; block-size: 24px;
+  margin-inline-end: 4px; border-radius: 6px; color: var(--hl-muted-foreground, #777);
+}
+.hl-app-shell__tab[data-pinned] .hl-app-shell__tab-close { display: none; }
+.hl-app-shell__strip-tools { display: flex; align-items: center; gap: 2px; flex: 1 0 auto; }
+.hl-app-shell__strip-tools > :first-child { margin-inline-end: auto; }
+.hl-app-shell__strip-tools .hl-app-shell__icon-button { inline-size: 28px; block-size: 28px; }
+.hl-app-shell__tab-sub { flex: none; display: flex; align-items: center; gap: 12px; padding: 6px 16px; border-block-end: 1px solid var(--hl-border, #d5d5d5); }
+.hl-app-shell__tab-sub-text { flex: 1; min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hl-app-shell__tab-search {
+  flex: none; display: flex; flex-direction: column; max-block-size: 50%; overflow: auto; padding: 6px;
+  border-block-end: 1px solid var(--hl-border, #d5d5d5); background: var(--hl-surface, #fff);
+}
+
+/* ---------- Side panel: new-tab page, not applicable, phone grid ---------- */
+.hl-app-shell__new-tab { display: flex; flex-direction: column; gap: 8px; }
+.hl-app-shell__tools { display: flex; flex-direction: column; padding: 4px; border: 1px solid var(--hl-border, #d5d5d5); border-radius: 12px; }
+.hl-app-shell__tool, .hl-app-shell__result, .hl-app-shell__menu-item, .hl-app-shell__menu-line {
+  display: flex; align-items: center; gap: 10px; inline-size: 100%; min-block-size: 40px; padding: 4px 10px; box-sizing: border-box;
+  border-radius: 8px; font-size: 13px;
+}
+.hl-app-shell__not-applicable { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+.hl-app-shell__not-applicable p { margin: 0; }
+.hl-app-shell__tab-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.hl-app-shell__tab-card { gap: 6px; min-block-size: 84px; padding: 12px; }
+.hl-app-shell__tab-card[aria-current=true] { border: 2px solid var(--hl-foreground, #111); padding: 11px; font-weight: 600; }
+
+/* ---------- Tab bodies: Details, Log, Timeline, Page, Output ---------- */
+.hl-app-shell__details { display: grid; grid-template-columns: 110px minmax(0, 1fr); gap: 10px 12px; margin: 0; }
+.hl-app-shell__details dt { color: var(--hl-muted-foreground, #777); }
+.hl-app-shell__details dd { margin: 0; }
+.hl-app-shell__log { display: flex; flex-direction: column; gap: 12px; margin: 12px 0 0; padding: 0; list-style: none; }
+.hl-app-shell__log-entry { display: flex; flex-direction: column; }
+.hl-app-shell__timeline { --hl-app-shell-timeline-label: 96px; position: relative; display: flex; flex-direction: column; gap: 10px; padding-block-end: 8px; }
+.hl-app-shell__timeline-axis {
+  display: flex; justify-content: space-between; margin-inline-start: var(--hl-app-shell-timeline-label); padding-block-end: 4px;
+  border-block-end: 1px solid var(--hl-border, #d5d5d5); color: var(--hl-muted-foreground, #777); font-size: 11px;
+}
+.hl-app-shell__timeline-row { display: grid; grid-template-columns: var(--hl-app-shell-timeline-label) 1fr; align-items: center; font-size: 12px; }
+.hl-app-shell__timeline-track { position: relative; block-size: 14px; }
+/* Span and now-line geometry come from the renderer as fractions of the track. */
+.hl-app-shell__timeline-span {
+  position: absolute; inset-block: 0; inset-inline-start: var(--hl-app-shell-span-start, 0%); inline-size: var(--hl-app-shell-span-size, 0%);
+  border-radius: 4px; background: var(--hl-foreground, #111);
+}
+.hl-app-shell__timeline-span[data-planned] { background: var(--hl-selected, #e8f0fe); box-shadow: inset 0 0 0 2px var(--hl-control-border, #777); }
+.hl-app-shell__timeline-now {
+  position: absolute; inset-block: 18px 0; inline-size: 2px; background: var(--hl-foreground, #111);
+  inset-inline-start: calc(var(--hl-app-shell-timeline-label) + (100% - var(--hl-app-shell-timeline-label)) * var(--hl-app-shell-now, 0));
+}
+.hl-app-shell__timeline-now-label { position: absolute; inset-block-start: -18px; inset-inline-start: 4px; font-size: 10px; font-weight: 600; line-height: 14px; white-space: nowrap; }
+.hl-app-shell__page-tree { display: flex; flex-direction: column; margin-block-end: 8px; padding-block-end: 8px; border-block-end: 1px solid var(--hl-border, #d5d5d5); }
+.hl-app-shell__page-tree .hl-app-shell__side-item { padding-inline-start: calc(10px + var(--hl-app-shell-depth, 0) * 14px); }
+.hl-app-shell__document h3 { margin: 0 0 6px; }
+.hl-app-shell__document p { margin: 0 0 8px; }
+.hl-app-shell__suggestion del { color: var(--hl-muted-foreground, #777); text-decoration: line-through; }
+.hl-app-shell__suggestion ins { padding: 0 2px; background: var(--hl-selected, #e8f0fe); text-decoration: underline; text-underline-offset: 2px; }
+.hl-app-shell__output { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }
+.hl-app-shell__output p { margin: 0; }
+.hl-app-shell__output .hl-app-shell__list { inline-size: 100%; }
+/* P10: an output is a draft until saved; the tag shows only in that state. */
+.hl-app-shell__draft-tag { display: none; }
+.hl-app-shell__output[data-draft] .hl-app-shell__draft-tag { display: inline-flex; }
+
+/* ---------- Search-and-ask dialog, shortcuts sheet ---------- */
+.hl-app-shell__dialog {
+  position: absolute; z-index: 7; inset-block-start: 60px; inset-inline-start: 50%; translate: -50% 0; display: flex; flex-direction: column;
+  inline-size: min(640px, calc(100% - 24px)); max-block-size: calc(100% - 80px); margin: 0; padding: 0;
+  border: 1px solid var(--hl-border, #d5d5d5); border-radius: 14px; background: var(--hl-surface, #fff); color: inherit; box-shadow: 0 12px 32px rgb(0 0 0/.18);
+}
+.hl-app-shell__dialog::backdrop { background: rgb(0 0 0/.4); }
+.hl-app-shell__dialog[data-dialog=shortcuts] { inline-size: min(520px, calc(100% - 24px)); }
+.hl-app-shell__dialog-head { flex: none; display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-block-end: 1px solid var(--hl-border, #d5d5d5); }
+.hl-app-shell__search-input { flex: 1; min-inline-size: 0; block-size: 32px; cursor: text; }
+.hl-app-shell__dialog-body { display: flex; flex-direction: column; gap: 8px; overflow: auto; padding: 8px; }
+.hl-app-shell__dialog-foot { flex: none; padding: 8px 12px; border-block-start: 1px solid var(--hl-border, #d5d5d5); }
+.hl-app-shell__search-group { display: flex; flex-direction: column; gap: 2px; }
+.hl-app-shell__search-group > .hl-app-shell__group-label { margin: 4px 0 0; }
+.hl-app-shell__result { min-block-size: 36px; gap: 8px; border-inline-start: 3px solid transparent; }
+.hl-app-shell__result[aria-selected=true] { border-inline-start-color: var(--hl-primary, #0f62fe); }
+.hl-app-shell__result-meta { margin-inline-start: auto; }
+.hl-app-shell__ask-row .hl-app-shell__result-meta { margin-inline-start: 0; }
+
+/* ---------- Menus: avatar (account) and More ---------- */
+.hl-app-shell__menu {
+  position: absolute; z-index: 7; display: flex; flex-direction: column; inline-size: 280px; padding: 4px; box-sizing: border-box;
+  border: 1px solid var(--hl-border, #d5d5d5); border-radius: 12px; background: var(--hl-surface, #fff); box-shadow: 0 8px 24px rgb(0 0 0/.12);
+}
+.hl-app-shell__menu[data-menu=account] { inset-block-end: 12px; inset-inline-start: calc(var(--hl-app-shell-rail-size) + 8px); }
+.hl-app-shell__menu[data-menu=more] { inset-block-start: 48px; inset-inline-end: 52px; }
+.hl-app-shell[data-form=phone] .hl-app-shell__menu { inset: auto 0 0; inline-size: auto; border-end-start-radius: 0; border-end-end-radius: 0; }
+.hl-app-shell__menu-identity { display: flex; align-items: center; gap: 10px; padding: 8px 12px; }
+.hl-app-shell__menu-item, .hl-app-shell__menu-line { gap: 8px; min-block-size: 32px; padding: 4px 12px; }
+.hl-app-shell__menu-line { cursor: default; }
+.hl-app-shell__menu-item[role=menuitemradio][aria-checked=true] { font-weight: 600; }
+.hl-app-shell__menu-item[data-account-action] { inline-size: auto; margin: 4px; border: 1px solid var(--hl-attention, #4f46b8); }
+.hl-app-shell__menu-item[data-destructive] { color: var(--hl-danger, #b42318); }
+.hl-app-shell__menu-separator { block-size: 1px; margin: 4px 8px; background: var(--hl-border, #d5d5d5); }
+
+/* ---------- Settings ---------- */
+.hl-app-shell__settings { grid-column: 1 / -1; display: flex; flex-direction: column; min-inline-size: 0; min-block-size: 0; }
+.hl-app-shell__settings-main { flex: 1; display: flex; min-block-size: 0; }
+.hl-app-shell__settings-nav { gap: 1px; }
+.hl-app-shell__settings-page { flex: 1; min-inline-size: 0; overflow: auto; }
+.hl-app-shell__settings-list {
+  display: flex; flex-direction: column; max-inline-size: 640px; padding: 0 16px;
+  border: 1px solid var(--hl-border, #d5d5d5); border-radius: 12px; background: var(--hl-surface, #fff);
+}
+.hl-app-shell__setting { display: flex; align-items: center; gap: 16px; min-block-size: 52px; border-block-end: 1px solid var(--hl-border, #d5d5d5); }
+.hl-app-shell__setting:last-child { border-block-end: 0; }
+.hl-app-shell__setting-label { flex: 1; min-inline-size: 0; }
+.hl-app-shell__setting-value { display: flex; flex-direction: column; align-items: flex-end; text-align: end; }
+.hl-app-shell__setting-source { display: inline-flex; align-items: center; gap: 4px; }
+/* The lock icon is the non-color cue for a value the organization set for everyone. */
+.hl-app-shell__setting-lock { display: none; flex: none; inline-size: 12px; block-size: 12px; }
+.hl-app-shell__setting[data-locked] .hl-app-shell__setting-lock { display: inline-block; }
+.hl-app-shell[data-form=phone] .hl-app-shell__settings-main { flex-direction: column; }
+.hl-app-shell[data-form=phone] .hl-app-shell__settings-nav {
+  flex-direction: row; inline-size: auto; overflow-x: auto; border-inline-end: 0; border-block-end: 1px solid var(--hl-border, #d5d5d5);
+}
+
+/* ---------- Phone spacing ---------- */
+.hl-app-shell[data-form=phone] :is(.hl-app-shell__stream-head, .hl-app-shell__stream-body, .hl-app-shell__stream-foot, .hl-app-shell__page) { padding-inline: 12px; }
+.hl-app-shell[data-form=phone] .hl-app-shell__chat-home { padding-block-start: 16px; }
+
+/* ---------- Scroll regions (carried from rev 5) ---------- */
+.hl-app-shell [data-shell-scroll-region]{scrollbar-gutter:stable;scrollbar-color:var(--color-muted-foreground,var(--hl-muted-foreground,#595959)) transparent}.hl-app-shell [data-shell-scroll-region]::-webkit-scrollbar{inline-size:24px;block-size:24px}.hl-app-shell [data-shell-scroll-region]::-webkit-scrollbar-track{background:transparent}.hl-app-shell [data-shell-scroll-region]::-webkit-scrollbar-thumb{border:3px solid transparent;border-radius:999px;background:linear-gradient(var(--color-muted-foreground,var(--hl-muted-foreground,#595959)),var(--color-muted-foreground,var(--hl-muted-foreground,#595959))) center/6px 100% no-repeat}.hl-app-shell [data-shell-scroll-region]::-webkit-scrollbar-thumb:hover{background-image:linear-gradient(var(--color-muted-foreground,var(--hl-muted-foreground,#595959)),var(--color-muted-foreground,var(--hl-muted-foreground,#595959)))}
+
+/* ---------- Focus rings ---------- */
+/* Every control the shell owns takes one ring, from the focus token rather than a literal so it
+   answers the theme, and offset so it sits clear of the control edge instead of on it. Forced
+   colors gets the system keyword, which is the correct thing to name there. */
+:is(.hl-app-shell__button, .hl-app-shell__icon-button, .hl-app-shell__link, .hl-app-shell__segment, .hl-app-shell__chip-button,
+  .hl-app-shell__chip-remove, .hl-app-shell__rail-item, .hl-app-shell__mode-button, .hl-app-shell__avatar-button,
+  .hl-app-shell__side-item, .hl-app-shell__conversation, .hl-app-shell__pin-toggle, .hl-app-shell__switcher-trigger,
+  .hl-app-shell__switcher-filter, .hl-app-shell__switcher-option, .hl-app-shell__ask, .hl-app-shell__drawer-item,
+  .hl-app-shell__needs-card, .hl-app-shell__big-composer, .hl-app-shell__list-row, .hl-app-shell__browse-card,
+  .hl-app-shell__tab-close, .hl-app-shell__tool, .hl-app-shell__tab-card, .hl-app-shell__result, .hl-app-shell__menu-item):focus-visible {
+  outline: 2px solid var(--hl-focus, var(--hl-primary, #0f62fe)); outline-offset: 2px;
+}
+/* Inside a clipped strip or a bordered field an outer ring would be cut off, so these draw inside. */
+:is(.hl-app-shell__tab-button, .hl-app-shell__composer-input, .hl-app-shell__search-input):focus-visible {
+  outline: 2px solid var(--hl-focus, var(--hl-primary, #0f62fe)); outline-offset: -2px;
+}
+@media (forced-colors: active) {
+  .hl-app-shell :focus-visible { outline-color: Highlight; }
+  .hl-app-shell__rail-item[aria-current=page]::before { background: Highlight; }
+  .hl-app-shell__tab:has(> .hl-app-shell__tab-button[aria-selected=true]) { border-block-start-color: Highlight; }
+}
+
+/* ---------- Coarse pointers: 44px targets ---------- */
+@media (pointer: coarse) {
+  :is(.hl-app-shell__button, .hl-app-shell__link, .hl-app-shell__segment, .hl-app-shell__chip-button, .hl-app-shell__side-item,
+    .hl-app-shell__tool, .hl-app-shell__result, .hl-app-shell__menu-item, .hl-app-shell__tab, .hl-app-shell__mode-button,
+    .hl-app-shell__ask) { min-block-size: 44px; }
+  :is(.hl-app-shell__icon-button, .hl-app-shell__tab-close, .hl-app-shell__chip-remove, .hl-app-shell__mode-button),
+  .hl-app-shell__strip-tools .hl-app-shell__icon-button { min-inline-size: 44px; min-block-size: 44px; }
+}
+
+/* ---------- Reduced motion (carried from rev 5) ---------- */
+@media (prefers-reduced-motion:reduce){.hl-app-shell *{transition-duration:0s!important}.hl-app-shell__job-spinner{animation:none}}
+
+/* ---------- Carrier theme (carried from rev 5) ---------- */
+/* Carrier semantic theme. The shell is dark-first and maps the established --hl-* contract
+   onto the same --color-* vocabulary consumed by the design system. */
+.hl-app-shell{--color-background:#121212;--color-foreground:#f5f5f5;--color-card:#1a1a1a;--color-muted:#222222;--color-muted-foreground:#d0d0d0;--color-border:#3a3a3a;--color-primary:#7ab8ff;--color-primary-foreground:#111111;--color-accent:#1d2d44;--color-danger:#ff8a80;--color-hover:#262626;--color-selected:#1d2d44;--color-focus-ring:#8ab4ff;--font-ui:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;--font-mono:'JetBrains Mono',ui-monospace,'SF Mono',Menlo,Consolas,monospace;--hl-background:var(--color-background);--hl-surface:var(--color-card);--hl-foreground:var(--color-foreground);--hl-muted:var(--color-muted);--hl-muted-foreground:var(--color-muted-foreground);--hl-border:var(--color-border);--hl-primary:var(--color-primary);--hl-primary-foreground:var(--color-primary-foreground);--hl-accent:var(--color-primary);--hl-danger:var(--color-danger);--hl-hover:var(--color-hover);--hl-selected:var(--color-selected);--hl-focus:var(--color-focus-ring);background:var(--color-background);color:var(--color-foreground);font-family:var(--font-ui)}
+[data-theme=light] .hl-app-shell,.hl-app-shell[data-theme=light]{--color-background:#fafafa;--color-foreground:#111111;--color-card:#fff;--color-muted:#f3f3f3;--color-muted-foreground:#444;--color-border:#d0d0d0;--color-primary:#0f62fe;--color-primary-foreground:#fff;--color-accent:#e8f0ff;--color-danger:#b42318;--color-hover:#f0f0f0;--color-selected:#e8f0ff;--color-focus-ring:#0f62fe}
+html:has(.hl-app-shell),body:has(.hl-app-shell){margin:0;min-block-size:100%;background:#121212}body:has(.hl-app-shell)>#root{min-block-size:100dvb}.hl-app-shell{min-block-size:100dvb}
+.hl-app-shell {
+  --color-text-faint: #9a9a9a;
+  --hl-card: var(--color-card);
+  --hl-control-border: var(--color-text-faint);
+  --hl-button-secondary: var(--hl-card);
+  --hl-button-secondary-hover: var(--hl-muted);
+  --hl-button-secondary-active: var(--hl-border);
+  --hl-button-secondary-foreground: var(--hl-foreground);
+  --hl-button-border: var(--hl-control-border);
+  --hl-button-focus: var(--hl-focus);
+}
+[data-theme=light] .hl-app-shell, .hl-app-shell[data-theme=light] {
+  --color-text-faint: #777777;
+}
+
+/* Rev 6 status tokens. Attention (indigo) is needs-you only; danger (red) is failed, error and
+   destructive only (A2). Each clears 4.5:1 as text on card, background, muted and selected surfaces. */
+.hl-app-shell {
+  --color-attention: #a9a3ff; --color-attention-foreground: #111111; --color-ok: #6fcf8f; --color-pending: #f0a35a;
+  --hl-attention: var(--color-attention); --hl-attention-foreground: var(--color-attention-foreground);
+  --hl-ok: var(--color-ok); --hl-pending: var(--color-pending);
+}
+[data-theme=light] .hl-app-shell, .hl-app-shell[data-theme=light] {
+  --color-attention: #4f46b8; --color-attention-foreground: #ffffff; --color-ok: #23703f; --color-pending: #9a4d00;
+}

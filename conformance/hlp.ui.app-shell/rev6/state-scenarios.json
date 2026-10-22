@@ -1,0 +1,24 @@
+{
+ "schemaVersion": 1,
+ "status": "experimental-first-slice",
+ "spec": "specs/modules/ui/hlp.ui.app-shell/rev6/interface.yaml",
+ "scenarios": [
+  { "id": "dirty-navigation", "name": "Dirty editor survives navigation", "events": [
+   { "type": "identity", "owner": { "person": "alice", "tenant": "north", "workspace": "work" } },
+   { "type": "open", "kind": "Details", "target": "record-a", "preview": true },
+   { "type": "edit", "id": "[\"Details\",\"record-a\"]", "draft": "Unsaved note" },
+   { "type": "navigate", "destination": "records" }
+  ], "expect": { "owner": { "person": "alice", "tenant": "north", "workspace": "work" }, "visibleTabIds": ["[\"Details\",\"record-a\"]"], "drafts": { "[\"Details\",\"record-a\"]": "Unsaved note" } } },
+  { "id": "identity-boundary", "name": "New identity hides previous work", "events": [
+   { "type": "identity", "owner": { "person": "alice", "tenant": "north", "workspace": "work" } },
+   { "type": "open", "kind": "Details", "target": "record-a", "preview": true },
+   { "type": "edit", "id": "[\"Details\",\"record-a\"]", "draft": "Unsaved note" },
+   { "type": "identity", "owner": { "person": "bob", "tenant": "north", "workspace": "work" } }
+  ], "expect": { "owner": { "person": "bob", "tenant": "north", "workspace": "work" }, "visibleTabIds": [], "drafts": {} } },
+  { "id": "sign-out", "name": "Sign out clears presentation", "events": [
+   { "type": "identity", "owner": { "person": "alice", "tenant": "north", "workspace": "work" } },
+   { "type": "open", "kind": "Details", "target": "record-a" },
+   { "type": "sign-out" }
+  ], "expect": { "owner": null, "visibleTabIds": [], "drafts": {} } }
+ ]
+}

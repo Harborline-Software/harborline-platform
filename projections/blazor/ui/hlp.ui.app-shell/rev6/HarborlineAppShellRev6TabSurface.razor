@@ -1,0 +1,199 @@
+@namespace Harborline.UIAdapters.Blazor.Components.Layout
+@using Microsoft.AspNetCore.Components.Web
+@using Microsoft.JSInterop
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+
+<div @ref="root" class="hl-app-shell-rev6-tab-host" data-tab-surface tabindex="-1">
+ @if (current is null)
+ {
+  <p>No current workspace presentation.</p>
+ }
+ else
+ {
+  var renderedOwner = current.Owner;
+  <div inert="@(current.PendingClose is not null ? "" : null)" aria-hidden="@(current.PendingClose is not null ? "true" : null)">
+  <h2 data-tab-destination>@current.Destination</h2>
+  <div data-tab-header style="display:flex;align-items:flex-start;gap:4px;min-inline-size:0;max-inline-size:100%">
+  <div role="tablist" aria-label="Workspace tabs" data-tab-strip data-shell-scroll-region style="display:flex;flex:1 1 auto;gap:2px;min-inline-size:0;overflow-x:auto;scrollbar-width:auto;height:auto;box-sizing:border-box;min-height:calc(34px + 24px + 4px + 1px);padding:2px">
+   @foreach (var tab in OrderedTabs())
+   {
+    <button @key="tab.Id" type="button" role="tab" id="@TabDomId(tab.Id)" aria-controls="@PanelDomId(tab.Id)" aria-label="@TabName(tab)" title="@TabName(tab)" aria-selected="@(current.Active == tab.Id ? "true" : "false")" tabindex="@(current.Active == tab.Id ? 0 : -1)" data-pinned="@(tab.Pinned ? "true" : null)" style="@TabStyle(tab)" @onclick='() => Emit(renderedOwner, new("open", tab.Id, Kind: tab.Kind, Target: tab.Target))' @ondblclick='() => Emit(renderedOwner, new("keep", tab.Id))'>
+     <svg aria-hidden="true" focusable="false" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="@TabIconPath(tab.Kind)" /></svg>
+     @if (!tab.Pinned)
+     {
+      <span data-tab-label style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-style:@(tab.Preview ? "italic" : "normal")">@tab.Kind: @tab.Target</span>
+      <span aria-hidden="true" style="flex:none">@(tab.Dirty ? "• Unsaved" : tab.Preview ? "Preview" : "")</span>
+     }
+     else if (tab.Dirty)
+     {
+      <svg aria-hidden="true" focusable="false" width="6" height="6" viewBox="0 0 6 6" style="flex:none"><circle cx="3" cy="3" r="3" fill="currentColor" /></svg>
+     }
+    </button>
+   }
+  </div>
+  @if (current.PendingClose is null)
+  {
+  <div @key="current.Owner" style="flex:none">
+   <button type="button" data-tab-search-trigger popovertarget="@searchResultsId" popovertargetaction="toggle" aria-controls="@searchResultsId" aria-label="@($"Search tabs ({current.Tabs.Length} open)")" style="display:flex;align-items:center;gap:4px;min-block-size:34px;padding-inline:8px;cursor:pointer">
+    <svg aria-hidden="true" focusable="false" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6" /></svg>
+    <span>Search tabs (@current.Tabs.Length)</span>
+   </button>
+   <div id="@searchResultsId" popover="auto" data-tab-search data-shell-scroll-region role="region" aria-label="Search open tabs" style="position:fixed;inset:0;margin:auto;box-sizing:border-box;inline-size:min(24rem,calc(100vw - 32px));max-block-size:min(20rem,calc(100dvh - 32px));overflow:auto;padding:8px;border:1px solid var(--hl-border,#d5d5d5);background:var(--hl-surface,#fff);color:var(--hl-foreground,inherit)">
+    <input type="search" autofocus aria-label="Find an open tab" value="@searchQuery" @oninput="SearchTabs" style="box-sizing:border-box;inline-size:100%;min-inline-size:0" />
+    <ul style="list-style:none;margin:4px 0 0;padding:0">
+     @foreach (var tab in OrderedTabs().Where(SearchMatches))
+     {
+      <li @key="tab.Id"><button type="button" data-tab-search-target="@TabDomId(tab.Id)" @onclick='() => Emit(renderedOwner, new("open", tab.Id, Kind: tab.Kind, Target: tab.Target))' style="display:block;inline-size:100%;min-block-size:36px;text-align:start;overflow-wrap:anywhere">@TabName(tab)</button></li>
+     }
+    </ul>
+    @if (!OrderedTabs().Any(SearchMatches)) { <p role="status">No matching tabs.</p> }
+   </div>
+  </div>
+  }
+  </div>
+  @foreach (var tab in current.Tabs)
+  {
+   <section role="tabpanel" id="@PanelDomId(tab.Id)" aria-labelledby="@TabDomId(tab.Id)" hidden="@(tab.Id != current.Active)" tabindex="0">
+    @if (TabContent is not null) { @TabContent(tab) } else { <p>@tab.Target</p> }
+    <button type="button" @onclick='() => Emit(renderedOwner, new("keep", tab.Id))'>Keep open</button>
+    <button type="button" @onclick='() => Emit(renderedOwner, new(tab.Pinned ? "unpin" : "pin", tab.Id))'>@(tab.Pinned ? "Unpin" : "Pin")</button>
+    <button type="button" data-tab-close disabled="@tab.Pinned" @onclick='() => Emit(renderedOwner, new("close", tab.Id))'>Close</button>
+   </section>
+  }
+  </div>
+  @if (!SuppressDialog && current.PendingClose is not null)
+  {
+   var dialogOwner = current.Owner;
+   <HarborlineAppShellRev6DirtyCloseDialog Presentation="current" TitleId="@dialogTitle" Intent="@(value => Emit(dialogOwner, value))" />
+  }
+ }
+</div>
+
+<style>
+ .hl-app-shell-rev6-tab-host [data-shell-scroll-region] {
+  scrollbar-gutter: stable;
+  scrollbar-color: var(--color-border, var(--hl-border, #595959)) transparent;
+ }
+ .hl-app-shell-rev6-tab-host [data-shell-scroll-region]:hover {
+  scrollbar-color: var(--color-muted-foreground, var(--hl-muted-foreground, #595959)) transparent;
+ }
+ .hl-app-shell-rev6-tab-host [data-shell-scroll-region]::-webkit-scrollbar {
+  width: 24px;
+  height: 24px;
+ }
+ .hl-app-shell-rev6-tab-host [data-shell-scroll-region]::-webkit-scrollbar-track,
+ .hl-app-shell-rev6-tab-host [data-shell-scroll-region]::-webkit-scrollbar-corner {
+  background: transparent;
+ }
+ .hl-app-shell-rev6-tab-host [data-shell-scroll-region]::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background-color: var(--color-border, var(--hl-border, #595959));
+  background-clip: padding-box;
+ }
+ .hl-app-shell-rev6-tab-host [data-shell-scroll-region]::-webkit-scrollbar-thumb:hover {
+  background-color: var(--color-muted-foreground, var(--hl-muted-foreground, #595959));
+ }
+ .hl-app-shell-rev6-tab-host [data-shell-scroll-region] :focus-visible {
+  outline: 2px solid var(--hl-focus, var(--hl-primary, #0f62fe));
+  outline-offset: -2px;
+ }
+ @@supports selector(::-webkit-scrollbar) {
+  .hl-app-shell-rev6-tab-host [data-shell-scroll-region],
+  .hl-app-shell-rev6-tab-host [data-shell-scroll-region]:hover {
+   scrollbar-color: auto;
+  }
+ }
+ @@media (forced-colors: active) {
+  .hl-app-shell-rev6-tab-host [data-shell-scroll-region],
+  .hl-app-shell-rev6-tab-host [data-shell-scroll-region]:hover {
+   scrollbar-color: auto;
+   forced-color-adjust: auto;
+  }
+  .hl-app-shell-rev6-tab-host [data-shell-scroll-region]::-webkit-scrollbar-thumb {
+   background-color: ButtonText;
+  }
+  .hl-app-shell-rev6-tab-host [data-shell-scroll-region]::-webkit-scrollbar-thumb:hover {
+   background-color: Highlight;
+  }
+  .hl-app-shell-rev6-tab-host [data-shell-scroll-region] :focus-visible {
+   outline-color: Highlight;
+  }
+ }
+</style>
+
+@code {
+ /// <summary>Implementation data for the current rendered tab surface.</summary>
+ [Parameter, EditorRequired] public string ShellId { get; set; } = "";
+ /// <summary>Implementation data for the current rendered tab surface.</summary>
+ [Parameter] public AppShellRev6Owner? Owner { get; set; }
+ /// <summary>Implementation data for the current rendered tab surface.</summary>
+ [Parameter] public AppShellRev6Presentation? Presentation { get; set; }
+ /// <summary>Implementation data for the current rendered tab surface.</summary>
+ [Parameter] public EventCallback<AppShellRev6Intent> Intent { get; set; }
+ /// <summary>Implementation data for the current rendered tab surface.</summary>
+ [Parameter] public RenderFragment<AppShellRev6Tab>? TabContent { get; set; }
+ /// <summary>Implementation data for the current rendered tab surface.</summary>
+ [Parameter] public ElementReference EmptyFallback { get; set; }
+ /// <summary>Implementation data for the current rendered tab surface.</summary>
+ [Parameter] public bool ManageCloseRecovery { get; set; } = true;
+ /// <summary>Implementation data for the current rendered tab surface.</summary>
+ [Parameter] public bool SuppressDialog { get; set; }
+ private AppShellRev6Presentation? current;
+ private AppShellRev6Owner? previousOwner;
+ private readonly string prefix = "hl-rev6-" + Guid.NewGuid().ToString("N");
+ private string dialogTitle => prefix + "-dialog-title";
+ private string searchResultsId => prefix + "-tab-search";
+ private string searchQuery = "";
+ private ElementReference root;
+ private IJSObjectReference? module;
+ private bool disposed;
+ protected override void OnParametersSet()
+ {
+  if (!System.Text.RegularExpressions.Regex.IsMatch(ShellId, "^[a-z0-9-]+$")) throw new ArgumentException("ShellId must match [a-z0-9-]+.", nameof(ShellId));
+  if (previousOwner != Owner) { current = null; searchQuery = ""; previousOwner = Owner; }
+  current = Owner is not null && Presentation?.Owner == Owner ? Presentation : null;
+  if (current is null) searchQuery = "";
+ }
+ private IEnumerable<AppShellRev6Tab> OrderedTabs() => current is null ? Array.Empty<AppShellRev6Tab>()
+  : current.Tabs.Where(tab => tab.Pinned).Concat(current.Tabs.Where(tab => !tab.Pinned));
+ private static string TabName(AppShellRev6Tab tab) => $"{tab.Kind}: {tab.Target}"
+  + (tab.Pinned ? " Pinned" : "") + (tab.Preview ? " Preview" : "") + (tab.Dirty ? " Unsaved" : "");
+ private void SearchTabs(ChangeEventArgs e) => searchQuery = e.Value?.ToString() ?? "";
+ private bool SearchMatches(AppShellRev6Tab tab) => string.IsNullOrWhiteSpace(searchQuery)
+  || $"{tab.Kind}: {tab.Target}".Contains(searchQuery, StringComparison.CurrentCultureIgnoreCase);
+ private string TabStyle(AppShellRev6Tab tab) => "display:flex;align-items:center;justify-content:center;gap:4px;box-sizing:border-box;block-size:34px;"
+  + (tab.Pinned ? "flex:0 0 36px;min-inline-size:36px;max-inline-size:36px;" : "flex:1 1 168px;min-inline-size:112px;max-inline-size:168px;")
+  + "border:1px solid var(--hl-border,#d5d5d5);border-block-start:2px solid "
+  + (current?.Active == tab.Id ? "var(--hl-primary,#0f62fe);background:var(--hl-surface,#fff);font-weight:600;" : "transparent;background:var(--hl-muted,#eee);")
+  + "color:var(--hl-foreground,inherit);border-start-start-radius:8px;border-start-end-radius:8px;";
+ private static string TabIconPath(string kind) => kind.ToLowerInvariant() switch
+ {
+  "assistant" or "asst" => "M4 4h16v12H8l-4 4V4Z",
+  "files" => "M3 7V4h7l2 3h9v13H3V7Z",
+  "log" or "timeline" => "M4 5h16M4 12h16M4 19h16",
+  _ => "M6 3h8l4 4v14H6V3Zm8 0v5h4M9 12h6M9 16h6"
+ };
+ private string TabDomId(string id) => prefix + "-tab-" + Convert.ToHexString(System.Text.Encoding.UTF8.GetBytes(id));
+ private string PanelDomId(string id) => TabDomId(id) + "-panel";
+ private Task Emit(AppShellRev6Owner renderedOwner, AppShellRev6Intent intent) =>
+  disposed || current is not { } shown || shown.Owner != renderedOwner || Owner != renderedOwner
+  || (shown.PendingClose is not null && intent.Type != "resolve-close")
+   ? Task.CompletedTask : Intent.InvokeAsync(intent);
+ protected override async Task OnAfterRenderAsync(bool firstRender)
+ {
+  if (disposed) return;
+  var imported = module ?? await JS.InvokeAsync<IJSObjectReference>("import", "./_content/Harborline.UIAdapters.Blazor/app-shell-rev6-focus.mjs");
+  if (disposed) { if (module is null) await imported.DisposeAsync(); return; }
+  module = imported;
+  await module.InvokeVoidAsync("bind", root, current is null ? null : System.Text.Json.JsonSerializer.Serialize(current.Owner), EmptyFallback, ManageCloseRecovery);
+ }
+ /// <summary>Detaches the native tab surface focus connection.</summary>
+ public async ValueTask DisposeAsync()
+ {
+  disposed = true;
+  try { if (module is not null) await module.InvokeVoidAsync("unbind", root); }
+  finally { if (module is not null) await module.DisposeAsync(); }
+ }
+}
