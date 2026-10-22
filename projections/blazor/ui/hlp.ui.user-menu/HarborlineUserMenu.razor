@@ -85,6 +85,9 @@
     get { var segments=Identity.Name.Split(' ',StringSplitOptions.RemoveEmptyEntries|StringSplitOptions.TrimEntries);if(segments.Length==0)return string.Empty;if(segments.Length==1)return string.Concat(segments[0].EnumerateRunes().Take(2).Select(r=>r.ToString())).ToUpperInvariant();return (string.Concat(segments[0].EnumerateRunes().Take(1).Select(r=>r.ToString()))+string.Concat(segments[^1].EnumerateRunes().Take(1).Select(r=>r.ToString()))).ToUpperInvariant(); }
   }
   private IReadOnlyList<(UserMenuEntry item,int index)> EnabledMenuItems => Items.Select((item,index)=>(item,index)).Where(pair=>pair.item.Kind is UserMenuEntryKind.Action or UserMenuEntryKind.Link && !pair.item.Disabled).ToArray();
+  // The roving order: enabled actions and links in caller order, then Sign out (identity null, index
+  // Items.Count) when supplied, as in React. Focus is requested by identity, never by DOM position.
+  private IReadOnlyList<(string? id,string label,int index)> RovingEntries => EnabledMenuItems.Select(pair=>((string?)pair.item.Id,pair.item.Label??string.Empty,pair.index)).Concat(OnSignOut.HasDelegate?[((string?)null,Labels.SignOut,Items.Count)]:[]).ToArray();
 
   protected override void OnParametersSet()
   {
@@ -118,6 +121,7 @@
     {
       await EnsureModuleAsync();
       outsideId=await module!.InvokeAsync<long>("observeOutside",Root,reference);
+      await module!.InvokeVoidAsync("observeEscape",Panel,reference);
       await module!.InvokeVoidAsync("focusFirst",Panel,HasCustom);
     }
     else
@@ -133,11 +137,16 @@
   private async Task SignOutAsync(){await OnSignOut.InvokeAsync();await RequestAsync(false,true);}
   private async Task HandleKeyAsync(KeyboardEventArgs args)
   {
-    if(args.Key=="Escape"){await RequestAsync(false,true);return;}if(HasCustom)return;
-    var enabled=EnabledMenuItems;if(enabled.Count==0)return;var current=Math.Max(0,enabled.ToList().FindIndex(pair=>pair.index==activeIndex));var next=args.Key switch{"ArrowDown"=>(current+1)%enabled.Count,"ArrowUp"=>(current-1+enabled.Count)%enabled.Count,"Home"=>0,"End"=>enabled.Count-1,_=>-1};
-    if(next<0&&args.Key.Length==1){next=enabled.ToList().FindIndex(pair=>pair.item.Label?.StartsWith(args.Key,StringComparison.CurrentCultureIgnoreCase)==true);}if(next>=0){activeIndex=enabled[next].index;await module!.InvokeVoidAsync("focusItem",Panel,activeIndex);}
+    // Escape is observed by user-menu.js, which leaves an Escape a control inside the surface already
+    // handled. Tab out of a nonmodal menu closes it; the browser has already moved focus onward.
+    if(HasCustom)return;
+    if(args.Key=="Tab"){await RequestAsync(false,false);return;}
+    var enabled=RovingEntries;if(enabled.Count==0)return;var current=Math.Max(0,enabled.ToList().FindIndex(entry=>entry.index==activeIndex));var next=args.Key switch{"ArrowDown"=>(current+1)%enabled.Count,"ArrowUp"=>(current-1+enabled.Count)%enabled.Count,"Home"=>0,"End"=>enabled.Count-1,_=>-1};
+    // Typeahead searches onward from the current entry and wraps, so repeated keys cycle matches.
+    if(next<0&&args.Key.Length==1){next=Enumerable.Range(1,enabled.Count).Select(step=>(current+step)%enabled.Count).Where(candidate=>enabled[candidate].label.StartsWith(args.Key,StringComparison.CurrentCultureIgnoreCase)).DefaultIfEmpty(-1).First();}if(next>=0){activeIndex=enabled[next].index;await module!.InvokeVoidAsync("focusItem",Panel,enabled[next].id);}
   }
   private async Task EnsureModuleAsync(){module??=await JavaScript.InvokeAsync<IJSObjectReference>("import","./_content/Harborline.UIAdapters.Blazor/user-menu.js");reference??=DotNetObjectReference.Create(this);}
   [JSInvokable] public Task OnOutsidePointer()=>RequestAsync(false,false);
+  [JSInvokable] public Task OnEscapeKey()=>RequestAsync(false,true);
   public async ValueTask DisposeAsync(){if(module is not null){try{if(outsideId!=0)await module.InvokeVoidAsync("disposeOutside",outsideId);await module.DisposeAsync();}catch(JSDisconnectedException){}}reference?.Dispose();}
 }
