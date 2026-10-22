@@ -72,11 +72,18 @@ export function connect(trigger, anchor, content, options, callback) {
     content.style.top = `${placement.top}px`
   }
   const dismiss = () => callback.invokeMethodAsync('DismissFromJavaScriptAsync')
-  const onKey = event => { if (event.key === 'Escape') { event.preventDefault(); dismiss() } }
+  // The open popover is the topmost layer. An Escape from its trigger or anchor is taken in the capture
+  // phase, before an outer layer (a dialog or sheet) listening on the document. Any other Escape is
+  // handled on the document after Blazor's own listener, so one a widget inside the content handled
+  // (including a Blazor @onkeydown:preventDefault) is left alone. Previously every Escape closed it.
+  const fromTrigger = target => target instanceof Node && (trigger?.contains(target) || anchor?.contains(target))
+  const onKeyCapture = event => { if (event.key === 'Escape' && !event.defaultPrevented && fromTrigger(event.target)) { event.preventDefault(); dismiss() } }
+  const onKey = event => { if (event.key === 'Escape' && !event.defaultPrevented) { event.preventDefault(); dismiss() } }
   const onPointer = event => {
     if (!content.contains(event.target) && !trigger?.contains(event.target)) dismiss()
   }
   const onViewport = () => reposition()
+  document.addEventListener('keydown', onKeyCapture, true)
   document.addEventListener('keydown', onKey)
   document.addEventListener('pointerdown', onPointer, true)
   window.addEventListener('resize', onViewport)
@@ -102,6 +109,7 @@ export function connect(trigger, anchor, content, options, callback) {
   return {
     dispose() {
       cancelAnimationFrame(frame)
+      document.removeEventListener('keydown', onKeyCapture, true)
       document.removeEventListener('keydown', onKey)
       document.removeEventListener('pointerdown', onPointer, true)
       window.removeEventListener('resize', onViewport)
