@@ -59,4 +59,4 @@ The gallery exposes fixture-only Alice/Bob/sign-out and physical 700px embedding
 
 The frame owns one main, a non-main tab surface and current-owner phone navigation. Dirty close isolates every background subtree and retains the editor until the caller updates the presentation; geometry does not navigate or steal focus. Panel state remains controlled and hiding preserves mounted editors. The standalone five-parameter TabHost remains supported.
 
-This source delivery has not been compiled, unit/conformance tested or browser qualified by the author. Actual existing-gallery CSS/JS/desktop/narrow acceptance follows a separately admitted exact-source run. No universal host/engine/OS, MAUI, separate-server, publication or full-gate certification is claimed or required for this task's browser-only acceptance.
+Focused native Frame, TabHost and actual gallery-caller regression tests passed (30 cases). The current delivery has no fresh exact-source browser qualification; the earlier gallery browser run covers its recorded source and reachable cases only. No universal host/engine/OS, MAUI, separate-server, publication or full-gate certification is claimed.

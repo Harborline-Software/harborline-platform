@@ -76,7 +76,7 @@ function TabHost({ presentation: view, onIntent, focusMain }: Pick<AppShellRev6P
   const activate = (tab: AppShellRev6Tab) => onIntent({ type: 'open', kind: tab.kind, target: tab.target })
   return <aside aria-label="Panel tabs" style={{ border: '1px solid currentColor', padding: '1rem', maxWidth: '48rem' }}>
     <div inert={!!pending}>
-    <div role="tablist" aria-label="Open tabs" style={{ display: 'flex', overflowX: 'auto', gap: '.25rem' }}>{tabs.map((tab, index) => <button key={tab.id}
+    <div role="tablist" aria-label="Open tabs" style={{ display: 'flex', overflowX: 'auto', gap: '.25rem' }}>{tabs.map((tab, index) => <button type="button" key={tab.id}
       ref={node => { if (node) buttons.current.set(tab.id, node); else buttons.current.delete(tab.id) }}
       id={`${prefix}-tab-${index}`} role="tab" aria-selected={tab.id === view.active}
       aria-controls={`${prefix}-panel`} tabIndex={tab.id === view.active || (!active && index === 0) ? 0 : -1}
@@ -91,9 +91,9 @@ function TabHost({ presentation: view, onIntent, focusMain }: Pick<AppShellRev6P
       <p>{active.preview ? 'Preview' : 'Permanent'}{active.dirty ? ' - Unsaved changes' : ''}</p>
       <label>Draft for {active.target}<textarea value={typeof view.drafts[active.id] === 'string' ? view.drafts[active.id] as string : ''}
         onChange={event => onIntent({ type: 'edit', id: active.id, draft: event.target.value })} /></label>
-      {active.preview && <button onClick={() => onIntent({ type: 'keep', id: active.id })}>Keep open</button>}
-      <button onClick={() => onIntent({ type: active.pinned ? 'unpin' : 'pin', id: active.id })}>{active.pinned ? 'Unpin' : 'Pin'}</button>
-      <button disabled={active.pinned} onClick={() => {
+      {active.preview && <button type="button" onClick={() => onIntent({ type: 'keep', id: active.id })}>Keep open</button>}
+      <button type="button" onClick={() => onIntent({ type: active.pinned ? 'unpin' : 'pin', id: active.id })}>{active.pinned ? 'Unpin' : 'Pin'}</button>
+      <button type="button" disabled={active.pinned} onClick={() => {
         if (!active.dirty) cleanClose.current = active.id
         onIntent({ type: 'close', id: active.id })
       }}>Close tab</button>
@@ -112,12 +112,12 @@ function TabHost({ presentation: view, onIntent, focusMain }: Pick<AppShellRev6P
       }}>
       <h2 id={`${prefix}-dirty-title`}>Save changes before closing?</h2>
       <p>{view.saveRequest ? 'Save requested. Waiting for host acknowledgment.' : 'Your editor remains open until you choose.'}</p>
-      <button disabled={!!view.saveRequest} onClick={() => {
+      <button type="button" disabled={!!view.saveRequest} onClick={() => {
         dialog.current?.querySelector<HTMLButtonElement>('[data-close-choice="discard"]')?.focus()
         onIntent({ type: 'resolve-close', choice: 'save' })
       }}>Save</button>
-      <button data-close-choice="discard" onClick={() => onIntent({ type: 'resolve-close', choice: 'discard' })}>Discard</button>
-      <button onClick={() => onIntent({ type: 'resolve-close', choice: 'cancel' })}>Cancel</button>
+      <button type="button" data-close-choice="discard" onClick={() => onIntent({ type: 'resolve-close', choice: 'discard' })}>Discard</button>
+      <button type="button" onClick={() => onIntent({ type: 'resolve-close', choice: 'cancel' })}>Cancel</button>
     </div>}
   </aside>
 }

@@ -60,7 +60,9 @@ export function bind(root, ownerScope = null, emptyFallback = root, manageCloseR
   }
   // Cancel/Escape returns to the original Close control. Destruction may remove
   // or reuse its section; verify owner and editor identity before restoring it.
-  if (manageCloseRecovery && !dialog && (binding.dialog || tabCount < binding.tabCount)) {
+  const active = document.activeElement;
+  const focusLost = !active || active === document.body || active.isConnected === false;
+  if (manageCloseRecovery && !dialog && (binding.dialog || (tabCount < binding.tabCount && focusLost))) {
     const triggerSurvives = binding.dialog && binding.trigger?.isConnected && root.contains(binding.trigger)
       && binding.triggerOwner === ownerScope && binding.triggerPanel !== null
       && binding.trigger.closest('[role="tabpanel"]')?.id === binding.triggerPanel;

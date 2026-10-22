@@ -1,5 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
 import { initialState, transition, presentation, runScenario } from '../../../projections/shared/ui/hlp.ui.app-shell/rev6/tab-identity-state.mjs'
 const owner = { person: 'alice', tenant: 'north', workspace: 'work' }
 const start = () => transition(initialState(), { type: 'identity', owner })
@@ -134,4 +135,16 @@ test('editing B preserves pending A save correlation and acknowledges only A', (
  assert.equal(presentation(state).tabs[0].dirty, true)
  assert.equal(presentation(state).pendingClose, null)
  assert.equal(presentation(state).saveRequest, null)
+})
+
+// Literal corpus expectations come from the approved dirty-navigation, owner
+// isolation and sign-out contracts; run the real reducer on each story fixture.
+const corpus = JSON.parse(readFileSync(new URL('./state-scenarios.json', import.meta.url), 'utf8'))
+for (const scenario of corpus.scenarios) test(`story fixture contract: ${scenario.id}`, () => {
+ const state = runScenario(scenario.events)
+ const view = presentation(state)
+ assert.deepEqual(state.owner, scenario.expect.owner)
+ assert.deepEqual(view?.tabs.map(tab => tab.id) ?? [], scenario.expect.visibleTabIds)
+ assert.deepEqual(view?.drafts ?? {}, scenario.expect.drafts)
+ if (scenario.expect.owner === null) assert.equal(view, null)
 })

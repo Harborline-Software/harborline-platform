@@ -78,7 +78,8 @@ test('focus module activates tabs, traps modal focus and recovers after save and
   dialog.querySelectorAll = () => [];
   key('Tab', buttons[2]); assert.equal(document.activeElement, buttons[2]);
   dialog = null; bind(root); assert.equal(document.activeElement, tabs[0]);
-  visibleTabs = []; bind(root); assert.equal(document.activeElement, root);
+  tabs[0].isConnected = false; visibleTabs = []; bind(root); assert.equal(document.activeElement, root);
+  tabs[0].isConnected = true;
   visibleTabs = tabs;
   closeTrigger.focus();
   dialog = { contains: element => buttons.includes(element), querySelector: () => buttons[1], querySelectorAll: () => buttons.filter(button => !button.disabled) };
@@ -95,6 +96,34 @@ test('focus module activates tabs, traps modal focus and recovers after save and
   dialog = null; bind(root, 'bob'); assert.equal(document.activeElement, tabs[0]);
   unbind(root); assert.equal(handlers.size, 0);
   delete globalThis.document;
+});
+
+// Removing an unrelated tab must preserve connected focus. Only a lost active
+// element permits count-based recovery; dialog recovery has its separate contract.
+test('standalone tab removal preserves surviving focus and recovers only lost focus', () => {
+  const body = { isConnected: true };
+  globalThis.document = { activeElement: null, body };
+  try {
+    for (const position of ['outside', 'surviving-editor', 'absent', 'body', 'removed']) {
+      const selected = { focus() { document.activeElement = this; }, scrollIntoView() {} };
+      const focused = position === 'absent' ? null : position === 'body' ? body
+        : { isConnected: position !== 'removed' };
+      let tabs = [selected, {}];
+      const root = {
+        addEventListener() {}, removeEventListener() {},
+        contains(node) { return position === 'surviving-editor' && node === focused; },
+        querySelector(selector) { return selector === '[role="tab"][aria-selected="true"]' ? selected : null; },
+        querySelectorAll(selector) { return selector === '[role="tab"]' ? tabs : []; },
+      };
+      try {
+        bind(root, 'alice');
+        document.activeElement = focused;
+        tabs = [selected];
+        bind(root, 'alice');
+        assert.equal(document.activeElement, ['outside', 'surviving-editor'].includes(position) ? focused : selected, position);
+      } finally { unbind(root); }
+    }
+  } finally { delete globalThis.document; }
 });
 
 // P8 search addresses an existing presented tab; it never owns the host's active
@@ -191,7 +220,7 @@ test('tab traversal wraps left, scrolls the new tab and ignores editable or deta
     assert.deepEqual(tabs[2].scrollOptions, { block: 'nearest', inline: 'nearest' });
     assert.equal(key({ matches: () => false }), false);
     assert.equal(key(element()), false);
-    visibleTabs = []; bind(root);
+    tabs[2].isConnected = false; visibleTabs = []; bind(root);
     assert.equal(document.activeElement, root);
     assert.equal(key(tabs[0]), false);
     unbind(root); assert.equal(handlers.size, 0);

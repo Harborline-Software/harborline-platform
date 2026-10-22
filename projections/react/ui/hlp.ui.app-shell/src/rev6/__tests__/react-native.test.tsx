@@ -11,6 +11,29 @@ function Host() {
   return <AppShellRev6TabHost shellId="test" owner={state.owner} presentationOwner={state.owner} presentation={presentation(state) as AppShellRev6Presentation} onIntent={event => setState(current => transition(current, event))} />
 }
 describe('rev6 native tab-host slice', () => {
+  it('keeps tab and dirty-close actions from submitting an enclosing form', () => {
+    const submitted = vi.fn()
+    render(<form onSubmit={event => { event.preventDefault(); submitted() }}>
+      <Host />
+      <button type="submit">Submit enclosing form</button>
+    </form>)
+    const click = (element: HTMLElement) => {
+      fireEvent.click(element)
+      expect(submitted).not.toHaveBeenCalled()
+    }
+    click(screen.getAllByRole('tab')[0])
+    click(screen.getByRole('button', { name: 'Keep open' }))
+    click(screen.getByRole('button', { name: 'Pin' }))
+    click(screen.getByRole('button', { name: 'Unpin' }))
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'unsaved draft' } })
+    click(screen.getByRole('button', { name: 'Close tab' }))
+    click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Cancel' }))
+    click(screen.getByRole('button', { name: 'Close tab' }))
+    click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Save' }))
+    click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Discard' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Submit enclosing form' }))
+    expect(submitted).toHaveBeenCalledTimes(1)
+  })
   it('renders no previous private presentation after an owner change or sign-out', () => {
     const props = { shellId: 'test', presentationOwner: owner, presentation: presentation(initial()) as AppShellRev6Presentation, onIntent: vi.fn() }
     const rendered = render(<AppShellRev6TabHost {...props} owner={{ ...owner, person: 'bob' }} />)
