@@ -1,5 +1,7 @@
 import * as React from 'react'
 
+import { useHarborlineStrings } from '@harborline-platform/hlp.ui.locale-provider'
+
 export type ToastVariant = 'default' | 'success' | 'error' | 'warning' | 'information' | 'loading'
 export type ToastPosition = 'top-left' | 'top-center' | 'top-right' | 'bottom-left' | 'bottom-center' | 'bottom-right'
 
@@ -256,6 +258,7 @@ export interface ToasterProps extends React.HTMLAttributes<HTMLElement> {
   keepErrorsPersistent?: boolean
   defaults?: ToastDefaults
   showCloseButton?: boolean
+  // Unset (or blank) means the current localized catalog value, common.dismissNotification.
   dismissLabel?: string
   direction?: 'ltr' | 'rtl'
 }
@@ -269,13 +272,15 @@ function ToastIcon({ variant }: { variant: ToastVariant }) {
 
 export function Toaster({
   service, position = 'bottom-right', duration, maximumVisible, keepErrorsPersistent,
-  defaults, showCloseButton = false, dismissLabel = 'Dismiss notification', direction,
+  defaults, showCloseButton = false, dismissLabel, direction,
   className, ...attributes
 }: ToasterProps) {
   React.useEffect(() => {
     service.configure({ duration, maximumVisible, keepErrorsPersistent, defaults })
   }, [defaults, duration, keepErrorsPersistent, maximumVisible, service])
   const snapshot = React.useSyncExternalStore(service.subscribe, service.getSnapshot, service.getSnapshot)
+  const { resolveString } = useHarborlineStrings()
+  const resolvedDismissLabel = resolveString(dismissLabel?.trim() ? dismissLabel : undefined, 'common.dismissNotification')
   return (
     <section {...attributes} dir={direction} aria-label="Notifications" className={`hl-toaster hl-toaster--${position}${className ? ` ${className}` : ''}`} data-position={position}>
       {snapshot.visible.map(entry => (
@@ -283,7 +288,7 @@ export function Toaster({
           <span aria-hidden="true" className="hl-toaster__marker"><ToastIcon variant={entry.variant} /></span>
           <div className="hl-toaster__copy"><div>{entry.message}</div>{entry.description !== undefined ? <div className="hl-toaster__description">{entry.description}</div> : null}</div>
           {entry.action ? <button type="button" className="hl-toaster__action" onClick={() => service.activate(entry.id)}>{entry.action.label}</button> : null}
-          {showCloseButton || entry.variant === 'error' ? <button type="button" className="hl-toaster__close" aria-label={dismissLabel} onClick={() => service.dismiss(entry.id)}><svg aria-hidden="true" fill="none" focusable="false" viewBox="0 0 16 16"><path d="M3 3l10 10M13 3 3 13" /></svg></button> : null}
+          {showCloseButton || entry.variant === 'error' ? <button type="button" className="hl-toaster__close" aria-label={resolvedDismissLabel} onClick={() => service.dismiss(entry.id)}><svg aria-hidden="true" fill="none" focusable="false" viewBox="0 0 16 16"><path d="M3 3l10 10M13 3 3 13" /></svg></button> : null}
         </div>
       ))}
     </section>
