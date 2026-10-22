@@ -78,7 +78,7 @@
   {
     if (!string.IsNullOrWhiteSpace(instanceOverride)) return LocaleContext?.ResolveString(key, instanceOverride: instanceOverride) ?? instanceOverride;
     var resolved = LocaleContext?.ResolveString(key);
-    return string.IsNullOrEmpty(resolved) || resolved == key ? fallback : resolved;
+    return string.IsNullOrWhiteSpace(resolved) || resolved == key ? fallback : resolved;
   }
   private readonly string instanceId = Guid.NewGuid().ToString("N");
 
