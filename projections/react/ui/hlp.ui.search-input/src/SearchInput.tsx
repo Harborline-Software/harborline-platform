@@ -26,6 +26,7 @@ export function SearchInput({
   const [draft, setDraft] = React.useState(value)
   const [busy, setBusy] = React.useState(false)
   const timer = React.useRef<ReturnType<typeof setTimeout> | null>(null)
+  const inputRef = React.useRef<HTMLInputElement>(null)
 
   const cancel = React.useCallback(() => {
     if (timer.current !== null) clearTimeout(timer.current)
@@ -54,12 +55,15 @@ export function SearchInput({
     setDraft('')
     setBusy(false)
     onChange('')
+    // The clear control disappears with the draft; keep keyboard focus on the searchbox.
+    inputRef.current?.focus()
   }
 
   return (
     <div dir={direction ?? localeDirection} aria-busy={busy} className={cn('hl-search-input', className)}>
       <svg aria-hidden="true" viewBox="0 0 20 20" className="hl-search-input__search"><circle cx="8" cy="8" r="5"/><path d="m12 12 5 5"/></svg>
       <input
+        ref={inputRef}
         type="search"
         role="searchbox"
         aria-label={resolvedName}

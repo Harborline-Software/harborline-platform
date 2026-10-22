@@ -24,4 +24,17 @@ describe('SearchInput React projection', () => {
     expect(screen.getByRole('searchbox', { name: 'بحث…' }).closest('[dir]')).toHaveAttribute('dir', 'rtl')
     expect(screen.getByRole('button', { name: 'مسح' })).toBeInTheDocument()
   })
+
+  // The clear control exists only for a nonempty draft, so activating it removes the focused
+  // element; focus must return to the searchbox rather than fall to the page (WCAG 2.4.3).
+  it('returns focus to the searchbox after clearing', () => {
+    const publish = vi.fn()
+    render(<SearchInput value="oak" onChange={publish}/>)
+    const clear = screen.getByRole('button', { name: 'Clear search' })
+    clear.focus()
+    fireEvent.click(clear)
+    expect(publish).toHaveBeenCalledExactlyOnceWith('')
+    expect(screen.queryByRole('button', { name: 'Clear search' })).toBeNull()
+    expect(document.activeElement).toBe(screen.getByRole('searchbox'))
+  })
 })
