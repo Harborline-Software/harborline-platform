@@ -235,6 +235,11 @@ if (canary) {
 // stylesheet the exemption is stale and this fails, because an exemption nobody revisits is how a
 // scanner quietly stops describing the repository.
 const ACKNOWLEDGED = new Map([
+  // Same GrayText fallback the b19 batch fixed in dialog, sheet, spotlight and window, but latent here:
+  // the page renders inside the themed scene and no scenario reaches the fallback. Changing
+  // style.css re-pins the page's recorded design-review approval (design-surface-inputs), which is
+  // the owner's call, not a tooling batch's. Fixing it makes this entry stale and the scan red.
+  ['text-colour-falls-to-non-text-system-colour:hlp.ui.page', 'b19 follow-up: owner design re-review needed to change page style.css'],
 ])
 
 const key = finding => `${finding.rule}:${finding.module}`
