@@ -128,7 +128,8 @@ const assertions: Record<string, (entry: Case) => void | Promise<void>> = {
   },
   'layers-rail.treeitem-focus': async ({ input, expected }) => {
     const user = userEvent.setup()
-    render(<><Host selected={input.selectedId}/><button type="button">After</button></>)
+    const selected: string[] = []
+    render(<><Host selected={input.selectedId} onSelect={id => selected.push(id)}/><button type="button">After</button></>)
     const stops = tabStops()
     expect(stops).toHaveLength(expected.tabStops)
     expect(stops[0]!.getAttribute('role')).toBe(expected.tabStopRole)
@@ -144,6 +145,10 @@ const assertions: Record<string, (entry: Case) => void | Promise<void>> = {
     const label = focused.querySelector('.hl-layers-rail__node-label')!
     const named = focused.getAttribute('aria-labelledby') === label.id && screen.getByRole('treeitem', { name: label.textContent! }) === focused
     expect(named).toBe(expected.accessibleNameIsLabel)
+    // Enter (or Space) on the focused treeitem selects it exactly once.
+    await user.keyboard(input.selectKey === ' ' ? '[Space]' : `[${input.selectKey}]`)
+    expect(screen.getAllByRole('treeitem').filter(element => element.getAttribute('aria-selected') === 'true').map(element => element.querySelector('.hl-layers-rail__node-label')!.textContent!.toLowerCase())).toEqual(expected.selectedAfterSelectKey)
+    expect(selected).toHaveLength(expected.selectCallbacks)
   },
   'layers-rail.selection': async ({ input, expected }) => {
     const selected: string[] = []

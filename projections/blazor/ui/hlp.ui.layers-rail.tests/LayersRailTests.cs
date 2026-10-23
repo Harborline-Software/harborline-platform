@@ -168,7 +168,8 @@ public sealed class LayersRailTests : BunitContext
             }
             case "layers-rail.treeitem-focus":
             {
-                var cut = Host(p => p.Add(x => x.Selected, input.GetProperty("selectedId").GetString()));
+                var selected = new List<string>();
+                var cut = Host(p => p.Add(x => x.Selected, input.GetProperty("selectedId").GetString()).Add(x => x.OnSelect, selected.Add));
                 var stops = TabStops(cut);
                 Assert.Equal(expected.GetProperty("tabStops").GetInt32(), stops.Length);
                 Assert.Equal(expected.GetProperty("tabStopRole").GetString(), stops[0].GetAttribute("role"));
@@ -189,6 +190,10 @@ public sealed class LayersRailTests : BunitContext
                 var labelledBy = focused.GetAttribute("aria-labelledby");
                 var nameElement = labelledBy is null ? null : cut.FindAll("[id]").SingleOrDefault(e => e.Id == labelledBy);
                 Assert.Equal(expected.GetProperty("accessibleNameIsLabel").GetBoolean(), nameElement is not null && nameElement.ClassList.Contains("hl-layers-rail__node-label") && focused.Contains(nameElement) && nameElement.TextContent == Label(focused));
+                // Enter (or Space) on the focused treeitem selects it exactly once.
+                cut.Find(Item(focused.GetAttribute("data-node-id")!)).KeyDown(new Microsoft.AspNetCore.Components.Web.KeyboardEventArgs { Key = input.GetProperty("selectKey").GetString()! });
+                Assert.Equal(Strings(expected.GetProperty("selectedAfterSelectKey")), cut.FindAll("[role=treeitem][aria-selected=true]").Select(t => t.GetAttribute("data-node-id")!).ToArray());
+                Assert.Equal(expected.GetProperty("selectCallbacks").GetInt32(), selected.Count);
                 break;
             }
             case "layers-rail.selection":
