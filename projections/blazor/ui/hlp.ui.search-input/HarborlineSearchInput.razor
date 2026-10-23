@@ -67,10 +67,19 @@
     await ClearAsync();
     if (!disposed) StateHasChanged();
   }
-  private string ResolvedPlaceholder => LocaleContext?.ResolveString("structural.search.placeholder", instanceOverride: Placeholder) ?? Placeholder ?? "Search…";
+  // Caller text, then the host catalog, then the default catalog. Blank text at any step is no text, and a
+  // catalog miss echoes the key, so neither the searchbox nor the clear button is ever unnamed.
+  private string Copy(string key, string? caller)
+  {
+    if (!string.IsNullOrWhiteSpace(caller)) return caller;
+    var fallback = Harborline.Foundation.Localization.HarborlineDefaultStrings.Get(key);
+    var catalog = LocaleContext?.ResolveString(key) ?? fallback;
+    return string.IsNullOrWhiteSpace(catalog) || catalog == key ? fallback : catalog;
+  }
+  private string ResolvedPlaceholder => Copy("structural.search.placeholder", Placeholder);
   // Blank caller text is not a name; fall back to the resolved placeholder so the searchbox is never unnamed.
   private string ResolvedAccessibleLabel => string.IsNullOrWhiteSpace(AccessibleLabel) ? ResolvedPlaceholder : AccessibleLabel;
-  private string ResolvedClearLabel => LocaleContext?.ResolveString("structural.search.clear", instanceOverride: ClearLabel) ?? ClearLabel ?? "Clear search";
+  private string ResolvedClearLabel => Copy("structural.search.clear", ClearLabel);
 
   protected override void OnParametersSet()
   {

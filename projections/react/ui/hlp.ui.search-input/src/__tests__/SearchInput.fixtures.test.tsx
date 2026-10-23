@@ -1,3 +1,4 @@
+import type * as React from 'react'
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { HarborlineLocaleProvider } from '@harborline-platform/hlp.ui.locale-provider'
@@ -96,6 +97,32 @@ const assertions: Record<string, (entry: Case) => void> = {
     render(<HarborlineLocaleProvider catalog={input.catalog}><SearchInput value="oak" onChange={() => undefined}/></HarborlineLocaleProvider>)
     expect(screen.getByRole('searchbox').getAttribute('placeholder')).toBe(expected.placeholder)
     expect(screen.getByRole('button', { name: expected.clearName })).toBeInTheDocument()
+  },
+  'search-input.catalog-copy': ({ input, expected }) => {
+    // Placeholder, searchbox name, clear name and direction, read from one render.
+    const copy = (node: React.ReactElement, withDir = false) => {
+      const view = render(node)
+      const box = screen.getByRole('searchbox')
+      const result: Record<string, string | null> = { placeholder: box.getAttribute('placeholder'), name: box.getAttribute('aria-label'), clearName: view.container.querySelector('.hl-search-input__clear')!.getAttribute('aria-label') }
+      if (withDir) result.dir = view.container.querySelector('.hl-search-input')!.getAttribute('dir')
+      view.unmount()
+      return result
+    }
+    const host = (catalog: { locale: string; entries: Record<string, string> }, props: Record<string, string> = {}) =>
+      <HarborlineLocaleProvider locale={catalog.locale} catalog={catalog.entries}><SearchInput value={input.value} onChange={() => undefined} {...props}/></HarborlineLocaleProvider>
+    expect(copy(<SearchInput value={input.value} onChange={() => undefined}/>)).toEqual(expected.defaultCatalog)
+    // A catalog change in one live tree: French, then Arabic (rtl), then the en-XA pseudo-locale.
+    const live = render(host(input.hostCatalogs[0]))
+    const read = () => { const box = screen.getByRole('searchbox'); return { placeholder: box.getAttribute('placeholder'), name: box.getAttribute('aria-label'), clearName: live.container.querySelector('.hl-search-input__clear')!.getAttribute('aria-label'), dir: live.container.querySelector('.hl-search-input')!.getAttribute('dir') } }
+    const seen = [read()]
+    for (const catalog of input.hostCatalogs.slice(1)) { live.rerender(host(catalog)); seen.push(read()) }
+    live.unmount()
+    expect(seen).toEqual(expected.hostCatalogs)
+    expect(copy(host(input.keyEchoHost))).toEqual(expected.keyEchoHost)
+    expect(copy(<SearchInput value={input.value} onChange={() => undefined} accessibleLabel={input.accessibleLabels.blank}/>).name).toBe(expected.accessibleLabels.blank)
+    expect(copy(<SearchInput value={input.value} onChange={() => undefined} accessibleLabel={input.accessibleLabels.explicit}/>).name).toBe(expected.accessibleLabels.explicit)
+    expect(copy(host(input.hostCatalogs[1], input.blankCaller))).toEqual(expected.blankCaller)
+    expect(copy(host(input.blankHost))).toEqual(expected.blankHost)
   },
   'search-input.unmount': ({ input, expected }) => {
     const h = mount()
