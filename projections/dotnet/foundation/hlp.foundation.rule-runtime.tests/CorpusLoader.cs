@@ -66,7 +66,9 @@ internal static class CorpusLoader
             caseObj["clock"]?.GetValue<string>() ?? "2026-06-30T00:00:00Z",
             CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal));
         var bag = ((JsonObject)caseObj["instance"]!).ToDictionary(kv => kv.Key, kv => kv.Value?.DeepClone());
-        var value = new GuardEvaluator(clock, ParseLimits(caseObj)).EvaluateValue(rule, RuleContextSnapshot.Capture(bag), RuleEvalScope.Root, TestAdmission.Any);
+        var coding = ParseCoding(caseObj);
+        var guard = coding is null ? new GuardEvaluator(clock, ParseLimits(caseObj)) : new GuardEvaluator(clock, ParseLimits(caseObj), coding);
+        var value = guard.EvaluateValue(rule, RuleContextSnapshot.Capture(bag), RuleEvalScope.Root, TestAdmission.Any);
         return CanonicalJson.SerializeComputedValue(value);
     }
 
@@ -94,11 +96,18 @@ internal static class CorpusLoader
             caseObj["clock"]?.GetValue<string>() ?? "2026-06-30T00:00:00Z",
             CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.AssumeUniversal | System.Globalization.DateTimeStyles.AdjustToUniversal));
 
-        var graph = new FormRuleGraph(compiled, clock, TestAdmission.Any, limits);
+        var coding = ParseCoding(caseObj);
+        var graph = coding is null ? new FormRuleGraph(compiled, clock, TestAdmission.Any, limits)
+            : new FormRuleGraph(compiled, clock, TestAdmission.Any, limits, coding);
         var instance = RuleInstance.FromJson((JsonObject)caseObj["instance"]!);
         var result = graph.EvaluateInstance(instance);
         return (compiled, result);
     }
+
+    private static CodingSubsumptionSnapshot? ParseCoding(JsonObject caseObj)
+        => caseObj["codingCapture"] is JsonObject coding
+            ? CodingSubsumptionSnapshot.FromJsonText(coding["answersJsonText"]!.GetValue<string>(), coding["expectedBindingsJsonText"]!.GetValue<string>())
+            : null;
 
     private static RuleDefinition ParseRule(JsonObject r)
     {

@@ -458,6 +458,142 @@ public sealed class TaxonomyInterpreterTests
         Assert.Equal(["a"], diff.TombstonedNodes.Select(node => node.Code));
     }
 
+    private static readonly Harborline.Foundation.Definitions.DefinitionContractWindow CaptureWindow = new(1, 0, 1);
+    private static TaxonomyCodingBinding Binding(TaxonomyDefinition definition, string system = "s")
+        => new(system, new(definition.Tenant, definition.DefinitionId, definition.Version),
+            Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(TaxonomyDefinitionJson.SerializeCanonical(definition))).ToLowerInvariant());
+
+    [Fact]
+    public void Coding_capture_reuses_subsumption_with_canonical_owned_pin_and_ordinal_tuples()
+    {
+        var definition = Definition([Node("root"), Node("child", "root")]);
+        var binding = Binding(definition);
+        var answers = Interpreter(definition).CaptureCodingAnswers("tenant-a", [binding],
+            [new("s", "root", "missing"), new("s", "child", "root"), new("s", "root", "child"), new("s", "child", "child")], CaptureWindow);
+        // Literal answers follow the authored direct root→child edge, never production-derived expectations.
+        string expected = "[\"harborline-taxonomy-coding-answers/1\",\"tenant-a\",[[\"s\",\"acme.health.icd\",\"1.0.0\",\"" + binding.DefinitionSha256
+            + "\"]],[[\"s\",\"child\",\"child\",true],[\"s\",\"child\",\"root\",false],[\"s\",\"root\",\"child\",true],[\"s\",\"root\",\"missing\",false]]]\n";
+        Assert.Equal(expected, answers);
+    }
+
+    [Theory]
+    [InlineData("empty-bindings", "taxonomy.coding_capture_invalid")]
+    [InlineData("empty-queries", "taxonomy.coding_capture_invalid")]
+    [InlineData("duplicate-binding", "taxonomy.coding_capture_invalid")]
+    [InlineData("duplicate-query", "taxonomy.coding_capture_invalid")]
+    [InlineData("alias", "taxonomy.coding_capture_invalid")]
+    [InlineData("tenant", "taxonomy.coding_capture_invalid")]
+    [InlineData("floating", "taxonomy.coding_capture_invalid")]
+    [InlineData("digest-format", "taxonomy.coding_capture_invalid")]
+    [InlineData("digest-mismatch", "taxonomy.coding_definition_mismatch")]
+    [InlineData("missing-definition", "taxonomy.coding_definition_missing")]
+    public void Coding_capture_refuses_incomplete_or_unpinned_requests(string scenario, string expected)
+    {
+        var definition = Definition(); var binding = Binding(definition);
+        TaxonomyCodingBinding[] bindings = [binding];
+        TaxonomySubsumptionQuery[] queries = [new("s", "root", "child")];
+        string tenant = "tenant-a";
+        switch (scenario)
+        {
+            case "empty-bindings": bindings = []; break;
+            case "empty-queries": queries = []; break;
+            case "duplicate-binding": bindings = [binding, binding]; break;
+            case "duplicate-query": queries = [queries[0], queries[0]]; break;
+            case "alias": queries = [new("other", "root", "child")]; break;
+            case "tenant": tenant = "tenant-b"; break;
+            case "floating": bindings = [binding with { Coordinates = binding.Coordinates with { Version = "latest" } }]; break;
+            case "digest-format": bindings = [binding with { DefinitionSha256 = new string('A', 64) }]; break;
+            case "digest-mismatch": bindings = [binding with { DefinitionSha256 = new string('0', 64) }]; break;
+            case "missing-definition": bindings = [binding with { Coordinates = binding.Coordinates with { Version = "9.0.0" } }]; break;
+        }
+        Assert.Equal(expected, Assert.Throws<TaxonomyCodingCaptureException>(() => Interpreter(definition).CaptureCodingAnswers(tenant, bindings, queries, CaptureWindow)).Code);
+    }
+
+    [Fact]
+    public void Coding_capture_cannot_hide_an_unrelated_corrupt_path_with_unknown_code_false()
+    {
+        foreach (var nodes in new[] { new[] { Node("root"), Node("bad", "bad") }, new[] { Node("root"), Node("bad", "absent") } })
+        {
+            var definition = Definition(nodes);
+            Assert.Throws<TaxonomyAdmissionException>(() => Interpreter(definition).CaptureCodingAnswers("tenant-a", [Binding(definition)], [new("s", "root", "unknown")], CaptureWindow));
+        }
+        // Install permits an overlay's external parent; the existing single-definition walker refuses it.
+        var overlay = Definition([Node("child", "vendor-root")]) with { Overlay = new(Id, "1.0.0") };
+        Assert.Equal("taxonomy.parent_unknown", Assert.Throws<TaxonomyTraversalException>(() => Interpreter(overlay).CaptureCodingAnswers("tenant-a", [Binding(overlay)], [new("s", "unknown", "unknown")], CaptureWindow)).Code);
+        var deep = Definition(Enumerable.Range(0, 66).Select(i => Node("n" + i, i == 0 ? null : "n" + (i - 1))).ToArray());
+        Assert.Throws<TaxonomyAdmissionException>(() => Interpreter(deep).CaptureCodingAnswers("tenant-a", [Binding(deep)], [new("s", "unknown", "unknown")], CaptureWindow));
+    }
+
+    [Fact]
+    public void Coding_capture_resolves_two_exact_versions_and_aliases_without_latest_fallback()
+    {
+        var v1 = Definition([Node("root"), Node("child", "root")]);
+        var v2 = Definition("tenant-a", Id, "2.0.0", [Node("root"), Node("child")]);
+        var capture = new TaxonomyInterpreter([v1, v2]).CaptureCodingAnswers("tenant-a", [Binding(v2, "v2"), Binding(v1, "v1")],
+            [new("v2", "root", "child"), new("v1", "root", "child")], CaptureWindow);
+        using var document = JsonDocument.Parse(capture);
+        Assert.Equal("v1", document.RootElement[2][0][0].GetString());
+        Assert.Equal("v2", document.RootElement[2][1][0].GetString());
+        Assert.True(document.RootElement[3][0][3].GetBoolean());
+        Assert.False(document.RootElement[3][1][3].GetBoolean());
+        var nodes = Enumerable.Range(0, 5000).Select(i => Node("n" + i)).ToArray();
+        var max = Definition(nodes);
+        // Aliases of the same pinned definition share its canonical capture and selected node inventory.
+        Assert.NotEmpty(Interpreter(max).CaptureCodingAnswers("tenant-a", [Binding(max, "a"), Binding(max, "b")], [new("a", "n0", "n0")], CaptureWindow));
+    }
+
+    [Fact]
+    public void Coding_capture_does_not_resolve_another_tenants_matching_id_version()
+    {
+        var definition = Definition([Node("root")]);
+        var other = Binding(definition) with { Coordinates = new("tenant-b", Id, "1.0.0") };
+        Assert.Equal("taxonomy.coding_definition_missing", Assert.Throws<TaxonomyCodingCaptureException>(() => Interpreter(definition).CaptureCodingAnswers("tenant-b", [other], [new("s", "root", "root")], CaptureWindow)).Code);
+    }
+
+    [Fact]
+    public void Coding_capture_accepts_the_existing_exact_parent_depth_boundary()
+    {
+        var definition = Definition(Enumerable.Range(0, 65).Select(i => Node("n" + i, i == 0 ? null : "n" + (i - 1))).ToArray());
+        using var result = JsonDocument.Parse(Interpreter(definition).CaptureCodingAnswers("tenant-a", [Binding(definition)], [new("s", "n0", "n64")], CaptureWindow));
+        Assert.True(result.RootElement[3][0][3].GetBoolean());
+    }
+
+    [Fact]
+    public void Coding_capture_keeps_install_admission_and_contract_window_refusals()
+    {
+        var definition = Definition() with { Envelope = null };
+        Assert.Throws<TaxonomyAdmissionException>(() => Interpreter(definition).CaptureCodingAnswers("tenant-a", [Binding(definition)], [new("s", "root", "child")], CaptureWindow));
+        var valid = Definition();
+        Assert.Throws<TaxonomyAdmissionException>(() => Interpreter(valid).CaptureCodingAnswers("tenant-a", [Binding(valid)], [new("s", "root", "child")], new(2, 0, 2)));
+    }
+
+    [Fact]
+    public void Coding_capture_bounds_requests_selected_nodes_and_every_output_value()
+    {
+        var definition = Definition([Node("root")]); var binding = Binding(definition);
+        Assert.Equal("taxonomy.coding_capture_too_large", Assert.Throws<TaxonomyCodingCaptureException>(() => Interpreter(definition).CaptureCodingAnswers("tenant-a", [binding], Enumerable.Range(0, 5001).Select(i => new TaxonomySubsumptionQuery("s", "root", "q" + i)).ToArray(), CaptureWindow)).Code);
+        var large = Definition(Enumerable.Range(0, 5001).Select(i => Node("n" + i)).ToArray());
+        Assert.Equal("taxonomy.coding_capture_too_large", Assert.Throws<TaxonomyCodingCaptureException>(() => Interpreter(large).CaptureCodingAnswers("tenant-a", [Binding(large)], [new("s", "n0", "n0")], CaptureWindow)).Code);
+        // 5 envelope values + one 5-value binding + 998*5 answer values = exactly 5000.
+        var queries = Enumerable.Range(0, 998).Select(i => new TaxonomySubsumptionQuery("s", "root", "q" + i)).ToArray();
+        string accepted = Interpreter(definition).CaptureCodingAnswers("tenant-a", [binding], queries, CaptureWindow);
+        using var json = JsonDocument.Parse(accepted);
+        Assert.Equal(998, json.RootElement[3].GetArrayLength());
+        Assert.Equal("taxonomy.coding_capture_too_large", Assert.Throws<TaxonomyCodingCaptureException>(() => Interpreter(definition).CaptureCodingAnswers("tenant-a", [binding], [.. queries, new("s", "root", "extra")], CaptureWindow)).Code);
+    }
+
+    [Fact]
+    public void Coding_capture_bounded_writer_accepts_exact_byte_envelope_and_stops_one_byte_later()
+    {
+        var definition = Definition([Node("root")]); var binding = Binding(definition);
+        // Independent wire literal with an empty ancestor establishes the fixed ASCII overhead.
+        string wire = "[\"harborline-taxonomy-coding-answers/1\",\"tenant-a\",[[\"s\",\"acme.health.icd\",\"1.0.0\",\"" + binding.DefinitionSha256 + "\"]],[[\"s\",\"\",\"root\",false]]]\n";
+        int length = 262144 - System.Text.Encoding.UTF8.GetByteCount(wire);
+        string full = Interpreter(definition).CaptureCodingAnswers("tenant-a", [binding], [new("s", new string('x', length), "root")], CaptureWindow);
+        Assert.Equal(262144, System.Text.Encoding.UTF8.GetByteCount(full));
+        Assert.Equal("taxonomy.coding_capture_too_large", Assert.Throws<TaxonomyCodingCaptureException>(() => Interpreter(definition).CaptureCodingAnswers("tenant-a", [binding], [new("s", new string('x', length + 1), "root")], CaptureWindow)).Code);
+    }
+
     private static readonly TaxonomyDefinitionId Id = new("acme", "health", "icd");
     private static readonly TaxonomyDefinitionCoordinates Coordinates = new("tenant-a", Id, "1.0.0");
     private static TaxonomyClassificationReference Reference(string code) => new("tenant-a", Id, "1.0.0", code);

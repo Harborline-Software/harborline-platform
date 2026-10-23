@@ -20,6 +20,7 @@ public sealed class FormRuleGraph : IFormRuleGraph
 {
     private readonly RuleEngineLimits _limits;
     private readonly TimeProvider _clock;
+    private readonly CodingSubsumptionSnapshot? _coding;
 
     private RuleInstance _instance = new();
 
@@ -49,11 +50,19 @@ public sealed class FormRuleGraph : IFormRuleGraph
     /// admission does not throw here: every evaluation entry point refuses with its code instead.
     /// </summary>
     public FormRuleGraph(CompiledGraph compiled, TimeProvider clock, EvaluationAdmission? admission, RuleEngineLimits? limits = null)
+        : this(compiled, clock, admission, limits, null, false) { }
+
+    /// <summary>Opt-in finite pinned coding answers shared by all full and incremental paths.</summary>
+    public FormRuleGraph(CompiledGraph compiled, TimeProvider clock, EvaluationAdmission? admission, RuleEngineLimits? limits, CodingSubsumptionSnapshot coding)
+        : this(compiled, clock, admission, limits, coding ?? throw new ArgumentNullException(nameof(coding)), true) { }
+
+    private FormRuleGraph(CompiledGraph compiled, TimeProvider clock, EvaluationAdmission? admission, RuleEngineLimits? limits, CodingSubsumptionSnapshot? coding, bool captured)
     {
+        _coding = coding;
         Compiled = compiled ?? throw new ArgumentNullException(nameof(compiled));
         _limits = limits ?? RuleEngineLimits.Default;
         _clock = clock ?? throw new ArgumentNullException(nameof(clock));
-        WorkProof = CoreWorkDerivation.DeriveGraph(Compiled.Rules, _limits);
+        WorkProof = CoreWorkDerivation.DeriveGraph(Compiled.Rules, _limits, captured);
         // T-818: the admission refusal keeps priority; otherwise the proof under THIS graph's limits must fit.
         _refusal = BorrowerEnvironmentAdmission.Check(admission, compiled)
             ?? RuleCompiler.StaticWorkRefusal(WorkProof, _limits)?.Code;
@@ -528,7 +537,7 @@ public sealed class FormRuleGraph : IFormRuleGraph
 
         var scope = new RuleEvalScope(cell.Rule!.RowSection, cell.RowId);
         var resolver = new DemandResolver(run.Adapter.CreateResolver(scope), run, cell.Key, scope);
-        var ctx = new EvalContext(resolver, _evaluationInstant, run.Budget);
+        var ctx = new EvalContext(resolver, _evaluationInstant, run.Budget, _coding);
         try
         {
             return ComputedValue.Resolved(HarborlineJsonLogic.Evaluate(cell.Rule.Ast, ctx));
@@ -561,7 +570,7 @@ public sealed class FormRuleGraph : IFormRuleGraph
         BeginPlanReads(plan.Key);
         var scope = new RuleEvalScope(plan.Rule.RowSection, plan.RowId);
         var resolver = new DemandResolver(run.Adapter.CreateResolver(scope), run, plan.Key, scope, plan: true);
-        var ctx = new EvalContext(resolver, _evaluationInstant, run.Budget);
+        var ctx = new EvalContext(resolver, _evaluationInstant, run.Budget, _coding);
         return OutcomeBuilder.Build(plan.Rule, plan.Target, resolver, ctx).Outcome;
     }
 

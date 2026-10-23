@@ -28,15 +28,15 @@ internal static class CoreWorkDerivation
     internal sealed record NodeProof(BigInteger Result, BigInteger Work, BigInteger Reads, BigInteger AggregateReads);
 
     internal static NodeProof Derive(JsonNode? node, string ruleId, BigInteger? dependencyResult = null,
-        Func<string, BigInteger?>? staticReference = null, BigInteger? aggregateResult = null)
+        Func<string, BigInteger?>? staticReference = null, BigInteger? aggregateResult = null, bool coding = false)
     {
         // Do not grow a second semantic walker: the established shared type walker
         // defines precisely which descendants execute and which are inert JSON data.
         _ = CoreTypeDerivation.Derive(node, ruleId);
-        return Visit(node, dependencyResult ?? InputBytes, aggregateResult ?? InputBytes, staticReference);
+        return Visit(node, dependencyResult ?? InputBytes, aggregateResult ?? InputBytes, staticReference, coding);
     }
 
-    internal static WorkProof DeriveGraph(IReadOnlyList<CompiledRule> rules, RuleEngineLimits limits)
+    internal static WorkProof DeriveGraph(IReadOnlyList<CompiledRule> rules, RuleEngineLimits limits, bool coding = false)
     {
         // A table admitting no rows still folds to one value (an empty sum is 0): charge at least one fold result.
         var aggregateResult = Math.Max(1, limits.MaxTableRowsPerAggregate) * MoneyAddResultBytes;
@@ -48,7 +48,7 @@ internal static class CoreWorkDerivation
         for (int pass = 0; pass <= rules.Count; pass++)
         {
             proofs = rules.Select(rule => Derive(rule.Ast, rule.Source.Id, InputBytes,
-                path => staticResults.TryGetValue(path, out var result) ? result : null, aggregateResult)).ToArray();
+                path => staticResults.TryGetValue(path, out var result) ? result : null, aggregateResult, coding)).ToArray();
             var next = new Dictionary<string, BigInteger>(staticResults, StringComparer.Ordinal);
             for (int index = 0; index < rules.Count; index++)
             {
@@ -125,7 +125,7 @@ internal static class CoreWorkDerivation
     }
 
     private static NodeProof Visit(JsonNode? node, BigInteger dependencyResult, BigInteger aggregateResult,
-        Func<string, BigInteger?>? staticReference)
+        Func<string, BigInteger?>? staticReference, bool coding)
     {
         if (node is not JsonObject expression || expression.Count != 1)
         {
@@ -135,7 +135,7 @@ internal static class CoreWorkDerivation
 
         var (op, raw) = expression.First();
         var args = raw is JsonArray array ? array.ToList() : new List<JsonNode?> { raw };
-        var children = args.Select(arg => Visit(arg, dependencyResult, aggregateResult, staticReference)).ToArray();
+        var children = args.Select(arg => Visit(arg, dependencyResult, aggregateResult, staticReference, coding)).ToArray();
         var childWork = children.Aggregate(BigInteger.Zero, (total, child) => total + child.Work);
         var childReads = children.Aggregate(BigInteger.Zero, (total, child) => total + child.Reads);
         var aggregateReads = children.Aggregate(BigInteger.Zero, (total, child) => total + child.AggregateReads);
@@ -168,7 +168,7 @@ internal static class CoreWorkDerivation
             "date.add" => Base(12, childBytes),
             "date.diff" => Base(NumberBytes, childBytes),
             "date.today" => Base(12, 0),
-            "coding.is" => Base(5, InputNodes * (childBytes + 1)),
+            "coding.is" => Base(5, coding ? InputNodes * InputNodes * (childBytes + InputBytes + 1) : InputNodes * (childBytes + 1)),
             // ValidateOperators closes this set first.  A new evaluator arm cannot silently
             // receive a generic bound: its transfer is a required admission decision.
             _ => throw new InvalidOperationException($"work proof has no transfer for '{op}'"),

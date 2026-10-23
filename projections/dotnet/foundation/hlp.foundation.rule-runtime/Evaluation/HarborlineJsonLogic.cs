@@ -329,6 +329,26 @@ internal static class HarborlineJsonLogic
         var value = Eval(args, 0, ctx);
         string system = AsString(Eval(args, 1, ctx)) ?? "";
         string code = AsString(Eval(args, 2, ctx)) ?? "";
+        if (ctx.Coding is { } coding)
+        {
+            ctx.Budget.ChargeSize((long)system.Length + code.Length + 1);
+            coding.RequireBinding(system, ctx.Budget);
+            bool captured = false;
+            void Check(JsonNode? candidate)
+            {
+                ctx.Charge();
+                if (candidate is not JsonObject obj
+                    || obj["system"] is not JsonValue sv || !sv.TryGetValue<string>(out var candidateSystem)
+                    || obj["code"] is not JsonValue cv || !cv.TryGetValue<string>(out var descendant)
+                    || string.IsNullOrEmpty(candidateSystem) || string.IsNullOrEmpty(descendant)) return;
+                ctx.Budget.ChargeSize((long)descendant.Length + 1);
+                if (Context.CodingSubsumptionSnapshot.Equal(candidateSystem, system, ctx.Budget))
+                    captured |= coding.Lookup(system, code, descendant, ctx.Budget);
+            }
+            if (value is JsonArray candidates) { foreach (var candidate in candidates) Check(candidate); }
+            else Check(value);
+            return Bool(captured);
+        }
         bool Match(JsonNode? c) =>
             c is JsonObject o
             && AsString(o.TryGetPropertyValue("system", out var s) ? s : null) == system

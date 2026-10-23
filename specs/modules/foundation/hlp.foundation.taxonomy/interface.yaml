@@ -1,13 +1,15 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.foundation.taxonomy",
-  "interfaceRevision": 2,
+  "interfaceRevision": 3,
   "status": "frozen",
   "purpose": "Own the portable Taxonomy definition (content kind 8, DES-0024; the api's PackContentKind.TaxonomyDefinition, T-738), its canonical projection-neutral JSON and phase-aware structural admission, and the pure in-memory TaxonomyInterpreter over caller-supplied pinned definitions.",
   "dependencies": [],
   "callerInterface": {
     "name": "TaxonomyDefinitionAdmission / TaxonomyDefinitionJson / TaxonomyDefinitionPackExporter / TaxonomyInterpreter",
     "operations": [
+      "TaxonomyInterpreter.CaptureCodingAnswers(string tenant, IReadOnlyList<TaxonomyCodingBinding> bindings, IReadOnlyList<TaxonomySubsumptionQuery> queries, DefinitionContractWindow window) -> string: produce canonical newline-terminated finite pinned answers using the existing Subsumes, after single-buffer canonical SHA256/clone/coordinates, Install admission and GetAncestors validation of every selected node",
+      "TaxonomyCodingBinding(string System, TaxonomyDefinitionCoordinates Coordinates, string DefinitionSha256); TaxonomySubsumptionQuery(string System, string AncestorCode, string DescendantCode); TaxonomyCodingCaptureException.Code",
       "TaxonomyDefinitionAdmission.Validate / AdmitJson(body, phase, window, catalogue, previous) -> the complete structural refusal list at the Author, Publish and Install boundaries against the required host DefinitionContractWindow; an envelope contract that is missing or outside the host window (definition.contract.missing or definition.contract.out_of_window at /envelope/contract, T-572), unpinned/malformed version, unsupported schema version, missing or mismatched envelope, Authoritative governance authored tenant-side, an Authoritative definition owned by anyone but the Harborline actor, a definition published with no nodes, duplicate node codes, an unknown parent code, a parent-edge cycle or a chain past the depth bound, a missing deprecation reason at tombstone, a successor naming an unknown or tombstoned node, and — against a supplied previous version — a tombstoned node reactivated or its display history rewritten, all refuse",
       "TaxonomyDefinitionAdmission.Require -> the definition, or throws TaxonomyAdmissionException carrying the same refusal list",
       "TaxonomyDefinitionJson.SerializeCanonical / Deserialize -> canonical snake_case, ordinal-sorted, newline-terminated UTF-8 JSON for every definition member, including the three-part TaxonomyDefinitionId as one dotted string",
@@ -29,6 +31,13 @@
     "context": "The definition is portable pack content: a concept scheme (TaxonomyDefinition) owning its own node set (TaxonomyNode), never a separate primitive and never a store. This package owns the typed shape, canonical JSON, structural admission and the shipped dependency-free TaxonomyInterpreter for pinned lookup, classification resolution, traversal, succession, whole-scheme/collection/overlay expansion, overlay designations and definition diffing. The interpreter indexes definitions supplied by its caller; it does not fetch versions or provide a host catalogue adapter, kernel-core tenancy/authorization gate, pack transport or authoring UI."
   },
   "invariants": [
+    "Capture is explicit host work outside Rules evaluation; tenant comes from admitted authority and expected pins from independently admitted definitions. Hashes bind source bytes without authenticating a hostile answer producer.",
+    "Capture resolves exact tenant/id/version coordinates with no normalization, latest lookup or cross-tenant fallback. Each selected definition is serialized canonically once; its hash and owned deserialized clone derive from that same buffer. Missing definition, pin mismatch or unresolved alias refuses the entire capture.",
+    "Capture validates all selected paths using existing Install admission and GetAncestors before answering any finite query with Subsumes; corrupt parent graphs cannot hide behind an unknown-code false. Existing admission/traversal exceptions remain refusals; this adds no overlay or succession traversal.",
+    "Captured answer JSON is [harborline-taxonomy-coding-answers/1,tenant,bindings,answers], with binding [system,dottedDefinitionId,exactVersion,lowercaseSha256] and answer [system,ancestorCode,descendantCode,boolean]. Tuples have strict types/arity, nonempty strings, unique aliases/answer keys and ordinal tuple order. Definition ids have three nonempty segments; versions have three unsigned Int32 numeric segments. No trim, fold, wildcard or normalization.",
+    "Capture rejects empty bindings or queries, bounds total selected source nodes and requests to5000 before traversal, and uses bounded output writing:262144 UTF-8 bytes,64 nesting levels,5000 JSON values. One trailing newline follows compact JSON. It never constructs an all-pairs closure.",
+    "The captured payload is ephemeral derived data, never a stored edge or replacement authority. Named Collections, authored/bound/carried caller journeys and broader T493/L591/overlay/succession acceptance remain separate obligations.",
+
     "A TaxonomyNode's ParentCode names at most one parent; the shape has no field through which a second parent could be expressed.",
     "There is no delete operation; a concept is inactivated (Status = Tombstoned) and its code is never reused by the producer's own admission, checked against a supplied previous version.",
     "A parent-edge walk is bounded at 64 hops and refuses a cycle or an excess chain at admission time, rather than looping; this is a structural check, not the interpreter's ancestor/descendant traversal.",
@@ -50,6 +59,11 @@
     "HopCount and nullable LastHopCode are existing nonpositional CLR properties with their existing defaults. This interface documents the shipped return shapes; it does not introduce a new constructor/deconstruction signature, serialized wire protocol or persisted-schema compatibility promise."
   ],
   "errors": [
+    "taxonomy.coding_capture_invalid",
+    "taxonomy.coding_definition_missing",
+    "taxonomy.coding_definition_mismatch",
+    "taxonomy.coding_capture_too_large",
+
     "definition.body_invalid",
     "definition.settings_not_object",
     "definition.version_invalid",

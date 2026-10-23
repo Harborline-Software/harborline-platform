@@ -14,6 +14,7 @@ import { DEFAULT_LIMITS, type RuleEngineLimits } from '../limits.js'
 import { compile } from '../compiler.js'
 import { CompileError } from '../grammar.js'
 import { FormRuleGraph } from '../graph.js'
+import { CodingSubsumptionSnapshot } from '../coding-subsumption.js'
 import { GuardEvaluator, RuleContextSnapshot } from '../guard.js'
 import { RuleInstance } from '../instance.js'
 import { serializeComputedValue, serializeOutcome, write } from '../canonical.js'
@@ -35,6 +36,7 @@ const corpusDir = join(here, '..', '..', '..', '..', '..', '..', 'conformance', 
 const artifactDir = join(here, '..', '..', '..', '..', '..', '..', 'artifacts', 'rule-runtime')
 
 interface CorpusCase {
+  codingCapture?: { answersJsonText: string, expectedBindingsJsonText: string }
   name: string
   clock?: string
   /** Integer limits as numbers; `maxStaticWork` as a decimal string (T-818: it exceeds MAX_SAFE_INTEGER). */
@@ -162,7 +164,9 @@ function runCase(c: CorpusCase) {
   const rules = declaredRules(c)
   const limits = limitsOf(c)
   const compiled = compile(rules, limits)
-  const graph = new FormRuleGraph(compiled, clockOf(c), testAdmission, limits)
+  const graph = c.codingCapture
+    ? new FormRuleGraph(compiled, clockOf(c), testAdmission, limits, CodingSubsumptionSnapshot.fromJsonText(c.codingCapture.answersJsonText, c.codingCapture.expectedBindingsJsonText))
+    : new FormRuleGraph(compiled, clockOf(c), testAdmission, limits)
   const result = graph.evaluateInstance(RuleInstance.fromJsonText(JSON.stringify(c.instance)))
   return { compiled, result }
 }
@@ -186,7 +190,10 @@ function compileRefusalCode(c: CorpusCase): string {
 function guardValueOutcome(c: CorpusCase): string {
   const rule = (c.definitionRules ?? []).map(parseRule).find((r) => r.id === c.guardValue)
   if (!rule) throw new Error(`case '${c.name}': guardValue names unknown rule '${c.guardValue}'`)
-  return serializeComputedValue(new GuardEvaluator(clockOf(c)).evaluateValue(rule, RuleContextSnapshot.fromJsonText(JSON.stringify(c.instance)), testAdmission))
+  const evaluator = c.codingCapture
+    ? new GuardEvaluator(clockOf(c), limitsOf(c), CodingSubsumptionSnapshot.fromJsonText(c.codingCapture.answersJsonText, c.codingCapture.expectedBindingsJsonText))
+    : new GuardEvaluator(clockOf(c))
+  return serializeComputedValue(evaluator.evaluateValue(rule, RuleContextSnapshot.fromJsonText(JSON.stringify(c.instance)), testAdmission))
 }
 
 describe('SPINE-1 conformance corpus (TS tier — byte-identical to .NET)', () => {
