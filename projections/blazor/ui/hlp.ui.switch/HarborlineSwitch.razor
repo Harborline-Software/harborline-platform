@@ -56,12 +56,12 @@
   private string ResolvedOffText => LocalizedText("forms.switch.off", OffText ?? OffLabel, "Off");
 
   // Instance override, then catalog, then fallback. A catalog miss echoes the key back, so an
-  // echoed key counts as unresolved rather than as user-facing text.
+  // echoed key counts as unresolved rather than as user-facing text; so does blank catalog text.
   private string LocalizedText(string key, string? instanceOverride, string fallback)
   {
     if (!string.IsNullOrWhiteSpace(instanceOverride)) return LocaleContext?.ResolveString(key, instanceOverride: instanceOverride) ?? instanceOverride;
     var resolved = LocaleContext?.ResolveString(key);
-    return string.IsNullOrEmpty(resolved) || resolved == key ? fallback : resolved;
+    return string.IsNullOrWhiteSpace(resolved) || resolved == key ? fallback : resolved;
   }
   private string? LabelledBy => !string.IsNullOrWhiteSpace(Label) ? LocalLabelId : AccessibleName is null ? FieldContext?.LabelId : null;
   private string? DescribedBy => string.Join(" ", new[]{FieldContext?.DescribedBy,!string.IsNullOrWhiteSpace(Description)?DescriptionId:null}.Where(value=>!string.IsNullOrWhiteSpace(value)));
