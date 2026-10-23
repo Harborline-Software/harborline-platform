@@ -510,6 +510,27 @@ public sealed class TaxonomyInterpreterTests
     }
 
     [Fact]
+    public void Coding_capture_refuses_a_version_with_mixed_numeric_and_invalid_segments()
+    {
+        var definition = Definition();
+        var binding = Binding(definition);
+        binding = binding with { Coordinates = binding.Coordinates with { Version = "1.bad.0" } };
+        var refusal = Assert.Throws<TaxonomyCodingCaptureException>(() => Interpreter(definition).CaptureCodingAnswers(
+            "tenant-a", [binding], [new("s", "root", "child")], CaptureWindow));
+        Assert.Equal("taxonomy.coding_capture_invalid", refusal.Code);
+    }
+
+    [Fact]
+    public void Coding_capture_refuses_a_digest_with_mixed_hex_and_invalid_characters()
+    {
+        var definition = Definition();
+        var binding = Binding(definition) with { DefinitionSha256 = "000000000000000000000000000000000000000000000000000000000000000g" };
+        var refusal = Assert.Throws<TaxonomyCodingCaptureException>(() => Interpreter(definition).CaptureCodingAnswers(
+            "tenant-a", [binding], [new("s", "root", "child")], CaptureWindow));
+        Assert.Equal("taxonomy.coding_capture_invalid", refusal.Code);
+    }
+
+    [Fact]
     public void Coding_capture_cannot_hide_an_unrelated_corrupt_path_with_unknown_code_false()
     {
         foreach (var nodes in new[] { new[] { Node("root"), Node("bad", "bad") }, new[] { Node("root"), Node("bad", "absent") } })

@@ -325,4 +325,74 @@ public sealed class CodingSubsumptionTests
         Assert.Equal(ValueState.Error, missing.Values["field:out"].State);
         Assert.Equal("rule.coding_answer_missing", missing.Values["field:out"].Error!.Code);
     }
+
+    [Fact]
+    public void Two_true_coding_answers_remain_true_across_public_consumers()
+    {
+        const string candidates = """[null,{"system":"asset-class","code":"child"},{"system":"asset-class","code":"leaf"}]""";
+        var value = Value(candidates);
+        Assert.Equal(ValueState.Resolved, value.State);
+        Assert.True(value.Value!.GetValue<bool>());
+
+        var graph = new FormRuleGraph(RuleCompiler.Compile([Rule()]), Clock, TestAdmission.Any, null, Snapshot());
+        // The literal null keeps a cold array in the public scalar-field path rather than child tables.
+        var cold = graph.EvaluateInstance(Instance("{\"coding\":" + candidates + "}"));
+        Assert.Equal(ValueState.Resolved, cold.Values["field:out"].State);
+        Assert.True(cold.Values["field:out"].Value!.GetValue<bool>());
+        var updated = graph.Reevaluate("coding", RuleInputValue.FromJsonText(candidates));
+        Assert.Equal(ValueState.Resolved, updated.Values["field:out"].State);
+        Assert.True(updated.Values["field:out"].Value!.GetValue<bool>());
+    }
+
+    [Fact]
+    public void Opt_in_guard_static_work_admits_equality_and_refuses_one_below()
+    {
+        const string expression = """{"coding.is":[null,"s","a"]}""";
+        var rule = RuleDefinitionFactory.Create("coding-static-guard", RuleTier.JsonLogic, RuleScope.Field, "out", expression, RuleActionKind.Validate);
+        var context = RuleContextSnapshot.FromJsonText("""{"root":{}}""");
+        // Proposal002: C=4+8+8, child work=5+9+9; Validate executes once.
+        // 1+23+5000*5000*(20+262144+1)+5 = 6554125000029.
+        var exact = RuleEngineLimits.Default with { MaxStaticWork = BigInteger.Parse("6554125000029") };
+        var admitted = new GuardEvaluator(Clock, exact, Snapshot()).EvaluateGuard(rule, context, RuleEvalScope.Root, TestAdmission.Any);
+        Assert.False(admitted.Ok);
+        Assert.Equal("rule.coding_binding_missing", admitted.Error!.Code);
+        var below = RuleEngineLimits.Default with { MaxStaticWork = BigInteger.Parse("6554125000028") };
+        var refused = new GuardEvaluator(Clock, below, Snapshot()).EvaluateGuard(rule, context, RuleEvalScope.Root, TestAdmission.Any);
+        Assert.False(refused.Ok);
+        Assert.Equal("rule.compile.work_exceeded", refused.Error!.Code);
+    }
+
+    [Fact]
+    public void Legacy_graph_static_work_keeps_flat_transfer_at_equality()
+    {
+        var compiled = RuleCompiler.Compile([Rule("""{"coding.is":[null,"s","a"]}""")]);
+        // The original overload keeps the legacy transfer; Compute executes twice.
+        // 2*(1+23+5000*(20+1)+5) = 210058.
+        var exact = RuleEngineLimits.Default with { MaxStaticWork = BigInteger.Parse("210058") };
+        var admitted = new FormRuleGraph(compiled, Clock, TestAdmission.Any, exact).EvaluateInstance(Instance("{}"));
+        Assert.Equal(ValueState.Resolved, admitted.Values["field:out"].State);
+        Assert.False(admitted.Values["field:out"].Value!.GetValue<bool>());
+        var below = RuleEngineLimits.Default with { MaxStaticWork = BigInteger.Parse("210057") };
+        var refused = new FormRuleGraph(compiled, Clock, TestAdmission.Any, below).EvaluateInstance(Instance("{}"));
+        Assert.Equal("rule.compile.work_exceeded", refused.Validations.Single().Validity!.Error!.Code);
+    }
+
+    [Theory]
+    [InlineData(1, "vendor.domain.asset", "vendor.domain.other")]
+    [InlineData(2, "1.0.0", "2.0.0")]
+    [InlineData(3, "b21015c1098b83f1deb9addf42e10b84438c54a61d4f558d36bd3ceaa712fc87", "0000000000000000000000000000000000000000000000000000000000000000")]
+    public void Expected_binding_definition_version_and_digest_are_independently_exact(int tupleIndex, string original, string mismatch)
+    {
+        var fixture = Fixture;
+        string answers = Text(fixture, "answersJsonText");
+        string expected = Text(fixture, "expectedBindingsJsonText");
+        Assert.NotNull(CodingSubsumptionSnapshot.FromJsonText(answers, expected));
+
+        var changedExpected = JsonNode.Parse(expected)!.AsArray();
+        Assert.Equal(original, changedExpected[2]![0]![tupleIndex]!.GetValue<string>());
+        Assert.NotEqual(original, mismatch);
+        // Only the expected binding pin changes; the complete answer wire stays original.
+        changedExpected[2]![0]![tupleIndex] = mismatch;
+        Assert.Throws<ArgumentException>(() => CodingSubsumptionSnapshot.FromJsonText(answers, changedExpected.ToJsonString()));
+    }
 }
