@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
+import { HarborlineLocaleProvider } from '@harborline-platform/hlp.ui.locale-provider'
 import { NotificationCenter, type NotificationCenterItem } from '../NotificationCenter'
 import { sharedCases } from './fixtures'
 
@@ -14,6 +15,15 @@ const item = (id: string, kind: string, read = false): NotificationCenterItem =>
 const bell = () => document.querySelector<HTMLButtonElement>('.hl-notification-center__trigger')!
 const open = () => fireEvent.click(bell())
 const dialogOpen = () => screen.queryByRole('dialog') !== null
+// The dialog, group tab list and dismiss names, read with the dialog open, then closed again. Two kinds
+// make the tab list exist; the result row carries the dismiss control.
+const namedItems = (title: string): NotificationCenterItem[] => [{ id: 'p1', title: 'Approve export', timestamp: 'Now', kind: 'proposal' }, { id: 'r1', title, timestamp: 'Now', kind: 'result' }]
+function chromeNames() {
+  open()
+  const names = { dialog: screen.getByRole('dialog').getAttribute('aria-label'), tablist: screen.getByRole('tablist').getAttribute('aria-label'), dismiss: document.querySelector('.hl-notification-center__dismiss')!.getAttribute('aria-label') }
+  open()
+  return names
+}
 
 describe('NotificationCenter shared fixture semantics', () => {
   it('covers every case or names it as unasserted', () => {
@@ -145,6 +155,18 @@ const assertions: Record<string, (entry: Case) => void | Promise<void>> = {
     fireEvent.click(button!)
     expect(viewAll).toHaveBeenCalledTimes(expected.callbackCount)
     expect(!dialogOpen()).toBe(expected.closes)
+  },
+  'notification-center.catalog-defaults': ({ input, expected }) => {
+    const center = <NotificationCenter items={namedItems(input.dismissedTitle)} onDismiss={() => undefined}/>
+    const view = render(center)
+    expect(chromeNames()).toEqual(expected.defaultCatalog)
+    view.rerender(<HarborlineLocaleProvider locale={input.hostCatalog.locale} catalog={input.hostCatalog.entries}>{center}</HarborlineLocaleProvider>)
+    expect(chromeNames()).toEqual(expected.hostCatalog)
+  },
+  'notification-center.caller-text-exact': ({ input, expected }) => {
+    render(<HarborlineLocaleProvider locale={input.hostCatalog.locale} catalog={input.hostCatalog.entries}><NotificationCenter items={namedItems(input.dismissedTitle)} labels={input.labels} onDismiss={() => undefined}/></HarborlineLocaleProvider>)
+    const { dialog, tablist } = chromeNames()
+    expect({ dialog, tablist }).toEqual(expected)
   },
   'notification-center.localization': ({ input, expected }) => {
     const labels = input.labels

@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.DependencyInjection;
 using Harborline.UIAdapters.Blazor.Browser;
 using Harborline.UIAdapters.Blazor.Components.Navigation;
+using Harborline.UIAdapters.Blazor.Localization;
 using Xunit;
 
 namespace Harborline.UIAdapters.Blazor.Tests;
@@ -34,6 +35,20 @@ public sealed class NotificationCenterTests : BunitContext
     private static NotificationCenterItem Item(string id, string kind, bool read = false) => new(id, $"Title {id}", "now", kind, read);
     private IRenderedComponent<HarborlineNotificationCenter> Center(IReadOnlyList<NotificationCenterItem> items, Action<ComponentParameterCollectionBuilder<HarborlineNotificationCenter>>? configure = null) =>
         Render<HarborlineNotificationCenter>(p => { p.Add(x => x.Items, items); configure?.Invoke(p); });
+    // The dialog, group tab list and dismiss names, read with the dialog open, then closed again. Two kinds
+    // make the tab list exist; the result row carries the dismiss control.
+    private static NotificationCenterItem[] NamedItems(string title) => [new("p1", "Approve export", "now", "proposal"), new("r1", title, "now", "result")];
+    private static (string? Dialog, string? Tablist, string? Dismiss) ChromeNames<T>(IRenderedComponent<T> cut) where T : IComponent
+    {
+        cut.Find(".hl-notification-center__trigger").Click();
+        var names = (cut.Find("[role=dialog]").GetAttribute("aria-label"), cut.Find("[role=tablist]").GetAttribute("aria-label"), cut.Find(".hl-notification-center__dismiss").GetAttribute("aria-label"));
+        cut.Find(".hl-notification-center__trigger").Click();
+        return names;
+    }
+    private static (string? Dialog, string? Tablist, string? Dismiss) ChromeNames(System.Text.Json.JsonElement names) => (names.GetProperty("dialog").GetString(), names.GetProperty("tablist").GetString(), names.GetProperty("dismiss").GetString());
+    private IRenderedComponent<HarborlineLocaleProvider> InHostCatalog(System.Text.Json.JsonElement host, string title, NotificationCenterLabels? labels) =>
+        Render<HarborlineLocaleProvider>(p => p.Add(x => x.Locale, host.GetProperty("locale").GetString()).Add(x => x.Catalog, host.GetProperty("entries").EnumerateObject().ToDictionary(entry => entry.Name, entry => entry.Value.GetString()!))
+            .AddChildContent<HarborlineNotificationCenter>(c => { c.Add(x => x.Items, NamedItems(title)).Add(x => x.OnDismiss, _ => { }); if (labels is not null) c.Add(x => x.Labels, labels); }));
     private static string? Badge(IRenderedComponent<HarborlineNotificationCenter> cut) => cut.FindAll(".hl-notification-center__badge").FirstOrDefault()?.TextContent;
     private static string Bell(IRenderedComponent<HarborlineNotificationCenter> cut) => cut.Find(".hl-notification-center__trigger").GetAttribute("aria-label")!;
     private static void Open(IRenderedComponent<HarborlineNotificationCenter> cut) => cut.Find(".hl-notification-center__trigger").Click();
@@ -199,6 +214,23 @@ public sealed class NotificationCenterTests : BunitContext
                 footer[0].Click();
                 Assert.Equal(expected.GetProperty("callbackCount").GetInt32(), calls);
                 Assert.Equal(expected.GetProperty("closes").GetBoolean(), !IsOpen(cut));
+                break;
+            }
+            case "notification-center.catalog-defaults":
+            {
+                var title = input.GetProperty("dismissedTitle").GetString()!;
+                Assert.Equal(ChromeNames(expected.GetProperty("defaultCatalog")), ChromeNames(Center(NamedItems(title), p => p.Add(x => x.OnDismiss, _ => { }))));
+                Assert.Equal(ChromeNames(expected.GetProperty("hostCatalog")), ChromeNames(InHostCatalog(input.GetProperty("hostCatalog"), title, null)));
+                break;
+            }
+            case "notification-center.caller-text-exact":
+            {
+                // The record is caller text: the fixture's labels are written onto the English default record.
+                var given = input.GetProperty("labels");
+                string? Given(string field) => given.TryGetProperty(field, out var value) ? value.GetString() : null;
+                var labels = NotificationCenterLabels.English with { Title = Given("title") ?? NotificationCenterLabels.English.Title, GroupLabel = Given("groupLabel") };
+                var (dialog, tablist, _) = ChromeNames(InHostCatalog(input.GetProperty("hostCatalog"), input.GetProperty("dismissedTitle").GetString()!, labels));
+                Assert.Equal((expected.GetProperty("dialog").GetString(), expected.GetProperty("tablist").GetString()), (dialog, tablist));
                 break;
             }
             case "notification-center.localization":

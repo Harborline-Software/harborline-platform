@@ -1,5 +1,6 @@
 using Bunit;
 using Microsoft.AspNetCore.Components;
+using Harborline.UIAdapters.Blazor.Localization;
 using Harborline.UIAdapters.Blazor.Shell;
 using Xunit;
 
@@ -82,6 +83,18 @@ public sealed class UserMenuTests : BunitContext
         return (cut,module,changes);
     }
     private static UserMenuEntry Act(string id,string label,Action? invoked=null,bool closeOnSelect=true,bool disabled=false)=>new(id,UserMenuEntryKind.Action,label,ActivateAsync:()=>{invoked?.Invoke();return Task.CompletedTask;},CloseOnSelect:closeOnSelect,Disabled:disabled);
+    // The trigger, panel and sign-out names, read with the surface open, then closed again.
+    private static (string? Trigger,string? Panel,string? SignOut) MenuNames<T>(IRenderedComponent<T> cut) where T:IComponent
+    {
+        cut.Find(".hl-user-menu__trigger").Click();
+        var names=(cut.Find(".hl-user-menu__trigger").GetAttribute("aria-label"),cut.Find(".hl-user-menu__surface").GetAttribute("aria-label"),cut.Find(".hl-user-menu__sign-out").TextContent.Trim());
+        cut.Find(".hl-user-menu__trigger").Click();
+        return names;
+    }
+    private static (string? Trigger,string? Panel,string? SignOut) Names(System.Text.Json.JsonElement names)=>(names.GetProperty("trigger").GetString(),names.GetProperty("panel").GetString(),names.GetProperty("signOut").GetString());
+    private IRenderedComponent<HarborlineLocaleProvider> InHostCatalog(System.Text.Json.JsonElement host,string name,UserMenuLabels? labels)=>
+        Render<HarborlineLocaleProvider>(p=>p.Add(x=>x.Locale,host.GetProperty("locale").GetString()).Add(x=>x.Catalog,host.GetProperty("entries").EnumerateObject().ToDictionary(entry=>entry.Name,entry=>entry.Value.GetString()!))
+            .AddChildContent<HarborlineUserMenu>(c=>{c.Add(x=>x.Identity,new UserIdentity(name)).Add(x=>x.OnSignOut,()=>{});if(labels is not null)c.Add(x=>x.Labels,labels);}));
     private static bool Open(IRenderedComponent<HarborlineUserMenu> cut)=>cut.FindAll(".hl-user-menu__surface").Count>0;
     private static void Key(IRenderedComponent<HarborlineUserMenu> cut,string key)=>cut.Find(".hl-user-menu__surface").KeyDown(new Microsoft.AspNetCore.Components.Web.KeyboardEventArgs{Key=key});
     private void AssertCase(string id,System.Text.Json.JsonElement input,System.Text.Json.JsonElement expected)
@@ -263,6 +276,23 @@ public sealed class UserMenuTests : BunitContext
                     cut.Find("button.hl-user-menu__trigger").GetAttribute("aria-label")==template.Replace("{name}","Ada Lovelace",StringComparison.Ordinal)
                     &&cut.Find(".hl-user-menu__surface").GetAttribute("aria-label")==input.GetProperty("panelLabel").GetString()
                     &&cut.Find(".hl-user-menu__sign-out").TextContent.Trim()==input.GetProperty("signOutLabel").GetString());
+                break;
+            }
+            case "user-menu.catalog-defaults":
+            {
+                var name=input.GetProperty("name").GetString()!;
+                Assert.Equal(Names(expected.GetProperty("defaultCatalog")),MenuNames(Render<HarborlineUserMenu>(p=>p.Add(x=>x.Identity,new UserIdentity(name)).Add(x=>x.OnSignOut,()=>{}))));
+                Assert.Equal(Names(expected.GetProperty("hostCatalog")),MenuNames(InHostCatalog(input.GetProperty("hostCatalog"),name,null)));
+                break;
+            }
+            case "user-menu.caller-text-exact":
+            {
+                // The record is caller text: the fixture's labels are written onto the English default record.
+                var given=input.GetProperty("labels");
+                string? Given(string field)=>given.TryGetProperty(field,out var value)?value.GetString():null;
+                var labels=UserMenuLabels.English with{Panel=Given("panel")??UserMenuLabels.English.Panel,SignOut=Given("signOut")??UserMenuLabels.English.SignOut};
+                var (_,panel,signOut)=MenuNames(InHostCatalog(input.GetProperty("hostCatalog"),input.GetProperty("name").GetString()!,labels));
+                Assert.Equal((expected.GetProperty("panel").GetString(),expected.GetProperty("signOut").GetString()),(panel,signOut));
                 break;
             }
             case "user-menu.invalid-input":

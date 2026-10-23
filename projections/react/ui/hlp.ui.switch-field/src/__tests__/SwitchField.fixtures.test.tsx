@@ -1,3 +1,4 @@
+import type * as React from 'react'
 import { fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
@@ -81,6 +82,23 @@ const assertions: Record<string, (entry: Case) => void | Promise<void>> = {
     render(<SwitchField checked={false} label={input.label} name="published" onCheckedChange={() => undefined}/>)
     expect(screen.getByRole('switch', { name: expected.accessibleName })).toBe(control())
     expect(screen.queryByText(input.label) !== null).toBe(expected.visibleLabel)
+  },
+  'switch-field.state-copy-catalog': ({ input, expected }) => {
+    const host = (child: React.ReactElement) => <HarborlineLocaleProvider locale={input.hostCatalog.locale} catalog={input.hostCatalog.entries}>{child}</HarborlineLocaleProvider>
+    const stateCopy = (wrap: (child: React.ReactElement) => React.ReactElement, text: Record<string, string> = {}) =>
+      (input.states as boolean[]).map(checked => {
+        const view = render(wrap(<SwitchField aria-label="Published" checked={checked} name="published" onCheckedChange={() => undefined} {...text}/>))
+        const copy = view.container.querySelector('.hl-switch__state')!.textContent
+        view.unmount()
+        return copy
+      })
+    expect(stateCopy(child => child)).toEqual(expected.defaultCatalog)
+    expect(stateCopy(host)).toEqual(expected.hostCatalog)
+    expect(stateCopy(host, input.callerText)).toEqual(expected.callerText)
+  },
+  'switch-field.label-precedence': ({ input, expected }) => {
+    render(<SwitchField accessibleName={input.accessibleName} checked={false} label={input.label} name="published" onCheckedChange={() => undefined}/>)
+    expect(screen.getByRole('switch', { name: expected.accessibleName })).toBe(control())
   },
   'switch-field.form-context': ({ input, expected }) => {
     const context = input.context
