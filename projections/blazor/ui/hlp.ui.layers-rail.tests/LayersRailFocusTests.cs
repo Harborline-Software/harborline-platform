@@ -5,8 +5,8 @@ using Xunit;
 namespace Harborline.UIAdapters.Blazor.Tests;
 
 // Contract: focus is never stranded and the tree is one tab stop, the treeitem itself (APG treeview).
-// bUnit sees the module requests and LayersRailScript runs the module's selectors; the real-browser probe
-// a real-browser probe kept with the batch evidence (not in this repository) checks where focus actually lands.
+// bUnit sees the module requests and LayersRailScript runs the module's selectors; a real-browser probe
+// kept with the batch evidence (outside this repository) checks where focus actually lands.
 public sealed class LayersRailFocusTests : BunitContext
 {
     private readonly BunitJSModuleInterop module;
