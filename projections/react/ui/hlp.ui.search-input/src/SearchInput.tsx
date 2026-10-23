@@ -71,6 +71,14 @@ export function SearchInput({
         value={draft}
         placeholder={resolvedPlaceholder}
         onChange={event => edit(event.currentTarget.value)}
+        onKeyDown={event => {
+          // Escape on a nonempty search is Clear: the browser's own search clearing would publish only
+          // after the debounce, and an unhandled Escape would also close an enclosing overlay. An empty
+          // search leaves Escape to the overlay.
+          if (event.key !== 'Escape' || event.defaultPrevented || draft.length === 0) return
+          event.preventDefault()
+          clear()
+        }}
         className="hl-search-input__control"
       />
       {draft.length > 0 ? (
