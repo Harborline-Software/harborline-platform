@@ -1,0 +1,1 @@
+{"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","properties":{"meter_tag":{"type":"string","x-harborline-field-kind":{"kind_id":"text","version":"1.0.0","parameters":{}}},"reading_count":{"type":"integer","x-harborline-field-kind":{"kind_id":"count","version":"1.0.0","parameters":{}}},"location":{"type":"string"}},"additionalProperties":false}

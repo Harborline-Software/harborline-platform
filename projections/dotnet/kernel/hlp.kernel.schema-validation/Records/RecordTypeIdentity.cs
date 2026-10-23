@@ -549,6 +549,48 @@ public sealed class RecordTypeSchemaCompiler
         return new(JsonSerializer.Serialize(document), []);
     }
 
+    /// <summary>
+    /// Reproduces only the scalar projection emitted by compiler 5ec3cf53 before the T616 multiplicity correction.
+    /// Intended solely to bind an existing stored schema identity: current admission must still succeed, and callers
+    /// must register the current candidate first and only after its successful nonmatch register this candidate,
+    /// comparing the configured registry's returned opaque identity with the row's original identity (Q36).
+    /// Writes and publications use CompileAsync.
+    /// </summary>
+    /// <param name="candidate">The exact immutable published definition being read.</param>
+    /// <param name="previousVersion">The existing identity validator's previous-version context, when applicable.</param>
+    /// <param name="fieldDomainScope">The real tenant/principal scope for Trait narrowing admission.</param>
+    /// <param name="cancellationToken">Cancellation for current admission and Trait narrowing.</param>
+    internal async ValueTask<RecordTypeSchemaDraft> CompilePreT616ScalarForStoredReadAsync(
+        RecordTypeDefinition candidate, RecordTypeDefinition? previousVersion,
+        FieldDomainScope? fieldDomainScope = null, CancellationToken cancellationToken = default)
+    {
+        var admitted = await CompileAsync(candidate, previousVersion, fieldDomainScope, cancellationToken).ConfigureAwait(false);
+        if (admitted.JsonSchemaText is null) return admitted;
+
+        // This is the complete known 5ec scalar projection, not a relaxation of current admission. In particular,
+        // reference/unbound fields and field order keep their original representation and no required list existed.
+        var refusals = new List<FieldRefusal>();
+        var properties = new Dictionary<string, object>(StringComparer.Ordinal);
+        foreach (var (field, index) in (candidate.Fields ?? []).Select((field, index) => (field, index)))
+        {
+            if (BindField(field.Binding, $"/fields/{index}/binding", refusals) is { } compiled)
+                properties.Add(field.FieldKey, compiled.Schema);
+            else if (field.Binding is null)
+                properties.Add(field.FieldKey, field.Reference is { } reference
+                    ? ReferenceSchema(reference)
+                    : new Dictionary<string, string> { ["type"] = "string" });
+        }
+        if (refusals.Count != 0) return new(null, refusals.AsReadOnly());
+        var document = new Dictionary<string, object>
+        {
+            ["$schema"] = "https://json-schema.org/draft/2020-12/schema",
+            ["type"] = "object",
+            ["properties"] = properties,
+            ["additionalProperties"] = false,
+        };
+        return new(JsonSerializer.Serialize(document), []);
+    }
+
     // A field without a binding declares no constraint, so each member takes the absent meaning the
     // contract documents (Harborline.Contracts FieldDefinitions.cs FieldConstraintDefinition params):
     // not always required, no minimum, no finite maximum, no read roles, no value domain. The field
