@@ -29,9 +29,9 @@ internal static class RecordWriteOperationProbe
     private static readonly DateTimeOffset At = new(2030, 1, 2, 3, 4, 5, TimeSpan.Zero);
     private static readonly RecordWriteScope Scope = new(Tenant, "operator-7");
     private const string OriginalDefinition =
-        """{"class_id":"eam.equipment","creation_gate":"role","creation_role_id":"asset-author","envelope":{"contract":{"major":1,"minor":0},"package_id":"eam-core","section":"eam","tenant":"tenant-consumer"},"fields":[{"display_name":"Original note","field_key":"original_note"}],"name":"Schema Note","record_class":"master","record_type_id":"eam.schema-note"}""" + "\n";
+        """{"amendment_policy":{"reason_required":true},"class_id":"eam.equipment","creation_gate":"role","creation_role_id":"asset-author","envelope":{"contract":{"major":1,"minor":0},"package_id":"eam-core","section":"eam","tenant":"tenant-consumer"},"fields":[{"display_name":"Original note","field_key":"original_note"}],"history_policy":"enabled","name":"Schema Note","record_class":"master","record_type_id":"eam.schema-note"}""" + "\n";
     private const string RevisedDefinition =
-        """{"class_id":"eam.equipment","creation_gate":"role","creation_role_id":"asset-author","envelope":{"contract":{"major":1,"minor":0},"package_id":"eam-core","section":"eam","tenant":"tenant-consumer"},"fields":[{"display_name":"Revised note","field_key":"revised_note"}],"name":"Schema Note","record_class":"master","record_type_id":"eam.schema-note"}""" + "\n";
+        """{"amendment_policy":{"reason_required":true},"class_id":"eam.equipment","creation_gate":"role","creation_role_id":"asset-author","envelope":{"contract":{"major":1,"minor":0},"package_id":"eam-core","section":"eam","tenant":"tenant-consumer"},"fields":[{"display_name":"Revised note","field_key":"revised_note"}],"history_policy":"enabled","name":"Schema Note","record_class":"master","record_type_id":"eam.schema-note"}""" + "\n";
     private const string OriginalSchema =
         """{"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","properties":{"original_note":{"type":"string"}},"additionalProperties":false}""";
     private const string RevisedSchema =
