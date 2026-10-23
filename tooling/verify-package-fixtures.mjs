@@ -23,6 +23,12 @@ import { parsePackageFixtureArguments } from './package-fixture-selection.mjs'
 import { computePackageVersion, writePackageVersionProps } from './package-version.mjs'
 import { resolvePinnedDotnet } from './resolve-dotnet.mjs'
 import { sourceIdentity, writeLibraryProof } from './library-promotion-proof.mjs'
+import {
+  installFrozenUiConsumer,
+  installFrozenContractsConsumer,
+  installFrozenRuleRuntimeConsumer,
+  installFrozenRuleAuthoringConsumer,
+} from './package-fixture-frozen-install.mjs'
 
 // Publication reuses the gate producer; combining this mode with gate/record flags is refused.
 const packLibraries = process.argv.length === 3 && process.argv[2] === '--pack-libraries'
@@ -534,13 +540,7 @@ function verifyNpm() {
     throw new Error(`npm UI package proof requires one packed rule-authoring peer: ${JSON.stringify(ruleAuthoringArtifacts)}`)
   }
   const ruleAuthoringArtifact = resolve(npmArtifacts, ruleAuthoringArtifacts[0])
-  run('npm', [
-    'install', '--ignore-scripts', '--no-audit', '--no-fund', '--package-lock=false',
-    artifact,
-    contractsArtifact,
-    ruleEngineArtifact,
-    ruleAuthoringArtifact,
-  ], { cwd: consumer })
+  installFrozenUiConsumer(consumer, [artifact, contractsArtifact, ruleEngineArtifact, ruleAuthoringArtifact], run)
   const output = run(process.execPath, ['exercise.mjs'], { cwd: consumer }).trim()
   const installed = resolve(consumer, 'node_modules/@harborline-software/ui-react')
   if (lstatSync(installed).isSymbolicLink()) throw new Error('npm consumer resolved a source link')
@@ -639,8 +639,7 @@ function verifyFormsNpm() {
   }
 
   const consumer = resolve(fixtureRoot, 'forms-npm-consumer')
-  mkdirSync(consumer, {recursive: true})
-  writeFileSync(resolve(consumer, 'package.json'), '{"private":true,"type":"module"}\n')
+  cpSync(resolve(root, 'tests/package-consumers/forms-contracts-npm'), consumer, { recursive: true })
   writeFileSync(resolve(consumer, 'exercise.mjs'), `import assert from 'node:assert/strict'\nimport {createWorkflowAuthorityResolver, formsWireSurface, readFormsWire, readWorkflowWire, RoleVocabulary, roleGateAllows, HARBORLINE_JSONLOGIC_V1, validateWorkflowAdmission} from '@harborline-software/contracts'\nconst item = readFormsWire('FormItem', {kind:'collection',key:'photos',items:[{kind:'field',key:'photo'}]})\nassert.equal(item.items[0].key, 'photo')\nassert.equal(HARBORLINE_JSONLOGIC_V1, 'harborline-jsonlogic/v1')\nassert.deepEqual(formsWireSurface.closedValues.OutputType, ['Value','Validity','Visibility','Presentation','Options'])\nconst options = readFormsWire('RuleOutcome', {ruleId:'opt.result',target:'field:result',outputType:'Options',options:{state:'Resolved',options:['PASS','FAIL']}})\nassert.deepEqual(options.options.options, ['PASS','FAIL'])\nconst definition = readFormsWire('FormDefinition', {id:'inspection',version:'1.0.0',status:'Published',tenant:'acme',owner:{scheme:'system',value:'harborline'},schemaRef:'sha256:test',overlay:{fields:{},sections:[],rules:[]},createdAt:'2026-08-08T00:00:00Z',updatedAt:'2026-08-08T00:00:00Z',fieldsMeta:{condition:{type:'radio',required:true,validations:[{code:'required'}],options:['PASS','FAIL']}}})\nassert.equal(definition.fieldsMeta.condition.type, 'radio')\nconst workflow = readWorkflowWire('WorkflowDefinition', {key:'consumer-workflow',version:'1.0.0',status:'Draft',tenant:'acme',owner:{scheme:'system',value:'harborline'},title:{defaultLocale:'en',values:{en:'Consumer workflow'}},mutability:'Locked',initialState:'Draft',states:[{id:'Draft',label:{defaultLocale:'en',values:{en:'Draft'}},kind:'Normal'},{id:'Done',label:{defaultLocale:'en',values:{en:'Done'}},kind:'Terminal'}],transitions:[{id:'complete',from:'Draft',on:'approve',to:'Done'}],triggers:[{id:'approve',kind:'HumanAction',task:'approval'}],actions:[{id:'notify',on:{transition:'complete'},kind:'Notify',capabilityRef:'notify.email',classification:'AP'}],guards:[],createdAt:'2026-08-09T00:00:00Z',updatedAt:'2026-08-09T00:00:00Z'})\nconst auditor={vocabulary:'sys.platform-roles',name:'auditor'}\nconst vocabulary=RoleVocabulary.fromApi([{roleDefinitionId:'3b69e3cb-ec5e-4ad7-8c90-16ebc1896102',role:auditor,displayName:'Auditor',owner:{kind:'Platform',ownerId:'platform'},isSealed:true}])\nassert.equal(roleGateAllows({requiredRoles:[auditor]},vocabulary,{roles:[auditor]}),true)\nassert.equal(validateWorkflowAdmission(workflow, createWorkflowAuthorityResolver({'notify.email':'AP'}), vocabulary).isValid, true)\nassert.throws(() => readFormsWire('FormItem', {kind:'script',key:'unsafe'}), /unknown-discriminator/)\nprocess.stdout.write('packed npm Dynamic Forms revision-5, Workflow revision-2, and Authorization revision-1 contracts passed wire and admission checks\\n')\n`)
   const exercisePath = resolve(consumer, 'exercise.mjs')
   const exercise = readFileSync(exercisePath, 'utf8')
@@ -650,7 +649,7 @@ function verifyFormsNpm() {
     )
     .replace('revision-3 contract', 'revision-4 contract')
   writeFileSync(exercisePath, exercise)
-  run('npm', ['install', '--ignore-scripts', '--no-audit', '--no-fund', '--package-lock=false', artifact], { cwd: consumer })
+  installFrozenContractsConsumer(consumer, artifact, run)
   const output = run(process.execPath, ['exercise.mjs'], { cwd: consumer }).trim()
   const installed = resolve(consumer, 'node_modules/@harborline-software/contracts')
   if (lstatSync(installed).isSymbolicLink()) throw new Error('forms npm consumer resolved a source link')
@@ -695,12 +694,11 @@ function verifyRuleRuntimeNpm() {
   }
 
   const consumer = resolve(fixtureRoot, 'rule-runtime-npm-consumer')
-  mkdirSync(consumer, {recursive: true})
-  writeFileSync(resolve(consumer, 'package.json'), '{"private":true,"type":"module"}\n')
+  cpSync(resolve(root, 'tests/package-consumers/forms-contracts-npm'), consumer, { recursive: true })
   writeFileSync(resolve(consumer, 'exercise.mjs'), `import assert from 'node:assert/strict'\nimport {admitEnvironment, builtInFunctions, compile, fieldReadEffect, FormRuleGraph, lentGrammar, RuleInstance, serializeOutcome} from '@harborline-software/rule-engine'\nconst rule = {id:'opt.result',tier:'JsonLogic',scope:'Field',scopeTarget:'result',expression:['PASS','FAIL'],action:'Options'}\nconst admission = admitEnvironment({borrower:'rule-runtime-npm-consumer',grammar:lentGrammar,variables:{field:'form field'},operations:builtInFunctions.map(f => f.key),effects:[fieldReadEffect],missingValues:'missing-field-reads-null',timeSource:'evaluated-at',timeZone:'utc',phases:{AuthoringValidation:false,PublishValidation:false,Render:true,Submission:false,Run:false,SignOff:false},replay:'deterministic'}).forPhase('Render')
 const result = new FormRuleGraph(compile([rule]), () => new Date('2026-06-30T00:00:00.000Z'), admission).evaluateInstance(RuleInstance.fromJsonText('{}'))\nassert.equal(serializeOutcome(result.byRule.get('opt.result')), '{"options":{"options":["PASS","FAIL"],"state":"Resolved"},"outputType":"Options","ruleId":"opt.result","target":"field:result"}')\nprocess.stdout.write('packed npm reactive Rule Runtime emitted canonical Options outcome\\n')\n`)
-  run('npm', ['install', '--ignore-scripts', '--no-audit', '--no-fund', '--package-lock=false', artifact,
-    packedArtifact('harborline-software-contracts-', 'Rule Runtime consumer')], { cwd: consumer })
+  installFrozenRuleRuntimeConsumer(consumer, artifact,
+    packedArtifact('harborline-software-contracts-', 'Rule Runtime consumer'), run)
   const output = run(process.execPath, ['exercise.mjs'], { cwd: consumer }).trim()
   assertPackedInstall(consumer, ['contracts', 'rule-engine'], 'Rule Runtime consumer')
   writeFileSync(resolve(consumer, 'contracts-consumer.ts'), `
@@ -772,16 +770,15 @@ function verifyRuleAuthoringNpm() {
   }
 
   const consumer = resolve(fixtureRoot, 'rule-authoring-npm-consumer')
-  mkdirSync(consumer, {recursive: true})
+  cpSync(resolve(root, 'tests/package-consumers/forms-contracts-npm'), consumer, { recursive: true })
   const packedEngine = (() => {
     const engineNames = readdirSync(npmArtifacts).filter(name => name.startsWith('harborline-software-rule-engine-') && name.endsWith('.tgz'))
     if (engineNames.length !== 1) throw new Error(`rule-authoring consumer requires exactly one packed rule-engine artifact: ${JSON.stringify(engineNames)}`)
     return resolve(npmArtifacts, engineNames[0])
   })()
-  writeFileSync(resolve(consumer, 'package.json'), '{"private":true,"type":"module"}\n')
   writeFileSync(resolve(consumer, 'exercise.mjs'), readFileSync(resolve(root, 'tests/package-consumers/rule-authoring-npm/exercise.mjs'), 'utf8'))
-  run('npm', ['install', '--ignore-scripts', '--no-audit', '--no-fund', '--package-lock=false', artifact, packedEngine,
-    packedArtifact('harborline-software-contracts-', 'Rule Authoring consumer')], { cwd: consumer })
+  installFrozenRuleAuthoringConsumer(consumer, artifact, packedEngine,
+    packedArtifact('harborline-software-contracts-', 'Rule Authoring consumer'), run)
   const output = run(process.execPath, ['exercise.mjs'], { cwd: consumer }).trim()
   const installed = resolve(consumer, 'node_modules/@harborline-software/rule-authoring')
   if (lstatSync(installed).isSymbolicLink()) throw new Error('rule-authoring npm consumer resolved a source link')
@@ -1209,7 +1206,12 @@ function verifyDynamicFormsCapability() {
   const rendererConsumer = resolve(fixtureRoot, 'dynamic-forms-npm-consumer')
   cpSync(resolve(root, 'tests/package-consumers/dynamic-forms-npm'), rendererConsumer, { recursive: true })
   copyFileSync(corpusSource, resolve(rendererConsumer, 'cases.json'))
-  installPackedArtifacts(rendererConsumer, ['harborline-software-ui-react-', 'harborline-software-contracts-', 'harborline-software-rule-engine-', 'harborline-software-rule-authoring-'], 'Dynamic Forms renderer')
+  installFrozenUiConsumer(rendererConsumer, [
+    packedArtifact('harborline-software-ui-react-', 'Dynamic Forms renderer'),
+    packedArtifact('harborline-software-contracts-', 'Dynamic Forms renderer'),
+    packedArtifact('harborline-software-rule-engine-', 'Dynamic Forms renderer'),
+    packedArtifact('harborline-software-rule-authoring-', 'Dynamic Forms renderer'),
+  ], run)
   assertPackedInstall(rendererConsumer, ['ui-react', 'contracts', 'rule-engine', 'rule-authoring'], 'Dynamic Forms renderer')
   const [rendererBehavior] = proofLines(clientRun(rendererConsumer), ['DYNAMIC_FORMS_CLIENT_PASS:'], 'Dynamic Forms packed reference lane')
   const clientVerdicts = JSON.parse(readFileSync(resolve(rendererConsumer, 'client-verdicts.json'), 'utf8'))
@@ -1256,9 +1258,10 @@ function verifyWorkflowsCapability() {
   if (corpusCases !== 13) throw new Error(`Workflows admission corpus must carry exactly 13 pairs: ${corpusCases}`)
 
   const rendererConsumer = resolve(fixtureRoot, 'workflow-npm-consumer')
-  cpSync(resolve(root, 'tests/package-consumers/workflow-npm'), rendererConsumer, { recursive: true })
+  cpSync(resolve(root, 'tests/package-consumers/forms-contracts-npm'), rendererConsumer, { recursive: true })
+  copyFileSync(resolve(root, 'tests/package-consumers/workflow-npm/exercise.mjs'), resolve(rendererConsumer, 'exercise.mjs'))
   copyFileSync(corpusSource, resolve(rendererConsumer, 'admission-mirror-cases.json'))
-  installPackedArtifacts(rendererConsumer, ['harborline-software-contracts-'], 'Workflows renderer')
+  installFrozenContractsConsumer(rendererConsumer, packedArtifact('harborline-software-contracts-', 'Workflows renderer'), run)
   assertPackedInstall(rendererConsumer, ['contracts'], 'Workflows renderer')
   const [rendererBehavior] = proofLines(clientRun(rendererConsumer), ['WORKFLOW_CLIENT_PASS:'], 'Workflows packed renderer lane')
   const clientVerdicts = JSON.parse(readFileSync(resolve(rendererConsumer, 'client-verdicts.json'), 'utf8'))
@@ -1303,10 +1306,14 @@ function verifyCalculationsCapability() {
   if (corpusCases !== 12) throw new Error(`Calculations authoring corpus must carry exactly 12 cases: ${corpusCases}`)
 
   const rendererConsumer = resolve(fixtureRoot, 'calculations-npm-consumer')
-  cpSync(resolve(root, 'tests/package-consumers/calculations-npm'), rendererConsumer, { recursive: true })
+  cpSync(resolve(root, 'tests/package-consumers/forms-contracts-npm'), rendererConsumer, { recursive: true })
+  copyFileSync(resolve(root, 'tests/package-consumers/calculations-npm/exercise.mjs'), resolve(rendererConsumer, 'exercise.mjs'))
   copyFileSync(corpusSource, resolve(rendererConsumer, 'authoring-verdict-cases.json'))
   copyFileSync(intentSource, resolve(rendererConsumer, 'definition-intent-cases.json'))
-  installPackedArtifacts(rendererConsumer, ['harborline-software-rule-authoring-', 'harborline-software-rule-engine-', 'harborline-software-contracts-'], 'Calculations renderer')
+  installFrozenRuleAuthoringConsumer(rendererConsumer,
+    packedArtifact('harborline-software-rule-authoring-', 'Calculations renderer'),
+    packedArtifact('harborline-software-rule-engine-', 'Calculations renderer'),
+    packedArtifact('harborline-software-contracts-', 'Calculations renderer'), run)
   assertPackedInstall(rendererConsumer, ['rule-authoring', 'rule-engine', 'contracts'], 'Calculations renderer')
   const [rendererBehavior] = proofLines(clientRun(rendererConsumer), ['CALCULATIONS_CLIENT_PASS:'], 'Calculations packed renderer lane')
   const clientVerdicts = JSON.parse(readFileSync(resolve(rendererConsumer, 'client-verdicts.json'), 'utf8'))
@@ -1363,10 +1370,19 @@ function verifyViewsCapability() {
   }
 
   const rendererConsumer = resolve(fixtureRoot, 'views-npm-consumer')
-  cpSync(resolve(root, 'tests/package-consumers/views-npm'), rendererConsumer, { recursive: true })
+  mkdirSync(rendererConsumer, { recursive: true })
+  copyFileSync(resolve(root, 'tests/package-consumers/npm/package.json'), resolve(rendererConsumer, 'package.json'))
+  copyFileSync(resolve(root, 'tests/package-consumers/npm/pnpm-lock.yaml'), resolve(rendererConsumer, 'pnpm-lock.yaml'))
+  copyFileSync(resolve(root, 'tests/package-consumers/npm/pnpm-workspace.yaml'), resolve(rendererConsumer, 'pnpm-workspace.yaml'))
+  copyFileSync(resolve(root, 'tests/package-consumers/views-npm/exercise.mjs'), resolve(rendererConsumer, 'exercise.mjs'))
   mkdirSync(resolve(rendererConsumer, '../corpus'), { recursive: true })
   copyFileSync(corpusSource, resolve(rendererConsumer, '../corpus/views-vertical-cases.json'))
-  installPackedArtifacts(rendererConsumer, ['harborline-software-ui-react-', 'harborline-software-rule-authoring-', 'harborline-software-rule-engine-', 'harborline-software-contracts-'], 'Views renderer')
+  installFrozenUiConsumer(rendererConsumer, [
+    packedArtifact('harborline-software-ui-react-', 'Views renderer'),
+    packedArtifact('harborline-software-contracts-', 'Views renderer'),
+    packedArtifact('harborline-software-rule-engine-', 'Views renderer'),
+    packedArtifact('harborline-software-rule-authoring-', 'Views renderer'),
+  ], run)
   assertPackedInstall(rendererConsumer, ['ui-react', 'rule-authoring', 'rule-engine', 'contracts'], 'Views renderer')
   const [rendererBehavior] = proofLines(clientRun(rendererConsumer), ['VIEWS_CLIENT_PASS:'], 'Views packed renderer lane')
   const clientVerdicts = JSON.parse(readFileSync(resolve(rendererConsumer, 'client-verdicts.json'), 'utf8'))
@@ -1538,10 +1554,19 @@ function verifyAggregatesCapability() {
   const engineClosure = assertPackageClosure(engineConsumer, ['Harborline.Blocks.ActivityTimeline', 'Harborline.Contracts'], 'Aggregates engine')
 
   const rendererConsumer = resolve(fixtureRoot, 'aggregates-capability-npm-consumer')
-  cpSync(resolve(root, 'tests/package-consumers/aggregates-npm'), rendererConsumer, { recursive: true })
+  mkdirSync(rendererConsumer, { recursive: true })
+  copyFileSync(resolve(root, 'tests/package-consumers/npm/package.json'), resolve(rendererConsumer, 'package.json'))
+  copyFileSync(resolve(root, 'tests/package-consumers/npm/pnpm-lock.yaml'), resolve(rendererConsumer, 'pnpm-lock.yaml'))
+  copyFileSync(resolve(root, 'tests/package-consumers/npm/pnpm-workspace.yaml'), resolve(rendererConsumer, 'pnpm-workspace.yaml'))
+  copyFileSync(resolve(root, 'tests/package-consumers/aggregates-npm/exercise.mjs'), resolve(rendererConsumer, 'exercise.mjs'))
   mkdirSync(resolve(rendererConsumer, '../corpus'), { recursive: true })
   copyFileSync(corpusSource, resolve(rendererConsumer, '../corpus/aggregates-vertical-cases.json'))
-  installPackedArtifacts(rendererConsumer, ['harborline-software-ui-react-', 'harborline-software-rule-authoring-', 'harborline-software-rule-engine-', 'harborline-software-contracts-'], 'Aggregates renderer')
+  installFrozenUiConsumer(rendererConsumer, [
+    packedArtifact('harborline-software-ui-react-', 'Aggregates renderer'),
+    packedArtifact('harborline-software-contracts-', 'Aggregates renderer'),
+    packedArtifact('harborline-software-rule-engine-', 'Aggregates renderer'),
+    packedArtifact('harborline-software-rule-authoring-', 'Aggregates renderer'),
+  ], run)
   assertPackedInstall(rendererConsumer, ['ui-react', 'rule-authoring', 'rule-engine', 'contracts'], 'Aggregates renderer')
   const [rendererTimeline, rendererProof] = proofLines(clientRun(rendererConsumer), ['CROSS_LANE_TIMELINE:', 'AGGREGATES_RENDERER_PASS:'], 'Aggregates renderer')
   if (engineTimeline !== rendererTimeline) {
