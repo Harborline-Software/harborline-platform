@@ -38,22 +38,67 @@
       "nextGate": "Consumed by workflow, Forms, and app-shell role gates."
     },
     {
+      "moduleId": "hlp.contracts.rules",
+      "phase4Evidence": "specs/modules/contracts/hlp.contracts.rules/interface.yaml",
+      "sourceExtracted": true,
+      "sourceState": "Revision 1 gives this shared vocabulary explicit ownership in the existing Harborline.Contracts and @harborline-software/contracts artifacts. Maintained C# and TypeScript projections are composed with shared ownership checks. Wire fields and values retain their existing meanings; runtime and package qualification are recorded separately.",
+      "contentHashes": {
+        "specs/modules/contracts/hlp.contracts.rules/interface.yaml": "fbece0dfaa08b829705a8b4508653892adbebb2f312e7b43919a7df38a0077bf",
+        "projections/dotnet/contracts/hlp.contracts.identities/Rules/RulesContracts.cs": "6ee485061a29823ae95439c2bc02a08a43503b81af83d03b9deee0e983da9973",
+        "projections/typescript/contracts/hlp.contracts.forms/src/rules.ts": "5b9782cb6c9eaa6ebe3174220577387c43a94957b02424db05d7e8b8829c5361",
+        "projections/dotnet/contracts/hlp.contracts.identities.tests/SharedContractOwnershipTests.cs": "a71c02909c062b0e1ace9eb3b6f6632df0c11472d7916a119a86e0b6430a89e8",
+        "projections/typescript/contracts/hlp.contracts.forms/tests/shared-ownership.test.ts": "dd07e31c53cec7030f2fb208583ce790047764f6328ce929af48631b194e2f75"
+      },
+      "nextGate": "Qualify the final combined ownership, regeneration, native, TypeScript and package consumer checks through the normal protected delivery procedure."
+    },
+    {
+      "moduleId": "hlp.contracts.text",
+      "phase4Evidence": "specs/modules/contracts/hlp.contracts.text/interface.yaml",
+      "sourceExtracted": true,
+      "sourceState": "Revision 1 gives this shared vocabulary explicit ownership in the existing Harborline.Contracts and @harborline-software/contracts artifacts. Maintained C# and TypeScript projections are composed with shared ownership checks. Wire fields and values retain their existing meanings; runtime and package qualification are recorded separately.",
+      "contentHashes": {
+        "specs/modules/contracts/hlp.contracts.text/interface.yaml": "8313447cd3ed7144054b2dd850317848c12dd7ed06b8c61c16162f77d6df77ff",
+        "projections/dotnet/contracts/hlp.contracts.identities/Text/TextContracts.cs": "2035492c0e0d985d72e969d967a970143475499c4cea70d447dea9e77adb24bf",
+        "projections/typescript/contracts/hlp.contracts.forms/src/text.ts": "aba51a0859484307a4b4b50963e4c62e1eca82d506019ef80954bc462225d3b8",
+        "projections/dotnet/contracts/hlp.contracts.identities.tests/SharedContractOwnershipTests.cs": "a71c02909c062b0e1ace9eb3b6f6632df0c11472d7916a119a86e0b6430a89e8",
+        "projections/typescript/contracts/hlp.contracts.forms/tests/shared-ownership.test.ts": "dd07e31c53cec7030f2fb208583ce790047764f6328ce929af48631b194e2f75"
+      },
+      "nextGate": "Qualify the final combined ownership, regeneration, native, TypeScript and package consumer checks through the normal protected delivery procedure."
+    },
+    {
+      "moduleId": "hlp.contracts.presentation",
+      "phase4Evidence": "specs/modules/contracts/hlp.contracts.presentation/interface.yaml",
+      "sourceExtracted": true,
+      "sourceState": "Revision 1 gives this shared vocabulary explicit ownership in the existing Harborline.Contracts and @harborline-software/contracts artifacts. Maintained C# and TypeScript projections are composed with shared ownership checks. Wire fields and values retain their existing meanings; runtime and package qualification are recorded separately.",
+      "contentHashes": {
+        "specs/modules/contracts/hlp.contracts.presentation/interface.yaml": "8873d26843a5438608d438890438accaafdecf12c5bf6a850535c975161021e6",
+        "projections/dotnet/contracts/hlp.contracts.identities/Presentation/PresentationContracts.cs": "310303bcba08f0b7794b3f33614f3a6a0ef180d87d25e375a370e992497da721",
+        "projections/typescript/contracts/hlp.contracts.forms/src/presentation.ts": "4157b49132534502f594077e11be24aae72874deef9043377bab181a95ad7b85",
+        "projections/dotnet/contracts/hlp.contracts.identities.tests/SharedContractOwnershipTests.cs": "a71c02909c062b0e1ace9eb3b6f6632df0c11472d7916a119a86e0b6430a89e8",
+        "projections/typescript/contracts/hlp.contracts.forms/tests/shared-ownership.test.ts": "dd07e31c53cec7030f2fb208583ce790047764f6328ce929af48631b194e2f75"
+      },
+      "nextGate": "Qualify the final combined ownership, regeneration, native, TypeScript and package consumer checks through the normal protected delivery procedure."
+    },
+    {
       "moduleId": "hlp.contracts.forms",
       "phase4Evidence": "specs/modules/contracts/hlp.contracts.forms/interface.yaml",
       "sourceExtracted": true,
-      "sourceState": "Revision 1 remains an exact 79-declaration hash-bound capture. Revision 2 adds the Options vocabulary proven by both pinned Rule Runtime tiers. Revision 3 adds Carrier fieldsMeta so exact field types, validations, and options survive save/load/history/restore. Revision 4 adds the pinned Forms Engine's complete optional FormView field-rule projection without conflating visibility with authorization. The result is 84 TypeScript/C# declarations and 104 closed literals. Twenty-six neutral cases and clean npm/NuGet consumers cover recursive wire data, dependent-choice outcomes, complete aspect overlays, lossless authoring, server rule projection, and fail-closed discriminators without source/project fallback.",
+      "sourceState": "Historical revisions 1–4 captured the Forms wire vocabulary, Options, Carrier fieldsMeta and field-rule projection. Revision 9 assigns shared rules, localized text and presentation vocabulary to their named contract modules inside the existing Contracts artifacts. FormsContracts.cs and FormsJson.cs are maintained projections; FormsJson.g.cs contains the generated ModelJson partial. Forms continues to expose compatible TypeScript wire exports while CLR source borrowers use the new owning namespaces. Execution and package qualification are recorded separately.",
       "contentHashes": {
-        "conformance/hlp.contracts.forms/fixtures.yaml": "51bb858d5311c9c2f92fafd82695b58e9c36cf2c0e4e109304aa224c3c83bf5b",
+        "conformance/hlp.contracts.forms/fixtures.yaml": "2c443c60a9aa4460be5afe325479200b55500b205a680f006896132d7dba7acc",
         "conformance/hlp.contracts.forms/runners/run-shared.mjs": "079ddaee7b11e10dc5218eefdd75df74774a640eff09d332e63116d6482f72b7",
-        "projections/dotnet/contracts/hlp.contracts.identities.tests/FormsContractTests.cs": "e52944f10e028fd0861cc8665bcc8d0caeff235304402d6036a207b198d11ee0",
-        "projections/dotnet/contracts/hlp.contracts.identities.tests/FormsFixtureConformanceTests.cs": "317416a9290956adc831f0da0675b31aa023a9e44af49af6052cd233f37bed2e",
-        "projections/dotnet/contracts/hlp.contracts.identities/Forms/FormsContracts.g.cs": "4f11a73560662b1de4277939573d33c9bec06a783173c5bcd907690bd8f9161a",
-        "projections/dotnet/contracts/hlp.contracts.identities/Forms/FormsJson.g.cs": "612850115b0d7bb5939cf5fd4f2dd09adb112d21ba6fe3cbf647248e10542dca",
-        "projections/typescript/contracts/hlp.contracts.forms/package.json": "56c9b679ba169767f3025abc516ff624d7bcb1e20524de539243dca111101c14",
-        "projections/typescript/contracts/hlp.contracts.forms/projection-manifest.json": "107e0c87863584571db5c00fc90212581aed82b12832896ec871d11015cc00de",
-        "projections/typescript/contracts/hlp.contracts.forms/src/forms.ts": "c9dfa629f764594a6b89a40e6140f329eaf497ecdff8d1244aa09478e5dd854b",
+        "projections/dotnet/contracts/hlp.contracts.identities.tests/FormsContractTests.cs": "5a68496354515bf59745ce648f928879d008655c3e34099b93a2e45121908339",
+        "projections/dotnet/contracts/hlp.contracts.identities.tests/FormsFixtureConformanceTests.cs": "8ccf4f2c47747dbe0090b3a500dc7919083894b2db6982c48acc4e1202eeaf90",
+        "projections/dotnet/contracts/hlp.contracts.identities/Forms/FormsContracts.cs": "3e76a6195f4866cfa2a34b63077baeb83ddc7c322949ebb10a280b68e607fdb0",
+        "projections/dotnet/contracts/hlp.contracts.identities/Forms/FormsJson.g.cs": "356f2f8305d4333b0d6978c1231dfbf0a246988610e432b3694391d3f1804369",
+        "projections/typescript/contracts/hlp.contracts.forms/package.json": "3def684bd2ea26ecc05fe1d7d291f0c367f2a69e2ebacc9f64fca15d6a8b759e",
+        "projections/typescript/contracts/hlp.contracts.forms/projection-manifest.json": "19e8c4006075aa88a52f29dc640c39b4be831ea82f30cf3725988d1241cd55cf",
+        "projections/typescript/contracts/hlp.contracts.forms/src/forms.ts": "3340c018738ce0019d079c25fcacb87f4f87f8bc26a40256a7b0bc59d433835e",
         "projections/typescript/contracts/hlp.contracts.forms/src/wire.ts": "c8fdd6ee3358a53b4345ae13dc4e0635730431601e760e82268f80bb01c3d573",
-        "specs/modules/contracts/hlp.contracts.forms/interface.yaml": "8f5a740de58a5636b64e389f9102aea464cf015bf66a124b5557b82ce255597b"
+        "specs/modules/contracts/hlp.contracts.forms/interface.yaml": "fbcdd5a32ee5cf36f9e95be3c71ff93a6c2d0c67d55db8baf86463fd9d36b942",
+        "projections/dotnet/contracts/hlp.contracts.identities/Forms/FormsJson.cs": "2c0bfe29082853a569df1df1c9134f081bc72d6d1484ad6fad056bd1a819089a",
+        "projections/dotnet/contracts/hlp.contracts.identities/Serialization/ContractJson.cs": "2b6430d636d13c147e25c663b8344f52b47cd6fef567df1c7d90bd820dce5b2b",
+        "projections/dotnet/contracts/hlp.contracts.identities/Harborline.Contracts.csproj": "b0a398be5abcd92c9634b88412cff92891b7af35454cd4fbdac6b9700bc8864c"
       },
       "nextGate": "Consume the completed dual-tier Rule Runtime from the Forms state and executable Forms Engine modules."
     },
@@ -61,18 +106,18 @@
       "moduleId": "hlp.contracts.workflow",
       "phase4Evidence": "specs/modules/contracts/hlp.contracts.workflow/interface.yaml",
       "sourceExtracted": true,
-      "sourceState": "Revision 1 implements the complete 16-declaration Workflow authoring wire and caller-backed fail-closed admission boundary as TypeScript and .NET contributions to the shared contracts packages. Both projections pass the same 16 neutral cases. The injected immutable authority resolver derives unknown capabilities as CP, preserves the human-gated CP firing fence, and imports neither the Carrier SDK nor the deferred general interpreter. Clean packed npm and NuGet consumers exercise wire parsing and admission without source/project fallback.",
+      "sourceState": "Historical revision 1 extracted the Workflow authoring wire and capability admission boundary. Revision 3 retains that wire contract while maintained WorkflowContracts.cs and WorkflowSupport.cs borrow the shared Text and Serialization declarations inside the existing Contracts artifacts. The immutable authority resolver and human-gated CP firing fence remain; this provenance composition claims no new interpreter or runtime qualification.",
       "contentHashes": {
-        "conformance/hlp.contracts.workflow/fixtures.yaml": "186c4b6d4a2e3de928b37bc4fb714636d5fa7117b5ed974d9b4cadc22d8a52e8",
+        "conformance/hlp.contracts.workflow/fixtures.yaml": "718169526cc8ae6d43f5544210fc2d0de43c5c09238406cbfe251670281c7bf6",
         "conformance/hlp.contracts.workflow/runners/run-shared.mjs": "17155635d309d968f1101292c6034e3439995e2a592752e81b473c265db2408e",
         "projections/dotnet/contracts/hlp.contracts.identities.tests/WorkflowFixtureConformanceTests.cs": "450a2269fec12ad0e1bef4d8e2a8a1f05336ea3f402244b0451738627a7aab5e",
-        "projections/dotnet/contracts/hlp.contracts.identities/Workflow/WorkflowContracts.g.cs": "233138e0b41560820cf3683d96e9d8d8f6686712ccfee38959b007cd1c250177",
-        "projections/dotnet/contracts/hlp.contracts.identities/Workflow/WorkflowSupport.g.cs": "72db54a1a2392664ec1b74fe7f113ef40f92a9a6ad38a8667e7df556b64f32f9",
+        "projections/dotnet/contracts/hlp.contracts.identities/Workflow/WorkflowContracts.cs": "b8e7bff04ec8162675183e0dd4227dd62eef13230a7978c02eb665b34234a1ee",
+        "projections/dotnet/contracts/hlp.contracts.identities/Workflow/WorkflowSupport.cs": "315d696e03cd8627d8c6782778072d5c6e436023682c142eea382dd69c48e508",
         "projections/typescript/contracts/hlp.contracts.forms/src/workflow-admission.ts": "7924d53f6027e4fa999a6ef87df0f6b7e744c24cfcdfd8bbb9a1345e8e6d2474",
         "projections/typescript/contracts/hlp.contracts.forms/src/workflow-wire.ts": "2610a1d18ae012a3b30b775793e225c64af51534ae499f2b741e500889677e50",
-        "projections/typescript/contracts/hlp.contracts.forms/src/workflow.ts": "16351079d66445fbdf3c55315e13d37c56650197684bb1a81846271417035246",
+        "projections/typescript/contracts/hlp.contracts.forms/src/workflow.ts": "2a97d2482618804c3b417c916a7fb341ee860a3bbc1b73e9819172d634b30d1a",
         "projections/typescript/contracts/hlp.contracts.forms/tests/workflow.test.mjs": "cc6452df734c70332f457c9c5210e5616bf539ce32d34def9cc779cec0b15020",
-        "specs/modules/contracts/hlp.contracts.workflow/interface.yaml": "d9b89e2c52b3fdb7f06182eee78ab37c689cb8e033d2bf94609ef7c95ce4588f"
+        "specs/modules/contracts/hlp.contracts.workflow/interface.yaml": "9bdb0ab551774a98a243e926987ae115f4fb9bc3397b6e6b002465dd8775466b"
       },
       "nextGate": "Freeze and implement the caller-backed durable work-items boundary before the inspection-review vertical slice."
     },
@@ -88,15 +133,15 @@
         "projections/dotnet/foundation/hlp.foundation.rule-runtime/Compilation/RuleCompiler.cs": "0dc73b1404f9fb507431c55ec4559aa32dcb3582d535111dbd3df0b042808d1d",
         "projections/dotnet/foundation/hlp.foundation.rule-runtime/Evaluation/HarborlineJsonLogic.cs": "9c3a7fc77a78402e8833c6151115f63b7ad0a30e975c5d4a19427834619bb791",
         "projections/dotnet/foundation/hlp.foundation.rule-runtime/Graph/EvaluationCore.cs": "36910fbd86729d18ebc46d9741b808c8a41ed9952915f282ca1955f606c89eae",
-        "projections/dotnet/foundation/hlp.foundation.rule-runtime/Model/RuleOutcome.cs": "f3a01ae9ca416d9d564a9482939fd66a680097318c48f5975a073b94d8ff6efa",
+        "projections/dotnet/foundation/hlp.foundation.rule-runtime/Model/RuleOutcome.cs": "586c21b2a2c08691be45e52c811cb92517737607b6cd0dddd88a9991728a4bfb",
         "projections/dotnet/foundation/hlp.foundation.rule-runtime/RuleEngineLimits.cs": "a4b83401908c379ccaf9d9edd53b4efd5d525f57b033513c39fac2dc4aaaf139",
         "projections/dotnet/foundation/hlp.foundation.rule-runtime/Harborline.Foundation.RuleEngine.csproj": "f423b4995c59b4dc0ab55c1ab281149367cf3c75f9bcd8feb13bd37155170d05",
-        "projections/typescript/foundation/hlp.foundation.rule-runtime/package.json": "ce68d991fec4a63b9eeac801d45a17e7d8a18ca178fdb4c93ba8dfb56877413a",
+        "projections/typescript/foundation/hlp.foundation.rule-runtime/package.json": "e61c0ae233613dd1747e789e6ca12c7038d3c6fa7a25c63e5b4f65778275b8c1",
         "projections/typescript/foundation/hlp.foundation.rule-runtime/src/compiler.ts": "8a545631a129d85f1fa261ce134b26673d24f1ebb32d14ece18801a5cfd118aa",
         "projections/typescript/foundation/hlp.foundation.rule-runtime/src/graph.ts": "1edd95bba293ca2ff279d4323132690edcfcdb4ad5e92915a12c73f6f2740820",
         "projections/typescript/foundation/hlp.foundation.rule-runtime/src/jsonlogic.ts": "1f51e7ab01eced5258e96feab7d99f3068a449b12bf1b4168656b55860a90216",
-        "projections/typescript/foundation/hlp.foundation.rule-runtime/src/model.ts": "900fc1ed2abb707518e4dc94abac7184e2e6b6827982de0cb52f7f9a0393be5a",
-        "specs/modules/foundation/hlp.foundation.rule-runtime/interface.yaml": "ade5135dab3e150b1bf1b49d235b2acc8984ce3d7c1aa1f5c7e5a0583231f318"
+        "projections/typescript/foundation/hlp.foundation.rule-runtime/src/model.ts": "b6dad0b7b1311263f6e3f37f346e1f4f246004612db26ae560fa2ca50649eac9",
+        "specs/modules/foundation/hlp.foundation.rule-runtime/interface.yaml": "544a407e2583b4ac8a505fafc2c8c47284af2de561126bc6d78743c07a94d1b9"
       },
       "nextGate": "Extract the complete caller-backed Forms definition/version/draft/reuse state, then the executable Forms Engine, against this runtime."
     },
@@ -109,7 +154,7 @@
         "conformance/hlp.foundation.rule-authoring/definition-intent-cases.json": "ad455c51c3bfb0ddc98e44275e24d33602ee463fc10a05b782cd0339fa2bfa0a",
         "projections/dotnet/blocks/hlp.blocks.builder-definitions/RuleDefinitionCatalog.cs": "dfe51f92509ba7cd712b5d740a78e22f71634146ec4c1ffe719927b067dc5ad7",
         "projections/dotnet/blocks/hlp.blocks.builder-definitions.tests/RuleDefinitionCatalogTests.cs": "2276eea6b60048eadc816084b969c34fc29c222393afcd7784bf4cb7f3e72db1",
-        "projections/dotnet/foundation/hlp.foundation.rule-authoring/ContractAliases.cs": "ec712c94e073a59aae5828d28932c98589a436df4274c33eaf5a58885738d1fe",
+        "projections/dotnet/foundation/hlp.foundation.rule-authoring/ContractAliases.cs": "db6562c0bf1668c4ef076c427c6825937a2f1dbe94cd508ea4000acb963129b7",
         "projections/dotnet/foundation/hlp.foundation.rule-authoring/JsNumberMirror.cs": "d0c85a75eac8d46948706d03870f77e57c4a0fc64bb2bd334212140ab73dcf10",
         "projections/dotnet/foundation/hlp.foundation.rule-authoring/RuleAuthoringModel.cs": "62a809d9e543507c9733e2f78e46c3a252d3b701a9fa1ed463016a713e6acbd4",
         "projections/dotnet/foundation/hlp.foundation.rule-authoring/RuleDefinitionCodec.cs": "0ba8e5d2fab1db06110e62fbd744baa50cf2846a61ce2d1a56e61f438a844ba1",
@@ -204,9 +249,9 @@
         "projections/dotnet/foundation/hlp.foundation.forms-engine/Capabilities/MacaroonFormCapabilityVerifier.cs": "fa222f638742ce08980898cb118e179ff07f07d71277011f2962edbe9eb6280a",
         "projections/dotnet/foundation/hlp.foundation.forms-engine/CurrentFormExecutionContextProvider.cs": "6dcb960adf1e80e41a4c59eac4725df5cb8fedfaf864658a488109215375b5b3",
         "projections/dotnet/foundation/hlp.foundation.forms-engine/DependencyInjection/FormEngineServiceCollectionExtensions.cs": "6983724497b5a39c13a7240af561affe241eb608a9c87847945d2f454b1eaa42",
-        "projections/dotnet/foundation/hlp.foundation.forms-engine/FormCandidateEvaluator.cs": "60a15127b1c02ff6063d98d21b31a9c16b9c8fc350833dbb49fbde34dfa7af5e",
-        "projections/dotnet/foundation/hlp.foundation.forms-engine/FormContractMapper.cs": "c2b23cfbf7d7885d88bf516eb243dafd73eee95787182ff51412f50de2f388b7",
-        "projections/dotnet/foundation/hlp.foundation.forms-engine/FormEngine.cs": "6386543cf3efa7482964e25c523225a0f1c29cbafe748d0f97859bc4d10341f6",
+        "projections/dotnet/foundation/hlp.foundation.forms-engine/FormCandidateEvaluator.cs": "78aefa636a6b6bb541ef52d2483c4361e1aaf7ab3abed78a23b3e7f815b02ed8",
+        "projections/dotnet/foundation/hlp.foundation.forms-engine/FormContractMapper.cs": "774234ba457d959b4cfdc3637809bc5e85b32dece814dddd61deac6c6e50be61",
+        "projections/dotnet/foundation/hlp.foundation.forms-engine/FormEngine.cs": "50a5a3a564e8875dbe4f7909c4499d9a64f901d510bc71055d6ae36ea079cec2",
         "projections/dotnet/foundation/hlp.foundation.forms-engine/FormEngineContracts.cs": "ae85b0a3cf6b4499e04426fba224ed0ed339442f9ef0db71feb8bc4cfe4a6c9e",
         "projections/dotnet/foundation/hlp.foundation.forms-engine/FormEngineExceptions.cs": "e09b2ea1c4ab63bf9a0f140baf69c9f7583a2c577aa23c55e0d37ebfebf4a0da",
         "projections/dotnet/foundation/hlp.foundation.forms-engine/FormEngineOptions.cs": "369a579511bc4d2a567c63ddb7d8dfed44bd9164ab682ad27611d5d16b56140e",
@@ -216,7 +261,7 @@
         "projections/dotnet/foundation/hlp.foundation.forms-engine/Persistence/InMemoryFormSubmissionStore.cs": "80b909b286da480e274ad1d41329257a696a98eacb51af588a80d5ca9a182295",
         "projections/dotnet/foundation/hlp.foundation.forms-engine/Projection/FormProjectionDelivery.cs": "1ce6a4536e71bc399ea6dfc6eba3d4be978d3b4080a83f2d71e22df74091558f",
         "projections/dotnet/foundation/hlp.foundation.forms-engine/Projection/FormProjectionRecovery.cs": "a31e8a2e8ef61427cbd91b5ad01d87f8986e607a5ad543fbc57f1c5d9f5b32c2",
-        "projections/dotnet/foundation/hlp.foundation.forms-engine/RuleCompileAdmission.cs": "34e17b89ea4570b2a42eb69312acc932a64ccf68a52ad73096c257fe82310965",
+        "projections/dotnet/foundation/hlp.foundation.forms-engine/RuleCompileAdmission.cs": "879a18aee2fa3f93d5cb0f0c5167a59aa3a76908a9fc872bef98b76775a02306",
         "projections/dotnet/foundation/hlp.foundation.forms-engine/Security/FormFieldSecurity.cs": "860fc994962ad1e60a2afdfe4cc66626caedd51f34ce6348741a12c274c2374b",
         "projections/dotnet/foundation/hlp.foundation.forms-engine/Security/TenantBoundAesGcmFormFieldSecurity.cs": "6a1a5ed3d404690cc8e8bbeda7fd77bd5f229c80456c85de677b263f7bb739d0",
         "specs/modules/foundation/hlp.foundation.forms-engine/interface.yaml": "806e5560a086632772e28572fc9a3602398b7fcfe408ebbdd9812d9ae6834121",
@@ -365,7 +410,7 @@
       "contentHashes": {
         "projections/dotnet/blocks/hlp.blocks.inspection-review/InMemoryInspectionReviewAdapters.cs": "fe3f7e4a060a048a30e557fb7b69aef6da4523c6501c1d837b5a624f8a370a6e",
         "projections/dotnet/blocks/hlp.blocks.inspection-review/InspectionReviewContracts.cs": "e9c339477feff343a9d90b89aa8ca7594323072dfab16fd55a89c18040e3d59d",
-        "projections/dotnet/blocks/hlp.blocks.inspection-review/InspectionReviewProcess.cs": "53d990fe1832e40a043f437b5486d4f66a87d48413781005a11e948f0d5781ab",
+        "projections/dotnet/blocks/hlp.blocks.inspection-review/InspectionReviewProcess.cs": "63550c03a469e5f4091d85e4d6f84eb89a4eea4e2b2d8f9b35c75b89f99f0611",
         "projections/dotnet/blocks/hlp.blocks.inspection-review/InspectionReviewProjectionSink.cs": "386d661aab2b5a423baad59292b8c1adf52f7d04c852b7a880922d859f354ce3",
         "projections/dotnet/blocks/hlp.blocks.inspection-review/InspectionReviewService.cs": "e21c14d516a364582c458e41cc78b4b9567ae2158d4d0cc8cbea4fc9b9de6533",
         "projections/dotnet/blocks/hlp.blocks.inspection-review/InspectionReviewSupport.cs": "0f8da996fa940c3da5daf5868ce7616a71c75ac5b656890a9ebf0a00dd024aea",
@@ -406,7 +451,7 @@
         "projections/dotnet/blocks/hlp.blocks.workflow.tests/InvoiceApprovalHandlerTests.cs": "2b5cf329c4133982fdc13d85ddfd4591dd803bd47f559517d996ba4a8f924429",
         "projections/dotnet/blocks/hlp.blocks.workflow.tests/RecurringGenerationHandlerTests.cs": "27acad2f3bd094b8be7e8c43edeb9cbca7748b1554c0e92727f70d6b32f15639",
         "projections/dotnet/blocks/hlp.blocks.workflow.tests/Harborline.Blocks.Workflow.Tests.csproj": "0131d738274347df312de122eb5ae2457010738d06b30faade01cbb920ddfe9b",
-        "projections/dotnet/blocks/hlp.blocks.workflow.tests/ThresholdDecisionTableMigrationTests.cs": "75ac96de59c381dc8e2a729ca98acc6770e95992d6c3e6ae9dfc5a0a531b1c49",
+        "projections/dotnet/blocks/hlp.blocks.workflow.tests/ThresholdDecisionTableMigrationTests.cs": "32201ae2c4b00b8f2ad49f07a93cb364eed118caca3e0aa5772158af9a096733",
         "projections/dotnet/blocks/hlp.blocks.workflow.tests/ThresholdDecisionTableTests.cs": "ce1dd8fba807266d60ee609b77f139c2174555bcde91cfa4cdc31fb91523968f",
         "projections/dotnet/blocks/hlp.blocks.workflow.tests/WorkflowAdmissionValidatorTests.cs": "87aa2df766ce663feecd3eee70769f7ba93c865f53a2687f2bf951c75ab8d7ae",
         "projections/dotnet/blocks/hlp.blocks.workflow.tests/WorkflowApprovalSeparationOfDutiesTests.cs": "1416ce436afe9abde163ce94628bcb017af058b1fb196fa058498133db3f9ab7",
@@ -921,15 +966,15 @@
         "projections/react/ui/hlp.ui.form-view/src/index.ts": "0e68e7b08d05ceedd01ee37ede7822e7c80ded6157357c2996f82bbc6948cced",
         "projections/react/ui/hlp.ui.form-view/src/__tests__/form-view.native.test.ts": "e46674cfb71c4f4c3dec328bb4378ef17e50d18b1cb513137753fe35053b32cf",
         "projections/react/ui/hlp.ui.form-view/src/__tests__/form-view.conformance.test.ts": "e003b3d957aa1250a3ba53fdbc7799f5a56d9274a01e7d29d754b421cd83c2ef",
-        "projections/dotnet/foundation/hlp.ui.form-view/FormViewSupport.cs": "890e800e6254a2c4e6f02695c245194fa61c951fe77053d721b196a5410445db",
+        "projections/dotnet/foundation/hlp.ui.form-view/FormViewSupport.cs": "0017017cc77fea72f13ededcf02fb387ca12348c6510b7d09b16b1953162670c",
         "conformance/hlp.ui.form-view/fixtures.yaml": "f2d17776a7dae0b66a825d32d83a5140dff917052bead57b68b73e5a53b74f02",
         "conformance/hlp.ui.form-view/quality-fixtures.yaml": "8b2b38d7f4f101efe3232b5f9315b24bc90bca1e41cc1528f429bfc1cb3ca997",
         "conformance/hlp.ui.form-view/runners/run-shared.mjs": "6c44fd6ea2e7ea3000f4c806e9877f7c83912e39c25f384188a676187f9d75ac",
         "specs/modules/ui/hlp.ui.form-view/interface.yaml": "0d0ed294fb463b84ff146db83fc9514bd639d9c72506e21d793ca43d0ae0ebfe",
         "specs/modules/ui/hlp.ui.form-view/quality.yaml": "7c2b7e01733a4a6957a563e8c87228ab99ce538df28e08695dc88ef8aeb50b9b",
-        "specs/modules/contracts/hlp.contracts.forms/interface.yaml": "8f5a740de58a5636b64e389f9102aea464cf015bf66a124b5557b82ce255597b",
-        "projections/typescript/contracts/hlp.contracts.forms/src/forms.ts": "c9dfa629f764594a6b89a40e6140f329eaf497ecdff8d1244aa09478e5dd854b",
-        "projections/dotnet/contracts/hlp.contracts.identities/Forms/FormsContracts.g.cs": "4f11a73560662b1de4277939573d33c9bec06a783173c5bcd907690bd8f9161a"
+        "specs/modules/contracts/hlp.contracts.forms/interface.yaml": "fbcdd5a32ee5cf36f9e95be3c71ff93a6c2d0c67d55db8baf86463fd9d36b942",
+        "projections/typescript/contracts/hlp.contracts.forms/src/forms.ts": "3340c018738ce0019d079c25fcacb87f4f87f8bc26a40256a7b0bc59d433835e",
+        "projections/dotnet/contracts/hlp.contracts.identities/Forms/FormsContracts.cs": "3e76a6195f4866cfa2a34b63077baeb83ddc7c322949ebb10a280b68e607fdb0"
       },
       "nextGate": "Retain this conformant compatibility binding and canonical Forms dependency while HLF-052 advances to the next Carrier-essential dependency wave."
     },
