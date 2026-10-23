@@ -2370,7 +2370,7 @@
       "sourceExtracted": true,
       "sourceState": "Interface revision 1 preserves the exact pinned hlp.ui.layers-rail source surface and proves every registered projection through native, shared-conformance, package-only, and applicable gallery/performance gates.",
       "contentHashes": {
-        "conformance/hlp.ui.layers-rail/fixtures.yaml": "0b02d2aa14d714a7b064fe603c25051eaf82f48e60cf1b676f721f7339c7b8de",
+        "conformance/hlp.ui.layers-rail/fixtures.yaml": "aef133bafde54cd705bbd6fc5960689ea5e2d5a5b8f9e914ea3ee46bcedd049c",
         "conformance/hlp.ui.layers-rail/quality-fixtures.yaml": "9ab32da2baa19c8dad3120d4221aa32992c610e40c9662390074e4b94dcb21c5",
         "conformance/hlp.ui.layers-rail/runners/run-shared.mjs": "b766ed71e685e1f0a84be1d4f29199a5460d4f4351dddf2bdb133e7ab23e7f2b",
         "projections/blazor/ui/hlp.ui.layers-rail/HarborlineLayersRail.razor": "9317858d62830b5c39788f85d285739bb47009cbd7ea7e000c4eb5570629445a",
