@@ -71,6 +71,31 @@ const shardCount = Math.max(1, Number(process.env.GALLERY_SHARDS ?? 1) || 1)
 //                    unsharded gate runs, emitting the same schema-3 report. Nothing downstream
 //                    (the phase-4 counts, the receipt, validate-repository) can tell the
 //                    difference, which is the property that makes this safe to land.
+// Every argument is one of these, exactly. A typo or a space-separated value (`--record-add a,b`,
+// `--record-ad=...`) used to be ignored, and an ignored --record-add turned an intended additive
+// recording into a full re-record of every baseline (b19 review). Now it is refused before anything runs.
+const FLAG_ARGUMENTS = new Set(['--packages-ready', '--record', '--capture'])
+const VALUE_ARGUMENTS = ['--shard=', '--merge=', '--record-add=']
+export function argumentProblems(argv) {
+  const problems = []
+  for (const argument of argv) {
+    if (argument.startsWith('--record-add')) {
+      if (!/^--record-add=\S+$/.test(argument) || argument.slice('--record-add='.length).split(',').every(id => id === '')) {
+        problems.push(`malformed ${JSON.stringify(argument)}: expected --record-add=<scenarioId>[,<scenarioId>...] in one argument`)
+      }
+      continue
+    }
+    if (FLAG_ARGUMENTS.has(argument)) continue
+    const value = VALUE_ARGUMENTS.find(prefix => argument.startsWith(prefix))
+    if (value && argument.length > value.length) continue
+    problems.push(`unknown or malformed argument ${JSON.stringify(argument)}; expected ${[...FLAG_ARGUMENTS, ...VALUE_ARGUMENTS.map(prefix => `${prefix}<value>`)].join(', ')}`)
+  }
+  return problems
+}
+if (import.meta.main) {
+  const problems = argumentProblems(process.argv.slice(2))
+  if (problems.length > 0) throw new Error(`run-gallery-gate: ${problems.join('; ')}`)
+}
 const shardArgument = process.argv.find(argument => argument.startsWith('--shard='))?.slice('--shard='.length)
 const shardAssignment = parseShardAssignment(shardArgument)
 const mergeDirectory = process.argv.find(argument => argument.startsWith('--merge='))?.slice('--merge='.length)
@@ -115,6 +140,9 @@ export function collectShardReports(reports) {
   const totals = [...new Set(reports.map(report => report.shards))]
   if (totals.length !== 1) throw new Error(`gallery shard reports disagree on the shard total: ${JSON.stringify(totals)}`)
   const total = totals[0]
+  const indices = reports.map(report => report.shard)
+  const duplicated = [...new Set(indices.filter((index, position) => indices.indexOf(index) !== position))]
+  if (duplicated.length > 0) throw new Error(`gallery shard reports repeat shard ${duplicated.join(', ')}; each index must appear once`)
   const byIndex = new Map(reports.map(report => [report.shard, report]))
   const missing = Array.from({length: total}, (_, position) => position + 1).filter(shard => !byIndex.has(shard))
   if (missing.length > 0) {
@@ -130,6 +158,51 @@ export function collectShardReports(reports) {
 // run uses -- which refuses any capture set that is not exactly the catalog. What stays refused is a
 // deliberate subset: GALLERY_GREP with --record or --shard. --record-add=<id,...> makes the recording
 // additive (see recordGalleryBaselines).
+export function gateArgumentProblem({record, recordAdditions, focusedPattern, shard, merge, env = process.env}) {
+  if (shard && merge) return '--shard and --merge are the two halves of a matrix run; pass one'
+  if (record && focusedPattern) return '--record requires the complete gallery gate; GALLERY_GREP is not allowed'
+  // A shard of a subset is not a shard of the suite the collector will reconcile against the catalog.
+  if (shard && focusedPattern) return '--shard requires the complete gallery gate; GALLERY_GREP is not allowed'
+  if (recordAdditions && !record) return '--record-add requires --record'
+  // Provenance (b19 review): a recording shard names the run it belongs to, so the collector can
+  // refuse shards from different runs. The id has to come from outside: shards are separate processes.
+  if (record && shard && !env.HARBORLINE_GALLERY_RUN_ID) {
+    return '--shard with --record requires HARBORLINE_GALLERY_RUN_ID, one value shared by every shard of the recording matrix'
+  }
+  return undefined
+}
+
+// Where, from what source, and in which run a shard was produced. Carried by every shard report; a
+// recording collector refuses a matrix whose shards disagree on any of it.
+export function shardProvenance({env = process.env, head = gitHead()} = {}) {
+  return {
+    galleryHostKey: galleryHostKey(),
+    sourceHead: head,
+    runId: env.HARBORLINE_GALLERY_RUN_ID ?? env.GITHUB_RUN_ID ?? `local-${process.pid}-${Date.now()}`,
+  }
+}
+
+export function recordingProvenanceProblem(reports) {
+  for (const field of ['galleryHostKey', 'sourceHead', 'runId']) {
+    const values = [...new Set(reports.map(report => report.provenance?.[field] ?? null))]
+    if (values.includes(null)) return `a recording matrix needs ${field} on every shard; shard(s) ${reports.filter(report => !report.provenance?.[field]).map(report => report.shard).join(', ')} carry none`
+    if (values.length > 1) return `recording shards disagree on ${field}: ${values.map(value => JSON.stringify(value)).join(' vs ')}`
+  }
+  return undefined
+}
+
+// Same naming as gallery.spec.ts galleryHostKey and the parity registers.
+function galleryHostKey() {
+  const os = process.platform
+  const cpu = process.arch
+  return os === 'win32' ? `windows-11-${cpu}` : os === 'darwin' ? (cpu === 'x64' ? 'macos-x64-intel' : `macos-${cpu}`) : `${os}-${cpu}`
+}
+
+function gitHead() {
+  const result = spawnSync('git', ['rev-parse', 'HEAD'], {cwd: root, encoding: 'utf8'})
+  return result.status === 0 ? result.stdout.trim() : null
+}
+
 // Both screenshot runs -- review capture and React baseline recording -- scroll the page to take
 // their pictures, and gallery.spec.ts declines per-scenario reflow on such a page; the expectation
 // has to describe the run that happens. On a matrix run the collector holds the same --record flag
@@ -138,14 +211,6 @@ export function screenshotsPerturbLayout({captureGallery, recordBaselines}) {
   return Boolean(captureGallery || recordBaselines)
 }
 
-export function gateArgumentProblem({record, recordAdditions, focusedPattern, shard, merge}) {
-  if (shard && merge) return '--shard and --merge are the two halves of a matrix run; pass one'
-  if (record && focusedPattern) return '--record requires the complete gallery gate; GALLERY_GREP is not allowed'
-  // A shard of a subset is not a shard of the suite the collector will reconcile against the catalog.
-  if (shard && focusedPattern) return '--shard requires the complete gallery gate; GALLERY_GREP is not allowed'
-  if (recordAdditions && !record) return '--record-add requires --record'
-  return undefined
-}
 const recordBaselines = process.argv.includes('--record')
 const recordAdditionsArgument = process.argv.find(argument => argument.startsWith('--record-add='))?.slice('--record-add='.length)
 const recordAdditions = recordAdditionsArgument === undefined ? undefined
@@ -374,7 +439,11 @@ if (import.meta.main) {
       mergedShardReport = mergeShardReports(complete.map(report => report.playwrightReport ?? null))
       // Only a matrix whose every step passed carries captures worth unioning; a broken one has
       // already set `failure`, and recording below requires none.
-      if (recordBaselines && !brokenStep) writeBaselineCaptures(baselineCaptureRoot, unionShardBaselineCaptures(complete))
+      if (recordBaselines && !brokenStep) {
+        const provenanceProblem = recordingProvenanceProblem(complete)
+        if (provenanceProblem) throw new Error(provenanceProblem)
+        writeBaselineCaptures(baselineCaptureRoot, unionShardBaselineCaptures(complete))
+      }
     } else {
     await Promise.all([assertPortAvailable(reactPort), assertPortAvailable(blazorPort)])
     prepared = prepareGalleries({ packagesReady: process.argv.includes('--packages-ready') })
@@ -467,6 +536,7 @@ if (import.meta.main) {
       kind: 'gallery-shard',
       shard: shardAssignment.index,
       shards: shardAssignment.total,
+      provenance: shardProvenance(),
       passed: gatePassed,
       results,
       failure,

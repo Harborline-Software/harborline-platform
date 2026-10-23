@@ -15,7 +15,7 @@ import test from 'node:test'
 import {
   captureFileName, readBaselineCaptures, recordGalleryBaselines, unionShardBaselineCaptures, writeBaselineCaptures,
 } from '../gallery-baseline-store.mjs'
-import {gateArgumentProblem, requiredGalleryStepIds, screenshotsPerturbLayout} from '../run-gallery-gate.mjs'
+import {argumentProblems, collectShardReports, gateArgumentProblem, recordingProvenanceProblem, requiredGalleryStepIds, screenshotsPerturbLayout, shardProvenance} from '../run-gallery-gate.mjs'
 import {expectedChecks} from '../gallery-observations.mjs'
 
 const root = resolve(import.meta.dirname, '../..')
@@ -39,7 +39,9 @@ function scratch() {
 }
 
 test('--record is allowed on both halves of a matrix run, and a subset still never records', () => {
-  assert.equal(gateArgumentProblem({record: true, shard: {index: 1, total: 3}}), undefined)
+  const env = {HARBORLINE_GALLERY_RUN_ID: 'run-1'}
+  assert.equal(gateArgumentProblem({record: true, shard: {index: 1, total: 3}, env}), undefined)
+  assert.match(gateArgumentProblem({record: true, shard: {index: 1, total: 3}, env: {}}), /requires HARBORLINE_GALLERY_RUN_ID/)
   assert.equal(gateArgumentProblem({record: true, merge: 'dir'}), undefined)
   assert.equal(gateArgumentProblem({record: true, merge: 'dir', recordAdditions: ['a.b']}), undefined)
   assert.match(gateArgumentProblem({record: true, focusedPattern: 'popover'}), /GALLERY_GREP is not allowed/)
@@ -130,6 +132,16 @@ test('additive recording adds only the named scenarios and leaves every existing
       /refuses to overwrite the existing example\.one baseline/)
     assert.throws(() => recordGalleryBaselines({repositoryRoot, captureRoot, catalogs, additions: ['example.nine']}),
       /outside the catalog/)
+    // b19 review: a refusal anywhere in the list writes nothing, not even the PNGs of the ids before it.
+    const storedBefore = readdirSync(storeRoot).sort()
+    const manifestBefore = readFileSync(manifestPath, 'utf8')
+    rmSync(join(repositoryRoot, 'specs/modules/ui/hlp.ui.other/react-baselines.json'))
+    writeFileSync(join(captureRoot, captureFileName('hlp.ui.other', 'other.one')), png('fresh other'))
+    assert.throws(() => recordGalleryBaselines({repositoryRoot, captureRoot, catalogs, additions: ['other.one', 'example.one']}),
+      /refuses to overwrite the existing example\.one baseline/)
+    assert.deepEqual(readdirSync(storeRoot).sort(), storedBefore, 'no orphan PNG from the refused batch')
+    assert.equal(readFileSync(manifestPath, 'utf8'), manifestBefore)
+    assert.equal(existsSync(join(repositoryRoot, 'specs/modules/ui/hlp.ui.other/react-baselines.json')), false)
     rmSync(join(captureRoot, captureFileName('hlp.ui.other', 'other.one')))
     assert.throws(() => recordGalleryBaselines({repositoryRoot, captureRoot, catalogs, additions: ['example.two']}),
       /capture set mismatch/, 'an addition is only ever recorded from a complete capture set')
@@ -146,6 +158,7 @@ test('the recording collector refuses, by name, a matrix whose shard did not rec
       schemaVersion: 1, kind: 'gallery-shard', shard: index, shards: 2, passed: true,
       results: requiredGalleryStepIds.map(id => ({id, passed: true, durationMs: 1})),
       playwrightReport: null,
+      provenance: {galleryHostKey: 'macos-x64-intel', sourceHead: 'a'.repeat(40), runId: 'run-1'},
       ...(index === 1 ? {baselineCaptures: []} : {}),
     })
     for (const index of [1, 2]) writeFileSync(join(directory, `gallery-shard-${index}.json`), JSON.stringify(passing(index)))
@@ -169,4 +182,56 @@ test('a recording run, sharded or not, declares no per-scenario reflow, as a cap
   const plain = expectedChecks(modules, {capture: screenshotsPerturbLayout({recordBaselines: false})}).reflowChecks
   const recording = expectedChecks(modules, {capture: screenshotsPerturbLayout({recordBaselines: true})}).reflowChecks
   assert.equal(plain - recording, 2, 'one per-scenario reflow assertion per lane is not declared while recording')
+})
+
+test('an argument the gate does not know, or a malformed --record-add, is refused before anything runs', () => {
+  assert.deepEqual(argumentProblems(['--packages-ready', '--record', '--capture', '--shard=1/3', '--merge=dir', '--record-add=a.b,c.d']), [])
+  for (const argv of [['--record-add', 'a.b'], ['--record-add='], ['--record-add=,'], ['--record-add= a.b'], ['--record-ad=a.b'], ['--recordadd=a.b'],
+    ['--shard', '1/3'], ['--merge='], ['--packages-redy'], ['stray']]) {
+    assert.ok(argumentProblems(argv).length > 0, `${argv.join(' ')} must be refused`)
+  }
+  assert.match(argumentProblems(['--record-add', 'a.b'])[0], /malformed "--record-add"/)
+  // The real entry point: a space-separated --record-add stops the gate, and no report is produced.
+  const run = spawnSync(process.execPath, ['tooling/run-gallery-gate.mjs', '--merge=/nonexistent', '--record', '--record-add', 'popover.inside-dialog'], {cwd: root, encoding: 'utf8'})
+  assert.notEqual(run.status, 0)
+  assert.equal(run.stdout, '')
+  assert.match(run.stderr, /malformed "--record-add"/)
+})
+
+test('shard reports carry host, source HEAD and run id; a recording matrix refuses any disagreement', () => {
+  const provenance = shardProvenance({env: {HARBORLINE_GALLERY_RUN_ID: 'run-7'}, head: 'a'.repeat(40)})
+  assert.equal(provenance.runId, 'run-7')
+  assert.equal(provenance.sourceHead, 'a'.repeat(40))
+  assert.match(provenance.galleryHostKey, /^(windows-11-|macos-|linux-)/)
+  const report = (shard, overrides = {}) => ({shard, provenance: {...provenance, ...overrides}})
+  assert.equal(recordingProvenanceProblem([report(1), report(2), report(3)]), undefined)
+  assert.match(recordingProvenanceProblem([report(1), report(2, {galleryHostKey: 'windows-11-x64'})]), /disagree on galleryHostKey/)
+  assert.match(recordingProvenanceProblem([report(1), report(2, {sourceHead: 'b'.repeat(40)})]), /disagree on sourceHead/)
+  assert.match(recordingProvenanceProblem([report(1), report(2, {runId: 'run-8'})]), /disagree on runId/)
+  assert.match(recordingProvenanceProblem([report(1), {shard: 2}]), /needs galleryHostKey on every shard; shard\(s\) 2/)
+})
+
+test('a matrix that repeats a shard index is refused, not silently collapsed', () => {
+  assert.throws(() => collectShardReports([{shard: 1, shards: 2}, {shard: 2, shards: 2}, {shard: 2, shards: 2}]), /repeat shard 2/)
+})
+
+test('the recording collector refuses shards from different runs, by name', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'hlp-record-provenance-'))
+  try {
+    for (const index of [1, 2]) {
+      writeFileSync(join(directory, `gallery-shard-${index}.json`), JSON.stringify({
+        schemaVersion: 1, kind: 'gallery-shard', shard: index, shards: 2, passed: true,
+        provenance: {galleryHostKey: 'macos-x64-intel', sourceHead: 'a'.repeat(40), runId: `run-${index}`},
+        results: requiredGalleryStepIds.map(id => ({id, passed: true, durationMs: 1})),
+        playwrightReport: null, baselineCaptures: [],
+      }))
+    }
+    const run = spawnSync(process.execPath, ['tooling/run-gallery-gate.mjs', `--merge=${directory}`, '--record'], {cwd: root, encoding: 'utf8'})
+    assert.equal(run.status, 1)
+    const out = JSON.parse(run.stdout)
+    assert.match(out.failure, /recording shards disagree on runId: "run-1" vs "run-2"/)
+    assert.equal(out.baselineRecording, undefined)
+  } finally {
+    rmSync(directory, {recursive: true, force: true})
+  }
 })

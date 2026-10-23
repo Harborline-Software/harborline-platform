@@ -141,27 +141,36 @@ function recordAdditions({ repositoryRoot, captureRoot, catalogs, additions }) {
   const unknown = requested.filter(id => !owner.has(id))
   if (unknown.length) throw new Error(`additive baseline recording names scenarios outside the catalog: ${JSON.stringify(unknown)}`)
   const storeRoot = resolve(repositoryRoot, 'specs/modules/ui/baselines/sha256')
+  // Every requested id is checked -- in the catalog, not already recorded, captured as a PNG -- before
+  // a single file is written, so a refusal leaves no orphan PNG in the store (b19 review).
   const manifests = new Map()
-  const added = []
+  const planned = []
   for (const scenarioId of requested) {
     const { catalog, index } = owner.get(scenarioId)
     const path = resolve(repositoryRoot, `specs/modules/ui/${catalog.moduleId}/react-baselines.json`)
-    const manifest = manifests.get(path)?.manifest
+    const manifest = manifests.get(path)
       ?? (existsSync(path) ? JSON.parse(readFileSync(path, 'utf8')) : { schemaVersion: 1, projection: 'react', moduleId: catalog.moduleId, scenarios: [] })
-    if (manifest.scenarios.some(entry => entry.scenarioId === scenarioId)) {
+    if (manifest.scenarios.some(entry => entry.scenarioId === scenarioId) || planned.some(item => item.scenarioId === scenarioId)) {
       throw new Error(`additive baseline recording refuses to overwrite the existing ${scenarioId} baseline`)
     }
     const fileName = captureFileName(catalog.moduleId, scenarioId)
-    const { sha256, bytes } = storeCapture(storeRoot, resolve(captureRoot, fileName), fileName)
+    const source = resolve(captureRoot, fileName)
+    const bytes = readFileSync(source)
+    if (bytes.length < 8 || bytes.subarray(0, 8).toString('hex') !== '89504e470d0a1a0a') throw new Error(`${fileName} is not a PNG`)
+    manifests.set(path, manifest)
+    planned.push({ catalog, index, scenarioId, manifest, source, fileName })
+  }
+  const added = []
+  for (const { catalog, index, scenarioId, manifest, source, fileName } of planned) {
+    const { sha256, bytes } = storeCapture(storeRoot, source, fileName)
     // Catalog order, without moving an existing entry: after the last entry the catalog places before it.
     const order = id => catalog.scenarios.findIndex(scenario => scenario.id === id)
     let at = 0
     manifest.scenarios.forEach((entry, position) => { if (order(entry.scenarioId) < index) at = position + 1 })
     manifest.scenarios.splice(at, 0, { scenarioId, sha256, bytes, artifact: `../baselines/sha256/${sha256}.png` })
-    manifests.set(path, { manifest })
     added.push({ moduleId: catalog.moduleId, scenarioId, sha256, bytes })
   }
-  for (const [path, { manifest }] of manifests) atomicJson(path, manifest)
+  for (const [path, manifest] of manifests) atomicJson(path, manifest)
   return {
     schemaVersion: 1,
     projection: 'react',
