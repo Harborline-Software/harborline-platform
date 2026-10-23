@@ -26,7 +26,8 @@ export function connect(portal, content, trigger, modal, callback) {
     const otherOverlay = target instanceof Element ? target.closest(overlayPortals) : null
     if (!fromThis && ((otherOverlay && otherOverlay !== portal) || !isTopmostOverlay(portal))) return
     // Connected popover content sits under body, outside this portal, so it would pass as page content
-    // and one Escape closed both the popover and the sheet. A popover above the sheet owns that key.
+    // and one Escape closed both the popover and the sheet. A key from popover content belongs to that
+    // popover (the marker doesn't record stacking; a sheet opened over a focused popover is an edge).
     if (!fromThis && target instanceof Element && target.closest('[data-hl-layer="popover"]')) return
     if (event.key === 'Escape') { event.preventDefault(); callback.invokeMethodAsync('DismissFromJavaScriptAsync'); return }
     if (!modal || event.key !== 'Tab') return

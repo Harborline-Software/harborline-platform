@@ -118,6 +118,7 @@ export function connect(trigger, anchor, content, options, callback) {
       document.removeEventListener('pointerdown', onPointer, true)
       window.removeEventListener('resize', onViewport)
       window.removeEventListener('scroll', onViewport, true)
+      delete content.dataset.hlLayer
       if (content.isConnected && placeholder.isConnected) placeholder.before(content)
       placeholder.remove()
       trigger?.focus()
