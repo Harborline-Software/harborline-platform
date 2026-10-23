@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import {runPhase4InputAttempt} from './phase4-input-preflight.mjs'
+import {assertPhase4SubjectUnchanged, projectPhase4InputEvidence, runPhase4InputAttempt} from './phase4-input-preflight.mjs'
 import { execFileSync, spawnSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { cpus } from 'node:os'
@@ -16,10 +16,12 @@ import {acquirePhase4GateLock} from './phase4-gate-lock.mjs'
 import {boundedReport, gateErrorDetails, interruptionDetails, reportWasTruncated, runPhase4Step} from './phase4-step-runner.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
-let reentryGrant
-let reentryFailure
-try { reentryGrant = await receiveLockReentryGrant() } catch (error) { reentryFailure = error }
-const inputOutcome = await runPhase4InputAttempt({
+if (process.argv.includes('--only')) throw new Error('phase-4 gate refuses --only; package evidence must cover every fixture')
+const reentryGrant = await receiveLockReentryGrant()
+await acquirePhase4GateLock({repositoryRoot: root, reentryGrant})
+const inputOutcome = process.env.GITHUB_ACTIONS === 'true' && !process.argv.includes('--phase4-lock-reentry')
+  ? await launchGate()
+  : await runPhase4InputAttempt({
   repositoryRoot: root,
   kind: 'gate',
   subject: {
@@ -28,9 +30,19 @@ const inputOutcome = await runPhase4InputAttempt({
     mode: process.env.HARBORLINE_TESTED_TREE ? 'exact-staged-tree' : 'current-index',
   },
   inherited: process.argv.includes('--phase4-lock-reentry') ? reentryGrant?.phase4Input ?? {} : undefined,
-  launch: async inputAttempt => {
-    if (process.argv.includes('--only')) throw new Error('phase-4 gate refuses --only; package evidence must cover every fixture')
-    await acquirePhase4GateLock({repositoryRoot: root, reentryGrant})
+  launch: launchGate,
+})
+if (inputOutcome.error) {
+  process.stderr.write(`${inputOutcome.error.message}\n`)
+  process.stdout.write(`${JSON.stringify(inputOutcome.observation, null, 2)}\n`)
+}
+process.exitCode = inputOutcome.exitCode
+
+async function launchGate(inputAttempt) {
+    const actualSubject = {
+      head: execFileSync('git', ['rev-parse', 'HEAD'], {cwd: root, encoding: 'utf8'}).trim(),
+      testedTree: execFileSync('git', ['write-tree'], {cwd: root, encoding: 'utf8'}).trim(),
+    }
     const reactRoot = resolve(root, 'projections/react/ui/hlp.ui.button')
     const formsContractsRoot = resolve(root, 'projections/typescript/contracts/hlp.contracts.forms')
     const ruleRuntimeRoot = resolve(root, 'projections/typescript/foundation/hlp.foundation.rule-runtime')
@@ -177,7 +189,7 @@ const inputOutcome = await runPhase4InputAttempt({
     const galleryShardReports = process.env.HARBORLINE_GALLERY_SHARD_REPORTS
 
     let caughtGateError
-    inputAttempt.recheck()
+    inputAttempt?.recheck()
     try {
       // The root has its own devDependency (typescript, the parser tooling/gates/render-digest.mjs
       // uses) and nothing installed it: the five sub-project installs below all target
@@ -259,7 +271,7 @@ const inputOutcome = await runPhase4InputAttempt({
         testedTree,
         mode: process.env.HARBORLINE_TESTED_TREE ? 'exact-staged-tree' : 'current-index',
       },
-      inputPreflight: inputAttempt.preflight,
+      ...(inputAttempt ? {inputPreflight: projectPhase4InputEvidence(inputAttempt.preflight)} : {}),
       moduleIds,
       requiredStepIds,
       status: passed ? 'PASS' : 'FAIL',
@@ -301,18 +313,12 @@ const inputOutcome = await runPhase4InputAttempt({
       },
       results,
     }
-    inputAttempt.recheck()
+    assertPhase4SubjectUnchanged(root, actualSubject)
     recordPhase4Gate(resolve(root, 'docs/evidence/phase-4/gate.json'), report, {headless})
     process.stdout.write(`${JSON.stringify(report, null, 2)}\n`)
     process.exitCode = passed ? 0 : 1
     return {status: report.status, exitCode: passed ? 0 : 1, headless}
-  },
-})
-if (inputOutcome.error) {
-  process.stderr.write(`${reentryFailure?.message ?? inputOutcome.error.message}\n`)
-  process.stdout.write(`${JSON.stringify(inputOutcome.observation, null, 2)}\n`)
 }
-process.exitCode = inputOutcome.exitCode
 
 function receiveLockReentryGrant() {
   if (!process.argv.includes('--phase4-lock-reentry')) return undefined

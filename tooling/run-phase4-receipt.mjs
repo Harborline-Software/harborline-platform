@@ -25,6 +25,7 @@ const RECEIPT_SCRATCH_PREFIX = 'harborline-platform-receipt-'
 // repository it measures, so the root is simply its own parent directory.
 const platform = path.resolve(import.meta.dirname, '..')
 
+const receiptLock = await acquirePhase4GateLock({repositoryRoot: platform})
 const inputOutcome = await runPhase4InputAttempt({
   repositoryRoot: platform,
   kind: 'receipt',
@@ -38,7 +39,6 @@ const inputOutcome = await runPhase4InputAttempt({
       process.stderr.write(`removed stale receipt scratch tree (owner gone, older than 2h): ${removed}\n`)
     }
 
-    const receiptLock = await acquirePhase4GateLock({repositoryRoot: platform})
     const baseHead = inputAttempt.preflight.inputs.subject.baseHead
     const testedTree = inputAttempt.preflight.inputs.subject.testedTree
     // Resolved up front (not just on the pass path) because the failure branch below also needs it,
@@ -98,7 +98,6 @@ const inputOutcome = await runPhase4InputAttempt({
     if (git('rev-parse', 'HEAD') !== baseHead || git('write-tree') !== testedTree) {
       throw new Error('Platform HEAD or staged tree changed while the phase-4 gate was running')
     }
-    inputAttempt.recheck()
     const receipt = {
       schemaVersion: 3,
       repository: 'harborline-platform',

@@ -1,12 +1,13 @@
 import {execFileSync} from 'node:child_process'
 import {createHash, randomUUID} from 'node:crypto'
-import {mkdirSync, readFileSync, readdirSync, writeFileSync} from 'node:fs'
+import {lstatSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync} from 'node:fs'
 import path from 'node:path'
 
 const MAIN_REF = 'refs/remotes/origin/main'
 const FORGE = 'https://github.com/Harborline-Software/harborline-platform.git'
 const FORGE_API = 'repos/Harborline-Software/harborline-platform/commits/main'
 const OBJECT_ID = /^[0-9a-f]{40}$/
+const OBSERVATION_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 const digest = value => createHash('sha256').update(value).digest('hex')
 const git = (root, ...args) => execFileSync('git', args, {
   cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
@@ -225,8 +226,158 @@ function checkUnchanged(root, preflight, subject) {
   return current
 }
 
-// Both real entry points use this adapter. Its callback owns lock/allowance/heavy work;
-// a refused preflight never invokes it. Observations never target canonical gate evidence.
+export function assertPhase4SubjectUnchanged(root, {head, testedTree}) {
+  if (git(root, 'rev-parse', 'HEAD') !== head || git(root, 'write-tree') !== testedTree)
+    throw new Error('Platform HEAD or staged tree changed while the phase-4 gate was running')
+}
+
+export function projectPhase4InputEvidence(preflight) {
+  const identity = value => typeof value === 'string' && OBJECT_ID.test(value) ? value : undefined
+  const observationId = value => typeof value === 'string' && OBSERVATION_ID.test(value) ? value : undefined
+  const timestamp = value => typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(value)
+    && Number.isFinite(Date.parse(value)) && new Date(value).toISOString() === value ? value : undefined
+  const relativePath = value => typeof value === 'string' && value.split('/').every(part =>
+    /^[A-Za-z0-9._-]+$/.test(part) && part !== '.' && part !== '..') ? value : undefined
+  const mode = value => ['current-index', 'exact-staged-tree'].includes(value) ? value : undefined
+  const issueCodes = new Set([
+    'review-census-unreadable', 'review-record-unreadable', 'forge-lookup-failed', 'head-missing',
+    'tracking-main-missing', 'tracking-main-unrelated-to-forge', 'tested-subject-mismatch',
+    'head-main-divergence', 'main-fetch-history-unknown', 'parent-fallback-forge-mismatch',
+    'review-base-missing', 'review-base-ancestry', 'inherited-preflight-invalid', 'launch-inputs-changed',
+  ])
+  const record = value => ({path: relativePath(value?.path), blob: identity(value?.blob), baseHead: identity(value?.baseHead)})
+  return {
+    schemaVersion: 1,
+    attemptId: observationId(preflight.attemptId),
+    preflightId: observationId(preflight.preflightId),
+    parentPreflightId: observationId(preflight.parentPreflightId),
+    kind: ['gate', 'receipt'].includes(preflight.kind) ? preflight.kind : undefined,
+    measuredAt: timestamp(preflight.measuredAt),
+    status: ['PASS', 'FAIL'].includes(preflight.status) ? preflight.status : undefined,
+    forgeMain: identity(preflight.forgeMain),
+    inputs: {
+      head: identity(preflight.inputs?.head),
+      trackingMain: identity(preflight.inputs?.trackingMain),
+      testedTree: identity(preflight.inputs?.testedTree),
+      mergeBase: identity(preflight.inputs?.mergeBase),
+      subject: {
+        baseHead: identity(preflight.inputs?.subject?.baseHead),
+        testedTree: identity(preflight.inputs?.subject?.testedTree),
+        mode: mode(preflight.inputs?.subject?.mode),
+      },
+      reviews: Array.isArray(preflight.inputs?.reviews) ? preflight.inputs.reviews.map(record) : [],
+      reviewCandidates: Array.isArray(preflight.inputs?.reviewCandidates) ? preflight.inputs.reviewCandidates.map(record) : [],
+    },
+    fetch: preflight.fetch ? {
+      method: ['direct-forge-fetch', 'verified-parent-fallback'].includes(preflight.fetch.method) ? preflight.fetch.method : undefined,
+      mainRef: preflight.fetch.mainRef === MAIN_REF ? MAIN_REF : undefined,
+      sha: identity(preflight.fetch.sha),
+      startedAt: timestamp(preflight.fetch.startedAt),
+      completedAt: timestamp(preflight.fetch.completedAt),
+    } : undefined,
+    issues: Array.isArray(preflight.issues) ? preflight.issues.filter(issue => issueCodes.has(issue?.code)).map(issue => ({
+      code: issue.code, path: relativePath(issue.path), blob: identity(issue.blob), baseHead: identity(issue.baseHead),
+    })) : [],
+  }
+}
+
+export function prunePhase4InputAttempts(observationRoot, currentAttemptId, inherited) {
+  const rootStat = lstatSync(observationRoot)
+  if (!rootStat.isDirectory() || rootStat.isSymbolicLink()) return
+  const nodes = new Map()
+  const byPreflight = new Map()
+  for (const entry of readdirSync(observationRoot, {withFileTypes: true})) {
+    if (!OBSERVATION_ID.test(entry.name)) continue
+    if (!entry.isDirectory() || entry.isSymbolicLink()) return
+    const directory = path.join(observationRoot, entry.name)
+    const documents = new Map()
+    let ambiguous = false
+    for (const item of readdirSync(directory, {withFileTypes: true})) {
+      if (!['started.json', 'preflight.json', 'launch.json', 'result.json'].includes(item.name)
+        || !item.isFile() || item.isSymbolicLink()) { ambiguous = true; continue }
+      try { documents.set(item.name, JSON.parse(readFileSync(path.join(directory, item.name), 'utf8'))) }
+      catch { ambiguous = true }
+    }
+    const started = documents.get('started.json')
+    const preflight = documents.get('preflight.json')
+    const result = documents.get('result.json')
+    const launch = documents.get('launch.json')
+    const records = [...documents.values(), result?.preflight].filter(Boolean)
+    const ids = new Set(records.map(record => record.preflightId).filter(id => OBSERVATION_ID.test(id ?? '')))
+    const parents = new Set(records.map(record => record.parentPreflightId).filter(id => OBSERVATION_ID.test(id ?? '')))
+    const unknownRelationship = !ids.size && (!started || !Object.hasOwn(started, 'parentPreflightId'))
+    if (unknownRelationship) return
+    const complete = !ambiguous && started?.schemaVersion === 1 && preflight?.schemaVersion === 1
+      && result?.schemaVersion === 1 && ids.size === 1 && parents.size <= 1
+      && records.every(record => record.attemptId === entry.name)
+      && OBSERVATION_ID.test(preflight.preflightId ?? '') && result.preflightId === preflight.preflightId
+      && JSON.stringify(result.preflight) === JSON.stringify(preflight)
+      && (started.parentPreflightId === undefined || started.parentPreflightId === (preflight.parentPreflightId ?? null))
+      && (preflight.parentPreflightId === undefined || OBSERVATION_ID.test(preflight.parentPreflightId))
+      && started.kind === preflight.kind
+      && Number.isFinite(Date.parse(result.finishedAt)) && Number.isInteger(result.exitCode)
+      && ['PASS', 'FAIL'].includes(preflight.status)
+      && result.status === (result.exitCode === 0 ? 'PASS' : 'FAIL')
+      && (result.launched === true ? preflight.status === 'PASS' && launch?.preflightId === preflight.preflightId
+        : result.launched === false && !launch)
+    const node = {directory, ids, parents, complete, finishedAt: Date.parse(result?.finishedAt), neighbors: new Set()}
+    nodes.set(entry.name, node)
+    for (const id of ids) {
+      if (!byPreflight.has(id)) byPreflight.set(id, [])
+      byPreflight.get(id).push(node)
+    }
+  }
+  for (const node of nodes.values()) {
+    for (const id of [...node.ids, ...node.parents]) {
+      const related = byPreflight.get(id) ?? []
+      if (!related.length || related.length > 1) node.complete = false
+      for (const other of related) {
+        if (related.length > 1) other.complete = false
+        node.neighbors.add(other)
+        other.neighbors.add(node)
+      }
+    }
+  }
+  for (const node of nodes.values()) {
+    const ancestors = new Set()
+    const pending = [...node.parents]
+    while (pending.length) {
+      const id = pending.pop()
+      if (node.ids.has(id)) { node.complete = false; break }
+      if (ancestors.has(id)) continue
+      ancestors.add(id)
+      for (const parent of byPreflight.get(id) ?? []) pending.push(...parent.parents)
+    }
+  }
+  const families = []
+  const visited = new Set()
+  for (const node of nodes.values()) {
+    if (visited.has(node)) continue
+    const family = []
+    const pending = [node]
+    while (pending.length) {
+      const member = pending.pop()
+      if (visited.has(member)) continue
+      visited.add(member)
+      family.push(member)
+      pending.push(...member.neighbors)
+    }
+    if (family.every(member => member.complete)) families.push(family)
+  }
+  families.sort((a, b) => Math.max(...b.map(node => node.finishedAt)) - Math.max(...a.map(node => node.finishedAt))
+    || a[0].directory.localeCompare(b[0].directory))
+  let retained = 0
+  for (const family of families) {
+    const protectedFamily = family.some(member => path.basename(member.directory) === currentAttemptId
+      || (typeof inherited?.recordPath === 'string' && path.dirname(path.resolve(inherited.recordPath)) === member.directory))
+    if (retained < 32 || protectedFamily) { retained += family.length; continue }
+    for (const node of family) {
+      if (!lstatSync(node.directory).isDirectory() || lstatSync(node.directory).isSymbolicLink()) return
+    }
+    for (const node of family) rmSync(node.directory, {recursive: true})
+  }
+}
+
 export async function runPhase4InputAttempt({
   repositoryRoot, kind, subject = {}, inherited, launch,
   observeForge = observePhase4Forge, now = () => new Date(), beforeLaunch,
@@ -246,6 +397,7 @@ export async function runPhase4InputAttempt({
   const inputs = snapshot(repositoryRoot, subject)
   immutable(path.join(directory, 'started.json'), {
     schemaVersion: 1, attemptId, kind, startedAt, inputs, forgeMain: null, fetchAgeMs: null,
+    parentPreflightId: parent?.preflight.preflightId ?? null,
     authorityStatus: 'not-yet-measured',
   })
   let authority
@@ -308,5 +460,7 @@ export async function runPhase4InputAttempt({
     ...(result ? {result} : {}), ...(error ? {error} : {}),
   }
   immutable(path.join(directory, 'result.json'), observation)
+  try { prunePhase4InputAttempts(observationRoot, attemptId, inherited) }
+  catch (caught) { process.stderr.write(`Phase 4 input history cleanup unavailable: ${failure(caught)}\n`) }
   return {directory, preflight, launched, exitCode, error, observation}
 }
