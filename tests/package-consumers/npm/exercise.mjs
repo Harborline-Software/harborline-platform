@@ -344,7 +344,7 @@ assert.deepEqual(
 )
 
 assert.equal(cn('p-2', ['text-sm', { active: true }], 'p-4', false), 'text-sm active p-4')
-assert.equal(Object.keys(defaultStrings).length, 713)
+assert.equal(Object.keys(defaultStrings).length, 728)
 assert.equal(defaultStrings['common.loading'], 'Loading')
 assert.equal(
   interpolate('Step {current} of {total}', { current: 2 }),
