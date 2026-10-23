@@ -1,6 +1,8 @@
 using Bunit;
 using Microsoft.AspNetCore.Components;
+using Harborline.UIAdapters.Blazor.Browser;
 using Harborline.UIAdapters.Blazor.Components.Forms.Inputs;
+using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace Harborline.UIAdapters.Blazor.Tests;
@@ -25,10 +27,23 @@ public sealed class SwitchTests : BunitContext
     // handler of its own, so the browser's single click per Enter or Space is the only request (bUnit cannot
     // press native keys; the Chromium probe checks the count). visible-label clicks the element the label's
     // for targets, as the browser forwards label activation. rtl asserts logical direction and checked markers
-    // (pixel geometry is the gallery's check). touch-target is unasserted: this switch emits no data-hl-touch
-    // marker, so the stylesheet's 44px coarse-pointer rule never applies (a component gap, not a test gap).
+    // (pixel geometry is the gallery's check). touch-target drives the form-factor queries through a fake
+    // observer and asserts the data-hl-touch marker plus the stylesheet's 44px rule keyed on it.
     // projection-equivalence compares lanes. An unknown case id fails.
-    private static readonly string[] Unasserted = ["switch.touch-target", "switch.projection-equivalence"];
+    private static readonly string[] Unasserted = ["switch.projection-equivalence"];
+    private sealed class Media : IMediaQueryObserver
+    {
+        public bool Coarse { get; set; }
+        public ValueTask<IMediaQuerySubscription> ObserveAsync(string query, Func<MediaQueryChange, ValueTask> onChanged, CancellationToken cancellationToken = default) =>
+            ValueTask.FromResult<IMediaQuerySubscription>(new Subscription(query, Coarse && query == Harborline.Foundation.Responsive.FormFactorQueries.AnyCoarsePointer));
+        private sealed record Subscription(string Query, bool Matches) : IMediaQuerySubscription { public ValueTask DisposeAsync() => ValueTask.CompletedTask; }
+    }
+    private static string RepositoryFile(string relative)
+    {
+        for (var directory = new DirectoryInfo(AppContext.BaseDirectory); directory is not null; directory = directory.Parent)
+            if (File.Exists(Path.Combine(directory.FullName, relative))) return File.ReadAllText(Path.Combine(directory.FullName, relative));
+        throw new FileNotFoundException(relative);
+    }
     private IRenderedComponent<HarborlineSwitch> Switch(Action<ComponentParameterCollectionBuilder<HarborlineSwitch>>? configure = null, Action<bool>? changed = null) =>
         Render<HarborlineSwitch>(p => { p.Add(x => x.AccessibleName, "Email alerts"); if (changed is not null) p.Add(x => x.CheckedChanged, value => changed(value)); configure?.Invoke(p); });
     private static bool[] Bools(System.Text.Json.JsonElement value) => value.EnumerateArray().Select(v => v.GetBoolean()).ToArray();
@@ -169,6 +184,28 @@ public sealed class SwitchTests : BunitContext
                 var cut = Switch(p => p.Add(x => x.Name, name).Add(x => x.Checked, states[0]));
                 var values = states.Select(state => { cut.Render(p => p.Add(x => x.Checked, state)); var fields = cut.FindAll($"input[name={name}]"); Assert.Single(fields); return fields[0].GetAttribute("value"); }).ToArray();
                 Assert.Equal(Strings(expected.GetProperty("values")), values);
+                break;
+            }
+            case "switch.touch-target":
+            {
+                var media = new Media();
+                Services.AddSingleton<IMediaQueryObserver>(media);
+                (string? Touch, string? Size) Tokens(bool coarse)
+                {
+                    media.Coarse = coarse;
+                    var root = Render<HarborlineSwitch>(p => p.Add(x => x.AccessibleName, "Alerts").Add(x => x.Size, SwitchSize.Sm)).Find(".hl-switch");
+                    return (root.GetAttribute("data-hl-touch"), root.GetAttribute("data-hl-size"));
+                }
+                Assert.Equal("sm", input.GetProperty("size").GetString());
+                var fine = Tokens(false);
+                var coarse = Tokens(input.GetProperty("coarsePointer").GetBoolean());
+                Assert.Null(fine.Touch);
+                Assert.Equal("true", coarse.Touch);
+                // The visible pill keeps its size token; the marker only switches on the invisible ::before target.
+                Assert.Equal(expected.GetProperty("visiblePillUnchanged").GetBoolean(), fine.Size == coarse.Size && coarse.Size == "sm");
+                var rule = System.Text.RegularExpressions.Regex.Match(RepositoryFile("projections/blazor/ui/hlp.ui.switch/wwwroot/switch.css"), @"\.hl-switch\[data-hl-touch='true'\] \.hl-switch__control::before\{min-inline-size:(\d+)px;min-block-size:(\d+)px\}");
+                var minimum = expected.GetProperty("minimumTargetCssPixels").GetInt32();
+                Assert.Equal((minimum, minimum), (int.Parse(rule.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture), int.Parse(rule.Groups[2].Value, System.Globalization.CultureInfo.InvariantCulture)));
                 break;
             }
             case "switch.sizes":
