@@ -2,7 +2,7 @@ import * as React from 'react'
 
 import { cn } from '@harborline-platform/hlp.ui.cn'
 import { defaultStrings, interpolate, type HarborlineStringKey } from '@harborline-platform/hlp.ui.default-strings'
-import { useHarborlineStrings } from '@harborline-platform/hlp.ui.locale-provider'
+import { useHarborlineLocale, useHarborlineStrings } from '@harborline-platform/hlp.ui.locale-provider'
 import { Popover, PopoverContent, PopoverTrigger } from '@harborline-platform/hlp.ui.popover'
 import { useCanShowRail } from '@harborline-platform/hlp.ui.use-is-mobile'
 
@@ -97,22 +97,21 @@ export function NotificationCenter({
   // Caller text overrides each label; blank caller text is no text and keeps the catalog default, so no
   // chrome or control name is ever empty.
   const { t, locale } = useHarborlineStrings()
+  const { catalog: hostCatalog } = useHarborlineLocale()
   const labels = React.useMemo(() => resolveLabels(overrides, catalogDefaults(t)), [overrides, t])
   const unread = items.filter(item => !item.read).length
   const pending = items.filter(item => item.kind === 'proposal').length
   const otherUnread = items.filter(item => item.kind !== 'proposal' && !item.read).length
-  // navigation.notifications.bell.<kind>.<category>, then .other: the locale's cardinal category picks the
-  // key. For each key, blank or missing host text falls back to that key in the default catalog; a key
-  // absent from both falls through. {count} is the caller-formatted count.
+  // navigation.notifications.bell.<kind>.<category>, then .other, in the host catalog and then in the default
+  // catalog: a host that translates only .other keeps its own language at every count. The category is the
+  // locale's cardinal plural category; blank text counts as absent; {count} is the caller-formatted count.
   const bellPhrase = (kind: 'pending' | 'unread', count: number) => {
     let category: Intl.LDMLPluralRule = 'other'
     try { category = new Intl.PluralRules(locale).select(count) } catch { category = count === 1 ? 'one' : 'other' }
     const vars = { title: labels.title, count: formatCount(count) }
-    for (const key of [`navigation.notifications.bell.${kind}.${category}`, `navigation.notifications.bell.${kind}.other`]) {
-      const host = t(key, vars)
-      if (host.trim() && host !== key) return host
-      const fallback = (defaultStrings as Readonly<Record<string, string | undefined>>)[key]
-      if (fallback !== undefined) return interpolate(fallback, vars)
+    const keys = [`navigation.notifications.bell.${kind}.${category}`, `navigation.notifications.bell.${kind}.other`]
+    for (const source of [hostCatalog, defaultStrings] as Array<Readonly<Record<string, string | undefined>>>) {
+      for (const key of keys) { const text = source[key]; if (text?.trim()) return interpolate(text, vars) }
     }
     return labels.title
   }

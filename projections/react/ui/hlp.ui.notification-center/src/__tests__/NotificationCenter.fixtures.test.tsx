@@ -183,8 +183,11 @@ const assertions: Record<string, (entry: Case) => void | Promise<void>> = {
     }
     expect(bells(input.defaultCatalog)).toEqual(expected.defaultCatalog)
     expect(bells(input.hostCatalog, input.hostCatalog)).toEqual(expected.hostCatalog)
+    expect(bells(input.hostOtherOnly, input.hostOtherOnly)).toEqual(expected.hostOtherOnly)
     const template = input.formatCount as string
     expect(bells({ unread: [2] }, undefined, count => template.replace('{count}', String(count))).unread![0]).toBe(expected.formatted)
+    render(<NotificationCenter items={[item('a', 'result'), item('b', 'result')]} labels={{ title: input.callerTitle }}/>)
+    expect(bell().getAttribute('aria-label')).toBe(expected.callerTitle)
   },
   'notification-center.localization': ({ input, expected }) => {
     const labels = input.labels

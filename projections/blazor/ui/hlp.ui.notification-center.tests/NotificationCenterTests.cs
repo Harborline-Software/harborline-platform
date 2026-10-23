@@ -246,6 +246,8 @@ public sealed class NotificationCenterTests : BunitContext
                 }
                 void Check(System.Text.Json.JsonElement counts, System.Text.Json.JsonElement want, System.Text.Json.JsonElement? host)
                 {
+                    // Every expected family must be produced: an expected field the input lacks fails.
+                    Assert.Equal(want.EnumerateObject().Select(field => field.Name).Order(), new[] { "pending", "unread" }.Where(field => counts.TryGetProperty(field, out _)).Order());
                     foreach (var (field, mode) in new[] { ("pending", NotificationBadgeMode.Decisions), ("unread", NotificationBadgeMode.Unread) })
                     {
                         if (!counts.TryGetProperty(field, out var list)) continue;
@@ -254,8 +256,11 @@ public sealed class NotificationCenterTests : BunitContext
                 }
                 Check(input.GetProperty("defaultCatalog"), expected.GetProperty("defaultCatalog"), null);
                 Check(input.GetProperty("hostCatalog"), expected.GetProperty("hostCatalog"), input.GetProperty("hostCatalog"));
+                Check(input.GetProperty("hostOtherOnly"), expected.GetProperty("hostOtherOnly"), input.GetProperty("hostOtherOnly"));
                 var template = input.GetProperty("formatCount").GetString()!;
                 Assert.Equal(expected.GetProperty("formatted").GetString(), Name(NotificationBadgeMode.Unread, 2, null, count => template.Replace("{count}", count.ToString(System.Globalization.CultureInfo.InvariantCulture), StringComparison.Ordinal)));
+                var titled = Render<HarborlineNotificationCenter>(p => p.Add(x => x.Items, [Item("a", "result"), Item("b", "result")]).Add(x => x.Labels, NotificationCenterLabels.English with { Title = input.GetProperty("callerTitle").GetString()! }));
+                Assert.Equal(expected.GetProperty("callerTitle").GetString(), titled.Find(".hl-notification-center__trigger").GetAttribute("aria-label"));
                 break;
             }
             case "notification-center.localization":
