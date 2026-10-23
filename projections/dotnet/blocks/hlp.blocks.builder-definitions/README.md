@@ -544,9 +544,9 @@ the versioned eight-field binding and all seven receipt fields, and refuses corr
 without a `/1` fallback. Legacy provenance and raw spans remain legacy. The binding hash supplies
 integrity evidence, not authentication or valid-downgrade detection.
 
-Current, effective, history and amendment-target reads share the existing async16MiB bound;
+Current, effective, history and amendment-target reads share the existing async 16 MiB bound;
 constructor, receipt and commit loads remain uncapped. Even target metadata can refuse an oversized
-journal before authorization or replay. Legacy `/1` retains JSON depth64; `/2` and `/3` allow65 for
+journal before authorization or replay. Legacy `/1` retains JSON depth 64; `/2` and `/3` allow 65 for
 the retained legacy wrapper, and the writer validates its complete temporary output before replacement. Cancellation and I/O errors keep their distinct
 behavior. These source limits and replacement behavior require qualification on the final head.
 

@@ -693,6 +693,53 @@ public sealed class RecordTemporalReadOperationTests
         Assert.Equal(before, fixture.Bytes());
     }
 
+    [Theory]
+    [InlineData("missing-publication")]
+    [InlineData("bad-binding-hash")]
+    [InlineData("invalid-revision")]
+    [InlineData("empty-interval")]
+    [InlineData("missing-evidence")]
+    [InlineData("missing-supersedes")]
+    [InlineData("unexpected-initial-reason")]
+    [InlineData("invalid-superseded-revision")]
+    public async Task Current_read_rejects_invalid_temporal_versions_before_authorization(string fault)
+    {
+        using var fixture = await Fixture.Create();
+        var first = Committed(await fixture.CreateEvent());
+        var source = new MutableTemporal(fixture.Storage.Inner)
+        {
+            ChangeLookup = lookup => lookup with
+            {
+                Temporal = fault switch
+                {
+                    "missing-publication" => lookup.Temporal! with { Row = lookup.Temporal.Row with { PublicationVersionId = null } },
+                    "bad-binding-hash" => lookup.Temporal! with { BindingHash = "invalid-hash" },
+                    "invalid-revision" => lookup.Temporal! with { Temporal = lookup.Temporal.Temporal with { Revision = 0 } },
+                    "empty-interval" => lookup.Temporal! with { Temporal = lookup.Temporal.Temporal with { EffectiveTo = lookup.Temporal.Temporal.EffectiveFrom } },
+                    "missing-evidence" => lookup.Temporal! with { Temporal = null! },
+                    "missing-supersedes" => lookup.Temporal! with { Temporal = lookup.Temporal.Temporal with { Supersedes = null! } },
+                    "unexpected-initial-reason" => lookup.Temporal! with { Temporal = lookup.Temporal.Temporal with { Reason = "not an amendment" } },
+                    "invalid-superseded-revision" => lookup.Temporal! with
+                    {
+                        Temporal = lookup.Temporal.Temporal with
+                        {
+                            Supersedes = [new(new(1, new string('a', 64)), GateAt, null)],
+                        },
+                    },
+                    _ => throw new ArgumentOutOfRangeException(nameof(fault)),
+                },
+            },
+        };
+        var reader = new RecordReadOperation(source, new AccessProvider(fixture.Access), fixture.Types, fixture.OperationClock);
+        Reset(fixture);
+        var before = fixture.Bytes();
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => reader.ReadAsync(Scope, new(first.Receipt.RecordId)).AsTask());
+        Assert.Empty(fixture.Access.Requests);
+        Assert.Empty(fixture.Definitions.Pins);
+        Assert.Equal(before, fixture.Bytes());
+    }
+
     [Fact]
     public async Task Read_dependency_and_same_token_cancellation_are_not_missing_state()
     {

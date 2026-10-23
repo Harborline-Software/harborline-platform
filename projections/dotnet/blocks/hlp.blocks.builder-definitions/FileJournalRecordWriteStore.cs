@@ -49,7 +49,7 @@ public sealed class FileJournalRecordWriteStore : IKernelPreparedTransactionPort
     private readonly Action? _beforeReplace;
     private readonly Action<string>? _completedTemporaryBeforeDecode;
 
-    private readonly TimeProvider? _authorityClock;
+    private readonly KernelClock? _authorityClock;
 
     /// <summary>Opens the journal, refusing corrupt content without resetting it.</summary>
     public FileJournalRecordWriteStore(string path)
@@ -79,7 +79,7 @@ public sealed class FileJournalRecordWriteStore : IKernelPreparedTransactionPort
     /// <param name="authorityClock">Trusted accepting authority source, never a person-effective timestamp.</param>
     public FileJournalRecordWriteStore(string path, TimeProvider authorityClock) : this(ClockPath(path, authorityClock))
     {
-        _authorityClock = authorityClock;
+        _authorityClock = new KernelClock(authorityClock);
     }
 
     internal FileJournalRecordWriteStore(string path, TimeProvider authorityClock,

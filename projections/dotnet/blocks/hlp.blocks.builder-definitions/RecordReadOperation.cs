@@ -194,13 +194,13 @@ public sealed class RecordReadOperation
         ct.ThrowIfCancellationRequested();
     }
 
-    private static RecordWriteRow? CurrentSelection(RecordTemporalLookup lookup)
+    private static RecordWriteRow? CurrentSelection(RecordTemporalLookup lookup, string tenant, string recordId)
     {
         ValidateLookup(lookup);
         return lookup.Kind switch
         {
             RecordTemporalLookupKind.NonTemporal => lookup.NonTemporal,
-            RecordTemporalLookupKind.Temporal => lookup.Temporal!.Row,
+            RecordTemporalLookupKind.Temporal => FreezeVersion(lookup.Temporal!, tenant, recordId).Row,
             _ => null,
         };
     }
@@ -311,7 +311,8 @@ public sealed class RecordReadOperation
 
         var instant = _clock.GetUtcNow();
         var row = _records is IRecordTemporalReadStore temporal
-            ? CurrentSelection(await temporal.FindAtAsync(scope.Tenant, request.RecordId, instant, cancellationToken).ConfigureAwait(false))
+            ? CurrentSelection(await temporal.FindAtAsync(scope.Tenant, request.RecordId, instant, cancellationToken).ConfigureAwait(false),
+                scope.Tenant, request.RecordId)
             : await _records.FindAsync(scope.Tenant, request.RecordId, cancellationToken).ConfigureAwait(false);
         if (row is null) return new(null, NotFound);
         if (!string.Equals(row.Tenant, scope.Tenant, StringComparison.Ordinal)
