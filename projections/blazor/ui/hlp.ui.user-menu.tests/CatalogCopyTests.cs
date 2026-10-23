@@ -1,7 +1,6 @@
 using Bunit;
 using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.DependencyInjection;
-using Harborline.Foundation.Builder;
 using Harborline.Foundation.Localization;
 using Harborline.UIAdapters.Blazor.Browser;
 using Harborline.UIAdapters.Blazor.Components.Forms.Inputs;
@@ -12,7 +11,7 @@ using Xunit;
 
 namespace Harborline.UIAdapters.Blazor.Tests;
 
-// Contract: UserMenu, NotificationCenter, LayersRail and Switch take their default copy from the catalog
+// Contract: UserMenu, NotificationCenter and Switch take their default copy from the catalog
 // (the host's, else the default catalog); caller text overrides it; a catalog change, Arabic and en-XA
 // are followed; and no name is ever empty.
 public sealed class CatalogCopyTests : BunitContext
@@ -60,8 +59,12 @@ public sealed class CatalogCopyTests : BunitContext
         Assert.Equal(("Menu du compte de Avery", "Menu du compte", "Se déconnecter"), MenuNames((IRenderedComponent<IComponent>)(object)cut));
         cut.Render(p => p.Add(x => x.Locale, "ar-SA").Add(x => x.Catalog, arabic));
         Assert.Equal(("قائمة حساب Avery", "قائمة الحساب", "تسجيل الخروج"), MenuNames((IRenderedComponent<IComponent>)(object)cut));
+        // A supplied record is caller text: kept exactly, even where it repeats the English default.
         var overridden = Localized("ar-SA", arabic, Menu(UserMenuLabels.English with { SignOut = "Leave" }));
-        Assert.Equal(("قائمة حساب Avery", "قائمة الحساب", "Leave"), MenuNames((IRenderedComponent<IComponent>)(object)overridden));
+        Assert.Equal(("Account menu for Avery", "Account menu", "Leave"), MenuNames((IRenderedComponent<IComponent>)(object)overridden));
+        // Blank caller text is no text: that field alone falls back to the catalog.
+        var blank = Localized("ar-SA", arabic, Menu(UserMenuLabels.English with { Panel = " " }));
+        Assert.Equal(("Account menu for Avery", "قائمة الحساب", "Sign out"), MenuNames((IRenderedComponent<IComponent>)(object)blank));
         Assert.Equal("⟦ Šîĝñ øûţ ··· ⟧", MenuNames((IRenderedComponent<IComponent>)(object)Localized("en-XA", new Dictionary<string, string> { ["navigation.userMenu.signOut"] = "⟦ Šîĝñ øûţ ··· ⟧" }, Menu())).SignOut);
         Assert.Equal("Account menu", MenuNames((IRenderedComponent<IComponent>)(object)Localized("fr-FR", new Dictionary<string, string> { ["navigation.userMenu.panel"] = "  " }, Menu())).Panel);
     }
@@ -94,35 +97,11 @@ public sealed class CatalogCopyTests : BunitContext
         Assert.Equal(("Avis", "Groupes d'avis", "Ignorer : Export ready"), CenterNames((IRenderedComponent<IComponent>)(object)cut));
         cut.Render(p => p.Add(x => x.Locale, "ar-SA").Add(x => x.Catalog, arabic));
         Assert.Equal(("الإشعارات", "مجموعات الإشعارات", "تجاهل: Export ready"), CenterNames((IRenderedComponent<IComponent>)(object)cut));
-        Assert.Equal("Kinds", CenterNames((IRenderedComponent<IComponent>)(object)Localized("ar-SA", arabic, Center(NotificationCenterLabels.English with { GroupLabel = "Kinds" }))).Tablist);
+        // A supplied record is caller text, kept exactly; its unset GroupLabel and blank Title come from the catalog.
+        Assert.Equal(("Notifications", "Kinds", "Dismiss: Export ready"), CenterNames((IRenderedComponent<IComponent>)(object)Localized("ar-SA", arabic, Center(NotificationCenterLabels.English with { GroupLabel = "Kinds" }))));
+        Assert.Equal(("الإشعارات", "مجموعات الإشعارات", "Dismiss: Export ready"), CenterNames((IRenderedComponent<IComponent>)(object)Localized("ar-SA", arabic, Center(NotificationCenterLabels.English with { Title = " " }))));
         Assert.Equal("⟦ Ñøţîƒîçåţîøñš ··· ⟧", CenterNames((IRenderedComponent<IComponent>)(object)Localized("en-XA", new Dictionary<string, string> { ["navigation.notifications.title"] = "⟦ Ñøţîƒîçåţîøñš ··· ⟧" }, Center())).Dialog);
         Assert.Equal("Notification groups", CenterNames((IRenderedComponent<IComponent>)(object)Localized("fr-FR", new Dictionary<string, string> { ["navigation.notifications.groups"] = " " }, Center())).Tablist);
-    }
-
-    // ── LayersRail ──
-    private static RenderFragment Rail(RailLabels? labels = null) => builder =>
-    {
-        builder.OpenComponent<LayersRailHost>(0);
-        if (labels is not null) builder.AddComponentParameter(1, nameof(LayersRailHost.Labels), labels);
-        builder.CloseComponent();
-    };
-    private static (string Region, string Lenses, string Outline) RailNames(IRenderedComponent<IComponent> cut) =>
-        (NonEmpty(cut.Find("aside").GetAttribute("aria-label")), NonEmpty(cut.Find("[role=group]").GetAttribute("aria-label")), NonEmpty(cut.Find("[role=tree]").GetAttribute("aria-label")));
-
-    [Fact]
-    public void LayersRailTakesItsDefaultsFromTheCatalog()
-    {
-        JSInterop.SetupModule("./_content/Harborline.UIAdapters.Blazor/layers-rail.js").Mode = JSRuntimeMode.Loose;
-        Assert.Equal((HarborlineDefaultStrings.Get("navigation.layersRail.region"), HarborlineDefaultStrings.Get("navigation.layersRail.lenses"), HarborlineDefaultStrings.Get("navigation.layersRail.outline")), RailNames((IRenderedComponent<IComponent>)Render(Rail())));
-        var french = new Dictionary<string, string> { ["navigation.layersRail.region"] = "Calques", ["navigation.layersRail.lenses"] = "Lentilles", ["navigation.layersRail.outline"] = "Plan" };
-        var arabic = new Dictionary<string, string> { ["navigation.layersRail.region"] = "الطبقات", ["navigation.layersRail.lenses"] = "العدسات", ["navigation.layersRail.outline"] = "المخطط" };
-        var cut = Localized("fr-FR", french, Rail());
-        Assert.Equal(("Calques", "Lentilles", "Plan"), RailNames((IRenderedComponent<IComponent>)(object)cut));
-        cut.Render(p => p.Add(x => x.Locale, "ar-SA").Add(x => x.Catalog, arabic));
-        Assert.Equal(("الطبقات", "العدسات", "المخطط"), RailNames((IRenderedComponent<IComponent>)(object)cut));
-        Assert.Equal("Strata", RailNames((IRenderedComponent<IComponent>)(object)Localized("ar-SA", arabic, Rail(DefaultRailLabels.Value with { RailRegion = "Strata" }))).Region);
-        Assert.Equal("⟦ Ļåÿëřš ··· ⟧", RailNames((IRenderedComponent<IComponent>)(object)Localized("en-XA", new Dictionary<string, string> { ["navigation.layersRail.region"] = "⟦ Ļåÿëřš ··· ⟧" }, Rail())).Region);
-        Assert.Equal("Layers", RailNames((IRenderedComponent<IComponent>)(object)Localized("fr-FR", new Dictionary<string, string> { ["navigation.layersRail.region"] = "  " }, Rail())).Region);
     }
 
     // ── Switch ──

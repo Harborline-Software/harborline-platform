@@ -1,6 +1,7 @@
 import * as React from 'react'
 
 import { cn } from '@harborline-platform/hlp.ui.cn'
+import { defaultStrings, interpolate, type HarborlineStringKey } from '@harborline-platform/hlp.ui.default-strings'
 import { useHarborlineStrings } from '@harborline-platform/hlp.ui.locale-provider'
 import { Popover, PopoverContent, PopoverTrigger } from '@harborline-platform/hlp.ui.popover'
 import { useCanShowRail } from '@harborline-platform/hlp.ui.use-is-mobile'
@@ -60,16 +61,17 @@ const catalogKeys: Record<Exclude<keyof NotificationCenterLabels, 'dismiss'>, st
   empty: 'navigation.notifications.empty', groupLabel: 'navigation.notifications.groups', unread: 'navigation.notifications.unread',
 }
 
-// The default copy comes from the catalog (navigation.notifications.*); English is the last resort
-// for a blank or missing catalog value.
+// The default copy comes from the host catalog, else the default catalog (navigation.notifications.*),
+// which is also the fallback for a blank host value; no English literal is used.
 function catalogDefaults(t: Translate): NotificationCenterLabels {
-  const read = (key: string, fallback: string, vars?: Record<string, string | number>) => {
+  const read = (key: string, vars?: Record<string, string | number>) => {
+    const fallback = interpolate(defaultStrings[key as HarborlineStringKey], vars)
     const value = t(key, vars)
     return value.trim() && value !== key ? value : fallback
   }
   const resolved = { ...defaults }
-  for (const [label, key] of Object.entries(catalogKeys) as Array<[keyof typeof catalogKeys, string]>) resolved[label] = read(key, defaults[label])
-  resolved.dismiss = title => read('navigation.notifications.dismiss', defaults.dismiss(title), { title })
+  for (const [label, key] of Object.entries(catalogKeys) as Array<[keyof typeof catalogKeys, string]>) resolved[label] = read(key)
+  resolved.dismiss = title => read('navigation.notifications.dismiss', { title })
   return resolved
 }
 
@@ -100,7 +102,7 @@ export function NotificationCenter({
 }: NotificationCenterProps) {
   if (!Number.isFinite(maxVisible) || maxVisible < 0) throw new Error('invalid-notification-limit')
   if (new Set(items.map(item => item.id)).size !== items.length) throw new Error('duplicate-notification-id')
-  // Caller text overrides each label; blank caller text is no text and keeps the default, so no
+  // Caller text overrides each label; blank caller text is no text and keeps the catalog default, so no
   // chrome or control name is ever empty.
   const { t } = useHarborlineStrings()
   const labels = React.useMemo(() => resolveLabels(overrides, catalogDefaults(t)), [overrides, t])

@@ -1,5 +1,6 @@
 import * as React from 'react'
 
+import { defaultStrings, interpolate, type HarborlineStringKey } from '@harborline-platform/hlp.ui.default-strings'
 import { useHarborlineStrings } from '@harborline-platform/hlp.ui.locale-provider'
 import { useCanShowRail } from '@harborline-platform/hlp.ui.use-is-mobile'
 
@@ -64,25 +65,20 @@ export interface UserMenuProps extends Omit<React.HTMLAttributes<HTMLDivElement>
   canShowRail?: boolean
 }
 
-const fallbackLabels: UserMenuLabels = {
-  trigger: name => `Account menu for ${name}`,
-  panel: 'Account menu',
-  signOut: 'Sign out',
-}
-
 type Translate = (key: string, vars?: Record<string, string | number>) => string
-// Caller text, then the catalog (navigation.userMenu.*), then English; blank text at any step is no
-// text, so no name is ever empty.
+// Caller text, then the host catalog, then the default catalog (navigation.userMenu.*). Any non-blank
+// caller text is kept exactly; blank text is no text, so no name is ever empty.
 function resolveLabels(overrides: Partial<UserMenuLabels> | undefined, t: Translate): UserMenuLabels {
-  const pick = (value: string | undefined, key: string, fallback: string, vars?: Record<string, string | number>) => {
+  const pick = (value: string | undefined, key: HarborlineStringKey, vars?: Record<string, string | number>) => {
+    const fallback = interpolate(defaultStrings[key], vars)
     if (value?.trim()) return value
     const catalog = t(key, vars)
     return catalog.trim() && catalog !== key ? catalog : fallback
   }
   return {
-    trigger: name => pick(overrides?.trigger?.(name), 'navigation.userMenu.trigger', fallbackLabels.trigger(name), { name }),
-    panel: pick(overrides?.panel, 'navigation.userMenu.panel', fallbackLabels.panel),
-    signOut: pick(overrides?.signOut, 'navigation.userMenu.signOut', fallbackLabels.signOut),
+    trigger: name => pick(overrides?.trigger?.(name), 'navigation.userMenu.trigger', { name }),
+    panel: pick(overrides?.panel, 'navigation.userMenu.panel'),
+    signOut: pick(overrides?.signOut, 'navigation.userMenu.signOut'),
   }
 }
 

@@ -27,6 +27,11 @@ function chrome() {
 }
 
 describe('NotificationCenter catalog-backed copy', () => {
+  it('keeps caller text exactly, even when it repeats the English default', () => {
+    render(<HarborlineLocaleProvider locale="ar-SA" catalog={Arabic}>{center({ title: 'Notifications' })}</HarborlineLocaleProvider>)
+    expect(chrome()).toMatchObject({ dialog: 'Notifications', tablist: 'مجموعات الإشعارات' })
+  })
+
   it('takes its default copy from the default catalog without a provider', () => {
     render(center())
     expect(chrome()).toEqual({

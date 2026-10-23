@@ -63,8 +63,9 @@
   private string LocalizedText(string key, string? instanceOverride, string fallback)
   {
     if (!string.IsNullOrWhiteSpace(instanceOverride)) return LocaleContext?.ResolveString(key, instanceOverride: instanceOverride) ?? instanceOverride;
-    var resolved = LocaleContext?.ResolveString(key) ?? Harborline.Foundation.Localization.HarborlineDefaultStrings.Values.GetValueOrDefault(key);
-    return string.IsNullOrWhiteSpace(resolved) || resolved == key ? fallback : resolved;
+    var catalogDefault = Harborline.Foundation.Localization.HarborlineDefaultStrings.Values.GetValueOrDefault(key) ?? fallback;
+    var resolved = LocaleContext?.ResolveString(key) ?? catalogDefault;
+    return string.IsNullOrWhiteSpace(resolved) || resolved == key ? catalogDefault : resolved;
   }
   private string? LabelledBy => !string.IsNullOrWhiteSpace(Label) ? LocalLabelId : ResolvedAccessibleName is null ? FieldContext?.LabelId : null;
   private string? DescribedBy => string.Join(" ", new[]{FieldContext?.DescribedBy,!string.IsNullOrWhiteSpace(Description)?DescriptionId:null}.Where(value=>!string.IsNullOrWhiteSpace(value)));

@@ -83,7 +83,7 @@
   private bool focusTrigger;
   // An action that removes its own control (dismissing an item, marking all read) leaves focus nowhere
   // once the host applies the change, which may be in a later render. Focus then settles on the row now
-  // at the same position (else the last row), else the first control in the dialog, and only if it fell
+  // at the same position (else the last row), else the first control in the dialog.
   // The settle waits only while focus is still on the control the action started from: focus anywhere
   // else cancels it, so focus the user moved is never taken back. -1 means no row; the token tells the
   // module a new settle has started.
@@ -94,30 +94,30 @@
   private ElementReference Root, Trigger, Dialog;
   private IOutsidePointerRegistration? outsideRegistration;
   private IJSObjectReference? module;
-  // Caller text overrides each label; blank caller text keeps the English default, so no chrome or
+  // Caller text overrides each label; blank caller text keeps the catalog default, so no chrome or
   // control name is ever empty.
   private NotificationCenterLabels L = NotificationCenterLabels.English;
-  // Caller text, then the catalog (navigation.notifications.*: the host's, else the default catalog),
-  // then English. A field still equal to its English default counts as not customised, so a caller
-  // writing `English with { Title = ... }` keeps catalog copy for the rest; blank text is no text.
+  // The default record (Labels not supplied) takes every label from the host catalog, else the default
+  // catalog (navigation.notifications.*). A supplied record's text is kept exactly, except that blank
+  // text is no text and falls back to the catalog; an unset GroupLabel also comes from the catalog.
   private NotificationCenterLabels ResolveLabels(NotificationCenterLabels labels)
   {
-    var english = NotificationCenterLabels.English;
-    string Field(string key, string? caller, string englishText) => Localized(key, caller == englishText ? null : caller, englishText);
-    var dismissCustom = !ReferenceEquals(labels.Dismiss, english.Dismiss);
-    return new(Field("navigation.notifications.title", labels.Title, english.Title), Field("navigation.notifications.all", labels.All, english.All),
-      Field("navigation.notifications.confirm", labels.Confirm, english.Confirm), Field("navigation.notifications.deny", labels.Deny, english.Deny),
-      Field("navigation.notifications.markAllRead", labels.MarkAllRead, english.MarkAllRead), Field("navigation.notifications.viewAll", labels.ViewAll, english.ViewAll),
-      Field("navigation.notifications.empty", labels.Empty, english.Empty),
-      title => Localized("navigation.notifications.dismiss", dismissCustom ? labels.Dismiss?.Invoke(title) : null, english.Dismiss(title), new Dictionary<string, object?> { ["title"] = title }),
-      Field("navigation.notifications.unread", labels.Unread, english.Unread),
-      Localized("navigation.notifications.groups", labels.GroupLabel, "Notification groups"));
+    var fromCatalog = ReferenceEquals(labels, NotificationCenterLabels.English);
+    string Field(string key, string? caller) => Localized(key, fromCatalog ? null : caller);
+    return new(Field("navigation.notifications.title", labels.Title), Field("navigation.notifications.all", labels.All),
+      Field("navigation.notifications.confirm", labels.Confirm), Field("navigation.notifications.deny", labels.Deny),
+      Field("navigation.notifications.markAllRead", labels.MarkAllRead), Field("navigation.notifications.viewAll", labels.ViewAll),
+      Field("navigation.notifications.empty", labels.Empty),
+      title => Localized("navigation.notifications.dismiss", fromCatalog ? null : labels.Dismiss?.Invoke(title), new Dictionary<string, object?> { ["title"] = title }),
+      Field("navigation.notifications.unread", labels.Unread),
+      Field("navigation.notifications.groups", labels.GroupLabel));
   }
-  private string Localized(string key, string? caller, string englishText, IReadOnlyDictionary<string, object?>? variables = null)
+  private string Localized(string key, string? caller, IReadOnlyDictionary<string, object?>? variables = null)
   {
     if (!string.IsNullOrWhiteSpace(caller)) return caller;
-    var catalog = LocaleContext?.ResolveString(key, variables) ?? Harborline.Foundation.Localization.HarborlineDefaultStrings.Interpolate(Harborline.Foundation.Localization.HarborlineDefaultStrings.Get(key), variables);
-    return string.IsNullOrWhiteSpace(catalog) || catalog == key ? englishText : catalog;
+    var fallback = Harborline.Foundation.Localization.HarborlineDefaultStrings.Interpolate(Harborline.Foundation.Localization.HarborlineDefaultStrings.Get(key), variables);
+    var catalog = LocaleContext?.ResolveString(key, variables) ?? fallback;
+    return string.IsNullOrWhiteSpace(catalog) || catalog == key ? fallback : catalog;
   }
   private int UnreadCount => Items.Count(item => !item.Read);
   private int PendingCount => Items.Count(item => item.Kind == "proposal");

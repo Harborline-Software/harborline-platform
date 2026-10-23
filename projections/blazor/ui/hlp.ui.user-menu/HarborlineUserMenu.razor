@@ -54,18 +54,25 @@
   [Parameter] public UserMenuAlignment Alignment { get; set; } = UserMenuAlignment.InlineEnd;
   [Parameter] public UserMenuLabels Labels { get; set; } = UserMenuLabels.English;
   [CascadingParameter] private HarborlineLocaleContext? LocaleContext { get; set; }
-  // Caller text, then the catalog (navigation.userMenu.*: the host's, else the default catalog), then
-  // English. A field still equal to its English default counts as not customised, so a caller writing
-  // `English with { SignOut = ... }` keeps catalog copy for the rest; blank text is no text.
-  private UserMenuLabels L => new(
-    name => Localized("navigation.userMenu.trigger", ReferenceEquals(Labels.Trigger, UserMenuLabels.English.Trigger) ? null : Labels.Trigger?.Invoke(name), UserMenuLabels.English.Trigger(name), new Dictionary<string, object?> { ["name"] = name }),
-    Localized("navigation.userMenu.panel", Labels.Panel == UserMenuLabels.English.Panel ? null : Labels.Panel, UserMenuLabels.English.Panel),
-    Localized("navigation.userMenu.signOut", Labels.SignOut == UserMenuLabels.English.SignOut ? null : Labels.SignOut, UserMenuLabels.English.SignOut));
-  private string Localized(string key, string? caller, string english, IReadOnlyDictionary<string, object?>? variables = null)
+  // The default record (Labels not supplied) takes every label from the host catalog, else the default
+  // catalog (navigation.userMenu.*). A supplied record's text is kept exactly, except that blank text is
+  // no text and falls back to the catalog. Resolved once per parameter set (a locale change re-sets the
+  // cascading context).
+  private UserMenuLabels L = UserMenuLabels.English;
+  private UserMenuLabels ResolveLabels()
+  {
+    var fromCatalog = ReferenceEquals(Labels, UserMenuLabels.English);
+    return new(
+      name => Localized("navigation.userMenu.trigger", fromCatalog ? null : Labels.Trigger?.Invoke(name), new Dictionary<string, object?> { ["name"] = name }),
+      Localized("navigation.userMenu.panel", fromCatalog ? null : Labels.Panel),
+      Localized("navigation.userMenu.signOut", fromCatalog ? null : Labels.SignOut));
+  }
+  private string Localized(string key, string? caller, IReadOnlyDictionary<string, object?>? variables = null)
   {
     if (!string.IsNullOrWhiteSpace(caller)) return caller;
-    var catalog = LocaleContext?.ResolveString(key, variables) ?? Harborline.Foundation.Localization.HarborlineDefaultStrings.Interpolate(Harborline.Foundation.Localization.HarborlineDefaultStrings.Get(key), variables);
-    return string.IsNullOrWhiteSpace(catalog) || catalog == key ? english : catalog;
+    var fallback = Harborline.Foundation.Localization.HarborlineDefaultStrings.Interpolate(Harborline.Foundation.Localization.HarborlineDefaultStrings.Get(key), variables);
+    var catalog = LocaleContext?.ResolveString(key, variables) ?? fallback;
+    return string.IsNullOrWhiteSpace(catalog) || catalog == key ? fallback : catalog;
   }
   [Parameter] public bool CanShowRail { get; set; } = true;
   [Parameter] public string? Direction { get; set; }
@@ -106,6 +113,7 @@
 
   protected override void OnParametersSet()
   {
+    L = ResolveLabels();
     if (string.IsNullOrWhiteSpace(Identity.Name)) throw new InvalidOperationException("user-menu-name-required");
     if (Items.Where(item=>item.Kind!=UserMenuEntryKind.Separator).GroupBy(item=>item.Id,StringComparer.Ordinal).Any(group=>group.Count()>1)) throw new InvalidOperationException("duplicate-user-menu-item-id");
     if (Items.Any(item=>item.Kind==UserMenuEntryKind.Action && (string.IsNullOrWhiteSpace(item.Label)||item.ActivateAsync is null) || item.Kind==UserMenuEntryKind.Link && (string.IsNullOrWhiteSpace(item.Label)||string.IsNullOrWhiteSpace(item.Destination)) || item.Kind==UserMenuEntryKind.Custom && item.Content is null)) throw new InvalidOperationException("invalid-user-menu-entry");

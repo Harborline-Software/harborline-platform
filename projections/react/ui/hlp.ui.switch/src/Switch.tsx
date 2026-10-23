@@ -1,4 +1,5 @@
 import * as React from 'react'
+import { defaultStrings, type HarborlineStringKey } from '@harborline-platform/hlp.ui.default-strings'
 
 import { useFormFieldContext } from '@harborline-platform/hlp.ui.form-field-context'
 import { useHarborlineStrings } from '@harborline-platform/hlp.ui.locale-provider'
@@ -36,12 +37,12 @@ function joinIds(...values: Array<string | undefined>): string | undefined {
   return ids.length ? ids.join(' ') : undefined
 }
 
-// Instance override, then catalog, then fallback. A catalog miss echoes the key back, and blank text
-// at any step counts as unresolved, so the state copy is never empty.
-function stateText(override: string | undefined, key: string, fallback: string, t: (key: string) => string) {
+// Instance override, then the host catalog, then the default catalog. A catalog miss echoes the key
+// back, and blank text at any step counts as unresolved, so the state copy is never empty.
+function stateText(override: string | undefined, key: HarborlineStringKey, t: (key: string) => string) {
   if (override?.trim()) return override
   const value = t(key)
-  return value === key || !value.trim() ? fallback : value
+  return value === key || !value.trim() ? defaultStrings[key] : value
 }
 
 export const Switch = React.forwardRef<HTMLButtonElement, SwitchProps>(function Switch(
@@ -90,8 +91,8 @@ export const Switch = React.forwardRef<HTMLButtonElement, SwitchProps>(function 
   const labelledBy = (ariaLabelledBy?.trim() ? ariaLabelledBy : undefined) ?? labelId ?? (effectiveName ? undefined : formField.labelId)
   if (!effectiveName && !labelledBy) throw new Error('accessible-switch-label-required')
   const describedBy = joinIds(formField.describedBy, ariaDescribedBy, descriptionId)
-  const localizedOn = stateText(onText, 'forms.switch.on', 'On', t)
-  const localizedOff = stateText(offText, 'forms.switch.off', 'Off', t)
+  const localizedOn = stateText(onText, 'forms.switch.on', t)
+  const localizedOff = stateText(offText, 'forms.switch.off', t)
   const requestChange = onCheckedChange ?? onChange
 
   return (

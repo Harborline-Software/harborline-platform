@@ -33,6 +33,11 @@ describe('UserMenu catalog-backed copy', () => {
     expect(names().signOut).toBe('Leave')
   })
 
+  it('keeps caller text exactly, even when it repeats the English default', () => {
+    render(<HarborlineLocaleProvider locale="ar-SA" catalog={Arabic}>{menu({ signOut: 'Sign out' })}</HarborlineLocaleProvider>)
+    expect(names()).toEqual({ trigger: 'قائمة حساب Avery', panel: 'قائمة الحساب', signOut: 'Sign out' })
+  })
+
   it('uses a pseudo-localized catalog under en-XA', () => {
     render(<HarborlineLocaleProvider locale="en-XA" catalog={{ 'navigation.userMenu.signOut': '⟦ Šîĝñ øûţ ··· ⟧' }}>{menu()}</HarborlineLocaleProvider>)
     expect(names().signOut).toBe('⟦ Šîĝñ øûţ ··· ⟧')
