@@ -48,12 +48,6 @@ export interface NotificationCenterProps {
   className?: string
 }
 
-const defaults: NotificationCenterLabels = {
-  title: 'Notifications', all: 'All', confirm: 'Confirm', deny: 'Deny',
-  markAllRead: 'Mark all read', viewAll: 'View all', empty: 'No notifications',
-  groupLabel: 'Notification groups', unread: 'Unread', dismiss: title => `Dismiss: ${title}`,
-}
-
 type Translate = (key: string, vars?: Record<string, string | number>) => string
 const catalogKeys: Record<Exclude<keyof NotificationCenterLabels, 'dismiss'>, string> = {
   title: 'navigation.notifications.title', all: 'navigation.notifications.all', confirm: 'navigation.notifications.confirm',
@@ -69,10 +63,8 @@ function catalogDefaults(t: Translate): NotificationCenterLabels {
     const value = t(key, vars)
     return value.trim() && value !== key ? value : fallback
   }
-  const resolved = { ...defaults }
-  for (const [label, key] of Object.entries(catalogKeys) as Array<[keyof typeof catalogKeys, string]>) resolved[label] = read(key)
-  resolved.dismiss = title => read('navigation.notifications.dismiss', { title })
-  return resolved
+  const text = Object.fromEntries(Object.entries(catalogKeys).map(([label, key]) => [label, read(key)])) as Record<keyof typeof catalogKeys, string>
+  return { ...text, dismiss: title => read('navigation.notifications.dismiss', { title }) }
 }
 
 function resolveLabels(overrides: Partial<NotificationCenterLabels> | undefined, base: NotificationCenterLabels): NotificationCenterLabels {

@@ -52,18 +52,18 @@
   private bool ResolvedDisabled => (Disabled ?? FieldContext?.Disabled ?? false) || !Enabled;
   private bool ResolvedRequired => Required ?? FieldContext?.Required ?? false;
   private string ResolvedDirection => Direction ?? LocaleContext?.Direction ?? "ltr";
-  private string ResolvedOnText => LocalizedText("forms.switch.on", FirstNonBlank(OnText, OnLabel), "On");
-  private string ResolvedOffText => LocalizedText("forms.switch.off", FirstNonBlank(OffText, OffLabel), "Off");
+  private string ResolvedOnText => LocalizedText("forms.switch.on", FirstNonBlank(OnText, OnLabel));
+  private string ResolvedOffText => LocalizedText("forms.switch.off", FirstNonBlank(OffText, OffLabel));
   private static string? FirstNonBlank(params string?[] values) => values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
   // A blank name is no name: it falls through to the label or the field label.
   private string? ResolvedAccessibleName => string.IsNullOrWhiteSpace(AccessibleName) ? null : AccessibleName;
 
-  // Instance override, then catalog (the host's, else the default catalog), then fallback. A catalog miss echoes the key back, so an
+  // Instance override, then the host catalog, then the default catalog. A catalog miss echoes the key back, so an
   // echoed key counts as unresolved rather than as user-facing text; so does blank catalog text.
-  private string LocalizedText(string key, string? instanceOverride, string fallback)
+  private string LocalizedText(string key, string? instanceOverride)
   {
     if (!string.IsNullOrWhiteSpace(instanceOverride)) return LocaleContext?.ResolveString(key, instanceOverride: instanceOverride) ?? instanceOverride;
-    var catalogDefault = Harborline.Foundation.Localization.HarborlineDefaultStrings.Values.GetValueOrDefault(key) ?? fallback;
+    var catalogDefault = Harborline.Foundation.Localization.HarborlineDefaultStrings.Get(key);
     var resolved = LocaleContext?.ResolveString(key) ?? catalogDefault;
     return string.IsNullOrWhiteSpace(resolved) || resolved == key ? catalogDefault : resolved;
   }
