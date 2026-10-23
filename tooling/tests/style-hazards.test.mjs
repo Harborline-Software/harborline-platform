@@ -34,6 +34,14 @@ test('the repository carries no unacknowledged style hazard', () => {
 // Retired exemptions must disappear once the corresponding stylesheet is discoverable.
 test('retired style-hazard exemptions are not reported', () => {
   const {out} = run([])
-  assert.doesNotMatch(out, /acknowledged, tracked by ticket/)
   assert.doesNotMatch(out, /ticket 140/)
+  assert.doesNotMatch(out, /no-blazor-stylesheet/)
+})
+
+// b19: the one acknowledged hazard is named, and is the only one.
+test('the only acknowledged hazard is the latent page GrayText fallback', () => {
+  const {out} = run([])
+  const acknowledged = out.split('\n').filter(line => /^  \S/.test(line) && !/^  text-colour/.test(line))
+  assert.match(out, /acknowledged, tracked by ticket \(1\)/)
+  assert.deepEqual(acknowledged.map(line => line.trim().split(/\s+/)[0]), ['page'])
 })

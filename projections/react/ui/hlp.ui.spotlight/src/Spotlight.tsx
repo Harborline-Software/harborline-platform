@@ -240,10 +240,9 @@ export function Spotlight({
           {resultsCountLabel?.(flatItems.length) ?? ''}
         </div>
 
+        {/* A listbox owns only options and groups, so the empty copy sits beside it, never inside. */}
         <div aria-label={ariaLabel} className="hl-spotlight__results" id={listboxId} ref={listRef} role="listbox">
-          {flatItems.length === 0 && renderedSections.length === 0 ? (
-            <div className="hl-spotlight__empty">{empty}</div>
-          ) : (
+          {flatItems.length === 0 && renderedSections.length === 0 ? null : (
             <>
               {pinnedAction ? renderOption(pinnedAction, 0) : null}
               {renderedSections.map(section => {
@@ -262,6 +261,7 @@ export function Spotlight({
             </>
           )}
         </div>
+        {flatItems.length === 0 && renderedSections.length === 0 ? <div className="hl-spotlight__empty">{empty}</div> : null}
 
         {footer ? <div className="hl-spotlight__footer">{footer}</div> : null}
       </div>

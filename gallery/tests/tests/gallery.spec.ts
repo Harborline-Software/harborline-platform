@@ -814,13 +814,25 @@ async function assertSearchableMultipleScroll(page: Page, projection: Projection
   }
 }
 
+// The scan's scope is the scenario: its probe AND every overlay layer the scenario has portaled out
+// of the probe. Dialog, Sheet, Spotlight, Window and Popover all move their open content to a direct
+// child of document.body, in both projections (React createPortal; Blazor appends the portal element
+// in dialog.js / sheet.js / popover.js / ...), so a probe-only scan never reached the content of an
+// open overlay at all. A layer is identified by the platform's own markup identity -- an `hl-` class
+// or a `data-hl-*` module/layer attribute -- never by role or position: the story iframe's body also
+// holds harness chrome (Storybook's highlights root and a11y vision filters, Blazing Story's boot
+// elements), and none of it carries that identity. Each story is its own iframe document, so every
+// such layer belongs to the scenario on screen and no other. A body child that contains the probe is
+// the probe's own host, already in scope.
+const overlayLayerSelector = 'body > :is([class^="hl-"], [class*=" hl-"], [data-hl-module], [data-hl-layer]):not([data-gallery-probe]):not(:has([data-gallery-probe]))'
+
 async function assertAccessible(page: Page, scenario: Scenario, projection: string) {
   // Storybook's a11y addon runs its own axe pass on story load; on heavy stories it can still be
   // in flight when this scan starts, and axe-core rejects concurrent runs in one frame.
   let result: Awaited<ReturnType<AxeBuilder['analyze']>> | undefined
   for (let attempt = 0; ; attempt++) {
     try {
-      result = await new AxeBuilder({ page }).include('[data-gallery-probe]').analyze()
+      result = await new AxeBuilder({ page }).include('[data-gallery-probe]').include(overlayLayerSelector).analyze()
       break
     } catch (error) {
       if (attempt >= 4 || !String(error).includes('Axe is already running')) throw error
@@ -1440,7 +1452,11 @@ for (const catalog of catalogs) for (const scenario of catalog.scenarios) {
     // capture run exists to produce review screenshots, and the gate measures reflow on every
     // scenario regardless, so nothing is lost by declining to judge layout on a page something else
     // just scrolled.
-    if (!galleryReviewCaptureRoot && scenario.sourceQualityCaseIds?.some(id => id.endsWith('.quality.reflow'))) {
+    //
+    // A baseline RECORDING run is the same case: recordReactBaseline screenshots the React probe the
+    // same way, and b19 measured it moving layers-rail.locale-pseudo into a 320px/200% overflow that
+    // the same scenario does not show without the capture (focused gate, back to back).
+    if (!galleryReviewCaptureRoot && !baselineCaptureRoot && scenario.sourceQualityCaseIds?.some(id => id.endsWith('.quality.reflow'))) {
       await assertReflow(reactPage, scenario, 'react')
       await assertReflow(blazorPage, scenario, 'blazor')
     }

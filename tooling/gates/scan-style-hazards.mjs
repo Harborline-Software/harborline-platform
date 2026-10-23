@@ -96,6 +96,86 @@ function scanLaneCoverage(moduleId, css, blazorSheets) {
 }
 
 // ---------------------------------------------------------------------------
+// R4 — a TEXT colour whose fallback chain ends in a system colour that is not a text colour: GrayText
+// (CSS Color 4: disabled text, which is exempt from contrast and reads 3.94:1 on Canvas), or a
+// BACKGROUND colour (Highlight reads 1.49:1 as text on Canvas, Mark 1.07:1). Unlike R1 this follows
+// module-local custom properties (`color: var(--hl-x-muted)` where `--hl-x-muted:
+// var(--hl-muted-foreground, GrayText)`) and does NOT trust a registry token to resolve: a layer the
+// module portals to document.body leaves whatever subtree the host scoped its tokens to -- the gallery
+// scopes them to the scene, and the portaled overlay scan (b19) found dialog, sheet, spotlight and
+// notification-center text rendering in exactly these fallbacks. Canvas is not listed: it is the text
+// half of an inverted CanvasText pair (tooltips, filled buttons). Forced-colors blocks and disabled
+// states are exempt -- there the UA supplies both halves, and disabled text owes no contrast.
+const NON_TEXT_SYSTEM_COLOURS = /^(GrayText|Highlight|Mark|ButtonFace|Field|AccentColor)$/
+const DISABLED_SELECTOR = /:disabled|\[disabled|aria-disabled|data-disabled|--disabled\b/
+
+function withoutForcedColours(css) {
+  let out = ''
+  let index = 0
+  const opener = /@media\s*\([^)]*forced-colors[^)]*\)\s*\{/g
+  for (;;) {
+    opener.lastIndex = index
+    const hit = opener.exec(css)
+    if (!hit) return out + css.slice(index)
+    out += css.slice(index, hit.index)
+    let depth = 1
+    let cursor = hit.index + hit[0].length
+    while (cursor < css.length && depth > 0) {
+      if (css[cursor] === '{') depth += 1
+      else if (css[cursor] === '}') depth -= 1
+      cursor += 1
+    }
+    index = cursor
+  }
+}
+
+function splitVar(value) {
+  let depth = 0
+  let comma = -1
+  for (let cursor = 4; cursor < value.length; cursor += 1) {
+    const character = value[cursor]
+    if (character === '(') depth += 1
+    else if (character === ',' && depth === 0 && comma < 0) comma = cursor
+    else if (character === ')') {
+      if (depth === 0) {
+        return {name: value.slice(4, comma < 0 ? cursor : comma).trim(), fallback: comma < 0 ? undefined : value.slice(comma + 1, cursor).trim()}
+      }
+      depth -= 1
+    }
+  }
+  return {name: value.slice(4).trim(), fallback: undefined}
+}
+
+function scanTextColourFallbacks(moduleId, css) {
+  const source = withoutForcedColours(css).replace(/\/\*[\s\S]*?\*\//g, '')
+  const rules = [...source.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map(match => ({selector: match[1].trim(), body: match[2]}))
+  const local = new Map()
+  for (const rule of rules) {
+    for (const declaration of rule.body.matchAll(/(--hl-[a-z0-9-]+)\s*:\s*([^;]+)/g)) {
+      local.set(declaration[1], [...(local.get(declaration[1]) ?? []), declaration[2].trim()])
+    }
+  }
+  // Every value the declaration can end at when no host token reaches it.
+  const terminals = (value, seen) => {
+    const bare = value.replace(/!important/, '').trim()
+    if (!bare.startsWith('var(')) return [bare]
+    const {name, fallback} = splitVar(bare)
+    if (local.has(name) && !seen.has(name)) return local.get(name).flatMap(definition => terminals(definition, new Set([...seen, name])))
+    return fallback === undefined ? [] : terminals(fallback, seen)
+  }
+  for (const rule of rules) {
+    if (DISABLED_SELECTOR.test(rule.selector)) continue
+    for (const declaration of rule.body.matchAll(/(?:^|;)\s*color\s*:\s*([^;]+)/g)) {
+      const reached = [...new Set(terminals(declaration[1], new Set()).filter(value => NON_TEXT_SYSTEM_COLOURS.test(value)))]
+      if (reached.length === 0) continue
+      report('text-colour-falls-to-non-text-system-colour', moduleId,
+        `${rule.selector.replace(/\s+/g, ' ')} { color: ${declaration[1].trim()} } can fall back to ${reached.join(', ')}, `
+        + 'which is not a text colour outside forced-colors')
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
 const blazorSheets = []
 const blazorRoot = resolve(root, 'projections/blazor/ui')
 for (const dir of existsSync(blazorRoot) ? readdirSync(blazorRoot) : []) {
@@ -111,6 +191,7 @@ for (const moduleId of readdirSync(specRoot).filter(name => name.startsWith('hlp
   if (!existsSync(stylePath)) continue
   const css = readFileSync(stylePath, 'utf8')
   scanForegroundFallbacks(moduleId, css)
+  scanTextColourFallbacks(moduleId, css)
   scanLaneCoverage(moduleId, css, blazorSheets)
 
   const sources = []
@@ -140,6 +221,8 @@ if (canary) {
     + "[data-theme='dark'] .x{--hl-danger:#ff8a80}"))
   probe('graphics-inside-live-region', () => scanLiveRegions('canary',
     [['canary.tsx', '<p role="status"><svg /><span>Loading</span></p>']]))
+  probe('text-colour-falls-to-non-text-system-colour', () => scanTextColourFallbacks('canary',
+    '.x{--hl-x-muted:var(--hl-muted-foreground,GrayText)}.x__copy{color:var(--hl-x-muted)}'))
   probe('no-blazor-stylesheet', () => scanLaneCoverage('canary', '.hl-canary-nothing-defines-this{}', []))
   process.stdout.write(dead.length
     ? `canary FAILED: rules that did not fire: ${dead.join(', ')}\n`
@@ -152,6 +235,11 @@ if (canary) {
 // stylesheet the exemption is stale and this fails, because an exemption nobody revisits is how a
 // scanner quietly stops describing the repository.
 const ACKNOWLEDGED = new Map([
+  // Same GrayText fallback the b19 batch fixed in dialog, sheet, spotlight and window, but latent here:
+  // the page renders inside the themed scene and no scenario reaches the fallback. Changing
+  // style.css re-pins the page's recorded design-review approval (design-surface-inputs), which is
+  // the owner's call, not a tooling batch's. Fixing it makes this entry stale and the scan red.
+  ['text-colour-falls-to-non-text-system-colour:hlp.ui.page', 'b19 follow-up: owner design re-review needed to change page style.css'],
 ])
 
 const key = finding => `${finding.rule}:${finding.module}`

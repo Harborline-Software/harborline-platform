@@ -234,7 +234,7 @@ function NotificationRow({ item, labels, onAction, onDismiss, onConfirm, onDeny 
   return (
     <li className="hl-notification-center__item" data-hl-kind={item.kind} data-hl-read={item.read || undefined}>
       <div className="hl-notification-center__item-copy">
-        {!item.read ? <span aria-label={labels.unread} className="hl-notification-center__unread"/> : null}
+        {!item.read ? <span aria-label={labels.unread} className="hl-notification-center__unread" role="img"/> : null}
         <strong>{item.title}</strong>{item.actor ? <span>{item.actor}</span> : null}
         {item.body ? <p>{item.body}</p> : null}{item.preview ? <code>{item.preview}</code> : null}<time>{item.timestamp}</time>
       </div>

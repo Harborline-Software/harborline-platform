@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url'
 
 import { expectedChecks, observeGalleryRun, reconcileChecks } from './gallery-observations.mjs'
 import { registeredFlakeRecords, unregisteredFlakes, validateFlakeRegistry } from './flake-registry.mjs'
-import { recordGalleryBaselines } from './gallery-baseline-store.mjs'
+import { readBaselineCaptures, recordGalleryBaselines, unionShardBaselineCaptures, writeBaselineCaptures } from './gallery-baseline-store.mjs'
 import { prepareGalleries } from './prepare-galleries.mjs'
 import { mergeShardReports } from './gallery-shard-merge.mjs'
 import { killProcessTreeSync, resolveCommand, runnerEnvironment, spawnWithBudget, stepBudgetMs } from './resolve-command.mjs'
@@ -74,7 +74,6 @@ const shardCount = Math.max(1, Number(process.env.GALLERY_SHARDS ?? 1) || 1)
 const shardArgument = process.argv.find(argument => argument.startsWith('--shard='))?.slice('--shard='.length)
 const shardAssignment = parseShardAssignment(shardArgument)
 const mergeDirectory = process.argv.find(argument => argument.startsWith('--merge='))?.slice('--merge='.length)
-if (shardAssignment && mergeDirectory) throw new Error('--shard and --merge are the two halves of a matrix run; pass one')
 
 export function parseShardAssignment(value) {
   if (!value) return undefined
@@ -123,13 +122,38 @@ export function collectShardReports(reports) {
   }
   return Array.from({length: total}, (_, position) => byIndex.get(position + 1))
 }
+// --record is allowed on both halves of a MATRIX run. The unsharded step is one Playwright run of the
+// whole suite under one step budget, and on a host where that exceeds the budget a recording could
+// never be made at all. A recording shard captures the PNGs of exactly the scenarios it ran and ships
+// them inline in its report; the recording collector (--merge with --record) refuses unless EVERY
+// shard recorded, unions them, and hands the union to the same recordGalleryBaselines an unsharded
+// run uses -- which refuses any capture set that is not exactly the catalog. What stays refused is a
+// deliberate subset: GALLERY_GREP with --record or --shard. --record-add=<id,...> makes the recording
+// additive (see recordGalleryBaselines).
+// Both screenshot runs -- review capture and React baseline recording -- scroll the page to take
+// their pictures, and gallery.spec.ts declines per-scenario reflow on such a page; the expectation
+// has to describe the run that happens. On a matrix run the collector holds the same --record flag
+// as its shards.
+export function screenshotsPerturbLayout({captureGallery, recordBaselines}) {
+  return Boolean(captureGallery || recordBaselines)
+}
+
+export function gateArgumentProblem({record, recordAdditions, focusedPattern, shard, merge}) {
+  if (shard && merge) return '--shard and --merge are the two halves of a matrix run; pass one'
+  if (record && focusedPattern) return '--record requires the complete gallery gate; GALLERY_GREP is not allowed'
+  // A shard of a subset is not a shard of the suite the collector will reconcile against the catalog.
+  if (shard && focusedPattern) return '--shard requires the complete gallery gate; GALLERY_GREP is not allowed'
+  if (recordAdditions && !record) return '--record-add requires --record'
+  return undefined
+}
 const recordBaselines = process.argv.includes('--record')
+const recordAdditionsArgument = process.argv.find(argument => argument.startsWith('--record-add='))?.slice('--record-add='.length)
+const recordAdditions = recordAdditionsArgument === undefined ? undefined
+  : recordAdditionsArgument.split(',').map(id => id.trim()).filter(Boolean)
 const captureGallery = process.argv.includes('--capture') || /^(1|true)$/i.test(process.env.HARBORLINE_CAPTURE_GALLERY ?? '')
-if (recordBaselines && focusedPattern) throw new Error('--record requires the complete gallery gate; GALLERY_GREP is not allowed')
-// Same reason --record refuses GALLERY_GREP: both already run a deliberate subset, and a shard of
-// a subset is not a shard of the suite the collector will reconcile against the catalog.
-if (shardAssignment && (recordBaselines || focusedPattern)) {
-  throw new Error('--shard requires the complete gallery gate; GALLERY_GREP and --record are not allowed')
+{
+  const problem = gateArgumentProblem({record: recordBaselines, recordAdditions, focusedPattern, shard: shardAssignment, merge: mergeDirectory})
+  if (problem) throw new Error(problem)
 }
 const baselineCaptureRoot = recordBaselines ? mkdtempSync(resolve(tmpdir(), 'hlp-gallery-baselines-')) : undefined
 const captureRunId = new Date().toISOString().replaceAll(':', '-').replace(/\.\d{3}Z$/, 'Z')
@@ -348,6 +372,9 @@ if (import.meta.main) {
       const brokenStep = results.find(entry => !entry.passed)
       if (brokenStep) failure = `${brokenStep.id} failed:\n${brokenStep.failureOutput}`
       mergedShardReport = mergeShardReports(complete.map(report => report.playwrightReport ?? null))
+      // Only a matrix whose every step passed carries captures worth unioning; a broken one has
+      // already set `failure`, and recording below requires none.
+      if (recordBaselines && !brokenStep) writeBaselineCaptures(baselineCaptureRoot, unionShardBaselineCaptures(complete))
     } else {
     await Promise.all([assertPortAvailable(reactPort), assertPortAvailable(blazorPort)])
     prepared = prepareGalleries({ packagesReady: process.argv.includes('--packages-ready') })
@@ -383,8 +410,8 @@ if (import.meta.main) {
       ...(baselineCaptureRoot ? { GALLERY_BASELINE_CAPTURE_DIR: baselineCaptureRoot } : {}),
       ...(galleryCaptureRoot ? { HARBORLINE_GALLERY_CAPTURE_DIR: galleryCaptureRoot } : {}),
     }
-    // Sharding is refused alongside --grep or --record: both already run a deliberate subset, and
-    // splitting a subset across shards would leave most of them with nothing to do.
+    // Sharding is refused alongside --grep: a grep already runs a deliberate subset, and splitting a
+    // subset across shards would leave most of them with nothing to do.
     if (shardAssignment) {
       // MATRIX producer. One shard, alone on this runner, so it takes the whole PW_WORKERS budget
       // -- the opposite of runShardedGallery, which divides one budget among co-resident shards.
@@ -446,7 +473,11 @@ if (import.meta.main) {
       // Absent when the shard died before the reporter wrote anything. The collector merges null
       // the same way it merges an absent artifact: the specs are missing and reconciliation says so.
       playwrightReport: reportFile ? JSON.parse(readFileSync(reportFile, 'utf8')) : null,
+      // A recording shard ships the PNGs it captured, and only from a passing run. Absent otherwise,
+      // which the recording collector refuses by name.
+      ...(recordBaselines && gatePassed ? {baselineCaptures: readBaselineCaptures(baselineCaptureRoot)} : {}),
     }, null, 2)}\n`)
+    if (baselineCaptureRoot) rmSync(baselineCaptureRoot, { recursive: true, force: true })
     process.exitCode = gatePassed ? 0 : 1
   } else {
 
@@ -458,7 +489,7 @@ if (import.meta.main) {
   const ciGallery = process.env.HARBORLINE_CI_GALLERY === '1'
   const expected = expectedChecks(galleryModules, {
     ciGallery,
-    capture: Boolean(galleryCaptureRoot),
+    capture: screenshotsPerturbLayout({captureGallery: Boolean(galleryCaptureRoot), recordBaselines}),
     exemptions: JSON.parse(readFileSync(resolve(root, 'gallery/ci-exemptions.json'), 'utf8')),
   })
   
@@ -538,9 +569,11 @@ if (import.meta.main) {
     galleryCapture = { root: galleryCaptureRoot, ...manifest.counts }
   }
   let baselineRecording
-  if (gatePassed && recordBaselines) {
+  // Recorded only from a run that passed AND reconciled: an unregistered flake or a check-count
+  // divergence sets `failure` without failing a step, and neither is a run to take baselines from.
+  if (gatePassed && !failure && recordBaselines) {
     try {
-      baselineRecording = recordGalleryBaselines({ repositoryRoot: root, captureRoot: baselineCaptureRoot, catalogs: galleryModules })
+      baselineRecording = recordGalleryBaselines({ repositoryRoot: root, captureRoot: baselineCaptureRoot, catalogs: galleryModules, additions: recordAdditions })
     } catch (error) {
       failure = error instanceof Error ? error.message : String(error)
     }
