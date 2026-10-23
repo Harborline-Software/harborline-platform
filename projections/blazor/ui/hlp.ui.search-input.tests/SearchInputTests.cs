@@ -7,6 +7,9 @@ namespace Harborline.UIAdapters.Blazor.Tests;
 
 public sealed class SearchInputTests : BunitContext
 {
+    // search-input.js observes Escape on the searchbox; tests that don't exercise it still need the import.
+    private readonly BunitJSModuleInterop escapeModule;
+    public SearchInputTests() { escapeModule = JSInterop.SetupModule("./_content/Harborline.UIAdapters.Blazor/search-input.js"); escapeModule.Mode = JSRuntimeMode.Loose; }
     [Fact] public async Task CoalescesToLatestValue(){var values=new List<string>();var cut=Render<HarborlineSearchInput>(p=>p.Add(x=>x.DebounceMs,250).Add(x=>x.ValueChanged,value=>values.Add(value)));cut.Find("input").Input("o");cut.Find("input").Input("oak");await cut.WaitForAssertionAsync(()=>Assert.Equal(["oak"],values),TimeSpan.FromSeconds(5));Assert.Equal("false",cut.Find(".hl-search-input").GetAttribute("aria-busy"));}
     [Fact] public void ClearPublishesImmediately(){var values=new List<string>();var cut=Render<HarborlineSearchInput>(p=>p.Add(x=>x.Value,"oak").Add(x=>x.DebounceMs,1000).Add(x=>x.ValueChanged,value=>values.Add(value)));cut.Find("input").Input("stale");cut.Find("button").Click();Assert.Equal([string.Empty],values);Assert.Empty(cut.FindAll("button"));}
     [Fact] public void ExternalValueReplacesDraft(){var cut=Render<HarborlineSearchInput>(p=>p.Add(x=>x.Value,"old"));cut.Find("input").Input("draft");cut.Render(p=>p.Add(x=>x.Value,"saved"));Assert.Equal("saved",cut.Find("input").GetAttribute("value"));Assert.Equal("false",cut.Find(".hl-search-input").GetAttribute("aria-busy"));}
@@ -15,6 +18,38 @@ public sealed class SearchInputTests : BunitContext
     [Fact] public void ClearReturnsFocusToTheSearchbox(){JSInterop.Mode=JSRuntimeMode.Loose;var values=new List<string>();var focusCallsWhenPublished=new List<int>();var cut=Render<HarborlineSearchInput>(p=>p.Add(x=>x.Value,"oak").Add(x=>x.ValueChanged,value=>{values.Add(value);focusCallsWhenPublished.Add(JSInterop.Invocations.Count(invocation=>invocation.Identifier.Contains("focus",StringComparison.OrdinalIgnoreCase)));}));cut.Find("button.hl-search-input__clear").Click();Assert.Equal([""],values);Assert.Empty(cut.FindAll("button.hl-search-input__clear"));Assert.Equal([1],focusCallsWhenPublished);var focus=JSInterop.VerifyFocusAsyncInvoke();Assert.False(string.IsNullOrEmpty(Assert.IsType<Microsoft.AspNetCore.Components.ElementReference>(focus.Arguments[0]).Id));}
     // Blank caller text is not an accessible name (WCAG 4.1.2); the searchbox falls back to the placeholder.
     [Fact] public void BlankAccessibleLabelFallsBackToThePlaceholderName(){var cut=Render<HarborlineSearchInput>(p=>p.Add(x=>x.AccessibleLabel,"  ").Add(x=>x.Placeholder,"Find assets"));Assert.Equal("Find assets",cut.Find("input").GetAttribute("aria-label"));}
+    // Contract: clearing publishes the empty string exactly once without waiting. Escape on a nonempty
+    // search is a clear: search-input.js marks the key handled on the input and calls back (the Chromium
+    // probe search-input-escape.mjs checks the key handling); the callback clears at once.
+    [Fact] public void EscapeObserverIsRegisteredOnTheSearchbox()
+    {
+        var cut = Render<HarborlineSearchInput>(p => p.Add(x => x.Value, "oak").Add(x => x.ValueChanged, _ => { }));
+        var observe = Assert.Single(escapeModule.Invocations["observeEscape"]);
+        Assert.IsType<Microsoft.AspNetCore.Components.ElementReference>(observe.Arguments[0]);
+        Assert.IsAssignableFrom<Microsoft.JSInterop.DotNetObjectReference<HarborlineSearchInput>>(observe.Arguments[1]);
+    }
+    [Fact] public async Task EscapeOnANonemptySearchClearsAtOnceAndCancelsThePendingPublish()
+    {
+        JSInterop.Mode = JSRuntimeMode.Loose;
+        var published = new List<string>();
+        var cut = Render<HarborlineSearchInput>(p => p.Add(x => x.Value, "oak").Add(x => x.DebounceMs, 10_000).Add(x => x.ValueChanged, published.Add));
+        cut.Find("input").Input("oak tr");
+        Assert.Equal("true", cut.Find(".hl-search-input").GetAttribute("aria-busy"));
+        await cut.InvokeAsync(cut.Instance.ClearFromEscapeAsync);
+        Assert.Equal([""], published);
+        Assert.Equal(string.Empty, cut.Find("input").GetAttribute("value"));
+        Assert.Equal("false", cut.Find(".hl-search-input").GetAttribute("aria-busy"));
+        Assert.Empty(cut.FindAll("button.hl-search-input__clear"));
+        JSInterop.VerifyFocusAsyncInvoke();
+    }
+    [Fact] public async Task EscapeOnAnEmptySearchPublishesNothing()
+    {
+        JSInterop.Mode = JSRuntimeMode.Loose;
+        var published = new List<string>();
+        var cut = Render<HarborlineSearchInput>(p => p.Add(x => x.Value, "").Add(x => x.ValueChanged, published.Add));
+        await cut.InvokeAsync(cut.Instance.ClearFromEscapeAsync);
+        Assert.Empty(published);
+    }
     [Theory,Trait("ModuleConformance","hlp.ui.search-input")] [MemberData(nameof(SharedFixtureBatch.Cases), "hlp.ui.search-input", MemberType = typeof(SharedFixtureBatch))]
     public void SharedFixtureConforms(string caseId, string? rawFixture)
     {
