@@ -52,6 +52,16 @@ const defaults: NotificationCenterLabels = {
   groupLabel: 'Notification groups', unread: 'Unread', dismiss: title => `Dismiss: ${title}`,
 }
 
+function resolveLabels(overrides: Partial<NotificationCenterLabels> | undefined): NotificationCenterLabels {
+  const resolved = { ...defaults }
+  for (const [key, value] of Object.entries(overrides ?? {}) as Array<[keyof NotificationCenterLabels, unknown]>) {
+    if (typeof value === 'string' && value.trim()) (resolved as Record<string, unknown>)[key] = value
+  }
+  const dismiss = overrides?.dismiss
+  if (dismiss) resolved.dismiss = title => { const text = dismiss(title); return text?.trim() ? text : defaults.dismiss(title) }
+  return resolved
+}
+
 function derivedGroups(items: readonly NotificationCenterItem[]): NotificationGroup[] {
   const seen = new Set<string>()
   const groups: NotificationGroup[] = []
@@ -69,7 +79,9 @@ export function NotificationCenter({
 }: NotificationCenterProps) {
   if (!Number.isFinite(maxVisible) || maxVisible < 0) throw new Error('invalid-notification-limit')
   if (new Set(items.map(item => item.id)).size !== items.length) throw new Error('duplicate-notification-id')
-  const labels = React.useMemo(() => ({ ...defaults, ...overrides }), [overrides])
+  // Caller text overrides each label; blank caller text is no text and keeps the default, so no
+  // chrome or control name is ever empty.
+  const labels = React.useMemo(() => resolveLabels(overrides), [overrides])
   const unread = items.filter(item => !item.read).length
   const pending = items.filter(item => item.kind === 'proposal').length
   const otherUnread = items.filter(item => item.kind !== 'proposal' && !item.read).length
@@ -84,6 +96,29 @@ export function NotificationCenter({
   const [kind, setKind] = React.useState<NotificationKind | 'all'>('all')
   const actionLatch = React.useRef(new Set<string>())
   const rootRef = React.useRef<HTMLDivElement>(null)
+  const contentRef = React.useRef<HTMLDivElement>(null)
+  // An action that removes its own control (dismissing an item, marking all read) leaves focus nowhere
+  // once the host applies the change, which may be in a later render. Focus then settles on the row now
+  // at the same position (else the last row), else the first control in the dialog. The settle waits
+  // only while focus is still on the control the action started from: focus anywhere else cancels it,
+  // so focus the user moved is never taken back.
+  const settle = React.useRef<{ row: number | null; origin: Element | null } | null>(null)
+  const startSettle = (row: number | null) => { settle.current = { row, origin: document.activeElement } }
+  React.useLayoutEffect(() => {
+    const pending = settle.current
+    const dialog = contentRef.current
+    if (!pending || !dialog) return
+    const active = document.activeElement
+    if (active && active !== document.body && active.isConnected) {
+      if (active !== pending.origin) settle.current = null
+      return
+    }
+    settle.current = null
+    const rows = dialog.querySelectorAll<HTMLElement>('.hl-notification-center__item')
+    const row = pending.row === null || rows.length === 0 ? null : rows[Math.min(pending.row, rows.length - 1)]
+    const target = row?.querySelector<HTMLElement>('button') ?? dialog.querySelector<HTMLElement>('button') ?? dialog
+    target.focus({ preventScroll: true })
+  })
   const canShowRail = useCanShowRail()
   const filtered = kind === 'all' ? items : items.filter(item => item.kind === kind)
   const visible = filtered.slice(0, maxVisible)
@@ -92,6 +127,7 @@ export function NotificationCenter({
   const badge = numeric > 99 ? `${formatCount(99)}+` : formatCount(numeric)
 
   const requestOpen = (next: boolean) => {
+    settle.current = null
     if (next) {
       actionLatch.current.clear()
       setTheme(rootRef.current?.closest<HTMLElement>('[data-theme]')?.dataset.theme)
@@ -122,6 +158,8 @@ export function NotificationCenter({
           aria-label={labels.title}
           align="end"
           className="hl-notification-center__dialog"
+          ref={contentRef}
+          tabIndex={-1}
           data-theme={theme}
           dir={direction}
           onInteractOutside={event => {
@@ -131,7 +169,7 @@ export function NotificationCenter({
         >
           <header className="hl-notification-center__header">
             <h2>{labels.title}</h2>
-            {unread > 0 && onMarkAllRead ? <button type="button" onClick={onMarkAllRead}>{labels.markAllRead}</button> : null}
+            {unread > 0 && onMarkAllRead ? <button type="button" onClick={() => { startSettle(null); onMarkAllRead() }}>{labels.markAllRead}</button> : null}
           </header>
           {groups.length > 1 ? (
             <div role="tablist" aria-label={labels.groupLabel} className="hl-notification-center__tabs">
@@ -142,7 +180,7 @@ export function NotificationCenter({
           <div className="hl-notification-center__scroll">
             {visible.length === 0 ? <p className="hl-notification-center__empty">{labels.empty}</p> : (
               <ul className="hl-notification-center__items">
-                {visible.map(item => <NotificationRow key={item.id} item={item} labels={labels} onAction={onAction} onDismiss={onDismiss} onConfirm={() => decide('confirm', item)} onDeny={() => decide('deny', item)}/>) }
+                {visible.map((item, row) => <NotificationRow key={item.id} item={item} labels={labels} onAction={onAction} onDismiss={onDismiss ? dismissed => { startSettle(row); onDismiss(dismissed) } : undefined} onConfirm={() => decide('confirm', item)} onDeny={() => decide('deny', item)}/>) }
               </ul>
             )}
           </div>
