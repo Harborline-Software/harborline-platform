@@ -154,6 +154,70 @@
         ],
         "footer": []
       }
+    },
+    {
+      "id": "popover.inside-dialog",
+      "name": "Inside a dialog",
+      "surface": "inside-dialog",
+      "sourceCaseIds": [
+        "popover.escape",
+        "popover.focus"
+      ],
+      "sourceQualityCaseIds": [],
+      "content": {
+        "blurb": "A popover inside an open dialog: Escape closes the innermost open layer first, focus returns to the trigger, and the next Escape closes the dialog.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {
+          "open": true
+        },
+        "body": [
+          {
+            "control": "raw",
+            "react": "<Dialog open onOpenChange={setOpen} title=\"Settings\"><Popover><PopoverTrigger>Pick</PopoverTrigger><PopoverContent aria-label=\"Picker\"><button type=\"button\">Option</button></PopoverContent></Popover></Dialog>",
+            "blazor": "<HarborlineDialog Open=\"@open\" OpenChanged=\"@(value => open = value)\" Title=\"Settings\"><HarborlinePopover><HarborlinePopoverTrigger>Pick</HarborlinePopoverTrigger><HarborlinePopoverContent AccessibleLabel=\"Picker\"><button type=\"button\">Option</button></HarborlinePopoverContent></HarborlinePopover></HarborlineDialog>",
+            "rationale": "The closed control vocabulary cannot express a popover composed inside a real dialog."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "popover.inside-sheet",
+      "name": "Inside a sheet",
+      "surface": "inside-sheet",
+      "sourceCaseIds": [
+        "popover.escape",
+        "popover.focus"
+      ],
+      "sourceQualityCaseIds": [],
+      "content": {
+        "blurb": "A popover inside an open sheet: Escape closes the innermost open layer first, focus returns to the trigger, and the next Escape closes the sheet.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {
+          "open": true
+        },
+        "body": [
+          {
+            "control": "raw",
+            "react": "<Sheet open onOpenChange={setOpen}><SheetContent closeLabel=\"Close panel\"><SheetTitle>Panel</SheetTitle><Popover><PopoverTrigger>Pick</PopoverTrigger><PopoverContent aria-label=\"Picker\"><button type=\"button\">Option</button></PopoverContent></Popover></SheetContent></Sheet>",
+            "blazor": "<HarborlineSheet Open=\"@open\" OpenChanged=\"@(value => open = value)\"><HarborlineSheetContent CloseLabel=\"Close panel\"><HarborlineSheetTitle>Panel</HarborlineSheetTitle><HarborlinePopover><HarborlinePopoverTrigger>Pick</HarborlinePopoverTrigger><HarborlinePopoverContent AccessibleLabel=\"Picker\"><button type=\"button\">Option</button></HarborlinePopoverContent></HarborlinePopover></HarborlineSheetContent></HarborlineSheet>",
+            "rationale": "The closed control vocabulary cannot express a popover composed inside a real sheet."
+          }
+        ],
+        "footer": []
+      }
     }
   ]
 }
