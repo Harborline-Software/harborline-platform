@@ -96,7 +96,21 @@ public sealed class CldrPluralRulesTests
     {
         Assert.Equal(key, CldrPluralRules.ResolveKey(tag));
         Assert.Equal(key ?? "root", CldrPluralRules.ForLocale(tag).Locale);
-        Assert.Same(CldrPluralRules.ForLocale(tag), CldrPluralRules.ForLocale(tag));
+        if (key is not null) Assert.Same(CldrPluralRules.ForLocale(tag), CldrPluralRules.ForLocale(key));
+    }
+
+    [Fact]
+    public void ArbitraryCallerTagsNeverGrowTheRuleCache()
+    {
+        // Tags can be user input (Accept-Language on Blazor Server); only data keys may be cached.
+        for (var index = 0; index < 10_000; index++)
+        {
+            CldrPluralRules.ForLocale($"en-x-{index}");
+            CldrPluralRules.ForLocale($"zz-{index}");
+            CldrPluralRules.ForLocale($"pt-PT-u-nu-{index}");
+        }
+        Assert.InRange(CldrPluralRules.CachedRuleSetCount, 1, CldrPluralRules.Locales.Count);
+        Assert.Equal(HarborlinePluralCategory.One, new HarborlineLocaleScope("en-x-123456").PluralCategory(1));
     }
 
     [Fact]

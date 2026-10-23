@@ -258,15 +258,19 @@ internal sealed class CldrPluralRuleSet
 /// CLDR cardinal plural rules (UTS #35 Part 3 "Language Plural Rules") from the embedded
 /// cldr-core supplemental/plurals.json. Locale lookup is exact tag, then CLDR truncation
 /// inheritance (pt-PT-x falls to pt-PT, then pt), else root, which has only the other category.
-/// Each locale's rules are parsed once and cached.
+/// Each data key's rules are parsed once and cached; caller tags are resolved per call and never cached.
 /// </summary>
 internal static class CldrPluralRules
 {
     internal const string ResourceName = "Harborline.Foundation.Localization.cldr.plurals.json";
 
     private static readonly Lazy<CldrPluralData> Data = new(Load, LazyThreadSafetyMode.ExecutionAndPublication);
-    private static readonly ConcurrentDictionary<string, CldrPluralRuleSet> ByTag = new(StringComparer.OrdinalIgnoreCase);
-    private static readonly ConcurrentDictionary<string, CldrPluralRuleSet> ByKey = new(StringComparer.OrdinalIgnoreCase);
+    // Keyed only by CLDR data keys, never by caller tags: a tag can come from user input
+    // (Accept-Language on Blazor Server), so caching by tag would grow without bound.
+    private static readonly ConcurrentDictionary<string, CldrPluralRuleSet> ByKey = new(StringComparer.Ordinal);
+
+    /// <summary>Parsed rule sets held in the cache; bounded by the number of data keys.</summary>
+    internal static int CachedRuleSetCount => ByKey.Count;
 
     /// <summary>The CLDR release the embedded data declares.</summary>
     public static string CldrVersion => Data.Value.CldrVersion;
@@ -283,25 +287,21 @@ internal static class CldrPluralRules
     public static HarborlinePluralCategory Select(string locale, string sourceNumber) =>
         ForLocale(locale).Select(CldrPluralOperands.Parse(sourceNumber));
 
-    /// <summary>Resolves a BCP-47 tag to its cached rule set.</summary>
+    /// <summary>Resolves a BCP-47 tag on every call, then returns the rule set cached for its data key.</summary>
     public static CldrPluralRuleSet ForLocale(string locale)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(locale);
-        return ByTag.GetOrAdd(locale, static tag =>
-        {
-            var key = ResolveKey(tag);
-            return key is null ? CldrPluralRuleSet.Root : ByKey.GetOrAdd(key, static k => CldrPluralRuleSet.Parse(k, Data.Value.Rules[k]));
-        });
+        var key = ResolveKey(locale);
+        return key is null ? CldrPluralRuleSet.Root : ByKey.GetOrAdd(key, static k => CldrPluralRuleSet.Parse(k, Data.Value.Rules[k]));
     }
 
     /// <summary>The data key a tag resolves to by exact match then truncation, or null for root.</summary>
     public static string? ResolveKey(string locale)
     {
         var candidate = locale.Trim().Replace('_', '-');
-        var rules = Data.Value.Rules;
         while (candidate.Length > 0)
         {
-            if (rules.ContainsKey(candidate)) return rules.Keys.First(key => string.Equals(key, candidate, StringComparison.OrdinalIgnoreCase));
+            if (Data.Value.CanonicalKeys.TryGetValue(candidate, out var key)) return key;
             var dash = candidate.LastIndexOf('-');
             if (dash < 0) break;
             candidate = candidate[..dash];
@@ -323,8 +323,11 @@ internal static class CldrPluralRules
         {
             rules[locale.Name] = locale.Value.EnumerateObject().ToDictionary(rule => rule.Name, rule => rule.Value.GetString() ?? string.Empty, StringComparer.Ordinal);
         }
-        return new CldrPluralData(version, rules);
+        return new CldrPluralData(version, rules, rules.Keys.ToDictionary(key => key, key => key, StringComparer.OrdinalIgnoreCase));
     }
 
-    private sealed record CldrPluralData(string CldrVersion, IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> Rules);
+    private sealed record CldrPluralData(
+        string CldrVersion,
+        IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> Rules,
+        IReadOnlyDictionary<string, string> CanonicalKeys);
 }
