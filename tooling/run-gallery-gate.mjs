@@ -130,6 +130,14 @@ export function collectShardReports(reports) {
 // run uses -- which refuses any capture set that is not exactly the catalog. What stays refused is a
 // deliberate subset: GALLERY_GREP with --record or --shard. --record-add=<id,...> makes the recording
 // additive (see recordGalleryBaselines).
+// Both screenshot runs -- review capture and React baseline recording -- scroll the page to take
+// their pictures, and gallery.spec.ts declines per-scenario reflow on such a page; the expectation
+// has to describe the run that happens. On a matrix run the collector holds the same --record flag
+// as its shards.
+export function screenshotsPerturbLayout({captureGallery, recordBaselines}) {
+  return Boolean(captureGallery || recordBaselines)
+}
+
 export function gateArgumentProblem({record, recordAdditions, focusedPattern, shard, merge}) {
   if (shard && merge) return '--shard and --merge are the two halves of a matrix run; pass one'
   if (record && focusedPattern) return '--record requires the complete gallery gate; GALLERY_GREP is not allowed'
@@ -481,7 +489,7 @@ if (import.meta.main) {
   const ciGallery = process.env.HARBORLINE_CI_GALLERY === '1'
   const expected = expectedChecks(galleryModules, {
     ciGallery,
-    capture: Boolean(galleryCaptureRoot),
+    capture: screenshotsPerturbLayout({captureGallery: Boolean(galleryCaptureRoot), recordBaselines}),
     exemptions: JSON.parse(readFileSync(resolve(root, 'gallery/ci-exemptions.json'), 'utf8')),
   })
   

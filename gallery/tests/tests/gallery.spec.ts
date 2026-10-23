@@ -1451,7 +1451,11 @@ for (const catalog of catalogs) for (const scenario of catalog.scenarios) {
     // capture run exists to produce review screenshots, and the gate measures reflow on every
     // scenario regardless, so nothing is lost by declining to judge layout on a page something else
     // just scrolled.
-    if (!galleryReviewCaptureRoot && scenario.sourceQualityCaseIds?.some(id => id.endsWith('.quality.reflow'))) {
+    //
+    // A baseline RECORDING run is the same case: recordReactBaseline screenshots the React probe the
+    // same way, and b19 measured it moving layers-rail.locale-pseudo into a 320px/200% overflow that
+    // the same scenario does not show without the capture (focused gate, back to back).
+    if (!galleryReviewCaptureRoot && !baselineCaptureRoot && scenario.sourceQualityCaseIds?.some(id => id.endsWith('.quality.reflow'))) {
       await assertReflow(reactPage, scenario, 'react')
       await assertReflow(blazorPage, scenario, 'blazor')
     }

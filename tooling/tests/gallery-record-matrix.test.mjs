@@ -15,7 +15,8 @@ import test from 'node:test'
 import {
   captureFileName, readBaselineCaptures, recordGalleryBaselines, unionShardBaselineCaptures, writeBaselineCaptures,
 } from '../gallery-baseline-store.mjs'
-import {gateArgumentProblem, requiredGalleryStepIds} from '../run-gallery-gate.mjs'
+import {gateArgumentProblem, requiredGalleryStepIds, screenshotsPerturbLayout} from '../run-gallery-gate.mjs'
+import {expectedChecks} from '../gallery-observations.mjs'
 
 const root = resolve(import.meta.dirname, '../..')
 const catalogs = [
@@ -158,4 +159,14 @@ test('the recording collector refuses, by name, a matrix whose shard did not rec
   } finally {
     rmSync(directory, {recursive: true, force: true})
   }
+})
+
+test('a recording run, sharded or not, declares no per-scenario reflow, as a capture run does', () => {
+  assert.equal(screenshotsPerturbLayout({captureGallery: false, recordBaselines: false}), false)
+  assert.equal(screenshotsPerturbLayout({captureGallery: true, recordBaselines: false}), true)
+  assert.equal(screenshotsPerturbLayout({captureGallery: false, recordBaselines: true}), true)
+  const modules = [{moduleId: 'hlp.ui.button', locales: 1, themes: 2, scenarios: [{id: 'button.a', sourceQualityCaseIds: ['x.quality.reflow']}]}]
+  const plain = expectedChecks(modules, {capture: screenshotsPerturbLayout({recordBaselines: false})}).reflowChecks
+  const recording = expectedChecks(modules, {capture: screenshotsPerturbLayout({recordBaselines: true})}).reflowChecks
+  assert.equal(plain - recording, 2, 'one per-scenario reflow assertion per lane is not declared while recording')
 })
