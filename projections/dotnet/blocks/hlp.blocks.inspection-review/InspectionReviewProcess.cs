@@ -49,7 +49,7 @@ public static class InspectionReviewProcess
         ArgumentException.ThrowIfNullOrWhiteSpace(tenant);
         ArgumentNullException.ThrowIfNull(binding);
         binding.Validate();
-        var title = new Harborline.Contracts.Forms.InternationalizedText
+        var title = new Harborline.Contracts.Text.InternationalizedText
         {
             DefaultLocale = "en",
             Values = new Dictionary<string, string>(StringComparer.Ordinal) { ["en"] = "Inspection review" },
@@ -88,7 +88,7 @@ public static class InspectionReviewProcess
         };
     }
 
-    private static Harborline.Contracts.Forms.InternationalizedText Text(string value) => new()
+    private static Harborline.Contracts.Text.InternationalizedText Text(string value) => new()
     {
         DefaultLocale = "en",
         Values = new Dictionary<string, string>(StringComparer.Ordinal) { ["en"] = value },

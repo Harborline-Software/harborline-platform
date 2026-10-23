@@ -23,10 +23,10 @@ public sealed class FormsExpressionEnvironmentTests
         Assert.Equal([BorrowerEnvironmentAdmission.FieldRead], declaration.Effects);
         Assert.Equal(["caller", "candidate", "clock", "field", "record_type", "row"], declaration.Variables.Keys.Order(StringComparer.Ordinal));
 
-        var rule = new Harborline.Contracts.Forms.RuleDefinition
+        var rule = new Harborline.Contracts.Rules.RuleDefinition
         {
-            Id = "t", Tier = Harborline.Contracts.Forms.RuleTier.JsonLogic, Scope = Harborline.Contracts.Forms.RuleScope.Field,
-            ScopeTarget = "total", Expression = """{"+":[{"var":"a"},1]}""", Action = Harborline.Contracts.Forms.RuleActionKind.Compute,
+            Id = "t", Tier = Harborline.Contracts.Rules.RuleTier.JsonLogic, Scope = Harborline.Contracts.Rules.RuleScope.Field,
+            ScopeTarget = "total", Expression = """{"+":[{"var":"a"},1]}""", Action = Harborline.Contracts.Rules.RuleActionKind.Compute,
         };
         var compiled = RuleCompiler.Compile([rule]);
         var instance = RuleInstance.FromJson(JsonNode.Parse("""{"a":1}""")!.AsObject());

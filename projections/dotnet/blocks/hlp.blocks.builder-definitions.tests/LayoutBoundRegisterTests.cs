@@ -1,7 +1,7 @@
 using System.Text.Json;
 using Harborline.Blocks.BuilderDefinitions;
 using Harborline.Contracts.Fields;
-using Harborline.Contracts.Forms;
+using Harborline.Contracts.Rules;
 using Xunit;
 
 namespace Harborline.Blocks.BuilderDefinitions.Tests;
