@@ -45,11 +45,12 @@
                     <div class="hl-spotlight__loading" @key="section.Id">@(section.LoadingLabel ?? "…")</div>
                 }
             }
-            @if (FlatItems.Count == 0 && !Sections.Any(section => section.Loading))
-            {
-                <div class="hl-spotlight__empty">@Empty</div>
-            }
         </div>
+        @* A listbox owns only options and groups, so the empty copy sits beside it, never inside. *@
+        @if (FlatItems.Count == 0 && !Sections.Any(section => section.Loading))
+        {
+            <div class="hl-spotlight__empty">@Empty</div>
+        }
         @if (Footer is not null) { <div class="hl-spotlight__footer">@Footer</div> }
     </div>
     </div>

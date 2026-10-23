@@ -46,6 +46,18 @@ public sealed class SpotlightTests : BunitContext
             .Add(x => x.Sections, [new SpotlightSection("x", "X", [new SpotlightItem("same", "A", () => Task.CompletedTask), new SpotlightItem("same", "B", () => Task.CompletedTask)])])));
     }
 
+    // b19: a listbox owns only options and groups (ARIA required owned elements; axe
+    // aria-required-children). The empty copy sits beside the empty listbox, not inside it.
+    [Fact]
+    public void EmptyCopySitsOutsideTheListbox()
+    {
+        var cut = Render<HarborlineSpotlight>(p => p.Add(x => x.Open, true).Add(x => x.AriaLabel, "Search")
+            .Add(x => x.Sections, []).Add(x => x.Empty, "Nothing found"));
+        Assert.Equal("Nothing found", cut.Find(".hl-spotlight__empty").TextContent);
+        Assert.Empty(cut.Find("[role=listbox]").Children);
+        Assert.Empty(cut.FindAll("[role=listbox] .hl-spotlight__empty"));
+    }
+
     [Theory, Trait("ModuleConformance", "hlp.ui.spotlight")]
     [MemberData(nameof(SharedFixtureBatch.Cases), "hlp.ui.spotlight", MemberType = typeof(SharedFixtureBatch))]
     public void SharedFixtureConforms(string caseId, string? rawFixture)

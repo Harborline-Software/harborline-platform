@@ -104,6 +104,11 @@ describe('Spotlight shared fixtures', () => {
     render(<Spotlight {...required} empty="Aucun résultat" open sections={[]} />)
     expect(screen.getByText('Aucun résultat')).toBeInTheDocument()
     expect(screen.queryAllByRole('option')).toHaveLength(0)
+    // b19: a listbox owns only options and groups (ARIA required owned elements; axe
+    // aria-required-children). The empty copy sits beside the empty listbox, not inside it.
+    const listbox = screen.getByRole('listbox')
+    expect(listbox).not.toContainElement(screen.getByText('Aucun résultat'))
+    expect(listbox.children).toHaveLength(0)
   })
 
   it('spotlight.loading', () => {
