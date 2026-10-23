@@ -73,13 +73,20 @@ describe('NotificationCenter focus settles inside the dialog', () => {
     expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Dismiss: Import done' }))
   })
 
-  it('never takes back focus the user moved elsewhere', () => {
-    render(<Host late/>)
+  it('never takes back focus the user moved elsewhere, even if that control later goes away', () => {
+    const view = render(<Host late/>)
     open()
-    fireEvent.click(screen.getByRole('button', { name: 'Dismiss: Export ready' }))
-    const elsewhere = screen.getByRole('button', { name: 'Apply' })
-    elsewhere.focus()
-    act(() => elsewhere.click())
-    expect(document.activeElement).toBe(elsewhere)
+    const dismiss = screen.getByRole('button', { name: 'Dismiss: Export ready' })
+    dismiss.focus()
+    fireEvent.click(dismiss)
+    // The user moves on before the host applies the change; the next render cancels the settle.
+    const other = screen.getByRole('button', { name: 'Dismiss: Backup done' })
+    act(() => other.focus())
+    act(() => screen.getByRole('button', { name: 'Apply' }).click())
+    expect(document.activeElement).toBe(other)
+    // Later, focus falls to the page for an unrelated reason; nothing pulls it back into the dialog.
+    act(() => other.blur())
+    view.rerender(<Host late/>)
+    expect(document.activeElement).toBe(document.body)
   })
 })

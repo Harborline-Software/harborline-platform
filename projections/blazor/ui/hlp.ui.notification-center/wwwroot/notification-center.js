@@ -1,14 +1,24 @@
 export function focusFirst(root) { (root?.querySelector('button,[href],[tabindex]:not([tabindex="-1"])') ?? root)?.focus({ preventScroll: true }) }
 export function focus(element) { element?.focus({ preventScroll: true }) }
 
-// After an action removed its own control: if focus fell out of the dialog, settle it on the row now at
-// the same position (else the last row), else the first control in the dialog. Returns whether the
-// pending settle is done (focus moved, or the dialog is gone); false means focus is still on the
-// control, waiting for the host to remove it.
-export function settleFocus(dialog, row) {
+// After an action that removes its own control: the first call for a settle (a new token) records the
+// control focus is on. While focus stays on that control, the settle waits for the host to remove it
+// (returns false). Focus anywhere else cancels the settle (returns true) so focus the user moved is
+// never taken back. Focus lost to the page settles on the row now at the same position (else the last
+// row), else the first control in the dialog.
+const origins = new WeakMap()
+export function settleFocus(dialog, row, token) {
   if (!dialog?.isConnected) return true
   const active = document.activeElement
-  if (active && active !== document.body && active.isConnected) return false
+  const connected = active && active !== document.body && active.isConnected
+  const recorded = origins.get(dialog)
+  if (!recorded || recorded.token !== token) origins.set(dialog, { token, origin: connected ? active : null })
+  if (connected) {
+    if (active === origins.get(dialog).origin) return false
+    origins.delete(dialog)
+    return true
+  }
+  origins.delete(dialog)
   const rows = dialog.querySelectorAll('.hl-notification-center__item')
   const target = row >= 0 && rows.length ? rows[Math.min(row, rows.length - 1)] : null
   ;(target?.querySelector('button') ?? dialog.querySelector('button') ?? dialog).focus({ preventScroll: true })

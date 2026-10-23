@@ -167,13 +167,12 @@ const assertions: Record<string, (entry: Case) => void | Promise<void>> = {
   },
   'notification-center.rtl-touch': ({ input, expected }) => {
     // The test setup's matchMedia reports no match, so canShowRail is false, as the fixture requires.
-    expect(input.canShowRail).toBe(false)
+    // The 44px bell is the gallery's touch check, not asserted here.
     render(<NotificationCenter direction={input.direction} items={[item('r1', 'result')]}/>)
     open()
     const logical = document.querySelector('.hl-notification-center')!.getAttribute('dir') === input.direction && screen.getByRole('dialog').getAttribute('dir') === input.direction
     expect(logical).toBe(expected.logicalEdges)
-    expect(bell().dataset.hlTouch).toBe('true')
-    expect(expected.bellMinimumCssPixels).toBe(44)
+    expect(bell().dataset.hlTouch === 'true').toBe(!input.canShowRail)
   },
   'notification-center.invalid-input': ({ input, expected }) => {
     const errors: string[] = []

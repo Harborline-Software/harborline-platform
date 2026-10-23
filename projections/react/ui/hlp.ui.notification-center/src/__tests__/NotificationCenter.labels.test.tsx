@@ -11,7 +11,7 @@ const items: NotificationCenterItem[] = [
 ]
 
 function names() {
-  const named = [screen.getByRole('dialog'), ...screen.getAllByRole('button'), screen.getByRole('tablist')]
+  const named = [screen.getByRole('dialog'), ...screen.getAllByRole('button'), ...screen.getAllByRole('tab'), screen.getByRole('tablist')]
   for (const element of named) {
     const name = (element.getAttribute('aria-label') ?? element.textContent ?? '').trim()
     expect(name, element.outerHTML.slice(0, 80)).not.toBe('')

@@ -22,8 +22,9 @@ internal sealed class CapturingOutside : IOutsidePointerObserver
 }
 
 // Contract: focus is never stranded. An action that removes its own control asks the module to settle
-// focus inside the dialog after the host's render, until focus has moved; the module moves it only if
-// it fell out of the dialog (the Chromium probe checks that half). Labels never render empty.
+// focus inside the dialog after the host's render, until the module reports it done; the module moves
+// focus only if it fell out of the dialog and cancels when focus moved elsewhere (the Chromium probe
+// notification-center-focus.mjs checks that half). Labels never render empty.
 public sealed class NotificationCenterFocusTests : BunitContext
 {
     private readonly BunitJSModuleInterop module;
@@ -89,16 +90,31 @@ public sealed class NotificationCenterFocusTests : BunitContext
     }
 
     [Fact]
-    public void ASettledFocusIsNotRequestedAgainAndClosingCancelsAPendingOne()
+    public void ASettledFocusIsNotRequestedAgain()
     {
         module.Setup<bool>("settleFocus", _ => true).SetResult(true);
-        var cut = Render<Host>();
+        var cut = Render<Host>(p => p.Add(x => x.Late, true));
         cut.Find(".hl-notification-center__trigger").Click();
         cut.Find("[aria-label='Dismiss: Export ready']").Click();
         var settled = module.Invocations["settleFocus"].Count;
-        cut.Find(".hl-notification-center__tabs, .hl-notification-center__trigger").Click();
+        cut.InvokeAsync(cut.Instance.Apply);
         Assert.Equal(settled, module.Invocations["settleFocus"].Count);
     }
+
+    [Fact]
+    public void ClosingCancelsAPendingSettle()
+    {
+        // The module reports the settle as still waiting (loose mode returns false).
+        var cut = Render<Host>(p => p.Add(x => x.Late, true));
+        cut.Find(".hl-notification-center__trigger").Click();
+        cut.Find("[aria-label='Dismiss: Export ready']").Click();
+        cut.Find(".hl-notification-center__trigger").Click();
+        cut.Find(".hl-notification-center__trigger").Click();
+        var reopened = module.Invocations["settleFocus"].Count;
+        cut.InvokeAsync(cut.Instance.Apply);
+        Assert.Equal(reopened, module.Invocations["settleFocus"].Count);
+    }
+
 
     [Fact]
     public void BlankCallerLabelsKeepTheDefaultsAndNoNameIsEmpty()

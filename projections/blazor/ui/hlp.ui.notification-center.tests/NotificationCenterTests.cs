@@ -95,11 +95,13 @@ public sealed class NotificationCenterTests : BunitContext
                     var cut = Center([Item("p1", "proposal"), Item("r1", "result")], p => p.Add(x => x.OnConfirm, _ => { }).Add(x => x.OnViewAll, () => { }));
                     Open(cut);
                     var focusCalls = module.Invocations["focus"].Count;
+                    // Opening positions the dialog against the trigger, which names the trigger's reference.
+                    var triggerReference = ((ElementReference)module.Invocations["positionDialog"].Last().Arguments[0]!).Id;
                     if (method == "Escape") cut.Find("[role=dialog]").KeyDown(new Microsoft.AspNetCore.Components.Web.KeyboardEventArgs { Key = "Escape" });
                     else if (method == "outside-pointer") cut.InvokeAsync(() => outside.Callback!(default!).AsTask()).Wait();
                     else if (method == "proposal") cut.Find("[aria-label='Confirm: Title p1']").Click();
                     else cut.Find("footer button").Click();
-                    var triggerFocusRequested = module.Invocations["focus"].Count > focusCalls;
+                    var triggerFocusRequested = module.Invocations["focus"].Skip(focusCalls).Any(call => call.Arguments[0] is ElementReference target && target.Id == triggerReference);
                     outcomes.Add((!IsOpen(cut), method == "outside-pointer" ? !triggerFocusRequested : triggerFocusRequested));
                 }
                 Assert.Equal(expected.GetProperty("closed").GetBoolean(), outcomes.All(o => o.Closed));
@@ -227,9 +229,9 @@ public sealed class NotificationCenterTests : BunitContext
                 var direction = input.GetProperty("direction").GetString();
                 var cut = Center([Item("r1", "result")], p => p.Add(x => x.Direction, direction).Add(x => x.CanShowRail, input.GetProperty("canShowRail").GetBoolean()));
                 Open(cut);
+                // The 44px bell is the gallery's touch check, not asserted here.
                 Assert.Equal(expected.GetProperty("logicalEdges").GetBoolean(), cut.Find(".hl-notification-center").GetAttribute("dir") == direction);
                 Assert.Equal("true", cut.Find(".hl-notification-center__trigger").GetAttribute("data-hl-touch"));
-                Assert.Equal(44, expected.GetProperty("bellMinimumCssPixels").GetInt32());
                 break;
             }
             case "notification-center.invalid-input":

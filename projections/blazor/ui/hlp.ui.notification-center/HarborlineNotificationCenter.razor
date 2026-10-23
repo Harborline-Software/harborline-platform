@@ -36,7 +36,7 @@
           <ul class="hl-notification-center__items">
             @foreach (var (item, row) in VisibleItems.Select((item, row) => (item, row)))
             {
-              <li class="hl-notification-center__item" data-hl-kind="@item.Kind" data-hl-read="@(item.Read ? "true" : null)">
+              <li @key="item.Id" class="hl-notification-center__item" data-hl-kind="@item.Kind" data-hl-read="@(item.Read ? "true" : null)">
                 <div class="hl-notification-center__item-copy">
                   @if (!item.Read) { <span role="img" class="hl-notification-center__unread" aria-label="@L.Unread"></span> }
                   <strong>@item.Title</strong>@if(item.Actor is not null){<span>@item.Actor</span>}@if(item.Body is not null){<p>@item.Body</p>}@if(item.Preview is not null){<code>@item.Preview</code>}<time>@item.Timestamp</time>
@@ -84,8 +84,11 @@
   // An action that removes its own control (dismissing an item, marking all read) leaves focus nowhere
   // once the host applies the change, which may be in a later render. Focus then settles on the row now
   // at the same position (else the last row), else the first control in the dialog, and only if it fell
-  // out of the dialog, so focus the user moved is never taken back. -1 means no row.
+  // The settle waits only while focus is still on the control the action started from: focus anywhere
+  // else cancels it, so focus the user moved is never taken back. -1 means no row; the token tells the
+  // module a new settle has started.
   private int? settleRow;
+  private int settleToken;
   private string? activeKind;
   private string DialogId { get; } = $"hl-notifications-{Guid.NewGuid():N}";
   private ElementReference Root, Trigger, Dialog;
@@ -93,7 +96,7 @@
   private IJSObjectReference? module;
   // Caller text overrides each label; blank caller text keeps the English default, so no chrome or
   // control name is ever empty.
-  private NotificationCenterLabels L => ResolveLabels(Labels);
+  private NotificationCenterLabels L = NotificationCenterLabels.English;
   private static NotificationCenterLabels ResolveLabels(NotificationCenterLabels labels)
   {
     var english = NotificationCenterLabels.English;
@@ -117,6 +120,7 @@
 
   protected override void OnParametersSet()
   {
+    L = ResolveLabels(Labels);
     if (Items.GroupBy(item => item.Id, StringComparer.Ordinal).Any(group => group.Count() > 1)) throw new InvalidOperationException("duplicate-notification-id");
     if (MaxVisible < 0) throw new InvalidOperationException("invalid-notification-limit");
     if (string.IsNullOrWhiteSpace(BellLabel)) throw new InvalidOperationException("accessible-notification-label-required");
@@ -141,8 +145,8 @@
   private async Task CloseAsync(bool restoreFocus) { if (!open) return; open = false; settleRow = null; actionLatch = false; if (outsideRegistration is not null) await outsideRegistration.DisposeAsync(); outsideRegistration = null; focusTrigger = restoreFocus; await InvokeAsync(StateHasChanged); }
   private Task HandleDialogKeyAsync(KeyboardEventArgs args) => args.Key == "Escape" ? CloseAsync(true) : Task.CompletedTask;
   private async Task DecideAsync(NotificationCenterItem item, bool confirm) { if (actionLatch) return; actionLatch = true; if (confirm) await OnConfirm.InvokeAsync(item); else await OnDeny.InvokeAsync(item); await CloseAsync(true); }
-  private async Task MarkAllReadAsync() { settleRow = -1; await OnMarkAllRead.InvokeAsync(); }
-  private async Task DismissAsync(NotificationCenterItem item, int row) { settleRow = row; await OnDismiss.InvokeAsync(item); }
+  private async Task MarkAllReadAsync() { settleRow = -1; settleToken++; await OnMarkAllRead.InvokeAsync(); }
+  private async Task DismissAsync(NotificationCenterItem item, int row) { settleRow = row; settleToken++; await OnDismiss.InvokeAsync(item); }
   private async Task ViewAllAsync() { await OnViewAll.InvokeAsync(); await CloseAsync(true); }
 
   protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -151,7 +155,7 @@
     if (open && outsideRegistration is null) outsideRegistration = await OutsidePointer.ObserveAsync([Root], _ => new ValueTask(CloseAsync(false)));
     if (focusDialog) { focusDialog = false; await module!.InvokeVoidAsync("positionDialog", Trigger, Dialog); await module!.InvokeVoidAsync("focusFirst", Dialog); }
     if (focusTrigger) { focusTrigger = false; await module!.InvokeVoidAsync("focus", Trigger); }
-    if (open && settleRow is int row && module is not null && await module.InvokeAsync<bool>("settleFocus", Dialog, row)) settleRow = null;
+    if (open && settleRow is int row && module is not null && await module.InvokeAsync<bool>("settleFocus", Dialog, row, settleToken)) settleRow = null;
   }
 
   public async ValueTask DisposeAsync()
