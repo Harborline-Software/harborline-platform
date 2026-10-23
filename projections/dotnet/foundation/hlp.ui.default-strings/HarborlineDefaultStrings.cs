@@ -9,7 +9,7 @@ public static partial class HarborlineDefaultStrings
 {
     private static readonly Lazy<IReadOnlyDictionary<string, string>> Catalog = new(LoadCatalog);
 
-    /// <summary>The complete immutable 736-key English fallback catalog (revision 2: the 713 revision-1 keys plus 23 platform UI keys).</summary>
+    /// <summary>The complete immutable 732-key English fallback catalog (revision 2: the 713 revision-1 keys plus 19 platform UI keys).</summary>
     public static IReadOnlyDictionary<string, string> Values => Catalog.Value;
 
     /// <summary>Returns the exact default value for a known key.</summary>

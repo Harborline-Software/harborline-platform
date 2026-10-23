@@ -151,20 +151,20 @@
     return UnreadCount > 0 ? BellPhrase("unread", UnreadCount) : L.Title;
   }
   private static readonly Harborline.Foundation.Localization.HarborlineLocaleScope ZeroScope = new();
-  // navigation.notifications.bell.<kind>.<category>, then .other: the locale's cardinal category picks the
-  // key. For each key, blank or missing host text falls back to that key in the default catalog; a key
-  // absent from both falls through. {count} is the caller-formatted count.
+  // navigation.notifications.bell.<kind>.<category>, then .other, in the host catalog and then in the default
+  // catalog: a host that translates only .other keeps its own language at every count. The category is the
+  // locale provider's cardinal plural category; blank text counts as absent; {count} is the caller-formatted count.
   private string BellPhrase(string kind, int count)
   {
     var category = LocaleContext?.PluralCategory(count) ?? ZeroScope.PluralCategory(count);
     var variables = new Dictionary<string, object?> { ["title"] = L.Title, ["count"] = FormatCount(count) };
-    var root = $"navigation.notifications.bell.{kind}";
-    foreach (var key in new[] { $"{root}.{category.ToString().ToLowerInvariant()}", $"{root}.other" })
+    var keys = new[] { $"navigation.notifications.bell.{kind}.{category.ToString().ToLowerInvariant()}", $"navigation.notifications.bell.{kind}.other" };
+    foreach (var source in new[] { LocaleContext?.Catalog, Harborline.Foundation.Localization.HarborlineDefaultStrings.Values })
     {
-      var host = LocaleContext?.ResolveString(key, variables);
-      if (!string.IsNullOrWhiteSpace(host) && host != key) return host;
-      if (Harborline.Foundation.Localization.HarborlineDefaultStrings.Values.TryGetValue(key, out var fallback))
-        return Harborline.Foundation.Localization.HarborlineDefaultStrings.Interpolate(fallback, variables);
+      if (source is null) continue;
+      foreach (var key in keys)
+        if (source.TryGetValue(key, out var text) && !string.IsNullOrWhiteSpace(text))
+          return Harborline.Foundation.Localization.HarborlineDefaultStrings.Interpolate(text, variables);
     }
     return L.Title;
   }
