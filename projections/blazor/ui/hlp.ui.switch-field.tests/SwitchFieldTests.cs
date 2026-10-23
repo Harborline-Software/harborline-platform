@@ -1,6 +1,7 @@
 using Bunit;
 using Microsoft.AspNetCore.Components;
 using Harborline.UIAdapters.Blazor.Components.Forms.Inputs;
+using Harborline.UIAdapters.Blazor.Localization;
 using Xunit;
 
 namespace Harborline.UIAdapters.Blazor.Tests;
@@ -85,6 +86,38 @@ public sealed class SwitchFieldTests : BunitContext
                 Assert.DoesNotContain(control.Attributes, a => a.Name.StartsWith("blazor:onkey", StringComparison.Ordinal));
                 foreach (var _ in input.GetProperty("actions").EnumerateArray()) control.Click();
                 Assert.Equal(expected.GetProperty("requests").GetInt32(), count);
+                break;
+            }
+            case "switch-field.state-copy-catalog":
+            {
+                var host = input.GetProperty("hostCatalog");
+                var entries = host.GetProperty("entries").EnumerateObject().ToDictionary(entry => entry.Name, entry => entry.Value.GetString()!);
+                var caller = input.GetProperty("callerText");
+                void Text(ComponentParameterCollectionBuilder<HarborlineSwitchField> p, bool withCaller)
+                {
+                    if (!withCaller) return;
+                    p.Add(x => x.OffText, caller.GetProperty("offText").GetString()).Add(x => x.OnText, caller.GetProperty("onText").GetString());
+                }
+                string[] Copy(bool inHost, bool withCaller) => input.GetProperty("states").EnumerateArray().Select(state =>
+                {
+                    void Configure(ComponentParameterCollectionBuilder<HarborlineSwitchField> p) { p.Add(x => x.Name, "published").Add(x => x.AccessibleName, "Published").Add(x => x.Checked, state.GetBoolean()).Add(x => x.CheckedChanged, _ => { }); Text(p, withCaller); }
+                    return inHost
+                        ? Render<HarborlineLocaleProvider>(p => p.Add(x => x.Locale, host.GetProperty("locale").GetString()).Add(x => x.Catalog, entries).AddChildContent<HarborlineSwitchField>(Configure)).Find(".hl-switch__state").TextContent
+                        : Render<HarborlineSwitchField>(Configure).Find(".hl-switch__state").TextContent;
+                }).ToArray();
+                string[] Expected(string name) => expected.GetProperty(name).EnumerateArray().Select(value => value.GetString()!).ToArray();
+                Assert.Equal(Expected("defaultCatalog"), Copy(false, false));
+                Assert.Equal(Expected("hostCatalog"), Copy(true, false));
+                Assert.Equal(Expected("callerText"), Copy(true, true));
+                break;
+            }
+            case "switch-field.label-precedence":
+            {
+                var cut = Render<HarborlineSwitchField>(p => p.Add(x => x.Name, "published").Add(x => x.Label, input.GetProperty("label").GetString()).Add(x => x.AccessibleName, input.GetProperty("accessibleName").GetString()).Add(x => x.CheckedChanged, _ => { }));
+                // The accessible name computation: aria-labelledby wins over aria-label.
+                var control = cut.Find("[role=switch]");
+                var labelledBy = control.GetAttribute("aria-labelledby");
+                Assert.Equal(expected.GetProperty("accessibleName").GetString(), labelledBy is null ? control.GetAttribute("aria-label") : cut.Find($"#{labelledBy}").TextContent);
                 break;
             }
             case "switch-field.label":

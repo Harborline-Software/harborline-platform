@@ -1,6 +1,8 @@
 import * as React from 'react'
 
 import { cn } from '@harborline-platform/hlp.ui.cn'
+import { defaultStrings, interpolate, type HarborlineStringKey } from '@harborline-platform/hlp.ui.default-strings'
+import { useHarborlineStrings } from '@harborline-platform/hlp.ui.locale-provider'
 import { Popover, PopoverContent, PopoverTrigger } from '@harborline-platform/hlp.ui.popover'
 import { useCanShowRail } from '@harborline-platform/hlp.ui.use-is-mobile'
 
@@ -46,19 +48,32 @@ export interface NotificationCenterProps {
   className?: string
 }
 
-const defaults: NotificationCenterLabels = {
-  title: 'Notifications', all: 'All', confirm: 'Confirm', deny: 'Deny',
-  markAllRead: 'Mark all read', viewAll: 'View all', empty: 'No notifications',
-  groupLabel: 'Notification groups', unread: 'Unread', dismiss: title => `Dismiss: ${title}`,
+type Translate = (key: string, vars?: Record<string, string | number>) => string
+const catalogKeys: Record<Exclude<keyof NotificationCenterLabels, 'dismiss'>, string> = {
+  title: 'navigation.notifications.title', all: 'navigation.notifications.all', confirm: 'navigation.notifications.confirm',
+  deny: 'navigation.notifications.deny', markAllRead: 'navigation.notifications.markAllRead', viewAll: 'navigation.notifications.viewAll',
+  empty: 'navigation.notifications.empty', groupLabel: 'navigation.notifications.groups', unread: 'navigation.notifications.unread',
 }
 
-function resolveLabels(overrides: Partial<NotificationCenterLabels> | undefined): NotificationCenterLabels {
-  const resolved = { ...defaults }
+// The default copy comes from the host catalog, else the default catalog (navigation.notifications.*),
+// which is also the fallback for a blank host value; no English literal is used.
+function catalogDefaults(t: Translate): NotificationCenterLabels {
+  const read = (key: string, vars?: Record<string, string | number>) => {
+    const fallback = interpolate(defaultStrings[key as HarborlineStringKey], vars)
+    const value = t(key, vars)
+    return value.trim() && value !== key ? value : fallback
+  }
+  const text = Object.fromEntries(Object.entries(catalogKeys).map(([label, key]) => [label, read(key)])) as Record<keyof typeof catalogKeys, string>
+  return { ...text, dismiss: title => read('navigation.notifications.dismiss', { title }) }
+}
+
+function resolveLabels(overrides: Partial<NotificationCenterLabels> | undefined, base: NotificationCenterLabels): NotificationCenterLabels {
+  const resolved = { ...base }
   for (const [key, value] of Object.entries(overrides ?? {}) as Array<[keyof NotificationCenterLabels, unknown]>) {
     if (typeof value === 'string' && value.trim()) (resolved as Record<string, unknown>)[key] = value
   }
   const dismiss = overrides?.dismiss
-  if (dismiss) resolved.dismiss = title => { const text = dismiss(title); return text?.trim() ? text : defaults.dismiss(title) }
+  if (dismiss) resolved.dismiss = title => { const text = dismiss(title); return text?.trim() ? text : base.dismiss(title) }
   return resolved
 }
 
@@ -79,9 +94,10 @@ export function NotificationCenter({
 }: NotificationCenterProps) {
   if (!Number.isFinite(maxVisible) || maxVisible < 0) throw new Error('invalid-notification-limit')
   if (new Set(items.map(item => item.id)).size !== items.length) throw new Error('duplicate-notification-id')
-  // Caller text overrides each label; blank caller text is no text and keeps the default, so no
+  // Caller text overrides each label; blank caller text is no text and keeps the catalog default, so no
   // chrome or control name is ever empty.
-  const labels = React.useMemo(() => resolveLabels(overrides), [overrides])
+  const { t } = useHarborlineStrings()
+  const labels = React.useMemo(() => resolveLabels(overrides, catalogDefaults(t)), [overrides, t])
   const unread = items.filter(item => !item.read).length
   const pending = items.filter(item => item.kind === 'proposal').length
   const otherUnread = items.filter(item => item.kind !== 'proposal' && !item.read).length

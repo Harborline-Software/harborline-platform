@@ -1,9 +1,13 @@
 @namespace Harborline.UIAdapters.Blazor.Components.Forms.Inputs
 @inherits HarborlineComponentBase
+@implements IAsyncDisposable
 @using Harborline.UIAdapters.Blazor.Components.Forms
 @using Harborline.UIAdapters.Blazor.Localization
+@using Harborline.UIAdapters.Blazor.Browser
+@using Harborline.Foundation.Responsive
+@using Microsoft.Extensions.DependencyInjection
 
-<span class="@CombineClasses("hl-switch", ResolvedDisabled ? "hl-switch--disabled" : null)" style="@CombineStyles()" data-hl-size="@SizeToken" dir="@ResolvedDirection">
+<span class="@CombineClasses("hl-switch", ResolvedDisabled ? "hl-switch--disabled" : null)" style="@CombineStyles()" data-hl-size="@SizeToken" data-hl-touch="@(touchSized ? "true" : null)" dir="@ResolvedDirection">
   <button type="button" role="switch" id="@ResolvedId" aria-checked="@EffectiveChecked.ToString().ToLowerInvariant()"
           aria-label="@ResolvedAccessibleName" aria-labelledby="@LabelledBy" aria-describedby="@DescribedBy"
           aria-invalid="@(Error ? "true" : null)" aria-required="@(ResolvedRequired ? "true" : null)"
@@ -18,6 +22,44 @@
 
 @code {
   [CascadingParameter] private FormFieldContextValue? FieldContext { get; set; }
+  [Inject] private IServiceProvider Services { get; set; } = default!;
+  // Touch sizing follows the shared form-factor policy, as React's useTouchSizing does: phone mode
+  // (phone width, or a short landscape viewport) or any coarse pointer. The observer is optional, so a
+  // host that registers none renders the pointer-sized switch as before.
+  private static readonly string[] TouchQueries = [FormFactorQueries.Phone, FormFactorQueries.Landscape, FormFactorQueries.ShortHeight, FormFactorQueries.AnyCoarsePointer];
+  private readonly List<IMediaQuerySubscription> touchSubscriptions = [];
+  private readonly Dictionary<string, bool> touchMatches = new(StringComparer.Ordinal);
+  private bool touchSized;
+  private bool disposed;
+
+  protected override async Task OnAfterRenderAsync(bool firstRender)
+  {
+    if (!firstRender || Services.GetService<IMediaQueryObserver>() is not { } observer) return;
+    foreach (var query in TouchQueries)
+    {
+      var subscription = await observer.ObserveAsync(query, change => { touchMatches[change.Query] = change.Matches; return UpdateTouchAsync(); });
+      if (disposed) { await subscription.DisposeAsync(); return; }
+      touchSubscriptions.Add(subscription);
+      touchMatches[query] = subscription.Matches;
+    }
+    await UpdateTouchAsync();
+  }
+
+  private async ValueTask UpdateTouchAsync()
+  {
+    bool Match(string query) => touchMatches.GetValueOrDefault(query);
+    var next = FormFactorPolicy.Resolve(new FormFactorSignals(PhoneWidth: Match(FormFactorQueries.Phone), Landscape: Match(FormFactorQueries.Landscape), ShortHeight: Match(FormFactorQueries.ShortHeight), AnyCoarsePointer: Match(FormFactorQueries.AnyCoarsePointer))).TouchSizing;
+    if (next == touchSized || disposed) return;
+    touchSized = next;
+    await InvokeAsync(StateHasChanged);
+  }
+
+  public async ValueTask DisposeAsync()
+  {
+    disposed = true;
+    foreach (var subscription in touchSubscriptions) { try { await subscription.DisposeAsync(); } catch (Microsoft.JSInterop.JSDisconnectedException) { } }
+    touchSubscriptions.Clear();
+  }
   [CascadingParameter] private HarborlineLocaleContext? LocaleContext { get; set; }
   [Parameter] public bool? Checked { get; set; }
   [Parameter] public bool DefaultChecked { get; set; }
@@ -52,19 +94,20 @@
   private bool ResolvedDisabled => (Disabled ?? FieldContext?.Disabled ?? false) || !Enabled;
   private bool ResolvedRequired => Required ?? FieldContext?.Required ?? false;
   private string ResolvedDirection => Direction ?? LocaleContext?.Direction ?? "ltr";
-  private string ResolvedOnText => LocalizedText("forms.switch.on", FirstNonBlank(OnText, OnLabel), "On");
-  private string ResolvedOffText => LocalizedText("forms.switch.off", FirstNonBlank(OffText, OffLabel), "Off");
+  private string ResolvedOnText => LocalizedText("forms.switch.on", FirstNonBlank(OnText, OnLabel));
+  private string ResolvedOffText => LocalizedText("forms.switch.off", FirstNonBlank(OffText, OffLabel));
   private static string? FirstNonBlank(params string?[] values) => values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
   // A blank name is no name: it falls through to the label or the field label.
   private string? ResolvedAccessibleName => string.IsNullOrWhiteSpace(AccessibleName) ? null : AccessibleName;
 
-  // Instance override, then catalog, then fallback. A catalog miss echoes the key back, so an
+  // Instance override, then the host catalog, then the default catalog. A catalog miss echoes the key back, so an
   // echoed key counts as unresolved rather than as user-facing text; so does blank catalog text.
-  private string LocalizedText(string key, string? instanceOverride, string fallback)
+  private string LocalizedText(string key, string? instanceOverride)
   {
     if (!string.IsNullOrWhiteSpace(instanceOverride)) return LocaleContext?.ResolveString(key, instanceOverride: instanceOverride) ?? instanceOverride;
-    var resolved = LocaleContext?.ResolveString(key);
-    return string.IsNullOrWhiteSpace(resolved) || resolved == key ? fallback : resolved;
+    var catalogDefault = Harborline.Foundation.Localization.HarborlineDefaultStrings.Get(key);
+    var resolved = LocaleContext?.ResolveString(key) ?? catalogDefault;
+    return string.IsNullOrWhiteSpace(resolved) || resolved == key ? catalogDefault : resolved;
   }
   private string? LabelledBy => !string.IsNullOrWhiteSpace(Label) ? LocalLabelId : ResolvedAccessibleName is null ? FieldContext?.LabelId : null;
   private string? DescribedBy => string.Join(" ", new[]{FieldContext?.DescribedBy,!string.IsNullOrWhiteSpace(Description)?DescriptionId:null}.Where(value=>!string.IsNullOrWhiteSpace(value)));

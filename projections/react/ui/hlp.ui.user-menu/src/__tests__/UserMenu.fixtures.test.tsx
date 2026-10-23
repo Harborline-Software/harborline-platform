@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
+import { HarborlineLocaleProvider } from '@harborline-platform/hlp.ui.locale-provider'
 import { UserMenu, userInitials, type UserMenuItem } from '../UserMenu'
 import { sharedCases } from './fixtures'
 
@@ -10,6 +11,14 @@ import { sharedCases } from './fixtures'
 type Case = { id: string; input: Record<string, any>; expected: Record<string, any> }
 const cases = sharedCases as unknown as Case[]
 const unasserted = ['user-menu.projection-equivalence']
+// The trigger, panel and sign-out names, read with the surface open, then closed again.
+function menuNames() {
+  const trigger = document.querySelector<HTMLButtonElement>('.hl-user-menu__trigger')!
+  fireEvent.click(trigger)
+  const names = { trigger: trigger.getAttribute('aria-label'), panel: document.querySelector('.hl-user-menu__surface')!.getAttribute('aria-label'), signOut: document.querySelector('.hl-user-menu__sign-out')!.textContent }
+  fireEvent.click(trigger)
+  return names
+}
 const ada = { name: 'Ada Lovelace' }
 const trigger = () => document.querySelector<HTMLButtonElement>('.hl-user-menu__trigger')!
 const action = (id: string, label: string, onActivate = vi.fn(), extra: Partial<UserMenuItem> = {}) => ({ id, kind: 'action', label, onActivate, ...extra }) as UserMenuItem
@@ -196,6 +205,18 @@ const assertions: Record<string, (entry: Case) => void | Promise<void>> = {
       && screen.getByRole('menu').getAttribute('aria-label') === input.panelLabel
       && screen.getByRole('menuitem', { name: input.signOutLabel }) !== null
     expect(controlled).toBe(expected.allChromeCallerControlled)
+  },
+  'user-menu.catalog-defaults': ({ input, expected }) => {
+    const menu = <UserMenu identity={{ name: input.name }} onSignOut={vi.fn()}/>
+    const view = render(menu)
+    expect(menuNames()).toEqual(expected.defaultCatalog)
+    view.rerender(<HarborlineLocaleProvider locale={input.hostCatalog.locale} catalog={input.hostCatalog.entries}>{menu}</HarborlineLocaleProvider>)
+    expect(menuNames()).toEqual(expected.hostCatalog)
+  },
+  'user-menu.caller-text-exact': ({ input, expected }) => {
+    render(<HarborlineLocaleProvider locale={input.hostCatalog.locale} catalog={input.hostCatalog.entries}><UserMenu identity={{ name: input.name }} labels={input.labels} onSignOut={vi.fn()}/></HarborlineLocaleProvider>)
+    const { panel, signOut } = menuNames()
+    expect({ panel, signOut }).toEqual(expected)
   },
   'user-menu.invalid-input': ({ input, expected }) => {
     const silence = vi.spyOn(console, 'error').mockImplementation(() => undefined)

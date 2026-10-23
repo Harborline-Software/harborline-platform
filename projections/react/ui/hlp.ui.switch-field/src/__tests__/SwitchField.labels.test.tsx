@@ -2,6 +2,7 @@ import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { HarborlineLocaleProvider } from '@harborline-platform/hlp.ui.locale-provider'
 import { FormFieldContext } from '../../../hlp.ui.form-field/src/FormFieldContext'
+import { defaultStrings } from '@harborline-platform/hlp.ui.default-strings'
 import { SwitchField } from '../SwitchField'
 
 // Contract: the switch always has a nonempty accessible name, and its on and off state copy follows
@@ -14,7 +15,8 @@ const field = (props: Partial<React.ComponentProps<typeof SwitchField>> = {}) =>
 function accessibleName() {
   const control = screen.getByRole('switch')
   const labelled = control.getAttribute('aria-labelledby')?.split(' ').map(id => document.getElementById(id)?.textContent ?? '').join(' ')
-  const name = (control.getAttribute('aria-label') ?? labelled ?? '').trim()
+  // accname 1.2 order: aria-labelledby (step 2B) before aria-label (step 2D).
+  const name = (labelled || control.getAttribute('aria-label') || '').trim()
   expect(name).not.toBe('')
   return name
 }
@@ -58,6 +60,18 @@ describe('SwitchField names and state copy', () => {
   it('rejects a blank accessible name or a blank label rather than rendering an unnamed switch', () => {
     expect(() => render(<SwitchField aria-label="   " checked={false} name="published" onCheckedChange={() => undefined}/>)).toThrow('accessible-switch-label-required')
     expect(() => render(<SwitchField checked={false} label="  " name="published" onCheckedChange={() => undefined}/>)).toThrow('accessible-switch-label-required')
+  })
+
+  it('uses the visible label as the name when a caller name is also given (accname, WCAG 2.5.3)', () => {
+    render(<SwitchField aria-label="Toggle publishing" checked={false} label="Published" name="published" onCheckedChange={() => undefined}/>)
+    expect(accessibleName()).toBe('Published')
+  })
+
+  it('takes the on and off copy from the default catalog without a provider', () => {
+    const view = render(field({ checked: true }))
+    expect(state()).toBe(defaultStrings['forms.switch.on'])
+    view.rerender(field({ checked: false }))
+    expect(state()).toBe(defaultStrings['forms.switch.off'])
   })
 
   it('falls through a blank name or an empty labelledby to the label and the field label', () => {
