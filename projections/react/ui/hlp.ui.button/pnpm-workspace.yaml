@@ -6,6 +6,7 @@ nodeLinker: hoisted
 autoInstallPeers: false
 # pnpm audit overrides (ADR-0086 clause 5), transitive via jsdom > css-tree; each names its advisory.
 overrides:
+  "vite@>=8.3.0 <8.3.3": "8.3.3" # GHSA-587h-7wmj-h5pm, transitive via vitest
   "source-map-js@>=1.0.0 <1.2.2": ">=1.2.2" # GHSA-68fv-2mgg-jv7q
   "qs@>=6.11.1 <6.15.2": ">=6.15.2" # GHSA-q8mj-m7cp-5q26
 # StrykerJS 10.0.0 false survivors, patched until upstream releases the fixes. core: a static mutant (a module-level

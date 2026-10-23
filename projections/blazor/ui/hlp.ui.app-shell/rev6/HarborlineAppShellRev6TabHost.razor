@@ -1,0 +1,23 @@
+@namespace Harborline.UIAdapters.Blazor.Components.Layout
+
+<main @ref="root" class="hl-app-shell-rev6-tab-host" data-shell-id="@ShellId" data-revision="6" aria-label="Workspace tab host" tabindex="-1">
+ <HarborlineAppShellRev6TabSurface ShellId="@ShellId" Owner="Owner" Presentation="Presentation" Intent="Intent" TabContent="TabContent" EmptyFallback="root" />
+</main>
+
+@code {
+ /// <summary>Existing controlled standalone tab-host input.</summary>
+ [Parameter, EditorRequired] public string ShellId { get; set; } = "";
+ /// <summary>Existing controlled standalone tab-host input.</summary>
+ [Parameter] public AppShellRev6Owner? Owner { get; set; }
+ /// <summary>Existing controlled standalone tab-host input.</summary>
+ [Parameter] public AppShellRev6Presentation? Presentation { get; set; }
+ /// <summary>Existing controlled standalone tab-host input.</summary>
+ [Parameter] public EventCallback<AppShellRev6Intent> Intent { get; set; }
+ /// <summary>Existing controlled standalone tab-host input.</summary>
+ [Parameter] public RenderFragment<AppShellRev6Tab>? TabContent { get; set; }
+ private ElementReference root;
+ protected override void OnParametersSet()
+ {
+  if (!System.Text.RegularExpressions.Regex.IsMatch(ShellId, "^[a-z0-9-]+$")) throw new ArgumentException("ShellId must match [a-z0-9-]+.", nameof(ShellId));
+ }
+}

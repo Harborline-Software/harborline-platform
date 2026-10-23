@@ -1,0 +1,281 @@
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+@using System.Text.Json
+@using Harborline.UIAdapters.Blazor.Components.Layout
+@using Harborline.UIAdapters.Blazor.Components.DataDisplay
+
+<link rel="stylesheet" href="./_content/Harborline.UIAdapters.Blazor/data-grid.css" />
+@{ var renderedOwner = owner; var renderedEpoch = epoch; }
+<div class="hl-r6-frame-fixture">
+ <label class="hl-r6-fixture-identity">Fixture identity adapter
+  <select aria-label="Fixture identity" disabled="@(state is null)" value="@fixturePerson" @onchange="ChangeFixtureIdentity"><option value="alice">Alice</option><option value="bob">Bob</option><option value="signed-out">Signed out</option></select>
+ </label>
+ <fieldset class="hl-r6-fixture-controls" disabled="@(view?.PendingClose is not null)" aria-label="Fixture data selection">
+  <legend>Gallery fixture data selection · local sample data, not shell Filter</legend>
+  <label>Status <select @bind="status">@foreach (var value in statuses) { <option>@value</option> }</select></label>
+  <label>Contains <input @bind="query" @bind:event="oninput" /></label>
+  <label>Sample view <select @bind="layout"><option>Grid</option><option>Board</option></select></label>
+  <label><input type="checkbox" @bind="actionsDisabled" /> Disable view actions</label>
+  <label><input type="checkbox" @bind="embedAt700" /> Embed frame at 700px</label>
+  <span>Board, Home and Conversation have no admitted renderer in this slice.</span>
+ </fieldset>
+ <div class="hl-r6-frame-host" style="@(embedAt700 ? "inline-size:700px;max-inline-size:100%" : null)">
+  <HarborlineAppShellRev6Frame ShellId="gallery-rev6-composed-blazor" Owner="owner" Presentation="FrameView" Intent="HandleFrameIntent">
+   <TabContent Context="tab">
+    <div class="hl-r6-tab-body">
+     <p>@tab.Kind / @tab.Target</p>
+     @if (records.FirstOrDefault(record => record.Id == tab.Target) is { } record)
+     {
+      <dl><div><dt>Status</dt><dd>@record.Status</dd></div><div><dt>Owner</dt><dd>@record.Owner</dd></div><div><dt>Type</dt><dd>@record.Type</dd></div><div><dt>Updated</dt><dd>@record.Updated</dd></div><div><dt>Place</dt><dd>@record.Place</dd></div></dl>
+     }
+     <label>Draft note <textarea @bind:get="Draft(renderedOwner, renderedEpoch, tab.Id)" @bind:set="value => EditDraft(renderedOwner, renderedEpoch, tab.Id, value)" @bind:event="oninput"></textarea></label>
+     <p class="hl-r6-fixture-note">Gallery mock · no backend, persistence or AI connected.</p>
+    </div>
+   </TabContent>
+  </HarborlineAppShellRev6Frame>
+ </div>
+ @if (toolsOpen && view?.PendingClose is null)
+ {
+  <fieldset class="hl-r6-fixture-tools" disabled="@(view?.PendingClose is not null)" aria-label="Sample tab kinds">
+   <legend>@Icon("plus", 13) Sample tab kinds</legend>
+   @foreach (var kind in tabKinds) { <button type="button" @onclick="() => OpenTool(kind)">@kind</button> }
+  </fieldset>
+ }
+ @if (error is not null) { <div class="hl-r6-fixture-notice" role="alert">@error</div> }
+ else if (notice is not null) { <div class="hl-r6-fixture-notice" role="status">@notice</div> }
+</div>
+
+@code {
+ private sealed record SampleRecord(string Id, string Title, string Status, string Owner, string Type, string Updated, string Place);
+ private static readonly SampleRecord[] records = [
+  new("R-1042", "Record 1042", "Open", "A. Rivera", "Type A", "Today", "Site 1"),
+  new("R-1038", "Record 1038", "In review", "J. Kim", "Type B", "Yesterday", "Site 1"),
+  new("R-1031", "Record 1031", "Open", "S. Patel", "Type A", "Mon", "Site 1"),
+  new("R-1027", "Record 1027", "Closed", "A. Rivera", "Type C", "2 Oct", "Site 1"),
+  new("R-1019", "Record 1019", "Open", "M. Osei", "Type B", "30 Sep", "Site 1"),
+  new("R-1012", "Record 1012", "In review", "J. Kim", "Type A", "28 Sep", "Site 1")
+ ];
+ private static readonly string[] statuses = ["Open", "In review", "Closed", "All"];
+ private static readonly string[] tabKinds = ["Details", "Log", "Timeline", "Files", "Assistant"];
+ private static readonly Dictionary<string, string> paths = new() {
+  ["chat"] = "M4 5h16v11H9l-5 4V5Z", ["grid"] = "M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z",
+  ["inbox"] = "M3 5h18v13H3V5Zm0 8h5l2 3h4l2-3h5", ["folder"] = "M3 6h7l2 2h9v11H3V6Z",
+  ["apps"] = "M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z", ["check"] = "M4 12l5 5L20 6",
+  ["chart"] = "M4 20V10m5 10V5m5 15v-8m5 8V8M2 20h20", ["settings"] = "M12 3v3m0 12v3M3 12h3m12 0h3M5.6 5.6l2.1 2.1m8.6 8.6 2.1 2.1m0-12.8-2.1 2.1M7.7 16.3l-2.1 2.1M16 12a4 4 0 1 1-8 0 4 4 0 0 1 8 0Z",
+  ["search"] = "M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14Zm5-2 5 5", ["share"] = "M12 16V3m0 0L8 7m4-4 4 4M4 13v7h16v-7",
+  ["panel"] = "M3 4h18v16H3V4Zm12 0v16", ["filter"] = "M3 5h18l-7 8v6l-4 2v-8L3 5Z",
+  ["sort"] = "M7 4v16m0-16L4 7m3-3 3 3M17 20V4m0 16-3-3m3 3 3-3", ["plus"] = "M12 4v16M4 12h16",
+  ["chevron"] = "m6 9 6 6 6-6", ["close"] = "M5 5l14 14M19 5 5 19",
+  ["spark"] = "m12 2 1.8 7.2L21 11l-7.2 1.8L12 20l-1.8-7.2L3 11l7.2-1.8L12 2Z",
+  ["list"] = "M8 5h13M8 12h13M8 19h13M3 5h1M3 12h1M3 19h1"
+ };
+ private static RenderFragment Icon(string name, int size = 16) => @<svg width="@size" height="@size" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="@paths[name]"></path></svg>;
+ private static readonly JsonSerializerOptions jsonOptions = new() { PropertyNameCaseInsensitive = true };
+ private JsonElement? state;
+ private AppShellRev6Owner? owner;
+ private AppShellRev6Presentation? view;
+ private IJSObjectReference? module;
+ private readonly SemaphoreSlim events = new(1, 1);
+ private CancellationTokenSource? saveTimer;
+ private CancellationTokenSource? noticeTimer;
+ private string? saveRequestKey;
+ private string selected = "R-1042";
+ private string status = "All";
+ private string layout = "Grid";
+ private string query = "";
+ private bool panelOpen = true;
+ private bool toolsOpen;
+ private bool actionsDisabled;
+ private bool embedAt700;
+ private string fixturePerson = "alice";
+ private string? notice;
+ private string? error;
+ private long epoch;
+ private bool disposed;
+ private IReadOnlyList<SampleRecord> Filtered => records.Where(record => (status == "All" || record.Status == status) && $"{record.Id} {record.Title} {record.Owner}".Contains(query, StringComparison.OrdinalIgnoreCase)).ToArray();
+ private ViewRenderPlan TablePlan => new("gallery-records-v1", "sample-records", "1", "gallery-sample", "1", "ViewDefinition",
+  new(layout == "Grid" ? ViewKindIds.Table : "layout.board",
+   new([new("id", "ID"), new("record", "Record"), new("status", "Status"), new("owner", "Owner"), new("type", "Type"), new("updated", "Updated")]),
+   [new("inspect", "Show sample notice")]));
+ private IReadOnlyList<ViewRuntimeRow> TableRows => Filtered.Select(record => new ViewRuntimeRow(record.Id,
+  new Dictionary<string, object?> { ["id"] = record.Id, ["record"] = record.Title, ["status"] = record.Status, ["owner"] = record.Owner, ["type"] = record.Type, ["updated"] = record.Updated })).ToArray();
+ private AppShellRev6FramePresentation? FrameView => owner is null || view is null ? null : new(owner,
+  AppShellRev6FrameMode.Workspace,
+  new("EO", "Example organization Home", "/", [
+   new(AppShellRev6FrameRailGroup.MyWork, new("my-work", "My work", "#my-work", "work", false, 2)),
+   new(AppShellRev6FrameRailGroup.Primary, new("records", "Records", "#records", "grid", view.Destination == "records")),
+   new(AppShellRev6FrameRailGroup.Secondary, new("pages", "Pages", "#pages", "page", false)),
+   new(AppShellRev6FrameRailGroup.Conversations, new("conversations", "Conversations", "#conversations", "chat", false))], "AR", "Sample user A. Rivera"),
+  new("Records", "Site 1 / Everywhere", [new("views", "Views", [new("all-records", "All records", "#records", "grid", status == "All"), new("mine", "Mine", "#mine", "grid", false)])]),
+  new("Records", "Site 1 / " + view.Destination, "Search and ask", "Ask or search Site 1", [new("share", "Share", true, null)]),
+  new(owner, view.Destination == "home" ? AppShellRev6FrameFaceKind.Home : view.Destination == "conversations" ? AppShellRev6FrameFaceKind.Conversation : AppShellRev6FrameFaceKind.Structured,
+   "sample-records", TablePlan, TableRows, "Sample records", "No sample records match this view.", actionsDisabled), view, panelOpen);
+ private async Task HandleFrameIntent(AppShellRev6FrameIntent request)
+ {
+  if (request.Owner != owner) return;
+  switch (request)
+  {
+   case AppShellRev6FrameTabIntent tab: await HandleIntent(tab.Value); break;
+   case AppShellRev6FrameSetPanelOpen panel: panelOpen = panel.Open; break;
+   case AppShellRev6FrameRowActivated row:
+    if (records.FirstOrDefault(record => record.Id == row.RowId) is { } record) await SelectRecord(record);
+    break;
+   case AppShellRev6FrameNavigate navigation:
+    if (navigation.ItemId == "all-records") status = "All";
+    else if (navigation.ItemId == "mine") ShowNotice("Mine is illustrative fixture navigation.");
+    else await Apply(new { type = "navigate", destination = navigation.ItemId });
+    break;
+   case AppShellRev6FrameActionRequested action: ShowNotice(action.ActionId == "share" ? "Sharing is simulated in this gallery." : "View action received: " + action.ActionId + ". No backend write occurred."); break;
+   case AppShellRev6FrameCommand command:
+    if (command.CommandId == "new-tab") toolsOpen = !toolsOpen;
+    else ShowNotice(command.CommandId == "search" ? "Search-and-ask trigger received; no search backend is connected." : "Account trigger received; gallery fixture only.");
+    break;
+  }
+ }
+
+ protected override async Task OnAfterRenderAsync(bool firstRender)
+ {
+  if (!firstRender || disposed) return;
+  try
+  {
+   module = await JS.InvokeAsync<IJSObjectReference>("import", "./rev6/tab-identity-state.mjs");
+   var initialEvents = new object[] {
+    new { type = "identity", owner = new { person = "alice", tenant = "north", workspace = "work" } },
+    new { type = "navigate", destination = "records" },
+    new { type = "open", kind = "Assistant", target = "conversation-a" },
+    new { type = "pin", id = "[\"Assistant\",\"conversation-a\"]" },
+    new { type = "open", kind = "Details", target = "R-1042", preview = true }
+   };
+   var result = await module.InvokeAsync<JsonElement>("runScenario", (object)initialEvents);
+   var presentation = await module.InvokeAsync<JsonElement>("presentation", result);
+   if (disposed) return;
+   Publish(result, presentation);
+  }
+  catch (Exception ex) { if (!disposed) error = ex.Message; }
+  if (!disposed) StateHasChanged();
+ }
+ private void Publish(JsonElement result, JsonElement presentation)
+ {
+  state = result;
+  owner = result.GetProperty("owner").Deserialize<AppShellRev6Owner>(jsonOptions);
+  view = owner is null || presentation.ValueKind == JsonValueKind.Null ? null : new(owner,
+   presentation.GetProperty("destination").GetString()!, presentation.GetProperty("tabs").Deserialize<AppShellRev6Tab[]>(jsonOptions)!,
+   presentation.GetProperty("active").GetString(), presentation.GetProperty("pendingClose").GetString(),
+   presentation.GetProperty("saveRequest").Deserialize<AppShellRev6SaveRequest>(jsonOptions));
+  ScheduleSaveAcknowledgment();
+ }
+ private async Task Apply(object intent, AppShellRev6Owner? expectedOwner = null, long? expectedEpoch = null)
+ {
+  var requestOwner = expectedOwner ?? owner;
+  var requestEpoch = expectedEpoch ?? epoch;
+  if (disposed || requestEpoch != epoch || requestOwner is null || owner != requestOwner) return;
+  await events.WaitAsync();
+  try
+  {
+   if (disposed || requestEpoch != epoch || owner != requestOwner || state is null || module is null) return;
+   var result = await module.InvokeAsync<JsonElement>("transition", state.Value, intent);
+   var presentation = await module.InvokeAsync<JsonElement>("presentation", result);
+   if (disposed) return;
+   if (requestEpoch != epoch || owner != requestOwner) { state = result; return; }
+   Publish(result, presentation);
+  }
+  catch (Exception ex) { if (!disposed && requestEpoch == epoch) error = ex.Message; }
+  finally { events.Release(); }
+ }
+ private void ScheduleSaveAcknowledgment()
+ {
+  var request = view?.SaveRequest;
+  var key = request is null ? null : $"{request.Owner.Person}/{request.Owner.Tenant}/{request.Owner.Workspace}/{request.Id}/{request.RequestId}/{request.Generation}";
+  if (key == saveRequestKey) return;
+  saveTimer?.Cancel(); saveTimer?.Dispose(); saveTimer = null; saveRequestKey = key;
+  if (request is null) return;
+  saveTimer = new CancellationTokenSource();
+  _ = AcknowledgeSaveLater(request, key!, epoch, saveTimer.Token);
+ }
+ private async Task AcknowledgeSaveLater(AppShellRev6SaveRequest request, string key, long requestEpoch, CancellationToken token)
+ {
+  try
+  {
+   await Task.Delay(700, token);
+   await InvokeAsync(async () => {
+    if (disposed || requestEpoch != epoch || token.IsCancellationRequested || key != saveRequestKey) return;
+    await Apply(new { type = "saved", owner = new { person = request.Owner.Person, tenant = request.Owner.Tenant, workspace = request.Owner.Workspace }, id = request.Id, requestId = request.RequestId, generation = request.Generation });
+    if (!disposed && error is null && view?.SaveRequest is null) { ShowNotice("Demo save acknowledged locally. No server write occurred."); StateHasChanged(); }
+   });
+  }
+  catch (TaskCanceledException) { }
+ }
+ private string Draft(AppShellRev6Owner? renderedOwner, long renderedEpoch, string id)
+ {
+  if (disposed || renderedEpoch != epoch || renderedOwner is null || owner != renderedOwner || state is null) return "";
+  var key = JsonSerializer.Serialize(new[] { renderedOwner.Person, renderedOwner.Tenant, renderedOwner.Workspace });
+  var drafts = state.Value.GetProperty("owners").GetProperty(key).GetProperty("drafts");
+  return drafts.TryGetProperty(id, out var draft) ? draft.ToString() : "";
+ }
+ private Task EditDraft(AppShellRev6Owner? renderedOwner, long renderedEpoch, string id, string value) =>
+  disposed || renderedEpoch != epoch || renderedOwner is null || owner != renderedOwner
+   ? Task.CompletedTask : Apply(new { type = "edit", id, draft = value }, renderedOwner, renderedEpoch);
+ private async Task ChangeFixtureIdentity(ChangeEventArgs e)
+ {
+  if (disposed || state is null || module is null) return;
+  var person = e.Value?.ToString();
+  if (person is not ("alice" or "bob" or "signed-out")) throw new ArgumentException("Unknown fixture identity.");
+  fixturePerson = person;
+  var requestEpoch = ++epoch;
+  owner = null; view = null; toolsOpen = false; saveRequestKey = null;
+  saveTimer?.Cancel(); saveTimer?.Dispose(); saveTimer = null;
+  noticeTimer?.Cancel(); noticeTimer?.Dispose(); noticeTimer = null; notice = null; error = null;
+  await events.WaitAsync();
+  try
+  {
+   if (disposed || requestEpoch != epoch || state is null || module is null) return;
+   object identity = person == "signed-out" ? new { type = "sign-out" } : new { type = "identity", owner = new { person, tenant = "north", workspace = "work" } };
+   var result = await module.InvokeAsync<JsonElement>("transition", state.Value, identity);
+   var presentation = await module.InvokeAsync<JsonElement>("presentation", result);
+   if (disposed || requestEpoch != epoch) return;
+   Publish(result, presentation);
+  }
+  catch (Exception ex) { if (!disposed && requestEpoch == epoch) error = ex.Message; }
+  finally { events.Release(); }
+ }
+ private Task HandleIntent(AppShellRev6Intent intent)
+ {
+  if (intent.Type == "resolve-close") return Apply(new { type = intent.Type, choice = intent.Choice!.Value.ToString().ToLowerInvariant() });
+  if (intent.Type == "open") return Apply(new { type = "open", kind = intent.Kind, target = intent.Target });
+  return Apply(new { type = intent.Type, id = intent.Id });
+ }
+ private async Task SelectRecord(SampleRecord record)
+ {
+  selected = record.Id; panelOpen = true;
+  await Apply(new { type = "open", kind = "Details", target = record.Id, preview = true });
+ }
+ private async Task OpenTool(string kind)
+ {
+  if (view?.PendingClose is not null) return;
+  toolsOpen = false;
+  await Apply(new { type = "open", kind, target = kind == "Assistant" ? "conversation-a" : selected });
+ }
+ private void ShowNotice(string message)
+ {
+  notice = message;
+  noticeTimer?.Cancel(); noticeTimer?.Dispose();
+  noticeTimer = new CancellationTokenSource();
+  _ = ClearNoticeLater(noticeTimer.Token);
+ }
+ private async Task ClearNoticeLater(CancellationToken token)
+ {
+  try
+  {
+   await Task.Delay(4200, token);
+   await InvokeAsync(() => { if (!disposed && !token.IsCancellationRequested) { notice = null; StateHasChanged(); } });
+  }
+  catch (TaskCanceledException) { }
+ }
+ public async ValueTask DisposeAsync()
+ {
+  disposed = true; epoch++;
+  saveTimer?.Cancel(); saveTimer?.Dispose();
+  noticeTimer?.Cancel(); noticeTimer?.Dispose();
+  if (module is not null) await module.DisposeAsync();
+ }
+}
