@@ -50,6 +50,9 @@ export function connect(trigger, anchor, content, options, callback) {
   const placeholder = document.createComment('hl-popover-portal')
   content.before(placeholder)
   document.body.append(content)
+  // Marks the content as a connected popover layer, so an overlay below it (a sheet) can tell a key
+  // from popover content, now outside the overlay's portal, from a key from ordinary page content.
+  content.dataset.hlLayer = 'popover'
   const reposition = () => {
     const reference = anchor ?? trigger
     if (!reference || !content) return
