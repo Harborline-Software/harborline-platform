@@ -1,7 +1,7 @@
 .hl-dialog__portal {
   --hl-dialog-surface: var(--hl-surface, Canvas);
   --hl-dialog-text: var(--hl-foreground, CanvasText);
-  --hl-dialog-muted: var(--hl-muted-foreground, GrayText);
+  --hl-dialog-muted: var(--hl-muted-foreground, color-mix(in srgb, CanvasText 72%, Canvas));
   --hl-dialog-border: var(--hl-border, color-mix(in srgb, CanvasText 24%, Canvas));
   --hl-dialog-focus: var(--hl-focus, #8a3ffc);
   --hl-dialog-overlay: var(--hl-overlay, rgb(0 0 0 / 48%));
