@@ -57,9 +57,10 @@ const RULES = [
   {
     // Deliberately NOT a blanket rule over every non-rendering module. hlp.ui.default-strings owns the
     // English fallback vocabulary (its key count is pinned by its interface's catalogKeyCount, not
-    // here) and hlp.ui.locale-provider owns locale resolution itself -- internationalization is the most REQUIRED gate either of them has, and dispositioning
-    // it away would switch off the check on the two modules it matters most for. Naming them here is
-    // the whole reason this is a separate rule.
+    // here) and hlp.ui.locale-provider owns locale resolution itself -- internationalization is the
+    // most REQUIRED gate either of them has, and dispositioning it away would switch off the check on
+    // the two modules it matters most for. Naming them here is the whole reason this is a separate
+    // rule.
     name: 'text-free-modules-have-no-internationalization',
     gates: ['assertInternationalization'],
     when: module => module.presentation?.disposition === 'not-applicable'
