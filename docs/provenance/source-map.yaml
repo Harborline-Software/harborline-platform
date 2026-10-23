@@ -2549,7 +2549,7 @@
         "conformance/hlp.ui.switch/fixtures.yaml": "9dca0cb6602617524248f7d5cbda09ac73f4e17fe45900af56fcc78a21f9edb0",
         "conformance/hlp.ui.switch/quality-fixtures.yaml": "4bda43c83aea9dc85f3380e0b7ebaf3f114af81a8ae804c2e91ffa43594a6ba8",
         "conformance/hlp.ui.switch/runners/run-shared.mjs": "d35da4b19c55eb8bda0f0b7f645140d4933b20e2f16bdffe5ca3883bfc9b62e7",
-        "projections/blazor/ui/hlp.ui.switch/HarborlineSwitch.razor": "d6bebca8d472b64a8e5b321881ea9d0d1220d141042f98ca05c1cf9ea231a3d9",
+        "projections/blazor/ui/hlp.ui.switch/HarborlineSwitch.razor": "660bd15f50650f591f20b52f5b477ee93d9db80d4e7be8d230eaa9b82f1a457f",
         "projections/blazor/ui/hlp.ui.switch/SwitchTypes.cs": "a5c3914c9e92c14b0cc14736c5334740531b6c248cb93ddc161d42bbbdead86a",
         "projections/react/ui/hlp.ui.switch/src/Switch.tsx": "d0d43c084fc65f624b690f2147a88475bee3f851a7db0bedebc59bd4a9943477",
         "projections/react/ui/hlp.ui.switch/src/__tests__/Switch.conformance.test.ts": "5bdbc674ced8d72bc619abb4c623aa6259260b72fe8940cf6c529c1ec31721b9",
