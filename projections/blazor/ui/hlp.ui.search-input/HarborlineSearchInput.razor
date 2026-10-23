@@ -1,10 +1,13 @@
 @namespace Harborline.UIAdapters.Blazor.Components.Forms
 @inherits HarborlineComponentBase
 @using Harborline.UIAdapters.Blazor.Localization
+@using Microsoft.JSInterop
+@implements IAsyncDisposable
+@inject IJSRuntime JavaScript
 
 <div class="@CombineClasses("hl-search-input")" style="@CombineStyles()" dir="@(Direction ?? LocaleContext?.Direction)" aria-busy="@(busy ? "true" : "false")" @attributes="AdditionalAttributes">
   <svg aria-hidden="true" viewBox="0 0 20 20" class="hl-search-input__search"><circle cx="8" cy="8" r="5"/><path d="m12 12 5 5"/></svg>
-  <input type="search" role="searchbox" value="@draft" placeholder="@ResolvedPlaceholder" aria-label="@ResolvedAccessibleLabel"
+  <input @ref="input" type="search" role="searchbox" value="@draft" placeholder="@ResolvedPlaceholder" aria-label="@ResolvedAccessibleLabel"
          class="hl-search-input__control" @oninput="HandleInputAsync" />
   @if (draft.Length > 0)
   {
@@ -27,8 +30,46 @@
   private bool busy;
   private bool disposed;
   private CancellationTokenSource? pending;
+  private ElementReference input;
+  private IJSObjectReference? module;
+  private IJSObjectReference? escapeRegistration;
+  private DotNetObjectReference<HarborlineSearchInput>? self;
+
+  // Escape on a nonempty search is Clear: the browser's own search clearing would publish only after
+  // the debounce, and an unhandled Escape would also close an enclosing overlay. search-input.js marks
+  // the key handled on the input itself and calls back here; an empty search leaves Escape to the overlay.
+  protected override async Task OnAfterRenderAsync(bool firstRender)
+  {
+    if (!firstRender) return;
+    // Disposal can happen during either await; whatever arrives afterwards is released here.
+    try
+    {
+      self = DotNetObjectReference.Create(this);
+      var imported = await JavaScript.InvokeAsync<IJSObjectReference>("import", "./_content/Harborline.UIAdapters.Blazor/search-input.js");
+      if (disposed) { if (imported is not null) await imported.DisposeAsync(); return; }
+      module = imported;
+      if (module is null) return;
+      var registration = await module.InvokeAsync<IJSObjectReference>("observeEscape", input, self);
+      if (disposed) { if (registration is not null) { await registration.InvokeVoidAsync("dispose"); await registration.DisposeAsync(); } return; }
+      escapeRegistration = registration;
+    }
+    catch (JSException) { }
+    catch (JSDisconnectedException) { }
+    catch (InvalidOperationException) { }
+    catch (TaskCanceledException) { }
+  }
+
+  // Called from JavaScript rather than a Blazor event handler, so it renders the cleared draft itself.
+  [JSInvokable]
+  public async Task ClearFromEscapeAsync()
+  {
+    if (draft.Length == 0 || disposed) return;
+    await ClearAsync();
+    if (!disposed) StateHasChanged();
+  }
   private string ResolvedPlaceholder => LocaleContext?.ResolveString("structural.search.placeholder", instanceOverride: Placeholder) ?? Placeholder ?? "Search…";
-  private string ResolvedAccessibleLabel => AccessibleLabel ?? ResolvedPlaceholder;
+  // Blank caller text is not a name; fall back to the resolved placeholder so the searchbox is never unnamed.
+  private string ResolvedAccessibleLabel => string.IsNullOrWhiteSpace(AccessibleLabel) ? ResolvedPlaceholder : AccessibleLabel;
   private string ResolvedClearLabel => LocaleContext?.ResolveString("structural.search.clear", instanceOverride: ClearLabel) ?? ClearLabel ?? "Clear search";
 
   protected override void OnParametersSet()
@@ -80,6 +121,13 @@
     CancelPending();
     draft = string.Empty;
     busy = false;
+    // The clear control disappears with the draft; move keyboard focus to the searchbox before the
+    // host handles the empty value, so an awaited host handler can neither drop focus to the page
+    // nor have it pulled back later, and a host that removes the input cannot fault the focus.
+    try { await input.FocusAsync(); }
+    catch (JSException) { }
+    catch (JSDisconnectedException) { }
+    catch (InvalidOperationException) { }
     await ValueChanged.InvokeAsync(string.Empty);
   }
 
@@ -96,5 +144,21 @@
     disposed = true;
     CancelPending();
     base.Dispose(disposing);
+  }
+
+  // Blazor calls only DisposeAsync when a component has both, so it runs the synchronous cleanup too.
+  public async ValueTask DisposeAsync()
+  {
+    Dispose();
+    try
+    {
+      if (escapeRegistration is not null) { await escapeRegistration.InvokeVoidAsync("dispose"); await escapeRegistration.DisposeAsync(); }
+      if (module is not null) await module.DisposeAsync();
+    }
+    catch (JSException) { }
+    catch (JSDisconnectedException) { }
+    catch (InvalidOperationException) { }
+    catch (TaskCanceledException) { }
+    finally { self?.Dispose(); }
   }
 }

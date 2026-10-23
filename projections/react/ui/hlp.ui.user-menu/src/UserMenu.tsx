@@ -180,6 +180,17 @@ export function UserMenu({
     }
   }
   const onPanelKeyDown = (event: React.KeyboardEvent) => {
+    // A control inside the surface that handled the key (prevented the default) owns it.
+    if (event.defaultPrevented) return
+    if (event.key === 'Tab' && !customPattern) {
+      // Tab out of a nonmodal menu closes it. Focus moves to the trigger first, so the browser's Tab
+      // continues from there rather than from an item that is about to be removed; Shift+Tab stops
+      // on the trigger, the element before the menu.
+      triggerRef.current?.focus()
+      if (event.shiftKey) event.preventDefault()
+      requestOpen(false)
+      return
+    }
     if (event.key === 'Escape') {
       event.preventDefault()
       requestOpen(false, true)
@@ -190,7 +201,7 @@ export function UserMenu({
 
   return (
     <div {...attributes} dir={direction} className={`hl-user-menu${className ? ` ${className}` : ''}`} data-placement={placement} data-alignment={alignment}>
-      <button ref={triggerRef} type="button" className="hl-user-menu__trigger" data-hl-touch={!canShowRail || undefined} aria-label={labels.trigger(identity.name)} aria-expanded={open} aria-controls={open ? surfaceId : undefined} onClick={() => requestOpen(!open, open)}>
+      <button ref={triggerRef} type="button" className="hl-user-menu__trigger" data-hl-touch={!canShowRail || undefined} aria-label={labels.trigger(identity.name)} aria-haspopup={customPattern ? 'dialog' : 'menu'} aria-expanded={open} aria-controls={open ? surfaceId : undefined} onClick={() => requestOpen(!open, open)}>
         <span className="hl-user-menu__avatar" aria-hidden="true">
           {identity.avatarUri && !avatarFailed ? <img src={identity.avatarUri} alt="" onError={() => setAvatarFailed(true)}/> : userInitials(identity.name)}
         </span>

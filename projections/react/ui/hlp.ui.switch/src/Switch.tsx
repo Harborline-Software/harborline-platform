@@ -36,6 +36,14 @@ function joinIds(...values: Array<string | undefined>): string | undefined {
   return ids.length ? ids.join(' ') : undefined
 }
 
+// Instance override, then catalog, then fallback. A catalog miss echoes the key back, and blank text
+// at any step counts as unresolved, so the state copy is never empty.
+function stateText(override: string | undefined, key: string, fallback: string, t: (key: string) => string) {
+  if (override?.trim()) return override
+  const value = t(key)
+  return value === key || !value.trim() ? fallback : value
+}
+
 export const Switch = React.forwardRef<HTMLButtonElement, SwitchProps>(function Switch(
   {
     checked,
@@ -72,14 +80,16 @@ export const Switch = React.forwardRef<HTMLButtonElement, SwitchProps>(function 
   const renderedChecked = controlled ? checked : internalChecked
   const generatedId = React.useId().replace(/:/g, '')
   const switchId = id ?? formField.id ?? `hl-switch-${generatedId}`
-  const labelId = label ? `${switchId}-label` : undefined
+  const visibleLabel = label?.trim() ? label : undefined
+  const labelId = visibleLabel ? `${switchId}-label` : undefined
   const descriptionId = description ? `${switchId}-description` : undefined
-  const effectiveName = accessibleName ?? ariaLabel
-  const labelledBy = ariaLabelledBy ?? (effectiveName ? undefined : labelId ?? formField.labelId)
+  // A blank name is no name: it falls through to the label, and fails if there is none.
+  const effectiveName = [accessibleName, ariaLabel].find(value => value?.trim()) ?? undefined
+  const labelledBy = (ariaLabelledBy?.trim() ? ariaLabelledBy : undefined) ?? (effectiveName ? undefined : labelId ?? formField.labelId)
   if (!effectiveName && !labelledBy) throw new Error('accessible-switch-label-required')
   const describedBy = joinIds(formField.describedBy, ariaDescribedBy, descriptionId)
-  const localizedOn = onText ?? (t('forms.switch.on') === 'forms.switch.on' ? 'On' : t('forms.switch.on'))
-  const localizedOff = offText ?? (t('forms.switch.off') === 'forms.switch.off' ? 'Off' : t('forms.switch.off'))
+  const localizedOn = stateText(onText, 'forms.switch.on', 'On', t)
+  const localizedOff = stateText(offText, 'forms.switch.off', 'Off', t)
   const requestChange = onCheckedChange ?? onChange
 
   return (
@@ -113,7 +123,7 @@ export const Switch = React.forwardRef<HTMLButtonElement, SwitchProps>(function 
       >
         <span aria-hidden="true" className="hl-switch__thumb" />
       </button>
-      {label ? <label className="hl-switch__label" htmlFor={switchId} id={labelId}>{label}</label> : null}
+      {visibleLabel ? <label className="hl-switch__label" htmlFor={switchId} id={labelId}>{visibleLabel}</label> : null}
       <span aria-hidden="true" className="hl-switch__state">{renderedChecked ? localizedOn : localizedOff}</span>
       {description ? <span className="hl-switch__description" id={descriptionId}>{description}</span> : null}
       {error ? <span aria-hidden="true" className="hl-switch__error-indicator">!</span> : null}
