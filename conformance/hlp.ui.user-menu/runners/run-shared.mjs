@@ -20,7 +20,7 @@ const blazorJavaScript = spawnSync(process.execPath, [
 })
 
 if (blazorJavaScript.status !== 0) {
-  throw new Error(`UserMenu Blazor JavaScript Tab conformance failed\n${blazorJavaScript.stdout}\n${blazorJavaScript.stderr}`)
+  throw new Error(`UserMenu Blazor JavaScript Tab conformance failed\n${blazorJavaScript.error ?? ''}\n${blazorJavaScript.stdout}\n${blazorJavaScript.stderr}`)
 }
 
 process.exitCode = runUiModuleShared('hlp.ui.user-menu') ? 0 : 1

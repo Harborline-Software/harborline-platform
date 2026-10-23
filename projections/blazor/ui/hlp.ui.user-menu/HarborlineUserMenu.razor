@@ -149,5 +149,7 @@
   private async Task EnsureModuleAsync(){module??=await JavaScript.InvokeAsync<IJSObjectReference>("import","./_content/Harborline.UIAdapters.Blazor/user-menu.js");reference??=DotNetObjectReference.Create(this);}
   [JSInvokable] public Task OnOutsidePointer()=>RequestAsync(false,false);
   [JSInvokable] public Task OnEscapeKey()=>RequestAsync(false,true);
+  // Tab out from the page body (the focused item was already removed): close without taking focus back.
+  [JSInvokable] public Task OnTabOut()=>RequestAsync(false,false);
   public async ValueTask DisposeAsync(){if(module is not null){try{if(outsideId!=0)await module.InvokeVoidAsync("disposeOutside",outsideId);if(keysId!=0)await module.InvokeVoidAsync("disposeKeys",keysId);await module.DisposeAsync();}catch(JSDisconnectedException){}}reference?.Dispose();}
 }
