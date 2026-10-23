@@ -48,9 +48,15 @@ public sealed class LocaleScopeTests
         var rows = fixture.GetProperty("input").GetProperty("rows").EnumerateArray().ToArray();
         var expected = fixture.GetProperty("expected").GetProperty("categories").EnumerateArray().Select(value => value.GetString()).ToArray();
         Assert.Equal(expected.Length, rows.Length);
-        var actual = rows.Select(row => new HarborlineLocaleScope(row.GetProperty("locale").GetString()!)
-            .PluralCategory(decimal.Parse(row.GetProperty("count").GetString()!, System.Globalization.NumberStyles.AllowDecimalPoint, System.Globalization.CultureInfo.InvariantCulture))
-            .ToString().ToLowerInvariant()).ToArray();
+        var actual = rows.Select(row =>
+        {
+            var scope = new HarborlineLocaleScope(row.GetProperty("locale").GetString()!);
+            var count = decimal.Parse(row.GetProperty("count").GetString()!, System.Globalization.NumberStyles.AllowDecimalPoint, System.Globalization.CultureInfo.InvariantCulture);
+            var category = row.TryGetProperty("visibleFractionDigits", out var digits)
+                ? scope.PluralCategory(count, digits.GetInt32())
+                : scope.PluralCategory(count);
+            return category.ToString().ToLowerInvariant();
+        }).ToArray();
         Assert.Equal(expected, actual);
     }
 

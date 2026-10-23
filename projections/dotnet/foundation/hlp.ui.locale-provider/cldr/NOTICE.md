@@ -12,8 +12,17 @@
 
 The file holds the `plurals-type-cardinal` rules only. `Harborline.Foundation` embeds it as the
 resource `Harborline.Foundation.Localization.cldr.plurals.json` and evaluates it in
-`CldrPluralRules.cs` per UTS #35 Part 3, "Language Plural Rules". The package carries this notice
-and the licence under `third-party/unicode-cldr/`.
+`CldrPluralRules.cs` per UTS #35 Part 3, "Language Plural Rules".
+
+The Unicode License v3 notice accompanies every copy of the data:
+
+- inside `Harborline.Foundation.dll`, as the resources
+  `Harborline.Foundation.Localization.cldr.LICENSE` and
+  `Harborline.Foundation.Localization.cldr.NOTICE.md`, so it travels even when only the DLL ships;
+- inside the NuGet package, under `third-party/unicode-cldr/`.
+
+If the embedded data resource is missing, plural selection fails closed: it throws
+`InvalidOperationException` instead of guessing a category.
 
 To move to a later CLDR release, replace `plurals.json` with the new release's file unchanged,
 update the version and SHA-256 above, regenerate

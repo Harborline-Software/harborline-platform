@@ -29,8 +29,10 @@
     <Compile Include="../hlp.ui.use-nav-collapsed/**/*.cs" Link="Responsive/NavCollapse/%(RecursiveDir)%(Filename)%(Extension)" />
     <Compile Include="../hlp.ui.side-nav-group/**/*.cs" Link="Navigation/%(RecursiveDir)%(Filename)%(Extension)" />
     <EmbeddedResource Include="../hlp.ui.default-strings/default-strings.json" Link="Localization/default-strings.json" />
-    <!-- CLDR 47 cardinal plural rules (Unicode License v3); notice and licence travel with the package. -->
+    <!-- CLDR 47 cardinal plural rules (Unicode License v3); the licence and notice are embedded beside the data in the DLL and also packed under third-party/unicode-cldr/. -->
     <EmbeddedResource Include="../hlp.ui.locale-provider/cldr/plurals.json" Link="Localization/Locale/cldr/plurals.json" LogicalName="Harborline.Foundation.Localization.cldr.plurals.json" />
+    <EmbeddedResource Include="../hlp.ui.locale-provider/cldr/LICENSE" Link="Localization/Locale/cldr/LICENSE" LogicalName="Harborline.Foundation.Localization.cldr.LICENSE" />
+    <EmbeddedResource Include="../hlp.ui.locale-provider/cldr/NOTICE.md" Link="Localization/Locale/cldr/NOTICE.md" LogicalName="Harborline.Foundation.Localization.cldr.NOTICE.md" />
   </ItemGroup>
   <ItemGroup>
     <None Include="README.md" Pack="true" PackagePath="/" />

@@ -49,6 +49,11 @@ public sealed class LocaleProviderTests : BunitContext
         Assert.Equal(["fixture.one", "fixture.few", "fixture.many", "fixture.other"],
             UkrainianCounts.Select(count => context.ResolvePlural(count, keys)));
         Assert.Equal(HarborlinePluralCategory.Other, ContextFor("zh").PluralCategory(1));
+        var en = ContextFor("en");
+        Assert.Equal(HarborlinePluralCategory.One, en.PluralCategory(1.0m));
+        Assert.Equal(HarborlinePluralCategory.Other, en.PluralCategory(1m, 1));
+        Assert.Equal("fixture.other", en.ResolvePlural(1m, 1, keys));
+        Assert.Equal(HarborlinePluralCategory.Two, ContextFor("iw").PluralCategory(2));
     }
 
     private void AssertPluralCategories(JsonElement fixture)
@@ -57,9 +62,15 @@ public sealed class LocaleProviderTests : BunitContext
         var rows = fixture.GetProperty("input").GetProperty("rows").EnumerateArray().ToArray();
         var expected = fixture.GetProperty("expected").GetProperty("categories").EnumerateArray().Select(value => value.GetString()).ToArray();
         Assert.Equal(expected.Length, rows.Length);
-        var actual = rows.Select(row => ContextFor(row.GetProperty("locale").GetString()!)
-            .PluralCategory(decimal.Parse(row.GetProperty("count").GetString()!, NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture))
-            .ToString().ToLowerInvariant()).ToArray();
+        var actual = rows.Select(row =>
+        {
+            var context = ContextFor(row.GetProperty("locale").GetString()!);
+            var count = decimal.Parse(row.GetProperty("count").GetString()!, NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture);
+            var category = row.TryGetProperty("visibleFractionDigits", out var digits)
+                ? context.PluralCategory(count, digits.GetInt32())
+                : context.PluralCategory(count);
+            return category.ToString().ToLowerInvariant();
+        }).ToArray();
         Assert.Equal(expected, actual);
     }
 

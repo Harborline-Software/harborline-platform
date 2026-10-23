@@ -11,9 +11,28 @@ namespace Harborline.Foundation.Localization;
 internal readonly record struct CldrPluralOperands(
     decimal N, decimal I, int V, int W, decimal F, decimal T, int E)
 {
-    /// <summary>Operands of a decimal; the decimal's scale supplies the visible fraction digits.</summary>
-    public static CldrPluralOperands FromDecimal(decimal value) =>
-        Parse(value.ToString(CultureInfo.InvariantCulture));
+    /// <summary>
+    /// Operands of a decimal as a default formatter shows it: trailing fraction zeros are removed,
+    /// so an incidental scale (1.0m from numeric(18,2) or qty * 0.50m) selects like 1.
+    /// </summary>
+    public static CldrPluralOperands FromDecimal(decimal value)
+    {
+        var text = value.ToString(CultureInfo.InvariantCulture);
+        if (text.Contains('.', StringComparison.Ordinal)) text = text.TrimEnd('0').TrimEnd('.');
+        return Parse(text);
+    }
+
+    /// <summary>
+    /// Operands of a decimal displayed with exactly <paramref name="visibleFractionDigits"/> fraction
+    /// digits (rounded half away from zero, as Intl's halfExpand does), so 1 shown as "1.0" has v = 1.
+    /// </summary>
+    public static CldrPluralOperands FromDecimal(decimal value, int visibleFractionDigits)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(visibleFractionDigits);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(visibleFractionDigits, 28);
+        var rounded = Math.Round(value, visibleFractionDigits, MidpointRounding.AwayFromZero);
+        return Parse(rounded.ToString("F" + visibleFractionDigits.ToString(CultureInfo.InvariantCulture), CultureInfo.InvariantCulture));
+    }
 
     /// <summary>
     /// Operands of a source number in CLDR sample syntax: optional sign, digits, an optional
@@ -141,6 +160,7 @@ internal sealed class CldrPluralCondition
         {
             position++;
             modulus = ParseValue(Next(tokens, ref position));
+            if (modulus == 0) throw new FormatException("A plural rule modulus must not be 0.");
         }
         var op = Next(tokens, ref position);
         if (op is not ("=" or "!=")) throw new FormatException($"Expected = or !=, found '{op}'.");
@@ -231,13 +251,24 @@ internal sealed class CldrPluralRuleSet
 
     public static CldrPluralRuleSet Root { get; } = new("root", []);
 
+    private const string RulePrefix = "pluralRule-count-";
+
     public static CldrPluralRuleSet Parse(string locale, IReadOnlyDictionary<string, string> rules)
     {
+        foreach (var name in rules.Keys)
+        {
+            var suffix = name.StartsWith(RulePrefix, StringComparison.Ordinal) ? name[RulePrefix.Length..] : null;
+            if (suffix != "other" && !Order.Any(entry => entry.Suffix == suffix))
+                throw new FormatException($"CLDR rule {name} for {locale} is not a cardinal plural category.");
+        }
         var parsed = new List<(HarborlinePluralCategory, CldrPluralCondition)>();
         foreach (var (suffix, category) in Order)
         {
-            if (rules.TryGetValue($"pluralRule-count-{suffix}", out var text))
-                parsed.Add((category, CldrPluralCondition.Parse(text)));
+            if (!rules.TryGetValue(RulePrefix + suffix, out var text)) continue;
+            var condition = CldrPluralCondition.Parse(text);
+            // Only other may be unconditional; an empty zero..many rule would swallow every number.
+            if (condition.IsEmpty) throw new FormatException($"CLDR {suffix} rule for {locale} has no condition.");
+            parsed.Add((category, condition));
         }
         if (rules.TryGetValue("pluralRule-count-other", out var other) && !CldrPluralCondition.Parse(other).IsEmpty)
             throw new FormatException($"CLDR other rule for {locale} must carry samples only.");
@@ -269,6 +300,10 @@ internal static class CldrPluralRules
     // (Accept-Language on Blazor Server), so caching by tag would grow without bound.
     private static readonly ConcurrentDictionary<string, CldrPluralRuleSet> ByKey = new(StringComparer.Ordinal);
 
+    /// <summary>Legacy language codes replaced before lookup: iw is he, ji is yi, in is id.</summary>
+    internal static readonly IReadOnlyDictionary<string, string> LegacyLanguageAliases =
+        new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase) { ["iw"] = "he", ["ji"] = "yi", ["in"] = "id" };
+
     /// <summary>Parsed rule sets held in the cache; bounded by the number of data keys.</summary>
     internal static int CachedRuleSetCount => ByKey.Count;
 
@@ -283,6 +318,9 @@ internal static class CldrPluralRules
 
     public static HarborlinePluralCategory Select(string locale, decimal count) =>
         ForLocale(locale).Select(CldrPluralOperands.FromDecimal(count));
+
+    public static HarborlinePluralCategory Select(string locale, decimal count, int visibleFractionDigits) =>
+        ForLocale(locale).Select(CldrPluralOperands.FromDecimal(count, visibleFractionDigits));
 
     public static HarborlinePluralCategory Select(string locale, string sourceNumber) =>
         ForLocale(locale).Select(CldrPluralOperands.Parse(sourceNumber));
@@ -299,6 +337,11 @@ internal static class CldrPluralRules
     public static string? ResolveKey(string locale)
     {
         var candidate = locale.Trim().Replace('_', '-');
+        // Legacy ISO 639 codes that Intl canonicalises and old Android/Java Accept-Language still sends.
+        var first = candidate.IndexOf('-', StringComparison.Ordinal);
+        var language = first < 0 ? candidate : candidate[..first];
+        if (LegacyLanguageAliases.TryGetValue(language, out var replacement))
+            candidate = replacement + (first < 0 ? string.Empty : candidate[first..]);
         while (candidate.Length > 0)
         {
             if (Data.Value.CanonicalKeys.TryGetValue(candidate, out var key)) return key;
@@ -313,7 +356,7 @@ internal static class CldrPluralRules
     {
         var assembly = typeof(CldrPluralRules).Assembly;
         using var stream = assembly.GetManifestResourceStream(ResourceName)
-            ?? throw new InvalidOperationException("CLDR plural rule resource is missing.");
+            ?? throw new InvalidOperationException("CLDR plural rule resource is missing; plural selection fails closed rather than guessing.");
         using var document = JsonDocument.Parse(stream);
         var supplemental = document.RootElement.GetProperty("supplemental");
         var version = supplemental.GetProperty("version").GetProperty("_cldrVersion").GetString()

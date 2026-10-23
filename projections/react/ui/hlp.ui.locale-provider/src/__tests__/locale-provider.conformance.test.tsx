@@ -93,18 +93,20 @@ describe('Harborline Locale Provider revision-2 shared fixtures', () => {
 
   it('selects CLDR 47 cardinal categories for the shared locale and count rows', () => {
     const value = fixture(sharedCases, 'locale.plural-categories')
-    const input = value.input as { cldr: string; rows: { locale: string; count: string }[] }
+    const input = value.input as { cldr: string; rows: { locale: string; count: string; visibleFractionDigits?: number }[] }
     expect(input.cldr).toBe('47')
     const categories = ['zero', 'one', 'two', 'few', 'many', 'other'] as const
     const catalog: HarborlineStringCatalog = Object.fromEntries(categories.map(category => [`fixture.${category}`, category]))
     const keys = Object.fromEntries(categories.map(category => [category, `fixture.${category}`]))
-    const actual = input.rows.map(({ locale, count }) => {
-      const scale = count.includes('.') ? count.split('.')[1].length : 0
-      // A JavaScript number has no visible-fraction scale (1.0 === 1), so rows whose source digits
-      // carry trailing fraction zeros are asserted through Intl with that scale; the rest go
-      // through the provider's own tn.
-      if (String(Number(count)) !== count) {
-        return new Intl.PluralRules(locale, { minimumFractionDigits: scale, maximumFractionDigits: scale }).select(Number(count))
+    const actual = input.rows.map(({ locale, count, visibleFractionDigits }) => {
+      // A JavaScript number has no visible-fraction scale (1.0 === 1), so a row that fixes the
+      // shown fraction digits is selected through Intl with exactly those digits; every other row
+      // goes through the provider's own tn, which (like the .NET default) ignores trailing zeros.
+      if (visibleFractionDigits !== undefined) {
+        return new Intl.PluralRules(locale, {
+          minimumFractionDigits: visibleFractionDigits,
+          maximumFractionDigits: visibleFractionDigits,
+        }).select(Number(count))
       }
       const { result } = renderHook(() => useHarborlineStrings(), { wrapper: wrapper({ locale, catalog }) })
       return result.current.tn(Number(count), keys)

@@ -88,20 +88,40 @@ public sealed class HarborlineLocaleScope
         HarborlineDefaultStrings.Interpolate(instanceOverride ?? Resolve(key), variables);
 
     /// <summary>
-    /// Selects the CLDR cardinal plural category for this scope's locale. Operands come from the
-    /// decimal's visible digits, so 1 and 1.0 differ (v = 0 versus v = 1), as UTS #35 requires.
+    /// Selects the CLDR cardinal plural category for this scope's locale, evaluating the count as a
+    /// default formatter shows it: trailing fraction zeros are removed, so 1.0m selects like 1 (as
+    /// React's tn does for a JavaScript number, which has no scale).
     /// </summary>
     public HarborlinePluralCategory PluralCategory(decimal count) => CldrPluralRules.Select(Locale, count);
 
-    /// <summary>Resolves the category key, then other, then the invariant count.</summary>
-    public string ResolvePlural(decimal count, IReadOnlyDictionary<HarborlinePluralCategory, string> keys)
+    /// <summary>
+    /// Selects the CLDR cardinal plural category for a count displayed with exactly
+    /// <paramref name="visibleFractionDigits"/> fraction digits (rounded half away from zero), using
+    /// exact CLDR visible-digit operands: in en, 1 shown as "1.0" is other.
+    /// </summary>
+    public HarborlinePluralCategory PluralCategory(decimal count, int visibleFractionDigits) =>
+        CldrPluralRules.Select(Locale, count, visibleFractionDigits);
+
+    /// <summary>Resolves the category key, then other, then the invariant count without trailing fraction zeros.</summary>
+    public string ResolvePlural(decimal count, IReadOnlyDictionary<HarborlinePluralCategory, string> keys) =>
+        SelectKey(PluralCategory(count), keys) ?? TrimFractionZeros(count.ToString(CultureInfo.InvariantCulture));
+
+    /// <summary>Resolves the category key for a count shown with fixed fraction digits, then other, then that count text.</summary>
+    public string ResolvePlural(decimal count, int visibleFractionDigits, IReadOnlyDictionary<HarborlinePluralCategory, string> keys) =>
+        SelectKey(PluralCategory(count, visibleFractionDigits), keys)
+            ?? Math.Round(count, visibleFractionDigits, MidpointRounding.AwayFromZero)
+                .ToString("F" + visibleFractionDigits.ToString(CultureInfo.InvariantCulture), CultureInfo.InvariantCulture);
+
+    private string? SelectKey(HarborlinePluralCategory category, IReadOnlyDictionary<HarborlinePluralCategory, string> keys)
     {
         ArgumentNullException.ThrowIfNull(keys);
-        var category = PluralCategory(count);
-        if (keys.TryGetValue(category, out var key) || keys.TryGetValue(HarborlinePluralCategory.Other, out key))
-            return Resolve(key);
-        return count.ToString(CultureInfo.InvariantCulture);
+        return keys.TryGetValue(category, out var key) || keys.TryGetValue(HarborlinePluralCategory.Other, out key)
+            ? Resolve(key)
+            : null;
     }
+
+    private static string TrimFractionZeros(string text) =>
+        text.Contains('.', StringComparison.Ordinal) ? text.TrimEnd('0').TrimEnd('.') : text;
 
     /// <summary>Formats through the inherited host formatter or the projection runtime.</summary>
     public string FormatNumber(
