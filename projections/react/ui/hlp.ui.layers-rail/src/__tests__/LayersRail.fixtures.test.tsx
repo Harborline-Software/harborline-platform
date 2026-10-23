@@ -13,6 +13,17 @@ type Case = { id: string; input: Record<string, any>; expected: Record<string, a
 const cases = sharedCases as unknown as Case[]
 const unasserted = ['layers-rail.projection-equivalence']
 const control = (label: string) => screen.getByText(label).closest('button')!
+// The treeitem is the focus target (APG treeview); its buttons are pointer-only.
+const item = (label: string) => screen.getByText(label).closest<HTMLElement>('[role="treeitem"]')!
+const focusedItemLabel = () => document.activeElement?.getAttribute('role') === 'treeitem' ? document.activeElement.querySelector('.hl-layers-rail__node-label')?.textContent : `${document.activeElement?.tagName}.${document.activeElement?.className}`
+const tabStops = () => Array.from(screen.getByRole('tree').querySelectorAll<HTMLElement>('*')).filter(element => element.tabIndex >= 0)
+const itemState = (element: Element | null) => ({
+  role: element?.getAttribute('role') ?? null,
+  label: element?.querySelector('.hl-layers-rail__node-label')?.textContent ?? null,
+  level: Number(element?.getAttribute('aria-level')),
+  expanded: element?.getAttribute('aria-expanded') == null ? null : element.getAttribute('aria-expanded') === 'true',
+  selected: element?.getAttribute('aria-selected') === 'true',
+})
 const lensesFor = (ids: string[]): AspectLens[] => ids.map(id => ({ id, label: id.charAt(0).toUpperCase() + id.slice(1), tone: 'accent', kind: 'colorize', project: () => ({ active: true }) }))
 const nodesFor = (count: number): CanvasNode[] => [{ id: 'n0', kind: 'section', label: 'N0', depth: 0, parentId: null, hasChildren: count > 1 }, ...Array.from({ length: count - 1 }, (_, i) => ({ id: `n${i + 1}`, kind: 'field', label: `N${i + 1}`, depth: 1, parentId: 'n0' }))]
 
@@ -94,25 +105,45 @@ const assertions: Record<string, (entry: Case) => void | Promise<void>> = {
   'layers-rail.tree-keyboard': async ({ input, expected }) => {
     const user = userEvent.setup()
     render(<Host/>)
-    const focused = () => document.activeElement?.closest('[role="treeitem"]')?.querySelector('.hl-layers-rail__node-label')?.textContent
-    control('Root').focus()
-    const visits: Array<string | undefined> = []
-    for (const key of input.keys as string[]) { await user.keyboard(`[${key}]`); visits.push(focused()) }
+    item('Root').focus()
+    const visits: Array<string | null | undefined> = []
+    for (const key of input.keys as string[]) { await user.keyboard(`[${key}]`); visits.push(focusedItemLabel()) }
     // Down → Child, Up → Root, Right on an expanded parent → Child, Left on a leaf → Root, Home → Root, End → Sibling.
     expect(input.keys).toEqual(['ArrowDown', 'ArrowUp', 'ArrowRight', 'ArrowLeft', 'Home', 'End'])
     const apg = JSON.stringify(visits) === JSON.stringify(['Child', 'Root', 'Child', 'Root', 'Root', 'Sibling'])
     expect(apg).toBe(expected.apgMovement)
-    const stops = Array.from(document.querySelectorAll('[role="tree"] button')).filter(button => button.getAttribute('tabindex') !== '-1')
+    const stops = tabStops()
     expect(stops.length === 1 && stops[0] === document.activeElement).toBe(expected.rovingTabIndex)
+    expect(stops[0]?.getAttribute('role')).toBe(expected.tabStopRole)
   },
   'layers-rail.collapse-focus': ({ input, expected }) => {
     render(<Host/>)
-    control(input.focus === 'child' ? 'Child' : 'Root').focus()
+    item(input.focus === 'child' ? 'Child' : 'Root').focus()
     act(() => { fireEvent.click(screen.getByRole('button', { name: 'Collapse' })) })
     const visible = screen.getAllByRole('treeitem').map(item => item.querySelector('.hl-layers-rail__node-label')!.textContent!.toLowerCase()).filter(id => id !== 'sibling')
     expect(visible).toEqual(expected.visibleIds)
     expect(document.activeElement?.closest('[role="treeitem"]')?.querySelector('.hl-layers-rail__node-label')?.textContent?.toLowerCase()).toBe(expected.focusedId)
+    expect(document.activeElement?.getAttribute('role')).toBe(expected.focusedRole)
     expect(document.activeElement === document.body).toBe(expected.bodyFocused)
+  },
+  'layers-rail.treeitem-focus': async ({ input, expected }) => {
+    const user = userEvent.setup()
+    render(<><Host selected={input.selectedId}/><button type="button">After</button></>)
+    const stops = tabStops()
+    expect(stops).toHaveLength(expected.tabStops)
+    expect(stops[0]!.getAttribute('role')).toBe(expected.tabStopRole)
+    // The tree is the rail's last tab stop, so Shift+Tab from the button after it reaches the tree's one stop.
+    screen.getByRole('button', { name: 'After' }).focus()
+    await user.tab({ shift: true })
+    expect(document.activeElement).toBe(stops[0])
+    const visits = [itemState(document.activeElement)]
+    for (const key of input.keys as string[]) { await user.keyboard(`[${key}]`); visits.push(itemState(document.activeElement)) }
+    expect(visits).toEqual(expected.focused)
+    // The focused treeitem is named by its label element alone: no disclosure or provenance text is folded in.
+    const focused = document.activeElement as HTMLElement
+    const label = focused.querySelector('.hl-layers-rail__node-label')!
+    const named = focused.getAttribute('aria-labelledby') === label.id && screen.getByRole('treeitem', { name: label.textContent! }) === focused
+    expect(named).toBe(expected.accessibleNameIsLabel)
   },
   'layers-rail.selection': async ({ input, expected }) => {
     const selected: string[] = []
@@ -120,6 +151,9 @@ const assertions: Record<string, (entry: Case) => void | Promise<void>> = {
     await userEvent.setup().click(control(input.activateNode === 'child' ? 'Child' : 'Root'))
     expect(screen.getAllByRole('treeitem').filter(item => item.getAttribute('aria-selected') === 'true').map(item => item.querySelector('.hl-layers-rail__node-label')!.textContent!.toLowerCase())).toEqual(expected.selectedIds)
     expect(selected).toHaveLength(expected.callbackCount)
+    // The click hands focus to the selected row's treeitem.
+    expect(document.activeElement?.getAttribute('role')).toBe(expected.focusedRole)
+    expect(document.activeElement).toBe(item(input.activateNode === 'child' ? 'Child' : 'Root'))
   },
   'layers-rail.filter-badges': ({ input, expected }) => {
     const lenses: AspectLens[] = [
@@ -160,11 +194,11 @@ const assertions: Record<string, (entry: Case) => void | Promise<void>> = {
   'layers-rail.continuity': async ({ input, expected }) => {
     const user = userEvent.setup()
     render(<Host selected={input.selectedId}/>)
-    const before = control('Child')
+    const before = item('Child')
     before.focus()
     await user.click(screen.getByRole('button', { name: `Show ${input.switchLens === 'rules' ? 'Rules' : 'Layout'} lens on the canvas` }))
-    const after = control('Child')
-    expect(after.closest('[role="treeitem"]')!.getAttribute('aria-selected') === 'true').toBe(expected.selectionPreserved)
+    const after = item('Child')
+    expect(after.getAttribute('aria-selected') === 'true').toBe(expected.selectionPreserved)
     expect(after.getAttribute('tabindex') === '0').toBe(expected.focusPreserved)
     expect(after === before).toBe(expected.nodeIdentityPreserved)
   },
