@@ -1,38 +1,10 @@
-/**
- * Dynamic-forms substrate contracts (ADR 0055).
- *
- * TypeScript mirror of the .NET forms-engine shapes so the React `SchemaForm`
- * renderer (a later @harborline-software/ui-react item — NOT built here) can consume a
- * typed `FormView` over the Harborline App→local-node-host HTTP channel, and so a
- * domain packet's `FormDefinition`/`HarborlineOverlay` round-trips with a typed
- * shape on the TS side.
- *
- * Canonical source (the .NET types these mirror):
- *  - packages/foundation-forms/Models/{FormDefinition,HarborlineOverlay,FormSection,
- *    FieldOverlay,RuleDefinition,RuleEnums,InternationalizedText,SemanticVersion,
- *    FormDefinitionId,IdentityRef,FormDefinitionStatus,FormDefinitionLineage}.cs
- *  - packages/foundation-forms-engine/{FormView,ValidationResult}.cs
- *  - apps/local-node-host/Health/FormsRoutes.cs (the wire DTOs — camelCase JSON)
- *
- * Field names are camelCase to match the ASP.NET Core Web serialiser the node
- * host returns (FormsRoutes wire DTOs).
- *
- * NOTE: the .NET model is the canonical source; these interfaces MIRROR it.
- * A drift between the two is what `__tests__/forms.test.ts` pins.
- */
+/** Maintained Forms wire declarations. Shared contracts are borrowed from their owners. */
+import type { InternationalizedText } from './text.js'
+import type { RuleDefinition } from './rules.js'
 
-// ── i18n ────────────────────────────────────────────────────────────────────
-
-/**
- * Locale-keyed text — mirrors the .NET `InternationalizedText`
- * (`DefaultLocale` + locale-tag→string map). Keys are RFC 5646 language tags
- * ("en", "en-US", "es-MX", "ar-AE"). The renderer resolves against the actor's
- * locale chain, falling back to `defaultLocale`.
- */
-export interface InternationalizedText {
-  defaultLocale: string
-  values: Record<string, string>
-}
+export type { InternationalizedText } from './text.js'
+export type { PresentationHint } from './presentation.js'
+export type { RuleDefinition, RuleTier, RuleScope, RuleActionKind } from './rules.js'
 
 // ── Enums (closed; mirror the .NET enums) ─────────────────────────────────────
 
@@ -41,30 +13,6 @@ export type FormDefinitionStatus = 'Draft' | 'Published' | 'Deprecated' | 'Withd
 
 /** PII sensitivity classification informing tenant-key encryption at rest (`PiiSensitivity`). */
 export type PiiSensitivity = 'None' | 'Sensitive'
-
-/**
- * Expression-language tier of a rule (`RuleTier`). As of SPINE-1 (ADR 0140 + CIC
- * 2026-06-30): Tier-1 `JsonSchema` = constraints/pattern; Tier-2 `JsonLogic` = the
- * ONE harborline-jsonlogic/v1 engine doing logic AND compute; `PowerFx` is DEMOTED
- * (no longer a tier — a future advanced-function provider; the v1 evaluator rejects it).
- */
-export type RuleTier = 'JsonSchema' | 'JsonLogic' | 'PowerFx'
-
-/** Scope at which a rule evaluates (`RuleScope`). `Row`/`Table` are the child-table grains (SPINE-1). */
-export type RuleScope = 'Field' | 'Section' | 'Schema' | 'Row' | 'Table'
-
-/** What a rule does when it evaluates true (`RuleActionKind`). `Presentation` is SPINE-1 Decision DA. */
-export type RuleActionKind = 'Visibility' | 'Required' | 'ReadOnly' | 'Validate' | 'Compute' | 'Presentation' | 'Options'
-
-/**
- * Presentation payload carried by a `Presentation` rule (`PresentationHint`; SPINE-1
- * Decision DA — additive ADR-0055 contract extension). Applied when the rule is true.
- */
-export interface PresentationHint {
-  severity?: 'info' | 'warn' | 'error'
-  badge?: InternationalizedText
-  styleToken?: string
-}
 
 /**
  * Opaque UI control-selection hint (`FieldOverlay.ControlHint`). The .NET
@@ -485,24 +433,6 @@ export interface FieldOverlay {
    * multiple, …). Additive; absent ⇒ byte-identical to a pre-F-17 definition.
    */
   config?: FieldConfig
-}
-
-/** One cross-field rule attached to a `FormDefinition` (`RuleDefinition`). */
-export interface RuleDefinition {
-  id: string
-  tier: RuleTier
-  scope: RuleScope
-  /**
-   * Field name (Field), section id (Section), empty string (Schema),
-   * `section/field` (Row), or `section/fn/col` (Table).
-   */
-  scopeTarget: string
-  /** Opaque expression text in the language indicated by `tier`. */
-  expression: string
-  action: RuleActionKind
-  errorMessage?: InternationalizedText
-  /** Presentation payload for a `Presentation`-action rule (SPINE-1 Decision DA). */
-  presentation?: PresentationHint
 }
 
 // ── Rule evaluation result (SPINE-1 — the net-new RuleOutcome family) ─────────
