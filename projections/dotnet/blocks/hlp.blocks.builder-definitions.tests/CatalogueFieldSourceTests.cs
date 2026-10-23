@@ -156,7 +156,9 @@ public sealed class CatalogueFieldSourceTests
     private static async Task<TestHost> Published()
     {
         var host = Host();
-        await host.Records.CreateDraftAsync(AssetClass("1.0.0"), "create");
+        // Pin the legacy shared fixture and its existing digest without applying new-author defaults.
+        await host.Catalogue.SaveDraftAsync(new(RecordTypeDefinitionStore.KeyOf(Tenant, "eam.asset-class"), "1.0.0", "1.0.0",
+            AssetClassJson), 0, "create");
         await host.Records.PublishAsync(Tenant, "eam.asset-class", "1.0.0", 1, "publish");
         return host;
     }

@@ -93,9 +93,15 @@ public sealed class RecordReferenceTests
     {
         var host = Host();
 
-        await Assert.ThrowsAsync<System.Text.Json.JsonException>(() => Create(host, "Space",
-            Reference("asset", "eam.asset-class", null, (ReferenceCardinality)cardinality,
-                (ReferenceDeleteBehavior)onDelete)).AsTask());
+        var field = Reference("asset", "eam.asset-class", null, (ReferenceCardinality)cardinality,
+            (ReferenceDeleteBehavior)onDelete);
+        var document = RecordTypeDefinitionJson.Deserialize(Encoding.UTF8.GetBytes(AssetClassJson))
+            with { Fields = [field] };
+        Assert.Throws<System.Text.Json.JsonException>(() => RecordTypeDefinitionJson.SerializeCanonical(document));
+
+        var refused = await Assert.ThrowsAsync<DefinitionRefusalException>(() => Create(host, "Space", field).AsTask());
+        Assert.Equal(DefinitionAdmissionPhase.Author, refused.Stage);
+        Assert.Equal([("records.document_invalid", "")], Pairs(refused));
 
         Assert.Empty(await host.Catalogue.ListKeysAsync(Tenant, DefinitionKind.Records));
     }

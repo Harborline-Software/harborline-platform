@@ -81,8 +81,47 @@ public sealed record RecordTypeDocument(
     RecordCreationGate? CreationGate = null,
     string? CreationRoleId = null)
 {
+    /// <summary>
+    /// The declared amendment justification constraint, or null for a legacy body without a declaration. It does not
+    /// select an ADR-0040 amendment mode; an explicit value is retained in canonical JSON even when it is the create default.
+    /// </summary>
+    public RecordAmendmentPolicy? AmendmentPolicy { get; init; }
+
+    /// <summary>The declared history policy, or null for a legacy body without a declaration.</summary>
+    public RecordHistoryPolicy? HistoryPolicy { get; init; }
+
     /// <summary>The typed Records grammar the validator and schema compiler read.</summary>
     public RecordTypeDefinition ToDefinition() => new(RecordTypeId, Fields, Traits, RetentionClockFieldId);
+}
+
+/// <summary>
+/// An amendment constraint (ADR-0097): a reason is required when a record is amended. This is a justification constraint
+/// across ADR-0040's edit-in-place, supersession and immutable-from-a-state modes, not another mode or a choice among them.
+/// The object form leaves room for a later, separately agreed mode member without changing this wire value's shape.
+/// This declaration alone implements no runtime amendment operation.
+/// </summary>
+/// <param name="ReasonRequired">True: an amendment requires a reason. False is not an admitted policy in this contract.</param>
+public sealed record RecordAmendmentPolicy(bool ReasonRequired)
+{
+    /// <summary>The explicitly declared amendment mode; absence never selects a mode.</summary>
+    public RecordAmendmentMode? Mode { get; init; }
+}
+
+/// <summary>An explicitly admitted amendment mode.</summary>
+public enum RecordAmendmentMode
+{
+    /// <summary>Append an immutable causal event which supersedes its visible effective interval.</summary>
+    Supersession = 0,
+}
+
+/// <summary>A declared history policy (ADR-0040, ADR-0097). Absence is a legacy body, not an implicit default.</summary>
+public enum RecordHistoryPolicy
+{
+    /// <summary>
+    /// <c>enabled</c> requests history as effective-dated rows under ADR-0040. The declaration does not implement the
+    /// runtime row history, choose effective timestamps, or reinterpret a row's recorded time.
+    /// </summary>
+    Enabled,
 }
 
 /// <summary>
@@ -240,8 +279,60 @@ internal static class RecordsJson
         };
         options.Converters.Add(new RecordClassJsonConverter());
         options.Converters.Add(new RecordCreationGateJsonConverter());
+        options.Converters.Add(new RecordAmendmentPolicyJsonConverter());
+        options.Converters.Add(new RecordHistoryPolicyJsonConverter());
         options.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.SnakeCaseLower, allowIntegerValues: false));
         return options;
+    }
+
+    // Dedicated converters keep these declarations exact; the general enum converter accepts case variants.
+    private sealed class RecordAmendmentPolicyJsonConverter : JsonConverter<RecordAmendmentPolicy>
+    {
+        public override RecordAmendmentPolicy Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        {
+            if (reader.TokenType != JsonTokenType.StartObject)
+                throw new JsonException("An amendment policy must declare exactly reason_required: true.");
+            var reason = false;
+            RecordAmendmentMode? mode = null;
+            var names = new HashSet<string>(StringComparer.Ordinal);
+            while (reader.Read() && reader.TokenType != JsonTokenType.EndObject)
+            {
+                if (reader.TokenType != JsonTokenType.PropertyName)
+                    throw new JsonException("Unknown amendment policy.");
+                var name = reader.GetString()!;
+                if (!names.Add(name) || !reader.Read()) throw new JsonException("Unknown amendment policy.");
+                if (name == "reason_required" && reader.TokenType == JsonTokenType.True) reason = true;
+                else if (name == "mode" && reader.TokenType == JsonTokenType.String && reader.GetString() == "supersession")
+                    mode = RecordAmendmentMode.Supersession;
+                else throw new JsonException("Unknown amendment policy.");
+            }
+            if (reader.TokenType != JsonTokenType.EndObject || !reason)
+                throw new JsonException("An amendment policy must declare exactly reason_required: true.");
+            return new(true) { Mode = mode };
+        }
+
+        public override void Write(Utf8JsonWriter writer, RecordAmendmentPolicy value, JsonSerializerOptions options)
+        {
+            if (!value.ReasonRequired || value.Mode is not (null or RecordAmendmentMode.Supersession))
+                throw new JsonException("Unknown amendment policy.");
+            writer.WriteStartObject();
+            if (value.Mode is not null) writer.WriteString("mode", "supersession");
+            writer.WriteBoolean("reason_required", true);
+            writer.WriteEndObject();
+        }
+    }
+
+    private sealed class RecordHistoryPolicyJsonConverter : JsonConverter<RecordHistoryPolicy>
+    {
+        public override RecordHistoryPolicy Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+            => reader.TokenType == JsonTokenType.String && reader.GetString() == "enabled"
+                ? RecordHistoryPolicy.Enabled
+                : throw new JsonException("Unknown history policy.");
+
+        public override void Write(Utf8JsonWriter writer, RecordHistoryPolicy value, JsonSerializerOptions options)
+            => writer.WriteStringValue(value == RecordHistoryPolicy.Enabled
+                ? "enabled"
+                : throw new JsonException("Unknown history policy."));
     }
 
     // The creation gate is a sealed literal set with exact lowercase spellings (records-ck-22); the general enum converter

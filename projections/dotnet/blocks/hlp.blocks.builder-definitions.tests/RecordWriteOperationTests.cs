@@ -1378,6 +1378,96 @@ public sealed class RecordWriteOperationTests
         Assert.Empty(fixture.Port.Events);
     }
 
+    [Fact]
+    public async Task admitted_body_digest_fault_is_detected_in_actual_preparation_with_rollback_and_no_staging()
+    {
+        var fixture = await Published();
+        fixture.Catalogue.TransformHead = revision => revision is null ? null : revision with { Digest = new string('a', 64) };
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => fixture.Operation.CreateAsync(new(Tenant, Actor), Request("fault-digest", ValidBody)).AsTask());
+
+        Assert.Equal(new[] { "begin", "rollback", "dispose" }, fixture.Port.Events);
+        Assert.Empty(fixture.Port.Published); Assert.Empty(fixture.Port.StagedAudits);
+        Assert.True(fixture.Registry.Registrations > 0); // Registry side effects are not claimed to roll back.
+    }
+
+    [Theory]
+    [InlineData("tenant")]
+    [InlineData("type")]
+    public async Task a_structurally_admitted_wrong_catalogue_scope_cannot_escape_actual_write_preparation(string scope)
+    {
+        var fixture = await Published();
+        fixture.Catalogue.TransformHead = revision =>
+        {
+            if (revision is null) return null;
+            var document = revision.Document;
+            var body = scope == "tenant" ? document.BodyJson.Replace("\"tenant\":\"tenant-a\"", "\"tenant\":\"tenant-b\"", StringComparison.Ordinal)
+                : document.BodyJson.Replace("\"record_type_id\":\"eam.asset-class\"", "\"record_type_id\":\"eam.other-asset\"", StringComparison.Ordinal)
+                    .Replace("\"name\":\"Asset Class\"", "\"name\":\"Other Asset\"", StringComparison.Ordinal);
+            return revision with { Document = document with { BodyJson = body, Key = scope == "tenant"
+                ? document.Key with { Tenant = "tenant-b" } : document.Key with { DefinitionId = "eam.other-asset" } },
+                Digest = Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(body))) };
+        };
+        await Assert.ThrowsAsync<InvalidOperationException>(() => fixture.Operation.CreateAsync(new(Tenant, Actor), Request("wrong-scope", ValidBody)).AsTask());
+        Assert.Equal(new[] { "begin", "rollback", "dispose" }, fixture.Port.Events);
+        Assert.Empty(fixture.Port.Published); Assert.Empty(fixture.Port.StagedAudits);
+        Assert.True(fixture.Registry.Registrations > 0);
+    }
+
+    [Theory]
+    [InlineData("tenant")]
+    [InlineData("type")]
+    [InlineData("kind")]
+    [InlineData("version-id")]
+    [InlineData("label")]
+    [InlineData("digest")]
+    [InlineData("body")]
+    [InlineData("surrogate-body")]
+    [InlineData("schema")]
+    public async Task internal_publication_faults_in_prepared_transaction_never_commit_or_change_journal(string fault)
+    {
+        var fixture = await Published();
+        var publication = fixture.Publication;
+        var document = publication.Revision.Document;
+        var row = new RecordWriteRow(Tenant, "fault-record", "eam.asset-class", document.Version, publication.Revision.Digest,
+            publication.Schema.Id, Actor, "fault-operation", null, "records-write-intent/1", "intent", "{}"u8.ToArray(), At)
+            { PublicationVersionId = document.VersionId };
+        var badDocument = fault switch
+        {
+            "tenant" => document with { Key = document.Key with { Tenant = "another-tenant" } },
+            "type" => document with { Key = document.Key with { DefinitionId = "eam.another" } },
+            "kind" => document with { Key = document.Key with { Kind = DefinitionKind.Forms } },
+            "version-id" => document with { VersionId = "another-publication" },
+            "label" => document with { Version = "1.0.1" },
+            "body" => document with { BodyJson = document.BodyJson + " " },
+            "surrogate-body" => document with { BodyJson = document.BodyJson + "\ud800" },
+            _ => document,
+        };
+        publication = publication with { Revision = publication.Revision with { Document = badDocument,
+            Digest = fault == "digest" ? new string('a', 64) : publication.Revision.Digest },
+            Schema = fault == "schema" ? publication.Schema with { Id = new("other-schema") } : publication.Schema };
+        var directory = Path.Combine(Path.GetTempPath(), "q32-prepare-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        var path = Path.Combine(directory, "records.json");
+        var before = Encoding.UTF8.GetBytes(RecordWriteJournalBindingTests.BaseJournal().ToJsonString());
+        File.WriteAllBytes(path, before);
+        try
+        {
+            var store = new FileJournalRecordWriteStore(path);
+            await Assert.ThrowsAsync<InvalidOperationException>(() => KernelTransactionBoundary.ExecutePreparedAsync<RecordWriteRow, RecordWriteCommit>(
+                _ =>
+                {
+                    RecordWriteJournalBinding.ValidatePublication(row, publication);
+                    return ValueTask.FromResult(new KernelCommand<RecordWriteRow>(new("fault-record", "fault-key", "intent"), row,
+                        new("fault-audit", Actor, At, ReadOnlyMemory<byte>.Empty)));
+                }, store).AsTask());
+            Assert.Equal(before, File.ReadAllBytes(path));
+            Assert.Null(await store.FindAsync(Tenant, "fault-record"));
+            Assert.Empty(Directory.GetFiles(directory, "*.tmp"));
+        }
+        finally { Directory.Delete(directory, true); }
+    }
+
     private static RecordCreateRequest Request(string operationId, string body)
         => new("eam.asset-class", operationId, JsonNode.Parse(body)!.AsObject());
 
@@ -1657,6 +1747,7 @@ public sealed class RecordWriteOperationTests
 
     private sealed class CountingCatalogue(IVersionedDefinitionStore inner) : IVersionedDefinitionStore
     {
+        public Func<DefinitionRevision?, DefinitionRevision?>? TransformHead { get; set; }
         public int HeadReads { get; private set; }
         public int PinReads { get; private set; }
 
@@ -1677,10 +1768,11 @@ public sealed class RecordWriteOperationTests
             => inner.RestoreAsDraftAsync(key, sourceVersionId, draftVersionId, draftVersion, expectedRevision, requestId, cancellationToken);
         public ValueTask<IReadOnlyList<DefinitionRevision>> ListHistoryAsync(DefinitionKey key, CancellationToken cancellationToken = default)
             => inner.ListHistoryAsync(key, cancellationToken);
-        public ValueTask<DefinitionRevision?> GetPublishedHeadAsync(DefinitionKey key, CancellationToken cancellationToken = default)
+        public async ValueTask<DefinitionRevision?> GetPublishedHeadAsync(DefinitionKey key, CancellationToken cancellationToken = default)
         {
             HeadReads++;
-            return inner.GetPublishedHeadAsync(key, cancellationToken);
+            var revision = await inner.GetPublishedHeadAsync(key, cancellationToken);
+            return TransformHead is null ? revision : TransformHead(revision);
         }
         public ValueTask<DefinitionRevision?> ResolvePublishedAsync(DefinitionBinding binding, CancellationToken cancellationToken = default)
         {

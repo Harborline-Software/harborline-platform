@@ -1,0 +1,2936 @@
+{
+  "spec": "SPEC.md rev3 (records-write-file-journal/2 publication binding)",
+  "journal_format": "records-write-file-journal/2",
+  "domain_separator_text": "hlp.records.publication-binding/2",
+  "domain_separator_hex": "686c702e7265636f7264732e7075626c69636174696f6e2d62696e64696e672f3200",
+  "domain_separator_note": "ASCII text followed by exactly one 0x00 byte; 34 bytes; not length-prefixed.",
+  "namespace_token": "records",
+  "digest_scheme": "sha256-utf8-body/1",
+  "length_prefix": "unsigned 32-bit big-endian byte count of the field's encoded bytes",
+  "hash": "SHA-256 over domain || LP(f1) || ... || LP(f8); represented as 64 lowercase hexadecimal characters",
+  "field_order": [
+    "tenant",
+    "namespace_token",
+    "record_type_id",
+    "version_id",
+    "version",
+    "digest_scheme",
+    "definition_digest (32 decoded bytes)",
+    "schema_id"
+  ],
+  "generator": "python3 -I, hashlib.sha256, struct.pack('>I'), str.encode('utf-8','strict'); independent of the .NET implementation",
+  "boundary_case_naive_concatenation_utf8_hex_V09_equals_V10": "61636d657265636f72647373616c65732e637573746f6d657231312e302e30312e302e307368613235362d757466382d626f64792f3130393065376536363339373961623965663338353334363766383230306161633363623364623334333134306330643036366463636363646239643239396535736368656d613a6578616d706c652d61",
+  "valid": [
+    {
+      "id": "V01",
+      "description": "Baseline, ASCII only.",
+      "inputs": {
+        "tenant": {
+          "text_utf16_code_units": "0061 0063 006D 0065",
+          "text": "acme",
+          "utf8_hex": "61636d65",
+          "utf8_byte_length": 4
+        },
+        "namespace_token": "records",
+        "record_type_id": {
+          "text_utf16_code_units": "0073 0061 006C 0065 0073 002E 0063 0075 0073 0074 006F 006D 0065 0072",
+          "text": "sales.customer",
+          "utf8_hex": "73616c65732e637573746f6d6572",
+          "utf8_byte_length": 14
+        },
+        "version_id": {
+          "text_utf16_code_units": "0031 002E 0030 002E 0030",
+          "text": "1.0.0",
+          "utf8_hex": "312e302e30",
+          "utf8_byte_length": 5
+        },
+        "version": {
+          "text_utf16_code_units": "0031 002E 0030 002E 0030",
+          "text": "1.0.0",
+          "utf8_hex": "312e302e30",
+          "utf8_byte_length": 5
+        },
+        "digest_scheme": "sha256-utf8-body/1",
+        "definition_digest": "090e7e663979ab9ef3853467f8200aac3cb3db343140c0d066dccccdb9d299e5",
+        "schema_id": {
+          "text_utf16_code_units": "0073 0063 0068 0065 006D 0061 003A 0065 0078 0061 006D 0070 006C 0065 002D 0061",
+          "text": "schema:example-a",
+          "utf8_hex": "736368656d613a6578616d706c652d61",
+          "utf8_byte_length": 16
+        }
+      },
+      "definition_body_json": "{\"record_type_id\":\"sales.customer\"}",
+      "definition_body_json_sha256": "090e7e663979ab9ef3853467f8200aac3cb3db343140c0d066dccccdb9d299e5",
+      "segments": [
+        {
+          "part": "domain separator",
+          "hex": "686c702e7265636f7264732e7075626c69636174696f6e2d62696e64696e672f3200",
+          "byte_length": 34
+        },
+        {
+          "part": "1 tenant",
+          "length_prefix_hex": "00000004",
+          "value_hex": "61636d65",
+          "value_byte_length": 4
+        },
+        {
+          "part": "2 namespace token",
+          "length_prefix_hex": "00000007",
+          "value_hex": "7265636f726473",
+          "value_byte_length": 7
+        },
+        {
+          "part": "3 record_type_id",
+          "length_prefix_hex": "0000000e",
+          "value_hex": "73616c65732e637573746f6d6572",
+          "value_byte_length": 14
+        },
+        {
+          "part": "4 version_id",
+          "length_prefix_hex": "00000005",
+          "value_hex": "312e302e30",
+          "value_byte_length": 5
+        },
+        {
+          "part": "5 version",
+          "length_prefix_hex": "00000005",
+          "value_hex": "312e302e30",
+          "value_byte_length": 5
+        },
+        {
+          "part": "6 digest scheme",
+          "length_prefix_hex": "00000012",
+          "value_hex": "7368613235362d757466382d626f64792f31",
+          "value_byte_length": 18
+        },
+        {
+          "part": "7 definition digest (32 decoded bytes)",
+          "length_prefix_hex": "00000020",
+          "value_hex": "090e7e663979ab9ef3853467f8200aac3cb3db343140c0d066dccccdb9d299e5",
+          "value_byte_length": 32
+        },
+        {
+          "part": "8 schema_id",
+          "length_prefix_hex": "00000010",
+          "value_hex": "736368656d613a6578616d706c652d61",
+          "value_byte_length": 16
+        }
+      ],
+      "encoded_hex": "686c702e7265636f7264732e7075626c69636174696f6e2d62696e64696e672f32000000000461636d65000000077265636f7264730000000e73616c65732e637573746f6d657200000005312e302e3000000005312e302e30000000127368613235362d757466382d626f64792f3100000020090e7e663979ab9ef3853467f8200aac3cb3db343140c0d066dccccdb9d299e500000010736368656d613a6578616d706c652d61",
+      "encoded_byte_length": 167,
+      "binding_hash": "85b2c8e9600272a9d07fd16f4c0af87fc49b2f6f7cc235c88336399f8307be24",
+      "must_differ_from": null
+    },
+    {
+      "id": "V02",
+      "description": "Non-ASCII UTF-8: precomposed (NFC) tenant with 2-byte characters; schema ID with a 2-byte and a 4-byte (surrogate-pair) character.",
+      "inputs": {
+        "tenant": {
+          "text_utf16_code_units": "005A 00FC 0072 0069 0063 0068 002D 0063 0061 0066 00E9",
+          "text": "Z\u00fcrich-caf\u00e9",
+          "utf8_hex": "5ac3bc726963682d636166c3a9",
+          "utf8_byte_length": 13
+        },
+        "namespace_token": "records",
+        "record_type_id": {
+          "text_utf16_code_units": "0073 0061 006C 0065 0073 002E 0063 0075 0073 0074 006F 006D 0065 0072",
+          "text": "sales.customer",
+          "utf8_hex": "73616c65732e637573746f6d6572",
+          "utf8_byte_length": 14
+        },
+        "version_id": {
+          "text_utf16_code_units": "0031 002E 0030 002E 0030",
+          "text": "1.0.0",
+          "utf8_hex": "312e302e30",
+          "utf8_byte_length": 5
+        },
+        "version": {
+          "text_utf16_code_units": "0031 002E 0030 002E 0030",
+          "text": "1.0.0",
+          "utf8_hex": "312e302e30",
+          "utf8_byte_length": 5
+        },
+        "digest_scheme": "sha256-utf8-body/1",
+        "definition_digest": "090e7e663979ab9ef3853467f8200aac3cb3db343140c0d066dccccdb9d299e5",
+        "schema_id": {
+          "text_utf16_code_units": "0073 0063 0068 0065 006D 0061 003A 03A9 006D 0065 0067 0061 002D D834 DD1E",
+          "text": "schema:\u03a9mega-\ud834\udd1e",
+          "utf8_hex": "736368656d613acea96d6567612df09d849e",
+          "utf8_byte_length": 18
+        }
+      },
+      "definition_body_json": "{\"record_type_id\":\"sales.customer\"}",
+      "definition_body_json_sha256": "090e7e663979ab9ef3853467f8200aac3cb3db343140c0d066dccccdb9d299e5",
+      "segments": [
+        {
+          "part": "domain separator",
+          "hex": "686c702e7265636f7264732e7075626c69636174696f6e2d62696e64696e672f3200",
+          "byte_length": 34
+        },
+        {
+          "part": "1 tenant",
+          "length_prefix_hex": "0000000d",
+          "value_hex": "5ac3bc726963682d636166c3a9",
+          "value_byte_length": 13
+        },
+        {
+          "part": "2 namespace token",
+          "length_prefix_hex": "00000007",
+          "value_hex": "7265636f726473",
+          "value_byte_length": 7
+        },
+        {
+          "part": "3 record_type_id",
+          "length_prefix_hex": "0000000e",
+          "value_hex": "73616c65732e637573746f6d6572",
+          "value_byte_length": 14
+        },
+        {
+          "part": "4 version_id",
+          "length_prefix_hex": "00000005",
+          "value_hex": "312e302e30",
+          "value_byte_length": 5
+        },
+        {
+          "part": "5 version",
+          "length_prefix_hex": "00000005",
+          "value_hex": "312e302e30",
+          "value_byte_length": 5
+        },
+        {
+          "part": "6 digest scheme",
+          "length_prefix_hex": "00000012",
+          "value_hex": "7368613235362d757466382d626f64792f31",
+          "value_byte_length": 18
+        },
+        {
+          "part": "7 definition digest (32 decoded bytes)",
+          "length_prefix_hex": "00000020",
+          "value_hex": "090e7e663979ab9ef3853467f8200aac3cb3db343140c0d066dccccdb9d299e5",
+          "value_byte_length": 32
+        },
+        {
+          "part": "8 schema_id",
+          "length_prefix_hex": "00000012",
+          "value_hex": "736368656d613acea96d6567612df09d849e",
+          "value_byte_length": 18
+        }
+      ],
+      "encoded_hex": "686c702e7265636f7264732e7075626c69636174696f6e2d62696e64696e672f32000000000d5ac3bc726963682d636166c3a9000000077265636f7264730000000e73616c65732e637573746f6d657200000005312e302e3000000005312e302e30000000127368613235362d757466382d626f64792f3100000020090e7e663979ab9ef3853467f8200aac3cb3db343140c0d066dccccdb9d299e500000012736368656d613acea96d6567612df09d849e",
+      "encoded_byte_length": 178,
+      "binding_hash": "8db2e6d9b9a70b074af8ca8ea5710b09ab6aa7b75af6c7d7f361d54260325a36",
+      "must_differ_from": null
+    },
+    {
+      "id": "V03",
+      "description": "Same visible text as V02 tenant but decomposed (NFD: u+U+0308, e+U+0301). No normalization, so the bytes and the hash differ from V02.",
+      "inputs": {
+        "tenant": {
+          "text_utf16_code_units": "005A 0075 0308 0072 0069 0063 0068 002D 0063 0061 0066 0065 0301",
+          "text": "Zu\u0308rich-cafe\u0301",
+          "utf8_hex": "5a75cc88726963682d63616665cc81",
+          "utf8_byte_length": 15
+        },
+        "namespace_token": "records",
+        "record_type_id": {
+          "text_utf16_code_units": "0073 0061 006C 0065 0073 002E 0063 0075 0073 0074 006F 006D 0065 0072",
+          "text": "sales.customer",
+          "utf8_hex": "73616c65732e637573746f6d6572",
+          "utf8_byte_length": 14
+        },
+        "version_id": {
+          "text_utf16_code_units": "0031 002E 0030 002E 0030",
+          "text": "1.0.0",
+          "utf8_hex": "312e302e30",
+          "utf8_byte_length": 5
+        },
+        "version": {
+          "text_utf16_code_units": "0031 002E 0030 002E 0030",
+          "text": "1.0.0",
+          "utf8_hex": "312e302e30",
+          "utf8_byte_length": 5
+        },
+        "digest_scheme": "sha256-utf8-body/1",
+        "definition_digest": "090e7e663979ab9ef3853467f8200aac3cb3db343140c0d066dccccdb9d299e5",
+        "schema_id": {
+          "text_utf16_code_units": "0073 0063 0068 0065 006D 0061 003A 03A9 006D 0065 0067 0061 002D D834 DD1E",
+          "text": "schema:\u03a9mega-\ud834\udd1e",
+          "utf8_hex": "736368656d613acea96d6567612df09d849e",
+          "utf8_byte_length": 18
+        }
+      },
+      "definition_body_json": "{\"record_type_id\":\"sales.customer\"}",
+      "definition_body_json_sha256": "090e7e663979ab9ef3853467f8200aac3cb3db343140c0d066dccccdb9d299e5",
+      "segments": [
+        {
+          "part": "domain separator",
+          "hex": "686c702e7265636f7264732e7075626c69636174696f6e2d62696e64696e672f3200",
+          "byte_length": 34
+        },
+        {
+          "part": "1 tenant",
+          "length_prefix_hex": "0000000f",
+          "value_hex": "5a75cc88726963682d63616665cc81",
+          "value_byte_length": 15
+        },
+        {
+          "part": "2 namespace token",
+          "length_prefix_hex": "00000007",
+          "value_hex": "7265636f726473",
+          "value_byte_length": 7
+        },
+        {
+          "part": "3 record_type_id",
+          "length_prefix_hex": "0000000e",
+          "value_hex": "73616c65732e637573746f6d6572",
+          "value_byte_length": 14
+        },
+        {
+          "part": "4 version_id",
+          "length_prefix_hex": "00000005",
+          "value_hex": "312e302e30",
+          "value_byte_length": 5
+        },
+        {
+          "part": "5 version",
+          "length_prefix_hex": "00000005",
+          "value_hex": "312e302e30",
+          "value_byte_length": 5
+        },
+        {
+          "part": "6 digest scheme",
+          "length_prefix_hex": "00000012",
+          "value_hex": "7368613235362d757466382d626f64792f31",
+          "value_byte_length": 18
+        },
+        {
+          "part": "7 definition digest (32 decoded bytes)",
+          "length_prefix_hex": "00000020",
+          "value_hex": "090e7e663979ab9ef3853467f8200aac3cb3db343140c0d066dccccdb9d299e5",
+          "value_byte_length": 32
+        },
+        {
+          "part": "8 schema_id",
+          "length_prefix_hex": "00000012",
+          "value_hex": "736368656d613acea96d6567612df09d849e",
+          "value_byte_length": 18
+        }
+      ],
+      "encoded_hex": "686c702e7265636f7264732e7075626c69636174696f6e2d62696e64696e672f32000000000f5a75cc88726963682d63616665cc81000000077265636f7264730000000e73616c65732e637573746f6d657200000005312e302e3000000005312e302e30000000127368613235362d757466382d626f64792f3100000020090e7e663979ab9ef3853467f8200aac3cb3db343140c0d066dccccdb9d299e500000012736368656d613acea96d6567612df09d849e",
+      "encoded_byte_length": 180,
+      "binding_hash": "f048017c5f435b0ea99086370038ed0761045a1baa96871f6d26f5e1b823d11e",
+      "must_differ_from": "V02"
+    },
+    {
+      "id": "V04",
+      "description": "Schema-ID-only change from V01 (field 8).",
+      "inputs": {
+        "tenant": {
+          "text_utf16_code_units": "0061 0063 006D 0065",
+          "text": "acme",
+          "utf8_hex": "61636d65",
+          "utf8_byte_length": 4
+        },
+        "namespace_token": "records",
+        "record_type_id": {
+          "text_utf16_code_units": "0073 0061 006C 0065 0073 002E 0063 0075 0073 0074 006F 006D 0065 0072",
+          "text": "sales.customer",
+          "utf8_hex": "73616c65732e637573746f6d6572",
+          "utf8_byte_length": 14
+        },
+        "version_id": {
+          "text_utf16_code_units": "0031 002E 0030 002E 0030",
+          "text": "1.0.0",
+          "utf8_hex": "312e302e30",
+          "utf8_byte_length": 5
+        },
+        "version": {
+          "text_utf16_code_units": "0031 002E 0030 002E 0030",
+          "text": "1.0.0",
+          "utf8_hex": "312e302e30",
+          "utf8_byte_length": 5
+        },
+        "digest_scheme": "sha256-utf8-body/1",
+        "definition_digest": "090e7e663979ab9ef3853467f8200aac3cb3db343140c0d066dccccdb9d299e5",
+        "schema_id": {
+          "text_utf16_code_units": "0073 0063 0068 0065 006D 0061 003A 0065 0078 0061 006D 0070 006C 0065 002D 0062",
+          "text": "schema:example-b",
+          "utf8_hex": "736368656d613a6578616d706c652d62",
+          "utf8_byte_length": 16
+        }
+      },
+      "definition_body_json": "{\"record_type_id\":\"sales.customer\"}",
+      "definition_body_json_sha256": "090e7e663979ab9ef3853467f8200aac3cb3db343140c0d066dccccdb9d299e5",
+      "segments": [
+        {
+          "part": "domain separator",
+          "hex": "686c702e7265636f7264732e7075626c69636174696f6e2d62696e64696e672f3200",
+          "byte_length": 34
+        },
+        {
+          "part": "1 tenant",
+          "length_prefix_hex": "00000004",
+          "value_hex": "61636d65",
+          "value_byte_length": 4
+        },
+        {
+          "part": "2 namespace token",
+          "length_prefix_hex": "00000007",
+          "value_hex": "7265636f726473",
+          "value_byte_length": 7
+        },
+        {
+          "part": "3 record_type_id",
+          "length_prefix_hex": "0000000e",
+          "value_hex": "73616c65732e637573746f6d6572",
+          "value_byte_length": 14
+        },
+        {
+          "part": "4 version_id",
+          "length_prefix_hex": "00000005",
+          "value_hex": "312e302e30",
+          "value_byte_length": 5
+        },
+        {
+          "part": "5 version",
+          "length_prefix_hex": "00000005",
+          "value_hex": "312e302e30",
+          "value_byte_length": 5
+        },
+        {
+          "part": "6 digest scheme",
+          "length_prefix_hex": "00000012",
+          "value_hex": "7368613235362d757466382d626f64792f31",
+          "value_byte_length": 18
+        },
+        {
+          "part": "7 definition digest (32 decoded bytes)",
+          "length_prefix_hex": "00000020",
+          "value_hex": "090e7e663979ab9ef3853467f8200aac3cb3db343140c0d066dccccdb9d299e5",
+          "value_byte_length": 32
+        },
+        {
+          "part": "8 schema_id",
+          "length_prefix_hex": "00000010",
+          "value_hex": "736368656d613a6578616d706c652d62",
+          "value_byte_length": 16
+        }
+      ],
+      "encoded_hex": "686c702e7265636f7264732e7075626c69636174696f6e2d62696e64696e672f32000000000461636d65000000077265636f7264730000000e73616c65732e637573746f6d657200000005312e302e3000000005312e302e30000000127368613235362d757466382d626f64792f3100000020090e7e663979ab9ef3853467f8200aac3cb3db343140c0d066dccccdb9d299e500000010736368656d613a6578616d706c652d62",
+      "encoded_byte_length": 167,
+      "binding_hash": "600ebc2f6d48dbff092e76438dbfbe4a3f61d422d53d5ba54ad280ab2c42683b",
+      "must_differ_from": "V01"
+    },
+    {
+      "id": "V05",
+      "description": "Version-label-only change from V01 (field 5 1.0.0 -> 1.0.1; field 4 unchanged).",
+      "inputs": {
+        "tenant": {
+          "text_utf16_code_units": "0061 0063 006D 0065",
+          "text": "acme",
+          "utf8_hex": "61636d65",
+          "utf8_byte_length": 4
+        },
+        "namespace_token": "records",
+        "record_type_id": {
+          "text_utf16_code_units": "0073 0061 006C 0065 0073 002E 0063 0075 0073 0074 006F 006D 0065 0072",
+          "text": "sales.customer",
+          "utf8_hex": "73616c65732e637573746f6d6572",
+          "utf8_byte_length": 14
+        },
+        "version_id": {
+          "text_utf16_code_units": "0031 002E 0030 002E 0030",
+          "text": "1.0.0",
+          "utf8_hex": "312e302e30",
+          "utf8_byte_length": 5
+        },
+        "version": {
+          "text_utf16_code_units": "0031 002E 0030 002E 0031",
+          "text": "1.0.1",
+          "utf8_hex": "312e302e31",
+          "utf8_byte_length": 5
+        },
+        "digest_scheme": "sha256-utf8-body/1",
+        "definition_digest": "090e7e663979ab9ef3853467f8200aac3cb3db343140c0d066dccccdb9d299e5",
+        "schema_id": {
+          "text_utf16_code_units": "0073 0063 0068 0065 006D 0061 003A 0065 0078 0061 006D 0070 006C 0065 002D 0061",
+          "text": "schema:example-a",
+          "utf8_hex": "736368656d613a6578616d706c652d61",
+          "utf8_byte_length": 16
+        }
+      },
+      "definition_body_json": "{\"record_type_id\":\"sales.customer\"}",
+      "definition_body_json_sha256": "090e7e663979ab9ef3853467f8200aac3cb3db343140c0d066dccccdb9d299e5",
+      "segments": [
+        {
+          "part": "domain separator",
+          "hex": "686c702e7265636f7264732e7075626c69636174696f6e2d62696e64696e672f3200",
+          "byte_length": 34
+        },
+        {
+          "part": "1 tenant",
+          "length_prefix_hex": "00000004",
+          "value_hex": "61636d65",
+          "value_byte_length": 4
+        },
+        {
+          "part": "2 namespace token",
+          "length_prefix_hex": "00000007",
+          "value_hex": "7265636f726473",
+          "value_byte_length": 7
+        },
+        {
+          "part": "3 record_type_id",
+          "length_prefix_hex": "0000000e",
+          "value_hex": "73616c65732e637573746f6d6572",
+          "value_byte_length": 14
+        },
+        {
+          "part": "4 version_id",
+          "length_prefix_hex": "00000005",
+          "value_hex": "312e302e30",
+          "value_byte_length": 5
+        },
+        {
+          "part": "5 version",
+          "length_prefix_hex": "00000005",
+          "value_hex": "312e302e31",
+          "value_byte_length": 5
+        },
+        {
+          "part": "6 digest scheme",
+          "length_prefix_hex": "00000012",
+          "value_hex": "7368613235362d757466382d626f64792f31",
+          "value_byte_length": 18
+        },
+        {
+          "part": "7 definition digest (32 decoded bytes)",
+          "length_prefix_hex": "00000020",
+          "value_hex": "090e7e663979ab9ef3853467f8200aac3cb3db343140c0d066dccccdb9d299e5",
+          "value_byte_length": 32
+        },
+        {
+          "part": "8 schema_id",
+          "length_prefix_hex": "00000010",
+          "value_hex": "736368656d613a6578616d706c652d61",
+          "value_byte_length": 16
+        }
+      ],
+      "encoded_hex": "686c702e7265636f7264732e7075626c69636174696f6e2d62696e64696e672f32000000000461636d65000000077265636f7264730000000e73616c65732e637573746f6d657200000005312e302e3000000005312e302e31000000127368613235362d757466382d626f64792f3100000020090e7e663979ab9ef3853467f8200aac3cb3db343140c0d066dccccdb9d299e500000010736368656d613a6578616d706c652d61",
+      "encoded_byte_length": 167,
+      "binding_hash": "c1243a6d390eedb4ae46c32e81dc43e50db31838e2f01271a59fe8a3b8860b7d",
+      "must_differ_from": "V01"
+    },
+    {
+      "id": "V06",
+      "description": "VersionId-only change from V01 (field 4 1.0.0 -> 1.0.1; field 5 unchanged).",
+      "inputs": {
+        "tenant": {
+          "text_utf16_code_units": "0061 0063 006D 0065",
+          "text": "acme",
+          "utf8_hex": "61636d65",
+          "utf8_byte_length": 4
+        },
+        "namespace_token": "records",
+        "record_type_id": {
+          "text_utf16_code_units": "0073 0061 006C 0065 0073 002E 0063 0075 0073 0074 006F 006D 0065 0072",
+          "text": "sales.customer",
+          "utf8_hex": "73616c65732e637573746f6d6572",
+          "utf8_byte_length": 14
+        },
+        "version_id": {
+          "text_utf16_code_units": "0031 002E 0030 002E 0031",
+          "text": "1.0.1",
+          "utf8_hex": "312e302e31",
+          "utf8_byte_length": 5
+        },
+        "version": {
+          "text_utf16_code_units": "0031 002E 0030 002E 0030",
+          "text": "1.0.0",
+          "utf8_hex": "312e302e30",
+          "utf8_byte_length": 5
+        },
+        "digest_scheme": "sha256-utf8-body/1",
+        "definition_digest": "090e7e663979ab9ef3853467f8200aac3cb3db343140c0d066dccccdb9d299e5",
+        "schema_id": {
+          "text_utf16_code_units": "0073 0063 0068 0065 006D 0061 003A 0065 0078 0061 006D 0070 006C 0065 002D 0061",
+          "text": "schema:example-a",
+          "utf8_hex": "736368656d613a6578616d706c652d61",
+          "utf8_byte_length": 16
+        }
+      },
+      "definition_body_json": "{\"record_type_id\":\"sales.customer\"}",
+      "definition_body_json_sha256": "090e7e663979ab9ef3853467f8200aac3cb3db343140c0d066dccccdb9d299e5",
+      "segments": [
+        {
+          "part": "domain separator",
+          "hex": "686c702e7265636f7264732e7075626c69636174696f6e2d62696e64696e672f3200",
+          "byte_length": 34
+        },
+        {
+          "part": "1 tenant",
+          "length_prefix_hex": "00000004",
+          "value_hex": "61636d65",
+          "value_byte_length": 4
+        },
+        {
+          "part": "2 namespace token",
+          "length_prefix_hex": "00000007",
+          "value_hex": "7265636f726473",
+          "value_byte_length": 7
+        },
+        {
+          "part": "3 record_type_id",
+          "length_prefix_hex": "0000000e",
+          "value_hex": "73616c65732e637573746f6d6572",
+          "value_byte_length": 14
+        },
+        {
+          "part": "4 version_id",
+          "length_prefix_hex": "00000005",
+          "value_hex": "312e302e31",
+          "value_byte_length": 5
+        },
+        {
+          "part": "5 version",
+          "length_prefix_hex": "00000005",
+          "value_hex": "312e302e30",
+          "value_byte_length": 5
+        },
+        {
+          "part": "6 digest scheme",
+          "length_prefix_hex": "00000012",
+          "value_hex": "7368613235362d757466382d626f64792f31",
+          "value_byte_length": 18
+        },
+        {
+          "part": "7 definition digest (32 decoded bytes)",
+          "length_prefix_hex": "00000020",
+          "value_hex": "090e7e663979ab9ef3853467f8200aac3cb3db343140c0d066dccccdb9d299e5",
+          "value_byte_length": 32
+        },
+        {
+          "part": "8 schema_id",
+          "length_prefix_hex": "00000010",
+          "value_hex": "736368656d613a6578616d706c652d61",
+          "value_byte_length": 16
+        }
+      ],
+      "encoded_hex": "686c702e7265636f7264732e7075626c69636174696f6e2d62696e64696e672f32000000000461636d65000000077265636f7264730000000e73616c65732e637573746f6d657200000005312e302e3100000005312e302e30000000127368613235362d757466382d626f64792f3100000020090e7e663979ab9ef3853467f8200aac3cb3db343140c0d066dccccdb9d299e500000010736368656d613a6578616d706c652d61",
+      "encoded_byte_length": 167,
+      "binding_hash": "e681bb19eef008abc1501caab223652e3592cfaa449b3b20768c69c0fc8ec108",
+      "must_differ_from": "V01"
+    },
+    {
+      "id": "V07",
+      "description": "Published-version change as Records produces it today (fields 4 and 5 both 1.0.1; RecordTypeDefinitionStore.cs:613-615).",
+      "inputs": {
+        "tenant": {
+          "text_utf16_code_units": "0061 0063 006D 0065",
+          "text": "acme",
+          "utf8_hex": "61636d65",
+          "utf8_byte_length": 4
+        },
+        "namespace_token": "records",
+        "record_type_id": {
+          "text_utf16_code_units": "0073 0061 006C 0065 0073 002E 0063 0075 0073 0074 006F 006D 0065 0072",
+          "text": "sales.customer",
+          "utf8_hex": "73616c65732e637573746f6d6572",
+          "utf8_byte_length": 14
+        },
+        "version_id": {
+          "text_utf16_code_units": "0031 002E 0030 002E 0031",
+          "text": "1.0.1",
+          "utf8_hex": "312e302e31",
+          "utf8_byte_length": 5
+        },
+        "version": {
+          "text_utf16_code_units": "0031 002E 0030 002E 0031",
+          "text": "1.0.1",
+          "utf8_hex": "312e302e31",
+          "utf8_byte_length": 5
+        },
+        "digest_scheme": "sha256-utf8-body/1",
+        "definition_digest": "090e7e663979ab9ef3853467f8200aac3cb3db343140c0d066dccccdb9d299e5",
+        "schema_id": {
+          "text_utf16_code_units": "0073 0063 0068 0065 006D 0061 003A 0065 0078 0061 006D 0070 006C 0065 002D 0061",
+          "text": "schema:example-a",
+          "utf8_hex": "736368656d613a6578616d706c652d61",
+          "utf8_byte_length": 16
+        }
+      },
+      "definition_body_json": "{\"record_type_id\":\"sales.customer\"}",
+      "definition_body_json_sha256": "090e7e663979ab9ef3853467f8200aac3cb3db343140c0d066dccccdb9d299e5",
+      "segments": [
+        {
+          "part": "domain separator",
+          "hex": "686c702e7265636f7264732e7075626c69636174696f6e2d62696e64696e672f3200",
+          "byte_length": 34
+        },
+        {
+          "part": "1 tenant",
+          "length_prefix_hex": "00000004",
+          "value_hex": "61636d65",
+          "value_byte_length": 4
+        },
+        {
+          "part": "2 namespace token",
+          "length_prefix_hex": "00000007",
+          "value_hex": "7265636f726473",
+          "value_byte_length": 7
+        },
+        {
+          "part": "3 record_type_id",
+          "length_prefix_hex": "0000000e",
+          "value_hex": "73616c65732e637573746f6d6572",
+          "value_byte_length": 14
+        },
+        {
+          "part": "4 version_id",
+          "length_prefix_hex": "00000005",
+          "value_hex": "312e302e31",
+          "value_byte_length": 5
+        },
+        {
+          "part": "5 version",
+          "length_prefix_hex": "00000005",
+          "value_hex": "312e302e31",
+          "value_byte_length": 5
+        },
+        {
+          "part": "6 digest scheme",
+          "length_prefix_hex": "00000012",
+          "value_hex": "7368613235362d757466382d626f64792f31",
+          "value_byte_length": 18
+        },
+        {
+          "part": "7 definition digest (32 decoded bytes)",
+          "length_prefix_hex": "00000020",
+          "value_hex": "090e7e663979ab9ef3853467f8200aac3cb3db343140c0d066dccccdb9d299e5",
+          "value_byte_length": 32
+        },
+        {
+          "part": "8 schema_id",
+          "length_prefix_hex": "00000010",
+          "value_hex": "736368656d613a6578616d706c652d61",
+          "value_byte_length": 16
+        }
+      ],
+      "encoded_hex": "686c702e7265636f7264732e7075626c69636174696f6e2d62696e64696e672f32000000000461636d65000000077265636f7264730000000e73616c65732e637573746f6d657200000005312e302e3100000005312e302e31000000127368613235362d757466382d626f64792f3100000020090e7e663979ab9ef3853467f8200aac3cb3db343140c0d066dccccdb9d299e500000010736368656d613a6578616d706c652d61",
+      "encoded_byte_length": 167,
+      "binding_hash": "8f1e3541caa30d04090ab43bb72604f286397f99baee281ab1ebc0464a405174",
+      "must_differ_from": "V01"
+    },
+    {
+      "id": "V08",
+      "description": "Body-digest-only change from V01 (field 7, different BodyJson).",
+      "inputs": {
+        "tenant": {
+          "text_utf16_code_units": "0061 0063 006D 0065",
+          "text": "acme",
+          "utf8_hex": "61636d65",
+          "utf8_byte_length": 4
+        },
+        "namespace_token": "records",
+        "record_type_id": {
+          "text_utf16_code_units": "0073 0061 006C 0065 0073 002E 0063 0075 0073 0074 006F 006D 0065 0072",
+          "text": "sales.customer",
+          "utf8_hex": "73616c65732e637573746f6d6572",
+          "utf8_byte_length": 14
+        },
+        "version_id": {
+          "text_utf16_code_units": "0031 002E 0030 002E 0030",
+          "text": "1.0.0",
+          "utf8_hex": "312e302e30",
+          "utf8_byte_length": 5
+        },
+        "version": {
+          "text_utf16_code_units": "0031 002E 0030 002E 0030",
+          "text": "1.0.0",
+          "utf8_hex": "312e302e30",
+          "utf8_byte_length": 5
+        },
+        "digest_scheme": "sha256-utf8-body/1",
+        "definition_digest": "ddda6af14199eb52a0c93438a5ec90bd0f895f2db05447f5ffd37e804d0a5f94",
+        "schema_id": {
+          "text_utf16_code_units": "0073 0063 0068 0065 006D 0061 003A 0065 0078 0061 006D 0070 006C 0065 002D 0061",
+          "text": "schema:example-a",
+          "utf8_hex": "736368656d613a6578616d706c652d61",
+          "utf8_byte_length": 16
+        }
+      },
+      "definition_body_json": "{\"record_type_id\":\"sales.customer\",\"name\":\"Customer\"}",
+      "definition_body_json_sha256": "ddda6af14199eb52a0c93438a5ec90bd0f895f2db05447f5ffd37e804d0a5f94",
+      "segments": [
+        {
+          "part": "domain separator",
+          "hex": "686c702e7265636f7264732e7075626c69636174696f6e2d62696e64696e672f3200",
+          "byte_length": 34
+        },
+        {
+          "part": "1 tenant",
+          "length_prefix_hex": "00000004",
+          "value_hex": "61636d65",
+          "value_byte_length": 4
+        },
+        {
+          "part": "2 namespace token",
+          "length_prefix_hex": "00000007",
+          "value_hex": "7265636f726473",
+          "value_byte_length": 7
+        },
+        {
+          "part": "3 record_type_id",
+          "length_prefix_hex": "0000000e",
+          "value_hex": "73616c65732e637573746f6d6572",
+          "value_byte_length": 14
+        },
+        {
+          "part": "4 version_id",
+          "length_prefix_hex": "00000005",
+          "value_hex": "312e302e30",
+          "value_byte_length": 5
+        },
+        {
+          "part": "5 version",
+          "length_prefix_hex": "00000005",
+          "value_hex": "312e302e30",
+          "value_byte_length": 5
+        },
+        {
+          "part": "6 digest scheme",
+          "length_prefix_hex": "00000012",
+          "value_hex": "7368613235362d757466382d626f64792f31",
+          "value_byte_length": 18
+        },
+        {
+          "part": "7 definition digest (32 decoded bytes)",
+          "length_prefix_hex": "00000020",
+          "value_hex": "ddda6af14199eb52a0c93438a5ec90bd0f895f2db05447f5ffd37e804d0a5f94",
+          "value_byte_length": 32
+        },
+        {
+          "part": "8 schema_id",
+          "length_prefix_hex": "00000010",
+          "value_hex": "736368656d613a6578616d706c652d61",
+          "value_byte_length": 16
+        }
+      ],
+      "encoded_hex": "686c702e7265636f7264732e7075626c69636174696f6e2d62696e64696e672f32000000000461636d65000000077265636f7264730000000e73616c65732e637573746f6d657200000005312e302e3000000005312e302e30000000127368613235362d757466382d626f64792f3100000020ddda6af14199eb52a0c93438a5ec90bd0f895f2db05447f5ffd37e804d0a5f9400000010736368656d613a6578616d706c652d61",
+      "encoded_byte_length": 167,
+      "binding_hash": "df1415f77d9634ab55786ad7b54000e85c4f2144ae63b549e28b8fd17a353a5d",
+      "must_differ_from": "V01"
+    },
+    {
+      "id": "V09",
+      "description": "Field-boundary ambiguity, side A: record_type_id 'sales.customer1' + version_id '1.0.0'. Plain concatenation of fields 3||4 is 'sales.customer11.0.0'.",
+      "inputs": {
+        "tenant": {
+          "text_utf16_code_units": "0061 0063 006D 0065",
+          "text": "acme",
+          "utf8_hex": "61636d65",
+          "utf8_byte_length": 4
+        },
+        "namespace_token": "records",
+        "record_type_id": {
+          "text_utf16_code_units": "0073 0061 006C 0065 0073 002E 0063 0075 0073 0074 006F 006D 0065 0072 0031",
+          "text": "sales.customer1",
+          "utf8_hex": "73616c65732e637573746f6d657231",
+          "utf8_byte_length": 15
+        },
+        "version_id": {
+          "text_utf16_code_units": "0031 002E 0030 002E 0030",
+          "text": "1.0.0",
+          "utf8_hex": "312e302e30",
+          "utf8_byte_length": 5
+        },
+        "version": {
+          "text_utf16_code_units": "0031 002E 0030 002E 0030",
+          "text": "1.0.0",
+          "utf8_hex": "312e302e30",
+          "utf8_byte_length": 5
+        },
+        "digest_scheme": "sha256-utf8-body/1",
+        "definition_digest": "090e7e663979ab9ef3853467f8200aac3cb3db343140c0d066dccccdb9d299e5",
+        "schema_id": {
+          "text_utf16_code_units": "0073 0063 0068 0065 006D 0061 003A 0065 0078 0061 006D 0070 006C 0065 002D 0061",
+          "text": "schema:example-a",
+          "utf8_hex": "736368656d613a6578616d706c652d61",
+          "utf8_byte_length": 16
+        }
+      },
+      "definition_body_json": "{\"record_type_id\":\"sales.customer\"}",
+      "definition_body_json_sha256": "090e7e663979ab9ef3853467f8200aac3cb3db343140c0d066dccccdb9d299e5",
+      "segments": [
+        {
+          "part": "domain separator",
+          "hex": "686c702e7265636f7264732e7075626c69636174696f6e2d62696e64696e672f3200",
+          "byte_length": 34
+        },
+        {
+          "part": "1 tenant",
+          "length_prefix_hex": "00000004",
+          "value_hex": "61636d65",
+          "value_byte_length": 4
+        },
+        {
+          "part": "2 namespace token",
+          "length_prefix_hex": "00000007",
+          "value_hex": "7265636f726473",
+          "value_byte_length": 7
+        },
+        {
+          "part": "3 record_type_id",
+          "length_prefix_hex": "0000000f",
+          "value_hex": "73616c65732e637573746f6d657231",
+          "value_byte_length": 15
+        },
+        {
+          "part": "4 version_id",
+          "length_prefix_hex": "00000005",
+          "value_hex": "312e302e30",
+          "value_byte_length": 5
+        },
+        {
+          "part": "5 version",
+          "length_prefix_hex": "00000005",
+          "value_hex": "312e302e30",
+          "value_byte_length": 5
+        },
+        {
+          "part": "6 digest scheme",
+          "length_prefix_hex": "00000012",
+          "value_hex": "7368613235362d757466382d626f64792f31",
+          "value_byte_length": 18
+        },
+        {
+          "part": "7 definition digest (32 decoded bytes)",
+          "length_prefix_hex": "00000020",
+          "value_hex": "090e7e663979ab9ef3853467f8200aac3cb3db343140c0d066dccccdb9d299e5",
+          "value_byte_length": 32
+        },
+        {
+          "part": "8 schema_id",
+          "length_prefix_hex": "00000010",
+          "value_hex": "736368656d613a6578616d706c652d61",
+          "value_byte_length": 16
+        }
+      ],
+      "encoded_hex": "686c702e7265636f7264732e7075626c69636174696f6e2d62696e64696e672f32000000000461636d65000000077265636f7264730000000f73616c65732e637573746f6d65723100000005312e302e3000000005312e302e30000000127368613235362d757466382d626f64792f3100000020090e7e663979ab9ef3853467f8200aac3cb3db343140c0d066dccccdb9d299e500000010736368656d613a6578616d706c652d61",
+      "encoded_byte_length": 168,
+      "binding_hash": "1ac8f1bebfa7f22c81b5c003987f79e863f8b35472b9aaee933e1637a01d0f8f",
+      "must_differ_from": null
+    },
+    {
+      "id": "V10",
+      "description": "Field-boundary ambiguity, side B: record_type_id 'sales.customer' + version_id '11.0.0'. Plain concatenation of every field equals V09's; the length prefixes differ, so the hashes differ.",
+      "inputs": {
+        "tenant": {
+          "text_utf16_code_units": "0061 0063 006D 0065",
+          "text": "acme",
+          "utf8_hex": "61636d65",
+          "utf8_byte_length": 4
+        },
+        "namespace_token": "records",
+        "record_type_id": {
+          "text_utf16_code_units": "0073 0061 006C 0065 0073 002E 0063 0075 0073 0074 006F 006D 0065 0072",
+          "text": "sales.customer",
+          "utf8_hex": "73616c65732e637573746f6d6572",
+          "utf8_byte_length": 14
+        },
+        "version_id": {
+          "text_utf16_code_units": "0031 0031 002E 0030 002E 0030",
+          "text": "11.0.0",
+          "utf8_hex": "31312e302e30",
+          "utf8_byte_length": 6
+        },
+        "version": {
+          "text_utf16_code_units": "0031 002E 0030 002E 0030",
+          "text": "1.0.0",
+          "utf8_hex": "312e302e30",
+          "utf8_byte_length": 5
+        },
+        "digest_scheme": "sha256-utf8-body/1",
+        "definition_digest": "090e7e663979ab9ef3853467f8200aac3cb3db343140c0d066dccccdb9d299e5",
+        "schema_id": {
+          "text_utf16_code_units": "0073 0063 0068 0065 006D 0061 003A 0065 0078 0061 006D 0070 006C 0065 002D 0061",
+          "text": "schema:example-a",
+          "utf8_hex": "736368656d613a6578616d706c652d61",
+          "utf8_byte_length": 16
+        }
+      },
+      "definition_body_json": "{\"record_type_id\":\"sales.customer\"}",
+      "definition_body_json_sha256": "090e7e663979ab9ef3853467f8200aac3cb3db343140c0d066dccccdb9d299e5",
+      "segments": [
+        {
+          "part": "domain separator",
+          "hex": "686c702e7265636f7264732e7075626c69636174696f6e2d62696e64696e672f3200",
+          "byte_length": 34
+        },
+        {
+          "part": "1 tenant",
+          "length_prefix_hex": "00000004",
+          "value_hex": "61636d65",
+          "value_byte_length": 4
+        },
+        {
+          "part": "2 namespace token",
+          "length_prefix_hex": "00000007",
+          "value_hex": "7265636f726473",
+          "value_byte_length": 7
+        },
+        {
+          "part": "3 record_type_id",
+          "length_prefix_hex": "0000000e",
+          "value_hex": "73616c65732e637573746f6d6572",
+          "value_byte_length": 14
+        },
+        {
+          "part": "4 version_id",
+          "length_prefix_hex": "00000006",
+          "value_hex": "31312e302e30",
+          "value_byte_length": 6
+        },
+        {
+          "part": "5 version",
+          "length_prefix_hex": "00000005",
+          "value_hex": "312e302e30",
+          "value_byte_length": 5
+        },
+        {
+          "part": "6 digest scheme",
+          "length_prefix_hex": "00000012",
+          "value_hex": "7368613235362d757466382d626f64792f31",
+          "value_byte_length": 18
+        },
+        {
+          "part": "7 definition digest (32 decoded bytes)",
+          "length_prefix_hex": "00000020",
+          "value_hex": "090e7e663979ab9ef3853467f8200aac3cb3db343140c0d066dccccdb9d299e5",
+          "value_byte_length": 32
+        },
+        {
+          "part": "8 schema_id",
+          "length_prefix_hex": "00000010",
+          "value_hex": "736368656d613a6578616d706c652d61",
+          "value_byte_length": 16
+        }
+      ],
+      "encoded_hex": "686c702e7265636f7264732e7075626c69636174696f6e2d62696e64696e672f32000000000461636d65000000077265636f7264730000000e73616c65732e637573746f6d65720000000631312e302e3000000005312e302e30000000127368613235362d757466382d626f64792f3100000020090e7e663979ab9ef3853467f8200aac3cb3db343140c0d066dccccdb9d299e500000010736368656d613a6578616d706c652d61",
+      "encoded_byte_length": 168,
+      "binding_hash": "5b5795de61e59ab2cab7be40aeb915b67afd402acc565802e9f5038892c1a11a",
+      "must_differ_from": "V09"
+    },
+    {
+      "id": "V11",
+      "description": "Trailing whitespace is content: tenant 'acme ' (U+0020 appended). No trimming; differs from V01.",
+      "inputs": {
+        "tenant": {
+          "text_utf16_code_units": "0061 0063 006D 0065 0020",
+          "text": "acme ",
+          "utf8_hex": "61636d6520",
+          "utf8_byte_length": 5
+        },
+        "namespace_token": "records",
+        "record_type_id": {
+          "text_utf16_code_units": "0073 0061 006C 0065 0073 002E 0063 0075 0073 0074 006F 006D 0065 0072",
+          "text": "sales.customer",
+          "utf8_hex": "73616c65732e637573746f6d6572",
+          "utf8_byte_length": 14
+        },
+        "version_id": {
+          "text_utf16_code_units": "0031 002E 0030 002E 0030",
+          "text": "1.0.0",
+          "utf8_hex": "312e302e30",
+          "utf8_byte_length": 5
+        },
+        "version": {
+          "text_utf16_code_units": "0031 002E 0030 002E 0030",
+          "text": "1.0.0",
+          "utf8_hex": "312e302e30",
+          "utf8_byte_length": 5
+        },
+        "digest_scheme": "sha256-utf8-body/1",
+        "definition_digest": "090e7e663979ab9ef3853467f8200aac3cb3db343140c0d066dccccdb9d299e5",
+        "schema_id": {
+          "text_utf16_code_units": "0073 0063 0068 0065 006D 0061 003A 0065 0078 0061 006D 0070 006C 0065 002D 0061",
+          "text": "schema:example-a",
+          "utf8_hex": "736368656d613a6578616d706c652d61",
+          "utf8_byte_length": 16
+        }
+      },
+      "definition_body_json": "{\"record_type_id\":\"sales.customer\"}",
+      "definition_body_json_sha256": "090e7e663979ab9ef3853467f8200aac3cb3db343140c0d066dccccdb9d299e5",
+      "segments": [
+        {
+          "part": "domain separator",
+          "hex": "686c702e7265636f7264732e7075626c69636174696f6e2d62696e64696e672f3200",
+          "byte_length": 34
+        },
+        {
+          "part": "1 tenant",
+          "length_prefix_hex": "00000005",
+          "value_hex": "61636d6520",
+          "value_byte_length": 5
+        },
+        {
+          "part": "2 namespace token",
+          "length_prefix_hex": "00000007",
+          "value_hex": "7265636f726473",
+          "value_byte_length": 7
+        },
+        {
+          "part": "3 record_type_id",
+          "length_prefix_hex": "0000000e",
+          "value_hex": "73616c65732e637573746f6d6572",
+          "value_byte_length": 14
+        },
+        {
+          "part": "4 version_id",
+          "length_prefix_hex": "00000005",
+          "value_hex": "312e302e30",
+          "value_byte_length": 5
+        },
+        {
+          "part": "5 version",
+          "length_prefix_hex": "00000005",
+          "value_hex": "312e302e30",
+          "value_byte_length": 5
+        },
+        {
+          "part": "6 digest scheme",
+          "length_prefix_hex": "00000012",
+          "value_hex": "7368613235362d757466382d626f64792f31",
+          "value_byte_length": 18
+        },
+        {
+          "part": "7 definition digest (32 decoded bytes)",
+          "length_prefix_hex": "00000020",
+          "value_hex": "090e7e663979ab9ef3853467f8200aac3cb3db343140c0d066dccccdb9d299e5",
+          "value_byte_length": 32
+        },
+        {
+          "part": "8 schema_id",
+          "length_prefix_hex": "00000010",
+          "value_hex": "736368656d613a6578616d706c652d61",
+          "value_byte_length": 16
+        }
+      ],
+      "encoded_hex": "686c702e7265636f7264732e7075626c69636174696f6e2d62696e64696e672f32000000000561636d6520000000077265636f7264730000000e73616c65732e637573746f6d657200000005312e302e3000000005312e302e30000000127368613235362d757466382d626f64792f3100000020090e7e663979ab9ef3853467f8200aac3cb3db343140c0d066dccccdb9d299e500000010736368656d613a6578616d706c652d61",
+      "encoded_byte_length": 168,
+      "binding_hash": "b01a1e76d1320dda135f7e3e5e8d0fd3d2a00af8b9fd8a7cd21e408cb775f9f7",
+      "must_differ_from": "V01"
+    },
+    {
+      "id": "V12",
+      "description": "Case is content: tenant 'Acme'. No case folding; differs from V01.",
+      "inputs": {
+        "tenant": {
+          "text_utf16_code_units": "0041 0063 006D 0065",
+          "text": "Acme",
+          "utf8_hex": "41636d65",
+          "utf8_byte_length": 4
+        },
+        "namespace_token": "records",
+        "record_type_id": {
+          "text_utf16_code_units": "0073 0061 006C 0065 0073 002E 0063 0075 0073 0074 006F 006D 0065 0072",
+          "text": "sales.customer",
+          "utf8_hex": "73616c65732e637573746f6d6572",
+          "utf8_byte_length": 14
+        },
+        "version_id": {
+          "text_utf16_code_units": "0031 002E 0030 002E 0030",
+          "text": "1.0.0",
+          "utf8_hex": "312e302e30",
+          "utf8_byte_length": 5
+        },
+        "version": {
+          "text_utf16_code_units": "0031 002E 0030 002E 0030",
+          "text": "1.0.0",
+          "utf8_hex": "312e302e30",
+          "utf8_byte_length": 5
+        },
+        "digest_scheme": "sha256-utf8-body/1",
+        "definition_digest": "090e7e663979ab9ef3853467f8200aac3cb3db343140c0d066dccccdb9d299e5",
+        "schema_id": {
+          "text_utf16_code_units": "0073 0063 0068 0065 006D 0061 003A 0065 0078 0061 006D 0070 006C 0065 002D 0061",
+          "text": "schema:example-a",
+          "utf8_hex": "736368656d613a6578616d706c652d61",
+          "utf8_byte_length": 16
+        }
+      },
+      "definition_body_json": "{\"record_type_id\":\"sales.customer\"}",
+      "definition_body_json_sha256": "090e7e663979ab9ef3853467f8200aac3cb3db343140c0d066dccccdb9d299e5",
+      "segments": [
+        {
+          "part": "domain separator",
+          "hex": "686c702e7265636f7264732e7075626c69636174696f6e2d62696e64696e672f3200",
+          "byte_length": 34
+        },
+        {
+          "part": "1 tenant",
+          "length_prefix_hex": "00000004",
+          "value_hex": "41636d65",
+          "value_byte_length": 4
+        },
+        {
+          "part": "2 namespace token",
+          "length_prefix_hex": "00000007",
+          "value_hex": "7265636f726473",
+          "value_byte_length": 7
+        },
+        {
+          "part": "3 record_type_id",
+          "length_prefix_hex": "0000000e",
+          "value_hex": "73616c65732e637573746f6d6572",
+          "value_byte_length": 14
+        },
+        {
+          "part": "4 version_id",
+          "length_prefix_hex": "00000005",
+          "value_hex": "312e302e30",
+          "value_byte_length": 5
+        },
+        {
+          "part": "5 version",
+          "length_prefix_hex": "00000005",
+          "value_hex": "312e302e30",
+          "value_byte_length": 5
+        },
+        {
+          "part": "6 digest scheme",
+          "length_prefix_hex": "00000012",
+          "value_hex": "7368613235362d757466382d626f64792f31",
+          "value_byte_length": 18
+        },
+        {
+          "part": "7 definition digest (32 decoded bytes)",
+          "length_prefix_hex": "00000020",
+          "value_hex": "090e7e663979ab9ef3853467f8200aac3cb3db343140c0d066dccccdb9d299e5",
+          "value_byte_length": 32
+        },
+        {
+          "part": "8 schema_id",
+          "length_prefix_hex": "00000010",
+          "value_hex": "736368656d613a6578616d706c652d61",
+          "value_byte_length": 16
+        }
+      ],
+      "encoded_hex": "686c702e7265636f7264732e7075626c69636174696f6e2d62696e64696e672f32000000000441636d65000000077265636f7264730000000e73616c65732e637573746f6d657200000005312e302e3000000005312e302e30000000127368613235362d757466382d626f64792f3100000020090e7e663979ab9ef3853467f8200aac3cb3db343140c0d066dccccdb9d299e500000010736368656d613a6578616d706c652d61",
+      "encoded_byte_length": 167,
+      "binding_hash": "83e5ec082e84a9f0bafc6d86a991e450ee6f7297ad30fd9aa2b2155c2efd701c",
+      "must_differ_from": "V01"
+    },
+    {
+      "id": "V13",
+      "description": "A U+0000 inside a field is ordinary content (valid UTF-8, one 0x00 byte) and cannot be confused with the domain separator's NUL.",
+      "inputs": {
+        "tenant": {
+          "text_utf16_code_units": "0061 0063 006D 0065 0000 0072 0065 0063 006F 0072 0064 0073",
+          "text": "acme\u0000records",
+          "utf8_hex": "61636d65007265636f726473",
+          "utf8_byte_length": 12
+        },
+        "namespace_token": "records",
+        "record_type_id": {
+          "text_utf16_code_units": "0073 0061 006C 0065 0073 002E 0063 0075 0073 0074 006F 006D 0065 0072",
+          "text": "sales.customer",
+          "utf8_hex": "73616c65732e637573746f6d6572",
+          "utf8_byte_length": 14
+        },
+        "version_id": {
+          "text_utf16_code_units": "0031 002E 0030 002E 0030",
+          "text": "1.0.0",
+          "utf8_hex": "312e302e30",
+          "utf8_byte_length": 5
+        },
+        "version": {
+          "text_utf16_code_units": "0031 002E 0030 002E 0030",
+          "text": "1.0.0",
+          "utf8_hex": "312e302e30",
+          "utf8_byte_length": 5
+        },
+        "digest_scheme": "sha256-utf8-body/1",
+        "definition_digest": "090e7e663979ab9ef3853467f8200aac3cb3db343140c0d066dccccdb9d299e5",
+        "schema_id": {
+          "text_utf16_code_units": "0073 0063 0068 0065 006D 0061 003A 0065 0078 0061 006D 0070 006C 0065 002D 0061",
+          "text": "schema:example-a",
+          "utf8_hex": "736368656d613a6578616d706c652d61",
+          "utf8_byte_length": 16
+        }
+      },
+      "definition_body_json": "{\"record_type_id\":\"sales.customer\"}",
+      "definition_body_json_sha256": "090e7e663979ab9ef3853467f8200aac3cb3db343140c0d066dccccdb9d299e5",
+      "segments": [
+        {
+          "part": "domain separator",
+          "hex": "686c702e7265636f7264732e7075626c69636174696f6e2d62696e64696e672f3200",
+          "byte_length": 34
+        },
+        {
+          "part": "1 tenant",
+          "length_prefix_hex": "0000000c",
+          "value_hex": "61636d65007265636f726473",
+          "value_byte_length": 12
+        },
+        {
+          "part": "2 namespace token",
+          "length_prefix_hex": "00000007",
+          "value_hex": "7265636f726473",
+          "value_byte_length": 7
+        },
+        {
+          "part": "3 record_type_id",
+          "length_prefix_hex": "0000000e",
+          "value_hex": "73616c65732e637573746f6d6572",
+          "value_byte_length": 14
+        },
+        {
+          "part": "4 version_id",
+          "length_prefix_hex": "00000005",
+          "value_hex": "312e302e30",
+          "value_byte_length": 5
+        },
+        {
+          "part": "5 version",
+          "length_prefix_hex": "00000005",
+          "value_hex": "312e302e30",
+          "value_byte_length": 5
+        },
+        {
+          "part": "6 digest scheme",
+          "length_prefix_hex": "00000012",
+          "value_hex": "7368613235362d757466382d626f64792f31",
+          "value_byte_length": 18
+        },
+        {
+          "part": "7 definition digest (32 decoded bytes)",
+          "length_prefix_hex": "00000020",
+          "value_hex": "090e7e663979ab9ef3853467f8200aac3cb3db343140c0d066dccccdb9d299e5",
+          "value_byte_length": 32
+        },
+        {
+          "part": "8 schema_id",
+          "length_prefix_hex": "00000010",
+          "value_hex": "736368656d613a6578616d706c652d61",
+          "value_byte_length": 16
+        }
+      ],
+      "encoded_hex": "686c702e7265636f7264732e7075626c69636174696f6e2d62696e64696e672f32000000000c61636d65007265636f726473000000077265636f7264730000000e73616c65732e637573746f6d657200000005312e302e3000000005312e302e30000000127368613235362d757466382d626f64792f3100000020090e7e663979ab9ef3853467f8200aac3cb3db343140c0d066dccccdb9d299e500000010736368656d613a6578616d706c652d61",
+      "encoded_byte_length": 175,
+      "binding_hash": "c3739a7cd1bdb8e8b4b058d5a603d87889b81fbe7a107acabf49c467ee86540e",
+      "must_differ_from": "V01"
+    },
+    {
+      "id": "V14",
+      "description": "Semantic-version build metadata is exact text: '1.0.0+build.7' in fields 4 and 5 is not normalized to '1.0.0'.",
+      "inputs": {
+        "tenant": {
+          "text_utf16_code_units": "0061 0063 006D 0065",
+          "text": "acme",
+          "utf8_hex": "61636d65",
+          "utf8_byte_length": 4
+        },
+        "namespace_token": "records",
+        "record_type_id": {
+          "text_utf16_code_units": "0073 0061 006C 0065 0073 002E 0063 0075 0073 0074 006F 006D 0065 0072",
+          "text": "sales.customer",
+          "utf8_hex": "73616c65732e637573746f6d6572",
+          "utf8_byte_length": 14
+        },
+        "version_id": {
+          "text_utf16_code_units": "0031 002E 0030 002E 0030 002B 0062 0075 0069 006C 0064 002E 0037",
+          "text": "1.0.0+build.7",
+          "utf8_hex": "312e302e302b6275696c642e37",
+          "utf8_byte_length": 13
+        },
+        "version": {
+          "text_utf16_code_units": "0031 002E 0030 002E 0030 002B 0062 0075 0069 006C 0064 002E 0037",
+          "text": "1.0.0+build.7",
+          "utf8_hex": "312e302e302b6275696c642e37",
+          "utf8_byte_length": 13
+        },
+        "digest_scheme": "sha256-utf8-body/1",
+        "definition_digest": "090e7e663979ab9ef3853467f8200aac3cb3db343140c0d066dccccdb9d299e5",
+        "schema_id": {
+          "text_utf16_code_units": "0073 0063 0068 0065 006D 0061 003A 0065 0078 0061 006D 0070 006C 0065 002D 0061",
+          "text": "schema:example-a",
+          "utf8_hex": "736368656d613a6578616d706c652d61",
+          "utf8_byte_length": 16
+        }
+      },
+      "definition_body_json": "{\"record_type_id\":\"sales.customer\"}",
+      "definition_body_json_sha256": "090e7e663979ab9ef3853467f8200aac3cb3db343140c0d066dccccdb9d299e5",
+      "segments": [
+        {
+          "part": "domain separator",
+          "hex": "686c702e7265636f7264732e7075626c69636174696f6e2d62696e64696e672f3200",
+          "byte_length": 34
+        },
+        {
+          "part": "1 tenant",
+          "length_prefix_hex": "00000004",
+          "value_hex": "61636d65",
+          "value_byte_length": 4
+        },
+        {
+          "part": "2 namespace token",
+          "length_prefix_hex": "00000007",
+          "value_hex": "7265636f726473",
+          "value_byte_length": 7
+        },
+        {
+          "part": "3 record_type_id",
+          "length_prefix_hex": "0000000e",
+          "value_hex": "73616c65732e637573746f6d6572",
+          "value_byte_length": 14
+        },
+        {
+          "part": "4 version_id",
+          "length_prefix_hex": "0000000d",
+          "value_hex": "312e302e302b6275696c642e37",
+          "value_byte_length": 13
+        },
+        {
+          "part": "5 version",
+          "length_prefix_hex": "0000000d",
+          "value_hex": "312e302e302b6275696c642e37",
+          "value_byte_length": 13
+        },
+        {
+          "part": "6 digest scheme",
+          "length_prefix_hex": "00000012",
+          "value_hex": "7368613235362d757466382d626f64792f31",
+          "value_byte_length": 18
+        },
+        {
+          "part": "7 definition digest (32 decoded bytes)",
+          "length_prefix_hex": "00000020",
+          "value_hex": "090e7e663979ab9ef3853467f8200aac3cb3db343140c0d066dccccdb9d299e5",
+          "value_byte_length": 32
+        },
+        {
+          "part": "8 schema_id",
+          "length_prefix_hex": "00000010",
+          "value_hex": "736368656d613a6578616d706c652d61",
+          "value_byte_length": 16
+        }
+      ],
+      "encoded_hex": "686c702e7265636f7264732e7075626c69636174696f6e2d62696e64696e672f32000000000461636d65000000077265636f7264730000000e73616c65732e637573746f6d65720000000d312e302e302b6275696c642e370000000d312e302e302b6275696c642e37000000127368613235362d757466382d626f64792f3100000020090e7e663979ab9ef3853467f8200aac3cb3db343140c0d066dccccdb9d299e500000010736368656d613a6578616d706c652d61",
+      "encoded_byte_length": 183,
+      "binding_hash": "96f37672781c4078a36ee0385b902b85d4f7f2c3904fecd4f10c185599ce078b",
+      "must_differ_from": "V01"
+    },
+    {
+      "id": "V15",
+      "description": "version_id = U+001C (INFORMATION SEPARATOR FOUR). Not whitespace under .NET char.IsWhiteSpace / string.IsNullOrWhiteSpace (Python str.isspace wrongly says it is), so it is VALID and encoded as the single byte 0x1c.",
+      "inputs": {
+        "tenant": {
+          "text_utf16_code_units": "0061 0063 006D 0065",
+          "text": "acme",
+          "utf8_hex": "61636d65",
+          "utf8_byte_length": 4
+        },
+        "namespace_token": "records",
+        "record_type_id": {
+          "text_utf16_code_units": "0073 0061 006C 0065 0073 002E 0063 0075 0073 0074 006F 006D 0065 0072",
+          "text": "sales.customer",
+          "utf8_hex": "73616c65732e637573746f6d6572",
+          "utf8_byte_length": 14
+        },
+        "version_id": {
+          "text_utf16_code_units": "001C",
+          "text": "\u001c",
+          "utf8_hex": "1c",
+          "utf8_byte_length": 1
+        },
+        "version": {
+          "text_utf16_code_units": "0031 002E 0030 002E 0030",
+          "text": "1.0.0",
+          "utf8_hex": "312e302e30",
+          "utf8_byte_length": 5
+        },
+        "digest_scheme": "sha256-utf8-body/1",
+        "definition_digest": "090e7e663979ab9ef3853467f8200aac3cb3db343140c0d066dccccdb9d299e5",
+        "schema_id": {
+          "text_utf16_code_units": "0073 0063 0068 0065 006D 0061 003A 0065 0078 0061 006D 0070 006C 0065 002D 0061",
+          "text": "schema:example-a",
+          "utf8_hex": "736368656d613a6578616d706c652d61",
+          "utf8_byte_length": 16
+        }
+      },
+      "definition_body_json": "{\"record_type_id\":\"sales.customer\"}",
+      "definition_body_json_sha256": "090e7e663979ab9ef3853467f8200aac3cb3db343140c0d066dccccdb9d299e5",
+      "segments": [
+        {
+          "part": "domain separator",
+          "hex": "686c702e7265636f7264732e7075626c69636174696f6e2d62696e64696e672f3200",
+          "byte_length": 34
+        },
+        {
+          "part": "1 tenant",
+          "length_prefix_hex": "00000004",
+          "value_hex": "61636d65",
+          "value_byte_length": 4
+        },
+        {
+          "part": "2 namespace token",
+          "length_prefix_hex": "00000007",
+          "value_hex": "7265636f726473",
+          "value_byte_length": 7
+        },
+        {
+          "part": "3 record_type_id",
+          "length_prefix_hex": "0000000e",
+          "value_hex": "73616c65732e637573746f6d6572",
+          "value_byte_length": 14
+        },
+        {
+          "part": "4 version_id",
+          "length_prefix_hex": "00000001",
+          "value_hex": "1c",
+          "value_byte_length": 1
+        },
+        {
+          "part": "5 version",
+          "length_prefix_hex": "00000005",
+          "value_hex": "312e302e30",
+          "value_byte_length": 5
+        },
+        {
+          "part": "6 digest scheme",
+          "length_prefix_hex": "00000012",
+          "value_hex": "7368613235362d757466382d626f64792f31",
+          "value_byte_length": 18
+        },
+        {
+          "part": "7 definition digest (32 decoded bytes)",
+          "length_prefix_hex": "00000020",
+          "value_hex": "090e7e663979ab9ef3853467f8200aac3cb3db343140c0d066dccccdb9d299e5",
+          "value_byte_length": 32
+        },
+        {
+          "part": "8 schema_id",
+          "length_prefix_hex": "00000010",
+          "value_hex": "736368656d613a6578616d706c652d61",
+          "value_byte_length": 16
+        }
+      ],
+      "encoded_hex": "686c702e7265636f7264732e7075626c69636174696f6e2d62696e64696e672f32000000000461636d65000000077265636f7264730000000e73616c65732e637573746f6d6572000000011c00000005312e302e30000000127368613235362d757466382d626f64792f3100000020090e7e663979ab9ef3853467f8200aac3cb3db343140c0d066dccccdb9d299e500000010736368656d613a6578616d706c652d61",
+      "encoded_byte_length": 163,
+      "binding_hash": "54be40e9969cc3c47895028d64d1ed5027ceb2b37453bf09abcf5cdc4557413b",
+      "must_differ_from": "V01"
+    }
+  ],
+  "wrong_encoding_controls": [
+    {
+      "id": "X01",
+      "description": "Domain written as backslash + '0' (two bytes 0x5c 0x30) instead of one NUL byte.",
+      "encoded_hex": "686c702e7265636f7264732e7075626c69636174696f6e2d62696e64696e672f325c300000000461636d65000000077265636f7264730000000e73616c65732e637573746f6d657200000005312e302e3000000005312e302e30000000127368613235362d757466382d626f64792f3100000020090e7e663979ab9ef3853467f8200aac3cb3db343140c0d066dccccdb9d299e500000010736368656d613a6578616d706c652d61",
+      "wrong_hash": "cc9b275aafc01c1427ac78161a0af04f40b36c568c52ac7fc5c5bd666e5d2d83",
+      "correct_vector": "V01"
+    },
+    {
+      "id": "X02",
+      "description": "Domain without the trailing NUL byte.",
+      "encoded_hex": "686c702e7265636f7264732e7075626c69636174696f6e2d62696e64696e672f320000000461636d65000000077265636f7264730000000e73616c65732e637573746f6d657200000005312e302e3000000005312e302e30000000127368613235362d757466382d626f64792f3100000020090e7e663979ab9ef3853467f8200aac3cb3db343140c0d066dccccdb9d299e500000010736368656d613a6578616d706c652d61",
+      "wrong_hash": "90ae909036e0ebd31f0048131205eeac8d5ba48348953d00bb608260cc6ad59e",
+      "correct_vector": "V01"
+    },
+    {
+      "id": "X03",
+      "description": "Little-endian length prefixes.",
+      "encoded_hex": "686c702e7265636f7264732e7075626c69636174696f6e2d62696e64696e672f32000400000061636d65070000007265636f7264730e00000073616c65732e637573746f6d657205000000312e302e3005000000312e302e30120000007368613235362d757466382d626f64792f3120000000090e7e663979ab9ef3853467f8200aac3cb3db343140c0d066dccccdb9d299e510000000736368656d613a6578616d706c652d61",
+      "wrong_hash": "e85929db4d5bc2e253093cdec22b15f38386a11f48be13e4f255397ddc400915",
+      "correct_vector": "V01"
+    },
+    {
+      "id": "X04",
+      "description": "Field 7 as the 64 ASCII hex characters instead of the 32 decoded bytes.",
+      "encoded_hex": "686c702e7265636f7264732e7075626c69636174696f6e2d62696e64696e672f32000000000461636d65000000077265636f7264730000000e73616c65732e637573746f6d657200000005312e302e3000000005312e302e30000000127368613235362d757466382d626f64792f31000000403039306537653636333937396162396566333835333436376638323030616163336362336462333433313430633064303636646363636364623964323939653500000010736368656d613a6578616d706c652d61",
+      "wrong_hash": "f7e02d930545ce89f3351173863b0648a1a7986530ab8f2805d498450548db52",
+      "correct_vector": "V01"
+    },
+    {
+      "id": "X05",
+      "description": "Field 2 as the enum name 'Records' (DefinitionKind.ToString()) instead of the token 'records'.",
+      "encoded_hex": "686c702e7265636f7264732e7075626c69636174696f6e2d62696e64696e672f32000000000461636d65000000075265636f7264730000000e73616c65732e637573746f6d657200000005312e302e3000000005312e302e30000000127368613235362d757466382d626f64792f3100000020090e7e663979ab9ef3853467f8200aac3cb3db343140c0d066dccccdb9d299e500000010736368656d613a6578616d706c652d61",
+      "wrong_hash": "bf881703eafafc9065eb2353144936d242af1fe01d79590bcefd582a61277296",
+      "correct_vector": "V01"
+    },
+    {
+      "id": "X06",
+      "description": "Field 2 as the enum value '8' instead of the token 'records'.",
+      "encoded_hex": "686c702e7265636f7264732e7075626c69636174696f6e2d62696e64696e672f32000000000461636d6500000001380000000e73616c65732e637573746f6d657200000005312e302e3000000005312e302e30000000127368613235362d757466382d626f64792f3100000020090e7e663979ab9ef3853467f8200aac3cb3db343140c0d066dccccdb9d299e500000010736368656d613a6578616d706c652d61",
+      "wrong_hash": "c5a88109b8d0f1ebbfec1fb21ca4a2898e67238fc34da9190fbe676097f40983",
+      "correct_vector": "V01"
+    },
+    {
+      "id": "X07",
+      "description": "Domain separator length-prefixed like a field (it is not).",
+      "encoded_hex": "00000022686c702e7265636f7264732e7075626c69636174696f6e2d62696e64696e672f32000000000461636d65000000077265636f7264730000000e73616c65732e637573746f6d657200000005312e302e3000000005312e302e30000000127368613235362d757466382d626f64792f3100000020090e7e663979ab9ef3853467f8200aac3cb3db343140c0d066dccccdb9d299e500000010736368656d613a6578616d706c652d61",
+      "wrong_hash": "d3a3406e758de0d773d628d20508225992b868a7f90fd332cb8ad283aeae399c",
+      "correct_vector": "V01"
+    },
+    {
+      "id": "X08",
+      "description": "Fields 7 and 8 swapped (schema ID before digest).",
+      "encoded_hex": "686c702e7265636f7264732e7075626c69636174696f6e2d62696e64696e672f32000000000461636d65000000077265636f7264730000000e73616c65732e637573746f6d657200000005312e302e3000000005312e302e30000000127368613235362d757466382d626f64792f3100000010736368656d613a6578616d706c652d6100000020090e7e663979ab9ef3853467f8200aac3cb3db343140c0d066dccccdb9d299e5",
+      "wrong_hash": "6cfb4207b53880d9f370297d12320b1677550c3f3f8094ed8bf4cc9003c0d20a",
+      "correct_vector": "V01"
+    }
+  ],
+  "invalid_inputs": [
+    {
+      "id": "I01",
+      "description": "Lone high surrogate (U+D800) at the end of tenant: no UTF-8 encoding exists.",
+      "inputs": {
+        "tenant": {
+          "text_utf16_code_units": "0061 0063 006D 0065 D800",
+          "text": null,
+          "utf8_hex": null
+        },
+        "record_type_id": {
+          "text_utf16_code_units": "0073 0061 006C 0065 0073 002E 0063 0075 0073 0074 006F 006D 0065 0072",
+          "text": "sales.customer",
+          "utf8_hex": "73616c65732e637573746f6d6572",
+          "utf8_byte_length": 14
+        },
+        "version_id": {
+          "text_utf16_code_units": "0031 002E 0030 002E 0030",
+          "text": "1.0.0",
+          "utf8_hex": "312e302e30",
+          "utf8_byte_length": 5
+        },
+        "version": {
+          "text_utf16_code_units": "0031 002E 0030 002E 0030",
+          "text": "1.0.0",
+          "utf8_hex": "312e302e30",
+          "utf8_byte_length": 5
+        },
+        "definition_digest": {
+          "text_utf16_code_units": "0030 0039 0030 0065 0037 0065 0036 0036 0033 0039 0037 0039 0061 0062 0039 0065 0066 0033 0038 0035 0033 0034 0036 0037 0066 0038 0032 0030 0030 0061 0061 0063 0033 0063 0062 0033 0064 0062 0033 0034 0033 0031 0034 0030 0063 0030 0064 0030 0036 0036 0064 0063 0063 0063 0063 0064 0062 0039 0064 0032 0039 0039 0065 0035",
+          "text": "090e7e663979ab9ef3853467f8200aac3cb3db343140c0d066dccccdb9d299e5"
+        },
+        "schema_id": {
+          "text_utf16_code_units": "0073 0063 0068 0065 006D 0061 003A 0065 0078 0061 006D 0070 006C 0065 002D 0061",
+          "text": "schema:example-a",
+          "utf8_hex": "736368656d613a6578616d706c652d61",
+          "utf8_byte_length": 16
+        }
+      },
+      "expected": "reject",
+      "rule": "invalid_utf8:tenant"
+    },
+    {
+      "id": "I02",
+      "description": "Lone low surrogate (U+DC00) inside schema_id.",
+      "inputs": {
+        "tenant": {
+          "text_utf16_code_units": "0061 0063 006D 0065",
+          "text": "acme",
+          "utf8_hex": "61636d65",
+          "utf8_byte_length": 4
+        },
+        "record_type_id": {
+          "text_utf16_code_units": "0073 0061 006C 0065 0073 002E 0063 0075 0073 0074 006F 006D 0065 0072",
+          "text": "sales.customer",
+          "utf8_hex": "73616c65732e637573746f6d6572",
+          "utf8_byte_length": 14
+        },
+        "version_id": {
+          "text_utf16_code_units": "0031 002E 0030 002E 0030",
+          "text": "1.0.0",
+          "utf8_hex": "312e302e30",
+          "utf8_byte_length": 5
+        },
+        "version": {
+          "text_utf16_code_units": "0031 002E 0030 002E 0030",
+          "text": "1.0.0",
+          "utf8_hex": "312e302e30",
+          "utf8_byte_length": 5
+        },
+        "definition_digest": {
+          "text_utf16_code_units": "0030 0039 0030 0065 0037 0065 0036 0036 0033 0039 0037 0039 0061 0062 0039 0065 0066 0033 0038 0035 0033 0034 0036 0037 0066 0038 0032 0030 0030 0061 0061 0063 0033 0063 0062 0033 0064 0062 0033 0034 0033 0031 0034 0030 0063 0030 0064 0030 0036 0036 0064 0063 0063 0063 0063 0064 0062 0039 0064 0032 0039 0039 0065 0035",
+          "text": "090e7e663979ab9ef3853467f8200aac3cb3db343140c0d066dccccdb9d299e5"
+        },
+        "schema_id": {
+          "text_utf16_code_units": "0073 0063 0068 0065 006D 0061 003A DC00 0078",
+          "text": null,
+          "utf8_hex": null
+        }
+      },
+      "expected": "reject",
+      "rule": "invalid_utf8:schema_id"
+    },
+    {
+      "id": "I03",
+      "description": "Reversed surrogate pair (U+DC00 U+D800) in record_type_id.",
+      "inputs": {
+        "tenant": {
+          "text_utf16_code_units": "0061 0063 006D 0065",
+          "text": "acme",
+          "utf8_hex": "61636d65",
+          "utf8_byte_length": 4
+        },
+        "record_type_id": {
+          "text_utf16_code_units": "0073 0061 006C 0065 0073 002E DC00 D800",
+          "text": null,
+          "utf8_hex": null
+        },
+        "version_id": {
+          "text_utf16_code_units": "0031 002E 0030 002E 0030",
+          "text": "1.0.0",
+          "utf8_hex": "312e302e30",
+          "utf8_byte_length": 5
+        },
+        "version": {
+          "text_utf16_code_units": "0031 002E 0030 002E 0030",
+          "text": "1.0.0",
+          "utf8_hex": "312e302e30",
+          "utf8_byte_length": 5
+        },
+        "definition_digest": {
+          "text_utf16_code_units": "0030 0039 0030 0065 0037 0065 0036 0036 0033 0039 0037 0039 0061 0062 0039 0065 0066 0033 0038 0035 0033 0034 0036 0037 0066 0038 0032 0030 0030 0061 0061 0063 0033 0063 0062 0033 0064 0062 0033 0034 0033 0031 0034 0030 0063 0030 0064 0030 0036 0036 0064 0063 0063 0063 0063 0064 0062 0039 0064 0032 0039 0039 0065 0035",
+          "text": "090e7e663979ab9ef3853467f8200aac3cb3db343140c0d066dccccdb9d299e5"
+        },
+        "schema_id": {
+          "text_utf16_code_units": "0073 0063 0068 0065 006D 0061 003A 0065 0078 0061 006D 0070 006C 0065 002D 0061",
+          "text": "schema:example-a",
+          "utf8_hex": "736368656d613a6578616d706c652d61",
+          "utf8_byte_length": 16
+        }
+      },
+      "expected": "reject",
+      "rule": "invalid_utf8:record_type_id"
+    },
+    {
+      "id": "I04",
+      "description": "Definition digest in uppercase hex.",
+      "inputs": {
+        "tenant": {
+          "text_utf16_code_units": "0061 0063 006D 0065",
+          "text": "acme",
+          "utf8_hex": "61636d65",
+          "utf8_byte_length": 4
+        },
+        "record_type_id": {
+          "text_utf16_code_units": "0073 0061 006C 0065 0073 002E 0063 0075 0073 0074 006F 006D 0065 0072",
+          "text": "sales.customer",
+          "utf8_hex": "73616c65732e637573746f6d6572",
+          "utf8_byte_length": 14
+        },
+        "version_id": {
+          "text_utf16_code_units": "0031 002E 0030 002E 0030",
+          "text": "1.0.0",
+          "utf8_hex": "312e302e30",
+          "utf8_byte_length": 5
+        },
+        "version": {
+          "text_utf16_code_units": "0031 002E 0030 002E 0030",
+          "text": "1.0.0",
+          "utf8_hex": "312e302e30",
+          "utf8_byte_length": 5
+        },
+        "definition_digest": {
+          "text_utf16_code_units": "0030 0039 0030 0045 0037 0045 0036 0036 0033 0039 0037 0039 0041 0042 0039 0045 0046 0033 0038 0035 0033 0034 0036 0037 0046 0038 0032 0030 0030 0041 0041 0043 0033 0043 0042 0033 0044 0042 0033 0034 0033 0031 0034 0030 0043 0030 0044 0030 0036 0036 0044 0043 0043 0043 0043 0044 0042 0039 0044 0032 0039 0039 0045 0035",
+          "text": "090E7E663979AB9EF3853467F8200AAC3CB3DB343140C0D066DCCCCDB9D299E5"
+        },
+        "schema_id": {
+          "text_utf16_code_units": "0073 0063 0068 0065 006D 0061 003A 0065 0078 0061 006D 0070 006C 0065 002D 0061",
+          "text": "schema:example-a",
+          "utf8_hex": "736368656d613a6578616d706c652d61",
+          "utf8_byte_length": 16
+        }
+      },
+      "expected": "reject",
+      "rule": "digest_not_64_lowercase_hex:definition_digest"
+    },
+    {
+      "id": "I05",
+      "description": "Definition digest with mixed case: the final character replaced by uppercase 'A'.",
+      "inputs": {
+        "tenant": {
+          "text_utf16_code_units": "0061 0063 006D 0065",
+          "text": "acme",
+          "utf8_hex": "61636d65",
+          "utf8_byte_length": 4
+        },
+        "record_type_id": {
+          "text_utf16_code_units": "0073 0061 006C 0065 0073 002E 0063 0075 0073 0074 006F 006D 0065 0072",
+          "text": "sales.customer",
+          "utf8_hex": "73616c65732e637573746f6d6572",
+          "utf8_byte_length": 14
+        },
+        "version_id": {
+          "text_utf16_code_units": "0031 002E 0030 002E 0030",
+          "text": "1.0.0",
+          "utf8_hex": "312e302e30",
+          "utf8_byte_length": 5
+        },
+        "version": {
+          "text_utf16_code_units": "0031 002E 0030 002E 0030",
+          "text": "1.0.0",
+          "utf8_hex": "312e302e30",
+          "utf8_byte_length": 5
+        },
+        "definition_digest": {
+          "text_utf16_code_units": "0030 0039 0030 0065 0037 0065 0036 0036 0033 0039 0037 0039 0061 0062 0039 0065 0066 0033 0038 0035 0033 0034 0036 0037 0066 0038 0032 0030 0030 0061 0061 0063 0033 0063 0062 0033 0064 0062 0033 0034 0033 0031 0034 0030 0063 0030 0064 0030 0036 0036 0064 0063 0063 0063 0063 0064 0062 0039 0064 0032 0039 0039 0065 0041",
+          "text": "090e7e663979ab9ef3853467f8200aac3cb3db343140c0d066dccccdb9d299eA"
+        },
+        "schema_id": {
+          "text_utf16_code_units": "0073 0063 0068 0065 006D 0061 003A 0065 0078 0061 006D 0070 006C 0065 002D 0061",
+          "text": "schema:example-a",
+          "utf8_hex": "736368656d613a6578616d706c652d61",
+          "utf8_byte_length": 16
+        }
+      },
+      "expected": "reject",
+      "rule": "digest_not_64_lowercase_hex:definition_digest"
+    },
+    {
+      "id": "I06",
+      "description": "Definition digest of 63 characters.",
+      "inputs": {
+        "tenant": {
+          "text_utf16_code_units": "0061 0063 006D 0065",
+          "text": "acme",
+          "utf8_hex": "61636d65",
+          "utf8_byte_length": 4
+        },
+        "record_type_id": {
+          "text_utf16_code_units": "0073 0061 006C 0065 0073 002E 0063 0075 0073 0074 006F 006D 0065 0072",
+          "text": "sales.customer",
+          "utf8_hex": "73616c65732e637573746f6d6572",
+          "utf8_byte_length": 14
+        },
+        "version_id": {
+          "text_utf16_code_units": "0031 002E 0030 002E 0030",
+          "text": "1.0.0",
+          "utf8_hex": "312e302e30",
+          "utf8_byte_length": 5
+        },
+        "version": {
+          "text_utf16_code_units": "0031 002E 0030 002E 0030",
+          "text": "1.0.0",
+          "utf8_hex": "312e302e30",
+          "utf8_byte_length": 5
+        },
+        "definition_digest": {
+          "text_utf16_code_units": "0030 0039 0030 0065 0037 0065 0036 0036 0033 0039 0037 0039 0061 0062 0039 0065 0066 0033 0038 0035 0033 0034 0036 0037 0066 0038 0032 0030 0030 0061 0061 0063 0033 0063 0062 0033 0064 0062 0033 0034 0033 0031 0034 0030 0063 0030 0064 0030 0036 0036 0064 0063 0063 0063 0063 0064 0062 0039 0064 0032 0039 0039 0065",
+          "text": "090e7e663979ab9ef3853467f8200aac3cb3db343140c0d066dccccdb9d299e"
+        },
+        "schema_id": {
+          "text_utf16_code_units": "0073 0063 0068 0065 006D 0061 003A 0065 0078 0061 006D 0070 006C 0065 002D 0061",
+          "text": "schema:example-a",
+          "utf8_hex": "736368656d613a6578616d706c652d61",
+          "utf8_byte_length": 16
+        }
+      },
+      "expected": "reject",
+      "rule": "digest_not_64_lowercase_hex:definition_digest"
+    },
+    {
+      "id": "I07",
+      "description": "Definition digest of 65 characters.",
+      "inputs": {
+        "tenant": {
+          "text_utf16_code_units": "0061 0063 006D 0065",
+          "text": "acme",
+          "utf8_hex": "61636d65",
+          "utf8_byte_length": 4
+        },
+        "record_type_id": {
+          "text_utf16_code_units": "0073 0061 006C 0065 0073 002E 0063 0075 0073 0074 006F 006D 0065 0072",
+          "text": "sales.customer",
+          "utf8_hex": "73616c65732e637573746f6d6572",
+          "utf8_byte_length": 14
+        },
+        "version_id": {
+          "text_utf16_code_units": "0031 002E 0030 002E 0030",
+          "text": "1.0.0",
+          "utf8_hex": "312e302e30",
+          "utf8_byte_length": 5
+        },
+        "version": {
+          "text_utf16_code_units": "0031 002E 0030 002E 0030",
+          "text": "1.0.0",
+          "utf8_hex": "312e302e30",
+          "utf8_byte_length": 5
+        },
+        "definition_digest": {
+          "text_utf16_code_units": "0030 0039 0030 0065 0037 0065 0036 0036 0033 0039 0037 0039 0061 0062 0039 0065 0066 0033 0038 0035 0033 0034 0036 0037 0066 0038 0032 0030 0030 0061 0061 0063 0033 0063 0062 0033 0064 0062 0033 0034 0033 0031 0034 0030 0063 0030 0064 0030 0036 0036 0064 0063 0063 0063 0063 0064 0062 0039 0064 0032 0039 0039 0065 0035 0030",
+          "text": "090e7e663979ab9ef3853467f8200aac3cb3db343140c0d066dccccdb9d299e50"
+        },
+        "schema_id": {
+          "text_utf16_code_units": "0073 0063 0068 0065 006D 0061 003A 0065 0078 0061 006D 0070 006C 0065 002D 0061",
+          "text": "schema:example-a",
+          "utf8_hex": "736368656d613a6578616d706c652d61",
+          "utf8_byte_length": 16
+        }
+      },
+      "expected": "reject",
+      "rule": "digest_not_64_lowercase_hex:definition_digest"
+    },
+    {
+      "id": "I08",
+      "description": "Empty definition digest.",
+      "inputs": {
+        "tenant": {
+          "text_utf16_code_units": "0061 0063 006D 0065",
+          "text": "acme",
+          "utf8_hex": "61636d65",
+          "utf8_byte_length": 4
+        },
+        "record_type_id": {
+          "text_utf16_code_units": "0073 0061 006C 0065 0073 002E 0063 0075 0073 0074 006F 006D 0065 0072",
+          "text": "sales.customer",
+          "utf8_hex": "73616c65732e637573746f6d6572",
+          "utf8_byte_length": 14
+        },
+        "version_id": {
+          "text_utf16_code_units": "0031 002E 0030 002E 0030",
+          "text": "1.0.0",
+          "utf8_hex": "312e302e30",
+          "utf8_byte_length": 5
+        },
+        "version": {
+          "text_utf16_code_units": "0031 002E 0030 002E 0030",
+          "text": "1.0.0",
+          "utf8_hex": "312e302e30",
+          "utf8_byte_length": 5
+        },
+        "definition_digest": {
+          "text_utf16_code_units": "",
+          "text": ""
+        },
+        "schema_id": {
+          "text_utf16_code_units": "0073 0063 0068 0065 006D 0061 003A 0065 0078 0061 006D 0070 006C 0065 002D 0061",
+          "text": "schema:example-a",
+          "utf8_hex": "736368656d613a6578616d706c652d61",
+          "utf8_byte_length": 16
+        }
+      },
+      "expected": "reject",
+      "rule": "empty:definition_digest"
+    },
+    {
+      "id": "I09",
+      "description": "Definition digest containing a non-hex character 'g'.",
+      "inputs": {
+        "tenant": {
+          "text_utf16_code_units": "0061 0063 006D 0065",
+          "text": "acme",
+          "utf8_hex": "61636d65",
+          "utf8_byte_length": 4
+        },
+        "record_type_id": {
+          "text_utf16_code_units": "0073 0061 006C 0065 0073 002E 0063 0075 0073 0074 006F 006D 0065 0072",
+          "text": "sales.customer",
+          "utf8_hex": "73616c65732e637573746f6d6572",
+          "utf8_byte_length": 14
+        },
+        "version_id": {
+          "text_utf16_code_units": "0031 002E 0030 002E 0030",
+          "text": "1.0.0",
+          "utf8_hex": "312e302e30",
+          "utf8_byte_length": 5
+        },
+        "version": {
+          "text_utf16_code_units": "0031 002E 0030 002E 0030",
+          "text": "1.0.0",
+          "utf8_hex": "312e302e30",
+          "utf8_byte_length": 5
+        },
+        "definition_digest": {
+          "text_utf16_code_units": "0067 0039 0030 0065 0037 0065 0036 0036 0033 0039 0037 0039 0061 0062 0039 0065 0066 0033 0038 0035 0033 0034 0036 0037 0066 0038 0032 0030 0030 0061 0061 0063 0033 0063 0062 0033 0064 0062 0033 0034 0033 0031 0034 0030 0063 0030 0064 0030 0036 0036 0064 0063 0063 0063 0063 0064 0062 0039 0064 0032 0039 0039 0065 0035",
+          "text": "g90e7e663979ab9ef3853467f8200aac3cb3db343140c0d066dccccdb9d299e5"
+        },
+        "schema_id": {
+          "text_utf16_code_units": "0073 0063 0068 0065 006D 0061 003A 0065 0078 0061 006D 0070 006C 0065 002D 0061",
+          "text": "schema:example-a",
+          "utf8_hex": "736368656d613a6578616d706c652d61",
+          "utf8_byte_length": 16
+        }
+      },
+      "expected": "reject",
+      "rule": "digest_not_64_lowercase_hex:definition_digest"
+    },
+    {
+      "id": "I10",
+      "description": "Definition digest with a trailing space (65 characters); never trimmed.",
+      "inputs": {
+        "tenant": {
+          "text_utf16_code_units": "0061 0063 006D 0065",
+          "text": "acme",
+          "utf8_hex": "61636d65",
+          "utf8_byte_length": 4
+        },
+        "record_type_id": {
+          "text_utf16_code_units": "0073 0061 006C 0065 0073 002E 0063 0075 0073 0074 006F 006D 0065 0072",
+          "text": "sales.customer",
+          "utf8_hex": "73616c65732e637573746f6d6572",
+          "utf8_byte_length": 14
+        },
+        "version_id": {
+          "text_utf16_code_units": "0031 002E 0030 002E 0030",
+          "text": "1.0.0",
+          "utf8_hex": "312e302e30",
+          "utf8_byte_length": 5
+        },
+        "version": {
+          "text_utf16_code_units": "0031 002E 0030 002E 0030",
+          "text": "1.0.0",
+          "utf8_hex": "312e302e30",
+          "utf8_byte_length": 5
+        },
+        "definition_digest": {
+          "text_utf16_code_units": "0030 0039 0030 0065 0037 0065 0036 0036 0033 0039 0037 0039 0061 0062 0039 0065 0066 0033 0038 0035 0033 0034 0036 0037 0066 0038 0032 0030 0030 0061 0061 0063 0033 0063 0062 0033 0064 0062 0033 0034 0033 0031 0034 0030 0063 0030 0064 0030 0036 0036 0064 0063 0063 0063 0063 0064 0062 0039 0064 0032 0039 0039 0065 0035 0020",
+          "text": "090e7e663979ab9ef3853467f8200aac3cb3db343140c0d066dccccdb9d299e5 "
+        },
+        "schema_id": {
+          "text_utf16_code_units": "0073 0063 0068 0065 006D 0061 003A 0065 0078 0061 006D 0070 006C 0065 002D 0061",
+          "text": "schema:example-a",
+          "utf8_hex": "736368656d613a6578616d706c652d61",
+          "utf8_byte_length": 16
+        }
+      },
+      "expected": "reject",
+      "rule": "digest_not_64_lowercase_hex:definition_digest"
+    },
+    {
+      "id": "I11",
+      "description": "Definition digest with a leading space; never trimmed.",
+      "inputs": {
+        "tenant": {
+          "text_utf16_code_units": "0061 0063 006D 0065",
+          "text": "acme",
+          "utf8_hex": "61636d65",
+          "utf8_byte_length": 4
+        },
+        "record_type_id": {
+          "text_utf16_code_units": "0073 0061 006C 0065 0073 002E 0063 0075 0073 0074 006F 006D 0065 0072",
+          "text": "sales.customer",
+          "utf8_hex": "73616c65732e637573746f6d6572",
+          "utf8_byte_length": 14
+        },
+        "version_id": {
+          "text_utf16_code_units": "0031 002E 0030 002E 0030",
+          "text": "1.0.0",
+          "utf8_hex": "312e302e30",
+          "utf8_byte_length": 5
+        },
+        "version": {
+          "text_utf16_code_units": "0031 002E 0030 002E 0030",
+          "text": "1.0.0",
+          "utf8_hex": "312e302e30",
+          "utf8_byte_length": 5
+        },
+        "definition_digest": {
+          "text_utf16_code_units": "0020 0039 0030 0065 0037 0065 0036 0036 0033 0039 0037 0039 0061 0062 0039 0065 0066 0033 0038 0035 0033 0034 0036 0037 0066 0038 0032 0030 0030 0061 0061 0063 0033 0063 0062 0033 0064 0062 0033 0034 0033 0031 0034 0030 0063 0030 0064 0030 0036 0036 0064 0063 0063 0063 0063 0064 0062 0039 0064 0032 0039 0039 0065 0035",
+          "text": " 90e7e663979ab9ef3853467f8200aac3cb3db343140c0d066dccccdb9d299e5"
+        },
+        "schema_id": {
+          "text_utf16_code_units": "0073 0063 0068 0065 006D 0061 003A 0065 0078 0061 006D 0070 006C 0065 002D 0061",
+          "text": "schema:example-a",
+          "utf8_hex": "736368656d613a6578616d706c652d61",
+          "utf8_byte_length": 16
+        }
+      },
+      "expected": "reject",
+      "rule": "digest_not_64_lowercase_hex:definition_digest"
+    },
+    {
+      "id": "I12",
+      "description": "Definition digest using a FULLWIDTH DIGIT ZERO (U+FF10) in place of '0': only ASCII 0-9 a-f are hex digits.",
+      "inputs": {
+        "tenant": {
+          "text_utf16_code_units": "0061 0063 006D 0065",
+          "text": "acme",
+          "utf8_hex": "61636d65",
+          "utf8_byte_length": 4
+        },
+        "record_type_id": {
+          "text_utf16_code_units": "0073 0061 006C 0065 0073 002E 0063 0075 0073 0074 006F 006D 0065 0072",
+          "text": "sales.customer",
+          "utf8_hex": "73616c65732e637573746f6d6572",
+          "utf8_byte_length": 14
+        },
+        "version_id": {
+          "text_utf16_code_units": "0031 002E 0030 002E 0030",
+          "text": "1.0.0",
+          "utf8_hex": "312e302e30",
+          "utf8_byte_length": 5
+        },
+        "version": {
+          "text_utf16_code_units": "0031 002E 0030 002E 0030",
+          "text": "1.0.0",
+          "utf8_hex": "312e302e30",
+          "utf8_byte_length": 5
+        },
+        "definition_digest": {
+          "text_utf16_code_units": "FF10 0039 0030 0065 0037 0065 0036 0036 0033 0039 0037 0039 0061 0062 0039 0065 0066 0033 0038 0035 0033 0034 0036 0037 0066 0038 0032 0030 0030 0061 0061 0063 0033 0063 0062 0033 0064 0062 0033 0034 0033 0031 0034 0030 0063 0030 0064 0030 0036 0036 0064 0063 0063 0063 0063 0064 0062 0039 0064 0032 0039 0039 0065 0035",
+          "text": "\uff1090e7e663979ab9ef3853467f8200aac3cb3db343140c0d066dccccdb9d299e5"
+        },
+        "schema_id": {
+          "text_utf16_code_units": "0073 0063 0068 0065 006D 0061 003A 0065 0078 0061 006D 0070 006C 0065 002D 0061",
+          "text": "schema:example-a",
+          "utf8_hex": "736368656d613a6578616d706c652d61",
+          "utf8_byte_length": 16
+        }
+      },
+      "expected": "reject",
+      "rule": "digest_not_64_lowercase_hex:definition_digest"
+    },
+    {
+      "id": "I13",
+      "description": "Definition digest with a trailing LF (Regex '$' trap).",
+      "inputs": {
+        "tenant": {
+          "text_utf16_code_units": "0061 0063 006D 0065",
+          "text": "acme",
+          "utf8_hex": "61636d65",
+          "utf8_byte_length": 4
+        },
+        "record_type_id": {
+          "text_utf16_code_units": "0073 0061 006C 0065 0073 002E 0063 0075 0073 0074 006F 006D 0065 0072",
+          "text": "sales.customer",
+          "utf8_hex": "73616c65732e637573746f6d6572",
+          "utf8_byte_length": 14
+        },
+        "version_id": {
+          "text_utf16_code_units": "0031 002E 0030 002E 0030",
+          "text": "1.0.0",
+          "utf8_hex": "312e302e30",
+          "utf8_byte_length": 5
+        },
+        "version": {
+          "text_utf16_code_units": "0031 002E 0030 002E 0030",
+          "text": "1.0.0",
+          "utf8_hex": "312e302e30",
+          "utf8_byte_length": 5
+        },
+        "definition_digest": {
+          "text_utf16_code_units": "0030 0039 0030 0065 0037 0065 0036 0036 0033 0039 0037 0039 0061 0062 0039 0065 0066 0033 0038 0035 0033 0034 0036 0037 0066 0038 0032 0030 0030 0061 0061 0063 0033 0063 0062 0033 0064 0062 0033 0034 0033 0031 0034 0030 0063 0030 0064 0030 0036 0036 0064 0063 0063 0063 0063 0064 0062 0039 0064 0032 0039 0039 0065 0035 000A",
+          "text": "090e7e663979ab9ef3853467f8200aac3cb3db343140c0d066dccccdb9d299e5\n"
+        },
+        "schema_id": {
+          "text_utf16_code_units": "0073 0063 0068 0065 006D 0061 003A 0065 0078 0061 006D 0070 006C 0065 002D 0061",
+          "text": "schema:example-a",
+          "utf8_hex": "736368656d613a6578616d706c652d61",
+          "utf8_byte_length": 16
+        }
+      },
+      "expected": "reject",
+      "rule": "digest_not_64_lowercase_hex:definition_digest"
+    },
+    {
+      "id": "I14",
+      "description": "Empty tenant.",
+      "inputs": {
+        "tenant": {
+          "text_utf16_code_units": "",
+          "text": "",
+          "utf8_hex": "",
+          "utf8_byte_length": 0
+        },
+        "record_type_id": {
+          "text_utf16_code_units": "0073 0061 006C 0065 0073 002E 0063 0075 0073 0074 006F 006D 0065 0072",
+          "text": "sales.customer",
+          "utf8_hex": "73616c65732e637573746f6d6572",
+          "utf8_byte_length": 14
+        },
+        "version_id": {
+          "text_utf16_code_units": "0031 002E 0030 002E 0030",
+          "text": "1.0.0",
+          "utf8_hex": "312e302e30",
+          "utf8_byte_length": 5
+        },
+        "version": {
+          "text_utf16_code_units": "0031 002E 0030 002E 0030",
+          "text": "1.0.0",
+          "utf8_hex": "312e302e30",
+          "utf8_byte_length": 5
+        },
+        "definition_digest": {
+          "text_utf16_code_units": "0030 0039 0030 0065 0037 0065 0036 0036 0033 0039 0037 0039 0061 0062 0039 0065 0066 0033 0038 0035 0033 0034 0036 0037 0066 0038 0032 0030 0030 0061 0061 0063 0033 0063 0062 0033 0064 0062 0033 0034 0033 0031 0034 0030 0063 0030 0064 0030 0036 0036 0064 0063 0063 0063 0063 0064 0062 0039 0064 0032 0039 0039 0065 0035",
+          "text": "090e7e663979ab9ef3853467f8200aac3cb3db343140c0d066dccccdb9d299e5"
+        },
+        "schema_id": {
+          "text_utf16_code_units": "0073 0063 0068 0065 006D 0061 003A 0065 0078 0061 006D 0070 006C 0065 002D 0061",
+          "text": "schema:example-a",
+          "utf8_hex": "736368656d613a6578616d706c652d61",
+          "utf8_byte_length": 16
+        }
+      },
+      "expected": "reject",
+      "rule": "empty:tenant"
+    },
+    {
+      "id": "I15",
+      "description": "Empty version_id.",
+      "inputs": {
+        "tenant": {
+          "text_utf16_code_units": "0061 0063 006D 0065",
+          "text": "acme",
+          "utf8_hex": "61636d65",
+          "utf8_byte_length": 4
+        },
+        "record_type_id": {
+          "text_utf16_code_units": "0073 0061 006C 0065 0073 002E 0063 0075 0073 0074 006F 006D 0065 0072",
+          "text": "sales.customer",
+          "utf8_hex": "73616c65732e637573746f6d6572",
+          "utf8_byte_length": 14
+        },
+        "version_id": {
+          "text_utf16_code_units": "",
+          "text": "",
+          "utf8_hex": "",
+          "utf8_byte_length": 0
+        },
+        "version": {
+          "text_utf16_code_units": "0031 002E 0030 002E 0030",
+          "text": "1.0.0",
+          "utf8_hex": "312e302e30",
+          "utf8_byte_length": 5
+        },
+        "definition_digest": {
+          "text_utf16_code_units": "0030 0039 0030 0065 0037 0065 0036 0036 0033 0039 0037 0039 0061 0062 0039 0065 0066 0033 0038 0035 0033 0034 0036 0037 0066 0038 0032 0030 0030 0061 0061 0063 0033 0063 0062 0033 0064 0062 0033 0034 0033 0031 0034 0030 0063 0030 0064 0030 0036 0036 0064 0063 0063 0063 0063 0064 0062 0039 0064 0032 0039 0039 0065 0035",
+          "text": "090e7e663979ab9ef3853467f8200aac3cb3db343140c0d066dccccdb9d299e5"
+        },
+        "schema_id": {
+          "text_utf16_code_units": "0073 0063 0068 0065 006D 0061 003A 0065 0078 0061 006D 0070 006C 0065 002D 0061",
+          "text": "schema:example-a",
+          "utf8_hex": "736368656d613a6578616d706c652d61",
+          "utf8_byte_length": 16
+        }
+      },
+      "expected": "reject",
+      "rule": "empty:version_id"
+    },
+    {
+      "id": "I16",
+      "description": "Empty schema_id.",
+      "inputs": {
+        "tenant": {
+          "text_utf16_code_units": "0061 0063 006D 0065",
+          "text": "acme",
+          "utf8_hex": "61636d65",
+          "utf8_byte_length": 4
+        },
+        "record_type_id": {
+          "text_utf16_code_units": "0073 0061 006C 0065 0073 002E 0063 0075 0073 0074 006F 006D 0065 0072",
+          "text": "sales.customer",
+          "utf8_hex": "73616c65732e637573746f6d6572",
+          "utf8_byte_length": 14
+        },
+        "version_id": {
+          "text_utf16_code_units": "0031 002E 0030 002E 0030",
+          "text": "1.0.0",
+          "utf8_hex": "312e302e30",
+          "utf8_byte_length": 5
+        },
+        "version": {
+          "text_utf16_code_units": "0031 002E 0030 002E 0030",
+          "text": "1.0.0",
+          "utf8_hex": "312e302e30",
+          "utf8_byte_length": 5
+        },
+        "definition_digest": {
+          "text_utf16_code_units": "0030 0039 0030 0065 0037 0065 0036 0036 0033 0039 0037 0039 0061 0062 0039 0065 0066 0033 0038 0035 0033 0034 0036 0037 0066 0038 0032 0030 0030 0061 0061 0063 0033 0063 0062 0033 0064 0062 0033 0034 0033 0031 0034 0030 0063 0030 0064 0030 0036 0036 0064 0063 0063 0063 0063 0064 0062 0039 0064 0032 0039 0039 0065 0035",
+          "text": "090e7e663979ab9ef3853467f8200aac3cb3db343140c0d066dccccdb9d299e5"
+        },
+        "schema_id": {
+          "text_utf16_code_units": "",
+          "text": "",
+          "utf8_hex": "",
+          "utf8_byte_length": 0
+        }
+      },
+      "expected": "reject",
+      "rule": "empty:schema_id"
+    },
+    {
+      "id": "I17",
+      "description": "Whitespace-only schema_id (one U+0020).",
+      "inputs": {
+        "tenant": {
+          "text_utf16_code_units": "0061 0063 006D 0065",
+          "text": "acme",
+          "utf8_hex": "61636d65",
+          "utf8_byte_length": 4
+        },
+        "record_type_id": {
+          "text_utf16_code_units": "0073 0061 006C 0065 0073 002E 0063 0075 0073 0074 006F 006D 0065 0072",
+          "text": "sales.customer",
+          "utf8_hex": "73616c65732e637573746f6d6572",
+          "utf8_byte_length": 14
+        },
+        "version_id": {
+          "text_utf16_code_units": "0031 002E 0030 002E 0030",
+          "text": "1.0.0",
+          "utf8_hex": "312e302e30",
+          "utf8_byte_length": 5
+        },
+        "version": {
+          "text_utf16_code_units": "0031 002E 0030 002E 0030",
+          "text": "1.0.0",
+          "utf8_hex": "312e302e30",
+          "utf8_byte_length": 5
+        },
+        "definition_digest": {
+          "text_utf16_code_units": "0030 0039 0030 0065 0037 0065 0036 0036 0033 0039 0037 0039 0061 0062 0039 0065 0066 0033 0038 0035 0033 0034 0036 0037 0066 0038 0032 0030 0030 0061 0061 0063 0033 0063 0062 0033 0064 0062 0033 0034 0033 0031 0034 0030 0063 0030 0064 0030 0036 0036 0064 0063 0063 0063 0063 0064 0062 0039 0064 0032 0039 0039 0065 0035",
+          "text": "090e7e663979ab9ef3853467f8200aac3cb3db343140c0d066dccccdb9d299e5"
+        },
+        "schema_id": {
+          "text_utf16_code_units": "0020",
+          "text": " ",
+          "utf8_hex": "20",
+          "utf8_byte_length": 1
+        }
+      },
+      "expected": "reject",
+      "rule": "whitespace_only:schema_id"
+    },
+    {
+      "id": "I18",
+      "description": "Whitespace-only version (one U+0009 TAB).",
+      "inputs": {
+        "tenant": {
+          "text_utf16_code_units": "0061 0063 006D 0065",
+          "text": "acme",
+          "utf8_hex": "61636d65",
+          "utf8_byte_length": 4
+        },
+        "record_type_id": {
+          "text_utf16_code_units": "0073 0061 006C 0065 0073 002E 0063 0075 0073 0074 006F 006D 0065 0072",
+          "text": "sales.customer",
+          "utf8_hex": "73616c65732e637573746f6d6572",
+          "utf8_byte_length": 14
+        },
+        "version_id": {
+          "text_utf16_code_units": "0031 002E 0030 002E 0030",
+          "text": "1.0.0",
+          "utf8_hex": "312e302e30",
+          "utf8_byte_length": 5
+        },
+        "version": {
+          "text_utf16_code_units": "0009",
+          "text": "\t",
+          "utf8_hex": "09",
+          "utf8_byte_length": 1
+        },
+        "definition_digest": {
+          "text_utf16_code_units": "0030 0039 0030 0065 0037 0065 0036 0036 0033 0039 0037 0039 0061 0062 0039 0065 0066 0033 0038 0035 0033 0034 0036 0037 0066 0038 0032 0030 0030 0061 0061 0063 0033 0063 0062 0033 0064 0062 0033 0034 0033 0031 0034 0030 0063 0030 0064 0030 0036 0036 0064 0063 0063 0063 0063 0064 0062 0039 0064 0032 0039 0039 0065 0035",
+          "text": "090e7e663979ab9ef3853467f8200aac3cb3db343140c0d066dccccdb9d299e5"
+        },
+        "schema_id": {
+          "text_utf16_code_units": "0073 0063 0068 0065 006D 0061 003A 0065 0078 0061 006D 0070 006C 0065 002D 0061",
+          "text": "schema:example-a",
+          "utf8_hex": "736368656d613a6578616d706c652d61",
+          "utf8_byte_length": 16
+        }
+      },
+      "expected": "reject",
+      "rule": "whitespace_only:version"
+    },
+    {
+      "id": "I19",
+      "description": "Missing (null) version_id: a bound/2 entry without Row.PublicationVersionId.",
+      "inputs": {
+        "tenant": {
+          "text_utf16_code_units": "0061 0063 006D 0065",
+          "text": "acme",
+          "utf8_hex": "61636d65",
+          "utf8_byte_length": 4
+        },
+        "record_type_id": {
+          "text_utf16_code_units": "0073 0061 006C 0065 0073 002E 0063 0075 0073 0074 006F 006D 0065 0072",
+          "text": "sales.customer",
+          "utf8_hex": "73616c65732e637573746f6d6572",
+          "utf8_byte_length": 14
+        },
+        "version_id": null,
+        "version": {
+          "text_utf16_code_units": "0031 002E 0030 002E 0030",
+          "text": "1.0.0",
+          "utf8_hex": "312e302e30",
+          "utf8_byte_length": 5
+        },
+        "definition_digest": {
+          "text_utf16_code_units": "0030 0039 0030 0065 0037 0065 0036 0036 0033 0039 0037 0039 0061 0062 0039 0065 0066 0033 0038 0035 0033 0034 0036 0037 0066 0038 0032 0030 0030 0061 0061 0063 0033 0063 0062 0033 0064 0062 0033 0034 0033 0031 0034 0030 0063 0030 0064 0030 0036 0036 0064 0063 0063 0063 0063 0064 0062 0039 0064 0032 0039 0039 0065 0035",
+          "text": "090e7e663979ab9ef3853467f8200aac3cb3db343140c0d066dccccdb9d299e5"
+        },
+        "schema_id": {
+          "text_utf16_code_units": "0073 0063 0068 0065 006D 0061 003A 0065 0078 0061 006D 0070 006C 0065 002D 0061",
+          "text": "schema:example-a",
+          "utf8_hex": "736368656d613a6578616d706c652d61",
+          "utf8_byte_length": 16
+        }
+      },
+      "expected": "reject",
+      "rule": "missing:version_id"
+    },
+    {
+      "id": "I20",
+      "description": "Missing (null) definition digest.",
+      "inputs": {
+        "tenant": {
+          "text_utf16_code_units": "0061 0063 006D 0065",
+          "text": "acme",
+          "utf8_hex": "61636d65",
+          "utf8_byte_length": 4
+        },
+        "record_type_id": {
+          "text_utf16_code_units": "0073 0061 006C 0065 0073 002E 0063 0075 0073 0074 006F 006D 0065 0072",
+          "text": "sales.customer",
+          "utf8_hex": "73616c65732e637573746f6d6572",
+          "utf8_byte_length": 14
+        },
+        "version_id": {
+          "text_utf16_code_units": "0031 002E 0030 002E 0030",
+          "text": "1.0.0",
+          "utf8_hex": "312e302e30",
+          "utf8_byte_length": 5
+        },
+        "version": {
+          "text_utf16_code_units": "0031 002E 0030 002E 0030",
+          "text": "1.0.0",
+          "utf8_hex": "312e302e30",
+          "utf8_byte_length": 5
+        },
+        "definition_digest": {
+          "text_utf16_code_units": null,
+          "text": null
+        },
+        "schema_id": {
+          "text_utf16_code_units": "0073 0063 0068 0065 006D 0061 003A 0065 0078 0061 006D 0070 006C 0065 002D 0061",
+          "text": "schema:example-a",
+          "utf8_hex": "736368656d613a6578616d706c652d61",
+          "utf8_byte_length": 16
+        }
+      },
+      "expected": "reject",
+      "rule": "missing:definition_digest"
+    },
+    {
+      "id": "I21",
+      "description": "version_id = U+0085 (NEXT LINE): whitespace under .NET.",
+      "inputs": {
+        "tenant": {
+          "text_utf16_code_units": "0061 0063 006D 0065",
+          "text": "acme",
+          "utf8_hex": "61636d65",
+          "utf8_byte_length": 4
+        },
+        "record_type_id": {
+          "text_utf16_code_units": "0073 0061 006C 0065 0073 002E 0063 0075 0073 0074 006F 006D 0065 0072",
+          "text": "sales.customer",
+          "utf8_hex": "73616c65732e637573746f6d6572",
+          "utf8_byte_length": 14
+        },
+        "version_id": {
+          "text_utf16_code_units": "0085",
+          "text": "\u0085",
+          "utf8_hex": "c285",
+          "utf8_byte_length": 2
+        },
+        "version": {
+          "text_utf16_code_units": "0031 002E 0030 002E 0030",
+          "text": "1.0.0",
+          "utf8_hex": "312e302e30",
+          "utf8_byte_length": 5
+        },
+        "schema_id": {
+          "text_utf16_code_units": "0073 0063 0068 0065 006D 0061 003A 0065 0078 0061 006D 0070 006C 0065 002D 0061",
+          "text": "schema:example-a",
+          "utf8_hex": "736368656d613a6578616d706c652d61",
+          "utf8_byte_length": 16
+        },
+        "definition_digest": {
+          "text_utf16_code_units": "0030 0039 0030 0065 0037 0065 0036 0036 0033 0039 0037 0039 0061 0062 0039 0065 0066 0033 0038 0035 0033 0034 0036 0037 0066 0038 0032 0030 0030 0061 0061 0063 0033 0063 0062 0033 0064 0062 0033 0034 0033 0031 0034 0030 0063 0030 0064 0030 0036 0036 0064 0063 0063 0063 0063 0064 0062 0039 0064 0032 0039 0039 0065 0035",
+          "text": "090e7e663979ab9ef3853467f8200aac3cb3db343140c0d066dccccdb9d299e5"
+        }
+      },
+      "expected": "reject",
+      "rule": "whitespace_only:version_id"
+    },
+    {
+      "id": "I22",
+      "description": "schema_id = U+3000 U+2028 (IDEOGRAPHIC SPACE, LINE SEPARATOR): whitespace under .NET.",
+      "inputs": {
+        "tenant": {
+          "text_utf16_code_units": "0061 0063 006D 0065",
+          "text": "acme",
+          "utf8_hex": "61636d65",
+          "utf8_byte_length": 4
+        },
+        "record_type_id": {
+          "text_utf16_code_units": "0073 0061 006C 0065 0073 002E 0063 0075 0073 0074 006F 006D 0065 0072",
+          "text": "sales.customer",
+          "utf8_hex": "73616c65732e637573746f6d6572",
+          "utf8_byte_length": 14
+        },
+        "version_id": {
+          "text_utf16_code_units": "0031 002E 0030 002E 0030",
+          "text": "1.0.0",
+          "utf8_hex": "312e302e30",
+          "utf8_byte_length": 5
+        },
+        "version": {
+          "text_utf16_code_units": "0031 002E 0030 002E 0030",
+          "text": "1.0.0",
+          "utf8_hex": "312e302e30",
+          "utf8_byte_length": 5
+        },
+        "schema_id": {
+          "text_utf16_code_units": "3000 2028",
+          "text": "\u3000\u2028",
+          "utf8_hex": "e38080e280a8",
+          "utf8_byte_length": 6
+        },
+        "definition_digest": {
+          "text_utf16_code_units": "0030 0039 0030 0065 0037 0065 0036 0036 0033 0039 0037 0039 0061 0062 0039 0065 0066 0033 0038 0035 0033 0034 0036 0037 0066 0038 0032 0030 0030 0061 0061 0063 0033 0063 0062 0033 0064 0062 0033 0034 0033 0031 0034 0030 0063 0030 0064 0030 0036 0036 0064 0063 0063 0063 0063 0064 0062 0039 0064 0032 0039 0039 0065 0035",
+          "text": "090e7e663979ab9ef3853467f8200aac3cb3db343140c0d066dccccdb9d299e5"
+        }
+      },
+      "expected": "reject",
+      "rule": "whitespace_only:schema_id"
+    },
+    {
+      "id": "I23",
+      "description": "version = U+00A0 (NO-BREAK SPACE): whitespace under .NET.",
+      "inputs": {
+        "tenant": {
+          "text_utf16_code_units": "0061 0063 006D 0065",
+          "text": "acme",
+          "utf8_hex": "61636d65",
+          "utf8_byte_length": 4
+        },
+        "record_type_id": {
+          "text_utf16_code_units": "0073 0061 006C 0065 0073 002E 0063 0075 0073 0074 006F 006D 0065 0072",
+          "text": "sales.customer",
+          "utf8_hex": "73616c65732e637573746f6d6572",
+          "utf8_byte_length": 14
+        },
+        "version_id": {
+          "text_utf16_code_units": "0031 002E 0030 002E 0030",
+          "text": "1.0.0",
+          "utf8_hex": "312e302e30",
+          "utf8_byte_length": 5
+        },
+        "version": {
+          "text_utf16_code_units": "00A0",
+          "text": "\u00a0",
+          "utf8_hex": "c2a0",
+          "utf8_byte_length": 2
+        },
+        "schema_id": {
+          "text_utf16_code_units": "0073 0063 0068 0065 006D 0061 003A 0065 0078 0061 006D 0070 006C 0065 002D 0061",
+          "text": "schema:example-a",
+          "utf8_hex": "736368656d613a6578616d706c652d61",
+          "utf8_byte_length": 16
+        },
+        "definition_digest": {
+          "text_utf16_code_units": "0030 0039 0030 0065 0037 0065 0036 0036 0033 0039 0037 0039 0061 0062 0039 0065 0066 0033 0038 0035 0033 0034 0036 0037 0066 0038 0032 0030 0030 0061 0061 0063 0033 0063 0062 0033 0064 0062 0033 0034 0033 0031 0034 0030 0063 0030 0064 0030 0036 0036 0064 0063 0063 0063 0063 0064 0062 0039 0064 0032 0039 0039 0065 0035",
+          "text": "090e7e663979ab9ef3853467f8200aac3cb3db343140c0d066dccccdb9d299e5"
+        }
+      },
+      "expected": "reject",
+      "rule": "whitespace_only:version"
+    }
+  ],
+  "invalid_stored_hash": [
+    {
+      "id": "H01",
+      "description": "Stored Binding.Hash in uppercase hex for V01 inputs.",
+      "stored_hash": "85B2C8E9600272A9D07FD16F4C0AF87FC49B2F6F7CC235C88336399F8307BE24",
+      "expected": "reject_whole_journal",
+      "rule": "hash_not_64_lowercase_hex",
+      "inputs_from": "V01"
+    },
+    {
+      "id": "H02",
+      "description": "Stored Binding.Hash of 63 characters.",
+      "stored_hash": "85b2c8e9600272a9d07fd16f4c0af87fc49b2f6f7cc235c88336399f8307be2",
+      "expected": "reject_whole_journal",
+      "rule": "hash_not_64_lowercase_hex",
+      "inputs_from": "V01"
+    },
+    {
+      "id": "H03",
+      "description": "Stored Binding.Hash empty.",
+      "stored_hash": "",
+      "expected": "reject_whole_journal",
+      "rule": "hash_empty",
+      "inputs_from": "V01"
+    },
+    {
+      "id": "H04",
+      "description": "Stored Binding.Hash is V01's hash but the row's schema_id is V04's ('schema:example-b'): recomputation mismatch.",
+      "stored_hash": "85b2c8e9600272a9d07fd16f4c0af87fc49b2f6f7cc235c88336399f8307be24",
+      "expected": "reject_whole_journal",
+      "rule": "hash_mismatch",
+      "inputs_from": "V04"
+    },
+    {
+      "id": "H05",
+      "description": "Stored Binding.Hash is V01's hash but Row.PublicationVersionId is '1.0.1' (V06 inputs): recomputation mismatch.",
+      "stored_hash": "85b2c8e9600272a9d07fd16f4c0af87fc49b2f6f7cc235c88336399f8307be24",
+      "expected": "reject_whole_journal",
+      "rule": "hash_mismatch",
+      "inputs_from": "V06"
+    }
+  ],
+  "journal_structure_cases": {
+    "base": "Base B: {\"Format\":\"records-write-file-journal/2\",\"LegacyEntryCount\":1,\"Entries\":[L,W]} where L = {\"Tag\":\"legacy/1\",\"Legacy\":<valid /1 entry, key K1>} and W = a valid bound/2 entry (key K2) whose Row carries V01 inputs including Row.PublicationVersionId = \"1.0.0\". Binding has exactly Encoding and Hash; Binding.Hash = V01 binding_hash. B itself MUST be accepted.",
+    "rule": "Each reject MUST fail constructor, FindAsync(key), FindAsync(tenant, recordId) and CommitAsync with InvalidDataException and leave the file's SHA-256 unchanged.",
+    "cases": [
+      {
+        "id": "J00",
+        "mutation": "No mutation.",
+        "expected": "accept"
+      },
+      {
+        "id": "J01",
+        "mutation": "LegacyEntryCount = 2 (bound entry inside the prefix).",
+        "expected": "reject: count/tag disagreement"
+      },
+      {
+        "id": "J02",
+        "mutation": "LegacyEntryCount = 0 (legacy entry after the prefix).",
+        "expected": "reject: count/tag disagreement"
+      },
+      {
+        "id": "J03",
+        "mutation": "LegacyEntryCount = 3 (greater than Entries.Count).",
+        "expected": "reject: header"
+      },
+      {
+        "id": "J04",
+        "mutation": "LegacyEntryCount = -1.",
+        "expected": "reject: header"
+      },
+      {
+        "id": "J05",
+        "mutation": "LegacyEntryCount member removed.",
+        "expected": "reject: header (no default, no fallback to /1)"
+      },
+      {
+        "id": "J06",
+        "mutation": "LegacyEntryCount = 1.0 (fraction token).",
+        "expected": "reject: header"
+      },
+      {
+        "id": "J07",
+        "mutation": "LegacyEntryCount = \"1\" (string).",
+        "expected": "reject: header"
+      },
+      {
+        "id": "J08",
+        "mutation": "LegacyEntryCount = 1e0 (exponent token).",
+        "expected": "reject: header"
+      },
+      {
+        "id": "J09",
+        "mutation": "Entries order swapped to [W, L], LegacyEntryCount = 1.",
+        "expected": "reject: count/tag disagreement (prefix not contiguous)"
+      },
+      {
+        "id": "J10",
+        "mutation": "W.Tag removed.",
+        "expected": "reject: missing tag (never treated as legacy)"
+      },
+      {
+        "id": "J11",
+        "mutation": "W.Tag = \"bound/1\".",
+        "expected": "reject: unknown tag"
+      },
+      {
+        "id": "J12",
+        "mutation": "L.Tag = \"Legacy/1\" (case variant).",
+        "expected": "reject: unknown tag (no case folding)"
+      },
+      {
+        "id": "J13",
+        "mutation": "W.Tag = 2 (number).",
+        "expected": "reject: non-string tag"
+      },
+      {
+        "id": "J14",
+        "mutation": "W.Binding removed.",
+        "expected": "reject: missing /2 binding (no fallback to /1)"
+      },
+      {
+        "id": "J15",
+        "mutation": "W.Binding = null.",
+        "expected": "reject: missing /2 binding"
+      },
+      {
+        "id": "J16",
+        "mutation": "W.Binding.Encoding = \"hlp.records.publication-binding/2\\u0000\" (NUL included in JSON text).",
+        "expected": "reject: Encoding mismatch"
+      },
+      {
+        "id": "J17",
+        "mutation": "W.Binding.Encoding = \"hlp.records.publication-binding/1\".",
+        "expected": "reject: Encoding mismatch"
+      },
+      {
+        "id": "J18",
+        "mutation": "Root gains member \"Extra\":0.",
+        "expected": "reject: unknown root member"
+      },
+      {
+        "id": "J19",
+        "mutation": "Root member LegacyEntryCount appears twice (1 and 1).",
+        "expected": "reject: duplicate member"
+      },
+      {
+        "id": "J20",
+        "mutation": "Format = \"records-write-file-journal/1\" with the /2 Entries unchanged.",
+        "expected": "reject: dispatched to /1 rules, whose Entry deserialization fails (wrapper lacks Key etc.); never reinterpreted"
+      },
+      {
+        "id": "J21",
+        "mutation": "Format = \"records-write-file-journal/3\".",
+        "expected": "reject: unknown format"
+      },
+      {
+        "id": "J22",
+        "mutation": "File prefixed with UTF-8 BOM EF BB BF.",
+        "expected": "reject: BOM"
+      },
+      {
+        "id": "J23",
+        "mutation": "Bytes C3 28 (invalid UTF-8) placed inside a string value of an unknown member within L.Legacy.",
+        "expected": "reject: file is not valid UTF-8 (R1)"
+      },
+      {
+        "id": "J24",
+        "mutation": "W removed (Entries = [L], LegacyEntryCount = 1).",
+        "expected": "reject: /2 file without any bound entry"
+      },
+      {
+        "id": "J25",
+        "mutation": "W.Receipt = null.",
+        "expected": "reject: bound receipt required"
+      },
+      {
+        "id": "J26",
+        "mutation": "W.Receipt.Version = \"1.0.1\" while W.Row.Version = \"1.0.0\".",
+        "expected": "reject: receipt inconsistent with row"
+      },
+      {
+        "id": "J27",
+        "mutation": "W.Key and W.Operation.IdempotencyKey set to K1 (duplicate of the legacy key).",
+        "expected": "reject: duplicate key"
+      },
+      {
+        "id": "J28",
+        "mutation": "W gains member \"Extra\":true.",
+        "expected": "reject: unknown bound-entry member"
+      },
+      {
+        "id": "J29",
+        "mutation": "L wrapper gains member \"Note\":\"x\".",
+        "expected": "reject: unknown wrapper member"
+      },
+      {
+        "id": "J30",
+        "mutation": "L.Legacy gains unknown member \"FutureField\":1.",
+        "expected": "accept (legacy tolerance as /1); the member is preserved byte-for-byte on every later append"
+      },
+      {
+        "id": "J31",
+        "mutation": "W.Row.Schema changed to \"schema:example-b\" with Binding.Hash unchanged.",
+        "expected": "reject: binding hash mismatch (schema-ID-only change)"
+      },
+      {
+        "id": "J32",
+        "mutation": "W.Row gains unknown member \"Extra\":1 (likewise tested separately in W.Operation, W.Audit and W.Receipt).",
+        "expected": "reject: unknown member in bound nested object"
+      },
+      {
+        "id": "J33",
+        "mutation": "W.Row.Tenant written as the JSON text \"acme\\ud800\" (escaped lone surrogate; file bytes are valid UTF-8 and pass R1).",
+        "expected": "reject: decoded binding field is not valid Unicode (Q28)"
+      },
+      {
+        "id": "J34",
+        "mutation": "W.Row.ActorId written as \"alice\\udc00\" (escaped lone surrogate in a non-binding field).",
+        "expected": "reject: decoded string in a bound entry is not valid Unicode"
+      },
+      {
+        "id": "J35",
+        "mutation": "W.Row.Tenant written as \"\\u0061cme\" (escaped but valid; decodes to \"acme\").",
+        "expected": "accept: field values are decoded JSON strings, so the binding hash is V01's"
+      },
+      {
+        "id": "J36",
+        "mutation": "W.Row member \"AcceptedCommandId\" removed entirely (likewise tested separately for Row.OriginatorId, Row.AcceptanceAuditId, Audit.AuthoritySnapshot and Audit.OriginatorId). Present JSON null remains valid only for the listed nullable string members. Audit.AuthoritySnapshot is nonnullable byte memory: its empty value is the base64 JSON string \"\", and JSON null is invalid. Apply the same byte-payload encoding/null rule to Audit.Payload and Row.Body.",
+        "expected": "reject: member the writer always emits is absent"
+      },
+      {
+        "id": "J37",
+        "mutation": "W.Binding has both \"Hash\" and \"\\u0048ash\" with identical values (likewise duplicate decoded names in root, wrappers, Operation, Row, Audit and Receipt).",
+        "expected": "reject: duplicate member after JSON unescaping"
+      },
+      {
+        "id": "J38",
+        "mutation": "W.Row.PublicationVersionId member removed (likewise null, empty and frozen-whitespace-only values).",
+        "expected": "reject: required bound publication identity; no fallback"
+      },
+      {
+        "id": "J39",
+        "mutation": "W.Binding gains \"VersionId\":\"1.0.0\" even though W.Row.PublicationVersionId is valid.",
+        "expected": "reject: unknown Binding member in rev3"
+      },
+      {
+        "id": "J40",
+        "mutation": "W.Receipt.RecordId differs from W.Row.RecordId.",
+        "expected": "reject: receipt field 1 inconsistent"
+      },
+      {
+        "id": "J41",
+        "mutation": "W.Receipt.OperationId differs from W.Row.OperationId.",
+        "expected": "reject: receipt field 2 inconsistent"
+      },
+      {
+        "id": "J42",
+        "mutation": "W.Receipt.RecordTypeId differs from W.Row.RecordTypeId.",
+        "expected": "reject: receipt field 3 inconsistent"
+      },
+      {
+        "id": "J43",
+        "mutation": "W.Receipt.DefinitionDigest differs from W.Row.DefinitionDigest.",
+        "expected": "reject: receipt field 5 inconsistent"
+      },
+      {
+        "id": "J44",
+        "mutation": "W.Receipt.Schema differs from W.Row.Schema.",
+        "expected": "reject: receipt field 6 inconsistent"
+      },
+      {
+        "id": "J45",
+        "mutation": "W.Receipt.RecordedAt differs in instant or offset from W.Row.RecordedAt, including the same UTC instant at a different offset.",
+        "expected": "reject: receipt field 7 inconsistent; EqualsExact required"
+      },
+      {
+        "id": "J46",
+        "mutation": "W.Receipt removed, or malformed as a string/array or with a missing required field (separate mutations).",
+        "expected": "reject: bound receipt required and well-formed"
+      },
+      {
+        "id": "J47",
+        "mutation": "W.Operation.CommandId differs from W.Row.RecordId, or Fingerprint differs from Row.IntentDigest (separate mutations).",
+        "expected": "reject: operation/row association"
+      },
+      {
+        "id": "J48",
+        "mutation": "W.Audit.ActorId, RecordedAt (including offset) or OriginatorId differs from the row (separate mutations).",
+        "expected": "reject: audit/row association"
+      },
+      {
+        "id": "J49",
+        "mutation": "A valid requested bound entry is followed by another bound entry with a bad receipt (each of seven fields separately). Read/replay the valid entry.",
+        "expected": "reject: corruption elsewhere fails whole journal before return"
+      },
+      {
+        "id": "J50",
+        "mutation": "W.Row.Body contains opaque valid application JSON with unknown and duplicate application member names, encoded as base64; all structural evidence stays consistent.",
+        "expected": "accept: /2-owned member rules do not descend into opaque payload bytes"
+      },
+      {
+        "id": "J51",
+        "mutation": "W.Row.PublicationVersionId changes to \"1.0.1\" with Binding.Hash unchanged and Row.Version still \"1.0.0\".",
+        "expected": "reject: binding hash mismatch; field 4 is the row identity"
+      },
+      {
+        "id": "J52",
+        "mutation": "W.Binding member name Encoding is spelled \"\\u0045ncoding\" once with its original value.",
+        "expected": "accept: decoded member names are checked ordinally; no duplicate"
+      },
+      {
+        "id": "J53",
+        "mutation": "W.Row.PublicationVersionId written as an escaped lone or reversed surrogate.",
+        "expected": "reject: decoded binding field invalid Unicode"
+      },
+      {
+        "id": "J54",
+        "mutation": "The /2 root gains ignored-looking member \"Ignored\" with JSON string value \"\\ud800\".",
+        "expected": "reject: unknown /2-owned root member; malformed decoded string never makes it permissible. This is structural scope coverage, not an isolated Unicode check."
+      },
+      {
+        "id": "J55",
+        "mutation": "The /2 root gains an ignored-looking member whose JSON member name contains an escaped lone surrogate, \"Ignored\\ud800\".",
+        "expected": "reject: unknown /2-owned decoded root name; malformed decoded member name is not repaired. See C04 for /1 conversion scope."
+      }
+    ]
+  },
+  "whitespace_rule": {
+    "definition": "Frozen format set listed here, independent of runtime classification; reject exactly when every UTF-16 code unit is in this set. No trimming or normalization.",
+    "code_points": [
+      "U+0009",
+      "U+000A",
+      "U+000B",
+      "U+000C",
+      "U+000D",
+      "U+0020",
+      "U+0085",
+      "U+00A0",
+      "U+1680",
+      "U+2000-U+200A",
+      "U+2028",
+      "U+2029",
+      "U+202F",
+      "U+205F",
+      "U+3000"
+    ],
+    "not_whitespace_examples": [
+      "U+001C-U+001F (Python isspace says yes; .NET says no)",
+      "U+180E",
+      "U+200B",
+      "U+FEFF"
+    ]
+  },
+  "binding_field_sources": {
+    "tenant": "Row.Tenant",
+    "namespace_token": "constant records",
+    "record_type_id": "Row.RecordTypeId",
+    "version_id": "Row.PublicationVersionId (Q39); never Binding.VersionId",
+    "version": "Row.Version",
+    "digest_scheme": "constant sha256-utf8-body/1",
+    "definition_digest": "Row.DefinitionDigest decoded to exactly 32 bytes",
+    "schema_id": "Row.Schema.Value"
+  },
+  "conversion_refusal_cases": {
+    "scope": "Qualification descriptions, not executed decoder/conversion tests. Scan complete source UTF-8 bytes and every JSON member-name/string-value token, including ignored root and nested object/array members, before any file creation/write. Base64 payload strings are scanned, decoded application bytes remain opaque. /1 reads are unchanged. Use pinned old-reader acceptance receipts and disposable source copies; refusal leaves original byte-identical and publishes no /2.",
+    "cases": [
+      {
+        "id": "C01",
+        "source": "Pinned /1 fixture with invalid UTF-8 bytes in an ignored JSON member",
+        "old_reader_expected": "accept at 5ec3cf530eb7c3f30050ff82f701cec14ea9ee05",
+        "conversion_expected": "reject before write"
+      },
+      {
+        "id": "C02",
+        "source": "Pinned /1 fixture with an escaped lone surrogate in an ignored JSON member",
+        "old_reader_expected": "accept at 5ec3cf530eb7c3f30050ff82f701cec14ea9ee05",
+        "conversion_expected": "reject before write"
+      },
+      {
+        "id": "C03",
+        "source": "A valid /1 source root gains ignored member \"Ignored\" with escaped-lone-surrogate JSON value \"\\ud800\"; repeat at nested object/array depths.",
+        "old_reader_expected": "accept at 5ec3cf530eb7c3f30050ff82f701cec14ea9ee05; requires fixture execution",
+        "conversion_expected": "reject complete-source decoded token scan before file creation/write; original byte-identical; no /2 published"
+      },
+      {
+        "id": "C04",
+        "source": "A valid /1 source root gains an ignored member whose name contains an escaped lone surrogate, \"Ignored\\ud800\"; repeat in ignored names at nested object/array depths.",
+        "old_reader_expected": "accept at 5ec3cf530eb7c3f30050ff82f701cec14ea9ee05; requires fixture execution",
+        "conversion_expected": "reject complete-source decoded member-name scan before file creation/write; original byte-identical; no /2 published"
+      }
+    ]
+  }
+}

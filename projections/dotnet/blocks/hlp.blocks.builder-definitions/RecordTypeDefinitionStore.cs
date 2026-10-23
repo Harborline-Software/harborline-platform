@@ -39,7 +39,14 @@ public sealed record NewRecordType(
     IReadOnlyList<RecordsRequirement>? Requires = null,
     RecordsExposure? Exposes = null,
     RecordCreationGate? CreationGate = null,
-    string? CreationRoleId = null);
+    string? CreationRoleId = null)
+{
+    /// <summary>The authored amendment constraint; null takes the reason-required default on creation only.</summary>
+    public RecordAmendmentPolicy? AmendmentPolicy { get; init; }
+
+    /// <summary>The authored history declaration; null takes <c>enabled</c> on creation only.</summary>
+    public RecordHistoryPolicy? HistoryPolicy { get; init; }
+}
 
 /// <summary>A created Record Type draft and the id the authoring boundary minted for it.</summary>
 public sealed record RecordTypeDraft(string RecordTypeId, DefinitionRevision Revision);
@@ -47,7 +54,20 @@ public sealed record RecordTypeDraft(string RecordTypeId, DefinitionRevision Rev
 /// <summary>A published Record Type and the schema its records validate against.</summary>
 /// <param name="Revision">The published catalogue revision.</param>
 /// <param name="Schema">The registered schema compiled from exactly the published body.</param>
-public sealed record RecordTypePublication(DefinitionRevision Revision, Schema Schema);
+public sealed record RecordTypePublication(DefinitionRevision Revision, Schema Schema)
+{
+    /// <summary>
+    /// Advisory policy warnings computed from the published body by <see cref="RecordTypeDefinitionStore.PublishAsync"/>,
+    /// including on replay. Empty for <see cref="RecordTypeDefinitionStore.ResolvePublishedSchemaAsync"/>: binding is not
+    /// publication. Warnings are never refusals or authoring diagnostics.
+    /// </summary>
+    public IReadOnlyList<RecordTypePolicyWarning> PolicyWarnings { get; init; } = [];
+}
+
+/// <summary>One advisory publication warning, independent of admission and its refusal report.</summary>
+/// <param name="Code">The stable warning code.</param>
+/// <param name="Pointer">The RFC 6901 pointer of the unset policy.</param>
+public sealed record RecordTypePolicyWarning(string Code, string Pointer);
 
 /// <summary>
 /// Composes Records admission (DES-0015) with the shared versioned-definition store under
@@ -117,7 +137,8 @@ public sealed class RecordTypeDefinitionStore
     /// The authoring boundary that creates a Record Type (L102, DES-0015 K5). It mints the id as
     /// <c>section.name-slug</c>, so the same name in two sections is two types, and refuses
     /// <c>records.identity.record_type_id_collision</c> when the section already holds that id rather than
-    /// sequencing a near-duplicate. A replay of the same request returns the original draft.
+    /// sequencing a near-duplicate. A replay of the same request returns the original draft. Only this creation path
+    /// supplies an absent amendment or history policy (reason required and history enabled, ADR-0097).
     /// </summary>
     public async ValueTask<RecordTypeDraft> CreateDraftAsync(NewRecordType request, string requestId,
         CancellationToken cancellationToken = default)
@@ -127,7 +148,11 @@ public sealed class RecordTypeDefinitionStore
         var document = Materialize(new RecordTypeDocument(
             new(request.Tenant, request.Section, request.Contract, request.PackageId, request.Requires, request.Exposes),
             request.Name!, recordTypeId, request.Fields, request.Traits, request.RetentionClockFieldId,
-            request.ClassId, request.RecordClass, request.CreationGate, request.CreationRoleId));
+            request.ClassId, request.RecordClass, request.CreationGate, request.CreationRoleId)
+        {
+            AmendmentPolicy = request.AmendmentPolicy ?? new(true),
+            HistoryPolicy = request.HistoryPolicy ?? RecordHistoryPolicy.Enabled,
+        });
         var candidate = await AdmitAsync(Catalogue(document, recordTypeId, request.Version), DefinitionAdmissionPhase.Author,
             cancellationToken).ConfigureAwait(false);
         return new(recordTypeId, await RecordsCatalogueIdentity.CreateAsync(_store, candidate.Document, requestId,
@@ -138,16 +163,35 @@ public sealed class RecordTypeDefinitionStore
     /// Saves a draft of the Record Type <paramref name="recordTypeId"/>, which the authoring boundary must
     /// already have minted: an id with no catalogue stream, constructed by a client, refuses
     /// <c>records.identity.record_type_id_unminted</c>. A body naming any other id refuses
-    /// <c>records.identity.record_type_id_immutable</c>; a different id is a different definition.
+    /// <c>records.identity.record_type_id_immutable</c>; a different id is a different definition. An omitted policy carries
+    /// forward the latest stream revision's declaration. A legacy stream without one remains absent; save never defaults.
     /// </summary>
     public async ValueTask<DefinitionRevision> SaveDraftAsync(string recordTypeId, RecordTypeDocument document,
         string version, long expectedRevision, string requestId, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(document);
-        var catalogue = Catalogue(Materialize(document), recordTypeId, version);
+        var materialized = Materialize(document);
+        var catalogue = Catalogue(materialized, recordTypeId, version);
         var candidate = await AdmitAsync(catalogue, DefinitionAdmissionPhase.Author, cancellationToken).ConfigureAwait(false);
-        await RecordsCatalogueIdentity.RequireMintedAsync(_store, catalogue.Key, "record_type_id", cancellationToken)
-            .ConfigureAwait(false);
+        var history = await _store.ListHistoryAsync(catalogue.Key, cancellationToken).ConfigureAwait(false);
+        if (history.Count == 0)
+            throw new DefinitionRefusalException(DefinitionAdmissionPhase.Author,
+                [new("records.identity.record_type_id_unminted", "/record_type_id")]);
+        if (materialized.AmendmentPolicy is null || materialized.HistoryPolicy is null)
+        {
+            // At an accepted fresh save the expected revision is the latest. For an exact retry after later saves,
+            // use that original observation so policy carry-forward cannot change the replay payload. Any stale
+            // non-replay is still refused by the shared store's fence, before it can overwrite a newer declaration.
+            var observed = history.LastOrDefault(revision => revision.Revision == expectedRevision) ?? history[^1];
+            var latest = RecordTypeDefinitionJson.Deserialize(Encoding.UTF8.GetBytes(observed.Document.BodyJson));
+            // Only policies change here; the grammar above is already compiled. The shared store re-admits the final
+            // body and fences it at expectedRevision, so a concurrent policy change cannot be silently overwritten.
+            candidate.Document = Catalogue(materialized with
+            {
+                AmendmentPolicy = materialized.AmendmentPolicy ?? latest.AmendmentPolicy,
+                HistoryPolicy = materialized.HistoryPolicy ?? latest.HistoryPolicy,
+            }, recordTypeId, version);
+        }
         return await _store.SaveDraftAsync(candidate.Document, expectedRevision, requestId, cancellationToken)
             .ConfigureAwait(false);
     }
@@ -177,7 +221,7 @@ public sealed class RecordTypeDefinitionStore
                 .ConfigureAwait(false);
             var replaySchema = await _registry.RegisterAsync(replayAdmission.JsonSchemaText, cancellationToken: cancellationToken)
                 .ConfigureAwait(false);
-            return new(replay, replaySchema);
+            return new(replay, replaySchema) { PolicyWarnings = PublicationPolicyWarnings(replay.Document) };
         }
         var history = await _store.ListHistoryAsync(key, cancellationToken).ConfigureAwait(false);
         var source = history.LastOrDefault(revision => revision.Document.VersionId == version)
@@ -200,7 +244,7 @@ public sealed class RecordTypeDefinitionStore
         {
             var published = await _store.PublishAsync(key, version, expectedRevision, requestId, conditions, cancellationToken)
                 .ConfigureAwait(false);
-            return new(published, schema);
+            return new(published, schema) { PolicyWarnings = PublicationPolicyWarnings(published.Document) };
         }
         catch (DefinitionRefusalException refused) when (refused.Refusals.Any(item => item.Code == "definition.published_head_conflict"))
         {
@@ -415,7 +459,8 @@ public sealed class RecordTypeDefinitionStore
     /// or the published head when it is null, and the schema compiled from exactly that body, registered as publication
     /// registers it (content-addressed, so a repeat registers nothing new). Null when that version, or any version, is not
     /// published. It reads the catalogue on every call and caches nothing, so a newer publication governs the next unpinned
-    /// write. A published body that no longer admits refuses by <see cref="DefinitionRefusalException"/>.
+    /// write. A published body that no longer admits refuses by <see cref="DefinitionRefusalException"/>. This bind result
+    /// always has empty <see cref="RecordTypePublication.PolicyWarnings"/>; warnings belong only to publication.
     /// </summary>
     public async ValueTask<RecordTypePublication?> ResolvePublishedSchemaAsync(string tenant, string recordTypeId,
         string? version = null, CancellationToken cancellationToken = default)
@@ -429,6 +474,71 @@ public sealed class RecordTypeDefinitionStore
         var schema = await _registry.RegisterAsync(admitted.JsonSchemaText, cancellationToken: cancellationToken)
             .ConfigureAwait(false);
         return new(head, schema);
+    }
+
+    internal sealed record RecordTemporalPublication(RecordTypePublication Publication, bool PolicyEnabled);
+
+    internal async ValueTask<RecordTemporalPublication?> ResolveTemporalPublicationAsync(string tenant, string recordTypeId,
+        string? version = null, CancellationToken cancellationToken = default)
+    {
+        var publication = await ResolvePublishedSchemaAsync(tenant, recordTypeId, version, cancellationToken).ConfigureAwait(false);
+        if (publication is null) return null;
+        var document = RecordTypeDefinitionJson.Deserialize(Encoding.UTF8.GetBytes(publication.Revision.Document.BodyJson));
+        return new(publication, document.AmendmentPolicy is { ReasonRequired: true, Mode: RecordAmendmentMode.Supersession }
+            && document.HistoryPolicy == RecordHistoryPolicy.Enabled);
+    }
+
+    /// <summary>
+    /// Binds a stored row's exact published version and schema. Only the current compilation or the explicitly
+    /// versioned pre-T616 scalar projection of that same admitted immutable body can match. This read-only binding
+    /// never changes the row, publication or write resolver; arbitrary registry membership proves no binding.
+    /// Current admission still governs historical bodies; a body it now refuses cannot bind. The definition digest
+    /// hashes only BodyJson, so identical bodies at distinct published versions are not independently distinguished
+    /// by that digest or compiled schema; this resolver proves the requested version exists, not its original provenance.
+    /// Registers current first on every call. Only its successful nonmatch permits the explicit legacy candidate;
+    /// either failure or cancellation stops. At most two external registrations may remain after a refused read.
+    /// </summary>
+    /// <param name="tenant">The host-bound tenant.</param>
+    /// <param name="recordTypeId">The stored Record Type identity.</param>
+    /// <param name="version">The row's exact non-null published version, never the current head.</param>
+    /// <param name="storedSchema">The original schema identity retained by the row and receipt.</param>
+    /// <param name="cancellationToken">Cancellation for exact resolution, admission and registration.</param>
+    public async ValueTask<RecordTypePublication?> ResolveStoredPublishedSchemaAsync(string tenant, string recordTypeId,
+        string version, SchemaId storedSchema, CancellationToken cancellationToken = default)
+        => await ResolveStoredSchemaAsync(tenant, recordTypeId, version, null, storedSchema, cancellationToken).ConfigureAwait(false);
+
+    internal ValueTask<RecordTypePublication?> ResolveBoundStoredPublishedSchemaAsync(string tenant, string recordTypeId,
+        string publicationVersionId, string version, SchemaId storedSchema, CancellationToken cancellationToken)
+        => ResolveStoredSchemaAsync(tenant, recordTypeId, publicationVersionId, version, storedSchema, cancellationToken);
+
+    private async ValueTask<RecordTypePublication?> ResolveStoredSchemaAsync(string tenant, string recordTypeId,
+        string versionId, string? expectedLabel, SchemaId storedSchema, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(versionId);
+        var key = KeyOf(tenant, recordTypeId);
+        var revision = await _store.ResolvePublishedAsync(new DefinitionBinding(key, versionId),
+            cancellationToken).ConfigureAwait(false);
+        if (revision is null) return null;
+        if (revision.Status != DefinitionStatus.Published) return null;
+        if (revision.Document.Key != key || revision.Document.VersionId != versionId
+            || (expectedLabel is not null && revision.Document.Version != expectedLabel))
+            throw new InvalidDataException("The record's publication identity does not match its published version.");
+        var admitted = await AdmitAsync(revision.Document, DefinitionAdmissionPhase.Publish, cancellationToken).ConfigureAwait(false);
+        cancellationToken.ThrowIfCancellationRequested();
+        var current = await _registry.RegisterAsync(admitted.JsonSchemaText, cancellationToken: cancellationToken).ConfigureAwait(false);
+        cancellationToken.ThrowIfCancellationRequested();
+        if (current.Id == storedSchema) return new(revision, current);
+        var document = RecordTypeDefinitionJson.Deserialize(Encoding.UTF8.GetBytes(revision.Document.BodyJson));
+        var predecessor = await _compiler.CompilePreT616ScalarForStoredReadAsync(document.ToDefinition(), null,
+            _fieldDomainScope, cancellationToken).ConfigureAwait(false);
+        if (predecessor.JsonSchemaText is null)
+            throw new DefinitionRefusalException(DefinitionAdmissionPhase.Publish,
+                predecessor.Refusals.Select(refusal => new DefinitionRefusal(refusal.Code, refusal.JsonPointer)));
+        cancellationToken.ThrowIfCancellationRequested();
+        var legacy = await _registry.RegisterAsync(predecessor.JsonSchemaText, cancellationToken: cancellationToken).ConfigureAwait(false);
+        cancellationToken.ThrowIfCancellationRequested();
+        if (legacy.Id == storedSchema) return new(revision, legacy);
+        throw new InvalidDataException("The record's schema identity does not match its published version.");
     }
 
     /// <summary>
@@ -564,8 +674,27 @@ public sealed class RecordTypeDefinitionStore
         => document with { Fields = _defaults.Materialize(document.ToDefinition()).Fields };
 
     private static DefinitionDocument Catalogue(RecordTypeDocument document, string recordTypeId, string version)
-        => new(KeyOf(document.Envelope?.Tenant ?? "", recordTypeId), version, version,
-            Encoding.UTF8.GetString(RecordTypeDefinitionJson.SerializeCanonical(document)));
+    {
+        try
+        {
+            return new(KeyOf(document.Envelope?.Tenant ?? "", recordTypeId), version, version,
+                Encoding.UTF8.GetString(RecordTypeDefinitionJson.SerializeCanonical(document)));
+        }
+        catch (JsonException)
+        {
+            // Typed callers can supply an unsupported enum or constraint as well as raw JSON callers. Both have the
+            // same document-invalid refusal, before the catalogue or registry can change.
+            throw new DefinitionRefusalException(DefinitionAdmissionPhase.Author, [new("records.document_invalid", "")]);
+        }
+    }
+
+    private static IReadOnlyList<RecordTypePolicyWarning> PublicationPolicyWarnings(DefinitionDocument document)
+    {
+        using var body = JsonDocument.Parse(document.BodyJson);
+        return !body.RootElement.TryGetProperty("retention_policy", out var retention) || retention.ValueKind == JsonValueKind.Null
+            ? [new("records.retention.unset", "/retention_policy")]
+            : [];
+    }
 
 }
 

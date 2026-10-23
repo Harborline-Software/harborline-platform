@@ -1,0 +1,418 @@
+{
+  "format": "q31-old5ec-fixtures/1",
+  "label": "authentic old-writer fixture (Q31), newly executed against Platform 5ec3cf53",
+  "executed_at_utc": "2026-10-18T16:31:15.5712390+00:00",
+  "producer": {
+    "repo": "harborline-platform",
+    "commit": "5ec3cf530eb7c3f30050ff82f701cec14ea9ee05",
+    "tree": "402a9f834371a3b5a6002f2cb54039eaa0af16e3",
+    "worktree": "scratch detached worktree at the commit (path recorded in PROVENANCE.md)",
+    "source_inputs": [
+      {
+        "path": "global.json",
+        "sha256": "d3614cb88454e2442a770515e1bbe20958cccea620981cf05e8b508198cc2f7e",
+        "matches_t617_request": true
+      },
+      {
+        "path": "projections/dotnet/kernel/hlp.kernel.schema-validation/Records/RecordTypeIdentity.cs",
+        "sha256": "c3fc41c934c9776904a2b6a9ae44e1430f8db71481b4226db488f56e5f40964b",
+        "matches_t617_request": true
+      },
+      {
+        "path": "projections/dotnet/kernel/hlp.kernel.schema-validation/InMemorySchemaRegistry.cs",
+        "sha256": "acc0c97e4889588d05a29bfcb6277026e70eefad37a8e39518bfd4d317a72c6c",
+        "matches_t617_request": true
+      },
+      {
+        "path": "projections/dotnet/blocks/hlp.blocks.builder-definitions/RecordWriteOperation.cs",
+        "sha256": "06f5fecada44637423e9634a4f4b61c3a1bce6dba45f667a16518c57f13fd053",
+        "matches_t617_request": true
+      },
+      {
+        "path": "projections/dotnet/blocks/hlp.blocks.builder-definitions/FileJournalRecordWriteStore.cs",
+        "sha256": "6cbadc095aa963d5134e4871e358209f6bd9eeecd6a45a14b2229036ef3522c4",
+        "matches_t617_request": true
+      },
+      {
+        "path": "projections/dotnet/blocks/hlp.blocks.builder-definitions/RecordTypeDefinitionStore.cs",
+        "sha256": "86b69f7d6c8f0ddf4090da929bb2c81707788098f91cdcfe8aaba98595cab144",
+        "matches_t617_request": true
+      }
+    ]
+  },
+  "runtime": {
+    "environment_version": "11.0.0",
+    "framework_description": ".NET 11.0.0-rc.1.26425.128",
+    "os_description": "macOS 27.0.1",
+    "process_architecture": "Arm64",
+    "runtime_identifier": "osx-arm64",
+    "assemblies": [
+      {
+        "file": "Harborline.Blocks.BuilderDefinitions.dll",
+        "product_version": "0.0.0-alpha.0+5ec3cf530eb7c3f30050ff82f701cec14ea9ee05",
+        "bytes": 807936,
+        "sha256": "6ddb8b269323edb6048b8a2a9ce4ce3e7b36d679811d82a79d64f4593772a008"
+      },
+      {
+        "file": "Harborline.Contracts.dll",
+        "product_version": "0.0.0-alpha.0+5ec3cf530eb7c3f30050ff82f701cec14ea9ee05",
+        "bytes": 534528,
+        "sha256": "7dec37de320602e3b78d8c20d65f4cb3939765335906f338cd6b61ec35d3f1bf"
+      },
+      {
+        "file": "Harborline.Foundation.Authorization.dll",
+        "product_version": "0.0.0-alpha.0+5ec3cf530eb7c3f30050ff82f701cec14ea9ee05",
+        "bytes": 54784,
+        "sha256": "fa509bd308d0fdbba9e4a83c1c854fffe68d654d8bb6fa604e82e35426afae74"
+      },
+      {
+        "file": "Harborline.Foundation.Definitions.dll",
+        "product_version": "0.0.0-alpha.0+5ec3cf530eb7c3f30050ff82f701cec14ea9ee05",
+        "bytes": 28672,
+        "sha256": "303c0ff618e9378c752fd89414e5458a380b186a56b42b5577c4679c3cd87d71"
+      },
+      {
+        "file": "Harborline.Foundation.FieldRuntime.dll",
+        "product_version": "0.0.0-alpha.0+5ec3cf530eb7c3f30050ff82f701cec14ea9ee05",
+        "bytes": 57856,
+        "sha256": "579adc0b911b68236cb5e9bab71f3954edd2005d5c30df9ff54a3de952ac216d"
+      },
+      {
+        "file": "Harborline.Foundation.MultiTenancy.dll",
+        "product_version": "0.0.0-alpha.0+5ec3cf530eb7c3f30050ff82f701cec14ea9ee05",
+        "bytes": 11776,
+        "sha256": "ce457094c912d6dcb092beab1254e7d43e0c23a3828cb933364b7a9f6c15044c"
+      },
+      {
+        "file": "Harborline.Foundation.RuleAuthoring.dll",
+        "product_version": "0.0.0-alpha.0+5ec3cf530eb7c3f30050ff82f701cec14ea9ee05",
+        "bytes": 118272,
+        "sha256": "2fe40bd230e8dc446a343778f653490efec38c3328e18c6405e971f24e65ac9b"
+      },
+      {
+        "file": "Harborline.Foundation.RuleEngine.dll",
+        "product_version": "0.0.0-alpha.0+5ec3cf530eb7c3f30050ff82f701cec14ea9ee05",
+        "bytes": 279552,
+        "sha256": "43aaf612985d608a78a8825b6d07560614678a800508c507a676619cac71c3fb"
+      },
+      {
+        "file": "Harborline.Foundation.Taxonomy.dll",
+        "product_version": "0.0.0-alpha.0+5ec3cf530eb7c3f30050ff82f701cec14ea9ee05",
+        "bytes": 93184,
+        "sha256": "220cbccef0fa32bcd6882c88f2e76482bde84b7c144d94cf655ea0e4684a0ee8"
+      },
+      {
+        "file": "Harborline.Kernel.Core.dll",
+        "product_version": "0.0.0-alpha.0+5ec3cf530eb7c3f30050ff82f701cec14ea9ee05",
+        "bytes": 84480,
+        "sha256": "deda1f4ec49c8f0be91bf87b039553f09b206d7a0301dd8ac9578157bc01a0a1"
+      },
+      {
+        "file": "Harborline.Kernel.SchemaValidation.dll",
+        "product_version": "0.0.0-alpha.0+5ec3cf530eb7c3f30050ff82f701cec14ea9ee05",
+        "bytes": 79360,
+        "sha256": "68e9611ca47df1e3304b46b2b340a76214ab7ce67777c27d6a3f13831c0c52b5"
+      },
+      {
+        "file": "Humanizer.dll",
+        "product_version": "3.0.10+90f0cb1d74",
+        "bytes": 643760,
+        "sha256": "2769ed8265b691a5482c72506ed274dc52446fa1641997a8c12c66f5b9263d39"
+      },
+      {
+        "file": "Json.More.dll",
+        "product_version": "3.0.1+8b8ab34027de5ad9f4ed50808b8e4889ca69cf4d",
+        "bytes": 54272,
+        "sha256": "80b6cd50331fa2ded4fbacdbf80dcedd2b142dee679df227c30299d2a3c3840f"
+      },
+      {
+        "file": "JsonPointer.Net.dll",
+        "product_version": "7.0.2+399f198431f65cf6896fe6038f833ef6d0b27a39",
+        "bytes": 25088,
+        "sha256": "1f6f178e6f5b36c4e3cddb6f0acbcc0a70a20d09798053277a434ffb78b1b5d8"
+      },
+      {
+        "file": "JsonSchema.Net.dll",
+        "product_version": "9.4.0+399f198431f65cf6896fe6038f833ef6d0b27a39",
+        "bytes": 294400,
+        "sha256": "7d22c2e73a2b9c60e53c8265f3638c64352759e1ab776f7ad776ae67c3e4a18c"
+      },
+      {
+        "file": "Q31.OldFixtures.dll",
+        "product_version": "1.0.0",
+        "bytes": 57344,
+        "sha256": "a6c28a994af53d662866e288f91be18d2a71248d2cd51b2fdda985ff4bbac0e2"
+      }
+    ]
+  },
+  "composition": {
+    "tenant": "tenant-a",
+    "section": "eam",
+    "package_id": "eam-core",
+    "writer_actor": "alice",
+    "window": "DefinitionContractWindow(1, 0, 1)",
+    "contract": "DefinitionContractVersion(1, 0)",
+    "same_as": "T617 old-capture composition (RecordsIntentValidator, RecordTypeSchemaCompiler, InMemorySchemaRegistry, InMemoryVersionedDefinitionStore{Records, Classes}, RecordTypeDefinitionStore(roles), RecordWriteOperation six-argument constructor, permit-all gate, fixed clock per step)",
+    "gate": "permit-all IAuthorizationDecider: AuthorizationDecisionEvidence(request, true, \"None\", \"grant:q31-old-fixtures@1\", [], [])",
+    "unfixable_ids": "record_id and audit_id are minted with Guid.NewGuid() inside the old RecordWriteOperation; captured as produced."
+  },
+  "publications": [
+    {
+      "kind": "class",
+      "id": "eam.equipment",
+      "version": "1.0.0",
+      "catalogue_kind": "Classes",
+      "version_id": "1.0.0",
+      "revision": 2,
+      "status": "Published",
+      "digest": "9332c53072982e0ebecf5af9b62645a3a5f82fabc3d5082ee3b9061cdaec717b",
+      "body_file": "publications/class.eam.equipment@1.0.0.json"
+    },
+    {
+      "kind": "record_type",
+      "id": "eam.asset-class",
+      "version": "1.0.0",
+      "catalogue_kind": "Records",
+      "version_id": "1.0.0",
+      "revision": 2,
+      "status": "Published",
+      "digest": "04fa702bdcdc72d05ca1dbfed45d3cce17af2cefb19c9ba12abaec886cc79236",
+      "body_file": "publications/record-type.eam.asset-class@1.0.0.json",
+      "schema_id": "schema:bafkreicbny6frejndtn7wkro74dlhr7citalhmezqvouhd4ulb7uqbitye",
+      "schema_file": "schemas/eam.asset-class@1.0.0.schema.json"
+    },
+    {
+      "kind": "record_type",
+      "id": "eam.meter-class",
+      "version": "1.0.0",
+      "catalogue_kind": "Records",
+      "version_id": "1.0.0",
+      "revision": 2,
+      "status": "Published",
+      "digest": "933b2c5989aaaf4de67253991f6efc8e3d4a3ef75439062d22bfd5fbd11b7f2d",
+      "body_file": "publications/record-type.eam.meter-class@1.0.0.json",
+      "schema_id": "schema:bafkreig6ueujlf6e6esp633zuenru3ezwlq23ss4sgyzyxwzuvwcdxsciq",
+      "schema_file": "schemas/eam.meter-class@1.0.0.schema.json"
+    },
+    {
+      "kind": "record_type",
+      "id": "eam.asset-class",
+      "version": "1.1.0",
+      "catalogue_kind": "Records",
+      "version_id": "1.1.0",
+      "revision": 4,
+      "status": "Published",
+      "digest": "41bfe4f9e58acf7ef281bebcf11fc02a64f06c1ec23daa86057347fbc5cd9510",
+      "body_file": "publications/record-type.eam.asset-class@1.1.0.json",
+      "schema_id": "schema:bafkreihrc2ifd3pgje6wxkeywb3uyuaktn6b4vyqzu265onpuxsoe5pwtu",
+      "schema_file": "schemas/eam.asset-class@1.1.0.schema.json"
+    }
+  ],
+  "steps": [
+    {
+      "id": "W1",
+      "kind": "create",
+      "note": "create under head 1.0.0",
+      "record_type_id": "eam.asset-class",
+      "operation_id": "q31-asset-op-1",
+      "requested_version": null,
+      "clock_utc": "2026-10-18T12:01:00.0000000+00:00",
+      "idempotency_key": "8:tenant-a5:alice14:q31-asset-op-1",
+      "intent_encoding_version": "records-write-intent/1",
+      "intent_digest": "d8aaf9e5e4d27d1d3292ab997a13f2e3bba54091ffc7092a476eb62c3af82af5",
+      "committed": true,
+      "replayed": false,
+      "refusal": null,
+      "record_id": "4592a23034d94004a4de4e57182076be",
+      "bound_version": "1.0.0",
+      "definition_digest": "04fa702bdcdc72d05ca1dbfed45d3cce17af2cefb19c9ba12abaec886cc79236",
+      "schema_id": "schema:bafkreicbny6frejndtn7wkro74dlhr7citalhmezqvouhd4ulb7uqbitye",
+      "recorded_at": "2026-10-18T12:01:00.0000000+00:00",
+      "journal_unchanged_by_step": false,
+      "journal_sha256_after_step": "585e1121f4961aa68859d62ad560f24667e11c4f1ebca6c5ad55f161f77542ca",
+      "files": "steps/W1/"
+    },
+    {
+      "id": "W2",
+      "kind": "create",
+      "note": "second record type",
+      "record_type_id": "eam.meter-class",
+      "operation_id": "q31-meter-op-1",
+      "requested_version": null,
+      "clock_utc": "2026-10-18T12:02:00.0000000+00:00",
+      "idempotency_key": "8:tenant-a5:alice14:q31-meter-op-1",
+      "intent_encoding_version": "records-write-intent/1",
+      "intent_digest": "3f6ae5b9508571e611a9591d8ebf6f139a579e3e6168c88317949dde39b45b3e",
+      "committed": true,
+      "replayed": false,
+      "refusal": null,
+      "record_id": "b18cdd5b10e643a0821fab4fcd360c79",
+      "bound_version": "1.0.0",
+      "definition_digest": "933b2c5989aaaf4de67253991f6efc8e3d4a3ef75439062d22bfd5fbd11b7f2d",
+      "schema_id": "schema:bafkreig6ueujlf6e6esp633zuenru3ezwlq23ss4sgyzyxwzuvwcdxsciq",
+      "recorded_at": "2026-10-18T12:02:00.0000000+00:00",
+      "journal_unchanged_by_step": false,
+      "journal_sha256_after_step": "90006361a800b3a455e5d94712ea4242ff6ac2ead748c16425aa199be8ed9fcb",
+      "files": "steps/W2/"
+    },
+    {
+      "id": "W3",
+      "kind": "create",
+      "note": "create under head 1.1.0 using the field 1.1.0 added",
+      "record_type_id": "eam.asset-class",
+      "operation_id": "q31-asset-op-2",
+      "requested_version": null,
+      "clock_utc": "2026-10-18T12:04:00.0000000+00:00",
+      "idempotency_key": "8:tenant-a5:alice14:q31-asset-op-2",
+      "intent_encoding_version": "records-write-intent/1",
+      "intent_digest": "2dbfb73625f5ff2049158592260a8c3309c653b3363884e3337b15504c0d91c9",
+      "committed": true,
+      "replayed": false,
+      "refusal": null,
+      "record_id": "e39b062bd38847e89826660cbfa1ebfe",
+      "bound_version": "1.1.0",
+      "definition_digest": "41bfe4f9e58acf7ef281bebcf11fc02a64f06c1ec23daa86057347fbc5cd9510",
+      "schema_id": "schema:bafkreihrc2ifd3pgje6wxkeywb3uyuaktn6b4vyqzu265onpuxsoe5pwtu",
+      "recorded_at": "2026-10-18T12:04:00.0000000+00:00",
+      "journal_unchanged_by_step": false,
+      "journal_sha256_after_step": "cdfcc3686692a219a237addf017e01dc9ef94da1b7de305f954a80dbbb2d28ab",
+      "files": "steps/W3/"
+    },
+    {
+      "id": "W4",
+      "kind": "create",
+      "note": "explicit version pin 1.0.0 while 1.1.0 is the published head",
+      "record_type_id": "eam.asset-class",
+      "operation_id": "q31-asset-op-3",
+      "requested_version": "1.0.0",
+      "clock_utc": "2026-10-18T12:05:00.0000000+00:00",
+      "idempotency_key": "8:tenant-a5:alice14:q31-asset-op-3",
+      "intent_encoding_version": "records-write-intent/1",
+      "intent_digest": "fd3ae9d8ff8cee7fe8cf98827a0c5fb778993f725bca748d109132141e140211",
+      "committed": true,
+      "replayed": false,
+      "refusal": null,
+      "record_id": "eb41dc76b6484fa09ea50025987a5cdf",
+      "bound_version": "1.0.0",
+      "definition_digest": "04fa702bdcdc72d05ca1dbfed45d3cce17af2cefb19c9ba12abaec886cc79236",
+      "schema_id": "schema:bafkreicbny6frejndtn7wkro74dlhr7citalhmezqvouhd4ulb7uqbitye",
+      "recorded_at": "2026-10-18T12:05:00.0000000+00:00",
+      "journal_unchanged_by_step": false,
+      "journal_sha256_after_step": "d6b19182dcab19556f363f8e104f53aed99daa5691f548164ea6d14b70835fd9",
+      "files": "steps/W4/"
+    },
+    {
+      "id": "W5",
+      "kind": "create",
+      "note": "embedded structured body: object and array inside the unbound notes field, escaped quotes, newline and non-ASCII",
+      "record_type_id": "eam.asset-class",
+      "operation_id": "q31-asset-op-4",
+      "requested_version": null,
+      "clock_utc": "2026-10-18T12:06:00.0000000+00:00",
+      "idempotency_key": "8:tenant-a5:alice14:q31-asset-op-4",
+      "intent_encoding_version": "records-write-intent/1",
+      "intent_digest": "fe7f3a50d6dba35d6431da6d90e33d9781c7d5c5f5968ae771bd1d1328bb08a5",
+      "committed": false,
+      "replayed": false,
+      "refusal": {
+        "stage": "validate",
+        "code": "entity.validation.body_invalid",
+        "pointers": [
+          "/notes"
+        ]
+      },
+      "journal_unchanged_by_step": true,
+      "journal_sha256_after_step": "d6b19182dcab19556f363f8e104f53aed99daa5691f548164ea6d14b70835fd9",
+      "files": "steps/W5/"
+    },
+    {
+      "id": "R1",
+      "kind": "replay",
+      "note": "exact replay of W1 (same intent) at a later clock",
+      "record_type_id": "eam.asset-class",
+      "operation_id": "q31-asset-op-1",
+      "requested_version": null,
+      "clock_utc": "2026-10-18T12:30:00.0000000+00:00",
+      "idempotency_key": "8:tenant-a5:alice14:q31-asset-op-1",
+      "intent_encoding_version": "records-write-intent/1",
+      "intent_digest": "d8aaf9e5e4d27d1d3292ab997a13f2e3bba54091ffc7092a476eb62c3af82af5",
+      "committed": true,
+      "replayed": true,
+      "refusal": null,
+      "record_id": "4592a23034d94004a4de4e57182076be",
+      "bound_version": "1.0.0",
+      "definition_digest": "04fa702bdcdc72d05ca1dbfed45d3cce17af2cefb19c9ba12abaec886cc79236",
+      "schema_id": "schema:bafkreicbny6frejndtn7wkro74dlhr7citalhmezqvouhd4ulb7uqbitye",
+      "recorded_at": "2026-10-18T12:01:00.0000000+00:00",
+      "journal_unchanged_by_step": true,
+      "journal_sha256_after_step": "d6b19182dcab19556f363f8e104f53aed99daa5691f548164ea6d14b70835fd9",
+      "files": "steps/R1/"
+    },
+    {
+      "id": "R2",
+      "kind": "replay",
+      "note": "exact replay of W2",
+      "record_type_id": "eam.meter-class",
+      "operation_id": "q31-meter-op-1",
+      "requested_version": null,
+      "clock_utc": "2026-10-18T12:31:00.0000000+00:00",
+      "idempotency_key": "8:tenant-a5:alice14:q31-meter-op-1",
+      "intent_encoding_version": "records-write-intent/1",
+      "intent_digest": "3f6ae5b9508571e611a9591d8ebf6f139a579e3e6168c88317949dde39b45b3e",
+      "committed": true,
+      "replayed": true,
+      "refusal": null,
+      "record_id": "b18cdd5b10e643a0821fab4fcd360c79",
+      "bound_version": "1.0.0",
+      "definition_digest": "933b2c5989aaaf4de67253991f6efc8e3d4a3ef75439062d22bfd5fbd11b7f2d",
+      "schema_id": "schema:bafkreig6ueujlf6e6esp633zuenru3ezwlq23ss4sgyzyxwzuvwcdxsciq",
+      "recorded_at": "2026-10-18T12:02:00.0000000+00:00",
+      "journal_unchanged_by_step": true,
+      "journal_sha256_after_step": "d6b19182dcab19556f363f8e104f53aed99daa5691f548164ea6d14b70835fd9",
+      "files": "steps/R2/"
+    },
+    {
+      "id": "C1",
+      "kind": "conflict",
+      "note": "W1's operation id with a different body",
+      "record_type_id": "eam.asset-class",
+      "operation_id": "q31-asset-op-1",
+      "requested_version": null,
+      "clock_utc": "2026-10-18T12:32:00.0000000+00:00",
+      "idempotency_key": "8:tenant-a5:alice14:q31-asset-op-1",
+      "intent_encoding_version": "records-write-intent/1",
+      "intent_digest": "276b85087039ccb312ebf996d69aea2240ed242ed2a9b3ee32f5689eba6a0fa8",
+      "committed": false,
+      "replayed": false,
+      "refusal": {
+        "stage": "commit",
+        "code": "records.write.replay_conflict",
+        "pointers": [
+          "/operation_id"
+        ]
+      },
+      "journal_unchanged_by_step": true,
+      "journal_sha256_after_step": "d6b19182dcab19556f363f8e104f53aed99daa5691f548164ea6d14b70835fd9",
+      "files": "steps/C1/"
+    }
+  ],
+  "journal": {
+    "file": "journal/records.json",
+    "format": "records-write-file-journal/1",
+    "entries": 4,
+    "sha256": "d6b19182dcab19556f363f8e104f53aed99daa5691f548164ea6d14b70835fd9",
+    "entry_keys": [
+      "8:tenant-a5:alice14:q31-asset-op-1",
+      "8:tenant-a5:alice14:q31-meter-op-1",
+      "8:tenant-a5:alice14:q31-asset-op-2",
+      "8:tenant-a5:alice14:q31-asset-op-3"
+    ],
+    "writer": "old FileJournalRecordWriteStore only"
+  },
+  "not_produced": [
+    {
+      "item": "upsert",
+      "reason": "5ec3cf53's RecordWriteOperation exposes only CreateAsync and CompleteAcceptedAsync, and FileJournalRecordWriteStore appends one entry per new idempotency key (a repeated key settles as Replayed or Conflict without writing). There is no update/upsert path to execute, so none was simulated."
+    }
+  ]
+}

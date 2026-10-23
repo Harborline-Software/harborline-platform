@@ -89,8 +89,13 @@ public sealed class RecordsEditorContractFixtureTests
         Assert.Equal(Text(catalogue["definitionVersion"]), created.Revision.Document.Version);
         Assert.Equal(catalogue["expectedCreateRevision"]!.GetValue<long>(), created.Revision.Revision);
         Assert.Equal(Enum.Parse<DefinitionStatus>(Text(catalogue["expectedStatus"])), created.Revision.Status);
-        Assert.Equal(canonical, created.Revision.Document.BodyJson);
-        Assert.True(JsonNode.DeepEquals(g1["expectedStoredBody"], JsonNode.Parse(created.Revision.Document.BodyJson)));
+        // The held T618 fixture remains the legacy grammar oracle. New creation adds exactly the two policy
+        // declarations agreed for T615; neither this test nor the source producer rewrites that fixture.
+        var expectedBody = g1["expectedStoredBody"]!.DeepClone();
+        expectedBody["amendment_policy"] = JsonNode.Parse("""{"reason_required":true}""");
+        expectedBody["history_policy"] = "enabled";
+        Assert.Equal(CreatedAssetClassJson, created.Revision.Document.BodyJson);
+        Assert.True(JsonNode.DeepEquals(expectedBody, JsonNode.Parse(created.Revision.Document.BodyJson)));
         Assert.Equal(canonical, Encoding.UTF8.GetString(RecordTypeDefinitionJson.SerializeCanonical(
             RecordTypeDefinitionJson.Deserialize(Encoding.UTF8.GetBytes(canonical)))));
     }
@@ -190,6 +195,7 @@ public sealed class RecordsEditorContractFixtureTests
         var authored = ToDocument(BaseRequest(), identity);
         var resaved = await host.Records.SaveDraftAsync(identity, authored, versionId, loadedRevision, "resave");
         Assert.Equal(external["expectedRevision"]!.GetValue<long>(), resaved.Revision);
+        Assert.Equal(CreatedAssetClassJson, resaved.Document.BodyJson);
 
         var stale = await Assert.ThrowsAsync<DefinitionRefusalException>(
             () => host.Records.SaveDraftAsync(identity, authored, versionId, loadedRevision, "stale-save").AsTask());
