@@ -200,7 +200,13 @@ public sealed class CldrPluralRulesTests
         }
         Assert.Equal(218 * 423, comparisons);
         // Both directions: no unexplained disagreement, and no allow-list entry that no longer occurs.
-        Assert.Equal(allowed, mismatches);
+        var unexplained = mismatches.Except(allowed, StringComparer.Ordinal).ToArray();
+        var stale = allowed.Except(mismatches, StringComparer.Ordinal).ToArray();
+        var byLocale = string.Join(", ", unexplained.GroupBy(entry => entry[..entry.IndexOf(' ', StringComparison.Ordinal)], StringComparer.Ordinal)
+            .Select(group => $"{group.Key}={group.Count()}"));
+        Assert.True(unexplained.Length == 0 && stale.Length == 0,
+            $"{unexplained.Length} unexplained disagreements in {comparisons} comparisons (by locale: {byLocale}); "
+            + $"first: {string.Join("; ", unexplained.Take(40))}. Stale allow-list entries: {string.Join("; ", stale)}");
     }
 
     private static string Key(string locale, string number, HarborlinePluralCategory node, HarborlinePluralCategory dotnet) =>
