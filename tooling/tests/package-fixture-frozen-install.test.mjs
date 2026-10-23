@@ -1598,7 +1598,7 @@ function runAggregatesRendererInstall(state, { failCopy, failMkdir } = {}) {
   assert.equal(Buffer.byteLength(guards), 908)
   assert.equal(createHash('sha256').update(guards).digest('hex'), 'e2240922fe8beca78c1a8fd016fc1d285b328bc977bbb33ac87092437baff0c9')
   assert.equal(createHash('sha256').update(body.slice(engineStart, rendererStart)).digest('hex'), 'fed64890d196ec339e790b423c397532e900596260a9e68fe59d6661d0e69f5e')
-  assert.equal(createHash('sha256').update(body.slice(end)).digest('hex'), 'ed8aa8e025031d6aa33ef99cd6f17ec15bb974da09bd5dbe51c0f5d9d51496a2')
+  assert.equal(createHash('sha256').update(body.slice(end)).digest('hex'), '2dbbdf2bda60b586f127fdc58069e38bdb9d0ded0fc089f90ad38e501abef01e')
   assert.doesNotMatch(guards + renderer, /engineTimeline|engineConsumer|runNugetConsumer|proofLines|clientRun/,
     'unit slices supply no engine timeline and invoke no native or client proof')
   assert.ok(body.slice(end).startsWith("  assertPackedInstall(rendererConsumer, ['ui-react', 'rule-authoring', 'rule-engine', 'contracts'], 'Aggregates renderer')"))

@@ -1002,6 +1002,65 @@
         "state": "Resolved",
         "value": false
       }
+    },
+    {
+      "name": "guard/non-coding-custom-step-budget-refuses",
+      "limits": {
+        "stepBudget": 1
+      },
+      "guardValue": "g.custom",
+      "definitionRules": [
+        {
+          "id": "g.custom",
+          "tier": "JsonLogic",
+          "scope": "Schema",
+          "scopeTarget": "",
+          "action": "Compute",
+          "expression": {
+            "+": [
+              1,
+              2
+            ]
+          }
+        }
+      ],
+      "instance": {},
+      "expectedGuardValue": {
+        "state": "Error",
+        "error": {
+          "code": "rule.budget_exceeded",
+          "params": {
+            "rule": "g.custom"
+          }
+        }
+      }
+    },
+    {
+      "name": "guard/non-coding-custom-step-budget-admits",
+      "limits": {
+        "stepBudget": 16
+      },
+      "guardValue": "g.custom",
+      "definitionRules": [
+        {
+          "id": "g.custom",
+          "tier": "JsonLogic",
+          "scope": "Schema",
+          "scopeTarget": "",
+          "action": "Compute",
+          "expression": {
+            "+": [
+              1,
+              2
+            ]
+          }
+        }
+      ],
+      "instance": {},
+      "expectedGuardValue": {
+        "state": "Resolved",
+        "value": 3
+      }
     }
   ]
 }

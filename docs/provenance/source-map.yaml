@@ -141,7 +141,7 @@
         "projections/typescript/foundation/hlp.foundation.rule-runtime/src/graph.ts": "1edd95bba293ca2ff279d4323132690edcfcdb4ad5e92915a12c73f6f2740820",
         "projections/typescript/foundation/hlp.foundation.rule-runtime/src/jsonlogic.ts": "1f51e7ab01eced5258e96feab7d99f3068a449b12bf1b4168656b55860a90216",
         "projections/typescript/foundation/hlp.foundation.rule-runtime/src/model.ts": "b6dad0b7b1311263f6e3f37f346e1f4f246004612db26ae560fa2ca50649eac9",
-        "specs/modules/foundation/hlp.foundation.rule-runtime/interface.yaml": "544a407e2583b4ac8a505fafc2c8c47284af2de561126bc6d78743c07a94d1b9"
+        "specs/modules/foundation/hlp.foundation.rule-runtime/interface.yaml": "3631368c46557249760ffc5bdf5801e4ff6e0ec0867710adc7d110ae9d585b02"
       },
       "nextGate": "Extract the complete caller-backed Forms definition/version/draft/reuse state, then the executable Forms Engine, against this runtime."
     },

@@ -192,7 +192,7 @@ function guardValueOutcome(c: CorpusCase): string {
   if (!rule) throw new Error(`case '${c.name}': guardValue names unknown rule '${c.guardValue}'`)
   const evaluator = c.codingCapture
     ? new GuardEvaluator(clockOf(c), limitsOf(c), CodingSubsumptionSnapshot.fromJsonText(c.codingCapture.answersJsonText, c.codingCapture.expectedBindingsJsonText))
-    : new GuardEvaluator(clockOf(c))
+    : new GuardEvaluator(clockOf(c), limitsOf(c))
   return serializeComputedValue(evaluator.evaluateValue(rule, RuleContextSnapshot.fromJsonText(JSON.stringify(c.instance)), testAdmission))
 }
 
