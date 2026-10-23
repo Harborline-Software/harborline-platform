@@ -27,17 +27,10 @@ public sealed class SwitchTests : BunitContext
     // handler of its own, so the browser's single click per Enter or Space is the only request (bUnit cannot
     // press native keys; the Chromium probe checks the count). visible-label clicks the element the label's
     // for targets, as the browser forwards label activation. rtl asserts logical direction and checked markers
-    // (pixel geometry is the gallery's check). touch-target drives the form-factor queries through a fake
+    // (pixel geometry is the gallery's check). touch-target flips the coarse-pointer query through a fake
     // observer and asserts the data-hl-touch marker plus the stylesheet's 44px rule keyed on it.
     // projection-equivalence compares lanes. An unknown case id fails.
     private static readonly string[] Unasserted = ["switch.projection-equivalence"];
-    private sealed class Media : IMediaQueryObserver
-    {
-        public bool Coarse { get; set; }
-        public ValueTask<IMediaQuerySubscription> ObserveAsync(string query, Func<MediaQueryChange, ValueTask> onChanged, CancellationToken cancellationToken = default) =>
-            ValueTask.FromResult<IMediaQuerySubscription>(new Subscription(query, Coarse && query == Harborline.Foundation.Responsive.FormFactorQueries.AnyCoarsePointer));
-        private sealed record Subscription(string Query, bool Matches) : IMediaQuerySubscription { public ValueTask DisposeAsync() => ValueTask.CompletedTask; }
-    }
     private static string RepositoryFile(string relative)
     {
         for (var directory = new DirectoryInfo(AppContext.BaseDirectory); directory is not null; directory = directory.Parent)
@@ -188,21 +181,18 @@ public sealed class SwitchTests : BunitContext
             }
             case "switch.touch-target":
             {
-                var media = new Media();
+                var media = new LiveMedia();
                 Services.AddSingleton<IMediaQueryObserver>(media);
-                (string? Touch, string? Size) Tokens(bool coarse)
-                {
-                    media.Coarse = coarse;
-                    var root = Render<HarborlineSwitch>(p => p.Add(x => x.AccessibleName, "Alerts").Add(x => x.Size, SwitchSize.Sm)).Find(".hl-switch");
-                    return (root.GetAttribute("data-hl-touch"), root.GetAttribute("data-hl-size"));
-                }
-                Assert.Equal("sm", input.GetProperty("size").GetString());
-                var fine = Tokens(false);
-                var coarse = Tokens(input.GetProperty("coarsePointer").GetBoolean());
+                var size = Enum.Parse<SwitchSize>(input.GetProperty("size").GetString()!, ignoreCase: true);
+                var cut = Render<HarborlineSwitch>(p => p.Add(x => x.AccessibleName, "Alerts").Add(x => x.Size, size));
+                (string? Touch, string? Size) Tokens() { var root = cut.Find(".hl-switch"); return (root.GetAttribute("data-hl-touch"), root.GetAttribute("data-hl-size")); }
+                var fine = Tokens();
+                cut.InvokeAsync(() => media.SetAsync(Harborline.Foundation.Responsive.FormFactorQueries.AnyCoarsePointer, input.GetProperty("coarsePointer").GetBoolean())).GetAwaiter().GetResult();
+                cut.WaitForAssertion(() => Assert.Equal("true", Tokens().Touch));
+                var coarse = Tokens();
                 Assert.Null(fine.Touch);
-                Assert.Equal("true", coarse.Touch);
                 // The visible pill keeps its size token; the marker only switches on the invisible ::before target.
-                Assert.Equal(expected.GetProperty("visiblePillUnchanged").GetBoolean(), fine.Size == coarse.Size && coarse.Size == "sm");
+                Assert.Equal(expected.GetProperty("visiblePillUnchanged").GetBoolean(), fine.Size == coarse.Size && coarse.Size == input.GetProperty("size").GetString());
                 var rule = System.Text.RegularExpressions.Regex.Match(RepositoryFile("projections/blazor/ui/hlp.ui.switch/wwwroot/switch.css"), @"\.hl-switch\[data-hl-touch='true'\] \.hl-switch__control::before\{min-inline-size:(\d+)px;min-block-size:(\d+)px\}");
                 var minimum = expected.GetProperty("minimumTargetCssPixels").GetInt32();
                 Assert.Equal((minimum, minimum), (int.Parse(rule.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture), int.Parse(rule.Groups[2].Value, System.Globalization.CultureInfo.InvariantCulture)));
@@ -273,4 +263,76 @@ public sealed class SwitchTests : BunitContext
         }
     }
     private static void AssertFixturePrefix(string prefix){var raw=SharedFixtureBatch.Current;if(string.IsNullOrWhiteSpace(raw))return;using var fixture=System.Text.Json.JsonDocument.Parse(raw);Assert.StartsWith(prefix,fixture.RootElement.GetProperty("id").GetString());}
+
+    // Touch sizing beyond the fixture: the observer is shared, every form-factor signal is followed, a
+    // disposed switch ignores later changes, and a failing observer leaves the pointer-sized switch.
+    private sealed class LiveMedia : IMediaQueryObserver
+    {
+        public int Calls { get; private set; }
+        public bool Fail { get; init; }
+        private readonly Dictionary<string, Func<MediaQueryChange, ValueTask>> callbacks = new(StringComparer.Ordinal);
+        public ValueTask<IMediaQuerySubscription> ObserveAsync(string query, Func<MediaQueryChange, ValueTask> onChanged, CancellationToken cancellationToken = default)
+        {
+            Calls++;
+            if (Fail) throw new Microsoft.JSInterop.JSException("media-query module unavailable");
+            callbacks[query] = onChanged;
+            return ValueTask.FromResult<IMediaQuerySubscription>(new Live(query));
+        }
+        public Task SetAsync(string query, bool matches) => callbacks[query](new(query, matches)).AsTask();
+        private sealed record Live(string Query) : IMediaQuerySubscription { public bool Matches => false; public ValueTask DisposeAsync() => ValueTask.CompletedTask; }
+    }
+
+    [Fact]
+    public void SwitchesSharingAnObserverSubscribeToTheFormFactorQueriesOnce()
+    {
+        var media = new LiveMedia();
+        Services.AddSingleton<IMediaQueryObserver>(media);
+        Render<HarborlineSwitch>(p => p.Add(x => x.AccessibleName, "One"));
+        Render<HarborlineSwitch>(p => p.Add(x => x.AccessibleName, "Two"));
+        Assert.Equal(4, media.Calls);
+    }
+
+    [Fact]
+    public async Task PhoneWidthShortLandscapeAndCoarsePointerEachTurnOnTheTouchTarget()
+    {
+        var media = new LiveMedia();
+        Services.AddSingleton<IMediaQueryObserver>(media);
+        var cut = Render<HarborlineSwitch>(p => p.Add(x => x.AccessibleName, "Alerts"));
+        string? Marker() => cut.Find(".hl-switch").GetAttribute("data-hl-touch");
+        Assert.Null(Marker());
+        await cut.InvokeAsync(() => media.SetAsync(Harborline.Foundation.Responsive.FormFactorQueries.Phone, true));
+        cut.WaitForAssertion(() => Assert.Equal("true", Marker()));
+        await cut.InvokeAsync(() => media.SetAsync(Harborline.Foundation.Responsive.FormFactorQueries.Phone, false));
+        cut.WaitForAssertion(() => Assert.Null(Marker()));
+        await cut.InvokeAsync(() => media.SetAsync(Harborline.Foundation.Responsive.FormFactorQueries.Landscape, true));
+        Assert.Null(Marker());
+        await cut.InvokeAsync(() => media.SetAsync(Harborline.Foundation.Responsive.FormFactorQueries.ShortHeight, true));
+        cut.WaitForAssertion(() => Assert.Equal("true", Marker()));
+        await cut.InvokeAsync(() => media.SetAsync(Harborline.Foundation.Responsive.FormFactorQueries.ShortHeight, false));
+        cut.WaitForAssertion(() => Assert.Null(Marker()));
+        await cut.InvokeAsync(() => media.SetAsync(Harborline.Foundation.Responsive.FormFactorQueries.AnyCoarsePointer, true));
+        cut.WaitForAssertion(() => Assert.Equal("true", Marker()));
+        // The visible pill keeps its size token throughout.
+        Assert.Equal("md", cut.Find(".hl-switch").GetAttribute("data-hl-size"));
+    }
+
+    [Fact]
+    public async Task ADisposedSwitchIgnoresLaterFormFactorChanges()
+    {
+        var media = new LiveMedia();
+        Services.AddSingleton<IMediaQueryObserver>(media);
+        var cut = Render<HarborlineSwitch>(p => p.Add(x => x.AccessibleName, "Alerts"));
+        await DisposeComponentsAsync();
+        await media.SetAsync(Harborline.Foundation.Responsive.FormFactorQueries.AnyCoarsePointer, true);
+        Assert.Equal(4, media.Calls);
+    }
+
+    [Fact]
+    public void AFailingObserverLeavesThePointerSizedSwitch()
+    {
+        Services.AddSingleton<IMediaQueryObserver>(new LiveMedia { Fail = true });
+        var cut = Render<HarborlineSwitch>(p => p.Add(x => x.AccessibleName, "Alerts"));
+        Assert.Null(cut.Find(".hl-switch").GetAttribute("data-hl-touch"));
+        Assert.Equal("Alerts", cut.Find("[role=switch]").GetAttribute("aria-label"));
+    }
 }
