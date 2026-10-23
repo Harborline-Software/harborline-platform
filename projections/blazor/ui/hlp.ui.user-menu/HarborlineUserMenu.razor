@@ -2,11 +2,12 @@
 @inherits HarborlineComponentBase
 @implements IAsyncDisposable
 @using Microsoft.JSInterop
+@using Harborline.UIAdapters.Blazor.Localization
 @inject IJSRuntime JavaScript
 
 <div @ref="Root" class="@CombineClasses("hl-user-menu")" style="@CombineStyles()" data-placement="@PlacementToken" data-alignment="@AlignmentToken" dir="@Direction" @attributes="AdditionalAttributes">
   <button @ref="Trigger" type="button" class="hl-user-menu__trigger" data-hl-touch="@(!CanShowRail ? "true" : null)"
-          aria-label="@Labels.Trigger(Identity.Name)" aria-haspopup="@(HasCustom ? "dialog" : "menu")"
+          aria-label="@L.Trigger(Identity.Name)" aria-haspopup="@(HasCustom ? "dialog" : "menu")"
           aria-expanded="@CurrentOpen.ToString().ToLowerInvariant()" aria-controls="@(CurrentOpen ? PanelId : null)" @onclick="ToggleAsync">
     <span aria-hidden="true" class="hl-user-menu__avatar">
       @if (!avatarFailed && !string.IsNullOrWhiteSpace(Identity.AvatarUri)) { <img src="@Identity.AvatarUri" alt="" @onerror="() => avatarFailed = true" /> }
@@ -16,7 +17,7 @@
   </button>
   @if (CurrentOpen)
   {
-    <div @ref="Panel" id="@PanelId" role="@(HasCustom ? "dialog" : "menu")" aria-label="@Labels.Panel"
+    <div @ref="Panel" id="@PanelId" role="@(HasCustom ? "dialog" : "menu")" aria-label="@L.Panel"
          class="hl-user-menu__surface" data-placement="@PlacementToken" data-alignment="@AlignmentToken" @onkeydown="HandleKeyAsync">
       <header class="hl-user-menu__identity"><strong>@Identity.Name</strong>@if(Identity.Email is not null){<span>@Identity.Email</span>}@if(Identity.Role is not null){<span>@Identity.Role</span>}</header>
       <div class="hl-user-menu__items">
@@ -39,7 +40,7 @@
             </button>
           }
         }
-        @if (OnSignOut.HasDelegate) { <button type="button" role="@(HasCustom ? null : "menuitem")" tabindex="@(HasCustom ? 0 : activeIndex == Items.Count ? 0 : -1)" class="hl-user-menu__item hl-user-menu__sign-out" @onfocus="() => activeIndex = Items.Count" @onclick="SignOutAsync">@Labels.SignOut</button> }
+        @if (OnSignOut.HasDelegate) { <button type="button" role="@(HasCustom ? null : "menuitem")" tabindex="@(HasCustom ? 0 : activeIndex == Items.Count ? 0 : -1)" class="hl-user-menu__item hl-user-menu__sign-out" @onfocus="() => activeIndex = Items.Count" @onclick="SignOutAsync">@L.SignOut</button> }
       </div>
     </div>
   }
@@ -52,6 +53,20 @@
   [Parameter] public UserMenuPlacement Placement { get; set; } = UserMenuPlacement.Bottom;
   [Parameter] public UserMenuAlignment Alignment { get; set; } = UserMenuAlignment.InlineEnd;
   [Parameter] public UserMenuLabels Labels { get; set; } = UserMenuLabels.English;
+  [CascadingParameter] private HarborlineLocaleContext? LocaleContext { get; set; }
+  // Caller text, then the catalog (navigation.userMenu.*: the host's, else the default catalog), then
+  // English. A field still equal to its English default counts as not customised, so a caller writing
+  // `English with { SignOut = ... }` keeps catalog copy for the rest; blank text is no text.
+  private UserMenuLabels L => new(
+    name => Localized("navigation.userMenu.trigger", ReferenceEquals(Labels.Trigger, UserMenuLabels.English.Trigger) ? null : Labels.Trigger?.Invoke(name), UserMenuLabels.English.Trigger(name), new Dictionary<string, object?> { ["name"] = name }),
+    Localized("navigation.userMenu.panel", Labels.Panel == UserMenuLabels.English.Panel ? null : Labels.Panel, UserMenuLabels.English.Panel),
+    Localized("navigation.userMenu.signOut", Labels.SignOut == UserMenuLabels.English.SignOut ? null : Labels.SignOut, UserMenuLabels.English.SignOut));
+  private string Localized(string key, string? caller, string english, IReadOnlyDictionary<string, object?>? variables = null)
+  {
+    if (!string.IsNullOrWhiteSpace(caller)) return caller;
+    var catalog = LocaleContext?.ResolveString(key, variables) ?? Harborline.Foundation.Localization.HarborlineDefaultStrings.Interpolate(Harborline.Foundation.Localization.HarborlineDefaultStrings.Get(key), variables);
+    return string.IsNullOrWhiteSpace(catalog) || catalog == key ? english : catalog;
+  }
   [Parameter] public bool CanShowRail { get; set; } = true;
   [Parameter] public string? Direction { get; set; }
 
@@ -87,7 +102,7 @@
   private IReadOnlyList<(UserMenuEntry item,int index)> EnabledMenuItems => Items.Select((item,index)=>(item,index)).Where(pair=>pair.item.Kind is UserMenuEntryKind.Action or UserMenuEntryKind.Link && !pair.item.Disabled).ToArray();
   // The roving order: enabled actions and links in caller order, then Sign out (identity null, index
   // Items.Count) when supplied, as in React. Focus is requested by identity, never by DOM position.
-  private IReadOnlyList<(string? id,string label,int index)> RovingEntries => EnabledMenuItems.Select(pair=>((string?)pair.item.Id,pair.item.Label??string.Empty,pair.index)).Concat(OnSignOut.HasDelegate?[((string?)null,Labels.SignOut??string.Empty,Items.Count)]:[]).ToArray();
+  private IReadOnlyList<(string? id,string label,int index)> RovingEntries => EnabledMenuItems.Select(pair=>((string?)pair.item.Id,pair.item.Label??string.Empty,pair.index)).Concat(OnSignOut.HasDelegate?[((string?)null,L.SignOut,Items.Count)]:[]).ToArray();
 
   protected override void OnParametersSet()
   {

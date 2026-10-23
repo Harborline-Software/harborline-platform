@@ -25,7 +25,8 @@ public sealed record NotificationCenterLabels(
     string ViewAll,
     string Empty,
     Func<string, string> Dismiss,
-    string Unread)
+    string Unread,
+    string? GroupLabel = null)
 {
     /// <summary>The default English notification center text.</summary>
     public static NotificationCenterLabels English { get; } = new(

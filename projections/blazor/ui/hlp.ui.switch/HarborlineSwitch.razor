@@ -58,12 +58,12 @@
   // A blank name is no name: it falls through to the label or the field label.
   private string? ResolvedAccessibleName => string.IsNullOrWhiteSpace(AccessibleName) ? null : AccessibleName;
 
-  // Instance override, then catalog, then fallback. A catalog miss echoes the key back, so an
+  // Instance override, then catalog (the host's, else the default catalog), then fallback. A catalog miss echoes the key back, so an
   // echoed key counts as unresolved rather than as user-facing text; so does blank catalog text.
   private string LocalizedText(string key, string? instanceOverride, string fallback)
   {
     if (!string.IsNullOrWhiteSpace(instanceOverride)) return LocaleContext?.ResolveString(key, instanceOverride: instanceOverride) ?? instanceOverride;
-    var resolved = LocaleContext?.ResolveString(key);
+    var resolved = LocaleContext?.ResolveString(key) ?? Harborline.Foundation.Localization.HarborlineDefaultStrings.Values.GetValueOrDefault(key);
     return string.IsNullOrWhiteSpace(resolved) || resolved == key ? fallback : resolved;
   }
   private string? LabelledBy => !string.IsNullOrWhiteSpace(Label) ? LocalLabelId : ResolvedAccessibleName is null ? FieldContext?.LabelId : null;

@@ -85,7 +85,9 @@ export const Switch = React.forwardRef<HTMLButtonElement, SwitchProps>(function 
   const descriptionId = description ? `${switchId}-description` : undefined
   // A blank name is no name: it falls through to the label, and fails if there is none.
   const effectiveName = [accessibleName, ariaLabel].find(value => value?.trim()) ?? undefined
-  const labelledBy = (ariaLabelledBy?.trim() ? ariaLabelledBy : undefined) ?? (effectiveName ? undefined : labelId ?? formField.labelId)
+  // A rendered visible label is the name (accname 1.2 computes aria-labelledby before aria-label; WCAG
+  // 2.5.3 Label in Name); a caller name applies only when no visible label is rendered.
+  const labelledBy = (ariaLabelledBy?.trim() ? ariaLabelledBy : undefined) ?? labelId ?? (effectiveName ? undefined : formField.labelId)
   if (!effectiveName && !labelledBy) throw new Error('accessible-switch-label-required')
   const describedBy = joinIds(formField.describedBy, ariaDescribedBy, descriptionId)
   const localizedOn = stateText(onText, 'forms.switch.on', 'On', t)

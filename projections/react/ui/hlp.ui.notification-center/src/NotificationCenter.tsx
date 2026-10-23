@@ -1,6 +1,7 @@
 import * as React from 'react'
 
 import { cn } from '@harborline-platform/hlp.ui.cn'
+import { useHarborlineStrings } from '@harborline-platform/hlp.ui.locale-provider'
 import { Popover, PopoverContent, PopoverTrigger } from '@harborline-platform/hlp.ui.popover'
 import { useCanShowRail } from '@harborline-platform/hlp.ui.use-is-mobile'
 
@@ -52,13 +53,33 @@ const defaults: NotificationCenterLabels = {
   groupLabel: 'Notification groups', unread: 'Unread', dismiss: title => `Dismiss: ${title}`,
 }
 
-function resolveLabels(overrides: Partial<NotificationCenterLabels> | undefined): NotificationCenterLabels {
+type Translate = (key: string, vars?: Record<string, string | number>) => string
+const catalogKeys: Record<Exclude<keyof NotificationCenterLabels, 'dismiss'>, string> = {
+  title: 'navigation.notifications.title', all: 'navigation.notifications.all', confirm: 'navigation.notifications.confirm',
+  deny: 'navigation.notifications.deny', markAllRead: 'navigation.notifications.markAllRead', viewAll: 'navigation.notifications.viewAll',
+  empty: 'navigation.notifications.empty', groupLabel: 'navigation.notifications.groups', unread: 'navigation.notifications.unread',
+}
+
+// The default copy comes from the catalog (navigation.notifications.*); English is the last resort
+// for a blank or missing catalog value.
+function catalogDefaults(t: Translate): NotificationCenterLabels {
+  const read = (key: string, fallback: string, vars?: Record<string, string | number>) => {
+    const value = t(key, vars)
+    return value.trim() && value !== key ? value : fallback
+  }
   const resolved = { ...defaults }
+  for (const [label, key] of Object.entries(catalogKeys) as Array<[keyof typeof catalogKeys, string]>) resolved[label] = read(key, defaults[label])
+  resolved.dismiss = title => read('navigation.notifications.dismiss', defaults.dismiss(title), { title })
+  return resolved
+}
+
+function resolveLabels(overrides: Partial<NotificationCenterLabels> | undefined, base: NotificationCenterLabels): NotificationCenterLabels {
+  const resolved = { ...base }
   for (const [key, value] of Object.entries(overrides ?? {}) as Array<[keyof NotificationCenterLabels, unknown]>) {
     if (typeof value === 'string' && value.trim()) (resolved as Record<string, unknown>)[key] = value
   }
   const dismiss = overrides?.dismiss
-  if (dismiss) resolved.dismiss = title => { const text = dismiss(title); return text?.trim() ? text : defaults.dismiss(title) }
+  if (dismiss) resolved.dismiss = title => { const text = dismiss(title); return text?.trim() ? text : base.dismiss(title) }
   return resolved
 }
 
@@ -81,7 +102,8 @@ export function NotificationCenter({
   if (new Set(items.map(item => item.id)).size !== items.length) throw new Error('duplicate-notification-id')
   // Caller text overrides each label; blank caller text is no text and keeps the default, so no
   // chrome or control name is ever empty.
-  const labels = React.useMemo(() => resolveLabels(overrides), [overrides])
+  const { t } = useHarborlineStrings()
+  const labels = React.useMemo(() => resolveLabels(overrides, catalogDefaults(t)), [overrides, t])
   const unread = items.filter(item => !item.read).length
   const pending = items.filter(item => item.kind === 'proposal').length
   const otherUnread = items.filter(item => item.kind !== 'proposal' && !item.read).length

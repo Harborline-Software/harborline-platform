@@ -21,7 +21,7 @@
       <header class="hl-notification-center__header"><h2>@L.Title</h2>@if(UnreadCount > 0 && OnMarkAllRead.HasDelegate){<button type="button" @onclick="MarkAllReadAsync">@L.MarkAllRead</button>}</header>
       @if (ResolvedGroups.Count > 1)
       {
-        <div role="tablist" aria-label="@L.Title" class="hl-notification-center__tabs">
+        <div role="tablist" aria-label="@L.GroupLabel" class="hl-notification-center__tabs">
           <button type="button" role="tab" aria-selected="@(activeKind is null ? "true" : "false")" @onclick="() => SetKind(null)">@L.All</button>
           @foreach (var group in ResolvedGroups) { <button type="button" role="tab" aria-selected="@(activeKind == group.Kind ? "true" : "false")" @onclick="() => SetKind(group.Kind)">@group.Label</button> }
         </div>
@@ -97,13 +97,27 @@
   // Caller text overrides each label; blank caller text keeps the English default, so no chrome or
   // control name is ever empty.
   private NotificationCenterLabels L = NotificationCenterLabels.English;
-  private static NotificationCenterLabels ResolveLabels(NotificationCenterLabels labels)
+  // Caller text, then the catalog (navigation.notifications.*: the host's, else the default catalog),
+  // then English. A field still equal to its English default counts as not customised, so a caller
+  // writing `English with { Title = ... }` keeps catalog copy for the rest; blank text is no text.
+  private NotificationCenterLabels ResolveLabels(NotificationCenterLabels labels)
   {
     var english = NotificationCenterLabels.English;
-    static string Pick(string? value, string fallback) => string.IsNullOrWhiteSpace(value) ? fallback : value;
-    return new(Pick(labels.Title, english.Title), Pick(labels.All, english.All), Pick(labels.Confirm, english.Confirm), Pick(labels.Deny, english.Deny),
-      Pick(labels.MarkAllRead, english.MarkAllRead), Pick(labels.ViewAll, english.ViewAll), Pick(labels.Empty, english.Empty),
-      title => Pick(labels.Dismiss?.Invoke(title), english.Dismiss(title)), Pick(labels.Unread, english.Unread));
+    string Field(string key, string? caller, string englishText) => Localized(key, caller == englishText ? null : caller, englishText);
+    var dismissCustom = !ReferenceEquals(labels.Dismiss, english.Dismiss);
+    return new(Field("navigation.notifications.title", labels.Title, english.Title), Field("navigation.notifications.all", labels.All, english.All),
+      Field("navigation.notifications.confirm", labels.Confirm, english.Confirm), Field("navigation.notifications.deny", labels.Deny, english.Deny),
+      Field("navigation.notifications.markAllRead", labels.MarkAllRead, english.MarkAllRead), Field("navigation.notifications.viewAll", labels.ViewAll, english.ViewAll),
+      Field("navigation.notifications.empty", labels.Empty, english.Empty),
+      title => Localized("navigation.notifications.dismiss", dismissCustom ? labels.Dismiss?.Invoke(title) : null, english.Dismiss(title), new Dictionary<string, object?> { ["title"] = title }),
+      Field("navigation.notifications.unread", labels.Unread, english.Unread),
+      Localized("navigation.notifications.groups", labels.GroupLabel, "Notification groups"));
+  }
+  private string Localized(string key, string? caller, string englishText, IReadOnlyDictionary<string, object?>? variables = null)
+  {
+    if (!string.IsNullOrWhiteSpace(caller)) return caller;
+    var catalog = LocaleContext?.ResolveString(key, variables) ?? Harborline.Foundation.Localization.HarborlineDefaultStrings.Interpolate(Harborline.Foundation.Localization.HarborlineDefaultStrings.Get(key), variables);
+    return string.IsNullOrWhiteSpace(catalog) || catalog == key ? englishText : catalog;
   }
   private int UnreadCount => Items.Count(item => !item.Read);
   private int PendingCount => Items.Count(item => item.Kind == "proposal");
