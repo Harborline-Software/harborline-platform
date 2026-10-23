@@ -1341,6 +1341,57 @@ export const defaultStrings = {
   'chrome.guard.recovered.announce': 'Re-guarded.',
   /** GuardedControl heavy-composition (dual/launch) fallback — the governed pending flow (B10) is not wired yet. */
   'chrome.guard.pending.unavailable': 'This guarded action needs approval steps that are not available yet.',
+
+  // ── Revision 2 (platform UI round 2, 2026-10-23) ──────────────────────────────────────
+  // Platform-originated keys, not from the pinned Harborline App source: the default copy of
+  // Switch, LayersRail, NotificationCenter and UserMenu, which earlier hard-coded English. Kept
+  // in this block after the 713 revision-1 keys, which are unchanged in identity, value and order.
+  /** Switch: state copy when off. */
+  'forms.switch.off': 'Off',
+  /** Switch: state copy when on. */
+  'forms.switch.on': 'On',
+  /** LayersRail: collapse an outline node. */
+  'navigation.layersRail.collapse': 'Collapse',
+  /** LayersRail: empty outline. */
+  'navigation.layersRail.empty': 'Add your first field — press ⌘K or the + above.',
+  /** LayersRail: leave the active lens. */
+  'navigation.layersRail.exitLens': 'Exit lens (back to Layout)',
+  /** LayersRail: expand an outline node. */
+  'navigation.layersRail.expand': 'Expand',
+  /** LayersRail: insert action. */
+  'navigation.layersRail.insert': 'Insert',
+  /** LayersRail: lens group name and heading. */
+  'navigation.layersRail.lenses': 'Lenses',
+  /** LayersRail: outline tree name and heading. */
+  'navigation.layersRail.outline': 'Outline',
+  /** LayersRail: rail region name. */
+  'navigation.layersRail.region': 'Layers',
+  /** NotificationCenter: the all-kinds tab. */
+  'navigation.notifications.all': 'All',
+  /** NotificationCenter: approve a proposal. */
+  'navigation.notifications.confirm': 'Confirm',
+  /** NotificationCenter: decline a proposal. */
+  'navigation.notifications.deny': 'Deny',
+  /** NotificationCenter: dismiss one item; {title} is the item title. */
+  'navigation.notifications.dismiss': 'Dismiss: {title}',
+  /** NotificationCenter: empty list. */
+  'navigation.notifications.empty': 'No notifications',
+  /** NotificationCenter: tablist name. */
+  'navigation.notifications.groups': 'Notification groups',
+  /** NotificationCenter: mark every item read. */
+  'navigation.notifications.markAllRead': 'Mark all read',
+  /** NotificationCenter: bell, dialog and heading. */
+  'navigation.notifications.title': 'Notifications',
+  /** NotificationCenter: unread marker. */
+  'navigation.notifications.unread': 'Unread',
+  /** NotificationCenter: open the full list. */
+  'navigation.notifications.viewAll': 'View all',
+  /** UserMenu: menu or dialog name. */
+  'navigation.userMenu.panel': 'Account menu',
+  /** UserMenu: sign-out entry. */
+  'navigation.userMenu.signOut': 'Sign out',
+  /** UserMenu: trigger name; {name} is the account display name. */
+  'navigation.userMenu.trigger': 'Account menu for {name}',
 } as const
 
 /**

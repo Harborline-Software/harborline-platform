@@ -1,13 +1,14 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.ui.default-strings",
-  "interfaceRevision": 1,
+  "interfaceRevision": 2,
   "semantics": {
     "operation": "provide the complete application-essential UI string-key catalog, English fallback values, partial host overrides, and bounded runtime interpolation",
     "observableOutput": "A deterministic resolved string for a known key without coupling the UI package to an application i18n runtime."
   },
   "invariants": [
-    "The frozen revision contains exactly 713 unique dot-namespaced keys from the pinned Harborline App source.",
+    "Revision 2 contains exactly 736 unique dot-namespaced keys: the 713 revision-1 keys from the pinned Harborline App source, unchanged in identity, value and order, followed by 23 platform-originated keys (forms.switch.*, navigation.layersRail.*, navigation.notifications.*, navigation.userMenu.*) that give Switch, LayersRail, NotificationCenter and UserMenu catalog-backed default copy.",
+    "Revision 1 is preserved as evidence: selecting the revision-1 keys from the revision-2 catalog, in catalog order, reproduces revision 1 exactly (713 keys, SHA-256 73c7cec0b07f0058d0a48784e76fe8aa86f8e421f85716ff2ea9cc53975c3f7c over JSON.stringify(Object.entries(...))).",
     "The default catalog is the sole source of the closed HarborlineStringKey vocabulary.",
     "A host catalog may override any known key and may omit all other keys.",
     "The module owns catalog data and interpolation only; runtime locale, direction, plural selection, formatter selection, and provider precedence belong to hlp.ui.locale-provider.",
@@ -17,11 +18,11 @@
     "Catalog resolution performs no network access, persistent I/O, or dependency on react-i18next, FormatJS, Telerik, or Blazor localization services."
   ],
   "errors": [{"code": "unknown-key", "when": "A statically typed caller requests a key outside the frozen catalog vocabulary."}],
-  "performance": {"operation": "O(p) interpolation for template length p and O(1) catalog lookup", "catalogKeyCount": 713},
+  "performance": {"operation": "O(p) interpolation for template length p and O(1) catalog lookup", "catalogKeyCount": 736},
   "presentation": {"disposition": "not-applicable", "rationale": "The catalog supplies localized text but renders no visual element itself."},
   "cases": [
     {"id": "default-strings.keyset"},
-    {"id": "default-strings.digest"},
+    {"id": "default-strings.digest"}, {"id": "default-strings.revision-1-subset"}, {"id": "default-strings.revision-2-additions"},
     {"id": "default-strings.namespaces"},
     {"id": "default-strings.english-fallback"},
     {"id": "default-strings.partial-override"},

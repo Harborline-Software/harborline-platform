@@ -1338,14 +1338,14 @@
       }
     },
     "hlp.ui.default-strings": {
-      "interface": {"path": "specs/modules/ui/hlp.ui.default-strings/interface.yaml", "revision": 1},
+      "interface": {"path": "specs/modules/ui/hlp.ui.default-strings/interface.yaml", "revision": 2},
       "moduleKind": "runtime",
       "presentation": {"disposition": "not-applicable", "rationale": "The catalog and interpolation implementation supply text data but render no visual interface."},
       "qualityProfile": {"path": "specs/modules/ui/hlp.ui.default-strings/quality.yaml", "revision": 1},
       "owner": "platform-ui",
       "dependencies": [],
       "status": "extracted-candidate",
-      "depth": {"disposition": "deep-module", "deletionTest": "PASS", "redistributedComplexity": ["the exact 713-key English fallback vocabulary, key typing, namespaces, accessibility strings, and placeholder shapes duplicated across twenty-seven dependent UI modules", "single-brace string and numeric interpolation, visible missing variables, and empty override semantics independently drifting across TypeScript and .NET"]},
+      "depth": {"disposition": "deep-module", "deletionTest": "PASS", "redistributedComplexity": ["the exact 736-key English fallback vocabulary (713 revision-1 keys plus 23 platform UI keys), key typing, namespaces, accessibility strings, and placeholder shapes duplicated across twenty-seven dependent UI modules", "single-brace string and numeric interpolation, visible missing variables, and empty override semantics independently drifting across TypeScript and .NET"]},
       "projections": {
         "react": {"role": "implementation", "path": "projections/react/ui/hlp.ui.default-strings", "status": "conformant", "packageContribution": "@harborline-software/ui-react", "conformanceRunner": "conformance/hlp.ui.default-strings/runners/run-shared.mjs"},
         "dotnet": {"role": "implementation", "path": "projections/dotnet/foundation/hlp.ui.default-strings", "status": "conformant", "packageContribution": "Harborline.Foundation", "conformanceRunner": "conformance/hlp.ui.default-strings/runners/run-shared.mjs"}
