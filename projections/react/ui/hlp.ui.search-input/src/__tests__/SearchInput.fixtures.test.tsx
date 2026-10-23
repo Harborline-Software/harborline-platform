@@ -111,8 +111,16 @@ const assertions: Record<string, (entry: Case) => void> = {
     const host = (catalog: { locale: string; entries: Record<string, string> }, props: Record<string, string> = {}) =>
       <HarborlineLocaleProvider locale={catalog.locale} catalog={catalog.entries}><SearchInput value={input.value} onChange={() => undefined} {...props}/></HarborlineLocaleProvider>
     expect(copy(<SearchInput value={input.value} onChange={() => undefined}/>)).toEqual(expected.defaultCatalog)
-    // A catalog change: French, then Arabic (rtl), then the en-XA pseudo-locale.
-    expect(input.hostCatalogs.map((catalog: any) => copy(host(catalog), true))).toEqual(expected.hostCatalogs)
+    // A catalog change in one live tree: French, then Arabic (rtl), then the en-XA pseudo-locale.
+    const live = render(host(input.hostCatalogs[0]))
+    const read = () => { const box = screen.getByRole('searchbox'); return { placeholder: box.getAttribute('placeholder'), name: box.getAttribute('aria-label'), clearName: live.container.querySelector('.hl-search-input__clear')!.getAttribute('aria-label'), dir: live.container.querySelector('.hl-search-input')!.getAttribute('dir') } }
+    const seen = [read()]
+    for (const catalog of input.hostCatalogs.slice(1)) { live.rerender(host(catalog)); seen.push(read()) }
+    live.unmount()
+    expect(seen).toEqual(expected.hostCatalogs)
+    expect(copy(host(input.keyEchoHost))).toEqual(expected.keyEchoHost)
+    expect(copy(<SearchInput value={input.value} onChange={() => undefined} accessibleLabel={input.accessibleLabels.blank}/>).name).toBe(expected.accessibleLabels.blank)
+    expect(copy(<SearchInput value={input.value} onChange={() => undefined} accessibleLabel={input.accessibleLabels.explicit}/>).name).toBe(expected.accessibleLabels.explicit)
     expect(copy(host(input.hostCatalogs[1], input.blankCaller))).toEqual(expected.blankCaller)
     expect(copy(host(input.blankHost))).toEqual(expected.blankHost)
   },

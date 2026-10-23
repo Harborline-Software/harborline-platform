@@ -176,9 +176,17 @@ public sealed class SearchInputTests : BunitContext
                         .AddChildContent<HarborlineSearchInput>(c => { c.Add(x => x.Value, input.GetProperty("value").GetString()); if (placeholder is not null) c.Add(x => x.Placeholder, placeholder); if (clearLabel is not null) c.Add(x => x.ClearLabel, clearLabel); })).Find(".hl-search-input");
                 var value = input.GetProperty("value").GetString();
                 Assert.Equal(Expected(expected.GetProperty("defaultCatalog")), Copy(Render<HarborlineSearchInput>(p => p.Add(x => x.Value, value)).Find(".hl-search-input"), false));
-                // A catalog change: French, then Arabic (rtl), then the en-XA pseudo-locale.
+                // A catalog change in one live tree: French, then Arabic (rtl), then the en-XA pseudo-locale.
                 var catalogs = input.GetProperty("hostCatalogs").EnumerateArray().ToArray();
-                Assert.Equal(expected.GetProperty("hostCatalogs").EnumerateArray().Select(Expected), catalogs.Select(catalog => Copy(InHost(catalog), true)));
+                Dictionary<string, string> Entries(System.Text.Json.JsonElement catalog) => catalog.GetProperty("entries").EnumerateObject().ToDictionary(x => x.Name, x => x.Value.GetString()!);
+                var live = Render<HarborlineLocaleProvider>(p => p.Add(x => x.Locale, catalogs[0].GetProperty("locale").GetString()).Add(x => x.Catalog, Entries(catalogs[0])).AddChildContent<HarborlineSearchInput>(c => c.Add(x => x.Value, input.GetProperty("value").GetString())));
+                var seen = new List<Dictionary<string, string?>> { Copy(live.Find(".hl-search-input"), true) };
+                foreach (var catalog in catalogs.Skip(1)) { live.Render(p => p.Add(x => x.Locale, catalog.GetProperty("locale").GetString()).Add(x => x.Catalog, Entries(catalog))); seen.Add(Copy(live.Find(".hl-search-input"), true)); }
+                Assert.Equal(expected.GetProperty("hostCatalogs").EnumerateArray().Select(Expected), seen);
+                Assert.Equal(Expected(expected.GetProperty("keyEchoHost")), Copy(InHost(input.GetProperty("keyEchoHost")), false));
+                var labels = input.GetProperty("accessibleLabels");
+                foreach (var kind in new[] { "blank", "explicit" })
+                    Assert.Equal(expected.GetProperty("accessibleLabels").GetProperty(kind).GetString(), Render<HarborlineSearchInput>(p => p.Add(x => x.Value, input.GetProperty("value").GetString()).Add(x => x.AccessibleLabel, labels.GetProperty(kind).GetString())).Find("input").GetAttribute("aria-label"));
                 var blank = input.GetProperty("blankCaller");
                 Assert.Equal(Expected(expected.GetProperty("blankCaller")), Copy(InHost(catalogs[1], blank.GetProperty("placeholder").GetString(), blank.GetProperty("clearLabel").GetString()), false));
                 Assert.Equal(Expected(expected.GetProperty("blankHost")), Copy(InHost(input.GetProperty("blankHost")), false));

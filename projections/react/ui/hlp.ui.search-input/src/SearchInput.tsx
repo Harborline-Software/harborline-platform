@@ -31,7 +31,6 @@ export function SearchInput({
   const resolvedPlaceholder = copy(placeholder, 'structural.search.placeholder')
   // Blank caller text is not a name; fall back to the resolved placeholder, as in Blazor.
   const resolvedName = accessibleLabel?.trim() ? accessibleLabel : resolvedPlaceholder
-  if (resolvedName.trim().length === 0) throw new Error('accessible-name-required')
   const [draft, setDraft] = React.useState(value)
   const [busy, setBusy] = React.useState(false)
   const timer = React.useRef<ReturnType<typeof setTimeout> | null>(null)
