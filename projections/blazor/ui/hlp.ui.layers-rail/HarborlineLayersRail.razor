@@ -35,7 +35,7 @@
     @if (!Compact) { <h2>@L.OutlineHeading</h2> }
     @if (OnInsert.HasDelegate) { <button type="button" class="hl-layers-rail__insert" aria-label="@L.Insert" @onclick="InsertAsync"><svg aria-hidden="true" viewBox="0 0 16 16"><path d="M8 3v10M3 8h10"></path></svg></button> }
   </div>
-  <div role="tree" aria-label="@L.OutlineHeading" class="hl-layers-rail__tree">
+  <div @ref="Tree" role="tree" aria-label="@L.OutlineHeading" class="hl-layers-rail__tree">
     @if (VisibleNodes.Count == 0)
     {
       <p>@(ActiveLens?.Empty ?? L.Empty)</p>
@@ -56,7 +56,7 @@
           @if (expandable)
           {
             @* The tree is one tab stop (APG): the disclosure is for pointers; keyboards use ArrowLeft and ArrowRight. *@
-            <button type="button" class="hl-layers-rail__disclosure" tabindex="-1" aria-label="@(expanded ? L.CollapseNode : L.ExpandNode)" @onclick="() => ToggleExpandedAsync(node)"><svg aria-hidden="true" viewBox="0 0 16 16"><path d="@(expanded ? "M3 6l5 5 5-5" : "M6 3l5 5-5 5")"></path></svg></button>
+            <button type="button" class="hl-layers-rail__disclosure" tabindex="-1" aria-label="@(expanded ? L.CollapseNode : L.ExpandNode)" @onclick="() => ToggleExpandedAsync(node)" @onclick:stopPropagation="true"><svg aria-hidden="true" viewBox="0 0 16 16"><path d="@(expanded ? "M3 6l5 5 5-5" : "M6 3l5 5-5 5")"></path></svg></button>
           }
           else
           {
@@ -93,8 +93,9 @@
   private readonly HashSet<string> Known = new(StringComparer.Ordinal);
   private string? focusedId;
   private string? focusRequest;
+  private bool focusIfLost;
   private IJSObjectReference? module;
-  private ElementReference Root;
+  private ElementReference Root, Tree;
   private AspectLens? ActiveLens => Lenses.FirstOrDefault(lens => lens.Id == State.ActiveId);
   private IReadOnlyList<CanvasNode> VisibleNodes => Canvas.Nodes.Where(IsVisible).ToArray();
 
@@ -115,11 +116,27 @@
   protected override void OnParametersSet()
   {
     L = ResolveLabels(Labels);
+    if (new[] { L.RailRegion, L.LensesHeading, L.OutlineHeading }.Any(string.IsNullOrWhiteSpace)) throw new InvalidOperationException("accessible-rail-label-required");
     if (Lenses.GroupBy(lens => lens.Id, StringComparer.Ordinal).Any(group => group.Count() > 1) || Canvas.Nodes.GroupBy(node => node.Id, StringComparer.Ordinal).Any(group => group.Count() > 1)) throw new InvalidOperationException("duplicate-layer-identity");
-    var ids = Canvas.Nodes.Select(node => node.Id).ToHashSet(StringComparer.Ordinal);
-    if (Canvas.Nodes.Any(node => node.Depth < 0 || (node.ParentId is not null && !ids.Contains(node.ParentId))) || (Canvas.SelectedId is not null && !ids.Contains(Canvas.SelectedId))) throw new InvalidOperationException("invalid-outline-tree");
-    foreach (var node in Canvas.Nodes.Where(node => node.HasChildren == true && Known.Add(node.Id))) Expanded.Add(node.Id);
-    if (focusedId is null || !VisibleNodes.Any(node => node.Id == focusedId)) focusedId = VisibleNodes.FirstOrDefault()?.Id;
+    // As in React: a parent precedes its child and sits exactly one level above it, which also rules out
+    // cycles (a self-parented or cyclic tree would otherwise loop in IsVisible).
+    var seen = new Dictionary<string, CanvasNode>(StringComparer.Ordinal);
+    foreach (var node in Canvas.Nodes)
+    {
+      CanvasNode? parent = null;
+      if (node.Depth < 0 || (node.Depth == 0) != (node.ParentId is null) || (node.ParentId is not null && (!seen.TryGetValue(node.ParentId, out parent) || parent.Depth + 1 != node.Depth))) throw new InvalidOperationException("invalid-outline-tree");
+      seen[node.Id] = node;
+    }
+    if (Canvas.SelectedId is not null && !seen.ContainsKey(Canvas.SelectedId)) throw new InvalidOperationException("invalid-outline-tree");
+    foreach (var node in Canvas.Nodes.Where(node => HasChildren(node) && Known.Add(node.Id))) Expanded.Add(node.Id);
+    // A host change that removes or hides the focused node moves the roving position, and focus with it
+    // if focus was on that node (the module checks focus is on the page or inside the rail).
+    if (focusedId is null || !VisibleNodes.Any(node => node.Id == focusedId))
+    {
+      var previous = focusedId;
+      focusedId = VisibleNodes.FirstOrDefault()?.Id;
+      if (previous is not null && focusedId is not null) { focusRequest = focusedId; focusIfLost = true; }
+    }
   }
 
   private async Task ActivateLensAsync(string id) => await StateChanged.InvokeAsync(State.Activate(id));
@@ -190,7 +207,8 @@
       if (Expanded.Remove(node.Id)) target = node.Id;
       else target = node.ParentId;
     }
-    else if (args.Key is "Enter" or " ") { await SelectNodeAsync(node.Id); return; }
+    // Enter and Space activate the button natively, which selects through its click; arrows, Home and End
+    // don't scroll the rail (layers-rail.js prevents their default on the tree).
     else return;
     if (target is not null) { focusedId = target; focusRequest = target; }
   }
@@ -229,8 +247,12 @@
 
   protected override async Task OnAfterRenderAsync(bool firstRender)
   {
-    if (firstRender) module = await JavaScript.InvokeAsync<IJSObjectReference>("import", "./_content/Harborline.UIAdapters.Blazor/layers-rail.js");
-    if (focusRequest is not null) { var id = focusRequest; focusRequest = null; await module!.InvokeVoidAsync("focusNode", Root, id); }
+    if (firstRender)
+    {
+      module = await JavaScript.InvokeAsync<IJSObjectReference>("import", "./_content/Harborline.UIAdapters.Blazor/layers-rail.js");
+      if (module is not null) await module.InvokeVoidAsync("observeTreeKeys", Tree);
+    }
+    if (focusRequest is not null && module is not null) { var id = focusRequest; var onlyIfLost = focusIfLost; focusRequest = null; focusIfLost = false; await module.InvokeVoidAsync("focusNode", Root, id, onlyIfLost); }
   }
 
   public async ValueTask DisposeAsync() { if (module is not null) try { await module.DisposeAsync(); } catch (JSDisconnectedException) { } }

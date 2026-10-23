@@ -40,14 +40,62 @@ public sealed class LayersRailFocusTests : BunitContext
     }
 
     [Fact]
+    public void EnterAndSpaceSelectOnlyThroughTheNativeClick()
+    {
+        var selected = new List<string>();
+        var cut = Render<LayersRailHost>(p => p.Add(x => x.OnSelect, selected.Add));
+        var node = cut.Find("[data-node-id=child] .hl-layers-rail__node-control");
+        node.KeyDown(new Microsoft.AspNetCore.Components.Web.KeyboardEventArgs { Key = "Enter" });
+        cut.Find("[data-node-id=child] .hl-layers-rail__node-control").KeyDown(new Microsoft.AspNetCore.Components.Web.KeyboardEventArgs { Key = " " });
+        Assert.Empty(selected);
+        // The browser turns Enter or Space on a button into one click.
+        cut.Find("[data-node-id=child] .hl-layers-rail__node-control").Click();
+        Assert.Equal(["child"], selected);
+        Assert.Single(module.Invocations["observeTreeKeys"]);
+    }
+
+    [Fact]
+    public void ADerivedParentStartsExpandedAsAnExplicitOneDoes()
+    {
+        IReadOnlyList<CanvasNode> nodes = [new("root", "section", "Root", 0, null), new("child", "field", "Child", 1, "root")];
+        var cut = Render<LayersRailHost>(p => p.Add(x => x.Nodes, nodes));
+        Assert.Equal("true", cut.Find("[data-node-id=root]").GetAttribute("aria-expanded"));
+        Assert.NotNull(cut.Find("[data-node-id=child]"));
+    }
+
+    [Fact]
+    public async Task ACyclicOrSelfParentedTreeFailsClosedInsteadOfHanging()
+    {
+        IReadOnlyList<CanvasNode> nodes = [new("a", "field", "A", 1, "a", HasChildren: true)];
+        // A hang fails the test after 10 seconds instead of blocking the run.
+        var error = await Task.Run(() => Assert.Throws<InvalidOperationException>(() => Render<LayersRailHost>(p => p.Add(x => x.Nodes, nodes)))).WaitAsync(TimeSpan.FromSeconds(10));
+        Assert.Equal("invalid-outline-tree", error.Message);
+    }
+
+    [Fact]
+    public void WhenTheHostRemovesTheFocusedNodeFocusFollowsOnlyIfItWasLost()
+    {
+        IReadOnlyList<CanvasNode> before = [new("a", "field", "A", 0, null), new("b", "field", "B", 0, null)];
+        IReadOnlyList<CanvasNode> after = [new("b", "field", "B", 0, null)];
+        var cut = Render<LayersRailHost>(p => p.Add(x => x.Nodes, before));
+        cut.Render(p => p.Add(x => x.Nodes, after));
+        var request = module.Invocations["focusNode"].Last();
+        Assert.Equal("b", request.Arguments[1]);
+        Assert.Equal(true, request.Arguments[2]);
+        Assert.Equal("0", cut.Find("[data-node-id=b] .hl-layers-rail__node-control").GetAttribute("tabindex"));
+    }
+
+    [Fact]
     public void BlankCallerLabelsKeepTheDefaultsAndNoNameIsEmpty()
     {
         var d = DefaultRailLabels.Value;
-        var blank = d with { ExitLens = " ", Insert = "", CollapseNode = "  ", ActivateLens = _ => " ", RailRegion = "" };
+        var blank = d with { ExitLens = " ", Insert = "", CollapseNode = "  ", ActivateLens = _ => " ", RailRegion = "", LensesHeading = " ", OutlineHeading = "" };
         var cut = Render<LayersRailHost>(p => p.Add(x => x.Labels, blank).Add(x => x.OnInsert, () => { }));
         Assert.Equal(d.ExitLens, cut.Find(".hl-layers-rail__status-close").GetAttribute("aria-label"));
         Assert.Equal(d.Insert, cut.Find(".hl-layers-rail__insert").GetAttribute("aria-label"));
         Assert.Equal("Layers", cut.Find("aside").GetAttribute("aria-label"));
+        Assert.Equal(d.LensesHeading, cut.Find("[role=group]").GetAttribute("aria-label"));
+        Assert.Equal(d.OutlineHeading, cut.Find("[role=tree]").GetAttribute("aria-label"));
         Assert.Equal(d.ActivateLens("Layout"), cut.Find(".hl-layers-rail__lens-activate").GetAttribute("aria-label"));
         foreach (var button in cut.FindAll("button")) Assert.False(string.IsNullOrWhiteSpace(button.GetAttribute("aria-label") ?? button.TextContent), button.OuterHtml);
     }

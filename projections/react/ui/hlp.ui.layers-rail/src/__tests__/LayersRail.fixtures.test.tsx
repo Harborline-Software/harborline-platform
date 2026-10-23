@@ -87,7 +87,7 @@ const assertions: Record<string, (entry: Case) => void | Promise<void>> = {
   'layers-rail.outline': ({ input, expected }) => {
     const nodes = input.nodes.map((node: any) => ({ ...node, kind: 'field', label: node.id }))
     render(<Host nodes={nodes}/>)
-    expect(screen.getByRole('tree').getAttribute('role')).toBe(expected.role)
+    expect(screen.getByRole('tree').querySelectorAll('[role="treeitem"]').length === nodes.length).toBe(expected.role === 'tree')
     expect(screen.getAllByRole('treeitem').map(item => Number(item.getAttribute('aria-level')))).toEqual(expected.levels)
     expect(screen.getAllByRole('treeitem')[0]!.getAttribute('aria-expanded') === 'true').toBe(expected.expanded)
   },
@@ -99,6 +99,7 @@ const assertions: Record<string, (entry: Case) => void | Promise<void>> = {
     const visits: Array<string | undefined> = []
     for (const key of input.keys as string[]) { await user.keyboard(`[${key}]`); visits.push(focused()) }
     // Down → Child, Up → Root, Right on an expanded parent → Child, Left on a leaf → Root, Home → Root, End → Sibling.
+    expect(input.keys).toEqual(['ArrowDown', 'ArrowUp', 'ArrowRight', 'ArrowLeft', 'Home', 'End'])
     const apg = JSON.stringify(visits) === JSON.stringify(['Child', 'Root', 'Child', 'Root', 'Root', 'Sibling'])
     expect(apg).toBe(expected.apgMovement)
     const stops = Array.from(document.querySelectorAll('[role="tree"] button')).filter(button => button.getAttribute('tabindex') !== '-1')
@@ -139,7 +140,7 @@ const assertions: Record<string, (entry: Case) => void | Promise<void>> = {
     render(<Host provenance={{ resolve: id => id === 'child' ? { ...tenant, source: input.unresolved.source, locked: input.unresolved.locked, resolved: false } : { ...tenant, source: input.resolved.source, locked: input.resolved.locked } }}/>)
     expect(control('Root').querySelector('.hl-layers-rail__source')!.textContent).toBe(expected.resolvedText)
     const unresolved = control('Child').querySelector('.hl-layers-rail__source')!.textContent!
-    expect(unresolved.startsWith('source: unknown') && !unresolved.includes(input.unresolved.source === 'unknown' ? 'tenant' : input.unresolved.source)).toBe(expected.unresolvedFailsClosed)
+    expect(unresolved.startsWith('source: unknown') && unresolved.includes('Locked') === input.unresolved.locked).toBe(expected.unresolvedFailsClosed)
   },
   'layers-rail.insert': async ({ input, expected }) => {
     let calls = 0

@@ -81,19 +81,24 @@ export function LayersRail({
     return visible
   }, [collapsed, model.nodes])
 
+  const rootRef = React.useRef<HTMLElement>(null)
+  // When the focused node is hidden (collapse) or removed by the host, the roving position moves to its
+  // nearest visible ancestor, else the first node, and focus follows only if it was on the page or in the
+  // rail, so focus the user moved elsewhere stays put.
   React.useLayoutEffect(() => {
     if (focusedId !== null && visibleNodes.some(node => node.id === focusedId)) return
+    const follow = (id: string | null) => {
+      setFocusedId(id)
+      const active = document.activeElement
+      if (id !== null && (!active || active === document.body || !active.isConnected || rootRef.current?.contains(active))) refs.current.get(id)?.focus()
+    }
     let candidate = model.nodes.find(node => node.id === focusedId)
     while (candidate?.parentId) {
       const parent = model.nodes.find(node => node.id === candidate?.parentId)
-      if (parent && visibleNodes.some(node => node.id === parent.id)) {
-        setFocusedId(parent.id)
-        refs.current.get(parent.id)?.focus()
-        return
-      }
+      if (parent && visibleNodes.some(node => node.id === parent.id)) return follow(parent.id)
       candidate = parent
     }
-    setFocusedId(visibleNodes[0]?.id ?? null)
+    follow(visibleNodes[0]?.id ?? null)
   }, [focusedId, model.nodes, visibleNodes])
 
   const focusNode = (id: string) => {
@@ -145,7 +150,7 @@ export function LayersRail({
   }
 
   return (
-    <aside {...attributes} aria-label={labels.railRegion} className={`hl-layers-rail${compact ? ' hl-layers-rail--compact' : ''}${className ? ` ${className}` : ''}`}>
+    <aside {...attributes} ref={rootRef} aria-label={labels.railRegion} className={`hl-layers-rail${compact ? ' hl-layers-rail--compact' : ''}${className ? ` ${className}` : ''}`}>
       {!compact && activeLens ? (
         <div role="status" aria-live="polite" className="hl-layers-rail__status" style={{ borderColor: toneStyle(activeLens.tone).border }}>
           <span>{labels.viewingLens(activeLens.label)}</span>

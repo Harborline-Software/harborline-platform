@@ -96,7 +96,8 @@ public sealed class LayersRailTests : BunitContext
                 var states = Strings(input.GetProperty("keys")).Select(key => { cut.Find("[role=group]").KeyDown(new Microsoft.AspNetCore.Components.Web.KeyboardEventArgs { Key = key }); return Active(); }).ToArray();
                 Assert.Equal(expected.GetProperty("states").EnumerateArray().Select(v => v.ValueKind == System.Text.Json.JsonValueKind.Null ? null : v.GetString()).ToArray(), states);
                 // Scoped: the shortcut handler is on the lens group, not the tree or the document.
-                Assert.Equal(expected.GetProperty("scopedToRail").GetBoolean(), cut.Find("[role=group]").Attributes.Any(a => a.Name.Equals("blazor:onkeydown", StringComparison.OrdinalIgnoreCase)) && !cut.Find("aside").Attributes.Any(a => a.Name.Equals("blazor:onkeydown", StringComparison.OrdinalIgnoreCase)));
+                static bool HasKeyHandler(AngleSharp.Dom.IElement element) => element.Attributes.Any(a => a.Name.Equals("blazor:onkeydown", StringComparison.OrdinalIgnoreCase));
+                Assert.Equal(expected.GetProperty("scopedToRail").GetBoolean(), HasKeyHandler(cut.Find("[role=group]")) && !HasKeyHandler(cut.Find("aside")) && !HasKeyHandler(cut.Find("[role=tree]")));
                 break;
             }
             case "layers-rail.compact":
@@ -111,7 +112,7 @@ public sealed class LayersRailTests : BunitContext
             {
                 var nodes = input.GetProperty("nodes").EnumerateArray().Select(n => new CanvasNode(n.GetProperty("id").GetString()!, "field", n.GetProperty("id").GetString()!, n.GetProperty("depth").GetInt32(), n.GetProperty("parentId").ValueKind == System.Text.Json.JsonValueKind.Null ? null : n.GetProperty("parentId").GetString(), HasChildren: n.TryGetProperty("hasChildren", out var h) ? h.GetBoolean() : null)).ToArray();
                 var cut = Host(p => p.Add(x => x.Nodes, nodes));
-                Assert.Equal(expected.GetProperty("role").GetString(), cut.Find("[role=tree]").GetAttribute("role"));
+                Assert.Equal(expected.GetProperty("role").GetString() == "tree", cut.FindAll("[role=tree] [role=treeitem]").Count == nodes.Length);
                 Assert.Equal(expected.GetProperty("levels").EnumerateArray().Select(v => v.GetInt32()).ToArray(), cut.FindAll("[role=treeitem]").Select(t => int.Parse(t.GetAttribute("aria-level")!, System.Globalization.CultureInfo.InvariantCulture)).ToArray());
                 Assert.Equal(expected.GetProperty("expanded").GetBoolean(), cut.FindAll("[role=treeitem]")[0].GetAttribute("aria-expanded") == "true");
                 break;
@@ -129,6 +130,7 @@ public sealed class LayersRailTests : BunitContext
                     visits.Add(current);
                 }
                 // Down → child, Up → root, Right on an expanded parent → child, Left on a leaf → root, Home → root, End → sibling.
+                Assert.Equal(["ArrowDown", "ArrowUp", "ArrowRight", "ArrowLeft", "Home", "End"], Strings(input.GetProperty("keys")));
                 Assert.Equal(expected.GetProperty("apgMovement").GetBoolean(), visits.SequenceEqual(["child", "root", "child", "root", "root", "sibling"]));
                 var stops = cut.FindAll("[role=tree] button").Where(b => b.GetAttribute("tabindex") != "-1").ToArray();
                 Assert.Equal(expected.GetProperty("rovingTabIndex").GetBoolean(), stops.Length == 1 && stops[0].Closest("[role=treeitem]")!.GetAttribute("data-node-id") == current);
@@ -178,7 +180,7 @@ public sealed class LayersRailTests : BunitContext
                     : new(Source(resolved.GetProperty("source").GetString()!), [], false, resolved.GetProperty("locked").GetBoolean(), true))));
                 Assert.Equal(expected.GetProperty("resolvedText").GetString(), cut.Find("[data-node-id=root] .hl-layers-rail__source").TextContent);
                 var text = cut.Find("[data-node-id=child] .hl-layers-rail__source").TextContent;
-                Assert.Equal(expected.GetProperty("unresolvedFailsClosed").GetBoolean(), text.StartsWith(DefaultRailLabels.Value.UnresolvedSource, StringComparison.Ordinal));
+                Assert.Equal(expected.GetProperty("unresolvedFailsClosed").GetBoolean(), text.StartsWith(DefaultRailLabels.Value.UnresolvedSource, StringComparison.Ordinal) && text.Contains(DefaultRailLabels.Value.Locked, StringComparison.Ordinal) == unresolved.GetProperty("locked").GetBoolean());
                 break;
             }
             case "layers-rail.insert":

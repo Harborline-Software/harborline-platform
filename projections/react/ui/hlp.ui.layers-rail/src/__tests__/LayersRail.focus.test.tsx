@@ -33,11 +33,20 @@ describe('LayersRail focus', () => {
     expect(document.activeElement).toBe(control('Root'))
   })
 
-  it('keeps a collapsed node collapsed when the host re-renders after a selection', async () => {
-    const user = userEvent.setup()
-    render(<Host/>)
-    fireEvent.click(screen.getByRole('button', { name: 'Collapse' }))
-    await user.click(control('Sibling'))
-    expect(screen.queryByText('Child')).toBeNull()
+  it('moves focus to the first node when the host removes the focused one, only if focus was lost', () => {
+    const nodes = [{ id: 'a', kind: 'field', label: 'A', depth: 0, parentId: null }, { id: 'b', kind: 'field', label: 'B', depth: 0, parentId: null }]
+    const view = render(<><Host nodes={nodes}/><button type="button">Elsewhere</button></>)
+    control('A').focus()
+    view.rerender(<><Host nodes={nodes.slice(1)}/><button type="button">Elsewhere</button></>)
+    expect(document.activeElement).toBe(control('B'))
+  })
+
+  it('leaves focus alone when the user is elsewhere and the focused node goes away', () => {
+    const nodes = [{ id: 'a', kind: 'field', label: 'A', depth: 0, parentId: null }, { id: 'b', kind: 'field', label: 'B', depth: 0, parentId: null }]
+    const view = render(<><Host nodes={nodes}/><button type="button">Elsewhere</button></>)
+    const elsewhere = screen.getByRole('button', { name: 'Elsewhere' })
+    elsewhere.focus()
+    view.rerender(<><Host nodes={nodes.slice(1)}/><button type="button">Elsewhere</button></>)
+    expect(document.activeElement).toBe(elsewhere)
   })
 })

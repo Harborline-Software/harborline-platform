@@ -19,11 +19,13 @@ describe('LayersRail labels', () => {
   })
 
   it('keeps the default for blank caller labels, including blank label functions', () => {
-    render(<Host labels={{ exitLens: '  ', insert: '', collapseNode: ' ', activateLens: () => ' ', railRegion: '' }} onInsert={() => undefined}/>)
+    render(<Host labels={{ exitLens: '  ', insert: '', collapseNode: ' ', activateLens: () => ' ', railRegion: '', lensesHeading: ' ', outlineHeading: '' }} onInsert={() => undefined}/>)
     expect(screen.getByRole('button', { name: 'Exit lens (back to Layout)' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Insert' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Show Layout lens on the canvas' })).toBeInTheDocument()
     expect(screen.getByRole('complementary', { name: 'Layers' })).toBeInTheDocument()
+    expect(screen.getByRole('group', { name: 'Lenses' })).toBeInTheDocument()
+    expect(screen.getByRole('tree', { name: 'Outline' })).toBeInTheDocument()
     names()
   })
 
