@@ -4,7 +4,8 @@ import { disposeKeys, observeKeys } from '../../projections/blazor/ui/hlp.ui.use
 // The Blazor lane's Tab-out handling, run here because bUnit cannot execute the module's JavaScript.
 // Over a Server circuit the closing render arrives after the browser's default Tab, so the handler must
 // keep that Tab from landing on the still-rendered items: the panel is inert during the key, and only
-// then. The default action itself is a browser behaviour, checked by the Server smoke probe.
+// then. jsdom does not implement inert, so this pins the handler's writes; the default action itself is
+// a browser behaviour, checked by the Server smoke probe.
 describe('UserMenu Blazor Tab out of the menu', () => {
   afterEach(() => { vi.useRealTimers(); document.body.replaceChildren() })
 
@@ -37,7 +38,7 @@ describe('UserMenu Blazor Tab out of the menu', () => {
     item.focus()
     const event = new KeyboardEvent('keydown', { key: 'Tab', shiftKey: true, bubbles: true, cancelable: true })
     item.dispatchEvent(event)
-    expect([panel.inert, document.activeElement === trigger, event.defaultPrevented]).toEqual([false, true, true])
+    expect([Boolean(panel.inert), document.activeElement === trigger, event.defaultPrevented]).toEqual([false, true, true])
     disposeKeys(id)
   })
 })
