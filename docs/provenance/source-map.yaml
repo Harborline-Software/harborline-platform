@@ -2546,7 +2546,7 @@
       "sourceExtracted": true,
       "sourceState": "Interface revision 1 preserves the exact pinned hlp.ui.switch source surface and proves every registered projection through native, shared-conformance, package-only, and applicable gallery/performance gates.",
       "contentHashes": {
-        "conformance/hlp.ui.switch/fixtures.yaml": "5687bd0ebd14f2ddc5343fb71fb9534ca1db1e9fefc2eb34e41e08eae934c8fd",
+        "conformance/hlp.ui.switch/fixtures.yaml": "9dca0cb6602617524248f7d5cbda09ac73f4e17fe45900af56fcc78a21f9edb0",
         "conformance/hlp.ui.switch/quality-fixtures.yaml": "4bda43c83aea9dc85f3380e0b7ebaf3f114af81a8ae804c2e91ffa43594a6ba8",
         "conformance/hlp.ui.switch/runners/run-shared.mjs": "d35da4b19c55eb8bda0f0b7f645140d4933b20e2f16bdffe5ca3883bfc9b62e7",
         "projections/blazor/ui/hlp.ui.switch/HarborlineSwitch.razor": "d6bebca8d472b64a8e5b321881ea9d0d1220d141042f98ca05c1cf9ea231a3d9",
@@ -2559,7 +2559,7 @@
         "projections/react/ui/hlp.ui.switch/src/test-setup.ts": "097040beeb2cc914b87790306bc835eef4a06321fa3594a6938b6754641ac2ff",
         "projections/react/ui/hlp.ui.switch/tsconfig.build.json": "0af4b9671ce0ba9a374b61b9a1e7e90307091e77d2f98d6b50da99a0be85e7e4",
         "projections/react/ui/hlp.ui.switch/vitest.config.ts": "e9eba60c42a42ab566bd1906835055c73283590d0f5af850cc425e6a6c57fba6",
-        "specs/modules/ui/hlp.ui.switch/interface.yaml": "944749703ece6df3c52a6a8bc1b7979c1b25d79b148ae5713550f98466e7fb17",
+        "specs/modules/ui/hlp.ui.switch/interface.yaml": "a8421cabffad5989cb6c626ecd694288915f94b710e2a03b348a48807655af4f",
         "specs/modules/ui/hlp.ui.switch/quality.yaml": "cf1afc23b6d44b768ccf0fa815d275049fa2ac922b4934576f5d6a8ae7dcb006",
         "specs/modules/ui/hlp.ui.switch/scenarios.json": "4527670f971460fa01a39cd7b20b245efdab28a07a8787aa0d73f00dccf4c6d3",
         "specs/modules/ui/hlp.ui.switch/style.css": "feb9525b5196e91fd40fad2d128d6a2350706699c1fe81b7ee7ca02bc7163075"
