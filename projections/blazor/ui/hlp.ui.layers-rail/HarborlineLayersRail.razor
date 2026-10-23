@@ -49,26 +49,30 @@
         var projection = ProjectNode(node);
         var provenance = ResolveProvenance(node.Id);
         var unresolved = provenance is not null && (!provenance.Resolved || provenance.Source == ProvenanceSource.Unknown);
-        <div role="treeitem" aria-level="@(node.Depth + 1)" aria-expanded="@(expandable ? expanded.ToString().ToLowerInvariant() : null)"
+        var showSource = ShowProvenance && provenance is not null;
+        var hasBadge = !string.IsNullOrWhiteSpace(projection.Badge);
+        // The name is the label alone; badge and provenance text stay announced as the description.
+        var describedBy = string.Join(' ', new[] { hasBadge ? NodeElementId(node.Id, "badge") : null, showSource ? NodeElementId(node.Id, "source") : null }.Where(part => part is not null));
+        @* The treeitem itself takes focus (APG treeview): it is the tree's one tab stop and handles its keys. *@
+        <div role="treeitem" tabindex="@(focusedId == node.Id ? 0 : -1)" aria-labelledby="@NodeElementId(node.Id, "label")" aria-describedby="@(describedBy.Length > 0 ? describedBy : null)" aria-level="@(node.Depth + 1)" aria-expanded="@(expandable ? expanded.ToString().ToLowerInvariant() : null)"
              aria-selected="@(Canvas.SelectedId == node.Id ? "true" : "false")" data-node-id="@node.Id"
              data-hl-ghosted="@(projection.Ghosted ? "true" : null)" data-ghosted="@(projection.Ghosted ? "true" : null)"
-             class="hl-layers-rail__node" style="--hl-depth:@node.Depth" @onclick="() => SelectNodeAsync(node.Id)">
+             class="hl-layers-rail__node" style="--hl-depth:@node.Depth" @onfocus="() => focusedId = node.Id" @onkeydown="args => HandleTreeKeyAsync(node, args)" @onclick="() => SelectNodeAsync(node.Id)">
           @if (expandable)
           {
-            @* The tree is one tab stop (APG): the disclosure is for pointers; keyboards use ArrowLeft and ArrowRight. *@
+            @* The disclosure and the node button are for pointers, not tab stops; a click hands focus to the treeitem. *@
             <button type="button" class="hl-layers-rail__disclosure" tabindex="-1" aria-label="@(expanded ? L.CollapseNode : L.ExpandNode)" @onclick="() => ToggleExpandedAsync(node)" @onclick:stopPropagation="true"><svg aria-hidden="true" viewBox="0 0 16 16"><path d="@(expanded ? "M3 6l5 5 5-5" : "M6 3l5 5-5 5")"></path></svg></button>
           }
           else
           {
             <span aria-hidden="true" class="hl-layers-rail__spacer"></span>
           }
-          <button type="button" class="hl-layers-rail__node-control" tabindex="@(focusedId == node.Id ? 0 : -1)" @onfocus="() => focusedId = node.Id"
-                  @onkeydown="args => HandleTreeKeyAsync(node, args)" @onclick:stopPropagation="true" @onclick="() => SelectNodeAsync(node.Id)">
-            <span class="hl-layers-rail__node-label">@node.Label</span>
-            @if (!string.IsNullOrWhiteSpace(projection.Badge)) { <span class="hl-layers-rail__node-badge">@projection.Badge</span> }
-            @if (ShowProvenance && provenance is not null)
+          <button type="button" class="hl-layers-rail__node-control" tabindex="-1" @onclick:stopPropagation="true" @onclick="() => SelectNodeAsync(node.Id)">
+            <span id="@NodeElementId(node.Id, "label")" class="hl-layers-rail__node-label">@node.Label</span>
+            @if (hasBadge) { <span id="@NodeElementId(node.Id, "badge")" class="hl-layers-rail__node-badge">@projection.Badge</span> }
+            @if (showSource)
             {
-              <span class="hl-layers-rail__source">@(unresolved ? L.UnresolvedSource : L.Source(provenance.Source.ToString().ToLowerInvariant()))@(provenance.Locked ? $" · {L.Locked}" : string.Empty)</span>
+              <span id="@NodeElementId(node.Id, "source")" class="hl-layers-rail__source">@(unresolved ? L.UnresolvedSource : L.Source(provenance!.Source.ToString().ToLowerInvariant()))@(provenance!.Locked ? $" · {L.Locked}" : string.Empty)</span>
             }
           </button>
         </div>
@@ -92,6 +96,9 @@
   // Nodes start expanded once; a node the user collapsed stays collapsed when the host re-renders.
   private readonly HashSet<string> Known = new(StringComparer.Ordinal);
   private string? focusedId;
+  // Treeitems name themselves by their label element, so its id is unique per rail instance.
+  private readonly string idBase = $"hl-layers-rail-{Guid.NewGuid():N}";
+  private string NodeElementId(string id, string part) => $"{idBase}-{Uri.EscapeDataString(id)}-{part}";
   private string? focusRequest;
   private bool focusIfLost;
   private IJSObjectReference? module;
@@ -134,7 +141,8 @@
     if (focusedId is null || !VisibleNodes.Any(node => node.Id == focusedId))
     {
       var previous = focusedId;
-      focusedId = VisibleNodes.FirstOrDefault()?.Id;
+      // The first tab stop is the selected node when visible, as in React; a lost one falls back to the first node.
+      focusedId = (previous is null ? VisibleNodes.FirstOrDefault(node => node.Id == Canvas.SelectedId) : null)?.Id ?? VisibleNodes.FirstOrDefault()?.Id;
       if (previous is not null && focusedId is not null) { focusRequest = focusedId; focusIfLost = true; }
     }
   }
@@ -207,31 +215,27 @@
       if (Expanded.Remove(node.Id)) target = node.Id;
       else target = node.ParentId;
     }
-    // Enter and Space activate the button natively, which selects through its click; arrows, Home and End
-    // don't scroll the rail (layers-rail.js prevents their default on the tree).
+    // Enter and Space select once: the treeitem is not a button, so no native click follows. layers-rail.js
+    // prevents the default of the handled keys so arrows, Home, End and Space don't scroll the rail.
+    else if (args.Key is "Enter" or " ") { await SelectNodeAsync(node.Id); return; }
     else return;
     if (target is not null) { focusedId = target; focusRequest = target; }
   }
 
   private Task SelectNodeAsync(string id)
   {
-    focusedId = id;
+    // A pointer selection hands focus to the treeitem (its buttons are not focus targets).
+    focusedId = id; focusRequest = id; focusIfLost = false;
     Canvas.Select(id);
     return Task.CompletedTask;
   }
 
   private Task ToggleExpandedAsync(CanvasNode node)
   {
+    // The click hands focus to this treeitem, which also keeps a collapsed descendant's focus in the tree.
     if (!Expanded.Remove(node.Id)) Expanded.Add(node.Id);
-    else if (focusedId is not null && focusedId != node.Id && IsDescendant(focusedId, node.Id)) { focusedId = node.Id; focusRequest = node.Id; }
+    focusedId = node.Id; focusRequest = node.Id; focusIfLost = false;
     return Task.CompletedTask;
-  }
-
-  private bool IsDescendant(string id, string ancestor)
-  {
-    var current = Canvas.Nodes.FirstOrDefault(node => node.Id == id)?.ParentId;
-    while (current is not null) { if (current == ancestor) return true; current = Canvas.Nodes.FirstOrDefault(node => node.Id == current)?.ParentId; }
-    return false;
   }
 
   private static string ToneSwatch(LensTone tone) => tone switch
