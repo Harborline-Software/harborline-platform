@@ -5,7 +5,7 @@
 
 <span class="@CombineClasses("hl-switch", ResolvedDisabled ? "hl-switch--disabled" : null)" style="@CombineStyles()" data-hl-size="@SizeToken" dir="@ResolvedDirection">
   <button type="button" role="switch" id="@ResolvedId" aria-checked="@EffectiveChecked.ToString().ToLowerInvariant()"
-          aria-label="@AccessibleName" aria-labelledby="@LabelledBy" aria-describedby="@DescribedBy"
+          aria-label="@ResolvedAccessibleName" aria-labelledby="@LabelledBy" aria-describedby="@DescribedBy"
           aria-invalid="@(Error ? "true" : null)" aria-required="@(ResolvedRequired ? "true" : null)"
           disabled="@ResolvedDisabled" class="@(Error ? "hl-switch__control hl-switch__control--invalid" : "hl-switch__control")" data-hl-checked="@(EffectiveChecked ? "true" : null)"
           @onclick="ToggleAsync" @attributes="AdditionalAttributes"><span aria-hidden="true" class="hl-switch__thumb"></span></button>
@@ -52,8 +52,11 @@
   private bool ResolvedDisabled => (Disabled ?? FieldContext?.Disabled ?? false) || !Enabled;
   private bool ResolvedRequired => Required ?? FieldContext?.Required ?? false;
   private string ResolvedDirection => Direction ?? LocaleContext?.Direction ?? "ltr";
-  private string ResolvedOnText => LocalizedText("forms.switch.on", OnText ?? OnLabel, "On");
-  private string ResolvedOffText => LocalizedText("forms.switch.off", OffText ?? OffLabel, "Off");
+  private string ResolvedOnText => LocalizedText("forms.switch.on", FirstNonBlank(OnText, OnLabel), "On");
+  private string ResolvedOffText => LocalizedText("forms.switch.off", FirstNonBlank(OffText, OffLabel), "Off");
+  private static string? FirstNonBlank(params string?[] values) => values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
+  // A blank name is no name: it falls through to the label or the field label.
+  private string? ResolvedAccessibleName => string.IsNullOrWhiteSpace(AccessibleName) ? null : AccessibleName;
 
   // Instance override, then catalog, then fallback. A catalog miss echoes the key back, so an
   // echoed key counts as unresolved rather than as user-facing text; so does blank catalog text.
@@ -63,7 +66,7 @@
     var resolved = LocaleContext?.ResolveString(key);
     return string.IsNullOrWhiteSpace(resolved) || resolved == key ? fallback : resolved;
   }
-  private string? LabelledBy => !string.IsNullOrWhiteSpace(Label) ? LocalLabelId : AccessibleName is null ? FieldContext?.LabelId : null;
+  private string? LabelledBy => !string.IsNullOrWhiteSpace(Label) ? LocalLabelId : ResolvedAccessibleName is null ? FieldContext?.LabelId : null;
   private string? DescribedBy => string.Join(" ", new[]{FieldContext?.DescribedBy,!string.IsNullOrWhiteSpace(Description)?DescriptionId:null}.Where(value=>!string.IsNullOrWhiteSpace(value)));
   private string SizeToken => Size switch { SwitchSize.Sm => "sm", SwitchSize.Lg => "lg", SwitchSize.Md => "md", _ => throw new InvalidOperationException("unsupported-switch-size") };
 

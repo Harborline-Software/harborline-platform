@@ -119,7 +119,10 @@ public sealed class SwitchFieldTests : BunitContext
             case "switch-field.appearance":
             {
                 var sizes = input.GetProperty("sizes").EnumerateArray().Select(v => v.GetString()!).ToArray();
-                var roots = sizes.Select(size => Field(p => p.Add(x => x.Size, Enum.Parse<SwitchSize>(size, true)).Add(x => x.Direction, input.GetProperty("direction").GetString())).Find(".hl-switch")).ToArray();
+                // Direction comes from the locale, as in React, not from an echoed parameter.
+                var locale = input.GetProperty("direction").GetString() == "rtl" ? "ar-SA" : "en-US";
+                var roots = sizes.Select(size => Render<Harborline.UIAdapters.Blazor.Localization.HarborlineLocaleProvider>(p => p.Add(x => x.Locale, locale).AddChildContent<HarborlineSwitchField>(c => c
+                    .Add(x => x.Name, "published").Add(x => x.AccessibleName, "Published").Add(x => x.CheckedChanged, _ => { }).Add(x => x.Size, Enum.Parse<SwitchSize>(size, true)))).Find(".hl-switch")).ToArray();
                 Assert.Equal(expected.GetProperty("delegatedToSwitch").GetBoolean(), roots.Select((root, i) => root.GetAttribute("data-hl-size") == sizes[i] && root.QuerySelector(".hl-switch__thumb") is not null).All(ok => ok));
                 Assert.Equal(expected.GetProperty("logicalThumb").GetBoolean(), roots.All(root => root.GetAttribute("dir") == input.GetProperty("direction").GetString()));
                 break;

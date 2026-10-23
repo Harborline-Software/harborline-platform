@@ -67,6 +67,23 @@ public sealed class SwitchFieldLabelTests : BunitContext
     }
 
     [Fact]
+    public void ABlankNameFallsThroughToTheFieldLabel()
+    {
+        var context = new Harborline.UIAdapters.Blazor.Components.Forms.FormFieldContextValue("ambient", "field-label", null, false, false);
+        var cut = Render<Microsoft.AspNetCore.Components.CascadingValue<Harborline.UIAdapters.Blazor.Components.Forms.FormFieldContextValue>>(p => p.Add(x => x.Value, context)
+            .AddChildContent("<span id=\"field-label\">Enabled</span>").AddChildContent<HarborlineSwitchField>(c => c.Add(x => x.Name, "enabled").Add(x => x.AccessibleName, "  ").Add(x => x.CheckedChanged, _ => { })));
+        Assert.Equal("Enabled", Name(cut));
+        Assert.False(cut.Find("[role=switch]").HasAttribute("aria-label"));
+    }
+
+    [Fact]
+    public void ABlankOnTextFallsThroughToOnLabel()
+    {
+        var cut = Render<HarborlineSwitch>(p => p.Add(x => x.AccessibleName, "Published").Add(x => x.Checked, true).Add(x => x.OnText, " ").Add(x => x.OnLabel, "Live"));
+        Assert.Equal("Live", State(cut));
+    }
+
+    [Fact]
     public void RejectsABlankAccessibleNameRatherThanRenderingAnUnnamedSwitch()
     {
         var error = Assert.Throws<InvalidOperationException>(() => Render<HarborlineSwitchField>(p => p.Add(x => x.Name, "published").Add(x => x.AccessibleName, "   ").Add(x => x.CheckedChanged, _ => { })));

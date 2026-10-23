@@ -80,11 +80,12 @@ export const Switch = React.forwardRef<HTMLButtonElement, SwitchProps>(function 
   const renderedChecked = controlled ? checked : internalChecked
   const generatedId = React.useId().replace(/:/g, '')
   const switchId = id ?? formField.id ?? `hl-switch-${generatedId}`
-  const labelId = label ? `${switchId}-label` : undefined
+  const visibleLabel = label?.trim() ? label : undefined
+  const labelId = visibleLabel ? `${switchId}-label` : undefined
   const descriptionId = description ? `${switchId}-description` : undefined
   // A blank name is no name: it falls through to the label, and fails if there is none.
   const effectiveName = [accessibleName, ariaLabel].find(value => value?.trim()) ?? undefined
-  const labelledBy = ariaLabelledBy ?? (effectiveName ? undefined : labelId ?? formField.labelId)
+  const labelledBy = (ariaLabelledBy?.trim() ? ariaLabelledBy : undefined) ?? (effectiveName ? undefined : labelId ?? formField.labelId)
   if (!effectiveName && !labelledBy) throw new Error('accessible-switch-label-required')
   const describedBy = joinIds(formField.describedBy, ariaDescribedBy, descriptionId)
   const localizedOn = stateText(onText, 'forms.switch.on', 'On', t)
@@ -122,7 +123,7 @@ export const Switch = React.forwardRef<HTMLButtonElement, SwitchProps>(function 
       >
         <span aria-hidden="true" className="hl-switch__thumb" />
       </button>
-      {label ? <label className="hl-switch__label" htmlFor={switchId} id={labelId}>{label}</label> : null}
+      {visibleLabel ? <label className="hl-switch__label" htmlFor={switchId} id={labelId}>{visibleLabel}</label> : null}
       <span aria-hidden="true" className="hl-switch__state">{renderedChecked ? localizedOn : localizedOff}</span>
       {description ? <span className="hl-switch__description" id={descriptionId}>{description}</span> : null}
       {error ? <span aria-hidden="true" className="hl-switch__error-indicator">!</span> : null}
