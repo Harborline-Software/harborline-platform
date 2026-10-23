@@ -2,7 +2,6 @@ import * as React from 'react'
 
 import type { AspectLens, CanvasModel, CanvasNode, ProvenanceResolver } from '@harborline-platform/hlp.ui.aspect-lens'
 import type { LayersState } from '@harborline-platform/hlp.ui.layers-state'
-import { useHarborlineStrings } from '@harborline-platform/hlp.ui.locale-provider'
 import { defaultRailLabels, type RailLabels } from '@harborline-platform/hlp.ui.rail-labels'
 import { toneStyle } from '@harborline-platform/hlp.ui.tone-style'
 
@@ -37,28 +36,10 @@ function assertValid(model: CanvasModel, lenses: readonly AspectLens[]) {
   if (model.selectedId !== null && !nodeIds.has(model.selectedId)) throw new Error('invalid-outline-tree')
 }
 
-type Translate = (key: string, vars?: Record<string, string | number>) => string
-const catalogKeys: Partial<Record<keyof RailLabels, string>> = {
-  railRegion: 'navigation.layersRail.region', lensesHeading: 'navigation.layersRail.lenses', outlineHeading: 'navigation.layersRail.outline',
-  insert: 'navigation.layersRail.insert', exitLens: 'navigation.layersRail.exitLens', collapseNode: 'navigation.layersRail.collapse',
-  expandNode: 'navigation.layersRail.expand', empty: 'navigation.layersRail.empty',
-}
-
-// The rail chrome's default copy comes from the catalog (navigation.layersRail.*); the rail-labels
-// English defaults remain for the lens-specific label functions and for a blank or missing value.
-function catalogDefaults(t: Translate): RailLabels {
+function resolveLabels(overrides: Partial<RailLabels> | undefined): RailLabels {
   const resolved: Record<string, unknown> = { ...defaultRailLabels }
-  for (const [label, key] of Object.entries(catalogKeys) as Array<[keyof RailLabels, string]>) {
-    const value = t(key)
-    if (value.trim() && value !== key) resolved[label] = value
-  }
-  return resolved as unknown as RailLabels
-}
-
-function resolveLabels(overrides: Partial<RailLabels> | undefined, base: RailLabels): RailLabels {
-  const resolved: Record<string, unknown> = { ...base }
   for (const [key, value] of Object.entries(overrides ?? {})) {
-    const fallback = (base as unknown as Record<string, unknown>)[key]
+    const fallback = (defaultRailLabels as unknown as Record<string, unknown>)[key]
     if (typeof value === 'string') { if (value.trim()) resolved[key] = value }
     else if (typeof value === 'function' && typeof fallback === 'function') {
       resolved[key] = (...args: unknown[]) => { const text = (value as (...a: unknown[]) => string)(...args); return text?.trim() ? text : (fallback as (...a: unknown[]) => string)(...args) }
@@ -73,8 +54,7 @@ export function LayersRail({
 }: LayersRailProps) {
   assertValid(model, lenses)
   // Caller text overrides each label; blank caller text keeps the default, so no name is ever empty.
-  const { t } = useHarborlineStrings()
-  const labels = React.useMemo(() => resolveLabels(overrides, catalogDefaults(t)), [overrides, t])
+  const labels = React.useMemo(() => resolveLabels(overrides), [overrides])
   if (![labels.railRegion, labels.lensesHeading, labels.outlineHeading].every(value => value.trim())) {
     throw new Error('accessible-rail-label-required')
   }

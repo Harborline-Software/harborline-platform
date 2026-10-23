@@ -3,7 +3,6 @@
 @implements IAsyncDisposable
 @using Microsoft.JSInterop
 @using Harborline.Foundation.Builder
-@using Harborline.UIAdapters.Blazor.Localization
 @inject IJSRuntime JavaScript
 
 <aside @ref="Root" class="@CombineClasses("hl-layers-rail", Compact ? "hl-layers-rail--compact" : null)" style="@CombineStyles()" aria-label="@L.RailRegion" @attributes="AdditionalAttributes">
@@ -102,36 +101,15 @@
 
   // Caller text overrides each label; blank caller text keeps the default, so no name is ever empty.
   private RailLabels L = DefaultRailLabels.Value;
-  [CascadingParameter] private HarborlineLocaleContext? LocaleContext { get; set; }
-  // The rail chrome's default copy comes from the catalog (navigation.layersRail.*: the host's, else the
-  // default catalog); caller text overrides it, and a field still equal to the rail-labels default counts
-  // as not customised. The lens-specific label functions keep the rail-labels defaults.
-  private string Catalog(string key, string? caller, string fallback)
+  private static RailLabels ResolveLabels(RailLabels labels)
   {
-    if (!string.IsNullOrWhiteSpace(caller) && caller != fallback) return caller;
-    var value = LocaleContext?.ResolveString(key) ?? Harborline.Foundation.Localization.HarborlineDefaultStrings.Get(key);
-    return string.IsNullOrWhiteSpace(value) || value == key ? fallback : value;
-  }
-  private RailLabels ResolveLabels(RailLabels labels)
-  {
-    var d = DefaultRailLabels.Value with
-    {
-      LensesHeading = Catalog("navigation.layersRail.lenses", labels.LensesHeading, DefaultRailLabels.Value.LensesHeading),
-      OutlineHeading = Catalog("navigation.layersRail.outline", labels.OutlineHeading, DefaultRailLabels.Value.OutlineHeading),
-      Insert = Catalog("navigation.layersRail.insert", labels.Insert, DefaultRailLabels.Value.Insert),
-      Empty = Catalog("navigation.layersRail.empty", labels.Empty, DefaultRailLabels.Value.Empty),
-      CollapseNode = Catalog("navigation.layersRail.collapse", labels.CollapseNode, DefaultRailLabels.Value.CollapseNode),
-      ExpandNode = Catalog("navigation.layersRail.expand", labels.ExpandNode, DefaultRailLabels.Value.ExpandNode),
-      RailRegion = Catalog("navigation.layersRail.region", labels.RailRegion, DefaultRailLabels.Value.RailRegion),
-      ExitLens = Catalog("navigation.layersRail.exitLens", labels.ExitLens, DefaultRailLabels.Value.ExitLens),
-    };
+    var d = DefaultRailLabels.Value;
     static string Pick(string? value, string fallback) => string.IsNullOrWhiteSpace(value) ? fallback : value;
     static Func<T, string> Each<T>(Func<T, string>? value, Func<T, string> fallback) => arg => Pick(value?.Invoke(arg), fallback(arg));
-    // d already holds the catalog-or-caller value for each catalog field.
-    return new(d.LensesHeading, d.OutlineHeading, d.Insert,
+    return new(Pick(labels.LensesHeading, d.LensesHeading), Pick(labels.OutlineHeading, d.OutlineHeading), Pick(labels.Insert, d.Insert),
       Each(labels.ToggleLens, d.ToggleLens), Each(labels.ActivateLens, d.ActivateLens), Each(labels.PassiveCount, d.PassiveCount), Each(labels.Source, d.Source),
-      Pick(labels.Locked, d.Locked), Pick(labels.UnresolvedSource, d.UnresolvedSource), d.Empty, d.CollapseNode,
-      d.ExpandNode, d.RailRegion, Each(labels.ViewingLens, d.ViewingLens), d.ExitLens,
+      Pick(labels.Locked, d.Locked), Pick(labels.UnresolvedSource, d.UnresolvedSource), Pick(labels.Empty, d.Empty), Pick(labels.CollapseNode, d.CollapseNode),
+      Pick(labels.ExpandNode, d.ExpandNode), Pick(labels.RailRegion, d.RailRegion), Each(labels.ViewingLens, d.ViewingLens), Pick(labels.ExitLens, d.ExitLens),
       Each(labels.LensShortcutHint, d.LensShortcutHint));
   }
 

@@ -103,14 +103,14 @@ public sealed class DefaultStringsConformanceTests
     [Fact]
     public void NativeCatalogHasExactDigestAndInterpolation()
     {
-        Assert.Equal(736, HarborlineDefaultStrings.Values.Count);
+        Assert.Equal(728, HarborlineDefaultStrings.Values.Count);
         Assert.Equal("Loading", HarborlineDefaultStrings.Get("common.loading"));
         Assert.Equal("Step 2 of {total}", HarborlineDefaultStrings.Interpolate("Step {current} of {total}", new Dictionary<string, object?> { ["current"] = 2 }));
-        Assert.Equal("1c7fe490fbbf576290d6f932f8809cbbea21b31800e537f61bd16b712c95f98b", CatalogDigest());
+        Assert.Equal("db27dff05da4c73f0f9085ba95b3c04ed9eb5afe1b990a56b2a37952c6642297", CatalogDigest());
     }
 
-    // Revision 2 appends 23 platform keys; revision 1 is every other entry, by identity and in catalog order.
-    private static readonly string[] Revision2Keys = ["forms.switch.off", "forms.switch.on", "navigation.layersRail.collapse", "navigation.layersRail.empty", "navigation.layersRail.exitLens", "navigation.layersRail.expand", "navigation.layersRail.insert", "navigation.layersRail.lenses", "navigation.layersRail.outline", "navigation.layersRail.region", "navigation.notifications.all", "navigation.notifications.confirm", "navigation.notifications.deny", "navigation.notifications.dismiss", "navigation.notifications.empty", "navigation.notifications.groups", "navigation.notifications.markAllRead", "navigation.notifications.title", "navigation.notifications.unread", "navigation.notifications.viewAll", "navigation.userMenu.panel", "navigation.userMenu.signOut", "navigation.userMenu.trigger"];
+    // Revision 2 appends 15 platform keys; revision 1 is every other entry, by identity and in catalog order.
+    private static readonly string[] Revision2Keys = ["forms.switch.off", "forms.switch.on", "navigation.notifications.all", "navigation.notifications.confirm", "navigation.notifications.deny", "navigation.notifications.dismiss", "navigation.notifications.empty", "navigation.notifications.groups", "navigation.notifications.markAllRead", "navigation.notifications.title", "navigation.notifications.unread", "navigation.notifications.viewAll", "navigation.userMenu.panel", "navigation.userMenu.signOut", "navigation.userMenu.trigger"];
 
     [Fact]
     public void RevisionOneIsPreservedExactly()
@@ -164,11 +164,12 @@ public sealed class DefaultStringsConformanceTests
     private static string CatalogDigest() => Digest(HarborlineDefaultStrings.Values);
 
     // The original revision-1 serialization: [key, value] rows, relaxed escaping, SHA-256, lowercase hex.
+    private static readonly JsonSerializerOptions DigestOptions = new() { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
+
     private static string Digest(IEnumerable<KeyValuePair<string, string>> entries)
     {
-        var options = new JsonSerializerOptions { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
         var rows = entries.Select(pair => new object[] { pair.Key, pair.Value });
-        return Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(rows, options))));
+        return Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(rows, DigestOptions))));
     }
 }
 
