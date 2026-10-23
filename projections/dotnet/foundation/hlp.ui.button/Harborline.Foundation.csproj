@@ -10,6 +10,9 @@
     <PackageReleaseNotes>Internal-only projection; public distribution is not authorized.</PackageReleaseNotes>
   </PropertyGroup>
   <ItemGroup>
+    <InternalsVisibleTo Include="Harborline.Foundation.UI.Tests" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="../../contracts/hlp.contracts.identities/Harborline.Contracts.csproj" />
   </ItemGroup>
   <ItemGroup>
@@ -26,9 +29,13 @@
     <Compile Include="../hlp.ui.use-nav-collapsed/**/*.cs" Link="Responsive/NavCollapse/%(RecursiveDir)%(Filename)%(Extension)" />
     <Compile Include="../hlp.ui.side-nav-group/**/*.cs" Link="Navigation/%(RecursiveDir)%(Filename)%(Extension)" />
     <EmbeddedResource Include="../hlp.ui.default-strings/default-strings.json" Link="Localization/default-strings.json" />
+    <!-- CLDR 47 cardinal plural rules (Unicode License v3); notice and licence travel with the package. -->
+    <EmbeddedResource Include="../hlp.ui.locale-provider/cldr/plurals.json" Link="Localization/Locale/cldr/plurals.json" LogicalName="Harborline.Foundation.Localization.cldr.plurals.json" />
   </ItemGroup>
   <ItemGroup>
     <None Include="README.md" Pack="true" PackagePath="/" />
     <None Include="../../../../LICENSE" Link="LICENSE" Pack="true" PackagePath="/" />
+    <None Include="../hlp.ui.locale-provider/cldr/LICENSE" Link="ThirdParty/unicode-cldr/LICENSE" Pack="true" PackagePath="third-party/unicode-cldr/LICENSE" />
+    <None Include="../hlp.ui.locale-provider/cldr/NOTICE.md" Link="ThirdParty/unicode-cldr/NOTICE.md" Pack="true" PackagePath="third-party/unicode-cldr/NOTICE.md" />
   </ItemGroup>
 </Project>

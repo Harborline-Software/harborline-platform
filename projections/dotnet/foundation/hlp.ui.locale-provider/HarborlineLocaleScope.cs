@@ -87,35 +87,11 @@ public sealed class HarborlineLocaleScope
         string? instanceOverride = null) =>
         HarborlineDefaultStrings.Interpolate(instanceOverride ?? Resolve(key), variables);
 
-    /// <summary>Selects the cardinal plural category for this scope.</summary>
-    public HarborlinePluralCategory PluralCategory(decimal count)
-    {
-        var primary = Locale.Split('-', 2)[0].ToLowerInvariant();
-        var integer = decimal.Truncate(count);
-        var isInteger = count == integer;
-        var n = Math.Abs(integer);
-        return primary switch
-        {
-            "ar" when !isInteger => HarborlinePluralCategory.Other,
-            "ar" when n == 0 => HarborlinePluralCategory.Zero,
-            "ar" when n == 1 => HarborlinePluralCategory.One,
-            "ar" when n == 2 => HarborlinePluralCategory.Two,
-            "ar" when n % 100 is >= 3 and <= 10 => HarborlinePluralCategory.Few,
-            "ar" when n % 100 is >= 11 and <= 99 => HarborlinePluralCategory.Many,
-            "ar" => HarborlinePluralCategory.Other,
-            "pl" when isInteger && n == 1 => HarborlinePluralCategory.One,
-            "pl" when isInteger && n % 10 is >= 2 and <= 4 && n % 100 is not (>= 12 and <= 14) => HarborlinePluralCategory.Few,
-            "pl" when isInteger && (n != 1 && (n % 10 is 0 or 1 || n % 10 is >= 5 and <= 9 || n % 100 is >= 12 and <= 14)) => HarborlinePluralCategory.Many,
-            "pl" => HarborlinePluralCategory.Other,
-            "ru" when isInteger && n % 10 == 1 && n % 100 != 11 => HarborlinePluralCategory.One,
-            "ru" when isInteger && n % 10 is >= 2 and <= 4 && n % 100 is not (>= 12 and <= 14) => HarborlinePluralCategory.Few,
-            "ru" when isInteger && (n % 10 == 0 || n % 10 is >= 5 and <= 9 || n % 100 is >= 11 and <= 14) => HarborlinePluralCategory.Many,
-            "ru" => HarborlinePluralCategory.Other,
-            "ja" => HarborlinePluralCategory.Other,
-            _ when count == 1 => HarborlinePluralCategory.One,
-            _ => HarborlinePluralCategory.Other,
-        };
-    }
+    /// <summary>
+    /// Selects the CLDR cardinal plural category for this scope's locale. Operands come from the
+    /// decimal's visible digits, so 1 and 1.0 differ (v = 0 versus v = 1), as UTS #35 requires.
+    /// </summary>
+    public HarborlinePluralCategory PluralCategory(decimal count) => CldrPluralRules.Select(Locale, count);
 
     /// <summary>Resolves the category key, then other, then the invariant count.</summary>
     public string ResolvePlural(decimal count, IReadOnlyDictionary<HarborlinePluralCategory, string> keys)

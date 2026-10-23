@@ -32,6 +32,28 @@ public sealed class LocaleScopeTests
         Assert.Equal("12.5", new HarborlineLocaleScope("not_a_locale").FormatNumber(12.5m));
     }
 
+    [Fact]
+    public void CldrPluralCategoriesFixtureHoldsForEveryRow()
+    {
+        using var fixtures = System.Text.Json.JsonDocument.Parse(File.ReadAllText(Path.Combine(
+            CldrPluralRulesTests.RepositoryRoot(), "conformance", "hlp.ui.locale-provider", "fixtures.yaml")));
+        var row = fixtures.RootElement.GetProperty("cases").EnumerateArray()
+            .Single(value => value.GetProperty("id").GetString() == "locale.plural-categories");
+        AssertPluralCategories(row);
+    }
+
+    internal static void AssertPluralCategories(System.Text.Json.JsonElement fixture)
+    {
+        Assert.Equal("47", fixture.GetProperty("input").GetProperty("cldr").GetString());
+        var rows = fixture.GetProperty("input").GetProperty("rows").EnumerateArray().ToArray();
+        var expected = fixture.GetProperty("expected").GetProperty("categories").EnumerateArray().Select(value => value.GetString()).ToArray();
+        Assert.Equal(expected.Length, rows.Length);
+        var actual = rows.Select(row => new HarborlineLocaleScope(row.GetProperty("locale").GetString()!)
+            .PluralCategory(decimal.Parse(row.GetProperty("count").GetString()!, System.Globalization.NumberStyles.AllowDecimalPoint, System.Globalization.CultureInfo.InvariantCulture))
+            .ToString().ToLowerInvariant()).ToArray();
+        Assert.Equal(expected, actual);
+    }
+
     [Fact, Trait("ModuleConformance", "hlp.ui.locale-provider")]
     public void SharedFixtureConforms()
     {
@@ -39,5 +61,6 @@ public sealed class LocaleScopeTests
         if (fixture is null) return;
         Assert.Contains(fixture.RootElement.GetProperty("id").GetString(), Fixture.CaseIds("hlp.ui.locale-provider"));
         Assert.Equal("en", new HarborlineLocaleScope().Locale);
+        if (fixture.RootElement.GetProperty("id").GetString() == "locale.plural-categories") AssertPluralCategories(fixture.RootElement);
     }
 }
