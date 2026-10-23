@@ -58,4 +58,16 @@ describe('NotificationCenter catalog-backed copy', () => {
     render(<HarborlineLocaleProvider locale="fr-FR" catalog={{ 'navigation.notifications.groups': ' ', 'navigation.notifications.dismiss': '' }}>{center()}</HarborlineLocaleProvider>)
     expect(chrome()).toMatchObject({ tablist: 'Notification groups', dismiss: 'Dismiss: Export ready' })
   })
+
+  it('names the bell from the catalog, following a French to Arabic change and en-XA', () => {
+    const bellName = () => document.querySelector('.hl-notification-center__trigger')!.getAttribute('aria-label')
+    const french = { 'navigation.notifications.title': 'Avis', 'navigation.notifications.bell.unread.one': '{title}, {count} non lue', 'navigation.notifications.bell.unread.other': '{title}, {count} non lues' }
+    const arabic = { 'navigation.notifications.title': 'الإشعارات', 'navigation.notifications.bell.unread.two': '{title}، إشعاران غير مقروءين', 'navigation.notifications.bell.unread.other': '{title}، {count} غير مقروء' }
+    const view = render(<HarborlineLocaleProvider locale="fr-FR" catalog={french}>{center()}</HarborlineLocaleProvider>)
+    expect(bellName()).toBe('Avis, 2 non lues')
+    view.rerender(<HarborlineLocaleProvider locale="ar-SA" catalog={arabic}>{center()}</HarborlineLocaleProvider>)
+    expect(bellName()).toBe('الإشعارات، إشعاران غير مقروءين')
+    view.rerender(<HarborlineLocaleProvider locale="en-XA" catalog={{ 'navigation.notifications.bell.unread.other': '⟦ {title}, {count} ûñŕéåð ··· ⟧' }}>{center()}</HarborlineLocaleProvider>)
+    expect(bellName()).toBe('⟦ Notifications, 2 ûñŕéåð ··· ⟧')
+  })
 })

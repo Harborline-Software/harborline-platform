@@ -168,6 +168,24 @@ const assertions: Record<string, (entry: Case) => void | Promise<void>> = {
     const { dialog, tablist } = chromeNames()
     expect({ dialog, tablist }).toEqual(expected)
   },
+  'notification-center.bell-catalog': ({ input, expected }) => {
+    // Bell names for N pending proposals (decisions mode) or N unread results (unread mode).
+    const bells = (counts: { pending?: number[]; unread?: number[] }, host?: { locale: string; entries: Record<string, string> }, formatCount?: (count: number) => string) => {
+      const name = (mode: 'decisions' | 'unread', count: number) => {
+        const items = Array.from({ length: count }, (_, index) => item(`n${index}`, mode === 'decisions' ? 'proposal' : 'result'))
+        const center = <NotificationCenter badgeMode={mode} formatCount={formatCount} items={items}/>
+        const view = render(host ? <HarborlineLocaleProvider locale={host.locale} catalog={host.entries}>{center}</HarborlineLocaleProvider> : center)
+        const label = bell().getAttribute('aria-label')
+        view.unmount()
+        return label
+      }
+      return { ...(counts.pending ? { pending: counts.pending.map(count => name('decisions', count)) } : {}), ...(counts.unread ? { unread: counts.unread.map(count => name('unread', count)) } : {}) }
+    }
+    expect(bells(input.defaultCatalog)).toEqual(expected.defaultCatalog)
+    expect(bells(input.hostCatalog, input.hostCatalog)).toEqual(expected.hostCatalog)
+    const template = input.formatCount as string
+    expect(bells({ unread: [2] }, undefined, count => template.replace('{count}', String(count))).unread![0]).toBe(expected.formatted)
+  },
   'notification-center.localization': ({ input, expected }) => {
     const labels = input.labels
     render(<NotificationCenter items={[item('p1', 'proposal', false)]} labels={labels} onMarkAllRead={() => undefined} onViewAll={() => undefined}/>)

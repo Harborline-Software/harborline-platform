@@ -96,15 +96,30 @@ export function NotificationCenter({
   if (new Set(items.map(item => item.id)).size !== items.length) throw new Error('duplicate-notification-id')
   // Caller text overrides each label; blank caller text is no text and keeps the catalog default, so no
   // chrome or control name is ever empty.
-  const { t } = useHarborlineStrings()
+  const { t, locale } = useHarborlineStrings()
   const labels = React.useMemo(() => resolveLabels(overrides, catalogDefaults(t)), [overrides, t])
   const unread = items.filter(item => !item.read).length
   const pending = items.filter(item => item.kind === 'proposal').length
   const otherUnread = items.filter(item => item.kind !== 'proposal' && !item.read).length
+  // navigation.notifications.bell.<kind>.<category>, then .other: the locale's cardinal category picks the
+  // key. For each key, blank or missing host text falls back to that key in the default catalog; a key
+  // absent from both falls through. {count} is the caller-formatted count.
+  const bellPhrase = (kind: 'pending' | 'unread', count: number) => {
+    let category: Intl.LDMLPluralRule = 'other'
+    try { category = new Intl.PluralRules(locale).select(count) } catch { category = count === 1 ? 'one' : 'other' }
+    const vars = { title: labels.title, count: formatCount(count) }
+    for (const key of [`navigation.notifications.bell.${kind}.${category}`, `navigation.notifications.bell.${kind}.other`]) {
+      const host = t(key, vars)
+      if (host.trim() && host !== key) return host
+      const fallback = (defaultStrings as Readonly<Record<string, string | undefined>>)[key]
+      if (fallback !== undefined) return interpolate(fallback, vars)
+    }
+    return labels.title
+  }
   const bellLabel = getBellLabel?.({ pending, unread, mode: badgeMode }) ??
     (badgeMode === 'decisions'
-      ? pending ? `${labels.title}, ${formatCount(pending)} approval pending` : otherUnread ? `${labels.title}, ${formatCount(otherUnread)} unread` : labels.title
-      : unread ? `${labels.title}, ${formatCount(unread)} unread` : labels.title)
+      ? pending ? bellPhrase('pending', pending) : otherUnread ? bellPhrase('unread', otherUnread) : labels.title
+      : unread ? bellPhrase('unread', unread) : labels.title)
   if (!bellLabel.trim() || !labels.title.trim()) throw new Error('accessible-notification-label-required')
   const groups = React.useMemo(() => explicitGroups ?? derivedGroups(items), [explicitGroups, items])
   const [open, setOpen] = React.useState(false)

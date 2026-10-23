@@ -104,6 +104,20 @@ public sealed class CatalogCopyTests : BunitContext
         Assert.Equal("Notification groups", CenterNames((IRenderedComponent<IComponent>)(object)Localized("fr-FR", new Dictionary<string, string> { ["navigation.notifications.groups"] = " " }, Center())).Tablist);
     }
 
+    [Fact]
+    public void NotificationCenterNamesTheBellFromTheCatalogAcrossLocales()
+    {
+        string BellName(IRenderedComponent<HarborlineLocaleProvider> cut) => NonEmpty(cut.Find(".hl-notification-center__trigger").GetAttribute("aria-label"));
+        var french = new Dictionary<string, string> { ["navigation.notifications.title"] = "Avis", ["navigation.notifications.bell.unread.one"] = "{title}, {count} non lue", ["navigation.notifications.bell.unread.other"] = "{title}, {count} non lues" };
+        var arabic = new Dictionary<string, string> { ["navigation.notifications.title"] = "الإشعارات", ["navigation.notifications.bell.unread.two"] = "{title}، إشعاران غير مقروءين", ["navigation.notifications.bell.unread.other"] = "{title}، {count} غير مقروء" };
+        var cut = Localized("fr-FR", french, Center());
+        Assert.Equal("Avis, 2 non lues", BellName(cut));
+        cut.Render(p => p.Add(x => x.Locale, "ar-SA").Add(x => x.Catalog, arabic));
+        Assert.Equal("الإشعارات، إشعاران غير مقروءين", BellName(cut));
+        cut.Render(p => p.Add(x => x.Locale, "en-XA").Add(x => x.Catalog, new Dictionary<string, string> { ["navigation.notifications.bell.unread.other"] = "⟦ {title}, {count} ûñŕéåð ··· ⟧" }));
+        Assert.Equal("⟦ Notifications, 2 ûñŕéåð ··· ⟧", BellName(cut));
+    }
+
     // ── Switch ──
     [Fact]
     public void SwitchTakesItsStateCopyFromTheDefaultCatalogWithoutAProvider()

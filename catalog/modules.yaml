@@ -1345,7 +1345,7 @@
       "owner": "platform-ui",
       "dependencies": [],
       "status": "extracted-candidate",
-      "depth": {"disposition": "deep-module", "deletionTest": "PASS", "redistributedComplexity": ["the exact 728-key English fallback vocabulary (713 revision-1 keys plus 15 platform UI keys), key typing, namespaces, accessibility strings, and placeholder shapes duplicated across twenty-seven dependent UI modules", "single-brace string and numeric interpolation, visible missing variables, and empty override semantics independently drifting across TypeScript and .NET"]},
+      "depth": {"disposition": "deep-module", "deletionTest": "PASS", "redistributedComplexity": ["the exact 732-key English fallback vocabulary (713 revision-1 keys plus 19 platform UI keys), key typing, namespaces, accessibility strings, and placeholder shapes duplicated across twenty-seven dependent UI modules", "single-brace string and numeric interpolation, visible missing variables, and empty override semantics independently drifting across TypeScript and .NET"]},
       "projections": {
         "react": {"role": "implementation", "path": "projections/react/ui/hlp.ui.default-strings", "status": "conformant", "packageContribution": "@harborline-software/ui-react", "conformanceRunner": "conformance/hlp.ui.default-strings/runners/run-shared.mjs"},
         "dotnet": {"role": "implementation", "path": "projections/dotnet/foundation/hlp.ui.default-strings", "status": "conformant", "packageContribution": "Harborline.Foundation", "conformanceRunner": "conformance/hlp.ui.default-strings/runners/run-shared.mjs"}
