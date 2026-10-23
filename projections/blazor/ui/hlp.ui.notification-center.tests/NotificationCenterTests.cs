@@ -233,6 +233,31 @@ public sealed class NotificationCenterTests : BunitContext
                 Assert.Equal((expected.GetProperty("dialog").GetString(), expected.GetProperty("tablist").GetString()), (dialog, tablist));
                 break;
             }
+            case "notification-center.bell-catalog":
+            {
+                // Bell names for N pending proposals (decisions mode) or N unread results (unread mode).
+                string Name(NotificationBadgeMode mode, int count, System.Text.Json.JsonElement? host, Func<int, string>? format)
+                {
+                    var items = Enumerable.Range(0, count).Select(i => Item($"n{i}", mode == NotificationBadgeMode.Decisions ? "proposal" : "result")).ToArray();
+                    void Configure(ComponentParameterCollectionBuilder<HarborlineNotificationCenter> p) { p.Add(x => x.Items, items).Add(x => x.BadgeMode, mode); if (format is not null) p.Add(x => x.FormatCount, format); }
+                    return host is { } catalog
+                        ? Render<HarborlineLocaleProvider>(p => p.Add(x => x.Locale, catalog.GetProperty("locale").GetString()).Add(x => x.Catalog, catalog.GetProperty("entries").EnumerateObject().ToDictionary(entry => entry.Name, entry => entry.Value.GetString()!)).AddChildContent<HarborlineNotificationCenter>(Configure)).Find(".hl-notification-center__trigger").GetAttribute("aria-label")!
+                        : Render<HarborlineNotificationCenter>(Configure).Find(".hl-notification-center__trigger").GetAttribute("aria-label")!;
+                }
+                void Check(System.Text.Json.JsonElement counts, System.Text.Json.JsonElement want, System.Text.Json.JsonElement? host)
+                {
+                    foreach (var (field, mode) in new[] { ("pending", NotificationBadgeMode.Decisions), ("unread", NotificationBadgeMode.Unread) })
+                    {
+                        if (!counts.TryGetProperty(field, out var list)) continue;
+                        Assert.Equal(want.GetProperty(field).EnumerateArray().Select(value => value.GetString()), list.EnumerateArray().Select(value => Name(mode, value.GetInt32(), host, null)));
+                    }
+                }
+                Check(input.GetProperty("defaultCatalog"), expected.GetProperty("defaultCatalog"), null);
+                Check(input.GetProperty("hostCatalog"), expected.GetProperty("hostCatalog"), input.GetProperty("hostCatalog"));
+                var template = input.GetProperty("formatCount").GetString()!;
+                Assert.Equal(expected.GetProperty("formatted").GetString(), Name(NotificationBadgeMode.Unread, 2, null, count => template.Replace("{count}", count.ToString(System.Globalization.CultureInfo.InvariantCulture), StringComparison.Ordinal)));
+                break;
+            }
             case "notification-center.localization":
             {
                 var given = input.GetProperty("labels");

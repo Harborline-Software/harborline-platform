@@ -144,11 +144,29 @@
   {
     if (BadgeMode == NotificationBadgeMode.Decisions)
     {
-      if (PendingCount > 0) return $"{L.Title}, {FormatCount(PendingCount)} approval pending";
-      if (OtherUnreadCount > 0) return $"{L.Title}, {FormatCount(OtherUnreadCount)} unread";
+      if (PendingCount > 0) return BellPhrase("pending", PendingCount);
+      if (OtherUnreadCount > 0) return BellPhrase("unread", OtherUnreadCount);
       return L.Title;
     }
-    return UnreadCount > 0 ? $"{L.Title}, {FormatCount(UnreadCount)} unread" : L.Title;
+    return UnreadCount > 0 ? BellPhrase("unread", UnreadCount) : L.Title;
+  }
+  private static readonly Harborline.Foundation.Localization.HarborlineLocaleScope ZeroScope = new();
+  // navigation.notifications.bell.<kind>.<category>, then .other: the locale's cardinal category picks the
+  // key. For each key, blank or missing host text falls back to that key in the default catalog; a key
+  // absent from both falls through. {count} is the caller-formatted count.
+  private string BellPhrase(string kind, int count)
+  {
+    var category = LocaleContext?.PluralCategory(count) ?? ZeroScope.PluralCategory(count);
+    var variables = new Dictionary<string, object?> { ["title"] = L.Title, ["count"] = FormatCount(count) };
+    var root = $"navigation.notifications.bell.{kind}";
+    foreach (var key in new[] { $"{root}.{category.ToString().ToLowerInvariant()}", $"{root}.other" })
+    {
+      var host = LocaleContext?.ResolveString(key, variables);
+      if (!string.IsNullOrWhiteSpace(host) && host != key) return host;
+      if (Harborline.Foundation.Localization.HarborlineDefaultStrings.Values.TryGetValue(key, out var fallback))
+        return Harborline.Foundation.Localization.HarborlineDefaultStrings.Interpolate(fallback, variables);
+    }
+    return L.Title;
   }
 
   private static string KindLabel(string kind) => kind.Length == 0 ? kind : char.ToUpperInvariant(kind[0]) + kind[1..];

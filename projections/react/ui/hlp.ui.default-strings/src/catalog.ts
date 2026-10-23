@@ -1352,6 +1352,14 @@ export const defaultStrings = {
   'forms.switch.on': 'On',
   /** NotificationCenter: the all-kinds tab. */
   'navigation.notifications.all': 'All',
+  /** NotificationCenter: bell name with one pending proposal; {title} is the title, {count} the formatted count. */
+  'navigation.notifications.bell.pending.one': '{title}, {count} approval pending',
+  /** NotificationCenter: bell name with pending proposals (other plural category). */
+  'navigation.notifications.bell.pending.other': '{title}, {count} approvals pending',
+  /** NotificationCenter: bell name with one unread item. */
+  'navigation.notifications.bell.unread.one': '{title}, {count} unread',
+  /** NotificationCenter: bell name with unread items (other plural category). */
+  'navigation.notifications.bell.unread.other': '{title}, {count} unread',
   /** NotificationCenter: approve a proposal. */
   'navigation.notifications.confirm': 'Confirm',
   /** NotificationCenter: decline a proposal. */

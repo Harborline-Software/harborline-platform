@@ -840,7 +840,7 @@
       },
       "phase4Evidence": "specs/modules/ui/hlp.ui.default-strings/interface.yaml",
       "sourceExtracted": true,
-      "sourceState": "Revision 2 keeps the complete pinned 713-key revision-1 English fallback catalog unchanged in identity, value and order (provable by its revision-1 digest) and appends 15 platform-originated keys for Switch, NotificationCenter and UserMenu default copy; typed key and partial override vocabulary, and bounded interpolation semantics. The React and .NET projections share the same exact catalog payload; empty-string overrides remain valid and application locale-provider precedence remains outside this module.",
+      "sourceState": "Revision 2 keeps the complete pinned 713-key revision-1 English fallback catalog unchanged in identity, value and order (provable by its revision-1 digest) and appends 19 platform-originated keys for Switch, NotificationCenter and UserMenu default copy; typed key and partial override vocabulary, and bounded interpolation semantics. The React and .NET projections share the same exact catalog payload; empty-string overrides remain valid and application locale-provider precedence remains outside this module.",
       "contentHashes": {
         "projections/react/ui/hlp.ui.default-strings/src/catalog.ts": "65da6fb37767288c72d5c7c7fa77e84e62350ff3a90eadc49bfee30bb45faec6",
         "projections/react/ui/hlp.ui.default-strings/src/index.ts": "c8ad537343911b69c8cdcf9be1146d5302e8f0de8e532587973e9c9cc0546bfa",
