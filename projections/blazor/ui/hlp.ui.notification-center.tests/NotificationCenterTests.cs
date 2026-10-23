@@ -132,15 +132,21 @@ public sealed class NotificationCenterTests : BunitContext
             }
             case "notification-center.proposal":
             {
+                // The host's handler is still running when the second activation arrives, so only the
+                // per-open latch can stop it.
                 var confirms = new List<NotificationCenterItem>(); var denies = 0; var item = Item(input.GetProperty("id").GetString()!, "proposal");
-                var cut = Center([item], p => p.Add(x => x.OnConfirm, confirms.Add).Add(x => x.OnDeny, _ => denies++));
+                TaskCompletionSource gate = new();
+                var cut = Center([item], p => p.Add(x => x.OnConfirm, async (NotificationCenterItem value) => { confirms.Add(value); await gate.Task; }).Add(x => x.OnDeny, async (NotificationCenterItem _) => { denies++; await gate.Task; }));
                 foreach (var action in Strings(input.GetProperty("actions")))
                 {
+                    gate = new();
                     Open(cut);
                     var selector = $"[aria-label='{(action == "confirm" ? "Confirm" : "Deny")}: {item.Title}']";
-                    cut.Find(selector).Click();
-                    if (cut.FindAll(selector).Count > 0) cut.Find(selector).Click();
-                    Assert.Equal(!expected.GetProperty("closes").GetBoolean(), IsOpen(cut));
+                    var button = cut.Find(selector);
+                    button.Click();
+                    if (!button.HasAttribute("disabled")) button.Click();
+                    cut.InvokeAsync(() => gate.SetResult()).Wait();
+                    cut.WaitForAssertion(() => Assert.Equal(!expected.GetProperty("closes").GetBoolean(), IsOpen(cut)));
                 }
                 Assert.Equal(expected.GetProperty("confirmCountPerOpen").GetInt32(), confirms.Count);
                 Assert.Equal(expected.GetProperty("denyCountPerOpen").GetInt32(), denies);

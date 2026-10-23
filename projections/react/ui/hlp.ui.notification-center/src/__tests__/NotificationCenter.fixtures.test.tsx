@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { NotificationCenter, type NotificationCenterItem } from '../NotificationCenter'
@@ -99,7 +99,8 @@ const assertions: Record<string, (entry: Case) => void | Promise<void>> = {
     for (const action of input.actions as string[]) {
       open()
       const button = screen.getByRole('button', { name: `${action === 'confirm' ? 'Confirm' : 'Deny'}: Title ${input.id}` })
-      fireEvent.click(button); fireEvent.click(button)
+      // Two activations before React re-renders: only the per-open latch can stop the second.
+      act(() => { button.click(); button.click() })
       expect(dialogOpen()).toBe(!expected.closes)
     }
     expect(confirm).toHaveBeenCalledTimes(expected.confirmCountPerOpen)
