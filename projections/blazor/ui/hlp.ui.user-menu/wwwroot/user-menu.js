@@ -12,6 +12,9 @@ export function focusItem(panel,id){const target=id==null?panel.querySelector('.
 const keys=new Map()
 // Tab out of the menu: focus moves to the trigger before the browser's default Tab, so Tab continues
 // from there (the closing render may already have removed the focused item) and Shift+Tab stops on it.
-export function observeKeys(panel,menu,callback,trigger){const id=nextId++;const handler=event=>{if(!panel.contains(event.target)&&!(menu&&event.key==='Tab'&&event.target===document.body))return;if(menu&&event.key==='Tab'){trigger?.focus();if(event.shiftKey)event.preventDefault();return}if(menu&&['ArrowUp','ArrowDown','Home','End'].includes(event.key))event.preventDefault();if(event.key==='Escape'&&!event.defaultPrevented)callback.invokeMethodAsync('OnEscapeKey')};document.addEventListener('keydown',handler);keys.set(id,handler);return id}
+// The closing render is synchronous in WebAssembly but arrives later over a Server circuit, so for a
+// forward Tab the panel is inert until the default action has run: Tab passes the still-rendered items
+// and lands after the menu. It is restored on the next task, in case the host keeps the menu open.
+export function observeKeys(panel,menu,callback,trigger){const id=nextId++;const handler=event=>{if(!panel.contains(event.target)&&!(menu&&event.key==='Tab'&&event.target===document.body))return;if(menu&&event.key==='Tab'){if(!event.shiftKey){panel.inert=true;setTimeout(()=>{panel.inert=false})}trigger?.focus();if(event.shiftKey)event.preventDefault();return}if(menu&&['ArrowUp','ArrowDown','Home','End'].includes(event.key))event.preventDefault();if(event.key==='Escape'&&!event.defaultPrevented)callback.invokeMethodAsync('OnEscapeKey')};document.addEventListener('keydown',handler);keys.set(id,handler);return id}
 export function disposeKeys(id){const handler=keys.get(id);if(handler)document.removeEventListener('keydown',handler);keys.delete(id)}
 export function focus(element){element?.focus()}
