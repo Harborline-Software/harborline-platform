@@ -1,4 +1,3 @@
-/** Maintained Forms wire declarations. Shared contracts are borrowed from their owners. */
 import type { InternationalizedText } from './text.js'
 import type { RuleDefinition } from './rules.js'
 

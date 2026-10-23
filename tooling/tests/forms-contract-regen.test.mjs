@@ -1,4 +1,3 @@
-// The generator owns wire.ts and ModelJson. Maintained declarations must match that wire model.
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'

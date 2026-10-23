@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.contracts.workflow",
-  "interfaceRevision": 2,
+  "interfaceRevision": 3,
   "authority": {"notify.email": "AP", "ledger.post-journal-entry": "CP", "ledger.void-payment": "CP"},
   "roleDefinitions": [{"roleDefinitionId":"3b69e3cb-ec5e-4ad7-8c90-16ebc1896102","role":{"vocabulary":"sys.platform-roles","name":"auditor"},"displayName":"Auditor","owner":{"kind":"Platform","ownerId":"harborline-platform"},"isSealed":true}],
   "canonical": {

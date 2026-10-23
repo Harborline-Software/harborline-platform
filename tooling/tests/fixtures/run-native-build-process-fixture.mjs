@@ -6,6 +6,7 @@ import { syncBuiltinESMExports } from 'node:module'
 
 const logPath = process.env.HARBORLINE_RUN_NATIVE_FIXTURE_LOG
 let reactBuildComplete = false
+let contractsBuildComplete = false
 
 function record(event) {
   appendFileSync(logPath, `${event}\n`)
@@ -33,6 +34,17 @@ childProcess.spawnSync = () => ({
 
 childProcess.spawn = (_executable, args, options) => {
   const cwd = options.cwd.replaceAll('\\', '/')
+  if (cwd.endsWith('/projections/typescript/contracts/hlp.contracts.forms') && args.includes('build')) {
+    record('contracts-build:start')
+    return fakeChild({ delayMs: 40, onComplete: () => {
+      contractsBuildComplete = true
+      record('contracts-build:complete')
+    } })
+  }
+  if (cwd.endsWith('/projections/typescript/foundation/hlp.foundation.rule-runtime') && args.includes('build')) {
+    record('rule-runtime-build:start')
+    if (!contractsBuildComplete) return fakeChild({ exitCode: 2, stderr: 'fixture: Contracts declarations are not ready\n' })
+  }
   if (cwd.endsWith('/projections/react/ui/hlp.ui.button') && args.includes('build')) {
     record('react-build:start')
     return fakeChild({
