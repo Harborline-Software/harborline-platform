@@ -1,6 +1,7 @@
 import * as React from 'react'
 
 import { cn } from '@harborline-platform/hlp.ui.cn'
+import { defaultStrings } from '@harborline-platform/hlp.ui.default-strings'
 import { useHarborlineStrings } from '@harborline-platform/hlp.ui.locale-provider'
 
 export interface SearchInputProps {
@@ -19,8 +20,15 @@ export function SearchInput({
   className, direction,
 }: SearchInputProps) {
   if (!Number.isFinite(debounceMs) || debounceMs < 0) throw new Error('invalid-debounce-delay')
-  const { direction: localeDirection, resolveString } = useHarborlineStrings()
-  const resolvedPlaceholder = resolveString(placeholder, 'structural.search.placeholder')
+  const { direction: localeDirection, t } = useHarborlineStrings()
+  // Caller text, then the host catalog, then the default catalog. Blank text at any step is no text, and a
+  // catalog miss echoes the key, so neither the searchbox nor the clear button is ever unnamed.
+  const copy = (caller: string | undefined, key: 'structural.search.placeholder' | 'structural.search.clear') => {
+    if (caller?.trim()) return caller
+    const catalog = t(key)
+    return catalog.trim() && catalog !== key ? catalog : defaultStrings[key]
+  }
+  const resolvedPlaceholder = copy(placeholder, 'structural.search.placeholder')
   // Blank caller text is not a name; fall back to the resolved placeholder, as in Blazor.
   const resolvedName = accessibleLabel?.trim() ? accessibleLabel : resolvedPlaceholder
   if (resolvedName.trim().length === 0) throw new Error('accessible-name-required')
@@ -83,7 +91,7 @@ export function SearchInput({
         className="hl-search-input__control"
       />
       {draft.length > 0 ? (
-        <button type="button" onClick={clear} aria-label={resolveString(clearLabel, 'structural.search.clear')} className="hl-search-input__clear">
+        <button type="button" onClick={clear} aria-label={copy(clearLabel, 'structural.search.clear')} className="hl-search-input__clear">
           <svg aria-hidden="true" viewBox="0 0 20 20"><path d="m5 5 10 10M15 5 5 15" /></svg>
         </button>
       ) : null}
