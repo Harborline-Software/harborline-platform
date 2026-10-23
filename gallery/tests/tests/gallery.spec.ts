@@ -370,7 +370,8 @@ async function prepareScenario(page: Page, scenario: Scenario) {
     return
   }
   if (scenario.id === 'layers-rail.outline') {
-    const node = page.locator('[role="treeitem"] button[tabindex="0"]').first()
+    // The treeitem itself is the tree's one tab stop (APG treeview; layers-rail interface revision 2).
+    const node = page.locator('[role="treeitem"][tabindex="0"]').first()
     await node.focus()
     await node.press('ArrowDown')
     return
