@@ -39,6 +39,28 @@ describe('LayersRail focus', () => {
     expect(document.activeElement).toBe(item('Child'))
   })
 
+  it('selects once when the treeitem itself is activated, by a click on it or an assistive technology', () => {
+    const selected: string[] = []
+    render(<Host onSelect={id => selected.push(id)}/>)
+    fireEvent.click(item('Child'))
+    expect(selected).toEqual(['child'])
+    fireEvent.click(screen.getByText('Child').closest('button')!)
+    expect(selected).toEqual(['child', 'child'])
+  })
+
+  it('leaves Alt, Ctrl and Meta chords to the browser', () => {
+    const selected: string[] = []
+    render(<Host onSelect={id => selected.push(id)}/>)
+    item('Child').focus()
+    for (const chord of [{ key: 'ArrowLeft', altKey: true }, { key: 'Home', ctrlKey: true }, { key: 'Enter', metaKey: true }]) {
+      const event = new KeyboardEvent('keydown', { ...chord, bubbles: true, cancelable: true })
+      item('Child').dispatchEvent(event)
+      expect(event.defaultPrevented, chord.key).toBe(false)
+    }
+    expect(document.activeElement).toBe(item('Child'))
+    expect(selected).toEqual([])
+  })
+
   it('hands focus to the treeitem when a pointer clicks its node button or disclosure, and the disclosure does not select', async () => {
     const user = userEvent.setup()
     const selected: string[] = []

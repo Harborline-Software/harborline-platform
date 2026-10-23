@@ -6,7 +6,7 @@ namespace Harborline.UIAdapters.Blazor.Tests;
 
 // Contract: focus is never stranded and the tree is one tab stop, the treeitem itself (APG treeview).
 // bUnit sees the module requests and LayersRailScript runs the module's selectors; the real-browser probe
-// layers-rail-treeitem-focus.mjs checks where focus actually lands.
+// a real-browser probe kept with the batch evidence (not in this repository) checks where focus actually lands.
 public sealed class LayersRailFocusTests : BunitContext
 {
     private readonly BunitJSModuleInterop module;
@@ -91,6 +91,20 @@ public sealed class LayersRailFocusTests : BunitContext
         Assert.Empty(cut.FindAll("[data-node-id=child]"));
         cut.Find("[data-node-id=sibling] .hl-layers-rail__node-control").Click();
         Assert.Empty(cut.FindAll("[data-node-id=child]"));
+    }
+
+    [Fact]
+    public void ActivatingTheTreeitemItselfSelectsOnceAndModifierChordsAreLeftToTheBrowser()
+    {
+        var selected = new List<string>();
+        var cut = Render<LayersRailHost>(p => p.Add(x => x.OnSelect, selected.Add));
+        cut.Find("[role=treeitem][data-node-id=child]").Click();
+        Assert.Equal(["child"], selected);
+        foreach (var chord in new[] { new Microsoft.AspNetCore.Components.Web.KeyboardEventArgs { Key = "Enter", CtrlKey = true }, new() { Key = " ", MetaKey = true }, new() { Key = "Enter", AltKey = true } })
+            cut.Find("[role=treeitem][data-node-id=child]").KeyDown(chord);
+        Assert.Equal(["child"], selected);
+        // The pointer-only buttons never take mouse focus, so a key can't start on them before focus returns to the treeitem.
+        Assert.All(cut.FindAll("[role=treeitem] button"), button => Assert.Contains(button.Attributes, attribute => attribute.Name == "blazor:onmousedown:preventdefault"));
     }
 
     [Fact]

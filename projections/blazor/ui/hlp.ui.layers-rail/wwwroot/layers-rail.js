@@ -18,5 +18,5 @@ export function focusLens(root, id) {
 // rail. Blazor cannot prevent the default for some keys only, so the tree does it.
 const navigation = new Set(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End', 'Enter', ' '])
 export function observeTreeKeys(tree) {
-  tree?.addEventListener('keydown', event => { if (navigation.has(event.key) && event.target.matches?.('[role="treeitem"]')) event.preventDefault() })
+  tree?.addEventListener('keydown', event => { if (navigation.has(event.key) && !event.altKey && !event.ctrlKey && !event.metaKey && event.target.matches?.('[role="treeitem"]')) event.preventDefault() })
 }

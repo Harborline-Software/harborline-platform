@@ -124,7 +124,8 @@ export function LayersRail({
   }
   const onTreeKey = (event: React.KeyboardEvent, node: CanvasNode) => {
     // Only the focused treeitem handles keys, so a key on a button inside it never selects a second time.
-    if (event.target !== event.currentTarget) return
+    // Alt, Ctrl and Meta chords (browser back and forward, page Home and End) belong to the browser.
+    if (event.target !== event.currentTarget || event.altKey || event.ctrlKey || event.metaKey) return
     if (event.key === 'ArrowDown') move(node.id, 1)
     else if (event.key === 'ArrowUp') move(node.id, -1)
     else if (event.key === 'Home' && visibleNodes[0]) focusNode(visibleNodes[0].id)
@@ -192,7 +193,7 @@ export function LayersRail({
           // The name is the label alone; badge and provenance text stay announced as the description.
           const describedBy = [lensState?.badge ? nodeElementId(node.id, 'badge') : null, source ? nodeElementId(node.id, 'source') : null].filter(Boolean).join(' ')
           return (
-            <div key={node.id} ref={element => { if (element) refs.current.set(node.id, element); else refs.current.delete(node.id) }} role="treeitem" tabIndex={focusedId === node.id ? 0 : -1} aria-labelledby={nodeElementId(node.id, 'label')} aria-describedby={describedBy || undefined} aria-level={node.depth + 1} aria-selected={model.selectedId === node.id} aria-expanded={node.hasChildren ? !collapsed.has(node.id) : undefined} className="hl-layers-rail__node" data-hl-ghosted={ghosted || undefined} style={{ '--hl-depth': node.depth } as React.CSSProperties} onFocus={event => { if (event.target === event.currentTarget) setFocusedId(node.id) }} onKeyDown={event => onTreeKey(event, node)}>
+            <div key={node.id} ref={element => { if (element) refs.current.set(node.id, element); else refs.current.delete(node.id) }} role="treeitem" tabIndex={focusedId === node.id ? 0 : -1} aria-labelledby={nodeElementId(node.id, 'label')} aria-describedby={describedBy || undefined} aria-level={node.depth + 1} aria-selected={model.selectedId === node.id} aria-expanded={node.hasChildren ? !collapsed.has(node.id) : undefined} className="hl-layers-rail__node" data-hl-ghosted={ghosted || undefined} style={{ '--hl-depth': node.depth } as React.CSSProperties} onFocus={event => { if (event.target === event.currentTarget) setFocusedId(node.id) }} onKeyDown={event => onTreeKey(event, node)} onClick={event => { if (event.target === event.currentTarget) model.select(node.id) }}>
               {/* The tree is one tab stop (APG): the treeitem is focused; its buttons are for pointers, so they are not tab stops and a click hands focus to the treeitem. */}
               {node.hasChildren ? <button type="button" className="hl-layers-rail__disclosure" tabIndex={-1} aria-label={collapsed.has(node.id) ? labels.expandNode : labels.collapseNode} onClick={() => { toggleCollapse(node); refs.current.get(node.id)?.focus() }}><svg aria-hidden="true" viewBox="0 0 16 16"><path d={collapsed.has(node.id) ? 'M6 3l5 5-5 5' : 'M3 6l5 5 5-5'}/></svg></button> : <span aria-hidden="true" className="hl-layers-rail__spacer"/>}
               <button className="hl-layers-rail__node-control" type="button" tabIndex={-1} onClick={() => { model.select(node.id); refs.current.get(node.id)?.focus() }}>
