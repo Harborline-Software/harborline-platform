@@ -28,7 +28,9 @@
             @{ var offset = PinnedAction is null ? 0 : 1; }
             @foreach (var section in Sections)
             {
-                if (section.Items.Count > 0)
+                @* A loading section is a labelled group like any other (as in React), so the listbox
+                   owns only groups and options; its loading text sits inside the group. *@
+                if (section.Items.Count > 0 || section.Loading)
                 {
                     <div role="group" aria-label="@section.Label" @key="section.Id">
                         <div aria-hidden="true" class="hl-spotlight__group-label">@section.Label</div>
@@ -37,12 +39,12 @@
                             var optionIndex = offset + itemIndex;
                             @RenderOption(section.Items[itemIndex], optionIndex, section.Id)
                         }
+                        @if (section.Loading && section.Items.Count == 0)
+                        {
+                            <div class="hl-spotlight__loading">@(section.LoadingLabel ?? "…")</div>
+                        }
                     </div>
                     offset += section.Items.Count;
-                }
-                else if (section.Loading)
-                {
-                    <div class="hl-spotlight__loading" @key="section.Id">@(section.LoadingLabel ?? "…")</div>
                 }
             }
         </div>
