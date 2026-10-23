@@ -14,7 +14,8 @@ describe('SearchInput Escape', () => {
     render(<SearchInput value="oak" onChange={value => published.push(value)} debounceMs={200}/>)
     const box = screen.getByRole('searchbox')
     fireEvent.change(box, { target: { value: 'oak tr' } })
-    box.focus()
+    // Focus starts elsewhere, so only the clear can put it on the searchbox.
+    box.blur()
     const escape = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })
     act(() => { box.dispatchEvent(escape) })
     expect(published).toEqual([''])
@@ -32,6 +33,17 @@ describe('SearchInput Escape', () => {
     act(() => { screen.getByRole('searchbox').dispatchEvent(escape) })
     expect(escape.defaultPrevented).toBe(false)
     expect(published).toEqual([])
+  })
+
+  it('leaves Escape during IME composition to the composition', () => {
+    const published: string[] = []
+    render(<SearchInput value="oak" onChange={value => published.push(value)}/>)
+    const box = screen.getByRole('searchbox')
+    const escape = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true, isComposing: true })
+    act(() => { box.dispatchEvent(escape) })
+    expect(escape.defaultPrevented).toBe(false)
+    expect(published).toEqual([])
+    expect(box).toHaveValue('oak')
   })
 
   it('leaves an Escape another handler already claimed alone', () => {

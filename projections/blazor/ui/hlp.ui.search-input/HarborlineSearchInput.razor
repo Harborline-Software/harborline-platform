@@ -41,15 +41,22 @@
   protected override async Task OnAfterRenderAsync(bool firstRender)
   {
     if (!firstRender) return;
+    // Disposal can happen during either await; whatever arrives afterwards is released here.
     try
     {
       self = DotNetObjectReference.Create(this);
-      module = await JavaScript.InvokeAsync<IJSObjectReference>("import", "./_content/Harborline.UIAdapters.Blazor/search-input.js");
-      if (module is not null && !disposed) escapeRegistration = await module.InvokeAsync<IJSObjectReference>("observeEscape", input, self);
+      var imported = await JavaScript.InvokeAsync<IJSObjectReference>("import", "./_content/Harborline.UIAdapters.Blazor/search-input.js");
+      if (disposed) { if (imported is not null) await imported.DisposeAsync(); return; }
+      module = imported;
+      if (module is null) return;
+      var registration = await module.InvokeAsync<IJSObjectReference>("observeEscape", input, self);
+      if (disposed) { if (registration is not null) { await registration.InvokeVoidAsync("dispose"); await registration.DisposeAsync(); } return; }
+      escapeRegistration = registration;
     }
     catch (JSException) { }
     catch (JSDisconnectedException) { }
     catch (InvalidOperationException) { }
+    catch (TaskCanceledException) { }
   }
 
   // Called from JavaScript rather than a Blazor event handler, so it renders the cleared draft itself.
@@ -148,8 +155,10 @@
       if (escapeRegistration is not null) { await escapeRegistration.InvokeVoidAsync("dispose"); await escapeRegistration.DisposeAsync(); }
       if (module is not null) await module.DisposeAsync();
     }
+    catch (JSException) { }
     catch (JSDisconnectedException) { }
     catch (InvalidOperationException) { }
-    self?.Dispose();
+    catch (TaskCanceledException) { }
+    finally { self?.Dispose(); }
   }
 }

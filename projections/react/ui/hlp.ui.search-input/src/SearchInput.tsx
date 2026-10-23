@@ -74,8 +74,9 @@ export function SearchInput({
         onKeyDown={event => {
           // Escape on a nonempty search is Clear: the browser's own search clearing would publish only
           // after the debounce, and an unhandled Escape would also close an enclosing overlay. An empty
-          // search leaves Escape to the overlay.
+          // search leaves Escape to the overlay. During IME composition Escape cancels the composition only.
           if (event.key !== 'Escape' || event.defaultPrevented || draft.length === 0) return
+          if (event.nativeEvent.isComposing || event.keyCode === 229) return
           event.preventDefault()
           clear()
         }}
