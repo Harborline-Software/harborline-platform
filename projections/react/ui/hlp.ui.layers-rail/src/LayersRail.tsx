@@ -61,7 +61,10 @@ export function LayersRail({
   const activeLens = lenses.find(lens => lens.id === layers.activeId) ?? null
   const [collapsed, setCollapsed] = React.useState<ReadonlySet<string>>(new Set())
   const [focusedId, setFocusedId] = React.useState<string | null>(() => model.selectedId ?? model.nodes[0]?.id ?? null)
-  const refs = React.useRef(new Map<string, HTMLButtonElement>())
+  // The treeitem itself takes focus (APG treeview); its buttons are for pointers only.
+  const refs = React.useRef(new Map<string, HTMLDivElement>())
+  const idBase = React.useId()
+  const nodeElementId = (id: string, part: string) => `${idBase}-${encodeURIComponent(id)}-${part}`
   const lensRefs = React.useRef(new Map<string, HTMLButtonElement>())
   // Exiting the lens removes the status region and its Exit button, so focus moves first to the lens
   // that was active; it stays in the rail even when the host clears the lens in a later render.
@@ -120,6 +123,9 @@ export function LayersRail({
     })
   }
   const onTreeKey = (event: React.KeyboardEvent, node: CanvasNode) => {
+    // Only the focused treeitem handles keys, so a key on a button inside it never selects a second time.
+    // Alt, Ctrl and Meta chords (browser back and forward, page Home and End) belong to the browser.
+    if (event.target !== event.currentTarget || event.altKey || event.ctrlKey || event.metaKey) return
     if (event.key === 'ArrowDown') move(node.id, 1)
     else if (event.key === 'ArrowUp') move(node.id, -1)
     else if (event.key === 'Home' && visibleNodes[0]) focusNode(visibleNodes[0].id)
@@ -184,13 +190,15 @@ export function LayersRail({
           const ghosted = activeLens?.kind === 'filter' && lensState?.active === false
           const source = showProvenance ? provenance.resolve(node.id) : null
           const unresolved = source !== null && (!source.resolved || source.source === 'unknown')
+          // The name is the label alone; badge and provenance text stay announced as the description.
+          const describedBy = [lensState?.badge ? nodeElementId(node.id, 'badge') : null, source ? nodeElementId(node.id, 'source') : null].filter(Boolean).join(' ')
           return (
-            <div key={node.id} role="treeitem" aria-level={node.depth + 1} aria-selected={model.selectedId === node.id} aria-expanded={node.hasChildren ? !collapsed.has(node.id) : undefined} className="hl-layers-rail__node" data-hl-ghosted={ghosted || undefined} style={{ '--hl-depth': node.depth } as React.CSSProperties}>
-              {/* The tree is one tab stop (APG): the disclosure is for pointers; keyboards use ArrowLeft and ArrowRight. */}
-              {node.hasChildren ? <button type="button" className="hl-layers-rail__disclosure" tabIndex={-1} aria-label={collapsed.has(node.id) ? labels.expandNode : labels.collapseNode} onClick={() => toggleCollapse(node)}><svg aria-hidden="true" viewBox="0 0 16 16"><path d={collapsed.has(node.id) ? 'M6 3l5 5-5 5' : 'M3 6l5 5 5-5'}/></svg></button> : <span aria-hidden="true" className="hl-layers-rail__spacer"/>}
-              <button className="hl-layers-rail__node-control" ref={element => { if (element) refs.current.set(node.id, element); else refs.current.delete(node.id) }} type="button" tabIndex={focusedId === node.id ? 0 : -1} onFocus={() => setFocusedId(node.id)} onKeyDown={event => onTreeKey(event, node)} onClick={() => model.select(node.id)}>
-                <span className="hl-layers-rail__node-label">{node.label}</span>{lensState?.badge ? <span className="hl-layers-rail__node-badge">{lensState.badge}</span> : null}
-                {source ? <span className="hl-layers-rail__source">{unresolved ? labels.unresolvedSource : labels.source(source.source)}{source.locked ? ` · ${labels.locked}` : ''}</span> : null}
+            <div key={node.id} ref={element => { if (element) refs.current.set(node.id, element); else refs.current.delete(node.id) }} role="treeitem" tabIndex={focusedId === node.id ? 0 : -1} aria-labelledby={nodeElementId(node.id, 'label')} aria-describedby={describedBy || undefined} aria-level={node.depth + 1} aria-selected={model.selectedId === node.id} aria-expanded={node.hasChildren ? !collapsed.has(node.id) : undefined} className="hl-layers-rail__node" data-hl-ghosted={ghosted || undefined} style={{ '--hl-depth': node.depth } as React.CSSProperties} onFocus={event => { if (event.target === event.currentTarget) setFocusedId(node.id) }} onKeyDown={event => onTreeKey(event, node)} onClick={event => { if (event.target === event.currentTarget) model.select(node.id) }}>
+              {/* The tree is one tab stop (APG): the treeitem is focused; its buttons are for pointers, so they are not tab stops and a click hands focus to the treeitem. */}
+              {node.hasChildren ? <button type="button" className="hl-layers-rail__disclosure" tabIndex={-1} aria-label={collapsed.has(node.id) ? labels.expandNode : labels.collapseNode} onClick={() => { toggleCollapse(node); refs.current.get(node.id)?.focus() }}><svg aria-hidden="true" viewBox="0 0 16 16"><path d={collapsed.has(node.id) ? 'M6 3l5 5-5 5' : 'M3 6l5 5 5-5'}/></svg></button> : <span aria-hidden="true" className="hl-layers-rail__spacer"/>}
+              <button className="hl-layers-rail__node-control" type="button" tabIndex={-1} onClick={() => { model.select(node.id); refs.current.get(node.id)?.focus() }}>
+                <span id={nodeElementId(node.id, 'label')} className="hl-layers-rail__node-label">{node.label}</span>{lensState?.badge ? <span id={nodeElementId(node.id, 'badge')} className="hl-layers-rail__node-badge">{lensState.badge}</span> : null}
+                {source ? <span id={nodeElementId(node.id, 'source')} className="hl-layers-rail__source">{unresolved ? labels.unresolvedSource : labels.source(source.source)}{source.locked ? ` · ${labels.locked}` : ''}</span> : null}
               </button>
             </div>
           )

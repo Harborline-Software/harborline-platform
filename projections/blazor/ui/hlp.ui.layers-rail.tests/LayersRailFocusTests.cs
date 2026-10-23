@@ -4,8 +4,9 @@ using Xunit;
 
 namespace Harborline.UIAdapters.Blazor.Tests;
 
-// Contract: focus is never stranded and the tree is one tab stop. bUnit sees the module requests; the
-// Chromium probe layers-rail-focus.mjs checks where focus actually lands.
+// Contract: focus is never stranded and the tree is one tab stop, the treeitem itself (APG treeview).
+// bUnit sees the module requests and LayersRailScript runs the module's selectors; a real-browser probe
+// kept with the batch evidence (outside this repository) checks where focus actually lands.
 public sealed class LayersRailFocusTests : BunitContext
 {
     private readonly BunitJSModuleInterop module;
@@ -22,11 +23,64 @@ public sealed class LayersRailFocusTests : BunitContext
     }
 
     [Fact]
-    public void TheTreeIsOneTabStopAndDisclosuresAreNotTabStops()
+    public void TheTreeIsOneTabStopTheTreeitemAndItsButtonsAreNotTabStops()
     {
         var cut = Render<LayersRailHost>();
-        Assert.All(cut.FindAll(".hl-layers-rail__disclosure"), d => Assert.Equal("-1", d.GetAttribute("tabindex")));
-        Assert.Single(cut.FindAll("[role=tree] button"), b => b.GetAttribute("tabindex") != "-1");
+        Assert.All(cut.FindAll("[role=tree] button"), b => Assert.Equal("-1", b.GetAttribute("tabindex")));
+        var stop = Assert.Single(cut.FindAll("[role=tree] [tabindex]"), e => e.GetAttribute("tabindex") != "-1");
+        Assert.Equal("treeitem", stop.GetAttribute("role"));
+        Assert.Equal("0", stop.GetAttribute("tabindex"));
+    }
+
+    [Fact]
+    public void TheFirstTabStopIsTheSelectedNode()
+    {
+        var cut = Render<LayersRailHost>(p => p.Add(x => x.Selected, "child"));
+        Assert.Equal("0", cut.Find("[role=treeitem][data-node-id=child]").GetAttribute("tabindex"));
+        Assert.Equal("-1", cut.Find("[role=treeitem][data-node-id=root]").GetAttribute("tabindex"));
+    }
+
+    [Fact]
+    public void TheModuleFocusesTheTreeitemAndPreventsScrollingForTheTreeKeysOnIt()
+    {
+        var cut = Render<LayersRailHost>();
+        var result = LayersRailScript.Run("child", "ArrowDown", "ArrowUp", "ArrowLeft", "ArrowRight", "Home", "End", "Enter", " ", "a");
+        var target = cut.Find("aside").QuerySelector(result.FocusSelector!);
+        Assert.Equal(cut.Find("[role=treeitem][data-node-id=child]").OuterHtml, target?.OuterHtml);
+        var treeitem = cut.Find("[role=treeitem][data-node-id=child]");
+        foreach (var key in result.KeyEvents)
+        {
+            Assert.Equal(key.Key != "a", key.Prevented);
+            // Every selector the listener checks on the event target describes the treeitem, not its buttons.
+            Assert.All(key.Queried, selector => { Assert.True(treeitem.Matches(selector), selector); Assert.False(treeitem.QuerySelector(".hl-layers-rail__node-control")!.Matches(selector), selector); });
+        }
+    }
+
+    [Fact]
+    public void ClickingTheNodeButtonOrDisclosureHandsFocusToTheTreeitemAndTheDisclosureDoesNotSelect()
+    {
+        var selected = new List<string>();
+        var cut = Render<LayersRailHost>(p => p.Add(x => x.OnSelect, selected.Add));
+        cut.Find("[data-node-id=sibling] .hl-layers-rail__node-control").Click();
+        Assert.Equal("sibling", module.Invocations["focusNode"].Last().Arguments[1]);
+        cut.Find("[data-node-id=root] .hl-layers-rail__disclosure").Click();
+        Assert.Equal("root", module.Invocations["focusNode"].Last().Arguments[1]);
+        Assert.Equal(["sibling"], selected);
+        Assert.Equal("false", cut.Find("[data-node-id=root]").GetAttribute("aria-selected"));
+    }
+
+    [Fact]
+    public void EachTreeitemIsNamedByItsLabelAloneAndDescribedByItsProvenance()
+    {
+        var cut = Render<LayersRailHost>();
+        var root = cut.Find("[role=treeitem][data-node-id=root]");
+        var label = root.QuerySelector(".hl-layers-rail__node-label")!;
+        Assert.Equal(label.Id, root.GetAttribute("aria-labelledby"));
+        Assert.Equal("Root", label.TextContent);
+        Assert.Equal(root.QuerySelector(".hl-layers-rail__source")!.Id, root.GetAttribute("aria-describedby"));
+        // Ids are unique across rail instances.
+        var other = Render<LayersRailHost>().Find("[role=treeitem][data-node-id=root]");
+        Assert.NotEqual(root.GetAttribute("aria-labelledby"), other.GetAttribute("aria-labelledby"));
     }
 
     [Fact]
@@ -40,17 +94,28 @@ public sealed class LayersRailFocusTests : BunitContext
     }
 
     [Fact]
-    public void EnterAndSpaceSelectOnlyThroughTheNativeClick()
+    public void ActivatingTheTreeitemItselfSelectsOnceAndModifierChordsAreLeftToTheBrowser()
     {
         var selected = new List<string>();
         var cut = Render<LayersRailHost>(p => p.Add(x => x.OnSelect, selected.Add));
-        var node = cut.Find("[data-node-id=child] .hl-layers-rail__node-control");
-        node.KeyDown(new Microsoft.AspNetCore.Components.Web.KeyboardEventArgs { Key = "Enter" });
-        cut.Find("[data-node-id=child] .hl-layers-rail__node-control").KeyDown(new Microsoft.AspNetCore.Components.Web.KeyboardEventArgs { Key = " " });
-        Assert.Empty(selected);
-        // The browser turns Enter or Space on a button into one click.
-        cut.Find("[data-node-id=child] .hl-layers-rail__node-control").Click();
+        cut.Find("[role=treeitem][data-node-id=child]").Click();
         Assert.Equal(["child"], selected);
+        foreach (var chord in new[] { new Microsoft.AspNetCore.Components.Web.KeyboardEventArgs { Key = "Enter", CtrlKey = true }, new() { Key = " ", MetaKey = true }, new() { Key = "Enter", AltKey = true } })
+            cut.Find("[role=treeitem][data-node-id=child]").KeyDown(chord);
+        Assert.Equal(["child"], selected);
+        // The pointer-only buttons never take mouse focus, so a key can't start on them before focus returns to the treeitem.
+        Assert.All(cut.FindAll("[role=treeitem] button"), button => Assert.Contains(button.Attributes, attribute => attribute.Name == "blazor:onmousedown:preventdefault"));
+    }
+
+    [Fact]
+    public void EnterAndSpaceOnTheTreeitemSelectExactlyOnceEach()
+    {
+        var selected = new List<string>();
+        var cut = Render<LayersRailHost>(p => p.Add(x => x.OnSelect, selected.Add));
+        cut.Find("[role=treeitem][data-node-id=child]").KeyDown(new Microsoft.AspNetCore.Components.Web.KeyboardEventArgs { Key = "Enter" });
+        Assert.Equal(["child"], selected);
+        cut.Find("[role=treeitem][data-node-id=child]").KeyDown(new Microsoft.AspNetCore.Components.Web.KeyboardEventArgs { Key = " " });
+        Assert.Equal(["child", "child"], selected);
         Assert.Single(module.Invocations["observeTreeKeys"]);
     }
 
@@ -82,7 +147,7 @@ public sealed class LayersRailFocusTests : BunitContext
         var request = module.Invocations["focusNode"].Last();
         Assert.Equal("b", request.Arguments[1]);
         Assert.Equal(true, request.Arguments[2]);
-        Assert.Equal("0", cut.Find("[data-node-id=b] .hl-layers-rail__node-control").GetAttribute("tabindex"));
+        Assert.Equal("0", cut.Find("[role=treeitem][data-node-id=b]").GetAttribute("tabindex"));
     }
 
     [Fact]

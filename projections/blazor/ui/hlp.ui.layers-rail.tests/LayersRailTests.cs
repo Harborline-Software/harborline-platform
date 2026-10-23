@@ -39,6 +39,21 @@ public sealed class LayersRailTests : BunitContext
     }
     private IRenderedComponent<LayersRailHost> Host(Action<ComponentParameterCollectionBuilder<LayersRailHost>>? configure = null) => Render<LayersRailHost>(p => configure?.Invoke(p));
     private static string? Label(AngleSharp.Dom.IElement? element) => element?.QuerySelector(".hl-layers-rail__node-label")?.TextContent;
+    // The treeitem is the focus target (APG treeview); its buttons are pointer-only.
+    private static string Item(string id) => $"[role=treeitem][data-node-id={id}]";
+    private static AngleSharp.Dom.IElement[] TabStops(IRenderedComponent<LayersRailHost> cut) => cut.FindAll("[role=tree] *").Where(e => e.GetAttribute("tabindex") is { } t
+        ? int.Parse(t, System.Globalization.CultureInfo.InvariantCulture) >= 0
+        : e.LocalName is "button" or "a" or "input" or "select" or "textarea").ToArray();
+    private static object? State(AngleSharp.Dom.IElement? element) => element is null ? null : new
+    {
+        Role = element.GetAttribute("role"), Label = Label(element), Level = int.Parse(element.GetAttribute("aria-level") ?? "0", System.Globalization.CultureInfo.InvariantCulture),
+        Expanded = element.GetAttribute("aria-expanded") is { } e ? e == "true" : (bool?)null, Selected = element.GetAttribute("aria-selected") == "true",
+    };
+    private static object ExpectedState(System.Text.Json.JsonElement e) => new
+    {
+        Role = e.GetProperty("role").GetString(), Label = e.GetProperty("label").GetString(), Level = e.GetProperty("level").GetInt32(),
+        Expanded = e.GetProperty("expanded").ValueKind == System.Text.Json.JsonValueKind.Null ? (bool?)null : e.GetProperty("expanded").GetBoolean(), Selected = e.GetProperty("selected").GetBoolean(),
+    };
 
     private void AssertCase(string id, System.Text.Json.JsonElement input, System.Text.Json.JsonElement expected)
     {
@@ -125,26 +140,60 @@ public sealed class LayersRailTests : BunitContext
                 foreach (var key in Strings(input.GetProperty("keys")))
                 {
                     var before = module.Invocations["focusNode"].Count;
-                    cut.Find($"[data-node-id={current}] .hl-layers-rail__node-control").KeyDown(new Microsoft.AspNetCore.Components.Web.KeyboardEventArgs { Key = key });
+                    cut.Find(Item(current)).KeyDown(new Microsoft.AspNetCore.Components.Web.KeyboardEventArgs { Key = key });
                     if (module.Invocations["focusNode"].Count > before) current = (string)module.Invocations["focusNode"].Last().Arguments[1]!;
                     visits.Add(current);
                 }
                 // Down → child, Up → root, Right on an expanded parent → child, Left on a leaf → root, Home → root, End → sibling.
                 Assert.Equal(["ArrowDown", "ArrowUp", "ArrowRight", "ArrowLeft", "Home", "End"], Strings(input.GetProperty("keys")));
                 Assert.Equal(expected.GetProperty("apgMovement").GetBoolean(), visits.SequenceEqual(["child", "root", "child", "root", "root", "sibling"]));
-                var stops = cut.FindAll("[role=tree] button").Where(b => b.GetAttribute("tabindex") != "-1").ToArray();
-                Assert.Equal(expected.GetProperty("rovingTabIndex").GetBoolean(), stops.Length == 1 && stops[0].Closest("[role=treeitem]")!.GetAttribute("data-node-id") == current);
+                var stops = TabStops(cut);
+                Assert.Equal(expected.GetProperty("rovingTabIndex").GetBoolean(), stops.Length == 1 && stops[0].GetAttribute("data-node-id") == current);
+                Assert.Equal(expected.GetProperty("tabStopRole").GetString(), stops.FirstOrDefault()?.GetAttribute("role"));
+                // The module focuses that tab stop itself.
+                Assert.Equal(stops[0].OuterHtml, LayersRailScript.FocusTarget(cut.Find("aside"), current)?.OuterHtml);
                 break;
             }
             case "layers-rail.collapse-focus":
             {
                 var cut = Host();
-                cut.Find($"[data-node-id={input.GetProperty("focus").GetString()}] .hl-layers-rail__node-control").Focus();
+                cut.Find(Item(input.GetProperty("focus").GetString()!)).Focus();
                 cut.Find($"[data-node-id={input.GetProperty("collapse").GetString()}] .hl-layers-rail__disclosure").Click();
                 Assert.Equal(Strings(expected.GetProperty("visibleIds")), cut.FindAll("[role=treeitem]").Select(t => t.GetAttribute("data-node-id")!).Where(n => n != "sibling").ToArray());
                 var requested = module.Invocations["focusNode"].Select(c => (string?)c.Arguments[1]).LastOrDefault();
                 Assert.Equal(expected.GetProperty("focusedId").GetString(), requested);
+                Assert.Equal(expected.GetProperty("focusedRole").GetString(), requested is null ? null : LayersRailScript.FocusTarget(cut.Find("aside"), requested)?.GetAttribute("role"));
                 Assert.Equal(expected.GetProperty("bodyFocused").GetBoolean(), requested is null);
+                break;
+            }
+            case "layers-rail.treeitem-focus":
+            {
+                var selected = new List<string>();
+                var cut = Host(p => p.Add(x => x.Selected, input.GetProperty("selectedId").GetString()).Add(x => x.OnSelect, selected.Add));
+                var stops = TabStops(cut);
+                Assert.Equal(expected.GetProperty("tabStops").GetInt32(), stops.Length);
+                Assert.Equal(expected.GetProperty("tabStopRole").GetString(), stops[0].GetAttribute("role"));
+                // Tab lands on the one stop; each key then moves focus where the module's focus request points.
+                AngleSharp.Dom.IElement focused = stops[0];
+                var visits = new List<object?> { State(focused) };
+                foreach (var key in Strings(input.GetProperty("keys")))
+                {
+                    var before = module.Invocations["focusNode"].Count;
+                    focused.KeyDown(new Microsoft.AspNetCore.Components.Web.KeyboardEventArgs { Key = key });
+                    if (module.Invocations["focusNode"].Count > before) focused = LayersRailScript.FocusTarget(cut.Find("aside"), (string)module.Invocations["focusNode"].Last().Arguments[1]!)!;
+                    visits.Add(State(focused));
+                    // The focused element is the roving tab stop.
+                    Assert.Equal("0", focused.GetAttribute("tabindex"));
+                }
+                Assert.Equal(expected.GetProperty("focused").EnumerateArray().Select(ExpectedState).ToArray(), visits.ToArray());
+                // The accessible name is the label element alone (aria-labelledby), not the disclosure or provenance text.
+                var labelledBy = focused.GetAttribute("aria-labelledby");
+                var nameElement = labelledBy is null ? null : cut.FindAll("[id]").SingleOrDefault(e => e.Id == labelledBy);
+                Assert.Equal(expected.GetProperty("accessibleNameIsLabel").GetBoolean(), nameElement is not null && nameElement.ClassList.Contains("hl-layers-rail__node-label") && focused.Contains(nameElement) && nameElement.TextContent == Label(focused));
+                // Enter (or Space) on the focused treeitem selects it exactly once.
+                cut.Find(Item(focused.GetAttribute("data-node-id")!)).KeyDown(new Microsoft.AspNetCore.Components.Web.KeyboardEventArgs { Key = input.GetProperty("selectKey").GetString()! });
+                Assert.Equal(Strings(expected.GetProperty("selectedAfterSelectKey")), cut.FindAll("[role=treeitem][aria-selected=true]").Select(t => t.GetAttribute("data-node-id")!).ToArray());
+                Assert.Equal(expected.GetProperty("selectCallbacks").GetInt32(), selected.Count);
                 break;
             }
             case "layers-rail.selection":
@@ -154,6 +203,10 @@ public sealed class LayersRailTests : BunitContext
                 cut.Find($"[data-node-id={input.GetProperty("activateNode").GetString()}] .hl-layers-rail__node-control").Click();
                 Assert.Equal(Strings(expected.GetProperty("selectedIds")), cut.FindAll("[role=treeitem][aria-selected=true]").Select(t => t.GetAttribute("data-node-id")!).ToArray());
                 Assert.Equal(expected.GetProperty("callbackCount").GetInt32(), selected.Count);
+                // The click hands focus to the selected row's treeitem.
+                var requested = module.Invocations["focusNode"].Select(c => (string?)c.Arguments[1]).LastOrDefault();
+                Assert.Equal(input.GetProperty("activateNode").GetString(), requested);
+                Assert.Equal(expected.GetProperty("focusedRole").GetString(), requested is null ? null : LayersRailScript.FocusTarget(cut.Find("aside"), requested)?.GetAttribute("role"));
                 break;
             }
             case "layers-rail.filter-badges":
@@ -207,12 +260,12 @@ public sealed class LayersRailTests : BunitContext
             {
                 var cut = Host(p => p.Add(x => x.Selected, input.GetProperty("selectedId").GetString()));
                 var focusId = input.GetProperty("focusedId").GetString();
-                cut.Find($"[data-node-id={focusId}] .hl-layers-rail__node-control").Focus();
+                cut.Find(Item(focusId!)).Focus();
                 var index = LayersRailHost.BaseLenses.ToList().FindIndex(l => l.Id == input.GetProperty("switchLens").GetString());
                 cut.FindAll(".hl-layers-rail__lens-activate")[index].Click();
                 var node = cut.Find($"[data-node-id={focusId}]");
                 Assert.Equal(expected.GetProperty("selectionPreserved").GetBoolean(), node.GetAttribute("aria-selected") == "true");
-                Assert.Equal(expected.GetProperty("focusPreserved").GetBoolean(), node.QuerySelector(".hl-layers-rail__node-control")!.GetAttribute("tabindex") == "0");
+                Assert.Equal(expected.GetProperty("focusPreserved").GetBoolean(), node.GetAttribute("tabindex") == "0");
                 Assert.Equal(expected.GetProperty("nodeIdentityPreserved").GetBoolean(), Label(node) == "Child");
                 break;
             }
