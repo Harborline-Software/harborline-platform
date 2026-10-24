@@ -55,17 +55,18 @@ describe('NotificationCenter React projection', () => {
   it.each([
     ['light', { Canvas: [255, 255, 255], CanvasText: [0, 0, 0] }],
     ['dark', { Canvas: [18, 18, 18], CanvasText: [255, 255, 255] }],
-  ] as const)('unread marker and focus ring reach 3:1 on Canvas without host tokens (%s)', (scheme, system) => {
+  ] as const)('unread marker, badge and focus ring meet non-text and text contrast without host tokens (%s)', (scheme, system) => {
     const css = readFileSync(resolve(import.meta.dirname, '../style.css'), 'utf8').replace(/@media\s*\(forced-colors:active\)\{(?:[^{}]*\{[^{}]*\})*[^{}]*\}/g, '')
     const block = scheme === 'dark'
       ? css.match(/\[data-theme='dark'\]\.hl-notification-center__dialog,\[data-theme='dark'\] \.hl-notification-center__dialog\{([^}]*)\}/)?.[1]
       : css.match(/\.hl-notification-center__dialog\{(--hl-notification-surface[^}]*)\}/)?.[1]
     expect(block).toBeTruthy()
     const local = new Map([...(block as string).matchAll(/(--hl-[a-z-]+):((?:[^;()]|\((?:[^()]|\([^()]*\))*\))+)/g)].map(match => [match[1], match[2]]))
-    const declaration = (selector: string, property: string) => {
-      const body = css.split('}').find(rule => rule.split('{')[0].split(',').map(part => part.trim()).includes(selector))
-      return body?.split('{')[1].match(new RegExp(`(?:^|;)${property}:([^;]+)`))?.[1]
-    }
+    // The last declaration of the property among the rules naming the selector (the cascade's winner).
+    const declaration = (selector: string, property: string) => css.split('}')
+      .filter(rule => rule.split('{')[0].split(',').map(part => part.trim()).includes(selector))
+      .map(rule => rule.split('{')[1]?.match(new RegExp(`(?:^|;)${property}:([^;]+)`))?.[1])
+      .filter(Boolean).at(-1)
     const colour = (value: string): number[] => {
       const text = value.trim()
       if (text in system) return [...system[text as keyof typeof system]]
@@ -89,5 +90,12 @@ describe('NotificationCenter React projection', () => {
     const focus = (declaration('.hl-notification-center__dialog button:focus-visible', 'outline') as string).replace(/^2px solid /, '')
     expect(contrast(unread)).toBeGreaterThanOrEqual(3)
     expect(contrast(focus)).toBeGreaterThanOrEqual(3)
+    // b20 review: the trigger badge is an indicator (3:1 against Canvas) that carries text (4.5:1
+    // against its own fill). It fell to Mark with #fff text before, about 1.07:1.
+    const badgeFill = declaration('.hl-notification-center__badge', 'background') as string
+    const badgeText = declaration('.hl-notification-center__badge', 'color') as string
+    expect(contrast(badgeFill)).toBeGreaterThanOrEqual(3)
+    const [fill, text] = [luminance(colour(badgeFill)), luminance(colour(badgeText))]
+    expect((Math.max(fill, text) + 0.05) / (Math.min(fill, text) + 0.05)).toBeGreaterThanOrEqual(4.5)
   })
 })

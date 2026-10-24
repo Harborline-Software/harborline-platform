@@ -42,6 +42,12 @@ public sealed class NotificationCenterTests : BunitContext
         var dot = System.Text.RegularExpressions.Regex.Match(css, @"(?<=\})\.hl-notification-center__dot\{[^}]*\}").Value;
         Assert.Contains("background:var(--hl-danger,var(--hl-destructive," + fallback + ")", dot);
         Assert.DoesNotContain("Mark", dot);
+        // b20 review: the badge is an indicator carrying text. Its unthemed pair is CanvasText fill with
+        // Canvas text (21:1), where it was Mark with #fff (about 1.07:1).
+        var badge = System.Text.RegularExpressions.Regex.Match(css, @"(?<=\})\.hl-notification-center__badge\{[^}]*\}").Value;
+        Assert.Contains("background:var(--hl-danger,var(--hl-destructive,CanvasText))", badge);
+        Assert.Contains("color:var(--hl-destructive-foreground,Canvas)", badge);
+        Assert.DoesNotContain("Mark", badge);
     }
     private static string Repo(string relative) => Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../../../../", relative));
     private static void AssertFixturePrefix(string prefix){var raw=SharedFixtureBatch.Current;if(string.IsNullOrWhiteSpace(raw))return;using var fixture=System.Text.Json.JsonDocument.Parse(raw);Assert.StartsWith(prefix,fixture.RootElement.GetProperty("id").GetString());}
