@@ -19,11 +19,36 @@ public sealed class CollapsibleTests : BunitContext
             .AddChildContent("Body"));
         var button = cut.Find("button");
         Assert.Equal("false", button.GetAttribute("aria-expanded"));
-        Assert.Equal(button.GetAttribute("aria-controls"), cut.Find("[role=region]").Id);
+        AssertTriggerNamedAndWired(cut, "Settings", "Optional configuration");
         button.Click();
         Assert.Equal([true], calls);
         Assert.Equal("true", cut.Find("button").GetAttribute("aria-expanded"));
+        AssertTriggerNamedAndWired(cut, "Settings", "Optional configuration");
         Assert.Contains("consumer", cut.Find(".hl-collapsible").ClassList);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void WithoutASubtitleTheTriggerHasNoDescription(string? subtitle)
+    {
+        var cut = Render<HarborlineCollapsible>(p => p.Add(x => x.Title, "Settings").Add(x => x.Subtitle, subtitle));
+        AssertTriggerNamedAndWired(cut, "Settings", "");
+    }
+
+    // The trigger is named by the title alone, through aria-labelledby, and described by the subtitle; it
+    // controls the region, which the same title names. Ids resolve, once each.
+    private static void AssertTriggerNamedAndWired(IRenderedComponent<HarborlineCollapsible> cut, string name, string description)
+    {
+        Accname.AssertIdReferencesResolve(cut);
+        var trigger = cut.Find(".hl-collapsible__trigger");
+        var region = cut.Find("[role=region]");
+        Assert.Equal(name, Accname.AccessibleName(trigger));
+        Assert.Equal(description, Accname.AccessibleDescription(trigger));
+        Accname.AssertReferences(trigger, "aria-labelledby", cut.Find(".hl-collapsible__title"));
+        Accname.AssertReferences(trigger, "aria-controls", region);
+        Assert.Equal(name, Accname.AccessibleName(region));
     }
 
     [Fact]

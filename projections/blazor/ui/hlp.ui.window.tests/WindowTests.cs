@@ -18,10 +18,54 @@ public sealed class WindowTests : BunitContext
         var dialog = cut.Find("[role=dialog]");
         Assert.Equal("default", dialog.GetAttribute("data-state"));
         Assert.Contains("width:400px", dialog.GetAttribute("style"));
-        cut.Find("button[aria-label='Minimize']").Click();
+        Assert.Equal("Inspector", Accname.AccessibleName(dialog));
+        Accname.AssertIdReferencesResolve(cut);
+        Control(cut, "Minimize").Click();
         Assert.Equal("default", cut.Find("[role=dialog]").GetAttribute("data-state"));
         Assert.Equal([HarborlineWindowState.Minimized], states);
     }
+
+    [Fact]
+    public void TheTitleNamesTheDialogAndEachControlCarriesItsLocalizedLabel()
+    {
+        var cut = RenderWindow(p => p.Add(x => x.AccessibleLabel, "Inspector panel"));
+        var dialog = cut.Find("[role=dialog]");
+        Accname.AssertIdReferencesResolve(cut);
+        Assert.Equal("Inspector", Accname.AccessibleName(dialog));
+        Accname.AssertReferences(dialog, "aria-labelledby", cut.Find(".hl-window__title"));
+        // A rendered title is the name; the caller's label is not emitted beside it (R-0125, 2026-10-23 addendum Q1).
+        Assert.Null(dialog.GetAttribute("aria-label"));
+        Assert.Equal(["Minimize", "Maximize", "Close"], cut.FindAll("button.hl-window__control").Select(Accname.AccessibleName));
+        Assert.Equal(["Resize width", "Resize height", "Resize width and height"], cut.FindAll("[role=separator]").Select(Accname.AccessibleName));
+    }
+
+    [Fact]
+    public void AnUntitledWindowIsNamedByItsAccessibleLabel()
+    {
+        var cut = Render<HarborlineWindow>(p => p
+            .Add(x => x.AccessibleLabel, "Inspector panel")
+            .Add(x => x.CloseLabel, "Close").Add(x => x.MinimizeLabel, "Minimize")
+            .Add(x => x.MaximizeLabel, "Maximize").Add(x => x.RestoreLabel, "Restore")
+            .Add(x => x.ResizeWidthLabel, "Resize width").Add(x => x.ResizeHeightLabel, "Resize height")
+            .Add(x => x.ResizeBothLabel, "Resize width and height"));
+        Accname.AssertIdReferencesResolve(cut);
+        Assert.Equal("Inspector panel", Accname.AccessibleName(cut.Find("[role=dialog]")));
+    }
+
+    [Theory]
+    [InlineData(HarborlineWindowState.Default, "Minimize", "Maximize")]
+    [InlineData(HarborlineWindowState.Minimized, "Restore", "Maximize")]
+    [InlineData(HarborlineWindowState.Maximized, "Minimize", "Restore")]
+    public void StateControlsAreNamedForWhatTheyWillDo(HarborlineWindowState state, string minimize, string maximize)
+    {
+        var cut = RenderWindow(p => p.Add(x => x.State, state));
+        Accname.AssertIdReferencesResolve(cut);
+        Assert.Equal("Inspector", Accname.AccessibleName(cut.Find("[role=dialog]")));
+        Assert.Equal([minimize, maximize, "Close"], cut.FindAll("button.hl-window__control").Select(Accname.AccessibleName));
+    }
+
+    private static AngleSharp.Dom.IElement Control(IRenderedComponent<HarborlineWindow> cut, string name) =>
+        Assert.Single(cut.FindAll("button.hl-window__control"), button => Accname.AccessibleName(button) == name);
 
     [Fact]
     public void KeyboardMoveResizeAndEscapeUsePinnedSteps()
