@@ -132,6 +132,21 @@ public sealed class SpotlightTests : BunitContext
         Assert.Empty(cut.FindAll("[role=option]"));
     }
 
+    // review fix: direction comes from the locale scope, as in Dialog (ltr without one); a caller dir
+    // passed as an additional attribute still wins.
+    [Fact]
+    public void ThePaletteTakesItsDirectionFromTheLocaleScope()
+    {
+        Assert.Equal("ltr", Render<HarborlineSpotlight>(p => p.Add(x => x.Open, true).Add(x => x.AriaLabel, "Search").Add(x => x.Sections, []))
+            .Find("[role=dialog]").GetAttribute("dir"));
+        var arabic = Render<HarborlineLocaleProvider>(p => p.Add(x => x.Locale, "ar-SA")
+            .AddChildContent<HarborlineSpotlight>(c => c.Add(x => x.Open, true).Add(x => x.AriaLabel, "Search").Add(x => x.Sections, [])));
+        Assert.Equal("rtl", arabic.Find("[role=dialog]").GetAttribute("dir"));
+        var caller = Render<HarborlineLocaleProvider>(p => p.Add(x => x.Locale, "ar-SA")
+            .AddChildContent<HarborlineSpotlight>(c => c.Add(x => x.Open, true).Add(x => x.AriaLabel, "Search").Add(x => x.Sections, []).AddUnmatched("dir", "ltr")));
+        Assert.Equal("ltr", caller.Find("[role=dialog]").GetAttribute("dir"));
+    }
+
     [Theory, Trait("ModuleConformance", "hlp.ui.spotlight")]
     [MemberData(nameof(SharedFixtureBatch.Cases), "hlp.ui.spotlight", MemberType = typeof(SharedFixtureBatch))]
     public void SharedFixtureConforms(string caseId, string? rawFixture)
@@ -223,15 +238,22 @@ public sealed class SpotlightTests : BunitContext
         // A catalog change in one live tree: French, then Arabic (rtl), then the en-XA pseudo-locale.
         var hosts = input.GetProperty("hostCatalogs").EnumerateArray().ToArray();
         var live = InHost(hosts[0]);
-        var seen = new List<(string?, string?)> { Read(live.Find(".hl-spotlight__portal")) };
+        // review fix: the palette takes its direction from the locale scope (spotlight.js moves it to
+        // <body>, so an inherited dir cannot reach it).
+        static (string? Visible, string? Status, string? Dir) WithDir(AngleSharp.Dom.IElement root) =>
+            (Read(root).Visible, Read(root).Status, root.QuerySelector(".hl-spotlight[role=dialog]")?.GetAttribute("dir"));
+        static (string? Visible, string? Status, string? Dir) ExpectedWithDir(System.Text.Json.JsonElement value) =>
+            (value.GetProperty("visible").GetString(), value.GetProperty("status").GetString(), value.GetProperty("dir").GetString());
+        var seen = new List<(string?, string?, string?)> { WithDir(live.Find(".hl-spotlight__portal")) };
         foreach (var host in hosts.Skip(1))
         {
             live.Render(p => p.Add(x => x.Locale, host.GetProperty("locale").GetString()!).Add(x => x.Direction, host.GetProperty("direction").GetString()).Add(x => x.Catalog, Entries(host)));
-            seen.Add(Read(live.Find(".hl-spotlight__portal")));
+            seen.Add(WithDir(live.Find(".hl-spotlight__portal")));
         }
-        Assert.Equal(expected.GetProperty("hostCatalogs").EnumerateArray().Select(Expected), seen);
+        Assert.Equal(expected.GetProperty("hostCatalogs").EnumerateArray().Select(ExpectedWithDir), seen);
         var blank = input.GetProperty("blankCaller");
-        Assert.Equal(Expected(expected.GetProperty("blankCaller")), Read(InHost(hosts[blank.GetProperty("hostCatalog").GetInt32()], blank.GetProperty("empty").GetString()).Find(".hl-spotlight__portal")));
+        foreach (var text in new[] { blank.GetProperty("empty").GetString() }.Concat(blank.GetProperty("variants").EnumerateArray().Select(v => v.GetString())))
+            Assert.Equal(Expected(expected.GetProperty("blankCaller")), Read(InHost(hosts[blank.GetProperty("hostCatalog").GetInt32()], text).Find(".hl-spotlight__portal")));
         Assert.Equal(Expected(expected.GetProperty("keyEchoHost")), Read(InHost(input.GetProperty("keyEchoHost")).Find(".hl-spotlight__portal")));
         var caller = input.GetProperty("callerText");
         Assert.Equal(Expected(expected.GetProperty("callerText")), Read(InHost(hosts[caller.GetProperty("hostCatalog").GetInt32()], caller.GetProperty("empty").GetString()).Find(".hl-spotlight__portal")));

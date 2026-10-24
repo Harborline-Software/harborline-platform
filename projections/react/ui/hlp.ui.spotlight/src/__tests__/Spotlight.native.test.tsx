@@ -4,6 +4,7 @@ import { resolve } from 'node:path'
 import { fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
+import { HarborlineLocaleProvider } from '@harborline-platform/hlp.ui.locale-provider'
 
 import { Spotlight } from '../Spotlight'
 import * as publicSurface from '../index'
@@ -96,11 +97,18 @@ describe('Spotlight React projection', () => {
     expect(screen.getByRole('combobox')).toHaveAttribute('aria-expanded', 'true')
   })
 
-  it('uses caller copy and keeps ranked item order under RTL', () => {
-    render(<div dir="rtl"><Spotlight {...props} empty="لا نتائج" resultsCountLabel={count => `${count} نتيجة`} /></div>)
-    expect(screen.getByRole('dialog', { name: 'Rechercher' })).toBeInTheDocument()
+  // review fix: the palette portals to <body>, so a wrapper's dir never reached it (this test once used
+  // <div dir="rtl"> and passed without RTL). Direction comes from the locale scope, as in Dialog.
+  it('uses caller copy, takes rtl from the locale scope and keeps ranked item order', () => {
+    render(<HarborlineLocaleProvider locale="ar-SA"><Spotlight {...props} empty="لا نتائج" resultsCountLabel={count => `${count} نتيجة`} /></HarborlineLocaleProvider>)
+    expect(screen.getByRole('dialog', { name: 'Rechercher' })).toHaveAttribute('dir', 'rtl')
     expect(screen.getByRole('status')).toHaveTextContent('1 نتيجة')
     expect(screen.getAllByRole('option').map(value => value.getAttribute('data-item-id'))).toEqual(['one'])
+  })
+
+  it('is ltr with no locale scope, as Dialog is', () => {
+    render(<Spotlight {...props} />)
+    expect(screen.getByRole('dialog', { name: 'Rechercher' })).toHaveAttribute('dir', 'ltr')
   })
 
   it('publishes reflow, logical, token, dark, forced-color, and reduced-motion styles', () => {

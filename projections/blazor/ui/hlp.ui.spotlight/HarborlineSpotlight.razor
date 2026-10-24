@@ -9,7 +9,9 @@
 {
     <div @ref="portal" class="hl-spotlight__portal" data-hl-module="hlp.ui.spotlight">
     <div class="hl-spotlight__scrim" data-testid="spotlight-scrim" aria-hidden="true" @onmousedown="DismissAsync"></div>
-    <div @ref="dialog" role="dialog" tabindex="-1" aria-modal="true" aria-label="@AriaLabel"
+    @* spotlight.js moves the palette to <body>, so an inherited dir cannot reach it: direction comes from
+       the locale scope, as in Dialog; a caller dir in AdditionalAttributes (rendered after it) still wins. *@
+    <div @ref="dialog" role="dialog" tabindex="-1" aria-modal="true" aria-label="@AriaLabel" dir="@Direction"
              class="@CombineClasses("hl-spotlight")" style="@CombineStyles()" @onclick:stopPropagation="true"
              @attributes="AdditionalAttributes">
         <div class="hl-spotlight__query-row">
@@ -78,6 +80,7 @@
 
     // Caller text, then the host catalog, then the default catalog (structural.spotlight.empty). Blank
     // text at any step is no text, and a catalog miss echoes the key, so the empty copy is never blank.
+    private string Direction => LocaleContext?.Direction ?? "ltr";
     private const string EmptyKey = "structural.spotlight.empty";
     private string EmptyCopy
     {

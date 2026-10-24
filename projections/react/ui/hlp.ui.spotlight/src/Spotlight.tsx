@@ -103,7 +103,7 @@ export function Spotlight({
 
   // Caller text, then the host catalog, then the default catalog (structural.spotlight.empty). Blank
   // text at any step is no text, and a catalog miss echoes the key, so the empty copy is never blank.
-  const { t } = useHarborlineStrings()
+  const { direction, t } = useHarborlineStrings()
   const emptyKey = 'structural.spotlight.empty'
   const catalogEmpty = t(emptyKey)
   const emptyCopy = empty?.trim()
@@ -230,6 +230,9 @@ export function Spotlight({
         aria-label={ariaLabel}
         aria-modal="true"
         className={cn('hl-spotlight', className)}
+        // The palette portals to <body>, so an inherited dir cannot reach it: direction comes from the
+        // locale scope, as in Dialog.
+        dir={direction}
         onKeyDown={event => {
           if (dialogRef.current) trapTab(event, dialogRef.current)
         }}

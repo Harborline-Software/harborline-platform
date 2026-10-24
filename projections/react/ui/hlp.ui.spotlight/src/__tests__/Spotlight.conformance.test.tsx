@@ -156,9 +156,9 @@ describe('Spotlight shared fixtures', () => {
   // Each sub-case reads the visible empty copy and the status region's text from the same render.
   it('spotlight.empty-copy-catalog', () => {
     type Host = { locale: string; direction: 'ltr' | 'rtl'; entries: Record<string, string> }
-    type Copy = { visible: string | null; status: string | null }
+    type Copy = { visible: string | null; status: string | null; dir?: string | null }
     const value = fixture(sharedCases, 'spotlight.empty-copy-catalog') as unknown as {
-      input: { hostCatalogs: Host[]; blankCaller: { empty: string; hostCatalog: number }; keyEchoHost: Host; callerText: { empty: string; hostCatalog: number } }
+      input: { hostCatalogs: Host[]; blankCaller: { empty: string; hostCatalog: number; variants: string[] }; keyEchoHost: Host; callerText: { empty: string; hostCatalog: number } }
       expected: { defaultCatalog: Copy; hostCatalogs: Copy[]; blankCaller: Copy; keyEchoHost: Copy; callerText: Copy }
     }
     const { input, expected } = value
@@ -173,12 +173,16 @@ describe('Spotlight shared fixtures', () => {
 
     expect(once(palette())).toEqual(expected.defaultCatalog)
     // A catalog change in one live tree: French, then Arabic (rtl), then the en-XA pseudo-locale.
+    // review fix: the palette takes its direction from the locale scope (it portals to <body>, so an
+    // inherited dir cannot reach it).
+    const withDir = (): Copy => ({ ...read(), dir: document.body.querySelector('.hl-spotlight[role="dialog"]')?.getAttribute('dir') ?? null })
     const live = render(inHost(input.hostCatalogs[0]))
-    const seen = [read()]
-    for (const host of input.hostCatalogs.slice(1)) { live.rerender(inHost(host)); seen.push(read()) }
+    const seen = [withDir()]
+    for (const host of input.hostCatalogs.slice(1)) { live.rerender(inHost(host)); seen.push(withDir()) }
     live.unmount()
     expect(seen).toEqual(expected.hostCatalogs)
-    expect(once(inHost(input.hostCatalogs[input.blankCaller.hostCatalog], input.blankCaller.empty))).toEqual(expected.blankCaller)
+    for (const blank of [input.blankCaller.empty, ...input.blankCaller.variants])
+      expect(once(inHost(input.hostCatalogs[input.blankCaller.hostCatalog], blank))).toEqual(expected.blankCaller)
     expect(once(inHost(input.keyEchoHost))).toEqual(expected.keyEchoHost)
     expect(once(inHost(input.hostCatalogs[input.callerText.hostCatalog], input.callerText.empty))).toEqual(expected.callerText)
   })
