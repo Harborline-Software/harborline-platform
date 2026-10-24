@@ -148,6 +148,11 @@ export function Spotlight({
 
   if (!open) return null
 
+  // No option and no loading group: the listbox has nothing to show (its CSS collapses it).
+  // APG combobox: aria-expanded is true only while the popup is displayed, so it is false here,
+  // and the one polite status region carries the empty copy in place of the results count.
+  const showEmpty = flatItems.length === 0 && renderedSections.length === 0
+  const statusText = showEmpty ? empty : resultsCountLabel?.(flatItems.length) ?? ''
   const optionId = (index: number) => `hl-spotlight-${instanceId}-option-${index}`
   const activeItem = flatItems[activeIndex]
   const activeId = activeItem ? optionId(activeIndex) : undefined
@@ -222,7 +227,7 @@ export function Spotlight({
             aria-activedescendant={activeId}
             aria-autocomplete="list"
             aria-controls={listboxId}
-            aria-expanded="true"
+            aria-expanded={showEmpty ? 'false' : 'true'}
             aria-label={placeholder ?? ariaLabel}
             autoComplete="off"
             className="hl-spotlight__query"
@@ -236,13 +241,14 @@ export function Spotlight({
           <kbd className="hl-spotlight__escape">{escLabel}</kbd>
         </div>
 
+        {/* Rendered whenever the palette is open, before any query, so a change to zero results is announced. */}
         <div aria-live="polite" className="hl-spotlight__sr-only" role="status">
-          {resultsCountLabel?.(flatItems.length) ?? ''}
+          {statusText}
         </div>
 
         {/* A listbox owns only options and groups, so the empty copy sits beside it, never inside. */}
         <div aria-label={ariaLabel} className="hl-spotlight__results" id={listboxId} ref={listRef} role="listbox">
-          {flatItems.length === 0 && renderedSections.length === 0 ? null : (
+          {showEmpty ? null : (
             <>
               {pinnedAction ? renderOption(pinnedAction, 0) : null}
               {renderedSections.map(section => {
@@ -261,7 +267,7 @@ export function Spotlight({
             </>
           )}
         </div>
-        {flatItems.length === 0 && renderedSections.length === 0 ? <div className="hl-spotlight__empty">{empty}</div> : null}
+        {showEmpty ? <div className="hl-spotlight__empty">{empty}</div> : null}
 
         {footer ? <div className="hl-spotlight__footer">{footer}</div> : null}
       </div>

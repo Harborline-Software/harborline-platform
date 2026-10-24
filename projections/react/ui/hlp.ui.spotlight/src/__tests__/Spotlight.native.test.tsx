@@ -55,6 +55,35 @@ describe('Spotlight React projection', () => {
     expect(onOpenChange).toHaveBeenCalledWith(false)
   })
 
+  // b20: WCAG 4.1.3 — a screen-reader user who types to zero results hears the caller's empty
+  // copy from the status region that existed before the change, even without resultsCountLabel.
+  it('announces zero results through the pre-existing polite status region', () => {
+    const { rerender } = render(<Spotlight {...props} empty="Aucun résultat" />)
+    const status = screen.getByRole('status')
+    expect(status).toHaveAttribute('aria-live', 'polite')
+    expect(status.textContent).toBe('')
+    rerender(<Spotlight {...props} empty="Aucun résultat" query="zz" sections={[]} />)
+    expect(screen.getByRole('status')).toBe(status)
+    expect(status.textContent).toBe('Aucun résultat')
+    expect(screen.getByRole('combobox')).toHaveFocus()
+  })
+
+  it('does not announce the count beside the empty copy', () => {
+    render(<Spotlight {...props} empty="Aucun résultat" resultsCountLabel={count => `${count} résultats`} sections={[]} />)
+    expect(screen.getByRole('status').textContent).toBe('Aucun résultat')
+  })
+
+  // APG combobox: aria-expanded is true only while the popup is displayed; an empty listbox shows nothing.
+  it('reports a collapsed popup while there are no results and no loading section', () => {
+    const { rerender } = render(<Spotlight {...props} />)
+    expect(screen.getByRole('combobox')).toHaveAttribute('aria-expanded', 'true')
+    rerender(<Spotlight {...props} sections={[]} />)
+    expect(screen.getByRole('combobox')).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.getByRole('combobox')).toHaveAttribute('aria-controls', screen.getByRole('listbox').id)
+    rerender(<Spotlight {...props} sections={[{ id: 'r', label: 'Records', items: [], loading: true, loadingLabel: 'Loading' }]} />)
+    expect(screen.getByRole('combobox')).toHaveAttribute('aria-expanded', 'true')
+  })
+
   it('uses caller copy and keeps ranked item order under RTL', () => {
     render(<div dir="rtl"><Spotlight {...props} empty="لا نتائج" resultsCountLabel={count => `${count} نتيجة`} /></div>)
     expect(screen.getByRole('dialog', { name: 'Rechercher' })).toBeInTheDocument()

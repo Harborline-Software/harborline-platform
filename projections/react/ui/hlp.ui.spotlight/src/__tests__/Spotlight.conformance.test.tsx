@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 
 import { Spotlight, type SpotlightItem, type SpotlightSection } from '../Spotlight'
-import { fixture, sharedCases } from './fixtures'
+import { fixture, sharedCases, type FixtureCase as FixtureShape } from './fixtures'
 
 function item(id: string, onSelect = vi.fn(), keepOpen = false): SpotlightItem {
   return { id, label: id, onSelect, keepOpen }
@@ -102,13 +102,47 @@ describe('Spotlight shared fixtures', () => {
   it('spotlight.empty', () => {
     fixture(sharedCases, 'spotlight.empty')
     render(<Spotlight {...required} empty="Aucun résultat" open sections={[]} />)
-    expect(screen.getByText('Aucun résultat')).toBeInTheDocument()
+    const visible = document.body.querySelector('.hl-spotlight__empty')
+    expect(visible).toHaveTextContent('Aucun résultat')
     expect(screen.queryAllByRole('option')).toHaveLength(0)
     // b19: a listbox owns only options and groups (ARIA required owned elements; axe
     // aria-required-children). The empty copy sits beside the empty listbox, not inside it.
     const listbox = screen.getByRole('listbox')
-    expect(listbox).not.toContainElement(screen.getByText('Aucun résultat'))
+    expect(listbox).not.toContainElement(visible as HTMLElement)
     expect(listbox.children).toHaveLength(0)
+  })
+
+  // b20 (WCAG 4.1.3 Status Messages; APG combobox): typing to zero results is announced through
+  // the polite status region that was already in the DOM, in place of (never beside) the count,
+  // and the combobox stops claiming an expanded popup while the listbox shows nothing.
+  it('spotlight.empty-announced', () => {
+    const value = fixture(sharedCases, 'spotlight.empty-announced') as {
+      input: { empty: string; resultsCountLabel: string; before: string[]; loading: { id: string; label: string; loadingLabel: string } }
+      expected: {
+        statusBefore: string; statusAfter: string; expandedBefore: string; expandedAfter: string
+        expandedWhileLoading: string; statusWhileLoading: string
+      }
+    } & FixtureShape
+    const countLabel = (count: number) => value.input.resultsCountLabel.replace('{count}', String(count))
+    const shared = { ...required, empty: value.input.empty, open: true, resultsCountLabel: countLabel }
+    const { rerender } = render(<Spotlight {...shared} sections={sections(...value.input.before)} />)
+    const input = screen.getByRole('combobox')
+    const status = screen.getByRole('status')
+    expect(status).toHaveAttribute('aria-live', 'polite')
+    expect(status).toHaveTextContent(value.expected.statusBefore)
+    expect(input).toHaveAttribute('aria-expanded', value.expected.expandedBefore)
+
+    rerender(<Spotlight {...shared} query="zz" sections={[]} />)
+    expect(screen.getByRole('status')).toBe(status)
+    expect(status.textContent).toBe(value.expected.statusAfter)
+    expect(input).toHaveAttribute('aria-expanded', value.expected.expandedAfter)
+    expect(input).not.toHaveAttribute('aria-activedescendant')
+    expect(input).toHaveFocus()
+
+    const { id, label, loadingLabel } = value.input.loading
+    rerender(<Spotlight {...shared} query="zz" sections={[{ id, label, items: [], loading: true, loadingLabel }]} />)
+    expect(status.textContent).toBe(value.expected.statusWhileLoading)
+    expect(input).toHaveAttribute('aria-expanded', value.expected.expandedWhileLoading)
   })
 
   it('spotlight.loading', () => {

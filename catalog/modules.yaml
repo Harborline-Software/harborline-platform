@@ -1787,7 +1787,7 @@
       }
     },
     "hlp.ui.spotlight": {
-      "interface": {"path": "specs/modules/ui/hlp.ui.spotlight/interface.yaml", "revision": 1},
+      "interface": {"path": "specs/modules/ui/hlp.ui.spotlight/interface.yaml", "revision": 2},
       "moduleKind": "interactive-component",
       "presentation": {"disposition": "visual"},
       "qualityProfile": {"path": "specs/modules/ui/hlp.ui.spotlight/quality.yaml", "revision": 1},
