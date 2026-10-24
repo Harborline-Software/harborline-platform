@@ -34,7 +34,7 @@ const inputOutcome = process.env.GITHUB_ACTIONS === 'true' && !process.argv.incl
 })
 if (inputOutcome.error) {
   process.stderr.write(`${inputOutcome.error.message}\n`)
-  process.stdout.write(`${JSON.stringify(inputOutcome.observation, null, 2)}\n`)
+  process.stderr.write(`${JSON.stringify(inputOutcome.observation, null, 2)}\n`)
 }
 process.exitCode = inputOutcome.exitCode
 

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import {execFileSync, spawnSync} from 'node:child_process'
-import {existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync} from 'node:fs'
+import {copyFileSync, existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync} from 'node:fs'
 import {tmpdir} from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
@@ -625,6 +625,45 @@ test('the real attempt applies completed retention without changing canonical or
   assert.equal(existsSync(outcome.directory), true)
   for (const record of old.slice(0, 3)) assert.equal(existsSync(record.directory), false)
   unchangedHistory(f)
+})
+
+test('real gate preflight refusal keeps observations off the receipt report channel', t => {
+  const f = graph(t)
+  const remote = path.join(f.root, '.git/local-forge.git')
+  git(f.root, 'clone', '--bare', '--no-hardlinks', f.root, remote)
+  git(f.root, 'config', `url.${remote.replaceAll('\\', '/')}.insteadOf`,
+    'https://github.com/Harborline-Software/harborline-platform.git')
+  for (const name of [
+    'run-phase-4-gate.mjs', 'phase4-input-preflight.mjs', 'gate-step-evidence.mjs',
+    'resolve-appshell-feed.mjs', 'resolve-command.mjs', 'resolve-dotnet.mjs', 'gate-contract.mjs',
+    'phase4-gate-lock.mjs', 'phase4-step-runner.mjs', 'gates/design-review-status.mjs',
+    'shared-module-scheduler.mjs',
+  ]) {
+    const target = path.join(f.root, 'tooling', name)
+    mkdirSync(path.dirname(target), {recursive: true})
+    copyFileSync(path.resolve(import.meta.dirname, '..', name), target)
+  }
+  writeFileSync(f.record, '{broken review JSON\n')
+  const result = spawnSync(process.execPath, [path.join(f.root, 'tooling/run-phase-4-gate.mjs')], {
+    cwd: f.root, encoding: 'utf8', timeout: 10000,
+    env: {...process.env, GITHUB_ACTIONS: 'false', GIT_ALLOW_PROTOCOL: 'file'},
+  })
+  assert.equal(result.status, 1)
+  assert.equal(result.signal, null)
+  assert.match(result.stderr, /^Phase 4 input preflight refused launch\r?\n/)
+  const observationRoot = path.join(f.root, '.git/harborline-phase4-inputs')
+  const attempts = readdirSync(observationRoot)
+  assert.equal(attempts.length, 1)
+  const directory = path.join(observationRoot, attempts[0])
+  const persisted = JSON.parse(readFileSync(path.join(directory, 'result.json'), 'utf8'))
+  assert.equal(persisted.launched, false)
+  assert.equal(persisted.preflight.fetch.method, 'direct-forge-fetch')
+  assert.equal(persisted.preflight.fetch.sha, f.main)
+  assert.ok(persisted.preflight.issues.some(issue => issue.code === 'review-record-unreadable'))
+  assert.equal(existsSync(path.join(directory, 'launch.json')), false)
+  unchangedHistory(f)
+  assert.equal(result.stdout, '')
+  assert.deepEqual(JSON.parse(result.stderr.slice(result.stderr.indexOf('\n') + 1)), persisted)
 })
 
 for (const actions of ['true', 'false']) {
