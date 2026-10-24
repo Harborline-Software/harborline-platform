@@ -38,7 +38,15 @@ test('retired style-hazard exemptions are not reported', () => {
   assert.doesNotMatch(out, /no-blazor-stylesheet/)
 })
 
-const acknowledgedModules = out => out.split('\n').filter(line => /^  \S/.test(line)).map(line => line.trim().split(/\s+/)[0])
+// The modules named in the "acknowledged" section only: its indented lines, up to the first line
+// that is not indented (a blank line or the next section's heading).
+const acknowledgedModules = out => {
+  const lines = out.split('\n')
+  const start = lines.findIndex(line => line.startsWith('acknowledged, tracked by ticket'))
+  if (start < 0) return []
+  const end = lines.findIndex((line, index) => index > start && !/^  \S/.test(line))
+  return lines.slice(start + 1, end < 0 ? undefined : end).map(line => line.trim().split(/\s+/)[0])
+}
 
 // b19: page's latent GrayText text fallback. b20: the R5 findings outside the overlay modules, each
 // named. Nothing else is acknowledged, and the list cannot grow silently.
