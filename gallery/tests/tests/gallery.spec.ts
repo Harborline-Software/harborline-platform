@@ -835,6 +835,44 @@ async function assertAccessible(page: Page, scenario: Scenario, projection: stri
   recordCheck('accessibilityScans')
 }
 
+// b20: WCAG 2.2 SC 1.4.11 Non-text Contrast, which axe does not test. A notification-center unread
+// marker is a named image (role="img"); in the React lane the panel is portaled through Popover out
+// of the scene that scopes the host's tokens, so the marker renders in the module's own fallback --
+// the unthemed state the scan reaches (Highlight before b20, about 1.5:1). Every visible marker in the
+// scan's scope must reach 3:1 against the first opaque background behind it (Canvas if none).
+// Selector-limited on purpose; tooling/gates/scan-style-hazards.mjs R5 is the source-level guard
+// for every other module.
+async function assertIndicatorContrast(page: Page, scenario: Scenario, projection: string) {
+  const ratios = await page.evaluate(selector => {
+    const parse = (value: string) => {
+      const srgb = value.match(/^color\(srgb ([\d.]+) ([\d.]+) ([\d.]+)(?: \/ ([\d.]+))?\)$/)
+      if (srgb) return { rgb: srgb.slice(1, 4).map(channel => Number(channel) * 255), alpha: srgb[4] === undefined ? 1 : Number(srgb[4]) }
+      const rgb = value.match(/^rgba?\(([\d.]+),? ([\d.]+),? ([\d.]+)(?:,? \/? ?([\d.]+))?\)$/)
+      if (rgb) return { rgb: rgb.slice(1, 4).map(Number), alpha: rgb[4] === undefined ? 1 : Number(rgb[4]) }
+      throw new Error(`unparsed colour ${value}`)
+    }
+    const luminance = (rgb: number[]) => rgb.map(channel => channel / 255)
+      .map(channel => channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4)
+      .reduce((total, channel, index) => total + channel * [0.2126, 0.7152, 0.0722][index], 0)
+    const scope = [document.querySelector('[data-gallery-probe]'), ...document.querySelectorAll(selector)].filter(Boolean) as Element[]
+    return scope.flatMap(root => [...root.querySelectorAll('.hl-notification-center__unread')])
+      .filter(marker => marker.getBoundingClientRect().width > 0)
+      .map(marker => {
+        const fill = parse(getComputedStyle(marker).backgroundColor)
+        let backdrop = [255, 255, 255]
+        for (let node = marker.parentElement; node; node = node.parentElement) {
+          const colour = parse(getComputedStyle(node).backgroundColor)
+          if (colour.alpha >= 1) { backdrop = colour.rgb; break }
+        }
+        const [a, b] = [luminance(fill.rgb), luminance(backdrop)]
+        return { label: marker.getAttribute('aria-label'), ratio: (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05) }
+      })
+  }, overlayLayerSelector)
+  for (const { label, ratio } of ratios) {
+    expect(ratio, `${projection} ${scenario.id} unread marker "${label}" non-text contrast`).toBeGreaterThanOrEqual(3)
+  }
+}
+
 async function recordReactBaseline(page: Page, catalog: Catalog, scenario: Scenario) {
   if (!baselineCaptureRoot) return
   const probe = page.locator('[data-gallery-probe]')
@@ -1437,6 +1475,8 @@ for (const catalog of catalogs) for (const scenario of catalog.scenarios) {
     await recordReactBaseline(reactPage, catalog, scenario)
     await assertAccessible(reactPage, scenario, 'react')
     await assertAccessible(blazorPage, scenario, 'blazor')
+    await assertIndicatorContrast(reactPage, scenario, 'react')
+    await assertIndicatorContrast(blazorPage, scenario, 'blazor')
     if (scenario.sourceQualityCaseIds?.some(id => id.endsWith('.quality.visual-parity'))
       && !(ciGallery && ciPixelExempt.has(scenario.id))) {
       await assertVisualParity(reactPage, blazorPage, scenario, testInfo)

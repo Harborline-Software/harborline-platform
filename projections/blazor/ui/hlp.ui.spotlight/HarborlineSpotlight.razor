@@ -14,12 +14,13 @@
         <div class="hl-spotlight__query-row">
             <svg aria-hidden="true" class="hl-spotlight__search-icon" fill="none" focusable="false" viewBox="0 0 24 24"><path d="m21 21-4.35-4.35m1.35-5.65a7 7 0 1 1-14 0 7 7 0 0 1 14 0Z"></path></svg>
             <input @ref="input" type="search" role="combobox" value="@Query" aria-label="@(Placeholder ?? AriaLabel)"
-                   aria-autocomplete="list" aria-expanded="true" aria-controls="@ListboxId" aria-activedescendant="@ActiveDomId"
+                   aria-autocomplete="list" aria-expanded="@(ShowEmpty ? "false" : "true")" aria-controls="@ListboxId" aria-activedescendant="@ActiveDomId"
                    autocomplete="off" placeholder="@Placeholder" class="hl-spotlight__query"
                    @oninput="HandleQueryAsync" @onkeydown="HandleKeyAsync" />
             <kbd class="hl-spotlight__escape">@EscLabel</kbd>
         </div>
-        <div class="hl-spotlight__sr-only" role="status" aria-live="polite">@(ResultsCountLabel?.Invoke(FlatItems.Count) ?? "")</div>
+        @* Rendered whenever the palette is open, before any query, so a change to zero results is announced. *@
+        <div class="hl-spotlight__sr-only" role="status" aria-live="polite">@StatusText</div>
         <div id="@ListboxId" role="listbox" aria-label="@AriaLabel" class="hl-spotlight__results">
             @if (PinnedAction is not null)
             {
@@ -49,7 +50,7 @@
             }
         </div>
         @* A listbox owns only options and groups, so the empty copy sits beside it, never inside. *@
-        @if (FlatItems.Count == 0 && !Sections.Any(section => section.Loading))
+        @if (ShowEmpty)
         {
             <div class="hl-spotlight__empty">@Empty</div>
         }
@@ -84,6 +85,11 @@
     private string ListboxId => $"{instanceId}-listbox";
     private IReadOnlyList<SpotlightItem> FlatItems => (PinnedAction is null ? [] : new[] { PinnedAction })
         .Concat(Sections.SelectMany(section => section.Items)).ToArray();
+    // No option and no loading group: the listbox has nothing to show (its CSS collapses it).
+    // APG combobox: aria-expanded is true only while the popup is displayed, so it is false here,
+    // and the one polite status region carries the empty copy in place of the results count.
+    private bool ShowEmpty => FlatItems.Count == 0 && !Sections.Any(section => section.Loading);
+    private string StatusText => ShowEmpty ? Empty ?? "" : ResultsCountLabel?.Invoke(FlatItems.Count) ?? "";
     private string? ActiveDomId => FlatItems.Count == 0 ? null : OptionDomId(FlatItems[Math.Clamp(activeIndex, 0, FlatItems.Count - 1)].Id);
 
     protected override void OnParametersSet()

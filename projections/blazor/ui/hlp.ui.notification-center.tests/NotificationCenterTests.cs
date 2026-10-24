@@ -309,6 +309,30 @@ public sealed class NotificationCenterTests : BunitContext
                 break;
         }
     }
+    // b20: WCAG 2.2 SC 1.4.11 Non-text Contrast. With no host token reaching them, the unread marker
+    // (role="img"), the trigger dot and the focus ring end at CanvasText-based fallbacks (9:1 or more on
+    // Canvas in light and dark), never at Highlight (about 1.5:1) or Mark (1.07:1). Forced-colors
+    // blocks keep their system colours; the React lane computes the contrast from the same bytes.
+    [Fact]
+    public void IndicatorsAndFocusRingFallBackToCanvasTextOutsideForcedColors()
+    {
+        var css = System.Text.RegularExpressions.Regex.Replace(
+            File.ReadAllText(Repo("projections/blazor/ui/hlp.ui.notification-center/wwwroot/notification-center.css")),
+            @"@media\(forced-colors:active\)\{(?:[^{}]*\{[^{}]*\})*[^{}]*\}", "");
+        const string fallback = "color-mix(in srgb,CanvasText 72%,Canvas))";
+        Assert.Contains("border-radius:50%;background:var(--hl-notification-unread)}", css);
+        foreach (var token in new[] { "--hl-notification-unread:var(--hl-primary,", "--hl-notification-focus:var(--hl-focus," })
+        {
+            var definitions = System.Text.RegularExpressions.Regex.Matches(css, System.Text.RegularExpressions.Regex.Escape(token) + @"[^;}]*");
+            Assert.Equal(2, definitions.Count);
+            Assert.All(definitions, definition => Assert.EndsWith(fallback, definition.Value));
+        }
+        // The dot's own rule (not the badge-and-dot positioning rule that precedes it).
+        var dot = System.Text.RegularExpressions.Regex.Match(css, @"(?<=\})\.hl-notification-center__dot\{[^}]*\}").Value;
+        Assert.Contains("background:var(--hl-danger,var(--hl-destructive," + fallback + ")", dot);
+        Assert.DoesNotContain("Mark", dot);
+    }
+    private static string Repo(string relative) => Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../../../../", relative));
     private static void AssertFixturePrefix(string prefix){var raw=SharedFixtureBatch.Current;if(string.IsNullOrWhiteSpace(raw))return;using var fixture=System.Text.Json.JsonDocument.Parse(raw);Assert.StartsWith(prefix,fixture.RootElement.GetProperty("id").GetString());}
     private sealed class FakeOutside:IOutsidePointerObserver{public ValueTask<IOutsidePointerRegistration> ObserveAsync(Microsoft.AspNetCore.Components.ElementReference e,Func<OutsidePointerEvent,ValueTask> c,OutsidePointerOptions? o=null,CancellationToken t=default)=>throw new NotSupportedException();public ValueTask<IOutsidePointerRegistration> ObserveAsync(IReadOnlyList<Microsoft.AspNetCore.Components.ElementReference> e,Func<OutsidePointerEvent,ValueTask> c,OutsidePointerOptions? o=null,CancellationToken t=default)=>new(new Registration());private sealed class Registration:IOutsidePointerRegistration{public ValueTask DisposeAsync()=>ValueTask.CompletedTask;public ValueTask SetEnabledAsync(bool enabled)=>ValueTask.CompletedTask;public void SetCallback(Func<OutsidePointerEvent,ValueTask> c){}}}
 }

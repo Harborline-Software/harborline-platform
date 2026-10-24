@@ -38,10 +38,33 @@ test('retired style-hazard exemptions are not reported', () => {
   assert.doesNotMatch(out, /no-blazor-stylesheet/)
 })
 
-// b19: the one acknowledged hazard is named, and is the only one.
-test('the only acknowledged hazard is the latent page GrayText fallback', () => {
+// The modules named in the "acknowledged" section only: its indented lines, up to the first line
+// that is not indented (a blank line or the next section's heading).
+const acknowledgedModules = out => {
+  const lines = out.split('\n')
+  const start = lines.findIndex(line => line.startsWith('acknowledged, tracked by ticket'))
+  if (start < 0) return []
+  const end = lines.findIndex((line, index) => index > start && !/^  \S/.test(line))
+  return lines.slice(start + 1, end < 0 ? undefined : end).map(line => line.trim().split(/\s+/)[0])
+}
+
+// b19: page's latent GrayText text fallback. b20: the R5 findings outside the overlay modules, each
+// named. Nothing else is acknowledged, and the list cannot grow silently.
+test('the acknowledged hazards are exactly the listed latent fallbacks', () => {
   const {out} = run([])
-  const acknowledged = out.split('\n').filter(line => /^  \S/.test(line) && !/^  text-colour/.test(line))
-  assert.match(out, /acknowledged, tracked by ticket \(1\)/)
-  assert.deepEqual(acknowledged.map(line => line.trim().split(/\s+/)[0]), ['page'])
+  assert.match(out, /acknowledged, tracked by ticket \(13\)/)
+  assert.deepEqual([...new Set(acknowledgedModules(out))].sort(), [
+    'date-field', 'date-time-field', 'gantt', 'layers-rail', 'page', 'radio-group', 'schema-form',
+    'scroll-affordance', 'tooltip',
+  ])
+})
+
+// b20 (WCAG 2.2 SC 1.4.11): no overlay module's focus ring or meaningful indicator falls to
+// Highlight, SelectedItem, Mark or GrayText, and none is excused by an acknowledgement.
+test('overlay modules carry no non-text indicator hazard, acknowledged or not', () => {
+  const {status, out} = run([])
+  assert.equal(status, 0, out)
+  const overlays = ['dialog', 'sheet', 'spotlight', 'window', 'popover', 'user-menu', 'notification-center', 'confirm-dialog']
+  for (const module of overlays) assert.ok(!acknowledgedModules(out).includes(module), `${module} is acknowledged`)
+  assert.doesNotMatch(out, /indicator-falls-to-low-contrast-system-colour \(/)
 })

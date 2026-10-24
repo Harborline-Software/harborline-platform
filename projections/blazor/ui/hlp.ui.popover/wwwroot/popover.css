@@ -53,7 +53,7 @@
 .hl-popover-trigger:disabled,
 .hl-popover-close:disabled { cursor: not-allowed; opacity: 0.55; }
 .hl-popover-trigger:focus-visible,
-.hl-popover-close:focus-visible { outline: 2px solid var(--hl-focus, Highlight); outline-offset: 2px; }
+.hl-popover-close:focus-visible { outline: 2px solid var(--hl-focus, color-mix(in srgb, CanvasText 72%, Canvas)); outline-offset: 2px; }
 
 .hl-popover__content:focus-visible,
 .hl-popover__content :focus-visible {
