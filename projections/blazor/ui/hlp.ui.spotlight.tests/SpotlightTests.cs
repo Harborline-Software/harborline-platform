@@ -70,9 +70,27 @@ public sealed class SpotlightTests : BunitContext
         Assert.Equal("polite", status.GetAttribute("aria-live"));
         Assert.Equal("", status.TextContent);
         // bUnit rebuilds its DOM per render, so node identity is not observable here; the region is
-        // unconditional markup, so Blazor's diff only replaces its text (the browser probe checks identity).
+        // unconditional markup, so Blazor's diff only replaces its text. No gallery story moves from
+        // results to none, so the browser probe (platform-ui-programme/probes/spotlight-empty-announced.mjs)
+        // checks identity across the re-render that typing a query causes, not across this change.
         cut.Render(p => p.Add(x => x.Query, "zz").Add(x => x.Sections, []));
         Assert.Single(cut.FindAll("[role=status][aria-live=polite]"));
+        Assert.Equal("Aucun résultat", cut.Find("[role=status]").TextContent);
+    }
+
+    // b20 review: loading with no option announces the loading label (or nothing), never "0 results"
+    // followed by the empty copy.
+    [Fact]
+    public void NoZeroCountIsAnnouncedWhileASectionIsStillLoading()
+    {
+        Func<int, string> count = n => $"{n} résultats";
+        var cut = Render<HarborlineSpotlight>(p => p.Add(x => x.Open, true).Add(x => x.AriaLabel, "Search")
+            .Add(x => x.Empty, "Aucun résultat").Add(x => x.ResultsCountLabel, count)
+            .Add(x => x.Sections, [new SpotlightSection("r", "Records", [], true, "Chargement")]));
+        Assert.Equal("Chargement", cut.Find("[role=status]").TextContent);
+        cut.Render(p => p.Add(x => x.Sections, [new SpotlightSection("r", "Records", [], true)]));
+        Assert.Equal("", cut.Find("[role=status]").TextContent);
+        cut.Render(p => p.Add(x => x.Sections, []));
         Assert.Equal("Aucun résultat", cut.Find("[role=status]").TextContent);
     }
 
@@ -121,6 +139,7 @@ public sealed class SpotlightTests : BunitContext
             var raw = SharedFixtureBatch.Current; if (string.IsNullOrWhiteSpace(raw)) return;
             using var fixture = System.Text.Json.JsonDocument.Parse(raw); var id = fixture.RootElement.GetProperty("id").GetString(); Assert.StartsWith("spotlight.", id);
             if (id == "spotlight.empty-announced") { AssertEmptyAnnounced(fixture.RootElement); return; }
+            if (id == "spotlight.combobox") { AssertCombobox(fixture.RootElement); return; }
             if (id != "spotlight.classes") { Assert.Empty(Render<HarborlineSpotlight>(p => p.Add(x => x.AriaLabel, "Search")).FindAll("[role=dialog]")); return; }
 
             // 282 s11: this lane once spelled the query input hl-spotlight__input as well and put
@@ -155,18 +174,40 @@ public sealed class SpotlightTests : BunitContext
         Assert.Equal(expected.GetProperty("statusBefore").GetString(), status.TextContent);
         Assert.Equal(expected.GetProperty("expandedBefore").GetString(), cut.Find("[role=combobox]").GetAttribute("aria-expanded"));
 
-        cut.Render(p => p.Add(x => x.Query, "zz").Add(x => x.Sections, []));
+        var after = input.GetProperty("after").EnumerateArray()
+            .Select(item => new SpotlightItem(item.GetString()!, item.GetString()!, () => Task.CompletedTask)).ToArray();
+        cut.Render(p => p.Add(x => x.Query, "zz").Add(x => x.Sections, after.Length == 0 ? [] : [new SpotlightSection("commands", "Commands", after)]));
         Assert.Single(cut.FindAll("[role=status][aria-live=polite]"));
         Assert.Equal(expected.GetProperty("statusAfter").GetString(), cut.Find("[role=status]").TextContent);
         var combobox = cut.Find("[role=combobox]");
         Assert.Equal(expected.GetProperty("expandedAfter").GetString(), combobox.GetAttribute("aria-expanded"));
-        Assert.False(combobox.HasAttribute("aria-activedescendant"));
+        Assert.False(combobox.HasAttribute("aria-activedescendant")); // already absent before b20; kept as a guard
 
         var loading = input.GetProperty("loading");
         cut.Render(p => p.Add(x => x.Sections, [new SpotlightSection(loading.GetProperty("id").GetString()!,
             loading.GetProperty("label").GetString()!, [], true, loading.GetProperty("loadingLabel").GetString())]));
         Assert.Equal(expected.GetProperty("statusWhileLoading").GetString(), cut.Find("[role=status]").TextContent);
         Assert.Equal(expected.GetProperty("expandedWhileLoading").GetString(), cut.Find("[role=combobox]").GetAttribute("aria-expanded"));
+        // b20 review: never a zero count while loading (the empty copy would follow it, announcing zero twice).
+        cut.Render(p => p.Add(x => x.Sections, [new SpotlightSection(loading.GetProperty("id").GetString()!,
+            loading.GetProperty("label").GetString()!, [], true)]));
+        Assert.Equal(expected.GetProperty("statusWhileLoadingUnlabelled").GetString(), cut.Find("[role=status]").TextContent);
+    }
+
+    // The React case asserts the same fixture row: combobox semantics over the fixture's sections.
+    private void AssertCombobox(System.Text.Json.JsonElement fixture)
+    {
+        var input = fixture.GetProperty("input");
+        var expected = fixture.GetProperty("expected");
+        var sections = input.GetProperty("sections").EnumerateArray().Select(section => new SpotlightSection(
+            section.GetProperty("id").GetString()!, section.GetProperty("label").GetString()!,
+            section.GetProperty("items").EnumerateArray().Select(item => new SpotlightItem(item.GetString()!, item.GetString()!, () => Task.CompletedTask)).ToArray())).ToArray();
+        var cut = Render<HarborlineSpotlight>(p => p.Add(x => x.Open, true).Add(x => x.AriaLabel, input.GetProperty("ariaLabel").GetString()!)
+            .Add(x => x.Sections, sections));
+        var combobox = cut.Find("[role=combobox]");
+        Assert.Equal(expected.GetProperty("expanded").GetString(), combobox.GetAttribute("aria-expanded"));
+        Assert.Equal(cut.Find("[role=listbox]").Id, combobox.GetAttribute("aria-controls"));
+        Assert.Equal(cut.Find("[role=option]").Id, combobox.GetAttribute("aria-activedescendant"));
     }
 
     private static string[] Classes(System.Text.Json.JsonElement expected, string property) =>

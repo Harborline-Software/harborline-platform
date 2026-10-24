@@ -89,7 +89,14 @@
     // APG combobox: aria-expanded is true only while the popup is displayed, so it is false here,
     // and the one polite status region carries the empty copy in place of the results count.
     private bool ShowEmpty => FlatItems.Count == 0 && !Sections.Any(section => section.Loading);
-    private string StatusText => ShowEmpty ? Empty ?? "" : ResultsCountLabel?.Invoke(FlatItems.Count) ?? "";
+    // While a section is still loading and no option exists yet, the count is not announced (it
+    // would say zero, then the empty copy would follow): the status carries the first loading
+    // section's caller label, or nothing.
+    private string StatusText => ShowEmpty
+        ? Empty ?? ""
+        : FlatItems.Count == 0
+            ? Sections.FirstOrDefault(section => section.Loading)?.LoadingLabel ?? ""
+            : ResultsCountLabel?.Invoke(FlatItems.Count) ?? "";
     private string? ActiveDomId => FlatItems.Count == 0 ? null : OptionDomId(FlatItems[Math.Clamp(activeIndex, 0, FlatItems.Count - 1)].Id);
 
     protected override void OnParametersSet()

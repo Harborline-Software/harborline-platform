@@ -29,8 +29,8 @@ describe('Spotlight shared fixtures', () => {
   })
 
   it('spotlight.combobox', () => {
-    fixture(sharedCases, 'spotlight.combobox')
-    render(<Spotlight {...required} open sections={sections('one')} />)
+    const value = fixture(sharedCases, 'spotlight.combobox') as FixtureShape & { input: { sections: { id: string; label: string; items: string[] }[] } }
+    render(<Spotlight {...required} open sections={value.input.sections.map(section => ({ ...section, items: section.items.map(id => item(id)) }))} />)
     const input = screen.getByRole('combobox', { name: 'Search commands' })
     const listbox = screen.getByRole('listbox')
     expect(input).toHaveFocus()
@@ -117,10 +117,10 @@ describe('Spotlight shared fixtures', () => {
   // and the combobox stops claiming an expanded popup while the listbox shows nothing.
   it('spotlight.empty-announced', () => {
     const value = fixture(sharedCases, 'spotlight.empty-announced') as {
-      input: { empty: string; resultsCountLabel: string; before: string[]; loading: { id: string; label: string; loadingLabel: string } }
+      input: { empty: string; resultsCountLabel: string; before: string[]; after: string[]; loading: { id: string; label: string; loadingLabel: string } }
       expected: {
         statusBefore: string; statusAfter: string; expandedBefore: string; expandedAfter: string
-        expandedWhileLoading: string; statusWhileLoading: string
+        expandedWhileLoading: string; statusWhileLoading: string; statusWhileLoadingUnlabelled: string
       }
     } & FixtureShape
     const countLabel = (count: number) => value.input.resultsCountLabel.replace('{count}', String(count))
@@ -132,10 +132,11 @@ describe('Spotlight shared fixtures', () => {
     expect(status).toHaveTextContent(value.expected.statusBefore)
     expect(input).toHaveAttribute('aria-expanded', value.expected.expandedBefore)
 
-    rerender(<Spotlight {...shared} query="zz" sections={[]} />)
+    rerender(<Spotlight {...shared} query="zz" sections={value.input.after.length ? sections(...value.input.after) : []} />)
     expect(screen.getByRole('status')).toBe(status)
     expect(status.textContent).toBe(value.expected.statusAfter)
     expect(input).toHaveAttribute('aria-expanded', value.expected.expandedAfter)
+    // Already absent with no options before b20; kept as a guard.
     expect(input).not.toHaveAttribute('aria-activedescendant')
     expect(input).toHaveFocus()
 
@@ -143,18 +144,23 @@ describe('Spotlight shared fixtures', () => {
     rerender(<Spotlight {...shared} query="zz" sections={[{ id, label, items: [], loading: true, loadingLabel }]} />)
     expect(status.textContent).toBe(value.expected.statusWhileLoading)
     expect(input).toHaveAttribute('aria-expanded', value.expected.expandedWhileLoading)
+    // b20 review: never a zero count while loading (the empty copy would follow it, announcing zero twice).
+    rerender(<Spotlight {...shared} query="zz" sections={[{ id, label, items: [], loading: true }]} />)
+    expect(status.textContent).toBe(value.expected.statusWhileLoadingUnlabelled)
   })
 
   it('spotlight.loading', () => {
     fixture(sharedCases, 'spotlight.loading')
     render(<Spotlight {...required} open sections={[{ id: 'records', label: 'Records', items: [], loading: true, loadingLabel: 'Loading' }]} />)
     expect(screen.getByRole('group', { name: 'Records' })).toBeInTheDocument()
-    expect(screen.getByText('Loading')).toBeInTheDocument()
+    // The loading label is also the status text while nothing is listed (b20 review), so look in the group.
+    const loadingText = document.body.querySelector('.hl-spotlight__loading')
+    expect(loadingText).toHaveTextContent('Loading')
     expect(screen.queryAllByRole('option')).toHaveLength(0)
     // b19 review: the listbox owns only groups and options; the loading text is inside its group.
     const listbox = screen.getByRole('listbox')
     expect([...listbox.children].map(child => child.getAttribute('role'))).toEqual(['group'])
-    expect(screen.getByRole('group', { name: 'Records' })).toContainElement(screen.getByText('Loading'))
+    expect(screen.getByRole('group', { name: 'Records' })).toContainElement(loadingText as HTMLElement)
   })
 
   it('spotlight.footer', () => {

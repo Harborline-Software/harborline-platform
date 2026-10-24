@@ -68,6 +68,18 @@ describe('Spotlight React projection', () => {
     expect(screen.getByRole('combobox')).toHaveFocus()
   })
 
+  // b20 review: loading with no option announces the loading label (or nothing), never "0 results"
+  // followed by the empty copy.
+  it('announces no zero count while a section is still loading', () => {
+    const count = (n: number) => `${n} résultats`
+    const { rerender } = render(<Spotlight {...props} empty="Aucun résultat" resultsCountLabel={count} sections={[{ id: 'r', label: 'Records', items: [], loading: true, loadingLabel: 'Chargement' }]} />)
+    expect(screen.getByRole('status').textContent).toBe('Chargement')
+    rerender(<Spotlight {...props} empty="Aucun résultat" resultsCountLabel={count} sections={[{ id: 'r', label: 'Records', items: [], loading: true }]} />)
+    expect(screen.getByRole('status').textContent).toBe('')
+    rerender(<Spotlight {...props} empty="Aucun résultat" resultsCountLabel={count} sections={[]} />)
+    expect(screen.getByRole('status').textContent).toBe('Aucun résultat')
+  })
+
   it('does not announce the count beside the empty copy', () => {
     render(<Spotlight {...props} empty="Aucun résultat" resultsCountLabel={count => `${count} résultats`} sections={[]} />)
     expect(screen.getByRole('status').textContent).toBe('Aucun résultat')

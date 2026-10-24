@@ -151,8 +151,15 @@ export function Spotlight({
   // No option and no loading group: the listbox has nothing to show (its CSS collapses it).
   // APG combobox: aria-expanded is true only while the popup is displayed, so it is false here,
   // and the one polite status region carries the empty copy in place of the results count.
+  // While a section is still loading and no option exists yet, the count is not announced (it
+  // would say zero, then the empty copy would follow): the status carries the first loading
+  // section's caller label, or nothing.
   const showEmpty = flatItems.length === 0 && renderedSections.length === 0
-  const statusText = showEmpty ? empty : resultsCountLabel?.(flatItems.length) ?? ''
+  const statusText = showEmpty
+    ? empty
+    : flatItems.length === 0
+      ? renderedSections.find(section => section.loading)?.loadingLabel ?? ''
+      : resultsCountLabel?.(flatItems.length) ?? ''
   const optionId = (index: number) => `hl-spotlight-${instanceId}-option-${index}`
   const activeItem = flatItems[activeIndex]
   const activeId = activeItem ? optionId(activeIndex) : undefined

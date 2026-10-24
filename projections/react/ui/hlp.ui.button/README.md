@@ -40,7 +40,8 @@ forced-colors, and reduced-motion behavior.
 Spotlight announces an empty result set. When no option and no loading section remain, the one
 polite `role="status"` region, rendered whenever the palette is open, carries the caller's `empty`
 copy in place of the `resultsCountLabel` text, so typing to zero results is announced once and
-never beside a count (WCAG 2.2 SC 4.1.3 Status Messages). The combobox then reports
+never beside a count (WCAG 2.2 SC 4.1.3 Status Messages). While a section is still loading and nothing is listed yet, the
+region carries that section's loading label, or nothing, so zero is never announced twice. The combobox then reports
 `aria-expanded="false"`: the APG combobox pattern sets `aria-expanded` to false when the popup is
 not visible and true when it is, and its autocomplete example calls `close()` when filtering finds
 nothing. The empty listbox has no content and its stylesheet collapses it, so it is not a visible
