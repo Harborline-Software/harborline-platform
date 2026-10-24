@@ -78,6 +78,29 @@ public sealed class TemplatePackTests
         Assert.Equal("template.invoice", Assert.Single(published).Envelope.Identity);
     }
 
+    [Theory(DisplayName = "documents-eng-19/documents-auth-20: an independently mismatched pack key or version refuses without publishing it, and a valid sibling still installs")]
+    [InlineData("template.other", "1.0.0")]
+    [InlineData("template.invoice", "2.0.0")]
+    public async Task EntryIdentityOrVersionMismatchSkipsOnlyThatItem(string identity, string version)
+    {
+        var good = TemplatePack.Export(Template(), Surfaces());
+        var bad = good with { DefinitionId = identity, Version = version };
+        var published = new List<TemplateDefinition>();
+
+        var outcomes = await TemplatePack.InstallAsync([bad, good], Target(published));
+
+        Assert.Equal(2, outcomes.Count);
+        Assert.Equal((identity, version, TemplateInstallOutcomeKind.Refused),
+            (outcomes[0].DefinitionId, outcomes[0].Version, outcomes[0].Kind));
+        Assert.Equal(new DefinitionRefusal("documents.template.envelope_mismatch", "/envelope"),
+            Assert.Single(outcomes[0].Refusals));
+        Assert.Equal(("template.invoice", "1.0.0", TemplateInstallOutcomeKind.Published),
+            (outcomes[1].DefinitionId, outcomes[1].Version, outcomes[1].Kind));
+        Assert.Empty(outcomes[1].Refusals);
+        var installed = Assert.Single(published);
+        Assert.Equal(("template.invoice", "1.0.0"), (installed.Envelope.Identity, installed.Envelope.Version));
+    }
+
     private static TemplateInstallTarget Target(List<TemplateDefinition> published) => new(
         Tenant, Provenance, Surfaces(),
         _ => ValueTask.FromResult<TemplateDefinition?>(null),
