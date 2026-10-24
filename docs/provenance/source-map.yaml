@@ -309,7 +309,7 @@
         "projections/dotnet/architecture/hlp.architecture.tests/AccessDeciderArchitectureTests.cs": "43ca7c22e1ca1cc5df4a09e02e114f941ecd47ef0095803730298e1109f6296e",
         "projections/dotnet/foundation/hlp.foundation.actor.tests/TypedRecordTargetTests.cs": "235abd622878de9e19ea3b54c8a32bed0f85bcf49045edf72676609714d6e074",
         "projections/dotnet/foundation/hlp.foundation.actor/AuthoritySnapshotEncoding.cs": "ad5bf4b97ef17aa15b4bda01b3726a9c29c8afcf1a8dc21530fe8dce2abcb352",
-        "projections/dotnet/foundation/hlp.foundation.actor.tests/AuthoritySnapshotEncodingTests.cs": "94cdda8b1117a4143d974fb49583f5af97fabee42948cc4adc3b709392f2ca8c"
+        "projections/dotnet/foundation/hlp.foundation.actor.tests/AuthoritySnapshotEncodingTests.cs": "6da3338ed2a661973ebd1f8061dc5f858558012f4d499cc92a9ec504c97f8dfc"
       },
       "nextGate": "Run ordinary audited native and clean package-consumer verification of shared Access and stored traces."
     },

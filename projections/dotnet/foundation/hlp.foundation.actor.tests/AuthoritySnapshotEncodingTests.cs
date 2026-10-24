@@ -100,6 +100,31 @@ public sealed class AuthoritySnapshotEncodingTests
     public void Anything_but_exactly_the_grammar_is_not_a_snapshot(string bytes) =>
         Assert.Null(AuthoritySnapshotEncoding.TryDecode(Encoding.UTF8.GetBytes(bytes)));
 
+    // Characterize the accepted native argument boundary; no missing argument is a snapshot or a fact query.
+    [Fact]
+    public void Encoding_requires_an_evidence_argument()
+    {
+        Assert.Throws<ArgumentNullException>(() => AuthoritySnapshotEncoding.Encode(null!));
+    }
+
+    [Fact]
+    public void Fact_lookup_requires_a_snapshot_argument()
+    {
+        Assert.Throws<ArgumentNullException>(() => AuthoritySnapshotEncoding.Fact(null!, "verdict", "verdict:"));
+    }
+
+    [Theory]
+    [InlineData("", "verdict:")]
+    [InlineData("verdict", "")]
+    public void Fact_lookup_requires_nonempty_stage_and_prefix(string stage, string prefix)
+    {
+        var snapshot = AuthoritySnapshotEncoding.TryDecode(Encoding.UTF8.GetBytes(Minimal));
+        Assert.NotNull(snapshot);
+        Assert.Equal("allowed", AuthoritySnapshotEncoding.Fact(snapshot, "verdict", "verdict:"));
+
+        Assert.Throws<ArgumentException>(() => AuthoritySnapshotEncoding.Fact(snapshot, stage, prefix));
+    }
+
     private static AuthorizationDecisionEvidence Evidence(bool allowed) => new(
         new AccessRequest("forms:submit-gate", "alice", "tenant-a",
             new AccessRecord("tenant-a", "form", "inspection@1.0.0", new Dictionary<string, JsonNode?>()), At),

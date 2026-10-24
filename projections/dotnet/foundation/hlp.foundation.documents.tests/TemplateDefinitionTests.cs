@@ -88,6 +88,37 @@ public sealed class TemplateDefinitionTests
         }
     }
 
+    [Theory(DisplayName = "T-593: each required record-type and surface component refuses alone, while its valid sibling components remain admitted")]
+    [InlineData("record_type", null, "/record_type")]
+    [InlineData("record_type.id", null, "/record_type")]
+    [InlineData("record_type.id", " ", "/record_type")]
+    [InlineData("record_type.version", null, "/record_type")]
+    [InlineData("record_type.version", " ", "/record_type")]
+    [InlineData("surface", null, "/surface")]
+    [InlineData("surface.id", null, "/surface")]
+    [InlineData("surface.id", " ", "/surface")]
+    [InlineData("surface.version", null, "/surface")]
+    [InlineData("surface.version", " ", "/surface")]
+    public void EachRequiredBodyComponentRefusesInIsolation(string member, string? value, string pointer)
+    {
+        var valid = Template();
+        var surfaces = Surfaces();
+        Assert.Empty(TemplateDefinitionAdmission.Validate(valid, surfaces));
+        var broken = member switch
+        {
+            "record_type" => valid with { RecordType = null! },
+            "record_type.id" => valid with { RecordType = valid.RecordType with { RecordType = value! } },
+            "record_type.version" => valid with { RecordType = valid.RecordType with { Version = value! } },
+            "surface" => valid with { Surface = null! },
+            "surface.id" => valid with { Surface = valid.Surface with { SurfaceDefinitionId = value! } },
+            "surface.version" => valid with { Surface = valid.Surface with { SurfaceVersion = value! } },
+            _ => throw new InvalidOperationException("Unknown fixture member."),
+        };
+
+        Assert.Equal(new DefinitionRefusal("documents.template.body_invalid", pointer),
+            Assert.Single(TemplateDefinitionAdmission.Validate(broken, surfaces)));
+    }
+
     [Fact(DisplayName = "documents-ck-3: DocumentType is the open discriminator a template issues under; it survives export and a blank one refuses")]
     public void DocumentTypeIsRequiredAndSurvivesExport()
     {
