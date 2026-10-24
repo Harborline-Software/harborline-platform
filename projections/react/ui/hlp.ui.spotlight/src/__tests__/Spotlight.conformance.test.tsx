@@ -1,7 +1,9 @@
+import type * as React from 'react'
 import { fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
 import { describe, expect, it, vi } from 'vitest'
+import { HarborlineLocaleProvider } from '@harborline-platform/hlp.ui.locale-provider'
 
 import { Spotlight, type SpotlightItem, type SpotlightSection } from '../Spotlight'
 import { fixture, sharedCases, type FixtureCase as FixtureShape } from './fixtures'
@@ -147,6 +149,38 @@ describe('Spotlight shared fixtures', () => {
     // b20 review: never a zero count while loading (the empty copy would follow it, announcing zero twice).
     rerender(<Spotlight {...shared} query="zz" sections={[{ id, label, items: [], loading: true }]} />)
     expect(status.textContent).toBe(value.expected.statusWhileLoadingUnlabelled)
+  })
+
+  // b20f1 (prior art: b13f1 SearchInput copy, b15 catalog-backed copy): the empty copy is nonblank
+  // caller text, then the host catalog, then hlp.ui.default-strings; blank text or a key echo is absent.
+  // Each sub-case reads the visible empty copy and the status region's text from the same render.
+  it('spotlight.empty-copy-catalog', () => {
+    type Host = { locale: string; direction: 'ltr' | 'rtl'; entries: Record<string, string> }
+    type Copy = { visible: string | null; status: string | null }
+    const value = fixture(sharedCases, 'spotlight.empty-copy-catalog') as unknown as {
+      input: { hostCatalogs: Host[]; blankCaller: { empty: string; hostCatalog: number }; keyEchoHost: Host; callerText: { empty: string; hostCatalog: number } }
+      expected: { defaultCatalog: Copy; hostCatalogs: Copy[]; blankCaller: Copy; keyEchoHost: Copy; callerText: Copy }
+    }
+    const { input, expected } = value
+    const read = (): Copy => ({
+      visible: document.body.querySelector('.hl-spotlight__empty')?.textContent ?? null,
+      status: document.body.querySelector('.hl-spotlight [role="status"]')?.textContent ?? null,
+    })
+    const palette = (empty?: string) => <Spotlight {...required} open sections={[]} {...(empty === undefined ? {} : { empty })} />
+    const inHost = (host: Host, empty?: string) =>
+      <HarborlineLocaleProvider catalog={host.entries} direction={host.direction} locale={host.locale}>{palette(empty)}</HarborlineLocaleProvider>
+    const once = (node: React.ReactElement): Copy => { const view = render(node); const copy = read(); view.unmount(); return copy }
+
+    expect(once(palette())).toEqual(expected.defaultCatalog)
+    // A catalog change in one live tree: French, then Arabic (rtl), then the en-XA pseudo-locale.
+    const live = render(inHost(input.hostCatalogs[0]))
+    const seen = [read()]
+    for (const host of input.hostCatalogs.slice(1)) { live.rerender(inHost(host)); seen.push(read()) }
+    live.unmount()
+    expect(seen).toEqual(expected.hostCatalogs)
+    expect(once(inHost(input.hostCatalogs[input.blankCaller.hostCatalog], input.blankCaller.empty))).toEqual(expected.blankCaller)
+    expect(once(inHost(input.keyEchoHost))).toEqual(expected.keyEchoHost)
+    expect(once(inHost(input.hostCatalogs[input.callerText.hostCatalog], input.callerText.empty))).toEqual(expected.callerText)
   })
 
   it('spotlight.loading', () => {

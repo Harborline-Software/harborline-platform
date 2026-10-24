@@ -1,6 +1,7 @@
 using Bunit;
 using Microsoft.AspNetCore.Components.Web;
 using Harborline.UIAdapters.Blazor.Components.Navigation;
+using Harborline.UIAdapters.Blazor.Localization;
 using Xunit;
 
 namespace Harborline.UIAdapters.Blazor.Tests;
@@ -140,6 +141,7 @@ public sealed class SpotlightTests : BunitContext
             using var fixture = System.Text.Json.JsonDocument.Parse(raw); var id = fixture.RootElement.GetProperty("id").GetString(); Assert.StartsWith("spotlight.", id);
             if (id == "spotlight.empty-announced") { AssertEmptyAnnounced(fixture.RootElement); return; }
             if (id == "spotlight.combobox") { AssertCombobox(fixture.RootElement); return; }
+            if (id == "spotlight.empty-copy-catalog") { AssertEmptyCopyCatalog(fixture.RootElement); return; }
             if (id != "spotlight.classes") { Assert.Empty(Render<HarborlineSpotlight>(p => p.Add(x => x.AriaLabel, "Search")).FindAll("[role=dialog]")); return; }
 
             // 282 s11: this lane once spelled the query input hl-spotlight__input as well and put
@@ -192,6 +194,47 @@ public sealed class SpotlightTests : BunitContext
         cut.Render(p => p.Add(x => x.Sections, [new SpotlightSection(loading.GetProperty("id").GetString()!,
             loading.GetProperty("label").GetString()!, [], true)]));
         Assert.Equal(expected.GetProperty("statusWhileLoadingUnlabelled").GetString(), cut.Find("[role=status]").TextContent);
+    }
+
+    // b20f1 (prior art: b13f1 SearchInput copy, b15 catalog-backed copy): the empty copy is nonblank
+    // caller text, then the host catalog, then hlp.ui.default-strings; blank text or a key echo is
+    // absent. Each sub-case reads the visible empty copy and the status region's text from the same
+    // render. The React case asserts the same fixture row.
+    private void AssertEmptyCopyCatalog(System.Text.Json.JsonElement fixture)
+    {
+        var input = fixture.GetProperty("input");
+        var expected = fixture.GetProperty("expected");
+        static (string? Visible, string? Status) Read(AngleSharp.Dom.IElement root) =>
+            (root.QuerySelector(".hl-spotlight__empty")?.TextContent, root.QuerySelector(".hl-spotlight [role=status]")?.TextContent);
+        static (string? Visible, string? Status) Expected(System.Text.Json.JsonElement value) =>
+            (value.GetProperty("visible").GetString(), value.GetProperty("status").GetString());
+        static Dictionary<string, string> Entries(System.Text.Json.JsonElement host) =>
+            host.GetProperty("entries").EnumerateObject().ToDictionary(entry => entry.Name, entry => entry.Value.GetString()!);
+        void Palette(ComponentParameterCollectionBuilder<HarborlineSpotlight> p, string? empty)
+        {
+            p.Add(x => x.Open, true).Add(x => x.AriaLabel, "Search").Add(x => x.Sections, []);
+            if (empty is not null) p.Add(x => x.Empty, empty);
+        }
+        IRenderedComponent<HarborlineLocaleProvider> InHost(System.Text.Json.JsonElement host, string? empty = null) =>
+            Render<HarborlineLocaleProvider>(p => p.Add(x => x.Locale, host.GetProperty("locale").GetString()!).Add(x => x.Direction, host.GetProperty("direction").GetString())
+                .Add(x => x.Catalog, Entries(host)).AddChildContent<HarborlineSpotlight>(c => Palette(c, empty)));
+
+        Assert.Equal(Expected(expected.GetProperty("defaultCatalog")), Read(Render<HarborlineSpotlight>(p => Palette(p, null)).Find(".hl-spotlight__portal")));
+        // A catalog change in one live tree: French, then Arabic (rtl), then the en-XA pseudo-locale.
+        var hosts = input.GetProperty("hostCatalogs").EnumerateArray().ToArray();
+        var live = InHost(hosts[0]);
+        var seen = new List<(string?, string?)> { Read(live.Find(".hl-spotlight__portal")) };
+        foreach (var host in hosts.Skip(1))
+        {
+            live.Render(p => p.Add(x => x.Locale, host.GetProperty("locale").GetString()!).Add(x => x.Direction, host.GetProperty("direction").GetString()).Add(x => x.Catalog, Entries(host)));
+            seen.Add(Read(live.Find(".hl-spotlight__portal")));
+        }
+        Assert.Equal(expected.GetProperty("hostCatalogs").EnumerateArray().Select(Expected), seen);
+        var blank = input.GetProperty("blankCaller");
+        Assert.Equal(Expected(expected.GetProperty("blankCaller")), Read(InHost(hosts[blank.GetProperty("hostCatalog").GetInt32()], blank.GetProperty("empty").GetString()).Find(".hl-spotlight__portal")));
+        Assert.Equal(Expected(expected.GetProperty("keyEchoHost")), Read(InHost(input.GetProperty("keyEchoHost")).Find(".hl-spotlight__portal")));
+        var caller = input.GetProperty("callerText");
+        Assert.Equal(Expected(expected.GetProperty("callerText")), Read(InHost(hosts[caller.GetProperty("hostCatalog").GetInt32()], caller.GetProperty("empty").GetString()).Find(".hl-spotlight__portal")));
     }
 
     // The React case asserts the same fixture row: combobox semantics over the fixture's sections.

@@ -1792,7 +1792,7 @@
       "presentation": {"disposition": "visual"},
       "qualityProfile": {"path": "specs/modules/ui/hlp.ui.spotlight/quality.yaml", "revision": 1},
       "owner": "platform-ui",
-      "dependencies": ["hlp.ui.cn"],
+      "dependencies": ["hlp.ui.cn", "hlp.ui.default-strings", "hlp.ui.locale-provider"],
       "status": "extracted-candidate",
       "depth": {"disposition":"deep-module","deletionTest":"PASS","redistributedComplexity":["caller-ranked command grouping, pinned action order, controlled query, and deterministic selection repeated by every application shell","combobox/listbox state, modal focus, dismissal, result announcements, localization, and theme parity drifting across renderers"]},
       "projections": {
