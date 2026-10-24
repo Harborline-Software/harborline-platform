@@ -2,6 +2,7 @@
 @inherits HarborlineComponentBase
 @implements IAsyncDisposable
 @using Microsoft.JSInterop
+@using Harborline.UIAdapters.Blazor.Localization
 @inject IJSRuntime JavaScript
 
 @if (Open)
@@ -52,7 +53,7 @@
         @* A listbox owns only options and groups, so the empty copy sits beside it, never inside. *@
         @if (ShowEmpty)
         {
-            <div class="hl-spotlight__empty">@Empty</div>
+            <div class="hl-spotlight__empty">@EmptyCopy</div>
         }
         @if (Footer is not null) { <div class="hl-spotlight__footer">@Footer</div> }
     </div>
@@ -72,6 +73,22 @@
     [Parameter] public string? Empty { get; set; }
     [Parameter] public Func<int, string>? ResultsCountLabel { get; set; }
     [Parameter] public RenderFragment? Footer { get; set; }
+
+    [CascadingParameter] private HarborlineLocaleContext? LocaleContext { get; set; }
+
+    // Caller text, then the host catalog, then the default catalog (structural.spotlight.empty). Blank
+    // text at any step is no text, and a catalog miss echoes the key, so the empty copy is never blank.
+    private const string EmptyKey = "structural.spotlight.empty";
+    private string EmptyCopy
+    {
+        get
+        {
+            if (!string.IsNullOrWhiteSpace(Empty)) return Empty;
+            var fallback = Harborline.Foundation.Localization.HarborlineDefaultStrings.Get(EmptyKey);
+            var catalog = LocaleContext?.ResolveString(EmptyKey) ?? fallback;
+            return string.IsNullOrWhiteSpace(catalog) || catalog == EmptyKey ? fallback : catalog;
+        }
+    }
 
     private readonly string instanceId = $"hl-spotlight-{Guid.NewGuid():N}";
     private int activeIndex;
@@ -93,7 +110,7 @@
     // would say zero, then the empty copy would follow): the status carries the first loading
     // section's caller label, or nothing.
     private string StatusText => ShowEmpty
-        ? Empty ?? ""
+        ? EmptyCopy
         : FlatItems.Count == 0
             ? Sections.FirstOrDefault(section => section.Loading)?.LoadingLabel ?? ""
             : ResultsCountLabel?.Invoke(FlatItems.Count) ?? "";
