@@ -17,7 +17,7 @@
   --hl-confirm-dialog-text: var(--hl-foreground, CanvasText);
   --hl-confirm-dialog-border: var(--hl-border, color-mix(in srgb, CanvasText 24%, Canvas));
   --hl-confirm-dialog-muted: var(--hl-muted, color-mix(in srgb, CanvasText 8%, Canvas));
-  --hl-confirm-dialog-focus: var(--hl-focus, Highlight);
+  --hl-confirm-dialog-focus: var(--hl-focus, color-mix(in srgb, CanvasText 72%, Canvas));
   --hl-confirm-dialog-accent: var(--hl-primary, Highlight);
   --hl-confirm-dialog-accent-text: var(--hl-primary-foreground, Canvas);
   --hl-confirm-dialog-danger: var(--hl-destructive, #b3261e);
