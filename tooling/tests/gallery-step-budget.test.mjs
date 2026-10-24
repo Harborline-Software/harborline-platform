@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
-import { mkdtempSync, rmSync } from 'node:fs'
+import { existsSync, mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { resolve } from 'node:path'
+import { dirname, resolve } from 'node:path'
 import test from 'node:test'
 
 import { runFixtureStep, spawnWithBudget } from '../resolve-command.mjs'
@@ -116,3 +116,35 @@ test('the package fixture step has its own budget, above the recorded 66 minutes
     delete process.env.HARBORLINE_GALLERY_FIXTURES_BUDGET_MS
   }
 })
+
+for (const [name, run, announcement] of [
+  ['gallery gate', args => galleryRun('breadcrumb-probe', process.execPath, args), /^gallery step breadcrumb-probe started \(budget 5000ms\)\n$/],
+  ['gallery prepare', args => prepareRun(process.execPath, args), /^gallery prepare step started \(budget 5000ms\): .+ -e .+started.+\n$/],
+  ['package fixture', args => runFixtureStep(process.execPath, args), /^package fixture step started \(budget 5000ms\): .+ -e .+started.+\n$/],
+]) {
+  test(`a ${name} step announces itself before its child starts`, t => {
+    const temporaryRoot = realpathSync(tmpdir())
+    const directory = mkdtempSync(resolve(temporaryRoot, 'gallery-breadcrumb-'))
+    const marker = resolve(directory, 'started')
+    const previousBudget = process.env.HARBORLINE_GALLERY_STEP_BUDGET_MS
+    const output = []
+    process.env.HARBORLINE_GALLERY_STEP_BUDGET_MS = '5000'
+    try {
+      t.mock.method(process.stderr, 'write', chunk => {
+        assert.equal(existsSync(marker), false, 'the announcement must precede child startup')
+        output.push(String(chunk))
+        return true
+      })
+      run(['-e', "require('node:fs').writeFileSync(process.argv[1], 'started')", marker])
+      assert.equal(existsSync(marker), true, 'the real child must run')
+      assert.match(output.join(''), announcement)
+    } finally {
+      if (previousBudget === undefined) delete process.env.HARBORLINE_GALLERY_STEP_BUDGET_MS
+      else process.env.HARBORLINE_GALLERY_STEP_BUDGET_MS = previousBudget
+      const cleanupTarget = realpathSync(directory)
+      assert.equal(cleanupTarget, directory)
+      assert.equal(dirname(cleanupTarget), temporaryRoot)
+      rmSync(cleanupTarget, { recursive: true, force: true })
+    }
+  })
+}
