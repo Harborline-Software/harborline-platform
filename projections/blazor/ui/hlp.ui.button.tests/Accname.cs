@@ -36,14 +36,16 @@ namespace Harborline.UIAdapters.Blazor.Tests;
 /// falls through to the next step.</item>
 /// <item>2D aria-label, when not blank.</item>
 /// <item>2E host-language label, unless the element is presentational (role none|presentation; per ARIA 1.2
-/// conflict resolution that token is ignored on an element that is focusable or carries a global ARIA
-/// attribute, for every rule that reads the role): <c>img</c>/<c>area</c> <c>alt</c>; an
+/// conflict resolution that token is ignored on an element that is focusable, as HTML defines it, or carries a
+/// global ARIA attribute, and the element keeps its implicit role, for every rule that reads the role):
+/// <c>img</c>/<c>area</c> <c>alt</c>; an
 /// SVG element's first <c>title</c> child; and, for labelable elements, each <c>label</c> whose <c>for</c>
 /// resolves to it plus a wrapping <c>label</c> whose first labelable descendant it is (several labels join in
 /// tree order).</item>
 /// <item>2F/2H name from content: for the roles ARIA 1.2 marks "Name From: contents" (the first role token ARIA
 /// 1.2 recognises, else the implicit role of button, a/area[href], h1-h6, td, th, tr, option and button-like
-/// input types), the first <c>summary</c> of a <c>details</c>, a referenced node or label, and every descendant
+/// input types; an ignored none|presentation token falls back to that implicit role, never to the next token),
+/// the first <c>summary</c> of a <c>details</c>, a referenced node or label, and every descendant
 /// during that recursion. Inline children concatenate as written; block-level HTML children are separated by a
 /// space, as browsers do (accname 1.2 leaves CSS-display spacing as an open note).</item>
 /// <item>2G text nodes; the final string has whitespace collapsed and trimmed.</item>
@@ -154,8 +156,8 @@ internal static class Accname
         ArgumentException.ThrowIfNullOrWhiteSpace(attribute);
         ArgumentNullException.ThrowIfNull(expected);
         owner = InTree(owner);
-        if (!owner.HasAttribute(attribute)) throw new XunitException($"{Describe(owner)} has no {attribute}.");
-        var actual = Resolve(owner, attribute, Scope(owner));
+        // First, before reading the owner: a stale snapshot may come from a render that lacked the attribute
+        // or its target, and would otherwise be reported as a component defect.
         var wanted = expected.Select(InTree).ToList();
         var render = Top(owner);
         for (var index = 0; index < wanted.Count; index++)
@@ -163,6 +165,8 @@ internal static class Accname
             if (!ReferenceEquals(Top(wanted[index]), render))
                 throw new XunitException($"{Describe(owner)} and expected[{index}] {Describe(wanted[index])} come from different renders; re-query both from the same rendered component after the latest render (FindAll results are snapshots that do not refresh, and a FindComponent<T>() render is parsed separately).");
         }
+        if (!owner.HasAttribute(attribute)) throw new XunitException($"{Describe(owner)} has no {attribute}.");
+        var actual = Resolve(owner, attribute, Scope(owner));
         if (!actual.SequenceEqual(wanted, ReferenceEqualityComparer.Instance))
             throw new XunitException($"{Describe(owner)}: {attribute} resolves to [{string.Join(", ", actual.Select(Describe))}], expected [{string.Join(", ", wanted.Select(Describe))}].");
     }
@@ -330,8 +334,10 @@ internal static class Accname
     private static string? Role(IElement element)
     {
         var explicitRole = (element.GetAttribute("role") ?? string.Empty).Split(AsciiWhitespace, StringSplitOptions.RemoveEmptyEntries)
-            .Select(token => token.ToLowerInvariant())
-            .FirstOrDefault(token => Aria12Roles.Contains(token) && !(token is "none" or "presentation" && KeepsItsSemantics(element)));
+            .Select(token => token.ToLowerInvariant()).FirstOrDefault(Aria12Roles.Contains);
+        // ARIA 1.2 presentational roles conflict resolution: an ignored none|presentation exposes the implicit
+        // role below; the next token is not consulted (that fallback is only for an unnamed region or form).
+        if (explicitRole is "none" or "presentation" && KeepsItsSemantics(element)) explicitRole = null;
         if (explicitRole is not null) return explicitRole;
         return element.LocalName switch
         {
@@ -382,12 +388,30 @@ internal static class Accname
     private static bool IsPresentational(IElement element) => Role(element) is "none" or "presentation";
 
     // ARIA 1.2 presentational-role conflict resolution: a none|presentation token is ignored on an element that
-    // can take focus or carries a global ARIA attribute.
-    private static bool KeepsItsSemantics(IElement element) =>
-        GlobalAriaAttributes.Any(element.HasAttribute)
-        || element.HasAttribute("tabindex")
+    // is focusable or carries a global ARIA attribute.
+    private static bool KeepsItsSemantics(IElement element) => GlobalAriaAttributes.Any(element.HasAttribute) || IsFocusable(element);
+
+    // Focusable as HTML defines it, for the markup this helper sees: a tabindex attribute, a link with href, or a
+    // form control that is not disabled. Not modelled: contenteditable, summary, iframe, media controls.
+    private static bool IsFocusable(IElement element) =>
+        element.HasAttribute("tabindex")
         || (element.LocalName is "a" or "area" && element.HasAttribute("href"))
-        || element.LocalName is "button" or "input" or "select" or "textarea";
+        || (element.LocalName is "button" or "select" or "textarea" || (element.LocalName == "input" && InputType(element) != "hidden"))
+            && !IsActuallyDisabled(element);
+
+    // HTML "actually disabled": the disabled attribute, or a disabled fieldset ancestor unless the control sits in
+    // that fieldset's first legend.
+    private static bool IsActuallyDisabled(IElement element)
+    {
+        if (element.HasAttribute("disabled")) return true;
+        for (var ancestor = element.ParentElement; ancestor is not null; ancestor = ancestor.ParentElement)
+        {
+            if (ancestor.LocalName != "fieldset" || !ancestor.HasAttribute("disabled")) continue;
+            var firstLegend = ancestor.Children.FirstOrDefault(child => child.LocalName == "legend");
+            if (firstLegend is null || !firstLegend.Contains(element)) return true;
+        }
+        return false;
+    }
 
     // A role that takes its name from content, or (with no explicit role) the first summary child of details.
     private static bool TakesNameFromContent(IElement element) =>

@@ -363,18 +363,42 @@ public sealed class AccnameTests : BunitContext
     [Fact]
     public void NoneOrPresentationIsIgnoredOnAFocusableElementOrOneWithAGlobalAriaAttribute()
     {
-        // ARIA 1.2 presentational-role conflict resolution, applied in Role() for every caller.
+        // ARIA 1.2 presentational-role conflict resolution, applied in Role() for every caller: the ignored token
+        // gives way to the element's implicit role, never to the next token.
         var cut = Markup("""
             <button id="button" role="none">Close</button>
             <a id="link" href="#" role="presentation">Docs</a>
-            <span id="global" role="none button" aria-describedby="d">Go</span><span id="d">x</span>
+            <h1 id="global" role="presentation" aria-describedby="d">Sample</h1><span id="d">x</span>
+            <span id="generic" role="none button" aria-describedby="d">Go</span>
+            <div id="focusable" role="presentation link" tabindex="0">Docs</div>
+            <table><tr><th id="cell">Name <div role="none textbox" tabindex="0">cats</div></th></tr></table>
             <div role="region" aria-labelledby="i"></div><label for="i">Search</label><input id="i" role="presentation" value="cats">
             """);
         Assert.Equal("Close", Accname.AccessibleName(cut.Find("#button")));
         Assert.Equal("Docs", Accname.AccessibleName(cut.Find("#link")));
-        Assert.Equal("Go", Accname.AccessibleName(cut.Find("#global")));
+        Assert.Equal("Sample", Accname.AccessibleName(cut.Find("#global"))); // ARIA 1.2 example: the h1 stays a heading
+        // A span and a div are generic, which takes no name from content; "button" and "link" are not consulted.
+        Assert.Contains("has no accessible name", Fails(() => Accname.AccessibleName(cut.Find("#generic"))).Message, StringComparison.Ordinal);
+        Assert.Contains("has no accessible name", Fails(() => Accname.AccessibleName(cut.Find("#focusable"))).Message, StringComparison.Ordinal);
+        // The focusable div is generic, not a textbox, so its text is content rather than an embedded control.
+        Assert.Equal("Name cats", Accname.AccessibleName(cut.Find("#cell")));
         // A focusable input keeps its textbox semantics, so the region's name runs into the uncovered 2C step.
         Assert.Contains("accname 2C embedded-control value not covered", Fails(() => Accname.AccessibleName(cut.Find("[role=region]"))).Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ADisabledControlIsNotFocusableSoNoneOrPresentationHoldsOnIt()
+    {
+        // HTML: a disabled form control, or one in a disabled fieldset outside its first legend, cannot take focus.
+        var cut = Markup("""
+            <button id="disabled" disabled role="none">Close</button>
+            <fieldset disabled><legend><button id="legend" role="none">Close</button></legend><button id="fieldset" role="none">Close</button></fieldset>
+            <button id="global" disabled role="none" aria-describedby="d">Close</button><span id="d">x</span>
+            """);
+        Assert.Contains("has no accessible name", Fails(() => Accname.AccessibleName(cut.Find("#disabled"))).Message, StringComparison.Ordinal);
+        Assert.Contains("has no accessible name", Fails(() => Accname.AccessibleName(cut.Find("#fieldset"))).Message, StringComparison.Ordinal);
+        Assert.Equal("Close", Accname.AccessibleName(cut.Find("#legend")));
+        Assert.Equal("Close", Accname.AccessibleName(cut.Find("#global")));
     }
 
     // ---- label[for]: the same strictness as the ARIA id references ----
@@ -546,6 +570,40 @@ public sealed class AccnameTests : BunitContext
         Assert.Contains("<div id=\"p\" role=\"region\" aria-labelledby=\"h\"> and expected[0] <button id=\"h\" aria-controls=\"p\"> come from different renders; re-query both", stale, StringComparison.Ordinal);
         Accname.AssertReferences(cut.FindAll("[role=region]")[0], "aria-labelledby", cut.Find("button"));
         Assert.Equal("Close", Accname.AccessibleName(cut.FindAll("[role=region]")[0]));
+    }
+
+    [Theory]
+    [InlineData(false)] // aria-controls and the panel appear only while open (HarborlineUserMenu, HarborlinePopoverTrigger)
+    [InlineData(true)]  // aria-controls always present, the panel only while open
+    public void AStaleOwnerFromARenderWithoutTheAttributeOrTargetIsReportedAsStale(bool controlsWhileClosed)
+    {
+        var cut = Render<DisclosureOpenOnly>(p => p.Add(x => x.ControlsWhileClosed, controlsWhileClosed));
+        var buttons = cut.FindAll("button");
+        cut.Find("button").Click();
+        var stale = Fails(() => Accname.AssertReferences(buttons[0], "aria-controls", cut.Find("#p"))).Message;
+        Assert.Contains("come from different renders; re-query both", stale, StringComparison.Ordinal);
+        Accname.AssertReferences(cut.Find("button"), "aria-controls", cut.Find("#p"));
+    }
+
+    private sealed class DisclosureOpenOnly : ComponentBase
+    {
+        private bool open;
+
+        [Parameter] public bool ControlsWhileClosed { get; set; }
+
+        protected override void BuildRenderTree(Microsoft.AspNetCore.Components.Rendering.RenderTreeBuilder builder)
+        {
+            builder.OpenElement(0, "button");
+            builder.AddAttribute(1, "aria-controls", open || ControlsWhileClosed ? "p" : null);
+            builder.AddAttribute(2, "onclick", EventCallback.Factory.Create(this, () => open = !open));
+            builder.AddContent(3, "Menu");
+            builder.CloseElement();
+            if (!open) return;
+            builder.OpenElement(4, "div");
+            builder.AddAttribute(5, "id", "p");
+            builder.AddContent(6, "Panel");
+            builder.CloseElement();
+        }
     }
 
     private sealed class ToggleRegion : ComponentBase
