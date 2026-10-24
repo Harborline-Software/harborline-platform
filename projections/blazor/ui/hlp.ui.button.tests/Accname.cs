@@ -161,7 +161,7 @@ internal static class Accname
         for (var index = 0; index < wanted.Count; index++)
         {
             if (!ReferenceEquals(Top(wanted[index]), render))
-                throw new XunitException($"expected[{index}] {Describe(wanted[index])} belongs to a different render than {Describe(owner)}; re-query it from the same rendered component after the latest render (FindAll results are snapshots that do not refresh, and a FindComponent<T>() render is parsed separately).");
+                throw new XunitException($"{Describe(owner)} and expected[{index}] {Describe(wanted[index])} come from different renders; re-query both from the same rendered component after the latest render (FindAll results are snapshots that do not refresh, and a FindComponent<T>() render is parsed separately).");
         }
         if (!actual.SequenceEqual(wanted, ReferenceEqualityComparer.Instance))
             throw new XunitException($"{Describe(owner)}: {attribute} resolves to [{string.Join(", ", actual.Select(Describe))}], expected [{string.Join(", ", wanted.Select(Describe))}].");

@@ -178,6 +178,29 @@ public sealed class AccnameTests : BunitContext
         Assert.Contains("has no accessible name", Fails(() => Accname.AccessibleName(label.Find("input"))).Message, StringComparison.Ordinal);
         var dialog = Markup("""<div role="dialog" hidden aria-labelledby="t"><h2 id="t"><span aria-hidden="true">Settings</span></h2></div>""");
         Assert.Contains("has no accessible name", Fails(() => Accname.AccessibleName(dialog.Find("[role=dialog]"))).Message, StringComparison.Ordinal);
+        Assert.Contains("aria-labelledby resolves to an empty name", Fails(() => Accname.AssertIdReferencesResolve(dialog)).Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void InsideACollapsedPanelADescribedByTargetsHiddenDescendantsStillDoNotCount()
+    {
+        var cut = Markup("""<div hidden><button aria-describedby="d">Go</button><span id="d">Hint<span aria-hidden="true"> *</span></span></div>""");
+        Assert.Equal("Hint", Accname.AccessibleDescription(cut.Find("button")));
+    }
+
+    [Fact]
+    public void TheShownChainReachesPastTheRootsParent()
+    {
+        // The real layout: .hl-accordion__panel[hidden] > .hl-accordion__content > field, the control in its own wrapper.
+        var cut = Markup("""<div hidden><label for="e"><span>Email</span><span aria-hidden="true">*</span></label><span class="control"><input id="e"></span></div>""");
+        Assert.Equal("Email", Accname.AccessibleName(cut.Find("input")));
+    }
+
+    [Fact]
+    public void AHiddenWrappingLabelIsOnTheShownChainAndStillNamesItsControl()
+    {
+        var cut = Markup("""<label hidden>Name <input id="a"></label>""");
+        Assert.Equal("Name", Accname.AccessibleName(cut.Find("#a")));
     }
 
     // ---- 2A and 2E rules pinned with text (each fixture changes its result if its rule is dropped) ----
@@ -330,11 +353,11 @@ public sealed class AccnameTests : BunitContext
     [Fact]
     public void TheFirstRoleTokenAria12RecognisesWins()
     {
-        var cut = Markup("""<div id="fallback" role="foo button">Go</div><div id="unknown" role="foo bar">Go</div><div id="region" role="sectionhead region">Go</div>""");
+        var cut = Markup("""<div id="fallback" role="foo button">Go</div><div id="unknown" role="foo bar">Go</div><div id="abstract" role="command button">Go</div>""");
         Assert.Equal("Go", Accname.AccessibleName(cut.Find("#fallback")));
         Fails(() => Accname.AccessibleName(cut.Find("#unknown")));
-        // sectionhead is abstract in ARIA 1.2, so region is the role, and a region does not take its name from content.
-        Fails(() => Accname.AccessibleName(cut.Find("#region")));
+        // command is an abstract ARIA 1.2 role, so it is skipped and button, which takes its name from content, is the role.
+        Assert.Equal("Go", Accname.AccessibleName(cut.Find("#abstract")));
     }
 
     [Fact]
@@ -508,8 +531,41 @@ public sealed class AccnameTests : BunitContext
         var b = Markup(html);
         Accname.AssertReferences(a.Find("#owner"), "aria-controls", a.Find("#x"));
         var other = Fails(() => Accname.AssertReferences(a.Find("#owner"), "aria-controls", b.Find("#x"))).Message;
-        Assert.Contains("expected[0] <p id=\"x\"> belongs to a different render than <div id=\"owner\" aria-controls=\"x\">", other, StringComparison.Ordinal);
-        Assert.Contains("re-query it from the same rendered component", other, StringComparison.Ordinal);
+        Assert.Contains("<div id=\"owner\" aria-controls=\"x\"> and expected[0] <p id=\"x\"> come from different renders", other, StringComparison.Ordinal);
+        Assert.Contains("re-query both from the same rendered component", other, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AStaleOwnerIsReportedAsWellAsAStaleExpectedElement()
+    {
+        // FindAll results are snapshots: after the click, regions[0] belongs to the superseded render.
+        var cut = Render<ToggleRegion>();
+        var regions = cut.FindAll("[role=region]");
+        cut.Find("button").Click();
+        var stale = Fails(() => Accname.AssertReferences(regions[0], "aria-labelledby", cut.Find("button"))).Message;
+        Assert.Contains("<div id=\"p\" role=\"region\" aria-labelledby=\"h\"> and expected[0] <button id=\"h\" aria-controls=\"p\"> come from different renders; re-query both", stale, StringComparison.Ordinal);
+        Accname.AssertReferences(cut.FindAll("[role=region]")[0], "aria-labelledby", cut.Find("button"));
+        Assert.Equal("Close", Accname.AccessibleName(cut.FindAll("[role=region]")[0]));
+    }
+
+    private sealed class ToggleRegion : ComponentBase
+    {
+        private bool open;
+
+        protected override void BuildRenderTree(Microsoft.AspNetCore.Components.Rendering.RenderTreeBuilder builder)
+        {
+            builder.OpenElement(0, "button");
+            builder.AddAttribute(1, "id", "h");
+            builder.AddAttribute(2, "aria-controls", "p");
+            builder.AddAttribute(3, "onclick", EventCallback.Factory.Create(this, () => open = !open));
+            builder.AddContent(4, open ? "Close" : "Open");
+            builder.CloseElement();
+            builder.OpenElement(5, "div");
+            builder.AddAttribute(6, "id", "p");
+            builder.AddAttribute(7, "role", "region");
+            builder.AddAttribute(8, "aria-labelledby", "h");
+            builder.CloseElement();
+        }
     }
 
     [Fact]
