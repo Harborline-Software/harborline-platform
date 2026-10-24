@@ -1,5 +1,7 @@
 # Agent guide — harborline-platform
 
+Before nontrivial implementation or review, inspect the canonical repository implementation, its consumers, and existing research/resources first. Follow the [reuse guide](docs/engineering-reuse.md) on demand: investigate remaining gaps against primary industry standards, then mature maintained open-source and commercial alternatives; prefer reuse or a minimal adapter over custom machinery. For substantial changes, add a compact revision-bound Reuse note to the existing PR or review, with checked references, the chosen approach and any custom rationale. Routine edits need no research ceremony; state the routine reason and let the reviewer assess scope.
+
 ## Mutation testing (Stryker.NET)
 
 Read this before you add or change a test project's `stryker-config.json`, or claim mutation evidence for a ticket. `tooling/stryker.mjs` is the entry point; its header documents `check`, `run`, `full` and `baseline`.

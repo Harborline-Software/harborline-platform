@@ -1,4 +1,7 @@
 using System.Text;
+using System.Text.Json;
+using System.Text.Json.Nodes;
+using Harborline.Foundation.Authorization;
 using Harborline.Contracts.Authorization;
 using Harborline.Contracts.Fields;
 using Harborline.Foundation.Definitions;
@@ -26,6 +29,11 @@ public sealed class RecordTypeDefinitionStoreTests
     internal const string AssetClassJson =
         """{"class_id":"eam.equipment","envelope":{"contract":{"major":1,"minor":0},"package_id":"eam-core","section":"eam","tenant":"tenant-a"},"fields":[{"binding":{"constraints":{"maximum_count":1,"minimum_count":0,"read_role_ids":[],"required":true},"kind":{"kind_id":"text","parameters":{},"version":"1.0.0"}},"defaults_provenance":{"kind_id":"text","kind_version":"1.0.0"},"display_name":"Asset tag","field_key":"asset_tag","governance":{"classification":"internal","confidential":false,"masked":true,"personal_data":true}},{"binding":{"constraints":{"maximum_count":1,"minimum_count":0,"read_role_ids":[],"required":false},"kind":{"kind_id":"count","parameters":{},"version":"1.0.0"}},"defaults_provenance":{"kind_id":"count","kind_version":"1.0.0"},"display_name":"Quantity","field_key":"quantity"},{"display_name":"Notes","field_key":"notes"}],"name":"Asset Class","record_class":"master","record_type_id":"eam.asset-class"}""" + "\n";
 
+    // ADR-0097 create-only policy declarations, spelled independently of the producer serializer. The legacy fixture
+    // above stays unchanged; new authoring has a distinct canonical body and digest.
+    internal const string CreatedAssetClassJson =
+        """{"amendment_policy":{"reason_required":true},"class_id":"eam.equipment","envelope":{"contract":{"major":1,"minor":0},"package_id":"eam-core","section":"eam","tenant":"tenant-a"},"fields":[{"binding":{"constraints":{"maximum_count":1,"minimum_count":0,"read_role_ids":[],"required":true},"kind":{"kind_id":"text","parameters":{},"version":"1.0.0"}},"defaults_provenance":{"kind_id":"text","kind_version":"1.0.0"},"display_name":"Asset tag","field_key":"asset_tag","governance":{"classification":"internal","confidential":false,"masked":true,"personal_data":true}},{"binding":{"constraints":{"maximum_count":1,"minimum_count":0,"read_role_ids":[],"required":false},"kind":{"kind_id":"count","parameters":{},"version":"1.0.0"}},"defaults_provenance":{"kind_id":"count","kind_version":"1.0.0"},"display_name":"Quantity","field_key":"quantity"},{"display_name":"Notes","field_key":"notes"}],"history_policy":"enabled","name":"Asset Class","record_class":"master","record_type_id":"eam.asset-class"}""" + "\n";
+
     [Fact]
     [Trait("Holds", "records-ck-1")]
     public async Task a_created_record_type_publishes_reads_back_at_its_head_and_round_trips_byte_identically()
@@ -36,14 +44,14 @@ public sealed class RecordTypeDefinitionStoreTests
         Assert.Equal("eam.asset-class", created.RecordTypeId);
         Assert.Equal(1, created.Revision.Revision);
         Assert.Equal(DefinitionStatus.Draft, created.Revision.Status);
-        Assert.Equal(AssetClassJson, created.Revision.Document.BodyJson);
+        Assert.Equal(CreatedAssetClassJson, created.Revision.Document.BodyJson);
 
         var published = await host.Records.PublishAsync(Tenant, "eam.asset-class", "1.0.0", 1, "publish");
         Assert.Equal(DefinitionStatus.Published, published.Revision.Status);
         Assert.Equal(2, published.Revision.Revision);
 
         var head = Assert.IsType<RecordTypeDocument>(await host.Records.GetPublishedHeadAsync(Tenant, "eam.asset-class"));
-        Assert.Equal(AssetClassJson, Encoding.UTF8.GetString(RecordTypeDefinitionJson.SerializeCanonical(head)));
+        Assert.Equal(CreatedAssetClassJson, Encoding.UTF8.GetString(RecordTypeDefinitionJson.SerializeCanonical(head)));
         Assert.Equal(AssetClassJson,
             Encoding.UTF8.GetString(RecordTypeDefinitionJson.SerializeCanonical(
                 RecordTypeDefinitionJson.Deserialize(Encoding.UTF8.GetBytes(AssetClassJson)))));
@@ -259,12 +267,12 @@ public sealed class RecordTypeDefinitionStoreTests
 
         var restored = await host.Records.RestoreAsDraftAsync(Tenant, "eam.asset-class", "1.0.0", "1.1.0", 2, "restore");
         Assert.Equal("1.0.0", restored.RestoredFromVersionId);
-        Assert.Equal(AssetClassJson, restored.Document.BodyJson);
+        Assert.Equal(CreatedAssetClassJson, restored.Document.BodyJson);
         await host.Records.PublishAsync(Tenant, "eam.asset-class", "1.1.0", 3, "publish-1.1.0");
 
         var head = await host.Catalogue.GetPublishedHeadAsync(RecordTypeDefinitionStore.KeyOf(Tenant, "eam.asset-class"));
         Assert.Equal("1.1.0", head!.Document.Version);
-        Assert.Equal(AssetClassJson, head.Document.BodyJson);
+        Assert.Equal(CreatedAssetClassJson, head.Document.BodyJson);
     }
 
     [Fact]
@@ -281,7 +289,7 @@ public sealed class RecordTypeDefinitionStoreTests
 
         Assert.Equal(("eam.asset-class", "1.0.0", 5, 0, DefinitionKind.Records),
             (entry.DefinitionId, entry.Version, entry.ContentKind, entry.Primitive, entry.Kind));
-        Assert.Equal(AssetClassJson, Encoding.UTF8.GetString(entry.Content.Payload.Span));
+        Assert.Equal(CreatedAssetClassJson, Encoding.UTF8.GetString(entry.Content.Payload.Span));
         var receiving = Host();
         Assert.Empty((await receiving.Records.AdmitInstallAsync("tenant-b", entry, NoDependencies)).Refusals);
 
@@ -531,6 +539,97 @@ public sealed class RecordTypeDefinitionStoreTests
     {
         public TraitDefinition? Resolve(string traitId, string version)
             => traitId == "locatable" && version == "1.0.0" ? new("locatable", "1.0.0", []) : null;
+    }
+
+    [Theory]
+    [InlineData("create")]
+    [InlineData("save")]
+    [InlineData("raw-publish")]
+    public async Task actual_authoring_surrogate_reachability_cannot_commit_an_unencodable_publication_binding(string entry)
+    {
+        var host = Host();
+        RecordTypePublication? publication = null;
+        var authoringError = await Record.ExceptionAsync(async () =>
+        {
+            if (entry == "create")
+            {
+                var type = RoleGatedAssetClass("1.0.0");
+                await host.Records.CreateDraftAsync(type with { Fields = type.Fields.Select(field => field with
+                    { DisplayName = field.DisplayName + "\ud800" }).ToArray() }, "surrogate-create");
+                publication = await host.Records.PublishAsync(Tenant, "eam.asset-class", "1.0.0", 1, "surrogate-publish");
+            }
+            else if (entry == "save")
+            {
+                await host.Records.CreateDraftAsync(RoleGatedAssetClass("1.0.0"), "surrogate-create");
+                var document = Document() with { CreationGate = RecordCreationGate.Role, CreationRoleId = "asset-author",
+                    Fields = Document().Fields.Select(field => field with { DisplayName = field.DisplayName + "\ud800" }).ToArray() };
+                await host.Records.SaveDraftAsync("eam.asset-class", document, "1.0.0", 1, "surrogate-save");
+                publication = await host.Records.PublishAsync(Tenant, "eam.asset-class", "1.0.0", 2, "surrogate-publish");
+            }
+            else
+            {
+                var body = AssetClassJson.Replace("Asset tag", "Asset tag\ud800", StringComparison.Ordinal)
+                    .Insert(1, "\"creation_gate\":\"role\",\"creation_role_id\":\"asset-author\",");
+                await host.Catalogue.SaveDraftAsync(new(new(Tenant, DefinitionKind.Records, "eam.asset-class"), "1.0.0", "1.0.0", body),
+                    0, "surrogate-raw");
+                publication = await host.Records.PublishAsync(Tenant, "eam.asset-class", "1.0.0", 1, "surrogate-publish");
+            }
+        });
+        if (authoringError is not null)
+        {
+            Assert.True(authoringError is DefinitionRefusalException or JsonException or ArgumentException or InvalidOperationException);
+            Assert.DoesNotContain(await host.Catalogue.ListHistoryAsync(RecordTypeDefinitionStore.KeyOf(Tenant, "eam.asset-class")),
+                revision => revision.Status == DefinitionStatus.Published);
+            return; // The actual authoring guard refused before an immutable publication existed.
+        }
+        Assert.NotNull(publication);
+        var unicodeError = Record.Exception(() => { _ = RecordWriteIntent.Strict.GetByteCount(publication.Revision.Document.BodyJson); });
+        var directory = Path.Combine(Path.GetTempPath(), "q32-surrogate-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        var path = Path.Combine(directory, "records.json");
+        var before = Encoding.UTF8.GetBytes(RecordWriteJournalBindingTests.BaseJournal().ToJsonString()); File.WriteAllBytes(path, before);
+        try
+        {
+            var store = new FileJournalRecordWriteStore(path);
+            var clock = TimeProvider.System;
+            var writer = new RecordWriteOperation(new AccessProvider(new SurrogateGate()), host.Records, host.Registry, store, store,
+                clock, RecordWriteFieldRuntimeTests.FixtureKinds(), RecordWriteFieldRuntimeTests.FixtureDomains(clock));
+            var request = new RecordCreateRequest("eam.asset-class", "surrogate-write", JsonNode.Parse("{\"asset_tag\":\"A-1\",\"quantity\":1,\"notes\":\"kept\"}")!.AsObject());
+            if (unicodeError is not null)
+            {
+                Assert.IsType<EncoderFallbackException>(unicodeError);
+                await Assert.ThrowsAsync<InvalidOperationException>(() => writer.CreateAsync(new(Tenant, "actor"), request).AsTask());
+                Assert.Equal(before, File.ReadAllBytes(path));
+            }
+            else
+            {
+                // A typed producer may escape/substitute before storage; this is not an unencodable retained BodyJson.
+                Assert.DoesNotContain("\ud800", publication.Revision.Document.BodyJson, StringComparison.Ordinal);
+                Assert.True((await writer.CreateAsync(new(Tenant, "actor"), request)).Committed);
+            }
+        }
+        finally { Directory.Delete(directory, true); }
+    }
+
+    [Fact]
+    public async Task install_surrogate_token_reachability_never_changes_the_catalogue()
+    {
+        var host = Host();
+        var body = AssetClassJson.Replace("Asset tag", "Asset tag\\ud800", StringComparison.Ordinal);
+        var error = await Record.ExceptionAsync(async () =>
+        {
+            var report = await host.Records.AdmitInstallAsync(Tenant,
+                new("eam.asset-class", "1.0.0", PlatformPackageContent.PresentJson(Encoding.UTF8.GetBytes(body))), NoDependencies);
+            Assert.Equal(DefinitionAdmissionPhase.Install, report.Stage);
+        });
+        if (error is not null) Assert.True(error is DefinitionRefusalException or JsonException or ArgumentException or InvalidOperationException);
+        Assert.Empty(await host.Catalogue.ListHistoryAsync(RecordTypeDefinitionStore.KeyOf(Tenant, "eam.asset-class")));
+    }
+
+    private sealed class SurrogateGate : IAuthorizationDecider
+    {
+        public ValueTask<AuthorizationDecisionEvidence> DecideAsync(AccessRequest request, CancellationToken cancellationToken = default)
+            => ValueTask.FromResult(new AuthorizationDecisionEvidence(request, true, "None", "literal-test-grant", [], []));
     }
 
     internal sealed record TestHost(InMemoryVersionedDefinitionStore Catalogue, RecordTypeDefinitionStore Records,
