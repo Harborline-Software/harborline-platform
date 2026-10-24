@@ -730,5 +730,6 @@
   "navigation.notifications.viewAll": "View all",
   "navigation.userMenu.panel": "Account menu",
   "navigation.userMenu.signOut": "Sign out",
-  "navigation.userMenu.trigger": "Account menu for {name}"
+  "navigation.userMenu.trigger": "Account menu for {name}",
+  "structural.spotlight.empty": "No results"
 }

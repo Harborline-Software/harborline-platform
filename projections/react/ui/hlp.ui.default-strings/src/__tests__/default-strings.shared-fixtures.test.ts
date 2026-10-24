@@ -110,7 +110,7 @@ function runCase(fixtureCase: FixtureCase): void {
       const families = input.families as string[]
       expect({
         allPresent: families.every(family => Object.keys(defaultStrings).some(key => key.startsWith(`${family}.`))),
-        exactValuesCoveredByDigest: digestCatalog() === 'abe7a3d3cd49ff3d2ab9ad75df1638774d84f1dae90d945dfb68042cd800a5c9',
+        exactValuesCoveredByDigest: digestCatalog() === 'ca8ea96dbf3bf6ee98766ccbfd3352122cafbf9bb60cd52cf1a0f0612daa564a',
       }).toEqual(fixtureCase.expected)
       return
     }
@@ -162,7 +162,7 @@ describe('hlp.ui.default-strings shared quality fixtures', () => {
     const fixtureCase = qualityFixture.accessibilityCases?.find(value => value.id.endsWith('accessible-families'))
     const expected = fixtureCase?.expected as { families: string[]; exactValuesCoveredByDigest: boolean }
     expect(expected.families.every(family => Object.keys(defaultStrings).some(key => key.startsWith(`${family}.`)))).toBe(true)
-    expect(digestCatalog()).toBe('abe7a3d3cd49ff3d2ab9ad75df1638774d84f1dae90d945dfb68042cd800a5c9')
+    expect(digestCatalog()).toBe('ca8ea96dbf3bf6ee98766ccbfd3352122cafbf9bb60cd52cf1a0f0612daa564a')
   })
 
   it('keeps every English fallback nonempty', () => {

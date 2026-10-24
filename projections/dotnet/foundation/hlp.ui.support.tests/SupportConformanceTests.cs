@@ -103,14 +103,14 @@ public sealed class DefaultStringsConformanceTests
     [Fact]
     public void NativeCatalogHasExactDigestAndInterpolation()
     {
-        Assert.Equal(732, HarborlineDefaultStrings.Values.Count);
+        Assert.Equal(733, HarborlineDefaultStrings.Values.Count);
         Assert.Equal("Loading", HarborlineDefaultStrings.Get("common.loading"));
         Assert.Equal("Step 2 of {total}", HarborlineDefaultStrings.Interpolate("Step {current} of {total}", new Dictionary<string, object?> { ["current"] = 2 }));
-        Assert.Equal("abe7a3d3cd49ff3d2ab9ad75df1638774d84f1dae90d945dfb68042cd800a5c9", CatalogDigest());
+        Assert.Equal("ca8ea96dbf3bf6ee98766ccbfd3352122cafbf9bb60cd52cf1a0f0612daa564a", CatalogDigest());
     }
 
-    // Revision 2 appends 19 platform keys; revision 1 is every other entry, by identity and in catalog order.
-    private static readonly string[] Revision2Keys = ["forms.switch.off", "forms.switch.on", "navigation.notifications.all", "navigation.notifications.bell.pending.one", "navigation.notifications.bell.pending.other", "navigation.notifications.bell.unread.one", "navigation.notifications.bell.unread.other", "navigation.notifications.confirm", "navigation.notifications.deny", "navigation.notifications.dismiss", "navigation.notifications.empty", "navigation.notifications.groups", "navigation.notifications.markAllRead", "navigation.notifications.title", "navigation.notifications.unread", "navigation.notifications.viewAll", "navigation.userMenu.panel", "navigation.userMenu.signOut", "navigation.userMenu.trigger"];
+    // Revision 2 appends 20 platform keys; revision 1 is every other entry, by identity and in catalog order.
+    private static readonly string[] Revision2Keys = ["forms.switch.off", "forms.switch.on", "navigation.notifications.all", "navigation.notifications.bell.pending.one", "navigation.notifications.bell.pending.other", "navigation.notifications.bell.unread.one", "navigation.notifications.bell.unread.other", "navigation.notifications.confirm", "navigation.notifications.deny", "navigation.notifications.dismiss", "navigation.notifications.empty", "navigation.notifications.groups", "navigation.notifications.markAllRead", "navigation.notifications.title", "navigation.notifications.unread", "navigation.notifications.viewAll", "navigation.userMenu.panel", "navigation.userMenu.signOut", "navigation.userMenu.trigger", "structural.spotlight.empty"];
 
     [Fact]
     public void RevisionOneIsPreservedExactly()
