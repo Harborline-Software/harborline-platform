@@ -117,6 +117,10 @@ describe('Spotlight shared fixtures', () => {
     expect(screen.getByRole('group', { name: 'Records' })).toBeInTheDocument()
     expect(screen.getByText('Loading')).toBeInTheDocument()
     expect(screen.queryAllByRole('option')).toHaveLength(0)
+    // b19 review: the listbox owns only groups and options; the loading text is inside its group.
+    const listbox = screen.getByRole('listbox')
+    expect([...listbox.children].map(child => child.getAttribute('role'))).toEqual(['group'])
+    expect(screen.getByRole('group', { name: 'Records' })).toContainElement(screen.getByText('Loading'))
   })
 
   it('spotlight.footer', () => {

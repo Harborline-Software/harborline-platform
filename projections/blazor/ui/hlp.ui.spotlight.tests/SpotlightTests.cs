@@ -58,6 +58,21 @@ public sealed class SpotlightTests : BunitContext
         Assert.Empty(cut.FindAll("[role=listbox] .hl-spotlight__empty"));
     }
 
+    // b19 review: a loading section is a labelled group holding its loading text, as in React; the
+    // listbox owns only groups and options.
+    [Fact]
+    public void LoadingSectionIsALabelledGroupInsideTheListbox()
+    {
+        var cut = Render<HarborlineSpotlight>(p => p.Add(x => x.Open, true).Add(x => x.AriaLabel, "Search")
+            .Add(x => x.Sections, [new SpotlightSection("remote", "Records", [], true, "Loading records")]));
+        var listbox = cut.Find("[role=listbox]");
+        Assert.All(listbox.Children, child => Assert.Equal("group", child.GetAttribute("role")));
+        var group = cut.Find("[role=listbox] > [role=group]");
+        Assert.Equal("Records", group.GetAttribute("aria-label"));
+        Assert.Equal("Loading records", group.QuerySelector(".hl-spotlight__loading")!.TextContent);
+        Assert.Empty(cut.FindAll("[role=option]"));
+    }
+
     [Theory, Trait("ModuleConformance", "hlp.ui.spotlight")]
     [MemberData(nameof(SharedFixtureBatch.Cases), "hlp.ui.spotlight", MemberType = typeof(SharedFixtureBatch))]
     public void SharedFixtureConforms(string caseId, string? rawFixture)

@@ -106,13 +106,34 @@ function scanLaneCoverage(moduleId, css, blazorSheets) {
 // notification-center text rendering in exactly these fallbacks. Canvas is not listed: it is the text
 // half of an inverted CanvasText pair (tooltips, filled buttons). Forced-colors blocks and disabled
 // states are exempt -- there the UA supplies both halves, and disabled text owes no contrast.
-const NON_TEXT_SYSTEM_COLOURS = /^(GrayText|Highlight|Mark|ButtonFace|Field|AccentColor)$/
+// System colour keywords are ASCII case-insensitive (CSS Color 4), so `graytext` is GrayText.
+const NON_TEXT_SYSTEM_COLOURS = /^(GrayText|Highlight|SelectedItem|Mark|ButtonFace|ButtonBorder|Field|AccentColor)$/i
 const DISABLED_SELECTOR = /:disabled|\[disabled|aria-disabled|data-disabled|--disabled\b/
+
+// A selector list split at its top-level commas (a comma inside :is()/:not() does not split it).
+function selectorList(selector) {
+  const parts = []
+  let depth = 0
+  let start = 0
+  for (let cursor = 0; cursor < selector.length; cursor += 1) {
+    const character = selector[cursor]
+    if (character === '(' || character === '[') depth += 1
+    else if (character === ')' || character === ']') depth -= 1
+    else if (character === ',' && depth === 0) {
+      parts.push(selector.slice(start, cursor).trim())
+      start = cursor + 1
+    }
+  }
+  parts.push(selector.slice(start).trim())
+  return parts.filter(Boolean)
+}
 
 function withoutForcedColours(css) {
   let out = ''
   let index = 0
-  const opener = /@media\s*\([^)]*forced-colors[^)]*\)\s*\{/g
+  // Any media query that mentions forced-colors: `@media (forced-colors: active)` and
+  // `@media screen and (forced-colors: active)` alike.
+  const opener = /@media[^{;]*forced-colors[^{;]*\{/g
   for (;;) {
     opener.lastIndex = index
     const hit = opener.exec(css)
@@ -164,12 +185,14 @@ function scanTextColourFallbacks(moduleId, css) {
     return fallback === undefined ? [] : terminals(fallback, seen)
   }
   for (const rule of rules) {
-    if (DISABLED_SELECTOR.test(rule.selector)) continue
+    // The exemption is per selector: in `.x:disabled, .x__hint { ... }` the hint still owes contrast.
+    const enabled = selectorList(rule.selector).filter(selector => !DISABLED_SELECTOR.test(selector))
+    if (enabled.length === 0) continue
     for (const declaration of rule.body.matchAll(/(?:^|;)\s*color\s*:\s*([^;]+)/g)) {
       const reached = [...new Set(terminals(declaration[1], new Set()).filter(value => NON_TEXT_SYSTEM_COLOURS.test(value)))]
       if (reached.length === 0) continue
       report('text-colour-falls-to-non-text-system-colour', moduleId,
-        `${rule.selector.replace(/\s+/g, ' ')} { color: ${declaration[1].trim()} } can fall back to ${reached.join(', ')}, `
+        `${enabled.join(', ').replace(/\s+/g, ' ')} { color: ${declaration[1].trim()} } can fall back to ${reached.join(', ')}, `
         + 'which is not a text colour outside forced-colors')
     }
   }
@@ -214,6 +237,7 @@ for (const moduleId of readdirSync(specRoot).filter(name => name.startsWith('hlp
 if (canary) {
   const dead = []
   const probe = (name, fn) => { const before = findings.length; fn(); if (findings.length === before) dead.push(name) }
+  const quiet = (name, fn) => { const before = findings.length; fn(); if (findings.length !== before) dead.push(`${name} (fired; must not)`) }
   probe('foreground-falls-to-system-colour', () => scanForegroundFallbacks('canary',
     '.x{background:var(--hl-danger,#b42318);color:var(--hl-not-a-real-token,MarkText)}'))
   probe('single-fallback-across-themes', () => scanForegroundFallbacks('canary',
@@ -223,6 +247,17 @@ if (canary) {
     [['canary.tsx', '<p role="status"><svg /><span>Loading</span></p>']]))
   probe('text-colour-falls-to-non-text-system-colour', () => scanTextColourFallbacks('canary',
     '.x{--hl-x-muted:var(--hl-muted-foreground,GrayText)}.x__copy{color:var(--hl-x-muted)}'))
+  probe('text-colour-falls-to-non-text-system-colour (lower-case keyword)', () => scanTextColourFallbacks('canary',
+    '.x__copy{color:var(--hl-muted-foreground,graytext)}'))
+  probe('text-colour-falls-to-non-text-system-colour (SelectedItem, ButtonBorder)', () => scanTextColourFallbacks('canary',
+    '.x__a{color:var(--hl-a,SelectedItem)}.x__b{color:var(--hl-b,ButtonBorder)}'))
+  probe('text-colour-falls-to-non-text-system-colour (enabled selector beside a disabled one)', () => scanTextColourFallbacks('canary',
+    '.x:disabled,.x__hint{color:var(--hl-muted-foreground,GrayText)}'))
+  // And the exemptions must hold: these may NOT fire.
+  quiet('forced-colors block under a media type', () => scanTextColourFallbacks('canary',
+    '@media screen and (forced-colors: active){.x__copy{color:GrayText}}'))
+  quiet('disabled-only selector list', () => scanTextColourFallbacks('canary',
+    '.x:disabled,.x[aria-disabled="true"]{color:var(--hl-muted-foreground,GrayText)}'))
   probe('no-blazor-stylesheet', () => scanLaneCoverage('canary', '.hl-canary-nothing-defines-this{}', []))
   process.stdout.write(dead.length
     ? `canary FAILED: rules that did not fire: ${dead.join(', ')}\n`

@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url'
 import { arch, platform } from 'node:os'
 
 import { gotoWithTransientNetworkRetry, openWithSubresourceRetry, readWithReload } from './navigation-resilience.ts'
+import { overlayCaptureRegion, overlayLayerSelector } from './overlay-scope.ts'
 
 // Control ticket 100: the gallery gate reported sixteen counts and measured none of them, and one
 // drifted for fifteen days on the very commit that added the check meant to stop drift. Every count
@@ -814,17 +815,8 @@ async function assertSearchableMultipleScroll(page: Page, projection: Projection
   }
 }
 
-// The scan's scope is the scenario: its probe AND every overlay layer the scenario has portaled out
-// of the probe. Dialog, Sheet, Spotlight, Window and Popover all move their open content to a direct
-// child of document.body, in both projections (React createPortal; Blazor appends the portal element
-// in dialog.js / sheet.js / popover.js / ...), so a probe-only scan never reached the content of an
-// open overlay at all. A layer is identified by the platform's own markup identity -- an `hl-` class
-// or a `data-hl-*` module/layer attribute -- never by role or position: the story iframe's body also
-// holds harness chrome (Storybook's highlights root and a11y vision filters, Blazing Story's boot
-// elements), and none of it carries that identity. Each story is its own iframe document, so every
-// such layer belongs to the scenario on screen and no other. A body child that contains the probe is
-// the probe's own host, already in scope.
-const overlayLayerSelector = 'body > :is([class^="hl-"], [class*=" hl-"], [data-hl-module], [data-hl-layer]):not([data-gallery-probe]):not(:has([data-gallery-probe]))'
+// The scan's scope is the scenario: its probe AND every overlay layer the scenario portaled out of
+// it (overlay-scope.ts, with DOM fixtures in overlay-scope.spec.ts).
 
 async function assertAccessible(page: Page, scenario: Scenario, projection: string) {
   // Storybook's a11y addon runs its own axe pass on story load; on heavy stories it can still be
@@ -845,7 +837,15 @@ async function assertAccessible(page: Page, scenario: Scenario, projection: stri
 
 async function recordReactBaseline(page: Page, catalog: Catalog, scenario: Scenario) {
   if (!baselineCaptureRoot) return
-  const png = await captureLocatorPng(page.locator('[data-gallery-probe]'))
+  const probe = page.locator('[data-gallery-probe]')
+  const probeBox = await stabilizedBox(probe)
+  // A scenario with an open portaled layer (the scan's overlay scope) is recorded as the union of the
+  // probe and every rendered box inside those layers, clipped to the viewport -- the probe alone
+  // shows the scrim over the scene and none of the overlay (b19 review). A full-viewport scrim makes
+  // that union the whole viewport, which is fixed per test, so the capture stays deterministic.
+  // Without such a layer the capture is the probe, exactly as before.
+  const union = await overlayCaptureRegion(page, probeBox)
+  const png = await captureLocatorPng(probe, union ?? probeBox)
   writeFileSync(resolve(baselineCaptureRoot, `${catalog.moduleId}--${scenario.id}.png`), png)
 }
 
