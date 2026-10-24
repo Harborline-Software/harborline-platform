@@ -1130,6 +1130,193 @@ async function assertElementParity(reactPage: Page, blazorPage: Page, id: string
   recordCheck('elementParityComparisons')
 }
 
+// ── ARIA-tree lane parity (T-943) ──
+//
+// Pixels and per-element boxes say the two lanes LOOK alike. Neither can say they are the same thing
+// to assistive technology: a scene can render pixel-alike and still differ in a role, an accessible
+// name or a state, the class of defect behind the 842 accessibility survivors T-921 to T-927 record
+// (R-0125 §2, "ARIA-tree parity"). So every scenario also compares the accessibility tree of its
+// probe across the two lanes, as Playwright's `locator.ariaSnapshot()` renders it (role, accessible
+// name, and the checked, disabled, expanded, invalid, level, pressed and selected states). DES-0034
+// open ruling 5 was ruled this way (T-724 ruling 108, G3.6): lane parity includes the accessibility
+// tree, ARIA-snapshot equality per scenario, with a named waiver list.
+//
+// Scope is the probe, the same scope the axe scan (assertAccessible) and the element census read on
+// main. An overlay a lane portals out of the probe is outside both scans alike; widening this one
+// alone would make the tree comparison judge content the accessibility scan never reads. Where one
+// lane portals an open overlay and the other renders it inside the probe, the scenario is registered
+// with that reason, so a later, wider scope turns those rows stale instead of silently changing what
+// they excuse.
+//
+// What `ariaSnapshot()` already leaves out, so nothing here has to: elements with no ARIA role (the
+// div and span wrappers each lane nests differently) are not nodes at all, their children are hoisted
+// into the nearest node with a role; whitespace in names and text is collapsed; ids, classes and
+// styles are absent. A `false` state is not rendered, so it is indistinguishable from an absent one
+// (`aria-pressed="false"` and no `aria-pressed` both read as a plain button); that is a limit of the
+// rendering this check inherits, not something it normalises.
+//
+// The register is exact both ways, like the element and overflow registers: an unwaived difference
+// fails with the diff, a waived scenario whose lanes now match fails until its row is deleted, and a
+// waived scenario whose difference CHANGED fails until it is re-measured, so a waiver cannot quietly
+// widen to cover a new defect. A row for an unknown scenario is refused by tooling/validate-gallery.mjs.
+type AriaWaiver = { scenarioId: string; ticket: string; reason: string; reactOnly: string[]; blazorOnly: string[] }
+const ariaRegister = JSON.parse(readFileSync(resolve(repositoryRoot, 'gallery/aria-parity-known-divergences.json'), 'utf8')) as {
+  measureFlag: string
+  divergences: AriaWaiver[]
+}
+const ariaWaiverByScenario = new Map(ariaRegister.divergences.map(row => [row.scenarioId, row]))
+
+// The per-scenario two-lane step: one read of the same prepared scene in each lane, concurrently.
+// Every lane-versus-lane probe read goes through here (the ARIA tree now; T-962's tab walk is meant
+// to reuse it), so a comparison never has to open a page pair of its own. `probe.page()` gives the
+// page to a read that needs the keyboard.
+async function readBothLanes<T>(reactPage: Page, blazorPage: Page, read: (probe: Locator, lane: Projection) => Promise<T>) {
+  const [react, blazor] = await Promise.all([
+    read(reactPage.locator('[data-gallery-probe]'), 'react'),
+    read(blazorPage.locator('[data-gallery-probe]'), 'blazor'),
+  ])
+  return { react, blazor }
+}
+
+// The snapshot as the lines the comparison and the register both speak. Each normalisation removes a
+// difference that carries no role, name or state; none rewrites a role, a name or a state.
+function normaliseAriaSnapshot(snapshot: string): string[] {
+  return snapshot
+    .split(/\r?\n/)
+    // Trailing whitespace and blank lines are YAML layout, not tree content: neither is a node, a
+    // name or a state, and both depend on how the renderer joined lines.
+    .map(line => line.trimEnd())
+    .filter(line => line.length > 0)
+}
+
+type LaneDiff = { reactOnly: string[]; blazorOnly: string[]; unified: string[] }
+
+// A line diff of two lanes' snapshots: the lines only React has, the lines only Blazor has, and a
+// unified rendering with two lines of context for the failure message. Lines keep their indentation,
+// so a node moved to another depth is a difference. The common prefix and suffix are trimmed first,
+// so a matching scene costs one pass; the longest-common-subsequence table is built only over the
+// differing middle, and above `tableCap` cells the middle is reported whole (every React line
+// removed, every Blazor line added) instead of aligned, which is still exact for the register.
+function laneLineDiff(react: readonly string[], blazor: readonly string[], context = 2, tableCap = 4_000_000): LaneDiff {
+  let head = 0
+  while (head < react.length && head < blazor.length && react[head] === blazor[head]) head += 1
+  let reactEnd = react.length
+  let blazorEnd = blazor.length
+  while (reactEnd > head && blazorEnd > head && react[reactEnd - 1] === blazor[blazorEnd - 1]) {
+    reactEnd -= 1
+    blazorEnd -= 1
+  }
+  const left = react.slice(head, reactEnd)
+  const right = blazor.slice(head, blazorEnd)
+  type Op = { kind: ' ' | '-' | '+'; line: string; reactLine: number; blazorLine: number }
+  const ops: Op[] = []
+  for (let index = 0; index < head; index += 1) ops.push({ kind: ' ', line: react[index], reactLine: index, blazorLine: index })
+  const width = right.length + 1
+  if ((left.length + 1) * width > tableCap) {
+    left.forEach((line, index) => ops.push({ kind: '-', line, reactLine: head + index, blazorLine: head }))
+    right.forEach((line, index) => ops.push({ kind: '+', line, reactLine: reactEnd, blazorLine: head + index }))
+  } else {
+    // suffix[i][j] = length of the longest common subsequence of left[i..] and right[j..].
+    const suffix = new Uint32Array((left.length + 1) * width)
+    for (let i = left.length - 1; i >= 0; i -= 1) {
+      for (let j = right.length - 1; j >= 0; j -= 1) {
+        suffix[i * width + j] = left[i] === right[j]
+          ? suffix[(i + 1) * width + j + 1] + 1
+          : Math.max(suffix[(i + 1) * width + j], suffix[i * width + j + 1])
+      }
+    }
+    let i = 0
+    let j = 0
+    while (i < left.length || j < right.length) {
+      if (i < left.length && j < right.length && left[i] === right[j]) {
+        ops.push({ kind: ' ', line: left[i], reactLine: head + i, blazorLine: head + j })
+        i += 1
+        j += 1
+      } else if (j >= right.length || (i < left.length && suffix[(i + 1) * width + j] >= suffix[i * width + j + 1])) {
+        ops.push({ kind: '-', line: left[i], reactLine: head + i, blazorLine: head + j })
+        i += 1
+      } else {
+        ops.push({ kind: '+', line: right[j], reactLine: head + i, blazorLine: head + j })
+        j += 1
+      }
+    }
+  }
+  for (let index = reactEnd; index < react.length; index += 1) {
+    ops.push({ kind: ' ', line: react[index], reactLine: index, blazorLine: blazorEnd + index - reactEnd })
+  }
+  const reactOnly = ops.filter(op => op.kind === '-').map(op => op.line)
+  const blazorOnly = ops.filter(op => op.kind === '+').map(op => op.line)
+  const unified: string[] = []
+  const changed = ops.map((op, index) => op.kind === ' ' ? -1 : index).filter(index => index >= 0)
+  let cursor = 0
+  while (cursor < changed.length) {
+    const start = Math.max(0, changed[cursor] - context)
+    let end = changed[cursor]
+    while (cursor + 1 < changed.length && changed[cursor + 1] - end <= context * 2 + 1) end = changed[++cursor]
+    end = Math.min(ops.length - 1, end + context)
+    unified.push(`@@ react line ${ops[start].reactLine + 1}, blazor line ${ops[start].blazorLine + 1} @@`)
+    for (let index = start; index <= end; index += 1) unified.push(`${ops[index].kind} ${ops[index].line}`)
+    cursor += 1
+  }
+  return { reactOnly, blazorOnly, unified }
+}
+
+// The whole register judgement, as a pure function of (measured diff, waiver), so its semantics are
+// asserted directly below instead of only through a browser run.
+function reconcileAriaParity(id: string, diff: LaneDiff, waiver: AriaWaiver | undefined) {
+  const differs = diff.reactOnly.length > 0 || diff.blazorOnly.length > 0
+  const sameLines = (left: readonly string[], right: readonly string[]) =>
+    left.length === right.length && left.every((line, index) => line === right[index])
+  const unwaived: string[] = []
+  const drift: string[] = []
+  const stale: string[] = []
+  if (differs && !waiver) {
+    unwaived.push(`${id} ARIA trees differ between lanes (- react only, + blazor only)`, ...diff.unified)
+  } else if (differs && waiver && !(sameLines(diff.reactOnly, waiver.reactOnly) && sameLines(diff.blazorOnly, waiver.blazorOnly))) {
+    drift.push(`${id} is waived for ARIA tree parity (ticket ${waiver.ticket}) but the difference changed; re-measure the row with ${ariaRegister.measureFlag} set. Measured now:`, ...diff.unified)
+  } else if (!differs && waiver) {
+    stale.push(`${id} is waived for ARIA tree parity (ticket ${waiver.ticket}) but its lanes now match; delete the row from gallery/aria-parity-known-divergences.json`)
+  }
+  return { unwaived, drift, stale }
+}
+
+// The tree can still be settling when the scenario is prepared (a debounced search, a queued toast,
+// a Blazor render that lands one round trip later), so the lanes are read again until the register
+// judgement is clean or the window closes, the same bounded retry Playwright's own
+// toMatchAriaSnapshot applies to one lane. The verdict is the last read's: a difference that
+// persists for the whole window fails with that read's diff.
+const ariaParitySettleMs = 5_000
+async function assertAriaParity(reactPage: Page, blazorPage: Page, id: string) {
+  const waiver = ariaWaiverByScenario.get(id)
+  const started = performance.now()
+  const deadline = Date.now() + ariaParitySettleMs
+  let diff: LaneDiff
+  let outcome: ReturnType<typeof reconcileAriaParity>
+  let lines = { react: 0, blazor: 0 }
+  let reads = 0
+  for (;;) {
+    const lanes = await readBothLanes(reactPage, blazorPage, async probe => normaliseAriaSnapshot(await probe.ariaSnapshot()))
+    reads += 1
+    lines = { react: lanes.react.length, blazor: lanes.blazor.length }
+    diff = laneLineDiff(lanes.react, lanes.blazor)
+    outcome = reconcileAriaParity(id, diff, waiver)
+    const clean = outcome.unwaived.length + outcome.drift.length + outcome.stale.length === 0
+    if (clean || Date.now() >= deadline) break
+    await reactPage.waitForTimeout([100, 250, 500, 1_000][Math.min(reads - 1, 3)])
+  }
+  // The measure line is the register row a reviewer would add, plus what the comparison cost.
+  if (process.env[ariaRegister.measureFlag]) {
+    appendFileSync(process.env[ariaRegister.measureFlag]!, `${JSON.stringify({
+      scenarioId: id, reactOnly: diff.reactOnly, blazorOnly: diff.blazorOnly, unified: diff.unified,
+      lines, reads, elapsedMs: Math.round(performance.now() - started),
+    })}\n`)
+  }
+  expect(outcome.unwaived, `${id} ARIA tree parity:\n${outcome.unwaived.join('\n')}`).toEqual([])
+  expect(outcome.drift, `${id} ARIA tree parity waiver:\n${outcome.drift.join('\n')}`).toEqual([])
+  expect(outcome.stale, `${id} ARIA tree parity register`).toEqual([])
+  recordCheck('ariaParityComparisons')
+}
+
 async function assertVisualParity(reactPage: Page, blazorPage: Page, scenario: Scenario, testInfo: TestInfo) {
   await assertLocatorVisualParity(
     reactPage.locator('[data-gallery-probe]'),
@@ -1377,6 +1564,85 @@ test('the per-element register is read per host', () => {
     .toMatchObject({ unregistered: [], stale: [] })
 })
 
+// ARIA-tree lane parity (T-943): the comparison, its normalisation and the register judgement,
+// asserted directly on the pure functions rather than only through a browser run.
+const ariaScene = [
+  '- heading "Actions" [level=2]',
+  '- button "More actions" [expanded]',
+  '- menu "More actions":',
+  '  - menuitem "Rename"',
+  '  - menuitem "Archive" [disabled]',
+  '- checkbox "Notify" [checked]',
+]
+
+test('ARIA parity normalisation drops only YAML layout, never a role, name or state', () => {
+  // Trailing whitespace and blank lines are the only things removed.
+  expect(normaliseAriaSnapshot('- heading "Actions" [level=2]   \n\n- button "Save"\r\n'))
+    .toEqual(['- heading "Actions" [level=2]', '- button "Save"'])
+  // Indentation is structure (depth in the tree), so leading whitespace is kept.
+  expect(normaliseAriaSnapshot('- list:\n  - listitem: One')).toEqual(['- list:', '  - listitem: One'])
+  // Roles, names and every state Playwright renders come through byte for byte.
+  expect(normaliseAriaSnapshot(ariaScene.join('\n'))).toEqual(ariaScene)
+  for (const line of ['- switch "Wi-Fi" [checked=mixed]', '- button "Bold" [pressed]', '- tab "One" [selected]',
+    '- textbox "Name" [invalid]', '- treeitem "Root" [expanded] [level=1]']) {
+    expect(normaliseAriaSnapshot(line), line).toEqual([line])
+  }
+})
+
+test('ARIA parity fails a role, name or state difference between lanes and shows it as a diff', () => {
+  const swap = (index: number, line: string) => ariaScene.map((entry, at) => at === index ? line : entry)
+  expect(laneLineDiff(ariaScene, [...ariaScene])).toEqual({ reactOnly: [], blazorOnly: [], unified: [] })
+  for (const [label, blazor] of [
+    ['role', swap(5, '- switch "Notify" [checked]')],
+    ['name', swap(1, '- button "More options" [expanded]')],
+    ['state', swap(4, '  - menuitem "Archive"')],
+    ['level', swap(0, '- heading "Actions" [level=3]')],
+    ['depth', swap(3, '- menuitem "Rename"')],
+  ] as const) {
+    const diff = laneLineDiff(ariaScene, blazor)
+    const index = blazor.findIndex((line, at) => line !== ariaScene[at])
+    expect(diff.reactOnly, label).toEqual([ariaScene[index]])
+    expect(diff.blazorOnly, label).toEqual([blazor[index]])
+    const outcome = reconcileAriaParity('x.default', diff, undefined)
+    expect(outcome.unwaived[0], label).toBe('x.default ARIA trees differ between lanes (- react only, + blazor only)')
+    expect(outcome.unwaived, label).toContain(`- ${ariaScene[index]}`)
+    expect(outcome.unwaived, label).toContain(`+ ${blazor[index]}`)
+  }
+  // A node one lane lacks is a difference too, aligned so the rest of the tree still matches.
+  const missing = laneLineDiff(ariaScene, ariaScene.filter((_, at) => at !== 2 && at !== 3 && at !== 4))
+  expect(missing).toMatchObject({ reactOnly: ariaScene.slice(2, 5), blazorOnly: [] })
+  expect(missing.unified).toEqual([
+    '@@ react line 1, blazor line 1 @@',
+    '  - heading "Actions" [level=2]',
+    '  - button "More actions" [expanded]',
+    `- ${ariaScene[2]}`,
+    `- ${ariaScene[3]}`,
+    `- ${ariaScene[4]}`,
+    '  - checkbox "Notify" [checked]',
+  ])
+  // Above the table cap the differing middle is reported whole rather than aligned.
+  expect(laneLineDiff(['- a', '- b', '- c'], ['- a', '- x', '- c'], 2, 1)).toMatchObject({ reactOnly: ['- b'], blazorOnly: ['- x'] })
+})
+
+test('the ARIA parity register is exact both ways', () => {
+  const blazor = ariaScene.map((line, at) => at === 1 ? '- button "More options" [expanded]' : line)
+  const diff = laneLineDiff(ariaScene, blazor)
+  const waiver = (reactOnly: string[], blazorOnly: string[]) => ({ scenarioId: 'x.default', ticket: 'T-943', reason: 'recorded difference', reactOnly, blazorOnly })
+  const clean = { unwaived: [], drift: [], stale: [] }
+  // A waiver that records exactly the measured lines covers them.
+  expect(reconcileAriaParity('x.default', diff, waiver([ariaScene[1]], [blazor[1]]))).toEqual(clean)
+  // A waived scenario whose lanes now match is stale, like a fixed overflow left in its register.
+  expect(reconcileAriaParity('x.default', laneLineDiff(ariaScene, ariaScene), waiver([ariaScene[1]], [blazor[1]])).stale)
+    .toEqual(['x.default is waived for ARIA tree parity (ticket T-943) but its lanes now match; delete the row from gallery/aria-parity-known-divergences.json'])
+  // A waiver cannot cover a difference it does not name: a new or changed line is drift.
+  const drift = reconcileAriaParity('x.default', diff, waiver([ariaScene[1]], ['- button "Other" [expanded]']))
+  expect(drift.drift[0]).toContain('x.default is waived for ARIA tree parity (ticket T-943) but the difference changed')
+  expect(drift.drift).toContain(`+ ${blazor[1]}`)
+  expect(drift.unwaived).toEqual([])
+  // And no waiver at all leaves a matching scene clean.
+  expect(reconcileAriaParity('x.default', laneLineDiff(ariaScene, ariaScene), undefined)).toEqual(clean)
+})
+
 test('both galleries expose every exact neutral scenario set', async ({ browser }) => {
   const page = await browser.newPage()
   const [react, blazor] = await Promise.all([reactIndex(page), blazorIndex(page)])
@@ -1424,6 +1690,9 @@ for (const catalog of catalogs) for (const scenario of catalog.scenarios) {
     await recordReactBaseline(reactPage, catalog, scenario)
     await assertAccessible(reactPage, scenario, 'react')
     await assertAccessible(blazorPage, scenario, 'blazor')
+    // Every scenario, not only those declaring visual parity: the tree is what the lanes must agree
+    // on whatever they look like. Before reflow, which mutates the viewport and root font size.
+    await assertAriaParity(reactPage, blazorPage, scenario.id)
     if (scenario.sourceQualityCaseIds?.some(id => id.endsWith('.quality.visual-parity'))
       && !(ciGallery && ciPixelExempt.has(scenario.id))) {
       await assertVisualParity(reactPage, blazorPage, scenario, testInfo)

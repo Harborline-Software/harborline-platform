@@ -40,6 +40,7 @@ const requiredFiles = [
   'gallery/tests/pnpm-lock.yaml',
   'gallery/tests/playwright.config.ts',
   'gallery/tests/tests/gallery.spec.ts',
+  'gallery/aria-parity-known-divergences.json',
   'tooling/prepare-galleries.mjs',
   'tooling/run-galleries.mjs',
   'tooling/run-gallery-gate.mjs',
@@ -53,7 +54,41 @@ function exists(path) {
   return statSync(resolve(root, path), { throwIfNoEntry: false })?.isFile() === true
 }
 
+// T-943: the ARIA-tree waiver register gallery.spec.ts reads. The spec judges each RUN scenario
+// against its row (unwaived, changed and stale rows fail there); what no run can see is a row that
+// names no scenario at all, or a row too thin to be reviewed, so those are refused here, statically.
+const ariaRegisterPath = 'gallery/aria-parity-known-divergences.json'
+const ariaWaiverKeys = ['scenarioId', 'ticket', 'reason', 'reactOnly', 'blazorOnly']
+export function ariaParityRegisterErrors(register, scenarioIds) {
+  if (!Array.isArray(register?.divergences)) return [`${ariaRegisterPath}: divergences must be an array`]
+  const errors = []
+  if (register.measureFlag !== 'HARBORLINE_GALLERY_ARIA_MEASURE') errors.push(`${ariaRegisterPath}: measureFlag must be HARBORLINE_GALLERY_ARIA_MEASURE`)
+  const known = new Set(scenarioIds)
+  const seen = new Set()
+  for (const [index, row] of register.divergences.entries()) {
+    const label = `${ariaRegisterPath}: waiver ${typeof row?.scenarioId === 'string' ? row.scenarioId : `#${index + 1}`}`
+    if (!row || typeof row !== 'object') {
+      errors.push(`${label} is not an object`)
+      continue
+    }
+    for (const key of Object.keys(row)) if (!ariaWaiverKeys.includes(key)) errors.push(`${label} has an unknown field ${key}`)
+    if (typeof row.scenarioId !== 'string' || !known.has(row.scenarioId)) errors.push(`${label} names an unknown scenario id`)
+    else if (seen.has(row.scenarioId)) errors.push(`${label} is registered twice; one row records the scenario's whole difference`)
+    seen.add(row.scenarioId)
+    if (typeof row.ticket !== 'string' || !/^(?:T-)?\d+$/.test(row.ticket)) errors.push(`${label} needs the ticket that owns the fix (T-NNN or NNN)`)
+    if (typeof row.reason !== 'string' || row.reason.trim().length < 20) errors.push(`${label} needs a reason a reviewer can check`)
+    const lines = ['reactOnly', 'blazorOnly'].map(lane => row[lane])
+    if (lines.some(lane => !Array.isArray(lane) || lane.some(line => typeof line !== 'string' || line.trim().length === 0))) {
+      errors.push(`${label} must record reactOnly and blazorOnly as arrays of snapshot lines`)
+    } else if (lines.every(lane => lane.length === 0)) {
+      errors.push(`${label} records no differing snapshot line, so it waives nothing a run can measure`)
+    }
+  }
+  return errors
+}
+
 const summaries = []
+const allScenarioIds = []
 for (const definition of definitions) {
   const catalog = load(definition.catalog)
   const conformance = load(catalog.sourceFixture)
@@ -67,6 +102,7 @@ for (const definition of definitions) {
   ])
   const scenarios = catalog.scenarios ?? []
   const ids = scenarios.map(entry => entry.id)
+  allScenarioIds.push(...ids)
   const surfaces = scenarios.map(entry => entry.surface)
   const prefix = catalog.moduleId
 
@@ -111,6 +147,15 @@ for (const definition of definitions) {
 }
 
 for (const path of requiredFiles) if (!exists(path)) errors.push(`missing ${path}`)
+
+if (exists(ariaRegisterPath)) {
+  errors.push(...ariaParityRegisterErrors(load(ariaRegisterPath), allScenarioIds))
+  // A register nothing reads is a waiver list that waives nothing and checks nothing.
+  const tests = exists('gallery/tests/tests/gallery.spec.ts') ? readFileSync(resolve(root, 'gallery/tests/tests/gallery.spec.ts'), 'utf8') : ''
+  if (!tests.includes(ariaRegisterPath) || !tests.includes('await assertAriaParity(reactPage, blazorPage, scenario.id)')) {
+    errors.push('gallery tests do not compare every scenario against the ARIA parity register')
+  }
+}
 
 const rootManifest = load('package.json')
 for (const script of ['gallery:react', 'gallery:blazor', 'gallery', 'test:gallery']) {
