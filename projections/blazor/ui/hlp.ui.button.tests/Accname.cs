@@ -18,7 +18,9 @@ namespace Harborline.UIAdapters.Blazor.Tests;
 /// <para>API: <see cref="AccessibleName"/>, <see cref="AccessibleDescription"/>, <see cref="AssertReferences"/>
 /// (one id-reference attribute points at exactly these elements) and <see cref="AssertIdReferencesResolve{TComponent}"/>
 /// (every aria-labelledby, aria-describedby, aria-controls and label <c>for</c> in a render resolves). Elements
-/// may come straight from bUnit's <c>Find</c>/<c>FindAll</c>; ids resolve within the render the element belongs to.</para>
+/// may come straight from bUnit's <c>Find</c>/<c>FindAll</c>, and ids resolve within the render the element belongs to.
+/// A <c>Find</c> result follows re-renders; <c>FindAll</c> results are snapshots, so re-query them after a re-render.
+/// A <c>FindComponent&lt;T&gt;()</c> render is parsed on its own and excludes its parent's markup.</para>
 /// <para>Covered accname 1.2 steps:</para>
 /// <list type="bullet">
 /// <item>2A hidden: the <c>hidden</c> attribute, <c>aria-hidden="true"</c> and an inline <c>display:none</c> or
@@ -153,6 +155,12 @@ internal static class Accname
         if (!owner.HasAttribute(attribute)) throw new XunitException($"{Describe(owner)} has no {attribute}.");
         var actual = Resolve(owner, attribute, Scope(owner));
         var wanted = expected.Select(InTree).ToList();
+        var render = Top(owner);
+        for (var index = 0; index < wanted.Count; index++)
+        {
+            if (!ReferenceEquals(Top(wanted[index]), render))
+                throw new XunitException($"expected[{index}] {Describe(wanted[index])} belongs to a different render than {Describe(owner)}; re-query it from the same rendered component after the latest render (FindAll results are snapshots that do not refresh, and a FindComponent<T>() render is parsed separately).");
+        }
         if (!actual.SequenceEqual(wanted, ReferenceEqualityComparer.Instance))
             throw new XunitException($"{Describe(owner)}: {attribute} resolves to [{string.Join(", ", actual.Select(Describe))}], expected [{string.Join(", ", wanted.Select(Describe))}].");
     }
@@ -268,7 +276,7 @@ internal static class Accname
         foreach (var id in ids)
         {
             var matches = scope.Where(candidate => string.Equals(candidate.Id, id, StringComparison.Ordinal)).ToList();
-            if (matches.Count == 0) throw new XunitException($"{Describe(element)}: {attribute} references id \"{id}\", which is not in the rendered markup.");
+            if (matches.Count == 0) throw new XunitException($"{Describe(element)}: {attribute} references id \"{id}\", which no element in this render carries (the scope is the render the element came from: a FindComponent<T>() render excludes its parent's markup, so query the element from the outer render).");
             if (matches.Count > 1) throw new XunitException($"{Describe(element)}: {attribute} references id \"{id}\", which {matches.Count} elements carry; ids must be unique.");
             targets.Add(matches[0]);
         }
@@ -308,11 +316,13 @@ internal static class Accname
         (element.PreviousSibling is { } previous ? previous.NextSibling : element.Parent?.FirstChild) as IElement ?? element;
 
     // Every element reachable from the topmost ancestor: bUnit parses each render into its own document.
-    private static List<IElement> Scope(IElement element)
+    private static List<IElement> Scope(IElement element) => Top(element).GetDescendantsAndSelf().OfType<IElement>().ToList();
+
+    // The topmost ancestor: one per bUnit render (and per FindComponent<T>() render).
+    private static INode Top(INode node)
     {
-        INode top = element;
-        while (top.Parent is { } parent) top = parent;
-        return top.GetDescendantsAndSelf().OfType<IElement>().ToList();
+        while (node.Parent is { } parent) node = parent;
+        return node;
     }
 
     private static string? Role(IElement element)

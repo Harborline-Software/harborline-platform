@@ -180,6 +180,44 @@ public sealed class AccnameTests : BunitContext
         Assert.Contains("has no accessible name", Fails(() => Accname.AccessibleName(dialog.Find("[role=dialog]"))).Message, StringComparison.Ordinal);
     }
 
+    // ---- 2A and 2E rules pinned with text (each fixture changes its result if its rule is dropped) ----
+
+    [Fact]
+    public void AriaHiddenTextIsLeftOutOfContent()
+    {
+        var cut = Markup("""<button><span aria-hidden="true">×</span>Close</button>""");
+        Assert.Equal("Close", Accname.AccessibleName(cut.Find("button")));
+    }
+
+    [Fact]
+    public void VisibilityHiddenOrCollapseAndScriptOrStyleTextIsLeftOutOfContent()
+    {
+        var cut = Markup("""<button>Save<span style="visibility:hidden"> a</span><span style="visibility: collapse !important"> b</span><script>c</script><style>d</style></button>""");
+        Assert.Equal("Save", Accname.AccessibleName(cut.Find("button")));
+    }
+
+    [Fact]
+    public void ATargetHiddenByAnAncestorOffTheRootsChainKeepsItsHiddenDescendants()
+    {
+        var cut = Markup("""<div role="dialog" aria-labelledby="h"></div><div hidden><span id="h">Title<span aria-hidden="true"> too</span></span></div>""");
+        Assert.Equal("Title too", Accname.AccessibleName(cut.Find("[role=dialog]")));
+    }
+
+    [Fact]
+    public void AHiddenLabelForStillNamesItsControl()
+    {
+        var cut = Markup("""<label for="q" hidden>Search</label><input id="q">""");
+        Assert.Equal("Search", Accname.AccessibleName(cut.Find("#q")));
+    }
+
+    [Fact]
+    public void AWrappingLabelNamesOnlyItsFirstLabelableDescendant()
+    {
+        var cut = Markup("""<label>Name <input id="a"><input id="b" title="Other"></label>""");
+        Assert.Equal("Name", Accname.AccessibleName(cut.Find("#a")));
+        Assert.Equal("Other", Accname.AccessibleName(cut.Find("#b")));
+    }
+
     // ---- 2C embedded controls ----
 
     [Fact]
@@ -312,7 +350,7 @@ public sealed class AccnameTests : BunitContext
         var cut = Markup("""<div role="region" aria-labelledby="header-0"></div><button id="header-1">Alpha</button>""");
         var named = Fails(() => Accname.AccessibleName(cut.Find("[role=region]")));
         Assert.Contains("aria-labelledby references id \"header-0\"", named.Message, StringComparison.Ordinal);
-        Assert.Contains("not in the rendered markup", named.Message, StringComparison.Ordinal);
+        Assert.Contains("which no element in this render carries", named.Message, StringComparison.Ordinal);
         var wiring = Fails(() => Accname.AssertIdReferencesResolve(cut));
         Assert.Contains("aria-labelledby references id \"header-0\"", wiring.Message, StringComparison.Ordinal);
     }
@@ -412,12 +450,37 @@ public sealed class AccnameTests : BunitContext
     }
 
     [Fact]
-    public void AssertReferencesTellsTwoStructurallyIdenticalElementsApart()
+    public void AssertReferencesTellsAnIdenticalElementFromAnotherRenderApart()
     {
-        // Identity, not structural equality: the second <p> looks exactly like the first.
-        var cut = Markup("""<div id="owner" aria-controls="x"></div><section><p id="x"></p></section><p class="twin"></p>""");
-        var twin = Fails(() => Accname.AssertReferences(cut.Find("#owner"), "aria-controls", cut.Find(".twin")));
-        Assert.Contains("expected [<p class=\"twin\">]", twin.Message, StringComparison.Ordinal);
+        // The same markup rendered twice: only an identity comparison can tell b's #x from a's.
+        const string html = """<div id="owner" aria-controls="x"></div><p id="x"></p>""";
+        var a = Markup(html);
+        var b = Markup(html);
+        Accname.AssertReferences(a.Find("#owner"), "aria-controls", a.Find("#x"));
+        var other = Fails(() => Accname.AssertReferences(a.Find("#owner"), "aria-controls", b.Find("#x"))).Message;
+        Assert.Contains("expected[0] <p id=\"x\"> belongs to a different render than <div id=\"owner\" aria-controls=\"x\">", other, StringComparison.Ordinal);
+        Assert.Contains("re-query it from the same rendered component", other, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AnIdOutsideAFindComponentRenderIsReportedAsOutsideThatRender()
+    {
+        var cut = Render(builder =>
+        {
+            builder.AddMarkupContent(0, """<button id="h">Open</button>""");
+            builder.OpenComponent<DescribedByParentId>(1);
+            builder.CloseComponent();
+        });
+        Assert.Equal("Open", Accname.AccessibleDescription(cut.Find("#c")));
+        var child = Fails(() => Accname.AccessibleDescription(cut.FindComponent<DescribedByParentId>().Find("#c"))).Message;
+        Assert.Contains("aria-describedby references id \"h\", which no element in this render carries", child, StringComparison.Ordinal);
+        Assert.Contains("a FindComponent<T>() render excludes its parent's markup", child, StringComparison.Ordinal);
+    }
+
+    private sealed class DescribedByParentId : ComponentBase
+    {
+        protected override void BuildRenderTree(Microsoft.AspNetCore.Components.Rendering.RenderTreeBuilder builder) =>
+            builder.AddMarkupContent(0, """<span id="c" aria-describedby="h">x</span>""");
     }
 
     [Fact]
