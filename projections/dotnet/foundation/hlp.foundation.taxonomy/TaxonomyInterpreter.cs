@@ -1,7 +1,26 @@
+using System.Globalization;
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
+using Harborline.Foundation.Definitions;
+
 namespace Harborline.Foundation.Taxonomy;
 
 /// <summary>A pinned location of a taxonomy definition.</summary>
 public sealed record TaxonomyDefinitionCoordinates(string Tenant, TaxonomyDefinitionId DefinitionId, string Version);
+
+/// <summary>A host-admitted coding alias and the exact canonical definition hash it pins.</summary>
+public sealed record TaxonomyCodingBinding(string System, TaxonomyDefinitionCoordinates Coordinates, string DefinitionSha256);
+
+/// <summary>One finite subsumption question; code strings remain opaque.</summary>
+public sealed record TaxonomySubsumptionQuery(string System, string AncestorCode, string DescendantCode);
+
+/// <summary>A refusal to produce a complete pinned coding-answer capture.</summary>
+public sealed class TaxonomyCodingCaptureException(string code) : ArgumentException("Taxonomy coding capture was refused.")
+{
+    /// <summary>Stable capture refusal code.</summary>
+    public string Code { get; } = code;
+}
 
 /// <summary>A pinned location of a classification within a taxonomy definition.</summary>
 public sealed record TaxonomyClassificationReference(string Tenant, TaxonomyDefinitionId DefinitionId, string Version, string Code)
@@ -133,6 +152,138 @@ public sealed class TaxonomyInterpreter
             if (!indexed.TryAdd(coordinates, definition)) throw new ArgumentException($"The pinned definition '{coordinates}' appears more than once.", nameof(definitions));
         }
         this.definitions = indexed;
+    }
+
+    /// <summary>Captures finite, ordered answers after hashing, cloning and admitting every pinned definition.</summary>
+    public string CaptureCodingAnswers(string tenant, IReadOnlyList<TaxonomyCodingBinding> bindings,
+        IReadOnlyList<TaxonomySubsumptionQuery> queries, DefinitionContractWindow window)
+    {
+        const int maximum = 5_000;
+        if (string.IsNullOrEmpty(tenant) || bindings is null || queries is null || window is null
+            || bindings.Count == 0 || queries.Count == 0) throw CaptureInvalid();
+        if (bindings.Count > maximum || queries.Count > maximum) throw CaptureTooLarge();
+        CheckCaptureText(tenant);
+        // Copy request tuples before resolving; no host collection survives this explicit capture boundary.
+        var selected = new List<TaxonomyCodingBinding>();
+        var aliases = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var binding in bindings)
+        {
+            if (binding is null || string.IsNullOrEmpty(binding.System) || binding.Coordinates is not { } coordinates
+                || coordinates.Tenant != tenant || coordinates.DefinitionId is null
+                || !CaptureVersion(coordinates.Version) || !CaptureDigest(binding.DefinitionSha256)
+                || !aliases.Add(binding.System)) throw CaptureInvalid();
+            var id = coordinates.DefinitionId.ToString();
+            if (id.Split('.').Length != 3 || id.Split('.').Any(string.IsNullOrEmpty)) throw CaptureInvalid();
+            CheckCaptureText(binding.System); CheckCaptureText(id); CheckCaptureText(coordinates.Version);
+            selected.Add(binding);
+        }
+        selected.Sort((a, b) => StringComparer.Ordinal.Compare(a.System, b.System));
+        var requested = new List<TaxonomySubsumptionQuery>();
+        var keys = new HashSet<(string, string, string)>();
+        foreach (var query in queries)
+        {
+            if (query is null || string.IsNullOrEmpty(query.System) || string.IsNullOrEmpty(query.AncestorCode)
+                || string.IsNullOrEmpty(query.DescendantCode) || !aliases.Contains(query.System)
+                || !keys.Add((query.System, query.AncestorCode, query.DescendantCode))) throw CaptureInvalid();
+            CheckCaptureText(query.System); CheckCaptureText(query.AncestorCode); CheckCaptureText(query.DescendantCode);
+            requested.Add(query);
+        }
+        requested.Sort((a, b) =>
+        {
+            int order = StringComparer.Ordinal.Compare(a.System, b.System);
+            if (order == 0) order = StringComparer.Ordinal.Compare(a.AncestorCode, b.AncestorCode);
+            return order == 0 ? StringComparer.Ordinal.Compare(a.DescendantCode, b.DescendantCode) : order;
+        });
+        // Both wire documents use the existing 5000-value envelope (containers count too).
+        if (5L + 5L * selected.Count + 5L * requested.Count > maximum) throw CaptureTooLarge();
+        var owned = new Dictionary<string, TaxonomyDefinition>(StringComparer.Ordinal);
+        var byCoordinates = new Dictionary<TaxonomyDefinitionCoordinates, (TaxonomyDefinition Definition, string Digest)>();
+        int nodes = 0;
+        foreach (var binding in selected)
+        {
+            if (!byCoordinates.TryGetValue(binding.Coordinates, out var captured))
+            {
+                if (ResolveDefinition(binding.Coordinates) is not ResolvedTaxonomyDefinition resolved)
+                    throw new TaxonomyCodingCaptureException("taxonomy.coding_definition_missing");
+                if (resolved.Definition.Nodes is null) throw CaptureInvalid();
+                if (resolved.Definition.Nodes.Count > maximum - nodes) throw CaptureTooLarge();
+                var buffer = TaxonomyDefinitionJson.SerializeCanonical(resolved.Definition);
+                var digest = Convert.ToHexString(SHA256.HashData(buffer)).ToLowerInvariant();
+                if (digest != binding.DefinitionSha256)
+                    throw new TaxonomyCodingCaptureException("taxonomy.coding_definition_mismatch");
+                var clone = TaxonomyDefinitionJson.Deserialize(buffer);
+                if (CoordinatesOf(clone) != binding.Coordinates)
+                    throw new TaxonomyCodingCaptureException("taxonomy.coding_definition_mismatch");
+                if (clone.Nodes.Count > maximum - nodes) throw CaptureTooLarge();
+                nodes += clone.Nodes.Count;
+                captured = (clone, digest);
+                byCoordinates.Add(binding.Coordinates, captured);
+            }
+            if (captured.Digest != binding.DefinitionSha256)
+                throw new TaxonomyCodingCaptureException("taxonomy.coding_definition_mismatch");
+            owned.Add(binding.System, captured.Definition);
+        }
+        // Bound the entire selected node inventory before either admission or traversal runs.
+        foreach (var captured in byCoordinates.Values)
+        {
+            TaxonomyDefinitionAdmission.Require(captured.Definition, TaxonomyAdmissionPhase.Install, window);
+            foreach (var node in captured.Definition.Nodes) _ = GetAncestors(captured.Definition, node.Code);
+        }
+        using var stream = new CaptureStream();
+        using (var writer = new Utf8JsonWriter(stream))
+        {
+            writer.WriteStartArray(); writer.WriteStringValue("harborline-taxonomy-coding-answers/1");
+            writer.WriteStringValue(tenant); writer.WriteStartArray();
+            foreach (var binding in selected)
+            {
+                writer.WriteStartArray(); writer.WriteStringValue(binding.System);
+                writer.WriteStringValue(binding.Coordinates.DefinitionId.ToString());
+                writer.WriteStringValue(binding.Coordinates.Version); writer.WriteStringValue(binding.DefinitionSha256);
+                writer.WriteEndArray(); writer.Flush();
+            }
+            writer.WriteEndArray(); writer.WriteStartArray();
+            foreach (var query in requested)
+            {
+                writer.WriteStartArray(); writer.WriteStringValue(query.System); writer.WriteStringValue(query.AncestorCode);
+                writer.WriteStringValue(query.DescendantCode);
+                writer.WriteBooleanValue(Subsumes(owned[query.System], query.AncestorCode, query.DescendantCode));
+                writer.WriteEndArray(); writer.Flush();
+            }
+            writer.WriteEndArray(); writer.WriteEndArray(); writer.Flush();
+        }
+        stream.WriteByte((byte)'\n');
+        return Encoding.UTF8.GetString(stream.ToArray());
+    }
+
+    private static TaxonomyCodingCaptureException CaptureInvalid() => new("taxonomy.coding_capture_invalid");
+    private static TaxonomyCodingCaptureException CaptureTooLarge() => new("taxonomy.coding_capture_too_large");
+    private static bool CaptureVersion(string? version)
+        => version is not null && version.Split('.') is { Length: 3 } parts
+            && parts.All(part => uint.TryParse(part, NumberStyles.None, CultureInfo.InvariantCulture, out _));
+    private static bool CaptureDigest(string? digest)
+        => digest is { Length: 64 } && digest.All(c => c is >= '0' and <= '9' or >= 'a' and <= 'f');
+    private static void CheckCaptureText(string text)
+    {
+        if (text.Length > 262_144 || Encoding.UTF8.GetByteCount(text) > 262_144) throw CaptureTooLarge();
+    }
+    // Reject each write before MemoryStream can grow beyond the existing JSON byte envelope.
+    private sealed class CaptureStream : MemoryStream
+    {
+        public override void Write(byte[] buffer, int offset, int count)
+        {
+            if (Length + count > 262_144) throw CaptureTooLarge();
+            base.Write(buffer, offset, count);
+        }
+        public override void Write(ReadOnlySpan<byte> buffer)
+        {
+            if (Length + buffer.Length > 262_144) throw CaptureTooLarge();
+            base.Write(buffer);
+        }
+        public override void WriteByte(byte value)
+        {
+            if (Length >= 262_144) throw CaptureTooLarge();
+            base.WriteByte(value);
+        }
     }
 
     /// <summary>Resolves pinned coordinates without throwing for a missing definition.</summary>

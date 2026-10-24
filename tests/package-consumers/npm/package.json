@@ -7,12 +7,18 @@
     "@types/react": "R-0086",
     "react": "R-0080",
     "react-dom": "R-0080",
-    "typescript": "R-0086"
+    "typescript": "R-0086",
+    "@radix-ui/react-slot": "R-0081",
+    "clsx": "R-0082",
+    "tailwind-merge": "R-0082"
   },
   "dependencies": {
     "@types/react": "19.2.18",
     "react": "19.2.8",
     "react-dom": "19.2.8",
-    "typescript": "5.9.3"
+    "typescript": "5.9.3",
+    "@radix-ui/react-slot": "1.3.3",
+    "clsx": "2.1.1",
+    "tailwind-merge": "3.6.0"
   }
 }

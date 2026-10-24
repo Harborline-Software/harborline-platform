@@ -20,6 +20,8 @@ export const Codes = {
   optionsNotArray: 'rule.options_not_array',
   contextSnapshotRequired: 'rule.context_snapshot_required',
   inputTooLarge: 'rule.input_too_large',
+  codingBindingMissing: 'rule.coding_binding_missing',
+  codingAnswerMissing: 'rule.coding_answer_missing',
   // compile (publish-time)
   compileCycle: 'rule.compile.cycle',
   compileDepthExceeded: 'rule.compile.depth_exceeded',

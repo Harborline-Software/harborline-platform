@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.contracts.text",
+  "interfaceRevision": 1,
+  "status": "frozen",
+  "purpose": "Own locale-keyed wire text independently of Forms and rendering.",
+  "dependencies": [],
+  "exports": [
+    "InternationalizedText"
+  ],
+  "wireAuthority": {
+    "manifest": "projections/typescript/contracts/hlp.contracts.forms/projection-manifest.json",
+    "typescript": "projections/typescript/contracts/hlp.contracts.forms/src/text.ts",
+    "fixtures": "conformance/hlp.contracts.forms/fixtures.yaml"
+  },
+  "invariants": [
+    "InternationalizedText requires defaultLocale and a string-valued values map.",
+    "Locale tags and values retain their wire bytes. Locale resolution remains a consumer behavior.",
+    "The ownership move changes CLR namespace identities without changing the wire model. Shared optional and closed-enum infrastructure is maintained once under Harborline.Contracts.Serialization in the existing assembly."
+  ],
+  "notScope": [
+    "evaluation",
+    "rendering",
+    "new package identity",
+    "Forms admission changes"
+  ],
+  "projectionPolicy": {
+    "typescript": "maintained owner module in existing @harborline-software/contracts package",
+    "dotnet": "maintained Harborline.Contracts.Text bindings in existing Harborline.Contracts assembly"
+  },
+  "fixture": "conformance/hlp.contracts.forms/fixtures.yaml"
+}

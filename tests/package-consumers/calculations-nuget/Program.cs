@@ -6,6 +6,7 @@
 using System.Text.Json.Nodes;
 
 using Harborline.Contracts.Forms;
+using Harborline.Contracts.Rules;
 using Harborline.Foundation.RuleAuthoring;
 using Harborline.Blocks.BuilderDefinitions;
 using Harborline.Foundation.RuleEngine.Compilation;

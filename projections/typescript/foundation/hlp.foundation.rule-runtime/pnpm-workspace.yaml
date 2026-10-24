@@ -1,3 +1,5 @@
+# The clean consumer installs the packed Contracts peer; do not fetch it from a registry.
+autoInstallPeers: false
 # pnpm audit overrides (ADR-0086 clause 5), transitive via vitest > vite; each names its advisory.
 overrides:
   "zod@<4.6.6": "4.6.7" # GHSA-mrhx-c7xc-m3w5, transitive via Stryker mutation-server-protocol

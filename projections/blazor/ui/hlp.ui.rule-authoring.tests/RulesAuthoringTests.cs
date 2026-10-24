@@ -2,7 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using Bunit;
 using Bunit.Rendering;
-using Harborline.Contracts.Forms;
+using Harborline.Contracts.Rules;
 using Harborline.Foundation.RuleAuthoring;
 using Harborline.Foundation.RuleEngine.Skins;
 using Harborline.UIAdapters.Blazor.Components.RuleAuthoring;

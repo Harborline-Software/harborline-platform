@@ -10,10 +10,10 @@ namespace Harborline.Foundation.RuleAuthoring.Tests;
 /// <summary>T-590 slice 4: the developer-supplied tiers and skins the editors bind.</summary>
 public sealed class RulesBoundCapabilityTests
 {
-    private static RuleDefinition Rule(Harborline.Contracts.Forms.RuleTier tier) => new()
+    private static RuleDefinition Rule(Harborline.Contracts.Rules.RuleTier tier) => new()
     {
         Id = "t", Tier = tier, Scope = RuleScope.Field, ScopeTarget = "total",
-        Expression = tier == Harborline.Contracts.Forms.RuleTier.JsonSchema
+        Expression = tier == Harborline.Contracts.Rules.RuleTier.JsonSchema
             ? """{"type":"number"}"""
             : """{"+":[1,2]}""",
         Action = RuleActionKind.Compute,
@@ -22,10 +22,10 @@ public sealed class RulesBoundCapabilityTests
     [Fact(DisplayName = "rules-bound-5: Tier-1 JSON Schema is the kernel's, Tier-2 JSON Logic compiles here, and Tier-3 Power Fx is refused by code behind the same contract")]
     public void Tiers_are_bound_by_contract()
     {
-        Assert.Equal(0, RuleCompiler.Compile([Rule(Harborline.Contracts.Forms.RuleTier.JsonSchema)]).RuleCount);
-        Assert.Equal(1, RuleCompiler.Compile([Rule(Harborline.Contracts.Forms.RuleTier.JsonLogic)]).RuleCount);
+        Assert.Equal(0, RuleCompiler.Compile([Rule(Harborline.Contracts.Rules.RuleTier.JsonSchema)]).RuleCount);
+        Assert.Equal(1, RuleCompiler.Compile([Rule(Harborline.Contracts.Rules.RuleTier.JsonLogic)]).RuleCount);
         Assert.Equal(RuleEngineCodes.CompileUnsupportedTier,
-            Assert.Throws<RuleCompilationException>(() => RuleCompiler.Compile([Rule(Harborline.Contracts.Forms.RuleTier.PowerFx)])).Code);
+            Assert.Throws<RuleCompilationException>(() => RuleCompiler.Compile([Rule(Harborline.Contracts.Rules.RuleTier.PowerFx)])).Code);
         Assert.Equal([RuleDefinitionTier.JsonSchema, RuleDefinitionTier.JsonLogic, RuleDefinitionTier.PowerFx], Enum.GetValues<RuleDefinitionTier>());
     }
 
@@ -43,7 +43,7 @@ public sealed class RulesBoundCapabilityTests
         foreach (var (id, draft, expected) in new (string, RuleDraft, string)[] { ("table", table, "\"in-range\""), ("formula", formula, "7") })
         {
             var definition = SkinLowering.CompileDraft(draft, id);
-            Assert.Equal(Harborline.Contracts.Forms.RuleTier.JsonLogic, definition.Tier);
+            Assert.Equal(Harborline.Contracts.Rules.RuleTier.JsonLogic, definition.Tier);
             var preview = SkinLowering.EvaluatePreview(draft, id, JsonNode.Parse("""{"amount":5}""")!.AsObject(), TimeProvider.System);
             Assert.Equal(expected, preview.Value?.ToJsonString());
         }

@@ -34,18 +34,131 @@
         "dotnet": {"role": "implementation", "path": "projections/dotnet/contracts/hlp.contracts.identities/Fields", "status": "preview", "packageContribution": "Harborline.Contracts"}
       }
     },
+    "hlp.contracts.text": {
+      "interface": {
+        "path": "specs/modules/contracts/hlp.contracts.text/interface.yaml",
+        "revision": 1
+      },
+      "moduleKind": "runtime",
+      "presentation": {
+        "disposition": "not-applicable",
+        "rationale": "Shared declarative contracts carry data and own no renderer or authoring interface."
+      },
+      "owner": "platform-contracts",
+      "dependencies": [],
+      "status": "extracted-candidate",
+      "depth": {
+        "disposition": "deep-module",
+        "deletionTest": "PASS",
+        "redistributedComplexity": [
+          "localized text identity repeated in each rule, form and workflow consumer",
+          "required default locale and locale map wire members reinterpreted at transport boundaries"
+        ]
+      },
+      "projections": {
+        "typescript": {
+          "role": "implementation",
+          "path": "projections/typescript/contracts/hlp.contracts.forms",
+          "status": "preview",
+          "packageContribution": "@harborline-software/contracts"
+        },
+        "dotnet": {
+          "role": "implementation",
+          "path": "projections/dotnet/contracts/hlp.contracts.identities/Text",
+          "status": "preview",
+          "packageContribution": "Harborline.Contracts"
+        }
+      }
+    },
+    "hlp.contracts.presentation": {
+      "interface": {
+        "path": "specs/modules/contracts/hlp.contracts.presentation/interface.yaml",
+        "revision": 1
+      },
+      "moduleKind": "runtime",
+      "presentation": {
+        "disposition": "not-applicable",
+        "rationale": "Shared declarative contracts carry data and own no renderer or authoring interface."
+      },
+      "owner": "platform-contracts",
+      "dependencies": [
+        "hlp.contracts.text"
+      ],
+      "status": "extracted-candidate",
+      "depth": {
+        "disposition": "deep-module",
+        "deletionTest": "PASS",
+        "redistributedComplexity": [
+          "presentation hint and severity declarations copied into rule and form consumers",
+          "badge localization and optional hint wire members reinterpreted at each rule boundary"
+        ]
+      },
+      "projections": {
+        "typescript": {
+          "role": "implementation",
+          "path": "projections/typescript/contracts/hlp.contracts.forms",
+          "status": "preview",
+          "packageContribution": "@harborline-software/contracts"
+        },
+        "dotnet": {
+          "role": "implementation",
+          "path": "projections/dotnet/contracts/hlp.contracts.identities/Presentation",
+          "status": "preview",
+          "packageContribution": "Harborline.Contracts"
+        }
+      }
+    },
+    "hlp.contracts.rules": {
+      "interface": {
+        "path": "specs/modules/contracts/hlp.contracts.rules/interface.yaml",
+        "revision": 1
+      },
+      "moduleKind": "runtime",
+      "presentation": {
+        "disposition": "not-applicable",
+        "rationale": "Shared declarative contracts carry data and own no renderer or authoring interface."
+      },
+      "owner": "platform-contracts",
+      "dependencies": [
+        "hlp.contracts.text",
+        "hlp.contracts.presentation"
+      ],
+      "status": "extracted-candidate",
+      "depth": {
+        "disposition": "deep-module",
+        "deletionTest": "PASS",
+        "redistributedComplexity": [
+          "rule grammar and closed values copied between evaluator and form consumers",
+          "optional error and presentation payloads independently maintained by each borrower"
+        ]
+      },
+      "projections": {
+        "typescript": {
+          "role": "implementation",
+          "path": "projections/typescript/contracts/hlp.contracts.forms",
+          "status": "preview",
+          "packageContribution": "@harborline-software/contracts"
+        },
+        "dotnet": {
+          "role": "implementation",
+          "path": "projections/dotnet/contracts/hlp.contracts.identities/Rules",
+          "status": "preview",
+          "packageContribution": "Harborline.Contracts"
+        }
+      }
+    },
     "hlp.contracts.forms": {
-      "interface": {"path": "specs/modules/contracts/hlp.contracts.forms/interface.yaml", "revision": 8},
+      "interface": {"path": "specs/modules/contracts/hlp.contracts.forms/interface.yaml", "revision": 9},
       "moduleKind": "runtime",
       "presentation": {"disposition": "not-applicable", "rationale": "Forms wire contracts are consumed by renderers but own no presentation implementation."},
       "owner": "platform-contracts",
-      "dependencies": ["hlp.contracts.authorization"],
+      "dependencies": ["hlp.contracts.authorization", "hlp.contracts.rules", "hlp.contracts.text", "hlp.contracts.presentation"],
       "status": "implemented-package-consumer-green",
       "depth": {
         "disposition": "deep-module",
         "deletionTest": "PASS",
         "redistributedComplexity": [
-          "84 cross-language declarations and 104 closed literals manually mirrored across every React, Blazor, App, and API consumer",
+          "85 wire exports and 104 closed literals manually mirrored across every React, Blazor, App, and API consumer",
           "wire casing, optionality, recursive discriminators, redaction, submission binding, and forward-compatible object reads reimplemented by each transport"
         ]
       },
@@ -66,7 +179,7 @@
           }
         },
         "dotnet": {
-          "role": "generated-binding",
+          "role": "implementation",
           "path": "projections/dotnet/contracts/hlp.contracts.identities/Forms",
           "status": "preview",
           "packageContribution": "Harborline.Contracts"
@@ -74,11 +187,11 @@
       }
     },
     "hlp.contracts.workflow": {
-      "interface": {"path": "specs/modules/contracts/hlp.contracts.workflow/interface.yaml", "revision": 2},
+      "interface": {"path": "specs/modules/contracts/hlp.contracts.workflow/interface.yaml", "revision": 3},
       "moduleKind": "runtime",
       "presentation": {"disposition": "not-applicable", "rationale": "Workflow wire and admission outcomes are consumed by builders and renderers but own no presentation implementation."},
       "owner": "platform-contracts",
-      "dependencies": ["hlp.contracts.authorization", "hlp.contracts.forms"],
+      "dependencies": ["hlp.contracts.authorization", "hlp.contracts.forms", "hlp.contracts.rules", "hlp.contracts.text"],
       "status": "implemented-package-consumer-green",
       "depth": {
         "disposition": "deep-module",
@@ -89,8 +202,8 @@
         ]
       },
       "projections": {
-        "typescript": {"role": "generated-binding", "path": "projections/typescript/contracts/hlp.contracts.forms", "status": "preview", "packageContribution": "@harborline-software/contracts"},
-        "dotnet": {"role": "generated-binding", "path": "projections/dotnet/contracts/hlp.contracts.identities/Workflow", "status": "preview", "packageContribution": "Harborline.Contracts"}
+        "typescript": {"role": "implementation", "path": "projections/typescript/contracts/hlp.contracts.forms", "status": "preview", "packageContribution": "@harborline-software/contracts"},
+        "dotnet": {"role": "implementation", "path": "projections/dotnet/contracts/hlp.contracts.identities/Workflow", "status": "preview", "packageContribution": "Harborline.Contracts"}
       }
     },
     "hlp.contracts.identities": {
@@ -864,7 +977,7 @@
       }
     },
     "hlp.foundation.taxonomy": {
-      "interface": {"path": "specs/modules/foundation/hlp.foundation.taxonomy/interface.yaml", "revision": 2},
+      "interface": {"path": "specs/modules/foundation/hlp.foundation.taxonomy/interface.yaml", "revision": 3},
       "moduleKind": "runtime",
       "presentation": {"disposition": "not-applicable", "rationale": "The foundation package owns the projection-neutral TaxonomyDefinition and its admission; the scheme/overlay editor and catalogue views are separate projections over this interface."},
       "owner": "platform-foundation",
@@ -1035,11 +1148,11 @@
       }
     },
     "hlp.foundation.rule-runtime": {
-      "interface": {"path": "specs/modules/foundation/hlp.foundation.rule-runtime/interface.yaml", "revision": 3},
+      "interface": {"path": "specs/modules/foundation/hlp.foundation.rule-runtime/interface.yaml", "revision": 5},
       "moduleKind": "runtime",
       "presentation": {"disposition": "not-applicable", "rationale": "Rule compilation, deterministic evaluation, and reactive dependency propagation expose data outcomes rather than visual presentation."},
       "owner": "platform-foundation",
-      "dependencies": ["hlp.contracts.forms"],
+      "dependencies": ["hlp.contracts.rules", "hlp.contracts.text", "hlp.contracts.presentation"],
       "status": "implemented-package-consumer-green",
       "depth": {
         "disposition": "deep-module",
