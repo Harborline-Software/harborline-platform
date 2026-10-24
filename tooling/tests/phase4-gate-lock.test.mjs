@@ -13,22 +13,32 @@ const repositoryRoot = path.resolve(import.meta.dirname, '../..')
 
 test('the package gate and receipt entry points acquire the shared lock before work', () => {
   const scripts = JSON.parse(readFileSync(path.join(repositoryRoot, 'package.json'), 'utf8')).scripts
-  for (const [scriptName, entryPoint, firstWork] of [
-    ['gate:phase4', 'tooling/run-phase-4-gate.mjs', 'const reactRoot'],
-    ['receipt:phase4', 'tooling/run-phase4-receipt.mjs', "const baseHead = git('rev-parse', 'HEAD')"],
+  for (const [scriptName, entryPoint] of [
+    ['gate:phase4', 'tooling/run-phase-4-gate.mjs'],
+    ['receipt:phase4', 'tooling/run-phase4-receipt.mjs'],
   ]) {
     assert.equal(scripts[scriptName], `node ${entryPoint}`)
     const source = readFileSync(path.join(repositoryRoot, entryPoint), 'utf8')
     assert.match(source, /import \{acquirePhase4GateLock\} from '\.\/phase4-gate-lock\.mjs'/)
     const acquisition = source.indexOf('await acquirePhase4GateLock({repositoryRoot:')
-    assert.ok(acquisition >= 0 && acquisition < source.indexOf(firstWork), `${scriptName} acquires too late`)
+    const firstWork = source.indexOf('await runPhase4InputAttempt({')
+    assert.ok(acquisition >= 0, `${scriptName} has a real lock acquisition`)
+    assert.ok(firstWork >= 0, `${scriptName} has a real preflight invocation`)
+    assert.ok(acquisition < firstWork, `${scriptName} acquires before preflight can fetch shared refs`)
   }
   const receiptSource = readFileSync(path.join(repositoryRoot, 'tooling/run-phase4-receipt.mjs'), 'utf8')
   const gateSource = readFileSync(path.join(repositoryRoot, 'tooling/run-phase-4-gate.mjs'), 'utf8')
   const lockSource = readFileSync(path.join(repositoryRoot, 'tooling/phase4-gate-lock.mjs'), 'utf8')
   assert.match(receiptSource, /stdio: \['ignore', 'pipe', 'inherit', 'ipc'\]/)
   assert.match(receiptSource, /receiptLock\.grantChildReentry\(child\.pid\)/)
-  assert.match(gateSource, /reentryGrant: await receiveLockReentryGrant\(\)/)
+  const receiveGrant = gateSource.indexOf('const reentryGrant = await receiveLockReentryGrant()')
+  const acquireGate = gateSource.indexOf('await acquirePhase4GateLock({repositoryRoot: root, reentryGrant})')
+  const refuseOnly = gateSource.indexOf("if (process.argv.includes('--only')) throw new Error(")
+  const directLaunch = gateSource.indexOf('? await launchGate()')
+  assert.ok(receiveGrant >= 0 && acquireGate >= 0 && refuseOnly >= 0 && directLaunch >= 0)
+  assert.ok(refuseOnly < receiveGrant && receiveGrant < acquireGate && acquireGate < directLaunch)
+  assert.match(receiptSource, /phase4Input: inputAttempt\.binding/)
+  assert.match(gateSource, /inherited: process\.argv\.includes\('--phase4-lock-reentry'\) \? reentryGrant\?\.phase4Input \?\? \{\} : undefined/)
   assert.doesNotMatch(`${receiptSource}\n${gateSource}\n${lockSource}`, /HARBORLINE_PHASE4_GATE_LOCK_TOKEN/)
 })
 
