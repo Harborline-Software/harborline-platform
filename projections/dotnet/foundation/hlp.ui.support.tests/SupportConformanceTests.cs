@@ -103,10 +103,22 @@ public sealed class DefaultStringsConformanceTests
     [Fact]
     public void NativeCatalogHasExactDigestAndInterpolation()
     {
-        Assert.Equal(713, HarborlineDefaultStrings.Values.Count);
+        Assert.Equal(732, HarborlineDefaultStrings.Values.Count);
         Assert.Equal("Loading", HarborlineDefaultStrings.Get("common.loading"));
         Assert.Equal("Step 2 of {total}", HarborlineDefaultStrings.Interpolate("Step {current} of {total}", new Dictionary<string, object?> { ["current"] = 2 }));
-        Assert.Equal("73c7cec0b07f0058d0a48784e76fe8aa86f8e421f85716ff2ea9cc53975c3f7c", CatalogDigest());
+        Assert.Equal("abe7a3d3cd49ff3d2ab9ad75df1638774d84f1dae90d945dfb68042cd800a5c9", CatalogDigest());
+    }
+
+    // Revision 2 appends 19 platform keys; revision 1 is every other entry, by identity and in catalog order.
+    private static readonly string[] Revision2Keys = ["forms.switch.off", "forms.switch.on", "navigation.notifications.all", "navigation.notifications.bell.pending.one", "navigation.notifications.bell.pending.other", "navigation.notifications.bell.unread.one", "navigation.notifications.bell.unread.other", "navigation.notifications.confirm", "navigation.notifications.deny", "navigation.notifications.dismiss", "navigation.notifications.empty", "navigation.notifications.groups", "navigation.notifications.markAllRead", "navigation.notifications.title", "navigation.notifications.unread", "navigation.notifications.viewAll", "navigation.userMenu.panel", "navigation.userMenu.signOut", "navigation.userMenu.trigger"];
+
+    [Fact]
+    public void RevisionOneIsPreservedExactly()
+    {
+        var revision1 = HarborlineDefaultStrings.Values.Where(pair => !Revision2Keys.Contains(pair.Key)).ToArray();
+        Assert.Equal(713, revision1.Length);
+        Assert.Equal("73c7cec0b07f0058d0a48784e76fe8aa86f8e421f85716ff2ea9cc53975c3f7c", Digest(revision1));
+        Assert.Equal(Revision2Keys, HarborlineDefaultStrings.Values.Keys.Skip(713).ToArray());
     }
 
     [Theory]
@@ -121,8 +133,24 @@ public sealed class DefaultStringsConformanceTests
             Assert.Contains(id, Fixture.CaseIds("hlp.ui.default-strings"));
             switch (id)
             {
-                case "default-strings.keyset": Assert.Equal(713, HarborlineDefaultStrings.Values.Count); break;
-                case "default-strings.digest": Assert.Equal("73c7cec0b07f0058d0a48784e76fe8aa86f8e421f85716ff2ea9cc53975c3f7c", CatalogDigest()); break;
+                case "default-strings.keyset": Assert.Equal(fixture.RootElement.GetProperty("expected").GetProperty("count").GetInt32(), HarborlineDefaultStrings.Values.Count); break;
+                case "default-strings.digest": Assert.Equal(fixture.RootElement.GetProperty("expected").GetProperty("sha256").GetString(), CatalogDigest()); break;
+                case "default-strings.revision-1-subset":
+                {
+                    var revision1 = HarborlineDefaultStrings.Values.Where(pair => !Revision2Keys.Contains(pair.Key)).ToArray();
+                    var expected = fixture.RootElement.GetProperty("expected");
+                    Assert.Equal(expected.GetProperty("count").GetInt32(), revision1.Length);
+                    Assert.Equal(expected.GetProperty("first").GetString(), revision1[0].Key);
+                    Assert.Equal(expected.GetProperty("last").GetString(), revision1[^1].Key);
+                    Assert.Equal(expected.GetProperty("sha256").GetString(), Digest(revision1));
+                    break;
+                }
+                case "default-strings.revision-2-additions":
+                {
+                    var expected = fixture.RootElement.GetProperty("expected").GetProperty("entries").EnumerateArray().Select(entry => (entry[0].GetString(), entry[1].GetString())).ToArray();
+                    Assert.Equal(expected, HarborlineDefaultStrings.Values.Where(pair => Revision2Keys.Contains(pair.Key)).Select(pair => ((string?)pair.Key, (string?)pair.Value)).ToArray());
+                    break;
+                }
                 case "default-strings.english-fallback": Assert.Equal("Loading", HarborlineDefaultStrings.Get("common.loading")); break;
                 case "default-strings.interpolate-string": Assert.Equal("Remove Invoice", HarborlineDefaultStrings.Interpolate("Remove {label}", new Dictionary<string, object?> { ["label"] = "Invoice" })); break;
                 case "default-strings.interpolate-number": Assert.Equal("Page 12", HarborlineDefaultStrings.Interpolate("Page {page}", new Dictionary<string, object?> { ["page"] = 12 })); break;
@@ -133,11 +161,15 @@ public sealed class DefaultStringsConformanceTests
         });
     }
 
-    private static string CatalogDigest()
+    private static string CatalogDigest() => Digest(HarborlineDefaultStrings.Values);
+
+    // The original revision-1 serialization: [key, value] rows, relaxed escaping, SHA-256, lowercase hex.
+    private static readonly JsonSerializerOptions DigestOptions = new() { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
+
+    private static string Digest(IEnumerable<KeyValuePair<string, string>> entries)
     {
-        var options = new JsonSerializerOptions { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
-        var rows = HarborlineDefaultStrings.Values.Select(pair => new object[] { pair.Key, pair.Value });
-        return Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(rows, options))));
+        var rows = entries.Select(pair => new object[] { pair.Key, pair.Value });
+        return Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(rows, DigestOptions))));
     }
 }
 
