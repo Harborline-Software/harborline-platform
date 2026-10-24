@@ -9,7 +9,10 @@ import {existsSync, readFileSync, readdirSync} from 'node:fs'
 import {resolve} from 'node:path'
 
 const root = resolve(`${import.meta.dirname}/../..`)
-const specRoot = resolve(root, 'specs/modules/ui')
+// --spec-root <dir> scans a copy of specs/modules/ui instead (the tests seed regressions there
+// without touching the repository).
+const specRootArgument = process.argv.indexOf('--spec-root')
+const specRoot = specRootArgument > 0 ? resolve(process.argv[specRootArgument + 1]) : resolve(root, 'specs/modules/ui')
 const canary = process.argv.includes('--canary')
 
 const registry = existsSync(resolve(root, 'catalog/ui-theme-registry.json'))
@@ -22,7 +25,9 @@ const registry = existsSync(resolve(root, 'catalog/ui-theme-registry.json'))
 const SYSTEM_COLOURS = /\b(MarkText|Mark|CanvasText|Canvas|HighlightText|Highlight|ButtonText|ButtonFace|LinkText|GrayText|FieldText|Field|AccentColor|AccentColorText)\b/
 
 const findings = []
-const report = (rule, module, detail) => findings.push({rule, module, detail})
+// `subject` is what an acknowledgement names: the selector list and property for the declaration
+// rules (R4, R5), the detail itself for the others. One finding per declaration.
+const report = (rule, module, detail, subject = detail) => findings.push({rule, module, detail, subject})
 
 // ---------------------------------------------------------------------------
 // R1 — a foreground whose token is absent from the registry, over a background whose token the
@@ -174,7 +179,8 @@ function unthemedRules(css) {
   const rules = [...source.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map(match => ({selector: match[1].trim(), body: match[2]}))
   const local = new Map()
   for (const rule of rules) {
-    for (const declaration of rule.body.matchAll(/(--hl-[a-z0-9-]+)\s*:\s*([^;]+)/g)) {
+    // Any module-local custom property, not only --hl-*: a private --x-ring is followed the same way.
+    for (const declaration of rule.body.matchAll(/(--[a-z0-9-]+)\s*:\s*([^;]+)/gi)) {
       local.set(declaration[1], [...(local.get(declaration[1]) ?? []), declaration[2].trim()])
     }
   }
@@ -185,7 +191,16 @@ function unthemedRules(css) {
     if (local.has(name) && !seen.has(name)) return local.get(name).flatMap(definition => terminals(definition, new Set([...seen, name])))
     return fallback === undefined ? [] : terminals(fallback, seen)
   }
-  return {rules, terminals}
+  // R5: like terminals, but a composite value (`0 0 0 2px var(--hl-focus, Highlight)`, reached
+  // directly or through a local token such as `box-shadow: var(--x-ring)`) is split into its parts
+  // again at every step, so a colour inside it is reached however deeply it is composed.
+  const partTerminals = (value, seen) => valueParts(value).flatMap(part => {
+    if (!part.startsWith('var(')) return [part]
+    const {name, fallback} = splitVar(part)
+    if (local.has(name) && !seen.has(name)) return local.get(name).flatMap(definition => partTerminals(definition, new Set([...seen, name])))
+    return fallback === undefined ? [] : partTerminals(fallback, seen)
+  })
+  return {rules, terminals, partTerminals}
 }
 
 function scanTextColourFallbacks(moduleId, css) {
@@ -199,7 +214,8 @@ function scanTextColourFallbacks(moduleId, css) {
       if (reached.length === 0) continue
       report('text-colour-falls-to-non-text-system-colour', moduleId,
         `${enabled.join(', ').replace(/\s+/g, ' ')} { color: ${declaration[1].trim()} } can fall back to ${reached.join(', ')}, `
-        + 'which is not a text colour outside forced-colors')
+        + 'which is not a text colour outside forced-colors',
+        `${enabled.join(', ').replace(/\s+/g, ' ')} { color }`)
     }
   }
 }
@@ -211,17 +227,22 @@ function scanTextColourFallbacks(moduleId, css) {
 // signals "unavailable" and is not specified to reach any contrast) is invisible or misleading when
 // no host token reaches it, which is exactly the portaled-overlay case R4 describes. b20 found the
 // notification-center unread dot (role="img") and its focus ring on Highlight. Narrow by design:
-//   - outline and outline-color, in any enabled selector (an outline is a focus indicator here);
-//   - the colour of box-shadow, only in selectors that mention :focus (a shadow is decoration
-//     elsewhere);
+//   - outline, outline-color and accent-color, in any enabled selector (an outline is a focus
+//     indicator here; accent-color paints a checkbox, radio or range as its state indicator);
+//   - the colour of box-shadow, border and border-*, only in focus selectors (:focus, :focus-visible,
+//     :focus-within, [data-focus-visible], [data-focused]); elsewhere they are decoration;
 //   - background and background-color, only on the named indicator classes below, whose fill is
-//     the indicator itself.
-// Only a whole terminal counts, as in R4: color-mix(in srgb, Highlight 12%, Canvas) is a tint whose
-// contrast depends on its partner, and is left to the rendered gallery. Forced-colors blocks and
-// disabled selectors are exempt for R4's reasons.
+//     the indicator itself (a badge's fill carries its count as much as its text does).
+// A composite value is split into its parts at every step, including through module-local tokens
+// (`--x-ring: 0 0 0 2px var(--hl-focus, Highlight)` used as `box-shadow: var(--x-ring)`). Only a
+// whole part counts, as in R4: color-mix(in srgb, Highlight 12%, Canvas) is a tint whose contrast
+// depends on its partner, and is left to the rendered gallery. Forced-colors blocks and disabled
+// selectors are exempt for R4's reasons.
 const NON_TEXT_INDICATOR_FALLBACKS = /^(Highlight|SelectedItem|Mark|GrayText)$/i
-const INDICATOR_CLASSES = /__(unread|dot|indicator|marker)\b/
-const FOCUS_SELECTOR = /:focus/
+const INDICATOR_CLASSES = /__(unread|dot|indicator|marker|badge)\b/
+const FOCUS_SELECTOR = /:focus|\[data-focus(?:-visible|ed)?\b/
+const ANY_SELECTOR_PROPERTIES = /^(outline|outline-color|accent-color)$/
+const FOCUS_ONLY_PROPERTIES = /^(box-shadow|border(?:-[a-z-]+)?)$/
 
 // Every top-level var(...) in a declaration value, plus the bare words outside them.
 function valueParts(value) {
@@ -247,22 +268,24 @@ function valueParts(value) {
 }
 
 function scanNonTextIndicatorFallbacks(moduleId, css) {
-  const {rules, terminals} = unthemedRules(css)
+  const {rules, partTerminals} = unthemedRules(css)
   for (const rule of rules) {
     const enabled = selectorList(rule.selector).filter(selector => !DISABLED_SELECTOR.test(selector))
     if (enabled.length === 0) continue
-    for (const declaration of rule.body.matchAll(/(?:^|;)\s*(outline|outline-color|box-shadow|background|background-color)\s*:\s*([^;]+)/g)) {
+    for (const declaration of rule.body.matchAll(/(?:^|;)\s*(outline(?:-color)?|accent-color|box-shadow|border(?:-[a-z-]+)?|background(?:-color)?)\s*:\s*([^;]+)/g)) {
       const [, property, value] = declaration
-      let selectors = enabled
-      if (property === 'box-shadow') selectors = enabled.filter(selector => FOCUS_SELECTOR.test(selector))
-      if (property.startsWith('background')) selectors = enabled.filter(selector => INDICATOR_CLASSES.test(selector))
+      let selectors
+      if (ANY_SELECTOR_PROPERTIES.test(property)) selectors = enabled
+      else if (FOCUS_ONLY_PROPERTIES.test(property)) selectors = enabled.filter(selector => FOCUS_SELECTOR.test(selector))
+      else if (/^background(?:-color)?$/.test(property)) selectors = enabled.filter(selector => INDICATOR_CLASSES.test(selector))
+      else continue
       if (selectors.length === 0) continue
-      const reached = [...new Set(valueParts(value).flatMap(part => terminals(part, new Set()))
-        .filter(terminal => NON_TEXT_INDICATOR_FALLBACKS.test(terminal)))]
+      const reached = [...new Set(partTerminals(value, new Set()).filter(terminal => NON_TEXT_INDICATOR_FALLBACKS.test(terminal)))]
       if (reached.length === 0) continue
+      const subject = `${selectors.join(', ').replace(/\s+/g, ' ')} { ${property} }`
       report('indicator-falls-to-low-contrast-system-colour', moduleId,
         `${selectors.join(', ').replace(/\s+/g, ' ')} { ${property}: ${value.trim()} } can fall back to ${reached.join(', ')}, `
-        + 'which does not reach 3:1 non-text contrast on Canvas outside forced-colors')
+        + 'which does not reach 3:1 non-text contrast on Canvas outside forced-colors', subject)
     }
   }
 }
@@ -331,7 +354,24 @@ if (canary) {
     '.x:focus-visible{box-shadow:0 0 0 2px var(--hl-ring,Mark)}'))
   probe('indicator-falls-to-low-contrast-system-colour (indicator background)', () => scanNonTextIndicatorFallbacks('canary',
     '.x__unread{background:var(--hl-primary,Highlight)}'))
+  // b20 review: composite tokens, border on focus, accent-color, data-attribute focus, badges.
+  probe('indicator rule (composite ring through a local token)', () => scanNonTextIndicatorFallbacks('canary',
+    '.x{--x-ring:0 0 0 2px var(--hl-focus,Highlight)}.x:focus-visible{box-shadow:var(--x-ring)}'))
+  probe('indicator rule (composite outline through a local token)', () => scanNonTextIndicatorFallbacks('canary',
+    '.x{--x-outline:2px solid var(--hl-focus,Highlight)}.x:focus-visible{outline:var(--x-outline)}'))
+  probe('indicator rule (border-color on focus)', () => scanNonTextIndicatorFallbacks('canary',
+    '.x:focus-visible{border-color:var(--hl-focus,Highlight)}'))
+  probe('indicator rule (border shorthand on focus-within)', () => scanNonTextIndicatorFallbacks('canary',
+    '.x:focus-within{border:1px solid var(--hl-focus,Mark)}'))
+  probe('indicator rule (accent-color)', () => scanNonTextIndicatorFallbacks('canary',
+    '.x__check{accent-color:var(--hl-primary,Highlight)}'))
+  probe('indicator rule ([data-focus-visible] box-shadow)', () => scanNonTextIndicatorFallbacks('canary',
+    '.x[data-focus-visible]{box-shadow:0 0 0 2px var(--hl-focus,Highlight)}'))
+  probe('indicator rule (badge background)', () => scanNonTextIndicatorFallbacks('canary',
+    '.x__badge{background:var(--hl-danger,Mark)}'))
   // And the exemptions must hold: these may NOT fire.
+  quiet('indicator rule: border-color outside focus', () => scanNonTextIndicatorFallbacks('canary',
+    '.x__tab[aria-selected="true"]{border-color:var(--hl-accent,Highlight)}'))
   quiet('indicator rule: forced-colors outline', () => scanNonTextIndicatorFallbacks('canary',
     '@media (forced-colors: active){.x:focus-visible{outline-color:Highlight}}'))
   quiet('indicator rule: box-shadow outside :focus', () => scanNonTextIndicatorFallbacks('canary',
@@ -351,64 +391,87 @@ if (canary) {
   process.exit(dead.length ? 1 : 0)
 }
 
-// Two modules are known to lack a Blazor stylesheet and are ticketed. They are listed rather than
-// silenced, and the exemption is held to the same standard as the rule: if one of them GAINS a
-// stylesheet the exemption is stale and this fails, because an exemption nobody revisits is how a
-// scanner quietly stops describing the repository.
-const ACKNOWLEDGED = new Map([
+// Acknowledged findings, each named down to its selector list and property (the finding's
+// `subject`), with the number of findings it covers (one unless stated). A new finding in an
+// acknowledged module is NOT covered: it is live and fails the scan. An entry that covers nothing
+// (the hazard was fixed, or a partial fix changed the selector) or a different number of findings
+// than declared is stale and fails the scan too, because an exemption nobody revisits is how a
+// scanner quietly stops describing the repository. `--list` prints every finding's key.
+const OWNER_REVIEW = 'owner design re-review needed to change this style.css (live design-review approval pins it)'
+const IN_PAGE = 'in-page control, outside the b20 overlay scope; renders inside the host themed subtree'
+const R4 = 'text-colour-falls-to-non-text-system-colour'
+const R5 = 'indicator-falls-to-low-contrast-system-colour'
+const ACKNOWLEDGED = [
   // Same GrayText fallback the b19 batch fixed in dialog, sheet, spotlight and window, but latent here:
-  // the page renders inside the themed scene and no scenario reaches the fallback. Changing
-  // style.css re-pins the page's recorded design-review approval (design-surface-inputs), which is
-  // the owner's call, not a tooling batch's. Fixing it makes this entry stale and the scan red.
-  ['text-colour-falls-to-non-text-system-colour:hlp.ui.page', 'b19 follow-up: owner design re-review needed to change page style.css'],
+  // the page renders inside the themed scene and no scenario reaches the fallback.
+  {rule: R4, module: 'hlp.ui.page', subject: '.hl-page__subtitle { color }', reason: `b19 follow-up: ${OWNER_REVIEW}`},
+  // b20 review, deliberate: the notification-center badge's unthemed pair is CanvasText fill with
+  // Canvas text (21:1 text, 21:1 against Canvas), which the UA keeps together. With the registry's
+  // --hl-danger (#b42318 light, #ff8a80 dark) Canvas reads 6.6:1 and about 8:1 under the matching
+  // color-scheme, where the #fff it replaces read 2.28:1 in dark. R1 cannot see that pairing.
+  {rule: 'foreground-falls-to-system-colour', module: 'hlp.ui.notification-center', subject: 'color falls back to Canvas over --hl-danger; a system colour only pairs correctly inside forced-colors', reason: 'b20 review: deliberate CanvasText/Canvas badge pair (see comment)'},
   // R5 (b20) fixed every overlay module (notification-center, popover, window, confirm-dialog; dialog,
   // sheet, spotlight and user-menu were clean). These are real findings, not false positives, left
-  // for a follow-up: in-page controls that render inside the host's themed subtree (no portal), so
-  // the Highlight/Mark fallback is latent. page, schema-form and tooltip also carry a live
-  // design-review approval that pins style.css, so changing them is the owner's call. Fixing any
-  // one makes its entry stale and the scan red.
-  ...[
-    ['page', 'b20 follow-up: focus ring falls to Highlight; owner design re-review needed to change page style.css'],
-    ['schema-form', 'b20 follow-up: focus ring falls to Highlight; owner design re-review needed to change schema-form style.css'],
-    ['tooltip', 'b20 follow-up: trigger focus ring falls to Highlight; owner design re-review needed to change tooltip style.css'],
-    ['date-field', 'b20 follow-up: focus ring falls to Highlight (in-page control, outside the overlay scope)'],
-    ['date-time-field', 'b20 follow-up: focus ring falls to Highlight (in-page control, outside the overlay scope)'],
-    ['gantt', 'b20 follow-up: focus rings fall to Highlight (in-page control, outside the overlay scope)'],
-    ['layers-rail', 'b20 follow-up: focus ring falls to Highlight (in-page control, outside the overlay scope)'],
-    ['radio-group', 'b20 follow-up: focus ring to Highlight, error outline to Mark (in-page control, outside the overlay scope)'],
-    ['scroll-affordance', 'b20 follow-up: focus ring falls to Highlight (in-page control, outside the overlay scope)'],
-  ].map(([module, reason]) => [`indicator-falls-to-low-contrast-system-colour:hlp.ui.${module}`, reason]),
-])
+  // for a follow-up.
+  {rule: R5, module: 'hlp.ui.page', subject: '.hl-page__actions>button:not([data-hl-intent]):focus-visible { outline }', reason: `b20 follow-up: focus ring to Highlight; ${OWNER_REVIEW}`},
+  {rule: R5, module: 'hlp.ui.page', subject: '.hl-page__body:focus-visible { outline }', reason: `b20 follow-up: focus ring to Highlight; ${OWNER_REVIEW}`},
+  {rule: R5, module: 'hlp.ui.schema-form', subject: ".hl-schema-form :is(fieldset, output, [role='alert']):focus-visible { outline }", reason: `b20 follow-up: focus ring to Highlight; ${OWNER_REVIEW}`},
+  {rule: R5, module: 'hlp.ui.tooltip', subject: '.hl-tooltip__trigger > button:not([data-hl-intent]):focus-visible { outline }', reason: `b20 follow-up: trigger focus ring to Highlight; ${OWNER_REVIEW}`},
+  {rule: R5, module: 'hlp.ui.date-field', subject: '.hl-date-field { accent-color }', reason: `b20 follow-up: picker accent to Highlight; ${IN_PAGE}`},
+  {rule: R5, module: 'hlp.ui.date-field', subject: '.hl-date-field:focus-visible { border-color }', reason: `b20 follow-up: focus border to Highlight; ${IN_PAGE}`},
+  {rule: R5, module: 'hlp.ui.date-field', subject: '.hl-date-field:focus-visible { outline }', reason: `b20 follow-up: focus ring to Highlight; ${IN_PAGE}`},
+  {rule: R5, module: 'hlp.ui.date-time-field', subject: '.hl-date-time-field { accent-color }', reason: `b20 follow-up: picker accent to Highlight; ${IN_PAGE}`},
+  {rule: R5, module: 'hlp.ui.date-time-field', subject: '.hl-date-time-field:focus-visible { border-color }', reason: `b20 follow-up: focus border to Highlight; ${IN_PAGE}`},
+  {rule: R5, module: 'hlp.ui.date-time-field', subject: '.hl-date-time-field:focus-visible { outline }', reason: `b20 follow-up: focus ring to Highlight; ${IN_PAGE}`},
+  {rule: R5, module: 'hlp.ui.gantt', subject: '.hl-gantt__scroll:focus-visible { outline }', reason: `b20 follow-up: focus ring to Highlight; ${IN_PAGE}`},
+  {rule: R5, module: 'hlp.ui.gantt', subject: '.hl-gantt td:focus-visible, .hl-gantt__zoom select:focus-visible { outline }', reason: `b20 follow-up: focus ring to Highlight; ${IN_PAGE}`},
+  {rule: R5, module: 'hlp.ui.layers-rail', subject: '.hl-layers-rail button:focus-visible { outline }', reason: `b20 follow-up: focus ring to Highlight; ${IN_PAGE}`},
+  {rule: R5, module: 'hlp.ui.radio-group', subject: '.hl-radio-group__control { accent-color }', reason: `b20 follow-up: radio accent to Highlight; ${IN_PAGE}`},
+  {rule: R5, module: 'hlp.ui.radio-group', subject: '.hl-radio-group__control:focus-visible { outline }', reason: `b20 follow-up: focus ring to Highlight; ${IN_PAGE}`},
+  {rule: R5, module: 'hlp.ui.radio-group', subject: '.hl-radio-group--error .hl-radio-group__control { accent-color }', reason: `b20 follow-up: error accent to Mark; ${IN_PAGE}`},
+  {rule: R5, module: 'hlp.ui.radio-group', subject: '.hl-radio-group--error .hl-radio-group__control { outline-color }', reason: `b20 follow-up: error outline to Mark; ${IN_PAGE}`},
+  {rule: R5, module: 'hlp.ui.scroll-affordance', subject: '.hl-scroll-affordance:focus-visible { outline }', reason: `b20 follow-up: focus ring to Highlight; ${IN_PAGE}`},
+]
 
-const key = finding => `${finding.rule}:${finding.module}`
-const live = findings.filter(finding => !ACKNOWLEDGED.has(key(finding)))
-const acknowledged = findings.filter(finding => ACKNOWLEDGED.has(key(finding)))
-const stale = [...ACKNOWLEDGED.keys()].filter(entry => !findings.some(finding => key(finding) === entry))
+if (process.argv.includes('--list')) {
+  for (const finding of findings) process.stdout.write(`${JSON.stringify([finding.rule, finding.module, finding.subject])}\n`)
+  process.exit(0)
+}
+
+const covers = (entry, finding) => entry.rule === finding.rule && entry.module === finding.module && entry.subject === finding.subject
+const live = findings.filter(finding => !ACKNOWLEDGED.some(entry => covers(entry, finding)))
+const acknowledged = findings.filter(finding => ACKNOWLEDGED.some(entry => covers(entry, finding)))
+const stale = ACKNOWLEDGED
+  .map(entry => ({entry, count: findings.filter(finding => covers(entry, finding)).length}))
+  .filter(({entry, count}) => count !== (entry.count ?? 1))
 
 if (acknowledged.length > 0) {
   process.stdout.write(`acknowledged, tracked by ticket (${acknowledged.length})\n`)
   for (const finding of acknowledged) {
-    process.stdout.write(`  ${finding.module.replace('hlp.ui.', '').padEnd(22)}${ACKNOWLEDGED.get(key(finding))}\n`)
+    const entry = ACKNOWLEDGED.find(candidate => covers(candidate, finding))
+    process.stdout.write(`  ${finding.module.replace('hlp.ui.', '').padEnd(22)}${finding.subject} -- ${entry.reason}\n`)
   }
 }
+// Both failures are reported before exiting, so a partial fix shows its stale entry AND what it left.
 if (stale.length > 0) {
-  process.stdout.write(`\nSTALE EXEMPTION -- the hazard is gone, remove the entry (${stale.length})\n`)
-  for (const entry of stale) process.stdout.write(`  ${entry}\n`)
-  process.exit(1)
+  process.stdout.write(`\nSTALE EXEMPTION -- the entry no longer matches exactly the findings it declares; remove or correct it (${stale.length})\n`)
+  for (const {entry, count} of stale) {
+    process.stdout.write(`  ${entry.rule}:${entry.module}:${entry.subject} (declares ${entry.count ?? 1}, found ${count})\n`)
+  }
 }
 if (live.length === 0) {
+  if (stale.length > 0) process.exit(1)
   process.stdout.write('\n0 unacknowledged style hazards\n')
   process.exit(0)
 }
-findings.length = 0
-findings.push(...live)
 const byRule = new Map()
-for (const finding of findings) byRule.set(finding.rule, [...(byRule.get(finding.rule) ?? []), finding])
+for (const finding of live) byRule.set(finding.rule, [...(byRule.get(finding.rule) ?? []), finding])
+process.stdout.write('\n')
 for (const [rule, group] of byRule) {
   process.stdout.write(`${rule} (${group.length})\n`)
   for (const finding of group) {
     process.stdout.write(`  ${finding.module.replace('hlp.ui.', '').padEnd(22)}${finding.detail}\n`)
   }
 }
-process.stdout.write(`\n${findings.length} style hazard(s)\n`)
+process.stdout.write(`\n${live.length} style hazard(s)\n`)
 process.exit(1)
