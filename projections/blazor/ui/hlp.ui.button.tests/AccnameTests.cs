@@ -149,6 +149,152 @@ public sealed class AccnameTests : BunitContext
         Assert.Equal("Text", Accname.AccessibleName(cut.Find("#text")));
     }
 
+    // ---- 2A judged against the shown state: the root and its ancestors count as shown ----
+
+    [Fact]
+    public void InsideACollapsedPanelALabelsHiddenTextStillDoesNotCount()
+    {
+        // HarborlineFormField's required asterisk is aria-hidden; collapsing the panel must not expose it.
+        var cut = Markup("""<div hidden><label for="e"><span>Email</span><span aria-hidden="true">*</span></label><input id="e"></div>""");
+        Assert.Equal("Email", Accname.AccessibleName(cut.Find("input")));
+    }
+
+    [Fact]
+    public void InsideACollapsedPanelALabelledByTargetsHiddenDescendantsStillDoNotCount()
+    {
+        var cut = Markup("""
+            <section hidden>
+              <div role="dialog" aria-labelledby="t"></div>
+              <h2 id="t">Settings<span style="display:none"> draft</span><span hidden> beta</span><span aria-hidden="true"> *</span></h2>
+            </section>
+            """);
+        Assert.Equal("Settings", Accname.AccessibleName(cut.Find("[role=dialog]")));
+    }
+
+    [Fact]
+    public void InsideACollapsedPanelANameMadeOnlyOfHiddenTextIsEmpty()
+    {
+        var label = Markup("""<div hidden><label><span aria-hidden="true">Email</span><input id="e"></label></div>""");
+        Assert.Contains("has no accessible name", Fails(() => Accname.AccessibleName(label.Find("input"))).Message, StringComparison.Ordinal);
+        var dialog = Markup("""<div role="dialog" hidden aria-labelledby="t"><h2 id="t"><span aria-hidden="true">Settings</span></h2></div>""");
+        Assert.Contains("has no accessible name", Fails(() => Accname.AccessibleName(dialog.Find("[role=dialog]"))).Message, StringComparison.Ordinal);
+    }
+
+    // ---- 2C embedded controls ----
+
+    [Fact]
+    public void ADirectlyReferencedEmbeddedControlFailsAsNotCovered()
+    {
+        var name = Markup("""<div role="region" aria-labelledby="q"></div><label for="q">Search</label><input id="q" value="cats">""");
+        Assert.Contains("accname 2C embedded-control value not covered", Fails(() => Accname.AccessibleName(name.Find("[role=region]"))).Message, StringComparison.Ordinal);
+        var description = Markup("""<button aria-describedby="s">Go</button><select id="s"><option selected>One</option></select>""");
+        Assert.Contains("accname 2C embedded-control value not covered", Fails(() => Accname.AccessibleDescription(description.Find("button"))).Message, StringComparison.Ordinal);
+    }
+
+    // ---- elements that never contribute ----
+
+    [Fact]
+    public void ScriptStyleAndNoscriptNeverContributeEvenUnderAHiddenReferencedNode()
+    {
+        var cut = Markup("""
+            <div role="dialog" aria-labelledby="h" aria-describedby="h"></div>
+            <span id="h" hidden>Title<style>.x{color:red}</style><script>var a=1</script><noscript>Enable JS</noscript></span>
+            """);
+        Assert.Equal("Title", Accname.AccessibleName(cut.Find("[role=dialog]")));
+        Assert.Equal("Title", Accname.AccessibleDescription(cut.Find("[role=dialog]")));
+    }
+
+    [Fact]
+    public void AHiddenInputContributesNothingEvenWhenReferenced()
+    {
+        var cut = Markup("""<div role="region" aria-labelledby="v t"></div><input type="hidden" id="v" value="secret"><span id="t">Title</span>""");
+        Assert.Equal("Title", Accname.AccessibleName(cut.Find("[role=region]")));
+    }
+
+    // ---- 2E host-language label: presentational images, SVG title ----
+
+    [Fact]
+    public void APresentationalImageContributesNoAlt()
+    {
+        var cut = Markup("""
+            <button id="presentation"><img role="presentation" alt="Close"></button>
+            <button id="none"><img role="none" alt="Close"></button>
+            <button id="global"><img role="none" alt="Close" aria-describedby="d"></button><span id="d">x</span>
+            <button id="focusable"><img role="presentation" alt="Close" tabindex="-1"></button>
+            """);
+        Assert.Contains("has no accessible name", Fails(() => Accname.AccessibleName(cut.Find("#presentation"))).Message, StringComparison.Ordinal);
+        Assert.Contains("has no accessible name", Fails(() => Accname.AccessibleName(cut.Find("#none"))).Message, StringComparison.Ordinal);
+        // ARIA 1.2 presentational-role conflict: a global ARIA attribute or focusability keeps the image's semantics.
+        Assert.Equal("Close", Accname.AccessibleName(cut.Find("#global")));
+        Assert.Equal("Close", Accname.AccessibleName(cut.Find("#focusable")));
+    }
+
+    [Fact]
+    public void AnSvgIsNamedByItsFirstTitleChildAndItsDescNeverContributes()
+    {
+        var cut = Markup("""
+            <button id="close"><svg><title>Close</title><desc>An X shape</desc></svg></button>
+            <button id="save"><svg role="img"><desc>Floppy disk</desc><title>Save</title><title>Ignored</title><metadata>m</metadata></svg> file</button>
+            <button id="bare"><svg><desc>Only a description</desc><metadata>m</metadata></svg></button>
+            """);
+        Assert.Equal("Close", Accname.AccessibleName(cut.Find("#close")));
+        Assert.Equal("Save file", Accname.AccessibleName(cut.Find("#save")));
+        Assert.Contains("has no accessible name", Fails(() => Accname.AccessibleName(cut.Find("#bare"))).Message, StringComparison.Ordinal);
+    }
+
+    // ---- roles: summary, fallback tokens ----
+
+    [Fact]
+    public void TheFirstSummaryOfDetailsTakesItsNameFromContent()
+    {
+        var cut = Markup("""
+            <details><summary id="first">More info</summary><summary id="second">Second</summary><p>Body</p></details>
+            <summary id="loose">Loose</summary>
+            """);
+        Assert.Equal("More info", Accname.AccessibleName(cut.Find("#first")));
+        Fails(() => Accname.AccessibleName(cut.Find("#second")));
+        Fails(() => Accname.AccessibleName(cut.Find("#loose")));
+    }
+
+    [Fact]
+    public void TheFirstRoleTokenAria12RecognisesWins()
+    {
+        var cut = Markup("""<div id="fallback" role="foo button">Go</div><div id="unknown" role="foo bar">Go</div><div id="region" role="sectionhead region">Go</div>""");
+        Assert.Equal("Go", Accname.AccessibleName(cut.Find("#fallback")));
+        Fails(() => Accname.AccessibleName(cut.Find("#unknown")));
+        // sectionhead is abstract in ARIA 1.2, so region is the role, and a region does not take its name from content.
+        Fails(() => Accname.AccessibleName(cut.Find("#region")));
+    }
+
+    // ---- label[for]: the same strictness as the ARIA id references ----
+
+    [Fact]
+    public void ALabelForADuplicatedIdFails()
+    {
+        var cut = Markup("""<label for="f">Email</label><input id="f" class="one"><label for="f">Phone</label><input id="f" class="two">""");
+        Assert.Contains("for references id \"f\", which 2 elements carry", Fails(() => Accname.AccessibleName(cut.Find(".two"))).Message, StringComparison.Ordinal);
+        Assert.Contains("for references id \"f\", which 2 elements carry", Fails(() => Accname.AssertIdReferencesResolve(cut)).Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AnOrphanOrMisdirectedLabelForFailsTheWiringCheck()
+    {
+        var cut = Markup("""<label for="gone">Orphan</label><input id="g" title="Fallback"><span id="s">x</span><label for="s">Span</label><label for="">Empty</label>""");
+        Assert.Equal("Fallback", Accname.AccessibleName(cut.Find("#g")));
+        var wiring = Fails(() => Accname.AssertIdReferencesResolve(cut)).Message;
+        Assert.Contains("for references id \"gone\"", wiring, StringComparison.Ordinal);
+        Assert.Contains("for references id \"s\", which is on a <span>, not a labelable element", wiring, StringComparison.Ordinal);
+        Assert.Contains("for is present but names no id", wiring, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void SoundLabelWiringPasses()
+    {
+        var cut = Markup("""<label for="e">Email</label><input id="e"><label>Name <input id="n"></label>""");
+        Accname.AssertIdReferencesResolve(cut);
+        Assert.Equal("Email", Accname.AccessibleName(cut.Find("#e")));
+    }
+
     // ---- failures: empty name, broken and duplicate ids ----
 
     [Fact]

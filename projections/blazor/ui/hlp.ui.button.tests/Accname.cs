@@ -17,37 +17,45 @@ namespace Harborline.UIAdapters.Blazor.Tests;
 /// </para>
 /// <para>API: <see cref="AccessibleName"/>, <see cref="AccessibleDescription"/>, <see cref="AssertReferences"/>
 /// (one id-reference attribute points at exactly these elements) and <see cref="AssertIdReferencesResolve{TComponent}"/>
-/// (every aria-labelledby, aria-describedby and aria-controls in a render resolves). Elements may come straight
-/// from bUnit's <c>Find</c>/<c>FindAll</c>; ids resolve within the render the element belongs to.</para>
+/// (every aria-labelledby, aria-describedby, aria-controls and label <c>for</c> in a render resolves). Elements
+/// may come straight from bUnit's <c>Find</c>/<c>FindAll</c>; ids resolve within the render the element belongs to.</para>
 /// <para>Covered accname 1.2 steps:</para>
 /// <list type="bullet">
-/// <item>2A hidden: the <c>hidden</c> attribute, <c>aria-hidden="true"</c>, an inline <c>display:none</c> or
-/// <c>visibility:hidden|collapse</c>, <c>input type=hidden</c>, <c>script</c>, <c>style</c> and
-/// <c>template</c>. A node referenced directly by aria-labelledby or aria-describedby (or a label) that is
-/// hidden still contributes, hidden descendants included. Stylesheet-driven hiding is invisible here.</item>
+/// <item>2A hidden: the <c>hidden</c> attribute, <c>aria-hidden="true"</c> and an inline <c>display:none</c> or
+/// <c>visibility:hidden|collapse</c>, judged as if the root were shown: the root and its ancestors count as
+/// shown, so a root inside a collapsed panel is named as it will be once the panel opens. A node referenced
+/// directly by aria-labelledby or aria-describedby (or a label) that is hidden apart from that chain still
+/// contributes, hidden descendants included. Stylesheet-driven hiding is invisible here. <c>script</c>,
+/// <c>style</c>, <c>noscript</c>, <c>template</c>, <c>input type=hidden</c> and SVG <c>desc</c>/<c>metadata</c>
+/// never contribute.</item>
 /// <item>2B aria-labelledby: every IDREF in attribute order, results joined by a space; a node already
 /// inside a labelledby/describedby traversal does not follow its own aria-labelledby; an empty result
 /// falls through to the next step.</item>
 /// <item>2D aria-label, when not blank.</item>
-/// <item>2E host-language label: <c>label[for]</c> and a wrapping <c>label</c> for labelable elements
-/// (several labels join in tree order), and <c>img</c>/<c>area</c> <c>alt</c>.</item>
-/// <item>2F/2H name from content: for the roles ARIA 1.2 marks "Name From: contents" (explicit
-/// <c>role</c>, or the implicit role of button, a/area[href], h1-h6, td, th, tr, option and button-like
-/// input types), for a referenced node or label, and for every descendant during that recursion. Inline
-/// children concatenate as written; block-level HTML children are separated by a space, as browsers do
-/// (accname 1.2 leaves CSS-display spacing as an open note).</item>
+/// <item>2E host-language label, unless the element is presentational (role none|presentation with no global
+/// ARIA attribute and no focusability, per ARIA 1.2 conflict resolution): <c>img</c>/<c>area</c> <c>alt</c>; an
+/// SVG element's first <c>title</c> child; and, for labelable elements, each <c>label</c> whose <c>for</c>
+/// resolves to it plus a wrapping <c>label</c> whose first labelable descendant it is (several labels join in
+/// tree order).</item>
+/// <item>2F/2H name from content: for the roles ARIA 1.2 marks "Name From: contents" (the first role token ARIA
+/// 1.2 recognises, else the implicit role of button, a/area[href], h1-h6, td, th, tr, option and button-like
+/// input types), the first <c>summary</c> of a <c>details</c>, a referenced node or label, and every descendant
+/// during that recursion. Inline children concatenate as written; block-level HTML children are separated by a
+/// space, as browsers do (accname 1.2 leaves CSS-display spacing as an open note).</item>
 /// <item>2G text nodes; the final string has whitespace collapsed and trimmed.</item>
 /// <item>2I tooltip: <c>title</c>, last.</item>
 /// <item>§4.2 description: aria-describedby (IDREFs in order), else <c>aria-description</c>.</item>
 /// </list>
-/// <para>Not covered: step 1's roles that prohibit naming; 2C embedded-control values (an input, select or
-/// textarea met during recursion contributes nothing); CSS generated content (<c>::before</c>/<c>::after</c>);
-/// shadow DOM and slots; SVG <c>title</c>; <c>fieldset</c>/<c>legend</c>, <c>table</c>/<c>caption</c>,
+/// <para>Not covered: step 1's roles that prohibit naming; 2C embedded-control values (an input, select,
+/// textarea or textbox/combobox/listbox/slider/spinbutton met during recursion contributes nothing, and one
+/// referenced directly by aria-labelledby or aria-describedby fails as not covered); CSS generated content
+/// (<c>::before</c>/<c>::after</c>); shadow DOM and slots; <c>fieldset</c>/<c>legend</c>, <c>table</c>/<c>caption</c>,
 /// <c>figure</c>/<c>figcaption</c> and an input's <c>value</c>/<c>placeholder</c>; <c>title</c> as a description.</para>
-/// <para>Deliberate strictness, because this is an assertion helper rather than a user agent: an IDREF that
-/// matches no element or several elements fails (a browser would skip it); a reference attribute that is
-/// present but names no id fails; an empty name fails; and the element passed in is named even while it is
-/// hidden itself, so a collapsed panel's wiring can be asserted (assert its visibility separately).</para>
+/// <para>Deliberate strictness, because this is an assertion helper rather than a user agent: an IDREF (or a
+/// label's <c>for</c>) that matches no element or several elements fails, where a browser would skip it or take
+/// the first; a reference attribute that is present but names no id fails; an empty name fails; and the element
+/// passed in is named even while it is hidden itself, so a collapsed panel's wiring can be asserted (assert its
+/// visibility separately).</para>
 /// </summary>
 internal static class Accname
 {
@@ -62,6 +70,29 @@ internal static class Accname
         "button", "cell", "checkbox", "columnheader", "gridcell", "heading", "link", "menuitem", "menuitemcheckbox",
         "menuitemradio", "option", "radio", "row", "rowheader", "switch", "tab", "tooltip", "treeitem",
     };
+
+    // ARIA 1.2's non-abstract roles: Role() takes the first token of a role attribute that names one of these.
+    private static readonly HashSet<string> Aria12Roles = new(StringComparer.Ordinal)
+    {
+        "alert", "alertdialog", "application", "article", "banner", "blockquote", "button", "caption", "cell", "checkbox",
+        "code", "columnheader", "combobox", "complementary", "contentinfo", "definition", "deletion", "dialog", "directory",
+        "document", "emphasis", "feed", "figure", "form", "generic", "grid", "gridcell", "group", "heading", "img",
+        "insertion", "link", "list", "listbox", "listitem", "log", "main", "marquee", "math", "menu", "menubar", "menuitem",
+        "menuitemcheckbox", "menuitemradio", "meter", "navigation", "none", "note", "option", "paragraph", "presentation",
+        "progressbar", "radio", "radiogroup", "region", "row", "rowgroup", "rowheader", "scrollbar", "search", "searchbox",
+        "separator", "slider", "spinbutton", "status", "strong", "subscript", "superscript", "switch", "tab", "table",
+        "tablist", "tabpanel", "term", "textbox", "time", "timer", "toolbar", "tooltip", "tree", "treegrid", "treeitem",
+    };
+
+    // ARIA 1.2 §6.4 global states and properties: any of them keeps a role=none|presentation element's semantics.
+    private static readonly string[] GlobalAriaAttributes =
+    [
+        "aria-atomic", "aria-busy", "aria-controls", "aria-current", "aria-describedby", "aria-details", "aria-disabled",
+        "aria-dropeffect", "aria-errormessage", "aria-flowto", "aria-grabbed", "aria-haspopup", "aria-hidden", "aria-invalid",
+        "aria-keyshortcuts", "aria-label", "aria-labelledby", "aria-live", "aria-owns", "aria-relevant", "aria-roledescription",
+    ];
+
+    private const string SvgNamespace = "http://www.w3.org/2000/svg";
 
     // HTML elements whose default display is not inline; their text is set apart by a space.
     private static readonly HashSet<string> BlockElements = new(StringComparer.Ordinal)
@@ -78,7 +109,8 @@ internal static class Accname
 
     private enum Visit { Root, Referenced, Descendant }
 
-    private readonly record struct Traversal(IReadOnlyList<IElement> Scope, bool InReference, bool IncludeHidden);
+    // Shown: the root and its ancestors. They count as shown, so 2A is judged as if the root were displayed.
+    private readonly record struct Traversal(IReadOnlyList<IElement> Scope, IReadOnlySet<INode> Shown, bool InReference, bool IncludeHidden);
 
     /// <summary>
     /// The accessible name of <paramref name="element"/>. Fails when the name is empty, or when an
@@ -88,7 +120,7 @@ internal static class Accname
     {
         ArgumentNullException.ThrowIfNull(element);
         element = InTree(element);
-        var name = Flatten(TextAlternative(element, Visit.Root, new Traversal(Scope(element), InReference: false, IncludeHidden: false)));
+        var name = Flatten(TextAlternative(element, Visit.Root, new Traversal(Scope(element), ShownChain(element), InReference: false, IncludeHidden: false)));
         if (name.Length == 0) throw new XunitException($"{Describe(element)} has no accessible name (accname 1.2: no aria-labelledby text, aria-label, native label, name from content or title).");
         return name;
     }
@@ -102,7 +134,7 @@ internal static class Accname
         ArgumentNullException.ThrowIfNull(element);
         element = InTree(element);
         var scope = Scope(element);
-        if (element.HasAttribute("aria-describedby")) return Flatten(ReferencedText(element, "aria-describedby", scope));
+        if (element.HasAttribute("aria-describedby")) return Flatten(ReferencedText(element, "aria-describedby", scope, ShownChain(element)));
         return Flatten(element.GetAttribute("aria-description") ?? string.Empty);
     }
 
@@ -143,13 +175,24 @@ internal static class Accname
                 try
                 {
                     Resolve(element, attribute, scope);
-                    if (attribute == "aria-labelledby" && Flatten(ReferencedText(element, attribute, scope)).Length == 0)
+                    if (attribute == "aria-labelledby" && Flatten(ReferencedText(element, attribute, scope, ShownChain(element))).Length == 0)
                         failures.Add($"{Describe(element)}: aria-labelledby resolves to an empty name.");
                 }
                 catch (XunitException failure)
                 {
                     failures.Add(failure.Message);
                 }
+            }
+            if (element.LocalName != "label" || !element.HasAttribute("for")) continue;
+            try
+            {
+                var target = Resolve(element, "for", scope)[0];
+                if (!IsLabelable(target))
+                    failures.Add($"{Describe(element)}: for references id \"{target.Id}\", which is on a <{target.LocalName}>, not a labelable element.");
+            }
+            catch (XunitException failure)
+            {
+                failures.Add(failure.Message);
             }
         }
         if (failures.Count > 0) throw new XunitException($"Id references do not resolve:{Environment.NewLine}{string.Join(Environment.NewLine, failures)}");
@@ -159,31 +202,43 @@ internal static class Accname
     private static string TextAlternative(INode node, Visit visit, Traversal traversal)
     {
         if (node is IText text) return text.Data;                                                     // 2G
-        if (node is not IElement element) return string.Empty;
+        if (node is not IElement element || NeverContributes(element)) return string.Empty;
 
-        if (visit != Visit.Root && !traversal.IncludeHidden && IsHidden(element)) return string.Empty;   // 2A
+        if (visit != Visit.Root && !traversal.IncludeHidden && !traversal.Shown.Contains(element) && IsHidden(element))
+            return string.Empty;                                                                       // 2A
 
         if (!traversal.InReference && element.HasAttribute("aria-labelledby"))                          // 2B
         {
-            var labelled = ReferencedText(element, "aria-labelledby", traversal.Scope);
+            var labelled = ReferencedText(element, "aria-labelledby", traversal.Scope, traversal.Shown);
             if (Flatten(labelled).Length > 0) return labelled;
         }
 
-        if (visit == Visit.Descendant && IsEmbeddedControl(element)) return string.Empty;              // 2C: not covered
+        if (visit != Visit.Root && IsEmbeddedControl(element))                                          // 2C: not covered
+        {
+            if (visit == Visit.Referenced)
+                throw new XunitException($"{Describe(element)}: accname 2C embedded-control value not covered; this helper cannot name through a control referenced directly by aria-labelledby or aria-describedby.");
+            return string.Empty;
+        }
 
         var ariaLabel = element.GetAttribute("aria-label");                                            // 2D
         if (!string.IsNullOrWhiteSpace(ariaLabel)) return ariaLabel;
 
-        if (element.LocalName is "img" or "area" && element.HasAttribute("alt"))                       // 2E
-            return element.GetAttribute("alt") ?? string.Empty;
+        if (!IsPresentational(element))                                                                // 2E
+        {
+            if (element.LocalName is "img" or "area" && element.HasAttribute("alt")) return element.GetAttribute("alt") ?? string.Empty;
+            if (element.NamespaceUri == SvgNamespace
+                && element.Children.FirstOrDefault(child => child.LocalName == "title" && child.NamespaceUri == SvgNamespace) is { } svgTitle
+                && Flatten(svgTitle.TextContent).Length > 0)
+                return svgTitle.TextContent;
+        }
         if (visit != Visit.Descendant && IsLabelable(element))
         {
             var labels = string.Join(" ", Labels(element, traversal.Scope).Select(label =>
-                TextAlternative(label, Visit.Referenced, traversal with { IncludeHidden = IsHiddenInTree(label) })));
+                TextAlternative(label, Visit.Referenced, traversal with { IncludeHidden = IsHiddenInTree(label, traversal.Shown) })));
             if (Flatten(labels).Length > 0) return labels;
         }
 
-        if (visit != Visit.Root || NameFromContentRoles.Contains(Role(element) ?? string.Empty))      // 2F, 2H
+        if (visit != Visit.Root || TakesNameFromContent(element))                                     // 2F, 2H
         {
             var content = string.Concat(element.ChildNodes.Select(child =>
             {
@@ -197,13 +252,17 @@ internal static class Accname
     }
 
     // 2B / §4.2: the text of each referenced node, in attribute order, joined by a space.
-    private static string ReferencedText(IElement element, string attribute, IReadOnlyList<IElement> scope) =>
+    private static string ReferencedText(IElement element, string attribute, IReadOnlyList<IElement> scope, IReadOnlySet<INode> shown) =>
         string.Join(" ", Resolve(element, attribute, scope).Select(target =>
-            TextAlternative(target, Visit.Referenced, new Traversal(scope, InReference: true, IncludeHidden: IsHiddenInTree(target)))));
+            TextAlternative(target, Visit.Referenced, new Traversal(scope, shown, InReference: true, IncludeHidden: IsHiddenInTree(target, shown)))));
 
     private static List<IElement> Resolve(IElement element, string attribute, IReadOnlyList<IElement> scope)
     {
-        var ids = (element.GetAttribute(attribute) ?? string.Empty).Split(AsciiWhitespace, StringSplitOptions.RemoveEmptyEntries);
+        // aria-* attributes hold a whitespace-separated IDREF list; label's for holds exactly one id, verbatim.
+        var value = element.GetAttribute(attribute) ?? string.Empty;
+        var ids = attribute == "for"
+            ? (string.IsNullOrWhiteSpace(value) ? [] : [value])
+            : value.Split(AsciiWhitespace, StringSplitOptions.RemoveEmptyEntries);
         if (ids.Length == 0) throw new XunitException($"{Describe(element)}: {attribute} is present but names no id.");
         var targets = new List<IElement>(ids.Length);
         foreach (var id in ids)
@@ -216,11 +275,32 @@ internal static class Accname
         return targets;
     }
 
-    // The labels of a labelable element, in tree order: label[for=its id], and the label wrapping it.
-    private static IEnumerable<IElement> Labels(IElement element, IReadOnlyList<IElement> scope) =>
-        scope.Where(label => label.LocalName == "label" && (label.HasAttribute("for")
-            ? !string.IsNullOrEmpty(element.Id) && string.Equals(label.GetAttribute("for"), element.Id, StringComparison.Ordinal)
-            : ReferenceEquals(label.GetDescendants().OfType<IElement>().FirstOrDefault(IsLabelable), element)));
+    // The labels of a labelable element, in tree order: each label whose for resolves to it (strictly, so a
+    // duplicated id fails as it does for aria-labelledby), and a label without for whose first labelable
+    // descendant it is.
+    private static IEnumerable<IElement> Labels(IElement element, IReadOnlyList<IElement> scope)
+    {
+        foreach (var label in scope.Where(candidate => candidate.LocalName == "label"))
+        {
+            if (label.HasAttribute("for"))
+            {
+                if (string.IsNullOrEmpty(element.Id) || !string.Equals(label.GetAttribute("for"), element.Id, StringComparison.Ordinal)) continue;
+                if (ReferenceEquals(Resolve(label, "for", scope)[0], element)) yield return label;
+            }
+            else if (ReferenceEquals(label.GetDescendants().OfType<IElement>().FirstOrDefault(IsLabelable), element))
+            {
+                yield return label;
+            }
+        }
+    }
+
+    // The root and every ancestor up to the document: what 2A treats as shown.
+    private static HashSet<INode> ShownChain(IElement root)
+    {
+        var shown = new HashSet<INode>(ReferenceEqualityComparer.Instance);
+        for (INode? current = root; current is not null; current = current.Parent) shown.Add(current);
+        return shown;
+    }
 
     // bUnit's Find returns an auto-refreshing wrapper, which is not itself a node of the parsed tree; its
     // sibling and parent links are the tree's, so step out and back in to reach the node the tree holds.
@@ -237,8 +317,9 @@ internal static class Accname
 
     private static string? Role(IElement element)
     {
-        var explicitRole = element.GetAttribute("role")?.Split(AsciiWhitespace, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault();
-        if (explicitRole is not null) return explicitRole.ToLowerInvariant();
+        var explicitRole = (element.GetAttribute("role") ?? string.Empty).Split(AsciiWhitespace, StringSplitOptions.RemoveEmptyEntries)
+            .Select(token => token.ToLowerInvariant()).FirstOrDefault(Aria12Roles.Contains);
+        if (explicitRole is not null) return explicitRole;
         return element.LocalName switch
         {
             "button" => "button",
@@ -264,16 +345,40 @@ internal static class Accname
     private static bool IsHidden(IElement element) =>
         element.HasAttribute("hidden")
         || string.Equals(element.GetAttribute("aria-hidden")?.Trim(), "true", StringComparison.OrdinalIgnoreCase)
-        || StyleHidden.IsMatch(element.GetAttribute("style") ?? string.Empty)
-        || element.LocalName is "script" or "style" or "template"
-        || (element.LocalName == "input" && InputType(element) == "hidden");
+        || StyleHidden.IsMatch(element.GetAttribute("style") ?? string.Empty);
 
-    private static bool IsHiddenInTree(IElement element)
+    // Hidden by itself or by an ancestor, stopping at the shown chain: a target inside the same collapsed
+    // panel as the root is judged as the panel would be once shown.
+    private static bool IsHiddenInTree(IElement element, IReadOnlySet<INode> shown)
     {
-        for (var current = element; current is not null; current = current.ParentElement)
+        for (var current = element; current is not null && !shown.Contains(current); current = current.ParentElement)
             if (IsHidden(current)) return true;
         return false;
     }
+
+    // Never rendered as text, even inside a hidden node referenced directly (2A's exception): script, style,
+    // noscript, template (whose content AngleSharp keeps outside the tree anyway), input type=hidden, and SVG
+    // desc and metadata. An SVG title is read only by its parent's 2E rule, never as content.
+    private static bool NeverContributes(IElement element) =>
+        element.LocalName is "script" or "style" or "noscript" or "template"
+        || (element.LocalName == "input" && InputType(element) == "hidden")
+        || (element.NamespaceUri == SvgNamespace && element.LocalName is "title" or "desc" or "metadata");
+
+    // ARIA 1.2 presentational-role conflict resolution: role none|presentation holds only without a global
+    // ARIA attribute and on an element that cannot take focus.
+    private static bool IsPresentational(IElement element) =>
+        Role(element) is "none" or "presentation"
+        && !GlobalAriaAttributes.Any(element.HasAttribute)
+        && !element.HasAttribute("tabindex")
+        && !(element.LocalName is "a" or "area" && element.HasAttribute("href"))
+        && element.LocalName is not ("button" or "input" or "select" or "textarea");
+
+    // A role that takes its name from content, or (with no explicit role) the first summary child of details.
+    private static bool TakesNameFromContent(IElement element) =>
+        Role(element) is { } role
+            ? NameFromContentRoles.Contains(role)
+            : element.LocalName == "summary" && element.ParentElement is { LocalName: "details" } details
+              && ReferenceEquals(details.Children.FirstOrDefault(child => child.LocalName == "summary"), element);
 
     private static bool IsLabelable(IElement element) =>
         element.LocalName is "button" or "meter" or "output" or "progress" or "select" or "textarea"
