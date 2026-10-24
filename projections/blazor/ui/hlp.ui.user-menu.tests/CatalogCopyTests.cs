@@ -118,6 +118,20 @@ public sealed class CatalogCopyTests : BunitContext
         Assert.Equal("⟦ Notifications, 2 ûñŕéåð ··· ⟧", BellName(cut));
     }
 
+    [Fact]
+    public void ACallerBellLabelWinsOverTheCatalog()
+    {
+        var catalog = new Dictionary<string, string> { ["navigation.notifications.bell.unread.other"] = "{title}، {count} غير مقروء" };
+        RenderFragment center = builder =>
+        {
+            builder.OpenComponent<HarborlineNotificationCenter>(0);
+            builder.AddComponentParameter(1, nameof(HarborlineNotificationCenter.Items), new NotificationCenterItem[] { new("p1", "Approve export", "now", "proposal"), new("r1", "Export ready", "later", "result") });
+            builder.AddComponentParameter(2, nameof(HarborlineNotificationCenter.GetBellLabel), (Func<NotificationCounts, string>)(counts => $"Inbox ({counts.Unread})"));
+            builder.CloseComponent();
+        };
+        Assert.Equal("Inbox (2)", Localized("ar-SA", catalog, center).Find(".hl-notification-center__trigger").GetAttribute("aria-label"));
+    }
+
     // ── Switch ──
     [Fact]
     public void SwitchTakesItsStateCopyFromTheDefaultCatalogWithoutAProvider()

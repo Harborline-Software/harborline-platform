@@ -70,4 +70,9 @@ describe('NotificationCenter catalog-backed copy', () => {
     view.rerender(<HarborlineLocaleProvider locale="en-XA" catalog={{ 'navigation.notifications.bell.unread.other': '⟦ {title}, {count} ûñŕéåð ··· ⟧' }}>{center()}</HarborlineLocaleProvider>)
     expect(bellName()).toBe('⟦ Notifications, 2 ûñŕéåð ··· ⟧')
   })
+
+  it('lets a caller bell label win over the catalog', () => {
+    render(<HarborlineLocaleProvider locale="ar-SA" catalog={{ 'navigation.notifications.bell.unread.other': '{title}، {count} غير مقروء' }}><NotificationCenter items={items} getBellLabel={({ unread }) => `Inbox (${unread})`}/></HarborlineLocaleProvider>)
+    expect(document.querySelector('.hl-notification-center__trigger')!.getAttribute('aria-label')).toBe('Inbox (2)')
+  })
 })
