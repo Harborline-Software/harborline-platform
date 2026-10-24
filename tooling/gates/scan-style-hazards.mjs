@@ -167,7 +167,9 @@ function splitVar(value) {
   return {name: value.slice(4).trim(), fallback: undefined}
 }
 
-function scanTextColourFallbacks(moduleId, css) {
+// The module's rules outside forced-colors, and a resolver for every value a declaration can end at
+// when no host token reaches it (following module-local custom properties, trusting no host token).
+function unthemedRules(css) {
   const source = withoutForcedColours(css).replace(/\/\*[\s\S]*?\*\//g, '')
   const rules = [...source.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map(match => ({selector: match[1].trim(), body: match[2]}))
   const local = new Map()
@@ -176,7 +178,6 @@ function scanTextColourFallbacks(moduleId, css) {
       local.set(declaration[1], [...(local.get(declaration[1]) ?? []), declaration[2].trim()])
     }
   }
-  // Every value the declaration can end at when no host token reaches it.
   const terminals = (value, seen) => {
     const bare = value.replace(/!important/, '').trim()
     if (!bare.startsWith('var(')) return [bare]
@@ -184,6 +185,11 @@ function scanTextColourFallbacks(moduleId, css) {
     if (local.has(name) && !seen.has(name)) return local.get(name).flatMap(definition => terminals(definition, new Set([...seen, name])))
     return fallback === undefined ? [] : terminals(fallback, seen)
   }
+  return {rules, terminals}
+}
+
+function scanTextColourFallbacks(moduleId, css) {
+  const {rules, terminals} = unthemedRules(css)
   for (const rule of rules) {
     // The exemption is per selector: in `.x:disabled, .x__hint { ... }` the hint still owes contrast.
     const enabled = selectorList(rule.selector).filter(selector => !DISABLED_SELECTOR.test(selector))
@@ -194,6 +200,69 @@ function scanTextColourFallbacks(moduleId, css) {
       report('text-colour-falls-to-non-text-system-colour', moduleId,
         `${enabled.join(', ').replace(/\s+/g, ' ')} { color: ${declaration[1].trim()} } can fall back to ${reached.join(', ')}, `
         + 'which is not a text colour outside forced-colors')
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// R5 — R4's sibling for NON-TEXT indicators (WCAG 2.2 SC 1.4.11 Non-text Contrast, 3:1). A focus
+// ring or a meaningful indicator whose fallback chain ends in Highlight (about 1.5:1 on Canvas),
+// SelectedItem (its forced-colors twin), Mark (1.07:1) or GrayText (the UA's disabled colour, which
+// signals "unavailable" and is not specified to reach any contrast) is invisible or misleading when
+// no host token reaches it, which is exactly the portaled-overlay case R4 describes. b20 found the
+// notification-center unread dot (role="img") and its focus ring on Highlight. Narrow by design:
+//   - outline and outline-color, in any enabled selector (an outline is a focus indicator here);
+//   - the colour of box-shadow, only in selectors that mention :focus (a shadow is decoration
+//     elsewhere);
+//   - background and background-color, only on the named indicator classes below, whose fill is
+//     the indicator itself.
+// Only a whole terminal counts, as in R4: color-mix(in srgb, Highlight 12%, Canvas) is a tint whose
+// contrast depends on its partner, and is left to the rendered gallery. Forced-colors blocks and
+// disabled selectors are exempt for R4's reasons.
+const NON_TEXT_INDICATOR_FALLBACKS = /^(Highlight|SelectedItem|Mark|GrayText)$/i
+const INDICATOR_CLASSES = /__(unread|dot|indicator|marker)\b/
+const FOCUS_SELECTOR = /:focus/
+
+// Every top-level var(...) in a declaration value, plus the bare words outside them.
+function valueParts(value) {
+  const parts = []
+  let rest = ''
+  for (let cursor = 0; cursor < value.length;) {
+    if (value.startsWith('var(', cursor)) {
+      let depth = 0
+      let end = cursor
+      for (; end < value.length; end += 1) {
+        if (value[end] === '(') depth += 1
+        else if (value[end] === ')' && --depth === 0) break
+      }
+      parts.push(value.slice(cursor, end + 1))
+      rest += ' '
+      cursor = end + 1
+    } else {
+      rest += value[cursor]
+      cursor += 1
+    }
+  }
+  return [...parts, ...rest.replace(/!important/, '').split(/[\s,]+/).filter(Boolean)]
+}
+
+function scanNonTextIndicatorFallbacks(moduleId, css) {
+  const {rules, terminals} = unthemedRules(css)
+  for (const rule of rules) {
+    const enabled = selectorList(rule.selector).filter(selector => !DISABLED_SELECTOR.test(selector))
+    if (enabled.length === 0) continue
+    for (const declaration of rule.body.matchAll(/(?:^|;)\s*(outline|outline-color|box-shadow|background|background-color)\s*:\s*([^;]+)/g)) {
+      const [, property, value] = declaration
+      let selectors = enabled
+      if (property === 'box-shadow') selectors = enabled.filter(selector => FOCUS_SELECTOR.test(selector))
+      if (property.startsWith('background')) selectors = enabled.filter(selector => INDICATOR_CLASSES.test(selector))
+      if (selectors.length === 0) continue
+      const reached = [...new Set(valueParts(value).flatMap(part => terminals(part, new Set()))
+        .filter(terminal => NON_TEXT_INDICATOR_FALLBACKS.test(terminal)))]
+      if (reached.length === 0) continue
+      report('indicator-falls-to-low-contrast-system-colour', moduleId,
+        `${selectors.join(', ').replace(/\s+/g, ' ')} { ${property}: ${value.trim()} } can fall back to ${reached.join(', ')}, `
+        + 'which does not reach 3:1 non-text contrast on Canvas outside forced-colors')
     }
   }
 }
@@ -215,6 +284,7 @@ for (const moduleId of readdirSync(specRoot).filter(name => name.startsWith('hlp
   const css = readFileSync(stylePath, 'utf8')
   scanForegroundFallbacks(moduleId, css)
   scanTextColourFallbacks(moduleId, css)
+  scanNonTextIndicatorFallbacks(moduleId, css)
   scanLaneCoverage(moduleId, css, blazorSheets)
 
   const sources = []
@@ -253,7 +323,23 @@ if (canary) {
     '.x__a{color:var(--hl-a,SelectedItem)}.x__b{color:var(--hl-b,ButtonBorder)}'))
   probe('text-colour-falls-to-non-text-system-colour (enabled selector beside a disabled one)', () => scanTextColourFallbacks('canary',
     '.x:disabled,.x__hint{color:var(--hl-muted-foreground,GrayText)}'))
+  probe('indicator-falls-to-low-contrast-system-colour (focus outline via a local token)', () => scanNonTextIndicatorFallbacks('canary',
+    '.x{--hl-x-focus:var(--hl-focus,Highlight)}.x button:focus-visible{outline:2px solid var(--hl-x-focus)}'))
+  probe('indicator-falls-to-low-contrast-system-colour (outline-color, lower-case keyword)', () => scanNonTextIndicatorFallbacks('canary',
+    '.x:focus-visible{outline-color:var(--hl-ring,highlight)}'))
+  probe('indicator-falls-to-low-contrast-system-colour (focus box-shadow)', () => scanNonTextIndicatorFallbacks('canary',
+    '.x:focus-visible{box-shadow:0 0 0 2px var(--hl-ring,Mark)}'))
+  probe('indicator-falls-to-low-contrast-system-colour (indicator background)', () => scanNonTextIndicatorFallbacks('canary',
+    '.x__unread{background:var(--hl-primary,Highlight)}'))
   // And the exemptions must hold: these may NOT fire.
+  quiet('indicator rule: forced-colors outline', () => scanNonTextIndicatorFallbacks('canary',
+    '@media (forced-colors: active){.x:focus-visible{outline-color:Highlight}}'))
+  quiet('indicator rule: box-shadow outside :focus', () => scanNonTextIndicatorFallbacks('canary',
+    '.x{box-shadow:0 1px 2px var(--hl-shadow,Highlight)}'))
+  quiet('indicator rule: background on a non-indicator class', () => scanNonTextIndicatorFallbacks('canary',
+    '.x__tab[aria-selected="true"]{background:var(--hl-accent,Highlight)}'))
+  quiet('indicator rule: CanvasText-based fallback', () => scanNonTextIndicatorFallbacks('canary',
+    '.x:focus-visible{outline:2px solid var(--hl-focus,color-mix(in srgb,CanvasText 72%,Canvas))}.x__dot{background:var(--hl-primary,CanvasText)}'))
   quiet('forced-colors block under a media type', () => scanTextColourFallbacks('canary',
     '@media screen and (forced-colors: active){.x__copy{color:GrayText}}'))
   quiet('disabled-only selector list', () => scanTextColourFallbacks('canary',
@@ -275,6 +361,23 @@ const ACKNOWLEDGED = new Map([
   // style.css re-pins the page's recorded design-review approval (design-surface-inputs), which is
   // the owner's call, not a tooling batch's. Fixing it makes this entry stale and the scan red.
   ['text-colour-falls-to-non-text-system-colour:hlp.ui.page', 'b19 follow-up: owner design re-review needed to change page style.css'],
+  // R5 (b20) fixed every overlay module (notification-center, popover, window, confirm-dialog; dialog,
+  // sheet, spotlight and user-menu were clean). These are real findings, not false positives, left
+  // for a follow-up: in-page controls that render inside the host's themed subtree (no portal), so
+  // the Highlight/Mark fallback is latent. page, schema-form and tooltip also carry a live
+  // design-review approval that pins style.css, so changing them is the owner's call. Fixing any
+  // one makes its entry stale and the scan red.
+  ...[
+    ['page', 'b20 follow-up: focus ring falls to Highlight; owner design re-review needed to change page style.css'],
+    ['schema-form', 'b20 follow-up: focus ring falls to Highlight; owner design re-review needed to change schema-form style.css'],
+    ['tooltip', 'b20 follow-up: trigger focus ring falls to Highlight; owner design re-review needed to change tooltip style.css'],
+    ['date-field', 'b20 follow-up: focus ring falls to Highlight (in-page control, outside the overlay scope)'],
+    ['date-time-field', 'b20 follow-up: focus ring falls to Highlight (in-page control, outside the overlay scope)'],
+    ['gantt', 'b20 follow-up: focus rings fall to Highlight (in-page control, outside the overlay scope)'],
+    ['layers-rail', 'b20 follow-up: focus ring falls to Highlight (in-page control, outside the overlay scope)'],
+    ['radio-group', 'b20 follow-up: focus ring to Highlight, error outline to Mark (in-page control, outside the overlay scope)'],
+    ['scroll-affordance', 'b20 follow-up: focus ring falls to Highlight (in-page control, outside the overlay scope)'],
+  ].map(([module, reason]) => [`indicator-falls-to-low-contrast-system-colour:hlp.ui.${module}`, reason]),
 ])
 
 const key = finding => `${finding.rule}:${finding.module}`
