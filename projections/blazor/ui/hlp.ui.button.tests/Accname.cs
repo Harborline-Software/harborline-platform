@@ -28,14 +28,16 @@ namespace Harborline.UIAdapters.Blazor.Tests;
 /// shown, so a root inside a collapsed panel is named as it will be once the panel opens. A node referenced
 /// directly by aria-labelledby or aria-describedby (or a label) that is hidden apart from that chain still
 /// contributes, hidden descendants included. Stylesheet-driven hiding is invisible here. <c>script</c>,
-/// <c>style</c>, <c>noscript</c>, <c>template</c>, <c>input type=hidden</c> and SVG <c>desc</c>/<c>metadata</c>
-/// never contribute.</item>
+/// <c>style</c>, <c>noscript</c>, <c>template</c> and <c>input type=hidden</c> never contribute. SVG
+/// <c>title</c>, <c>desc</c> and <c>metadata</c> never contribute as content, but one referenced directly by
+/// aria-labelledby or aria-describedby contributes its text (the usual accessible inline-SVG wiring).</item>
 /// <item>2B aria-labelledby: every IDREF in attribute order, results joined by a space; a node already
 /// inside a labelledby/describedby traversal does not follow its own aria-labelledby; an empty result
 /// falls through to the next step.</item>
 /// <item>2D aria-label, when not blank.</item>
-/// <item>2E host-language label, unless the element is presentational (role none|presentation with no global
-/// ARIA attribute and no focusability, per ARIA 1.2 conflict resolution): <c>img</c>/<c>area</c> <c>alt</c>; an
+/// <item>2E host-language label, unless the element is presentational (role none|presentation; per ARIA 1.2
+/// conflict resolution that token is ignored on an element that is focusable or carries a global ARIA
+/// attribute, for every rule that reads the role): <c>img</c>/<c>area</c> <c>alt</c>; an
 /// SVG element's first <c>title</c> child; and, for labelable elements, each <c>label</c> whose <c>for</c>
 /// resolves to it plus a wrapping <c>label</c> whose first labelable descendant it is (several labels join in
 /// tree order).</item>
@@ -49,7 +51,7 @@ namespace Harborline.UIAdapters.Blazor.Tests;
 /// <item>§4.2 description: aria-describedby (IDREFs in order), else <c>aria-description</c>.</item>
 /// </list>
 /// <para>Not covered: step 1's roles that prohibit naming; 2C embedded-control values (an input, select,
-/// textarea or textbox/combobox/listbox/slider/spinbutton met during recursion contributes nothing, and one
+/// textarea or textbox/searchbox/combobox/listbox/slider/spinbutton met during recursion contributes nothing, and one
 /// referenced directly by aria-labelledby or aria-describedby fails as not covered); CSS generated content
 /// (<c>::before</c>/<c>::after</c>); shadow DOM and slots; <c>fieldset</c>/<c>legend</c>, <c>table</c>/<c>caption</c>,
 /// <c>figure</c>/<c>figcaption</c> and an input's <c>value</c>/<c>placeholder</c>; <c>title</c> as a description.</para>
@@ -210,7 +212,7 @@ internal static class Accname
     private static string TextAlternative(INode node, Visit visit, Traversal traversal)
     {
         if (node is IText text) return text.Data;                                                     // 2G
-        if (node is not IElement element || NeverContributes(element)) return string.Empty;
+        if (node is not IElement element || NeverContributes(element, visit)) return string.Empty;
 
         if (visit != Visit.Root && !traversal.IncludeHidden && !traversal.Shown.Contains(element) && IsHidden(element))
             return string.Empty;                                                                       // 2A
@@ -328,7 +330,8 @@ internal static class Accname
     private static string? Role(IElement element)
     {
         var explicitRole = (element.GetAttribute("role") ?? string.Empty).Split(AsciiWhitespace, StringSplitOptions.RemoveEmptyEntries)
-            .Select(token => token.ToLowerInvariant()).FirstOrDefault(Aria12Roles.Contains);
+            .Select(token => token.ToLowerInvariant())
+            .FirstOrDefault(token => Aria12Roles.Contains(token) && !(token is "none" or "presentation" && KeepsItsSemantics(element)));
         if (explicitRole is not null) return explicitRole;
         return element.LocalName switch
         {
@@ -367,21 +370,24 @@ internal static class Accname
     }
 
     // Never rendered as text, even inside a hidden node referenced directly (2A's exception): script, style,
-    // noscript, template (whose content AngleSharp keeps outside the tree anyway), input type=hidden, and SVG
-    // desc and metadata. An SVG title is read only by its parent's 2E rule, never as content.
-    private static bool NeverContributes(IElement element) =>
+    // noscript, template (whose content AngleSharp keeps outside the tree anyway) and input type=hidden. SVG
+    // title, desc and metadata never contribute as content (a title is read by its parent's 2E rule instead),
+    // but one referenced directly by aria-labelledby or aria-describedby is computed like any referenced node.
+    private static bool NeverContributes(IElement element, Visit visit) =>
         element.LocalName is "script" or "style" or "noscript" or "template"
         || (element.LocalName == "input" && InputType(element) == "hidden")
-        || (element.NamespaceUri == SvgNamespace && element.LocalName is "title" or "desc" or "metadata");
+        || (visit == Visit.Descendant && element.NamespaceUri == SvgNamespace && element.LocalName is "title" or "desc" or "metadata");
 
-    // ARIA 1.2 presentational-role conflict resolution: role none|presentation holds only without a global
-    // ARIA attribute and on an element that cannot take focus.
-    private static bool IsPresentational(IElement element) =>
-        Role(element) is "none" or "presentation"
-        && !GlobalAriaAttributes.Any(element.HasAttribute)
-        && !element.HasAttribute("tabindex")
-        && !(element.LocalName is "a" or "area" && element.HasAttribute("href"))
-        && element.LocalName is not ("button" or "input" or "select" or "textarea");
+    // Role() has already applied ARIA 1.2 conflict resolution, so a none|presentation role here holds.
+    private static bool IsPresentational(IElement element) => Role(element) is "none" or "presentation";
+
+    // ARIA 1.2 presentational-role conflict resolution: a none|presentation token is ignored on an element that
+    // can take focus or carries a global ARIA attribute.
+    private static bool KeepsItsSemantics(IElement element) =>
+        GlobalAriaAttributes.Any(element.HasAttribute)
+        || element.HasAttribute("tabindex")
+        || (element.LocalName is "a" or "area" && element.HasAttribute("href"))
+        || element.LocalName is "button" or "input" or "select" or "textarea";
 
     // A role that takes its name from content, or (with no explicit role) the first summary child of details.
     private static bool TakesNameFromContent(IElement element) =>
@@ -397,7 +403,7 @@ internal static class Accname
     private static bool IsEmbeddedControl(IElement element) =>
         element.LocalName is "select" or "textarea"
         || (element.LocalName == "input" && Role(element) is null)
-        || Role(element) is "textbox" or "combobox" or "listbox" or "slider" or "spinbutton";
+        || Role(element) is "textbox" or "searchbox" or "combobox" or "listbox" or "slider" or "spinbutton";
 
     private static string Flatten(string text) => Whitespace.Replace(text, " ").Trim();
 

@@ -225,8 +225,18 @@ public sealed class AccnameTests : BunitContext
     {
         var name = Markup("""<div role="region" aria-labelledby="q"></div><label for="q">Search</label><input id="q" value="cats">""");
         Assert.Contains("accname 2C embedded-control value not covered", Fails(() => Accname.AccessibleName(name.Find("[role=region]"))).Message, StringComparison.Ordinal);
+        var searchbox = Markup("""<div role="region" aria-labelledby="q"></div><input id="q" type="search" role="searchbox" value="cats" aria-label="Search">""");
+        Assert.Contains("accname 2C embedded-control value not covered", Fails(() => Accname.AccessibleName(searchbox.Find("[role=region]"))).Message, StringComparison.Ordinal);
         var description = Markup("""<button aria-describedby="s">Go</button><select id="s"><option selected>One</option></select>""");
         Assert.Contains("accname 2C embedded-control value not covered", Fails(() => Accname.AccessibleDescription(description.Find("button"))).Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ASearchboxMetDuringRecursionContributesNothing()
+    {
+        // HarborlineSearchInput renders <input type="search" role="searchbox" aria-label="...">.
+        var cut = Markup("""<table><tr><th id="h">Name <input type="search" role="searchbox" value="" aria-label="Search"></th></tr></table>""");
+        Assert.Equal("Name", Accname.AccessibleName(cut.Find("th")));
     }
 
     // ---- elements that never contribute ----
@@ -280,6 +290,29 @@ public sealed class AccnameTests : BunitContext
         Assert.Contains("has no accessible name", Fails(() => Accname.AccessibleName(cut.Find("#bare"))).Message, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void ATitleInsideAPresentationalSvgIsNeverReadAsContent()
+    {
+        var cut = Markup("""<button><svg role="presentation"><title>Close</title></svg></button>""");
+        Assert.Contains("has no accessible name", Fails(() => Accname.AccessibleName(cut.Find("button"))).Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AnSvgTitleOrDescReferencedDirectlyContributesItsText()
+    {
+        // The accessible inline-SVG recipe: title and desc are read through aria-labelledby and aria-describedby.
+        var cut = Markup("""
+            <svg id="icon" role="img" aria-labelledby="t d" aria-describedby="d"><title id="t">Close</title><desc id="d">An X shape</desc></svg>
+            <div role="region" aria-labelledby="chart-title"></div><svg><title id="chart-title">Sales</title></svg>
+            <button id="open" aria-describedby="chart-desc">Chart</button><svg><desc id="chart-desc">Opens the chart</desc></svg>
+            """);
+        Assert.Equal("Close An X shape", Accname.AccessibleName(cut.Find("#icon")));
+        Assert.Equal("An X shape", Accname.AccessibleDescription(cut.Find("#icon")));
+        Accname.AssertIdReferencesResolve(cut);
+        Assert.Equal("Sales", Accname.AccessibleName(cut.Find("[role=region]")));
+        Assert.Equal("Opens the chart", Accname.AccessibleDescription(cut.Find("#open")));
+    }
+
     // ---- roles: summary, fallback tokens ----
 
     [Fact]
@@ -302,6 +335,23 @@ public sealed class AccnameTests : BunitContext
         Fails(() => Accname.AccessibleName(cut.Find("#unknown")));
         // sectionhead is abstract in ARIA 1.2, so region is the role, and a region does not take its name from content.
         Fails(() => Accname.AccessibleName(cut.Find("#region")));
+    }
+
+    [Fact]
+    public void NoneOrPresentationIsIgnoredOnAFocusableElementOrOneWithAGlobalAriaAttribute()
+    {
+        // ARIA 1.2 presentational-role conflict resolution, applied in Role() for every caller.
+        var cut = Markup("""
+            <button id="button" role="none">Close</button>
+            <a id="link" href="#" role="presentation">Docs</a>
+            <span id="global" role="none button" aria-describedby="d">Go</span><span id="d">x</span>
+            <div role="region" aria-labelledby="i"></div><label for="i">Search</label><input id="i" role="presentation" value="cats">
+            """);
+        Assert.Equal("Close", Accname.AccessibleName(cut.Find("#button")));
+        Assert.Equal("Docs", Accname.AccessibleName(cut.Find("#link")));
+        Assert.Equal("Go", Accname.AccessibleName(cut.Find("#global")));
+        // A focusable input keeps its textbox semantics, so the region's name runs into the uncovered 2C step.
+        Assert.Contains("accname 2C embedded-control value not covered", Fails(() => Accname.AccessibleName(cut.Find("[role=region]"))).Message, StringComparison.Ordinal);
     }
 
     // ---- label[for]: the same strictness as the ARIA id references ----
