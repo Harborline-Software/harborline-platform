@@ -37,8 +37,33 @@ public sealed class CollapsibleTests : BunitContext
         AssertTriggerNamedAndWired(cut, "Settings", "");
     }
 
+    [Fact]
+    public void TwoCollapsiblesOnOnePageKeepTheirIdsApart()
+    {
+        string[] titles = ["Settings", "Advanced"];
+        var cut = Render(builder =>
+        {
+            foreach (var title in titles)
+            {
+                builder.OpenComponent<HarborlineCollapsible>(0);
+                builder.AddAttribute(1, nameof(HarborlineCollapsible.Title), title);
+                builder.AddAttribute(2, nameof(HarborlineCollapsible.Subtitle), $"{title} options");
+                builder.CloseComponent();
+            }
+        });
+        Accname.AssertIdReferencesResolve(cut);
+        var triggers = cut.FindAll(".hl-collapsible__trigger");
+        var regions = cut.FindAll("[role=region]");
+        Assert.Equal(["Settings", "Advanced"], triggers.Select(Accname.AccessibleName));
+        Assert.Equal(["Settings options", "Advanced options"], triggers.Select(Accname.AccessibleDescription));
+        Assert.Equal(["Settings", "Advanced"], regions.Select(Accname.AccessibleName));
+        Accname.AssertReferences(triggers[0], "aria-controls", regions[0]);
+        Accname.AssertReferences(triggers[1], "aria-controls", regions[1]);
+    }
+
     // The trigger is named by the title alone, through aria-labelledby, and described by the subtitle; it
-    // controls the region, which the same title names. Ids resolve, once each.
+    // controls the region, which the same title names. Ids resolve, once each, and the region is hidden
+    // exactly when the trigger reports aria-expanded="false".
     private static void AssertTriggerNamedAndWired(IRenderedComponent<HarborlineCollapsible> cut, string name, string description)
     {
         Accname.AssertIdReferencesResolve(cut);
@@ -49,6 +74,10 @@ public sealed class CollapsibleTests : BunitContext
         Accname.AssertReferences(trigger, "aria-labelledby", cut.Find(".hl-collapsible__title"));
         Accname.AssertReferences(trigger, "aria-controls", region);
         Assert.Equal(name, Accname.AccessibleName(region));
+        var expanded = trigger.GetAttribute("aria-expanded");
+        Assert.True(expanded is "true" or "false", $"trigger: aria-expanded is {expanded ?? "absent"}");
+        Assert.True(region.HasAttribute("hidden") == (expanded == "false"),
+            $"region: hidden must be the inverse of the trigger's aria-expanded=\"{expanded}\"");
     }
 
     [Fact]
