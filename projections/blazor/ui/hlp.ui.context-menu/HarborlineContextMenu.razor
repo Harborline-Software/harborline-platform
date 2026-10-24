@@ -10,7 +10,10 @@
 </div>
 @if (IsOpen)
 {
-    <button type="button" class="hl-context-menu-overlay" aria-label="Dismiss @AccessibleLabel" @onclick="DismissAsync"></button>
+    @* The outside-pointer dismissal surface only: Escape is the keyboard route, so the invisible
+       full-viewport overlay is neither a tab stop nor a node in the accessibility tree, as in React,
+       which dismisses on a document mousedown and renders no element (T-943). *@
+    <button type="button" class="hl-context-menu-overlay" aria-hidden="true" tabindex="-1" @onclick="DismissAsync"></button>
     <div @ref="MenuElement" role="menu" tabindex="-1" aria-label="@AccessibleLabel" lang="@Locale" dir="@Direction"
          class="hl-context-menu" data-active-id="@ActiveItem?.Id"
          style="position:fixed;left:@(X)px;top:@(Y)px;z-index:9999" @onkeydown="HandleKeyAsync">
