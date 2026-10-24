@@ -285,7 +285,7 @@ if (selectedNodes.Single() != "amount"
 if (CssClassComposer.Combine("p-2", new object?[] { "text-sm", new KeyValuePair<string, bool>("active", true) }, "p-4", false)
         != "text-sm active p-4")
     throw new InvalidOperationException("Packed cn compatibility surface changed class composition behavior.");
-if (HarborlineDefaultStrings.Values.Count != 732
+if (HarborlineDefaultStrings.Values.Count != 733
     || HarborlineDefaultStrings.Get("common.loading") != "Loading"
     || HarborlineDefaultStrings.Interpolate(
         "Step {current} of {total}",

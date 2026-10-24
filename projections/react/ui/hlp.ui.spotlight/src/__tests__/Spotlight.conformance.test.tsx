@@ -1,7 +1,9 @@
+import type * as React from 'react'
 import { fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
 import { describe, expect, it, vi } from 'vitest'
+import { HarborlineLocaleProvider } from '@harborline-platform/hlp.ui.locale-provider'
 
 import { Spotlight, type SpotlightItem, type SpotlightSection } from '../Spotlight'
 import { fixture, sharedCases, type FixtureCase as FixtureShape } from './fixtures'
@@ -29,8 +31,8 @@ describe('Spotlight shared fixtures', () => {
   })
 
   it('spotlight.combobox', () => {
-    fixture(sharedCases, 'spotlight.combobox')
-    render(<Spotlight {...required} open sections={sections('one')} />)
+    const value = fixture(sharedCases, 'spotlight.combobox') as FixtureShape & { input: { sections: { id: string; label: string; items: string[] }[] } }
+    render(<Spotlight {...required} open sections={value.input.sections.map(section => ({ ...section, items: section.items.map(id => item(id)) }))} />)
     const input = screen.getByRole('combobox', { name: 'Search commands' })
     const listbox = screen.getByRole('listbox')
     expect(input).toHaveFocus()
@@ -117,10 +119,10 @@ describe('Spotlight shared fixtures', () => {
   // and the combobox stops claiming an expanded popup while the listbox shows nothing.
   it('spotlight.empty-announced', () => {
     const value = fixture(sharedCases, 'spotlight.empty-announced') as {
-      input: { empty: string; resultsCountLabel: string; before: string[]; loading: { id: string; label: string; loadingLabel: string } }
+      input: { empty: string; resultsCountLabel: string; before: string[]; after: string[]; loading: { id: string; label: string; loadingLabel: string } }
       expected: {
         statusBefore: string; statusAfter: string; expandedBefore: string; expandedAfter: string
-        expandedWhileLoading: string; statusWhileLoading: string
+        expandedWhileLoading: string; statusWhileLoading: string; statusWhileLoadingUnlabelled: string
       }
     } & FixtureShape
     const countLabel = (count: number) => value.input.resultsCountLabel.replace('{count}', String(count))
@@ -132,10 +134,11 @@ describe('Spotlight shared fixtures', () => {
     expect(status).toHaveTextContent(value.expected.statusBefore)
     expect(input).toHaveAttribute('aria-expanded', value.expected.expandedBefore)
 
-    rerender(<Spotlight {...shared} query="zz" sections={[]} />)
+    rerender(<Spotlight {...shared} query="zz" sections={value.input.after.length ? sections(...value.input.after) : []} />)
     expect(screen.getByRole('status')).toBe(status)
     expect(status.textContent).toBe(value.expected.statusAfter)
     expect(input).toHaveAttribute('aria-expanded', value.expected.expandedAfter)
+    // Already absent with no options before b20; kept as a guard.
     expect(input).not.toHaveAttribute('aria-activedescendant')
     expect(input).toHaveFocus()
 
@@ -143,18 +146,59 @@ describe('Spotlight shared fixtures', () => {
     rerender(<Spotlight {...shared} query="zz" sections={[{ id, label, items: [], loading: true, loadingLabel }]} />)
     expect(status.textContent).toBe(value.expected.statusWhileLoading)
     expect(input).toHaveAttribute('aria-expanded', value.expected.expandedWhileLoading)
+    // b20 review: never a zero count while loading (the empty copy would follow it, announcing zero twice).
+    rerender(<Spotlight {...shared} query="zz" sections={[{ id, label, items: [], loading: true }]} />)
+    expect(status.textContent).toBe(value.expected.statusWhileLoadingUnlabelled)
+  })
+
+  // b20f1 (prior art: b13f1 SearchInput copy, b15 catalog-backed copy): the empty copy is nonblank
+  // caller text, then the host catalog, then hlp.ui.default-strings; blank text or a key echo is absent.
+  // Each sub-case reads the visible empty copy and the status region's text from the same render.
+  it('spotlight.empty-copy-catalog', () => {
+    type Host = { locale: string; direction: 'ltr' | 'rtl'; entries: Record<string, string> }
+    type Copy = { visible: string | null; status: string | null; dir?: string | null }
+    const value = fixture(sharedCases, 'spotlight.empty-copy-catalog') as unknown as {
+      input: { hostCatalogs: Host[]; blankCaller: { empty: string; hostCatalog: number; variants: string[] }; keyEchoHost: Host; callerText: { empty: string; hostCatalog: number } }
+      expected: { defaultCatalog: Copy; hostCatalogs: Copy[]; blankCaller: Copy; keyEchoHost: Copy; callerText: Copy }
+    }
+    const { input, expected } = value
+    const read = (): Copy => ({
+      visible: document.body.querySelector('.hl-spotlight__empty')?.textContent ?? null,
+      status: document.body.querySelector('.hl-spotlight [role="status"]')?.textContent ?? null,
+    })
+    const palette = (empty?: string) => <Spotlight {...required} open sections={[]} {...(empty === undefined ? {} : { empty })} />
+    const inHost = (host: Host, empty?: string) =>
+      <HarborlineLocaleProvider catalog={host.entries} direction={host.direction} locale={host.locale}>{palette(empty)}</HarborlineLocaleProvider>
+    const once = (node: React.ReactElement): Copy => { const view = render(node); const copy = read(); view.unmount(); return copy }
+
+    expect(once(palette())).toEqual(expected.defaultCatalog)
+    // A catalog change in one live tree: French, then Arabic (rtl), then the en-XA pseudo-locale.
+    // review fix: the palette takes its direction from the locale scope (it portals to <body>, so an
+    // inherited dir cannot reach it).
+    const withDir = (): Copy => ({ ...read(), dir: document.body.querySelector('.hl-spotlight[role="dialog"]')?.getAttribute('dir') ?? null })
+    const live = render(inHost(input.hostCatalogs[0]))
+    const seen = [withDir()]
+    for (const host of input.hostCatalogs.slice(1)) { live.rerender(inHost(host)); seen.push(withDir()) }
+    live.unmount()
+    expect(seen).toEqual(expected.hostCatalogs)
+    for (const blank of [input.blankCaller.empty, ...input.blankCaller.variants])
+      expect(once(inHost(input.hostCatalogs[input.blankCaller.hostCatalog], blank))).toEqual(expected.blankCaller)
+    expect(once(inHost(input.keyEchoHost))).toEqual(expected.keyEchoHost)
+    expect(once(inHost(input.hostCatalogs[input.callerText.hostCatalog], input.callerText.empty))).toEqual(expected.callerText)
   })
 
   it('spotlight.loading', () => {
     fixture(sharedCases, 'spotlight.loading')
     render(<Spotlight {...required} open sections={[{ id: 'records', label: 'Records', items: [], loading: true, loadingLabel: 'Loading' }]} />)
     expect(screen.getByRole('group', { name: 'Records' })).toBeInTheDocument()
-    expect(screen.getByText('Loading')).toBeInTheDocument()
+    // The loading label is also the status text while nothing is listed (b20 review), so look in the group.
+    const loadingText = document.body.querySelector('.hl-spotlight__loading')
+    expect(loadingText).toHaveTextContent('Loading')
     expect(screen.queryAllByRole('option')).toHaveLength(0)
     // b19 review: the listbox owns only groups and options; the loading text is inside its group.
     const listbox = screen.getByRole('listbox')
     expect([...listbox.children].map(child => child.getAttribute('role'))).toEqual(['group'])
-    expect(screen.getByRole('group', { name: 'Records' })).toContainElement(screen.getByText('Loading'))
+    expect(screen.getByRole('group', { name: 'Records' })).toContainElement(loadingText as HTMLElement)
   })
 
   it('spotlight.footer', () => {

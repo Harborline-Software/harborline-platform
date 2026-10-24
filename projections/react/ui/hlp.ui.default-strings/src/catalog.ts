@@ -1384,6 +1384,8 @@ export const defaultStrings = {
   'navigation.userMenu.signOut': 'Sign out',
   /** UserMenu: trigger name; {name} is the account display name. */
   'navigation.userMenu.trigger': 'Account menu for {name}',
+  /** Spotlight: visible empty copy and status announcement when no option and no loading section exist. */
+  'structural.spotlight.empty': 'No results',
 } as const
 
 /**

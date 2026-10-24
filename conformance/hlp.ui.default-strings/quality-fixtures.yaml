@@ -7,7 +7,7 @@
     {"id": "default-strings.quality.placeholder-visibility", "expected": {"missingVariablesRemainVisible": true}}
   ],
   "internationalizationCases": [
-    {"id": "default-strings.quality.closed-keys", "expected": {"count": 732, "digest": "abe7a3d3cd49ff3d2ab9ad75df1638774d84f1dae90d945dfb68042cd800a5c9"}},
+    {"id": "default-strings.quality.closed-keys", "expected": {"count": 733, "digest": "ca8ea96dbf3bf6ee98766ccbfd3352122cafbf9bb60cd52cf1a0f0612daa564a"}},
     {"id": "default-strings.quality.partial-catalog", "expected": {"partialOverridesAllowed": true, "emptyOverridePreserved": true}},
     {"id": "default-strings.quality.placeholder-parity", "expected": {"defaultAndOverrideNamesEqual": true}},
     {"id": "default-strings.quality.runtime-neutral", "expected": {"applicationI18nDependency": false, "providerBehaviorOwnedElsewhere": true}},

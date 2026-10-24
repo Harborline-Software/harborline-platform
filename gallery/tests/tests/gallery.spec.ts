@@ -839,37 +839,75 @@ async function assertAccessible(page: Page, scenario: Scenario, projection: stri
 // marker is a named image (role="img"); in the React lane the panel is portaled through Popover out
 // of the scene that scopes the host's tokens, so the marker renders in the module's own fallback --
 // the unthemed state the scan reaches (Highlight before b20, about 1.5:1). Every visible marker in the
-// scan's scope must reach 3:1 against the first opaque background behind it (Canvas if none).
-// Selector-limited on purpose; tooling/gates/scan-style-hazards.mjs R5 is the source-level guard
-// for every other module.
+// scan's scope must reach 3:1 against what is behind it: the marker's own colour composited (by its
+// alpha) over the stack of translucent ancestor backgrounds, down to the first opaque one, or down to
+// the Canvas colour a probe element resolves in the marker's own color-scheme. Selector-limited on
+// purpose; tooling/gates/scan-style-hazards.mjs R5 is the source-level guard for every other module.
+//
+// Not vacuous (b20 review): every unread item in scope (an item without data-hl-read="true") must
+// have yielded exactly one measured marker, and the scenarios below, whose panel is open at scan time
+// with unread items, must measure at least one. A colour the parser cannot read fails the test with
+// its value rather than throwing.
+const unreadMarkerScenarios = new Set(['notification-center.actions', 'notification-center.keyboard-dismissal'])
 async function assertIndicatorContrast(page: Page, scenario: Scenario, projection: string) {
-  const ratios = await page.evaluate(selector => {
-    const parse = (value: string) => {
-      const srgb = value.match(/^color\(srgb ([\d.]+) ([\d.]+) ([\d.]+)(?: \/ ([\d.]+))?\)$/)
+  const { measured, unreadItems } = await page.evaluate(selector => {
+    type Colour = { rgb: number[]; alpha: number }
+    const parse = (value: string): Colour | undefined => {
+      const srgb = value.match(/^color\(srgb ([\d.e-]+) ([\d.e-]+) ([\d.e-]+)(?: \/ ([\d.e-]+))?\)$/)
       if (srgb) return { rgb: srgb.slice(1, 4).map(channel => Number(channel) * 255), alpha: srgb[4] === undefined ? 1 : Number(srgb[4]) }
-      const rgb = value.match(/^rgba?\(([\d.]+),? ([\d.]+),? ([\d.]+)(?:,? \/? ?([\d.]+))?\)$/)
+      const rgb = value.match(/^rgba?\(([\d.]+),? ([\d.]+),? ([\d.]+)(?:(?:,| \/) ([\d.]+))?\)$/)
       if (rgb) return { rgb: rgb.slice(1, 4).map(Number), alpha: rgb[4] === undefined ? 1 : Number(rgb[4]) }
-      throw new Error(`unparsed colour ${value}`)
+      return undefined
     }
+    const over = (top: Colour, bottom: number[]) => top.rgb.map((channel, index) => channel * top.alpha + bottom[index] * (1 - top.alpha))
     const luminance = (rgb: number[]) => rgb.map(channel => channel / 255)
       .map(channel => channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4)
       .reduce((total, channel, index) => total + channel * [0.2126, 0.7152, 0.0722][index], 0)
     const scope = [document.querySelector('[data-gallery-probe]'), ...document.querySelectorAll(selector)].filter(Boolean) as Element[]
-    return scope.flatMap(root => [...root.querySelectorAll('.hl-notification-center__unread')])
-      .filter(marker => marker.getBoundingClientRect().width > 0)
+    const visible = (element: Element) => element.getBoundingClientRect().width > 0
+    const unreadItems = scope.flatMap(root => [...root.querySelectorAll('.hl-notification-center__item:not([data-hl-read="true"])')]).filter(visible).length
+    const measured = scope.flatMap(root => [...root.querySelectorAll('.hl-notification-center__unread')])
+      .filter(visible)
       .map(marker => {
-        const fill = parse(getComputedStyle(marker).backgroundColor)
-        let backdrop = [255, 255, 255]
-        for (let node = marker.parentElement; node; node = node.parentElement) {
-          const colour = parse(getComputedStyle(node).backgroundColor)
-          if (colour.alpha >= 1) { backdrop = colour.rgb; break }
+        const label = marker.getAttribute('aria-label')
+        const fillValue = getComputedStyle(marker).backgroundColor
+        const fill = parse(fillValue)
+        if (!fill) return { label, error: `unparsed marker colour "${fillValue}"` }
+        // Translucent layers between the marker and the first opaque background, nearest first.
+        const layers: Colour[] = []
+        let base: number[] | undefined
+        for (let node = marker.parentElement; node && !base; node = node.parentElement) {
+          const value = getComputedStyle(node).backgroundColor
+          const colour = parse(value)
+          if (!colour) return { label, error: `unparsed backdrop colour "${value}"` }
+          if (colour.alpha >= 1) base = colour.rgb
+          else if (colour.alpha > 0) layers.push(colour)
         }
-        const [a, b] = [luminance(fill.rgb), luminance(backdrop)]
-        return { label: marker.getAttribute('aria-label'), ratio: (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05) }
+        if (!base) {
+          // No opaque ancestor: the page shows Canvas, resolved in the marker's own color-scheme.
+          const probe = document.createElement('div')
+          probe.style.backgroundColor = 'Canvas'
+          marker.parentElement!.append(probe)
+          const value = getComputedStyle(probe).backgroundColor
+          probe.remove()
+          const canvas = parse(value)
+          if (!canvas) return { label, error: `unparsed Canvas colour "${value}"` }
+          base = canvas.rgb
+        }
+        const backdrop = layers.reverse().reduce((below, layer) => over(layer, below), base)
+        const [a, b] = [luminance(over(fill, backdrop)), luminance(backdrop)]
+        return { label, ratio: (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05) }
       })
+    return { measured, unreadItems }
   }, overlayLayerSelector)
-  for (const { label, ratio } of ratios) {
-    expect(ratio, `${projection} ${scenario.id} unread marker "${label}" non-text contrast`).toBeGreaterThanOrEqual(3)
+  for (const result of measured) {
+    expect(result.error, `${projection} ${scenario.id} unread marker "${result.label}" colour`).toBeUndefined()
+    expect(result.ratio, `${projection} ${scenario.id} unread marker "${result.label}" non-text contrast`).toBeGreaterThanOrEqual(3)
+    recordCheck('unreadMarkerContrastChecks')
+  }
+  expect(measured.length, `${projection} ${scenario.id}: every visible unread item has one measured marker`).toBe(unreadItems)
+  if (unreadMarkerScenarios.has(scenario.id)) {
+    expect(measured.length, `${projection} ${scenario.id} renders unread items with its panel open; no marker was measured`).toBeGreaterThan(0)
   }
 }
 

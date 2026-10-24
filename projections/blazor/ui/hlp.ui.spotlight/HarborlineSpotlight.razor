@@ -2,13 +2,16 @@
 @inherits HarborlineComponentBase
 @implements IAsyncDisposable
 @using Microsoft.JSInterop
+@using Harborline.UIAdapters.Blazor.Localization
 @inject IJSRuntime JavaScript
 
 @if (Open)
 {
     <div @ref="portal" class="hl-spotlight__portal" data-hl-module="hlp.ui.spotlight">
     <div class="hl-spotlight__scrim" data-testid="spotlight-scrim" aria-hidden="true" @onmousedown="DismissAsync"></div>
-    <div @ref="dialog" role="dialog" tabindex="-1" aria-modal="true" aria-label="@AriaLabel"
+    @* spotlight.js moves the palette to <body>, so an inherited dir cannot reach it: direction comes from
+       the locale scope, as in Dialog; a caller dir in AdditionalAttributes (rendered after it) still wins. *@
+    <div @ref="dialog" role="dialog" tabindex="-1" aria-modal="true" aria-label="@AriaLabel" dir="@Direction"
              class="@CombineClasses("hl-spotlight")" style="@CombineStyles()" @onclick:stopPropagation="true"
              @attributes="AdditionalAttributes">
         <div class="hl-spotlight__query-row">
@@ -52,7 +55,7 @@
         @* A listbox owns only options and groups, so the empty copy sits beside it, never inside. *@
         @if (ShowEmpty)
         {
-            <div class="hl-spotlight__empty">@Empty</div>
+            <div class="hl-spotlight__empty">@EmptyCopy</div>
         }
         @if (Footer is not null) { <div class="hl-spotlight__footer">@Footer</div> }
     </div>
@@ -73,6 +76,23 @@
     [Parameter] public Func<int, string>? ResultsCountLabel { get; set; }
     [Parameter] public RenderFragment? Footer { get; set; }
 
+    [CascadingParameter] private HarborlineLocaleContext? LocaleContext { get; set; }
+
+    // Caller text, then the host catalog, then the default catalog (structural.spotlight.empty). Blank
+    // text at any step is no text, and a catalog miss echoes the key, so the empty copy is never blank.
+    private string Direction => LocaleContext?.Direction ?? "ltr";
+    private const string EmptyKey = "structural.spotlight.empty";
+    private string EmptyCopy
+    {
+        get
+        {
+            if (!string.IsNullOrWhiteSpace(Empty)) return Empty;
+            var fallback = Harborline.Foundation.Localization.HarborlineDefaultStrings.Get(EmptyKey);
+            var catalog = LocaleContext?.ResolveString(EmptyKey) ?? fallback;
+            return string.IsNullOrWhiteSpace(catalog) || catalog == EmptyKey ? fallback : catalog;
+        }
+    }
+
     private readonly string instanceId = $"hl-spotlight-{Guid.NewGuid():N}";
     private int activeIndex;
     private bool previousOpen;
@@ -89,7 +109,14 @@
     // APG combobox: aria-expanded is true only while the popup is displayed, so it is false here,
     // and the one polite status region carries the empty copy in place of the results count.
     private bool ShowEmpty => FlatItems.Count == 0 && !Sections.Any(section => section.Loading);
-    private string StatusText => ShowEmpty ? Empty ?? "" : ResultsCountLabel?.Invoke(FlatItems.Count) ?? "";
+    // While a section is still loading and no option exists yet, the count is not announced (it
+    // would say zero, then the empty copy would follow): the status carries the first loading
+    // section's caller label, or nothing.
+    private string StatusText => ShowEmpty
+        ? EmptyCopy
+        : FlatItems.Count == 0
+            ? Sections.FirstOrDefault(section => section.Loading)?.LoadingLabel ?? ""
+            : ResultsCountLabel?.Invoke(FlatItems.Count) ?? "";
     private string? ActiveDomId => FlatItems.Count == 0 ? null : OptionDomId(FlatItems[Math.Clamp(activeIndex, 0, FlatItems.Count - 1)].Id);
 
     protected override void OnParametersSet()

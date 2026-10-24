@@ -2,6 +2,8 @@ import * as React from 'react'
 import { createPortal } from 'react-dom'
 
 import { cn } from '@harborline-platform/hlp.ui.cn'
+import { defaultStrings } from '@harborline-platform/hlp.ui.default-strings'
+import { useHarborlineStrings } from '@harborline-platform/hlp.ui.locale-provider'
 
 export interface SpotlightItem {
   id: string
@@ -92,12 +94,21 @@ export function Spotlight({
   ariaLabel,
   placeholder,
   escLabel = 'Esc',
-  empty = 'No results',
+  empty,
   resultsCountLabel,
   footer,
   className,
 }: SpotlightProps): React.ReactPortal | null {
   assertValid(sections, pinnedAction)
+
+  // Caller text, then the host catalog, then the default catalog (structural.spotlight.empty). Blank
+  // text at any step is no text, and a catalog miss echoes the key, so the empty copy is never blank.
+  const { direction, t } = useHarborlineStrings()
+  const emptyKey = 'structural.spotlight.empty'
+  const catalogEmpty = t(emptyKey)
+  const emptyCopy = empty?.trim()
+    ? empty
+    : catalogEmpty.trim() && catalogEmpty !== emptyKey ? catalogEmpty : defaultStrings[emptyKey]
 
   const [activeIndex, setActiveIndex] = React.useState(0)
   const inputRef = React.useRef<HTMLInputElement>(null)
@@ -151,8 +162,15 @@ export function Spotlight({
   // No option and no loading group: the listbox has nothing to show (its CSS collapses it).
   // APG combobox: aria-expanded is true only while the popup is displayed, so it is false here,
   // and the one polite status region carries the empty copy in place of the results count.
+  // While a section is still loading and no option exists yet, the count is not announced (it
+  // would say zero, then the empty copy would follow): the status carries the first loading
+  // section's caller label, or nothing.
   const showEmpty = flatItems.length === 0 && renderedSections.length === 0
-  const statusText = showEmpty ? empty : resultsCountLabel?.(flatItems.length) ?? ''
+  const statusText = showEmpty
+    ? emptyCopy
+    : flatItems.length === 0
+      ? renderedSections.find(section => section.loading)?.loadingLabel ?? ''
+      : resultsCountLabel?.(flatItems.length) ?? ''
   const optionId = (index: number) => `hl-spotlight-${instanceId}-option-${index}`
   const activeItem = flatItems[activeIndex]
   const activeId = activeItem ? optionId(activeIndex) : undefined
@@ -212,6 +230,9 @@ export function Spotlight({
         aria-label={ariaLabel}
         aria-modal="true"
         className={cn('hl-spotlight', className)}
+        // The palette portals to <body>, so an inherited dir cannot reach it: direction comes from the
+        // locale scope, as in Dialog.
+        dir={direction}
         onKeyDown={event => {
           if (dialogRef.current) trapTab(event, dialogRef.current)
         }}
@@ -267,7 +288,7 @@ export function Spotlight({
             </>
           )}
         </div>
-        {showEmpty ? <div className="hl-spotlight__empty">{empty}</div> : null}
+        {showEmpty ? <div className="hl-spotlight__empty">{emptyCopy}</div> : null}
 
         {footer ? <div className="hl-spotlight__footer">{footer}</div> : null}
       </div>

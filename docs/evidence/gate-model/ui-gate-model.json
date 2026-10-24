@@ -4869,7 +4869,7 @@
         {
           "id": "assertFunctionalParity",
           "status": "PASS",
-          "note": "17 conformance case(s) across both lanes"
+          "note": "18 conformance case(s) across both lanes"
         },
         {
           "id": "assertInternationalization",
