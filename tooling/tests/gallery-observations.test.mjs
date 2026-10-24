@@ -128,6 +128,15 @@ test('a CI run expects only the work CI runs, per exemption class', () => {
   assert.deepEqual([ci.accessibilityScans, ci.visualParityComparisons, ci.reflowChecks], [4, 1 + 6, 3 * 2 + 2 * 2 + 6 + 2 * 2])
 })
 
+test('ARIA-tree parity is declared once per running scenario, and only a wall-clock exemption removes it', () => {
+  // T-943: the comparison rides every scenario test, so a pixel exemption (which skips pixels only)
+  // leaves it in place and a capture run still makes it; a wall-clock exemption skips the whole test.
+  assert.equal(expectedChecks(modules, {exemptions}).ariaParityComparisons, 3)
+  assert.equal(expectedChecks(modules, {ciGallery: true, exemptions}).ariaParityComparisons, 2)
+  assert.equal(expectedChecks(modules, {capture: true, exemptions}).ariaParityComparisons, 3)
+  assert.match(reconcileChecks({ariaParityComparisons: 2}, {ariaParityComparisons: 3}), /ariaParityComparisons declared 3, measured 2/)
+})
+
 test('a capture run expects no per-scenario reflow, because it runs none', () => {
   // gallery.spec.ts declines to judge layout on a page the screenshotter just scrolled. Declaring it
   // anyway failed `npm run capture:gallery` with reflowChecks declared 114, measured 16.
