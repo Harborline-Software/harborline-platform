@@ -129,7 +129,8 @@ Two optional declarations, both nullable init-only members, so positional constr
 - A Record Type's `categories` are text tags, many per type and independent of the automatic package label (L103), kept
   in authored order. A null element is `records.document_invalid` at `/categories/{i}`. Every other text tag is admitted
   in every phase and kept verbatim: how tags compare is not ruled (L103 is open), so there is no blank, trimming,
-  normalization, character or duplicate rule. The canonical body omits an empty list.
+  normalization, character or duplicate rule. The canonical body omits an empty list. Admission re-checks published
+  bodies, so a comparison rule ruled later needs a migration or grandfathering path for tags written meanwhile.
 
 Save stores what it is given. Unlike the two policies above, an omitted `conflict_policy` or `categories` is not carried
 forward from the expected revision, so a resave without them clears them. Every existing body, digest and compiled
