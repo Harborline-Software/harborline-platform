@@ -31,8 +31,8 @@
                         @foreach (var parameter in Parameters(kind)) { var name = parameter.Name; var numeric = parameter.Numeric; <label>Parameter @name<input aria-label="@($"Field {n} parameter {name}")" type="@(numeric ? "number" : "text")" value="@parameter.Text" @onchange="eventArgs => ChangeParameter(current, name, numeric, eventArgs)" /></label> }
                     }
                 </div>
-                @if (field["binding"] is null) { <p class="hl-records-authoring__note">Unbound field. Bindings are not authored here.</p> }
-                @if (field["binding"] is null && reference is null) { <HarborlineButton ButtonType="ButtonType.Button" Variant="ButtonVariant.Secondary" Size="ButtonSize.Small" OnClick="() => MakeReference(current)">Make field @n a reference</HarborlineButton> }
+                @if (field["binding"] is not JsonObject) { <p class="hl-records-authoring__note">Unbound field. Bindings are not authored here.</p> }
+                @if (field["binding"] is not JsonObject && reference is null) { <HarborlineButton ButtonType="ButtonType.Button" Variant="ButtonVariant.Secondary" Size="ButtonSize.Small" OnClick="() => MakeReference(current)">Make field @n a reference</HarborlineButton> }
                 @if (reference is not null)
                 {
                     var cardinality = Str(reference["cardinality"]); var onDelete = Str(reference["on_delete"]); var hasType = Str(reference["target_type_id"]) is not null; var classTarget = Str(reference["target_class_id"]); var targetKind = hasType && classTarget is not null ? "both" : classTarget is not null ? "class" : hasType ? "type" : "";
