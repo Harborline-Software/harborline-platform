@@ -97,6 +97,8 @@ export type TabWalkRuntime = {
   coverAfterEscape(id: number, popups: number[]): { same: boolean; closed: boolean; visible: boolean }
   // Whether the focused element is an editing control that blur would commit or close.
   editing(): boolean
+  // Scroll the focused element into view, as focusing it did before prepareLane restored the scroll.
+  revealActive(): void
   teardown(): void
 }
 
@@ -581,6 +583,10 @@ export function installTabWalkRuntime(): void {
       const closed = popups.every(popupId => { const popup = byId.get(popupId); return !popup || !stillOpen(popup) })
       return { same, closed, visible: same && closed && element ? measure(element).kind === 'visible' : false }
     },
+    revealActive() {
+      const active = deepActive()
+      if (active && active !== document.body && !isSentinel(active)) active.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+    },
     editing() {
       const active = deepActive()
       if (!active || active === document.body || isSentinel(active)) return false
@@ -1057,6 +1063,9 @@ export async function walkLane(page: Page, { lane, deadline, settled = true, pre
   // visible here). A modal it releases is judged like a modal any phase releases.
   walk.preparedAtFirstStop = preparedWalkSkipped(initial, census, editing)
   if (initial.id > 0 && !walk.preparedAtFirstStop) {
+    // prepareLane put the scroll position back for F; the prepared focus is shown again, as focusing it
+    // showed it, so E's first stop is judged where the user saw it.
+    await runtimeCall(context, () => page.evaluate(() => window.__hlpTabWalk!.revealActive()))
     walk.prepared = await walkOnce(context, 'prepared', Infinity, census.presses)
     if (walk.prepared.outcome === 'modal-cycle') {
       const releasing = performance.now()

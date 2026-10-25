@@ -2605,6 +2605,10 @@ test('tab walk proof P13: the prepared walk keeps an outcome reached past its fi
   const editor = await walkProof(browser, proofProbe(`<input id="name" aria-label="Name" value="Ada"><button>After</button><script>document.getElementById('name').focus()</script>`))
   expect(editor.preparedAtFirstStop).toBe(false)
   expect(editor.prepared?.outcome).toBe('exited')
+  // The prepared focus is judged where focusing it put it, not where prepareLane's scroll reset left it.
+  const below = await walkProof(browser, proofProbe(`<button>Top</button><div style="height:1600px"></div><button id="below">Below</button><script>document.getElementById('below').focus()</script>`))
+  expect(below.prepared?.stops[0]?.verdict?.kind).toBe('visible')
+  expect(laneFindingLines(below)).toEqual([])
   recordCheck('tabWalkDetectorProofs')
 })
 
