@@ -953,6 +953,9 @@ describe('Records local draft editor, React lane, revision 4 references', () => 
   const enter = (text: string, name = targetType) => fireEvent.change(textInput(name), { target: { value: text } })
   const button = (name: string) => screen.queryByRole('button', { name })
   const press = (name: string) => fireEvent.click(screen.getByRole('button', { name }))
+  // The notes inside field N's own group, found by its legend.
+  const fieldNotes = (n: number) => Array.from(screen.getByText(`Field ${n}`, { selector: 'legend' }).parentElement!.querySelectorAll('p')).map(note => note.textContent)
+  const unboundNote = 'Unbound field. Bindings are not authored here.'
 
   it('Revision4: Make field N a reference appears only on a field with neither a binding nor a reference and adds exactly an empty reference', () => {
     const base = referenceBody({ reference: siteReference() }); const given = structuredClone(base); const { changes } = references(base)
@@ -964,6 +967,7 @@ describe('Records local draft editor, React lane, revision 4 references', () => 
     expect(changes).toStrictEqual([reported(withField(base, 2, field => ({ ...field, reference: {} })), 1)])
     expect(button('Make field 3 a reference')).toBeNull(); expect(button('Remove reference from field 3')).not.toBeNull()
     expect(selectedText('Field 3 reference target kind')).toBe('Not set'); expect(selectedText('Field 3 reference cardinality')).toBe('Not set'); expect(selectedText('Field 3 reference on delete')).toBe('Not set'); expect(checkbox('Field 3 reference is the parent edge')).not.toBeChecked()
+    expect(textInput('Field 3 reference target type')).toHaveValue(''); expect(absent('Field 3 reference target class')).toBeNull()
     expect(base).toStrictEqual(given)
   })
 
@@ -973,6 +977,17 @@ describe('Records local draft editor, React lane, revision 4 references', () => 
     expect(changes).toStrictEqual([reported(withField(given, 3, field => without(field, 'reference')), 1)])
     expect('reference' in (changes[0].draft.body.fields![3] as Json)).toBe(false)
     expect(absent(targetKind)).toBeNull(); expect(button('Remove reference from field 4')).toBeNull(); expect(button('Make field 4 a reference')).not.toBeNull()
+    expect(base).toStrictEqual(given)
+  })
+
+  it('Revision4: Remove reference from field N on a bound field deletes the reference member only and carries the binding unchanged', () => {
+    // The revision 1 reference test's field: the R5 binding and reference, plus a carried trait.
+    const r5Field = refusalCase('R5-reference-binding-conflict').createRequest!.fields[0]
+    const base = referenceBody({ binding: structuredClone(r5Field.binding), reference: { ...structuredClone(r5Field.reference), required_trait_id: 'eam.locatable' } }); const given = structuredClone(base); const { changes } = references(base)
+    press('Remove reference from field 4')
+    expect(changes).toStrictEqual([reported(withField(given, 3, field => without(field, 'reference')), 1)])
+    expect((changes[0].draft.body.fields![3] as Json).binding).toStrictEqual(r5Field.binding)
+    expect(absent(targetKind)).toBeNull(); expect(button('Remove reference from field 4')).toBeNull(); expect(button('Make field 4 a reference')).toBeNull()
     expect(base).toStrictEqual(given)
   })
 
@@ -992,12 +1007,17 @@ describe('Records local draft editor, React lane, revision 4 references', () => 
     ['Record type', { target_type_id: '' }],
     ['Class', { target_class_id: 'eam.facility' }],
     ['Class', { target_class_id: '' }],
+    ['Not set', { target_type_id: 7 }],
+    ['Not set', { target_class_id: 5 }],
+    ['Record type', { target_type_id: 'eam.space', target_class_id: null }],
   ])('Revision4: the target kind offers Record type, Class and Not set and shows %s for %j', (shown, targets) => {
     const { changes } = references(referenceBody({ reference: siteReference(targets) }), { classOptions })
     expect(sortedOptionTexts(targetKind)).toEqual(['Class', 'Not set', 'Record type']); expect(selectedText(targetKind)).toBe(shown)
-    // One target kind shows only its own target control; both controls are for a reference carrying both targets.
+    // One target kind shows only its own target control; both controls are for a reference carrying both targets. Not set (no string
+    // target member) shows an empty Record type target and no class control.
     if (shown === 'Record type') expect(absent(targetClass)).toBeNull()
     if (shown === 'Class') expect(absent(targetType)).toBeNull()
+    if (shown === 'Not set') { expect(textInput()).toHaveValue(''); expect(absent(targetClass)).toBeNull() }
     expect(changes).toHaveLength(0)
   })
 
@@ -1011,11 +1031,15 @@ describe('Records local draft editor, React lane, revision 4 references', () => 
     ['Not set', 'both targets', bothTargets, {}],
     ['Record type', 'no target', {}, { target_type_id: '' }],
     ['Class', 'no target', {}, { target_class_id: '' }],
+    ['Record type', 'a non-string Record type target', { target_type_id: 7 }, { target_type_id: '' }],
+    ['Class', 'a non-string Class target', { target_class_id: 5 }, { target_class_id: '' }],
   ])('Revision4: choosing the target kind %s on %s keeps a value of that kind and removes the other target member', (kind, _, targets, expected) => {
     const base = referenceBody({ reference: siteReference(targets) }); const { changes } = references(base, { classOptions })
     choose(targetKind, kind)
     expect(changes).toStrictEqual([reported(withSiteReference(base, reference => ({ ...without(reference, 'target_type_id', 'target_class_id'), ...expected })), 1)])
     expect(selectedText(targetKind)).toBe(kind)
+    // Not set shows an empty Record type target and no class control.
+    if (kind === 'Not set') { expect(textInput()).toHaveValue(''); expect(absent(targetClass)).toBeNull() }
   })
 
   it.each<[string, Json, string, string]>([
@@ -1029,6 +1053,14 @@ describe('Records local draft editor, React lane, revision 4 references', () => 
     choose(targetKind, 'Class')
     expect(changes).toStrictEqual([reported(withSiteReference(base, reference => without(reference, 'target_type_id')), 1)])
     expect(selectedText(targetKind)).toBe('Class'); expect(absent(targetType)).toBeNull(); expect(selectedText(targetClass)).toBe(classText)
+  })
+
+  it('Revision4: choosing Both targets present (choose one) reports nothing and keeps both targets and both target controls', () => {
+    const base = referenceBody({ reference: siteReference(bothTargets) }); const given = structuredClone(base); const { changes } = references(base, { classOptions })
+    choose(targetKind, 'Both targets present (choose one)')
+    expect(changes).toHaveLength(0)
+    expect(selectedText(targetKind)).toBe('Both targets present (choose one)'); expect(textInput()).toHaveValue('eam.space'); expect(selectedText(targetClass)).toBe('eam.facility')
+    expect(base).toStrictEqual(given)
   })
 
   it('Revision4: the Record type target is free text that writes target_type_id exactly', () => {
@@ -1090,6 +1122,14 @@ describe('Records local draft editor, React lane, revision 4 references', () => 
     expect(checkbox(parent)).not.toBeChecked()
   })
 
+  it.each<[unknown]>([['true'], [1]])('Revision4: a non-boolean parent %j shows the checkbox unchecked, and checking writes parent true', current => {
+    const base = referenceBody({ reference: { ...siteReference(), parent: current } }); const { changes } = references(base)
+    expect(checkbox(parent)).not.toBeChecked(); expect(changes).toHaveLength(0)
+    fireEvent.click(checkbox(parent))
+    expect(changes).toStrictEqual([reported(withSiteReference(base, reference => ({ ...reference, parent: true })), 1)])
+    expect(checkbox(parent)).toBeChecked()
+  })
+
   it.each<[string, () => void, (reference: Json) => Json]>([
     ['Target kind Record type', () => choose(targetKind, 'Record type'), reference => without(reference, 'target_class_id')],
     ['Target kind Class', () => choose(targetKind, 'Class'), reference => without(reference, 'target_type_id')],
@@ -1120,11 +1160,36 @@ describe('Records local draft editor, React lane, revision 4 references', () => 
 
   it.each<[string, unknown]>([['null', null], ['a string', 'text'], ['an array', [1]]])('Revision4: a %s binding is treated as absent, so Make field N a reference is offered and the binding is carried unchanged', (_, malformed) => {
     const base = referenceBody({ binding: malformed }); const { changes } = references(base)
-    expect(absent('Field 4 kind')).toBeNull(); expect(changes).toHaveLength(0)
+    expect(absent('Field 4 kind')).toBeNull(); expect(fieldNotes(4)).toEqual([unboundNote]); expect(changes).toHaveLength(0)
     expect(button('Make field 4 a reference')).not.toBeNull()
     press('Make field 4 a reference')
     expect(changes).toStrictEqual([reported(withField(base, 3, field => ({ ...field, reference: {} })), 1)])
     expect(selectedText(targetKind)).toBe('Not set')
+  })
+
+  it.each<[string, Json, boolean]>([
+    ['a string kind', { kind: 'text' }, false],
+    ['an array kind', { kind: [1] }, false],
+    ['a string kind.parameters', { kind: { kind_id: 'text', version: '1.0.0', parameters: 'ab' } }, true],
+  ])('Revision4: a binding with %s shows no control for that member, stays bound, and an unrelated edit carries the binding unchanged', (_, binding, kindShown) => {
+    const base = referenceBody({ binding }); const given = structuredClone(base); const { changes } = references(base)
+    expect(absent('Field 4 kind') !== null).toBe(kindShown); expect(screen.queryAllByLabelText(/^Field 4 parameter/)).toHaveLength(0)
+    // The binding itself is an object, so the field is bound: no unbound note and no Make field N a reference.
+    expect(fieldNotes(4)).toEqual([]); expect(button('Make field 4 a reference')).toBeNull(); expect(changes).toHaveLength(0)
+    enter('Site local', 'Field 4 display name')
+    expect(changes).toStrictEqual([reported(withField(base, 3, field => ({ ...field, display_name: 'Site local' })), 1)])
+    expect(base).toStrictEqual(given)
+  })
+
+  it('Revision4: a fields entry that is not an object is not shown and is carried unchanged in place', () => {
+    const site = referenceBody(); const base: Json = { ...site, fields: [...(site.fields as unknown[]), 'oops', 7, null] }; const given = structuredClone(base); const { changes } = references(base)
+    expect(textInput('Field 4 key')).toHaveValue('site')
+    for (const n of [5, 6, 7]) { expect(absent(`Field ${n} key`), `${n}`).toBeNull(); expect(button(`Make field ${n} a reference`), `${n}`).toBeNull(); expect(button(`Remove field ${n}`), `${n}`).toBeNull() }
+    expect(optionTexts('Retention clock field')).toEqual(['None', 'asset_tag', 'quantity', 'notes', 'site']); expect(changes).toHaveLength(0)
+    enter('Asset tag local', 'Field 1 display name')
+    expect(changes).toStrictEqual([reported(withField(base, 0, field => ({ ...field, display_name: 'Asset tag local' })), 1)])
+    expect(changes[0].draft.body.fields!.slice(4)).toStrictEqual(['oops', 7, null])
+    expect(base).toStrictEqual(given)
   })
 
   it('Revision4: a non-string cardinality or on_delete shows as not set and is kept unless edited', () => {
@@ -1133,6 +1198,13 @@ describe('Records local draft editor, React lane, revision 4 references', () => 
     fireEvent.click(checkbox(parent)); choose(cardinality, 'many')
     expect(changes).toStrictEqual([reported(withSiteReference(base, reference => ({ ...reference, parent: true })), 1), reported(withSiteReference(base, reference => ({ ...reference, parent: true, cardinality: 'many' })), 2)])
     expect('on_delete' in siteReferenceOf(changes[1])).toBe(true); expect(selectedText(onDelete)).toBe('Not set')
+  })
+
+  it.each<[Json]>([[{ target_type_id: 7 }], [{ target_class_id: 5 }]])('Revision4: a non-string target member %j shows as Not set and is kept by an unrelated reference edit', targets => {
+    const base = referenceBody({ reference: siteReference(targets) }); const { changes } = references(base, { classOptions })
+    choose(cardinality, 'many')
+    expect(changes).toStrictEqual([reported(withSiteReference(base, reference => ({ ...reference, cardinality: 'many' })), 1)])
+    expect(selectedText(targetKind)).toBe('Not set'); expect(textInput()).toHaveValue(''); expect(absent(targetClass)).toBeNull()
   })
 
   it.each([['one', 'many'], ['many', 'one']])('Revision4: Cardinality writes the producer spelling %s exactly', (spelling, current) => {
