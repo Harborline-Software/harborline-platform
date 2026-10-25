@@ -486,6 +486,7 @@ public sealed class RecordsDraftTests : BunitContext
     private static (string?, string?, string?, string)[] DiagnosticRows(IRenderedComponent<HarborlineRecordTypeDraftEditor> cut) => [.. cut.FindAll("[aria-label='Diagnostics'] li").Select(item => (item.GetAttribute("data-code"), item.GetAttribute("data-pointer"), item.GetAttribute("data-target"), item.TextContent))];
     private static string[] WarningTexts(IRenderedComponent<HarborlineRecordTypeDraftEditor> cut) => [.. cut.FindAll("[aria-label='Warnings'] li").Select(item => item.TextContent)];
     private static bool HasDiagnosticsList(IRenderedComponent<HarborlineRecordTypeDraftEditor> cut) => cut.FindAll("[aria-label='Diagnostics']").Count > 0;
+    private static int NoteCount(IRenderedComponent<HarborlineRecordTypeDraftEditor> cut) => cut.FindAll("p.hl-records-authoring__note").Count(note => note.TextContent == "Warnings do not block publication.");
     private static bool HasWarningsList(IRenderedComponent<HarborlineRecordTypeDraftEditor> cut) => cut.FindAll("[aria-label='Warnings']").Count > 0;
     // A null warnings argument leaves the member at its default (absent).
     private static RecordsDiagnosticSet Preview(RecordsDraft draft, int generation, IReadOnlyList<RecordsDiagnostic> diagnostics, IReadOnlyList<RecordsWarning>? warnings = null)
@@ -564,10 +565,10 @@ public sealed class RecordsDraftTests : BunitContext
         var draft = G1Draft(); var changes = new List<RecordsDraftChange>(); var matching = Preview(draft, 0, [Undeclared, Unresolved], [RetentionUnset]);
         var mismatched = member switch { "identity" => matching with { Identity = "eam.other" }, "revision" => matching with { ExpectedRevision = "2" }, "generation" => matching with { Generation = 1 }, _ => throw new ArgumentOutOfRangeException(nameof(member)) };
         var cut = Editor(draft, changes, mismatched);
-        Assert.False(HasDiagnosticsList(cut)); Assert.False(HasWarningsList(cut));
+        Assert.False(HasDiagnosticsList(cut)); Assert.False(HasWarningsList(cut)); Assert.Equal(0, NoteCount(cut));
         // Positive control: the same set, matching, shows both.
         cut.Render(parameters => parameters.Add(component => component.Diagnostics, matching));
-        Assert.Equal([UndeclaredRow, UnresolvedRow], DiagnosticRows(cut)); Assert.Equal([RetentionText], WarningTexts(cut));
+        Assert.Equal([UndeclaredRow, UnresolvedRow], DiagnosticRows(cut)); Assert.Equal([RetentionText], WarningTexts(cut)); Assert.Equal(1, NoteCount(cut));
         Assert.Empty(changes);
     }
 
@@ -576,7 +577,7 @@ public sealed class RecordsDraftTests : BunitContext
     {
         var draft = G1Draft(); var changes = new List<RecordsDraftChange>();
         var cut = Editor(draft, changes, Preview(draft, 0, [Undeclared, Unresolved], [RetentionUnset]), readOnly: true);
-        Assert.Equal([UndeclaredRow, UnresolvedRow], DiagnosticRows(cut)); Assert.Equal([RetentionText], WarningTexts(cut));
+        Assert.Equal([UndeclaredRow, UnresolvedRow], DiagnosticRows(cut)); Assert.Equal([RetentionText], WarningTexts(cut)); Assert.Equal(1, NoteCount(cut));
         Assert.Empty(changes);
     }
 
@@ -589,9 +590,9 @@ public sealed class RecordsDraftTests : BunitContext
         // Warnings never block: the edit is accepted and reported.
         cut.Find("input[aria-label='Record type name']").Change("local");
         Assert.Single(changes); Assert.Equal(1, changes[0].Generation);
-        Assert.False(HasDiagnosticsList(cut)); Assert.False(HasWarningsList(cut));
+        Assert.False(HasDiagnosticsList(cut)); Assert.False(HasWarningsList(cut)); Assert.Equal(0, NoteCount(cut));
         cut.Render(parameters => parameters.Add(component => component.Value, changes[0].Draft).Add(component => component.Diagnostics, atZero));
-        Assert.Equal("1", Generation(cut)); Assert.False(HasDiagnosticsList(cut)); Assert.False(HasWarningsList(cut));
+        Assert.Equal("1", Generation(cut)); Assert.False(HasDiagnosticsList(cut)); Assert.False(HasWarningsList(cut)); Assert.Equal(0, NoteCount(cut));
         cut.Render(parameters => parameters.Add(component => component.Diagnostics, Preview(changes[0].Draft, 1, [Undeclared, Unresolved], [RetentionUnset])));
         Assert.Equal([UndeclaredRow, UnresolvedRow], DiagnosticRows(cut)); Assert.Equal([RetentionText], WarningTexts(cut));
         Assert.Single(changes);

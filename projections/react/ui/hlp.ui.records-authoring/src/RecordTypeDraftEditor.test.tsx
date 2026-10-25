@@ -397,6 +397,7 @@ describe('Records local draft editor, React lane, revision 2 targets and warning
   const warningsList = () => screen.queryByRole('list', { name: 'Warnings' })
   // target is null when the item carries no data-target attribute at all.
   const diagnosticRows = () => Array.from(diagnosticsList()?.querySelectorAll('li') ?? []).map(item => ({ code: item.getAttribute('data-code'), pointer: item.getAttribute('data-pointer'), target: item.getAttribute('data-target'), text: item.textContent }))
+  const noteCount = () => screen.queryAllByText('Warnings do not block publication.').length
   const warningTexts = () => Array.from(warningsList()?.querySelectorAll('li') ?? []).map(item => item.textContent)
   // warnings undefined means the member is absent, not present-and-undefined.
   const preview = (draft: RecordsDraft, generation: number, diagnostics: readonly RecordsDiagnostic[], warnings?: readonly RecordsWarning[]): RecordsDiagnosticSet => warnings === undefined ? supplied(draft, generation, diagnostics) : { ...supplied(draft, generation, diagnostics), warnings }
@@ -427,6 +428,7 @@ describe('Records local draft editor, React lane, revision 2 targets and warning
     const view = render(<RecordTypeDraftEditor value={draft} kindOptions={kindOptions} diagnostics={preview(draft, 0, [unresolved], [retentionUnset])} onDraftChange={vi.fn()} />)
     expect(screen.getAllByText('Warnings do not block publication.')).toHaveLength(1)
     expect(warningsList()!.previousElementSibling!.textContent).toBe('Warnings do not block publication.')
+    expect(warningsList()!.previousElementSibling!.tagName).toBe('P'); expect(warningsList()!.previousElementSibling!.className).toBe('hl-records-authoring__note')
     view.rerender(<RecordTypeDraftEditor value={draft} kindOptions={kindOptions} diagnostics={preview(draft, 0, [unresolved])} onDraftChange={vi.fn()} />)
     expect(screen.queryByText('Warnings do not block publication.')).toBeNull()
   })
@@ -460,17 +462,17 @@ describe('Records local draft editor, React lane, revision 2 targets and warning
   ])('Revision2: shows neither list when the %s does not match the current draft', (_, mismatch) => {
     const draft = g1Draft(); const onDraftChange = vi.fn(); const matching = preview(draft, 0, [undeclared, unresolved], [retentionUnset])
     const view = render(<RecordTypeDraftEditor value={draft} kindOptions={kindOptions} diagnostics={{ ...matching, ...mismatch }} onDraftChange={onDraftChange} />)
-    expect(diagnosticsList()).toBeNull(); expect(warningsList()).toBeNull()
+    expect(diagnosticsList()).toBeNull(); expect(warningsList()).toBeNull(); expect(noteCount()).toBe(0)
     // Positive control: the same set, matching, shows both.
     view.rerender(<RecordTypeDraftEditor value={draft} kindOptions={kindOptions} diagnostics={matching} onDraftChange={onDraftChange} />)
-    expect(diagnosticRows()).toEqual([undeclaredRow, unresolvedRow]); expect(warningTexts()).toEqual([retentionText])
+    expect(diagnosticRows()).toEqual([undeclaredRow, unresolvedRow]); expect(warningTexts()).toEqual([retentionText]); expect(noteCount()).toBe(1)
     expect(onDraftChange).not.toHaveBeenCalled()
   })
 
   it('Revision2: read-only still shows both lists', () => {
     const draft = g1Draft(); const onDraftChange = vi.fn()
     render(<RecordTypeDraftEditor value={draft} kindOptions={kindOptions} readOnly diagnostics={preview(draft, 0, [undeclared, unresolved], [retentionUnset])} onDraftChange={onDraftChange} />)
-    expect(diagnosticRows()).toEqual([undeclaredRow, unresolvedRow]); expect(warningTexts()).toEqual([retentionText])
+    expect(diagnosticRows()).toEqual([undeclaredRow, unresolvedRow]); expect(warningTexts()).toEqual([retentionText]); expect(noteCount()).toBe(1)
     expect(onDraftChange).not.toHaveBeenCalled()
   })
 
@@ -482,9 +484,9 @@ describe('Records local draft editor, React lane, revision 2 targets and warning
     // Warnings never block: the edit is accepted and reported.
     fireEvent.change(screen.getByLabelText('Record type name'), { target: { value: 'local' } })
     expect(changes).toHaveLength(1); expect(changes[0].generation).toBe(1)
-    expect(diagnosticsList()).toBeNull(); expect(warningsList()).toBeNull()
+    expect(diagnosticsList()).toBeNull(); expect(warningsList()).toBeNull(); expect(noteCount()).toBe(0)
     view.rerender(<RecordTypeDraftEditor value={changes[0].draft} kindOptions={kindOptions} diagnostics={atZero} onDraftChange={onDraftChange} />)
-    expect(generationOf()).toBe('1'); expect(diagnosticsList()).toBeNull(); expect(warningsList()).toBeNull()
+    expect(generationOf()).toBe('1'); expect(diagnosticsList()).toBeNull(); expect(warningsList()).toBeNull(); expect(noteCount()).toBe(0)
     view.rerender(<RecordTypeDraftEditor value={changes[0].draft} kindOptions={kindOptions} diagnostics={preview(changes[0].draft, 1, [undeclared, unresolved], [retentionUnset])} onDraftChange={onDraftChange} />)
     expect(diagnosticRows()).toEqual([undeclaredRow, unresolvedRow]); expect(warningTexts()).toEqual([retentionText])
     expect(changes).toHaveLength(1)
