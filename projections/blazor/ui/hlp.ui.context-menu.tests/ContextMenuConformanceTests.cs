@@ -66,6 +66,37 @@ public sealed class ContextMenuConformanceTests : BunitContext
     [Fact, Trait("ConformanceCase", "context-menu.danger-icon")]
     public async Task DangerIcon() { var cut=RenderMenu(); await cut.Instance.ShowAsync(8,8); var item=cut.FindAll("[role=menuitem]")[2]; Assert.Equal("true",item.GetAttribute("data-danger")); Assert.NotNull(item.QuerySelector("[aria-hidden=true]")); }
 
+    // T-943 review 2: every close returns focus to the element that had it when the menu opened, after a
+    // pointer open as well as a keyboard one (APG menu pattern, as React). No ConformanceCase trait, so the
+    // per-case runner's filter still selects exactly one test per case.
+    [Theory]
+    [InlineData("pointer", "escape")]
+    [InlineData("pointer", "select")]
+    [InlineData("pointer", "outside")]
+    [InlineData("keyboard", "escape")]
+    [InlineData("keyboard", "select")]
+    [InlineData("keyboard", "outside")]
+    public async Task EveryCloseReturnsFocusToTheOpener(string opening, string closing)
+    {
+        var module = JSInterop.SetupModule("./_content/Harborline.UIAdapters.Blazor/context-menu.js");
+        module.SetupVoid("rememberOpener", _ => true).SetVoidResult();
+        module.SetupVoid("focusActive", _ => true).SetVoidResult();
+        module.SetupVoid("focusTrigger", _ => true).SetVoidResult();
+        var cut = RenderMenu();
+        if (opening == "pointer")
+        {
+            await cut.Find(".hl-context-menu-trigger").TriggerEventAsync("oncontextmenu", new MouseEventArgs { ClientX = 40, ClientY = 60 });
+            module.VerifyInvoke("rememberOpener");
+        }
+        else await cut.Find(".hl-context-menu-trigger").KeyDownAsync(new KeyboardEventArgs { Key = "F10", ShiftKey = true });
+        Assert.True(cut.Instance.IsOpen);
+        if (closing == "escape") await cut.Find("[role=menu]").KeyDownAsync(new KeyboardEventArgs { Key = "Escape" });
+        else if (closing == "select") cut.FindAll("[role=menuitem]")[1].Click();
+        else await cut.Find(".hl-context-menu-overlay").MouseDownAsync(new MouseEventArgs { Button = 0 });
+        Assert.False(cut.Instance.IsOpen);
+        module.VerifyInvoke("focusTrigger");
+    }
+
     [Fact, Trait("ConformanceCase", "context-menu.reopen-reset")]
     public async Task ReopenResets() { var cut=RenderMenu(); await cut.Instance.ShowAsync(8,8); await cut.Find("[role=menu]").KeyDownAsync(new KeyboardEventArgs{Key="End"}); await cut.Instance.HideAsync(); await cut.Instance.ShowAsync(8,8); Assert.Equal("copy",cut.Find("[role=menu]").GetAttribute("data-active-id")); }
 }

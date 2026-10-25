@@ -59,7 +59,6 @@
     private ElementReference TriggerElement { get; set; }
     private ElementReference MenuElement { get; set; }
     private IJSObjectReference? DomModule { get; set; }
-    private bool KeyboardOpened { get; set; }
     private bool FocusActiveAfterRender { get; set; }
     private bool RestoreTriggerAfterRender { get; set; }
     private IReadOnlyList<ContextMenuItem> FlatItems => Groups.SelectMany(group => group.Items).ToArray();
@@ -77,10 +76,12 @@
     private async Task ShowAsync(double x, double y, bool keyboardOpened)
     {
         (X, Y) = ClampPosition(x, y, MenuWidth, MenuHeight, ViewportWidth, ViewportHeight);
+        // Whatever has focus now is where every close returns it, after a pointer or programmatic open
+        // as after a keyboard one (APG menu pattern, as React); triggerAnchor has already recorded the
+        // keyboard opener. Every open then focuses the active item, as React does and the interface
+        // requires ("Opening focuses the first enabled item").
+        if (!keyboardOpened) await (await ModuleAsync()).InvokeVoidAsync("rememberOpener", TriggerElement);
         IsOpen = true;
-        KeyboardOpened = keyboardOpened;
-        // Every open focuses the active item, as React does and the interface requires ("Opening
-        // focuses the first enabled item"); KeyboardOpened still decides only where focus returns.
         FocusActiveAfterRender = true;
         ActiveIndex = EnabledIndices.FirstOrDefault(-1);
         await InvokeAsync(StateHasChanged);
@@ -92,8 +93,7 @@
         if (!IsOpen) return;
         IsOpen = false;
         ActiveIndex = -1;
-        RestoreTriggerAfterRender = KeyboardOpened;
-        KeyboardOpened = false;
+        RestoreTriggerAfterRender = true;
         await InvokeAsync(StateHasChanged);
         await OnHide.InvokeAsync();
     }
