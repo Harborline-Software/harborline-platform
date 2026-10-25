@@ -871,7 +871,8 @@ public sealed class RecordsDraftTests : BunitContext
     }
 
     [Fact]
-    public void Revision3_No_mode_keeps_reason_required_and_the_other_policy_members_and_unchecking_removes_the_whole_policy()
+    // A host-declared policy cannot be unchecked (the producer has no 'off' value and save carries an omitted declaration forward).
+    public void Revision3_No_mode_keeps_reason_required_and_the_other_policy_members_and_a_host_declared_policy_cannot_be_unchecked()
     {
         var body = HeaderBody(("amendment_policy", JsonNode.Parse("""{"reason_required":true,"mode":"supersession","future_policy_member":"kept"}""")));
         var first = new List<RecordsDraftChange>(); var cut = Header(DraftWith(body), first);
@@ -879,8 +880,9 @@ public sealed class RecordsDraftTests : BunitContext
         Choose(cut, "Amendment mode", "No mode");
         AssertReported(Assert.Single(first), With(body, ("amendment_policy", JsonNode.Parse("""{"reason_required":true,"future_policy_member":"kept"}"""))), 1);
         var second = new List<RecordsDraftChange>(); var other = Header(DraftWith(body), second);
-        Toggle(other, "Amendments require a reason");
-        AssertReported(Assert.Single(second), Without(body, "amendment_policy"), 1);
+        Assert.True(IsDisabled(Checkbox(other, "Amendments require a reason")));
+        Checkbox(other, "Amendments require a reason").Change(false);
+        Assert.Empty(second);
     }
 
     [Fact]

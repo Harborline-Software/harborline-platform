@@ -678,7 +678,8 @@ describe('Records local draft editor, React lane, revision 3 header', () => {
     expect(changes).toHaveLength(0)
   })
 
-  it('Revision3: No mode keeps reason_required and the other policy members, and unchecking removes the whole policy', () => {
+  // A host-declared policy cannot be unchecked (the producer has no 'off' value and save carries an omitted declaration forward).
+  it('Revision3: No mode keeps reason_required and the other policy members, and a host-declared policy cannot be unchecked', () => {
     const base = headerBody({ amendment_policy: { reason_required: true, mode: 'supersession', future_policy_member: 'kept' } })
     const first = header(base)
     expect(checkbox('Amendments require a reason')).toBeChecked(); expect(selectedText('Amendment mode')).toBe('supersession')
@@ -686,8 +687,9 @@ describe('Records local draft editor, React lane, revision 3 header', () => {
     expect(first.changes).toStrictEqual([reported({ ...base, amendment_policy: { reason_required: true, future_policy_member: 'kept' } }, 1)])
     first.view.unmount()
     const second = header(base)
+    expect(checkbox('Amendments require a reason')).toBeDisabled()
     fireEvent.click(checkbox('Amendments require a reason'))
-    expect(second.changes).toStrictEqual([reported(without(base, 'amendment_policy'), 1)])
+    expect(second.changes).toHaveLength(0)
   })
 
   it('Revision3: checking with an existing policy writes reason_required true and keeps its other members', () => {
