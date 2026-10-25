@@ -476,6 +476,11 @@ public sealed class RecordTypeDefinitionStore
             return head is null ? null
                 : new(head, RecordsJson.Deserialize<ClassDocument>(Encoding.UTF8.GetBytes(head.Document.BodyJson)).Envelope, null);
         }
+        if (string.IsNullOrWhiteSpace(reference.TargetTypeId))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return null;
+        }
         if (StringComparer.Ordinal.Equals(reference.TargetTypeId, document.RecordTypeId))
             return new(null, document.Envelope, document.Traits ?? []);
         var typeHead = await _store.GetPublishedHeadAsync(KeyOf(tenant, reference.TargetTypeId!), cancellationToken).ConfigureAwait(false);
