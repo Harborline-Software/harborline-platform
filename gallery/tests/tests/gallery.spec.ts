@@ -2331,6 +2331,27 @@ for (const projection of ['react', 'blazor'] as const) {
     await expect(page.getByRole('menu')).toHaveCount(0)
     await expect(trigger).toBeFocused()
 
+    // T-943 review 2: every close returns focus to the element that had it when the menu opened, by
+    // keyboard or by pointer (APG menu pattern), and an outside press on nothing focusable is a close
+    // too: in a real browser the press's own default action runs after the dismissal and would
+    // otherwise leave focus on <body>. jsdom and bUnit cannot see that ordering; this does.
+    const outsidePress = () => page.mouse.click(8, 712)
+    await trigger.focus()
+    await trigger.dispatchEvent('keydown', {key: 'F10', code: 'F10', shiftKey: true, bubbles: true})
+    await expect(page.locator('[role="menuitem"][data-active="true"]')).toBeFocused()
+    await outsidePress()
+    await expect(page.getByRole('menu')).toHaveCount(0)
+    await expect(trigger, `${projection} keyboard-opened menu, outside press`).toBeFocused()
+    for (const close of ['Escape', 'selection', 'outside press'] as const) {
+      await trigger.click({button: 'right', position: {x: 36, y: 36}})
+      await expect(page.locator('[role="menuitem"][data-active="true"]'), `${projection} pointer open focuses the menu`).toBeFocused()
+      if (close === 'Escape') await page.keyboard.press('Escape')
+      else if (close === 'selection') await page.getByRole('menuitem', {name: 'Copy inspection'}).click()
+      else await outsidePress()
+      await expect(page.getByRole('menu')).toHaveCount(0)
+      await expect(trigger, `${projection} pointer-opened menu, ${close}`).toBeFocused()
+    }
+
     const groupsScenario = contextMenuCatalog.scenarios.find(scenario => scenario.id === 'context-menu.groups')!
     await openProjectionStory(page, projection, contextMenuCatalog, groupsScenario.name)
     await prepareScenario(page, groupsScenario)

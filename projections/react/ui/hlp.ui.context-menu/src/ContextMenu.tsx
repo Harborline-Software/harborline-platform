@@ -36,14 +36,17 @@ export function ContextMenu({groups, children, className = '', accessibleLabel =
   const [activeIndex, setActiveIndex] = React.useState(-1)
   const triggerRef = React.useRef<HTMLDivElement>(null)
   const menuRef = React.useRef<HTMLDivElement>(null)
-  const keyboardOpener = React.useRef<HTMLElement | null>(null)
+  // The element that had focus when the menu opened, by keyboard or by pointer: every close returns
+  // focus there (APG menu pattern). <body> is no place to return to, so it is not recorded.
+  const opener = React.useRef<HTMLElement | null>(null)
 
   if (!accessibleLabel.trim()) throw new Error('accessible-name-required')
   const duplicate = items.find((item, index) => items.findIndex(candidate => candidate.id === item.id) !== index)
   if (duplicate) throw new Error(`duplicate-item-id: ${duplicate.id}`)
 
-  const open = React.useCallback((next: Position, keyboard: boolean) => {
-    keyboardOpener.current = keyboard ? document.activeElement as HTMLElement | null : null
+  const open = React.useCallback((next: Position) => {
+    const active = document.activeElement
+    opener.current = active instanceof HTMLElement && active !== document.body ? active : null
     setPosition(next)
     setActiveIndex(enabled[0] ?? -1)
   }, [enabled])
@@ -51,7 +54,7 @@ export function ContextMenu({groups, children, className = '', accessibleLabel =
   const close = React.useCallback((restoreFocus = true) => {
     setPosition(null)
     setActiveIndex(-1)
-    if (restoreFocus) queueMicrotask(() => keyboardOpener.current?.focus())
+    if (restoreFocus) queueMicrotask(() => opener.current?.focus())
   }, [])
 
   const move = React.useCallback((kind: 'next' | 'previous' | 'first' | 'last') => {
@@ -75,8 +78,16 @@ export function ContextMenu({groups, children, className = '', accessibleLabel =
     if (!position) return
     const item = menuRef.current?.querySelectorAll<HTMLElement>('[role="menuitem"]')[activeIndex]
     ;(item ?? menuRef.current)?.focus()
+    // An outside press closes the menu and lets focus go where the press puts it. The press's default
+    // action moves focus only after this listener returns, so a restore queued now would be undone:
+    // the opener gets focus back afterwards, and only when the press landed on nothing focusable.
     const outside = (event: MouseEvent) => {
-      if (!menuRef.current?.contains(event.target as Node)) close()
+      if (menuRef.current?.contains(event.target as Node)) return
+      const returnTo = opener.current
+      close(false)
+      setTimeout(() => {
+        if (!document.activeElement || document.activeElement === document.body) returnTo?.focus()
+      }, 0)
     }
     document.addEventListener('mousedown', outside)
     return () => document.removeEventListener('mousedown', outside)
@@ -86,7 +97,7 @@ export function ContextMenu({groups, children, className = '', accessibleLabel =
     if (!position && ((event.shiftKey && event.key === 'F10') || event.key === 'ContextMenu')) {
       event.preventDefault()
       const bounds = triggerRef.current?.getBoundingClientRect()
-      open({x: bounds?.left ?? 8, y: bounds?.bottom ?? 8}, true)
+      open({x: bounds?.left ?? 8, y: bounds?.bottom ?? 8})
       return
     }
     if (!position) return
@@ -106,7 +117,7 @@ export function ContextMenu({groups, children, className = '', accessibleLabel =
     <div ref={triggerRef} className={className} onKeyDown={onKeyDown} onContextMenu={event => {
       event.preventDefault()
       event.stopPropagation()
-      open({x: event.clientX, y: event.clientY}, false)
+      open({x: event.clientX, y: event.clientY})
     }}>{children}</div>
     {position && <div ref={menuRef} role="menu" tabIndex={-1} aria-label={accessibleLabel} lang={locale} dir={direction}
       data-active-id={activeIndex >= 0 ? items[activeIndex]?.id : undefined}
