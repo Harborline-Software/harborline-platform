@@ -16,7 +16,7 @@ export interface RecordTypeFieldReference { readonly target_type_id?: string; re
 export interface RecordsDraft { readonly identity: string; readonly versionId: string; readonly expectedRevision?: string | null; readonly definitionKind?: 'Records'; readonly body: RecordTypeBody }
 /** A field kind and version the host offers. The editor never selects one on its own. */
 export interface RecordsKindOption { readonly kindId: string; readonly version: string }
-/** A published Class the host offers as the type's catalogue home. The editor never selects one on its own. */
+/** A published Class the host offers as the type's catalogue home and as a reference Class target. The editor never selects one on its own. */
 export interface RecordsClassOption { readonly classId: string }
 /** A domain role the host offers as a role gate's creation role. The editor never selects one on its own. */
 export interface RecordsRoleOption { readonly roleId: string }
