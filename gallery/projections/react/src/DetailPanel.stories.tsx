@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { DetailPanel, HarborlineLocaleProvider } from '@harborline-software/ui-react'
 
@@ -25,9 +26,11 @@ function DetailPanelScenario({ scenarioId }: { scenarioId: ScenarioId }) {
   const arabic = scenarioId === 'detail-panel.locale-ar'
   const locale = arabic ? 'ar-SA' : pseudo ? 'en-XA' : 'en-US'
   const theme = scenarioId === 'detail-panel.theme-dark' ? 'dark' : 'light'
+  // The fixture owns the open state, so the panel's own close control and Escape close it (T-962).
+  const [open, setOpen] = useState(true)
   return <section className="hl-gallery-scene" data-gallery-probe data-gallery-scenario={scenarioId} data-theme={theme} dir={arabic ? 'rtl' : 'ltr'}>
     <header className="hl-gallery-heading"><h2>{title}</h2><p>{description}</p></header>
-    <div className="hl-gallery-stage hl-gallery-feedback-stack"><HarborlineLocaleProvider locale={locale}><div style={{ display: 'flex', justifyContent: 'flex-end', minHeight: 480, width: '100%', border: '1px solid var(--hl-color-border, #888)' }}>{scenarioId === 'detail-panel.content' ? <DetailPanel label="Awaiting third-party structural certification review" open railCapable><article><h2>{'Awaiting third-party structural certification review'}</h2><p>{'1,284,905'}</p><p>{'Bay 4 <grid C-7> & 8'}</p><p>{'Ordnance Survey — Niño Ångström'}</p></article></DetailPanel> : <DetailPanel label={arabic ? 'المصعد 2' : 'Elevator 2'} open railCapable={scenarioId !== 'detail-panel.sheet'}><ElevatorDetails pseudo={pseudo} arabic={arabic} /></DetailPanel>}</div></HarborlineLocaleProvider></div>
+    <div className="hl-gallery-stage hl-gallery-feedback-stack"><HarborlineLocaleProvider locale={locale}><div style={{ display: 'flex', justifyContent: 'flex-end', minHeight: 480, width: '100%', border: '1px solid var(--hl-color-border, #888)' }}>{scenarioId === 'detail-panel.content' ? <DetailPanel label="Awaiting third-party structural certification review" open={open} onOpenChange={setOpen} railCapable><article><h2>{'Awaiting third-party structural certification review'}</h2><p>{'1,284,905'}</p><p>{'Bay 4 <grid C-7> & 8'}</p><p>{'Ordnance Survey — Niño Ångström'}</p></article></DetailPanel> : <DetailPanel label={arabic ? 'المصعد 2' : 'Elevator 2'} open={open} onOpenChange={setOpen} railCapable={scenarioId !== 'detail-panel.sheet'}><ElevatorDetails pseudo={pseudo} arabic={arabic} /></DetailPanel>}</div></HarborlineLocaleProvider></div>
   </section>
 }
 
