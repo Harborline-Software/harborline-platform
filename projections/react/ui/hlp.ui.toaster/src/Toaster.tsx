@@ -263,17 +263,41 @@ function ToastIcon({ variant }: { variant: ToastVariant }) {
   return <svg fill="currentColor" focusable="false" viewBox="0 0 16 16"><circle cx="8" cy="8" r="2" /></svg>
 }
 
+// The blank check both lanes share (T-1107): a region name made only of these characters is blank.
+// They are ECMA-262's WhiteSpace and LineTerminator characters, the set String.prototype.trim strips,
+// written out because HarborlineToaster.razor's BlankNameCharacters lists the same ones: .NET's
+// char.IsWhiteSpace differs at two of them, counting U+0085 (NEL) as white space and U+FEFF (ZWNBSP)
+// as not. In both lanes a NEL-only name is not blank and a ZWNBSP-only one is.
+const BLANK_NAME = /^[\t\n\v\f\r \u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000\ufeff]*$/
+
 export function Toaster({
   service, position = 'bottom-right', duration, maximumVisible, keepErrorsPersistent,
   defaults, showCloseButton = false, dismissLabel = 'Dismiss notification', direction,
+  // The region's accessible name. A literal written after the spread overwrote the caller's
+  // aria-label, which ToasterProps accepts through HTMLAttributes, so no host could localize the
+  // landmark. The default is "Notifications", Blazor AccessibleLabel's default, and a caller's name
+  // replaces it; revision 1 of hlp.ui.default-strings has no key for this name. Ticket T-1107.
+  'aria-label': ariaLabel,
+  // The caller's dir attribute, which a dir written after the spread used to overwrite.
+  dir,
   className, ...attributes
 }: ToasterProps) {
   React.useEffect(() => {
     service.configure({ duration, maximumVisible, keepErrorsPersistent, defaults })
   }, [defaults, duration, keepErrorsPersistent, maximumVisible, service])
   const snapshot = React.useSyncExternalStore(service.subscribe, service.getSnapshot, service.getSnapshot)
+  // A section with a blank aria-label has no accessible name and so is no landmark (HTML-AAM), so
+  // only a non-blank string names the region. An empty or blank name, and any non-string from
+  // untyped JavaScript (null, false, a number), keeps the default as an absent one does, instead of
+  // throwing from the render. The interface lists no error for it. Blazor resolves AccessibleLabel
+  // and a splatted aria-label with the same blank set and the same bool and number cases; it also
+  // takes an object's ToString() text, because a localized splat there is IStringLocalizer's
+  // LocalizedString, where a catalog lookup here returns a string (T-1107).
+  const accessibleLabel = typeof ariaLabel === 'string' && !BLANK_NAME.test(ariaLabel) ? ariaLabel : 'Notifications'
   return (
-    <section {...attributes} dir={direction} aria-label="Notifications" className={`hl-toaster hl-toaster--${position}${className ? ` ${className}` : ''}`} data-position={position}>
+    // A caller's dir wins over direction, as a dir splatted after Blazor's dir="@Direction" does,
+    // and as Gantt and Scheduler resolve `dir ?? direction`.
+    <section {...attributes} dir={dir ?? direction} aria-label={accessibleLabel} className={`hl-toaster hl-toaster--${position}${className ? ` ${className}` : ''}`} data-position={position}>
       {snapshot.visible.map(entry => (
         <div key={entry.id} role={entry.variant === 'error' ? 'alert' : 'status'} className="hl-toaster__toast" data-variant={entry.variant} data-toast-id={entry.id}>
           <span aria-hidden="true" className="hl-toaster__marker"><ToastIcon variant={entry.variant} /></span>

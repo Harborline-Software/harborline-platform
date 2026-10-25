@@ -3179,34 +3179,6 @@
       ]
     },
     {
-      "scenarioId": "toaster.locale-ar",
-      "ticket": "T-1107",
-      "reason": "Component defect (React): Toaster hard-codes aria-label=\"Notifications\" after the attribute spread and has no label prop, so the toast region can be neither localized nor overridden (\"Notifications\" in the Arabic scene). Blazor exposes AccessibleLabel, and its story passes the localized label.",
-      "hunks": [
-        "@@ #1",
-        "  - button \"إظهار الإشعارات\"",
-        "  - button \"إغلاق الكل\"",
-        "- - region \"Notifications\":",
-        "+ - region \"الإشعارات\":",
-        "    - status: تم Capture ready",
-        "    - status: تم Pose saved"
-      ]
-    },
-    {
-      "scenarioId": "toaster.locale-pseudo",
-      "ticket": "T-1107",
-      "reason": "Component defect (React): Toaster hard-codes aria-label=\"Notifications\" after the attribute spread and has no label prop, so the toast region can be neither localized nor overridden (\"Notifications\" in the pseudo-locale scene). Blazor exposes AccessibleLabel, and its story passes the localized label.",
-      "hunks": [
-        "@@ #1",
-        "  - button \"⟦ Šhøŵ ţøåšţš ··· ⟧\"",
-        "  - button \"Dismiss all\"",
-        "- - region \"Notifications\":",
-        "+ - region \"⟦ Ñøţîƒîçåţîøñš ···· ⟧\":",
-        "    - status: ⟦ Capture ready ······ ⟧",
-        "    - status: ⟦ Pose saved ······ ⟧"
-      ]
-    },
-    {
       "scenarioId": "toaster.positions",
       "ticket": "T-1104",
       "reason": "Gallery story copy: the position buttons are labelled with each lane's own enum spelling (\"top-left\" in React, \"TopLeft\" in Blazor). The two lanes' gallery stories do not render the same scene for this scenario, so the comparison reads different inputs, not a component difference; the stories need aligning.",
