@@ -95,3 +95,25 @@ it('a close whose opener left the document returns focus to the trigger instead'
   await new Promise(done => setTimeout(done, 0))
   expect(screen.getByRole('button', {name: 'Target'})).toHaveFocus()
 })
+
+// T-943 review 4: with nothing focused at open there is no opener, so no close moves focus. A menu
+// opened on unfocusable content leaves focus on <body> after Escape, a selection or an outside press,
+// instead of jumping (and scrolling) to the trigger's first focusable element.
+it.each(closes)('a menu opened while nothing had focus leaves focus on <body> after %s', async closing => {
+  if (caseId) return
+  const groups: ContextMenuGroup[] = [{items: [{id: 'copy', label: 'Copy', onSelect: vi.fn()}]}]
+  render(<><ContextMenu groups={groups} accessibleLabel="Actions"><div><span>Row text</span><button>Edit row 1</button></div></ContextMenu><p>Outside</p></>)
+  ;(document.activeElement as HTMLElement | null)?.blur()
+  expect(document.activeElement).toBe(document.body)
+  fireEvent.contextMenu(screen.getByText('Row text'), {clientX: 40, clientY: 60})
+  if (closing === 'Escape') fireEvent.keyDown(screen.getByRole('menu'), {key: 'Escape'})
+  else if (closing === 'item selection') fireEvent.click(screen.getByRole('menuitem', {name: 'Copy'}))
+  else {
+    fireEvent.mouseDown(screen.getByText('Outside'))
+    await Promise.resolve()
+    ;(document.activeElement as HTMLElement | null)?.blur()
+  }
+  await new Promise(done => setTimeout(done, 0))
+  expect(screen.queryByRole('menu')).toBeNull()
+  expect(document.activeElement).toBe(document.body)
+})
