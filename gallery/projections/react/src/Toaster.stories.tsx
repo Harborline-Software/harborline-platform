@@ -84,6 +84,7 @@ function ToastFixture({ scenarioId, position = 'bottom-right', onPositionChange 
       showCloseButton={scenarioId === 'toaster.queue-lifecycle'}
       keepErrorsPersistent
       dismissLabel={arabic ? 'إغلاق الإشعار' : pseudo ? '⟦ Đîšmîšš ñøţîƒîçåţîøñ ···· ⟧' : 'Dismiss notification'}
+      aria-label={arabic ? 'الإشعارات' : pseudo ? '⟦ Ñøţîƒîçåţîøñš ···· ⟧' : 'Notifications'}
       direction={arabic ? 'rtl' : 'ltr'}
     />
   </div>

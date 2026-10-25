@@ -266,6 +266,11 @@ function ToastIcon({ variant }: { variant: ToastVariant }) {
 export function Toaster({
   service, position = 'bottom-right', duration, maximumVisible, keepErrorsPersistent,
   defaults, showCloseButton = false, dismissLabel = 'Dismiss notification', direction,
+  // The region's accessible name. A literal written after the spread overwrote the caller's
+  // aria-label, which ToasterProps accepts through HTMLAttributes, so no host could localize the
+  // landmark. As with Blazor's AccessibleLabel, the default is "Notifications" and a caller's name
+  // replaces it; revision 1 of hlp.ui.default-strings has no key for this name. Ticket T-1107.
+  'aria-label': accessibleLabel = 'Notifications',
   className, ...attributes
 }: ToasterProps) {
   React.useEffect(() => {
@@ -273,7 +278,7 @@ export function Toaster({
   }, [defaults, duration, keepErrorsPersistent, maximumVisible, service])
   const snapshot = React.useSyncExternalStore(service.subscribe, service.getSnapshot, service.getSnapshot)
   return (
-    <section {...attributes} dir={direction} aria-label="Notifications" className={`hl-toaster hl-toaster--${position}${className ? ` ${className}` : ''}`} data-position={position}>
+    <section {...attributes} dir={direction} aria-label={accessibleLabel} className={`hl-toaster hl-toaster--${position}${className ? ` ${className}` : ''}`} data-position={position}>
       {snapshot.visible.map(entry => (
         <div key={entry.id} role={entry.variant === 'error' ? 'alert' : 'status'} className="hl-toaster__toast" data-variant={entry.variant} data-toast-id={entry.id}>
           <span aria-hidden="true" className="hl-toaster__marker"><ToastIcon variant={entry.variant} /></span>
