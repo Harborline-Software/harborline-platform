@@ -38,15 +38,33 @@
   [Parameter] public string AccessibleLabel { get; set; } = "Notifications";
   [Parameter] public string? Direction { get; set; }
   // The region's accessible name, written after @attributes so that it is the one the section
-  // renders. A caller's splatted aria-label still wins over AccessibleLabel, but only a non-blank
-  // string names the region: a blank, whitespace-only, null or non-string value is absent, so the
-  // name falls back to AccessibleLabel and then to "Notifications". A section with a blank
-  // aria-label has no name and so is no landmark (HTML-AAM), and the interface defines
-  // toast-message-required only for an empty toast message. React resolves aria-label the same way.
-  // Ticket T-1107.
-  private string RegionName => NonBlank(SplattedAriaLabel) ?? NonBlank(AccessibleLabel) ?? "Notifications";
+  // renders. A caller's splatted aria-label still wins over AccessibleLabel, and each is taken only
+  // when its text is not blank; otherwise the name falls back to AccessibleLabel and then to
+  // "Notifications". A section with a blank aria-label has no name and so is no landmark (HTML-AAM),
+  // and the interface defines toast-message-required only for an empty toast message. Ticket T-1107.
+  private string RegionName => NameText(SplattedAriaLabel) ?? NameText(AccessibleLabel) ?? "Notifications";
   private object? SplattedAriaLabel => AdditionalAttributes?.FirstOrDefault(attribute => string.Equals(attribute.Key, "aria-label", StringComparison.OrdinalIgnoreCase)).Value;
-  private static string? NonBlank(object? value) => value is string text && !string.IsNullOrWhiteSpace(text) ? text : null;
+  // The name text of a splatted aria-label or of AccessibleLabel. Null, a bool and a number are
+  // absent, as React keeps the default for a non-string, and each .NET numeric type stands for a
+  // JavaScript number or bigint. Any other object is the text Blazor writes for it on an element,
+  // its ToString(): aria-label="@L["key"]" passes IStringLocalizer's LocalizedString, not a string,
+  // and that is how a host localizes this name. React has no such object, because its catalog
+  // lookup returns a string (T-1107 review 3).
+  private static string? NameText(object? value) => value switch
+  {
+    null or bool => null,
+    sbyte or byte or short or ushort or int or uint or long or ulong or nint or nuint or Int128 or UInt128 or System.Numerics.BigInteger => null,
+    Half or float or double or decimal => null,
+    string name => name,
+    _ => value.ToString(),
+  } is { } text && !IsBlank(text) ? text : null;
+  // The blank check both lanes share: a name made only of these characters is blank. They are
+  // ECMA-262's WhiteSpace and LineTerminator characters, the set String.prototype.trim strips, and
+  // Toaster.tsx's BLANK_NAME lists the same ones. string.IsNullOrWhiteSpace is not used because .NET's
+  // char.IsWhiteSpace differs at two of them: it counts U+0085 (NEL) as white space and U+FEFF
+  // (ZWNBSP) as not. Here, as in React, a NEL-only name is not blank and a ZWNBSP-only one is.
+  private const string BlankNameCharacters = "\t\n\v\f\r \u00A0\u1680\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200A\u2028\u2029\u202F\u205F\u3000\uFEFF";
+  private static bool IsBlank(string text) => text.AsSpan().IndexOfAnyExcept(BlankNameCharacters) < 0;
   private string PositionToken => Position switch { ToastPosition.TopLeft=>"top-left",ToastPosition.TopCenter=>"top-center",ToastPosition.TopRight=>"top-right",ToastPosition.BottomLeft=>"bottom-left",ToastPosition.BottomCenter=>"bottom-center",ToastPosition.BottomRight=>"bottom-right",_=>"bottom-right" };
   private IReadOnlyList<ToastEntry> VisibleEntries => Toasts.Entries.TakeLast(MaximumVisible).ToArray();
   protected override void OnInitialized() => Toasts.Changed += OnChanged;

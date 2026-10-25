@@ -89,6 +89,8 @@
     <Compile Include="../hlp.ui.select-field.tests/**/*.cs" Link="Forms/SelectField/%(Filename)%(Extension)" />
     <Compile Include="../hlp.ui.switch.tests/**/*.cs" Link="Forms/Switch/%(Filename)%(Extension)" />
     <Compile Include="../hlp.ui.toaster.tests/**/*.cs" Link="Feedback/Toaster/%(Filename)%(Extension)" />
+    <!-- T-1107: a real .razor host, so the toaster tests see a splatted attribute as the Razor compiler passes it. -->
+    <RazorComponent Include="../hlp.ui.toaster.tests/**/*.razor" Link="Feedback/Toaster/%(Filename)%(Extension)" />
     <Compile Include="../hlp.ui.user-menu.tests/**/*.cs" Link="Shell/UserMenu/%(Filename)%(Extension)" />
     <Compile Include="../hlp.ui.app-layout.tests/**/*.cs" Link="Layout/AppLayout/%(Filename)%(Extension)" />
     <Compile Include="../hlp.ui.app-shell.tests/**/*.cs" Link="Layout/AppShell/%(Filename)%(Extension)" />

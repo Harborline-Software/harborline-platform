@@ -126,6 +126,21 @@ describe('Toaster region name (T-1107)', () => {
     expect(document.querySelector('section.hl-toaster')).toHaveAttribute('aria-label', 'Notifications')
   })
 
+  // T-1107 review 3: the blank check is one character set in both lanes, ECMA-262's WhiteSpace and
+  // LineTerminator, the set String.prototype.trim strips. .NET's char.IsWhiteSpace differs at two
+  // characters, counting U+0085 (NEL) as white space and U+FEFF (ZWNBSP) as not, so Blazor lists the
+  // same set instead of using it. A NEL-only name is not blank and a ZWNBSP-only one is, in both
+  // lanes; Blazor's twin is ToasterTests.BlankCheckMatchesReactAtNelAndZwnbsp.
+  it.each([
+    ['U+0085 alone', '\u0085', '\u0085'],
+    ['U+0085 and a space', '\u0085 ', '\u0085 '],
+    ['U+FEFF alone', '\uFEFF', 'Notifications'],
+    ['U+FEFF among white space', ' \uFEFF\t\u3000', 'Notifications'],
+  ])('resolves an aria-label of %s as Blazor does', (_kind, name, expected) => {
+    render(<Toaster service={createToastService()} aria-label={name}/>)
+    expect(document.querySelector('section.hl-toaster')).toHaveAttribute('aria-label', expected)
+  })
+
   it('keeps the default region name when the host catalog entry is an untranslated blank', () => {
     const service = createToastService()
     render(<HarborlineLocaleProvider locale="ar-SA" catalog={{ ...arabicCatalog, 'host.notifications': '' }}><CatalogToaster service={service}/></HarborlineLocaleProvider>)

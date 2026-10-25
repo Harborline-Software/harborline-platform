@@ -1,0 +1,13 @@
+@namespace Harborline.UIAdapters.Blazor.Tests
+@using Microsoft.Extensions.Localization
+@using Harborline.UIAdapters.Blazor.Components.Feedback
+@inject IStringLocalizer<ToasterLocalizedHost> L
+@* T-1107 review 3. A host that localizes the toast region the ASP.NET Core way. IStringLocalizer's
+   indexer returns a LocalizedString, not a string, and the Razor compiler passes an attribute that
+   matches no HarborlineToaster parameter into AdditionalAttributes as that object, so this host,
+   and not a hand-built parameter list, is what shows the splat's real value type. *@
+<HarborlineToaster aria-label="@L["host.notifications"]" AccessibleLabel="@AccessibleLabel" />
+
+@code {
+  [Parameter] public string AccessibleLabel { get; set; } = "Notifications";
+}
