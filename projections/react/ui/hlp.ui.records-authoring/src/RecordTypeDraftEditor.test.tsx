@@ -537,8 +537,9 @@ describe('Records local draft editor, React lane, revision 3 header', () => {
     expect(optionTexts('Class')).toEqual(['Not set', 'eam.equipment', 'eam.facility']); expect(selectedText('Class')).toBe('Not set')
     expect(select('Record class')).toBeInTheDocument()
     expect(optionTexts('Creation gate')).toEqual(['Not set (form_only)', 'form_only', 'role', 'engine']); expect(selectedText('Creation gate')).toBe('Not set (form_only)')
-    expect(absent('Creation role')).toBeNull(); expect(absent('Amendment mode')).toBeNull()
-    expect(checkbox('Amendments require a reason')).not.toBeChecked(); expect(checkbox('Keep history')).not.toBeChecked()
+    expect(absent('Creation role')).toBeNull(); expect(selectedText('Amendment mode')).toBe('No mode')
+    // A draft not yet created gets both policies from creation, so both show checked and disabled; nothing is written for them.
+    for (const name of ['Amendments require a reason', 'Keep history']) { expect(checkbox(name), name).toBeChecked(); expect(checkbox(name), name).toBeDisabled() }
     expect(changes).toHaveLength(1)
   })
 
@@ -762,6 +763,91 @@ describe('Records local draft editor, React lane, revision 3 header', () => {
     expect(selectedText('Creation gate')).toBe('form-only (not a current spelling)'); expect(selectedText('Amendment mode')).toBe('edit_in_place (not a current spelling)')
     expect(optionTexts('Class')).toEqual(['Not set', 'eam.equipment', 'eam.facility']); expect(selectedText('Class')).toBe('Not set')
     expect(second.changes).toHaveLength(0)
+  })
+
+  // From the recheck: a draft not yet created (empty identity) gets an absent policy from CreateDraftAsync (RecordTypeDefinitionStore.cs:153-154).
+  const creationNote = 'Creation sets both policies, so they cannot be turned off.'
+  const uncreated = (body: Body): RecordsDraft => ({ identity: '', versionId: '', definitionKind: 'Records', body: body as RecordTypeBody })
+  const uncreatedHeader = (body: Body) => {
+    const changes: RecordsDraftChange[] = []
+    const view = render(<RecordTypeDraftEditor value={uncreated(body)} kindOptions={kindOptions} classOptions={classOptions} onDraftChange={change => changes.push(change)} />)
+    return { changes, view }
+  }
+
+  it('Revision3: on a draft not yet created both absent policies show checked and disabled with the creation note, and toggling reports no change', () => {
+    const first = uncreatedHeader({})
+    for (const name of ['Amendments require a reason', 'Keep history']) { expect(checkbox(name), name).toBeChecked(); expect(checkbox(name), name).toBeDisabled() }
+    expect(screen.getByText(creationNote)).toBeInTheDocument(); expect(selectedText('Amendment mode')).toBe('No mode')
+    fireEvent.click(checkbox('Amendments require a reason')); fireEvent.click(checkbox('Keep history')); choose('Amendment mode', 'No mode')
+    expect(first.changes).toHaveLength(0); first.view.unmount()
+    const second = header(headerBody())
+    expect(screen.queryByText(creationNote)).toBeNull()
+    for (const name of ['Amendments require a reason', 'Keep history']) { expect(checkbox(name), name).not.toBeChecked(); expect(checkbox(name), name).not.toBeDisabled() }
+    expect(second.changes).toHaveLength(0)
+  })
+
+  it('Revision3: on a draft not yet created choosing a mode writes reason_required true with the mode, and the policy stays locked', () => {
+    const { changes } = uncreatedHeader({})
+    choose('Amendment mode', 'supersession')
+    expect(changes).toStrictEqual([{ draft: uncreated({ amendment_policy: { reason_required: true, mode: 'supersession' } }), generation: 1 }])
+    expect(checkbox('Amendments require a reason')).toBeChecked(); expect(checkbox('Amendments require a reason')).toBeDisabled()
+    choose('Amendment mode', 'No mode')
+    expect(changes.at(-1)).toStrictEqual({ draft: uncreated({ amendment_policy: { reason_required: true } }), generation: 2 })
+    fireEvent.click(checkbox('Amendments require a reason'))
+    expect(changes).toHaveLength(2)
+  })
+
+  it('Revision3: on a draft not yet created a malformed policy shows unchecked and enabled, and checking writes the admitted value and locks it', () => {
+    const { changes } = uncreatedHeader({ history_policy: 'disabled', amendment_policy: null })
+    for (const name of ['Amendments require a reason', 'Keep history']) { expect(checkbox(name), name).not.toBeChecked(); expect(checkbox(name), name).not.toBeDisabled() }
+    expect(absent('Amendment mode')).toBeNull()
+    fireEvent.click(checkbox('Keep history')); fireEvent.click(checkbox('Amendments require a reason'))
+    expect(changes).toStrictEqual([{ draft: uncreated({ history_policy: 'enabled', amendment_policy: null }), generation: 1 }, { draft: uncreated({ history_policy: 'enabled', amendment_policy: { reason_required: true } }), generation: 2 }])
+    for (const name of ['Amendments require a reason', 'Keep history']) { expect(checkbox(name), name).toBeChecked(); expect(checkbox(name), name).toBeDisabled() }
+    fireEvent.click(checkbox('Keep history')); fireEvent.click(checkbox('Amendments require a reason'))
+    expect(changes).toHaveLength(2)
+  })
+
+  it('Revision3: Discard loads the held host draft as the host body, so a policy it declares cannot be unchecked', () => {
+    const base = headerBody(); const { changes, view } = header(base, { classOptions })
+    choose('Class', 'eam.facility')
+    const incoming: RecordsDraft = { ...draftWith({ ...base, history_policy: 'enabled' }), versionId: '2.0.0' }
+    view.rerender(<RecordTypeDraftEditor value={incoming} kindOptions={kindOptions} classOptions={classOptions} onDraftChange={change => changes.push(change)} />)
+    expect(checkbox('Keep history')).not.toBeChecked()
+    fireEvent.click(screen.getByRole('button', { name: 'Discard edits' }))
+    expect(changes).toStrictEqual([reported({ ...base, class_id: 'eam.facility' }, 1), { draft: incoming, generation: 2 }])
+    expect(checkbox('Keep history')).toBeChecked(); expect(checkbox('Keep history')).toBeDisabled()
+    fireEvent.click(checkbox('Keep history'))
+    expect(changes).toHaveLength(2)
+  })
+
+  it('Revision3: a host echo of the local draft is not a replacement, so a locally checked policy stays enabled and removable', () => {
+    const base = headerBody(); const { changes, view } = header(base)
+    fireEvent.click(checkbox('Keep history'))
+    expect(checkbox('Keep history')).toBeChecked(); expect(checkbox('Keep history')).not.toBeDisabled()
+    view.rerender(<RecordTypeDraftEditor value={changes[0].draft} kindOptions={kindOptions} onDraftChange={change => changes.push(change)} />)
+    expect(checkbox('Keep history')).not.toBeDisabled()
+    fireEvent.click(checkbox('Keep history'))
+    expect(changes).toStrictEqual([reported({ ...base, history_policy: 'enabled' }, 1), reported(base, 2)])
+  })
+
+  it('Revision3: unchecking a locally added policy that has a mode removes the whole policy', () => {
+    const base = headerBody(); const { changes } = header(base)
+    fireEvent.click(checkbox('Amendments require a reason')); choose('Amendment mode', 'supersession')
+    expect(checkbox('Amendments require a reason')).not.toBeDisabled()
+    fireEvent.click(checkbox('Amendments require a reason'))
+    expect(changes).toStrictEqual([reported({ ...base, amendment_policy: { reason_required: true } }, 1), reported({ ...base, amendment_policy: { reason_required: true, mode: 'supersession' } }, 2), reported(base, 3)])
+  })
+
+  it('Revision3: an empty record class, creation gate, creation role or mode and a non-string mode show as not set, and an unrelated edit keeps each one', () => {
+    const firstBase = headerBody({ record_class: '', creation_gate: '', amendment_policy: { reason_required: true, mode: '' } }); const first = header(firstBase, { classOptions })
+    expect(selectedText('Record class')).toBe('Not set'); expect(selectedText('Creation gate')).toBe('Not set (form_only)'); expect(selectedText('Amendment mode')).toBe('No mode')
+    choose('Class', 'eam.facility')
+    expect(first.changes).toStrictEqual([reported({ ...firstBase, class_id: 'eam.facility' }, 1)]); first.view.unmount()
+    const secondBase = headerBody({ creation_gate: 'role', creation_role_id: '', amendment_policy: { reason_required: true, mode: 7 } }); const second = header(secondBase, { roleOptions })
+    expect(selectedText('Creation role')).toBe('Not set'); expect(selectedText('Amendment mode')).toBe('No mode')
+    fireEvent.click(checkbox('Keep history'))
+    expect(second.changes).toStrictEqual([reported({ ...secondBase, history_policy: 'enabled' }, 1)])
   })
 
   it('Revision3: read-only disables every header control and reports no change', () => {
