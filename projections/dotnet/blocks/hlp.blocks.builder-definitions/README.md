@@ -127,16 +127,29 @@ Two optional declarations, both nullable init-only members, so positional constr
   different case or a number is `records.document_invalid`; an explicit null reads as the absent default. The canonical
   body omits an explicit `ask`.
 - A Record Type's `categories` are text tags, many per type and independent of the automatic package label (L103), kept
-  in authored order. A null element is `records.document_invalid` at `/categories/{i}`. Every other text tag is admitted
-  in every phase and kept verbatim: how tags compare is not ruled (L103 is open), so there is no blank, trimming,
-  normalization, character or duplicate rule. The canonical body omits an empty list. Admission re-checks published
-  bodies, so a comparison rule ruled later needs a migration or grandfathering path for tags written meanwhile.
+  in authored order. Absent, an explicit null and an empty list all mean no tags; there is no separate unspecified or
+  inherited state. A null element is `records.document_invalid` at `/categories/{i}`, and a value that is not a list of
+  text is `records.document_invalid` with the empty pointer. Every other text tag is admitted in every phase and kept
+  verbatim: how tags compare is not ruled (L103 is open), so there is no blank, trimming, normalization, character or
+  duplicate rule. The canonical body omits an empty list. Admission re-checks published bodies, so a comparison rule
+  ruled later needs a migration or grandfathering path for tags written meanwhile.
 
-Save stores what it is given. Unlike the two policies above, an omitted `conflict_policy` or `categories` is not carried
-forward from the expected revision, so a resave without them clears them. Every existing body, digest and compiled
-record schema is byte-identical; a reader older than interface revision 26 refuses a body that carries either
-declaration, and the definition contract version is unchanged. Both members are declarations only: raising and settling an offline conflict belongs to
-the offline runtime (records-eng-25), and nothing yet reads the categories.
+The explicit-null, default-omission and save rules for these two members are owner rulings (2026-10-25); they apply to
+these members only. Omitting an explicit `ask` and an empty list deliberately normalizes equivalent inputs, so absence
+keeps meaning `ask` and no tags.
+
+Save is full-document replacement, not a patch: the caller submits the complete intended body. Unlike the two policies
+above, an omitted `conflict_policy` or `categories` is not carried forward from the expected revision, so a resave
+without them clears them. The expected-revision fence alone does not stop an older client from dropping members it does
+not understand. Every existing body, digest and compiled record schema is byte-identical; a reader older than interface
+revision 26 refuses a body that carries either declaration, and the definition contract version is unchanged.
+
+This prerelease declaration slice adds no version machinery. Compatibility must be resolved under ADR-0007 (change
+classification, pack capability, version floor) before the first pack publishes or activates either member, not
+afterward: an older reader's generic `records.document_invalid` is not compliant install or activation handling. The
+builder interface revision stays distinct from the envelope contract version and the kernel interface revision. Both
+members are declarations only: raising and settling an offline conflict belongs to the offline runtime
+(records-eng-25), and nothing yet reads the categories.
 
 ## Records write: one record create (T-616, bounded)
 
