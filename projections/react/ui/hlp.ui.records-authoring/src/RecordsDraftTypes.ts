@@ -5,7 +5,7 @@ export type RecordsJsonObject = { readonly [member: string]: unknown }
 export interface RecordTypeBody { readonly name?: string; readonly envelope?: RecordsJsonObject & { readonly section?: string }; readonly fields?: readonly RecordTypeField[]; readonly retention_clock_field_id?: string; readonly class_id?: string; readonly record_class?: string; readonly creation_gate?: string; readonly creation_role_id?: string; readonly amendment_policy?: RecordsJsonObject & { readonly reason_required?: unknown; readonly mode?: string }; readonly history_policy?: string; readonly [member: string]: unknown }
 export interface RecordTypeField { readonly field_key?: string; readonly display_name?: string; readonly binding?: RecordTypeFieldBinding; readonly reference?: RecordTypeFieldReference; readonly [member: string]: unknown }
 export interface RecordTypeFieldBinding { readonly kind?: RecordsJsonObject & { readonly kind_id?: string; readonly version?: string; readonly parameters?: RecordsJsonObject }; readonly [member: string]: unknown }
-export interface RecordTypeFieldReference { readonly target_type_id?: string; readonly cardinality?: string; readonly on_delete?: string; readonly [member: string]: unknown }
+export interface RecordTypeFieldReference { readonly target_type_id?: string; readonly target_class_id?: string; readonly cardinality?: string; readonly on_delete?: string; readonly parent?: unknown; readonly [member: string]: unknown }
 
 /**
  * The one projection-neutral Records draft: host-supplied lifecycle metadata around the producer body. expectedRevision is the
