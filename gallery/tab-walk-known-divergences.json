@@ -61,6 +61,24 @@
       ]
     },
     {
+      "scenarioId": "app-shell.pins-threads",
+      "kind": "findings",
+      "ticket": "T-1126",
+      "reason": "AppShell is outside T-962's scope. AppShell row menu stays open on focus loss and covers the next stop: the scenario opens the first thread's options menu (div.hl-app-shell__row-menu), which stays open when focus leaves it and entirely covers the Pin Overview and Pin Assets buttons. React closes it only on Escape inside the menu and Blazor not on Escape at all, so Escape on the covered button does not reveal it (SC 2.4.11 Note 2), in both lanes.",
+      "reactOnly": [
+        "2.4.11 forward obscured: button \"Pin Assets\" under div.hl-app-shell__row-menu",
+        "2.4.11 forward obscured: button \"Pin Overview\" under div.hl-app-shell__row-menu",
+        "2.4.11 reverse obscured: button \"Pin Assets\" under div.hl-app-shell__row-menu",
+        "2.4.11 reverse obscured: button \"Pin Overview\" under div.hl-app-shell__row-menu"
+      ],
+      "blazorOnly": [
+        "2.4.11 forward obscured: button \"Pin Assets\" under div.hl-app-shell__row-menu",
+        "2.4.11 forward obscured: button \"Pin Overview\" under div.hl-app-shell__row-menu",
+        "2.4.11 reverse obscured: button \"Pin Assets\" under div.hl-app-shell__row-menu",
+        "2.4.11 reverse obscured: button \"Pin Overview\" under div.hl-app-shell__row-menu"
+      ]
+    },
+    {
       "scenarioId": "chat.app-conversation",
       "kind": "order",
       "ticket": "T-1118",
@@ -547,14 +565,14 @@
       "ticket": "T-1122",
       "reason": "In right-to-left content the shared Dialog surface is centred with inset-inline-start: 50% plus transform: translate(-50%, -50%) (specs/modules/ui/hlp.ui.dialog/style.css and both lane copies). inset-inline-start resolves to right, so the surface shifts left by half its width and its close and action buttons are focused offscreen (2.4.11), in both lanes.",
       "reactOnly": [
-        "2.4.11 forward offscreen: button \"Close\"",
-        "2.4.11 forward offscreen: button \"إلغاء\"",
-        "2.4.11 forward offscreen: button \"تأكيد\""
+        "2.4.11 prepared offscreen: button \"Close\"",
+        "2.4.11 prepared offscreen: button \"إلغاء\"",
+        "2.4.11 prepared offscreen: button \"تأكيد\""
       ],
       "blazorOnly": [
-        "2.4.11 forward offscreen: button \"Close\"",
-        "2.4.11 forward offscreen: button \"إلغاء\"",
-        "2.4.11 forward offscreen: button \"تأكيد\""
+        "2.4.11 prepared offscreen: button \"Close\"",
+        "2.4.11 prepared offscreen: button \"إلغاء\"",
+        "2.4.11 prepared offscreen: button \"تأكيد\""
       ]
     },
     {
@@ -585,14 +603,14 @@
       "ticket": "T-1122",
       "reason": "In right-to-left content the shared Dialog surface is centred with inset-inline-start: 50% plus transform: translate(-50%, -50%) (specs/modules/ui/hlp.ui.dialog/style.css and both lane copies). inset-inline-start resolves to right, so the surface shifts left by half its width and its close and action buttons are focused offscreen (2.4.11), in both lanes.",
       "reactOnly": [
-        "2.4.11 forward offscreen: button \"إغلاق الحوار\"",
-        "2.4.11 forward offscreen: button \"إلغاء\"",
-        "2.4.11 forward offscreen: button \"حفظ الموضع\""
+        "2.4.11 prepared offscreen: button \"إغلاق الحوار\"",
+        "2.4.11 prepared offscreen: button \"إلغاء\"",
+        "2.4.11 prepared offscreen: button \"حفظ الموضع\""
       ],
       "blazorOnly": [
-        "2.4.11 forward offscreen: button \"Cancel\"",
-        "2.4.11 forward offscreen: button \"Close\"",
-        "2.4.11 forward offscreen: button \"Save placement\""
+        "2.4.11 prepared offscreen: button \"Cancel\"",
+        "2.4.11 prepared offscreen: button \"Close\"",
+        "2.4.11 prepared offscreen: button \"Save placement\""
       ]
     },
     {
@@ -803,6 +821,26 @@
         "+ - button \"Inspection handoff: 1:00 PM to 2:00 PM\"",
         "+ - button \"Field verification: 8:30 AM to 10:00 AM\"",
         "  exited"
+      ]
+    },
+    {
+      "scenarioId": "scheduler.large-data",
+      "kind": "order",
+      "ticket": "T-146",
+      "reason": "The Blazor scheduler is a different component (T-146). With 256 events it renders 264 tab stops where React renders 9, and its own focus handling costs about 380 ms a Tab press, so the Blazor walk stops at the scenario's 24-press budget (the budget row) while React walks its nine stops and leaves.",
+      "hunks": [
+        "@@ #1",
+        "- - button \"Previous\"",
+        "- - button \"Today\"",
+        "- - button \"Next\"",
+        "- - button \"Day\"",
+        "- - button \"Week\"",
+        "- - button \"Month\"",
+        "- - button \"Agenda\"",
+        "- - (no role) div",
+        "- - button \"Replace 256 events\"",
+        "- exited",
+        "+ budget: 24 presses"
       ]
     },
     {
@@ -1046,6 +1084,20 @@
         "  - button \"Show password\"",
         "- - button \"Replace caller value\"",
         "  exited"
+      ]
+    },
+    {
+      "scenarioId": "user-menu.placement-dismissal",
+      "kind": "findings",
+      "ticket": "T-1125",
+      "reason": "UserMenu panel does not close on Tab or focus loss (APG menu button). The scenario opens the first menu; its panel stays open when focus leaves it and entirely covers the second menu's trigger. Escape is handled only by the panel's own keydown handler, so with focus on the covered trigger Escape does nothing, and the user would have to move focus back into the panel to dismiss it, which SC 2.4.11 Note 2 does not exempt. The frozen round-2 batches b7 and b7f1 fix this; T-962 does not duplicate them.",
+      "reactOnly": [
+        "2.4.11 forward obscured: button \"Account for Ada Lovelace\" under div.hl-user-menu__surface",
+        "2.4.11 reverse obscured: button \"Account for Ada Lovelace\" under div.hl-user-menu__surface"
+      ],
+      "blazorOnly": [
+        "2.4.11 forward obscured: button \"Account for Ada Lovelace\" under div.hl-user-menu__surface",
+        "2.4.11 reverse obscured: button \"Account for Ada Lovelace\" under div.hl-user-menu__surface"
       ]
     },
     {
