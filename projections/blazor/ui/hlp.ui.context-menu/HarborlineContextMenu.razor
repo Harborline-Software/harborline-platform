@@ -76,11 +76,12 @@
     private async Task ShowAsync(double x, double y, bool keyboardOpened)
     {
         (X, Y) = ClampPosition(x, y, MenuWidth, MenuHeight, ViewportWidth, ViewportHeight);
-        // Whatever has focus now is where every close returns it, after a pointer or programmatic open
-        // as after a keyboard one (APG menu pattern, as React); triggerAnchor has already recorded the
-        // keyboard opener. Every open then focuses the active item, as React does and the interface
-        // requires ("Opening focuses the first enabled item").
-        if (!keyboardOpened) await (await ModuleAsync()).InvokeVoidAsync("rememberOpener", TriggerElement);
+        // Whatever has focus when the menu goes from closed to open is where a close returns it, after a
+        // pointer or programmatic open as after a keyboard one (APG menu pattern, as React);
+        // triggerAnchor has already recorded the keyboard opener. A re-open while open keeps the opener.
+        // Every open then focuses the active item, as React does and the interface requires ("Opening
+        // focuses the first enabled item").
+        if (!keyboardOpened && !IsOpen) await (await ModuleAsync()).InvokeVoidAsync("rememberOpener", TriggerElement);
         IsOpen = true;
         FocusActiveAfterRender = true;
         ActiveIndex = EnabledIndices.FirstOrDefault(-1);

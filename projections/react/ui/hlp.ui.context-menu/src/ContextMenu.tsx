@@ -22,6 +22,15 @@ export interface ContextMenuProps {
 
 interface Position { x: number; y: number }
 
+const focusable = 'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+
+// Where a close returns focus: the opener while it is still in the document, otherwise the first
+// focusable element of the trigger (the opener may have been removed or replaced while the menu was open).
+function returnTarget(opener: HTMLElement | null, trigger: HTMLElement | null): HTMLElement | null {
+  if (opener?.isConnected) return opener
+  return trigger?.matches(focusable) ? trigger : trigger?.querySelector<HTMLElement>(focusable) ?? null
+}
+
 export function clampContextMenuPosition(position: Position, menu: {width: number; height: number}, viewport: {width: number; height: number}, inset = 8): Position {
   return {
     x: Math.max(inset, Math.min(position.x, viewport.width - menu.width - inset)),
@@ -52,9 +61,16 @@ export function ContextMenu({groups, children, className = '', accessibleLabel =
   }, [enabled])
 
   const close = React.useCallback((restoreFocus = true) => {
+    const menu = menuRef.current
     setPosition(null)
     setActiveIndex(-1)
-    if (restoreFocus) queueMicrotask(() => opener.current?.focus())
+    // Focus goes back only if it is still where the menu left it: in the menu, or on <body> once the menu
+    // is gone. An item whose action moved focus elsewhere (an inline editor, a dialog) keeps it there, as
+    // React Aria's FocusScope restoreFocus does.
+    if (restoreFocus) queueMicrotask(() => {
+      const active = document.activeElement
+      if (!active || active === document.body || menu?.contains(active)) returnTarget(opener.current, triggerRef.current)?.focus()
+    })
   }, [])
 
   const move = React.useCallback((kind: 'next' | 'previous' | 'first' | 'last') => {
@@ -86,7 +102,7 @@ export function ContextMenu({groups, children, className = '', accessibleLabel =
       const returnTo = opener.current
       close(false)
       setTimeout(() => {
-        if (!document.activeElement || document.activeElement === document.body) returnTo?.focus()
+        if (!document.activeElement || document.activeElement === document.body) returnTarget(returnTo, triggerRef.current)?.focus()
       }, 0)
     }
     document.addEventListener('mousedown', outside)
