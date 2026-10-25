@@ -68,12 +68,16 @@
       "reactOnly": [
         "2.4.11 forward obscured: button \"Pin Assets\" under div.hl-app-shell__row-menu",
         "2.4.11 forward obscured: button \"Pin Overview\" under div.hl-app-shell__row-menu",
+        "2.4.11 prepared obscured: button \"Pin Assets\" under div.hl-app-shell__row-menu",
+        "2.4.11 prepared obscured: button \"Pin Overview\" under div.hl-app-shell__row-menu",
         "2.4.11 reverse obscured: button \"Pin Assets\" under div.hl-app-shell__row-menu",
         "2.4.11 reverse obscured: button \"Pin Overview\" under div.hl-app-shell__row-menu"
       ],
       "blazorOnly": [
         "2.4.11 forward obscured: button \"Pin Assets\" under div.hl-app-shell__row-menu",
         "2.4.11 forward obscured: button \"Pin Overview\" under div.hl-app-shell__row-menu",
+        "2.4.11 prepared obscured: button \"Pin Assets\" under div.hl-app-shell__row-menu",
+        "2.4.11 prepared obscured: button \"Pin Overview\" under div.hl-app-shell__row-menu",
         "2.4.11 reverse obscured: button \"Pin Assets\" under div.hl-app-shell__row-menu",
         "2.4.11 reverse obscured: button \"Pin Overview\" under div.hl-app-shell__row-menu"
       ]
@@ -827,19 +831,30 @@
       "scenarioId": "scheduler.large-data",
       "kind": "order",
       "ticket": "T-146",
-      "reason": "The Blazor scheduler is a different component (T-146). With 256 events it renders 264 tab stops where React renders 9, and its own focus handling costs about 380 ms a Tab press, so the Blazor walk stops at the scenario's 24-press budget (the budget row) while React walks its nine stops and leaves.",
+      "reason": "The Blazor scheduler is a different component (T-146). With 256 events it renders 264 tab stops where React renders 9, so after the shared toolbar React walks its grid and Replace button and leaves, while Blazor walks its calendar grid group and its first 15 event buttons until the scenario's 24-press budget (the budget row).",
       "hunks": [
         "@@ #1",
-        "- - button \"Previous\"",
-        "- - button \"Today\"",
-        "- - button \"Next\"",
-        "- - button \"Day\"",
-        "- - button \"Week\"",
-        "- - button \"Month\"",
-        "- - button \"Agenda\"",
+        "  - button \"Month\"",
+        "  - button \"Agenda\"",
         "- - (no role) div",
         "- - button \"Replace 256 events\"",
         "- exited",
+        "+ - group \"Calendar grid, scrollable\"",
+        "+ - button \"Event 1: 12:00 PM to 12:30 PM\"",
+        "+ - button \"Event 2: 12:05 PM to 12:35 PM\"",
+        "+ - button \"Event 3: 12:10 PM to 12:40 PM\"",
+        "+ - button \"Event 4: 12:15 PM to 12:45 PM\"",
+        "+ - button \"Event 5: 12:20 PM to 12:50 PM\"",
+        "+ - button \"Event 6: 12:25 PM to 12:55 PM\"",
+        "+ - button \"Event 7: 12:30 PM to 1:00 PM\"",
+        "+ - button \"Event 8: 12:35 PM to 1:05 PM\"",
+        "+ - button \"Event 9: 12:40 PM to 1:10 PM\"",
+        "+ - button \"Event 10: 12:45 PM to 1:15 PM\"",
+        "+ - button \"Event 11: 12:50 PM to 1:20 PM\"",
+        "+ - button \"Event 12: 12:55 PM to 1:25 PM\"",
+        "+ - button \"Event 13: 1:00 PM to 1:30 PM\"",
+        "+ - button \"Event 14: 1:05 PM to 1:35 PM\"",
+        "+ - button \"Event 15: 1:10 PM to 1:40 PM\"",
         "+ budget: 24 presses"
       ]
     },
@@ -847,7 +862,7 @@
       "scenarioId": "scheduler.large-data",
       "kind": "budget",
       "ticket": "T-146",
-      "reason": "The Blazor scheduler is a different component (T-146). With 256 events it renders 264 tab stops where React renders 9, and its own focus handling costs about 380 ms a Tab press (the walk's keydown work is under 10 ms of that), so a full Blazor walk would take about 100 s in each direction. Each walk stops after 24 presses, which covers React's whole walk, and is recorded as that budget on every host; the test allowance is sized for 400 ms a press.",
+      "reason": "The Blazor scheduler is a different component (T-146). With 256 events it renders 264 tab stops where React renders 9, and its own focus handling costs about 380 ms a Tab press (the walk's keydown work is under 10 ms of that), so a full Blazor walk would take about 100 s in each direction. Each walk stops after 24 presses, which covers React's whole walk; what it walked is stepped, judged and compared stop for stop like any walk. The test allowance is sized for 400 ms a press.",
       "presses": 24,
       "pressMs": 400
     },
@@ -1093,10 +1108,12 @@
       "reason": "UserMenu panel does not close on Tab or focus loss (APG menu button). The scenario opens the first menu; its panel stays open when focus leaves it and entirely covers the second menu's trigger. Escape is handled only by the panel's own keydown handler, so with focus on the covered trigger Escape does nothing, and the user would have to move focus back into the panel to dismiss it, which SC 2.4.11 Note 2 does not exempt. The frozen round-2 batches b7 and b7f1 fix this; T-962 does not duplicate them.",
       "reactOnly": [
         "2.4.11 forward obscured: button \"Account for Ada Lovelace\" under div.hl-user-menu__surface",
+        "2.4.11 prepared obscured: button \"Account for Ada Lovelace\" under div.hl-user-menu__surface",
         "2.4.11 reverse obscured: button \"Account for Ada Lovelace\" under div.hl-user-menu__surface"
       ],
       "blazorOnly": [
         "2.4.11 forward obscured: button \"Account for Ada Lovelace\" under div.hl-user-menu__surface",
+        "2.4.11 prepared obscured: button \"Account for Ada Lovelace\" under div.hl-user-menu__surface",
         "2.4.11 reverse obscured: button \"Account for Ada Lovelace\" under div.hl-user-menu__surface"
       ]
     },
