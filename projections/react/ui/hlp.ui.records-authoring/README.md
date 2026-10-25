@@ -21,6 +21,8 @@ This is a bounded subset of T618. It covers local editing only, not all of T618.
   amendments require a reason, with an optional `supersession` mode; and whether history is kept. Choosing a gate other
   than `role` removes the creation role in the same edit, because the producer refuses one on any other gate. A current
   Class or role the host does not offer is shown as "(not offered)" and left unchanged.
+  A policy the host draft already declares cannot be removed (its checkbox is disabled): the producer has no "off"
+  value, and save carries an omitted declaration forward (ADR-0097). An empty or non-string header value shows as not set.
 - Shows each host-supplied diagnostic's target, and the host's warnings in their own list after the note "Warnings do
   not block publication." (interface revision 2).
 - Kind and version can only be chosen from host-supplied `kindOptions`, and the editor never picks one for you. A

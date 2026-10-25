@@ -716,13 +716,50 @@ describe('Records local draft editor, React lane, revision 3 header', () => {
     ['Creation role', () => choose('Creation role', 'asset-manager'), body => ({ ...body, creation_role_id: 'asset-manager' })],
     ['Creation role Not set', () => choose('Creation role', 'Not set'), body => without(body, 'creation_role_id')],
     ['Amendment mode No mode', () => choose('Amendment mode', 'No mode'), body => ({ ...body, amendment_policy: { reason_required: true, future_policy_member: 'kept' } })],
-    ['Amendments unchecked', () => fireEvent.click(checkbox('Amendments require a reason')), body => without(body, 'amendment_policy')],
-    ['Keep history unchecked', () => fireEvent.click(checkbox('Keep history')), body => without(body, 'history_policy')],
   ])('Revision3: the %s edit changes only its own members and reports exactly one change at the next generation', (_, edit, expected) => {
     const base = fullHeader(); const given = structuredClone(base); const { changes } = header(base, { classOptions, roleOptions })
     edit()
     expect(changes).toStrictEqual([reported(expected(fullHeader()), 1)])
     expect(base).toStrictEqual(given)
+  })
+
+  // From the independent review: the producer has no 'off' policy value and save carries an omitted declaration forward (ADR-0097).
+  it('Revision3: a policy the host draft declares cannot be removed, so both checkboxes are checked and disabled and toggling reports no change', () => {
+    const { changes } = header(fullHeader(), { classOptions, roleOptions })
+    for (const name of ['Amendments require a reason', 'Keep history']) { expect(checkbox(name), name).toBeChecked(); expect(checkbox(name), name).toBeDisabled() }
+    fireEvent.click(checkbox('Amendments require a reason')); fireEvent.click(checkbox('Keep history'))
+    expect(changes).toHaveLength(0)
+  })
+
+  it('Revision3: a clean replacement that declares history disables its checkbox, and one that does not leaves it enabled', () => {
+    const base = headerBody(); const { view } = header(base)
+    expect(checkbox('Keep history')).not.toBeDisabled()
+    view.rerender(<RecordTypeDraftEditor value={{ ...draftWith({ ...base, history_policy: 'enabled' }), versionId: '2.0.0' }} kindOptions={kindOptions} onDraftChange={() => {}} />)
+    expect(checkbox('Keep history')).toBeChecked(); expect(checkbox('Keep history')).toBeDisabled()
+    view.rerender(<RecordTypeDraftEditor value={{ ...draftWith(base), versionId: '3.0.0' }} kindOptions={kindOptions} onDraftChange={() => {}} />)
+    expect(checkbox('Keep history')).not.toBeChecked(); expect(checkbox('Keep history')).not.toBeDisabled()
+  })
+
+  it('Revision3: two header edits on one render build on the local draft, so the second change keeps the first', () => {
+    const base = headerBody(); const { changes } = header(base, { classOptions })
+    choose('Class', 'eam.facility'); fireEvent.click(checkbox('Keep history'))
+    expect(changes).toStrictEqual([reported({ ...base, class_id: 'eam.facility' }, 1), reported({ ...base, class_id: 'eam.facility', history_policy: 'enabled' }, 2)])
+  })
+
+  it('Revision3: malformed checkbox values show unchecked and enabled, and checking writes the admitted value', () => {
+    const base = headerBody({ history_policy: 'disabled', amendment_policy: { reason_required: false } }); const { changes } = header(base)
+    for (const name of ['Amendments require a reason', 'Keep history']) { expect(checkbox(name), name).not.toBeChecked(); expect(checkbox(name), name).not.toBeDisabled() }
+    fireEvent.click(checkbox('Keep history')); fireEvent.click(checkbox('Amendments require a reason'))
+    expect(changes).toStrictEqual([reported({ ...base, history_policy: 'enabled' }, 1), reported({ ...base, history_policy: 'enabled', amendment_policy: { reason_required: true } }, 2)])
+  })
+
+  it('Revision3: a non-string creation role, an unknown gate spelling, an unknown mode and an empty class are shown as given and kept', () => {
+    const first = header(headerBody({ creation_gate: 'role', creation_role_id: 42 }), { roleOptions })
+    expect(selectedText('Creation role')).toBe('Not set'); expect(first.changes).toHaveLength(0); first.view.unmount()
+    const second = header(headerBody({ creation_gate: 'form-only', amendment_policy: { reason_required: true, mode: 'edit_in_place' }, class_id: '' }), { classOptions })
+    expect(selectedText('Creation gate')).toBe('form-only (not a current spelling)'); expect(selectedText('Amendment mode')).toBe('edit_in_place (not a current spelling)')
+    expect(optionTexts('Class')).toEqual(['Not set', 'eam.equipment', 'eam.facility']); expect(selectedText('Class')).toBe('Not set')
+    expect(second.changes).toHaveLength(0)
   })
 
   it('Revision3: read-only disables every header control and reports no change', () => {
