@@ -300,8 +300,12 @@ public sealed class RecordTypeDefinitionStore
 
         if (RecordTypeDefinitionJson.FirstMissing(document) is { } missing)
             return Stopped(new("records.document_invalid", missing));
+        // The canonical serializer also throws ArgumentException for kind parameter keys that differ only by case.
         try { RecordTypeDefinitionJson.SerializeCanonical(document); }
-        catch (JsonException) { return Stopped(new("records.document_invalid", "")); }
+        catch (Exception exception) when (exception is JsonException or ArgumentException)
+        {
+            return Stopped(new("records.document_invalid", ""));
+        }
         if (document.Envelope is null)
             return Stopped(new("records.envelope_required", "/envelope"));
         if (!StringComparer.Ordinal.Equals(document.Envelope.Tenant, tenant))

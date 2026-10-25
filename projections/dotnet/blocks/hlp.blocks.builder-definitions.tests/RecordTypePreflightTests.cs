@@ -60,6 +60,7 @@ public sealed class RecordTypePreflightTests
     [InlineData(" ", " ", false, false, typeof(ArgumentException))]
     [InlineData(Tenant, Tenant, true, false, typeof(ArgumentNullException))]
     [InlineData(Tenant, Tenant, false, true, typeof(InvalidOperationException))]
+    [InlineData(Tenant, OtherTenant, false, true, typeof(InvalidOperationException))]
     public async Task caller_and_host_faults_throw_their_exact_type_before_any_port_is_called(string? tenant, string envelopeTenant,
         bool nullDocument, bool foreignScope, Type expected)
     {
@@ -121,6 +122,8 @@ public sealed class RecordTypePreflightTests
     [InlineData("bound field without a kind", "records.document_invalid", "/fields/0/binding/kind")]
     [InlineData("null envelope and null field element", "records.envelope_required", "/envelope")]
     [InlineData("unsupported typed enum", "records.document_invalid", "")]
+    [InlineData("kind parameter keys differing only by case", "records.document_invalid", "")]
+    [InlineData("foreign envelope and null field element", "records.document_invalid", "/fields/0")]
     public async Task an_incomplete_document_stops_at_its_literal_pointer_without_binding_a_kind(string @case, string code, string location)
     {
         var ports = Spied(Host(), ScopeA);
@@ -128,6 +131,10 @@ public sealed class RecordTypePreflightTests
         var document = @case switch
         {
             "null field element" => body with { Fields = [null!] },
+            "kind parameter keys differing only by case" => body with { Fields = [Text("code") with { Binding = new(
+                new("text", "1.0.0", new Dictionary<string, string> { ["max_length"] = "5", ["MAX_LENGTH"] = "9" }), new(false, 0, 1, [], null)) }] },
+            // Stage 0 precedes stage 1, so completeness is reported before the envelope's tenant is compared.
+            "foreign envelope and null field element" => body with { Envelope = body.Envelope with { Tenant = OtherTenant }, Fields = [null!] },
             "missing fields list" => body with { Fields = null! },
             "bound field without a kind" => body with { Fields = [Text("code") with { Binding = new(null!, new(false, 0, 1, [], null)) }] },
             "null envelope and null field element" => body with { Envelope = null!, Fields = [null!] },
@@ -225,75 +232,87 @@ public sealed class RecordTypePreflightTests
         var caught = await Assert.ThrowsAsync<DependencyFault>(() => ports.Records.PreflightAsync(Tenant, document).AsTask());
 
         Assert.Same(fault, caught);
+        // The first bind throws, so neither kind defaults nor the compile can swallow it and bind again.
+        if (dependency.StartsWith("kind bind", StringComparison.Ordinal))
+            Assert.Equal(1, ports.Kinds.Binds);
     }
 
-    public static TheoryData<string, RecordTypeDocument, (string, string, string?)[], string[]> EdgeGuard() => new()
+    public static TheoryData<string, RecordTypeDocument, (string, string, string?)[], string[], bool> EdgeGuard() => new()
     {
         {
             "both targets named",
             Body(Reference("asset", "eam.asset-class", "eam.plant", ReferenceCardinality.One, ReferenceDeleteBehavior.Block)),
             [("records.reference.target_ambiguous", "/fields/0/reference", null)],
-            [Home]
+            [Home],
+            false
         },
         {
             "neither target and a null record type id",
             Body(Reference("within", null, null, ReferenceCardinality.One, ReferenceDeleteBehavior.Block, trait: "locatable")) with { RecordTypeId = null! },
             [("records.identity.record_type_id_required", "/record_type_id", null), ("records.reference.target_ambiguous", "/fields/0/reference", null)],
-            [Home]
+            [Home],
+            false
         },
         {
             "blank required trait on a published target",
             Body(Reference("asset", "eam.asset-class", null, ReferenceCardinality.One, ReferenceDeleteBehavior.Block, trait: " ")),
             [("records.reference.trait_invalid", "/fields/0/reference/required_trait_id", null)],
-            [Home, "head tenant-a/Records/eam.asset-class"]
+            [Home, "head tenant-a/Records/eam.asset-class"],
+            false
         },
         {
             "blank required trait on an unpublished target",
             Body(Reference("asset", "eam.ghost", null, ReferenceCardinality.One, ReferenceDeleteBehavior.Block, trait: " ")),
             [("records.reference.trait_invalid", "/fields/0/reference/required_trait_id", null),
                 ("records.reference.target_unresolved", "/fields/0/reference/target_type_id", null)],
-            [Home, "head tenant-a/Records/eam.ghost"]
+            [Home, "head tenant-a/Records/eam.ghost"],
+            false
         },
         {
             "missing cardinality",
             Body(Reference("asset", "eam.ghost", null, null, ReferenceDeleteBehavior.Block)),
             [("records.reference.cardinality_required", "/fields/0/reference/cardinality", null),
                 ("records.reference.target_unresolved", "/fields/0/reference/target_type_id", null)],
-            [Home, "head tenant-a/Records/eam.ghost"]
+            [Home, "head tenant-a/Records/eam.ghost"],
+            false
         },
         {
             "missing on_delete",
             Body(Reference("asset", "eam.ghost", null, ReferenceCardinality.One, null)),
             [("records.reference.on_delete_required", "/fields/0/reference/on_delete", null),
                 ("records.reference.target_unresolved", "/fields/0/reference/target_type_id", null)],
-            [Home, "head tenant-a/Records/eam.ghost"]
+            [Home, "head tenant-a/Records/eam.ghost"],
+            false
         },
         {
             "parent defect",
             Body(Reference("site", "eam.ghost", null, ReferenceCardinality.Many, ReferenceDeleteBehavior.Block, parent: true)),
             [("records.reference.parent_cardinality", "/fields/0/reference/cardinality", null),
                 ("records.reference.target_unresolved", "/fields/0/reference/target_type_id", null)],
-            [Home, "head tenant-a/Records/eam.ghost"]
+            [Home, "head tenant-a/Records/eam.ghost"],
+            false
         },
         {
             "binding conflict",
             Body(Reference("asset", "eam.ghost", null, ReferenceCardinality.One, ReferenceDeleteBehavior.Block) with { Binding = Text("asset").Binding }),
             [("records.reference.binding_conflict", "/fields/0/reference", null),
                 ("records.reference.target_unresolved", "/fields/0/reference/target_type_id", null)],
-            [Home, "head tenant-a/Records/eam.ghost"]
+            [Home, "head tenant-a/Records/eam.ghost"],
+            false
         },
         {
             "blank class",
             Body(Text("code")) with { ClassId = " " },
             [("records.class.required", "/class_id", null)],
-            []
+            [],
+            true
         },
     };
 
     [Theory]
     [MemberData(nameof(EdgeGuard))]
     public async Task the_edge_guard_prunes_only_its_lookup_copy_and_keeps_every_other_computable_refusal(string _,
-        RecordTypeDocument document, (string, string, string?)[] expected, string[] reads)
+        RecordTypeDocument document, (string, string, string?)[] expected, string[] reads, bool compiles)
     {
         var (host, _) = await WithPublishedTargets();
         var ports = Spied(host, ScopeA);
@@ -302,6 +321,8 @@ public sealed class RecordTypePreflightTests
 
         Assert.Equal(expected, Triples(preflight));
         Assert.Equal(reads, ports.Catalogue.Reads);
+        // The compile reads the canonical candidate, never the pruned lookup copy: a refused reference keeps the schema null.
+        Assert.Equal(compiles, preflight.JsonSchemaText is not null);
         LookupCopyOnly(document, preflight);
     }
 
