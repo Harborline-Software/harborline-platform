@@ -24,10 +24,13 @@ interface Position { x: number; y: number }
 
 const focusable = 'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
 
-// Where a close returns focus: the opener while it is still in the document, otherwise the first
-// focusable element of the trigger (the opener may have been removed or replaced while the menu was open).
+// Where a close returns focus: nowhere when no opener was recorded (focus was on <body> at open, so
+// there is nothing to return to); the opener while it is still in the document; and only when a
+// recorded opener has since left it (removed or replaced while the menu was open), the first focusable
+// element of the trigger.
 function returnTarget(opener: HTMLElement | null, trigger: HTMLElement | null): HTMLElement | null {
-  if (opener?.isConnected) return opener
+  if (!opener) return null
+  if (opener.isConnected) return opener
   return trigger?.matches(focusable) ? trigger : trigger?.querySelector<HTMLElement>(focusable) ?? null
 }
 
