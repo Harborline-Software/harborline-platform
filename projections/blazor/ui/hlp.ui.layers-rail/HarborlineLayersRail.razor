@@ -102,6 +102,8 @@
     var ids = Canvas.Nodes.Select(node => node.Id).ToHashSet(StringComparer.Ordinal);
     if (Canvas.Nodes.Any(node => node.Depth < 0 || (node.ParentId is not null && !ids.Contains(node.ParentId))) || (Canvas.SelectedId is not null && !ids.Contains(Canvas.SelectedId))) throw new InvalidOperationException("invalid-outline-tree");
     foreach (var node in Canvas.Nodes.Where(node => node.HasChildren == true)) Expanded.Add(node.Id);
+    // APG treeview: focus entering the tree lands on the selected node, else the first (React does the same).
+    if (focusedId is null && Canvas.SelectedId is not null && VisibleNodes.Any(node => node.Id == Canvas.SelectedId)) focusedId = Canvas.SelectedId;
     if (focusedId is null || !VisibleNodes.Any(node => node.Id == focusedId)) focusedId = VisibleNodes.FirstOrDefault()?.Id;
   }
 
