@@ -46,6 +46,9 @@ public sealed record NewRecordType(
 
     /// <summary>The authored history declaration; null takes <c>enabled</c> on creation only.</summary>
     public RecordHistoryPolicy? HistoryPolicy { get; init; }
+
+    /// <summary>The type's category tags (records-ck-23); null or empty means none.</summary>
+    public IReadOnlyList<string>? Categories { get; init; }
 }
 
 /// <summary>A created Record Type draft and the id the authoring boundary minted for it.</summary>
@@ -152,6 +155,7 @@ public sealed class RecordTypeDefinitionStore
         {
             AmendmentPolicy = request.AmendmentPolicy ?? new(true),
             HistoryPolicy = request.HistoryPolicy ?? RecordHistoryPolicy.Enabled,
+            Categories = request.Categories,
         });
         var candidate = await AdmitAsync(Catalogue(document, recordTypeId, request.Version), DefinitionAdmissionPhase.Author,
             cancellationToken).ConfigureAwait(false);
@@ -650,6 +654,16 @@ public sealed class RecordTypeDefinitionStore
             parsed.Envelope, parsed.Name, parsed.RecordTypeId, "record_type_id", document.Key, phase, window));
         refusals.AddRange(validator.Validate(parsed.ToDefinition(), previousVersion: null)
             .Select(refusal => new DefinitionRefusal(refusal.Code, refusal.JsonPointer)));
+        // Category tags (records-ck-23) are plain text, each present once, in every phase: a blank tag names nothing and a
+        // repeated one adds nothing, so a draft holding either is refused rather than published later.
+        var categories = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var (category, index) in (parsed.Categories ?? []).Select((category, index) => (category, index)))
+        {
+            if (string.IsNullOrWhiteSpace(category))
+                refusals.Add(new("records.categories.blank", $"/categories/{index}"));
+            else if (!categories.Add(category))
+                refusals.Add(new("records.categories.duplicate", $"/categories/{index}"));
+        }
         // A draft may still be choosing its home and its data category; a published type has exactly one of each
         // (records-ck-17, records-ck-18, records-auth-1), with no default (DES-0046 ck-1, ADR 0025).
         if (phase != DefinitionAdmissionPhase.Author)

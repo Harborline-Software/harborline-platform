@@ -246,6 +246,22 @@ its operation by tenant, caller, `operation_id` and instant, never to a receipt 
 gate propagates without `Decision` and commits nothing. Hosts do not log the authority snapshot, the operation's
 fingerprint or a stored intent digest, and the operation itself emits no telemetry.
 
+### Conflict policy and categories (T-615, records-ck-16 and records-ck-23)
+
+Two optional declarations, both added as nullable init-only members so positional constructors and legacy bodies keep
+working:
+
+- A field's `conflict_policy` says how an offline conflict on it is settled: `ask` (the default), `additive` or
+  `latest_observation`, spelled exactly so (L1011). There is no last-write-wins spelling. Any other spelling, a different
+  case or a number is `records.document_invalid`. The canonical body omits an explicit `ask`.
+- A Record Type's `categories` are text tags, many per type and independent of the automatic package label (L103), kept
+  in authored order. A null element is `records.document_invalid` at `/categories/{i}`; a blank tag refuses
+  `records.categories.blank` and a repeated tag (ordinal) `records.categories.duplicate` at `/categories/{i}`, in every
+  phase. The canonical body omits an empty list.
+
+Every existing body, digest and compiled record schema is byte-identical. Both members are declarations only: raising
+and settling an offline conflict belongs to the offline runtime (records-eng-25), and nothing yet reads the categories.
+
 ### Creation policy (decision D1, K9; plan W2 and W9)
 
 A Record Type declares who may create its records (records-ck-22):
