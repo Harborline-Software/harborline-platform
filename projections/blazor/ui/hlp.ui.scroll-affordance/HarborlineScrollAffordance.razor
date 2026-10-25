@@ -3,6 +3,7 @@
 @implements IAsyncDisposable
 @using Microsoft.AspNetCore.Components.Web
 @using Microsoft.JSInterop
+@using Harborline.Foundation.Localization
 @using Harborline.UIAdapters.Blazor.Browser
 @using Harborline.UIAdapters.Blazor.Localization
 @inject IJSRuntime JavaScript
@@ -64,18 +65,14 @@
     if (result.Handled && connection is not null) await connection.InvokeVoidAsync("scrollTo", result.RawTarget);
   }
 
+  // The host catalog, then the default catalog, then the key: the order React's t() follows. The English
+  // text is the default catalog's, so it is never passed as the instance override, which would outrank
+  // the host catalog (T-1106).
   private string Resolve(string key, IReadOnlyDictionary<string, int> values)
   {
     var variables = values.ToDictionary(pair => pair.Key, pair => (object?)pair.Value);
-    var fallback = key switch
-    {
-      "scrollAffordance.showingOne" => "Scrollable, showing {index} of {total}",
-      "scrollAffordance.showingRange" => "Scrollable, showing {start} to {end} of {total}",
-      "scrollAffordance.endReached" => "Scrollable region, end reached",
-      "scrollAffordance.moreAvailable" => "Scrollable region, more content available, use arrow keys to scroll",
-      _ => "Scrollable region, {percent}% scrolled, use arrow keys to scroll",
-    };
-    return LocaleContext?.ResolveString(key, variables, fallback) ?? variables.Aggregate(fallback, (text, pair) => text.Replace($"{{{pair.Key}}}", pair.Value?.ToString(), StringComparison.Ordinal));
+    return LocaleContext?.ResolveString(key, variables)
+      ?? HarborlineDefaultStrings.Interpolate(HarborlineDefaultStrings.Values.GetValueOrDefault(key, key), variables);
   }
 
   public async ValueTask DisposeAsync()
