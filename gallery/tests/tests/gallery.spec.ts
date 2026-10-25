@@ -27,6 +27,7 @@ type Scenario = {
   name: string
   interaction?: 'pointer' | 'keyboard' | 'keyboard-pointer'
   sourceQualityCaseIds?: string[]
+  content?: { environment?: { locale?: string } }
 }
 type LocaleFixture = {
   tag: string
@@ -1158,16 +1159,19 @@ async function assertElementParity(reactPage: Page, blazorPage: Page, id: string
 // The register is exact both ways, like the element and overflow registers: an unwaived difference
 // fails with the diff, a waived scenario whose lanes now match fails until its row is deleted, and a
 // waived scenario whose difference CHANGED fails until it is re-measured, so a waiver cannot quietly
-// widen to cover a new defect. A row records its difference as position-anchored hunks: the differing
-// lines with two lines of context either side, so a waived line that moves elsewhere in the tree is
-// a changed difference too. A row for an unknown scenario, or one owned by T-943 itself, is refused by
-// tooling/validate-gallery.mjs.
-type AriaWaiver = { scenarioId: string; ticket: string; reason: string; hunks: string[] }
+// widen to cover a new defect. A row records its difference as position-anchored hunks (laneHunks), so
+// a waived line that moves elsewhere in the tree is a changed difference too. A row for an unknown
+// scenario, or one owned by T-943 itself, is refused by tooling/validate-gallery.mjs.
+//
+// A row may name a `state`: a later moment of a scene that runs on a timer (ariaLaterStates), judged
+// apart from the prepared scene, which is the row without one.
+type AriaWaiver = { scenarioId: string; state?: string; ticket: string; reason: string; hunks: string[] }
 const ariaRegister = JSON.parse(readFileSync(resolve(repositoryRoot, 'gallery/aria-parity-known-divergences.json'), 'utf8')) as {
   measureFlag: string
   divergences: AriaWaiver[]
 }
-const ariaWaiverByScenario = new Map(ariaRegister.divergences.map(row => [row.scenarioId, row]))
+const ariaWaiverKey = (id: string, state?: string) => state ? `${id} @${state}` : id
+const ariaWaiverByScenario = new Map(ariaRegister.divergences.map(row => [ariaWaiverKey(row.scenarioId, row.state), row]))
 
 // The per-scenario two-lane step: one read of the same prepared scene in each lane, concurrently.
 // Every lane-versus-lane probe read goes through here (the ARIA tree now; T-962's tab walk is meant
@@ -1257,19 +1261,29 @@ function laneLineDiff(react: readonly string[], blazor: readonly string[], conte
     let end = changed[cursor]
     while (cursor + 1 < changed.length && changed[cursor + 1] - end <= context * 2 + 1) end = changed[++cursor]
     end = Math.min(ops.length - 1, end + context)
-    unified.push(`@@ react line ${ops[start].reactLine + 1}, blazor line ${ops[start].blazorLine + 1} @@`)
+    // The hunk's first line, counted among the identical lines before it in its own lane, anchors the
+    // hunk in a tree that repeats itself (a list of identical rows), where context alone cannot.
+    const anchor = ops[start]
+    const anchorLane = anchor.kind === '+' ? blazor : react
+    const anchorAt = anchor.kind === '+' ? anchor.blazorLine : anchor.reactLine
+    let occurrence = 0
+    for (let index = 0; index <= anchorAt; index += 1) if (anchorLane[index] === anchor.line) occurrence += 1
+    unified.push(`@@ react line ${ops[start].reactLine + 1}, blazor line ${ops[start].blazorLine + 1}, first line occurrence ${occurrence} @@`)
     for (let index = start; index <= end; index += 1) unified.push(`${ops[index].kind} ${ops[index].line}`)
     cursor += 1
   }
   return { reactOnly, blazorOnly, unified }
 }
 
-// What a register row records: the unified hunks with each '@@ react line N, blazor line M @@' header
-// reduced to '@@'. The context lines pin each differing line to its neighbours, so a waived line that
-// moves is a changed difference, without pinning absolute line numbers, which an unrelated change
-// elsewhere in the tree would shift.
+// What a register row records: the unified hunks with each header reduced to '@@ #k', k being which
+// occurrence of the hunk's first line (in its own lane) the hunk starts at. The context lines pin each
+// differing line to its neighbours and k pins the hunk among identical neighbourhoods, so a waived line
+// that moves is a changed difference even into a repeated structure. Absolute line numbers are left out:
+// an unrelated change elsewhere in the tree shifts them without moving the difference. (A change that
+// adds or removes an identical copy of the anchor line before the hunk shifts k and reads as changed,
+// which errs towards re-measuring.)
 function laneHunks(diff: LaneDiff): string[] {
-  return diff.unified.map(line => line.startsWith('@@ ') ? '@@' : line)
+  return diff.unified.map(line => line.startsWith('@@ ') ? `@@ #${/first line occurrence (\d+) @@$/.exec(line)?.[1] ?? '?'}` : line)
 }
 
 const sameLines = (left: readonly string[], right: readonly string[]) =>
@@ -1277,31 +1291,32 @@ const sameLines = (left: readonly string[], right: readonly string[]) =>
 
 // The register row a measurement describes, ready to paste: the waiver's own ticket and reason are
 // carried over when there is one, and left empty (which validate-gallery refuses) when there is not.
-function ariaRegisterRow(id: string, diff: LaneDiff, waiver: AriaWaiver | undefined): AriaWaiver | null {
+function ariaRegisterRow(id: string, diff: LaneDiff, waiver: AriaWaiver | undefined, state?: string): AriaWaiver | null {
   const hunks = laneHunks(diff)
   if (hunks.length === 0) return null
-  return { scenarioId: id, ticket: waiver?.ticket ?? '', reason: waiver?.reason ?? '', hunks }
+  return { scenarioId: id, ...(state ? { state } : {}), ticket: waiver?.ticket ?? '', reason: waiver?.reason ?? '', hunks }
 }
 
 // The whole register judgement, as a pure function of (measured diff, waiver), so its semantics are
 // asserted directly below instead of only through a browser run.
-function reconcileAriaParity(id: string, diff: LaneDiff, waiver: AriaWaiver | undefined) {
+function reconcileAriaParity(id: string, diff: LaneDiff, waiver: AriaWaiver | undefined, state?: string) {
   const hunks = laneHunks(diff)
   const differs = hunks.length > 0
   const unwaived: string[] = []
   const drift: string[] = []
   const stale: string[] = []
-  const pasteable = () => `Row for gallery/aria-parity-known-divergences.json: ${JSON.stringify(ariaRegisterRow(id, diff, waiver))}`
+  const pasteable = () => `Row for gallery/aria-parity-known-divergences.json: ${JSON.stringify(ariaRegisterRow(id, diff, waiver, state))}`
+  const label = state ? `${id} (${state})` : id
   if (differs && !waiver) {
-    unwaived.push(`${id} ARIA trees differ between lanes (- react only, + blazor only)`, ...diff.unified,
+    unwaived.push(`${label} ARIA trees differ between lanes (- react only, + blazor only)`, ...diff.unified,
       `If the difference is owned by an open ticket, waive it with ${ariaRegister.measureFlag} set. ${pasteable()}`)
   } else if (differs && waiver && !sameLines(hunks, waiver.hunks)) {
     // What changed against the row, not the whole measured diff again: the recorded hunks are the
     // left side and the measured ones the right, so a reviewer reads only the lines that moved.
-    drift.push(`${id} is waived for ARIA tree parity (ticket ${waiver.ticket}) but the difference changed; re-measure the row with ${ariaRegister.measureFlag} set.`,
+    drift.push(`${label} is waived for ARIA tree parity (ticket ${waiver.ticket}) but the difference changed; re-measure the row with ${ariaRegister.measureFlag} set.`,
       'Recorded row versus measured now (- recorded, + measured):', ...laneLineDiff(waiver.hunks, hunks).unified, pasteable())
   } else if (!differs && waiver) {
-    stale.push(`${id} is waived for ARIA tree parity (ticket ${waiver.ticket}) but its lanes now match; delete the row from gallery/aria-parity-known-divergences.json`)
+    stale.push(`${label} is waived for ARIA tree parity (ticket ${waiver.ticket}) but its lanes now match; delete the row from gallery/aria-parity-known-divergences.json`)
   }
   return { unwaived, drift, stale }
 }
@@ -1330,46 +1345,83 @@ async function settleLane(
   }
 }
 
-// Scenes whose prepared state runs on a timer have no settled tree until the timer ends, and where in
-// that timer a read lands would depend on how long the axe scans before it took. A guarded action's
-// arm window lasts five seconds and counts down every second, so a guarded scene is read once no guard
-// in it is armed or committing, in both lanes: the state the scenario ends in.
-const ariaSceneSettlers: Array<[prefix: string, settle: (probe: Locator) => Promise<void>]> = [
-  ['guarded-control.', probe => expect(probe.locator('[data-guard-state="armed"], [data-guard-state="committing"]'),
-    'a guarded action is still armed; the scene settles when its arm window ends').toHaveCount(0, { timeout: 15_000 })],
-]
+// Scenes whose prepared state runs on a timer are compared on a frozen clock. A guarded action's arm
+// window lasts five seconds and counts down every second, so the armed tree only holds still while
+// time does. Each lane's page gets Playwright's fake clock before its story opens (React's timers and
+// Blazor WebAssembly's Task.Delay both run on the page's setTimeout, so both follow it). The clock is
+// paused once the story is up, the scene is prepared and compared on the paused clock, and the clock
+// then resumes, because the axe scans need running timers.
+const ariaFrozenClockScenes = ['guarded-control.']
+const guardArmedOrCommitting = '[data-guard-state="armed"], [data-guard-state="committing"]'
+// A later moment of a timer-driven scene, read after the scans once each lane has reached it, and
+// judged against its own row (`state`). two-step's guard recovers when its arm window runs out.
+const ariaLaterStates = new Map<string, Array<{ state: string; settle: (probe: Locator) => Promise<void> }>>([
+  ['guarded-control.two-step', [{
+    state: 'after-arm-window',
+    settle: probe => expect(probe.locator(guardArmedOrCommitting), 'the guard is still armed; this state begins when its arm window ends')
+      .toHaveCount(0, { timeout: 15_000 }),
+  }]],
+])
 
-async function assertAriaParity(reactPage: Page, blazorPage: Page, id: string) {
-  const waiver = ariaWaiverByScenario.get(id)
-  const settleScene = ariaSceneSettlers.find(([prefix]) => id.startsWith(prefix))?.[1]
+// Playwright has no "pause now": pauseAt jumps to a time and pauses there, and refuses a time the
+// running fake clock has already passed. The page's clock keeps moving while the target is computed, so
+// the target sits a margin ahead, retried with a wider margin on a loaded host. Nothing is armed yet,
+// so the jump is harmless.
+async function pauseClocks(pages: Page[]) {
+  await Promise.all(pages.map(async page => {
+    for (const margin of [50, 250, 1_000, 5_000]) {
+      try {
+        await page.clock.pauseAt(await page.evaluate(() => Date.now()) + margin)
+        return
+      } catch (error) {
+        if (margin === 5_000 || !String(error).includes('Cannot fast-forward to the past')) throw error
+      }
+    }
+  }))
+}
+
+async function assertAriaParity(reactPage: Page, blazorPage: Page, id: string, state?: string) {
+  const waiver = ariaWaiverByScenario.get(ariaWaiverKey(id, state))
+  const settleState = state ? ariaLaterStates.get(id)?.find(entry => entry.state === state)?.settle : undefined
+  if (state && !settleState) throw new Error(`${id} has no later ARIA state ${state}`)
   const started = performance.now()
   const lanes = await readBothLanes(reactPage, blazorPage, async probe => {
-    await settleScene?.(probe)
+    await settleState?.(probe)
     return settleLane(async () => normaliseAriaSnapshot(await probe.ariaSnapshot()))
   })
+  const label = state ? `${id} (${state})` : id
   const unsettled = (['react', 'blazor'] as const).filter(lane => !lanes[lane].settled)
-    .map(lane => `${id} ${lane} ARIA tree was still changing after ${ariaParitySettleMs} ms (${lanes[lane].reads} reads)`)
+    .map(lane => `${label} ${lane} ARIA tree was still changing after ${ariaParitySettleMs} ms (${lanes[lane].reads} reads)`)
   const diff = laneLineDiff(lanes.react.lines, lanes.blazor.lines)
-  const outcome = reconcileAriaParity(id, diff, waiver)
-  // One line per comparison: `row` is the register row this measurement describes, pasteable as is
-  // (null when the lanes match), and `measure` holds the diagnostics a row must not carry.
+  const outcome = reconcileAriaParity(id, diff, waiver, state)
+  // A row for a state this scenario never reads would never be judged; the prepared read says so.
+  const unread = state ? [] : ariaRegister.divergences
+    .filter(row => row.scenarioId === id && row.state && !(ariaLaterStates.get(id) ?? []).some(entry => entry.state === row.state))
+    .map(row => `${id} has a row for state ${row.state}, which this scenario never reads; delete or rename the row`)
+  // One line per comparison: `row` is the register row this measurement describes, pasteable as is.
+  // It is null when the lanes match, and also when a lane did not settle, because a tree caught
+  // mid-change is not a difference to waive. `measure` holds the diagnostics a row must not carry.
   if (process.env[ariaRegister.measureFlag]) {
     appendFileSync(process.env[ariaRegister.measureFlag]!, `${JSON.stringify({
       scenarioId: id,
-      row: ariaRegisterRow(id, diff, waiver),
+      ...(state ? { state } : {}),
+      row: unsettled.length ? null : ariaRegisterRow(id, diff, waiver, state),
       measure: {
         reactOnly: diff.reactOnly, blazorOnly: diff.blazorOnly, unified: diff.unified,
         lines: { react: lanes.react.lines.length, blazor: lanes.blazor.lines.length },
         reads: { react: lanes.react.reads, blazor: lanes.blazor.reads },
+        settled: { react: lanes.react.settled, blazor: lanes.blazor.settled },
         elapsedMs: Math.round(performance.now() - started),
       },
     })}\n`)
   }
-  expect(unsettled, `${id} ARIA tree parity: a lane did not settle`).toEqual([])
-  expect(outcome.unwaived, `${id} ARIA tree parity:\n${outcome.unwaived.join('\n')}`).toEqual([])
-  expect(outcome.drift, `${id} ARIA tree parity waiver:\n${outcome.drift.join('\n')}`).toEqual([])
-  expect(outcome.stale, `${id} ARIA tree parity register`).toEqual([])
-  recordCheck('ariaParityComparisons')
+  expect(unsettled, `${label} ARIA tree parity: a lane did not settle`).toEqual([])
+  expect(outcome.unwaived, `${label} ARIA tree parity:\n${outcome.unwaived.join('\n')}`).toEqual([])
+  expect(outcome.drift, `${label} ARIA tree parity waiver:\n${outcome.drift.join('\n')}`).toEqual([])
+  expect(outcome.stale, `${label} ARIA tree parity register`).toEqual([])
+  expect(unread, `${id} ARIA tree parity register`).toEqual([])
+  // One comparison per scenario: a later state is part of the scenario's comparison, not another.
+  if (!state) recordCheck('ariaParityComparisons')
 }
 
 async function assertVisualParity(reactPage: Page, blazorPage: Page, scenario: Scenario, testInfo: TestInfo) {
@@ -1667,7 +1719,7 @@ test('ARIA parity fails a role, name or state difference between lanes and shows
   const missing = laneLineDiff(ariaScene, ariaScene.filter((_, at) => at !== 2 && at !== 3 && at !== 4))
   expect(missing).toMatchObject({ reactOnly: ariaScene.slice(2, 5), blazorOnly: [] })
   expect(missing.unified).toEqual([
-    '@@ react line 1, blazor line 1 @@',
+    '@@ react line 1, blazor line 1, first line occurrence 1 @@',
     '  - heading "Actions" [level=2]',
     '  - button "More actions" [expanded]',
     `- ${ariaScene[2]}`,
@@ -1676,7 +1728,7 @@ test('ARIA parity fails a role, name or state difference between lanes and shows
     '  - checkbox "Notify" [checked]',
   ])
   // The hunks a row records are the same body with the line numbers taken out of the header.
-  expect(laneHunks(missing)).toEqual(['@@', ...missing.unified.slice(1)])
+  expect(laneHunks(missing)).toEqual(['@@ #1', ...missing.unified.slice(1)])
   // Above the table cap the differing middle is reported whole rather than aligned.
   expect(laneLineDiff(['- a', '- b', '- c'], ['- a', '- x', '- c'], 2, 1)).toMatchObject({ reactOnly: ['- b'], blazorOnly: ['- x'] })
 })
@@ -1698,6 +1750,12 @@ test('the ARIA parity register is exact both ways', () => {
   expect(drift.unwaived).toEqual([])
   // And no waiver at all leaves a matching scene clean.
   expect(reconcileAriaParity('x.default', laneLineDiff(ariaScene, ariaScene), undefined)).toEqual(clean)
+  // A later state of a timer-driven scene is judged on its own row, and its messages and pasteable row
+  // name the state.
+  const later = reconcileAriaParity('x.default', diff, undefined, 'after-arm-window')
+  expect(later.unwaived[0]).toBe('x.default (after-arm-window) ARIA trees differ between lanes (- react only, + blazor only)')
+  expect(JSON.parse(later.unwaived.at(-1)!.replace(/^.*Row for gallery\/aria-parity-known-divergences\.json: /, '')))
+    .toMatchObject({ scenarioId: 'x.default', state: 'after-arm-window', hunks: laneHunks(diff) })
 })
 
 test('an ARIA parity waiver pins each line to its place: a waived line that moves is drift', () => {
@@ -1718,6 +1776,21 @@ test('an ARIA parity waiver pins each line to its place: a waived line that move
   const shifted = laneLineDiff(longer, longerBlazor)
   expect(shifted.unified[0]).not.toBe(laneLineDiff(react, blazor).unified[0])
   expect(reconcileAriaParity('x.default', shifted, row)).toEqual({ unwaived: [], drift: [], stale: [] })
+})
+
+test('an ARIA parity waiver tells repeated rows apart: a line that moves into identical context is drift', () => {
+  // Four identical rows; Blazor drops the second row's button name. Moving that defect to the third
+  // row leaves the hunk body identical, context lines included, so only the anchor can tell (review 2,
+  // finding 6): the hunk now starts at the second occurrence of its first line, not the first.
+  const rows = (blank: number) => [0, 1, 2, 3].flatMap(at => ['- listitem:', at === blank ? '  - button' : '  - button "Remove"'])
+  const react = rows(-1)
+  const recorded = laneLineDiff(react, rows(1))
+  const moved = laneLineDiff(react, rows(2))
+  expect(moved.unified.slice(1)).toEqual(recorded.unified.slice(1))
+  expect([laneHunks(recorded)[0], laneHunks(moved)[0]]).toEqual(['@@ #1', '@@ #2'])
+  const row = { scenarioId: 'x.default', ticket: 'T-1104', reason: 'recorded difference', hunks: laneHunks(recorded) }
+  expect(reconcileAriaParity('x.default', recorded, row).drift).toEqual([])
+  expect(reconcileAriaParity('x.default', moved, row).drift[0]).toContain('but the difference changed')
 })
 
 test('an ARIA parity drift names what changed against the row and prints a row that can be pasted', () => {
@@ -1779,17 +1852,23 @@ for (const catalog of catalogs) for (const scenario of catalog.scenarios) {
     test.skip(ciGallery && ciWallClockExempt.has(scenario.id),
       'wall-clock budget scenario: a shared CI runner measures the runner, not the component')
     const colorScheme = scenario.id.endsWith('.theme-dark') ? 'dark' : 'light'
-    // The clock zone and the default locale are pinned, not inherited from the host: both lanes render
-    // instants in the browser's zone (React through Intl with no timeZone, Blazor WebAssembly through
-    // TimeZoneInfo.Local, which it takes from the browser) and format with the browser's language when
-    // a story names no locale, so an unpinned context records the author's zone and language into the
-    // ARIA register and every other host reads a different tree (T-943 review, finding 1).
-    const scenarioContext = { viewport: { width: 920, height: 720 }, colorScheme, timezoneId: 'UTC', locale: 'en-US' } as const
+    // The clock zone and the browser language come from the scenario, never from the host. Both lanes
+    // render instants in the browser's zone (React through Intl with no timeZone, Blazor WebAssembly
+    // through TimeZoneInfo.Local, which it takes from the browser), so the zone is pinned to UTC (T-943
+    // review 1, finding 1). The language is the locale the scenario's catalog declares
+    // (content.environment.locale): React formats with it wherever a story names no locale, and Blazor
+    // WebAssembly both takes its culture from it and picks its ICU data shard by it, so an en-US
+    // language for an ar-SA scene would load ICU data with no Arabic in it (T-943 review 2, finding 4).
+    const locale = scenario.content?.environment?.locale
+    if (!locale) throw new Error(`${scenario.id} declares no content.environment.locale in its gallery catalog`)
+    const scenarioContext = { viewport: { width: 920, height: 720 }, colorScheme, timezoneId: 'UTC', locale } as const
     const [reactContext, blazorContext] = await Promise.all([
       browser.newContext(scenarioContext),
       browser.newContext(scenarioContext),
     ])
     const [reactPage, blazorPage] = await Promise.all([reactContext.newPage(), blazorContext.newPage()])
+    const frozenClock = ariaFrozenClockScenes.some(prefix => scenario.id.startsWith(prefix))
+    if (frozenClock) await Promise.all([reactPage.clock.install(), blazorPage.clock.install()])
     await Promise.all([
       reactPage.emulateMedia({ reducedMotion: 'reduce' }),
       blazorPage.emulateMedia({ reducedMotion: 'reduce' }),
@@ -1799,7 +1878,13 @@ for (const catalog of catalogs) for (const scenario of catalog.scenarios) {
       openReactStory(reactPage, storyId(react, catalog.galleryInterface.projectionTitles.react, scenario.name)),
       openBlazorStory(blazorPage, storyId(blazor, catalog.galleryInterface.projectionTitles.blazor, scenario.name)),
     ])
+    if (frozenClock) await pauseClocks([reactPage, blazorPage])
     await Promise.all([prepareScenario(reactPage, scenario), prepareScenario(blazorPage, scenario)])
+    if (frozenClock) {
+      // Compared as prepared, on the paused clock (ariaFrozenClockScenes); the scans need running time.
+      await assertAriaParity(reactPage, blazorPage, scenario.id)
+      await Promise.all([reactPage.clock.resume(), blazorPage.clock.resume()])
+    }
     if (scenario.id === 'data-exchange.authoring' || scenario.id === 'data-exchange.stale-review') {
       for (const page of [reactPage, blazorPage]) {
         await expect(page.getByRole('textbox', { name: 'Reference dataset', exact: true })).toHaveValue('dataset.customers')
@@ -1814,7 +1899,8 @@ for (const catalog of catalogs) for (const scenario of catalog.scenarios) {
     await assertAccessible(blazorPage, scenario, 'blazor')
     // Every scenario, not only those declaring visual parity: the tree is what the lanes must agree
     // on whatever they look like. Before reflow, which mutates the viewport and root font size.
-    await assertAriaParity(reactPage, blazorPage, scenario.id)
+    if (!frozenClock) await assertAriaParity(reactPage, blazorPage, scenario.id)
+    for (const { state } of ariaLaterStates.get(scenario.id) ?? []) await assertAriaParity(reactPage, blazorPage, scenario.id, state)
     if (scenario.sourceQualityCaseIds?.some(id => id.endsWith('.quality.visual-parity'))
       && !(ciGallery && ciPixelExempt.has(scenario.id))) {
       await assertVisualParity(reactPage, blazorPage, scenario, testInfo)

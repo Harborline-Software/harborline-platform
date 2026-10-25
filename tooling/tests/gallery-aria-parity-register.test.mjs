@@ -14,7 +14,7 @@ process.chdir(root)
 const {ariaParityRegisterErrors, validateGallery} = await import('../validate-gallery.mjs')
 
 const flag = 'HARBORLINE_GALLERY_ARIA_MEASURE'
-const hunks = ['@@', '  - heading "Pseudo locale" [level=2]', '- - switch "Notifications"', '+ - switch "Email notifications"', '  - text: Email notifications']
+const hunks = ['@@ #1', '  - heading "Pseudo locale" [level=2]', '- - switch "Notifications"', '+ - switch "Email notifications"', '  - text: Email notifications']
 const row = overrides => ({
   scenarioId: 'switch.theme-light',
   ticket: 'T-1111',
@@ -26,7 +26,9 @@ const errorsFor = (...rows) => ariaParityRegisterErrors({measureFlag: flag, dive
 
 test('a complete row for a known scenario is accepted', () => {
   assert.deepEqual(errorsFor(row()), [])
-  assert.deepEqual(errorsFor(row({ticket: 'T-146', hunks: ['@@', '  - heading "Agenda" [level=2]', '- - toolbar:']})), [])
+  assert.deepEqual(errorsFor(row({ticket: 'T-146', hunks: ['@@ #2', '  - heading "Agenda" [level=2]', '- - toolbar:']})), [])
+  // A later state of a timer-driven scene is its own row beside the prepared one.
+  assert.deepEqual(errorsFor(row(), row({state: 'after-arm-window'})), [])
 })
 
 test('a waiver for an unknown scenario id fails', () => {
@@ -43,14 +45,17 @@ test('a row without a ticket, a reason or differing lines fails', () => {
   assert.match(errorsFor(row({ticket: undefined})).join('\n'), /needs the open ticket that owns the fix/)
   assert.match(errorsFor(row({ticket: 'soon'})).join('\n'), /needs the open ticket that owns the fix/)
   assert.match(errorsFor(row({reason: 'differs'})).join('\n'), /needs a reason a reviewer can check/)
-  assert.match(errorsFor(row({hunks: ['@@', '  - heading "Pseudo locale" [level=2]']})).join('\n'), /records no differing snapshot line/)
+  assert.match(errorsFor(row({hunks: ['@@ #1', '  - heading "Pseudo locale" [level=2]']})).join('\n'), /records no differing snapshot line/)
+  assert.match(errorsFor(row({hunks: ['@@', '- - switch "Notifications"']})).join('\n'), /as laneHunks writes them/)
   assert.match(errorsFor(row({hunks: []})).join('\n'), /records no differing snapshot line/)
-  assert.match(errorsFor(row({hunks: '- - switch "Notifications"'})).join('\n'), /as laneLineDiff writes them/)
-  assert.match(errorsFor(row({hunks: ['@@', '- switch "Notifications"']})).join('\n'), /as laneLineDiff writes them/)
+  assert.match(errorsFor(row({hunks: '- - switch "Notifications"'})).join('\n'), /as laneHunks writes them/)
+  assert.match(errorsFor(row({hunks: ['@@ #1', '- switch "Notifications"']})).join('\n'), /as laneHunks writes them/)
 })
 
 test('a scenario waived twice, an unknown field or a wrong measure flag fails', () => {
   assert.match(errorsFor(row(), row()).join('\n'), /switch\.theme-light is registered twice/)
+  assert.match(errorsFor(row({state: 'later'}), row({state: 'later'})).join('\n'), /registered twice for state later/)
+  assert.match(errorsFor(row({state: 'After Window'})).join('\n'), /state that is not a kebab-case name/)
   assert.match(errorsFor(row({host: 'macos-arm64'})).join('\n'), /unknown field host/)
   assert.match(errorsFor(row({reactOnly: ['- switch "Notifications"']})).join('\n'), /unknown field reactOnly/)
   assert.match(ariaParityRegisterErrors({measureFlag: 'X', divergences: []}, []).join('\n'), /measureFlag must be HARBORLINE_GALLERY_ARIA_MEASURE/)
