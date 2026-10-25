@@ -11,8 +11,8 @@ namespace Harborline.Blocks.BuilderDefinitions.Tests;
 /// <summary>
 /// T-615: a field declares its offline conflict policy (records-ck-16, L1011: <c>ask</c>, the default, <c>additive</c> or
 /// <c>latest_observation</c>, exact lowercase, never last-write-wins) and a Record Type declares its category tags
-/// (records-ck-23, L103: many per type, independent of the package label; blank, malformed and case-insensitively repeated
-/// tags refuse, the strict interim rule while comparison is unruled). Both members are optional, so every existing body and
+/// (records-ck-23, L103: many per type, independent of the package label; any text tag is kept verbatim, because how tags
+/// compare is not ruled). Both members are optional, so every existing body and
 /// digest is byte-identical; an explicit <c>ask</c>, an explicit null and an empty tag list canonicalize to absent, and save
 /// does not carry either declaration forward. Declaration only:
 /// the offline runtime that raises and settles a conflict is records-eng-25. Expected bodies, codes and pointers are
@@ -183,44 +183,24 @@ public sealed class RecordTypeConflictPolicyAndCategoriesTests
         Assert.Equal(AssetClassJson, Canonical(Read(AssetClassJson) with { Categories = [] }));
     }
 
+    // How tags compare is not ruled (L103 is open), so no blank, trimming, normalization, character or duplicate rule is
+    // adopted: every present text tag is admitted in every phase and kept verbatim.
     [Theory]
     [Trait("Holds", "records-ck-23")]
-    [InlineData("[\"\"]", "records.categories.blank", "/categories/0")]
-    [InlineData("[\"safety\",\"  \"]", "records.categories.blank", "/categories/1")]
-    [InlineData("[\"safety\",\"finance\",\"safety\"]", "records.categories.duplicate", "/categories/2")]
-    [InlineData("[\"safety\",\"Safety\"]", "records.categories.duplicate", "/categories/1")]
-    [InlineData("[\"finance\",\"FINANCE\"]", "records.categories.duplicate", "/categories/1")]
-    [InlineData("[\" safety\"]", "records.categories.malformed", "/categories/0")]
-    [InlineData("[\"safety \"]", "records.categories.malformed", "/categories/0")]
-    [InlineData("[\"finance\",\"safety\\t\"]", "records.categories.malformed", "/categories/1")]
-    [InlineData("[\"\\u200B\"]", "records.categories.malformed", "/categories/0")]
-    [InlineData("[\"safety\\u200B\"]", "records.categories.malformed", "/categories/0")]
-    [InlineData("[\"\\uFEFFsafety\"]", "records.categories.malformed", "/categories/0")]
-    [InlineData("[\"safe\\u0007ty\"]", "records.categories.malformed", "/categories/0")]
-    [InlineData("[\"cafe\\u0301\"]", "records.categories.malformed", "/categories/0")]
-    public void A_blank_malformed_or_repeated_tag_is_refused_at_every_phase(string tags, string code, string at)
+    [InlineData("[\"\"]")]
+    [InlineData("[\"safety\",\"  \"]")]
+    [InlineData("[\"safety\",\"finance\",\"safety\"]")]
+    [InlineData("[\"safety\",\"Safety\"]")]
+    [InlineData("[\" safety\",\"safety \"]")]
+    [InlineData("[\"\\u200B\",\"safe\\u0007ty\"]")]
+    [InlineData("[\"cafe\\u0301\"]")]
+    public void Any_text_tag_is_admitted_at_every_phase_and_kept_verbatim_while_comparison_is_unruled(string tags)
     {
         var body = WithCategories(AssetClassJson, tags);
 
+        Assert.Equal(body, Canonical(Read(body)));
         foreach (var phase in new[] { DefinitionAdmissionPhase.Author, DefinitionAdmissionPhase.Publish, DefinitionAdmissionPhase.Install })
-            Assert.Equal([(code, at)], Admit(body, phase));
-    }
-
-    [Fact]
-    [Trait("Holds", "records-ck-23")]
-    public void Every_refused_tag_is_named_with_its_own_pointer()
-    {
-        var body = WithCategories(AssetClassJson, "[\"a\",\"\",\"A\",\"b\",\" b\",\"b\",\"a\"]");
-
-        Assert.Equal(
-            [
-                ("records.categories.blank", "/categories/1"),
-                ("records.categories.duplicate", "/categories/2"),
-                ("records.categories.malformed", "/categories/4"),
-                ("records.categories.duplicate", "/categories/5"),
-                ("records.categories.duplicate", "/categories/6"),
-            ],
-            Admit(body, DefinitionAdmissionPhase.Author));
+            Assert.Empty(Admit(body, phase));
     }
 
     [Theory]
@@ -285,16 +265,16 @@ public sealed class RecordTypeConflictPolicyAndCategoriesTests
 
     [Fact]
     [Trait("Holds", "records-ck-23")]
-    public async Task A_draft_with_a_repeated_tag_is_refused_before_the_catalogue_changes()
+    public async Task A_draft_with_a_null_tag_is_refused_before_the_catalogue_changes()
     {
         var host = Host();
         await host.Records.CreateDraftAsync(AssetClass("1.0.0"), "create");
-        var tagged = Read(CreatedAssetClassJson) with { Categories = ["safety", "safety"] };
+        var tagged = Read(CreatedAssetClassJson) with { Categories = ["safety", null!] };
 
         var refusal = await Assert.ThrowsAsync<DefinitionRefusalException>(async () =>
             await host.Records.SaveDraftAsync("eam.asset-class", tagged, "1.0.0", 1, "resave"));
 
-        Assert.Equal([("records.categories.duplicate", "/categories/1")], refusal.Refusals.Select(r => (r.Code, r.Pointer)).ToArray());
+        Assert.Equal([("records.document_invalid", "/categories/1")], refusal.Refusals.Select(r => (r.Code, r.Pointer)).ToArray());
         Assert.Single(await host.Catalogue.ListHistoryAsync(RecordTypeDefinitionStore.KeyOf(Tenant, "eam.asset-class")));
     }
 
