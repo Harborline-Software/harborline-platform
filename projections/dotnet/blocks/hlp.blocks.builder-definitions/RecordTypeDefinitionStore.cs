@@ -99,8 +99,10 @@ public sealed class RecordTypeDefinitionStore
     /// <summary>
     /// Wraps a host's shared store. The host registers <see cref="Admission"/> for
     /// <see cref="DefinitionKind.Records"/> with the same validator the compiler uses. <paramref name="roles"/> is Access's
-    /// role vocabulary a <c>role</c> gate's <c>creation_role_id</c> resolves through at publication (decision D1); absent,
-    /// publishing a role-gated type refuses <c>records.creation_role.unknown</c>, and diagnostics skip the check.
+    /// role vocabulary a <c>role</c> gate's <c>creation_role_id</c> (decision D1) and each field's <c>write_role_id</c>
+    /// (records-ck-14) resolve through at publication; absent, publishing a role-gated type refuses
+    /// <c>records.creation_role.unknown</c>, publishing a type with a field write role refuses
+    /// <c>records.write_role.unknown</c>, and diagnostics skip the check.
     /// </summary>
     public RecordTypeDefinitionStore(IVersionedDefinitionStore store, RecordTypeSchemaCompiler compiler,
         RecordFieldDefaults defaults, ISchemaRegistry registry, DefinitionContractWindow window,
@@ -555,8 +557,9 @@ public sealed class RecordTypeDefinitionStore
 
     /// <summary>
     /// The installation gate (records-ck-41): Install-phase admission and the schema compile over an exported entry, a
-    /// role gate's creation role resolved through the store's role vocabulary (fails closed without one, as publication
-    /// does; <c>records.creation_role.unknown</c>), then every reference checked against what the installing host was
+    /// role gate's creation role and each field's write role resolved through the store's role vocabulary (fails closed
+    /// without one, as publication does; <c>records.creation_role.unknown</c>, <c>records.write_role.unknown</c>), then
+    /// every reference checked against what the installing host was
     /// handed, never its live catalogue. An unpinned
     /// reference must target a definition the same pack ships; a pinned one needs this definition's <c>requires</c> entry
     /// at the pin's interface version and must equal the exposure its pinned dependency closure declares. Every refusal
@@ -579,7 +582,7 @@ public sealed class RecordTypeDefinitionStore
         }
         var parsed = RecordTypeDefinitionJson.Deserialize(entry.Content.Payload.Span);
         // F5: a pack cannot install a role-gated type whose creation role this host's vocabulary does not define: a gate
-        // nothing can satisfy is worse than an open one (ADR 0043).
+        // nothing can satisfy is worse than an open one (ADR 0043). Each field's write role resolves the same way.
         return new(DefinitionAdmissionPhase.Install, RoleRefusals(parsed, required: true).Concat(InstallEdges(parsed, closure)).ToArray());
     }
 

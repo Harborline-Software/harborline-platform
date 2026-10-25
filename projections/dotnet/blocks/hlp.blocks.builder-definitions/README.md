@@ -150,10 +150,11 @@ schema is byte-identical. A present name is kept verbatim. Any other JSON value,
 Publication, installation and a diagnosis with a supplied vocabulary resolve each write role through the same check as a
 creation role: a domain role in Access's role vocabulary, failing closed when publication or installation has no
 vocabulary, and never re-run on the bind path. An unresolved one refuses `records.write_role.unknown` at
-`/fields/{i}/write_role_id`, after any `/creation_role_id` refusal and in field order. A blank name has no gate to make it
-required, so it is undefined like any other unknown name. Only domain roles can be named, and pack ownership is not
-checked. Save does not carry an omitted write role forward. This is the declaration only: enforcing the role, and any
-write authorization, belongs to the write path.
+`/fields/{i}/write_role_id`, after any `/creation_role_id` refusal and in field order, before the reference refusals. A
+blank name has no gate to make it required, so it is undefined like any other unknown name. The code name and that blank
+rule are interim until the owner rules; refusing a blank can be relaxed later to treating it as absent. Only domain
+roles can be named, and pack ownership is not checked. Save does not carry an omitted write role forward. This is the
+declaration only: enforcing the role, and any write authorization, belongs to the write path.
 
 ## Records write: one record create (T-616, bounded)
 

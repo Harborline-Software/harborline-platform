@@ -23,6 +23,25 @@ public sealed class RecordFieldWriteRoleTests
         Assert.DoesNotContain("write_role", declared.JsonSchemaText!, StringComparison.Ordinal);
     }
 
+    // The literal schemas of an unbound and a reference field (spelled as in RecordsFieldMultiplicitySchemaTests): a write
+    // role on either kind of field leaves the bytes exactly as written here.
+    [Fact]
+    [Trait("Holds", "records-ck-14")]
+    public async Task Unbound_and_reference_fields_with_a_write_role_compile_to_their_literal_schemas()
+    {
+        const string unboundSchema = """{"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","properties":{"label":{"type":"string"}},"additionalProperties":false}""";
+        const string referenceSchema = """{"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","properties":{"owner":{"type":"object","properties":{"type":{"const":"person"},"id":{"type":"string","minLength":1}},"required":["type","id"],"additionalProperties":false}},"additionalProperties":false}""";
+
+        var unbound = await Compiler().CompileAsync(new("label-record", [new("label", "Label") { WriteRoleId = "asset-author" }]), null);
+        var reference = await Compiler().CompileAsync(new("owned-record", [new("owner", "Owner", Reference:
+            new("person", null, ReferenceCardinality.One, ReferenceDeleteBehavior.Block)) { WriteRoleId = "asset-author" }]), null);
+
+        Assert.Empty(unbound.Refusals);
+        Assert.Empty(reference.Refusals);
+        Assert.Equal(unboundSchema, unbound.JsonSchemaText);
+        Assert.Equal(referenceSchema, reference.JsonSchemaText);
+    }
+
     [Fact]
     [Trait("Holds", "records-ck-14")]
     public void Declaring_or_dropping_a_write_role_between_versions_is_not_an_identity_change()
@@ -32,6 +51,9 @@ public sealed class RecordFieldWriteRoleTests
         Assert.Empty(validator.Validate(Order("asset-author"), Order(null)));
         Assert.Empty(validator.Validate(Order(null), Order("asset-author")));
         Assert.Empty(validator.Validate(Order("meter-author"), Order("asset-author")));
+        // Control: the same comparison does see a real identity change.
+        var renamed = Assert.Single(validator.Validate(Order("asset-author") with { RecordTypeId = "invoice" }, Order(null)));
+        Assert.Equal(("records.identity.record_type_id_immutable", "/record_type_id"), (renamed.Code, renamed.JsonPointer));
     }
 
     [Fact]

@@ -1,4 +1,5 @@
 using System.Text;
+using Harborline.Contracts.Authorization;
 using Harborline.Foundation.Definitions;
 using Harborline.Kernel.SchemaValidation;
 using Harborline.Kernel.SchemaValidation.Records;
@@ -17,9 +18,7 @@ namespace Harborline.Blocks.BuilderDefinitions.Tests;
 /// </summary>
 public sealed class RecordFieldWriteRoleTests
 {
-    private const string ClassIdMember = "\"class_id\":\"eam.equipment\",";
-
-    // write_role_id sorts after field_key, the last member of both unbound fixture fields.
+    // write_role_id sorts after field_key, the last member of the quantity and notes fixture fields (neither has governance).
     private static string WithNotesWriteRole(string json, string value) =>
         Splice(json, "\"field_key\":\"notes\"}", "\"field_key\":\"notes\",\"write_role_id\":" + value + "}");
 
@@ -216,6 +215,8 @@ public sealed class RecordFieldWriteRoleTests
         Assert.Equal(expected, Pairs(report.Refusals));
     }
 
+    // The unresolved reference (field 1) sits before a later field's write role (field 2), so checking each field's write
+    // role and reference together would interleave them; the reference field carries a write role of its own.
     [Fact]
     [Trait("Holds", "records-ck-14")]
     public async Task Write_role_refusals_follow_the_creation_role_in_field_order_and_precede_reference_refusals()
@@ -229,31 +230,49 @@ public sealed class RecordFieldWriteRoleTests
             Fields =
             [
                 legacy.Fields[0],
-                legacy.Fields[1] with { WriteRoleId = "nobody" },
+                new("owner", "Owner", Reference: new("eam.missing", null, ReferenceCardinality.One, ReferenceDeleteBehavior.Block))
+                {
+                    WriteRoleId = "nobody",
+                },
                 legacy.Fields[2] with { WriteRoleId = "" },
-                new("owner", "Owner", Reference: new("eam.missing", null, ReferenceCardinality.One, ReferenceDeleteBehavior.Block)),
             ],
         };
-        var installBody = WithNotesWriteRole(WithQuantityWriteRole(Splice(AssetClassJson, ClassIdMember,
-            ClassIdMember + "\"creation_gate\":\"role\",\"creation_role_id\":\"nobody\","), "\"nobody\""), "\"\"");
+        (string, string)[] expected =
+        [
+            ("records.creation_role.unknown", "/creation_role_id"),
+            ("records.write_role.unknown", "/fields/1/write_role_id"),
+            ("records.write_role.unknown", "/fields/2/write_role_id"),
+            ("records.reference.target_unresolved", "/fields/1/reference/target_type_id"),
+        ];
+        // The serializer only builds the input here; every expected pair above is a literal.
+        var body = Canonical(document);
+        await host.Catalogue.SaveDraftAsync(new(RecordTypeDefinitionStore.KeyOf(Tenant, "eam.asset-class"), "1.0.0", "1.0.0", body), 0, "create");
 
         var diagnosed = await host.Records.DiagnoseAsync(Tenant, document);
+        var published = await Assert.ThrowsAsync<DefinitionRefusalException>(
+            () => host.Records.PublishAsync(Tenant, "eam.asset-class", "1.0.0", 1, "publish").AsTask());
         var installed = await host.Records.AdmitInstallAsync(Tenant,
-            new("eam.asset-class", "1.0.0", PlatformPackageContent.PresentJson(Encoding.UTF8.GetBytes(installBody))), NoDependencies);
+            new("eam.asset-class", "1.0.0", PlatformPackageContent.PresentJson(Encoding.UTF8.GetBytes(body))), NoDependencies);
 
-        Assert.Equal(
-        [
-            ("records.creation_role.unknown", "/creation_role_id"),
-            ("records.write_role.unknown", "/fields/1/write_role_id"),
-            ("records.write_role.unknown", "/fields/2/write_role_id"),
-            ("records.reference.target_unresolved", "/fields/3/reference/target_type_id"),
-        ], Pairs(diagnosed.Refusals));
-        Assert.Equal(
-        [
-            ("records.creation_role.unknown", "/creation_role_id"),
-            ("records.write_role.unknown", "/fields/1/write_role_id"),
-            ("records.write_role.unknown", "/fields/2/write_role_id"),
-        ], Pairs(installed.Refusals));
+        Assert.Equal(expected, Pairs(diagnosed.Refusals));
+        Assert.Equal(expected, Pairs(published.Refusals));
+        Assert.Equal(expected, Pairs(installed.Refusals));
+    }
+
+    [Fact]
+    [Trait("Holds", "records-ck-14")]
+    public async Task Each_field_s_write_role_resolves_on_its_own()
+    {
+        var host = Host();
+        async Task<(string, string)[]> Install(string quantity, string notes) => Pairs((await host.Records.AdmitInstallAsync(Tenant,
+            new("eam.asset-class", "1.0.0", PlatformPackageContent.PresentJson(Encoding.UTF8.GetBytes(
+                WithNotesWriteRole(WithQuantityWriteRole(AssetClassJson, quantity), notes)))), NoDependencies)).Refusals);
+
+        Assert.Equal([("records.write_role.unknown", "/fields/1/write_role_id"), ("records.write_role.unknown", "/fields/2/write_role_id")],
+            await Install("\"nobody\"", "\"nobody\""));
+        Assert.Equal([("records.write_role.unknown", "/fields/2/write_role_id")], await Install("\"asset-author\"", "\"nobody\""));
+        Assert.Equal([("records.write_role.unknown", "/fields/1/write_role_id")], await Install("\"nobody\"", "\"meter-author\""));
+        Assert.Empty(await Install("\"asset-author\"", "\"meter-author\""));
     }
 
     [Fact]
@@ -264,9 +283,15 @@ public sealed class RecordFieldWriteRoleTests
         var created = await host.Records.CreateDraftAsync(WithWriteRoles(AssetClass("1.0.0"), null, "asset-author"), "create");
 
         var resaved = await host.Records.SaveDraftAsync("eam.asset-class", Read(CreatedAssetClassJson), "1.0.0", 1, "resave");
+        // A positional resave without the policies takes the path that carries them forward; the write role still clears.
+        var positional = await host.Records.SaveDraftAsync("eam.asset-class",
+            Read(WithNotesWriteRole(CreatedAssetClassJson, "\"asset-author\"")), "1.0.0", 2, "restore");
+        var carried = await host.Records.SaveDraftAsync("eam.asset-class", Read(AssetClassJson), "1.0.0", 3, "positional");
 
         Assert.Equal(WithNotesWriteRole(CreatedAssetClassJson, "\"asset-author\""), created.Revision.Document.BodyJson);
         Assert.Equal(CreatedAssetClassJson, resaved.Document.BodyJson);
+        Assert.Equal(WithNotesWriteRole(CreatedAssetClassJson, "\"asset-author\""), positional.Document.BodyJson);
+        Assert.Equal(CreatedAssetClassJson, carried.Document.BodyJson);
     }
 
     [Fact]
@@ -276,11 +301,16 @@ public sealed class RecordFieldWriteRoleTests
         var host = Host();
         await host.Records.CreateDraftAsync(WithWriteRoles(AssetClass("1.0.0"), null, "asset-author"), "create");
         await host.Records.PublishAsync(Tenant, "eam.asset-class", "1.0.0", 1, "publish");
-        // A host that later binds without the vocabulary (or whose vocabulary dropped the role) still binds the published type.
+        // A host that later binds without the vocabulary, or whose vocabulary dropped the role, still binds the published type.
         var bare = new RecordTypeDefinitionStore(host.Catalogue, host.Compiler, host.Defaults, host.Registry, Window);
+        var dropped = new RecordTypeDefinitionStore(host.Catalogue, host.Compiler, host.Defaults, host.Registry, Window,
+            roles: RoleVocabulary.FromApi([]));
 
-        Assert.NotNull(await bare.ResolvePublishedSchemaAsync(Tenant, "eam.asset-class"));
-        Assert.NotNull(await bare.ResolvePublishedSchemaAsync(Tenant, "eam.asset-class", "1.0.0"));
+        foreach (var store in new[] { bare, dropped })
+        {
+            Assert.NotNull(await store.ResolvePublishedSchemaAsync(Tenant, "eam.asset-class"));
+            Assert.NotNull(await store.ResolvePublishedSchemaAsync(Tenant, "eam.asset-class", "1.0.0"));
+        }
     }
 
     private static async Task<List<Schema>> Registered(TestHost host)
