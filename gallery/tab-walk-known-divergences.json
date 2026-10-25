@@ -1,0 +1,5 @@
+{
+  "rule": "Exact both ways: an unwaived tab-walk difference or finding fails under its WCAG clause, a waived one whose lines changed fails until it is re-measured, and a row with nothing left to waive fails until it is deleted. order rows hold the two halves of the cross-lane order diff (no host); findings rows hold each lane's complete sorted finding lines, optionally for one host. Every row names the ticket that owns the fix and a reason a reviewer can check.",
+  "measureFlag": "HARBORLINE_GALLERY_TAB_WALK_MEASURE",
+  "divergences": []
+}
