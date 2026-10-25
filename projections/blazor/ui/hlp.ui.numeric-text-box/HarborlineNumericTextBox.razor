@@ -1,6 +1,7 @@
 @namespace Harborline.UIAdapters.Blazor.Components.Forms
 @inherits HarborlineComponentBase
 @using System.Globalization
+@using System.Numerics
 @using System.Text.RegularExpressions
 @using Harborline.UIAdapters.Blazor.Localization
 
@@ -182,17 +183,47 @@
     // The React lane formats through Intl.NumberFormat, which rounds the shortest round-trip decimal
     // of the double half away from zero (rounding mode halfExpand). .NET rounds a double's exact
     // binary value half to even, so 1234.5 as c0 read $1,234 here and $1,235 there (T-1108). Round
-    // that same decimal half away from zero first; formatting the result then has nothing to round.
+    // those same shortest digits half away from zero, on the digits themselves, and format the
+    // already-rounded value, which has nothing left to round.
     private static string FormatHalfExpand(double value, string format, int scale, IFormatProvider provider)
     {
-        // A double beyond decimal's range is an integer, so it has no midpoint to break; a scale
-        // decimal cannot round to keeps the plain double formatting.
-        if (scale is < 0 or > 28 || !decimal.TryParse(value.ToString("R", CultureInfo.InvariantCulture), NumberStyles.Float, CultureInfo.InvariantCulture, out var shortest))
-            return value.ToString(format, provider);
-        var rounded = decimal.Round(shortest, scale, MidpointRounding.AwayFromZero);
+        // A value without digits, or a scale decimal cannot hold, keeps the plain double formatting.
+        if (!double.IsFinite(value) || scale is < 0 or > 28) return value.ToString(format, provider);
+        var (significand, exponent) = RoundHalfAwayFromZero(ShortestDecimal(value), scale);
+        var negative = double.IsNegative(value);
         // decimal has no negative zero; Intl keeps the sign of a negative value that rounds to zero.
-        return rounded == 0m
-            ? (double.IsNegative(value) ? -0.0 : 0.0).ToString(format, provider)
-            : rounded.ToString(format, provider);
+        if (significand.IsZero) return (negative ? -0.0 : 0.0).ToString(format, provider);
+        // At most 17 significant digits, none right of the 28th place, fit a decimal exactly within its range.
+        if (decimal.TryParse(string.Create(CultureInfo.InvariantCulture, $"{significand}E{exponent}"), NumberStyles.Float, CultureInfo.InvariantCulture, out var rounded))
+            return (negative ? -rounded : rounded).ToString(format, provider);
+        // Past decimal's range the value is an integer (exponent >= 0). It is formatted from the
+        // shortest digits Intl prints, not the double's binary expansion: 1e30 reads
+        // 1,000,000,000,000,000,000,000,000,000,000, not 1,000,000,000,000,000,019,884,624,838,656.
+        var integer = significand * BigInteger.Pow(10, exponent);
+        return (negative ? -integer : integer).ToString(format, provider);
+    }
+
+    // The shortest round-trip digits of |value|, the digits Intl starts from, as significand x
+    // 10^exponent: 1234.5 is (12345, -1). They are read from the invariant "R" string.
+    private static (BigInteger Significand, int Exponent) ShortestDecimal(double value)
+    {
+        var text = Math.Abs(value).ToString("R", CultureInfo.InvariantCulture);
+        var e = text.IndexOf('E', StringComparison.Ordinal);
+        var exponent = e < 0 ? 0 : int.Parse(text.AsSpan(e + 1), NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture);
+        var mantissa = e < 0 ? text : text[..e];
+        var point = mantissa.IndexOf('.', StringComparison.Ordinal);
+        if (point >= 0) { exponent -= mantissa.Length - point - 1; mantissa = mantissa.Remove(point, 1); }
+        return (BigInteger.Parse(mantissa, NumberStyles.None, CultureInfo.InvariantCulture), exponent);
+    }
+
+    // Rounds significand x 10^exponent to scale fractional places, a midpoint away from zero. The
+    // remainder is exact, so no digit is rounded twice: System.Decimal's own parse rounds at 28
+    // places, which turned 1.4999999999999997e-15 into the false midpoint 1.5e-15.
+    private static (BigInteger Significand, int Exponent) RoundHalfAwayFromZero((BigInteger Significand, int Exponent) number, int scale)
+    {
+        if (number.Exponent >= -scale) return number;
+        var unit = BigInteger.Pow(10, -scale - number.Exponent);
+        var kept = BigInteger.DivRem(number.Significand, unit, out var remainder);
+        return (remainder * 2 >= unit ? kept + 1 : kept, -scale);
     }
 }

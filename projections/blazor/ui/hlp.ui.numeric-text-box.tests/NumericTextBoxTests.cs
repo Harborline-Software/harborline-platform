@@ -78,6 +78,42 @@ public sealed class NumericTextBoxTests : BunitContext
         Assert.Equal(expected, Formatted(value, format, decimals));
     }
 
+    // Intl rounds the shortest round-trip digits themselves, however far right they run and however
+    // large the value. Digits past the 28th decimal place must not be rounded once on the way in and
+    // again at the requested scale, which made a false midpoint of 1.4999999999999997e-15. Past
+    // decimal's range, the digits are the shortest ones, not the double's binary expansion
+    // (1e30 is not 1,000,000,000,000,000,019,884,624,838,656.00). Every expected string is
+    // Intl.NumberFormat("en-US") with the React lane's options.
+    [Theory]
+    [InlineData(1.4999999999999997e-15, null, 15, "0.000000000000001")]
+    [InlineData(1.0049999999999999e-13, null, 15, "0.000000000000100")]
+    [InlineData(4.9999999999999995e-14, null, 13, "0.0000000000000")]
+    [InlineData(1.2345678499999995e-13, null, 20, "0.00000000000012345678")]
+    [InlineData(1.4999999999999997e-17, "p15", 2, "0.000000000000001%")]
+    [InlineData(1e30, null, 2, "1,000,000,000,000,000,000,000,000,000,000.00")]
+    [InlineData(-1e30, null, 2, "-1,000,000,000,000,000,000,000,000,000,000.00")]
+    [InlineData(8e28, "c0", 2, "$80,000,000,000,000,000,000,000,000,000")]
+    [InlineData(8e28, "p0", 2, "8,000,000,000,000,000,000,000,000,000,000%")]
+    public void ShortestDigitsRoundLikeIntlAtAnyPrecisionAndMagnitude(double value, string? format, int decimals, string expected)
+    {
+        Assert.Equal(expected, Formatted(value, format, decimals));
+    }
+
+    // Only a controlled value is validated as finite, so a non-finite DefaultValue reaches the
+    // formatter on first render. It has no shortest digits to round and keeps the double's own
+    // text, which is also what Intl.NumberFormat("en-US") prints.
+    [Theory]
+    [InlineData(double.NaN, "NaN")]
+    [InlineData(double.PositiveInfinity, "∞")]
+    [InlineData(double.NegativeInfinity, "-∞")]
+    public void NonFiniteDefaultValueKeepsItsOwnText(double value, string expected)
+    {
+        var cut = Render<HarborlineNumericTextBox>(parameters => parameters
+            .Add(component => component.DefaultValue, value)
+            .Add(component => component.Locale, "en-US"));
+        Assert.Equal(expected, cut.Find("input").GetAttribute("value"));
+    }
+
     // The rounding starts from the invariant shortest digits, so a culture whose decimal separator is
     // not "." rounds a midpoint the same way. The de-DE strings are Intl.NumberFormat("de-DE"). For ar,
     // the digits and separators depend on the numbering system the ICU data gives it: latn in current

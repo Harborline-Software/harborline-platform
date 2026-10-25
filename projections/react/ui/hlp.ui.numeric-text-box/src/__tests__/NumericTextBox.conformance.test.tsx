@@ -182,6 +182,24 @@ describe('NumericTextBox revision-1 shared fixtures', () => {
     expect(textbox()).toHaveValue(expected)
   })
 
+  // T-1108: the Blazor lane asserts this same table. Intl rounds the shortest round-trip digits
+  // themselves, however far right they run and however large the value: no false midpoint past the
+  // 28th decimal place, and no binary expansion past System.Decimal's range.
+  it.each([
+    [1.4999999999999997e-15, undefined, 15, '0.000000000000001'],
+    [1.0049999999999999e-13, undefined, 15, '0.000000000000100'],
+    [4.9999999999999995e-14, undefined, 13, '0.0000000000000'],
+    [1.2345678499999995e-13, undefined, 20, '0.00000000000012345678'],
+    [1.4999999999999997e-17, 'p15', 2, '0.000000000000001%'],
+    [1e30, undefined, 2, '1,000,000,000,000,000,000,000,000,000,000.00'],
+    [-1e30, undefined, 2, '-1,000,000,000,000,000,000,000,000,000,000.00'],
+    [8e28, 'c0', 2, '$80,000,000,000,000,000,000,000,000,000'],
+    [8e28, 'p0', 2, '8,000,000,000,000,000,000,000,000,000,000%'],
+  ] as const)('formats %s with format %s and %s decimals from its shortest digits as %s', (value, format, decimals, expected) => {
+    render(<NumericTextBox aria-label="Amount" currency="USD" decimals={decimals} format={format} locale="en-US" value={value} />)
+    expect(textbox()).toHaveValue(expected)
+  })
+
   // T-1108: the Blazor lane asserts this same table. Intl rounds the invariant shortest digits, so a
   // culture whose decimal separator is not "." rounds a midpoint the same way. For ar, the digits and
   // separators depend on the numbering system the ICU data gives it (T-1117), so the comparison maps
