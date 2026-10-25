@@ -59,6 +59,7 @@ public sealed class RecordTypePreflightTests
     [InlineData("", "", false, false, typeof(ArgumentException))]
     [InlineData(" ", " ", false, false, typeof(ArgumentException))]
     [InlineData(Tenant, Tenant, true, false, typeof(ArgumentNullException))]
+    [InlineData(Tenant, Tenant, true, true, typeof(ArgumentNullException))]
     [InlineData(Tenant, Tenant, false, true, typeof(InvalidOperationException))]
     [InlineData(Tenant, OtherTenant, false, true, typeof(InvalidOperationException))]
     public async Task caller_and_host_faults_throw_their_exact_type_before_any_port_is_called(string? tenant, string envelopeTenant,
