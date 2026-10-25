@@ -58,7 +58,7 @@ function exists(path) {
 // against its row (unwaived, changed and stale rows fail there); what no run can see is a row that
 // names no scenario at all, or a row too thin to be reviewed, so those are refused here, statically.
 const ariaRegisterPath = 'gallery/aria-parity-known-divergences.json'
-const ariaWaiverKeys = ['scenarioId', 'ticket', 'reason', 'hunks']
+const ariaWaiverKeys = ['scenarioId', 'state', 'ticket', 'reason', 'hunks']
 // T-943 builds the comparison and closes when it lands, so a row naming it would point at a closed
 // ticket the day it merges: every waiver names the open ticket that owns its fix (review 1, finding 2).
 const ariaRegisterTicket = 'T-943'
@@ -75,19 +75,24 @@ export function ariaParityRegisterErrors(register, scenarioIds) {
       continue
     }
     for (const key of Object.keys(row)) if (!ariaWaiverKeys.includes(key)) errors.push(`${label} has an unknown field ${key}`)
+    // `state` names a later moment of a timer-driven scene, judged apart from the prepared scene (the
+    // row without one); gallery.spec.ts refuses a state the scenario never reads.
+    if ('state' in row && (typeof row.state !== 'string' || !/^[a-z]+(?:-[a-z]+)*$/.test(row.state))) errors.push(`${label} has a state that is not a kebab-case name`)
+    const key = `${row.scenarioId} @${row.state ?? ''}`
     if (typeof row.scenarioId !== 'string' || !known.has(row.scenarioId)) errors.push(`${label} names an unknown scenario id`)
-    else if (seen.has(row.scenarioId)) errors.push(`${label} is registered twice; one row records the scenario's whole difference`)
-    seen.add(row.scenarioId)
+    else if (seen.has(key)) errors.push(`${label} is registered twice${row.state ? ` for state ${row.state}` : ''}; one row records the whole difference`)
+    seen.add(key)
     if (typeof row.ticket !== 'string' || !/^T-\d+$/.test(row.ticket)) errors.push(`${label} needs the open ticket that owns the fix (T-NNN)`)
     else if (row.ticket === ariaRegisterTicket) errors.push(`${label} names ${ariaRegisterTicket}, the ticket that builds this register and closes with it; name the open ticket that owns the fix`)
     if (typeof row.reason !== 'string' || row.reason.trim().length < 20) errors.push(`${label} needs a reason a reviewer can check`)
-    // Hunks as laneLineDiff writes them: '@@' opens each hunk, then context ('  '), React-only ('- ')
-    // and Blazor-only ('+ ') markers, each followed by a snapshot line, which always starts (after its
-    // indentation) with '- '. Anything else was not measured.
+    // Hunks as laneHunks writes them: '@@ #k' opens each hunk (k anchors it among repeated lines), then
+    // context ('  '), React-only ('- ') and Blazor-only ('+ ') markers, each followed by a snapshot line,
+    // which always starts (after its indentation) with '- '. Anything else was not measured.
     const hunks = row.hunks
-    if (!Array.isArray(hunks) || hunks.some(line => typeof line !== 'string' || !(line === '@@' || /^[ +-] \s*- /.test(line)))) {
-      errors.push(`${label} must record hunks as laneLineDiff writes them ('@@', then '  ', '- ' or '+ ' lines)`)
-    } else if (hunks[0] !== '@@' || !hunks.some(line => line.startsWith('- ') || line.startsWith('+ '))) {
+    const header = line => /^@@ #\d+$/.test(line)
+    if (!Array.isArray(hunks) || hunks.some(line => typeof line !== 'string' || !(header(line) || /^[ +-] \s*- /.test(line)))) {
+      errors.push(`${label} must record hunks as laneHunks writes them ('@@ #k', then '  ', '- ' or '+ ' lines)`)
+    } else if (!header(hunks[0] ?? '') || !hunks.some(line => line.startsWith('- ') || line.startsWith('+ '))) {
       errors.push(`${label} records no differing snapshot line, so it waives nothing a run can measure`)
     }
   }
