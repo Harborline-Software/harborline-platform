@@ -67,7 +67,7 @@
     /// <summary>Receives each local change with its generation. Local state only; nothing is persisted.</summary>
     [Parameter] public EventCallback<RecordsDraftChange> DraftChanged { get; set; }
 
-    // Reference spellings of the current grammar (RecordTypeIdentity.cs ReferenceCardinality, ReferenceDeleteBehavior). A value outside them is shown, never rewritten.
+    // Reference spellings of the current grammar (RecordTypeIdentity.cs:45-62). A value outside them is shown, never rewritten.
     private static readonly string[] Cardinalities = ["one", "many"];
     private static readonly string[] OnDeletes = ["block", "orphan", "cascade"];
     private const string RejectedRevision = "A host draft was not loaded because its revision is not a canonical decimal string.";

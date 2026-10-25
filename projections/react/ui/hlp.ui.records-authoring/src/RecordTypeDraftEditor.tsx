@@ -4,7 +4,7 @@ import { emptyRecordsDraft, hasAcceptableRecordsRevision, sameRecordsRevision, t
 
 export interface RecordTypeDraftEditorProps { readonly value: RecordsDraft; readonly kindOptions: readonly RecordsKindOption[]; readonly diagnostics?: RecordsDiagnosticSet; readonly readOnly?: boolean; readonly onDraftChange: (change: RecordsDraftChange) => void }
 
-// Reference spellings of the current grammar (RecordTypeIdentity.cs ReferenceCardinality, ReferenceDeleteBehavior). A value outside them is shown, never rewritten.
+// Reference spellings of the current grammar (RecordTypeIdentity.cs:45-62). A value outside them is shown, never rewritten.
 const cardinalities = ['one', 'many']
 const onDeletes = ['block', 'orphan', 'cascade']
 const noDiagnostics: readonly RecordsDiagnostic[] = []
