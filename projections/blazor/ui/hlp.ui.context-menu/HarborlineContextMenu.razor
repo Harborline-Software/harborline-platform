@@ -12,7 +12,7 @@
 {
     <div @ref="MenuElement" role="menu" tabindex="-1" aria-label="@AccessibleLabel" lang="@Locale" dir="@Direction"
          class="hl-context-menu" data-active-id="@ActiveItem?.Id"
-         style="position:fixed;left:@(X)px;top:@(Y)px;z-index:9999" @onkeydown="HandleKeyAsync">
+         style="@MenuStyle" @onkeydown="HandleKeyAsync">
         @for (var groupIndex = 0; groupIndex < Groups.Count; groupIndex++)
         {
             if (groupIndex > 0) { <div role="separator" class="hl-context-menu__separator"></div> }
@@ -54,6 +54,9 @@
     public bool IsOpen { get; private set; }
     public double X { get; private set; }
     public double Y { get; private set; }
+    // CSS takes a dot decimal and an ASCII minus whatever the culture; string interpolation of a double
+    // would use the current one (de-DE "245,5px", ar-SA "245٫5px"), and CSS drops the declaration (T-962).
+    private string MenuStyle => FormattableString.Invariant($"position:fixed;left:{X}px;top:{Y}px;z-index:9999");
     public ContextMenuItem? ActiveItem => ActiveIndex >= 0 && ActiveIndex < FlatItems.Count ? FlatItems[ActiveIndex] : null;
     private int ActiveIndex { get; set; } = -1;
     private ElementReference TriggerElement { get; set; }

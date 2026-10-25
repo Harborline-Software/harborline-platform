@@ -33,8 +33,9 @@
   private string SizeToken => Size.ToString().ToLowerInvariant();
   private IReadOnlyList<SegmentedOption> Enabled => Options.Where(option => !Disabled && !option.Disabled).ToArray();
   private string TabValue => Enabled.Any(option => option.Value == Value) ? Value : Enabled.FirstOrDefault()?.Value ?? string.Empty;
-  // A string, not an int: Blazor writes an int attribute with the current culture, and ar, he and fa
-  // cultures put a direction mark before the minus, which HTML integer parsing refuses (T-962).
+  // A string, not an int: Blazor writes an int attribute with the current culture, whose negative sign
+  // need not be U+002D (ar, he, fa add a mark; sv, nb, fi, lt, sl, hr, eu use U+2212), and HTML integer
+  // parsing refuses it (T-962).
   private string TabIndex(SegmentedOption option) => !Disabled && !option.Disabled && option.Value == TabValue ? "0" : "-1";
 
   protected override void OnParametersSet()

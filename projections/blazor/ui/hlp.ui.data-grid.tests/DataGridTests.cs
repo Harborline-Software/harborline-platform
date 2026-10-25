@@ -55,6 +55,29 @@ public sealed partial class DataGridTests : BunitContext
         Assert.Single(cut.FindAll("[data-zebra-stripe='alternate']"));
     }
 
+    // T-962 review: a culture's negative sign need not be U+002D (ar, he and fa add a direction mark;
+    // sv, nb, fi, lt, sl, hr and eu use U+2212), and HTML integer parsing refuses it. Blazor writes an int
+    // attribute with the current culture, so tabindex="-1" must be the invariant string. Every grid cell
+    // but the current one became a tab stop, so the grid was no longer one Tab stop (APG grid).
+    [Theory, InlineData("ar-SA"), InlineData("he-IL"), InlineData("fa-IR"), InlineData("sv-SE"), InlineData("nb-NO")]
+    public void CellTabIndexIsInvariantUnderEveryCulture(string culture)
+    {
+        var previous = System.Globalization.CultureInfo.CurrentCulture;
+        try
+        {
+            System.Globalization.CultureInfo.CurrentCulture = new System.Globalization.CultureInfo(culture);
+            var cut = Render<HarborlineDataGrid<Row>>(parameters => parameters
+                .Add(component => component.Rows, new[] { new Row("1", "Palm", "Open"), new Row("2", "Bay", "Closed") })
+                .Add(component => component.GetRowId, row => row.Id)
+                .Add(component => component.Columns, Columns));
+            var tabIndexes = cut.FindAll("[tabindex]").Where(cell => cell.GetAttribute("role") is "gridcell" or "rowheader" or "columnheader").Select(cell => cell.GetAttribute("tabindex")).ToArray();
+            Assert.True(tabIndexes.Length > 1);
+            Assert.All(tabIndexes, value => Assert.Contains(value, new[] { "0", "-1" }));
+            Assert.Single(tabIndexes, value => value == "0");
+        }
+        finally { System.Globalization.CultureInfo.CurrentCulture = previous; }
+    }
+
     [Fact]
     public void ReplacementRemovesStaleRows()
     {
