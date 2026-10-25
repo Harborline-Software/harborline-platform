@@ -46,6 +46,9 @@ public sealed record NewRecordType(
 
     /// <summary>The authored history declaration; null takes <c>enabled</c> on creation only.</summary>
     public RecordHistoryPolicy? HistoryPolicy { get; init; }
+
+    /// <summary>The type's category tags (records-ck-23); null or empty means none.</summary>
+    public IReadOnlyList<string>? Categories { get; init; }
 }
 
 /// <summary>A created Record Type draft and the id the authoring boundary minted for it.</summary>
@@ -168,6 +171,7 @@ public sealed class RecordTypeDefinitionStore
         {
             AmendmentPolicy = request.AmendmentPolicy ?? new(true),
             HistoryPolicy = request.HistoryPolicy ?? RecordHistoryPolicy.Enabled,
+            Categories = request.Categories,
         });
         var candidate = await AdmitAsync(Catalogue(document, recordTypeId, request.Version), DefinitionAdmissionPhase.Author,
             cancellationToken).ConfigureAwait(false);
