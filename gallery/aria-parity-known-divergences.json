@@ -619,29 +619,27 @@
     {
       "scenarioId": "guarded-control.two-step",
       "ticket": "T-1105",
-      "reason": "Armed state, read on a paused clock right after the arming activation: Blazor names the armed action with its armed-message label (\"Armed for {action}. Activate again within in 5 seconds to commit.\"), while React names it from its content, the visible label plus the role=timer element's \"in 5 seconds\". The lanes need one naming rule for the armed action as for the covered one (R-0125 2026-10-23 addendum, answer 1). The armed copy \"within in 5 seconds\", in both lanes, is T-1105's to fix too.",
+      "reason": "Armed state, read on a paused clock right after the arming activation: Blazor names the armed action with its armed whole message (\"Armed for {action}. Activate again within {duration} to commit.\"), while React names it from its content, the visible label plus the role=timer element's \"5 seconds\". The lanes need one naming rule for the armed action as for the covered one (R-0125 2026-10-23 addendum, answer 1), which waits on an owner ruling between that answer and the interface's whole-message invariant.",
       "hunks": [
         "@@ #1",
         "  - paragraph: One activation arms and a distinct second activation invokes the caller operation at most once.",
-        "  - status: Armed for ⁨Sign and save package⁩. Activate again within in 5 seconds to commit.",
-        "- - button \"Sign and save package in 5 seconds\":",
-        "+ - button \"Armed for ⁨Sign and save package⁩. Activate again within in 5 seconds to commit.\":",
+        "  - status: Armed for ⁨Sign and save package⁩. Activate again within 5 seconds to commit.",
+        "- - button \"Sign and save package 5 seconds\":",
+        "+ - button \"Armed for ⁨Sign and save package⁩. Activate again within 5 seconds to commit.\":",
         "    - text: Sign and save package",
-        "    - timer \"in 5 seconds\""
+        "    - timer \"5 seconds\""
       ]
     },
     {
       "scenarioId": "guarded-control.two-step",
       "state": "after-arm-window",
       "ticket": "T-1105",
-      "reason": "Stale live region (Blazor), read once the arm window has run out: Blazor's action is covered again, but its role=status region still announces the armed message, because RecoverAsync sets the announcement after the render on the timeout path; React announces \"Guard restored for …\". The covered action is also named differently (Blazor's chrome.guard label template, React's visible text).",
+      "reason": "Accessible name, read once the arm window has run out: both lanes have covered the action again and announce \"Guard restored for …\", but Blazor names the covered action with its chrome.guard label template (\"Guarded action: {action}. Activate to arm.\"), React from its visible text. The same naming rule as the covered rows (R-0125 2026-10-23 addendum, answer 1).",
       "hunks": [
         "@@ #1",
-        "  - heading \"Arm and commit\" [level=2]",
         "  - paragraph: One activation arms and a distinct second activation invokes the caller operation at most once.",
-        "- - status: Guard restored for ⁨Sign and save package⁩.",
+        "  - status: Guard restored for ⁨Sign and save package⁩.",
         "- - button \"Sign and save package\"",
-        "+ - status: Armed for ⁨Sign and save package⁩. Activate again within in 5 seconds to commit.",
         "+ - 'button \"Guarded action: ⁨Sign and save package⁩. Activate to arm.\"': Sign and save package",
         "  - status: \"Commit requests: 0\""
       ]

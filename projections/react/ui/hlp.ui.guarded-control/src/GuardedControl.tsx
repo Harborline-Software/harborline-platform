@@ -171,8 +171,10 @@ export function GuardedControl({
     observe?.({ type: 'commit-settled', outcome })
   }
 
-  let duration = `${formatNumber(seconds)} seconds`
-  try { duration = new Intl.RelativeTimeFormat(locale, { numeric: 'always' }).format(seconds, 'second') } catch { /* fallback is deterministic */ }
+  // An amount of time ("5 seconds"), which the armed instruction places after "within"; never a
+  // relative time ("in 5 seconds"). The locale's unit pattern supplies the localized number and unit.
+  let duration = `${formatNumber(seconds)} ${seconds === 1 ? 'second' : 'seconds'}`
+  try { duration = new Intl.NumberFormat(locale, { style: 'unit', unit: 'second', unitDisplay: 'long' }).format(seconds) } catch { /* fallback is deterministic */ }
   const inert = disabled || invalid
   const ids = descriptionIds(describedBy)
   return (
