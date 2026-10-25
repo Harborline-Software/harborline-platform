@@ -1605,4 +1605,126 @@ public sealed class RecordsDraftTests : BunitContext
         Assert.Equal("Both targets present (choose one)", SelectedText(cut, SiteTargetKind)); Assert.Equal("eam.space", TargetTypeInput(cut).GetAttribute("value")); Assert.Equal("eam.facility", SelectedText(cut, SiteTargetClass));
         Assert.False(IsChecked(cut, SiteParent)); Assert.True(HasButton(cut, "Make field 3 a reference"));
     }
+
+    [Theory]
+    [InlineData("7")]
+    [InlineData("true")]
+    [InlineData("""{"future":"kept"}""")]
+    [InlineData("""["kept"]""")]
+    [InlineData("null")]
+    public void Revision5_non_string_retention_shows_None_and_survives_an_unrelated_edit_until_explicitly_replaced(string raw)
+    {
+        var body = G1Draft().Body;
+        body["fields"] = JsonNode.Parse("""[{"field_key":"valid","display_name":"Valid"},{"field_key":7,"display_name":"Malformed key"}]""");
+        body["retention_clock_field_id"] = JsonNode.Parse(raw);
+        var given = body.DeepClone(); var changes = new List<RecordsDraftChange>(); var cut = Editor(DraftWith(body), changes);
+        Assert.Equal(["None", "valid"], OptionTexts(cut, "Retention clock field"));
+        Assert.Equal("None", SelectedText(cut, "Retention clock field")); Assert.Empty(changes);
+        cut.Find("input[aria-label='Record type name']").Change("Parity local");
+        var expected = body.DeepClone().AsObject(); expected["name"] = "Parity local";
+        Assert.Single(changes); AssertReported(changes[0], expected, 1);
+        Choose(cut, "Retention clock field", "valid"); expected["retention_clock_field_id"] = "valid";
+        Assert.Equal(2, changes.Count); AssertReported(changes[1], expected, 2);
+        Assert.True(JsonNode.DeepEquals(given, body), body.ToJsonString());
+    }
+
+    [Theory]
+    [InlineData("field_key", "7")]
+    [InlineData("field_key", "true")]
+    [InlineData("field_key", """{"future":"kept"}""")]
+    [InlineData("field_key", """["kept"]""")]
+    [InlineData("field_key", "null")]
+    [InlineData("display_name", "7")]
+    [InlineData("display_name", "true")]
+    [InlineData("display_name", """{"future":"kept"}""")]
+    [InlineData("display_name", """["kept"]""")]
+    [InlineData("display_name", "null")]
+    public void Revision5_non_string_field_member_shows_empty_and_only_its_own_edit_replaces_it(string member, string raw)
+    {
+        var body = G1Draft().Body;
+        var field = JsonNode.Parse("""{"field_key":"code","display_name":"Code","future_field_member":{"kept":true}}""")!.AsObject();
+        field[member] = JsonNode.Parse(raw); body["fields"] = new JsonArray(field);
+        var given = body.DeepClone(); var changes = new List<RecordsDraftChange>(); var cut = Editor(DraftWith(body), changes);
+        var label = member == "field_key" ? "Field 1 key" : "Field 1 display name";
+        var otherLabel = member == "field_key" ? "Field 1 display name" : "Field 1 key";
+        var otherMember = member == "field_key" ? "display_name" : "field_key";
+        Assert.Equal("", cut.Find($"input[aria-label='{label}']").GetAttribute("value") ?? ""); Assert.Empty(changes);
+        Assert.Equal(member == "field_key" ? new[] { "None" } : new[] { "None", "code" }, OptionTexts(cut, "Retention clock field"));
+        cut.Find($"input[aria-label='{otherLabel}']").Change("Other edit");
+        var expected = body.DeepClone().AsObject(); expected["fields"]![0]![otherMember] = "Other edit";
+        Assert.Single(changes); AssertReported(changes[0], expected, 1);
+        cut.Find($"input[aria-label='{label}']").Change("Repaired"); expected["fields"]![0]![member] = "Repaired";
+        Assert.Equal(2, changes.Count); AssertReported(changes[1], expected, 2);
+        Assert.True(JsonNode.DeepEquals(given, body), body.ToJsonString());
+    }
+
+    [Theory]
+    [InlineData("kind_id", "7")]
+    [InlineData("kind_id", "true")]
+    [InlineData("kind_id", """{"future":"kept"}""")]
+    [InlineData("kind_id", """["kept"]""")]
+    [InlineData("kind_id", "null")]
+    [InlineData("version", "7")]
+    [InlineData("version", "true")]
+    [InlineData("version", """{"future":"kept"}""")]
+    [InlineData("version", """["kept"]""")]
+    [InlineData("version", "null")]
+    public void Revision5_non_string_kind_member_is_blank_in_the_unavailable_kind_label_and_stays_unchanged_until_a_kind_is_chosen(string member, string raw)
+    {
+        var body = G1Draft().Body;
+        var field = JsonNode.Parse("""{"field_key":"code","display_name":"Code","binding":{"kind":{"kind_id":"text","version":"1.0.0","parameters":{"pattern":"kept"},"future_kind_member":true},"constraints":{"required":false},"future_binding_member":"kept"},"future_field_member":"kept"}""")!.AsObject();
+        field["binding"]!["kind"]![member] = JsonNode.Parse(raw); body["fields"] = new JsonArray(field);
+        var given = body.DeepClone(); var changes = new List<RecordsDraftChange>(); var cut = Editor(DraftWith(body), changes);
+        Assert.Equal("", HeaderSelect(cut, "Field 1 kind").GetAttribute("value") ?? "");
+        Assert.Equal(member == "kind_id" ? " 1.0.0 (not offered)" : "text  (not offered)", SelectedText(cut, "Field 1 kind")); Assert.Empty(changes);
+        cut.Find("input[aria-label='Field 1 display name']").Change("Local name");
+        var expected = body.DeepClone().AsObject(); expected["fields"]![0]!["display_name"] = "Local name";
+        Assert.Single(changes); AssertReported(changes[0], expected, 1);
+        Choose(cut, "Field 1 kind", "text 1.0.0");
+        expected["fields"]![0]!["binding"]!["kind"]!["kind_id"] = "text"; expected["fields"]![0]!["binding"]!["kind"]!["version"] = "1.0.0";
+        Assert.Equal(2, changes.Count); AssertReported(changes[1], expected, 2);
+        Assert.True(JsonNode.DeepEquals(given, body), body.ToJsonString());
+    }
+
+    [Theory]
+    [InlineData("7")]
+    [InlineData("true")]
+    [InlineData("""{"future":"kept"}""")]
+    [InlineData("\"kept\"")]
+    [InlineData("null")]
+    public void Revision5_non_array_fields_shows_no_fields_and_stays_unchanged_until_Add_field_replaces_it(string raw)
+    {
+        var body = G1Draft().Body; body["fields"] = JsonNode.Parse(raw);
+        var given = body.DeepClone(); var changes = new List<RecordsDraftChange>(); var cut = Editor(DraftWith(body), changes);
+        Assert.Empty(cut.FindAll("fieldset.hl-records-authoring__field"));
+        Assert.Equal(["None"], OptionTexts(cut, "Retention clock field")); Assert.Empty(changes);
+        cut.Find("input[aria-label='Record type name']").Change("Parity local");
+        var expected = body.DeepClone().AsObject(); expected["name"] = "Parity local";
+        Assert.Single(changes); AssertReported(changes[0], expected, 1);
+        Button(cut, "Add field").Click(); expected["fields"] = JsonNode.Parse("""[{"field_key":"","display_name":""}]""");
+        Assert.Equal(2, changes.Count); AssertReported(changes[1], expected, 2);
+        Assert.Equal("", cut.Find("input[aria-label='Field 1 key']").GetAttribute("value") ?? "");
+        Assert.True(JsonNode.DeepEquals(given, body), body.ToJsonString());
+    }
+
+    [Fact]
+    public void Revision5_malformed_array_slots_keep_their_positions_through_editing_appending_and_removing_a_valid_field()
+    {
+        var body = G1Draft().Body;
+        body["fields"] = JsonNode.Parse("""[null,{"field_key":"first","display_name":"First","future_field_member":true},7,{"field_key":"last","display_name":"Last","future_field_member":"kept"},"kept"]""");
+        var given = body.DeepClone(); var changes = new List<RecordsDraftChange>(); var cut = Editor(DraftWith(body), changes);
+        Assert.Equal(["Field 2", "Field 4"], cut.FindAll("fieldset.hl-records-authoring__field > legend").Select(legend => legend.TextContent).ToArray());
+        Assert.Equal(["None", "first", "last"], OptionTexts(cut, "Retention clock field")); Assert.Empty(changes);
+        cut.Find("input[aria-label='Field 4 display name']").Change("Edited last");
+        var expected = body.DeepClone().AsObject(); expected["fields"]![3]!["display_name"] = "Edited last";
+        Assert.Single(changes); AssertReported(changes[0], expected, 1);
+        Button(cut, "Add field").Click(); expected["fields"]!.AsArray().Add(JsonNode.Parse("""{"field_key":"","display_name":""}"""));
+        Assert.Equal(2, changes.Count); AssertReported(changes[1], expected, 2);
+        Assert.Equal("", cut.Find("input[aria-label='Field 6 key']").GetAttribute("value") ?? "");
+        Button(cut, "Remove field 2").Click(); expected["fields"]!.AsArray().RemoveAt(1);
+        Assert.Equal(3, changes.Count); AssertReported(changes[2], expected, 3);
+        Assert.Equal("Edited last", cut.Find("input[aria-label='Field 3 display name']").GetAttribute("value"));
+        Assert.Equal("", cut.Find("input[aria-label='Field 5 key']").GetAttribute("value") ?? "");
+        Assert.True(JsonNode.DeepEquals(given, body), body.ToJsonString());
+    }
 }
