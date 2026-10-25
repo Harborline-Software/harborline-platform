@@ -23,6 +23,7 @@ export interface GuardedControlProps
 }
 
 const ARM_WINDOW_MS = 5000
+const ARM_WINDOW_SECONDS = ARM_WINDOW_MS / 1000
 const BLUR_GRACE_MS = 800
 
 function descriptionIds(value: GuardedControlProps['describedBy']): string | undefined {
@@ -39,7 +40,7 @@ export function GuardedControl({
   const { catalog } = useHarborlineLocale()
   const reducedMotion = useMediaQuery('(prefers-reduced-motion: reduce)')
   const [state, setState] = React.useState<GuardedControlState>('covered')
-  const [seconds, setSeconds] = React.useState(5)
+  const [seconds, setSeconds] = React.useState(ARM_WINDOW_SECONDS)
   const [announcement, setAnnouncement] = React.useState('')
   const stateRef = React.useRef(state)
   const mounted = React.useRef(true)
@@ -92,7 +93,6 @@ export function GuardedControl({
   React.useEffect(() => {
     if (state !== 'armed') return
     deadline.current = Date.now() + ARM_WINDOW_MS
-    setSeconds(5)
     const tick = window.setInterval(() => {
       const next = Math.max(0, Math.ceil((deadline.current - Date.now()) / 1000))
       setSeconds(current => current === next ? current : next)
@@ -135,11 +135,39 @@ export function GuardedControl({
     if (state === 'armed') armedRef.current?.focus()
   }, [state])
 
+  // An amount of time ("5 seconds"), which the armed instruction places after "within"; never a
+  // relative time ("in 5 seconds"). The locale's CLDR unit pattern supplies the unit word, its plural
+  // form and its placement, as Intl.RelativeTimeFormat did before; the number in it is the locale
+  // provider's formatNumber, called with no options so a host formatter that writes only the number
+  // cannot drop the unit. Without a host formatter that is the same Intl number. A form with no number
+  // in it (Arabic "ثانيتان", 2 seconds) asks for none. The Blazor lane resolves its catalog's
+  // chrome.guard.duration forms instead; one duration source for both lanes is T-1105's deferred
+  // duration-parity work.
+  const formatDuration = (count: number) => {
+    try {
+      let number: string | undefined
+      return new Intl.NumberFormat(locale, { style: 'unit', unit: 'second', unitDisplay: 'long' })
+        .formatToParts(count)
+        .map(({ type, value }) => {
+          if (type === 'unit' || type === 'literal') return value
+          // The number's parts (integer, group, decimal, fraction, sign) become one host number.
+          if (number !== undefined) return ''
+          number = formatNumber(count)
+          return number
+        })
+        .join('')
+    } catch {
+      return `${formatNumber(count)} ${count === 1 ? 'second' : 'seconds'}`
+    }
+  }
+
+  // Every arm states the full window, never the countdown a previous attempt left behind.
   const arm = () => {
     if (disabled || invalid || stateRef.current !== 'covered') return
     committed.current = false
+    setSeconds(ARM_WINDOW_SECONDS)
     transition('armed')
-    setAnnouncement(wholeMessage('chrome.guard.armed.whole', 'Armed for {action}. Activate again within {duration} to commit.', { action: `\u2068${label}\u2069`, duration }))
+    setAnnouncement(wholeMessage('chrome.guard.armed.whole', 'Armed for {action}. Activate again within {duration} to commit.', { action: `\u2068${label}\u2069`, duration: formatDuration(ARM_WINDOW_SECONDS) }))
   }
   const commit = () => {
     if (disabled || invalid || stateRef.current !== 'armed' || committed.current) return
@@ -171,8 +199,7 @@ export function GuardedControl({
     observe?.({ type: 'commit-settled', outcome })
   }
 
-  let duration = `${formatNumber(seconds)} seconds`
-  try { duration = new Intl.RelativeTimeFormat(locale, { numeric: 'always' }).format(seconds, 'second') } catch { /* fallback is deterministic */ }
+  const duration = formatDuration(seconds)
   const inert = disabled || invalid
   const ids = descriptionIds(describedBy)
   return (

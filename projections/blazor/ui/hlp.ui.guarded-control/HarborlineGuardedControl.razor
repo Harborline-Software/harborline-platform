@@ -4,6 +4,7 @@
 @using System.Runtime.ExceptionServices
 @using Microsoft.JSInterop
 @using Microsoft.AspNetCore.Components.Routing
+@using Harborline.Foundation.Localization
 @using Harborline.UIAdapters.Blazor.Localization
 @inject IJSRuntime JavaScript
 @inject NavigationManager Navigation
@@ -39,6 +40,8 @@
 
 @code {
   private const int ArmWindowMilliseconds = 5000;
+  private const int ArmWindowSeconds = ArmWindowMilliseconds / 1000;
+  private static readonly HarborlinePluralCategory[] DurationCategories = Enum.GetValues<HarborlinePluralCategory>();
   [CascadingParameter] private HarborlineLocaleContext? LocaleContext { get; set; }
   [Parameter, EditorRequired] public string Action { get; set; } = string.Empty;
   [Parameter, EditorRequired] public string ClassificationId { get; set; } = string.Empty;
@@ -56,8 +59,9 @@
   private bool deferredFocus;
   private bool disposed;
   private bool navigationSubscribed;
-  private int remainingSeconds = 5;
+  private int remainingSeconds = ArmWindowSeconds;
   private string announcement = string.Empty;
+  private TimeProvider clock = TimeProvider.System;
   private CancellationTokenSource? attempt;
   private IJSObjectReference? module;
   private IJSObjectReference? hostObservation;
@@ -68,18 +72,10 @@
   private string IsolatedLabel => $"\u2068{Label}\u2069";
   private IReadOnlyDictionary<string, object?> MessageVariables => new Dictionary<string, object?> { ["action"] = IsolatedLabel, ["duration"] = DurationText };
   private string CoveredName => Resolve("chrome.guard.covered.label", "Guarded action: {action}. Activate to arm.");
-  private string ArmedName => Resolve("chrome.guard.armed.label", "Armed for {action}. Activate again within {duration} to commit.");
+  private string ArmedName => WholeMessage("chrome.guard.armed.whole", "Armed for {action}. Activate again within {duration} to commit.", MessageVariables);
   private string CommittingName => Resolve("chrome.guard.committing.label", "Committing {action}.");
   private string LoadingText => LocaleContext?.ResolveString("common.loading", new Dictionary<string, object?>(), "Loading") ?? "Loading";
-  private string DurationText
-  {
-    get
-    {
-      var number = LocaleContext?.FormatNumber(remainingSeconds) ?? remainingSeconds.ToString(System.Globalization.CultureInfo.InvariantCulture);
-      var fallback = remainingSeconds == 1 ? "in {seconds} second" : "in {seconds} seconds";
-      return LocaleContext?.ResolveString(remainingSeconds == 1 ? "chrome.guard.duration.one" : "chrome.guard.duration.other", new Dictionary<string, object?> { ["seconds"] = number }, fallback) ?? fallback.Replace("{seconds}", number, StringComparison.Ordinal);
-    }
-  }
+  private string DurationText => Duration(remainingSeconds);
 
   protected override void OnParametersSet()
   {
@@ -88,6 +84,35 @@
   }
 
   private string Resolve(string key, string fallback) => LocaleContext?.ResolveString(key, MessageVariables, fallback) ?? MessageVariables.Aggregate(fallback, (text, pair) => text.Replace($"{{{pair.Key}}}", pair.Value?.ToString(), StringComparison.Ordinal));
+  // The host catalog's whole message for the key, else the English whole message: the same order as
+  // the React projection's wholeMessage, so one catalog key localizes both lanes.
+  private string WholeMessage(string key, string fallback, IReadOnlyDictionary<string, object?> variables) =>
+    LocaleContext is { } locale
+      ? locale.ResolveString(key, variables, locale.Catalog.ContainsKey(key) ? null : fallback)
+      : HarborlineDefaultStrings.Interpolate(fallback, variables);
+
+  // An amount of time ("5 seconds"), which the armed instruction places after "within"; never a
+  // relative time ("in 5 seconds"). The host catalog's chrome.guard.duration form for the count,
+  // picked by the locale provider's plural selection from the keys the catalog holds (its .NET rules
+  // cover ar, pl, ru and ja, and one/other elsewhere), with the number from the provider's formatter;
+  // else the English "{seconds} second(s)". The React lane formats the locale's CLDR unit pattern
+  // instead; one duration source for both lanes is T-1105's deferred duration-parity work.
+  private string Duration(int seconds)
+  {
+    var variables = new Dictionary<string, object?> { ["seconds"] = LocaleContext?.FormatNumber(seconds) ?? seconds.ToString(System.Globalization.CultureInfo.InvariantCulture) };
+    if (LocaleContext is { } locale)
+    {
+      var keys = new Dictionary<HarborlinePluralCategory, string>();
+      foreach (var category in DurationCategories)
+      {
+        var key = $"chrome.guard.duration.{category.ToString().ToLowerInvariant()}";
+        if (locale.Catalog.ContainsKey(key)) keys[category] = key;
+      }
+      if (keys.ContainsKey(locale.PluralCategory(seconds)) || keys.ContainsKey(HarborlinePluralCategory.Other))
+        return HarborlineDefaultStrings.Interpolate(locale.ResolvePlural(seconds, keys), variables);
+    }
+    return HarborlineDefaultStrings.Interpolate(seconds == 1 ? "{seconds} second" : "{seconds} seconds", variables);
+  }
 
   private async Task ActivateAsync()
   {
@@ -100,9 +125,9 @@
   {
     if (State != GuardedControlState.Covered || commitLatch) return;
     attempt = new CancellationTokenSource();
-    remainingSeconds = 5;
-    await TransitionAsync(GuardedControlState.Armed, "arm");
-    announcement = ArmedName;
+    // Every arm states the full window, never the countdown a previous attempt left behind.
+    remainingSeconds = ArmWindowSeconds;
+    await TransitionAsync(GuardedControlState.Armed, "arm", ArmedName);
     focusArmed = true;
     _ = RunDeadlineAsync(attempt.Token);
   }
@@ -128,11 +153,11 @@
   private async Task SettleAsync(GuardedControlCommitOutcome outcome)
   {
     if (State != GuardedControlState.Committing) return;
-    await TransitionAsync(GuardedControlState.Covered, outcome == GuardedControlCommitOutcome.Completed ? "commit-completed" : "commit-rejected");
-    announcement = outcome == GuardedControlCommitOutcome.Completed
-      ? Resolve("chrome.guard.completed.announce", "Guard restored for {action}.")
-      : Resolve("chrome.guard.rejected.announce", "Could not complete {action}. Guard restored.");
     focusCovered = true;
+    await TransitionAsync(GuardedControlState.Covered, outcome == GuardedControlCommitOutcome.Completed ? "commit-completed" : "commit-rejected",
+      outcome == GuardedControlCommitOutcome.Completed
+        ? Resolve("chrome.guard.completed.announce", "Guard restored for {action}.")
+        : Resolve("chrome.guard.rejected.announce", "Could not complete {action}. Guard restored."));
     commitLatch = false;
     await OnEvent.InvokeAsync(new GuardedControlCommitSettled(outcome));
   }
@@ -143,9 +168,9 @@
     {
       for (var elapsed = 1000; elapsed <= ArmWindowMilliseconds; elapsed += 1000)
       {
-        await Task.Delay(1000, cancellationToken);
+        await Task.Delay(TimeSpan.FromSeconds(1), clock, cancellationToken);
         if (cancellationToken.IsCancellationRequested || State != GuardedControlState.Armed) return;
-        remainingSeconds = Math.Max(0, 5 - elapsed / 1000);
+        remainingSeconds = Math.Max(0, ArmWindowSeconds - elapsed / 1000);
         await InvokeAsync(StateHasChanged);
       }
       await InvokeAsync(() => RecoverAsync(GuardedControlRecoveryReason.Timeout, true));
@@ -177,17 +202,19 @@
   {
     if (State != GuardedControlState.Armed || disposed) return;
     CancelAttempt();
-    await TransitionAsync(GuardedControlState.Covered, reason.ToString().ToLowerInvariant());
-    announcement = Resolve("chrome.guard.recovered.announce", "Guard restored for {action}.");
     focusCovered = restoreNow;
     deferredFocus = !restoreNow;
+    await TransitionAsync(GuardedControlState.Covered, reason.ToString().ToLowerInvariant(), Resolve("chrome.guard.recovered.announce", "Guard restored for {action}."));
     await OnEvent.InvokeAsync(new GuardedControlRecovered(reason));
   }
 
-  private async Task TransitionAsync(GuardedControlState next, string cause)
+  // The whole message and any focus move are part of the transition's own render. Timeout, host and
+  // asynchronous settlement run outside an event handler, so no later render would carry them.
+  private async Task TransitionAsync(GuardedControlState next, string cause, string? message = null)
   {
     var previous = State;
     State = next;
+    if (message is not null) announcement = message;
     await OnEvent.InvokeAsync(new GuardedControlTransition(previous, next, cause));
     await InvokeAsync(StateHasChanged);
   }
