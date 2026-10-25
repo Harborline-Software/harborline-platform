@@ -237,6 +237,23 @@ public sealed class GuardedControlAnnouncementTests : BunitContext
         Assert.Equal("5 seconds", cut.Find("[role=timer]").TextContent);
     }
 
+    // Known limitation (T-1105, deferred duration parity): a host catalog that localizes the whole armed
+    // message but supplies no chrome.guard.duration.* keys leaves Blazor's duration in English, while React
+    // writes the CLDR unit pattern ("5 secondes"). Pinned so the divergence is recorded, not silent; it
+    // closes with CLDR plural rules in the Blazor locale provider (round-2 b18) and an owner decision.
+    [Fact]
+    public void HostCatalogWithoutDurationKeysLeavesTheDurationEnglish()
+    {
+        var cut = RenderInLocale("fr-FR", "Publier", new Dictionary<string, string>
+        {
+            ["chrome.guard.armed.whole"] = "Armé pour {action}. Activez de nouveau dans un délai de {duration} pour valider.",
+        });
+        cut.Find("button").Click();
+
+        Assert.Equal("Armé pour ⁨Publier⁩. Activez de nouveau dans un délai de 5 seconds pour valider.", Status(cut));
+        Assert.Equal("5 seconds", cut.Find("[role=timer]").TextContent);
+    }
+
     private IRenderedComponent<HarborlineGuardedControl> RenderInLocale(
         string locale, string label, IReadOnlyDictionary<string, string> catalog, HarborlineNumberFormatter? numberFormatter = null) =>
         Render<HarborlineLocaleProvider>(p => p
