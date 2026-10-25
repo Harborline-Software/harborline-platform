@@ -225,8 +225,8 @@ export function expectedChecks(modules, { ciGallery = false, capture = false, ex
     tabWalkReverseChecks: running.length,
     tabWalkObscuredChecks: running.length,
     tabWalkOrderComparisons: running.length,
-    // The seeded detector proofs P1 to P10 in gallery.spec.ts, one record each, like keyboardFocusChecks.
-    tabWalkDetectorProofs: 10,
+    // The seeded detector proofs P1 to P13 in gallery.spec.ts, one record each, like keyboardFocusChecks.
+    tabWalkDetectorProofs: 13,
     visualParityComparisons: running.filter(scenario => declares(scenario, 'visual-parity') && !pixelExempt.has(scenario.id)).length
       + button.themes * 3,
     // Per-scenario reflow (one assertion per lane, gated on the declared reflow case id) plus the six

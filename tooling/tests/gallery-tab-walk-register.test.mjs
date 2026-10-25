@@ -47,7 +47,7 @@ test('complete order and findings rows for a known scenario are accepted', () =>
 
 test('a row for an unknown scenario, kind or field fails', () => {
   assert.match(errorsFor(order({scenarioId: 'switch.retired'})).join('\n'), /waiver switch\.retired order names an unknown scenario id/)
-  assert.match(errorsFor(order({kind: 'pixels'})).join('\n'), /has an unknown kind; it is order or findings/)
+  assert.match(errorsFor(order({kind: 'pixels'})).join('\n'), /has an unknown kind; it is order, findings or budget/)
   assert.match(errorsFor(order({note: 'x'})).join('\n'), /has an unknown field note/)
 })
 
@@ -79,7 +79,7 @@ test('a row without an open owning ticket, a reason or lines fails', () => {
 test('an order row records hunks of walk lines as laneLineDiff writes them, and nothing else', () => {
   // Every walk line shape the order lines use is a valid hunk line.
   assert.deepEqual(errorsFor(order({hunks: ['@@ #1', '  ↻ - button "One"', '- ↺ ok', '+ ↺ differs', '- released by Escape ×1', '+ not released', '  exited']})), [])
-  assert.deepEqual(errorsFor(order({hunks: ['@@ #1', '- - button "B"', '  exited', '@@ #2', '+ deadline']})), [])
+  assert.deepEqual(errorsFor(order({hunks: ['@@ #1', '- - button "B"', '  exited', '@@ #2', '+ budget: 24 presses']})), [])
   assert.match(errorsFor(order({hunks: ['- - button "B"']})).join('\n'), /must record hunks as laneHunks writes them|records no differing walk line/)
   assert.match(errorsFor(order({hunks: ['@@ #1', '  - button "B"']})).join('\n'), /records no differing walk line/)
   // A bare '@@' is the pre-anchor header; laneHunks now numbers each hunk's first-line occurrence.
@@ -89,6 +89,21 @@ test('an order row records hunks of walk lines as laneLineDiff writes them, and 
   assert.match(errorsFor(order({hunks: undefined})).join('\n'), /must record hunks as laneHunks writes them/)
   assert.match(errorsFor(order({reactOnly: ['- switch "Notifications"']})).join('\n'), /is an order row; it records hunks, not reactOnly or blazorOnly/)
   assert.match(errorsFor(findings({hunks: ['@@ #1', '- - x']})).join('\n'), /is a findings row; it records reactOnly and blazorOnly, not hunks/)
+})
+
+test('a wall-clock deadline is never waived, and a budget row records a press budget and its press cost', () => {
+  assert.match(errorsFor(order({hunks: ['@@ #1', '- - button "B"', '+ deadline']})).join('\n'), /waives a wall-clock deadline, which depends on the host; give the scenario a budget row instead/)
+  assert.match(errorsFor(findings({blazorOnly: ['2.1.2 forward deadline: the walk did not finish within the test\'s allowance']})).join('\n'), /waives a wall-clock deadline/)
+  const budget = overrides => ({scenarioId: 'switch.theme-light', kind: 'budget', ticket: 'T-146', reason: 'The Blazor lane spends about 380 ms on each Tab press', presses: 24, pressMs: 400, ...overrides})
+  assert.deepEqual(errorsFor(budget()), [])
+  assert.deepEqual(errorsFor(budget(), order(), findings()), [])
+  assert.match(errorsFor(budget({presses: 4})).join('\n'), /must give presses, a whole number of Tab presses from 8 to 200/)
+  assert.match(errorsFor(budget({pressMs: undefined})).join('\n'), /must give pressMs/)
+  assert.match(errorsFor(budget({hunks: ['@@ #1', '- - x']})).join('\n'), /is a budget row; it records presses and pressMs, not lines/)
+  assert.match(errorsFor(budget({host: 'linux-x64'})).join('\n'), /is a budget row, which applies on every host; it takes no host/)
+  assert.match(errorsFor(budget({ticket: 'T-962'})).join('\n'), /names T-962/)
+  assert.match(errorsFor(budget(), budget()).join('\n'), /budget is registered twice/)
+  assert.match(errorsFor(order({presses: 24})).join('\n'), /records presses or pressMs, which only a budget row takes/)
 })
 
 test('a findings line that does not start with its clause and direction fails', () => {

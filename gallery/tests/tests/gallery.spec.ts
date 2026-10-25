@@ -1443,7 +1443,9 @@ async function assertAriaParity(reactPage: Page, blazorPage: Page, id: string, s
 //   retraces it, focus is never lost, never leaks out of an open modal and never follows a positive
 //   tabindex (F44). Equality with visual order stays a person's review;
 // - 2.4.11 Focus Not Obscured (Minimum): every stop is inside the viewport and not entirely hidden by
-//   author content, except by content the scenario opened for the user (WCAG Understanding 2.4.11).
+//   author content. Content the scenario opened for the user may cover a stop only when Escape,
+//   pressed on that stop, reveals it with focus kept there (SC 2.4.11 Note 2: the user can reveal the
+//   focused component without advancing focus); anything else is obscured.
 //
 // It runs LAST, after every other reader: by its nature it changes state (Tab closes a menu, Escape
 // releases a modal, blur commits an edit, focus scrolls). It restores the viewport, the root font
@@ -1454,12 +1456,15 @@ async function assertAriaParity(reactPage: Page, blazorPage: Page, id: string, s
 // to waive fails as stale. `order` rows hold the cross-lane order diff as T-943's position-anchored
 // hunks (the differing lines with two lines of context), so a waived difference that moves fails as
 // changed; `findings` rows hold each lane's complete sorted finding lines, optionally for one host
-// (occlusion and keyboard-focusable scrollers can depend on font metrics). A cross-lane order
-// difference T-943 already waived is attributed to it and not registered twice. Every failure prints
-// the row to paste; validate-gallery refuses a row too thin to review.
+// (occlusion and keyboard-focusable scrollers can depend on font metrics). A `budget` row gives a
+// scenario whose own key handling is too slow to walk in full a fixed press budget: each walk stops
+// after that many presses and is recorded as the budget, the same on every host. A wall-clock
+// `deadline` is a hang and is never waivable. A cross-lane order difference T-943 already waived is
+// attributed to it and not registered twice. Every failure prints the row to paste; validate-gallery
+// refuses a row too thin to review.
 type TabWalkRow = {
   scenarioId: string
-  kind: 'order' | 'findings'
+  kind: 'order' | 'findings' | 'budget'
   host?: string
   ticket: string
   reason: string
@@ -1468,6 +1473,10 @@ type TabWalkRow = {
   // A findings row: each lane's complete sorted finding lines.
   reactOnly?: string[]
   blazorOnly?: string[]
+  // A budget row: the presses each walk may take, and the cost of one press the test allowance is
+  // sized for (the Shift probe cannot see a lane's Tab handling).
+  presses?: number
+  pressMs?: number
 }
 const tabWalkRegisterPath = 'gallery/tab-walk-known-divergences.json'
 const tabWalkRegister = JSON.parse(readFileSync(resolve(repositoryRoot, tabWalkRegisterPath), 'utf8')) as {
@@ -1476,6 +1485,7 @@ const tabWalkRegister = JSON.parse(readFileSync(resolve(repositoryRoot, tabWalkR
   divergences: TabWalkRow[]
 }
 const tabWalkOrderRows = new Map(tabWalkRegister.divergences.filter(row => row.kind === 'order').map(row => [row.scenarioId, row]))
+const tabWalkBudgetRows = new Map(tabWalkRegister.divergences.filter(row => row.kind === 'budget').map(row => [row.scenarioId, row]))
 const tabWalkFindingsRows = new Map<string, TabWalkRow[]>()
 for (const row of tabWalkRegister.divergences.filter(entry => entry.kind === 'findings')) {
   tabWalkFindingsRows.set(row.scenarioId, [...(tabWalkFindingsRows.get(row.scenarioId) ?? []), row])
@@ -1496,8 +1506,8 @@ const findingsLines = (react: readonly string[], blazor: readonly string[]) =>
 // it judges with T-943's laneLineDiff, laneHunks and reconcileLaneDiff, which a second copy must not
 // duplicate.
 function tabWalkVerdict(id: string, react: LaneWalk, blazor: LaneWalk, {
-  orderRow, findingsRow, ariaDiff, host,
-}: { orderRow?: TabWalkRow; findingsRow?: TabWalkRow; ariaDiff?: LaneDiff; host: string }) {
+  orderRow, findingsRow, budgetRow, ariaDiff, host,
+}: { orderRow?: TabWalkRow; findingsRow?: TabWalkRow; budgetRow?: TabWalkRow; ariaDiff?: LaneDiff; host: string }) {
   const lines = { react: laneOrderLines(react), blazor: laneOrderLines(blazor) }
   const findings = { react: laneFindingLines(react), blazor: laneFindingLines(blazor) }
   const orderDiff = laneLineDiff(lines.react, lines.blazor)
@@ -1530,6 +1540,11 @@ function tabWalkVerdict(id: string, react: LaneWalk, blazor: LaneWalk, {
       measureFlag: tabWalkRegister.measureFlag,
       row: () => pasteRow(findingsPaste),
     })
+  // A budget row whose budget neither lane reached has nothing left to bound.
+  const budgeted = [react, blazor].some(lane => laneCoverage(lane).budgeted)
+  const budgetStale = budgetRow && !budgeted
+    ? [`${id} is given a tab walk press budget (ticket ${budgetRow.ticket}) but neither lane reached it; delete the budget row from ${tabWalkRegisterPath}`]
+    : []
   // An unwaived finding fails under its own clause, lane by lane; a waived one is judged whole.
   const clause = (pick: (lanes: ReturnType<typeof partitionByClause>) => string[]) => {
     if (found.unwaived.length === 0) return []
@@ -1546,7 +1561,7 @@ function tabWalkVerdict(id: string, react: LaneWalk, blazor: LaneWalk, {
     obscured: clause(lanes => lanes.obscured),
     crossLane: order.unwaived,
     drift: [...order.drift, ...found.drift],
-    stale: [...order.stale, ...found.stale],
+    stale: [...order.stale, ...found.stale, ...budgetStale],
     hostStops: [...laneHostStops(react).map(stop => `react: ${stop}`), ...laneHostStops(blazor).map(stop => `blazor: ${stop}`)],
     rows: [orderPaste, findingsPaste].filter((row): row is TabWalkRow => row !== null),
   }
@@ -1571,16 +1586,21 @@ async function assertTabWalk(reactPage: Page, blazorPage: Page, scenario: Scenar
   // retry) at what a press costs here, never less than 45 ms, so a 256-link scene or a lane with slow
   // key handling is not a trap and a hang still fails. The walk stops itself 5 s before the timeout
   // and reports a deadline, so an overrun is a finding rather than a killed test.
-  const census = Math.max(prepared.react.census.count, prepared.blazor.census.count)
-  const perPress = Math.max(45, Math.ceil(1.5 * Math.max(prepared.react.pressMs, prepared.blazor.pressMs)) + 20)
-  testInfo.setTimeout(Math.max(testInfo.timeout, (performance.now() - testStarted) + 15_000 + perPress * 4 * (census + 16)))
+  // The census counts a date or time input as the nine presses its segments may take. A budget row
+  // sizes the allowance explicitly: its press budget, at the press cost it declares.
+  const budgetRow = tabWalkBudgetRows.get(id)
+  const census = Math.max(prepared.react.census.presses, prepared.blazor.census.presses)
+  const presses = budgetRow?.presses ? Math.min(census, budgetRow.presses) : census
+  const perPress = Math.max(45, budgetRow?.pressMs ?? 0, Math.ceil(1.5 * Math.max(prepared.react.pressMs, prepared.blazor.pressMs)) + 20)
+  testInfo.setTimeout(Math.max(testInfo.timeout, (performance.now() - testStarted) + 15_000 + perPress * 4 * (presses + 16)))
   const deadline = Date.now() + Math.max(5_000, testInfo.timeout - (performance.now() - testStarted) - 5_000)
   const walks = await readBothLanes(reactPage, blazorPage, (probe, lane) =>
-    walkLane(probe.page(), { lane, deadline, settled: prepared[lane].settled, pressMs: prepared[lane].pressMs }))
+    walkLane(probe.page(), { lane, deadline, settled: prepared[lane].settled, pressMs: prepared[lane].pressMs, pressBudget: budgetRow?.presses }))
   await Promise.all([teardownLane(reactPage), teardownLane(blazorPage)])
   const verdict = tabWalkVerdict(id, walks.react, walks.blazor, {
     orderRow: tabWalkOrderRows.get(id),
     findingsRow: tabWalkFindingsRow(id, galleryHostKey),
+    budgetRow,
     ariaDiff,
     host: galleryHostKey,
   })
@@ -2027,14 +2047,14 @@ test('an ARIA parity lane is judged where it settles on its own, and a real diff
 // asserted directly on the pure functions rather than only through a browser run.
 const walkStop = (id: number, extra: Partial<Stop> = {}): Stop => ({
   id, tag: 'button', location: 'probe', modal: -1, segmented: false, scroller: false, verdict: { kind: 'visible' }, leak: -1,
-  trusted: true, repeat: false, returned: false, ...extra,
+  trusted: true, stepped: true, repeat: false, returned: false, ...extra,
 })
 const walkRecord = (direction: 'forward' | 'reverse' | 'prepared', stops: Stop[], extra: Partial<LaneWalk['forward'][number]> = {}) => ({
   direction, stops, outcome: 'exited' as const, presses: stops.length + 1, stepPresses: 0, unconfirmed: false, stepThrough: 0, cap: 100,
-  c0: 'same', c1: 'same', ...extra,
+  c0: 'same', c1: 'same', reveals: [], ...extra,
 })
 const laneWalk = (keys: Record<number, string>, extra: Partial<LaneWalk> = {}): LaneWalk => ({
-  lane: 'react', keys: Object.fromEntries(Object.entries(keys)), census: { count: 0, first: -1, digest: '', openModals: [], openPopups: 0, positiveTabindex: [] },
+  lane: 'react', keys: Object.fromEntries(Object.entries(keys)), census: { count: 0, segmented: 0, presses: 0, first: -1, digest: '', openModals: [], openPopups: 0, positiveTabindex: [] },
   forward: [], reverse: [], walkMs: 0, noisy: false, ...extra,
 })
 const fourButtons = { 1: 'button "A"', 2: 'button "B"', 3: 'button "C"', 4: 'button "D"' }
@@ -2095,6 +2115,35 @@ test('the cross-lane order lines are the release walks then the clean walk, with
   expect(laneOrderLines(segmented)).toEqual(['↩ - button "A"', '- textbox "When" ×3', 'exited'])
   // No clean walk: the reason the phase stopped is the last line.
   expect(laneOrderLines(laneWalk(fourButtons, { forward: [walkRecord('forward', [walkStop(1)], { outcome: 'trap', cycle: { start: 0, members: [2, 3], walked: [2, 3] } })], forwardStopped: 'trap' }))).toEqual(['trap'])
+  // A walk stopped at its declared press budget is that budget, not the stops this host reached.
+  expect(laneOrderLines(laneWalk(fourButtons, { pressBudget: 24, forward: [walkRecord('forward', [walkStop(1), walkStop(2)], { outcome: 'budget' })], forwardStopped: 'budget' }))).toEqual(['budget: 24 presses'])
+})
+
+test('the prepared walk is always judged for 2.1.2, and a modal it released for everything; a budgeted walk is not judged', () => {
+  const keys = { ...fourButtons, 10: 'dialog "Settings"', 11: 'button "One"', 12: 'button "Two"' }
+  const clean = walkRecord('forward', [walkStop(1), walkStop(2)])
+  const released = walkRecord('prepared', [walkStop(12, { modal: 10, verdict: { kind: 'obscured', occluder: 'div.cover' } }), walkStop(11, { modal: 10 }), walkStop(12, { modal: 10, verdict: { kind: 'obscured', occluder: 'div.cover' } }), walkStop(4, { leak: 10 })], {
+    outcome: 'modal-cycle', cycle: { start: 0, members: [11, 12], walked: [12, 11] }, release: { released: true, by: 'Escape ×1', reverseOk: false, modal: 10 },
+  })
+  expect(laneFindingLines(laneWalk(keys, { prepared: released, forward: [clean], clean: 0 }))).toEqual([
+    '2.4.11 prepared obscured: button "Two" under div.cover',
+    '2.4.3 prepared modal reverse differs: dialog "Settings"',
+    '2.4.3 prepared modal-leak: button "D" reached while dialog "Settings" is open',
+  ])
+  // Without a release, E's stops are F's to judge; its outcome is still its own.
+  const trapped = walkRecord('prepared', [walkStop(2), walkStop(3), walkStop(2), walkStop(3)], { outcome: 'trap', cycle: { start: 0, members: [2, 3], walked: [2, 3] } })
+  trapped.stops[0].verdict = { kind: 'offscreen' }
+  expect(laneFindingLines(laneWalk(keys, { prepared: trapped, forward: [clean], clean: 0 }))).toEqual(['2.1.2 prepared trap: ↻ button "B" → button "C"'])
+  // A partial modal cycle is a trap that names the modal stops it never reaches.
+  const partial = walkRecord('forward', [walkStop(11, { modal: 10 }), walkStop(12, { modal: 10 })], { outcome: 'trap', cycle: { start: 0, members: [11, 12], walked: [11, 12] }, skipped: [4] })
+  expect(laneFindingLines(laneWalk(keys, { forward: [partial], forwardStopped: 'trap' }))).toEqual(['2.1.2 forward trap: ↻ button "One" → button "Two"; never reaches button "D"'])
+  // A budgeted walk adds no finding, whatever its stops showed on this host.
+  const budget = walkRecord('forward', [walkStop(1, { verdict: { kind: 'clipped' } })], { outcome: 'budget', c0: 'a', c1: 'b' })
+  budget.stops.push(walkStop(0, { location: 'body', tag: 'body' }))
+  expect(laneFindingLines(laneWalk(keys, { pressBudget: 8, forward: [budget], forwardStopped: 'budget', reverse: [{ ...budget, direction: 'reverse' as const }], reverseStopped: 'budget' }))).toEqual([])
+  // A deadline is a hang: it is a finding (and validate-gallery refuses to waive it).
+  expect(laneFindingLines(laneWalk(keys, { forward: [walkRecord('forward', [walkStop(1)], { outcome: 'deadline' })], forwardStopped: 'deadline' })))
+    .toEqual(['2.1.2 forward deadline: the walk did not finish within the test\'s allowance'])
 })
 
 test('tab walk findings are split by the clause message that reports them', () => {
@@ -2113,7 +2162,7 @@ test('the tab walk register is exact both ways, per kind and per host', () => {
   const host = 'macos-arm64'
   const clean = straightWalk()
   const reordered = straightWalk(fourButtons, [1, 3, 2, 4])
-  const row = (kind: 'order' | 'findings', fields: Partial<TabWalkRow>): TabWalkRow =>
+  const row = (kind: TabWalkRow['kind'], fields: Partial<TabWalkRow>): TabWalkRow =>
     ({ scenarioId: 'x.default', kind, ticket: 'T-962', reason: 'recorded difference for the test', ...fields })
   // Unwaived: a cross-lane order difference fails with the diff and the row to paste.
   const unwaived = tabWalkVerdict('x.default', clean, reordered, { host })
@@ -2152,6 +2201,12 @@ test('the tab walk register is exact both ways, per kind and per host', () => {
   expect(tabWalkFindingsRow('x.scoped', 'linux-x64')?.host).toBe('linux-x64')
   expect(tabWalkFindingsRow('x.scoped', host)).toBeUndefined()
   tabWalkFindingsRows.delete('x.scoped')
+  // A budget row is exact too: it is stale once neither lane reaches the budget.
+  const budgetRow = row('budget', { presses: 24, pressMs: 400 })
+  const budgeted = laneWalk(fourButtons, { pressBudget: 24, forward: [walkRecord('forward', [walkStop(1)], { outcome: 'budget' })], forwardStopped: 'budget' })
+  expect(tabWalkVerdict('x.default', budgeted, clean, { host, budgetRow, orderRow: row('order', { hunks: laneHunks(laneLineDiff(laneOrderLines(budgeted), laneOrderLines(clean))) }) }).stale).toEqual([])
+  expect(tabWalkVerdict('x.default', clean, clean, { host, budgetRow }).stale)
+    .toEqual(['x.default is given a tab walk press budget (ticket T-962) but neither lane reached it; delete the budget row from gallery/tab-walk-known-divergences.json'])
 })
 
 test('a cross-lane order difference is attributed to T-943 only when its waived nodes explain all of it', () => {
@@ -2184,8 +2239,8 @@ test('a cross-lane order difference is attributed to T-943 only when its waived 
 //
 // Each proof drives the real walk over a page built to contain exactly one keyboard defect (or its
 // control), with no gallery server, and asserts the exact finding line and the clause message it
-// fails under. Each records tabWalkDetectorProofs once; the gate declares ten, so deleting one is
-// "declared 10, measured 9".
+// fails under. Each records tabWalkDetectorProofs once; the gate declares thirteen, so deleting one
+// is "declared 13, measured 12".
 const proofHost = galleryHostKey
 const proofProbe = (body: string) => `<main data-gallery-probe>${body}</main>`
 // The proof pages open the way the scenario pages do (the scenario viewport, light, reduced motion,
@@ -2295,7 +2350,7 @@ test('tab walk proof P5: focus returned to a menu trigger is not a trap, and foc
   recordCheck('tabWalkDetectorProofs')
 })
 
-test('tab walk proof P6: an opaque sticky header hides a stop reached by Shift+Tab; partial covers, scrims and pointer-transparent svg do not', async ({ browser }) => {
+test('tab walk proof P6: an opaque sticky header and a filled svg shape hide a stop; partial covers, scrims, stroke-only and pointer-transparent svg do not', async ({ browser }) => {
   const sticky = await walkProof(browser, `<style>body{margin:0}.bar{position:sticky;top:0;height:420px;background:#fff;z-index:3}.gap{height:900px}</style>${proofProbe('<header class="bar">Sticky</header><button>First</button><div class="gap"></div><button>Middle</button><div class="gap"></div><button>Last</button>')}`)
   expect(laneFindingLines(sticky)).toContain('2.4.11 reverse obscured: button "First" under header.bar (sticky)')
   expect(proofVerdict(sticky).obscured).toContain('react: 2.4.11 reverse obscured: button "First" under header.bar (sticky)')
@@ -2304,34 +2359,51 @@ test('tab walk proof P6: an opaque sticky header hides a stop reached by Shift+T
   expect(laneCoverage(half).partial, 'a partly covered stop is counted, not failed (2.4.12 territory)').toBeGreaterThan(0)
   const scrim = await walkProof(browser, `<style>.scrim{position:fixed;inset:0;background:rgba(0,0,0,.4)}</style>${proofProbe('<button>Under scrim</button><div class="scrim"></div>')}`)
   expect(laneFindingLines(scrim)).toEqual([])
-  const svg = await walkProof(browser, `<style>svg{position:absolute;left:0;top:0;width:400px;height:200px;z-index:2}</style>${proofProbe('<div style="position:relative"><button>Bar</button><svg style="pointer-events:none"><rect width="400" height="200" fill="transparent"/></svg><svg><rect width="400" height="200" fill="#000"/></svg></div>')}`)
-  expect(laneFindingLines(svg), 'svg never counts as an opaque cover (the Gantt dependency layer)').toEqual([])
+  const svgStyle = '<style>svg{position:absolute;left:0;top:0;width:400px;height:200px;z-index:2}</style>'
+  const layers = await walkProof(browser, `${svgStyle}${proofProbe('<div style="position:relative"><button>Bar</button><svg style="pointer-events:none"><rect width="400" height="200" fill="#000"/></svg><svg><rect width="400" height="200" fill="none" stroke="#000"/></svg></div>')}`)
+  expect(laneFindingLines(layers), 'a pointer-events:none layer (the Gantt dependency layer) and a stroke-only shape cover nothing').toEqual([])
+  const filled = await walkProof(browser, `${svgStyle}${proofProbe('<div style="position:relative"><button>Bar</button><svg><rect width="400" height="200" fill="#000"/></svg></div>')}`)
+  expect(laneFindingLines(filled), 'a filled, hit-testable svg shape is an opaque cover').toEqual(['2.4.11 forward obscured: button "Bar" under rect', '2.4.11 reverse obscured: button "Bar" under rect'])
   const away = await walkProof(browser, proofProbe('<a href="#x" style="display:inline-block;transform:translateX(-200vw)">Away</a><button>Here</button>'))
   expect(laneFindingLines(away)).toEqual(['2.4.11 forward offscreen: link "Away"', '2.4.11 reverse offscreen: link "Away"'])
   recordCheck('tabWalkDetectorProofs')
 })
 
-test('tab walk proof P7: a visually hidden input is judged by its label, and only a popup the user opened may cover a stop', async ({ browser }) => {
+test('tab walk proof P7: a visually hidden input is judged by its label, and only a user-opened popup that Escape dismisses with focus kept may cover a stop', async ({ browser }) => {
   const proxy = await walkProof(browser, `<style>.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}</style>${proofProbe('<label><input type="checkbox" class="sr"> Notify me</label>')}`)
   expect(laneFindingLines(proxy)).toEqual([])
   expect(laneCoverage(proxy).unmeasured).toBe(0)
   const popover = '<style>#pop{position:fixed;inset:auto;left:0;top:0;width:300px;height:120px;margin:0;background:#fff;border:0}</style>'
-  const opened = await walkProof(browser, popover + proofProbe(`<button style="position:fixed;left:10px;top:10px">Under</button><div popover="manual" id="pop">Opened by the user</div><button style="position:fixed;left:10px;top:300px">Elsewhere</button>
+  const opened = (mode: string) => walkProof(browser, popover + proofProbe(`<button style="position:fixed;left:10px;top:10px">Under</button><div popover="${mode}" id="pop">Opened by the user</div><button style="position:fixed;left:10px;top:300px">Elsewhere</button>
     <script>document.getElementById('pop').showPopover()</script>`))
-  expect(laneFindingLines(opened)).toEqual([])
-  expect(laneCoverage(opened).exemptUserOpened, 'counted, not failed (WCAG 2.2 Understanding 2.4.11)').toBeGreaterThan(0)
+  // An auto popover closes on Escape without moving focus: the user can reveal the stop in place
+  // (SC 2.4.11 Note 2), so it is counted, not failed, and the walk goes on without the popover.
+  const dismissable = await opened('auto')
+  expect(laneFindingLines(dismissable)).toEqual([])
+  expect(laneCoverage(dismissable).exemptUserOpened, 'verified with Escape, then counted').toBe(1)
+  // A manual popover ignores Escape: the user would have to move focus back into it to dismiss it,
+  // which Note 2 does not exempt.
+  const manual = await opened('manual')
+  expect(laneFindingLines(manual)).toEqual(['2.4.11 forward obscured: button "Under" under div (fixed)', '2.4.11 reverse obscured: button "Under" under div (fixed)'])
+  expect(laneCoverage(manual).exemptUserOpened).toBe(0)
+  expect(proofVerdict(manual).obscured[0]).toBe('react: 2.4.11 forward obscured: button "Under" under div (fixed)')
   const late = await walkProof(browser, popover + proofProbe(`<button id="info" style="position:fixed;left:10px;top:300px">Info</button><button style="position:fixed;left:10px;top:10px">Under</button><div popover="manual" id="pop">Opened by focus</div>
     <script>document.getElementById('info').addEventListener('focus', () => document.getElementById('pop').showPopover())</script>`))
   expect(laneFindingLines(late)).toEqual(['2.4.11 forward obscured: button "Under" under div (fixed)', '2.4.11 reverse obscured: button "Under" under div (fixed)'])
   recordCheck('tabWalkDetectorProofs')
 })
 
-test('tab walk proof P8: a radio group, a roving tablist, a text-only scene and a date input walk cleanly', async ({ browser }) => {
+test('tab walk proof P8: a radio group, a roving tablist, a text-only scene and date inputs walk cleanly', async ({ browser }) => {
   const composite = await walkProof(browser, proofProbe('<input type="radio" name="g" aria-label="North"><input type="radio" name="g" aria-label="South"><div role="tablist" aria-label="Views"><button role="tab" aria-selected="true">Map</button><button role="tab" tabindex="-1">List</button></div><input type="date" aria-label="When">'))
   // The unchecked group is entered at North going forward and South going back; the reverse passes.
   expect(laneOrderLines(composite).filter(line => !line.startsWith('- textbox "When"'))).toEqual(['- radio "North"', '- tab "Map"', 'exited'])
   expect(laneOrderLines(composite).find(line => line.startsWith('- textbox "When"')), 'date segments collapse into one stop').toMatch(/^- textbox "When"( ×\d)?$/)
   expect(laneFindingLines(composite)).toEqual([])
+  // Four datetime-local fields take 25 presses (six segments each, then out), more than the 2 × 4 + 16
+  // a plain census would allow: the cap counts each segmented input as the nine presses it may take.
+  const dates = await walkProof(browser, proofProbe(['One', 'Two', 'Three', 'Four'].map(name => `<input type="datetime-local" aria-label="${name}">`).join('')))
+  expect(dates.forward.at(-1)?.outcome).toBe('exited')
+  expect(laneFindingLines(dates)).toEqual([])
   const words = await walkProof(browser, proofProbe('<p>Only words here.</p>'))
   expect(laneOrderLines(words)).toEqual(['exited'])
   expect(laneCoverage(words).zeroStop).toBe(true)
@@ -2339,7 +2411,7 @@ test('tab walk proof P8: a radio group, a roving tablist, a text-only scene and 
   recordCheck('tabWalkDetectorProofs')
 })
 
-test('tab walk proof P9: a positive tabindex is a 2.4.3 finding, and a stop outside the scenario fails closed', async ({ browser }) => {
+test('tab walk proof P9: a positive tabindex is a 2.4.3 finding, a stop outside the scenario fails closed, and so does an iframe left within one batch', async ({ browser }) => {
   const positive = await walkProof(browser, proofProbe('<button>A</button><button tabindex="2">Jumps the queue</button>'))
   expect(laneFindingLines(positive)).toEqual(['2.4.3 walk positive-tabindex: button "Jumps the queue" tabindex=2'])
   expect(proofVerdict(positive).order[0]).toBe('react: 2.4.3 walk positive-tabindex: button "Jumps the queue" tabindex=2')
@@ -2349,6 +2421,10 @@ test('tab walk proof P9: a positive tabindex is a 2.4.3 finding, and a stop outs
   // An overlay a component portals to the body is the scenario's, not the host's.
   const portal = await walkProof(browser, `${proofProbe('<button>Inside</button>')}<div class="hl-popover"><button>Portaled</button></div>`)
   expect(laneHostStops(portal)).toEqual([])
+  // The frame's own document gets the Tab presses inside it, so the walker never sees them; entering
+  // it fails closed even when the whole stay falls inside one batch of presses.
+  const framed = await walkProof(browser, proofProbe('<button>Before</button><iframe title="Embedded" srcdoc="<button>In one</button><button>In two</button>"></iframe><button>After</button>'))
+  expect(laneFindingLines(framed)).toContain('2.1.2 forward unsupported frame')
   recordCheck('tabWalkDetectorProofs')
 })
 
@@ -2382,6 +2458,77 @@ test('tab walk proof P10: a different order across lanes fails with its diff, a 
     cursor = snapshot.indexOf(key, cursor)
     expect(cursor, `${key} is a line of the probe snapshot, in order`).toBeGreaterThanOrEqual(0)
   }
+  recordCheck('tabWalkDetectorProofs')
+})
+
+test('tab walk proof P11: a modal the prepared walk releases is judged like any modal: an obscured stop and a leak fail', async ({ browser }) => {
+  // Prepared focus on the modal's second button: E walks the modal and releases it, and F and R walk
+  // a page without it, so only E can see the cover over "Two".
+  const covered = await walkProof(browser, proofProbe(`${aplModal('Edit', '<button>One</button><span style="position:relative;display:inline-block"><button id="two">Two</button><span class="cover" style="position:absolute;inset:0;background:#000"></span></span><button>Three</button>')}
+    <script>document.getElementById('two').focus()</script>`))
+  expect(covered.prepared?.release?.released).toBe(true)
+  expect(laneFindingLines(covered)).toEqual(['2.4.11 prepared obscured: button "Two" under span.cover'])
+  expect(proofVerdict(covered).obscured[0]).toBe('react: 2.4.11 prepared obscured: button "Two" under span.cover')
+  // Prepared focus outside an open modal is a leak, and E runs even though that focus is the first
+  // stop from the top: F's anchor could not reach the same state.
+  const leaking = await walkProof(browser, proofProbe(`<button id="behind">Behind</button>${aplModal('Edit', '<button>One</button><button>Two</button>')}
+    <script>document.getElementById('behind').focus()</script>`))
+  expect(leaking.preparedAtFirstStop).toBe(false)
+  expect(laneFindingLines(leaking)).toEqual(['2.4.3 prepared modal-leak: button "Behind" reached while dialog "Edit" is open'])
+  expect(proofVerdict(leaking).order[0]).toBe('react: 2.4.3 prepared modal-leak: button "Behind" reached while dialog "Edit" is open')
+  recordCheck('tabWalkDetectorProofs')
+})
+
+test('tab walk proof P12: a control that swallows Tab inside a modal with other stops is stuck, and a partial modal cycle is a trap', async ({ browser }) => {
+  const modal = (body: string, handler: string) => `<div role="dialog" aria-modal="true" aria-label="Edit note" id="modal">${body}</div>
+    <script>const modal = document.getElementById('modal'); document.addEventListener('keydown', event => {
+      if (!modal.isConnected) return
+      if (event.key === 'Escape') { modal.remove(); return }
+      if (event.key !== 'Tab') return
+      const items = [...modal.querySelectorAll('textarea, button')]; const first = items[0], last = items.at(-1)
+      ${handler}
+      if (event.shiftKey && (document.activeElement === first || !modal.contains(document.activeElement))) { event.preventDefault(); last.focus() }
+      else if (!event.shiftKey && (document.activeElement === last || !modal.contains(document.activeElement))) { event.preventDefault(); first.focus() }
+    }, true)</script>`
+  // The Blazor Chat pattern inside a dialog: the textarea cancels every key, so Save and Cancel are
+  // never reached by Tab. It is not a "cycle of one": the modal has three tab stops.
+  const swallowed = await walkProof(browser, proofProbe(modal('<textarea id="note" aria-label="Note"></textarea><button>Save</button><button>Cancel</button>', '')
+    + `<script>document.getElementById('note').addEventListener('keydown', event => { if (event.key !== 'Escape') event.preventDefault() })</script>`))
+  expect(laneFindingLines(swallowed)).toContain('2.1.2 forward stuck: textbox "Note"')
+  // Tab on "Two" wraps back to "One": a cycle inside the modal that never reaches "Three".
+  const partial = await walkProof(browser, proofProbe(modal('<button>One</button><button>Two</button><button>Three</button>',
+    `if (!event.shiftKey && document.activeElement === items[1]) { event.preventDefault(); first.focus(); return }`)))
+  expect(laneFindingLines(partial)).toContain('2.1.2 forward trap: ↻ button "One" → button "Two"; never reaches button "Three"')
+  expect(proofVerdict(partial).leave).toContain('react: 2.1.2 forward trap: ↻ button "One" → button "Two"; never reaches button "Three"')
+  recordCheck('tabWalkDetectorProofs')
+})
+
+test('tab walk proof P13: the prepared walk keeps an outcome reached past its first presses, and a batched candidate counts only if it reproduces in step mode', async ({ browser }) => {
+  // A trap that exists only while the prepared group holds focus, reached after 36 stops that each
+  // change the page when focused. F's anchor takes focus out of the group, which disarms the trap,
+  // so only E can report it, and E is walked in step mode all the way.
+  const items = Array.from({ length: 36 }, (_, index) => `<button>Item ${index + 1}</button>`).join('')
+  const prepared = await walkProof(browser, proofProbe(`<button>Top</button><div id="group"><button id="start">Start</button>${items}<button id="b">B</button><button id="c">C</button></div><button>After</button>
+    <script>const group = document.getElementById('group'); let armed = true
+      group.addEventListener('focusin', event => event.target.classList.toggle('seen'))
+      group.addEventListener('focusout', event => { if (!group.contains(event.relatedTarget)) armed = false })
+      for (const id of ['b', 'c']) document.getElementById(id).addEventListener('keydown', event => {
+        if (!armed || event.key !== 'Tab' || event.shiftKey) return
+        event.preventDefault(); document.getElementById(id === 'b' ? 'c' : 'b').focus()
+      })
+      document.getElementById('start').focus()</script>`))
+  expect(prepared.prepared?.stepPresses, 'E is stepped throughout').toBe(prepared.prepared?.presses)
+  expect(laneFindingLines(prepared)).toEqual(['2.1.2 prepared trap: ↻ button "B" → button "C"'])
+  // A cover that shows only the first time "Shy" is focused, through an attribute the walker does
+  // not watch: the batched walk sees it, the step-mode walk through that stretch does not, so it is
+  // dropped rather than reported.
+  const transient = await walkProof(browser, `<style>.cover{display:none;position:absolute;inset:0;background:#000}[data-cover="on"] .cover{display:block}</style>${proofProbe(`<button>A</button><span style="position:relative;display:inline-block"><button id="shy">Shy</button><span class="cover"></span></span><button>C</button>
+    <script>const shy = document.getElementById('shy'); let shown = false
+      shy.addEventListener('focus', () => { if (!shown) { shown = true; document.body.dataset.cover = 'on' } })
+      shy.addEventListener('blur', () => { document.body.dataset.cover = 'off' })</script>`)}`)
+  expect(transient.forward[0].unconfirmed, 'the batched candidate made the first walk unconfirmed').toBe(true)
+  expect(transient.forward[0].stops.some(stop => stop.verdict?.kind === 'obscured' && !stop.trusted)).toBe(true)
+  expect(laneFindingLines(transient)).toEqual([])
   recordCheck('tabWalkDetectorProofs')
 })
 

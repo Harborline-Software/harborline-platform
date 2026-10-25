@@ -205,7 +205,7 @@ test('a run with no flakes records no attempts', () => {
 })
 
 // T-962: the keyboard tab walk is the last step of every scenario test and records four families
-// once each, after all its expects pass; ten seeded detector proofs record one each.
+// once each, after all its expects pass; thirteen seeded detector proofs record one each.
 const tabWalkFamilies = ['tabWalkLeaveChecks', 'tabWalkReverseChecks', 'tabWalkObscuredChecks', 'tabWalkOrderComparisons']
 
 test('the four tab-walk families are declared once per running scenario, and only a wall-clock exemption removes them', () => {
@@ -219,11 +219,11 @@ test('the four tab-walk families are declared once per running scenario, and onl
   assert.match(reconcileChecks({tabWalkLeaveChecks: 2}, {tabWalkLeaveChecks: 3}), /tabWalkLeaveChecks declared 3, measured 2/)
 })
 
-test('the tab-walk detector proofs are a constant ten, so deleting one is a divergence', () => {
+test('the tab-walk detector proofs are a constant thirteen, so deleting one is a divergence', () => {
   for (const options of [{exemptions}, {ciGallery: true, exemptions}, {capture: true, exemptions}]) {
-    assert.equal(expectedChecks(modules, options).tabWalkDetectorProofs, 10)
+    assert.equal(expectedChecks(modules, options).tabWalkDetectorProofs, 13)
   }
-  assert.match(reconcileChecks({tabWalkDetectorProofs: 9}, {tabWalkDetectorProofs: 10}), /tabWalkDetectorProofs declared 10, measured 9/)
+  assert.match(reconcileChecks({tabWalkDetectorProofs: 12}, {tabWalkDetectorProofs: 13}), /tabWalkDetectorProofs declared 13, measured 12/)
 })
 
 const walked = (coverage, results = 1) => ({

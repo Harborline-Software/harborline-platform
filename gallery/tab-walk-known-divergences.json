@@ -1,5 +1,5 @@
 {
-  "rule": "Exact both ways: an unwaived tab-walk difference or finding fails under its WCAG clause, a waived one whose lines changed fails until it is re-measured, and a row with nothing left to waive fails until it is deleted. order rows hold the two halves of the cross-lane order diff (no host); findings rows hold each lane's complete sorted finding lines, optionally for one host. Every row names the ticket that owns the fix and a reason a reviewer can check.",
+  "rule": "Exact both ways: an unwaived tab-walk difference or finding fails under its WCAG clause, a waived one whose lines changed fails until it is re-measured, and a row with nothing left to waive fails until it is deleted. order rows hold the cross-lane order diff as T-943's position-anchored hunks, as laneHunks writes them ('@@ #k', then two lines of context and '- ' React-only and '+ ' Blazor-only walk lines), so a waived difference that moves fails as changed; they take no host. findings rows hold each lane's complete sorted finding lines, optionally for one host. budget rows give a scenario whose own key handling is too slow to walk in full a fixed number of presses per walk (presses) and the press cost its test allowance is sized for (pressMs); they take no host. A wall-clock deadline is never waived. Every row names the open ticket that owns the fix and a reason a reviewer can check.",
   "measureFlag": "HARBORLINE_GALLERY_TAB_WALK_MEASURE",
   "divergences": [
     {
@@ -807,34 +807,11 @@
     },
     {
       "scenarioId": "scheduler.large-data",
-      "kind": "order",
+      "kind": "budget",
       "ticket": "T-146",
-      "reason": "The Blazor scheduler is a different component (T-146). With 256 events Blazor renders 264 tab stops where React renders 9, and each Tab press costs about 380 ms in its own focus handling (the walk's keydown work was under 10 ms of that), so the Blazor walk cannot finish within its allowance and reports a deadline in both directions.",
-      "hunks": [
-        "@@ #1",
-        "- - button \"Previous\"",
-        "- - button \"Today\"",
-        "- - button \"Next\"",
-        "- - button \"Day\"",
-        "- - button \"Week\"",
-        "- - button \"Month\"",
-        "- - button \"Agenda\"",
-        "- - (no role) div",
-        "- - button \"Replace 256 events\"",
-        "- exited",
-        "+ deadline"
-      ]
-    },
-    {
-      "scenarioId": "scheduler.large-data",
-      "kind": "findings",
-      "ticket": "T-146",
-      "reason": "The Blazor scheduler is a different component (T-146). With 256 events Blazor renders 264 tab stops where React renders 9, and each Tab press costs about 380 ms in its own focus handling (the walk's keydown work was under 10 ms of that), so the Blazor walk cannot finish within its allowance and reports a deadline in both directions.",
-      "reactOnly": [],
-      "blazorOnly": [
-        "2.1.2 forward deadline: the walk did not finish within the test's allowance",
-        "2.1.2 reverse deadline: the walk did not finish within the test's allowance"
-      ]
+      "reason": "The Blazor scheduler is a different component (T-146). With 256 events it renders 264 tab stops where React renders 9, and its own focus handling costs about 380 ms a Tab press (the walk's keydown work is under 10 ms of that), so a full Blazor walk would take about 100 s in each direction. Each walk stops after 24 presses, which covers React's whole walk, and is recorded as that budget on every host; the test allowance is sized for 400 ms a press.",
+      "presses": 24,
+      "pressMs": 400
     },
     {
       "scenarioId": "scheduler.locale-pseudo",

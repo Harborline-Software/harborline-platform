@@ -134,7 +134,11 @@ export function ariaParityRegisterErrors(register, scenarioIds) {
 // host-scoped ones, never both, and every finding line names its WCAG clause and walk direction, which
 // is what the spec's per-clause messages split on.
 const tabWalkRegisterPath = 'gallery/tab-walk-known-divergences.json'
-const tabWalkRowKeys = ['scenarioId', 'kind', 'host', 'ticket', 'reason', 'hunks', 'reactOnly', 'blazorOnly']
+const tabWalkRowKeys = ['scenarioId', 'kind', 'host', 'ticket', 'reason', 'hunks', 'reactOnly', 'blazorOnly', 'presses', 'pressMs']
+// A wall-clock deadline means the walk did not finish inside the test's allowance: how far it got
+// depends on the host and its load, so no row may waive one. A lane too slow to walk in full gets a
+// budget row instead, which stops every walk after a fixed number of presses.
+const tabWalkDeadline = /^2\.1\.2 (?:forward|reverse|prepared) deadline:|^[ +-] deadline$/
 const tabWalkHosts = ['windows-11-x64', 'linux-x64', 'macos-x64-intel', 'macos-arm64']
 const tabWalkFindingLine = /^(?:2\.1\.2|2\.4\.3|2\.4\.11) (?:forward|reverse|prepared|walk) \S/
 export function tabWalkRegisterErrors(register, scenarioIds) {
@@ -158,12 +162,22 @@ export function tabWalkRegisterErrors(register, scenarioIds) {
       'T-943': 'the ticket that builds the ARIA-tree register, not a fix',
     },
     lineErrors: (row, label) => {
+      if (row.kind === 'budget') {
+        const errors = []
+        if (row.hunks !== undefined || row.reactOnly !== undefined || row.blazorOnly !== undefined) errors.push(`${label} is a budget row; it records presses and pressMs, not lines`)
+        if (!Number.isInteger(row.presses) || row.presses < 8 || row.presses > 200) errors.push(`${label} must give presses, a whole number of Tab presses from 8 to 200`)
+        if (!Number.isInteger(row.pressMs) || row.pressMs < 45 || row.pressMs > 2000) errors.push(`${label} must give pressMs, the measured cost of one press in milliseconds, from 45 to 2000`)
+        return errors
+      }
+      if (row.presses !== undefined || row.pressMs !== undefined) return [`${label} records presses or pressMs, which only a budget row takes`]
       if (row.kind === 'order') {
         // Order lines are walk lines (`- <key>`, `↻ - <key>`, `↺ ok`, `released by …`, `exited` and
         // the outcome words), so any non-blank text may follow the marker.
         return [
           ...hunkErrors(row.hunks, label, { lineShape: /^[ +-] \S/, noun: 'walk line' }),
           ...(row.reactOnly !== undefined || row.blazorOnly !== undefined ? [`${label} is an order row; it records hunks, not reactOnly or blazorOnly`] : []),
+          ...(Array.isArray(row.hunks) && row.hunks.some(line => typeof line === 'string' && tabWalkDeadline.test(line))
+            ? [`${label} waives a wall-clock deadline, which depends on the host; give the scenario a budget row instead`] : []),
         ]
       }
       if (row.kind !== 'findings') return []
@@ -173,13 +187,17 @@ export function tabWalkRegisterErrors(register, scenarioIds) {
         return [`${label} must record reactOnly and blazorOnly as arrays of finding lines`]
       }
       if (lines.every(lane => lane.length === 0)) return [`${label} records no finding line, so it waives nothing a run can measure`]
-      return [...row.reactOnly, ...row.blazorOnly].filter(line => !tabWalkFindingLine.test(line))
-        .map(line => `${label} has a finding line that does not start with its clause and direction: ${JSON.stringify(line)}`)
+      return [
+        ...[...row.reactOnly, ...row.blazorOnly].filter(line => !tabWalkFindingLine.test(line))
+          .map(line => `${label} has a finding line that does not start with its clause and direction: ${JSON.stringify(line)}`),
+        ...([...row.reactOnly, ...row.blazorOnly].some(line => tabWalkDeadline.test(line))
+          ? [`${label} waives a wall-clock deadline, which depends on the host; give the scenario a budget row instead`] : []),
+      ]
     },
     rowErrors: (row, label) => {
       const errors = []
-      if (row.kind !== 'order' && row.kind !== 'findings') errors.push(`${label} has an unknown kind; it is order or findings`)
-      if (row.kind === 'order' && row.host !== undefined) errors.push(`${label} is an order row, which applies on every host; it takes no host`)
+      if (!['order', 'findings', 'budget'].includes(row.kind)) errors.push(`${label} has an unknown kind; it is order, findings or budget`)
+      if ((row.kind === 'order' || row.kind === 'budget') && row.host !== undefined) errors.push(`${label} is ${row.kind === 'order' ? 'an order' : 'a budget'} row, which applies on every host; it takes no host`)
       if (row.host !== undefined && !tabWalkHosts.includes(row.host)) errors.push(`${label} names an unknown host`)
       const hosts = findingsHosts.get(row.scenarioId) ?? []
       if (row.kind === 'findings' && row.host === undefined && hosts.some(host => host !== undefined)) {

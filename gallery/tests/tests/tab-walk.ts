@@ -12,7 +12,9 @@
 //   leaks out of an open modal, never follows a positive tabindex (technique F44); and the cross-lane
 //   half (the same order in React and Blazor) is judged by the spec from laneOrderLines.
 // - WCAG 2.4.11 Focus Not Obscured (Minimum): every stop, in both directions, is inside the viewport
-//   and not entirely hidden by author content.
+//   and not entirely hidden by author content. Note 2's exception for content the user opened holds
+//   only when the user can reveal the stop without moving focus, so it is verified, never assumed:
+//   Escape on the covered stop must reveal it with focus kept there.
 //
 // Prior art, implemented clean room: the "Tab stops" assessment of Accessibility Insights for Web
 // (walk the sequential focus order, record it, look for traps and order problems), the APG modal
@@ -41,14 +43,31 @@ export type StopDescription = {
   tabIndex: number
 }
 export type StopVerdict = {
-  kind: 'visible' | 'obscured' | 'clipped' | 'offscreen' | 'unmeasured' | 'exempt-user-opened'
+  kind: 'visible' | 'obscured' | 'clipped' | 'offscreen' | 'unmeasured'
   partial?: boolean
   occluder?: string
+  // Obscured only by a popup that was open when the walk began (prepareScenario opened it for the
+  // user). WCAG 2.2 SC 2.4.11 Note 2 exempts that only when the user can reveal the stop without
+  // moving focus, so the walk verifies it with Escape before it counts as exempt (walkOnce).
+  userOpened?: boolean
 }
 export type LogEntry = { stop: StopDescription; mutated: boolean; verdict: StopVerdict | null; leak: number; gone?: boolean }
-export type ReadResult = { active: StopDescription; entries: LogEntry[]; overshoot: number; mutated: boolean; costMs?: Record<string, number> }
+export type ReadResult = {
+  active: StopDescription
+  entries: LogEntry[]
+  overshoot: number
+  mutated: boolean
+  // Focus entered an iframe since the last read: its own document gets the Tab presses, so the
+  // window listener logs nothing while it is there, wherever the batch ends.
+  framed: boolean
+  costMs?: Record<string, number>
+}
 export type Census = {
   count: number
+  // Of those, the date and time inputs, which Chromium walks one segment per Tab press.
+  segmented: number
+  // The Tab presses a walk through every stop can take: each segmented input may hold up to nine.
+  presses: number
   // The first tab stop from the top, when it is plain document order (tabindex 0): where F starts.
   first: number
   digest: string
@@ -67,6 +86,12 @@ export type TabWalkRuntime = {
   documentOrder(ids: number[]): number[]
   released(modalId: number): boolean
   submitsForm(id: number): boolean
+  // The tab stops inside one aria-modal container, one per radio group, as the census counts them.
+  modalTabbables(modalId: number): Array<{ id: number; radioGroup?: string }>
+  // The focused stop, measured now, when a popup open since the walk began covers it; else null.
+  coverCandidate(): { active: StopDescription; verdict: StopVerdict } | null
+  // After Escape: whether the stop still has focus, and what it shows now.
+  revealed(id: number): { same: boolean; verdict: StopVerdict | null }
   teardown(): void
 }
 
@@ -161,10 +186,14 @@ export function installTabWalkRuntime(): void {
   const popupSelector = '[role="menu"], [role="listbox"], [role="tooltip"], [role="dialog"]:not([aria-modal="true"]), [popover]'
   const openPopups = () => Array.from(document.querySelectorAll(popupSelector))
     .filter(element => visible(element) && (!element.hasAttribute('popover') || element.matches(':popover-open')))
-  // WCAG 2.2 Understanding 2.4.11: content the user opened may cover the focused control. The
-  // popups open now were opened by prepareScenario, which stands in for the user; a popup that opens
-  // during the walk is not exempt.
-  const userOpened = openPopups()
+  // WCAG 2.2 SC 2.4.11 Note 2: content the user opened may cover the focused control, but only when
+  // the user can reveal the control without moving focus (the Understanding page: without navigating
+  // back to the opened content to dismiss it). The popups open now were opened by prepareScenario,
+  // which stands in for the user; a popup that opens during the walk is never a candidate. A cover by
+  // one of these is only a candidate: the Node side presses Escape on the covered stop and counts it
+  // exempt only when focus stays and the stop is then visible. A popup that has closed leaves the set.
+  let userOpened = openPopups()
+  const stillOpen = (popup: Element) => popup.isConnected && visible(popup) && (!popup.hasAttribute('popover') || popup.matches(':popover-open'))
 
   const nativelyFocusable = (element: Element) => {
     const tag = element.tagName
@@ -250,8 +279,21 @@ export function installTabWalkRuntime(): void {
     const rect = element.getBoundingClientRect()
     return rect.width <= 2 || rect.height <= 2 || effectiveOpacity(element) === 0 || collapsed(getComputedStyle(element))
   }
+  // An svg shape covers by its fill: a filled shape at 0.9 or more is opaque, a stroke-only or
+  // unfilled one is not. A layer that is pointer-events:none (the Gantt dependency layer) never
+  // reaches this, because elementsFromPoint does not return it. The outer <svg> box is judged by its
+  // CSS background like any other element; group and definition elements cover nothing themselves.
+  const svgShapes = new Set(['rect', 'circle', 'ellipse', 'path', 'polygon', 'polyline', 'line', 'text', 'use'])
   const opaque = (element: Element) => {
-    if (element instanceof SVGElement) return false
+    if (element instanceof SVGElement && !(element instanceof SVGSVGElement)) {
+      const tag = element.tagName.toLowerCase()
+      if (tag === 'image') return effectiveOpacity(element) >= 0.9
+      if (!svgShapes.has(tag)) return false
+      const style = getComputedStyle(element)
+      if (!style.fill || style.fill === 'none') return false
+      const alpha = style.fill.startsWith('url(') ? 1 : alphaOf(style.fill)
+      return effectiveOpacity(element) * alpha * Number.parseFloat(style.fillOpacity || '1') >= 0.9
+    }
     const opacity = effectiveOpacity(element)
     if (['IMG', 'VIDEO', 'CANVAS'].includes(element.tagName)) return opacity >= 0.9
     const style = getComputedStyle(element)
@@ -354,8 +396,8 @@ export function installTabWalkRuntime(): void {
     if (seen > 0) return seen < points.length ? { kind: 'visible', partial: true } : { kind: 'visible' }
     if (occluders.size === 0) return { kind: 'clipped' }
     const worst = [...occluders.entries()].sort((left, right) => right[1] - left[1])[0][0]
-    const exempt = [...occluders.keys()].every(occluder => userOpened.some(popup => popup.isConnected && popup.contains(occluder)))
-    return { kind: exempt ? 'exempt-user-opened' : 'obscured', occluder: occluderName(worst) }
+    const byUserOpened = [...occluders.keys()].every(occluder => userOpened.some(popup => stillOpen(popup) && popup.contains(occluder)))
+    return { kind: 'obscured', occluder: occluderName(worst), ...(byUserOpened ? { userOpened: true } : {}) }
   }
 
   // A stop is a modal leak when an aria-modal container is open and the stop is outside it.
@@ -396,14 +438,42 @@ export function installTabWalkRuntime(): void {
   }
   const cost = { describe: 0, measure: 0, leak: 0 }
   window.addEventListener('keydown', onKeyDown, true)
+  // Focus moving into an iframe, even when the whole stay inside it falls between two reads. Chromium
+  // fires no focusin on the iframe element in this document: this window blurs, with the iframe as
+  // its active element. A browser that does fire focusin on the iframe is caught as well.
+  let framed = false
+  const onFocusIn = (event: FocusEvent) => { if ((event.target as Element | null)?.tagName === 'IFRAME') framed = true }
+  const onWindowBlur = (event: FocusEvent) => { if (event.target === window && deepActive()?.tagName === 'IFRAME') framed = true }
+  window.addEventListener('focusin', onFocusIn, true)
+  window.addEventListener('blur', onWindowBlur)
 
   const frame = () => new Promise<void>(resolve => requestAnimationFrame(() => resolve()))
   const take = (mutated: boolean): ReadResult => {
     // An element removed since it was left has no accessible name left to read.
     const entries = log.splice(0).map(entry => byId.get(entry.stop.id)?.isConnected === false ? { ...entry, gone: true } : entry)
-    const result = { active: describeElement(deepActive()), entries, overshoot, mutated, costMs: { ...cost } }
+    const active = deepActive()
+    const result = { active: describeElement(active), entries, overshoot, mutated, framed: framed || active?.tagName === 'IFRAME', costMs: { ...cost } }
     overshoot = 0
+    framed = false
     return result
+  }
+  // The census's tab stops under one root: tabindex 0 or more, enabled (a disabled fieldset disables
+  // its controls without setting their own property), not inert, rendered, not in a closed details
+  // other than as its summary, and one per native radio group.
+  const tabbablesIn = (root: Element) => {
+    const groups = new Set<string>()
+    return Array.from(root.querySelectorAll('*')).filter(element => {
+      const html = element as HTMLElement
+      if (isSentinel(element) || html.tabIndex < 0 || element.matches(':disabled') || element.closest('[inert]') || !visible(element)) return false
+      const details = element.closest('details:not([open])')
+      if (details && !(element.tagName === 'SUMMARY' && element.parentElement === details)) return false
+      const input = element.tagName === 'INPUT' ? element as HTMLInputElement : null
+      if (input?.type === 'radio' && input.name) {
+        if (groups.has(input.name)) return false
+        groups.add(input.name)
+      }
+      return true
+    })
   }
   const quiet = async (maxMs: number, requireStableProbe: boolean) => {
     const deadline = performance.now() + maxMs
@@ -433,23 +503,14 @@ export function installTabWalkRuntime(): void {
     },
     settle: maxMs => quiet(maxMs, true),
     census() {
-      const groups = new Set<string>()
-      const tabbable = Array.from(document.body.querySelectorAll('*')).filter(element => {
-        const html = element as HTMLElement
-        if (isSentinel(element) || html.tabIndex < 0 || (html as HTMLButtonElement).disabled || element.closest('[inert]') || !visible(element)) return false
-        const details = element.closest('details:not([open])')
-        if (details && !(element.tagName === 'SUMMARY' && element.parentElement === details)) return false
-        const input = element.tagName === 'INPUT' ? element as HTMLInputElement : null
-        if (input?.type === 'radio' && input.name) {
-          if (groups.has(input.name)) return false
-          groups.add(input.name)
-        }
-        return true
-      })
+      const tabbable = tabbablesIn(document.body)
       const digest = tabbable.map(element => `${element.tagName}:${(element as HTMLElement).tabIndex}:${element.getAttribute('aria-label') ?? ''}:${(element.textContent ?? '').trim().slice(0, 40)}`).join('|')
       const first = tabbable.find(element => (element as HTMLElement).tabIndex === 0)
+      const segmented = tabbable.filter(element => element.tagName === 'INPUT' && segmentedTypes.has((element as HTMLInputElement).type)).length
       return {
         count: tabbable.length,
+        segmented,
+        presses: tabbable.length + 8 * segmented,
         first: first ? idOf(first) : -1,
         digest: `${tabbable.length}#${digest.length}#${[...digest].reduce((hash, char) => (hash * 31 + char.charCodeAt(0)) | 0, 7)}`,
         openModals: openModals().map(idOf),
@@ -468,6 +529,7 @@ export function installTabWalkRuntime(): void {
       sentinel.focus({ preventScroll: true })
       log.length = 0
       overshoot = 0
+      framed = false
       drain()
       return { landed: deepActive() === sentinel, active: describeElement(deepActive()) }
     },
@@ -488,8 +550,32 @@ export function installTabWalkRuntime(): void {
       const element = byId.get(id)
       return Boolean(element && element.tagName === 'BUTTON' && (element as HTMLButtonElement).type === 'submit' && (element as HTMLButtonElement).form)
     },
+    modalTabbables(modalId) {
+      const modal = byId.get(modalId)
+      if (!modal || !modal.isConnected) return []
+      return tabbablesIn(modal).map(element => {
+        const input = element.tagName === 'INPUT' ? element as HTMLInputElement : null
+        return { id: idOf(element), ...(input?.type === 'radio' && input.name ? { radioGroup: input.name } : {}) }
+      })
+    },
+    coverCandidate() {
+      userOpened = userOpened.filter(stillOpen)
+      if (userOpened.length === 0) return null
+      const active = deepActive()
+      if (!active || active === document.body || isSentinel(active)) return null
+      const verdict = measure(active)
+      return verdict.kind === 'obscured' && verdict.userOpened ? { active: describeElement(active), verdict } : null
+    },
+    revealed(id) {
+      userOpened = userOpened.filter(stillOpen)
+      const active = deepActive()
+      const same = Boolean(active && byId.get(id) === active)
+      return { same, verdict: same && active ? measure(active) : null }
+    },
     teardown() {
       window.removeEventListener('keydown', onKeyDown, true)
+      window.removeEventListener('focusin', onFocusIn, true)
+      window.removeEventListener('blur', onWindowBlur)
       bodyObserver.disconnect()
       changes.disconnect()
       start.remove()
@@ -513,14 +599,21 @@ export type Stop = {
   scroller: boolean
   verdict: StopVerdict | null
   leak: number
-  // Taken in step mode, or in a batched segment no change touched: findings come only from these.
+  // Findings come only from trusted stops: taken in step mode, or in a batched segment no change
+  // touched and with nothing to report. A failure candidate seen in a batch is never trusted; the
+  // walk is retried in step mode through it, and only a candidate that reproduces there counts.
   trusted: boolean
+  // Taken in step mode: what a trap, stuck or cap outcome must be seen on to be believed.
+  stepped: boolean
   // A consecutive repeat of the previous stop (a date segment, or a stuck element).
   repeat: boolean
   // The walk came back to an earlier stop and then went somewhere else (a menu returning focus).
   returned: boolean
 }
-export type WalkOutcome = 'exited' | 'wrapped' | 'trap' | 'stuck' | 'cap' | 'frame' | 'modal-cycle' | 'deadline'
+// `budget`: the walk stopped at the press budget a register row declares for its scenario. It is the
+// deterministic replacement for a wall-clock `deadline` where a lane's own key handling is too slow
+// to walk in full; `deadline` is kept for hangs, and is never waivable.
+export type WalkOutcome = 'exited' | 'wrapped' | 'trap' | 'stuck' | 'cap' | 'frame' | 'modal-cycle' | 'deadline' | 'budget'
 export type Release =
   | { released: true; by: string; reverseOk: boolean; modal: number }
   | { released: false; escapes: number; buttons: number; reverseOk: boolean; modal: number }
@@ -532,12 +625,19 @@ export type WalkRecord = {
   // all still in the document), the same ids in the order they were walked, and where it began in
   // `stops`.
   cycle?: { start: number; members: number[]; walked: number[] }
+  // A cycle inside one aria-modal container that leaves out some of the container's own tab stops
+  // (APG: Tab visits every tabbable element of a modal dialog): the stops it never reaches. It is a
+  // trap, not a modal cycle.
+  skipped?: number[]
   presses: number
   stepPresses: number
   // A failure candidate or a change in a batched segment: the walk is retried in step mode through
-  // `stepThrough` presses before anything it saw there is believed.
+  // `stepThrough` presses before anything it saw there is believed. A reveal (below) is a change too.
   unconfirmed: boolean
   stepThrough: number
+  // Stops a user-opened popup covered that Escape revealed with focus kept on them (2.4.11 Note 2):
+  // counted as exempt, and the phase is walked again from the state without the popup.
+  reveals: Array<{ id: number; occluder: string }>
   c0?: string
   c1?: string
   release?: Release
@@ -562,6 +662,8 @@ export type LaneWalk = {
   noisy: boolean
   preparedAtFirstStop?: boolean
   pressMs?: number
+  // The press budget a register row declares for this scenario, when there is one.
+  pressBudget?: number
 }
 
 type Context = {
@@ -570,12 +672,15 @@ type Context = {
   keys: Map<number, string>
   descriptions: Map<number, StopDescription>
   unreleased: Map<number, Release & { released: false }>
+  // Covered stops already judged with Escape in this lane: revealed, or still covered (or focus
+  // moved). Escape is pressed once per stop, so a later walk does not loop on it.
+  covers: Map<number, 'revealed' | 'covered'>
+  pressBudget?: number
   lane: Projection
 }
 
 const BATCH = 16
 const MAX_RELEASES = 3
-const PREPARED_STEP_PRESSES = 32
 
 // Every runtime read awaits a page-side promise (an animation frame), so it goes through the
 // garbage-collected-promise retry the rest of the suite uses.
@@ -628,18 +733,27 @@ function keyOf(context: Context, id: number) {
 }
 
 // One walk in one direction. `stepThrough` presses are taken one at a time and settled; the rest go
-// in batches of 16, each stop measured by the keydown listener as it is left. A change, or a finding
-// candidate, in a batched segment makes the walk unconfirmed, and `stepThrough` is raised past it so
-// the caller's next walk takes that stretch in step mode.
-async function walkOnce(context: Context, direction: WalkRecord['direction'], stepThrough: number, censusCount: number): Promise<WalkRecord> {
+// in batches of 16, each stop measured by the keydown listener as it is left. A change in a batched
+// segment, or any failure candidate seen there (a stop lost to the body, leaking out of a modal,
+// obscured, clipped or offscreen, or an outcome other than leaving), makes the walk unconfirmed, and
+// `stepThrough` is raised past it so the caller's next walk takes that stretch in step mode (plan
+// §3.4). A candidate counts only once it reproduces in step mode.
+const candidateOutcomes = new Set<WalkOutcome>(['trap', 'stuck', 'cap', 'wrapped', 'frame'])
+const isCandidate = (entry: LogEntry) => entry.stop.location === 'body' || entry.leak >= 0
+  || entry.verdict?.kind === 'obscured' || entry.verdict?.kind === 'clipped' || entry.verdict?.kind === 'offscreen'
+const capFor = (presses: number) => Math.min(2000, 2 * presses + 16)
+
+async function walkOnce(context: Context, direction: WalkRecord['direction'], stepThrough: number, censusPresses: number): Promise<WalkRecord> {
   const started = performance.now()
   const page = context.page
   const key = direction === 'reverse' ? 'Shift+Tab' : 'Tab'
   const terminal: StopLocation = direction === 'reverse' ? 'sentinel-start' : 'sentinel-end'
   const opposite: StopLocation = direction === 'reverse' ? 'sentinel-end' : 'sentinel-start'
-  let cap = Math.min(2000, 2 * censusCount + 16)
+  // The cap counts presses, and a date or time input takes one press per segment, so the census
+  // weights each of those by the nine presses the walk allows it before calling it stuck.
+  let cap = capFor(censusPresses)
   let capRecomputed = false
-  const record: WalkRecord = { direction, stops: [], outcome: 'exited', presses: 0, stepPresses: 0, unconfirmed: false, stepThrough: 0, cap }
+  const record: WalkRecord = { direction, stops: [], outcome: 'exited', presses: 0, stepPresses: 0, unconfirmed: false, stepThrough: 0, cap, reveals: [] }
   // Trap detection runs over the walk with consecutive repeats collapsed: `sequence` holds the ids,
   // `sequenceAt` the index in `stops` each came from.
   const sequence: number[] = []
@@ -654,20 +768,53 @@ async function walkOnce(context: Context, direction: WalkRecord['direction'], st
     record.unconfirmed = true
     record.stepThrough = Math.max(record.stepThrough, record.presses + 1)
   }
+  // The modal's own tab stops, to tell a complete modal cycle from a partial one.
+  const modalStops = async (modal: number) => {
+    const stops = await runtimeCall(context, () => page.evaluate(id => window.__hlpTabWalk!.modalTabbables(id), modal))
+    await describeAndResolve(context, await runtimeCall(context, () => page.evaluate(ids => ids.map(id => window.__hlpTabWalk!.describe(id)).filter(Boolean), stops.map(stop => stop.id))) as StopDescription[])
+    return stops
+  }
+  const settleOutcome = (outcome: WalkOutcome, step: boolean) => {
+    record.outcome = outcome
+    if (!step && candidateOutcomes.has(outcome)) unconfirm()
+  }
+  // 2.4.11 Note 2, verified: with focus on a stop that a popup open since the walk began covers,
+  // press Escape. The stop is exempt only when it keeps focus and is then visible; the phase is then
+  // walked again without the popup. Otherwise it stays covered, and its leave verdict is a finding.
+  const judgeCover = async () => {
+    const candidate = await runtimeCall(context, () => page.evaluate(() => window.__hlpTabWalk!.coverCandidate()))
+    if (!candidate || context.covers.has(candidate.active.id)) return
+    await page.keyboard.press('Escape')
+    await runtimeCall(context, () => page.evaluate(() => window.__hlpTabWalk!.readSettled()))
+    const after = await runtimeCall(context, () => page.evaluate(id => window.__hlpTabWalk!.revealed(id), candidate.active.id))
+    if (after.same && after.verdict?.kind === 'visible') {
+      context.covers.set(candidate.active.id, 'revealed')
+      record.reveals.push({ id: candidate.active.id, occluder: candidate.verdict.occluder ?? '' })
+      if (direction !== 'prepared') unconfirm()
+    } else {
+      context.covers.set(candidate.active.id, 'covered')
+      // Escape moved focus: what follows is no longer the walk from this stop. The prepared walk
+      // cannot be repeated, so it carries on from there.
+      if (!after.same && direction !== 'prepared') unconfirm()
+    }
+  }
+  if (direction === 'prepared') await judgeCover()
   for (;;) {
     if (Date.now() > context.deadline) { record.outcome = 'deadline'; break }
+    if (context.pressBudget !== undefined && record.presses >= context.pressBudget) { record.outcome = 'budget'; break }
     if (record.presses >= cap) {
       if (!capRecomputed) {
         capRecomputed = true
         const census = await runtimeCall(context, () => page.evaluate(() => window.__hlpTabWalk!.census()))
-        const grown = Math.min(2000, 2 * census.count + 16)
+        const grown = capFor(census.presses)
         if (grown > cap) { cap = grown; record.cap = cap; continue }
       }
-      record.outcome = 'cap'
+      settleOutcome('cap', record.presses <= stepThrough)
       break
     }
     const step = record.presses < stepThrough
-    const count = step ? 1 : Math.min(BATCH, cap - record.presses)
+    const room = Math.min(cap, context.pressBudget ?? Infinity) - record.presses
+    const count = step ? 1 : Math.min(BATCH, room)
     const pressing = performance.now()
     // The deadline is checked per press: a lane whose own key handling is slow (the Blazor scheduler
     // pays about 380 ms a Tab press) would otherwise overrun it by a whole batch.
@@ -689,9 +836,9 @@ async function walkOnce(context: Context, direction: WalkRecord['direction'], st
     timing.read += resolving - reading
     timing.keys += performance.now() - resolving
     // A batched segment that saw a change is not evidence: an async focus move or a rAF-positioned
-    // overlay may not have landed before the next press.
+    // overlay may not have landed before the next press. Neither is a candidate seen in a batch.
     const dirty = !step && (read.mutated || read.entries.some(entry => entry.mutated))
-    if (dirty) unconfirm()
+    if (dirty || (!step && read.entries.some(isCandidate))) unconfirm()
     for (const entry of read.entries) {
       const index = record.stops.length
       const previous = record.stops[index - 1]
@@ -699,7 +846,7 @@ async function walkOnce(context: Context, direction: WalkRecord['direction'], st
         id: entry.stop.id, tag: entry.stop.tag, location: entry.stop.location, modal: entry.stop.modal,
         ...(entry.stop.radioGroup ? { radioGroup: entry.stop.radioGroup } : {}),
         segmented: entry.stop.segmented, scroller: entry.stop.scroller, verdict: entry.verdict, leak: entry.leak,
-        trusted: !dirty, repeat: false, returned: false,
+        trusted: step || (!dirty && !isCandidate(entry)), stepped: step, repeat: false, returned: false,
       }
       record.stops.push(stop)
       if (previous && previous.id === stop.id && stop.id > 0) {
@@ -734,30 +881,41 @@ async function walkOnce(context: Context, direction: WalkRecord['direction'], st
       record.cycle = { start: sequenceAt[confirmed.i], members: canonicalCycle(members, order), walked: members }
       const modals = new Set(members.map(member => context.descriptions.get(member)?.modal ?? -1))
       const [modal] = [...modals]
-      // Legitimate only when every member shares one aria-modal container (APG modal dialog).
-      record.outcome = modals.size === 1 && modal !== undefined && modal > 0 ? 'modal-cycle' : 'trap'
+      // Legitimate only when every member shares one aria-modal container (APG modal dialog), and the
+      // cycle visits every tab stop of that container: a cycle over some of them is a trap inside it.
+      let outcome: WalkOutcome = 'trap'
+      if (modals.size === 1 && modal !== undefined && modal > 0) {
+        const groups = new Set(members.map(member => context.descriptions.get(member)?.radioGroup).filter(Boolean))
+        const skipped = (await modalStops(modal)).filter(stop => !members.includes(stop.id) && !(stop.radioGroup && groups.has(stop.radioGroup))).map(stop => stop.id)
+        if (skipped.length > 0) record.skipped = skipped
+        else outcome = 'modal-cycle'
+      }
+      settleOutcome(outcome, record.stops.slice(record.cycle.start).every(stop => stop.stepped))
       break
     }
     if (stuck) {
-      // A modal whose only focusable control keeps Tab (APG: Tab stays on it) is a cycle of one,
-      // judged like any modal cycle: it must release on Escape or one of its buttons.
+      // A modal whose ONLY tab stop keeps Tab (APG: Tab stays on it) is a cycle of one, judged like
+      // any modal cycle: it must release on Escape or one of its buttons. A control that swallows Tab
+      // inside a modal with other tab stops is stuck, like anywhere else.
       const last = record.stops[record.stops.length - 1]
-      if (last.modal > 0) {
+      const only = last.modal > 0 ? await modalStops(last.modal) : []
+      if (only.length === 1 && only[0].id === last.id) {
         record.outcome = 'modal-cycle'
         record.cycle = { start: record.stops.findIndex(stop => stop.id === last.id), members: [last.id], walked: [last.id] }
-      } else record.outcome = 'stuck'
+      } else settleOutcome('stuck', record.stops.slice(-(run + 1)).every(stop => stop.stepped))
       break
     }
+    if (read.framed) { settleOutcome('frame', step); break }
     if (read.active.location === terminal) { record.outcome = 'exited'; break }
-    if (read.active.location === opposite) { record.outcome = 'wrapped'; break }
-    if (read.active.location === 'frame') { record.outcome = 'frame'; break }
+    if (read.active.location === opposite) { settleOutcome('wrapped', step); break }
+    if (step) await judgeCover()
   }
   record.ms = Math.round(performance.now() - started)
   if (process.env.HARBORLINE_GALLERY_TAB_WALK_TRACE) {
     const read = await runtimeCall(context, () => page.evaluate(() => window.__hlpTabWalk!.read()))
     trace(context, `in-page cost so far ${JSON.stringify(Object.fromEntries(Object.entries(read.costMs ?? {}).map(([k, v]) => [k, Math.round(v)])))}; node ${JSON.stringify(Object.fromEntries(Object.entries(timing).map(([k, v]) => [k, Math.round(v)])))}`)
   }
-  trace(context, `${direction} ${record.outcome}${record.unconfirmed ? '?' : ''} presses=${record.presses} step=${record.stepPresses} stops=${record.stops.length} ms=${record.ms}`)
+  trace(context, `${direction} ${record.outcome}${record.unconfirmed ? '?' : ''} presses=${record.presses} step=${record.stepPresses} stops=${record.stops.length} reveals=${record.reveals.length} ms=${record.ms}`)
   return record
 }
 
@@ -826,24 +984,28 @@ async function releaseModal(context: Context, walk: WalkRecord): Promise<Release
 }
 
 const settledOutcomes = new Set<WalkOutcome>(['trap', 'stuck', 'cap', 'wrapped', 'frame', 'deadline'])
+const MAX_REVEALS = 3
 
-// One direction from its sentinel: retried (up to three times, not counting modal releases) until a
-// walk is clean, that is, it exited, released no modal, left the tab-stop census unchanged, and
-// nothing in it is unconfirmed.
+// One direction from its sentinel: retried (up to three times, not counting modal releases or
+// reveals) until a walk is clean, that is, it exited, released no modal, left the tab-stop census
+// unchanged, and nothing in it is unconfirmed. A walk that reached the declared press budget stops
+// the phase at once: it is the same walk however far a faster host would get.
 async function runPhase(context: Context, direction: 'forward' | 'reverse', lane: LaneWalk) {
   const walks = direction === 'forward' ? lane.forward : lane.reverse
   let stepThrough = 0
   let attempts = 0
   let releases = 0
+  let reveals = 0
   while (attempts < 3) {
     if (Date.now() >= context.deadline) return 'deadline'
     await runtimeCall(context, () => context.page.evaluate(dir => window.__hlpTabWalk!.anchor(dir), direction))
     const c0 = await runtimeCall(context, () => context.page.evaluate(() => window.__hlpTabWalk!.census()))
-    const walk = await walkOnce(context, direction, stepThrough, c0.count)
+    const walk = await walkOnce(context, direction, stepThrough, c0.presses)
     const c1 = await runtimeCall(context, () => context.page.evaluate(() => window.__hlpTabWalk!.census()))
     walk.c0 = c0.digest
     walk.c1 = c1.digest
     walks.push(walk)
+    if (walk.outcome === 'budget') return 'budget'
     if (walk.outcome === 'modal-cycle' && !walk.unconfirmed) {
       const releasing = performance.now()
       walk.release = await releaseModal(context, walk)
@@ -856,6 +1018,13 @@ async function runPhase(context: Context, direction: 'forward' | 'reverse', lane
       stepThrough = 0
       continue
     }
+    stepThrough = Math.max(stepThrough, walk.stepThrough)
+    // Escape revealed a covered stop and closed its popup: the phase is walked again from there.
+    if (walk.reveals.length > 0 && reveals < MAX_REVEALS) {
+      reveals += walk.reveals.length
+      await runtimeCall(context, () => context.page.evaluate(() => window.__hlpTabWalk!.settle(2_000)))
+      continue
+    }
     attempts += 1
     if (settledOutcomes.has(walk.outcome) && !walk.unconfirmed) return walk.outcome
     if (walk.outcome === 'exited' && walk.c0 === walk.c1 && !walk.unconfirmed) {
@@ -863,30 +1032,36 @@ async function runPhase(context: Context, direction: 'forward' | 'reverse', lane
       else lane.cleanReverse = walks.length - 1
       return undefined
     }
-    stepThrough = Math.max(stepThrough, walk.stepThrough)
   }
   return 'unstable'
 }
 
 // `settled` is whether the page went quiet before the walk (prepareLane). A page that never does
-// still walks, and the annotation says so.
-export async function walkLane(page: Page, { lane, deadline, settled = true, pressMs = 0 }: { lane: Projection; deadline: number; settled?: boolean; pressMs?: number }): Promise<LaneWalk> {
+// still walks, and the annotation says so. `pressBudget` comes from a register row (its scenario's
+// own key handling is too slow to walk in full); each walk stops after that many presses.
+export async function walkLane(page: Page, { lane, deadline, settled = true, pressMs = 0, pressBudget }: {
+  lane: Projection; deadline: number; settled?: boolean; pressMs?: number; pressBudget?: number
+}): Promise<LaneWalk> {
   const started = performance.now()
-  const context: Context = { page, deadline, keys: new Map(), descriptions: new Map(), unreleased: new Map(), lane }
+  const context: Context = { page, deadline, keys: new Map(), descriptions: new Map(), unreleased: new Map(), covers: new Map(), lane, ...(pressBudget ? { pressBudget } : {}) }
   const initial = await runtimeCall(context, () => page.evaluate(() => window.__hlpTabWalk!.active()))
   const census = await runtimeCall(context, () => page.evaluate(() => window.__hlpTabWalk!.census()))
   await describeAndResolve(context, [initial, ...census.positiveTabindex.map(entry => entry.stop)])
-  const walk: LaneWalk = { lane, keys: {}, census, forward: [], reverse: [], walkMs: 0, noisy: !settled, pressMs }
-  // Phase E: the focus the scenario prepared (an inline editor, an open menu or listbox). Judged for
-  // 2.1.2 only, so it is walked forward until it leaves; it cannot be repeated, because walking it
-  // changes the state it was prepared in, so its first presses are always taken in step mode.
-  // When the prepared focus already is the first stop from the top, E would walk exactly what F walks
-  // next, from the same state, so it is skipped and recorded as such.
-  walk.preparedAtFirstStop = initial.id > 0 && initial.id === census.first
+  const walk: LaneWalk = { lane, keys: {}, census, forward: [], reverse: [], walkMs: 0, noisy: !settled, pressMs, ...(pressBudget ? { pressBudget } : {}) }
+  // Phase E: the focus the scenario prepared (an inline editor, an open menu or listbox, a modal).
+  // It cannot be repeated, because walking it changes the state it was prepared in, so it is walked
+  // in step mode all the way (plan §3.6): nothing it sees needs a retry to be believed, and its
+  // outcome is always judged. A modal it releases is judged like a modal any phase releases.
+  // E is skipped only when it would walk exactly what F walks next, from the same state: the prepared
+  // focus is the first stop from the top, and nothing is open that F's anchor (which blurs the
+  // prepared element) could close.
+  walk.preparedAtFirstStop = initial.id > 0 && initial.id === census.first && census.openPopups === 0 && census.openModals.length === 0
   if (initial.id > 0 && !walk.preparedAtFirstStop) {
-    walk.prepared = await walkOnce(context, 'prepared', PREPARED_STEP_PRESSES, census.count)
+    walk.prepared = await walkOnce(context, 'prepared', Infinity, census.presses)
     if (walk.prepared.outcome === 'modal-cycle') {
+      const releasing = performance.now()
       walk.prepared.release = await releaseModal(context, walk.prepared)
+      walk.prepared.releaseMs = Math.round(performance.now() - releasing)
       trace(context, `prepared release ${JSON.stringify(walk.prepared.release)}`)
     }
     await runtimeCall(context, () => page.evaluate(() => window.__hlpTabWalk!.settle(2_000)))
@@ -983,7 +1158,9 @@ export function laneOrderLines(walk: LaneWalk): string[] {
   if (clean) {
     lines.push(...collapse(clean.stops).filter(entry => !entry.stop.scroller).map(entry => stopLine(walk, entry)), 'exited')
   } else if (walk.forwardStopped && walk.forwardStopped !== 'modal not released') {
-    lines.push(walk.forwardStopped)
+    // A walk stopped at its declared press budget is recorded as that budget, not as the stops a host
+    // happened to reach, so the line is the same on every host.
+    lines.push(walk.forwardStopped === 'budget' ? `budget: ${walk.pressBudget} presses` : walk.forwardStopped)
   }
   return lines
 }
@@ -1042,7 +1219,7 @@ function stopFindings(walk: LaneWalk, record: WalkRecord, direction: string) {
 
 function outcomeFinding(walk: LaneWalk, record: WalkRecord, direction: string): string[] {
   switch (record.outcome) {
-    case 'trap': return [`2.1.2 ${direction} trap: ↻ ${record.cycle!.members.map(id => keyIn(walk, id)).join(' → ')}`]
+    case 'trap': return [`2.1.2 ${direction} trap: ↻ ${record.cycle!.members.map(id => keyIn(walk, id)).join(' → ')}${record.skipped ? `; never reaches ${record.skipped.map(id => keyIn(walk, id)).join(', ')}` : ''}`]
     case 'stuck': return [`2.1.2 ${direction} stuck: ${keyIn(walk, record.stops.at(-1)!.id)}`]
     case 'cap': return [`2.1.2 ${direction} cap: ${record.cap} presses without leaving, last ${collapse(record.stops).slice(-10).map(entry => keyIn(walk, entry.stop.id)).join(' → ')}`]
     case 'wrapped': return [`2.1.2 ${direction} wrapped: focus reached the opposite end of the page`]
@@ -1063,9 +1240,11 @@ function releaseFindings(walk: LaneWalk, record: WalkRecord, direction: string) 
 
 // The walks a lane is judged on: every walk that released a modal, the clean walk, and, when a phase
 // stopped, the walk that stopped it. Transitional walks (the page changed under them) are retried,
-// not judged.
+// not judged. A walk that stopped at its declared press budget is not judged at all: how far it got,
+// and so what it saw, depends on the host.
 function judgedWalks(records: readonly WalkRecord[], clean: number | undefined, stopped: string | undefined) {
-  return records.filter((record, index) => record.release !== undefined || index === clean || (stopped && index === records.length - 1))
+  return records.filter((record, index) => record.outcome !== 'budget'
+    && (record.release !== undefined || index === clean || (stopped && index === records.length - 1)))
 }
 
 // Every finding of one lane, one line each, sorted: `<clause> <direction> <kind>: <detail>`.
@@ -1073,9 +1252,15 @@ export function laneFindingLines(walk: LaneWalk): string[] {
   const lines = new Set<string>()
   const add = (values: string[]) => values.forEach(value => lines.add(value))
   if (walk.prepared) {
+    // E is walked in step mode throughout, so its outcome always counts. When it released a modal, the
+    // modal was reached from the prepared focus and F and R walk a page without it: its stops (2.4.11,
+    // modal leak, focus lost) and its Shift+Tab retrace are judged here, as for any released modal.
     const prepared = walk.prepared
-    if (!prepared.unconfirmed) add(outcomeFinding(walk, prepared, 'prepared'))
-    if (prepared.release && !prepared.release.released) add(releaseFindings(walk, prepared, 'prepared').filter(line => line.startsWith('2.1.2')))
+    if (prepared.outcome !== 'budget') add(outcomeFinding(walk, prepared, 'prepared'))
+    if (prepared.release) {
+      add(stopFindings(walk, prepared, 'prepared'))
+      add(releaseFindings(walk, prepared, 'prepared'))
+    }
   }
   for (const [direction, records, clean, stopped] of [
     ['forward', walk.forward, walk.clean, walk.forwardStopped],
@@ -1089,7 +1274,7 @@ export function laneFindingLines(walk: LaneWalk): string[] {
     // repeated to confirm what it saw, so focus lost to an element the page removed is taken from it
     // as it happened. Its other findings are judged on the walk that follows.
     for (const record of records) {
-      if (record.release || record.c0 === undefined || record.c0 === record.c1) continue
+      if (record.release || record.outcome === 'budget' || record.c0 === undefined || record.c0 === record.c1) continue
       record.stops.forEach((stop, index) => { if (stop.location === 'body') lines.add(focusLost(walk, record, index, direction)) })
     }
     const last = records.at(-1)
@@ -1181,6 +1366,7 @@ export type TabWalkCoverage = {
   releases: number
   scrollers: number
   partial: number
+  // Stops a user-opened popup covered that Escape revealed with focus kept (2.4.11 Note 2, verified).
   exemptUserOpened: number
   unmeasured: number
   returned: number
@@ -1189,6 +1375,7 @@ export type TabWalkCoverage = {
   noisy: boolean
   pressMs: number
   preparedSkipped: boolean
+  budgeted: boolean
   walkMs: number
 }
 
@@ -1205,7 +1392,7 @@ export function laneCoverage(walk: LaneWalk): TabWalkCoverage {
     releases: records.filter(record => record.release?.released).length,
     scrollers: new Set(allStops.filter(stop => stop.scroller).map(stop => stop.id)).size,
     partial: allStops.filter(stop => stop.verdict?.partial).length,
-    exemptUserOpened: allStops.filter(stop => stop.verdict?.kind === 'exempt-user-opened').length,
+    exemptUserOpened: records.reduce((total, record) => total + record.reveals.length, 0),
     unmeasured: allStops.filter(stop => stop.verdict?.kind === 'unmeasured').length,
     returned: allStops.filter(stop => stop.returned).length,
     census: walk.census.count,
@@ -1213,6 +1400,7 @@ export function laneCoverage(walk: LaneWalk): TabWalkCoverage {
     noisy: walk.noisy,
     pressMs: walk.pressMs ?? 0,
     preparedSkipped: Boolean(walk.preparedAtFirstStop),
+    budgeted: walk.forwardStopped === 'budget' || walk.reverseStopped === 'budget' || walk.prepared?.outcome === 'budget',
     walkMs: walk.walkMs,
   }
 }
