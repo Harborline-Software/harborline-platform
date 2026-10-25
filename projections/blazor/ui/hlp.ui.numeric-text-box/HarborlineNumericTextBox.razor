@@ -63,8 +63,10 @@
     private string EffectiveLocale => Locale ?? LocaleContext?.Locale ?? "en";
     private string ResolvedIncrementLabel => LocaleContext?.ResolveString("forms.numeric.increment", instanceOverride: IncrementLabel) ?? IncrementLabel ?? "Increment";
     private string ResolvedDecrementLabel => LocaleContext?.ResolveString("forms.numeric.decrement", instanceOverride: DecrementLabel) ?? DecrementLabel ?? "Decrement";
-    private bool AtMaximum => Max is double max && Current is double current && current >= max;
-    private bool AtMinimum => Min is double min && Current is double current && current <= min;
+    // A spinner starts from current or zero (SpinAsync), so a bound is judged from that same anchor:
+    // an empty value at min 0 is at the bound, as in the React lane.
+    private bool AtMaximum => Max is double max && (Current ?? 0) >= max;
+    private bool AtMinimum => Min is double min && (Current ?? 0) <= min;
     private string SizeToken => Size switch { NumericTextBoxSize.Small => "sm", NumericTextBoxSize.Large => "lg", _ => "md" };
     private string FillToken => FillMode.ToString().ToLowerInvariant();
     private string RoundedToken => Rounded.ToString().ToLowerInvariant();
@@ -167,12 +169,30 @@
                     }
                     catch (ArgumentException) { numberFormat.CurrencySymbol = Currency; }
                     numberFormat.CurrencyDecimalDigits = digits;
-                    return value.Value.ToString("C", numberFormat);
+                    return FormatHalfExpand(value.Value, "C", digits, numberFormat);
                 }
-                return value.Value.ToString($"P{digits}", culture);
+                // P multiplies by 100, so the value is rounded two places further right.
+                return FormatHalfExpand(value.Value, $"P{digits}", digits + 2, culture);
             }
-            return value.Value.ToString($"N{Decimals}", culture);
+            return FormatHalfExpand(value.Value, $"N{Decimals}", Decimals, culture);
         }
         catch (CultureNotFoundException) { return value.Value.ToString("R", CultureInfo.InvariantCulture); }
+    }
+
+    // The React lane formats through Intl.NumberFormat, which rounds the shortest round-trip decimal
+    // of the double half away from zero (rounding mode halfExpand). .NET rounds a double's exact
+    // binary value half to even, so 1234.5 as c0 read $1,234 here and $1,235 there (T-1108). Round
+    // that same decimal half away from zero first; formatting the result then has nothing to round.
+    private static string FormatHalfExpand(double value, string format, int scale, IFormatProvider provider)
+    {
+        // A double beyond decimal's range is an integer, so it has no midpoint to break; a scale
+        // decimal cannot round to keeps the plain double formatting.
+        if (scale is < 0 or > 28 || !decimal.TryParse(value.ToString("R", CultureInfo.InvariantCulture), NumberStyles.Float, CultureInfo.InvariantCulture, out var shortest))
+            return value.ToString(format, provider);
+        var rounded = decimal.Round(shortest, scale, MidpointRounding.AwayFromZero);
+        // decimal has no negative zero; Intl keeps the sign of a negative value that rounds to zero.
+        return rounded == 0m
+            ? (double.IsNegative(value) ? -0.0 : 0.0).ToString(format, provider)
+            : rounded.ToString(format, provider);
     }
 }

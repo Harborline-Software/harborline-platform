@@ -140,6 +140,56 @@ describe('NumericTextBox revision-1 shared fixtures', () => {
     expect(textbox()).toHaveValue('12.50%')
   })
 
+  // T-1108: the Blazor lane asserts this same table, from the same fixture input.
+  it('formats the formatting fixture value in every listed format, c0 rounding its midpoint away from zero', () => {
+    const { input } = fixture(sharedCases, 'numeric-text-box.formatting')
+    const value = input.value as number
+    const formats = input.formats as Array<string | null>
+    const intl: Record<string, string> = { '': '1,234.50', c0: '$1,235', c2: '$1,234.50', p0: '123,450%', p2: '123,450.00%' }
+    const rendered = render(<NumericTextBox aria-label="Amount" currency="USD" locale="en-US" value={value} />)
+    for (const format of formats) {
+      rendered.rerender(<NumericTextBox aria-label="Amount" currency="USD" format={format ?? undefined} locale="en-US" value={value} />)
+      expect(textbox()).toHaveValue(intl[format ?? ''])
+    }
+  })
+
+  // T-1108: the Blazor lane asserts this same table. Intl's default rounding mode is halfExpand, and
+  // it keeps the sign of a negative value that rounds to zero.
+  it.each([
+    [1234.5, 'c0', 2, '$1,235'],
+    [-1234.5, 'c0', 2, '-$1,235'],
+    [0.125, 'p0', 2, '13%'],
+    [2.5, undefined, 0, '3'],
+    [0.5, undefined, 0, '1'],
+    [1.005, 'c2', 2, '$1.01'],
+    [2.675, undefined, 2, '2.68'],
+    [-0.4, undefined, 0, '-0'],
+    [-0.4, 'c0', 2, '-$0'],
+    [-0, undefined, 2, '-0.00'],
+    [-0.004, 'p0', 2, '-0%'],
+  ] as const)('formats %s with format %s and %s decimals as %s', (value, format, decimals, expected) => {
+    render(<NumericTextBox aria-label="Amount" currency="USD" decimals={decimals} format={format} locale="en-US" value={value} />)
+    expect(textbox()).toHaveValue(expected)
+  })
+
+  // T-1108: a spinner starts from current or zero, so an empty value is at a bound of zero.
+  it('disables the spinner whose zero anchor is at its bound when the value is empty, and emits nothing', () => {
+    const onChange = vi.fn()
+    const controlled = render(<NumericTextBox aria-label="Amount" min={0} onChange={onChange} value={null} />)
+    expect(screen.getByRole('button', { name: 'Decrement' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Increment' })).toBeEnabled()
+    fireEvent.click(screen.getByRole('button', { name: 'Decrement' }))
+    fireEvent.keyDown(textbox(), { key: 'ArrowDown' })
+    controlled.unmount()
+
+    render(<NumericTextBox aria-label="Amount" max={0} onChange={onChange} />)
+    expect(screen.getByRole('button', { name: 'Increment' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Decrement' })).toBeEnabled()
+    fireEvent.click(screen.getByRole('button', { name: 'Increment' }))
+    fireEvent.keyDown(textbox(), { key: 'ArrowUp' })
+    expect(onChange).not.toHaveBeenCalled()
+  })
+
   it('uses provider direction, explicit formatting locale, and label precedence', () => {
     fixture(sharedCases, 'numeric-text-box.locale-rtl-labels')
     render(
