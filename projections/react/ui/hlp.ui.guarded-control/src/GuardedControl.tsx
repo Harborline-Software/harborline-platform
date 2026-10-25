@@ -23,7 +23,18 @@ export interface GuardedControlProps
 }
 
 const ARM_WINDOW_MS = 5000
+const ARM_WINDOW_SECONDS = ARM_WINDOW_MS / 1000
 const BLUR_GRACE_MS = 800
+const PLURAL_CATEGORIES: readonly Intl.LDMLPluralRule[] = ['zero', 'one', 'two', 'few', 'many', 'other']
+
+// The locale's CLDR cardinal category, as the locale provider's tn selects it.
+function pluralCategory(locale: string, count: number): Intl.LDMLPluralRule {
+  try {
+    return new Intl.PluralRules(locale).select(count)
+  } catch {
+    return count === 1 ? 'one' : 'other'
+  }
+}
 
 function descriptionIds(value: GuardedControlProps['describedBy']): string | undefined {
   if (typeof value === 'string') return value || undefined
@@ -35,11 +46,11 @@ export function GuardedControl({
   className, ...hostAttributes
 }: GuardedControlProps) {
   const invalid = !action.trim() || !classificationId.trim() || !label.trim()
-  const { locale, direction, formatNumber, t } = useHarborlineStrings()
+  const { locale, direction, formatNumber, t, tn } = useHarborlineStrings()
   const { catalog } = useHarborlineLocale()
   const reducedMotion = useMediaQuery('(prefers-reduced-motion: reduce)')
   const [state, setState] = React.useState<GuardedControlState>('covered')
-  const [seconds, setSeconds] = React.useState(5)
+  const [seconds, setSeconds] = React.useState(ARM_WINDOW_SECONDS)
   const [announcement, setAnnouncement] = React.useState('')
   const stateRef = React.useRef(state)
   const mounted = React.useRef(true)
@@ -92,7 +103,6 @@ export function GuardedControl({
   React.useEffect(() => {
     if (state !== 'armed') return
     deadline.current = Date.now() + ARM_WINDOW_MS
-    setSeconds(5)
     const tick = window.setInterval(() => {
       const next = Math.max(0, Math.ceil((deadline.current - Date.now()) / 1000))
       setSeconds(current => current === next ? current : next)
@@ -135,11 +145,33 @@ export function GuardedControl({
     if (state === 'armed') armedRef.current?.focus()
   }, [state])
 
+  // An amount of time ("5 seconds"), which the armed instruction places after "within"; never a
+  // relative time ("in 5 seconds"). Both lanes resolve it alike: the host catalog's
+  // chrome.guard.duration form for the count, picked by the locale provider's plural selection from
+  // the keys the catalog holds, with the number from the provider's formatter. Without such a form,
+  // the locale's CLDR unit pattern through the same formatter (Blazor, without CLDR unit data, writes
+  // English there: T-1105).
+  const formatDuration = (count: number) => {
+    const keys: Partial<Record<Intl.LDMLPluralRule, string>> = {}
+    for (const category of PLURAL_CATEGORIES) {
+      const key = `chrome.guard.duration.${category}`
+      if (catalog[key] !== undefined) keys[category] = key
+    }
+    if ((keys[pluralCategory(locale, count)] ?? keys.other) !== undefined) return tn(count, keys, { seconds: formatNumber(count) })
+    try {
+      return formatNumber(count, { style: 'unit', unit: 'second', unitDisplay: 'long' })
+    } catch {
+      return `${formatNumber(count)} ${count === 1 ? 'second' : 'seconds'}`
+    }
+  }
+
+  // Every arm states the full window, never the countdown a previous attempt left behind.
   const arm = () => {
     if (disabled || invalid || stateRef.current !== 'covered') return
     committed.current = false
+    setSeconds(ARM_WINDOW_SECONDS)
     transition('armed')
-    setAnnouncement(wholeMessage('chrome.guard.armed.whole', 'Armed for {action}. Activate again within {duration} to commit.', { action: `\u2068${label}\u2069`, duration }))
+    setAnnouncement(wholeMessage('chrome.guard.armed.whole', 'Armed for {action}. Activate again within {duration} to commit.', { action: `\u2068${label}\u2069`, duration: formatDuration(ARM_WINDOW_SECONDS) }))
   }
   const commit = () => {
     if (disabled || invalid || stateRef.current !== 'armed' || committed.current) return
@@ -171,10 +203,7 @@ export function GuardedControl({
     observe?.({ type: 'commit-settled', outcome })
   }
 
-  // An amount of time ("5 seconds"), which the armed instruction places after "within"; never a
-  // relative time ("in 5 seconds"). The locale's unit pattern supplies the localized number and unit.
-  let duration = `${formatNumber(seconds)} ${seconds === 1 ? 'second' : 'seconds'}`
-  try { duration = new Intl.NumberFormat(locale, { style: 'unit', unit: 'second', unitDisplay: 'long' }).format(seconds) } catch { /* fallback is deterministic */ }
+  const duration = formatDuration(seconds)
   const inert = disabled || invalid
   const ids = descriptionIds(describedBy)
   return (

@@ -1,7 +1,8 @@
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { HarborlineLocaleProvider } from '@harborline-platform/hlp.ui.locale-provider'
+import { HarborlineLocaleProvider, type HarborlineNumberFormatter } from '@harborline-platform/hlp.ui.locale-provider'
 import { GuardedControl } from '../GuardedControl'
+import { durationCases } from './fixtures'
 
 afterEach(() => vi.useRealTimers())
 describe('GuardedControl React projection', () => {
@@ -48,14 +49,30 @@ describe('GuardedControl React projection', () => {
     expect(screen.getByRole('timer')).toHaveTextContent('5 seconds')
   })
 
-  it('localizes the armed instruction and its duration through the catalog and the locale', () => {
-    render(
-      <HarborlineLocaleProvider locale="fr-FR" catalog={{ 'chrome.guard.armed.whole': 'Armé pour {action}. Activez de nouveau dans un délai de {duration} pour valider.' }}>
-        <GuardedControl action="a" classificationId="c" label="Publier" onCommit={() => undefined}/>
-      </HarborlineLocaleProvider>,
-    )
-    fireEvent.click(screen.getByRole('button', { name: 'Publier' }))
-    // The locale's unit pattern joins number and unit with a no-break space in French.
-    expect(screen.getByRole('status').textContent).toBe('Armé pour \u2068Publier\u2069. Activez de nouveau dans un délai de 5\u00a0secondes pour valider.')
+  // T-1105 review: both lanes replay conformance/hlp.ui.guarded-control/duration-v1.json, so one
+  // catalog, locale and host formatter give one armed instruction and one countdown in both.
+  describe('duration (conformance/hlp.ui.guarded-control/duration-v1.json)', () => {
+    it.each(durationCases.map(fixture => [fixture.id, fixture] as const))('%s', (_id, fixture) => {
+      vi.useFakeTimers()
+      const numberingSystem = fixture.hostNumberingSystem
+      const numberFormatter: HarborlineNumberFormatter | undefined = numberingSystem === undefined
+        ? undefined
+        : (value, { locale, options }) => new Intl.NumberFormat(locale, { ...options, numberingSystem }).format(value)
+      render(
+        <HarborlineLocaleProvider locale={fixture.locale} catalog={fixture.catalog} numberFormatter={numberFormatter}>
+          <GuardedControl action="a" classificationId="c" label={fixture.label} onCommit={() => undefined}/>
+        </HarborlineLocaleProvider>,
+      )
+      for (const step of fixture.steps) {
+        if (step === 'arm') fireEvent.click(screen.getByRole('button'))
+        else if (step === 'tick') act(() => vi.advanceTimersByTime(1000))
+        else if (step === 'escape') fireEvent.keyDown(document, { key: 'Escape' })
+        else throw new Error(`unknown-step: ${String(step)}`)
+      }
+      const expected = fixture.divergence?.lane === 'react' ? fixture.divergence.expected : fixture.expected
+      expect(screen.getByRole('status').textContent).toBe(expected.status)
+      expect(screen.getByRole('timer').textContent).toBe(expected.timer)
+      expect(screen.getByRole('timer')).toHaveAccessibleName(expected.timer)
+    })
   })
 })

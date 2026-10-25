@@ -1,7 +1,11 @@
+using System.Globalization;
 using System.Reflection;
+using System.Text.Json;
 using Bunit;
+using Harborline.Foundation.Localization;
 using Harborline.UIAdapters.Blazor.Components.Buttons;
 using Harborline.UIAdapters.Blazor.Localization;
+using Microsoft.AspNetCore.Components.Web;
 using Xunit;
 
 namespace Harborline.UIAdapters.Blazor.Tests;
@@ -12,7 +16,8 @@ namespace Harborline.UIAdapters.Blazor.Tests;
 /// report-one-recovery, so the recovered (or settled) message and the focus move belong to the
 /// transition itself, not to whatever render happens to come after it. The timeout, host and
 /// rejected-commit paths run outside an event handler's automatic render, which is where a message
-/// set after the transition's render stayed stale.
+/// set after the transition's render stayed stale. The armed instruction and its countdown are
+/// replayed from the fixture the React lane replays too (duration-v1.json).
 /// </summary>
 public sealed class GuardedControlAnnouncementTests : BunitContext
 {
@@ -84,6 +89,8 @@ public sealed class GuardedControlAnnouncementTests : BunitContext
 
         Assert.Equal("covered", GuardState(cut));
         Assert.Equal($"Guard restored for {Isolated}.", Status(cut));
+        // Navigation restores focus now: one move from arming, one from the recovery's own render.
+        cut.WaitForAssertion(() => Assert.Equal(2, FocusCalls));
     }
 
     // An asynchronous rejection: the click handler's own render ran when the operation started, and a
@@ -106,6 +113,9 @@ public sealed class GuardedControlAnnouncementTests : BunitContext
         Assert.Equal("covered", GuardState(cut));
         Assert.Equal($"Could not complete {Isolated}. Guard restored.", Status(cut));
         Assert.DoesNotContain("caller failure", cut.Markup, StringComparison.Ordinal);
+        // Focus returns with the settlement's own render: one move from arming, one from settling. A
+        // wait would rethrow the routed failure, and the render has already happened.
+        Assert.Equal(2, FocusCalls);
     }
 
     [Fact]
@@ -119,26 +129,96 @@ public sealed class GuardedControlAnnouncementTests : BunitContext
         Assert.DoesNotContain("within in", cut.Markup, StringComparison.Ordinal);
     }
 
-    [Fact]
-    public void HostCatalogLocalizesTheArmedInstructionAndDuration()
+    // T-1105 review: both lanes replay conformance/hlp.ui.guarded-control/duration-v1.json (the React
+    // half is GuardedControl.native.test.tsx), so one catalog, locale and host formatter give one armed
+    // instruction and one countdown in both. A case the fixture does not declare is an error.
+    private static string Repo(string relative) => Path.Combine(
+        Environment.GetEnvironmentVariable("HARBORLINE_REPO_ROOT") ?? Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../../../../")),
+        relative);
+
+    private static readonly JsonElement DurationFixture =
+        JsonElement.Parse(File.ReadAllText(Repo("conformance/hlp.ui.guarded-control/duration-v1.json")));
+
+    public static TheoryData<string> DurationCaseIds()
     {
+        var ids = new TheoryData<string>();
+        foreach (var fixture in DurationFixture.GetProperty("cases").EnumerateArray()) ids.Add(fixture.GetProperty("id").GetString()!);
+        return ids;
+    }
+
+    [Theory]
+    [MemberData(nameof(DurationCaseIds))]
+    public async Task DurationFixtureReplays(string caseId)
+    {
+        var fixture = DurationFixture.GetProperty("cases").EnumerateArray()
+            .Single(candidate => candidate.GetProperty("id").GetString() == caseId);
+        var clock = new ManualClock();
         var provider = Render<HarborlineLocaleProvider>(p => p
-            .Add(x => x.Locale, "fr-FR")
-            .Add(x => x.Catalog, new Dictionary<string, string>
-            {
-                ["chrome.guard.armed.whole"] = "Armé pour {action}. Activez de nouveau dans un délai de {duration} pour valider.",
-                ["chrome.guard.duration.other"] = "{seconds} secondes",
-            })
+            .Add(x => x.Locale, fixture.GetProperty("locale").GetString()!)
+            .Add(x => x.Catalog, fixture.GetProperty("catalog").EnumerateObject().ToDictionary(entry => entry.Name, entry => entry.Value.GetString()!))
+            .Add(x => x.NumberFormatter, fixture.TryGetProperty("hostNumberingSystem", out var system) ? HostFormatter(system.GetString()!) : null)
             .AddChildContent<HarborlineGuardedControl>(guard => guard
                 .Add(x => x.Action, "packages.export")
                 .Add(x => x.ClassificationId, "new-record-type")
-                .Add(x => x.Label, "Publier")
+                .Add(x => x.Label, fixture.GetProperty("label").GetString()!)
                 .Add(x => x.OnCommit, () => { })));
         var cut = provider.FindComponent<HarborlineGuardedControl>();
-        cut.Find("button").Click();
+        UseClock(cut.Instance, clock);
 
-        Assert.Equal("Armé pour \u2068Publier\u2069. Activez de nouveau dans un délai de 5 secondes pour valider.", Status(cut));
-        Assert.Equal("5 secondes", cut.Find("[role=timer]").TextContent);
+        foreach (var step in fixture.GetProperty("steps").EnumerateArray().Select(value => value.GetString()))
+        {
+            switch (step)
+            {
+                case "arm":
+                    cut.WaitForAssertion(() => Assert.Equal("covered", GuardState(cut)));
+                    cut.Find("button").Click();
+                    break;
+                case "tick":
+                    await clock.FireNextAsync();
+                    // The second is applied once the guard waits on its next second, or has recovered.
+                    await WaitUntilAsync(() => clock.HasScheduled || cut.Instance.State != GuardedControlState.Armed);
+                    break;
+                case "escape":
+                    await cut.Find("button").KeyDownAsync(new KeyboardEventArgs { Key = "Escape" });
+                    break;
+                default:
+                    throw new InvalidOperationException($"unknown-step: {step}");
+            }
+        }
+
+        var expected = fixture.TryGetProperty("divergence", out var divergence) && divergence.GetProperty("lane").GetString() == "blazor"
+            ? divergence.GetProperty("expected")
+            : fixture.GetProperty("expected");
+        cut.WaitForAssertion(() =>
+        {
+            Assert.Equal(expected.GetProperty("status").GetString(), Status(cut));
+            Assert.Equal(expected.GetProperty("timer").GetString(), cut.Find("[role=timer]").TextContent);
+            Assert.Equal(expected.GetProperty("timer").GetString(), cut.Find("[role=timer]").GetAttribute("aria-label"));
+        });
+    }
+
+    // The fixture's host formatter: the digits of one CLDR numbering system, whatever the locale.
+    private static HarborlineNumberFormatter HostFormatter(string numberingSystem)
+    {
+        var zero = numberingSystem switch
+        {
+            "latn" => '0',
+            "arab" => '\u0660',
+            _ => throw new InvalidOperationException($"unknown-numbering-system: {numberingSystem}"),
+        };
+        return request => string.Concat(request.Value.ToString(CultureInfo.InvariantCulture)
+            .Select(digit => char.IsAsciiDigit(digit) ? (char)(zero + (digit - '0')) : digit));
+    }
+
+    /// <summary>Waits, on real time, until the condition holds.</summary>
+    private static async Task WaitUntilAsync(Func<bool> condition)
+    {
+        var deadline = DateTime.UtcNow.AddSeconds(5);
+        while (!condition())
+        {
+            if (DateTime.UtcNow > deadline) throw new TimeoutException("The guard did not settle after the delay fired.");
+            await Task.Delay(10);
+        }
     }
 
     // The arm window runs on the component's private clock, which is the system clock outside tests.
@@ -183,6 +263,9 @@ public sealed class GuardedControlAnnouncementTests : BunitContext
                 await Task.Delay(10);
             }
         }
+
+        /// <summary>Whether the component is waiting on a delay that has not fired yet.</summary>
+        public bool HasScheduled { get { lock (gate) return scheduled.Count > 0; } }
 
         private sealed class ManualTimer(ManualClock clock, TimerCallback callback, object? state) : ITimer
         {

@@ -40,6 +40,8 @@
 
 @code {
   private const int ArmWindowMilliseconds = 5000;
+  private const int ArmWindowSeconds = ArmWindowMilliseconds / 1000;
+  private static readonly HarborlinePluralCategory[] DurationCategories = Enum.GetValues<HarborlinePluralCategory>();
   [CascadingParameter] private HarborlineLocaleContext? LocaleContext { get; set; }
   [Parameter, EditorRequired] public string Action { get; set; } = string.Empty;
   [Parameter, EditorRequired] public string ClassificationId { get; set; } = string.Empty;
@@ -57,7 +59,7 @@
   private bool deferredFocus;
   private bool disposed;
   private bool navigationSubscribed;
-  private int remainingSeconds = 5;
+  private int remainingSeconds = ArmWindowSeconds;
   private string announcement = string.Empty;
   private TimeProvider clock = TimeProvider.System;
   private CancellationTokenSource? attempt;
@@ -73,19 +75,7 @@
   private string ArmedName => WholeMessage("chrome.guard.armed.whole", "Armed for {action}. Activate again within {duration} to commit.", MessageVariables);
   private string CommittingName => Resolve("chrome.guard.committing.label", "Committing {action}.");
   private string LoadingText => LocaleContext?.ResolveString("common.loading", new Dictionary<string, object?>(), "Loading") ?? "Loading";
-  // An amount of time ("5 seconds"), which the armed instruction places after "within"; never a
-  // relative time ("in 5 seconds"). The locale's plural category picks the catalog form, then other.
-  private string DurationText
-  {
-    get
-    {
-      var number = LocaleContext?.FormatNumber(remainingSeconds) ?? remainingSeconds.ToString(System.Globalization.CultureInfo.InvariantCulture);
-      var category = LocaleContext?.PluralCategory(remainingSeconds) ?? (remainingSeconds == 1 ? HarborlinePluralCategory.One : HarborlinePluralCategory.Other);
-      var key = $"chrome.guard.duration.{category.ToString().ToLowerInvariant()}";
-      if (LocaleContext?.Catalog.ContainsKey(key) != true) key = "chrome.guard.duration.other";
-      return WholeMessage(key, remainingSeconds == 1 ? "{seconds} second" : "{seconds} seconds", new Dictionary<string, object?> { ["seconds"] = number });
-    }
-  }
+  private string DurationText => Duration(remainingSeconds);
 
   protected override void OnParametersSet()
   {
@@ -101,6 +91,29 @@
       ? locale.ResolveString(key, variables, locale.Catalog.ContainsKey(key) ? null : fallback)
       : HarborlineDefaultStrings.Interpolate(fallback, variables);
 
+  // An amount of time ("5 seconds"), which the armed instruction places after "within"; never a
+  // relative time ("in 5 seconds"). Both lanes resolve it alike: the host catalog's
+  // chrome.guard.duration form for the count, picked by the locale provider's plural selection from
+  // the keys the catalog holds, with the number from the provider's formatter. Without such a form,
+  // .NET has no CLDR unit data, so English "{seconds} second(s)" (React uses the CLDR unit pattern
+  // there: T-1105).
+  private string Duration(int seconds)
+  {
+    var variables = new Dictionary<string, object?> { ["seconds"] = LocaleContext?.FormatNumber(seconds) ?? seconds.ToString(System.Globalization.CultureInfo.InvariantCulture) };
+    if (LocaleContext is { } locale)
+    {
+      var keys = new Dictionary<HarborlinePluralCategory, string>();
+      foreach (var category in DurationCategories)
+      {
+        var key = $"chrome.guard.duration.{category.ToString().ToLowerInvariant()}";
+        if (locale.Catalog.ContainsKey(key)) keys[category] = key;
+      }
+      if (keys.ContainsKey(locale.PluralCategory(seconds)) || keys.ContainsKey(HarborlinePluralCategory.Other))
+        return HarborlineDefaultStrings.Interpolate(locale.ResolvePlural(seconds, keys), variables);
+    }
+    return HarborlineDefaultStrings.Interpolate(seconds == 1 ? "{seconds} second" : "{seconds} seconds", variables);
+  }
+
   private async Task ActivateAsync()
   {
     if (IsInert || disposed) return;
@@ -112,7 +125,8 @@
   {
     if (State != GuardedControlState.Covered || commitLatch) return;
     attempt = new CancellationTokenSource();
-    remainingSeconds = 5;
+    // Every arm states the full window, never the countdown a previous attempt left behind.
+    remainingSeconds = ArmWindowSeconds;
     await TransitionAsync(GuardedControlState.Armed, "arm", ArmedName);
     focusArmed = true;
     _ = RunDeadlineAsync(attempt.Token);
@@ -156,7 +170,7 @@
       {
         await Task.Delay(TimeSpan.FromSeconds(1), clock, cancellationToken);
         if (cancellationToken.IsCancellationRequested || State != GuardedControlState.Armed) return;
-        remainingSeconds = Math.Max(0, 5 - elapsed / 1000);
+        remainingSeconds = Math.Max(0, ArmWindowSeconds - elapsed / 1000);
         await InvokeAsync(StateHasChanged);
       }
       await InvokeAsync(() => RecoverAsync(GuardedControlRecoveryReason.Timeout, true));

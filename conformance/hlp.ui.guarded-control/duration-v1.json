@@ -1,0 +1,176 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.guarded-control",
+  "fixtureRevision": 1,
+  "authority": {
+    "wholeMessage": "interface.yaml invariant: armed instructions and countdown values and units are localized as whole messages, with interpolated caller text bidi-isolated (U+2068 ... U+2069).",
+    "armWindow": "interface.yaml performance.armWindowMilliseconds is 5000, so every arm announces the full five-second window, never the countdown a previous attempt left behind.",
+    "pluralSelection": "hlp.ui.locale-provider: plural selection takes the effective locale's CLDR cardinal category, then the supplied category key, then the supplied other key (React tn, Blazor ResolvePlural). Each lane supplies exactly the chrome.guard.duration keys the host catalog holds.",
+    "numberFormatting": "hlp.ui.locale-provider and hlp.ui.default-strings: the caller formats the number before interpolation, through the nearest host number formatter, else the projection runtime (React formatNumber, Blazor FormatNumber).",
+    "fallback": "With no usable chrome.guard.duration key, React formats the amount with the locale's CLDR unit pattern (ECMA-402 Intl.NumberFormat, style unit, unit second, unitDisplay long) through the same formatter. Blazor has no CLDR unit data and writes the English '{seconds} second' or '{seconds} seconds'.",
+    "digits": "Without a host formatter each projection runtime picks the digits (ECMA-402 writes Arabic-Indic digits for ar-SA, .NET writes Western digits), so every ar-SA case names a host numbering system."
+  },
+  "seam": {
+    "catalogKeys": "chrome.guard.armed.whole takes {action} and {duration}; chrome.guard.duration.<zero|one|two|few|many|other> takes {seconds}.",
+    "steps": "arm activates the covered action; tick lets one second of the arm window elapse; escape presses Escape on the armed action.",
+    "hostNumberingSystem": "The case's host number formatter writes the digits of this CLDR numbering system (latn U+0030-U+0039, arab U+0660-U+0669) and honours any other options it is given. Absent means no host formatter.",
+    "expected": "status is the role=status text and timer is the role=timer text and name, read after the last step.",
+    "divergence": "A known lane divergence that the fixture pins, owned by the named ticket. For that lane, divergence.expected replaces expected."
+  },
+  "cases": [
+    {
+      "id": "duration.english-default",
+      "locale": "en",
+      "label": "Publish",
+      "catalog": {},
+      "steps": ["arm"],
+      "expected": {"status": "Armed for \u2068Publish\u2069. Activate again within 5 seconds to commit.", "timer": "5 seconds"}
+    },
+    {
+      "id": "duration.english-singular",
+      "locale": "en",
+      "label": "Publish",
+      "catalog": {},
+      "steps": ["arm", "tick", "tick", "tick", "tick"],
+      "expected": {"status": "Armed for \u2068Publish\u2069. Activate again within 5 seconds to commit.", "timer": "1 second"}
+    },
+    {
+      "id": "duration.rearm-after-timeout",
+      "locale": "en",
+      "label": "Publish",
+      "catalog": {},
+      "steps": ["arm", "tick", "tick", "tick", "tick", "tick", "arm"],
+      "expected": {"status": "Armed for \u2068Publish\u2069. Activate again within 5 seconds to commit.", "timer": "5 seconds"}
+    },
+    {
+      "id": "duration.rearm-after-escape",
+      "locale": "en",
+      "label": "Publish",
+      "catalog": {},
+      "steps": ["arm", "tick", "tick", "escape", "arm"],
+      "expected": {"status": "Armed for \u2068Publish\u2069. Activate again within 5 seconds to commit.", "timer": "5 seconds"}
+    },
+    {
+      "id": "duration.catalog-host-override",
+      "locale": "en",
+      "label": "Publish",
+      "catalog": {
+        "chrome.guard.duration.one": "{seconds} sec",
+        "chrome.guard.duration.other": "{seconds} secs"
+      },
+      "steps": ["arm"],
+      "expected": {"status": "Armed for \u2068Publish\u2069. Activate again within 5 secs to commit.", "timer": "5 secs"}
+    },
+    {
+      "id": "duration.catalog-whole-message-and-plural-forms",
+      "locale": "fr-FR",
+      "label": "Publier",
+      "catalog": {
+        "chrome.guard.armed.whole": "Armé pour {action}. Activez de nouveau dans un délai de {duration} pour valider.",
+        "chrome.guard.duration.one": "{seconds} seconde",
+        "chrome.guard.duration.other": "{seconds} secondes"
+      },
+      "steps": ["arm"],
+      "expected": {"status": "Armé pour \u2068Publier\u2069. Activez de nouveau dans un délai de 5 secondes pour valider.", "timer": "5 secondes"}
+    },
+    {
+      "id": "duration.catalog-plural-category-few",
+      "locale": "ar-SA",
+      "label": "تصدير",
+      "hostNumberingSystem": "arab",
+      "catalog": {
+        "chrome.guard.armed.whole": "تم تجهيز {action}. فعّل مرة أخرى خلال {duration} للتأكيد.",
+        "chrome.guard.duration.one": "ثانية واحدة",
+        "chrome.guard.duration.two": "ثانيتين",
+        "chrome.guard.duration.few": "{seconds} ثوانٍ",
+        "chrome.guard.duration.other": "{seconds} ثانية"
+      },
+      "steps": ["arm"],
+      "expected": {"status": "تم تجهيز \u2068تصدير\u2069. فعّل مرة أخرى خلال ٥ ثوانٍ للتأكيد.", "timer": "٥ ثوانٍ"}
+    },
+    {
+      "id": "duration.catalog-plural-category-two",
+      "locale": "ar-SA",
+      "label": "تصدير",
+      "hostNumberingSystem": "arab",
+      "catalog": {
+        "chrome.guard.armed.whole": "تم تجهيز {action}. فعّل مرة أخرى خلال {duration} للتأكيد.",
+        "chrome.guard.duration.one": "ثانية واحدة",
+        "chrome.guard.duration.two": "ثانيتين",
+        "chrome.guard.duration.few": "{seconds} ثوانٍ",
+        "chrome.guard.duration.other": "{seconds} ثانية"
+      },
+      "steps": ["arm", "tick", "tick", "tick"],
+      "expected": {"status": "تم تجهيز \u2068تصدير\u2069. فعّل مرة أخرى خلال ٥ ثوانٍ للتأكيد.", "timer": "ثانيتين"}
+    },
+    {
+      "id": "duration.catalog-plural-category-one",
+      "locale": "ar-SA",
+      "label": "تصدير",
+      "hostNumberingSystem": "arab",
+      "catalog": {
+        "chrome.guard.armed.whole": "تم تجهيز {action}. فعّل مرة أخرى خلال {duration} للتأكيد.",
+        "chrome.guard.duration.one": "ثانية واحدة",
+        "chrome.guard.duration.two": "ثانيتين",
+        "chrome.guard.duration.few": "{seconds} ثوانٍ",
+        "chrome.guard.duration.other": "{seconds} ثانية"
+      },
+      "steps": ["arm", "tick", "tick", "tick", "tick"],
+      "expected": {"status": "تم تجهيز \u2068تصدير\u2069. فعّل مرة أخرى خلال ٥ ثوانٍ للتأكيد.", "timer": "ثانية واحدة"}
+    },
+    {
+      "id": "duration.catalog-missing-category-falls-back-to-other",
+      "locale": "ar-SA",
+      "label": "تصدير",
+      "hostNumberingSystem": "arab",
+      "catalog": {
+        "chrome.guard.armed.whole": "تم تجهيز {action}. فعّل مرة أخرى خلال {duration} للتأكيد.",
+        "chrome.guard.duration.one": "ثانية واحدة",
+        "chrome.guard.duration.two": "ثانيتين",
+        "chrome.guard.duration.other": "{seconds} ثانية"
+      },
+      "steps": ["arm"],
+      "expected": {"status": "تم تجهيز \u2068تصدير\u2069. فعّل مرة أخرى خلال ٥ ثانية للتأكيد.", "timer": "٥ ثانية"}
+    },
+    {
+      "id": "duration.host-number-formatter-catalog",
+      "locale": "ar-SA",
+      "label": "تصدير",
+      "hostNumberingSystem": "latn",
+      "catalog": {
+        "chrome.guard.armed.whole": "تم تجهيز {action}. فعّل مرة أخرى خلال {duration} للتأكيد.",
+        "chrome.guard.duration.one": "ثانية واحدة",
+        "chrome.guard.duration.two": "ثانيتين",
+        "chrome.guard.duration.few": "{seconds} ثوانٍ",
+        "chrome.guard.duration.other": "{seconds} ثانية"
+      },
+      "steps": ["arm"],
+      "expected": {"status": "تم تجهيز \u2068تصدير\u2069. فعّل مرة أخرى خلال 5 ثوانٍ للتأكيد.", "timer": "5 ثوانٍ"}
+    },
+    {
+      "id": "duration.host-number-formatter-fallback",
+      "locale": "en",
+      "label": "Publish",
+      "hostNumberingSystem": "arab",
+      "catalog": {},
+      "steps": ["arm"],
+      "expected": {"status": "Armed for \u2068Publish\u2069. Activate again within ٥ seconds to commit.", "timer": "٥ seconds"}
+    },
+    {
+      "id": "duration.whole-message-without-duration-keys",
+      "locale": "fr-FR",
+      "label": "Publier",
+      "catalog": {
+        "chrome.guard.armed.whole": "Armé pour {action}. Activez de nouveau dans un délai de {duration} pour valider."
+      },
+      "steps": ["arm"],
+      "expected": {"status": "Armé pour \u2068Publier\u2069. Activez de nouveau dans un délai de 5\u00a0secondes pour valider.", "timer": "5\u00a0secondes"},
+      "divergence": {
+        "ticket": "T-1105",
+        "lane": "blazor",
+        "reason": "Blazor has no CLDR unit data, so a host catalog that localizes the armed instruction but supplies no chrome.guard.duration form gets the English unit inside its own whole message. This holds for every non-English locale, not only Arabic, until the host supplies the duration plural forms or the owner rules otherwise.",
+        "expected": {"status": "Armé pour \u2068Publier\u2069. Activez de nouveau dans un délai de 5 seconds pour valider.", "timer": "5 seconds"}
+      }
+    }
+  ]
+}
