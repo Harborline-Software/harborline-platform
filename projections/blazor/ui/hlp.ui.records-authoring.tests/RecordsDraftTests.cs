@@ -511,6 +511,25 @@ public sealed class RecordsDraftTests : BunitContext
     }
 
     [Fact]
+    public void Revision2_a_whitespace_only_target_is_non_empty_so_it_renders_verbatim_and_as_data_target()
+    {
+        var draft = G1Draft(); var changes = new List<RecordsDraftChange>();
+        var cut = Editor(draft, changes, Preview(draft, 0, [new("records.reference.dependency_undeclared", "/fields/0/reference") { Target = " " }]));
+        Assert.Equal([("records.reference.dependency_undeclared", "/fields/0/reference", " ", "records.reference.dependency_undeclared at /fields/0/reference for  ")], DiagnosticRows(cut));
+    }
+
+    [Fact]
+    public void Revision2_the_warnings_list_is_preceded_by_one_visible_note_that_warnings_do_not_block_publication_and_no_note_shows_without_warnings()
+    {
+        var draft = G1Draft(); var changes = new List<RecordsDraftChange>();
+        var cut = Editor(draft, changes, Preview(draft, 0, [Unresolved], [RetentionUnset]));
+        Assert.Single(cut.FindAll("p.hl-records-authoring__note"), note => note.TextContent == "Warnings do not block publication.");
+        Assert.Equal("Warnings do not block publication.", cut.Find("[aria-label='Warnings']").PreviousElementSibling!.TextContent);
+        cut.Render(parameters => parameters.Add(component => component.Diagnostics, Preview(draft, 0, [Unresolved])));
+        Assert.DoesNotContain(cut.FindAll("p.hl-records-authoring__note"), note => note.TextContent == "Warnings do not block publication.");
+    }
+
+    [Fact]
     public void Revision2_warnings_render_in_their_own_Warnings_list_in_order_apart_from_the_diagnostics_and_never_as_a_refusal()
     {
         var draft = G1Draft(); var changes = new List<RecordsDraftChange>();

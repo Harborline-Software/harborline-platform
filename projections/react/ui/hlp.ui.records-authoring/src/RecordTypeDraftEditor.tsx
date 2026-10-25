@@ -70,7 +70,7 @@ export function RecordTypeDraftEditor(props: RecordTypeDraftEditorProps) {
     {!hasAcceptableRecordsRevision(props.value) && <p role="status" className="hl-records-authoring__note">{rejectedRevision}</p>}
     {hasDraft && (props.readOnly ? <fieldset className="hl-records-authoring__read-only" disabled>{content}</fieldset> : content)}
     {diagnostics.length > 0 && <ul className="hl-records-authoring__diagnostics" aria-label="Diagnostics">{diagnostics.map((diagnostic, index) => { const target = diagnostic.target || undefined; return <li key={index} data-code={diagnostic.code} data-pointer={diagnostic.pointer} data-target={target}>{diagnostic.code} at {diagnostic.pointer}{target === undefined ? '' : ` for ${target}`}</li> })}</ul>}
-    {warnings.length > 0 && <ul className="hl-records-authoring__warnings" aria-label="Warnings">{warnings.map((warning, index) => <li key={index} data-code={warning.code} data-pointer={warning.pointer}>{warning.code} at {warning.pointer}</li>)}</ul>}
+    {warnings.length > 0 && <><p className="hl-records-authoring__note">Warnings do not block publication.</p><ul className="hl-records-authoring__warnings" aria-label="Warnings">{warnings.map((warning, index) => <li key={index} data-code={warning.code} data-pointer={warning.pointer}>{warning.code} at {warning.pointer}</li>)}</ul></>}
     {incoming && <aside role="alert" className="hl-records-authoring__incoming">A different draft or revision arrived while you have local edits.<Button type="button" disabled={props.readOnly} onClick={keep}>Keep edits</Button><Button type="button" disabled={props.readOnly} onClick={() => load(incoming)}>Discard edits</Button></aside>}
   </form>
 }

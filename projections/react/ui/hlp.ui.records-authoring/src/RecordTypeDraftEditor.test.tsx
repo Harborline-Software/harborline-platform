@@ -416,6 +416,21 @@ describe('Records local draft editor, React lane, revision 2 targets and warning
     for (const item of Array.from(diagnosticsList()!.querySelectorAll('li'))) expect(item.hasAttribute('data-target')).toBe(false)
   })
 
+  it('Revision2: a whitespace-only target is non-empty, so it renders verbatim and as data-target', () => {
+    const draft = g1Draft()
+    render(<RecordTypeDraftEditor value={draft} kindOptions={kindOptions} diagnostics={preview(draft, 0, [{ code: 'records.reference.dependency_undeclared', pointer: '/fields/0/reference', target: ' ' }])} onDraftChange={vi.fn()} />)
+    expect(diagnosticRows()).toEqual([{ code: 'records.reference.dependency_undeclared', pointer: '/fields/0/reference', target: ' ', text: 'records.reference.dependency_undeclared at /fields/0/reference for  ' }])
+  })
+
+  it('Revision2: the warnings list is preceded by one visible note that warnings do not block publication, and no note shows without warnings', () => {
+    const draft = g1Draft()
+    const view = render(<RecordTypeDraftEditor value={draft} kindOptions={kindOptions} diagnostics={preview(draft, 0, [unresolved], [retentionUnset])} onDraftChange={vi.fn()} />)
+    expect(screen.getAllByText('Warnings do not block publication.')).toHaveLength(1)
+    expect(warningsList()!.previousElementSibling!.textContent).toBe('Warnings do not block publication.')
+    view.rerender(<RecordTypeDraftEditor value={draft} kindOptions={kindOptions} diagnostics={preview(draft, 0, [unresolved])} onDraftChange={vi.fn()} />)
+    expect(screen.queryByText('Warnings do not block publication.')).toBeNull()
+  })
+
   it('Revision2: warnings render in their own Warnings list in order, apart from the diagnostics and never as a refusal', () => {
     const draft = g1Draft(); const onDraftChange = vi.fn()
     render(<RecordTypeDraftEditor value={draft} kindOptions={kindOptions} diagnostics={preview(draft, 0, [undeclared, unresolved], [retentionUnset, auditUnset])} onDraftChange={onDraftChange} />)

@@ -52,7 +52,7 @@
     @if (!RecordsRevisionText.IsAcceptable(Value.ExpectedRevision)) { <p role="status" class="hl-records-authoring__note">@RejectedRevision</p> }
     @if (Adopted) { if (ReadOnly) { <fieldset class="hl-records-authoring__read-only" disabled>@content</fieldset> } else { @content } }
     @if (ShownDiagnostics.Count > 0) { <ul class="hl-records-authoring__diagnostics" aria-label="Diagnostics">@foreach (var diagnostic in ShownDiagnostics) { var target = string.IsNullOrEmpty(diagnostic.Target) ? null : diagnostic.Target; <li data-code="@diagnostic.Code" data-pointer="@diagnostic.Pointer" data-target="@target">@diagnostic.Code at @diagnostic.Pointer@(target is null ? "" : $" for {target}")</li> }</ul> }
-    @if (ShownWarnings.Count > 0) { <ul class="hl-records-authoring__warnings" aria-label="Warnings">@foreach (var warning in ShownWarnings) { <li data-code="@warning.Code" data-pointer="@warning.Pointer">@warning.Code at @warning.Pointer</li> }</ul> }
+    @if (ShownWarnings.Count > 0) { <p class="hl-records-authoring__note">Warnings do not block publication.</p><ul class="hl-records-authoring__warnings" aria-label="Warnings">@foreach (var warning in ShownWarnings) { <li data-code="@warning.Code" data-pointer="@warning.Pointer">@warning.Code at @warning.Pointer</li> }</ul> }
     @if (_incoming is not null) { <aside role="alert" class="hl-records-authoring__incoming">A different draft or revision arrived while you have local edits.<HarborlineButton ButtonType="ButtonType.Button" Enabled="!ReadOnly" OnClick="Keep">Keep edits</HarborlineButton><HarborlineButton ButtonType="ButtonType.Button" Enabled="!ReadOnly" OnClick="Discard">Discard edits</HarborlineButton></aside> }
 </form>
 
