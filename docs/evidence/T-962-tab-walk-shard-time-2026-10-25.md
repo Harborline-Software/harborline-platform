@@ -10,8 +10,9 @@ asks for the added shard time. R-0125 B5 sets the rule: if a shard passes 810 00
 ## Commits and host
 
 - Base: `ebe06e05`, T-943 (ARIA-tree parity, draft PR #344), which T-962 stacks on.
-- Head: `63473cae`, the last T-962 code commit. This record is added by the next commit, which
-  changes no code.
+- Head: `63473cae`, the last T-962 code commit before review 1. This record was added by the next
+  commit, which changed no code. The review 1 fixes (`75cf1b86` to `8f24a8a1`) are measured in the
+  last part of each section below.
 - Host: macos-x64-intel (Intel Core i9-9880H, 8 cores and 16 threads), shared with other agents.
   Node 24.19.0, Playwright 1.62.1, React gallery on port 6116 and Blazor gallery on port 6117.
 - Each shard ran with `config.workers = 4`. Nobody else held the full-gate lock during any run. Every
@@ -60,7 +61,8 @@ All twelve shards and all four merges passed: 582 browser tests at the base and 
   that plus run-to-run spread: the base's own three-shard sum differed by 41 s between its two runs.
 - **The walk's own time** is about 387 s a run summed over scenarios, shared by four workers. Its
   slowest scenarios are `scheduler.large-data` (about 60.7 s, where the Blazor scheduler spends about
-  380 ms on each Tab press with 256 events, recorded as a deadline finding owned by T-146),
+  380 ms on each Tab press with 256 events; this was recorded as a deadline finding, which review 1
+  replaced with a press budget),
   `app-shell.actions-endpanel` (about 25.7 s; Blazor's AppShell takes about 160 ms per Tab and
   265 ms per Shift+Tab there) and `app-layout.performance` (about 9 s).
 - **Budget.** The largest head shard took 537 956 ms (shard 2, run 2): 60% of the 900 000 ms budget
@@ -72,24 +74,53 @@ All twelve shards and all four merges passed: 582 browser tests at the base and 
   merge-group run, the six CI shard figures come from the collector's `tabWalkByShard` and are added
   here.
 
+### After review 1
+
+The review fixes change what the walk does per scenario. The prepared walk is stepped all the way,
+batched candidates are re-walked in step mode, and covered stops get an Escape. `scheduler.large-data`
+stops at a 24-press budget instead of running into its deadline. So the cost was checked on the one
+full matrix the fixes ran (`b9d5f298`, three shards then the collector, same host, ports and workers),
+rather than by a new alternation:
+
+| Shard | Step ms | Walk wall ms | Load 1/5/15 at start → end |
+|---|---:|---:|---|
+| 1 | 362 219 | 156 588 | 12.18/10.14/9.96 → 17.30/15.10/12.39 |
+| 2 | 484 224 | 129 663 | 17.30/15.10/12.39 → 17.94/17.58/14.73 |
+| 3 | 372 356 | 66 072 | 17.94/17.58/14.73 → 11.64/15.42/14.77 |
+| Sum | 1 218 799 | 352 323 | |
+
+The walk's own time summed over scenarios fell from about 387 s to 352 s. `scheduler.large-data`
+went from about 60.7 s to 10.5 s, and `app-shell.actions-endpanel` rose from about 25.7 s to 49.2 s,
+because its many obscured stops are now confirmed in step mode on a lane that takes about 160 ms a
+press. The three-shard step sum (1 218 799 ms) is below both earlier head runs, and the largest shard
+(484 224 ms) is 54% of the budget. The cost did not grow, so the alternation above was not repeated.
+
 ## The full gate at the head
 
-The full matrix (three shards and the collector) at `63473cae` passed: PASS, 599 browser tests
+The full matrix (three shards and the collector) at `b9d5f298` passed: PASS, 603 browser tests
 expected and passed, 0 unexpected, 0 flaky, with exact scenario reconciliation. Over the 481 running
 scenarios it declared and reconciled `tabWalkLeaveChecks`, `tabWalkReverseChecks`,
-`tabWalkObscuredChecks` and `tabWalkOrderComparisons` (481 each) and `tabWalkDetectorProofs` (10).
+`tabWalkObscuredChecks` and `tabWalkOrderComparisons` (481 each) and `tabWalkDetectorProofs` (13).
 The walk visited 2130 React stops and 1808 Blazor stops forward, and as many in reverse. Modals
-released focus 28 times in each lane. Nine stop visits in each lane were covered only by content the
-user opened, which WCAG 2.2 Understanding 2.4.11 exempts; they are counted, not failed. In 40
-scenarios the two lanes' orders differed only where T-943's ARIA register already waives a role, name
-or state difference, so the walk attributed the difference to that row instead of registering it
-twice.
+released focus 28 times in each lane. No stop counted as exempt under SC 2.4.11 Note 2. Before the
+review the walk counted nine stop visits per lane as user-opened covers, in
+`user-menu.placement-dismissal` and `app-shell.pins-threads`. Escape on those stops does not reveal
+them, so they are now obscured findings with owning tickets (below). In 40 scenarios the two lanes'
+orders differed only where T-943's ARIA register already waives a role, name or state difference, so
+the walk attributed the difference to that row instead of registering it twice.
+
+The last commit, `8f24a8a1`, puts SelectField's Blazor tabindex back to its approved form (its human
+design review binds its render; T-1124 claims the fix). It changes no other file the gallery runs, so
+a focused `select-field` gate checked it rather than a second full matrix.
+
+The earlier full matrix at `63473cae` passed as well: 599 browser tests, 0 flaky, exact
+reconciliation, ten proofs.
 
 ## Seeded proofs in the real gallery
 
 Each seed was applied in the working tree only, to the React probe of `button.variants` in
 `gallery/projections/react/src/Button.stories.tsx`, and run through the real gate on the alternate
-ports at `63473cae`:
+ports at `63473cae`, before review 1:
 
 ```text
 HARBORLINE_GALLERY_REACT_PORT=6116 HARBORLINE_GALLERY_BLAZOR_PORT=6117 \
@@ -103,9 +134,10 @@ HARBORLINE_GALLERY_REACT_PORT=6116 HARBORLINE_GALLERY_BLAZOR_PORT=6117 \
 | An opaque cover appears over the stage once focus enters it | FAIL | `button.variants tab walk stop is not obscured (WCAG 2.4.11)` | `react: 2.4.11 forward obscured: button "danger" under div.seed-cover`, the same for `transparent`, and both again in reverse |
 | None (seed removed with `git restore`) | CHECKED | none | none |
 
-`git status --short gallery/projections` was empty after the control run. The ten permanent detector
-proofs (P1 to P10 in `gallery.spec.ts`) run in every gate without servers and are counted as
-`tabWalkDetectorProofs: 10`.
+`git status --short gallery/projections` was empty after the control run. The thirteen permanent
+detector proofs (P1 to P13 in `gallery.spec.ts`) run in every gate without servers and are counted
+as `tabWalkDetectorProofs: 13`. Review 1 changed P6 to P9 and added P11 to P13. Each of the seven
+fails on the engine before the review and passes on the reviewed one.
 
 ## What the measured runs found
 
@@ -122,24 +154,32 @@ loads all ICU data, three Arabic scenarios joined them. Three fixes landed inste
   HTML integer parsing refuses, so every non-current item of a roving group became a tab stop
   (`context-menu.locale-ar`, `layers-rail.locale-ar`, `segmented-control.locale-ar`). The three
   components now render "0" and "-1". The bUnit tests under ar-SA, he-IL and fa-IR failed first
-  (9 cases).
+  (9 cases). Review 1 widened this. The negative sign is not U+002D under sv, nb, fi, lt, sl, hr and
+  eu either (they write U+2212), and decimals use a comma under de-DE, so CSS and HTML number parsing
+  refuse them too. Every in-scope site now writes invariant values (ActionMenu, DataGrid, DetailPanel,
+  SideNav, NumberField, and the ContextMenu position), each with a bUnit theory that failed first. The
+  exceptions are UserMenu (the frozen round-2 batches change the same lines) and SelectField (its
+  design review binds its render); T-1124 claims both.
 - **Detail panel fixture** (gallery story): both lanes passed a constant `open` with no close
   callback, so the modal sheet could not be dismissed. The fixtures now own the open state.
 
-`gallery/tab-walk-known-divergences.json` holds 54 rows over 41 scenarios: 39 order rows recorded as
-hunks and 15 findings rows. No row names T-962 or T-943, the tickets that build the two registers:
+`gallery/tab-walk-known-divergences.json` holds 56 rows over 43 scenarios: 39 order rows recorded as
+position-anchored hunks, 16 findings rows and one budget row. No row names T-962 or T-943, the
+tickets that build the two registers:
 
 | Owner | Rows | Defect |
 |---|---|---|
-| T-1104 (filed with T-943) | 6 | The text-box stories render different fields; the Blazor dialog story's labels are not localized and it lacks the replacement control |
-| T-146 (existing) | 11 | The Blazor scheduler is a different component; with 256 events its own focus handling costs about 380 ms a Tab press, so the walk reports a deadline |
+| T-1104 (filed with T-943; amended) | 6 | The text-box stories render different fields; the Blazor dialog story's labels and close-button catalog are not localized and it lacks the replacement control |
+| T-146 (existing; amended) | 11 | The Blazor scheduler is a different component; with 256 events its own focus handling costs about 380 ms a Tab press, so `scheduler.large-data` walks to a 24-press budget instead of in full |
 | T-1118 (proposed) | 18 | Blazor Chat message articles cancel every keydown: a 2.1.2 trap (Chat, out of T-962's scope) |
 | T-1119 (proposed) | 9 | React's Gantt makes its first task cell a tab stop that Blazor's grid lacks (Gantt, out of scope) |
 | T-1120 (proposed) | 1 | The pseudo-locale Gantt time scale combobox is clipped when focused (Gantt, out of scope) |
 | T-1121 (proposed) | 1 | AppShell dock panels cover each other's controls (AppShell, out of scope) |
-| T-1122 (proposed) | 2 | The Dialog surface's right-to-left centring puts its buttons offscreen, in both lanes |
+| T-1122 (proposed) | 2 | The Dialog surface's right-to-left centring puts its buttons offscreen, in both lanes (judged on the prepared walk, which reaches and releases the open dialog) |
 | T-1123 (proposed) | 5 | The window's header and resize handles differ between lanes; the window is outside the probe, so neither axe nor T-943 reads it |
-| T-1124 (proposed) | 1 | Blazor components that still render tabindex from an int (the Arabic Gantt loses focus) |
+| T-1124 (proposed) | 1 | Blazor components that still write numeric attributes with the current culture (the Arabic Gantt loses focus) |
+| T-1125 (proposed) | 1 | The UserMenu panel does not close on Tab or focus loss and covers the second menu's trigger; Escape there does not reveal it |
+| T-1126 (proposed) | 1 | AppShell's thread row menu stays open on focus loss and covers the next stops (AppShell, out of scope) |
 
 The proposed tickets are drafted for filing with this change, and the rows name them so the register
 is valid when they land. The rows were measured on one host. A findings row has no host unless a
