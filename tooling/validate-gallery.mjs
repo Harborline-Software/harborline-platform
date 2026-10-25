@@ -138,7 +138,7 @@ const tabWalkRowKeys = ['scenarioId', 'kind', 'host', 'ticket', 'reason', 'hunks
 // A wall-clock deadline means the walk did not finish inside the test's allowance: how far it got
 // depends on the host and its load, so no row may waive one. A lane too slow to walk in full gets a
 // budget row instead, which stops every walk after a fixed number of presses.
-const tabWalkDeadline = /^2\.1\.2 (?:forward|reverse|prepared) deadline:|^[ +-] deadline$/
+const tabWalkDeadline = /^2\.1\.2 (?:forward|reverse|prepared|walk) deadline:|^[ +-] deadline$/
 const tabWalkHosts = ['windows-11-x64', 'linux-x64', 'macos-x64-intel', 'macos-arm64']
 const tabWalkFindingLine = /^(?:2\.1\.2|2\.4\.3|2\.4\.11) (?:forward|reverse|prepared|walk) \S/
 export function tabWalkRegisterErrors(register, scenarioIds) {

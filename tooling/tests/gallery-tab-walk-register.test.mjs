@@ -94,6 +94,7 @@ test('an order row records hunks of walk lines as laneLineDiff writes them, and 
 test('a wall-clock deadline is never waived, and a budget row records a press budget and its press cost', () => {
   assert.match(errorsFor(order({hunks: ['@@ #1', '- - button "B"', '+ deadline']})).join('\n'), /waives a wall-clock deadline, which depends on the host; give the scenario a budget row instead/)
   assert.match(errorsFor(findings({blazorOnly: ['2.1.2 forward deadline: the walk did not finish within the test\'s allowance']})).join('\n'), /waives a wall-clock deadline/)
+  assert.match(errorsFor(findings({reactOnly: ['2.1.2 walk deadline: covers were left unverified at the test\'s allowance']})).join('\n'), /waives a wall-clock deadline/)
   const budget = overrides => ({scenarioId: 'switch.theme-light', kind: 'budget', ticket: 'T-146', reason: 'The Blazor lane spends about 380 ms on each Tab press', presses: 24, pressMs: 400, ...overrides})
   assert.deepEqual(errorsFor(budget()), [])
   assert.deepEqual(errorsFor(budget(), order(), findings()), [])
