@@ -1345,13 +1345,15 @@ async function settleLane(
   }
 }
 
-// Scenes whose prepared state runs on a timer are compared on a frozen clock. A guarded action's arm
-// window lasts five seconds and counts down every second, so the armed tree only holds still while
-// time does. Each lane's page gets Playwright's fake clock before its story opens (React's timers and
-// Blazor WebAssembly's Task.Delay both run on the page's setTimeout, so both follow it). The clock is
-// paused once the story is up, the scene is prepared and compared on the paused clock, and the clock
-// then resumes, because the axe scans need running timers.
-const ariaFrozenClockScenes = ['guarded-control.']
+// Scenes whose prepared state runs on a timer are compared on a frozen clock, listed by exact id: a
+// scene with no timer keeps the ordinary settled read after the scans on a running clock, because a
+// paused clock also holds back the deferred renders a settled read waits for. two-step's arming starts
+// a five-second window that counts down every second, so the armed tree only holds still while time
+// does. Each lane's page gets Playwright's fake clock before its story opens (React's timers and Blazor
+// WebAssembly's Task.Delay both run on the page's setTimeout, so both follow it). The clock is paused
+// once the story is up, the scene is prepared and compared on the paused clock, and the clock then
+// resumes, because the axe scans need running timers.
+const ariaFrozenClockScenes = new Set(['guarded-control.two-step'])
 const guardArmedOrCommitting = '[data-guard-state="armed"], [data-guard-state="committing"]'
 // A later moment of a timer-driven scene, read after the scans once each lane has reached it, and
 // judged against its own row (`state`). two-step's guard recovers when its arm window runs out.
@@ -1857,8 +1859,11 @@ for (const catalog of catalogs) for (const scenario of catalog.scenarios) {
     // through TimeZoneInfo.Local, which it takes from the browser), so the zone is pinned to UTC (T-943
     // review 1, finding 1). The language is the locale the scenario's catalog declares
     // (content.environment.locale): React formats with it wherever a story names no locale, and Blazor
-    // WebAssembly both takes its culture from it and picks its ICU data shard by it, so an en-US
-    // language for an ar-SA scene would load ICU data with no Arabic in it (T-943 review 2, finding 4).
+    // WebAssembly takes its default culture from it (T-943 review 2, finding 4). That covers the scene,
+    // not a component that carries its own locale inside it (schema-form.locale-theme's Arabic form in
+    // an en-US scene); so that such a component formats from real locale data too, the Blazor gallery
+    // loads all ICU data (BlazorWebAssemblyLoadAllGlobalizationData) instead of the shard the browser
+    // language would pick (T-943 review 3, finding 1).
     const locale = scenario.content?.environment?.locale
     if (!locale) throw new Error(`${scenario.id} declares no content.environment.locale in its gallery catalog`)
     const scenarioContext = { viewport: { width: 920, height: 720 }, colorScheme, timezoneId: 'UTC', locale } as const
@@ -1867,7 +1872,7 @@ for (const catalog of catalogs) for (const scenario of catalog.scenarios) {
       browser.newContext(scenarioContext),
     ])
     const [reactPage, blazorPage] = await Promise.all([reactContext.newPage(), blazorContext.newPage()])
-    const frozenClock = ariaFrozenClockScenes.some(prefix => scenario.id.startsWith(prefix))
+    const frozenClock = ariaFrozenClockScenes.has(scenario.id)
     if (frozenClock) await Promise.all([reactPage.clock.install(), blazorPage.clock.install()])
     await Promise.all([
       reactPage.emulateMedia({ reducedMotion: 'reduce' }),
