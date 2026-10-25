@@ -10,10 +10,6 @@
 </div>
 @if (IsOpen)
 {
-    @* The outside-pointer dismissal surface only: Escape is the keyboard route, so the invisible
-       full-viewport overlay is neither a tab stop nor a node in the accessibility tree, as in React,
-       which dismisses on a document mousedown and renders no element (T-943). *@
-    <button type="button" class="hl-context-menu-overlay" aria-hidden="true" tabindex="-1" @onclick="DismissAsync"></button>
     <div @ref="MenuElement" role="menu" tabindex="-1" aria-label="@AccessibleLabel" lang="@Locale" dir="@Direction"
          class="hl-context-menu" data-active-id="@ActiveItem?.Id"
          style="position:fixed;left:@(X)px;top:@(Y)px;z-index:9999" @onkeydown="HandleKeyAsync">
@@ -32,6 +28,13 @@
             }
         }
     </div>
+    @* The outside-pointer dismissal surface only. It is a plain element, so it can never take focus
+       (a hidden button is still focused by a mouse press), and it is hidden from assistive
+       technology: Escape is the keyboard route. It dismisses on the press of any button, as React's
+       document mousedown listener does, and preventDefault keeps focus where it was so the keyboard
+       opener can still be restored. It follows the menu so the menu's place in the tree matches
+       React, which renders no overlay; z-index keeps it beneath the menu (T-943). *@
+    <div class="hl-context-menu-overlay" aria-hidden="true" @onmousedown="DismissAsync" @onmousedown:preventDefault="true"></div>
 }
 
 @code {
@@ -76,7 +79,9 @@
         (X, Y) = ClampPosition(x, y, MenuWidth, MenuHeight, ViewportWidth, ViewportHeight);
         IsOpen = true;
         KeyboardOpened = keyboardOpened;
-        FocusActiveAfterRender = keyboardOpened;
+        // Every open focuses the active item, as React does and the interface requires ("Opening
+        // focuses the first enabled item"); KeyboardOpened still decides only where focus returns.
+        FocusActiveAfterRender = true;
         ActiveIndex = EnabledIndices.FirstOrDefault(-1);
         await InvokeAsync(StateHasChanged);
         await OnShow.InvokeAsync();

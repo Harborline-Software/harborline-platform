@@ -28,7 +28,7 @@ public sealed class ContextMenuConformanceTests : BunitContext
     public void Closed() => Assert.Empty(RenderMenu().FindAll("[role=menu]"));
 
     [Fact, Trait("ConformanceCase", "context-menu.pointer-open")]
-    public async Task PointerOpen() { var cut=RenderMenu(); await cut.Find(".hl-context-menu-trigger").TriggerEventAsync("oncontextmenu",new MouseEventArgs{ClientX=40,ClientY=60}); Assert.Contains("left:40px;top:60px",cut.Find("[role=menu]").GetAttribute("style")); }
+    public async Task PointerOpen() { var module=JSInterop.SetupModule("./_content/Harborline.UIAdapters.Blazor/context-menu.js"); module.SetupVoid("focusActive",_=>true); var cut=RenderMenu(); await cut.Find(".hl-context-menu-trigger").TriggerEventAsync("oncontextmenu",new MouseEventArgs{ClientX=40,ClientY=60}); Assert.Contains("left:40px;top:60px",cut.Find("[role=menu]").GetAttribute("style")); module.VerifyInvoke("focusActive"); }
 
     [Fact, Trait("ConformanceCase", "context-menu.groups")]
     public async Task GroupsRender() { var cut=RenderMenu(); await cut.Instance.ShowAsync(8,8); Assert.Equal(3,cut.FindAll("[role=menuitem]").Count); Assert.Single(cut.FindAll("[role=separator]")); }
@@ -40,7 +40,7 @@ public sealed class ContextMenuConformanceTests : BunitContext
     public async Task DisabledSelection() { var count=0; var cut=RenderMenu(_=>count++); await cut.Instance.ShowAsync(8,8); cut.FindAll("[role=menuitem]")[0].Click(); Assert.Equal(0,count); Assert.True(cut.Instance.IsOpen); }
 
     [Fact, Trait("ConformanceCase", "context-menu.dismissal")]
-    public async Task Dismissal() { var cut=RenderMenu(); await cut.Instance.ShowAsync(8,8); await cut.Find("[role=menu]").KeyDownAsync(new KeyboardEventArgs{Key="Escape"}); Assert.False(cut.Instance.IsOpen); await cut.Instance.ShowAsync(8,8); cut.Find(".hl-context-menu-overlay").Click(); Assert.False(cut.Instance.IsOpen); }
+    public async Task Dismissal() { var cut=RenderMenu(); await cut.Instance.ShowAsync(8,8); await cut.Find("[role=menu]").KeyDownAsync(new KeyboardEventArgs{Key="Escape"}); Assert.False(cut.Instance.IsOpen); await cut.Instance.ShowAsync(8,8); await cut.Find(".hl-context-menu-overlay").MouseDownAsync(new MouseEventArgs{Button=0}); Assert.False(cut.Instance.IsOpen); await cut.Instance.ShowAsync(8,8); await cut.Find(".hl-context-menu-overlay").MouseDownAsync(new MouseEventArgs{Button=2}); Assert.False(cut.Instance.IsOpen); }
 
     [Fact, Trait("ConformanceCase", "context-menu.keyboard-open")]
     public async Task KeyboardOpen() { var cut=RenderMenu(); await cut.Find(".hl-context-menu-trigger").KeyDownAsync(new KeyboardEventArgs{Key="F10",ShiftKey=true}); Assert.True(cut.Instance.IsOpen); }
@@ -58,7 +58,7 @@ public sealed class ContextMenuConformanceTests : BunitContext
     public async Task FocusReturnState() { var cut=RenderMenu(); await cut.Find(".hl-context-menu-trigger").KeyDownAsync(new KeyboardEventArgs{Key="ContextMenu"}); await cut.Find("[role=menu]").KeyDownAsync(new KeyboardEventArgs{Key="Escape"}); Assert.False(cut.Instance.IsOpen); }
 
     [Fact, Trait("ConformanceCase", "context-menu.accessible-context")]
-    public async Task AccessibleContext() { var cut=RenderMenu(); await cut.Instance.ShowAsync(8,8); var menu=cut.Find("[role=menu]"); Assert.Equal("Actions",menu.GetAttribute("aria-label")); Assert.Equal("ar-SA",menu.GetAttribute("lang")); Assert.Equal("rtl",menu.GetAttribute("dir")); var overlay=cut.Find(".hl-context-menu-overlay"); Assert.Equal("true",overlay.GetAttribute("aria-hidden")); Assert.Equal("-1",overlay.GetAttribute("tabindex")); Assert.Null(overlay.GetAttribute("aria-label")); }
+    public async Task AccessibleContext() { var cut=RenderMenu(); await cut.Instance.ShowAsync(8,8); var menu=cut.Find("[role=menu]"); Assert.Equal("Actions",menu.GetAttribute("aria-label")); Assert.Equal("ar-SA",menu.GetAttribute("lang")); Assert.Equal("rtl",menu.GetAttribute("dir")); var overlay=cut.Find(".hl-context-menu-overlay"); Assert.Equal("DIV",overlay.TagName); Assert.Equal("true",overlay.GetAttribute("aria-hidden")); Assert.Null(overlay.GetAttribute("tabindex")); Assert.Null(overlay.GetAttribute("role")); Assert.Null(overlay.GetAttribute("aria-label")); }
 
     [Fact, Trait("ConformanceCase", "context-menu.viewport-position")]
     public void ViewportPosition() => Assert.Equal((812d,552d),HarborlineContextMenu.ClampPosition(995,795,180,240,1000,800));
