@@ -12,11 +12,10 @@ namespace Harborline.Blocks.BuilderDefinitions.Tests;
 /// T-615: a field declares its offline conflict policy (records-ck-16, L1011: <c>ask</c>, the default, <c>additive</c> or
 /// <c>latest_observation</c>, exact lowercase, never last-write-wins) and a Record Type declares its category tags
 /// (records-ck-23, L103: many per type, independent of the package label; any text tag is kept verbatim, because how tags
-/// compare is not ruled). Both members are optional, so every existing body and
-/// digest is byte-identical; an explicit <c>ask</c>, an explicit null and an empty tag list canonicalize to absent, and save
-/// does not carry either declaration forward. Declaration only:
-/// the offline runtime that raises and settles a conflict is records-eng-25. Expected bodies, codes and pointers are
-/// literals spelled independently of the producer serializer.
+/// compare is not ruled). Both members are optional, so every existing body and digest is byte-identical; an explicit
+/// <c>ask</c>, an explicit null and an empty tag list canonicalize to absent, and save does not carry either declaration
+/// forward. Declaration only: the offline runtime that raises and settles a conflict is records-eng-25. Expected bodies,
+/// codes and pointers are literals spelled independently of the producer serializer.
 /// </summary>
 public sealed class RecordTypeConflictPolicyAndCategoriesTests
 {

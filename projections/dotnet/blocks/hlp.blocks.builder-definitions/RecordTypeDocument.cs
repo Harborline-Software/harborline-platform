@@ -91,9 +91,10 @@ public sealed record RecordTypeDocument(
     public RecordHistoryPolicy? HistoryPolicy { get; init; }
 
     /// <summary>
-    /// The type's category tags (records-ck-23, L103): many per type, independent of the automatic package label. Each tag
-    /// is visible, trimmed NFC text without control or format characters, and appears once, ignoring case. Null or empty means none; the canonical body omits an
-    /// empty list. Unlike the policies, save does not carry an omitted list forward: a resave without it clears the tags.
+    /// The type's category tags (records-ck-23, L103): many per type, independent of the automatic package label. A null
+    /// element is <c>records.document_invalid</c>; every other text tag is kept verbatim, because how tags compare is not
+    /// ruled (L103 is open). Null or empty means none; the canonical body omits an empty list. Unlike the policies, save
+    /// does not carry an omitted list forward: a resave without it clears the tags.
     /// </summary>
     public IReadOnlyList<string>? Categories { get; init; }
 
