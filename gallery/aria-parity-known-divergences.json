@@ -2383,7 +2383,7 @@
     {
       "scenarioId": "schema-form.locale-theme",
       "ticket": "T-1117",
-      "reason": "SchemaForm: React numeric fields expose Increment and Decrement buttons that Blazor does not. The scene is en-US, but its second form carries the ar locale, and there the currency value differs too. React writes \"‏1,234,567.89 د.إ.‏\": Latin separators and the Arabic currency symbol. Blazor writes \"1٬234٬567٫89 AED\": Arabic separators and the ISO code after the number, formatted from full Arabic ICU data. The ISO code in place of the symbol is the component's choice.",
+      "reason": "SchemaForm: React numeric fields expose Increment and Decrement buttons that Blazor does not. The scene is en-US, but its second form carries the ar locale, and there the currency value differs too. React writes \"‏1,234,567.89 د.إ.‏\": Latin separators and the Arabic currency symbol. Blazor writes \"1٬234٬567٫89 AED\": Arabic separators and the ISO code after the number. The separators come from .NET WebAssembly's ICU 72 data, which gives ar the arab numbering system (٬ ٫), while the browser's CLDR, like host .NET on current ICU, gives ar latn; so they differ by ICU data version, not by the component, and matching them needs an explicit separator or numbering choice in one lane. The ISO code in place of the symbol is the component's choice.",
       "hunks": [
         "@@ #1",
         "      - text: ⟦ Šçħëðûļë åñð ƒïĝûřëš ······ ⟧ ⟦ Řëþļåçëmëñţ çøšţ ······ ⟧",
