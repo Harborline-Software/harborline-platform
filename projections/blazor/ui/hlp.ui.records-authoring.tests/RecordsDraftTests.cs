@@ -1215,6 +1215,9 @@ public sealed class RecordsDraftTests : BunitContext
     private static bool HasButton(IRenderedComponent<HarborlineRecordTypeDraftEditor> cut, string text) => cut.FindAll("button").Any(button => button.TextContent.Trim() == text);
     private static bool HasControl(IRenderedComponent<HarborlineRecordTypeDraftEditor> cut, string name) => cut.FindAll($"[aria-label='{name}']").Count > 0;
     private static IElement TargetTypeInput(IRenderedComponent<HarborlineRecordTypeDraftEditor> cut, string name = SiteTargetType) => cut.Find($"input[aria-label='{name}']");
+    // The notes inside field N's own group, found by its legend.
+    private static string[] FieldNotes(IRenderedComponent<HarborlineRecordTypeDraftEditor> cut, int n) => [.. cut.FindAll("legend").Single(legend => legend.TextContent == $"Field {n}").ParentElement!.QuerySelectorAll("p").Select(note => note.TextContent)];
+    private const string UnboundNote = "Unbound field. Bindings are not authored here.";
 
     [Fact]
     public void Revision4_Make_field_N_a_reference_appears_only_on_a_field_with_neither_a_binding_nor_a_reference_and_adds_exactly_an_empty_reference()
@@ -1228,6 +1231,7 @@ public sealed class RecordsDraftTests : BunitContext
         AssertReported(Assert.Single(changes), WithField(body, 2, field => field["reference"] = new JsonObject()), 1);
         Assert.False(HasButton(cut, "Make field 3 a reference")); Assert.True(HasButton(cut, "Remove reference from field 3"));
         Assert.Equal("Not set", SelectedText(cut, "Field 3 reference target kind")); Assert.Equal("Not set", SelectedText(cut, "Field 3 reference cardinality")); Assert.Equal("Not set", SelectedText(cut, "Field 3 reference on delete")); Assert.False(IsChecked(cut, "Field 3 reference is the parent edge"));
+        Assert.Equal("", TargetTypeInput(cut, "Field 3 reference target type").GetAttribute("value") ?? ""); Assert.False(HasControl(cut, "Field 3 reference target class"));
         Assert.True(JsonNode.DeepEquals(given, body), body.ToJsonString());
     }
 
@@ -1239,6 +1243,20 @@ public sealed class RecordsDraftTests : BunitContext
         AssertReported(Assert.Single(changes), WithField(given, 3, field => field.Remove("reference")), 1);
         Assert.False(changes[0].Draft.Body["fields"]![3]!.AsObject().ContainsKey("reference"));
         Assert.False(HasControl(cut, SiteTargetKind)); Assert.False(HasButton(cut, "Remove reference from field 4")); Assert.True(HasButton(cut, "Make field 4 a reference"));
+        Assert.True(JsonNode.DeepEquals(given, body), body.ToJsonString());
+    }
+
+    [Fact]
+    public void Revision4_Remove_reference_from_field_N_on_a_bound_field_deletes_the_reference_member_only_and_carries_the_binding_unchanged()
+    {
+        // The revision 1 reference test's field: the R5 binding and reference, plus a carried trait.
+        var r5 = RefusalCase("R5-reference-binding-conflict")["createRequest"]!["fields"]![0]!;
+        var reference = r5["reference"]!.DeepClone().AsObject(); reference["required_trait_id"] = "eam.locatable";
+        var body = ReferenceBody(("binding", r5["binding"]), ("reference", reference)); var given = body.DeepClone().AsObject(); var changes = new List<RecordsDraftChange>(); var cut = Header(DraftWith(body), changes);
+        Button(cut, "Remove reference from field 4").Click();
+        AssertReported(Assert.Single(changes), WithField(given, 3, field => field.Remove("reference")), 1);
+        Assert.True(JsonNode.DeepEquals(r5["binding"], changes[0].Draft.Body["fields"]![3]!["binding"]), changes[0].Draft.Body.ToJsonString());
+        Assert.False(HasControl(cut, SiteTargetKind)); Assert.False(HasButton(cut, "Remove reference from field 4")); Assert.False(HasButton(cut, "Make field 4 a reference"));
         Assert.True(JsonNode.DeepEquals(given, body), body.ToJsonString());
     }
 
@@ -1261,13 +1279,18 @@ public sealed class RecordsDraftTests : BunitContext
     [InlineData("""{"target_type_id":""}""", "Record type")]
     [InlineData("""{"target_class_id":"eam.facility"}""", "Class")]
     [InlineData("""{"target_class_id":""}""", "Class")]
+    [InlineData("""{"target_type_id":7}""", "Not set")]
+    [InlineData("""{"target_class_id":5}""", "Not set")]
+    [InlineData("""{"target_type_id":"eam.space","target_class_id":null}""", "Record type")]
     public void Revision4_the_target_kind_offers_Record_type_Class_and_Not_set_and_shows_the_one_target_present(string targets, string shown)
     {
         var changes = new List<RecordsDraftChange>(); var cut = Header(DraftWith(ReferenceBody(("reference", SiteReference(targets)))), changes, ClassOffer);
         Assert.Equal(["Class", "Not set", "Record type"], OptionTexts(cut, SiteTargetKind).Order(StringComparer.Ordinal).ToArray()); Assert.Equal(shown, SelectedText(cut, SiteTargetKind));
-        // One target kind shows only its own target control; both controls are for a reference carrying both targets.
+        // One target kind shows only its own target control; both controls are for a reference carrying both targets. Not set (no string
+        // target member) shows an empty Record type target and no class control.
         if (shown == "Record type") Assert.False(HasControl(cut, SiteTargetClass));
         if (shown == "Class") Assert.False(HasControl(cut, SiteTargetType));
+        if (shown == "Not set") { Assert.Equal("", TargetTypeInput(cut).GetAttribute("value") ?? ""); Assert.False(HasControl(cut, SiteTargetClass)); }
         Assert.Empty(changes);
     }
 
@@ -1281,12 +1304,16 @@ public sealed class RecordsDraftTests : BunitContext
     [InlineData("Not set", BothTargets, "{}")]
     [InlineData("Record type", "{}", """{"target_type_id":""}""")]
     [InlineData("Class", "{}", """{"target_class_id":""}""")]
+    [InlineData("Record type", """{"target_type_id":7}""", """{"target_type_id":""}""")]
+    [InlineData("Class", """{"target_class_id":5}""", """{"target_class_id":""}""")]
     public void Revision4_choosing_a_target_kind_keeps_a_value_of_that_kind_and_removes_the_other_target_member(string kind, string targets, string expected)
     {
         var body = ReferenceBody(("reference", SiteReference(targets))); var changes = new List<RecordsDraftChange>(); var cut = Header(DraftWith(body), changes, ClassOffer);
         Choose(cut, SiteTargetKind, kind);
         AssertReported(Assert.Single(changes), WithSiteReference(body, reference => { reference.Remove("target_type_id"); reference.Remove("target_class_id"); foreach (var (member, value) in JsonNode.Parse(expected)!.AsObject()) reference[member] = value?.DeepClone(); }), 1);
         Assert.Equal(kind, SelectedText(cut, SiteTargetKind));
+        // Not set shows an empty Record type target and no class control.
+        if (kind == "Not set") { Assert.Equal("", TargetTypeInput(cut).GetAttribute("value") ?? ""); Assert.False(HasControl(cut, SiteTargetClass)); }
     }
 
     [Theory]
@@ -1301,6 +1328,16 @@ public sealed class RecordsDraftTests : BunitContext
         Choose(cut, SiteTargetKind, "Class");
         AssertReported(Assert.Single(changes), WithSiteReference(body, reference => reference.Remove("target_type_id")), 1);
         Assert.Equal("Class", SelectedText(cut, SiteTargetKind)); Assert.False(HasControl(cut, SiteTargetType)); Assert.Equal(classText, SelectedText(cut, SiteTargetClass));
+    }
+
+    [Fact]
+    public void Revision4_choosing_Both_targets_present_reports_nothing_and_keeps_both_targets_and_both_target_controls()
+    {
+        var body = ReferenceBody(("reference", SiteReference(BothTargets))); var given = body.DeepClone(); var changes = new List<RecordsDraftChange>(); var cut = Header(DraftWith(body), changes, ClassOffer);
+        Choose(cut, SiteTargetKind, "Both targets present (choose one)");
+        Assert.Empty(changes);
+        Assert.Equal("Both targets present (choose one)", SelectedText(cut, SiteTargetKind)); Assert.Equal("eam.space", TargetTypeInput(cut).GetAttribute("value")); Assert.Equal("eam.facility", SelectedText(cut, SiteTargetClass));
+        Assert.True(JsonNode.DeepEquals(given, body), body.ToJsonString());
     }
 
     [Fact]
@@ -1385,6 +1422,19 @@ public sealed class RecordsDraftTests : BunitContext
     }
 
     [Theory]
+    [InlineData("\"true\"")]
+    [InlineData("1")]
+    public void Revision4_a_non_boolean_parent_shows_the_checkbox_unchecked_and_checking_writes_parent_true(string current)
+    {
+        var reference = SiteReference(); reference["parent"] = JsonNode.Parse(current);
+        var body = ReferenceBody(("reference", reference)); var changes = new List<RecordsDraftChange>(); var cut = Header(DraftWith(body), changes);
+        Assert.False(IsChecked(cut, SiteParent)); Assert.Empty(changes);
+        Toggle(cut, SiteParent);
+        AssertReported(Assert.Single(changes), WithSiteReference(body, member => member["parent"] = true), 1);
+        Assert.True(IsChecked(cut, SiteParent));
+    }
+
+    [Theory]
     [InlineData("Target kind Record type")]
     [InlineData("Target kind Class")]
     [InlineData("Target kind Not set")]
@@ -1440,11 +1490,41 @@ public sealed class RecordsDraftTests : BunitContext
     public void Revision4_a_binding_that_is_not_an_object_is_treated_as_absent_so_Make_field_N_a_reference_is_offered_and_the_binding_is_carried_unchanged(string malformed)
     {
         var body = ReferenceBody(("binding", JsonNode.Parse(malformed))); var changes = new List<RecordsDraftChange>(); var cut = Header(DraftWith(body), changes);
-        Assert.False(HasControl(cut, "Field 4 kind")); Assert.Empty(changes);
+        Assert.False(HasControl(cut, "Field 4 kind")); Assert.Equal([UnboundNote], FieldNotes(cut, 4)); Assert.Empty(changes);
         Assert.True(HasButton(cut, "Make field 4 a reference"));
         Button(cut, "Make field 4 a reference").Click();
         AssertReported(Assert.Single(changes), WithField(body, 3, field => field["reference"] = new JsonObject()), 1);
         Assert.Equal("Not set", SelectedText(cut, SiteTargetKind));
+    }
+
+    [Theory]
+    [InlineData("""{"kind":"text"}""", false)]
+    [InlineData("""{"kind":[1]}""", false)]
+    [InlineData("""{"kind":{"kind_id":"text","version":"1.0.0","parameters":"ab"}}""", true)]
+    public void Revision4_a_binding_with_a_kind_or_parameters_member_that_is_not_an_object_shows_no_control_for_that_member_stays_bound_and_an_unrelated_edit_carries_the_binding_unchanged(string binding, bool kindShown)
+    {
+        var body = ReferenceBody(("binding", JsonNode.Parse(binding))); var given = body.DeepClone(); var changes = new List<RecordsDraftChange>(); var cut = Header(DraftWith(body), changes);
+        Assert.Equal(kindShown, HasControl(cut, "Field 4 kind")); Assert.Empty(cut.FindAll("[aria-label^='Field 4 parameter']"));
+        // The binding itself is an object, so the field is bound: no unbound note and no Make field N a reference.
+        Assert.Empty(FieldNotes(cut, 4)); Assert.False(HasButton(cut, "Make field 4 a reference")); Assert.Empty(changes);
+        cut.Find("input[aria-label='Field 4 display name']").Change("Site local");
+        AssertReported(Assert.Single(changes), WithField(body, 3, field => field["display_name"] = "Site local"), 1);
+        Assert.True(JsonNode.DeepEquals(given, body), body.ToJsonString());
+    }
+
+    [Fact]
+    public void Revision4_a_fields_entry_that_is_not_an_object_is_not_shown_and_is_carried_unchanged_in_place()
+    {
+        var body = ReferenceBody(); JsonNode?[] malformed = ["oops", 7, null];
+        foreach (var node in malformed) body["fields"]!.AsArray().Add(node);
+        var given = body.DeepClone(); var changes = new List<RecordsDraftChange>(); var cut = Header(DraftWith(body), changes);
+        Assert.Equal("site", cut.Find("input[aria-label='Field 4 key']").GetAttribute("value"));
+        Assert.All(new[] { 5, 6, 7 }, n => { Assert.False(HasControl(cut, $"Field {n} key"), $"{n}"); Assert.False(HasButton(cut, $"Make field {n} a reference"), $"{n}"); Assert.False(HasButton(cut, $"Remove field {n}"), $"{n}"); });
+        Assert.Equal(["None", "asset_tag", "quantity", "notes", "site"], OptionTexts(cut, "Retention clock field")); Assert.Empty(changes);
+        cut.Find("input[aria-label='Field 1 display name']").Change("Asset tag local");
+        AssertReported(Assert.Single(changes), WithField(body, 0, field => field["display_name"] = "Asset tag local"), 1);
+        Assert.Equal(["\"oops\"", "7", "null"], changes[0].Draft.Body["fields"]!.AsArray().Skip(4).Select(entry => entry is null ? "null" : entry.ToJsonString()).ToArray());
+        Assert.True(JsonNode.DeepEquals(given, body), body.ToJsonString());
     }
 
     [Fact]
@@ -1458,6 +1538,17 @@ public sealed class RecordsDraftTests : BunitContext
         AssertReported(changes[0], WithSiteReference(body, member => member["parent"] = true), 1);
         AssertReported(changes[1], WithSiteReference(body, member => { member["parent"] = true; member["cardinality"] = "many"; }), 2);
         Assert.True(SiteReferenceOf(changes[1]).ContainsKey("on_delete")); Assert.Equal("Not set", SelectedText(cut, SiteOnDelete));
+    }
+
+    [Theory]
+    [InlineData("""{"target_type_id":7}""")]
+    [InlineData("""{"target_class_id":5}""")]
+    public void Revision4_a_non_string_target_member_shows_as_Not_set_and_is_kept_by_an_unrelated_reference_edit(string targets)
+    {
+        var body = ReferenceBody(("reference", SiteReference(targets))); var changes = new List<RecordsDraftChange>(); var cut = Header(DraftWith(body), changes, ClassOffer);
+        Choose(cut, SiteCardinality, "many");
+        AssertReported(Assert.Single(changes), WithSiteReference(body, reference => reference["cardinality"] = "many"), 1);
+        Assert.Equal("Not set", SelectedText(cut, SiteTargetKind)); Assert.Equal("", TargetTypeInput(cut).GetAttribute("value") ?? ""); Assert.False(HasControl(cut, SiteTargetClass));
     }
 
     [Theory]
