@@ -6,6 +6,10 @@
     <IsPackable>false</IsPackable>
     <OverrideHtmlAssetPlaceholders>true</OverrideHtmlAssetPlaceholders>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <!-- T-943 review 3: load all ICU data, not the shard the browser language picks. A scene's components
+         may carry their own locale (an Arabic form inside an en-US scene), and the EFIGS shard an en-US
+         language selects has no Arabic, so such a component would format from ICU root data. -->
+    <BlazorWebAssemblyLoadAllGlobalizationData>true</BlazorWebAssemblyLoadAllGlobalizationData>
     <MD2RazorDefaultBaseClass>global::BlazingStory.Internals.Pages.MarkdownPageBase</MD2RazorDefaultBaseClass>
     <!-- Ticket 143: restore into the repository's own packages folder, the one prepare-galleries
          fills and deletes, rather than ~/.nuget/packages. This is the documented RestorePackagesPath
