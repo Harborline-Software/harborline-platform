@@ -675,6 +675,7 @@ public sealed class RecordsDraftTests : BunitContext
         var changes = new List<RecordsDraftChange>(); var cut = Header(RecordsDraft.Empty, changes, ClassOffer, RoleOffer);
         Assert.All(HeaderSelects, name => Assert.False(HasSelect(cut, name), name));
         Assert.All(HeaderCheckboxes, name => Assert.Empty(cut.FindAll($"input[type='checkbox'][aria-label='{name}']")));
+        Assert.False(HasNote(cut));
         cut.Find("select[aria-label='Definition kind']").Change("Records");
         var change = Assert.Single(changes);
         Assert.Equal(("", "", (string?)null, (string?)"Records", 1, 0), (change.Draft.Identity, change.Draft.VersionId, change.Draft.ExpectedRevision, change.Draft.DefinitionKind, change.Generation, change.Draft.Body.Count));
@@ -684,7 +685,7 @@ public sealed class RecordsDraftTests : BunitContext
         Assert.False(HasSelect(cut, "Creation role")); Assert.Equal("No mode", SelectedText(cut, "Amendment mode"));
         // A draft not yet created gets both policies from creation, so both show checked and disabled; nothing is written for them.
         Assert.All(HeaderCheckboxes, name => { Assert.True(IsChecked(cut, name), name); Assert.True(IsDisabled(Checkbox(cut, name)), name); });
-        Assert.Single(changes);
+        Assert.True(HasNote(cut)); Assert.Single(changes);
     }
 
     [Fact]
@@ -990,7 +991,7 @@ public sealed class RecordsDraftTests : BunitContext
     }
 
     // From the recheck: a draft not yet created (empty identity) gets an absent policy from CreateDraftAsync (RecordTypeDefinitionStore.cs:153-154).
-    private const string CreationNote = "Creation sets both policies, so they cannot be turned off.";
+    private const string CreationNote = "Creation sets any policy that is not set, so it cannot be turned off.";
     private static RecordsDraft Uncreated(JsonObject body) => new("", "", null, "Records", body);
     private static void AssertUncreated(RecordsDraftChange change, JsonObject expectedBody, int generation)
     {
@@ -1019,7 +1020,7 @@ public sealed class RecordsDraftTests : BunitContext
         var changes = new List<RecordsDraftChange>(); var cut = Header(Uncreated(new JsonObject()), changes);
         Choose(cut, "Amendment mode", "supersession");
         AssertUncreated(Assert.Single(changes), new JsonObject { ["amendment_policy"] = new JsonObject { ["reason_required"] = true, ["mode"] = "supersession" } }, 1);
-        Assert.True(IsChecked(cut, "Amendments require a reason")); Assert.True(IsDisabled(Checkbox(cut, "Amendments require a reason")));
+        Assert.True(IsChecked(cut, "Amendments require a reason")); Assert.True(IsDisabled(Checkbox(cut, "Amendments require a reason"))); Assert.True(HasNote(cut));
         Choose(cut, "Amendment mode", "No mode");
         Assert.Equal(2, changes.Count); AssertUncreated(changes[1], new JsonObject { ["amendment_policy"] = new JsonObject { ["reason_required"] = true } }, 2);
         Checkbox(cut, "Amendments require a reason").Change(false);
@@ -1029,14 +1030,15 @@ public sealed class RecordsDraftTests : BunitContext
     [Fact]
     public void Revision3_on_a_draft_not_yet_created_a_malformed_policy_shows_unchecked_and_enabled_and_checking_writes_the_admitted_value_and_locks_it()
     {
-        var changes = new List<RecordsDraftChange>(); var cut = Header(Uncreated(new JsonObject { ["history_policy"] = "disabled", ["amendment_policy"] = null }), changes);
+        var changes = new List<RecordsDraftChange>(); var cut = Header(Uncreated(new JsonObject { ["history_policy"] = "disabled", ["amendment_policy"] = "yes" }), changes);
         Assert.All(HeaderCheckboxes, name => { Assert.False(IsChecked(cut, name), name); Assert.False(IsDisabled(Checkbox(cut, name)), name); });
-        Assert.False(HasSelect(cut, "Amendment mode"));
+        Assert.False(HasSelect(cut, "Amendment mode")); Assert.False(HasNote(cut));
         Toggle(cut, "Keep history"); Toggle(cut, "Amendments require a reason");
         Assert.Equal(2, changes.Count);
-        AssertUncreated(changes[0], new JsonObject { ["history_policy"] = "enabled", ["amendment_policy"] = null }, 1);
+        AssertUncreated(changes[0], new JsonObject { ["history_policy"] = "enabled", ["amendment_policy"] = "yes" }, 1);
         AssertUncreated(changes[1], new JsonObject { ["history_policy"] = "enabled", ["amendment_policy"] = new JsonObject { ["reason_required"] = true } }, 2);
         Assert.All(HeaderCheckboxes, name => { Assert.True(IsChecked(cut, name), name); Assert.True(IsDisabled(Checkbox(cut, name)), name); });
+        Assert.True(HasNote(cut));
         Checkbox(cut, "Keep history").Change(false); Checkbox(cut, "Amendments require a reason").Change(false);
         Assert.Equal(2, changes.Count);
     }
@@ -1048,7 +1050,7 @@ public sealed class RecordsDraftTests : BunitContext
         Choose(cut, "Class", "eam.facility");
         var incoming = DraftWith(With(body, ("history_policy", "enabled"))) with { VersionId = "2.0.0" };
         cut.Render(parameters => parameters.Add(component => component.Value, incoming));
-        Assert.False(IsChecked(cut, "Keep history"));
+        Assert.False(IsChecked(cut, "Keep history")); Assert.False(IsDisabled(Checkbox(cut, "Keep history")));
         Button(cut, "Discard edits").Click();
         Assert.Equal(2, changes.Count);
         AssertReported(changes[0], With(body, ("class_id", "eam.facility")), 1);
@@ -1098,6 +1100,58 @@ public sealed class RecordsDraftTests : BunitContext
         Assert.Equal("Not set", SelectedText(other, "Creation role")); Assert.Equal("No mode", SelectedText(other, "Amendment mode"));
         Toggle(other, "Keep history");
         AssertReported(Assert.Single(second), With(secondBody, ("history_policy", "enabled")), 1);
+    }
+
+    [Fact]
+    public void Revision3_on_a_draft_not_yet_created_a_null_policy_is_absent_so_both_show_checked_and_disabled_with_the_note_and_choosing_a_mode_replaces_the_null()
+    {
+        var changes = new List<RecordsDraftChange>(); var cut = Header(Uncreated(new JsonObject { ["amendment_policy"] = null, ["history_policy"] = null }), changes);
+        Assert.All(HeaderCheckboxes, name => { Assert.True(IsChecked(cut, name), name); Assert.True(IsDisabled(Checkbox(cut, name)), name); });
+        Assert.True(HasNote(cut)); Assert.Equal("No mode", SelectedText(cut, "Amendment mode"));
+        Checkbox(cut, "Amendments require a reason").Change(false); Checkbox(cut, "Keep history").Change(false);
+        Assert.Empty(changes);
+        Choose(cut, "Amendment mode", "supersession");
+        AssertUncreated(Assert.Single(changes), new JsonObject { ["amendment_policy"] = new JsonObject { ["reason_required"] = true, ["mode"] = "supersession" }, ["history_policy"] = null }, 1);
+    }
+
+    [Fact]
+    public void Revision3_the_new_draft_rule_follows_the_empty_identity_alone_not_an_empty_version_or_a_missing_revision()
+    {
+        var changes = new List<RecordsDraftChange>(); var cut = Header(Uncreated(new JsonObject()) with { VersionId = "1.0.0" }, changes);
+        Assert.All(HeaderCheckboxes, name => { Assert.True(IsChecked(cut, name), name); Assert.True(IsDisabled(Checkbox(cut, name)), name); });
+        Assert.True(HasNote(cut));
+        var other = Header(DraftWith(HeaderBody()) with { ExpectedRevision = null }, changes);
+        Assert.All(HeaderCheckboxes, name => { Assert.False(IsChecked(other, name), name); Assert.False(IsDisabled(Checkbox(other, name)), name); });
+        Assert.False(HasNote(other));
+        Assert.Empty(changes);
+    }
+
+    [Fact]
+    public void Revision3_Keep_edits_leaves_the_host_body_as_it_was_so_a_policy_only_the_held_draft_declares_stays_addable_and_removable()
+    {
+        var body = HeaderBody(); var changes = new List<RecordsDraftChange>(); var cut = Header(DraftWith(body), changes, ClassOffer);
+        Choose(cut, "Class", "eam.facility");
+        cut.Render(parameters => parameters.Add(component => component.Value, DraftWith(With(body, ("history_policy", "enabled"))) with { VersionId = "2.0.0" }));
+        Button(cut, "Keep edits").Click();
+        Assert.False(IsChecked(cut, "Keep history")); Assert.False(IsDisabled(Checkbox(cut, "Keep history")));
+        Toggle(cut, "Keep history");
+        Assert.False(IsDisabled(Checkbox(cut, "Keep history")));
+        Toggle(cut, "Keep history");
+        Assert.Equal(3, changes.Count);
+        AssertReported(changes[0], With(body, ("class_id", "eam.facility")), 1);
+        AssertReported(changes[1], With(body, ("class_id", "eam.facility"), ("history_policy", "enabled")), 2);
+        AssertReported(changes[2], With(body, ("class_id", "eam.facility")), 3);
+    }
+
+    [Fact]
+    public void Revision3_a_draft_adopted_after_a_rejected_revision_locks_the_policies_it_declares()
+    {
+        var changes = new List<RecordsDraftChange>(); var cut = Header(DraftWith(HeaderBody()) with { ExpectedRevision = "01" }, changes);
+        Assert.Empty(cut.FindAll("input[type='checkbox'][aria-label='Keep history']"));
+        cut.Render(parameters => parameters.Add(component => component.Value, DraftWith(HeaderBody(("history_policy", "enabled"))) with { ExpectedRevision = "7" }));
+        Assert.True(IsChecked(cut, "Keep history")); Assert.True(IsDisabled(Checkbox(cut, "Keep history")));
+        Checkbox(cut, "Keep history").Change(false);
+        Assert.Empty(changes);
     }
 
     [Fact]
