@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
 import { RecordTypeDraftEditor } from './RecordTypeDraftEditor'
-import { emptyRecordsDraft, type RecordsDiagnostic, type RecordsDiagnosticSet, type RecordsDraft, type RecordsDraftChange, type RecordsWarning, type RecordTypeBody, type RecordTypeField } from './RecordsDraftTypes'
+import { emptyRecordsDraft, type RecordsClassOption, type RecordsDiagnostic, type RecordsDiagnosticSet, type RecordsDraft, type RecordsDraftChange, type RecordsRoleOption, type RecordsWarning, type RecordTypeBody, type RecordTypeField } from './RecordsDraftTypes'
 
 type NewRecordType = { tenant: string; section: string; name: string; version: string; fields: RecordTypeField[] }
 type RefusalCase = { id: string; replace?: Partial<NewRecordType>; createRequest?: NewRecordType; rawSave?: { key: { definitionId: string }; versionId: string; expectedRevision: number; bodyJson: string }; expected: { outcome: string; refusals?: RecordsDiagnostic[]; mintedRecordTypeId?: string } }
@@ -59,8 +59,8 @@ describe('Records local draft editor, React lane', () => {
     const stored = structuredClone(g1.expectedStoredBody)
     const expected = { ...stored, name: 'Asset Class local', fields: stored.fields.map((field, index) => index === 2 ? { ...field, display_name: 'Remarks' } : field) }
     expect(changes.at(-1)!.draft).toStrictEqual({ ...g1Draft(), body: expected })
-    // The existing Boolean floor is carried, never offered as a control.
-    expect(screen.queryByRole('checkbox')).toBeNull()
+    // The existing Boolean floor is carried, never offered as a control: the only checkboxes are the two revision 3 header ones.
+    expect(screen.getAllByRole('checkbox').map(box => box.getAttribute('aria-label')).sort()).toEqual(['Amendments require a reason', 'Keep history'])
   })
 
   it('preserves unknown members and other reference members while editing reference inputs', () => {
@@ -490,5 +490,249 @@ describe('Records local draft editor, React lane, revision 2 targets and warning
     view.rerender(<RecordTypeDraftEditor value={changes[0].draft} kindOptions={kindOptions} diagnostics={preview(changes[0].draft, 1, [undeclared, unresolved], [retentionUnset])} onDraftChange={onDraftChange} />)
     expect(diagnosticRows()).toEqual([undeclaredRow, unresolvedRow]); expect(warningTexts()).toEqual([retentionText])
     expect(changes).toHaveLength(1)
+  })
+})
+
+// Interface revision 3 header (semantics.edits, notEdited, hostOptions; producer spellings RecordTypeDocument.cs:60-171). Written from the
+// interface, not the implementation. Controls are found by accessible name and options by visible text, never by option value. Every base
+// body carries unknown members at the body, envelope and field level, so each exact expected body also proves preservation. Case names pair
+// one-for-one with RecordsDraftTests.cs (Revision3_*).
+describe('Records local draft editor, React lane, revision 3 header', () => {
+  type Body = Record<string, unknown>
+  const classOptions: readonly RecordsClassOption[] = [{ classId: 'eam.equipment' }, { classId: 'eam.facility' }]
+  const roleOptions: readonly RecordsRoleOption[] = [{ roleId: 'asset-manager' }, { roleId: 'records-clerk' }]
+  const without = (body: Body, ...members: string[]): Body => Object.fromEntries(Object.entries(body).filter(([member]) => !members.includes(member)))
+  // G1 (class_id eam.equipment, record_class master, no creation, amendment or history member) plus unknown members, then the case's members.
+  const headerBody = (members: Body = {}): Body => {
+    const stored = structuredClone(g1.expectedStoredBody)
+    return { ...stored, future_member: { kept: [1, 'two'] }, envelope: { ...stored.envelope, future_envelope_member: true }, fields: stored.fields.map((field, index) => index === 0 ? { ...field, future_field_member: 'kept' } : field), ...members }
+  }
+  // Every header member at once, plus an opaque traits value and the retention clock, so each edit must change exactly its own members.
+  const fullHeader = (): Body => headerBody({ traits: [{ opaque: 'kept' }], retention_clock_field_id: 'asset_tag', creation_gate: 'role', creation_role_id: 'records-clerk', amendment_policy: { reason_required: true, mode: 'supersession', future_policy_member: 'kept' }, history_policy: 'enabled' })
+  const draftWith = (body: Body): RecordsDraft => ({ ...g1Draft(), body: body as RecordTypeBody })
+  const reported = (body: Body, generation: number): RecordsDraftChange => ({ draft: draftWith(body), generation })
+  const header = (body: Body, options: { classOptions?: readonly RecordsClassOption[]; roleOptions?: readonly RecordsRoleOption[]; readOnly?: boolean } = {}) => {
+    const changes: RecordsDraftChange[] = []
+    const view = render(<RecordTypeDraftEditor value={draftWith(body)} kindOptions={kindOptions} {...options} onDraftChange={change => changes.push(change)} />)
+    return { changes, view }
+  }
+  const select = (name: string) => screen.getByRole('combobox', { name }) as HTMLSelectElement
+  const absent = (name: string) => screen.queryByRole('combobox', { name })
+  const optionTexts = (name: string) => Array.from(select(name).options).map(option => option.textContent)
+  const selectedText = (name: string) => select(name).selectedOptions[0]?.textContent
+  const choose = (name: string, text: string) => {
+    const option = Array.from(select(name).options).find(item => item.textContent === text)
+    if (option === undefined) throw new Error(`${name} offers no option "${text}"`)
+    fireEvent.change(select(name), { target: { value: option.value } })
+  }
+  const checkbox = (name: string) => screen.getByRole('checkbox', { name }) as HTMLInputElement
+
+  it('Revision3: header controls appear only after the definition kind is chosen, and nothing is selected for the host', () => {
+    const changes: RecordsDraftChange[] = []
+    render(<RecordTypeDraftEditor value={emptyRecordsDraft()} kindOptions={kindOptions} classOptions={classOptions} roleOptions={roleOptions} onDraftChange={change => changes.push(change)} />)
+    for (const name of ['Class', 'Record class', 'Creation gate', 'Creation role', 'Amendment mode']) expect(absent(name), name).toBeNull()
+    for (const name of ['Amendments require a reason', 'Keep history']) expect(screen.queryByRole('checkbox', { name }), name).toBeNull()
+    fireEvent.change(screen.getByLabelText('Definition kind'), { target: { value: 'Records' } })
+    expect(changes).toStrictEqual([{ draft: { identity: '', versionId: '', definitionKind: 'Records', body: {} }, generation: 1 }])
+    expect(optionTexts('Class')).toEqual(['Not set', 'eam.equipment', 'eam.facility']); expect(selectedText('Class')).toBe('Not set')
+    expect(select('Record class')).toBeInTheDocument()
+    expect(optionTexts('Creation gate')).toEqual(['Not set (form_only)', 'form_only', 'role', 'engine']); expect(selectedText('Creation gate')).toBe('Not set (form_only)')
+    expect(absent('Creation role')).toBeNull(); expect(absent('Amendment mode')).toBeNull()
+    expect(checkbox('Amendments require a reason')).not.toBeChecked(); expect(checkbox('Keep history')).not.toBeChecked()
+    expect(changes).toHaveLength(1)
+  })
+
+  it('Revision3: Class writes an offered class_id exactly, and Not set removes the member', () => {
+    const base = headerBody(); const { changes } = header(base, { classOptions })
+    expect(optionTexts('Class')).toEqual(['Not set', 'eam.equipment', 'eam.facility']); expect(selectedText('Class')).toBe('eam.equipment'); expect(changes).toHaveLength(0)
+    choose('Class', 'eam.facility')
+    expect(changes).toStrictEqual([reported({ ...base, class_id: 'eam.facility' }, 1)])
+    choose('Class', 'Not set')
+    expect(changes).toStrictEqual([reported({ ...base, class_id: 'eam.facility' }, 1), reported(without(base, 'class_id'), 2)])
+    expect('class_id' in changes[1].draft.body).toBe(false)
+  })
+
+  it('Revision3: a current class the host does not offer is shown as not offered and kept', () => {
+    const base = headerBody({ class_id: 'eam.legacy' }); const { changes } = header(base, { classOptions })
+    expect(optionTexts('Class')[0]).toBe('Not set')
+    expect([...optionTexts('Class')].sort()).toEqual(['Not set', 'eam.equipment', 'eam.facility', 'eam.legacy (not offered)'].sort())
+    expect(selectedText('Class')).toBe('eam.legacy (not offered)'); expect(changes).toHaveLength(0)
+    fireEvent.click(checkbox('Keep history'))
+    expect(changes).toStrictEqual([reported({ ...base, history_policy: 'enabled' }, 1)])
+    expect(selectedText('Class')).toBe('eam.legacy (not offered)')
+  })
+
+  it('Revision3: with no class options only Not set and the current class are offered', () => {
+    const first = header(headerBody())
+    expect([...optionTexts('Class')].sort()).toEqual(['Not set', 'eam.equipment (not offered)'].sort()); expect(selectedText('Class')).toBe('eam.equipment (not offered)')
+    first.view.unmount()
+    const second = header(without(headerBody(), 'class_id'))
+    expect(optionTexts('Class')).toEqual(['Not set']); expect(selectedText('Class')).toBe('Not set')
+    expect(first.changes).toHaveLength(0); expect(second.changes).toHaveLength(0)
+  })
+
+  it('Revision3: the editor never selects a class or a creation role on its own, even when one option is offered', () => {
+    const { changes } = header(without(headerBody({ creation_gate: 'role' }), 'class_id'), { classOptions: [{ classId: 'eam.equipment' }], roleOptions: [{ roleId: 'asset-manager' }] })
+    expect(selectedText('Class')).toBe('Not set'); expect(selectedText('Creation role')).toBe('Not set')
+    expect(changes).toHaveLength(0)
+  })
+
+  it.each([['reference', 'master'], ['master', 'transactional'], ['transactional', 'reference']])('Revision3: Record class writes the producer spelling %s exactly', (spelling, current) => {
+    const base = headerBody({ record_class: current }); const { changes } = header(base)
+    expect(selectedText('Record class')).toBe(current)
+    choose('Record class', spelling)
+    expect(changes).toStrictEqual([reported({ ...base, record_class: spelling }, 1)])
+  })
+
+  it('Revision3: an unknown current record class spelling is shown and kept', () => {
+    const base = headerBody({ record_class: 'Master' }); const { changes } = header(base)
+    expect(selectedText('Record class')).toContain('Master'); expect(changes).toHaveLength(0)
+    fireEvent.click(checkbox('Keep history'))
+    expect(changes).toStrictEqual([reported({ ...base, history_policy: 'enabled' }, 1)])
+  })
+
+  it.each(['role', 'engine', 'form_only'])('Revision3: Creation gate writes %s exactly', gate => {
+    const base = headerBody(); const { changes } = header(base, { roleOptions })
+    choose('Creation gate', gate)
+    // Offered roles are never selected for the host: the gate alone is written.
+    expect(changes).toStrictEqual([reported({ ...base, creation_gate: gate }, 1)])
+    expect(selectedText('Creation gate')).toBe(gate)
+    if (gate === 'role') expect(selectedText('Creation role')).toBe('Not set'); else expect(absent('Creation role')).toBeNull()
+  })
+
+  it('Revision3: Not set (form_only) removes creation_gate', () => {
+    const base = headerBody({ creation_gate: 'engine' }); const { changes } = header(base)
+    choose('Creation gate', 'Not set (form_only)')
+    expect(changes).toStrictEqual([reported(without(base, 'creation_gate'), 1)])
+    expect('creation_gate' in changes[0].draft.body).toBe(false)
+  })
+
+  it.each<[string, Body]>([['form_only', { creation_gate: 'form_only' }], ['engine', { creation_gate: 'engine' }], ['Not set (form_only)', {}]])('Revision3: choosing %s on a role gate removes creation_role_id in the same change', (text, gate) => {
+    const base = headerBody({ creation_gate: 'role', creation_role_id: 'records-clerk' }); const { changes } = header(base, { roleOptions })
+    choose('Creation gate', text)
+    expect(changes).toStrictEqual([reported({ ...without(base, 'creation_gate', 'creation_role_id'), ...gate }, 1)])
+    expect('creation_role_id' in changes[0].draft.body).toBe(false); expect(absent('Creation role')).toBeNull()
+  })
+
+  it('Revision3: choosing role keeps an existing creation_role_id', () => {
+    const base = headerBody({ creation_gate: 'engine', creation_role_id: 'records-clerk' }); const { changes } = header(base, { roleOptions })
+    choose('Creation gate', 'role')
+    expect(changes).toStrictEqual([reported({ ...base, creation_gate: 'role' }, 1)])
+    expect(selectedText('Creation role')).toBe('records-clerk')
+  })
+
+  it.each<[string, Body]>([['absent', {}], ['form_only', { creation_gate: 'form_only' }], ['engine', { creation_gate: 'engine' }]])('Revision3: Creation role is not offered when the gate is %s', (_, gate) => {
+    const { changes } = header(headerBody({ ...gate, creation_role_id: 'records-clerk' }), { roleOptions })
+    expect(absent('Creation role')).toBeNull(); expect(changes).toHaveLength(0)
+  })
+
+  it('Revision3: Creation role writes an offered role exactly, and Not set removes the member', () => {
+    const base = headerBody({ creation_gate: 'role' }); const { changes } = header(base, { roleOptions })
+    expect(optionTexts('Creation role')).toEqual(['Not set', 'asset-manager', 'records-clerk']); expect(selectedText('Creation role')).toBe('Not set'); expect(changes).toHaveLength(0)
+    choose('Creation role', 'records-clerk')
+    expect(changes).toStrictEqual([reported({ ...base, creation_role_id: 'records-clerk' }, 1)])
+    choose('Creation role', 'Not set')
+    expect(changes).toStrictEqual([reported({ ...base, creation_role_id: 'records-clerk' }, 1), reported(base, 2)])
+    expect('creation_role_id' in changes[1].draft.body).toBe(false)
+  })
+
+  it('Revision3: a current role the host does not offer is shown as not offered and kept, and no role options offer only Not set', () => {
+    const base = headerBody({ creation_gate: 'role', creation_role_id: 'legacy-role' }); const first = header(base, { roleOptions })
+    expect(optionTexts('Creation role')[0]).toBe('Not set')
+    expect([...optionTexts('Creation role')].sort()).toEqual(['Not set', 'asset-manager', 'legacy-role (not offered)', 'records-clerk'].sort())
+    expect(selectedText('Creation role')).toBe('legacy-role (not offered)'); expect(first.changes).toHaveLength(0)
+    fireEvent.click(checkbox('Keep history'))
+    expect(first.changes).toStrictEqual([reported({ ...base, history_policy: 'enabled' }, 1)])
+    first.view.unmount()
+    const second = header(headerBody({ creation_gate: 'role' }))
+    expect(optionTexts('Creation role')).toEqual(['Not set']); expect(second.changes).toHaveLength(0)
+  })
+
+  it('Revision3: checking writes reason_required true, Amendment mode adds and removes mode, and unchecking removes the policy', () => {
+    const base = headerBody(); const { changes } = header(base)
+    expect(checkbox('Amendments require a reason')).not.toBeChecked(); expect(absent('Amendment mode')).toBeNull()
+    fireEvent.click(checkbox('Amendments require a reason'))
+    expect(changes.at(-1)).toStrictEqual(reported({ ...base, amendment_policy: { reason_required: true } }, 1))
+    expect(checkbox('Amendments require a reason')).toBeChecked()
+    expect(optionTexts('Amendment mode')).toEqual(['No mode', 'supersession']); expect(selectedText('Amendment mode')).toBe('No mode')
+    choose('Amendment mode', 'supersession')
+    expect(changes.at(-1)).toStrictEqual(reported({ ...base, amendment_policy: { reason_required: true, mode: 'supersession' } }, 2))
+    choose('Amendment mode', 'No mode')
+    expect(changes.at(-1)).toStrictEqual(reported({ ...base, amendment_policy: { reason_required: true } }, 3))
+    fireEvent.click(checkbox('Amendments require a reason'))
+    expect(changes.at(-1)).toStrictEqual(reported(base, 4))
+    expect('amendment_policy' in changes[3].draft.body).toBe(false); expect(absent('Amendment mode')).toBeNull(); expect(changes).toHaveLength(4)
+  })
+
+  // Not in the interface's required list: a malformed host policy must still render, show as absent, and never be spread into the new one.
+  it.each<[string, unknown]>([['null', null], ['a string', 'ab'], ['an array', [1]]])('Revision3: a %s amendment policy renders unchecked with no Amendment mode, and checking replaces it with reason_required true', (_, policy) => {
+    const base = headerBody({ amendment_policy: policy }); const { changes } = header(base)
+    expect(checkbox('Amendments require a reason')).not.toBeChecked(); expect(absent('Amendment mode')).toBeNull(); expect(changes).toHaveLength(0)
+    fireEvent.click(checkbox('Amendments require a reason'))
+    expect(changes.at(-1)).toStrictEqual(reported({ ...base, amendment_policy: { reason_required: true } }, 1))
+  })
+
+  it('Revision3: a non-string header value shows as not set and is kept unchanged', () => {
+    const base = headerBody({ class_id: 42, record_class: 7, creation_gate: true }); const { changes } = header(base, { classOptions })
+    expect(selectedText('Class')).toBe('Not set'); expect(selectedText('Record class')).toBe('Not set'); expect(selectedText('Creation gate')).toBe('Not set (form_only)')
+    expect(changes).toHaveLength(0)
+  })
+
+  it('Revision3: No mode keeps reason_required and the other policy members, and unchecking removes the whole policy', () => {
+    const base = headerBody({ amendment_policy: { reason_required: true, mode: 'supersession', future_policy_member: 'kept' } })
+    const first = header(base)
+    expect(checkbox('Amendments require a reason')).toBeChecked(); expect(selectedText('Amendment mode')).toBe('supersession')
+    choose('Amendment mode', 'No mode')
+    expect(first.changes).toStrictEqual([reported({ ...base, amendment_policy: { reason_required: true, future_policy_member: 'kept' } }, 1)])
+    first.view.unmount()
+    const second = header(base)
+    fireEvent.click(checkbox('Amendments require a reason'))
+    expect(second.changes).toStrictEqual([reported(without(base, 'amendment_policy'), 1)])
+  })
+
+  it('Revision3: checking with an existing policy writes reason_required true and keeps its other members', () => {
+    // A policy present without reason_required true (malformed for the producer, carried as given): unchecked, with its mode shown.
+    const base = headerBody({ amendment_policy: { mode: 'supersession', future_policy_member: 'kept' } }); const { changes } = header(base)
+    expect(checkbox('Amendments require a reason')).not.toBeChecked(); expect(selectedText('Amendment mode')).toBe('supersession'); expect(changes).toHaveLength(0)
+    fireEvent.click(checkbox('Amendments require a reason'))
+    expect(changes).toStrictEqual([reported({ ...base, amendment_policy: { mode: 'supersession', future_policy_member: 'kept', reason_required: true } }, 1)])
+  })
+
+  it('Revision3: Keep history writes history_policy enabled, and unchecking removes it', () => {
+    const base = headerBody(); const { changes } = header(base)
+    expect(checkbox('Keep history')).not.toBeChecked()
+    fireEvent.click(checkbox('Keep history'))
+    expect(changes.at(-1)).toStrictEqual(reported({ ...base, history_policy: 'enabled' }, 1)); expect(checkbox('Keep history')).toBeChecked()
+    fireEvent.click(checkbox('Keep history'))
+    expect(changes).toStrictEqual([reported({ ...base, history_policy: 'enabled' }, 1), reported(base, 2)])
+    expect('history_policy' in changes[1].draft.body).toBe(false)
+  })
+
+  it.each<[string, () => void, (body: Body) => Body]>([
+    ['Class', () => choose('Class', 'eam.facility'), body => ({ ...body, class_id: 'eam.facility' })],
+    ['Class Not set', () => choose('Class', 'Not set'), body => without(body, 'class_id')],
+    ['Record class', () => choose('Record class', 'reference'), body => ({ ...body, record_class: 'reference' })],
+    ['Creation gate engine', () => choose('Creation gate', 'engine'), body => ({ ...without(body, 'creation_role_id'), creation_gate: 'engine' })],
+    ['Creation role', () => choose('Creation role', 'asset-manager'), body => ({ ...body, creation_role_id: 'asset-manager' })],
+    ['Creation role Not set', () => choose('Creation role', 'Not set'), body => without(body, 'creation_role_id')],
+    ['Amendment mode No mode', () => choose('Amendment mode', 'No mode'), body => ({ ...body, amendment_policy: { reason_required: true, future_policy_member: 'kept' } })],
+    ['Amendments unchecked', () => fireEvent.click(checkbox('Amendments require a reason')), body => without(body, 'amendment_policy')],
+    ['Keep history unchecked', () => fireEvent.click(checkbox('Keep history')), body => without(body, 'history_policy')],
+  ])('Revision3: the %s edit changes only its own members and reports exactly one change at the next generation', (_, edit, expected) => {
+    const base = fullHeader(); const given = structuredClone(base); const { changes } = header(base, { classOptions, roleOptions })
+    edit()
+    expect(changes).toStrictEqual([reported(expected(fullHeader()), 1)])
+    expect(base).toStrictEqual(given)
+  })
+
+  it('Revision3: read-only disables every header control and reports no change', () => {
+    const { changes } = header(fullHeader(), { classOptions, roleOptions, readOnly: true })
+    for (const name of ['Class', 'Record class', 'Creation gate', 'Creation role', 'Amendment mode']) expect(select(name), name).toBeDisabled()
+    for (const name of ['Amendments require a reason', 'Keep history']) expect(checkbox(name), name).toBeDisabled()
+    choose('Class', 'eam.facility'); choose('Class', 'Not set'); choose('Record class', 'reference'); choose('Creation gate', 'engine'); choose('Creation role', 'asset-manager'); choose('Amendment mode', 'No mode')
+    fireEvent.click(checkbox('Amendments require a reason')); fireEvent.click(checkbox('Keep history'))
+    expect(changes).toHaveLength(0)
+    expect(selectedText('Class')).toBe('eam.equipment'); expect(selectedText('Creation gate')).toBe('role'); expect(selectedText('Creation role')).toBe('records-clerk')
+    expect(checkbox('Amendments require a reason')).toBeChecked(); expect(checkbox('Keep history')).toBeChecked()
   })
 })

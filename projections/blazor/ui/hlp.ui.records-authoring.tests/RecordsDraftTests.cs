@@ -59,7 +59,8 @@ public sealed class RecordsDraftTests : BunitContext
         Assert.True(JsonNode.DeepEquals(expected, changes[^1].Draft.Body), changes[^1].Draft.Body.ToJsonString());
         Assert.Equal((G1Draft().Identity, G1Draft().VersionId, G1Draft().ExpectedRevision), (changes[^1].Draft.Identity, changes[^1].Draft.VersionId, changes[^1].Draft.ExpectedRevision));
         Assert.True(JsonNode.DeepEquals(G1["expectedStoredBody"], G1Draft().Body));
-        Assert.Empty(cut.FindAll("input[type='checkbox']"));
+        // The existing Boolean floor is carried, never offered as a control: the only checkboxes are the two revision 3 header ones.
+        Assert.Equal(["Amendments require a reason", "Keep history"], cut.FindAll("input[type='checkbox']").Select(box => box.GetAttribute("aria-label") ?? "").Order(StringComparer.Ordinal).ToArray());
     }
 
     [Fact]
@@ -596,5 +597,355 @@ public sealed class RecordsDraftTests : BunitContext
         cut.Render(parameters => parameters.Add(component => component.Diagnostics, Preview(changes[0].Draft, 1, [Undeclared, Unresolved], [RetentionUnset])));
         Assert.Equal([UndeclaredRow, UnresolvedRow], DiagnosticRows(cut)); Assert.Equal([RetentionText], WarningTexts(cut));
         Assert.Single(changes);
+    }
+
+    // ---- Interface revision 3 header (semantics.edits, notEdited, hostOptions; producer spellings RecordTypeDocument.cs:60-171) ----------
+    // Written from the interface, not the implementation. Controls are found by aria-label and options by visible text, never by option value.
+    // Every base body carries unknown members at the body, envelope and field level, so each exact expected body also proves preservation.
+    // Method names pair one-for-one with RecordTypeDraftEditor.test.tsx ("Revision3: ...").
+    private static readonly IReadOnlyList<RecordsClassOption> ClassOffer = [new("eam.equipment"), new("eam.facility")];
+    private static readonly IReadOnlyList<RecordsRoleOption> RoleOffer = [new("asset-manager"), new("records-clerk")];
+    private static readonly string[] HeaderSelects = ["Class", "Record class", "Creation gate", "Creation role", "Amendment mode"];
+    private static readonly string[] HeaderCheckboxes = ["Amendments require a reason", "Keep history"];
+
+    private static JsonObject With(JsonObject body, params (string Member, JsonNode? Value)[] members)
+    {
+        var next = body.DeepClone().AsObject();
+        foreach (var (member, value) in members) next[member] = value?.DeepClone();
+        return next;
+    }
+
+    private static JsonObject Without(JsonObject body, params string[] members)
+    {
+        var next = body.DeepClone().AsObject();
+        foreach (var member in members) next.Remove(member);
+        return next;
+    }
+
+    // G1 (class_id eam.equipment, record_class master, no creation, amendment or history member) plus unknown members, then the case's members.
+    private static JsonObject HeaderBody(params (string Member, JsonNode? Value)[] members)
+    {
+        var body = G1Draft().Body;
+        body["future_member"] = new JsonObject { ["kept"] = new JsonArray(1, "two") };
+        body["envelope"]!["future_envelope_member"] = true;
+        body["fields"]![0]!["future_field_member"] = "kept";
+        return With(body, members);
+    }
+
+    // Every header member at once, plus an opaque traits value and the retention clock, so each edit must change exactly its own members.
+    private static JsonObject FullHeader() => HeaderBody(("traits", JsonNode.Parse("""[{"opaque":"kept"}]""")), ("retention_clock_field_id", "asset_tag"), ("creation_gate", "role"), ("creation_role_id", "records-clerk"), ("amendment_policy", JsonNode.Parse("""{"reason_required":true,"mode":"supersession","future_policy_member":"kept"}""")), ("history_policy", "enabled"));
+    private static RecordsDraft DraftWith(JsonObject body) => G1Draft() with { Body = body };
+
+    private static void AssertReported(RecordsDraftChange change, JsonObject expectedBody, int generation)
+    {
+        var g1 = G1Draft();
+        Assert.Equal((g1.Identity, g1.VersionId, g1.ExpectedRevision, g1.DefinitionKind, generation), (change.Draft.Identity, change.Draft.VersionId, change.Draft.ExpectedRevision, change.Draft.DefinitionKind, change.Generation));
+        Assert.True(JsonNode.DeepEquals(expectedBody, change.Draft.Body), change.Draft.Body.ToJsonString());
+    }
+
+    // Absent options are left unset, so each option parameter keeps its default.
+    private IRenderedComponent<HarborlineRecordTypeDraftEditor> Header(RecordsDraft value, List<RecordsDraftChange> changes, IReadOnlyList<RecordsClassOption>? classOptions = null, IReadOnlyList<RecordsRoleOption>? roleOptions = null, bool readOnly = false)
+        => Render<HarborlineRecordTypeDraftEditor>(parameters =>
+        {
+            parameters.Add(component => component.Value, value).Add(component => component.KindOptions, KindOptions).Add(component => component.ReadOnly, readOnly).Add(component => component.DraftChanged, (RecordsDraftChange change) => changes.Add(change));
+            if (classOptions is not null) parameters.Add(component => component.ClassOptions, classOptions);
+            if (roleOptions is not null) parameters.Add(component => component.RoleOptions, roleOptions);
+        });
+
+    private static IElement HeaderSelect(IRenderedComponent<HarborlineRecordTypeDraftEditor> cut, string name) => cut.Find($"select[aria-label='{name}']");
+    private static bool HasSelect(IRenderedComponent<HarborlineRecordTypeDraftEditor> cut, string name) => cut.FindAll($"select[aria-label='{name}']").Count > 0;
+    private static IReadOnlyList<IElement> Options(IRenderedComponent<HarborlineRecordTypeDraftEditor> cut, string name) => cut.FindAll($"select[aria-label='{name}'] option");
+    private static string[] OptionTexts(IRenderedComponent<HarborlineRecordTypeDraftEditor> cut, string name) => [.. Options(cut, name).Select(option => option.TextContent)];
+    private static string OptionValue(IElement option) => option.GetAttribute("value") ?? option.TextContent;
+    // The shown option: one marked selected, else the one whose value the select carries (Blazor renders the bound value on the select).
+    private static string? SelectedText(IRenderedComponent<HarborlineRecordTypeDraftEditor> cut, string name)
+    {
+        var options = Options(cut, name); var value = HeaderSelect(cut, name).GetAttribute("value") ?? "";
+        return (options.FirstOrDefault(option => option.HasAttribute("selected")) ?? options.FirstOrDefault(option => OptionValue(option) == value))?.TextContent;
+    }
+    private static void Choose(IRenderedComponent<HarborlineRecordTypeDraftEditor> cut, string name, string text) => HeaderSelect(cut, name).Change(OptionValue(Assert.Single(Options(cut, name), option => option.TextContent == text)));
+    private static IElement Checkbox(IRenderedComponent<HarborlineRecordTypeDraftEditor> cut, string name) => cut.Find($"input[type='checkbox'][aria-label='{name}']");
+    private static bool IsChecked(IRenderedComponent<HarborlineRecordTypeDraftEditor> cut, string name) => Checkbox(cut, name).HasAttribute("checked");
+    private static void Toggle(IRenderedComponent<HarborlineRecordTypeDraftEditor> cut, string name) => Checkbox(cut, name).Change(!IsChecked(cut, name));
+    private static bool IsDisabled(IElement control) => control.HasAttribute("disabled") || control.Closest("fieldset[disabled]") is not null;
+
+    [Fact]
+    public void Revision3_header_controls_appear_only_after_the_definition_kind_is_chosen_and_nothing_is_selected_for_the_host()
+    {
+        var changes = new List<RecordsDraftChange>(); var cut = Header(RecordsDraft.Empty, changes, ClassOffer, RoleOffer);
+        Assert.All(HeaderSelects, name => Assert.False(HasSelect(cut, name), name));
+        Assert.All(HeaderCheckboxes, name => Assert.Empty(cut.FindAll($"input[type='checkbox'][aria-label='{name}']")));
+        cut.Find("select[aria-label='Definition kind']").Change("Records");
+        var change = Assert.Single(changes);
+        Assert.Equal(("", "", (string?)null, (string?)"Records", 1, 0), (change.Draft.Identity, change.Draft.VersionId, change.Draft.ExpectedRevision, change.Draft.DefinitionKind, change.Generation, change.Draft.Body.Count));
+        Assert.Equal(["Not set", "eam.equipment", "eam.facility"], OptionTexts(cut, "Class")); Assert.Equal("Not set", SelectedText(cut, "Class"));
+        Assert.True(HasSelect(cut, "Record class"));
+        Assert.Equal(["Not set (form_only)", "form_only", "role", "engine"], OptionTexts(cut, "Creation gate")); Assert.Equal("Not set (form_only)", SelectedText(cut, "Creation gate"));
+        Assert.False(HasSelect(cut, "Creation role")); Assert.False(HasSelect(cut, "Amendment mode"));
+        Assert.False(IsChecked(cut, "Amendments require a reason")); Assert.False(IsChecked(cut, "Keep history"));
+        Assert.Single(changes);
+    }
+
+    [Fact]
+    public void Revision3_Class_writes_an_offered_class_id_exactly_and_Not_set_removes_the_member()
+    {
+        var body = HeaderBody(); var changes = new List<RecordsDraftChange>(); var cut = Header(DraftWith(body), changes, ClassOffer);
+        Assert.Equal(["Not set", "eam.equipment", "eam.facility"], OptionTexts(cut, "Class")); Assert.Equal("eam.equipment", SelectedText(cut, "Class")); Assert.Empty(changes);
+        Choose(cut, "Class", "eam.facility");
+        AssertReported(Assert.Single(changes), With(body, ("class_id", "eam.facility")), 1);
+        Choose(cut, "Class", "Not set");
+        Assert.Equal(2, changes.Count); AssertReported(changes[1], Without(body, "class_id"), 2);
+        Assert.False(changes[1].Draft.Body.ContainsKey("class_id"));
+    }
+
+    [Fact]
+    public void Revision3_a_current_class_the_host_does_not_offer_is_shown_as_not_offered_and_kept()
+    {
+        var body = HeaderBody(("class_id", "eam.legacy")); var changes = new List<RecordsDraftChange>(); var cut = Header(DraftWith(body), changes, ClassOffer);
+        Assert.Equal("Not set", OptionTexts(cut, "Class")[0]);
+        Assert.Equal(["Not set", "eam.equipment", "eam.facility", "eam.legacy (not offered)"], OptionTexts(cut, "Class").Order(StringComparer.Ordinal).ToArray());
+        Assert.Equal("eam.legacy (not offered)", SelectedText(cut, "Class")); Assert.Empty(changes);
+        Toggle(cut, "Keep history");
+        AssertReported(Assert.Single(changes), With(body, ("history_policy", "enabled")), 1);
+        Assert.Equal("eam.legacy (not offered)", SelectedText(cut, "Class"));
+    }
+
+    [Fact]
+    public void Revision3_with_no_class_options_only_Not_set_and_the_current_class_are_offered()
+    {
+        var first = new List<RecordsDraftChange>(); var cut = Header(DraftWith(HeaderBody()), first);
+        Assert.Equal(["Not set", "eam.equipment (not offered)"], OptionTexts(cut, "Class").Order(StringComparer.Ordinal).ToArray()); Assert.Equal("eam.equipment (not offered)", SelectedText(cut, "Class"));
+        var second = new List<RecordsDraftChange>(); var other = Header(DraftWith(Without(HeaderBody(), "class_id")), second);
+        Assert.Equal(["Not set"], OptionTexts(other, "Class")); Assert.Equal("Not set", SelectedText(other, "Class"));
+        Assert.Empty(first); Assert.Empty(second);
+    }
+
+    [Fact]
+    public void Revision3_the_editor_never_selects_a_class_or_a_creation_role_on_its_own_even_when_one_option_is_offered()
+    {
+        var changes = new List<RecordsDraftChange>();
+        var cut = Header(DraftWith(Without(HeaderBody(("creation_gate", "role")), "class_id")), changes, [new("eam.equipment")], [new("asset-manager")]);
+        Assert.Equal("Not set", SelectedText(cut, "Class")); Assert.Equal("Not set", SelectedText(cut, "Creation role"));
+        Assert.Empty(changes);
+    }
+
+    [Theory]
+    [InlineData("reference", "master")]
+    [InlineData("master", "transactional")]
+    [InlineData("transactional", "reference")]
+    public void Revision3_Record_class_writes_the_producer_spelling_exactly(string spelling, string current)
+    {
+        var body = HeaderBody(("record_class", current)); var changes = new List<RecordsDraftChange>(); var cut = Header(DraftWith(body), changes);
+        Assert.Equal(current, SelectedText(cut, "Record class"));
+        Choose(cut, "Record class", spelling);
+        AssertReported(Assert.Single(changes), With(body, ("record_class", spelling)), 1);
+    }
+
+    [Fact]
+    public void Revision3_an_unknown_current_record_class_spelling_is_shown_and_kept()
+    {
+        var body = HeaderBody(("record_class", "Master")); var changes = new List<RecordsDraftChange>(); var cut = Header(DraftWith(body), changes);
+        Assert.Contains("Master", SelectedText(cut, "Record class")); Assert.Empty(changes);
+        Toggle(cut, "Keep history");
+        AssertReported(Assert.Single(changes), With(body, ("history_policy", "enabled")), 1);
+    }
+
+    [Theory]
+    [InlineData("role")]
+    [InlineData("engine")]
+    [InlineData("form_only")]
+    public void Revision3_Creation_gate_writes_the_chosen_gate_exactly(string gate)
+    {
+        var body = HeaderBody(); var changes = new List<RecordsDraftChange>(); var cut = Header(DraftWith(body), changes, roleOptions: RoleOffer);
+        Choose(cut, "Creation gate", gate);
+        // Offered roles are never selected for the host: the gate alone is written.
+        AssertReported(Assert.Single(changes), With(body, ("creation_gate", gate)), 1);
+        Assert.Equal(gate, SelectedText(cut, "Creation gate"));
+        if (gate == "role") Assert.Equal("Not set", SelectedText(cut, "Creation role")); else Assert.False(HasSelect(cut, "Creation role"));
+    }
+
+    [Fact]
+    public void Revision3_Not_set_form_only_removes_creation_gate()
+    {
+        var body = HeaderBody(("creation_gate", "engine")); var changes = new List<RecordsDraftChange>(); var cut = Header(DraftWith(body), changes);
+        Choose(cut, "Creation gate", "Not set (form_only)");
+        AssertReported(Assert.Single(changes), Without(body, "creation_gate"), 1);
+        Assert.False(changes[0].Draft.Body.ContainsKey("creation_gate"));
+    }
+
+    [Theory]
+    [InlineData("form_only", "form_only")]
+    [InlineData("engine", "engine")]
+    [InlineData("Not set (form_only)", null)]
+    public void Revision3_choosing_a_gate_other_than_role_removes_creation_role_id_in_the_same_change(string text, string? gate)
+    {
+        var body = HeaderBody(("creation_gate", "role"), ("creation_role_id", "records-clerk")); var changes = new List<RecordsDraftChange>(); var cut = Header(DraftWith(body), changes, roleOptions: RoleOffer);
+        Choose(cut, "Creation gate", text);
+        var expected = Without(body, "creation_gate", "creation_role_id"); if (gate is not null) expected["creation_gate"] = gate;
+        AssertReported(Assert.Single(changes), expected, 1);
+        Assert.False(changes[0].Draft.Body.ContainsKey("creation_role_id")); Assert.False(HasSelect(cut, "Creation role"));
+    }
+
+    [Fact]
+    public void Revision3_choosing_role_keeps_an_existing_creation_role_id()
+    {
+        var body = HeaderBody(("creation_gate", "engine"), ("creation_role_id", "records-clerk")); var changes = new List<RecordsDraftChange>(); var cut = Header(DraftWith(body), changes, roleOptions: RoleOffer);
+        Choose(cut, "Creation gate", "role");
+        AssertReported(Assert.Single(changes), With(body, ("creation_gate", "role")), 1);
+        Assert.Equal("records-clerk", SelectedText(cut, "Creation role"));
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("form_only")]
+    [InlineData("engine")]
+    public void Revision3_Creation_role_is_not_offered_when_the_gate_is(string? gate)
+    {
+        var body = HeaderBody(("creation_role_id", "records-clerk")); if (gate is not null) body["creation_gate"] = gate;
+        var changes = new List<RecordsDraftChange>(); var cut = Header(DraftWith(body), changes, roleOptions: RoleOffer);
+        Assert.False(HasSelect(cut, "Creation role")); Assert.Empty(changes);
+    }
+
+    [Fact]
+    public void Revision3_Creation_role_writes_an_offered_role_exactly_and_Not_set_removes_the_member()
+    {
+        var body = HeaderBody(("creation_gate", "role")); var changes = new List<RecordsDraftChange>(); var cut = Header(DraftWith(body), changes, roleOptions: RoleOffer);
+        Assert.Equal(["Not set", "asset-manager", "records-clerk"], OptionTexts(cut, "Creation role")); Assert.Equal("Not set", SelectedText(cut, "Creation role")); Assert.Empty(changes);
+        Choose(cut, "Creation role", "records-clerk");
+        AssertReported(Assert.Single(changes), With(body, ("creation_role_id", "records-clerk")), 1);
+        Choose(cut, "Creation role", "Not set");
+        Assert.Equal(2, changes.Count); AssertReported(changes[1], body, 2);
+        Assert.False(changes[1].Draft.Body.ContainsKey("creation_role_id"));
+    }
+
+    [Fact]
+    public void Revision3_a_current_role_the_host_does_not_offer_is_shown_as_not_offered_and_kept_and_no_role_options_offer_only_Not_set()
+    {
+        var body = HeaderBody(("creation_gate", "role"), ("creation_role_id", "legacy-role")); var changes = new List<RecordsDraftChange>(); var cut = Header(DraftWith(body), changes, roleOptions: RoleOffer);
+        Assert.Equal("Not set", OptionTexts(cut, "Creation role")[0]);
+        Assert.Equal(["Not set", "asset-manager", "legacy-role (not offered)", "records-clerk"], OptionTexts(cut, "Creation role").Order(StringComparer.Ordinal).ToArray());
+        Assert.Equal("legacy-role (not offered)", SelectedText(cut, "Creation role")); Assert.Empty(changes);
+        Toggle(cut, "Keep history");
+        AssertReported(Assert.Single(changes), With(body, ("history_policy", "enabled")), 1);
+        var second = new List<RecordsDraftChange>(); var other = Header(DraftWith(HeaderBody(("creation_gate", "role"))), second);
+        Assert.Equal(["Not set"], OptionTexts(other, "Creation role")); Assert.Empty(second);
+    }
+
+    [Fact]
+    public void Revision3_checking_writes_reason_required_true_Amendment_mode_adds_and_removes_mode_and_unchecking_removes_the_policy()
+    {
+        var body = HeaderBody(); var changes = new List<RecordsDraftChange>(); var cut = Header(DraftWith(body), changes);
+        Assert.False(IsChecked(cut, "Amendments require a reason")); Assert.False(HasSelect(cut, "Amendment mode"));
+        Toggle(cut, "Amendments require a reason");
+        AssertReported(changes[^1], With(body, ("amendment_policy", JsonNode.Parse("""{"reason_required":true}"""))), 1);
+        Assert.True(IsChecked(cut, "Amendments require a reason"));
+        Assert.Equal(["No mode", "supersession"], OptionTexts(cut, "Amendment mode")); Assert.Equal("No mode", SelectedText(cut, "Amendment mode"));
+        Choose(cut, "Amendment mode", "supersession");
+        AssertReported(changes[^1], With(body, ("amendment_policy", JsonNode.Parse("""{"reason_required":true,"mode":"supersession"}"""))), 2);
+        Choose(cut, "Amendment mode", "No mode");
+        AssertReported(changes[^1], With(body, ("amendment_policy", JsonNode.Parse("""{"reason_required":true}"""))), 3);
+        Toggle(cut, "Amendments require a reason");
+        AssertReported(changes[^1], body, 4);
+        Assert.False(changes[3].Draft.Body.ContainsKey("amendment_policy")); Assert.False(HasSelect(cut, "Amendment mode")); Assert.Equal(4, changes.Count);
+    }
+
+    // Not in the interface's required list: a malformed host policy must still render, show as absent, and never be spread into the new one.
+    [Theory]
+    [InlineData("null")]
+    [InlineData("\"ab\"")]
+    [InlineData("[1]")]
+    public void Revision3_a_malformed_amendment_policy_renders_unchecked_with_no_Amendment_mode_and_checking_replaces_it_with_reason_required_true(string policy)
+    {
+        var body = HeaderBody(("amendment_policy", JsonNode.Parse(policy))); var changes = new List<RecordsDraftChange>(); var cut = Header(DraftWith(body), changes);
+        Assert.False(IsChecked(cut, "Amendments require a reason")); Assert.False(HasSelect(cut, "Amendment mode")); Assert.Empty(changes);
+        Toggle(cut, "Amendments require a reason");
+        AssertReported(changes[^1], With(body, ("amendment_policy", JsonNode.Parse("""{"reason_required":true}"""))), 1);
+    }
+
+    [Fact]
+    public void Revision3_a_non_string_header_value_shows_as_not_set_and_is_kept_unchanged()
+    {
+        var body = HeaderBody(("class_id", JsonValue.Create(42)), ("record_class", JsonValue.Create(7)), ("creation_gate", JsonValue.Create(true))); var changes = new List<RecordsDraftChange>(); var cut = Header(DraftWith(body), changes, classOptions: [new("eam.equipment")]);
+        Assert.Equal("Not set", SelectedText(cut, "Class")); Assert.Equal("Not set", SelectedText(cut, "Record class")); Assert.Equal("Not set (form_only)", SelectedText(cut, "Creation gate"));
+        Assert.Empty(changes);
+    }
+
+    [Fact]
+    public void Revision3_No_mode_keeps_reason_required_and_the_other_policy_members_and_unchecking_removes_the_whole_policy()
+    {
+        var body = HeaderBody(("amendment_policy", JsonNode.Parse("""{"reason_required":true,"mode":"supersession","future_policy_member":"kept"}""")));
+        var first = new List<RecordsDraftChange>(); var cut = Header(DraftWith(body), first);
+        Assert.True(IsChecked(cut, "Amendments require a reason")); Assert.Equal("supersession", SelectedText(cut, "Amendment mode"));
+        Choose(cut, "Amendment mode", "No mode");
+        AssertReported(Assert.Single(first), With(body, ("amendment_policy", JsonNode.Parse("""{"reason_required":true,"future_policy_member":"kept"}"""))), 1);
+        var second = new List<RecordsDraftChange>(); var other = Header(DraftWith(body), second);
+        Toggle(other, "Amendments require a reason");
+        AssertReported(Assert.Single(second), Without(body, "amendment_policy"), 1);
+    }
+
+    [Fact]
+    public void Revision3_checking_with_an_existing_policy_writes_reason_required_true_and_keeps_its_other_members()
+    {
+        // A policy present without reason_required true (malformed for the producer, carried as given): unchecked, with its mode shown.
+        var body = HeaderBody(("amendment_policy", JsonNode.Parse("""{"mode":"supersession","future_policy_member":"kept"}"""))); var changes = new List<RecordsDraftChange>(); var cut = Header(DraftWith(body), changes);
+        Assert.False(IsChecked(cut, "Amendments require a reason")); Assert.Equal("supersession", SelectedText(cut, "Amendment mode")); Assert.Empty(changes);
+        Toggle(cut, "Amendments require a reason");
+        AssertReported(Assert.Single(changes), With(body, ("amendment_policy", JsonNode.Parse("""{"mode":"supersession","future_policy_member":"kept","reason_required":true}"""))), 1);
+    }
+
+    [Fact]
+    public void Revision3_Keep_history_writes_history_policy_enabled_and_unchecking_removes_it()
+    {
+        var body = HeaderBody(); var changes = new List<RecordsDraftChange>(); var cut = Header(DraftWith(body), changes);
+        Assert.False(IsChecked(cut, "Keep history"));
+        Toggle(cut, "Keep history");
+        AssertReported(Assert.Single(changes), With(body, ("history_policy", "enabled")), 1); Assert.True(IsChecked(cut, "Keep history"));
+        Toggle(cut, "Keep history");
+        Assert.Equal(2, changes.Count); AssertReported(changes[1], body, 2);
+        Assert.False(changes[1].Draft.Body.ContainsKey("history_policy"));
+    }
+
+    [Theory]
+    [InlineData("Class")]
+    [InlineData("Class Not set")]
+    [InlineData("Record class")]
+    [InlineData("Creation gate engine")]
+    [InlineData("Creation role")]
+    [InlineData("Creation role Not set")]
+    [InlineData("Amendment mode No mode")]
+    [InlineData("Amendments unchecked")]
+    [InlineData("Keep history unchecked")]
+    public void Revision3_the_edit_changes_only_its_own_members_and_reports_exactly_one_change_at_the_next_generation(string edit)
+    {
+        var body = FullHeader(); var given = body.DeepClone(); var changes = new List<RecordsDraftChange>(); var cut = Header(DraftWith(body), changes, ClassOffer, RoleOffer);
+        JsonObject expected;
+        switch (edit)
+        {
+            case "Class": Choose(cut, "Class", "eam.facility"); expected = With(FullHeader(), ("class_id", "eam.facility")); break;
+            case "Class Not set": Choose(cut, "Class", "Not set"); expected = Without(FullHeader(), "class_id"); break;
+            case "Record class": Choose(cut, "Record class", "reference"); expected = With(FullHeader(), ("record_class", "reference")); break;
+            case "Creation gate engine": Choose(cut, "Creation gate", "engine"); expected = With(Without(FullHeader(), "creation_role_id"), ("creation_gate", "engine")); break;
+            case "Creation role": Choose(cut, "Creation role", "asset-manager"); expected = With(FullHeader(), ("creation_role_id", "asset-manager")); break;
+            case "Creation role Not set": Choose(cut, "Creation role", "Not set"); expected = Without(FullHeader(), "creation_role_id"); break;
+            case "Amendment mode No mode": Choose(cut, "Amendment mode", "No mode"); expected = With(FullHeader(), ("amendment_policy", JsonNode.Parse("""{"reason_required":true,"future_policy_member":"kept"}"""))); break;
+            case "Amendments unchecked": Toggle(cut, "Amendments require a reason"); expected = Without(FullHeader(), "amendment_policy"); break;
+            case "Keep history unchecked": Toggle(cut, "Keep history"); expected = Without(FullHeader(), "history_policy"); break;
+            default: throw new ArgumentOutOfRangeException(nameof(edit));
+        }
+        AssertReported(Assert.Single(changes), expected, 1);
+        Assert.True(JsonNode.DeepEquals(given, body), body.ToJsonString());
+    }
+
+    [Fact]
+    public void Revision3_read_only_disables_every_header_control_and_reports_no_change()
+    {
+        var changes = new List<RecordsDraftChange>(); var cut = Header(DraftWith(FullHeader()), changes, ClassOffer, RoleOffer, readOnly: true);
+        Assert.All(HeaderSelects, name => Assert.True(IsDisabled(HeaderSelect(cut, name)), name));
+        Assert.All(HeaderCheckboxes, name => Assert.True(IsDisabled(Checkbox(cut, name)), name));
+        Choose(cut, "Class", "eam.facility"); Choose(cut, "Class", "Not set"); Choose(cut, "Record class", "reference"); Choose(cut, "Creation gate", "engine"); Choose(cut, "Creation role", "asset-manager"); Choose(cut, "Amendment mode", "No mode");
+        Toggle(cut, "Amendments require a reason"); Toggle(cut, "Keep history");
+        Assert.Empty(changes);
+        Assert.Equal("eam.equipment", SelectedText(cut, "Class")); Assert.Equal("role", SelectedText(cut, "Creation gate")); Assert.Equal("records-clerk", SelectedText(cut, "Creation role"));
+        Assert.True(IsChecked(cut, "Amendments require a reason")); Assert.True(IsChecked(cut, "Keep history"));
     }
 }

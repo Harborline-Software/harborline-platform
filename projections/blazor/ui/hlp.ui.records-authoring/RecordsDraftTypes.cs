@@ -18,6 +18,12 @@ public sealed record RecordsDraft(string Identity, string VersionId, string? Exp
 /// <summary>A field kind and version the host offers. The editor never selects one on its own.</summary>
 public sealed record RecordsKindOption(string KindId, string Version);
 
+/// <summary>A published Class the host offers as the type's catalogue home. The editor never selects one on its own.</summary>
+public sealed record RecordsClassOption(string ClassId);
+
+/// <summary>A domain role the host offers as a role gate's creation role. The editor never selects one on its own.</summary>
+public sealed record RecordsRoleOption(string RoleId);
+
 /// <summary>A producer diagnostic rendered as given: a stable code at an RFC 6901 pointer.</summary>
 public sealed record RecordsDiagnostic(string Code, string Pointer)
 {

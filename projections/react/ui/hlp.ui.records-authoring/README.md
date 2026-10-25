@@ -15,6 +15,14 @@ This is a bounded subset of T618. It covers local editing only, not all of T618.
 - Edits name, `envelope.section`, field key and display name, binding kind and version, existing string and number kind parameter values only (other JSON types stay unchanged; invalid numeric input is a no-op),
   existing reference target type, cardinality and on-delete, and the retention clock field. You can add a field
   (`field_key` and `display_name` only) and remove a field.
+- Edits the Record Type header (interface revision 3): the Class, chosen only from host-supplied `classOptions`; the record
+  class (`reference`, `master` or `transactional`); the creation gate (`form_only`, `role` or `engine`, absent meaning
+  `form_only`) and, for the role gate only, the creation role, chosen only from host-supplied `roleOptions`; whether
+  amendments require a reason, with an optional `supersession` mode; and whether history is kept. Choosing a gate other
+  than `role` removes the creation role in the same edit, because the producer refuses one on any other gate. A current
+  Class or role the host does not offer is shown as "(not offered)" and left unchanged.
+- Shows each host-supplied diagnostic's target, and the host's warnings in their own list after the note "Warnings do
+  not block publication." (interface revision 2).
 - Kind and version can only be chosen from host-supplied `kindOptions`, and the editor never picks one for you. A
   current kind the host does not offer is shown as "(not offered)" and left unchanged.
 - Reports each local change as `{ draft, generation }`. The draft's identity, version and revision are read-only.
@@ -34,7 +42,7 @@ This is a bounded subset of T618. It covers local editing only, not all of T618.
 - It does not compute, reorder, merge or invent diagnostics or producer refusals.
 - It does not edit `binding.constraints`. The existing Boolean `required` floor is carried through, with no checkbox.
   It does not author or serialize required conditions, and it writes no `null` or `false` sentinel.
-- It does not author governance, defaults provenance, traits, class or record class, new bindings or new references.
+- It does not author governance, defaults provenance, traits, new bindings or new references.
   Those members are preserved, but this editor does not claim to cover them.
 - It applies no compatibility clearing or defaults materialization when a kind or version changes.
 - It reads no permission names.

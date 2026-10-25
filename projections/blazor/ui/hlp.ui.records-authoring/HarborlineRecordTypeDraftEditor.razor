@@ -4,7 +4,7 @@
 @using System.Text.Json.Nodes
 @using Harborline.UIAdapters.Blazor.Components.Buttons
 
-@{ var body = Current.Body; var fields = FieldList; var fieldKeys = fields.Select(field => Str(field?["field_key"])).OfType<string>().Where(key => key != "").ToArray(); var retention = Str(body["retention_clock_field_id"]); var kindChosen = Current.DefinitionKind == "Records";
+@{ var body = Current.Body; var fields = FieldList; var fieldKeys = fields.Select(field => Str(field?["field_key"])).OfType<string>().Where(key => key != "").ToArray(); var retention = Str(body["retention_clock_field_id"]); var kindChosen = Current.DefinitionKind == "Records"; var classId = Str(body["class_id"]); var recordClass = Str(body["record_class"]); var gate = Str(body["creation_gate"]); var roleId = Str(body["creation_role_id"]); var amendment = body["amendment_policy"] as JsonObject; var mode = amendment is null ? null : Str(amendment["mode"]);
     RenderFragment content = @<text>
     <header class="hl-records-authoring__header">
         <label>Definition kind<select aria-label="Definition kind" value="@(Current.DefinitionKind ?? "")" @onchange="ChooseKind">@if (!kindChosen) { <option value="">Choose a definition kind</option> }<option value="Records">Record type</option></select></label>
@@ -15,6 +15,7 @@
     @if (kindChosen)
     {
         <div class="hl-records-authoring__grid"><label>Name<input aria-label="Record type name" value="@(Str(body["name"]))" @onchange="ChangeName" /></label><label>Section<input aria-label="Section" value="@(Section(body))" @onchange="ChangeSection" /></label></div>
+        <div class="hl-records-authoring__grid"><label>Class<select aria-label="Class" value="@(classId ?? "")" @onchange="ChooseClass"><option value="">Not set</option>@if (classId is not null && !ClassOptions.Any(option => option.ClassId == classId)) { <option value="@classId">@($"{classId} (not offered)")</option> }@foreach (var option in ClassOptions) { <option value="@option.ClassId">@option.ClassId</option> }</select></label><label>Record class<select aria-label="Record class" value="@(recordClass ?? "")" @onchange="ChooseRecordClass">@if (recordClass is null || !RecordClasses.Contains(recordClass)) { <option value="@(recordClass ?? "")">@(recordClass is null ? "Not set" : $"{recordClass} (not a current spelling)")</option> }@foreach (var spelling in RecordClasses) { <option value="@spelling">@spelling</option> }</select></label><label>Creation gate<select aria-label="Creation gate" value="@(gate ?? "")" @onchange="ChooseGate"><option value="">Not set (form_only)</option>@if (gate is not null && !CreationGates.Contains(gate)) { <option value="@gate">@($"{gate} (not a current spelling)")</option> }@foreach (var spelling in CreationGates) { <option value="@spelling">@spelling</option> }</select></label>@if (gate == "role") { <label>Creation role<select aria-label="Creation role" value="@(roleId ?? "")" @onchange="ChooseRole"><option value="">Not set</option>@if (roleId is not null && !RoleOptions.Any(option => option.RoleId == roleId)) { <option value="@roleId">@($"{roleId} (not offered)")</option> }@foreach (var option in RoleOptions) { <option value="@option.RoleId">@option.RoleId</option> }</select></label> }<label><input type="checkbox" aria-label="Amendments require a reason" checked="@(amendment?["reason_required"] is JsonValue reason && reason.GetValueKind() == JsonValueKind.True)" @onchange="ChangeReasonRequired" />Amendments require a reason</label>@if (amendment is not null) { <label>Amendment mode<select aria-label="Amendment mode" value="@(mode ?? "")" @onchange="ChooseMode"><option value="">No mode</option>@if (mode is not null && !AmendmentModes.Contains(mode)) { <option value="@mode">@($"{mode} (not a current spelling)")</option> }@foreach (var spelling in AmendmentModes) { <option value="@spelling">@spelling</option> }</select></label> }<label><input type="checkbox" aria-label="Keep history" checked="@(Str(body["history_policy"]) == "enabled")" @onchange="ChangeHistory" />Keep history</label></div>
         @for (var index = 0; index < fields.Count; index++)
         {
             var current = index; var n = current + 1; var field = fields[current];
@@ -61,6 +62,10 @@
     [Parameter, EditorRequired] public RecordsDraft Value { get; set; } = RecordsDraft.Empty;
     /// <summary>The field kinds and versions the host offers for a binding.</summary>
     [Parameter] public IReadOnlyList<RecordsKindOption> KindOptions { get; set; } = [];
+    /// <summary>The published Classes the host offers as the type's catalogue home; the editor never selects one on its own.</summary>
+    [Parameter] public IReadOnlyList<RecordsClassOption> ClassOptions { get; set; } = [];
+    /// <summary>The domain roles the host offers as a role gate's creation role; the editor never selects one on its own.</summary>
+    [Parameter] public IReadOnlyList<RecordsRoleOption> RoleOptions { get; set; } = [];
     /// <summary>Host-supplied diagnostics; shown only when identity, revision and generation all match the current draft.</summary>
     [Parameter] public RecordsDiagnosticSet? Diagnostics { get; set; }
     /// <summary>A local flag that disables every control and edit handler. It is not an authorization decision.</summary>
@@ -71,6 +76,10 @@
     // Reference spellings of the current grammar (RecordTypeIdentity.cs:45-62). A value outside them is shown, never rewritten.
     private static readonly string[] Cardinalities = ["one", "many"];
     private static readonly string[] OnDeletes = ["block", "orphan", "cascade"];
+    // Header spellings of the current grammar (RecordTypeDocument.cs:107-171).
+    private static readonly string[] RecordClasses = ["reference", "master", "transactional"];
+    private static readonly string[] CreationGates = ["form_only", "role", "engine"];
+    private static readonly string[] AmendmentModes = ["supersession"];
     private const string RejectedRevision = "A host draft was not loaded because its revision is not a canonical decimal string.";
     private RecordsDraft Current = RecordsDraft.Empty; private RecordsDraft? _incoming; private string? _lifecycle; private string? _held; private bool _dirty; private int _generation;
     // No draft exists until the first host value with an acceptable revision; the Empty placeholder is never shown or reported.
@@ -132,6 +141,16 @@
     private Task ChangeReferenceTarget(int index, ChangeEventArgs eventArgs) => EditReference(index, "target_type_id", eventArgs);
     private Task ChangeReferenceCardinality(int index, ChangeEventArgs eventArgs) => EditReference(index, "cardinality", eventArgs);
     private Task ChangeReferenceOnDelete(int index, ChangeEventArgs eventArgs) => EditReference(index, "on_delete", eventArgs);
+    // Removing a member writes nothing in its place; an empty choice means absent.
+    private static void SetMember(JsonObject body, string member, string value) { if (value == "") body.Remove(member); else body[member] = value; }
+    private Task ChooseClass(ChangeEventArgs eventArgs) => Edit(body => SetMember(body, "class_id", Text(eventArgs)));
+    private Task ChooseRecordClass(ChangeEventArgs eventArgs) => Edit(body => SetMember(body, "record_class", Text(eventArgs)));
+    // Only a role gate names a creation role (the producer refuses one on any other gate), so another gate removes it in the same edit.
+    private Task ChooseGate(ChangeEventArgs eventArgs) => Edit(body => { var gate = Text(eventArgs); SetMember(body, "creation_gate", gate); if (gate != "role") body.Remove("creation_role_id"); });
+    private Task ChooseRole(ChangeEventArgs eventArgs) => Edit(body => SetMember(body, "creation_role_id", Text(eventArgs)));
+    private Task ChangeReasonRequired(ChangeEventArgs eventArgs) => Edit(body => { if (eventArgs.Value is true) { if (body["amendment_policy"] is not JsonObject policy) { policy = new JsonObject(); body["amendment_policy"] = policy; } policy["reason_required"] = true; } else body.Remove("amendment_policy"); });
+    private Task ChooseMode(ChangeEventArgs eventArgs) => Edit(body => { if (body["amendment_policy"] is JsonObject policy) SetMember(policy, "mode", Text(eventArgs)); });
+    private Task ChangeHistory(ChangeEventArgs eventArgs) => Edit(body => { if (eventArgs.Value is true) body["history_policy"] = "enabled"; else body.Remove("history_policy"); });
     private Task ChooseRetention(ChangeEventArgs eventArgs) => Edit(body => { var key = Text(eventArgs); if (key == "") body.Remove("retention_clock_field_id"); else body["retention_clock_field_id"] = key; });
     private Task AddField() => Edit(body => { if (body["fields"] is not JsonArray fields) { fields = new JsonArray(); body["fields"] = fields; } fields.Add(new JsonObject { ["field_key"] = "", ["display_name"] = "" }); });
     private Task RemoveField(int index) => Edit(body => { if (body["fields"] is JsonArray fields && index < fields.Count) fields.RemoveAt(index); });
