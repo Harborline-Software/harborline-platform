@@ -58,7 +58,10 @@ function exists(path) {
 // against its row (unwaived, changed and stale rows fail there); what no run can see is a row that
 // names no scenario at all, or a row too thin to be reviewed, so those are refused here, statically.
 const ariaRegisterPath = 'gallery/aria-parity-known-divergences.json'
-const ariaWaiverKeys = ['scenarioId', 'ticket', 'reason', 'reactOnly', 'blazorOnly']
+const ariaWaiverKeys = ['scenarioId', 'ticket', 'reason', 'hunks']
+// T-943 builds the comparison and closes when it lands, so a row naming it would point at a closed
+// ticket the day it merges: every waiver names the open ticket that owns its fix (review 1, finding 2).
+const ariaRegisterTicket = 'T-943'
 export function ariaParityRegisterErrors(register, scenarioIds) {
   if (!Array.isArray(register?.divergences)) return [`${ariaRegisterPath}: divergences must be an array`]
   const errors = []
@@ -75,12 +78,16 @@ export function ariaParityRegisterErrors(register, scenarioIds) {
     if (typeof row.scenarioId !== 'string' || !known.has(row.scenarioId)) errors.push(`${label} names an unknown scenario id`)
     else if (seen.has(row.scenarioId)) errors.push(`${label} is registered twice; one row records the scenario's whole difference`)
     seen.add(row.scenarioId)
-    if (typeof row.ticket !== 'string' || !/^(?:T-)?\d+$/.test(row.ticket)) errors.push(`${label} needs the ticket that owns the fix (T-NNN or NNN)`)
+    if (typeof row.ticket !== 'string' || !/^T-\d+$/.test(row.ticket)) errors.push(`${label} needs the open ticket that owns the fix (T-NNN)`)
+    else if (row.ticket === ariaRegisterTicket) errors.push(`${label} names ${ariaRegisterTicket}, the ticket that builds this register and closes with it; name the open ticket that owns the fix`)
     if (typeof row.reason !== 'string' || row.reason.trim().length < 20) errors.push(`${label} needs a reason a reviewer can check`)
-    const lines = ['reactOnly', 'blazorOnly'].map(lane => row[lane])
-    if (lines.some(lane => !Array.isArray(lane) || lane.some(line => typeof line !== 'string' || line.trim().length === 0))) {
-      errors.push(`${label} must record reactOnly and blazorOnly as arrays of snapshot lines`)
-    } else if (lines.every(lane => lane.length === 0)) {
+    // Hunks as laneLineDiff writes them: '@@' opens each hunk, then context ('  '), React-only ('- ')
+    // and Blazor-only ('+ ') markers, each followed by a snapshot line, which always starts (after its
+    // indentation) with '- '. Anything else was not measured.
+    const hunks = row.hunks
+    if (!Array.isArray(hunks) || hunks.some(line => typeof line !== 'string' || !(line === '@@' || /^[ +-] \s*- /.test(line)))) {
+      errors.push(`${label} must record hunks as laneLineDiff writes them ('@@', then '  ', '- ' or '+ ' lines)`)
+    } else if (hunks[0] !== '@@' || !hunks.some(line => line.startsWith('- ') || line.startsWith('+ '))) {
       errors.push(`${label} records no differing snapshot line, so it waives nothing a run can measure`)
     }
   }
