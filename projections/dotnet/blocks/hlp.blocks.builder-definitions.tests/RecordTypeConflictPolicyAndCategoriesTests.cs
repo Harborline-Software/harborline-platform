@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using Harborline.Kernel.SchemaValidation;
 using Harborline.Foundation.Definitions;
 using Harborline.Kernel.SchemaValidation.Records;
 using Xunit;
@@ -10,8 +11,10 @@ namespace Harborline.Blocks.BuilderDefinitions.Tests;
 /// <summary>
 /// T-615: a field declares its offline conflict policy (records-ck-16, L1011: <c>ask</c>, the default, <c>additive</c> or
 /// <c>latest_observation</c>, exact lowercase, never last-write-wins) and a Record Type declares its category tags
-/// (records-ck-23, L103: many per type, independent of the package label). Both members are optional, so every existing
-/// body and digest is byte-identical; an explicit <c>ask</c> and an empty tag list canonicalize to absent. Declaration only:
+/// (records-ck-23, L103: many per type, independent of the package label; blank, malformed and case-insensitively repeated
+/// tags refuse, the strict interim rule while comparison is unruled). Both members are optional, so every existing body and
+/// digest is byte-identical; an explicit <c>ask</c>, an explicit null and an empty tag list canonicalize to absent, and save
+/// does not carry either declaration forward. Declaration only:
 /// the offline runtime that raises and settles a conflict is records-eng-25. Expected bodies, codes and pointers are
 /// literals spelled independently of the producer serializer.
 /// </summary>
@@ -21,15 +24,26 @@ public sealed class RecordTypeConflictPolicyAndCategoriesTests
     private const string NotesField = "{\"display_name\":\"Notes\"";
 
     private static string WithNotesConflictPolicy(string json, string value) =>
-        json.Replace(NotesField, "{\"conflict_policy\":" + value + ",\"display_name\":\"Notes\"", StringComparison.Ordinal);
+        Splice(json, NotesField, "{\"conflict_policy\":" + value + ",\"display_name\":\"Notes\"");
 
     // categories sorts before class_id, the legacy body's first member.
     private static string WithCategories(string json, string tags) =>
-        json.Replace("{\"class_id\"", "{\"categories\":" + tags + ",\"class_id\"", StringComparison.Ordinal);
+        Splice(json, "{\"class_id\"", "{\"categories\":" + tags + ",\"class_id\"");
+
+    // asset_tag is bound, so it passes through the kind defaults on creation; conflict_policy sorts before defaults_provenance.
+    private static string WithAssetTagConflictPolicy(string json, string value) =>
+        Splice(json, "\"defaults_provenance\":{\"kind_id\":\"text\"", "\"conflict_policy\":" + value + ",\"defaults_provenance\":{\"kind_id\":\"text\"");
+
+    // Every literal body below is spliced from a literal; a missing anchor fails here rather than leaving the body unchanged.
+    private static string Splice(string json, string anchor, string replacement)
+    {
+        Assert.Equal(1, json.Split(anchor).Length - 1);
+        return json.Replace(anchor, replacement, StringComparison.Ordinal);
+    }
 
     // In the created body amendment_policy comes first, so categories goes between it and class_id.
     private static string WithCreatedCategories(string json, string tags) =>
-        json.Replace("},\"class_id\"", "},\"categories\":" + tags + ",\"class_id\"", StringComparison.Ordinal);
+        Splice(json, "},\"class_id\"", "},\"categories\":" + tags + ",\"class_id\"");
 
     [Fact]
     [Trait("Holds", "records-ck-16")]
@@ -74,6 +88,19 @@ public sealed class RecordTypeConflictPolicyAndCategoriesTests
         Assert.Equal(AssetClassJson, Canonical(typed));
     }
 
+    [Fact]
+    [Trait("Holds", "records-ck-16")]
+    public void An_explicit_null_conflict_policy_reads_as_the_absent_default()
+    {
+        var body = WithNotesConflictPolicy(AssetClassJson, "null");
+
+        var document = Read(body);
+
+        Assert.Null(document.Fields[2].ConflictPolicy);
+        Assert.Equal(AssetClassJson, Canonical(document));
+        Assert.Empty(Admit(body, DefinitionAdmissionPhase.Publish));
+    }
+
     [Theory]
     [Trait("Holds", "records-ck-16")]
     [InlineData("\"Ask\"")]
@@ -112,14 +139,38 @@ public sealed class RecordTypeConflictPolicyAndCategoriesTests
     }
 
     [Fact]
+    [Trait("Holds", "records-ck-16")]
+    public async Task An_undefined_typed_conflict_policy_is_the_same_document_refusal_on_create_and_save()
+    {
+        var host = Host();
+        var request = AssetClass("1.0.0");
+        request = request with { Fields = [request.Fields[0], request.Fields[1], request.Fields[2] with { ConflictPolicy = (FieldConflictPolicy)3 }] };
+
+        var createRefusal = await Assert.ThrowsAsync<DefinitionRefusalException>(() => host.Records.CreateDraftAsync(request, "invalid-create").AsTask());
+
+        Assert.Equal([("records.document_invalid", "")], Pairs(createRefusal));
+        Assert.Empty(await host.Catalogue.ListKeysAsync(Tenant, DefinitionKind.Records));
+        await host.Records.CreateDraftAsync(AssetClass("1.0.0"), "create");
+        var created = Read(CreatedAssetClassJson);
+        var undefined = created with { Fields = [created.Fields[0], created.Fields[1], created.Fields[2] with { ConflictPolicy = (FieldConflictPolicy)3 }] };
+
+        var saveRefusal = await Assert.ThrowsAsync<DefinitionRefusalException>(() =>
+            host.Records.SaveDraftAsync("eam.asset-class", undefined, "1.0.0", 1, "invalid-save").AsTask());
+
+        Assert.Equal([("records.document_invalid", "")], Pairs(saveRefusal));
+        Assert.Single(await host.Catalogue.ListHistoryAsync(RecordTypeDefinitionStore.KeyOf(Tenant, "eam.asset-class")));
+        Assert.Empty(await Registered(host));
+    }
+
+    [Fact]
     [Trait("Holds", "records-ck-23")]
     public void Category_tags_round_trip_byte_identically_in_authored_order()
     {
-        var body = WithCategories(AssetClassJson, "[\"safety\",\"finance\",\"Safety\"]");
+        var body = WithCategories(AssetClassJson, "[\"safety\",\"finance\",\"site / north\",\"caf\\u00E9\"]");
 
         var document = Read(body);
 
-        Assert.Equal(["safety", "finance", "Safety"], document.Categories);
+        Assert.Equal(["safety", "finance", "site / north", "caf\u00E9"], document.Categories);
         Assert.Equal(body, Canonical(document));
         Assert.Empty(Admit(body, DefinitionAdmissionPhase.Publish));
     }
@@ -137,26 +188,37 @@ public sealed class RecordTypeConflictPolicyAndCategoriesTests
     [InlineData("[\"\"]", "records.categories.blank", "/categories/0")]
     [InlineData("[\"safety\",\"  \"]", "records.categories.blank", "/categories/1")]
     [InlineData("[\"safety\",\"finance\",\"safety\"]", "records.categories.duplicate", "/categories/2")]
-    public void A_blank_or_repeated_tag_is_refused_at_every_phase(string tags, string code, string pointer)
+    [InlineData("[\"safety\",\"Safety\"]", "records.categories.duplicate", "/categories/1")]
+    [InlineData("[\"finance\",\"FINANCE\"]", "records.categories.duplicate", "/categories/1")]
+    [InlineData("[\" safety\"]", "records.categories.malformed", "/categories/0")]
+    [InlineData("[\"safety \"]", "records.categories.malformed", "/categories/0")]
+    [InlineData("[\"finance\",\"safety\\t\"]", "records.categories.malformed", "/categories/1")]
+    [InlineData("[\"\\u200B\"]", "records.categories.malformed", "/categories/0")]
+    [InlineData("[\"safety\\u200B\"]", "records.categories.malformed", "/categories/0")]
+    [InlineData("[\"\\uFEFFsafety\"]", "records.categories.malformed", "/categories/0")]
+    [InlineData("[\"safe\\u0007ty\"]", "records.categories.malformed", "/categories/0")]
+    [InlineData("[\"cafe\\u0301\"]", "records.categories.malformed", "/categories/0")]
+    public void A_blank_malformed_or_repeated_tag_is_refused_at_every_phase(string tags, string code, string at)
     {
         var body = WithCategories(AssetClassJson, tags);
 
         foreach (var phase in new[] { DefinitionAdmissionPhase.Author, DefinitionAdmissionPhase.Publish, DefinitionAdmissionPhase.Install })
-            Assert.Equal([(code, pointer)], Admit(body, phase));
+            Assert.Equal([(code, at)], Admit(body, phase));
     }
 
     [Fact]
     [Trait("Holds", "records-ck-23")]
-    public void Every_blank_and_repeated_tag_is_named_with_its_own_pointer()
+    public void Every_refused_tag_is_named_with_its_own_pointer()
     {
-        var body = WithCategories(AssetClassJson, "[\"a\",\"\",\"a\",\"b\",\"b\",\"a\"]");
+        var body = WithCategories(AssetClassJson, "[\"a\",\"\",\"A\",\"b\",\" b\",\"b\",\"a\"]");
 
         Assert.Equal(
             [
                 ("records.categories.blank", "/categories/1"),
                 ("records.categories.duplicate", "/categories/2"),
-                ("records.categories.duplicate", "/categories/4"),
+                ("records.categories.malformed", "/categories/4"),
                 ("records.categories.duplicate", "/categories/5"),
+                ("records.categories.duplicate", "/categories/6"),
             ],
             Admit(body, DefinitionAdmissionPhase.Author));
     }
@@ -165,8 +227,8 @@ public sealed class RecordTypeConflictPolicyAndCategoriesTests
     [Trait("Holds", "records-ck-23")]
     [InlineData("[null]", "/categories/0")]
     [InlineData("[\"safety\",null]", "/categories/1")]
-    public void A_null_tag_is_a_malformed_document_at_its_pointer(string tags, string pointer) =>
-        Assert.Equal([("records.document_invalid", pointer)], Admit(WithCategories(AssetClassJson, tags), DefinitionAdmissionPhase.Author));
+    public void A_null_tag_is_a_malformed_document_at_its_pointer(string tags, string at) =>
+        Assert.Equal([("records.document_invalid", at)], Admit(WithCategories(AssetClassJson, tags), DefinitionAdmissionPhase.Author));
 
     [Theory]
     [Trait("Holds", "records-ck-23")]
@@ -215,7 +277,9 @@ public sealed class RecordTypeConflictPolicyAndCategoriesTests
         }, "create");
         var declaredPublication = await declared.Records.PublishAsync(Tenant, "eam.asset-class", "1.0.0", 1, "publish");
 
-        Assert.NotEqual(plainPublication.Revision.Document.BodyJson, declaredPublication.Revision.Document.BodyJson);
+        Assert.Equal(CreatedAssetClassJson, plainPublication.Revision.Document.BodyJson);
+        Assert.Equal(WithCreatedCategories(WithAssetTagConflictPolicy(CreatedAssetClassJson, "\"additive\""), "[\"safety\"]"),
+            declaredPublication.Revision.Document.BodyJson);
         Assert.Equal(plainPublication.Schema.Id, declaredPublication.Schema.Id);
     }
 
@@ -233,6 +297,33 @@ public sealed class RecordTypeConflictPolicyAndCategoriesTests
         Assert.Equal([("records.categories.duplicate", "/categories/1")], refusal.Refusals.Select(r => (r.Code, r.Pointer)).ToArray());
         Assert.Single(await host.Catalogue.ListHistoryAsync(RecordTypeDefinitionStore.KeyOf(Tenant, "eam.asset-class")));
     }
+
+    [Fact]
+    [Trait("Holds", "records-ck-23")]
+    public async Task A_resave_without_the_declarations_clears_them_rather_than_carrying_them_forward()
+    {
+        var host = Host();
+        var request = AssetClass("1.0.0");
+        await host.Records.CreateDraftAsync(request with
+        {
+            Fields = [request.Fields[0], request.Fields[1], request.Fields[2] with { ConflictPolicy = FieldConflictPolicy.Additive }],
+            Categories = ["safety"],
+        }, "create");
+
+        var resaved = await host.Records.SaveDraftAsync("eam.asset-class", Read(CreatedAssetClassJson), "1.0.0", 1, "resave");
+
+        Assert.Equal(CreatedAssetClassJson, resaved.Document.BodyJson);
+    }
+
+    private static async Task<List<Schema>> Registered(TestHost host)
+    {
+        var schemas = new List<Schema>();
+        await foreach (var schema in host.Registry.ListAsync()) schemas.Add(schema);
+        return schemas;
+    }
+
+    private static (string Code, string Pointer)[] Pairs(DefinitionRefusalException refusal) =>
+        refusal.Refusals.Select(r => (r.Code, r.Pointer)).ToArray();
 
     private static RecordTypeDocument Read(string json) => RecordTypeDefinitionJson.Deserialize(Encoding.UTF8.GetBytes(json));
 

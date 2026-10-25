@@ -654,13 +654,17 @@ public sealed class RecordTypeDefinitionStore
             parsed.Envelope, parsed.Name, parsed.RecordTypeId, "record_type_id", document.Key, phase, window));
         refusals.AddRange(validator.Validate(parsed.ToDefinition(), previousVersion: null)
             .Select(refusal => new DefinitionRefusal(refusal.Code, refusal.JsonPointer)));
-        // Category tags (records-ck-23) are plain text, each present once, in every phase: a blank tag names nothing and a
-        // repeated one adds nothing, so a draft holding either is refused rather than published later.
-        var categories = new HashSet<string>(StringComparer.Ordinal);
+        // Category tags (records-ck-23) are plain text, each present once, in every phase. How tags compare is not ruled yet
+        // (L103 is open), and current admission re-checks every published body, so the interim rule is the strict one, which
+        // can be relaxed later without stranding a body: a tag must be visible, trimmed, NFC text without control or format
+        // characters, and must not repeat an earlier tag ignoring case.
+        var categories = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var (category, index) in (parsed.Categories ?? []).Select((category, index) => (category, index)))
         {
             if (string.IsNullOrWhiteSpace(category))
                 refusals.Add(new("records.categories.blank", $"/categories/{index}"));
+            else if (!IsPlainTag(category))
+                refusals.Add(new("records.categories.malformed", $"/categories/{index}"));
             else if (!categories.Add(category))
                 refusals.Add(new("records.categories.duplicate", $"/categories/{index}"));
         }
@@ -681,6 +685,11 @@ public sealed class RecordTypeDefinitionStore
         }
         return (parsed, refusals);
     }
+
+    private static bool IsPlainTag(string tag) =>
+        !char.IsWhiteSpace(tag[0]) && !char.IsWhiteSpace(tag[^1]) && tag.IsNormalized(NormalizationForm.FormC)
+        && !tag.Any(c => char.GetUnicodeCategory(c) is System.Globalization.UnicodeCategory.Control
+            or System.Globalization.UnicodeCategory.Format);
 
     // The creation path for fields: a field saved for the first time takes its kind's defaults here, before
     // admission, so the stored draft already carries them with their provenance (records-ck-38).

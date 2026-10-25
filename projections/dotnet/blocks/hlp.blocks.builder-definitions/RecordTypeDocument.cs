@@ -92,7 +92,8 @@ public sealed record RecordTypeDocument(
 
     /// <summary>
     /// The type's category tags (records-ck-23, L103): many per type, independent of the automatic package label. Each tag
-    /// is non-blank text and appears once. Null or empty means none; the canonical body omits an empty list.
+    /// is visible, trimmed NFC text without control or format characters, and appears once, ignoring case. Null or empty means none; the canonical body omits an
+    /// empty list. Unlike the policies, save does not carry an omitted list forward: a resave without it clears the tags.
     /// </summary>
     public IReadOnlyList<string>? Categories { get; init; }
 

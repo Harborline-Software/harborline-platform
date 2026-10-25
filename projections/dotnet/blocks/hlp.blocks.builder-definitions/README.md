@@ -118,6 +118,27 @@ reason required and history enabled in the selected admitted immutable publicati
 reason-only policy never implies that opt-in. Retention, wider ck-20/ck-21 and host qualification
 remain open; the temporal library does not change the meaning of `RecordedAt`.
 
+### Conflict policy and categories (records-ck-16 and records-ck-23)
+
+Two optional declarations, both nullable init-only members, so positional constructors and legacy bodies keep working:
+
+- A field's `conflict_policy` says how an offline conflict on it is settled: `ask` (the default), `additive` or
+  `latest_observation`, spelled exactly so (L1011). There is no last-write-wins spelling. Any other non-null spelling, a
+  different case or a number is `records.document_invalid`; an explicit null reads as the absent default. The canonical
+  body omits an explicit `ask`.
+- A Record Type's `categories` are text tags, many per type and independent of the automatic package label (L103), kept
+  in authored order. A null element is `records.document_invalid` at `/categories/{i}`. In every phase a blank tag
+  refuses `records.categories.blank`; a tag with leading or trailing whitespace, a control or format character (such as a
+  zero-width space) or a non-NFC spelling refuses `records.categories.malformed`; and a tag that repeats an earlier one
+  ignoring case refuses `records.categories.duplicate`, each at `/categories/{i}`. The canonical body omits an empty list. How tags compare is not ruled (L103 is open); because current admission re-checks published
+  bodies, the strict rule is the interim one, since it can be relaxed later and a looser one could not be tightened.
+
+Save stores what it is given. Unlike the two policies above, an omitted `conflict_policy` or `categories` is not carried
+forward from the expected revision, so a resave without them clears them. Every existing body, digest and compiled
+record schema is byte-identical; a reader older than interface revision 26 refuses a body that carries either
+declaration, and the definition contract version is unchanged. Both members are declarations only: raising and settling an offline conflict belongs to
+the offline runtime (records-eng-25), and nothing yet reads the categories.
+
 ## Records write: one record create (T-616, bounded)
 
 `RecordWriteOperation.CreateAsync` is the first public Records write. It composes existing producers only:
@@ -245,22 +266,6 @@ is the record id minted for that attempt; for a replay or a refusal no such reco
 its operation by tenant, caller, `operation_id` and instant, never to a receipt by record id. A fault after an allowed
 gate propagates without `Decision` and commits nothing. Hosts do not log the authority snapshot, the operation's
 fingerprint or a stored intent digest, and the operation itself emits no telemetry.
-
-### Conflict policy and categories (T-615, records-ck-16 and records-ck-23)
-
-Two optional declarations, both added as nullable init-only members so positional constructors and legacy bodies keep
-working:
-
-- A field's `conflict_policy` says how an offline conflict on it is settled: `ask` (the default), `additive` or
-  `latest_observation`, spelled exactly so (L1011). There is no last-write-wins spelling. Any other spelling, a different
-  case or a number is `records.document_invalid`. The canonical body omits an explicit `ask`.
-- A Record Type's `categories` are text tags, many per type and independent of the automatic package label (L103), kept
-  in authored order. A null element is `records.document_invalid` at `/categories/{i}`; a blank tag refuses
-  `records.categories.blank` and a repeated tag (ordinal) `records.categories.duplicate` at `/categories/{i}`, in every
-  phase. The canonical body omits an empty list.
-
-Every existing body, digest and compiled record schema is byte-identical. Both members are declarations only: raising
-and settling an offline conflict belongs to the offline runtime (records-eng-25), and nothing yet reads the categories.
 
 ### Creation policy (decision D1, K9; plan W2 and W9)
 
