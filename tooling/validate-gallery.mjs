@@ -41,6 +41,8 @@ const requiredFiles = [
   'gallery/tests/playwright.config.ts',
   'gallery/tests/tests/gallery.spec.ts',
   'gallery/aria-parity-known-divergences.json',
+  'gallery/tab-walk-known-divergences.json',
+  'gallery/tests/tests/tab-walk.ts',
   'tooling/prepare-galleries.mjs',
   'tooling/run-galleries.mjs',
   'tooling/run-gallery-gate.mjs',
@@ -57,46 +59,135 @@ function exists(path) {
 // T-943: the ARIA-tree waiver register gallery.spec.ts reads. The spec judges each RUN scenario
 // against its row (unwaived, changed and stale rows fail there); what no run can see is a row that
 // names no scenario at all, or a row too thin to be reviewed, so those are refused here, statically.
-const ariaRegisterPath = 'gallery/aria-parity-known-divergences.json'
-const ariaWaiverKeys = ['scenarioId', 'state', 'ticket', 'reason', 'hunks']
-// T-943 builds the comparison and closes when it lands, so a row naming it would point at a closed
-// ticket the day it merges: every waiver names the open ticket that owns its fix (review 1, finding 2).
-const ariaRegisterTicket = 'T-943'
-export function ariaParityRegisterErrors(register, scenarioIds) {
-  if (!Array.isArray(register?.divergences)) return [`${ariaRegisterPath}: divergences must be an array`]
+// T-962's tab-walk register has the same review floor, so the row checks are shared and each register
+// adds only what its rows record.
+function laneRegisterErrors(register, scenarioIds, spec) {
+  if (!Array.isArray(register?.divergences)) return [`${spec.path}: divergences must be an array`]
   const errors = []
-  if (register.measureFlag !== 'HARBORLINE_GALLERY_ARIA_MEASURE') errors.push(`${ariaRegisterPath}: measureFlag must be HARBORLINE_GALLERY_ARIA_MEASURE`)
+  if (register.measureFlag !== spec.measureFlag) errors.push(`${spec.path}: measureFlag must be ${spec.measureFlag}`)
+  errors.push(...(spec.registerErrors?.(register) ?? []))
   const known = new Set(scenarioIds)
   const seen = new Set()
   for (const [index, row] of register.divergences.entries()) {
-    const label = `${ariaRegisterPath}: waiver ${typeof row?.scenarioId === 'string' ? row.scenarioId : `#${index + 1}`}`
+    const label = `${spec.path}: waiver ${typeof row?.scenarioId === 'string' ? row.scenarioId : `#${index + 1}`}${spec.labelSuffix?.(row) ?? ''}`
     if (!row || typeof row !== 'object') {
       errors.push(`${label} is not an object`)
       continue
     }
-    for (const key of Object.keys(row)) if (!ariaWaiverKeys.includes(key)) errors.push(`${label} has an unknown field ${key}`)
-    // `state` names a later moment of a timer-driven scene, judged apart from the prepared scene (the
-    // row without one); gallery.spec.ts refuses a state the scenario never reads.
-    if ('state' in row && (typeof row.state !== 'string' || !/^[a-z]+(?:-[a-z]+)*$/.test(row.state))) errors.push(`${label} has a state that is not a kebab-case name`)
-    const key = `${row.scenarioId} @${row.state ?? ''}`
+    for (const key of Object.keys(row)) if (!spec.keys.includes(key)) errors.push(`${label} has an unknown field ${key}`)
+    errors.push(...(spec.fieldErrors?.(row, label) ?? []))
+    const duplicateKey = spec.duplicateKey(row)
     if (typeof row.scenarioId !== 'string' || !known.has(row.scenarioId)) errors.push(`${label} names an unknown scenario id`)
-    else if (seen.has(key)) errors.push(`${label} is registered twice${row.state ? ` for state ${row.state}` : ''}; one row records the whole difference`)
-    seen.add(key)
+    else if (seen.has(duplicateKey)) errors.push(`${label} ${spec.duplicate(row)}`)
+    seen.add(duplicateKey)
+    const refused = spec.refusedTickets?.[row.ticket]
     if (typeof row.ticket !== 'string' || !/^T-\d+$/.test(row.ticket)) errors.push(`${label} needs the open ticket that owns the fix (T-NNN)`)
-    else if (row.ticket === ariaRegisterTicket) errors.push(`${label} names ${ariaRegisterTicket}, the ticket that builds this register and closes with it; name the open ticket that owns the fix`)
+    else if (refused) errors.push(`${label} names ${row.ticket}, ${refused}; name the open ticket that owns the fix`)
     if (typeof row.reason !== 'string' || row.reason.trim().length < 20) errors.push(`${label} needs a reason a reviewer can check`)
-    // Hunks as laneHunks writes them: '@@ #k' opens each hunk (k anchors it among repeated lines), then
-    // context ('  '), React-only ('- ') and Blazor-only ('+ ') markers, each followed by a snapshot line,
-    // which always starts (after its indentation) with '- '. Anything else was not measured.
-    const hunks = row.hunks
-    const header = line => /^@@ #\d+$/.test(line)
-    if (!Array.isArray(hunks) || hunks.some(line => typeof line !== 'string' || !(header(line) || /^[ +-] \s*- /.test(line)))) {
-      errors.push(`${label} must record hunks as laneHunks writes them ('@@ #k', then '  ', '- ' or '+ ' lines)`)
-    } else if (!header(hunks[0] ?? '') || !hunks.some(line => line.startsWith('- ') || line.startsWith('+ '))) {
-      errors.push(`${label} records no differing snapshot line, so it waives nothing a run can measure`)
-    }
+    errors.push(...spec.lineErrors(row, label))
+    errors.push(...(spec.rowErrors?.(row, label) ?? []))
   }
   return errors
+}
+
+// T-943 builds the comparison and closes when it lands, so a row naming it would point at a closed
+// ticket the day it merges: every waiver names the open ticket that owns its fix (review 1, finding 2).
+const t943 = { 'T-943': 'the ticket that builds this register and closes with it' }
+
+// Hunks as laneHunks writes them: '@@ #k' opens each hunk (k anchors it among repeated lines), then
+// context ('  '), React-only ('- ') and Blazor-only ('+ ') markers, each followed by a measured line.
+// Anything else was not measured.
+function hunkErrors(hunks, label, { lineShape, noun }) {
+  const header = line => /^@@ #\d+$/.test(line)
+  if (!Array.isArray(hunks) || hunks.some(line => typeof line !== 'string' || !(header(line) || lineShape.test(line)))) {
+    return [`${label} must record hunks as laneHunks writes them ('@@ #k', then '  ', '- ' or '+ ' lines)`]
+  }
+  if (!header(hunks[0] ?? '') || !hunks.some(line => line.startsWith('- ') || line.startsWith('+ '))) {
+    return [`${label} records no differing ${noun}, so it waives nothing a run can measure`]
+  }
+  return []
+}
+
+const ariaRegisterPath = 'gallery/aria-parity-known-divergences.json'
+const ariaWaiverKeys = ['scenarioId', 'state', 'ticket', 'reason', 'hunks']
+export function ariaParityRegisterErrors(register, scenarioIds) {
+  return laneRegisterErrors(register, scenarioIds, {
+    path: ariaRegisterPath,
+    measureFlag: 'HARBORLINE_GALLERY_ARIA_MEASURE',
+    keys: ariaWaiverKeys,
+    // `state` names a later moment of a timer-driven scene, judged apart from the prepared scene (the
+    // row without one); gallery.spec.ts refuses a state the scenario never reads.
+    fieldErrors: (row, label) => 'state' in row && (typeof row.state !== 'string' || !/^[a-z]+(?:-[a-z]+)*$/.test(row.state))
+      ? [`${label} has a state that is not a kebab-case name`] : [],
+    duplicateKey: row => `${row.scenarioId} @${row.state ?? ''}`,
+    duplicate: row => `is registered twice${row.state ? ` for state ${row.state}` : ''}; one row records the whole difference`,
+    refusedTickets: t943,
+    // A snapshot line always starts, after its indentation, with '- '.
+    lineErrors: (row, label) => hunkErrors(row.hunks, label, { lineShape: /^[ +-] \s*- /, noun: 'snapshot line' }),
+  })
+}
+
+// T-962: the tab-walk register. Every catalog scenario is walked, so every catalog id is a valid
+// row target. An `order` row records the cross-lane diff of the two lanes' order lines as hunks
+// (position-anchored, like T-943's; never host-scoped); a `findings` row records each lane's complete
+// finding lines, optionally for one known host. A scenario has either one host-less findings row or
+// host-scoped ones, never both, and every finding line names its WCAG clause and walk direction, which
+// is what the spec's per-clause messages split on.
+const tabWalkRegisterPath = 'gallery/tab-walk-known-divergences.json'
+const tabWalkRowKeys = ['scenarioId', 'kind', 'host', 'ticket', 'reason', 'hunks', 'reactOnly', 'blazorOnly']
+const tabWalkHosts = ['windows-11-x64', 'linux-x64', 'macos-x64-intel', 'macos-arm64']
+const tabWalkFindingLine = /^(?:2\.1\.2|2\.4\.3|2\.4\.11) (?:forward|reverse|prepared|walk) \S/
+export function tabWalkRegisterErrors(register, scenarioIds) {
+  const findingsHosts = new Map()
+  for (const row of Array.isArray(register?.divergences) ? register.divergences : []) {
+    if (row?.kind !== 'findings' || typeof row.scenarioId !== 'string') continue
+    findingsHosts.set(row.scenarioId, [...(findingsHosts.get(row.scenarioId) ?? []), row.host])
+  }
+  return laneRegisterErrors(register, scenarioIds, {
+    path: tabWalkRegisterPath,
+    measureFlag: 'HARBORLINE_GALLERY_TAB_WALK_MEASURE',
+    keys: tabWalkRowKeys,
+    registerErrors: candidate => typeof candidate.rule === 'string' && candidate.rule.trim().length > 0 ? [] : [`${tabWalkRegisterPath}: rule must state the register's rule`],
+    labelSuffix: row => typeof row?.kind === 'string' ? ` ${row.kind}${typeof row.host === 'string' ? ` ${row.host}` : ''}` : '',
+    duplicateKey: row => `${row.scenarioId}\t${row.kind}\t${row.host ?? ''}`,
+    duplicate: () => 'is registered twice for the same kind and host',
+    // The gate's own ticket is refused here as T-943 is in its register: T-962 builds this register and
+    // closes with it, so every row names the open ticket that owns its fix.
+    refusedTickets: {
+      'T-962': 'the ticket that builds this register and closes with it',
+      'T-943': 'the ticket that builds the ARIA-tree register, not a fix',
+    },
+    lineErrors: (row, label) => {
+      if (row.kind === 'order') {
+        // Order lines are walk lines (`- <key>`, `↻ - <key>`, `↺ ok`, `released by …`, `exited` and
+        // the outcome words), so any non-blank text may follow the marker.
+        return [
+          ...hunkErrors(row.hunks, label, { lineShape: /^[ +-] \S/, noun: 'walk line' }),
+          ...(row.reactOnly !== undefined || row.blazorOnly !== undefined ? [`${label} is an order row; it records hunks, not reactOnly or blazorOnly`] : []),
+        ]
+      }
+      if (row.kind !== 'findings') return []
+      const lines = ['reactOnly', 'blazorOnly'].map(lane => row[lane])
+      if (row.hunks !== undefined) return [`${label} is a findings row; it records reactOnly and blazorOnly, not hunks`]
+      if (lines.some(lane => !Array.isArray(lane) || lane.some(line => typeof line !== 'string' || line.trim().length === 0))) {
+        return [`${label} must record reactOnly and blazorOnly as arrays of finding lines`]
+      }
+      if (lines.every(lane => lane.length === 0)) return [`${label} records no finding line, so it waives nothing a run can measure`]
+      return [...row.reactOnly, ...row.blazorOnly].filter(line => !tabWalkFindingLine.test(line))
+        .map(line => `${label} has a finding line that does not start with its clause and direction: ${JSON.stringify(line)}`)
+    },
+    rowErrors: (row, label) => {
+      const errors = []
+      if (row.kind !== 'order' && row.kind !== 'findings') errors.push(`${label} has an unknown kind; it is order or findings`)
+      if (row.kind === 'order' && row.host !== undefined) errors.push(`${label} is an order row, which applies on every host; it takes no host`)
+      if (row.host !== undefined && !tabWalkHosts.includes(row.host)) errors.push(`${label} names an unknown host`)
+      const hosts = findingsHosts.get(row.scenarioId) ?? []
+      if (row.kind === 'findings' && row.host === undefined && hosts.some(host => host !== undefined)) {
+        errors.push(`${label} mixes a host-less findings row with host-scoped ones; use one or the other`)
+      }
+      return errors
+    },
+  })
 }
 
 const summaries = []
@@ -166,6 +257,13 @@ if (exists(ariaRegisterPath)) {
   const tests = exists('gallery/tests/tests/gallery.spec.ts') ? readFileSync(resolve(root, 'gallery/tests/tests/gallery.spec.ts'), 'utf8') : ''
   if (!tests.includes(ariaRegisterPath) || !tests.includes('await assertAriaParity(reactPage, blazorPage, scenario.id)')) {
     errors.push('gallery tests do not compare every scenario against the ARIA parity register')
+  }
+}
+if (exists(tabWalkRegisterPath)) {
+  errors.push(...tabWalkRegisterErrors(load(tabWalkRegisterPath), allScenarioIds))
+  const tests = exists('gallery/tests/tests/gallery.spec.ts') ? readFileSync(resolve(root, 'gallery/tests/tests/gallery.spec.ts'), 'utf8') : ''
+  if (!tests.includes(tabWalkRegisterPath) || !tests.includes('await assertTabWalk(reactPage, blazorPage, scenario')) {
+    errors.push('gallery tests do not walk every scenario against the tab-walk register')
   }
 }
 

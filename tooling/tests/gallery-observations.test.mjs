@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict'
 import {test} from 'node:test'
 
-import {countChecks, expectedChecks, observeGalleryRun, reconcileChecks} from '../gallery-observations.mjs'
+import {countChecks, expectedChecks, observeGalleryRun, reconcileChecks, tabWalkByShard, tabWalkTotals} from '../gallery-observations.mjs'
 
 const scenarioSpec = id => ({title: `${id} is accessible and visually conformant`})
 const report = (specs, stats) => ({
@@ -202,4 +202,84 @@ test('a flaky spec records both outcomes of its retry, in order', () => {
 test('a run with no flakes records no attempts', () => {
   const observed = observeGalleryRun(report([scenarioSpec('hlp.ui.button.default')], {expected: 1, flaky: 0}), ['hlp.ui.button.default'])
   assert.deepEqual(observed.flakyAttempts, {})
+})
+
+// T-962: the keyboard tab walk is the last step of every scenario test and records four families
+// once each, after all its expects pass; ten seeded detector proofs record one each.
+const tabWalkFamilies = ['tabWalkLeaveChecks', 'tabWalkReverseChecks', 'tabWalkObscuredChecks', 'tabWalkOrderComparisons']
+
+test('the four tab-walk families are declared once per running scenario, and only a wall-clock exemption removes them', () => {
+  for (const family of tabWalkFamilies) {
+    assert.equal(expectedChecks(modules, {exemptions})[family], 3, family)
+    // CI skips the wall-clock-exempt scenario's whole test, walk included.
+    assert.equal(expectedChecks(modules, {ciGallery: true, exemptions})[family], 2, family)
+    // A pixel exemption skips pixels only, and a capture run still walks: the walk restores its own layout.
+    assert.equal(expectedChecks(modules, {capture: true, exemptions})[family], 3, family)
+  }
+  assert.match(reconcileChecks({tabWalkLeaveChecks: 2}, {tabWalkLeaveChecks: 3}), /tabWalkLeaveChecks declared 3, measured 2/)
+})
+
+test('the tab-walk detector proofs are a constant ten, so deleting one is a divergence', () => {
+  for (const options of [{exemptions}, {ciGallery: true, exemptions}, {capture: true, exemptions}]) {
+    assert.equal(expectedChecks(modules, options).tabWalkDetectorProofs, 10)
+  }
+  assert.match(reconcileChecks({tabWalkDetectorProofs: 9}, {tabWalkDetectorProofs: 10}), /tabWalkDetectorProofs declared 10, measured 9/)
+})
+
+const walked = (coverage, results = 1) => ({
+  title: `${coverage.id} is accessible and visually conformant`,
+  tests: [{results: Array.from({length: results}, (unused, attempt) => ({
+    annotations: [{type: 'hlp-tab-walk', description: JSON.stringify({...coverage, attempt: attempt + 1})}],
+  }))}],
+})
+const lane = overrides => ({stops: 4, reverseStops: 4, walks: 2, stepPresses: 0, releases: 0, scrollers: 0, partial: 0,
+  exemptUserOpened: 0, unmeasured: 0, returned: 0, census: 4, zeroStop: false, noisy: false, walkMs: 300, ...overrides})
+
+test('tab-walk coverage is reported per scenario, from the attempt the suite reports', () => {
+  const observed = observeGalleryRun(report([
+    walked({id: 'dialog.dismissal-focus', wallMs: 900, attributed: false, react: lane({releases: 1}), blazor: lane({releases: 1})}),
+    walked({id: 'button.variants', wallMs: 400, attributed: false, react: lane(), blazor: lane()}, 2),
+  ], {expected: 2}), ['dialog.dismissal-focus', 'button.variants'])
+  assert.deepEqual(observed.tabWalkCoverage.map(line => [line.id, line.attempt]), [['button.variants', 2], ['dialog.dismissal-focus', 1]])
+  assert.equal(observed.tabWalkTotals.scenarios, 2)
+  assert.deepEqual(observed.tabWalkTotals.releases, {react: 1, blazor: 1})
+})
+
+test('tab-walk totals sum what the walk covered and cost, and name the five slowest scenarios', () => {
+  const lines = ['a', 'b', 'c', 'd', 'e', 'f'].map((id, index) => ({
+    id, wallMs: (index + 1) * 100, attributed: id === 'b',
+    react: lane({stops: index, stepPresses: 2, partial: id === 'c' ? 1 : 0, zeroStop: index === 0}),
+    blazor: lane({stops: index + 1, exemptUserOpened: id === 'd' ? 2 : 0, noisy: id === 'e'}),
+  }))
+  const totals = tabWalkTotals(lines)
+  assert.equal(totals.scenarios, 6)
+  assert.deepEqual(totals.stops, {react: 15, blazor: 21})
+  assert.deepEqual(totals.stepPresses, {react: 12, blazor: 0})
+  assert.equal(totals.wallMs, 2100)
+  assert.deepEqual(totals.partial, {react: 1, blazor: 0})
+  assert.deepEqual(totals.exemptUserOpened, {react: 0, blazor: 2})
+  assert.equal(totals.zeroStopLanes, 1)
+  assert.equal(totals.noisyLanes, 1)
+  assert.equal(totals.attributed, 1)
+  assert.deepEqual(totals.slowest.map(line => line.id), ['f', 'e', 'd', 'c', 'b'])
+  assert.deepEqual(tabWalkTotals([]).stops, {react: 0, blazor: 0})
+})
+
+test('each matrix shard records its step and suite wall clock, its workers, and the walk share, before the merge drops them', () => {
+  const shard = (index, stepMs, duration, walls) => ({
+    shard: index,
+    results: [{id: 'gallery-structure', durationMs: 1}, {id: 'gallery-accessibility-and-parity', durationMs: stepMs}],
+    playwrightReport: {
+      config: {workers: 4},
+      stats: {duration},
+      suites: [{title: 'gallery.spec.ts', specs: walls.map((wallMs, at) => walked({id: `s${index}.${at}`, wallMs, react: lane(), blazor: lane()}))}],
+    },
+  })
+  assert.deepEqual(tabWalkByShard([shard(1, 450_000, 440_000, [300, 700]), shard(2, 500_000, 495_000, [1_000])]), [
+    {shard: 1, stepMs: 450_000, suiteMs: 440_000, workers: 4, tabWalkWallMs: 1_000},
+    {shard: 2, stepMs: 500_000, suiteMs: 495_000, workers: 4, tabWalkWallMs: 1_000},
+  ])
+  // A shard that died before its reporter wrote anything still has a row, with nothing measured.
+  assert.deepEqual(tabWalkByShard([{shard: 3, results: [], playwrightReport: null}]),
+    [{shard: 3, stepMs: null, suiteMs: null, workers: null, tabWalkWallMs: null}])
 })
