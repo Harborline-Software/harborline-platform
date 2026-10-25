@@ -10,6 +10,16 @@ function textbox(): HTMLInputElement {
   return screen.getByRole('textbox')
 }
 
+// Arabic-Indic digits and the Arabic decimal and group separators as their latn forms, with the bidi
+// marks dropped (T-1117).
+function latinNumerals(text: string): string {
+  return text
+    .replace(/[\u200e\u200f\u061c]/g, '')
+    .replace(/[\u0660-\u0669]/g, digit => String(digit.charCodeAt(0) - 0x0660))
+    .replace(/\u066b/g, '.')
+    .replace(/\u066c/g, ',')
+}
+
 describe('NumericTextBox revision-1 shared fixtures', () => {
   it('consumes every frozen case', () => {
     expect(sharedCases.map(value => value.id)).toEqual([
@@ -172,6 +182,22 @@ describe('NumericTextBox revision-1 shared fixtures', () => {
     expect(textbox()).toHaveValue(expected)
   })
 
+  // T-1108: the Blazor lane asserts this same table. Intl rounds the invariant shortest digits, so a
+  // culture whose decimal separator is not "." rounds a midpoint the same way. For ar, the digits and
+  // separators depend on the numbering system the ICU data gives it (T-1117), so the comparison maps
+  // arab digits, separators and bidi marks to latn first, and pins only the rounding.
+  it.each([
+    ['de-DE', 1234.5, 0, '1.235'],
+    ['de-DE', -1234.5, 0, '-1.235'],
+    ['de-DE', 2.675, 2, '2,68'],
+    ['de-DE', 1.005, 2, '1,01'],
+    ['ar', 1234.5, 0, '1,235'],
+    ['ar', 2.675, 2, '2.68'],
+  ] as const)('formats %s %s with %s decimals as %s', (locale, value, decimals, expected) => {
+    render(<NumericTextBox aria-label="Amount" decimals={decimals} locale={locale} value={value} />)
+    expect(latinNumerals(textbox().value)).toBe(expected)
+  })
+
   // T-1108: a spinner starts from current or zero, so an empty value is at a bound of zero.
   it('disables the spinner whose zero anchor is at its bound when the value is empty, and emits nothing', () => {
     const onChange = vi.fn()
@@ -188,6 +214,21 @@ describe('NumericTextBox revision-1 shared fixtures', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Increment' }))
     fireEvent.keyDown(textbox(), { key: 'ArrowUp' })
     expect(onChange).not.toHaveBeenCalled()
+  })
+
+  // T-1108: the Blazor lane asserts the same. The anchor is current or zero, not "an empty value is at
+  // every bound": with zero strictly inside the bounds, both buttons are enabled and each one spins
+  // from zero. The value is controlled and stays empty, so every request starts from zero again.
+  it('spins an empty value from the zero anchor both ways when zero is strictly inside the bounds', () => {
+    const onChange = vi.fn()
+    render(<NumericTextBox aria-label="Amount" max={10} min={-10} onChange={onChange} value={null} />)
+    expect(screen.getByRole('button', { name: 'Decrement' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Increment' })).toBeEnabled()
+    fireEvent.click(screen.getByRole('button', { name: 'Decrement' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Increment' }))
+    fireEvent.keyDown(textbox(), { key: 'ArrowDown' })
+    fireEvent.keyDown(textbox(), { key: 'ArrowUp' })
+    expect(onChange.mock.calls.map(call => call[0])).toEqual([-1, 1, -1, 1])
   })
 
   it('uses provider direction, explicit formatting locale, and label precedence', () => {
