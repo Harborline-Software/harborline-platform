@@ -21,7 +21,7 @@
       aria-labelledby="@LabelledBy" aria-describedby="@DescribedBy"
       aria-activedescendant="@(!Multiple && IsOpen ? ActiveId : null)"
       aria-invalid="@(Error ? "true" : null)" aria-required="@(!Multiple && ResolvedRequired ? "true" : null)"
-      aria-readonly="@(!Multiple && ReadOnly ? "true" : null)" disabled="@ResolvedDisabled" tabindex="@(TabIndex?.ToString(System.Globalization.CultureInfo.InvariantCulture))"
+      aria-readonly="@(!Multiple && ReadOnly ? "true" : null)" disabled="@ResolvedDisabled" tabindex="@TabIndex"
       class="@CombineClasses("hl-select-field__trigger", Error ? "hl-select-field__trigger--invalid" : null)"
       style="@CombineStyles()" @onclick="ToggleAsync" @onkeydown="HandleTriggerKeyAsync" @onfocus="Focused" @onblur="Blurred"
       @attributes="AdditionalAttributes">
@@ -44,7 +44,7 @@
         @foreach (var option in visible)
         {
           <div @key="option.Value" role="option" id="@OptionId(option)" aria-selected="@IsSelected(option.Value).ToString().ToLowerInvariant()"
-            aria-disabled="@(option.Disabled ? "true" : null)" tabindex="@(!Multiple && !Searchable && option.Value == active ? "0" : "-1")"
+            aria-disabled="@(option.Disabled ? "true" : null)" tabindex="@(!Multiple && !Searchable && option.Value == active ? 0 : -1)"
             class="hl-select-field__option" data-hl-option="@option.Value" data-hl-active="@(option.Value == active ? "true" : null)"
             @onmousedown:preventDefault="true" @onclick="() => SelectAsync(option.Value)">
             <span aria-hidden="true" class="hl-select-field__check">@(IsSelected(option.Value) ? "✓" : string.Empty)</span><span>@option.Label</span>
@@ -161,7 +161,7 @@
       if (ResolvedRequired) attributes["aria-required"] = "true";
       if (Error) attributes["aria-invalid"] = "true";
       if (ReadOnly) attributes["aria-readonly"] = "true";
-      if (TabIndex is { } tabIndex) attributes["tabindex"] = tabIndex.ToString(System.Globalization.CultureInfo.InvariantCulture);
+      if (TabIndex is { } tabIndex) attributes["tabindex"] = tabIndex;
       if (AdditionalAttributes is not null) foreach (var pair in AdditionalAttributes) attributes.TryAdd(pair.Key, pair.Value);
     }
     return attributes;

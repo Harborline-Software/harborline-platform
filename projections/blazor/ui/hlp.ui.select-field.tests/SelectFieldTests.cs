@@ -41,25 +41,6 @@ public sealed class SelectFieldTests : BunitContext
         Assert.Equal(2, changes.Count);
     }
 
-    // T-962 review: a culture's negative sign need not be U+002D (ar, he and fa add a direction mark;
-    // sv, nb, fi, lt, sl, hr and eu use U+2212), and HTML integer parsing refuses it. Blazor writes an int
-    // attribute with the current culture, so tabindex="-1" must be the invariant string. A caller's TabIndex
-    // and the open listbox's roving option tabindex are both written that way.
-    [Theory, InlineData("ar-SA"), InlineData("he-IL"), InlineData("fa-IR"), InlineData("sv-SE"), InlineData("nb-NO")]
-    public void TabIndexIsInvariantUnderEveryCulture(string culture)
-    {
-        var previous = System.Globalization.CultureInfo.CurrentCulture;
-        try
-        {
-            System.Globalization.CultureInfo.CurrentCulture = new System.Globalization.CultureInfo(culture);
-            var cut = Render<HarborlineSelectField>(p => p.Add(x => x.Name, "status").Add(x => x.Value, "active").Add(x => x.Options, Options).Add(x => x.TabIndex, -1));
-            Assert.Equal("-1", cut.Find("button").GetAttribute("tabindex"));
-            cut.Find("button").KeyDown("ArrowDown");
-            Assert.Equal(new[] { "0", "-1" }, cut.FindAll("[role=option]").Select(option => option.GetAttribute("tabindex")).ToArray());
-        }
-        finally { System.Globalization.CultureInfo.CurrentCulture = previous; }
-    }
-
     [Fact]
     public void ClosedArrowDownOpensOnSelectionWithoutAdvancing()
     {

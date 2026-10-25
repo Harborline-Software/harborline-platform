@@ -2520,7 +2520,7 @@
         "conformance/hlp.ui.select-field/quality-fixtures.yaml": "0aaedaeee3df276f3a8d5f02cb2cb91edbbaf58644c6063eb4c9bbbe5388826a",
         "conformance/hlp.ui.select-field/runners/run-shared.mjs": "22a6592c5764ddf8aa0da8dbb07c72285a0ef5c7a3330fa414f8f61c21c7375b",
         "projections/blazor/ui/hlp.ui.select-field/SelectFieldTypes.cs": "0a54958d44e72f7597c61cf3438e94b7f492b73fd9ebca920631b6d73b055fff",
-        "projections/blazor/ui/hlp.ui.select-field/HarborlineSelectField.razor": "2a1b0245f6d8f41d746000cd8d5913692f8d4f84aa8e1ed7bd21916e5227dc97",
+        "projections/blazor/ui/hlp.ui.select-field/HarborlineSelectField.razor": "7d67634762be0b224c052e16b24e95b9a31f9ee178202acdd3e33e2c54af0db8",
         "projections/blazor/ui/hlp.ui.select-field/wwwroot/select-field.js": "130a715dae63c9217c1c0241569e48dc7f888b32d84054f8479eaa207e54443a",
         "projections/react/ui/hlp.ui.select-field/src/SelectField.tsx": "50c4e043558ed9929e83185701f7ff551c0ac5c4e33255976fbd5513da1a7dfe",
         "projections/react/ui/hlp.ui.select-field/src/__tests__/SelectField.conformance.test.ts": "8229fcbd51d2f3411e69fee7b62c7c830d6b348258b9afd72e6d70660bb76a98",
