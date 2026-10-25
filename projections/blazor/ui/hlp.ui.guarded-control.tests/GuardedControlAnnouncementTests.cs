@@ -221,6 +221,22 @@ public sealed class GuardedControlAnnouncementTests : BunitContext
         Assert.Equal("٥ seconds", cut.Find("[role=timer]").TextContent);
     }
 
+    // Known limitation, recorded rather than silent (T-1105). With no host catalog in a non-English
+    // locale, this lane announces the English whole message with the English duration, while the
+    // React lane places the locale's unit pattern inside the English sentence ("within 5 secondes").
+    // This test pins today's output so any change to it is deliberate. One duration source for both
+    // lanes is T-1105's deferred duration-parity work: it depends on round-2 batch b18 (CLDR plural
+    // rules in the locale provider) reaching main and on an owner decision.
+    [Fact]
+    public void NoCatalogFallbackIsEnglishInANonEnglishLocale()
+    {
+        var cut = RenderInLocale("fr-FR", "Publish", new Dictionary<string, string>());
+        cut.Find("button").Click();
+
+        Assert.Equal("Armed for ⁨Publish⁩. Activate again within 5 seconds to commit.", Status(cut));
+        Assert.Equal("5 seconds", cut.Find("[role=timer]").TextContent);
+    }
+
     private IRenderedComponent<HarborlineGuardedControl> RenderInLocale(
         string locale, string label, IReadOnlyDictionary<string, string> catalog, HarborlineNumberFormatter? numberFormatter = null) =>
         Render<HarborlineLocaleProvider>(p => p

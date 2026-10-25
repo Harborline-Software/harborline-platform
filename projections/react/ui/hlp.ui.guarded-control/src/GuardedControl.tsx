@@ -136,13 +136,26 @@ export function GuardedControl({
   }, [state])
 
   // An amount of time ("5 seconds"), which the armed instruction places after "within"; never a
-  // relative time ("in 5 seconds"). The locale's CLDR unit pattern supplies the localized number and
-  // unit, as Intl.RelativeTimeFormat did before. The Blazor lane resolves its catalog's
+  // relative time ("in 5 seconds"). The locale's CLDR unit pattern supplies the unit word, its plural
+  // form and its placement, as Intl.RelativeTimeFormat did before; the number in it is the locale
+  // provider's formatNumber, called with no options so a host formatter that writes only the number
+  // cannot drop the unit. Without a host formatter that is the same Intl number. A form with no number
+  // in it (Arabic "ثانيتان", 2 seconds) asks for none. The Blazor lane resolves its catalog's
   // chrome.guard.duration forms instead; one duration source for both lanes is T-1105's deferred
   // duration-parity work.
   const formatDuration = (count: number) => {
     try {
-      return new Intl.NumberFormat(locale, { style: 'unit', unit: 'second', unitDisplay: 'long' }).format(count)
+      let number: string | undefined
+      return new Intl.NumberFormat(locale, { style: 'unit', unit: 'second', unitDisplay: 'long' })
+        .formatToParts(count)
+        .map(({ type, value }) => {
+          if (type === 'unit' || type === 'literal') return value
+          // The number's parts (integer, group, decimal, fraction, sign) become one host number.
+          if (number !== undefined) return ''
+          number = formatNumber(count)
+          return number
+        })
+        .join('')
     } catch {
       return `${formatNumber(count)} ${count === 1 ? 'second' : 'seconds'}`
     }
