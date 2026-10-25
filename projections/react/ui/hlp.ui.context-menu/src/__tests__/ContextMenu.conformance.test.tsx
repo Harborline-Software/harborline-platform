@@ -63,3 +63,35 @@ it.each(opens.flatMap(opening => closes.map(closing => [opening, closing] as con
   expect(screen.queryByRole('menu')).toBeNull()
   expect(target).toHaveFocus()
 })
+
+// T-943 review 3: a close gives focus back only if it is still where the menu left it. An item whose
+// action moves focus (an inline editor here) keeps it there, after either kind of open, as React Aria's
+// FocusScope restoreFocus does.
+it.each(opens)('a %s-opened menu leaves focus where an item action moved it', async opening => {
+  if (caseId) return
+  const groups: ContextMenuGroup[] = [{items: [{id: 'rename', label: 'Rename', onSelect: () => screen.getByRole('textbox', {name: 'Editor'}).focus()}]}]
+  render(<><ContextMenu groups={groups} accessibleLabel="Actions"><button>Target</button></ContextMenu><input aria-label="Editor" /></>)
+  const target = screen.getByRole('button', {name: 'Target'})
+  target.focus()
+  if (opening === 'keyboard') fireEvent.keyDown(target, {key: 'F10', shiftKey: true})
+  else fireEvent.contextMenu(target, {clientX: 40, clientY: 60})
+  if (opening === 'keyboard') fireEvent.keyDown(screen.getByRole('menu'), {key: 'Enter'})
+  else fireEvent.click(screen.getByRole('menuitem', {name: 'Rename'}))
+  await new Promise(done => setTimeout(done, 0))
+  expect(screen.queryByRole('menu')).toBeNull()
+  expect(screen.getByRole('textbox', {name: 'Editor'})).toHaveFocus()
+})
+
+it('a close whose opener left the document returns focus to the trigger instead', async () => {
+  if (caseId) return
+  const groups: ContextMenuGroup[] = [{items: [{id: 'copy', label: 'Copy', onSelect: vi.fn()}]}]
+  render(<ContextMenu groups={groups} accessibleLabel="Actions"><button>Target</button></ContextMenu>)
+  // An opener outside React's tree, so removing it mid-menu is the host's doing, not React's.
+  const opener = document.body.appendChild(Object.assign(document.createElement('button'), {textContent: 'Opener'}))
+  opener.focus()
+  fireEvent.contextMenu(screen.getByRole('button', {name: 'Target'}), {clientX: 40, clientY: 60})
+  opener.remove()
+  fireEvent.keyDown(screen.getByRole('menu'), {key: 'Escape'})
+  await new Promise(done => setTimeout(done, 0))
+  expect(screen.getByRole('button', {name: 'Target'})).toHaveFocus()
+})

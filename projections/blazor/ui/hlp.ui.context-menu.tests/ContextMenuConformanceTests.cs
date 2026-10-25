@@ -97,6 +97,23 @@ public sealed class ContextMenuConformanceTests : BunitContext
         module.VerifyInvoke("focusTrigger");
     }
 
+    // T-943 review 3: a re-open while the menu is open keeps the opener recorded at the closed-to-open
+    // transition, instead of recording one of the menu's own items.
+    [Fact]
+    public async Task ReopenWhileOpenKeepsTheOpener()
+    {
+        var module = JSInterop.SetupModule("./_content/Harborline.UIAdapters.Blazor/context-menu.js");
+        module.SetupVoid("rememberOpener", _ => true).SetVoidResult();
+        var cut = RenderMenu();
+        await cut.Find(".hl-context-menu-trigger").KeyDownAsync(new KeyboardEventArgs { Key = "F10", ShiftKey = true });
+        await cut.InvokeAsync(() => cut.Instance.ShowAsync(20, 20));
+        Assert.True(cut.Instance.IsOpen);
+        module.VerifyNotInvoke("rememberOpener");
+        await cut.Instance.HideAsync();
+        await cut.InvokeAsync(() => cut.Instance.ShowAsync(20, 20));
+        module.VerifyInvoke("rememberOpener");
+    }
+
     [Fact, Trait("ConformanceCase", "context-menu.reopen-reset")]
     public async Task ReopenResets() { var cut=RenderMenu(); await cut.Instance.ShowAsync(8,8); await cut.Find("[role=menu]").KeyDownAsync(new KeyboardEventArgs{Key="End"}); await cut.Instance.HideAsync(); await cut.Instance.ShowAsync(8,8); Assert.Equal("copy",cut.Find("[role=menu]").GetAttribute("data-active-id")); }
 }
