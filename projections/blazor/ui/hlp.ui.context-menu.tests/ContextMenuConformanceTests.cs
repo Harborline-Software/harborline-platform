@@ -30,6 +30,10 @@ public sealed class ContextMenuConformanceTests : BunitContext
     [Fact, Trait("ConformanceCase", "context-menu.pointer-open")]
     public async Task PointerOpen() { var module=JSInterop.SetupModule("./_content/Harborline.UIAdapters.Blazor/context-menu.js"); module.SetupVoid("focusActive",_=>true); var cut=RenderMenu(); await cut.Find(".hl-context-menu-trigger").TriggerEventAsync("oncontextmenu",new MouseEventArgs{ClientX=40,ClientY=60}); Assert.Contains("left:40px;top:60px",cut.Find("[role=menu]").GetAttribute("style")); module.VerifyInvoke("focusActive"); }
 
+    // T-962: under ar-SA, he-IL and fa-IR .NET writes -1 with a leading direction mark, which HTML
+    // integer parsing refuses, so every menu item became a tab stop. The roving tabindex is invariant.
+    [Theory, InlineData("ar-SA"), InlineData("he-IL"), InlineData("fa-IR")]
+    public async Task RovingTabIndexIsInvariantUnderEveryCulture(string culture) { var previous=System.Globalization.CultureInfo.CurrentCulture; try { System.Globalization.CultureInfo.CurrentCulture=new System.Globalization.CultureInfo(culture); var cut=RenderMenu(); await cut.Instance.ShowAsync(8,8); var tabIndexes=cut.FindAll("[role=menuitem]").Select(item=>item.GetAttribute("tabindex")).ToArray(); Assert.All(tabIndexes, value=>Assert.Contains(value, new[]{"0","-1"})); Assert.Single(tabIndexes, value=>value=="0"); } finally { System.Globalization.CultureInfo.CurrentCulture=previous; } }
     [Fact, Trait("ConformanceCase", "context-menu.groups")]
     public async Task GroupsRender() { var cut=RenderMenu(); await cut.Instance.ShowAsync(8,8); Assert.Equal(3,cut.FindAll("[role=menuitem]").Count); Assert.Single(cut.FindAll("[role=separator]")); }
 

@@ -19,7 +19,7 @@
             foreach (var item in Groups[groupIndex].Items)
             {
                 var current = item;
-                <button type="button" role="menuitem" disabled="@current.Disabled" tabindex="@(current == ActiveItem ? 0 : -1)"
+                <button type="button" role="menuitem" disabled="@current.Disabled" tabindex="@(current == ActiveItem ? "0" : "-1")"
                         data-danger="@(current.Danger ? "true" : null)" data-active="@(current == ActiveItem ? "true" : null)"
                         class="hl-context-menu__item" @onclick="() => SelectAsync(current)">
                     @if (current.Icon is not null) { <span aria-hidden="true" class="hl-context-menu__icon">@current.Icon</span> }

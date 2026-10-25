@@ -22,6 +22,9 @@ public sealed class LayersRailTests : BunitContext
         var unselected=Render<HarborlineLayersRail>(p=>p.Add(x=>x.Lenses,Lenses).Add(x=>x.State,LayersState.Initialize(Lenses.Select(x=>x.Id),"layout")).Add(x=>x.Canvas,new CanvasModel(Nodes,null,_=>{})));
         Assert.Equal("root",StopOf(unselected));
     }
+    // T-962: under ar-SA, he-IL and fa-IR .NET writes -1 with a leading direction mark, which HTML
+    // integer parsing refuses, so every other tree node became a tab stop. The tabindex is invariant.
+    [Theory, InlineData("ar-SA"), InlineData("he-IL"), InlineData("fa-IR")] public void TreeTabIndexIsInvariantUnderEveryCulture(string culture){var previous=System.Globalization.CultureInfo.CurrentCulture;try{System.Globalization.CultureInfo.CurrentCulture=new System.Globalization.CultureInfo(culture);var cut=RenderRail();Assert.Equal(new[]{"-1","0"},cut.FindAll(".hl-layers-rail__node-control").Select(x=>x.GetAttribute("tabindex") ?? "").ToArray());}finally{System.Globalization.CultureInfo.CurrentCulture=previous;}}
     [Fact] public void LensAndSelectionCallbacksRemainHostOwned(){LayersState? state=null;var selected=new List<string>();var cut=RenderRail(next=>state=next,selected.Add);cut.FindAll(".hl-layers-rail__lens-activate")[1].Click();Assert.Equal("rules",state?.ActiveId);cut.Find("[data-node-id=child]").Click();Assert.Equal(["child"],selected);}
     [Theory,Trait("ModuleConformance","hlp.ui.layers-rail")] [MemberData(nameof(SharedFixtureBatch.Cases), "hlp.ui.layers-rail", MemberType = typeof(SharedFixtureBatch))]
     public void SharedFixtureConforms(string caseId, string? rawFixture)

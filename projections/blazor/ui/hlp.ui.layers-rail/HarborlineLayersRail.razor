@@ -61,7 +61,7 @@
           {
             <span aria-hidden="true" class="hl-layers-rail__spacer"></span>
           }
-          <button type="button" class="hl-layers-rail__node-control" tabindex="@(focusedId == node.Id ? 0 : -1)" @onfocus="() => focusedId = node.Id"
+          <button type="button" class="hl-layers-rail__node-control" tabindex="@(focusedId == node.Id ? "0" : "-1")" @onfocus="() => focusedId = node.Id"
                   @onkeydown="args => HandleTreeKeyAsync(node, args)" @onclick:stopPropagation="true" @onclick="() => SelectNodeAsync(node.Id)">
             <span class="hl-layers-rail__node-label">@node.Label</span>
             @if (!string.IsNullOrWhiteSpace(projection.Badge)) { <span class="hl-layers-rail__node-badge">@projection.Badge</span> }
