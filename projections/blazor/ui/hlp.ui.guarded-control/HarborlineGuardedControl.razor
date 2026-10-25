@@ -92,11 +92,11 @@
       : HarborlineDefaultStrings.Interpolate(fallback, variables);
 
   // An amount of time ("5 seconds"), which the armed instruction places after "within"; never a
-  // relative time ("in 5 seconds"). Both lanes resolve it alike: the host catalog's
-  // chrome.guard.duration form for the count, picked by the locale provider's plural selection from
-  // the keys the catalog holds, with the number from the provider's formatter. Without such a form,
-  // .NET has no CLDR unit data, so English "{seconds} second(s)" (React uses the CLDR unit pattern
-  // there: T-1105).
+  // relative time ("in 5 seconds"). The host catalog's chrome.guard.duration form for the count,
+  // picked by the locale provider's plural selection from the keys the catalog holds (its .NET rules
+  // cover ar, pl, ru and ja, and one/other elsewhere), with the number from the provider's formatter;
+  // else the English "{seconds} second(s)". The React lane formats the locale's CLDR unit pattern
+  // instead; one duration source for both lanes is T-1105's deferred duration-parity work.
   private string Duration(int seconds)
   {
     var variables = new Dictionary<string, object?> { ["seconds"] = LocaleContext?.FormatNumber(seconds) ?? seconds.ToString(System.Globalization.CultureInfo.InvariantCulture) };

@@ -1,6 +1,5 @@
 using System.Globalization;
 using System.Reflection;
-using System.Text.Json;
 using Bunit;
 using Harborline.Foundation.Localization;
 using Harborline.UIAdapters.Blazor.Components.Buttons;
@@ -16,8 +15,8 @@ namespace Harborline.UIAdapters.Blazor.Tests;
 /// report-one-recovery, so the recovered (or settled) message and the focus move belong to the
 /// transition itself, not to whatever render happens to come after it. The timeout, host and
 /// rejected-commit paths run outside an event handler's automatic render, which is where a message
-/// set after the transition's render stayed stale. The armed instruction and its countdown are
-/// replayed from the fixture the React lane replays too (duration-v1.json).
+/// set after the transition's render stayed stale. The armed instruction reads as one whole message
+/// with an amount of time after "within", and every arm states the full window.
 /// </summary>
 public sealed class GuardedControlAnnouncementTests : BunitContext
 {
@@ -129,75 +128,121 @@ public sealed class GuardedControlAnnouncementTests : BunitContext
         Assert.DoesNotContain("within in", cut.Markup, StringComparison.Ordinal);
     }
 
-    // T-1105 review: both lanes replay conformance/hlp.ui.guarded-control/duration-v1.json (the React
-    // half is GuardedControl.native.test.tsx), so one catalog, locale and host formatter give one armed
-    // instruction and one countdown in both. A case the fixture does not declare is an error.
-    private static string Repo(string relative) => Path.Combine(
-        Environment.GetEnvironmentVariable("HARBORLINE_REPO_ROOT") ?? Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../../../../")),
-        relative);
-
-    private static readonly JsonElement DurationFixture =
-        JsonElement.Parse(File.ReadAllText(Repo("conformance/hlp.ui.guarded-control/duration-v1.json")));
-
-    public static TheoryData<string> DurationCaseIds()
+    [Fact]
+    public async Task CountdownReachesASingularSecond()
     {
-        var ids = new TheoryData<string>();
-        foreach (var fixture in DurationFixture.GetProperty("cases").EnumerateArray()) ids.Add(fixture.GetProperty("id").GetString()!);
-        return ids;
+        var clock = new ManualClock();
+        var cut = RenderGuard();
+        UseClock(cut.Instance, clock);
+        cut.Find("button").Click();
+
+        for (var second = 0; second < 4; second++) await TickAsync(cut, clock);
+
+        cut.WaitForAssertion(() => Assert.Equal("1 second", cut.Find("[role=timer]").TextContent));
+        Assert.Equal($"Armed for {Isolated}. Activate again within 5 seconds to commit.", Status(cut));
     }
 
     [Theory]
-    [MemberData(nameof(DurationCaseIds))]
-    public async Task DurationFixtureReplays(string caseId)
+    [InlineData("timeout")]
+    [InlineData("escape")]
+    public async Task EveryArmStatesTheFullWindow(string recovery)
     {
-        var fixture = DurationFixture.GetProperty("cases").EnumerateArray()
-            .Single(candidate => candidate.GetProperty("id").GetString() == caseId);
         var clock = new ManualClock();
-        var provider = Render<HarborlineLocaleProvider>(p => p
-            .Add(x => x.Locale, fixture.GetProperty("locale").GetString()!)
-            .Add(x => x.Catalog, fixture.GetProperty("catalog").EnumerateObject().ToDictionary(entry => entry.Name, entry => entry.Value.GetString()!))
-            .Add(x => x.NumberFormatter, fixture.TryGetProperty("hostNumberingSystem", out var system) ? HostFormatter(system.GetString()!) : null)
+        var cut = RenderGuard();
+        UseClock(cut.Instance, clock);
+        cut.Find("button").Click();
+        for (var second = 0; second < (recovery == "timeout" ? 5 : 2); second++) await TickAsync(cut, clock);
+        if (recovery == "escape") await cut.Find("button").KeyDownAsync(new KeyboardEventArgs { Key = "Escape" });
+        cut.WaitForAssertion(() => Assert.Equal("covered", GuardState(cut)));
+
+        cut.Find("button").Click();
+
+        Assert.Equal($"Armed for {Isolated}. Activate again within 5 seconds to commit.", Status(cut));
+        Assert.Equal("5 seconds", cut.Find("[role=timer]").TextContent);
+    }
+
+    // The host catalog is resolved first, for the whole message and for the duration form inside it.
+    [Fact]
+    public async Task HostCatalogLocalizesTheArmedInstructionAndDuration()
+    {
+        var clock = new ManualClock();
+        var cut = RenderInLocale("fr-FR", "Publier", new Dictionary<string, string>
+        {
+            ["chrome.guard.armed.whole"] = "Armé pour {action}. Activez de nouveau dans un délai de {duration} pour valider.",
+            ["chrome.guard.duration.one"] = "{seconds} seconde",
+            ["chrome.guard.duration.other"] = "{seconds} secondes",
+        });
+        UseClock(cut.Instance, clock);
+        cut.Find("button").Click();
+
+        Assert.Equal("Armé pour \u2068Publier\u2069. Activez de nouveau dans un délai de 5 secondes pour valider.", Status(cut));
+        Assert.Equal("5 secondes", cut.Find("[role=timer]").TextContent);
+        for (var second = 0; second < 4; second++) await TickAsync(cut, clock);
+        cut.WaitForAssertion(() => Assert.Equal("1 seconde", cut.Find("[role=timer]").TextContent));
+    }
+
+    // The locale provider's plural selection picks the catalog form, then other. Its .NET rules cover
+    // ar, pl, ru and ja, and one/other elsewhere; full CLDR cardinal rules in the provider, and one
+    // duration source for both lanes, are T-1105's deferred duration-parity work.
+    [Theory]
+    [InlineData(true, 0, "٥ ثوانٍ")]
+    [InlineData(true, 3, "ثانيتين")]
+    [InlineData(true, 4, "ثانية واحدة")]
+    [InlineData(false, 0, "٥ ثانية")]
+    public async Task CatalogDurationFormFollowsTheLocalePluralCategory(bool withFew, int ticks, string timer)
+    {
+        var catalog = new Dictionary<string, string>
+        {
+            ["chrome.guard.armed.whole"] = "تم تجهيز {action}. فعّل مرة أخرى خلال {duration} للتأكيد.",
+            ["chrome.guard.duration.one"] = "ثانية واحدة",
+            ["chrome.guard.duration.two"] = "ثانيتين",
+            ["chrome.guard.duration.other"] = "{seconds} ثانية",
+        };
+        if (withFew) catalog["chrome.guard.duration.few"] = "{seconds} ثوانٍ";
+        var clock = new ManualClock();
+        var cut = RenderInLocale("ar-SA", "تصدير", catalog, HostFormatter("arab"));
+        UseClock(cut.Instance, clock);
+        cut.Find("button").Click();
+
+        for (var second = 0; second < ticks; second++) await TickAsync(cut, clock);
+
+        cut.WaitForAssertion(() => Assert.Equal(timer, cut.Find("[role=timer]").TextContent));
+        Assert.Equal(timer, cut.Find("[role=timer]").GetAttribute("aria-label"));
+        Assert.Equal($"تم تجهيز \u2068تصدير\u2069. فعّل مرة أخرى خلال {(withFew ? "٥ ثوانٍ" : "٥ ثانية")} للتأكيد.", Status(cut));
+    }
+
+    [Fact]
+    public void HostNumberFormatterWritesTheDurationNumber()
+    {
+        var cut = RenderInLocale("en", "Publish", new Dictionary<string, string>(), HostFormatter("arab"));
+        cut.Find("button").Click();
+
+        Assert.Equal("Armed for \u2068Publish\u2069. Activate again within ٥ seconds to commit.", Status(cut));
+        Assert.Equal("٥ seconds", cut.Find("[role=timer]").TextContent);
+    }
+
+    private IRenderedComponent<HarborlineGuardedControl> RenderInLocale(
+        string locale, string label, IReadOnlyDictionary<string, string> catalog, HarborlineNumberFormatter? numberFormatter = null) =>
+        Render<HarborlineLocaleProvider>(p => p
+            .Add(x => x.Locale, locale)
+            .Add(x => x.Catalog, catalog)
+            .Add(x => x.NumberFormatter, numberFormatter)
             .AddChildContent<HarborlineGuardedControl>(guard => guard
                 .Add(x => x.Action, "packages.export")
                 .Add(x => x.ClassificationId, "new-record-type")
-                .Add(x => x.Label, fixture.GetProperty("label").GetString()!)
-                .Add(x => x.OnCommit, () => { })));
-        var cut = provider.FindComponent<HarborlineGuardedControl>();
-        UseClock(cut.Instance, clock);
+                .Add(x => x.Label, label)
+                .Add(x => x.OnCommit, () => { })))
+        .FindComponent<HarborlineGuardedControl>();
 
-        foreach (var step in fixture.GetProperty("steps").EnumerateArray().Select(value => value.GetString()))
-        {
-            switch (step)
-            {
-                case "arm":
-                    cut.WaitForAssertion(() => Assert.Equal("covered", GuardState(cut)));
-                    cut.Find("button").Click();
-                    break;
-                case "tick":
-                    await clock.FireNextAsync();
-                    // The second is applied once the guard waits on its next second, or has recovered.
-                    await WaitUntilAsync(() => clock.HasScheduled || cut.Instance.State != GuardedControlState.Armed);
-                    break;
-                case "escape":
-                    await cut.Find("button").KeyDownAsync(new KeyboardEventArgs { Key = "Escape" });
-                    break;
-                default:
-                    throw new InvalidOperationException($"unknown-step: {step}");
-            }
-        }
-
-        var expected = fixture.TryGetProperty("divergence", out var divergence) && divergence.GetProperty("lane").GetString() == "blazor"
-            ? divergence.GetProperty("expected")
-            : fixture.GetProperty("expected");
-        cut.WaitForAssertion(() =>
-        {
-            Assert.Equal(expected.GetProperty("status").GetString(), Status(cut));
-            Assert.Equal(expected.GetProperty("timer").GetString(), cut.Find("[role=timer]").TextContent);
-            Assert.Equal(expected.GetProperty("timer").GetString(), cut.Find("[role=timer]").GetAttribute("aria-label"));
-        });
+    /// <summary>Lets one second of the arm window elapse and waits until the guard has applied it.</summary>
+    private static async Task TickAsync(IRenderedComponent<HarborlineGuardedControl> cut, ManualClock clock)
+    {
+        await clock.FireNextAsync();
+        // The second is applied once the guard waits on its next second, or has recovered.
+        await WaitUntilAsync(() => clock.HasScheduled || cut.Instance.State != GuardedControlState.Armed);
     }
 
-    // The fixture's host formatter: the digits of one CLDR numbering system, whatever the locale.
+    // A host formatter that writes the digits of one CLDR numbering system, whatever the locale.
     private static HarborlineNumberFormatter HostFormatter(string numberingSystem)
     {
         var zero = numberingSystem switch

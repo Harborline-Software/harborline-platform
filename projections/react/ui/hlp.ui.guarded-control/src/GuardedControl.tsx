@@ -25,16 +25,6 @@ export interface GuardedControlProps
 const ARM_WINDOW_MS = 5000
 const ARM_WINDOW_SECONDS = ARM_WINDOW_MS / 1000
 const BLUR_GRACE_MS = 800
-const PLURAL_CATEGORIES: readonly Intl.LDMLPluralRule[] = ['zero', 'one', 'two', 'few', 'many', 'other']
-
-// The locale's CLDR cardinal category, as the locale provider's tn selects it.
-function pluralCategory(locale: string, count: number): Intl.LDMLPluralRule {
-  try {
-    return new Intl.PluralRules(locale).select(count)
-  } catch {
-    return count === 1 ? 'one' : 'other'
-  }
-}
 
 function descriptionIds(value: GuardedControlProps['describedBy']): string | undefined {
   if (typeof value === 'string') return value || undefined
@@ -46,7 +36,7 @@ export function GuardedControl({
   className, ...hostAttributes
 }: GuardedControlProps) {
   const invalid = !action.trim() || !classificationId.trim() || !label.trim()
-  const { locale, direction, formatNumber, t, tn } = useHarborlineStrings()
+  const { locale, direction, formatNumber, t } = useHarborlineStrings()
   const { catalog } = useHarborlineLocale()
   const reducedMotion = useMediaQuery('(prefers-reduced-motion: reduce)')
   const [state, setState] = React.useState<GuardedControlState>('covered')
@@ -146,20 +136,13 @@ export function GuardedControl({
   }, [state])
 
   // An amount of time ("5 seconds"), which the armed instruction places after "within"; never a
-  // relative time ("in 5 seconds"). Both lanes resolve it alike: the host catalog's
-  // chrome.guard.duration form for the count, picked by the locale provider's plural selection from
-  // the keys the catalog holds, with the number from the provider's formatter. Without such a form,
-  // the locale's CLDR unit pattern through the same formatter (Blazor, without CLDR unit data, writes
-  // English there: T-1105).
+  // relative time ("in 5 seconds"). The locale's CLDR unit pattern supplies the localized number and
+  // unit, as Intl.RelativeTimeFormat did before. The Blazor lane resolves its catalog's
+  // chrome.guard.duration forms instead; one duration source for both lanes is T-1105's deferred
+  // duration-parity work.
   const formatDuration = (count: number) => {
-    const keys: Partial<Record<Intl.LDMLPluralRule, string>> = {}
-    for (const category of PLURAL_CATEGORIES) {
-      const key = `chrome.guard.duration.${category}`
-      if (catalog[key] !== undefined) keys[category] = key
-    }
-    if ((keys[pluralCategory(locale, count)] ?? keys.other) !== undefined) return tn(count, keys, { seconds: formatNumber(count) })
     try {
-      return formatNumber(count, { style: 'unit', unit: 'second', unitDisplay: 'long' })
+      return new Intl.NumberFormat(locale, { style: 'unit', unit: 'second', unitDisplay: 'long' }).format(count)
     } catch {
       return `${formatNumber(count)} ${count === 1 ? 'second' : 'seconds'}`
     }
