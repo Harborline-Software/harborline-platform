@@ -7,7 +7,7 @@ import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { arch, platform } from 'node:os'
 
-import { gotoWithTransientNetworkRetry, openWithSubresourceRetry, readWithReload } from './navigation-resilience.ts'
+import { evaluateSettled, gotoWithTransientNetworkRetry, openWithSubresourceRetry, readWithReload } from './navigation-resilience.ts'
 
 // Control ticket 100: the gallery gate reported sixteen counts and measured none of them, and one
 // drifted for fifteen days on the very commit that added the check meant to stop drift. Every count
@@ -211,26 +211,6 @@ async function reactIndex(page: Page): Promise<StoryIndex> {
     index = await response.json() as StoryIndex
   }).toPass({ intervals: [250, 500, 1_000], timeout: 5_000 })
   return index!
-}
-
-// Under four-worker load, an evaluate that awaits a PAGE-SIDE promise (the BlazingStory
-// index call) can lose that promise to garbage collection before it settles —
-// Playwright surfaces "Resulting promise was garbage collected" although the page is
-// healthy. Re-issue the evaluate a bounded number of times on exactly that error; every
-// other failure propagates unchanged. (Migration ticket 075 — observed on unrelated
-// scenarios at ~per-run frequency, so retry-at-test level did not clear it.)
-async function evaluateSettled<T>(issue: () => Promise<T>): Promise<T> {
-  let lastError: unknown
-  for (let attempt = 0; attempt < 3; attempt++) {
-    try {
-      return await issue()
-    }
-    catch (error) {
-      if (!String(error).includes('Resulting promise was garbage collected')) throw error
-      lastError = error
-    }
-  }
-  throw lastError
 }
 
 // T-717: two bounded attempts of 15 s, reloading a stalled boot, instead of one wait bounded only by the test.
