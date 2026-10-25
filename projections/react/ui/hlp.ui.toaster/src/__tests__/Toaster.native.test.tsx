@@ -98,4 +98,56 @@ describe('Toaster region name (T-1107)', () => {
     expect(screen.getByRole('region')).toHaveAccessibleName('الإشعارات')
     expect(screen.getByRole('region')).toHaveAttribute('dir', 'rtl')
   })
+
+  // A section with an empty or whitespace-only aria-label has no accessible name, so it is not a
+  // region landmark (HTML-AAM). A blank name is not a usable override: it keeps the default name,
+  // the way an absent one does. The whitespace case is what tells this apart from `||`.
+  it.each([
+    ['empty', ''],
+    ['whitespace-only', ' \t\n '],
+  ])('keeps the default region name when the caller aria-label is %s', (_kind, blank) => {
+    render(<Toaster service={createToastService()} aria-label={blank}/>)
+    expect(screen.getByRole('region')).toHaveAccessibleName('Notifications')
+    expect(document.querySelector('section.hl-toaster')).toHaveAttribute('aria-label', 'Notifications')
+  })
+
+  it('keeps the default region name when untyped JavaScript passes a null aria-label', () => {
+    render(<Toaster service={createToastService()} aria-label={null as unknown as string}/>)
+    expect(screen.getByRole('region')).toHaveAccessibleName('Notifications')
+  })
+
+  it('keeps the default region name when the host catalog entry is an untranslated blank', () => {
+    const service = createToastService()
+    render(<HarborlineLocaleProvider locale="ar-SA" catalog={{ ...arabicCatalog, 'host.notifications': '' }}><CatalogToaster service={service}/></HarborlineLocaleProvider>)
+    act(() => { service.error('Placement failed') })
+    const region = screen.getByRole('region', { name: 'Notifications' })
+    expect(region).toContainElement(screen.getByRole('alert'))
+    expect(region).toHaveAttribute('dir', 'rtl')
+  })
+})
+
+// The region's dir. A dir written after the spread overwrote the caller's dir attribute even when
+// direction was omitted, so toast motion did not mirror. Blazor writes dir="@Direction" before
+// @attributes, so a splatted dir wins there; React now gives the caller's dir the same precedence,
+// as Gantt and Scheduler do with `dir ?? direction`.
+describe('Toaster region direction', () => {
+  it('keeps the caller dir when direction is omitted', () => {
+    render(<Toaster service={createToastService()} dir="rtl"/>)
+    expect(screen.getByRole('region')).toHaveAttribute('dir', 'rtl')
+  })
+
+  it('takes direction when the caller passes no dir', () => {
+    render(<Toaster service={createToastService()} direction="rtl"/>)
+    expect(screen.getByRole('region')).toHaveAttribute('dir', 'rtl')
+  })
+
+  it('lets the caller dir win over direction, as a splatted dir does in Blazor', () => {
+    render(<Toaster service={createToastService()} dir="ltr" direction="rtl"/>)
+    expect(screen.getByRole('region')).toHaveAttribute('dir', 'ltr')
+  })
+
+  it('renders no dir when neither is passed', () => {
+    render(<Toaster service={createToastService()}/>)
+    expect(screen.getByRole('region')).not.toHaveAttribute('dir')
+  })
 })

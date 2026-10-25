@@ -268,17 +268,26 @@ export function Toaster({
   defaults, showCloseButton = false, dismissLabel = 'Dismiss notification', direction,
   // The region's accessible name. A literal written after the spread overwrote the caller's
   // aria-label, which ToasterProps accepts through HTMLAttributes, so no host could localize the
-  // landmark. As with Blazor's AccessibleLabel, the default is "Notifications" and a caller's name
+  // landmark. The default is "Notifications", Blazor AccessibleLabel's default, and a caller's name
   // replaces it; revision 1 of hlp.ui.default-strings has no key for this name. Ticket T-1107.
-  'aria-label': accessibleLabel = 'Notifications',
+  'aria-label': ariaLabel,
+  // The caller's dir attribute, which a dir written after the spread used to overwrite.
+  dir,
   className, ...attributes
 }: ToasterProps) {
   React.useEffect(() => {
     service.configure({ duration, maximumVisible, keepErrorsPersistent, defaults })
   }, [defaults, duration, keepErrorsPersistent, maximumVisible, service])
   const snapshot = React.useSyncExternalStore(service.subscribe, service.getSnapshot, service.getSnapshot)
+  // A section with a blank aria-label has no accessible name and so is no landmark (HTML-AAM), so
+  // an empty or whitespace-only name, or a null from untyped JavaScript, keeps the default as an
+  // absent one does. The interface lists no error for it. Blazor throws on a blank AccessibleLabel;
+  // that difference is open for the owner (T-1107).
+  const accessibleLabel = ariaLabel?.trim() ? ariaLabel : 'Notifications'
   return (
-    <section {...attributes} dir={direction} aria-label={accessibleLabel} className={`hl-toaster hl-toaster--${position}${className ? ` ${className}` : ''}`} data-position={position}>
+    // A caller's dir wins over direction, as a dir splatted after Blazor's dir="@Direction" does,
+    // and as Gantt and Scheduler resolve `dir ?? direction`.
+    <section {...attributes} dir={dir ?? direction} aria-label={accessibleLabel} className={`hl-toaster hl-toaster--${position}${className ? ` ${className}` : ''}`} data-position={position}>
       {snapshot.visible.map(entry => (
         <div key={entry.id} role={entry.variant === 'error' ? 'alert' : 'status'} className="hl-toaster__toast" data-variant={entry.variant} data-toast-id={entry.id}>
           <span aria-hidden="true" className="hl-toaster__marker"><ToastIcon variant={entry.variant} /></span>

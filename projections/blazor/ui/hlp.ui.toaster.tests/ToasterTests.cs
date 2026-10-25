@@ -15,6 +15,9 @@ public sealed class ToasterTests : BunitContext
     // T-1107: the region name React matches. Default "Notifications"; AccessibleLabel replaces it, and a
     // caller's own aria-label attribute, splatted after it, wins over both.
     [Fact] public void RegionNameDefaultsAndFollowsTheCaller(){var cut=Render<HarborlineToaster>();Assert.Equal("Notifications",cut.Find("section.hl-toaster").GetAttribute("aria-label"));cut.Render(p=>p.Add(x=>x.AccessibleLabel,"الإشعارات"));Assert.Equal("الإشعارات",cut.Find("section.hl-toaster").GetAttribute("aria-label"));cut.Render(p=>p.Add(x=>x.AccessibleLabel,"الإشعارات").AddUnmatched("aria-label","Workspace alerts"));Assert.Equal("Workspace alerts",cut.Find("section.hl-toaster").GetAttribute("aria-label"));}
+    // The region dir precedence React matches: Direction sets dir, and a caller's own dir attribute,
+    // splatted after it, wins over Direction and survives when Direction is unset.
+    [Fact] public void RegionDirFollowsDirectionAndTheCallerDir(){var cut=Render<HarborlineToaster>();Assert.False(cut.Find("section.hl-toaster").HasAttribute("dir"));cut.Render(p=>p.Add(x=>x.Direction,"rtl"));Assert.Equal("rtl",cut.Find("section.hl-toaster").GetAttribute("dir"));cut.Render(p=>p.Add(x=>x.Direction,(string?)null).AddUnmatched("dir","rtl"));Assert.Equal("rtl",cut.Find("section.hl-toaster").GetAttribute("dir"));cut.Render(p=>p.Add(x=>x.Direction,"rtl").AddUnmatched("dir","ltr"));Assert.Equal("ltr",cut.Find("section.hl-toaster").GetAttribute("dir"));}
     [Theory,Trait("ModuleConformance","hlp.ui.toaster")] [MemberData(nameof(SharedFixtureBatch.Cases), "hlp.ui.toaster", MemberType = typeof(SharedFixtureBatch))]
     public void SharedFixtureConforms(string caseId, string? rawFixture)
     {
