@@ -305,7 +305,7 @@ public sealed class RecordTypeDefinitionStore
         if (document.ClassId is { } classId
             && await _store.GetPublishedHeadAsync(ClassDefinitionStore.KeyOf(tenant, classId), cancellationToken).ConfigureAwait(false) is null)
             refusals.Add(new("records.class.unresolved", "/class_id"));
-        refusals.AddRange(CreationRoleRefusals(document, publishing));
+        refusals.AddRange(RoleRefusals(document, publishing));
         foreach (var (field, index) in (document.Fields ?? []).Select((field, index) => (field, index)))
         {
             if (field.Reference is not { } reference)
@@ -402,18 +402,26 @@ public sealed class RecordTypeDefinitionStore
 
     private sealed record EdgeTarget(DefinitionRevision? Revision, RecordsDefinitionEnvelope Envelope, IReadOnlyList<TraitReference>? Traits);
 
-    // D1: a role gate's one creation role resolves through Access's role vocabulary. Publication and installation fail
-    // closed without the vocabulary; a supplied vocabulary is honoured in diagnostics too (layout-auth-23's pattern). The
-    // bind path never re-runs this, so a later vocabulary change cannot make an already published type unbindable.
-    private IEnumerable<DefinitionRefusal> CreationRoleRefusals(RecordTypeDocument document, bool required)
+    // D1: a role gate's one creation role, and each field's write role (records-ck-14), resolve through Access's role
+    // vocabulary. Publication and installation fail closed without the vocabulary; a supplied vocabulary is honoured in
+    // diagnostics too (layout-auth-23's pattern). The bind path never re-runs this, so a later vocabulary change cannot
+    // make an already published type unbindable.
+    private IEnumerable<DefinitionRefusal> RoleRefusals(RecordTypeDocument document, bool required)
     {
+        if (_roles is null && !required)
+            yield break;
         if (RecordCreationPolicy.Of(document) is { Gate: RecordCreationGate.Role, RoleId: { } roleId }
-            && !string.IsNullOrWhiteSpace(roleId) && (_roles is not null || required) && !IsDefinedRole(roleId))
+            && !string.IsNullOrWhiteSpace(roleId) && !IsDefinedRole(roleId))
             yield return new("records.creation_role.unknown", "/creation_role_id");
+        // A blank creation role is records.creation_role.required instead; a write role has no gate to require it, so a
+        // blank one is undefined like any other.
+        foreach (var (field, index) in (document.Fields ?? []).Select((field, index) => (field, index)))
+            if (field is { WriteRoleId: { } writeRoleId } && !IsDefinedRole(writeRoleId))
+                yield return new("records.write_role.unknown", $"/fields/{index}/write_role_id");
     }
 
-    // A creation role is a domain role name, as Records names read roles (RoleReference.Domain); an unresolvable or
-    // malformed one is undefined.
+    // A creation or write role is a domain role name, as Records names read roles (RoleReference.Domain); an unresolvable
+    // or malformed one is undefined.
     private bool IsDefinedRole(string roleId)
     {
         try
@@ -572,7 +580,7 @@ public sealed class RecordTypeDefinitionStore
         var parsed = RecordTypeDefinitionJson.Deserialize(entry.Content.Payload.Span);
         // F5: a pack cannot install a role-gated type whose creation role this host's vocabulary does not define: a gate
         // nothing can satisfy is worse than an open one (ADR 0043).
-        return new(DefinitionAdmissionPhase.Install, CreationRoleRefusals(parsed, required: true).Concat(InstallEdges(parsed, closure)).ToArray());
+        return new(DefinitionAdmissionPhase.Install, RoleRefusals(parsed, required: true).Concat(InstallEdges(parsed, closure)).ToArray());
     }
 
     private static IEnumerable<DefinitionRefusal> InstallEdges(RecordTypeDocument document, RecordsInstallClosure closure)

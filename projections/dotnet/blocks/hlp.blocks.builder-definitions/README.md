@@ -139,6 +139,22 @@ record schema is byte-identical; a reader older than interface revision 26 refus
 declaration, and the definition contract version is unchanged. Both members are declarations only: raising and settling an offline conflict belongs to
 the offline runtime (records-eng-25), and nothing yet reads the categories.
 
+### Field write role (records-ck-14)
+
+A field's optional `write_role_id` names the one domain role that may write it: the only place read and write diverge
+on one field (L075, L1008). It is a nullable init-only member and a bare string, as Records names roles elsewhere.
+Absence and an explicit null declare no divergence and are omitted, so every existing body, digest and compiled record
+schema is byte-identical. A present name is kept verbatim. Any other JSON value, including a qualified role object, is
+`records.document_invalid`. A reader older than interface revision 27 refuses a body that carries it.
+
+Publication, installation and a diagnosis with a supplied vocabulary resolve each write role through the same check as a
+creation role: a domain role in Access's role vocabulary, failing closed when publication or installation has no
+vocabulary, and never re-run on the bind path. An unresolved one refuses `records.write_role.unknown` at
+`/fields/{i}/write_role_id`, after any `/creation_role_id` refusal and in field order. A blank name has no gate to make it
+required, so it is undefined like any other unknown name. Only domain roles can be named, and pack ownership is not
+checked. Save does not carry an omitted write role forward. This is the declaration only: enforcing the role, and any
+write authorization, belongs to the write path.
+
 ## Records write: one record create (T-616, bounded)
 
 `RecordWriteOperation.CreateAsync` is the first public Records write. It composes existing producers only:
