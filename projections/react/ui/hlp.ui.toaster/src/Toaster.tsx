@@ -280,10 +280,11 @@ export function Toaster({
   }, [defaults, duration, keepErrorsPersistent, maximumVisible, service])
   const snapshot = React.useSyncExternalStore(service.subscribe, service.getSnapshot, service.getSnapshot)
   // A section with a blank aria-label has no accessible name and so is no landmark (HTML-AAM), so
-  // an empty or whitespace-only name, or a null from untyped JavaScript, keeps the default as an
-  // absent one does. The interface lists no error for it. Blazor throws on a blank AccessibleLabel;
-  // that difference is open for the owner (T-1107).
-  const accessibleLabel = ariaLabel?.trim() ? ariaLabel : 'Notifications'
+  // only a non-blank string names the region. An empty or whitespace-only name, and any non-string
+  // from untyped JavaScript (null, false, a number), keeps the default as an absent one does,
+  // instead of throwing from the render. The interface lists no error for it, and Blazor resolves
+  // AccessibleLabel and a splatted aria-label by the same rule (T-1107).
+  const accessibleLabel = typeof ariaLabel === 'string' && ariaLabel.trim() ? ariaLabel : 'Notifications'
   return (
     // A caller's dir wins over direction, as a dir splatted after Blazor's dir="@Direction" does,
     // and as Gantt and Scheduler resolve `dir ?? direction`.

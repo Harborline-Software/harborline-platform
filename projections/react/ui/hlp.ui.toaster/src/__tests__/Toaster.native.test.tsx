@@ -111,9 +111,19 @@ describe('Toaster region name (T-1107)', () => {
     expect(document.querySelector('section.hl-toaster')).toHaveAttribute('aria-label', 'Notifications')
   })
 
-  it('keeps the default region name when untyped JavaScript passes a null aria-label', () => {
-    render(<Toaster service={createToastService()} aria-label={null as unknown as string}/>)
+  // Untyped JavaScript can pass any value, for example `aria-label={localized && t(key)}` gives false
+  // and a count gives a number. Anything that is not a non-blank string keeps the default, as an
+  // absent name does, instead of throwing from the render. Blazor's ToasterTests pin the same rule
+  // for AccessibleLabel and for a splatted aria-label.
+  it.each([
+    ['null', null],
+    ['false', false],
+    ['0', 0],
+    ['5', 5],
+  ])('keeps the default region name when untyped JavaScript passes %s as aria-label', (_kind, value) => {
+    render(<Toaster service={createToastService()} aria-label={value as unknown as string}/>)
     expect(screen.getByRole('region')).toHaveAccessibleName('Notifications')
+    expect(document.querySelector('section.hl-toaster')).toHaveAttribute('aria-label', 'Notifications')
   })
 
   it('keeps the default region name when the host catalog entry is an untranslated blank', () => {

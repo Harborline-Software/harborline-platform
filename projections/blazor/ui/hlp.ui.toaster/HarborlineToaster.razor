@@ -3,7 +3,7 @@
 @implements IDisposable
 @inject IToastService Toasts
 
-<section class="@CombineClasses("hl-toaster", $"hl-toaster--{PositionToken}")" style="@CombineStyles()" data-position="@PositionToken" data-hl-semantic-colors="@(UseSemanticColors ? "true" : null)" dir="@Direction" aria-label="@AccessibleLabel" @attributes="AdditionalAttributes">
+<section class="@CombineClasses("hl-toaster", $"hl-toaster--{PositionToken}")" style="@CombineStyles()" data-position="@PositionToken" data-hl-semantic-colors="@(UseSemanticColors ? "true" : null)" dir="@Direction" @attributes="AdditionalAttributes" aria-label="@RegionName">
   @foreach (var entry in VisibleEntries)
   {
     <div class="hl-toaster__toast" data-toast-id="@entry.Id.Value" data-variant="@entry.Variant.ToString().ToLowerInvariant()" role="@(entry.Variant == ToastVariant.Error ? "alert" : "status")">
@@ -37,12 +37,22 @@
   [Parameter] public string DismissLabel { get; set; } = "Dismiss";
   [Parameter] public string AccessibleLabel { get; set; } = "Notifications";
   [Parameter] public string? Direction { get; set; }
+  // The region's accessible name, written after @attributes so that it is the one the section
+  // renders. A caller's splatted aria-label still wins over AccessibleLabel, but only a non-blank
+  // string names the region: a blank, whitespace-only, null or non-string value is absent, so the
+  // name falls back to AccessibleLabel and then to "Notifications". A section with a blank
+  // aria-label has no name and so is no landmark (HTML-AAM), and the interface defines
+  // toast-message-required only for an empty toast message. React resolves aria-label the same way.
+  // Ticket T-1107.
+  private string RegionName => NonBlank(SplattedAriaLabel) ?? NonBlank(AccessibleLabel) ?? "Notifications";
+  private object? SplattedAriaLabel => AdditionalAttributes?.FirstOrDefault(attribute => string.Equals(attribute.Key, "aria-label", StringComparison.OrdinalIgnoreCase)).Value;
+  private static string? NonBlank(object? value) => value is string text && !string.IsNullOrWhiteSpace(text) ? text : null;
   private string PositionToken => Position switch { ToastPosition.TopLeft=>"top-left",ToastPosition.TopCenter=>"top-center",ToastPosition.TopRight=>"top-right",ToastPosition.BottomLeft=>"bottom-left",ToastPosition.BottomCenter=>"bottom-center",ToastPosition.BottomRight=>"bottom-right",_=>"bottom-right" };
   private IReadOnlyList<ToastEntry> VisibleEntries => Toasts.Entries.TakeLast(MaximumVisible).ToArray();
   protected override void OnInitialized() => Toasts.Changed += OnChanged;
   protected override void OnParametersSet()
   {
-    if (string.IsNullOrWhiteSpace(DismissLabel) || string.IsNullOrWhiteSpace(AccessibleLabel)) throw new InvalidOperationException("toast-message-required");
+    if (string.IsNullOrWhiteSpace(DismissLabel)) throw new InvalidOperationException("toast-message-required");
     Toasts.ConfigureHost(new(DurationMilliseconds, MaximumVisible, ShowCloseButton, UseSemanticColors, KeepErrorsPersistent, Defaults));
   }
   private void OnChanged()=>_ = InvokeAsync(StateHasChanged);
