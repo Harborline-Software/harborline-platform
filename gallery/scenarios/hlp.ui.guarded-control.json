@@ -291,11 +291,13 @@
           "direction": "ltr",
           "theme": "light",
           "catalog": {
-            "chrome.guard.covered.hint": "Guarded — activate to unlock",
-            "chrome.guard.armed.hint": "Armed — activate to {action}. {seconds} seconds remain.",
-            "chrome.guard.committing.status": "Committing {action}",
-            "chrome.guard.recovered.announce": "Guard restored.",
-            "chrome.guard.rejected.announce": "The action was not completed. Guard restored."
+            "chrome.guard.covered.instruction": "⟦ Ĝüåŕðéð åçţîöñ: {action}. Åçţîṽåţé ţö åŕɱ. ········ ⟧",
+            "chrome.guard.armed.whole": "⟦ Åŕɱéð ƒöŕ {action}. Åçţîṽåţé åĝåîñ ŵîţĥîñ {duration} ţö çöɱɱîţ. ············ ⟧",
+            "chrome.guard.committing.status": "⟦ Çöɱɱîţţîñĝ {action}. ···· ⟧",
+            "chrome.guard.recovered.whole": "⟦ Ĝüåŕð ŕéšţöŕéð ƒöŕ {action}. ······ ⟧",
+            "chrome.guard.completed.whole": "⟦ Ðöñé: {action}. Ĝüåŕð ŕéšţöŕéð. ······ ⟧",
+            "chrome.guard.rejected.whole": "⟦ Çöüļð ñöţ çöɱþļéţé {action}. Ĝüåŕð ŕéšţöŕéð. ········ ⟧",
+            "common.loading": "⟦ Ļöåðîñĝ ··· ⟧"
           }
         },
         "props": {},
@@ -347,11 +349,13 @@
           "direction": "rtl",
           "theme": "light",
           "catalog": {
-            "chrome.guard.covered.hint": "Guarded — activate to unlock",
-            "chrome.guard.armed.hint": "Armed — activate to {action}. {seconds} seconds remain.",
-            "chrome.guard.committing.status": "Committing {action}",
-            "chrome.guard.recovered.announce": "Guard restored.",
-            "chrome.guard.rejected.announce": "The action was not completed. Guard restored."
+            "chrome.guard.covered.instruction": "إجراء محمي: {action}. فعّل للتجهيز.",
+            "chrome.guard.armed.whole": "تم تجهيز {action}. فعّل مرة أخرى خلال {duration} للتأكيد.",
+            "chrome.guard.committing.status": "جارٍ تنفيذ {action}.",
+            "chrome.guard.recovered.whole": "تمت استعادة الحماية لـ {action}.",
+            "chrome.guard.completed.whole": "اكتمل {action}. تمت استعادة الحماية.",
+            "chrome.guard.rejected.whole": "تعذّر إكمال {action}. تمت استعادة الحماية.",
+            "common.loading": "جارٍ التحميل"
           }
         },
         "props": {},

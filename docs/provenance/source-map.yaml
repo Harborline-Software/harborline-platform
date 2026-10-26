@@ -2327,7 +2327,7 @@
         "projections/react/ui/hlp.ui.guarded-control/vitest.config.ts": "7253efdca8cb160c5e23ef9d46da6af5818dabe1d908327a254b2aaa0a754aea",
         "specs/modules/ui/hlp.ui.guarded-control/interface.yaml": "985fca668544463322cfd8d2e1c3ea0f1af31021b17ceedc2ebde6484d5b3eb1",
         "specs/modules/ui/hlp.ui.guarded-control/quality.yaml": "089e74c60d975cbc72543a689d7c16a7ece640d0d100379d4ff1ca7e1843c4de",
-        "specs/modules/ui/hlp.ui.guarded-control/scenarios.json": "4f2277ce6b03b9fc252015f759ad2f3db1d8a9f41eda8cbf191bf2955d8960fe",
+        "specs/modules/ui/hlp.ui.guarded-control/scenarios.json": "faf8b4901fb78a10997f42313d3110d1786eb260315775a59c764b7f39da404c",
         "specs/modules/ui/hlp.ui.guarded-control/style.css": "c07405b25ac64a9a75cdd82f69c69157912b5487ee2e5dc8e3e2227521d542e6"
       },
       "nextGate": "Retain this conformant aggregate contribution while HLF-052 advances to the next Carrier-essential dependency wave."
