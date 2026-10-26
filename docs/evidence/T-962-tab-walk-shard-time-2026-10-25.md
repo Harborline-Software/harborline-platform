@@ -12,8 +12,8 @@ asks for the added shard time. R-0125 B5 sets the rule: if a shard passes 810 00
 - Base: `ebe06e05`, T-943 (ARIA-tree parity, draft PR #344), which T-962 stacks on.
 - Head: `63473cae`, the last T-962 code commit before review 1. This record was added by the next
   commit, which changed no code. The review 1 fixes (`75cf1b86` to `8f24a8a1`), the review 2 fixes
-  (`f5d5e7b9` to `39c6fa23`), the review 3 fixes (`f35c8c01`) and the review 4 fixes (`dfc67b00`) are
-  measured in the later parts of each section below.
+  (`f5d5e7b9` to `39c6fa23`), the review 3 fixes (`f35c8c01`), the review 4 fixes (`dfc67b00`) and the
+  review 5 fixes (`f4a9dc39`) are measured in the later parts of each section below.
 - Host: macos-x64-intel (Intel Core i9-9880H, 8 cores and 16 threads), shared with other agents.
   Node 24.19.0, Playwright 1.62.1, React gallery on port 6116 and Blazor gallery on port 6117.
 - Each shard ran with `config.workers = 4`. Nobody else held the full-gate lock during any run. Every
@@ -158,9 +158,30 @@ the review 3 run, on a busier machine (five-minute load up to 40 during shard 1)
 (504 875 ms) is 56% of the budget, so the cost did not change materially.
 `app-shell.actions-endpanel` used 37.3% of its allowance.
 
+### After review 5
+
+Review 5 rebuilds the user-opened cover exemption on one rule. Every user-opened popup above a stop is
+recorded. The stop is revealed only when its own Escapes closed every one of them and the final measure
+has no user-opened occluder. Review 5 also stops counting the probe's sub-pixel translate as a layout
+change. E restores the exact window scroll from when the walk began, falling back to Chromium's focus
+scroll only after a resized viewport or a root font size. (`schema-form.domain-editors` takes the
+fallback, because its reflow and choice-popup checks leave both. Review 4's message said it used the
+exact restore, which was wrong.) The one full matrix at `f4a9dc39`:
+
+| Shard | Step ms | Walk wall ms | Load 1/5/15 at start → end |
+|---|---:|---:|---|
+| 1 | 366 958 | 154 085 | 13.20/10.76/8.01 → 18.27/17.09/12.18 |
+| 2 | 463 460 | 118 129 | 18.27/17.09/12.18 → 16.60/17.13/14.34 |
+| 3 | 380 990 | 76 498 | 16.60/17.13/14.34 → 13.33/17.80/16.00 |
+| Sum | 1 211 408 | 348 712 | |
+
+The walk did exactly the same work again (2147 walks, 1389 step presses). The step sum is 11.7% below
+the review 4 run, on a quieter machine. The largest shard (463 460 ms) is 51% of the budget, so the
+cost did not change materially. `app-shell.actions-endpanel` used 53.5% of its allowance.
+
 ## The full gate at the head
 
-The full matrix (three shards and the collector) at `dfc67b00` passed: PASS, 604 browser tests
+The full matrix (three shards and the collector) at `f4a9dc39` passed: PASS, 604 browser tests
 expected and passed, 0 unexpected, 0 flaky, with exact scenario reconciliation. Over the 481 running
 scenarios it declared and reconciled `tabWalkLeaveChecks`, `tabWalkReverseChecks`,
 `tabWalkObscuredChecks` and `tabWalkOrderComparisons` (481 each) and `tabWalkDetectorProofs` (14).
@@ -168,7 +189,8 @@ Three stops per lane were covered by a user-opened popup that Escape did not rev
 are the UserMenu trigger and the two AppShell pin buttons, all registered findings. No stop counted
 as exempt.
 
-At `f35c8c01` (review 3) and `39c6fa23` (review 2) the full matrix gave the same result. At `b9d5f298`, after review 1,
+At `dfc67b00` (review 4), `f35c8c01` (review 3) and `39c6fa23` (review 2) the full matrix gave the same
+result. At `b9d5f298`, after review 1,
 it passed with 603 browser tests, 0 flaky, exact reconciliation, thirteen proofs.
 The walk visited 2130 React stops and 1808 Blazor stops forward, and as many in reverse. Modals
 released focus 28 times in each lane. No stop counted as exempt under SC 2.4.11 Note 2. Before the
@@ -190,8 +212,8 @@ reconciliation, ten proofs.
 Each seed was applied in the working tree only, to the React probe of `button.variants` in
 `gallery/projections/react/src/Button.stories.tsx`, and run through the real gate on the alternate
 ports. The seeds first ran at `63473cae`, before review 1. They ran again at `f35c8c01` after review
-3, and at `dfc67b00`, the last engine commit after review 4. Every run gave the results below,
-failing expect and finding lines included:
+3, at `dfc67b00` after review 4, and at `f4a9dc39`, the last engine commit after review 5. Every
+run gave the results below, failing expect and finding lines included:
 
 ```text
 HARBORLINE_GALLERY_REACT_PORT=6116 HARBORLINE_GALLERY_BLAZOR_PORT=6117 \
@@ -212,7 +234,10 @@ engine before that review. Review 2 extended P7, P11 and P13 with the reviewers'
 and each of those fails on the review 1 engine. Review 3 extended P7, P13 and P14 again, and each of
 those fails on the review 2 engine. Review 4 extended P7 and P13 once more. With every expect made
 soft, each new must-fail expect fails on the review 3 engine. The two re-measure expects pass there
-and fail on a mutant that drops the re-measure (the review-fixes-4 evidence names each file).
+and fail on a mutant that drops the re-measure (the review-fixes-4 evidence names each file). Review
+5 extended P7 and P13 again. Each new expect fails, with every expect soft, either on the review 4
+engine or on one of four mutants: one press, crediting only the popups over the stop, no scan beneath
+the first hit, and review 3's fallback. The review-fixes-5 README names each file.
 
 ## What the measured runs found
 
