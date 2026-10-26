@@ -106,14 +106,25 @@ export function GuardedControl({
   const wholeMessage = React.useCallback((key: string, fallback: string) =>
     interpolateWhole(catalog[key] ?? fallback, messageVariables), [catalog, messageVariables])
 
+  // The message resolver and the observe callback change identity whenever the host passes a new
+  // catalog, number formatter, locale or inline callback. The timer and host listeners read them
+  // through refs, so recover keeps one identity for the control's lifetime: a host re-render never
+  // re-registers the listeners, drops the window-blur grace timer or touches the deadline.
+  const wholeMessageRef = React.useRef(wholeMessage)
+  const observeRef = React.useRef(observe)
+  React.useLayoutEffect(() => {
+    wholeMessageRef.current = wholeMessage
+    observeRef.current = observe
+  })
+
   const transition = React.useCallback((next: GuardedControlState) => {
     const previous = stateRef.current
     if (previous === next) return false
     stateRef.current = next
     setState(next)
-    observe?.({ type: 'transition', previous, next })
+    observeRef.current?.({ type: 'transition', previous, next })
     return true
-  }, [observe])
+  }, [])
 
   const restoreFocus = React.useCallback(() => {
     if (!mounted.current) return
@@ -126,10 +137,10 @@ export function GuardedControl({
 
   const recover = React.useCallback((reason: GuardRecoveryReason) => {
     if (stateRef.current !== 'armed' || !transition('covered')) return
-    setAnnouncement(wholeMessage('chrome.guard.recovered.whole', RECOVERED_ANNOUNCEMENT))
+    setAnnouncement(wholeMessageRef.current('chrome.guard.recovered.whole', RECOVERED_ANNOUNCEMENT))
     restoreFocus()
-    observe?.({ type: 'recovered', reason })
-  }, [observe, restoreFocus, transition, wholeMessage])
+    observeRef.current?.({ type: 'recovered', reason })
+  }, [restoreFocus, transition])
 
   React.useEffect(() => {
     stateRef.current = state
@@ -140,9 +151,10 @@ export function GuardedControl({
     recover('became-disabled')
   }, [disabled, recover])
 
+  // Keyed on the state alone (recover is stable): the deadline is set once, by the arming activation,
+  // and this effect only reads it.
   React.useEffect(() => {
     if (state !== 'armed') return
-    deadline.current = Date.now() + ARM_WINDOW_MS
     const tick = window.setInterval(() => {
       const next = Math.max(0, Math.ceil((deadline.current - Date.now()) / 1000))
       setSeconds(current => current === next ? current : next)
@@ -179,7 +191,7 @@ export function GuardedControl({
       document.removeEventListener('visibilitychange', visibility)
       document.removeEventListener('keydown', escape)
     }
-  }, [recover, state])
+  }, [state]) // recover keeps one identity for the control's lifetime
 
   React.useLayoutEffect(() => {
     if (state === 'armed') armedRef.current?.focus()
@@ -193,6 +205,7 @@ export function GuardedControl({
   const arm = () => {
     if (disabled || invalid || stateRef.current !== 'covered') return
     committed.current = false
+    deadline.current = Date.now() + ARM_WINDOW_MS
     setSeconds(ARM_WINDOW_SECONDS)
     transition('armed')
     setAnnouncement(armedInstruction())
@@ -221,10 +234,10 @@ export function GuardedControl({
     if (!mounted.current || stateRef.current !== 'committing') return
     transition('covered')
     setAnnouncement(outcome === 'rejected'
-      ? wholeMessage('chrome.guard.rejected.whole', REJECTED_ANNOUNCEMENT)
-      : wholeMessage('chrome.guard.completed.whole', COMPLETED_ANNOUNCEMENT))
+      ? wholeMessageRef.current('chrome.guard.rejected.whole', REJECTED_ANNOUNCEMENT)
+      : wholeMessageRef.current('chrome.guard.completed.whole', COMPLETED_ANNOUNCEMENT))
     restoreFocus()
-    observe?.({ type: 'commit-settled', outcome })
+    observeRef.current?.({ type: 'commit-settled', outcome })
   }
 
   const duration = formatDuration(seconds)
