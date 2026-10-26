@@ -66,15 +66,16 @@ async function checkout({changed = 'builder', mode = 'normal', floor = 74} = {})
   if (changed === 'builder' || changed === 'all') write(directory, `${sourceDirectory}/A.cs`, sourceTexts[0].replace('aaa', 'xyz'))
   if (changed === 'all' || changed === 'others') for (const route of routes.filter(row => row.test !== builderTest)) write(directory, `${path.posix.dirname(route.target)}/Route.cs`, '// changed\n')
   if (changed !== 'none') { git(directory, 'add', '.'); git(directory, 'commit', '--quiet', '-m', 'changed') }
-  const env = {...process.env, EXPECTED_HEAD: git(directory, 'rev-parse', 'HEAD'), GITHUB_RUN_ID: '314', GITHUB_RUN_ATTEMPT: '2', GITHUB_OUTPUT: path.join(directory, 'StrykerOutput', 'github-output'),
+  const env = {...process.env, EXPECTED_HEAD: git(directory, 'rev-parse', 'HEAD'), EXPECTED_BASE: undefined, GITHUB_RUN_ID: '314', GITHUB_RUN_ATTEMPT: '2', GITHUB_OUTPUT: path.join(directory, 'StrykerOutput', 'github-output'),
     GITHUB_STEP_SUMMARY: path.join(directory, 'StrykerOutput', 'summary'), HARBORLINE_CONTROL_REPO: undefined}
-  const previous = Object.fromEntries(['EXPECTED_HEAD', 'GITHUB_RUN_ID', 'GITHUB_RUN_ATTEMPT', 'GITHUB_OUTPUT', 'GITHUB_STEP_SUMMARY', 'HARBORLINE_CONTROL_REPO'].map(key => [key, process.env[key]]))
+  const previous = Object.fromEntries(['EXPECTED_HEAD', 'EXPECTED_BASE', 'GITHUB_RUN_ID', 'GITHUB_RUN_ATTEMPT', 'GITHUB_OUTPUT', 'GITHUB_STEP_SUMMARY', 'HARBORLINE_CONTROL_REPO'].map(key => [key, process.env[key]]))
   for (const key of Object.keys(previous)) if (env[key] === undefined) delete process.env[key]; else process.env[key] = env[key]
   delete process.env.HARBORLINE_CONTROL_REPO
   const adapter = await import(pathToFileURL(path.join(directory, 'tooling/stryker-builder-partitions.mjs')))
   const manifest = path.join(directory, 'StrykerOutput', 'builder-plan', 'plan.json')
   await adapter.main(['plan', mode, manifest])
   const plan = JSON.parse(readFileSync(manifest, 'utf8'))
+  env.EXPECTED_BASE = process.env.EXPECTED_BASE = plan.base
   return {directory, adapter, house, manifest, plan, routes, env, base, restore() {
     for (const [key, value] of Object.entries(previous)) if (value === undefined) delete process.env[key]; else process.env[key] = value
   }}
@@ -213,7 +214,7 @@ test('plan, admit and CLI bind actual checkout identity, selection and fixed opt
     assert.equal(plan.controlHead, controlHead)
     assert.deepEqual(plan.conditional, {path: 'artifacts/packages/nuget/packed-version.props', absent: true})
     assert.equal(await adapter.main(['admit', manifest]), 0)
-    assert.equal(readFileSync(fixture.env.GITHUB_OUTPUT, 'utf8'), `selected=true\nsubject=${fixture.env.EXPECTED_HEAD}\n`)
+    assert.equal(readFileSync(fixture.env.GITHUB_OUTPUT, 'utf8'), `selected=true\nsubject=${fixture.env.EXPECTED_HEAD}\nbase=${fixture.base}\n`)
     const cli = spawnSync(process.execPath, ['tooling/stryker-builder-partitions.mjs', 'admit', manifest], {cwd: directory, env: fixture.env, encoding: 'utf8'})
     assert.equal(cli.status, 0, cli.stderr)
     const before = readFileSync(manifest)
@@ -462,6 +463,33 @@ test('normal no-Builder-change requires no Control or quartet and keeps all othe
   } finally { fixture.restore() }
 })
 
+test('fresh checkout keeps the planned base and complete project selection after main advances', async t => {
+  for (const changed of ['all', 'others']) await t.test(changed, async () => {
+    const fixture = await checkout({changed})
+    try {
+      const advanced = git(fixture.directory, 'commit-tree', `${fixture.plan.head}^{tree}`, '-p', fixture.base, '-m', 'main advanced')
+      const directory = mkdtempSync(path.join(ownedTemp, 'fresh-'))
+      git(ownedTemp, 'clone', '--quiet', '--no-hardlinks', fixture.directory, directory)
+      git(directory, 'checkout', '--quiet', '--detach', fixture.plan.head)
+      git(directory, 'update-ref', 'refs/remotes/origin/main', advanced)
+      const manifest = write(directory, 'StrykerOutput/builder-plan/plan.json', readFileSync(fixture.manifest))
+      const downloads = fixture.plan.selected ? download(fixture) : 'unused'
+      const adapter = await import(pathToFileURL(path.join(directory, 'tooling/stryker-builder-partitions.mjs')))
+      assert.equal(await adapter.main(['admit', manifest]), 0)
+      const calls = []
+      const result = await adapter.main(['pr', manifest, downloads], async (project, changedFiles) => {
+        calls.push(project); assert.equal(changedFiles, undefined)
+        return {outcome: {kind: 'completed'}, status: 0, signal: null, report: {files: {'Route.cs': {mutants: [{status: 'Killed'}]}}}, razor: false}
+      })
+      assert.equal(result, 0)
+      assert.equal(calls.length, 36)
+      assert.equal(calls.includes(builderTest), false)
+      assert.equal(git(directory, 'rev-parse', 'origin/main'), advanced)
+      assert.match(readFileSync(fixture.env.GITHUB_OUTPUT, 'utf8'), new RegExp(`^base=${fixture.base}$`, 'm'))
+    } finally { fixture.restore() }
+  })
+})
+
 test('invalid collection, exact base and selection in both directions refuse before any project', async t => {
   for (const changed of ['all', 'others']) {
     const fixture = await checkout({changed})
@@ -475,10 +503,15 @@ test('invalid collection, exact base and selection in both directions refuse bef
         await assert.rejects(adapter.main(['pr', manifest, downloads], native), /Plan differs/)
         assert.equal(calls, 0); writeFileSync(manifest, original)
       })
-      await t.test(`base changed with ${changed}`, async () => {
-        git(directory, 'update-ref', 'refs/remotes/origin/main', fixture.plan.head)
+      await t.test(`expected base changed with ${changed}`, async () => {
+        process.env.EXPECTED_BASE = fixture.plan.head
         await assert.rejects(adapter.main(['pr', manifest, downloads], native), /Plan differs/)
-        assert.equal(calls, 0); git(directory, 'update-ref', 'refs/remotes/origin/main', fixture.base)
+        assert.equal(calls, 0); process.env.EXPECTED_BASE = fixture.base
+      })
+      for (const base of [undefined, '', 'origin/main', 'A'.repeat(40), '0'.repeat(40)]) await t.test(`invalid expected base ${base}`, async () => {
+        if (base === undefined) delete process.env.EXPECTED_BASE; else process.env.EXPECTED_BASE = base
+        await assert.rejects(adapter.main(['pr', manifest, downloads], native))
+        assert.equal(calls, 0); process.env.EXPECTED_BASE = fixture.base
       })
       if (fixture.plan.selected) {
         const packetFile = path.join(downloads, 'builder-partition-314-2-1/receipt.json'), packet = readFileSync(packetFile)
@@ -579,11 +612,11 @@ test('post-native mutations invalidate source, config, baseline, manifest, base,
       }, () => controlHead), /Plan differs/)
       writeFileSync(manifest, original); removeOwned(reservation)
     })
-    await t.test('base changed', async () => {
+    await t.test('expected base changed', async () => {
       await assert.rejects(adapter.main(['shard', manifest, '1'], async () => {
-        const evidence = nativeEvidence(fixture, 1); git(directory, 'update-ref', 'refs/remotes/origin/main', fixture.plan.head); return evidence.returned
+        const evidence = nativeEvidence(fixture, 1); process.env.EXPECTED_BASE = fixture.plan.head; return evidence.returned
       }, () => controlHead), /Plan differs/)
-      git(directory, 'update-ref', 'refs/remotes/origin/main', fixture.base); removeOwned(reservation)
+      process.env.EXPECTED_BASE = fixture.base; removeOwned(reservation)
     })
     await t.test('run changed', async () => {
       await assert.rejects(adapter.main(['shard', manifest, '1'], async () => {

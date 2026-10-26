@@ -249,6 +249,9 @@ test('normal PR owner emits canonical configuration check before helper executio
 
 test('all source admission is delegated before SDK without local ref rewriting or a Builder fallback', () => {
   assert.ok(job('builder-plan').includes(`node ${helper} plan $env:PARTITION_MODE '${plan}'`))
+  assert.ok(job('builder-plan').includes('base: ${{ steps.plan.outputs.base }}'))
+  for (const name of ['builder-partitions', 'stryker', 'mutation-diagnostic', 'mutation-qualification'])
+    assert.ok(job(name).includes('EXPECTED_BASE: ${{ needs.builder-plan.outputs.base }}'))
   for (const name of ['stryker', 'builder-partitions']) {
     const block = job(name)
     assert.ok(block.includes(`node ${helper} admit '${plan}'`))

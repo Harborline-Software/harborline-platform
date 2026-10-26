@@ -88,7 +88,10 @@ export function makePlan(mode) {
   const head = git('rev-parse', 'HEAD').trim(), tree = git('rev-parse', 'HEAD^{tree}').trim()
   requireThat(/^[a-f0-9]{40}$/.test(process.env.EXPECTED_HEAD ?? '') && process.env.EXPECTED_HEAD === head, 'EXPECTED_HEAD must equal checkout HEAD')
   requireThat(git('status', '--porcelain=v1', '--untracked-files=all') === '', 'Checkout must be clean')
-  const base = git('rev-parse', 'origin/main^{commit}').trim()
+  const expectedBase = process.env.EXPECTED_BASE
+  requireThat(expectedBase === undefined || /^[a-f0-9]{40}$/.test(expectedBase), 'EXPECTED_BASE must be a full commit ID')
+  const base = git('rev-parse', `${expectedBase ?? 'origin/main'}^{commit}`).trim()
+  requireThat(expectedBase === undefined || base === expectedBase, 'EXPECTED_BASE must identify the exact commit')
   const runId = process.env.GITHUB_RUN_ID, runAttempt = process.env.GITHUB_RUN_ATTEMPT
   requireThat(/^[1-9]\d*$/.test(runId ?? '') && /^[1-9]\d*$/.test(runAttempt ?? ''), 'Missing run identity')
   const selected = mode !== 'normal' || changedSourceFiles(target, repo.readFile(target), root, base).length > 0
@@ -130,6 +133,7 @@ export function makePlan(mode) {
 }
 
 function admit(manifestPath) {
+  requireThat(/^[a-f0-9]{40}$/.test(process.env.EXPECTED_BASE ?? ''), 'EXPECTED_BASE must be the planned commit ID')
   const bytes = regular(path.basename(manifestPath), path.dirname(path.resolve(manifestPath))), plan = json(bytes)
   const current = makePlan(plan.mode)
   requireThat(bytes.equals(bytesOf(current)), 'Plan differs from current source, selection, base, pins or run')
@@ -381,7 +385,7 @@ export async function main(argv = process.argv.slice(2), native = mutateProject,
     const plan = makePlan(first)
     directoryPath(path.dirname(path.resolve(second)))
     writeFileSync(second, bytesOf(plan), {flag: 'wx', flush: true})
-    if (process.env.GITHUB_OUTPUT) appendFileSync(process.env.GITHUB_OUTPUT, `selected=${plan.selected}\nsubject=${plan.head}\n`)
+    if (process.env.GITHUB_OUTPUT) appendFileSync(process.env.GITHUB_OUTPUT, `selected=${plan.selected}\nsubject=${plan.head}\nbase=${plan.base}\n`)
     return 0
   }
   if (command === 'admit') { admit(first); return 0 }

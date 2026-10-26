@@ -71,6 +71,7 @@ jobs:
     outputs:
       selected: ${{ steps.plan.outputs.selected }}
       subject: ${{ steps.plan.outputs.subject }}
+      base: ${{ steps.plan.outputs.base }}
       mode: ${{ steps.plan.outputs.mode }}
     defaults:
       run:
@@ -136,6 +137,7 @@ jobs:
         shell: pwsh
     env:
       DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+      EXPECTED_BASE: ${{ needs.builder-plan.outputs.base }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -255,6 +257,7 @@ jobs:
         shell: pwsh
     env:
       DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+      EXPECTED_BASE: ${{ needs.builder-plan.outputs.base }}
     steps:
       # fetch-depth 0 so refs/remotes/origin/main exists: the configs' since target and the script's changed-source
       # test both diff against it. A plain clone, never a linked worktree (see tooling/stryker.mjs). Every later git
@@ -390,6 +393,8 @@ jobs:
       github.event.action == 'labeled' && github.event.label.name == 'mutation-diagnostic'
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      EXPECTED_BASE: ${{ needs.builder-plan.outputs.base }}
     defaults:
       run:
         shell: pwsh
@@ -444,6 +449,8 @@ jobs:
       github.event.action == 'labeled' && github.event.label.name == 'mutation-qualification'
     runs-on: ubuntu-latest
     timeout-minutes: 360
+    env:
+      EXPECTED_BASE: ${{ needs.builder-plan.outputs.base }}
     defaults:
       run:
         shell: pwsh
