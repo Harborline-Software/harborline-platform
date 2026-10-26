@@ -12,8 +12,9 @@ asks for the added shard time. R-0125 B5 sets the rule: if a shard passes 810 00
 - Base: `ebe06e05`, T-943 (ARIA-tree parity, draft PR #344), which T-962 stacks on.
 - Head: `63473cae`, the last T-962 code commit before review 1. This record was added by the next
   commit, which changed no code. The review 1 fixes (`75cf1b86` to `8f24a8a1`), the review 2 fixes
-  (`f5d5e7b9` to `39c6fa23`), the review 3 fixes (`f35c8c01`), the review 4 fixes (`dfc67b00`) and the
-  review 5 fixes (`f4a9dc39`) are measured in the later parts of each section below.
+  (`f5d5e7b9` to `39c6fa23`), the review 3 fixes (`f35c8c01`), the review 4 fixes (`dfc67b00`), the
+  review 5 fixes (`f4a9dc39`) and the review 6 fixes (`d5d90685`) are measured in the later parts of each
+  section below.
 - Host: macos-x64-intel (Intel Core i9-9880H, 8 cores and 16 threads), shared with other agents.
   Node 24.19.0, Playwright 1.62.1, React gallery on port 6116 and Blazor gallery on port 6117.
 - Each shard ran with `config.workers = 4`. Nobody else held the full-gate lock during any run. Every
@@ -179,18 +180,49 @@ The walk did exactly the same work again (2147 walks, 1389 step presses). The st
 the review 4 run, on a quieter machine. The largest shard (463 460 ms) is 51% of the budget, so the
 cost did not change materially. `app-shell.actions-endpanel` used 53.5% of its allowance.
 
+### After review 6
+
+Review 6 puts the exemption on rule v2. At each sample point the walk records the author layer (the
+first opaque hit inside no open user-opened popup) besides every user-opened popup, and the window
+scroll it measured at. A stop author content hides at every point is reported under that occluder and
+never verified, since only popup layers are Note 2 candidates. Each cover is judged at its own walk
+geometry: the stop is focused without scrolling, and the walk scroll is put back before every press
+and every re-measure. Any press that closes a user-opened popup with focus kept is progress. A popup
+still open but no longer over the stop does not block the reveal. The one full matrix at `d5d90685`:
+
+| Shard | Step ms | Walk wall ms | Load 1/5/15 at start → end |
+|---|---:|---:|---|
+| 1 | 371 051 | 157 118 | 3.49/4.91/12.37 → 16.52/12.97/13.46 |
+| 2 | 468 825 | 124 090 | 16.52/12.97/13.46 → 14.87/16.05/15.06 |
+| 3 | 379 355 | 63 817 | 14.87/16.05/15.06 → 15.89/17.46/16.12 |
+| Sum | 1 219 231 | 345 025 | |
+
+The walk did the same work but for one scenario lane: 2146 walks and 1387 step presses against 2147 and
+1389, because the React lane of `tooltip.content` took 3 walks and 2 step presses where review 5, and
+attempt 1 below at the same head, took 4 and 4. Its finding lines did not change. The step sum is 0.6%
+above the review 5 run. The largest shard (468 825 ms) is 52% of the budget, so the cost did not change
+materially. `app-shell.actions-endpanel` used 63.9% of its allowance.
+
+A first full matrix at `d5d90685` failed in shard 2 while the host's one-minute load reached 141 (other
+agents' builds). `schema-form.domain-editors` timed out in its own save step, before the walk, and its
+retry, like one `scroll-affordance.locale-ar` attempt, could not read the Blazor story index within two
+15-second attempts. That run is kept with the review 6 evidence and is not counted; the matrix above
+was run again in full.
+
 ## The full gate at the head
 
-The full matrix (three shards and the collector) at `f4a9dc39` passed: PASS, 604 browser tests
+The full matrix (three shards and the collector) at `d5d90685` passed: PASS, 604 browser tests
 expected and passed, 0 unexpected, 0 flaky, with exact scenario reconciliation. Over the 481 running
 scenarios it declared and reconciled `tabWalkLeaveChecks`, `tabWalkReverseChecks`,
 `tabWalkObscuredChecks` and `tabWalkOrderComparisons` (481 each) and `tabWalkDetectorProofs` (14).
-Three stops per lane were covered by a user-opened popup that Escape did not reveal in place. They
-are the UserMenu trigger and the two AppShell pin buttons, all registered findings. No stop counted
-as exempt.
+Three stops per lane were covered by a user-opened popup that Escape did not reveal in place. They are
+the UserMenu trigger and the two AppShell pin buttons, all registered findings. No stop counted as
+exempt. Since review 6 a cover is judged at the window scroll its walk met it at, so the two pin
+buttons count as four covers per lane: each is met at scroll 0 in the prepared and forward walks and at
+126 px in reverse, and each is covered at both.
 
-At `dfc67b00` (review 4), `f35c8c01` (review 3) and `39c6fa23` (review 2) the full matrix gave the same
-result. At `b9d5f298`, after review 1,
+At `f4a9dc39` (review 5), `dfc67b00` (review 4), `f35c8c01` (review 3) and `39c6fa23` (review 2) the
+full matrix gave the same result. At `b9d5f298`, after review 1,
 it passed with 603 browser tests, 0 flaky, exact reconciliation, thirteen proofs.
 The walk visited 2130 React stops and 1808 Blazor stops forward, and as many in reverse. Modals
 released focus 28 times in each lane. No stop counted as exempt under SC 2.4.11 Note 2. Before the
@@ -212,8 +244,8 @@ reconciliation, ten proofs.
 Each seed was applied in the working tree only, to the React probe of `button.variants` in
 `gallery/projections/react/src/Button.stories.tsx`, and run through the real gate on the alternate
 ports. The seeds first ran at `63473cae`, before review 1. They ran again at `f35c8c01` after review
-3, at `dfc67b00` after review 4, and at `f4a9dc39`, the last engine commit after review 5. Every
-run gave the results below, failing expect and finding lines included:
+3, at `dfc67b00` after review 4, at `f4a9dc39` after review 5, and at `d5d90685`, the last engine commit
+after review 6. Every run gave the results below, failing expect and finding lines included:
 
 ```text
 HARBORLINE_GALLERY_REACT_PORT=6116 HARBORLINE_GALLERY_BLAZOR_PORT=6117 \
@@ -237,7 +269,11 @@ soft, each new must-fail expect fails on the review 3 engine. The two re-measure
 and fail on a mutant that drops the re-measure (the review-fixes-4 evidence names each file). Review
 5 extended P7 and P13 again. Each new expect fails, with every expect soft, either on the review 4
 engine or on one of four mutants: one press, crediting only the popups over the stop, no scan beneath
-the first hit, and review 3's fallback. The review-fixes-5 README names each file.
+the first hit, and review 3's fallback. The review-fixes-5 README names each file. Review 6 extended
+P7 and the pure cover test. Each new expect fails, with every expect soft, either on the review 5
+engine or on one of four mutants: no walk-geometry restore, no author layer, the stop's own credit
+removed, and progress counted only on the covering popups. The review-fixes-6 README names each
+file.
 
 ## What the measured runs found
 
