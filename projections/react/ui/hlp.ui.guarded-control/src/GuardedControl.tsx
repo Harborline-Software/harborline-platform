@@ -69,6 +69,7 @@ export function GuardedControl({
   const coverRef = React.useRef<HTMLButtonElement>(null)
   const armedRef = React.useRef<HTMLButtonElement>(null)
   const deferredFocus = React.useRef(false)
+  const coverFocusPending = React.useRef(false)
   const id = React.useId()
   const labelId = `${id}-label`
   const instructionId = `${id}-instruction`
@@ -126,13 +127,16 @@ export function GuardedControl({
     return true
   }, [])
 
+  // Focus moves once the covered action has rendered (the layout effect below), whatever delivered
+  // the transition: a key event, the arm-window timer, or the caller's commit promise. A microtask ran
+  // before React rendered the covered action for the timer and promise paths, so focus never returned.
   const restoreFocus = React.useCallback(() => {
     if (!mounted.current) return
     if (document.visibilityState === 'hidden' || !document.hasFocus()) {
       deferredFocus.current = true
       return
     }
-    queueMicrotask(() => mounted.current && coverRef.current?.focus())
+    coverFocusPending.current = true
   }, [])
 
   const recover = React.useCallback((reason: GuardRecoveryReason) => {
@@ -195,6 +199,10 @@ export function GuardedControl({
 
   React.useLayoutEffect(() => {
     if (state === 'armed') armedRef.current?.focus()
+    if (state === 'covered' && coverFocusPending.current) {
+      coverFocusPending.current = false
+      coverRef.current?.focus()
+    }
   }, [state])
 
   // The armed instruction always states the full window, never the countdown: it is announced once
