@@ -162,13 +162,18 @@ export function GuardedControl({
 
   // Keyed on the state alone (recover is stable): the deadline is set once, by the arming activation,
   // and this effect only reads it.
+  // The first check runs as the effect sets up, so a control revealed (an <Activity> boundary) after
+  // its window has recovered before it paints.
   React.useEffect(() => {
     if (state !== 'armed') return
-    const tick = window.setInterval(() => {
+    const check = () => {
       const next = Math.max(0, Math.ceil((deadline.current - Date.now()) / 1000))
       setSeconds(current => current === next ? current : next)
       if (next === 0) recover('timeout')
-    }, 250)
+    }
+    check()
+    if (stateRef.current !== 'armed') return
+    const tick = window.setInterval(check, 250)
     const navigate = () => recover('navigation')
     const visibility = () => document.visibilityState === 'hidden' && recover('document-hidden')
     let blurTimer = 0
@@ -225,6 +230,12 @@ export function GuardedControl({
   }
   const commit = () => {
     if (disabled || invalid || stateRef.current !== 'armed' || committed.current) return
+    // The window is fixed at five seconds from arming: an activation that arrives later (behind a long
+    // task, or on a control revealed after its window) recovers instead of committing.
+    if (Date.now() >= deadline.current) {
+      recover('timeout')
+      return
+    }
     committed.current = true
     transition('committing')
     let result: void | Promise<void>

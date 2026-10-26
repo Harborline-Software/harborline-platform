@@ -1,3 +1,4 @@
+import * as React from 'react'
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { HarborlineLocaleProvider } from '@harborline-platform/hlp.ui.locale-provider'
@@ -66,5 +67,59 @@ describe('GuardedControl arm window under host re-renders', () => {
     act(() => vi.advanceTimersByTime(400))
     expect(action()).toHaveAttribute('data-guard-state', 'covered')
     expect(events.filter(event => event.type === 'recovered')).toEqual([{ type: 'recovered', reason: 'window-blur' }])
+  })
+})
+
+// No commit after the window: the deadline is checked when the commit activation arrives, not only by
+// the 250 ms timer, so an activation that reaches the control after five seconds recovers instead.
+describe('GuardedControl commit after the arm window', () => {
+  // A3: an <Activity> boundary hides the armed control for 10 s and reveals it. The armed effect checks
+  // the deadline as it sets up, so the control is covered (timeout) before the first paint, and an
+  // immediate click arms a new attempt instead of committing the old one.
+  it('recovers on a reveal past the window, and an immediate click does not commit', async () => {
+    vi.useFakeTimers()
+    const commit = vi.fn()
+    const events: GuardedControlEvent[] = []
+    const tree = (mode: 'visible' | 'hidden') => (
+      <React.Activity mode={mode}>
+        <GuardedControl action="a" classificationId="c" label="Publish" onCommit={commit} observe={event => { events.push(event) }}/>
+      </React.Activity>
+    )
+    const view = render(tree('visible'))
+    fireEvent.click(action())
+    expect(action()).toHaveAttribute('data-guard-state', 'armed')
+    view.rerender(tree('hidden'))
+    act(() => vi.advanceTimersByTime(10_000))
+    view.rerender(tree('visible'))
+    expect(action()).toHaveAttribute('data-guard-state', 'covered')
+    expect(events.filter(event => event.type === 'recovered')).toEqual([{ type: 'recovered', reason: 'timeout' }])
+    fireEvent.click(action())
+    expect(commit).not.toHaveBeenCalled()
+  })
+
+  // A4: the clock passes the deadline while no timer callback runs (a long task on the main thread),
+  // and the queued click then reaches the armed action.
+  it('recovers instead of committing when the activation arrives after the window', () => {
+    vi.useFakeTimers()
+    const commit = vi.fn()
+    const events: GuardedControlEvent[] = []
+    render(<GuardedControl action="a" classificationId="c" label="Publish" onCommit={commit} observe={event => { events.push(event) }}/>)
+    fireEvent.click(action())
+    vi.setSystemTime(Date.now() + 10_000)
+    fireEvent.click(action())
+    expect(commit).not.toHaveBeenCalled()
+    expect(action()).toHaveAttribute('data-guard-state', 'covered')
+    expect(events.filter(event => event.type === 'recovered')).toEqual([{ type: 'recovered', reason: 'timeout' }])
+    expect(screen.getByRole('status').textContent).toBe('Guard restored for \u2068Publish\u2069.')
+  })
+
+  it('still commits an activation inside the window', () => {
+    vi.useFakeTimers()
+    const commit = vi.fn()
+    render(<GuardedControl action="a" classificationId="c" label="Publish" onCommit={commit}/>)
+    fireEvent.click(action())
+    vi.setSystemTime(Date.now() + 4_900)
+    fireEvent.click(action())
+    expect(commit).toHaveBeenCalledOnce()
   })
 })
