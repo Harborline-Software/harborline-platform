@@ -1603,7 +1603,7 @@ async function assertTabWalk(reactPage: Page, blazorPage: Page, scenario: Scenar
   const deadline = Date.now() + Math.max(5_000, testInfo.timeout - (performance.now() - testStarted) - 5_000)
   const walking = Date.now()
   const walks = await readBothLanes(reactPage, blazorPage, (probe, lane) =>
-    walkLane(probe.page(), { lane, deadline, settled: prepared[lane].settled, pressMs: prepared[lane].pressMs, pressBudget: budgetRow?.presses }))
+    walkLane(probe.page(), { lane, deadline, settled: prepared[lane].settled, pressMs: prepared[lane].pressMs, pressBudget: budgetRow?.presses, scroll: prepared[lane].scroll }))
   // How much of the walk's own allowance (up to the deadline) the slower lane left unused.
   const margin = { allowanceMs: deadline - walking, marginMs: deadline - Date.now() }
   await Promise.all([teardownLane(reactPage), teardownLane(blazorPage)])
@@ -2180,8 +2180,13 @@ test('the prepared walk and a budgeted walk are judged like any walk, and only a
   // A cover the deadline left unverified stands, and the lane reports the overrun, which is never waived.
   expect(laneFindingLines(laneWalk(keys, { forward: [covered], clean: 0, covers: [{ id: 1, popups: [9], outcome: 'unverified' }, { id: 2, popups: [9], outcome: 'revealed' }] })))
     .toEqual(['2.1.2 walk deadline: covers were left unverified at the test\'s allowance', '2.4.11 forward obscured: button "A" under div (fixed)'])
-  expect(laneCoverage(laneWalk(keys, { forward: [covered], clean: 0, covers: [{ id: 1, popups: [9], outcome: 'revealed' }, { id: 2, popups: [9], outcome: 'covered' }] })))
+  expect(laneCoverage(laneWalk(keys, { forward: [covered], clean: 0, covers: [{ id: 1, popups: [9], outcome: 'revealed', now: { kind: 'visible' } }, { id: 2, popups: [9], outcome: 'covered' }] })))
     .toMatchObject({ exemptUserOpened: 1, coveredUserOpened: 1 })
+  // A stop still under another user-opened popup is covered, and that popup is named in its own line.
+  expect(laneFindingLines(laneWalk(keys, { forward: [covered], clean: 0, covers: [
+    { id: 1, popups: [9], outcome: 'covered', now: { kind: 'obscured', occluder: 'div.lower (fixed)', userOpened: true, popups: [8] } },
+    { id: 2, popups: [9], outcome: 'revealed', now: { kind: 'visible' } },
+  ] }))).toEqual(['2.4.11 forward obscured: button "A" under div (fixed)', '2.4.11 forward obscured: button "A" under div.lower (fixed)'])
 })
 
 test('tab walk findings are split by the clause message that reports them', () => {
@@ -2289,8 +2294,8 @@ async function walkProof(browser: Browser, html: string, lane: Projection = 'rea
   try {
     const page = await context.newPage()
     await page.setContent(`<!doctype html><html lang="en"><body>${html}</body></html>`)
-    await prepareLane(page, scenarioViewport)
-    return await walkLane(page, { lane, deadline: Date.now() + 20_000, ...(pressBudget ? { pressBudget } : {}) })
+    const { scroll } = await prepareLane(page, scenarioViewport)
+    return await walkLane(page, { lane, deadline: Date.now() + 20_000, scroll, ...(pressBudget ? { pressBudget } : {}) })
   } finally {
     await context.close()
   }
@@ -2454,6 +2459,57 @@ test('tab walk proof P7: a visually hidden input is judged by its label, and onl
     <div class="bar" style="position:fixed;left:0;top:100px;width:400px;height:100px;background:#333"></div>
     <div popover="auto" id="pop">Opened</div><script>document.getElementById('pop').showPopover()</script>`))
   expect(laneFindingLines(layered).filter(line => line.includes('div.bar'))).toEqual(['2.4.11 forward obscured: button "B" under div.bar (fixed)', '2.4.11 reverse obscured: button "B" under div.bar (fixed)'])
+  // The re-measure after a revealing Escape: the stop's own Escape closes the popover in place, and the
+  // author bar still hides it. Nothing else is covered, so the whole list is asserted.
+  const barOnly = await walkProof(browser, `<style>#pop{position:fixed;inset:auto;left:0;top:0;width:400px;height:200px;margin:0;background:#fff;border:0}</style>` + proofProbe(`<button style="position:fixed;left:10px;top:130px">B</button><button style="position:fixed;left:10px;top:400px">Elsewhere</button>
+    <div class="bar" style="position:fixed;left:0;top:100px;width:400px;height:100px;background:#333"></div>
+    <div popover="auto" id="pop">Opened</div><script>document.getElementById('pop').showPopover()</script>`))
+  expect(laneFindingLines(barOnly)).toEqual(['2.4.11 forward obscured: button "B" under div.bar (fixed)', '2.4.11 reverse obscured: button "B" under div.bar (fixed)'])
+  // The same with a second covered stop after it (review 3's run3 page): "A" is revealed by its own
+  // Escape and still under the bar, so its lines name the bar, never the popover.
+  const barFirst = await walkProof(browser, `<style>#pop{position:fixed;inset:auto;left:0;top:0;width:400px;height:200px;margin:0;background:#fff;border:0}</style>` + proofProbe(`<button style="position:fixed;left:10px;top:130px">A</button>
+    <button style="position:fixed;left:10px;top:10px">B</button><button style="position:fixed;left:10px;top:400px">Elsewhere</button>
+    <div class="bar" style="position:fixed;left:0;top:100px;width:400px;height:100px;background:#333"></div>
+    <div popover="auto" id="pop">Opened</div><script>document.getElementById('pop').showPopover()</script>`))
+  expect(laneFindingLines(barFirst).filter(line => line.includes('button "A"'))).toEqual(['2.4.11 forward obscured: button "A" under div.bar (fixed)', '2.4.11 reverse obscured: button "A" under div.bar (fixed)'])
+  // Stacked user-opened popups: Escape closes only the top one, and the stop is still under the other,
+  // which Escape cannot close. The cover stands, named by the popup that is left.
+  const stacked = (body: string, style = '') => walkProof(browser, style + proofProbe(`<button style="position:fixed;left:10px;top:40px">S</button><button style="position:fixed;left:10px;top:300px">Elsewhere</button>${body}`))
+  const manualUnderAuto = await stacked(`<div popover="manual" id="p2" class="p">Lower</div><div popover="auto" id="p1" class="p">Upper</div>
+    <script>document.getElementById('p2').showPopover(); document.getElementById('p1').showPopover()</script>`,
+    '<style>.p{position:fixed;inset:auto;left:0;top:0;width:300px;height:120px;margin:0;border:0}#p1{background:#fff}#p2{background:#eee}</style>')
+  expect(laneFindingLines(manualUnderAuto)).toEqual(['2.4.11 forward obscured: button "S" under div.p (fixed)', '2.4.11 reverse obscured: button "S" under div.p (fixed)'])
+  const tooltipOverMenu = await stacked(`<div role="menu" id="m" style="position:fixed;left:0;top:0;width:300px;height:120px;background:#fff;z-index:10">Menu</div>
+    <div role="tooltip" id="t" style="position:fixed;left:0;top:0;width:300px;height:120px;background:#eee;z-index:20">Tip</div>
+    <script>document.addEventListener('keydown', event => { if (event.key === 'Escape') document.getElementById('t').style.display = 'none' })</script>`)
+  expect(laneFindingLines(tooltipOverMenu)).toEqual(['2.4.11 forward obscured: button "S" under div (fixed)', '2.4.11 reverse obscured: button "S" under div (fixed)'])
+  const tooltipAlone = await stacked(`<div role="tooltip" id="t" style="position:fixed;left:0;top:0;width:300px;height:120px;background:#eee;z-index:20">Tip</div>
+    <script>document.addEventListener('keydown', event => { if (event.key === 'Escape') document.getElementById('t').style.display = 'none' })</script>`)
+  expect(laneFindingLines(tooltipAlone), 'the control: the tooltip alone is dismissed in place').toEqual([])
+  const listboxUnderPopover = await stacked(`<div role="listbox" aria-label="Choices" style="position:fixed;left:0;top:0;width:300px;height:120px;background:#eee;z-index:5">List</div>
+    <div popover="auto" id="pop">Opened</div><script>document.getElementById('pop').showPopover()</script>`,
+    '<style>#pop{position:fixed;inset:auto;left:0;top:0;width:300px;height:120px;margin:0;background:#fff;border:0}</style>')
+  expect(laneFindingLines(listboxUnderPopover)).toEqual(['2.4.11 forward obscured: button "S" under div (fixed)', '2.4.11 reverse obscured: button "S" under div (fixed)'])
+  // A stop under two popups, one of which an earlier stop's own Escape closed: this stop's own Escape
+  // was never tried on that popup, so its cover stands, even though its own Escape closes the other.
+  const partlyClosed = await walkProof(browser, proofProbe(`<button id="s1" style="position:fixed;left:10px;top:30px">S1</button>
+    <button id="s" style="position:fixed;left:10px;top:210px;height:60px">S</button>
+    <div role="dialog" aria-label="Side" id="b" style="position:fixed;left:0;top:0;width:300px;height:300px;background:#eee;z-index:5">Panel</div>
+    <div role="menu" id="a" style="position:fixed;left:0;top:200px;width:300px;height:40px;background:#fff;z-index:10">Menu</div>
+    <button style="position:fixed;left:10px;top:400px">Elsewhere</button>
+    <script>document.getElementById('s1').addEventListener('keydown', event => { if (event.key === 'Escape') document.getElementById('b').style.display = 'none' })
+    document.getElementById('s').addEventListener('keydown', event => { if (event.key === 'Escape') document.getElementById('a').style.display = 'none' })</script>`))
+  expect(laneFindingLines(partlyClosed)).toEqual(['2.4.11 forward obscured: button "S" under div (fixed)', '2.4.11 reverse obscured: button "S" under div (fixed)'])
+  // The same through container-scoped handlers: "Y"'s toolbar Escape closes the menu over both, and
+  // "X"'s own group Escape closes only the tooltip over its top half.
+  const scopedPair = await walkProof(browser, proofProbe(`<div id="tb"><button style="position:fixed;left:10px;top:10px">Y</button></div>
+    <div id="grp"><button style="position:fixed;left:10px;top:60px;height:40px">X</button></div>
+    <div role="menu" id="p1" style="position:fixed;left:0;top:0;width:300px;height:120px;background:#fff;z-index:10">Menu</div>
+    <div role="tooltip" id="p2" style="position:fixed;left:0;top:55px;width:300px;height:25px;background:#ddd;z-index:20">Tip</div>
+    <button style="position:fixed;left:10px;top:300px">Elsewhere</button>
+    <script>document.getElementById('tb').addEventListener('keydown', event => { if (event.key === 'Escape') document.getElementById('p1').style.display = 'none' })
+    document.getElementById('grp').addEventListener('keydown', event => { if (event.key === 'Escape') document.getElementById('p2').style.display = 'none' })</script>`))
+  expect(laneFindingLines(scopedPair)).toEqual(['2.4.11 forward obscured: button "X" under div (fixed)', '2.4.11 reverse obscured: button "X" under div (fixed)'])
   // A popup Escape dismisses in place is still walked open in both directions, so a defect inside it
   // is found, and the cover it put over "Under" is exempt.
   const inside = await walkProof(browser, popover + proofProbe(`<button style="position:fixed;left:10px;top:10px">Under</button><button style="position:fixed;left:10px;top:300px">Elsewhere</button>
@@ -2654,6 +2710,24 @@ test('tab walk proof P13: the prepared walk keeps an outcome reached past its fi
   const centred = await walkProof(browser, proofProbe(`<button>Top</button><div style="height:1600px"></div><button id="below">Below</button><div style="height:1600px"></div>
     <div style="position:fixed;left:0;right:0;bottom:0;height:80px;background:#222"></div><script>document.getElementById('below').focus()</script>`))
   expect(laneFindingLines(centred)).toEqual([])
+  // E gets back the window scroll the walk began with: a prepared focus the scenario's own focus scroll
+  // aligned to the bottom edge, above a fixed footer, is judged there (R1, S2b), a wide page keeps its
+  // horizontal scroll (R2), and a focus set with preventScroll, which the user never saw, is offscreen (E2b).
+  const footer = (height: number) => `<div style="position:fixed;left:0;right:0;bottom:0;height:${height}px;background:#222"></div>`
+  const tall = await walkProof(browser, proofProbe(`<button>Top</button><div style="height:670px"></div><button id="t" style="display:block;height:100px;width:200px">Tall</button><div style="height:800px"></div>
+    ${footer(80)}<script>document.getElementById('t').focus()</script>`))
+  expect(tall.prepared?.stops[0]?.verdict?.kind).toBe('visible')
+  expect(laneFindingLines(tall)).toEqual([])
+  const straddling = await walkProof(browser, proofProbe(`<button>Top</button><div style="height:3000px"></div><button id="s" style="position:absolute;left:10px;top:700px;height:40px">S</button>
+    ${footer(30)}<script>document.getElementById('s').focus()</script>`))
+  expect(straddling.prepared?.stops[0]?.verdict?.kind).toBe('visible')
+  expect(laneFindingLines(straddling)).toEqual([])
+  const wide = await walkProof(browser, proofProbe(`<button>Top</button><div style="height:1600px;width:3000px"></div><button id="t" style="margin-left:600px">Below</button><div style="height:1600px"></div>
+    <div style="position:fixed;left:380px;top:300px;width:160px;height:120px;background:#222"></div><script>document.getElementById('t').focus()</script>`))
+  expect(laneFindingLines(wide)).toEqual([])
+  const unseen = await walkProof(browser, proofProbe(`<button>Top</button><div style="height:1600px"></div><button id="below">Below</button>
+    <script>document.getElementById('below').focus({ preventScroll: true })</script>`))
+  expect(laneFindingLines(unseen)).toEqual(['2.4.11 prepared offscreen: button "Below"'])
   recordCheck('tabWalkDetectorProofs')
 })
 
