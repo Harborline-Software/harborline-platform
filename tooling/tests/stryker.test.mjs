@@ -5,7 +5,7 @@ import {test} from 'node:test'
 import path from 'node:path'
 import {execFileSync, spawn, spawnSync} from 'node:child_process'
 import {createHash, randomUUID} from 'node:crypto'
-import {existsSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync} from 'node:fs'
+import {cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync} from 'node:fs'
 import {setTimeout as delay} from 'node:timers/promises'
 import {killProcessTreeSync} from '../resolve-command.mjs'
 import {tmpdir} from 'node:os'
@@ -17,15 +17,17 @@ const repoRoot = path.resolve('stryker-fixture-repo')
 const diagnosticTarget = 'projections/dotnet/blocks/hlp.blocks.builder-definitions.tests/Harborline.Blocks.BuilderDefinitions.Tests.csproj'
 const diagnosticFixture = path.join(import.meta.dirname, 'fixtures', 'stryker-diagnostic-process-fixture.mjs')
 
-async function diagnosticProcess(t, mode, operation) {
+async function diagnosticProcess(t, mode, operation, {paused = false} = {}) {
   const control = mkdtempSync(path.join(tmpdir(), 'stryker-diagnostics-'))
   const nonce = randomUUID()
   writeFileSync(path.join(control, 'nonce'), nonce)
   const child = spawn(process.execPath, [diagnosticFixture, 'wrapper', '--test', diagnosticTarget, '--control', control, '--mode', mode,
     ...(operation ? ['--operation', operation] : [])],
     {stdio: ['ignore', 'pipe', 'pipe'], detached: process.platform !== 'win32'})
-  let stdout = '', stderr = '', closed = false
-  child.stdout.on('data', data => { stdout += data })
+  const stdout = []
+  let stderr = '', closed = false
+  child.stdout.on('data', data => { stdout.push(data) })
+  if (paused) child.stdout.pause()
   child.stderr.on('data', data => { stderr += data })
   const done = new Promise((resolve, reject) => {
     child.on('error', reject)
@@ -37,6 +39,17 @@ async function diagnosticProcess(t, mode, operation) {
   }
   t.after(async () => {
     writeFileSync(path.join(control, 'release'), '')
+    writeFileSync(path.join(control, 'sink-release'), '')
+    child.stdout.resume()
+    if (existsSync(path.join(control, 'producer.json'))) {
+      const identity = json('producer.json')
+      assert.equal(identity.nonce, nonce)
+      writeFileSync(path.join(control, 'burst-release.json'), JSON.stringify(identity))
+      await until(() => {
+        if (existsSync(path.join(control, 'producer-stopped.json'))) return true
+        try { process.kill(identity.pid, 0); return false } catch { return true }
+      }, 'burst producer neither exited nor released cooperatively')
+    }
     if (mode.startsWith('live-') && existsSync(path.join(control, 'ready.json'))) {
       const {pid} = json('ready.json')
       await until(() => {
@@ -55,24 +68,247 @@ async function diagnosticProcess(t, mode, operation) {
     if (!closed && child.exitCode === null && child.signalCode === null) killProcessTreeSync(child.pid)
     await done
     const output = existsSync(path.join(control, 'ready.json')) ? json('ready.json').output :
-      existsSync(path.join(control, 'result.json')) ? json('result.json').output : undefined
+      existsSync(path.join(control, 'result.json')) ? json('result.json').output :
+      existsSync(path.join(control, 'sink-wire.log')) && readFileSync(path.join(control, 'sink-wire.log'), 'utf8').startsWith('[stryker-diagnostic] ') ?
+        JSON.parse(readFileSync(path.join(control, 'sink-wire.log'), 'utf8').split('\n')[0].slice('[stryker-diagnostic] '.length)).payload.output : undefined
+    if (process.env.STRYKER_DIAGNOSTIC_EVIDENCE) {
+      const evidence = path.join(process.env.STRYKER_DIAGNOSTIC_EVIDENCE, nonce)
+      mkdirSync(evidence, {recursive: true})
+      cpSync(control, path.join(evidence, 'control'), {recursive: true})
+      if (output) cpSync(output, path.join(evidence, 'attempt'), {recursive: true})
+      writeFileSync(path.join(evidence, 'stdout.log'), Buffer.concat(stdout))
+      writeFileSync(path.join(evidence, 'stderr.log'), stderr)
+      t.diagnostic(JSON.stringify({mode, operation, evidence, exit: await done}))
+    }
     if (output) {
       assert.equal(path.dirname(path.resolve(output)), path.resolve('StrykerOutput'))
       rmSync(output, {recursive: true, force: true})
     }
     rmSync(control, {recursive: true, force: true})
   })
-  return {control, done, json, stdout: () => stdout, stderr: () => stderr, closed: () => closed}
+  return {control, done, json, stdout: () => Buffer.concat(stdout).toString('utf8'), stderr: () => stderr, closed: () => closed,
+    resume: () => child.stdout.resume(), breakPipe: () => child.stdout.destroy()}
 }
 
-async function until(predicate, message) {
-  const deadline = Date.now() + 10000
+async function until(predicate, message, timeout = 10000) {
+  const deadline = Date.now() + timeout
   while (Date.now() < deadline) {
     if (predicate()) return
     await delay(25)
   }
   assert.fail(message)
 }
+
+for (const order of ['callback-first', 'drain-first']) {
+  test(`console false waits for both callback and drain with ${order}`, async t => {
+    const fixture = await diagnosticProcess(t, `sink-${order}`)
+    await until(() => existsSync(path.join(fixture.control, 'sink-pending.json')), 'public Writable was bypassed')
+    await delay(100)
+    assert.equal(existsSync(path.join(fixture.control, 'returned')), false)
+    assert.equal(readFileSync(path.join(fixture.control, 'sink-writes.jsonl'), 'utf8').trim().split('\n').length, 1)
+    writeFileSync(path.join(fixture.control, 'sink-release'), '')
+    assert.deepEqual(await fixture.done, {code: 0, signal: null})
+    assert.equal(fixture.json('result.json').outcome.kind, 'completed')
+    const writes = readFileSync(path.join(fixture.control, 'sink-writes.jsonl'), 'utf8').trim().split('\n').map(JSON.parse)
+    assert.ok(writes.every(write => !write.pending), 'another write preceded callback and drain settlement')
+  })
+}
+
+for (const kind of ['error', 'true-error', 'close']) {
+  test(`console ${kind} before spawn refuses without an unhandled event`, async t => {
+    const fixture = await diagnosticProcess(t, `sink-${kind}`)
+    await until(() => existsSync(path.join(fixture.control, 'sink-pending.json')), 'public Writable was bypassed')
+    writeFileSync(path.join(fixture.control, 'sink-release'), '')
+    assert.deepEqual(await fixture.done, {code: 0, signal: null})
+    const result = fixture.json('result.json')
+    assert.equal(result.observerFailed, true)
+    assert.equal(result.outcome.cause, 'observer')
+    assert.equal(existsSync(path.join(fixture.control, 'ready.json')), false)
+    assert.equal(fixture.stderr(), '')
+  })
+}
+
+for (const operation of ['run', 'full', 'baseline']) {
+  for (const nonzero of [false, true]) {
+    test(`terminal callback failure stops ${operation} with native ${nonzero ? 23 : 0}`, async t => {
+      const baseline = readFileSync('tooling/stryker-baselines.json')
+      const configPath = path.join(path.dirname(diagnosticTarget), 'stryker-config.json'), config = readFileSync(configPath)
+      const fixture = await diagnosticProcess(t, `sink-terminal-error${nonzero ? '-nonzero' : ''}`, operation)
+      await until(() => existsSync(path.join(fixture.control, 'sink-pending.json')), 'terminal was not submitted through public Writable')
+      assert.equal(existsSync(path.join(fixture.control, 'returned')), false)
+      writeFileSync(path.join(fixture.control, 'sink-release'), '')
+      assert.deepEqual(await fixture.done, {code: nonzero ? 23 : 1, signal: null})
+      const result = fixture.json('result.json')
+      assert.equal(result.observerFailed, true)
+      assert.equal(result.status, nonzero ? 23 : 0)
+      assert.equal(result.outcome.cause, nonzero ? 'exit' : 'observer')
+      assert.equal(result.cleanupUnavailable, undefined)
+      assert.deepEqual(readFileSync(path.join(fixture.control, 'projects.jsonl'), 'utf8').trim().split('\n').map(JSON.parse), [diagnosticTarget])
+      assert.deepEqual(readFileSync('tooling/stryker-baselines.json'), baseline)
+      assert.deepEqual(readFileSync(configPath), config)
+      const stored = JSON.parse(readFileSync(path.join(result.output, 'diagnostics', 'result.json'), 'utf8'))
+      assert.equal(stored.observerFailed, true)
+      const terminals = readFileSync(path.join(result.output, 'diagnostics', 'progress.jsonl'), 'utf8').trim().split('\n').map(JSON.parse).filter(r => r.source === 'terminal')
+      assert.equal(terminals.length, 1)
+      assert.equal(terminals[0].payload.outcome.kind, nonzero ? 'failed' : 'completed')
+      assert.doesNotMatch(readFileSync(path.join(fixture.control, 'sink-wire.log'), 'utf8'), /\*\*FAIL\*\*|score 100/)
+      assert.equal(fixture.stderr(), '')
+    })
+  }
+  test(`live cleanup true stops ${operation} on sticky observer failure`, async t => {
+    const baseline = readFileSync('tooling/stryker-baselines.json')
+    const configPath = path.join(path.dirname(diagnosticTarget), 'stryker-config.json'), config = readFileSync(configPath)
+    const fixture = await diagnosticProcess(t, 'live-true-observer', operation)
+    await until(() => existsSync(path.join(fixture.control, 'ready.json')), 'child did not become ready')
+    const {output, pid} = fixture.json('ready.json')
+    renameSync(path.join(output, 'logs'), path.join(output, 'logs-retained'))
+    writeFileSync(path.join(output, 'logs'), 'not a directory')
+    assert.deepEqual(await fixture.done, {code: 1, signal: null})
+    const result = fixture.json('result.json')
+    assert.equal(result.observerFailed, true)
+    assert.equal(result.cleanupUnavailable, undefined)
+    assert.equal(result.outcome.cause, 'observer')
+    assert.deepEqual(fixture.json('cleanup-called.json'), {pid})
+    assert.deepEqual(readFileSync(path.join(fixture.control, 'projects.jsonl'), 'utf8').trim().split('\n').map(JSON.parse), [diagnosticTarget])
+    assert.deepEqual(readFileSync('tooling/stryker-baselines.json'), baseline)
+    assert.deepEqual(readFileSync(configPath), config)
+    assert.doesNotMatch(fixture.stdout(), /\*\*FAIL\*\*/)
+  })
+}
+
+test('actual broken stdout after readiness fails durably without an unhandled error', async t => {
+  const fixture = await diagnosticProcess(t, 'wait')
+  await until(() => existsSync(path.join(fixture.control, 'ready.json')), 'child did not become ready')
+  fixture.breakPipe()
+  await until(fixture.closed, 'broken pipe did not stop the wrapper')
+  assert.deepEqual(await fixture.done, {code: 0, signal: null})
+  const result = fixture.json('result.json')
+  assert.equal(result.observerFailed, true)
+  assert.equal(result.outcome.cause, 'observer')
+  assert.equal(fixture.stderr(), '')
+  const stored = JSON.parse(readFileSync(path.join(result.output, 'diagnostics', 'result.json'), 'utf8'))
+  assert.equal(stored.observerFailed, true)
+})
+
+test('a real core Writable preserves UTF8 and prefixes across split journal records', async t => {
+  const fixture = await diagnosticProcess(t, 'sink-core')
+  await until(() => existsSync(path.join(fixture.control, 'ready.json')), 'child did not become ready')
+  const {output} = fixture.json('ready.json')
+  const line = 'Z'.repeat(65500) + '🙂 café\r\0::warning::quoted " text' + 'Q'.repeat(70000)
+  writeFileSync(path.join(output, 'logs', 'log-20261028.txt'), `${line}\n`)
+  assert.deepEqual(await fixture.done, {code: 0, signal: null})
+  const journal = readFileSync(path.join(output, 'diagnostics', 'progress.jsonl'), 'utf8')
+  const records = journal.trim().split('\n').map(JSON.parse)
+  assert.ok(records.some(record => record.source === 'nativeDebug' && record.payload.line === line))
+  assert.equal(records.filter(record => record.source === 'terminal').length, 1)
+  assert.equal(readFileSync(path.join(fixture.control, 'sink-wire.log'), 'utf8'),
+    journal.split('\n').slice(0, -1).map(record => `[stryker-diagnostic] ${record}\n`).join(''))
+})
+
+test('a synchronous console throw refuses before spawning', async t => {
+  const fixture = await diagnosticProcess(t, 'sink-throw')
+  assert.deepEqual(await fixture.done, {code: 0, signal: null})
+  assert.equal(fixture.json('result.json').observerFailed, true)
+  assert.equal(existsSync(path.join(fixture.control, 'ready.json')), false)
+})
+
+test('an awaited run prelude failure refuses before the first project', async t => {
+  const fixture = await diagnosticProcess(t, 'sink-error', 'run')
+  await until(() => existsSync(path.join(fixture.control, 'sink-pending.json')), 'prelude was not submitted')
+  assert.equal(existsSync(path.join(fixture.control, 'projects.jsonl')), false)
+  writeFileSync(path.join(fixture.control, 'sink-release'), '')
+  assert.deepEqual(await fixture.done, {code: 1, signal: null})
+  assert.equal(existsSync(path.join(fixture.control, 'projects.jsonl')), false)
+  assert.equal(fixture.stderr(), '')
+})
+
+for (const operation of ['run', 'full']) {
+  test(`a failed ${operation} summary preserves the preceding native exit 23`, async t => {
+    const fixture = await diagnosticProcess(t, 'sink-summary-error-nonzero', operation)
+    await until(() => existsSync(path.join(fixture.control, 'sink-pending.json')), 'failure summary was not submitted')
+    assert.equal(fixture.json('result.json').status, 23)
+    writeFileSync(path.join(fixture.control, 'sink-release'), '')
+    assert.deepEqual(await fixture.done, {code: 23, signal: null})
+    assert.deepEqual(readFileSync(path.join(fixture.control, 'projects.jsonl'), 'utf8').trim().split('\n').map(JSON.parse), [diagnosticTarget])
+    assert.equal(fixture.stderr(), '')
+  })
+}
+
+for (const mode of ['sink-late-error', 'sink-late-callback-error']) {
+  test(`a refused pending write owns ${mode} after local handles close`, async t => {
+    const fixture = await diagnosticProcess(t, mode)
+    await until(() => existsSync(path.join(fixture.control, 'sink-pending.json')), 'heartbeat was not held')
+    const {output} = fixture.json('ready.json')
+    renameSync(path.join(output, 'logs'), path.join(output, 'logs-retained'))
+    writeFileSync(path.join(output, 'logs'), 'not a directory')
+    await until(() => existsSync(path.join(fixture.control, 'returned')), 'refusal waited for the pending write')
+    assert.equal(fixture.json('result.json').observerFailed, true)
+    const journal = readFileSync(path.join(output, 'diagnostics', 'progress.jsonl'))
+    writeFileSync(path.join(fixture.control, 'sink-release'), '')
+    assert.deepEqual(await fixture.done, {code: 0, signal: null})
+    assert.deepEqual(readFileSync(path.join(output, 'diagnostics', 'progress.jsonl')), journal)
+    assert.equal(fixture.stderr(), '')
+  })
+}
+
+test('actual paused pipe cancellation persists its local checkpoint before reader resume', async t => {
+  const fixture = await diagnosticProcess(t, 'wait', undefined, {paused: true})
+  await until(() => existsSync(path.join(fixture.control, 'ready.json')), 'child did not become ready')
+  const {output} = fixture.json('ready.json')
+  writeFileSync(path.join(fixture.control, 'cancel'), '')
+  const resultPath = path.join(output, 'diagnostics', 'result.json')
+  await until(() => existsSync(resultPath), 'local cancellation checkpoint waited for reader resume')
+  const stored = JSON.parse(readFileSync(resultPath, 'utf8'))
+  assert.equal(stored.signal, 'SIGTERM')
+  assert.equal(stored.outcome.cause, 'interrupted')
+  await until(() => readFileSync(path.join(output, 'diagnostics', 'progress.jsonl'), 'utf8').includes('"source":"terminal"'), 'local terminal checkpoint did not finish')
+  assert.equal(readFileSync(path.join(output, 'diagnostics', 'progress.jsonl'), 'utf8').trim().split('\n').map(JSON.parse).filter(r => r.source === 'terminal').length, 1)
+  fixture.resume()
+  const exit = await fixture.done
+  assert.ok(exit.code !== 0 || exit.signal)
+})
+
+for (const paused of [false, true]) {
+  test(`actual ${paused ? 'paused then resumed' : 'immediate'} reader delivers the 1600-line native burst`, {timeout: 180000}, async t => {
+    const fixture = await diagnosticProcess(t, 'burst', undefined, {paused})
+    await until(() => existsSync(path.join(fixture.control, 'producer.json')), 'burst producer did not become ready')
+    await delay(4000)
+    fixture.resume()
+    const identity = fixture.json('producer.json')
+    writeFileSync(path.join(fixture.control, 'burst-release.json'), JSON.stringify(identity))
+    await until(fixture.closed, 'burst fixture exceeded its 150-second harness bound', 150000)
+    assert.deepEqual(await fixture.done, {code: 0, signal: null})
+    const result = fixture.json('result.json')
+    assert.equal(result.outcome.kind, 'completed')
+    assert.equal(result.counts.tested, 1)
+    assert.deepEqual(fixture.json('producer-stopped.json'), identity)
+    assert.equal(readFileSync(path.join(result.output, 'logs', 'log-20261026.txt')).length, 3228800)
+    const journal = readFileSync(path.join(result.output, 'diagnostics', 'progress.jsonl'), 'utf8')
+    const records = journal.trim().split('\n').map(JSON.parse), native = records.filter(r => r.source === 'nativeDebug')
+    assert.equal(native.length, 1600)
+    assert.equal(native[0].payload.line, 'nativeDiagnostic ' + 'X'.repeat(2000))
+    assert.equal(native[1599].payload.line, 'nativeDiagnostic ' + 'X'.repeat(2000))
+    assert.equal(records.filter(r => r.source === 'terminal').length, 1)
+    assert.equal(fixture.stdout(), journal.split('\n').slice(0, -1).map(line => `[stryker-diagnostic] ${line}\n`).join(''))
+    assert.equal(fixture.stderr(), '')
+  })
+}
+
+test('cancellation checkpoints locally before the paused reader resumes', async t => {
+  const fixture = await diagnosticProcess(t, 'sink-callback-first', undefined, {paused: true})
+  await until(() => existsSync(path.join(fixture.control, 'sink-pending.json')), 'public Writable was bypassed')
+  writeFileSync(path.join(fixture.control, 'cancel'), '')
+  await until(fixture.closed, 'cancellation waited for remote drain')
+  const wire = readFileSync(path.join(fixture.control, 'sink-wire.log'), 'utf8')
+  const prepared = JSON.parse(wire.slice('[stryker-diagnostic] '.length))
+  const stored = JSON.parse(readFileSync(path.join(prepared.payload.output, 'diagnostics', 'result.json'), 'utf8'))
+  assert.equal(stored.signal, 'SIGTERM')
+  assert.equal(stored.outcome.cause, 'interrupted')
+  const records = readFileSync(path.join(prepared.payload.output, 'diagnostics', 'progress.jsonl'), 'utf8').trim().split('\n').map(JSON.parse)
+  assert.equal(records.filter(r => r.source === 'terminal').length, 1)
+  assert.equal(existsSync(path.join(fixture.control, 'sink-release')), false)
+  fixture.resume()
+})
 
 test('mutation diagnostics reach disk and console while the real child is alive', async t => {
   const fixture = await diagnosticProcess(t, 'wait')
