@@ -20,13 +20,14 @@ name: stryker
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
+    types: [opened, synchronize, reopened, ready_for_review, labeled]
   schedule:
     - cron: '40 7 * * *'
   workflow_dispatch:
 
 concurrency:
-  group: ${{ github.event_name == 'pull_request' && format('stryker-pr-{0}', github.event.pull_request.number) || format('stryker-{0}', github.ref) }}
+  # An unrelated label event must not cancel an active PR measurement.
+  group: ${{ github.event_name == 'pull_request' && github.event.action == 'labeled' && github.event.label.name != 'mutation-diagnostic' && github.event.label.name != 'mutation-qualification' && format('stryker-label-{0}', github.run_id) || github.event_name == 'pull_request' && format('stryker-pr-{0}', github.event.pull_request.number) || format('stryker-{0}', github.ref) }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
@@ -34,7 +35,10 @@ permissions:
 
 jobs:
   workload-route:
-    if: vars.ACTIONS_ENABLED == 'true'
+    if: >-
+      vars.ACTIONS_ENABLED == 'true' &&
+      (github.event_name != 'pull_request' || github.event.action != 'labeled' ||
+       github.event.label.name == 'mutation-diagnostic' || github.event.label.name == 'mutation-qualification')
     runs-on: ubuntu-latest
     outputs:
       enabled: ${{ steps.route.outputs.enabled }}
@@ -56,9 +60,11 @@ jobs:
     needs: workload-route
     if: >-
       vars.ACTIONS_ENABLED == 'true' && needs.workload-route.outputs.enabled == 'true' &&
+      (github.event_name != 'pull_request' || github.event.action != 'labeled') &&
       (github.event_name == 'schedule' ||
        github.event_name == 'workflow_dispatch' ||
-       (github.event.pull_request.head.repo.full_name == github.repository &&
+       (github.event_name == 'pull_request' &&
+        github.event.pull_request.head.repo.full_name == github.repository &&
         github.event.pull_request.draft == false &&
         !contains(github.event.pull_request.labels.*.name, 'stacked')))
     runs-on: ${{ fromJSON(needs.workload-route.outputs.labels) }}
@@ -137,10 +143,267 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: stryker-report-${{ github.run_id }}
+          name: stryker-report-${{ github.run_id }}-${{ github.run_attempt }}-normal
           if-no-files-found: ignore
           retention-days: ${{ github.event_name == 'pull_request' && 7 || 14 }}
           path: |
             StrykerOutput/*/reports/mutation-report.json
             StrykerOutput/*/stryker-config.json
             StrykerOutput/*/logs/*.txt
+            StrykerOutput/*/diagnostics/**
+
+  # One-shot event commands; stored mutation labels do not affect later PR events.
+  mutation-diagnostic:
+    needs: workload-route
+    if: >-
+      github.event_name == 'pull_request' &&
+      vars.ACTIONS_ENABLED == 'true' && needs.workload-route.outputs.enabled == 'true' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.draft == false &&
+      !contains(github.event.pull_request.labels.*.name, 'stacked') &&
+      github.event.action == 'labeled' && github.event.label.name == 'mutation-diagnostic'
+    runs-on: ${{ fromJSON(needs.workload-route.outputs.labels) }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        profile: [default, full-host-CPU]
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+      MUTATION_MODE: diagnostic
+      MUTATION_PROFILE: ${{ matrix.profile }}
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          clean: true
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - name: Admit exact full Builder scope and record profile
+        id: scope
+        env:
+          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          @'
+          import {appendFileSync, mkdirSync, readFileSync, writeFileSync} from 'node:fs'
+          import {createHash} from 'node:crypto'
+          import {execFileSync} from 'node:child_process'
+          import os from 'node:os'
+          import {repository, targetOf, fullModeBreak} from './tooling/stryker.mjs'
+          const profile = process.env.MUTATION_PROFILE, mode = process.env.MUTATION_MODE
+          if (!['default', 'full-host-CPU'].includes(profile)) throw new Error('Mutation profile is not frozen or is unsupported; no SDK run admitted.')
+          if (!['diagnostic', 'qualification'].includes(mode)) throw new Error('Unsupported mutation mode.')
+          const selector = 'projections/dotnet/blocks/hlp.blocks.builder-definitions.tests/Harborline.Blocks.BuilderDefinitions.Tests.csproj'
+          const expectedTarget = 'projections/dotnet/blocks/hlp.blocks.builder-definitions/Harborline.Blocks.BuilderDefinitions.csproj'
+          const repo = repository(), matches = repo.testProjects.filter(test => !(test in repo.exclusions) && test.includes(selector))
+          if (matches.length !== 1 || matches[0] !== selector || targetOf(selector, repo.readFile) !== expectedTarget) throw new Error('Full Builder scope must select exactly one configured test project and its direct target.')
+          const configBytes = readFileSync('projections/dotnet/blocks/hlp.blocks.builder-definitions.tests/stryker-config.json')
+          const baselinesBytes = readFileSync('tooling/stryker-baselines.json'), config = JSON.parse(configBytes)['stryker-config']
+          const floor = fullModeBreak(repo.baselines[selector], config)
+          const allowed = ['project', 'coverage-analysis', 'since', 'thresholds', 'reporters']
+          if (Object.keys(config).some(key => !allowed.includes(key)) || config['coverage-analysis'] !== 'off' || !Number.isFinite(floor) || floor < 74 || !config.reporters?.includes('json') || config.reporters.some(reporter => reporter !== 'json')) throw new Error('Builder diagnostic scope/config/floor changed; no run admitted.')
+          const git = (...args) => execFileSync('git', args, {encoding: 'utf8'}).trim()
+          const head = git('rev-parse', 'HEAD'), tree = git('rev-parse', 'HEAD^{tree}')
+          const expected = process.env.EXPECTED_HEAD
+          if (!/^[0-9a-f]{40}$/.test(expected ?? '') || head !== expected) throw new Error('Mutation checkout differs from the admitted PR head.')
+          if (git('status', '--porcelain').trim()) throw new Error('Mutation checkout is not clean.')
+          const cpus = os.availableParallelism()
+          if (!Number.isSafeInteger(cpus) || cpus < 1 || cpus > 2147483647) throw new Error('Host CPU count is not a positive Int32.')
+          const concurrency = profile === 'full-host-CPU' ? cpus : null
+          const digest = bytes => createHash('sha256').update(bytes).digest('hex')
+          const metadata = {schemaVersion: 1, measuredAt: new Date().toISOString(), mode, profile, experimental: profile === 'full-host-CPU', head, tree, selector, target: expectedTarget, floor,
+            configSha256: digest(configBytes), baselinesSha256: digest(baselinesBytes), availableParallelism: cpus, logicalCpuCount: os.cpus().length, totalMemory: os.totalmem(),
+            platform: process.platform, arch: process.arch, osRelease: os.release(), nodeVersion: process.version, runnerName: process.env.RUNNER_NAME, imageOS: process.env.ImageOS, imageVersion: process.env.ImageVersion,
+            requestedReporters: mode === 'diagnostic' ? ['json', 'dots'] : ['json'], requestedConsoleVerbosity: mode === 'diagnostic' ? 'error' : null,
+            requestedConcurrency: concurrency, effectiveConcurrency: null, effectiveTimeouts: null, effectiveOptionsEvidence: 'native Debug log and helper attempt records; not inferred from documentation',
+            controlHead: '69b2798f55790ef5c29056d04a998b8c626db823', runId: process.env.GITHUB_RUN_ID, runAttempt: process.env.GITHUB_RUN_ATTEMPT}
+          const directory = `StrykerOutput/workflow-${mode}-${profile}/diagnostics`
+          mkdirSync(directory, {recursive: true})
+          writeFileSync(`${directory}/profile.json`, `${JSON.stringify(metadata, null, 2)}\n`)
+          appendFileSync(process.env.GITHUB_OUTPUT, `concurrency=${concurrency ?? ''}\n`)
+          console.log(JSON.stringify(metadata))
+          '@ | node --input-type=module
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - uses: actions/setup-dotnet@v6
+        env:
+          DOTNET_INSTALL_DIR: ${{ runner.temp }}/dotnet
+        with:
+          global-json-file: global.json
+      - name: Mirror the pinned control input
+        env:
+          PINS_TOKEN: ${{ secrets.HARBORLINE_PINS_TOKEN }}
+        run: |
+          $basic = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("x-access-token:$env:PINS_TOKEN"))
+          Write-Output "::add-mask::$basic"
+          $env:GIT_CONFIG_COUNT = '1'
+          $env:GIT_CONFIG_KEY_0 = 'http.https://github.com/.extraheader'
+          $env:GIT_CONFIG_VALUE_0 = "AUTHORIZATION: basic $basic"
+          git clone --quiet https://github.com/Harborline-Software/harborline-control.git "$env:RUNNER_TEMP/harborline-control"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          git -C "$env:RUNNER_TEMP/harborline-control" checkout --quiet --detach 69b2798f55790ef5c29056d04a998b8c626db823
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          git -C "$env:RUNNER_TEMP/harborline-control" rev-parse HEAD
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Full Builder mutation with the admitted profile
+        timeout-minutes: 20
+        env:
+          HARBORLINE_CONTROL_REPO: ${{ runner.temp }}/harborline-control
+          MUTATION_CONCURRENCY: ${{ steps.scope.outputs.concurrency }}
+        run: |
+          dotnet tool restore
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          # Dots are provisional observations; final JSON supplies complete terminal verdicts.
+          $strykerArgs = @('--log-to-file', '--reporter', 'json', '--reporter', 'dots', '--verbosity', 'error')
+          if ($env:MUTATION_PROFILE -eq 'full-host-CPU') {
+            $concurrency = 0
+            if (-not [int]::TryParse($env:MUTATION_CONCURRENCY, [ref]$concurrency) -or $concurrency -lt 1) { throw 'Invalid admitted concurrency.' }
+            $strykerArgs += @('--concurrency', [string]$concurrency)
+          } elseif ($env:MUTATION_PROFILE -ne 'default' -or $env:MUTATION_CONCURRENCY) { throw 'Invalid admitted mutation profile.' }
+          node tooling/stryker.mjs full 'projections/dotnet/blocks/hlp.blocks.builder-definitions.tests/Harborline.Blocks.BuilderDefinitions.Tests.csproj' -- @strykerArgs
+          exit $LASTEXITCODE
+      # Upload is attempted after step timeout; whole-job hard cancellation can prevent this step.
+      # Continuous console checkpoints provide a separate remote record; neither implies completion.
+      - name: Keep partial diagnostics and final reports without claiming completion
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: mutation-diagnostic-${{ github.run_id }}-${{ github.run_attempt }}-${{ env.MUTATION_PROFILE }}
+          if-no-files-found: ignore
+          retention-days: 7
+          path: |
+            StrykerOutput/*/reports/mutation-report.json
+            StrykerOutput/*/stryker-config.json
+            StrykerOutput/*/logs/*.txt
+            StrykerOutput/*/diagnostics/**
+
+  mutation-qualification:
+    needs: workload-route
+    if: >-
+      github.event_name == 'pull_request' &&
+      vars.ACTIONS_ENABLED == 'true' && needs.workload-route.outputs.enabled == 'true' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.draft == false &&
+      !contains(github.event.pull_request.labels.*.name, 'stacked') &&
+      github.event.action == 'labeled' && github.event.label.name == 'mutation-qualification'
+    runs-on: ${{ fromJSON(needs.workload-route.outputs.labels) }}
+    timeout-minutes: 360
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+      MUTATION_MODE: qualification
+      # Freeze only after the bounded diagnostic data and cancellation evidence are reviewed.
+      MUTATION_PROFILE: unselected
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          clean: true
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - name: Admit exact full Builder scope and record profile
+        id: scope
+        env:
+          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          @'
+          import {appendFileSync, mkdirSync, readFileSync, writeFileSync} from 'node:fs'
+          import {createHash} from 'node:crypto'
+          import {execFileSync} from 'node:child_process'
+          import os from 'node:os'
+          import {repository, targetOf, fullModeBreak} from './tooling/stryker.mjs'
+          const profile = process.env.MUTATION_PROFILE, mode = process.env.MUTATION_MODE
+          if (!['default', 'full-host-CPU'].includes(profile)) throw new Error('Mutation profile is not frozen or is unsupported; no SDK run admitted.')
+          if (!['diagnostic', 'qualification'].includes(mode)) throw new Error('Unsupported mutation mode.')
+          const selector = 'projections/dotnet/blocks/hlp.blocks.builder-definitions.tests/Harborline.Blocks.BuilderDefinitions.Tests.csproj'
+          const expectedTarget = 'projections/dotnet/blocks/hlp.blocks.builder-definitions/Harborline.Blocks.BuilderDefinitions.csproj'
+          const repo = repository(), matches = repo.testProjects.filter(test => !(test in repo.exclusions) && test.includes(selector))
+          if (matches.length !== 1 || matches[0] !== selector || targetOf(selector, repo.readFile) !== expectedTarget) throw new Error('Full Builder scope must select exactly one configured test project and its direct target.')
+          const configBytes = readFileSync('projections/dotnet/blocks/hlp.blocks.builder-definitions.tests/stryker-config.json')
+          const baselinesBytes = readFileSync('tooling/stryker-baselines.json'), config = JSON.parse(configBytes)['stryker-config']
+          const floor = fullModeBreak(repo.baselines[selector], config)
+          const allowed = ['project', 'coverage-analysis', 'since', 'thresholds', 'reporters']
+          if (Object.keys(config).some(key => !allowed.includes(key)) || config['coverage-analysis'] !== 'off' || !Number.isFinite(floor) || floor < 74 || !config.reporters?.includes('json') || config.reporters.some(reporter => reporter !== 'json')) throw new Error('Builder diagnostic scope/config/floor changed; no run admitted.')
+          const git = (...args) => execFileSync('git', args, {encoding: 'utf8'}).trim()
+          const head = git('rev-parse', 'HEAD'), tree = git('rev-parse', 'HEAD^{tree}')
+          const expected = process.env.EXPECTED_HEAD
+          if (!/^[0-9a-f]{40}$/.test(expected ?? '') || head !== expected) throw new Error('Mutation checkout differs from the admitted PR head.')
+          if (git('status', '--porcelain').trim()) throw new Error('Mutation checkout is not clean.')
+          const cpus = os.availableParallelism()
+          if (!Number.isSafeInteger(cpus) || cpus < 1 || cpus > 2147483647) throw new Error('Host CPU count is not a positive Int32.')
+          const concurrency = profile === 'full-host-CPU' ? cpus : null
+          const digest = bytes => createHash('sha256').update(bytes).digest('hex')
+          const metadata = {schemaVersion: 1, measuredAt: new Date().toISOString(), mode, profile, experimental: profile === 'full-host-CPU', head, tree, selector, target: expectedTarget, floor,
+            configSha256: digest(configBytes), baselinesSha256: digest(baselinesBytes), availableParallelism: cpus, logicalCpuCount: os.cpus().length, totalMemory: os.totalmem(),
+            platform: process.platform, arch: process.arch, osRelease: os.release(), nodeVersion: process.version, runnerName: process.env.RUNNER_NAME, imageOS: process.env.ImageOS, imageVersion: process.env.ImageVersion,
+            requestedReporters: mode === 'diagnostic' ? ['json', 'dots'] : ['json'], requestedConsoleVerbosity: mode === 'diagnostic' ? 'error' : null,
+            requestedConcurrency: concurrency, effectiveConcurrency: null, effectiveTimeouts: null, effectiveOptionsEvidence: 'native Debug log and helper attempt records; not inferred from documentation',
+            controlHead: '69b2798f55790ef5c29056d04a998b8c626db823', runId: process.env.GITHUB_RUN_ID, runAttempt: process.env.GITHUB_RUN_ATTEMPT}
+          const directory = `StrykerOutput/workflow-${mode}-${profile}/diagnostics`
+          mkdirSync(directory, {recursive: true})
+          writeFileSync(`${directory}/profile.json`, `${JSON.stringify(metadata, null, 2)}\n`)
+          appendFileSync(process.env.GITHUB_OUTPUT, `concurrency=${concurrency ?? ''}\n`)
+          console.log(JSON.stringify(metadata))
+          '@ | node --input-type=module
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - uses: actions/setup-dotnet@v6
+        env:
+          DOTNET_INSTALL_DIR: ${{ runner.temp }}/dotnet
+        with:
+          global-json-file: global.json
+      - name: Mirror the pinned control input
+        env:
+          PINS_TOKEN: ${{ secrets.HARBORLINE_PINS_TOKEN }}
+        run: |
+          $basic = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("x-access-token:$env:PINS_TOKEN"))
+          Write-Output "::add-mask::$basic"
+          $env:GIT_CONFIG_COUNT = '1'
+          $env:GIT_CONFIG_KEY_0 = 'http.https://github.com/.extraheader'
+          $env:GIT_CONFIG_VALUE_0 = "AUTHORIZATION: basic $basic"
+          git clone --quiet https://github.com/Harborline-Software/harborline-control.git "$env:RUNNER_TEMP/harborline-control"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          git -C "$env:RUNNER_TEMP/harborline-control" checkout --quiet --detach 69b2798f55790ef5c29056d04a998b8c626db823
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          git -C "$env:RUNNER_TEMP/harborline-control" rev-parse HEAD
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Full Builder mutation with the admitted profile
+        timeout-minutes: 330
+        env:
+          HARBORLINE_CONTROL_REPO: ${{ runner.temp }}/harborline-control
+          MUTATION_CONCURRENCY: ${{ steps.scope.outputs.concurrency }}
+        run: |
+          dotnet tool restore
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $strykerArgs = @('--log-to-file')
+          if ($env:MUTATION_PROFILE -eq 'full-host-CPU') {
+            $concurrency = 0
+            if (-not [int]::TryParse($env:MUTATION_CONCURRENCY, [ref]$concurrency) -or $concurrency -lt 1) { throw 'Invalid admitted concurrency.' }
+            $strykerArgs += @('--concurrency', [string]$concurrency)
+          } elseif ($env:MUTATION_PROFILE -ne 'default' -or $env:MUTATION_CONCURRENCY) { throw 'Invalid admitted mutation profile.' }
+          node tooling/stryker.mjs full 'projections/dotnet/blocks/hlp.blocks.builder-definitions.tests/Harborline.Blocks.BuilderDefinitions.Tests.csproj' -- @strykerArgs
+          exit $LASTEXITCODE
+      # Upload is attempted after step timeout; whole-job hard cancellation can prevent this step.
+      # Continuous console checkpoints provide a separate remote record; neither implies completion.
+      - name: Keep partial diagnostics and final reports without claiming completion
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: mutation-qualification-${{ github.run_id }}-${{ github.run_attempt }}-${{ env.MUTATION_PROFILE }}
+          if-no-files-found: ignore
+          retention-days: 7
+          path: |
+            StrykerOutput/*/reports/mutation-report.json
+            StrykerOutput/*/stryker-config.json
+            StrykerOutput/*/logs/*.txt
+            StrykerOutput/*/diagnostics/**
