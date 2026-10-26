@@ -15,17 +15,17 @@
   @if (State == GuardedControlState.Covered)
   {
     <button @ref="CoveredElement" type="button" class="hl-guarded-control__action" disabled="@IsInert"
-            aria-describedby="@DescribedBy" aria-label="@CoveredName" data-guard-state="covered" @onclick="ActivateAsync">
-      <span aria-hidden="true">▣</span><span>@Label</span>
+            aria-labelledby="@LabelId" aria-describedby="@DescriptionIds" data-guard-state="covered" @onclick="ActivateAsync">
+      <span aria-hidden="true">▣</span><span id="@LabelId">@Label</span>
     </button>
   }
   else
   {
     <button @ref="ArmedElement" type="button" class="hl-guarded-control__action hl-guarded-control__action--armed"
-            disabled="@(State == GuardedControlState.Committing || IsInert)" aria-describedby="@DescribedBy"
-            aria-label="@(State == GuardedControlState.Armed ? ArmedName : CommittingName)" data-guard-state="@StateName"
+            disabled="@(State == GuardedControlState.Committing || IsInert)" aria-labelledby="@LabelId"
+            aria-describedby="@DescriptionIds" data-guard-state="@StateName"
             @onclick="ActivateAsync" @onkeydown="HandleArmedKeyAsync">
-      <span aria-hidden="true">□</span><span>@Label</span>
+      <span aria-hidden="true">□</span><span id="@LabelId">@Label</span>
       @if (State == GuardedControlState.Armed)
       {
         <span role="timer" aria-label="@DurationText" class="hl-guarded-control__timer">@DurationText</span>
@@ -36,6 +36,7 @@
       }
     </button>
   }
+  <span id="@InstructionId" class="hl-guarded-control__instruction">@Instruction</span>
 </div>
 
 @code {
@@ -71,9 +72,27 @@
   private bool IsInert => Disabled || !configured;
   private string IsolatedLabel => $"\u2068{Label}\u2069";
   private IReadOnlyDictionary<string, object?> MessageVariables => new Dictionary<string, object?> { ["action"] = IsolatedLabel, ["duration"] = DurationText };
-  private string CoveredName => Resolve("chrome.guard.covered.label", "Guarded action: {action}. Activate to arm.");
-  private string ArmedName => WholeMessage("chrome.guard.armed.whole", "Armed for {action}. Activate again within {duration} to commit.", MessageVariables);
-  private string CommittingName => Resolve("chrome.guard.committing.label", "Committing {action}.");
+  // Interface revision 2. The name is the visible label (aria-labelledby the label span, so the
+  // role=timer countdown never joins it). The description is the caller's DescribedBy ids, then the
+  // module's whole message for the state, which is also rendered visibly: covered and armed
+  // instructions and the committing status. Each resolves the host catalog first, as the React lane
+  // does. The keys keep their revision-1 names (chrome.guard.covered.label,
+  // chrome.guard.committing.label) so host catalogs keep working; they hold descriptions now, never
+  // the name.
+  private readonly string instanceId = $"hl-guarded-control-{Guid.NewGuid():N}";
+  private string LabelId => $"{instanceId}-label";
+  private string InstructionId => $"{instanceId}-instruction";
+  private string DescriptionIds => string.IsNullOrWhiteSpace(DescribedBy) ? InstructionId : $"{DescribedBy.Trim()} {InstructionId}";
+  private string Instruction => State switch
+  {
+    GuardedControlState.Covered => WholeMessage("chrome.guard.covered.label", "Guarded action: {action}. Activate to arm.", MessageVariables),
+    GuardedControlState.Armed => ArmedInstruction,
+    _ => WholeMessage("chrome.guard.committing.label", "Committing {action}.", MessageVariables),
+  };
+  // The armed instruction always states the full window, never the countdown: it is announced once on
+  // arming and is the armed description for the whole armed state, so it never changes with a tick.
+  private string ArmedInstruction => WholeMessage("chrome.guard.armed.whole", "Armed for {action}. Activate again within {duration} to commit.",
+    new Dictionary<string, object?> { ["action"] = IsolatedLabel, ["duration"] = Duration(ArmWindowSeconds) });
   private string LoadingText => LocaleContext?.ResolveString("common.loading", new Dictionary<string, object?>(), "Loading") ?? "Loading";
   private string DurationText => Duration(remainingSeconds);
 
@@ -127,7 +146,7 @@
     attempt = new CancellationTokenSource();
     // Every arm states the full window, never the countdown a previous attempt left behind.
     remainingSeconds = ArmWindowSeconds;
-    await TransitionAsync(GuardedControlState.Armed, "arm", ArmedName);
+    await TransitionAsync(GuardedControlState.Armed, "arm", ArmedInstruction);
     focusArmed = true;
     _ = RunDeadlineAsync(attempt.Token);
   }

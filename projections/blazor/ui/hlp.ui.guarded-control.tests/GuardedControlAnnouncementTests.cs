@@ -268,7 +268,7 @@ public sealed class GuardedControlAnnouncementTests : BunitContext
         .FindComponent<HarborlineGuardedControl>();
 
     /// <summary>Lets one second of the arm window elapse and waits until the guard has applied it.</summary>
-    private static async Task TickAsync(IRenderedComponent<HarborlineGuardedControl> cut, ManualClock clock)
+    internal static async Task TickAsync(IRenderedComponent<HarborlineGuardedControl> cut, ManualClock clock)
     {
         await clock.FireNextAsync();
         // The second is applied once the guard waits on its next second, or has recovered.
@@ -276,7 +276,7 @@ public sealed class GuardedControlAnnouncementTests : BunitContext
     }
 
     // A host formatter that writes the digits of one CLDR numbering system, whatever the locale.
-    private static HarborlineNumberFormatter HostFormatter(string numberingSystem)
+    internal static HarborlineNumberFormatter HostFormatter(string numberingSystem)
     {
         var zero = numberingSystem switch
         {
@@ -300,12 +300,12 @@ public sealed class GuardedControlAnnouncementTests : BunitContext
     }
 
     // The arm window runs on the component's private clock, which is the system clock outside tests.
-    private static void UseClock(HarborlineGuardedControl guard, TimeProvider clock) =>
+    internal static void UseClock(HarborlineGuardedControl guard, TimeProvider clock) =>
         (typeof(HarborlineGuardedControl).GetField("clock", BindingFlags.Instance | BindingFlags.NonPublic)
             ?? throw new MissingFieldException(nameof(HarborlineGuardedControl), "clock")).SetValue(guard, clock);
 
     /// <summary>A clock whose timers fire only when the test says so, one scheduled delay at a time.</summary>
-    private sealed class ManualClock : TimeProvider
+    internal sealed class ManualClock : TimeProvider
     {
         private readonly Lock gate = new();
         private readonly List<ManualTimer> scheduled = [];

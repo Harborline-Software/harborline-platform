@@ -31,6 +31,16 @@ function descriptionIds(value: GuardedControlProps['describedBy']): string | und
   return value?.filter(Boolean).join(' ') || undefined
 }
 
+// Interface revision 2. The name is the visible label (aria-labelledby the label span, so the
+// role=timer countdown never joins it). The description is the caller's describedBy ids, then the
+// module's whole message for the state, which is also rendered visibly: covered and armed
+// instructions and the committing status. The keys keep their revision-1 names
+// (chrome.guard.covered.label, chrome.guard.committing.label) so host catalogs keep working; they
+// hold descriptions now, never the name.
+const COVERED_INSTRUCTION = 'Guarded action: {action}. Activate to arm.'
+const ARMED_INSTRUCTION = 'Armed for {action}. Activate again within {duration} to commit.'
+const COMMITTING_STATUS = 'Committing {action}.'
+
 export function GuardedControl({
   action, classificationId, label, onCommit, disabled = false, describedBy, observe,
   className, ...hostAttributes
@@ -49,6 +59,10 @@ export function GuardedControl({
   const coverRef = React.useRef<HTMLButtonElement>(null)
   const armedRef = React.useRef<HTMLButtonElement>(null)
   const deferredFocus = React.useRef(false)
+  const id = React.useId()
+  const labelId = `${id}-label`
+  const instructionId = `${id}-instruction`
+  const isolatedLabel = `\u2068${label}\u2069`
 
   const wholeMessage = React.useCallback((key: string, fallback: string, variables: Record<string, string>) => {
     let message = catalog[key] ?? fallback
@@ -161,13 +175,17 @@ export function GuardedControl({
     }
   }
 
+  // The armed instruction always states the full window, never the countdown: it is announced once
+  // on arming and is the armed description for the whole armed state, so it never changes with a tick.
+  const armedInstruction = () => wholeMessage('chrome.guard.armed.whole', ARMED_INSTRUCTION, { action: isolatedLabel, duration: formatDuration(ARM_WINDOW_SECONDS) })
+
   // Every arm states the full window, never the countdown a previous attempt left behind.
   const arm = () => {
     if (disabled || invalid || stateRef.current !== 'covered') return
     committed.current = false
     setSeconds(ARM_WINDOW_SECONDS)
     transition('armed')
-    setAnnouncement(wholeMessage('chrome.guard.armed.whole', 'Armed for {action}. Activate again within {duration} to commit.', { action: `\u2068${label}\u2069`, duration: formatDuration(ARM_WINDOW_SECONDS) }))
+    setAnnouncement(armedInstruction())
   }
   const commit = () => {
     if (disabled || invalid || stateRef.current !== 'armed' || committed.current) return
@@ -201,7 +219,12 @@ export function GuardedControl({
 
   const duration = formatDuration(seconds)
   const inert = disabled || invalid
-  const ids = descriptionIds(describedBy)
+  const instruction = state === 'covered'
+    ? wholeMessage('chrome.guard.covered.label', COVERED_INSTRUCTION, { action: isolatedLabel })
+    : state === 'armed'
+      ? armedInstruction()
+      : wholeMessage('chrome.guard.committing.label', COMMITTING_STATUS, { action: isolatedLabel })
+  const ids = [descriptionIds(describedBy), instructionId].filter(Boolean).join(' ')
   return (
     <div
       {...hostAttributes}
@@ -213,15 +236,16 @@ export function GuardedControl({
     >
       <span role="status" aria-live="polite" aria-atomic="true" className="hl-visually-hidden">{announcement}</span>
       {state === 'covered' ? (
-        <button ref={coverRef} type="button" disabled={inert} aria-describedby={ids} data-guard-state="covered" className="hl-guarded-control__action" onClick={arm}>
-          <span aria-hidden="true">▣</span><span>{label}</span>
+        <button ref={coverRef} type="button" disabled={inert} aria-labelledby={labelId} aria-describedby={ids} data-guard-state="covered" className="hl-guarded-control__action" onClick={arm}>
+          <span aria-hidden="true">▣</span><span id={labelId}>{label}</span>
         </button>
       ) : (
-        <button ref={armedRef} type="button" disabled={state === 'committing' || inert} aria-describedby={ids} data-guard-state={state} className="hl-guarded-control__action hl-guarded-control__action--armed" onClick={commit}>
-          <span aria-hidden="true">□</span><span>{label}</span>
+        <button ref={armedRef} type="button" disabled={state === 'committing' || inert} aria-labelledby={labelId} aria-describedby={ids} data-guard-state={state} className="hl-guarded-control__action hl-guarded-control__action--armed" onClick={commit}>
+          <span aria-hidden="true">□</span><span id={labelId}>{label}</span>
           {state === 'armed' ? <span role="timer" aria-label={duration} className="hl-guarded-control__timer">{duration}</span> : <span>{t('common.loading')}</span>}
         </button>
       )}
+      <span id={instructionId} className="hl-guarded-control__instruction">{instruction}</span>
     </div>
   )
 }
