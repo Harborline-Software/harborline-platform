@@ -65,7 +65,10 @@
   private bool disposed;
   private bool navigationSubscribed;
   private int remainingSeconds = ArmWindowSeconds;
-  private DateTimeOffset armDeadline;
+  // The arming timestamp on the component's monotonic clock, so a wall-clock step neither extends nor
+  // shortens the window.
+  private long armStamp;
+  private static readonly TimeSpan ArmWindow = TimeSpan.FromMilliseconds(ArmWindowMilliseconds);
   private string announcement = string.Empty;
   private TimeProvider clock = TimeProvider.System;
   private CancellationTokenSource? attempt;
@@ -158,7 +161,7 @@
     attempt = new CancellationTokenSource();
     // Every arm states the full window, never the countdown a previous attempt left behind.
     remainingSeconds = ArmWindowSeconds;
-    armDeadline = clock.GetUtcNow() + TimeSpan.FromMilliseconds(ArmWindowMilliseconds);
+    armStamp = clock.GetTimestamp();
     await TransitionAsync(GuardedControlState.Armed, "arm", ArmedInstruction);
     focusArmed = true;
     _ = RunDeadlineAsync(attempt.Token);
@@ -169,7 +172,7 @@
     if (State != GuardedControlState.Armed || commitLatch || disposed) return;
     // The window is fixed at five seconds from arming. The countdown runs on timer callbacks, which can
     // arrive late, so an activation that arrives after the deadline recovers instead of committing.
-    if (clock.GetUtcNow() >= armDeadline)
+    if (clock.GetElapsedTime(armStamp) >= ArmWindow)
     {
       await RecoverAsync(GuardedControlRecoveryReason.Timeout, true);
       return;

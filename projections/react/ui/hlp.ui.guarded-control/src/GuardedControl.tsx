@@ -211,12 +211,12 @@ export function GuardedControl({
   React.useEffect(() => {
     if (state !== 'armed') return
     const check = () => {
-      const next = Math.max(0, Math.ceil((deadline.current - Date.now()) / 1000))
+      const next = Math.max(0, Math.ceil((deadline.current - performance.now()) / 1000))
       setSeconds(current => current === next ? current : next)
       if (next === 0) recover('timeout')
     }
     // On a reveal past the window this recovers before the first paint, and moves no focus.
-    const first = Math.max(0, Math.ceil((deadline.current - Date.now()) / 1000))
+    const first = Math.max(0, Math.ceil((deadline.current - performance.now()) / 1000))
     if (first === 0) recover('timeout', false)
     else check()
     if (stateRef.current !== 'armed') return
@@ -269,7 +269,8 @@ export function GuardedControl({
     committed.current = false
     deferredFocus.current = false
     armFocusPending.current = true
-    deadline.current = Date.now() + ARM_WINDOW_MS
+    // The monotonic clock, so a wall-clock step (NTP, a manual change) neither extends nor shortens the window.
+    deadline.current = performance.now() + ARM_WINDOW_MS
     setSeconds(ARM_WINDOW_SECONDS)
     transition('armed')
     setAnnouncement(armedInstruction())
@@ -278,7 +279,7 @@ export function GuardedControl({
     if (disabled || invalid || stateRef.current !== 'armed' || committed.current) return
     // The window is fixed at five seconds from arming: an activation that arrives later (behind a long
     // task, or on a control revealed after its window) recovers instead of committing.
-    if (Date.now() >= deadline.current) {
+    if (performance.now() >= deadline.current) {
       recover('timeout')
       return
     }

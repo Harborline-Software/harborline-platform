@@ -28,7 +28,10 @@ function Host({ tick, triggers, events }: { tick: number; triggers: Triggers; ev
   )
 }
 
-afterEach(() => vi.useRealTimers())
+afterEach(() => {
+  vi.useRealTimers()
+  vi.restoreAllMocks()
+})
 
 describe('GuardedControl arm window under host re-renders', () => {
   it.each([
@@ -97,15 +100,16 @@ describe('GuardedControl commit after the arm window', () => {
     expect(commit).not.toHaveBeenCalled()
   })
 
-  // A4: the clock passes the deadline while no timer callback runs (a long task on the main thread),
-  // and the queued click then reaches the armed action.
+  // A4: the monotonic clock passes the deadline while no timer callback runs (a long task on the main
+  // thread), and the queued click then reaches the armed action.
   it('recovers instead of committing when the activation arrives after the window', () => {
     vi.useFakeTimers()
     const commit = vi.fn()
     const events: GuardedControlEvent[] = []
     render(<GuardedControl action="a" classificationId="c" label="Publish" onCommit={commit} observe={event => { events.push(event) }}/>)
     fireEvent.click(action())
-    vi.setSystemTime(Date.now() + 10_000)
+    const armedAt = performance.now()
+    vi.spyOn(performance, 'now').mockReturnValue(armedAt + 10_000)
     fireEvent.click(action())
     expect(commit).not.toHaveBeenCalled()
     expect(action()).toHaveAttribute('data-guard-state', 'covered')
@@ -118,8 +122,32 @@ describe('GuardedControl commit after the arm window', () => {
     const commit = vi.fn()
     render(<GuardedControl action="a" classificationId="c" label="Publish" onCommit={commit}/>)
     fireEvent.click(action())
-    vi.setSystemTime(Date.now() + 4_900)
+    const armedAt = performance.now()
+    vi.spyOn(performance, 'now').mockReturnValue(armedAt + 4_900)
     fireEvent.click(action())
     expect(commit).toHaveBeenCalledOnce()
+  })
+
+  // The window runs on the monotonic clock: a wall-clock step (NTP, a manual change) neither extends nor
+  // shortens it.
+  it.each([
+    ['back', -60_000],
+    ['forward', 60_000],
+  ])('keeps the five-second window when the wall clock steps %s', (_direction, step) => {
+    vi.useFakeTimers()
+    const commit = vi.fn()
+    const events: GuardedControlEvent[] = []
+    render(<GuardedControl action="a" classificationId="c" label="Publish" onCommit={commit} observe={event => { events.push(event) }}/>)
+    fireEvent.click(action())
+    act(() => vi.advanceTimersByTime(1000))
+    vi.setSystemTime(Date.now() + step)
+    act(() => vi.advanceTimersByTime(250))
+    expect(action()).toHaveAttribute('data-guard-state', 'armed')
+    expect(screen.getByRole('timer')).toHaveTextContent('4 seconds')
+    act(() => vi.advanceTimersByTime(3750))
+    expect(action()).toHaveAttribute('data-guard-state', 'covered')
+    expect(events.filter(event => event.type === 'recovered')).toEqual([{ type: 'recovered', reason: 'timeout' }])
+    fireEvent.click(action())
+    expect(commit).not.toHaveBeenCalled()
   })
 })

@@ -27,7 +27,7 @@ public sealed class GuardedControlDeadlineTests : BunitContext
         cut.Find("button").Click();
         Assert.Equal(GuardedControlState.Armed, cut.Instance.State);
 
-        clock.Now += TimeSpan.FromSeconds(10);
+        clock.Elapsed += TimeSpan.FromSeconds(10);
         cut.Find("button").Click();
 
         Assert.Equal(0, commits);
@@ -45,10 +45,38 @@ public sealed class GuardedControlDeadlineTests : BunitContext
         Clock.UseClock(cut.Instance, clock);
         cut.Find("button").Click();
 
-        clock.Now += TimeSpan.FromMilliseconds(4900);
+        clock.Elapsed += TimeSpan.FromMilliseconds(4900);
         cut.Find("button").Click();
 
         Assert.Equal(1, commits);
+    }
+
+    // The window runs on the monotonic clock: a wall-clock step (NTP, a manual change) neither extends nor
+    // shortens it.
+    [Theory]
+    [InlineData(60)]
+    [InlineData(-60)]
+    public void AWallClockStepDoesNotMoveTheWindow(int stepSeconds)
+    {
+        var commits = 0;
+        var clock = new HeldClock();
+        var cut = RenderGuard(() => commits++, []);
+        Clock.UseClock(cut.Instance, clock);
+        cut.Find("button").Click();
+
+        clock.Now += TimeSpan.FromSeconds(stepSeconds);
+        clock.Elapsed += TimeSpan.FromSeconds(1);
+        cut.Find("button").Click();
+        Assert.Equal(1, commits);
+
+        var late = RenderGuard(() => commits++, []);
+        Clock.UseClock(late.Instance, clock);
+        late.Find("button").Click();
+        clock.Now -= TimeSpan.FromSeconds(stepSeconds);
+        clock.Elapsed += TimeSpan.FromSeconds(6);
+        late.Find("button").Click();
+        Assert.Equal(1, commits);
+        Assert.Equal(GuardedControlState.Covered, late.Instance.State);
     }
 
     private IRenderedComponent<HarborlineGuardedControl> RenderGuard(Action commit, List<GuardedControlEvent> events) =>
@@ -57,11 +85,17 @@ public sealed class GuardedControlDeadlineTests : BunitContext
             .Add(x => x.Label, "Publish").Add(x => x.OnCommit, commit)
             .Add(x => x.OnEvent, e => events.Add(e)));
 
-    /// <summary>A clock whose time the test sets and whose timers never fire, as when callbacks run late.</summary>
+    /// <summary>
+    /// A clock whose wall time (Now) and monotonic time (Elapsed) the test sets independently, and whose
+    /// timers never fire, as when callbacks run late.
+    /// </summary>
     private sealed class HeldClock : TimeProvider
     {
         public DateTimeOffset Now { get; set; } = new(2026, 10, 26, 12, 0, 0, TimeSpan.Zero);
+        public TimeSpan Elapsed { get; set; } = TimeSpan.FromHours(1);
         public override DateTimeOffset GetUtcNow() => Now;
+        public override long GetTimestamp() => Elapsed.Ticks;
+        public override long TimestampFrequency => TimeSpan.TicksPerSecond;
         public override ITimer CreateTimer(TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period) => new HeldTimer();
 
         private sealed class HeldTimer : ITimer
