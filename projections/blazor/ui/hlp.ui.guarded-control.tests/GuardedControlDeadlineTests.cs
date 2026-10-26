@@ -1,5 +1,6 @@
 using Bunit;
 using Harborline.UIAdapters.Blazor.Components.Buttons;
+using Microsoft.AspNetCore.Components.Web;
 using Xunit;
 using Clock = Harborline.UIAdapters.Blazor.Tests.GuardedControlAnnouncementTests;
 
@@ -78,6 +79,60 @@ public sealed class GuardedControlDeadlineTests : BunitContext
         Assert.Equal(1, commits);
         Assert.Equal(GuardedControlState.Covered, late.Instance.State);
     }
+
+    // B2: the arm's OnEvent observer takes two seconds. The countdown, the timeout and the commit check all
+    // derive from the one deadline taken at arming, so while the timer still shows time left a commit is
+    // accepted, and the observer's latency cannot shift the countdown.
+    [Fact]
+    public async Task TheCountdownTheTimeoutAndTheCommitCheckShareOneDeadline()
+    {
+        var commits = 0;
+        var gate = new TaskCompletionSource();
+        var clock = new Clock.ManualClock();
+        var cut = RenderGuardObservedBy(() => commits++, gate.Task);
+        Clock.UseClock(cut.Instance, clock);
+        var arming = cut.Find("button").ClickAsync(new MouseEventArgs());
+        cut.WaitForAssertion(() => Assert.Equal("armed", cut.Find("button").GetAttribute("data-guard-state")));
+        clock.Advance(TimeSpan.FromSeconds(2));
+        gate.SetResult();
+        await arming;
+
+        for (var tick = 0; tick < 3; tick++) await Clock.TickAsync(cut, clock);
+
+        cut.WaitForAssertion(() => Assert.Equal("1 second", cut.Find("[role=timer]").TextContent));
+        cut.Find("button").Click();
+        Assert.Equal(1, commits);
+    }
+
+    // B1: a second activation commits while the arm's OnEvent observer is still pending. When the observer
+    // completes, arming must notice the attempt has ended and stop, not fault the renderer.
+    [Fact]
+    public async Task ACommitWhileTheArmObserverIsPendingDoesNotFaultTheRenderer()
+    {
+        var commits = 0;
+        var gate = new TaskCompletionSource();
+        var cut = RenderGuardObservedBy(() => commits++, gate.Task);
+        var unhandled = Renderer.UnhandledException;
+        var arming = cut.Find("button").ClickAsync(new MouseEventArgs());
+        cut.WaitForAssertion(() => Assert.Equal("armed", cut.Find("button").GetAttribute("data-guard-state")));
+        await cut.Find("button").ClickAsync(new MouseEventArgs());
+        Assert.Equal(1, commits);
+
+        gate.SetResult();
+        await arming;
+        await Task.Delay(100);
+
+        if (unhandled.IsCompleted) Assert.Fail($"the renderer faulted: {await unhandled}");
+        Assert.Equal(GuardedControlState.Covered, cut.Instance.State);
+        Assert.Equal(1, commits);
+    }
+
+    // The armed transition's observer waits on the gate; every other event completes at once.
+    private IRenderedComponent<HarborlineGuardedControl> RenderGuardObservedBy(Action commit, Task gate) =>
+        Render<HarborlineGuardedControl>(p => p
+            .Add(x => x.Action, "packages.export").Add(x => x.ClassificationId, "new-record-type")
+            .Add(x => x.Label, "Publish").Add(x => x.OnCommit, commit)
+            .Add(x => x.OnEvent, async e => { if (e is GuardedControlTransition { Next: GuardedControlState.Armed }) await gate; }));
 
     private IRenderedComponent<HarborlineGuardedControl> RenderGuard(Action commit, List<GuardedControlEvent> events) =>
         Render<HarborlineGuardedControl>(p => p

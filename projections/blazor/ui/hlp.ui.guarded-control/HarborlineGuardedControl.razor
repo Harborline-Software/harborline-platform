@@ -159,12 +159,17 @@
   {
     if (State != GuardedControlState.Covered || commitLatch) return;
     attempt = new CancellationTokenSource();
+    var token = attempt.Token;
     // Every arm states the full window, never the countdown a previous attempt left behind.
     remainingSeconds = ArmWindowSeconds;
     armStamp = clock.GetTimestamp();
+    // The countdown starts with the deadline, before the transition awaits the caller's observer, so the
+    // observer's latency cannot shift what the timer shows against what the commit check enforces.
+    _ = RunDeadlineAsync(token);
     await TransitionAsync(GuardedControlState.Armed, "arm", ArmedInstruction);
+    // A commit or a recovery can end this attempt while the observer is pending.
+    if (token.IsCancellationRequested || State != GuardedControlState.Armed) return;
     focusArmed = true;
-    _ = RunDeadlineAsync(attempt.Token);
   }
 
   private async Task CommitAsync()
@@ -204,16 +209,26 @@
     await OnEvent.InvokeAsync(new GuardedControlCommitSettled(outcome));
   }
 
+  // The deadline taken at arming is the one source for the countdown, the timeout and the commit check,
+  // as in the React lane: each wake recomputes the time left, shows the whole seconds left, and sleeps
+  // until the displayed second changes (or the deadline), so a late timer callback cannot stretch the
+  // window or leave the timer behind the commit check.
   private async Task RunDeadlineAsync(CancellationToken cancellationToken)
   {
     try
     {
-      for (var elapsed = 1000; elapsed <= ArmWindowMilliseconds; elapsed += 1000)
+      while (true)
       {
-        await Task.Delay(TimeSpan.FromSeconds(1), clock, cancellationToken);
+        var remaining = ArmWindow - clock.GetElapsedTime(armStamp);
+        if (remaining <= TimeSpan.Zero) break;
+        var seconds = (int)Math.Ceiling(remaining.TotalSeconds);
+        if (seconds != remainingSeconds && State == GuardedControlState.Armed)
+        {
+          remainingSeconds = seconds;
+          await InvokeAsync(StateHasChanged);
+        }
+        await Task.Delay(remaining - TimeSpan.FromSeconds(seconds - 1), clock, cancellationToken);
         if (cancellationToken.IsCancellationRequested || State != GuardedControlState.Armed) return;
-        remainingSeconds = Math.Max(0, ArmWindowSeconds - elapsed / 1000);
-        await InvokeAsync(StateHasChanged);
       }
       await InvokeAsync(() => RecoverAsync(GuardedControlRecoveryReason.Timeout, true));
     }

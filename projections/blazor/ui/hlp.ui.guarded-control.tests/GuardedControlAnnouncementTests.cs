@@ -304,11 +304,23 @@ public sealed class GuardedControlAnnouncementTests : BunitContext
         (typeof(HarborlineGuardedControl).GetField("clock", BindingFlags.Instance | BindingFlags.NonPublic)
             ?? throw new MissingFieldException(nameof(HarborlineGuardedControl), "clock")).SetValue(guard, clock);
 
-    /// <summary>A clock whose timers fire only when the test says so, one scheduled delay at a time.</summary>
+    /// <summary>
+    /// A clock whose timers fire only when the test says so, one scheduled delay at a time. Its monotonic
+    /// time (GetTimestamp) stands still between firings and moves to a timer's due time when it fires, so
+    /// the guard's deadline arithmetic sees exactly the delays the test lets elapse; Advance moves it
+    /// without firing anything (a slow observer, or late callbacks).
+    /// </summary>
     internal sealed class ManualClock : TimeProvider
     {
         private readonly Lock gate = new();
         private readonly List<ManualTimer> scheduled = [];
+        private long now = TimeSpan.FromHours(1).Ticks;
+
+        public override long GetTimestamp() { lock (gate) return now; }
+        public override long TimestampFrequency => TimeSpan.TicksPerSecond;
+
+        /// <summary>Moves the monotonic time on without firing any timer.</summary>
+        public void Advance(TimeSpan by) { lock (gate) now += by.Ticks; }
 
         public override ITimer CreateTimer(TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period)
         {
@@ -328,8 +340,9 @@ public sealed class GuardedControlAnnouncementTests : BunitContext
                 {
                     if (scheduled.Count > 0)
                     {
-                        next = scheduled[0];
-                        scheduled.RemoveAt(0);
+                        next = scheduled.MinBy(timer => timer.Due);
+                        scheduled.Remove(next!);
+                        now = Math.Max(now, next!.Due);
                     }
                 }
                 if (next is not null)
@@ -347,12 +360,18 @@ public sealed class GuardedControlAnnouncementTests : BunitContext
 
         private sealed class ManualTimer(ManualClock clock, TimerCallback callback, object? state) : ITimer
         {
+            public long Due { get; private set; }
+
             public bool Change(TimeSpan dueTime, TimeSpan period)
             {
                 lock (clock.gate)
                 {
                     clock.scheduled.Remove(this);
-                    if (dueTime != Timeout.InfiniteTimeSpan) clock.scheduled.Add(this);
+                    if (dueTime != Timeout.InfiniteTimeSpan)
+                    {
+                        Due = clock.now + dueTime.Ticks;
+                        clock.scheduled.Add(this);
+                    }
                 }
                 return true;
             }
