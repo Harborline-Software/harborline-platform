@@ -229,6 +229,23 @@ public sealed class TextBoxTests : BunitContext
                 Assert.Equal(expected.GetProperty("inputRelationship").GetBoolean(), Attr(box, "aria-describedby") == value.DescribedBy && Attr(box, "aria-labelledby") == "field-label");
                 break;
             }
+            case "text-box.blank-caller-name":
+            {
+                // A blank caller name is no name: the FormField label still names the input (WCAG 4.1.2).
+                var value = new Harborline.UIAdapters.Blazor.Components.Forms.FormFieldContextValue("field-id", "field-label", null, false, false);
+                JSInterop.SetupModule("./_content/Harborline.UIAdapters.Blazor/text-box.js").Mode = JSRuntimeMode.Loose;
+                bool NamedByField(string? name)
+                {
+                    var box = Render<CascadingValue<Harborline.UIAdapters.Blazor.Components.Forms.FormFieldContextValue>>(p => p.Add(x => x.Value, value).AddChildContent<HarborlineTextBox>(c => c.Add(x => x.AccessibleName, name))).Find("input");
+                    return !box.HasAttribute("aria-label") && Attr(box, "aria-labelledby") == "field-label";
+                }
+                Assert.Equal(expected.GetProperty("blankNamedByFieldLabel").EnumerateArray().Select(flag => flag.GetBoolean()).ToArray(),
+                    input.GetProperty("blankNames").EnumerateArray().Select(name => NamedByField(name.GetString())).ToArray());
+                var caller = input.GetProperty("callerName").GetString();
+                var kept = Render<CascadingValue<Harborline.UIAdapters.Blazor.Components.Forms.FormFieldContextValue>>(p => p.Add(x => x.Value, value).AddChildContent<HarborlineTextBox>(c => c.Add(x => x.AccessibleName, caller))).Find("input");
+                Assert.Equal(expected.GetProperty("callerNameKept").GetBoolean(), Attr(kept, "aria-label") == caller && !kept.HasAttribute("aria-labelledby"));
+                break;
+            }
             case "text-box.validation":
             {
                 var box = Box(p => p.Add(x => x.Error, input.GetProperty("error").GetBoolean()).Add(x => x.Invalid, input.GetProperty("invalid").GetBoolean()).Add(x => x.Required, input.GetProperty("required").GetBoolean())).Find("input");
