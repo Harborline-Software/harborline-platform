@@ -53,13 +53,21 @@ export type StopVerdict = {
   // own Escapes reveal it with focus kept there.
   userOpened?: boolean
   popups?: number[]
-  // With popups: the window scroll the stop was measured at, where verifyCovers judges it again.
+  // With popups: the window scroll the stop was measured at, and the offsets of every scrollable ancestor
+  // of the stop, where verifyCovers judges it again.
   scroll?: { x: number; y: number }
+  scrollers?: Scroller[]
+  // With popups: at each sample point where nothing but user-opened popups lies above the stop (no
+  // author content), the ids of those popups, each distinct set once. A reveal must close every popup of
+  // at least one such set with the stop's own presses.
+  cells?: number[][]
   // With popups: author content (an opaque hit inside no open user-opened popup) lies above the stop at
   // every sample point, so the stop is entirely hidden whatever the popups do. Only popup layers are
   // Note 2 candidates: this is the finding's occluder, and the cover is never verified.
   author?: string
 }
+// A scrollable ancestor of a stop and its offsets, by registry id.
+export type Scroller = { id: number; left: number; top: number }
 export type LogEntry = { stop: StopDescription; mutated: boolean; verdict: StopVerdict | null; leak: number; gone?: boolean }
 export type ReadResult = {
   active: StopDescription
@@ -101,11 +109,15 @@ export type TabWalkRuntime = {
   // own), unless it is gone, unfocusable or inside an open aria-modal container (whose own Escape would
   // close the modal).
   coverFocus(id: number): 'focused' | 'gone' | 'in-modal' | 'unfocusable'
-  // Put the window scroll back where the walk measured the stop (`scroll`), then say whether focus is
-  // still on it, which user-opened popups are open (all of them, a press's snapshot, and those of
-  // `popups`, the cover's), and what the stop shows there. `moved` says the scroll had to change, so
-  // scroll handlers have yet to run: the caller lets the page settle and asks again before it trusts it.
-  coverState(id: number, popups: number[], scroll: { x: number; y: number } | null): { moved: boolean; same: boolean; open: number[]; still: number[]; now?: StopVerdict }
+  // Put the scroll offsets of the stop's scrollable ancestors (`scrollers`), then the window scroll
+  // (`scroll`), back where the walk measured the stop, then say whether focus is still on it, which
+  // user-opened popups are open (all of them, a press's snapshot, and those of `popups`, the cover's),
+  // and what the stop shows there. `moved` says an offset had to change, so scroll handlers have yet to
+  // run: the caller lets the page settle and asks again before it trusts it.
+  coverState(id: number, popups: number[], scroll: { x: number; y: number } | null, scrollers: Scroller[]): { moved: boolean; same: boolean; open: number[]; still: number[]; now?: StopVerdict }
+  // How many opaque hits measure has credited to a user-opened popup through its surface (the
+  // out-of-flow panel it is drawn on) since install: a diagnostic, traced per lane.
+  surfaceCredits(): number
   // Whether the focused element is an editing control that blur would commit or close.
   editing(): boolean
   // Put back the window scroll the walk began with (`scroll`), or, when prepareLane also had to undo a
@@ -214,6 +226,30 @@ export function installTabWalkRuntime(): void {
   // covered stop closes the popup and leaves focus on the stop, visible.
   const userOpened = openPopups()
   const stillOpen = (popup: Element) => popup.isConnected && visible(popup) && (!popup.hasAttribute('popover') || popup.matches(':popover-open'))
+  // A popup's surface: its nearest out-of-flow ancestor-or-self (position absolute or fixed, or an open
+  // popover), the panel a listbox or menu is drawn on, which is often an opaque wrapper around it.
+  const surfaceOf = (popup: Element) => {
+    for (let node: Element | null = popup; node && node !== document.body && node !== document.documentElement; node = node.parentElement) {
+      const position = getComputedStyle(node).position
+      if (position === 'absolute' || position === 'fixed' || node.matches(':popover-open')) return node
+    }
+    return popup
+  }
+  let surfaceCredits = 0
+  const parentOf = (node: Element) => node.parentElement ?? ((node.getRootNode() as ShadowRoot).host ?? null)
+  // Every ancestor of the element that scrolls (an overflow other than visible or clip, with content
+  // larger than its box), innermost first, with its offsets: focus scrolls these as well as the window.
+  const scrollersOf = (element: Element): Scroller[] => {
+    const found: Scroller[] = []
+    for (let node = parentOf(element); node && node !== document.body && node !== document.documentElement; node = parentOf(node)) {
+      const style = getComputedStyle(node)
+      const scrolls = (axis: string) => axis !== 'visible' && axis !== 'clip'
+      if ((scrolls(style.overflowY) && node.scrollHeight > node.clientHeight) || (scrolls(style.overflowX) && node.scrollWidth > node.clientWidth)) {
+        found.push({ id: idOf(node), left: node.scrollLeft, top: node.scrollTop })
+      }
+    }
+    return found
+  }
 
   const nativelyFocusable = (element: Element) => {
     const tag = element.tagName
@@ -396,30 +432,46 @@ export function installTabWalkRuntime(): void {
     if (empty(box)) return { kind: 'clipped' }
     // The topmost opaque hit at each point decides whether the point shows the stop; the scan then
     // carries on down to the stop, recording two layers at every point: each user-opened popup above
-    // the stop (credited to the innermost open user-opened popup that contains the hit), and the author
-    // layer, the first opaque hit inside no open user-opened popup.
+    // the stop, and the author layer, the first opaque hit credited to no open user-opened popup.
     const occluders = new Map<Element, number>()
     const authors = new Map<Element, number>()
     const above = new Set<Element>()
+    const cells = new Map<string, number[]>()
     let authored = 0
-    const innermost = (hit: Element) => {
-      const holding = userOpened.filter(popup => stillOpen(popup) && popup.contains(hit))
-      return holding.find(popup => !holding.some(other => other !== popup && popup.contains(other)))
+    let open: Element[] | null = null
+    const surfaces = new Map<Element, Element>()
+    // A hit is credited to the innermost open user-opened popup that contains it. Failing that, to the
+    // popup whose surface contains it, when that surface is not the popup itself, holds no other open
+    // user-opened popup and does not contain the stop (a layout container is no popup panel).
+    const credited = (hit: Element) => {
+      open ??= userOpened.filter(stillOpen)
+      const holding = open.filter(popup => popup.contains(hit))
+      if (holding.length > 0) return holding.find(popup => !holding.some(other => other !== popup && popup.contains(other)))
+      const framed = open.filter(popup => {
+        if (!surfaces.has(popup)) surfaces.set(popup, surfaceOf(popup))
+        const surface = surfaces.get(popup)!
+        return surface !== popup && surface.contains(hit) && !surface.contains(subject) && open!.filter(other => surface.contains(other)).length === 1
+      })
+      if (framed.length !== 1) return undefined
+      surfaceCredits += 1
+      return framed[0]
     }
     const judge = (points: ReadonlyArray<readonly [number, number]>) => {
       let seen = 0
       for (const [x, y] of points) {
         let covered = false
         let author = false
+        const here = new Set<number>()
         for (const hit of document.elementsFromPoint(x, y)) {
           if (hit === subject || hit === element || subject.contains(hit) || element.contains(hit) || labels.some(label => label.contains(hit))) { if (!covered) seen += 1; break }
           if (hit.contains(subject) || isSentinel(hit) || !opaque(hit)) continue
           if (!covered) { occluders.set(hit, (occluders.get(hit) ?? 0) + 1); covered = true }
-          const popup = innermost(hit)
-          if (popup) above.add(popup)
+          const popup = credited(hit)
+          if (popup) { above.add(popup); here.add(idOf(popup)) }
           else if (!author) { authors.set(hit, (authors.get(hit) ?? 0) + 1); author = true }
         }
         if (author) authored += 1
+        else if (here.size > 0) { const cell = [...here].sort((left, right) => left - right); cells.set(cell.join(','), cell) }
       }
       return seen
     }
@@ -429,6 +481,7 @@ export function installTabWalkRuntime(): void {
       occluders.clear()
       authors.clear()
       above.clear()
+      cells.clear()
       authored = 0
       points = samples(box, 7)
       seen = judge(points)
@@ -439,7 +492,8 @@ export function installTabWalkRuntime(): void {
     const popups = [...above].map(popup => idOf(popup))
     if (popups.length === 0) return { kind: 'obscured', occluder: occluderName(most(occluders)) }
     return {
-      kind: 'obscured', occluder: occluderName(most(occluders)), userOpened: true, popups, scroll: { x: window.scrollX, y: window.scrollY },
+      kind: 'obscured', occluder: occluderName(most(occluders)), userOpened: true, popups,
+      scroll: { x: window.scrollX, y: window.scrollY }, scrollers: scrollersOf(element), cells: [...cells.values()],
       ...(authored === points.length ? { author: occluderName(most(authors)) } : {}),
     }
   }
@@ -610,10 +664,19 @@ export function installTabWalkRuntime(): void {
       ;(element as HTMLElement).focus({ preventScroll: true })
       return deepActive() === element ? 'focused' : 'unfocusable'
     },
-    coverState(id, popups, scroll) {
+    coverState(id, popups, scroll, scrollers) {
+      let moved = false
+      for (const entry of scrollers) {
+        const node = byId.get(entry.id)
+        if (!node || !node.isConnected) continue
+        const before = { left: node.scrollLeft, top: node.scrollTop }
+        node.scrollLeft = entry.left
+        node.scrollTop = entry.top
+        if (node.scrollLeft !== before.left || node.scrollTop !== before.top) moved = true
+      }
       const before = { x: window.scrollX, y: window.scrollY }
       if (scroll) window.scrollTo(scroll.x, scroll.y)
-      const moved = window.scrollX !== before.x || window.scrollY !== before.y
+      moved = moved || window.scrollX !== before.x || window.scrollY !== before.y
       const element = byId.get(id)
       const same = Boolean(element && deepActive() === element)
       const open = userOpened.filter(stillOpen).map(popup => idOf(popup))
@@ -632,6 +695,9 @@ export function installTabWalkRuntime(): void {
       const axis = (start: number, end: number, size: number) => end <= 0 || start >= size ? (start + end) / 2 - size / 2
         : start < 0 ? start : end > size ? Math.min(end - size, start) : 0
       window.scrollBy(axis(rect.left, rect.right, document.documentElement.clientWidth), axis(rect.top, rect.bottom, document.documentElement.clientHeight))
+    },
+    surfaceCredits() {
+      return surfaceCredits
     },
     editing() {
       const active = deepActive()
@@ -737,20 +803,28 @@ export type LaneWalk = {
 export type CoverJudgement = {
   id: number
   popups: number[]
-  // The window scroll the walk measured the stop at (part of the cover's key), where it is judged.
+  // The window scroll and the offsets of the stop's scrollable ancestors the walk measured the stop at
+  // (part of the cover's key), where it is judged.
   scroll?: { x: number; y: number }
-  // Rule v2 (review 6). Each cover is judged at its own walk geometry: the stop is focused without
-  // scrolling, and the window scroll is put back before every press and every re-measure, never left
-  // where verification or another cover left it. A stop author content hides at every sample point is
-  // no cover at all (StopVerdict.author): only popup layers are Note 2 candidates, so it is never
-  // verified, and its finding names the author occluder.
-  // revealed: no popup of the cover was closed by anything but this stop's own presses (up to three,
-  //   each with focus kept on the stop and at least one open user-opened popup closed), and the final
-  //   measure has no user-opened occluder: the stop shows, at least in part, or author content hides
-  //   it once the popups are gone, which is then a finding of its own under that occluder. A popup of
-  //   the cover still open but no longer over the stop does not block the reveal.
-  // covered: its presses could not clear it: focus moved, a press closed no user-opened popup, or a
-  //   user-opened popup is still over it after three presses; the remaining occluder is named.
+  scrollers?: Scroller[]
+  // Rule v2, as amended in review 7. Each cover is judged at its own walk geometry: the stop is focused
+  // without scrolling, and the offsets of its scrollable ancestors and the window scroll are put back
+  // before every press and every re-measure, never left where verification or another cover left them.
+  // A stop author content hides at every sample point is no cover at all (StopVerdict.author): only
+  // popup layers are Note 2 candidates, so it is never verified, and its finding names the author
+  // occluder. An opaque hit inside no open user-opened popup still belongs to one when it lies on that
+  // popup's surface (its nearest absolute, fixed or popover ancestor-or-self) and the surface holds no
+  // other open user-opened popup and not the stop.
+  // revealed: (1) no popup of the cover was closed by anything but this stop's own presses (up to three,
+  //   each with focus kept on the stop and at least one open user-opened popup closed); (2) at some
+  //   sample point that only user-opened popups covered at walk time, this stop's own presses closed
+  //   every one of them (StopVerdict.cells), so the reveal is earned, never granted because a popup or
+  //   the stop moved; and (3) the final measure has no user-opened occluder: the stop shows, at least in
+  //   part, or author content hides it once the popups are gone, which is then a finding of its own
+  //   under that occluder. A popup of the cover still open but no longer over the stop does not block
+  //   the reveal once (2) holds.
+  // covered: otherwise: focus moved, a press closed no user-opened popup, a user-opened popup is still
+  //   over the stop after three presses, or no point was earned; the remaining occluder is named.
   // closed-before: a popup of the cover was closed by something other than this stop's own presses (an
   //   earlier stop's press, or the page itself), so its own Escape was never tried on it: the cover
   //   stands (fails closed).
@@ -758,14 +832,41 @@ export type CoverJudgement = {
   //   Escape is not pressed and the cover stands (fails closed).
   // gone, unfocusable: no Escape could be tried; the cover stands.
   // unverified: the deadline passed first; the cover stands, and the lane reports a deadline.
-  // The order dependence that remains: covers are judged one after another on one page, in walk order
-  // (E, then F, then R, each first seen first). When one press closes popups over other stops too (a
-  // document Escape handler, a LIFO stack), a stop judged after the stop whose press closed its popup is
-  // closed-before, although its own Escape would have revealed it on a fresh page (proof C2; with the
-  // stops the other way round, C2b, both are revealed). That fails closed. The page earlier covers left
-  // can also spare a later stop presses (popups already closed need none), but every reveal is still
-  // earned by the stop's own presses with focus kept, where the walk saw it. Only the window scroll is
-  // put back: an inner scroll container keeps the offset the walk last left it at.
+  // No separate check that the walk-time cover reproduces before the first press (review 7 entry 3's
+  // guard): (2) already refuses every reveal a popup or stop that merely moved would grant, because a
+  // point counts only once its own popups are closed by this stop's presses, and the scroll offsets the
+  // walk saw are put back. What a missing guard leaves is only a `now` taken where the page drifted
+  // (limit 4), on a cover that stands.
+  // Known limits of the exemption, each failing closed (a finding stands that a user could clear)
+  // unless it says otherwise:
+  // 1. Order. Covers are judged one after another on one page, in walk order (E, then F, then R, each
+  //    first seen first). A stop judged after the stop whose press closed its popup is closed-before,
+  //    although its own Escape might have revealed it on a fresh page (proof C2; with the stops the other
+  //    way round, C2b, both are revealed). The page earlier covers left can also fail open: if this
+  //    stop's Escape closes a popup over it only once another popup is gone, and an earlier stop's press
+  //    closed that one, the reveal is granted although this stop alone could not earn it on a fresh page.
+  // 2. Movement by the stop's own press. If the stop's own Escape closes a popup that is not over it and
+  //    that slides a popup of the cover off it, the user did reveal the stop, but no point was earned:
+  //    covered. A lower popup closed elsewhere over only part of the stop (review 6's
+  //    P2partialClosedBefore) is closed-before, although the rest of the stop would show.
+  // 3. Keys and presses. Only Escape is tried, at most three presses, each of which must close a
+  //    user-opened popup; a popup another key or a fourth press would dismiss stays a cover.
+  // 4. Geometry. Only scroll offsets are put back: the window and every scrollable ancestor of the stop.
+  //    Layout another cover's press changed (a closed popup reflowing its neighbours) and the offsets
+  //    of a scroller that holds the popup but not the stop are not; the cover then earns nothing and
+  //    stands, but `now`, and so any extra line under it, is read where the page drifted.
+  // 5. What counts as user-opened. Only popups open when the walk begins, recognised by role (menu,
+  //    listbox, tooltip, non-modal dialog) or [popover]; content a scenario opened without such a role,
+  //    and any popup opened during the walk, is author content. A popup's opaque wrapper counts as the
+  //    popup only as its surface (above); an in-flow wrapper, or one shared by two open popups, stays
+  //    author content.
+  // 6. Surface, failing open. An out-of-flow author overlay that holds exactly one open user-opened
+  //    popup in its DOM is taken for that popup's surface. If the same Escape hides the overlay with the
+  //    popup, a stop the overlay hid is revealed, where an author banner over it (proof C1) is not.
+  // 7. Sampling. A stop is judged at a 3x3 grid of points, then a 7x7 one; a reveal must be earned at
+  //    one of those points, so a part of the stop that shows only between them earns nothing.
+  // 8. Hit testing, failing open. A layer elementsFromPoint does not return (pointer-events: none) is
+  //    not seen at all, as for every 2.4.11 judgement of the walk (proof P6).
   outcome: 'revealed' | 'covered' | 'closed-before' | 'in-modal' | 'gone' | 'unfocusable' | 'unverified'
   // The stop measured again after its presses, at walk geometry: anything but visible is a finding under
   // the real occluder (author content, or another user-opened popup Escape did not close).
@@ -1170,31 +1271,33 @@ export function preparedWalkSkipped(initial: StopDescription, census: Census, ed
 // 2.4.11 Note 2, verified after both phases, so no walk is cut short or thrown away: F and R judge the
 // page with every user-opened popup still open (its own stops included), and a stop such a popup
 // covered is a finding unless Escape, pressed with focus on that stop, reveals it there. The rule
-// (rule v2, CoverJudgement) in four parts. The walk records, at each sample point, the author layer
-// and every user-opened popup above the stop, and the window scroll it measured at (measure). Each
-// cover is judged at that geometry. A press is progress when focus stays on the stop and at least one
-// open user-opened popup closed; the stop is credited with everything that closed during its own
-// presses. It is revealed only when nothing but its own presses closed a popup of the cover and the
-// final measure has no user-opened occluder. Escape is never pressed on a stop inside an open
-// aria-modal container, whose own Escape would close the modal: that cover stands (fails closed).
-// Nothing after this reads the page.
-export const coverKey = (id: number, popups: readonly number[] = [], scroll?: { x: number; y: number }) =>
-  `${id}:${[...popups].sort((left, right) => left - right).join(',')}${scroll ? `@${scroll.x},${scroll.y}` : ''}`
+// (rule v2 as amended in review 7, CoverJudgement) in four parts. The walk records, at each sample point,
+// the author layer and every user-opened popup above the stop, and the window scroll and the scroll
+// offsets of the stop's scrollable ancestors it measured at (measure). Each cover is judged at that
+// geometry. A press is progress when focus stays on the stop and at least one open user-opened popup
+// closed; the stop is credited with everything that closed during its own presses. It is revealed only
+// when nothing but its own presses closed a popup of the cover, its own presses closed every popup above
+// at least one sample point that only popups covered, and the final measure has no user-opened occluder.
+// Escape is never pressed on a stop inside an open aria-modal container, whose own Escape would close
+// the modal: that cover stands (fails closed). Nothing after this reads the page.
+export const coverKey = (id: number, popups: readonly number[] = [], scroll?: { x: number; y: number }, scrollers: readonly Scroller[] = []) =>
+  `${id}:${[...popups].sort((left, right) => left - right).join(',')}${scroll ? `@${scroll.x},${scroll.y}` : ''}${scrollers.map(entry => `#${entry.id}:${entry.left},${entry.top}`).join('')}`
 async function verifyCovers(context: Context, walk: LaneWalk): Promise<CoverJudgement[]> {
   const records = [
     ...(walk.prepared ? [walk.prepared] : []),
     ...judgedWalks(walk.forward, walk.clean, walk.forwardStopped),
     ...judgedWalks(walk.reverse, walk.cleanReverse, walk.reverseStopped),
   ]
-  const pending = new Map<string, { id: number; popups: number[]; scroll?: { x: number; y: number } }>()
+  type Pending = { cover: Pick<CoverJudgement, 'id' | 'popups' | 'scroll' | 'scrollers'>; cells: number[][] }
+  const pending = new Map<string, Pending>()
   for (const record of records) {
     for (const stop of record.stops) {
       // A stop author content hides at every point is reported under it and never pressed on: a press
       // could only close popups other stops' own presses are to be tried on.
       if (!stop.trusted || stop.verdict?.kind !== 'obscured' || !stop.verdict.userOpened || stop.verdict.author) continue
-      const { popups = [], scroll } = stop.verdict
-      const key = coverKey(stop.id, popups, scroll)
-      if (!pending.has(key)) pending.set(key, { id: stop.id, popups, ...(scroll ? { scroll } : {}) })
+      const { popups = [], scroll, scrollers = [], cells = [] } = stop.verdict
+      const key = coverKey(stop.id, popups, scroll, scrollers)
+      if (!pending.has(key)) pending.set(key, { cover: { id: stop.id, popups, ...(scroll ? { scroll } : {}), ...(scrollers.length > 0 ? { scrollers } : {}) }, cells })
     }
   }
   // Which stop's own press closed each popup, so a popup anything else closed never counts.
@@ -1204,19 +1307,25 @@ async function verifyCovers(context: Context, walk: LaneWalk): Promise<CoverJudg
   // A popup of the cover that is closed, and not by this stop's own press.
   const closedElsewhere = (id: number, popups: number[], still: number[]) =>
     popups.some(popup => !still.includes(popup) && closedBy.get(popup) !== id)
+  // The reveal is earned: at some sample point that only user-opened popups covered at walk time, every
+  // one of them is closed, by this stop's own presses. A popup that is still open, or that moved off the
+  // stop, or a stop that moved, earns nothing.
+  const earned = (id: number, cells: number[][], still: number[]) =>
+    cells.some(cell => cell.length > 0 && cell.every(popup => !still.includes(popup) && closedBy.get(popup) === id))
   const judged: CoverJudgement[] = []
-  for (const cover of pending.values()) {
-    const { id, popups, scroll } = cover
+  for (const { cover, cells } of pending.values()) {
+    const { id, popups, scroll, scrollers = [] } = cover
     if (Date.now() >= context.deadline) { judged.push({ ...cover, outcome: 'unverified' }); continue }
     const focus = await runtimeCall(context, () => context.page.evaluate(stop => window.__hlpTabWalk!.coverFocus(stop), id))
     if (focus !== 'focused') { judged.push({ ...cover, outcome: focus }); continue }
     // The walk geometry, put back before every press and every re-measure. When that moves the page,
     // scroll handlers run first (the walk measured after them too), and the state is read again.
     const state = async () => {
-      let read = await runtimeCall(context, () => context.page.evaluate(([stop, ids, at]) => window.__hlpTabWalk!.coverState(stop, ids, at), [id, popups, scroll ?? null] as const))
+      const ask = () => runtimeCall(context, () => context.page.evaluate(([stop, ids, at, inner]) => window.__hlpTabWalk!.coverState(stop, ids, at, inner), [id, popups, scroll ?? null, scrollers] as const))
+      let read = await ask()
       for (let settle = 0; settle < 2 && read.moved; settle += 1) {
         await runtimeCall(context, () => context.page.evaluate(() => window.__hlpTabWalk!.readSettled()))
-        read = await runtimeCall(context, () => context.page.evaluate(([stop, ids, at]) => window.__hlpTabWalk!.coverState(stop, ids, at), [id, popups, scroll ?? null] as const))
+        read = await ask()
       }
       return read
     }
@@ -1237,10 +1346,13 @@ async function verifyCovers(context: Context, walk: LaneWalk): Promise<CoverJudg
       closed.forEach(popup => closedBy.set(popup, id))
       if (closed.length === 0) break
     }
-    const outcome = !kept ? 'covered' : closedElsewhere(id, popups, read.still) ? 'closed-before' : clear(read.now) ? 'revealed' : 'covered'
+    const outcome = !kept ? 'covered'
+      : closedElsewhere(id, popups, read.still) ? 'closed-before'
+      : clear(read.now) && earned(id, cells, read.still) ? 'revealed' : 'covered'
     judged.push({ ...cover, outcome, ...(kept && read.now ? { now: read.now } : {}) })
   }
   trace(context, `covers ${JSON.stringify(judged)}`)
+  if (process.env.HARBORLINE_GALLERY_TAB_WALK_TRACE) trace(context, `surface credits ${await runtimeCall(context, () => context.page.evaluate(() => window.__hlpTabWalk!.surfaceCredits()))}`)
   return judged
 }
 
@@ -1395,14 +1507,14 @@ function focusLost(walk: LaneWalk, record: WalkRecord, index: number, direction:
 // The (stop, popups, scroll) covers verifyCovers showed Escape on that stop dismisses in place (2.4.11
 // Note 2).
 const revealedCovers = (walk: LaneWalk) =>
-  new Set((walk.covers ?? []).filter(cover => cover.outcome === 'revealed').map(cover => coverKey(cover.id, cover.popups, cover.scroll)))
+  new Set((walk.covers ?? []).filter(cover => cover.outcome === 'revealed').map(cover => coverKey(cover.id, cover.popups, cover.scroll, cover.scrollers)))
 
 // What a stop shows once its user-opened popups are closed, when that is not visible: a finding under
 // the real occluder (author content the popup was lying over, or another user-opened popup that
 // Escape did not close), or as unmeasured.
 function underneath(walk: LaneWalk, stop: Stop, direction: string, key: string) {
-  const own = coverKey(stop.id, stop.verdict?.popups, stop.verdict?.scroll)
-  const now = (walk.covers ?? []).find(cover => coverKey(cover.id, cover.popups, cover.scroll) === own)?.now
+  const own = coverKey(stop.id, stop.verdict?.popups, stop.verdict?.scroll, stop.verdict?.scrollers)
+  const now = (walk.covers ?? []).find(cover => coverKey(cover.id, cover.popups, cover.scroll, cover.scrollers) === own)?.now
   if (!now || now.kind === 'visible') return []
   return [now.kind === 'obscured' ? `2.4.11 ${direction} obscured: ${key} under ${now.occluder}` : `2.4.11 ${direction} ${now.kind}: ${key}`]
 }
@@ -1423,7 +1535,7 @@ function stopFindings(walk: LaneWalk, record: WalkRecord, direction: string) {
       // Entirely hidden by author content: reported under it whatever the popups above do.
       if (verdict.author) lines.push(`2.4.11 ${direction} obscured: ${key} under ${verdict.author}`)
       else {
-        if (!(verdict.userOpened && revealed.has(coverKey(stop.id, verdict.popups, verdict.scroll)))) lines.push(`2.4.11 ${direction} obscured: ${key} under ${verdict.occluder}`)
+        if (!(verdict.userOpened && revealed.has(coverKey(stop.id, verdict.popups, verdict.scroll, verdict.scrollers)))) lines.push(`2.4.11 ${direction} obscured: ${key} under ${verdict.occluder}`)
         if (verdict.userOpened) lines.push(...underneath(walk, stop, direction, key))
       }
     }

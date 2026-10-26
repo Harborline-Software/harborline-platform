@@ -2196,6 +2196,11 @@ test('the prepared walk and a budgeted walk are judged like any walk, and only a
   expect(laneFindingLines(laneWalk(keys, { forward: [at(20)], clean: 0, covers: [{ id: 1, popups: [9], scroll: { x: 0, y: 0 }, outcome: 'revealed', now: { kind: 'visible' } }] })))
     .toEqual(['2.4.11 forward obscured: button "A" under div (fixed)'])
   expect(laneFindingLines(laneWalk(keys, { forward: [at(20)], clean: 0, covers: [{ id: 1, popups: [9], scroll: { x: 0, y: 20 }, outcome: 'revealed', now: { kind: 'visible' } }] }))).toEqual([])
+  // Review 7: the offsets of the stop's scrollable ancestors are part of the cover's key too.
+  const inScroller = walkRecord('forward', [walkStop(1, { verdict: { kind: 'obscured', occluder: 'div (fixed)', userOpened: true, popups: [9], scroll: { x: 0, y: 0 }, scrollers: [{ id: 4, left: 0, top: 200 }] } })])
+  expect(laneFindingLines(laneWalk(keys, { forward: [inScroller], clean: 0, covers: [{ id: 1, popups: [9], scroll: { x: 0, y: 0 }, scrollers: [{ id: 4, left: 0, top: 0 }], outcome: 'revealed', now: { kind: 'visible' } }] })))
+    .toEqual(['2.4.11 forward obscured: button "A" under div (fixed)'])
+  expect(laneFindingLines(laneWalk(keys, { forward: [inScroller], clean: 0, covers: [{ id: 1, popups: [9], scroll: { x: 0, y: 0 }, scrollers: [{ id: 4, left: 0, top: 200 }], outcome: 'revealed', now: { kind: 'visible' } }] }))).toEqual([])
 })
 
 test('tab walk findings are split by the clause message that reports them', () => {
@@ -2674,6 +2679,60 @@ test('tab walk proof P7: a visually hidden input is judged by its label, and onl
   const c2b = await lifo('s2')
   expect(outcomes(c2b)).toEqual(['button "S2" revealed', 'button "S1" revealed'])
   expect(laneFindingLines(c2b)).toEqual([])
+  // Review 7. A reveal is earned: at some sample point that only user-opened popups covered, the stop's
+  // own presses closed every one of them. A stop or popup that merely moved earns nothing.
+  // Q1inner (entry 0): Q1scrollMoved inside an inner scroller. The reverse walk leaves the scroller with
+  // X mid-window; its offset is put back, so X is judged under C, which its Escape does not close.
+  const innerScroller = (body: string) => `<div id="sc" style="position:fixed;left:0;top:0;width:920px;height:720px;overflow:auto"><div style="position:relative;height:3000px">${body}</div></div>`
+  const q1inner = await walkProof(browser, proofProbe(`${innerScroller(`<button id="first" style="position:absolute;left:400px;top:400px">First</button>
+    <button id="x" style="position:absolute;left:10px;top:700px;height:40px">X</button>
+    <button style="position:absolute;left:400px;top:2900px">Bottom</button>`)}${bottomMenu}`))
+  expect(laneFindingLines(q1inner)).toEqual(['2.4.11 forward obscured: button "X" under div (fixed)'])
+  expect(outcomes(q1inner)).toEqual(['button "X" covered'])
+  // L1shiftSingle and L2shiftLower (entries 1, 3): two non-modal dialogs in one fixed column. S1's own
+  // Escape hides Q, and the dialog under it slides up off the stop below. In L1, S2 has no Escape of its
+  // own; in L2, S's own Escape closes menu A over it, and B, which no press of S closes, slid away. Neither
+  // stop earned its reveal, judged after S1 or not.
+  const column = (lower: string, stop: string, extra = '', script = '') => walkProof(browser, proofProbe(`<button id="s1" style="position:fixed;left:400px;top:30px">S1</button>
+    ${stop}<button style="position:fixed;left:500px;top:500px">Elsewhere</button>
+    <div style="position:fixed;left:0;top:0;display:flex;flex-direction:column;align-items:flex-start;z-index:10">
+      <div role="dialog" aria-label="Q" id="q" style="width:600px;height:100px;background:#fff">Q</div>
+      <div role="dialog" aria-label="${lower}" id="${lower.toLowerCase()}" style="width:300px;height:100px;background:#eee">${lower}</div>
+    </div>${extra}
+    <script>document.getElementById('s1').addEventListener('keydown', event => { if (event.key === 'Escape') document.getElementById('q').style.display = 'none' })${script}</script>`))
+  const l1 = await column('P', '<button id="s2" style="position:fixed;left:10px;top:130px">S2</button>')
+  expect(laneFindingLines(l1)).toEqual(['2.4.11 forward obscured: button "S2" under div', '2.4.11 reverse obscured: button "S2" under div'])
+  expect(outcomes(l1)).toEqual(['button "S1" revealed', 'button "S2" covered'])
+  const l2 = await column('B', '<button id="s" style="position:fixed;left:10px;top:130px;height:40px">S</button>',
+    '<div role="menu" id="a" style="position:fixed;left:0;top:100px;width:300px;height:100px;background:#ddd;z-index:20">A</div>',
+    `\n    document.getElementById('s').addEventListener('keydown', event => { if (event.key === 'Escape') document.getElementById('a').style.display = 'none' })`)
+  expect(laneFindingLines(l2)).toEqual(['2.4.11 forward obscured: button "S" under div (fixed)', '2.4.11 reverse obscured: button "S" under div (fixed)'])
+  // innerDismiss (entry 4) and inner (entries 3, 4): a 200px scroller of ten buttons under a tooltip over
+  // its top 40px. Shift+Tab brings stops to the scroller's top edge, under the tooltip, at offsets the
+  // reverse walk then leaves. Each cover is judged at its own offset: B6's own Escape hides the tooltip
+  // over it (revealed), and a tooltip no Escape closes keeps every stop it covered.
+  const scroller = (indent: number, tip: string, script = '') => walkProof(browser, proofProbe(`<button style="position:absolute;left:500px;top:20px">Before</button>
+    <div id="sc" style="position:absolute;left:10px;top:100px;width:200px;height:200px;overflow:auto">${Array.from({ length: 10 }, (_, index) => `<button id="b${index + 1}" style="display:block;box-sizing:border-box;margin:0 0 0 ${index + 1 === 6 ? indent : 0}px;height:40px;width:${indent ? 80 : 180}px">B${index + 1}</button>`).join('')}</div>
+    <button style="position:absolute;left:500px;top:500px">After</button>${tip}<script>${script}</script>`))
+  const innerDismiss = await scroller(100, '<div role="tooltip" id="tip" style="position:fixed;left:110px;top:100px;width:200px;height:40px;background:#fff;z-index:10">Tip</div>',
+    "document.getElementById('b6').addEventListener('keydown', event => { if (event.key === 'Escape') document.getElementById('tip').style.display = 'none' })")
+  expect(laneFindingLines(innerDismiss)).toEqual([])
+  expect(outcomes(innerDismiss)).toEqual(['button "B6" revealed'])
+  const inner = await scroller(0, '<div role="tooltip" id="tip" style="position:fixed;left:0;top:100px;width:300px;height:40px;background:#fff;z-index:10">Tip</div>')
+  expect(laneFindingLines(inner)).toEqual(['2.4.11 forward obscured: button "B1" under div (fixed)', '2.4.11 reverse obscured: button "B1" under div (fixed)',
+    '2.4.11 reverse obscured: button "B3" under div (fixed)', '2.4.11 reverse obscured: button "B6" under div (fixed)'])
+  expect(outcomes(inner).every(line => line.endsWith(' covered')), 'every cover stands').toBe(true)
+  // W1 (entries 2, 5): a listbox in an opaque, fixed surface wrapper (the hl-select-field__popup shape),
+  // which a document Escape hides. The wrapper is the listbox's surface, not author content, so S is a
+  // cover its own Escape reveals.
+  const w1 = await walkProof(browser, proofProbe(`<button id="s" style="position:fixed;left:10px;top:200px;height:40px">S</button>
+    <button style="position:fixed;left:500px;top:500px">Elsewhere</button>
+    <div class="surface" id="w" style="position:fixed;left:0;top:180px;width:300px;height:80px;background:#fff;z-index:10;padding:4px;box-sizing:border-box">
+      <div role="listbox" aria-label="Choices" id="l"><div role="option" style="height:34px;background:#e8f0ff">Active</div><div role="option" style="height:30px">Other</div></div>
+    </div>
+    <script>document.addEventListener('keydown', event => { if (event.key === 'Escape') document.getElementById('w').style.display = 'none' })</script>`))
+  expect(laneFindingLines(w1)).toEqual([])
+  expect(outcomes(w1)).toEqual(['button "S" revealed'])
   // A popup Escape dismisses in place is still walked open in both directions, so a defect inside it
   // is found, and the cover it put over "Under" is exempt.
   const inside = await walkProof(browser, popover + proofProbe(`<button style="position:fixed;left:10px;top:10px">Under</button><button style="position:fixed;left:10px;top:300px">Elsewhere</button>
