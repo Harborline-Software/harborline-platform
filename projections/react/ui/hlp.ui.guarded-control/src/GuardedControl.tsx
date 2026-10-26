@@ -71,6 +71,10 @@ export function GuardedControl({
   const deferredFocus = React.useRef(false)
   const coverFocusPending = React.useRef(false)
   const armFocusPending = React.useRef(false)
+  // True only between the layout effects' setup and cleanup. A transition-priority hide runs the layout
+  // cleanup during its commit and the passive cleanup (mounted) later; a settlement in that gap must not
+  // queue focus for the reveal.
+  const connected = React.useRef(false)
   const pendingSettlement = React.useRef<'completed' | 'rejected' | null>(null)
   const id = React.useId()
   const labelId = `${id}-label`
@@ -133,7 +137,7 @@ export function GuardedControl({
   // the transition: a key event, the arm-window timer, or the caller's commit promise. A microtask ran
   // before React rendered the covered action for the timer and promise paths, so focus never returned.
   const restoreFocus = React.useCallback(() => {
-    if (!mounted.current) return
+    if (!mounted.current || !connected.current) return
     if (document.visibilityState === 'hidden' || !document.hasFocus()) {
       deferredFocus.current = true
       return
@@ -183,10 +187,14 @@ export function GuardedControl({
   // so a reveal never moves focus into the control; a settlement or timeout applied on reveal moves
   // none either. A document that is hidden, or a window that is blurred, defers the restoration to the
   // covered action until the window is focused and visible again (deferredFocus, consumed below).
-  React.useLayoutEffect(() => () => {
-    armFocusPending.current = false
-    coverFocusPending.current = false
-    deferredFocus.current = false
+  React.useLayoutEffect(() => {
+    connected.current = true
+    return () => {
+      connected.current = false
+      armFocusPending.current = false
+      coverFocusPending.current = false
+      deferredFocus.current = false
+    }
   }, [])
   React.useEffect(() => {
     const restoreDeferred = () => {
@@ -207,7 +215,8 @@ export function GuardedControl({
   // Keyed on the state alone (recover is stable): the deadline is set once, by the arming activation,
   // and this effect only reads it.
   // The first check runs as the effect sets up, so a control revealed (an <Activity> boundary) after
-  // its window has recovered before it paints.
+  // its window recovers as soon as its effects reconnect (before the first paint only for a discrete
+  // reveal; commit() refuses any activation that reaches it in between).
   React.useEffect(() => {
     if (state !== 'armed') return
     const check = () => {
@@ -215,7 +224,7 @@ export function GuardedControl({
       setSeconds(current => current === next ? current : next)
       if (next === 0) recover('timeout')
     }
-    // On a reveal past the window this recovers before the first paint, and moves no focus.
+    // On a reveal past the window this recovers as the effects reconnect, and moves no focus.
     const first = Math.max(0, Math.ceil((deadline.current - performance.now()) / 1000))
     if (first === 0) recover('timeout', false)
     else check()
