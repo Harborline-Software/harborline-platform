@@ -62,7 +62,7 @@ jobs:
         github.event.pull_request.draft == false &&
         !contains(github.event.pull_request.labels.*.name, 'stacked')))
     runs-on: ${{ fromJSON(needs.workload-route.outputs.labels) }}
-    timeout-minutes: ${{ github.event_name == 'pull_request' && 60 || 720 }}
+    timeout-minutes: ${{ github.event_name == 'pull_request' && 360 || 720 }}
     defaults:
       run:
         shell: pwsh
