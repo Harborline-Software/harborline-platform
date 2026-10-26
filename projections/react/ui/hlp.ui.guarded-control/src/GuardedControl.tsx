@@ -31,6 +31,26 @@ function descriptionIds(value: GuardedControlProps['describedBy']): string | und
   return value?.filter(Boolean).join(' ') || undefined
 }
 
+// Interface revision 2. The name is the visible label (aria-labelledby the label span, so the
+// role=timer countdown never joins it). The description is the caller's describedBy ids, then the
+// module's whole message for the state, which is also rendered visibly: covered and armed
+// instructions and the committing status, under chrome.guard.covered.instruction,
+// chrome.guard.armed.whole and chrome.guard.committing.status.
+const COVERED_INSTRUCTION = 'Guarded action: {action}. Activate to arm.'
+const ARMED_INSTRUCTION = 'Armed for {action}. Activate again within {duration} to commit.'
+const COMMITTING_STATUS = 'Committing {action}.'
+const RECOVERED_ANNOUNCEMENT = 'Guard restored for {action}.'
+const COMPLETED_ANNOUNCEMENT = 'Guard restored for {action}.'
+const REJECTED_ANNOUNCEMENT = 'Could not complete {action}. Guard restored.'
+
+// One pass with a function replacer, as HarborlineDefaultStrings.Interpolate does in the Blazor lane:
+// inserted caller text is never read as a replacement pattern ($$, $&, $`, $') or scanned again for
+// placeholders, and an unknown placeholder stays visible. Own properties only, so {constructor} is
+// not a variable.
+function interpolateWhole(template: string, variables: Readonly<Record<string, string>>): string {
+  return template.replace(/\{(\w+)\}/g, (match, name: string) => Object.hasOwn(variables, name) ? variables[name]! : match)
+}
+
 export function GuardedControl({
   action, classificationId, label, onCommit, disabled = false, describedBy, observe,
   className, ...hostAttributes
@@ -49,66 +69,172 @@ export function GuardedControl({
   const coverRef = React.useRef<HTMLButtonElement>(null)
   const armedRef = React.useRef<HTMLButtonElement>(null)
   const deferredFocus = React.useRef(false)
+  const coverFocusPending = React.useRef(false)
+  const armFocusPending = React.useRef(false)
+  // True only between the layout effects' setup and cleanup. A transition-priority hide runs the layout
+  // cleanup during its commit and the passive cleanup (mounted) later; a settlement in that gap must not
+  // queue focus for the reveal.
+  const connected = React.useRef(false)
+  const pendingSettlement = React.useRef<'completed' | 'rejected' | null>(null)
+  const id = React.useId()
+  const labelId = `${id}-label`
+  const instructionId = `${id}-instruction`
 
-  const wholeMessage = React.useCallback((key: string, fallback: string, variables: Record<string, string>) => {
-    let message = catalog[key] ?? fallback
-    for (const [name, value] of Object.entries(variables)) message = message.replaceAll(`{${name}}`, value)
-    return message
-  }, [catalog])
+  // An amount of time ("5 seconds"), which the armed instruction places after "within"; never a
+  // relative time ("in 5 seconds"). The locale's CLDR unit pattern supplies the unit word, its plural
+  // form and its placement, as Intl.RelativeTimeFormat did before; the number in it is the locale
+  // provider's formatNumber, called with no options so a host formatter that writes only the number
+  // cannot drop the unit. Without a host formatter that is the same Intl number. A form with no number
+  // in it (Arabic "ثانيتان", 2 seconds) asks for none. The Blazor lane resolves its catalog's
+  // chrome.guard.duration forms instead; one duration source for both lanes is T-1105's deferred
+  // duration-parity work.
+  const formatDuration = React.useCallback((count: number) => {
+    try {
+      let number: string | undefined
+      return new Intl.NumberFormat(locale, { style: 'unit', unit: 'second', unitDisplay: 'long' })
+        .formatToParts(count)
+        .map(({ type, value }) => {
+          if (type === 'unit' || type === 'literal') return value
+          // The number's parts (integer, group, decimal, fraction, sign) become one host number.
+          if (number !== undefined) return ''
+          number = formatNumber(count)
+          return number
+        })
+        .join('')
+    } catch {
+      return `${formatNumber(count)} ${count === 1 ? 'second' : 'seconds'}`
+    }
+  }, [locale, formatNumber])
+
+  // Every guard message takes the same placeholders: {action}, the label bidi-isolated, and
+  // {duration}, the full arm window, never the live countdown, so no message depends on how the last
+  // arm ended. The host catalog's whole message wins, else the English one.
+  const messageVariables = React.useMemo(() => ({ action: `\u2068${label}\u2069`, duration: formatDuration(ARM_WINDOW_SECONDS) }), [label, formatDuration])
+  const wholeMessage = React.useCallback((key: string, fallback: string) =>
+    interpolateWhole(catalog[key] ?? fallback, messageVariables), [catalog, messageVariables])
+
+  // The message resolver and the observe callback change identity whenever the host passes a new
+  // catalog, number formatter, locale or inline callback. The timer and host listeners read them
+  // through refs, so recover keeps one identity for the control's lifetime: a host re-render never
+  // re-registers the listeners, drops the window-blur grace timer or touches the deadline.
+  const wholeMessageRef = React.useRef(wholeMessage)
+  const observeRef = React.useRef(observe)
+  React.useLayoutEffect(() => {
+    wholeMessageRef.current = wholeMessage
+    observeRef.current = observe
+  })
 
   const transition = React.useCallback((next: GuardedControlState) => {
     const previous = stateRef.current
     if (previous === next) return false
     stateRef.current = next
     setState(next)
-    observe?.({ type: 'transition', previous, next })
+    observeRef.current?.({ type: 'transition', previous, next })
     return true
-  }, [observe])
+  }, [])
 
+  // Focus moves once the covered action has rendered (the layout effect below), whatever delivered
+  // the transition: a key event, the arm-window timer, or the caller's commit promise. A microtask ran
+  // before React rendered the covered action for the timer and promise paths, so focus never returned.
   const restoreFocus = React.useCallback(() => {
-    if (!mounted.current) return
+    if (!mounted.current || !connected.current) return
     if (document.visibilityState === 'hidden' || !document.hasFocus()) {
       deferredFocus.current = true
       return
     }
-    queueMicrotask(() => mounted.current && coverRef.current?.focus())
+    coverFocusPending.current = true
   }, [])
 
-  const recover = React.useCallback((reason: GuardRecoveryReason) => {
+  const recover = React.useCallback((reason: GuardRecoveryReason, focus = true) => {
     if (stateRef.current !== 'armed' || !transition('covered')) return
-    setAnnouncement(wholeMessage('chrome.guard.recovered.whole', 'Guard restored for {action}.', { action: `\u2068${label}\u2069` }))
-    restoreFocus()
-    observe?.({ type: 'recovered', reason })
-  }, [label, observe, restoreFocus, transition, wholeMessage])
+    setAnnouncement(wholeMessageRef.current('chrome.guard.recovered.whole', RECOVERED_ANNOUNCEMENT))
+    if (focus) restoreFocus()
+    observeRef.current?.({ type: 'recovered', reason })
+  }, [restoreFocus, transition])
+
+  // Settles a commit exactly once: back to covered, the settlement announcement, then commit-settled.
+  const finishSettlement = React.useCallback((outcome: 'completed' | 'rejected', focus: boolean) => {
+    if (stateRef.current !== 'committing') return
+    transition('covered')
+    setAnnouncement(outcome === 'rejected'
+      ? wholeMessageRef.current('chrome.guard.rejected.whole', REJECTED_ANNOUNCEMENT)
+      : wholeMessageRef.current('chrome.guard.completed.whole', COMPLETED_ANNOUNCEMENT))
+    if (focus) restoreFocus()
+    observeRef.current?.({ type: 'commit-settled', outcome })
+  }, [restoreFocus, transition])
 
   React.useEffect(() => {
     stateRef.current = state
   }, [state])
-  React.useEffect(() => () => { mounted.current = false }, [])
+  // Set as well as cleared: StrictMode and an <Activity> hide and reveal run this cleanup and then the
+  // setup again, and a control left marked unmounted would never settle a commit or restore focus. A
+  // commit that settled while the effects were disconnected (an <Activity> hidden) is applied here,
+  // once; after a real unmount this setup never runs again, so nothing is emitted.
+  React.useEffect(() => {
+    mounted.current = true
+    const outcome = pendingSettlement.current
+    pendingSettlement.current = null
+    if (outcome) finishSettlement(outcome, false)
+    return () => { mounted.current = false }
+  }, [finishSettlement])
   React.useEffect(() => {
     if (!disabled || stateRef.current !== 'armed') return
     recover('became-disabled')
   }, [disabled, recover])
 
+  // The reveal-focus policy: focus moves only while the control is connected. A focus request still
+  // pending when the effects disconnect (an <Activity> hides the control, or it unmounts) is dropped,
+  // so a reveal never moves focus into the control; a settlement or timeout applied on reveal moves
+  // none either. A document that is hidden, or a window that is blurred, defers the restoration to the
+  // covered action until the window is focused and visible again (deferredFocus, consumed below).
+  React.useLayoutEffect(() => {
+    connected.current = true
+    return () => {
+      connected.current = false
+      armFocusPending.current = false
+      coverFocusPending.current = false
+      deferredFocus.current = false
+    }
+  }, [])
+  React.useEffect(() => {
+    const restoreDeferred = () => {
+      if (!deferredFocus.current || document.visibilityState === 'hidden' || !document.hasFocus()) return
+      if (!mounted.current || stateRef.current !== 'covered') return
+      deferredFocus.current = false
+      coverRef.current?.focus()
+    }
+    const visibility = () => { if (document.visibilityState === 'visible') restoreDeferred() }
+    window.addEventListener('focus', restoreDeferred)
+    document.addEventListener('visibilitychange', visibility)
+    return () => {
+      window.removeEventListener('focus', restoreDeferred)
+      document.removeEventListener('visibilitychange', visibility)
+    }
+  }, [])
+
+  // Keyed on the state alone (recover is stable): the deadline is set once, by the arming activation,
+  // and this effect only reads it.
+  // The first check runs as the effect sets up, so a control revealed (an <Activity> boundary) after
+  // its window recovers as soon as its effects reconnect (before the first paint only for a discrete
+  // reveal; commit() refuses any activation that reaches it in between).
   React.useEffect(() => {
     if (state !== 'armed') return
-    deadline.current = Date.now() + ARM_WINDOW_MS
-    const tick = window.setInterval(() => {
-      const next = Math.max(0, Math.ceil((deadline.current - Date.now()) / 1000))
+    const check = () => {
+      const next = Math.max(0, Math.ceil((deadline.current - performance.now()) / 1000))
       setSeconds(current => current === next ? current : next)
       if (next === 0) recover('timeout')
-    }, 250)
+    }
+    // On a reveal past the window this recovers as the effects reconnect, and moves no focus.
+    const first = Math.max(0, Math.ceil((deadline.current - performance.now()) / 1000))
+    if (first === 0) recover('timeout', false)
+    else check()
+    if (stateRef.current !== 'armed') return
+    const tick = window.setInterval(check, 250)
     const navigate = () => recover('navigation')
     const visibility = () => document.visibilityState === 'hidden' && recover('document-hidden')
     let blurTimer = 0
     const blur = () => { blurTimer = window.setTimeout(() => recover('window-blur'), BLUR_GRACE_MS) }
-    const focus = () => {
-      window.clearTimeout(blurTimer)
-      if (deferredFocus.current && stateRef.current === 'covered') {
-        deferredFocus.current = false
-        coverRef.current?.focus()
-      }
-    }
+    const focus = () => { window.clearTimeout(blurTimer) }
     const escape = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         event.preventDefault()
@@ -129,48 +255,43 @@ export function GuardedControl({
       document.removeEventListener('visibilitychange', visibility)
       document.removeEventListener('keydown', escape)
     }
-  }, [recover, state])
+  }, [state]) // recover keeps one identity for the control's lifetime
 
   React.useLayoutEffect(() => {
-    if (state === 'armed') armedRef.current?.focus()
+    if (state === 'armed' && armFocusPending.current) {
+      armFocusPending.current = false
+      armedRef.current?.focus()
+    }
+    if (state === 'covered' && coverFocusPending.current) {
+      coverFocusPending.current = false
+      coverRef.current?.focus()
+    }
   }, [state])
 
-  // An amount of time ("5 seconds"), which the armed instruction places after "within"; never a
-  // relative time ("in 5 seconds"). The locale's CLDR unit pattern supplies the unit word, its plural
-  // form and its placement, as Intl.RelativeTimeFormat did before; the number in it is the locale
-  // provider's formatNumber, called with no options so a host formatter that writes only the number
-  // cannot drop the unit. Without a host formatter that is the same Intl number. A form with no number
-  // in it (Arabic "ثانيتان", 2 seconds) asks for none. The Blazor lane resolves its catalog's
-  // chrome.guard.duration forms instead; one duration source for both lanes is T-1105's deferred
-  // duration-parity work.
-  const formatDuration = (count: number) => {
-    try {
-      let number: string | undefined
-      return new Intl.NumberFormat(locale, { style: 'unit', unit: 'second', unitDisplay: 'long' })
-        .formatToParts(count)
-        .map(({ type, value }) => {
-          if (type === 'unit' || type === 'literal') return value
-          // The number's parts (integer, group, decimal, fraction, sign) become one host number.
-          if (number !== undefined) return ''
-          number = formatNumber(count)
-          return number
-        })
-        .join('')
-    } catch {
-      return `${formatNumber(count)} ${count === 1 ? 'second' : 'seconds'}`
-    }
-  }
+  // The armed instruction always states the full window, never the countdown: it is announced once
+  // on arming and is the armed description for the whole armed state, so it never changes with a tick.
+  const armedInstruction = () => wholeMessage('chrome.guard.armed.whole', ARMED_INSTRUCTION)
 
   // Every arm states the full window, never the countdown a previous attempt left behind.
   const arm = () => {
     if (disabled || invalid || stateRef.current !== 'covered') return
     committed.current = false
+    deferredFocus.current = false
+    armFocusPending.current = true
+    // The monotonic clock, so a wall-clock step (NTP, a manual change) neither extends nor shortens the window.
+    deadline.current = performance.now() + ARM_WINDOW_MS
     setSeconds(ARM_WINDOW_SECONDS)
     transition('armed')
-    setAnnouncement(wholeMessage('chrome.guard.armed.whole', 'Armed for {action}. Activate again within {duration} to commit.', { action: `\u2068${label}\u2069`, duration: formatDuration(ARM_WINDOW_SECONDS) }))
+    setAnnouncement(armedInstruction())
   }
   const commit = () => {
     if (disabled || invalid || stateRef.current !== 'armed' || committed.current) return
+    // The window is fixed at five seconds from arming: an activation that arrives later (behind a long
+    // task, or on a control revealed after its window) recovers instead of committing.
+    if (performance.now() >= deadline.current) {
+      recover('timeout')
+      return
+    }
     committed.current = true
     transition('committing')
     let result: void | Promise<void>
@@ -189,19 +310,25 @@ export function GuardedControl({
       },
     )
   }
+  // The caller's failure is still routed when it happens (commit's rethrow), so an unmount never loses
+  // it; only the control's own settlement waits for a hidden control to be revealed.
   const settle = (outcome: 'completed' | 'rejected') => {
-    if (!mounted.current || stateRef.current !== 'committing') return
-    transition('covered')
-    setAnnouncement(outcome === 'rejected'
-      ? wholeMessage('chrome.guard.rejected.whole', 'Could not complete {action}. Guard restored.', { action: `\u2068${label}\u2069` })
-      : wholeMessage('chrome.guard.completed.whole', 'Guard restored for {action}.', { action: `\u2068${label}\u2069` }))
-    restoreFocus()
-    observe?.({ type: 'commit-settled', outcome })
+    if (stateRef.current !== 'committing') return
+    if (!mounted.current) {
+      pendingSettlement.current = outcome
+      return
+    }
+    finishSettlement(outcome, true)
   }
 
   const duration = formatDuration(seconds)
   const inert = disabled || invalid
-  const ids = descriptionIds(describedBy)
+  const instruction = state === 'covered'
+    ? wholeMessage('chrome.guard.covered.instruction', COVERED_INSTRUCTION)
+    : state === 'armed'
+      ? armedInstruction()
+      : wholeMessage('chrome.guard.committing.status', COMMITTING_STATUS)
+  const ids = [descriptionIds(describedBy), instructionId].filter(Boolean).join(' ')
   return (
     <div
       {...hostAttributes}
@@ -213,15 +340,16 @@ export function GuardedControl({
     >
       <span role="status" aria-live="polite" aria-atomic="true" className="hl-visually-hidden">{announcement}</span>
       {state === 'covered' ? (
-        <button ref={coverRef} type="button" disabled={inert} aria-describedby={ids} data-guard-state="covered" className="hl-guarded-control__action" onClick={arm}>
-          <span aria-hidden="true">▣</span><span>{label}</span>
+        <button ref={coverRef} type="button" disabled={inert} aria-labelledby={labelId} aria-describedby={ids} data-guard-state="covered" className="hl-guarded-control__action" onClick={arm}>
+          <span aria-hidden="true">▣</span><span id={labelId}>{label}</span>
         </button>
       ) : (
-        <button ref={armedRef} type="button" disabled={state === 'committing' || inert} aria-describedby={ids} data-guard-state={state} className="hl-guarded-control__action hl-guarded-control__action--armed" onClick={commit}>
-          <span aria-hidden="true">□</span><span>{label}</span>
+        <button ref={armedRef} type="button" disabled={state === 'committing' || inert} aria-labelledby={labelId} aria-describedby={ids} data-guard-state={state} className="hl-guarded-control__action hl-guarded-control__action--armed" onClick={commit}>
+          <span aria-hidden="true">□</span><span id={labelId}>{label}</span>
           {state === 'armed' ? <span role="timer" aria-label={duration} className="hl-guarded-control__timer">{duration}</span> : <span>{t('common.loading')}</span>}
         </button>
       )}
+      <span id={instructionId} className="hl-guarded-control__instruction">{instruction}</span>
     </div>
   )
 }

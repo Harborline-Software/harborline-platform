@@ -2309,15 +2309,15 @@
       },
       "phase4Evidence": "specs/modules/ui/hlp.ui.guarded-control/interface.yaml",
       "sourceExtracted": true,
-      "sourceState": "Interface revision 1 preserves the exact pinned hlp.ui.guarded-control source surface and proves every registered projection through native, shared-conformance, package-only, and applicable gallery/performance gates.",
+      "sourceState": "Interface revision 2 (T-1105: the visible label names the action in the covered, armed, and committing states; the guard instructions are localized whole-message descriptions, rendered visibly) preserves the exact pinned hlp.ui.guarded-control source surface and proves every registered projection through native, shared-conformance, package-only, and applicable gallery/performance gates.",
       "contentHashes": {
-        "conformance/hlp.ui.guarded-control/fixtures.yaml": "a74f5f9db8a752844314033ac10e21fe26e6fc1dc174e6c58fbb50d3889dd692",
+        "conformance/hlp.ui.guarded-control/fixtures.yaml": "5e63151cfe3fe7c573ae585718551d37f3cd4503ef521efdfd8744781227bc81",
         "conformance/hlp.ui.guarded-control/quality-fixtures.yaml": "08e64211160135ad2481df97c5773ba5b0dda9ba26a64d52ccb4bdbaa0c05ac6",
         "conformance/hlp.ui.guarded-control/runners/run-shared.mjs": "36176f55bd9610f4fc33621aa35d16546c79ec42d7e1735178547e99657b5743",
         "projections/blazor/ui/hlp.ui.guarded-control/GuardedControlTypes.cs": "f6fc17076f10c4ddb76bcc19aee288964969498e957b4186f24582913c56d1fb",
-        "projections/blazor/ui/hlp.ui.guarded-control/HarborlineGuardedControl.razor": "50fc20f7b020da31617e7933ce9e07670d944f76889973e9f058737338cdae3f",
+        "projections/blazor/ui/hlp.ui.guarded-control/HarborlineGuardedControl.razor": "c5bdaa548d98bf3491d40a9c8ca2b9e6e54485d1ba502a187b8a19547d104626",
         "projections/blazor/ui/hlp.ui.guarded-control/wwwroot/guarded-control.js": "61a2cdfcbdbf526aafbf38ec270ab4efe160389789d9ca14e74dc1bb5bf4eecf",
-        "projections/react/ui/hlp.ui.guarded-control/src/GuardedControl.tsx": "4a5e7d673534f8d7f6732cb8431ffca2ffa71956bead225f0cf5f88848c51974",
+        "projections/react/ui/hlp.ui.guarded-control/src/GuardedControl.tsx": "ed61e6fd72e65bbbe91e53d99137c146d6c10ca532d993f2b96d073a82339d33",
         "projections/react/ui/hlp.ui.guarded-control/src/__tests__/GuardedControl.conformance.test.ts": "6f97ebe89d3993a753fe2135e88f09a216623908e1e90b11000a5e63f13535d3",
         "projections/react/ui/hlp.ui.guarded-control/src/__tests__/GuardedControl.native.test.tsx": "c81a6199c1251b4a45593fdba2f88f3e972f0fdf5b994deb31f68895a63c733a",
         "projections/react/ui/hlp.ui.guarded-control/src/__tests__/fixtures.ts": "17bc88206874a8c97893d2b6bcebd54310f6386b5ceae96db4342d5660502bfe",
@@ -2325,10 +2325,10 @@
         "projections/react/ui/hlp.ui.guarded-control/src/test-setup.ts": "097040beeb2cc914b87790306bc835eef4a06321fa3594a6938b6754641ac2ff",
         "projections/react/ui/hlp.ui.guarded-control/tsconfig.build.json": "b233da3af7b7a83bb8e9cfd7b93106ec2934a3519601a5e044825787b0b3dc44",
         "projections/react/ui/hlp.ui.guarded-control/vitest.config.ts": "7253efdca8cb160c5e23ef9d46da6af5818dabe1d908327a254b2aaa0a754aea",
-        "specs/modules/ui/hlp.ui.guarded-control/interface.yaml": "1a8a482b4007d10b764205354599bff9c762be1001ec4cfde2c8da8f847837cf",
+        "specs/modules/ui/hlp.ui.guarded-control/interface.yaml": "7c39a440c31bf32441618aea8508b725d2f2d8b583bfa910756af31a6e77bbe9",
         "specs/modules/ui/hlp.ui.guarded-control/quality.yaml": "089e74c60d975cbc72543a689d7c16a7ece640d0d100379d4ff1ca7e1843c4de",
-        "specs/modules/ui/hlp.ui.guarded-control/scenarios.json": "4f2277ce6b03b9fc252015f759ad2f3db1d8a9f41eda8cbf191bf2955d8960fe",
-        "specs/modules/ui/hlp.ui.guarded-control/style.css": "4df276f30f072c72f90d58bdb89b2ae932ea476d092860987da685a103b2ccba"
+        "specs/modules/ui/hlp.ui.guarded-control/scenarios.json": "faf8b4901fb78a10997f42313d3110d1786eb260315775a59c764b7f39da404c",
+        "specs/modules/ui/hlp.ui.guarded-control/style.css": "c07405b25ac64a9a75cdd82f69c69157912b5487ee2e5dc8e3e2227521d542e6"
       },
       "nextGate": "Retain this conformant aggregate contribution while HLF-052 advances to the next Carrier-essential dependency wave."
     },

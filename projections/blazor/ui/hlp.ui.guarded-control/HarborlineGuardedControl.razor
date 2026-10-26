@@ -15,17 +15,17 @@
   @if (State == GuardedControlState.Covered)
   {
     <button @ref="CoveredElement" type="button" class="hl-guarded-control__action" disabled="@IsInert"
-            aria-describedby="@DescribedBy" aria-label="@CoveredName" data-guard-state="covered" @onclick="ActivateAsync">
-      <span aria-hidden="true">▣</span><span>@Label</span>
+            aria-labelledby="@LabelId" aria-describedby="@DescriptionIds" data-guard-state="covered" @onclick="ActivateAsync">
+      <span aria-hidden="true">▣</span><span id="@LabelId">@Label</span>
     </button>
   }
   else
   {
     <button @ref="ArmedElement" type="button" class="hl-guarded-control__action hl-guarded-control__action--armed"
-            disabled="@(State == GuardedControlState.Committing || IsInert)" aria-describedby="@DescribedBy"
-            aria-label="@(State == GuardedControlState.Armed ? ArmedName : CommittingName)" data-guard-state="@StateName"
+            disabled="@(State == GuardedControlState.Committing || IsInert)" aria-labelledby="@LabelId"
+            aria-describedby="@DescriptionIds" data-guard-state="@StateName"
             @onclick="ActivateAsync" @onkeydown="HandleArmedKeyAsync">
-      <span aria-hidden="true">□</span><span>@Label</span>
+      <span aria-hidden="true">□</span><span id="@LabelId">@Label</span>
       @if (State == GuardedControlState.Armed)
       {
         <span role="timer" aria-label="@DurationText" class="hl-guarded-control__timer">@DurationText</span>
@@ -36,6 +36,7 @@
       }
     </button>
   }
+  <span id="@InstructionId" class="hl-guarded-control__instruction">@Instruction</span>
 </div>
 
 @code {
@@ -53,6 +54,10 @@
 
   public GuardedControlState State { get; private set; } = GuardedControlState.Covered;
   private bool configured = true;
+  // Sticky: once the interactive host adapter has failed to load, the control stays covered and inert
+  // for its lifetime. OnParametersSet recomputes configured on every parent render, so it cannot carry
+  // this.
+  private bool hostUnavailable;
   private bool commitLatch;
   private bool focusArmed;
   private bool focusCovered;
@@ -60,6 +65,10 @@
   private bool disposed;
   private bool navigationSubscribed;
   private int remainingSeconds = ArmWindowSeconds;
+  // The arming timestamp on the component's monotonic clock, so a wall-clock step neither extends nor
+  // shortens the window.
+  private long armStamp;
+  private static readonly TimeSpan ArmWindow = TimeSpan.FromMilliseconds(ArmWindowMilliseconds);
   private string announcement = string.Empty;
   private TimeProvider clock = TimeProvider.System;
   private CancellationTokenSource? attempt;
@@ -68,13 +77,35 @@
   private DotNetObjectReference<HarborlineGuardedControl>? self;
   private ElementReference Root, CoveredElement, ArmedElement;
   private string StateName => State.ToString().ToLowerInvariant();
-  private bool IsInert => Disabled || !configured;
+  private bool IsInert => Disabled || !configured || hostUnavailable;
   private string IsolatedLabel => $"\u2068{Label}\u2069";
-  private IReadOnlyDictionary<string, object?> MessageVariables => new Dictionary<string, object?> { ["action"] = IsolatedLabel, ["duration"] = DurationText };
-  private string CoveredName => Resolve("chrome.guard.covered.label", "Guarded action: {action}. Activate to arm.");
-  private string ArmedName => WholeMessage("chrome.guard.armed.whole", "Armed for {action}. Activate again within {duration} to commit.", MessageVariables);
-  private string CommittingName => Resolve("chrome.guard.committing.label", "Committing {action}.");
-  private string LoadingText => LocaleContext?.ResolveString("common.loading", new Dictionary<string, object?>(), "Loading") ?? "Loading";
+  // Every guard message takes the same placeholders: {action}, the label bidi-isolated, and
+  // {duration}, the full arm window, never the live countdown, so no message depends on how the last
+  // arm ended. The React lane passes the same set.
+  private IReadOnlyDictionary<string, object?> MessageVariables => new Dictionary<string, object?> { ["action"] = IsolatedLabel, ["duration"] = Duration(ArmWindowSeconds) };
+  // Interface revision 2. The name is the visible label (aria-labelledby the label span, so the
+  // role=timer countdown never joins it). The description is the caller's DescribedBy ids, then the
+  // module's whole message for the state, which is also rendered visibly: covered and armed
+  // instructions and the committing status, under chrome.guard.covered.instruction,
+  // chrome.guard.armed.whole and chrome.guard.committing.status. Each resolves the host catalog first,
+  // as the React lane does.
+  private readonly string instanceId = $"hl-guarded-control-{Guid.NewGuid():N}";
+  private string LabelId => $"{instanceId}-label";
+  private string InstructionId => $"{instanceId}-instruction";
+  private string DescriptionIds => string.IsNullOrWhiteSpace(DescribedBy) ? InstructionId : $"{DescribedBy.Trim()} {InstructionId}";
+  private string Instruction => State switch
+  {
+    GuardedControlState.Covered => Message("chrome.guard.covered.instruction", "Guarded action: {action}. Activate to arm."),
+    GuardedControlState.Armed => ArmedInstruction,
+    _ => Message("chrome.guard.committing.status", "Committing {action}."),
+  };
+  // The armed instruction always states the full window, never the countdown: it is announced once on
+  // arming and is the armed description for the whole armed state, so it never changes with a tick.
+  private string ArmedInstruction => Message("chrome.guard.armed.whole", "Armed for {action}. Activate again within {duration} to commit.");
+  // The committing text resolves as the React lane's t('common.loading') does: the host catalog, then
+  // hlp.ui.default-strings.
+  private string LoadingText => LocaleContext?.Translate("common.loading")
+    ?? (HarborlineDefaultStrings.Values.TryGetValue("common.loading", out var loading) ? loading : "Loading");
   private string DurationText => Duration(remainingSeconds);
 
   protected override void OnParametersSet()
@@ -83,7 +114,10 @@
     if (Disabled && State == GuardedControlState.Armed) _ = InvokeAsync(() => RecoverAsync(GuardedControlRecoveryReason.BecameDisabled, true));
   }
 
-  private string Resolve(string key, string fallback) => LocaleContext?.ResolveString(key, MessageVariables, fallback) ?? MessageVariables.Aggregate(fallback, (text, pair) => text.Replace($"{{{pair.Key}}}", pair.Value?.ToString(), StringComparison.Ordinal));
+  // Every guard message: the host catalog's whole message for the key, else the English one. The keys
+  // are the React lane's (chrome.guard.*.whole for announcements), none of which hlp.ui.default-strings
+  // holds, so its App strings (chrome.guard.recovered.announce "Re-guarded.") never become a default here.
+  private string Message(string key, string fallback) => WholeMessage(key, fallback, MessageVariables);
   // The host catalog's whole message for the key, else the English whole message: the same order as
   // the React projection's wholeMessage, so one catalog key localizes both lanes.
   private string WholeMessage(string key, string fallback, IReadOnlyDictionary<string, object?> variables) =>
@@ -116,7 +150,7 @@
 
   private async Task ActivateAsync()
   {
-    if (IsInert || disposed) return;
+    if (IsInert || disposed || module is null) return;
     if (State == GuardedControlState.Covered) await ArmAsync();
     else if (State == GuardedControlState.Armed) await CommitAsync();
   }
@@ -125,16 +159,29 @@
   {
     if (State != GuardedControlState.Covered || commitLatch) return;
     attempt = new CancellationTokenSource();
+    var token = attempt.Token;
     // Every arm states the full window, never the countdown a previous attempt left behind.
     remainingSeconds = ArmWindowSeconds;
-    await TransitionAsync(GuardedControlState.Armed, "arm", ArmedName);
+    armStamp = clock.GetTimestamp();
+    // The countdown starts with the deadline, before the transition awaits the caller's observer, so the
+    // observer's latency cannot shift what the timer shows against what the commit check enforces.
+    _ = RunDeadlineAsync(token);
+    await TransitionAsync(GuardedControlState.Armed, "arm", ArmedInstruction);
+    // A commit or a recovery can end this attempt while the observer is pending.
+    if (token.IsCancellationRequested || State != GuardedControlState.Armed) return;
     focusArmed = true;
-    _ = RunDeadlineAsync(attempt.Token);
   }
 
   private async Task CommitAsync()
   {
     if (State != GuardedControlState.Armed || commitLatch || disposed) return;
+    // The window is fixed at five seconds from arming. The countdown runs on timer callbacks, which can
+    // arrive late, so an activation that arrives after the deadline recovers instead of committing.
+    if (clock.GetElapsedTime(armStamp) >= ArmWindow)
+    {
+      await RecoverAsync(GuardedControlRecoveryReason.Timeout, true);
+      return;
+    }
     commitLatch = true;
     CancelAttempt();
     await TransitionAsync(GuardedControlState.Committing, "commit");
@@ -156,22 +203,32 @@
     focusCovered = true;
     await TransitionAsync(GuardedControlState.Covered, outcome == GuardedControlCommitOutcome.Completed ? "commit-completed" : "commit-rejected",
       outcome == GuardedControlCommitOutcome.Completed
-        ? Resolve("chrome.guard.completed.announce", "Guard restored for {action}.")
-        : Resolve("chrome.guard.rejected.announce", "Could not complete {action}. Guard restored."));
+        ? Message("chrome.guard.completed.whole", "Guard restored for {action}.")
+        : Message("chrome.guard.rejected.whole", "Could not complete {action}. Guard restored."));
     commitLatch = false;
     await OnEvent.InvokeAsync(new GuardedControlCommitSettled(outcome));
   }
 
+  // The deadline taken at arming is the one source for the countdown, the timeout and the commit check,
+  // as in the React lane: each wake recomputes the time left, shows the whole seconds left, and sleeps
+  // until the displayed second changes (or the deadline), so a late timer callback cannot stretch the
+  // window or leave the timer behind the commit check.
   private async Task RunDeadlineAsync(CancellationToken cancellationToken)
   {
     try
     {
-      for (var elapsed = 1000; elapsed <= ArmWindowMilliseconds; elapsed += 1000)
+      while (true)
       {
-        await Task.Delay(TimeSpan.FromSeconds(1), clock, cancellationToken);
+        var remaining = ArmWindow - clock.GetElapsedTime(armStamp);
+        if (remaining <= TimeSpan.Zero) break;
+        var seconds = (int)Math.Ceiling(remaining.TotalSeconds);
+        if (seconds != remainingSeconds && State == GuardedControlState.Armed)
+        {
+          remainingSeconds = seconds;
+          await InvokeAsync(StateHasChanged);
+        }
+        await Task.Delay(remaining - TimeSpan.FromSeconds(seconds - 1), clock, cancellationToken);
         if (cancellationToken.IsCancellationRequested || State != GuardedControlState.Armed) return;
-        remainingSeconds = Math.Max(0, ArmWindowSeconds - elapsed / 1000);
-        await InvokeAsync(StateHasChanged);
       }
       await InvokeAsync(() => RecoverAsync(GuardedControlRecoveryReason.Timeout, true));
     }
@@ -204,7 +261,7 @@
     CancelAttempt();
     focusCovered = restoreNow;
     deferredFocus = !restoreNow;
-    await TransitionAsync(GuardedControlState.Covered, reason.ToString().ToLowerInvariant(), Resolve("chrome.guard.recovered.announce", "Guard restored for {action}."));
+    await TransitionAsync(GuardedControlState.Covered, reason.ToString().ToLowerInvariant(), Message("chrome.guard.recovered.whole", "Guard restored for {action}."));
     await OnEvent.InvokeAsync(new GuardedControlRecovered(reason));
   }
 
@@ -233,8 +290,8 @@
       }
       catch (Exception) when (!disposed)
       {
-        configured = false;
-        announcement = Resolve("chrome.guard.host-unavailable.announce", "This guarded action is unavailable.");
+        hostUnavailable = true;
+        announcement = Message("chrome.guard.host-unavailable.whole", "This guarded action is unavailable.");
         await InvokeAsync(StateHasChanged);
         return;
       }
@@ -242,12 +299,12 @@
     if (focusArmed)
     {
       focusArmed = false;
-      await module!.InvokeVoidAsync("focus", ArmedElement);
+      if (module is not null) await module.InvokeVoidAsync("focus", ArmedElement);
     }
     if (focusCovered)
     {
       focusCovered = false;
-      await module!.InvokeVoidAsync("focus", CoveredElement);
+      if (module is not null) await module.InvokeVoidAsync("focus", CoveredElement);
     }
   }
 

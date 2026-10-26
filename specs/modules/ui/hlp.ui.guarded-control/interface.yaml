@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.ui.guarded-control",
-  "interfaceRevision": 1,
+  "interfaceRevision": 2,
   "semantics": {
     "operation": "guard one caller-owned significant action behind a fixed five-second cover that requires two distinct activations",
-    "observableOutput": "Covered, armed, and committing presentation; a localized countdown; deterministic recovery and focus; and at most one commit request for each armed attempt."
+    "observableOutput": "Covered, armed, and committing presentation named by the visible label and described by a visible localized whole message; a localized countdown; deterministic recovery and focus; and at most one commit request for each armed attempt."
   },
   "sourceSurface": {
     "repository": "shipyard",
@@ -29,17 +29,32 @@
     "Timeout and activation races are first-transition-wins: timeout-first recovers without commit and commit-first cancels all armed recovery resources.",
     "Escape, timeout, navigation, hidden document, sustained window blur, and becoming disabled recover an armed attempt exactly once.",
     "Completed and rejected commits both return to covered exactly once; an unexpected thrown or rejected operation is cleaned up before the projection routes the original failure through its native exception mechanism.",
-    "Focus moves to the armed action after arming and returns to the covered action after every recovery and commit settlement when mounted; hidden or blurred hosts defer restoration until safe, and disposal suppresses restoration.",
+    "Focus moves to the armed action after arming and returns to the covered action after every recovery and commit settlement when mounted; hidden or blurred hosts defer restoration until safe, and disposal suppresses restoration. A control whose effects are disconnected (a React <Activity> boundary hidden) is not mounted for this rule: a focus request pending when it disconnects is dropped, a commit that settles while it is hidden is applied once when it is revealed, and a reveal never moves focus.",
     "Disposal cancels timers and host subscriptions, emits no stale recovery event, and never repeats or pretends to cancel an already-started caller operation.",
     "Disabled is presentation and availability only, never authorization; caller-owned denial or remediation text is associated through describedBy.",
     "The caller commit operation owns and performs authoritative commit-time authorization and prerequisite revalidation; actionId and classificationId are opaque compatibility and audit metadata, not policy evidence.",
     "The module owns no permission evaluation, guard-policy resolution, confirmation dialog, reauthentication, typed challenge, approvers, cooling-off, notification, undo, persistence, network transport, or domain-error presentation.",
-    "Raw composition, custom arm windows, caller-controlled state, and heavy guard primitives are outside revision 1 and cannot weaken or bypass the fixed cover.",
-    "Covered names, armed instructions, countdown values and units, committing status, recovery, and rejection announcements are localized as whole messages with interpolated caller text bidi-isolated.",
-    "The countdown updates only when the displayed second changes and is not repeatedly announced through the live region.",
+    "Raw composition, custom arm windows, caller-controlled state, and heavy guard primitives are outside revisions 1 and 2 and cannot weaken or bypass the fixed cover.",
+    "The visible label is the action's accessible name in the covered, armed, and committing states (WCAG 2.2 SC 2.5.3 Label in Name); the role=timer countdown and the guard messages are never part of the name.",
+    "The covered instruction, the armed instruction, and the committing status are localized whole messages that form the action's accessible description, after the caller's describedBy identifiers in that order, and are rendered visibly; the armed instruction states the full five-second window, so the description does not change while the countdown ticks.",
+    "Guard instructions, the committing status, and the recovery, settlement, rejection, and host-unavailable announcements are whole messages that both lanes resolve from the host catalog under the same keys (messages.keys) before the English default, never from hlp.ui.default-strings, with interpolated caller text bidi-isolated; the committing loading text resolves common.loading from the host catalog, then hlp.ui.default-strings; the countdown value and unit are localized by each lane's own duration source (React the locale's CLDR unit pattern, Blazor the chrome.guard.duration.* catalog forms), and one duration source for both lanes is T-1105's deferred duration parity.",
+    "The armed instruction is announced once per arming transition through the polite status region; the countdown updates only when the displayed second changes and is not repeatedly announced through the live region.",
     "Reduced motion, RTL, light and dark themes, independent forced colors, and 200 percent reflow preserve interaction ordering and action availability.",
     "Projection-owned host attributes survive on their owning element without overriding required role, name, state, focus, or disabled semantics."
   ],
+  "messages": {
+    "rule": "Each chrome.guard message resolves to the host catalog's whole message for its key, else the English default below, and is interpolated in one pass: the placeholders are {action}, the caller label wrapped in FSI and PDI, and {duration}, the full five-second arm window formatted for the locale (never the live countdown); inserted text is not interpolated again and an unknown placeholder stays visible.",
+    "keys": [
+      {"key": "chrome.guard.covered.instruction", "use": "covered-state description and visible instruction", "default": "Guarded action: {action}. Activate to arm.", "placeholders": ["action", "duration"]},
+      {"key": "chrome.guard.armed.whole", "use": "armed-state description and visible instruction; announced once per arming transition", "default": "Armed for {action}. Activate again within {duration} to commit.", "placeholders": ["action", "duration"]},
+      {"key": "chrome.guard.committing.status", "use": "committing-state description and visible status", "default": "Committing {action}.", "placeholders": ["action", "duration"]},
+      {"key": "chrome.guard.recovered.whole", "use": "recovery announcement", "default": "Guard restored for {action}.", "placeholders": ["action", "duration"]},
+      {"key": "chrome.guard.completed.whole", "use": "completed-settlement announcement", "default": "Guard restored for {action}.", "placeholders": ["action", "duration"]},
+      {"key": "chrome.guard.rejected.whole", "use": "rejected-settlement announcement", "default": "Could not complete {action}. Guard restored.", "placeholders": ["action", "duration"]},
+      {"key": "chrome.guard.host-unavailable.whole", "use": "host-unavailable announcement (the Blazor lane's interactive host adapter; React has no such failure)", "default": "This guarded action is unavailable.", "placeholders": ["action", "duration"]},
+      {"key": "common.loading", "use": "visible committing text inside the action", "default": "hlp.ui.default-strings common.loading (Loading)", "placeholders": []}
+    ]
+  },
   "ordering": {
     "arm": ["validate-enabled-and-covered", "mint-attempt-and-deadline", "transition-covered-to-armed", "render-and-focus-armed-action", "subscribe-recovery-hosts"],
     "commit": ["validate-live-attempt", "acquire-latch", "transition-armed-to-committing", "invoke-authoritative-caller-operation-once", "cancel-attempt-resources", "transition-to-covered", "restore-focus", "report-settlement"],
@@ -87,6 +102,10 @@
     {"id": "guarded-control.rtl-motion"},
     {"id": "guarded-control.host-attributes"},
     {"id": "guarded-control.invalid-input"},
+    {"id": "guarded-control.name-is-label"},
+    {"id": "guarded-control.description-instruction"},
+    {"id": "guarded-control.description-stable"},
+    {"id": "guarded-control.naming-localization"},
     {"id": "guarded-control.projection-equivalence"}
   ]
 }
