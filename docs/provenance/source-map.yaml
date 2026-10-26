@@ -2317,7 +2317,7 @@
         "projections/blazor/ui/hlp.ui.guarded-control/GuardedControlTypes.cs": "f6fc17076f10c4ddb76bcc19aee288964969498e957b4186f24582913c56d1fb",
         "projections/blazor/ui/hlp.ui.guarded-control/HarborlineGuardedControl.razor": "eb901c6c944d10cd92f707107c87a2c4de5bd0a3d574c8dafbd515a34a92024e",
         "projections/blazor/ui/hlp.ui.guarded-control/wwwroot/guarded-control.js": "61a2cdfcbdbf526aafbf38ec270ab4efe160389789d9ca14e74dc1bb5bf4eecf",
-        "projections/react/ui/hlp.ui.guarded-control/src/GuardedControl.tsx": "2a729dbf7e821f51ae0da8fdb42de68e89aa334e4a957ebbe034d0b55898e745",
+        "projections/react/ui/hlp.ui.guarded-control/src/GuardedControl.tsx": "e6e1fc3c3ff886b13ce2450c53a150a716db8f4c9c443a20dae33e4234059380",
         "projections/react/ui/hlp.ui.guarded-control/src/__tests__/GuardedControl.conformance.test.ts": "6f97ebe89d3993a753fe2135e88f09a216623908e1e90b11000a5e63f13535d3",
         "projections/react/ui/hlp.ui.guarded-control/src/__tests__/GuardedControl.native.test.tsx": "c81a6199c1251b4a45593fdba2f88f3e972f0fdf5b994deb31f68895a63c733a",
         "projections/react/ui/hlp.ui.guarded-control/src/__tests__/fixtures.ts": "17bc88206874a8c97893d2b6bcebd54310f6386b5ceae96db4342d5660502bfe",
@@ -2325,7 +2325,7 @@
         "projections/react/ui/hlp.ui.guarded-control/src/test-setup.ts": "097040beeb2cc914b87790306bc835eef4a06321fa3594a6938b6754641ac2ff",
         "projections/react/ui/hlp.ui.guarded-control/tsconfig.build.json": "b233da3af7b7a83bb8e9cfd7b93106ec2934a3519601a5e044825787b0b3dc44",
         "projections/react/ui/hlp.ui.guarded-control/vitest.config.ts": "7253efdca8cb160c5e23ef9d46da6af5818dabe1d908327a254b2aaa0a754aea",
-        "specs/modules/ui/hlp.ui.guarded-control/interface.yaml": "985fca668544463322cfd8d2e1c3ea0f1af31021b17ceedc2ebde6484d5b3eb1",
+        "specs/modules/ui/hlp.ui.guarded-control/interface.yaml": "7c39a440c31bf32441618aea8508b725d2f2d8b583bfa910756af31a6e77bbe9",
         "specs/modules/ui/hlp.ui.guarded-control/quality.yaml": "089e74c60d975cbc72543a689d7c16a7ece640d0d100379d4ff1ca7e1843c4de",
         "specs/modules/ui/hlp.ui.guarded-control/scenarios.json": "faf8b4901fb78a10997f42313d3110d1786eb260315775a59c764b7f39da404c",
         "specs/modules/ui/hlp.ui.guarded-control/style.css": "c07405b25ac64a9a75cdd82f69c69157912b5487ee2e5dc8e3e2227521d542e6"

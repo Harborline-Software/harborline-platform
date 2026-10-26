@@ -70,6 +70,7 @@ export function GuardedControl({
   const armedRef = React.useRef<HTMLButtonElement>(null)
   const deferredFocus = React.useRef(false)
   const coverFocusPending = React.useRef(false)
+  const armFocusPending = React.useRef(false)
   const pendingSettlement = React.useRef<'completed' | 'rejected' | null>(null)
   const id = React.useId()
   const labelId = `${id}-label`
@@ -140,10 +141,10 @@ export function GuardedControl({
     coverFocusPending.current = true
   }, [])
 
-  const recover = React.useCallback((reason: GuardRecoveryReason) => {
+  const recover = React.useCallback((reason: GuardRecoveryReason, focus = true) => {
     if (stateRef.current !== 'armed' || !transition('covered')) return
     setAnnouncement(wholeMessageRef.current('chrome.guard.recovered.whole', RECOVERED_ANNOUNCEMENT))
-    restoreFocus()
+    if (focus) restoreFocus()
     observeRef.current?.({ type: 'recovered', reason })
   }, [restoreFocus, transition])
 
@@ -177,6 +178,32 @@ export function GuardedControl({
     recover('became-disabled')
   }, [disabled, recover])
 
+  // The reveal-focus policy: focus moves only while the control is connected. A focus request still
+  // pending when the effects disconnect (an <Activity> hides the control, or it unmounts) is dropped,
+  // so a reveal never moves focus into the control; a settlement or timeout applied on reveal moves
+  // none either. A document that is hidden, or a window that is blurred, defers the restoration to the
+  // covered action until the window is focused and visible again (deferredFocus, consumed below).
+  React.useLayoutEffect(() => () => {
+    armFocusPending.current = false
+    coverFocusPending.current = false
+    deferredFocus.current = false
+  }, [])
+  React.useEffect(() => {
+    const restoreDeferred = () => {
+      if (!deferredFocus.current || document.visibilityState === 'hidden' || !document.hasFocus()) return
+      if (!mounted.current || stateRef.current !== 'covered') return
+      deferredFocus.current = false
+      coverRef.current?.focus()
+    }
+    const visibility = () => { if (document.visibilityState === 'visible') restoreDeferred() }
+    window.addEventListener('focus', restoreDeferred)
+    document.addEventListener('visibilitychange', visibility)
+    return () => {
+      window.removeEventListener('focus', restoreDeferred)
+      document.removeEventListener('visibilitychange', visibility)
+    }
+  }, [])
+
   // Keyed on the state alone (recover is stable): the deadline is set once, by the arming activation,
   // and this effect only reads it.
   // The first check runs as the effect sets up, so a control revealed (an <Activity> boundary) after
@@ -188,20 +215,17 @@ export function GuardedControl({
       setSeconds(current => current === next ? current : next)
       if (next === 0) recover('timeout')
     }
-    check()
+    // On a reveal past the window this recovers before the first paint, and moves no focus.
+    const first = Math.max(0, Math.ceil((deadline.current - Date.now()) / 1000))
+    if (first === 0) recover('timeout', false)
+    else check()
     if (stateRef.current !== 'armed') return
     const tick = window.setInterval(check, 250)
     const navigate = () => recover('navigation')
     const visibility = () => document.visibilityState === 'hidden' && recover('document-hidden')
     let blurTimer = 0
     const blur = () => { blurTimer = window.setTimeout(() => recover('window-blur'), BLUR_GRACE_MS) }
-    const focus = () => {
-      window.clearTimeout(blurTimer)
-      if (deferredFocus.current && stateRef.current === 'covered') {
-        deferredFocus.current = false
-        coverRef.current?.focus()
-      }
-    }
+    const focus = () => { window.clearTimeout(blurTimer) }
     const escape = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         event.preventDefault()
@@ -225,7 +249,10 @@ export function GuardedControl({
   }, [state]) // recover keeps one identity for the control's lifetime
 
   React.useLayoutEffect(() => {
-    if (state === 'armed') armedRef.current?.focus()
+    if (state === 'armed' && armFocusPending.current) {
+      armFocusPending.current = false
+      armedRef.current?.focus()
+    }
     if (state === 'covered' && coverFocusPending.current) {
       coverFocusPending.current = false
       coverRef.current?.focus()
@@ -240,6 +267,8 @@ export function GuardedControl({
   const arm = () => {
     if (disabled || invalid || stateRef.current !== 'covered') return
     committed.current = false
+    deferredFocus.current = false
+    armFocusPending.current = true
     deadline.current = Date.now() + ARM_WINDOW_MS
     setSeconds(ARM_WINDOW_SECONDS)
     transition('armed')
