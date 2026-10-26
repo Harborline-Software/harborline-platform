@@ -13,8 +13,8 @@ asks for the added shard time. R-0125 B5 sets the rule: if a shard passes 810 00
 - Head: `63473cae`, the last T-962 code commit before review 1. This record was added by the next
   commit, which changed no code. The review 1 fixes (`75cf1b86` to `8f24a8a1`), the review 2 fixes
   (`f5d5e7b9` to `39c6fa23`), the review 3 fixes (`f35c8c01`), the review 4 fixes (`dfc67b00`), the
-  review 5 fixes (`f4a9dc39`) and the review 6 fixes (`d5d90685`) are measured in the later parts of each
-  section below.
+  review 5 fixes (`f4a9dc39`), the review 6 fixes (`d5d90685`) and the review 7 fixes (`1de1a309`) are
+  measured in the later parts of each section below.
 - Host: macos-x64-intel (Intel Core i9-9880H, 8 cores and 16 threads), shared with other agents.
   Node 24.19.0, Playwright 1.62.1, React gallery on port 6116 and Blazor gallery on port 6117.
 - Each shard ran with `config.workers = 4`. Nobody else held the full-gate lock during any run. Every
@@ -209,20 +209,49 @@ retry, like one `scroll-affordance.locale-ar` attempt, could not read the Blazor
 15-second attempts. That run is kept with the review 6 evidence and is not counted; the matrix above
 was run again in full.
 
+### After review 7
+
+Review 7 closes the holes rule v2's relaxations opened. A reveal must be earned: at some sample point
+that only user-opened popups covered, the stop's own presses closed every one of them, so a popup or
+stop that merely moved earns nothing. The offsets of the stop's scrollable ancestors are recorded,
+keyed and put back with the window scroll. An opaque hit on a popup's own out-of-flow surface (an
+opaque wrapper around a role=listbox) is credited to that popup, when the surface holds no other open
+popup and not the stop. The one full matrix at `1de1a309`:
+
+| Shard | Step ms | Walk wall ms | Load 1/5/15 at start → end |
+|---|---:|---:|---|
+| 1 | 371 038 | 155 379 | 11.01/8.46/6.12 → 15.44/13.60/9.46 |
+| 2 | 524 230 | 149 681 | 15.44/13.60/9.46 → 18.76/19.99/14.79 |
+| 3 | 429 732 | 82 899 | 18.76/19.99/14.79 → 16.68/17.06/15.27 |
+| Sum | 1 325 000 | 387 959 | |
+
+The walk did exactly the same work as after review 5 (2147 walks, 1389 step presses), with
+`tooltip.content`'s React lane back at 4 walks and 4 step presses. The step sum is 8.7% above the
+review 6 run, and all of the rise is in shards 2 and 3. Shard 1's scenarios took the same walk time as
+in review 6 (median ratio 0.99). Shards 2 and 3, the same engine on the same scenarios, took 23% and
+38% longer (median ratios) while the host's one-minute load rose from 11 to 19, so the rise is the
+host's, not the engine's. The largest shard (524 230 ms) is 58% of the budget, below R-0125 B5's
+810 000 ms line, so no shard is added. `app-shell.actions-endpanel` used 40.8% of its allowance.
+
+The matrix ran with `HARBORLINE_GALLERY_TAB_WALK_TRACE=1`, so each lane's report holds the number of
+hits measure credited to a popup through its surface. It is zero in all 962 scenario lanes: no gallery
+scenario, select-field and the choice popups included, reaches that path. Its only credits are the W1
+proof page's.
+
 ## The full gate at the head
 
-The full matrix (three shards and the collector) at `d5d90685` passed: PASS, 604 browser tests
+The full matrix (three shards and the collector) at `1de1a309` passed: PASS, 604 browser tests
 expected and passed, 0 unexpected, 0 flaky, with exact scenario reconciliation. Over the 481 running
 scenarios it declared and reconciled `tabWalkLeaveChecks`, `tabWalkReverseChecks`,
 `tabWalkObscuredChecks` and `tabWalkOrderComparisons` (481 each) and `tabWalkDetectorProofs` (14).
 Three stops per lane were covered by a user-opened popup that Escape did not reveal in place. They are
 the UserMenu trigger and the two AppShell pin buttons, all registered findings. No stop counted as
-exempt. Since review 6 a cover is judged at the window scroll its walk met it at, so the two pin
-buttons count as four covers per lane: each is met at scroll 0 in the prepared and forward walks and at
-126 px in reverse, and each is covered at both.
+exempt. Since review 6 a cover is judged at the window scroll its walk met it at (since review 7 also at
+its inner scroll offsets), so the two pin buttons count as four covers per lane: each is met at scroll 0
+in the prepared and forward walks and at 126 px in reverse, and each is covered at both.
 
-At `f4a9dc39` (review 5), `dfc67b00` (review 4), `f35c8c01` (review 3) and `39c6fa23` (review 2) the
-full matrix gave the same result. At `b9d5f298`, after review 1,
+At `d5d90685` (review 6), `f4a9dc39` (review 5), `dfc67b00` (review 4), `f35c8c01` (review 3) and
+`39c6fa23` (review 2) the full matrix gave the same result. At `b9d5f298`, after review 1,
 it passed with 603 browser tests, 0 flaky, exact reconciliation, thirteen proofs.
 The walk visited 2130 React stops and 1808 Blazor stops forward, and as many in reverse. Modals
 released focus 28 times in each lane. No stop counted as exempt under SC 2.4.11 Note 2. Before the
@@ -244,8 +273,9 @@ reconciliation, ten proofs.
 Each seed was applied in the working tree only, to the React probe of `button.variants` in
 `gallery/projections/react/src/Button.stories.tsx`, and run through the real gate on the alternate
 ports. The seeds first ran at `63473cae`, before review 1. They ran again at `f35c8c01` after review
-3, at `dfc67b00` after review 4, at `f4a9dc39` after review 5, and at `d5d90685`, the last engine commit
-after review 6. Every run gave the results below, failing expect and finding lines included:
+3, at `dfc67b00` after review 4, at `f4a9dc39` after review 5, at `d5d90685` after review 6, and at
+`1de1a309`, the last engine commit after review 7. Every run gave the results below, failing expect and
+finding lines included:
 
 ```text
 HARBORLINE_GALLERY_REACT_PORT=6116 HARBORLINE_GALLERY_BLAZOR_PORT=6117 \
@@ -273,7 +303,42 @@ the first hit, and review 3's fallback. The review-fixes-5 README names each fil
 P7 and the pure cover test. Each new expect fails, with every expect soft, either on the review 5
 engine or on one of four mutants: no walk-geometry restore, no author layer, the stop's own credit
 removed, and progress counted only on the covering popups. The review-fixes-6 README names each
-file.
+file. Review 7 extended P7 and the pure cover test again. Each new expect fails, with every expect soft,
+on the review 6 engine, and three more mutants each fail a proof: no per-point credit, no inner scroll
+restore and no surface credit. The review-fixes-7 README names each file.
+
+## Known limits of the user-opened cover exemption
+
+The exemption (WCAG 2.2 SC 2.4.11 Note 2) is verified by rule v2 as amended in review 7, stated in the
+`CoverJudgement` comment in `tab-walk.ts`. These are its known limits. Each fails closed (a finding
+stands that a user could clear) unless it says it fails open.
+
+1. Order. Covers are judged one after another on one page, in walk order. A stop judged after the stop
+   whose press closed its popup is closed-before, although its own Escape might have revealed it on a
+   fresh page (proofs C2 and C2b). It can also fail open: if a stop's Escape closes a popup over it only
+   once another popup is gone, and an earlier stop's press closed that one, the stop is revealed
+   although it could not earn that on a fresh page.
+2. Movement by the stop's own press. A stop whose own Escape closes a popup that is not over it, and so
+   slides a popup of the cover off it, earns nothing and stays covered. A lower popup closed elsewhere
+   over only part of the stop makes it closed-before, although the rest of the stop would show.
+3. Keys and presses. Only Escape is tried, at most three presses, each of which must close a user-opened
+   popup.
+4. Geometry. Only scroll offsets are put back: the window and every scrollable ancestor of the stop. A
+   layout another cover's press changed, or a scroller that holds the popup but not the stop, is not; the
+   cover then earns nothing and stands, but its re-measure, and any extra line from it, is read where the
+   page drifted.
+5. What counts as user-opened. Only popups open when the walk begins, recognised by role (menu, listbox,
+   tooltip, non-modal dialog) or `[popover]`. Other content a scenario opened, and any popup opened during
+   the walk, is author content. An opaque wrapper counts as its popup only as an out-of-flow surface that
+   holds that one popup; an in-flow wrapper, or one shared by two open popups, stays author content.
+6. Surface, failing open. An out-of-flow author overlay that holds exactly one open user-opened popup in
+   its DOM is taken for that popup's surface. If the same Escape hides the overlay with the popup, a stop
+   the overlay hid is revealed. An author banner over the stop that does not hold the popup (proof C1)
+   is still reported.
+7. Sampling. A stop is judged at a 3×3, then a 7×7 grid of points, and a reveal must be earned at one of
+   them.
+8. Hit testing, failing open. A layer `elementsFromPoint` does not return (`pointer-events: none`) is not
+   seen at all, as for every 2.4.11 judgement of the walk (proof P6).
 
 ## What the measured runs found
 
