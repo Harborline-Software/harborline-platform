@@ -54,6 +54,10 @@
 
   public GuardedControlState State { get; private set; } = GuardedControlState.Covered;
   private bool configured = true;
+  // Sticky: once the interactive host adapter has failed to load, the control stays covered and inert
+  // for its lifetime. OnParametersSet recomputes configured on every parent render, so it cannot carry
+  // this.
+  private bool hostUnavailable;
   private bool commitLatch;
   private bool focusArmed;
   private bool focusCovered;
@@ -69,7 +73,7 @@
   private DotNetObjectReference<HarborlineGuardedControl>? self;
   private ElementReference Root, CoveredElement, ArmedElement;
   private string StateName => State.ToString().ToLowerInvariant();
-  private bool IsInert => Disabled || !configured;
+  private bool IsInert => Disabled || !configured || hostUnavailable;
   private string IsolatedLabel => $"\u2068{Label}\u2069";
   // Every guard message takes the same placeholders: {action}, the label bidi-isolated, and
   // {duration}, the full arm window, never the live countdown, so no message depends on how the last
@@ -142,7 +146,7 @@
 
   private async Task ActivateAsync()
   {
-    if (IsInert || disposed) return;
+    if (IsInert || disposed || module is null) return;
     if (State == GuardedControlState.Covered) await ArmAsync();
     else if (State == GuardedControlState.Armed) await CommitAsync();
   }
@@ -259,7 +263,7 @@
       }
       catch (Exception) when (!disposed)
       {
-        configured = false;
+        hostUnavailable = true;
         announcement = Message("chrome.guard.host-unavailable.whole", "This guarded action is unavailable.");
         await InvokeAsync(StateHasChanged);
         return;
@@ -268,12 +272,12 @@
     if (focusArmed)
     {
       focusArmed = false;
-      await module!.InvokeVoidAsync("focus", ArmedElement);
+      if (module is not null) await module.InvokeVoidAsync("focus", ArmedElement);
     }
     if (focusCovered)
     {
       focusCovered = false;
-      await module!.InvokeVoidAsync("focus", CoveredElement);
+      if (module is not null) await module.InvokeVoidAsync("focus", CoveredElement);
     }
   }
 
