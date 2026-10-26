@@ -130,9 +130,9 @@ public sealed class GuardedControlNamingTests : BunitContext
         var operation = new TaskCompletionSource();
         var cut = RenderInLocale("fr-FR", "Publier", new Dictionary<string, string>
         {
-            ["chrome.guard.covered.label"] = "Action protégée : {action}. Activez pour armer.",
+            ["chrome.guard.covered.instruction"] = "Action protégée : {action}. Activez pour armer.",
             ["chrome.guard.armed.whole"] = "Armé pour {action}. Activez de nouveau dans un délai de {duration} pour valider.",
-            ["chrome.guard.committing.label"] = "Validation de {action}.",
+            ["chrome.guard.committing.status"] = "Validation de {action}.",
             ["chrome.guard.duration.other"] = "{seconds} secondes",
         }, commit: () => operation.Task);
         Assert.Equal("Publier", GuardAccessibility.Name(cut.Find("button"), cut));
@@ -150,7 +150,7 @@ public sealed class GuardedControlNamingTests : BunitContext
     {
         var cut = RenderInLocale("ar-SA", "تصدير", new Dictionary<string, string>
         {
-            ["chrome.guard.covered.label"] = "إجراء محمي: {action}. فعّل للتجهيز.",
+            ["chrome.guard.covered.instruction"] = "إجراء محمي: {action}. فعّل للتجهيز.",
             ["chrome.guard.armed.whole"] = "تم تجهيز {action}. فعّل مرة أخرى خلال {duration} للتأكيد.",
             ["chrome.guard.duration.few"] = "{seconds} ثوانٍ",
             ["chrome.guard.duration.other"] = "{seconds} ثانية",
@@ -169,7 +169,7 @@ public sealed class GuardedControlNamingTests : BunitContext
         const string label = "⟦ Šîĝñ åñđ šåṽë ······ ⟧";
         var cut = RenderInLocale("en-XA", label, new Dictionary<string, string>
         {
-            ["chrome.guard.covered.label"] = "⟦ Ĝüåŕðéð åçţîöñ: {action}. Åçţîṽåţé ţö åŕɱ. ········ ⟧",
+            ["chrome.guard.covered.instruction"] = "⟦ Ĝüåŕðéð åçţîöñ: {action}. Åçţîṽåţé ţö åŕɱ. ········ ⟧",
         });
         Assert.Equal(label, GuardAccessibility.Name(cut.Find("button"), cut));
         Assert.Equal($"⟦ Ĝüåŕðéð åçţîöñ: {Isolated(label)}. Åçţîṽåţé ţö åŕɱ. ········ ⟧", GuardAccessibility.Description(cut.Find("button"), cut));

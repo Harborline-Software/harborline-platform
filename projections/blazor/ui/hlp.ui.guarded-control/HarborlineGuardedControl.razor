@@ -75,19 +75,18 @@
   // Interface revision 2. The name is the visible label (aria-labelledby the label span, so the
   // role=timer countdown never joins it). The description is the caller's DescribedBy ids, then the
   // module's whole message for the state, which is also rendered visibly: covered and armed
-  // instructions and the committing status. Each resolves the host catalog first, as the React lane
-  // does. The keys keep their revision-1 names (chrome.guard.covered.label,
-  // chrome.guard.committing.label) so host catalogs keep working; they hold descriptions now, never
-  // the name.
+  // instructions and the committing status, under chrome.guard.covered.instruction,
+  // chrome.guard.armed.whole and chrome.guard.committing.status. Each resolves the host catalog first,
+  // as the React lane does.
   private readonly string instanceId = $"hl-guarded-control-{Guid.NewGuid():N}";
   private string LabelId => $"{instanceId}-label";
   private string InstructionId => $"{instanceId}-instruction";
   private string DescriptionIds => string.IsNullOrWhiteSpace(DescribedBy) ? InstructionId : $"{DescribedBy.Trim()} {InstructionId}";
   private string Instruction => State switch
   {
-    GuardedControlState.Covered => WholeMessage("chrome.guard.covered.label", "Guarded action: {action}. Activate to arm.", MessageVariables),
+    GuardedControlState.Covered => WholeMessage("chrome.guard.covered.instruction", "Guarded action: {action}. Activate to arm.", MessageVariables),
     GuardedControlState.Armed => ArmedInstruction,
-    _ => WholeMessage("chrome.guard.committing.label", "Committing {action}.", MessageVariables),
+    _ => WholeMessage("chrome.guard.committing.status", "Committing {action}.", MessageVariables),
   };
   // The armed instruction always states the full window, never the countdown: it is announced once on
   // arming and is the armed description for the whole armed state, so it never changes with a tick.

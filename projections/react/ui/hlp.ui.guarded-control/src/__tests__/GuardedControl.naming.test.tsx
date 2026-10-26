@@ -98,9 +98,9 @@ describe('GuardedControl revision 2 names and descriptions', () => {
   it('localizes the descriptions through a host catalog while the name stays the label', () => {
     render(
       <HarborlineLocaleProvider locale="fr-FR" catalog={{
-        'chrome.guard.covered.label': 'Action protégée : {action}. Activez pour armer.',
+        'chrome.guard.covered.instruction': 'Action protégée : {action}. Activez pour armer.',
         'chrome.guard.armed.whole': 'Armé pour {action}. Activez de nouveau dans un délai de {duration} pour valider.',
-        'chrome.guard.committing.label': 'Validation de {action}.',
+        'chrome.guard.committing.status': 'Validation de {action}.',
       }}>
         <GuardedControl action="a" classificationId="c" label="Publier" onCommit={pending}/>
       </HarborlineLocaleProvider>,
@@ -119,7 +119,7 @@ describe('GuardedControl revision 2 names and descriptions', () => {
     const arab: HarborlineNumberFormatter = (value, { locale, options }) => new Intl.NumberFormat(locale, { ...options, numberingSystem: 'arab' }).format(value)
     render(
       <HarborlineLocaleProvider locale="ar-SA" numberFormatter={arab} catalog={{
-        'chrome.guard.covered.label': 'إجراء محمي: {action}. فعّل للتجهيز.',
+        'chrome.guard.covered.instruction': 'إجراء محمي: {action}. فعّل للتجهيز.',
         'chrome.guard.armed.whole': 'تم تجهيز {action}. فعّل مرة أخرى خلال {duration} للتأكيد.',
       }}>
         <GuardedControl action="a" classificationId="c" label="تصدير" onCommit={pending}/>
@@ -136,7 +136,7 @@ describe('GuardedControl revision 2 names and descriptions', () => {
   it('localizes the descriptions in the pseudo-locale', () => {
     const label = '⟦ Šîĝñ åñđ šåṽë ······ ⟧'
     render(
-      <HarborlineLocaleProvider locale="en-XA" catalog={{ 'chrome.guard.covered.label': '⟦ Ĝüåŕðéð åçţîöñ: {action}. Åçţîṽåţé ţö åŕɱ. ········ ⟧' }}>
+      <HarborlineLocaleProvider locale="en-XA" catalog={{ 'chrome.guard.covered.instruction': '⟦ Ĝüåŕðéð åçţîöñ: {action}. Åçţîṽåţé ţö åŕɱ. ········ ⟧' }}>
         <GuardedControl action="a" classificationId="c" label={label} onCommit={pending}/>
       </HarborlineLocaleProvider>,
     )

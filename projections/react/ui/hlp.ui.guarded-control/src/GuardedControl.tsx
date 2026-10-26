@@ -34,9 +34,8 @@ function descriptionIds(value: GuardedControlProps['describedBy']): string | und
 // Interface revision 2. The name is the visible label (aria-labelledby the label span, so the
 // role=timer countdown never joins it). The description is the caller's describedBy ids, then the
 // module's whole message for the state, which is also rendered visibly: covered and armed
-// instructions and the committing status. The keys keep their revision-1 names
-// (chrome.guard.covered.label, chrome.guard.committing.label) so host catalogs keep working; they
-// hold descriptions now, never the name.
+// instructions and the committing status, under chrome.guard.covered.instruction,
+// chrome.guard.armed.whole and chrome.guard.committing.status.
 const COVERED_INSTRUCTION = 'Guarded action: {action}. Activate to arm.'
 const ARMED_INSTRUCTION = 'Armed for {action}. Activate again within {duration} to commit.'
 const COMMITTING_STATUS = 'Committing {action}.'
@@ -220,10 +219,10 @@ export function GuardedControl({
   const duration = formatDuration(seconds)
   const inert = disabled || invalid
   const instruction = state === 'covered'
-    ? wholeMessage('chrome.guard.covered.label', COVERED_INSTRUCTION, { action: isolatedLabel })
+    ? wholeMessage('chrome.guard.covered.instruction', COVERED_INSTRUCTION, { action: isolatedLabel })
     : state === 'armed'
       ? armedInstruction()
-      : wholeMessage('chrome.guard.committing.label', COMMITTING_STATUS, { action: isolatedLabel })
+      : wholeMessage('chrome.guard.committing.status', COMMITTING_STATUS, { action: isolatedLabel })
   const ids = [descriptionIds(describedBy), instructionId].filter(Boolean).join(' ')
   return (
     <div
