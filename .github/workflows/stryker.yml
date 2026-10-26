@@ -1,8 +1,8 @@
 # stryker: Stryker.NET mutation testing (control T-720; PROC-0002 "Mutation evidence as an artefact"; owner ruling Q43).
 #
 # Pull request: the owner keeps tooling/stryker.mjs run's changed-project selection and whole-project floors.
-# Builder's candidate complete-file partitions feed its callback; other selected projects execute normally.
-# Full Builder execution stays blocked until the literal profile below is adopted after bounded evidence.
+# Builder's measured complete-file partitions feed its callback; other selected projects execute normally.
+# Four hosts use two native workers each; the complete owner-file union is judged once.
 # No source change: skipped, green. (Owner order 2026-09-30; PR #227 lost 16 points and merged green.)
 #
 # Schedule (07:40 UTC) and workflow_dispatch: `node tooling/stryker.mjs full` runs every
@@ -56,7 +56,7 @@ jobs:
           node --test .github/workloads/workload-route.test.mjs .github/workloads/windows-default.test.mjs
           python3 .github/workloads/host-workload-lock.test.py
           node .github/workloads/workload-route.mjs
-  # The plan is a private candidate, not an adopted performance profile.
+  # Source-bound file owners preserve the full Builder scope across four native attempts.
   builder-plan:
     needs: workload-route
     if: >-
@@ -99,7 +99,7 @@ jobs:
         if: steps.plan.outputs.selected == 'true' && env.PARTITION_MODE != 'diagnostic'
         run: |
           @'
-          const fullPartitionProfile = 'unselected'
+          const fullPartitionProfile = 'four-complete-files-default-two'
           if (fullPartitionProfile !== 'four-complete-files-default-two')
             throw new Error('Full partition execution is not frozen; only bounded diagnostic is admitted.')
           '@ | node --input-type=module

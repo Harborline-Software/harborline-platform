@@ -157,13 +157,20 @@ test('matrix is selected-only four complete-file candidates with separate bounde
   assert.ok(matrix.includes(`node ${helper} shard '${plan}' $env:PARTITION_INDEX`))
 })
 
-test('full Builder execution is literally unselected and refuses before any matrix SDK work', () => {
+test('full Builder execution uses the measured complete-file profile before SDK work', () => {
   const block = step('builder-plan', 'Refuse unselected full partition execution')
   assert.ok(block.includes("if: steps.plan.outputs.selected == 'true' && env.PARTITION_MODE != 'diagnostic'"))
-  assert.ok(block.includes("const fullPartitionProfile = 'unselected'"))
   const result = runGuard('builder-plan', 'Refuse unselected full partition execution')
-  assert.notEqual(result.status, 0)
-  assert.match(result.stderr, /Full partition execution is not frozen/)
+  assert.equal(result.status, 0, result.stderr)
+  assert.equal(result.signal, null)
+  assert.ok(block.includes("const fullPartitionProfile = 'four-complete-files-default-two'"))
+  const refused = spawnSync(process.execPath, ['--input-type=module'], {
+    input: script('builder-plan', 'Refuse unselected full partition execution')
+      .replace("const fullPartitionProfile = 'four-complete-files-default-two'", "const fullPartitionProfile = 'unselected'"),
+    encoding: 'utf8', timeout: 10000,
+  })
+  assert.equal(refused.status, 1, refused.stderr)
+  assert.match(refused.stderr, /Full partition execution is not frozen/)
   assert.ok(!job('builder-plan').includes('actions/setup-dotnet'))
   assert.ok(!source.includes('MUTATION_PROFILE:'))
 })
