@@ -149,7 +149,12 @@ export function GuardedControl({
   React.useEffect(() => {
     stateRef.current = state
   }, [state])
-  React.useEffect(() => () => { mounted.current = false }, [])
+  // Set as well as cleared: StrictMode and an <Activity> hide and reveal run this cleanup and then the
+  // setup again, and a control left marked unmounted would never settle a commit or restore focus.
+  React.useEffect(() => {
+    mounted.current = true
+    return () => { mounted.current = false }
+  }, [])
   React.useEffect(() => {
     if (!disabled || stateRef.current !== 'armed') return
     recover('became-disabled')
