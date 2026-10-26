@@ -114,7 +114,7 @@ jobs:
         run: |
           dotnet tool restore
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          node tooling/stryker.mjs run
+          node tooling/stryker.mjs run -- --log-to-file
         env:
           HARBORLINE_CONTROL_REPO: ${{ runner.temp }}/harborline-control
 
@@ -138,4 +138,7 @@ jobs:
           name: stryker-report-${{ github.run_id }}
           if-no-files-found: ignore
           retention-days: ${{ github.event_name == 'pull_request' && 7 || 14 }}
-          path: StrykerOutput/*/reports/mutation-report.json
+          path: |
+            StrykerOutput/*/reports/mutation-report.json
+            StrykerOutput/*/stryker-config.json
+            StrykerOutput/*/logs/*.txt
