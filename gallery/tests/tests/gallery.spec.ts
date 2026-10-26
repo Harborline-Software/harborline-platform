@@ -2702,7 +2702,7 @@ test('tab walk proof P7: a visually hidden input is judged by its label, and onl
     <script>document.getElementById('s1').addEventListener('keydown', event => { if (event.key === 'Escape') document.getElementById('q').style.display = 'none' })${script}</script>`))
   const l1 = await column('P', '<button id="s2" style="position:fixed;left:10px;top:130px">S2</button>')
   expect(laneFindingLines(l1)).toEqual(['2.4.11 forward obscured: button "S2" under div', '2.4.11 reverse obscured: button "S2" under div'])
-  expect(outcomes(l1)).toEqual(['button "S1" revealed', 'button "S2" covered'])
+  expect(outcomes(l1)).toEqual(['button "S1" revealed', 'button "S2" unreproduced'])
   const l2 = await column('B', '<button id="s" style="position:fixed;left:10px;top:130px;height:40px">S</button>',
     '<div role="menu" id="a" style="position:fixed;left:0;top:100px;width:300px;height:100px;background:#ddd;z-index:20">A</div>',
     `\n    document.getElementById('s').addEventListener('keydown', event => { if (event.key === 'Escape') document.getElementById('a').style.display = 'none' })`)
@@ -2733,6 +2733,37 @@ test('tab walk proof P7: a visually hidden input is judged by its label, and onl
     <script>document.addEventListener('keydown', event => { if (event.key === 'Escape') document.getElementById('w').style.display = 'none' })</script>`))
   expect(laneFindingLines(w1)).toEqual([])
   expect(outcomes(w1)).toEqual(['button "S" revealed'])
+  // Review 8. ORDlayout_Tfirst: a column of dialog Z, menu A and dialog B. T's own Escape hides Z, S's
+  // hides A. Walked, S is under A. T is judged first: Z goes, the column slides up, and B lands on S.
+  // On a fresh page S's Escape hides A and B slides onto S, so S can never be revealed. Before any
+  // popup of S's cover has closed, the walk-time cover is not there again (B, not A, is over S), so
+  // the reproduction guard leaves it standing.
+  const ordLayout = await walkProof(browser, proofProbe(`<button id="t" style="position:fixed;left:400px;top:30px">T</button>
+    <button id="s" style="position:fixed;left:10px;top:130px;height:40px">S</button><button style="position:fixed;left:500px;top:500px">Elsewhere</button>
+    <div style="position:fixed;left:0;top:0;display:flex;flex-direction:column;align-items:flex-start;z-index:10">
+      <div role="dialog" aria-label="Z" id="z" style="width:600px;height:100px;background:#fff">Z</div>
+      <div role="menu" aria-label="A" id="a" style="width:300px;height:100px;background:#ddd">A</div>
+      <div role="dialog" aria-label="B" id="b" style="width:300px;height:100px;background:#eee">B</div>
+    </div>
+    <script>document.getElementById('t').addEventListener('keydown', event => { if (event.key === 'Escape') document.getElementById('z').style.display = 'none' })
+    document.getElementById('s').addEventListener('keydown', event => { if (event.key === 'Escape') document.getElementById('a').style.display = 'none' })</script>`))
+  expect(laneFindingLines(ordLayout)).toEqual(['2.4.11 forward obscured: button "S" under div', '2.4.11 reverse obscured: button "S" under div'])
+  expect(outcomes(ordLayout)).toEqual(['button "T" revealed', 'button "S" unreproduced'])
+  // OWNdrift: where only the per-point rule decides. X's forward cover (C, at the bottom edge) is judged
+  // first, and X's own Escape hides C and menu A. In reverse, X at the top edge is under A and dialog B,
+  // which sits in a column above dialog Z; T's own Escape hides Z, and the column (justified to its end)
+  // moves B down off X. When X's reverse cover is judged, A is already closed by X's own press, so the
+  // guard no longer applies, and B, still open, has moved: no point of X was earned. On a fresh page X
+  // stays under B after its Escape.
+  const ownDrift = await tall(`<button id="t" style="position:fixed;left:400px;top:150px">T</button>
+    <div style="position:fixed;left:0;top:0;height:200px;display:flex;flex-direction:column;justify-content:flex-end;align-items:flex-start;z-index:10">
+      <div role="dialog" aria-label="B" id="b" style="width:300px;height:100px;background:#eee">B</div>
+      <div role="dialog" aria-label="Z" id="z" style="width:600px;height:100px;background:#fff">Z</div>
+    </div>
+    <div role="menu" id="a" style="position:fixed;left:0;top:0;width:300px;height:100px;background:#ddd;z-index:20">A</div>${bottomMenu}
+    <script>document.getElementById('x').addEventListener('keydown', event => { if (event.key === 'Escape') { document.getElementById('a').style.display = 'none'; document.getElementById('c').style.display = 'none' } })
+    document.getElementById('t').addEventListener('keydown', event => { if (event.key === 'Escape') document.getElementById('z').style.display = 'none' })</script>`)
+  expect(laneFindingLines(ownDrift)).toEqual(['2.4.11 reverse obscured: button "X" under div (fixed)'])
   // A popup Escape dismisses in place is still walked open in both directions, so a defect inside it
   // is found, and the cover it put over "Under" is exempt.
   const inside = await walkProof(browser, popover + proofProbe(`<button style="position:fixed;left:10px;top:10px">Under</button><button style="position:fixed;left:10px;top:300px">Elsewhere</button>

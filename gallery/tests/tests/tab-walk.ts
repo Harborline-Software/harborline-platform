@@ -832,11 +832,14 @@ export type CoverJudgement = {
   //   Escape is not pressed and the cover stands (fails closed).
   // gone, unfocusable: no Escape could be tried; the cover stands.
   // unverified: the deadline passed first; the cover stands, and the lane reports a deadline.
-  // No separate check that the walk-time cover reproduces before the first press (review 7 entry 3's
-  // guard): (2) already refuses every reveal a popup or stop that merely moved would grant, because a
-  // point counts only once its own popups are closed by this stop's presses, and the scroll offsets the
-  // walk saw are put back. What a missing guard leaves is only a `now` taken where the page drifted
-  // (limit 4), on a cover that stands.
+  // unreproduced: before any press, while no popup of the cover had closed, the cover the walk saw was
+  //   not there (the stop no longer obscured by every popup of it): the page drifted, so nothing is
+  //   judged and the cover stands, with no re-measure (review 7 entry 3's guard, added in review 8).
+  // The guard and the per-point rule (2) close different holes. The guard refuses a cover another
+  // cover's press reflowed before this stop's presses (review 8's ORDlayout: T's press slid a dialog over
+  // S, and S's own press then slid it off again). The per-point rule refuses drift after a popup of the
+  // cover closed, where the guard no longer applies (proof OWNdrift: X's forward press closed A, which
+  // is also over X in reverse, and T's press slid B off X before X's reverse cover is judged).
   // Known limits of the exemption, each failing closed (a finding stands that a user could clear)
   // unless it says otherwise:
   // 1. Order. Covers are judged one after another on one page, in walk order (E, then F, then R, each
@@ -851,10 +854,16 @@ export type CoverJudgement = {
   //    P2partialClosedBefore) is closed-before, although the rest of the stop would show.
   // 3. Keys and presses. Only Escape is tried, at most three presses, each of which must close a
   //    user-opened popup; a popup another key or a fourth press would dismiss stays a cover.
-  // 4. Geometry. Only scroll offsets are put back: the window and every scrollable ancestor of the stop.
-  //    Layout another cover's press changed (a closed popup reflowing its neighbours) and the offsets
-  //    of a scroller that holds the popup but not the stop are not; the cover then earns nothing and
-  //    stands, but `now`, and so any extra line under it, is read where the page drifted.
+  // 4. Geometry, which can fail open. Only scroll offsets are put back: the window and every scrollable
+  //    ancestor of the stop (found through parent elements and shadow hosts, not the flat tree, so a
+  //    slotted stop's scrollers outside its shadow tree are missed). Layout another cover's press changed
+  //    (a closed popup reflowing its neighbours), and a scroller that holds the popup but not the stop,
+  //    are not. Before any popup of the cover has closed, the guard turns such drift into
+  //    `unreproduced` (the cover stands). After one has closed, by this stop's press under another key,
+  //    the guard no longer applies: the per-point rule still refuses a popup that only moved, but a
+  //    point earned there can fail open when, on a fresh page, the stop's own press would move another
+  //    popup onto it that the drifted page had already moved elsewhere. A cover that stands after
+  //    drift may also carry a re-measure, and an extra line, read where the page drifted.
   // 5. What counts as user-opened. Only popups open when the walk begins, recognised by role (menu,
   //    listbox, tooltip, non-modal dialog) or [popover]; content a scenario opened without such a role,
   //    and any popup opened during the walk, is author content. A popup's opaque wrapper counts as the
@@ -867,7 +876,7 @@ export type CoverJudgement = {
   //    one of those points, so a part of the stop that shows only between them earns nothing.
   // 8. Hit testing, failing open. A layer elementsFromPoint does not return (pointer-events: none) is
   //    not seen at all, as for every 2.4.11 judgement of the walk (proof P6).
-  outcome: 'revealed' | 'covered' | 'closed-before' | 'in-modal' | 'gone' | 'unfocusable' | 'unverified'
+  outcome: 'revealed' | 'covered' | 'closed-before' | 'unreproduced' | 'in-modal' | 'gone' | 'unfocusable' | 'unverified'
   // The stop measured again after its presses, at walk geometry: anything but visible is a finding under
   // the real occluder (author content, or another user-opened popup Escape did not close).
   now?: StopVerdict
@@ -1332,6 +1341,13 @@ async function verifyCovers(context: Context, walk: LaneWalk): Promise<CoverJudg
     let read = await state()
     if (!read.same) { judged.push({ ...cover, outcome: 'unfocusable' }); continue }
     if (closedElsewhere(id, popups, read.still)) { judged.push({ ...cover, outcome: 'closed-before', ...(read.now ? { now: read.now } : {}) }); continue }
+    // The reproduction guard: while no popup of the cover has closed, the walk-time cover must be there
+    // again, every popup of it over the stop. If the page drifted (another cover's press reflowed it), the
+    // cover is not judged at all and stands, without a re-measure taken where the page drifted.
+    if (read.still.length === popups.length && !(read.now?.kind === 'obscured' && popups.every(popup => read.now!.popups?.includes(popup)))) {
+      judged.push({ ...cover, outcome: 'unreproduced' })
+      continue
+    }
     // Escape, up to three times, while a user-opened occluder is left. A press is progress when focus
     // stays on the stop and at least one open user-opened popup closed (any of them: a stack may close
     // another first); everything that closed during it is credited to this stop.
