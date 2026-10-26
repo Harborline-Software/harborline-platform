@@ -111,6 +111,8 @@ jobs:
 
       - name: Mutate changed projects and hold each to its break (pull request)
         if: github.event_name == 'pull_request'
+        # Reserve a nominal 30 minutes for setup, diagnostic upload, and cleanup within the 360-minute PR job.
+        timeout-minutes: 330
         run: |
           dotnet tool restore
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
