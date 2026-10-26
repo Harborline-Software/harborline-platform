@@ -2315,7 +2315,7 @@
         "conformance/hlp.ui.guarded-control/quality-fixtures.yaml": "08e64211160135ad2481df97c5773ba5b0dda9ba26a64d52ccb4bdbaa0c05ac6",
         "conformance/hlp.ui.guarded-control/runners/run-shared.mjs": "36176f55bd9610f4fc33621aa35d16546c79ec42d7e1735178547e99657b5743",
         "projections/blazor/ui/hlp.ui.guarded-control/GuardedControlTypes.cs": "f6fc17076f10c4ddb76bcc19aee288964969498e957b4186f24582913c56d1fb",
-        "projections/blazor/ui/hlp.ui.guarded-control/HarborlineGuardedControl.razor": "ccfc738ac617ba543120608f610c27d066af2ac2d8275091ca7275b9431fa1c9",
+        "projections/blazor/ui/hlp.ui.guarded-control/HarborlineGuardedControl.razor": "eb901c6c944d10cd92f707107c87a2c4de5bd0a3d574c8dafbd515a34a92024e",
         "projections/blazor/ui/hlp.ui.guarded-control/wwwroot/guarded-control.js": "61a2cdfcbdbf526aafbf38ec270ab4efe160389789d9ca14e74dc1bb5bf4eecf",
         "projections/react/ui/hlp.ui.guarded-control/src/GuardedControl.tsx": "d9e14c8d2344d4fc0b7a6a5420d2e8b6610a5ee1c95ef27c37a28385bf9d6776",
         "projections/react/ui/hlp.ui.guarded-control/src/__tests__/GuardedControl.conformance.test.ts": "6f97ebe89d3993a753fe2135e88f09a216623908e1e90b11000a5e63f13535d3",
