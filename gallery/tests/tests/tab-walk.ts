@@ -46,10 +46,11 @@ export type StopVerdict = {
   kind: 'visible' | 'obscured' | 'clipped' | 'offscreen' | 'unmeasured'
   partial?: boolean
   occluder?: string
-  // Obscured only by a popup that was open when the walk began (prepareScenario opened it for the
-  // user), and the registry ids of those popups. WCAG 2.2 SC 2.4.11 Note 2 exempts that only when the
-  // user can reveal the stop without moving focus, so it is a finding until verifyCovers, after both
-  // phases, shows Escape on the stop dismisses the popup with focus kept there.
+  // Obscured with at least one popup that was open when the walk began (prepareScenario opened it for
+  // the user) above the stop, and the registry ids of every such popup above it at any sample point,
+  // stacked or mixed with author content. WCAG 2.2 SC 2.4.11 Note 2 exempts that only when the user
+  // can reveal the stop without moving focus, so it is a finding until verifyCovers shows the stop's
+  // own Escapes close all of them with focus kept there.
   userOpened?: boolean
   popups?: number[]
 }
@@ -92,11 +93,14 @@ export type TabWalkRuntime = {
   modalTabbables(modalId: number): Array<{ id: number; radioGroup?: string }>
   // Before Escape on a covered stop: focus it, unless it is gone, unfocusable or inside an open
   // aria-modal container (whose own Escape would close the modal), and say whether its popups are open.
-  // `own` lists the popups this same stop's earlier Escape closed; any other closed popup means an
-  // earlier stop's Escape (or something else) closed it, and this stop's own Escape was never tried.
+  // `popups` is every user-opened popup above the stop; `own` lists those this same stop's earlier
+  // Escapes closed. Any other closed popup means an earlier stop's Escape (or something else) closed it,
+  // and this stop's own Escape was never tried on it.
   coverCheck(id: number, popups: number[], own: number[]): { state: 'ready' | 'own' | 'closed' | 'gone' | 'in-modal' | 'unfocusable'; open?: number[]; now?: StopVerdict }
-  // After Escape: whether the stop kept focus and its popups closed, and what it shows now.
-  coverAfterEscape(id: number, popups: number[]): { same: boolean; closed: boolean; now?: StopVerdict }
+  // The user-opened popups open now, before a press.
+  openUserOpened(): number[]
+  // After Escape: whether the stop kept focus, which popups of a snapshot closed, and what it shows now.
+  coverAfterEscape(id: number, snapshot: number[]): { same: boolean; closed: number[]; now?: StopVerdict }
   // Whether the focused element is an editing control that blur would commit or close.
   editing(): boolean
   // Put back the window scroll the walk began with (`scroll`), or, when prepareLane also had to undo a
@@ -385,14 +389,25 @@ export function installTabWalkRuntime(): void {
     if (empty(onScreen)) return { kind: 'offscreen' }
     const box = clipBox(subject, onScreen)
     if (empty(box)) return { kind: 'clipped' }
+    // The topmost opaque hit at each point decides whether the point shows the stop; the scan then
+    // carries on down to the stop, so every user-opened popup above it is known, stacked or mixed with
+    // author content, each credited to the innermost open user-opened popup that contains the hit.
     const occluders = new Map<Element, number>()
+    const above = new Set<Element>()
+    const innermost = (hit: Element) => {
+      const holding = userOpened.filter(popup => stillOpen(popup) && popup.contains(hit))
+      return holding.find(popup => !holding.some(other => other !== popup && popup.contains(other)))
+    }
     const judge = (points: ReadonlyArray<readonly [number, number]>) => {
       let seen = 0
       for (const [x, y] of points) {
+        let covered = false
         for (const hit of document.elementsFromPoint(x, y)) {
-          if (hit === subject || hit === element || subject.contains(hit) || element.contains(hit) || labels.some(label => label.contains(hit))) { seen += 1; break }
-          if (hit.contains(subject) || isSentinel(hit)) continue
-          if (opaque(hit)) { occluders.set(hit, (occluders.get(hit) ?? 0) + 1); break }
+          if (hit === subject || hit === element || subject.contains(hit) || element.contains(hit) || labels.some(label => label.contains(hit))) { if (!covered) seen += 1; break }
+          if (hit.contains(subject) || isSentinel(hit) || !opaque(hit)) continue
+          if (!covered) { occluders.set(hit, (occluders.get(hit) ?? 0) + 1); covered = true }
+          const popup = innermost(hit)
+          if (popup) above.add(popup)
         }
       }
       return seen
@@ -401,16 +416,15 @@ export function installTabWalkRuntime(): void {
     let seen = judge(points)
     if (seen === 0) {
       occluders.clear()
+      above.clear()
       points = samples(box, 7)
       seen = judge(points)
     }
     if (seen > 0) return seen < points.length ? { kind: 'visible', partial: true } : { kind: 'visible' }
     if (occluders.size === 0) return { kind: 'clipped' }
     const worst = [...occluders.entries()].sort((left, right) => right[1] - left[1])[0][0]
-    const covering = (occluder: Element) => userOpened.find(popup => stillOpen(popup) && popup.contains(occluder))
-    const byUserOpened = [...occluders.keys()].every(occluder => covering(occluder) !== undefined)
-    const popups = byUserOpened ? [...new Set([...occluders.keys()].map(occluder => idOf(covering(occluder)!)))] : []
-    return { kind: 'obscured', occluder: occluderName(worst), ...(byUserOpened ? { userOpened: true, popups } : {}) }
+    const popups = [...above].map(popup => idOf(popup))
+    return { kind: 'obscured', occluder: occluderName(worst), ...(popups.length > 0 ? { userOpened: true, popups } : {}) }
   }
 
   // A stop is a modal leak when an aria-modal container is open and the stop is outside it.
@@ -586,10 +600,13 @@ export function installTabWalkRuntime(): void {
       if (popups.some(popupId => !isOpen(popupId) && !own.includes(popupId))) return { state: 'closed', now: measure(element) }
       return open.length > 0 ? { state: 'ready', open } : { state: 'own', now: measure(element) }
     },
-    coverAfterEscape(id, popups) {
+    openUserOpened() {
+      return userOpened.filter(stillOpen).map(popup => idOf(popup))
+    },
+    coverAfterEscape(id, snapshot) {
       const element = byId.get(id)
       const same = Boolean(element && deepActive() === element)
-      const closed = popups.every(popupId => { const popup = byId.get(popupId); return !popup || !stillOpen(popup) })
+      const closed = snapshot.filter(popupId => { const popup = byId.get(popupId); return !popup || !stillOpen(popup) })
       return same && element ? { same, closed, now: measure(element) } : { same, closed }
     },
     revealActive(scroll) {
@@ -709,13 +726,15 @@ export type LaneWalk = {
 export type CoverJudgement = {
   id: number
   popups: number[]
-  // revealed: Escape, pressed with focus on this stop (up to three times, while each press closed the
-  //   popups then over it and left focus there), left the stop shown, or hidden only by author content,
-  //   which is then a finding of its own under that occluder.
-  // covered: Escape did not: focus moved, a popup stayed open, or the stop is still under another
-  //   user-opened popup, which is then named in its own line.
-  // closed-before: its popups were already closed when this stop's turn came (an earlier stop's
-  //   Escape closed them), so its own Escape was never tried: the cover stands (fails closed).
+  // revealed: this stop's own Escapes (up to three, each closing at least one user-opened popup above it
+  //   with focus kept there) closed every user-opened popup above it, and the final measure has no
+  //   user-opened occluder: the stop is shown, or hidden only by author content, which is then a
+  //   finding of its own under that occluder.
+  // covered: its presses could not clear it: focus moved, a press closed nothing above it, or a
+  //   user-opened popup is still over it after three presses; the remaining occluder is named.
+  // closed-before: a user-opened popup above it was already closed by something other than its own
+  //   Escapes (an earlier stop's Escape), so its own Escape was never tried on it: the cover stands
+  //   (fails closed).
   // in-modal: the stop sits in an open aria-modal container, whose own Escape would close it, so
   //   Escape is not pressed and the cover stands (fails closed).
   // gone, unfocusable: no Escape could be tried; the cover stands.
@@ -1144,33 +1163,41 @@ async function verifyCovers(context: Context, walk: LaneWalk): Promise<CoverJudg
       if (!pending.has(coverKey(stop.id, popups))) pending.set(coverKey(stop.id, popups), { id: stop.id, popups })
     }
   }
-  // Which stop's own Escape closed each popup, so a popup another stop's Escape closed never counts.
+  // Which stop's own Escape closed each popup, so a popup anything else closed never counts.
   const closedBy = new Map<number, number>()
-  // Shown, or hidden only by author content (a finding of its own): no user-opened popup is left on it.
+  // No user-opened occluder left: shown, or hidden only by author content (a finding of its own).
   const clear = (now: StopVerdict | undefined) => Boolean(now && now.kind !== 'unmeasured' && !(now.kind === 'obscured' && now.userOpened))
+  // The one rule: revealed only when the final measure is clear and every user-opened popup above the
+  // stop was closed by this stop's own presses.
+  const verdictFor = (id: number, popups: number[], now: StopVerdict | undefined): CoverJudgement['outcome'] =>
+    clear(now) && popups.every(popup => closedBy.get(popup) === id) ? 'revealed' : 'covered'
   const judged: CoverJudgement[] = []
   for (const { id, popups } of pending.values()) {
     if (Date.now() >= context.deadline) { judged.push({ id, popups, outcome: 'unverified' }); continue }
     const own = [...closedBy.entries()].filter(([, stop]) => stop === id).map(([popup]) => popup)
     const check = await runtimeCall(context, () => context.page.evaluate(([stop, ids, mine]) => window.__hlpTabWalk!.coverCheck(stop, ids, mine), [id, popups, own] as const))
     if (check.state === 'closed') { judged.push({ id, popups, outcome: 'closed-before', ...(check.now ? { now: check.now } : {}) }); continue }
-    if (check.state === 'own') { judged.push({ id, popups, outcome: clear(check.now) ? 'revealed' : 'covered', ...(check.now ? { now: check.now } : {}) }); continue }
+    if (check.state === 'own') { judged.push({ id, popups, outcome: verdictFor(id, popups, check.now), ...(check.now ? { now: check.now } : {}) }); continue }
     if (check.state !== 'ready') { judged.push({ id, popups, outcome: check.state }); continue }
-    // Escape, up to three times, while each press closes the popups then over the stop and leaves focus
-    // on it (Escape closes nested layers one at a time); only the final measure is judged.
-    let covering = check.open ?? popups
-    let judgement: CoverJudgement = { id, popups, outcome: 'covered' }
+    // Escape, up to three times. A press is progress when focus stays on the stop and at least one
+    // user-opened popup above it closed; every popup that closed during the stop's own press is
+    // credited to it (a snapshot of all open ones, not only those above). It stops once the measure
+    // has no user-opened occluder, or a press makes no progress.
+    let over = new Set(popups)
+    let now: StopVerdict | undefined
     for (let press = 0; press < 3; press += 1) {
+      const snapshot = await runtimeCall(context, () => context.page.evaluate(() => window.__hlpTabWalk!.openUserOpened()))
       await context.page.keyboard.press('Escape')
       await runtimeCall(context, () => context.page.evaluate(() => window.__hlpTabWalk!.readSettled()))
-      const after = await runtimeCall(context, () => context.page.evaluate(([stop, ids]) => window.__hlpTabWalk!.coverAfterEscape(stop, ids), [id, covering] as const))
-      if (after.same && after.closed) covering.forEach(popup => closedBy.set(popup, id))
-      judgement = { id, popups, outcome: after.same && after.closed && clear(after.now) ? 'revealed' : 'covered', ...(after.now ? { now: after.now } : {}) }
-      const next = after.now?.kind === 'obscured' && after.now.userOpened ? after.now.popups ?? [] : []
-      if (!after.same || !after.closed || next.length === 0) break
-      covering = next
+      const after = await runtimeCall(context, () => context.page.evaluate(([stop, ids]) => window.__hlpTabWalk!.coverAfterEscape(stop, ids), [id, snapshot] as const))
+      now = after.now
+      if (!after.same) break
+      after.closed.forEach(popup => closedBy.set(popup, id))
+      const progress = after.closed.some(popup => over.has(popup))
+      if (clear(now) || !progress) break
+      over = new Set([...over, ...(now?.popups ?? [])])
     }
-    judged.push(judgement)
+    judged.push({ id, popups, outcome: verdictFor(id, popups, now), ...(now ? { now } : {}) })
   }
   trace(context, `covers ${JSON.stringify(judged)}`)
   return judged
@@ -1188,14 +1215,17 @@ export async function prepareLane(page: Page, viewport: { width: number; height:
   const resized = !current || current.width !== viewport.width || current.height !== viewport.height
   if (resized) await page.setViewportSize(viewport)
   // The window scroll the walk begins with, where the focus the scenario's checks left was shown. E puts
-  // it back. When this also had to undo a layout change, that scroll belongs to another layout, so E
-  // falls back to Chromium's focus scroll instead (revealActive).
+  // it back. When this had to undo a resized viewport or a root font size (reflow and the select-field
+  // helpers leave both), that scroll belongs to another layout, so E falls back to Chromium's focus
+  // scroll instead (revealActive).
   const restored = await page.evaluate(() => {
-    const probe = document.querySelector('[data-gallery-probe]') as HTMLElement | null
-    const layout = Boolean(document.documentElement.style.getPropertyValue('font-size') || probe?.style.getPropertyValue('transform'))
+    // The sub-pixel translate stabilizedBox leaves on the probe does not move the window scroll, so it is
+    // removed first and the scroll read after it (the browser clamps it if the extents shrank). A root
+    // font size the scenario's checks set (reflow) is a layout the scroll was taken in.
+    ;(document.querySelector('[data-gallery-probe]') as HTMLElement | null)?.style.removeProperty('transform')
+    const layout = Boolean(document.documentElement.style.getPropertyValue('font-size'))
     const scroll = { x: window.scrollX, y: window.scrollY }
     document.documentElement.style.removeProperty('font-size')
-    probe?.style.removeProperty('transform')
     window.scrollTo(0, 0)
     return { layout, scroll }
   })
