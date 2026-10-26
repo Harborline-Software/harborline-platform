@@ -40,6 +40,14 @@ const COVERED_INSTRUCTION = 'Guarded action: {action}. Activate to arm.'
 const ARMED_INSTRUCTION = 'Armed for {action}. Activate again within {duration} to commit.'
 const COMMITTING_STATUS = 'Committing {action}.'
 
+// One pass with a function replacer, as HarborlineDefaultStrings.Interpolate does in the Blazor lane:
+// inserted caller text is never read as a replacement pattern ($$, $&, $`, $') or scanned again for
+// placeholders, and an unknown placeholder stays visible. Own properties only, so {constructor} is
+// not a variable.
+function interpolateWhole(template: string, variables: Readonly<Record<string, string>>): string {
+  return template.replace(/\{(\w+)\}/g, (match, name: string) => Object.hasOwn(variables, name) ? variables[name]! : match)
+}
+
 export function GuardedControl({
   action, classificationId, label, onCommit, disabled = false, describedBy, observe,
   className, ...hostAttributes
@@ -63,11 +71,8 @@ export function GuardedControl({
   const instructionId = `${id}-instruction`
   const isolatedLabel = `\u2068${label}\u2069`
 
-  const wholeMessage = React.useCallback((key: string, fallback: string, variables: Record<string, string>) => {
-    let message = catalog[key] ?? fallback
-    for (const [name, value] of Object.entries(variables)) message = message.replaceAll(`{${name}}`, value)
-    return message
-  }, [catalog])
+  const wholeMessage = React.useCallback((key: string, fallback: string, variables: Record<string, string>) =>
+    interpolateWhole(catalog[key] ?? fallback, variables), [catalog])
 
   const transition = React.useCallback((next: GuardedControlState) => {
     const previous = stateRef.current

@@ -95,6 +95,21 @@ describe('GuardedControl revision 2 names and descriptions', () => {
     observer.disconnect()
   })
 
+  // The label is caller text: interpolated once, never read as a replacement pattern ($$, $&, $`, $')
+  // or scanned again for placeholders, so the description quotes it exactly, as the Blazor lane does.
+  it('quotes a label holding replacement patterns and placeholders verbatim', () => {
+    const label = "Pay $$ fee $& {duration} {action} $` $' end"
+    render(<GuardedControl action="a" classificationId="c" label={label} onCommit={pending}/>)
+    expect(action()).toHaveAccessibleName(label)
+    expect(action()).toHaveAccessibleDescription(covered(label))
+    expect(instruction()!.textContent).toBe(covered(label))
+    fireEvent.click(action())
+    expect(action()).toHaveAccessibleDescription(armed(label))
+    expect(screen.getByRole('status').textContent).toBe(armed(label))
+    fireEvent.click(action())
+    expect(action()).toHaveAccessibleDescription(committing(label))
+  })
+
   it('localizes the descriptions through a host catalog while the name stays the label', () => {
     render(
       <HarborlineLocaleProvider locale="fr-FR" catalog={{

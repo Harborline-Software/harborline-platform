@@ -124,6 +124,26 @@ public sealed class GuardedControlNamingTests : BunitContext
         Assert.DoesNotContain(cut.FindAll("[aria-live]"), region => region.QuerySelector("[role=timer]") is not null);
     }
 
+    // The label is caller text: interpolated once and never scanned again for placeholders, so the
+    // description quotes it exactly, as the React lane does.
+    [Fact]
+    public void QuotesALabelHoldingReplacementPatternsAndPlaceholdersVerbatim()
+    {
+        const string label = "Pay $$ fee $& {duration} {action} $` $' end";
+        var operation = new TaskCompletionSource();
+        var cut = Render<HarborlineGuardedControl>(p => p
+            .Add(x => x.Action, "packages.export").Add(x => x.ClassificationId, "new-record-type")
+            .Add(x => x.Label, label).Add(x => x.OnCommit, () => operation.Task));
+        Assert.Equal(label, GuardAccessibility.Name(cut.Find("button"), cut));
+        Assert.Equal(Covered(label), GuardAccessibility.Description(cut.Find("button"), cut));
+        Assert.Equal(Covered(label), cut.Find(".hl-guarded-control__instruction").TextContent);
+        cut.Find("button").Click();
+        Assert.Equal(Armed(label), GuardAccessibility.Description(cut.Find("button"), cut));
+        Assert.Equal(Armed(label), cut.Find("[role=status]").TextContent);
+        _ = cut.Find("button").ClickAsync(new MouseEventArgs());
+        Assert.Equal(Committing(label), GuardAccessibility.Description(cut.Find("button"), cut));
+    }
+
     [Fact]
     public void HostCatalogLocalizesTheDescriptionsWhileTheNameStaysTheLabel()
     {
