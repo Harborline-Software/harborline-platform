@@ -20,8 +20,10 @@ function sourceSnapshot(t) {
   const paths = execFileSync('git', ['ls-files', '-z'], {cwd: root, encoding: 'utf8'}).split('\0').filter(Boolean)
   for (const path of paths) {
     const source = resolve(root, path), target = resolve(cwd, path)
+    const metadata = lstatSync(source, {throwIfNoEntry: false})
+    if (!metadata) continue
     mkdirSync(dirname(target), {recursive: true})
-    if (lstatSync(source).isSymbolicLink()) {
+    if (metadata.isSymbolicLink()) {
       symlinkSync(readlinkSync(source), target, statSync(source, {throwIfNoEntry: false})?.isDirectory() ? 'dir' : 'file')
     } else copyFileSync(source, target)
   }
