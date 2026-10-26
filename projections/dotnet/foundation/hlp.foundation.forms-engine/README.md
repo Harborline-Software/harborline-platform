@@ -134,6 +134,32 @@ default member keeps existing implementations source-compatible, answering `Unav
 historical identity and environment, latest-compatible surface selection for new instances, and the required
 `record_type_id` rollout (T-484, T-485) are not part of this revision. The exact compatibility rules, including record-type and sectioned-field handling and the first-publication case, are stated in the revision 18 invariant of `specs/modules/foundation/hlp.foundation.forms-engine/interface.yaml`.
 
+Revision 19 defines the publication assessment as historical advisory evidence (T-1089, Q7).
+Every built-in complete result has `Inputs`: the entire assessed `CandidateFormJson`, the observed
+`PredecessorFormJson` when present, and each actual schema response's `Id` and exact `JsonSchemaText`.
+The candidate is captured before the first provider await and the predecessor before the next await
+after retrieval. Comparison and lookups use private Forms derived from those retained bytes; a failed
+or lossy capture returns unavailable. `Basis` retains the trusted binding assertions separately from
+those bodies and owns read-only copies of both recorded environment declarations. `Surfaces` owns
+the one observed Layout set, shared with `Proposal`: exact tenant/id/version pins, semantic labels,
+digests and matching block ids resolve through the existing immutable published store.
+
+`FreshnessLimit` states: "Historical inputs observed before publication; the committed Form transition
+and current Layout membership are not guaranteed. Reassess before acting." These sequential
+observations need not share an instant. Callers must not mutate inputs during synchronous capture.
+Keeping the result retains its Form and schema evidence, including lifecycle metadata; this adds no
+durable assessment store. Later Form lifecycle changes, publications and Layout census growth do not
+refresh that result. The assessed Draft can be unpersisted and differs from the publisher's committed
+`Definition`. First publication has no predecessor body/schema or proposal. Unavailable and legacy
+results have null `Inputs` and `FreshnessLimit`; the five-argument constructor, five-member
+deconstruction and `IsComplete` keep their existing behavior.
+
+Publication still uses the existing atomic register-and-publish, including admission, cancellation,
+identical retries and conflicting retries. Advisory findings never refuse a publication or change a
+Layout. A host promising the actual transition needs a separately qualified atomic expected-head or
+expected-absent check; current Layout coverage needs its own census consistency contract. This
+revision introduces neither stronger promise nor API host adoption.
+
 This is an implementation checkpoint, not HLF-055 completion. All 80 captured source cases and all
 38 migration-gap cases pass. The package and its destination-neutral authoring-host boundary are
 package/consumer green. HLF-055 remains open for the authenticated inspection-review vertical slice.
