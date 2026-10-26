@@ -208,7 +208,7 @@ function razorRun(target, changed) {
 // One Stryker run for a configured test project. changed: the source files changed since origin/main (PR mode), or
 // undefined for a full run over every mutant. Stryker never judges the score itself (break 0 here): the wrapper
 // compares the full-project report against the floor in both PR and full modes (owner order 2026-09-30).
-export async function mutateProject(test, changed, strykerArgs, command = ['dotnet', 'stryker']) {
+export async function mutateProject(test, changed, strykerArgs, command = ['dotnet', 'stryker'], stopProcess = killProcessTreeSync) {
   const testDirectory = path.posix.dirname(test), target = targetOf(test, read), config = configOf(test, read)
   mkdirSync(path.join(root, 'StrykerOutput'), {recursive: true})
   const output = mkdtempSync(path.join(root, 'StrykerOutput', `${path.posix.basename(testDirectory)}-`))
@@ -234,7 +234,7 @@ export async function mutateProject(test, changed, strykerArgs, command = ['dotn
     attempt.handles.push(fd)
     return fd
   }
-  let journal, report, counts, dispose = () => {}, interruption
+  let journal, report, counts, dispose = () => {}, disposeChild = () => {}, interruption
   const decoders = {stdout: new StringDecoder('utf8'), stderr: new StringDecoder('utf8')}
   const emit = (source, payload) => {
     const record = {at: new Date().toISOString(), source, payload}
@@ -274,18 +274,37 @@ export async function mutateProject(test, changed, strykerArgs, command = ['dotn
     }
   }
   const result = () => ({outcome: attempt.failure ?? {kind: 'completed'}, status: attempt.status, signal: attempt.signal,
+    pid: attempt.pid, ...(attempt.cleanupUnavailable ? {cleanupUnavailable: true, descendantsUnknown: true} : {}),
     counts, report, reportPath, output, razor: Boolean(razor)})
   const terminal = () => {
     if (attempt.terminal) return
     attempt.terminal = true
-    emit('terminal', {outcome: result().outcome, status: attempt.status, signal: attempt.signal, elapsedMs: Date.now() - attempt.started,
+    const {report: ignored, counts: ignoredCounts, ...summary} = result()
+    emit('terminal', {...summary, elapsedMs: Date.now() - attempt.started,
       bytes: attempt.bytes, reportPath})
+  }
+  const checkpoint = () => {
+    try { const {report: ignored, ...summary} = result(); persist('result.json', summary) } catch (error) { fail('observer', error) }
+    try { terminal() } catch (error) { fail('observer', error) }
+  }
+  const stopOwned = () => {
+    if (attempt.cleanupUnavailable) return
+    const child = attempt.child
+    attempt.child = undefined
+    let stopped = attempt.phase !== 'draining'
+    if (child) {
+      try { stopped = child.exitCode === null && child.signalCode === null && stopProcess(child.pid) === true }
+      catch { stopped = false }
+    }
+    if (!stopped) attempt.cleanupUnavailable = true
   }
   const observerFailure = error => {
     fail('observer', error)
-    const child = attempt.child
-    attempt.child = undefined
-    if (child) killProcessTreeSync(child.pid)
+    stopOwned()
+    if (attempt.cleanupUnavailable) {
+      checkpoint()
+      disposeChild()
+    }
   }
   const signals = Object.fromEntries(['SIGINT', 'SIGTERM'].map(signal => [signal, () => { interruption = signal }]))
   try {
@@ -299,22 +318,26 @@ export async function mutateProject(test, changed, strykerArgs, command = ['dotn
     for (const [signal, listener] of Object.entries(signals)) process.once(signal, listener)
     dispose = cleanUpScratchOnSignal(() => {
       if (!interruption) return
-      const child = attempt.child
-      attempt.child = undefined
       fail('interrupted')
-      attempt.signal = interruption ?? null
-      attempt.phase = 'draining'
-      try { tail(true); terminal() } catch (error) { fail('observer', error) }
-      finally {
-        try { const {report: ignored, ...summary} = result(); persist('result.json', summary) } catch (error) { fail('observer', error) }
-        finally { if (child) killProcessTreeSync(child.pid) }
-      }
+      attempt.signal ??= interruption
+      stopOwned()
+      try { tail(true) } catch (error) { fail('observer', error) }
+      checkpoint()
+      if (attempt.cleanupUnavailable) disposeChild()
     })
     await new Promise(resolve => {
       const child = spawn(command[0], argv, {cwd: path.join(root, testDirectory), stdio: ['ignore', 'pipe', 'pipe'],
         detached: process.platform !== 'win32', env: {...process.env, ...razor?.env}})
       attempt.child = child
+      attempt.pid = child.pid ?? null
       attempt.phase = 'running'
+      disposeChild = () => {
+        clearInterval(attempt.timer)
+        child.stdout.destroy()
+        child.stderr.destroy()
+        child.unref()
+        resolve()
+      }
       for (const source of ['stdout', 'stderr']) {
         child[source].on('data', bytes => {
           try {
@@ -329,27 +352,32 @@ export async function mutateProject(test, changed, strykerArgs, command = ['dotn
       child.on('error', error => { fail('spawn', error) })
       child.on('exit', (code, signal) => {
         attempt.child = undefined
+        if (attempt.cleanupUnavailable) return
+        attempt.phase = 'draining'
         attempt.status = code
-        attempt.signal = signal
+        attempt.signal ??= signal
         if (signal || code !== 0) fail(signal ? 'signal' : 'exit')
       })
       child.on('close', (code, signal) => {
         attempt.child = undefined
-        attempt.status = code
-        attempt.signal = signal
-        if (signal || code !== 0) fail(signal ? 'signal' : 'exit')
+        if (!attempt.cleanupUnavailable) {
+          attempt.phase = 'closed'
+          attempt.status = code
+          attempt.signal ??= signal
+          if (signal || code !== 0) fail(signal ? 'signal' : 'exit')
+        }
         resolve()
       })
       attempt.timer = setInterval(() => {
         try {
           tail()
-          emit('heartbeat', {phase: attempt.phase, pid: attempt.child?.pid ?? null, elapsedMs: Date.now() - attempt.started,
+          emit('heartbeat', {phase: attempt.phase, pid: attempt.child?.pid ?? null, childPid: attempt.pid, elapsedMs: Date.now() - attempt.started,
             bytes: attempt.bytes})
         } catch (error) { observerFailure(error) }
       }, 1000)
     })
-    attempt.phase = 'draining'
     clearInterval(attempt.timer)
+    if (attempt.cleanupUnavailable) return result()
     tail(true)
     for (const source of ['stdout', 'stderr']) {
       const text = decoders[source].end()
@@ -369,7 +397,7 @@ export async function mutateProject(test, changed, strykerArgs, command = ['dotn
     attempt.child = undefined
     dispose()
     for (const [signal, listener] of Object.entries(signals)) process.removeListener(signal, listener)
-    try { terminal() } catch (error) { fail('observer', error) }
+    checkpoint()
     attempt.phase = 'finished'
     for (const fd of attempt.handles) {
       try { closeSync(fd) } catch (error) { fail('observer', error) }
@@ -434,17 +462,18 @@ export function scoreVerdict(report, floor) {
 // project's own, comparable with its break) and fails when that score is below max(baseline, configured break). Survivors
 // on changed lines are still listed as review feedback. The Stryker.NET `since` score covers changed mutants only, which
 // is noisy and gameable (a one-line change hides a project's regression); its incremental mode needs a stored baseline report.
-async function run(repo, only, strykerArgs) {
+export async function run(repo, only, strykerArgs, mutate = mutateProject, sourceChanges = changedSourceFiles) {
   let failed = 0
   for (const test of selected(repo, only)) {
     const target = targetOf(test, read), targetText = read(target)
-    const changed = changedSourceFiles(target, targetText)
+    const changed = sourceChanges(target, targetText)
     if (!changed.length) { summarize(`- ${test}: skipped; no project-file or production .cs${targetText.includes('Microsoft.NET.Sdk.Razor') ? '/.razor' : ''} change since origin/main (test-only changes do not select a project under PR #236).`); continue }
     summarize(`- ${test}: selected for full-project mutation; changed source: ${changed.map(file => `\`${file}\``).join(', ')}.`)
-    const result = await mutateProject(test, undefined, strykerArgs)
+    const result = await mutate(test, undefined, strykerArgs)
     if (result.outcome.kind === 'failed') {
       summarize(`- ${test}: **FAIL**, ${JSON.stringify(result.outcome)}`)
       if (result.signal) return {signal: result.signal}
+      if (result.cleanupUnavailable) return result.status > 0 ? result.status : 1
       failed ||= result.status > 0 ? result.status : 1
       continue
     }
@@ -463,14 +492,15 @@ async function run(repo, only, strykerArgs) {
 
 // Full mode (the scheduled run on main): every mutant of every selected project; fail on 0 tested or a score below
 // the project's recorded baseline. `record` measures instead of judging and writes the baseline and the config's break.
-async function full(repo, only, strykerArgs, record) {
+export async function full(repo, only, strykerArgs, record, mutate = mutateProject) {
   let failed = 0
   const commit = git('rev-parse', 'HEAD')[0], measured = new Date().toISOString().slice(0, 10)
   for (const test of selected(repo, only)) {
-    const result = await mutateProject(test, undefined, strykerArgs)
+    const result = await mutate(test, undefined, strykerArgs)
     if (result.outcome.kind === 'failed') {
       summarize(`- ${test}: **FAIL**, ${JSON.stringify(result.outcome)}; nothing recorded`)
       if (result.signal) return {signal: result.signal}
+      if (result.cleanupUnavailable) return result.status > 0 ? result.status : 1
       failed ||= result.status > 0 ? result.status : 1
       continue
     }

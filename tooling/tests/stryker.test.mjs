@@ -4,7 +4,7 @@ import {test} from 'node:test'
 
 import path from 'node:path'
 import {execFileSync, spawn, spawnSync} from 'node:child_process'
-import {createHash} from 'node:crypto'
+import {createHash, randomUUID} from 'node:crypto'
 import {existsSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync} from 'node:fs'
 import {setTimeout as delay} from 'node:timers/promises'
 import {killProcessTreeSync} from '../resolve-command.mjs'
@@ -17,9 +17,12 @@ const repoRoot = path.resolve('stryker-fixture-repo')
 const diagnosticTarget = 'projections/dotnet/blocks/hlp.blocks.builder-definitions.tests/Harborline.Blocks.BuilderDefinitions.Tests.csproj'
 const diagnosticFixture = path.join(import.meta.dirname, 'fixtures', 'stryker-diagnostic-process-fixture.mjs')
 
-async function diagnosticProcess(t, mode) {
+async function diagnosticProcess(t, mode, operation) {
   const control = mkdtempSync(path.join(tmpdir(), 'stryker-diagnostics-'))
-  const child = spawn(process.execPath, [diagnosticFixture, 'wrapper', '--test', diagnosticTarget, '--control', control, '--mode', mode],
+  const nonce = randomUUID()
+  writeFileSync(path.join(control, 'nonce'), nonce)
+  const child = spawn(process.execPath, [diagnosticFixture, 'wrapper', '--test', diagnosticTarget, '--control', control, '--mode', mode,
+    ...(operation ? ['--operation', operation] : [])],
     {stdio: ['ignore', 'pipe', 'pipe'], detached: process.platform !== 'win32'})
   let stdout = '', stderr = '', closed = false
   child.stdout.on('data', data => { stdout += data })
@@ -28,10 +31,28 @@ async function diagnosticProcess(t, mode) {
     child.on('error', reject)
     child.on('close', (code, signal) => { closed = true; resolve({code, signal}) })
   })
-  const json = name => JSON.parse(readFileSync(path.join(control, name), 'utf8'))
+  const json = name => {
+    const text = readFileSync(path.join(control, name), 'utf8')
+    return JSON.parse(name.endsWith('.jsonl') ? text.slice(0, text.lastIndexOf('\n')).split('\n').at(-1) : text)
+  }
   t.after(async () => {
     writeFileSync(path.join(control, 'release'), '')
-    if (!closed) killProcessTreeSync(child.pid)
+    if (mode.startsWith('live-') && existsSync(path.join(control, 'ready.json'))) {
+      const {pid} = json('ready.json')
+      await until(() => {
+        if (existsSync(path.join(control, 'leader-stopped'))) return true
+        try { process.kill(pid, 0); return false } catch { return true }
+      }, 'fixture leader neither exited nor released cooperatively')
+    }
+    if (existsSync(path.join(control, 'descendant.json'))) {
+      const identity = json('descendant.json'), alive = json('alive.jsonl')
+      assert.equal(identity.nonce, nonce)
+      assert.deepEqual({pid: alive.pid, nonce: alive.nonce}, identity)
+      writeFileSync(path.join(control, 'descendant-release.json'), JSON.stringify(identity))
+      await until(() => existsSync(path.join(control, 'descendant-stopped.json')), 'fixture descendant did not release cooperatively')
+      assert.deepEqual(json('descendant-stopped.json'), identity)
+    }
+    if (!closed && child.exitCode === null && child.signalCode === null) killProcessTreeSync(child.pid)
     await done
     const output = existsSync(path.join(control, 'ready.json')) ? json('ready.json').output :
       existsSync(path.join(control, 'result.json')) ? json('result.json').output : undefined
@@ -206,6 +227,107 @@ test('observer failure remains nonpass after native close and retains raw eviden
   assert.equal(result.outcome.cause, 'observer')
   assert.match(readFileSync(path.join(output, 'diagnostics', 'stdout.log'), 'utf8'), /stdout before release/)
 })
+
+test('exited leader cancellation refuses unknown descendant cleanup without claiming it stopped', async t => {
+  const fixture = await diagnosticProcess(t, 'drain-cancel')
+  await until(() => fixture.stdout().includes('"pid":null'), 'leader did not exit before stdio close')
+  const {output} = fixture.json('ready.json'), before = fixture.json('alive.jsonl')
+  assert.equal(fixture.closed(), false)
+  writeFileSync(path.join(fixture.control, 'cancel'), '')
+  await until(fixture.closed, 'wrapper did not refuse within the local disposal bound')
+  const exit = await fixture.done
+  assert.ok(exit.code !== 0 || exit.signal)
+  const result = JSON.parse(readFileSync(path.join(output, 'diagnostics', 'result.json'), 'utf8'))
+  assert.equal(result.outcome.kind, 'failed')
+  assert.equal(result.outcome.cause, 'interrupted')
+  assert.equal(result.status, 0)
+  assert.equal(result.signal, 'SIGTERM')
+  await until(() => fixture.json('alive.jsonl').sequence > before.sequence, 'descendant was falsely claimed stopped')
+  const after = fixture.json('alive.jsonl')
+  assert.deepEqual({pid: after.pid, nonce: after.nonce}, {pid: before.pid, nonce: before.nonce})
+  assert.equal(existsSync(path.join(fixture.control, 'descendant-stopped.json')), false)
+  t.diagnostic(JSON.stringify({exit, result, before, after}))
+  assert.equal(result.cleanupUnavailable, true)
+  assert.equal(result.descendantsUnknown, true)
+  const journal = readFileSync(path.join(output, 'diagnostics', 'progress.jsonl'), 'utf8').trim().split('\n').map(JSON.parse)
+  assert.equal(journal.filter(record => record.source === 'terminal').length, 1)
+  assert.equal(journal.find(record => record.source === 'terminal').payload.cleanupUnavailable, true)
+  assert.match(readFileSync(path.join(output, 'diagnostics', 'stdout.log'), 'utf8'), /stdout before release/)
+  assert.match(readFileSync(path.join(output, 'diagnostics', 'stderr.log'), 'utf8'), /stderr before release/)
+})
+
+for (const operation of ['run', 'full', 'baseline']) {
+  test(`exited leader observer refusal stops ${operation} before the next project or baseline write`, async t => {
+    const baseline = readFileSync('tooling/stryker-baselines.json')
+    const configPath = path.join(path.dirname(diagnosticTarget), 'stryker-config.json'), configBefore = readFileSync(configPath)
+    const fixture = await diagnosticProcess(t, 'drain-observer', operation)
+    await until(() => fixture.stdout().includes('"pid":null'), 'leader did not exit before stdio close')
+    const {output} = fixture.json('ready.json'), before = fixture.json('alive.jsonl')
+    renameSync(path.join(output, 'logs'), path.join(output, 'logs-retained'))
+    writeFileSync(path.join(output, 'logs'), 'not a directory')
+    await until(fixture.closed, 'observer refusal did not bound local disposal')
+    assert.deepEqual(await fixture.done, {code: 1, signal: null})
+    const result = fixture.json('result.json')
+    assert.equal(result.outcome.kind, 'failed')
+    assert.equal(result.outcome.cause, 'observer')
+    assert.equal(result.status, 0)
+    assert.equal(result.signal, null)
+    assert.equal(result.cleanupUnavailable, true)
+    assert.equal(result.descendantsUnknown, true)
+    assert.equal(result.counts, undefined)
+    assert.deepEqual(readFileSync(path.join(fixture.control, 'projects.jsonl'), 'utf8').trim().split('\n').map(JSON.parse), [diagnosticTarget])
+    assert.deepEqual(readFileSync('tooling/stryker-baselines.json'), baseline)
+    assert.deepEqual(readFileSync(configPath), configBefore)
+    await until(() => fixture.json('alive.jsonl').sequence > before.sequence, 'descendant did not remain privately owned')
+    assert.equal(existsSync(path.join(fixture.control, 'descendant-stopped.json')), false)
+    const stored = JSON.parse(readFileSync(path.join(output, 'diagnostics', 'result.json'), 'utf8'))
+    assert.equal(stored.cleanupUnavailable, true)
+    const records = readFileSync(path.join(output, 'diagnostics', 'progress.jsonl'), 'utf8').trim().split('\n').map(JSON.parse)
+    assert.equal(records.filter(record => record.source === 'terminal').length, 1)
+    assert.equal(records.find(record => record.source === 'terminal').payload.descendantsUnknown, true)
+  })
+}
+
+test('observer refusal retains the original native nonzero failure while descendants are unknown', async t => {
+  const fixture = await diagnosticProcess(t, 'drain-nonzero-observer', 'full')
+  await until(() => fixture.stdout().includes('"pid":null'), 'leader did not exit before stdio close')
+  const {output} = fixture.json('ready.json')
+  renameSync(path.join(output, 'logs'), path.join(output, 'logs-retained'))
+  writeFileSync(path.join(output, 'logs'), 'not a directory')
+  await until(fixture.closed, 'observer refusal did not bound local disposal')
+  assert.deepEqual(await fixture.done, {code: 23, signal: null})
+  const result = fixture.json('result.json')
+  assert.deepEqual(result.outcome, {kind: 'failed', cause: 'exit'})
+  assert.equal(result.status, 23)
+  assert.equal(result.cleanupUnavailable, true)
+  assert.equal(result.descendantsUnknown, true)
+})
+
+for (const cleanup of ['false', 'throw']) {
+  for (const trigger of ['cancel', 'observer']) {
+    test(`live cleanup ${cleanup} preserves ${trigger} failure and refuses continuation`, async t => {
+      const fixture = await diagnosticProcess(t, `live-${cleanup}-${trigger}`, 'full')
+      await until(() => existsSync(path.join(fixture.control, 'ready.json')), 'child did not become ready')
+      const {output, pid} = fixture.json('ready.json')
+      if (trigger === 'cancel') writeFileSync(path.join(fixture.control, 'cancel'), '')
+      else {
+        renameSync(path.join(output, 'logs'), path.join(output, 'logs-retained'))
+        writeFileSync(path.join(output, 'logs'), 'not a directory')
+      }
+      await until(fixture.closed, 'failed live cleanup did not bound wrapper disposal')
+      const exit = await fixture.done
+      assert.ok(exit.code !== 0 || exit.signal)
+      const result = JSON.parse(readFileSync(path.join(output, 'diagnostics', 'result.json'), 'utf8'))
+      assert.equal(result.outcome.kind, 'failed')
+      assert.equal(result.outcome.cause, trigger === 'cancel' ? 'interrupted' : 'observer')
+      assert.equal(result.signal, trigger === 'cancel' ? 'SIGTERM' : null)
+      assert.equal(result.cleanupUnavailable, true)
+      assert.equal(result.descendantsUnknown, true)
+      assert.deepEqual(fixture.json('cleanup-called.json'), {pid})
+      assert.deepEqual(readFileSync(path.join(fixture.control, 'projects.jsonl'), 'utf8').trim().split('\n').map(JSON.parse), [diagnosticTarget])
+    })
+  }
+}
 
 test('native log truncation restarts its byte offset without replaying prior lines', async t => {
   const fixture = await diagnosticProcess(t, 'rotation')
