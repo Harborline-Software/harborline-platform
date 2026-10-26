@@ -45,6 +45,14 @@ function reach(state: string) {
   if (state === 'committing') fireEvent.click(action())
 }
 
+function renderVariant(variant: Record<string, any>, onCommit: () => void | Promise<void> = () => new Promise<void>(() => undefined)) {
+  return render(
+    <HarborlineLocaleProvider locale={variant.locale} catalog={variant.catalog} numberFormatter={variant.numberingSystem ? hostDigits(variant.numberingSystem) : undefined}>
+      <GuardedControl action="a" classificationId="c" label={variant.label} onCommit={onCommit}/>
+    </HarborlineLocaleProvider>,
+  )
+}
+
 // A host formatter that writes the digits of one CLDR numbering system, as the Blazor lane's is.
 function hostDigits(numberingSystem: string): HarborlineNumberFormatter {
   return (value, { locale, options }) => new Intl.NumberFormat(locale, { ...options, numberingSystem }).format(value)
@@ -112,21 +120,28 @@ const assertions: Record<string, (entry: Case) => void | Promise<void>> = {
     expect(status()).toBe(expected.afterWindow.status)
     expect(statuses.filter((value, index) => index === 0 || value !== statuses[index - 1])).toEqual(expected.statusSequence)
   },
+  // Every variant asserts the name and the covered and committing descriptions. A description the
+  // variant leaves out must be named in knownLimitations with its ticket, or the case fails: the armed
+  // description in Arabic and the pseudo-locale is T-1105's deferred duration-localization parity.
   'guarded-control.naming-localization': ({ input, expected }) => {
     ;(input.variants as Array<Record<string, any>>).forEach((variant, index) => {
       const want = expected.variants[index]
-      ;['covered', 'armed', 'committing'].forEach((state, stateIndex) => {
-        const view = render(
-          <HarborlineLocaleProvider locale={variant.locale} catalog={variant.catalog} numberFormatter={variant.numberingSystem ? hostDigits(variant.numberingSystem) : undefined}>
-            <GuardedControl action="a" classificationId="c" label={variant.label} onCommit={() => new Promise<void>(() => undefined)}/>
-          </HarborlineLocaleProvider>,
-        )
+      const limited = (assertion: string) => ((want.knownLimitations ?? []) as Array<{ assertion: string; ticket: string }>)
+        .some(limitation => limitation.assertion === assertion && limitation.ticket === 'T-1105')
+      for (const state of ['covered', 'armed', 'committing']) {
+        const view = renderVariant(variant)
         reach(state)
-        expect(action().closest('[dir]')?.getAttribute('dir'), `${variant.name} ${state}`).toBe(want.direction)
-        expect(action(), `${variant.name} ${state}`).toHaveAccessibleName(want.names[stateIndex])
-        expect(action(), `${variant.name} ${state}`).toHaveAccessibleDescription(want.descriptions[stateIndex])
+        const context = `${variant.name} ${state}`
+        expect(action().closest('[dir]')?.getAttribute('dir'), context).toBe(want.direction)
+        expect(action(), context).toHaveAccessibleName(want.names[state])
+        if (state in want.descriptions) {
+          expect(action(), context).toHaveAccessibleDescription(want.descriptions[state])
+          expect(instructionElement()?.textContent, context).toBe(want.descriptions[state])
+        } else {
+          expect(limited(`descriptions.${state}`), `${context}: description neither asserted nor a named T-1105 limitation`).toBe(true)
+        }
         view.unmount()
-      })
+      }
     })
   },
 }

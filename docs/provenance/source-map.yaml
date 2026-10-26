@@ -2311,7 +2311,7 @@
       "sourceExtracted": true,
       "sourceState": "Interface revision 2 (T-1105: the visible label names the action in the covered, armed, and committing states; the guard instructions are localized whole-message descriptions, rendered visibly) preserves the exact pinned hlp.ui.guarded-control source surface and proves every registered projection through native, shared-conformance, package-only, and applicable gallery/performance gates.",
       "contentHashes": {
-        "conformance/hlp.ui.guarded-control/fixtures.yaml": "516a42af701739cfb49936c9c9482edc4697e9475998fee23b8d523456b5f6a7",
+        "conformance/hlp.ui.guarded-control/fixtures.yaml": "e9889a38beb6495007b1dad9ba1a2712fdcb2c5bc16cce441dec5b9ad2c8cb13",
         "conformance/hlp.ui.guarded-control/quality-fixtures.yaml": "08e64211160135ad2481df97c5773ba5b0dda9ba26a64d52ccb4bdbaa0c05ac6",
         "conformance/hlp.ui.guarded-control/runners/run-shared.mjs": "36176f55bd9610f4fc33621aa35d16546c79ec42d7e1735178547e99657b5743",
         "projections/blazor/ui/hlp.ui.guarded-control/GuardedControlTypes.cs": "f6fc17076f10c4ddb76bcc19aee288964969498e957b4186f24582913c56d1fb",

@@ -50,6 +50,15 @@ public sealed class GuardedControlTests : BunitContext
         if (state == "committing") _ = action().ClickAsync(new MouseEventArgs());
         Assert.Equal(state, action().GetAttribute("data-guard-state"));
     }
+    private IRenderedComponent<HarborlineGuardedControl> RenderVariant(JsonElement variant, Func<Task> commit) =>
+        Render<HarborlineLocaleProvider>(p => p
+            .Add(x => x.Locale, variant.GetProperty("locale").GetString()!)
+            .Add(x => x.Catalog, variant.GetProperty("catalog").EnumerateObject().ToDictionary(entry => entry.Name, entry => entry.Value.GetString()!))
+            .Add(x => x.NumberFormatter, variant.TryGetProperty("numberingSystem", out var system) ? GuardedControlAnnouncementTests.HostFormatter(system.GetString()!) : null)
+            .AddChildContent<HarborlineGuardedControl>(guard => guard
+                .Add(x => x.Action, "packages.export").Add(x => x.ClassificationId, "new-record-type")
+                .Add(x => x.Label, variant.GetProperty("label").GetString()!).Add(x => x.OnCommit, commit)))
+        .FindComponent<HarborlineGuardedControl>();
     private async Task AssertCase(string id, JsonElement input, JsonElement expected)
     {
         var pending = new TaskCompletionSource();
@@ -130,31 +139,35 @@ public sealed class GuardedControlTests : BunitContext
                 Assert.Equal(Strings(expected.GetProperty("statusSequence")), statuses.Where((value, index) => index == 0 || value != statuses[index - 1]).ToArray());
                 break;
             }
+            // Every variant asserts the name and the covered and committing descriptions. A description the
+            // variant leaves out must be named in knownLimitations with its ticket, or the case fails: the armed
+            // description in Arabic and the pseudo-locale is T-1105's deferred duration-localization parity.
             case "guarded-control.naming-localization":
             {
                 var variants = input.GetProperty("variants").EnumerateArray().ToArray();
                 var wanted = expected.GetProperty("variants").EnumerateArray().ToArray();
-                string[] states = ["covered", "armed", "committing"];
                 for (var variant = 0; variant < variants.Length; variant++)
                 {
                     var given = variants[variant];
-                    var catalog = given.GetProperty("catalog").EnumerateObject().ToDictionary(entry => entry.Name, entry => entry.Value.GetString()!);
-                    var formatter = given.TryGetProperty("numberingSystem", out var system) ? GuardedControlAnnouncementTests.HostFormatter(system.GetString()!) : null;
-                    for (var index = 0; index < states.Length; index++)
+                    var want = wanted[variant];
+                    var limitations = want.TryGetProperty("knownLimitations", out var named)
+                        ? named.EnumerateArray().Where(item => item.GetProperty("ticket").GetString() == "T-1105").Select(item => item.GetProperty("assertion").GetString()).ToArray()
+                        : [];
+                    foreach (var state in new[] { "covered", "armed", "committing" })
                     {
-                        var cut = Render<HarborlineLocaleProvider>(p => p
-                            .Add(x => x.Locale, given.GetProperty("locale").GetString()!)
-                            .Add(x => x.Catalog, catalog)
-                            .Add(x => x.NumberFormatter, formatter)
-                            .AddChildContent<HarborlineGuardedControl>(guard => guard
-                                .Add(x => x.Action, "packages.export").Add(x => x.ClassificationId, "new-record-type")
-                                .Add(x => x.Label, given.GetProperty("label").GetString()!).Add(x => x.OnCommit, () => pending.Task)))
-                            .FindComponent<HarborlineGuardedControl>();
-                        Reach(() => cut.Find("button"), states[index]);
-                        var context = $"{given.GetProperty("name").GetString()} {states[index]}";
-                        Assert.True(wanted[variant].GetProperty("direction").GetString() == cut.Find(".hl-guarded-control").GetAttribute("dir"), context);
-                        Assert.True(Strings(wanted[variant].GetProperty("names"))[index] == GuardAccessibility.Name(cut.Find("button"), cut), $"{context} name: {GuardAccessibility.Name(cut.Find("button"), cut)}");
-                        Assert.True(Strings(wanted[variant].GetProperty("descriptions"))[index] == GuardAccessibility.Description(cut.Find("button"), cut), $"{context} description: {GuardAccessibility.Description(cut.Find("button"), cut)}");
+                        var cut = RenderVariant(given, () => pending.Task);
+                        Reach(() => cut.Find("button"), state);
+                        var context = $"{given.GetProperty("name").GetString()} {state}";
+                        Assert.True(want.GetProperty("direction").GetString() == cut.Find(".hl-guarded-control").GetAttribute("dir"), context);
+                        var name = GuardAccessibility.Name(cut.Find("button"), cut);
+                        Assert.True(want.GetProperty("names").GetProperty(state).GetString() == name, $"{context} name: {name}");
+                        if (want.GetProperty("descriptions").TryGetProperty(state, out var description))
+                        {
+                            var actual = GuardAccessibility.Description(cut.Find("button"), cut);
+                            Assert.True(description.GetString() == actual, $"{context} description: {actual}");
+                            Assert.True(description.GetString() == cut.Find(".hl-guarded-control__instruction").TextContent, $"{context} visible instruction");
+                        }
+                        else Assert.True(limitations.Contains($"descriptions.{state}"), $"{context}: description neither asserted nor a named T-1105 limitation");
                     }
                 }
                 break;
