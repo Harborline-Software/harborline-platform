@@ -2187,6 +2187,15 @@ test('the prepared walk and a budgeted walk are judged like any walk, and only a
     { id: 1, popups: [9], outcome: 'covered', now: { kind: 'obscured', occluder: 'div.lower (fixed)', userOpened: true, popups: [8] } },
     { id: 2, popups: [9], outcome: 'revealed', now: { kind: 'visible' } },
   ] }))).toEqual(['2.4.11 forward obscured: button "A" under div (fixed)', '2.4.11 forward obscured: button "A" under div.lower (fixed)'])
+  // Rule v2: a stop author content hides at every point is reported under that occluder alone, whatever
+  // a cover judgement says (only popup layers are Note 2 candidates), and a judgement made at another
+  // window scroll does not exempt a cover.
+  const at = (y: number, author?: string) => walkRecord('forward', [walkStop(1, { verdict: { kind: 'obscured', occluder: 'div (fixed)', userOpened: true, popups: [9], scroll: { x: 0, y }, ...(author ? { author } : {}) } })])
+  expect(laneFindingLines(laneWalk(keys, { forward: [at(20, 'div.hdr (fixed)')], clean: 0, covers: [{ id: 1, popups: [9], scroll: { x: 0, y: 20 }, outcome: 'revealed', now: { kind: 'visible' } }] })))
+    .toEqual(['2.4.11 forward obscured: button "A" under div.hdr (fixed)'])
+  expect(laneFindingLines(laneWalk(keys, { forward: [at(20)], clean: 0, covers: [{ id: 1, popups: [9], scroll: { x: 0, y: 0 }, outcome: 'revealed', now: { kind: 'visible' } }] })))
+    .toEqual(['2.4.11 forward obscured: button "A" under div (fixed)'])
+  expect(laneFindingLines(laneWalk(keys, { forward: [at(20)], clean: 0, covers: [{ id: 1, popups: [9], scroll: { x: 0, y: 20 }, outcome: 'revealed', now: { kind: 'visible' } }] }))).toEqual([])
 })
 
 test('tab walk findings are split by the clause message that reports them', () => {
@@ -2585,6 +2594,86 @@ test('tab walk proof P7: a visually hidden input is judged by its label, and onl
     <script>document.addEventListener('keydown', event => { if (event.key === 'Escape') { document.getElementById('a').style.display = 'none'; document.getElementById('c').style.display = 'none' } })</script>`))
   expect((both.covers ?? []).length, 'X was seen under both menus').toBe(2)
   expect(laneFindingLines(both)).toEqual([])
+  // Rule v2 (review 6). Each cover is judged at the geometry its own walk saw it at; author content
+  // above a stop at every sample point is reported under it whatever the popups above it do; a popup
+  // that stays open but no longer covers the stop does not block the reveal; and any press that closes
+  // a user-opened popup with focus kept is progress.
+  const outcomes = (walk: LaneWalk) => (walk.covers ?? []).map(cover => `${walk.keys[String(cover.id)]} ${cover.outcome}`)
+  const tall = (body: string) => walkProof(browser, proofProbe(`<button style="margin-left:400px">Top</button>
+    <button id="x" style="position:absolute;left:10px;top:700px;height:40px">X</button>
+    <button style="position:absolute;left:400px;top:1060px;height:40px">Mid</button>
+    <button style="position:absolute;left:400px;top:2900px">Bottom</button><div style="height:3000px"></div>${body}`))
+  const header = '<div class="hdr" style="position:fixed;left:0;top:0;width:300px;height:100px;background:#333;z-index:5"></div>'
+  const topMenu = '<div role="menu" id="a" style="position:fixed;left:0;top:0;width:300px;height:100px;background:#fff;z-index:10">A</div>'
+  const bottomMenu = '<div role="menu" id="c" style="position:fixed;left:0;bottom:0;width:300px;height:100px;background:#fff;z-index:10">C</div>'
+  // H2header (entry 0; entry 4's C3 is the same page): H2 with an author header under menu A. Going
+  // forward X is under C at the bottom edge, and one Escape closes both menus. In reverse X is at the top
+  // edge under A and the header, which hides it at every point: that line stands, wherever verification
+  // leaves the page.
+  const h2header = await tall(`${header}${topMenu}${bottomMenu}
+    <script>document.addEventListener('keydown', event => { if (event.key === 'Escape') { document.getElementById('a').style.display = 'none'; document.getElementById('c').style.display = 'none' } })</script>`)
+  expect(laneFindingLines(h2header)).toEqual(['2.4.11 reverse obscured: button "X" under div.hdr (fixed)'])
+  expect(outcomes(h2header), 'the reverse stop is no cover: only the forward one is verified').toEqual(['button "X" revealed'])
+  // C3b: the reverse cover alone, X's own Escape closing A: still hidden by the header.
+  const c3b = await tall(`${header}${topMenu}
+    <script>document.getElementById('x').addEventListener('keydown', event => { if (event.key === 'Escape') document.getElementById('a').style.display = 'none' })</script>`)
+  expect(laneFindingLines(c3b)).toEqual(['2.4.11 reverse obscured: button "X" under div.hdr (fixed)'])
+  const low = (body: string) => walkProof(browser, proofProbe(`<button id="first" style="position:absolute;left:400px;top:400px">First</button>
+    <button id="x" style="position:absolute;left:10px;top:700px;height:40px">X</button>
+    <button style="position:absolute;left:400px;top:2900px">Bottom</button><div style="height:3000px"></div>${body}`))
+  // Q1scrollMoved (entry 2): Tab aligns X to the bottom edge under C, which X's Escape does not close.
+  // The reverse walk ends on First, leaving X mid-window clear of C; the cover is judged where Tab left
+  // X, under C.
+  const q1 = await low(bottomMenu)
+  expect(laneFindingLines(q1)).toEqual(['2.4.11 forward obscured: button "X" under div (fixed)'])
+  expect(outcomes(q1)).toEqual(['button "X" covered'])
+  // Q2footerUnderPopup (entry 0): an author footer under C, and X's own Escape closes C. The footer hides X
+  // at every point where Tab left it.
+  const q2 = await low(`<div class="ftr" style="position:fixed;left:0;bottom:0;width:300px;height:100px;background:#333;z-index:5"></div>${bottomMenu}
+    <script>document.getElementById('x').addEventListener('keydown', event => { if (event.key === 'Escape') document.getElementById('c').style.display = 'none' })</script>`)
+  expect(laneFindingLines(q2)).toEqual(['2.4.11 forward obscured: button "X" under div.ftr (fixed)'])
+  // P1partialLower (entry 1): S's own Escape closes the tooltip over all of it; the menu under the tooltip
+  // covers only its top half and stays open. S then shows in part (Note 2 is met).
+  const p1 = await walkProof(browser, proofProbe(`<button id="s" style="position:fixed;left:10px;top:40px;height:40px">S</button><button style="position:fixed;left:10px;top:300px">Elsewhere</button>
+    <div role="menu" id="m" style="position:fixed;left:0;top:0;width:300px;height:60px;background:#eee;z-index:10">Menu</div>
+    <div role="tooltip" id="t" style="position:fixed;left:0;top:0;width:300px;height:120px;background:#fff;z-index:20">Tip</div>
+    <script>document.getElementById('s').addEventListener('keydown', event => { if (event.key === 'Escape') document.getElementById('t').style.display = 'none' })</script>`))
+  expect(laneFindingLines(p1)).toEqual([])
+  expect(outcomes(p1)).toEqual(['button "S" revealed'])
+  // C4 (entry 5): the same with a lower non-modal side panel over S's top quarter.
+  const c4 = await walkProof(browser, proofProbe(`<button id="s" style="position:fixed;left:10px;top:200px;height:40px">S</button>
+    <button style="position:fixed;left:500px;top:500px">Elsewhere</button>
+    <div role="dialog" aria-label="Side" id="b" style="position:fixed;left:0;top:190px;width:300px;height:30px;background:#eee;z-index:5">Panel</div>
+    <div role="menu" id="a" style="position:fixed;left:0;top:190px;width:300px;height:60px;background:#fff;z-index:10">Menu</div>
+    <script>document.getElementById('s').addEventListener('keydown', event => { if (event.key === 'Escape') document.getElementById('a').style.display = 'none' })</script>`))
+  expect(laneFindingLines(c4)).toEqual([])
+  // C1 (entry 3): an author banner over all of S, with a menu under it, and a document Escape hides both.
+  // The banner is no user-opened content, so S is obscured under it in both directions.
+  const c1 = await walkProof(browser, proofProbe(`<button id="s" style="position:fixed;left:10px;top:200px;height:40px">S</button>
+    <button style="position:fixed;left:500px;top:500px">Elsewhere</button>
+    <div class="banner" style="position:fixed;left:0;top:180px;width:400px;height:80px;background:#333;z-index:30">Cookies</div>
+    <div role="menu" id="m" style="position:fixed;left:0;top:190px;width:300px;height:20px;background:#fff;z-index:10">Menu</div>
+    <script>document.addEventListener('keydown', event => { if (event.key === 'Escape') { document.getElementById('m').style.display = 'none'; document.querySelector('.banner').style.display = 'none' } })</script>`))
+  expect(laneFindingLines(c1)).toEqual(['2.4.11 forward obscured: button "S" under div.banner (fixed)', '2.4.11 reverse obscured: button "S" under div.banner (fixed)'])
+  // C2 (entry 6): a LIFO stack, P2 opened last, closed first by a document Escape. S1's first press closes
+  // P2 (progress: focus kept and a user-opened popup closed), its second P1, so S1 is revealed. S2, judged
+  // after it, finds P2 closed by S1's press: closed-before (fails closed). With S2 first in tab order
+  // (C2b) both are revealed: the order dependence CoverJudgement documents.
+  const lifo = (first: 's1' | 's2') => {
+    const s1 = '<button id="s1" style="position:fixed;left:10px;top:30px">S1</button>'
+    const s2 = '<button id="s2" style="position:fixed;left:10px;top:400px">S2</button>'
+    return walkProof(browser, proofProbe(`${first === 's1' ? s1 + s2 : s2 + s1}
+      <button style="position:fixed;left:500px;top:600px">Elsewhere</button>
+      <div role="menu" id="p1" style="position:fixed;left:0;top:0;width:300px;height:100px;background:#fff;z-index:10">P1</div>
+      <div role="menu" id="p2" style="position:fixed;left:0;top:380px;width:300px;height:100px;background:#eee;z-index:10">P2</div>
+      <script>const stack = ['p1', 'p2']; document.addEventListener('keydown', event => { if (event.key !== 'Escape') return; const id = stack.pop(); if (id) document.getElementById(id).style.display = 'none' })</script>`))
+  }
+  const c2 = await lifo('s1')
+  expect(outcomes(c2)).toEqual(['button "S1" revealed', 'button "S2" closed-before'])
+  expect(laneFindingLines(c2)).toEqual(['2.4.11 forward obscured: button "S2" under div (fixed)', '2.4.11 reverse obscured: button "S2" under div (fixed)'])
+  const c2b = await lifo('s2')
+  expect(outcomes(c2b)).toEqual(['button "S2" revealed', 'button "S1" revealed'])
+  expect(laneFindingLines(c2b)).toEqual([])
   // A popup Escape dismisses in place is still walked open in both directions, so a defect inside it
   // is found, and the cover it put over "Under" is exempt.
   const inside = await walkProof(browser, popover + proofProbe(`<button style="position:fixed;left:10px;top:10px">Under</button><button style="position:fixed;left:10px;top:300px">Elsewhere</button>
