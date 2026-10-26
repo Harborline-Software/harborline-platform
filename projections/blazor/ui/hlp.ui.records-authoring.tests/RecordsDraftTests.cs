@@ -470,4 +470,131 @@ public sealed class RecordsDraftTests : BunitContext
         var draft = JsonSerializer.Deserialize<RecordsDraft>($$$"""{"identity":"eam.asset-class","versionId":"v1","expectedRevision":"{{{number}}}","body":{}}""", options)!;
         Assert.Equal(number, draft.ExpectedRevision);
     }
+
+    // ---- Interface revision 2 (T-618 item 4, records-auth-42): a diagnostic's optional target and the separate warnings list ----
+    // The literals are the T-618 preflight producer values; every expected row and text is a literal, never built from the input.
+    // Method names pair one-for-one with RecordTypeDraftEditor.test.tsx ("Revision2: ...").
+    private static readonly RecordsDiagnostic Undeclared = new("records.reference.dependency_undeclared", "/fields/0/reference") { Target = "eam-core/eam.meter@1.0.0" };
+    private static readonly RecordsDiagnostic Unresolved = new("records.class.unresolved", "/class_id");
+    private static readonly RecordsWarning RetentionUnset = new("records.retention.unset", "/retention_policy");
+    // Synthetic second warning, only so warning order is observable: the producer emits one warning code, and this one sorts before it.
+    private static readonly RecordsWarning AuditUnset = new("records.audit.unset", "/audit_policy");
+    private static readonly (string?, string?, string?, string) UndeclaredRow = ("records.reference.dependency_undeclared", "/fields/0/reference", "eam-core/eam.meter@1.0.0", "records.reference.dependency_undeclared at /fields/0/reference for eam-core/eam.meter@1.0.0");
+    private static readonly (string?, string?, string?, string) UnresolvedRow = ("records.class.unresolved", "/class_id", null, "records.class.unresolved at /class_id");
+    private const string RetentionText = "records.retention.unset at /retention_policy";
+    // The third member is null when the item carries no data-target attribute at all.
+    private static (string?, string?, string?, string)[] DiagnosticRows(IRenderedComponent<HarborlineRecordTypeDraftEditor> cut) => [.. cut.FindAll("[aria-label='Diagnostics'] li").Select(item => (item.GetAttribute("data-code"), item.GetAttribute("data-pointer"), item.GetAttribute("data-target"), item.TextContent))];
+    private static string[] WarningTexts(IRenderedComponent<HarborlineRecordTypeDraftEditor> cut) => [.. cut.FindAll("[aria-label='Warnings'] li").Select(item => item.TextContent)];
+    private static bool HasDiagnosticsList(IRenderedComponent<HarborlineRecordTypeDraftEditor> cut) => cut.FindAll("[aria-label='Diagnostics']").Count > 0;
+    private static int NoteCount(IRenderedComponent<HarborlineRecordTypeDraftEditor> cut) => cut.FindAll("p.hl-records-authoring__note").Count(note => note.TextContent == "Warnings do not block publication.");
+    private static bool HasWarningsList(IRenderedComponent<HarborlineRecordTypeDraftEditor> cut) => cut.FindAll("[aria-label='Warnings']").Count > 0;
+    // A null warnings argument leaves the member at its default (absent).
+    private static RecordsDiagnosticSet Preview(RecordsDraft draft, int generation, IReadOnlyList<RecordsDiagnostic> diagnostics, IReadOnlyList<RecordsWarning>? warnings = null)
+        => warnings is null ? Supplied(draft, generation, diagnostics) : Supplied(draft, generation, diagnostics) with { Warnings = warnings };
+
+    [Fact]
+    public void Revision2_a_targeted_diagnostic_renders_its_target_after_the_pointer_and_as_data_target_in_order_beside_an_untargeted_revision1_one()
+    {
+        var draft = G1Draft(); var changes = new List<RecordsDraftChange>();
+        var cut = Editor(draft, changes, Preview(draft, 0, [Undeclared, Unresolved]));
+        Assert.Equal([UndeclaredRow, UnresolvedRow], DiagnosticRows(cut));
+        Assert.False(cut.FindAll("[aria-label='Diagnostics'] li")[1].HasAttribute("data-target"));
+        Assert.Empty(changes);
+    }
+
+    [Fact]
+    public void Revision2_an_empty_string_or_null_target_renders_exactly_like_no_target()
+    {
+        var draft = G1Draft(); var changes = new List<RecordsDraftChange>();
+        var cut = Editor(draft, changes, Preview(draft, 0, [new("records.reference.dependency_undeclared", "/fields/0/reference") { Target = "" }, new("records.class.unresolved", "/class_id") { Target = null }]));
+        Assert.Equal([("records.reference.dependency_undeclared", "/fields/0/reference", null, "records.reference.dependency_undeclared at /fields/0/reference"), UnresolvedRow], DiagnosticRows(cut));
+        Assert.All(cut.FindAll("[aria-label='Diagnostics'] li"), item => Assert.False(item.HasAttribute("data-target")));
+    }
+
+    [Fact]
+    public void Revision2_a_whitespace_only_target_is_non_empty_so_it_renders_verbatim_and_as_data_target()
+    {
+        var draft = G1Draft(); var changes = new List<RecordsDraftChange>();
+        var cut = Editor(draft, changes, Preview(draft, 0, [new("records.reference.dependency_undeclared", "/fields/0/reference") { Target = " " }]));
+        Assert.Equal([("records.reference.dependency_undeclared", "/fields/0/reference", " ", "records.reference.dependency_undeclared at /fields/0/reference for  ")], DiagnosticRows(cut));
+    }
+
+    [Fact]
+    public void Revision2_the_warnings_list_is_preceded_by_one_visible_note_that_warnings_do_not_block_publication_and_no_note_shows_without_warnings()
+    {
+        var draft = G1Draft(); var changes = new List<RecordsDraftChange>();
+        var cut = Editor(draft, changes, Preview(draft, 0, [Unresolved], [RetentionUnset]));
+        Assert.Single(cut.FindAll("p.hl-records-authoring__note"), note => note.TextContent == "Warnings do not block publication.");
+        Assert.Equal("Warnings do not block publication.", cut.Find("[aria-label='Warnings']").PreviousElementSibling!.TextContent);
+        cut.Render(parameters => parameters.Add(component => component.Diagnostics, Preview(draft, 0, [Unresolved])));
+        Assert.DoesNotContain(cut.FindAll("p.hl-records-authoring__note"), note => note.TextContent == "Warnings do not block publication.");
+    }
+
+    [Fact]
+    public void Revision2_warnings_render_in_their_own_Warnings_list_in_order_apart_from_the_diagnostics_and_never_as_a_refusal()
+    {
+        var draft = G1Draft(); var changes = new List<RecordsDraftChange>();
+        var cut = Editor(draft, changes, Preview(draft, 0, [Undeclared, Unresolved], [RetentionUnset, AuditUnset]));
+        Assert.Equal([RetentionText, "records.audit.unset at /audit_policy"], WarningTexts(cut));
+        Assert.Equal([UndeclaredRow, UnresolvedRow], DiagnosticRows(cut));
+        var diagnostics = cut.Find("[aria-label='Diagnostics']"); var warnings = cut.Find("[aria-label='Warnings']");
+        Assert.False(diagnostics.Contains(warnings)); Assert.False(warnings.Contains(diagnostics));
+        Assert.Null(warnings.Closest("[role='alert']"));
+        Assert.Empty(changes);
+    }
+
+    [Fact]
+    public void Revision2_a_warnings_only_set_shows_no_Diagnostics_list_and_absent_or_empty_warnings_show_no_Warnings_list()
+    {
+        var draft = G1Draft(); var changes = new List<RecordsDraftChange>();
+        var cut = Editor(draft, changes, Preview(draft, 0, [], [RetentionUnset]));
+        Assert.Equal([RetentionText], WarningTexts(cut)); Assert.False(HasDiagnosticsList(cut));
+        cut.Render(parameters => parameters.Add(component => component.Diagnostics, Preview(draft, 0, [Unresolved])));
+        Assert.Equal([UnresolvedRow], DiagnosticRows(cut)); Assert.False(HasWarningsList(cut));
+        cut.Render(parameters => parameters.Add(component => component.Diagnostics, Preview(draft, 0, [Unresolved], [])));
+        Assert.Equal([UnresolvedRow], DiagnosticRows(cut)); Assert.False(HasWarningsList(cut));
+        Assert.Empty(changes);
+    }
+
+    [Theory]
+    [InlineData("identity")]
+    [InlineData("revision")]
+    [InlineData("generation")]
+    public void Revision2_shows_neither_list_when_one_member_does_not_match_the_current_draft(string member)
+    {
+        var draft = G1Draft(); var changes = new List<RecordsDraftChange>(); var matching = Preview(draft, 0, [Undeclared, Unresolved], [RetentionUnset]);
+        var mismatched = member switch { "identity" => matching with { Identity = "eam.other" }, "revision" => matching with { ExpectedRevision = "2" }, "generation" => matching with { Generation = 1 }, _ => throw new ArgumentOutOfRangeException(nameof(member)) };
+        var cut = Editor(draft, changes, mismatched);
+        Assert.False(HasDiagnosticsList(cut)); Assert.False(HasWarningsList(cut)); Assert.Equal(0, NoteCount(cut));
+        // Positive control: the same set, matching, shows both.
+        cut.Render(parameters => parameters.Add(component => component.Diagnostics, matching));
+        Assert.Equal([UndeclaredRow, UnresolvedRow], DiagnosticRows(cut)); Assert.Equal([RetentionText], WarningTexts(cut)); Assert.Equal(1, NoteCount(cut));
+        Assert.Empty(changes);
+    }
+
+    [Fact]
+    public void Revision2_read_only_still_shows_both_lists()
+    {
+        var draft = G1Draft(); var changes = new List<RecordsDraftChange>();
+        var cut = Editor(draft, changes, Preview(draft, 0, [Undeclared, Unresolved], [RetentionUnset]), readOnly: true);
+        Assert.Equal([UndeclaredRow, UnresolvedRow], DiagnosticRows(cut)); Assert.Equal([RetentionText], WarningTexts(cut)); Assert.Equal(1, NoteCount(cut));
+        Assert.Empty(changes);
+    }
+
+    [Fact]
+    public void Revision2_an_edit_after_warnings_were_shown_moves_the_generation_so_both_lists_disappear_until_a_matching_set_arrives()
+    {
+        var draft = G1Draft(); var changes = new List<RecordsDraftChange>(); var atZero = Preview(draft, 0, [Undeclared, Unresolved], [RetentionUnset]);
+        var cut = Editor(draft, changes, atZero);
+        Assert.Equal([UndeclaredRow, UnresolvedRow], DiagnosticRows(cut)); Assert.Equal([RetentionText], WarningTexts(cut));
+        // Warnings never block: the edit is accepted and reported.
+        cut.Find("input[aria-label='Record type name']").Change("local");
+        Assert.Single(changes); Assert.Equal(1, changes[0].Generation);
+        Assert.False(HasDiagnosticsList(cut)); Assert.False(HasWarningsList(cut)); Assert.Equal(0, NoteCount(cut));
+        cut.Render(parameters => parameters.Add(component => component.Value, changes[0].Draft).Add(component => component.Diagnostics, atZero));
+        Assert.Equal("1", Generation(cut)); Assert.False(HasDiagnosticsList(cut)); Assert.False(HasWarningsList(cut)); Assert.Equal(0, NoteCount(cut));
+        cut.Render(parameters => parameters.Add(component => component.Diagnostics, Preview(changes[0].Draft, 1, [Undeclared, Unresolved], [RetentionUnset])));
+        Assert.Equal([UndeclaredRow, UnresolvedRow], DiagnosticRows(cut)); Assert.Equal([RetentionText], WarningTexts(cut));
+        Assert.Single(changes);
+    }
 }

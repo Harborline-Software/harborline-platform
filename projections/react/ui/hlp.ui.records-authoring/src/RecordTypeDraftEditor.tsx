@@ -1,6 +1,6 @@
 import { Button } from '@harborline-platform/hlp.ui.button'
 import { useEffect, useRef, useState } from 'react'
-import { emptyRecordsDraft, hasAcceptableRecordsRevision, sameRecordsRevision, type RecordsDiagnostic, type RecordsDiagnosticSet, type RecordsDraft, type RecordsDraftChange, type RecordsKindOption, type RecordTypeBody, type RecordTypeField, type RecordTypeFieldReference } from './RecordsDraftTypes'
+import { emptyRecordsDraft, hasAcceptableRecordsRevision, sameRecordsRevision, type RecordsDiagnostic, type RecordsDiagnosticSet, type RecordsDraft, type RecordsWarning, type RecordsDraftChange, type RecordsKindOption, type RecordTypeBody, type RecordTypeField, type RecordTypeFieldReference } from './RecordsDraftTypes'
 
 export interface RecordTypeDraftEditorProps { readonly value: RecordsDraft; readonly kindOptions: readonly RecordsKindOption[]; readonly diagnostics?: RecordsDiagnosticSet; readonly readOnly?: boolean; readonly onDraftChange: (change: RecordsDraftChange) => void }
 
@@ -8,6 +8,7 @@ export interface RecordTypeDraftEditorProps { readonly value: RecordsDraft; read
 const cardinalities = ['one', 'many']
 const onDeletes = ['block', 'orphan', 'cascade']
 const noDiagnostics: readonly RecordsDiagnostic[] = []
+const noWarnings: readonly RecordsWarning[] = []
 // The revision is part of the key as its exact string. A canonical revision is never empty, so an absent one ('') cannot collide.
 const lifecycleKey = (value: RecordsDraft) => `${value.identity}\u0000${value.versionId}\u0000${value.expectedRevision ?? ''}`
 const rejectedRevision = 'A host draft was not loaded because its revision is not a canonical decimal string.'
@@ -34,7 +35,9 @@ export function RecordTypeDraftEditor(props: RecordTypeDraftEditorProps) {
   const setReference = (index: number, member: keyof RecordTypeFieldReference & string, next: string) => setField(index, field => ({ ...field, reference: { ...field.reference, [member]: next } }))
   const chooseRetention = (key: string) => { const { retention_clock_field_id: _previous, ...rest } = latest.current.body; setBody(key ? { ...latest.current.body, retention_clock_field_id: key } : rest) }
   // Revisions match only as identical canonical strings, or both absent; a noncanonical or numeric diagnostic revision never matches.
-  const diagnostics = hasDraft && props.diagnostics && hasAcceptableRecordsRevision(props.diagnostics) && props.diagnostics.identity === value.identity && sameRecordsRevision(props.diagnostics.expectedRevision, value.expectedRevision) && props.diagnostics.generation === generation ? props.diagnostics.diagnostics : noDiagnostics
+  const matched = hasDraft && props.diagnostics && hasAcceptableRecordsRevision(props.diagnostics) && props.diagnostics.identity === value.identity && sameRecordsRevision(props.diagnostics.expectedRevision, value.expectedRevision) && props.diagnostics.generation === generation ? props.diagnostics : undefined
+  // Warnings follow the same matching rule and are never shown as diagnostics.
+  const diagnostics = matched?.diagnostics ?? noDiagnostics; const warnings = matched?.warnings ?? noWarnings
   const body = value.body; const fields = body.fields ?? []; const fieldKeys = fields.map(field => field.field_key ?? '').filter(key => key !== ''); const retention = body.retention_clock_field_id; const kindChosen = value.definitionKind === 'Records'
   const choice = (label: string, current: string | undefined, spellings: readonly string[], onChange: (next: string) => void) => <select aria-label={label} value={current ?? ''} onChange={event => onChange(event.currentTarget.value)}>{(current === undefined || !spellings.includes(current)) && <option value={current ?? ''}>{current === undefined ? 'Not set' : `${current} (not a current spelling)`}</option>}{spellings.map(spelling => <option key={spelling} value={spelling}>{spelling}</option>)}</select>
   const content = <>
@@ -66,7 +69,8 @@ export function RecordTypeDraftEditor(props: RecordTypeDraftEditorProps) {
     <p className="hl-records-authoring__scope">Local draft. Edits stay in this editor and are not saved.</p>
     {!hasAcceptableRecordsRevision(props.value) && <p role="status" className="hl-records-authoring__note">{rejectedRevision}</p>}
     {hasDraft && (props.readOnly ? <fieldset className="hl-records-authoring__read-only" disabled>{content}</fieldset> : content)}
-    {diagnostics.length > 0 && <ul className="hl-records-authoring__diagnostics" aria-label="Diagnostics">{diagnostics.map((diagnostic, index) => <li key={index} data-code={diagnostic.code} data-pointer={diagnostic.pointer}>{diagnostic.code} at {diagnostic.pointer}</li>)}</ul>}
+    {diagnostics.length > 0 && <ul className="hl-records-authoring__diagnostics" aria-label="Diagnostics">{diagnostics.map((diagnostic, index) => { const target = diagnostic.target || undefined; return <li key={index} data-code={diagnostic.code} data-pointer={diagnostic.pointer} data-target={target}>{diagnostic.code} at {diagnostic.pointer}{target === undefined ? '' : ` for ${target}`}</li> })}</ul>}
+    {warnings.length > 0 && <><p className="hl-records-authoring__note">Warnings do not block publication.</p><ul className="hl-records-authoring__warnings" aria-label="Warnings">{warnings.map((warning, index) => <li key={index} data-code={warning.code} data-pointer={warning.pointer}>{warning.code} at {warning.pointer}</li>)}</ul></>}
     {incoming && <aside role="alert" className="hl-records-authoring__incoming">A different draft or revision arrived while you have local edits.<Button type="button" disabled={props.readOnly} onClick={keep}>Keep edits</Button><Button type="button" disabled={props.readOnly} onClick={() => load(incoming)}>Discard edits</Button></aside>}
   </form>
 }
