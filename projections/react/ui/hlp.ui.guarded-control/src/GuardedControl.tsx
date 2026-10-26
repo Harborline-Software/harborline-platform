@@ -70,6 +70,7 @@ export function GuardedControl({
   const armedRef = React.useRef<HTMLButtonElement>(null)
   const deferredFocus = React.useRef(false)
   const coverFocusPending = React.useRef(false)
+  const pendingSettlement = React.useRef<'completed' | 'rejected' | null>(null)
   const id = React.useId()
   const labelId = `${id}-label`
   const instructionId = `${id}-instruction`
@@ -146,15 +147,31 @@ export function GuardedControl({
     observeRef.current?.({ type: 'recovered', reason })
   }, [restoreFocus, transition])
 
+  // Settles a commit exactly once: back to covered, the settlement announcement, then commit-settled.
+  const finishSettlement = React.useCallback((outcome: 'completed' | 'rejected', focus: boolean) => {
+    if (stateRef.current !== 'committing') return
+    transition('covered')
+    setAnnouncement(outcome === 'rejected'
+      ? wholeMessageRef.current('chrome.guard.rejected.whole', REJECTED_ANNOUNCEMENT)
+      : wholeMessageRef.current('chrome.guard.completed.whole', COMPLETED_ANNOUNCEMENT))
+    if (focus) restoreFocus()
+    observeRef.current?.({ type: 'commit-settled', outcome })
+  }, [restoreFocus, transition])
+
   React.useEffect(() => {
     stateRef.current = state
   }, [state])
   // Set as well as cleared: StrictMode and an <Activity> hide and reveal run this cleanup and then the
-  // setup again, and a control left marked unmounted would never settle a commit or restore focus.
+  // setup again, and a control left marked unmounted would never settle a commit or restore focus. A
+  // commit that settled while the effects were disconnected (an <Activity> hidden) is applied here,
+  // once; after a real unmount this setup never runs again, so nothing is emitted.
   React.useEffect(() => {
     mounted.current = true
+    const outcome = pendingSettlement.current
+    pendingSettlement.current = null
+    if (outcome) finishSettlement(outcome, false)
     return () => { mounted.current = false }
-  }, [])
+  }, [finishSettlement])
   React.useEffect(() => {
     if (!disabled || stateRef.current !== 'armed') return
     recover('became-disabled')
@@ -254,14 +271,15 @@ export function GuardedControl({
       },
     )
   }
+  // The caller's failure is still routed when it happens (commit's rethrow), so an unmount never loses
+  // it; only the control's own settlement waits for a hidden control to be revealed.
   const settle = (outcome: 'completed' | 'rejected') => {
-    if (!mounted.current || stateRef.current !== 'committing') return
-    transition('covered')
-    setAnnouncement(outcome === 'rejected'
-      ? wholeMessageRef.current('chrome.guard.rejected.whole', REJECTED_ANNOUNCEMENT)
-      : wholeMessageRef.current('chrome.guard.completed.whole', COMPLETED_ANNOUNCEMENT))
-    restoreFocus()
-    observeRef.current?.({ type: 'commit-settled', outcome })
+    if (stateRef.current !== 'committing') return
+    if (!mounted.current) {
+      pendingSettlement.current = outcome
+      return
+    }
+    finishSettlement(outcome, true)
   }
 
   const duration = formatDuration(seconds)
