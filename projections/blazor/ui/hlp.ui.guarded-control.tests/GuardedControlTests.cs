@@ -50,8 +50,9 @@ public sealed class GuardedControlTests : BunitContext
         if (state == "committing") _ = action().ClickAsync(new MouseEventArgs());
         Assert.Equal(state, action().GetAttribute("data-guard-state"));
     }
-    private IRenderedComponent<HarborlineGuardedControl> RenderVariant(JsonElement variant, Func<Task> commit) =>
-        Render<HarborlineLocaleProvider>(p => p
+    private IRenderedComponent<HarborlineGuardedControl> RenderVariant(JsonElement variant, Func<Task> commit) => RenderVariant(this, variant, commit);
+    private static IRenderedComponent<HarborlineGuardedControl> RenderVariant(BunitContext context, JsonElement variant, Func<Task> commit) =>
+        context.Render<HarborlineLocaleProvider>(p => p
             .Add(x => x.Locale, variant.GetProperty("locale").GetString()!)
             .Add(x => x.Catalog, variant.GetProperty("catalog").EnumerateObject().ToDictionary(entry => entry.Name, entry => entry.Value.GetString()!))
             .Add(x => x.NumberFormatter, variant.TryGetProperty("numberingSystem", out var system) ? GuardedControlAnnouncementTests.HostFormatter(system.GetString()!) : null)
@@ -168,6 +169,11 @@ public sealed class GuardedControlTests : BunitContext
                             Assert.True(description.GetString() == cut.Find(".hl-guarded-control__instruction").TextContent, $"{context} visible instruction");
                         }
                         else Assert.True(limitations.Contains($"descriptions.{state}"), $"{context}: description neither asserted nor a named T-1105 limitation");
+                        if (state == "committing")
+                        {
+                            var loading = cut.Find("button > span:last-child").TextContent;
+                            Assert.True(want.GetProperty("loading").GetString() == loading, $"{context} loading: {loading}");
+                        }
                     }
                     // Every message takes the same {action} and {duration} (the full window), so the covered
                     // description after a timeout recovery reads exactly as it did before arming.
@@ -179,6 +185,28 @@ public sealed class GuardedControlTests : BunitContext
                     timed.WaitForAssertion(() => Assert.Equal("covered", timed.Find("button").GetAttribute("data-guard-state")));
                     var afterTimeout = GuardAccessibility.Description(timed.Find("button"), timed);
                     Assert.True(want.GetProperty("afterTimeout").GetProperty("description").GetString() == afterTimeout, $"{given.GetProperty("name").GetString()} after timeout description: {afterTimeout}");
+                    var recovered = timed.Find("[role=status]").TextContent;
+                    Assert.True(want.GetProperty("afterTimeout").GetProperty("status").GetString() == recovered, $"{given.GetProperty("name").GetString()} recovered status: {recovered}");
+                    // Settlement: the completed and rejected statuses. Each runs in its own context, because the
+                    // rejected commit's failure is routed to that renderer's unhandled-exception path.
+                    foreach (var outcome in new[] { "completed", "rejected" })
+                    {
+                        using var isolated = new BunitContext();
+                        isolated.JSInterop.Mode = JSRuntimeMode.Loose;
+                        var operation = new TaskCompletionSource();
+                        var settled = RenderVariant(isolated, given, () => operation.Task);
+                        settled.Find("button").Click();
+                        var commit = settled.Find("button").ClickAsync(new MouseEventArgs());
+                        if (outcome == "completed") operation.SetResult();
+                        else
+                        {
+                            operation.SetException(new InvalidOperationException("caller failure"));
+                            await isolated.Renderer.UnhandledException.WaitAsync(TimeSpan.FromSeconds(5));
+                        }
+                        await commit;
+                        var status = settled.Find("[role=status]").TextContent;
+                        Assert.True(want.GetProperty("statuses").GetProperty(outcome).GetString() == status, $"{given.GetProperty("name").GetString()} {outcome} status: {status}");
+                    }
                 }
                 break;
             }

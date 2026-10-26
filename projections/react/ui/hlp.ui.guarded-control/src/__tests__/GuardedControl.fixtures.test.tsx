@@ -123,9 +123,9 @@ const assertions: Record<string, (entry: Case) => void | Promise<void>> = {
   // Every variant asserts the name and the covered and committing descriptions. A description the
   // variant leaves out must be named in knownLimitations with its ticket, or the case fails: the armed
   // description in Arabic and the pseudo-locale is T-1105's deferred duration-localization parity.
-  'guarded-control.naming-localization': ({ input, expected }) => {
+  'guarded-control.naming-localization': async ({ input, expected }) => {
     vi.useFakeTimers()
-    ;(input.variants as Array<Record<string, any>>).forEach((variant, index) => {
+    for (const [index, variant] of (input.variants as Array<Record<string, any>>).entries()) {
       const want = expected.variants[index]
       const limited = (assertion: string) => ((want.knownLimitations ?? []) as Array<{ assertion: string; ticket: string }>)
         .some(limitation => limitation.assertion === assertion && limitation.ticket === 'T-1105')
@@ -141,6 +141,7 @@ const assertions: Record<string, (entry: Case) => void | Promise<void>> = {
         } else {
           expect(limited(`descriptions.${state}`), `${context}: description neither asserted nor a named T-1105 limitation`).toBe(true)
         }
+        if (state === 'committing') expect(action().lastElementChild?.textContent, `${context} loading`).toBe(want.loading)
         view.unmount()
       }
       // Every message takes the same {action} and {duration} (the full window), so the covered
@@ -150,7 +151,21 @@ const assertions: Record<string, (entry: Case) => void | Promise<void>> = {
       act(() => vi.advanceTimersByTime(5000))
       expect(action(), `${variant.name} after timeout`).toHaveAttribute('data-guard-state', 'covered')
       expect(action(), `${variant.name} after timeout`).toHaveAccessibleDescription(want.afterTimeout.description)
+      expect(screen.getByRole('status').textContent, `${variant.name} recovered status`).toBe(want.afterTimeout.status)
       view.unmount()
-    })
+      // Settlement: the completed and rejected statuses. The rejected commit's failure is rethrown on a
+      // timer, which is cleared unrun.
+      for (const outcome of ['completed', 'rejected'] as const) {
+        const settled = renderVariant(variant, () => outcome === 'completed' ? Promise.resolve() : Promise.reject(new Error('caller failure')))
+        fireEvent.click(action())
+        fireEvent.click(action())
+        await act(async () => undefined)
+        expect(action(), `${variant.name} ${outcome}`).toHaveAttribute('data-guard-state', 'covered')
+        expect(screen.getByRole('status').textContent, `${variant.name} ${outcome} status`).toBe(want.statuses[outcome])
+        // Drop the rethrow timer before the next variant advances the clock.
+        vi.clearAllTimers()
+        settled.unmount()
+      }
+    }
   },
 }

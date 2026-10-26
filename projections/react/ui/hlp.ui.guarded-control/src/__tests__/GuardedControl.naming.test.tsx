@@ -134,6 +134,47 @@ describe('GuardedControl revision 2 names and descriptions', () => {
     expect(action()).toHaveAccessibleDescription(`Saving ${isolated('Publish')} inside its 5 seconds window…`)
   })
 
+  // Every guard message resolves the host catalog first, under the same keys in both lanes:
+  // chrome.guard.{recovered,completed,rejected}.whole, and common.loading for the committing text.
+  it.each([
+    ['en-US', 'Publish', {
+      'chrome.guard.recovered.whole': '{action} is protected again.',
+      'chrome.guard.completed.whole': '{action} done. Protected again.',
+      'chrome.guard.rejected.whole': '{action} failed. Protected again.',
+      'common.loading': 'Working…',
+    }],
+    ['ar-SA', 'تصدير', {
+      'chrome.guard.recovered.whole': 'تمت استعادة الحماية لـ {action}.',
+      'chrome.guard.completed.whole': 'اكتمل {action}. تمت استعادة الحماية.',
+      'chrome.guard.rejected.whole': 'تعذّر إكمال {action}. تمت استعادة الحماية.',
+      'common.loading': 'جارٍ التحميل',
+    }],
+  ] as const)('localizes the recovery, settle and rejection statuses and the loading text in %s', async (locale, label, catalog) => {
+    vi.useFakeTimers()
+    const fill = (key: keyof typeof catalog) => catalog[key].replace('{action}', isolated(label))
+    let finish!: () => void
+    let fail!: (error: Error) => void
+    const commits = [() => new Promise<void>(done => { finish = done }), () => new Promise<void>((_, reject) => { fail = reject })]
+    render(
+      <HarborlineLocaleProvider locale={locale} catalog={catalog}>
+        <GuardedControl action="a" classificationId="c" label={label} onCommit={() => commits.shift()!()}/>
+      </HarborlineLocaleProvider>,
+    )
+    fireEvent.click(action())
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(screen.getByRole('status').textContent).toBe(fill('chrome.guard.recovered.whole'))
+    fireEvent.click(action())
+    fireEvent.click(action())
+    expect(action().lastElementChild?.textContent).toBe(catalog['common.loading'])
+    await act(async () => finish())
+    expect(screen.getByRole('status').textContent).toBe(fill('chrome.guard.completed.whole'))
+    fireEvent.click(action())
+    fireEvent.click(action())
+    await act(async () => fail(new Error('caller failure')))
+    expect(screen.getByRole('status').textContent).toBe(fill('chrome.guard.rejected.whole'))
+    vi.clearAllTimers()
+  })
+
   it('localizes the descriptions through a host catalog while the name stays the label', () => {
     render(
       <HarborlineLocaleProvider locale="fr-FR" catalog={{

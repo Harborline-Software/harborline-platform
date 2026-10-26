@@ -169,6 +169,53 @@ public sealed class GuardedControlNamingTests : BunitContext
         Assert.Equal($"Saving {Isolated(Label)} inside its 5 seconds window…", GuardAccessibility.Description(cut.Find("button"), cut));
     }
 
+    // Every guard message resolves the host catalog first, under the same keys in both lanes:
+    // chrome.guard.{recovered,completed,rejected}.whole, and common.loading for the committing text.
+    public static TheoryData<string, string, string[]> StatusCatalogs => new()
+    {
+        { "en-US", "Publish", ["{action} is protected again.", "{action} done. Protected again.", "{action} failed. Protected again.", "Working…"] },
+        { "ar-SA", "تصدير", ["تمت استعادة الحماية لـ {action}.", "اكتمل {action}. تمت استعادة الحماية.", "تعذّر إكمال {action}. تمت استعادة الحماية.", "جارٍ التحميل"] },
+    };
+
+    private static Dictionary<string, string> StatusCatalog(string[] values) => new()
+    {
+        ["chrome.guard.recovered.whole"] = values[0],
+        ["chrome.guard.completed.whole"] = values[1],
+        ["chrome.guard.rejected.whole"] = values[2],
+        ["common.loading"] = values[3],
+    };
+
+    [Theory]
+    [MemberData(nameof(StatusCatalogs))]
+    public async Task LocalizesTheRecoveryAndCompletionStatusesAndTheLoadingText(string locale, string label, string[] values)
+    {
+        var operation = new TaskCompletionSource();
+        var cut = RenderInLocale(locale, label, StatusCatalog(values), commit: () => operation.Task);
+        cut.Find("button").Click();
+        await cut.Find("button").KeyDownAsync(new KeyboardEventArgs { Key = "Escape" });
+        Assert.Equal(values[0].Replace("{action}", Isolated(label), StringComparison.Ordinal), cut.Find("[role=status]").TextContent);
+        cut.Find("button").Click();
+        var commit = cut.Find("button").ClickAsync(new MouseEventArgs());
+        Assert.Equal(values[3], cut.Find("button > span:last-child").TextContent);
+        operation.SetResult();
+        await commit;
+        cut.WaitForAssertion(() => Assert.Equal(values[1].Replace("{action}", Isolated(label), StringComparison.Ordinal), cut.Find("[role=status]").TextContent));
+    }
+
+    [Theory]
+    [MemberData(nameof(StatusCatalogs))]
+    public async Task LocalizesTheRejectionStatus(string locale, string label, string[] values)
+    {
+        var operation = new TaskCompletionSource();
+        var cut = RenderInLocale(locale, label, StatusCatalog(values), commit: () => operation.Task);
+        cut.Find("button").Click();
+        var commit = cut.Find("button").ClickAsync(new MouseEventArgs());
+        operation.SetException(new InvalidOperationException("caller failure"));
+        await Renderer.UnhandledException.WaitAsync(TimeSpan.FromSeconds(5));
+        await commit;
+        Assert.Equal(values[2].Replace("{action}", Isolated(label), StringComparison.Ordinal), cut.Find("[role=status]").TextContent);
+    }
+
     [Fact]
     public void HostCatalogLocalizesTheDescriptionsWhileTheNameStaysTheLabel()
     {

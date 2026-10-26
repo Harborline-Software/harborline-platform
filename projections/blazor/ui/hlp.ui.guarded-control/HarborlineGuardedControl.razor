@@ -87,14 +87,17 @@
   private string DescriptionIds => string.IsNullOrWhiteSpace(DescribedBy) ? InstructionId : $"{DescribedBy.Trim()} {InstructionId}";
   private string Instruction => State switch
   {
-    GuardedControlState.Covered => WholeMessage("chrome.guard.covered.instruction", "Guarded action: {action}. Activate to arm.", MessageVariables),
+    GuardedControlState.Covered => Message("chrome.guard.covered.instruction", "Guarded action: {action}. Activate to arm."),
     GuardedControlState.Armed => ArmedInstruction,
-    _ => WholeMessage("chrome.guard.committing.status", "Committing {action}.", MessageVariables),
+    _ => Message("chrome.guard.committing.status", "Committing {action}."),
   };
   // The armed instruction always states the full window, never the countdown: it is announced once on
   // arming and is the armed description for the whole armed state, so it never changes with a tick.
-  private string ArmedInstruction => WholeMessage("chrome.guard.armed.whole", "Armed for {action}. Activate again within {duration} to commit.", MessageVariables);
-  private string LoadingText => LocaleContext?.ResolveString("common.loading", new Dictionary<string, object?>(), "Loading") ?? "Loading";
+  private string ArmedInstruction => Message("chrome.guard.armed.whole", "Armed for {action}. Activate again within {duration} to commit.");
+  // The committing text resolves as the React lane's t('common.loading') does: the host catalog, then
+  // hlp.ui.default-strings.
+  private string LoadingText => LocaleContext?.Translate("common.loading")
+    ?? (HarborlineDefaultStrings.Values.TryGetValue("common.loading", out var loading) ? loading : "Loading");
   private string DurationText => Duration(remainingSeconds);
 
   protected override void OnParametersSet()
@@ -103,7 +106,10 @@
     if (Disabled && State == GuardedControlState.Armed) _ = InvokeAsync(() => RecoverAsync(GuardedControlRecoveryReason.BecameDisabled, true));
   }
 
-  private string Resolve(string key, string fallback) => LocaleContext?.ResolveString(key, MessageVariables, fallback) ?? MessageVariables.Aggregate(fallback, (text, pair) => text.Replace($"{{{pair.Key}}}", pair.Value?.ToString(), StringComparison.Ordinal));
+  // Every guard message: the host catalog's whole message for the key, else the English one. The keys
+  // are the React lane's (chrome.guard.*.whole for announcements), none of which hlp.ui.default-strings
+  // holds, so its App strings (chrome.guard.recovered.announce "Re-guarded.") never become a default here.
+  private string Message(string key, string fallback) => WholeMessage(key, fallback, MessageVariables);
   // The host catalog's whole message for the key, else the English whole message: the same order as
   // the React projection's wholeMessage, so one catalog key localizes both lanes.
   private string WholeMessage(string key, string fallback, IReadOnlyDictionary<string, object?> variables) =>
@@ -176,8 +182,8 @@
     focusCovered = true;
     await TransitionAsync(GuardedControlState.Covered, outcome == GuardedControlCommitOutcome.Completed ? "commit-completed" : "commit-rejected",
       outcome == GuardedControlCommitOutcome.Completed
-        ? Resolve("chrome.guard.completed.announce", "Guard restored for {action}.")
-        : Resolve("chrome.guard.rejected.announce", "Could not complete {action}. Guard restored."));
+        ? Message("chrome.guard.completed.whole", "Guard restored for {action}.")
+        : Message("chrome.guard.rejected.whole", "Could not complete {action}. Guard restored."));
     commitLatch = false;
     await OnEvent.InvokeAsync(new GuardedControlCommitSettled(outcome));
   }
@@ -224,7 +230,7 @@
     CancelAttempt();
     focusCovered = restoreNow;
     deferredFocus = !restoreNow;
-    await TransitionAsync(GuardedControlState.Covered, reason.ToString().ToLowerInvariant(), Resolve("chrome.guard.recovered.announce", "Guard restored for {action}."));
+    await TransitionAsync(GuardedControlState.Covered, reason.ToString().ToLowerInvariant(), Message("chrome.guard.recovered.whole", "Guard restored for {action}."));
     await OnEvent.InvokeAsync(new GuardedControlRecovered(reason));
   }
 
@@ -254,7 +260,7 @@
       catch (Exception) when (!disposed)
       {
         configured = false;
-        announcement = Resolve("chrome.guard.host-unavailable.announce", "This guarded action is unavailable.");
+        announcement = Message("chrome.guard.host-unavailable.whole", "This guarded action is unavailable.");
         await InvokeAsync(StateHasChanged);
         return;
       }
