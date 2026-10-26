@@ -32,6 +32,14 @@ This is a bounded subset of T618. It covers local editing only, not all of T618.
 - Treats malformed non-string retention, field key, display name, kind and version values as absent for display in both
   lanes (interface revision 5). A non-array `fields` member shows no fields. Unrelated edits preserve these raw values;
   an explicit edit replaces only its member. Field operations use the original array indices and preserve malformed entries.
+- Edits local `categories` (interface revision 6). Explicit Add on absent or null categories creates `['']`; on an array
+  it appends one empty string. Only existing strings are editable, at their original indices. Remove deletes exactly
+  the addressed entry, including a null or non-string entry, and keeps every other node in order. Rendering and
+  unrelated edits preserve absence, null and raw values. A nonnull non-array remains unchanged, with category
+  mutations disabled and handlers no-ops; there is no repair operation. Duplicates, whitespace, non-ASCII text,
+  invalid nodes, unknown body members and input ownership are preserved through the existing whole-draft change
+  and generation/revision/read-only/incoming/diagnostic behavior. No trimming, normalization, uniqueness, inheritance
+  or category-comparison policy is applied.
 - Shows each host-supplied diagnostic's target, and the host's warnings in their own list after the note "Warnings do
   not block publication." (interface revision 2).
 - Kind and version can only be chosen from host-supplied `kindOptions`, and the editor never picks one for you. A
