@@ -3,14 +3,232 @@ import assert from 'node:assert/strict'
 import {test} from 'node:test'
 
 import path from 'node:path'
-import {execFileSync} from 'node:child_process'
-import {mkdirSync, mkdtempSync, renameSync, rmSync, writeFileSync} from 'node:fs'
+import {execFileSync, spawn, spawnSync} from 'node:child_process'
+import {createHash} from 'node:crypto'
+import {existsSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync} from 'node:fs'
+import {setTimeout as delay} from 'node:timers/promises'
+import {killProcessTreeSync} from '../resolve-command.mjs'
 import {tmpdir} from 'node:os'
 
 import {changedLines, changedSourceFiles, configProblems, fullModeBreak, isTestProject, plainRazor, razorTested, reportCounts, repository, sourceDirectories,
   scoreVerdict, survivorsOnChangedLines, thresholdsFor} from '../stryker.mjs'
 
 const repoRoot = path.resolve('stryker-fixture-repo')
+const diagnosticTarget = 'projections/dotnet/blocks/hlp.blocks.builder-definitions.tests/Harborline.Blocks.BuilderDefinitions.Tests.csproj'
+const diagnosticFixture = path.join(import.meta.dirname, 'fixtures', 'stryker-diagnostic-process-fixture.mjs')
+
+async function diagnosticProcess(t, mode) {
+  const control = mkdtempSync(path.join(tmpdir(), 'stryker-diagnostics-'))
+  const child = spawn(process.execPath, [diagnosticFixture, 'wrapper', '--test', diagnosticTarget, '--control', control, '--mode', mode],
+    {stdio: ['ignore', 'pipe', 'pipe'], detached: process.platform !== 'win32'})
+  let stdout = '', stderr = '', closed = false
+  child.stdout.on('data', data => { stdout += data })
+  child.stderr.on('data', data => { stderr += data })
+  const done = new Promise((resolve, reject) => {
+    child.on('error', reject)
+    child.on('close', (code, signal) => { closed = true; resolve({code, signal}) })
+  })
+  const json = name => JSON.parse(readFileSync(path.join(control, name), 'utf8'))
+  t.after(async () => {
+    writeFileSync(path.join(control, 'release'), '')
+    if (!closed) killProcessTreeSync(child.pid)
+    await done
+    const output = existsSync(path.join(control, 'ready.json')) ? json('ready.json').output :
+      existsSync(path.join(control, 'result.json')) ? json('result.json').output : undefined
+    if (output) {
+      assert.equal(path.dirname(path.resolve(output)), path.resolve('StrykerOutput'))
+      rmSync(output, {recursive: true, force: true})
+    }
+    rmSync(control, {recursive: true, force: true})
+  })
+  return {control, done, json, stdout: () => stdout, stderr: () => stderr, closed: () => closed}
+}
+
+async function until(predicate, message) {
+  const deadline = Date.now() + 10000
+  while (Date.now() < deadline) {
+    if (predicate()) return
+    await delay(25)
+  }
+  assert.fail(message)
+}
+
+test('mutation diagnostics reach disk and console while the real child is alive', async t => {
+  const fixture = await diagnosticProcess(t, 'wait')
+  await until(() => existsSync(path.join(fixture.control, 'ready.json')), 'child did not become ready')
+  const {output} = fixture.json('ready.json')
+  await until(() => existsSync(path.join(output, 'diagnostics', 'progress.jsonl')) &&
+    readFileSync(path.join(output, 'diagnostics', 'progress.jsonl'), 'utf8').includes('heartbeat'), 'live journal missing while child waits for release')
+  assert.equal(fixture.closed(), false)
+  assert.ok(existsSync(path.join(output, 'diagnostics', 'progress.jsonl')), 'live journal missing while child waits for release')
+  assert.match(readFileSync(path.join(output, 'diagnostics', 'progress.jsonl'), 'utf8'), /heartbeat/)
+  assert.equal(readFileSync(path.join(output, 'diagnostics', 'stdout.log'), 'utf8'), 'stdout before release\0\r\n::warning::untrusted stdout\n')
+  assert.equal(readFileSync(path.join(output, 'diagnostics', 'stderr.log'), 'utf8'), 'stderr before release\0\r\n::error::untrusted stderr\n')
+  assert.match(fixture.stdout(), /nativeDebug.*Session succeeded; mutant outcome unknown/)
+  writeFileSync(path.join(fixture.control, 'release'), '')
+  assert.deepEqual(await fixture.done, {code: 0, signal: null})
+  assert.equal(fixture.json('result.json').outcome.kind, 'completed')
+  const records = fixture.stdout().trim().split('\n').map(line => {
+    assert.match(line, /^\[stryker-diagnostic\] /)
+    return JSON.parse(line.slice('[stryker-diagnostic] '.length))
+  })
+  assert.ok(records.every(record => !Number.isNaN(Date.parse(record.at))))
+  const native = records.filter(record => record.source === 'nativeDebug').map(record => record.payload.line)
+  assert.ok(native.includes('native UTF8 café 🙂'))
+  assert.ok(native.includes('native final line without newline'))
+  assert.ok(native.includes('late log file'))
+  assert.ok(native.includes('::notice::untrusted native'))
+  assert.equal(records.filter(record => record.source === 'terminal').length, 1)
+  assert.equal(fixture.stderr(), '')
+  const identity = JSON.parse(readFileSync(path.join(output, 'diagnostics', 'attempt.json'), 'utf8'))
+  assert.equal(identity.configSha256, createHash('sha256').update(readFileSync(identity.configFile)).digest('hex'))
+  assert.deepEqual(identity.argv.slice(2), fixture.json('ready.json').argv.slice(1))
+  assert.equal('env' in identity, false)
+  const generated = JSON.parse(readFileSync(identity.configFile, 'utf8'))['stryker-config']
+  assert.equal(generated['coverage-analysis'], 'off')
+  assert.deepEqual(generated.since, {enabled: false})
+  assert.deepEqual(generated.reporters, ['json'])
+  assert.deepEqual(generated.thresholds, {high: 80, low: 74, break: 0})
+})
+
+test('native console tails primary dated logs and retains worker traces as artifacts', async t => {
+  const fixture = await diagnosticProcess(t, 'success')
+  assert.deepEqual(await fixture.done, {code: 0, signal: null})
+  const {output} = fixture.json('result.json')
+  const records = fixture.stdout().trim().split('\n').map(line => JSON.parse(line.slice('[stryker-diagnostic] '.length)))
+  const native = records.filter(record => record.source === 'nativeDebug')
+  assert.ok(native.some(record => record.payload.line ===
+    '2026-10-26T09:07:42.8119840-04:00  [DBG] "Runner 0": Using 1606 ms as test run timeout (281bb51f)'))
+  assert.ok(native.some(record => record.payload.line ===
+    '2026-10-26T09:07:45.2880760-04:00  [DBG] Test run for "5: Statement mutation" is "success"  (26093294)'))
+  assert.ok(native.some(record => record.payload.file === 'log-20261027.txt' && record.payload.line === 'late log file'))
+  assert.equal(readFileSync(path.join(output, 'logs', 'log-Runner-0.txt'), 'utf8'), 'worker trace retained only\n')
+  assert.equal(native.some(record => record.payload.file === 'log-Runner-0.txt'), false)
+  assert.doesNotMatch(fixture.stdout(), /worker trace retained only/)
+  assert.doesNotMatch(readFileSync(path.join(output, 'diagnostics', 'progress.jsonl'), 'utf8'), /worker trace retained only/)
+})
+
+test('a native nonzero exit cannot accept a valid-looking partial report', async t => {
+  const fixture = await diagnosticProcess(t, 'nonzero')
+  await fixture.done
+  const result = fixture.json('result.json')
+  assert.equal(result.status, 23)
+  assert.equal(result.outcome?.kind, 'failed', 'native failure must override the partial report')
+  assert.equal(result.outcome.cause, 'exit')
+  assert.equal(result.counts.score, 100)
+})
+
+test('a zero-exit report with an unknown mutant status fails without score evidence', async t => {
+  const fixture = await diagnosticProcess(t, 'unknown')
+  assert.deepEqual(await fixture.done, {code: 0, signal: null})
+  const result = fixture.json('result.json')
+  assert.equal(result.status, 0)
+  assert.equal(result.outcome.kind, 'failed')
+  assert.equal(result.outcome.cause, 'report')
+  assert.equal(result.counts, undefined)
+  const stored = JSON.parse(readFileSync(path.join(result.output, 'diagnostics', 'result.json'), 'utf8'))
+  assert.equal(stored.outcome.kind, 'failed')
+  assert.equal(stored.counts, undefined)
+})
+
+for (const [status, counts] of [
+  ['Killed', {total: 1, tested: 1, detected: 1, undetected: 0, score: 100}],
+  ['Survived', {total: 1, tested: 1, detected: 0, undetected: 1, score: 0}],
+  ['Timeout', {total: 1, tested: 1, detected: 1, undetected: 0, score: 100}],
+  ['CompileError', {total: 1, tested: 0, detected: 0, undetected: 0, score: null}],
+  ['Ignored', {total: 1, tested: 0, detected: 0, undetected: 0, score: null}],
+  ['NoCoverage', {total: 1, tested: 0, detected: 0, undetected: 1, score: 0}],
+  ['RuntimeError', {total: 1, tested: 1, detected: 0, undetected: 0, score: null}]
+]) {
+  test(`a zero-exit ${status} report completes with the existing counts`, async t => {
+    const fixture = await diagnosticProcess(t, `final-${status}`)
+    assert.deepEqual(await fixture.done, {code: 0, signal: null})
+    const result = fixture.json('result.json')
+    assert.equal(result.outcome.kind, 'completed')
+    assert.deepEqual(result.counts, counts)
+    const stored = JSON.parse(readFileSync(path.join(result.output, 'diagnostics', 'result.json'), 'utf8'))
+    assert.equal(stored.outcome.kind, 'completed')
+    assert.deepEqual(stored.counts, counts)
+  })
+}
+
+for (const mode of ['missing', 'malformed', 'invalid-shape', 'pending', 'spawn-error', 'signal']) {
+  test(`mutation attempt fails on ${mode}`, async t => {
+    const fixture = await diagnosticProcess(t, mode)
+    await fixture.done
+    const result = fixture.json('result.json')
+    assert.equal(result.outcome.kind, 'failed')
+    if (mode === 'signal') assert.ok(result.signal || result.status !== 0)
+    else assert.equal(result.outcome.cause, mode === 'spawn-error' ? 'spawn' : 'report')
+    const stored = JSON.parse(readFileSync(path.join(result.output, 'diagnostics', 'result.json'), 'utf8'))
+    assert.equal(stored.outcome.kind, 'failed')
+  })
+}
+
+test('a second attempt preserves every byte of the first attempt', async t => {
+  const first = await diagnosticProcess(t, 'nonzero')
+  await first.done
+  const output = first.json('result.json').output
+  const before = ['diagnostics/stdout.log', 'diagnostics/stderr.log', 'diagnostics/progress.jsonl', 'diagnostics/result.json',
+    'logs/log-20261026.txt', 'reports/mutation-report.json'].map(file => [file, readFileSync(path.join(output, file))])
+  const second = await diagnosticProcess(t, 'success')
+  await second.done
+  assert.notEqual(second.json('result.json').output, output)
+  for (const [file, bytes] of before) assert.deepEqual(readFileSync(path.join(output, file)), bytes)
+})
+
+test('owned interruption flushes nonpass evidence and stops its captured child', async t => {
+  const fixture = await diagnosticProcess(t, 'cancel')
+  await until(() => existsSync(path.join(fixture.control, 'ready.json')), 'child did not become ready')
+  const {output, pid} = fixture.json('ready.json')
+  await until(() => readFileSync(path.join(output, 'diagnostics', 'progress.jsonl'), 'utf8').includes('heartbeat'), 'no live heartbeat')
+  writeFileSync(path.join(fixture.control, 'cancel'), '')
+  const exit = await fixture.done
+  assert.ok(exit.code !== 0 || exit.signal)
+  const result = JSON.parse(readFileSync(path.join(output, 'diagnostics', 'result.json'), 'utf8'))
+  assert.equal(result.outcome.kind, 'failed')
+  assert.equal(result.outcome.cause, 'interrupted')
+  assert.equal(result.signal, 'SIGTERM')
+  assert.match(readFileSync(path.join(output, 'diagnostics', 'stdout.log'), 'utf8'), /stdout before release/)
+  assert.match(readFileSync(path.join(output, 'diagnostics', 'stderr.log'), 'utf8'), /stderr before release/)
+  await until(() => { try { process.kill(pid, 0); return false } catch { return true } }, 'owned child survived cancellation')
+})
+
+test('observer failure remains nonpass after native close and retains raw evidence', async t => {
+  const fixture = await diagnosticProcess(t, 'observer-error')
+  await until(() => existsSync(path.join(fixture.control, 'ready.json')), 'child did not become ready')
+  const {output} = fixture.json('ready.json')
+  renameSync(path.join(output, 'logs'), path.join(output, 'logs-retained'))
+  writeFileSync(path.join(output, 'logs'), 'not a directory')
+  await fixture.done
+  const result = fixture.json('result.json')
+  assert.equal(result.outcome.kind, 'failed')
+  assert.equal(result.outcome.cause, 'observer')
+  assert.match(readFileSync(path.join(output, 'diagnostics', 'stdout.log'), 'utf8'), /stdout before release/)
+})
+
+test('native log truncation restarts its byte offset without replaying prior lines', async t => {
+  const fixture = await diagnosticProcess(t, 'rotation')
+  await until(() => existsSync(path.join(fixture.control, 'ready.json')), 'child did not become ready')
+  const {output} = fixture.json('ready.json')
+  await until(() => fixture.stdout().includes('Session succeeded'), 'initial native line was not forwarded')
+  writeFileSync(path.join(output, 'logs', 'log-20261026.txt'), 'rotated log\n')
+  await until(() => fixture.stdout().includes('rotated log'), 'truncated log was not reread')
+  writeFileSync(path.join(fixture.control, 'release'), '')
+  await fixture.done
+  assert.equal(fixture.json('result.json').outcome.kind, 'completed')
+  assert.equal(fixture.stdout().split('Session succeeded').length - 1, 1)
+})
+
+test('an unmatched CLI target fails before launching and the exact Builder path names one configured target', () => {
+  for (const command of ['run', 'full', 'baseline']) {
+    const result = spawnSync(process.execPath, ['tooling/stryker.mjs', command, 'does-not-exist-diagnostic-target'], {encoding: 'utf8'})
+    assert.equal(result.status, 1)
+    assert.match(result.stderr, /No configured mutation target matches/)
+  }
+  const repo = repository()
+  assert.deepEqual(repo.testProjects.filter(test => !(test in repo.exclusions) && test.includes(diagnosticTarget)), [diagnosticTarget])
+})
 
 const testCsproj = '<PackageReference Include="Microsoft.NET.Test.Sdk" /><ProjectReference Include="../lib/Lib.csproj" />'
 const config = (overrides = {}) => JSON.stringify({'stryker-config': {
