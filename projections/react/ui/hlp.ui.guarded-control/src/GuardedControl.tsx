@@ -39,6 +39,9 @@ function descriptionIds(value: GuardedControlProps['describedBy']): string | und
 const COVERED_INSTRUCTION = 'Guarded action: {action}. Activate to arm.'
 const ARMED_INSTRUCTION = 'Armed for {action}. Activate again within {duration} to commit.'
 const COMMITTING_STATUS = 'Committing {action}.'
+const RECOVERED_ANNOUNCEMENT = 'Guard restored for {action}.'
+const COMPLETED_ANNOUNCEMENT = 'Guard restored for {action}.'
+const REJECTED_ANNOUNCEMENT = 'Could not complete {action}. Guard restored.'
 
 // One pass with a function replacer, as HarborlineDefaultStrings.Interpolate does in the Blazor lane:
 // inserted caller text is never read as a replacement pattern ($$, $&, $`, $') or scanned again for
@@ -69,10 +72,39 @@ export function GuardedControl({
   const id = React.useId()
   const labelId = `${id}-label`
   const instructionId = `${id}-instruction`
-  const isolatedLabel = `\u2068${label}\u2069`
 
-  const wholeMessage = React.useCallback((key: string, fallback: string, variables: Record<string, string>) =>
-    interpolateWhole(catalog[key] ?? fallback, variables), [catalog])
+  // An amount of time ("5 seconds"), which the armed instruction places after "within"; never a
+  // relative time ("in 5 seconds"). The locale's CLDR unit pattern supplies the unit word, its plural
+  // form and its placement, as Intl.RelativeTimeFormat did before; the number in it is the locale
+  // provider's formatNumber, called with no options so a host formatter that writes only the number
+  // cannot drop the unit. Without a host formatter that is the same Intl number. A form with no number
+  // in it (Arabic "ثانيتان", 2 seconds) asks for none. The Blazor lane resolves its catalog's
+  // chrome.guard.duration forms instead; one duration source for both lanes is T-1105's deferred
+  // duration-parity work.
+  const formatDuration = React.useCallback((count: number) => {
+    try {
+      let number: string | undefined
+      return new Intl.NumberFormat(locale, { style: 'unit', unit: 'second', unitDisplay: 'long' })
+        .formatToParts(count)
+        .map(({ type, value }) => {
+          if (type === 'unit' || type === 'literal') return value
+          // The number's parts (integer, group, decimal, fraction, sign) become one host number.
+          if (number !== undefined) return ''
+          number = formatNumber(count)
+          return number
+        })
+        .join('')
+    } catch {
+      return `${formatNumber(count)} ${count === 1 ? 'second' : 'seconds'}`
+    }
+  }, [locale, formatNumber])
+
+  // Every guard message takes the same placeholders: {action}, the label bidi-isolated, and
+  // {duration}, the full arm window, never the live countdown, so no message depends on how the last
+  // arm ended. The host catalog's whole message wins, else the English one.
+  const messageVariables = React.useMemo(() => ({ action: `\u2068${label}\u2069`, duration: formatDuration(ARM_WINDOW_SECONDS) }), [label, formatDuration])
+  const wholeMessage = React.useCallback((key: string, fallback: string) =>
+    interpolateWhole(catalog[key] ?? fallback, messageVariables), [catalog, messageVariables])
 
   const transition = React.useCallback((next: GuardedControlState) => {
     const previous = stateRef.current
@@ -94,10 +126,10 @@ export function GuardedControl({
 
   const recover = React.useCallback((reason: GuardRecoveryReason) => {
     if (stateRef.current !== 'armed' || !transition('covered')) return
-    setAnnouncement(wholeMessage('chrome.guard.recovered.whole', 'Guard restored for {action}.', { action: `\u2068${label}\u2069` }))
+    setAnnouncement(wholeMessage('chrome.guard.recovered.whole', RECOVERED_ANNOUNCEMENT))
     restoreFocus()
     observe?.({ type: 'recovered', reason })
-  }, [label, observe, restoreFocus, transition, wholeMessage])
+  }, [observe, restoreFocus, transition, wholeMessage])
 
   React.useEffect(() => {
     stateRef.current = state
@@ -153,35 +185,9 @@ export function GuardedControl({
     if (state === 'armed') armedRef.current?.focus()
   }, [state])
 
-  // An amount of time ("5 seconds"), which the armed instruction places after "within"; never a
-  // relative time ("in 5 seconds"). The locale's CLDR unit pattern supplies the unit word, its plural
-  // form and its placement, as Intl.RelativeTimeFormat did before; the number in it is the locale
-  // provider's formatNumber, called with no options so a host formatter that writes only the number
-  // cannot drop the unit. Without a host formatter that is the same Intl number. A form with no number
-  // in it (Arabic "ثانيتان", 2 seconds) asks for none. The Blazor lane resolves its catalog's
-  // chrome.guard.duration forms instead; one duration source for both lanes is T-1105's deferred
-  // duration-parity work.
-  const formatDuration = (count: number) => {
-    try {
-      let number: string | undefined
-      return new Intl.NumberFormat(locale, { style: 'unit', unit: 'second', unitDisplay: 'long' })
-        .formatToParts(count)
-        .map(({ type, value }) => {
-          if (type === 'unit' || type === 'literal') return value
-          // The number's parts (integer, group, decimal, fraction, sign) become one host number.
-          if (number !== undefined) return ''
-          number = formatNumber(count)
-          return number
-        })
-        .join('')
-    } catch {
-      return `${formatNumber(count)} ${count === 1 ? 'second' : 'seconds'}`
-    }
-  }
-
   // The armed instruction always states the full window, never the countdown: it is announced once
   // on arming and is the armed description for the whole armed state, so it never changes with a tick.
-  const armedInstruction = () => wholeMessage('chrome.guard.armed.whole', ARMED_INSTRUCTION, { action: isolatedLabel, duration: formatDuration(ARM_WINDOW_SECONDS) })
+  const armedInstruction = () => wholeMessage('chrome.guard.armed.whole', ARMED_INSTRUCTION)
 
   // Every arm states the full window, never the countdown a previous attempt left behind.
   const arm = () => {
@@ -215,8 +221,8 @@ export function GuardedControl({
     if (!mounted.current || stateRef.current !== 'committing') return
     transition('covered')
     setAnnouncement(outcome === 'rejected'
-      ? wholeMessage('chrome.guard.rejected.whole', 'Could not complete {action}. Guard restored.', { action: `\u2068${label}\u2069` })
-      : wholeMessage('chrome.guard.completed.whole', 'Guard restored for {action}.', { action: `\u2068${label}\u2069` }))
+      ? wholeMessage('chrome.guard.rejected.whole', REJECTED_ANNOUNCEMENT)
+      : wholeMessage('chrome.guard.completed.whole', COMPLETED_ANNOUNCEMENT))
     restoreFocus()
     observe?.({ type: 'commit-settled', outcome })
   }
@@ -224,10 +230,10 @@ export function GuardedControl({
   const duration = formatDuration(seconds)
   const inert = disabled || invalid
   const instruction = state === 'covered'
-    ? wholeMessage('chrome.guard.covered.instruction', COVERED_INSTRUCTION, { action: isolatedLabel })
+    ? wholeMessage('chrome.guard.covered.instruction', COVERED_INSTRUCTION)
     : state === 'armed'
       ? armedInstruction()
-      : wholeMessage('chrome.guard.committing.status', COMMITTING_STATUS, { action: isolatedLabel })
+      : wholeMessage('chrome.guard.committing.status', COMMITTING_STATUS)
   const ids = [descriptionIds(describedBy), instructionId].filter(Boolean).join(' ')
   return (
     <div

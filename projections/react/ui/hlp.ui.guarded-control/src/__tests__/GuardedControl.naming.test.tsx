@@ -110,6 +110,30 @@ describe('GuardedControl revision 2 names and descriptions', () => {
     expect(action()).toHaveAccessibleDescription(committing(label))
   })
 
+  // Every guard message takes the same placeholders: {action} and {duration}, the full arm window,
+  // never the live countdown, so the covered description does not depend on how the last arm ended.
+  it('fills {duration} with the full window in every message, before and after a timeout', () => {
+    vi.useFakeTimers()
+    render(
+      <HarborlineLocaleProvider locale="en-US" catalog={{
+        'chrome.guard.covered.instruction': 'Protected: {action}. Press once, then again within {duration}.',
+        'chrome.guard.committing.status': 'Saving {action} inside its {duration} window…',
+      }}>
+        <GuardedControl action="a" classificationId="c" label="Publish" onCommit={pending}/>
+      </HarborlineLocaleProvider>,
+    )
+    const protectedText = `Protected: ${isolated('Publish')}. Press once, then again within 5 seconds.`
+    expect(action()).toHaveAccessibleDescription(protectedText)
+    fireEvent.click(action())
+    act(() => vi.advanceTimersByTime(5000))
+    expect(action()).toHaveAttribute('data-guard-state', 'covered')
+    expect(action()).toHaveAccessibleDescription(protectedText)
+    fireEvent.click(action())
+    act(() => vi.advanceTimersByTime(2000))
+    fireEvent.click(action())
+    expect(action()).toHaveAccessibleDescription(`Saving ${isolated('Publish')} inside its 5 seconds window…`)
+  })
+
   it('localizes the descriptions through a host catalog while the name stays the label', () => {
     render(
       <HarborlineLocaleProvider locale="fr-FR" catalog={{

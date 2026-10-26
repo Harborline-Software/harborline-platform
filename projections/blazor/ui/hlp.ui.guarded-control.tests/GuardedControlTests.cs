@@ -169,6 +169,16 @@ public sealed class GuardedControlTests : BunitContext
                         }
                         else Assert.True(limitations.Contains($"descriptions.{state}"), $"{context}: description neither asserted nor a named T-1105 limitation");
                     }
+                    // Every message takes the same {action} and {duration} (the full window), so the covered
+                    // description after a timeout recovery reads exactly as it did before arming.
+                    var clock = new GuardedControlAnnouncementTests.ManualClock();
+                    var timed = RenderVariant(given, () => Task.CompletedTask);
+                    GuardedControlAnnouncementTests.UseClock(timed.Instance, clock);
+                    timed.Find("button").Click();
+                    for (var second = 0; second < 5; second++) await GuardedControlAnnouncementTests.TickAsync(timed, clock);
+                    timed.WaitForAssertion(() => Assert.Equal("covered", timed.Find("button").GetAttribute("data-guard-state")));
+                    var afterTimeout = GuardAccessibility.Description(timed.Find("button"), timed);
+                    Assert.True(want.GetProperty("afterTimeout").GetProperty("description").GetString() == afterTimeout, $"{given.GetProperty("name").GetString()} after timeout description: {afterTimeout}");
                 }
                 break;
             }

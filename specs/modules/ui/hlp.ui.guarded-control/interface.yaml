@@ -42,6 +42,14 @@
     "Reduced motion, RTL, light and dark themes, independent forced colors, and 200 percent reflow preserve interaction ordering and action availability.",
     "Projection-owned host attributes survive on their owning element without overriding required role, name, state, focus, or disabled semantics."
   ],
+  "messages": {
+    "rule": "Each message resolves to the host catalog's whole message for its key, else the English default below, and is interpolated in one pass: the placeholders are {action}, the caller label wrapped in FSI and PDI, and {duration}, the full five-second arm window formatted for the locale (never the live countdown); inserted text is not interpolated again and an unknown placeholder stays visible.",
+    "keys": [
+      {"key": "chrome.guard.covered.instruction", "use": "covered-state description and visible instruction", "default": "Guarded action: {action}. Activate to arm.", "placeholders": ["action", "duration"]},
+      {"key": "chrome.guard.armed.whole", "use": "armed-state description and visible instruction; announced once per arming transition", "default": "Armed for {action}. Activate again within {duration} to commit.", "placeholders": ["action", "duration"]},
+      {"key": "chrome.guard.committing.status", "use": "committing-state description and visible status", "default": "Committing {action}.", "placeholders": ["action", "duration"]}
+    ]
+  },
   "ordering": {
     "arm": ["validate-enabled-and-covered", "mint-attempt-and-deadline", "transition-covered-to-armed", "render-and-focus-armed-action", "subscribe-recovery-hosts"],
     "commit": ["validate-live-attempt", "acquire-latch", "transition-armed-to-committing", "invoke-authoritative-caller-operation-once", "cancel-attempt-resources", "transition-to-covered", "restore-focus", "report-settlement"],

@@ -144,6 +144,31 @@ public sealed class GuardedControlNamingTests : BunitContext
         Assert.Equal(Committing(label), GuardAccessibility.Description(cut.Find("button"), cut));
     }
 
+    // Every guard message takes the same placeholders: {action} and {duration}, the full arm window,
+    // never the live countdown, so the covered description does not depend on how the last arm ended.
+    [Fact]
+    public async Task FillsDurationWithTheFullWindowInEveryMessageBeforeAndAfterATimeout()
+    {
+        var operation = new TaskCompletionSource();
+        var cut = RenderInLocale("en-US", Label, new Dictionary<string, string>
+        {
+            ["chrome.guard.covered.instruction"] = "Protected: {action}. Press once, then again within {duration}.",
+            ["chrome.guard.committing.status"] = "Saving {action} inside its {duration} window…",
+        }, commit: () => operation.Task);
+        var clock = new Clock.ManualClock();
+        Clock.UseClock(cut.Instance, clock);
+        var protectedText = $"Protected: {Isolated(Label)}. Press once, then again within 5 seconds.";
+        Assert.Equal(protectedText, GuardAccessibility.Description(cut.Find("button"), cut));
+        cut.Find("button").Click();
+        for (var second = 0; second < 5; second++) await Clock.TickAsync(cut, clock);
+        cut.WaitForAssertion(() => Assert.Equal("covered", cut.Find("button").GetAttribute("data-guard-state")));
+        Assert.Equal(protectedText, GuardAccessibility.Description(cut.Find("button"), cut));
+        cut.Find("button").Click();
+        for (var second = 0; second < 2; second++) await Clock.TickAsync(cut, clock);
+        _ = cut.Find("button").ClickAsync(new MouseEventArgs());
+        Assert.Equal($"Saving {Isolated(Label)} inside its 5 seconds window…", GuardAccessibility.Description(cut.Find("button"), cut));
+    }
+
     [Fact]
     public void HostCatalogLocalizesTheDescriptionsWhileTheNameStaysTheLabel()
     {

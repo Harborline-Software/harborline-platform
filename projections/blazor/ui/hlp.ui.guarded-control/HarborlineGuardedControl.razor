@@ -71,7 +71,10 @@
   private string StateName => State.ToString().ToLowerInvariant();
   private bool IsInert => Disabled || !configured;
   private string IsolatedLabel => $"\u2068{Label}\u2069";
-  private IReadOnlyDictionary<string, object?> MessageVariables => new Dictionary<string, object?> { ["action"] = IsolatedLabel, ["duration"] = DurationText };
+  // Every guard message takes the same placeholders: {action}, the label bidi-isolated, and
+  // {duration}, the full arm window, never the live countdown, so no message depends on how the last
+  // arm ended. The React lane passes the same set.
+  private IReadOnlyDictionary<string, object?> MessageVariables => new Dictionary<string, object?> { ["action"] = IsolatedLabel, ["duration"] = Duration(ArmWindowSeconds) };
   // Interface revision 2. The name is the visible label (aria-labelledby the label span, so the
   // role=timer countdown never joins it). The description is the caller's DescribedBy ids, then the
   // module's whole message for the state, which is also rendered visibly: covered and armed
@@ -90,8 +93,7 @@
   };
   // The armed instruction always states the full window, never the countdown: it is announced once on
   // arming and is the armed description for the whole armed state, so it never changes with a tick.
-  private string ArmedInstruction => WholeMessage("chrome.guard.armed.whole", "Armed for {action}. Activate again within {duration} to commit.",
-    new Dictionary<string, object?> { ["action"] = IsolatedLabel, ["duration"] = Duration(ArmWindowSeconds) });
+  private string ArmedInstruction => WholeMessage("chrome.guard.armed.whole", "Armed for {action}. Activate again within {duration} to commit.", MessageVariables);
   private string LoadingText => LocaleContext?.ResolveString("common.loading", new Dictionary<string, object?>(), "Loading") ?? "Loading";
   private string DurationText => Duration(remainingSeconds);
 

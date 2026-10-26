@@ -124,6 +124,7 @@ const assertions: Record<string, (entry: Case) => void | Promise<void>> = {
   // variant leaves out must be named in knownLimitations with its ticket, or the case fails: the armed
   // description in Arabic and the pseudo-locale is T-1105's deferred duration-localization parity.
   'guarded-control.naming-localization': ({ input, expected }) => {
+    vi.useFakeTimers()
     ;(input.variants as Array<Record<string, any>>).forEach((variant, index) => {
       const want = expected.variants[index]
       const limited = (assertion: string) => ((want.knownLimitations ?? []) as Array<{ assertion: string; ticket: string }>)
@@ -142,6 +143,14 @@ const assertions: Record<string, (entry: Case) => void | Promise<void>> = {
         }
         view.unmount()
       }
+      // Every message takes the same {action} and {duration} (the full window), so the covered
+      // description after a timeout recovery reads exactly as it did before arming.
+      const view = renderVariant(variant)
+      fireEvent.click(action())
+      act(() => vi.advanceTimersByTime(5000))
+      expect(action(), `${variant.name} after timeout`).toHaveAttribute('data-guard-state', 'covered')
+      expect(action(), `${variant.name} after timeout`).toHaveAccessibleDescription(want.afterTimeout.description)
+      view.unmount()
     })
   },
 }
