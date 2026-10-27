@@ -75,6 +75,7 @@ export const reusableStepInputs = {
     'tooling/prepare-galleries.mjs',
     'tooling/validate-gallery.mjs',
     'tooling/verify-package-fixtures.mjs',
+    'tooling/fetch-nuget-package.mjs',
     'tooling/library-promotion-proof.mjs',
     'tooling/package-producers.mjs',
     'tooling/run-galleries.mjs',
