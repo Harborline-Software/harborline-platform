@@ -15,9 +15,22 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../hlp.blocks.scheduling/Harborline.Blocks.Scheduling.csproj" />
+    <ProjectReference Include="../../../../experiments/scheduling-decision-model/oracle/Harborline.Experiments.SchedulingDecisionModel.Oracle.csproj" />
+    <ProjectReference Include="../../../../experiments/scheduling-decision-model/engine/Harborline.Experiments.SchedulingDecisionModel.Engine.csproj" />
     <ProjectReference Include="../hlp.blocks.scheduling.restart-probe/Harborline.Blocks.Scheduling.RestartProbe.csproj" ReferenceOutputAssembly="false" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="../../../../experiments/scheduling-decision-model/data/Canonical.cs" Link="Data/Canonical.cs" />
+    <Compile Include="../../../../experiments/scheduling-decision-model/data/Corpus.cs" Link="Data/Corpus.cs" />
+    <Compile Include="../../../../experiments/scheduling-decision-model/data/Families.cs" Link="Data/Families.cs" />
+    <Compile Include="../../../../experiments/scheduling-decision-model/data/Rng.cs" Link="Data/Rng.cs" />
+    <Compile Include="../../../../experiments/scheduling-decision-model/data/Spec.cs" Link="Data/Spec.cs" />
+    <Compile Include="../../../../experiments/scheduling-decision-model/evaluation/Stats.cs" Link="Evaluation/Stats.cs" />
+    <Compile Include="../../../../experiments/scheduling-decision-model/tests/Profiles.cs" Link="Oracle/Profiles.cs" />
+    <Compile Include="../../../../experiments/scheduling-decision-model/tests/PlanCheckerMutationTests.cs" Link="Oracle/PlanCheckerMutationTests.cs" />
+    <None Include="../../../../experiments/scheduling-decision-model/data/corpus-v2/manifest.jsonl" Link="corpus-v2/manifest.jsonl" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../../../experiments/scheduling-decision-model/data/corpus-v2/manifest.sha256" Link="corpus-v2/manifest.sha256" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../../../experiments/scheduling-decision-model/data/corpus-v2/labels.jsonl" Link="corpus-v2/labels.jsonl" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../hlp.blocks.scheduling/Planning/Fixtures/*.json" Link="Planning/Fixtures/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

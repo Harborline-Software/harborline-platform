@@ -541,7 +541,7 @@
         "projections/dotnet/blocks/hlp.blocks.scheduling/Planning/Fixtures/medical-pregnancy.feasible.json": "47ba0f6216ede8eb3f006246b7a5a6897c6efe7287c5cd98ccdc4706e12f641d",
         "projections/dotnet/blocks/hlp.blocks.scheduling/Planning/Fixtures/medical-pregnancy.unsatisfied.json": "681c9c431d668f082d464d696381cb92de06e7f4f835be0d58a373db65a855bd",
         "projections/dotnet/blocks/hlp.blocks.scheduling/Planning/PlanningModel.cs": "bc37da36b8ec5d885f7a07032356b30720969e4bccaef7470c0b6b01e21c0b7e",
-        "projections/dotnet/blocks/hlp.blocks.scheduling/Planning/PlanningSolvers.cs": "247ba08ee34afb99918f4a3917e2b8627d5ddefe1377280feec1e3011062bc02",
+        "projections/dotnet/blocks/hlp.blocks.scheduling/Planning/PlanningSolvers.cs": "8c086fa2c32dd8f4cede8786403ddd73bbc4856057541fdf41e39ce4f45dadda",
         "projections/dotnet/blocks/hlp.blocks.scheduling/README.md": "3332af09788b600bb412ec0014c9d6718ec97f98a1f382e56feec77d5d8ab759",
         "projections/dotnet/blocks/hlp.blocks.scheduling/ScheduleReservationCoordinator.cs": "454d8534626301cac45fa455c0ee509e49de9a274786ba61b2b6d72a5f8b8901",
         "projections/dotnet/blocks/hlp.blocks.scheduling/SchedulingDurableRecords.cs": "3464c54e346b0a22938dc21a25b9d1a00f13e01950ba31b36105f9dbaf4f139c",
