@@ -249,3 +249,78 @@ describe('Popover Blazor focus order: the way in, nested (b31 final check)', () 
     expect(press(true)).toEqual(['handled', 'Y'])
   })
 })
+
+// b31 final check 2: the Dialog's and Sheet's traps hand forward Tab on a trigger to the popover only while
+// popover.js has that popover open (a marker connect() sets on the connected content and every dispose
+// removes), never on rendered ARIA alone. Measured with the real dialog.js and sheet.js, trigger last.
+describe('Popover Blazor focus order: the overlay traps defer only to an open popover (b31 final check 2)', () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['requestAnimationFrame', 'cancelAnimationFrame'] })
+    globalThis.ResizeObserver ??= class { observe() {} disconnect() {} }
+  })
+  afterEach(() => { while (connections.length) connections.pop().dispose(); vi.useRealTimers(); document.body.replaceChildren() })
+
+  // A Dialog or Sheet whose last control is `lastHtml`; returns its dispose.
+  function overlay(kind, lastHtml) {
+    const portal = document.createElement('div')
+    if (kind === 'dialog') {
+      portal.className = 'hl-dialog__portal'
+      portal.innerHTML = `<section role=dialog aria-modal=true tabindex=-1><button aria-label=Close>x</button><div class=hl-dialog__body>${lastHtml}</div></section>`
+      document.body.append(portal)
+      const connection = connectDialog(portal, portal.firstChild, portal.querySelector('.hl-dialog__body'), callback, true)
+      vi.advanceTimersToNextFrame()
+      return () => connection.dispose()
+    }
+    portal.className = 'hl-sheet__portal'
+    portal.innerHTML = `<div role=dialog aria-modal=true tabindex=-1 id=sc><button aria-label=Close>x</button>${lastHtml}</div>`
+    document.body.append(portal)
+    const connection = connectSheet(portal, portal.querySelector('#sc'), null, true, callback)
+    vi.advanceTimersToNextFrame()
+    return () => connection.dispose()
+  }
+  function openPopover() {
+    const trigger = document.getElementById('t')
+    const content = Object.assign(document.createElement('div'), { tabIndex: -1, innerHTML: '<button>Option</button>', className: 'hl-popover__content' })
+    trigger.after(content)
+    const connection = connect(trigger, null, content, { triggerId: 'key-t' }, callback)
+    vi.advanceTimersToNextFrame()
+    return connection
+  }
+  const pick = '<button id=t data-hl-popover-trigger=key-t aria-expanded=true>Pick</button>'
+
+  for (const kind of ['dialog', 'sheet']) {
+    it(`${kind}: Tab on an open popover trigger last in it enters the content`, () => {
+      const close = overlay(kind, pick)
+      connections.push(openPopover())
+      focus('#t')
+      try { expect(press()).toEqual(['handled', 'Option']) } finally { close() }
+    })
+
+    it(`${kind}: a trigger with a stale aria-expanded and no connected content wraps (the trap keeps it)`, () => {
+      const close = overlay(kind, pick)
+      focus('#t')
+      try { expect(press()).toEqual(['handled', 'Close']) } finally { close() }
+    })
+
+    it(`${kind}: a popover disposed while its trigger keeps aria-expanded=true wraps`, () => {
+      const close = overlay(kind, pick)
+      openPopover().dispose()
+      // Left behind and still connected (a failed close), outside the overlay: only the marker says closed.
+      document.body.append(document.querySelector('.hl-popover__content'))
+      focus('#t')
+      try { expect(press()).toEqual(['handled', 'Close']) } finally { close() }
+    })
+
+    for (const [name, html] of [
+      ['an expanded disclosure', '<button id=t aria-expanded=true aria-controls=panel>More</button><div id=panel></div>'],
+      ['an accordion header', '<h3><button id=t aria-expanded=true>Section</button></h3>'],
+      ['a combobox', '<input id=t role=combobox aria-expanded=true aria-label=Search>'],
+    ]) {
+      it(`${kind}: ${name} last in it still wraps`, () => {
+        const close = overlay(kind, html)
+        focus('#t')
+        try { expect(press()).toEqual(['handled', 'Close']) } finally { close() }
+      })
+    }
+  }
+})
