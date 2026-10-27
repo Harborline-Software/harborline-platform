@@ -198,6 +198,9 @@ export function connect(trigger, anchor, content, options, callback) {
     dismiss()
   }
   const onFocusIn = event => { if (content.contains(event.target)) outsidePointer = false }
+  // A press that does not take focus (mousedown prevented, a touch that becomes a scroll) leaves focus in the
+  // content, so no focusin follows; a key in the content is the user acting on the popover again.
+  const onKeyInside = () => { outsidePointer = false }
   const onViewport = () => reposition()
   // Blazor Server renders over a connection: the content's children can arrive after this call and the
   // trigger reference can be missing or replaced by a re-render. Both are read when a key arrives.
@@ -210,6 +213,7 @@ export function connect(trigger, anchor, content, options, callback) {
   openContents.add(content)
   content.addEventListener('keydown', onContentKey)
   content.addEventListener('focusin', onFocusIn)
+  content.addEventListener('keydown', onKeyInside)
   // Tab on the trigger and Shift+Tab from the stop after it, on window in the bubble phase: after Blazor's
   // delegated dispatch on the document, so a caller's @onkeydown (and @onkeydown:preventDefault) or any
   // handler on the trigger runs first and a key it handled is left alone (b31 final check). The browser's
@@ -257,6 +261,7 @@ export function connect(trigger, anchor, content, options, callback) {
       cancelAnimationFrame(frame)
       content.removeEventListener('keydown', onContentKey)
       content.removeEventListener('focusin', onFocusIn)
+      content.removeEventListener('keydown', onKeyInside)
       owners.delete(content)
       openContents.delete(content)
       window.removeEventListener('keydown', onEnter)

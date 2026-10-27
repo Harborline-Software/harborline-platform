@@ -376,6 +376,12 @@ export function Popover({ children, defaultOpen = false, open, onOpenChange }: P
     const onFocusIn = (event: FocusEvent) => {
       if (event.target instanceof Node && contentRef.current?.contains(event.target)) outsidePointer.current = false
     }
+    // A press that does not take focus (mousedown prevented, a touch that becomes a scroll) leaves focus in the
+    // content, so no focusin follows; a key in the content is the user acting on the popover again. Capture
+    // phase, so a handler in the content that closes the popover runs after the flag is cleared.
+    const onKeyInside = (event: KeyboardEvent) => {
+      if (event.target instanceof Node && contentRef.current?.contains(event.target)) outsidePointer.current = false
+    }
     // The open popover is the topmost layer. An Escape from its trigger button is taken in the capture
     // phase, before an outer layer (a dialog or sheet) listening on the document; the trigger has no
     // Escape behaviour of its own. An Escape from inside the content is handled on the content itself
@@ -397,11 +403,13 @@ export function Popover({ children, defaultOpen = false, open, onOpenChange }: P
 
     document.addEventListener('pointerdown', onPointerDown)
     document.addEventListener('focusin', onFocusIn)
+    document.addEventListener('keydown', onKeyInside, true)
     document.addEventListener('keydown', onKeyDownCapture, true)
     document.addEventListener('keydown', onKeyDown)
     return () => {
       document.removeEventListener('pointerdown', onPointerDown)
       document.removeEventListener('focusin', onFocusIn)
+      document.removeEventListener('keydown', onKeyInside, true)
       document.removeEventListener('keydown', onKeyDownCapture, true)
       document.removeEventListener('keydown', onKeyDown)
     }
