@@ -92,6 +92,70 @@ function focusableInside(element: HTMLElement): HTMLElement | null {
   ].join(','))
 }
 
+// Sequential focus order (T-1128). The content is portaled to the end of <body>, so native Tab order
+// put it after the whole page. As in the HTML popover focus navigation model (WHATWG HTML 6.6.2: a
+// showing popover's focus navigation scope is inserted after its invoker), the content sits right
+// after its trigger: Tab out of its last tabbable element (or the content itself, when nothing in it
+// is tabbable) goes to the first tabbable element after the trigger, and Shift+Tab out of its first
+// one (or the content itself) goes to the trigger. Shared with the Blazor lane's popover.js.
+const tabbableCandidates = [
+  'a[href]', 'area[href]', 'button', 'input', 'select', 'textarea', 'iframe', 'summary',
+  '[tabindex]', '[contenteditable]:not([contenteditable="false"])',
+].join(',')
+
+function tabbable(element: HTMLElement): boolean {
+  if (element.tabIndex < 0 || element.matches(':disabled')) return false
+  if (element instanceof HTMLInputElement && element.type === 'hidden') return false
+  for (let node: HTMLElement | null = element; node; node = node.parentElement) {
+    if (node.hidden || (node as HTMLElement & { inert?: boolean }).inert === true) return false
+  }
+  const visible = (element as HTMLElement & { checkVisibility?: (options?: object) => boolean }).checkVisibility
+  return typeof visible !== 'function' || visible.call(element, { visibilityProperty: true, checkVisibilityCSS: true })
+}
+
+function tabbablesIn(root: ParentNode): HTMLElement[] {
+  return Array.from(root.querySelectorAll<HTMLElement>(tabbableCandidates)).filter(tabbable)
+}
+
+// The first tabbable element after the trigger in document order, skipping this content and any other
+// popover content not around the trigger. Inside a modal layer the search stays in that layer, so the
+// layer's own trap owns its boundary. Null when nothing follows: the trigger is last.
+function tabbableAfter(trigger: HTMLElement, content: HTMLElement): HTMLElement | null {
+  const scope = trigger.closest<HTMLElement>('[aria-modal="true"]') ?? trigger.ownerDocument
+  for (const candidate of tabbablesIn(scope)) {
+    if (!(trigger.compareDocumentPosition(candidate) & Node.DOCUMENT_POSITION_FOLLOWING)) continue
+    if (trigger.contains(candidate) || content.contains(candidate)) continue
+    const owner = candidate.closest('.hl-popover__content')
+    if (owner && !owner.contains(trigger)) continue
+    return candidate
+  }
+  return null
+}
+
+// Handles (prevents) the key only when it moves focus itself; Tab within the content stays native.
+function routeTab(event: { key: string, shiftKey: boolean, target: EventTarget | null, defaultPrevented: boolean, preventDefault(): void }, trigger: HTMLElement | null, content: HTMLElement | null): void {
+  if (event.key !== 'Tab' || event.defaultPrevented || !trigger?.isConnected || !content) return
+  const target = event.target
+  if (!(target instanceof HTMLElement) || !content.contains(target)) return
+  const inside = tabbablesIn(content)
+  if (event.shiftKey) {
+    if (target !== content && target !== inside[0]) return
+    event.preventDefault()
+    trigger.focus()
+    return
+  }
+  if (target !== (inside.length ? inside.at(-1) : content)) return
+  const next = tabbableAfter(trigger, content)
+  if (next) {
+    event.preventDefault()
+    next.focus()
+    return
+  }
+  // The trigger is last (in the page, or in its modal layer): the browser's own Tab, or the layer's
+  // trap, continues from the trigger, which is where native Tab from the trigger would go.
+  trigger.focus()
+}
+
 function directionOf(element: HTMLElement): 'ltr' | 'rtl' {
   const explicit = element.closest<HTMLElement>('[dir]')?.dir
   if (explicit === 'rtl') return 'rtl'
@@ -425,6 +489,7 @@ export const PopoverContent = React.forwardRef<HTMLDivElement, PopoverContentPro
       onKeyDown={event => {
         hostAttributes.onKeyDown?.(event)
         // After any widget inside the content, before an outer layer listening on the document.
+        if (event.key === 'Tab') return routeTab(event, context.triggerRef.current, context.contentRef.current)
         if (event.key !== 'Escape' || event.defaultPrevented) return
         event.preventDefault()
         context.requestOpen(false)
