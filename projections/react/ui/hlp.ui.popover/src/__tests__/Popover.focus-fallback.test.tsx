@@ -23,6 +23,29 @@ describe('Popover focus fallback', () => {
     expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Apply' }))
   })
 
+  // The first selector match may not take focus: an SVG <use href> (an href that is not a link) or a
+  // button inside a disabled fieldset. Focus must still end inside the popover, on the content.
+  it('focuses the content when the content holds only an SVG use with an href', async () => {
+    render(<Popover><PopoverTrigger>Open</PopoverTrigger><PopoverContent aria-label="Details"><svg aria-hidden="true"><use href="#icon"/></svg><p>Read only</p></PopoverContent></Popover>)
+    fireEvent.click(screen.getByRole('button', { name: 'Open' }))
+    await act(async () => { await Promise.resolve() })
+    expect(document.activeElement).toBe(screen.getByRole('dialog', { name: 'Details' }))
+  })
+
+  it('focuses the content when its only button is inside a disabled fieldset', async () => {
+    render(<Popover><PopoverTrigger>Open</PopoverTrigger><PopoverContent aria-label="Details"><fieldset disabled><button type="button">Apply</button></fieldset></PopoverContent></Popover>)
+    fireEvent.click(screen.getByRole('button', { name: 'Open' }))
+    await act(async () => { await Promise.resolve() })
+    expect(document.activeElement).toBe(screen.getByRole('dialog', { name: 'Details' }))
+  })
+
+  it('still focuses a link with an href', async () => {
+    render(<Popover><PopoverTrigger>Open</PopoverTrigger><PopoverContent aria-label="Details"><svg aria-hidden="true"><use href="#icon"/></svg><a href="#more">More</a></PopoverContent></Popover>)
+    fireEvent.click(screen.getByRole('button', { name: 'Open' }))
+    await act(async () => { await Promise.resolve() })
+    expect(document.activeElement).toBe(screen.getByRole('link', { name: 'More' }))
+  })
+
   it('keeps a host tabIndex on the content', () => {
     render(<Popover open><PopoverTrigger>Open</PopoverTrigger><PopoverContent aria-label="Details" tabIndex={0}><p>Read only</p></PopoverContent></Popover>)
     expect(screen.getByRole('dialog', { name: 'Details' }).getAttribute('tabindex')).toBe('0')
