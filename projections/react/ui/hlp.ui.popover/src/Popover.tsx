@@ -119,7 +119,10 @@ function tabbablesIn(root: ParentNode): HTMLElement[] {
 
 // The first tabbable element after the trigger in document order, skipping this content and any other
 // popover content not around the trigger. Inside a modal layer the search stays in that layer, so the
-// layer's own trap owns its boundary. Null when nothing follows: the trigger is last.
+// layer's own trap owns its boundary. Null when nothing follows: the trigger is last, and the key is
+// left alone. The content is already last in <body>, so the browser's Tab goes past the end of the page
+// (or the layer's trap wraps), where native Tab from the trigger goes. Focusing the trigger first would
+// send the browser's Tab straight back into the content, the next thing after the trigger.
 function tabbableAfter(trigger: HTMLElement, content: HTMLElement): HTMLElement | null {
   const scope = trigger.closest<HTMLElement>('[aria-modal="true"]') ?? trigger.ownerDocument
   for (const candidate of tabbablesIn(scope)) {
@@ -146,14 +149,9 @@ function routeTab(event: { key: string, shiftKey: boolean, target: EventTarget |
   }
   if (target !== (inside.length ? inside.at(-1) : content)) return
   const next = tabbableAfter(trigger, content)
-  if (next) {
-    event.preventDefault()
-    next.focus()
-    return
-  }
-  // The trigger is last (in the page, or in its modal layer): the browser's own Tab, or the layer's
-  // trap, continues from the trigger, which is where native Tab from the trigger would go.
-  trigger.focus()
+  if (!next) return
+  event.preventDefault()
+  next.focus()
 }
 
 function directionOf(element: HTMLElement): 'ltr' | 'rtl' {
