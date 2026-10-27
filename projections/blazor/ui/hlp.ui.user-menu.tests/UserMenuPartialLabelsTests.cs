@@ -102,8 +102,11 @@ public sealed class UserMenuPartialLabelsTests : BunitContext
         Assert.Equal(("Account menu", "Leave"), (edited.Panel, edited.SignOut));
         Assert.Equal((null, null, "Leave"), ((object?)named.Trigger, named.Panel, named.SignOut));
         Assert.Equal(named, initialized);
-        // English keeps its values and its identity.
-        Assert.Same(UserMenuLabels.English, UserMenuLabels.English);
+        // English is the parameter default, the sentinel for "unsupplied". A copy is value-equal to it (with copies the
+        // same Trigger delegate) but a different instance, which is why the sentinel test is identity, not equality.
+        Assert.Same(UserMenuLabels.English, new HarborlineUserMenu().Labels);
+        Assert.Equal(UserMenuLabels.English, copy);
+        Assert.NotSame(UserMenuLabels.English, copy);
         Assert.Equal(("Account menu for Ada", "Account menu", "Sign out"), (UserMenuLabels.English.Trigger!("Ada"), UserMenuLabels.English.Panel, UserMenuLabels.English.SignOut));
         // Readers of the properties now see string? (a source-level change only; the runtime type is System.String).
         string? panel = named.Panel;

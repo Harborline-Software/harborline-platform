@@ -137,7 +137,11 @@ public sealed class NotificationCenterPartialLabelsTests : BunitContext
         Assert.Equal(("Notifications", "Approve"), (edited.Title, edited.Confirm));
         Assert.Equal((null, "Approve", null), (named.Title, named.Confirm, (object?)named.Dismiss));
         Assert.Equal(named, initialized);
-        Assert.Same(NotificationCenterLabels.English, NotificationCenterLabels.English);
+        // English is the parameter default, the sentinel for "unsupplied". A copy is value-equal to it (with copies the
+        // same Dismiss delegate) but a different instance, which is why the sentinel test is identity, not equality.
+        Assert.Same(NotificationCenterLabels.English, new HarborlineNotificationCenter().Labels);
+        Assert.Equal(NotificationCenterLabels.English, copy);
+        Assert.NotSame(NotificationCenterLabels.English, copy);
         Assert.Equal(("Notifications", "Dismiss: Ada", null), (NotificationCenterLabels.English.Title, NotificationCenterLabels.English.Dismiss!("Ada"), NotificationCenterLabels.English.GroupLabel));
         string? title = named.Title;
         Assert.Null(title);

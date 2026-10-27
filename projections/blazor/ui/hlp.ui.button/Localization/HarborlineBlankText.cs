@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Diagnostics.CodeAnalysis;
 
 namespace Harborline.UIAdapters.Blazor.Localization;
@@ -14,6 +15,9 @@ internal static class HarborlineBlankText
 {
     internal const string Characters = "\t\n\v\f\r \u00A0\u1680\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200A\u2028\u2029\u202F\u205F\u3000\uFEFF";
 
+    // Built once: IndexOfAnyExcept over a string rebuilds its lookup on every call.
+    private static readonly SearchValues<char> BlankSet = SearchValues.Create(Characters);
+
     /// <summary>True when <paramref name="text"/> is null, empty, or made only of <see cref="Characters"/>.</summary>
-    internal static bool IsBlank([NotNullWhen(false)] string? text) => text is null || text.AsSpan().IndexOfAnyExcept(Characters) < 0;
+    internal static bool IsBlank([NotNullWhen(false)] string? text) => text is null || text.AsSpan().IndexOfAnyExcept(BlankSet) < 0;
 }
