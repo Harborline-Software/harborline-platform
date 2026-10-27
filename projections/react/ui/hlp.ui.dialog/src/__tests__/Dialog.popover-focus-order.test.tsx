@@ -133,11 +133,13 @@ describe('Popover focus order inside a modal Dialog: a re-rendered trigger (b31 
       const [generation, setGeneration] = React.useState(0)
       return <><button type="button" onClick={() => setGeneration(value => value + 1)}>Swap</button>
         <Dialog open onOpenChange={() => {}} title="Settings">
-          <Popover defaultOpen><PopoverTrigger key={generation}>Pick</PopoverTrigger><PopoverContent aria-label="Picker"><button type="button">Option</button></PopoverContent></Popover>
+          <Popover><PopoverTrigger key={generation}>Pick</PopoverTrigger><PopoverContent aria-label="Picker"><button type="button">Option</button></PopoverContent></Popover>
         </Dialog></>
     }
+    // Opened after the Dialog, as a user does: a popover open in the Dialog's first commit is portaled
+    // before the Dialog makes <body>'s other children inert, and is made inert with them.
     render(<SwapInDialog/>)
-    await act(async () => { await Promise.resolve() })
+    await openPicker()
     const before = screen.getByRole('button', { name: 'Pick' })
     act(() => { (screen.getByText('Swap') as HTMLButtonElement).click() })
     await act(async () => { await Promise.resolve() })

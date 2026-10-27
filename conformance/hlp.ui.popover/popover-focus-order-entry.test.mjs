@@ -85,11 +85,12 @@ describe('Popover Blazor focus order: the way into the content (b31 re-review)',
     expect(press(true)).toEqual(['native', 'After'])
   })
 
+  // The trigger carries aria-expanded=true while open, as HarborlinePopoverTrigger renders it.
   it('inside a modal Dialog: Tab on a trigger last in it enters the content; Shift+Tab from the control after a trigger enters at the last stop', () => {
     for (const done of [false, true]) {
       document.body.replaceChildren()
       const portal = Object.assign(document.createElement('div'), { className: 'hl-dialog__portal',
-        innerHTML: `<section role=dialog aria-modal=true tabindex=-1><button aria-label=Close>x</button><div class=hl-dialog__body tabindex=0><button id=t>Pick</button>${done ? '<button id=done>Done</button>' : ''}</div></section>` })
+        innerHTML: `<section role=dialog aria-modal=true tabindex=-1><button aria-label=Close>x</button><div class=hl-dialog__body tabindex=0><button id=t aria-expanded=true>Pick</button>${done ? '<button id=done>Done</button>' : ''}</div></section>` })
       document.body.append(portal)
       const dialog = connectDialog(portal, portal.firstChild, portal.querySelector('.hl-dialog__body'), callback, true)
       vi.advanceTimersToNextFrame()

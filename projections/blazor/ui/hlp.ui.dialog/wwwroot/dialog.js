@@ -29,6 +29,10 @@ export function connect(portal, dialog, body, callback, _closeOnEscape) {
     if (event.key === 'Tab' && !fromThis && !isTopmost(portal)) return
     if (event.key === 'Escape') { event.preventDefault(); callback.invokeMethodAsync('DismissFromJavaScriptAsync'); return }
     if (event.key !== 'Tab') return
+    // Tab on an open popover's trigger enters its content (T-1128). popover.js routes it on window, after
+    // Blazor's delegated handlers, which is after this document listener; so the trap leaves that one key
+    // alone instead of wrapping it first. Shift+Tab stays the trap's.
+    if (!event.shiftKey && target instanceof Element && target.matches('[data-hl-popover-trigger][aria-expanded="true"]')) return
     const items = nodes()
     if (!items.length) { event.preventDefault(); dialog.focus(); return }
     const first = items[0], last = items[items.length - 1]

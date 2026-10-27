@@ -380,13 +380,19 @@ export function Popover({ children, defaultOpen = false, open, onOpenChange }: P
 }
 
 export const PopoverTrigger = React.forwardRef<HTMLElement, PopoverTriggerProps>(function PopoverTrigger(
-  { asChild = false, children, className, onClick, type = 'button', ...attributes },
+  { asChild = false, children, className, onClick, onKeyDown, type = 'button', ...attributes },
   forwardedRef,
 ) {
   const context = usePopover('popover-trigger')
   const activate = (event: React.MouseEvent<HTMLElement>) => {
     onClick?.(event as React.MouseEvent<HTMLButtonElement>)
     if (!event.defaultPrevented) context.requestOpen(!context.open)
+  }
+  // Tab on the open trigger enters the content (T-1128), composed with the trigger's props: the caller's
+  // onKeyDown runs first and a key it handled is left alone (b31 final check), as on the content side.
+  // React delegates from its root, ahead of a modal layer's trap on the document.
+  const enter = (event: React.KeyboardEvent<HTMLElement>) => {
+    if (context.open) enterContent(event.nativeEvent, context.triggerRef.current, context.contentRef.current)
   }
 
   if (asChild) {
@@ -404,6 +410,11 @@ export const PopoverTrigger = React.forwardRef<HTMLElement, PopoverTriggerProps>
         childClick?.(event)
         if (!event.defaultPrevented) activate(event)
       },
+      onKeyDown: (event: React.KeyboardEvent<HTMLElement>) => {
+        childProps.onKeyDown?.(event)
+        onKeyDown?.(event as React.KeyboardEvent<HTMLButtonElement>)
+        enter(event)
+      },
       ref: composeRefs(childProps.ref, context.triggerRef, forwardedRef),
     })
   }
@@ -416,6 +427,7 @@ export const PopoverTrigger = React.forwardRef<HTMLElement, PopoverTriggerProps>
       aria-haspopup={context.contentRole}
       className={classes('hl-popover-trigger', className)}
       onClick={activate}
+      onKeyDown={event => { onKeyDown?.(event); enter(event) }}
       ref={composeRefs(context.triggerRef as React.Ref<HTMLElement>, forwardedRef) as React.Ref<HTMLButtonElement>}
       type={type}
     >
@@ -525,16 +537,13 @@ export const PopoverContent = React.forwardRef<HTMLDivElement, PopoverContentPro
     const content = context.contentRef.current
     if (!context.open || !content) return
     contentOwners.set(content, () => context.triggerRef.current)
-    // Tab on the trigger is taken on the trigger itself, before a modal layer's trap on the document would
-    // wrap it; Shift+Tab from the stop after the trigger, on the document after the stop's own handlers.
-    const trigger = context.triggerRef.current
-    const onEnter = (event: KeyboardEvent) => enterContent(event, context.triggerRef.current, content)
-    trigger?.addEventListener('keydown', onEnter)
-    document.addEventListener('keydown', onEnter)
+    // Shift+Tab from the stop after the trigger, on the document after the stop's own handlers. (Tab on
+    // the trigger is PopoverTrigger's onKeyDown, after the caller's.)
+    const onMirror = (event: KeyboardEvent) => { if (event.shiftKey) enterContent(event, context.triggerRef.current, content) }
+    document.addEventListener('keydown', onMirror)
     return () => {
       contentOwners.delete(content)
-      trigger?.removeEventListener('keydown', onEnter)
-      document.removeEventListener('keydown', onEnter)
+      document.removeEventListener('keydown', onMirror)
     }
   }, [context.contentRef, context.open, context.triggerRef])
 

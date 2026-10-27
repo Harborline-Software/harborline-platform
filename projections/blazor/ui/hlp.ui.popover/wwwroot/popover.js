@@ -184,12 +184,13 @@ export function connect(trigger, anchor, content, options, callback) {
   const onContentKey = event => routeTab(event, currentTrigger(), content)
   owners.set(content, currentTrigger)
   content.addEventListener('keydown', onContentKey)
-  // Tab on the trigger is taken on the trigger itself, before a modal layer's trap on the document would
-  // wrap it; Shift+Tab from the stop after the trigger, on the document after the stop's own handlers.
-  const entryTrigger = currentTrigger()
+  // Tab on the trigger and Shift+Tab from the stop after it, on window in the bubble phase: after Blazor's
+  // delegated dispatch on the document, so a caller's @onkeydown (and @onkeydown:preventDefault) or any
+  // handler on the trigger runs first and a key it handled is left alone (b31 final check). The browser's
+  // default Tab runs only after dispatch ends, so preventDefault here still works. The trigger is looked
+  // up when the key arrives. dialog.js leaves Tab on an open popover trigger to this listener.
   const onEnter = event => enterContent(event, currentTrigger(), content)
-  entryTrigger?.addEventListener('keydown', onEnter)
-  document.addEventListener('keydown', onEnter)
+  window.addEventListener('keydown', onEnter)
   document.addEventListener('keydown', onKeyCapture, true)
   document.addEventListener('keydown', onKey)
   document.addEventListener('pointerdown', onPointer, true)
@@ -218,8 +219,7 @@ export function connect(trigger, anchor, content, options, callback) {
       cancelAnimationFrame(frame)
       content.removeEventListener('keydown', onContentKey)
       owners.delete(content)
-      entryTrigger?.removeEventListener('keydown', onEnter)
-      document.removeEventListener('keydown', onEnter)
+      window.removeEventListener('keydown', onEnter)
       document.removeEventListener('keydown', onKeyCapture, true)
       document.removeEventListener('keydown', onKey)
       document.removeEventListener('pointerdown', onPointer, true)
