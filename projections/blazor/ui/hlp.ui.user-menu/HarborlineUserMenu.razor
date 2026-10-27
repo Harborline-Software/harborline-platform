@@ -71,10 +71,10 @@
   }
   private string Localized(string key, string? caller, IReadOnlyDictionary<string, object?>? variables = null)
   {
-    if (!string.IsNullOrWhiteSpace(caller)) return caller;
+    if (!HarborlineBlankText.IsBlank(caller)) return caller;
     var fallback = Harborline.Foundation.Localization.HarborlineDefaultStrings.Interpolate(Harborline.Foundation.Localization.HarborlineDefaultStrings.Get(key), variables);
     var catalog = LocaleContext?.ResolveString(key, variables) ?? fallback;
-    return string.IsNullOrWhiteSpace(catalog) || catalog == key ? fallback : catalog;
+    return HarborlineBlankText.IsBlank(catalog) || catalog == key ? fallback : catalog;
   }
   [Parameter] public bool CanShowRail { get; set; } = true;
   [Parameter] public string? Direction { get; set; }

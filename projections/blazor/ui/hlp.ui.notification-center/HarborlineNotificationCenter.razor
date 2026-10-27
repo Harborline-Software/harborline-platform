@@ -121,10 +121,10 @@
   }
   private string Localized(string key, string? caller, IReadOnlyDictionary<string, object?>? variables = null)
   {
-    if (!string.IsNullOrWhiteSpace(caller)) return caller;
+    if (!HarborlineBlankText.IsBlank(caller)) return caller;
     var fallback = Harborline.Foundation.Localization.HarborlineDefaultStrings.Interpolate(Harborline.Foundation.Localization.HarborlineDefaultStrings.Get(key), variables);
     var catalog = LocaleContext?.ResolveString(key, variables) ?? fallback;
-    return string.IsNullOrWhiteSpace(catalog) || catalog == key ? fallback : catalog;
+    return HarborlineBlankText.IsBlank(catalog) || catalog == key ? fallback : catalog;
   }
   private int UnreadCount => Items.Count(item => !item.Read);
   private int PendingCount => Items.Count(item => item.Kind == "proposal");
@@ -144,7 +144,7 @@
     L = ResolveLabels(Labels);
     if (Items.GroupBy(item => item.Id, StringComparer.Ordinal).Any(group => group.Count() > 1)) throw new InvalidOperationException("duplicate-notification-id");
     if (MaxVisible < 0) throw new InvalidOperationException("invalid-notification-limit");
-    if (string.IsNullOrWhiteSpace(BellLabel)) throw new InvalidOperationException("accessible-notification-label-required");
+    if (HarborlineBlankText.IsBlank(BellLabel)) throw new InvalidOperationException("accessible-notification-label-required");
   }
 
   private string DefaultBellLabel()
@@ -170,7 +170,7 @@
     {
       if (source is null) continue;
       foreach (var key in keys)
-        if (source.TryGetValue(key, out var text) && !string.IsNullOrWhiteSpace(text))
+        if (source.TryGetValue(key, out var text) && !HarborlineBlankText.IsBlank(text))
           return Harborline.Foundation.Localization.HarborlineDefaultStrings.Interpolate(text, variables);
     }
     return L.Title;
