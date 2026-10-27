@@ -398,9 +398,13 @@ export const PopoverContent = React.forwardRef<HTMLDivElement, PopoverContentPro
     }
   }, [align, context.anchorRef, context.contentRef, context.open, context.triggerRef, side, sideOffset])
 
+  // Opening moves focus into the content: its first focusable control, else the content element itself
+  // (tabindex -1), as the Blazor lane's popover.js does. Without the fallback a pointer open that does not
+  // focus the trigger (WebKit) left focus outside, and Escape went to an enclosing layer instead.
   React.useLayoutEffect(() => {
-    if (!context.open || !context.contentRef.current) return
-    focusableInside(context.contentRef.current)?.focus()
+    const content = context.contentRef.current
+    if (!context.open || !content) return
+    ;(focusableInside(content) ?? content).focus()
   }, [context.contentRef, context.open])
 
   if (!context.open || typeof document === 'undefined') return null
@@ -414,6 +418,7 @@ export const PopoverContent = React.forwardRef<HTMLDivElement, PopoverContentPro
       id={context.contentId}
       ref={composeRefs(context.contentRef, forwardedRef)}
       role={role}
+      tabIndex={hostAttributes.tabIndex ?? -1}
       style={{ position: 'fixed', left: placement.left, top: placement.top, ...style }}
       onKeyDown={event => {
         hostAttributes.onKeyDown?.(event)
