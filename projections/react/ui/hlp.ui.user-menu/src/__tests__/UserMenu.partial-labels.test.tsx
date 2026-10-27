@@ -36,6 +36,20 @@ describe('UserMenu partial label overrides', () => {
     expect(names()).toEqual(['قائمة حساب Avery', 'قائمة الحساب', 'تسجيل الخروج'])
   })
 
+  it('treats only the ECMA-262 white space and line terminator set as blank', () => {
+    // The 25 characters String.prototype.trim strips, the same list as the Blazor test (T-1107).
+    const ecmaBlank = '\t\n\v\f\r \u00a0\u1680\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200a\u2028\u2029\u202f\u205f\u3000\ufeff'
+    expect(ecmaBlank.length).toBe(25)
+    for (const blank of [...ecmaBlank, ecmaBlank]) {
+      const view = render(localized('ar-SA', Arabic, { trigger: () => blank, panel: blank, signOut: blank }))
+      expect(names()).toEqual(['قائمة حساب Avery', 'قائمة الحساب', 'تسجيل الخروج'])
+      view.unmount()
+    }
+    // U+FEFF is blank; U+0085 (NEL) and U+200B (ZWSP) are not. Both lanes agree.
+    render(localized('ar-SA', Arabic, { trigger: () => '\ufeff', panel: '\u0085', signOut: '\u200b' }))
+    expect(names()).toEqual(['قائمة حساب Avery', '\u0085', '\u200b'])
+  })
+
   it('updates the fallback fields on a locale change and keeps the explicit one', () => {
     const labels = { signOut: 'Leave' }
     const view = render(localized('fr-FR', French, labels))

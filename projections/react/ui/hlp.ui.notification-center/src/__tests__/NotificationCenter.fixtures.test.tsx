@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { HarborlineLocaleProvider } from '@harborline-platform/hlp.ui.locale-provider'
@@ -207,6 +207,9 @@ const assertions: Record<string, (entry: Case) => void | Promise<void>> = {
     // Each fixture label sets that field of a Partial labels object; every field it omits comes from the catalog.
     // Every visible name is asserted.
     expect(allChrome(input.hostCatalog, input.dismissedTitle, partialLabels(input.labels))).toEqual(expected.partial)
+    cleanup()
+    // Blank labels (ECMA-262 white space and line terminators only, U+FEFF included) fall back; a U+0085-only label is kept.
+    expect(allChrome(input.hostCatalog, input.dismissedTitle, partialLabels(input.blankLabels))).toEqual(expected.blank)
   },
   'notification-center.bell-catalog': ({ input, expected }) => {
     // Bell names for N pending proposals (decisions mode) or N unread results (unread mode).

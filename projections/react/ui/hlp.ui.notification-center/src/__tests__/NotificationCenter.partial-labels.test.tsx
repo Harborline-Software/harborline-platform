@@ -71,6 +71,18 @@ describe('NotificationCenter partial label overrides', () => {
     expect(allChrome('ar-SA', Arabic, {})).toEqual(ArabicChrome)
   })
 
+  it('treats only the ECMA-262 white space and line terminator set as blank', () => {
+    // The 25 characters String.prototype.trim strips, the same list as the Blazor test (T-1107).
+    const ecmaBlank = '\t\n\v\f\r \u00a0\u1680\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200a\u2028\u2029\u202f\u205f\u3000\ufeff'
+    expect(ecmaBlank.length).toBe(25)
+    for (const blank of [...ecmaBlank, ecmaBlank]) {
+      const labels = { title: blank, all: blank, confirm: blank, deny: blank, markAllRead: blank, viewAll: blank, empty: blank, dismiss: () => blank, unread: blank, groupLabel: blank }
+      expect(allChrome('ar-SA', Arabic, labels)).toEqual(ArabicChrome)
+    }
+    // U+FEFF is blank; U+0085 (NEL) is not. Both lanes agree.
+    expect(allChrome('ar-SA', Arabic, { title: '\ufeff', deny: '\ufeff', unread: '\u0085', groupLabel: '\u0085', dismiss: () => '\ufeff' })).toEqual({ ...ArabicChrome, unread: '\u0085', tablist: '\u0085' })
+  })
+
   it('updates the fallback fields on a locale change and keeps the explicit one', () => {
     const labels = { confirm: 'Approve' }
     const view = render(center('fr-FR', French, labels))

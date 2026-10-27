@@ -51,6 +51,21 @@ public sealed class UserMenuPartialLabelsTests : BunitContext
         Assert.Equal(("قائمة حساب Avery", "قائمة الحساب", "تسجيل الخروج"), Names(Localized("ar-SA", Arabic, new UserMenuLabels())));
     }
 
+    // The 25 characters of ECMA-262 WhiteSpace and LineTerminator, the set String.prototype.trim strips (T-1107).
+    private const string EcmaBlank = "\t\n\v\f\r \u00A0\u1680\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200A\u2028\u2029\u202F\u205F\u3000\uFEFF";
+
+    [Fact]
+    public void BlankMeansOnlyTheEcmaScriptWhiteSpaceAndLineTerminatorSet()
+    {
+        Assert.Equal(25, EcmaBlank.Length);
+        // Each character alone, and all of them together, is blank: the field falls back.
+        foreach (var blank in EcmaBlank.Select(character => character.ToString()).Append(EcmaBlank))
+            Assert.Equal(("قائمة حساب Avery", "قائمة الحساب", "تسجيل الخروج"), Names(Localized("ar-SA", Arabic, new UserMenuLabels(Trigger: _ => blank, Panel: blank, SignOut: blank))));
+        // U+FEFF (ZWNBSP) is blank although .NET's char.IsWhiteSpace says it is not; U+0085 (NEL) is not blank
+        // although char.IsWhiteSpace says it is; U+200B (ZWSP) is in neither set. Both lanes agree.
+        Assert.Equal(("قائمة حساب Avery", "\u0085", "\u200B"), Names(Localized("ar-SA", Arabic, new UserMenuLabels(Trigger: _ => "\uFEFF", Panel: "\u0085", SignOut: "\u200B"))));
+    }
+
     [Fact]
     public void ALocaleChangeUpdatesTheFallbackFieldsAndKeepsTheExplicitOne()
     {

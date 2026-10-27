@@ -226,8 +226,13 @@ const assertions: Record<string, (entry: Case) => void | Promise<void>> = {
   'user-menu.partial-labels': ({ input, expected }) => {
     // Each fixture label sets that field of a Partial labels object; every field it omits comes from the catalog.
     // Every name is asserted.
-    render(<HarborlineLocaleProvider locale={input.hostCatalog.locale} catalog={input.hostCatalog.entries}><UserMenu identity={{ name: input.name }} labels={partialLabels(input.labels)} onSignOut={vi.fn()}/></HarborlineLocaleProvider>)
+    const menu = (labels: Record<string, string>) => <HarborlineLocaleProvider locale={input.hostCatalog.locale} catalog={input.hostCatalog.entries}><UserMenu identity={{ name: input.name }} labels={partialLabels(labels)} onSignOut={vi.fn()}/></HarborlineLocaleProvider>
+    const view = render(menu(input.labels))
     expect(menuNames()).toEqual(expected.partial)
+    // Blank labels (ECMA-262 white space and line terminators only, U+FEFF included) fall back; a U+0085-only label is kept.
+    view.unmount()
+    render(menu(input.blankLabels))
+    expect(menuNames()).toEqual(expected.blank)
   },
   'user-menu.invalid-input': ({ input, expected }) => {
     const silence = vi.spyOn(console, 'error').mockImplementation(() => undefined)

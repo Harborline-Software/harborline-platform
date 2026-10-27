@@ -319,6 +319,8 @@ public sealed class NotificationCenterTests : BunitContext
                 // Each fixture label sets that field of a new record; every field it omits stays null and comes
                 // from the catalog. Every visible name is asserted.
                 Assert.Equal(Chrome(expected.GetProperty("partial")), AllChrome(input.GetProperty("hostCatalog"), input.GetProperty("dismissedTitle").GetString()!, PartialLabels(input.GetProperty("labels"))));
+                // Blank labels (ECMA-262 white space and line terminators only, U+FEFF included) fall back; a U+0085-only label is kept.
+                Assert.Equal(Chrome(expected.GetProperty("blank")), AllChrome(input.GetProperty("hostCatalog"), input.GetProperty("dismissedTitle").GetString()!, PartialLabels(input.GetProperty("blankLabels"))));
                 break;
             }
             case "notification-center.bell-catalog":

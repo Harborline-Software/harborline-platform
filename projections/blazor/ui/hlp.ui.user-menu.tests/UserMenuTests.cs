@@ -307,6 +307,8 @@ public sealed class UserMenuTests : BunitContext
                 // Each fixture label sets that field of a new record; every field it omits stays null and comes
                 // from the catalog. Every name is asserted.
                 Assert.Equal(Names(expected.GetProperty("partial")),MenuNames(InHostCatalog(input.GetProperty("hostCatalog"),input.GetProperty("name").GetString()!,PartialLabels(input.GetProperty("labels")))));
+                // Blank labels (ECMA-262 white space and line terminators only, U+FEFF included) fall back; a U+0085-only label is kept.
+                Assert.Equal(Names(expected.GetProperty("blank")),MenuNames(InHostCatalog(input.GetProperty("hostCatalog"),input.GetProperty("name").GetString()!,PartialLabels(input.GetProperty("blankLabels")))));
                 break;
             }
             case "user-menu.invalid-input":

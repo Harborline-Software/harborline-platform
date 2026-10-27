@@ -70,6 +70,21 @@ public sealed class NotificationCenterPartialLabelsTests : BunitContext
         Assert.Equal(ArabicChrome, Names("ar-SA", Arabic, new NotificationCenterLabels()));
     }
 
+    // The 25 characters of ECMA-262 WhiteSpace and LineTerminator, the set String.prototype.trim strips (T-1107).
+    private const string EcmaBlank = "\t\n\v\f\r \u00A0\u1680\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200A\u2028\u2029\u202F\u205F\u3000\uFEFF";
+
+    [Fact]
+    public void BlankMeansOnlyTheEcmaScriptWhiteSpaceAndLineTerminatorSet()
+    {
+        Assert.Equal(25, EcmaBlank.Length);
+        // Each character alone, and all of them together, is blank in every field: everything falls back.
+        foreach (var blank in EcmaBlank.Select(character => character.ToString()).Append(EcmaBlank))
+            Assert.Equal(ArabicChrome, Names("ar-SA", Arabic, new NotificationCenterLabels(blank, blank, blank, blank, blank, blank, blank, _ => blank, blank, blank)));
+        // U+FEFF (ZWNBSP) is blank although .NET's char.IsWhiteSpace says it is not; U+0085 (NEL) is not blank
+        // although char.IsWhiteSpace says it is. Both lanes agree.
+        Assert.Equal(With(ArabicChrome, ("unread", "\u0085"), ("tablist", "\u0085")), Names("ar-SA", Arabic, new NotificationCenterLabels(Title: "\uFEFF", Deny: "\uFEFF", Unread: "\u0085", GroupLabel: "\u0085", Dismiss: _ => "\uFEFF")));
+    }
+
     [Fact]
     public void ALocaleChangeUpdatesTheFallbackFieldsAndKeepsTheExplicitOne()
     {
