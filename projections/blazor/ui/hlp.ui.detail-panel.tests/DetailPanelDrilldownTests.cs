@@ -200,6 +200,28 @@ public sealed class DetailPanelDrilldownTests : BunitContext
         Assert.Equal(addressing.GetProperty("activeFacetId").GetString(), cut.Find("[role='tab'][aria-selected='true']").GetAttribute("data-facet-id"));
     }
 
+    // T-962 review: a culture's negative sign need not be U+002D (ar, he and fa add a direction mark;
+    // sv, nb, fi, lt, sl, hr and eu use U+2212), and HTML integer parsing refuses it. Blazor writes an int
+    // attribute with the current culture, so tabindex="-1" must be the invariant string. Every inactive facet
+    // tab became a tab stop, so Tab from the active tab no longer reached the tab panel (APG tabs).
+    [Theory, InlineData("ar-SA"), InlineData("he-IL"), InlineData("fa-IR"), InlineData("sv-SE"), InlineData("nb-NO")]
+    public void FacetTabIndexIsInvariantUnderEveryCulture(string culture)
+    {
+        var previous = System.Globalization.CultureInfo.CurrentCulture;
+        try
+        {
+            System.Globalization.CultureInfo.CurrentCulture = new System.Globalization.CultureInfo(culture);
+            using var cut = Render<HarborlineDetailPanel>(p => p
+                .Add(c => c.Label, "Inspector").Add(c => c.Open, true).Add(c => c.RailCapable, true)
+                .Add(c => c.Subject, Subject("PMP-0412")).Add(c => c.ChildContent, Body));
+            var tabIndexes = cut.FindAll("[role='tab']").Select(tab => tab.GetAttribute("tabindex")).ToArray();
+            Assert.True(tabIndexes.Length > 1);
+            Assert.All(tabIndexes, value => Assert.Contains(value, new[] { "0", "-1" }));
+            Assert.Single(tabIndexes, value => value == "0");
+        }
+        finally { System.Globalization.CultureInfo.CurrentCulture = previous; }
+    }
+
     [Fact]
     public void LeavesTheFixtureDeclaredPassThroughKeysToTheSurroundingShell()
     {

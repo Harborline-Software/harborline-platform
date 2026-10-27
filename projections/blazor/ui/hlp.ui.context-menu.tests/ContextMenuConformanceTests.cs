@@ -30,6 +30,17 @@ public sealed class ContextMenuConformanceTests : BunitContext
     [Fact, Trait("ConformanceCase", "context-menu.pointer-open")]
     public async Task PointerOpen() { var module=JSInterop.SetupModule("./_content/Harborline.UIAdapters.Blazor/context-menu.js"); module.SetupVoid("focusActive",_=>true); var cut=RenderMenu(); await cut.Find(".hl-context-menu-trigger").TriggerEventAsync("oncontextmenu",new MouseEventArgs{ClientX=40,ClientY=60}); Assert.Contains("left:40px;top:60px",cut.Find("[role=menu]").GetAttribute("style")); module.VerifyInvoke("focusActive"); }
 
+    // T-962: a culture's negative sign need not be U+002D. ar, he and fa write -1 with a direction mark
+    // before the minus; sv, nb, fi, lt, sl, hr and eu write U+2212. HTML integer parsing refuses both,
+    // so every menu item became a tab stop. The roving tabindex is invariant.
+    [Theory, InlineData("ar-SA"), InlineData("he-IL"), InlineData("fa-IR"), InlineData("sv-SE"), InlineData("nb-NO")]
+    public async Task RovingTabIndexIsInvariantUnderEveryCulture(string culture) { var previous=System.Globalization.CultureInfo.CurrentCulture; try { System.Globalization.CultureInfo.CurrentCulture=new System.Globalization.CultureInfo(culture); var cut=RenderMenu(); await cut.Instance.ShowAsync(8,8); var tabIndexes=cut.FindAll("[role=menuitem]").Select(item=>item.GetAttribute("tabindex")).ToArray(); Assert.All(tabIndexes, value=>Assert.Contains(value, new[]{"0","-1"})); Assert.Single(tabIndexes, value=>value=="0"); } finally { System.Globalization.CultureInfo.CurrentCulture=previous; } }
+    // T-962 review: the fixed position is CSS, which takes a dot decimal and an ASCII minus whatever
+    // the culture. de-DE writes 40.5 as "40,5" and ar-SA as "40٫5", and CSS drops the declaration, so
+    // the menu fell back to its static position. Fractional coordinates come from getBoundingClientRect
+    // after a keyboard open, a zoomed pointer open, or a caller's ShowAsync.
+    [Theory, InlineData("de-DE"), InlineData("ar-SA"), InlineData("fa-IR"), InlineData("sv-SE")]
+    public async Task PositionIsInvariantUnderEveryCulture(string culture) { var previous=System.Globalization.CultureInfo.CurrentCulture; try { System.Globalization.CultureInfo.CurrentCulture=new System.Globalization.CultureInfo(culture); var cut=RenderMenu(); await cut.Instance.ShowAsync(40.5,60.25); Assert.Contains("left:40.5px;top:60.25px",cut.Find("[role=menu]").GetAttribute("style")); } finally { System.Globalization.CultureInfo.CurrentCulture=previous; } }
     [Fact, Trait("ConformanceCase", "context-menu.groups")]
     public async Task GroupsRender() { var cut=RenderMenu(); await cut.Instance.ShowAsync(8,8); Assert.Equal(3,cut.FindAll("[role=menuitem]").Count); Assert.Single(cut.FindAll("[role=separator]")); }
 
