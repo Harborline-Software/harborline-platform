@@ -58,3 +58,44 @@ describe('Popover focus order inside a modal Dialog (T-1128)', () => {
     expect(state()).toEqual({ focus: 'Close', picker: true, settings: true })
   })
 })
+
+// b31 review follow-up: nested popovers inside the Dialog, and the modal scope seen without inertness.
+describe('Popover focus order inside a modal Dialog: nesting and scope (b31 review 1 and 3)', () => {
+  const press = (element: Element, shiftKey = false) => {
+    const native = fireEvent.keyDown(element, { key: 'Tab', shiftKey })
+    return [native ? 'native' : 'handled', state().focus]
+  }
+
+  it('Tab from a nested popover whose trigger is last in the outer content continues after the outer trigger', async () => {
+    function NestedInDialog() {
+      const [open, setOpen] = React.useState(true)
+      return <Dialog open={open} onOpenChange={setOpen} title="Settings">
+        <Popover defaultOpen><PopoverTrigger>Pick</PopoverTrigger><PopoverContent aria-label="Picker">
+          <button type="button">X</button>
+          <Popover defaultOpen><PopoverTrigger>Open B</PopoverTrigger><PopoverContent aria-label="B"><button type="button">Y</button></PopoverContent></Popover>
+        </PopoverContent></Popover>
+        <button type="button">Done</button>
+      </Dialog>
+    }
+    render(<NestedInDialog/>)
+    await act(async () => { await Promise.resolve() })
+    const y = screen.getByRole('button', { name: 'Y' })
+    y.focus()
+    expect(press(y)).toEqual(['handled', 'Done'])
+  })
+
+  // The Dialog makes its siblings inert, which hid the scope rule. A portal appended to <body> after the
+  // Dialog opened (a toast region, say) is not inert, so only the modal scope keeps Tab inside.
+  it('a non-inert portal after the Dialog does not take Tab from a trigger last in the Dialog: the trap wraps', async () => {
+    render(<InDialog done={false}/>)
+    await openPicker()
+    const toast = document.createElement('div')
+    toast.innerHTML = '<button type="button">Toast</button>'
+    document.body.append(toast)
+    try {
+      const option = screen.getByRole('button', { name: 'Option' })
+      // Handled by the Dialog's trap (it wraps to its first control), not moved to the toast.
+      expect(press(option)).toEqual(['handled', 'Close'])
+    } finally { toast.remove() }
+  })
+})

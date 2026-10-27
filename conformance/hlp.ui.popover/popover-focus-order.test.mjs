@@ -21,6 +21,7 @@ const focused = () => document.activeElement === document.body ? 'BODY' : (docum
 function page({ after = true, children = [button('Apply')] } = {}) {
   const trigger = button('Open')
   trigger.id = 'hl-popover-t-trigger'
+  trigger.dataset.hlPopoverTrigger = trigger.id
   const content = Object.assign(document.createElement('div'), { id: 'hl-popover-t-content', tabIndex: -1 })
   content.className = 'hl-popover__content'
   content.setAttribute('role', 'dialog')
@@ -89,9 +90,10 @@ describe('Popover Blazor connect() sequential focus order (T-1128)', () => {
     connection.dispose()
   })
 
-  it('resolves the trigger by id when the reference it was handed is missing or replaced', () => {
+  it('resolves the trigger by its data-hl-popover-trigger marker when the reference it was handed is missing or replaced', () => {
     const trigger = button('Open')
     trigger.id = 'hl-popover-late-trigger'
+    trigger.dataset.hlPopoverTrigger = trigger.id
     const content = Object.assign(document.createElement('div'), { tabIndex: -1 })
     content.className = 'hl-popover__content'
     content.append(button('Apply'))
@@ -103,6 +105,7 @@ describe('Popover Blazor connect() sequential focus order (T-1128)', () => {
     expect([tab(true), focused()]).toEqual(['handled', 'Open'])
     const rerendered = button('Open again')
     rerendered.id = trigger.id
+    rerendered.dataset.hlPopoverTrigger = trigger.id
     trigger.replaceWith(rerendered)
     content.querySelector('button').focus()
     expect([tab(true), focused()]).toEqual(['handled', 'Open again'])
@@ -140,6 +143,7 @@ describe('Popover Blazor focus order inside a modal Dialog (T-1128)', () => {
     body.className = 'hl-dialog__body'
     const trigger = button('Pick')
     trigger.id = 'hl-popover-d-trigger'
+    trigger.dataset.hlPopoverTrigger = trigger.id
     const content = Object.assign(document.createElement('div'), { tabIndex: -1 })
     content.className = 'hl-popover__content'
     content.append(button('Option'))

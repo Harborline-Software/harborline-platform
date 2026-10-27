@@ -13,6 +13,7 @@ const blazorJavaScript = spawnSync(process.execPath, [
   'conformance/hlp.ui.popover/popover-placement.test.mjs',
   'conformance/hlp.ui.popover/popover-follow.test.mjs',
   'conformance/hlp.ui.popover/popover-focus-order.test.mjs',
+  'conformance/hlp.ui.popover/popover-focus-order-scope.test.mjs',
   '--globals',
   '--environment', 'node',
 ], {
