@@ -95,7 +95,8 @@
   private IOutsidePointerRegistration? outsideRegistration;
   private IJSObjectReference? module;
   // The dialog closes on Escape through @onkeydown, which cannot mark the key handled, so an enclosing
-  // Dialog or Sheet closed too. notification-center.js marks it on the dialog element while it is open.
+  // Dialog or Sheet closed too. notification-center.js marks it on the dialog element while it is open,
+  // registered before focus moves into the panel so no Escape can arrive unmarked (a Server round trip).
   private IJSObjectReference? escapeRegistration;
   // Caller text overrides each label; blank caller text keeps the catalog default, so no chrome or
   // control name is ever empty.
@@ -189,7 +190,7 @@
   {
     if (firstRender) module = await JavaScript.InvokeAsync<IJSObjectReference>("import", "./_content/Harborline.UIAdapters.Blazor/notification-center.js");
     if (open && outsideRegistration is null) outsideRegistration = await OutsidePointer.ObserveAsync([Root], _ => new ValueTask(CloseAsync(false)));
-    if (focusDialog) { focusDialog = false; await module!.InvokeVoidAsync("positionDialog", Trigger, Dialog); await module!.InvokeVoidAsync("focusFirst", Dialog); await ReleaseEscapeAsync(); escapeRegistration = await module!.InvokeAsync<IJSObjectReference>("observeEscape", Dialog); }
+    if (focusDialog) { focusDialog = false; await module!.InvokeVoidAsync("positionDialog", Trigger, Dialog); await ReleaseEscapeAsync(); escapeRegistration = await module!.InvokeAsync<IJSObjectReference>("observeEscape", Dialog); await module!.InvokeVoidAsync("focusFirst", Dialog); }
     if (focusTrigger) { focusTrigger = false; await module!.InvokeVoidAsync("focus", Trigger); }
     if (open && settleRow is int row && module is not null && await module.InvokeAsync<bool>("settleFocus", Dialog, row, settleToken)) settleRow = null;
   }
