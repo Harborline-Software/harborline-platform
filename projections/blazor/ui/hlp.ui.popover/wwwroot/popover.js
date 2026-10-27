@@ -2,50 +2,71 @@ const focusable = 'a[href],button:not([disabled]),input:not([disabled]),select:n
 
 // Sequential focus order (T-1128). connect() moves the content to the end of <body>, so native Tab order
 // put it after the whole page. As in the HTML popover focus navigation model (WHATWG HTML 6.6.2: a
-// showing popover's focus navigation scope is inserted after its invoker), the content sits right after
-// its trigger: Tab out of its last tabbable element (or the content itself, when nothing in it is
-// tabbable) goes to the first tabbable element after the trigger, and Shift+Tab out of its first one
-// (or the content itself) goes to the trigger. Shared with the React lane's Popover.tsx.
+// showing popover's focus navigation scope is inserted after its invoker, inside the invoker's own
+// scope), the content sits right after its trigger. Tab leaves the content only when it has no later
+// Tab stop, and goes to the next stop after the trigger; Shift+Tab leaves only when it has no earlier
+// stop, and goes to the trigger. When nothing follows a trigger inside an outer popover's content, the
+// walk continues after the outer trigger, at any depth. Shared with the React lane's Popover.tsx.
+const contentSelector = '.hl-popover__content'
 const tabbableCandidates = 'a[href],area[href],button,input,select,textarea,iframe,summary,[tabindex],[contenteditable]:not([contenteditable="false"])'
+// Each open content's trigger, read when a key arrives (the reference can be replaced by a re-render).
+const owners = new WeakMap()
 const tabbable = element => {
   if (element.tabIndex < 0 || element.matches(':disabled')) return false
   if (element instanceof HTMLInputElement && element.type === 'hidden') return false
   for (let node = element; node; node = node.parentElement) if (node.hidden || node.inert === true) return false
   return typeof element.checkVisibility !== 'function' || element.checkVisibility({visibilityProperty: true, checkVisibilityCSS: true})
 }
-const tabbablesIn = root => [...root.querySelectorAll(tabbableCandidates)].filter(tabbable)
-// The first tabbable element after the trigger in document order, skipping this content and any other
-// popover content not around the trigger. Inside a modal layer the search stays in that layer, so the
-// layer's own trap owns its boundary. Null when nothing follows: the trigger is last, and the key is
-// left alone. The content is already last in <body>, so the browser's Tab goes past the end of the page
-// (or the layer's trap wraps), where native Tab from the trigger goes. Focusing the trigger first would
-// send the browser's Tab straight back into the content, the next thing after the trigger.
-const tabbableAfter = (trigger, content) => {
-  const scope = trigger.closest('[aria-modal="true"]') ?? trigger.ownerDocument
-  return tabbablesIn(scope).find(candidate => {
-    if (!(trigger.compareDocumentPosition(candidate) & Node.DOCUMENT_POSITION_FOLLOWING)) return false
-    if (trigger.contains(candidate) || content.contains(candidate)) return false
-    const owner = candidate.closest('.hl-popover__content')
-    return !owner || owner.contains(trigger)
-  }) ?? null
+const radioGroup = element => element instanceof HTMLInputElement && element.type === 'radio' && element.name ? element : null
+const sameGroup = (a, b) => !!radioGroup(a) && !!radioGroup(b) && a.name === b.name && a.form === b.form
+// The nearest popover content or modal layer around an element: the focus navigation scope it is in.
+const scopeOf = element => element.parentElement?.closest(`${contentSelector},[aria-modal="true"]`) ?? null
+// The scope's Tab stops in document order, as the browser has them: tabbable, directly in this scope
+// (not in another popover's content), and a radio group as one stop, its checked radio or else its first.
+const stopsIn = scope => {
+  const own = scope && scope.matches(contentSelector) ? scope : null
+  const all = [...(scope ?? document).querySelectorAll(tabbableCandidates)].filter(tabbable).filter(element => element.closest(contentSelector) === own)
+  return all.filter(element => {
+    if (!radioGroup(element)) return true
+    const group = all.filter(other => sameGroup(other, element))
+    return element === (group.find(radio => radio.checked) ?? group[0])
+  })
+}
+const follows = (from, other) => !!(from.compareDocumentPosition(other) & Node.DOCUMENT_POSITION_FOLLOWING) && !other.contains(from)
+const precedes = (from, other) => !!(from.compareDocumentPosition(other) & Node.DOCUMENT_POSITION_PRECEDING) && !other.contains(from)
+const ownerOf = content => { const trigger = owners.get(content)?.(); return trigger?.isConnected ? trigger : null }
+// The next Tab stop after an element in its scope; past the end of a popover content, the next stop
+// after that content's trigger. Null at the end of the page or of a modal layer: the key is then left to
+// the browser, or to the layer's trap, which is where native Tab from the trigger goes.
+const stopAfter = (element, depth = 0) => {
+  const scope = scopeOf(element)
+  const next = stopsIn(scope).find(stop => !element.contains(stop) && follows(element, stop))
+  if (next) return next
+  const owner = scope?.matches(contentSelector) && depth < 32 ? ownerOf(scope) : null
+  return owner ? stopAfter(owner, depth + 1) : null
+}
+// Where Shift+Tab out of a trigger's content lands: the trigger, or, when it cannot take focus (disabled
+// or hidden while open), the Tab stop before it, walking out of popover contents the same way. Null when
+// nothing precedes it: the key is then left to the browser.
+const stopBack = (trigger, depth = 0) => {
+  if (tabbable(trigger)) return trigger
+  const scope = scopeOf(trigger)
+  const previous = stopsIn(scope).filter(stop => precedes(trigger, stop)).at(-1)
+  if (previous) return previous
+  const owner = scope?.matches(contentSelector) && depth < 32 ? ownerOf(scope) : null
+  return owner ? stopBack(owner, depth + 1) : null
 }
 // Handles (prevents) the key only when it moves focus itself; Tab within the content stays native.
 function routeTab(event, trigger, content) {
   if (event.key !== 'Tab' || event.defaultPrevented || !trigger?.isConnected || !content) return
   const target = event.target
   if (!(target instanceof HTMLElement) || !content.contains(target)) return
-  const inside = tabbablesIn(content)
-  if (event.shiftKey) {
-    if (target !== content && target !== inside[0]) return
-    event.preventDefault()
-    trigger.focus()
-    return
-  }
-  if (target !== (inside.length ? inside.at(-1) : content)) return
-  const next = tabbableAfter(trigger, content)
-  if (!next) return
+  const others = stopsIn(content).filter(stop => stop !== target && !sameGroup(stop, target))
+  if (others.some(stop => event.shiftKey ? precedes(target, stop) : follows(target, stop))) return
+  const destination = event.shiftKey ? stopBack(trigger) : stopAfter(trigger)
+  if (!destination) return
   event.preventDefault()
-  next.focus()
+  destination.focus()
 }
 
 // The placement contract, shared with the React lane's place() in Popover.tsx and replayed by both
@@ -137,8 +158,12 @@ export function connect(trigger, anchor, content, options, callback) {
   const onViewport = () => reposition()
   // Blazor Server renders over a connection: the content's children can arrive after this call and the
   // trigger reference can be missing or replaced by a re-render. Both are read when a key arrives.
-  const currentTrigger = () => (trigger?.isConnected ? trigger : null) ?? (options.triggerId ? document.getElementById(options.triggerId) : null)
+  // The trigger is found by its data-hl-popover-trigger marker, which HarborlinePopoverTrigger renders
+  // after the caller's attributes, so a caller's own id cannot defeat the lookup (b31 review note 2).
+  const currentTrigger = () => (trigger?.isConnected ? trigger : null)
+    ?? (options.triggerId ? [...document.querySelectorAll('[data-hl-popover-trigger]')].find(node => node.dataset.hlPopoverTrigger === options.triggerId) ?? null : null)
   const onContentKey = event => routeTab(event, currentTrigger(), content)
+  owners.set(content, currentTrigger)
   content.addEventListener('keydown', onContentKey)
   document.addEventListener('keydown', onKeyCapture, true)
   document.addEventListener('keydown', onKey)
@@ -167,6 +192,7 @@ export function connect(trigger, anchor, content, options, callback) {
     dispose() {
       cancelAnimationFrame(frame)
       content.removeEventListener('keydown', onContentKey)
+      owners.delete(content)
       document.removeEventListener('keydown', onKeyCapture, true)
       document.removeEventListener('keydown', onKey)
       document.removeEventListener('pointerdown', onPointer, true)
