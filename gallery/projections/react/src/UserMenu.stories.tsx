@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { Meta, StoryObj } from '@storybook/react-vite'
-import { HarborlineLocaleProvider, UserMenu } from '@harborline-software/ui-react'
+import { Dialog, HarborlineLocaleProvider, Sheet, SheetContent, SheetTitle, UserMenu } from '@harborline-software/ui-react'
 
 type ScenarioId =
   | 'user-menu.identity' | 'user-menu.simple-menu' | 'user-menu.custom-dialog' | 'user-menu.placement-dismissal'
@@ -8,6 +8,7 @@ type ScenarioId =
   | 'user-menu.locale-en' | 'user-menu.locale-pseudo' | 'user-menu.locale-ar'
   | 'user-menu.theme-light' | 'user-menu.theme-dark'
   | 'user-menu.content'
+  | 'user-menu.inside-dialog' | 'user-menu.inside-sheet'
 
 const copy: Record<ScenarioId, [string, string]> = {
   'user-menu.identity': ['Identity, avatar, and initials', 'Structured identity remains authoritative and avatar failure preserves a stable trigger name.'],
@@ -21,6 +22,8 @@ const copy: Record<ScenarioId, [string, string]> = {
   'user-menu.theme-light': ['Light theme', 'Closed, open, hover, focus, disabled, and danger states use public tokens.'],
   'user-menu.theme-dark': ['Dark theme', 'The same account surface on the Harborline dark theme.'],
   'user-menu.content': ['Content resilience', 'Hostile-but-valid identity and action labels remain text.'],
+  'user-menu.inside-dialog': ['Inside a dialog', 'Escape closes the innermost open layer first: the menu, then the dialog.'],
+  'user-menu.inside-sheet': ['Inside a sheet', 'Escape closes the innermost open layer first: the menu, then the sheet.'],
 }
 
 function MenuFixture({ scenarioId, placement = 'bottom', defaultOpen = false }: { scenarioId: ScenarioId; placement?: 'top' | 'bottom'; defaultOpen?: boolean }) {
@@ -64,17 +67,28 @@ function MenuFixture({ scenarioId, placement = 'bottom', defaultOpen = false }: 
   />
 }
 
+// A user menu composed inside a real, open Dialog or Sheet: one Escape closes only the menu and returns
+// focus to its trigger; the next closes the outer layer.
+function InsideOverlay({ host }: { host: 'dialog' | 'sheet' }) {
+  const [open, setOpen] = useState(true)
+  const menu = <UserMenu identity={{ name: 'Ada Lovelace' }} items={[{ id: 'profile', kind: 'action', label: 'Profile', onActivate: () => {} }, { id: 'settings', kind: 'action', label: 'Settings page', onActivate: () => {} }]} />
+  return host === 'dialog'
+    ? <Dialog open={open} onOpenChange={setOpen} title="Settings">{menu}</Dialog>
+    : <Sheet open={open} onOpenChange={setOpen}><SheetContent closeLabel="Close panel"><SheetTitle>Panel</SheetTitle>{menu}</SheetContent></Sheet>
+}
+
 function UserMenuScenario({ scenarioId }: { scenarioId: ScenarioId }) {
   const [title, description] = copy[scenarioId]
   const pseudo = scenarioId === 'user-menu.locale-pseudo'
   const arabic = scenarioId === 'user-menu.locale-ar'
   const locale = arabic ? 'ar-SA' : pseudo ? 'en-XA' : 'en-US'
   const theme = scenarioId === 'user-menu.theme-light' ? 'light' : scenarioId === 'user-menu.theme-dark' ? 'dark' : undefined
+  const inside = scenarioId === 'user-menu.inside-dialog' ? 'dialog' : scenarioId === 'user-menu.inside-sheet' ? 'sheet' : null
   return <section className="hl-gallery-scene" data-gallery-probe data-gallery-scenario={scenarioId} data-theme={theme} dir={arabic ? 'rtl' : 'ltr'}>
     <header className="hl-gallery-heading"><h2>{title}</h2><p>{description}</p></header>
     <div className="hl-gallery-stage hl-gallery-feedback-grid" style={{ minHeight: scenarioId === 'user-menu.disclosure' ? 470 : 320, alignItems: 'end' }}>
       <HarborlineLocaleProvider locale={locale}>
-        <MenuFixture scenarioId={scenarioId} />
+        {inside ? <InsideOverlay key={inside} host={inside} /> : <MenuFixture scenarioId={scenarioId} />}
         {scenarioId === 'user-menu.placement-dismissal' && <MenuFixture scenarioId={scenarioId} placement="top" />}
         {scenarioId === 'user-menu.disclosure' && <MenuFixture scenarioId={scenarioId} defaultOpen />}
       </HarborlineLocaleProvider>
@@ -96,3 +110,5 @@ export const ArabicLocale: Story = { name: 'Arabic locale', args: { scenarioId: 
 export const LightTheme: Story = { name: 'Light theme', args: { scenarioId: 'user-menu.theme-light' } }
 export const DarkTheme: Story = { name: 'Dark theme', args: { scenarioId: 'user-menu.theme-dark' } }
 ;export const Content: Story = { name: 'Content resilience', args: { scenarioId: 'user-menu.content' } }
+export const InsideADialog: Story = { name: 'Inside a dialog', args: { scenarioId: 'user-menu.inside-dialog' } }
+export const InsideASheet: Story = { name: 'Inside a sheet', args: { scenarioId: 'user-menu.inside-sheet' } }

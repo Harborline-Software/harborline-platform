@@ -4,7 +4,16 @@
   <header class="hl-gallery-heading"><h2>@Copy.Title</h2><p>@Copy.Description</p></header>
   <div class="hl-gallery-stage hl-gallery-feedback-grid" style="min-height: @(ScenarioId == "user-menu.disclosure" ? 470 : 320)px; align-items: end">
     <HarborlineLocaleProvider Locale="@Locale">
-      @if(ScenarioId=="user-menu.content")
+      @* A user menu inside a real, open Dialog or Sheet: one Escape closes only the menu, the next the overlay. *@
+      @if (ScenarioId == "user-menu.inside-dialog")
+      {
+        <HarborlineDialog Open="@open" OpenChanged="@(value => open = value)" Title="Settings"><HarborlineUserMenu Identity="@OverlayIdentity" Items="@OverlayMenuItems" /></HarborlineDialog>
+      }
+      else if (ScenarioId == "user-menu.inside-sheet")
+      {
+        <HarborlineSheet Open="@open" OpenChanged="@(value => open = value)"><HarborlineSheetContent CloseLabel="Close panel"><HarborlineSheetTitle>Panel</HarborlineSheetTitle><HarborlineUserMenu Identity="@OverlayIdentity" Items="@OverlayMenuItems" /></HarborlineSheetContent></HarborlineSheet>
+      }
+      else if(ScenarioId=="user-menu.content")
       {
         <HarborlineUserMenu Identity="@ContentIdentity" Items="@ContentItems" Labels="@ContentLabels" />
       }
@@ -32,6 +41,10 @@
 @code {
   [Parameter, EditorRequired] public string ScenarioId { get; set; } = "user-menu.identity";
   private bool compact;
+  // A composed overlay starts open: reset when the story shows another scenario.
+  private bool open = true;
+  private string? shownScenario;
+  protected override void OnParametersSet() { if (shownScenario != ScenarioId) { shownScenario = ScenarioId; open = true; } }
   private void HandleSignOut() { }
 
   private (string Title, string Description) Copy => ScenarioId switch
@@ -47,6 +60,8 @@
     "user-menu.theme-light" => ("Light theme", "Closed, open, hover, focus, disabled, and danger states use public tokens."),
     "user-menu.theme-dark" => ("Dark theme", "The same account surface on the Harborline dark theme."),
     "user-menu.content" => ("Content resilience", "Hostile-but-valid identity and action labels remain text."),
+    "user-menu.inside-dialog" => ("Inside a dialog", "Escape closes the innermost open layer first: the menu, then the dialog."),
+    "user-menu.inside-sheet" => ("Inside a sheet", "Escape closes the innermost open layer first: the menu, then the sheet."),
     _ => ("User menu", "Account actions.")
   };
 
@@ -61,6 +76,12 @@
     IsArabic ? "آدا لوفليس" : IsPseudo ? "⟦ Åđå ßÿřøñ Ļøṽëļåçë ······ ⟧" : "Ada Lovelace",
     "ada@example.test",
     IsArabic ? "محللة" : "Analyst");
+  private static UserIdentity OverlayIdentity { get; } = new("Ada Lovelace");
+  private static IReadOnlyList<UserMenuEntry> OverlayMenuItems { get; } =
+  [
+    new("profile", UserMenuEntryKind.Action, "Profile", ActivateAsync: () => Task.CompletedTask),
+    new("settings", UserMenuEntryKind.Action, "Settings page", ActivateAsync: () => Task.CompletedTask),
+  ];
   private UserIdentity ContentIdentity => new("Ordnance Survey — Niño Ångström", "1,284,905", "Bay 4 <grid C-7> & 8");
   private UserMenuLabels Labels => new(
     name => IsArabic ? $"حساب {name}" : IsPseudo ? $"⟦ Åççøûñţ ƒøř {name} ··· ⟧" : $"Account for {name}",
