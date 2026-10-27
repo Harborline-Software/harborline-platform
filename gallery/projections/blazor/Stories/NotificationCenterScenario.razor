@@ -5,7 +5,17 @@
   </header>
   <div class="hl-gallery-stage hl-gallery-feedback-grid">
     <HarborlineLocaleProvider Locale="@Locale">
-      @if (ScenarioId == "notification-center.empty-badges")
+      @* A notification center inside a real, open Dialog or Sheet. Its one informational item has no handler,
+         so the open panel holds no control: one Escape closes only the panel, the next the overlay. *@
+      @if (ScenarioId == "notification-center.inside-dialog")
+      {
+        <HarborlineDialog Open="@open" OpenChanged="@(value => open = value)" Title="Settings"><HarborlineNotificationCenter Items="@OverlayItems" /></HarborlineDialog>
+      }
+      else if (ScenarioId == "notification-center.inside-sheet")
+      {
+        <HarborlineSheet Open="@open" OpenChanged="@(value => open = value)"><HarborlineSheetContent CloseLabel="Close panel"><HarborlineSheetTitle>Panel</HarborlineSheetTitle><HarborlineNotificationCenter Items="@OverlayItems" /></HarborlineSheetContent></HarborlineSheet>
+      }
+      else if (ScenarioId == "notification-center.empty-badges")
       {
         <NotificationFixture ScenarioId="@ScenarioId" Items="@EmptyItems" />
         <NotificationFixture ScenarioId="@ScenarioId" Items="@Items" BadgeMode="NotificationBadgeMode.Unread" />
@@ -25,6 +35,10 @@
 
 @code {
   [Parameter, EditorRequired] public string ScenarioId { get; set; } = "notification-center.empty-badges";
+  // A composed overlay starts open: reset when the story shows another scenario.
+  private bool open = true;
+  private string? shownScenario;
+  protected override void OnParametersSet() { if (shownScenario != ScenarioId) { shownScenario = ScenarioId; open = true; } }
 
   private (string Title, string Description) Copy => ScenarioId switch
   {
@@ -37,6 +51,8 @@
     "notification-center.locale-ar" => ("Arabic locale", "Logical edges follow RTL while tab and action order remain stable."),
     "notification-center.theme-light" => ("Light theme", "Unread, hover, focus, danger, dialog, and badge states use public light-theme tokens."),
     "notification-center.theme-dark" => ("Dark theme", "The same inbox shell on the Harborline dark surface."),
+    "notification-center.inside-dialog" => ("Inside a dialog", "Escape closes the innermost open layer first: the notification panel, then the dialog."),
+    "notification-center.inside-sheet" => ("Inside a sheet", "Escape closes the innermost open layer first: the notification panel, then the sheet."),
     "notification-center.content" => ("Content resilience", "Hostile notification content carries a title longer than the popover row, a grouped large number, escaped angle brackets and an ampersand, and an actor name with diacritics and an em dash."),
     _ => ("Notification center", "Notification inbox behavior.")
   };
@@ -48,6 +64,7 @@
   private string? Theme => ScenarioId switch { "notification-center.theme-light" => "light", "notification-center.theme-dark" => "dark", _ => null };
   private NotificationBadgeMode BadgeMode => ScenarioId == "notification-center.actions" ? NotificationBadgeMode.Decisions : NotificationBadgeMode.Unread;
   private static IReadOnlyList<NotificationCenterItem> EmptyItems { get; } = [];
+  private static IReadOnlyList<NotificationCenterItem> OverlayItems { get; } = [new("r1", "Export ready", "now", "result")];
   private IReadOnlyList<NotificationCenterItem> Items => ScenarioId == "notification-center.content" ? ContentItems : IsArabic ? ArabicItems : IsPseudo ? PseudoItems : EnglishItems;
 
   private static IReadOnlyList<NotificationCenterItem> EnglishItems { get; } =

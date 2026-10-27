@@ -13,7 +13,7 @@
       <button type="button" class="hl-layers-rail__status-close" aria-label="@L.ExitLens" @onclick="ExitLensAsync"><svg aria-hidden="true" viewBox="0 0 16 16"><path d="M3 3l10 10M13 3 3 13"></path></svg></button>
     </div>
   }
-  <div role="group" aria-label="@L.LensesHeading" class="hl-layers-rail__lenses" @onkeydown="HandleLensKeyAsync">
+  <div @ref="LensGroup" role="group" aria-label="@L.LensesHeading" class="hl-layers-rail__lenses" @onkeydown="HandleLensKeyAsync">
     @if (!Compact) { <h2>@L.LensesHeading</h2> }
     @for (var index = 0; index < Lenses.Count; index++)
     {
@@ -102,7 +102,10 @@
   private string? focusRequest;
   private bool focusIfLost;
   private IJSObjectReference? module;
-  private ElementReference Root, Tree;
+  private ElementReference Root, Tree, LensGroup;
+  // Escape in the lens group clears an active lens through @onkeydown, which cannot mark the key handled;
+  // layers-rail.js marks it while a lens is active, so an enclosing Dialog or Sheet stays open then.
+  private IJSObjectReference? lensKeys;
   private AspectLens? ActiveLens => Lenses.FirstOrDefault(lens => lens.Id == State.ActiveId);
   private IReadOnlyList<CanvasNode> VisibleNodes => Canvas.Nodes.Where(IsVisible).ToArray();
 
@@ -257,9 +260,14 @@
     {
       module = await JavaScript.InvokeAsync<IJSObjectReference>("import", "./_content/Harborline.UIAdapters.Blazor/layers-rail.js");
       if (module is not null) await module.InvokeVoidAsync("observeTreeKeys", Tree);
+      if (module is not null) lensKeys = await module.InvokeAsync<IJSObjectReference>("observeLensKeys", LensGroup);
     }
     if (focusRequest is not null && module is not null) { var id = focusRequest; var onlyIfLost = focusIfLost; focusRequest = null; focusIfLost = false; await module.InvokeVoidAsync("focusNode", Root, id, onlyIfLost); }
   }
 
-  public async ValueTask DisposeAsync() { if (module is not null) try { await module.DisposeAsync(); } catch (JSDisconnectedException) { } }
+  public async ValueTask DisposeAsync()
+  {
+    if (lensKeys is not null) try { await lensKeys.InvokeVoidAsync("dispose"); await lensKeys.DisposeAsync(); } catch (JSDisconnectedException) { } catch (JSException) { }
+    if (module is not null) try { await module.DisposeAsync(); } catch (JSDisconnectedException) { }
+  }
 }

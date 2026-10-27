@@ -20,3 +20,16 @@ const navigation = new Set(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', '
 export function observeTreeKeys(tree) {
   tree?.addEventListener('keydown', event => { if (navigation.has(event.key) && !event.altKey && !event.ctrlKey && !event.metaKey && event.target.matches?.('[role="treeitem"]')) event.preventDefault() })
 }
+
+// Escape in the lens group clears an active lens (the Razor @onkeydown). Blazor cannot prevent the
+// default for some keys or states only, so this marks that Escape handled, before an enclosing Dialog
+// or Sheet listening on the document sees it, and only while a lens is active: with none, the rail has
+// no use for Escape and leaves it to them.
+export function observeLensKeys(group) {
+  const onKeyDown = event => {
+    if (event.key !== 'Escape' || event.defaultPrevented) return
+    if (group.querySelector('.hl-layers-rail__lens-activate[aria-pressed="true"]')) event.preventDefault()
+  }
+  group?.addEventListener('keydown', onKeyDown)
+  return { dispose: () => group?.removeEventListener('keydown', onKeyDown) }
+}
