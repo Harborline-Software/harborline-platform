@@ -1770,7 +1770,7 @@
         "projections/react/ui/hlp.ui.popover/src/test-setup.ts": "977afde26bba6a51325908cd7713cbfdc87d18f06b78b237c8f364c44864b7de",
         "projections/react/ui/hlp.ui.popover/tsconfig.build.json": "eab1c849fbdfecccf9d8529871b7574649e95f5556e65410175bfea5490aef27",
         "projections/react/ui/hlp.ui.popover/vitest.config.ts": "846aab8c29678bdb1560e32ba9355fbf8f24086c16a11cfe3758e916b834a739",
-        "specs/modules/ui/hlp.ui.popover/interface.yaml": "e457251dc996d3fc99ae869e6e186de7a798787ded564078f2ba7e3dc835c4bc",
+        "specs/modules/ui/hlp.ui.popover/interface.yaml": "b413647bdb924b6e24618987b5313985644510aac4f76ff6731295f10081615c",
         "specs/modules/ui/hlp.ui.popover/quality.yaml": "d37e0f05814719ddae9bd13f1b3dd17de159b4cd60d62cf2160bb994081893b7",
         "specs/modules/ui/hlp.ui.popover/scenarios.json": "355ee126061e9260ff7f33a145a00849d1ff3265293dd77a7b44ef291165adc5",
         "specs/modules/ui/hlp.ui.popover/style.css": "a6c9a8bb0779f05da1bb3be9678bcec293beb05a130ab55a0a97c6d099ccd1d2"
