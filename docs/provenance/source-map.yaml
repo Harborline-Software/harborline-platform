@@ -175,7 +175,7 @@
       "contentHashes": {
         "projections/dotnet/foundation/hlp.foundation.forms-engine.restart-probe/Program.cs": "3202f8f4e5dc168c2df5bccf3fc4375b305bdcc3270e6be7ed03e2d8e8b73d96",
         "projections/dotnet/foundation/hlp.foundation.forms-engine.restart-probe/Harborline.Foundation.Forms.Engine.RestartProbe.csproj": "c7614aceefb947714ae0179900373e0e49db9864759c180bf239a32c2766c716",
-        "projections/dotnet/foundation/hlp.foundation.forms-engine.tests/AuthoringHostIntegrationTests.cs": "97181f233e22a3caabdf167f90ec43aeb379a90f7eff19545489a3b812a45145",
+        "projections/dotnet/foundation/hlp.foundation.forms-engine.tests/AuthoringHostIntegrationTests.cs": "a67b0d87634d29c4349886d9f8f1295496aa47cdd2868d39577a38ebf7313a67",
         "projections/dotnet/foundation/hlp.foundation.forms-engine.tests/CurrentFormExecutionContextProviderTests.cs": "e5821b4853cff14b3d9afb04c1122363b2a5a6bc733a1fe43412fc1a98314949",
         "projections/dotnet/foundation/hlp.foundation.forms-engine.tests/DecryptOnRenderTests.cs": "b75f89a56683585cc96ce8f83a6e9935b0907d68ea2cb1ecf5971094fb5e39d6",
         "projections/dotnet/foundation/hlp.foundation.forms-engine.tests/FileJournalFormSubmissionStoreTests.cs": "7122d1ce130e6f9f9638f73b14aa8e4b90cd9dfb9ea338c276085a6deee08a87",
@@ -219,7 +219,7 @@
         "projections/dotnet/foundation/hlp.foundation.forms-engine/RuleCompileAdmission.cs": "34e17b89ea4570b2a42eb69312acc932a64ccf68a52ad73096c257fe82310965",
         "projections/dotnet/foundation/hlp.foundation.forms-engine/Security/FormFieldSecurity.cs": "860fc994962ad1e60a2afdfe4cc66626caedd51f34ce6348741a12c274c2374b",
         "projections/dotnet/foundation/hlp.foundation.forms-engine/Security/TenantBoundAesGcmFormFieldSecurity.cs": "6a1a5ed3d404690cc8e8bbeda7fd77bd5f229c80456c85de677b263f7bb739d0",
-        "specs/modules/foundation/hlp.foundation.forms-engine/interface.yaml": "806e5560a086632772e28572fc9a3602398b7fcfe408ebbdd9812d9ae6834121",
+        "specs/modules/foundation/hlp.foundation.forms-engine/interface.yaml": "09cd17f53a7071eff064c7cc371d470b7c7eda5e9eedde1b0949c6b48c86e1a9",
         "projections/dotnet/foundation/hlp.foundation.forms-engine/FormSubmitGateEvidence.cs": "eaa38403113500325958c9935f24d7609dbe87459bbae16bb6340c5c3a4875de",
         "projections/dotnet/foundation/hlp.foundation.forms-engine.tests/FormSubmitGateEvidenceTests.cs": "bd33878a0e650989bd62f62bfe3bfc00af45f2cfb46bfc6a91d53c3f756e4058",
         "projections/dotnet/foundation/hlp.foundation.forms-engine.tests/FormSubmissionBindingPersistenceTests.cs": "531c99734667be0500c238d817a4a06c8959d920a2f7a85b581e18a5c5d1efd8",

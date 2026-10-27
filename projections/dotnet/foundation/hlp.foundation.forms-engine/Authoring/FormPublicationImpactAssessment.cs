@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Harborline.Foundation.Forms.Models;
@@ -30,6 +31,8 @@ public sealed class FormPublicationImpactAssessment
         {
             // Snapshot caller-owned declaration collections before awaiting a provider.
             var basis = Snapshot(context.Basis);
+            var (candidateJson, capturedCandidate) = Capture(candidate);
+            candidate = capturedCandidate;
             if (basis is null || context.Schemas is null || context.Surfaces is null
                 || !Matches(basis.Candidate, candidate)
                 || basis.NoPredecessor != (basis.Predecessor is null)
@@ -39,6 +42,7 @@ public sealed class FormPublicationImpactAssessment
             var current = await store.GetCurrentPublishedAsync(candidate.Tenant, candidate.Id, cancellationToken)
                 .ConfigureAwait(false);
             FormDefinition? previous = null;
+            string? previousJson = null;
             if (basis.NoPredecessor)
             {
                 if (current is not null) return FormPublicationAssessment.Unavailable("predecessor_mismatch");
@@ -52,21 +56,25 @@ public sealed class FormPublicationImpactAssessment
                     return FormPublicationAssessment.Unavailable("predecessor_basis_unavailable");
                 previous = await store.GetAsync(pin.Tenant, pin.DefinitionId, pin.Version, cancellationToken)
                     .ConfigureAwait(false);
+                (previousJson, previous) = Capture(previous);
                 if (!Matches(pin, previous) || previous.Status != FormDefinitionStatus.Published
                     || current is null || !Matches(pin, current))
                     return FormPublicationAssessment.Unavailable("predecessor_mismatch");
             }
 
             var nextSchema = await context.Schemas.GetAsync(new Harborline.Kernel.SchemaValidation.SchemaId(candidate.SchemaRef.Value), cancellationToken).ConfigureAwait(false);
-            if (nextSchema is null || nextSchema.Id.Value != candidate.SchemaRef.Value
-                || !TrySchema(nextSchema.JsonSchemaText, out var next))
+            var candidateSchema = nextSchema is null ? null : new FormPublicationAssessedSchema(nextSchema.Id, nextSchema.JsonSchemaText);
+            if (candidateSchema is null || candidateSchema.Id.Value != candidate.SchemaRef.Value
+                || !TrySchema(candidateSchema.JsonSchemaText, out var next))
                 return FormPublicationAssessment.Unavailable("schema_unavailable");
             JsonObject? prior = null;
+            FormPublicationAssessedSchema? predecessorSchema = null;
             if (previous is not null)
             {
                 var priorSchema = await context.Schemas.GetAsync(new Harborline.Kernel.SchemaValidation.SchemaId(previous.SchemaRef.Value), cancellationToken).ConfigureAwait(false);
-                if (priorSchema is null || priorSchema.Id.Value != previous.SchemaRef.Value
-                    || !TrySchema(priorSchema.JsonSchemaText, out prior))
+                predecessorSchema = priorSchema is null ? null : new FormPublicationAssessedSchema(priorSchema.Id, priorSchema.JsonSchemaText);
+                if (predecessorSchema is null || predecessorSchema.Id.Value != previous.SchemaRef.Value
+                    || !TrySchema(predecessorSchema.JsonSchemaText, out prior))
                     return FormPublicationAssessment.Unavailable("schema_unavailable");
             }
 
@@ -84,7 +92,10 @@ public sealed class FormPublicationImpactAssessment
             var proposal = outcome == FormPublicationCompatibility.ProposalEligible && basis.Predecessor is not null
                 ? new FormRepublishProposal(basis.Predecessor, basis.Candidate, surfaces) : null;
             cancellationToken.ThrowIfCancellationRequested();
-            return new(basis, outcome, surfaces, proposal, null);
+            return new(basis, outcome, surfaces, proposal, null)
+            {
+                Inputs = new(candidateJson, previousJson, candidateSchema, predecessorSchema),
+            };
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
         catch (Exception)
@@ -112,9 +123,23 @@ public sealed class FormPublicationImpactAssessment
         };
     }
 
+    private static (string Json, FormDefinition Definition) Capture(FormDefinition definition)
+    {
+        var json = JsonSerializer.Serialize(definition);
+        var captured = JsonSerializer.Deserialize<FormDefinition>(json);
+        if (captured is null || !JsonNode.DeepEquals(JsonNode.Parse(json), JsonSerializer.SerializeToNode(captured)))
+            throw new InvalidOperationException("unsupported_form_capture");
+        return (json, captured);
+    }
+
     private static FormPublicationEnvironment Copy(FormPublicationEnvironment environment) => new(
-        environment.Declaration is null ? null : JsonSerializer.Deserialize<BorrowerEnvironmentDeclaration>(
-            JsonSerializer.Serialize(environment.Declaration)), environment.Provenance);
+        environment.Declaration is not { } declaration ? null : declaration with
+        {
+            Variables = new ReadOnlyDictionary<string, string>(new Dictionary<string, string>(declaration.Variables, StringComparer.Ordinal)),
+            Phases = new ReadOnlyDictionary<EvaluationPhase, bool>(new Dictionary<EvaluationPhase, bool>(declaration.Phases)),
+            Operations = Array.AsReadOnly(declaration.Operations.ToArray()),
+            Effects = Array.AsReadOnly(declaration.Effects.ToArray()),
+        }, environment.Provenance);
 
     private static bool Known(FormPublicationEnvironment? environment)
     {
