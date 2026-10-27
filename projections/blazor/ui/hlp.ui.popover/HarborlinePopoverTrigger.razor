@@ -4,8 +4,10 @@
 <button @ref="trigger" id="@Context?.TriggerId" type="@Type" class="@CombineClasses("hl-popover-trigger")" style="@CombineStyles()"
         aria-haspopup="dialog" aria-expanded="@(Context?.Open == true ? "true" : "false")"
         aria-controls="@(Context?.Open == true ? Context.ContentId : null)" disabled="@Disabled"
-        @onclick="ToggleAsync" @attributes="AdditionalAttributes">@ChildContent</button>
+        @onclick="ToggleAsync" @attributes="AdditionalAttributes" data-hl-popover-trigger="@Context?.TriggerId">@ChildContent</button>
 
+@* data-hl-popover-trigger comes after the caller's attributes: popover.js finds the trigger by it, and a caller's own id
+   (which @attributes lets win over the id above) must not defeat that lookup (T-1128, b31 review). *@
 @code {
     [CascadingParameter] public PopoverContext? Context { get; set; }
     [Parameter] public RenderFragment? ChildContent { get; set; }
