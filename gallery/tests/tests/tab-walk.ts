@@ -836,8 +836,9 @@ export type CoverJudgement = {
   //   not there (the stop no longer obscured by every popup of it): the page drifted, so nothing is
   //   judged and the cover stands, with no re-measure (review 7 entry 3's guard, added in review 8).
   // The guard and the per-point rule (2) close different holes. The guard refuses a cover another
-  // cover's press reflowed before this stop's presses (review 8's ORDlayout: T's press slid a dialog over
-  // S, and S's own press then slid it off again). The per-point rule refuses drift after a popup of the
+  // cover's press reflowed off the stop before this stop's presses (review 8's ORDlayout: T's press slid
+  // a dialog over S, and S's own press then slid it off again); drift that keeps the cover over the stop
+  // is not refused (limit 4). The per-point rule refuses drift after a popup of the
   // cover closed, where the guard no longer applies (proof OWNdrift: X's forward press closed A, which
   // is also over X in reverse, and T's press slid B off X before X's reverse cover is judged).
   // Known limits of the exemption, each failing closed (a finding stands that a user could clear)
@@ -848,6 +849,9 @@ export type CoverJudgement = {
   //    way round, C2b, both are revealed). The page earlier covers left can also fail open: if this
   //    stop's Escape closes a popup over it only once another popup is gone, and an earlier stop's press
   //    closed that one, the reveal is granted although this stop alone could not earn it on a fresh page.
+  //    An `unreproduced` cover presses nothing, so the covers after it meet a page its presses would
+  //    have changed. That can move a page into this fail-open (review 9's CHAINlimit1, which 7af13873
+  //    judged correctly) or out of it (SKIPPRESS, now judged correctly).
   // 2. Movement by the stop's own press. If the stop's own Escape closes a popup that is not over it and
   //    that slides a popup of the cover off it, the user did reveal the stop, but no point was earned:
   //    covered. A lower popup closed elsewhere over only part of the stop (review 6's
@@ -858,12 +862,20 @@ export type CoverJudgement = {
   //    ancestor of the stop (found through parent elements and shadow hosts, not the flat tree, so a
   //    slotted stop's scrollers outside its shadow tree are missed). Layout another cover's press changed
   //    (a closed popup reflowing its neighbours), and a scroller that holds the popup but not the stop,
-  //    are not. Before any popup of the cover has closed, the guard turns such drift into
-  //    `unreproduced` (the cover stands). After one has closed, by this stop's press under another key,
-  //    the guard no longer applies: the per-point rule still refuses a popup that only moved, but a
-  //    point earned there can fail open when, on a fresh page, the stop's own press would move another
-  //    popup onto it that the drifted page had already moved elsewhere. A cover that stands after
-  //    drift may also carry a re-measure, and an extra line, read where the page drifted.
+  //    are not. The guard catches only drift that takes a popup of the cover off the stop before any of
+  //    them has closed: that cover is `unreproduced` and stands. Drift that leaves every popup of the
+  //    cover over the stop while it moves other popups is judged as usual, and can fail open before or
+  //    after any popup closes (review 9's TALLA_Tfirst: T's press hides dialog Z, and the column slides
+  //    up with tall menu A still over S; S's own press then hides A, and dialog B lands above S, where on
+  //    a fresh page, with Z still there, it would land on S; 7af13873 fails the same way). After a popup
+  //    of the cover has closed, by this stop's press under another key, the guard no longer applies at
+  //    all: the per-point rule still refuses a popup that only moved (proof OWNdrift), but a point earned
+  //    there can fail open in the same way.
+  //    The guard also fails closed when drift takes off the stop a lower popup over only part of it: it
+  //    asks for every popup of the cover, so the cover is `unreproduced` although the stop's own press
+  //    would reveal it (review 9's PARTIALdrift). An unreproduced cover carries no re-measure, so a line
+  //    the drifted page would add under other content is dropped (LOSTNOW_banner2); a cover that stands
+  //    after drift and was pressed may carry a re-measure, and an extra line, read where it drifted.
   // 5. What counts as user-opened. Only popups open when the walk begins, recognised by role (menu,
   //    listbox, tooltip, non-modal dialog) or [popover]; content a scenario opened without such a role,
   //    and any popup opened during the walk, is author content. A popup's opaque wrapper counts as the

@@ -2707,6 +2707,7 @@ test('tab walk proof P7: a visually hidden input is judged by its label, and onl
     '<div role="menu" id="a" style="position:fixed;left:0;top:100px;width:300px;height:100px;background:#ddd;z-index:20">A</div>',
     `\n    document.getElementById('s').addEventListener('keydown', event => { if (event.key === 'Escape') document.getElementById('a').style.display = 'none' })`)
   expect(laneFindingLines(l2)).toEqual(['2.4.11 forward obscured: button "S" under div (fixed)', '2.4.11 reverse obscured: button "S" under div (fixed)'])
+  expect(outcomes(l2)).toEqual(['button "S1" revealed', 'button "S" unreproduced'])
   // innerDismiss (entry 4) and inner (entries 3, 4): a 200px scroller of ten buttons under a tooltip over
   // its top 40px. Shift+Tab brings stops to the scroller's top edge, under the tooltip, at offsets the
   // reverse walk then leaves. Each cover is judged at its own offset: B6's own Escape hides the tooltip
@@ -2764,6 +2765,7 @@ test('tab walk proof P7: a visually hidden input is judged by its label, and onl
     <script>document.getElementById('x').addEventListener('keydown', event => { if (event.key === 'Escape') { document.getElementById('a').style.display = 'none'; document.getElementById('c').style.display = 'none' } })
     document.getElementById('t').addEventListener('keydown', event => { if (event.key === 'Escape') document.getElementById('z').style.display = 'none' })</script>`)
   expect(laneFindingLines(ownDrift)).toEqual(['2.4.11 reverse obscured: button "X" under div (fixed)'])
+  expect(outcomes(ownDrift)).toEqual(['button "X" revealed', 'button "T" revealed', 'button "T" revealed', 'button "X" covered'])
   // A popup Escape dismisses in place is still walked open in both directions, so a defect inside it
   // is found, and the cover it put over "Under" is exempt.
   const inside = await walkProof(browser, popover + proofProbe(`<button style="position:fixed;left:10px;top:10px">Under</button><button style="position:fixed;left:10px;top:300px">Elsewhere</button>

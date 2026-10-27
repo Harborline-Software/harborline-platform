@@ -329,6 +329,8 @@ on the review 6 engine, and three more mutants each fail a proof: no per-point c
 restore and no surface credit. The review-fixes-7 README names each file. Review 8 added two P7 pages.
 ORDlayout_Tfirst fails on the review 7 engine and on a mutant without the guard; OWNdrift, where only
 the per-point rule decides, fails on a mutant without it. The review-fixes-8 README names each file.
+After the final review, P7 also asserts L2shiftLower's and OWNdrift's cover outcomes, so a guard that
+asks for only some popups of the cover (`every` turned into `some`) fails P7 (review-fixes-9).
 
 ## Known limits of the user-opened cover exemption
 
@@ -340,7 +342,10 @@ stands that a user could clear) unless it says it fails open.
    whose press closed its popup is closed-before, although its own Escape might have revealed it on a
    fresh page (proofs C2 and C2b). It can also fail open: if a stop's Escape closes a popup over it only
    once another popup is gone, and an earlier stop's press closed that one, the stop is revealed
-   although it could not earn that on a fresh page.
+   although it could not earn that on a fresh page. An `unreproduced` cover presses nothing, so the
+   covers after it meet a page its presses would have changed. That can move a page into this fail-open
+   (the final review's CHAINlimit1, which `7af13873` judged correctly) or out of it (SKIPPRESS, now
+   judged correctly).
 2. Movement by the stop's own press. A stop whose own Escape closes a popup that is not over it, and so
    slides a popup of the cover off it, earns nothing and stays covered. A lower popup closed elsewhere
    over only part of the stop makes it closed-before, although the rest of the stop would show.
@@ -349,13 +354,20 @@ stands that a user could clear) unless it says it fails open.
 4. Geometry, which can fail open. Only scroll offsets are put back: the window and every scrollable
    ancestor of the stop, found through parent elements and shadow hosts (not the flat tree, so a
    slotted stop's scrollers outside its shadow tree are missed). A layout another cover's press changed,
-   and a scroller that holds the popup but not the stop, are not. Before any popup of the cover has
-   closed, the reproduction guard turns such drift into `unreproduced`, and the cover stands (proof
-   ORDlayout_Tfirst). After one has closed, by the stop's own press under another key, the guard no
-   longer applies: the per-point rule still refuses a popup that only moved (proof OWNdrift), but a point
-   earned there can fail open when, on a fresh page, the stop's own press would move another popup onto
-   it that the drifted page had already moved elsewhere. A cover that stands after drift may also carry
-   a re-measure, and an extra line, read where the page drifted.
+   and a scroller that holds the popup but not the stop, are not. The reproduction guard catches only
+   drift that takes a popup of the cover off the stop before any of them has closed: that cover is
+   `unreproduced` and stands (proof ORDlayout_Tfirst). Drift that leaves every popup of the cover over
+   the stop while it moves other popups is judged as usual, and can fail open before or after any popup
+   closes. In the final review's TALLA_Tfirst, T's press hides dialog Z and the column slides up with a
+   tall menu A still over S. S's own press then hides A, and dialog B lands above S, where on a fresh
+   page, with Z still there, it would land on S (`7af13873` fails the same way). After a popup of the
+   cover has closed, by the stop's own press under another key, the guard no longer applies at all: the
+   per-point rule still refuses a popup that only moved (proof OWNdrift), but a point earned there can
+   fail open the same way. The guard also fails closed when drift takes off the stop a lower popup over
+   only part of it: it asks for every popup of the cover, so the cover is `unreproduced` although the
+   stop's own press would reveal it (PARTIALdrift). An unreproduced cover carries no re-measure, so a
+   line the drifted page would add under other content is dropped (LOSTNOW_banner2). A pressed cover
+   that stands after drift may carry a re-measure, and an extra line, read where the page drifted.
 5. What counts as user-opened. Only popups open when the walk begins, recognised by role (menu, listbox,
    tooltip, non-modal dialog) or `[popover]`. Other content a scenario opened, and any popup opened during
    the walk, is author content. An opaque wrapper counts as its popup only as an out-of-flow surface that
@@ -369,10 +381,10 @@ stands that a user could clear) unless it says it fails open.
 8. Hit testing, failing open. A layer `elementsFromPoint` does not return (`pointer-events: none`) is not
    seen at all, as for every 2.4.11 judgement of the walk (proof P6).
 
-## Latent follow-ups from review 8
+## Latent follow-ups (T-1127)
 
-Review 8 found nothing that affects a gallery scenario today. These latent items are left for a
-follow-up ticket:
+Review 8 and the final review found nothing that affects a gallery scenario today, and no regression
+from the last round. These latent items are left for T-1127:
 
 - Limit 2's false failure (review 8's LIM2ownSlide): a stop whose own Escape closes a popup that is not
   over it, and so slides the cover's popup off it, is reported although a user reveals it.
@@ -380,6 +392,17 @@ follow-up ticket:
   scroll containers can be missed and left unrestored (limit 4).
 - On the surface path, a stop's extra presses close popups that later stops' covers needed, so those
   covers come out closed-before (limit 1).
+- TALLA_Tfirst: drift that keeps every popup of the cover over the stop passes the guard and can fail
+  open (limit 4).
+- CHAINlimit1: an `unreproduced` cover presses nothing, which can move a later cover into limit 1's
+  fail-open (limit 1).
+- PARTIALdrift: the guard's "every popup" condition fails a cover whose drifted-off popup lay over only
+  part of the stop (limit 4).
+- LOSTNOW_banner2: an `unreproduced` cover carries no re-measure, so a line the drifted page would add is
+  dropped (limit 4).
+
+The final review's pages are in the session scratchpad, `review-t962-final/` (`mine*.ts`, `recon.ts`,
+`fresh.mjs`).
 
 ## What the measured runs found
 
