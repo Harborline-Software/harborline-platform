@@ -211,6 +211,27 @@ const assertions: Record<string, (entry: Case) => void | Promise<void>> = {
     // Blank labels (ECMA-262 white space and line terminators only, U+FEFF included) fall back; a U+0085-only label is kept.
     expect(allChrome(input.hostCatalog, input.dismissedTitle, partialLabels(input.blankLabels))).toEqual(expected.blank)
   },
+  'notification-center.catalog-blank-set': ({ input, expected }) => {
+    // Host catalog text, a host bell phrase and a caller bell label made only of U+FEFF are blank (the first two fall back,
+    // the last is the empty-label error); made only of U+0085 they are kept.
+    const view = render(<HarborlineLocaleProvider locale={input.hostCatalog.locale} catalog={input.hostCatalog.entries}><NotificationCenter items={namedItems(input.dismissedTitle)} onDismiss={() => undefined}/></HarborlineLocaleProvider>)
+    expect(chromeNames()).toEqual(expected.chrome)
+    view.unmount()
+    const unread = Array.from({ length: input.bellUnread }, (_, index) => item(`u${index}`, 'result'))
+    for (const variant of ['feff', 'nel']) {
+      const host = input.bellCatalogs[variant]
+      const bellView = render(<HarborlineLocaleProvider locale={host.locale} catalog={host.entries}><NotificationCenter items={unread}/></HarborlineLocaleProvider>)
+      expect(bell().getAttribute('aria-label')).toBe(expected.bell[variant])
+      bellView.unmount()
+      const label = input.callerBellLabels[variant]
+      const silence = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+      let observed: string | null
+      try { const callerView = render(<NotificationCenter items={unread} getBellLabel={() => label}/>); observed = bell().getAttribute('aria-label'); callerView.unmount() }
+      catch (error) { observed = `error:${(error as Error).message}` }
+      finally { silence.mockRestore() }
+      expect(observed).toBe(expected.callerBell[variant])
+    }
+  },
   'notification-center.bell-catalog': ({ input, expected }) => {
     // Bell names for N pending proposals (decisions mode) or N unread results (unread mode).
     const bells = (counts: { pending?: number[]; unread?: number[] }, host?: { locale: string; entries: Record<string, string> }, formatCount?: (count: number) => string) => {

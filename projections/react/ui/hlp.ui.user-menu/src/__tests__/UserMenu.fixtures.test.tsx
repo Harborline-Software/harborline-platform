@@ -234,6 +234,11 @@ const assertions: Record<string, (entry: Case) => void | Promise<void>> = {
     render(menu(input.blankLabels))
     expect(menuNames()).toEqual(expected.blank)
   },
+  'user-menu.catalog-blank-set': ({ input, expected }) => {
+    // Host catalog text made only of U+FEFF is blank and falls back to the default catalog; only U+0085 is kept.
+    render(<HarborlineLocaleProvider locale={input.hostCatalog.locale} catalog={input.hostCatalog.entries}><UserMenu identity={{ name: input.name }} onSignOut={vi.fn()}/></HarborlineLocaleProvider>)
+    expect(menuNames()).toEqual(expected)
+  },
   'user-menu.invalid-input': ({ input, expected }) => {
     const silence = vi.spyOn(console, 'error').mockImplementation(() => undefined)
     const errors: string[] = []

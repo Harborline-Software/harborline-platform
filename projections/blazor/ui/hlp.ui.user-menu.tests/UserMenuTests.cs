@@ -311,6 +311,12 @@ public sealed class UserMenuTests : BunitContext
                 Assert.Equal(Names(expected.GetProperty("blank")),MenuNames(InHostCatalog(input.GetProperty("hostCatalog"),input.GetProperty("name").GetString()!,PartialLabels(input.GetProperty("blankLabels")))));
                 break;
             }
+            case "user-menu.catalog-blank-set":
+            {
+                // Host catalog text made only of U+FEFF is blank and falls back to the default catalog; only U+0085 is kept.
+                Assert.Equal((expected.GetProperty("trigger").GetString(),expected.GetProperty("panel").GetString(),expected.GetProperty("signOut").GetString()),MenuNames(InHostCatalog(input.GetProperty("hostCatalog"),input.GetProperty("name").GetString()!,null)));
+                break;
+            }
             case "user-menu.invalid-input":
             {
                 var errors=new List<string>();

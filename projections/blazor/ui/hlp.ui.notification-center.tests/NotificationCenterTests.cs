@@ -323,6 +323,27 @@ public sealed class NotificationCenterTests : BunitContext
                 Assert.Equal(Chrome(expected.GetProperty("blank")), AllChrome(input.GetProperty("hostCatalog"), input.GetProperty("dismissedTitle").GetString()!, PartialLabels(input.GetProperty("blankLabels"))));
                 break;
             }
+            case "notification-center.catalog-blank-set":
+            {
+                // Host catalog text, a host bell phrase and a caller bell label made only of U+FEFF are blank (the first two fall
+                // back, the last is the empty-label error); made only of U+0085 they are kept.
+                var title = input.GetProperty("dismissedTitle").GetString()!;
+                Assert.Equal(ChromeNames(expected.GetProperty("chrome")), ChromeNames(InHostCatalog(input.GetProperty("hostCatalog"), title, null)));
+                var unread = Enumerable.Range(0, input.GetProperty("bellUnread").GetInt32()).Select(i => Item($"u{i}", "result")).ToArray();
+                foreach (var variant in new[] { "feff", "nel" })
+                {
+                    var host = input.GetProperty("bellCatalogs").GetProperty(variant);
+                    var bell = Render<HarborlineLocaleProvider>(p => p.Add(x => x.Locale, host.GetProperty("locale").GetString()).Add(x => x.Catalog, host.GetProperty("entries").EnumerateObject().ToDictionary(entry => entry.Name, entry => entry.Value.GetString()!))
+                        .AddChildContent<HarborlineNotificationCenter>(c => c.Add(x => x.Items, unread))).Find(".hl-notification-center__trigger").GetAttribute("aria-label");
+                    Assert.Equal(expected.GetProperty("bell").GetProperty(variant).GetString(), bell);
+                    var label = input.GetProperty("callerBellLabels").GetProperty(variant).GetString()!;
+                    string observed;
+                    try { observed = Center(unread, p => p.Add(x => x.GetBellLabel, _ => label)).Find(".hl-notification-center__trigger").GetAttribute("aria-label")!; }
+                    catch (InvalidOperationException error) { observed = $"error:{error.Message}"; }
+                    Assert.Equal(expected.GetProperty("callerBell").GetProperty(variant).GetString(), observed);
+                }
+                break;
+            }
             case "notification-center.bell-catalog":
             {
                 // Bell names for N pending proposals (decisions mode) or N unread results (unread mode).
