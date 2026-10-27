@@ -54,12 +54,14 @@
   [Parameter] public UserMenuAlignment Alignment { get; set; } = UserMenuAlignment.InlineEnd;
   [Parameter] public UserMenuLabels Labels { get; set; } = UserMenuLabels.English;
   [CascadingParameter] private HarborlineLocaleContext? LocaleContext { get; set; }
-  // The default record (Labels not supplied) takes every label from the host catalog, else the default
-  // catalog (navigation.userMenu.*). A supplied record's text is kept exactly, except that blank text is
-  // no text and falls back to the catalog. Resolved once per parameter set (a locale change re-sets the
-  // cascading context).
-  private UserMenuLabels L = UserMenuLabels.English;
-  private UserMenuLabels ResolveLabels()
+  // The default record (Labels not supplied: the English instance itself) takes every label from the host
+  // catalog, else the default catalog (navigation.userMenu.*). In a supplied record each null or blank field
+  // falls back the same way and every other field is kept exactly (interface revision 3). Resolved once per
+  // parameter set (a locale change re-sets the cascading context) into a record whose fields are never null.
+  private sealed record ResolvedLabels(Func<string,string> Trigger, string Panel, string SignOut);
+  // Replaced by OnParametersSet before the first render.
+  private ResolvedLabels L = new(_ => string.Empty, string.Empty, string.Empty);
+  private ResolvedLabels ResolveLabels()
   {
     var fromCatalog = ReferenceEquals(Labels, UserMenuLabels.English);
     return new(
@@ -69,10 +71,10 @@
   }
   private string Localized(string key, string? caller, IReadOnlyDictionary<string, object?>? variables = null)
   {
-    if (!string.IsNullOrWhiteSpace(caller)) return caller;
+    if (!HarborlineBlankText.IsBlank(caller)) return caller;
     var fallback = Harborline.Foundation.Localization.HarborlineDefaultStrings.Interpolate(Harborline.Foundation.Localization.HarborlineDefaultStrings.Get(key), variables);
     var catalog = LocaleContext?.ResolveString(key, variables) ?? fallback;
-    return string.IsNullOrWhiteSpace(catalog) || catalog == key ? fallback : catalog;
+    return HarborlineBlankText.IsBlank(catalog) || catalog == key ? fallback : catalog;
   }
   [Parameter] public bool CanShowRail { get; set; } = true;
   [Parameter] public string? Direction { get; set; }

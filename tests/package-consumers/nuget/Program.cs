@@ -132,6 +132,17 @@ if (Enum.GetNames<GuardedControlState>() is not ["Covered", "Armed", "Committing
     || Enum.GetNames<NotificationBadgeMode>() is not ["Unread", "Decisions"]
     || NotificationCenterLabels.English.Title != "Notifications")
     throw new InvalidOperationException("Packed wave-03-03 component vocabulary changed.");
+// Label records (interface revision 3, G6): the existing shapes (positional, English with { ... }) and the
+// partial-override shapes (named arguments, object initializer) all compile against the package.
+var positionalMenuLabels = new UserMenuLabels(name => $"Menu for {name}", "Menu", "Leave");
+var partialMenuLabels = new UserMenuLabels(SignOut: "Leave");
+var partialCenterLabels = new NotificationCenterLabels { Confirm = "Approve" };
+var copiedCenterLabels = NotificationCenterLabels.English with { Confirm = "Approve" };
+if (positionalMenuLabels.Panel != "Menu" || partialMenuLabels.Panel is not null || partialMenuLabels.SignOut != "Leave"
+    || partialCenterLabels.Title is not null || partialCenterLabels.Confirm != "Approve"
+    || copiedCenterLabels.Title != "Notifications" || copiedCenterLabels.Confirm != "Approve"
+    || UserMenuLabels.English.Panel != "Account menu")
+    throw new InvalidOperationException("Packed partial label override shapes changed.");
 if (typeof(HarborlineSegmentedControl).Assembly != typeof(HarborlineButton).Assembly
     || typeof(HarborlineSelectField).Assembly != typeof(HarborlineButton).Assembly
     || typeof(HarborlineSwitch).Assembly != typeof(HarborlineButton).Assembly

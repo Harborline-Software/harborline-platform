@@ -46,10 +46,15 @@ public sealed record UserMenuEntry(
     RenderFragment? Content = null,
     bool CloseOnSelect = true,
     bool Disabled = false);
-/// <summary>Text for the user menu: the trigger label built from the user name, the panel label and the sign-out label.</summary>
-public sealed record UserMenuLabels(Func<string,string> Trigger, string Panel, string SignOut)
+/// <summary>Text for the user menu: the trigger label built from the user name, the panel label and the sign-out label.
+/// Every field is optional: a null or blank field (blank meaning only ECMA-262 white space and line terminators) comes
+/// from the locale catalog, and any other field is kept exactly. Override one label with
+/// <c>new UserMenuLabels(SignOut: "Leave")</c> or <c>new UserMenuLabels { SignOut = "Leave" }</c>.</summary>
+public sealed record UserMenuLabels(Func<string,string>? Trigger = null, string? Panel = null, string? SignOut = null)
 {
     /// <summary>The default English user menu text. Leaving <c>Labels</c> unset (this instance) takes every label from the
-    /// locale catalog; any other record, including <c>English with { ... }</c>, is caller text and is kept exactly.</summary>
+    /// locale catalog. Any other record is caller text field by field: a copy such as <c>English with { ... }</c> has
+    /// every field set, so it is kept exactly, English included; to override one label, set only that field on a new
+    /// record.</summary>
     public static UserMenuLabels English { get; } = new(name => $"Account menu for {name}", "Account menu", "Sign out");
 }

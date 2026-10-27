@@ -59,9 +59,13 @@ public sealed class CatalogCopyTests : BunitContext
         Assert.Equal(("Menu du compte de Avery", "Menu du compte", "Se déconnecter"), MenuNames((IRenderedComponent<IComponent>)(object)cut));
         cut.Render(p => p.Add(x => x.Locale, "ar-SA").Add(x => x.Catalog, arabic));
         Assert.Equal(("قائمة حساب Avery", "قائمة الحساب", "تسجيل الخروج"), MenuNames((IRenderedComponent<IComponent>)(object)cut));
-        // A supplied record is caller text: kept exactly, even where it repeats the English default.
-        var overridden = Localized("ar-SA", arabic, Menu(UserMenuLabels.English with { SignOut = "Leave" }));
-        Assert.Equal(("Account menu for Avery", "Account menu", "Leave"), MenuNames((IRenderedComponent<IComponent>)(object)overridden));
+        // A copy of English is a fully specified record: every field is caller text, kept exactly, even where it
+        // repeats the English default, so it stays English under Arabic (interface revision 3, G6). This is not the
+        // way to override one label: a record that sets only SignOut takes the other labels from the catalog.
+        var fullySpecified = Localized("ar-SA", arabic, Menu(UserMenuLabels.English with { SignOut = "Leave" }));
+        Assert.Equal(("Account menu for Avery", "Account menu", "Leave"), MenuNames((IRenderedComponent<IComponent>)(object)fullySpecified));
+        var partial = Localized("ar-SA", arabic, Menu(new UserMenuLabels(SignOut: "Leave")));
+        Assert.Equal(("قائمة حساب Avery", "قائمة الحساب", "Leave"), MenuNames((IRenderedComponent<IComponent>)(object)partial));
         // Blank caller text is no text: that field alone falls back to the catalog.
         var blank = Localized("ar-SA", arabic, Menu(UserMenuLabels.English with { Panel = " " }));
         Assert.Equal(("Account menu for Avery", "قائمة الحساب", "Sign out"), MenuNames((IRenderedComponent<IComponent>)(object)blank));

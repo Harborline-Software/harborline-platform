@@ -100,11 +100,14 @@
   private IJSObjectReference? escapeRegistration;
   // Caller text overrides each label; blank caller text keeps the catalog default, so no chrome or
   // control name is ever empty.
-  private NotificationCenterLabels L = NotificationCenterLabels.English;
-  // The default record (Labels not supplied) takes every label from the host catalog, else the default
-  // catalog (navigation.notifications.*). A supplied record's text is kept exactly, except that blank
-  // text is no text and falls back to the catalog; an unset GroupLabel also comes from the catalog.
-  private NotificationCenterLabels ResolveLabels(NotificationCenterLabels labels)
+  // The default record (Labels not supplied: the English instance itself) takes every label from the host
+  // catalog, else the default catalog (navigation.notifications.*). In a supplied record each null or blank
+  // field falls back the same way and every other field is kept exactly (interface revision 3). Resolved
+  // into a record whose fields are never null.
+  private sealed record ResolvedLabels(string Title, string All, string Confirm, string Deny, string MarkAllRead, string ViewAll, string Empty, Func<string, string> Dismiss, string Unread, string GroupLabel);
+  // Replaced by OnParametersSet before the first render.
+  private ResolvedLabels L = new(string.Empty, string.Empty, string.Empty, string.Empty, string.Empty, string.Empty, string.Empty, _ => string.Empty, string.Empty, string.Empty);
+  private ResolvedLabels ResolveLabels(NotificationCenterLabels labels)
   {
     var fromCatalog = ReferenceEquals(labels, NotificationCenterLabels.English);
     string Field(string key, string? caller) => Localized(key, fromCatalog ? null : caller);
@@ -118,10 +121,10 @@
   }
   private string Localized(string key, string? caller, IReadOnlyDictionary<string, object?>? variables = null)
   {
-    if (!string.IsNullOrWhiteSpace(caller)) return caller;
+    if (!HarborlineBlankText.IsBlank(caller)) return caller;
     var fallback = Harborline.Foundation.Localization.HarborlineDefaultStrings.Interpolate(Harborline.Foundation.Localization.HarborlineDefaultStrings.Get(key), variables);
     var catalog = LocaleContext?.ResolveString(key, variables) ?? fallback;
-    return string.IsNullOrWhiteSpace(catalog) || catalog == key ? fallback : catalog;
+    return HarborlineBlankText.IsBlank(catalog) || catalog == key ? fallback : catalog;
   }
   private int UnreadCount => Items.Count(item => !item.Read);
   private int PendingCount => Items.Count(item => item.Kind == "proposal");
@@ -141,7 +144,7 @@
     L = ResolveLabels(Labels);
     if (Items.GroupBy(item => item.Id, StringComparer.Ordinal).Any(group => group.Count() > 1)) throw new InvalidOperationException("duplicate-notification-id");
     if (MaxVisible < 0) throw new InvalidOperationException("invalid-notification-limit");
-    if (string.IsNullOrWhiteSpace(BellLabel)) throw new InvalidOperationException("accessible-notification-label-required");
+    if (HarborlineBlankText.IsBlank(BellLabel)) throw new InvalidOperationException("accessible-notification-label-required");
   }
 
   private string DefaultBellLabel()
@@ -167,7 +170,7 @@
     {
       if (source is null) continue;
       foreach (var key in keys)
-        if (source.TryGetValue(key, out var text) && !string.IsNullOrWhiteSpace(text))
+        if (source.TryGetValue(key, out var text) && !HarborlineBlankText.IsBlank(text))
           return Harborline.Foundation.Localization.HarborlineDefaultStrings.Interpolate(text, variables);
     }
     return L.Title;

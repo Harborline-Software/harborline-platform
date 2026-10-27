@@ -20,6 +20,11 @@ function menuNames() {
   return names
 }
 const ada = { name: 'Ada Lovelace' }
+// Only the fixture's labels: a trigger template ({name}), panel and sign-out text.
+function partialLabels(given: Record<string, string>) {
+  const { trigger, ...text } = given
+  return { ...text, ...(trigger === undefined ? {} : { trigger: (name: string) => trigger.replace('{name}', name) }) }
+}
 const trigger = () => document.querySelector<HTMLButtonElement>('.hl-user-menu__trigger')!
 const action = (id: string, label: string, onActivate = vi.fn(), extra: Partial<UserMenuItem> = {}) => ({ id, kind: 'action', label, onActivate, ...extra }) as UserMenuItem
 
@@ -217,6 +222,22 @@ const assertions: Record<string, (entry: Case) => void | Promise<void>> = {
     render(<HarborlineLocaleProvider locale={input.hostCatalog.locale} catalog={input.hostCatalog.entries}><UserMenu identity={{ name: input.name }} labels={input.labels} onSignOut={vi.fn()}/></HarborlineLocaleProvider>)
     const { panel, signOut } = menuNames()
     expect({ panel, signOut }).toEqual(expected)
+  },
+  'user-menu.partial-labels': ({ input, expected }) => {
+    // Each fixture label sets that field of a Partial labels object; every field it omits comes from the catalog.
+    // Every name is asserted.
+    const menu = (labels: Record<string, string>) => <HarborlineLocaleProvider locale={input.hostCatalog.locale} catalog={input.hostCatalog.entries}><UserMenu identity={{ name: input.name }} labels={partialLabels(labels)} onSignOut={vi.fn()}/></HarborlineLocaleProvider>
+    const view = render(menu(input.labels))
+    expect(menuNames()).toEqual(expected.partial)
+    // Blank labels (ECMA-262 white space and line terminators only, U+FEFF included) fall back; a U+0085-only label is kept.
+    view.unmount()
+    render(menu(input.blankLabels))
+    expect(menuNames()).toEqual(expected.blank)
+  },
+  'user-menu.catalog-blank-set': ({ input, expected }) => {
+    // Host catalog text made only of U+FEFF is blank and falls back to the default catalog; only U+0085 is kept.
+    render(<HarborlineLocaleProvider locale={input.hostCatalog.locale} catalog={input.hostCatalog.entries}><UserMenu identity={{ name: input.name }} onSignOut={vi.fn()}/></HarborlineLocaleProvider>)
+    expect(menuNames()).toEqual(expected)
   },
   'user-menu.invalid-input': ({ input, expected }) => {
     const silence = vi.spyOn(console, 'error').mockImplementation(() => undefined)
