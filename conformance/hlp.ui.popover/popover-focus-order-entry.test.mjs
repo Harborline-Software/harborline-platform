@@ -122,3 +122,101 @@ describe('Popover Blazor focus order: radio groups as one stop (b31 re-review te
     expect(press()[0]).toBe('native')
   })
 })
+
+// b31 final check: a caller's own handler on the trigger runs first and can take Tab, whether bound on the
+// trigger or delegated from the document as Blazor's event handlers are; the popover's entry runs after
+// them (on window, after Blazor's dispatch), finds the trigger by its marker when the key arrives, and
+// still beats a modal Dialog's trap, measured with the real dialog.js and sheet.js.
+import { connect as connectSheet } from '../../projections/blazor/ui/hlp.ui.sheet/wwwroot/sheet.js'
+
+describe('Popover Blazor focus order: a caller\'s trigger handler runs first (b31 final check)', () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['requestAnimationFrame', 'cancelAnimationFrame'] })
+    globalThis.ResizeObserver ??= class { observe() {} disconnect() {} }
+  })
+  afterEach(() => { while (connections.length) connections.pop().dispose(); vi.useRealTimers(); document.body.replaceChildren() })
+  const page = '<button>Before</button><button id=t>Open</button><button id=cu>Custom</button>'
+  const takeTab = event => { if (event.key === 'Tab' && !event.defaultPrevented) { event.preventDefault(); document.getElementById('cu').focus() } }
+
+  it('a handler bound on the trigger after open that takes Tab wins', () => {
+    build(page, 't', '<button>Apply</button>')
+    document.getElementById('t').addEventListener('keydown', takeTab)
+    focus('#t')
+    expect(press()).toEqual(['handled', 'Custom'])
+  })
+
+  it('a handler delegated from the document (as Blazor dispatches @onkeydown) that takes Tab wins', () => {
+    build(page, 't', '<button>Apply</button>')
+    const delegated = event => { if (event.target.id === 't') takeTab(event) }
+    document.addEventListener('keydown', delegated)
+    try {
+      focus('#t')
+      expect(press()).toEqual(['handled', 'Custom'])
+    } finally { document.removeEventListener('keydown', delegated) }
+  })
+
+  it('a caller handler that leaves Tab alone keeps the popover\'s entry', () => {
+    build(page, 't', '<button>Apply</button>')
+    const seen = []
+    document.getElementById('t').addEventListener('keydown', event => seen.push(event.key))
+    focus('#t')
+    expect([...press(), seen.join()]).toEqual(['handled', 'Apply', 'Tab'])
+  })
+
+  it('a trigger replaced while open is found by its marker: Tab on the new element enters the content', () => {
+    build(page, 't', '<button>Apply</button>')
+    const old = document.getElementById('t')
+    old.replaceWith(old.cloneNode(true))
+    focus('#t')
+    expect(press()).toEqual(['handled', 'Apply'])
+  })
+
+  it('the swap repro inside a modal Dialog (Close | Pick, Pick replaced while open): Tab enters the content, not the trap', () => {
+    const portal = Object.assign(document.createElement('div'), { className: 'hl-dialog__portal',
+      innerHTML: '<section role=dialog aria-modal=true tabindex=-1><button aria-label=Close>x</button><div class=hl-dialog__body><button id=t aria-expanded=true>Pick</button></div></section>' })
+    document.body.append(portal)
+    const dialog = connectDialog(portal, portal.firstChild, portal.querySelector('.hl-dialog__body'), callback, true)
+    vi.advanceTimersToNextFrame()
+    const trigger = document.getElementById('t')
+    trigger.dataset.hlPopoverTrigger = 'key-t'
+    const content = Object.assign(document.createElement('div'), { tabIndex: -1, innerHTML: '<button>Option</button>', className: 'hl-popover__content' })
+    trigger.after(content)
+    connections.push(connect(trigger, null, content, { triggerId: 'key-t' }, callback))
+    vi.advanceTimersToNextFrame()
+    trigger.replaceWith(trigger.cloneNode(true))
+    focus('#t')
+    try { expect(press()).toEqual(['handled', 'Option']) } finally { dialog.dispose() }
+  })
+
+  it('inside a modal Dialog, Shift+Tab on an open trigger that is the Dialog\'s first stop is still the trap\'s', () => {
+    const portal = Object.assign(document.createElement('div'), { className: 'hl-dialog__portal',
+      innerHTML: '<section role=dialog aria-modal=true tabindex=-1><div class=hl-dialog__body><button id=t aria-expanded=true>Pick</button><button>Done</button></div></section>' })
+    document.body.append(portal)
+    const dialog = connectDialog(portal, portal.firstChild, portal.querySelector('.hl-dialog__body'), callback, true)
+    vi.advanceTimersToNextFrame()
+    const trigger = document.getElementById('t')
+    trigger.dataset.hlPopoverTrigger = 'key-t'
+    const content = Object.assign(document.createElement('div'), { tabIndex: -1, innerHTML: '<button>Option</button>', className: 'hl-popover__content' })
+    trigger.after(content)
+    connections.push(connect(trigger, null, content, { triggerId: 'key-t' }, callback))
+    vi.advanceTimersToNextFrame()
+    focus('#t')
+    try { expect(press(true)).toEqual(['handled', 'Done']) } finally { dialog.dispose() }
+  })
+
+  it('inside a modal Sheet (real sheet.js), Tab on the open trigger enters the content', () => {
+    const portal = Object.assign(document.createElement('div'), { className: 'hl-sheet__portal',
+      innerHTML: '<div role=dialog aria-modal=true tabindex=-1 id=sc><button id=t aria-expanded=true>Pick</button><button aria-label="Close panel">x</button></div>' })
+    document.body.append(portal)
+    const sheet = connectSheet(portal, portal.querySelector('#sc'), null, true, callback)
+    vi.advanceTimersToNextFrame()
+    const trigger = document.getElementById('t')
+    trigger.dataset.hlPopoverTrigger = 'key-t'
+    const content = Object.assign(document.createElement('div'), { tabIndex: -1, innerHTML: '<button>Option</button>', className: 'hl-popover__content' })
+    trigger.after(content)
+    connections.push(connect(trigger, null, content, { triggerId: 'key-t' }, callback))
+    vi.advanceTimersToNextFrame()
+    focus('#t')
+    try { expect(press()).toEqual(['handled', 'Option']) } finally { sheet.dispose() }
+  })
+})

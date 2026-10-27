@@ -124,3 +124,26 @@ describe('Popover focus order inside a modal Dialog: the way in (b31 re-review)'
     expect(press(done, true)).toEqual(['handled', 'Option'])
   })
 })
+
+// b31 final check: the reviewer's swap repro inside a modal Dialog (Close | Pick, the popover open from
+// Pick, Pick re-rendered as a new element, Tab): the entry still beats the Dialog's trap.
+describe('Popover focus order inside a modal Dialog: a re-rendered trigger (b31 final check)', () => {
+  it('Tab on a trigger re-rendered while open, last in the Dialog, enters the content', async () => {
+    function SwapInDialog() {
+      const [generation, setGeneration] = React.useState(0)
+      return <><button type="button" onClick={() => setGeneration(value => value + 1)}>Swap</button>
+        <Dialog open onOpenChange={() => {}} title="Settings">
+          <Popover defaultOpen><PopoverTrigger key={generation}>Pick</PopoverTrigger><PopoverContent aria-label="Picker"><button type="button">Option</button></PopoverContent></Popover>
+        </Dialog></>
+    }
+    render(<SwapInDialog/>)
+    await act(async () => { await Promise.resolve() })
+    const before = screen.getByRole('button', { name: 'Pick' })
+    act(() => { (screen.getByText('Swap') as HTMLButtonElement).click() })
+    await act(async () => { await Promise.resolve() })
+    const pick = screen.getByRole('button', { name: 'Pick' })
+    expect(pick).not.toBe(before)
+    pick.focus()
+    expect([fireEvent.keyDown(pick, { key: 'Tab' }) ? 'native' : 'handled', state().focus]).toEqual(['handled', 'Option'])
+  })
+})

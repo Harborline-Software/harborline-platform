@@ -97,3 +97,51 @@ describe('Popover focus order: radio groups as one stop (b31 re-review test gap)
     expect(press(named('R1'))[0]).toBe('native')
   })
 })
+
+// b31 final check: a caller's own key handler on the trigger runs first and can take Tab; the popover's
+// entry runs only when the caller left the key alone, and follows a trigger re-rendered while open.
+describe('Popover focus order: a caller\'s trigger handler runs first (b31 final check)', () => {
+  const takeTab = (event: React.KeyboardEvent) => {
+    if (event.key !== 'Tab' || event.defaultPrevented) return
+    event.preventDefault()
+    named('Custom').focus()
+  }
+
+  it('a caller onKeyDown on the trigger that takes Tab wins', async () => {
+    render(<><Popover defaultOpen><PopoverTrigger onKeyDown={takeTab}>Open</PopoverTrigger><PopoverContent aria-label="Details"><button type="button">Apply</button></PopoverContent></Popover><button type="button">Custom</button></>)
+    await settle()
+    named('Open').focus()
+    expect(press(named('Open'))).toEqual(['handled', 'Custom'])
+  })
+
+  it('an asChild trigger\'s own onKeyDown that takes Tab wins', async () => {
+    render(<><Popover defaultOpen><PopoverTrigger asChild><button type="button" onKeyDown={takeTab}>Open</button></PopoverTrigger><PopoverContent aria-label="Details"><button type="button">Apply</button></PopoverContent></Popover><button type="button">Custom</button></>)
+    await settle()
+    named('Open').focus()
+    expect(press(named('Open'))).toEqual(['handled', 'Custom'])
+  })
+
+  it('a caller onKeyDown that leaves Tab alone keeps the popover\'s entry', async () => {
+    const seen: string[] = []
+    render(<Popover defaultOpen><PopoverTrigger onKeyDown={event => seen.push(event.key)}>Open</PopoverTrigger><PopoverContent aria-label="Details"><button type="button">Apply</button></PopoverContent></Popover>)
+    await settle()
+    named('Open').focus()
+    expect([...press(named('Open')), seen.join()]).toEqual(['handled', 'Apply', 'Tab'])
+  })
+
+  it('a trigger re-rendered as a new element while open still enters the content', async () => {
+    function Swap() {
+      const [generation, setGeneration] = React.useState(0)
+      return <><button type="button" onClick={() => setGeneration(value => value + 1)}>Swap</button>
+        <Popover defaultOpen><PopoverTrigger key={generation}>Open</PopoverTrigger><PopoverContent aria-label="Details"><button type="button">Apply</button></PopoverContent></Popover></>
+    }
+    render(<Swap/>)
+    await settle()
+    const before = named('Open')
+    fireEvent.click(named('Swap'))
+    await settle()
+    expect(named('Open')).not.toBe(before)
+    named('Open').focus()
+    expect(press(named('Open'))).toEqual(['handled', 'Apply'])
+  })
+})
