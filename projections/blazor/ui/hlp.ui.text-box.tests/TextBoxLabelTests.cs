@@ -98,4 +98,15 @@ public sealed class TextBoxLabelTests : BunitContext
         var box = Render<Microsoft.AspNetCore.Components.CascadingValue<Harborline.UIAdapters.Blazor.Components.Forms.FormFieldContextValue>>(p => p.Add(x => x.Value, field).AddChildContent<HarborlineTextBox>(c => c.Add(x => x.AccessibleName, name).AddUnmatched("aria-labelledby", "own"))).Find("input");
         Assert.Equal((null, "own"), (box.GetAttribute("aria-label"), box.GetAttribute("aria-labelledby")));
     }
+
+    // A null aria-labelledby from the caller is no value: the FormField label still names the input.
+    [Theory]
+    [InlineData(null)]
+    [InlineData(" ")]
+    public void TreatsANullCallerAriaLabelledByAsUnset(string? name)
+    {
+        var field = new Harborline.UIAdapters.Blazor.Components.Forms.FormFieldContextValue("email", "email-label", null, false, false);
+        var box = Render<Microsoft.AspNetCore.Components.CascadingValue<Harborline.UIAdapters.Blazor.Components.Forms.FormFieldContextValue>>(p => p.Add(x => x.Value, field).AddChildContent<HarborlineTextBox>(c => c.Add(x => x.AccessibleName, name).AddUnmatched("aria-labelledby", (object?)null!))).Find("input");
+        Assert.Equal((null, "email-label"), (box.GetAttribute("aria-label"), box.GetAttribute("aria-labelledby")));
+    }
 }
