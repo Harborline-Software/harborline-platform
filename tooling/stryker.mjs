@@ -16,8 +16,11 @@
 // Stryker's exit code is not evidence: 5.0.0 exits 0 having mutated nothing (T-720 spike, 2026-09-24), so every mode
 // reads the report. Run it from a plain clone: in a linked worktree `since` diffs the main checkout, marks every
 // mutant Ignored and exits 0 (the report assertion catches that too).
-import {execFileSync, spawnSync} from 'node:child_process'
-import {existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync} from 'node:fs'
+import {execFileSync, spawn} from 'node:child_process'
+import {closeSync, existsSync, fstatSync, fsyncSync, mkdirSync, mkdtempSync, openSync, readdirSync, readFileSync, readSync, rmSync, writeFileSync} from 'node:fs'
+import {createHash} from 'node:crypto'
+import {StringDecoder} from 'node:string_decoder'
+import {cleanUpScratchOnSignal, killProcessTreeSync} from './resolve-command.mjs'
 import path from 'node:path'
 
 const root = path.resolve(import.meta.dirname, '..')
@@ -202,14 +205,58 @@ function razorRun(target, changed) {
     HarborlineStrykerRazorProject: path.join(root, target)}}
 }
 
+function writeConsole(bytes, signal) {
+  const stream = process.stdout
+  return new Promise((resolve, reject) => {
+    let returned = false, callbackDone = false, drained = false, needsDrain = false, settled = false, failed = false
+    const unguard = () => {
+      stream.removeListener('error', onError)
+      stream.removeListener('close', onClose)
+      stream.removeListener('drain', onDrain)
+    }
+    const settle = error => {
+      if (error) failed = true
+      if (settled) return
+      settled = true
+      signal?.removeEventListener('abort', onAbort)
+      if (error) reject(error)
+      else resolve()
+      if (returned && callbackDone && (!needsDrain || drained) && !failed) unguard()
+    }
+    const complete = () => {
+      if (returned && callbackDone && (!needsDrain || drained) && !failed) { settle(); unguard() }
+    }
+    const onError = error => { settle(error); unguard() }
+    const onClose = () => { settle(new Error('Console closed before delivery')); unguard() }
+    const onDrain = () => { drained = true; complete() }
+    const onAbort = () => settle()
+    if (signal?.aborted) { resolve(); return }
+    stream.on('error', onError)
+    stream.on('close', onClose)
+    stream.on('drain', onDrain)
+    signal?.addEventListener('abort', onAbort, {once: true})
+    try {
+      needsDrain = !stream.write(bytes, error => {
+        callbackDone = true
+        if (error) settle(error)
+        else complete()
+        // A failed callback precedes the error event; cancellation also retains this guard until settlement.
+      })
+      returned = true
+      complete()
+    } catch (error) { settle(error); unguard() }
+  })
+}
+
 // One Stryker run for a configured test project. changed: the source files changed since origin/main (PR mode), or
 // undefined for a full run over every mutant. Stryker never judges the score itself (break 0 here): the wrapper
 // compares the full-project report against the floor in both PR and full modes (owner order 2026-09-30).
-function mutateProject(test, changed, strykerArgs) {
+export async function mutateProject(test, changed, strykerArgs, command = ['dotnet', 'stryker'], stopProcess = killProcessTreeSync) {
   const testDirectory = path.posix.dirname(test), target = targetOf(test, read), config = configOf(test, read)
-  const output = path.join(root, 'StrykerOutput', path.posix.basename(testDirectory))
-  rmSync(output, {recursive: true, force: true})
-  mkdirSync(output, {recursive: true})
+  mkdirSync(path.join(root, 'StrykerOutput'), {recursive: true})
+  const output = mkdtempSync(path.join(root, 'StrykerOutput', `${path.posix.basename(testDirectory)}-`))
+  const diagnostics = path.join(output, 'diagnostics')
+  mkdirSync(diagnostics)
   const razor = read(target).includes('Microsoft.NET.Sdk.Razor') ? razorRun(target, changed) : undefined
   const override = {
     ...(razor || !changed ? {since: {enabled: false}} : {}),
@@ -217,13 +264,234 @@ function mutateProject(test, changed, strykerArgs) {
     thresholds: {...config.thresholds, break: 0}}
   const configFile = path.join(output, 'stryker-config.json')
   writeFileSync(configFile, JSON.stringify({'stryker-config': {...config, ...override}}, null, 2))
-  const stryker = spawnSync('dotnet', ['stryker', '--output', output, '--config-file', configFile, ...msbuildArgs(), ...strykerArgs],
-    {cwd: path.join(root, testDirectory), stdio: 'inherit', env: {...process.env, ...razor?.env}})
+  const argv = [...command.slice(1), '--output', output, '--config-file', configFile,
+    ...(command[0] === 'dotnet' ? msbuildArgs() : []), ...strykerArgs]
   const reportPath = path.join(output, 'reports', 'mutation-report.json')
-  const report = existsSync(reportPath) ? JSON.parse(readFileSync(reportPath, 'utf8')) : undefined
-  const counts = report && reportCounts(report)
-  console.log(`${test}: exit ${stryker.status}, ${JSON.stringify(counts ?? 'no json report')}, report ${reportPath}`)
-  return {status: stryker.status, counts, report, reportPath, razor: Boolean(razor)}
+  const attempt = {phase: 'prepared', child: undefined, timer: undefined, failure: undefined, status: null, signal: null,
+    started: Date.now(), bytes: {stdout: 0, stderr: 0, nativeDebug: 0}, logs: new Map(), handles: [], terminal: false}
+  const fail = (cause, error) => {
+    if (cause === 'observer') attempt.observerFailed = true
+    attempt.failure ??= {kind: 'failed', cause, ...(error ? {error: String(error.message ?? error)} : {})}
+  }
+  const persist = (name, data) => writeFileSync(path.join(diagnostics, name), `${JSON.stringify(data, null, 2)}\n`, {flush: true})
+  const append = (fd, bytes) => { writeFileSync(fd, bytes); fsyncSync(fd) }
+  const open = (name, flags = 'a') => {
+    const fd = openSync(path.join(diagnostics, name), flags)
+    attempt.handles.push(fd)
+    return fd
+  }
+  let journal, reader, report, counts, dispose = () => {}, disposeChild = () => {}, interruption
+  const delivery = {end: 0, cursor: 0, lineStart: true, active: undefined, stopped: false,
+    abort: new AbortController(), buffer: Buffer.alloc(64 * 1024)}
+  const prefix = Buffer.from('[stryker-diagnostic] ')
+  const stopDelivery = () => { delivery.stopped = true; delivery.abort.abort() }
+  const pump = () => {
+    if (delivery.active || delivery.stopped) return
+    delivery.active = (async () => {
+      while (!delivery.stopped && delivery.cursor < delivery.end) {
+        const start = delivery.lineStart ? prefix.copy(delivery.buffer) : 0
+        const length = readSync(reader, delivery.buffer, start,
+          Math.min(delivery.buffer.length - start, delivery.end - delivery.cursor), delivery.cursor)
+        if (!length) throw new Error('Diagnostic journal ended before committed bytes')
+        const newline = delivery.buffer.subarray(start, start + length).indexOf(10)
+        const size = newline < 0 ? length : newline + 1
+        await writeConsole(delivery.buffer.subarray(0, start + size), delivery.abort.signal)
+        if (delivery.stopped) break
+        delivery.cursor += size
+        delivery.lineStart = newline >= 0
+      }
+    })().catch(error => { if (!delivery.stopped) observerFailure(error) }).finally(() => {
+      delivery.active = undefined
+      if (!delivery.stopped && delivery.cursor < delivery.end) pump()
+    })
+  }
+  const delivered = async () => { while (delivery.active) await delivery.active }
+  const decoders = {stdout: new StringDecoder('utf8'), stderr: new StringDecoder('utf8')}
+  const emit = (source, payload) => {
+    const record = {at: new Date().toISOString(), source, payload}
+    const bytes = Buffer.from(`${JSON.stringify(record)}\n`)
+    append(journal, bytes)
+    delivery.end += bytes.length
+    pump()
+  }
+  const tail = (final = false) => {
+    const directory = path.join(output, 'logs')
+    if (!existsSync(directory)) return
+    for (const name of readdirSync(directory).filter(name => /^log-\d{8}\.txt$/.test(name))) {
+      const fd = openSync(path.join(directory, name), 'r')
+      try {
+        const stat = fstatSync(fd)
+        let log = attempt.logs.get(name)
+        if (!log || log.ino !== stat.ino || stat.size < log.offset) {
+          if (log) emit('nativeDebug', {file: name, line: log.pending + log.decoder.end(), rotation: true})
+          log = {ino: stat.ino, offset: 0, pending: '', decoder: new StringDecoder('utf8')}
+          attempt.logs.set(name, log)
+        }
+        const buffer = Buffer.alloc(64 * 1024)
+        while (log.offset < stat.size) {
+          const length = readSync(fd, buffer, 0, Math.min(buffer.length, stat.size - log.offset), log.offset)
+          if (!length) break
+          log.offset += length
+          attempt.bytes.nativeDebug += length
+          log.pending += log.decoder.write(buffer.subarray(0, length))
+          const lines = log.pending.split('\n')
+          log.pending = lines.pop()
+          for (const line of lines) emit('nativeDebug', {file: name, line: line.replace(/\r$/, '')})
+        }
+        if (final) {
+          log.pending += log.decoder.end()
+          if (log.pending) emit('nativeDebug', {file: name, line: log.pending})
+          log.pending = ''
+        }
+      } finally { closeSync(fd) }
+    }
+  }
+  const result = () => ({outcome: attempt.failure ?? {kind: 'completed'}, status: attempt.status, signal: attempt.signal,
+    pid: attempt.pid, ...(attempt.cleanupUnavailable ? {cleanupUnavailable: true, descendantsUnknown: true} : {}),
+    ...(attempt.observerFailed ? {observerFailed: true} : {}),
+    counts, report, reportPath, output, razor: Boolean(razor)})
+  const terminal = () => {
+    if (attempt.terminal) return
+    attempt.terminal = true
+    const {report: ignored, counts: ignoredCounts, ...summary} = result()
+    emit('terminal', {...summary, elapsedMs: Date.now() - attempt.started,
+      bytes: attempt.bytes, reportPath})
+  }
+  const checkpoint = () => {
+    try { const {report: ignored, ...summary} = result(); persist('result.json', summary) } catch (error) { fail('observer', error) }
+    try { terminal() } catch (error) { fail('observer', error) }
+  }
+  const stopOwned = () => {
+    if (attempt.cleanupUnavailable) return
+    const child = attempt.child
+    attempt.child = undefined
+    let stopped = attempt.phase !== 'draining'
+    if (child) {
+      try { stopped = child.exitCode === null && child.signalCode === null && stopProcess(child.pid) === true }
+      catch { stopped = false }
+    }
+    if (!stopped) attempt.cleanupUnavailable = true
+  }
+  const observerFailure = error => {
+    fail('observer', error)
+    stopDelivery()
+    stopOwned()
+    if (attempt.cleanupUnavailable) {
+      checkpoint()
+      disposeChild()
+    }
+  }
+  const signals = Object.fromEntries(['SIGINT', 'SIGTERM'].map(signal => [signal, () => { interruption = signal }]))
+  const consoleClosed = () => observerFailure(new Error('Console closed before delivery'))
+  try {
+    journal = open('progress.jsonl')
+    reader = open('progress.jsonl', 'r')
+    const raw = {stdout: open('stdout.log'), stderr: open('stderr.log')}
+    persist('attempt.json', {at: new Date().toISOString(), test, target, sourceCommit: git('rev-parse', 'HEAD')[0],
+      executable: command[0], argv, cwd: path.join(root, testDirectory), output, configFile,
+      wrapperSha256: createHash('sha256').update(readFileSync(import.meta.filename)).digest('hex'),
+      configSha256: createHash('sha256').update(readFileSync(configFile)).digest('hex')})
+    for (const [signal, listener] of Object.entries(signals)) process.once(signal, listener)
+    process.stdout.on('error', observerFailure)
+    process.stdout.on('close', consoleClosed)
+    dispose = cleanUpScratchOnSignal(() => {
+      if (!interruption) return
+      fail('interrupted')
+      attempt.signal ??= interruption
+      stopDelivery()
+      stopOwned()
+      try { tail(true) } catch (error) { fail('observer', error) }
+      checkpoint()
+      if (attempt.cleanupUnavailable) disposeChild()
+    })
+    emit('prepared', {test, output, configFile})
+    await delivered()
+    if (!attempt.observerFailed && !interruption) await new Promise(resolve => {
+      const child = spawn(command[0], argv, {cwd: path.join(root, testDirectory), stdio: ['ignore', 'pipe', 'pipe'],
+        detached: process.platform !== 'win32', env: {...process.env, ...razor?.env}})
+      attempt.child = child
+      attempt.pid = child.pid ?? null
+      attempt.phase = 'running'
+      disposeChild = () => {
+        clearInterval(attempt.timer)
+        child.stdout.destroy()
+        child.stderr.destroy()
+        child.unref()
+        resolve()
+      }
+      for (const source of ['stdout', 'stderr']) {
+        child[source].on('data', bytes => {
+          try {
+            append(raw[source], bytes)
+            attempt.bytes[source] += bytes.length
+            const text = decoders[source].write(bytes)
+            if (text) emit(source, text)
+          } catch (error) { observerFailure(error) }
+        })
+        child[source].on('error', observerFailure)
+      }
+      child.on('error', error => { fail('spawn', error) })
+      child.on('exit', (code, signal) => {
+        attempt.child = undefined
+        if (attempt.cleanupUnavailable) return
+        attempt.phase = 'draining'
+        attempt.status = code
+        attempt.signal ??= signal
+        if (signal || code !== 0) fail(signal ? 'signal' : 'exit')
+      })
+      child.on('close', (code, signal) => {
+        attempt.child = undefined
+        if (!attempt.cleanupUnavailable) {
+          attempt.phase = 'closed'
+          attempt.status = code
+          attempt.signal ??= signal
+          if (signal || code !== 0) fail(signal ? 'signal' : 'exit')
+        }
+        resolve()
+      })
+      attempt.timer = setInterval(() => {
+        try {
+          tail()
+          emit('heartbeat', {phase: attempt.phase, pid: attempt.child?.pid ?? null, childPid: attempt.pid, elapsedMs: Date.now() - attempt.started,
+            bytes: attempt.bytes})
+        } catch (error) { observerFailure(error) }
+      }, 1000)
+    })
+    clearInterval(attempt.timer)
+    if (!attempt.cleanupUnavailable) {
+      tail(true)
+      for (const source of ['stdout', 'stderr']) {
+        const text = decoders[source].end()
+        if (text) emit(source, text)
+      }
+      try {
+        report = JSON.parse(readFileSync(reportPath, 'utf8'))
+        const finalStatuses = new Set(['Killed', 'Survived', 'Timeout', 'CompileError', 'Ignored', 'NoCoverage', 'RuntimeError'])
+        if (!report || !report.files || Array.isArray(report.files) || typeof report.files !== 'object' ||
+            Object.values(report.files).some(file => !file || !Array.isArray(file.mutants) ||
+              file.mutants.some(mutant => !mutant || !finalStatuses.has(mutant.status)))) throw new Error('Invalid mutation report files/mutants')
+        counts = reportCounts(report)
+      } catch (error) { fail('report', error) }
+    }
+  } catch (error) { observerFailure(error) }
+  finally {
+    clearInterval(attempt.timer)
+    attempt.child = undefined
+    await delivered()
+    checkpoint()
+    await delivered()
+    stopDelivery()
+    dispose()
+    for (const [signal, listener] of Object.entries(signals)) process.removeListener(signal, listener)
+    process.stdout.removeListener('error', observerFailure)
+    process.stdout.removeListener('close', consoleClosed)
+    attempt.phase = 'finished'
+    for (const fd of attempt.handles) {
+      try { closeSync(fd) } catch (error) { fail('observer', error) }
+    }
+    try { const {report: ignored, ...summary} = result(); persist('result.json', summary) } catch (error) { fail('observer', error) }
+  }
+  return result()
 }
 
 // Lines added or changed since origin/main, per repository-relative file, from `git diff -U0` hunk headers.
@@ -257,12 +525,16 @@ export function survivorsOnChangedLines(report, lines, repositoryRoot = root) {
   return found
 }
 
-function summarize(markdown) {
+async function summarize(markdown) {
   if (process.env.GITHUB_STEP_SUMMARY) writeFileSync(process.env.GITHUB_STEP_SUMMARY, `${markdown}\n`, {flag: 'a'})
-  console.log(markdown)
+  try { await writeConsole(`${markdown}\n`); return true } catch { return false }
 }
 
-const selected = (repo, only) => repo.testProjects.filter(test => !(test in repo.exclusions) && (!only || test.includes(only)))
+const selected = (repo, only) => {
+  const tests = repo.testProjects.filter(test => !(test in repo.exclusions) && (!only || test.includes(only)))
+  if (only && !tests.length) throw new Error(`No configured mutation target matches ${only}`)
+  return tests
+}
 
 // The gate both modes share: a run with no tested mutant, or a score below the floor, fails. A null score (nothing
 // detected or undetected) fails too, because `null >= floor` is false.
@@ -277,39 +549,66 @@ export function scoreVerdict(report, floor) {
 // project's own, comparable with its break) and fails when that score is below max(baseline, configured break). Survivors
 // on changed lines are still listed as review feedback. The Stryker.NET `since` score covers changed mutants only, which
 // is noisy and gameable (a one-line change hides a project's regression); its incremental mode needs a stored baseline report.
-function run(repo, only, strykerArgs) {
-  let failed = false
+export async function run(repo, only, strykerArgs, mutate = mutateProject, sourceChanges = changedSourceFiles) {
+  let failed = 0
   for (const test of selected(repo, only)) {
     const target = targetOf(test, read), targetText = read(target)
-    const changed = changedSourceFiles(target, targetText)
-    if (!changed.length) { summarize(`- ${test}: skipped; no project-file or production .cs${targetText.includes('Microsoft.NET.Sdk.Razor') ? '/.razor' : ''} change since origin/main (test-only changes do not select a project under PR #236).`); continue }
-    summarize(`- ${test}: selected for full-project mutation; changed source: ${changed.map(file => `\`${file}\``).join(', ')}.`)
-    const {report, razor: isRazor} = mutateProject(test, undefined, strykerArgs)
+    const changed = sourceChanges(target, targetText)
+    if (!changed.length) {
+      if (!await summarize(`- ${test}: skipped; no project-file or production .cs${targetText.includes('Microsoft.NET.Sdk.Razor') ? '/.razor' : ''} change since origin/main (test-only changes do not select a project under PR #236).`)) return failed || 1
+      continue
+    }
+    if (!await summarize(`- ${test}: selected for full-project mutation; changed source: ${changed.map(file => `\`${file}\``).join(', ')}.`)) return failed || 1
+    const result = await mutate(test, undefined, strykerArgs)
+    if (result.signal) return {signal: result.signal}
+    if (result.observerFailed || result.cleanupUnavailable) return result.status > 0 ? result.status : 1
+    if (result.outcome.kind === 'failed') {
+      failed ||= result.status > 0 ? result.status : 1
+      if (!await summarize(`- ${test}: **FAIL**, ${JSON.stringify(result.outcome)}`)) return failed
+      continue
+    }
+    const {report, razor: isRazor} = result
     const floor = fullModeBreak(repo.baselines[test], configOf(test, read)), verdict = scoreVerdict(report, floor)
     const razorMissing = isRazor && !razorTested(report)
     const survivors = report ? survivorsOnChangedLines(report, changedLines(git('diff', '-U0', 'origin/main', '--', ...changed).join('\n'))) : []
-    if (!verdict.ok || razorMissing) failed = true
-    summarize([`### ${test}`, '', !verdict.ok ? `**FAIL**: ${verdict.reason}.` : razorMissing ? '**FAIL**: Razor project but 0 Razor mutants tested.'
+    if (!verdict.ok || razorMissing) failed ||= 1
+    if (!await summarize([`### ${test}`, '', !verdict.ok ? `**FAIL**: ${verdict.reason}.` : razorMissing ? '**FAIL**: Razor project but 0 Razor mutants tested.'
       : `${verdict.counts.tested} mutants tested, score ${verdict.counts.score} %, break ${floor}.`, '',
       survivors.length ? '| file | line | status | mutator | replacement |\n|---|---|---|---|---|' : 'No surviving or uncovered mutant on a changed line.',
-      ...survivors.map(s => `| ${s.file} | ${s.line} | ${s.status} | ${s.mutator} | \`${String(s.replacement ?? '').replaceAll('|', '\\|').replaceAll('\n', ' ').slice(0, 80)}\` |`)].join('\n'))
+      ...survivors.map(s => `| ${s.file} | ${s.line} | ${s.status} | ${s.mutator} | \`${String(s.replacement ?? '').replaceAll('|', '\\|').replaceAll('\n', ' ').slice(0, 80)}\` |`)].join('\n'))) return failed || 1
   }
   return failed
 }
 
 // Full mode (the scheduled run on main): every mutant of every selected project; fail on 0 tested or a score below
 // the project's recorded baseline. `record` measures instead of judging and writes the baseline and the config's break.
-function full(repo, only, strykerArgs, record) {
-  let failed = false
+export async function full(repo, only, strykerArgs, record, mutate = mutateProject) {
+  let failed = 0
   const commit = git('rev-parse', 'HEAD')[0], measured = new Date().toISOString().slice(0, 10)
   for (const test of selected(repo, only)) {
-    const {counts, report, razor: isRazor} = mutateProject(test, undefined, strykerArgs)
-    if (!counts?.tested) { summarize(`- ${test}: **FAIL**, 0 mutants tested`); failed = true; continue }
-    if (isRazor && !razorTested(report)) { summarize(`- ${test}: **FAIL**, Razor project but 0 Razor mutants tested; nothing recorded`); failed = true; continue }
+    const result = await mutate(test, undefined, strykerArgs)
+    if (result.signal) return {signal: result.signal}
+    if (result.observerFailed || result.cleanupUnavailable) return result.status > 0 ? result.status : 1
+    if (result.outcome.kind === 'failed') {
+      failed ||= result.status > 0 ? result.status : 1
+      if (!await summarize(`- ${test}: **FAIL**, ${JSON.stringify(result.outcome)}; nothing recorded`)) return failed
+      continue
+    }
+    const {counts, report, razor: isRazor} = result
+    if (!counts?.tested) {
+      if (!await summarize(`- ${test}: **FAIL**, 0 mutants tested`)) return failed || 1
+      failed ||= 1
+      continue
+    }
+    if (isRazor && !razorTested(report)) {
+      if (!await summarize(`- ${test}: **FAIL**, Razor project but 0 Razor mutants tested; nothing recorded`)) return failed || 1
+      failed ||= 1
+      continue
+    }
     if (!record) {
       const floor = fullModeBreak(repo.baselines[test], configOf(test, read)), below = !(counts.score >= floor)
-      summarize(`- ${test}: ${counts.tested} tested, score ${counts.score} %, break ${floor}${below ? ' **FAIL**' : ''}`)
-      if (below) failed = true
+      if (!await summarize(`- ${test}: ${counts.tested} tested, score ${counts.score} %, break ${floor}${below ? ' **FAIL**' : ''}`)) return failed || 1
+      if (below) failed ||= 1
       continue
     }
     const thresholds = thresholdsFor(counts.score)
@@ -331,11 +630,13 @@ if (import.meta.main) {
     throw new Error('usage: node tooling/stryker.mjs check | run | full | baseline [test-project-path-fragment] [-- stryker args]')
   }
   const repo = repository()
-  if (command === 'baseline') process.exit(full(repo, only, strykerArgs, true) ? 1 : 0)
-  const problems = configProblems(repo)
+  selected(repo, only)
+  const problems = command === 'baseline' ? [] : configProblems(repo)
   problems.forEach(problem => console.error(problem))
   if (problems.length) process.exit(1)
-  console.log(`Stryker config: ${repo.testProjects.length} test project(s), each configured or excluded: PASS`)
-  if (command === 'run' && run(repo, only, strykerArgs)) process.exit(1)
-  if (command === 'full' && full(repo, only, strykerArgs, false)) process.exit(1)
+  if (command !== 'baseline') await writeConsole(`Stryker config: ${repo.testProjects.length} test project(s), each configured or excluded: PASS\n`)
+  const outcome = command === 'run' ? await run(repo, only, strykerArgs)
+    : command === 'full' || command === 'baseline' ? await full(repo, only, strykerArgs, command === 'baseline') : 0
+  if (outcome.signal) process.kill(process.pid, outcome.signal)
+  else process.exitCode = outcome
 }
