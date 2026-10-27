@@ -2884,11 +2884,11 @@
       "sourceExtracted": true,
       "sourceState": "Interface revision 1 preserves the exact pinned hlp.ui.text-box source surface and proves every registered projection through native, shared-conformance, package-only, and applicable gallery/performance gates.",
       "contentHashes": {
-        "conformance/hlp.ui.text-box/fixtures.yaml": "9d43c09c425fa06ab941a22cade8cc3c45c7f053dc0e8b1af3830267086a018d",
+        "conformance/hlp.ui.text-box/fixtures.yaml": "fec3633671320e61669a370068e36bfe5d4227a0710655a523322605dcd15766",
         "conformance/hlp.ui.text-box/quality-fixtures.yaml": "de9656790036991185ad8f1fcbc2d7d970f7261a8aa0328ac4a1a5db2dcab464",
         "conformance/hlp.ui.text-box/runners/run-shared.mjs": "82f59ba914f998a3d93aa8f07c69f634d6af68398b3cce3c7f09e6c88c015fde",
-        "projections/blazor/ui/hlp.ui.text-box/HarborlineTextBox.razor": "7c20cad4ba92dc8738d65b839f08b23b3fb2c995b6ccf5625fc9bdc8a2ed7132",
-        "projections/react/ui/hlp.ui.text-box/src/TextBox.tsx": "4e2bdfae04c0d8b09a908e5b704d0194871f25b83256027a931aab18c1c166ca",
+        "projections/blazor/ui/hlp.ui.text-box/HarborlineTextBox.razor": "81ee4a299e4dc8705fa6aa6e12ff0b88a63027afaee2e0112353759e35299ad3",
+        "projections/react/ui/hlp.ui.text-box/src/TextBox.tsx": "907a8a8e3d2e34ca9527de4741fe7ee6edd9d356660f9beb2199aadc7d17d36b",
         "projections/react/ui/hlp.ui.text-box/src/__tests__/TextBox.conformance.test.tsx": "8bbcac1ffba8de6373c3a8fdfac177d7b6e3e2953ebc6f620cd8ad3a0876fc49",
         "projections/react/ui/hlp.ui.text-box/src/__tests__/TextBox.native.test.tsx": "e5209535882699570c9cd66d96b497e812914f1700710916b974ddd1fcc4c670",
         "projections/react/ui/hlp.ui.text-box/src/__tests__/fixtures.ts": "20652dd0122d03b7a1db483c35ab6793c9f0d667fa7f72045e7e7c76607822d1",
@@ -2896,7 +2896,7 @@
         "projections/react/ui/hlp.ui.text-box/src/test-setup.ts": "097040beeb2cc914b87790306bc835eef4a06321fa3594a6938b6754641ac2ff",
         "projections/react/ui/hlp.ui.text-box/tsconfig.build.json": "4f66bba78ff63f04b8e22c5a083d5ce42f784b13040608c8572d67c09939bcfe",
         "projections/react/ui/hlp.ui.text-box/vitest.config.ts": "566490ab7568e089734ef0931fe1ab70aa0b82395f685355b848add23054313d",
-        "specs/modules/ui/hlp.ui.text-box/interface.yaml": "f3df176465d7dc9b7b1592c2dc33fb7f04f1089f7e39bfc4d9778cac9c16ea6c",
+        "specs/modules/ui/hlp.ui.text-box/interface.yaml": "cb54c1cb7783d406efc5a729ee3235092d32e80b460686d6d93ed5947f34eccd",
         "specs/modules/ui/hlp.ui.text-box/quality.yaml": "fb3e14589504e976ad2948fdf4b15a82011c8b2a2ec17ff073b3d8e1a956077c",
         "specs/modules/ui/hlp.ui.text-box/scenarios.json": "052ad53ae5827fa9486ea8a3458210f606a7c387e5a93ea1073da50a5b8c854f",
         "specs/modules/ui/hlp.ui.text-box/style.css": "964f6b43d812f50cb87d78df2063d2334b6548d8a1a443677ea5aeb3197effa2"

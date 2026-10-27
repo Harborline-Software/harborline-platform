@@ -67,4 +67,46 @@ public sealed class TextBoxLabelTests : BunitContext
         Assert.Equal(("Effacer", "Afficher le mot de passe"), Names(Localized("fr-FR", French, "", "   ")));
         Assert.Equal("Clear", Names(Localized("fr-FR", new Dictionary<string, string> { ["common.clear"] = "  " })).Clear);
     }
+
+    // A blank caller name is no name (WCAG 4.1.2): the FormField label still names the input, as Switch does.
+    [Theory]
+    [InlineData(" ")]
+    [InlineData("\t\n")]
+    [InlineData("")]
+    public void IgnoresABlankAccessibleNameSoTheFormFieldLabelNamesTheInput(string name)
+    {
+        var field = new Harborline.UIAdapters.Blazor.Components.Forms.FormFieldContextValue("email", "email-label", null, false, false);
+        var box = Render<Microsoft.AspNetCore.Components.CascadingValue<Harborline.UIAdapters.Blazor.Components.Forms.FormFieldContextValue>>(p => p.Add(x => x.Value, field).AddChildContent<HarborlineTextBox>(c => c.Add(x => x.AccessibleName, name))).Find("input");
+        Assert.Equal((null, "email-label"), (box.GetAttribute("aria-label"), box.GetAttribute("aria-labelledby")));
+    }
+
+    [Fact]
+    public void KeepsANonblankAccessibleNameExactlyOverTheFormFieldLabel()
+    {
+        var field = new Harborline.UIAdapters.Blazor.Components.Forms.FormFieldContextValue("email", "email-label", null, false, false);
+        var box = Render<Microsoft.AspNetCore.Components.CascadingValue<Harborline.UIAdapters.Blazor.Components.Forms.FormFieldContextValue>>(p => p.Add(x => x.Value, field).AddChildContent<HarborlineTextBox>(c => c.Add(x => x.AccessibleName, " Work email "))).Find("input");
+        Assert.Equal((" Work email ", null), (box.GetAttribute("aria-label"), box.GetAttribute("aria-labelledby")));
+    }
+
+    // A caller's explicit aria-labelledby wins over the FormField label, as in React, also with a blank name.
+    [Theory]
+    [InlineData(null)]
+    [InlineData(" ")]
+    public void KeepsACallersExplicitAriaLabelledByOverTheFormFieldLabel(string? name)
+    {
+        var field = new Harborline.UIAdapters.Blazor.Components.Forms.FormFieldContextValue("email", "email-label", null, false, false);
+        var box = Render<Microsoft.AspNetCore.Components.CascadingValue<Harborline.UIAdapters.Blazor.Components.Forms.FormFieldContextValue>>(p => p.Add(x => x.Value, field).AddChildContent<HarborlineTextBox>(c => c.Add(x => x.AccessibleName, name).AddUnmatched("aria-labelledby", "own"))).Find("input");
+        Assert.Equal((null, "own"), (box.GetAttribute("aria-label"), box.GetAttribute("aria-labelledby")));
+    }
+
+    // A null aria-labelledby from the caller is no value: the FormField label still names the input.
+    [Theory]
+    [InlineData(null)]
+    [InlineData(" ")]
+    public void TreatsANullCallerAriaLabelledByAsUnset(string? name)
+    {
+        var field = new Harborline.UIAdapters.Blazor.Components.Forms.FormFieldContextValue("email", "email-label", null, false, false);
+        var box = Render<Microsoft.AspNetCore.Components.CascadingValue<Harborline.UIAdapters.Blazor.Components.Forms.FormFieldContextValue>>(p => p.Add(x => x.Value, field).AddChildContent<HarborlineTextBox>(c => c.Add(x => x.AccessibleName, name).AddUnmatched("aria-labelledby", (object?)null!))).Find("input");
+        Assert.Equal((null, "email-label"), (box.GetAttribute("aria-label"), box.GetAttribute("aria-labelledby")));
+    }
 }

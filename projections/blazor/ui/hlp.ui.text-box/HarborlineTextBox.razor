@@ -14,7 +14,7 @@
 <HarborlineInput Id="@ResolvedId" Name="@Name" Type="@RenderedType" Value="@EffectiveValue"
                ValueChanged="HandleInputAsync" Placeholder="@Placeholder" Direction="@ResolvedDirection"
                Autocomplete="@Autocomplete" InputMode="@InputMode" Required="@ResolvedRequired"
-               Disabled="@ResolvedDisabled" DescribedBy="@ResolvedDescribedBy" AccessibleLabel="@AccessibleName"
+               Disabled="@ResolvedDisabled" DescribedBy="@ResolvedDescribedBy" AccessibleLabel="@ResolvedAccessibleName"
                Size="@Size" FillMode="@FillMode" Rounded="@Rounded" Invalid="@ResolvedInvalid"
                Prefix="@Prefix" Suffix="@ComposedSuffix" Class="@Class" Style="@Style"
                AdditionalAttributes="@InputAttributes" />
@@ -59,7 +59,9 @@
   private bool ResolvedDisabled => Disabled ?? FieldContext?.Disabled ?? false;
   private bool ResolvedInvalid => Error || Invalid;
   private string ResolvedId => Id ?? FieldContext?.Id ?? $"hl-text-box-{instanceId}";
-  private string? LabelledBy => AccessibleName is null ? FieldContext?.LabelId : null;
+  // A blank caller name is no name (WCAG 4.1.2): it is dropped, so the FormField label still names the input.
+  private string? ResolvedAccessibleName => string.IsNullOrWhiteSpace(AccessibleName) ? null : AccessibleName;
+  private string? LabelledBy => ResolvedAccessibleName is null ? FieldContext?.LabelId : null;
   private string? ResolvedDescribedBy => DescribedBy ?? FieldContext?.DescribedBy;
   private string ResolvedDirection => Direction ?? LocaleContext?.Direction ?? "ltr";
   private bool IsPassword => string.Equals(Type, "password", StringComparison.OrdinalIgnoreCase);
@@ -89,7 +91,8 @@
       var attributes = AdditionalAttributes is null
         ? new Dictionary<string, object>(StringComparer.Ordinal)
         : new Dictionary<string, object>(AdditionalAttributes, StringComparer.Ordinal);
-      if (LabelledBy is not null) attributes["aria-labelledby"] = LabelledBy;
+      // A caller's explicit aria-labelledby wins over the FormField label, as in React; a null value is unset.
+      if (LabelledBy is not null && (!attributes.TryGetValue("aria-labelledby", out var callerLabelledBy) || callerLabelledBy is null)) attributes["aria-labelledby"] = LabelledBy;
       if (ResolvedInvalid) attributes["aria-invalid"] = "true";
       if (ResolvedRequired) attributes["aria-required"] = "true";
       if (PasswordVisible) attributes["data-hl-revealed"] = "true";

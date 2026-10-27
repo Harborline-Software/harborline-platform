@@ -107,6 +107,21 @@ const assertions: Record<string, (entry: Case) => void | Promise<void>> = {
     expect(applied).toBe(expected.contextApplied)
     expect(input().getAttribute('aria-describedby') === context.describedBy && input().getAttribute('aria-labelledby') === 'field-label').toBe(expected.inputRelationship)
   },
+  // A blank caller name is no name: the FormField label still names the input (WCAG 4.1.2), as Switch does.
+  'text-box.blank-caller-name': ({ input: given, expected }) => {
+    const inField = (name: string) => (
+      <FormFieldContext.Provider value={{ id: 'field-id', labelId: 'field-label' }}><span id="field-label">{given.fieldLabel}</span><TextBox aria-label={name}/></FormFieldContext.Provider>
+    )
+    const namedByField = () => {
+      // The computed accessible name, not the attribute: it must be the field label's text.
+      try { expect(input()).toHaveAccessibleName(given.fieldLabel); return true } catch { return false }
+    }
+    expect(given.blankNames.map((name: string) => { const view = render(inField(name)); const named = namedByField(); view.unmount(); return named })).toEqual(expected.blankNamedByFieldLabel)
+    render(inField(given.callerName))
+    let kept = true
+    try { expect(input()).toHaveAccessibleName(given.callerName) } catch { kept = false }
+    expect(kept && !input().hasAttribute('aria-labelledby')).toBe(expected.callerNameKept)
+  },
   'text-box.validation': ({ input: given, expected }) => {
     render(<TextBox aria-label="Query" error={given.error} invalid={given.invalid} required={given.required}/>)
     expect(input().getAttribute('aria-invalid')).toBe(expected.ariaInvalid)
