@@ -1762,7 +1762,7 @@
         "projections/blazor/ui/hlp.ui.popover/HarborlinePopoverContent.razor": "e48fb8ca277180f72186df514ba5adcddaa32385eaf0a6b6ddc5d6ef2cdbfa4e",
         "projections/blazor/ui/hlp.ui.popover/HarborlinePopoverTrigger.razor": "dc9e36f883c6de7c760837b95f2d7070041bbbb80e78b876dfb742d8f88a8a6c",
         "projections/blazor/ui/hlp.ui.popover/wwwroot/popover.js": "d88a485f614fb6e8933a987b7d0b5faab5aec973e4e841a1aca117ef3b23db88",
-        "projections/react/ui/hlp.ui.popover/src/Popover.tsx": "fd642e47589ff80900ee5eab1ead98c66fc0c30842c821a893b3f1669d7ed006",
+        "projections/react/ui/hlp.ui.popover/src/Popover.tsx": "997803c98322806dad6e28b1893f83c8c675e2b6aec0afaa29a1cc770e821c81",
         "projections/react/ui/hlp.ui.popover/src/__tests__/Popover.conformance.test.tsx": "c6af2f7201714ded9f2bbab23bea4ff05ac403c31547222951aecbc9ee43bca5",
         "projections/react/ui/hlp.ui.popover/src/__tests__/Popover.native.test.tsx": "edee7463755075c2b4a8bdbfa30d562a1a1b7d0642501ffad8c834be3430ab88",
         "projections/react/ui/hlp.ui.popover/src/__tests__/fixtures.ts": "47cdfc054c655aeb815bd8b546ab79ec47b479a0e501cbd1f1ef797463ec4ac9",
