@@ -180,8 +180,15 @@ export function connect(trigger, anchor, content, options, callback) {
   const fromTrigger = target => target instanceof Node && trigger?.contains(target)
   const onKeyCapture = event => { if (event.key === 'Escape' && !event.defaultPrevented && fromTrigger(event.target)) { event.preventDefault(); dismiss() } }
   const onKey = event => { if (event.key === 'Escape' && !event.defaultPrevented) { event.preventDefault(); dismiss() } }
+  // Focus after a close (G5, R-0125; WHATWG HTML hide popover algorithm). An outside pointer dismissal
+  // never moves focus: light dismiss passes focusPreviousElement false, and focus stays where the
+  // browser's pointer default put it (the pressed field, else the body). The decision is recorded here,
+  // synchronously, before the dismissal request: over a Server circuit the closing render and dispose()
+  // arrive a round trip later, after the user may have started typing in the pressed field. Each
+  // opening is a new connection, so the flag never outlives one.
+  let outsidePointer = false
   const onPointer = event => {
-    if (!content.contains(event.target) && !trigger?.contains(event.target)) dismiss()
+    if (!content.contains(event.target) && !trigger?.contains(event.target)) { outsidePointer = true; dismiss() }
   }
   const onViewport = () => reposition()
   // Blazor Server renders over a connection: the content's children can arrive after this call and the
@@ -231,6 +238,13 @@ export function connect(trigger, anchor, content, options, callback) {
   return {
     dispose() {
       delete content.dataset.hlPopoverOpen
+      // Every other close (Escape, a close control, trigger activation, a host-driven close, disposal)
+      // restores the trigger, without scrolling, only when focus is inside the closing content or was
+      // lost with it to the body (Blazor removes the content before dispose() runs). Read first, before
+      // the content goes back next to its placeholder. If the user has put focus elsewhere meanwhile, it
+      // stays there.
+      const active = document.activeElement
+      const lostWithContent = active === null || active === document.body || content.contains(active)
       cancelAnimationFrame(frame)
       content.removeEventListener('keydown', onContentKey)
       owners.delete(content)
@@ -244,7 +258,7 @@ export function connect(trigger, anchor, content, options, callback) {
       delete content.dataset.hlLayer
       if (content.isConnected && placeholder.isConnected) placeholder.before(content)
       placeholder.remove()
-      trigger?.focus()
+      if (!outsidePointer && lostWithContent) trigger?.focus({preventScroll: true})
     }
   }
 }

@@ -318,14 +318,29 @@ export function Popover({ children, defaultOpen = false, open, onOpenChange }: P
   const reactId = React.useId().replace(/:/g, '')
   const contentId = `hl-popover-${reactId}-content`
   const previouslyOpen = React.useRef(renderedOpen)
+  // Set by an outside pointer dismissal, cleared by any other request and by every open or close.
+  const outsidePointer = React.useRef(false)
 
   const requestOpen = React.useCallback((next: boolean) => {
+    outsidePointer.current = false
     if (!controlled) setUncontrolledOpen(next)
     onOpenChange?.(next)
   }, [controlled, onOpenChange])
 
+  // Focus after a close (G5, R-0125; WHATWG HTML hide popover algorithm), shared with the Blazor lane's
+  // popover.js. An outside pointer dismissal never moves focus: light dismiss passes focusPreviousElement
+  // false, and focus stays where the browser's pointer default put it (the pressed field, else the body).
+  // Every other close (Escape, the close control, trigger activation, a host-driven close) restores the
+  // trigger, without scrolling, only when focus was inside the content or was lost with it: the content
+  // is already unmounted here, so focus that was inside it is now on the body. If the user has put focus
+  // elsewhere, it stays there. Previously every close focused the trigger, and a pressed field kept focus
+  // only because the browser's mousedown default ran after this effect.
   React.useLayoutEffect(() => {
-    if (previouslyOpen.current && !renderedOpen) triggerRef.current?.focus()
+    if (previouslyOpen.current && !renderedOpen) {
+      const active = document.activeElement
+      if (!outsidePointer.current && (active === null || active === document.body)) triggerRef.current?.focus({ preventScroll: true })
+    }
+    outsidePointer.current = false
     previouslyOpen.current = renderedOpen
   }, [renderedOpen])
 
@@ -344,7 +359,9 @@ export function Popover({ children, defaultOpen = false, open, onOpenChange }: P
         preventDefault() { prevented = true },
       }
       interactOutsideRef.current?.(outsideEvent)
-      if (!prevented) requestOpen(false)
+      if (prevented) return
+      requestOpen(false)
+      outsidePointer.current = true
     }
     // The open popover is the topmost layer. An Escape from its trigger button is taken in the capture
     // phase, before an outer layer (a dialog or sheet) listening on the document; the trigger has no
