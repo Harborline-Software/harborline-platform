@@ -43,6 +43,10 @@ describe('Popover shared fixture semantics', () => {
     expect(cases.length).toBeGreaterThan(0)
     for (const entry of cases) expect(entry.id in assertions || unasserted.includes(entry.id), entry.id).toBe(true)
   })
+  it('asserts only fixture case ids: no stale assertion or unasserted key', () => {
+    const ids = new Set(cases.map(entry => entry.id))
+    for (const key of [...Object.keys(assertions), ...unasserted]) expect(ids.has(key), key).toBe(true)
+  })
   for (const entry of cases.filter(entry => !unasserted.includes(entry.id))) {
     it(entry.id, async () => { await assertions[entry.id]!(entry) })
   }
