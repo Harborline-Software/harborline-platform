@@ -2405,9 +2405,9 @@
       },
       "phase4Evidence": "specs/modules/ui/hlp.ui.notification-center/interface.yaml",
       "sourceExtracted": true,
-      "sourceState": "Interface revision 1 preserves the exact pinned hlp.ui.notification-center source surface and proves every registered projection through native, shared-conformance, package-only, and applicable gallery/performance gates.",
+      "sourceState": "Interface revision 3 (catalog-backed copy since revision 2; G6 partial label overrides: every NotificationCenterLabels field optional, a null or blank field from the catalog) preserves the exact pinned hlp.ui.notification-center source surface and proves every registered projection through native, shared-conformance, package-only, and applicable gallery/performance gates.",
       "contentHashes": {
-        "conformance/hlp.ui.notification-center/fixtures.yaml": "16fa568d0736f5c9afb48a2be931084bc5814d6efe8947cceb0a68d6cdf06aca",
+        "conformance/hlp.ui.notification-center/fixtures.yaml": "cae694942b2a5c0283018e0501a84a026a79efa067039339ee01221f66105b80",
         "conformance/hlp.ui.notification-center/quality-fixtures.yaml": "b9855a7308282ea186564dcb116776f6071dcc3081874f612a3f7c2786f0628c",
         "conformance/hlp.ui.notification-center/runners/run-shared.mjs": "d8f8e95b8abda68b38a41774ab15245ea8ab7dcb4397fdd55090f40b91db38c9",
         "projections/blazor/ui/hlp.ui.notification-center/NotificationCenterTypes.cs": "5b5c5061cf9d23c9e691c10422aed41a5cccddcd857dfd817f793544f64ce270",
@@ -2421,7 +2421,7 @@
         "projections/react/ui/hlp.ui.notification-center/src/test-setup.ts": "097040beeb2cc914b87790306bc835eef4a06321fa3594a6938b6754641ac2ff",
         "projections/react/ui/hlp.ui.notification-center/tsconfig.build.json": "178caf059e80a48fd2f1701bc955dc98d1000ba6fcf83924519086e81d2b5237",
         "projections/react/ui/hlp.ui.notification-center/vitest.config.ts": "e615c6e3b8d4665259571cce6f7ced60d17b30fee0e590bf944f1b01d9551e01",
-        "specs/modules/ui/hlp.ui.notification-center/interface.yaml": "71e863198c9565b85d30d8046e6531767fa4956f27090bd4fbb669da2017a3b0",
+        "specs/modules/ui/hlp.ui.notification-center/interface.yaml": "4408981fbb4ac5ae01ea333788a4c3ea11f5b9a5e9ecc1ec3f782a7cf907e7ea",
         "specs/modules/ui/hlp.ui.notification-center/quality.yaml": "58b472d8a52573c1cbe4589e8eee7740bf20f9b7766741c51c9534d836e4ee9a",
         "specs/modules/ui/hlp.ui.notification-center/scenarios.json": "fe5842246f15c7c1b2aaeb67fb0444e9b15cf1cdad1f7ecefb0074109d99223b",
         "specs/modules/ui/hlp.ui.notification-center/style.css": "f58bebb290fcf7d49a8ac94eaa63fc75c712005472151358092e499dd9203189"
@@ -2610,9 +2610,9 @@
       },
       "phase4Evidence": "specs/modules/ui/hlp.ui.user-menu/interface.yaml",
       "sourceExtracted": true,
-      "sourceState": "Interface revision 1 preserves the exact pinned hlp.ui.user-menu source surface and proves every registered projection through native, shared-conformance, package-only, and applicable gallery/performance gates.",
+      "sourceState": "Interface revision 3 (catalog-backed copy since revision 2; G6 partial label overrides: every UserMenuLabels field optional, a null or blank field from the catalog) preserves the exact pinned hlp.ui.user-menu source surface and proves every registered projection through native, shared-conformance, package-only, and applicable gallery/performance gates.",
       "contentHashes": {
-        "conformance/hlp.ui.user-menu/fixtures.yaml": "c95a47ce73a8234f165787a0492ac31719a23bb4cd1f5e23ad0990c0ad6cb94f",
+        "conformance/hlp.ui.user-menu/fixtures.yaml": "116cd7513352e4b36f827b8261c80586c377ca4d6d7efbcf6bd5c37ef3c51330",
         "conformance/hlp.ui.user-menu/quality-fixtures.yaml": "080f9d15bf797f4d37115d0b7cc94e2ed443ac7a5dff5ce11e1720b9b1740f3e",
         "conformance/hlp.ui.user-menu/runners/run-shared.mjs": "2a2c5ed2dec7f116855bae6c749dc960622b498c96a288b06835efed13b0c36e",
         "projections/blazor/ui/hlp.ui.user-menu/HarborlineUserMenu.razor": "88583ca940fc8670e7d34b938588bf00224c3f69fa2e6a6ab276be20a7c7702d",
@@ -2626,7 +2626,7 @@
         "projections/react/ui/hlp.ui.user-menu/src/test-setup.ts": "097040beeb2cc914b87790306bc835eef4a06321fa3594a6938b6754641ac2ff",
         "projections/react/ui/hlp.ui.user-menu/tsconfig.build.json": "eb7ea0ed042706f308f73e4f335f1dbb2693720a8583ea5fd79d645d57e663cb",
         "projections/react/ui/hlp.ui.user-menu/vitest.config.ts": "e03891779857bfddd3511751c4c03b4687945147e896b234db327e16feafbe14",
-        "specs/modules/ui/hlp.ui.user-menu/interface.yaml": "0b15217f31c0880d1bc8141101aa3eb7ac736c6ac86325d79049935216502228",
+        "specs/modules/ui/hlp.ui.user-menu/interface.yaml": "c19cffbac09982279744d6d9df138f754680245d99eccc007d7f8667134a17ad",
         "specs/modules/ui/hlp.ui.user-menu/quality.yaml": "a3b06d4dceeefa440d3dc8fd84096772a81b288d2ae35bc5b24911546bdfa66c",
         "specs/modules/ui/hlp.ui.user-menu/scenarios.json": "79b9ff1b042bc7e255c86cb1254c50c43347b37599a43e5f7f990950fa17d1b7",
         "specs/modules/ui/hlp.ui.user-menu/style.css": "beea7b618d3d75bdc37af3316485e3aa084541f924212506311d53f9b84c2b3e"
