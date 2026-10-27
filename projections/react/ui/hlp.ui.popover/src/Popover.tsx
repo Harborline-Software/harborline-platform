@@ -195,6 +195,25 @@ function routeTab(event: { key: string, shiftKey: boolean, target: EventTarget |
   destination.focus()
 }
 
+// The way in mirrors the way out (b31 re-review): while open, Tab on the trigger goes to the content's
+// first Tab stop, or the content element when it has none (as the opening focus does), and Shift+Tab from
+// the next stop after the trigger in the trigger's own scope (modal layer, outer content or page) goes to
+// the content's last stop. A key already handled is left alone; nothing is handled once closed.
+function enterContent(event: KeyboardEvent, trigger: HTMLElement | null, content: HTMLElement | null): void {
+  if (event.key !== 'Tab' || event.defaultPrevented || !trigger?.isConnected || !content?.isConnected) return
+  let destination: HTMLElement
+  if (!event.shiftKey) {
+    if (event.target !== trigger) return
+    destination = stopsIn(content)[0] ?? content
+  } else {
+    const next = stopsIn(scopeOf(trigger)).find(stop => !trigger.contains(stop) && follows(trigger, stop))
+    if (!next || event.target !== next) return
+    destination = stopsIn(content).at(-1) ?? content
+  }
+  event.preventDefault()
+  destination.focus()
+}
+
 function directionOf(element: HTMLElement): 'ltr' | 'rtl' {
   const explicit = element.closest<HTMLElement>('[dir]')?.dir
   if (explicit === 'rtl') return 'rtl'
@@ -506,7 +525,17 @@ export const PopoverContent = React.forwardRef<HTMLDivElement, PopoverContentPro
     const content = context.contentRef.current
     if (!context.open || !content) return
     contentOwners.set(content, () => context.triggerRef.current)
-    return () => { contentOwners.delete(content) }
+    // Tab on the trigger is taken on the trigger itself, before a modal layer's trap on the document would
+    // wrap it; Shift+Tab from the stop after the trigger, on the document after the stop's own handlers.
+    const trigger = context.triggerRef.current
+    const onEnter = (event: KeyboardEvent) => enterContent(event, context.triggerRef.current, content)
+    trigger?.addEventListener('keydown', onEnter)
+    document.addEventListener('keydown', onEnter)
+    return () => {
+      contentOwners.delete(content)
+      trigger?.removeEventListener('keydown', onEnter)
+      document.removeEventListener('keydown', onEnter)
+    }
   }, [context.contentRef, context.open, context.triggerRef])
 
   // Opening moves focus into the content: its first focusable control, else the content element itself

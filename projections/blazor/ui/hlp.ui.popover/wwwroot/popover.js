@@ -69,6 +69,25 @@ function routeTab(event, trigger, content) {
   destination.focus()
 }
 
+// The way in mirrors the way out (b31 re-review): while open, Tab on the trigger goes to the content's
+// first Tab stop, or the content element when it has none (as the opening focus does), and Shift+Tab from
+// the next stop after the trigger in the trigger's own scope (modal layer, outer content or page) goes to
+// the content's last stop. A key already handled is left alone; nothing is handled once closed.
+function enterContent(event, trigger, content) {
+  if (event.key !== 'Tab' || event.defaultPrevented || !trigger?.isConnected || !content?.isConnected) return
+  let destination
+  if (!event.shiftKey) {
+    if (event.target !== trigger) return
+    destination = stopsIn(content)[0] ?? content
+  } else {
+    const next = stopsIn(scopeOf(trigger)).find(stop => !trigger.contains(stop) && follows(trigger, stop))
+    if (!next || event.target !== next) return
+    destination = stopsIn(content).at(-1) ?? content
+  }
+  event.preventDefault()
+  destination.focus()
+}
+
 // The placement contract, shared with the React lane's place() in Popover.tsx and replayed by both
 // lanes from conformance/hlp.ui.popover/placement-v1.json: flip to the opposite side when the
 // requested side lacks room and the opposite has more, THEN clamp the resolved coordinate into the
@@ -165,6 +184,12 @@ export function connect(trigger, anchor, content, options, callback) {
   const onContentKey = event => routeTab(event, currentTrigger(), content)
   owners.set(content, currentTrigger)
   content.addEventListener('keydown', onContentKey)
+  // Tab on the trigger is taken on the trigger itself, before a modal layer's trap on the document would
+  // wrap it; Shift+Tab from the stop after the trigger, on the document after the stop's own handlers.
+  const entryTrigger = currentTrigger()
+  const onEnter = event => enterContent(event, currentTrigger(), content)
+  entryTrigger?.addEventListener('keydown', onEnter)
+  document.addEventListener('keydown', onEnter)
   document.addEventListener('keydown', onKeyCapture, true)
   document.addEventListener('keydown', onKey)
   document.addEventListener('pointerdown', onPointer, true)
@@ -193,6 +218,8 @@ export function connect(trigger, anchor, content, options, callback) {
       cancelAnimationFrame(frame)
       content.removeEventListener('keydown', onContentKey)
       owners.delete(content)
+      entryTrigger?.removeEventListener('keydown', onEnter)
+      document.removeEventListener('keydown', onEnter)
       document.removeEventListener('keydown', onKeyCapture, true)
       document.removeEventListener('keydown', onKey)
       document.removeEventListener('pointerdown', onPointer, true)
