@@ -84,7 +84,7 @@ function onlyElement(children: React.ReactNode, part: string): React.ReactElemen
 function focusableInside(element: HTMLElement): HTMLElement | null {
   return element.querySelector<HTMLElement>([
     'button:not([disabled])',
-    '[href]',
+    'a[href]',
     'input:not([disabled])',
     'select:not([disabled])',
     'textarea:not([disabled])',
@@ -404,7 +404,9 @@ export const PopoverContent = React.forwardRef<HTMLDivElement, PopoverContentPro
   React.useLayoutEffect(() => {
     const content = context.contentRef.current
     if (!context.open || !content) return
-    ;(focusableInside(content) ?? content).focus()
+    // The first match may refuse focus (inside a disabled fieldset, for example); focus still ends inside.
+    focusableInside(content)?.focus()
+    if (!content.contains(document.activeElement)) content.focus()
   }, [context.contentRef, context.open])
 
   if (!context.open || typeof document === 'undefined') return null
