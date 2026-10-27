@@ -80,13 +80,15 @@ describe('Popover sequential focus order (T-1128)', () => {
   })
 
   // The trigger is the last tabbable element on the page: Tab out of the content goes wherever native
-  // Tab from the trigger goes. The popover leaves the key to the browser (not handled) with focus on the
-  // trigger, so the browser's own Tab continues from there (to the browser chrome, in a real page).
-  it('when the trigger is last on the page, Tab out leaves the key to the browser, continuing from the trigger', async () => {
+  // Tab from the trigger goes, past the end of the page. The content is already last in <body>, so the
+  // popover leaves the key to the browser (not handled) with focus where it is. Moving focus to the
+  // trigger first would be wrong: the browser's Tab from the trigger re-enters the content, which is the
+  // next thing after it in the document (seen in the b31 real-browser probe).
+  it('when the trigger is last on the page, Tab out leaves the key to the browser with focus in place', async () => {
     render(<Page content={<button type="button">Apply</button>} after={false}/>)
     await open()
     const apply = screen.getByRole('button', { name: 'Apply' })
-    expect([fireEvent.keyDown(apply, { key: 'Tab' }), focused(), popoverOpen()]).toEqual([true, 'Open', true])
+    expect([fireEvent.keyDown(apply, { key: 'Tab' }), focused(), popoverOpen()]).toEqual([true, 'Apply', true])
   })
 
   it('a host onKeyDown that handles Tab wins', async () => {

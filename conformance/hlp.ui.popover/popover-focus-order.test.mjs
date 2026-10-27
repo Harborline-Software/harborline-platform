@@ -69,9 +69,11 @@ describe('Popover Blazor connect() sequential focus order (T-1128)', () => {
     connection.dispose()
   })
 
-  it('when the trigger is last on the page, Tab out leaves the key to the browser, continuing from the trigger', () => {
+  // The content is already last in <body>, so the browser's own Tab from it goes past the end of the page,
+  // where native Tab from the trigger goes. Moving focus to the trigger first would re-enter the content.
+  it('when the trigger is last on the page, Tab out leaves the key to the browser with focus in place', () => {
     const { connection } = page({ after: false })
-    expect([tab(), focused()]).toEqual(['native', 'Open'])
+    expect([tab(), focused()]).toEqual(['native', 'Apply'])
     connection.dispose()
   })
 
