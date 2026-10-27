@@ -110,13 +110,43 @@ readers reject the new body. The held T618 grammar fixture keeps its original by
 `RecordTypePublication.PolicyWarnings` defaults to empty. Fresh and replayed `PublishAsync`
 return `records.retention.unset` at `/retention_policy`, computed from the returned immutable body.
 `ResolvePublishedSchemaAsync` binds without publication warnings; warnings are absent from refusal
-and authoring diagnostics. Publication continues warning until retention becomes authorable.
+and authoring diagnostics. Only the no-write `PreflightAsync` preview below shows them before publication.
+Publication continues warning until retention becomes authorable.
 
 The reason-only declaration implements the bounded default, carry-forward and warning slice;
 it selects no mode. The additive temporal library below requires explicit supersession mode,
 reason required and history enabled in the selected admitted immutable publication. History or a
 reason-only policy never implies that opt-in. Retention, wider ck-20/ck-21 and host qualification
 remain open; the temporal library does not change the meaning of `RecordedAt`.
+
+## Record Type preflight (T-618, interface revision 26)
+
+`RecordTypeDefinitionStore.PreflightAsync(tenant, document)` returns a `RecordTypePreflight`: the canonical materialized
+document, every computable refusal at the Publish stage, the draft schema whenever the body compiles (even beside other
+refusals) and the publication-warning preview. It writes, registers and publishes nothing. It is not a publication
+verdict: no revision, replay, expected-revision or head fence, receipt or authorization. It takes no record type id, so
+the catalogue identity checks of `SaveDraftAsync` stay outside it.
+
+The stages run in order, each only when its prerequisite holds:
+
+1. typed completeness (`records.document_invalid` at the first missing pointer) and canonical form
+   (`records.document_invalid`, empty pointer);
+2. the envelope stop checks: `records.envelope_required` at `/envelope`, then `definition.catalogue_mismatch` at
+   `/envelope/tenant` when the envelope names another tenant than the trusted one;
+3. kind defaults, then Publish-phase structural admission;
+4. the draft compile, the catalogue edges (the class home, publication's fail-closed creation-role check, the reference
+   targets) and the warning preview.
+
+Edges resolve on a lookup copy that drops a blank `class_id`, a reference not naming exactly one target and a blank
+`required_trait_id`, with field indices unchanged; the returned document, the compile and the warnings use the
+canonical candidate. The list keeps the first occurrence per code, pointer and target. An edge-free body reads nothing
+from the catalogue.
+
+A blank tenant (`ArgumentException`, or `ArgumentNullException` for null), a null document (`ArgumentNullException`)
+and a field domain scope for another tenant (`InvalidOperationException`) are thrown before any read. Without a scope
+the preview still runs, and `records.field.runtime_required` appears only when a trait slot binding needs narrowing.
+The host validates the tenant at `TenantId` and binds the role vocabulary to it; the preview proves no authorization.
+Dependency faults and cancellation propagate unchanged.
 
 ## Records write: one record create (T-616, bounded)
 

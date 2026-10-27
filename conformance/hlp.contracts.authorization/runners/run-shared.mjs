@@ -10,11 +10,16 @@ import {resolveCommand} from '../../../tooling/resolve-command.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..')
 const packageRoot = path.join(root, 'projections/typescript/contracts/hlp.contracts.forms')
+const fixture = JSON.parse(readFileSync(path.join(root, 'conformance/hlp.contracts.authorization/fixtures.yaml'), 'utf8'))
+const operations = new Set(['resolve', 'require', 'allows', 'invalid', 'resolve-capability', 'require-capability', 'invalid-capabilities'])
+for (const row of fixture.cases) {
+  assert.ok(operations.has(row.operation), `Unknown authorization fixture operation ${JSON.stringify(row.operation)} in case ${JSON.stringify(row.id)}`)
+}
+
 const npmBuild = resolveCommand('npm', ['run', 'build'])
 const build = spawnSync(npmBuild.executable, npmBuild.args, {cwd: packageRoot, encoding: 'utf8', env: {...process.env, CI: '1', NO_COLOR: '1'}})
 if (build.status !== 0) throw new Error(`authorization TypeScript build failed\n${build.stdout}\n${build.stderr}`)
 
-const fixture = JSON.parse(readFileSync(path.join(root, 'conformance/hlp.contracts.authorization/fixtures.yaml'), 'utf8'))
 const contracts = await import(pathToFileURL(path.join(packageRoot, 'dist/index.js')).href)
 const clone = value => JSON.parse(JSON.stringify(value))
 

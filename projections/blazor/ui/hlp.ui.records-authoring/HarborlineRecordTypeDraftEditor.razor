@@ -51,7 +51,8 @@
     <p class="hl-records-authoring__scope">Local draft. Edits stay in this editor and are not saved.</p>
     @if (!RecordsRevisionText.IsAcceptable(Value.ExpectedRevision)) { <p role="status" class="hl-records-authoring__note">@RejectedRevision</p> }
     @if (Adopted) { if (ReadOnly) { <fieldset class="hl-records-authoring__read-only" disabled>@content</fieldset> } else { @content } }
-    @if (ShownDiagnostics.Count > 0) { <ul class="hl-records-authoring__diagnostics" aria-label="Diagnostics">@foreach (var diagnostic in ShownDiagnostics) { <li data-code="@diagnostic.Code" data-pointer="@diagnostic.Pointer">@diagnostic.Code at @diagnostic.Pointer</li> }</ul> }
+    @if (ShownDiagnostics.Count > 0) { <ul class="hl-records-authoring__diagnostics" aria-label="Diagnostics">@foreach (var diagnostic in ShownDiagnostics) { var target = string.IsNullOrEmpty(diagnostic.Target) ? null : diagnostic.Target; <li data-code="@diagnostic.Code" data-pointer="@diagnostic.Pointer" data-target="@target">@diagnostic.Code at @diagnostic.Pointer@(target is null ? "" : $" for {target}")</li> }</ul> }
+    @if (ShownWarnings.Count > 0) { <p class="hl-records-authoring__note">Warnings do not block publication.</p><ul class="hl-records-authoring__warnings" aria-label="Warnings">@foreach (var warning in ShownWarnings) { <li data-code="@warning.Code" data-pointer="@warning.Pointer">@warning.Code at @warning.Pointer</li> }</ul> }
     @if (_incoming is not null) { <aside role="alert" class="hl-records-authoring__incoming">A different draft or revision arrived while you have local edits.<HarborlineButton ButtonType="ButtonType.Button" Enabled="!ReadOnly" OnClick="Keep">Keep edits</HarborlineButton><HarborlineButton ButtonType="ButtonType.Button" Enabled="!ReadOnly" OnClick="Discard">Discard edits</HarborlineButton></aside> }
 </form>
 
@@ -91,7 +92,10 @@
     // The revision is part of the key as its exact string. A canonical revision is never empty, so an absent one cannot collide.
     private static string LifecycleKey(RecordsDraft value) => $"{value.Identity}\u0000{value.VersionId}\u0000{value.ExpectedRevision}";
     // Revisions match only as identical canonical strings (ordinal); a noncanonical diagnostic revision never matches.
-    private IReadOnlyList<RecordsDiagnostic> ShownDiagnostics => Adopted && Diagnostics is { } supplied && RecordsRevisionText.IsAcceptable(supplied.ExpectedRevision) && supplied.Identity == Current.Identity && string.Equals(supplied.ExpectedRevision, Current.ExpectedRevision, StringComparison.Ordinal) && supplied.Generation == _generation ? supplied.Diagnostics : [];
+    private RecordsDiagnosticSet? MatchedDiagnostics => Adopted && Diagnostics is { } supplied && RecordsRevisionText.IsAcceptable(supplied.ExpectedRevision) && supplied.Identity == Current.Identity && string.Equals(supplied.ExpectedRevision, Current.ExpectedRevision, StringComparison.Ordinal) && supplied.Generation == _generation ? supplied : null;
+    private IReadOnlyList<RecordsDiagnostic> ShownDiagnostics => MatchedDiagnostics?.Diagnostics ?? [];
+    // Warnings follow the same matching rule and are never shown as diagnostics.
+    private IReadOnlyList<RecordsWarning> ShownWarnings => MatchedDiagnostics?.Warnings ?? [];
     private IReadOnlyList<JsonObject?> FieldList => Current.Body["fields"] is JsonArray array ? [.. array.Select(node => node as JsonObject)] : [];
     private static string? Str(JsonNode? node) => node is JsonValue value && value.TryGetValue<string>(out var text) ? text : null;
     private static string? Section(JsonObject body) => body["envelope"] is JsonObject envelope ? Str(envelope["section"]) : null;
