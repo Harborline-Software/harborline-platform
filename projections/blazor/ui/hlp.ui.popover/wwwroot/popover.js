@@ -178,25 +178,26 @@ export function connect(trigger, anchor, content, options, callback) {
   // itself, is handled on the document after Blazor's own listener, so one already handled (including
   // a Blazor @onkeydown:preventDefault) is left alone. Previously every Escape closed it.
   const fromTrigger = target => target instanceof Node && trigger?.contains(target)
-  const onKeyCapture = event => { if (event.key === 'Escape' && !event.defaultPrevented && fromTrigger(event.target)) { event.preventDefault(); dismiss() } }
-  const onKey = event => { if (event.key === 'Escape' && !event.defaultPrevented) { event.preventDefault(); dismiss() } }
+  const onKeyCapture = event => { if (event.key === 'Escape' && !event.defaultPrevented && fromTrigger(event.target)) { event.preventDefault(); outsidePointer = false; dismiss() } }
+  const onKey = event => { if (event.key === 'Escape' && !event.defaultPrevented) { event.preventDefault(); outsidePointer = false; dismiss() } }
   // Focus after a close (G5, R-0125; WHATWG HTML hide popover algorithm). An outside pointer dismissal
   // never moves focus: light dismiss passes focusPreviousElement false, and focus stays where the
   // browser's pointer default put it (the pressed field, else the body). The decision is recorded here,
   // synchronously, before the dismissal request: over a Server circuit the closing render and dispose()
   // arrive a round trip later, after the user may have started typing in the pressed field. Each
-  // opening is a new connection, so the flag never outlives one. The flag describes only a press that
-  // closed the popover: a controlled host may refuse the request. When the request completes with this
-  // connection still live and the content still in the document, the host refused it, and a later close is
-  // an ordinary one. Blazor Server sends the closing render before the call's completion, so an accepted
-  // press has removed the content (or disposed this connection) by then.
+  // opening is a new connection, so the flag never outlives one. Refusal is never inferred from timing (b32
+  // review): a controlled host may refuse the request, and its answer, the closing render and dispose() can
+  // arrive in any order over a circuit. The flag stays set until the user acts on the popover again: focus
+  // comes back into the content, a press lands in the content or on the trigger, or an Escape close starts.
+  // A second outside press simply sets it again. A refused press that left focus on the body therefore
+  // leaves it there when the host closes later: that is where the outside press put it (ruling point 1).
   let outsidePointer = false
-  let disposed = false
   const onPointer = event => {
-    if (content.contains(event.target) || trigger?.contains(event.target)) return
+    if (content.contains(event.target) || trigger?.contains(event.target)) { outsidePointer = false; return }
     outsidePointer = true
-    Promise.resolve(dismiss()).then(() => { if (!disposed && content.isConnected) outsidePointer = false }, () => {})
+    dismiss()
   }
+  const onFocusIn = event => { if (content.contains(event.target)) outsidePointer = false }
   const onViewport = () => reposition()
   // Blazor Server renders over a connection: the content's children can arrive after this call and the
   // trigger reference can be missing or replaced by a re-render. Both are read when a key arrives.
@@ -208,6 +209,7 @@ export function connect(trigger, anchor, content, options, callback) {
   owners.set(content, currentTrigger)
   openContents.add(content)
   content.addEventListener('keydown', onContentKey)
+  content.addEventListener('focusin', onFocusIn)
   // Tab on the trigger and Shift+Tab from the stop after it, on window in the bubble phase: after Blazor's
   // delegated dispatch on the document, so a caller's @onkeydown (and @onkeydown:preventDefault) or any
   // handler on the trigger runs first and a key it handled is left alone (b31 final check). The browser's
@@ -252,9 +254,9 @@ export function connect(trigger, anchor, content, options, callback) {
       // stays there.
       const active = document.activeElement
       const lostWithContent = active === null || active === document.body || content.contains(active)
-      disposed = true
       cancelAnimationFrame(frame)
       content.removeEventListener('keydown', onContentKey)
+      content.removeEventListener('focusin', onFocusIn)
       owners.delete(content)
       openContents.delete(content)
       window.removeEventListener('keydown', onEnter)

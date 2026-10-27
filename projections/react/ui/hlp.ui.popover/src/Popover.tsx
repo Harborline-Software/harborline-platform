@@ -318,14 +318,22 @@ export function Popover({ children, defaultOpen = false, open, onOpenChange }: P
   const reactId = React.useId().replace(/:/g, '')
   const contentId = `hl-popover-${reactId}-content`
   const previouslyOpen = React.useRef(renderedOpen)
-  // Set by an outside pointer dismissal, cleared by any other request and by every open or close.
+  // Set by an outside pointer dismissal, before its request. Refusal is never inferred from timing (b32
+  // review): the flag stays set until the user acts on the popover again (focus comes back into the content,
+  // a press lands in the content or on the trigger, or another close path starts through requestOpen), and
+  // every open or close clears it. A refused press that left focus on the body therefore leaves it there
+  // when the host closes later: that is where the outside press put it (ruling point 1).
   const outsidePointer = React.useRef(false)
 
-  const requestOpen = React.useCallback((next: boolean) => {
-    outsidePointer.current = false
+  const changeOpen = React.useCallback((next: boolean) => {
     if (!controlled) setUncontrolledOpen(next)
     onOpenChange?.(next)
   }, [controlled, onOpenChange])
+
+  const requestOpen = React.useCallback((next: boolean) => {
+    outsidePointer.current = false
+    changeOpen(next)
+  }, [changeOpen])
 
   // Focus after a close (G5, R-0125; WHATWG HTML hide popover algorithm), shared with the Blazor lane's
   // popover.js. An outside pointer dismissal never moves focus: light dismiss passes focusPreviousElement
@@ -350,7 +358,8 @@ export function Popover({ children, defaultOpen = false, open, onOpenChange }: P
     const onPointerDown = (originalEvent: PointerEvent) => {
       const target = originalEvent.target
       if (!(target instanceof Node)) return
-      if (contentRef.current?.contains(target) || triggerRef.current?.contains(target) || anchorRef.current?.contains(target)) return
+      if (contentRef.current?.contains(target) || triggerRef.current?.contains(target)) { outsidePointer.current = false; return }
+      if (anchorRef.current?.contains(target)) return
 
       let prevented = false
       const outsideEvent: PopoverInteractOutsideEvent = {
@@ -360,12 +369,12 @@ export function Popover({ children, defaultOpen = false, open, onOpenChange }: P
       }
       interactOutsideRef.current?.(outsideEvent)
       if (prevented) return
-      requestOpen(false)
+      // Before the request: a host that closes synchronously (flushSync) runs the restore effect inside it.
       outsidePointer.current = true
-      // The flag describes only a press that closed the popover. A controlled host may refuse the request;
-      // React commits a close from this discrete event before the next task, so if the popover is still
-      // open then, the host refused it, and a later close is an ordinary one.
-      setTimeout(() => { if (previouslyOpen.current) outsidePointer.current = false }, 0)
+      changeOpen(false)
+    }
+    const onFocusIn = (event: FocusEvent) => {
+      if (event.target instanceof Node && contentRef.current?.contains(event.target)) outsidePointer.current = false
     }
     // The open popover is the topmost layer. An Escape from its trigger button is taken in the capture
     // phase, before an outer layer (a dialog or sheet) listening on the document; the trigger has no
@@ -387,14 +396,16 @@ export function Popover({ children, defaultOpen = false, open, onOpenChange }: P
     }
 
     document.addEventListener('pointerdown', onPointerDown)
+    document.addEventListener('focusin', onFocusIn)
     document.addEventListener('keydown', onKeyDownCapture, true)
     document.addEventListener('keydown', onKeyDown)
     return () => {
       document.removeEventListener('pointerdown', onPointerDown)
+      document.removeEventListener('focusin', onFocusIn)
       document.removeEventListener('keydown', onKeyDownCapture, true)
       document.removeEventListener('keydown', onKeyDown)
     }
-  }, [renderedOpen, requestOpen])
+  }, [changeOpen, renderedOpen, requestOpen])
 
   const context = React.useMemo<PopoverContextValue>(() => ({
     anchorRef,
