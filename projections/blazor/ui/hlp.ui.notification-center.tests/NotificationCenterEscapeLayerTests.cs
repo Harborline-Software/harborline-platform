@@ -43,6 +43,18 @@ public sealed class NotificationCenterEscapeLayerTests : BunitContext
         Assert.Equal(2, module.Invocations["observeEscape"].Count);
     }
 
+    // Over a Server circuit each JS call is a round trip, and focus lands in the panel with focusFirst. An
+    // Escape pressed after that but before observeEscape was registered reached an enclosing Sheet
+    // unmarked, so the observer is registered first, as UserMenu observes keys before focusing.
+    [Fact]
+    public void TheEscapeObserverIsRegisteredBeforeFocusMovesIntoThePanel()
+    {
+        var cut = Render<HarborlineNotificationCenter>(p => p.Add(x => x.Items, Items));
+        cut.Find(".hl-notification-center__trigger").Click();
+        var order = module.Invocations.Select(invocation => invocation.Identifier).Where(identifier => identifier is "observeEscape" or "focusFirst").ToList();
+        Assert.Equal(["observeEscape", "focusFirst"], order);
+    }
+
     [Fact]
     public async Task DisposingTheOpenComponentReleasesTheObserver()
     {
