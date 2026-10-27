@@ -8,7 +8,7 @@ namespace Harborline.Contracts.Tests;
 public sealed class FormsFixtureConformanceTests
 {
     [Fact]
-    public void Frozen_forms_fixtures_pass_the_generated_dotnet_projection()
+    public void Frozen_forms_fixtures_pass_the_maintained_dotnet_projection()
     {
         using var document = JsonDocument.Parse(File.ReadAllText(FindFixture()));
         var cases = document.RootElement.GetProperty("cases").EnumerateArray().ToArray();

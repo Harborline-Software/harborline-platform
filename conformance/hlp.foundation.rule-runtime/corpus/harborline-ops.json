@@ -1,5 +1,101 @@
 {
   "_comment": "SPINE-1 conformance corpus — Harborline extension operators: decimal-correct money.*, deterministic date.* (injected clock), coding.is taxonomy membership.",
+  "codingFixture": {
+    "oracle": "Adopted proposal002: literal root > child > leaf hierarchy, reversed and unknown-code answers; SHA256 independently derived from these literal canonical definition bytes. Runtime production does not consume this fixture.",
+    "tenant": "tenant-a",
+    "system": "asset-class",
+    "definitionId": "vendor.domain.asset",
+    "version": "1.0.0",
+    "definitionSha256": "b21015c1098b83f1deb9addf42e10b84438c54a61d4f558d36bd3ceaa712fc87",
+    "definitionJsonText": "{\"definition_id\":\"vendor.domain.asset\",\"envelope\":{\"cascade_layer\":\"tenant\",\"contract\":{\"major\":1,\"minor\":0},\"identity\":\"vendor.domain.asset\",\"provenance\":{},\"requires\":[],\"tenant\":\"tenant-a\",\"version\":\"1.0.0\"},\"governance\":\"civilian\",\"nodes\":[{\"code\":\"root\",\"description\":\"root\",\"display\":\"root\",\"display_history_entries\":[],\"status\":\"active\"},{\"code\":\"child\",\"description\":\"child\",\"display\":\"child\",\"display_history_entries\":[],\"parent_code\":\"root\",\"status\":\"active\"},{\"code\":\"leaf\",\"description\":\"leaf\",\"display\":\"leaf\",\"display_history_entries\":[],\"parent_code\":\"child\",\"status\":\"active\"}],\"owner\":\"author\",\"schema_version\":1,\"tenant\":\"tenant-a\",\"version\":\"1.0.0\"}\n",
+    "queries": [
+      [
+        "asset-class",
+        "child",
+        "leaf"
+      ],
+      [
+        "asset-class",
+        "leaf",
+        "leaf"
+      ],
+      [
+        "asset-class",
+        "leaf",
+        "root"
+      ],
+      [
+        "asset-class",
+        "root",
+        "child"
+      ],
+      [
+        "asset-class",
+        "root",
+        "leaf"
+      ],
+      [
+        "asset-class",
+        "root",
+        "missing"
+      ],
+      [
+        "asset-class",
+        "root",
+        "root"
+      ]
+    ],
+    "expectedBindingsJsonText": "[\"harborline-taxonomy-coding-bindings/1\",\"tenant-a\",[[\"asset-class\",\"vendor.domain.asset\",\"1.0.0\",\"b21015c1098b83f1deb9addf42e10b84438c54a61d4f558d36bd3ceaa712fc87\"]]]\n",
+    "answersJsonText": "[\"harborline-taxonomy-coding-answers/1\",\"tenant-a\",[[\"asset-class\",\"vendor.domain.asset\",\"1.0.0\",\"b21015c1098b83f1deb9addf42e10b84438c54a61d4f558d36bd3ceaa712fc87\"]],[[\"asset-class\",\"child\",\"leaf\",true],[\"asset-class\",\"leaf\",\"leaf\",true],[\"asset-class\",\"leaf\",\"root\",false],[\"asset-class\",\"root\",\"child\",true],[\"asset-class\",\"root\",\"leaf\",true],[\"asset-class\",\"root\",\"missing\",false],[\"asset-class\",\"root\",\"root\",true]]]\n",
+    "alternative": {
+      "oracle": "Literal version2 has root and child as separate roots, leaf below child. root does not subsume leaf. No latest-version selection.",
+      "tenant": "tenant-a",
+      "system": "asset-class",
+      "definitionId": "vendor.domain.asset",
+      "version": "2.0.0",
+      "definitionSha256": "3dad23b793520641a115907c07587e405ad05952433cf362a93f49df5fb14676",
+      "definitionJsonText": "{\"definition_id\":\"vendor.domain.asset\",\"envelope\":{\"cascade_layer\":\"tenant\",\"contract\":{\"major\":1,\"minor\":0},\"identity\":\"vendor.domain.asset\",\"provenance\":{},\"requires\":[],\"tenant\":\"tenant-a\",\"version\":\"2.0.0\"},\"governance\":\"civilian\",\"nodes\":[{\"code\":\"root\",\"description\":\"root\",\"display\":\"root\",\"display_history_entries\":[],\"status\":\"active\"},{\"code\":\"child\",\"description\":\"child\",\"display\":\"child\",\"display_history_entries\":[],\"status\":\"active\"},{\"code\":\"leaf\",\"description\":\"leaf\",\"display\":\"leaf\",\"display_history_entries\":[],\"parent_code\":\"child\",\"status\":\"active\"}],\"owner\":\"author\",\"schema_version\":1,\"tenant\":\"tenant-a\",\"version\":\"2.0.0\"}\n",
+      "queries": [
+        [
+          "asset-class",
+          "child",
+          "leaf"
+        ],
+        [
+          "asset-class",
+          "leaf",
+          "leaf"
+        ],
+        [
+          "asset-class",
+          "leaf",
+          "root"
+        ],
+        [
+          "asset-class",
+          "root",
+          "child"
+        ],
+        [
+          "asset-class",
+          "root",
+          "leaf"
+        ],
+        [
+          "asset-class",
+          "root",
+          "missing"
+        ],
+        [
+          "asset-class",
+          "root",
+          "root"
+        ]
+      ],
+      "expectedBindingsJsonText": "[\"harborline-taxonomy-coding-bindings/1\",\"tenant-a\",[[\"asset-class\",\"vendor.domain.asset\",\"2.0.0\",\"3dad23b793520641a115907c07587e405ad05952433cf362a93f49df5fb14676\"]]]\n",
+      "answersJsonText": "[\"harborline-taxonomy-coding-answers/1\",\"tenant-a\",[[\"asset-class\",\"vendor.domain.asset\",\"2.0.0\",\"3dad23b793520641a115907c07587e405ad05952433cf362a93f49df5fb14676\"]],[[\"asset-class\",\"child\",\"leaf\",true],[\"asset-class\",\"leaf\",\"leaf\",true],[\"asset-class\",\"leaf\",\"root\",false],[\"asset-class\",\"root\",\"child\",false],[\"asset-class\",\"root\",\"leaf\",false],[\"asset-class\",\"root\",\"missing\",false],[\"asset-class\",\"root\",\"root\",true]]]\n"
+    }
+  },
   "cases": [
     {
       "name": "money/add-sub-decimal-correct",
@@ -81,6 +177,889 @@
       "expectedOutcomes": {
         "c.isA": { "ruleId": "c.isA", "target": "field:isA", "outputType": "Value", "value": { "state": "Resolved", "value": true } },
         "c.isB": { "ruleId": "c.isB", "target": "field:isB", "outputType": "Value", "value": { "state": "Resolved", "value": false } }
+      }
+    },
+    {
+      "name": "coding/captured-descendant",
+      "codingCapture": {
+        "answersJsonText": "[\"harborline-taxonomy-coding-answers/1\",\"tenant-a\",[[\"asset-class\",\"vendor.domain.asset\",\"1.0.0\",\"b21015c1098b83f1deb9addf42e10b84438c54a61d4f558d36bd3ceaa712fc87\"]],[[\"asset-class\",\"child\",\"leaf\",true],[\"asset-class\",\"leaf\",\"leaf\",true],[\"asset-class\",\"leaf\",\"root\",false],[\"asset-class\",\"root\",\"child\",true],[\"asset-class\",\"root\",\"leaf\",true],[\"asset-class\",\"root\",\"missing\",false],[\"asset-class\",\"root\",\"root\",true]]]\n",
+        "expectedBindingsJsonText": "[\"harborline-taxonomy-coding-bindings/1\",\"tenant-a\",[[\"asset-class\",\"vendor.domain.asset\",\"1.0.0\",\"b21015c1098b83f1deb9addf42e10b84438c54a61d4f558d36bd3ceaa712fc87\"]]]\n"
+      },
+      "definitionRules": [
+        {
+          "id": "c.captured",
+          "tier": "JsonLogic",
+          "scope": "Field",
+          "scopeTarget": "captured",
+          "action": "Compute",
+          "expression": {
+            "coding.is": [
+              {
+                "var": "code"
+              },
+              "asset-class",
+              "root"
+            ]
+          }
+        }
+      ],
+      "instance": {
+        "code": {
+          "system": "asset-class",
+          "code": "leaf"
+        }
+      },
+      "expectedOutcomes": {
+        "c.captured": {
+          "ruleId": "c.captured",
+          "target": "field:captured",
+          "outputType": "Value",
+          "value": {
+            "state": "Resolved",
+            "value": true
+          }
+        }
+      }
+    },
+    {
+      "name": "coding/captured-descendant-guard",
+      "codingCapture": {
+        "answersJsonText": "[\"harborline-taxonomy-coding-answers/1\",\"tenant-a\",[[\"asset-class\",\"vendor.domain.asset\",\"1.0.0\",\"b21015c1098b83f1deb9addf42e10b84438c54a61d4f558d36bd3ceaa712fc87\"]],[[\"asset-class\",\"child\",\"leaf\",true],[\"asset-class\",\"leaf\",\"leaf\",true],[\"asset-class\",\"leaf\",\"root\",false],[\"asset-class\",\"root\",\"child\",true],[\"asset-class\",\"root\",\"leaf\",true],[\"asset-class\",\"root\",\"missing\",false],[\"asset-class\",\"root\",\"root\",true]]]\n",
+        "expectedBindingsJsonText": "[\"harborline-taxonomy-coding-bindings/1\",\"tenant-a\",[[\"asset-class\",\"vendor.domain.asset\",\"1.0.0\",\"b21015c1098b83f1deb9addf42e10b84438c54a61d4f558d36bd3ceaa712fc87\"]]]\n"
+      },
+      "definitionRules": [
+        {
+          "id": "c.captured",
+          "tier": "JsonLogic",
+          "scope": "Field",
+          "scopeTarget": "captured",
+          "action": "Compute",
+          "expression": {
+            "coding.is": [
+              {
+                "var": "code"
+              },
+              "asset-class",
+              "root"
+            ]
+          }
+        }
+      ],
+      "instance": {
+        "code": {
+          "system": "asset-class",
+          "code": "leaf"
+        }
+      },
+      "guardValue": "c.captured",
+      "expectedGuardValue": {
+        "state": "Resolved",
+        "value": true
+      }
+    },
+    {
+      "name": "coding/captured-reverse",
+      "codingCapture": {
+        "answersJsonText": "[\"harborline-taxonomy-coding-answers/1\",\"tenant-a\",[[\"asset-class\",\"vendor.domain.asset\",\"1.0.0\",\"b21015c1098b83f1deb9addf42e10b84438c54a61d4f558d36bd3ceaa712fc87\"]],[[\"asset-class\",\"child\",\"leaf\",true],[\"asset-class\",\"leaf\",\"leaf\",true],[\"asset-class\",\"leaf\",\"root\",false],[\"asset-class\",\"root\",\"child\",true],[\"asset-class\",\"root\",\"leaf\",true],[\"asset-class\",\"root\",\"missing\",false],[\"asset-class\",\"root\",\"root\",true]]]\n",
+        "expectedBindingsJsonText": "[\"harborline-taxonomy-coding-bindings/1\",\"tenant-a\",[[\"asset-class\",\"vendor.domain.asset\",\"1.0.0\",\"b21015c1098b83f1deb9addf42e10b84438c54a61d4f558d36bd3ceaa712fc87\"]]]\n"
+      },
+      "definitionRules": [
+        {
+          "id": "c.captured",
+          "tier": "JsonLogic",
+          "scope": "Field",
+          "scopeTarget": "captured",
+          "action": "Compute",
+          "expression": {
+            "coding.is": [
+              {
+                "var": "code"
+              },
+              "asset-class",
+              "leaf"
+            ]
+          }
+        }
+      ],
+      "instance": {
+        "code": {
+          "system": "asset-class",
+          "code": "root"
+        }
+      },
+      "expectedOutcomes": {
+        "c.captured": {
+          "ruleId": "c.captured",
+          "target": "field:captured",
+          "outputType": "Value",
+          "value": {
+            "state": "Resolved",
+            "value": false
+          }
+        }
+      }
+    },
+    {
+      "name": "coding/captured-reverse-guard",
+      "codingCapture": {
+        "answersJsonText": "[\"harborline-taxonomy-coding-answers/1\",\"tenant-a\",[[\"asset-class\",\"vendor.domain.asset\",\"1.0.0\",\"b21015c1098b83f1deb9addf42e10b84438c54a61d4f558d36bd3ceaa712fc87\"]],[[\"asset-class\",\"child\",\"leaf\",true],[\"asset-class\",\"leaf\",\"leaf\",true],[\"asset-class\",\"leaf\",\"root\",false],[\"asset-class\",\"root\",\"child\",true],[\"asset-class\",\"root\",\"leaf\",true],[\"asset-class\",\"root\",\"missing\",false],[\"asset-class\",\"root\",\"root\",true]]]\n",
+        "expectedBindingsJsonText": "[\"harborline-taxonomy-coding-bindings/1\",\"tenant-a\",[[\"asset-class\",\"vendor.domain.asset\",\"1.0.0\",\"b21015c1098b83f1deb9addf42e10b84438c54a61d4f558d36bd3ceaa712fc87\"]]]\n"
+      },
+      "definitionRules": [
+        {
+          "id": "c.captured",
+          "tier": "JsonLogic",
+          "scope": "Field",
+          "scopeTarget": "captured",
+          "action": "Compute",
+          "expression": {
+            "coding.is": [
+              {
+                "var": "code"
+              },
+              "asset-class",
+              "leaf"
+            ]
+          }
+        }
+      ],
+      "instance": {
+        "code": {
+          "system": "asset-class",
+          "code": "root"
+        }
+      },
+      "guardValue": "c.captured",
+      "expectedGuardValue": {
+        "state": "Resolved",
+        "value": false
+      }
+    },
+    {
+      "name": "coding/captured-self",
+      "codingCapture": {
+        "answersJsonText": "[\"harborline-taxonomy-coding-answers/1\",\"tenant-a\",[[\"asset-class\",\"vendor.domain.asset\",\"1.0.0\",\"b21015c1098b83f1deb9addf42e10b84438c54a61d4f558d36bd3ceaa712fc87\"]],[[\"asset-class\",\"child\",\"leaf\",true],[\"asset-class\",\"leaf\",\"leaf\",true],[\"asset-class\",\"leaf\",\"root\",false],[\"asset-class\",\"root\",\"child\",true],[\"asset-class\",\"root\",\"leaf\",true],[\"asset-class\",\"root\",\"missing\",false],[\"asset-class\",\"root\",\"root\",true]]]\n",
+        "expectedBindingsJsonText": "[\"harborline-taxonomy-coding-bindings/1\",\"tenant-a\",[[\"asset-class\",\"vendor.domain.asset\",\"1.0.0\",\"b21015c1098b83f1deb9addf42e10b84438c54a61d4f558d36bd3ceaa712fc87\"]]]\n"
+      },
+      "definitionRules": [
+        {
+          "id": "c.captured",
+          "tier": "JsonLogic",
+          "scope": "Field",
+          "scopeTarget": "captured",
+          "action": "Compute",
+          "expression": {
+            "coding.is": [
+              {
+                "var": "code"
+              },
+              "asset-class",
+              "leaf"
+            ]
+          }
+        }
+      ],
+      "instance": {
+        "code": {
+          "system": "asset-class",
+          "code": "leaf"
+        }
+      },
+      "expectedOutcomes": {
+        "c.captured": {
+          "ruleId": "c.captured",
+          "target": "field:captured",
+          "outputType": "Value",
+          "value": {
+            "state": "Resolved",
+            "value": true
+          }
+        }
+      }
+    },
+    {
+      "name": "coding/captured-self-guard",
+      "codingCapture": {
+        "answersJsonText": "[\"harborline-taxonomy-coding-answers/1\",\"tenant-a\",[[\"asset-class\",\"vendor.domain.asset\",\"1.0.0\",\"b21015c1098b83f1deb9addf42e10b84438c54a61d4f558d36bd3ceaa712fc87\"]],[[\"asset-class\",\"child\",\"leaf\",true],[\"asset-class\",\"leaf\",\"leaf\",true],[\"asset-class\",\"leaf\",\"root\",false],[\"asset-class\",\"root\",\"child\",true],[\"asset-class\",\"root\",\"leaf\",true],[\"asset-class\",\"root\",\"missing\",false],[\"asset-class\",\"root\",\"root\",true]]]\n",
+        "expectedBindingsJsonText": "[\"harborline-taxonomy-coding-bindings/1\",\"tenant-a\",[[\"asset-class\",\"vendor.domain.asset\",\"1.0.0\",\"b21015c1098b83f1deb9addf42e10b84438c54a61d4f558d36bd3ceaa712fc87\"]]]\n"
+      },
+      "definitionRules": [
+        {
+          "id": "c.captured",
+          "tier": "JsonLogic",
+          "scope": "Field",
+          "scopeTarget": "captured",
+          "action": "Compute",
+          "expression": {
+            "coding.is": [
+              {
+                "var": "code"
+              },
+              "asset-class",
+              "leaf"
+            ]
+          }
+        }
+      ],
+      "instance": {
+        "code": {
+          "system": "asset-class",
+          "code": "leaf"
+        }
+      },
+      "guardValue": "c.captured",
+      "expectedGuardValue": {
+        "state": "Resolved",
+        "value": true
+      }
+    },
+    {
+      "name": "coding/captured-unknown-complete",
+      "codingCapture": {
+        "answersJsonText": "[\"harborline-taxonomy-coding-answers/1\",\"tenant-a\",[[\"asset-class\",\"vendor.domain.asset\",\"1.0.0\",\"b21015c1098b83f1deb9addf42e10b84438c54a61d4f558d36bd3ceaa712fc87\"]],[[\"asset-class\",\"child\",\"leaf\",true],[\"asset-class\",\"leaf\",\"leaf\",true],[\"asset-class\",\"leaf\",\"root\",false],[\"asset-class\",\"root\",\"child\",true],[\"asset-class\",\"root\",\"leaf\",true],[\"asset-class\",\"root\",\"missing\",false],[\"asset-class\",\"root\",\"root\",true]]]\n",
+        "expectedBindingsJsonText": "[\"harborline-taxonomy-coding-bindings/1\",\"tenant-a\",[[\"asset-class\",\"vendor.domain.asset\",\"1.0.0\",\"b21015c1098b83f1deb9addf42e10b84438c54a61d4f558d36bd3ceaa712fc87\"]]]\n"
+      },
+      "definitionRules": [
+        {
+          "id": "c.captured",
+          "tier": "JsonLogic",
+          "scope": "Field",
+          "scopeTarget": "captured",
+          "action": "Compute",
+          "expression": {
+            "coding.is": [
+              {
+                "var": "code"
+              },
+              "asset-class",
+              "root"
+            ]
+          }
+        }
+      ],
+      "instance": {
+        "code": {
+          "system": "asset-class",
+          "code": "missing"
+        }
+      },
+      "expectedOutcomes": {
+        "c.captured": {
+          "ruleId": "c.captured",
+          "target": "field:captured",
+          "outputType": "Value",
+          "value": {
+            "state": "Resolved",
+            "value": false
+          }
+        }
+      }
+    },
+    {
+      "name": "coding/captured-unknown-complete-guard",
+      "codingCapture": {
+        "answersJsonText": "[\"harborline-taxonomy-coding-answers/1\",\"tenant-a\",[[\"asset-class\",\"vendor.domain.asset\",\"1.0.0\",\"b21015c1098b83f1deb9addf42e10b84438c54a61d4f558d36bd3ceaa712fc87\"]],[[\"asset-class\",\"child\",\"leaf\",true],[\"asset-class\",\"leaf\",\"leaf\",true],[\"asset-class\",\"leaf\",\"root\",false],[\"asset-class\",\"root\",\"child\",true],[\"asset-class\",\"root\",\"leaf\",true],[\"asset-class\",\"root\",\"missing\",false],[\"asset-class\",\"root\",\"root\",true]]]\n",
+        "expectedBindingsJsonText": "[\"harborline-taxonomy-coding-bindings/1\",\"tenant-a\",[[\"asset-class\",\"vendor.domain.asset\",\"1.0.0\",\"b21015c1098b83f1deb9addf42e10b84438c54a61d4f558d36bd3ceaa712fc87\"]]]\n"
+      },
+      "definitionRules": [
+        {
+          "id": "c.captured",
+          "tier": "JsonLogic",
+          "scope": "Field",
+          "scopeTarget": "captured",
+          "action": "Compute",
+          "expression": {
+            "coding.is": [
+              {
+                "var": "code"
+              },
+              "asset-class",
+              "root"
+            ]
+          }
+        }
+      ],
+      "instance": {
+        "code": {
+          "system": "asset-class",
+          "code": "missing"
+        }
+      },
+      "guardValue": "c.captured",
+      "expectedGuardValue": {
+        "state": "Resolved",
+        "value": false
+      }
+    },
+    {
+      "name": "coding/captured-other-system",
+      "codingCapture": {
+        "answersJsonText": "[\"harborline-taxonomy-coding-answers/1\",\"tenant-a\",[[\"asset-class\",\"vendor.domain.asset\",\"1.0.0\",\"b21015c1098b83f1deb9addf42e10b84438c54a61d4f558d36bd3ceaa712fc87\"]],[[\"asset-class\",\"child\",\"leaf\",true],[\"asset-class\",\"leaf\",\"leaf\",true],[\"asset-class\",\"leaf\",\"root\",false],[\"asset-class\",\"root\",\"child\",true],[\"asset-class\",\"root\",\"leaf\",true],[\"asset-class\",\"root\",\"missing\",false],[\"asset-class\",\"root\",\"root\",true]]]\n",
+        "expectedBindingsJsonText": "[\"harborline-taxonomy-coding-bindings/1\",\"tenant-a\",[[\"asset-class\",\"vendor.domain.asset\",\"1.0.0\",\"b21015c1098b83f1deb9addf42e10b84438c54a61d4f558d36bd3ceaa712fc87\"]]]\n"
+      },
+      "definitionRules": [
+        {
+          "id": "c.captured",
+          "tier": "JsonLogic",
+          "scope": "Field",
+          "scopeTarget": "captured",
+          "action": "Compute",
+          "expression": {
+            "coding.is": [
+              {
+                "var": "code"
+              },
+              "asset-class",
+              "root"
+            ]
+          }
+        }
+      ],
+      "instance": {
+        "code": {
+          "system": "other",
+          "code": "leaf"
+        }
+      },
+      "expectedOutcomes": {
+        "c.captured": {
+          "ruleId": "c.captured",
+          "target": "field:captured",
+          "outputType": "Value",
+          "value": {
+            "state": "Resolved",
+            "value": false
+          }
+        }
+      }
+    },
+    {
+      "name": "coding/captured-other-system-guard",
+      "codingCapture": {
+        "answersJsonText": "[\"harborline-taxonomy-coding-answers/1\",\"tenant-a\",[[\"asset-class\",\"vendor.domain.asset\",\"1.0.0\",\"b21015c1098b83f1deb9addf42e10b84438c54a61d4f558d36bd3ceaa712fc87\"]],[[\"asset-class\",\"child\",\"leaf\",true],[\"asset-class\",\"leaf\",\"leaf\",true],[\"asset-class\",\"leaf\",\"root\",false],[\"asset-class\",\"root\",\"child\",true],[\"asset-class\",\"root\",\"leaf\",true],[\"asset-class\",\"root\",\"missing\",false],[\"asset-class\",\"root\",\"root\",true]]]\n",
+        "expectedBindingsJsonText": "[\"harborline-taxonomy-coding-bindings/1\",\"tenant-a\",[[\"asset-class\",\"vendor.domain.asset\",\"1.0.0\",\"b21015c1098b83f1deb9addf42e10b84438c54a61d4f558d36bd3ceaa712fc87\"]]]\n"
+      },
+      "definitionRules": [
+        {
+          "id": "c.captured",
+          "tier": "JsonLogic",
+          "scope": "Field",
+          "scopeTarget": "captured",
+          "action": "Compute",
+          "expression": {
+            "coding.is": [
+              {
+                "var": "code"
+              },
+              "asset-class",
+              "root"
+            ]
+          }
+        }
+      ],
+      "instance": {
+        "code": {
+          "system": "other",
+          "code": "leaf"
+        }
+      },
+      "guardValue": "c.captured",
+      "expectedGuardValue": {
+        "state": "Resolved",
+        "value": false
+      }
+    },
+    {
+      "name": "coding/captured-array",
+      "codingCapture": {
+        "answersJsonText": "[\"harborline-taxonomy-coding-answers/1\",\"tenant-a\",[[\"asset-class\",\"vendor.domain.asset\",\"1.0.0\",\"b21015c1098b83f1deb9addf42e10b84438c54a61d4f558d36bd3ceaa712fc87\"]],[[\"asset-class\",\"child\",\"leaf\",true],[\"asset-class\",\"leaf\",\"leaf\",true],[\"asset-class\",\"leaf\",\"root\",false],[\"asset-class\",\"root\",\"child\",true],[\"asset-class\",\"root\",\"leaf\",true],[\"asset-class\",\"root\",\"missing\",false],[\"asset-class\",\"root\",\"root\",true]]]\n",
+        "expectedBindingsJsonText": "[\"harborline-taxonomy-coding-bindings/1\",\"tenant-a\",[[\"asset-class\",\"vendor.domain.asset\",\"1.0.0\",\"b21015c1098b83f1deb9addf42e10b84438c54a61d4f558d36bd3ceaa712fc87\"]]]\n"
+      },
+      "definitionRules": [
+        {
+          "id": "c.captured",
+          "tier": "JsonLogic",
+          "scope": "Field",
+          "scopeTarget": "captured",
+          "action": "Compute",
+          "expression": {
+            "coding.is": [
+              {
+                "var": "code"
+              },
+              "asset-class",
+              "root"
+            ]
+          }
+        }
+      ],
+      "instance": {
+        "code": [
+          null,
+          {
+            "system": "other",
+            "code": "leaf"
+          },
+          {
+            "system": "asset-class",
+            "code": "leaf"
+          }
+        ]
+      },
+      "expectedOutcomes": {
+        "c.captured": {
+          "ruleId": "c.captured",
+          "target": "field:captured",
+          "outputType": "Value",
+          "value": {
+            "state": "Resolved",
+            "value": true
+          }
+        }
+      }
+    },
+    {
+      "name": "coding/captured-array-guard",
+      "codingCapture": {
+        "answersJsonText": "[\"harborline-taxonomy-coding-answers/1\",\"tenant-a\",[[\"asset-class\",\"vendor.domain.asset\",\"1.0.0\",\"b21015c1098b83f1deb9addf42e10b84438c54a61d4f558d36bd3ceaa712fc87\"]],[[\"asset-class\",\"child\",\"leaf\",true],[\"asset-class\",\"leaf\",\"leaf\",true],[\"asset-class\",\"leaf\",\"root\",false],[\"asset-class\",\"root\",\"child\",true],[\"asset-class\",\"root\",\"leaf\",true],[\"asset-class\",\"root\",\"missing\",false],[\"asset-class\",\"root\",\"root\",true]]]\n",
+        "expectedBindingsJsonText": "[\"harborline-taxonomy-coding-bindings/1\",\"tenant-a\",[[\"asset-class\",\"vendor.domain.asset\",\"1.0.0\",\"b21015c1098b83f1deb9addf42e10b84438c54a61d4f558d36bd3ceaa712fc87\"]]]\n"
+      },
+      "definitionRules": [
+        {
+          "id": "c.captured",
+          "tier": "JsonLogic",
+          "scope": "Field",
+          "scopeTarget": "captured",
+          "action": "Compute",
+          "expression": {
+            "coding.is": [
+              {
+                "var": "code"
+              },
+              "asset-class",
+              "root"
+            ]
+          }
+        }
+      ],
+      "instance": {
+        "code": [
+          {
+            "system": "other",
+            "code": "leaf"
+          },
+          {
+            "system": "asset-class",
+            "code": "leaf"
+          }
+        ]
+      },
+      "guardValue": "c.captured",
+      "expectedGuardValue": {
+        "state": "Resolved",
+        "value": true
+      }
+    },
+    {
+      "name": "coding/captured-array-true-cannot-hide-missing",
+      "codingCapture": {
+        "answersJsonText": "[\"harborline-taxonomy-coding-answers/1\",\"tenant-a\",[[\"asset-class\",\"vendor.domain.asset\",\"1.0.0\",\"b21015c1098b83f1deb9addf42e10b84438c54a61d4f558d36bd3ceaa712fc87\"]],[[\"asset-class\",\"child\",\"leaf\",true],[\"asset-class\",\"leaf\",\"leaf\",true],[\"asset-class\",\"leaf\",\"root\",false],[\"asset-class\",\"root\",\"child\",true],[\"asset-class\",\"root\",\"leaf\",true],[\"asset-class\",\"root\",\"missing\",false],[\"asset-class\",\"root\",\"root\",true]]]\n",
+        "expectedBindingsJsonText": "[\"harborline-taxonomy-coding-bindings/1\",\"tenant-a\",[[\"asset-class\",\"vendor.domain.asset\",\"1.0.0\",\"b21015c1098b83f1deb9addf42e10b84438c54a61d4f558d36bd3ceaa712fc87\"]]]\n"
+      },
+      "definitionRules": [
+        {
+          "id": "c.captured",
+          "tier": "JsonLogic",
+          "scope": "Field",
+          "scopeTarget": "captured",
+          "action": "Compute",
+          "expression": {
+            "coding.is": [
+              {
+                "var": "code"
+              },
+              "asset-class",
+              "root"
+            ]
+          }
+        }
+      ],
+      "instance": {
+        "code": [
+          null,
+          {
+            "system": "asset-class",
+            "code": "leaf"
+          },
+          {
+            "system": "asset-class",
+            "code": "uncaptured"
+          }
+        ]
+      },
+      "expectedOutcomes": {
+        "c.captured": {
+          "ruleId": "c.captured",
+          "target": "field:captured",
+          "outputType": "Value",
+          "value": {
+            "state": "Error",
+            "error": {
+              "code": "rule.coding_answer_missing",
+              "params": {}
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "coding/captured-array-true-cannot-hide-missing-guard",
+      "codingCapture": {
+        "answersJsonText": "[\"harborline-taxonomy-coding-answers/1\",\"tenant-a\",[[\"asset-class\",\"vendor.domain.asset\",\"1.0.0\",\"b21015c1098b83f1deb9addf42e10b84438c54a61d4f558d36bd3ceaa712fc87\"]],[[\"asset-class\",\"child\",\"leaf\",true],[\"asset-class\",\"leaf\",\"leaf\",true],[\"asset-class\",\"leaf\",\"root\",false],[\"asset-class\",\"root\",\"child\",true],[\"asset-class\",\"root\",\"leaf\",true],[\"asset-class\",\"root\",\"missing\",false],[\"asset-class\",\"root\",\"root\",true]]]\n",
+        "expectedBindingsJsonText": "[\"harborline-taxonomy-coding-bindings/1\",\"tenant-a\",[[\"asset-class\",\"vendor.domain.asset\",\"1.0.0\",\"b21015c1098b83f1deb9addf42e10b84438c54a61d4f558d36bd3ceaa712fc87\"]]]\n"
+      },
+      "definitionRules": [
+        {
+          "id": "c.captured",
+          "tier": "JsonLogic",
+          "scope": "Field",
+          "scopeTarget": "captured",
+          "action": "Compute",
+          "expression": {
+            "coding.is": [
+              {
+                "var": "code"
+              },
+              "asset-class",
+              "root"
+            ]
+          }
+        }
+      ],
+      "instance": {
+        "code": [
+          {
+            "system": "asset-class",
+            "code": "leaf"
+          },
+          {
+            "system": "asset-class",
+            "code": "uncaptured"
+          }
+        ]
+      },
+      "guardValue": "c.captured",
+      "expectedGuardValue": {
+        "state": "Error",
+        "error": {
+          "code": "rule.coding_answer_missing",
+          "params": {}
+        }
+      }
+    },
+    {
+      "name": "coding/captured-missing-binding",
+      "codingCapture": {
+        "answersJsonText": "[\"harborline-taxonomy-coding-answers/1\",\"tenant-a\",[[\"asset-class\",\"vendor.domain.asset\",\"1.0.0\",\"b21015c1098b83f1deb9addf42e10b84438c54a61d4f558d36bd3ceaa712fc87\"]],[[\"asset-class\",\"child\",\"leaf\",true],[\"asset-class\",\"leaf\",\"leaf\",true],[\"asset-class\",\"leaf\",\"root\",false],[\"asset-class\",\"root\",\"child\",true],[\"asset-class\",\"root\",\"leaf\",true],[\"asset-class\",\"root\",\"missing\",false],[\"asset-class\",\"root\",\"root\",true]]]\n",
+        "expectedBindingsJsonText": "[\"harborline-taxonomy-coding-bindings/1\",\"tenant-a\",[[\"asset-class\",\"vendor.domain.asset\",\"1.0.0\",\"b21015c1098b83f1deb9addf42e10b84438c54a61d4f558d36bd3ceaa712fc87\"]]]\n"
+      },
+      "definitionRules": [
+        {
+          "id": "c.captured",
+          "tier": "JsonLogic",
+          "scope": "Field",
+          "scopeTarget": "captured",
+          "action": "Compute",
+          "expression": {
+            "coding.is": [
+              {
+                "var": "code"
+              },
+              "other",
+              "root"
+            ]
+          }
+        }
+      ],
+      "instance": {
+        "code": {
+          "system": "other",
+          "code": "leaf"
+        }
+      },
+      "expectedOutcomes": {
+        "c.captured": {
+          "ruleId": "c.captured",
+          "target": "field:captured",
+          "outputType": "Value",
+          "value": {
+            "state": "Error",
+            "error": {
+              "code": "rule.coding_binding_missing",
+              "params": {}
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "coding/captured-missing-binding-guard",
+      "codingCapture": {
+        "answersJsonText": "[\"harborline-taxonomy-coding-answers/1\",\"tenant-a\",[[\"asset-class\",\"vendor.domain.asset\",\"1.0.0\",\"b21015c1098b83f1deb9addf42e10b84438c54a61d4f558d36bd3ceaa712fc87\"]],[[\"asset-class\",\"child\",\"leaf\",true],[\"asset-class\",\"leaf\",\"leaf\",true],[\"asset-class\",\"leaf\",\"root\",false],[\"asset-class\",\"root\",\"child\",true],[\"asset-class\",\"root\",\"leaf\",true],[\"asset-class\",\"root\",\"missing\",false],[\"asset-class\",\"root\",\"root\",true]]]\n",
+        "expectedBindingsJsonText": "[\"harborline-taxonomy-coding-bindings/1\",\"tenant-a\",[[\"asset-class\",\"vendor.domain.asset\",\"1.0.0\",\"b21015c1098b83f1deb9addf42e10b84438c54a61d4f558d36bd3ceaa712fc87\"]]]\n"
+      },
+      "definitionRules": [
+        {
+          "id": "c.captured",
+          "tier": "JsonLogic",
+          "scope": "Field",
+          "scopeTarget": "captured",
+          "action": "Compute",
+          "expression": {
+            "coding.is": [
+              {
+                "var": "code"
+              },
+              "other",
+              "root"
+            ]
+          }
+        }
+      ],
+      "instance": {
+        "code": {
+          "system": "other",
+          "code": "leaf"
+        }
+      },
+      "guardValue": "c.captured",
+      "expectedGuardValue": {
+        "state": "Error",
+        "error": {
+          "code": "rule.coding_binding_missing",
+          "params": {}
+        }
+      }
+    },
+    {
+      "name": "coding/captured-missing-pair",
+      "codingCapture": {
+        "answersJsonText": "[\"harborline-taxonomy-coding-answers/1\",\"tenant-a\",[[\"asset-class\",\"vendor.domain.asset\",\"1.0.0\",\"b21015c1098b83f1deb9addf42e10b84438c54a61d4f558d36bd3ceaa712fc87\"]],[[\"asset-class\",\"child\",\"leaf\",true],[\"asset-class\",\"leaf\",\"leaf\",true],[\"asset-class\",\"leaf\",\"root\",false],[\"asset-class\",\"root\",\"child\",true],[\"asset-class\",\"root\",\"leaf\",true],[\"asset-class\",\"root\",\"missing\",false],[\"asset-class\",\"root\",\"root\",true]]]\n",
+        "expectedBindingsJsonText": "[\"harborline-taxonomy-coding-bindings/1\",\"tenant-a\",[[\"asset-class\",\"vendor.domain.asset\",\"1.0.0\",\"b21015c1098b83f1deb9addf42e10b84438c54a61d4f558d36bd3ceaa712fc87\"]]]\n"
+      },
+      "definitionRules": [
+        {
+          "id": "c.captured",
+          "tier": "JsonLogic",
+          "scope": "Field",
+          "scopeTarget": "captured",
+          "action": "Compute",
+          "expression": {
+            "coding.is": [
+              {
+                "var": "code"
+              },
+              "asset-class",
+              "root"
+            ]
+          }
+        }
+      ],
+      "instance": {
+        "code": {
+          "system": "asset-class",
+          "code": "uncaptured"
+        }
+      },
+      "expectedOutcomes": {
+        "c.captured": {
+          "ruleId": "c.captured",
+          "target": "field:captured",
+          "outputType": "Value",
+          "value": {
+            "state": "Error",
+            "error": {
+              "code": "rule.coding_answer_missing",
+              "params": {}
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "coding/captured-missing-pair-guard",
+      "codingCapture": {
+        "answersJsonText": "[\"harborline-taxonomy-coding-answers/1\",\"tenant-a\",[[\"asset-class\",\"vendor.domain.asset\",\"1.0.0\",\"b21015c1098b83f1deb9addf42e10b84438c54a61d4f558d36bd3ceaa712fc87\"]],[[\"asset-class\",\"child\",\"leaf\",true],[\"asset-class\",\"leaf\",\"leaf\",true],[\"asset-class\",\"leaf\",\"root\",false],[\"asset-class\",\"root\",\"child\",true],[\"asset-class\",\"root\",\"leaf\",true],[\"asset-class\",\"root\",\"missing\",false],[\"asset-class\",\"root\",\"root\",true]]]\n",
+        "expectedBindingsJsonText": "[\"harborline-taxonomy-coding-bindings/1\",\"tenant-a\",[[\"asset-class\",\"vendor.domain.asset\",\"1.0.0\",\"b21015c1098b83f1deb9addf42e10b84438c54a61d4f558d36bd3ceaa712fc87\"]]]\n"
+      },
+      "definitionRules": [
+        {
+          "id": "c.captured",
+          "tier": "JsonLogic",
+          "scope": "Field",
+          "scopeTarget": "captured",
+          "action": "Compute",
+          "expression": {
+            "coding.is": [
+              {
+                "var": "code"
+              },
+              "asset-class",
+              "root"
+            ]
+          }
+        }
+      ],
+      "instance": {
+        "code": {
+          "system": "asset-class",
+          "code": "uncaptured"
+        }
+      },
+      "guardValue": "c.captured",
+      "expectedGuardValue": {
+        "state": "Error",
+        "error": {
+          "code": "rule.coding_answer_missing",
+          "params": {}
+        }
+      }
+    },
+    {
+      "name": "coding/captured-version2-changed-parent",
+      "codingCapture": {
+        "answersJsonText": "[\"harborline-taxonomy-coding-answers/1\",\"tenant-a\",[[\"asset-class\",\"vendor.domain.asset\",\"2.0.0\",\"3dad23b793520641a115907c07587e405ad05952433cf362a93f49df5fb14676\"]],[[\"asset-class\",\"child\",\"leaf\",true],[\"asset-class\",\"leaf\",\"leaf\",true],[\"asset-class\",\"leaf\",\"root\",false],[\"asset-class\",\"root\",\"child\",false],[\"asset-class\",\"root\",\"leaf\",false],[\"asset-class\",\"root\",\"missing\",false],[\"asset-class\",\"root\",\"root\",true]]]\n",
+        "expectedBindingsJsonText": "[\"harborline-taxonomy-coding-bindings/1\",\"tenant-a\",[[\"asset-class\",\"vendor.domain.asset\",\"2.0.0\",\"3dad23b793520641a115907c07587e405ad05952433cf362a93f49df5fb14676\"]]]\n"
+      },
+      "definitionRules": [
+        {
+          "id": "c.captured",
+          "tier": "JsonLogic",
+          "scope": "Field",
+          "scopeTarget": "captured",
+          "action": "Compute",
+          "expression": {
+            "coding.is": [
+              {
+                "var": "code"
+              },
+              "asset-class",
+              "root"
+            ]
+          }
+        }
+      ],
+      "instance": {
+        "code": {
+          "system": "asset-class",
+          "code": "leaf"
+        }
+      },
+      "expectedOutcomes": {
+        "c.captured": {
+          "ruleId": "c.captured",
+          "target": "field:captured",
+          "outputType": "Value",
+          "value": {
+            "state": "Resolved",
+            "value": false
+          }
+        }
+      }
+    },
+    {
+      "name": "coding/captured-version2-changed-parent-guard",
+      "codingCapture": {
+        "answersJsonText": "[\"harborline-taxonomy-coding-answers/1\",\"tenant-a\",[[\"asset-class\",\"vendor.domain.asset\",\"2.0.0\",\"3dad23b793520641a115907c07587e405ad05952433cf362a93f49df5fb14676\"]],[[\"asset-class\",\"child\",\"leaf\",true],[\"asset-class\",\"leaf\",\"leaf\",true],[\"asset-class\",\"leaf\",\"root\",false],[\"asset-class\",\"root\",\"child\",false],[\"asset-class\",\"root\",\"leaf\",false],[\"asset-class\",\"root\",\"missing\",false],[\"asset-class\",\"root\",\"root\",true]]]\n",
+        "expectedBindingsJsonText": "[\"harborline-taxonomy-coding-bindings/1\",\"tenant-a\",[[\"asset-class\",\"vendor.domain.asset\",\"2.0.0\",\"3dad23b793520641a115907c07587e405ad05952433cf362a93f49df5fb14676\"]]]\n"
+      },
+      "definitionRules": [
+        {
+          "id": "c.captured",
+          "tier": "JsonLogic",
+          "scope": "Field",
+          "scopeTarget": "captured",
+          "action": "Compute",
+          "expression": {
+            "coding.is": [
+              {
+                "var": "code"
+              },
+              "asset-class",
+              "root"
+            ]
+          }
+        }
+      ],
+      "instance": {
+        "code": {
+          "system": "asset-class",
+          "code": "leaf"
+        }
+      },
+      "guardValue": "c.captured",
+      "expectedGuardValue": {
+        "state": "Resolved",
+        "value": false
+      }
+    },
+    {
+      "name": "guard/non-coding-custom-step-budget-refuses",
+      "limits": {
+        "stepBudget": 1
+      },
+      "guardValue": "g.custom",
+      "definitionRules": [
+        {
+          "id": "g.custom",
+          "tier": "JsonLogic",
+          "scope": "Schema",
+          "scopeTarget": "",
+          "action": "Compute",
+          "expression": {
+            "+": [
+              1,
+              2
+            ]
+          }
+        }
+      ],
+      "instance": {},
+      "expectedGuardValue": {
+        "state": "Error",
+        "error": {
+          "code": "rule.budget_exceeded",
+          "params": {
+            "rule": "g.custom"
+          }
+        }
+      }
+    },
+    {
+      "name": "guard/non-coding-custom-step-budget-admits",
+      "limits": {
+        "stepBudget": 16
+      },
+      "guardValue": "g.custom",
+      "definitionRules": [
+        {
+          "id": "g.custom",
+          "tier": "JsonLogic",
+          "scope": "Schema",
+          "scopeTarget": "",
+          "action": "Compute",
+          "expression": {
+            "+": [
+              1,
+              2
+            ]
+          }
+        }
+      ],
+      "instance": {},
+      "expectedGuardValue": {
+        "state": "Resolved",
+        "value": 3
       }
     }
   ]

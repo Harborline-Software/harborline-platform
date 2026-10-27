@@ -1,4 +1,5 @@
 using Harborline.Contracts.Forms;
+using Harborline.Contracts.Serialization;
 
 namespace Harborline.Blocks.BuilderDefinitions;
 

@@ -138,16 +138,8 @@ async function run(id, executable, args, cwd = root) {
 let results
 let coverage = []
 if (buildOnly) {
-  // The aggregate React declaration build consumes the canonical Forms
-  // declaration output, and the rule-authoring typecheck/build consumes the
-  // rule-runtime declaration output. Establish both authorities first so clean
-  // builds never race a consumer against the compiler writing its dist. The
-  // SelectField typecheck then consumes sibling declarations from that aggregate
-  // React build, so complete the producer before starting the consumer fan-out.
-  const [formsTypeScriptBuild, ruleRuntimeTypeScriptBuild] = await Promise.all([
-    run('forms-typescript-build', 'npm', ['run', 'build'], formsTypeScriptRoot),
-    run('rule-runtime-typescript-build', 'pnpm', ['run', 'build'], ruleRuntimeTypeScriptRoot),
-  ])
+  const formsTypeScriptBuild = await run('forms-typescript-build', 'npm', ['run', 'build'], formsTypeScriptRoot)
+  const ruleRuntimeTypeScriptBuild = await run('rule-runtime-typescript-build', 'pnpm', ['run', 'build'], ruleRuntimeTypeScriptRoot)
   // SelectField's standalone typecheck reads sibling declarations emitted by this build.
   const reactBuild = await run('react-build', 'npm', ['run', 'build'], reactRoot)
   results = [formsTypeScriptBuild, ruleRuntimeTypeScriptBuild, ...await Promise.all([

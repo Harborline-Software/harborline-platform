@@ -1,4 +1,4 @@
-using Contract = Harborline.Contracts.Forms;
+using Contract = Harborline.Contracts.Rules;
 using Harborline.Foundation.Forms;
 using Harborline.Foundation.Forms.Exceptions;
 using Harborline.Foundation.Forms.Models;

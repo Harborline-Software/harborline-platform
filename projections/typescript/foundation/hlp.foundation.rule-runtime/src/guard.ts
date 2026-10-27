@@ -4,10 +4,12 @@
  * Fail-closed: a pending/errored guard does not let a transition fire.
  */
 import { admissionRefusal, type EvaluationAdmission } from './environment.js'
+import { CodingSubsumptionSnapshot, requireCodingSnapshot } from './coding-subsumption.js'
+import { deriveGraphWork } from './core-work.js'
 import { Codes } from './codes.js'
 import type { ComputedValue, Json, RuleDefinition, Validity } from './model.js'
 import { DEFAULT_LIMITS, type RuleEngineLimits } from './limits.js'
-import { compile } from './compiler.js'
+import { compile, staticWorkRefusal } from './compiler.js'
 import { CompileError } from './grammar.js'
 import {
   EvalBudget, RuleBudget, RuleEvalError, RulePending,
@@ -75,10 +77,14 @@ function contextValuesOf(value: unknown): Record<string, Json> | undefined {
 }
 
 export class GuardEvaluator {
+  readonly #coding: CodingSubsumptionSnapshot | undefined
   constructor(
     private readonly clock: () => Date,
     private readonly limits: RuleEngineLimits = DEFAULT_LIMITS,
+    coding?: CodingSubsumptionSnapshot,
   ) {
+    if (arguments.length >= 3) requireCodingSnapshot(coding)
+    this.#coding = coding
     if (typeof clock !== 'function') throw new TypeError('GuardEvaluator requires a caller-supplied clock')
   }
 
@@ -92,6 +98,10 @@ export class GuardEvaluator {
     // rules-eng-26: admission evidence is checked before any value is read.
     const refusal = admissionRefusal(admission, compiled.rules.map((r) => r.ast))
     if (refusal !== null) return { ok: false, error: err(refusal) }
+    if (this.#coding !== undefined) {
+      const workRefusal = staticWorkRefusal(deriveGraphWork(compiled.rules, this.limits, true), this.limits)
+      if (workRefusal) return { ok: false, error: err(workRefusal.code) }
+    }
     const snapshot = contextValuesOf(context)
     if (!snapshot) return { ok: false, error: err(Codes.contextSnapshotRequired) }
     if (compiled.rules.length === 0) return { ok: true } // Tier-1 guard: nothing for this engine.
@@ -115,6 +125,10 @@ export class GuardEvaluator {
     }
     const refusal = admissionRefusal(admission, compiled.rules.map((r) => r.ast))
     if (refusal !== null) return { state: 'Error', error: err(refusal) }
+    if (this.#coding !== undefined) {
+      const workRefusal = staticWorkRefusal(deriveGraphWork(compiled.rules, this.limits, true), this.limits)
+      if (workRefusal) return { state: 'Error', error: err(workRefusal.code) }
+    }
     const snapshot = contextValuesOf(context)
     if (!snapshot) return { state: 'Error', error: err(Codes.contextSnapshotRequired) }
     if (compiled.rules.length === 0) return { state: 'Resolved', value: null }
@@ -138,7 +152,7 @@ export class GuardEvaluator {
     onPending: () => T,
     signal?: AbortSignal,
   ): T {
-    const ctx: EvalContext = { resolver: new ContextBagResolver(context), now: this.clock(), budget: new EvalBudget(this.limits, signal) }
+    const ctx: EvalContext = { resolver: new ContextBagResolver(context), now: this.clock(), budget: new EvalBudget(this.limits, signal), coding: this.#coding }
     try {
       return onValue(evaluate(ast, ctx))
     } catch (e) {

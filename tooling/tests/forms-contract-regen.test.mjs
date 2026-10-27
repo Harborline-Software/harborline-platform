@@ -1,9 +1,3 @@
-// The forms projection manifest is the authority: `tooling/generate-authorization-bindings.mjs`
-// stamps `manifest.model` into src/wire.ts and FormsJson.g.cs, and FormsContracts.g.cs declares
-// the same constants by hand. Nothing on the gate route noticed when a generated file went
-// stale, so renaming a manifest constant could land with three copies disagreeing (ticket 256
-// slice 9). These assertions are the regen check: they run inside `tooling-selftests`, the
-// phase-4 gate step (tooling/run-phase-4-gate.mjs).
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
@@ -26,30 +20,27 @@ test('FormsJson.g.cs carries the committed manifest model verbatim', () => {
   'FormsJson.g.cs is stale — re-run `npm run generate:authorization`')
 })
 
-test('FormsContracts.g.cs declares every manifest constant by the manifest name and value', () => {
-  const source = read('projections/dotnet/contracts/hlp.contracts.identities/Forms/FormsContracts.g.cs')
+test('FormsContracts.cs declares every manifest constant by the manifest name and value', () => {
+  const source = read('projections/dotnet/contracts/hlp.contracts.identities/Forms/FormsContracts.cs')
   const constants = Object.entries(manifest.model.declarations).filter(([, d]) => d.kind === 'constant')
   assert.ok(constants.length > 0, 'the manifest declares no constants — the scan shape changed')
   assert.equal(constants.length, manifest.surfaceCounts.constants, 'surfaceCounts.constants disagrees with the model')
   for (const [name, declaration] of constants) {
     assert.ok(source.includes(`public const string ${name} = ${JSON.stringify(declaration.value)};`),
-      `FormsContracts.g.cs does not declare ${name} = ${JSON.stringify(declaration.value)}`)
-    assert.ok(source.includes(`"${name}",`), `FormsContracts.g.cs does not list ${name} in its constant registry`)
+      `FormsContracts.cs does not declare ${name} = ${JSON.stringify(declaration.value)}`)
+    assert.ok(source.includes(`"${name}",`), `FormsContracts.cs does not list ${name} in its constant registry`)
   }
 })
 
-// `src/forms.ts` is the TypeScript authority the manifest was captured from
-// (`generatedFrom.source`), and it was the one link in the chain nothing checked: renaming an
-// export there left the manifest — and therefore both generated files — silently disagreeing
-// (ticket 256 slice 9 review). These two close it.
-test('forms.ts declares exactly the manifest declaration set', () => {
-  const source = read('projections/typescript/contracts/hlp.contracts.forms/src/forms.ts')
-  const exported = [...source.matchAll(/^export (?:interface|type|const) ([A-Za-z0-9_]+)/gm)].map(match => match[1])
+test('Forms and its owner modules declare exactly the manifest declaration set', () => {
+  const modules = ['forms', 'rules', 'text', 'presentation']
+  const exported = modules.flatMap(name => [...read(`projections/typescript/contracts/hlp.contracts.forms/src/${name}.ts`)
+    .matchAll(/^export (?:interface|type|const) ([A-Za-z0-9_]+)/gm)].map(match => match[1]))
   const declared = Object.keys(manifest.model.declarations)
   assert.ok(declared.length > 0, 'the manifest declares nothing — the scan shape changed')
-  assert.equal(exported.length, manifest.surfaceCounts.declarations, 'surfaceCounts.declarations disagrees with forms.ts')
+  assert.equal(exported.length, manifest.surfaceCounts.declarations, 'surfaceCounts.declarations disagrees with the owner modules')
   assert.deepEqual([...exported].sort(), [...declared].sort(),
-    'forms.ts and projection-manifest.json disagree — update the manifest and re-run `npm run generate:authorization`')
+    'the owner modules and projection-manifest.json disagree — update the manifest and re-run `npm run generate:authorization`')
 })
 
 test('forms.ts declares every manifest constant by the manifest name and value', () => {
