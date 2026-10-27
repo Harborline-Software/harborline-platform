@@ -112,11 +112,15 @@ const assertions: Record<string, (entry: Case) => void | Promise<void>> = {
     const inField = (name: string) => (
       <FormFieldContext.Provider value={{ id: 'field-id', labelId: 'field-label' }}><span id="field-label">{given.fieldLabel}</span><TextBox aria-label={name}/></FormFieldContext.Provider>
     )
-    const namedByField = () => !input().hasAttribute('aria-label') && input().getAttribute('aria-labelledby') === 'field-label'
-      && document.getElementById('field-label')?.textContent === given.fieldLabel
+    const namedByField = () => {
+      // The computed accessible name, not the attribute: it must be the field label's text.
+      try { expect(input()).toHaveAccessibleName(given.fieldLabel); return true } catch { return false }
+    }
     expect(given.blankNames.map((name: string) => { const view = render(inField(name)); const named = namedByField(); view.unmount(); return named })).toEqual(expected.blankNamedByFieldLabel)
     render(inField(given.callerName))
-    expect(input().getAttribute('aria-label') === given.callerName && !input().hasAttribute('aria-labelledby')).toBe(expected.callerNameKept)
+    let kept = true
+    try { expect(input()).toHaveAccessibleName(given.callerName) } catch { kept = false }
+    expect(kept && !input().hasAttribute('aria-labelledby')).toBe(expected.callerNameKept)
   },
   'text-box.validation': ({ input: given, expected }) => {
     render(<TextBox aria-label="Query" error={given.error} invalid={given.invalid} required={given.required}/>)

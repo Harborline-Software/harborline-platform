@@ -234,10 +234,19 @@ public sealed class TextBoxTests : BunitContext
                 // A blank caller name is no name: the FormField label still names the input (WCAG 4.1.2).
                 var value = new Harborline.UIAdapters.Blazor.Components.Forms.FormFieldContextValue("field-id", "field-label", null, false, false);
                 JSInterop.SetupModule("./_content/Harborline.UIAdapters.Blazor/text-box.js").Mode = JSRuntimeMode.Loose;
+                var fieldLabel = input.GetProperty("fieldLabel").GetString()!;
+                // bUnit computes no accessible name, so follow the reference: no aria-label, and aria-labelledby
+                // names an element whose text is the fixture's field label.
                 bool NamedByField(string? name)
                 {
-                    var box = Render<CascadingValue<Harborline.UIAdapters.Blazor.Components.Forms.FormFieldContextValue>>(p => p.Add(x => x.Value, value).AddChildContent<HarborlineTextBox>(c => c.Add(x => x.AccessibleName, name))).Find("input");
-                    return !box.HasAttribute("aria-label") && Attr(box, "aria-labelledby") == "field-label";
+                    var cut = Render<CascadingValue<Harborline.UIAdapters.Blazor.Components.Forms.FormFieldContextValue>>(p => p.Add(x => x.Value, value).AddChildContent(builder =>
+                    {
+                        builder.OpenElement(0, "span"); builder.AddAttribute(1, "id", "field-label"); builder.AddContent(2, fieldLabel); builder.CloseElement();
+                        builder.OpenComponent<HarborlineTextBox>(3); builder.AddComponentParameter(4, nameof(HarborlineTextBox.AccessibleName), name); builder.CloseComponent();
+                    }));
+                    var box = cut.Find("input");
+                    var labelledBy = Attr(box, "aria-labelledby");
+                    return !box.HasAttribute("aria-label") && labelledBy.Length > 0 && cut.FindAll($"[id='{labelledBy}']").SingleOrDefault()?.TextContent == fieldLabel;
                 }
                 Assert.Equal(expected.GetProperty("blankNamedByFieldLabel").EnumerateArray().Select(flag => flag.GetBoolean()).ToArray(),
                     input.GetProperty("blankNames").EnumerateArray().Select(name => NamedByField(name.GetString())).ToArray());

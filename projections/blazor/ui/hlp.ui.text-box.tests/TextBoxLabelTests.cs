@@ -87,4 +87,15 @@ public sealed class TextBoxLabelTests : BunitContext
         var box = Render<Microsoft.AspNetCore.Components.CascadingValue<Harborline.UIAdapters.Blazor.Components.Forms.FormFieldContextValue>>(p => p.Add(x => x.Value, field).AddChildContent<HarborlineTextBox>(c => c.Add(x => x.AccessibleName, " Work email "))).Find("input");
         Assert.Equal((" Work email ", null), (box.GetAttribute("aria-label"), box.GetAttribute("aria-labelledby")));
     }
+
+    // A caller's explicit aria-labelledby wins over the FormField label, as in React, also with a blank name.
+    [Theory]
+    [InlineData(null)]
+    [InlineData(" ")]
+    public void KeepsACallersExplicitAriaLabelledByOverTheFormFieldLabel(string? name)
+    {
+        var field = new Harborline.UIAdapters.Blazor.Components.Forms.FormFieldContextValue("email", "email-label", null, false, false);
+        var box = Render<Microsoft.AspNetCore.Components.CascadingValue<Harborline.UIAdapters.Blazor.Components.Forms.FormFieldContextValue>>(p => p.Add(x => x.Value, field).AddChildContent<HarborlineTextBox>(c => c.Add(x => x.AccessibleName, name).AddUnmatched("aria-labelledby", "own"))).Find("input");
+        Assert.Equal((null, "own"), (box.GetAttribute("aria-label"), box.GetAttribute("aria-labelledby")));
+    }
 }
