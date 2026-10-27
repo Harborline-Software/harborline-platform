@@ -16,7 +16,7 @@ const focused = () => document.activeElement === document.body ? 'BODY' : (docum
 const pointerDown = target => target.dispatchEvent(new (globalThis.PointerEvent ?? MouseEvent)('pointerdown', { bubbles: true, cancelable: true }))
 const escape = target => target.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }))
 
-function page() {
+function page({ invoke } = {}) {
   const trigger = button('Open')
   trigger.id = 'hl-popover-r-trigger'
   const content = Object.assign(document.createElement('div'), { id: 'hl-popover-r-content', tabIndex: -1 })
@@ -32,7 +32,7 @@ function page() {
   document.body.append(root)
   const dismissals = []
   const connection = connect(trigger, null, content, { side: 'bottom', align: 'center', sideOffset: 6, triggerId: trigger.id },
-    { invokeMethodAsync: name => { dismissals.push(name); return callback.invokeMethodAsync(name) } })
+    { invokeMethodAsync: name => { dismissals.push(name); return (invoke ?? callback.invokeMethodAsync)(name) } })
   vi.advanceTimersToNextFrame()
   const triggerFocus = vi.spyOn(trigger, 'focus')
   return { trigger, content, input, plain, before: root.firstChild, connection, dismissals, triggerFocus }
@@ -149,6 +149,87 @@ describe('Popover Blazor dispose() focus restoration (G5)', () => {
     connection.dispose()
     expect(focused()).toBe('BODY')
     expect(triggerFocus).not.toHaveBeenCalled()
+  })
+
+  // b32 review: refusal is not inferred from timing. The flag set by an outside press stays until focus comes
+  // back into the content, a press lands in the content or on the trigger, or an Escape close starts.
+  it('two presses in one round trip, the first refused and the second accepted on a non-focusable node: the trigger is not focused', async () => {
+    const pending = []
+    const { content, plain, connection, triggerFocus } = page({ invoke: () => new Promise(resolve => pending.push(resolve)) })
+    pointerDown(plain) // press 1: the host will refuse it
+    document.activeElement.blur()
+    pointerDown(plain) // press 2, before press 1 completes: the host accepts it
+    pending[0]() // press 1's completion arrives; the content is still there
+    await settle()
+    content.remove() // press 2's closing render
+    pending[1]()
+    await settle()
+    connection.dispose()
+    expect(focused()).toBe('BODY')
+    expect(triggerFocus).not.toHaveBeenCalled()
+  })
+
+  it('an accepted press whose completion arrives before the closing render (render backpressure) leaves focus alone', async () => {
+    const { content, plain, connection, triggerFocus } = page()
+    pointerDown(plain)
+    document.activeElement.blur()
+    await settle() // the completion first
+    content.remove() // the closing render after it
+    connection.dispose()
+    expect(focused()).toBe('BODY')
+    expect(triggerFocus).not.toHaveBeenCalled()
+  })
+
+  it('a refused press on a non-focusable node, focus left on the body, then a host close: focus stays on the body (ruling point 1)', async () => {
+    const { content, plain, connection, triggerFocus } = page()
+    pointerDown(plain)
+    document.activeElement.blur()
+    await settle()
+    content.remove()
+    connection.dispose()
+    expect(focused()).toBe('BODY')
+    expect(triggerFocus).not.toHaveBeenCalled()
+  })
+
+  it('a refused press, then a press inside the content that does not focus (WebKit buttons), then a host close: the trigger is restored', async () => {
+    const { content, plain, connection, triggerFocus } = page()
+    pointerDown(plain)
+    document.activeElement.blur()
+    await settle()
+    pointerDown(content.querySelector('button'))
+    content.remove()
+    connection.dispose()
+    expect(triggerFocus).toHaveBeenCalledWith({ preventScroll: true })
+  })
+
+  it('a refused press, then Escape with focus on the body: the Escape close restores the trigger', async () => {
+    const { content, plain, connection, dismissals, triggerFocus } = page()
+    pointerDown(plain)
+    document.activeElement.blur()
+    await settle()
+    escape(document.body)
+    expect(dismissals).toEqual(['DismissFromJavaScriptAsync', 'DismissFromJavaScriptAsync'])
+    content.remove()
+    connection.dispose()
+    expect(triggerFocus).toHaveBeenCalledWith({ preventScroll: true })
+  })
+
+  // Step order: dispose() reads the active element before the content goes back next to its placeholder.
+  // Moving it can run code that moves focus (here a custom element's connectedCallback), so a read after
+  // the move could see focus outside and skip the restore of focus that was inside the closing content.
+  it('reads the active element before the content moves back to its placeholder', () => {
+    if (!customElements.get('hl-test-refocus')) {
+      customElements.define('hl-test-refocus', class extends HTMLElement {
+        connectedCallback() { if (this.dataset.armed) document.querySelector('input')?.focus() }
+      })
+    }
+    const { content, connection, triggerFocus } = page()
+    const probe = document.createElement('hl-test-refocus')
+    content.append(probe)
+    probe.dataset.armed = 'true'
+    expect(focused()).toBe('Apply') // focus is inside the connected content
+    connection.dispose()
+    expect(triggerFocus).toHaveBeenCalledWith({ preventScroll: true })
   })
 
   it('each connection starts without the outside-pointer decision of an earlier opening', () => {

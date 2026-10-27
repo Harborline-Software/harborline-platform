@@ -1,4 +1,6 @@
 import { act, fireEvent, render, screen } from '@testing-library/react'
+import { useState } from 'react'
+import { flushSync } from 'react-dom'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 
@@ -166,6 +168,102 @@ describe('Popover focus after a dismissal (G5)', () => {
     rerender(<Page open={false} onOpenChange={refuse} />)
     expect(document.activeElement).toBe(field)
     expect(triggerFocus).not.toHaveBeenCalled()
+  })
+
+  // b32 review: refusal is not inferred from timing. The flag is set before the request and stays until
+  // focus comes back into the content, a press lands in the content or on the trigger, or another close
+  // path (Escape, the close control, the trigger) starts.
+  it('a host that accepts an outside press after a delay (a fetch) does not focus the trigger', async () => {
+    const user = userEvent.setup()
+    function Delayed() {
+      const [open, setOpen] = useState(true)
+      return <Page open={open} onOpenChange={next => { setTimeout(() => setOpen(next), 20) }} />
+    }
+    render(<Delayed />)
+    const trigger = screen.getByRole('button', { name: 'Open' })
+    const triggerFocus = vi.spyOn(trigger, 'focus')
+    await user.click(screen.getByText('Plain text'))
+    await act(async () => { await new Promise(resolve => setTimeout(resolve, 60)) })
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(trigger).not.toHaveFocus()
+    expect(triggerFocus).not.toHaveBeenCalled()
+  })
+
+  it('a host that closes with flushSync in onOpenChange does not focus the trigger on an outside press without a mousedown default', async () => {
+    function Synced() {
+      const [open, setOpen] = useState(true)
+      return <Page open={open} onOpenChange={next => flushSync(() => setOpen(next))} />
+    }
+    render(<Synced />)
+    const trigger = screen.getByRole('button', { name: 'Open' })
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Apply' }))
+    const triggerFocus = vi.spyOn(trigger, 'focus')
+    fireEvent.pointerDown(screen.getByText('Plain text'))
+    await act(async () => { await Promise.resolve() })
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(trigger).not.toHaveFocus()
+    expect(triggerFocus).not.toHaveBeenCalled()
+  })
+
+  it('two outside presses, the first refused and the second accepted: the trigger is not focused', async () => {
+    const user = userEvent.setup()
+    function SecondAccepted() {
+      const [open, setOpen] = useState(true)
+      const [requests, setRequests] = useState(0)
+      return <Page open={open} onOpenChange={next => { setRequests(requests + 1); if (requests >= 1) setOpen(next) }} />
+    }
+    render(<SecondAccepted />)
+    const trigger = screen.getByRole('button', { name: 'Open' })
+    const triggerFocus = vi.spyOn(trigger, 'focus')
+    await user.click(screen.getByText('Plain text'))
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+    await user.click(screen.getByText('Plain text'))
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(triggerFocus).not.toHaveBeenCalled()
+  })
+
+  it('a refused press on a non-focusable node, focus left on the body, then a host close: focus stays on the body (ruling point 1)', async () => {
+    const user = userEvent.setup()
+    const refuse = vi.fn()
+    const { rerender } = render(<Page open onOpenChange={refuse} />)
+    const trigger = screen.getByRole('button', { name: 'Open' })
+    await user.click(screen.getByText('Plain text'))
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+    await act(async () => { await new Promise(resolve => setTimeout(resolve, 10)) })
+    const triggerFocus = vi.spyOn(trigger, 'focus')
+    rerender(<Page open={false} onOpenChange={refuse} />)
+    expect(trigger).not.toHaveFocus()
+    expect(triggerFocus).not.toHaveBeenCalled()
+  })
+
+  it('a refused press, then a press inside the content that does not focus (WebKit buttons), then a host close: the trigger is restored', async () => {
+    const user = userEvent.setup()
+    const refuse = vi.fn()
+    const { rerender } = render(<Page open onOpenChange={refuse} />)
+    const trigger = screen.getByRole('button', { name: 'Open' })
+    await user.click(screen.getByText('Plain text'))
+    fireEvent.pointerDown(screen.getByRole('button', { name: 'Apply' }))
+    const triggerFocus = vi.spyOn(trigger, 'focus')
+    rerender(<Page open={false} onOpenChange={refuse} />)
+    expect(triggerFocus).toHaveBeenCalledWith({ preventScroll: true })
+  })
+
+  it('a refused press, then Escape with focus on the body that the host accepts: the trigger is restored', async () => {
+    const user = userEvent.setup()
+    function RefuseFirst() {
+      const [open, setOpen] = useState(true)
+      const [requests, setRequests] = useState(0)
+      return <Page open={open} onOpenChange={next => { setRequests(requests + 1); if (requests >= 1) setOpen(next) }} />
+    }
+    render(<RefuseFirst />)
+    const trigger = screen.getByRole('button', { name: 'Open' })
+    await user.click(screen.getByText('Plain text'))
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+    expect(document.activeElement).toBe(document.body)
+    const triggerFocus = vi.spyOn(trigger, 'focus')
+    await user.keyboard('{Escape}')
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(triggerFocus).toHaveBeenCalledWith({ preventScroll: true })
   })
 
   it('an outside press the host prevents keeps the popover open, and a later Escape restores the trigger', async () => {
