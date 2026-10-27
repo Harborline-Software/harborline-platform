@@ -91,7 +91,8 @@
       var attributes = AdditionalAttributes is null
         ? new Dictionary<string, object>(StringComparer.Ordinal)
         : new Dictionary<string, object>(AdditionalAttributes, StringComparer.Ordinal);
-      if (LabelledBy is not null) attributes["aria-labelledby"] = LabelledBy;
+      // A caller's explicit aria-labelledby wins over the FormField label, as in React.
+      if (LabelledBy is not null && !attributes.ContainsKey("aria-labelledby")) attributes["aria-labelledby"] = LabelledBy;
       if (ResolvedInvalid) attributes["aria-invalid"] = "true";
       if (ResolvedRequired) attributes["aria-required"] = "true";
       if (PasswordVisible) attributes["data-hl-revealed"] = "true";
