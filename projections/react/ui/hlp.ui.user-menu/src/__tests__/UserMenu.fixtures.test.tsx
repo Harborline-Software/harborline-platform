@@ -20,6 +20,11 @@ function menuNames() {
   return names
 }
 const ada = { name: 'Ada Lovelace' }
+// Only the fixture's labels: a trigger template ({name}), panel and sign-out text.
+function partialLabels(given: Record<string, string>) {
+  const { trigger, ...text } = given
+  return { ...text, ...(trigger === undefined ? {} : { trigger: (name: string) => trigger.replace('{name}', name) }) }
+}
 const trigger = () => document.querySelector<HTMLButtonElement>('.hl-user-menu__trigger')!
 const action = (id: string, label: string, onActivate = vi.fn(), extra: Partial<UserMenuItem> = {}) => ({ id, kind: 'action', label, onActivate, ...extra }) as UserMenuItem
 
@@ -217,6 +222,12 @@ const assertions: Record<string, (entry: Case) => void | Promise<void>> = {
     render(<HarborlineLocaleProvider locale={input.hostCatalog.locale} catalog={input.hostCatalog.entries}><UserMenu identity={{ name: input.name }} labels={input.labels} onSignOut={vi.fn()}/></HarborlineLocaleProvider>)
     const { panel, signOut } = menuNames()
     expect({ panel, signOut }).toEqual(expected)
+  },
+  'user-menu.partial-labels': ({ input, expected }) => {
+    // Each fixture label sets that field of a Partial labels object; every field it omits comes from the catalog.
+    // Every name is asserted.
+    render(<HarborlineLocaleProvider locale={input.hostCatalog.locale} catalog={input.hostCatalog.entries}><UserMenu identity={{ name: input.name }} labels={partialLabels(input.labels)} onSignOut={vi.fn()}/></HarborlineLocaleProvider>)
+    expect(menuNames()).toEqual(expected.partial)
   },
   'user-menu.invalid-input': ({ input, expected }) => {
     const silence = vi.spyOn(console, 'error').mockImplementation(() => undefined)

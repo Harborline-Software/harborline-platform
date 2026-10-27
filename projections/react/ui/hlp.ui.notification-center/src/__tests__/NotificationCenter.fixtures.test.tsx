@@ -25,6 +25,41 @@ function chromeNames() {
   return names
 }
 
+// Only the fixture's labels (a dismiss template takes {title}).
+function partialLabels(given: Record<string, string>) {
+  const { dismiss, ...text } = given
+  return { ...text, ...(dismiss === undefined ? {} : { dismiss: (title: string) => dismiss.replace('{title}', title) }) }
+}
+// Every visible label at once, under a host catalog: an unread proposal and an unread result (two kinds, so tabs;
+// Confirm and Deny; the unread marker; Dismiss), with Mark all read and View all supplied, then an empty center
+// for the empty text.
+function allChrome(host: { locale: string; entries: Record<string, string> }, title: string, labels: React.ComponentProps<typeof NotificationCenter>['labels']) {
+  const center = (items: NotificationCenterItem[]) => (
+    <HarborlineLocaleProvider locale={host.locale} catalog={host.entries}>
+      <NotificationCenter items={items} labels={labels} onConfirm={() => undefined} onDeny={() => undefined} onDismiss={() => undefined} onMarkAllRead={() => undefined} onViewAll={() => undefined}/>
+    </HarborlineLocaleProvider>
+  )
+  const view = render(center(namedItems(title)))
+  open()
+  const actions = document.querySelector('.hl-notification-center__actions')!.querySelectorAll('button')
+  const names: Record<string, string | null> = {
+    dialog: screen.getByRole('dialog').getAttribute('aria-label'),
+    markAllRead: document.querySelector('.hl-notification-center__header button')!.textContent,
+    tablist: screen.getByRole('tablist').getAttribute('aria-label'),
+    all: screen.getAllByRole('tab')[0]!.textContent,
+    confirm: actions[0]!.textContent,
+    deny: actions[1]!.textContent,
+    unread: document.querySelector('.hl-notification-center__unread')!.getAttribute('aria-label'),
+    dismiss: document.querySelector('.hl-notification-center__dismiss')!.getAttribute('aria-label'),
+    viewAll: document.querySelector('footer button')!.textContent,
+  }
+  view.unmount()
+  render(center([]))
+  open()
+  names.empty = document.querySelector('.hl-notification-center__empty')!.textContent
+  return names
+}
+
 describe('NotificationCenter shared fixture semantics', () => {
   it('covers every case or names it as unasserted', () => {
     expect(cases.length).toBeGreaterThan(0)
@@ -167,6 +202,11 @@ const assertions: Record<string, (entry: Case) => void | Promise<void>> = {
     render(<HarborlineLocaleProvider locale={input.hostCatalog.locale} catalog={input.hostCatalog.entries}><NotificationCenter items={namedItems(input.dismissedTitle)} labels={input.labels} onDismiss={() => undefined}/></HarborlineLocaleProvider>)
     const { dialog, tablist } = chromeNames()
     expect({ dialog, tablist }).toEqual(expected)
+  },
+  'notification-center.partial-labels': ({ input, expected }) => {
+    // Each fixture label sets that field of a Partial labels object; every field it omits comes from the catalog.
+    // Every visible name is asserted.
+    expect(allChrome(input.hostCatalog, input.dismissedTitle, partialLabels(input.labels))).toEqual(expected.partial)
   },
   'notification-center.bell-catalog': ({ input, expected }) => {
     // Bell names for N pending proposals (decisions mode) or N unread results (unread mode).

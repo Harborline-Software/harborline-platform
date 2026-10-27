@@ -79,6 +79,57 @@ public sealed class NotificationCenterTests : BunitContext
     private IRenderedComponent<HarborlineLocaleProvider> InHostCatalog(System.Text.Json.JsonElement host, string title, NotificationCenterLabels? labels) =>
         Render<HarborlineLocaleProvider>(p => p.Add(x => x.Locale, host.GetProperty("locale").GetString()).Add(x => x.Catalog, host.GetProperty("entries").EnumerateObject().ToDictionary(entry => entry.Name, entry => entry.Value.GetString()!))
             .AddChildContent<HarborlineNotificationCenter>(c => { c.Add(x => x.Items, NamedItems(title)).Add(x => x.OnDismiss, _ => { }); if (labels is not null) c.Add(x => x.Labels, labels); }));
+    // A record holding only the fixture's labels (a dismiss template takes {title}); every other field stays null.
+    internal static NotificationCenterLabels PartialLabels(System.Text.Json.JsonElement given)
+    {
+        string? Given(string field) => given.TryGetProperty(field, out var value) ? value.GetString() : null;
+        var dismiss = Given("dismiss");
+        return new NotificationCenterLabels
+        {
+            Title = Given("title"), All = Given("all"), Confirm = Given("confirm"), Deny = Given("deny"), MarkAllRead = Given("markAllRead"),
+            ViewAll = Given("viewAll"), Empty = Given("empty"), Unread = Given("unread"), GroupLabel = Given("groupLabel"),
+            Dismiss = dismiss is null ? null : title => dismiss.Replace("{title}", title, StringComparison.Ordinal),
+        };
+    }
+    internal static readonly string[] ChromeFields = ["dialog", "markAllRead", "tablist", "all", "confirm", "deny", "unread", "dismiss", "viewAll", "empty"];
+    private static IReadOnlyDictionary<string, string?> Chrome(System.Text.Json.JsonElement names) =>
+        ChromeFields.ToDictionary(field => field, field => names.GetProperty(field).GetString());
+    // Every visible label at once, under a host catalog: an unread proposal and an unread result (two kinds, so
+    // tabs; Confirm and Deny; the unread marker; Dismiss), with Mark all read and View all supplied, then an
+    // empty center for the empty text.
+    private IReadOnlyDictionary<string, string?> AllChrome(System.Text.Json.JsonElement host, string title, NotificationCenterLabels? labels)
+    {
+        var locale = host.GetProperty("locale").GetString();
+        var catalog = host.GetProperty("entries").EnumerateObject().ToDictionary(entry => entry.Name, entry => entry.Value.GetString()!);
+        return AllChrome(this, locale, catalog, title, labels);
+    }
+    internal static IReadOnlyDictionary<string, string?> AllChrome(BunitContext context, string? locale, IReadOnlyDictionary<string, string> catalog, string title, NotificationCenterLabels? labels)
+    {
+        void Configure(ComponentParameterCollectionBuilder<HarborlineNotificationCenter> c, IReadOnlyList<NotificationCenterItem> items)
+        {
+            c.Add(x => x.Items, items).Add(x => x.OnConfirm, _ => { }).Add(x => x.OnDeny, _ => { }).Add(x => x.OnDismiss, _ => { }).Add(x => x.OnMarkAllRead, () => { }).Add(x => x.OnViewAll, () => { });
+            if (labels is not null) c.Add(x => x.Labels, labels);
+        }
+        var cut = context.Render<HarborlineLocaleProvider>(p => p.Add(x => x.Locale, locale).Add(x => x.Catalog, catalog).AddChildContent<HarborlineNotificationCenter>(c => Configure(c, NamedItems(title))));
+        cut.Find(".hl-notification-center__trigger").Click();
+        var actions = cut.Find(".hl-notification-center__actions").QuerySelectorAll("button");
+        var names = new Dictionary<string, string?>
+        {
+            ["dialog"] = cut.Find("[role=dialog]").GetAttribute("aria-label"),
+            ["markAllRead"] = cut.Find(".hl-notification-center__header button").TextContent,
+            ["tablist"] = cut.Find("[role=tablist]").GetAttribute("aria-label"),
+            ["all"] = cut.Find("[role=tab]").TextContent,
+            ["confirm"] = actions[0].TextContent,
+            ["deny"] = actions[1].TextContent,
+            ["unread"] = cut.Find(".hl-notification-center__unread").GetAttribute("aria-label"),
+            ["dismiss"] = cut.Find(".hl-notification-center__dismiss").GetAttribute("aria-label"),
+            ["viewAll"] = cut.Find("footer button").TextContent,
+        };
+        var empty = context.Render<HarborlineLocaleProvider>(p => p.Add(x => x.Locale, locale).Add(x => x.Catalog, catalog).AddChildContent<HarborlineNotificationCenter>(c => Configure(c, [])));
+        empty.Find(".hl-notification-center__trigger").Click();
+        names["empty"] = empty.Find(".hl-notification-center__empty").TextContent;
+        return names;
+    }
     private static string? Badge(IRenderedComponent<HarborlineNotificationCenter> cut) => cut.FindAll(".hl-notification-center__badge").FirstOrDefault()?.TextContent;
     private static string Bell(IRenderedComponent<HarborlineNotificationCenter> cut) => cut.Find(".hl-notification-center__trigger").GetAttribute("aria-label")!;
     private static void Open(IRenderedComponent<HarborlineNotificationCenter> cut) => cut.Find(".hl-notification-center__trigger").Click();
@@ -261,6 +312,13 @@ public sealed class NotificationCenterTests : BunitContext
                 var labels = NotificationCenterLabels.English with { Title = Given("title") ?? NotificationCenterLabels.English.Title, GroupLabel = Given("groupLabel") };
                 var (dialog, tablist, _) = ChromeNames(InHostCatalog(input.GetProperty("hostCatalog"), input.GetProperty("dismissedTitle").GetString()!, labels));
                 Assert.Equal((expected.GetProperty("dialog").GetString(), expected.GetProperty("tablist").GetString()), (dialog, tablist));
+                break;
+            }
+            case "notification-center.partial-labels":
+            {
+                // Each fixture label sets that field of a new record; every field it omits stays null and comes
+                // from the catalog. Every visible name is asserted.
+                Assert.Equal(Chrome(expected.GetProperty("partial")), AllChrome(input.GetProperty("hostCatalog"), input.GetProperty("dismissedTitle").GetString()!, PartialLabels(input.GetProperty("labels"))));
                 break;
             }
             case "notification-center.bell-catalog":
