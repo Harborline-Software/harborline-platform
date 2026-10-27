@@ -145,3 +145,34 @@ describe('Popover focus order: a caller\'s trigger handler runs first (b31 final
     expect(press(named('Open'))).toEqual(['handled', 'Apply'])
   })
 })
+
+// b31 final check, nested: the way in at depth. Tab on an inner trigger enters the inner content (not
+// routed out of the outer content, where the inner trigger is the last stop), and Shift+Tab from the stop
+// after the outer trigger walks into the inner content when the outer content's last stop is an open
+// inner trigger (WHATWG HTML 6.6.2: the inner scope follows its trigger inside the outer scope).
+describe('Popover focus order: the way in, nested (b31 final check)', () => {
+  function Nested() {
+    return <>
+      <button type="button">Before</button>
+      <Popover defaultOpen><PopoverTrigger>Open A</PopoverTrigger><PopoverContent aria-label="A">
+        <button type="button">X</button>
+        <Popover defaultOpen><PopoverTrigger>Open B</PopoverTrigger><PopoverContent aria-label="B"><button type="button">Y</button></PopoverContent></Popover>
+      </PopoverContent></Popover>
+      <button type="button">After</button>
+    </>
+  }
+
+  it('Tab on an open inner trigger that is the outer content\'s last stop enters the inner content', async () => {
+    render(<Nested/>)
+    await settle()
+    named('Open B').focus()
+    expect(press(named('Open B'))).toEqual(['handled', 'Y'])
+  })
+
+  it('Shift+Tab from the stop after the outer trigger walks into the open inner content', async () => {
+    render(<Nested/>)
+    await settle()
+    named('After').focus()
+    expect(press(named('After'), true)).toEqual(['handled', 'Y'])
+  })
+})

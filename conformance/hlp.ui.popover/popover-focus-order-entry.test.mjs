@@ -221,3 +221,31 @@ describe('Popover Blazor focus order: a caller\'s trigger handler runs first (b3
     try { expect(press()).toEqual(['handled', 'Option']) } finally { sheet.dispose() }
   })
 })
+
+describe('Popover Blazor focus order: the way in, nested (b31 final check)', () => {
+  beforeEach(() => vi.useFakeTimers({ toFake: ['requestAnimationFrame', 'cancelAnimationFrame'] }))
+  afterEach(() => { while (connections.length) connections.pop().dispose(); vi.useRealTimers(); document.body.replaceChildren() })
+  function nested() {
+    document.body.innerHTML = '<button>Before</button><button id=ta>Open A</button><button id=after>After</button>'
+    for (const [id, html] of [['ta', '<button>X</button><button id=tb>Open B</button>'], ['tb', '<button id=y>Y</button>']]) {
+      const trigger = document.getElementById(id)
+      trigger.dataset.hlPopoverTrigger = `key-${id}`
+      const content = Object.assign(document.createElement('div'), { tabIndex: -1, innerHTML: html, className: 'hl-popover__content' })
+      trigger.after(content)
+      connections.push(connect(trigger, null, content, { triggerId: `key-${id}` }, callback))
+      vi.advanceTimersToNextFrame()
+    }
+  }
+
+  it('Tab on an open inner trigger that is the outer content\'s last stop enters the inner content', () => {
+    nested()
+    focus('#tb')
+    expect(press()).toEqual(['handled', 'Y'])
+  })
+
+  it('Shift+Tab from the stop after the outer trigger walks into the open inner content', () => {
+    nested()
+    focus('#after')
+    expect(press(true)).toEqual(['handled', 'Y'])
+  })
+})
