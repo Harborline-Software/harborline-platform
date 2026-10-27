@@ -11,6 +11,8 @@ const contentSelector = '.hl-popover__content'
 const tabbableCandidates = 'a[href],area[href],button,input,select,textarea,iframe,summary,[tabindex],[contenteditable]:not([contenteditable="false"])'
 // Each open content's trigger, read when a key arrives (the reference can be replaced by a re-render).
 const owners = new WeakMap()
+// The open contents, to find the content an open trigger owns (the way in, nested).
+const openContents = new Set()
 const tabbable = element => {
   if (element.tabIndex < 0 || element.matches(':disabled')) return false
   if (element instanceof HTMLInputElement && element.type === 'hidden') return false
@@ -35,6 +37,7 @@ const stopsIn = scope => {
 const follows = (from, other) => !!(from.compareDocumentPosition(other) & Node.DOCUMENT_POSITION_FOLLOWING) && !other.contains(from)
 const precedes = (from, other) => !!(from.compareDocumentPosition(other) & Node.DOCUMENT_POSITION_PRECEDING) && !other.contains(from)
 const ownerOf = content => { const trigger = owners.get(content)?.(); return trigger?.isConnected ? trigger : null }
+const contentOf = trigger => { for (const content of openContents) if (content.isConnected && ownerOf(content) === trigger) return content; return null }
 // The next Tab stop after an element in its scope; past the end of a popover content, the next stop
 // after that content's trigger. Null at the end of the page or of a modal layer: the key is then left to
 // the browser, or to the layer's trap, which is where native Tab from the trigger goes.
@@ -61,6 +64,8 @@ function routeTab(event, trigger, content) {
   if (event.key !== 'Tab' || event.defaultPrevented || !trigger?.isConnected || !content) return
   const target = event.target
   if (!(target instanceof HTMLElement) || !content.contains(target)) return
+  // Tab on an open inner popover's trigger is that popover's way in (on window, later), not a way out.
+  if (!event.shiftKey && contentOf(target)) return
   const others = stopsIn(content).filter(stop => stop !== target && !sameGroup(stop, target))
   if (others.some(stop => event.shiftKey ? precedes(target, stop) : follows(target, stop))) return
   const destination = event.shiftKey ? stopBack(trigger) : stopAfter(trigger)
@@ -83,6 +88,10 @@ function enterContent(event, trigger, content) {
     const next = stopsIn(scopeOf(trigger)).find(stop => !trigger.contains(stop) && follows(trigger, stop))
     if (!next || event.target !== next) return
     destination = stopsIn(content).at(-1) ?? content
+    // The last stop may be an open inner trigger, whose content follows it: walk in (WHATWG 6.6.2).
+    for (let inner = contentOf(destination), depth = 0; inner && depth < 32; inner = contentOf(destination), depth++) {
+      destination = stopsIn(inner).at(-1) ?? inner
+    }
   }
   event.preventDefault()
   destination.focus()
@@ -183,6 +192,7 @@ export function connect(trigger, anchor, content, options, callback) {
     ?? (options.triggerId ? [...document.querySelectorAll('[data-hl-popover-trigger]')].find(node => node.dataset.hlPopoverTrigger === options.triggerId) ?? null : null)
   const onContentKey = event => routeTab(event, currentTrigger(), content)
   owners.set(content, currentTrigger)
+  openContents.add(content)
   content.addEventListener('keydown', onContentKey)
   // Tab on the trigger and Shift+Tab from the stop after it, on window in the bubble phase: after Blazor's
   // delegated dispatch on the document, so a caller's @onkeydown (and @onkeydown:preventDefault) or any
@@ -219,6 +229,7 @@ export function connect(trigger, anchor, content, options, callback) {
       cancelAnimationFrame(frame)
       content.removeEventListener('keydown', onContentKey)
       owners.delete(content)
+      openContents.delete(content)
       window.removeEventListener('keydown', onEnter)
       document.removeEventListener('keydown', onKeyCapture, true)
       document.removeEventListener('keydown', onKey)

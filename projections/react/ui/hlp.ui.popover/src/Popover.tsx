@@ -106,6 +106,8 @@ const tabbableCandidates = [
 ].join(',')
 // Each open content's trigger, read when a key arrives.
 const contentOwners = new WeakMap<Element, () => HTMLElement | null>()
+// The open contents, to find the content an open trigger owns (the way in, nested).
+const openContents = new Set<HTMLElement>()
 
 function tabbable(element: HTMLElement): boolean {
   if (element.tabIndex < 0 || element.matches(':disabled')) return false
@@ -159,6 +161,11 @@ function ownerOf(content: HTMLElement): HTMLElement | null {
   return trigger?.isConnected ? trigger : null
 }
 
+function contentOf(trigger: Element): HTMLElement | null {
+  for (const content of openContents) if (content.isConnected && ownerOf(content) === trigger) return content
+  return null
+}
+
 // The next Tab stop after an element in its scope; past the end of a popover content, the next stop
 // after that content's trigger. Null at the end of the page or of a modal layer: the key is then left to
 // the browser, or to the layer's trap, which is where native Tab from the trigger goes.
@@ -187,6 +194,8 @@ function routeTab(event: { key: string, shiftKey: boolean, target: EventTarget |
   if (event.key !== 'Tab' || event.defaultPrevented || !trigger?.isConnected || !content) return
   const target = event.target
   if (!(target instanceof HTMLElement) || !content.contains(target)) return
+  // Tab on an open inner popover's trigger is that popover's way in, not a way out of this content.
+  if (!event.shiftKey && contentOf(target)) return
   const others = stopsIn(content).filter(stop => stop !== target && !sameGroup(stop, target))
   if (others.some(stop => event.shiftKey ? precedes(target, stop) : follows(target, stop))) return
   const destination = event.shiftKey ? stopBack(trigger) : stopAfter(trigger)
@@ -199,7 +208,9 @@ function routeTab(event: { key: string, shiftKey: boolean, target: EventTarget |
 // first Tab stop, or the content element when it has none (as the opening focus does), and Shift+Tab from
 // the next stop after the trigger in the trigger's own scope (modal layer, outer content or page) goes to
 // the content's last stop. A key already handled is left alone; nothing is handled once closed.
-function enterContent(event: KeyboardEvent, trigger: HTMLElement | null, content: HTMLElement | null): void {
+type TabEvent = { key: string, shiftKey: boolean, target: EventTarget | null, defaultPrevented: boolean, preventDefault(): void }
+
+function enterContent(event: TabEvent, trigger: HTMLElement | null, content: HTMLElement | null): void {
   if (event.key !== 'Tab' || event.defaultPrevented || !trigger?.isConnected || !content?.isConnected) return
   let destination: HTMLElement
   if (!event.shiftKey) {
@@ -209,6 +220,10 @@ function enterContent(event: KeyboardEvent, trigger: HTMLElement | null, content
     const next = stopsIn(scopeOf(trigger)).find(stop => !trigger.contains(stop) && follows(trigger, stop))
     if (!next || event.target !== next) return
     destination = stopsIn(content).at(-1) ?? content
+    // The last stop may be an open inner trigger, whose content follows it: walk in (WHATWG 6.6.2).
+    for (let inner = contentOf(destination), depth = 0; inner && depth < 32; inner = contentOf(destination), depth++) {
+      destination = stopsIn(inner).at(-1) ?? inner
+    }
   }
   event.preventDefault()
   destination.focus()
@@ -392,7 +407,8 @@ export const PopoverTrigger = React.forwardRef<HTMLElement, PopoverTriggerProps>
   // onKeyDown runs first and a key it handled is left alone (b31 final check), as on the content side.
   // React delegates from its root, ahead of a modal layer's trap on the document.
   const enter = (event: React.KeyboardEvent<HTMLElement>) => {
-    if (context.open) enterContent(event.nativeEvent, context.triggerRef.current, context.contentRef.current)
+    // The synthetic event, so a later handler in the same React dispatch (an outer content) sees it handled.
+    if (context.open) enterContent(event, context.triggerRef.current, context.contentRef.current)
   }
 
   if (asChild) {
@@ -537,12 +553,14 @@ export const PopoverContent = React.forwardRef<HTMLDivElement, PopoverContentPro
     const content = context.contentRef.current
     if (!context.open || !content) return
     contentOwners.set(content, () => context.triggerRef.current)
+    openContents.add(content)
     // Shift+Tab from the stop after the trigger, on the document after the stop's own handlers. (Tab on
     // the trigger is PopoverTrigger's onKeyDown, after the caller's.)
     const onMirror = (event: KeyboardEvent) => { if (event.shiftKey) enterContent(event, context.triggerRef.current, content) }
     document.addEventListener('keydown', onMirror)
     return () => {
       contentOwners.delete(content)
+      openContents.delete(content)
       document.removeEventListener('keydown', onMirror)
     }
   }, [context.contentRef, context.open, context.triggerRef])
