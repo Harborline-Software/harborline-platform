@@ -111,6 +111,46 @@ describe('Popover Blazor dispose() focus restoration (G5)', () => {
     expect(triggerFocus).not.toHaveBeenCalled()
   })
 
+  // A controlled host may refuse the dismissal: the request completes and the content is still there. The
+  // outside press did not close the popover, so a later host-driven close follows the ordinary rule. Over a
+  // Server circuit the refusal is only known when the request completes, a round trip after the press.
+  const settle = async () => { for (let i = 0; i < 3; i++) await Promise.resolve() }
+
+  it('an outside press the host refuses, then focus back in the content, then a host close: the trigger is restored', async () => {
+    const { content, plain, connection, triggerFocus } = page()
+    pointerDown(plain)
+    document.activeElement.blur()
+    await settle() // the request completes; the host kept it open
+    expect(content.isConnected).toBe(true)
+    content.querySelector('button').focus()
+    content.remove() // the host's own close, later
+    connection.dispose()
+    expect(focused()).toBe('Open')
+    expect(triggerFocus).toHaveBeenCalledWith({ preventScroll: true })
+  })
+
+  it('an outside press the host refuses, focus left on the outside field, then a host close: focus stays on the field', async () => {
+    const { content, input, connection, triggerFocus } = page()
+    pointerDown(input)
+    input.focus()
+    await settle()
+    content.remove()
+    connection.dispose()
+    expect(focused()).toBe('Outside field')
+    expect(triggerFocus).not.toHaveBeenCalled()
+  })
+
+  it('an accepted outside press whose closing render arrives before the request completes still leaves focus alone', async () => {
+    const { content, plain, connection, triggerFocus } = page()
+    pointerDown(plain)
+    document.activeElement.blur()
+    content.remove() // Blazor Server sends the render batch before the call's completion
+    await settle()
+    connection.dispose()
+    expect(focused()).toBe('BODY')
+    expect(triggerFocus).not.toHaveBeenCalled()
+  })
+
   it('each connection starts without the outside-pointer decision of an earlier opening', () => {
     const first = page()
     pointerDown(first.plain)

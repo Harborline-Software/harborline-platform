@@ -135,6 +135,39 @@ describe('Popover focus after a dismissal (G5)', () => {
     expect(triggerFocus).toHaveBeenLastCalledWith({ preventScroll: true })
   })
 
+  // A controlled host may refuse the close it is asked for. The outside press then did not close the
+  // popover, so a later host-driven close follows the ordinary rule.
+  it('an outside press a controlled host refuses, then focus back in the content, then a host close: the trigger is restored', async () => {
+    const user = userEvent.setup()
+    const refuse = vi.fn()
+    const { rerender } = render(<Page open onOpenChange={refuse} />)
+    const trigger = screen.getByRole('button', { name: 'Open' })
+    await user.click(screen.getByText('Plain text'))
+    expect(refuse).toHaveBeenCalledWith(false)
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+    await act(async () => { await new Promise(resolve => setTimeout(resolve, 10)) })
+    act(() => screen.getByRole('button', { name: 'Apply' }).focus())
+    const triggerFocus = vi.spyOn(trigger, 'focus')
+    rerender(<Page open={false} onOpenChange={refuse} />)
+    expect(trigger).toHaveFocus()
+    expect(triggerFocus).toHaveBeenCalledWith({ preventScroll: true })
+  })
+
+  it('an outside press a controlled host refuses, focus left on the outside field, then a host close: focus stays on the field', async () => {
+    const user = userEvent.setup()
+    const refuse = vi.fn()
+    const { rerender } = render(<Page open onOpenChange={refuse} />)
+    const trigger = screen.getByRole('button', { name: 'Open' })
+    const field = screen.getByRole('textbox', { name: 'Outside field' })
+    await user.click(field)
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+    await act(async () => { await new Promise(resolve => setTimeout(resolve, 10)) })
+    const triggerFocus = vi.spyOn(trigger, 'focus')
+    rerender(<Page open={false} onOpenChange={refuse} />)
+    expect(document.activeElement).toBe(field)
+    expect(triggerFocus).not.toHaveBeenCalled()
+  })
+
   it('an outside press the host prevents keeps the popover open, and a later Escape restores the trigger', async () => {
     const user = userEvent.setup()
     function Prevented() {
