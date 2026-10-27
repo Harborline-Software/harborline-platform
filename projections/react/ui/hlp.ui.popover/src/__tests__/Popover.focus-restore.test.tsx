@@ -266,6 +266,32 @@ describe('Popover focus after a dismissal (G5)', () => {
     expect(triggerFocus).toHaveBeenCalledWith({ preventScroll: true })
   })
 
+  // Confirmation pass: an outside press that does not take focus leaves focus in the content (no focusin). A key
+  // in the content clears the flag too.
+  it('an outside press that keeps focus in the content, refused, then Enter in the content, then a host close: the trigger is restored', () => {
+    const refuse = vi.fn()
+    const { rerender } = render(<Page open onOpenChange={refuse} />)
+    const trigger = screen.getByRole('button', { name: 'Open' })
+    const apply = screen.getByRole('button', { name: 'Apply' })
+    expect(document.activeElement).toBe(apply)
+    fireEvent.pointerDown(screen.getByText('Plain text')) // no mousedown default: focus stays on Apply
+    expect(refuse).toHaveBeenCalledWith(false)
+    fireEvent.keyDown(apply, { key: 'Enter' })
+    const triggerFocus = vi.spyOn(trigger, 'focus')
+    rerender(<Page open={false} onOpenChange={refuse} />)
+    expect(triggerFocus).toHaveBeenCalledWith({ preventScroll: true })
+  })
+
+  it('an outside press that keeps focus in the content, refused, no key, then a host close: not restored (residual case, pinned)', () => {
+    const refuse = vi.fn()
+    const { rerender } = render(<Page open onOpenChange={refuse} />)
+    const trigger = screen.getByRole('button', { name: 'Open' })
+    fireEvent.pointerDown(screen.getByText('Plain text'))
+    const triggerFocus = vi.spyOn(trigger, 'focus')
+    rerender(<Page open={false} onOpenChange={refuse} />)
+    expect(triggerFocus).not.toHaveBeenCalled()
+  })
+
   it('an outside press the host prevents keeps the popover open, and a later Escape restores the trigger', async () => {
     const user = userEvent.setup()
     function Prevented() {
