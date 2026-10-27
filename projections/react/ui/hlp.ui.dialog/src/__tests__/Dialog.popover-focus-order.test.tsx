@@ -99,3 +99,28 @@ describe('Popover focus order inside a modal Dialog: nesting and scope (b31 revi
     } finally { toast.remove() }
   })
 })
+
+// b31 re-review: the way into the content inside a modal Dialog, where the trigger is last in the Dialog
+// (the Dialog's trap would otherwise wrap Tab from it to the Dialog's first control).
+describe('Popover focus order inside a modal Dialog: the way in (b31 re-review)', () => {
+  const press = (element: Element, shiftKey = false) => {
+    const native = fireEvent.keyDown(element, { key: 'Tab', shiftKey })
+    return [native ? 'native' : 'handled', state().focus]
+  }
+
+  it('Tab on a trigger last in the Dialog enters the open content instead of wrapping', async () => {
+    render(<InDialog done={false}/>)
+    await openPicker()
+    const pick = screen.getByRole('button', { name: 'Pick' })
+    pick.focus()
+    expect(press(pick)).toEqual(['handled', 'Option'])
+  })
+
+  it('Shift+Tab from the control after the trigger in the Dialog enters the content at its last stop', async () => {
+    render(<InDialog done/>)
+    await openPicker()
+    const done = screen.getByRole('button', { name: 'Done' })
+    done.focus()
+    expect(press(done, true)).toEqual(['handled', 'Option'])
+  })
+})
