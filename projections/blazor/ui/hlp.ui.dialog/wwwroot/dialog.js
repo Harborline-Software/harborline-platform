@@ -3,6 +3,17 @@ const focusable = 'a[href],button:not([disabled]),input:not([disabled]),select:n
 // Dialogs and sheets are both modal overlays; the topmost is whichever was portaled last.
 const isTopmost = portal => [...document.body.children].filter(element => element.matches('.hl-dialog__portal, .hl-sheet__portal')).at(-1) === portal
 
+// T-1128: Tab on the trigger of an OPEN popover enters its content; popover.js routes it on window, after
+// Blazor's delegated handlers, which is after this document listener. popover.js marks the connected
+// content data-hl-popover-open="<trigger key>" from the end of connect() until dispose(), so the trap
+// hands that one key over only while the popover is really open: the marker present, the content
+// connected, and the trigger inside this overlay. Rendered ARIA (aria-expanded) is not trusted: a
+// disclosure, an accordion header or a stale trigger is still wrapped. Same rule in dialog.js and sheet.js.
+const opensPopover = target => {
+  const key = target instanceof Element ? target.getAttribute('data-hl-popover-trigger') : null
+  return !!key && [...document.querySelectorAll('[data-hl-popover-open]')].some(content => content.isConnected && content.getAttribute('data-hl-popover-open') === key)
+}
+
 export function connect(portal, dialog, body, callback, _closeOnEscape) {
   const placeholder = document.createComment('hl-dialog-portal')
   const opener = document.activeElement
@@ -29,10 +40,8 @@ export function connect(portal, dialog, body, callback, _closeOnEscape) {
     if (event.key === 'Tab' && !fromThis && !isTopmost(portal)) return
     if (event.key === 'Escape') { event.preventDefault(); callback.invokeMethodAsync('DismissFromJavaScriptAsync'); return }
     if (event.key !== 'Tab') return
-    // Tab on an open popover's trigger enters its content (T-1128). popover.js routes it on window, after
-    // Blazor's delegated handlers, which is after this document listener; so the trap leaves that one key
-    // alone instead of wrapping it first. Shift+Tab stays the trap's.
-    if (!event.shiftKey && target instanceof Element && target.matches('[data-hl-popover-trigger][aria-expanded="true"]')) return
+    // Forward Tab on an open popover's trigger in this dialog is the popover's (see opensPopover).
+    if (!event.shiftKey && dialog.contains(target) && opensPopover(target)) return
     const items = nodes()
     if (!items.length) { event.preventDefault(); dialog.focus(); return }
     const first = items[0], last = items[items.length - 1]

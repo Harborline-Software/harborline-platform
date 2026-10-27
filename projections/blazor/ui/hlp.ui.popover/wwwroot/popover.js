@@ -198,7 +198,8 @@ export function connect(trigger, anchor, content, options, callback) {
   // delegated dispatch on the document, so a caller's @onkeydown (and @onkeydown:preventDefault) or any
   // handler on the trigger runs first and a key it handled is left alone (b31 final check). The browser's
   // default Tab runs only after dispatch ends, so preventDefault here still works. The trigger is looked
-  // up when the key arrives. dialog.js leaves Tab on an open popover trigger to this listener.
+  // up when the key arrives. dialog.js and sheet.js leave forward Tab on the trigger to this listener while
+  // the content carries data-hl-popover-open (set last in connect(), removed first in dispose()).
   const onEnter = event => enterContent(event, currentTrigger(), content)
   window.addEventListener('keydown', onEnter)
   document.addEventListener('keydown', onKeyCapture, true)
@@ -224,8 +225,12 @@ export function connect(trigger, anchor, content, options, callback) {
     frame = requestAnimationFrame(follow)
   }
   frame = requestAnimationFrame(() => { follow(); (content.querySelector(focusable) ?? content).focus() })
+  // Set last, once everything above is in place, so a connect() that throws part-way never leaves it; a
+  // content element removed without dispose() is no longer connected, which the traps also check.
+  if (options.triggerId) content.dataset.hlPopoverOpen = options.triggerId
   return {
     dispose() {
+      delete content.dataset.hlPopoverOpen
       cancelAnimationFrame(frame)
       content.removeEventListener('keydown', onContentKey)
       owners.delete(content)
