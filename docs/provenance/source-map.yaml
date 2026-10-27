@@ -2887,7 +2887,7 @@
         "conformance/hlp.ui.text-box/fixtures.yaml": "fec3633671320e61669a370068e36bfe5d4227a0710655a523322605dcd15766",
         "conformance/hlp.ui.text-box/quality-fixtures.yaml": "de9656790036991185ad8f1fcbc2d7d970f7261a8aa0328ac4a1a5db2dcab464",
         "conformance/hlp.ui.text-box/runners/run-shared.mjs": "82f59ba914f998a3d93aa8f07c69f634d6af68398b3cce3c7f09e6c88c015fde",
-        "projections/blazor/ui/hlp.ui.text-box/HarborlineTextBox.razor": "d440e340fc329a3f4684ec8389006cd3ff71da7236c0255b54cfb77fa861c4ce",
+        "projections/blazor/ui/hlp.ui.text-box/HarborlineTextBox.razor": "81ee4a299e4dc8705fa6aa6e12ff0b88a63027afaee2e0112353759e35299ad3",
         "projections/react/ui/hlp.ui.text-box/src/TextBox.tsx": "907a8a8e3d2e34ca9527de4741fe7ee6edd9d356660f9beb2199aadc7d17d36b",
         "projections/react/ui/hlp.ui.text-box/src/__tests__/TextBox.conformance.test.tsx": "8bbcac1ffba8de6373c3a8fdfac177d7b6e3e2953ebc6f620cd8ad3a0876fc49",
         "projections/react/ui/hlp.ui.text-box/src/__tests__/TextBox.native.test.tsx": "e5209535882699570c9cd66d96b497e812914f1700710916b974ddd1fcc4c670",
