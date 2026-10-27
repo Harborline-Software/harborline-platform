@@ -185,10 +185,17 @@ export function connect(trigger, anchor, content, options, callback) {
   // browser's pointer default put it (the pressed field, else the body). The decision is recorded here,
   // synchronously, before the dismissal request: over a Server circuit the closing render and dispose()
   // arrive a round trip later, after the user may have started typing in the pressed field. Each
-  // opening is a new connection, so the flag never outlives one.
+  // opening is a new connection, so the flag never outlives one. The flag describes only a press that
+  // closed the popover: a controlled host may refuse the request. When the request completes with this
+  // connection still live and the content still in the document, the host refused it, and a later close is
+  // an ordinary one. Blazor Server sends the closing render before the call's completion, so an accepted
+  // press has removed the content (or disposed this connection) by then.
   let outsidePointer = false
+  let disposed = false
   const onPointer = event => {
-    if (!content.contains(event.target) && !trigger?.contains(event.target)) { outsidePointer = true; dismiss() }
+    if (content.contains(event.target) || trigger?.contains(event.target)) return
+    outsidePointer = true
+    Promise.resolve(dismiss()).then(() => { if (!disposed && content.isConnected) outsidePointer = false }, () => {})
   }
   const onViewport = () => reposition()
   // Blazor Server renders over a connection: the content's children can arrive after this call and the
@@ -245,6 +252,7 @@ export function connect(trigger, anchor, content, options, callback) {
       // stays there.
       const active = document.activeElement
       const lostWithContent = active === null || active === document.body || content.contains(active)
+      disposed = true
       cancelAnimationFrame(frame)
       content.removeEventListener('keydown', onContentKey)
       owners.delete(content)

@@ -362,6 +362,10 @@ export function Popover({ children, defaultOpen = false, open, onOpenChange }: P
       if (prevented) return
       requestOpen(false)
       outsidePointer.current = true
+      // The flag describes only a press that closed the popover. A controlled host may refuse the request;
+      // React commits a close from this discrete event before the next task, so if the popover is still
+      // open then, the host refused it, and a later close is an ordinary one.
+      setTimeout(() => { if (previouslyOpen.current) outsidePointer.current = false }, 0)
     }
     // The open popover is the topmost layer. An Escape from its trigger button is taken in the capture
     // phase, before an outer layer (a dialog or sheet) listening on the document; the trigger has no
