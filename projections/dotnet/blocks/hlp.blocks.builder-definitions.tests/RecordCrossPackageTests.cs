@@ -134,6 +134,136 @@ public sealed class RecordCrossPackageTests
         Assert.Single(await host.Catalogue.ListHistoryAsync(RecordTypeDefinitionStore.KeyOf(Tenant, "fleet-ops.work-order")));
     }
 
+    [Theory]
+    [Trait("Holds", "records-ck-41")]
+    [InlineData(null, null)]
+    [InlineData("", null)]
+    [InlineData(" \t", null)]
+    [InlineData(null, "")]
+    [InlineData("", " \t")]
+    [InlineData("\t", " ")]
+    public async Task authoring_reports_an_unusable_type_target_without_writing(string? typeId, string? classId)
+    {
+        var (host, _) = await WithExposedMeter();
+        var draft = await Consumer(host, "eam-core@1");
+        var incomplete = draft with { Fields = [draft.Fields[0] with {
+            Reference = draft.Fields[0].Reference! with { TargetTypeId = typeId, TargetClassId = classId } }] };
+        var key = RecordTypeDefinitionStore.KeyOf(Tenant, "fleet-ops.work-order");
+        var before = (await host.Catalogue.ListHistoryAsync(key)).ToArray();
+
+        var report = await host.Records.DiagnoseAsync(Tenant, incomplete);
+
+        Assert.Equal(DefinitionAdmissionPhase.Author, report.Stage);
+        Assert.Equal([("records.reference.target_unresolved", "/fields/0/reference/target_type_id")],
+            report.Refusals.Select(refusal => (refusal.Code, refusal.Pointer)));
+        Assert.Equal(before, (await host.Catalogue.ListHistoryAsync(key)).ToArray());
+        Assert.Null(await host.Catalogue.GetPublishedHeadAsync(key));
+    }
+
+    [Theory]
+    [Trait("Holds", "records-ck-41")]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData(" \t")]
+    public async Task pinning_an_unusable_type_target_removes_its_pin_without_writing(string? typeId)
+    {
+        var (host, _) = await WithExposedMeter();
+        var draft = await Consumer(host, "eam-core@1");
+        var reference = draft.Fields[0].Reference! with { TargetTypeId = typeId, TargetClassId = " \t",
+            Pin = new("eam-core", "eam.meter", "1.0.0", "sha256:" + new string('0', 64), 1) };
+        var incomplete = draft with { Fields = [draft.Fields[0] with { Reference = reference }] };
+        var key = RecordTypeDefinitionStore.KeyOf(Tenant, "fleet-ops.work-order");
+        var before = (await host.Catalogue.ListHistoryAsync(key)).ToArray();
+
+        var pinned = await host.Records.PinReferencesAsync(Tenant, incomplete);
+
+        Assert.Null(pinned.Fields[0].Reference!.Pin);
+        Assert.Equal(typeId, pinned.Fields[0].Reference!.TargetTypeId);
+        Assert.Equal(" \t", pinned.Fields[0].Reference!.TargetClassId);
+        Assert.Same(reference, incomplete.Fields[0].Reference);
+        Assert.NotNull(incomplete.Fields[0].Reference!.Pin);
+        Assert.Equal(before, (await host.Catalogue.ListHistoryAsync(key)).ToArray());
+        Assert.Null(await host.Catalogue.GetPublishedHeadAsync(key));
+    }
+
+    [Theory]
+    [Trait("Holds", "records-ck-41")]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData(" \t")]
+    public async Task unusable_type_target_diagnostics_and_pinning_preserve_cancellation(string? typeId)
+    {
+        var (host, _) = await WithExposedMeter();
+        var draft = await Consumer(host, "eam-core@1");
+        var incomplete = draft with { ClassId = null, Fields = [draft.Fields[0] with {
+            Reference = draft.Fields[0].Reference! with { TargetTypeId = typeId, TargetClassId = null } }] };
+        var key = RecordTypeDefinitionStore.KeyOf(Tenant, "fleet-ops.work-order");
+        var before = (await host.Catalogue.ListHistoryAsync(key)).ToArray();
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+
+        var diagnostic = await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            host.Records.DiagnoseAsync(Tenant, incomplete, cancellation.Token).AsTask());
+        var pinning = await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            host.Records.PinReferencesAsync(Tenant, incomplete, cancellation.Token).AsTask());
+
+        Assert.Equal(cancellation.Token, diagnostic.CancellationToken);
+        Assert.Equal(cancellation.Token, pinning.CancellationToken);
+        Assert.Equal(before, (await host.Catalogue.ListHistoryAsync(key)).ToArray());
+        Assert.Null(await host.Catalogue.GetPublishedHeadAsync(key));
+    }
+
+    [Fact]
+    [Trait("Holds", "records-ck-41")]
+    public async Task authoring_keeps_later_edge_diagnostics_after_an_unusable_type_target()
+    {
+        var (host, _) = await WithExposedMeter();
+        var draft = await Consumer(host, "eam-core@1");
+        var incomplete = draft with { Fields = [new("code", "Code"),
+            new("unset", "Unset", Reference: new(null, null, ReferenceCardinality.One, ReferenceDeleteBehavior.Block)),
+            new("missing", "Missing", Reference: new("eam.missing", null, ReferenceCardinality.One, ReferenceDeleteBehavior.Block)),
+            ToMeter] };
+        var key = RecordTypeDefinitionStore.KeyOf(Tenant, "fleet-ops.work-order");
+        var before = (await host.Catalogue.ListHistoryAsync(key)).ToArray();
+
+        var report = await host.Records.DiagnoseAsync(Tenant, incomplete);
+
+        Assert.Equal(DefinitionAdmissionPhase.Author, report.Stage);
+        Assert.Equal([("records.reference.target_unresolved", "/fields/1/reference/target_type_id"),
+            ("records.reference.target_unresolved", "/fields/2/reference/target_type_id"),
+            ("records.reference.pin_required", "/fields/3/reference/pin")],
+            report.Refusals.Select(refusal => (refusal.Code, refusal.Pointer)));
+        Assert.Equal(before, (await host.Catalogue.ListHistoryAsync(key)).ToArray());
+        Assert.Null(await host.Catalogue.GetPublishedHeadAsync(key));
+    }
+
+    [Fact]
+    [Trait("Holds", "records-ck-41")]
+    public async Task authoring_still_resolves_class_self_and_blank_class_type_targets()
+    {
+        var (host, _) = await WithExposedMeter();
+        await host.Classes.CreateDraftAsync(new(Tenant, "eam", "Meters", "1.0.0", Contract, "eam-core", Exposes: new(1)), "meters");
+        await host.Classes.PublishAsync(Tenant, "eam.meters", "1.0.0", 1, "meters-publish");
+        var draft = await Consumer(host, "eam-core@1");
+        var controls = draft with { Fields = [
+            new("class", "Class", Reference: new(null, "eam.meters", ReferenceCardinality.One, ReferenceDeleteBehavior.Block)),
+            new("self", "Self", Reference: new(draft.RecordTypeId, null, ReferenceCardinality.One, ReferenceDeleteBehavior.Block)),
+            new("type", "Type", Reference: new("eam.meter", " \t", ReferenceCardinality.One, ReferenceDeleteBehavior.Block))] };
+        var key = RecordTypeDefinitionStore.KeyOf(Tenant, "fleet-ops.work-order");
+        var before = (await host.Catalogue.ListHistoryAsync(key)).ToArray();
+
+        var pinned = await host.Records.PinReferencesAsync(Tenant, controls);
+        var report = await host.Records.DiagnoseAsync(Tenant, pinned);
+
+        Assert.Equal("eam.meters", pinned.Fields[0].Reference!.Pin!.DefinitionId);
+        Assert.Null(pinned.Fields[1].Reference!.Pin);
+        Assert.Equal("eam.meter", pinned.Fields[2].Reference!.Pin!.DefinitionId);
+        Assert.Equal(DefinitionAdmissionPhase.Author, report.Stage);
+        Assert.Empty(report.Refusals);
+        Assert.Equal(before, (await host.Catalogue.ListHistoryAsync(key)).ToArray());
+        Assert.Null(await host.Catalogue.GetPublishedHeadAsync(key));
+    }
+
     [Fact]
     [Trait("Holds", "records-ck-41")]
     public async Task a_class_in_another_package_is_pinned_like_a_type()
