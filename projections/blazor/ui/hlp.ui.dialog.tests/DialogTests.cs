@@ -17,6 +17,20 @@ public sealed class DialogTests : BunitContext
             AssertFixture("dialog.");
         });
     }
+    // T-1122: the translate is physical, so the start edge must be too, or right-to-left content
+    // moves the surface off the left edge. This deliberately pins the chosen implementation and the
+    // byte identity of the copies; the behaviour itself is proved by gallery/tests/tests/dialog-rtl.spec.ts.
+    [Fact]
+    public void LaneStylesheetCentresTheSurfaceWithAPhysicalLeftEdge()
+    {
+        var lane = File.ReadAllText(Repo("projections/blazor/ui/hlp.ui.dialog/wwwroot/dialog.css"));
+        Assert.Equal(File.ReadAllText(Repo("specs/modules/ui/hlp.ui.dialog/style.css")), lane);
+        var surface = System.Text.RegularExpressions.Regex.Match(lane, @"\n\.hl-dialog__surface \{([^}]*)\}").Groups[1].Value;
+        Assert.Contains("\n  left: 50%;", surface, StringComparison.Ordinal);
+        Assert.Contains("transform: translate(-50%, -50%)", surface, StringComparison.Ordinal);
+        Assert.DoesNotContain("\n  inset-inline-start:", surface, StringComparison.Ordinal);
+    }
+    private static string Repo(string relative) => Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../../../../", relative));
     private static RenderFragment Text(string value) => builder => builder.AddContent(0, value);
     private static void AssertFixture(string prefix) { var raw = SharedFixtureBatch.Current; if (string.IsNullOrWhiteSpace(raw)) return; using var fixture = System.Text.Json.JsonDocument.Parse(raw); Assert.StartsWith(prefix, fixture.RootElement.GetProperty("id").GetString()); }
 }
