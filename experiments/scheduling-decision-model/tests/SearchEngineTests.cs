@@ -16,16 +16,19 @@ public sealed class SearchEngineTests
     [Theory]
     [InlineData(5, SolveStatus.Feasible)]
     [InlineData(4, SolveStatus.ProvenInfeasible)]
-    public void IncumbentPolicy_MatchesTheProductionSolverExactly(int job2Inspect, SolveStatus handProved)
+    public void DynamicDomainPolicy_MatchesTheProductionSolverExactly(int job2Inspect, SolveStatus handProved)
     {
         var problem = Compile(Profiles.TwoJobs(job2Inspect));
         var production = new DeterministicExhaustiveProofSolver().Solve(problem, 1_000_000);
-        var engine = new SearchEngine().Run(problem, new IncumbentPolicy(), 1_000_000);
+        var engine = new SearchEngine().Run(problem, new DynamicDomainPolicy(), 1_000_000, dedupe: false);
 
         Assert.Equal(handProved, engine.Status);
         Assert.Equal(production.Status, engine.Status);
         Assert.Equal(production.WorkUnits, engine.Work);
-        Assert.Equal(production.Assignments, engine.Assignments);
+        Assert.Equal(production.ReasonCode, engine.ReasonCode);
+        Assert.Equal(production.Assignments.Select(Key), engine.Assignments.Select(Key));
+
+        static string Key(AssignmentCandidate c) => $"{c.ActivityId}@{c.StartSlot}-{c.EndSlotExclusive}:{string.Join('|', c.ResourceIds)}";
     }
 
     public static TheoryData<string> Faults => new()
