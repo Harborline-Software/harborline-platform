@@ -1748,7 +1748,7 @@
       },
       "phase4Evidence": "specs/modules/ui/hlp.ui.popover/interface.yaml",
       "sourceExtracted": true,
-      "sourceState": "Interface revision 1 preserves the exact pinned hlp.ui.popover source surface and proves every registered projection through native, shared-conformance, package-only, and applicable gallery/performance gates.",
+      "sourceState": "Interface revision 2 (T-1128: open content follows its trigger in sequential focus order; G5, R-0125: an outside-pointer dismissal never moves focus, and other closes restore focus to the trigger only when focus was inside the content or lost with it) preserves the exact pinned hlp.ui.popover source surface and proves every registered projection through native, shared-conformance, package-only, and applicable gallery/performance gates.",
       "contentHashes": {
         "conformance/hlp.ui.popover/fixtures.yaml": "72ede569f954d388441f56847b0ce60a6581a2d826dfff765936ed852b38cb13",
         "conformance/hlp.ui.popover/placement-v1.json": "c609162db6bcc3bba043e61b8ff6e74bcae939073dbfe63438cdcaeba87122ce",
