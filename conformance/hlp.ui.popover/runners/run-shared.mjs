@@ -5,7 +5,7 @@ import { runUiModuleShared } from '../../../tooling/run-ui-module-shared.mjs'
 
 const root = resolve(import.meta.dirname, '../../..')
 const vitest = resolve(root, 'projections/react/ui/hlp.ui.button/node_modules/vitest/vitest.mjs')
-// The Blazor lane's placement and focus-order JavaScript, run here because bUnit cannot execute it. Its reporter is
+// The Blazor lane's placement, focus-order and focus-restore JavaScript, run here because bUnit cannot execute it. Its reporter is
 // captured, never written to stdout: the gate parses exactly one JSON document from this runner.
 const blazorJavaScript = spawnSync(process.execPath, [
   vitest,
@@ -15,6 +15,7 @@ const blazorJavaScript = spawnSync(process.execPath, [
   'conformance/hlp.ui.popover/popover-focus-order.test.mjs',
   'conformance/hlp.ui.popover/popover-focus-order-scope.test.mjs',
   'conformance/hlp.ui.popover/popover-focus-order-entry.test.mjs',
+  'conformance/hlp.ui.popover/popover-focus-restore.test.mjs',
   '--globals',
   '--environment', 'node',
 ], {
