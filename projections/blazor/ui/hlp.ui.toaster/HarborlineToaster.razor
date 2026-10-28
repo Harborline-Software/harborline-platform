@@ -2,6 +2,7 @@
 @inherits HarborlineComponentBase
 @implements IDisposable
 @inject IToastService Toasts
+@using Harborline.UIAdapters.Blazor.Localization
 
 <section class="@CombineClasses("hl-toaster", $"hl-toaster--{PositionToken}")" style="@CombineStyles()" data-position="@PositionToken" data-hl-semantic-colors="@(UseSemanticColors ? "true" : null)" dir="@Direction" @attributes="AdditionalAttributes" aria-label="@RegionName">
   @foreach (var entry in VisibleEntries)
@@ -57,14 +58,9 @@
     Half or float or double or decimal => null,
     string name => name,
     _ => value.ToString(),
-  } is { } text && !IsBlank(text) ? text : null;
-  // The blank check both lanes share: a name made only of these characters is blank. They are
-  // ECMA-262's WhiteSpace and LineTerminator characters, the set String.prototype.trim strips, and
-  // Toaster.tsx's BLANK_NAME lists the same ones. string.IsNullOrWhiteSpace is not used because .NET's
-  // char.IsWhiteSpace differs at two of them: it counts U+0085 (NEL) as white space and U+FEFF
-  // (ZWNBSP) as not. Here, as in React, a NEL-only name is not blank and a ZWNBSP-only one is.
-  private const string BlankNameCharacters = "\t\n\v\f\r \u00A0\u1680\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200A\u2028\u2029\u202F\u205F\u3000\uFEFF";
-  private static bool IsBlank(string text) => text.AsSpan().IndexOfAnyExcept(BlankNameCharacters) < 0;
+  } is { } text && !HarborlineBlankText.IsBlank(text) ? text : null;
+  // The blank check both lanes share is HarborlineBlankText: ECMA-262's trim set, the one Toaster.tsx's
+  // BLANK_NAME lists, so a NEL-only name is not blank and a ZWNBSP-only one is.
   private string PositionToken => Position switch { ToastPosition.TopLeft=>"top-left",ToastPosition.TopCenter=>"top-center",ToastPosition.TopRight=>"top-right",ToastPosition.BottomLeft=>"bottom-left",ToastPosition.BottomCenter=>"bottom-center",ToastPosition.BottomRight=>"bottom-right",_=>"bottom-right" };
   private IReadOnlyList<ToastEntry> VisibleEntries => Toasts.Entries.TakeLast(MaximumVisible).ToArray();
   protected override void OnInitialized() => Toasts.Changed += OnChanged;
