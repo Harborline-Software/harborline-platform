@@ -67,13 +67,22 @@
     if (Open && ChildContent is null) throw new InvalidOperationException("dialog-body-required");
   }
 
+  // The page-wide connection (inert siblings, focus trap) exists at most once and never outlives the dialog (T-1129).
+  private bool connecting, disposed;
+
   protected override async Task OnAfterRenderAsync(bool firstRender)
   {
-    if (Open && connection is null)
+    if (Open && connection is null && !connecting)
     {
-      module ??= await JavaScript.InvokeAsync<IJSObjectReference>("import", "./_content/Harborline.UIAdapters.Blazor/dialog.js");
-      callback ??= DotNetObjectReference.Create(this);
-      connection = await module.InvokeAsync<IJSObjectReference>("connect", portal, dialog, body, callback, CloseOnEscape);
+      connecting = true;
+      try
+      {
+        module ??= await JavaScript.InvokeAsync<IJSObjectReference>("import", "./_content/Harborline.UIAdapters.Blazor/dialog.js");
+        callback ??= DotNetObjectReference.Create(this);
+        connection = await module.InvokeAsync<IJSObjectReference>("connect", portal, dialog, body, callback, CloseOnEscape);
+      }
+      finally { connecting = false; }
+      if (disposed || !Open) await DisposeConnectionAsync();
     }
     else if (!Open && connection is not null) await DisposeConnectionAsync();
   }
@@ -106,6 +115,7 @@
   }
   public async ValueTask DisposeAsync()
   {
+    disposed = true;
     await DisposeConnectionAsync();
     if (module is not null) { try { await module.DisposeAsync(); } catch (JSDisconnectedException) { } }
     callback?.Dispose();
