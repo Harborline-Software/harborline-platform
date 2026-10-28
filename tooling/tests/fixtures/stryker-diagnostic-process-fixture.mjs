@@ -1,4 +1,4 @@
-import {appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync} from 'node:fs'
+import {appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync} from 'node:fs'
 import {spawn} from 'node:child_process'
 import path from 'node:path'
 import {setTimeout as delay} from 'node:timers/promises'
@@ -109,7 +109,9 @@ if (args[0] === 'wrapper') {
     '2026-10-26T09:07:45.2880760-04:00  [DBG] Test run for "5: Statement mutation" is "success"  (26093294)\n')
   writeFileSync(path.join(logs, 'log-Runner-0.txt'), 'worker trace retained only\n')
   if (mode === 'burst') writeFileSync(log, ('nativeDiagnostic ' + 'X'.repeat(2000) + '\n').repeat(1600))
-  writeFileSync(path.join(control, 'ready.json'), JSON.stringify({output, pid: process.pid, argv: args}))
+  const readiness = path.join(control, 'ready.json'), temporaryReadiness = `${readiness}.${process.pid}.tmp`
+  writeFileSync(temporaryReadiness, JSON.stringify({output, pid: process.pid, argv: args}), {flag: 'wx'})
+  renameSync(temporaryReadiness, readiness)
   if (mode === 'burst') {
     const identity = {pid: process.pid, nonce: readFileSync(path.join(control, 'nonce'), 'utf8')}
     writeFileSync(path.join(control, 'producer.json'), JSON.stringify(identity))

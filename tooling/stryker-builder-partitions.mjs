@@ -4,11 +4,19 @@ import {createHash} from 'node:crypto'
 import {createReadStream, existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, realpathSync, writeFileSync, appendFileSync} from 'node:fs'
 import path from 'node:path'
 import {createInterface} from 'node:readline'
-import {changedSourceFiles, configProblems, fullModeBreak, mutateProject, reportCounts, repository, run, scoreVerdict, sourceDirectories, targetOf} from './stryker.mjs'
+import {changedSourceFiles, configProblems, fullModeBreak, mutateProject, reportCounts, repository, run, scoreVerdict, sourceDirectories, targetOf, razorOwnership, razorTested} from './stryker.mjs'
 
 const root = path.resolve(import.meta.dirname, '..')
-const selector = 'projections/dotnet/blocks/hlp.blocks.builder-definitions.tests/Harborline.Blocks.BuilderDefinitions.Tests.csproj'
-const target = 'projections/dotnet/blocks/hlp.blocks.builder-definitions/Harborline.Blocks.BuilderDefinitions.csproj'
+const builderSelector = 'projections/dotnet/blocks/hlp.blocks.builder-definitions.tests/Harborline.Blocks.BuilderDefinitions.Tests.csproj'
+const builderTarget = 'projections/dotnet/blocks/hlp.blocks.builder-definitions/Harborline.Blocks.BuilderDefinitions.csproj'
+const blazorSelector = 'projections/blazor/ui/hlp.ui.button.tests/Harborline.UIAdapters.Blazor.Tests.csproj'
+const blazorTarget = 'projections/blazor/ui/hlp.ui.button/Harborline.UIAdapters.Blazor.csproj'
+const isBlazor = plan => plan.profile === 'blazor'
+const ownerCount = plan => isBlazor(plan) ? 12 : 4
+const ownerPrefix = plan => isBlazor(plan) ? 'blazor' : 'builder'
+// Historical generation joined to the intended UI3 byte-LPT allocation predicts owner 5.
+// This is one bounded observation, not qualification; Root must rebind the actual composed subject.
+const blazorDiagnosticOwner = 5
 const controlHead = '69b2798f55790ef5c29056d04a998b8c626db823'
 const conditionalInput = 'artifacts/packages/nuget/packed-version.props'
 const finalStatuses = new Set(['Killed', 'Survived', 'Timeout', 'CompileError', 'Ignored', 'NoCoverage', 'RuntimeError'])
@@ -19,7 +27,7 @@ const canonical = value => JSON.stringify(value, (_, item) => item && typeof ite
 const bytesOf = value => Buffer.from(`${canonical(value)}\n`)
 const same = (actual, expected, message) => requireThat(canonical(actual) === canonical(expected), message)
 function requireThat(condition, message) { if (!condition) throw new Error(message) }
-const git = (...args) => execFileSync('git', ['-C', root, ...args], {encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe']})
+const git = (...args) => execFileSync('git', ['-C', root, ...args], {encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], env: {...process.env, GIT_OPTIONAL_LOCKS: '0', GIT_NO_LAZY_FETCH: '1'}})
 const slash = value => value.replaceAll('\\', '/')
 const json = bytes => JSON.parse(new TextDecoder('utf-8', {fatal: true}).decode(bytes))
 
@@ -63,7 +71,26 @@ function sourceText(bytes) {
   return text
 }
 
-function configuration() {
+function sourceSpellings(project, text, file) {
+  const directory = path.posix.dirname(project), spellings = [file]
+  for (const match of text.matchAll(/<(?:Compile|RazorComponent)\s+Include="([^"]+)"/g)) {
+    const include = match[1]
+    requireThat(!include.includes('$') && !/^[A-Za-z]:|^\//.test(include) && !include.includes('\\'), 'Unsupported Include')
+    const glob = /^(.*)\/\*\*\/\*\.(cs|razor)$/.exec(include)
+    if (glob) {
+      const prefix = path.posix.normalize(`${directory}/${glob[1]}`) + '/'
+      if (file.startsWith(prefix) && file.endsWith('.' + glob[2])) spellings.push(`${directory}/${glob[1]}/${file.slice(prefix.length)}`)
+    } else {
+      requireThat(!/[?*]/.test(include), 'Unsupported Include pattern')
+      if (path.posix.normalize(`${directory}/${include}`) === file) spellings.push(`${directory}/${include}`)
+    }
+  }
+  return [...new Set(spellings)]
+}
+
+function configuration(profile) {
+  requireThat(profile === undefined || profile === 'blazor', 'Unsupported partition profile')
+  const [selector, target, minimum] = profile === 'blazor' ? [blazorSelector, blazorTarget, 38] : [builderSelector, builderTarget, 74]
   const repo = repository(), problems = configProblems(repo)
   requireThat(!problems.length, problems.join('\n'))
   requireThat(repo.testProjects.includes(selector) && !(selector in repo.exclusions) && targetOf(selector, repo.readFile) === target, 'Unsupported Builder target')
@@ -74,17 +101,17 @@ function configuration() {
   same(config.since, {enabled: true, target: 'origin/main'}, 'Unsupported since config')
   same(Object.keys(config.thresholds).sort(), ['break', 'high', 'low'], 'Unsupported threshold options')
   const floor = fullModeBreak(repo.baselines[selector], config)
-  requireThat(Number.isFinite(floor) && floor >= 74 && floor <= 100, 'Builder floor must be at least 74')
+  requireThat(Number.isFinite(floor) && floor >= minimum && floor <= 100, `Mutation floor must be at least ${minimum}`)
   const sdk = json(regular('global.json')).sdk, tool = json(regular('.config/dotnet-tools.json')).tools?.['dotnet-stryker']
   same(sdk, {version: '11.0.100-rc.1.26425.128', rollForward: 'disable'}, 'Unsupported SDK pin')
   requireThat(tool?.version === '5.0.0' && tool.rollForward === false, 'Unsupported Stryker pin')
-  same(sourceDirectories(target, repo.readFile(target)), [path.posix.dirname(target)], 'Linked Builder source is unsupported')
-  return {repo, config, floor, sdk, tool}
+  if (profile !== 'blazor') same(sourceDirectories(target, repo.readFile(target)), [path.posix.dirname(target)], 'Linked Builder source is unsupported')
+  return {repo, config, floor, sdk, tool, selector, target}
 }
 
-export function makePlan(mode) {
+export function makePlan(mode, profile) {
   requireThat(['normal', 'diagnostic', 'qualification'].includes(mode), 'Unsupported partition mode')
-  const {repo, config, floor, sdk, tool} = configuration()
+  const {repo, config, floor, sdk, tool, selector, target} = configuration(profile)
   const head = git('rev-parse', 'HEAD').trim(), tree = git('rev-parse', 'HEAD^{tree}').trim()
   requireThat(/^[a-f0-9]{40}$/.test(process.env.EXPECTED_HEAD ?? '') && process.env.EXPECTED_HEAD === head, 'EXPECTED_HEAD must equal checkout HEAD')
   requireThat(git('status', '--porcelain=v1', '--untracked-files=all') === '', 'Checkout must be clean')
@@ -100,23 +127,37 @@ export function makePlan(mode) {
     requireThat(match, 'Unsupported Git index entry')
     return {path: match[3], mode: match[1], blob: match[2]}
   })
-  const directory = `${path.posix.dirname(target)}/`, aliases = new Set()
-  const sources = tracked.filter(row => row.path.startsWith(directory) && row.path.endsWith('.cs')).map(row => {
-    const file = literal(row.path.slice(directory.length)), alias = file.normalize('NFC').toLowerCase()
-    requireThat(!aliases.has(alias), `Aliased source: ${file}`)
-    aliases.add(alias)
-    requireThat(['100644', '100755'].includes(row.mode), `Nonregular Git source: ${file}`)
-    const bytes = regular(row.path)
-    sourceText(bytes)
-    return {...row, file, byteLength: bytes.length, sha256: sha256(bytes), owner: 0}
-  }).sort((a, b) => ordinal(a.path, b.path))
-  requireThat(sources.length >= 4, 'Four nonempty source partitions are required')
-  const loads = [0, 0, 0, 0], sizes = [0, 0, 0, 0]
+  const aliases = new Set(), directories = sourceDirectories(target, repo.readFile(target))
+  const describe = (row, project, text) => {
+    requireThat(['100644', '100755'].includes(row.mode), `Nonregular Git source: ${row.path}`)
+    const bytes = regular(row.path); sourceText(bytes)
+    return {...row, byteLength: bytes.length, sha256: sha256(bytes),
+      ...(profile === 'blazor' ? {spellings: sourceSpellings(project, text, row.path)} : {})}
+  }
+  const sources = tracked.filter(row => directories.some(directory => row.path.startsWith(directory + '/')) &&
+      (row.path.endsWith('.cs') || profile === 'blazor' && row.path.endsWith('.razor')) && !row.path.includes('.tests/'))
+    .map(row => {
+      const file = literal(profile === 'blazor' ? row.path : row.path.slice(path.posix.dirname(target).length + 1)), alias = file.normalize('NFC').toLowerCase()
+      requireThat(!aliases.has(alias), `Aliased source: ${file}`); aliases.add(alias)
+      return {...describe(row, target, repo.readFile(target)), file, owner: 0}
+    }).sort((a, b) => ordinal(a.path, b.path))
+  const partitions = profile === 'blazor' ? 12 : 4
+  requireThat(sources.length >= partitions, 'Nonempty source partitions are required')
+  const loads = Array(partitions).fill(0), sizes = Array(partitions).fill(0)
   for (const row of [...sources].sort((a, b) => b.byteLength - a.byteLength || ordinal(a.path, b.path))) {
     const owner = loads.indexOf(Math.min(...loads))
     row.owner = owner + 1; loads[owner] += row.byteLength; sizes[owner] += 1
   }
   requireThat(sizes.every(Boolean), 'Empty source partition')
+  const testDirectory = path.posix.dirname(selector)
+  const tests = profile === 'blazor' ? tracked.filter(row => row.path.endsWith('.cs') &&
+    (row.path.startsWith(testDirectory + '/') || sourceSpellings(selector, repo.readFile(selector), row.path).length > 1))
+    .map(row => describe(row, selector, repo.readFile(selector))).sort((a, b) => ordinal(a.path, b.path)) : undefined
+  if (profile === 'blazor') {
+    requireThat(new Set(tests.map(row => row.path.normalize('NFC').toLowerCase())).size === tests.length, 'Aliased test source')
+    const csNames = sources.filter(row => row.path.endsWith('.cs')).map(row => path.posix.basename(row.path).normalize('NFC').toLowerCase())
+    requireThat(new Set(csNames).size === csNames.length, 'Ambiguous C# mutate basename')
+  }
   const fixed = new Set(['global.json', '.config/dotnet-tools.json', 'tooling/stryker.mjs', 'tooling/resolve-command.mjs',
     'tooling/stryker-builder-partitions.mjs', 'tooling/stryker-baselines.json', 'tooling/stryker-exclusions.json'])
   const pins = tracked.filter(row => fixed.has(row.path) || /\.(csproj|props|targets)$/.test(row.path) || /(^|\/)(nuget\.config|stryker-config\.json)$/i.test(row.path))
@@ -128,14 +169,16 @@ export function makePlan(mode) {
   for (const file of fixed) requireThat(pins.some(pin => pin.path === file), `Missing tracked pin: ${file}`)
   const conditional = lstatSync(path.join(root, conditionalInput), {throwIfNoEntry: false}) ? regular(conditionalInput) : undefined
   return {version: 1, mode, selected, head, tree, base, runId, runAttempt, selector, target, sdk, tool, config, floor,
-    ...(selected ? {controlHead} : {}), sources, pins,
+    ...(profile === 'blazor' ? {profile, tests, largestOwner: loads.indexOf(Math.max(...loads)) + 1,
+      selectedProjects: repo.testProjects.filter(test => !(test in repo.exclusions) &&
+        changedSourceFiles(targetOf(test, repo.readFile), repo.readFile(targetOf(test, repo.readFile)), root, base).length > 0)} : selected ? {controlHead} : {}), sources, pins,
     conditional: conditional === undefined ? {path: conditionalInput, absent: true} : {path: conditionalInput, byteLength: conditional.length, sha256: sha256(conditional)}}
 }
 
 function admit(manifestPath) {
   requireThat(/^[a-f0-9]{40}$/.test(process.env.EXPECTED_BASE ?? ''), 'EXPECTED_BASE must be the planned commit ID')
   const bytes = regular(path.basename(manifestPath), path.dirname(path.resolve(manifestPath))), plan = json(bytes)
-  const current = makePlan(plan.mode)
+  const current = makePlan(plan.mode, plan.profile)
   requireThat(bytes.equals(bytesOf(current)), 'Plan differs from current source, selection, base, pins or run')
   return {plan: current, planHash: sha256(bytes)}
 }
@@ -150,6 +193,15 @@ function prefixesOf(checkout, plan) {
 
 function sourcePath(file, plan, prefixes) {
   requireThat(typeof file === 'string', 'Missing report source path')
+  if (isBlazor(plan)) {
+    const normalized = slash(file), directory = path.posix.dirname(plan.target)
+    const found = plan.sources.filter(source => (source.spellings ?? [source.path]).some(spelling =>
+      normalized === spelling || normalized === `${prefixes.checkout}/${spelling}` ||
+      normalized === path.posix.relative(directory, spelling) || normalized === path.posix.relative(path.posix.dirname(plan.selector), spelling) ||
+      spelling.startsWith(directory + '/') && normalized === spelling.slice(directory.length + 1)))
+    requireThat(found.length === 1, `Unverified Blazor source: ${file}`)
+    return found[0].path
+  }
   const normalized = slash(file), targetDirectory = path.posix.dirname(plan.target)
   let relative
   if (normalized.startsWith(`${prefixes.target}/`)) relative = `${targetDirectory}/${normalized.slice(prefixes.target.length + 1)}`
@@ -165,7 +217,7 @@ export async function generationInventory(plan, logs, prefixes) {
   same(prefixes, prefixesOf(prefixes.checkout, plan), 'Invalid target prefix')
   requireThat(logs.length > 0 && new Set(logs).size === logs.length, 'Missing or duplicate primary logs')
   const files = new Map(), ids = new Set(), hashes = []
-  let current, total
+  let current, total, discoveredTests
   for (const log of [...logs].sort(ordinal)) {
     requireThat(/^log-\d{8}\.txt$/.test(path.basename(log)), 'Not a primary dated native log')
     regularPath(path.basename(log), path.dirname(log))
@@ -176,6 +228,8 @@ export async function generationInventory(plan, logs, prefixes) {
     const lines = createInterface({input: createReadStream(log), crlfDelay: Infinity})
     try {
       for await (const line of lines) {
+        const discovery = /\[INF\] Number of tests found: (\d+) for project /.exec(line)
+        if (discovery) { requireThat(discoveredTests === undefined, 'Repeated test discovery census'); discoveredTests = Number(discovery[1]) }
         const payload = /^\d{4}-\d\d-\d\dT\S+\s+\[DBG\] (.*)$/.exec(line)?.[1]
         if (!payload) continue
         if (payload.startsWith('Mutating ')) {
@@ -201,11 +255,12 @@ export async function generationInventory(plan, logs, prefixes) {
   }
   requireThat(total !== undefined, 'Missing DBG precompile generation boundary')
   same([...files.keys()].sort(ordinal), plan.sources.map(row => row.path).sort(ordinal), 'Native source universe differs from plan')
-  return {files: [...files].sort(([a], [b]) => ordinal(a, b)).map(([file, created]) => ({path: file, created})), total, logs: hashes}
+  if (isBlazor(plan)) requireThat(Number.isSafeInteger(discoveredTests) && discoveredTests > 0, 'Missing complete test discovery census')
+  return {files: [...files].sort(([a], [b]) => ordinal(a, b)).map(([file, created]) => ({path: file, created})), total, logs: hashes, ...(isBlazor(plan) ? {discoveredTests} : {})}
 }
 
 const nativeArgs = (plan, index) => ['--log-to-file', '--concurrency', '2',
-  ...plan.sources.filter(row => row.owner === index).flatMap(row => ['--mutate', row.file]),
+  ...(isBlazor(plan) ? [] : plan.sources.filter(row => row.owner === index).flatMap(row => ['--mutate', row.file])),
   ...(plan.mode === 'diagnostic' ? ['--reporter', 'json', '--reporter', 'dots', '--verbosity', 'error'] : [])]
 const encoded = bytes => ({bytes: bytes.toString('base64'), sha256: sha256(bytes)})
 function embedded(value) {
@@ -220,7 +275,60 @@ function completed(result) {
     !result.observerFailed && !result.cleanupUnavailable && !result.descendantsUnknown
 }
 
+function blazorRuntime(plan, final, index, prefixes) {
+  requireThat(final.razor === true && Array.isArray(final.razorSources), 'Missing fresh Razor generation map')
+  for (const row of final.razorSources) same(Object.keys(row).sort(),
+    ['path', 'generated', 'sourcePath', 'byteLength', 'sha256', 'utf16Length', 'spans', 'mask'].sort(), 'Unexpected Razor map fields')
+  const scoped = razorOwnership(plan.target, final.razorSources, {
+    sources: plan.sources, owned: plan.sources.filter(row => row.owner === index).map(row => row.path),
+  }, prefixes.checkout)
+  same(scoped.files, final.razorSources, 'Fresh generated bytes/spans differ from Razor map')
+  const generated = scoped.files.map(row => {
+    const source = plan.sources.find(source => source.path === row.sourcePath)
+    return {...row, originalPath: source.path, originalSha256: source.sha256, owner: source.owner, spellings: [row.path]}
+  })
+  const sources = [...plan.sources.filter(row => row.path.endsWith('.cs')), ...generated].sort((a, b) => ordinal(a.path, b.path))
+  requireThat(new Set(sources.map(row => row.path.normalize('NFC').toLowerCase())).size === sources.length, 'Aliased native source universe')
+  return {plan: {...plan, sources}, mutate: scoped.mutate}
+}
+
+function sourceLocation(text, location) {
+  const {start, end} = location ?? {}, lines = text.split('\n')
+  requireThat([start?.line, start?.column, end?.line, end?.column].every(value => Number.isSafeInteger(value) && value > 0) &&
+    (end.line > start.line || end.line === start.line && end.column >= start.column) && end.line <= lines.length &&
+    start.column <= lines[start.line - 1].replace(/\r$/, '').length + 1 &&
+    end.column <= lines[end.line - 1].replace(/\r$/, '').length + 1, 'Location outside source')
+}
+
+function blazorTests(plan, report, prefixes, discoveredTests) {
+  requireThat(report.testFiles && typeof report.testFiles === 'object' && !Array.isArray(report.testFiles), 'Missing complete named test evidence')
+  const files = {}, ids = new Set()
+  for (const [file, row] of Object.entries(report.testFiles)) {
+    const key = sourcePath(file, {...plan, sources: plan.tests}, prefixes), source = plan.tests.find(row => row.path === key)
+    requireThat(!files[key] && row && typeof row.source === 'string' && Array.isArray(row.tests), 'Malformed or duplicate test source')
+    requireThat(Buffer.byteLength(row.source) === source.byteLength && sha256(Buffer.from(row.source)) === source.sha256, 'Test source bytes mismatch')
+    for (const item of row.tests) {
+      requireThat(typeof item.id === 'string' && item.id.length > 0 && !ids.has(item.id), 'Missing or duplicate named test ID')
+      ids.add(item.id)
+      requireThat(typeof item.name === 'string' && item.name.trim().length > 0, 'Missing test name')
+      semanticKey(source, {...item, mutatorName: 'test', replacement: item.name})
+      sourceLocation(row.source, item.location)
+    }
+    files[key] = {source: row.source, tests: [...row.tests].sort((a, b) => ordinal(a.id, b.id))}
+  }
+  requireThat(Number.isSafeInteger(discoveredTests) && discoveredTests > 0 && ids.size === discoveredTests, 'Report omitted or added discovered tests')
+  for (const row of Object.values(report.files)) for (const mutant of row.mutants) {
+    for (const field of ['coveredBy', 'killedBy']) {
+      const links = mutant[field] ?? []
+      requireThat(Array.isArray(links) && new Set(links).size === links.length && links.every(id => ids.has(id)), 'Unknown or duplicate test link')
+    }
+    requireThat(mutant.status !== 'Killed' || mutant.killedBy?.length > 0, 'Killed mutant has no named killing test')
+  }
+  return Object.fromEntries(Object.entries(files).sort(([a], [b]) => ordinal(a, b)))
+}
+
 function validatePacket(plan, packet, index) {
+  const originalPlan = plan
   const receipt = json(packet.receiptBytes), report = json(packet.reportBytes), planHash = sha256(bytesOf(plan))
   same(receipt.binding, {version: 1, planHash, head: plan.head, tree: plan.tree, runId: plan.runId, runAttempt: plan.runAttempt, index}, 'Stale or misbound shard receipt')
   requireThat(receipt.reportSha256 === sha256(packet.reportBytes), 'Raw report hash mismatch')
@@ -231,10 +339,13 @@ function validatePacket(plan, packet, index) {
   same(receipt.returned, final, 'Authoritative return differs from final result.json')
   const output = slash(final.output ?? ''), outputPrefix = `${prefixes.checkout}/StrykerOutput/${path.posix.basename(path.posix.dirname(plan.selector))}-`
   requireThat(output.startsWith(outputPrefix) && /^[A-Za-z0-9_-]+$/.test(output.slice(outputPrefix.length)), 'Invalid unique native attempt path')
-  requireThat(slash(final.reportPath ?? '') === `${output}/reports/mutation-report.json` && final.razor === false && Number.isInteger(final.pid) && final.pid > 0, 'Invalid native final result paths')
+  requireThat(slash(final.reportPath ?? '') === `${output}/reports/mutation-report.json` && final.razor === isBlazor(plan) && Number.isInteger(final.pid) && final.pid > 0, 'Invalid native final result paths')
   requireThat(attempt.test === plan.selector && attempt.target === plan.target && attempt.sourceCommit === plan.head && attempt.executable === 'dotnet', 'Native attempt identity mismatch')
   requireThat(slash(attempt.cwd ?? '') === `${prefixes.checkout}/${path.posix.dirname(plan.selector)}` && slash(attempt.output ?? '') === output && slash(attempt.configFile ?? '') === `${output}/stryker-config.json`, 'Native attempt paths mismatch')
-  const expectedOverride = {'stryker-config': {...plan.config, since: {enabled: false}, thresholds: {...plan.config.thresholds, break: 0}}}
+  const scoped = isBlazor(plan) ? blazorRuntime(plan, final, index, prefixes) : undefined
+  if (scoped) plan = scoped.plan
+  const expectedOverride = {'stryker-config': {...plan.config, since: {enabled: false}, thresholds: {...plan.config.thresholds, break: 0},
+    ...(scoped ? {mutate: scoped.mutate} : {})}}
   same(override, expectedOverride, 'Native override changed mutation options')
   requireThat(attempt.configSha256 === receipt.override.sha256 && attempt.wrapperSha256 === plan.pins.find(pin => pin.path === 'tooling/stryker.mjs')?.sha256, 'Native wrapper or config hash mismatch')
   requireThat(Array.isArray(attempt.argv) && attempt.argv.every(arg => typeof arg === 'string'), 'Invalid native arguments')
@@ -259,7 +370,8 @@ function validatePacket(plan, packet, index) {
     const key = sourcePath(file, plan, prefixes), source = plan.sources.find(candidate => candidate.path === key)
     requireThat(!rows.has(key) && row && Array.isArray(row.mutants), 'Duplicate or malformed source row')
     const placeholder = row.language === 'none' && row.source === 'File ignored by mutate filter' && row.mutants.length === 0
-    if (placeholder) requireThat(source.owner !== index, 'Owner source is an ignored placeholder')
+    if (placeholder) requireThat(source.owner !== index || isBlazor(plan) && source.generated && source.mask === null &&
+      generation.files.find(row => row.path === key).created === 0, 'Owner source is an ignored placeholder')
     else {
       requireThat(row.language === 'cs' && typeof row.source === 'string' && Buffer.byteLength(row.source) === source.byteLength && sha256(Buffer.from(row.source)) === source.sha256, 'Report source bytes mismatch')
       const identities = new Set()
@@ -268,6 +380,7 @@ function validatePacket(plan, packet, index) {
         requireThat(typeof mutant.id === 'string' && /^(0|[1-9]\d*)$/.test(mutant.id) && !ids.has(mutant.id), 'Invalid or duplicate invocation-local mutant ID')
         ids.add(mutant.id)
         requireThat(source.owner === index || ['Ignored', 'CompileError'].includes(mutant.status), 'Non-owner mutant is not Ignored or CompileError')
+        if (isBlazor(plan)) sourceLocation(row.source, mutant.location)
         const identity = semanticKey(source, mutant)
         requireThat(!identities.has(identity), 'Ambiguous duplicate mutant identity')
         identities.add(identity)
@@ -280,7 +393,8 @@ function validatePacket(plan, packet, index) {
   same(final.counts, reportCounts(report), 'Final result counts mismatch')
   const owned = {files: Object.fromEntries([...rows].filter(([file]) => plan.sources.find(row => row.path === file).owner === index))}
   requireThat(reportCounts(owned).tested > 0, 'Owner group tested zero mutants')
-  return {receipt, report, rows, receiptHash: sha256(packet.receiptBytes)}
+  const testFiles = isBlazor(plan) ? blazorTests(originalPlan, report, prefixes, generation.discoveredTests) : undefined
+  return {receipt, report, rows, sources: plan.sources, testFiles, receiptHash: sha256(packet.receiptBytes)}
 }
 
 function semanticKey(source, mutant) {
@@ -292,11 +406,15 @@ function semanticKey(source, mutant) {
 }
 
 export function compose(plan, packets) {
-  requireThat(plan.selected && packets.length === 4, 'Exactly four selected Builder packets are required')
+  requireThat(plan.selected && packets.length === ownerCount(plan), isBlazor(plan) ? 'Exactly twelve selected Blazor packets are required' : 'Exactly four selected Builder packets are required')
   const admitted = packets.map((packet, index) => validatePacket(plan, packet, index + 1))
   for (const packet of admitted.slice(1)) same(packet.receipt.generation.files, admitted[0].receipt.generation.files, 'Fresh generation counts disagree across shards')
-  const files = {}, owners = []
-  for (const source of plan.sources) {
+  const files = {}, owners = [], sources = admitted[0].sources
+  if (isBlazor(plan)) for (const packet of admitted.slice(1)) {
+    same(packet.sources, sources, 'Generated Razor source maps disagree across owners')
+    same(packet.testFiles, admitted[0].testFiles, 'Named test source/ID evidence disagrees across owners')
+  }
+  for (const source of sources) {
     const owner = admitted[source.owner - 1], row = owner.rows.get(source.path)
     const identitySet = value => value.mutants.map(mutant => semanticKey(source, mutant)).sort(ordinal)
     const rollbackSet = value => value.mutants.filter(mutant => mutant.status === 'CompileError').map(mutant => semanticKey(source, mutant)).sort(ordinal)
@@ -308,12 +426,12 @@ export function compose(plan, packets) {
       }
     }
     files[source.path] = row
-    owners.push({path: source.path, sourceSha256: source.sha256, owner: source.owner, ownerFileSha256: sha256(bytesOf(row)), reportSha256: owner.receipt.reportSha256})
+    owners.push({path: source.path, sourceSha256: source.sha256, ...(source.originalPath ? {originalPath: source.originalPath, originalSha256: source.originalSha256} : {}), owner: source.owner, ownerFileSha256: sha256(bytesOf(row)), reportSha256: owner.receipt.reportSha256})
   }
   const provenance = {kind: 'COMPOSED', planHash: sha256(bytesOf(plan)), head: plan.head, owners,
     shards: admitted.map(({receipt, receiptHash}) => ({index: receipt.binding.index, receiptSha256: receiptHash,
       reportSha256: receipt.reportSha256, finalResultSha256: receipt.finalResult.sha256, attemptSha256: receipt.attempt.sha256, generation: receipt.generation}))}
-  return {report: {schemaVersion: '2', projectRoot: path.posix.dirname(plan.target), files, composition: provenance}, provenance}
+  return {report: {schemaVersion: '2', projectRoot: path.posix.dirname(plan.target), files, ...(isBlazor(plan) ? {testFiles: admitted[0].testFiles} : {}), composition: provenance}, provenance}
 }
 
 function observeControl(plan) {
@@ -328,23 +446,26 @@ async function shard(manifestPath, index, native, control) {
   const {plan, planHash} = admit(manifestPath)
   requireThat(plan.selected, 'Cannot execute an unselected Builder plan')
   const outputRoot = directoryPath(path.join(root, 'StrykerOutput'))
-  const directory = path.join(outputRoot, `builder-partition-${index}`)
+  const directory = path.join(outputRoot, `${ownerPrefix(plan)}-partition-${index}`)
   mkdirSync(directory)
   const diagnostics = path.join(directory, 'diagnostics')
   mkdirSync(diagnostics)
-  same(await control(plan), plan.controlHead, 'Control observation mismatch')
-  const returned = await native(plan.selector, undefined, nativeArgs(plan, index))
+  if (!isBlazor(plan)) same(await control(plan), plan.controlHead, 'Control observation mismatch')
+  const returned = isBlazor(plan) ? await native(plan.selector, undefined, nativeArgs(plan, index), undefined, undefined,
+    {sources: plan.sources, owned: plan.sources.filter(row => row.owner === index).map(row => row.path)}) :
+    await native(plan.selector, undefined, nativeArgs(plan, index))
   if (!completed(returned)) return returned?.signal ? {signal: returned.signal} : returned?.status > 0 ? returned.status : 1
   const prefixes = prefixesOf(root, plan), output = path.resolve(returned.output)
   requireThat(path.dirname(output) === outputRoot, 'Native output escaped StrykerOutput')
   const reportBytes = regular('reports/mutation-report.json', output)
   same(returned.report, json(reportBytes), 'Returned report differs from raw native report')
   const {report: ignored, ...summary} = returned
-  const generation = await generationInventory(plan, readdirSync(path.join(output, 'logs')).filter(name => /^log-\d{8}\.txt$/.test(name)).map(name => path.join(output, 'logs', name)), prefixes)
+  const nativePlan = isBlazor(plan) ? blazorRuntime(plan, summary, index, prefixes).plan : plan
+  const generation = await generationInventory(nativePlan, readdirSync(path.join(output, 'logs')).filter(name => /^log-\d{8}\.txt$/.test(name)).map(name => path.join(output, 'logs', name)), prefixes)
   const receipt = {binding: {version: 1, planHash, head: plan.head, tree: plan.tree, runId: plan.runId, runAttempt: plan.runAttempt, index}, prefixes,
     reportSha256: sha256(reportBytes), returned: summary, finalResult: encoded(regular('diagnostics/result.json', output)),
     attempt: encoded(regular('diagnostics/attempt.json', output)), override: encoded(regular('stryker-config.json', output)), generation,
-    control: await control(plan)}
+    ...(!isBlazor(plan) ? {control: await control(plan)} : {})}
   const receiptBytes = bytesOf(receipt)
   validatePacket(plan, {receiptBytes, reportBytes}, index)
   same(admit(manifestPath), {plan, planHash}, 'Post-native admission changed')
@@ -356,8 +477,8 @@ async function shard(manifestPath, index, native, control) {
 function collect(plan, downloadDirectory) {
   const directory = path.resolve(downloadDirectory)
   requireThat(!lstatSync(directory).isSymbolicLink() && path.resolve(realpathSync(directory)) === directory, 'Linked download directory')
-  const expected = [1, 2, 3, 4].map(index => `builder-partition-${plan.runId}-${plan.runAttempt}-${index}`)
-  same(readdirSync(directory).sort(ordinal), expected, 'Missing, extra or stale artifact directories')
+  const expected = Array.from({length: ownerCount(plan)}, (_, index) => `${ownerPrefix(plan)}-partition-${plan.runId}-${plan.runAttempt}-${index + 1}`)
+  same(readdirSync(directory).sort(ordinal), [...expected].sort(ordinal), 'Missing, extra or stale artifact directories')
   const packets = expected.map(name => {
     const folder = path.join(directory, name)
     requireThat(!lstatSync(folder).isSymbolicLink() && lstatSync(folder).isDirectory(), 'Invalid artifact directory')
@@ -367,8 +488,8 @@ function collect(plan, downloadDirectory) {
   return compose(plan, packets)
 }
 
-function writeComposition(composition) {
-  const directory = path.join(root, 'StrykerOutput', 'builder-owner')
+function writeComposition(composition, plan) {
+  const directory = path.join(root, 'StrykerOutput', `${ownerPrefix(plan)}-owner`)
   for (const name of ['reports', 'diagnostics']) directoryPath(path.join(directory, name))
   const reportPath = path.join(directory, 'reports', 'mutation-report.json')
   for (const file of ['reports/mutation-report.json', 'diagnostics/composition.json']) if (lstatSync(path.join(directory, file), {throwIfNoEntry: false})) regularPath(file, directory)
@@ -378,11 +499,24 @@ function writeComposition(composition) {
 }
 
 export async function main(argv = process.argv.slice(2), native = mutateProject, control = observeControl) {
-  const [command, first, second] = argv
-  requireThat(['plan', 'admit', 'shard', 'collect', 'pr'].includes(command), 'usage: plan <normal|diagnostic|qualification> <manifestPath> | admit <manifestPath> | shard <manifestPath> <1..4> | collect <manifestPath> <downloadDir> | pr <manifestPath> <downloadDir>')
-  requireThat(argv.length === (command === 'admit' ? 2 : 3) && first && (command === 'admit' || second), 'Invalid partition command arguments')
+  const [command, first, second, profile] = argv
+  requireThat(['plan', 'plans', 'admit', 'shard', 'collect', 'pr'].includes(command), 'usage: plans <normal|diagnostic|qualification> <outputDir> | plan <mode> <manifestPath> [blazor] | admit <manifestPath> | shard <manifestPath> <owner> | collect <manifestPath> <downloadDir> | pr <manifestPath> <downloadDir>')
+  requireThat(argv.length === (command === 'admit' ? 2 : command === 'plan' && profile === 'blazor' ? 4 : 3) && first && (command === 'admit' || second), 'Invalid partition command arguments')
+  if (command === 'plans') {
+    const builder = makePlan('normal'), blazor = makePlan('normal', 'blazor')
+    const chosenBuilder = first !== 'normal' && blazor.selected && !builder.selected ? builder : makePlan(first)
+    const chosenBlazor = blazor.selected ? makePlan(first, 'blazor') : blazor
+    const directory = directoryPath(second)
+    for (const [name, plan] of [['builder', chosenBuilder], ['blazor', chosenBlazor]]) {
+      directoryPath(path.join(directory, name + '-plan'))
+      writeFileSync(path.join(directory, name + '-plan', 'plan.json'), bytesOf(plan), {flag: 'wx', flush: true})
+    }
+    if (process.env.GITHUB_OUTPUT) appendFileSync(process.env.GITHUB_OUTPUT,
+      `selected=${chosenBuilder.selected}\nsubject=${builder.head}\nbase=${builder.base}\nmode=${chosenBuilder.mode}\nblazor_selected=${chosenBlazor.selected}\nblazor_mode=${chosenBlazor.mode}\nblazor_matrix=${JSON.stringify(chosenBlazor.mode === 'diagnostic' ? [blazorDiagnosticOwner] : Array.from({length: 12}, (_, index) => index + 1))}\n`)
+    return 0
+  }
   if (command === 'plan') {
-    const plan = makePlan(first)
+    const plan = makePlan(first, profile)
     directoryPath(path.dirname(path.resolve(second)))
     writeFileSync(second, bytesOf(plan), {flag: 'wx', flush: true})
     if (process.env.GITHUB_OUTPUT) appendFileSync(process.env.GITHUB_OUTPUT, `selected=${plan.selected}\nsubject=${plan.head}\nbase=${plan.base}\n`)
@@ -390,24 +524,30 @@ export async function main(argv = process.argv.slice(2), native = mutateProject,
   }
   if (command === 'admit') { admit(first); return 0 }
   if (command === 'shard') {
-    requireThat(/^[1-4]$/.test(second), 'Partition index must be 1 through 4')
+    const {plan} = admit(first)
+    requireThat(/^[1-9]\d*$/.test(second) && Number(second) <= ownerCount(plan), 'Invalid partition index')
     return shard(first, Number(second), native, control)
   }
   const {plan} = admit(first)
   if (command === 'pr') requireThat(plan.mode === 'normal', 'PR requires normal mode')
-  else requireThat(plan.selected, 'Cannot collect an unselected Builder plan')
+  else {
+    requireThat(plan.selected, 'Cannot collect an unselected Builder plan')
+    requireThat(!isBlazor(plan) || plan.mode !== 'diagnostic', 'Diagnostic observations cannot grant Blazor qualification')
+    if (isBlazor(plan)) same(plan.selectedProjects, [plan.selector], 'Blazor qualification cannot stand for other or unselected mutation projects')
+  }
   const composition = plan.selected ? collect(plan, second) : undefined
-  const reportPath = composition && writeComposition(composition)
+  const reportPath = composition && writeComposition(composition, plan)
   if (command === 'collect') {
-    const verdict = scoreVerdict(composition.report, fullModeBreak(repository().baselines[selector], plan.config))
-    if (!verdict.ok) console.error(verdict.reason)
-    return verdict.ok ? 0 : 1
+    const verdict = scoreVerdict(composition.report, fullModeBreak(repository().baselines[plan.selector], plan.config))
+    const missingRazor = isBlazor(plan) && !razorTested(composition.report)
+    if (!verdict.ok || missingRazor) console.error(missingRazor ? 'Razor project but 0 Razor mutants tested' : verdict.reason)
+    return verdict.ok && !missingRazor ? 0 : 1
   }
   let builderCalls = 0
   const outcome = await run(repository(), undefined, ['--log-to-file'], (test, changed, args) => {
     if (test !== plan.selector) return native(test, changed, args)
     requireThat(plan.selected && ++builderCalls === 1, 'Unexpected Builder route')
-    return {outcome: {kind: 'completed'}, status: 0, signal: null, report: composition.report, counts: reportCounts(composition.report), reportPath, razor: false}
+    return {outcome: {kind: 'completed'}, status: 0, signal: null, report: composition.report, counts: reportCounts(composition.report), reportPath, razor: isBlazor(plan)}
   }, (project, text) => changedSourceFiles(project, text, root, plan.base))
   if (outcome === 0) requireThat(builderCalls === Number(plan.selected), 'Successful PR omitted or duplicated Builder')
   return outcome
