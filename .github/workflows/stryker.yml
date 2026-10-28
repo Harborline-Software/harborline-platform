@@ -1,8 +1,8 @@
 # stryker: Stryker.NET mutation testing (control T-720; PROC-0002 "Mutation evidence as an artefact"; owner ruling Q43).
 #
 # Pull request: the owner keeps tooling/stryker.mjs run's changed-project selection and whole-project floors.
-# Builder's measured complete-file partitions feed its callback; other selected projects execute normally.
-# Four hosts use two native workers each; the complete owner-file union is judged once.
+# Builder keeps four owners. Blazor uses twelve whole-source owners only on an explicit qualification event.
+# Its diagnostic event runs one predicted largest owner alone; publication never starts the twelve-owner fan-out.
 # No source change: skipped, green. (Owner order 2026-09-30; PR #227 lost 16 points and merged green.)
 #
 # Schedule (07:40 UTC) and workflow_dispatch: `node tooling/stryker.mjs full` runs every
@@ -73,6 +73,9 @@ jobs:
       subject: ${{ steps.plan.outputs.subject }}
       base: ${{ steps.plan.outputs.base }}
       mode: ${{ steps.plan.outputs.mode }}
+      blazor_selected: ${{ steps.plan.outputs.blazor_selected }}
+      blazor_mode: ${{ steps.plan.outputs.blazor_mode }}
+      blazor_matrix: ${{ steps.plan.outputs.blazor_matrix }}
     defaults:
       run:
         shell: pwsh
@@ -93,9 +96,8 @@ jobs:
         env:
           EXPECTED_HEAD: ${{ github.event.action == 'labeled' && github.event.pull_request.head.sha || github.sha }}
         run: |
-          node tooling/stryker-builder-partitions.mjs plan $env:PARTITION_MODE 'StrykerOutput/builder-plan/plan.json'
+          node tooling/stryker-builder-partitions.mjs plans $env:PARTITION_MODE 'StrykerOutput'
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          "mode=$env:PARTITION_MODE" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
       - name: Refuse unselected full partition execution
         if: steps.plan.outputs.selected == 'true' && env.PARTITION_MODE != 'diagnostic'
         run: |
@@ -111,6 +113,14 @@ jobs:
         with:
           name: builder-plan-${{ github.run_id }}-${{ github.run_attempt }}
           path: StrykerOutput/builder-plan/plan.json
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Keep exact Blazor plan
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: blazor-plan-${{ github.run_id }}-${{ github.run_attempt }}
+          path: StrykerOutput/blazor-plan/plan.json
           if-no-files-found: ignore
           retention-days: 7
 
@@ -237,6 +247,115 @@ jobs:
             StrykerOutput/builder-partition-${{ matrix.partition }}/diagnostics/receipt.json
             StrykerOutput/builder-partition-${{ matrix.partition }}/diagnostics/report.json
 
+  blazor-partitions:
+    needs: [workload-route, builder-plan]
+    if: >-
+      needs.workload-route.result == 'success' && github.event_name == 'pull_request' &&
+      vars.ACTIONS_ENABLED == 'true' && needs.workload-route.outputs.enabled == 'true' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.draft == false &&
+      !contains(github.event.pull_request.labels.*.name, 'stacked') &&
+      github.event.action == 'labeled' && (github.event.label.name == 'mutation-diagnostic' ||
+       github.event.label.name == 'mutation-qualification') &&
+      needs.builder-plan.result == 'success' && needs.builder-plan.outputs.blazor_selected == 'true'
+    runs-on: ${{ fromJSON(needs.workload-route.outputs.labels) }}
+    timeout-minutes: ${{ needs.builder-plan.outputs.blazor_mode == 'diagnostic' && 30 || 360 }}
+    strategy:
+      fail-fast: false
+      max-parallel: 12
+      matrix:
+        partition: ${{ fromJSON(needs.builder-plan.outputs.blazor_matrix) }}
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+      EXPECTED_BASE: ${{ needs.builder-plan.outputs.base }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.builder-plan.outputs.subject }}
+          fetch-depth: 0
+          clean: true
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - name: Download exact Blazor plan
+        uses: actions/download-artifact@v8
+        with:
+          name: blazor-plan-${{ github.run_id }}-${{ github.run_attempt }}
+          path: StrykerOutput/blazor-plan
+      - name: Admit exact partition plan before SDK setup
+        env:
+          EXPECTED_HEAD: ${{ needs.builder-plan.outputs.subject }}
+        run: |
+          node tooling/stryker-builder-partitions.mjs admit 'StrykerOutput/blazor-plan/plan.json'
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Record whitelisted partition host context
+        env:
+          PARTITION_INDEX: ${{ matrix.partition }}
+        run: |
+          @'
+          import {closeSync, fsyncSync, mkdirSync, openSync, readFileSync, writeFileSync} from 'node:fs'
+          import {availableParallelism, cpus, release, totalmem} from 'node:os'
+          const plan = JSON.parse(readFileSync('StrykerOutput/blazor-plan/plan.json', 'utf8'))
+          const context = {
+            capturedUtc: new Date().toISOString(), partition: Number(process.env.PARTITION_INDEX),
+            head: plan.head, tree: plan.tree, runId: plan.runId, runAttempt: plan.runAttempt, mode: plan.mode,
+            availableParallelism: availableParallelism(), logicalCpuCount: cpus().length, totalMemory: totalmem(),
+            platform: process.platform, arch: process.arch, osRelease: release(), nodeVersion: process.version,
+            runnerName: process.env.RUNNER_NAME ?? null, imageVersion: process.env.ImageVersion ?? null,
+          }
+          const directory = 'StrykerOutput/blazor-host/diagnostics'
+          mkdirSync(directory, {recursive: true})
+          const file = `${directory}/host.json`, fd = openSync(file, 'wx')
+          try { writeFileSync(fd, JSON.stringify(context, null, 2) + '\n'); fsyncSync(fd) }
+          finally { closeSync(fd) }
+          console.log(JSON.stringify(context))
+          '@ | node --input-type=module
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - uses: actions/setup-dotnet@v6
+        env:
+          DOTNET_INSTALL_DIR: ${{ runner.temp }}/dotnet
+        with:
+          global-json-file: global.json
+      - name: Execute one complete-file Blazor partition
+        timeout-minutes: ${{ needs.builder-plan.outputs.blazor_mode == 'diagnostic' && 20 || 330 }}
+        env:
+          EXPECTED_HEAD: ${{ needs.builder-plan.outputs.subject }}
+          PARTITION_INDEX: ${{ matrix.partition }}
+        run: |
+          dotnet tool restore
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node tooling/stryker-builder-partitions.mjs shard 'StrykerOutput/blazor-plan/plan.json' $env:PARTITION_INDEX
+          exit $LASTEXITCODE
+      # Step timeout attempts upload; whole-job cancellation/runner loss can still prevent it.
+      - name: Keep partial native diagnostics
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: blazor-native-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.partition }}
+          if-no-files-found: ignore
+          retention-days: 7
+          path: |
+            StrykerOutput/*/reports/mutation-report.json
+            StrykerOutput/*/stryker-config.json
+            StrykerOutput/*/logs/*.txt
+            StrykerOutput/*/diagnostics/**
+            StrykerOutput/blazor-plan/plan.json
+      - name: Keep the flat complete partition packet
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: blazor-partition-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.partition }}
+          if-no-files-found: ignore
+          retention-days: 7
+          # Adjacent exact files give the packet a flat diagnostics/ least common ancestor.
+          path: |
+            StrykerOutput/blazor-partition-${{ matrix.partition }}/diagnostics/receipt.json
+            StrykerOutput/blazor-partition-${{ matrix.partition }}/diagnostics/report.json
+
   stryker:
     # A labeled command's skipped owner must not replace the normal stryker context.
     name: ${{ github.event_name == 'pull_request' && github.event.action == 'labeled' && 'stryker-command-owner' || 'stryker' }}
@@ -278,8 +397,11 @@ jobs:
           PLAN_RESULT: ${{ needs.builder-plan.result }}
           BUILDER_SELECTED: ${{ needs.builder-plan.outputs.selected }}
           PARTITIONS_RESULT: ${{ needs.builder-partitions.result }}
+          BLAZOR_SELECTED: ${{ needs.builder-plan.outputs.blazor_selected }}
         run: |
           @'
+          if (process.env.BLAZOR_SELECTED === 'true')
+            throw new Error('Whole Blazor qualification requires an explicitly admitted diagnostic and qualification command; publication does not launch twelve owners.')
           const selected = process.env.BUILDER_SELECTED
           if (process.env.PLAN_RESULT !== 'success' || !['true', 'false'].includes(selected) ||
               process.env.PARTITIONS_RESULT !== (selected === 'true' ? 'success' : 'skipped'))
@@ -382,7 +504,7 @@ jobs:
             StrykerOutput/builder-plan/plan.json
 
   mutation-diagnostic:
-    needs: [workload-route, builder-plan, builder-partitions]
+    needs: [workload-route, builder-plan, builder-partitions, blazor-partitions]
     if: >-
       always() && needs.workload-route.result == 'success' &&
       github.event_name == 'pull_request' &&
@@ -430,10 +552,13 @@ jobs:
       - name: Diagnostic observations are not whole qualification
         env:
           PARTITIONS_RESULT: ${{ needs.builder-partitions.result }}
+          BLAZOR_SELECTED: ${{ needs.builder-plan.outputs.blazor_selected }}
+          BLAZOR_RESULT: ${{ needs.blazor-partitions.result }}
         run: |
           @'
-          console.log('Four bounded attempts only; raw artifacts remain separate. No mutation score or qualification is asserted.')
-          if (process.env.PARTITIONS_RESULT !== 'success') throw new Error('Diagnostic attempts are partial or refused; inspect their retained evidence.')
+          const blazor = process.env.BLAZOR_SELECTED === 'true'
+          console.log(blazor ? 'One bounded predicted-largest Blazor diagnostic only; no qualification.' : 'Four bounded Builder attempts only; no qualification.')
+          if ((blazor ? process.env.BLAZOR_RESULT : process.env.PARTITIONS_RESULT) !== 'success') throw new Error('Diagnostic attempts are partial or refused; inspect their retained evidence.')
           '@ | node --input-type=module
           exit $LASTEXITCODE
 
@@ -446,7 +571,8 @@ jobs:
       github.event.pull_request.head.repo.full_name == github.repository &&
       github.event.pull_request.draft == false &&
       !contains(github.event.pull_request.labels.*.name, 'stacked') &&
-      github.event.action == 'labeled' && github.event.label.name == 'mutation-qualification'
+      github.event.action == 'labeled' && github.event.label.name == 'mutation-qualification' &&
+      needs.builder-plan.outputs.selected == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 360
     env:
@@ -514,3 +640,84 @@ jobs:
           path: |
             StrykerOutput/builder-owner/**
             StrykerOutput/builder-plan/plan.json
+
+  blazor-qualification:
+    # Only the complete same-head UI-only union replaces the deferred normal mutation context.
+    name: ${{ github.event_name == 'pull_request' && github.event.action == 'labeled' && github.event.label.name == 'mutation-qualification' && needs.builder-plan.outputs.blazor_selected == 'true' && 'stryker' || 'blazor-qualification' }}
+    needs: [workload-route, builder-plan, blazor-partitions]
+    if: >-
+      always() && needs.workload-route.result == 'success' &&
+      github.event_name == 'pull_request' &&
+      vars.ACTIONS_ENABLED == 'true' && needs.workload-route.outputs.enabled == 'true' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.draft == false &&
+      !contains(github.event.pull_request.labels.*.name, 'stacked') &&
+      github.event.action == 'labeled' && github.event.label.name == 'mutation-qualification' &&
+      needs.builder-plan.outputs.blazor_selected == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    env:
+      EXPECTED_BASE: ${{ needs.builder-plan.outputs.base }}
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          clean: true
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - name: Require exact plan dependency
+        env:
+          PLAN_RESULT: ${{ needs.builder-plan.result }}
+        run: |
+          @'
+          if (process.env.PLAN_RESULT !== 'success') throw new Error('Required Blazor plan did not complete.')
+          '@ | node --input-type=module
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Download admitted Blazor plan
+        uses: actions/download-artifact@v8
+        with:
+          name: blazor-plan-${{ github.run_id }}-${{ github.run_attempt }}
+          path: StrykerOutput/blazor-plan
+      - name: Download partition evidence without merging outer folders
+        uses: actions/download-artifact@v8
+        with:
+          pattern: blazor-partition-${{ github.run_id }}-${{ github.run_attempt }}-*
+          path: StrykerOutput/blazor-partitions
+          merge-multiple: false
+      - name: Admit exact owner plan
+        env:
+          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          node tooling/stryker-builder-partitions.mjs admit 'StrykerOutput/blazor-plan/plan.json'
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Require all twelve complete dependencies
+        env:
+          PARTITIONS_RESULT: ${{ needs.blazor-partitions.result }}
+        run: |
+          @'
+          if (process.env.PARTITIONS_RESULT !== 'success') throw new Error('Whole Blazor qualification requires all twelve complete partitions.')
+          '@ | node --input-type=module
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Judge the complete owner-file union once
+        timeout-minutes: 330
+        env:
+          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          node tooling/stryker-builder-partitions.mjs collect 'StrykerOutput/blazor-plan/plan.json' 'StrykerOutput/blazor-partitions'
+          exit $LASTEXITCODE
+      - name: Keep explicitly composed owner evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: blazor-owner-${{ github.run_id }}-${{ github.run_attempt }}
+          if-no-files-found: ignore
+          retention-days: 7
+          path: |
+            StrykerOutput/blazor-owner/**
+            StrykerOutput/blazor-plan/plan.json
