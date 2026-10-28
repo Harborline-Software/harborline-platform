@@ -43,10 +43,18 @@ function resolveString(key: HarborlineStringKey, catalog: HarborlineStringCatalo
   return catalog[key] ?? defaultStrings[key]
 }
 
+function digestEntries(entries: Array<[string, string]>): string {
+  return createHash('sha256').update(JSON.stringify(entries)).digest('hex')
+}
+
 function digestCatalog(): string {
-  return createHash('sha256')
-    .update(JSON.stringify(Object.entries(defaultStrings)))
-    .digest('hex')
+  return digestEntries(Object.entries(defaultStrings))
+}
+
+// Revision 2's additions, read from the fixture; revision 1 is every other entry, in catalog order.
+function revision2Keys(): Set<string> {
+  const additions = readFixture(fixtureUrl).cases?.find(value => value.id === 'default-strings.revision-2-additions')
+  return new Set(((additions?.expected as { entries: Array<[string, string]> }).entries).map(([key]) => key))
 }
 
 function runCase(fixtureCase: FixtureCase): void {
@@ -65,6 +73,17 @@ function runCase(fixtureCase: FixtureCase): void {
     case 'default-strings.digest':
       expect({ sha256: digestCatalog() }).toEqual(fixtureCase.expected)
       return
+    case 'default-strings.revision-1-subset': {
+      const additions = revision2Keys()
+      const revision1 = Object.entries(defaultStrings).filter(([key]) => !additions.has(key))
+      expect({ count: revision1.length, first: revision1.at(0)?.[0], last: revision1.at(-1)?.[0], sha256: digestEntries(revision1) }).toEqual(fixtureCase.expected)
+      return
+    }
+    case 'default-strings.revision-2-additions': {
+      const additions = revision2Keys()
+      expect({ entries: Object.entries(defaultStrings).filter(([key]) => additions.has(key)) }).toEqual(fixtureCase.expected)
+      return
+    }
     case 'default-strings.namespaces': {
       const keys = Object.keys(defaultStrings)
       const families = [...new Set(keys.map(key => key.split('.')[0]))].sort()
@@ -91,7 +110,7 @@ function runCase(fixtureCase: FixtureCase): void {
       const families = input.families as string[]
       expect({
         allPresent: families.every(family => Object.keys(defaultStrings).some(key => key.startsWith(`${family}.`))),
-        exactValuesCoveredByDigest: digestCatalog() === '73c7cec0b07f0058d0a48784e76fe8aa86f8e421f85716ff2ea9cc53975c3f7c',
+        exactValuesCoveredByDigest: digestCatalog() === 'ca8ea96dbf3bf6ee98766ccbfd3352122cafbf9bb60cd52cf1a0f0612daa564a',
       }).toEqual(fixtureCase.expected)
       return
     }
@@ -127,9 +146,9 @@ function runCase(fixtureCase: FixtureCase): void {
   }
 }
 
-describe('hlp.ui.default-strings shared fixture revision 1', () => {
+describe('hlp.ui.default-strings shared fixture revision 2', () => {
   const fixture = readFixture(fixtureUrl)
-  expect(fixture.fixtureRevision).toBe(1)
+  expect(fixture.fixtureRevision).toBe(2)
 
   for (const fixtureCase of fixture.cases ?? []) {
     it(fixtureCase.id, () => runCase(fixtureCase))
@@ -143,7 +162,7 @@ describe('hlp.ui.default-strings shared quality fixtures', () => {
     const fixtureCase = qualityFixture.accessibilityCases?.find(value => value.id.endsWith('accessible-families'))
     const expected = fixtureCase?.expected as { families: string[]; exactValuesCoveredByDigest: boolean }
     expect(expected.families.every(family => Object.keys(defaultStrings).some(key => key.startsWith(`${family}.`)))).toBe(true)
-    expect(digestCatalog()).toBe('73c7cec0b07f0058d0a48784e76fe8aa86f8e421f85716ff2ea9cc53975c3f7c')
+    expect(digestCatalog()).toBe('ca8ea96dbf3bf6ee98766ccbfd3352122cafbf9bb60cd52cf1a0f0612daa564a')
   })
 
   it('keeps every English fallback nonempty', () => {

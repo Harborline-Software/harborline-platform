@@ -9,9 +9,17 @@ function digestCatalog(): string {
 }
 
 describe('default strings native behavior', () => {
-  it('preserves the canonical 713-key catalog and insertion-order digest', () => {
-    expect(Object.keys(defaultStrings)).toHaveLength(713)
-    expect(digestCatalog()).toBe('73c7cec0b07f0058d0a48784e76fe8aa86f8e421f85716ff2ea9cc53975c3f7c')
+  it('preserves the canonical 733-key revision-2 catalog and insertion-order digest', () => {
+    expect(Object.keys(defaultStrings)).toHaveLength(733)
+    expect(digestCatalog()).toBe('ca8ea96dbf3bf6ee98766ccbfd3352122cafbf9bb60cd52cf1a0f0612daa564a')
+  })
+
+  it('keeps revision 1 exactly: its 713 keys, by identity and in order, reproduce the revision-1 digest', () => {
+    const additions = new Set(["forms.switch.off", "forms.switch.on", "navigation.notifications.all", "navigation.notifications.bell.pending.one", "navigation.notifications.bell.pending.other", "navigation.notifications.bell.unread.one", "navigation.notifications.bell.unread.other", "navigation.notifications.confirm", "navigation.notifications.deny", "navigation.notifications.dismiss", "navigation.notifications.empty", "navigation.notifications.groups", "navigation.notifications.markAllRead", "navigation.notifications.title", "navigation.notifications.unread", "navigation.notifications.viewAll", "navigation.userMenu.panel", "navigation.userMenu.signOut", "navigation.userMenu.trigger", "structural.spotlight.empty"])
+    const revision1 = Object.entries(defaultStrings).filter(([key]) => !additions.has(key))
+    expect(revision1).toHaveLength(713)
+    expect(createHash('sha256').update(JSON.stringify(revision1)).digest('hex')).toBe('73c7cec0b07f0058d0a48784e76fe8aa86f8e421f85716ff2ea9cc53975c3f7c')
+    expect(Object.keys(defaultStrings).slice(713)).toEqual([...additions])
   })
 
   it('supports partial catalogs without discarding empty-string overrides', () => {

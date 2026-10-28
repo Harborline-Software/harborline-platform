@@ -25,9 +25,12 @@ public sealed record NotificationCenterLabels(
     string ViewAll,
     string Empty,
     Func<string, string> Dismiss,
-    string Unread)
+    string Unread,
+    string? GroupLabel = null)
 {
-    /// <summary>The default English notification center text.</summary>
+    /// <summary>The default English notification center text. Leaving <c>Labels</c> unset (this instance) takes every label
+    /// from the locale catalog; any other record, including <c>English with { ... }</c>, is caller text and is kept exactly,
+    /// except that blank fields and an unset <c>GroupLabel</c> come from the catalog.</summary>
     public static NotificationCenterLabels English { get; } = new(
         "Notifications", "All", "Confirm", "Deny", "Mark all read", "View all", "No notifications",
         title => $"Dismiss: {title}", "Unread");

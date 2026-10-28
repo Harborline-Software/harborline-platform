@@ -5,16 +5,16 @@
 @using Harborline.Foundation.Builder
 @inject IJSRuntime JavaScript
 
-<aside @ref="Root" class="@CombineClasses("hl-layers-rail", Compact ? "hl-layers-rail--compact" : null)" style="@CombineStyles()" aria-label="@Labels.RailRegion" @attributes="AdditionalAttributes">
+<aside @ref="Root" class="@CombineClasses("hl-layers-rail", Compact ? "hl-layers-rail--compact" : null)" style="@CombineStyles()" aria-label="@L.RailRegion" @attributes="AdditionalAttributes">
   @if (!Compact && ActiveLens is not null)
   {
     <div role="status" aria-live="polite" class="hl-layers-rail__status" style="border-color:@ToneBorder(ActiveLens.Tone)">
-      <span>@Labels.ViewingLens(ActiveLens.Label)</span>
-      <button type="button" class="hl-layers-rail__status-close" aria-label="@Labels.ExitLens" @onclick="ClearLensAsync"><svg aria-hidden="true" viewBox="0 0 16 16"><path d="M3 3l10 10M13 3 3 13"></path></svg></button>
+      <span>@L.ViewingLens(ActiveLens.Label)</span>
+      <button type="button" class="hl-layers-rail__status-close" aria-label="@L.ExitLens" @onclick="ExitLensAsync"><svg aria-hidden="true" viewBox="0 0 16 16"><path d="M3 3l10 10M13 3 3 13"></path></svg></button>
     </div>
   }
-  <div role="group" aria-label="@Labels.LensesHeading" class="hl-layers-rail__lenses" @onkeydown="HandleLensKeyAsync">
-    @if (!Compact) { <h2>@Labels.LensesHeading</h2> }
+  <div role="group" aria-label="@L.LensesHeading" class="hl-layers-rail__lenses" @onkeydown="HandleLensKeyAsync">
+    @if (!Compact) { <h2>@L.LensesHeading</h2> }
     @for (var index = 0; index < Lenses.Count; index++)
     {
       var lens = Lenses[index];
@@ -22,23 +22,23 @@
       var enabled = State.EnabledIds.Contains(lens.Id);
       var passiveCount = !active && enabled ? Canvas.Nodes.Count(node => lens.Project(node.Id).Active) : 0;
       <div class="hl-layers-rail__lens" style="--hl-lens-tone:@ToneSwatch(lens.Tone)">
-        <button type="button" class="hl-layers-rail__lens-activate" aria-pressed="@(active ? "true" : "false")" aria-label="@Labels.ActivateLens(lens.Label)"
-                title="@Labels.LensShortcutHint(index + 1)" @onclick="() => ActivateLensAsync(lens.Id)">
+        <button type="button" class="hl-layers-rail__lens-activate" data-lens-id="@lens.Id" aria-pressed="@(active ? "true" : "false")" aria-label="@L.ActivateLens(lens.Label)"
+                title="@L.LensShortcutHint(index + 1)" @onclick="() => ActivateLensAsync(lens.Id)">
           <span aria-hidden="true" class="hl-layers-rail__swatch"></span><span class="hl-layers-rail__optional-copy">@lens.Label</span>
-          @if (passiveCount > 0) { <span class="hl-layers-rail__count">@Labels.PassiveCount(passiveCount)</span> }
+          @if (passiveCount > 0) { <span class="hl-layers-rail__count">@L.PassiveCount(passiveCount)</span> }
         </button>
-        <button type="button" class="hl-layers-rail__lens-toggle" aria-pressed="@(enabled ? "true" : "false")" aria-label="@Labels.ToggleLens(lens.Label)" @onclick="() => ToggleLensAsync(lens.Id)"><svg aria-hidden="true" viewBox="0 0 16 16"><path d="M1.5 8s2.25-4 6.5-4 6.5 4 6.5 4-2.25 4-6.5 4S1.5 8 1.5 8Z"></path><circle cx="8" cy="8" r="2"></circle></svg></button>
+        <button type="button" class="hl-layers-rail__lens-toggle" aria-pressed="@(enabled ? "true" : "false")" aria-label="@L.ToggleLens(lens.Label)" @onclick="() => ToggleLensAsync(lens.Id)"><svg aria-hidden="true" viewBox="0 0 16 16"><path d="M1.5 8s2.25-4 6.5-4 6.5 4 6.5 4-2.25 4-6.5 4S1.5 8 1.5 8Z"></path><circle cx="8" cy="8" r="2"></circle></svg></button>
       </div>
     }
   </div>
   <div class="hl-layers-rail__outline-header">
-    @if (!Compact) { <h2>@Labels.OutlineHeading</h2> }
-    @if (OnInsert.HasDelegate) { <button type="button" class="hl-layers-rail__insert" aria-label="@Labels.Insert" @onclick="InsertAsync"><svg aria-hidden="true" viewBox="0 0 16 16"><path d="M8 3v10M3 8h10"></path></svg></button> }
+    @if (!Compact) { <h2>@L.OutlineHeading</h2> }
+    @if (OnInsert.HasDelegate) { <button type="button" class="hl-layers-rail__insert" aria-label="@L.Insert" @onclick="InsertAsync"><svg aria-hidden="true" viewBox="0 0 16 16"><path d="M8 3v10M3 8h10"></path></svg></button> }
   </div>
-  <div role="tree" aria-label="@Labels.OutlineHeading" class="hl-layers-rail__tree">
+  <div @ref="Tree" role="tree" aria-label="@L.OutlineHeading" class="hl-layers-rail__tree">
     @if (VisibleNodes.Count == 0)
     {
-      <p>@(ActiveLens?.Empty ?? Labels.Empty)</p>
+      <p>@(ActiveLens?.Empty ?? L.Empty)</p>
     }
     else
     {
@@ -49,25 +49,30 @@
         var projection = ProjectNode(node);
         var provenance = ResolveProvenance(node.Id);
         var unresolved = provenance is not null && (!provenance.Resolved || provenance.Source == ProvenanceSource.Unknown);
-        <div role="treeitem" aria-level="@(node.Depth + 1)" aria-expanded="@(expandable ? expanded.ToString().ToLowerInvariant() : null)"
+        var showSource = ShowProvenance && provenance is not null;
+        var hasBadge = !string.IsNullOrWhiteSpace(projection.Badge);
+        // The name is the label alone; badge and provenance text stay announced as the description.
+        var describedBy = string.Join(' ', new[] { hasBadge ? NodeElementId(node.Id, "badge") : null, showSource ? NodeElementId(node.Id, "source") : null }.Where(part => part is not null));
+        @* The treeitem itself takes focus (APG treeview): it is the tree's one tab stop and handles its keys. *@
+        <div role="treeitem" tabindex="@(focusedId == node.Id ? 0 : -1)" aria-labelledby="@NodeElementId(node.Id, "label")" aria-describedby="@(describedBy.Length > 0 ? describedBy : null)" aria-level="@(node.Depth + 1)" aria-expanded="@(expandable ? expanded.ToString().ToLowerInvariant() : null)"
              aria-selected="@(Canvas.SelectedId == node.Id ? "true" : "false")" data-node-id="@node.Id"
              data-hl-ghosted="@(projection.Ghosted ? "true" : null)" data-ghosted="@(projection.Ghosted ? "true" : null)"
-             class="hl-layers-rail__node" style="--hl-depth:@node.Depth" @onclick="() => SelectNodeAsync(node.Id)">
+             class="hl-layers-rail__node" style="--hl-depth:@node.Depth" @onfocus="() => focusedId = node.Id" @onkeydown="args => HandleTreeKeyAsync(node, args)" @onclick="() => SelectNodeAsync(node.Id)">
           @if (expandable)
           {
-            <button type="button" class="hl-layers-rail__disclosure" aria-label="@(expanded ? Labels.CollapseNode : Labels.ExpandNode)" @onclick="() => ToggleExpandedAsync(node)"><svg aria-hidden="true" viewBox="0 0 16 16"><path d="@(expanded ? "M3 6l5 5 5-5" : "M6 3l5 5-5 5")"></path></svg></button>
+            @* The disclosure and the node button are for pointers, not tab stops; a click hands focus to the treeitem. *@
+            <button type="button" class="hl-layers-rail__disclosure" tabindex="-1" @onmousedown:preventDefault="true" aria-label="@(expanded ? L.CollapseNode : L.ExpandNode)" @onclick="() => ToggleExpandedAsync(node)" @onclick:stopPropagation="true"><svg aria-hidden="true" viewBox="0 0 16 16"><path d="@(expanded ? "M3 6l5 5 5-5" : "M6 3l5 5-5 5")"></path></svg></button>
           }
           else
           {
             <span aria-hidden="true" class="hl-layers-rail__spacer"></span>
           }
-          <button type="button" class="hl-layers-rail__node-control" tabindex="@(focusedId == node.Id ? 0 : -1)" @onfocus="() => focusedId = node.Id"
-                  @onkeydown="args => HandleTreeKeyAsync(node, args)" @onclick:stopPropagation="true" @onclick="() => SelectNodeAsync(node.Id)">
-            <span class="hl-layers-rail__node-label">@node.Label</span>
-            @if (!string.IsNullOrWhiteSpace(projection.Badge)) { <span class="hl-layers-rail__node-badge">@projection.Badge</span> }
-            @if (ShowProvenance && provenance is not null)
+          <button type="button" class="hl-layers-rail__node-control" tabindex="-1" @onmousedown:preventDefault="true" @onclick:stopPropagation="true" @onclick="() => SelectNodeAsync(node.Id)">
+            <span id="@NodeElementId(node.Id, "label")" class="hl-layers-rail__node-label">@node.Label</span>
+            @if (hasBadge) { <span id="@NodeElementId(node.Id, "badge")" class="hl-layers-rail__node-badge">@projection.Badge</span> }
+            @if (showSource)
             {
-              <span class="hl-layers-rail__source">@(unresolved ? Labels.UnresolvedSource : Labels.Source(provenance.Source.ToString().ToLowerInvariant()))@(provenance.Locked ? $" · {Labels.Locked}" : string.Empty)</span>
+              <span id="@NodeElementId(node.Id, "source")" class="hl-layers-rail__source">@(unresolved ? L.UnresolvedSource : L.Source(provenance!.Source.ToString().ToLowerInvariant()))@(provenance!.Locked ? $" · {L.Locked}" : string.Empty)</span>
             }
           </button>
         </div>
@@ -88,26 +93,71 @@
   [Parameter] public EventCallback OnInsert { get; set; }
 
   private readonly HashSet<string> Expanded = new(StringComparer.Ordinal);
+  // Nodes start expanded once; a node the user collapsed stays collapsed when the host re-renders.
+  private readonly HashSet<string> Known = new(StringComparer.Ordinal);
   private string? focusedId;
+  // Treeitems name themselves by their label element, so its id is unique per rail instance.
+  private readonly string idBase = $"hl-layers-rail-{Guid.NewGuid():N}";
+  private string NodeElementId(string id, string part) => $"{idBase}-{Uri.EscapeDataString(id)}-{part}";
   private string? focusRequest;
+  private bool focusIfLost;
   private IJSObjectReference? module;
-  private ElementReference Root;
+  private ElementReference Root, Tree;
   private AspectLens? ActiveLens => Lenses.FirstOrDefault(lens => lens.Id == State.ActiveId);
   private IReadOnlyList<CanvasNode> VisibleNodes => Canvas.Nodes.Where(IsVisible).ToArray();
 
+  // Caller text overrides each label; blank caller text keeps the default, so no name is ever empty.
+  private RailLabels L = DefaultRailLabels.Value;
+  private static RailLabels ResolveLabels(RailLabels labels)
+  {
+    var d = DefaultRailLabels.Value;
+    static string Pick(string? value, string fallback) => string.IsNullOrWhiteSpace(value) ? fallback : value;
+    static Func<T, string> Each<T>(Func<T, string>? value, Func<T, string> fallback) => arg => Pick(value?.Invoke(arg), fallback(arg));
+    return new(Pick(labels.LensesHeading, d.LensesHeading), Pick(labels.OutlineHeading, d.OutlineHeading), Pick(labels.Insert, d.Insert),
+      Each(labels.ToggleLens, d.ToggleLens), Each(labels.ActivateLens, d.ActivateLens), Each(labels.PassiveCount, d.PassiveCount), Each(labels.Source, d.Source),
+      Pick(labels.Locked, d.Locked), Pick(labels.UnresolvedSource, d.UnresolvedSource), Pick(labels.Empty, d.Empty), Pick(labels.CollapseNode, d.CollapseNode),
+      Pick(labels.ExpandNode, d.ExpandNode), Pick(labels.RailRegion, d.RailRegion), Each(labels.ViewingLens, d.ViewingLens), Pick(labels.ExitLens, d.ExitLens),
+      Each(labels.LensShortcutHint, d.LensShortcutHint));
+  }
+
   protected override void OnParametersSet()
   {
-    if (new[] { Labels.RailRegion, Labels.LensesHeading, Labels.OutlineHeading }.Any(string.IsNullOrWhiteSpace)) throw new InvalidOperationException("accessible-rail-label-required");
+    L = ResolveLabels(Labels);
+    if (new[] { L.RailRegion, L.LensesHeading, L.OutlineHeading }.Any(string.IsNullOrWhiteSpace)) throw new InvalidOperationException("accessible-rail-label-required");
     if (Lenses.GroupBy(lens => lens.Id, StringComparer.Ordinal).Any(group => group.Count() > 1) || Canvas.Nodes.GroupBy(node => node.Id, StringComparer.Ordinal).Any(group => group.Count() > 1)) throw new InvalidOperationException("duplicate-layer-identity");
-    var ids = Canvas.Nodes.Select(node => node.Id).ToHashSet(StringComparer.Ordinal);
-    if (Canvas.Nodes.Any(node => node.Depth < 0 || (node.ParentId is not null && !ids.Contains(node.ParentId))) || (Canvas.SelectedId is not null && !ids.Contains(Canvas.SelectedId))) throw new InvalidOperationException("invalid-outline-tree");
-    foreach (var node in Canvas.Nodes.Where(node => node.HasChildren == true)) Expanded.Add(node.Id);
-    if (focusedId is null || !VisibleNodes.Any(node => node.Id == focusedId)) focusedId = VisibleNodes.FirstOrDefault()?.Id;
+    // As in React: a parent precedes its child and sits exactly one level above it, which also rules out
+    // cycles (a self-parented or cyclic tree would otherwise loop in IsVisible).
+    var seen = new Dictionary<string, CanvasNode>(StringComparer.Ordinal);
+    foreach (var node in Canvas.Nodes)
+    {
+      CanvasNode? parent = null;
+      if (node.Depth < 0 || (node.Depth == 0) != (node.ParentId is null) || (node.ParentId is not null && (!seen.TryGetValue(node.ParentId, out parent) || parent.Depth + 1 != node.Depth))) throw new InvalidOperationException("invalid-outline-tree");
+      seen[node.Id] = node;
+    }
+    if (Canvas.SelectedId is not null && !seen.ContainsKey(Canvas.SelectedId)) throw new InvalidOperationException("invalid-outline-tree");
+    foreach (var node in Canvas.Nodes.Where(node => HasChildren(node) && Known.Add(node.Id))) Expanded.Add(node.Id);
+    // A host change that removes or hides the focused node moves the roving position, and focus with it
+    // if focus was on that node (the module checks focus is on the page or inside the rail).
+    if (focusedId is null || !VisibleNodes.Any(node => node.Id == focusedId))
+    {
+      var previous = focusedId;
+      // The first tab stop is the selected node when visible, as in React; a lost one falls back to the first node.
+      focusedId = (previous is null ? VisibleNodes.FirstOrDefault(node => node.Id == Canvas.SelectedId) : null)?.Id ?? VisibleNodes.FirstOrDefault()?.Id;
+      if (previous is not null && focusedId is not null) { focusRequest = focusedId; focusIfLost = true; }
+    }
   }
 
   private async Task ActivateLensAsync(string id) => await StateChanged.InvokeAsync(State.Activate(id));
   private async Task ToggleLensAsync(string id) => await StateChanged.InvokeAsync(State.Toggle(id));
   private async Task ClearLensAsync() => await StateChanged.InvokeAsync(State.Clear());
+  // Exiting the lens removes the status region and its Exit button, so focus moves first to the lens
+  // that was active; it stays in the rail even when the host clears the lens in a later render.
+  private async Task ExitLensAsync()
+  {
+    if (State.ActiveId is { } active && module is not null)
+      try { await module.InvokeVoidAsync("focusLens", Root, active); } catch (JSException) { } catch (JSDisconnectedException) { }
+    await ClearLensAsync();
+  }
   private async Task InsertAsync() => await OnInsert.InvokeAsync();
   private bool HasChildren(CanvasNode node) => node.HasChildren ?? Canvas.Nodes.Any(candidate => candidate.ParentId == node.Id);
   private bool IsVisible(CanvasNode node)
@@ -148,6 +198,8 @@
 
   private async Task HandleTreeKeyAsync(CanvasNode node, KeyboardEventArgs args)
   {
+    // Alt, Ctrl and Meta chords (browser back and forward, page Home and End) belong to the browser.
+    if (args.AltKey || args.CtrlKey || args.MetaKey) return;
     var visible = VisibleNodes;
     var index = visible.ToList().FindIndex(candidate => candidate.Id == node.Id);
     string? target = null;
@@ -165,6 +217,8 @@
       if (Expanded.Remove(node.Id)) target = node.Id;
       else target = node.ParentId;
     }
+    // Enter and Space select once: the treeitem is not a button, so no native click follows. layers-rail.js
+    // prevents the default of the handled keys so arrows, Home, End and Space don't scroll the rail.
     else if (args.Key is "Enter" or " ") { await SelectNodeAsync(node.Id); return; }
     else return;
     if (target is not null) { focusedId = target; focusRequest = target; }
@@ -172,23 +226,18 @@
 
   private Task SelectNodeAsync(string id)
   {
-    focusedId = id;
+    // A pointer selection hands focus to the treeitem (its buttons are not focus targets).
+    focusedId = id; focusRequest = id; focusIfLost = false;
     Canvas.Select(id);
     return Task.CompletedTask;
   }
 
   private Task ToggleExpandedAsync(CanvasNode node)
   {
+    // The click hands focus to this treeitem, which also keeps a collapsed descendant's focus in the tree.
     if (!Expanded.Remove(node.Id)) Expanded.Add(node.Id);
-    else if (focusedId is not null && focusedId != node.Id && IsDescendant(focusedId, node.Id)) { focusedId = node.Id; focusRequest = node.Id; }
+    focusedId = node.Id; focusRequest = node.Id; focusIfLost = false;
     return Task.CompletedTask;
-  }
-
-  private bool IsDescendant(string id, string ancestor)
-  {
-    var current = Canvas.Nodes.FirstOrDefault(node => node.Id == id)?.ParentId;
-    while (current is not null) { if (current == ancestor) return true; current = Canvas.Nodes.FirstOrDefault(node => node.Id == current)?.ParentId; }
-    return false;
   }
 
   private static string ToneSwatch(LensTone tone) => tone switch
@@ -204,8 +253,12 @@
 
   protected override async Task OnAfterRenderAsync(bool firstRender)
   {
-    if (firstRender) module = await JavaScript.InvokeAsync<IJSObjectReference>("import", "./_content/Harborline.UIAdapters.Blazor/layers-rail.js");
-    if (focusRequest is not null) { var id = focusRequest; focusRequest = null; await module!.InvokeVoidAsync("focusNode", Root, id); }
+    if (firstRender)
+    {
+      module = await JavaScript.InvokeAsync<IJSObjectReference>("import", "./_content/Harborline.UIAdapters.Blazor/layers-rail.js");
+      if (module is not null) await module.InvokeVoidAsync("observeTreeKeys", Tree);
+    }
+    if (focusRequest is not null && module is not null) { var id = focusRequest; var onlyIfLost = focusIfLost; focusRequest = null; focusIfLost = false; await module.InvokeVoidAsync("focusNode", Root, id, onlyIfLost); }
   }
 
   public async ValueTask DisposeAsync() { if (module is not null) try { await module.DisposeAsync(); } catch (JSDisconnectedException) { } }

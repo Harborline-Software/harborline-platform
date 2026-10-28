@@ -1,7 +1,7 @@
 .hl-sheet__portal {
   --hl-sheet-surface: var(--hl-surface, Canvas);
   --hl-sheet-text: var(--hl-foreground, CanvasText);
-  --hl-sheet-muted: var(--hl-muted-foreground, GrayText);
+  --hl-sheet-muted: var(--hl-muted-foreground, color-mix(in srgb, CanvasText 72%, Canvas));
   --hl-sheet-muted-surface: var(--hl-muted, color-mix(in srgb, CanvasText 8%, Canvas));
   --hl-sheet-border: var(--hl-border, color-mix(in srgb, CanvasText 24%, Canvas));
   --hl-sheet-focus: var(--hl-focus, #8a3ffc);

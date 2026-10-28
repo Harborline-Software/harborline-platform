@@ -1,5 +1,8 @@
 const focusable = 'a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])'
 
+const overlayPortals = '.hl-dialog__portal, .hl-sheet__portal'
+const isTopmostOverlay = portal => [...document.body.children].filter(element => element.matches(overlayPortals)).at(-1) === portal
+
 export function connect(portal, content, trigger, modal, callback) {
   const placeholder = document.createComment('hl-sheet-portal')
   portal.before(placeholder)
@@ -12,7 +15,20 @@ export function connect(portal, content, trigger, modal, callback) {
     document.body.style.overflow = 'hidden'
   }
   const nodes = () => [...content.querySelectorAll(focusable)]
+  // A handled Escape (default prevented) is left alone, as is any key from inside another dialog or
+  // sheet portal; otherwise only the topmost overlay acts. An Escape from ordinary page content
+  // still dismisses the topmost (for example nonmodal) sheet. Without this, an Escape aimed at a
+  // dialog opened above the sheet dismissed the sheet as well.
   const onKey = event => {
+    if (event.defaultPrevented) return
+    const target = event.target
+    const fromThis = portal.contains(target)
+    const otherOverlay = target instanceof Element ? target.closest(overlayPortals) : null
+    if (!fromThis && ((otherOverlay && otherOverlay !== portal) || !isTopmostOverlay(portal))) return
+    // Connected popover content sits under body, outside this portal, so it would pass as page content
+    // and one Escape closed both the popover and the sheet. A key from popover content belongs to that
+    // popover (the marker doesn't record stacking; a sheet opened over a focused popover is an edge).
+    if (!fromThis && target instanceof Element && target.closest('[data-hl-layer="popover"]')) return
     if (event.key === 'Escape') { event.preventDefault(); callback.invokeMethodAsync('DismissFromJavaScriptAsync'); return }
     if (!modal || event.key !== 'Tab') return
     const items = nodes()

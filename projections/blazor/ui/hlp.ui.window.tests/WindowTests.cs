@@ -23,6 +23,16 @@ public sealed class WindowTests : BunitContext
         Assert.Equal([HarborlineWindowState.Minimized], states);
     }
 
+    // b19 review: window.js moves this wrapper to document.body, so it carries the platform's layer
+    // markup -- the gallery's accessibility scan finds portaled layers by that markup.
+    [Fact]
+    public void PortalWrapperCarriesTheWindowLayerMarkup()
+    {
+        var cut = RenderWindow(p => p.Add(x => x.State, HarborlineWindowState.Default));
+        var portal = cut.Find("[role=dialog]").ParentElement!;
+        Assert.Equal("window", portal.GetAttribute("data-hl-layer"));
+    }
+
     [Fact]
     public void KeyboardMoveResizeAndEscapeUsePinnedSteps()
     {

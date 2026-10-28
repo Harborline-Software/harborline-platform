@@ -48,6 +48,7 @@ export function GuardedControl({
   const coverRef = React.useRef<HTMLButtonElement>(null)
   const armedRef = React.useRef<HTMLButtonElement>(null)
   const deferredFocus = React.useRef(false)
+  const pendingCoverFocus = React.useRef(false)
 
   const wholeMessage = React.useCallback((key: string, fallback: string, variables: Record<string, string>) => {
     let message = catalog[key] ?? fallback
@@ -70,7 +71,9 @@ export function GuardedControl({
       deferredFocus.current = true
       return
     }
-    queueMicrotask(() => mounted.current && coverRef.current?.focus())
+    // The covered action does not exist until the covered state renders, so the layout effect
+    // below performs the focus; a microtask here ran before that render and focused nothing.
+    pendingCoverFocus.current = true
   }, [])
 
   const recover = React.useCallback((reason: GuardRecoveryReason) => {
@@ -84,6 +87,21 @@ export function GuardedControl({
     stateRef.current = state
   }, [state])
   React.useEffect(() => () => { mounted.current = false }, [])
+  // A deferred restoration outlives the armed attempt (a commit can settle while the window is
+  // blurred or the document hidden), so its listeners live as long as the component, as in Blazor.
+  React.useEffect(() => {
+    const restoreDeferred = () => {
+      if (!deferredFocus.current || stateRef.current !== 'covered' || document.visibilityState === 'hidden' || !document.hasFocus()) return
+      deferredFocus.current = false
+      coverRef.current?.focus()
+    }
+    window.addEventListener('focus', restoreDeferred)
+    document.addEventListener('visibilitychange', restoreDeferred)
+    return () => {
+      window.removeEventListener('focus', restoreDeferred)
+      document.removeEventListener('visibilitychange', restoreDeferred)
+    }
+  }, [])
   React.useEffect(() => {
     if (!disabled || stateRef.current !== 'armed') return
     recover('became-disabled')
@@ -102,24 +120,11 @@ export function GuardedControl({
     const visibility = () => document.visibilityState === 'hidden' && recover('document-hidden')
     let blurTimer = 0
     const blur = () => { blurTimer = window.setTimeout(() => recover('window-blur'), BLUR_GRACE_MS) }
-    const focus = () => {
-      window.clearTimeout(blurTimer)
-      if (deferredFocus.current && stateRef.current === 'covered') {
-        deferredFocus.current = false
-        coverRef.current?.focus()
-      }
-    }
-    const escape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        event.preventDefault()
-        recover('escape')
-      }
-    }
+    const focus = () => { window.clearTimeout(blurTimer) }
     window.addEventListener('popstate', navigate)
     window.addEventListener('blur', blur)
     window.addEventListener('focus', focus)
     document.addEventListener('visibilitychange', visibility)
-    document.addEventListener('keydown', escape)
     return () => {
       window.clearInterval(tick)
       window.clearTimeout(blurTimer)
@@ -127,19 +132,24 @@ export function GuardedControl({
       window.removeEventListener('blur', blur)
       window.removeEventListener('focus', focus)
       document.removeEventListener('visibilitychange', visibility)
-      document.removeEventListener('keydown', escape)
     }
   }, [recover, state])
 
   React.useLayoutEffect(() => {
     if (state === 'armed') armedRef.current?.focus()
+    else if (state === 'covered' && pendingCoverFocus.current) {
+      pendingCoverFocus.current = false
+      coverRef.current?.focus()
+    }
   }, [state])
 
   const arm = () => {
     if (disabled || invalid || stateRef.current !== 'covered') return
     committed.current = false
     transition('armed')
-    setAnnouncement(wholeMessage('chrome.guard.armed.whole', 'Armed for {action}. Activate again within {duration} to commit.', { action: `\u2068${label}\u2069`, duration }))
+    // The instruction states the fresh window, not the previous attempt's last countdown value.
+    setSeconds(5)
+    setAnnouncement(wholeMessage('chrome.guard.armed.whole', 'Armed for {action}. Activate again within {duration} to commit.', { action: `\u2068${label}\u2069`, duration: formatDuration(5) }))
   }
   const commit = () => {
     if (disabled || invalid || stateRef.current !== 'armed' || committed.current) return
@@ -171,8 +181,12 @@ export function GuardedControl({
     observe?.({ type: 'commit-settled', outcome })
   }
 
-  let duration = `${formatNumber(seconds)} seconds`
-  try { duration = new Intl.RelativeTimeFormat(locale, { numeric: 'always' }).format(seconds, 'second') } catch { /* fallback is deterministic */ }
+  // A plain localized unit ("5 seconds"): the instruction already says "within", so a relative
+  // form ("in 5 seconds") would read "within in 5 seconds".
+  function formatDuration(value: number) {
+    try { return new Intl.NumberFormat(locale, { style: 'unit', unit: 'second', unitDisplay: 'long' }).format(value) } catch { return `${formatNumber(value)} seconds` }
+  }
+  const duration = formatDuration(seconds)
   const inert = disabled || invalid
   const ids = descriptionIds(describedBy)
   return (
@@ -190,7 +204,10 @@ export function GuardedControl({
           <span aria-hidden="true">▣</span><span>{label}</span>
         </button>
       ) : (
-        <button ref={armedRef} type="button" disabled={state === 'committing' || inert} aria-describedby={ids} data-guard-state={state} className="hl-guarded-control__action hl-guarded-control__action--armed" onClick={commit}>
+        <button ref={armedRef} type="button" disabled={state === 'committing' || inert} aria-describedby={ids} data-guard-state={state} className="hl-guarded-control__action hl-guarded-control__action--armed" onClick={commit} onKeyDown={event => {
+          // Escape belongs to the focused armed action, as in the Blazor lane; Escape handled elsewhere on the page is left alone.
+          if (event.key === 'Escape' && state === 'armed') { event.preventDefault(); recover('escape') }
+        }}>
           <span aria-hidden="true">□</span><span>{label}</span>
           {state === 'armed' ? <span role="timer" aria-label={duration} className="hl-guarded-control__timer">{duration}</span> : <span>{t('common.loading')}</span>}
         </button>

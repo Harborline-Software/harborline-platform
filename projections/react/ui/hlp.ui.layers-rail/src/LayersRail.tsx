@@ -36,19 +36,42 @@ function assertValid(model: CanvasModel, lenses: readonly AspectLens[]) {
   if (model.selectedId !== null && !nodeIds.has(model.selectedId)) throw new Error('invalid-outline-tree')
 }
 
+function resolveLabels(overrides: Partial<RailLabels> | undefined): RailLabels {
+  const resolved: Record<string, unknown> = { ...defaultRailLabels }
+  for (const [key, value] of Object.entries(overrides ?? {})) {
+    const fallback = (defaultRailLabels as unknown as Record<string, unknown>)[key]
+    if (typeof value === 'string') { if (value.trim()) resolved[key] = value }
+    else if (typeof value === 'function' && typeof fallback === 'function') {
+      resolved[key] = (...args: unknown[]) => { const text = (value as (...a: unknown[]) => string)(...args); return text?.trim() ? text : (fallback as (...a: unknown[]) => string)(...args) }
+    }
+  }
+  return resolved as unknown as RailLabels
+}
+
 export function LayersRail({
   model, lenses, layers, provenance, labels: overrides, onInsert, compact = false,
   showProvenance = true, className, ...attributes
 }: LayersRailProps) {
   assertValid(model, lenses)
-  const labels = React.useMemo(() => ({ ...defaultRailLabels, ...overrides }), [overrides])
+  // Caller text overrides each label; blank caller text keeps the default, so no name is ever empty.
+  const labels = React.useMemo(() => resolveLabels(overrides), [overrides])
   if (![labels.railRegion, labels.lensesHeading, labels.outlineHeading].every(value => value.trim())) {
     throw new Error('accessible-rail-label-required')
   }
   const activeLens = lenses.find(lens => lens.id === layers.activeId) ?? null
   const [collapsed, setCollapsed] = React.useState<ReadonlySet<string>>(new Set())
   const [focusedId, setFocusedId] = React.useState<string | null>(() => model.selectedId ?? model.nodes[0]?.id ?? null)
-  const refs = React.useRef(new Map<string, HTMLButtonElement>())
+  // The treeitem itself takes focus (APG treeview); its buttons are for pointers only.
+  const refs = React.useRef(new Map<string, HTMLDivElement>())
+  const idBase = React.useId()
+  const nodeElementId = (id: string, part: string) => `${idBase}-${encodeURIComponent(id)}-${part}`
+  const lensRefs = React.useRef(new Map<string, HTMLButtonElement>())
+  // Exiting the lens removes the status region and its Exit button, so focus moves first to the lens
+  // that was active; it stays in the rail even when the host clears the lens in a later render.
+  const exitLens = () => {
+    if (layers.activeId) lensRefs.current.get(layers.activeId)?.focus()
+    layers.clearActive()
+  }
 
   const visibleNodes = React.useMemo(() => {
     const hidden = new Set<string>()
@@ -61,19 +84,24 @@ export function LayersRail({
     return visible
   }, [collapsed, model.nodes])
 
+  const rootRef = React.useRef<HTMLElement>(null)
+  // When the focused node is hidden (collapse) or removed by the host, the roving position moves to its
+  // nearest visible ancestor, else the first node, and focus follows only if it was on the page or in the
+  // rail, so focus the user moved elsewhere stays put.
   React.useLayoutEffect(() => {
     if (focusedId !== null && visibleNodes.some(node => node.id === focusedId)) return
+    const follow = (id: string | null) => {
+      setFocusedId(id)
+      const active = document.activeElement
+      if (id !== null && (!active || active === document.body || !active.isConnected || rootRef.current?.contains(active))) refs.current.get(id)?.focus()
+    }
     let candidate = model.nodes.find(node => node.id === focusedId)
     while (candidate?.parentId) {
       const parent = model.nodes.find(node => node.id === candidate?.parentId)
-      if (parent && visibleNodes.some(node => node.id === parent.id)) {
-        setFocusedId(parent.id)
-        refs.current.get(parent.id)?.focus()
-        return
-      }
+      if (parent && visibleNodes.some(node => node.id === parent.id)) return follow(parent.id)
       candidate = parent
     }
-    setFocusedId(visibleNodes[0]?.id ?? null)
+    follow(visibleNodes[0]?.id ?? null)
   }, [focusedId, model.nodes, visibleNodes])
 
   const focusNode = (id: string) => {
@@ -95,6 +123,9 @@ export function LayersRail({
     })
   }
   const onTreeKey = (event: React.KeyboardEvent, node: CanvasNode) => {
+    // Only the focused treeitem handles keys, so a key on a button inside it never selects a second time.
+    // Alt, Ctrl and Meta chords (browser back and forward, page Home and End) belong to the browser.
+    if (event.target !== event.currentTarget || event.altKey || event.ctrlKey || event.metaKey) return
     if (event.key === 'ArrowDown') move(node.id, 1)
     else if (event.key === 'ArrowUp') move(node.id, -1)
     else if (event.key === 'Home' && visibleNodes[0]) focusNode(visibleNodes[0].id)
@@ -125,11 +156,11 @@ export function LayersRail({
   }
 
   return (
-    <aside {...attributes} aria-label={labels.railRegion} className={`hl-layers-rail${compact ? ' hl-layers-rail--compact' : ''}${className ? ` ${className}` : ''}`}>
+    <aside {...attributes} ref={rootRef} aria-label={labels.railRegion} className={`hl-layers-rail${compact ? ' hl-layers-rail--compact' : ''}${className ? ` ${className}` : ''}`}>
       {!compact && activeLens ? (
         <div role="status" aria-live="polite" className="hl-layers-rail__status" style={{ borderColor: toneStyle(activeLens.tone).border }}>
           <span>{labels.viewingLens(activeLens.label)}</span>
-          <button type="button" className="hl-layers-rail__status-close" aria-label={labels.exitLens} onClick={layers.clearActive}><svg aria-hidden="true" viewBox="0 0 16 16"><path d="M3 3l10 10M13 3 3 13"/></svg></button>
+          <button type="button" className="hl-layers-rail__status-close" aria-label={labels.exitLens} onClick={exitLens}><svg aria-hidden="true" viewBox="0 0 16 16"><path d="M3 3l10 10M13 3 3 13"/></svg></button>
         </div>
       ) : null}
       <div role="group" aria-label={labels.lensesHeading} className="hl-layers-rail__lenses" onKeyDown={onLensKey}>
@@ -140,7 +171,7 @@ export function LayersRail({
           const passiveCount = !active && enabled ? model.nodes.filter(node => lens.project(node.id).active).length : 0
           return (
             <div key={lens.id} className="hl-layers-rail__lens" style={{ '--hl-lens-tone': toneStyle(lens.tone).swatch } as React.CSSProperties}>
-              <button type="button" className="hl-layers-rail__lens-activate" aria-pressed={active} aria-label={labels.activateLens(lens.label)} title={labels.lensShortcutHint(index + 1)} onClick={() => layers.setActive(lens.id)}>
+              <button type="button" className="hl-layers-rail__lens-activate" ref={element => { if (element) lensRefs.current.set(lens.id, element); else lensRefs.current.delete(lens.id) }} aria-pressed={active} aria-label={labels.activateLens(lens.label)} title={labels.lensShortcutHint(index + 1)} onClick={() => layers.setActive(lens.id)}>
                 <span aria-hidden="true" className="hl-layers-rail__swatch"/><span className="hl-layers-rail__optional-copy">{lens.label}</span>
                 {passiveCount > 0 ? <span className="hl-layers-rail__count">{labels.passiveCount(passiveCount)}</span> : null}
               </button>
@@ -159,12 +190,15 @@ export function LayersRail({
           const ghosted = activeLens?.kind === 'filter' && lensState?.active === false
           const source = showProvenance ? provenance.resolve(node.id) : null
           const unresolved = source !== null && (!source.resolved || source.source === 'unknown')
+          // The name is the label alone; badge and provenance text stay announced as the description.
+          const describedBy = [lensState?.badge ? nodeElementId(node.id, 'badge') : null, source ? nodeElementId(node.id, 'source') : null].filter(Boolean).join(' ')
           return (
-            <div key={node.id} role="treeitem" aria-level={node.depth + 1} aria-selected={model.selectedId === node.id} aria-expanded={node.hasChildren ? !collapsed.has(node.id) : undefined} className="hl-layers-rail__node" data-hl-ghosted={ghosted || undefined} style={{ '--hl-depth': node.depth } as React.CSSProperties}>
-              {node.hasChildren ? <button type="button" className="hl-layers-rail__disclosure" aria-label={collapsed.has(node.id) ? labels.expandNode : labels.collapseNode} onClick={() => toggleCollapse(node)}><svg aria-hidden="true" viewBox="0 0 16 16"><path d={collapsed.has(node.id) ? 'M6 3l5 5-5 5' : 'M3 6l5 5 5-5'}/></svg></button> : <span aria-hidden="true" className="hl-layers-rail__spacer"/>}
-              <button className="hl-layers-rail__node-control" ref={element => { if (element) refs.current.set(node.id, element); else refs.current.delete(node.id) }} type="button" tabIndex={focusedId === node.id ? 0 : -1} onFocus={() => setFocusedId(node.id)} onKeyDown={event => onTreeKey(event, node)} onClick={() => model.select(node.id)}>
-                <span className="hl-layers-rail__node-label">{node.label}</span>{lensState?.badge ? <span className="hl-layers-rail__node-badge">{lensState.badge}</span> : null}
-                {source ? <span className="hl-layers-rail__source">{unresolved ? labels.unresolvedSource : labels.source(source.source)}{source.locked ? ` · ${labels.locked}` : ''}</span> : null}
+            <div key={node.id} ref={element => { if (element) refs.current.set(node.id, element); else refs.current.delete(node.id) }} role="treeitem" tabIndex={focusedId === node.id ? 0 : -1} aria-labelledby={nodeElementId(node.id, 'label')} aria-describedby={describedBy || undefined} aria-level={node.depth + 1} aria-selected={model.selectedId === node.id} aria-expanded={node.hasChildren ? !collapsed.has(node.id) : undefined} className="hl-layers-rail__node" data-hl-ghosted={ghosted || undefined} style={{ '--hl-depth': node.depth } as React.CSSProperties} onFocus={event => { if (event.target === event.currentTarget) setFocusedId(node.id) }} onKeyDown={event => onTreeKey(event, node)} onClick={event => { if (event.target === event.currentTarget) model.select(node.id) }}>
+              {/* The tree is one tab stop (APG): the treeitem is focused; its buttons are for pointers, so they are not tab stops and a click hands focus to the treeitem. */}
+              {node.hasChildren ? <button type="button" className="hl-layers-rail__disclosure" tabIndex={-1} aria-label={collapsed.has(node.id) ? labels.expandNode : labels.collapseNode} onClick={() => { toggleCollapse(node); refs.current.get(node.id)?.focus() }}><svg aria-hidden="true" viewBox="0 0 16 16"><path d={collapsed.has(node.id) ? 'M6 3l5 5-5 5' : 'M3 6l5 5 5-5'}/></svg></button> : <span aria-hidden="true" className="hl-layers-rail__spacer"/>}
+              <button className="hl-layers-rail__node-control" type="button" tabIndex={-1} onClick={() => { model.select(node.id); refs.current.get(node.id)?.focus() }}>
+                <span id={nodeElementId(node.id, 'label')} className="hl-layers-rail__node-label">{node.label}</span>{lensState?.badge ? <span id={nodeElementId(node.id, 'badge')} className="hl-layers-rail__node-badge">{lensState.badge}</span> : null}
+                {source ? <span id={nodeElementId(node.id, 'source')} className="hl-layers-rail__source">{unresolved ? labels.unresolvedSource : labels.source(source.source)}{source.locked ? ` · ${labels.locked}` : ''}</span> : null}
               </button>
             </div>
           )

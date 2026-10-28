@@ -44,4 +44,26 @@ describe('Toaster React projection', () => {
     expect(() => service.configure({ maximumVisible: 0 })).toThrow('invalid-toast-limit')
     expect(() => service.show('x', { duration: -1 })).toThrow('invalid-toast-duration')
   })
+
+  // Contract: TrackAsync returns or propagates the original operation result. A host disposed while
+  // the operation runs (an unmounted root) must not replace that outcome or keep toast state.
+  it('returns or rethrows the original outcome when the host is disposed during a tracked operation', async () => {
+    const service = createToastService()
+    let succeed!: (value: number) => void
+    const tracked = service.trackAsync(new Promise<number>(done => { succeed = done }), { loading: 'Saving', success: 'Saved', error: 'Failed' })
+    expect(service.getSnapshot().open).toHaveLength(1)
+    service.dispose()
+    succeed(7)
+    await expect(tracked).resolves.toBe(7)
+    expect(service.getSnapshot().open).toHaveLength(0)
+
+    const failing = createToastService()
+    let fail!: (reason: Error) => void
+    const original = new Error('network down')
+    const rejected = failing.trackAsync(new Promise<number>((_, reject) => { fail = reject }), { loading: 'Saving', success: 'Saved', error: 'Failed' })
+    failing.dispose()
+    fail(original)
+    await expect(rejected).rejects.toBe(original)
+    expect(failing.getSnapshot().open).toHaveLength(0)
+  })
 })

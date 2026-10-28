@@ -2,24 +2,28 @@
 @inherits HarborlineComponentBase
 @implements IAsyncDisposable
 @using Microsoft.JSInterop
+@using Harborline.UIAdapters.Blazor.Localization
 @inject IJSRuntime JavaScript
 
 @if (Open)
 {
     <div @ref="portal" class="hl-spotlight__portal" data-hl-module="hlp.ui.spotlight">
     <div class="hl-spotlight__scrim" data-testid="spotlight-scrim" aria-hidden="true" @onmousedown="DismissAsync"></div>
-    <div @ref="dialog" role="dialog" tabindex="-1" aria-modal="true" aria-label="@AriaLabel"
+    @* spotlight.js moves the palette to <body>, so an inherited dir cannot reach it: direction comes from
+       the locale scope, as in Dialog; a caller dir in AdditionalAttributes (rendered after it) still wins. *@
+    <div @ref="dialog" role="dialog" tabindex="-1" aria-modal="true" aria-label="@AriaLabel" dir="@Direction"
              class="@CombineClasses("hl-spotlight")" style="@CombineStyles()" @onclick:stopPropagation="true"
              @attributes="AdditionalAttributes">
         <div class="hl-spotlight__query-row">
             <svg aria-hidden="true" class="hl-spotlight__search-icon" fill="none" focusable="false" viewBox="0 0 24 24"><path d="m21 21-4.35-4.35m1.35-5.65a7 7 0 1 1-14 0 7 7 0 0 1 14 0Z"></path></svg>
             <input @ref="input" type="search" role="combobox" value="@Query" aria-label="@(Placeholder ?? AriaLabel)"
-                   aria-autocomplete="list" aria-expanded="true" aria-controls="@ListboxId" aria-activedescendant="@ActiveDomId"
+                   aria-autocomplete="list" aria-expanded="@(ShowEmpty ? "false" : "true")" aria-controls="@ListboxId" aria-activedescendant="@ActiveDomId"
                    autocomplete="off" placeholder="@Placeholder" class="hl-spotlight__query"
                    @oninput="HandleQueryAsync" @onkeydown="HandleKeyAsync" />
             <kbd class="hl-spotlight__escape">@EscLabel</kbd>
         </div>
-        <div class="hl-spotlight__sr-only" role="status" aria-live="polite">@(ResultsCountLabel?.Invoke(FlatItems.Count) ?? "")</div>
+        @* Rendered whenever the palette is open, before any query, so a change to zero results is announced. *@
+        <div class="hl-spotlight__sr-only" role="status" aria-live="polite">@StatusText</div>
         <div id="@ListboxId" role="listbox" aria-label="@AriaLabel" class="hl-spotlight__results">
             @if (PinnedAction is not null)
             {
@@ -28,7 +32,9 @@
             @{ var offset = PinnedAction is null ? 0 : 1; }
             @foreach (var section in Sections)
             {
-                if (section.Items.Count > 0)
+                @* A loading section is a labelled group like any other (as in React), so the listbox
+                   owns only groups and options; its loading text sits inside the group. *@
+                if (section.Items.Count > 0 || section.Loading)
                 {
                     <div role="group" aria-label="@section.Label" @key="section.Id">
                         <div aria-hidden="true" class="hl-spotlight__group-label">@section.Label</div>
@@ -37,19 +43,20 @@
                             var optionIndex = offset + itemIndex;
                             @RenderOption(section.Items[itemIndex], optionIndex, section.Id)
                         }
+                        @if (section.Loading && section.Items.Count == 0)
+                        {
+                            <div class="hl-spotlight__loading">@(section.LoadingLabel ?? "…")</div>
+                        }
                     </div>
                     offset += section.Items.Count;
                 }
-                else if (section.Loading)
-                {
-                    <div class="hl-spotlight__loading" @key="section.Id">@(section.LoadingLabel ?? "…")</div>
-                }
-            }
-            @if (FlatItems.Count == 0 && !Sections.Any(section => section.Loading))
-            {
-                <div class="hl-spotlight__empty">@Empty</div>
             }
         </div>
+        @* A listbox owns only options and groups, so the empty copy sits beside it, never inside. *@
+        @if (ShowEmpty)
+        {
+            <div class="hl-spotlight__empty">@EmptyCopy</div>
+        }
         @if (Footer is not null) { <div class="hl-spotlight__footer">@Footer</div> }
     </div>
     </div>
@@ -69,6 +76,23 @@
     [Parameter] public Func<int, string>? ResultsCountLabel { get; set; }
     [Parameter] public RenderFragment? Footer { get; set; }
 
+    [CascadingParameter] private HarborlineLocaleContext? LocaleContext { get; set; }
+
+    // Caller text, then the host catalog, then the default catalog (structural.spotlight.empty). Blank
+    // text at any step is no text, and a catalog miss echoes the key, so the empty copy is never blank.
+    private string Direction => LocaleContext?.Direction ?? "ltr";
+    private const string EmptyKey = "structural.spotlight.empty";
+    private string EmptyCopy
+    {
+        get
+        {
+            if (!string.IsNullOrWhiteSpace(Empty)) return Empty;
+            var fallback = Harborline.Foundation.Localization.HarborlineDefaultStrings.Get(EmptyKey);
+            var catalog = LocaleContext?.ResolveString(EmptyKey) ?? fallback;
+            return string.IsNullOrWhiteSpace(catalog) || catalog == EmptyKey ? fallback : catalog;
+        }
+    }
+
     private readonly string instanceId = $"hl-spotlight-{Guid.NewGuid():N}";
     private int activeIndex;
     private bool previousOpen;
@@ -81,6 +105,18 @@
     private string ListboxId => $"{instanceId}-listbox";
     private IReadOnlyList<SpotlightItem> FlatItems => (PinnedAction is null ? [] : new[] { PinnedAction })
         .Concat(Sections.SelectMany(section => section.Items)).ToArray();
+    // No option and no loading group: the listbox has nothing to show (its CSS collapses it).
+    // APG combobox: aria-expanded is true only while the popup is displayed, so it is false here,
+    // and the one polite status region carries the empty copy in place of the results count.
+    private bool ShowEmpty => FlatItems.Count == 0 && !Sections.Any(section => section.Loading);
+    // While a section is still loading and no option exists yet, the count is not announced (it
+    // would say zero, then the empty copy would follow): the status carries the first loading
+    // section's caller label, or nothing.
+    private string StatusText => ShowEmpty
+        ? EmptyCopy
+        : FlatItems.Count == 0
+            ? Sections.FirstOrDefault(section => section.Loading)?.LoadingLabel ?? ""
+            : ResultsCountLabel?.Invoke(FlatItems.Count) ?? "";
     private string? ActiveDomId => FlatItems.Count == 0 ? null : OptionDomId(FlatItems[Math.Clamp(activeIndex, 0, FlatItems.Count - 1)].Id);
 
     protected override void OnParametersSet()

@@ -209,17 +209,31 @@ export function Popover({ children, defaultOpen = false, open, onOpenChange }: P
       interactOutsideRef.current?.(outsideEvent)
       if (!prevented) requestOpen(false)
     }
+    // The open popover is the topmost layer. An Escape from its trigger button is taken in the capture
+    // phase, before an outer layer (a dialog or sheet) listening on the document; the trigger has no
+    // Escape behaviour of its own. An Escape from inside the content is handled on the content itself
+    // (PopoverContent), after any widget in it. Any other Escape, including one from an anchor that
+    // may use Escape itself, goes through the bubble listener and still closes it, as before. Inside
+    // a Dialog or Sheet the gain needs their bubble-phase, portal-scoped listeners (separate batches).
+    const fromTrigger = (target: EventTarget | null) => target instanceof Node && triggerRef.current?.contains(target) === true
+    const onKeyDownCapture = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape' || event.defaultPrevented || !fromTrigger(event.target)) return
+      event.preventDefault()
+      requestOpen(false)
+    }
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && !event.defaultPrevented) {
-        event.preventDefault()
-        requestOpen(false)
-      }
+      if (event.key !== 'Escape' || event.defaultPrevented) return
+      if (event.target instanceof Node && contentRef.current?.contains(event.target)) return
+      event.preventDefault()
+      requestOpen(false)
     }
 
     document.addEventListener('pointerdown', onPointerDown)
+    document.addEventListener('keydown', onKeyDownCapture, true)
     document.addEventListener('keydown', onKeyDown)
     return () => {
       document.removeEventListener('pointerdown', onPointerDown)
+      document.removeEventListener('keydown', onKeyDownCapture, true)
       document.removeEventListener('keydown', onKeyDown)
     }
   }, [renderedOpen, requestOpen])
@@ -401,6 +415,13 @@ export const PopoverContent = React.forwardRef<HTMLDivElement, PopoverContentPro
       ref={composeRefs(context.contentRef, forwardedRef)}
       role={role}
       style={{ position: 'fixed', left: placement.left, top: placement.top, ...style }}
+      onKeyDown={event => {
+        hostAttributes.onKeyDown?.(event)
+        // After any widget inside the content, before an outer layer listening on the document.
+        if (event.key !== 'Escape' || event.defaultPrevented) return
+        event.preventDefault()
+        context.requestOpen(false)
+      }}
     >
       {children}
     </div>,

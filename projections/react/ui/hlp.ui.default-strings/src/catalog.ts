@@ -1341,6 +1341,51 @@ export const defaultStrings = {
   'chrome.guard.recovered.announce': 'Re-guarded.',
   /** GuardedControl heavy-composition (dual/launch) fallback — the governed pending flow (B10) is not wired yet. */
   'chrome.guard.pending.unavailable': 'This guarded action needs approval steps that are not available yet.',
+
+  // ── Revision 2 (platform UI round 2, 2026-10-23) ──────────────────────────────────────
+  // Platform-originated keys, not from the pinned Harborline App source: the default copy of
+  // Switch, NotificationCenter and UserMenu, which earlier hard-coded English. Kept
+  // in this block after the 713 revision-1 keys, which are unchanged in identity, value and order.
+  /** Switch: state copy when off. */
+  'forms.switch.off': 'Off',
+  /** Switch: state copy when on. */
+  'forms.switch.on': 'On',
+  /** NotificationCenter: the all-kinds tab. */
+  'navigation.notifications.all': 'All',
+  /** NotificationCenter: bell name with one pending proposal; {title} is the title, {count} the formatted count. */
+  'navigation.notifications.bell.pending.one': '{title}, {count} approval pending',
+  /** NotificationCenter: bell name with pending proposals (other plural category). */
+  'navigation.notifications.bell.pending.other': '{title}, {count} approvals pending',
+  /** NotificationCenter: bell name with one unread item. */
+  'navigation.notifications.bell.unread.one': '{title}, {count} unread',
+  /** NotificationCenter: bell name with unread items (other plural category). */
+  'navigation.notifications.bell.unread.other': '{title}, {count} unread',
+  /** NotificationCenter: approve a proposal. */
+  'navigation.notifications.confirm': 'Confirm',
+  /** NotificationCenter: decline a proposal. */
+  'navigation.notifications.deny': 'Deny',
+  /** NotificationCenter: dismiss one item; {title} is the item title. */
+  'navigation.notifications.dismiss': 'Dismiss: {title}',
+  /** NotificationCenter: empty list. */
+  'navigation.notifications.empty': 'No notifications',
+  /** NotificationCenter: tablist name. */
+  'navigation.notifications.groups': 'Notification groups',
+  /** NotificationCenter: mark every item read. */
+  'navigation.notifications.markAllRead': 'Mark all read',
+  /** NotificationCenter: bell, dialog and heading. */
+  'navigation.notifications.title': 'Notifications',
+  /** NotificationCenter: unread marker. */
+  'navigation.notifications.unread': 'Unread',
+  /** NotificationCenter: open the full list. */
+  'navigation.notifications.viewAll': 'View all',
+  /** UserMenu: menu or dialog name. */
+  'navigation.userMenu.panel': 'Account menu',
+  /** UserMenu: sign-out entry. */
+  'navigation.userMenu.signOut': 'Sign out',
+  /** UserMenu: trigger name; {name} is the account display name. */
+  'navigation.userMenu.trigger': 'Account menu for {name}',
+  /** Spotlight: visible empty copy and status announcement when no option and no loading section exist. */
+  'structural.spotlight.empty': 'No results',
 } as const
 
 /**

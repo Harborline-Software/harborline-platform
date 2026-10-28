@@ -251,4 +251,42 @@ describe('Popover React projection', () => {
     expect(css).toContain('.hl-popover-trigger:disabled')
     expect(css).toContain('.hl-popover-trigger:focus-visible')
   })
+
+  // An open popover is the topmost layer. When it sits inside an outer layer that listens for Escape on
+  // the document (a dialog or sheet opened earlier), an Escape from the popover's trigger or content
+  // closes the popover and is marked handled, so the outer layer stays open. A widget inside the
+  // popover content still handles its own Escape first.
+  for (const origin of ['trigger', 'content'] as const) {
+    it(`closes before an outer layer on an Escape from its ${origin}`, () => {
+      const outer = vi.fn()
+      const outerListener = (event: KeyboardEvent) => { if (event.key === 'Escape' && !event.defaultPrevented) outer() }
+      document.addEventListener('keydown', outerListener)
+      try {
+        const onOpenChange = vi.fn()
+        render(<Popover defaultOpen onOpenChange={onOpenChange}><PopoverTrigger>Filters</PopoverTrigger><PopoverContent aria-label="Filter options"><button type="button">Apply</button></PopoverContent></Popover>)
+        const target = origin === 'trigger' ? screen.getByRole('button', { name: 'Filters' }) : screen.getByRole('button', { name: 'Apply' })
+        fireEvent.keyDown(target, { key: 'Escape' })
+        expect(onOpenChange).toHaveBeenCalledExactlyOnceWith(false)
+        expect(outer).not.toHaveBeenCalled()
+      } finally {
+        document.removeEventListener('keydown', outerListener)
+      }
+    })
+  }
+
+  it('leaves an Escape a widget inside the content handled', () => {
+    const onOpenChange = vi.fn()
+    render(<Popover defaultOpen onOpenChange={onOpenChange}><PopoverTrigger>Filters</PopoverTrigger><PopoverContent aria-label="Filter options"><input aria-label="Search options" onKeyDown={event => { if (event.key === 'Escape') event.preventDefault() }}/></PopoverContent></Popover>)
+    fireEvent.keyDown(screen.getByRole('textbox', { name: 'Search options' }), { key: 'Escape' })
+    expect(onOpenChange).not.toHaveBeenCalled()
+  })
+
+  // An anchor such as a combobox input may use Escape itself (for example to clear its text) and keep
+  // the popover open; only the trigger button's Escape is taken ahead of other handlers.
+  it('lets an anchor input handle its own Escape first', () => {
+    const onOpenChange = vi.fn()
+    render(<Popover defaultOpen onOpenChange={onOpenChange}><PopoverAnchor asChild><input aria-label="Find" onKeyDown={event => { if (event.key === 'Escape') event.preventDefault() }}/></PopoverAnchor><PopoverTrigger>Filters</PopoverTrigger><PopoverContent aria-label="Filter options"><button type="button">Apply</button></PopoverContent></Popover>)
+    fireEvent.keyDown(screen.getByRole('textbox', { name: 'Find' }), { key: 'Escape' })
+    expect(onOpenChange).not.toHaveBeenCalled()
+  })
 })

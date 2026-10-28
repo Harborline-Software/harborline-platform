@@ -20,6 +20,18 @@
       "sha256": "043ccd59a70a2d495796593d1da0f792cc621749a6559be8f5260d90e7ee8eb3",
       "bytes": 10166,
       "artifact": "../baselines/sha256/043ccd59a70a2d495796593d1da0f792cc621749a6559be8f5260d90e7ee8eb3.png"
+    },
+    {
+      "scenarioId": "popover.inside-dialog",
+      "sha256": "76c59e4f16000173a77c11796b7598c6d207a8b75ae969731cfe527212fbe230",
+      "bytes": 21633,
+      "artifact": "../baselines/sha256/76c59e4f16000173a77c11796b7598c6d207a8b75ae969731cfe527212fbe230.png"
+    },
+    {
+      "scenarioId": "popover.inside-sheet",
+      "sha256": "24f7d4e13d978eb5f6e975d9dc714a3c5210368ce0229a539db04ab77f480985",
+      "bytes": 12100,
+      "artifact": "../baselines/sha256/24f7d4e13d978eb5f6e975d9dc714a3c5210368ce0229a539db04ab77f480985.png"
     }
   ]
 }

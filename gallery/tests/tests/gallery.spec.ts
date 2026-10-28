@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url'
 import { arch, platform } from 'node:os'
 
 import { gotoWithTransientNetworkRetry, openWithSubresourceRetry, readWithReload } from './navigation-resilience.ts'
+import { overlayCaptureRegion, overlayLayerSelector } from './overlay-scope.ts'
 
 // Control ticket 100: the gallery gate reported sixteen counts and measured none of them, and one
 // drifted for fifteen days on the very commit that added the check meant to stop drift. Every count
@@ -370,7 +371,8 @@ async function prepareScenario(page: Page, scenario: Scenario) {
     return
   }
   if (scenario.id === 'layers-rail.outline') {
-    const node = page.locator('[role="treeitem"] button[tabindex="0"]').first()
+    // The treeitem itself is the tree's one tab stop (APG treeview; layers-rail interface revision 2).
+    const node = page.locator('[role="treeitem"][tabindex="0"]').first()
     await node.focus()
     await node.press('ArrowDown')
     return
@@ -813,13 +815,16 @@ async function assertSearchableMultipleScroll(page: Page, projection: Projection
   }
 }
 
+// The scan's scope is the scenario: its probe AND every overlay layer the scenario portaled out of
+// it (overlay-scope.ts, with DOM fixtures in overlay-scope.spec.ts).
+
 async function assertAccessible(page: Page, scenario: Scenario, projection: string) {
   // Storybook's a11y addon runs its own axe pass on story load; on heavy stories it can still be
   // in flight when this scan starts, and axe-core rejects concurrent runs in one frame.
   let result: Awaited<ReturnType<AxeBuilder['analyze']>> | undefined
   for (let attempt = 0; ; attempt++) {
     try {
-      result = await new AxeBuilder({ page }).include('[data-gallery-probe]').analyze()
+      result = await new AxeBuilder({ page }).include('[data-gallery-probe]').include(overlayLayerSelector).analyze()
       break
     } catch (error) {
       if (attempt >= 4 || !String(error).includes('Axe is already running')) throw error
@@ -830,9 +835,93 @@ async function assertAccessible(page: Page, scenario: Scenario, projection: stri
   recordCheck('accessibilityScans')
 }
 
+// b20: WCAG 2.2 SC 1.4.11 Non-text Contrast, which axe does not test. A notification-center unread
+// marker is a named image (role="img"); in the React lane the panel is portaled through Popover out
+// of the scene that scopes the host's tokens, so the marker renders in the module's own fallback --
+// the unthemed state the scan reaches (Highlight before b20, about 1.5:1). Every visible marker in the
+// scan's scope must reach 3:1 against what is behind it: the marker's own colour composited (by its
+// alpha) over the stack of translucent ancestor backgrounds, down to the first opaque one, or down to
+// the Canvas colour a probe element resolves in the marker's own color-scheme. Selector-limited on
+// purpose; tooling/gates/scan-style-hazards.mjs R5 is the source-level guard for every other module.
+//
+// Not vacuous (b20 review): every unread item in scope (an item without data-hl-read="true") must
+// have yielded exactly one measured marker, and the scenarios below, whose panel is open at scan time
+// with unread items, must measure at least one. A colour the parser cannot read fails the test with
+// its value rather than throwing.
+const unreadMarkerScenarios = new Set(['notification-center.actions', 'notification-center.keyboard-dismissal'])
+async function assertIndicatorContrast(page: Page, scenario: Scenario, projection: string) {
+  const { measured, unreadItems } = await page.evaluate(selector => {
+    type Colour = { rgb: number[]; alpha: number }
+    const parse = (value: string): Colour | undefined => {
+      const srgb = value.match(/^color\(srgb ([\d.e-]+) ([\d.e-]+) ([\d.e-]+)(?: \/ ([\d.e-]+))?\)$/)
+      if (srgb) return { rgb: srgb.slice(1, 4).map(channel => Number(channel) * 255), alpha: srgb[4] === undefined ? 1 : Number(srgb[4]) }
+      const rgb = value.match(/^rgba?\(([\d.]+),? ([\d.]+),? ([\d.]+)(?:(?:,| \/) ([\d.]+))?\)$/)
+      if (rgb) return { rgb: rgb.slice(1, 4).map(Number), alpha: rgb[4] === undefined ? 1 : Number(rgb[4]) }
+      return undefined
+    }
+    const over = (top: Colour, bottom: number[]) => top.rgb.map((channel, index) => channel * top.alpha + bottom[index] * (1 - top.alpha))
+    const luminance = (rgb: number[]) => rgb.map(channel => channel / 255)
+      .map(channel => channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4)
+      .reduce((total, channel, index) => total + channel * [0.2126, 0.7152, 0.0722][index], 0)
+    const scope = [document.querySelector('[data-gallery-probe]'), ...document.querySelectorAll(selector)].filter(Boolean) as Element[]
+    const visible = (element: Element) => element.getBoundingClientRect().width > 0
+    const unreadItems = scope.flatMap(root => [...root.querySelectorAll('.hl-notification-center__item:not([data-hl-read="true"])')]).filter(visible).length
+    const measured = scope.flatMap(root => [...root.querySelectorAll('.hl-notification-center__unread')])
+      .filter(visible)
+      .map(marker => {
+        const label = marker.getAttribute('aria-label')
+        const fillValue = getComputedStyle(marker).backgroundColor
+        const fill = parse(fillValue)
+        if (!fill) return { label, error: `unparsed marker colour "${fillValue}"` }
+        // Translucent layers between the marker and the first opaque background, nearest first.
+        const layers: Colour[] = []
+        let base: number[] | undefined
+        for (let node = marker.parentElement; node && !base; node = node.parentElement) {
+          const value = getComputedStyle(node).backgroundColor
+          const colour = parse(value)
+          if (!colour) return { label, error: `unparsed backdrop colour "${value}"` }
+          if (colour.alpha >= 1) base = colour.rgb
+          else if (colour.alpha > 0) layers.push(colour)
+        }
+        if (!base) {
+          // No opaque ancestor: the page shows Canvas, resolved in the marker's own color-scheme.
+          const probe = document.createElement('div')
+          probe.style.backgroundColor = 'Canvas'
+          marker.parentElement!.append(probe)
+          const value = getComputedStyle(probe).backgroundColor
+          probe.remove()
+          const canvas = parse(value)
+          if (!canvas) return { label, error: `unparsed Canvas colour "${value}"` }
+          base = canvas.rgb
+        }
+        const backdrop = layers.reverse().reduce((below, layer) => over(layer, below), base)
+        const [a, b] = [luminance(over(fill, backdrop)), luminance(backdrop)]
+        return { label, ratio: (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05) }
+      })
+    return { measured, unreadItems }
+  }, overlayLayerSelector)
+  for (const result of measured) {
+    expect(result.error, `${projection} ${scenario.id} unread marker "${result.label}" colour`).toBeUndefined()
+    expect(result.ratio, `${projection} ${scenario.id} unread marker "${result.label}" non-text contrast`).toBeGreaterThanOrEqual(3)
+    recordCheck('unreadMarkerContrastChecks')
+  }
+  expect(measured.length, `${projection} ${scenario.id}: every visible unread item has one measured marker`).toBe(unreadItems)
+  if (unreadMarkerScenarios.has(scenario.id)) {
+    expect(measured.length, `${projection} ${scenario.id} renders unread items with its panel open; no marker was measured`).toBeGreaterThan(0)
+  }
+}
+
 async function recordReactBaseline(page: Page, catalog: Catalog, scenario: Scenario) {
   if (!baselineCaptureRoot) return
-  const png = await captureLocatorPng(page.locator('[data-gallery-probe]'))
+  const probe = page.locator('[data-gallery-probe]')
+  const probeBox = await stabilizedBox(probe)
+  // A scenario with an open portaled layer (the scan's overlay scope) is recorded as the union of the
+  // probe and every rendered box inside those layers, clipped to the viewport -- the probe alone
+  // shows the scrim over the scene and none of the overlay (b19 review). A full-viewport scrim makes
+  // that union the whole viewport, which is fixed per test, so the capture stays deterministic.
+  // Without such a layer the capture is the probe, exactly as before.
+  const union = await overlayCaptureRegion(page, probeBox)
+  const png = await captureLocatorPng(probe, union ?? probeBox)
   writeFileSync(resolve(baselineCaptureRoot, `${catalog.moduleId}--${scenario.id}.png`), png)
 }
 
@@ -1424,6 +1513,8 @@ for (const catalog of catalogs) for (const scenario of catalog.scenarios) {
     await recordReactBaseline(reactPage, catalog, scenario)
     await assertAccessible(reactPage, scenario, 'react')
     await assertAccessible(blazorPage, scenario, 'blazor')
+    await assertIndicatorContrast(reactPage, scenario, 'react')
+    await assertIndicatorContrast(blazorPage, scenario, 'blazor')
     if (scenario.sourceQualityCaseIds?.some(id => id.endsWith('.quality.visual-parity'))
       && !(ciGallery && ciPixelExempt.has(scenario.id))) {
       await assertVisualParity(reactPage, blazorPage, scenario, testInfo)
@@ -1439,7 +1530,11 @@ for (const catalog of catalogs) for (const scenario of catalog.scenarios) {
     // capture run exists to produce review screenshots, and the gate measures reflow on every
     // scenario regardless, so nothing is lost by declining to judge layout on a page something else
     // just scrolled.
-    if (!galleryReviewCaptureRoot && scenario.sourceQualityCaseIds?.some(id => id.endsWith('.quality.reflow'))) {
+    //
+    // A baseline RECORDING run is the same case: recordReactBaseline screenshots the React probe the
+    // same way, and b19 measured it moving layers-rail.locale-pseudo into a 320px/200% overflow that
+    // the same scenario does not show without the capture (focused gate, back to back).
+    if (!galleryReviewCaptureRoot && !baselineCaptureRoot && scenario.sourceQualityCaseIds?.some(id => id.endsWith('.quality.reflow'))) {
       await assertReflow(reactPage, scenario, 'react')
       await assertReflow(blazorPage, scenario, 'blazor')
     }
