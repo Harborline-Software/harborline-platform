@@ -139,13 +139,15 @@ export function Window({
   const minimized = state === 'minimized'
   const maximized = state === 'maximized'
   modalActiveRef.current = modal && !minimized
-  const copy = {
-    window: labels?.window ?? 'Window', close: labels?.close ?? 'Close', minimize: labels?.minimize ?? 'Minimize',
-    maximize: labels?.maximize ?? 'Maximize', restore: labels?.restore ?? 'Restore', move: labels?.move ?? 'Move window',
-    moveDescription: labels?.moveDescription ?? 'Press arrow keys to move window',
-    resizeHeight: labels?.resizeHeight ?? 'Resize height from bottom edge',
-    resizeWidth: labels?.resizeWidth ?? 'Resize width from right edge',
-  }
+  // The caller supplies every label a rendered control needs; there is no built-in fallback text.
+  const copy = { ...labels }
+  const blank = (value: string | undefined) => !value?.trim()
+  if (title == null && blank(copy.window)) throw new Error('accessible-name-required')
+  if ((closable && blank(copy.close)) || (minimizable && (blank(copy.minimize) || blank(copy.restore))) ||
+    (maximizable && (blank(copy.maximize) || blank(copy.restore))) ||
+    (resizable && (blank(copy.resizeWidth) || blank(copy.resizeHeight))) ||
+    (draggable && (blank(copy.move) || blank(copy.moveDescription))))
+    throw new Error('localized-control-labels-required')
 
   const viewport = () => ({ width: window.innerWidth, height: window.innerHeight })
   const changeState = (next: WindowState) => {

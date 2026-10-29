@@ -86,6 +86,17 @@ public sealed class WindowTests : BunitContext
         Assert.Single(cut.FindAll("[data-hl-window-overlay]"));
     }
 
+    // T-1123: Escape restores a maximized window whether or not it can close, as in the React lane.
+    [Fact]
+    public void EscapeRestoresAMaximizedWindowThatCannotClose()
+    {
+        var states = new List<HarborlineWindowState>();
+        var cut = RenderWindow(p => p.Add(x => x.DefaultState, HarborlineWindowState.Maximized).Add(x => x.Closable, false).Add(x => x.StateChanged, value => states.Add(value)));
+        cut.Find("[role=dialog]").KeyDown(new KeyboardEventArgs { Key = "Escape" });
+        Assert.Equal([HarborlineWindowState.Default], states);
+        Assert.Equal("default", cut.Find("[role=dialog]").GetAttribute("data-state"));
+    }
+
     [Theory, Trait("ModuleConformance", "hlp.ui.window")]
     [MemberData(nameof(SharedFixtureBatch.Cases), "hlp.ui.window", MemberType = typeof(SharedFixtureBatch))]
     public void SharedFixtureConforms(string caseId, string? rawFixture)
@@ -147,6 +158,5 @@ public sealed class WindowTests : BunitContext
          .Add(x => x.ChildContent, (RenderFragment)(b => b.AddContent(0, "Body")))
          .Add(x => x.CloseLabel, "Close").Add(x => x.MinimizeLabel, "Minimize")
          .Add(x => x.MaximizeLabel, "Maximize").Add(x => x.RestoreLabel, "Restore")
-         .Add(x => x.ResizeWidthLabel, "Resize width").Add(x => x.ResizeHeightLabel, "Resize height")
-         .Add(x => x.ResizeBothLabel, "Resize width and height");
+         .Add(x => x.ResizeWidthLabel, "Resize width").Add(x => x.ResizeHeightLabel, "Resize height");
 }

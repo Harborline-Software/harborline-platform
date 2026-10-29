@@ -87,8 +87,6 @@
     [Parameter, EditorRequired] public string RestoreLabel { get; set; } = string.Empty;
     [Parameter, EditorRequired] public string ResizeWidthLabel { get; set; } = string.Empty;
     [Parameter, EditorRequired] public string ResizeHeightLabel { get; set; } = string.Empty;
-    // No longer names a control: the corner handle is pointer-only. Kept so existing callers still compile.
-    [Parameter] public string ResizeBothLabel { get; set; } = string.Empty;
     // The movable header's caller-localized name and description; there is no built-in fallback.
     [Parameter, EditorRequired] public string MoveLabel { get; set; } = string.Empty;
     [Parameter, EditorRequired] public string MoveDescriptionLabel { get; set; } = string.Empty;
@@ -155,7 +153,7 @@
     private Task CloseAsync() => Closable ? Closed.InvokeAsync() : Task.CompletedTask;
     private async Task HandleWindowKeyAsync(KeyboardEventArgs args)
     {
-        if (args.Key != "Escape" || !Closable) return;
+        if (args.Key != "Escape") return;
         if (EffectiveState == HarborlineWindowState.Maximized) await ChangeStateAsync(HarborlineWindowState.Default); else await CloseAsync();
     }
     private async Task HandleTitleKeyAsync(KeyboardEventArgs args)

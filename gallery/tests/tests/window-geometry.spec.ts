@@ -43,6 +43,9 @@ const stories = [
 // The gallery sets no drag bounds, so the window is unbounded and only the frozen minimum
 // size of 200 by 100 limits it.
 const minimum = { width: 200, height: 100 }
+// Rendered boxes may land on sub-pixel positions; half a pixel either way is the same box.
+const tolerance = 0.5
+const settle = { intervals: [50, 100, 250], timeout: 5_000 }
 
 async function readIndex(page: Page, projection: Projection, base: string): Promise<StoryIndex> {
   if (projection === 'react') {
@@ -110,8 +113,8 @@ async function expectGeometry(dialog: Locator, expected: Geometry, label: string
   await expect(async () => {
     const actual = await geometry(dialog)
     for (const key of ['left', 'top', 'width', 'height'] as const)
-      expect(Math.abs(actual[key] - expected[key]), `${label}: ${key} ${actual[key]} against ${expected[key]}`).toBeLessThanOrEqual(0.5)
-  }).toPass({ intervals: [50, 100, 250], timeout: 5_000 })
+      expect(Math.abs(actual[key] - expected[key]), `${label}: ${key} ${actual[key]} against ${expected[key]}`).toBeLessThanOrEqual(tolerance)
+  }).toPass(settle)
 }
 
 async function press(target: Locator, key: string) {
@@ -155,36 +158,36 @@ for (const projection of ['react', 'blazor'] as const) {
         await expect(corner).not.toHaveAttribute('tabindex', /.*/)
         const start = await geometry(dialog)
 
-        const height = dialog.getByRole('separator', { name: story.labels.resizeHeight })
-        await expect(height).toHaveAttribute('aria-orientation', 'horizontal')
-        await height.focus()
-        await press(height, 'ArrowDown')
+        const heightHandle = dialog.getByRole('separator', { name: story.labels.resizeHeight })
+        await expect(heightHandle).toHaveAttribute('aria-orientation', 'horizontal')
+        await heightHandle.focus()
+        await press(heightHandle, 'ArrowDown')
         await expectGeometry(dialog, { ...start, height: start.height + 10 }, 'height ArrowDown')
-        await expect(height).toHaveAttribute('aria-valuenow', String(start.height + 10))
-        await press(height, 'Shift+ArrowUp')
+        await expect(heightHandle).toHaveAttribute('aria-valuenow', String(start.height + 10))
+        await press(heightHandle, 'Shift+ArrowUp')
         await expectGeometry(dialog, { ...start, height: start.height - 40 }, 'height Shift+ArrowUp')
         // A key for the other axis leaves the box alone.
-        await press(height, 'ArrowRight')
+        await press(heightHandle, 'ArrowRight')
         await expectGeometry(dialog, { ...start, height: start.height - 40 }, 'height ArrowRight')
-        for (let step = 0; step < 6; step += 1) await press(height, 'Shift+ArrowUp')
+        for (let step = 0; step < 6; step += 1) await press(heightHandle, 'Shift+ArrowUp')
         await expectGeometry(dialog, { ...start, height: minimum.height }, 'height at minimum')
-        await expect(height).toHaveAttribute('aria-valuenow', String(minimum.height))
+        await expect(heightHandle).toHaveAttribute('aria-valuenow', String(minimum.height))
 
-        const width = dialog.getByRole('separator', { name: story.labels.resizeWidth })
-        await expect(width).toHaveAttribute('aria-orientation', 'vertical')
-        await width.focus()
-        await press(width, 'ArrowRight')
+        const widthHandle = dialog.getByRole('separator', { name: story.labels.resizeWidth })
+        await expect(widthHandle).toHaveAttribute('aria-orientation', 'vertical')
+        await widthHandle.focus()
+        await press(widthHandle, 'ArrowRight')
         await expectGeometry(dialog, { ...start, height: minimum.height, width: start.width + 10 }, 'width ArrowRight')
-        await expect(width).toHaveAttribute('aria-valuenow', String(start.width + 10))
-        await press(width, 'ArrowDown')
+        await expect(widthHandle).toHaveAttribute('aria-valuenow', String(start.width + 10))
+        await press(widthHandle, 'ArrowDown')
         await expectGeometry(dialog, { ...start, height: minimum.height, width: start.width + 10 }, 'width ArrowDown')
-        for (let step = 0; step < 6; step += 1) await press(width, 'Shift+ArrowLeft')
+        for (let step = 0; step < 6; step += 1) await press(widthHandle, 'Shift+ArrowLeft')
         await expectGeometry(dialog, { ...start, height: minimum.height, width: minimum.width }, 'width at minimum')
-        await expect(width).toHaveAttribute('aria-valuenow', String(minimum.width))
+        await expect(widthHandle).toHaveAttribute('aria-valuenow', String(minimum.width))
         // Resizing never moves the window.
         const end = await geometry(dialog)
-        expect(Math.abs(end.left - start.left)).toBeLessThanOrEqual(0.5)
-        expect(Math.abs(end.top - start.top)).toBeLessThanOrEqual(0.5)
+        expect(Math.abs(end.left - start.left)).toBeLessThanOrEqual(tolerance)
+        expect(Math.abs(end.top - start.top)).toBeLessThanOrEqual(tolerance)
       })
 
       test('a maximized window offers no move target or handles, one Escape restores it and a second closes it', async ({ page }) => {
@@ -213,14 +216,15 @@ for (const projection of ['react', 'blazor'] as const) {
         await press(restoreControl, 'Shift+ArrowDown')
         await expectGeometry(dialog, full, 'maximized arrows on the header')
 
-        await page.keyboard.press('Escape')
+        await press(restoreControl, 'Escape')
         await expect(dialog).toHaveAttribute('data-window-state', 'default')
         await expectGeometry(dialog, moved, 'restored by Escape')
         await expect(dialog.getByRole('group', { name: story.labels.move })).toHaveAttribute('tabindex', '0')
         await expect(dialog.locator('[role="separator"]')).toHaveCount(2)
 
-        await dialog.getByRole('group', { name: story.labels.move }).focus()
-        await page.keyboard.press('Escape')
+        const moveGroup = dialog.getByRole('group', { name: story.labels.move })
+        await moveGroup.focus()
+        await press(moveGroup, 'Escape')
         await expect(dialog).toHaveCount(0)
       })
 
@@ -243,10 +247,10 @@ for (const projection of ['react', 'blazor'] as const) {
         await expect(dialog.locator('.hl-window__body')).toHaveCount(0)
         await expect(async () => {
           const minimized = await geometry(dialog)
-          expect(Math.abs(minimized.left - moved.left), 'minimized left').toBeLessThanOrEqual(0.5)
-          expect(Math.abs(minimized.top - moved.top), 'minimized top').toBeLessThanOrEqual(0.5)
+          expect(Math.abs(minimized.left - moved.left), 'minimized left').toBeLessThanOrEqual(tolerance)
+          expect(Math.abs(minimized.top - moved.top), 'minimized top').toBeLessThanOrEqual(tolerance)
           expect(minimized.height, 'minimized height').toBeLessThan(moved.height)
-        }).toPass({ intervals: [50, 100, 250], timeout: 5_000 })
+        }).toPass(settle)
 
         const restore = dialog.getByRole('button', { name: story.labels.restore })
         await restore.focus()

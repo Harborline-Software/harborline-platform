@@ -31,7 +31,7 @@ public sealed class WindowConnectionIdentityTests
         .Add(c => c.AccessibleLabel, "Inspector")
         .Add(c => c.CloseLabel, "Close").Add(c => c.MinimizeLabel, "Minimize").Add(c => c.MaximizeLabel, "Maximize")
         .Add(c => c.RestoreLabel, "Restore").Add(c => c.ResizeWidthLabel, "Width").Add(c => c.ResizeHeightLabel, "Height")
-        .Add(c => c.ResizeBothLabel, "Both").Add(c => c.MoveLabel, "Move").Add(c => c.MoveDescriptionLabel, "Arrow keys move")
+        .Add(c => c.MoveLabel, "Move").Add(c => c.MoveDescriptionLabel, "Arrow keys move")
         .Add(c => c.Modal, state.Modal)
         .Add(c => c.State, state.WindowState)
         .Add(c => c.ChildContent, (RenderFragment)(builder => builder.AddContent(0, "body")));

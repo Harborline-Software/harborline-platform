@@ -27,7 +27,7 @@ public sealed class WindowPerformanceTests : BunitContext
         .Add(x => x.ChildContent, Nodes(cycle)).Add(x => x.Width, 400 + cycle).Add(x => x.Height, 300 + cycle)
         .Add(x => x.CloseLabel, "Close").Add(x => x.MinimizeLabel, "Minimize").Add(x => x.MaximizeLabel, "Maximize")
         .Add(x => x.RestoreLabel, "Restore").Add(x => x.ResizeWidthLabel, "Resize width")
-        .Add(x => x.ResizeHeightLabel, "Resize height").Add(x => x.ResizeBothLabel, "Resize width and height")
+        .Add(x => x.ResizeHeightLabel, "Resize height")
         .Add(x => x.MoveLabel, "Move window").Add(x => x.MoveDescriptionLabel, "Press arrow keys to move window");
     private static RenderFragment Nodes(int cycle) => builder =>
     {
