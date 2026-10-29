@@ -30,6 +30,16 @@ describe('Window React projection', () => {
     expect(screen.getByRole('button', { name: 'Maximizar' })).toBeInTheDocument()
   })
 
+  // T-1123: moving works only in the default state, so the header is a named move target only then, as in Blazor.
+  it.each(['maximized', 'minimized'] as const)('offers no move target in the header when %s', state => {
+    render(<Window state={state} title="Editor" />)
+    const titleBar = screen.getByTestId('window-title-bar')
+    expect(titleBar).not.toHaveAttribute('role')
+    expect(titleBar).not.toHaveAttribute('aria-label')
+    expect(titleBar).not.toHaveAttribute('aria-description')
+    expect(titleBar).not.toHaveAttribute('tabindex')
+  })
+
   it('cycles modal focus in both directions and restores prior focus on removal', async () => {
     function Harness({ shown }: { shown: boolean }) {
       return <><button type="button">Prior</button>{shown ? <Window modal title="Editor"><button type="button">Body action</button></Window> : null}</>

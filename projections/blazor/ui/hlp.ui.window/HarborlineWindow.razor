@@ -15,8 +15,9 @@
          data-hl-module="hlp.ui.window" data-window-state="@StateName" data-state="@StateName"
          class="@CombineClasses("hl-window", EffectiveState == HarborlineWindowState.Default ? null : $"hl-window--{StateName}")"
          style="@CombineStyles(WindowStyle)" @onkeydown="HandleWindowKeyAsync" @attributes="AdditionalAttributes">
-    <header @ref="titleBar" class="@CombineClasses("hl-window__title-bar", Draggable && EffectiveState == HarborlineWindowState.Default ? "hl-window__title-bar--draggable" : null)"
-            tabindex="@(Draggable && EffectiveState == HarborlineWindowState.Default ? "0" : null)"
+    <header @ref="titleBar" class="@CombineClasses("hl-window__title-bar", Movable ? "hl-window__title-bar--draggable" : null)"
+            role="@(Movable ? "group" : null)" aria-label="@(Movable ? MoveLabel : null)" aria-description="@(Movable ? MoveDescriptionLabel : null)"
+            tabindex="@(Movable ? "0" : null)"
             @onkeydown="HandleTitleKeyAsync" @ondblclick="ToggleMaximizeFromTitleAsync">
         <div id="@TitleId" class="hl-window__title">@Title</div>
         <div class="hl-window__actions" @onpointerdown:stopPropagation="true">
@@ -39,15 +40,14 @@
         <div class="hl-window__body">@ChildContent</div>
         @if (Resizable && EffectiveState == HarborlineWindowState.Default)
         {
-            <div class="hl-window__resize hl-window__resize--width" role="separator" tabindex="0" aria-orientation="vertical"
-                 aria-label="@ResizeWidthLabel" aria-valuemin="@MinWidth" aria-valuemax="10000" aria-valuenow="@size.Width"
-                 data-resize-edge="e" @onkeydown="HandleEastResizeKeyAsync"></div>
+            @* The corner resizes both axes by pointer only; the keyboard has one handle per axis, height then width. *@
+            <div class="hl-window__resize hl-window__resize--corner" aria-hidden="true" data-resize-edge="se"></div>
             <div class="hl-window__resize hl-window__resize--height" role="separator" tabindex="0" aria-orientation="horizontal"
                  aria-label="@ResizeHeightLabel" aria-valuemin="@MinHeight" aria-valuemax="10000" aria-valuenow="@size.Height"
                  data-resize-edge="s" @onkeydown="HandleSouthResizeKeyAsync"></div>
-            <div class="hl-window__resize hl-window__resize--corner" role="separator" tabindex="0"
-                 aria-label="@ResizeBothLabel" aria-valuemin="@MinWidth" aria-valuenow="@size.Width"
-                 data-resize-edge="se" @onkeydown="HandleCornerResizeKeyAsync"></div>
+            <div class="hl-window__resize hl-window__resize--width" role="separator" tabindex="0" aria-orientation="vertical"
+                 aria-label="@ResizeWidthLabel" aria-valuemin="@MinWidth" aria-valuemax="10000" aria-valuenow="@size.Width"
+                 data-resize-edge="e" @onkeydown="HandleEastResizeKeyAsync"></div>
         }
     }
 </section>
@@ -87,7 +87,11 @@
     [Parameter, EditorRequired] public string RestoreLabel { get; set; } = string.Empty;
     [Parameter, EditorRequired] public string ResizeWidthLabel { get; set; } = string.Empty;
     [Parameter, EditorRequired] public string ResizeHeightLabel { get; set; } = string.Empty;
-    [Parameter, EditorRequired] public string ResizeBothLabel { get; set; } = string.Empty;
+    // No longer names a control: the corner handle is pointer-only. Kept so existing callers still compile.
+    [Parameter] public string ResizeBothLabel { get; set; } = string.Empty;
+    // The movable header's name and description, with the same English fallback as the React lane.
+    [Parameter] public string MoveLabel { get; set; } = "Move window";
+    [Parameter] public string MoveDescriptionLabel { get; set; } = "Press arrow keys to move window";
 
     private readonly string instanceId = $"hl-window-{Guid.NewGuid():N}";
     private HarborlineWindowState localState;
@@ -102,6 +106,7 @@
     private DotNetObjectReference<HarborlineWindow>? callback;
     private HarborlineWindowState EffectiveState => State ?? localState;
     private string TitleId => $"{instanceId}-title";
+    private bool Movable => Draggable && EffectiveState == HarborlineWindowState.Default;
     private string StateName => EffectiveState.ToString().ToLowerInvariant();
     private string WindowStyle => EffectiveState == HarborlineWindowState.Maximized
         ? "position:fixed;z-index:1000;inset:0;width:100vw;height:100vh"
@@ -122,7 +127,7 @@
             throw new InvalidOperationException("accessible-name-required");
         if ((Closable && string.IsNullOrWhiteSpace(CloseLabel)) || (Minimizable && (string.IsNullOrWhiteSpace(MinimizeLabel) || string.IsNullOrWhiteSpace(RestoreLabel))) ||
             (Maximizable && (string.IsNullOrWhiteSpace(MaximizeLabel) || string.IsNullOrWhiteSpace(RestoreLabel))) ||
-            (Resizable && (string.IsNullOrWhiteSpace(ResizeWidthLabel) || string.IsNullOrWhiteSpace(ResizeHeightLabel) || string.IsNullOrWhiteSpace(ResizeBothLabel))))
+            (Resizable && (string.IsNullOrWhiteSpace(ResizeWidthLabel) || string.IsNullOrWhiteSpace(ResizeHeightLabel))))
             throw new InvalidOperationException("localized-control-labels-required");
     }
 
@@ -170,7 +175,6 @@
     }
     private Task HandleEastResizeKeyAsync(KeyboardEventArgs args) => HandleResizeKeyAsync(args, "e");
     private Task HandleSouthResizeKeyAsync(KeyboardEventArgs args) => HandleResizeKeyAsync(args, "s");
-    private Task HandleCornerResizeKeyAsync(KeyboardEventArgs args) => HandleResizeKeyAsync(args, "se");
     [JSInvokable] public Task MoveFromJavaScriptAsync(double top, double left) => ApplyPositionAsync(top, left);
     [JSInvokable] public Task ResizeFromJavaScriptAsync(double width, double height) => ApplySizeAsync(width, height);
     [JSInvokable] public Task EscapeFromJavaScriptAsync() => HandleWindowKeyAsync(new KeyboardEventArgs { Key = "Escape" });

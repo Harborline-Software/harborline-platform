@@ -232,6 +232,7 @@ export function Window({
     updateSize(resizeWindow(sizeRef.current, edge, delta, { width: minWidth, height: minHeight }))
   }
 
+  const movable = draggable && state === 'default'
   const MinimizeControl = MinimizeButton
   const MaximizeControl = maximized ? (RestoreButton ?? MaximizeButton) : MaximizeButton
   const style: React.CSSProperties = maximized
@@ -266,9 +267,9 @@ export function Window({
       tabIndex={-1}
     >
       <div
-        aria-description={draggable ? copy.moveDescription : undefined}
-        aria-label={draggable ? copy.move : undefined}
-        className={cn('hl-window__title-bar', draggable && state === 'default' && 'hl-window__title-bar--draggable')}
+        aria-description={movable ? copy.moveDescription : undefined}
+        aria-label={movable ? copy.move : undefined}
+        className={cn('hl-window__title-bar', movable && 'hl-window__title-bar--draggable')}
         data-testid="window-title-bar"
         onDoubleClick={event => {
           if (!doubleClickStageChange || minimized || (event.target as HTMLElement).closest('[data-window-actions="true"]')) return
@@ -276,8 +277,8 @@ export function Window({
         }}
         onKeyDown={moveByKey}
         onPointerDown={startDrag}
-        role={draggable ? 'group' : undefined}
-        tabIndex={draggable ? 0 : undefined}
+        role={movable ? 'group' : undefined}
+        tabIndex={movable ? 0 : undefined}
       >
         <span className="hl-window__title" id={titleId}>{title}</span>
         <div className="hl-window__actions" data-window-actions="true" onPointerDown={event => event.stopPropagation()}>

@@ -38,6 +38,29 @@ public sealed class WindowTests : BunitContext
         Assert.Equal(1, closed);
     }
 
+    // T-1123: the movable header is a named group and the keyboard resize handles are one per axis, height then
+    // width, in both lanes. The pointer corner is not a tab stop. English is the fallback; callers localize.
+    [Theory]
+    [InlineData(null, null, "Move window", "Press arrow keys to move window")]
+    [InlineData("نقل النافذة", "استخدم مفاتيح الأسهم", "نقل النافذة", "استخدم مفاتيح الأسهم")]
+    public void HeaderIsANamedGroupAndKeyboardHandlesAreOnePerAxis(string? moveLabel, string? moveDescription, string name, string description)
+    {
+        var cut = RenderWindow(p => { if (moveLabel is not null) p.Add(x => x.MoveLabel, moveLabel).Add(x => x.MoveDescriptionLabel, moveDescription!); });
+        var header = cut.Find(".hl-window__title-bar");
+        Assert.Equal("group", header.GetAttribute("role"));
+        Assert.Equal(name, header.GetAttribute("aria-label"));
+        Assert.Equal(description, header.GetAttribute("aria-description"));
+        Assert.Equal("0", header.GetAttribute("tabindex"));
+        var stops = cut.FindAll(".hl-window__resize[tabindex='0']");
+        Assert.Equal(["s", "e"], stops.Select(handle => handle.GetAttribute("data-resize-edge")));
+        Assert.Equal(["Resize height", "Resize width"], stops.Select(handle => handle.GetAttribute("aria-label")));
+        Assert.All(stops, handle => Assert.Equal("separator", handle.GetAttribute("role")));
+        var corner = cut.Find("[data-resize-edge=se]");
+        Assert.Equal("true", corner.GetAttribute("aria-hidden"));
+        Assert.Null(corner.GetAttribute("tabindex"));
+        Assert.Null(corner.GetAttribute("role"));
+    }
+
     [Fact]
     public void MaximizedEscapeRestoresBeforeCloseAndModalOverlayTracksMinimize()
     {
