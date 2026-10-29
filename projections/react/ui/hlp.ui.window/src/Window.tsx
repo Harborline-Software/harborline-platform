@@ -9,10 +9,14 @@ import {
   movePosition,
   resizeWindow,
   validateBounds,
+  validateLabels,
   validateMinimums,
+  type WindowLabels,
   type WindowPosition,
   type WindowSize,
 } from './window-model'
+
+export type { WindowLabels } from './window-model'
 
 export type WindowState = 'default' | 'minimized' | 'maximized'
 
@@ -55,17 +59,7 @@ export interface WindowProps {
   restoreButton?: React.ComponentType<React.ButtonHTMLAttributes<HTMLButtonElement>>
   overlayStyle?: React.CSSProperties
   className?: string
-  labels?: Partial<{
-    window: string
-    close: string
-    minimize: string
-    maximize: string
-    restore: string
-    move: string
-    moveDescription: string
-    resizeHeight: string
-    resizeWidth: string
-  }>
+  labels: WindowLabels
 }
 
 const focusableSelector = 'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
@@ -139,15 +133,7 @@ export function Window({
   const minimized = state === 'minimized'
   const maximized = state === 'maximized'
   modalActiveRef.current = modal && !minimized
-  // The caller supplies every label a rendered control needs; there is no built-in fallback text.
-  const copy = { ...labels }
-  const blank = (value: string | undefined) => !value?.trim()
-  if (title == null && blank(copy.window)) throw new Error('accessible-name-required')
-  if ((closable && blank(copy.close)) || (minimizable && (blank(copy.minimize) || blank(copy.restore))) ||
-    (maximizable && (blank(copy.maximize) || blank(copy.restore))) ||
-    (resizable && (blank(copy.resizeWidth) || blank(copy.resizeHeight))) ||
-    (draggable && (blank(copy.move) || blank(copy.moveDescription))))
-    throw new Error('localized-control-labels-required')
+  validateLabels(labels ?? {}, { titled: title != null, closable, minimizable, maximizable, resizable, draggable })
 
   const viewport = () => ({ width: window.innerWidth, height: window.innerHeight })
   const changeState = (next: WindowState) => {
@@ -244,7 +230,7 @@ export function Window({
   return createPortal(<>
     {modal && !minimized ? <div aria-hidden="true" className="hl-window__overlay" data-testid="window-overlay" style={overlayStyle} /> : null}
     <div
-      aria-label={title == null ? copy.window : undefined}
+      aria-label={title == null ? labels.window : undefined}
       aria-labelledby={title != null ? titleId : undefined}
       aria-modal={modal ? 'true' : undefined}
       className={cn('hl-window', maximized && 'hl-window--maximized', minimized && 'hl-window--minimized', className)}
@@ -269,8 +255,8 @@ export function Window({
       tabIndex={-1}
     >
       <div
-        aria-description={movable ? copy.moveDescription : undefined}
-        aria-label={movable ? copy.move : undefined}
+        aria-description={movable ? labels.moveDescription : undefined}
+        aria-label={movable ? labels.move : undefined}
         className={cn('hl-window__title-bar', movable && 'hl-window__title-bar--draggable')}
         data-testid="window-title-bar"
         onDoubleClick={event => {
@@ -286,21 +272,21 @@ export function Window({
         <div className="hl-window__actions" data-window-actions="true" onPointerDown={event => event.stopPropagation()}>
           {actions}
           {minimizable ? MinimizeControl
-            ? <MinimizeControl aria-label={minimized ? copy.restore : copy.minimize} onClick={() => changeState(minimized ? 'default' : 'minimized')} />
-            : <button aria-label={minimized ? copy.restore : copy.minimize} className="hl-window__control" onClick={() => changeState(minimized ? 'default' : 'minimized')} type="button"><svg aria-hidden="true" viewBox="0 0 20 20"><path d="M5 14.5h10" /></svg></button>
+            ? <MinimizeControl aria-label={minimized ? labels.restore : labels.minimize} onClick={() => changeState(minimized ? 'default' : 'minimized')} />
+            : <button aria-label={minimized ? labels.restore : labels.minimize} className="hl-window__control" onClick={() => changeState(minimized ? 'default' : 'minimized')} type="button"><svg aria-hidden="true" viewBox="0 0 20 20"><path d="M5 14.5h10" /></svg></button>
             : null}
           {maximizable ? MaximizeControl
-            ? <MaximizeControl aria-label={maximized ? copy.restore : copy.maximize} onClick={() => changeState(maximized ? 'default' : 'maximized')} />
-            : <button aria-label={maximized ? copy.restore : copy.maximize} className="hl-window__control" onClick={() => changeState(maximized ? 'default' : 'maximized')} type="button"><svg aria-hidden="true" viewBox="0 0 20 20">{maximized ? <><rect x="4" y="6" width="10" height="9" rx="1" /><path d="M7 6V4h9v9h-2" /></> : <rect x="4" y="4" width="12" height="12" rx="1" />}</svg></button>
+            ? <MaximizeControl aria-label={maximized ? labels.restore : labels.maximize} onClick={() => changeState(maximized ? 'default' : 'maximized')} />
+            : <button aria-label={maximized ? labels.restore : labels.maximize} className="hl-window__control" onClick={() => changeState(maximized ? 'default' : 'maximized')} type="button"><svg aria-hidden="true" viewBox="0 0 20 20">{maximized ? <><rect x="4" y="6" width="10" height="9" rx="1" /><path d="M7 6V4h9v9h-2" /></> : <rect x="4" y="4" width="12" height="12" rx="1" />}</svg></button>
             : null}
-          {closable ? <button aria-label={copy.close} className="hl-window__control hl-window__control--close" onClick={onClose} type="button"><svg aria-hidden="true" viewBox="0 0 20 20"><path d="m5 5 10 10M15 5 5 15" /></svg></button> : null}
+          {closable ? <button aria-label={labels.close} className="hl-window__control hl-window__control--close" onClick={onClose} type="button"><svg aria-hidden="true" viewBox="0 0 20 20"><path d="m5 5 10 10M15 5 5 15" /></svg></button> : null}
         </div>
       </div>
       {!minimized ? <div className="hl-window__body">{body}</div> : null}
       {resizable && state === 'default' && !minimized ? <>
         <div aria-hidden="true" className="hl-window__resize hl-window__resize--corner" data-testid="window-resize-corner" onPointerDown={startResize('se')} />
-        <div aria-label={copy.resizeHeight} aria-orientation="horizontal" aria-valuemax={10000} aria-valuemin={minHeight} aria-valuenow={size.height} className="hl-window__resize hl-window__resize--height" data-testid="window-resize-height" onKeyDown={resizeByKey('s')} onPointerDown={startResize('s')} role="separator" tabIndex={0} />
-        <div aria-label={copy.resizeWidth} aria-orientation="vertical" aria-valuemax={10000} aria-valuemin={minWidth} aria-valuenow={size.width} className="hl-window__resize hl-window__resize--width" data-testid="window-resize-width" onKeyDown={resizeByKey('e')} onPointerDown={startResize('e')} role="separator" tabIndex={0} />
+        <div aria-label={labels.resizeHeight} aria-orientation="horizontal" aria-valuemax={10000} aria-valuemin={minHeight} aria-valuenow={size.height} className="hl-window__resize hl-window__resize--height" data-testid="window-resize-height" onKeyDown={resizeByKey('s')} onPointerDown={startResize('s')} role="separator" tabIndex={0} />
+        <div aria-label={labels.resizeWidth} aria-orientation="vertical" aria-valuemax={10000} aria-valuemin={minWidth} aria-valuenow={size.width} className="hl-window__resize hl-window__resize--width" data-testid="window-resize-width" onKeyDown={resizeByKey('e')} onPointerDown={startResize('e')} role="separator" tabIndex={0} />
       </> : null}
     </div>
   </>, document.body)

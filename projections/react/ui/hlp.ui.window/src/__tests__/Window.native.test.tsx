@@ -5,7 +5,7 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 
-import { Window } from '../Window'
+import { Window, type WindowLabels } from '../Window'
 import * as publicSurface from '../index'
 import { qualityCases } from './fixtures'
 
@@ -49,7 +49,7 @@ describe('Window React projection', () => {
   ] as const)('rejects a missing %s label for a control it renders', (key, flags) => {
     const labels: Record<string, string> = { ...allLabels }
     delete labels[key]
-    expect(() => render(<Window labels={labels} title="Editor" {...flags} />)).toThrow('localized-control-labels-required')
+    expect(() => render(<Window labels={labels as unknown as WindowLabels} title="Editor" {...flags} />)).toThrow('localized-control-labels-required')
   })
 
   it('rejects a blank label and an untitled window without a name', () => {
