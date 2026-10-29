@@ -2797,7 +2797,7 @@
         "projections/blazor/ui/hlp.ui.dialog/wwwroot/dialog.js": "bdee10194d6c7c64d25b73f7e905ccaf3f202d8578abfe4d4ddd34eee06fe17c",
         "projections/react/ui/hlp.ui.dialog/src/Dialog.tsx": "ae7f07b858605df69db66c98f7ffa6dddcd16f5b55e0d79fd1058b7f306d0be7",
         "projections/react/ui/hlp.ui.dialog/src/__tests__/Dialog.conformance.test.tsx": "ce9b0a44250c961734294b3065435a6e1b21e4f9e81395497a293e9274c6e566",
-        "projections/react/ui/hlp.ui.dialog/src/__tests__/Dialog.native.test.tsx": "5f546be29b9a139f90916ddd77436c204068a0718b4a42a0435f1b05ff956632",
+        "projections/react/ui/hlp.ui.dialog/src/__tests__/Dialog.native.test.tsx": "52004c49cb52412a0efe5aa9b2174b943e83131e5bc1b55257efb81c8c09d47b",
         "projections/react/ui/hlp.ui.dialog/src/__tests__/fixtures.ts": "17fd125182db2698323c8fe8aa063308f5c184555f307825b83ed51674089d6e",
         "projections/react/ui/hlp.ui.dialog/src/index.ts": "c8fc0472e4fc386a59f3c3a9844b8b7f806282a5ab1a13264e55fd138e5c9752",
         "projections/react/ui/hlp.ui.dialog/src/test-setup.ts": "977afde26bba6a51325908cd7713cbfdc87d18f06b78b237c8f364c44864b7de",
@@ -2806,7 +2806,7 @@
         "specs/modules/ui/hlp.ui.dialog/interface.yaml": "7e003e22a6de827bd1f965c65800192cc8c55be453013eabdb965e38ed7664e2",
         "specs/modules/ui/hlp.ui.dialog/quality.yaml": "a3d0887f02721807d63daf9e18d269df9ec58e7a22ac6a3e301a3192ed453e89",
         "specs/modules/ui/hlp.ui.dialog/scenarios.json": "1403ce580d344126c5b2146cd1da79cf0cf2ae212b8cfbf2e84ba7c7ed1ba8d5",
-        "specs/modules/ui/hlp.ui.dialog/style.css": "8a6e101cfb355f27b238b1ff7d1a076c739841c88ff0a4d4d82dada0fe160bc1"
+        "specs/modules/ui/hlp.ui.dialog/style.css": "ee1748facb54057734a2e0063d47687f500edee00df159c4a5fdcb7424e1515d"
       },
       "nextGate": "Retain this conformant aggregate contribution while HLF-052 advances to the next Carrier-essential dependency wave."
     },
