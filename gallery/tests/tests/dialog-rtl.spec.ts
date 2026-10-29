@@ -1,6 +1,6 @@
 import { expect, test, type Locator, type Page } from '@playwright/test'
 
-import { openWithSubresourceRetry, readWithReload } from './navigation-resilience.ts'
+import { openWithSubresourceRetry, readStoryIndex } from './navigation-resilience.ts'
 
 // T-1122: the Dialog surface must be centred, with its close and action buttons inside the
 // viewport when focused, in left-to-right and right-to-left content, in both lanes, during the
@@ -8,8 +8,6 @@ import { openWithSubresourceRetry, readWithReload } from './navigation-resilienc
 // Dialog surface, so its Arabic story is checked too.
 
 type Projection = 'react' | 'blazor'
-type StoryEntry = { id: string; title: string; name: string; type: 'story' | 'docs' }
-type StoryIndex = { entries: Record<string, StoryEntry> }
 type Box = { left: number; top: number; right: number; bottom: number }
 
 const bases = {
@@ -24,40 +22,9 @@ const stories = [
   { scenario: 'confirm-dialog.action-pair', title: 'UI/ConfirmDialog', name: 'Action pair and confirm ordering', direction: 'ltr' },
 ] as const
 
-async function readIndex(page: Page, projection: Projection): Promise<StoryIndex> {
-  const base = bases[projection]
-  if (projection === 'react') {
-    let index: StoryIndex | undefined
-    await expect(async () => {
-      const response = await page.request.get(`${base}/index.json`)
-      expect(response.ok()).toBe(true)
-      index = await response.json() as StoryIndex
-    }).toPass({ intervals: [250, 500, 1_000], timeout: 5_000 })
-    return index!
-  }
-  return readWithReload(page, base, 'BlazingStory.getStoryIndex()', async () => {
-    await page.waitForFunction(() => {
-      const host = globalThis as typeof globalThis & { BlazingStory?: { getStoryIndex?: unknown } }
-      return typeof host.BlazingStory?.getStoryIndex === 'function'
-    })
-    // Reissue only the existing gallery's known page-promise collection failure.
-    for (let attempt = 0; ; attempt += 1) {
-      try {
-        return await page.evaluate(() => {
-          const host = globalThis as typeof globalThis & { BlazingStory: { getStoryIndex(): Promise<StoryIndex> } }
-          return host.BlazingStory.getStoryIndex()
-        })
-      }
-      catch (error) {
-        if (attempt === 2 || !String(error).includes('Resulting promise was garbage collected')) throw error
-      }
-    }
-  }, 15_000)
-}
-
 async function openStory(page: Page, projection: Projection, story: typeof stories[number]) {
   const base = bases[projection]
-  const index = await readIndex(page, projection)
+  const index = await readStoryIndex(page, projection, base)
   const entries = Object.values(index.entries)
     .filter(entry => entry.type === 'story' && entry.title === story.title && entry.name === story.name)
   expect(entries, `the actual ${story.title} "${story.name}" story`).toHaveLength(1)
@@ -132,7 +99,8 @@ async function expectFocusWalkVisible(page: Page, surface: Locator, label: strin
   const before = await page.evaluate(() => ({ x: scrollX, y: scrollY }))
   const buttonCount = await surface.locator('button').count()
   expect(buttonCount, `${label}: dialog buttons`).toBeGreaterThan(0)
-  const seen = new Set<string>()
+  // Buttons are told apart by their place in the surface, so two with the same name both count.
+  const seen = new Set<number>()
   for (let step = 0; step < buttonCount + 6; step += 1) {
     await page.keyboard.press(tab)
     const focused = await page.evaluate(() => {
@@ -142,6 +110,7 @@ async function expectFocusWalkVisible(page: Page, surface: Locator, label: strin
       const rect = active.getBoundingClientRect()
       return {
         inside: surfaceElement.contains(active),
+        button: [...surfaceElement.querySelectorAll('button')].indexOf(active as HTMLButtonElement),
         tag: active.tagName.toLowerCase(),
         name: active.getAttribute('aria-label') ?? active.textContent?.trim() ?? '',
         box: { left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom },
@@ -149,7 +118,7 @@ async function expectFocusWalkVisible(page: Page, surface: Locator, label: strin
     })
     expect(focused, `${label}: focus after Tab ${step + 1}`).not.toBeNull()
     expect(focused!.inside, `${label}: focus stays in the modal after Tab ${step + 1}`).toBe(true)
-    if (focused!.tag === 'button') seen.add(focused!.name)
+    if (focused!.button >= 0) seen.add(focused!.button)
     expectInside(focused!.box, viewport, `${label}: focused ${focused!.tag} "${focused!.name}"`)
   }
   expect(seen.size, `${label}: every dialog button took focus`).toBe(buttonCount)

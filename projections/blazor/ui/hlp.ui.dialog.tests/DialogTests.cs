@@ -30,7 +30,9 @@ public sealed class DialogTests : BunitContext
         Assert.Contains("transform: translate(-50%, -50%)", surface, StringComparison.Ordinal);
         Assert.DoesNotContain("\n  inset-inline-start:", surface, StringComparison.Ordinal);
     }
-    private static string Repo(string relative) => Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../../../../", relative));
+    private static string Repo(string relative) => Path.Combine(
+        Environment.GetEnvironmentVariable("HARBORLINE_REPO_ROOT") ?? Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../../../../")),
+        relative);
     private static RenderFragment Text(string value) => builder => builder.AddContent(0, value);
     private static void AssertFixture(string prefix) { var raw = SharedFixtureBatch.Current; if (string.IsNullOrWhiteSpace(raw)) return; using var fixture = System.Text.Json.JsonDocument.Parse(raw); Assert.StartsWith(prefix, fixture.RootElement.GetProperty("id").GetString()); }
 }
