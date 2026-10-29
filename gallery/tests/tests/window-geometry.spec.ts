@@ -7,7 +7,9 @@ import { openWithSubresourceRetry, readWithReload } from './navigation-resilienc
 // handle, and every check reads the rendered box, in English left-to-right and in Arabic
 // right-to-left with the caller's own labels. The display-state transitions (maximize, Escape,
 // minimize, restore) are driven from the keyboard too, because they decide when the header and
-// handles may act at all.
+// handles may act at all. The stories bind display state through the state-change callback, so a
+// transition that renders proves that callback fired; they bind no move or resize callback and no
+// drag bounds, which the projection unit tests cover instead.
 
 type Projection = 'react' | 'blazor'
 type StoryEntry = { id: string; title: string; name: string; type: 'story' | 'docs' }
@@ -185,12 +187,14 @@ for (const projection of ['react', 'blazor'] as const) {
         expect(Math.abs(end.top - start.top)).toBeLessThanOrEqual(0.5)
       })
 
-      test('maximized and minimized windows offer no move target or handles, and Escape restores before closing', async ({ page }) => {
+      test('a maximized window offers no move target or handles, one Escape restores it and a second closes it', async ({ page }) => {
         const dialog = await openStory(page, projection, story)
         const header = dialog.locator('.hl-window__title-bar')
         await header.focus()
+        const start = await geometry(dialog)
         await press(header, 'ArrowRight')
-        const moved = await geometry(dialog)
+        const moved = { ...start, left: start.left + 10 }
+        await expectGeometry(dialog, moved, 'ArrowRight before maximizing')
 
         const maximize = dialog.getByRole('button', { name: story.labels.maximize })
         await maximize.focus()
@@ -200,31 +204,56 @@ for (const projection of ['react', 'blazor'] as const) {
         await expect(header).not.toHaveAttribute('tabindex', /.*/)
         await expect(dialog.locator('[role="separator"]')).toHaveCount(0)
         const viewport = page.viewportSize()!
-        await expectGeometry(dialog, { left: 0, top: 0, width: viewport.width, height: viewport.height }, 'maximized')
-        // An arrow key in the maximized window does not move it.
-        await page.keyboard.press('ArrowRight')
-        await expectGeometry(dialog, { left: 0, top: 0, width: viewport.width, height: viewport.height }, 'maximized ArrowRight')
+        const full = { left: 0, top: 0, width: viewport.width, height: viewport.height }
+        await expectGeometry(dialog, full, 'maximized')
+        // The header's own key handler still sees keys from the control inside it, and must ignore them now.
+        const restoreControl = header.getByRole('button', { name: story.labels.restore })
+        await restoreControl.focus()
+        await press(restoreControl, 'ArrowRight')
+        await press(restoreControl, 'Shift+ArrowDown')
+        await expectGeometry(dialog, full, 'maximized arrows on the header')
 
-        // One Escape restores the earlier geometry and the window stays open.
         await page.keyboard.press('Escape')
         await expect(dialog).toHaveAttribute('data-window-state', 'default')
         await expectGeometry(dialog, moved, 'restored by Escape')
         await expect(dialog.getByRole('group', { name: story.labels.move })).toHaveAttribute('tabindex', '0')
         await expect(dialog.locator('[role="separator"]')).toHaveCount(2)
 
+        await dialog.getByRole('group', { name: story.labels.move }).focus()
+        await page.keyboard.press('Escape')
+        await expect(dialog).toHaveCount(0)
+      })
+
+      test('a minimized window keeps its place, drops its body and handles, and restores its geometry', async ({ page }) => {
+        const dialog = await openStory(page, projection, story)
+        const header = dialog.locator('.hl-window__title-bar')
+        await header.focus()
+        const start = await geometry(dialog)
+        await press(header, 'ArrowDown')
+        const moved = { ...start, top: start.top + 10 }
+        await expectGeometry(dialog, moved, 'ArrowDown before minimizing')
+
         const minimize = dialog.getByRole('button', { name: story.labels.minimize })
         await minimize.focus()
         await press(minimize, 'Enter')
         await expect(dialog).toHaveAttribute('data-window-state', 'minimized')
         await expect(header).not.toHaveAttribute('role', /.*/)
+        await expect(header).not.toHaveAttribute('tabindex', /.*/)
         await expect(dialog.locator('[role="separator"]')).toHaveCount(0)
         await expect(dialog.locator('.hl-window__body')).toHaveCount(0)
+        await expect(async () => {
+          const minimized = await geometry(dialog)
+          expect(Math.abs(minimized.left - moved.left), 'minimized left').toBeLessThanOrEqual(0.5)
+          expect(Math.abs(minimized.top - moved.top), 'minimized top').toBeLessThanOrEqual(0.5)
+          expect(minimized.height, 'minimized height').toBeLessThan(moved.height)
+        }).toPass({ intervals: [50, 100, 250], timeout: 5_000 })
 
         const restore = dialog.getByRole('button', { name: story.labels.restore })
         await restore.focus()
         await press(restore, 'Enter')
         await expect(dialog).toHaveAttribute('data-window-state', 'default')
-        await expect(dialog.getByRole('group', { name: story.labels.move })).toBeVisible()
+        await expectGeometry(dialog, moved, 'restored from minimized')
+        await expect(dialog.getByRole('group', { name: story.labels.move })).toHaveAttribute('tabindex', '0')
         await expect(dialog.locator('[role="separator"]')).toHaveCount(2)
       })
     })
