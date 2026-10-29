@@ -178,7 +178,6 @@
     private Task HandleSouthResizeKeyAsync(KeyboardEventArgs args) => HandleResizeKeyAsync(args, "s");
     [JSInvokable] public Task MoveFromJavaScriptAsync(double top, double left) => ApplyPositionAsync(top, left);
     [JSInvokable] public Task ResizeFromJavaScriptAsync(double width, double height) => ApplySizeAsync(width, height);
-    [JSInvokable] public Task EscapeFromJavaScriptAsync() => HandleWindowKeyAsync(new KeyboardEventArgs { Key = "Escape" });
     private async Task ApplyPositionAsync(double top, double left)
     {
         if (DragBounds is not null)
