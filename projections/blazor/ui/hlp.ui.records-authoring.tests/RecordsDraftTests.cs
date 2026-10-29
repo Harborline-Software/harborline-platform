@@ -1166,4 +1166,443 @@ public sealed class RecordsDraftTests : BunitContext
         Assert.Equal("eam.equipment", SelectedText(cut, "Class")); Assert.Equal("role", SelectedText(cut, "Creation gate")); Assert.Equal("records-clerk", SelectedText(cut, "Creation role"));
         Assert.True(IsChecked(cut, "Amendments require a reason")); Assert.True(IsChecked(cut, "Keep history"));
     }
+
+    // ---- Interface revision 4 references (semantics.edits, notEdited, hostOptions, readOnly; RecordTypeIdentity.cs:44-97, 275-279) ----------
+    // Producer spellings are snake_case_lower (RecordTypeDocument.cs:271-284). Written from the interface, not the implementation. Controls are
+    // found by aria-label, buttons by text and options by visible text, never by option value. Every base body is HeaderBody (unknown members at
+    // the body, envelope and field level) plus a fourth, unbound field "site", and every base reference carries required_trait_id, a pin and an
+    // unknown member, so each exact expected body also proves preservation. Method names pair one-for-one with RecordTypeDraftEditor.test.tsx
+    // ("Revision4: ...").
+    private const string SiteTargetKind = "Field 4 reference target kind";
+    private const string SiteTargetType = "Field 4 reference target type";
+    private const string SiteTargetClass = "Field 4 reference target class";
+    private const string SiteCardinality = "Field 4 reference cardinality";
+    private const string SiteOnDelete = "Field 4 reference on delete";
+    private const string SiteParent = "Field 4 reference is the parent edge";
+    private const string BothTargets = """{"target_type_id":"eam.space","target_class_id":"eam.facility"}""";
+
+    // A producer-shaped reference to the given targets (RecordReferenceDefinition): cardinality one, on_delete block and the canonical parent false,
+    // plus the members every reference edit must carry unchanged: required_trait_id, the cross-package pin and an unknown member.
+    private static JsonObject SiteReference(string targets = """{"target_type_id":"eam.space"}""")
+    {
+        var reference = JsonNode.Parse(targets)!.AsObject();
+        reference["cardinality"] = "one"; reference["on_delete"] = "block"; reference["parent"] = false; reference["required_trait_id"] = "eam.locatable";
+        reference["pin"] = JsonNode.Parse("""{"package_id":"eam-core","definition_id":"eam.space","version":"1.0.0","digest":"sha256:5f1c","interface_version":1}"""); reference["future_reference_member"] = "kept";
+        return reference;
+    }
+
+    // G1 (fields 1 and 2 bound, field 3 notes with neither a binding nor a reference) with HeaderBody's unknown members, then a fourth field "site"
+    // with no binding, an unknown member and the given members (a null value writes a JSON null).
+    private static JsonObject ReferenceBody(params (string Member, JsonNode? Value)[] site)
+    {
+        var body = HeaderBody();
+        JsonNode field = new JsonObject { ["field_key"] = "site", ["display_name"] = "Site", ["future_field_member"] = "kept" };
+        foreach (var (member, value) in site) field[member] = value?.DeepClone();
+        body["fields"]!.AsArray().Add(field);
+        return body;
+    }
+
+    // A copy of the body with one field (0-based) edited; the site field is index 3.
+    private static JsonObject WithField(JsonObject body, int index, Action<JsonObject> edit)
+    {
+        var next = body.DeepClone().AsObject();
+        edit(next["fields"]![index]!.AsObject());
+        return next;
+    }
+
+    private static JsonObject WithSiteReference(JsonObject body, Action<JsonObject> edit) => WithField(body, 3, field => edit(field["reference"]!.AsObject()));
+    private static JsonObject SiteReferenceOf(RecordsDraftChange change) => change.Draft.Body["fields"]![3]!["reference"]!.AsObject();
+    private static bool HasButton(IRenderedComponent<HarborlineRecordTypeDraftEditor> cut, string text) => cut.FindAll("button").Any(button => button.TextContent.Trim() == text);
+    private static bool HasControl(IRenderedComponent<HarborlineRecordTypeDraftEditor> cut, string name) => cut.FindAll($"[aria-label='{name}']").Count > 0;
+    private static IElement TargetTypeInput(IRenderedComponent<HarborlineRecordTypeDraftEditor> cut, string name = SiteTargetType) => cut.Find($"input[aria-label='{name}']");
+    // The notes inside field N's own group, found by its legend.
+    private static string[] FieldNotes(IRenderedComponent<HarborlineRecordTypeDraftEditor> cut, int n) => [.. cut.FindAll("legend").Single(legend => legend.TextContent == $"Field {n}").ParentElement!.QuerySelectorAll("p").Select(note => note.TextContent)];
+    private const string UnboundNote = "Unbound field. Bindings are not authored here.";
+
+    [Fact]
+    public void Revision4_Make_field_N_a_reference_appears_only_on_a_field_with_neither_a_binding_nor_a_reference_and_adds_exactly_an_empty_reference()
+    {
+        var body = ReferenceBody(("reference", SiteReference())); var given = body.DeepClone(); var changes = new List<RecordsDraftChange>(); var cut = Header(DraftWith(body), changes);
+        // Fields 1 and 2 are bound, field 3 (notes) has neither member, and field 4 (site) already has a reference.
+        Assert.Equal([false, false, true, false], new[] { 1, 2, 3, 4 }.Select(n => HasButton(cut, $"Make field {n} a reference")).ToArray());
+        Assert.Equal([false, false, false, true], new[] { 1, 2, 3, 4 }.Select(n => HasButton(cut, $"Remove reference from field {n}")).ToArray());
+        Assert.Empty(changes);
+        Button(cut, "Make field 3 a reference").Click();
+        AssertReported(Assert.Single(changes), WithField(body, 2, field => field["reference"] = new JsonObject()), 1);
+        Assert.False(HasButton(cut, "Make field 3 a reference")); Assert.True(HasButton(cut, "Remove reference from field 3"));
+        Assert.Equal("Not set", SelectedText(cut, "Field 3 reference target kind")); Assert.Equal("Not set", SelectedText(cut, "Field 3 reference cardinality")); Assert.Equal("Not set", SelectedText(cut, "Field 3 reference on delete")); Assert.False(IsChecked(cut, "Field 3 reference is the parent edge"));
+        Assert.Equal("", TargetTypeInput(cut, "Field 3 reference target type").GetAttribute("value") ?? ""); Assert.False(HasControl(cut, "Field 3 reference target class"));
+        Assert.True(JsonNode.DeepEquals(given, body), body.ToJsonString());
+    }
+
+    [Fact]
+    public void Revision4_Remove_reference_from_field_N_deletes_the_reference_member_only()
+    {
+        var body = ReferenceBody(("reference", SiteReference())); var given = body.DeepClone().AsObject(); var changes = new List<RecordsDraftChange>(); var cut = Header(DraftWith(body), changes);
+        Button(cut, "Remove reference from field 4").Click();
+        AssertReported(Assert.Single(changes), WithField(given, 3, field => field.Remove("reference")), 1);
+        Assert.False(changes[0].Draft.Body["fields"]![3]!.AsObject().ContainsKey("reference"));
+        Assert.False(HasControl(cut, SiteTargetKind)); Assert.False(HasButton(cut, "Remove reference from field 4")); Assert.True(HasButton(cut, "Make field 4 a reference"));
+        Assert.True(JsonNode.DeepEquals(given, body), body.ToJsonString());
+    }
+
+    [Fact]
+    public void Revision4_Remove_reference_from_field_N_on_a_bound_field_deletes_the_reference_member_only_and_carries_the_binding_unchanged()
+    {
+        // The revision 1 reference test's field: the R5 binding and reference, plus a carried trait.
+        var r5 = RefusalCase("R5-reference-binding-conflict")["createRequest"]!["fields"]![0]!;
+        var reference = r5["reference"]!.DeepClone().AsObject(); reference["required_trait_id"] = "eam.locatable";
+        var body = ReferenceBody(("binding", r5["binding"]), ("reference", reference)); var given = body.DeepClone().AsObject(); var changes = new List<RecordsDraftChange>(); var cut = Header(DraftWith(body), changes);
+        Button(cut, "Remove reference from field 4").Click();
+        AssertReported(Assert.Single(changes), WithField(given, 3, field => field.Remove("reference")), 1);
+        Assert.True(JsonNode.DeepEquals(r5["binding"], changes[0].Draft.Body["fields"]![3]!["binding"]), changes[0].Draft.Body.ToJsonString());
+        Assert.False(HasControl(cut, SiteTargetKind)); Assert.False(HasButton(cut, "Remove reference from field 4")); Assert.False(HasButton(cut, "Make field 4 a reference"));
+        Assert.True(JsonNode.DeepEquals(given, body), body.ToJsonString());
+    }
+
+    [Fact]
+    public void Revision4_a_new_reference_is_built_by_successive_edits_on_the_local_draft_one_change_per_edit()
+    {
+        var body = ReferenceBody(); var changes = new List<RecordsDraftChange>(); var cut = Header(DraftWith(body), changes, ClassOffer);
+        Button(cut, "Make field 3 a reference").Click();
+        Choose(cut, "Field 3 reference target kind", "Record type");
+        TargetTypeInput(cut, "Field 3 reference target type").Change("eam.space");
+        Choose(cut, "Field 3 reference cardinality", "many"); Choose(cut, "Field 3 reference on delete", "cascade"); Toggle(cut, "Field 3 reference is the parent edge");
+        string[] steps = ["{}", """{"target_type_id":""}""", """{"target_type_id":"eam.space"}""", """{"target_type_id":"eam.space","cardinality":"many"}""", """{"target_type_id":"eam.space","cardinality":"many","on_delete":"cascade"}""", """{"target_type_id":"eam.space","cardinality":"many","on_delete":"cascade","parent":true}"""];
+        Assert.Equal(steps.Length, changes.Count);
+        for (var step = 0; step < steps.Length; step++) AssertReported(changes[step], WithField(body, 2, field => field["reference"] = JsonNode.Parse(steps[step])), step + 1);
+    }
+
+    [Theory]
+    [InlineData("{}", "Not set")]
+    [InlineData("""{"target_type_id":"eam.space"}""", "Record type")]
+    [InlineData("""{"target_type_id":""}""", "Record type")]
+    [InlineData("""{"target_class_id":"eam.facility"}""", "Class")]
+    [InlineData("""{"target_class_id":""}""", "Class")]
+    [InlineData("""{"target_type_id":7}""", "Not set")]
+    [InlineData("""{"target_class_id":5}""", "Not set")]
+    [InlineData("""{"target_type_id":"eam.space","target_class_id":null}""", "Record type")]
+    public void Revision4_the_target_kind_offers_Record_type_Class_and_Not_set_and_shows_the_one_target_present(string targets, string shown)
+    {
+        var changes = new List<RecordsDraftChange>(); var cut = Header(DraftWith(ReferenceBody(("reference", SiteReference(targets)))), changes, ClassOffer);
+        Assert.Equal(["Class", "Not set", "Record type"], OptionTexts(cut, SiteTargetKind).Order(StringComparer.Ordinal).ToArray()); Assert.Equal(shown, SelectedText(cut, SiteTargetKind));
+        // One target kind shows only its own target control; both controls are for a reference carrying both targets. Not set (no string
+        // target member) shows an empty Record type target and no class control.
+        if (shown == "Record type") Assert.False(HasControl(cut, SiteTargetClass));
+        if (shown == "Class") Assert.False(HasControl(cut, SiteTargetType));
+        if (shown == "Not set") { Assert.Equal("", TargetTypeInput(cut).GetAttribute("value") ?? ""); Assert.False(HasControl(cut, SiteTargetClass)); }
+        Assert.Empty(changes);
+    }
+
+    [Theory]
+    [InlineData("Class", """{"target_type_id":"eam.space"}""", """{"target_class_id":""}""")]
+    [InlineData("Not set", """{"target_type_id":"eam.space"}""", "{}")]
+    [InlineData("Record type", """{"target_class_id":"eam.facility"}""", """{"target_type_id":""}""")]
+    [InlineData("Not set", """{"target_class_id":"eam.facility"}""", "{}")]
+    [InlineData("Record type", BothTargets, """{"target_type_id":"eam.space"}""")]
+    [InlineData("Class", BothTargets, """{"target_class_id":"eam.facility"}""")]
+    [InlineData("Not set", BothTargets, "{}")]
+    [InlineData("Record type", "{}", """{"target_type_id":""}""")]
+    [InlineData("Class", "{}", """{"target_class_id":""}""")]
+    [InlineData("Record type", """{"target_type_id":7}""", """{"target_type_id":""}""")]
+    [InlineData("Class", """{"target_class_id":5}""", """{"target_class_id":""}""")]
+    public void Revision4_choosing_a_target_kind_keeps_a_value_of_that_kind_and_removes_the_other_target_member(string kind, string targets, string expected)
+    {
+        var body = ReferenceBody(("reference", SiteReference(targets))); var changes = new List<RecordsDraftChange>(); var cut = Header(DraftWith(body), changes, ClassOffer);
+        Choose(cut, SiteTargetKind, kind);
+        AssertReported(Assert.Single(changes), WithSiteReference(body, reference => { reference.Remove("target_type_id"); reference.Remove("target_class_id"); foreach (var (member, value) in JsonNode.Parse(expected)!.AsObject()) reference[member] = value?.DeepClone(); }), 1);
+        Assert.Equal(kind, SelectedText(cut, SiteTargetKind));
+        // Not set shows an empty Record type target and no class control.
+        if (kind == "Not set") { Assert.Equal("", TargetTypeInput(cut).GetAttribute("value") ?? ""); Assert.False(HasControl(cut, SiteTargetClass)); }
+    }
+
+    [Theory]
+    [InlineData(BothTargets, "eam.space", "eam.facility")]
+    [InlineData("""{"target_type_id":"","target_class_id":""}""", "", "Not set")]
+    public void Revision4_target_members_both_present_as_strings_show_Both_targets_present_and_both_target_controls(string targets, string typeValue, string classText)
+    {
+        var body = ReferenceBody(("reference", SiteReference(targets))); var changes = new List<RecordsDraftChange>(); var cut = Header(DraftWith(body), changes, ClassOffer);
+        Assert.Equal("Both targets present (choose one)", SelectedText(cut, SiteTargetKind));
+        Assert.Equal(["Both targets present (choose one)", "Class", "Not set", "Record type"], OptionTexts(cut, SiteTargetKind).Order(StringComparer.Ordinal).ToArray());
+        Assert.Equal(typeValue, TargetTypeInput(cut).GetAttribute("value") ?? ""); Assert.Equal(classText, SelectedText(cut, SiteTargetClass)); Assert.Empty(changes);
+        Choose(cut, SiteTargetKind, "Class");
+        AssertReported(Assert.Single(changes), WithSiteReference(body, reference => reference.Remove("target_type_id")), 1);
+        Assert.Equal("Class", SelectedText(cut, SiteTargetKind)); Assert.False(HasControl(cut, SiteTargetType)); Assert.Equal(classText, SelectedText(cut, SiteTargetClass));
+    }
+
+    [Fact]
+    public void Revision4_choosing_Both_targets_present_reports_nothing_and_keeps_both_targets_and_both_target_controls()
+    {
+        var body = ReferenceBody(("reference", SiteReference(BothTargets))); var given = body.DeepClone(); var changes = new List<RecordsDraftChange>(); var cut = Header(DraftWith(body), changes, ClassOffer);
+        Choose(cut, SiteTargetKind, "Both targets present (choose one)");
+        Assert.Empty(changes);
+        Assert.Equal("Both targets present (choose one)", SelectedText(cut, SiteTargetKind)); Assert.Equal("eam.space", TargetTypeInput(cut).GetAttribute("value")); Assert.Equal("eam.facility", SelectedText(cut, SiteTargetClass));
+        Assert.True(JsonNode.DeepEquals(given, body), body.ToJsonString());
+    }
+
+    [Fact]
+    public void Revision4_the_Record_type_target_is_free_text_that_writes_target_type_id_exactly()
+    {
+        var body = ReferenceBody(("reference", SiteReference())); var changes = new List<RecordsDraftChange>(); var cut = Header(DraftWith(body), changes, ClassOffer);
+        Assert.Equal("Record type", SelectedText(cut, SiteTargetKind)); Assert.Equal("eam.space", TargetTypeInput(cut).GetAttribute("value")); Assert.False(HasControl(cut, SiteTargetClass));
+        TargetTypeInput(cut).Change("eam.building"); TargetTypeInput(cut).Change("");
+        Assert.Equal(2, changes.Count);
+        AssertReported(changes[0], WithSiteReference(body, reference => reference["target_type_id"] = "eam.building"), 1);
+        AssertReported(changes[1], WithSiteReference(body, reference => reference["target_type_id"] = ""), 2);
+        Assert.Equal("Record type", SelectedText(cut, SiteTargetKind));
+    }
+
+    [Fact]
+    public void Revision4_the_Class_target_is_chosen_only_from_host_class_options_and_Not_set_writes_an_empty_target_class_id()
+    {
+        var body = ReferenceBody(("reference", SiteReference("""{"target_class_id":""}"""))); var changes = new List<RecordsDraftChange>(); var cut = Header(DraftWith(body), changes, ClassOffer);
+        Assert.Equal(["Not set", "eam.equipment", "eam.facility"], OptionTexts(cut, SiteTargetClass)); Assert.Equal("Not set", SelectedText(cut, SiteTargetClass)); Assert.False(HasControl(cut, SiteTargetType)); Assert.Empty(changes);
+        Choose(cut, SiteTargetClass, "eam.facility"); Choose(cut, SiteTargetClass, "Not set");
+        Assert.Equal(2, changes.Count);
+        AssertReported(changes[0], WithSiteReference(body, reference => reference["target_class_id"] = "eam.facility"), 1);
+        AssertReported(changes[1], body, 2);
+        Assert.True(SiteReferenceOf(changes[1]).ContainsKey("target_class_id")); Assert.Equal("Class", SelectedText(cut, SiteTargetKind));
+    }
+
+    [Fact]
+    public void Revision4_a_current_class_target_the_host_does_not_offer_is_shown_as_not_offered_and_kept_and_no_class_options_offer_only_Not_set()
+    {
+        var body = ReferenceBody(("reference", SiteReference("""{"target_class_id":"eam.legacy"}"""))); var changes = new List<RecordsDraftChange>(); var cut = Header(DraftWith(body), changes, ClassOffer);
+        Assert.Equal(["Not set", "eam.equipment", "eam.facility", "eam.legacy (not offered)"], OptionTexts(cut, SiteTargetClass).Order(StringComparer.Ordinal).ToArray()); Assert.Equal("eam.legacy (not offered)", SelectedText(cut, SiteTargetClass));
+        Toggle(cut, SiteParent);
+        AssertReported(Assert.Single(changes), WithSiteReference(body, reference => reference["parent"] = true), 1);
+        Assert.Equal("eam.legacy (not offered)", SelectedText(cut, SiteTargetClass));
+        var second = new List<RecordsDraftChange>(); var empty = Header(DraftWith(ReferenceBody(("reference", SiteReference("""{"target_class_id":""}""")))), second);
+        Assert.Equal(["Not set"], OptionTexts(empty, SiteTargetClass)); Assert.Equal("Not set", SelectedText(empty, SiteTargetClass));
+        var third = new List<RecordsDraftChange>(); var current = Header(DraftWith(ReferenceBody(("reference", SiteReference("""{"target_class_id":"eam.facility"}""")))), third);
+        Assert.Equal(["Not set", "eam.facility (not offered)"], OptionTexts(current, SiteTargetClass).Order(StringComparer.Ordinal).ToArray()); Assert.Equal("eam.facility (not offered)", SelectedText(current, SiteTargetClass));
+        Assert.Empty(second); Assert.Empty(third);
+    }
+
+    [Fact]
+    public void Revision4_the_editor_never_selects_a_class_target_on_its_own_even_when_exactly_one_class_is_offered()
+    {
+        IReadOnlyList<RecordsClassOption> one = [new("eam.equipment")];
+        var first = new List<RecordsDraftChange>(); var empty = Header(DraftWith(ReferenceBody(("reference", SiteReference("""{"target_class_id":""}""")))), first, one);
+        Assert.Equal("Not set", SelectedText(empty, SiteTargetClass)); Assert.Empty(first);
+        var body = ReferenceBody(("reference", SiteReference())); var changes = new List<RecordsDraftChange>(); var cut = Header(DraftWith(body), changes, one);
+        Choose(cut, SiteTargetKind, "Class");
+        AssertReported(Assert.Single(changes), WithSiteReference(body, reference => { reference.Remove("target_type_id"); reference["target_class_id"] = ""; }), 1);
+        Assert.Equal("Not set", SelectedText(cut, SiteTargetClass));
+    }
+
+    [Fact]
+    public void Revision4_the_parent_checkbox_writes_parent_true_and_unchecking_writes_parent_false_without_removing_the_member()
+    {
+        var body = ReferenceBody(("reference", SiteReference())); var changes = new List<RecordsDraftChange>(); var cut = Header(DraftWith(body), changes);
+        Assert.False(IsChecked(cut, SiteParent));
+        Toggle(cut, SiteParent); Assert.True(IsChecked(cut, SiteParent));
+        Toggle(cut, SiteParent);
+        Assert.Equal(2, changes.Count);
+        AssertReported(changes[0], WithSiteReference(body, reference => reference["parent"] = true), 1);
+        AssertReported(changes[1], body, 2);
+        Assert.Equal(JsonValueKind.False, SiteReferenceOf(changes[1])["parent"]!.GetValueKind());
+        // A reference with no parent member yet: unchecking still writes false, the canonical form, rather than removing it.
+        Button(cut, "Make field 3 a reference").Click(); Toggle(cut, "Field 3 reference is the parent edge"); Toggle(cut, "Field 3 reference is the parent edge");
+        Assert.Equal(5, changes.Count);
+        AssertReported(changes[2], WithField(body, 2, field => field["reference"] = new JsonObject()), 3);
+        AssertReported(changes[3], WithField(body, 2, field => field["reference"] = JsonNode.Parse("""{"parent":true}""")), 4);
+        AssertReported(changes[4], WithField(body, 2, field => field["reference"] = JsonNode.Parse("""{"parent":false}""")), 5);
+    }
+
+    [Fact]
+    public void Revision4_a_host_reference_with_parent_true_shows_the_checkbox_checked_and_unchecking_writes_parent_false()
+    {
+        var reference = SiteReference(); reference["parent"] = true;
+        var body = ReferenceBody(("reference", reference)); var changes = new List<RecordsDraftChange>(); var cut = Header(DraftWith(body), changes);
+        Assert.True(IsChecked(cut, SiteParent)); Assert.Empty(changes);
+        Toggle(cut, SiteParent);
+        AssertReported(Assert.Single(changes), WithSiteReference(body, member => member["parent"] = false), 1);
+        Assert.False(IsChecked(cut, SiteParent));
+    }
+
+    [Theory]
+    [InlineData("\"true\"")]
+    [InlineData("1")]
+    public void Revision4_a_non_boolean_parent_shows_the_checkbox_unchecked_and_checking_writes_parent_true(string current)
+    {
+        var reference = SiteReference(); reference["parent"] = JsonNode.Parse(current);
+        var body = ReferenceBody(("reference", reference)); var changes = new List<RecordsDraftChange>(); var cut = Header(DraftWith(body), changes);
+        Assert.False(IsChecked(cut, SiteParent)); Assert.Empty(changes);
+        Toggle(cut, SiteParent);
+        AssertReported(Assert.Single(changes), WithSiteReference(body, member => member["parent"] = true), 1);
+        Assert.True(IsChecked(cut, SiteParent));
+    }
+
+    [Theory]
+    [InlineData("Target kind Record type")]
+    [InlineData("Target kind Class")]
+    [InlineData("Target kind Not set")]
+    [InlineData("Target type")]
+    [InlineData("Target class")]
+    [InlineData("Target class Not set")]
+    [InlineData("Cardinality")]
+    [InlineData("On delete")]
+    [InlineData("Parent")]
+    public void Revision4_the_edit_changes_only_its_own_reference_members_carries_pin_and_required_trait_id_unchanged_and_never_mutates_the_given_value(string edit)
+    {
+        // Both targets are present, so every reference control is shown at once.
+        var body = ReferenceBody(("reference", SiteReference(BothTargets))); var given = body.DeepClone(); var changes = new List<RecordsDraftChange>(); var cut = Header(DraftWith(body), changes, ClassOffer);
+        var fresh = ReferenceBody(("reference", SiteReference(BothTargets)));
+        JsonObject expected;
+        switch (edit)
+        {
+            case "Target kind Record type": Choose(cut, SiteTargetKind, "Record type"); expected = WithSiteReference(fresh, reference => reference.Remove("target_class_id")); break;
+            case "Target kind Class": Choose(cut, SiteTargetKind, "Class"); expected = WithSiteReference(fresh, reference => reference.Remove("target_type_id")); break;
+            case "Target kind Not set": Choose(cut, SiteTargetKind, "Not set"); expected = WithSiteReference(fresh, reference => { reference.Remove("target_type_id"); reference.Remove("target_class_id"); }); break;
+            case "Target type": TargetTypeInput(cut).Change("eam.building"); expected = WithSiteReference(fresh, reference => reference["target_type_id"] = "eam.building"); break;
+            case "Target class": Choose(cut, SiteTargetClass, "eam.equipment"); expected = WithSiteReference(fresh, reference => reference["target_class_id"] = "eam.equipment"); break;
+            case "Target class Not set": Choose(cut, SiteTargetClass, "Not set"); expected = WithSiteReference(fresh, reference => reference["target_class_id"] = ""); break;
+            case "Cardinality": Choose(cut, SiteCardinality, "many"); expected = WithSiteReference(fresh, reference => reference["cardinality"] = "many"); break;
+            case "On delete": Choose(cut, SiteOnDelete, "orphan"); expected = WithSiteReference(fresh, reference => reference["on_delete"] = "orphan"); break;
+            case "Parent": Toggle(cut, SiteParent); expected = WithSiteReference(fresh, reference => reference["parent"] = true); break;
+            default: throw new ArgumentOutOfRangeException(nameof(edit));
+        }
+        AssertReported(Assert.Single(changes), expected, 1);
+        Assert.True(JsonNode.DeepEquals(given, body), body.ToJsonString());
+    }
+
+    // A malformed host member must still render, show as absent, and never be spread into the new reference.
+    [Theory]
+    [InlineData("null")]
+    [InlineData("\"ab\"")]
+    [InlineData("[1]")]
+    public void Revision4_a_reference_that_is_not_an_object_is_treated_as_absent_so_Make_field_N_a_reference_is_offered_only_without_a_binding_and_never_spreads_it(string malformed)
+    {
+        // Field 1 is bound and field 4 (site) has no binding; both carry the malformed reference.
+        var body = WithField(ReferenceBody(("reference", JsonNode.Parse(malformed))), 0, field => field["reference"] = JsonNode.Parse(malformed)); var changes = new List<RecordsDraftChange>(); var cut = Header(DraftWith(body), changes);
+        Assert.False(HasControl(cut, "Field 1 reference target kind")); Assert.False(HasControl(cut, SiteTargetKind));
+        Assert.False(HasButton(cut, "Make field 1 a reference")); Assert.False(HasButton(cut, "Remove reference from field 1")); Assert.False(HasButton(cut, "Remove reference from field 4"));
+        Assert.Empty(changes);
+        Button(cut, "Make field 4 a reference").Click();
+        AssertReported(Assert.Single(changes), WithField(body, 3, field => field["reference"] = new JsonObject()), 1);
+    }
+
+    [Theory]
+    [InlineData("null")]
+    [InlineData("\"text\"")]
+    [InlineData("[1]")]
+    public void Revision4_a_binding_that_is_not_an_object_is_treated_as_absent_so_Make_field_N_a_reference_is_offered_and_the_binding_is_carried_unchanged(string malformed)
+    {
+        var body = ReferenceBody(("binding", JsonNode.Parse(malformed))); var changes = new List<RecordsDraftChange>(); var cut = Header(DraftWith(body), changes);
+        Assert.False(HasControl(cut, "Field 4 kind")); Assert.Equal([UnboundNote], FieldNotes(cut, 4)); Assert.Empty(changes);
+        Assert.True(HasButton(cut, "Make field 4 a reference"));
+        Button(cut, "Make field 4 a reference").Click();
+        AssertReported(Assert.Single(changes), WithField(body, 3, field => field["reference"] = new JsonObject()), 1);
+        Assert.Equal("Not set", SelectedText(cut, SiteTargetKind));
+    }
+
+    [Theory]
+    [InlineData("""{"kind":"text"}""", false)]
+    [InlineData("""{"kind":[1]}""", false)]
+    [InlineData("""{"kind":{"kind_id":"text","version":"1.0.0","parameters":"ab"}}""", true)]
+    public void Revision4_a_binding_with_a_kind_or_parameters_member_that_is_not_an_object_shows_no_control_for_that_member_stays_bound_and_an_unrelated_edit_carries_the_binding_unchanged(string binding, bool kindShown)
+    {
+        var body = ReferenceBody(("binding", JsonNode.Parse(binding))); var given = body.DeepClone(); var changes = new List<RecordsDraftChange>(); var cut = Header(DraftWith(body), changes);
+        Assert.Equal(kindShown, HasControl(cut, "Field 4 kind")); Assert.Empty(cut.FindAll("[aria-label^='Field 4 parameter']"));
+        // The binding itself is an object, so the field is bound: no unbound note and no Make field N a reference.
+        Assert.Empty(FieldNotes(cut, 4)); Assert.False(HasButton(cut, "Make field 4 a reference")); Assert.Empty(changes);
+        cut.Find("input[aria-label='Field 4 display name']").Change("Site local");
+        AssertReported(Assert.Single(changes), WithField(body, 3, field => field["display_name"] = "Site local"), 1);
+        Assert.True(JsonNode.DeepEquals(given, body), body.ToJsonString());
+    }
+
+    [Fact]
+    public void Revision4_a_fields_entry_that_is_not_an_object_is_not_shown_and_is_carried_unchanged_in_place()
+    {
+        var body = ReferenceBody(); JsonNode?[] malformed = ["oops", 7, null];
+        foreach (var node in malformed) body["fields"]!.AsArray().Add(node);
+        var given = body.DeepClone(); var changes = new List<RecordsDraftChange>(); var cut = Header(DraftWith(body), changes);
+        Assert.Equal("site", cut.Find("input[aria-label='Field 4 key']").GetAttribute("value"));
+        Assert.All(new[] { 5, 6, 7 }, n => { Assert.False(HasControl(cut, $"Field {n} key"), $"{n}"); Assert.False(HasButton(cut, $"Make field {n} a reference"), $"{n}"); Assert.False(HasButton(cut, $"Remove field {n}"), $"{n}"); });
+        Assert.Equal(["None", "asset_tag", "quantity", "notes", "site"], OptionTexts(cut, "Retention clock field")); Assert.Empty(changes);
+        cut.Find("input[aria-label='Field 1 display name']").Change("Asset tag local");
+        AssertReported(Assert.Single(changes), WithField(body, 0, field => field["display_name"] = "Asset tag local"), 1);
+        Assert.Equal(["\"oops\"", "7", "null"], changes[0].Draft.Body["fields"]!.AsArray().Skip(4).Select(entry => entry is null ? "null" : entry.ToJsonString()).ToArray());
+        Assert.True(JsonNode.DeepEquals(given, body), body.ToJsonString());
+    }
+
+    [Fact]
+    public void Revision4_a_non_string_cardinality_or_on_delete_shows_as_not_set_and_is_kept_unless_edited()
+    {
+        var reference = SiteReference(); reference["cardinality"] = 1; reference["on_delete"] = null;
+        var body = ReferenceBody(("reference", reference)); var changes = new List<RecordsDraftChange>(); var cut = Header(DraftWith(body), changes);
+        Assert.Equal("Not set", SelectedText(cut, SiteCardinality)); Assert.Equal("Not set", SelectedText(cut, SiteOnDelete)); Assert.Empty(changes);
+        Toggle(cut, SiteParent); Choose(cut, SiteCardinality, "many");
+        Assert.Equal(2, changes.Count);
+        AssertReported(changes[0], WithSiteReference(body, member => member["parent"] = true), 1);
+        AssertReported(changes[1], WithSiteReference(body, member => { member["parent"] = true; member["cardinality"] = "many"; }), 2);
+        Assert.True(SiteReferenceOf(changes[1]).ContainsKey("on_delete")); Assert.Equal("Not set", SelectedText(cut, SiteOnDelete));
+    }
+
+    [Theory]
+    [InlineData("""{"target_type_id":7}""")]
+    [InlineData("""{"target_class_id":5}""")]
+    public void Revision4_a_non_string_target_member_shows_as_Not_set_and_is_kept_by_an_unrelated_reference_edit(string targets)
+    {
+        var body = ReferenceBody(("reference", SiteReference(targets))); var changes = new List<RecordsDraftChange>(); var cut = Header(DraftWith(body), changes, ClassOffer);
+        Choose(cut, SiteCardinality, "many");
+        AssertReported(Assert.Single(changes), WithSiteReference(body, reference => reference["cardinality"] = "many"), 1);
+        Assert.Equal("Not set", SelectedText(cut, SiteTargetKind)); Assert.Equal("", TargetTypeInput(cut).GetAttribute("value") ?? ""); Assert.False(HasControl(cut, SiteTargetClass));
+    }
+
+    [Theory]
+    [InlineData("one", "many")]
+    [InlineData("many", "one")]
+    public void Revision4_Cardinality_writes_the_producer_spelling_exactly(string spelling, string current)
+    {
+        var reference = SiteReference(); reference["cardinality"] = current;
+        var body = ReferenceBody(("reference", reference)); var changes = new List<RecordsDraftChange>(); var cut = Header(DraftWith(body), changes);
+        Assert.Equal(current, SelectedText(cut, SiteCardinality));
+        Choose(cut, SiteCardinality, spelling);
+        AssertReported(Assert.Single(changes), WithSiteReference(body, member => member["cardinality"] = spelling), 1);
+    }
+
+    [Theory]
+    [InlineData("block", "cascade")]
+    [InlineData("orphan", "block")]
+    [InlineData("cascade", "orphan")]
+    public void Revision4_On_delete_writes_the_producer_spelling_exactly(string spelling, string current)
+    {
+        var reference = SiteReference(); reference["on_delete"] = current;
+        var body = ReferenceBody(("reference", reference)); var changes = new List<RecordsDraftChange>(); var cut = Header(DraftWith(body), changes);
+        Assert.Equal(current, SelectedText(cut, SiteOnDelete));
+        Choose(cut, SiteOnDelete, spelling);
+        AssertReported(Assert.Single(changes), WithSiteReference(body, member => member["on_delete"] = spelling), 1);
+    }
+
+    [Fact]
+    public void Revision4_a_revision_1_reference_on_a_bound_field_keeps_its_controls_and_edits_and_is_not_offered_Make_field_N_a_reference()
+    {
+        // The R5 field: a revision 1 reference beside a binding (the producer's binding conflict, carried as given), plus a carried trait.
+        var r5 = RefusalCase("R5-reference-binding-conflict")["createRequest"]!["fields"]![0]!;
+        var reference = r5["reference"]!.DeepClone().AsObject(); reference["required_trait_id"] = "eam.locatable";
+        var body = ReferenceBody(("binding", r5["binding"]), ("reference", reference)); var changes = new List<RecordsDraftChange>(); var cut = Header(DraftWith(body), changes);
+        Assert.False(HasButton(cut, "Make field 4 a reference")); Assert.True(HasButton(cut, "Remove reference from field 4"));
+        Assert.Equal("Record type", SelectedText(cut, SiteTargetKind)); Assert.Equal("eam.asset-class", TargetTypeInput(cut).GetAttribute("value")); Assert.Equal("one", SelectedText(cut, SiteCardinality)); Assert.Equal("block", SelectedText(cut, SiteOnDelete));
+        TargetTypeInput(cut).Change("eam.space"); Choose(cut, SiteCardinality, "many"); Choose(cut, SiteOnDelete, "orphan");
+        Assert.Equal(3, changes.Count);
+        AssertReported(changes[0], WithSiteReference(body, member => member["target_type_id"] = "eam.space"), 1);
+        AssertReported(changes[1], WithSiteReference(body, member => { member["target_type_id"] = "eam.space"; member["cardinality"] = "many"; }), 2);
+        AssertReported(changes[2], WithSiteReference(body, member => { member["target_type_id"] = "eam.space"; member["cardinality"] = "many"; member["on_delete"] = "orphan"; }), 3);
+    }
+
+    [Fact]
+    public void Revision4_read_only_disables_every_reference_control_and_reports_no_change()
+    {
+        var changes = new List<RecordsDraftChange>(); var cut = Header(DraftWith(ReferenceBody(("reference", SiteReference(BothTargets)))), changes, ClassOffer, readOnly: true);
+        Assert.All(new[] { SiteTargetKind, SiteTargetClass, SiteCardinality, SiteOnDelete }, name => Assert.True(IsDisabled(HeaderSelect(cut, name)), name));
+        Assert.True(IsDisabled(TargetTypeInput(cut))); Assert.True(IsDisabled(Checkbox(cut, SiteParent)));
+        Assert.All(new[] { "Make field 3 a reference", "Remove reference from field 4" }, text => Assert.True(IsDisabled(Button(cut, text)), text));
+        Choose(cut, SiteTargetKind, "Class"); Choose(cut, SiteTargetClass, "eam.equipment"); Choose(cut, SiteCardinality, "many"); Choose(cut, SiteOnDelete, "cascade"); TargetTypeInput(cut).Change("eam.building"); Toggle(cut, SiteParent);
+        Button(cut, "Make field 3 a reference").Click(); Button(cut, "Remove reference from field 4").Click();
+        Assert.Empty(changes);
+        Assert.Equal("Both targets present (choose one)", SelectedText(cut, SiteTargetKind)); Assert.Equal("eam.space", TargetTypeInput(cut).GetAttribute("value")); Assert.Equal("eam.facility", SelectedText(cut, SiteTargetClass));
+        Assert.False(IsChecked(cut, SiteParent)); Assert.True(HasButton(cut, "Make field 3 a reference"));
+    }
 }
