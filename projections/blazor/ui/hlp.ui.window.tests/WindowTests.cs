@@ -38,6 +38,21 @@ public sealed class WindowTests : BunitContext
         Assert.Equal(1, closed);
     }
 
+    [Fact]
+    public void ActionKeysAndDoubleClicksStayInsideTheActions()
+    {
+        var moves = new List<WindowPosition>();
+        var states = new List<HarborlineWindowState>();
+        var closed = 0;
+        var cut = RenderWindow(p => p.Add(x => x.Moved, value => moves.Add(value)).Add(x => x.StateChanged, value => states.Add(value)).Add(x => x.Closed, () => closed++));
+        cut.Find("button[aria-label='Close']").KeyDown(new KeyboardEventArgs { Key = "ArrowRight" });
+        cut.Find("button[aria-label='Close']").DoubleClick();
+        Assert.Empty(moves);
+        Assert.Empty(states);
+        cut.Find("button[aria-label='Close']").KeyDown(new KeyboardEventArgs { Key = "Escape" });
+        Assert.Equal(1, closed);
+    }
+
     // T-1123: the movable header is a named group and the keyboard resize handles are one per axis, height then
     // width, in both lanes. The pointer corner is not a tab stop. The caller supplies every label; nothing falls back.
     [Fact]

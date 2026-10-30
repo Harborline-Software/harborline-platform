@@ -207,8 +207,9 @@ export function Window({
       updateSize(resizeWindow(resize.origin, resize.edge, { x: event.clientX - resize.startX, y: event.clientY - resize.startY }, { width: minWidth, height: minHeight }))
     }
   }
+  // Only the title bar itself is the move target; arrow keys on a control inside its actions leave the window in place.
   const moveByKey = (event: React.KeyboardEvent<HTMLElement>) => {
-    if (!draggable || state !== 'default' || !event.key.startsWith('Arrow')) return
+    if (event.target !== event.currentTarget || !draggable || state !== 'default' || !event.key.startsWith('Arrow')) return
     const step = event.shiftKey ? 50 : 10
     const delta = {
       x: event.key === 'ArrowLeft' ? -step : event.key === 'ArrowRight' ? step : 0,

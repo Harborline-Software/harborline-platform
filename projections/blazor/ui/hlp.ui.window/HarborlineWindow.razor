@@ -20,7 +20,7 @@
             tabindex="@(Movable ? "0" : null)"
             @onkeydown="HandleTitleKeyAsync" @ondblclick="ToggleMaximizeFromTitleAsync">
         <div id="@TitleId" class="hl-window__title">@Title</div>
-        <div class="hl-window__actions" @onpointerdown:stopPropagation="true">
+        <div class="hl-window__actions" @onpointerdown:stopPropagation="true" @onkeydown="NoteActionKey" @ondblclick:stopPropagation="true">
             @ActionsBar
             @if (Minimizable)
             {
@@ -96,6 +96,7 @@
     private WindowPosition position = new(80, 80);
     private WindowSize size = new(400, 300);
     private bool initialized;
+    private bool keyFromActions;
     private ElementReference window;
     private ElementReference titleBar;
     private ElementReference portal;
@@ -156,8 +157,12 @@
         if (args.Key != "Escape") return;
         if (EffectiveState == HarborlineWindowState.Maximized) await ChangeStateAsync(HarborlineWindowState.Default); else await CloseAsync();
     }
+    // A key pressed on an action still bubbles, so Escape and the modal Tab trap see it, but the title bar ignores it
+    // and the window does not move. Double clicks stop at the actions, so an action never maximizes the window.
+    private void NoteActionKey() => keyFromActions = true;
     private async Task HandleTitleKeyAsync(KeyboardEventArgs args)
     {
+        if (keyFromActions) { keyFromActions = false; return; }
         if (!Draggable || EffectiveState != HarborlineWindowState.Default || args.Key is not ("ArrowLeft" or "ArrowRight" or "ArrowUp" or "ArrowDown")) return;
         var step = args.ShiftKey ? 50 : 10;
         var top = position.Top + (args.Key == "ArrowDown" ? step : args.Key == "ArrowUp" ? -step : 0);

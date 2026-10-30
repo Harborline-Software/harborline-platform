@@ -5,7 +5,7 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 
-import { Window, type WindowLabels } from '../Window'
+import { Window, WindowActionsBar, type WindowLabels } from '../Window'
 import * as publicSurface from '../index'
 import { qualityCases } from './fixtures'
 
@@ -58,6 +58,16 @@ describe('Window React projection', () => {
   })
 
   // A title that renders no text does not name the dialog, so the caller's window label must.
+  it('ignores arrow keys pressed on a title-bar action', () => {
+    const onMove = vi.fn()
+    render(<Window labels={allLabels} onMove={onMove} title="Editor"><WindowActionsBar><button type="button">Pin</button></WindowActionsBar></Window>)
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Pin' }), { key: 'ArrowRight' })
+    fireEvent.keyDown(screen.getByRole('button', { name: allLabels.close }), { key: 'ArrowDown' })
+    expect(onMove).not.toHaveBeenCalled()
+    fireEvent.keyDown(screen.getByTestId('window-title-bar'), { key: 'ArrowRight' })
+    expect(onMove).toHaveBeenCalledTimes(1)
+  })
+
   it('keeps a fragment with text as the title', () => {
     render(<Window labels={allLabels} title={<>Editor</>} />)
     expect(screen.getByRole('dialog', { name: 'Editor' })).toBeInTheDocument()
