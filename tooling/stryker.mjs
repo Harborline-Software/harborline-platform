@@ -6,11 +6,12 @@
 //                                    reporter, low = max(60, break), high = max(80, break), break >= the project's baseline in
 //                                    tooling/stryker-baselines.json); every source project a test references is
 //                                    mutated by some config or excluded. No silent gaps.
-//   node tooling/stryker.mjs run     PR mode: mutate in full each project whose .cs/.razor source differs from origin/main;
-//                                    fail when its score is below max(baseline, configured break) or 0 mutants were tested;
+//   node tooling/stryker.mjs run     PR mode: for each project whose .cs/.razor source differs from origin/main, mutate
+//                                    only the changed files that still exist; fail when their score is below
+//                                    max(baseline, configured break), or when they have mutants and none was tested;
 //                                    list survivors on changed lines as feedback.
-//   node tooling/stryker.mjs full    scheduled mode: every mutant of every project; fail on 0 tested or a score
-//                                    below the project's recorded baseline.
+//   node tooling/stryker.mjs full    weekly/manual mode: every mutant of every project; fail on 0 tested or a score
+//                                    below the project's recorded baseline. This is the whole-project floor.
 //   node tooling/stryker.mjs baseline   a full run that records each project's baseline and sets its break.
 // Any of them takes a test-project path fragment to select projects, and `-- <args>` passed on to Stryker.
 // Stryker's exit code is not evidence: 5.0.0 exits 0 having mutated nothing (T-720 spike, 2026-09-24), so every mode
@@ -258,9 +259,15 @@ export async function mutateProject(test, changed, strykerArgs, command = ['dotn
   const diagnostics = path.join(output, 'diagnostics')
   mkdirSync(diagnostics)
   const razor = read(target).includes('Microsoft.NET.Sdk.Razor') ? razorRun(target, changed) : undefined
+  // An explicit mutate list, never Stryker's own `since`: the list is exactly the changed files the caller chose.
+  const mutate = razor?.mutate ?? changed?.filter(file => file.endsWith('.cs')).map(file => `**/${path.posix.basename(file)}`)
+  const razorPatterns = razor ? razor.mutate.filter(pattern => pattern.includes('/stryker-razor/')).length : 0
+  // Stryker reads an empty mutate list as "mutate everything", so a changed-file run with no pattern never starts it.
+  if (changed && !mutate.length) return {outcome: {kind: 'completed'}, status: 0, signal: null, empty: true,
+    counts: reportCounts({files: {}}), report: {files: {}}, output, razor: Boolean(razor), razorPatterns}
   const override = {
-    ...(razor || !changed ? {since: {enabled: false}} : {}),
-    ...(razor ? {mutate: razor.mutate} : {}),
+    since: {enabled: false},
+    ...(mutate ? {mutate} : {}),
     thresholds: {...config.thresholds, break: 0}}
   const configFile = path.join(output, 'stryker-config.json')
   writeFileSync(configFile, JSON.stringify({'stryker-config': {...config, ...override}}, null, 2))
@@ -349,7 +356,7 @@ export async function mutateProject(test, changed, strykerArgs, command = ['dotn
   const result = () => ({outcome: attempt.failure ?? {kind: 'completed'}, status: attempt.status, signal: attempt.signal,
     pid: attempt.pid, ...(attempt.cleanupUnavailable ? {cleanupUnavailable: true, descendantsUnknown: true} : {}),
     ...(attempt.observerFailed ? {observerFailed: true} : {}),
-    counts, report, reportPath, output, razor: Boolean(razor)})
+    counts, report, reportPath, output, razor: Boolean(razor), razorPatterns})
   const terminal = () => {
     if (attempt.terminal) return
     attempt.terminal = true
@@ -545,11 +552,17 @@ export function scoreVerdict(report, floor) {
   return {ok: true, counts}
 }
 
-// PR mode (owner ruling 2026-09-30): each project whose source changed is mutated in full (since off, so the score is the
-// project's own, comparable with its break) and fails when that score is below max(baseline, configured break). Survivors
-// on changed lines are still listed as review feedback. The Stryker.NET `since` score covers changed mutants only, which
-// is noisy and gameable (a one-line change hides a project's regression); its incremental mode needs a stored baseline report.
-export async function run(repo, only, strykerArgs, mutate = mutateProject, sourceChanges = changedSourceFiles) {
+// The changed files a PR run mutates: production .cs/.razor that still exist. A deleted file has nothing left to mutate,
+// and a project-file edit has no mutants of its own; both stay in selection, and the weekly full run covers them.
+export const mutableChanges = (changed, exists = file => existsSync(path.join(root, file))) =>
+  changed.filter(file => /\.(cs|razor)$/.test(file) && exists(file))
+
+// PR mode (owner, 2026-10-30, replacing the 2026-09-30 whole-project PR run): each project whose source changed mutates
+// only its changed files, whole files rather than changed lines, and fails when their score is below the project's
+// max(baseline, configured break). A changed file is held to the same floor as its project. The whole-project score,
+// which catches a regression a one-file run cannot see, is the weekly full run's job. The Blazor library's 25,539
+// mutants could not finish within a hosted runner's job limit, so a whole-project PR run never scored it.
+export async function run(repo, only, strykerArgs, mutate = mutateProject, sourceChanges = changedSourceFiles, mutable = mutableChanges) {
   let failed = 0
   for (const test of selected(repo, only)) {
     const target = targetOf(test, read), targetText = read(target)
@@ -558,8 +571,13 @@ export async function run(repo, only, strykerArgs, mutate = mutateProject, sourc
       if (!await summarize(`- ${test}: skipped; no project-file or production .cs${targetText.includes('Microsoft.NET.Sdk.Razor') ? '/.razor' : ''} change since origin/main (test-only changes do not select a project under PR #236).`)) return failed || 1
       continue
     }
-    if (!await summarize(`- ${test}: selected for full-project mutation; changed source: ${changed.map(file => `\`${file}\``).join(', ')}.`)) return failed || 1
-    const result = await mutate(test, undefined, strykerArgs)
+    const files = mutable(changed)
+    if (!files.length) {
+      if (!await summarize(`- ${test}: nothing to mutate; the change is only deletions or the project file (${changed.map(file => `\`${file}\``).join(', ')}). The weekly full run holds the whole project.`)) return failed || 1
+      continue
+    }
+    if (!await summarize(`- ${test}: mutating the changed files only: ${files.map(file => `\`${file}\``).join(', ')}.`)) return failed || 1
+    const result = await mutate(test, files, strykerArgs)
     if (result.signal) return {signal: result.signal}
     if (result.observerFailed || result.cleanupUnavailable) return result.status > 0 ? result.status : 1
     if (result.outcome.kind === 'failed') {
@@ -567,20 +585,26 @@ export async function run(repo, only, strykerArgs, mutate = mutateProject, sourc
       if (!await summarize(`- ${test}: **FAIL**, ${JSON.stringify(result.outcome)}`)) return failed
       continue
     }
-    const {report, razor: isRazor} = result
-    const floor = fullModeBreak(repo.baselines[test], configOf(test, read)), verdict = scoreVerdict(report, floor)
-    const razorMissing = isRazor && !razorTested(report)
+    const {report} = result
+    const floor = fullModeBreak(repo.baselines[test], configOf(test, read))
+    if (report && !reportCounts(report).total) {
+      if (!await summarize(`- ${test}: ${result.empty ? 'no changed file gave Stryker anything to mutate' : 'Stryker created no mutant in the changed files'}; there is no logic in them to score.`)) return failed || 1
+      continue
+    }
+    const verdict = scoreVerdict(report, floor)
+    // Ruling 91, scoped to the run: when a changed .razor gave Stryker spans to mutate, some Razor mutant must be tested.
+    const razorMissing = result.razorPatterns > 0 && !razorTested(report)
     const survivors = report ? survivorsOnChangedLines(report, changedLines(git('diff', '-U0', 'origin/main', '--', ...changed).join('\n'))) : []
     if (!verdict.ok || razorMissing) failed ||= 1
-    if (!await summarize([`### ${test}`, '', !verdict.ok ? `**FAIL**: ${verdict.reason}.` : razorMissing ? '**FAIL**: Razor project but 0 Razor mutants tested.'
-      : `${verdict.counts.tested} mutants tested, score ${verdict.counts.score} %, break ${floor}.`, '',
+    if (!await summarize([`### ${test}`, '', !verdict.ok ? `**FAIL**: ${verdict.reason}.` : razorMissing ? '**FAIL**: a changed .razor had code to mutate but 0 Razor mutants were tested.'
+      : `${verdict.counts.tested} mutants tested in the changed files, score ${verdict.counts.score} %, break ${floor}.`, '',
       survivors.length ? '| file | line | status | mutator | replacement |\n|---|---|---|---|---|' : 'No surviving or uncovered mutant on a changed line.',
       ...survivors.map(s => `| ${s.file} | ${s.line} | ${s.status} | ${s.mutator} | \`${String(s.replacement ?? '').replaceAll('|', '\\|').replaceAll('\n', ' ').slice(0, 80)}\` |`)].join('\n'))) return failed || 1
   }
   return failed
 }
 
-// Full mode (the scheduled run on main): every mutant of every selected project; fail on 0 tested or a score below
+// Full mode (the weekly scheduled run on main): every mutant of every selected project; fail on 0 tested or a score below
 // the project's recorded baseline. `record` measures instead of judging and writes the baseline and the config's break.
 export async function full(repo, only, strykerArgs, record, mutate = mutateProject) {
   let failed = 0

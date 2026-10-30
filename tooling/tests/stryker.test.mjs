@@ -10,8 +10,8 @@ import {setTimeout as delay} from 'node:timers/promises'
 import {killProcessTreeSync} from '../resolve-command.mjs'
 import {tmpdir} from 'node:os'
 
-import {changedLines, changedSourceFiles, configProblems, fullModeBreak, isTestProject, plainRazor, razorTested, reportCounts, repository, sourceDirectories,
-  scoreVerdict, survivorsOnChangedLines, thresholdsFor} from '../stryker.mjs'
+import {changedLines, changedSourceFiles, configProblems, fullModeBreak, isTestProject, mutableChanges, plainRazor, razorTested, reportCounts, repository, run,
+  sourceDirectories, scoreVerdict, survivorsOnChangedLines, thresholdsFor} from '../stryker.mjs'
 
 const repoRoot = path.resolve('stryker-fixture-repo')
 const diagnosticTarget = 'projections/dotnet/blocks/hlp.blocks.builder-definitions.tests/Harborline.Blocks.BuilderDefinitions.Tests.csproj'
@@ -855,4 +855,51 @@ test('a Razor report with no tested mutant in a .razor span is caught however ma
   // Stryker writes Windows paths with backslashes; the check normalizes them.
   const withRazor = {files: {...csOnly.files, 'C:\\r\\ui\\a\\obj\\Debug\\net10.0\\stryker-razor\\G\\X_razor.cs': {mutants: [{status: 'Killed'}, {status: 'Ignored'}]}}}
   assert.equal(razorTested(withRazor), 1)
+})
+
+// Changed-files PR mode (owner, 2026-10-30). One real configured project (break 70), a stubbed Stryker and stubbed selection.
+const changedFilesProject = 'hlp.blocks.activity-timeline.tests'
+const killedOf = (killed, total, file = 'p/lib/A.cs') => ({files: {[file]: {mutants: Array.from({length: total}, (_, i) => ({status: i < killed ? 'Killed' : 'Survived'}))}}})
+async function changedFilesRun(changed, result) {
+  const calls = []
+  const outcome = await run(repository(), changedFilesProject, [], async (test, files) => {
+    calls.push(files)
+    return {outcome: {kind: 'completed'}, status: 0, signal: null, razorPatterns: 0, ...result}
+  }, () => changed, files => files.filter(file => !file.includes('Gone')).filter(file => /\.(cs|razor)$/.test(file)))
+  return {outcome, calls}
+}
+
+test('changed-files PR mode mutates only the changed source files that still exist', () => {
+  const exists = file => file !== 'p/lib/Gone.cs'
+  assert.deepEqual(mutableChanges(['p/lib/A.cs', 'p/lib/Gone.cs', 'p/lib/Lib.csproj', 'p/lib/View.razor'], exists), ['p/lib/A.cs', 'p/lib/View.razor'])
+  assert.deepEqual(mutableChanges(['p/lib/Lib.csproj'], exists), [])
+})
+
+test('changed-files PR mode passes the changed files to Stryker and holds them to the project break', async () => {
+  const passing = await changedFilesRun(['p/lib/A.cs', 'p/lib/Gone.cs', 'p/lib/Lib.csproj'], {report: killedOf(70, 100)})
+  assert.equal(passing.outcome, 0)
+  assert.deepEqual(passing.calls, [['p/lib/A.cs']])
+  const failing = await changedFilesRun(['p/lib/A.cs'], {report: killedOf(69, 100)})
+  assert.equal(failing.outcome, 1)
+})
+
+test('changed-files PR mode skips a project-file-only or deletion-only change without starting Stryker', async () => {
+  const {outcome, calls} = await changedFilesRun(['p/lib/Gone.cs', 'p/lib/Lib.csproj'], {report: killedOf(0, 100)})
+  assert.equal(outcome, 0)
+  assert.deepEqual(calls, [])
+})
+
+test('changed-files PR mode passes changed files with no mutant, but not mutants that were never tested', async () => {
+  assert.equal((await changedFilesRun(['p/lib/A.cs'], {report: {files: {'p/lib/A.cs': {mutants: []}}}})).outcome, 0)
+  assert.equal((await changedFilesRun(['p/lib/A.cs'], {report: {files: {}}, empty: true})).outcome, 0)
+  assert.equal((await changedFilesRun(['p/lib/A.cs'], {report: {files: {'p/lib/A.cs': {mutants: [{status: 'Ignored'}]}}}})).outcome, 1)
+  assert.equal((await changedFilesRun(['p/lib/A.cs'], {report: undefined})).outcome, 1)
+})
+
+test('changed-files PR mode keeps ruling 91 for a changed .razor whose spans gave Stryker code to mutate', async () => {
+  const csOnly = killedOf(100, 100, 'C:\\r\\ui\\a\\Store.cs')
+  assert.equal((await changedFilesRun(['p/ui/a/View.razor'], {report: csOnly, razor: true, razorPatterns: 1})).outcome, 1)
+  assert.equal((await changedFilesRun(['p/ui/a/Store.cs'], {report: csOnly, razor: true, razorPatterns: 0})).outcome, 0)
+  const withRazor = {files: {...csOnly.files, 'C:\\r\\ui\\a\\obj\\Debug\\net10.0\\stryker-razor\\G\\View_razor.cs': {mutants: [{status: 'Killed'}]}}}
+  assert.equal((await changedFilesRun(['p/ui/a/View.razor'], {report: withRazor, razor: true, razorPatterns: 1})).outcome, 0)
 })
