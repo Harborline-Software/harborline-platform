@@ -1,12 +1,16 @@
 # stryker: Stryker.NET mutation testing (control T-720; PROC-0002 "Mutation evidence as an artefact"; owner ruling Q43).
 #
-# Pull request: the owner keeps tooling/stryker.mjs run's changed-project selection and whole-project floors.
-# Builder's measured complete-file partitions feed its callback; other selected projects execute normally.
-# Four hosts use two native workers each; the complete owner-file union is judged once.
-# No source change: skipped, green. (Owner order 2026-09-30; PR #227 lost 16 points and merged green.)
+# Pull request (owner, 2026-10-30): tooling/stryker.mjs run selects each project whose source changed and mutates only
+# its changed files, held to the project's floor. Builder runs the same way; its four complete-file partitions are kept
+# for the mutation-diagnostic and mutation-qualification label commands. No source change: skipped, green. The
+# whole-project PR run (owner order 2026-09-30) could not finish the Blazor library's 25,539 mutants on a hosted runner.
 #
-# Schedule (07:40 UTC) and workflow_dispatch: `node tooling/stryker.mjs full` runs every
-# configured project on main and fails when a project scores below its baseline in tooling/stryker-baselines.json.
+# Weekly schedule (Sunday 07:40 UTC) and workflow_dispatch: `node tooling/stryker.mjs full` runs every configured
+# project on main and fails when a project scores below its baseline in tooling/stryker-baselines.json. That full
+# run is the whole-project floor PRs no longer measure.
+#
+# workflow_dispatch with scope `changed` runs the PR check by hand on any branch, hosted (stryker-changed): for a
+# draft, which the PR route skips, or a branch with no PR.
 #
 # winbox, not the Macs: macpro carries verify-shared, the platform bottleneck, and mac16 is the perf-quiet runner
 # (T-724 ruling 8). The fork guard is verify-shared's, character for character, so a fork pull request never runs
@@ -22,8 +26,16 @@ on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review, labeled]
   schedule:
-    - cron: '40 7 * * *'
+    - cron: '40 7 * * 0'
   workflow_dispatch:
+    inputs:
+      scope:
+        description: 'full: every project on main, held to baselines. changed: the PR check, only files changed since main.'
+        type: choice
+        default: full
+        options:
+          - full
+          - changed
 
 concurrency:
   # Normal PRs, explicit commands and unrelated labels have distinct cancellation groups.
@@ -244,6 +256,7 @@ jobs:
     if: >-
       always() && needs.workload-route.result == 'success' && vars.ACTIONS_ENABLED == 'true' && needs.workload-route.outputs.enabled == 'true' &&
       (github.event_name != 'pull_request' || github.event.action != 'labeled') &&
+      (github.event_name != 'workflow_dispatch' || inputs.scope != 'changed') &&
       (github.event_name == 'schedule' ||
        github.event_name == 'workflow_dispatch' ||
        (github.event_name == 'pull_request' &&
@@ -380,6 +393,67 @@ jobs:
             StrykerOutput/*/logs/*.txt
             StrykerOutput/*/diagnostics/**
             StrykerOutput/builder-plan/plan.json
+
+  # The PR check by hand (workflow_dispatch, scope changed) on the dispatched branch: its changed files against main.
+  stryker-changed:
+    if: >-
+      github.event_name == 'workflow_dispatch' && inputs.scope == 'changed' && vars.ACTIONS_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          clean: true
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - uses: actions/setup-dotnet@v6
+        env:
+          DOTNET_INSTALL_DIR: ${{ runner.temp }}/dotnet
+        with:
+          global-json-file: global.json
+      - name: Mirror harborline-control for the tests that read it
+        env:
+          PINS_TOKEN: ${{ secrets.HARBORLINE_PINS_TOKEN }}
+        run: |
+          $basic = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("x-access-token:$env:PINS_TOKEN"))
+          Write-Output "::add-mask::$basic"
+          $env:GIT_CONFIG_COUNT = '1'
+          $env:GIT_CONFIG_KEY_0 = 'http.https://github.com/.extraheader'
+          $env:GIT_CONFIG_VALUE_0 = "AUTHORIZATION: basic $basic"
+          git clone --quiet https://github.com/Harborline-Software/harborline-control.git "$env:RUNNER_TEMP/harborline-control"
+          exit $LASTEXITCODE
+      - name: Mutate changed files and hold each project to its break (manual)
+        timeout-minutes: 330
+        run: |
+          dotnet tool restore
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node tooling/stryker.mjs check
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node tooling/stryker.mjs run
+          exit $LASTEXITCODE
+        env:
+          HARBORLINE_CONTROL_REPO: ${{ runner.temp }}/harborline-control
+      - name: Mutation reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: stryker-report-${{ github.run_id }}-${{ github.run_attempt }}-changed
+          if-no-files-found: ignore
+          retention-days: 7
+          path: |
+            StrykerOutput/*/reports/mutation-report.json
+            StrykerOutput/*/stryker-config.json
+            StrykerOutput/*/logs/*.txt
+            StrykerOutput/*/diagnostics/**
 
   mutation-diagnostic:
     needs: [workload-route, builder-plan, builder-partitions]
