@@ -935,6 +935,21 @@ test('changed-files PR mode counts only the mutants its mutate list selected', a
   assert.equal((await changedFilesRun(['p/lib/A.cs'], {report: {files: {...elsewhere, 'p/lib/A.cs': {mutants: [{status: 'Ignored', statusReason: 'Ignored by ignore-methods'}]}}}})).outcome, 1)
 })
 
+test('changed-files PR mode matches a linked file whose report key keeps its /../ hop', async () => {
+  const excluded = {source: 'File ignored by mutate filter', language: 'none', mutants: []}
+  // Stryker.NET 5.0.0 keys a file another project links by the linking project's folder, then "..".
+  const linked = '/home/runner/work/r/r/p/ui/button/../form-field/Value.cs'
+  const linkedWindows = 'D:\\a\\r\\r\\p\\ui\\button\\..\\form-field\\Value.cs'
+  assert.equal((await changedFilesRun(['p/ui/form-field/Value.cs'], {report: {files: {[linked]: excluded}}})).outcome, 1)
+  assert.equal((await changedFilesRun(['p/ui/form-field/Value.cs'], {report: {files: {[linkedWindows]: excluded}}})).outcome, 1)
+  assert.equal((await changedFilesRun(['p/lib/A.cs', 'p/ui/form-field/Value.cs'], {report: {files: {...killedOf(100, 100).files, [linked]: excluded}}})).outcome, 1)
+  // The same file matched under its own project's key was tested, so its excluded linked copy does not fail it.
+  const own = {'/home/runner/work/r/r/p/ui/form-field/Value.cs': {mutants: [{status: 'Killed'}]}}
+  assert.equal((await changedFilesRun(['p/ui/form-field/Value.cs'], {report: {files: {...own, [linked]: excluded}}})).outcome, 0)
+  // A linked file with no logic still passes with a note.
+  assert.equal((await changedFilesRun(['p/ui/form-field/Value.cs'], {report: {files: {[linked]: {mutants: []}}}})).outcome, 0)
+})
+
 test('changed-files PR mode keeps ruling 91 for a changed .razor whose spans gave Stryker code to mutate', async () => {
   const csOnly = killedOf(100, 100, 'C:\\r\\ui\\a\\Store.cs')
   assert.equal((await changedFilesRun(['p/ui/a/View.razor'], {report: csOnly, razor: true, razorPatterns: 1})).outcome, 1)

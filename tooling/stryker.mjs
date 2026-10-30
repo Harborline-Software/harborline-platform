@@ -565,12 +565,16 @@ export const selectedReport = report => ({...report, files: Object.fromEntries(O
   .map(([file, entry]) => [file, {...entry, mutants: (entry.mutants ?? []).filter(mutant => !filteredOut(mutant))}])
   .filter(([, entry]) => entry.mutants.length))})
 // A changed .cs that Stryker excluded, or whose every mutant the filter left out, was never matched by its pattern.
+// Report keys are native paths and a linked file keeps its "/../" hop (hlp.ui.button/../hlp.ui.form-field/...), so keys
+// are normalized before matching, and a file counts as matched when any of its entries was.
+const reportPath = name => path.posix.normalize(name.replaceAll('\\', '/'))
+const unmatchedEntry = entry => entry.source === excludedSource || (entry.mutants?.length > 0 && entry.mutants.every(filteredOut))
 export const unmatchedChanges = (report, files) => files.filter(file => file.endsWith('.cs')).filter(file => {
-  const entry = Object.entries(report.files ?? {}).find(([name]) => {
-    const normal = name.replaceAll('\\', '/')
+  const entries = Object.entries(report.files ?? {}).filter(([name]) => {
+    const normal = reportPath(name)
     return normal === file || normal.endsWith(`/${file}`)
-  })?.[1]
-  return entry?.source === excludedSource || (entry?.mutants?.length > 0 && entry.mutants.every(filteredOut))
+  }).map(([, entry]) => entry)
+  return entries.length > 0 && entries.every(unmatchedEntry)
 })
 
 export const mutableChanges = (changed, exists = file => existsSync(path.join(root, file))) =>
