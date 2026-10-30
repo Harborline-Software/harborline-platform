@@ -1,3 +1,4 @@
+// Proof only: exercises the changed-files mutation check on one Blazor .cs file. Not for merge.
 using Harborline.Contracts.Authorization;
 
 namespace Harborline.UIAdapters.Blazor.Components.Layout;
