@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { existsSync, readFileSync, readdirSync, mkdtempSync, writeFileSync, rmSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync, mkdtempSync, writeFileSync, rmSync, mkdirSync, cpSync, copyFileSync } from 'node:fs'
 import { createHash } from 'node:crypto'
 import { runInNewContext } from 'node:vm'
 import { tmpdir } from 'node:os'
@@ -77,7 +77,8 @@ test('T1035 refuses scoped lookalikes, registry substitutions and extra dependen
 test('T1035 guards the closed graph before staging and exceptions, then runs frozen', () => {
   const source = readFileSync(resolve(root, 'tooling/verify-package-fixtures.mjs'), 'utf8')
     .split('function verifyAppShellCapability() {')[1].split('\ntry {')[0]
-  assert.ok(source.indexOf('appShellLocalFeedSettings(') < source.indexOf('stageCheckedTarball('))
+  const guard = source.indexOf('appShellLocalFeedSettings(')
+  assert.ok(guard >= 0 && guard < source.indexOf('stageCheckedTarball('))
   assert.match(source, /JSON\.parse\(npmManifestBytes\)/)
   assert.ok(source.indexOf('stageCheckedTarball(') < source.indexOf("writeFileSync(resolve(npmConsumer, 'pnpm-workspace.yaml')"))
   assert.match(source, /stageCheckedTarball\(process\.env\[artifact\.env\], resolve\(feed, artifact\.tarball\), artifact\.sha256\)/)
@@ -104,4 +105,51 @@ test('T1035 staging refuses absent and mismatched local files instead of falling
   writeFileSync(input, 'T1035 approved local fixture\n')
   stage(input, output, expected)
   assert.equal(readFileSync(output, 'utf8'), 'T1035 approved local fixture\n')
+})
+
+test('T1035 actual install caller refuses before exceptions or manager calls', t => {
+  const source = readFileSync(resolve(root, 'tooling/verify-package-fixtures.mjs'), 'utf8')
+  const callerStart = source.indexOf("  const npmConsumer = resolve(fixtureRoot, 'appshell-capability-npm-consumer')")
+  const callerEnd = source.indexOf('  const npmOutput = ', callerStart)
+  assert.ok(callerStart >= 0 && callerEnd > callerStart)
+  const stageStart = source.indexOf('function stageCheckedTarball(')
+  const stageEnd = source.indexOf('\nfunction walkFiles(', stageStart)
+  const stage = runInNewContext(`${source.slice(stageStart, stageEnd)}; stageCheckedTarball`, { createHash, readFileSync, writeFileSync })
+  const dir = mkdtempSync(resolve(tmpdir(), 't1035-caller-refusal-'))
+  t.after(() => rmSync(dir, { recursive: true, force: true }))
+  for (const fault of ['provenance', 'lock', 'missing-lock', 'lookalike', 'configuration', 'missing-local', 'mismatched-local']) {
+    const caseRoot = resolve(dir, fault)
+    const fixture = resolve(caseRoot, 'tests/package-consumers/appshell-npm')
+    const provenance = resolve(caseRoot, 'tooling/appshell-feed-provenance.json')
+    mkdirSync(resolve(caseRoot, 'tooling'), { recursive: true })
+    cpSync(resolve(root, 'tests/package-consumers/appshell-npm'), fixture, { recursive: true })
+    writeFileSync(provenance, approvedInputs.provenance)
+    const contractSource = resolve(caseRoot, 'contract.json')
+    writeFileSync(contractSource, '{}')
+    if (fault === 'provenance') writeFileSync(provenance, Buffer.concat([approvedInputs.provenance, Buffer.from(' ')]))
+    if (fault === 'lock') writeFileSync(resolve(fixture, 'pnpm-lock.yaml'), Buffer.concat([approvedInputs.lock, Buffer.from(' ')]))
+    if (fault === 'missing-lock') rmSync(resolve(fixture, 'pnpm-lock.yaml'))
+    if (fault === 'lookalike') writeFileSync(resolve(fixture, 'package.json'), JSON.stringify({ ...JSON.parse(approvedInputs.manifest), dependencies: { '@harborline-software/lookalike': '*' } }))
+    if (fault === 'configuration') writeFileSync(resolve(fixture, '.npmrc'), '@harborline-software:registry=https://registry.npmjs.org/')
+    const env = {}
+    if (fault === 'mismatched-local') {
+      env.HARBORLINE_CONTRACTS_TARBALL = resolve(caseRoot, 'lookalike.tgz')
+      writeFileSync(env.HARBORLINE_CONTRACTS_TARBALL, 'same-name substituted local input')
+    }
+    const counts = { stage: 0, exceptionWrites: 0, managerCalls: 0 }
+    const caller = runInNewContext(`(function () {${source.slice(callerStart, callerEnd)}})`, {
+      root: caseRoot, fixtureRoot: caseRoot, contractSource, resolve, cpSync, copyFileSync, mkdirSync, readFileSync, readdirSync,
+      process: { env }, appShellLocalFeedSettings: localFeedSettings(),
+      stageCheckedTarball: (...args) => { counts.stage++; return stage(...args) },
+      writeFileSync: (path, ...args) => {
+        if (path.endsWith('pnpm-workspace.yaml')) counts.exceptionWrites++
+        return writeFileSync(path, ...args)
+      },
+      run: () => { counts.managerCalls++; throw new Error('unexpected package-manager execution') },
+    })
+    assert.throws(caller, fault === 'missing-lock' ? /ENOENT/ : fault === 'missing-local' ? /environment tarball path missing/ : fault === 'mismatched-local' ? /SHA-256 mismatch/ : /T1035 local-only approval/, fault)
+    assert.equal(counts.exceptionWrites, 0, `${fault}: exception not written`)
+    assert.equal(counts.managerCalls, 0, `${fault}: package manager not invoked`)
+    assert.equal(counts.stage, fault.endsWith('-local') ? 1 : 0, `${fault}: input guard precedes staging`)
+  }
 })
