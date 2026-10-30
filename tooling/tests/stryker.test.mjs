@@ -914,6 +914,20 @@ test('changed-files PR mode passes changed files with no mutant, but not mutants
   assert.equal((await changedFilesRun(['p/lib/A.cs'], {report: undefined})).outcome, 1)
 })
 
+test('changed-files PR mode counts only the mutants its mutate list selected', async () => {
+  const filtered = {status: 'Ignored', statusReason: 'File ignored by mutate filter'}
+  const elsewhere = {'C:\\r\\p\\lib\\Other.cs': {mutants: [filtered, filtered]}}
+  // A changed file with no logic passes with a note, though Stryker reports the rest of the project as Ignored.
+  assert.equal((await changedFilesRun(['p/lib/A.cs'], {report: {files: {...elsewhere, 'C:\\r\\p\\lib\\A.cs': {mutants: []}}}})).outcome, 0)
+  // The score is over the changed file's tested mutants only.
+  assert.equal((await changedFilesRun(['p/lib/A.cs'], {report: {files: {...elsewhere, ...killedOf(70, 100).files}}})).outcome, 0)
+  assert.equal((await changedFilesRun(['p/lib/A.cs'], {report: {files: {...elsewhere, ...killedOf(69, 100).files}}})).outcome, 1)
+  // A changed file whose every mutant the filter left out was never matched by its pattern, which fails.
+  assert.equal((await changedFilesRun(['p/lib/A.cs'], {report: {files: {...elsewhere, 'C:\\r\\p\\lib\\A.cs': {mutants: [filtered]}}}})).outcome, 1)
+  // An Ignored mutant for any other reason is still a mutant that was never tested.
+  assert.equal((await changedFilesRun(['p/lib/A.cs'], {report: {files: {...elsewhere, 'p/lib/A.cs': {mutants: [{status: 'Ignored', statusReason: 'Ignored by ignore-methods'}]}}}})).outcome, 1)
+})
+
 test('changed-files PR mode keeps ruling 91 for a changed .razor whose spans gave Stryker code to mutate', async () => {
   const csOnly = killedOf(100, 100, 'C:\\r\\ui\\a\\Store.cs')
   assert.equal((await changedFilesRun(['p/ui/a/View.razor'], {report: csOnly, razor: true, razorPatterns: 1})).outcome, 1)

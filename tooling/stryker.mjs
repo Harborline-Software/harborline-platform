@@ -556,6 +556,21 @@ export function scoreVerdict(report, floor) {
 
 // The changed files a PR run mutates: production .cs/.razor that still exist. A deleted file has nothing left to mutate,
 // and a project-file edit has no mutants of its own; both stay in selection, and the weekly full run covers them.
+// Stryker generates mutants in every compiled file and reports those its `mutate` list leaves out as Ignored "by mutate
+// filter"; they were never selected, so a changed-files run counts and scores only the rest.
+const filteredOut = mutant => mutant.status === 'Ignored' && /mutate filter/i.test(mutant.statusReason ?? '')
+export const selectedReport = report => ({...report, files: Object.fromEntries(Object.entries(report.files ?? {})
+  .map(([file, entry]) => [file, {...entry, mutants: (entry.mutants ?? []).filter(mutant => !filteredOut(mutant))}])
+  .filter(([, entry]) => entry.mutants.length))})
+// A changed .cs whose mutants the filter left out entirely was never matched by its mutate pattern.
+export const unmatchedChanges = (report, files) => files.filter(file => file.endsWith('.cs')).filter(file => {
+  const entry = Object.entries(report.files ?? {}).find(([name]) => {
+    const normal = name.replaceAll('\\', '/')
+    return normal === file || normal.endsWith(`/${file}`)
+  })?.[1]
+  return entry?.mutants?.length > 0 && entry.mutants.every(filteredOut)
+})
+
 export const mutableChanges = (changed, exists = file => existsSync(path.join(root, file))) =>
   changed.filter(file => /\.(cs|razor)$/.test(file) && exists(file))
 
@@ -587,8 +602,14 @@ export async function run(repo, only, strykerArgs, mutate = mutateProject, sourc
       if (!await summarize(`- ${test}: **FAIL**, ${JSON.stringify(result.outcome)}`)) return failed
       continue
     }
-    const {report} = result
+    const report = result.report && selectedReport(result.report)
     const floor = fullModeBreak(repo.baselines[test], configOf(test, read))
+    const unmatched = result.report ? unmatchedChanges(result.report, files) : []
+    if (unmatched.length) {
+      failed ||= 1
+      if (!await summarize(`- ${test}: **FAIL**, Stryker's mutate list matched nothing in ${unmatched.map(file => `\`${file}\``).join(', ')}.`)) return failed
+      continue
+    }
     // A run handed Razor spans that came back with no mutant at all is ruling 91's failure, not an empty change.
     if (report && !reportCounts(report).total && !(result.razorPatterns > 0)) {
       if (!await summarize(`- ${test}: ${result.empty ? 'no changed file gave Stryker anything to mutate' : 'Stryker created no mutant in the changed files'}; there is no logic in them to score.`)) return failed || 1
