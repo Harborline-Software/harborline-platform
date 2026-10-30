@@ -82,6 +82,14 @@ function trapModalTab(event: React.KeyboardEvent<HTMLElement>, container: HTMLEl
   }
 }
 
+// A fragment or list titles the window only when something in it does; any other element counts as a title,
+// since what it renders is not known until it renders.
+function hasTitle(node: React.ReactNode): boolean {
+  if (Array.isArray(node)) return node.some(hasTitle)
+  if (React.isValidElement<{ children?: React.ReactNode }>(node)) return node.type !== React.Fragment || hasTitle(node.props.children)
+  return isTitled(node)
+}
+
 export function Window({
   title,
   children,
@@ -134,7 +142,7 @@ export function Window({
   const minimized = state === 'minimized'
   const maximized = state === 'maximized'
   modalActiveRef.current = modal && !minimized
-  const titled = isTitled(title)
+  const titled = hasTitle(title)
   validateLabels(labels ?? {}, { titled, closable, minimizable, maximizable, resizable, draggable })
 
   const viewport = () => ({ width: window.innerWidth, height: window.innerHeight })

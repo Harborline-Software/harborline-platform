@@ -58,7 +58,12 @@ describe('Window React projection', () => {
   })
 
   // A title that renders no text does not name the dialog, so the caller's window label must.
-  it.each([['empty', ''], ['whitespace', '   '], ['false', false]] as const)('treats the %s title as untitled', (_, title) => {
+  it('keeps a fragment with text as the title', () => {
+    render(<Window labels={allLabels} title={<>Editor</>} />)
+    expect(screen.getByRole('dialog', { name: 'Editor' })).toBeInTheDocument()
+  })
+
+  it.each([['empty', ''], ['whitespace', '   '], ['false', false], ['empty fragment', <></>], ['blank list', ['', ' ']]] as const)('treats the %s title as untitled', (_, title) => {
     expect(() => render(<Window labels={{ ...allLabels, window: '' }} title={title} />)).toThrow('accessible-name-required')
     render(<Window labels={allLabels} title={title} />)
     const dialog = screen.getByRole('dialog', { name: 'Ventana' })
