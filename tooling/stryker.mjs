@@ -587,7 +587,8 @@ export async function run(repo, only, strykerArgs, mutate = mutateProject, sourc
     }
     const {report} = result
     const floor = fullModeBreak(repo.baselines[test], configOf(test, read))
-    if (report && !reportCounts(report).total) {
+    // A run handed Razor spans that came back with no mutant at all is ruling 91's failure, not an empty change.
+    if (report && !reportCounts(report).total && !(result.razorPatterns > 0)) {
       if (!await summarize(`- ${test}: ${result.empty ? 'no changed file gave Stryker anything to mutate' : 'Stryker created no mutant in the changed files'}; there is no logic in them to score.`)) return failed || 1
       continue
     }

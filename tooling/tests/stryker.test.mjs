@@ -902,4 +902,6 @@ test('changed-files PR mode keeps ruling 91 for a changed .razor whose spans gav
   assert.equal((await changedFilesRun(['p/ui/a/Store.cs'], {report: csOnly, razor: true, razorPatterns: 0})).outcome, 0)
   const withRazor = {files: {...csOnly.files, 'C:\\r\\ui\\a\\obj\\Debug\\net10.0\\stryker-razor\\G\\View_razor.cs': {mutants: [{status: 'Killed'}]}}}
   assert.equal((await changedFilesRun(['p/ui/a/View.razor'], {report: withRazor, razor: true, razorPatterns: 1})).outcome, 0)
+  // Stryker silently dropping every Razor span leaves no mutant at all; that still fails rather than reading as empty.
+  assert.equal((await changedFilesRun(['p/ui/a/View.razor'], {report: {files: {}}, razor: true, razorPatterns: 1})).outcome, 1)
 })
