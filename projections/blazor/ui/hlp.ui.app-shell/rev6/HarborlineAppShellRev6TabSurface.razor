@@ -184,7 +184,7 @@
  protected override async Task OnAfterRenderAsync(bool firstRender)
  {
   if (disposed) return;
-  var imported = module ?? await JS.InvokeAsync<IJSObjectReference>("import", "./_content/Harborline.UIAdapters.Blazor/app-shell-rev6-focus.mjs");
+  var imported = module ?? await JS.InvokeAsync<IJSObjectReference>("import", "./_content/Harborline.UIAdapters.Blazor/app-shell-rev6-focus.js");
   if (disposed) { if (module is null) await imported.DisposeAsync(); return; }
   module = imported;
   await module.InvokeVoidAsync("bind", root, current is null ? null : System.Text.Json.JsonSerializer.Serialize(current.Owner), EmptyFallback, ManageCloseRecovery);
