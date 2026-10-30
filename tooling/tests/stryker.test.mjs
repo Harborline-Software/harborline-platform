@@ -10,12 +10,30 @@ import {setTimeout as delay} from 'node:timers/promises'
 import {killProcessTreeSync} from '../resolve-command.mjs'
 import {tmpdir} from 'node:os'
 
-import {changedLines, changedSourceFiles, configProblems, fullModeBreak, isTestProject, mutableChanges, plainRazor, razorTested, reportCounts, repository, run,
+import {changedLines, changedSourceFiles, configProblems, fullModeBreak, isTestProject, mutableChanges, mutateProject, plainRazor, razorTested, reportCounts, repository, run,
   sourceDirectories, scoreVerdict, survivorsOnChangedLines, thresholdsFor} from '../stryker.mjs'
 
 const repoRoot = path.resolve('stryker-fixture-repo')
 const diagnosticTarget = 'projections/dotnet/blocks/hlp.blocks.builder-definitions.tests/Harborline.Blocks.BuilderDefinitions.Tests.csproj'
 const diagnosticFixture = path.join(import.meta.dirname, 'fixtures', 'stryker-diagnostic-process-fixture.mjs')
+
+test('changed-file config preserves folders when source files share a basename', async t => {
+  const control = mkdtempSync(path.join(tmpdir(), 'stryker-changed-paths-'))
+  let output
+  t.after(() => {
+    if (output) rmSync(output, {recursive: true, force: true})
+    rmSync(control, {recursive: true, force: true})
+  })
+  const result = await mutateProject(diagnosticTarget,
+    ['projections/dotnet/blocks/hlp.blocks.builder-definitions/New/Widget.cs',
+      'projections/dotnet/blocks/hlp.blocks.builder/Linked/Widget.cs'],
+    ['--control', control, '--mode', 'normal'], [process.execPath, diagnosticFixture, 'child'])
+  output = result.output
+  assert.equal(result.status, 0)
+  const config = JSON.parse(readFileSync(path.join(output, 'stryker-config.json'), 'utf8'))['stryker-config']
+  assert.deepEqual(config.mutate, ['New/Widget.cs', '../hlp.blocks.builder/Linked/Widget.cs'])
+  assert.equal(config.mutate.some(pattern => path.matchesGlob('Old/Widget.cs', pattern)), false)
+})
 
 async function diagnosticProcess(t, mode, operation, {paused = false} = {}) {
   const control = mkdtempSync(path.join(tmpdir(), 'stryker-diagnostics-'))

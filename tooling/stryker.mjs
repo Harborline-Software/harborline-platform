@@ -191,7 +191,8 @@ function razorRun(target, changed) {
   // Full mode lists the tracked .cs sources by name rather than '**/*.cs' plus '!**/stryker-razor/**': Stryker lets an
   // exclude beat every include, so that negation silently dropped all the .razor spans (T-720 baseline, 2026-09-26).
   const sources = changed ?? git('ls-files', '--', ...sourceDirectories(target, read(target)).map(directory => `${directory}/*.cs`))
-  const mutate = sources.filter(file => file.endsWith('.cs') && !/\.tests\//.test(file)).map(file => `**/${path.posix.basename(file)}`)
+  const mutate = sources.filter(file => file.endsWith('.cs') && !/\.tests\//.test(file))
+    .map(file => changed ? path.posix.relative(path.posix.dirname(target), file) : `**/${path.posix.basename(file)}`)
   for (const file of readdirSync(generated, {recursive: true}).filter(name => name.endsWith('.g.cs'))) {
     const {source, text, spans} = plainRazor(readFileSync(path.join(generated, file), 'utf8'))
     const destination = path.join(plain, file.replace(/\.g\.cs$/, '.cs'))
@@ -260,7 +261,8 @@ export async function mutateProject(test, changed, strykerArgs, command = ['dotn
   mkdirSync(diagnostics)
   const razor = read(target).includes('Microsoft.NET.Sdk.Razor') ? razorRun(target, changed) : undefined
   // An explicit mutate list, never Stryker's own `since`: the list is exactly the changed files the caller chose.
-  const mutate = razor?.mutate ?? changed?.filter(file => file.endsWith('.cs')).map(file => `**/${path.posix.basename(file)}`)
+  const mutate = razor?.mutate ?? changed?.filter(file => file.endsWith('.cs'))
+    .map(file => path.posix.relative(path.posix.dirname(target), file))
   const razorPatterns = razor ? razor.mutate.filter(pattern => pattern.includes('/stryker-razor/')).length : 0
   // Stryker reads an empty mutate list as "mutate everything", so a changed-file run with no pattern never starts it.
   if (changed && !mutate.length) return {outcome: {kind: 'completed'}, status: 0, signal: null, empty: true,
