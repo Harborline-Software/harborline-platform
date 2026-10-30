@@ -18,10 +18,90 @@ public sealed class WindowTests : BunitContext
         var dialog = cut.Find("[role=dialog]");
         Assert.Equal("default", dialog.GetAttribute("data-state"));
         Assert.Contains("width:400px", dialog.GetAttribute("style"));
-        cut.Find("button[aria-label='Minimize']").Click();
+        Assert.Equal("Inspector", Accname.AccessibleName(dialog));
+        Accname.AssertIdReferencesResolve(cut);
+        Control(cut, "Minimize").Click();
         Assert.Equal("default", cut.Find("[role=dialog]").GetAttribute("data-state"));
         Assert.Equal([HarborlineWindowState.Minimized], states);
     }
+
+    [Fact]
+    public void TheTitleNamesTheDialogAndEachControlCarriesItsLocalizedLabel()
+    {
+        // Labels no fallback would produce, so a hard-coded English aria-label cannot pass
+        // (interface.yaml: controls "expose caller-localized accessible labels").
+        var cut = RenderFrenchWindow(p => p.Add(x => x.AccessibleLabel, "Panneau inspecteur"));
+        var dialog = cut.Find("[role=dialog]");
+        Accname.AssertIdReferencesResolve(cut);
+        Assert.Equal("Inspecteur", Accname.AccessibleName(dialog));
+        Accname.AssertReferences(dialog, "aria-labelledby", cut.Find(".hl-window__title"));
+        // interface.yaml: "The dialog is labelled by title or an explicit localized fallback"; with a title the
+        // fallback is not emitted beside it (accname 1.2 §4.3.2 takes 2B aria-labelledby before 2D aria-label).
+        Assert.Null(dialog.GetAttribute("aria-label"));
+        Assert.Equal(["Réduire", "Agrandir", "Fermer"], cut.FindAll("button.hl-window__control").Select(Accname.AccessibleName));
+        Assert.Equal(["Largeur", "Hauteur", "Les deux"], cut.FindAll("[role=separator]").Select(Accname.AccessibleName));
+    }
+
+    [Fact]
+    public void AnUntitledWindowIsNamedByItsAccessibleLabel()
+    {
+        var cut = Render<HarborlineWindow>(p => FrenchLabels(p).Add(x => x.AccessibleLabel, "Panneau inspecteur"));
+        Accname.AssertIdReferencesResolve(cut);
+        Assert.Equal("Panneau inspecteur", Accname.AccessibleName(cut.Find("[role=dialog]")));
+    }
+
+    [Theory]
+    [InlineData(HarborlineWindowState.Default, "Réduire", "Agrandir")]
+    [InlineData(HarborlineWindowState.Minimized, "Restaurer", "Agrandir")]
+    [InlineData(HarborlineWindowState.Maximized, "Réduire", "Restaurer")]
+    public void StateControlsAreNamedForWhatTheyWillDo(HarborlineWindowState state, string minimize, string maximize)
+    {
+        var cut = RenderFrenchWindow(p => p.Add(x => x.State, state));
+        Accname.AssertIdReferencesResolve(cut);
+        Assert.Equal("Inspecteur", Accname.AccessibleName(cut.Find("[role=dialog]")));
+        Assert.Equal([minimize, maximize, "Fermer"], cut.FindAll("button.hl-window__control").Select(Accname.AccessibleName));
+    }
+
+    [Fact]
+    public void TwoWindowsOnOnePageKeepTheirIdsApart()
+    {
+        string[] titles = ["Inspecteur", "Console"];
+        var cut = Render(builder =>
+        {
+            foreach (var title in titles)
+            {
+                builder.OpenComponent<HarborlineWindow>(0);
+                builder.AddAttribute(1, nameof(HarborlineWindow.Title), (RenderFragment)(b => b.AddContent(0, title)));
+                builder.AddAttribute(2, nameof(HarborlineWindow.CloseLabel), "Fermer");
+                builder.AddAttribute(3, nameof(HarborlineWindow.MinimizeLabel), "Réduire");
+                builder.AddAttribute(4, nameof(HarborlineWindow.MaximizeLabel), "Agrandir");
+                builder.AddAttribute(5, nameof(HarborlineWindow.RestoreLabel), "Restaurer");
+                builder.AddAttribute(6, nameof(HarborlineWindow.ResizeWidthLabel), "Largeur");
+                builder.AddAttribute(7, nameof(HarborlineWindow.ResizeHeightLabel), "Hauteur");
+                builder.AddAttribute(8, nameof(HarborlineWindow.ResizeBothLabel), "Les deux");
+                builder.CloseComponent();
+            }
+        });
+        Accname.AssertIdReferencesResolve(cut);
+        Assert.Equal(["Inspecteur", "Console"], cut.FindAll("[role=dialog]").Select(Accname.AccessibleName));
+    }
+
+    private IRenderedComponent<HarborlineWindow> RenderFrenchWindow(Action<ComponentParameterCollectionBuilder<HarborlineWindow>>? configure = null) =>
+        Render<HarborlineWindow>(p =>
+        {
+            FrenchLabels(p).Add(x => x.Title, (RenderFragment)(b => b.AddContent(0, "Inspecteur")))
+                .Add(x => x.ChildContent, (RenderFragment)(b => b.AddContent(0, "Corps")));
+            configure?.Invoke(p);
+        });
+
+    private static ComponentParameterCollectionBuilder<HarborlineWindow> FrenchLabels(ComponentParameterCollectionBuilder<HarborlineWindow> p) => p
+        .Add(x => x.CloseLabel, "Fermer").Add(x => x.MinimizeLabel, "Réduire")
+        .Add(x => x.MaximizeLabel, "Agrandir").Add(x => x.RestoreLabel, "Restaurer")
+        .Add(x => x.ResizeWidthLabel, "Largeur").Add(x => x.ResizeHeightLabel, "Hauteur")
+        .Add(x => x.ResizeBothLabel, "Les deux");
+
+    private static AngleSharp.Dom.IElement Control(IRenderedComponent<HarborlineWindow> cut, string name) =>
+        Assert.Single(cut.FindAll("button.hl-window__control"), button => Accname.AccessibleName(button) == name);
 
     [Fact]
     public void KeyboardMoveResizeAndEscapeUsePinnedSteps()
