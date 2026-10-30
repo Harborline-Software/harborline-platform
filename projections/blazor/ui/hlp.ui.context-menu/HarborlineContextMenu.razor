@@ -10,7 +10,6 @@
 </div>
 @if (IsOpen)
 {
-    <button type="button" class="hl-context-menu-overlay" aria-label="Dismiss @AccessibleLabel" @onclick="DismissAsync"></button>
     <div @ref="MenuElement" role="menu" tabindex="-1" aria-label="@AccessibleLabel" lang="@Locale" dir="@Direction"
          class="hl-context-menu" data-active-id="@ActiveItem?.Id"
          style="position:fixed;left:@(X)px;top:@(Y)px;z-index:9999" @onkeydown="HandleKeyAsync">
@@ -29,6 +28,13 @@
             }
         }
     </div>
+    @* The outside-pointer dismissal surface only. It is a plain element, so it can never take focus
+       (a hidden button is still focused by a mouse press), and it is hidden from assistive
+       technology: Escape is the keyboard route. It dismisses on the press of any button, as React's
+       document mousedown listener does, and preventDefault keeps focus where it was so the keyboard
+       opener can still be restored. It follows the menu so the menu's place in the tree matches
+       React, which renders no overlay; z-index keeps it beneath the menu (T-943). *@
+    <div class="hl-context-menu-overlay" aria-hidden="true" @onmousedown="DismissAsync" @onmousedown:preventDefault="true"></div>
 }
 
 @code {
@@ -53,7 +59,6 @@
     private ElementReference TriggerElement { get; set; }
     private ElementReference MenuElement { get; set; }
     private IJSObjectReference? DomModule { get; set; }
-    private bool KeyboardOpened { get; set; }
     private bool FocusActiveAfterRender { get; set; }
     private bool RestoreTriggerAfterRender { get; set; }
     private IReadOnlyList<ContextMenuItem> FlatItems => Groups.SelectMany(group => group.Items).ToArray();
@@ -71,9 +76,14 @@
     private async Task ShowAsync(double x, double y, bool keyboardOpened)
     {
         (X, Y) = ClampPosition(x, y, MenuWidth, MenuHeight, ViewportWidth, ViewportHeight);
+        // Whatever has focus when the menu goes from closed to open is where a close returns it, after a
+        // pointer or programmatic open as after a keyboard one (APG menu pattern, as React);
+        // triggerAnchor has already recorded the keyboard opener. A re-open while open keeps the opener.
+        // Every open then focuses the active item, as React does and the interface requires ("Opening
+        // focuses the first enabled item").
+        if (!keyboardOpened && !IsOpen) await (await ModuleAsync()).InvokeVoidAsync("rememberOpener", TriggerElement);
         IsOpen = true;
-        KeyboardOpened = keyboardOpened;
-        FocusActiveAfterRender = keyboardOpened;
+        FocusActiveAfterRender = true;
         ActiveIndex = EnabledIndices.FirstOrDefault(-1);
         await InvokeAsync(StateHasChanged);
         await OnShow.InvokeAsync();
@@ -84,8 +94,7 @@
         if (!IsOpen) return;
         IsOpen = false;
         ActiveIndex = -1;
-        RestoreTriggerAfterRender = KeyboardOpened;
-        KeyboardOpened = false;
+        RestoreTriggerAfterRender = true;
         await InvokeAsync(StateHasChanged);
         await OnHide.InvokeAsync();
     }

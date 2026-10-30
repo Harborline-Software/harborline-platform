@@ -27,6 +27,7 @@ type Scenario = {
   name: string
   interaction?: 'pointer' | 'keyboard' | 'keyboard-pointer'
   sourceQualityCaseIds?: string[]
+  content?: { environment?: { locale?: string } }
 }
 type LocaleFixture = {
   tag: string
@@ -1130,6 +1131,301 @@ async function assertElementParity(reactPage: Page, blazorPage: Page, id: string
   recordCheck('elementParityComparisons')
 }
 
+// ── ARIA-tree lane parity (T-943) ──
+//
+// Pixels and per-element boxes say the two lanes LOOK alike. Neither can say they are the same thing
+// to assistive technology: a scene can render pixel-alike and still differ in a role, an accessible
+// name or a state, the class of defect behind the 842 accessibility survivors T-921 to T-927 record
+// (R-0125 §2, "ARIA-tree parity"). So every scenario also compares the accessibility tree of its
+// probe across the two lanes, as Playwright's `locator.ariaSnapshot()` renders it (role, accessible
+// name, and the checked, disabled, expanded, invalid, level, pressed and selected states). DES-0034
+// open ruling 5 was ruled this way (T-724 ruling 108, G3.6): lane parity includes the accessibility
+// tree, ARIA-snapshot equality per scenario, with a named waiver list.
+//
+// Scope is the probe, the same scope the axe scan (assertAccessible) and the element census read on
+// main. An overlay a lane portals out of the probe is outside both scans alike; widening this one
+// alone would make the tree comparison judge content the accessibility scan never reads. Where one
+// lane portals an open overlay and the other renders it inside the probe, the scenario is registered
+// with that reason, so a later, wider scope turns those rows stale instead of silently changing what
+// they excuse.
+//
+// What `ariaSnapshot()` already leaves out, so nothing here has to: elements with no ARIA role (the
+// div and span wrappers each lane nests differently) are not nodes at all, their children are hoisted
+// into the nearest node with a role; whitespace in names and text is collapsed; ids, classes and
+// styles are absent. A `false` state is not rendered, so it is indistinguishable from an absent one
+// (`aria-pressed="false"` and no `aria-pressed` both read as a plain button); that is a limit of the
+// rendering this check inherits, not something it normalises.
+//
+// The register is exact both ways, like the element and overflow registers: an unwaived difference
+// fails with the diff, a waived scenario whose lanes now match fails until its row is deleted, and a
+// waived scenario whose difference CHANGED fails until it is re-measured, so a waiver cannot quietly
+// widen to cover a new defect. A row records its difference as position-anchored hunks (laneHunks), so
+// a waived line that moves elsewhere in the tree is a changed difference too. A row for an unknown
+// scenario, or one owned by T-943 itself, is refused by tooling/validate-gallery.mjs.
+//
+// A row may name a `state`: a later moment of a scene that runs on a timer (ariaLaterStates), judged
+// apart from the prepared scene, which is the row without one.
+type AriaWaiver = { scenarioId: string; state?: string; ticket: string; reason: string; hunks: string[] }
+const ariaRegister = JSON.parse(readFileSync(resolve(repositoryRoot, 'gallery/aria-parity-known-divergences.json'), 'utf8')) as {
+  measureFlag: string
+  divergences: AriaWaiver[]
+}
+const ariaWaiverKey = (id: string, state?: string) => state ? `${id} @${state}` : id
+const ariaWaiverByScenario = new Map(ariaRegister.divergences.map(row => [ariaWaiverKey(row.scenarioId, row.state), row]))
+
+// The per-scenario two-lane step: one read of the same prepared scene in each lane, concurrently.
+// Every lane-versus-lane probe read goes through here (the ARIA tree now; T-962's tab walk is meant
+// to reuse it), so a comparison never has to open a page pair of its own. `probe.page()` gives the
+// page to a read that needs the keyboard.
+async function readBothLanes<T>(reactPage: Page, blazorPage: Page, read: (probe: Locator, lane: Projection) => Promise<T>) {
+  const [react, blazor] = await Promise.all([
+    read(reactPage.locator('[data-gallery-probe]'), 'react'),
+    read(blazorPage.locator('[data-gallery-probe]'), 'blazor'),
+  ])
+  return { react, blazor }
+}
+
+// The snapshot as the lines the comparison and the register both speak. Each normalisation removes a
+// difference that carries no role, name or state; none rewrites a role, a name or a state.
+function normaliseAriaSnapshot(snapshot: string): string[] {
+  return snapshot
+    .split(/\r?\n/)
+    // Trailing whitespace and blank lines are YAML layout, not tree content: neither is a node, a
+    // name or a state, and both depend on how the renderer joined lines.
+    .map(line => line.trimEnd())
+    .filter(line => line.length > 0)
+}
+
+type LaneDiff = { reactOnly: string[]; blazorOnly: string[]; unified: string[] }
+
+// A line diff of two lanes' snapshots: the lines only React has, the lines only Blazor has, and a
+// unified rendering with two lines of context for the failure message. Lines keep their indentation,
+// so a node moved to another depth is a difference. The common prefix and suffix are trimmed first,
+// so a matching scene costs one pass; the longest-common-subsequence table is built only over the
+// differing middle, and above `tableCap` cells the middle is reported whole (every React line
+// removed, every Blazor line added) instead of aligned, which is still exact for the register.
+function laneLineDiff(react: readonly string[], blazor: readonly string[], context = 2, tableCap = 4_000_000): LaneDiff {
+  let head = 0
+  while (head < react.length && head < blazor.length && react[head] === blazor[head]) head += 1
+  let reactEnd = react.length
+  let blazorEnd = blazor.length
+  while (reactEnd > head && blazorEnd > head && react[reactEnd - 1] === blazor[blazorEnd - 1]) {
+    reactEnd -= 1
+    blazorEnd -= 1
+  }
+  const left = react.slice(head, reactEnd)
+  const right = blazor.slice(head, blazorEnd)
+  type Op = { kind: ' ' | '-' | '+'; line: string; reactLine: number; blazorLine: number }
+  const ops: Op[] = []
+  for (let index = 0; index < head; index += 1) ops.push({ kind: ' ', line: react[index], reactLine: index, blazorLine: index })
+  const width = right.length + 1
+  if ((left.length + 1) * width > tableCap) {
+    left.forEach((line, index) => ops.push({ kind: '-', line, reactLine: head + index, blazorLine: head }))
+    right.forEach((line, index) => ops.push({ kind: '+', line, reactLine: reactEnd, blazorLine: head + index }))
+  } else {
+    // suffix[i][j] = length of the longest common subsequence of left[i..] and right[j..].
+    const suffix = new Uint32Array((left.length + 1) * width)
+    for (let i = left.length - 1; i >= 0; i -= 1) {
+      for (let j = right.length - 1; j >= 0; j -= 1) {
+        suffix[i * width + j] = left[i] === right[j]
+          ? suffix[(i + 1) * width + j + 1] + 1
+          : Math.max(suffix[(i + 1) * width + j], suffix[i * width + j + 1])
+      }
+    }
+    let i = 0
+    let j = 0
+    while (i < left.length || j < right.length) {
+      if (i < left.length && j < right.length && left[i] === right[j]) {
+        ops.push({ kind: ' ', line: left[i], reactLine: head + i, blazorLine: head + j })
+        i += 1
+        j += 1
+      } else if (j >= right.length || (i < left.length && suffix[(i + 1) * width + j] >= suffix[i * width + j + 1])) {
+        ops.push({ kind: '-', line: left[i], reactLine: head + i, blazorLine: head + j })
+        i += 1
+      } else {
+        ops.push({ kind: '+', line: right[j], reactLine: head + i, blazorLine: head + j })
+        j += 1
+      }
+    }
+  }
+  for (let index = reactEnd; index < react.length; index += 1) {
+    ops.push({ kind: ' ', line: react[index], reactLine: index, blazorLine: blazorEnd + index - reactEnd })
+  }
+  const reactOnly = ops.filter(op => op.kind === '-').map(op => op.line)
+  const blazorOnly = ops.filter(op => op.kind === '+').map(op => op.line)
+  const unified: string[] = []
+  const changed = ops.map((op, index) => op.kind === ' ' ? -1 : index).filter(index => index >= 0)
+  let cursor = 0
+  while (cursor < changed.length) {
+    const start = Math.max(0, changed[cursor] - context)
+    let end = changed[cursor]
+    while (cursor + 1 < changed.length && changed[cursor + 1] - end <= context * 2 + 1) end = changed[++cursor]
+    end = Math.min(ops.length - 1, end + context)
+    // The hunk's first line, counted among the identical lines before it in its own lane, anchors the
+    // hunk in a tree that repeats itself (a list of identical rows), where context alone cannot.
+    const anchor = ops[start]
+    const anchorLane = anchor.kind === '+' ? blazor : react
+    const anchorAt = anchor.kind === '+' ? anchor.blazorLine : anchor.reactLine
+    let occurrence = 0
+    for (let index = 0; index <= anchorAt; index += 1) if (anchorLane[index] === anchor.line) occurrence += 1
+    unified.push(`@@ react line ${ops[start].reactLine + 1}, blazor line ${ops[start].blazorLine + 1}, first line occurrence ${occurrence} @@`)
+    for (let index = start; index <= end; index += 1) unified.push(`${ops[index].kind} ${ops[index].line}`)
+    cursor += 1
+  }
+  return { reactOnly, blazorOnly, unified }
+}
+
+// What a register row records: the unified hunks with each header reduced to '@@ #k', k being which
+// occurrence of the hunk's first line (in its own lane) the hunk starts at. The context lines pin each
+// differing line to its neighbours and k pins the hunk among identical neighbourhoods, so a waived line
+// that moves is a changed difference even into a repeated structure. Absolute line numbers are left out:
+// an unrelated change elsewhere in the tree shifts them without moving the difference. (A change that
+// adds or removes an identical copy of the anchor line before the hunk shifts k and reads as changed,
+// which errs towards re-measuring.)
+function laneHunks(diff: LaneDiff): string[] {
+  return diff.unified.map(line => line.startsWith('@@ ') ? `@@ #${/first line occurrence (\d+) @@$/.exec(line)?.[1] ?? '?'}` : line)
+}
+
+const sameLines = (left: readonly string[], right: readonly string[]) =>
+  left.length === right.length && left.every((line, index) => line === right[index])
+
+// The register row a measurement describes, ready to paste: the waiver's own ticket and reason are
+// carried over when there is one, and left empty (which validate-gallery refuses) when there is not.
+function ariaRegisterRow(id: string, diff: LaneDiff, waiver: AriaWaiver | undefined, state?: string): AriaWaiver | null {
+  const hunks = laneHunks(diff)
+  if (hunks.length === 0) return null
+  return { scenarioId: id, ...(state ? { state } : {}), ticket: waiver?.ticket ?? '', reason: waiver?.reason ?? '', hunks }
+}
+
+// The whole register judgement, as a pure function of (measured diff, waiver), so its semantics are
+// asserted directly below instead of only through a browser run.
+function reconcileAriaParity(id: string, diff: LaneDiff, waiver: AriaWaiver | undefined, state?: string) {
+  const hunks = laneHunks(diff)
+  const differs = hunks.length > 0
+  const unwaived: string[] = []
+  const drift: string[] = []
+  const stale: string[] = []
+  const pasteable = () => `Row for gallery/aria-parity-known-divergences.json: ${JSON.stringify(ariaRegisterRow(id, diff, waiver, state))}`
+  const label = state ? `${id} (${state})` : id
+  if (differs && !waiver) {
+    unwaived.push(`${label} ARIA trees differ between lanes (- react only, + blazor only)`, ...diff.unified,
+      `If the difference is owned by an open ticket, waive it with ${ariaRegister.measureFlag} set. ${pasteable()}`)
+  } else if (differs && waiver && !sameLines(hunks, waiver.hunks)) {
+    // What changed against the row, not the whole measured diff again: the recorded hunks are the
+    // left side and the measured ones the right, so a reviewer reads only the lines that moved.
+    drift.push(`${label} is waived for ARIA tree parity (ticket ${waiver.ticket}) but the difference changed; re-measure the row with ${ariaRegister.measureFlag} set.`,
+      'Recorded row versus measured now (- recorded, + measured):', ...laneLineDiff(waiver.hunks, hunks).unified, pasteable())
+  } else if (!differs && waiver) {
+    stale.push(`${label} is waived for ARIA tree parity (ticket ${waiver.ticket}) but its lanes now match; delete the row from gallery/aria-parity-known-divergences.json`)
+  }
+  return { unwaived, drift, stale }
+}
+
+// One lane's tree, read until two consecutive reads agree. A lane is judged at a state it settled
+// into on its own: neither the other lane nor the register takes part, so a real difference cannot be
+// waited out, only a render that is still landing (a debounced search, a Blazor render one round trip
+// late). A lane that has not settled when the window closes is a failure of its own, not a verdict.
+const ariaParitySettleMs = 5_000
+async function settleLane(
+  read: () => Promise<string[]>,
+  windowMs = ariaParitySettleMs,
+  pause = (ms: number) => new Promise<void>(done => setTimeout(done, ms)),
+  now = () => Date.now(),
+) {
+  const deadline = now() + windowMs
+  let previous = await read()
+  let reads = 1
+  for (;;) {
+    if (now() >= deadline) return { lines: previous, reads, settled: false }
+    await pause([100, 250, 500, 1_000][Math.min(reads - 1, 3)])
+    const current = await read()
+    reads += 1
+    if (sameLines(previous, current)) return { lines: current, reads, settled: true }
+    previous = current
+  }
+}
+
+// Scenes whose prepared state runs on a timer are compared on a frozen clock, listed by exact id: a
+// scene with no timer keeps the ordinary settled read after the scans on a running clock, because a
+// paused clock also holds back the deferred renders a settled read waits for. two-step's arming starts
+// a five-second window that counts down every second, so the armed tree only holds still while time
+// does. Each lane's page gets Playwright's fake clock before its story opens (React's timers and Blazor
+// WebAssembly's Task.Delay both run on the page's setTimeout, so both follow it). The clock is paused
+// once the story is up, the scene is prepared and compared on the paused clock, and the clock then
+// resumes, because the axe scans need running timers.
+const ariaFrozenClockScenes = new Set(['guarded-control.two-step'])
+const guardArmedOrCommitting = '[data-guard-state="armed"], [data-guard-state="committing"]'
+// A later moment of a timer-driven scene, read after the scans once each lane has reached it, and
+// judged against its own row (`state`). two-step's guard recovers when its arm window runs out.
+const ariaLaterStates = new Map<string, Array<{ state: string; settle: (probe: Locator) => Promise<void> }>>([
+  ['guarded-control.two-step', [{
+    state: 'after-arm-window',
+    settle: probe => expect(probe.locator(guardArmedOrCommitting), 'the guard is still armed; this state begins when its arm window ends')
+      .toHaveCount(0, { timeout: 15_000 }),
+  }]],
+])
+
+// Playwright has no "pause now": pauseAt jumps to a time and pauses there, and refuses a time the
+// running fake clock has already passed. The page's clock keeps moving while the target is computed, so
+// the target sits a margin ahead, retried with a wider margin on a loaded host. Nothing is armed yet,
+// so the jump is harmless.
+async function pauseClocks(pages: Page[]) {
+  await Promise.all(pages.map(async page => {
+    for (const margin of [50, 250, 1_000, 5_000]) {
+      try {
+        await page.clock.pauseAt(await page.evaluate(() => Date.now()) + margin)
+        return
+      } catch (error) {
+        if (margin === 5_000 || !String(error).includes('Cannot fast-forward to the past')) throw error
+      }
+    }
+  }))
+}
+
+async function assertAriaParity(reactPage: Page, blazorPage: Page, id: string, state?: string) {
+  const waiver = ariaWaiverByScenario.get(ariaWaiverKey(id, state))
+  const settleState = state ? ariaLaterStates.get(id)?.find(entry => entry.state === state)?.settle : undefined
+  if (state && !settleState) throw new Error(`${id} has no later ARIA state ${state}`)
+  const started = performance.now()
+  const lanes = await readBothLanes(reactPage, blazorPage, async probe => {
+    await settleState?.(probe)
+    return settleLane(async () => normaliseAriaSnapshot(await probe.ariaSnapshot()))
+  })
+  const label = state ? `${id} (${state})` : id
+  const unsettled = (['react', 'blazor'] as const).filter(lane => !lanes[lane].settled)
+    .map(lane => `${label} ${lane} ARIA tree was still changing after ${ariaParitySettleMs} ms (${lanes[lane].reads} reads)`)
+  const diff = laneLineDiff(lanes.react.lines, lanes.blazor.lines)
+  const outcome = reconcileAriaParity(id, diff, waiver, state)
+  // A row for a state this scenario never reads would never be judged; the prepared read says so.
+  const unread = state ? [] : ariaRegister.divergences
+    .filter(row => row.scenarioId === id && row.state && !(ariaLaterStates.get(id) ?? []).some(entry => entry.state === row.state))
+    .map(row => `${id} has a row for state ${row.state}, which this scenario never reads; delete or rename the row`)
+  // One line per comparison: `row` is the register row this measurement describes, pasteable as is.
+  // It is null when the lanes match, and also when a lane did not settle, because a tree caught
+  // mid-change is not a difference to waive. `measure` holds the diagnostics a row must not carry.
+  if (process.env[ariaRegister.measureFlag]) {
+    appendFileSync(process.env[ariaRegister.measureFlag]!, `${JSON.stringify({
+      scenarioId: id,
+      ...(state ? { state } : {}),
+      row: unsettled.length ? null : ariaRegisterRow(id, diff, waiver, state),
+      measure: {
+        reactOnly: diff.reactOnly, blazorOnly: diff.blazorOnly, unified: diff.unified,
+        lines: { react: lanes.react.lines.length, blazor: lanes.blazor.lines.length },
+        reads: { react: lanes.react.reads, blazor: lanes.blazor.reads },
+        settled: { react: lanes.react.settled, blazor: lanes.blazor.settled },
+        elapsedMs: Math.round(performance.now() - started),
+      },
+    })}\n`)
+  }
+  expect(unsettled, `${label} ARIA tree parity: a lane did not settle`).toEqual([])
+  expect(outcome.unwaived, `${label} ARIA tree parity:\n${outcome.unwaived.join('\n')}`).toEqual([])
+  expect(outcome.drift, `${label} ARIA tree parity waiver:\n${outcome.drift.join('\n')}`).toEqual([])
+  expect(outcome.stale, `${label} ARIA tree parity register`).toEqual([])
+  expect(unread, `${id} ARIA tree parity register`).toEqual([])
+  // One comparison per scenario: a later state is part of the scenario's comparison, not another.
+  if (!state) recordCheck('ariaParityComparisons')
+}
+
 async function assertVisualParity(reactPage: Page, blazorPage: Page, scenario: Scenario, testInfo: TestInfo) {
   await assertLocatorVisualParity(
     reactPage.locator('[data-gallery-probe]'),
@@ -1377,6 +1673,167 @@ test('the per-element register is read per host', () => {
     .toMatchObject({ unregistered: [], stale: [] })
 })
 
+// ARIA-tree lane parity (T-943): the comparison, its normalisation and the register judgement,
+// asserted directly on the pure functions rather than only through a browser run.
+const ariaScene = [
+  '- heading "Actions" [level=2]',
+  '- button "More actions" [expanded]',
+  '- menu "More actions":',
+  '  - menuitem "Rename"',
+  '  - menuitem "Archive" [disabled]',
+  '- checkbox "Notify" [checked]',
+]
+
+test('ARIA parity normalisation drops only YAML layout, never a role, name or state', () => {
+  // Trailing whitespace and blank lines are the only things removed.
+  expect(normaliseAriaSnapshot('- heading "Actions" [level=2]   \n\n- button "Save"\r\n'))
+    .toEqual(['- heading "Actions" [level=2]', '- button "Save"'])
+  // Indentation is structure (depth in the tree), so leading whitespace is kept.
+  expect(normaliseAriaSnapshot('- list:\n  - listitem: One')).toEqual(['- list:', '  - listitem: One'])
+  // Roles, names and every state Playwright renders come through byte for byte.
+  expect(normaliseAriaSnapshot(ariaScene.join('\n'))).toEqual(ariaScene)
+  for (const line of ['- switch "Wi-Fi" [checked=mixed]', '- button "Bold" [pressed]', '- tab "One" [selected]',
+    '- textbox "Name" [invalid]', '- treeitem "Root" [expanded] [level=1]']) {
+    expect(normaliseAriaSnapshot(line), line).toEqual([line])
+  }
+})
+
+test('ARIA parity fails a role, name or state difference between lanes and shows it as a diff', () => {
+  const swap = (index: number, line: string) => ariaScene.map((entry, at) => at === index ? line : entry)
+  expect(laneLineDiff(ariaScene, [...ariaScene])).toEqual({ reactOnly: [], blazorOnly: [], unified: [] })
+  for (const [label, blazor] of [
+    ['role', swap(5, '- switch "Notify" [checked]')],
+    ['name', swap(1, '- button "More options" [expanded]')],
+    ['state', swap(4, '  - menuitem "Archive"')],
+    ['level', swap(0, '- heading "Actions" [level=3]')],
+    ['depth', swap(3, '- menuitem "Rename"')],
+  ] as const) {
+    const diff = laneLineDiff(ariaScene, blazor)
+    const index = blazor.findIndex((line, at) => line !== ariaScene[at])
+    expect(diff.reactOnly, label).toEqual([ariaScene[index]])
+    expect(diff.blazorOnly, label).toEqual([blazor[index]])
+    const outcome = reconcileAriaParity('x.default', diff, undefined)
+    expect(outcome.unwaived[0], label).toBe('x.default ARIA trees differ between lanes (- react only, + blazor only)')
+    expect(outcome.unwaived, label).toContain(`- ${ariaScene[index]}`)
+    expect(outcome.unwaived, label).toContain(`+ ${blazor[index]}`)
+  }
+  // A node one lane lacks is a difference too, aligned so the rest of the tree still matches.
+  const missing = laneLineDiff(ariaScene, ariaScene.filter((_, at) => at !== 2 && at !== 3 && at !== 4))
+  expect(missing).toMatchObject({ reactOnly: ariaScene.slice(2, 5), blazorOnly: [] })
+  expect(missing.unified).toEqual([
+    '@@ react line 1, blazor line 1, first line occurrence 1 @@',
+    '  - heading "Actions" [level=2]',
+    '  - button "More actions" [expanded]',
+    `- ${ariaScene[2]}`,
+    `- ${ariaScene[3]}`,
+    `- ${ariaScene[4]}`,
+    '  - checkbox "Notify" [checked]',
+  ])
+  // The hunks a row records are the same body with the line numbers taken out of the header.
+  expect(laneHunks(missing)).toEqual(['@@ #1', ...missing.unified.slice(1)])
+  // Above the table cap the differing middle is reported whole rather than aligned.
+  expect(laneLineDiff(['- a', '- b', '- c'], ['- a', '- x', '- c'], 2, 1)).toMatchObject({ reactOnly: ['- b'], blazorOnly: ['- x'] })
+})
+
+test('the ARIA parity register is exact both ways', () => {
+  const blazor = ariaScene.map((line, at) => at === 1 ? '- button "More options" [expanded]' : line)
+  const diff = laneLineDiff(ariaScene, blazor)
+  const waiver = (hunks: string[]) => ({ scenarioId: 'x.default', ticket: 'T-1104', reason: 'recorded difference', hunks })
+  const clean = { unwaived: [], drift: [], stale: [] }
+  // A waiver that records exactly the measured hunks covers them.
+  expect(reconcileAriaParity('x.default', diff, waiver(laneHunks(diff)))).toEqual(clean)
+  // A waived scenario whose lanes now match is stale, like a fixed overflow left in its register.
+  expect(reconcileAriaParity('x.default', laneLineDiff(ariaScene, ariaScene), waiver(laneHunks(diff))).stale)
+    .toEqual(['x.default is waived for ARIA tree parity (ticket T-1104) but its lanes now match; delete the row from gallery/aria-parity-known-divergences.json'])
+  // A waiver cannot cover a difference it does not name: a new or changed line is drift.
+  const other = laneLineDiff(ariaScene, ariaScene.map((line, at) => at === 1 ? '- button "Other" [expanded]' : line))
+  const drift = reconcileAriaParity('x.default', diff, waiver(laneHunks(other)))
+  expect(drift.drift[0]).toContain('x.default is waived for ARIA tree parity (ticket T-1104) but the difference changed')
+  expect(drift.unwaived).toEqual([])
+  // And no waiver at all leaves a matching scene clean.
+  expect(reconcileAriaParity('x.default', laneLineDiff(ariaScene, ariaScene), undefined)).toEqual(clean)
+  // A later state of a timer-driven scene is judged on its own row, and its messages and pasteable row
+  // name the state.
+  const later = reconcileAriaParity('x.default', diff, undefined, 'after-arm-window')
+  expect(later.unwaived[0]).toBe('x.default (after-arm-window) ARIA trees differ between lanes (- react only, + blazor only)')
+  expect(JSON.parse(later.unwaived.at(-1)!.replace(/^.*Row for gallery\/aria-parity-known-divergences\.json: /, '')))
+    .toMatchObject({ scenarioId: 'x.default', state: 'after-arm-window', hunks: laneHunks(diff) })
+})
+
+test('an ARIA parity waiver pins each line to its place: a waived line that moves is drift', () => {
+  // The numeric-text-box.editing-commit shape: the lanes differ only in Decrement's disabled state.
+  const react = ['- textbox "Cost"', '- button "Increment"', '- button "Decrement" [disabled]', '- text: Focus to edit', '- status: "Requests: null"']
+  const blazor = react.map(line => line === '- button "Decrement" [disabled]' ? '- button "Decrement"' : line)
+  const row = { scenarioId: 'x.default', ticket: 'T-1108', reason: 'recorded difference', hunks: laneHunks(laneLineDiff(react, blazor)) }
+  expect(reconcileAriaParity('x.default', laneLineDiff(react, blazor), row).drift).toEqual([])
+  // Blazor now reads Decrement before Increment. The lines only each lane has are the very same two,
+  // so a row of bare lines would still pass; the hunk's context says the line moved.
+  const moved = ['- textbox "Cost"', '- button "Decrement"', '- button "Increment"', '- text: Focus to edit', '- status: "Requests: null"']
+  const measured = laneLineDiff(react, moved)
+  expect([measured.reactOnly, measured.blazorOnly]).toEqual([['- button "Decrement" [disabled]'], ['- button "Decrement"']])
+  expect(reconcileAriaParity('x.default', measured, row).drift[0]).toContain('but the difference changed')
+  // An unrelated change outside the context, made identically in both lanes, moves no hunk.
+  const longer = ['- heading "Costs" [level=2]', '- paragraph: Intro', '- paragraph: More', ...react]
+  const longerBlazor = ['- heading "Costs" [level=2]', '- paragraph: Intro', '- paragraph: More', ...blazor]
+  const shifted = laneLineDiff(longer, longerBlazor)
+  expect(shifted.unified[0]).not.toBe(laneLineDiff(react, blazor).unified[0])
+  expect(reconcileAriaParity('x.default', shifted, row)).toEqual({ unwaived: [], drift: [], stale: [] })
+})
+
+test('an ARIA parity waiver tells repeated rows apart: a line that moves into identical context is drift', () => {
+  // Four identical rows; Blazor drops the second row's button name. Moving that defect to the third
+  // row leaves the hunk body identical, context lines included, so only the anchor can tell (review 2,
+  // finding 6): the hunk now starts at the second occurrence of its first line, not the first.
+  const rows = (blank: number) => [0, 1, 2, 3].flatMap(at => ['- listitem:', at === blank ? '  - button' : '  - button "Remove"'])
+  const react = rows(-1)
+  const recorded = laneLineDiff(react, rows(1))
+  const moved = laneLineDiff(react, rows(2))
+  expect(moved.unified.slice(1)).toEqual(recorded.unified.slice(1))
+  expect([laneHunks(recorded)[0], laneHunks(moved)[0]]).toEqual(['@@ #1', '@@ #2'])
+  const row = { scenarioId: 'x.default', ticket: 'T-1104', reason: 'recorded difference', hunks: laneHunks(recorded) }
+  expect(reconcileAriaParity('x.default', recorded, row).drift).toEqual([])
+  expect(reconcileAriaParity('x.default', moved, row).drift[0]).toContain('but the difference changed')
+})
+
+test('an ARIA parity drift names what changed against the row and prints a row that can be pasted', () => {
+  const react = ['- heading "Alerts" [level=2]', '- alert:', '  - text: Saved']
+  const recorded = laneLineDiff(react, ['- heading "Alerts" [level=2]', '- status:', '  - text: Saved'])
+  const waiver = { scenarioId: 'alert.dismissal', ticket: 'T-1104', reason: 'story renders the warning variant in React only', hunks: laneHunks(recorded) }
+  const measured = laneLineDiff(react, ['- heading "Alerts" [level=2]', '- log:', '  - text: Saved'])
+  const { drift } = reconcileAriaParity('alert.dismissal', measured, waiver)
+  // Only the changed line, recorded against measured; not the whole measured diff again.
+  expect(drift).toContain('- + - status:')
+  expect(drift).toContain('+ + - log:')
+  expect(drift).not.toContain('- - heading "Alerts" [level=2]')
+  // The last line is the row as measured, with the waiver's ticket and reason carried over.
+  const pasted = JSON.parse(drift.at(-1)!.replace(/^Row for gallery\/aria-parity-known-divergences\.json: /, ''))
+  expect(pasted).toEqual({ ...waiver, hunks: laneHunks(measured) })
+  // An unwaived difference prints the row to fill in, and a match prints no row at all.
+  expect(reconcileAriaParity('alert.dismissal', measured, undefined).unwaived.at(-1)).toContain('"ticket":"","reason":""')
+  expect(ariaRegisterRow('alert.dismissal', laneLineDiff(react, react), undefined)).toBeNull()
+})
+
+test('an ARIA parity lane is judged where it settles on its own, and a real difference is not waited out', async () => {
+  const reader = (reads: string[][]) => { let at = 0; return async () => reads[Math.min(at++, reads.length - 1)] }
+  const instant = async () => {}
+  // Settled on the first two agreeing reads.
+  expect(await settleLane(reader([['- a'], ['- a']]), 5_000, instant)).toEqual({ lines: ['- a'], reads: 2, settled: true })
+  // A render still landing: judged at the state it settles into.
+  expect(await settleLane(reader([['- a'], ['- b'], ['- b']]), 5_000, instant)).toEqual({ lines: ['- b'], reads: 3, settled: true })
+  // The other lane plays no part: a lane that settles on a tree the other lane does not have is
+  // judged there, even if it would have changed later. The pair is compared once, at the settled
+  // reads, and the difference fails rather than being re-read until it goes away.
+  const react = await settleLane(reader([['- status: Armed'], ['- status: Armed'], ['- status: Restored']]), 5_000, instant)
+  const blazor = await settleLane(reader([['- status: Restored']]), 5_000, instant)
+  expect(react.lines).toEqual(['- status: Armed'])
+  expect(reconcileAriaParity('x.default', laneLineDiff(react.lines, blazor.lines), undefined).unwaived).not.toEqual([])
+  // A lane that never settles inside the window is reported as unsettled, never as a verdict.
+  let clock = 0
+  const ticking = async () => [`- timer: ${clock}`]
+  const unsettled = await settleLane(ticking, 1_000, async ms => { clock += ms }, () => clock)
+  expect(unsettled.settled).toBe(false)
+})
+
 test('both galleries expose every exact neutral scenario set', async ({ browser }) => {
   const page = await browser.newPage()
   const [react, blazor] = await Promise.all([reactIndex(page), blazorIndex(page)])
@@ -1397,11 +1854,26 @@ for (const catalog of catalogs) for (const scenario of catalog.scenarios) {
     test.skip(ciGallery && ciWallClockExempt.has(scenario.id),
       'wall-clock budget scenario: a shared CI runner measures the runner, not the component')
     const colorScheme = scenario.id.endsWith('.theme-dark') ? 'dark' : 'light'
+    // The clock zone and the browser language come from the scenario, never from the host. Both lanes
+    // render instants in the browser's zone (React through Intl with no timeZone, Blazor WebAssembly
+    // through TimeZoneInfo.Local, which it takes from the browser), so the zone is pinned to UTC (T-943
+    // review 1, finding 1). The language is the locale the scenario's catalog declares
+    // (content.environment.locale): React formats with it wherever a story names no locale, and Blazor
+    // WebAssembly takes its default culture from it (T-943 review 2, finding 4). That covers the scene,
+    // not a component that carries its own locale inside it (schema-form.locale-theme's Arabic form in
+    // an en-US scene); so that such a component formats from real locale data too, the Blazor gallery
+    // loads all ICU data (BlazorWebAssemblyLoadAllGlobalizationData) instead of the shard the browser
+    // language would pick (T-943 review 3, finding 1).
+    const locale = scenario.content?.environment?.locale
+    if (!locale) throw new Error(`${scenario.id} declares no content.environment.locale in its gallery catalog`)
+    const scenarioContext = { viewport: { width: 920, height: 720 }, colorScheme, timezoneId: 'UTC', locale } as const
     const [reactContext, blazorContext] = await Promise.all([
-      browser.newContext({ viewport: { width: 920, height: 720 }, colorScheme }),
-      browser.newContext({ viewport: { width: 920, height: 720 }, colorScheme }),
+      browser.newContext(scenarioContext),
+      browser.newContext(scenarioContext),
     ])
     const [reactPage, blazorPage] = await Promise.all([reactContext.newPage(), blazorContext.newPage()])
+    const frozenClock = ariaFrozenClockScenes.has(scenario.id)
+    if (frozenClock) await Promise.all([reactPage.clock.install(), blazorPage.clock.install()])
     await Promise.all([
       reactPage.emulateMedia({ reducedMotion: 'reduce' }),
       blazorPage.emulateMedia({ reducedMotion: 'reduce' }),
@@ -1411,7 +1883,13 @@ for (const catalog of catalogs) for (const scenario of catalog.scenarios) {
       openReactStory(reactPage, storyId(react, catalog.galleryInterface.projectionTitles.react, scenario.name)),
       openBlazorStory(blazorPage, storyId(blazor, catalog.galleryInterface.projectionTitles.blazor, scenario.name)),
     ])
+    if (frozenClock) await pauseClocks([reactPage, blazorPage])
     await Promise.all([prepareScenario(reactPage, scenario), prepareScenario(blazorPage, scenario)])
+    if (frozenClock) {
+      // Compared as prepared, on the paused clock (ariaFrozenClockScenes); the scans need running time.
+      await assertAriaParity(reactPage, blazorPage, scenario.id)
+      await Promise.all([reactPage.clock.resume(), blazorPage.clock.resume()])
+    }
     if (scenario.id === 'data-exchange.authoring' || scenario.id === 'data-exchange.stale-review') {
       for (const page of [reactPage, blazorPage]) {
         await expect(page.getByRole('textbox', { name: 'Reference dataset', exact: true })).toHaveValue('dataset.customers')
@@ -1424,6 +1902,10 @@ for (const catalog of catalogs) for (const scenario of catalog.scenarios) {
     await recordReactBaseline(reactPage, catalog, scenario)
     await assertAccessible(reactPage, scenario, 'react')
     await assertAccessible(blazorPage, scenario, 'blazor')
+    // Every scenario, not only those declaring visual parity: the tree is what the lanes must agree
+    // on whatever they look like. Before reflow, which mutates the viewport and root font size.
+    if (!frozenClock) await assertAriaParity(reactPage, blazorPage, scenario.id)
+    for (const { state } of ariaLaterStates.get(scenario.id) ?? []) await assertAriaParity(reactPage, blazorPage, scenario.id, state)
     if (scenario.sourceQualityCaseIds?.some(id => id.endsWith('.quality.visual-parity'))
       && !(ciGallery && ciPixelExempt.has(scenario.id))) {
       await assertVisualParity(reactPage, blazorPage, scenario, testInfo)
@@ -1939,6 +2421,27 @@ for (const projection of ['react', 'blazor'] as const) {
     await page.keyboard.press('Escape')
     await expect(page.getByRole('menu')).toHaveCount(0)
     await expect(trigger).toBeFocused()
+
+    // T-943 review 2: every close returns focus to the element that had it when the menu opened, by
+    // keyboard or by pointer (APG menu pattern), and an outside press on nothing focusable is a close
+    // too: in a real browser the press's own default action runs after the dismissal and would
+    // otherwise leave focus on <body>. jsdom and bUnit cannot see that ordering; this does.
+    const outsidePress = () => page.mouse.click(8, 712)
+    await trigger.focus()
+    await trigger.dispatchEvent('keydown', {key: 'F10', code: 'F10', shiftKey: true, bubbles: true})
+    await expect(page.locator('[role="menuitem"][data-active="true"]')).toBeFocused()
+    await outsidePress()
+    await expect(page.getByRole('menu')).toHaveCount(0)
+    await expect(trigger, `${projection} keyboard-opened menu, outside press`).toBeFocused()
+    for (const close of ['Escape', 'selection', 'outside press'] as const) {
+      await trigger.click({button: 'right', position: {x: 36, y: 36}})
+      await expect(page.locator('[role="menuitem"][data-active="true"]'), `${projection} pointer open focuses the menu`).toBeFocused()
+      if (close === 'Escape') await page.keyboard.press('Escape')
+      else if (close === 'selection') await page.getByRole('menuitem', {name: 'Copy inspection'}).click()
+      else await outsidePress()
+      await expect(page.getByRole('menu')).toHaveCount(0)
+      await expect(trigger, `${projection} pointer-opened menu, ${close}`).toBeFocused()
+    }
 
     const groupsScenario = contextMenuCatalog.scenarios.find(scenario => scenario.id === 'context-menu.groups')!
     await openProjectionStory(page, projection, contextMenuCatalog, groupsScenario.name)
