@@ -8,7 +8,6 @@ import {spawnSync} from 'node:child_process'
 const source = readFileSync(new URL('../workflows/stryker.yml', import.meta.url), 'utf8').replaceAll('\r\n', '\n')
 const helper = 'tooling/stryker-builder-partitions.mjs'
 const plan = 'StrykerOutput/builder-plan/plan.json'
-const blazorPlan = 'StrykerOutput/blazor-plan/plan.json'
 const downloads = 'StrykerOutput/builder-partitions'
 function job(name) {
   const start = source.indexOf(`  ${name}:\n`)
@@ -22,12 +21,12 @@ function context({event = 'pull_request', action = 'synchronize', label = '', fo
 }
 function evaluate(expression, options = {}) {
   const needs = {route: {result: options.routeResult ?? 'success', outputs: {enabled: options.route === false ? 'false' : 'true'}},
-    plan: {result: options.planResult ?? 'success', outputs: {selected: options.selected ?? 'false', blazor_selected: options.blazorSelected ?? 'false', mode: options.mode ?? 'normal', subject: options.subject ?? 'c'.repeat(40)}},
+    plan: {result: options.planResult ?? 'success', outputs: {selected: options.selected ?? 'false', mode: options.mode ?? 'normal', subject: options.subject ?? 'c'.repeat(40)}},
     partitions: {result: options.partitionsResult ?? 'skipped'}}
-  return Function('github', 'vars', 'needs', 'labels', 'contains', 'always', 'format', `return (${expression
+  return Function('github', 'inputs', 'vars', 'needs', 'labels', 'contains', 'always', 'format', `return (${expression
     .replaceAll('github.event.pull_request.labels.*.name', 'labels')
     .replaceAll('needs.workload-route', 'needs.route').replaceAll('needs.builder-plan', 'needs.plan')
-    .replaceAll('needs.builder-partitions', 'needs.partitions')})`)(context(options),
+    .replaceAll('needs.builder-partitions', 'needs.partitions')})`)(context(options), options.inputs ?? {},
     {ACTIONS_ENABLED: options.enabled === false ? 'false' : 'true'}, needs, options.labels ?? [],
     (items, value) => items.includes(value), () => true,
     (template, ...values) => template.replace(/\{(\d+)\}/g, (_match, index) => values[index]))
@@ -78,20 +77,15 @@ test('normal events retain owner selection and one-shot labels cannot persist ad
 })
 
 test('every new hosted PR job retains same-repo Ready route and negative stacked guards', () => {
-  const commands = [
-    ['builder-plan', {selected: 'true'}], ['builder-partitions', {selected: 'true'}], ['stryker', {selected: 'true'}],
-    ['mutation-diagnostic', {action: 'labeled', label: 'mutation-diagnostic', selected: 'true'}],
-    ['mutation-qualification', {action: 'labeled', label: 'mutation-qualification', selected: 'true'}],
-    ['blazor-partitions', {action: 'labeled', label: 'mutation-diagnostic', blazorSelected: 'true'}],
-    ['blazor-qualification', {action: 'labeled', label: 'mutation-qualification', blazorSelected: 'true'}],
-  ]
-  for (const [name, command] of commands) {
+  for (const name of ['builder-plan', 'builder-partitions', 'stryker', 'mutation-diagnostic', 'mutation-qualification']) {
+    const command = name === 'mutation-diagnostic' || name === 'mutation-qualification'
+      ? {action: 'labeled', label: name, selected: 'true'} : {selected: 'true'}
     assert.equal(admits(name, command), true)
     for (const refusal of [{enabled: false}, {route: false}, {routeResult: 'failure'}, {routeResult: 'cancelled'}, {fork: true}, {draft: true}, {labels: ['stacked']}])
       assert.equal(admits(name, {...command, ...refusal}), false, `${name} ${JSON.stringify(refusal)}`)
   }
   const reads = source.split('\n').filter(line => line.includes('github.event.pull_request.labels.*.name'))
-  assert.equal(reads.length, commands.length)
+  assert.equal(reads.length, 5)
   for (const line of reads) assert.ok(line.includes("!contains(github.event.pull_request.labels.*.name, 'stacked')"))
 })
 
@@ -125,14 +119,11 @@ test('normal merge subjects and explicit label heads stay distinct across all ch
   assert.equal(evaluate(expected('builder-plan')), 'b'.repeat(40))
   assert.equal(evaluate(ref('builder-plan'), {action: 'labeled', label: 'mutation-diagnostic'}), 'a'.repeat(40))
   assert.equal(evaluate(expected('builder-plan'), {action: 'labeled', label: 'mutation-qualification'}), 'a'.repeat(40))
-  for (const name of ['builder-partitions', 'blazor-partitions', 'stryker']) {
+  for (const name of ['builder-partitions', 'stryker']) {
     assert.equal(evaluate(ref(name)), 'c'.repeat(40))
     assert.equal(evaluate(expected(name)), 'c'.repeat(40))
   }
-  for (const name of ['mutation-diagnostic', 'mutation-qualification', 'blazor-qualification']) {
-    assert.equal(evaluate(ref(name)), 'a'.repeat(40))
-    assert.equal(evaluate(expected(name)), 'a'.repeat(40))
-  }
+  for (const name of ['mutation-diagnostic', 'mutation-qualification']) assert.equal(evaluate(ref(name)), 'a'.repeat(40))
   assert.equal(evaluate(ref('stryker'), {event: 'schedule'}), 'b'.repeat(40))
 })
 
@@ -164,9 +155,6 @@ test('matrix is selected-only four complete-file candidates with separate bounde
   assert.equal(admits('builder-partitions', {selected: 'true', planResult: 'cancelled'}), false)
   assert.equal(admits('builder-partitions', {selected: 'true', planResult: 'skipped'}), false)
   assert.ok(matrix.includes(`node ${helper} shard '${plan}' $env:PARTITION_INDEX`))
-  const blazor = job('blazor-partitions')
-  assert.ok(blazor.includes("timeout-minutes: ${{ needs.builder-plan.outputs.blazor_mode == 'diagnostic' && 30 || 360 }}"))
-  assert.ok(blazor.includes("timeout-minutes: ${{ needs.builder-plan.outputs.blazor_mode == 'diagnostic' && 20 || 330 }}"))
 })
 
 test('full Builder execution uses the measured complete-file profile before SDK work', () => {
@@ -260,18 +248,13 @@ test('normal PR owner emits canonical configuration check before helper executio
 })
 
 test('all source admission is delegated before SDK without local ref rewriting or a Builder fallback', () => {
-  const planner = job('builder-plan')
-  assert.ok(planner.includes(`node ${helper} plans $env:PARTITION_MODE 'StrykerOutput'`))
-  for (const prefix of ['builder', 'blazor']) {
-    assert.ok(planner.includes(`name: ${prefix}-plan-\${{ github.run_id }}-\${{ github.run_attempt }}`))
-    assert.ok(planner.includes(`path: StrykerOutput/${prefix}-plan/plan.json`))
-  }
+  assert.ok(job('builder-plan').includes(`node ${helper} plan $env:PARTITION_MODE '${plan}'`))
   assert.ok(job('builder-plan').includes('base: ${{ steps.plan.outputs.base }}'))
-  for (const name of ['builder-partitions', 'blazor-partitions', 'stryker', 'mutation-diagnostic', 'mutation-qualification', 'blazor-qualification'])
+  for (const name of ['builder-partitions', 'stryker', 'mutation-diagnostic', 'mutation-qualification'])
     assert.ok(job(name).includes('EXPECTED_BASE: ${{ needs.builder-plan.outputs.base }}'))
-  for (const [name, exactPlan] of [['stryker', plan], ['builder-partitions', plan], ['blazor-partitions', blazorPlan]]) {
+  for (const name of ['stryker', 'builder-partitions']) {
     const block = job(name)
-    assert.ok(block.includes(`node ${helper} admit '${exactPlan}'`))
+    assert.ok(block.includes(`node ${helper} admit '${plan}'`))
     assert.ok(block.indexOf(`node ${helper} admit`) < block.indexOf('actions/setup-dotnet'))
     assert.ok(block.includes('EXPECTED_HEAD: ${{ needs.builder-plan.outputs.subject }}'))
   }
@@ -283,26 +266,22 @@ test('all source admission is delegated before SDK without local ref rewriting o
 })
 
 test('diagnostic and qualification owners stay Node-only and do not turn partial reports into qualification', () => {
-  const diagnostic = job('mutation-diagnostic'), qualification = job('mutation-qualification'), blazorQualification = job('blazor-qualification')
-  for (const [block, exactPlan] of [[diagnostic, plan], [qualification, plan], [blazorQualification, blazorPlan]]) {
+  const diagnostic = job('mutation-diagnostic'), qualification = job('mutation-qualification')
+  for (const block of [diagnostic, qualification]) {
     assert.ok(!block.includes('setup-dotnet'))
     assert.ok(!block.includes('dotnet tool'))
     assert.ok(!block.includes('PINS_TOKEN'))
-    assert.ok(block.includes(`node ${helper} admit '${exactPlan}'`))
+    assert.ok(block.includes(`node ${helper} admit '${plan}'`))
   }
   assert.ok(!diagnostic.includes(`node ${helper} collect`))
   assert.ok(qualification.includes(`node ${helper} collect '${plan}' '${downloads}'`))
-  assert.ok(blazorQualification.includes(`node ${helper} collect '${blazorPlan}' 'StrykerOutput/blazor-partitions'`))
   assert.ok(qualification.includes('timeout-minutes: 360'))
   assert.ok(qualification.includes('timeout-minutes: 330'))
   for (const result of ['failure', 'cancelled', 'skipped', '']) {
     assert.notEqual(runGuard('mutation-qualification', 'Require all four complete dependencies', {PARTITIONS_RESULT: result}).status, 0)
     assert.notEqual(runGuard('mutation-diagnostic', 'Diagnostic observations are not whole qualification', {PARTITIONS_RESULT: result}).status, 0)
-    assert.notEqual(runGuard('blazor-qualification', 'Require all twelve complete dependencies', {PARTITIONS_RESULT: result}).status, 0)
-    assert.notEqual(runGuard('mutation-diagnostic', 'Diagnostic observations are not whole qualification', {BLAZOR_SELECTED: 'true', BLAZOR_RESULT: result}).status, 0)
   }
   assert.equal(runGuard('mutation-qualification', 'Require all four complete dependencies', {PARTITIONS_RESULT: 'success'}).status, 0)
-  assert.equal(runGuard('blazor-qualification', 'Require all twelve complete dependencies', {PARTITIONS_RESULT: 'success'}).status, 0)
 })
 
 test('complete packet artifacts contain only the adjacent receipt and report for a flat LCA', () => {
@@ -365,4 +344,29 @@ test('schedule and dispatch keep the original all-project commands budgets and W
   assert.match(normal, /if: .*runner\.os != 'Windows'\n        with:\n          python-version: '3\.14'/)
   assert.equal(readFileSync(new URL('full-mutation.ps1', import.meta.url), 'utf8').replaceAll('\r\n', '\n'),
     'dotnet tool restore\nif ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }\nnode tooling/stryker.mjs full\nexit $LASTEXITCODE\n')
+})
+
+test('weekly full run, and a manual changed-files run that never takes the full or Windows route', () => {
+  assert.ok(source.includes("    - cron: '40 7 * * 0'\n"))
+  assert.ok(!source.includes("cron: '40 7 * * *'"))
+  const changed = {event: 'workflow_dispatch', inputs: {scope: 'changed'}}
+  assert.equal(admits('stryker', changed), false)
+  assert.equal(admits('stryker', {event: 'workflow_dispatch', inputs: {scope: 'full'}}), true)
+  assert.equal(admits('stryker-changed', changed), true)
+  for (const refusal of [{event: 'workflow_dispatch', inputs: {scope: 'full'}}, {event: 'workflow_dispatch'}, {event: 'schedule'},
+    {...changed, enabled: false}, {}, {action: 'labeled', label: 'mutation-qualification'}])
+    assert.equal(admits('stryker-changed', refusal), false, JSON.stringify(refusal))
+  for (const name of ['builder-plan', 'builder-partitions', 'mutation-diagnostic', 'mutation-qualification']) assert.equal(admits(name, changed), false, name)
+  const manual = job('stryker-changed')
+  assert.ok(manual.includes('runs-on: ubuntu-latest'))
+  assert.ok(!manual.includes('needs:'))
+  assert.ok(!manual.includes('full-mutation.ps1'))
+  assert.ok(!manual.includes('stryker.mjs full'))
+  const mutation = step('stryker-changed', 'Mutate changed files and hold each project to its break (manual)')
+  assert.ok(mutation.includes(`          dotnet tool restore
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node tooling/stryker.mjs check
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node tooling/stryker.mjs run
+          exit $LASTEXITCODE`))
 })

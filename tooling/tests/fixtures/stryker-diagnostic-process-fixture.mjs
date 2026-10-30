@@ -1,4 +1,4 @@
-import {appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync} from 'node:fs'
+import {appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync} from 'node:fs'
 import {spawn} from 'node:child_process'
 import path from 'node:path'
 import {setTimeout as delay} from 'node:timers/promises'
@@ -75,7 +75,7 @@ if (args[0] === 'wrapper') {
     if (args.includes('--operation')) {
       const operation = value('--operation'), repo = repository(), test = value('--test')
       repo.testProjects = [test, test]
-      const outcome = operation === 'run' ? await run(repo, undefined, [], mutate, () => ['Fixture.cs'])
+      const outcome = operation === 'run' ? await run(repo, undefined, [], mutate, () => ['Fixture.cs'], files => files)
         : await full(repo, undefined, [], operation === 'baseline', mutate)
       if (outcome.signal) process.kill(process.pid, outcome.signal)
       else process.exitCode = outcome
@@ -109,9 +109,7 @@ if (args[0] === 'wrapper') {
     '2026-10-26T09:07:45.2880760-04:00  [DBG] Test run for "5: Statement mutation" is "success"  (26093294)\n')
   writeFileSync(path.join(logs, 'log-Runner-0.txt'), 'worker trace retained only\n')
   if (mode === 'burst') writeFileSync(log, ('nativeDiagnostic ' + 'X'.repeat(2000) + '\n').repeat(1600))
-  const readiness = path.join(control, 'ready.json'), temporaryReadiness = `${readiness}.${process.pid}.tmp`
-  writeFileSync(temporaryReadiness, JSON.stringify({output, pid: process.pid, argv: args}), {flag: 'wx'})
-  renameSync(temporaryReadiness, readiness)
+  writeFileSync(path.join(control, 'ready.json'), JSON.stringify({output, pid: process.pid, argv: args}))
   if (mode === 'burst') {
     const identity = {pid: process.pid, nonce: readFileSync(path.join(control, 'nonce'), 'utf8')}
     writeFileSync(path.join(control, 'producer.json'), JSON.stringify(identity))

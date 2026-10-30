@@ -38,7 +38,7 @@ function counts(report) {
     detected, undetected, score: detected + undetected ? Math.floor(detected / (detected + undetected) * 10000) / 100 : null}
 }
 
-async function checkout({changed = 'builder', mode = 'normal', floor = 74, blazor = false} = {}) {
+async function checkout({changed = 'builder', mode = 'qualification', floor = 74} = {}) {
   const directory = mkdtempSync(path.join(ownedTemp, 'repo-'))
   const tracked = git(repositoryRoot, 'ls-files', '-z').split('\0')
   for (const file of tracked.filter(file => /\.(csproj|props|targets)$/.test(file) || /(^|\/)(stryker-config\.json|nuget\.config)$/i.test(file) ||
@@ -59,21 +59,12 @@ async function checkout({changed = 'builder', mode = 'normal', floor = 74, blazo
     config['stryker-config'].thresholds = {break: floor, low: Math.max(60, floor), high: Math.max(80, floor)}
     write(directory, configPath, JSON.stringify(config))
   }
-  if (blazor) {
-    const targetDirectory = 'projections/blazor/ui/hlp.ui.button'
-    for (let index = 1; index <= 12; index++) write(directory, `${targetDirectory}/Owner${String(index).padStart(2, '0')}.cs`, '// ' + 'x'.repeat(index === 12 ? 1000 : 100 + index) + '\n')
-    write(directory, `${targetDirectory}/Zero.cs`, '\n')
-    write(directory, 'projections/blazor/ui/hlp.ui.accordion/OwnedWidget.razor', '@{ var face = "😀"; }\n')
-    write(directory, 'projections/blazor/ui/hlp.ui.button.tests/OwnerTests.cs', 'class OwnerTests { void ChecksOwner() {} }\n')
-    write(directory, 'projections/shared.tests/SharedFixtureBatch.cs', 'class LinkedTests { void ChecksLinked() {} }\n')
-  }
   git(directory, 'init', '--quiet'); git(directory, 'config', 'user.name', 'Partition fixture'); git(directory, 'config', 'user.email', 'fixture@example.invalid')
   git(directory, 'config', 'core.autocrlf', 'false'); git(directory, 'add', '.'); git(directory, 'commit', '--quiet', '-m', 'base')
   const base = git(directory, 'rev-parse', 'HEAD')
   git(directory, 'update-ref', 'refs/remotes/origin/main', base)
   if (changed === 'builder' || changed === 'all') write(directory, `${sourceDirectory}/A.cs`, sourceTexts[0].replace('aaa', 'xyz'))
   if (changed === 'all' || changed === 'others') for (const route of routes.filter(row => row.test !== builderTest)) write(directory, `${path.posix.dirname(route.target)}/Route.cs`, '// changed\n')
-  if (changed === 'blazor') write(directory, 'projections/blazor/ui/hlp.ui.button/Route.cs', '// changed\n')
   if (changed !== 'none') { git(directory, 'add', '.'); git(directory, 'commit', '--quiet', '-m', 'changed') }
   const env = {...process.env, EXPECTED_HEAD: git(directory, 'rev-parse', 'HEAD'), EXPECTED_BASE: undefined, GITHUB_RUN_ID: '314', GITHUB_RUN_ATTEMPT: '2', GITHUB_OUTPUT: path.join(directory, 'StrykerOutput', 'github-output'),
     GITHUB_STEP_SUMMARY: path.join(directory, 'StrykerOutput', 'summary'), HARBORLINE_CONTROL_REPO: undefined}
@@ -227,7 +218,7 @@ test('plan, admit and CLI bind actual checkout identity, selection and fixed opt
     const cli = spawnSync(process.execPath, ['tooling/stryker-builder-partitions.mjs', 'admit', manifest], {cwd: directory, env: fixture.env, encoding: 'utf8'})
     assert.equal(cli.status, 0, cli.stderr)
     const before = readFileSync(manifest)
-    await assert.rejects(adapter.main(['plan', 'normal', manifest]), /EEXIST/)
+    await assert.rejects(adapter.main(['plan', 'qualification', manifest]), /EEXIST/)
     assert.deepEqual(readFileSync(manifest), before)
     await assert.rejects(adapter.main(['shard', manifest, '01']), /index/)
     await assert.rejects(adapter.main(['admit', manifest, '--anything']), /arguments/)
@@ -407,7 +398,7 @@ test('native failures, late observer failure and missing final JSON never publis
   } finally { fixture.restore() }
 })
 
-test('collect and PR use the weighted house gate at 74 and a higher configured floor', async t => {
+test('collect uses the weighted house gate at 74 and a higher configured floor', async t => {
   const fixture = await checkout()
   try {
     const {adapter, manifest} = fixture
@@ -416,14 +407,12 @@ test('collect and PR use the weighted house gate at 74 and a higher configured f
     await t.test('passing percentage average cannot rescue a failing weighted union', async () => {
       const directory = download(fixture, scorePackets(fixture, weighted))
       assert.equal(await adapter.main(['collect', manifest, directory]), 1)
-      assert.equal(await adapter.main(['pr', manifest, directory], () => { assert.fail('only Builder changed') }), 1)
       const report = JSON.parse(readFileSync(path.join(fixture.directory, 'StrykerOutput/builder-owner/reports/mutation-report.json')))
       assert.equal(counts(report).score, 61.16)
     })
-    await t.test('exact 74 passes collect and the actual PR gate', async () => {
+    await t.test('exact 74 passes collect', async () => {
       const directory = download(fixture, scorePackets(fixture, exact))
       assert.equal(await adapter.main(['collect', manifest, directory]), 0)
-      assert.equal(await adapter.main(['pr', manifest, directory], () => { assert.fail('only Builder changed') }), 0)
     })
     await t.test('zero tested owner group refuses', async () => {
       const directory = download(fixture, scorePackets(fixture, [[], ['Killed'], ['Killed'], ['Killed'], []]))
@@ -434,36 +423,41 @@ test('collect and PR use the weighted house gate at 74 and a higher configured f
   try {
     const exact = [Array(71).fill('Killed').concat(Array(26).fill('Survived')), ['Killed'], ['Killed'], ['Killed'], []]
     assert.equal(await higher.adapter.main(['collect', higher.manifest, download(higher, scorePackets(higher, exact))]), 1)
-    assert.equal(await higher.adapter.main(['pr', higher.manifest, path.join(higher.directory, 'StrykerOutput/downloads')], () => assert.fail('only Builder changed')), 1)
   } finally { higher.restore() }
 })
 
-test('PR runs all 36 ordinary eligible callbacks without changing their arguments or policy bytes', async () => {
-  const fixture = await checkout({changed: 'all'})
+const routeChange = (fixture, test) => test === builderTest ? [`${sourceDirectory}/A.cs`]
+  : [`${path.posix.dirname(fixture.routes.find(route => route.test === test).target)}/Route.cs`]
+
+test('PR mutates the changed files of all 37 changed projects natively, Builder included, without changing policy bytes', async () => {
+  const fixture = await checkout({changed: 'all', mode: 'normal'})
   try {
+    assert.equal(fixture.plan.selected, false)
+    assert.equal('controlHead' in fixture.plan, false)
     const policyFiles = ['tooling/stryker-baselines.json', ...fixture.routes.map(route => `${path.posix.dirname(route.test)}/stryker-config.json`)]
     const before = policyFiles.map(file => readFileSync(path.join(fixture.directory, file)))
     const calls = []
-    const result = await fixture.adapter.main(['pr', fixture.manifest, download(fixture)], async (test, changed, args) => {
-      calls.push(test); assert.equal(changed, undefined); assert.deepEqual(args, ['--log-to-file'])
+    const result = await fixture.adapter.main(['pr', fixture.manifest, 'unused'], async (test, changed, args) => {
+      calls.push(test); assert.deepEqual(changed, routeChange(fixture, test)); assert.deepEqual(args, ['--log-to-file'])
       return {outcome: {kind: 'completed'}, status: 0, signal: null, report: {files: {'Route.cs': {mutants: [{status: 'Killed'}]}}}, razor: false}
-    }, () => assert.fail('PR composition does not execute native Builder'))
+    }, () => assert.fail('a normal PR never observes Control'))
     assert.equal(result, 0)
-    assert.equal(calls.length, 36)
-    assert.equal(new Set(calls).size, 36)
-    assert.equal(calls.includes(builderTest), false)
+    assert.equal(calls.length, 37)
+    assert.equal(new Set(calls).size, 37)
+    assert.equal(calls.includes(builderTest), true)
     policyFiles.forEach((file, index) => assert.deepEqual(readFileSync(path.join(fixture.directory, file)), before[index]))
+    await assert.rejects(fixture.adapter.main(['shard', fixture.manifest, '1'], () => assert.fail('normal PR runs no partition')), /unselected/)
   } finally { fixture.restore() }
 })
 
 test('normal no-Builder-change requires no Control or quartet and keeps all other routes', async () => {
-  const fixture = await checkout({changed: 'others'})
+  const fixture = await checkout({changed: 'others', mode: 'normal'})
   try {
     assert.equal(fixture.plan.selected, false)
     assert.equal('controlHead' in fixture.plan, false)
     const calls = []
     const result = await fixture.adapter.main(['pr', fixture.manifest, 'does-not-exist'], async (test, changed, args) => {
-      calls.push(test); assert.equal(changed, undefined); assert.deepEqual(args, ['--log-to-file'])
+      calls.push(test); assert.deepEqual(changed, routeChange(fixture, test)); assert.deepEqual(args, ['--log-to-file'])
       return {outcome: {kind: 'completed'}, status: 0, signal: null, report: {files: {'Route.cs': {mutants: [{status: 'Killed'}]}}}, razor: false}
     }, () => assert.fail('unselected Builder cannot observe Control'))
     assert.equal(result, 0); assert.equal(calls.length, 36); assert.equal(calls.includes(builderTest), false)
@@ -474,7 +468,7 @@ test('normal no-Builder-change requires no Control or quartet and keeps all othe
 
 test('fresh checkout keeps the planned base and complete project selection after main advances', async t => {
   for (const changed of ['all', 'others']) await t.test(changed, async () => {
-    const fixture = await checkout({changed})
+    const fixture = await checkout({changed, mode: 'normal'})
     try {
       const advanced = git(fixture.directory, 'commit-tree', `${fixture.plan.head}^{tree}`, '-p', fixture.base, '-m', 'main advanced')
       const directory = mkdtempSync(path.join(ownedTemp, 'fresh-'))
@@ -482,17 +476,17 @@ test('fresh checkout keeps the planned base and complete project selection after
       git(directory, 'checkout', '--quiet', '--detach', fixture.plan.head)
       git(directory, 'update-ref', 'refs/remotes/origin/main', advanced)
       const manifest = write(directory, 'StrykerOutput/builder-plan/plan.json', readFileSync(fixture.manifest))
-      const downloads = fixture.plan.selected ? download(fixture) : 'unused'
+      const downloads = 'unused'
       const adapter = await import(pathToFileURL(path.join(directory, 'tooling/stryker-builder-partitions.mjs')))
       assert.equal(await adapter.main(['admit', manifest]), 0)
       const calls = []
       const result = await adapter.main(['pr', manifest, downloads], async (project, changedFiles) => {
-        calls.push(project); assert.equal(changedFiles, undefined)
+        calls.push(project); assert.deepEqual(changedFiles, routeChange(fixture, project))
         return {outcome: {kind: 'completed'}, status: 0, signal: null, report: {files: {'Route.cs': {mutants: [{status: 'Killed'}]}}}, razor: false}
       })
       assert.equal(result, 0)
-      assert.equal(calls.length, 36)
-      assert.equal(calls.includes(builderTest), false)
+      assert.equal(calls.length, changed === 'all' ? 37 : 36)
+      assert.equal(calls.includes(builderTest), changed === 'all')
       assert.equal(git(directory, 'rev-parse', 'origin/main'), advanced)
       assert.match(readFileSync(fixture.env.GITHUB_OUTPUT, 'utf8'), new RegExp(`^base=${fixture.base}$`, 'm'))
     } finally { fixture.restore() }
@@ -501,7 +495,7 @@ test('fresh checkout keeps the planned base and complete project selection after
 
 test('invalid collection, exact base and selection in both directions refuse before any project', async t => {
   for (const changed of ['all', 'others']) {
-    const fixture = await checkout({changed})
+    const fixture = await checkout({changed, mode: 'normal'})
     try {
       const {adapter, manifest, directory} = fixture, downloads = fixture.plan.selected ? download(fixture) : 'unused', original = readFileSync(manifest)
       let calls = 0
@@ -545,9 +539,9 @@ test('invalid collection, exact base and selection in both directions refuse bef
 })
 
 test('PR preserves ordinary signal or observer failure without launching the next project', async () => {
-  const fixture = await checkout({changed: 'all'})
+  const fixture = await checkout({changed: 'all', mode: 'normal'})
   try {
-    const downloads = download(fixture)
+    const downloads = 'unused'
     let calls = 0
     assert.deepEqual(await fixture.adapter.main(['pr', fixture.manifest, downloads], () => {
       calls++; return {outcome: {kind: 'failed', cause: 'signal'}, status: null, signal: 'SIGTERM'}
@@ -642,7 +636,7 @@ test('post-native mutations invalidate source, config, baseline, manifest, base,
     await t.test('ignored conditional input hash changed', async () => {
       const conditional = write(directory, 'artifacts/packages/nuget/packed-version.props', '<Project/>')
       const withConditional = path.join(directory, 'StrykerOutput/builder-plan/conditional.json')
-      await adapter.main(['plan', 'normal', withConditional])
+      await adapter.main(['plan', 'qualification', withConditional])
       const changedFixture = {...fixture, manifest: withConditional, plan: JSON.parse(readFileSync(withConditional))}
       assert.equal(changedFixture.plan.conditional.sha256, hash('<Project/>'))
       await assert.rejects(adapter.main(['shard', withConditional, '1'], async () => {
@@ -655,233 +649,5 @@ test('post-native mutations invalidate source, config, baseline, manifest, base,
       await assert.rejects(adapter.main(['shard', manifest, '1'], async () => nativeEvidence(fixture, 1).returned, () => ++observations === 1 ? controlHead : '0'.repeat(40)), /Control/)
       assert.equal(existsSync(path.join(reservation, 'diagnostics/receipt.json')), false)
     })
-  } finally { fixture.restore() }
-})
-
-
-async function blazorCheckout(mode = 'qualification') {
-  const fixture = await checkout({changed: 'blazor', mode, blazor: true})
-  const manifest = path.join(fixture.directory, 'StrykerOutput/blazor-plan/plan.json')
-  await fixture.adapter.main(['plan', mode, manifest, 'blazor'])
-  return {...fixture, manifest, plan: JSON.parse(readFileSync(manifest, 'utf8'))}
-}
-
-function blazorEvidence(fixture, index, statusAt = () => 'Killed', emptyRazor = false) {
-  const {plan, directory} = fixture, targetDirectory = path.posix.dirname(plan.target), checkoutPrefix = slash(directory)
-  const original = plan.sources.find(row => row.path.endsWith('.razor'))
-  const sourcePrefix = `${checkoutPrefix}/${targetDirectory}/../hlp.ui.accordion/OwnedWidget.razor`
-  const header = `#pragma checksum "${sourcePrefix}" "{8829d00f-11b8-4213-878b-770e8597ac16}" "${original.sha256}"\n`
-  const directive = emptyRazor ? '' : `#line (1,1)-(1,20) "${sourcePrefix}"\n`, body = emptyRazor ? '' : 'var face = "😀";\n'
-  const plain = header + directive + body + '#line default\n'
-  const raw = Buffer.from(header + '// <auto-generated/>\n' + directive + body + '#line default\n')
-  const generatedPath = `${targetDirectory}/obj/Debug/net10.0/stryker-razor/G/OwnedWidget_razor.cs`
-  const from = header.length + directive.length, to = from + body.length
-  // Oracle: literal compiler fixture and its UTF-16 offsets, independent of razorOwnership/plainRazor.
-  const mapping = {path: generatedPath, generated: encoded(raw), sourcePath: original.path, byteLength: Buffer.byteLength(plain), sha256: hash(plain),
-    utf16Length: plain.length, spans: emptyRazor ? [] : [[from, to]], mask: emptyRazor ? null : `**/stryker-razor/**/OwnedWidget_razor.cs{${from}..${to}}`}
-  const nativeSources = [...plan.sources.filter(row => row.path.endsWith('.cs')).map(row => ({...row, text: readFileSync(path.join(directory, row.path), 'utf8')})),
-    {...original, path: generatedPath, text: plain}].sort((a, b) => a.path < b.path ? -1 : 1)
-  const files = {}, generation = [], lines = ['2026-10-26T14:37:42.0000000-04:00  [INF] Number of tests found: 2 for project "UI". Initial test run started.']
-  let id = 0
-  for (const source of nativeSources) {
-    const zero = source.path.endsWith('/Zero.cs') || emptyRazor && source.path === generatedPath, key = `${checkoutPrefix}/${source.path}`
-    lines.push(`2026-10-26T14:37:43.0941460-04:00  [DBG] Mutating "${key}" (5f74b457)`)
-    const mutants = zero ? [] : [{id: String(id), location: {start: {line: 1, column: 1}, end: {line: 1, column: 2}}, mutatorName: 'Literal mutation',
-      replacement: 'false', status: source.owner === index || statusAt(id) === 'CompileError' ? statusAt(id) : 'Ignored', killedBy: source.owner === index && statusAt(id) === 'Killed' ? ['owner-test'] : [], coveredBy: ['owner-test', 'linked-test']}]
-    if (!zero) lines.push(`2026-10-26T14:37:43.1021490-04:00  [DBG] Mutant ${id++} created "x" -> "y" using "Mutation" (62b2bae2)`)
-    files[key] = emptyRazor && source.path === generatedPath ? {language: 'none', source: 'File ignored by mutate filter', mutants: []} : {language: 'cs', source: source.text, mutants}; generation.push({path: source.path, created: mutants.length})
-  }
-  lines.push(`2026-10-26T14:37:43.1208540-04:00  [DBG] ${id} mutants created (017e65ab)`)
-  const testFiles = {}
-  for (const [position, source] of plan.tests.entries()) {
-    const id = source.path.endsWith('/OwnerTests.cs') ? 'owner-test' : 'linked-test'
-    const rawPath = source.path.endsWith('/OwnerTests.cs') ? `${checkoutPrefix}/${source.path}` :
-      `${checkoutPrefix}/projections/blazor/ui/hlp.ui.button.tests/../../../shared.tests/SharedFixtureBatch.cs`
-    testFiles[rawPath] = {source: readFileSync(path.join(directory, source.path), 'utf8'), tests: [{id,
-      name: id === 'owner-test' ? 'Fixture.OwnerTests.ChecksOwner' : 'Fixture.LinkedTests.ChecksLinked',
-      location: {start: {line: 1, column: 1}, end: {line: 1, column: 10}}}]}
-  }
-  const report = {schemaVersion: '2', projectRoot: `${checkoutPrefix}/${targetDirectory}`, files, testFiles}
-  const output = path.join(directory, 'StrykerOutput', `hlp.ui.button.tests-native${index}`), reportPath = `${output}/reports/mutation-report.json`, configFile = `${output}/stryker-config.json`
-  const mutate = [...plan.sources.filter(row => row.owner === index && row.path.endsWith('.cs')).map(row => `**/${path.posix.basename(row.path)}`),
-    ...(original.owner === index && mapping.mask ? [mapping.mask] : [])]
-  const override = jsonBytes({'stryker-config': {...plan.config, since: {enabled: false}, thresholds: {...plan.config.thresholds, break: 0}, mutate}})
-  const args = ['--log-to-file', '--concurrency', '2', ...(plan.mode === 'diagnostic' ? ['--reporter', 'json', '--reporter', 'dots', '--verbosity', 'error'] : [])]
-  const result = {outcome: {kind: 'completed'}, status: 0, signal: null, pid: 222, counts: counts(report), reportPath, output, razor: true, razorSources: [mapping]}
-  const attempt = {test: plan.selector, target: plan.target, sourceCommit: plan.head, executable: 'dotnet',
-    argv: ['stryker', '--output', output, '--config-file', configFile, ...args], cwd: path.join(directory, path.posix.dirname(plan.selector)), output, configFile,
-    wrapperSha256: hash(readFileSync(path.join(directory, 'tooling/stryker.mjs'))), configSha256: hash(override)}
-  write(output, 'reports/mutation-report.json', jsonBytes(report)); write(output, 'diagnostics/result.json', jsonBytes(result)); write(output, 'diagnostics/attempt.json', jsonBytes(attempt))
-  write(output, 'stryker-config.json', override); const log = Buffer.from(lines.join('\n')); write(output, 'logs/log-20261026.txt', log)
-  const receipt = {binding: {version: 1, planHash: hash(readFileSync(fixture.manifest)), head: plan.head, tree: plan.tree, runId: '314', runAttempt: '2', index},
-    prefixes: {checkout: checkoutPrefix, target: `${checkoutPrefix}/${targetDirectory}`}, reportSha256: hash(jsonBytes(report)), returned: result,
-    finalResult: encoded(jsonBytes(result)), attempt: encoded(jsonBytes(attempt)), override: encoded(override), generation: {files: generation, total: id,
-      logs: [{name: 'log-20261026.txt', sha256: hash(log)}], discoveredTests: 2}}
-  return {packet: {receiptBytes: jsonBytes(receipt), reportBytes: jsonBytes(report)}, returned: {...result, report}}
-}
-
-function blazorPackets(fixture, statusAt) { return Array.from({length: 12}, (_, index) => blazorEvidence(fixture, index + 1, statusAt).packet) }
-
-test('Blazor profile binds twelve literal original-source owners, linked tests and one indexed diagnostic', async () => {
-  const fixture = await blazorCheckout('diagnostic')
-  try {
-    assert.equal(fixture.plan.profile, 'blazor'); assert.equal(fixture.plan.floor, 38)
-    assert.deepEqual(fixture.plan.selectedProjects, ['projections/blazor/ui/hlp.ui.button.tests/Harborline.UIAdapters.Blazor.Tests.csproj'])
-    assert.throws(() => fixture.adapter.makePlan('qualification', 'other'), /profile/)
-    assert.equal(fixture.plan.config['coverage-analysis'], 'off')
-    assert.equal(fixture.plan.sources.length, 15); assert.equal(fixture.plan.tests.length, 2)
-    assert.deepEqual([...new Set(fixture.plan.sources.map(row => row.owner))].sort((a, b) => a - b), [1,2,3,4,5,6,7,8,9,10,11,12])
-    assert.equal(fixture.plan.largestOwner, 1)
-    assert.equal('controlHead' in fixture.plan, false)
-    const linked = fixture.plan.sources.find(row => row.path.endsWith('.razor'))
-    assert.deepEqual(linked.spellings, ['projections/blazor/ui/hlp.ui.accordion/OwnedWidget.razor',
-      'projections/blazor/ui/hlp.ui.button/../hlp.ui.accordion/OwnedWidget.razor'])
-    await assert.rejects(fixture.adapter.main(['shard', fixture.manifest, '13'], () => assert.fail('out-of-range diagnostic executed')), /index/)
-    const evidence = blazorEvidence(fixture, 5)
-    assert.equal(await fixture.adapter.main(['shard', fixture.manifest, '5'], async (...args) => {
-      assert.deepEqual(args[2], ['--log-to-file', '--concurrency', '2', '--reporter', 'json', '--reporter', 'dots', '--verbosity', 'error'])
-      assert.deepEqual(args[5].owned, fixture.plan.sources.filter(row => row.owner === 5).map(row => row.path))
-      return evidence.returned
-    }, () => assert.fail('Blazor invoked unrelated Control')), 0)
-  } finally { fixture.restore() }
-})
-
-test('Blazor union retains zero rows, exact generated spans, complete named tests and weighted floor38', async () => {
-  const fixture = await blazorCheckout()
-  try {
-    const packets = blazorPackets(fixture), composed = compose(fixture.plan, packets)
-    assert.equal(Object.keys(composed.report.files).length, 15)
-    assert.equal(Object.values(composed.report.files).filter(row => row.mutants.length === 0).length, 1)
-    assert.equal(Object.values(composed.report.testFiles).flatMap(row => row.tests).length, 2)
-    assert.deepEqual(counts(composed.report), {total: 14, tested: 14, detected: 14, undetected: 0, score: 100})
-    const directory = path.join(fixture.directory, 'StrykerOutput/blazor-downloads')
-    blazorPackets(fixture, id => id < 5 ? 'Killed' : 'Survived').forEach((packet, index) => {
-      write(directory, `blazor-partition-314-2-${index + 1}/receipt.json`, packet.receiptBytes)
-      write(directory, `blazor-partition-314-2-${index + 1}/report.json`, packet.reportBytes)
-    })
-    assert.equal(await fixture.adapter.main(['collect', fixture.manifest, directory]), 1) // 5/14 =35.71, never an average of owner percentages.
-    const passing = path.join(fixture.directory, 'StrykerOutput/blazor-passing')
-    packets.forEach((packet, index) => {
-      write(passing, `blazor-partition-314-2-${index + 1}/receipt.json`, packet.receiptBytes)
-      write(passing, `blazor-partition-314-2-${index + 1}/report.json`, packet.reportBytes)
-    })
-    assert.equal(await fixture.adapter.main(['collect', fixture.manifest, passing]), 0)
-    assert.throws(() => compose(fixture.plan, packets.slice(1)), /twelve/)
-  } finally { fixture.restore() }
-})
-
-test('Blazor packets refuse missing discovery/test IDs, widened spans, wrong checksums and unknown source spellings', async t => {
-  const fixture = await blazorCheckout()
-  try {
-    const packets = blazorPackets(fixture)
-    const cases = [
-      ['no named test files', (receipt, report) => { delete report.testFiles; reseal(receipt, report) }, /test evidence/],
-      ['missing test identity', (receipt, report) => { Object.values(report.testFiles)[0].tests = []; reseal(receipt, report) }, /test link|discovered tests/],
-      ['unknown killer', (receipt, report) => { Object.values(report.files).find(row => row.mutants.some(m => m.status === 'Killed')).mutants.find(m => m.status === 'Killed').killedBy = ['unknown']; reseal(receipt, report) }, /test link/],
-      ['wrong linked test bytes', (receipt, report) => { Object.values(report.testFiles)[0].source += ' '; reseal(receipt, report) }, /Test source/],
-      ['missing discovery census', receipt => { delete receipt.generation.discoveredTests }, /discovered tests/],
-      ['widened generated span', receipt => { receipt.returned.razorSources[0].spans = [[0,99999]]; receipt.finalResult = encoded(jsonBytes(receipt.returned)) }, /Razor map/],
-      ['wrong original checksum', receipt => {
-        const mapping = receipt.returned.razorSources[0], text = Buffer.from(mapping.generated.bytes, 'base64').toString('utf8')
-        const original = fixture.plan.sources.find(row => row.path.endsWith('.razor'))
-        mapping.generated = encoded(Buffer.from(text.replace(original.sha256, '0'.repeat(64))))
-        receipt.finalResult = encoded(jsonBytes(receipt.returned))
-      }, /checksum/],
-      ['whole generated file override', receipt => {
-        const override = JSON.parse(Buffer.from(receipt.override.bytes, 'base64'))
-        override['stryker-config'].mutate.push('**/stryker-razor/**/OwnedWidget_razor.cs')
-        receipt.override = encoded(jsonBytes(override))
-        const attempt = JSON.parse(Buffer.from(receipt.attempt.bytes, 'base64')); attempt.configSha256 = receipt.override.sha256
-        receipt.attempt = encoded(jsonBytes(attempt))
-      }, /mutation options/],
-      ['duplicate named test ID', (receipt, report) => {
-        const rows = Object.values(report.testFiles); rows[1].tests[0].id = rows[0].tests[0].id; reseal(receipt, report)
-      }, /duplicate named test/],
-      ['wrong raw compiler bytes', receipt => { receipt.returned.razorSources[0].generated.bytes = Buffer.from('forged').toString('base64'); receipt.finalResult = encoded(jsonBytes(receipt.returned)) }, /Generated bytes/],
-      ['unknown source spelling', (receipt, report) => { const key = Object.keys(report.files)[0]; report.files[key + '/../../escape'] = report.files[key]; delete report.files[key]; reseal(receipt, report) }, /source/],
-      ['missing zero generation row', receipt => { receipt.generation.files = receipt.generation.files.filter(row => !row.path.endsWith('/Zero.cs')) }, /universe/],
-      ['native failure', receipt => { receipt.returned.status = 1; receipt.finalResult = encoded(jsonBytes(receipt.returned)) }, /settle/],
-    ]
-    for (const [name, change, pattern] of cases) await t.test(name, () => {
-      const changed = packets.map((packet, index) => index === 0 ? changePacket(packet, change) : packet)
-      assert.throws(() => compose(fixture.plan, changed), pattern)
-    })
-  } finally { fixture.restore() }
-})
-
-test('Blazor workflow cannot launch twelve owners on publication and keeps the largest diagnostic bounded', () => {
-  const workflow = readFileSync(path.join(repositoryRoot, '.github/workflows/stryker.yml'), 'utf8')
-  const job = workflow.slice(workflow.indexOf('  blazor-partitions:'), workflow.indexOf('  stryker:'))
-  assert.match(job, /github\.event\.action == 'labeled'/)
-  assert.match(job, /mutation-diagnostic/); assert.match(job, /mutation-qualification/)
-  assert.match(job, /max-parallel: 12/); assert.match(job, /fromJSON\(needs\.builder-plan\.outputs\.blazor_matrix\)/)
-  assert.match(job, /blazor_mode == 'diagnostic' && 20 \|\| 330/)
-  assert.doesNotMatch(workflow, /tooling\/stryker-blazor-partitions/)
-  assert.match(workflow, /publication does not launch twelve owners/)
-  const collector = workflow.slice(workflow.indexOf('  blazor-qualification:'))
-  assert.match(collector, /blazor_selected == 'true' && 'stryker' \|\| 'blazor-qualification'/)
-})
-
-
-test('UI-only explicit diagnostic keeps Builder unselected and emits only the predicted historical-largest Blazor owner', async () => {
-  const fixture = await checkout({changed: 'others', blazor: true})
-  try {
-    const directory = path.join(fixture.directory, 'StrykerOutput/workflow-plans')
-    assert.equal(await fixture.adapter.main(['plans', 'diagnostic', directory]), 0)
-    const builder = JSON.parse(readFileSync(path.join(directory, 'builder-plan/plan.json'), 'utf8'))
-    const blazor = JSON.parse(readFileSync(path.join(directory, 'blazor-plan/plan.json'), 'utf8'))
-    assert.equal(builder.selected, false); assert.equal(builder.mode, 'normal')
-    assert.equal(blazor.selected, true); assert.equal(blazor.mode, 'diagnostic')
-    assert.match(readFileSync(fixture.env.GITHUB_OUTPUT, 'utf8'), /blazor_matrix=\[5\]\n$/)
-  } finally { fixture.restore() }
-})
-
-test('Razor CompileError identities must agree across every real owner report', async () => {
-  const fixture = await blazorCheckout()
-  try {
-    const packets = blazorPackets(fixture, id => id === 13 ? 'CompileError' : 'Killed')
-    const composed = compose(fixture.plan, packets)
-    assert.equal(Object.values(composed.report.files).flatMap(row => row.mutants).filter(row => row.status === 'CompileError').length, 1)
-    const changed = packets.map((packet, index) => index === 0 ? changePacket(packet, (receipt, report) => {
-      const row = Object.values(report.files).find(row => row.mutants.some(mutant => mutant.status === 'CompileError'))
-      row.mutants.find(mutant => mutant.status === 'CompileError').status = 'Ignored'; reseal(receipt, report)
-    }) : packet)
-    assert.throws(() => compose(fixture.plan, changed), /CompileError identities/)
-  } finally { fixture.restore() }
-})
-
-
-test('whole Blazor collector rejects zero tested Razor despite a passing C# score', async () => {
-  const fixture = await blazorCheckout()
-  try {
-    const directory = path.join(fixture.directory, 'StrykerOutput/blazor-no-razor')
-    blazorPackets(fixture, id => id === 13 ? 'NoCoverage' : 'Killed').forEach((packet, index) => {
-      write(directory, `blazor-partition-314-2-${index + 1}/receipt.json`, packet.receiptBytes)
-      write(directory, `blazor-partition-314-2-${index + 1}/report.json`, packet.reportBytes)
-    })
-    assert.equal(await fixture.adapter.main(['collect', fixture.manifest, directory]), 1)
-  } finally { fixture.restore() }
-})
-
-test('a generated Razor row with no authored span remains in the zero-generation union', async () => {
-  const fixture = await blazorCheckout()
-  try {
-    const packets = Array.from({length: 12}, (_, index) => blazorEvidence(fixture, index + 1, () => 'Killed', true).packet)
-    const result = compose(fixture.plan, packets)
-    const generated = Object.entries(result.report.files).find(([file]) => file.endsWith('OwnedWidget_razor.cs'))[1]
-    assert.deepEqual(generated, {language: 'none', source: 'File ignored by mutate filter', mutants: []})
-    assert.equal(Object.keys(result.report.files).length, 15)
-    const diagnostic = await blazorCheckout('diagnostic')
-    try { await assert.rejects(diagnostic.adapter.main(['collect', diagnostic.manifest, 'missing']), /Diagnostic observations/) }
-    finally { diagnostic.restore() }
-  } finally { fixture.restore() }
-})
-
-test('a Blazor-only qualification cannot replace other selected mutation targets', async () => {
-  const fixture = await checkout({changed: 'all', blazor: true})
-  try {
-    const manifest = path.join(fixture.directory, 'StrykerOutput/multi-project-plan.json')
-    await fixture.adapter.main(['plan', 'qualification', manifest, 'blazor'])
-    await assert.rejects(fixture.adapter.main(['collect', manifest, 'missing']), /other or unselected mutation projects/)
   } finally { fixture.restore() }
 })
