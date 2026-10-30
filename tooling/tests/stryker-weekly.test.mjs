@@ -56,7 +56,7 @@ test('a project with no baseline is weighed as the mean, and excluded projects a
     [big]: '<ProjectReference Include="../big/Big.csproj" />', 'p/big.tests/stryker-config.json': '{"stryker-config":{"project":"Big.csproj"}}',
     'p/big/Big.csproj': '<Project Sdk="Microsoft.NET.Sdk"></Project>'}
   const repo = {testProjects: [big, small, ui], exclusions: {[ui]: 'no config'}, baselines: {[big]: {tested: 400}}, readFile: file => files[file]}
-  const weighed = weighProjects(repo, patterns => patterns.map(pattern => pattern.replace('*', 'X')), () => 7)
+  const weighed = weighProjects(repo, patterns => patterns.map(pattern => pattern.replaceAll('*', 'X')), () => 7)
   assert.deepEqual(weighed.map(entry => [entry.test, entry.weight]), [[big, 400], [small, 400]])
   assert.deepEqual(weighed[1].files, [{file: 'p/small/X.cs', size: 7}])
 })
