@@ -68,6 +68,14 @@
 
     public Task ShowAsync(double x, double y) => ShowAsync(x, y, keyboardOpened: false);
 
+    // For a host that handles Shift+F10 or the ContextMenu key on its own element (T-1130). triggerAnchor records the
+    // element focused now, so closing returns focus to it; its position is unused because the host supplies one.
+    public async Task ShowFromKeyboardAsync(double x, double y)
+    {
+        await (await ModuleAsync()).InvokeVoidAsync("triggerAnchor", TriggerElement);
+        await ShowAsync(x, y, keyboardOpened: true);
+    }
+
     private async Task ShowAsync(double x, double y, bool keyboardOpened)
     {
         (X, Y) = ClampPosition(x, y, MenuWidth, MenuHeight, ViewportWidth, ViewportHeight);
