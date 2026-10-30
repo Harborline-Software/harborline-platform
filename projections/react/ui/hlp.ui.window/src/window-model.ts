@@ -78,6 +78,13 @@ export interface WindowControls {
   draggable: boolean
 }
 
+// A title that renders no text (absent, a boolean, or an empty or whitespace-only string) leaves the window untitled,
+// so the caller's window label must name it.
+export function isTitled(title: unknown): boolean {
+  if (title == null || typeof title === 'boolean') return false
+  return typeof title !== 'string' || title.trim() !== ''
+}
+
 export function validateLabels(labels: Partial<WindowLabels>, controls: WindowControls): void {
   const blank = (value: string | undefined) => !value?.trim()
   if (!controls.titled && blank(labels.window)) throw new Error('accessible-name-required')

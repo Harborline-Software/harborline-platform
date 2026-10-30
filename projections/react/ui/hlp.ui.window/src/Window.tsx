@@ -6,6 +6,7 @@ import {
   clampPosition,
   dimension,
   initialPosition,
+  isTitled,
   movePosition,
   resizeWindow,
   validateBounds,
@@ -133,7 +134,8 @@ export function Window({
   const minimized = state === 'minimized'
   const maximized = state === 'maximized'
   modalActiveRef.current = modal && !minimized
-  validateLabels(labels ?? {}, { titled: title != null, closable, minimizable, maximizable, resizable, draggable })
+  const titled = isTitled(title)
+  validateLabels(labels ?? {}, { titled, closable, minimizable, maximizable, resizable, draggable })
 
   const viewport = () => ({ width: window.innerWidth, height: window.innerHeight })
   const changeState = (next: WindowState) => {
@@ -230,8 +232,8 @@ export function Window({
   return createPortal(<>
     {modal && !minimized ? <div aria-hidden="true" className="hl-window__overlay" data-testid="window-overlay" style={overlayStyle} /> : null}
     <div
-      aria-label={title == null ? labels.window : undefined}
-      aria-labelledby={title != null ? titleId : undefined}
+      aria-label={titled ? undefined : labels.window}
+      aria-labelledby={titled ? titleId : undefined}
       aria-modal={modal ? 'true' : undefined}
       className={cn('hl-window', maximized && 'hl-window--maximized', minimized && 'hl-window--minimized', className)}
       data-hl-module="hlp.ui.window"

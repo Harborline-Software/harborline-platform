@@ -57,6 +57,14 @@ describe('Window React projection', () => {
     expect(() => render(<Window labels={{ ...allLabels, window: '' }} title={null} />)).toThrow('accessible-name-required')
   })
 
+  // A title that renders no text does not name the dialog, so the caller's window label must.
+  it.each([['empty', ''], ['whitespace', '   '], ['false', false]] as const)('treats the %s title as untitled', (_, title) => {
+    expect(() => render(<Window labels={{ ...allLabels, window: '' }} title={title} />)).toThrow('accessible-name-required')
+    render(<Window labels={allLabels} title={title} />)
+    const dialog = screen.getByRole('dialog', { name: 'Ventana' })
+    expect(dialog).not.toHaveAttribute('aria-labelledby')
+  })
+
   // T-1123: moving works only in the default state, so the header is a named move target only then, as in Blazor.
   it.each(['maximized', 'minimized'] as const)('offers no move target in the header when %s', state => {
     render(<Window labels={allLabels} state={state} title="Editor" />)
