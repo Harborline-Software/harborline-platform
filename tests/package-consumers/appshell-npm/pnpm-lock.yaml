@@ -1,0 +1,35 @@
+lockfileVersion: '9.0'
+
+settings:
+  autoInstallPeers: true
+  excludeLinksFromLockfile: false
+
+overrides:
+  '@harborline-software/api-contracts': file:./feed/harborline-software-api-contracts-0.1.0-alpha.1.tgz
+
+importers:
+
+  .:
+    dependencies:
+      '@harborline-software/capability-host':
+        specifier: file:./feed/harborline-software-capability-host-0.0.0.tgz
+        version: file:feed/harborline-software-capability-host-0.0.0.tgz
+
+packages:
+
+  '@harborline-software/api-contracts@file:feed/harborline-software-api-contracts-0.1.0-alpha.1.tgz':
+    resolution: {integrity: sha512-whwLthI7gEFQt14qJlkxHgHxLV8t5WDfEgQ7Zof5uQe2AUiFH4rusoXZ2K60jimC444gKXdqpG6smpXvZ3PpmQ==, tarball: file:feed/harborline-software-api-contracts-0.1.0-alpha.1.tgz}
+    version: 0.1.0-alpha.1
+
+  '@harborline-software/capability-host@file:feed/harborline-software-capability-host-0.0.0.tgz':
+    resolution: {integrity: sha512-sW+EuD1ZsxMrp1/tXxtri4Ln+YwJhjQcI9++HjWB390bfAi+KitOk/R6Jpt8dXH2i5zcA8OTDAM/uTM2lmKjDg==, tarball: file:feed/harborline-software-capability-host-0.0.0.tgz}
+    version: 0.0.0
+    hasBin: true
+
+snapshots:
+
+  '@harborline-software/api-contracts@file:feed/harborline-software-api-contracts-0.1.0-alpha.1.tgz': {}
+
+  '@harborline-software/capability-host@file:feed/harborline-software-capability-host-0.0.0.tgz':
+    dependencies:
+      '@harborline-software/api-contracts': file:feed/harborline-software-api-contracts-0.1.0-alpha.1.tgz

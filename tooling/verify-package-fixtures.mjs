@@ -1612,12 +1612,15 @@ function verifyAppShellCapability() {
   // disposable copy gets the staged-feed dependencies written here, at run time only.
   const npmManifestPath = resolve(npmConsumer, 'package.json')
   const npmManifest = JSON.parse(readFileSync(npmManifestPath, 'utf8'))
+  npmManifest.packageManager = 'pnpm@11.1.3'
   npmManifest.dependencies = { '@harborline-software/capability-host': 'file:./feed/harborline-software-capability-host-0.0.0.tgz' }
   // 246: the api wire package is @harborline-software/api-contracts; take name and tarball from the provenance the feed was staged from.
   const apiContracts = feedProvenance.artifacts.find(a => a.id === 'contracts')
-  npmManifest.overrides = { [apiContracts.packageName]: `file:./feed/${apiContracts.tarball}` }
+  writeFileSync(resolve(npmConsumer, 'pnpm-workspace.yaml'), `${JSON.stringify({
+    overrides: { [apiContracts.packageName]: `file:./feed/${apiContracts.tarball}` },
+  }, null, 2)}\n`)
   writeFileSync(npmManifestPath, `${JSON.stringify(npmManifest, null, 2)}\n`)
-  run('npm', ['install', '--ignore-scripts', '--no-audit', '--no-fund', '--package-lock=false'], { cwd: npmConsumer })
+  run('pnpm', ['install', '--frozen-lockfile', '--ignore-scripts'], { cwd: npmConsumer })
   const npmOutput = run(process.execPath, ['--conditions=browser', 'exercise.mjs'], { cwd: npmConsumer })
   if (!npmOutput.includes('APPSHELL_CAPABILITY_HOST_PASS:')) throw new Error(`App-shell capability-host proof absent: ${npmOutput}`)
   const consumerSources = walkFiles(npmConsumer).filter(x => !x.includes('node_modules') && /\.(?:js|mjs|ts|tsx)$/.test(x) && !x.endsWith(`${'exercise'}.mjs`))
