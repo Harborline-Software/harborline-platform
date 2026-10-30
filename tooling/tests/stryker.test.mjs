@@ -924,6 +924,13 @@ test('changed-files PR mode counts only the mutants its mutate list selected', a
   assert.equal((await changedFilesRun(['p/lib/A.cs'], {report: {files: {...elsewhere, ...killedOf(69, 100).files}}})).outcome, 1)
   // A changed file whose every mutant the filter left out was never matched by its pattern, which fails.
   assert.equal((await changedFilesRun(['p/lib/A.cs'], {report: {files: {...elsewhere, 'C:\\r\\p\\lib\\A.cs': {mutants: [filtered]}}}})).outcome, 1)
+  // Stryker's marker for a file its mutate list excluded: a changed file written that way was never matched, which fails
+  // even when another changed file meets the floor.
+  const excluded = {source: 'File ignored by mutate filter', language: 'none', mutants: []}
+  assert.equal((await changedFilesRun(['p/lib/A.cs'], {report: {files: {...elsewhere, 'C:\\r\\p\\lib\\A.cs': excluded}}})).outcome, 1)
+  assert.equal((await changedFilesRun(['p/lib/A.cs', 'p/lib/B.cs'], {report: {files: {...killedOf(100, 100).files, 'C:\\r\\p\\lib\\B.cs': excluded}}})).outcome, 1)
+  // An excluded file nobody changed is only the rest of the project.
+  assert.equal((await changedFilesRun(['p/lib/A.cs'], {report: {files: {...killedOf(100, 100).files, 'C:\\r\\p\\lib\\Other.cs': excluded}}})).outcome, 0)
   // An Ignored mutant for any other reason is still a mutant that was never tested.
   assert.equal((await changedFilesRun(['p/lib/A.cs'], {report: {files: {...elsewhere, 'p/lib/A.cs': {mutants: [{status: 'Ignored', statusReason: 'Ignored by ignore-methods'}]}}}})).outcome, 1)
 })

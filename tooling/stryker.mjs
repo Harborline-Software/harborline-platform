@@ -556,19 +556,21 @@ export function scoreVerdict(report, floor) {
 
 // The changed files a PR run mutates: production .cs/.razor that still exist. A deleted file has nothing left to mutate,
 // and a project-file edit has no mutants of its own; both stay in selection, and the weekly full run covers them.
-// Stryker generates mutants in every compiled file and reports those its `mutate` list leaves out as Ignored "by mutate
-// filter"; they were never selected, so a changed-files run counts and scores only the rest.
+// Stryker.NET 5.0.0 writes a file its `mutate` list excludes as {source: 'File ignored by mutate filter', mutants: []}, and
+// a mutant outside a matched file's spans as Ignored "by mutate filter". Neither was selected, so a changed-files run
+// counts and scores only the rest.
+const excludedSource = 'File ignored by mutate filter'
 const filteredOut = mutant => mutant.status === 'Ignored' && /mutate filter/i.test(mutant.statusReason ?? '')
 export const selectedReport = report => ({...report, files: Object.fromEntries(Object.entries(report.files ?? {})
   .map(([file, entry]) => [file, {...entry, mutants: (entry.mutants ?? []).filter(mutant => !filteredOut(mutant))}])
   .filter(([, entry]) => entry.mutants.length))})
-// A changed .cs whose mutants the filter left out entirely was never matched by its mutate pattern.
+// A changed .cs that Stryker excluded, or whose every mutant the filter left out, was never matched by its pattern.
 export const unmatchedChanges = (report, files) => files.filter(file => file.endsWith('.cs')).filter(file => {
   const entry = Object.entries(report.files ?? {}).find(([name]) => {
     const normal = name.replaceAll('\\', '/')
     return normal === file || normal.endsWith(`/${file}`)
   })?.[1]
-  return entry?.mutants?.length > 0 && entry.mutants.every(filteredOut)
+  return entry?.source === excludedSource || (entry?.mutants?.length > 0 && entry.mutants.every(filteredOut))
 })
 
 export const mutableChanges = (changed, exists = file => existsSync(path.join(root, file))) =>
