@@ -10,10 +10,17 @@ const labels = {
   move: 'Déplacer la fenêtre', moveDescription: 'Utilisez les flèches', resizeHeight: 'Redimensionner la hauteur', resizeWidth: 'Redimensionner la largeur',
 }
 
+// Caller-supplied labels: the component has no built-in text of its own.
+const english = {
+  window: 'Window', close: 'Close', minimize: 'Minimize', maximize: 'Maximize', restore: 'Restore',
+  move: 'Move window', moveDescription: 'Press arrow keys to move window',
+  resizeHeight: 'Resize height from bottom edge', resizeWidth: 'Resize width from right edge',
+}
+
 describe('Window shared fixtures', () => {
   it('window.defaults', () => {
     fixture(sharedCases, 'window.defaults')
-    render(<Window title="Editor">Body</Window>)
+    render(<Window labels={english} title="Editor">Body</Window>)
     const dialog = screen.getByRole('dialog', { name: 'Editor' })
     expect(dialog).toHaveAttribute('data-window-state', 'default')
     expect(dialog).toHaveStyle({ width: '400px', height: '300px' })
@@ -26,16 +33,16 @@ describe('Window shared fixtures', () => {
 
   it('window.actions', () => {
     fixture(sharedCases, 'window.actions')
-    const { rerender } = render(<Window closable={false} maximizable={false} minimizable={false} title="Editor" />)
+    const { rerender } = render(<Window labels={english} closable={false} maximizable={false} minimizable={false} title="Editor" />)
     expect(screen.queryAllByRole('button')).toHaveLength(0)
-    rerender(<Window closable maximizable minimizable title="Editor" />)
+    rerender(<Window labels={english} closable maximizable minimizable title="Editor" />)
     expect(screen.getAllByRole('button')).toHaveLength(3)
   })
 
   it('window.controlled-state', async () => {
     fixture(sharedCases, 'window.controlled-state')
     const onStateChange = vi.fn()
-    render(<Window onStateChange={onStateChange} state="default" title="Editor" />)
+    render(<Window labels={english} onStateChange={onStateChange} state="default" title="Editor" />)
     await userEvent.setup().click(screen.getByRole('button', { name: 'Maximize' }))
     expect(onStateChange).toHaveBeenCalledWith('maximized')
     expect(screen.getByRole('dialog')).toHaveAttribute('data-window-state', 'default')
@@ -44,7 +51,7 @@ describe('Window shared fixtures', () => {
   it('window.uncontrolled-state', async () => {
     fixture(sharedCases, 'window.uncontrolled-state')
     const states: WindowState[] = []
-    render(<Window onStateChange={state => states.push(state)} title="Editor" />)
+    render(<Window labels={english} onStateChange={state => states.push(state)} title="Editor" />)
     await userEvent.setup().click(screen.getByRole('button', { name: 'Minimize' }))
     await userEvent.setup().click(screen.getByRole('button', { name: 'Restore' }))
     await userEvent.setup().click(screen.getByRole('button', { name: 'Maximize' }))
@@ -55,14 +62,14 @@ describe('Window shared fixtures', () => {
 
   it('window.minimized', () => {
     fixture(sharedCases, 'window.minimized')
-    render(<Window modal state="minimized" title="Editor">Body</Window>)
+    render(<Window labels={english} modal state="minimized" title="Editor">Body</Window>)
     expect(screen.queryByText('Body')).toBeNull()
     expect(screen.queryByTestId('window-overlay')).toBeNull()
   })
 
   it('window.maximized', () => {
     fixture(sharedCases, 'window.maximized')
-    render(<Window state="maximized" title="Editor" />)
+    render(<Window labels={english} state="maximized" title="Editor" />)
     expect(screen.getByRole('dialog')).toHaveStyle({ inset: '0', width: '100vw', height: '100vh' })
     expect(screen.queryAllByRole('separator')).toHaveLength(0)
   })
@@ -89,7 +96,7 @@ describe('Window shared fixtures', () => {
     fixture(sharedCases, 'window.escape')
     const onClose = vi.fn()
     const onStateChange = vi.fn()
-    render(<Window defaultState="maximized" onClose={onClose} onStateChange={onStateChange} title="Editor" />)
+    render(<Window labels={english} defaultState="maximized" onClose={onClose} onStateChange={onStateChange} title="Editor" />)
     const dialog = screen.getByRole('dialog')
     fireEvent.keyDown(dialog, { key: 'Escape' })
     expect(onStateChange).toHaveBeenCalledWith('default')
@@ -101,7 +108,7 @@ describe('Window shared fixtures', () => {
   it('window.focus', () => {
     fixture(sharedCases, 'window.focus')
     function Harness({ shown }: { shown: boolean }) {
-      return <><button type="button">Prior</button>{shown ? <Window title="Editor" /> : null}</>
+      return <><button type="button">Prior</button>{shown ? <Window labels={english} title="Editor" /> : null}</>
     }
     const rendered = render(<Harness shown={false} />)
     const prior = screen.getByRole('button', { name: 'Prior' })
@@ -115,7 +122,7 @@ describe('Window shared fixtures', () => {
   it('window.move', () => {
     fixture(sharedCases, 'window.move')
     const onMove = vi.fn()
-    render(<Window onMove={onMove} title="Editor" />)
+    render(<Window labels={english} onMove={onMove} title="Editor" />)
     fireEvent.pointerDown(screen.getByTestId('window-title-bar'), { pointerId: 3, clientX: 10, clientY: 10 })
     fireEvent.pointerMove(screen.getByRole('dialog'), { pointerId: 3, clientX: 30, clientY: 20 })
     expect(onMove).toHaveBeenCalledWith({ top: 90, left: 100 })
@@ -124,7 +131,7 @@ describe('Window shared fixtures', () => {
   it('window.bounds', () => {
     fixture(sharedCases, 'window.bounds')
     const onMove = vi.fn()
-    render(<Window dragBounds="viewport" onMove={onMove} title="Editor" />)
+    render(<Window labels={english} dragBounds="viewport" onMove={onMove} title="Editor" />)
     fireEvent.keyDown(screen.getByTestId('window-title-bar'), { key: 'ArrowUp', shiftKey: true })
     fireEvent.keyDown(screen.getByTestId('window-title-bar'), { key: 'ArrowUp', shiftKey: true })
     expect(onMove).toHaveBeenLastCalledWith({ top: 0, left: 80 })
@@ -133,7 +140,7 @@ describe('Window shared fixtures', () => {
   it('window.resize', () => {
     fixture(sharedCases, 'window.resize')
     const onResize = vi.fn()
-    render(<Window onResize={onResize} title="Editor" />)
+    render(<Window labels={english} onResize={onResize} title="Editor" />)
     const corner = screen.getByTestId('window-resize-corner')
     fireEvent.pointerDown(corner, { pointerId: 4, clientX: 400, clientY: 300 })
     fireEvent.pointerMove(screen.getByRole('dialog'), { pointerId: 4, clientX: 100, clientY: 50 })
@@ -144,7 +151,7 @@ describe('Window shared fixtures', () => {
     fixture(sharedCases, 'window.keyboard')
     const onMove = vi.fn()
     const onResize = vi.fn()
-    render(<Window onMove={onMove} onResize={onResize} title="Editor" />)
+    render(<Window labels={english} onMove={onMove} onResize={onResize} title="Editor" />)
     fireEvent.keyDown(screen.getByTestId('window-title-bar'), { key: 'ArrowRight' })
     fireEvent.keyDown(screen.getByTestId('window-title-bar'), { key: 'ArrowDown', shiftKey: true })
     fireEvent.keyDown(screen.getByTestId('window-resize-width'), { key: 'ArrowRight' })
@@ -155,14 +162,14 @@ describe('Window shared fixtures', () => {
 
   it('window.initial-aliases', () => {
     fixture(sharedCases, 'window.initial-aliases')
-    render(<Window initialLeft={40} initialTop={30} left={20} title="Editor" top={10} />)
+    render(<Window labels={english} initialLeft={40} initialTop={30} left={20} title="Editor" top={10} />)
     expect(screen.getByRole('dialog')).toHaveStyle({ top: '30px', left: '40px' })
   })
 
   it('window.double-activation', () => {
     fixture(sharedCases, 'window.double-activation')
     const onStateChange = vi.fn()
-    render(<Window onStateChange={onStateChange} title="Editor" />)
+    render(<Window labels={english} onStateChange={onStateChange} title="Editor" />)
     fireEvent.doubleClick(screen.getByTestId('window-title-bar'))
     expect(onStateChange).toHaveBeenCalledWith('maximized')
   })
@@ -170,7 +177,7 @@ describe('Window shared fixtures', () => {
   it('window.actions-bar', () => {
     fixture(sharedCases, 'window.actions-bar')
     const onMove = vi.fn()
-    render(<Window onMove={onMove} title="Editor"><WindowActionsBar><button type="button">Pin</button></WindowActionsBar></Window>)
+    render(<Window labels={english} onMove={onMove} title="Editor"><WindowActionsBar><button type="button">Pin</button></WindowActionsBar></Window>)
     const buttons = screen.getAllByRole('button')
     expect(buttons[0]).toHaveAccessibleName('Pin')
     fireEvent.pointerDown(buttons[0], { pointerId: 8, clientX: 1, clientY: 1 })
