@@ -336,8 +336,7 @@ export function installTabWalkRuntime(): void {
     return rect.width <= 2 || rect.height <= 2 || effectiveOpacity(element) === 0 || collapsed(getComputedStyle(element))
   }
   // An svg shape covers by its fill: a filled shape at 0.9 or more is opaque, a stroke-only or
-  // unfilled one is not. A layer that is pointer-events:none (the Gantt dependency layer) never
-  // reaches this, because elementsFromPoint does not return it. The outer <svg> box is judged by its
+  // unfilled one is not. The outer <svg> box is judged by its
   // CSS background like any other element; group and definition elements cover nothing themselves.
   const svgShapes = new Set(['rect', 'circle', 'ellipse', 'path', 'polygon', 'polyline', 'line', 'text', 'use'])
   const opaque = (element: Element) => {
@@ -402,6 +401,33 @@ export function installTabWalkRuntime(): void {
     return xs.flatMap(x => ys.map(y => [x, y] as const))
   }
   const measure = (element: Element): StopVerdict => {
+    // Hit testing omits pointer-transparent paint. Enable it only during this synchronous read,
+    // snapshotting first so inherited `none` and inline !important declarations are both covered.
+    const transparent = Array.from(document.querySelectorAll('*'))
+      .filter(node => !isSentinel(node) && getComputedStyle(node).pointerEvents === 'none')
+      .map(node => ({ node, style: node.getAttribute('style') }))
+    pending += changes.takeRecords().filter(relevant).length
+    try {
+      const override = document.createElement('span').style
+      for (const { node, style } of transparent) {
+        override.cssText = style ?? ''
+        override.setProperty('pointer-events', 'auto', 'important')
+        node.setAttribute('style', override.cssText)
+      }
+      return measurePaint(element)
+    } finally {
+      for (const { node, style } of transparent) {
+        if (style === null) node.removeAttribute('style')
+        else node.setAttribute('style', style)
+      }
+      // These style writes are probe bookkeeping, not a change in the scenario's tab order.
+      const changed = new Set(transparent.map(({ node }) => node))
+      pending += changes.takeRecords().filter(record =>
+        !(record.type === 'attributes' && record.attributeName === 'style' && changed.has(record.target as Element))
+        && relevant(record)).length
+    }
+  }
+  const measurePaint = (element: Element): StopVerdict => {
     opacityMemo = new Map()
     let target: Element | null = element
     if (visuallyHidden(element)) {
@@ -886,8 +912,8 @@ export type CoverJudgement = {
   //    popup, a stop the overlay hid is revealed, where an author banner over it (proof C1) is not.
   // 7. Sampling. A stop is judged at a 3x3 grid of points, then a 7x7 one; a reveal must be earned at
   //    one of those points, so a part of the stop that shows only between them earns nothing.
-  // 8. Hit testing, failing open. A layer elementsFromPoint does not return (pointer-events: none) is
-  //    not seen at all, as for every 2.4.11 judgement of the walk (proof P6).
+  // Pointer-transparent layers participate in measurement; their hit-test styles are restored before
+  // any key handler runs (proof P6).
   outcome: 'revealed' | 'covered' | 'closed-before' | 'unreproduced' | 'in-modal' | 'gone' | 'unfocusable' | 'unverified'
   // The stop measured again after its presses, at walk geometry: anything but visible is a finding under
   // the real occluder (author content, or another user-opened popup Escape did not close).

@@ -378,8 +378,11 @@ stands that a user could clear) unless it says it fails open.
    is still reported.
 7. Sampling. A stop is judged at a 3×3, then a 7×7 grid of points, and a reveal must be earned at one of
    them.
-8. Hit testing, failing open. A layer `elementsFromPoint` does not return (`pointer-events: none`) is not
-   seen at all, as for every 2.4.11 judgement of the walk (proof P6).
+8. At the recorded head, pointer-transparent layers were missed by hit testing. The PR #361
+   follow-up fixes this by enabling their hit testing only during synchronous measurement and
+   restoring styles before key handling. P6 now expects opaque HTML and filled SVG covers to fail,
+   while stroke-only SVG and paint below the stop pass. The earlier matrix timings do not measure
+   this follow-up.
 
 ## Latent follow-ups (T-1127)
 

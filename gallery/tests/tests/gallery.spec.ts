@@ -2415,7 +2415,7 @@ test('tab walk proof P5: focus returned to a menu trigger is not a trap, and foc
   recordCheck('tabWalkDetectorProofs')
 })
 
-test('tab walk proof P6: an opaque sticky header and a filled svg shape hide a stop; partial covers, scrims, stroke-only and pointer-transparent svg do not', async ({ browser }) => {
+test('tab walk proof P6: an opaque sticky header and a filled svg shape hide a stop; pointer-transparent covers also hide it, but partial covers, scrims and stroke-only shapes do not', async ({ browser }) => {
   const sticky = await walkProof(browser, `<style>body{margin:0}.bar{position:sticky;top:0;height:420px;background:#fff;z-index:3}.gap{height:900px}</style>${proofProbe('<header class="bar">Sticky</header><button>First</button><div class="gap"></div><button>Middle</button><div class="gap"></div><button>Last</button>')}`)
   expect(laneFindingLines(sticky)).toContain('2.4.11 reverse obscured: button "First" under header.bar (sticky)')
   expect(proofVerdict(sticky).obscured).toContain('react: 2.4.11 reverse obscured: button "First" under header.bar (sticky)')
@@ -2426,7 +2426,31 @@ test('tab walk proof P6: an opaque sticky header and a filled svg shape hide a s
   expect(laneFindingLines(scrim)).toEqual([])
   const svgStyle = '<style>svg{position:absolute;left:0;top:0;width:400px;height:200px;z-index:2}</style>'
   const layers = await walkProof(browser, `${svgStyle}${proofProbe('<div style="position:relative"><button>Bar</button><svg style="pointer-events:none"><rect width="400" height="200" fill="#000"/></svg><svg><rect width="400" height="200" fill="none" stroke="#000"/></svg></div>')}`)
-  expect(laneFindingLines(layers), 'a pointer-events:none layer (the Gantt dependency layer) and a stroke-only shape cover nothing').toEqual([])
+  expect(laneFindingLines(layers), 'a filled pointer-transparent svg still paints over the stop').toEqual(['2.4.11 forward obscured: button "Bar" under rect', '2.4.11 reverse obscured: button "Bar" under rect'])
+  const pointerCover = await walkProof(browser, proofProbe('<div style="position:relative"><button>Covered</button><div class="cover" style="position:absolute;inset:0;background:#000;pointer-events:none!important"></div></div>'))
+  expect(laneFindingLines(pointerCover)).toEqual(['2.4.11 forward obscured: button "Covered" under div.cover', '2.4.11 reverse obscured: button "Covered" under div.cover'])
+  const behind = await walkProof(browser, proofProbe('<div style="position:relative"><button style="position:relative;z-index:2">Above</button><div style="position:absolute;inset:0;background:#000;pointer-events:none;z-index:1"></div></div>'))
+  expect(laneFindingLines(behind), 'paint below the stop is not an occluder').toEqual([])
+  const context = await proofContext(browser)
+  try {
+    const page = await context.newPage()
+    await page.setContent(proofProbe('<button>A</button><div id="surface" style="pointer-events:none!important"><span id="inherited">Text</span></div>'))
+    const before = await page.locator('#surface').getAttribute('style')
+    await page.evaluate(() => {
+      document.addEventListener('keydown', () => {
+        if (getComputedStyle(document.getElementById('surface')!).pointerEvents !== 'none') document.body.dataset.changed = 'true'
+      })
+    })
+    const { scroll } = await prepareLane(page, scenarioViewport)
+    await walkLane(page, { lane: 'react', deadline: Date.now() + 20_000, scroll })
+    expect(await page.locator('#surface').getAttribute('style')).toBe(before)
+    expect(await page.locator('#inherited').getAttribute('style')).toBeNull()
+    expect(await page.locator('body').getAttribute('data-changed'), 'keyboard handlers see original pointer behavior').toBeNull()
+  } finally {
+    await context.close()
+  }
+  const stroke = await walkProof(browser, `${svgStyle}${proofProbe('<div style="position:relative"><button>Bar</button><svg style="pointer-events:none"><rect width="400" height="200" fill="none" stroke="#000"/></svg></div>')}`)
+  expect(laneFindingLines(stroke)).toEqual([])
   const filled = await walkProof(browser, `${svgStyle}${proofProbe('<div style="position:relative"><button>Bar</button><svg><rect width="400" height="200" fill="#000"/></svg></div>')}`)
   expect(laneFindingLines(filled), 'a filled, hit-testable svg shape is an opaque cover').toEqual(['2.4.11 forward obscured: button "Bar" under rect', '2.4.11 reverse obscured: button "Bar" under rect'])
   const away = await walkProof(browser, proofProbe('<a href="#x" style="display:inline-block;transform:translateX(-200vw)">Away</a><button>Here</button>'))
