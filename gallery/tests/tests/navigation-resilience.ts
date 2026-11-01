@@ -137,3 +137,24 @@ export async function openWithSubresourceRetry(page: StoryPage, url: string, ori
     await page.waitForTimeout(retryDelays[attempt])
   }
 }
+
+// Under four-worker load, an evaluate that awaits a PAGE-SIDE promise (the BlazingStory
+// index call) can lose that promise to garbage collection before it settles —
+// Playwright surfaces "Resulting promise was garbage collected" although the page is
+// healthy. Re-issue the evaluate a bounded number of times on exactly that error; every
+// other failure propagates unchanged. (Migration ticket 075 — observed on unrelated
+// scenarios at ~per-run frequency, so retry-at-test level did not clear it.) Moved here from
+// gallery.spec.ts by T-962: the tab walk awaits page-side promises (animation frames) too.
+export async function evaluateSettled<T>(issue: () => Promise<T>): Promise<T> {
+  let lastError: unknown
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      return await issue()
+    }
+    catch (error) {
+      if (!String(error).includes('Resulting promise was garbage collected')) throw error
+      lastError = error
+    }
+  }
+  throw lastError
+}

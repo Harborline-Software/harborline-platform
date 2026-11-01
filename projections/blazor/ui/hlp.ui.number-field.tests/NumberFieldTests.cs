@@ -6,6 +6,24 @@ namespace Harborline.UIAdapters.Blazor.Tests;
 
 public sealed class NumberFieldTests : BunitContext
 {
+    // T-962 review: HTML parses tabindex as an integer and min, max and step as floating-point numbers,
+    // all with an ASCII minus and a dot decimal. Blazor writes int and double attributes with the
+    // current culture: de-DE writes 0.5 as "0,5", ar-SA as "0٫5", and sv-SE writes -1 with U+2212, so
+    // the browser ignored the step and the bounds, and a tabindex of -1 left the field in the tab order.
+    [Theory, InlineData("de-DE"), InlineData("ar-SA"), InlineData("fa-IR"), InlineData("he-IL"), InlineData("sv-SE"), InlineData("nb-NO")]
+    public void NumericAttributesAreInvariantUnderEveryCulture(string culture)
+    {
+        var previous = System.Globalization.CultureInfo.CurrentCulture;
+        try
+        {
+            System.Globalization.CultureInfo.CurrentCulture = new System.Globalization.CultureInfo(culture);
+            var input = Render<HarborlineNumberField>(p => p.Add(x => x.Name, "depth").Add(x => x.Value, "1.5")
+                .Add(x => x.Min, -2.5).Add(x => x.Max, 1000.75).Add(x => x.Step, .5).Add(x => x.TabIndex, -1)).Find("input");
+            Assert.Equal(("-2.5", "1000.75", "0.5", "-1"), (input.GetAttribute("min"), input.GetAttribute("max"), input.GetAttribute("step"), input.GetAttribute("tabindex")));
+        }
+        finally { System.Globalization.CultureInfo.CurrentCulture = previous; }
+    }
+
     [Fact]
     public void EmitsRawEditingStringAndPreservesConstraints()
     {
