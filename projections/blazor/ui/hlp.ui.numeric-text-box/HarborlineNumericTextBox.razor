@@ -1,6 +1,7 @@
 @namespace Harborline.UIAdapters.Blazor.Components.Forms
 @inherits HarborlineComponentBase
 @using System.Globalization
+@using System.Numerics
 @using System.Text.RegularExpressions
 @using Harborline.UIAdapters.Blazor.Localization
 
@@ -63,8 +64,10 @@
     private string EffectiveLocale => Locale ?? LocaleContext?.Locale ?? "en";
     private string ResolvedIncrementLabel => LocaleContext?.ResolveString("forms.numeric.increment", instanceOverride: IncrementLabel) ?? IncrementLabel ?? "Increment";
     private string ResolvedDecrementLabel => LocaleContext?.ResolveString("forms.numeric.decrement", instanceOverride: DecrementLabel) ?? DecrementLabel ?? "Decrement";
-    private bool AtMaximum => Max is double max && Current is double current && current >= max;
-    private bool AtMinimum => Min is double min && Current is double current && current <= min;
+    // A spinner starts from current or zero (SpinAsync), so a bound is judged from that same anchor:
+    // an empty value at min 0 is at the bound, as in the React lane.
+    private bool AtMaximum => Max is double max && (Current ?? 0) >= max;
+    private bool AtMinimum => Min is double min && (Current ?? 0) <= min;
     private string SizeToken => Size switch { NumericTextBoxSize.Small => "sm", NumericTextBoxSize.Large => "lg", _ => "md" };
     private string FillToken => FillMode.ToString().ToLowerInvariant();
     private string RoundedToken => Rounded.ToString().ToLowerInvariant();
@@ -167,12 +170,60 @@
                     }
                     catch (ArgumentException) { numberFormat.CurrencySymbol = Currency; }
                     numberFormat.CurrencyDecimalDigits = digits;
-                    return value.Value.ToString("C", numberFormat);
+                    return FormatHalfExpand(value.Value, "C", digits, numberFormat);
                 }
-                return value.Value.ToString($"P{digits}", culture);
+                // P multiplies by 100, so the value is rounded two places further right.
+                return FormatHalfExpand(value.Value, $"P{digits}", digits + 2, culture);
             }
-            return value.Value.ToString($"N{Decimals}", culture);
+            return FormatHalfExpand(value.Value, $"N{Decimals}", Decimals, culture);
         }
         catch (CultureNotFoundException) { return value.Value.ToString("R", CultureInfo.InvariantCulture); }
+    }
+
+    // The React lane formats through Intl.NumberFormat, which rounds the shortest round-trip decimal
+    // of the double half away from zero (rounding mode halfExpand). .NET rounds a double's exact
+    // binary value half to even, so 1234.5 as c0 read $1,234 here and $1,235 there (T-1108). Round
+    // those same shortest digits half away from zero, on the digits themselves, and format the
+    // already-rounded value, which has nothing left to round.
+    private static string FormatHalfExpand(double value, string format, int scale, IFormatProvider provider)
+    {
+        // A value without digits, or a scale decimal cannot hold, keeps the plain double formatting.
+        if (!double.IsFinite(value) || scale is < 0 or > 28) return value.ToString(format, provider);
+        var (significand, exponent) = RoundHalfAwayFromZero(ShortestDecimal(value), scale);
+        var negative = double.IsNegative(value);
+        // decimal has no negative zero; Intl keeps the sign of a negative value that rounds to zero.
+        if (significand.IsZero) return (negative ? -0.0 : 0.0).ToString(format, provider);
+        // At most 17 significant digits, none right of the 28th place, fit a decimal exactly within its range.
+        if (decimal.TryParse(string.Create(CultureInfo.InvariantCulture, $"{significand}E{exponent}"), NumberStyles.Float, CultureInfo.InvariantCulture, out var rounded))
+            return (negative ? -rounded : rounded).ToString(format, provider);
+        // Past decimal's range the value is an integer (exponent >= 0). It is formatted from the
+        // shortest digits Intl prints, not the double's binary expansion: 1e30 reads
+        // 1,000,000,000,000,000,000,000,000,000,000, not 1,000,000,000,000,000,019,884,624,838,656.
+        var integer = significand * BigInteger.Pow(10, exponent);
+        return (negative ? -integer : integer).ToString(format, provider);
+    }
+
+    // The shortest round-trip digits of |value|, the digits Intl starts from, as significand x
+    // 10^exponent: 1234.5 is (12345, -1). They are read from the invariant "R" string.
+    private static (BigInteger Significand, int Exponent) ShortestDecimal(double value)
+    {
+        var text = Math.Abs(value).ToString("R", CultureInfo.InvariantCulture);
+        var e = text.IndexOf('E', StringComparison.Ordinal);
+        var exponent = e < 0 ? 0 : int.Parse(text.AsSpan(e + 1), NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture);
+        var mantissa = e < 0 ? text : text[..e];
+        var point = mantissa.IndexOf('.', StringComparison.Ordinal);
+        if (point >= 0) { exponent -= mantissa.Length - point - 1; mantissa = mantissa.Remove(point, 1); }
+        return (BigInteger.Parse(mantissa, NumberStyles.None, CultureInfo.InvariantCulture), exponent);
+    }
+
+    // Rounds significand x 10^exponent to scale fractional places, a midpoint away from zero. The
+    // remainder is exact, so no digit is rounded twice: System.Decimal's own parse rounds at 28
+    // places, which turned 1.4999999999999997e-15 into the false midpoint 1.5e-15.
+    private static (BigInteger Significand, int Exponent) RoundHalfAwayFromZero((BigInteger Significand, int Exponent) number, int scale)
+    {
+        if (number.Exponent >= -scale) return number;
+        var unit = BigInteger.Pow(10, -scale - number.Exponent);
+        var kept = BigInteger.DivRem(number.Significand, unit, out var remainder);
+        return (remainder * 2 >= unit ? kept + 1 : kept, -scale);
     }
 }
