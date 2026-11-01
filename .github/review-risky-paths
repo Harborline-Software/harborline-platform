@@ -4,6 +4,9 @@
 #
 # Keep it current: a PR that gives a job a write token, or adds a script to such a job, adds the script here.
 # This file is under .github/, so changing it is itself risky.
+#
+# Not covered: these jobs also build and test the product itself (dotnet, pnpm, cargo), so product code,
+# manifests and dependencies run with the token too. Scoping the write token to the publish step is what closes that.
 
 # release-platform.yml publish job (contents, id-token, attestations: write)
 # validate.yml publish-libraries job (packages, id-token, attestations: write)
