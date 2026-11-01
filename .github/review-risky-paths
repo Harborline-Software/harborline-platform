@@ -30,5 +30,7 @@ Directory.Packages.props
 Directory.Build.targets
 NuGet.Config
 global.json
+# Imported by Directory.Build.props into every project.
+projections/dotnet/Harborline.PackageTargetFramework.props
 # The NuGet consumer that publish-libraries builds and runs.
 tests/package-consumers/nuget/
