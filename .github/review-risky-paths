@@ -1,0 +1,22 @@
+# Scripts that a job holding a write token runs, and the files those scripts import or call. A change to any of
+# them also needs a clean Codex security review (PROC-0001, "Review policy, 2026-11-01"). review-gate reads this
+# file from the base branch. One path per line; a path ending in / covers a folder.
+#
+# Keep it current: a PR that gives a job a write token, or adds a script to such a job, adds the script here.
+# This file is under .github/, so changing it is itself risky.
+
+# release-platform.yml publish job (contents, id-token, attestations: write)
+# validate.yml publish-libraries job (packages, id-token, attestations: write)
+tooling/gate-contract.mjs
+tooling/library-promotion-proof.mjs
+tooling/package-fixture-selection.mjs
+tooling/package-producers.mjs
+tooling/package-version.mjs
+tooling/platform-release.mjs
+tooling/release-receipt.mjs
+tooling/resolve-command.mjs
+tooling/resolve-dotnet.mjs
+tooling/tests/library-promotion-proof.test.mjs
+tooling/tests/publish-libraries.packed.mjs
+tooling/tests/publish-libraries.test.mjs
+tooling/verify-package-fixtures.mjs
