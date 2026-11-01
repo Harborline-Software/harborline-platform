@@ -4,7 +4,7 @@ namespace Harborline.Blocks.Scheduling.Planning;
 public sealed class DeterministicExhaustiveProofSolver : IPlanningSolver
 {
     /// <summary>Stable identifier used in proposal ids and telemetry.</summary>
-    public string SolverId => "prototype.exhaustive-proof.v1";
+    public string SolverId => "prototype.exhaustive-proof.v2";
 
     /// <summary>This solver proves feasibility or infeasibility when its search completes.</summary>
     public SolverGuarantee Guarantee => SolverGuarantee.FeasibleProof;
@@ -39,43 +39,106 @@ public sealed class DeterministicExhaustiveProofSolver : IPlanningSolver
         }
 
         var activityOrder = problem.Activities
-            .OrderBy(value => problem.CandidatesByActivity[value.Id].Count)
-            .ThenBy(value => value.Id, StringComparer.Ordinal)
             .Select(value => value.Id)
+            .Order(StringComparer.Ordinal)
             .ToArray();
         var assignments = new Dictionary<string, AssignmentCandidate>(StringComparer.Ordinal);
+        var memo = new Dictionary<AssignmentCandidate, bool>(ReferenceEqualityComparer.Instance);
         var workUnits = 0;
         var budgetExhausted = false;
 
-        bool Search(int index)
+        bool Check(AssignmentCandidate candidate)
         {
-            if (index == activityOrder.Length)
+            if (memo.TryGetValue(candidate, out var cached))
             {
-                return true;
+                return cached;
             }
 
-            var activityId = activityOrder[index];
-            foreach (var candidate in problem.CandidatesByActivity[activityId])
+            if (workUnits >= deterministicWorkBudget)
             {
-                if (workUnits >= deterministicWorkBudget)
-                {
-                    budgetExhausted = true;
-                    return false;
-                }
+                budgetExhausted = true;
+                return false;
+            }
 
-                workUnits++;
-                if (!AssignmentRules.CanAdd(candidate, assignments, problem.Precedence))
+            workUnits++;
+            var consistent = AssignmentRules.CanAdd(candidate, assignments, problem.Precedence);
+            memo[candidate] = consistent;
+            return consistent;
+        }
+
+        string SelectActivity()
+        {
+            string? best = null;
+            var bestCount = int.MaxValue;
+            foreach (var activityId in activityOrder)
+            {
+                if (assignments.ContainsKey(activityId))
                 {
                     continue;
                 }
 
+                var count = 0;
+                foreach (var candidate in problem.CandidatesByActivity[activityId])
+                {
+                    if (Check(candidate) && ++count >= bestCount)
+                    {
+                        break;
+                    }
+
+                    if (budgetExhausted)
+                    {
+                        return best ?? activityId;
+                    }
+                }
+
+                if (count < bestCount)
+                {
+                    best = activityId;
+                    bestCount = count;
+                    if (count == 0)
+                    {
+                        break;
+                    }
+                }
+            }
+
+            return best!;
+        }
+
+        bool Search()
+        {
+            if (assignments.Count == activityOrder.Length)
+            {
+                return true;
+            }
+
+            var activityId = SelectActivity();
+            if (budgetExhausted)
+            {
+                return false;
+            }
+
+            foreach (var candidate in problem.CandidatesByActivity[activityId])
+            {
+                if (!Check(candidate))
+                {
+                    if (budgetExhausted)
+                    {
+                        return false;
+                    }
+
+                    continue;
+                }
+
                 assignments.Add(activityId, candidate);
-                if (Search(index + 1))
+                memo.Clear();
+                if (Search())
                 {
                     return true;
                 }
 
                 assignments.Remove(activityId);
+                memo.Clear();
                 if (budgetExhausted)
                 {
                     return false;
@@ -85,7 +148,7 @@ public sealed class DeterministicExhaustiveProofSolver : IPlanningSolver
             return false;
         }
 
-        if (Search(0))
+        if (Search())
         {
             return Proposal(
                 problem,

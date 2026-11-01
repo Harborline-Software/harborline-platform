@@ -1,2 +1,2 @@
 export { Window, WindowActionsBar } from './Window'
-export type { WindowActionsBarProps, WindowProps, WindowState } from './Window'
+export type { WindowActionsBarProps, WindowLabels, WindowProps, WindowState } from './Window'

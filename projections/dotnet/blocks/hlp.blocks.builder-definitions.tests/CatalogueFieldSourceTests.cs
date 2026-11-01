@@ -21,9 +21,13 @@ public sealed class CatalogueFieldSourceTests
     public async Task a_pinned_coordinate_resolves_its_field_from_the_exact_published_revision()
     {
         var host = await Published();
+        var store = new ObservingStore(host.Catalogue);
 
-        var resolved = await new CatalogueFieldSource(host.Catalogue).ResolveAsync(Tenant, Coordinate());
+        var resolved = await new CatalogueFieldSource(store).ResolveAsync(Tenant, Coordinate());
 
+        Assert.Equal(1, store.Calls);
+        Assert.Equal(new DefinitionBinding(new("tenant-a", DefinitionKind.Records, "eam.asset-class"), "1.0.0"),
+            Assert.Single(store.Resolutions));
         Assert.Equal("asset_tag", resolved.Field.FieldKey);
         Assert.Equal("Asset tag", resolved.Field.DisplayName);
         Assert.Equal(("1.0.0", DefinitionStatus.Published), (resolved.Revision.Document.VersionId, resolved.Revision.Status));
@@ -75,11 +79,14 @@ public sealed class CatalogueFieldSourceTests
     public async Task an_unsupported_capability_or_schema_version_refuses(string capability, int schema, string code, string pointer)
     {
         var host = await Published();
+        var store = new ObservingStore(host.Catalogue);
 
-        var refused = await Assert.ThrowsAsync<DefinitionRefusalException>(() => new CatalogueFieldSource(host.Catalogue)
+        var refused = await Assert.ThrowsAsync<DefinitionRefusalException>(() => new CatalogueFieldSource(store)
             .ResolveAsync(Tenant, Coordinate() with { CapabilityId = capability, SchemaVersion = schema }).AsTask());
 
+        Assert.Equal(DefinitionAdmissionPhase.Render, refused.Stage);
         Assert.Equal([(code, pointer)], Pairs(refused));
+        Assert.Equal(0, store.Calls);
     }
 
     public static TheoryData<string, CatalogueFieldCoordinate, string, string> Malformed() => new()
@@ -104,11 +111,14 @@ public sealed class CatalogueFieldSourceTests
     public async Task a_malformed_coordinate_refuses_before_any_read(string _, CatalogueFieldCoordinate coordinate, string code, string pointer)
     {
         var host = await Published();
+        var store = new ObservingStore(host.Catalogue);
 
         var refused = await Assert.ThrowsAsync<DefinitionRefusalException>(
-            () => new CatalogueFieldSource(host.Catalogue).ResolveAsync(Tenant, coordinate).AsTask());
+            () => new CatalogueFieldSource(store).ResolveAsync(Tenant, coordinate).AsTask());
 
+        Assert.Equal(DefinitionAdmissionPhase.Render, refused.Stage);
         Assert.Equal([(code, pointer)], Pairs(refused));
+        Assert.Equal(0, store.Calls);
     }
 
     [Theory]
@@ -151,6 +161,76 @@ public sealed class CatalogueFieldSourceTests
     {
         Assert.Equal("store", Assert.Throws<ArgumentNullException>(() => new CatalogueFieldSource(null!)).ParamName);
         Assert.Equal("revision", Assert.Throws<ArgumentNullException>(() => CatalogueFieldSource.DigestOf(null!)).ParamName);
+    }
+
+    private sealed class ObservingStore(IVersionedDefinitionStore inner) : IVersionedDefinitionStore
+    {
+        public int Calls { get; private set; }
+        public List<DefinitionBinding> Resolutions { get; } = [];
+
+        public ValueTask<IReadOnlyList<DefinitionKey>> ListKeysAsync(string tenant, DefinitionKind kind,
+            CancellationToken cancellationToken = default)
+        {
+            Calls++;
+            return inner.ListKeysAsync(tenant, kind, cancellationToken);
+        }
+
+        public ValueTask<DefinitionRevision> SaveDraftAsync(DefinitionDocument document, long expectedRevision,
+            string requestId, CancellationToken cancellationToken = default)
+        {
+            Calls++;
+            return inner.SaveDraftAsync(document, expectedRevision, requestId, cancellationToken);
+        }
+
+        public ValueTask<DefinitionRevision> PublishAsync(DefinitionKey key, string versionId, long expectedRevision,
+            string requestId, CancellationToken cancellationToken = default)
+        {
+            Calls++;
+            return inner.PublishAsync(key, versionId, expectedRevision, requestId, cancellationToken);
+        }
+
+        public ValueTask<DefinitionRevision> PublishAsync(DefinitionKey key, string versionId, long expectedRevision,
+            string requestId, IReadOnlyList<DefinitionPublishedHeadCondition> conditions, CancellationToken cancellationToken = default)
+        {
+            Calls++;
+            return inner.PublishAsync(key, versionId, expectedRevision, requestId, conditions, cancellationToken);
+        }
+
+        public ValueTask<DefinitionRevision?> GetPublicationReplayAsync(DefinitionKey key, string versionId,
+            long expectedRevision, string requestId, CancellationToken cancellationToken = default)
+        {
+            Calls++;
+            return inner.GetPublicationReplayAsync(key, versionId, expectedRevision, requestId, cancellationToken);
+        }
+
+        public ValueTask<DefinitionRevision> RestoreAsDraftAsync(DefinitionKey key, string sourceVersionId,
+            string draftVersionId, string draftVersion, long expectedRevision, string requestId, CancellationToken cancellationToken = default)
+        {
+            Calls++;
+            return inner.RestoreAsDraftAsync(key, sourceVersionId, draftVersionId, draftVersion, expectedRevision, requestId, cancellationToken);
+        }
+
+        public ValueTask<IReadOnlyList<DefinitionRevision>> ListHistoryAsync(DefinitionKey key,
+            CancellationToken cancellationToken = default)
+        {
+            Calls++;
+            return inner.ListHistoryAsync(key, cancellationToken);
+        }
+
+        public ValueTask<DefinitionRevision?> GetPublishedHeadAsync(DefinitionKey key,
+            CancellationToken cancellationToken = default)
+        {
+            Calls++;
+            return inner.GetPublishedHeadAsync(key, cancellationToken);
+        }
+
+        public ValueTask<DefinitionRevision?> ResolvePublishedAsync(DefinitionBinding binding,
+            CancellationToken cancellationToken = default)
+        {
+            Calls++;
+            Resolutions.Add(binding);
+            return inner.ResolvePublishedAsync(binding, cancellationToken);
+        }
     }
 
     private static async Task<TestHost> Published()

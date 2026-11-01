@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict'
-import {spawnSync} from 'node:child_process'
-import {resolve} from 'node:path'
+import {execFileSync, spawnSync} from 'node:child_process'
+import {copyFileSync, lstatSync, mkdirSync, mkdtempSync, readlinkSync, rmSync, statSync, symlinkSync} from 'node:fs'
+import {tmpdir} from 'node:os'
+import {dirname, resolve} from 'node:path'
 import test from 'node:test'
 import {pathToFileURL} from 'node:url'
 
@@ -12,9 +14,26 @@ const controlError = 't684-validator-files/ordinary-control.txt: local package p
 // independently of the count. Split its spelling so this test's own source is benign.
 const readable = {kind: 'file', text: `export const specimen = ${JSON.stringify('workspace:*')}\n`}
 
-function runTree(entries) {
+function sourceSnapshot(t) {
+  const cwd = mkdtempSync(resolve(tmpdir(), 'validate-repository-files-'))
+  t.after(() => rmSync(cwd, {recursive: true, force: true}))
+  const paths = execFileSync('git', ['ls-files', '-z'], {cwd: root, encoding: 'utf8'}).split('\0').filter(Boolean)
+  for (const path of paths) {
+    const source = resolve(root, path), target = resolve(cwd, path)
+    const metadata = lstatSync(source, {throwIfNoEntry: false})
+    if (!metadata) continue
+    mkdirSync(dirname(target), {recursive: true})
+    if (metadata.isSymbolicLink()) {
+      symlinkSync(readlinkSync(source), target, statSync(source, {throwIfNoEntry: false})?.isDirectory() ? 'dir' : 'file')
+    } else copyFileSync(source, target)
+  }
+  execFileSync('git', ['init', '--quiet'], {cwd})
+  return cwd
+}
+
+function runTree(cwd, entries) {
   const run = spawnSync(process.execPath, ['--import', pathToFileURL(preload).href, validator, '--allow-stale-gate'], {
-    cwd: root,
+    cwd,
     encoding: 'utf8',
     timeout: 60_000,
     maxBuffer: 4 * 1024 * 1024,
@@ -34,10 +53,11 @@ function runTree(entries) {
 }
 
 test('actual validator CLI counts and inspects ordinary source while excluding local scaffolding', async t => {
-  // Same real checkout in every child: this is a delta oracle, never a historical census.
-  const baseline = runTree({})
+  // Copy tracked source once: concurrent fixture output must not change this delta oracle.
+  const cwd = sourceSnapshot(t)
+  const baseline = runTree(cwd, {})
   assert.deepEqual(baseline.sourceErrors, [])
-  const control = runTree({'ordinary-control.txt': readable})
+  const control = runTree(cwd, {'ordinary-control.txt': readable})
   assert.equal(control.report.counts.sourceFiles, baseline.report.counts.sourceFiles + 1)
   assert.deepEqual(control.sourceErrors, [controlError])
   assert.equal(control.report.status, 'FAIL')
@@ -67,7 +87,7 @@ test('actual validator CLI counts and inspects ordinary source while excluding l
   ]
   for (const [name, entries] of excluded) {
     await t.test(name, () => {
-      const observed = runTree({'ordinary-control.txt': readable, ...entries})
+      const observed = runTree(cwd, {'ordinary-control.txt': readable, ...entries})
       assert.equal(observed.report.counts.sourceFiles, control.report.counts.sourceFiles)
       assert.deepEqual(observed.sourceErrors, [controlError])
       assert.equal(observed.report.status, 'FAIL')
@@ -77,7 +97,7 @@ test('actual validator CLI counts and inspects ordinary source while excluding l
 
   await t.test('an unreadable source produces a named JSON finding and inspection continues', () => {
     // Object insertion order puts the fault before the readable control in the walk.
-    const observed = runTree({
+    const observed = runTree(cwd, {
       'unreadable-source.txt': {kind: 'file', error: 'EACCES'},
       'ordinary-control.txt': readable,
     })

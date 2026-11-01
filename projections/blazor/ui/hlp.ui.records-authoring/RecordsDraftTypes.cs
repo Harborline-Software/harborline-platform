@@ -18,11 +18,28 @@ public sealed record RecordsDraft(string Identity, string VersionId, string? Exp
 /// <summary>A field kind and version the host offers. The editor never selects one on its own.</summary>
 public sealed record RecordsKindOption(string KindId, string Version);
 
+/// <summary>A published Class the host offers as the type's catalogue home. The editor never selects one on its own.</summary>
+public sealed record RecordsClassOption(string ClassId);
+
+/// <summary>A domain role the host offers as a role gate's creation role. The editor never selects one on its own.</summary>
+public sealed record RecordsRoleOption(string RoleId);
+
 /// <summary>A producer diagnostic rendered as given: a stable code at an RFC 6901 pointer.</summary>
-public sealed record RecordsDiagnostic(string Code, string Pointer);
+public sealed record RecordsDiagnostic(string Code, string Pointer)
+{
+    /// <summary>The producer's target, such as a cross-package pin's endpoint; null or empty when the refusal names none.</summary>
+    public string? Target { get; init; }
+}
+
+/// <summary>A producer warning rendered as given: a stable code at an RFC 6901 pointer. It never blocks and is never a refusal.</summary>
+public sealed record RecordsWarning(string Code, string Pointer);
 
 /// <summary>Host-supplied diagnostics for one exact draft identity, revision and local generation.</summary>
-public sealed record RecordsDiagnosticSet(string Identity, string? ExpectedRevision, int Generation, IReadOnlyList<RecordsDiagnostic> Diagnostics);
+public sealed record RecordsDiagnosticSet(string Identity, string? ExpectedRevision, int Generation, IReadOnlyList<RecordsDiagnostic> Diagnostics)
+{
+    /// <summary>The producer's publication-warning preview for the same draft, shown apart from the diagnostics.</summary>
+    public IReadOnlyList<RecordsWarning> Warnings { get; init; } = [];
+}
 
 /// <summary>A local change: the draft and the generation it belongs to. The generation is a local counter, never a revision. Local state only; nothing is persisted.</summary>
 public sealed record RecordsDraftChange(RecordsDraft Draft, int Generation);
