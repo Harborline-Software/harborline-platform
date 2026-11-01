@@ -100,9 +100,14 @@ export const ALLOW_LIST = [
     reason: 'sourceSurface capturedExports — same capture record',
   },
   {
-    path: 'docs/provenance/source-map.yaml',
+    path: 'docs/provenance/records/hlp.ui.locale-provider.json',
     symbol: `${Retired}LocaleProvider`,
-    reason: 'sourcePaths: the pre-Harborline capture path, hashed by its own blob; ticket 269 decides the sourcePaths field',
+    reason: 'sourcePaths: the pre-Harborline capture path, hashed by its own blob; ticket 269 decides the sourcePaths field (one record per module since HLP-0009)',
+  },
+  {
+    path: 'docs/provenance/records/hlp.ui.default-strings.json',
+    symbol: `${Retired}LocaleProvider`,
+    reason: 'sourcePaths — same capture path, in the record of the module that reads it (HLP-0009)',
   },
   {
     path: 'docs/evidence/design-review/hlp.ui.button.json',
