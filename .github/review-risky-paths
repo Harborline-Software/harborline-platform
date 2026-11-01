@@ -24,3 +24,8 @@ tooling/tests/library-promotion-proof.test.mjs
 tooling/tests/publish-libraries.packed.mjs
 tooling/tests/publish-libraries.test.mjs
 tooling/verify-package-fixtures.mjs
+# Build-wide inputs: every project the write-token jobs build reads these.
+Directory.Build.props
+Directory.Packages.props
+# The NuGet consumer that publish-libraries builds and runs.
+tests/package-consumers/nuget/
