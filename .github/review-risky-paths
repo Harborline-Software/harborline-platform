@@ -1,0 +1,38 @@
+# Scripts that a job holding a write token runs, and the files those scripts import or call. A change to any of
+# them also needs a clean Codex security review (PROC-0001, "Review policy, 2026-11-01"). review-gate reads this
+# file from the base branch. One path per line; a path ending in / covers a folder.
+#
+# Keep it current: a PR that gives a job a write token, or adds a script to such a job, adds the script here.
+# This file is under .github/, so changing it is itself risky.
+#
+# Not covered: these jobs also build and test the product itself (dotnet, pnpm, cargo), so product code,
+# manifests and dependencies run with the token too. Scoping the write token to the publish step is what closes that.
+
+# release-platform.yml publish job (contents, id-token, attestations: write)
+# validate.yml publish-libraries job (packages, id-token, attestations: write)
+tooling/fetch-nuget-package.mjs
+tooling/gate-contract.mjs
+tooling/library-promotion-proof.mjs
+tooling/package-fixture-selection.mjs
+tooling/package-producers.mjs
+tooling/package-version.mjs
+tooling/platform-release.mjs
+tooling/release-receipt.mjs
+tooling/resolve-command.mjs
+tooling/resolve-dotnet.mjs
+tooling/tests/library-promotion-proof.test.mjs
+tooling/tests/publish-libraries.packed.mjs
+tooling/tests/publish-libraries.test.mjs
+tooling/verify-package-fixtures.mjs
+# Pins the hashes of the tarballs verify-package-fixtures.mjs stages and installs.
+tooling/appshell-feed-provenance.json
+# Build-wide inputs: every project the write-token jobs build reads these, and the feeds restore pulls from.
+Directory.Build.props
+Directory.Packages.props
+Directory.Build.targets
+NuGet.Config
+global.json
+# Imported by Directory.Build.props into every project.
+projections/dotnet/Harborline.PackageTargetFramework.props
+# publish-libraries runs verify-package-fixtures.mjs --pack-libraries, which copies and runs every consumer here.
+tests/package-consumers/
