@@ -1,0 +1,32 @@
+{
+  "moduleId": "hlp.ui.gantt",
+  "legacySourceHashes": {
+    "packages/ui-react/src/components/datagrid/Gantt.tsx": "df25dba2d12b758209c15ca0a3c67f1d02f22b1e4b595b974afe76089a2a97e6"
+  },
+  "phase4Evidence": "specs/modules/ui/hlp.ui.gantt/interface.yaml",
+  "sourceExtracted": true,
+  "sourceState": "Interface revision 1 preserves the exact pinned hlp.ui.gantt source surface and proves every registered projection through native, shared-conformance, package-only, and applicable gallery/performance gates.",
+  "contentHashes": {
+    "conformance/hlp.ui.gantt/fixtures.yaml": "c1df3aceb967301b250eaa0fc26499759c599045acf8b10525a0b94010b0c9b1",
+    "conformance/hlp.ui.gantt/quality-fixtures.yaml": "a483380e5b8030c6b528ab38783361f8e1fb189da6b23d02437c2891d1ce7bc0",
+    "conformance/hlp.ui.gantt/runners/run-shared.mjs": "3ca6e899688b77310570a8debea305a542a3cfd13df02bccc57b5f6e82040afb",
+    "projections/blazor/ui/hlp.ui.gantt/GanttTypes.cs": "fb04d4f41fbea88eb3f24255bd0a0dc38f6fb44a77a740899414c8ce98052f18",
+    "projections/blazor/ui/hlp.ui.gantt/HarborlineGantt.razor": "1c153e37dd46dba27890df2dc166a2ba4365448ea4160355ad29e4cd09076043",
+    "projections/react/ui/hlp.ui.gantt/src/Gantt.tsx": "4b0a2448daf022ca9c3b9b5663283f3c892960dcfac73da1a52070346a16c332",
+    "projections/react/ui/hlp.ui.gantt/src/Gantt.types.ts": "c2cd58dd74c2709f0bf347b24f86510d0046635a9a58049db43b5d2a39b7273a",
+    "projections/react/ui/hlp.ui.gantt/src/__tests__/Gantt.conformance.test.tsx": "a87be25d74e11e964021a9c951abeab41e0d2171bc23107fd992e4e88d9f8f22",
+    "projections/react/ui/hlp.ui.gantt/src/__tests__/Gantt.native.test.tsx": "787ed4f74321ce40ab99d425e295452896d9d69cc5b94aa88a986db5869acebb",
+    "projections/react/ui/hlp.ui.gantt/src/__tests__/Gantt.performance.test.tsx": "80a57d00fe00660d94a3bb8b88958b96c373e21f0f4c069844b10e304df1a68d",
+    "projections/react/ui/hlp.ui.gantt/src/__tests__/fixtures.ts": "cc269666f9bd21249bd654414fc732ab9353dc459b67ba3f2a135ab44a847942",
+    "projections/react/ui/hlp.ui.gantt/src/gantt-model.ts": "dfe0d25b52ef380dee960ab536ef002e2f397029b8fbe9078b9740112e735c54",
+    "projections/react/ui/hlp.ui.gantt/src/index.ts": "f0acd3854cbacc12036ad43520cc9f0d4d5bc2e82025b5ce95a929dfd5b2a636",
+    "projections/react/ui/hlp.ui.gantt/src/test-setup.ts": "977afde26bba6a51325908cd7713cbfdc87d18f06b78b237c8f364c44864b7de",
+    "projections/react/ui/hlp.ui.gantt/tsconfig.build.json": "c7071bd9159e9abb00ab7fbc84a45dc413b829b23f309872e0e3cc791830c0af",
+    "projections/react/ui/hlp.ui.gantt/vitest.config.ts": "39213afd4b86c80b274e7b1aa98b7499c21bae8bc65341a59c159c86d2dc17f8",
+    "specs/modules/ui/hlp.ui.gantt/interface.yaml": "854ed67adbb0c308b1a3e6e5b6601b440eea48ecf61cecd1a338a676c3a82eae",
+    "specs/modules/ui/hlp.ui.gantt/quality.yaml": "1fec27c20061d48b1d7e37e28fdfe21a7bec40bb95a11d881da113186c8b97e4",
+    "specs/modules/ui/hlp.ui.gantt/scenarios.json": "f2375b59ea05942d2ad06d3d0c591d75ceaf805bd4ae25f1678e1a95ac955076",
+    "specs/modules/ui/hlp.ui.gantt/style.css": "14b9839f882a39ae084c3b7f132a18f3295ed955443a2636be7875e02b30bcb0"
+  },
+  "nextGate": "Retain this conformant aggregate contribution while HLF-052 advances to the next Carrier-essential dependency wave."
+}

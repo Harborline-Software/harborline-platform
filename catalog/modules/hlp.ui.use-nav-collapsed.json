@@ -1,0 +1,48 @@
+{
+  "moduleId": "hlp.ui.use-nav-collapsed",
+  "module": {
+    "interface": {
+      "path": "specs/modules/ui/hlp.ui.use-nav-collapsed/interface.yaml",
+      "revision": 1
+    },
+    "moduleKind": "runtime",
+    "presentation": {
+      "disposition": "not-applicable",
+      "rationale": "The collapse controller returns responsive state and renders no standalone interface."
+    },
+    "qualityProfile": {
+      "path": "specs/modules/ui/hlp.ui.use-nav-collapsed/quality.yaml",
+      "revision": 1
+    },
+    "owner": "platform-ui",
+    "dependencies": [
+      "hlp.ui.use-is-mobile",
+      "hlp.ui.use-media-query"
+    ],
+    "status": "implemented-gate-model-green",
+    "depth": {
+      "disposition": "deep-module",
+      "deletionTest": "PASS",
+      "redistributedComplexity": [
+        "controlled and uncontrolled navigation preference plus responsive crossing rules repeated by every application shell",
+        "user override, overlay independence, threshold identity, and SSR behavior drifting between browser and .NET hosts"
+      ]
+    },
+    "projections": {
+      "react": {
+        "role": "implementation",
+        "path": "projections/react/ui/hlp.ui.use-nav-collapsed",
+        "status": "conformant",
+        "packageContribution": "@harborline-software/ui-react",
+        "conformanceRunner": "conformance/hlp.ui.use-nav-collapsed/runners/run-shared.mjs"
+      },
+      "dotnet": {
+        "role": "implementation",
+        "path": "projections/dotnet/foundation/hlp.ui.use-nav-collapsed",
+        "status": "conformant",
+        "packageContribution": "Harborline.Foundation",
+        "conformanceRunner": "conformance/hlp.ui.use-nav-collapsed/runners/run-shared.mjs"
+      }
+    }
+  }
+}

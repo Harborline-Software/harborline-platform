@@ -1,0 +1,30 @@
+{
+  "moduleId": "hlp.ui.tooltip",
+  "legacySourceHashes": {
+    "packages/ui-react/src/components/layout/Tooltip.tsx": "cc5eb0d67b8b7064949b481807dcd7412e4dead06252b000a3b50ccaa2b592d9"
+  },
+  "phase4Evidence": "specs/modules/ui/hlp.ui.tooltip/interface.yaml",
+  "sourceExtracted": true,
+  "sourceState": "Interface revision 1 preserves the exact pinned hlp.ui.tooltip source surface and proves every registered projection through native, shared-conformance, package-only, and applicable gallery/performance gates.",
+  "contentHashes": {
+    "conformance/hlp.ui.tooltip/fixtures.yaml": "82ea3cc140d01500e05a2b87df620b095b624971634ab2410079ea79bda2caea",
+    "conformance/hlp.ui.tooltip/quality-fixtures.yaml": "eabb6ebfa0c9d9786fcdd278ba3b4c5ded3af0b61afb1e195e09ead0b060fa19",
+    "conformance/hlp.ui.tooltip/runners/run-shared.mjs": "e08c2ee1a41c08e47ede7546b4d20068c510e44cc946d26adbbffc996229ad12",
+    "projections/blazor/ui/hlp.ui.tooltip/HarborlineTooltip.razor": "a4b59c036d2d0b2d014a6ba6ae8ad0983b88f1c223beb8769e1ea83f8a9cee8d",
+    "projections/blazor/ui/hlp.ui.tooltip/HarborlineTooltipTrigger.razor": "2c52e6ddd5ab5a627631e267783a3452b44e78ec607fd880609d520320d78f8a",
+    "projections/blazor/ui/hlp.ui.tooltip/TooltipTypes.cs": "0f1d4443c8d8e253fbe43cc3e025a3f8d6e5e9c8a62931c1569f34e6cad6e683",
+    "projections/react/ui/hlp.ui.tooltip/src/Tooltip.tsx": "62c8ecda532362aab466c3894165b55a91069d575a487a0d55811bbac7791cd9",
+    "projections/react/ui/hlp.ui.tooltip/src/__tests__/Tooltip.conformance.test.tsx": "8565f41465c877c11a5e3a44129f1f67b06839132851224c297d7d227e1dca56",
+    "projections/react/ui/hlp.ui.tooltip/src/__tests__/Tooltip.native.test.tsx": "ab3a492bf407293743dde2db72587a9131e57c2058e71ae7888adb7fc54bdd36",
+    "projections/react/ui/hlp.ui.tooltip/src/__tests__/fixtures.ts": "bf80a5bcc40c25711f28c1e68deff33b95c266b4b87f79262511f9fe014d3cef",
+    "projections/react/ui/hlp.ui.tooltip/src/index.ts": "0e00c7f25722f962e3d30dc6af2c0c7923ecb1307fab0e8cb2210430836edb92",
+    "projections/react/ui/hlp.ui.tooltip/src/test-setup.ts": "977afde26bba6a51325908cd7713cbfdc87d18f06b78b237c8f364c44864b7de",
+    "projections/react/ui/hlp.ui.tooltip/tsconfig.build.json": "f8ea2aca40c5cf52071782862c2b4e379932e27d1c6053b4d2e0683106d34d60",
+    "projections/react/ui/hlp.ui.tooltip/vitest.config.ts": "846aab8c29678bdb1560e32ba9355fbf8f24086c16a11cfe3758e916b834a739",
+    "specs/modules/ui/hlp.ui.tooltip/interface.yaml": "fd2d2d793ff021d348669cf06db5ff46b345362287b1a104660b71893047fb7e",
+    "specs/modules/ui/hlp.ui.tooltip/quality.yaml": "62593294425a4e8067fe5d0cbe26543a43598e89118fc565f9bce28d9dfee434",
+    "specs/modules/ui/hlp.ui.tooltip/scenarios.json": "9fac717e09a1cdcb419eea3e47e282df37594898c00317b031561c6fb2536ad0",
+    "specs/modules/ui/hlp.ui.tooltip/style.css": "c2c1c7020166e6cb06a5cf98b92c278246a74da7fa21c0b7b441da88c333ef6b"
+  },
+  "nextGate": "Retain this conformant aggregate contribution while HLF-052 advances to the next Carrier-essential dependency wave."
+}

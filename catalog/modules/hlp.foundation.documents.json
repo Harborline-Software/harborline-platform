@@ -1,0 +1,49 @@
+{
+  "moduleId": "hlp.foundation.documents",
+  "module": {
+    "interface": {
+      "path": "specs/modules/foundation/hlp.foundation.documents/interface.yaml",
+      "revision": 2
+    },
+    "moduleKind": "runtime",
+    "presentation": {
+      "disposition": "not-applicable",
+      "rationale": "The foundation package owns the projection-neutral TemplateDefinition and its admission; the template editor and page rendering are separate projections."
+    },
+    "owner": "platform-foundation",
+    "dependencies": [
+      "hlp.foundation.rule-runtime",
+      "hlp.foundation.definitions"
+    ],
+    "status": "implemented",
+    "depth": {
+      "disposition": "deep-module",
+      "deletionTest": "PASS",
+      "redistributedComplexity": [
+        "template envelope, pinned-surface, authority-field and pinned-tuple conflict admission reimplemented by every host that installs or authors a template",
+        "page-medium and issue-intent composition rules over the Layout surface allowed to drift between authoring, install and render"
+      ]
+    },
+    "projections": {
+      "dotnet": {
+        "role": "implementation",
+        "path": "projections/dotnet/foundation/hlp.foundation.documents",
+        "status": "preview",
+        "artifact": {
+          "type": "nuget",
+          "id": "Harborline.Foundation.Documents",
+          "assembly": "Harborline.Foundation.Documents",
+          "manifest": "projections/dotnet/foundation/hlp.foundation.documents/Harborline.Foundation.Documents.csproj",
+          "dependencies": [
+            "Harborline.Foundation.Definitions"
+          ],
+          "identityAuthority": "Harborline",
+          "producerRepository": "harborline-platform",
+          "distribution": "internal-only",
+          "candidateRole": "new-bounded-package",
+          "registryAvailable": false
+        }
+      }
+    }
+  }
+}

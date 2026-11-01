@@ -1,0 +1,20 @@
+{
+  "moduleId": "hlp.contracts.forms",
+  "phase4Evidence": "specs/modules/contracts/hlp.contracts.forms/interface.yaml",
+  "sourceExtracted": true,
+  "sourceState": "Revision 1 remains an exact 79-declaration hash-bound capture. Revision 2 adds the Options vocabulary proven by both pinned Rule Runtime tiers. Revision 3 adds Carrier fieldsMeta so exact field types, validations, and options survive save/load/history/restore. Revision 4 adds the pinned Forms Engine's complete optional FormView field-rule projection without conflating visibility with authorization. The result is 84 TypeScript/C# declarations and 104 closed literals. Twenty-six neutral cases and clean npm/NuGet consumers cover recursive wire data, dependent-choice outcomes, complete aspect overlays, lossless authoring, server rule projection, and fail-closed discriminators without source/project fallback.",
+  "contentHashes": {
+    "conformance/hlp.contracts.forms/fixtures.yaml": "51bb858d5311c9c2f92fafd82695b58e9c36cf2c0e4e109304aa224c3c83bf5b",
+    "conformance/hlp.contracts.forms/runners/run-shared.mjs": "079ddaee7b11e10dc5218eefdd75df74774a640eff09d332e63116d6482f72b7",
+    "projections/dotnet/contracts/hlp.contracts.identities.tests/FormsContractTests.cs": "e52944f10e028fd0861cc8665bcc8d0caeff235304402d6036a207b198d11ee0",
+    "projections/dotnet/contracts/hlp.contracts.identities.tests/FormsFixtureConformanceTests.cs": "317416a9290956adc831f0da0675b31aa023a9e44af49af6052cd233f37bed2e",
+    "projections/dotnet/contracts/hlp.contracts.identities/Forms/FormsContracts.g.cs": "4f11a73560662b1de4277939573d33c9bec06a783173c5bcd907690bd8f9161a",
+    "projections/dotnet/contracts/hlp.contracts.identities/Forms/FormsJson.g.cs": "612850115b0d7bb5939cf5fd4f2dd09adb112d21ba6fe3cbf647248e10542dca",
+    "projections/typescript/contracts/hlp.contracts.forms/package.json": "56c9b679ba169767f3025abc516ff624d7bcb1e20524de539243dca111101c14",
+    "projections/typescript/contracts/hlp.contracts.forms/projection-manifest.json": "107e0c87863584571db5c00fc90212581aed82b12832896ec871d11015cc00de",
+    "projections/typescript/contracts/hlp.contracts.forms/src/forms.ts": "c9dfa629f764594a6b89a40e6140f329eaf497ecdff8d1244aa09478e5dd854b",
+    "projections/typescript/contracts/hlp.contracts.forms/src/wire.ts": "c8fdd6ee3358a53b4345ae13dc4e0635730431601e760e82268f80bb01c3d573",
+    "specs/modules/contracts/hlp.contracts.forms/interface.yaml": "8f5a740de58a5636b64e389f9102aea464cf015bf66a124b5557b82ce255597b"
+  },
+  "nextGate": "Consume the completed dual-tier Rule Runtime from the Forms state and executable Forms Engine modules."
+}

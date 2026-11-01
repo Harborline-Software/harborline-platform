@@ -1,0 +1,59 @@
+{
+  "moduleId": "hlp.ui.use-form-rule-graph",
+  "module": {
+    "interface": {
+      "path": "specs/modules/ui/hlp.ui.use-form-rule-graph/interface.yaml",
+      "revision": 1
+    },
+    "moduleKind": "runtime",
+    "presentation": {
+      "disposition": "not-applicable",
+      "rationale": "The hook projects rule outcomes onto a view model and renders no standalone interface; its wrapper delegates all rendering to the frozen schema-form module."
+    },
+    "qualityProfile": {
+      "path": "specs/modules/ui/hlp.ui.use-form-rule-graph/quality.yaml",
+      "revision": 1
+    },
+    "owner": "platform-ui",
+    "dependencies": [
+      "hlp.foundation.rule-runtime",
+      "hlp.ui.form-view",
+      "hlp.ui.schema-form"
+    ],
+    "status": "implemented-gate-model-green",
+    "depth": {
+      "disposition": "deep-module",
+      "deletionTest": "PASS",
+      "redistributedComplexity": [
+        "candidate-value ownership, stateless per-change graph re-evaluation, and the five rule outcome projections otherwise repeated by every reactive form host outside the renderer",
+        "fail-closed save gating on pending, errored, or throwing evaluations independently drifting between React hosts and Blazor consumers"
+      ]
+    },
+    "projections": {
+      "react": {
+        "role": "implementation",
+        "path": "projections/react/ui/hlp.ui.use-form-rule-graph",
+        "status": "conformant",
+        "packageContribution": "@harborline-software/ui-react",
+        "conformanceRunner": "conformance/hlp.ui.use-form-rule-graph/runners/run-shared.mjs"
+      },
+      "blazor": {
+        "role": "adapter",
+        "seam": "ui.form-rule-graph.projection",
+        "path": "projections/blazor/ui/hlp.ui.use-form-rule-graph",
+        "status": "conformant",
+        "packageContribution": "Harborline.UIAdapters.Blazor",
+        "conformanceRunner": "conformance/hlp.ui.use-form-rule-graph/runners/run-shared.mjs"
+      }
+    }
+  },
+  "seams": {
+    "ui.form-rule-graph.projection": {
+      "status": "conformant",
+      "adapters": [
+        "react",
+        "blazor"
+      ]
+    }
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "moduleId": "hlp.ui.radio-group",
+  "legacySourceHashes": {
+    "packages/ui-react/src/components/forms/RadioGroup.tsx": "58effebafcb6a9189b1a1009063c6c5f04828d42486b92c5e7546699d885d4ab"
+  },
+  "phase4Evidence": "specs/modules/ui/hlp.ui.radio-group/interface.yaml",
+  "sourceExtracted": true,
+  "sourceState": "Interface revision 1 preserves the exact pinned hlp.ui.radio-group source surface and proves every registered projection through native, shared-conformance, package-only, and applicable gallery/performance gates.",
+  "contentHashes": {
+    "conformance/hlp.ui.radio-group/fixtures.yaml": "2f8390a18a13d9a4c38148912feefbdab3266317d044d1b4693d440ebfeb1ca7",
+    "conformance/hlp.ui.radio-group/quality-fixtures.yaml": "51d80acad909289cba36d5d641dce5fcc8d6fcc4ce916dc87e0dc650a814300f",
+    "conformance/hlp.ui.radio-group/runners/run-shared.mjs": "c43d55296c682101007f9406027ecbcfb04b8ded07ba6d8ec4e8882f290ddd4b",
+    "projections/blazor/ui/hlp.ui.radio-group/RadioGroupTypes.cs": "f8f2a43eeb3a7dae7a5bc8214ffebe0ab6dd4fea99cbe539cd428e65bd2b282c",
+    "projections/blazor/ui/hlp.ui.radio-group/HarborlineRadioGroup.razor": "610609341d01aa176d8ce704896e070b7eaa5c61e0b7e496b04a9f198feb8120",
+    "projections/react/ui/hlp.ui.radio-group/src/RadioGroup.tsx": "0161da008e4ff2069862bedfb69b40482b72014c27e091142287254424b0a988",
+    "projections/react/ui/hlp.ui.radio-group/src/__tests__/RadioGroup.conformance.test.tsx": "c18965311bad99b1d80fe8cec1251d7c9329fc89cf460bbd98a77be6769b772c",
+    "projections/react/ui/hlp.ui.radio-group/src/__tests__/RadioGroup.native.test.tsx": "0ffbcee88613cdc3dbfb0fc4f3b7912604c9d2ac1a41546bc01e877025ddd187",
+    "projections/react/ui/hlp.ui.radio-group/src/__tests__/fixtures.ts": "84029ce4ffdbb796214c761ce6dc3c975294450d32ad568652d1307d253c40ab",
+    "projections/react/ui/hlp.ui.radio-group/src/index.ts": "906860c129a2ede955248961e697796b5c2b4cb011fe9732d35c876a4a2984af",
+    "projections/react/ui/hlp.ui.radio-group/src/test-setup.ts": "977afde26bba6a51325908cd7713cbfdc87d18f06b78b237c8f364c44864b7de",
+    "projections/react/ui/hlp.ui.radio-group/tsconfig.build.json": "7e64eeb83997d6d66e5318c1e845bfe940b765fa6070aea51423b8c4cdc90099",
+    "projections/react/ui/hlp.ui.radio-group/vitest.config.ts": "c90e9f15b79eca7e1300f52a3eb1ed62d2f9548b1680ea29a58b5b44bb8253a8",
+    "specs/modules/ui/hlp.ui.radio-group/interface.yaml": "07b072e69f1d4b8031dbe17bbdb3b5f8c64cf9024460c1baec85e8aee96bb59d",
+    "specs/modules/ui/hlp.ui.radio-group/quality.yaml": "0f62d7b1b0a90b4e99443f0e767e99e21bf2b475f0f5036ab5cc7bd6ada5fca3",
+    "specs/modules/ui/hlp.ui.radio-group/scenarios.json": "a4814e44dabdbc752cdb86ac7302d388cc532595af20d13773519c4704809702",
+    "specs/modules/ui/hlp.ui.radio-group/style.css": "8245b00d014ab333bf12e364f9d9b7e1c8f436fdac8ed0c6b290ff3340c98dd2"
+  },
+  "nextGate": "Retain this conformant aggregate contribution while HLF-052 advances to the next Carrier-essential dependency wave."
+}

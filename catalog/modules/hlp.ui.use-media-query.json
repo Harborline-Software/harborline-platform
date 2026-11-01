@@ -1,0 +1,55 @@
+{
+  "moduleId": "hlp.ui.use-media-query",
+  "module": {
+    "interface": {
+      "path": "specs/modules/ui/hlp.ui.use-media-query/interface.yaml",
+      "revision": 1
+    },
+    "moduleKind": "runtime",
+    "presentation": {
+      "disposition": "not-applicable",
+      "rationale": "The observer selects responsive behavior and renders no standalone interface."
+    },
+    "qualityProfile": {
+      "path": "specs/modules/ui/hlp.ui.use-media-query/quality.yaml",
+      "revision": 1
+    },
+    "owner": "platform-ui",
+    "dependencies": [],
+    "status": "implemented-gate-model-green",
+    "depth": {
+      "disposition": "deep-module",
+      "deletionTest": "PASS",
+      "redistributedComplexity": [
+        "SSR-safe initialization, render/effect race closure, query replacement, and listener disposal repeated in every responsive feature",
+        "browser interop lifetime and fail-closed state independently drift between React and Blazor hosts"
+      ]
+    },
+    "projections": {
+      "react": {
+        "role": "implementation",
+        "path": "projections/react/ui/hlp.ui.use-media-query",
+        "status": "conformant",
+        "packageContribution": "@harborline-software/ui-react",
+        "conformanceRunner": "conformance/hlp.ui.use-media-query/runners/run-shared.mjs"
+      },
+      "blazor": {
+        "role": "adapter",
+        "seam": "ui.media-query.browser",
+        "path": "projections/blazor/ui/hlp.ui.use-media-query",
+        "status": "conformant",
+        "packageContribution": "Harborline.UIAdapters.Blazor",
+        "conformanceRunner": "conformance/hlp.ui.use-media-query/runners/run-shared.mjs"
+      }
+    }
+  },
+  "seams": {
+    "ui.media-query.browser": {
+      "status": "conformant",
+      "adapters": [
+        "react",
+        "blazor"
+      ]
+    }
+  }
+}

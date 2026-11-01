@@ -1,0 +1,43 @@
+{
+  "moduleId": "hlp.foundation.definitions",
+  "module": {
+    "interface": {
+      "path": "specs/modules/foundation/hlp.foundation.definitions/interface.yaml",
+      "revision": 1
+    },
+    "moduleKind": "compatibility",
+    "presentation": {
+      "disposition": "not-applicable",
+      "rationale": "A foundation-tier home for four pure data/exception types; there is no UI surface at any tier."
+    },
+    "owner": "platform-foundation",
+    "dependencies": [],
+    "status": "implemented",
+    "depth": {
+      "disposition": "compatibility-binding",
+      "deletionTest": "PASS",
+      "redistributedComplexity": [
+        "every producer (Layout, Calendar, Rules in blocks; Documents in foundation) would go back to reimplementing its own stage vocabulary and refusal shape, exactly the T-583-vs-T-757 divergence this module exists to close",
+        "Documents could not reach the shared envelope at all without crossing the foundation->blocks tier fence that hlp.architecture.tests enforces, forcing its own string-stage TemplateAdmissionException back into existence"
+      ]
+    },
+    "projections": {
+      "dotnet": {
+        "role": "implementation",
+        "path": "projections/dotnet/foundation/hlp.foundation.definitions",
+        "status": "preview",
+        "artifact": {
+          "type": "nuget",
+          "id": "Harborline.Foundation.Definitions",
+          "assembly": "Harborline.Foundation.Definitions",
+          "manifest": "projections/dotnet/foundation/hlp.foundation.definitions/Harborline.Foundation.Definitions.csproj",
+          "identityAuthority": "Harborline",
+          "producerRepository": "harborline-platform",
+          "distribution": "internal-only",
+          "candidateRole": "new-bounded-package",
+          "registryAvailable": false
+        }
+      }
+    }
+  }
+}

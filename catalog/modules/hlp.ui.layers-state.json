@@ -1,0 +1,47 @@
+{
+  "moduleId": "hlp.ui.layers-state",
+  "module": {
+    "interface": {
+      "path": "specs/modules/ui/hlp.ui.layers-state/interface.yaml",
+      "revision": 1
+    },
+    "moduleKind": "runtime",
+    "presentation": {
+      "disposition": "not-applicable",
+      "rationale": "Layers State is an immutable state reducer; Layers Rail owns presentation."
+    },
+    "qualityProfile": {
+      "path": "specs/modules/ui/hlp.ui.layers-state/quality.yaml",
+      "revision": 1
+    },
+    "owner": "platform-ui",
+    "dependencies": [
+      "hlp.ui.aspect-lens"
+    ],
+    "status": "implemented-gate-model-green",
+    "depth": {
+      "disposition": "deep-module",
+      "deletionTest": "PASS",
+      "redistributedComplexity": [
+        "omitted-versus-explicit-null initialization and immutable active/enabled transitions repeated in each builder host",
+        "activation, clear, toggle, and idempotence outcomes allowed to drift between React hooks and .NET consumers"
+      ]
+    },
+    "projections": {
+      "react": {
+        "role": "implementation",
+        "path": "projections/react/ui/hlp.ui.layers-state",
+        "status": "conformant",
+        "packageContribution": "@harborline-software/ui-react",
+        "conformanceRunner": "conformance/hlp.ui.layers-state/runners/run-shared.mjs"
+      },
+      "dotnet": {
+        "role": "implementation",
+        "path": "projections/dotnet/foundation/hlp.ui.layers-state",
+        "status": "conformant",
+        "packageContribution": "Harborline.Foundation",
+        "conformanceRunner": "conformance/hlp.ui.layers-state/runners/run-shared.mjs"
+      }
+    }
+  }
+}

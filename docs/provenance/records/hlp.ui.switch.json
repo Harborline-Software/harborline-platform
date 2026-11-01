@@ -1,0 +1,29 @@
+{
+  "moduleId": "hlp.ui.switch",
+  "legacySourceHashes": {
+    "packages/ui-react/src/components/forms/Switch.tsx": "a768c3a9c41ed167b43c6c3af4f952f2fa89319ca785f304100869b807e4f5a0"
+  },
+  "phase4Evidence": "specs/modules/ui/hlp.ui.switch/interface.yaml",
+  "sourceExtracted": true,
+  "sourceState": "Interface revision 1 preserves the exact pinned hlp.ui.switch source surface and proves every registered projection through native, shared-conformance, package-only, and applicable gallery/performance gates.",
+  "contentHashes": {
+    "conformance/hlp.ui.switch/fixtures.yaml": "5687bd0ebd14f2ddc5343fb71fb9534ca1db1e9fefc2eb34e41e08eae934c8fd",
+    "conformance/hlp.ui.switch/quality-fixtures.yaml": "4bda43c83aea9dc85f3380e0b7ebaf3f114af81a8ae804c2e91ffa43594a6ba8",
+    "conformance/hlp.ui.switch/runners/run-shared.mjs": "d35da4b19c55eb8bda0f0b7f645140d4933b20e2f16bdffe5ca3883bfc9b62e7",
+    "projections/blazor/ui/hlp.ui.switch/HarborlineSwitch.razor": "25822a01db9f35519f0d3d683db8c7d22ea4988b2afa1227c38d1ea8679d9436",
+    "projections/blazor/ui/hlp.ui.switch/SwitchTypes.cs": "a5c3914c9e92c14b0cc14736c5334740531b6c248cb93ddc161d42bbbdead86a",
+    "projections/react/ui/hlp.ui.switch/src/Switch.tsx": "451d63583d583090c3a24726f4d5fdb39ce2a6d061c37d87a09fca2dce4a4081",
+    "projections/react/ui/hlp.ui.switch/src/__tests__/Switch.conformance.test.ts": "5bdbc674ced8d72bc619abb4c623aa6259260b72fe8940cf6c529c1ec31721b9",
+    "projections/react/ui/hlp.ui.switch/src/__tests__/Switch.native.test.tsx": "1af9791262624d652c22c82f04f214bc7473a36cbb9510ee6f38383b27360e14",
+    "projections/react/ui/hlp.ui.switch/src/__tests__/fixtures.ts": "99e53d7004da7097ea2a101dccc3ebb8b64d3344ac78b1f6814e6a4f6fe30fc9",
+    "projections/react/ui/hlp.ui.switch/src/index.ts": "e2ef826598bf1f2fa306d485a54d2ba81e1cbe9ccae5bb0d7edac4d7ddf18f58",
+    "projections/react/ui/hlp.ui.switch/src/test-setup.ts": "097040beeb2cc914b87790306bc835eef4a06321fa3594a6938b6754641ac2ff",
+    "projections/react/ui/hlp.ui.switch/tsconfig.build.json": "a007fd773f0da231cc351b859a81317cece1f0d0290fd28f0a8a2808a879e616",
+    "projections/react/ui/hlp.ui.switch/vitest.config.ts": "e9eba60c42a42ab566bd1906835055c73283590d0f5af850cc425e6a6c57fba6",
+    "specs/modules/ui/hlp.ui.switch/interface.yaml": "ce10c1ced87d8aa29c4f7440b4d66e62cf8b49deff7e7c862cf6267301fcb611",
+    "specs/modules/ui/hlp.ui.switch/quality.yaml": "cf1afc23b6d44b768ccf0fa815d275049fa2ac922b4934576f5d6a8ae7dcb006",
+    "specs/modules/ui/hlp.ui.switch/scenarios.json": "4527670f971460fa01a39cd7b20b245efdab28a07a8787aa0d73f00dccf4c6d3",
+    "specs/modules/ui/hlp.ui.switch/style.css": "feb9525b5196e91fd40fad2d128d6a2350706699c1fe81b7ee7ca02bc7163075"
+  },
+  "nextGate": "Retain this conformant aggregate contribution while HLF-052 advances to the next Carrier-essential dependency wave."
+}

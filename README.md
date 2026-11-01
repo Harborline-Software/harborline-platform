@@ -10,7 +10,7 @@ For the shared product model and repository roles, read the [Harborline solution
 
 ## Specifications and inventory
 
-Start with [module specifications](specs/modules/) for intended behavior and quality requirements. The [module catalog](catalog/modules.yaml) records ownership, dependencies and interfaces; the [projection catalog](catalog/projections.yaml) records implementation locations and declared status. [Conformance fixtures](conformance/) provide shared checks.
+Start with [module specifications](specs/modules/) for intended behavior and quality requirements. The [module catalog](catalog/modules/) records ownership, dependencies and interfaces, one file per module ([HLP-0009](docs/architecture/decisions/HLP-0009-one-file-per-module-for-catalog-and-provenance.md)); the [projection catalog](catalog/projections.yaml) records implementation locations and declared status. [Conformance fixtures](conformance/) provide shared checks.
 
 Use the catalogs to calculate inventory and coverage for the revision you are reviewing. A module can have several projections, and a projection can live inside another module's directory. UI support behavior may have a .NET implementation without a standalone Blazor component. Directory counts therefore do not measure behavioral coverage.
 

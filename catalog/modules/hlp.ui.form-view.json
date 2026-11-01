@@ -1,0 +1,55 @@
+{
+  "moduleId": "hlp.ui.form-view",
+  "module": {
+    "interface": {
+      "path": "specs/modules/ui/hlp.ui.form-view/interface.yaml",
+      "revision": 2
+    },
+    "moduleKind": "compatibility",
+    "presentation": {
+      "disposition": "not-applicable",
+      "rationale": "The module preserves the public UI forms support surface over canonical Forms contracts; SchemaForm owns rendering."
+    },
+    "qualityProfile": {
+      "path": "specs/modules/ui/hlp.ui.form-view/quality.yaml",
+      "revision": 1
+    },
+    "owner": "platform-ui",
+    "dependencies": [
+      "hlp.contracts.forms"
+    ],
+    "status": "implemented-gate-model-green",
+    "depth": {
+      "disposition": "compatibility-binding",
+      "deletionTest": "PASS",
+      "redistributedComplexity": [
+        "all twenty-nine pinned UI-facing names, renderer hint normalization, redaction fences, validation shapes, and exact locale fallback behavior reintroduced in each React forms caller",
+        "canonical wire ownership and UI-only hint distinctions lost or duplicated between TypeScript, .NET, SchemaForm, Forms Engine, and downstream Blazor providers"
+      ]
+    },
+    "projections": {
+      "react": {
+        "role": "compatibility-facade",
+        "path": "projections/react/ui/hlp.ui.form-view",
+        "status": "conformant",
+        "packageContribution": "@harborline-software/ui-react",
+        "conformanceRunner": "conformance/hlp.ui.form-view/runners/run-shared.mjs",
+        "compatibility": {
+          "rationale": "Preserves the Harborline App ui-react FormView surface while canonical wire ownership remains in @harborline-software/contracts.",
+          "revisit": "When all Harborline App and external UI consumers import canonical Forms contracts and renderer hints through the SchemaForm seam."
+        }
+      },
+      "dotnet": {
+        "role": "compatibility-facade",
+        "path": "projections/dotnet/foundation/hlp.ui.form-view",
+        "status": "conformant",
+        "packageContribution": "Harborline.Foundation",
+        "conformanceRunner": "conformance/hlp.ui.form-view/runners/run-shared.mjs",
+        "compatibility": {
+          "rationale": "Provides Blazor-consumable canonical Forms bindings and exact localized-text behavior without inventing a Razor control.",
+          "revisit": "When the aggregate Foundation identity is cut over and every Blazor provider directly consumes canonical Forms contracts."
+        }
+      }
+    }
+  }
+}

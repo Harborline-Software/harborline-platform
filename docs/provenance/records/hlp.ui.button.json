@@ -1,0 +1,33 @@
+{
+  "moduleId": "hlp.ui.button",
+  "legacySourceHashes": {
+    "packages/ui-react/src/components/buttons/Button.tsx": "ed3351e9ee16c5ba180409d77e48f24053f9dc3a0bf56bdc55f46fa0268d340a",
+    "packages/ui-react/src/components/buttons/ButtonGroup.tsx": "26d2c2c71a631e0b6f87cd398301fc4fa18d1fadad01ef6965b90a88ab7d0a96",
+    "packages/ui-adapters-blazor/Components/Buttons/ShipyardButton.razor": "cd506eb175305fbc93311785805b3c81bae9e01f694d4dd354eaeecaccb2ce58",
+    "packages/foundation/Enums/ButtonFillMode.cs": "ea6d59e2c07592ee5d2a5560030fe7f46a861f9bcb9039754e91f63e6f653ac1",
+    "packages/foundation/Enums/ButtonSize.cs": "59ee3f01d3a27e32574aedf209df274b0d6da48343d02b4b3546f7584601539d",
+    "packages/foundation/Enums/ButtonVariant.cs": "d2862c3d4d183ee0d505ec8802d5d9fb586f7fbd7f830f8118fa80a0deb9fad0"
+  },
+  "phase4Evidence": "docs/evidence/phase-4/gate.json",
+  "aggregateCompatibilityEvidence": "compatibility/aggregate/report.json",
+  "sourceExtracted": true,
+  "sourceState": "The baseline source and artifact surfaces are exact and content-addressed; the target then deepens Button with the approved conformance, accessibility, internationalization, theming, packaging, and bounded-style-seam decisions.",
+  "contentHashes": {
+    "projections/react/ui/hlp.ui.button/src/Button.tsx": "a4ffcf7b089d8668e0f7e3940bf3a5bc2d41b48971734d739e3781e78cabf766",
+    "projections/react/ui/hlp.ui.button/src/ButtonGroup.tsx": "41391311b5d0f12f09a74910fca643b8e9d1edf3f6a32822e05a043a8f1ea10a",
+    "projections/react/ui/hlp.ui.button/src/__tests__/Button.native.test.tsx": "4fbd77809dae0bdc19652506908ab384f670514d1b0ef7d9d441830a4c7c6bdc",
+    "projections/dotnet/foundation/hlp.ui.button/ButtonFillMode.cs": "9865087b4ffee1ee5f99142a06c98784d74f5cc937dc89985e8edc102ad31064",
+    "projections/dotnet/foundation/hlp.ui.button/ButtonSize.cs": "9b58d1dd3ec6cf38befda9b97c02e13486bc44fb1d72e7c4629218cb25b90da1",
+    "projections/dotnet/foundation/hlp.ui.button/ButtonVariant.cs": "72b5be0334b1170b91ce8e8f468b4bbfb8bf8ecbbd38948e34eaeedfa8806af6",
+    "projections/blazor/ui/hlp.ui.button/Components/Buttons/HarborlineButton.razor": "82d2b94399bbb9a8834ab3764921dd515d934c0a025ed50caa28c7eb71addeed",
+    "projections/blazor/ui/hlp.ui.button/Components/Buttons/ButtonStyleBridge.cs": "d806a29e1089c8aadd3b83a7acea7d69fce6b25f5a284dbbfeea99c0fc085992",
+    "projections/blazor/ui/hlp.ui.button/Base/HarborlineComponentBase.cs": "49f2d566de0521d59c99bed9247d72c3607cd864090a1d22241eaf8ef19f0ecb",
+    "projections/blazor/ui/hlp.ui.button/Localization/HarborlineLocaleContext.cs": "34bd8801b214d92407d6a3624a9ed94c6ca7568be7b416cc350adc5aa920e662",
+    "projections/blazor/ui/hlp.ui.button/Localization/HarborlineLocaleProvider.razor": "e94c523362928df584d281e16c14c3c612c2f553f30102dde300ea3afdea6d08",
+    "projections/blazor/ui/hlp.ui.button.tests/ButtonNativeTests.cs": "7c8d13e7840976335e2913d43f4a0d93e7cf2511e4145d26deed00337db01351",
+    "conformance/hlp.ui.button/fixtures.yaml": "a0332438e88b1c819e6699d1530b0486dfb2cdd58ca01c588664180da9758c08",
+    "specs/modules/ui/hlp.ui.button/interface.yaml": "e454bdf18d2a40912891040b0e81383d97473ad7fd295bd695f4e568c3de1d46",
+    "specs/modules/ui/hlp.ui.button/quality.yaml": "006898ffa8c47fd8ceda101d176046992349b9e727aecbf5549dbfcee4a9f64d"
+  },
+  "nextGate": "Keep aggregate package identities private until a separate authority and distribution decision is approved."
+}

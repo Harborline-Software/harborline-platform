@@ -1,0 +1,27 @@
+{
+  "moduleId": "hlp.ui.use-form-rule-graph",
+  "legacySourceHashes": {
+    "packages/ui-react/src/components/forms/SchemaForm/useFormRuleGraph.tsx": "c0981003c158a21b46d495385eb8fb459edf24bb1e422c6978b0739c42b1c799"
+  },
+  "phase4Evidence": "specs/modules/ui/hlp.ui.use-form-rule-graph/interface.yaml",
+  "sourceExtracted": true,
+  "sourceState": "Interface revision 1 preserves the exact pinned hlp.ui.use-form-rule-graph source surface and proves every registered projection through native, shared-conformance, package-only, and applicable gallery/performance gates.",
+  "contentHashes": {
+    "conformance/hlp.ui.use-form-rule-graph/fixtures.yaml": "b27846bd4f5d986dd19141afcb43b70a57b658b1fc6befb947074b19b73b118b",
+    "conformance/hlp.ui.use-form-rule-graph/quality-fixtures.yaml": "7ad482b5a98ed7194292209cba85d32a4a79aa699858bee50c401d3e862017e5",
+    "conformance/hlp.ui.use-form-rule-graph/runners/run-shared.mjs": "05fec0d1770cb91bf32527c375a76e018f05df69b3d6360ac4c7a0b3a521d646",
+    "projections/blazor/ui/hlp.ui.use-form-rule-graph/FormRuleGraphProjector.cs": "ae735dd6fda1a0703cd75291801de081ed71cbc44b2c667236953899100ffb90",
+    "projections/react/ui/hlp.ui.use-form-rule-graph/src/__tests__/fixtures.ts": "a6e007af017fed59f249a712cc8057ae97d4bc3f7d8fb934111b44c9631ac7af",
+    "projections/react/ui/hlp.ui.use-form-rule-graph/src/__tests__/useFormRuleGraph.conformance.test.tsx": "643bdb011c6c0e67e56900dc1ee4f9544260b74275b3640c309f61ebcfc76432",
+    "projections/react/ui/hlp.ui.use-form-rule-graph/src/__tests__/useFormRuleGraph.native.test.tsx": "25975356c769d1758544647dc7c12362ebfa17ed3b3d98c4672db6f61993db29",
+    "projections/react/ui/hlp.ui.use-form-rule-graph/src/index.ts": "b9fdaa1d240aa74ccf7c90457ff3002086a3422ef167b3ef3e7d7a520713b2c6",
+    "projections/react/ui/hlp.ui.use-form-rule-graph/src/test-setup.ts": "af27e58f2145c2d9a5974e1fa8f74ed20860765d3494a0f54f1a979f03c9b6b0",
+    "projections/react/ui/hlp.ui.use-form-rule-graph/src/useFormRuleGraph.tsx": "ff63f8eae6590047aecd140f7a87ea0d8487e7ba30cdd88503df131032e00f37",
+    "projections/react/ui/hlp.ui.use-form-rule-graph/tsconfig.build.json": "5980377d7dabe8587066f9857353540d00d52c8eb76f009d63b153ca9f7aaedf",
+    "projections/react/ui/hlp.ui.use-form-rule-graph/tsconfig.json": "95b25051dcc8e6738a8fc5d7ad6e140c860e8f959862a97031c1abe169431bb5",
+    "projections/react/ui/hlp.ui.use-form-rule-graph/vitest.config.ts": "9db0ce9741da0ef85e1a43119991c273f80f6d5d7811f2b9daf4bd453f1d7164",
+    "specs/modules/ui/hlp.ui.use-form-rule-graph/interface.yaml": "68fb7b1bb8cd27cf78215aaea242b1b935d4a23b4c20078e673bdf16c1a3be11",
+    "specs/modules/ui/hlp.ui.use-form-rule-graph/quality.yaml": "62571869931c0cbbf1ab827bebcd0724213931bbe9b429a17f5b1005f2d2ff71"
+  },
+  "nextGate": "Retain this conformant aggregate contribution while HLF-052 advances to the next Carrier-essential dependency wave."
+}

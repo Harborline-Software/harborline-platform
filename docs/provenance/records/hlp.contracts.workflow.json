@@ -1,0 +1,19 @@
+{
+  "moduleId": "hlp.contracts.workflow",
+  "phase4Evidence": "specs/modules/contracts/hlp.contracts.workflow/interface.yaml",
+  "sourceExtracted": true,
+  "sourceState": "Revision 1 implements the complete 16-declaration Workflow authoring wire and caller-backed fail-closed admission boundary as TypeScript and .NET contributions to the shared contracts packages. Both projections pass the same 16 neutral cases. The injected immutable authority resolver derives unknown capabilities as CP, preserves the human-gated CP firing fence, and imports neither the Carrier SDK nor the deferred general interpreter. Clean packed npm and NuGet consumers exercise wire parsing and admission without source/project fallback.",
+  "contentHashes": {
+    "conformance/hlp.contracts.workflow/fixtures.yaml": "186c4b6d4a2e3de928b37bc4fb714636d5fa7117b5ed974d9b4cadc22d8a52e8",
+    "conformance/hlp.contracts.workflow/runners/run-shared.mjs": "17155635d309d968f1101292c6034e3439995e2a592752e81b473c265db2408e",
+    "projections/dotnet/contracts/hlp.contracts.identities.tests/WorkflowFixtureConformanceTests.cs": "450a2269fec12ad0e1bef4d8e2a8a1f05336ea3f402244b0451738627a7aab5e",
+    "projections/dotnet/contracts/hlp.contracts.identities/Workflow/WorkflowContracts.g.cs": "233138e0b41560820cf3683d96e9d8d8f6686712ccfee38959b007cd1c250177",
+    "projections/dotnet/contracts/hlp.contracts.identities/Workflow/WorkflowSupport.g.cs": "72db54a1a2392664ec1b74fe7f113ef40f92a9a6ad38a8667e7df556b64f32f9",
+    "projections/typescript/contracts/hlp.contracts.forms/src/workflow-admission.ts": "7924d53f6027e4fa999a6ef87df0f6b7e744c24cfcdfd8bbb9a1345e8e6d2474",
+    "projections/typescript/contracts/hlp.contracts.forms/src/workflow-wire.ts": "2610a1d18ae012a3b30b775793e225c64af51534ae499f2b741e500889677e50",
+    "projections/typescript/contracts/hlp.contracts.forms/src/workflow.ts": "16351079d66445fbdf3c55315e13d37c56650197684bb1a81846271417035246",
+    "projections/typescript/contracts/hlp.contracts.forms/tests/workflow.test.mjs": "cc6452df734c70332f457c9c5210e5616bf539ce32d34def9cc779cec0b15020",
+    "specs/modules/contracts/hlp.contracts.workflow/interface.yaml": "d9b89e2c52b3fdb7f06182eee78ab37c689cb8e033d2bf94609ef7c95ce4588f"
+  },
+  "nextGate": "Freeze and implement the caller-backed durable work-items boundary before the inspection-review vertical slice."
+}
