@@ -10,6 +10,7 @@
 
 # release-platform.yml publish job (contents, id-token, attestations: write)
 # validate.yml publish-libraries job (packages, id-token, attestations: write)
+tooling/fetch-nuget-package.mjs
 tooling/gate-contract.mjs
 tooling/library-promotion-proof.mjs
 tooling/package-fixture-selection.mjs
