@@ -34,6 +34,7 @@ public sealed class RecordsFieldBindingTests
     }
 
     [Fact]
+    [Trait("Holds", "records-auth-32")]
     public async Task records_auth_32_two_source_domain_refuses_before_registration()
     {
         var kinds = Kinds();

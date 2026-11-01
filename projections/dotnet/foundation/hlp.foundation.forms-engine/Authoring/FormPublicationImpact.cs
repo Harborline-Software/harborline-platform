@@ -88,6 +88,38 @@ public enum FormPublicationCompatibility
 public sealed record FormRepublishProposal(FormPublicationBinding Predecessor, FormPublicationBinding Candidate,
     IReadOnlyList<FormPublishedSurface> Surfaces);
 
+/// <summary>The actual schema response used by an assessment, retained independently of the registry.</summary>
+/// <param name="Id">The registry's returned schema identity.</param>
+/// <param name="JsonSchemaText">The exact schema text parsed for comparison.</param>
+public sealed record FormPublicationAssessedSchema(
+    Harborline.Kernel.SchemaValidation.SchemaId Id, string JsonSchemaText);
+
+/// <summary>Owned Form bodies and schema responses used by a historical assessment.</summary>
+/// <remarks>Bindings and environments remain in Basis; exact Layout pins and digests remain in Surfaces.</remarks>
+public sealed class FormPublicationAssessedInputs
+{
+    internal FormPublicationAssessedInputs(string candidateFormJson, string? predecessorFormJson,
+        FormPublicationAssessedSchema candidateSchema, FormPublicationAssessedSchema? predecessorSchema)
+    {
+        CandidateFormJson = candidateFormJson;
+        PredecessorFormJson = predecessorFormJson;
+        CandidateSchema = candidateSchema;
+        PredecessorSchema = predecessorSchema;
+    }
+
+    /// <summary>The entire candidate body captured before the first provider await, including its lifecycle metadata.</summary>
+    public string CandidateFormJson { get; }
+
+    /// <summary>The observed predecessor body; null only for an explicit first publication.</summary>
+    public string? PredecessorFormJson { get; }
+
+    /// <summary>The actual candidate schema identity and text.</summary>
+    public FormPublicationAssessedSchema CandidateSchema { get; }
+
+    /// <summary>The actual predecessor schema identity and text; null for an explicit first publication.</summary>
+    public FormPublicationAssessedSchema? PredecessorSchema { get; }
+}
+
 /// <summary>Complete compatibility evidence, or Unavailable with no compatibility claim or proposal.</summary>
 /// <remarks>
 /// Explicit first publication means "no predecessor: nothing to assess". Its retained Complete/ProposalEligible
@@ -101,6 +133,13 @@ public sealed record FormRepublishProposal(FormPublicationBinding Predecessor, F
 public sealed record FormPublicationAssessment(FormPublicationBasis? Basis, FormPublicationCompatibility? Compatibility,
     IReadOnlyList<FormPublishedSurface> Surfaces, FormRepublishProposal? Proposal, string? UnavailableReason)
 {
+    /// <summary>Retained inputs for built-in complete assessments; null for unavailable or legacy results.</summary>
+    public FormPublicationAssessedInputs? Inputs { get; internal init; }
+
+    /// <summary>The freshness limit of the retained historical evidence; null when no inputs were retained.</summary>
+    public string? FreshnessLimit => Inputs is null ? null :
+        "Historical inputs observed before publication; the committed Form transition and current Layout membership are not guaranteed. Reassess before acting.";
+
     /// <summary>True only when a complete compatibility computation succeeded.</summary>
     public bool IsComplete => Compatibility is not null && UnavailableReason is null;
 
