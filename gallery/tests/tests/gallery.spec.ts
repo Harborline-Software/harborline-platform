@@ -2517,6 +2517,50 @@ for (const projection of ['react', 'blazor'] as const) {
     await expect(page.getByRole('menu')).toHaveCount(0)
     await expect(trigger).toBeFocused()
 
+    // APG menu pattern: a disabled item is focusable but cannot be activated, and arrow keys reach it. The
+    // story's Paste item is disabled; Enter, Space and a click on it leave the menu open on it.
+    const openFromKeyboard = async () => {
+      await trigger.focus()
+      await trigger.dispatchEvent('keydown', {key: 'F10', code: 'F10', shiftKey: true, bubbles: true})
+      await expect(page.locator('[role="menuitem"][data-active="true"]')).toBeFocused()
+    }
+    await openFromKeyboard()
+    await page.keyboard.press('ArrowDown')
+    const paste = page.getByRole('menuitem', {name: 'Paste'})
+    await expect(paste, `${projection} arrow keys reach the disabled item`).toBeFocused()
+    await expect(paste).toHaveAttribute('aria-disabled', 'true')
+    await expect(paste).not.toHaveAttribute('disabled')
+    await page.keyboard.press('Enter')
+    await page.keyboard.press('Space')
+    // A real pointer click at the item's centre: locator.click() would wait forever, because Playwright's
+    // actionability check treats aria-disabled="true" as disabled, while a user's click still lands.
+    const pasteBox = (await paste.boundingBox())!
+    await page.mouse.click(pasteBox.x + pasteBox.width / 2, pasteBox.y + pasteBox.height / 2)
+    await expect(page.getByRole('menu'), `${projection} a disabled item never closes the menu`).toHaveCount(1)
+    await expect(paste).toHaveAttribute('data-active', 'true')
+    await page.keyboard.press('Escape')
+    await expect(trigger).toBeFocused()
+
+    // APG menu pattern: Tab and Shift+Tab close the menu and move focus to the next or previous element in the
+    // tab sequence from the opener. The oracle is the browser's own tab sequence around the closed trigger.
+    const focusedElement = () => page.evaluate(() => {
+      const element = document.activeElement
+      return element ? `${element.tagName}#${element.id}[${element.getAttribute('role') ?? ''}]${element.hasAttribute('data-context-trigger') ? '[trigger]' : ''} ${(element.textContent ?? '').trim().slice(0, 40)}` : 'none'
+    })
+    await trigger.focus()
+    await page.keyboard.press('Tab')
+    const afterTrigger = await focusedElement()
+    await trigger.focus()
+    await page.keyboard.press('Shift+Tab')
+    const beforeTrigger = await focusedElement()
+    for (const [key, expected] of [['Tab', afterTrigger], ['Shift+Tab', beforeTrigger]] as const) {
+      await openFromKeyboard()
+      await page.keyboard.press(key)
+      await expect(page.getByRole('menu'), `${projection} ${key} closes the menu`).toHaveCount(0)
+      await expect.poll(focusedElement, `${projection} ${key} moves on from the opener`).toBe(expected)
+      await expect(trigger).not.toBeFocused()
+    }
+
     // T-943 review 2: every close returns focus to the element that had it when the menu opened, by
     // keyboard or by pointer (APG menu pattern), and an outside press on nothing focusable is a close
     // too: in a real browser the press's own default action runs after the dismissal and would
