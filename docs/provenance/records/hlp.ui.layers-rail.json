@@ -10,7 +10,7 @@
     "conformance/hlp.ui.layers-rail/fixtures.yaml": "aef133bafde54cd705bbd6fc5960689ea5e2d5a5b8f9e914ea3ee46bcedd049c",
     "conformance/hlp.ui.layers-rail/quality-fixtures.yaml": "9ab32da2baa19c8dad3120d4221aa32992c610e40c9662390074e4b94dcb21c5",
     "conformance/hlp.ui.layers-rail/runners/run-shared.mjs": "b766ed71e685e1f0a84be1d4f29199a5460d4f4351dddf2bdb133e7ab23e7f2b",
-    "projections/blazor/ui/hlp.ui.layers-rail/HarborlineLayersRail.razor": "e04007362152a40609daa2d18950446641a368e22a095cf4466c986272da2843",
+    "projections/blazor/ui/hlp.ui.layers-rail/HarborlineLayersRail.razor": "1a919444739ba8e2a62ca51cce59881013db5aeb8bf0cb55d0fcec57dbceb8e5",
     "projections/blazor/ui/hlp.ui.layers-rail/wwwroot/layers-rail.js": "0e58d08803f1baa3127c4936c24bf60286b8b40dd9e863e5f2b3f70b26741228",
     "projections/react/ui/hlp.ui.layers-rail/src/LayersRail.tsx": "1c6962b9a0ce5f4c17836243e36810a1f4d6f7068560e496ba553fa60ea90482",
     "projections/react/ui/hlp.ui.layers-rail/src/__tests__/LayersRail.conformance.test.ts": "d403cc9c34f20fb82850a34af19e875c1f2891cdccb8f17505f90c27b801cc9d",
