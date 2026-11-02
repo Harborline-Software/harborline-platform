@@ -1,0 +1,28 @@
+{
+  "moduleId": "hlp.ui.use-outside-click",
+  "legacySourceHashes": {
+    "packages/ui-react/src/hooks/useOutsideClick.ts": "c913cb9d25986f93b7123a7e72ece5b0d290b0314177822f585ccfdbbd09425f"
+  },
+  "phase4Evidence": "specs/modules/ui/hlp.ui.use-outside-click/interface.yaml",
+  "sourceExtracted": true,
+  "sourceState": "Interface revision 1 preserves the exact pinned hlp.ui.use-outside-click source surface and proves every registered projection through native, shared-conformance, package-only, and applicable gallery/performance gates.",
+  "contentHashes": {
+    "conformance/hlp.ui.use-outside-click/fixtures.yaml": "4f87c7ca945bf3c5972ac987e0941aa04b0044c573dc3c44982ef2418eb54051",
+    "conformance/hlp.ui.use-outside-click/quality-fixtures.yaml": "fdb32a641018b29dc048a67991f1c73227f464fa680ae1f2e76bc5b89e29dddf",
+    "conformance/hlp.ui.use-outside-click/runners/run-shared.mjs": "c0a8b4507b23327586c77c5145237cb9c75c3785237b147ba879ec09ce382efb",
+    "projections/blazor/ui/hlp.ui.use-outside-click/OutsidePointerObserver.cs": "232c878a171fc0aafe27033d3d100db1987eed9473d0ca2c9363eb9ab4c5f10f",
+    "projections/blazor/ui/hlp.ui.use-outside-click/wwwroot/outside-pointer.js": "575718d4abc0387606a9367df9763df771bb575c98f62dbe382d9917687224d2",
+    "projections/react/ui/hlp.ui.use-outside-click/src/__tests__/fixtures.ts": "39b73c1aaeab3cb693642023dcf5ac793aac8f92a94516832a79d6a624c84072",
+    "projections/react/ui/hlp.ui.use-outside-click/src/__tests__/outsideClickHost.ts": "3e1f050c19c97353fe5204a72085231514bc1327b36fbcebd5a16487cb47fbf8",
+    "projections/react/ui/hlp.ui.use-outside-click/src/__tests__/useOutsideClick.conformance.test.ts": "369e2bd6d2b51f4dbd9403896a61554c830b82c3134e2f8b544840be89cac809",
+    "projections/react/ui/hlp.ui.use-outside-click/src/__tests__/useOutsideClick.native.test.ts": "01655c3b7411d143fcca6b045c8986084cac6d65704f3903ea75b8cbb927b5ca",
+    "projections/react/ui/hlp.ui.use-outside-click/src/index.ts": "3f90fe397ac93aa998d5fe4b1ee482bbf3f9b1d030f912764fa796d0926fbc70",
+    "projections/react/ui/hlp.ui.use-outside-click/src/useOutsideClick.ts": "5b20d74d1769d959dd2763a3573e45f8b691d03b82ed9ac244a16aa8f5132daa",
+    "projections/react/ui/hlp.ui.use-outside-click/tsconfig.build.json": "5980377d7dabe8587066f9857353540d00d52c8eb76f009d63b153ca9f7aaedf",
+    "projections/react/ui/hlp.ui.use-outside-click/tsconfig.json": "bef81eacf756c04337df55ea69045ddd3633cb29f15f40a6af1b9165a51b8413",
+    "projections/react/ui/hlp.ui.use-outside-click/vitest.config.ts": "6600beb203274031a15f04f382eb42d4fbddd802c921a0e771079f9a4c948a57",
+    "specs/modules/ui/hlp.ui.use-outside-click/interface.yaml": "9db356ea2bd113aa8b8f3660b21620cbeb768aec506f6e14b249bd00a53ba555",
+    "specs/modules/ui/hlp.ui.use-outside-click/quality.yaml": "6ca47393888518719490ab61ba76b70e99fcf62359bfa5fbf49177d0b1f7815c"
+  },
+  "nextGate": "Retain this conformant aggregate contribution while HLF-052 advances to the next Carrier-essential dependency wave."
+}

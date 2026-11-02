@@ -1,0 +1,45 @@
+{
+  "moduleId": "hlp.ui.rail-labels",
+  "module": {
+    "interface": {
+      "path": "specs/modules/ui/hlp.ui.rail-labels/interface.yaml",
+      "revision": 1
+    },
+    "moduleKind": "runtime",
+    "presentation": {
+      "disposition": "not-applicable",
+      "rationale": "Rail Labels supplies host-localized text and formatter contracts; Layers Rail owns presentation."
+    },
+    "qualityProfile": {
+      "path": "specs/modules/ui/hlp.ui.rail-labels/quality.yaml",
+      "revision": 1
+    },
+    "owner": "platform-ui",
+    "dependencies": [],
+    "status": "implemented-gate-model-green",
+    "depth": {
+      "disposition": "deep-module",
+      "deletionTest": "PASS",
+      "redistributedComplexity": [
+        "sixteen exact rail labels and formatter inputs independently copied by every builder host",
+        "English development defaults, punctuation, and plain-text handling allowed to drift between React and Blazor"
+      ]
+    },
+    "projections": {
+      "react": {
+        "role": "implementation",
+        "path": "projections/react/ui/hlp.ui.rail-labels",
+        "status": "conformant",
+        "packageContribution": "@harborline-software/ui-react",
+        "conformanceRunner": "conformance/hlp.ui.rail-labels/runners/run-shared.mjs"
+      },
+      "dotnet": {
+        "role": "implementation",
+        "path": "projections/dotnet/foundation/hlp.ui.rail-labels",
+        "status": "conformant",
+        "packageContribution": "Harborline.Foundation",
+        "conformanceRunner": "conformance/hlp.ui.rail-labels/runners/run-shared.mjs"
+      }
+    }
+  }
+}

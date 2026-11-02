@@ -1,0 +1,31 @@
+{
+  "moduleId": "hlp.ui.app-layout",
+  "legacySourceHashes": {
+    "packages/ui-react/src/components/layout/AppLayout.tsx": "1f6685addd899e3652c90f6bc6e853e39914201018daa04fed769d46f60318e1"
+  },
+  "phase4Evidence": "specs/modules/ui/hlp.ui.app-layout/interface.yaml",
+  "sourceExtracted": true,
+  "sourceState": "Interface revision 1 preserves the exact pinned hlp.ui.app-layout source surface and proves every registered projection through native, shared-conformance, package-only, and applicable gallery/performance gates.",
+  "contentHashes": {
+    "conformance/hlp.ui.app-layout/fixtures.yaml": "8dc9a9bae176e0f0614d689ad9f732c61ec8b552773fc7a07e53ac21ff409d99",
+    "conformance/hlp.ui.app-layout/quality-fixtures.yaml": "3f8a8ad30a0cb031f98663c6ca362cb8f7de29442bd0b7bc952d5bd1e63607d7",
+    "conformance/hlp.ui.app-layout/runners/run-shared.mjs": "cb6de6a0dd47de2a74add481cadcd3103b4c7bbb17089b5a922887ba71adbfa0",
+    "projections/blazor/ui/hlp.ui.app-layout/AppLayoutTypes.cs": "358e993d08c4d0e3b70e69f25257e46975d71990be44a9de684d2f81ef64092e",
+    "projections/blazor/ui/hlp.ui.app-layout/HarborlineAppLayout.razor": "241137b440b7d746391850a8dc4c4d936ba1b688a5a6e16cf02f80444b3c0975",
+    "projections/blazor/ui/hlp.ui.app-layout/wwwroot/app-layout.js": "6c122762e7bdb8a3a6a6b6002bb926d1a8391968be1fcac27f0018271a992c24",
+    "projections/react/ui/hlp.ui.app-layout/src/AppLayout.tsx": "ea11d3b40c1e599b0b9ca1c14bd0ae38c0ac290e0fa751679410b8e08682394d",
+    "projections/react/ui/hlp.ui.app-layout/src/__tests__/AppLayout.conformance.test.ts": "17e7f5acb4779bc85be39c96f08108aa3d8fc9f8b0ca9b169508b394578bc39d",
+    "projections/react/ui/hlp.ui.app-layout/src/__tests__/AppLayout.native.test.tsx": "8b61f9b34a076d1846b35a87481fffe33492a3125486b702ad714c74b094dd5a",
+    "projections/react/ui/hlp.ui.app-layout/src/__tests__/AppLayout.performance.test.tsx": "c02bbeb73fdad29f19e95edb0675ab1fd0e8e650ca85b9304fc06007c8c4998b",
+    "projections/react/ui/hlp.ui.app-layout/src/__tests__/fixtures.ts": "029709a6de7865fbd6d30c5b4c5702acf551178455235f12122668d30fe12103",
+    "projections/react/ui/hlp.ui.app-layout/src/index.ts": "642487e41dc14a2e2175abd221a93f42fd23419b4476fb64b14bd7836387d148",
+    "projections/react/ui/hlp.ui.app-layout/src/test-setup.ts": "097040beeb2cc914b87790306bc835eef4a06321fa3594a6938b6754641ac2ff",
+    "projections/react/ui/hlp.ui.app-layout/tsconfig.build.json": "40105a66f08d321652c132fc4912315bd35cc0de5a481d8a8bb1bae175b07773",
+    "projections/react/ui/hlp.ui.app-layout/vitest.config.ts": "a4a2081e30d6ecf45934a86d8f8cdf87ed28da5962c2f1b0f5898574d0267c81",
+    "specs/modules/ui/hlp.ui.app-layout/interface.yaml": "8dc66935bd9ed330bdb638ffaefa9ea487ae5832791754d7336cb136f65ca1f0",
+    "specs/modules/ui/hlp.ui.app-layout/quality.yaml": "12a333be098b46273aeffffc2c92f8b10bacef88515ad9a5f899dc1b24be974e",
+    "specs/modules/ui/hlp.ui.app-layout/scenarios.json": "49df33a483d8e87f97475e46c27561a191c86e8d17c85279603b4870a7c0ff5d",
+    "specs/modules/ui/hlp.ui.app-layout/style.css": "1e67ef87a68c27f9a104706ae079f56a86b4c866b4557ea144b073d728306a4d"
+  },
+  "nextGate": "Retain this conformant aggregate contribution while HLF-052 advances to the next Carrier-essential dependency wave."
+}

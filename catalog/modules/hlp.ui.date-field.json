@@ -1,0 +1,58 @@
+{
+  "moduleId": "hlp.ui.date-field",
+  "module": {
+    "interface": {
+      "path": "specs/modules/ui/hlp.ui.date-field/interface.yaml",
+      "revision": 1
+    },
+    "moduleKind": "interactive-component",
+    "presentation": {
+      "disposition": "visual"
+    },
+    "qualityProfile": {
+      "path": "specs/modules/ui/hlp.ui.date-field/quality.yaml",
+      "revision": 1
+    },
+    "owner": "platform-ui",
+    "dependencies": [
+      "hlp.ui.cn",
+      "hlp.ui.form-field"
+    ],
+    "status": "extracted-candidate",
+    "depth": {
+      "disposition": "deep-module",
+      "deletionTest": "PASS",
+      "redistributedComplexity": [
+        "raw date-string control semantics and native constraints repeated by every dynamic and authored form",
+        "FormField inheritance, accessibility, and semantic-state styling drifting independently between renderers"
+      ]
+    },
+    "projections": {
+      "react": {
+        "role": "adapter",
+        "seam": "ui.date-field.framework",
+        "path": "projections/react/ui/hlp.ui.date-field",
+        "status": "conformant",
+        "packageContribution": "@harborline-software/ui-react",
+        "conformanceRunner": "conformance/hlp.ui.date-field/runners/run-shared.mjs"
+      },
+      "blazor": {
+        "role": "adapter",
+        "seam": "ui.date-field.framework",
+        "path": "projections/blazor/ui/hlp.ui.date-field",
+        "status": "conformant",
+        "packageContribution": "Harborline.UIAdapters.Blazor",
+        "conformanceRunner": "conformance/hlp.ui.date-field/runners/run-shared.mjs"
+      }
+    }
+  },
+  "seams": {
+    "ui.date-field.framework": {
+      "status": "conformant",
+      "adapters": [
+        "react",
+        "blazor"
+      ]
+    }
+  }
+}

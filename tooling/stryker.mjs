@@ -49,7 +49,7 @@ export function reportCounts(report) {
 const references = (testProject, text) => [...text.matchAll(/<ProjectReference\s+Include="([^"]+)"/g)]
   .map(match => path.posix.normalize(`${path.posix.dirname(testProject)}/${match[1].replaceAll('\\', '/')}`))
 
-const configOf = (test, readFile) => {
+export const configOf = (test, readFile) => {
   const raw = readFile(`${path.posix.dirname(test)}/stryker-config.json`)
   return raw === undefined ? undefined : JSON.parse(raw)['stryker-config'] ?? {}
 }

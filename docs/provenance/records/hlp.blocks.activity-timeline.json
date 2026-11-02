@@ -1,0 +1,15 @@
+{
+  "moduleId": "hlp.blocks.activity-timeline",
+  "phase4Evidence": "specs/modules/blocks/hlp.blocks.activity-timeline/interface.yaml",
+  "sourceExtracted": true,
+  "sourceState": "Aggregates Wave A (Reading A per the ticket-081 user ruling): the pinned notificationStore pure transforms ported as the tenant+session-scoped IActivityEntrySource with newest-first ordering, category derivation incl. capability-error, and append independence from notification dismissal — the 7 Lane-B cases green under their pinned names — plus 4 AUTHORED cases (marked Authored_, obligations 3 and 5: fail-closed tenant/session scoping and structural raw-actor-id sealing via IActivityAttribution; zero pinned evidence exists for these, recorded honestly per the WAVE-STATE). The pinned addResult ambient-clock read is not ported: time is injected via TimeProvider (calendar precedent). ActivityEntry is a module-owned neutral model; TenantId comes from hlp.contracts.identities.",
+  "contentHashes": {
+    "projections/dotnet/blocks/hlp.blocks.activity-timeline.tests/ActivityTimelineTests.cs": "838a7b924a87539fc5e9918e67785a3aaac843d78ca24c9fb687fb5206ee9716",
+    "projections/dotnet/blocks/hlp.blocks.activity-timeline.tests/Harborline.Blocks.ActivityTimeline.Tests.csproj": "bd909024a942e73c4ee1157f2c69f25944cdda07394dc7071ec03c0861e26ac0",
+    "projections/dotnet/blocks/hlp.blocks.activity-timeline/ActivityTimeline.cs": "2d64cf339d2e341d444c5091acf60a8830025eb0220c9fc28bad411b6bec2f68",
+    "projections/dotnet/blocks/hlp.blocks.activity-timeline/DependencyInjection/ActivityTimelineServiceCollectionExtensions.cs": "ee0eec601d5abe55da663a7b0457e17928d2d445da43b737e16d90c74a3d87d0",
+    "projections/dotnet/blocks/hlp.blocks.activity-timeline/README.md": "4318bc31c6cc7332dfa95ba2ff99022e8ec915896ab419c1501ce71d7fe7387c",
+    "projections/dotnet/blocks/hlp.blocks.activity-timeline/Harborline.Blocks.ActivityTimeline.csproj": "8fb7213f00cab9767e9735e0088ff8dbac71e01f82b1df87d8cf210adb70296b"
+  },
+  "nextGate": "Wave B: the aggregates-capability-vertical package fixture — renderer consumer over packed ui-react ActivityLog/Page + engine consumer with sole reference Harborline.Blocks.ActivityTimeline + cross-lane agreement on the same fixture entry set; only that vertical flips the aggregates gate."
+}

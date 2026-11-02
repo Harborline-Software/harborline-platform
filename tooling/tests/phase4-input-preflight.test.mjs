@@ -637,7 +637,7 @@ test('real gate preflight refusal keeps observations off the receipt report chan
     'run-phase-4-gate.mjs', 'phase4-input-preflight.mjs', 'gate-step-evidence.mjs',
     'resolve-appshell-feed.mjs', 'resolve-command.mjs', 'resolve-dotnet.mjs', 'gate-contract.mjs',
     'phase4-gate-lock.mjs', 'phase4-step-runner.mjs', 'gates/design-review-status.mjs',
-    'shared-module-scheduler.mjs',
+    'shared-module-scheduler.mjs', 'module-catalog.mjs',
   ]) {
     const target = path.join(f.root, 'tooling', name)
     mkdirSync(path.dirname(target), {recursive: true})

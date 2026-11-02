@@ -1,0 +1,31 @@
+{
+  "moduleId": "hlp.ui.numeric-text-box",
+  "legacySourceHashes": {
+    "packages/ui-react/src/components/forms/NumericTextBox.tsx": "d802c8df6748c7d5c376c8d0a16475e825329573c43275c7b37d936d8a8f4593"
+  },
+  "phase4Evidence": "specs/modules/ui/hlp.ui.numeric-text-box/interface.yaml",
+  "sourceExtracted": true,
+  "sourceState": "Interface revision 1 preserves the exact pinned hlp.ui.numeric-text-box source surface and proves every registered projection through native, shared-conformance, package-only, and applicable gallery/performance gates.",
+  "contentHashes": {
+    "conformance/hlp.ui.numeric-text-box/fixtures.yaml": "d635311880cf0afa60ea8a9df65326f353df7656e76083025a3a055b6e910fb2",
+    "conformance/hlp.ui.numeric-text-box/quality-fixtures.yaml": "bf4d9802508e078aca48e7ebc7dc74e6d58fd9e3ec85a6a812e7af08304db73d",
+    "conformance/hlp.ui.numeric-text-box/runners/run-shared.mjs": "7895e277436d2bcba1f9d46891043b09039b4cfe9824e0ef0c3548bfa93b262d",
+    "projections/blazor/ui/hlp.ui.numeric-text-box/NumericTextBoxTypes.cs": "f9e068206dcb0221f511a7fa119b9f934cca7334b62d9b5b43cf2e8d921b08d1",
+    "projections/blazor/ui/hlp.ui.numeric-text-box/HarborlineNumericTextBox.razor": "5a28a7378b37438078e22ab87ad52f0e1f1e2543511071a8ea5c339e29effa8e",
+    "projections/react/ui/hlp.ui.numeric-text-box/src/NumericTextBox.tsx": "c2cb0a6ffd083b5bf36d75b98c86bc6072cad3628db2c4c857d26b657799be50",
+    "projections/react/ui/hlp.ui.numeric-text-box/src/NumericTextBox.types.ts": "2d64c43487e96b47cc1e9228b57dd5f8eb35fe0cf1453a733da2322dff65365d",
+    "projections/react/ui/hlp.ui.numeric-text-box/src/__tests__/NumericTextBox.conformance.test.tsx": "cb036984dd16c43e4e4685561a09d2827a9ffae691964c840830c3ef03d38d6e",
+    "projections/react/ui/hlp.ui.numeric-text-box/src/__tests__/NumericTextBox.native.test.tsx": "ef5939ea189b76bcf8ea7eef0ec3bd967c2b6dbc887267f1c61d8d9c9e4b123a",
+    "projections/react/ui/hlp.ui.numeric-text-box/src/__tests__/NumericTextBox.performance.test.tsx": "16c39a1a9d61f32ca6ec7fbcf9a120f48f6a9c68cfdf73c6894218c523e497d5",
+    "projections/react/ui/hlp.ui.numeric-text-box/src/__tests__/fixtures.ts": "e44ff13cb7c1f3dbdccfdc56603b02bc180e82a2526e730648e8552af5eea574",
+    "projections/react/ui/hlp.ui.numeric-text-box/src/index.ts": "db619e60bb66ac84a117e0583b1ee345e6b56b1ad59dcb35e417cd39046c35fa",
+    "projections/react/ui/hlp.ui.numeric-text-box/src/test-setup.ts": "977afde26bba6a51325908cd7713cbfdc87d18f06b78b237c8f364c44864b7de",
+    "projections/react/ui/hlp.ui.numeric-text-box/tsconfig.build.json": "869c5754ef7daae73a2bf3906444cfb22958b7b48049687c4bda630654746a83",
+    "projections/react/ui/hlp.ui.numeric-text-box/vitest.config.ts": "39213afd4b86c80b274e7b1aa98b7499c21bae8bc65341a59c159c86d2dc17f8",
+    "specs/modules/ui/hlp.ui.numeric-text-box/interface.yaml": "1311631d063f25cb4367672fd92e9485b0c346a6f6dad5fb6585c9091d57abb7",
+    "specs/modules/ui/hlp.ui.numeric-text-box/quality.yaml": "0fbe668294b6887870c97e22af682af8925781708230f9ddefef709fb2d353f8",
+    "specs/modules/ui/hlp.ui.numeric-text-box/scenarios.json": "40965aff6fe68963de2b83b810fc8debbbda70bb50f7c59bc7b10ba0e4fe1e47",
+    "specs/modules/ui/hlp.ui.numeric-text-box/style.css": "860a9410f1f0088708b465e7051609b80184540bc328ea6dc9c65f088cba1ea4"
+  },
+  "nextGate": "Retain this conformant aggregate contribution while HLF-052 advances to the next Carrier-essential dependency wave."
+}

@@ -54,6 +54,8 @@ export const reusableStepInputs = {
     ...BUILD_INPUTS,
     'tooling/run-shared.mjs',
     'tooling/run-ui-module-shared.mjs',
+    // HLP-0009: both runners read the catalog through its loader.
+    'tooling/module-catalog.mjs',
     'tooling/dotnet-conformance-batch.mjs',
     'tooling/shared-module-evidence.mjs',
     'tooling/shared-module-scheduler.mjs',

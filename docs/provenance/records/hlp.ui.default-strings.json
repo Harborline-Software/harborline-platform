@@ -1,0 +1,27 @@
+{
+  "moduleId": "hlp.ui.default-strings",
+  "legacySourceHashes": {
+    "packages/ui-react/src/i18n/catalog.ts": "1cc2019bdc92fc32e45d809b09ddfda6c8fe53ca2dd31b59524092d3d605417a",
+    "packages/ui-react/src/i18n/__tests__/ShipyardLocaleProvider.test.tsx": "138da11703912246856f784e51deaba0a91264249f3f31ca51fa572771e671df",
+    "packages/ui-react/src/components/buttons/__tests__/ButtonsI18n.test.tsx": "968028d9c927db34f69a0466b35c69c52655d14293c1055b17b03ce4063bd35f",
+    "apps/carrier/src/i18n/CarrierLocaleProvider.test.tsx": "dc5daf62f60bdcb86109c0d385c228021c50a173e4383c770638196b6df71e1e",
+    "apps/carrier/src/i18n/en-US-first-release-trust-critical-review.test.ts": "f151ed8d224a7ad8ae6bccccdca5f95d7657fb6b56cf054135efc911969512ce"
+  },
+  "phase4Evidence": "specs/modules/ui/hlp.ui.default-strings/interface.yaml",
+  "sourceExtracted": true,
+  "sourceState": "Revision 1 captures the complete pinned 713-key English fallback catalog, typed key and partial override vocabulary, and bounded interpolation semantics. The React and .NET projections share the same exact catalog payload; empty-string overrides remain valid and application locale-provider precedence remains outside this module.",
+  "contentHashes": {
+    "projections/react/ui/hlp.ui.default-strings/src/catalog.ts": "dec508856045ae25294e67e4349fae186795fd7dd82c51e66d0190fda99a691c",
+    "projections/react/ui/hlp.ui.default-strings/src/index.ts": "c8ad537343911b69c8cdcf9be1146d5302e8f0de8e532587973e9c9cc0546bfa",
+    "projections/react/ui/hlp.ui.default-strings/src/__tests__/default-strings.native.test.ts": "8761afeb74482cacadbccba9820f47e7530f03324bd7fa23811578068fc0a633",
+    "projections/react/ui/hlp.ui.default-strings/src/__tests__/default-strings.shared-fixtures.test.ts": "c7cf92a445917de5a832cfef69418a685e9f066a1e65c09243f4dd34052887cd",
+    "projections/dotnet/foundation/hlp.ui.default-strings/HarborlineDefaultStrings.cs": "a7484acfe5460e4a6042ae6ccb894e7d4e03a0415390b87b46b8a9db2a24564c",
+    "projections/dotnet/foundation/hlp.ui.default-strings/default-strings.json": "3e63d965f1d70729b40bfd8a3c62d9bc1ffffa1fae008ba78919d3a783d9c140",
+    "conformance/hlp.ui.default-strings/fixtures.yaml": "b72ad0c6467be22b525a58f2fb43cc2715449a0ca38055e698debaf7db964e12",
+    "conformance/hlp.ui.default-strings/quality-fixtures.yaml": "65f476c724f7790f14aeff7b61a6a60b2fc9ae995e270dafa68336c0d7c80de5",
+    "conformance/hlp.ui.default-strings/runners/run-shared.mjs": "a688d750d4db8d64ab6ab28f79d69018f11225a50cf94db3028767af2f53a074",
+    "specs/modules/ui/hlp.ui.default-strings/interface.yaml": "cc2827b1494a2266d3f4352a4d2dc3990305d419b25cc6df15fed68bedbd2289",
+    "specs/modules/ui/hlp.ui.default-strings/quality.yaml": "8431309dc1b1001a3efb2fb77836c4b6f9ac5caea9c20bf6b2366e17159da04a"
+  },
+  "nextGate": "Retain this conformant aggregate contribution while HLF-052 advances to the next Carrier-essential dependency wave."
+}
