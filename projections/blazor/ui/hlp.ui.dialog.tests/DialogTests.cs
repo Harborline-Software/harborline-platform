@@ -47,6 +47,13 @@ public sealed class DialogTests : BunitContext
         await cut.InvokeAsync(() => cut.Instance.DisposeAsync().AsTask());
         if (boundary == "import") await cut.InvokeAsync(() => import.SetResult(module));
         await cut.InvokeAsync(() => connect.SetResult(connection));
+        if (boundary == "import")
+        {
+            cut.WaitForAssertion(() => Assert.Equal(1, module.Disposals));
+            Assert.Empty(module.Interop.Invocations["connect"]);
+            Assert.Equal(0, connection.Disposals);
+            return;
+        }
         cut.WaitForAssertion(() => Assert.Equal(1, connection.Disposals));
         Assert.Single(connection.Interop.Invocations["dispose"]);
         Assert.Equal(1, module.Disposals);
@@ -64,9 +71,17 @@ public sealed class DialogTests : BunitContext
         cut.Render(p => p.Add(x => x.Open, true));
         if (boundary == "import") await cut.InvokeAsync(() => import.SetResult(module));
         await cut.InvokeAsync(() => connect.SetResult(connection));
-        cut.WaitForAssertion(() => Assert.Equal(2, module.Interop.Invocations["connect"].Count));
-        Assert.Equal(1, connection.Disposals);
-        Assert.NotEqual(module.Interop.Invocations["connect"][0].Arguments[0], module.Interop.Invocations["connect"][1].Arguments[0]);
+        if (boundary == "import")
+        {
+            cut.WaitForAssertion(() => Assert.Single(module.Interop.Invocations["connect"]));
+            Assert.Equal(0, connection.Disposals);
+        }
+        else
+        {
+            cut.WaitForAssertion(() => Assert.Equal(2, module.Interop.Invocations["connect"].Count));
+            Assert.Equal(1, connection.Disposals);
+            Assert.NotEqual(module.Interop.Invocations["connect"][0].Arguments[0], module.Interop.Invocations["connect"][1].Arguments[0]);
+        }
         Assert.Single(JSInterop.Invocations["import"]);
     }
     // T-1129: a dialog closed while connecting must dispose the connection it receives afterwards, so the page is
@@ -81,6 +96,12 @@ public sealed class DialogTests : BunitContext
         cut.Render(p => p.Add(x => x.Open, false));
         if (boundary == "import") await cut.InvokeAsync(() => import.SetResult(module));
         await cut.InvokeAsync(() => connect.SetResult(connection));
+        if (boundary == "import")
+        {
+            Assert.Empty(module.Interop.Invocations["connect"]);
+            Assert.Equal(0, connection.Disposals);
+            return;
+        }
         cut.WaitForAssertion(() => Assert.Equal(1, connection.Disposals));
         Assert.Single(connection.Interop.Invocations["dispose"]);
     }

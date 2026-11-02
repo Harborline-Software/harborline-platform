@@ -81,9 +81,12 @@
       try
       {
         module ??= await JavaScript.InvokeAsync<IJSObjectReference>("import", "./_content/Harborline.UIAdapters.Blazor/dialog.js");
-        callback ??= DotNetObjectReference.Create(this);
-        connection = await module.InvokeAsync<IJSObjectReference>("connect", openingPortal, openingDialog, openingBody, callback, CloseOnEscape);
-        if (disposed || !Open || !openingPortal.Equals(portal)) await DisposeConnectionAsync();
+        if (!disposed && Open && openingPortal.Equals(portal))
+        {
+          callback ??= DotNetObjectReference.Create(this);
+          connection = await module.InvokeAsync<IJSObjectReference>("connect", openingPortal, openingDialog, openingBody, callback, CloseOnEscape);
+          if (disposed || !Open || !openingPortal.Equals(portal)) await DisposeConnectionAsync();
+        }
       }
       finally
       {
