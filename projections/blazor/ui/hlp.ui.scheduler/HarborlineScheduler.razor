@@ -33,7 +33,7 @@
     </div>
   </div>
 
-  <HarborlineScrollAffordance AriaLabel="@T("scheduler.weekGridScrollable", "Calendar grid, scrollable")" ItemCount="@(ActiveView == SchedulerViewType.Week ? 7 : null)"
+  <HarborlineScrollAffordance @ref="scrollRegion" AriaLabel="@T("scheduler.weekGridScrollable", "Calendar grid, scrollable")" ItemCount="@(ActiveView == SchedulerViewType.Week ? 7 : null)"
                               InitialAnchor="@InitialScrollAnchor"
                               Orientation="@(ActiveView is SchedulerViewType.Day or SchedulerViewType.Agenda ? ScrollAffordanceOrientation.Vertical : ScrollAffordanceOrientation.Horizontal)"
                               Class="hl-scheduler__scroll">
@@ -241,9 +241,13 @@
     catch (OperationCanceledException) when (token.IsCancellationRequested) { }
   }
 
+  private HarborlineScrollAffordance? scrollRegion;
+  // A view switch replaces the scroll region's content in response to the user, so its position is announced
+  // (T-1135); the region otherwise stays quiet on load and on resize.
   private async Task ChangeViewAsync(SchedulerViewType next)
   {
     userPickedView = true;
+    scrollRegion?.RequestAnnouncement();
     if (View is null) localView = next;
     await ViewChanged.InvokeAsync(next);
   }

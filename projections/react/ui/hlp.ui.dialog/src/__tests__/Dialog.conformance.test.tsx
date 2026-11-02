@@ -173,9 +173,13 @@ describe('Dialog shared fixtures', () => {
       Object.defineProperties(body, {
         clientHeight: { configurable: true, value: 300 },
         scrollHeight: { configurable: true, value: 700 },
-        scrollTop: { configurable: true, writable: true, value: 200 },
+        scrollTop: { configurable: true, writable: true, value: 0 },
       })
       const status = () => document.querySelector('.hl-dialog__status')?.textContent
+      // T-1135: the body's layout measurement on open is quiet; the scroll that follows announces.
+      await act(async () => { window.dispatchEvent(new Event('resize')); vi.runAllTimers() })
+      expect(status()).toBe('')
+      body.scrollTop = 200
       fireEvent.scroll(body)
       await act(async () => { vi.runAllTimers() })
       expect(status()).toBe('⟦ Šçřøļļåƀļë řëĝîøñ, 50% šçřøļļëđ ······ ⟧')

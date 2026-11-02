@@ -25,6 +25,46 @@ public sealed class ScrollAffordanceTests
             var raw=SharedFixtureBatch.Current; if(string.IsNullOrWhiteSpace(raw))return; using var fixture=System.Text.Json.JsonDocument.Parse(raw); Assert.StartsWith("scroll-affordance.",fixture.RootElement.GetProperty("id").GetString()); await using var observer=new ScrollAffordanceObserver(new FakeRuntime(new FakeModule())); await using var registration=await observer.ObserveAsync(default,new(),_=>ValueTask.CompletedTask); Assert.NotNull(registration);
         });
     }
+    // T-1135 (interface revision 2). Oracle: WAI-ARIA 1.2 aria-live and the APG live-region practice, as ruled
+    // on the ticket; the expected keys are literals. The observer's announcement stays empty on load and on
+    // resize and follows a scroll (the sizes hold while the position moves).
+    [Fact]
+    public async Task ObserverAnnouncesOnlyAfterAScroll()
+    {
+        var module = new FakeModule();
+        var states = new List<ScrollAffordanceState>();
+        await using var observer = new ScrollAffordanceObserver(new FakeRuntime(module));
+        await using var registration = await observer.ObserveAsync(default, new(), state => { states.Add(state); return ValueTask.CompletedTask; });
+        async Task<ScrollAffordanceState> Measure(double raw, double scrollSize, double clientSize)
+        {
+            await module.MeasureAsync(new(raw, scrollSize, clientSize));
+            return states[^1];
+        }
+        var load = await Measure(0, 700, 300);
+        Assert.True(load.CanScroll);
+        Assert.Null(load.AnnouncementKey);
+        Assert.Null((await Measure(0, 700, 300)).AnnouncementKey); // the initial scroll event, same position
+        Assert.Null((await Measure(0, 700, 350)).AnnouncementKey); // a resize
+        var scrolled = await Measure(175, 700, 350);
+        Assert.Equal("scrollAffordance.percentScrolled", scrolled.AnnouncementKey);
+        Assert.Equal(50, scrolled.AnnouncementArguments["percent"]);
+        Assert.Equal("scrollAffordance.endReached", (await Measure(350, 700, 350)).AnnouncementKey); // keyboard End's scrollTo
+        Assert.Equal("scrollAffordance.endReached", (await Measure(400, 700, 300)).AnnouncementKey); // resize keeps the message
+        Assert.Null((await Measure(0, 700, 700)).AnnouncementKey); // no overflow, no message
+    }
+
     private sealed class FakeRuntime(IJSObjectReference module):IJSRuntime { public ValueTask<T> InvokeAsync<T>(string identifier,object?[]? args)=>new((T)module); public ValueTask<T> InvokeAsync<T>(string identifier,CancellationToken token,object?[]? args)=>new((T)module); }
-    private sealed class FakeModule:IJSObjectReference { public ValueTask DisposeAsync()=>ValueTask.CompletedTask; public ValueTask<T> InvokeAsync<T>(string identifier,object?[]? args)=>InvokeAsync<T>(identifier,default,args); public ValueTask<T> InvokeAsync<T>(string identifier,CancellationToken token,object?[]? args){object value=identifier=="observe"?3L:default(T)!;return new((T)value);} }
+    private sealed class FakeModule:IJSObjectReference
+    {
+        private object? reference;
+        public ValueTask DisposeAsync()=>ValueTask.CompletedTask;
+        public ValueTask<T> InvokeAsync<T>(string identifier,object?[]? args)=>InvokeAsync<T>(identifier,default,args);
+        public ValueTask<T> InvokeAsync<T>(string identifier,CancellationToken token,object?[]? args){ if(identifier=="observe") reference=args?[1]; object value=identifier=="observe"?3L:default(T)!;return new((T)value);}
+        // Plays the browser's debounced measurement back through the registration's [JSInvokable] OnMeasured.
+        public Task MeasureAsync(ScrollAffordanceMeasurement measurement)
+        {
+            var target = reference!.GetType().GetProperty("Value")!.GetValue(reference)!;
+            return (Task)target.GetType().GetMethod("OnMeasured")!.Invoke(target, [measurement])!;
+        }
+    }
 }

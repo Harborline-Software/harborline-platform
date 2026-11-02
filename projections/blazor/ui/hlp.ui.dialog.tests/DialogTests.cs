@@ -61,6 +61,12 @@ public sealed class DialogTests : BunitContext
     public async Task WithoutAProviderTheBodyStatusUsesTheDefaultCatalog()
     {
         var cut = Render<HarborlineDialog>(p => p.Add(x => x.Open, true).Add(x => x.Title, "Edit").Add(x => x.ChildContent, Text("Body")));
+        // T-1135: the body's first measurement on open is quiet; the scroll that follows announces.
+        await cut.InvokeAsync(() => cut.Instance.OnBodyMeasuredAsync(new(0, 700, 300)));
+        Assert.Equal("", cut.Find(".hl-dialog__status").TextContent);
+        await cut.InvokeAsync(() => cut.Instance.OnBodyMeasuredAsync(new(0, 700, 250)));
+        Assert.Equal("", cut.Find(".hl-dialog__status").TextContent);
+        await cut.InvokeAsync(() => cut.Instance.OnBodyMeasuredAsync(new(0, 700, 300)));
         await cut.InvokeAsync(() => cut.Instance.OnBodyMeasuredAsync(new(200, 700, 300)));
         var status = cut.Find(".hl-dialog__status");
         Assert.Equal(DefaultStatus("scrollAffordance.percentScrolled", 50), status.TextContent);
@@ -79,6 +85,8 @@ public sealed class DialogTests : BunitContext
     private static async Task MeasureBodyAsync(IRenderedComponent<HarborlineLocaleProvider> provider, ScrollAffordanceMeasurement measurement)
     {
         var dialog = provider.FindComponent<HarborlineDialog>();
+        var load = measurement with { RawPosition = measurement.RawPosition == 0 ? 1 : 0 };
+        await dialog.InvokeAsync(() => dialog.Instance.OnBodyMeasuredAsync(load));
         await dialog.InvokeAsync(() => dialog.Instance.OnBodyMeasuredAsync(measurement));
     }
 
