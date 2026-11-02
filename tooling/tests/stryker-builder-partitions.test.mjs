@@ -38,7 +38,7 @@ function counts(report) {
     detected, undetected, score: detected + undetected ? Math.floor(detected / (detected + undetected) * 10000) / 100 : null}
 }
 
-async function checkout({changed = 'builder', mode = 'normal', floor = 74} = {}) {
+async function checkout({changed = 'builder', mode = 'qualification', floor = 74} = {}) {
   const directory = mkdtempSync(path.join(ownedTemp, 'repo-'))
   const tracked = git(repositoryRoot, 'ls-files', '-z').split('\0')
   for (const file of tracked.filter(file => /\.(csproj|props|targets)$/.test(file) || /(^|\/)(stryker-config\.json|nuget\.config)$/i.test(file) ||
@@ -218,7 +218,7 @@ test('plan, admit and CLI bind actual checkout identity, selection and fixed opt
     const cli = spawnSync(process.execPath, ['tooling/stryker-builder-partitions.mjs', 'admit', manifest], {cwd: directory, env: fixture.env, encoding: 'utf8'})
     assert.equal(cli.status, 0, cli.stderr)
     const before = readFileSync(manifest)
-    await assert.rejects(adapter.main(['plan', 'normal', manifest]), /EEXIST/)
+    await assert.rejects(adapter.main(['plan', 'qualification', manifest]), /EEXIST/)
     assert.deepEqual(readFileSync(manifest), before)
     await assert.rejects(adapter.main(['shard', manifest, '01']), /index/)
     await assert.rejects(adapter.main(['admit', manifest, '--anything']), /arguments/)
@@ -398,7 +398,7 @@ test('native failures, late observer failure and missing final JSON never publis
   } finally { fixture.restore() }
 })
 
-test('collect and PR use the weighted house gate at 74 and a higher configured floor', async t => {
+test('collect uses the weighted house gate at 74 and a higher configured floor', async t => {
   const fixture = await checkout()
   try {
     const {adapter, manifest} = fixture
@@ -407,14 +407,12 @@ test('collect and PR use the weighted house gate at 74 and a higher configured f
     await t.test('passing percentage average cannot rescue a failing weighted union', async () => {
       const directory = download(fixture, scorePackets(fixture, weighted))
       assert.equal(await adapter.main(['collect', manifest, directory]), 1)
-      assert.equal(await adapter.main(['pr', manifest, directory], () => { assert.fail('only Builder changed') }), 1)
       const report = JSON.parse(readFileSync(path.join(fixture.directory, 'StrykerOutput/builder-owner/reports/mutation-report.json')))
       assert.equal(counts(report).score, 61.16)
     })
-    await t.test('exact 74 passes collect and the actual PR gate', async () => {
+    await t.test('exact 74 passes collect', async () => {
       const directory = download(fixture, scorePackets(fixture, exact))
       assert.equal(await adapter.main(['collect', manifest, directory]), 0)
-      assert.equal(await adapter.main(['pr', manifest, directory], () => { assert.fail('only Builder changed') }), 0)
     })
     await t.test('zero tested owner group refuses', async () => {
       const directory = download(fixture, scorePackets(fixture, [[], ['Killed'], ['Killed'], ['Killed'], []]))
@@ -425,36 +423,41 @@ test('collect and PR use the weighted house gate at 74 and a higher configured f
   try {
     const exact = [Array(71).fill('Killed').concat(Array(26).fill('Survived')), ['Killed'], ['Killed'], ['Killed'], []]
     assert.equal(await higher.adapter.main(['collect', higher.manifest, download(higher, scorePackets(higher, exact))]), 1)
-    assert.equal(await higher.adapter.main(['pr', higher.manifest, path.join(higher.directory, 'StrykerOutput/downloads')], () => assert.fail('only Builder changed')), 1)
   } finally { higher.restore() }
 })
 
-test('PR runs all 36 ordinary eligible callbacks without changing their arguments or policy bytes', async () => {
-  const fixture = await checkout({changed: 'all'})
+const routeChange = (fixture, test) => test === builderTest ? [`${sourceDirectory}/A.cs`]
+  : [`${path.posix.dirname(fixture.routes.find(route => route.test === test).target)}/Route.cs`]
+
+test('PR mutates the changed files of all 37 changed projects natively, Builder included, without changing policy bytes', async () => {
+  const fixture = await checkout({changed: 'all', mode: 'normal'})
   try {
+    assert.equal(fixture.plan.selected, false)
+    assert.equal('controlHead' in fixture.plan, false)
     const policyFiles = ['tooling/stryker-baselines.json', ...fixture.routes.map(route => `${path.posix.dirname(route.test)}/stryker-config.json`)]
     const before = policyFiles.map(file => readFileSync(path.join(fixture.directory, file)))
     const calls = []
-    const result = await fixture.adapter.main(['pr', fixture.manifest, download(fixture)], async (test, changed, args) => {
-      calls.push(test); assert.equal(changed, undefined); assert.deepEqual(args, ['--log-to-file'])
+    const result = await fixture.adapter.main(['pr', fixture.manifest, 'unused'], async (test, changed, args) => {
+      calls.push(test); assert.deepEqual(changed, routeChange(fixture, test)); assert.deepEqual(args, ['--log-to-file'])
       return {outcome: {kind: 'completed'}, status: 0, signal: null, report: {files: {'Route.cs': {mutants: [{status: 'Killed'}]}}}, razor: false}
-    }, () => assert.fail('PR composition does not execute native Builder'))
+    }, () => assert.fail('a normal PR never observes Control'))
     assert.equal(result, 0)
-    assert.equal(calls.length, 36)
-    assert.equal(new Set(calls).size, 36)
-    assert.equal(calls.includes(builderTest), false)
+    assert.equal(calls.length, 37)
+    assert.equal(new Set(calls).size, 37)
+    assert.equal(calls.includes(builderTest), true)
     policyFiles.forEach((file, index) => assert.deepEqual(readFileSync(path.join(fixture.directory, file)), before[index]))
+    await assert.rejects(fixture.adapter.main(['shard', fixture.manifest, '1'], () => assert.fail('normal PR runs no partition')), /unselected/)
   } finally { fixture.restore() }
 })
 
 test('normal no-Builder-change requires no Control or quartet and keeps all other routes', async () => {
-  const fixture = await checkout({changed: 'others'})
+  const fixture = await checkout({changed: 'others', mode: 'normal'})
   try {
     assert.equal(fixture.plan.selected, false)
     assert.equal('controlHead' in fixture.plan, false)
     const calls = []
     const result = await fixture.adapter.main(['pr', fixture.manifest, 'does-not-exist'], async (test, changed, args) => {
-      calls.push(test); assert.equal(changed, undefined); assert.deepEqual(args, ['--log-to-file'])
+      calls.push(test); assert.deepEqual(changed, routeChange(fixture, test)); assert.deepEqual(args, ['--log-to-file'])
       return {outcome: {kind: 'completed'}, status: 0, signal: null, report: {files: {'Route.cs': {mutants: [{status: 'Killed'}]}}}, razor: false}
     }, () => assert.fail('unselected Builder cannot observe Control'))
     assert.equal(result, 0); assert.equal(calls.length, 36); assert.equal(calls.includes(builderTest), false)
@@ -465,7 +468,7 @@ test('normal no-Builder-change requires no Control or quartet and keeps all othe
 
 test('fresh checkout keeps the planned base and complete project selection after main advances', async t => {
   for (const changed of ['all', 'others']) await t.test(changed, async () => {
-    const fixture = await checkout({changed})
+    const fixture = await checkout({changed, mode: 'normal'})
     try {
       const advanced = git(fixture.directory, 'commit-tree', `${fixture.plan.head}^{tree}`, '-p', fixture.base, '-m', 'main advanced')
       const directory = mkdtempSync(path.join(ownedTemp, 'fresh-'))
@@ -473,17 +476,17 @@ test('fresh checkout keeps the planned base and complete project selection after
       git(directory, 'checkout', '--quiet', '--detach', fixture.plan.head)
       git(directory, 'update-ref', 'refs/remotes/origin/main', advanced)
       const manifest = write(directory, 'StrykerOutput/builder-plan/plan.json', readFileSync(fixture.manifest))
-      const downloads = fixture.plan.selected ? download(fixture) : 'unused'
+      const downloads = 'unused'
       const adapter = await import(pathToFileURL(path.join(directory, 'tooling/stryker-builder-partitions.mjs')))
       assert.equal(await adapter.main(['admit', manifest]), 0)
       const calls = []
       const result = await adapter.main(['pr', manifest, downloads], async (project, changedFiles) => {
-        calls.push(project); assert.equal(changedFiles, undefined)
+        calls.push(project); assert.deepEqual(changedFiles, routeChange(fixture, project))
         return {outcome: {kind: 'completed'}, status: 0, signal: null, report: {files: {'Route.cs': {mutants: [{status: 'Killed'}]}}}, razor: false}
       })
       assert.equal(result, 0)
-      assert.equal(calls.length, 36)
-      assert.equal(calls.includes(builderTest), false)
+      assert.equal(calls.length, changed === 'all' ? 37 : 36)
+      assert.equal(calls.includes(builderTest), changed === 'all')
       assert.equal(git(directory, 'rev-parse', 'origin/main'), advanced)
       assert.match(readFileSync(fixture.env.GITHUB_OUTPUT, 'utf8'), new RegExp(`^base=${fixture.base}$`, 'm'))
     } finally { fixture.restore() }
@@ -492,7 +495,7 @@ test('fresh checkout keeps the planned base and complete project selection after
 
 test('invalid collection, exact base and selection in both directions refuse before any project', async t => {
   for (const changed of ['all', 'others']) {
-    const fixture = await checkout({changed})
+    const fixture = await checkout({changed, mode: 'normal'})
     try {
       const {adapter, manifest, directory} = fixture, downloads = fixture.plan.selected ? download(fixture) : 'unused', original = readFileSync(manifest)
       let calls = 0
@@ -536,9 +539,9 @@ test('invalid collection, exact base and selection in both directions refuse bef
 })
 
 test('PR preserves ordinary signal or observer failure without launching the next project', async () => {
-  const fixture = await checkout({changed: 'all'})
+  const fixture = await checkout({changed: 'all', mode: 'normal'})
   try {
-    const downloads = download(fixture)
+    const downloads = 'unused'
     let calls = 0
     assert.deepEqual(await fixture.adapter.main(['pr', fixture.manifest, downloads], () => {
       calls++; return {outcome: {kind: 'failed', cause: 'signal'}, status: null, signal: 'SIGTERM'}
@@ -633,7 +636,7 @@ test('post-native mutations invalidate source, config, baseline, manifest, base,
     await t.test('ignored conditional input hash changed', async () => {
       const conditional = write(directory, 'artifacts/packages/nuget/packed-version.props', '<Project/>')
       const withConditional = path.join(directory, 'StrykerOutput/builder-plan/conditional.json')
-      await adapter.main(['plan', 'normal', withConditional])
+      await adapter.main(['plan', 'qualification', withConditional])
       const changedFixture = {...fixture, manifest: withConditional, plan: JSON.parse(readFileSync(withConditional))}
       assert.equal(changedFixture.plan.conditional.sha256, hash('<Project/>'))
       await assert.rejects(adapter.main(['shard', withConditional, '1'], async () => {

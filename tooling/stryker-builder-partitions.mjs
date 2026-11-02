@@ -94,7 +94,9 @@ export function makePlan(mode) {
   requireThat(expectedBase === undefined || base === expectedBase, 'EXPECTED_BASE must identify the exact commit')
   const runId = process.env.GITHUB_RUN_ID, runAttempt = process.env.GITHUB_RUN_ATTEMPT
   requireThat(/^[1-9]\d*$/.test(runId ?? '') && /^[1-9]\d*$/.test(runAttempt ?? ''), 'Missing run identity')
-  const selected = mode !== 'normal' || changedSourceFiles(target, repo.readFile(target), root, base).length > 0
+  // Owner, 2026-10-30: a normal PR mutates only its changed files, Builder included, natively in the stryker job. The four
+  // complete-file partitions run only for the explicit diagnostic and qualification label commands.
+  const selected = mode !== 'normal'
   const tracked = git('ls-files', '--stage', '-z').split('\0').filter(Boolean).map(entry => {
     const match = /^(\d{6}) ([a-f0-9]{40}) 0\t(.+)$/.exec(entry)
     requireThat(match, 'Unsupported Git index entry')
@@ -394,23 +396,17 @@ export async function main(argv = process.argv.slice(2), native = mutateProject,
     return shard(first, Number(second), native, control)
   }
   const {plan} = admit(first)
-  if (command === 'pr') requireThat(plan.mode === 'normal', 'PR requires normal mode')
-  else requireThat(plan.selected, 'Cannot collect an unselected Builder plan')
-  const composition = plan.selected ? collect(plan, second) : undefined
-  const reportPath = composition && writeComposition(composition)
-  if (command === 'collect') {
-    const verdict = scoreVerdict(composition.report, fullModeBreak(repository().baselines[selector], plan.config))
-    if (!verdict.ok) console.error(verdict.reason)
-    return verdict.ok ? 0 : 1
+  if (command === 'pr') {
+    requireThat(plan.mode === 'normal' && !plan.selected, 'PR requires normal mode')
+    // Every changed project, Builder included, mutates its changed files against the planned base; downloads are unused.
+    return run(repository(), undefined, ['--log-to-file'], native, (project, text) => changedSourceFiles(project, text, root, plan.base))
   }
-  let builderCalls = 0
-  const outcome = await run(repository(), undefined, ['--log-to-file'], (test, changed, args) => {
-    if (test !== plan.selector) return native(test, changed, args)
-    requireThat(plan.selected && ++builderCalls === 1, 'Unexpected Builder route')
-    return {outcome: {kind: 'completed'}, status: 0, signal: null, report: composition.report, counts: reportCounts(composition.report), reportPath, razor: false}
-  }, (project, text) => changedSourceFiles(project, text, root, plan.base))
-  if (outcome === 0) requireThat(builderCalls === Number(plan.selected), 'Successful PR omitted or duplicated Builder')
-  return outcome
+  requireThat(plan.selected, 'Cannot collect an unselected Builder plan')
+  const composition = collect(plan, second)
+  writeComposition(composition)
+  const verdict = scoreVerdict(composition.report, fullModeBreak(repository().baselines[selector], plan.config))
+  if (!verdict.ok) console.error(verdict.reason)
+  return verdict.ok ? 0 : 1
 }
 
 if (import.meta.main) {
