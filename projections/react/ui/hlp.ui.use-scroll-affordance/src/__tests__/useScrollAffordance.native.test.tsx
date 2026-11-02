@@ -255,6 +255,20 @@ describe('useScrollAffordance revision-2 native shared-fixture coverage', () => 
     expect(result.current).toMatchObject({ canScroll: false, srMessage: '' })
   })
 
+  it('[interface revision 2] a resize during a pending scroll announcement announces the current geometry (T-1135)', () => {
+    // Oracle: the en-US default-catalog literals for the geometry after the resize: position 400 of
+    // maximum 500 (700 - 200) is 80% scrolled, not the end it was before the resize.
+    const element = elementWithGeometry({ scrollSize: 700, clientSize: 300, position: 0 })
+    const { result } = hookFor(element)
+    act(() => { element.scrollLeft = 400; element.dispatchEvent(new Event('scroll')) })
+    act(() => {
+      Object.defineProperty(element, 'clientWidth', { configurable: true, value: 200 })
+      TestResizeObserver.instances.at(-1)?.publish()
+      vi.runAllTimers()
+    })
+    expect(result.current.srMessage).toBe('Scrollable region, 80% scrolled, use arrow keys to scroll')
+  })
+
   it('[scroll-affordance.projection-equivalence] retains the frozen cross-projection marker', () => {
     expect(fixture(sharedCases, 'scroll-affordance.projection-equivalence').expected).toEqual({ typescriptEqualsDotnet: true })
   })

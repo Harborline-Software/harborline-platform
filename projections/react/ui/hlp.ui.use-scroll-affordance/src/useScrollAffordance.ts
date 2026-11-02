@@ -117,7 +117,9 @@ export function useScrollAffordance(
       setAnnouncement(undefined)
       return
     }
-    if (!scrolled) return
+    // A resize that lands while a scroll's announcement is pending reschedules it with the current geometry,
+    // so the message never describes a position the layout no longer has. Otherwise a resize stays quiet.
+    if (!scrolled && debounceRef.current === undefined) return
     if (debounceRef.current !== undefined) clearTimeout(debounceRef.current)
     debounceRef.current = setTimeout(() => {
       debounceRef.current = undefined
