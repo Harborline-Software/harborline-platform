@@ -933,10 +933,10 @@ type Context = {
 const BATCH = 16
 const MAX_RELEASES = 3
 
-// Every runtime read awaits a page-side promise (an animation frame), so it goes through the
-// garbage-collected-promise retry the rest of the suite uses.
+// Runtime calls can consume the focus log or fire focus handlers. A protocol failure does not
+// cancel the page-side call, so fail the walk rather than replay it and lose observations.
 function runtimeCall<T>(_context: Context, call: () => Promise<T>) {
-  return evaluateSettled(call)
+  return call()
 }
 
 export function stopKeyFromSnapshotLine(line: string): string {

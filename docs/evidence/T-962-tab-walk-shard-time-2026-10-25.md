@@ -72,9 +72,9 @@ All twelve shards and all four merges passed: 582 browser tests at the base and 
   (below), a correctness run whose machine got busier during shard 2 (five-minute load 18.25 at its
   start and 41.67 at its end), took 584 646 ms on shard 2, 65% of the budget. That is the slowest
   head shard observed.
-- **CI was not measured.** CI runs six shards with `PW_WORKERS: "2"` on Ubuntu. After the first
-  merge-group run, the six CI shard figures come from the collector's `tabWalkByShard` and are added
-  here.
+- **CI measurements remain unavailable.** CI runs six shards with `PW_WORKERS: "2"` on Ubuntu.
+  This record contains no native CI merge-group measurements. Local Docker runs are not CI evidence;
+  a future CI comparison requires the collector's `tabWalkByShard` results from a merge-group run.
 
 ### After review 1
 
