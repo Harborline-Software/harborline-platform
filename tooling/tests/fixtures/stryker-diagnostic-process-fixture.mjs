@@ -75,7 +75,7 @@ if (args[0] === 'wrapper') {
     if (args.includes('--operation')) {
       const operation = value('--operation'), repo = repository(), test = value('--test')
       repo.testProjects = [test, test]
-      const outcome = operation === 'run' ? await run(repo, undefined, [], mutate, () => ['Fixture.cs'])
+      const outcome = operation === 'run' ? await run(repo, undefined, [], mutate, () => ['Fixture.cs'], files => files)
         : await full(repo, undefined, [], operation === 'baseline', mutate)
       if (outcome.signal) process.kill(process.pid, outcome.signal)
       else process.exitCode = outcome

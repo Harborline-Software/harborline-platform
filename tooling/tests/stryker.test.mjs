@@ -10,12 +10,30 @@ import {setTimeout as delay} from 'node:timers/promises'
 import {killProcessTreeSync} from '../resolve-command.mjs'
 import {tmpdir} from 'node:os'
 
-import {changedLines, changedSourceFiles, configProblems, fullModeBreak, isTestProject, plainRazor, razorTested, reportCounts, repository, sourceDirectories,
-  scoreVerdict, survivorsOnChangedLines, thresholdsFor} from '../stryker.mjs'
+import {changedLines, changedSourceFiles, configProblems, fullModeBreak, isTestProject, mutableChanges, mutateProject, plainRazor, razorTested, reportCounts, repository, run,
+  sourceDirectories, scoreVerdict, survivorsOnChangedLines, thresholdsFor} from '../stryker.mjs'
 
 const repoRoot = path.resolve('stryker-fixture-repo')
 const diagnosticTarget = 'projections/dotnet/blocks/hlp.blocks.builder-definitions.tests/Harborline.Blocks.BuilderDefinitions.Tests.csproj'
 const diagnosticFixture = path.join(import.meta.dirname, 'fixtures', 'stryker-diagnostic-process-fixture.mjs')
+
+test('changed-file config preserves folders when source files share a basename', async t => {
+  const control = mkdtempSync(path.join(tmpdir(), 'stryker-changed-paths-'))
+  let output
+  t.after(() => {
+    if (output) rmSync(output, {recursive: true, force: true})
+    rmSync(control, {recursive: true, force: true})
+  })
+  const result = await mutateProject(diagnosticTarget,
+    ['projections/dotnet/blocks/hlp.blocks.builder-definitions/New/Widget.cs',
+      'projections/dotnet/blocks/hlp.blocks.builder/Linked/Widget.cs'],
+    ['--control', control, '--mode', 'normal'], [process.execPath, diagnosticFixture, 'child'])
+  output = result.output
+  assert.equal(result.status, 0)
+  const config = JSON.parse(readFileSync(path.join(output, 'stryker-config.json'), 'utf8'))['stryker-config']
+  assert.deepEqual(config.mutate, ['New/Widget.cs', '../hlp.blocks.builder/Linked/Widget.cs'])
+  assert.equal(config.mutate.some(pattern => path.matchesGlob('Old/Widget.cs', pattern)), false)
+})
 
 async function diagnosticProcess(t, mode, operation, {paused = false} = {}) {
   const control = mkdtempSync(path.join(tmpdir(), 'stryker-diagnostics-'))
@@ -855,4 +873,89 @@ test('a Razor report with no tested mutant in a .razor span is caught however ma
   // Stryker writes Windows paths with backslashes; the check normalizes them.
   const withRazor = {files: {...csOnly.files, 'C:\\r\\ui\\a\\obj\\Debug\\net10.0\\stryker-razor\\G\\X_razor.cs': {mutants: [{status: 'Killed'}, {status: 'Ignored'}]}}}
   assert.equal(razorTested(withRazor), 1)
+})
+
+// Changed-files PR mode (owner, 2026-10-30). One real configured project (break 70), a stubbed Stryker and stubbed selection.
+const changedFilesProject = 'hlp.blocks.activity-timeline.tests'
+const killedOf = (killed, total, file = 'p/lib/A.cs') => ({files: {[file]: {mutants: Array.from({length: total}, (_, i) => ({status: i < killed ? 'Killed' : 'Survived'}))}}})
+async function changedFilesRun(changed, result) {
+  const calls = []
+  const outcome = await run(repository(), changedFilesProject, [], async (test, files) => {
+    calls.push(files)
+    return {outcome: {kind: 'completed'}, status: 0, signal: null, razorPatterns: 0, ...result}
+  }, () => changed, files => files.filter(file => !file.includes('Gone')).filter(file => /\.(cs|razor)$/.test(file)))
+  return {outcome, calls}
+}
+
+test('changed-files PR mode mutates only the changed source files that still exist', () => {
+  const exists = file => file !== 'p/lib/Gone.cs'
+  assert.deepEqual(mutableChanges(['p/lib/A.cs', 'p/lib/Gone.cs', 'p/lib/Lib.csproj', 'p/lib/View.razor'], exists), ['p/lib/A.cs', 'p/lib/View.razor'])
+  assert.deepEqual(mutableChanges(['p/lib/Lib.csproj'], exists), [])
+})
+
+test('changed-files PR mode passes the changed files to Stryker and holds them to the project break', async () => {
+  const passing = await changedFilesRun(['p/lib/A.cs', 'p/lib/Gone.cs', 'p/lib/Lib.csproj'], {report: killedOf(70, 100)})
+  assert.equal(passing.outcome, 0)
+  assert.deepEqual(passing.calls, [['p/lib/A.cs']])
+  const failing = await changedFilesRun(['p/lib/A.cs'], {report: killedOf(69, 100)})
+  assert.equal(failing.outcome, 1)
+})
+
+test('changed-files PR mode skips a project-file-only or deletion-only change without starting Stryker', async () => {
+  const {outcome, calls} = await changedFilesRun(['p/lib/Gone.cs', 'p/lib/Lib.csproj'], {report: killedOf(0, 100)})
+  assert.equal(outcome, 0)
+  assert.deepEqual(calls, [])
+})
+
+test('changed-files PR mode passes changed files with no mutant, but not mutants that were never tested', async () => {
+  assert.equal((await changedFilesRun(['p/lib/A.cs'], {report: {files: {'p/lib/A.cs': {mutants: []}}}})).outcome, 0)
+  assert.equal((await changedFilesRun(['p/lib/A.cs'], {report: {files: {}}, empty: true})).outcome, 0)
+  assert.equal((await changedFilesRun(['p/lib/A.cs'], {report: {files: {'p/lib/A.cs': {mutants: [{status: 'Ignored'}]}}}})).outcome, 1)
+  assert.equal((await changedFilesRun(['p/lib/A.cs'], {report: undefined})).outcome, 1)
+})
+
+test('changed-files PR mode counts only the mutants its mutate list selected', async () => {
+  const filtered = {status: 'Ignored', statusReason: 'File ignored by mutate filter'}
+  const elsewhere = {'C:\\r\\p\\lib\\Other.cs': {mutants: [filtered, filtered]}}
+  // A changed file with no logic passes with a note, though Stryker reports the rest of the project as Ignored.
+  assert.equal((await changedFilesRun(['p/lib/A.cs'], {report: {files: {...elsewhere, 'C:\\r\\p\\lib\\A.cs': {mutants: []}}}})).outcome, 0)
+  // The score is over the changed file's tested mutants only.
+  assert.equal((await changedFilesRun(['p/lib/A.cs'], {report: {files: {...elsewhere, ...killedOf(70, 100).files}}})).outcome, 0)
+  assert.equal((await changedFilesRun(['p/lib/A.cs'], {report: {files: {...elsewhere, ...killedOf(69, 100).files}}})).outcome, 1)
+  // A changed file whose every mutant the filter left out was never matched by its pattern, which fails.
+  assert.equal((await changedFilesRun(['p/lib/A.cs'], {report: {files: {...elsewhere, 'C:\\r\\p\\lib\\A.cs': {mutants: [filtered]}}}})).outcome, 1)
+  // Stryker's marker for a file its mutate list excluded: a changed file written that way was never matched, which fails
+  // even when another changed file meets the floor.
+  const excluded = {source: 'File ignored by mutate filter', language: 'none', mutants: []}
+  assert.equal((await changedFilesRun(['p/lib/A.cs'], {report: {files: {...elsewhere, 'C:\\r\\p\\lib\\A.cs': excluded}}})).outcome, 1)
+  assert.equal((await changedFilesRun(['p/lib/A.cs', 'p/lib/B.cs'], {report: {files: {...killedOf(100, 100).files, 'C:\\r\\p\\lib\\B.cs': excluded}}})).outcome, 1)
+  // An excluded file nobody changed is only the rest of the project.
+  assert.equal((await changedFilesRun(['p/lib/A.cs'], {report: {files: {...killedOf(100, 100).files, 'C:\\r\\p\\lib\\Other.cs': excluded}}})).outcome, 0)
+  // An Ignored mutant for any other reason is still a mutant that was never tested.
+  assert.equal((await changedFilesRun(['p/lib/A.cs'], {report: {files: {...elsewhere, 'p/lib/A.cs': {mutants: [{status: 'Ignored', statusReason: 'Ignored by ignore-methods'}]}}}})).outcome, 1)
+})
+
+test('changed-files PR mode matches a linked file whose report key keeps its /../ hop', async () => {
+  const excluded = {source: 'File ignored by mutate filter', language: 'none', mutants: []}
+  // Stryker.NET 5.0.0 keys a file another project links by the linking project's folder, then "..".
+  const linked = '/home/runner/work/r/r/p/ui/button/../form-field/Value.cs'
+  const linkedWindows = 'D:\\a\\r\\r\\p\\ui\\button\\..\\form-field\\Value.cs'
+  assert.equal((await changedFilesRun(['p/ui/form-field/Value.cs'], {report: {files: {[linked]: excluded}}})).outcome, 1)
+  assert.equal((await changedFilesRun(['p/ui/form-field/Value.cs'], {report: {files: {[linkedWindows]: excluded}}})).outcome, 1)
+  assert.equal((await changedFilesRun(['p/lib/A.cs', 'p/ui/form-field/Value.cs'], {report: {files: {...killedOf(100, 100).files, [linked]: excluded}}})).outcome, 1)
+  // The same file matched under its own project's key was tested, so its excluded linked copy does not fail it.
+  const own = {'/home/runner/work/r/r/p/ui/form-field/Value.cs': {mutants: [{status: 'Killed'}]}}
+  assert.equal((await changedFilesRun(['p/ui/form-field/Value.cs'], {report: {files: {...own, [linked]: excluded}}})).outcome, 0)
+  // A linked file with no logic still passes with a note.
+  assert.equal((await changedFilesRun(['p/ui/form-field/Value.cs'], {report: {files: {[linked]: {mutants: []}}}})).outcome, 0)
+})
+
+test('changed-files PR mode keeps ruling 91 for a changed .razor whose spans gave Stryker code to mutate', async () => {
+  const csOnly = killedOf(100, 100, 'C:\\r\\ui\\a\\Store.cs')
+  assert.equal((await changedFilesRun(['p/ui/a/View.razor'], {report: csOnly, razor: true, razorPatterns: 1})).outcome, 1)
+  assert.equal((await changedFilesRun(['p/ui/a/Store.cs'], {report: csOnly, razor: true, razorPatterns: 0})).outcome, 0)
+  const withRazor = {files: {...csOnly.files, 'C:\\r\\ui\\a\\obj\\Debug\\net10.0\\stryker-razor\\G\\View_razor.cs': {mutants: [{status: 'Killed'}]}}}
+  assert.equal((await changedFilesRun(['p/ui/a/View.razor'], {report: withRazor, razor: true, razorPatterns: 1})).outcome, 0)
+  // Stryker silently dropping every Razor span leaves no mutant at all; that still fails rather than reading as empty.
+  assert.equal((await changedFilesRun(['p/ui/a/View.razor'], {report: {files: {}}, razor: true, razorPatterns: 1})).outcome, 1)
 })
