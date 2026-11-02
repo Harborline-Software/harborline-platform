@@ -1,0 +1,58 @@
+{
+  "moduleId": "hlp.ui.use-scroll-affordance",
+  "module": {
+    "interface": {
+      "path": "specs/modules/ui/hlp.ui.use-scroll-affordance/interface.yaml",
+      "revision": 1
+    },
+    "moduleKind": "runtime",
+    "presentation": {
+      "disposition": "not-applicable",
+      "rationale": "The observer derives scroll state and keyboard targets and renders no standalone interface."
+    },
+    "qualityProfile": {
+      "path": "specs/modules/ui/hlp.ui.use-scroll-affordance/quality.yaml",
+      "revision": 1
+    },
+    "owner": "platform-ui",
+    "dependencies": [
+      "hlp.ui.default-strings",
+      "hlp.ui.locale-provider"
+    ],
+    "status": "implemented-gate-model-green",
+    "depth": {
+      "disposition": "deep-module",
+      "deletionTest": "PASS",
+      "redistributedComplexity": [
+        "logical-edge overflow tolerance, masks, announcements, and keyboard targets repeated by every scroll host",
+        "RTL normalization, debounce, resize observation, and disposal drifting between React and Blazor browser adapters"
+      ]
+    },
+    "projections": {
+      "react": {
+        "role": "implementation",
+        "path": "projections/react/ui/hlp.ui.use-scroll-affordance",
+        "status": "conformant",
+        "packageContribution": "@harborline-software/ui-react",
+        "conformanceRunner": "conformance/hlp.ui.use-scroll-affordance/runners/run-shared.mjs"
+      },
+      "blazor": {
+        "role": "adapter",
+        "seam": "ui.scroll-affordance.browser",
+        "path": "projections/blazor/ui/hlp.ui.use-scroll-affordance",
+        "status": "conformant",
+        "packageContribution": "Harborline.UIAdapters.Blazor",
+        "conformanceRunner": "conformance/hlp.ui.use-scroll-affordance/runners/run-shared.mjs"
+      }
+    }
+  },
+  "seams": {
+    "ui.scroll-affordance.browser": {
+      "status": "conformant",
+      "adapters": [
+        "react",
+        "blazor"
+      ]
+    }
+  }
+}

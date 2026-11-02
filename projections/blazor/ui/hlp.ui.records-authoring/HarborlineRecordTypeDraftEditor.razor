@@ -4,7 +4,7 @@
 @using System.Text.Json.Nodes
 @using Harborline.UIAdapters.Blazor.Components.Buttons
 
-@{ var body = Current.Body; var fields = FieldList; var fieldKeys = fields.Select(field => Str(field?["field_key"])).OfType<string>().Where(key => key != "").ToArray(); var retention = Str(body["retention_clock_field_id"]); var kindChosen = Current.DefinitionKind == "Records";
+@{ var body = Current.Body; var fields = FieldList; var fieldKeys = fields.Select(field => Str(field?["field_key"])).OfType<string>().Where(key => key != "").ToArray(); var retention = Str(body["retention_clock_field_id"]); var kindChosen = Current.DefinitionKind == "Records"; var classId = HeaderValue(body["class_id"]); var recordClass = HeaderValue(body["record_class"]); var gate = HeaderValue(body["creation_gate"]); var roleId = HeaderValue(body["creation_role_id"]); var amendment = body["amendment_policy"] as JsonObject; var mode = amendment is null ? null : HeaderValue(amendment["mode"]);
     RenderFragment content = @<text>
     <header class="hl-records-authoring__header">
         <label>Definition kind<select aria-label="Definition kind" value="@(Current.DefinitionKind ?? "")" @onchange="ChooseKind">@if (!kindChosen) { <option value="">Choose a definition kind</option> }<option value="Records">Record type</option></select></label>
@@ -15,6 +15,7 @@
     @if (kindChosen)
     {
         <div class="hl-records-authoring__grid"><label>Name<input aria-label="Record type name" value="@(Str(body["name"]))" @onchange="ChangeName" /></label><label>Section<input aria-label="Section" value="@(Section(body))" @onchange="ChangeSection" /></label></div>
+        <div class="hl-records-authoring__grid"><label>Class<select aria-label="Class" value="@(classId ?? "")" @onchange="ChooseClass"><option value="">Not set</option>@if (classId is not null && !ClassOptions.Any(option => option.ClassId == classId)) { <option value="@classId">@($"{classId} (not offered)")</option> }@foreach (var option in ClassOptions) { <option value="@option.ClassId">@option.ClassId</option> }</select></label><label>Record class<select aria-label="Record class" value="@(recordClass ?? "")" @onchange="ChooseRecordClass">@if (recordClass is null || !RecordClasses.Contains(recordClass)) { <option value="@(recordClass ?? "")">@(recordClass is null ? "Not set" : $"{recordClass} (not a current spelling)")</option> }@foreach (var spelling in RecordClasses) { <option value="@spelling">@spelling</option> }</select></label><label>Creation gate<select aria-label="Creation gate" value="@(gate ?? "")" @onchange="ChooseGate"><option value="">Not set (form_only)</option>@if (gate is not null && !CreationGates.Contains(gate)) { <option value="@gate">@($"{gate} (not a current spelling)")</option> }@foreach (var spelling in CreationGates) { <option value="@spelling">@spelling</option> }</select></label>@if (gate == "role") { <label>Creation role<select aria-label="Creation role" value="@(roleId ?? "")" @onchange="ChooseRole"><option value="">Not set</option>@if (roleId is not null && !RoleOptions.Any(option => option.RoleId == roleId)) { <option value="@roleId">@($"{roleId} (not offered)")</option> }@foreach (var option in RoleOptions) { <option value="@option.RoleId">@option.RoleId</option> }</select></label> }<label><input type="checkbox" aria-label="Amendments require a reason" checked="@((amendment?["reason_required"] is JsonValue reason && reason.GetValueKind() == JsonValueKind.True) || (NewDraft && body["amendment_policy"] is null))" disabled="@DeclaredReason" @onchange="ChangeReasonRequired" />Amendments require a reason</label>@if (amendment is not null || (NewDraft && body["amendment_policy"] is null)) { <label>Amendment mode<select aria-label="Amendment mode" value="@(mode ?? "")" @onchange="ChooseMode"><option value="">No mode</option>@if (mode is not null && !AmendmentModes.Contains(mode)) { <option value="@mode">@($"{mode} (not a current spelling)")</option> }@foreach (var spelling in AmendmentModes) { <option value="@spelling">@spelling</option> }</select></label> }<label><input type="checkbox" aria-label="Keep history" checked="@(Str(body["history_policy"]) == "enabled" || (NewDraft && body["history_policy"] is null))" disabled="@DeclaredHistory" @onchange="ChangeHistory" />Keep history</label>@if (NewDraft && (DeclaredReason || DeclaredHistory)) { <p class="hl-records-authoring__note">Creation sets any policy that is not set, so it cannot be turned off.</p> }</div>
         @for (var index = 0; index < fields.Count; index++)
         {
             var current = index; var n = current + 1; var field = fields[current];
@@ -51,7 +52,8 @@
     <p class="hl-records-authoring__scope">Local draft. Edits stay in this editor and are not saved.</p>
     @if (!RecordsRevisionText.IsAcceptable(Value.ExpectedRevision)) { <p role="status" class="hl-records-authoring__note">@RejectedRevision</p> }
     @if (Adopted) { if (ReadOnly) { <fieldset class="hl-records-authoring__read-only" disabled>@content</fieldset> } else { @content } }
-    @if (ShownDiagnostics.Count > 0) { <ul class="hl-records-authoring__diagnostics" aria-label="Diagnostics">@foreach (var diagnostic in ShownDiagnostics) { <li data-code="@diagnostic.Code" data-pointer="@diagnostic.Pointer">@diagnostic.Code at @diagnostic.Pointer</li> }</ul> }
+    @if (ShownDiagnostics.Count > 0) { <ul class="hl-records-authoring__diagnostics" aria-label="Diagnostics">@foreach (var diagnostic in ShownDiagnostics) { var target = string.IsNullOrEmpty(diagnostic.Target) ? null : diagnostic.Target; <li data-code="@diagnostic.Code" data-pointer="@diagnostic.Pointer" data-target="@target">@diagnostic.Code at @diagnostic.Pointer@(target is null ? "" : $" for {target}")</li> }</ul> }
+    @if (ShownWarnings.Count > 0) { <p class="hl-records-authoring__note">Warnings do not block publication.</p><ul class="hl-records-authoring__warnings" aria-label="Warnings">@foreach (var warning in ShownWarnings) { <li data-code="@warning.Code" data-pointer="@warning.Pointer">@warning.Code at @warning.Pointer</li> }</ul> }
     @if (_incoming is not null) { <aside role="alert" class="hl-records-authoring__incoming">A different draft or revision arrived while you have local edits.<HarborlineButton ButtonType="ButtonType.Button" Enabled="!ReadOnly" OnClick="Keep">Keep edits</HarborlineButton><HarborlineButton ButtonType="ButtonType.Button" Enabled="!ReadOnly" OnClick="Discard">Discard edits</HarborlineButton></aside> }
 </form>
 
@@ -60,6 +62,10 @@
     [Parameter, EditorRequired] public RecordsDraft Value { get; set; } = RecordsDraft.Empty;
     /// <summary>The field kinds and versions the host offers for a binding.</summary>
     [Parameter] public IReadOnlyList<RecordsKindOption> KindOptions { get; set; } = [];
+    /// <summary>The published Classes the host offers as the type's catalogue home; the editor never selects one on its own.</summary>
+    [Parameter] public IReadOnlyList<RecordsClassOption> ClassOptions { get; set; } = [];
+    /// <summary>The domain roles the host offers as a role gate's creation role; the editor never selects one on its own.</summary>
+    [Parameter] public IReadOnlyList<RecordsRoleOption> RoleOptions { get; set; } = [];
     /// <summary>Host-supplied diagnostics; shown only when identity, revision and generation all match the current draft.</summary>
     [Parameter] public RecordsDiagnosticSet? Diagnostics { get; set; }
     /// <summary>A local flag that disables every control and edit handler. It is not an authorization decision.</summary>
@@ -70,6 +76,10 @@
     // Reference spellings of the current grammar (RecordTypeIdentity.cs:45-62). A value outside them is shown, never rewritten.
     private static readonly string[] Cardinalities = ["one", "many"];
     private static readonly string[] OnDeletes = ["block", "orphan", "cascade"];
+    // Header spellings of the current grammar (RecordTypeDocument.cs:107-171).
+    private static readonly string[] RecordClasses = ["reference", "master", "transactional"];
+    private static readonly string[] CreationGates = ["form_only", "role", "engine"];
+    private static readonly string[] AmendmentModes = ["supersession"];
     private const string RejectedRevision = "A host draft was not loaded because its revision is not a canonical decimal string.";
     private RecordsDraft Current = RecordsDraft.Empty; private RecordsDraft? _incoming; private string? _lifecycle; private string? _held; private bool _dirty; private int _generation;
     // No draft exists until the first host value with an acceptable revision; the Empty placeholder is never shown or reported.
@@ -82,18 +92,32 @@
     {
         if (!RecordsRevisionText.IsAcceptable(Value.ExpectedRevision)) return;
         var key = LifecycleKey(Value);
-        if (_lifecycle is null) { Current = Value; _lifecycle = key; return; }
+        if (_lifecycle is null) { Current = Value; _hostBody = Value.Body; _lifecycle = key; return; }
         if (key == _lifecycle) { _incoming = null; _held = null; return; }
         if (key == _held) return;
-        if (_dirty) { _held = key; _incoming = Value; } else { Current = Value; _lifecycle = key; _generation++; }
+        if (_dirty) { _held = key; _incoming = Value; } else { Current = Value; _hostBody = Value.Body; _lifecycle = key; _generation++; }
     }
 
     // The revision is part of the key as its exact string. A canonical revision is never empty, so an absent one cannot collide.
     private static string LifecycleKey(RecordsDraft value) => $"{value.Identity}\u0000{value.VersionId}\u0000{value.ExpectedRevision}";
     // Revisions match only as identical canonical strings (ordinal); a noncanonical diagnostic revision never matches.
-    private IReadOnlyList<RecordsDiagnostic> ShownDiagnostics => Adopted && Diagnostics is { } supplied && RecordsRevisionText.IsAcceptable(supplied.ExpectedRevision) && supplied.Identity == Current.Identity && string.Equals(supplied.ExpectedRevision, Current.ExpectedRevision, StringComparison.Ordinal) && supplied.Generation == _generation ? supplied.Diagnostics : [];
+    private RecordsDiagnosticSet? MatchedDiagnostics => Adopted && Diagnostics is { } supplied && RecordsRevisionText.IsAcceptable(supplied.ExpectedRevision) && supplied.Identity == Current.Identity && string.Equals(supplied.ExpectedRevision, Current.ExpectedRevision, StringComparison.Ordinal) && supplied.Generation == _generation ? supplied : null;
+    private IReadOnlyList<RecordsDiagnostic> ShownDiagnostics => MatchedDiagnostics?.Diagnostics ?? [];
+    // Warnings follow the same matching rule and are never shown as diagnostics.
+    private IReadOnlyList<RecordsWarning> ShownWarnings => MatchedDiagnostics?.Warnings ?? [];
     private IReadOnlyList<JsonObject?> FieldList => Current.Body["fields"] is JsonArray array ? [.. array.Select(node => node as JsonObject)] : [];
     private static string? Str(JsonNode? node) => node is JsonValue value && value.TryGetValue<string>(out var text) ? text : null;
+    // Header members are read as given: only a non-empty string is a value, so a malformed one shows as not set and stays unchanged.
+    private static string? HeaderValue(JsonNode? node) => Str(node) is { Length: > 0 } text ? text : null;
+    // A policy the host draft declares cannot be removed here: the producer has no 'off' value, and save carries an omitted
+    // declaration forward from the stored revision (ADR-0097), so removing it would be silently undone.
+    private JsonObject _hostBody = new();
+    // A draft not yet created (empty identity) takes both policies from CreateDraftAsync (RecordTypeDefinitionStore.cs:153-154), so
+    // an absent or null one (the producer reads JSON null as absent, RecordTypePolicyDefaultsTests.cs:48-60) cannot be turned off there either. Its own body stands in for the host body, so a malformed value stays repairable.
+    private bool NewDraft => Current.Identity == "";
+    private JsonObject DeclaringBody => NewDraft ? Current.Body : _hostBody;
+    private bool DeclaredReason => (NewDraft && Current.Body["amendment_policy"] is null) || (DeclaringBody["amendment_policy"] is JsonObject policy && policy["reason_required"] is JsonValue reason && reason.GetValueKind() == JsonValueKind.True);
+    private bool DeclaredHistory => (NewDraft && Current.Body["history_policy"] is null) || Str(DeclaringBody["history_policy"]) == "enabled";
     private static string? Section(JsonObject body) => body["envelope"] is JsonObject envelope ? Str(envelope["section"]) : null;
     private static JsonObject? KindOf(JsonObject field) => field["binding"] is JsonObject binding ? binding["kind"] as JsonObject : null;
     private int IndexOfOption(JsonObject kind) { var kindId = Str(kind["kind_id"]); var version = Str(kind["version"]); for (var index = 0; index < KindOptions.Count; index++) if (KindOptions[index].KindId == kindId && KindOptions[index].Version == version) return index; return -1; }
@@ -128,6 +152,22 @@
     private Task ChangeReferenceTarget(int index, ChangeEventArgs eventArgs) => EditReference(index, "target_type_id", eventArgs);
     private Task ChangeReferenceCardinality(int index, ChangeEventArgs eventArgs) => EditReference(index, "cardinality", eventArgs);
     private Task ChangeReferenceOnDelete(int index, ChangeEventArgs eventArgs) => EditReference(index, "on_delete", eventArgs);
+    // Removing a member writes nothing in its place; an empty choice means absent.
+    private static void SetMember(JsonObject body, string member, string value) { if (value == "") body.Remove(member); else body[member] = value; }
+    private Task ChooseClass(ChangeEventArgs eventArgs) => Edit(body => SetMember(body, "class_id", Text(eventArgs)));
+    private Task ChooseRecordClass(ChangeEventArgs eventArgs) => Edit(body => SetMember(body, "record_class", Text(eventArgs)));
+    // Only a role gate names a creation role (the producer refuses one on any other gate), so another gate removes it in the same edit.
+    private Task ChooseGate(ChangeEventArgs eventArgs) => Edit(body => { var gate = Text(eventArgs); SetMember(body, "creation_gate", gate); if (gate != "role") body.Remove("creation_role_id"); });
+    private Task ChooseRole(ChangeEventArgs eventArgs) => Edit(body => SetMember(body, "creation_role_id", Text(eventArgs)));
+    private Task ChangeReasonRequired(ChangeEventArgs eventArgs) => eventArgs.Value is not true && DeclaredReason ? Task.CompletedTask : Edit(body => { if (eventArgs.Value is true) { if (body["amendment_policy"] is not JsonObject policy) { policy = new JsonObject(); body["amendment_policy"] = policy; } policy["reason_required"] = true; } else body.Remove("amendment_policy"); });
+    private Task ChooseMode(ChangeEventArgs eventArgs)
+    {
+        var mode = Text(eventArgs);
+        if (Current.Body["amendment_policy"] is JsonObject) return Edit(body => SetMember((JsonObject)body["amendment_policy"]!, "mode", mode));
+        if (mode == "" || !NewDraft || Current.Body["amendment_policy"] is not null) return Task.CompletedTask;
+        return Edit(body => body["amendment_policy"] = new JsonObject { ["reason_required"] = true, ["mode"] = mode });
+    }
+    private Task ChangeHistory(ChangeEventArgs eventArgs) => eventArgs.Value is not true && DeclaredHistory ? Task.CompletedTask : Edit(body => { if (eventArgs.Value is true) body["history_policy"] = "enabled"; else body.Remove("history_policy"); });
     private Task ChooseRetention(ChangeEventArgs eventArgs) => Edit(body => { var key = Text(eventArgs); if (key == "") body.Remove("retention_clock_field_id"); else body["retention_clock_field_id"] = key; });
     private Task AddField() => Edit(body => { if (body["fields"] is not JsonArray fields) { fields = new JsonArray(); body["fields"] = fields; } fields.Add(new JsonObject { ["field_key"] = "", ["display_name"] = "" }); });
     private Task RemoveField(int index) => Edit(body => { if (body["fields"] is JsonArray fields && index < fields.Count) fields.RemoveAt(index); });
@@ -136,7 +176,7 @@
     {
         if (ReadOnly) return Task.CompletedTask;
         if (_incoming is not { } next) return Task.CompletedTask;
-        Current = next; _incoming = null; _held = null; _dirty = false; _generation++; _lifecycle = LifecycleKey(next);
+        Current = next; _hostBody = next.Body; _incoming = null; _held = null; _dirty = false; _generation++; _lifecycle = LifecycleKey(next);
         return DraftChanged.InvokeAsync(new RecordsDraftChange(next, _generation));
     }
 }

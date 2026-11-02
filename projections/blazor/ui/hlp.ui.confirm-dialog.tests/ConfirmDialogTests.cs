@@ -164,6 +164,23 @@ public sealed class ConfirmDialogTests : BunitContext
         Assert.Equal(["إلغاء", "تأكيد"], ActionLabels(cut));
     }
 
+    // T-1122: the actions sit on the composed Dialog surface, so the surface's own centring (in
+    // hlp.ui.dialog's dialog.css) is what keeps them onscreen in right-to-left content.
+    [Fact]
+    public void RightToLeftActionsSitOnTheComposedDialogSurface()
+    {
+        var cut = RenderConfirm(locale: "ar", direction: "rtl", catalog: new Dictionary<string, string>
+        {
+            ["common.confirm"] = "تأكيد",
+            ["common.cancel"] = "إلغاء",
+        });
+
+        var surface = cut.Find("[role='dialog']");
+        Assert.Contains("hl-dialog__surface", surface.ClassList);
+        Assert.Equal("rtl", surface.GetAttribute("dir"));
+        Assert.Equal(2, surface.QuerySelectorAll(".hl-confirm-dialog__cancel, .hl-confirm-dialog__confirm").Length);
+    }
+
     [Fact(DisplayName = "confirm-dialog.replacement")]
     public void ReplacementRemovesStaleContent()
     {

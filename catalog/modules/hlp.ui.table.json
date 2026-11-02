@@ -1,0 +1,57 @@
+{
+  "moduleId": "hlp.ui.table",
+  "module": {
+    "interface": {
+      "path": "specs/modules/ui/hlp.ui.table/interface.yaml",
+      "revision": 1
+    },
+    "moduleKind": "non-interactive-component",
+    "presentation": {
+      "disposition": "visual"
+    },
+    "qualityProfile": {
+      "path": "specs/modules/ui/hlp.ui.table/quality.yaml",
+      "revision": 1
+    },
+    "owner": "platform-ui",
+    "dependencies": [
+      "hlp.ui.cn"
+    ],
+    "status": "extracted-candidate",
+    "depth": {
+      "disposition": "deep-module",
+      "deletionTest": "PASS",
+      "redistributedComplexity": [
+        "native table family semantics, density propagation, header scope, caption, host attributes, and overflow ownership repeated by every small data surface",
+        "ordered replacement, 256-row structural bounds, localization, forced colors, RTL, and visual parity drifting across projections"
+      ]
+    },
+    "projections": {
+      "react": {
+        "role": "adapter",
+        "seam": "ui.table.framework",
+        "path": "projections/react/ui/hlp.ui.table",
+        "status": "conformant",
+        "packageContribution": "@harborline-software/ui-react",
+        "conformanceRunner": "conformance/hlp.ui.table/runners/run-shared.mjs"
+      },
+      "blazor": {
+        "role": "adapter",
+        "seam": "ui.table.framework",
+        "path": "projections/blazor/ui/hlp.ui.table",
+        "status": "conformant",
+        "packageContribution": "Harborline.UIAdapters.Blazor",
+        "conformanceRunner": "conformance/hlp.ui.table/runners/run-shared.mjs"
+      }
+    }
+  },
+  "seams": {
+    "ui.table.framework": {
+      "status": "conformant",
+      "adapters": [
+        "react",
+        "blazor"
+      ]
+    }
+  }
+}

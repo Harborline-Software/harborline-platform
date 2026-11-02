@@ -28,7 +28,6 @@ export function connect(portalRoot, root, titleBar, options, callback) {
   }
   const cancel = () => { drag = null; resize = null }
   const onKey = event => {
-    if (event.key === 'Escape') { event.stopPropagation(); callback.invokeMethodAsync('EscapeFromJavaScriptAsync'); return }
     if (!current.modal || event.key !== 'Tab') return
     const nodes = [...root.querySelectorAll(focusable)]
     if (nodes.length === 0) { event.preventDefault(); root.focus(); return }

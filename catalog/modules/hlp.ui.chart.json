@@ -1,0 +1,58 @@
+{
+  "moduleId": "hlp.ui.chart",
+  "module": {
+    "interface": {
+      "path": "specs/modules/ui/hlp.ui.chart/interface.yaml",
+      "revision": 1
+    },
+    "moduleKind": "non-interactive-component",
+    "presentation": {
+      "disposition": "visual"
+    },
+    "qualityProfile": {
+      "path": "specs/modules/ui/hlp.ui.chart/quality.yaml",
+      "revision": 1
+    },
+    "owner": "platform-ui",
+    "dependencies": [
+      "hlp.ui.default-strings",
+      "hlp.ui.locale-provider"
+    ],
+    "status": "extracted-candidate",
+    "depth": {
+      "disposition": "deep-module",
+      "deletionTest": "PASS",
+      "redistributedComplexity": [
+        "line and donut validation, ordered missing-value semantics, accessible data, and renderer replacement repeated by every reporting surface",
+        "provider isolation, locale, theme, motion, large-data, and update parity drifting across renderers"
+      ]
+    },
+    "projections": {
+      "react": {
+        "role": "adapter",
+        "seam": "ui.chart.framework",
+        "path": "projections/react/ui/hlp.ui.chart",
+        "status": "conformant",
+        "packageContribution": "@harborline-software/ui-react",
+        "conformanceRunner": "conformance/hlp.ui.chart/runners/run-shared.mjs"
+      },
+      "blazor": {
+        "role": "adapter",
+        "seam": "ui.chart.framework",
+        "path": "projections/blazor/ui/hlp.ui.chart",
+        "status": "conformant",
+        "packageContribution": "Harborline.UIAdapters.Blazor",
+        "conformanceRunner": "conformance/hlp.ui.chart/runners/run-shared.mjs"
+      }
+    }
+  },
+  "seams": {
+    "ui.chart.framework": {
+      "status": "conformant",
+      "adapters": [
+        "react",
+        "blazor"
+      ]
+    }
+  }
+}

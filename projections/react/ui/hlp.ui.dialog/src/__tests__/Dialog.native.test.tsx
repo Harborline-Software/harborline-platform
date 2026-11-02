@@ -58,4 +58,25 @@ describe('Dialog React projection', () => {
     expect(css).toMatch(/animation:\s*none/)
     expect(css).toMatch(/transition:\s*none/)
   })
+
+  // T-1122: the translate is physical, so the start edge must be too, or right-to-left content
+  // moves the surface off the left edge. This deliberately pins the chosen implementation and the
+  // byte identity of the copies; the behaviour itself is proved by gallery/tests/tests/dialog-rtl.spec.ts.
+  it('centres the surface with a physical left edge in the authority and both lane stylesheets', () => {
+    const root = resolve(import.meta.dirname, '../../../../../..')
+    const [authority, react, blazor] = [
+      'specs/modules/ui/hlp.ui.dialog/style.css',
+      'projections/react/ui/hlp.ui.dialog/src/style.css',
+      'projections/blazor/ui/hlp.ui.dialog/wwwroot/dialog.css',
+    ].map(path => readFileSync(resolve(root, path), 'utf8'))
+    expect(react).toBe(authority)
+    expect(blazor).toBe(authority)
+    const surface = /\n\.hl-dialog__surface \{([^}]*)\}/.exec(authority)?.[1] ?? ''
+    expect(surface).toMatch(/\n {2}left: 50%;/)
+    expect(surface).toContain('transform: translate(-50%, -50%)')
+    expect(surface).not.toMatch(/\n {2}inset-inline-start:/)
+    const enter = /@keyframes hl-dialog-enter \{([^}]*\}[^}]*\})/.exec(authority)?.[1] ?? ''
+    expect(enter).toContain('translate(-50%, calc(-50% + 0.5rem))')
+    expect(enter).toContain('translate(-50%, -50%)')
+  })
 })
