@@ -12,6 +12,7 @@ export function connect(element, callback, horizontal, initialAnchor) {
   resize.observe(element)
   measure()
   return {
+    measure,
     scrollTo(rawTarget) {
       if (horizontal) element.scrollTo({ left: rawTarget, behavior: 'auto' })
       else element.scrollTo({ top: rawTarget, behavior: 'auto' })
