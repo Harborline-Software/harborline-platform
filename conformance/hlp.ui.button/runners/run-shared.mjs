@@ -7,12 +7,13 @@ import { fileURLToPath } from 'node:url'
 
 import { resolveCommand } from '../../../tooling/resolve-command.mjs'
 import { resolvePinnedDotnet } from '../../../tooling/resolve-dotnet.mjs'
+import {loadModuleCatalog} from '../../../tooling/module-catalog.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../../..')
 const moduleId = 'hlp.ui.button'
 const specification = JSON.parse(readFileSync(resolve(root, 'specs/modules/ui/hlp.ui.button/interface.yaml'), 'utf8'))
 const fixtureCatalog = JSON.parse(readFileSync(resolve(root, 'conformance/hlp.ui.button/fixtures.yaml'), 'utf8'))
-const catalog = JSON.parse(readFileSync(resolve(root, 'catalog/modules.yaml'), 'utf8'))
+const catalog = loadModuleCatalog(root)
 const reactRoot = resolve(root, catalog.modules[moduleId].projections.react.path)
 const dotnet = resolvePinnedDotnet(root)
 

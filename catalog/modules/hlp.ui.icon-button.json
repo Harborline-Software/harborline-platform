@@ -1,0 +1,58 @@
+{
+  "moduleId": "hlp.ui.icon-button",
+  "module": {
+    "interface": {
+      "path": "specs/modules/ui/hlp.ui.icon-button/interface.yaml",
+      "revision": 1
+    },
+    "moduleKind": "interactive-component",
+    "presentation": {
+      "disposition": "visual"
+    },
+    "qualityProfile": {
+      "path": "specs/modules/ui/hlp.ui.icon-button/quality.yaml",
+      "revision": 1
+    },
+    "owner": "platform-ui",
+    "dependencies": [
+      "hlp.ui.cn",
+      "hlp.ui.touch-target"
+    ],
+    "status": "extracted-candidate",
+    "depth": {
+      "disposition": "deep-module",
+      "deletionTest": "PASS",
+      "redistributedComplexity": [
+        "accessible icon-only naming, native disabled loading, form type, and exactly-once activation repeated in every compact command",
+        "closed appearance and size vocabulary plus 44-pixel hit geometry independently drifting across renderers"
+      ]
+    },
+    "projections": {
+      "react": {
+        "role": "adapter",
+        "seam": "ui.icon-button.framework",
+        "path": "projections/react/ui/hlp.ui.icon-button",
+        "status": "conformant",
+        "packageContribution": "@harborline-software/ui-react",
+        "conformanceRunner": "conformance/hlp.ui.icon-button/runners/run-shared.mjs"
+      },
+      "blazor": {
+        "role": "adapter",
+        "seam": "ui.icon-button.framework",
+        "path": "projections/blazor/ui/hlp.ui.icon-button",
+        "status": "conformant",
+        "packageContribution": "Harborline.UIAdapters.Blazor",
+        "conformanceRunner": "conformance/hlp.ui.icon-button/runners/run-shared.mjs"
+      }
+    }
+  },
+  "seams": {
+    "ui.icon-button.framework": {
+      "status": "conformant",
+      "adapters": [
+        "react",
+        "blazor"
+      ]
+    }
+  }
+}

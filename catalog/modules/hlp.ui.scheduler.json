@@ -1,0 +1,61 @@
+{
+  "moduleId": "hlp.ui.scheduler",
+  "module": {
+    "interface": {
+      "path": "specs/modules/ui/hlp.ui.scheduler/interface.yaml",
+      "revision": 1
+    },
+    "moduleKind": "interactive-component",
+    "presentation": {
+      "disposition": "visual"
+    },
+    "qualityProfile": {
+      "path": "specs/modules/ui/hlp.ui.scheduler/quality.yaml",
+      "revision": 1
+    },
+    "owner": "platform-ui",
+    "dependencies": [
+      "hlp.ui.default-strings",
+      "hlp.ui.empty-state",
+      "hlp.ui.locale-provider",
+      "hlp.ui.use-is-mobile",
+      "hlp.ui.use-scroll-affordance"
+    ],
+    "status": "gap-implemented",
+    "depth": {
+      "disposition": "deep-module",
+      "deletionTest": "PASS",
+      "redistributedComplexity": [
+        "four views, controlled date and view, work-calendar layout, editing, and bounded recurrence repeated by every scheduling surface",
+        "overlap geometry, responsive overflow, locale and RTL, read-only enforcement, deterministic large-data replacement, and provider isolation drifting across projections"
+      ]
+    },
+    "projections": {
+      "react": {
+        "role": "adapter",
+        "seam": "ui.scheduler.framework",
+        "path": "projections/react/ui/hlp.ui.scheduler",
+        "status": "conformant",
+        "packageContribution": "@harborline-software/ui-react",
+        "conformanceRunner": "conformance/hlp.ui.scheduler/runners/run-shared.mjs"
+      },
+      "blazor": {
+        "role": "adapter",
+        "seam": "ui.scheduler.framework",
+        "path": "projections/blazor/ui/hlp.ui.scheduler",
+        "status": "conformant",
+        "packageContribution": "Harborline.UIAdapters.Blazor",
+        "conformanceRunner": "conformance/hlp.ui.scheduler/runners/run-shared.mjs"
+      }
+    }
+  },
+  "seams": {
+    "ui.scheduler.framework": {
+      "status": "conformant",
+      "adapters": [
+        "react",
+        "blazor"
+      ]
+    }
+  }
+}

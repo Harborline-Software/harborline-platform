@@ -1,0 +1,63 @@
+{
+  "moduleId": "hlp.foundation.rule-runtime",
+  "module": {
+    "interface": {
+      "path": "specs/modules/foundation/hlp.foundation.rule-runtime/interface.yaml",
+      "revision": 3
+    },
+    "moduleKind": "runtime",
+    "presentation": {
+      "disposition": "not-applicable",
+      "rationale": "Rule compilation, deterministic evaluation, and reactive dependency propagation expose data outcomes rather than visual presentation."
+    },
+    "owner": "platform-foundation",
+    "dependencies": [
+      "hlp.contracts.forms"
+    ],
+    "status": "implemented-package-consumer-green",
+    "depth": {
+      "disposition": "deep-module",
+      "deletionTest": "PASS",
+      "redistributedComplexity": [
+        "closed operator grammar, exact money/date semantics, resource bounds, dependency compilation, and error propagation reimplemented by every Forms, Calculations, and workflow caller",
+        "reactive browser evaluation and authoritative save-time integrity allowed to drift without one corpus and canonical outcome contract"
+      ]
+    },
+    "projections": {
+      "typescript-reactive": {
+        "role": "implementation",
+        "path": "projections/typescript/foundation/hlp.foundation.rule-runtime",
+        "status": "preview",
+        "artifact": {
+          "type": "npm",
+          "id": "@harborline-software/rule-engine",
+          "manifest": "projections/typescript/foundation/hlp.foundation.rule-runtime/package.json",
+          "identityAuthority": "Harborline",
+          "producerRepository": "harborline-platform",
+          "distribution": "internal-only",
+          "candidateRole": "local-shadow",
+          "registryAvailable": false
+        }
+      },
+      "dotnet-integrity": {
+        "role": "implementation",
+        "path": "projections/dotnet/foundation/hlp.foundation.rule-runtime",
+        "status": "preview",
+        "artifact": {
+          "type": "nuget",
+          "id": "Harborline.Foundation.RuleEngine",
+          "assembly": "Harborline.Foundation.RuleEngine",
+          "manifest": "projections/dotnet/foundation/hlp.foundation.rule-runtime/Harborline.Foundation.RuleEngine.csproj",
+          "dependencies": [
+            "Harborline.Contracts"
+          ],
+          "identityAuthority": "Harborline",
+          "producerRepository": "harborline-platform",
+          "distribution": "internal-only",
+          "candidateRole": "local-shadow",
+          "registryAvailable": false
+        }
+      }
+    }
+  }
+}

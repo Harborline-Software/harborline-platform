@@ -1,0 +1,60 @@
+{
+  "moduleId": "hlp.ui.input",
+  "module": {
+    "interface": {
+      "path": "specs/modules/ui/hlp.ui.input/interface.yaml",
+      "revision": 1
+    },
+    "moduleKind": "interactive-component",
+    "presentation": {
+      "disposition": "visual"
+    },
+    "qualityProfile": {
+      "path": "specs/modules/ui/hlp.ui.input/quality.yaml",
+      "revision": 1
+    },
+    "owner": "platform-ui",
+    "dependencies": [
+      "hlp.ui.cn",
+      "hlp.ui.touch-target",
+      "hlp.ui.use-can-show-master-detail",
+      "hlp.ui.use-media-query"
+    ],
+    "status": "gap-implemented",
+    "depth": {
+      "disposition": "deep-module",
+      "deletionTest": "PASS",
+      "redistributedComplexity": [
+        "controlled native input attributes, appearance normalization, adornment spacing, invalid styling, and touch floors repeated by every form",
+        "logical padding, explicit aria-invalid ownership, forced colors, and host-attribute behavior drifting across projections"
+      ]
+    },
+    "projections": {
+      "react": {
+        "role": "adapter",
+        "seam": "ui.input.framework",
+        "path": "projections/react/ui/hlp.ui.input",
+        "status": "conformant",
+        "packageContribution": "@harborline-software/ui-react",
+        "conformanceRunner": "conformance/hlp.ui.input/runners/run-shared.mjs"
+      },
+      "blazor": {
+        "role": "adapter",
+        "seam": "ui.input.framework",
+        "path": "projections/blazor/ui/hlp.ui.input",
+        "status": "conformant",
+        "packageContribution": "Harborline.UIAdapters.Blazor",
+        "conformanceRunner": "conformance/hlp.ui.input/runners/run-shared.mjs"
+      }
+    }
+  },
+  "seams": {
+    "ui.input.framework": {
+      "status": "conformant",
+      "adapters": [
+        "react",
+        "blazor"
+      ]
+    }
+  }
+}

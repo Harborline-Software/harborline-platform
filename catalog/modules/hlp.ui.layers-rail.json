@@ -1,0 +1,60 @@
+{
+  "moduleId": "hlp.ui.layers-rail",
+  "module": {
+    "interface": {
+      "path": "specs/modules/ui/hlp.ui.layers-rail/interface.yaml",
+      "revision": 1
+    },
+    "moduleKind": "interactive-component",
+    "presentation": {
+      "disposition": "visual"
+    },
+    "qualityProfile": {
+      "path": "specs/modules/ui/hlp.ui.layers-rail/quality.yaml",
+      "revision": 1
+    },
+    "owner": "platform-ui",
+    "dependencies": [
+      "hlp.ui.aspect-lens",
+      "hlp.ui.layers-state",
+      "hlp.ui.rail-labels",
+      "hlp.ui.tone-style"
+    ],
+    "status": "gap-implemented",
+    "depth": {
+      "disposition": "deep-module",
+      "deletionTest": "PASS",
+      "redistributedComplexity": [
+        "lens activation and passive state, APG outline navigation, collapse focus fallback, filtering, provenance, and insert choreography repeated by every builder",
+        "node continuity, localized rail chrome, text-paired tone, RTL indentation, and theme parity drifting across projections"
+      ]
+    },
+    "projections": {
+      "react": {
+        "role": "adapter",
+        "seam": "ui.layers-rail.framework",
+        "path": "projections/react/ui/hlp.ui.layers-rail",
+        "status": "conformant",
+        "packageContribution": "@harborline-software/ui-react",
+        "conformanceRunner": "conformance/hlp.ui.layers-rail/runners/run-shared.mjs"
+      },
+      "blazor": {
+        "role": "adapter",
+        "seam": "ui.layers-rail.framework",
+        "path": "projections/blazor/ui/hlp.ui.layers-rail",
+        "status": "conformant",
+        "packageContribution": "Harborline.UIAdapters.Blazor",
+        "conformanceRunner": "conformance/hlp.ui.layers-rail/runners/run-shared.mjs"
+      }
+    }
+  },
+  "seams": {
+    "ui.layers-rail.framework": {
+      "status": "conformant",
+      "adapters": [
+        "react",
+        "blazor"
+      ]
+    }
+  }
+}

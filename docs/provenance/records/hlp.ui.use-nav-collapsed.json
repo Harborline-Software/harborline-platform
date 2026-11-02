@@ -1,0 +1,26 @@
+{
+  "moduleId": "hlp.ui.use-nav-collapsed",
+  "legacySourceHashes": {
+    "packages/ui-react/src/hooks/useNavCollapsed.ts": "5e2ba832b3b1f77294d82b979289c7ed7384faa41e0b5e6b243540c7a072ac55"
+  },
+  "phase4Evidence": "specs/modules/ui/hlp.ui.use-nav-collapsed/interface.yaml",
+  "sourceExtracted": true,
+  "sourceState": "Interface revision 1 preserves the exact pinned hlp.ui.use-nav-collapsed source surface and proves every registered projection through native, shared-conformance, package-only, and applicable gallery/performance gates.",
+  "contentHashes": {
+    "conformance/hlp.ui.use-nav-collapsed/fixtures.yaml": "8ebaab1b4eae0b4420520f44d7d538d3956c274e1d94c7b96d866b7ef2f90b4d",
+    "conformance/hlp.ui.use-nav-collapsed/quality-fixtures.yaml": "354d8f88db7174f2ecb3b665f4a9c6725f5c3519cb2839391439205b4ae9fecc",
+    "conformance/hlp.ui.use-nav-collapsed/runners/run-shared.mjs": "29632eaf4a7f71f4d86add63f035249bb47da709f1c0991ab2faf6e46bfee174",
+    "projections/dotnet/foundation/hlp.ui.use-nav-collapsed/NavCollapsePolicy.cs": "db55fa2f18f4903abcef9e1c3b3903969859d9a013d8e9a03b2855f5657673d0",
+    "projections/react/ui/hlp.ui.use-nav-collapsed/src/__tests__/fixtures.ts": "17eccd700cd30cb7500d7a75d3e2f751fa3ef97234c34dbd9e95d71ec685c8cd",
+    "projections/react/ui/hlp.ui.use-nav-collapsed/src/__tests__/matchMediaHost.ts": "59f50d49c123da3352635cfbcfa4f45a14493a53c05394222e462a11dad80e07",
+    "projections/react/ui/hlp.ui.use-nav-collapsed/src/__tests__/useNavCollapsed.native.test.tsx": "44c3d3d064cdde8b99453669fa5e370cd221e954373d31bf44aa37542afbe5af",
+    "projections/react/ui/hlp.ui.use-nav-collapsed/src/index.ts": "a6430a441c122279d91bffe3b24c58b80f0653acb1024d8f46583ebf580a43a9",
+    "projections/react/ui/hlp.ui.use-nav-collapsed/src/useNavCollapsed.ts": "b2b68af6a9181cbfa38061fdc51b006b16fd9729948a69d9ae6c0cb76e5cd14d",
+    "projections/react/ui/hlp.ui.use-nav-collapsed/tsconfig.build.json": "a707b7cec42eb6fdc61d4c80cbcdb18d8ddca2a9808af321725199969c89f54b",
+    "projections/react/ui/hlp.ui.use-nav-collapsed/tsconfig.json": "ba0c82cce314633a86246b7836ae6580237b3be827a7ea38bdf1676b8eb849a8",
+    "projections/react/ui/hlp.ui.use-nav-collapsed/vitest.config.ts": "96f389666de3cdf79a37802e559e64b4f25ce275f4536c108646f120b9d197fb",
+    "specs/modules/ui/hlp.ui.use-nav-collapsed/interface.yaml": "1e1216925962757fdd3719893149c6f1e079fd7b9b876686455c7e2b5235f536",
+    "specs/modules/ui/hlp.ui.use-nav-collapsed/quality.yaml": "ac0781513bf06cc124c7252bb754cfb5f84c81982df4df076489d0dc1f5829fc"
+  },
+  "nextGate": "Retain this conformant aggregate contribution while HLF-052 advances to the next Carrier-essential dependency wave."
+}

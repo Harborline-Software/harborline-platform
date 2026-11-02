@@ -1,0 +1,45 @@
+{
+  "moduleId": "hlp.blocks.scheduling",
+  "module": {
+    "interface": {
+      "path": "specs/modules/blocks/hlp.blocks.scheduling/interface.yaml",
+      "revision": 4
+    },
+    "moduleKind": "runtime",
+    "presentation": {
+      "disposition": "not-applicable",
+      "rationale": "Reservation coordination and the planning seed produce outcomes and plans; the pinned Razor view surface is deliberately excluded as UI."
+    },
+    "owner": "platform-blocks",
+    "dependencies": [
+      "hlp.blocks.builder-definitions"
+    ],
+    "status": "implemented",
+    "depth": {
+      "disposition": "deep-module",
+      "deletionTest": "PASS",
+      "redistributedComplexity": [
+        "stable-id idempotency, exactly-one-wins concurrency, and fail-closed quorum semantics re-implemented by every booking caller",
+        "the harvested solver seed and authored unsatisfied-reason corpus stranded without an executable home"
+      ]
+    },
+    "projections": {
+      "dotnet": {
+        "role": "implementation",
+        "path": "projections/dotnet/blocks/hlp.blocks.scheduling",
+        "status": "preview",
+        "artifact": {
+          "type": "nuget",
+          "id": "Harborline.Blocks.Scheduling",
+          "assembly": "Harborline.Blocks.Scheduling",
+          "manifest": "projections/dotnet/blocks/hlp.blocks.scheduling/Harborline.Blocks.Scheduling.csproj",
+          "identityAuthority": "Harborline",
+          "producerRepository": "harborline-platform",
+          "distribution": "internal-only",
+          "candidateRole": "new-bounded-package",
+          "registryAvailable": false
+        }
+      }
+    }
+  }
+}

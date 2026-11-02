@@ -1,0 +1,43 @@
+{
+  "moduleId": "hlp.kernel.core",
+  "module": {
+    "interface": {
+      "path": "specs/modules/kernel/hlp.kernel.core/interface.yaml",
+      "revision": 8
+    },
+    "moduleKind": "runtime",
+    "presentation": {
+      "disposition": "not-applicable",
+      "rationale": "The kernel clock, atomic command transaction, and compiled bootstrap floor are host runtime contracts with no visual presentation surface."
+    },
+    "owner": "platform-kernel",
+    "dependencies": [],
+    "status": "implemented-package-consumer-green",
+    "depth": {
+      "disposition": "deep-module",
+      "deletionTest": "PASS",
+      "redistributedComplexity": [
+        "authoritative clock selection, backdate admission, and expiry rules repeated in every kernel-facing member",
+        "record, audit, operation identity, and commit atomicity exposed as caller choreography while bootstrap resolution depends on an unavailable catalogue"
+      ]
+    },
+    "projections": {
+      "dotnet": {
+        "role": "implementation",
+        "path": "projections/dotnet/kernel/hlp.kernel.core",
+        "status": "preview",
+        "artifact": {
+          "type": "nuget",
+          "id": "Harborline.Kernel.Core",
+          "assembly": "Harborline.Kernel.Core",
+          "manifest": "projections/dotnet/kernel/hlp.kernel.core/Harborline.Kernel.Core.csproj",
+          "identityAuthority": "Harborline",
+          "producerRepository": "harborline-platform",
+          "distribution": "internal-only",
+          "candidateRole": "new-bounded-package",
+          "registryAvailable": false
+        }
+      }
+    }
+  }
+}

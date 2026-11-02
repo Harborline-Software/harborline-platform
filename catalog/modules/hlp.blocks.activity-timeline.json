@@ -1,0 +1,48 @@
+{
+  "moduleId": "hlp.blocks.activity-timeline",
+  "module": {
+    "interface": {
+      "path": "specs/modules/blocks/hlp.blocks.activity-timeline/interface.yaml",
+      "revision": 1
+    },
+    "moduleKind": "runtime",
+    "presentation": {
+      "disposition": "not-applicable",
+      "rationale": "The timeline source returns ordered attributed entries and counts; rendering is owned by hlp.ui.activity-log and hlp.ui.page."
+    },
+    "owner": "platform-blocks",
+    "dependencies": [
+      "hlp.contracts.identities"
+    ],
+    "status": "implemented",
+    "depth": {
+      "disposition": "deep-module",
+      "deletionTest": "PASS",
+      "redistributedComplexity": [
+        "newest-first ordering, tenant/session scoping, and category derivation re-implemented per consuming surface",
+        "raw-actor-id sealing dissolving into per-caller redaction conventions"
+      ]
+    },
+    "projections": {
+      "dotnet": {
+        "role": "implementation",
+        "path": "projections/dotnet/blocks/hlp.blocks.activity-timeline",
+        "status": "preview",
+        "artifact": {
+          "type": "nuget",
+          "id": "Harborline.Blocks.ActivityTimeline",
+          "assembly": "Harborline.Blocks.ActivityTimeline",
+          "manifest": "projections/dotnet/blocks/hlp.blocks.activity-timeline/Harborline.Blocks.ActivityTimeline.csproj",
+          "dependencies": [
+            "Harborline.Contracts"
+          ],
+          "identityAuthority": "Harborline",
+          "producerRepository": "harborline-platform",
+          "distribution": "internal-only",
+          "candidateRole": "new-bounded-package",
+          "registryAvailable": false
+        }
+      }
+    }
+  }
+}

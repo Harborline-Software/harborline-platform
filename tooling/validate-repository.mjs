@@ -11,6 +11,7 @@ import {errorContractPolicyErrors, moduleStatusErrors,
   allowedPresentationDispositions, dependencylessVitestConfigError, interfaceDependencyMismatch, isGateFailureEvidence, npmPublicDistributionAuthorized, nugetPublicDistributionAuthorized, presentationPolicyErrors, requiresQualityProfile, retiredProvenanceFieldErrors, rootScopedThemeAliasError, themingPolicyErrors} from './validator-policy.mjs'
 import {uiClassVocabularyErrors} from './ui-class-vocabulary.mjs'
 import {validateGallery} from './validate-gallery.mjs'
+import {loadModuleCatalog, loadProvenance, rowFileErrors} from './module-catalog.mjs'
 
 const root = process.cwd()
 const errors = []
@@ -139,11 +140,13 @@ if (galleryReport.errors.length > 0) {
 }
 
 const repository = load('repository.yaml')
-const catalog = load('catalog/modules.yaml')
+// HLP-0009: one file per module. The loaders return the single-document shape every check below reads.
+errors.push(...rowFileErrors(root))
+const catalog = loadModuleCatalog(root)
 const aggregateBuildSource = readFileSync(resolve(root, 'projections/react/ui/hlp.ui.button/scripts/build.mjs'), 'utf8')
 errors.push(...npmPackageContributionErrors(catalog, aggregateBuildSource))
 const projectionView = load('catalog/projections.yaml')
-const provenance = load('docs/provenance/source-map.yaml')
+const provenance = loadProvenance(root)
 const gate = load('docs/evidence/phase-4/gate.json')
 const allowStaleGate = process.argv.includes('--allow-stale-gate')
 if (repository.repository !== 'harborline-platform') errors.push('repository identity mismatch')

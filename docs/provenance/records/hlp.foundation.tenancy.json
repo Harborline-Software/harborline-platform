@@ -1,0 +1,17 @@
+{
+  "moduleId": "hlp.foundation.tenancy",
+  "phase4Evidence": "specs/modules/foundation/hlp.foundation.tenancy/interface.yaml",
+  "sourceExtracted": true,
+  "sourceState": "Revision 1 implements only the caller-backed tenant context, metadata, required marker, and fail-closed query filter. Catalog, lifecycle, resolver, host, and persistence-provider behavior remain in Shipyard.",
+  "contentHashes": {
+    "projections/dotnet/foundation/hlp.foundation.tenancy/TenantStatus.cs": "8f7332c7647f8ce4bf37ec177229e7415f30a49e90f099fa1713e3cf1809d07d",
+    "projections/dotnet/foundation/hlp.foundation.tenancy/TenantMetadata.cs": "bd6506bca1c3f94c5aae552491b9a89da6c7212fc70953ce56c1790483e7c93a",
+    "projections/dotnet/foundation/hlp.foundation.tenancy/ITenantContext.cs": "b959caeebab56ac173ec3c83d1d93a533c95f52f26b6420a9223d7e8b9296dee",
+    "projections/dotnet/foundation/hlp.foundation.tenancy/ITenantScoped.cs": "107fcb2b87aba631c03b0c5133c0b1b6b75ae1123001d692d045ddd2d668d229",
+    "projections/dotnet/foundation/hlp.foundation.tenancy/TenantQueryFilterExtensions.cs": "7b992c55fa5ff832d4d98685dff4218f2fdce83bb9356e077e8dbf58d1de69b1",
+    "projections/dotnet/foundation/hlp.foundation.tenancy.tests/TenancyContractTests.cs": "2f84242072b8479fb9639e7863f148df2d0d0edcb830255461690447243c82b1",
+    "conformance/hlp.foundation.tenancy/fixtures.yaml": "9bd2805183d5c2d4a586aa74b288a92d50832c73e0e45bce86250fc52875eee0",
+    "specs/modules/foundation/hlp.foundation.tenancy/interface.yaml": "2e8711c947b713248a9cfe20a1ccdbdba2855472d0d1c2940d284b3ad09557a9"
+  },
+  "nextGate": "Freeze hlp.foundation.actor against the completed identity and tenancy packages."
+}

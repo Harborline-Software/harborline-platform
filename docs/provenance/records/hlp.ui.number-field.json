@@ -1,0 +1,28 @@
+{
+  "moduleId": "hlp.ui.number-field",
+  "legacySourceHashes": {
+    "packages/ui-react/src/components/forms/NumberField.tsx": "5a6181981d0042a0bbb3ed9a6581cd8a4a95e230dfdb54c1c8be172c74e66695"
+  },
+  "phase4Evidence": "specs/modules/ui/hlp.ui.number-field/interface.yaml",
+  "sourceExtracted": true,
+  "sourceState": "Interface revision 1 preserves the exact pinned hlp.ui.number-field source surface and proves every registered projection through native, shared-conformance, package-only, and applicable gallery/performance gates.",
+  "contentHashes": {
+    "conformance/hlp.ui.number-field/fixtures.yaml": "748c4d4414a1f44a0fcaf645608400dc054bdc55284fec840e4e234c53e9eb12",
+    "conformance/hlp.ui.number-field/quality-fixtures.yaml": "be7deaa6edabc27a8a2e35fa08de46b335336d7d60313a06fd3b25651c4f7efe",
+    "conformance/hlp.ui.number-field/runners/run-shared.mjs": "1c0f1203654618cf2f51bed277f9653aaa9ab82d459935217926ecec1fdc2e90",
+    "projections/blazor/ui/hlp.ui.number-field/HarborlineNumberField.razor": "217930d5a66b9391079a6c927578e85cb69a6b5818f1fa22f69bfe7bdc1a5e1b",
+    "projections/react/ui/hlp.ui.number-field/src/NumberField.tsx": "e0691d2b19e3c196c75e1b0f507c360d46794cf81346340807d9e0ba03823ceb",
+    "projections/react/ui/hlp.ui.number-field/src/__tests__/NumberField.conformance.test.tsx": "65cd61f8b9521ddd61558d55e8e023e3ad1923ed6da9ef87f750376ed000587e",
+    "projections/react/ui/hlp.ui.number-field/src/__tests__/NumberField.native.test.tsx": "dc7ac3cbd55437111db8eee4dc6b8d0b3dd00709d6e1375995244156e0bb6ace",
+    "projections/react/ui/hlp.ui.number-field/src/__tests__/fixtures.ts": "7c99db5119eeb011b6fd6a7b7c1de3c2dc9c5b5eaa0c3de911a05cbc249f2a10",
+    "projections/react/ui/hlp.ui.number-field/src/index.ts": "315d17e6b5d72a48ade95705c0b373ff264f42a9abf2a8af183a0f5cd91e48ed",
+    "projections/react/ui/hlp.ui.number-field/src/test-setup.ts": "977afde26bba6a51325908cd7713cbfdc87d18f06b78b237c8f364c44864b7de",
+    "projections/react/ui/hlp.ui.number-field/tsconfig.build.json": "4dd8618e46791b542a907ff78e81014c2a1a69d523a2509676038fc0aeab5ff3",
+    "projections/react/ui/hlp.ui.number-field/vitest.config.ts": "c90e9f15b79eca7e1300f52a3eb1ed62d2f9548b1680ea29a58b5b44bb8253a8",
+    "specs/modules/ui/hlp.ui.number-field/interface.yaml": "345f8a2bfaef74db92beda17667cc6049e8927fd3b565faba6630f8237ff10f7",
+    "specs/modules/ui/hlp.ui.number-field/quality.yaml": "e13451ffcef4eb6304cfe1ba3ddf5cfafb1b8333b73875615fac81c800c17e6e",
+    "specs/modules/ui/hlp.ui.number-field/scenarios.json": "3040875db93938fbdfd30090d3dac9022d1dcafd611f509b090447ad5f14b9f3",
+    "specs/modules/ui/hlp.ui.number-field/style.css": "8e20291f27d33322767760cf1fbcff9218454c6f64478f541eda35bc793a1466"
+  },
+  "nextGate": "Retain this conformant aggregate contribution while HLF-052 advances to the next Carrier-essential dependency wave."
+}

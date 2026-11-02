@@ -8,9 +8,10 @@ import test from 'node:test'
 
 import {UnmappedPathError, dependentsFrom, ownershipFrom, pathMatchesPrefix, selectAffected}
   from '../gates/select-affected.mjs'
+import {loadModuleCatalog} from '../module-catalog.mjs'
 
 const root = resolve(import.meta.dirname, '../..')
-const catalog = JSON.parse(readFileSync(resolve(root, 'catalog/modules.yaml'), 'utf8'))
+const catalog = loadModuleCatalog(root)
 
 test('a prefix lookalike does not match', () => {
   // hlp.ui.zetaish is not hlp.ui.zeta. A bare startsWith says it is, and a selector that picks the
@@ -49,6 +50,13 @@ test('a global input selects every module', () => {
   for (const path of ['catalog/modules.yaml', 'gallery/styles/canvas.css', 'specs/modules/ui/baselines/sha256/a.png']) {
     assert.equal(selectAffected(catalog, [path]).moduleIds.length, all, `${path} must select all`)
   }
+})
+
+test('a module catalog row selects that module and its dependents, not the suite (HLP-0009)', () => {
+  const selected = selectAffected(catalog, ['catalog/modules/hlp.ui.popover.json'])
+  assert.deepEqual(selected.directModuleIds, ['hlp.ui.popover'])
+  assert.ok(selected.moduleIds.length < Object.keys(catalog.modules).length)
+  assert.ok(selected.moduleIds.includes('hlp.ui.popover'))
 })
 
 test('an unowned in-scope path selects the FULL suite and names itself', () => {

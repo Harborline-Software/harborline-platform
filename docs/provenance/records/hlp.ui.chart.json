@@ -1,0 +1,32 @@
+{
+  "moduleId": "hlp.ui.chart",
+  "legacySourceHashes": {
+    "packages/ui-react/src/components/charts/Chart.tsx": "c16876645fff4266e5d492b41c2a5b7d49f9a3a4c2527fb14e5a66eb18954f2f"
+  },
+  "phase4Evidence": "specs/modules/ui/hlp.ui.chart/interface.yaml",
+  "sourceExtracted": true,
+  "sourceState": "Interface revision 1 preserves the exact pinned hlp.ui.chart source surface and proves every registered projection through native, shared-conformance, package-only, and applicable gallery/performance gates.",
+  "contentHashes": {
+    "conformance/hlp.ui.chart/fixtures.yaml": "c34bb4e060db3d4bfa8d3069d39a148c2252cd4013055b7d93631681776d4e95",
+    "conformance/hlp.ui.chart/quality-fixtures.yaml": "04a6d1d06514cd5b68f57f943dd99af01ec9d52ebc3a6145c41e04a237b053a1",
+    "conformance/hlp.ui.chart/runners/run-shared.mjs": "5cea462ae108adda07ecf7bceb5f7b12d89c4ff7d63cef26296f21a06cb28f0c",
+    "projections/blazor/ui/hlp.ui.chart/ChartTypes.cs": "a16b08bdec2a0b0ae6d2806fb4c520eaa108c7b1027d34e4488f2ddbec0adf28",
+    "projections/blazor/ui/hlp.ui.chart/HarborlineChart.razor": "8a9acd7af5f31f7d683aaf9ffaae85db0cc95bd7b452a2d4eafd1f533d126822",
+    "projections/react/ui/hlp.ui.chart/src/Chart.tsx": "e3b085c65a0b6f6d83fc247bffa6836ae0d3965b0cd4757b501a28e96005d405",
+    "projections/react/ui/hlp.ui.chart/src/Chart.types.ts": "147f1ebbe4e2357c0110fa1abc23289f9885f9ca94903a318c8df82167a73cd8",
+    "projections/react/ui/hlp.ui.chart/src/__tests__/Chart.conformance.test.tsx": "69f1968b573d542b37c6de6355e1b17e78dcbc4023b11274eb1e62330f972ec4",
+    "projections/react/ui/hlp.ui.chart/src/__tests__/Chart.native.test.tsx": "f24fd6f06972f2e943df100d895373ab52e20e5d3a0332ad0348fafdba415bbb",
+    "projections/react/ui/hlp.ui.chart/src/__tests__/Chart.performance.test.tsx": "3330d6cd900d402fd8f51f8e232cfcaa89da7f6d7e42822359f9b4b1ecd6f129",
+    "projections/react/ui/hlp.ui.chart/src/__tests__/fixtures.ts": "548e9c913d3bab09940529962c35b4889494f8cc8fd908e95cce2e43e1fac01a",
+    "projections/react/ui/hlp.ui.chart/src/chart-model.ts": "9fd6699f83078696a525639d9ea065f01458b5c05640309f85a27f180a9c5a63",
+    "projections/react/ui/hlp.ui.chart/src/index.ts": "3c9530d45efa9d2b600d870a9e89d01f316eb7ea07594afa27e53c2dda046ac5",
+    "projections/react/ui/hlp.ui.chart/src/test-setup.ts": "977afde26bba6a51325908cd7713cbfdc87d18f06b78b237c8f364c44864b7de",
+    "projections/react/ui/hlp.ui.chart/tsconfig.build.json": "746c3f6253d300493ba6bb61f37e64f022bbf3949c716ea969b2cb7f80dfb1ef",
+    "projections/react/ui/hlp.ui.chart/vitest.config.ts": "39213afd4b86c80b274e7b1aa98b7499c21bae8bc65341a59c159c86d2dc17f8",
+    "specs/modules/ui/hlp.ui.chart/interface.yaml": "4837fbe949083b88d6d0e0ed931e443771de47caf957736a035a5cc379600f7a",
+    "specs/modules/ui/hlp.ui.chart/quality.yaml": "c9835b9a76d6b57111ed4b38d881b12e98c3b0306748c9afb38e3d3e34962f42",
+    "specs/modules/ui/hlp.ui.chart/scenarios.json": "6664746dd7ac81283c54d884f3acaefc61adde1248f0573f6952c2224cee4482",
+    "specs/modules/ui/hlp.ui.chart/style.css": "7ba56bf52e8e9fc27b3e56b45c898d8810b02d31bed83d9274a1a1ea602696ec"
+  },
+  "nextGate": "Retain this conformant aggregate contribution while HLF-052 advances to the next Carrier-essential dependency wave."
+}

@@ -1,0 +1,53 @@
+{
+  "moduleId": "hlp.foundation.forms",
+  "module": {
+    "interface": {
+      "path": "specs/modules/foundation/hlp.foundation.forms/interface.yaml",
+      "revision": 7
+    },
+    "moduleKind": "runtime",
+    "presentation": {
+      "disposition": "not-applicable",
+      "rationale": "Definition lifecycle, bounded reuse, and draft state produce data consumed by separate renderers and the Forms Engine."
+    },
+    "owner": "platform-foundation",
+    "dependencies": [
+      "hlp.contracts.forms",
+      "hlp.contracts.identities",
+      "hlp.foundation.tenancy",
+      "hlp.foundation.actor"
+    ],
+    "status": "implemented-package-consumer-green",
+    "depth": {
+      "disposition": "deep-module",
+      "deletionTest": "PASS",
+      "redistributedComplexity": [
+        "atomic creation, current-version listing, tenant/version lifecycle, lossless authoring metadata, lineage, tree bounds, and reusable-unit cascade reimplemented by every Forms host",
+        "form-bound draft keying, atomic authenticated actor scope, defensive storage, and pre-auth promote-or-purge choreography duplicated across browser and native hosts"
+      ]
+    },
+    "projections": {
+      "dotnet": {
+        "role": "implementation",
+        "path": "projections/dotnet/foundation/hlp.foundation.forms",
+        "status": "preview",
+        "artifact": {
+          "type": "nuget",
+          "id": "Harborline.Foundation.Forms",
+          "assembly": "Harborline.Foundation.Forms",
+          "manifest": "projections/dotnet/foundation/hlp.foundation.forms/Harborline.Foundation.Forms.csproj",
+          "dependencies": [
+            "Harborline.Contracts",
+            "Harborline.Foundation.MultiTenancy",
+            "Harborline.Foundation.Authorization"
+          ],
+          "identityAuthority": "Harborline",
+          "producerRepository": "harborline-platform",
+          "distribution": "internal-only",
+          "candidateRole": "local-shadow",
+          "registryAvailable": false
+        }
+      }
+    }
+  }
+}
