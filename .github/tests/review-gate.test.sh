@@ -66,9 +66,24 @@ done < <(sed -e 's/#.*//' -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' "$(dirna
 if [ -d "$(dirname "$gate")/../projections" ]; then
   run 'main: a change under projections/ is risky' risky=true FILES=projections/dotnet/foundation/x/Thing.cs
 fi
+# Where packages.yml runs npm publish with the write token, a root .npmrc can send that token to another
+# registry, so main's list must name it. A literal, so dropping the entry fails this case.
+if grep -qs 'npm publish' "$(dirname "$gate")/workflows/packages.yml"; then
+  run 'main: a root .npmrc is risky' risky=true FILES=.npmrc
+fi
+# Where packages.yml installs packages/contracts with pnpm before publish ships its npm package, the files that
+# change that install are risky: a pnpmfile hook, the workspace file's overrides and patches, and a project .npmrc.
+if grep -qs 'working-directory: packages/contracts' "$(dirname "$gate")/workflows/packages.yml"; then
+  for f in .pnpmfile.cjs .pnpmfile.mjs pnpm-workspace.yaml patches/x.patch .npmrc; do
+    run "main: packages/contracts/$f is risky" risky=true FILES="packages/contracts/$f"
+  done
+fi
 run 'main: a product change is not risky' risky=false FILES=src/App.cs
 run 'main: a nested Directory.Build.targets is risky' risky=true FILES=src/Lib/Directory.Build.targets
 run 'main: a nested Directory.Build.rsp is risky' risky=true FILES=src/Lib/Directory.Build.rsp
+for f in NuGet.Config NuGet.config nuget.config src/Lib/NuGet.Config; do
+  run "main: $f is risky in any casing and at any depth" risky=true FILES="$f"
+done
 run 'main: a lower-case nested directory.packages.props is risky' risky=true FILES=tests/x/directory.packages.props
 
 # The case the gate exists for: a PR aimed at an unprotected branch that carries an edited rules file is still
