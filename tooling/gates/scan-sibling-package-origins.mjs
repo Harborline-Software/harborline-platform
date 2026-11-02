@@ -57,11 +57,15 @@ function scanManifest(path, owned, root) {
 function pnpmRegistryFindings(path, root) {
   const lines = readFileSync(path, 'utf8').split('\n')
   const findings = []
+  let inPackages = false
   for (let index = 0; index < lines.length; index += 1) {
-    const packageMatch = /^\s*'(@harborline-software\/[^@']+)@[^']+':\s*$/.exec(lines[index])
+    // pnpm snapshots contain dependency edges, not package resolutions.
+    if (/^[^\s#][^:]*:/.test(lines[index])) inPackages = /^packages:\s*(?:#.*)?$/.test(lines[index])
+    if (!inPackages) continue
+    const packageMatch = /^ {2}'(@harborline-software\/[^@']+)@[^']+':\s*$/.exec(lines[index])
     if (!packageMatch) continue
     let end = index + 1
-    while (end < lines.length && !/^\s{2}'/.test(lines[end])) end += 1
+    while (end < lines.length && !/^(?:[^\s#]| {2}\S)/.test(lines[end])) end += 1
     const resolution = lines.slice(index + 1, end).find(line => /^\s{4}resolution:\s*/.test(line)) ?? ''
     if (resolution.includes('directory:') || resolution.includes('type: directory') || resolution.includes('file:')) continue
     findings.push({
