@@ -243,3 +243,17 @@ describe('useScrollAffordance revision-1 quality fixtures', () => {
     expect(fixture(qualityCases, 'scroll-affordance.quality.rtl').expected).toEqual({ logicalEdges: true, logicalKeyboardTargets: true, exactMaskDirection: true })
   })
 })
+
+describe('useScrollAffordance percent rounding parity', () => {
+  // T-1106 parity oracle: the percent is Math.round, so an exact .5 rounds up (12.5 -> 13, 62.5 -> 63).
+  // The Blazor lane's ScrollAffordancePolicy must announce the same number for the same geometry.
+  it.each([
+    [50, 'ltr', '13% scrolled'],
+    [250, 'ltr', '63% scrolled'],
+    [-50, 'rtl', '13% scrolled'],
+  ] as const)('announces position %d (%s) of 400 as %s', (position, direction, expected) => {
+    const { result } = hookFor(elementWithGeometry({ scrollSize: 700, clientSize: 300, position, direction }))
+    act(() => vi.runAllTimers())
+    expect(result.current.srMessage).toContain(expected)
+  })
+})
