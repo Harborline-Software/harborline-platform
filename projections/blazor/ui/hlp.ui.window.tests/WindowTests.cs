@@ -39,7 +39,7 @@ public sealed class WindowTests : BunitContext
         // fallback is not emitted beside it (accname 1.2 §4.3.2 takes 2B aria-labelledby before 2D aria-label).
         Assert.Null(dialog.GetAttribute("aria-label"));
         Assert.Equal(["Réduire", "Agrandir", "Fermer"], cut.FindAll("button.hl-window__control").Select(Accname.AccessibleName));
-        Assert.Equal(["Largeur", "Hauteur", "Les deux"], cut.FindAll("[role=separator]").Select(Accname.AccessibleName));
+        Assert.Equal(["Hauteur", "Largeur"], cut.FindAll("[role=separator]").Select(Accname.AccessibleName));
     }
 
     [Fact]
@@ -78,7 +78,8 @@ public sealed class WindowTests : BunitContext
                 builder.AddAttribute(5, nameof(HarborlineWindow.RestoreLabel), "Restaurer");
                 builder.AddAttribute(6, nameof(HarborlineWindow.ResizeWidthLabel), "Largeur");
                 builder.AddAttribute(7, nameof(HarborlineWindow.ResizeHeightLabel), "Hauteur");
-                builder.AddAttribute(8, nameof(HarborlineWindow.ResizeBothLabel), "Les deux");
+                builder.AddAttribute(8, nameof(HarborlineWindow.MoveLabel), "Déplacer");
+                builder.AddAttribute(9, nameof(HarborlineWindow.MoveDescriptionLabel), "Utilisez les flèches");
                 builder.CloseComponent();
             }
         });
@@ -98,7 +99,7 @@ public sealed class WindowTests : BunitContext
         .Add(x => x.CloseLabel, "Fermer").Add(x => x.MinimizeLabel, "Réduire")
         .Add(x => x.MaximizeLabel, "Agrandir").Add(x => x.RestoreLabel, "Restaurer")
         .Add(x => x.ResizeWidthLabel, "Largeur").Add(x => x.ResizeHeightLabel, "Hauteur")
-        .Add(x => x.ResizeBothLabel, "Les deux");
+        .Add(x => x.MoveLabel, "Déplacer").Add(x => x.MoveDescriptionLabel, "Utilisez les flèches");
 
     private static AngleSharp.Dom.IElement Control(IRenderedComponent<HarborlineWindow> cut, string name) =>
         Assert.Single(cut.FindAll("button.hl-window__control"), button => Accname.AccessibleName(button) == name);

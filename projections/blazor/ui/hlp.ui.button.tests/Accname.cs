@@ -116,7 +116,10 @@ internal static class Accname
     private enum Visit { Root, Referenced, Descendant }
 
     // Shown: the root and its ancestors. They count as shown, so 2A is judged as if the root were displayed.
-    private readonly record struct Traversal(IReadOnlyList<IElement> Scope, IReadOnlySet<INode> Shown, bool InReference, bool IncludeHidden);
+    private readonly record struct Traversal(IReadOnlyList<IElement> Scope, IReadOnlySet<INode> Shown, bool InReference, bool IncludeHidden)
+    {
+        public HashSet<INode> Consulted { get; init; } = new(ReferenceEqualityComparer.Instance);
+    }
 
     /// <summary>
     /// The accessible name of <paramref name="element"/>. Fails when the name is empty, or when an
@@ -215,7 +218,12 @@ internal static class Accname
     // accname 1.2 §4.3.2 step 2, for one node.
     private static string TextAlternative(INode node, Visit visit, Traversal traversal)
     {
-        if (node is IText text) return text.Data;                                                     // 2G
+        if (traversal.Consulted.Contains(node)) return string.Empty;
+        if (node is IText text)
+        {
+            traversal.Consulted.Add(node);
+            return text.Data;
+        }
         if (node is not IElement element || NeverContributes(element, visit)) return string.Empty;
 
         if (visit != Visit.Root && !traversal.IncludeHidden && !traversal.Shown.Contains(element) && IsHidden(element))
@@ -223,9 +231,11 @@ internal static class Accname
 
         if (!traversal.InReference && element.HasAttribute("aria-labelledby"))                          // 2B
         {
-            var labelled = ReferencedText(element, "aria-labelledby", traversal.Scope, traversal.Shown);
+            var labelled = ReferencedText(element, "aria-labelledby", traversal.Scope, traversal.Shown, traversal.Consulted);
             if (Flatten(labelled).Length > 0) return labelled;
         }
+
+        traversal.Consulted.Add(node);
 
         if (visit != Visit.Root && IsEmbeddedControl(element))                                          // 2C: not covered
         {
@@ -266,9 +276,12 @@ internal static class Accname
     }
 
     // 2B / §4.2: the text of each referenced node, in attribute order, joined by a space.
-    private static string ReferencedText(IElement element, string attribute, IReadOnlyList<IElement> scope, IReadOnlySet<INode> shown) =>
-        string.Join(" ", Resolve(element, attribute, scope).Select(target =>
-            TextAlternative(target, Visit.Referenced, new Traversal(scope, shown, InReference: true, IncludeHidden: IsHiddenInTree(target, shown)))));
+    private static string ReferencedText(IElement element, string attribute, IReadOnlyList<IElement> scope, IReadOnlySet<INode> shown, HashSet<INode>? consulted = null)
+    {
+        consulted ??= new(ReferenceEqualityComparer.Instance);
+        return string.Join(" ", Resolve(element, attribute, scope).Select(target =>
+            TextAlternative(target, Visit.Referenced, new Traversal(scope, shown, InReference: true, IncludeHidden: IsHiddenInTree(target, shown)) { Consulted = consulted })));
+    }
 
     private static List<IElement> Resolve(IElement element, string attribute, IReadOnlyList<IElement> scope)
     {

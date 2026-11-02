@@ -16,6 +16,16 @@ public sealed class AccnameTests : BunitContext
 
     private static XunitException Fails(Action action) => Assert.Throws<XunitException>(action);
 
+    [Theory]
+    [InlineData("<span id='t'>Alpha</span><span aria-labelledby='t'></span>")]
+    [InlineData("<span aria-labelledby='t'></span><span id='t'>Alpha</span>")]
+    public void ContentAndReferencesConsultEachNodeOnce(string content)
+    {
+        // Oracle: accname 1.2 §4.3.2, each subtree node is consulted only once.
+        var cut = Markup($"<button>{content}</button>");
+        Assert.Equal("Alpha", Accname.AccessibleName(cut.Find("button")));
+    }
+
     // ---- accname 1.2 step 2B: aria-labelledby ----
 
     [Fact]
