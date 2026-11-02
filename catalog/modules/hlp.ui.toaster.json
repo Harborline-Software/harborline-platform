@@ -1,0 +1,59 @@
+{
+  "moduleId": "hlp.ui.toaster",
+  "module": {
+    "interface": {
+      "path": "specs/modules/ui/hlp.ui.toaster/interface.yaml",
+      "revision": 1
+    },
+    "moduleKind": "interactive-component",
+    "presentation": {
+      "disposition": "visual"
+    },
+    "qualityProfile": {
+      "path": "specs/modules/ui/hlp.ui.toaster/quality.yaml",
+      "revision": 1
+    },
+    "owner": "platform-ui",
+    "dependencies": [
+      "hlp.ui.cn",
+      "hlp.ui.default-strings",
+      "hlp.ui.locale-provider"
+    ],
+    "status": "gap-implemented",
+    "depth": {
+      "disposition": "deep-module",
+      "deletionTest": "PASS",
+      "redistributedComplexity": [
+        "host-scoped queue identity, bounded visibility, timer disposal, persistence, async transitions, dismissal, and action policy repeated by every notification host",
+        "variant roles, localized controls, physical placement, logical motion, theme states, and multi-user isolation drifting across projections"
+      ]
+    },
+    "projections": {
+      "react": {
+        "role": "adapter",
+        "seam": "ui.toaster.framework",
+        "path": "projections/react/ui/hlp.ui.toaster",
+        "status": "conformant",
+        "packageContribution": "@harborline-software/ui-react",
+        "conformanceRunner": "conformance/hlp.ui.toaster/runners/run-shared.mjs"
+      },
+      "blazor": {
+        "role": "adapter",
+        "seam": "ui.toaster.framework",
+        "path": "projections/blazor/ui/hlp.ui.toaster",
+        "status": "conformant",
+        "packageContribution": "Harborline.UIAdapters.Blazor",
+        "conformanceRunner": "conformance/hlp.ui.toaster/runners/run-shared.mjs"
+      }
+    }
+  },
+  "seams": {
+    "ui.toaster.framework": {
+      "status": "conformant",
+      "adapters": [
+        "react",
+        "blazor"
+      ]
+    }
+  }
+}

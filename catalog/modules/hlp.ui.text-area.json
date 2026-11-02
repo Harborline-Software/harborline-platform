@@ -1,0 +1,58 @@
+{
+  "moduleId": "hlp.ui.text-area",
+  "module": {
+    "interface": {
+      "path": "specs/modules/ui/hlp.ui.text-area/interface.yaml",
+      "revision": 1
+    },
+    "moduleKind": "interactive-component",
+    "presentation": {
+      "disposition": "visual"
+    },
+    "qualityProfile": {
+      "path": "specs/modules/ui/hlp.ui.text-area/quality.yaml",
+      "revision": 1
+    },
+    "owner": "platform-ui",
+    "dependencies": [
+      "hlp.ui.cn",
+      "hlp.ui.form-field"
+    ],
+    "status": "extracted-candidate",
+    "depth": {
+      "disposition": "deep-module",
+      "deletionTest": "PASS",
+      "redistributedComplexity": [
+        "raw multiline editing, controlled and default values, resize intent, variants, counters, and native limits repeated by dynamic and authored forms",
+        "nullable FormField precedence, accessible relationships, logical counter placement, focus, forced colors, and reduced motion drifting across projections"
+      ]
+    },
+    "projections": {
+      "react": {
+        "role": "adapter",
+        "seam": "ui.text-area.framework",
+        "path": "projections/react/ui/hlp.ui.text-area",
+        "status": "conformant",
+        "packageContribution": "@harborline-software/ui-react",
+        "conformanceRunner": "conformance/hlp.ui.text-area/runners/run-shared.mjs"
+      },
+      "blazor": {
+        "role": "adapter",
+        "seam": "ui.text-area.framework",
+        "path": "projections/blazor/ui/hlp.ui.text-area",
+        "status": "conformant",
+        "packageContribution": "Harborline.UIAdapters.Blazor",
+        "conformanceRunner": "conformance/hlp.ui.text-area/runners/run-shared.mjs"
+      }
+    }
+  },
+  "seams": {
+    "ui.text-area.framework": {
+      "status": "conformant",
+      "adapters": [
+        "react",
+        "blazor"
+      ]
+    }
+  }
+}

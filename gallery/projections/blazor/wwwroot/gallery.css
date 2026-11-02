@@ -58,6 +58,12 @@ body {
   width: min(760px, calc(100vw - 48px));
 }
 
+/* These month scenes need room for the 700px grid plus a classic scrollbar gutter; horizontal overflow has its own scenario. */
+.hl-gallery-scene[data-gallery-scenario="scheduler.month-agenda"],
+.hl-gallery-scene[data-gallery-scenario="scheduler.locale-pseudo"] {
+  width: min(800px, calc(100vw - 48px));
+}
+
 /* An App Shell is application chrome, not a card: boxed into the 760px scene it MEASURES about 700px, and the
    shell places from the class its measured box falls in (dock-model.ts createDockLayout), so rail + a 300px
    pane + the 420px content floor cannot fit and every panel becomes a sheet. A scenario that demonstrates the

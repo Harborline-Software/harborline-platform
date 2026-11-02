@@ -1,0 +1,59 @@
+{
+  "moduleId": "hlp.ui.spinner",
+  "module": {
+    "interface": {
+      "path": "specs/modules/ui/hlp.ui.spinner/interface.yaml",
+      "revision": 1
+    },
+    "moduleKind": "non-interactive-component",
+    "presentation": {
+      "disposition": "visual"
+    },
+    "qualityProfile": {
+      "path": "specs/modules/ui/hlp.ui.spinner/quality.yaml",
+      "revision": 1
+    },
+    "owner": "platform-ui",
+    "dependencies": [
+      "hlp.ui.cn",
+      "hlp.ui.default-strings",
+      "hlp.ui.locale-provider"
+    ],
+    "status": "extracted-candidate",
+    "depth": {
+      "disposition": "deep-module",
+      "deletionTest": "PASS",
+      "redistributedComplexity": [
+        "localized status naming and reduced-motion-safe spinner type, theme, and accessible-label mappings",
+        "accessible naming and reduced-motion behavior remain framework-equivalent"
+      ]
+    },
+    "projections": {
+      "react": {
+        "role": "adapter",
+        "seam": "ui.spinner.framework",
+        "path": "projections/react/ui/hlp.ui.spinner",
+        "status": "conformant",
+        "packageContribution": "@harborline-software/ui-react",
+        "conformanceRunner": "conformance/hlp.ui.spinner/runners/run-shared.mjs"
+      },
+      "blazor": {
+        "role": "adapter",
+        "seam": "ui.spinner.framework",
+        "path": "projections/blazor/ui/hlp.ui.spinner",
+        "status": "conformant",
+        "packageContribution": "Harborline.UIAdapters.Blazor",
+        "conformanceRunner": "conformance/hlp.ui.spinner/runners/run-shared.mjs"
+      }
+    }
+  },
+  "seams": {
+    "ui.spinner.framework": {
+      "status": "conformant",
+      "adapters": [
+        "react",
+        "blazor"
+      ]
+    }
+  }
+}

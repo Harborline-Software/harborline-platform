@@ -1,0 +1,30 @@
+{
+  "moduleId": "hlp.ui.form-field",
+  "legacySourceHashes": {
+    "packages/ui-react/src/components/forms/FormField.tsx": "55dadc9053247c271b62e443c2ed11ee4fbd3dc8e3aa2d7d9ed5d86360dfd941"
+  },
+  "phase4Evidence": "specs/modules/ui/hlp.ui.form-field/interface.yaml",
+  "sourceExtracted": true,
+  "sourceState": "Interface revision 1 preserves the exact pinned hlp.ui.form-field source surface and proves every registered projection through native, shared-conformance, package-only, and applicable gallery/performance gates.",
+  "contentHashes": {
+    "conformance/hlp.ui.form-field/fixtures.yaml": "920759bf122e591b2f71d4d63538de9937787675951505af26ef457bc3f4c02b",
+    "conformance/hlp.ui.form-field/quality-fixtures.yaml": "8664da39359691178ce81e87657c1a2fd1539f6968e9ee3a5184ec82b2d4df3f",
+    "conformance/hlp.ui.form-field/runners/run-shared.mjs": "b02ba4c99c5fb4f52dca1227f369d886541ac2434237a701ca428986b0409ec4",
+    "projections/blazor/ui/hlp.ui.form-field/FormFieldContextValue.cs": "55309241f3383b0fa2dab289a6dd889f34502b27e9129250f8ec918856098f38",
+    "projections/blazor/ui/hlp.ui.form-field/HarborlineFormField.razor": "209c1a4fe24e656c04605dd78316edf8bbd8b0eb41438838a3b7e7e8ec3ec46a",
+    "projections/react/ui/hlp.ui.form-field/src/FormField.tsx": "7c542cf909fd63ad93f89183fd03ca0168ab87927b8a5cd93725a53d54b8b923",
+    "projections/react/ui/hlp.ui.form-field/src/FormFieldContext.tsx": "7d1f08022a2e8500661e8c5a289e2060d253cc85fd784d7c5d33d41aebba578a",
+    "projections/react/ui/hlp.ui.form-field/src/__tests__/FormField.conformance.test.tsx": "b66bbf697f0dbf5babc96fe23b4164d98d56147537a6fdde21dce4c06708db08",
+    "projections/react/ui/hlp.ui.form-field/src/__tests__/FormField.native.test.tsx": "9366ae1ebf799cdecdf702ec67963a1f217493b28dad2a4131ad5c9080ffc7fd",
+    "projections/react/ui/hlp.ui.form-field/src/__tests__/fixtures.ts": "b127213e771e8c17641ffc3eb4d46bdbec40ca2c48b7f1986d0ec51748148b58",
+    "projections/react/ui/hlp.ui.form-field/src/index.ts": "acab0b331fd7134102cf711ae9cc48ee5531d738b279fca3e469541e2cbd9420",
+    "projections/react/ui/hlp.ui.form-field/src/test-setup.ts": "977afde26bba6a51325908cd7713cbfdc87d18f06b78b237c8f364c44864b7de",
+    "projections/react/ui/hlp.ui.form-field/tsconfig.build.json": "0e099f5d261af8071d88d450b1977f1ba69144b0257fa259d34beb39052bb586",
+    "projections/react/ui/hlp.ui.form-field/vitest.config.ts": "846aab8c29678bdb1560e32ba9355fbf8f24086c16a11cfe3758e916b834a739",
+    "specs/modules/ui/hlp.ui.form-field/interface.yaml": "4f4a99c1bf1540176396dcaed4f7d585bdc42180098b43c158b79ae8d71c9592",
+    "specs/modules/ui/hlp.ui.form-field/quality.yaml": "da97289f257d2b1a0e3ad199ddd6459b827f1eb1f917ac37c64baabc2bd24022",
+    "specs/modules/ui/hlp.ui.form-field/scenarios.json": "3d4ba3c25110037b3aa7c06e36d9235b749f24c01ed2465998df136c853f31c4",
+    "specs/modules/ui/hlp.ui.form-field/style.css": "ebbc3f0d192e44ce79e029ba40ead3db6b0ffeeb0ac727c4a71659ae3b9b478a"
+  },
+  "nextGate": "Retain this conformant aggregate contribution while HLF-052 advances to the next Carrier-essential dependency wave."
+}

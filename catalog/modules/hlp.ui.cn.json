@@ -1,0 +1,45 @@
+{
+  "moduleId": "hlp.ui.cn",
+  "module": {
+    "interface": {
+      "path": "specs/modules/ui/hlp.ui.cn/interface.yaml",
+      "revision": 1
+    },
+    "moduleKind": "runtime",
+    "presentation": {
+      "disposition": "not-applicable",
+      "rationale": "Class composition returns deterministic class text and owns no rendered interface."
+    },
+    "qualityProfile": {
+      "path": "specs/modules/ui/hlp.ui.cn/quality.yaml",
+      "revision": 1
+    },
+    "owner": "platform-ui",
+    "dependencies": [],
+    "status": "implemented-gate-model-green",
+    "depth": {
+      "disposition": "deep-module",
+      "deletionTest": "PASS",
+      "redistributedComplexity": [
+        "clsx conditional flattening and ordered object-map handling repeated across more than fifty application-essential modules",
+        "Tailwind modifier, responsive, arbitrary-value, important, negative, duplicate, accessibility, RTL, and logical-utility conflict rules repeated in both language projections"
+      ]
+    },
+    "projections": {
+      "react": {
+        "role": "implementation",
+        "path": "projections/react/ui/hlp.ui.cn",
+        "status": "conformant",
+        "packageContribution": "@harborline-software/ui-react",
+        "conformanceRunner": "conformance/hlp.ui.cn/runners/run-shared.mjs"
+      },
+      "dotnet": {
+        "role": "implementation",
+        "path": "projections/dotnet/foundation/hlp.ui.cn",
+        "status": "conformant",
+        "packageContribution": "Harborline.Foundation",
+        "conformanceRunner": "conformance/hlp.ui.cn/runners/run-shared.mjs"
+      }
+    }
+  }
+}

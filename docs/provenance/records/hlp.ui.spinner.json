@@ -1,0 +1,27 @@
+{
+  "moduleId": "hlp.ui.spinner",
+  "legacySourceHashes": {
+    "packages/ui-react/src/components/feedback/Spinner.tsx": "6aa0c67bed762e2ce95026c047082b1ca6f3ed5e1ef7499fc1a0e6bf50477ba2"
+  },
+  "phase4Evidence": "specs/modules/ui/hlp.ui.spinner/interface.yaml",
+  "sourceExtracted": true,
+  "sourceState": "Interface revision 1 preserves the exact pinned hlp.ui.spinner source surface and proves every registered projection through native, shared-conformance, package-only, and applicable gallery/performance gates.",
+  "contentHashes": {
+    "conformance/hlp.ui.spinner/fixtures.yaml": "cbc77d7296340c22573c5a4f036d2df10b04bc3a2cd1e0747aa4ae1bedbd6347",
+    "conformance/hlp.ui.spinner/quality-fixtures.yaml": "26ecd517118e90901439ae01a3648976a9e8ffb31d78ac3dd3872685437632e0",
+    "conformance/hlp.ui.spinner/runners/run-shared.mjs": "b1cda806d58c8f08b6b62de6f76dfe8b526d3cee5009592b1837a38564f98bce",
+    "projections/blazor/ui/hlp.ui.spinner/HarborlineSpinner.razor": "a601fe353e7434fe2bfb378682c5a59324f455b6d7ed1cbba6274fad72f5bd39",
+    "projections/blazor/ui/hlp.ui.spinner/SpinnerTypes.cs": "be2848dd671c6110e4bbe5d414c954f0121aa22520ce352b5c0ad25891a3b1e1",
+    "projections/react/ui/hlp.ui.spinner/src/Spinner.tsx": "804be9f2e1248ad275f5a27679ca787eb68d9690525957aa5c729fa95a1f1965",
+    "projections/react/ui/hlp.ui.spinner/src/__tests__/Spinner.test.tsx": "b9bb75e9a60a3ac4c665734919be5ba9a4b5037152a5f45fa3e98b3e0dffd1bc",
+    "projections/react/ui/hlp.ui.spinner/src/index.ts": "929965e07faa92215f50a787c4f259e016b7ec2ffca94022a501164d3bb117ce",
+    "projections/react/ui/hlp.ui.spinner/src/test-setup.ts": "977afde26bba6a51325908cd7713cbfdc87d18f06b78b237c8f364c44864b7de",
+    "projections/react/ui/hlp.ui.spinner/tsconfig.build.json": "b46d239811569957f5e8bbde0ae5dadc233375927e930b03e0b1d791ef619f93",
+    "projections/react/ui/hlp.ui.spinner/vitest.config.ts": "bceb76ee852b8060269caf7e0f7a3ea891ee344310ab5e63e7041720246c3632",
+    "specs/modules/ui/hlp.ui.spinner/interface.yaml": "307ce7f41bddf648ba7dcb72d2f90822ba372276c287fa38952da1175cac3440",
+    "specs/modules/ui/hlp.ui.spinner/quality.yaml": "becba25138818ba79322aba483c5eb3bdf5cc621543a222d1c8937aafe2f3ff2",
+    "specs/modules/ui/hlp.ui.spinner/scenarios.json": "601f56a91584f793d3bb35d77e72248784dc168d0479cfc737bb7d5c13a2d33a",
+    "specs/modules/ui/hlp.ui.spinner/style.css": "e7e3a0942e004f4868ab48e73da2822756dcada2197af5efaa3707d1f947550a"
+  },
+  "nextGate": "Retain this conformant aggregate contribution while HLF-052 advances to the next Carrier-essential dependency wave."
+}

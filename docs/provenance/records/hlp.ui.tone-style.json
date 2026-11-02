@@ -1,0 +1,26 @@
+{
+  "moduleId": "hlp.ui.tone-style",
+  "legacySourceHashes": {
+    "packages/builder-kit/src/tokens.ts": "9aa0851ef7bff782b6937f29f9c1920a1e11c848bd8ce26718097cb75a9fccb0"
+  },
+  "phase4Evidence": "specs/modules/ui/hlp.ui.tone-style/interface.yaml",
+  "sourceExtracted": true,
+  "sourceState": "Interface revision 1 preserves the exact pinned hlp.ui.tone-style source surface and proves every registered projection through native, shared-conformance, package-only, and applicable gallery/performance gates.",
+  "contentHashes": {
+    "conformance/hlp.ui.tone-style/fixtures.yaml": "bf4cf6bfb26e0c4e1c0238575a63e683ddaae497c65b70ec4d9ec6651e18d5cf",
+    "conformance/hlp.ui.tone-style/quality-fixtures.yaml": "7eb9d89a12f33ecab4e2929cad199d11a18bd4cb961103dbb0e3ee00f482f3ea",
+    "conformance/hlp.ui.tone-style/runners/run-shared.mjs": "315a2aea3a44e3133b2dabd355d55b873715629fabffd6b89a9eb791df60f208",
+    "projections/dotnet/foundation/hlp.ui.tone-style/ToneStyle.cs": "705e11255e53b8a62600aae4827f201bd4af5fc250fe9c1e1bf993ad31c0bbd1",
+    "projections/react/ui/hlp.ui.tone-style/src/__tests__/fixtures.ts": "50be2f5a0014708f06d97276aaf0fa76e8f27896e619558712dfaf177c538a6c",
+    "projections/react/ui/hlp.ui.tone-style/src/__tests__/tone-style.conformance.test.ts": "6a496bbdffabd269068c6329001949018bc46f6e7eed7f02a6deddf635511b00",
+    "projections/react/ui/hlp.ui.tone-style/src/__tests__/tone-style.native.test.ts": "660660a2c4fb6a5f64e25965cd6f4d23bbd925b80d4b7d92b4a010908ae042a2",
+    "projections/react/ui/hlp.ui.tone-style/src/index.ts": "5999de18df90b05f1732f8e72a1b988fd1340244525e4453b6cbdb606b6c59a0",
+    "projections/react/ui/hlp.ui.tone-style/src/toneStyle.ts": "18b29ad02b8efd04f220b77883d31ec156e928b0a0b6b28591a303ff470527e4",
+    "projections/react/ui/hlp.ui.tone-style/tsconfig.build.json": "e33b32d3c580549dfdc1892827e87ce6714a5236fefc87b75fdb6f0fd93b179b",
+    "projections/react/ui/hlp.ui.tone-style/tsconfig.json": "f556a162dfbce8a8789df76559e27dd768e5d33b71293ad156b039bdabe4b049",
+    "projections/react/ui/hlp.ui.tone-style/vitest.config.ts": "63df60cca3e8038bb58379b5a04bedb05258b27ac344df2b3d480eeeefbb600c",
+    "specs/modules/ui/hlp.ui.tone-style/interface.yaml": "207317c87b03d4bb172d60796b0b3beab8a03473717454c2b518bba0dc85203d",
+    "specs/modules/ui/hlp.ui.tone-style/quality.yaml": "68895e26ce7f598baa86e8d4e98685dd42480aa083d832a275cc6ab17333f86f"
+  },
+  "nextGate": "Retain this conformant aggregate contribution while HLF-052 advances to the next Carrier-essential dependency wave."
+}

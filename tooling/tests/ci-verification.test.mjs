@@ -322,7 +322,7 @@ test('CLI labels preliminary success, blocks a draft without a test-failure clai
 })
 
 // Base-sourced policy (owner 2026-10-01). Oracles: the owner's rulings (one validated plan output, headless on
-// any doubt; fallback only for an absent base aggregator, with the three named lanes), literal fixture results,
+// any doubt; a missing base aggregator blocks after its bootstrap landing), literal fixture results,
 // and real child processes for every planner and aggregator, never stubs of the wrapper's own decisions.
 function policyRepo(files) {
   const dir = mkdtempSync(resolve(tmpdir(), 'base-policy-'))
@@ -425,26 +425,15 @@ test('every planner failure keeps the headless gate, and the planner cannot publ
   }
 })
 
-test('merge-group aggregation falls back to the named lanes only when the base commit has no aggregator', () => {
+test('merge-group aggregation blocks when the base commit has no aggregator', () => {
   const lanes = {'pr-preflight': {result: 'skipped'}, 'phase-4-gate': {result: 'success'}, 'gallery-shard': {result: 'success'}, 'gallery-collect': {result: 'success'}}
   const absent = policyRepo({})
   const aggregate = (policy, needs, env = {}) => wrapper('aggregate', {BASE_POLICY_ROOT: policy.dir, BASE_SHA: policy.sha,
     NEEDS: typeof needs === 'string' ? needs : JSON.stringify(needs), ...env})
   try {
-    const bootstrap = aggregate(absent, lanes)
-    assert.equal(bootstrap.status, 0, bootstrap.stdout)
-    assert.match(bootstrap.stdout, /PASS \(bootstrap aggregator\)/)
-    for (const lane of ['phase-4-gate', 'gallery-shard', 'gallery-collect']) {
-      for (const result of ['failure', 'cancelled', 'skipped', undefined]) {
-        const run = aggregate(absent, {...lanes, [lane]: result === undefined ? undefined : {result}})
-        assert.equal(run.status, 1, `${lane} ${result}`)
-        assert.match(run.stdout, new RegExp(`${lane}: expected success, observed ${result ?? 'missing'}`))
-      }
-    }
-    // A lane removed from `needs` is missing, not passing.
-    const {['gallery-collect']: _, ...removed} = lanes
-    assert.equal(aggregate(absent, removed).status, 1)
-    assert.equal(aggregate(absent, '{bad JSON').status, 1)
+    const missing = aggregate(absent, lanes)
+    assert.equal(missing.status, 1, missing.stdout)
+    assert.match(missing.stdout, /FAIL \(none aggregator\): base commit has no lane aggregator/)
     // Absence must be the base commit's, never a checkout that is missing or at another commit.
     assert.equal(aggregate({dir: absent.dir, sha: 'c'.repeat(40)}, lanes).status, 1)
     assert.equal(aggregate({dir: resolve(absent.dir, 'absent'), sha: absent.sha}, lanes).status, 1)
@@ -464,7 +453,6 @@ test('an existing base aggregator decides; its failure or error blocks and never
   for (const [name, source] of Object.entries(aggregators)) {
     const base = policyRepo({'tooling/verify-ci-lanes.mjs': source})
     try {
-      // Every bootstrap lane succeeded, so a fallback would pass: the block proves no fallback happened.
       const run = wrapper('aggregate', {BASE_POLICY_ROOT: base.dir, BASE_SHA: base.sha, NEEDS: JSON.stringify(lanes)})
       assert.equal(run.status, 1, name)
       assert.match(run.stdout, /FAIL \(base aggregator\)/, name)
