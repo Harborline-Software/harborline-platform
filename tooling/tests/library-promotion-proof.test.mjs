@@ -4,7 +4,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, cpSync } f
 import { tmpdir } from 'node:os'
 import { resolve } from 'node:path'
 import test from 'node:test'
-import { writeLibraryProof, verifyLibraryProof, readLibraryManifest } from '../library-promotion-proof.mjs'
+import { writeLibraryProof, verifyLibraryProof, readLibraryManifest, sourceIdentity } from '../library-promotion-proof.mjs'
 
 const identity = { source: 'a'.repeat(40), repository: 'Harborline-Software/harborline-platform',
   run: '123', attempt: '1', workflow: 'validate.yml@refs/heads/main' }
@@ -14,18 +14,24 @@ const version = '0.1.0-preview.probe'
 const sha256 = 'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad'
 const manifest = { schema: 'harborline-platform/library-manifest/1', packages: [{ id, version, sha256 }] }
 
+// Two jobs since the least-privilege split (owner ruling 2026-11-02): pack-libraries proves the bytes, then uploads
+// them; publish-libraries proves the downloaded bytes again, then attests and pushes. Each order is checked in its job.
 function assertPublicationProofOrder(workflow) {
-  const verifier = workflow.indexOf('run: node tooling/library-promotion-proof.mjs')
-  const attestation = workflow.indexOf('subject-path:')
-  const push = workflow.indexOf('dotnet nuget push')
-  const upload = workflow.indexOf('- name: Upload package manifest')
-  assert.ok(verifier >= 0, 'publication verifier is required')
+  const [beforePublish, publish = ''] = workflow.split('\n  publish-libraries:\n')
+  const pack = beforePublish.split('\n  pack-libraries:\n')[1] ?? ''
+  const proof = 'run: node tooling/library-promotion-proof.mjs'
+  const packVerifier = pack.indexOf(proof)
+  const publishVerifier = publish.indexOf(proof)
+  const attestation = publish.indexOf('subject-path:')
+  const push = publish.indexOf('dotnet nuget push')
+  const upload = pack.indexOf('- name: Upload the packed libraries and their proof')
+  assert.ok(packVerifier >= 0 && publishVerifier >= 0, 'publication verifier is required')
   assert.ok(attestation >= 0, 'attestation is required')
   assert.ok(push >= 0, 'publication push is required')
   assert.ok(upload >= 0, 'accepted proof upload is required')
-  assert.ok(verifier < upload, 'proof must precede accepted proof upload')
-  assert.ok(verifier < attestation, 'proof must precede attestation')
-  assert.ok(verifier < push, 'proof must precede push')
+  assert.ok(packVerifier < upload, 'proof must precede accepted proof upload')
+  assert.ok(publishVerifier < attestation, 'proof must precede attestation')
+  assert.ok(publishVerifier < push, 'proof must precede push')
 }
 
 function assertConsumerProofOrder(producer) {
@@ -90,6 +96,14 @@ test('wrong manifest, source, workflow, run and attempt cannot promote another p
   assert.throws(() => verifyLibraryProof(feed, [id], version, identity), /package mismatch/)
 })
 
+test('a re-run of only publish-libraries verifies against the attempt pack-libraries recorded', () => {
+  const root = resolve(import.meta.dirname, '../..')
+  const retry = { GITHUB_REPOSITORY: 'Harborline-Software/harborline-platform', GITHUB_RUN_ID: '123', GITHUB_RUN_ATTEMPT: '2' }
+  assert.equal(sourceIdentity(root, retry).attempt, '2')
+  assert.equal(sourceIdentity(root, { ...retry, HARBORLINE_PRODUCER_ATTEMPT: '1' }).attempt, '1')
+  assert.equal(sourceIdentity(root, { ...retry, HARBORLINE_PRODUCER_ATTEMPT: '1' }).run, '123')
+})
+
 test('publication proof follows the real consumer and closure assertions, and precedes attest/push', () => {
   const producer = readFileSync(resolve(import.meta.dirname, '../verify-package-fixtures.mjs'), 'utf8')
   const workflow = readFileSync(resolve(import.meta.dirname, '../../.github/workflows/validate.yml'), 'utf8')
@@ -106,7 +120,7 @@ test('deleting any required publication marker is refused before comparing order
   assert.throws(() => assertPublicationProofOrder(deleted), /publication verifier is required/)
   for (const [marker, refusal] of [['subject-path:', /attestation is required/],
     ['dotnet nuget push', /publication push is required/],
-    ['- name: Upload package manifest', /accepted proof upload is required/]]) {
+    ['- name: Upload the packed libraries and their proof', /accepted proof upload is required/]]) {
     const removed = workflow.replace(marker, '')
     assert.notEqual(removed, workflow, `planted deletion must remove ${marker}`)
     assert.throws(() => assertPublicationProofOrder(removed), refusal)
@@ -170,7 +184,8 @@ test('manifest binding checks the final wrapped file bytes rather than only pars
 test('accepted proof upload cannot precede the verifier', () => {
   const workflow = readFileSync(resolve(import.meta.dirname, '../../.github/workflows/validate.yml'), 'utf8')
   const verifier = '      - name: Verify exact consumed bytes before attestation and publication\n        run: node tooling/library-promotion-proof.mjs\n'
-  const moved = workflow.replace(verifier, '').replace('      - name: Attest every packed library', verifier + '      - name: Attest every packed library')
+  const upload = '      - name: Upload the packed libraries and their proof\n'
+  const moved = workflow.replace(upload, '').replace(verifier, upload + verifier)
   assert.notEqual(moved, workflow, 'the planted move must place upload before verification')
   assert.throws(() => assertPublicationProofOrder(moved), /proof must precede accepted proof upload/)
 })
