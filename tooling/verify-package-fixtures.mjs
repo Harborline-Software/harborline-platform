@@ -1550,6 +1550,34 @@ function walkFiles(dir) {
   })
 }
 
+// T1035: Chris's finite T089 approval is the two identities in appshell-feed-provenance.json
+// (repository/ref/SHA-256) and appshell-npm/pnpm-lock.yaml (names/versions/SHA-512).
+// Freeze the entire two-file graph, including every manifest dependency lane: unknown
+// scoped packages and registry lookalikes must refuse before any age exception or install.
+function appShellLocalFeedSettings(inputs) {
+  const approved = {
+    provenance: 'c725a4ee94637d908162e39c623fc8f90893000afdf8a7b830b34bf06bfcafac',
+    lock: '4fa79d7ad62920fbd9e30588cfecbca45375c975d7c0fb29206a5be2c404a7a2',
+    manifest: 'b20dc2c52604dd1489041ab7e7327861088fdba66744947229f124aba7eba2a8',
+  }
+  for (const [key, expected] of Object.entries(approved)) {
+    if (createHash('sha256').update(inputs[key]).digest('hex') !== expected) {
+      throw new Error(`T1035 local-only approval no longer matches its pinned ${key}; renewed review required`)
+    }
+  }
+  if (JSON.stringify([...inputs.files].sort()) !== JSON.stringify(['exercise.mjs', 'package.json', 'pnpm-lock.yaml'])) {
+    throw new Error('T1035 local-only approval refuses additional consumer files or configuration')
+  }
+  const apiContracts = JSON.parse(inputs.provenance).artifacts.find(a => a.id === 'contracts')
+  return {
+    overrides: { [apiContracts.packageName]: `file:./feed/${apiContracts.tarball}` },
+    minimumReleaseAgeExclude: [
+      '@harborline-software/api-contracts@0.1.0-alpha.1',
+      '@harborline-software/capability-host@0.0.0',
+    ],
+  }
+}
+
 function verifyAppShellCapability() {
   const corpusSource = resolve(root, 'conformance/hlp.app-shell/appshell-vertical-cases.json')
   const corpus = JSON.parse(readFileSync(corpusSource, 'utf8'))
@@ -1598,26 +1626,29 @@ function verifyAppShellCapability() {
   // ticket-089 SHA-256 identities pinned here; never built or searched for implicitly.
   const npmConsumer = resolve(fixtureRoot, 'appshell-capability-npm-consumer')
   cpSync(resolve(root, 'tests/package-consumers/appshell-npm'), npmConsumer, { recursive: true })
+  const npmManifestPath = resolve(npmConsumer, 'package.json')
+  const npmManifestBytes = readFileSync(npmManifestPath)
+  const provenanceBytes = readFileSync(resolve(root, 'tooling/appshell-feed-provenance.json'))
+  const localFeedSettings = appShellLocalFeedSettings({
+    provenance: provenanceBytes,
+    lock: readFileSync(resolve(npmConsumer, 'pnpm-lock.yaml')),
+    manifest: npmManifestBytes,
+    files: readdirSync(npmConsumer),
+  })
   copyFileSync(contractSource, resolve(npmConsumer, 'appshell-contract-cases.json'))
   const feed = resolve(npmConsumer, 'feed')
   mkdirSync(feed, { recursive: true })
-  // Read the pins from the manifest rather than repeating them. resolve-appshell-feed.mjs already
-  // parses this file and verifies the same sha256 before use; a second copy here is a second thing
-  // to forget when a ref moves (ticket 099 item 7).
-  const feedProvenance = JSON.parse(readFileSync(resolve(root, 'tooling/appshell-feed-provenance.json'), 'utf8'))
+  const feedProvenance = JSON.parse(provenanceBytes)
   for (const artifact of feedProvenance.artifacts) {
     stageCheckedTarball(process.env[artifact.env], resolve(feed, artifact.tarball), artifact.sha256)
   }
-  // The committed manifest carries no local package protocol (repository rule); the
-  // disposable copy gets the staged-feed dependencies written here, at run time only.
-  const npmManifestPath = resolve(npmConsumer, 'package.json')
-  const npmManifest = JSON.parse(readFileSync(npmManifestPath, 'utf8'))
+  // Only the disposable copy receives local protocols and the two version-specific exceptions.
+  const npmManifest = JSON.parse(npmManifestBytes)
+  npmManifest.packageManager = 'pnpm@11.1.3'
   npmManifest.dependencies = { '@harborline-software/capability-host': 'file:./feed/harborline-software-capability-host-0.0.0.tgz' }
-  // 246: the api wire package is @harborline-software/api-contracts; take name and tarball from the provenance the feed was staged from.
-  const apiContracts = feedProvenance.artifacts.find(a => a.id === 'contracts')
-  npmManifest.overrides = { [apiContracts.packageName]: `file:./feed/${apiContracts.tarball}` }
+  writeFileSync(resolve(npmConsumer, 'pnpm-workspace.yaml'), `${JSON.stringify(localFeedSettings, null, 2)}\n`)
   writeFileSync(npmManifestPath, `${JSON.stringify(npmManifest, null, 2)}\n`)
-  run('npm', ['install', '--ignore-scripts', '--no-audit', '--no-fund', '--package-lock=false'], { cwd: npmConsumer })
+  run('pnpm', ['install', '--frozen-lockfile', '--ignore-scripts'], { cwd: npmConsumer })
   const npmOutput = run(process.execPath, ['--conditions=browser', 'exercise.mjs'], { cwd: npmConsumer })
   if (!npmOutput.includes('APPSHELL_CAPABILITY_HOST_PASS:')) throw new Error(`App-shell capability-host proof absent: ${npmOutput}`)
   const consumerSources = walkFiles(npmConsumer).filter(x => !x.includes('node_modules') && /\.(?:js|mjs|ts|tsx)$/.test(x) && !x.endsWith(`${'exercise'}.mjs`))
