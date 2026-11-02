@@ -845,8 +845,7 @@
         "+   - 'button \"Photo-with-pose capture: 9:00 AM to 10:30 AM\"': Photo-with-pose capture 9:00 AM–10:30 AM",
         "+   - 'button \"Blueprint placement: 9:30 AM to 11:00 AM\"': Blueprint placement 9:30 AM–11:00 AM",
         "+   - 'button \"Inspection handoff: 1:00 PM to 2:00 PM\"': Inspection handoff 1:00 PM–2:00 PM",
-        "+   - 'button \"Field verification: 8:30 AM to 10:00 AM\"': Field verification 8:30 AM–10:00 AM",
-        "+ - text: Scrollable, showing 1 to 6 of 7"
+        "+   - 'button \"Field verification: 8:30 AM to 10:00 AM\"': Field verification 8:30 AM–10:00 AM"
       ]
     },
     {
@@ -1904,8 +1903,7 @@
         "+   - 'button \"Event 253: 9:00 AM to 9:30 AM\"': Event 253 9:00 AM–9:30 AM",
         "+   - 'button \"Event 254: 9:05 AM to 9:35 AM\"': Event 254 9:05 AM–9:35 AM",
         "+   - 'button \"Event 255: 9:10 AM to 9:40 AM\"': Event 255 9:10 AM–9:40 AM",
-        "+   - 'button \"Event 256: 9:15 AM to 9:45 AM\"': Event 256 9:15 AM–9:45 AM",
-        "+ - text: Scrollable, showing 1 to 6 of 7"
+        "+   - 'button \"Event 256: 9:15 AM to 9:45 AM\"': Event 256 9:15 AM–9:45 AM"
       ]
     },
     {
@@ -2207,8 +2205,7 @@
         "+   - 'button \"Photo-with-pose capture: 9:00 AM to 10:30 AM\"': Photo-with-pose capture 9:00 AM–10:30 AM",
         "+   - 'button \"Blueprint placement: 9:30 AM to 11:00 AM\"': Blueprint placement 9:30 AM–11:00 AM",
         "+   - 'button \"Inspection handoff: 1:00 PM to 2:00 PM\"': Inspection handoff 1:00 PM–2:00 PM",
-        "+   - 'button \"Field verification: 8:30 AM to 10:00 AM\"': Field verification 8:30 AM–10:00 AM",
-        "+ - text: Scrollable, showing 1 to 6 of 7"
+        "+   - 'button \"Field verification: 8:30 AM to 10:00 AM\"': Field verification 8:30 AM–10:00 AM"
       ]
     },
     {
@@ -2248,8 +2245,7 @@
         "-   - 'img \"Inspection handoff: 1:00 PM – 2:00 PM\"': Inspection handoff 1:00 PM–2:00 PM",
         "+   - 'img \"Photo-with-pose capture: 9:00 AM to 10:30 AM\"': Photo-with-pose capture 9:00 AM–10:30 AM",
         "+   - 'img \"Blueprint placement: 9:30 AM to 11:00 AM\"': Blueprint placement 9:30 AM–11:00 AM",
-        "+   - 'img \"Inspection handoff: 1:00 PM to 2:00 PM\"': Inspection handoff 1:00 PM–2:00 PM",
-        "+ - text: Scrollable region, 45% scrolled, use arrow keys to scroll"
+        "+   - 'img \"Inspection handoff: 1:00 PM to 2:00 PM\"': Inspection handoff 1:00 PM–2:00 PM"
       ]
     },
     {
@@ -2289,8 +2285,7 @@
         "-   - 'img \"Inspection handoff: 1:00 PM – 2:00 PM\"': Inspection handoff 1:00 PM–2:00 PM",
         "+   - 'img \"Photo-with-pose capture: 9:00 AM to 10:30 AM\"': Photo-with-pose capture 9:00 AM–10:30 AM",
         "+   - 'img \"Blueprint placement: 9:30 AM to 11:00 AM\"': Blueprint placement 9:30 AM–11:00 AM",
-        "+   - 'img \"Inspection handoff: 1:00 PM to 2:00 PM\"': Inspection handoff 1:00 PM–2:00 PM",
-        "+ - text: Scrollable region, 45% scrolled, use arrow keys to scroll"
+        "+   - 'img \"Inspection handoff: 1:00 PM to 2:00 PM\"': Inspection handoff 1:00 PM–2:00 PM"
       ]
     },
     {
@@ -2330,8 +2325,7 @@
         "-   - 'img \"Inspection handoff: 1:00 PM – 2:00 PM\"': Inspection handoff 1:00 PM–2:00 PM",
         "+   - 'img \"Photo-with-pose capture: 9:00 AM to 10:30 AM\"': Photo-with-pose capture 9:00 AM–10:30 AM",
         "+   - 'img \"Blueprint placement: 9:30 AM to 11:00 AM\"': Blueprint placement 9:30 AM–11:00 AM",
-        "+   - 'img \"Inspection handoff: 1:00 PM to 2:00 PM\"': Inspection handoff 1:00 PM–2:00 PM",
-        "+ - text: Scrollable region, 45% scrolled, use arrow keys to scroll"
+        "+   - 'img \"Inspection handoff: 1:00 PM to 2:00 PM\"': Inspection handoff 1:00 PM–2:00 PM"
       ]
     },
     {
@@ -2376,8 +2370,7 @@
         "+   - 'button \"Photo-with-pose capture: 9:00 AM to 10:30 AM\"': Photo-with-pose capture 9:00 AM–10:30 AM",
         "+   - 'button \"Blueprint placement: 9:30 AM to 11:00 AM\"': Blueprint placement 9:30 AM–11:00 AM",
         "+   - 'button \"Inspection handoff: 1:00 PM to 2:00 PM\"': Inspection handoff 1:00 PM–2:00 PM",
-        "+   - 'button \"Field verification: 8:30 AM to 10:00 AM\"': Field verification 8:30 AM–10:00 AM",
-        "+ - text: Scrollable, showing 1 to 6 of 7"
+        "+   - 'button \"Field verification: 8:30 AM to 10:00 AM\"': Field verification 8:30 AM–10:00 AM"
       ]
     },
     {
