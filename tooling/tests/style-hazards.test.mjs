@@ -48,12 +48,12 @@ const listed = () => run(['--list']).out.trim().split('\n').filter(Boolean).map(
 test('the acknowledged hazards are exactly the listed selector-level entries', () => {
   const {status, out} = run([])
   assert.equal(status, 0, out)
-  assert.match(out, /acknowledged, tracked by ticket \(20\)/)
+  assert.match(out, /acknowledged, tracked by ticket \(19\)/)
   const findings = listed()
-  assert.equal(findings.length, 20)
+  assert.equal(findings.length, 19)
   const modules = [...new Set(findings.map(([, module]) => module.replace('hlp.ui.', '')))].sort()
   assert.deepEqual(modules, [
-    'date-field', 'date-time-field', 'gantt', 'layers-rail', 'notification-center', 'page', 'radio-group',
+    'date-field', 'date-time-field', 'gantt', 'notification-center', 'page', 'radio-group',
     'schema-form', 'scroll-affordance', 'tooltip',
   ])
 })
