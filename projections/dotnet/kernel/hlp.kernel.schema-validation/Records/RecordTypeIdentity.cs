@@ -47,6 +47,13 @@ public sealed record FieldDefinition(
     /// settling the conflict belongs to the offline runtime (records-eng-25).
     /// </summary>
     public FieldConflictPolicy? ConflictPolicy { get; init; }
+
+    /// <summary>
+    /// The one domain role that may write this field (records-ck-14, L075, L1008): the only place read and write diverge
+    /// on one field. Null declares no divergence. This is the declaration only: publication and installation resolve the
+    /// name against the role vocabulary, and enforcing it belongs to the write path.
+    /// </summary>
+    public string? WriteRoleId { get; init; }
 }
 
 /// <summary>
