@@ -1,0 +1,23 @@
+{
+  "moduleId": "hlp.ui.side-nav-group",
+  "legacySourceHashes": {
+    "packages/ui-react/src/components/navigation/Menu.tsx": "033f5f999dc4632239aa0280d63c0741ccc6b90100940684b32fb8d8d37aca89"
+  },
+  "phase4Evidence": "specs/modules/ui/hlp.ui.side-nav-group/interface.yaml",
+  "sourceExtracted": true,
+  "sourceState": "Interface revision 1 preserves the exact pinned hlp.ui.side-nav-group source surface and proves every registered projection through native, shared-conformance, package-only, and applicable gallery/performance gates.",
+  "contentHashes": {
+    "conformance/hlp.ui.side-nav-group/fixtures.yaml": "befe9e4bdb49b91686b809d8437ab2499060b447b6cb959e74ce1fed0a344133",
+    "conformance/hlp.ui.side-nav-group/quality-fixtures.yaml": "266c08374366ef375f7b11f2bd24c1efd2617208f946080f585117aa260297c1",
+    "conformance/hlp.ui.side-nav-group/runners/run-shared.mjs": "e87a02111338e32737be0ca27ed2773223869501eac66bb7379381dbde793cba",
+    "projections/dotnet/foundation/hlp.ui.side-nav-group/SideNavGroup.cs": "010256bf98efc1f42039a2818413655a691c23a5f371ee3621d50942f8ecbd86",
+    "projections/react/ui/hlp.ui.side-nav-group/src/__tests__/SideNavGroup.test.ts": "151a43ea600094263e41c53642a04da5f031eb18b2b35eeec8863086ad95e6a0",
+    "projections/react/ui/hlp.ui.side-nav-group/src/index.ts": "9b99f2e65e319e805f5222987c3bb8938d5d18412f79e92ab59270513f688267",
+    "projections/react/ui/hlp.ui.side-nav-group/src/test-setup.ts": "977afde26bba6a51325908cd7713cbfdc87d18f06b78b237c8f364c44864b7de",
+    "projections/react/ui/hlp.ui.side-nav-group/tsconfig.build.json": "ea7fe4b20ef2e3af10420504c40fe62ec6ca00b21797180d094901e10f9e6284",
+    "projections/react/ui/hlp.ui.side-nav-group/vitest.config.ts": "d7518af7d4a009d2be50ebc410f51111c942f68d3db0a414b6ecfb601be7ea99",
+    "specs/modules/ui/hlp.ui.side-nav-group/interface.yaml": "a884d44fd14f2acbc33832a8210a8f87c79e8eecaf21989b8208919d02cad867",
+    "specs/modules/ui/hlp.ui.side-nav-group/quality.yaml": "5c7163a45c4ed3da0bd581c14ea440662509e4fd34671239e4014623ab7190ee"
+  },
+  "nextGate": "Retain this conformant aggregate contribution while HLF-052 advances to the next Carrier-essential dependency wave."
+}

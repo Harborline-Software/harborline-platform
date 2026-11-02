@@ -1,0 +1,25 @@
+{
+  "moduleId": "hlp.kernel.work-items",
+  "phase4Evidence": "specs/modules/kernel/hlp.kernel.work-items/interface.yaml",
+  "sourceExtracted": true,
+  "sourceState": "Revision 2 retains the durable work-item behavior and adds common request admission fences: multi-command requests refuse with structured 400 evidence before dispatch, and definition-backed writes outside their half-open contract window refuse with structured 422 evidence before execution. The general workflow interpreter, host object unit-of-work effect delegate, Carrier UI, and direct Workflow authoring-contract dependency remain excluded.",
+  "contentHashes": {
+    "conformance/hlp.kernel.work-items/fixtures.yaml": "43e553184896fd4ea336926c0fe6a37057148e93b4cee3efdf90809071ae5690",
+    "projections/dotnet/kernel/hlp.kernel.work-items.tests/CommandRequestBoundaryTests.cs": "ac9ba063caac634ad663380649db91fff8c2fbdb16555df09c996889153de838",
+    "projections/dotnet/kernel/hlp.kernel.work-items.tests/Harborline.Kernel.WorkItems.Tests.csproj": "5e4767a208bb9a78ae64b59191e391ed5ebc6072558b1feda3cd024ae1b427ea",
+    "projections/dotnet/kernel/hlp.kernel.work-items.tests/WorkItemCompositionTests.cs": "b48a62da9d2ff0a31ce839d7b13da0b653ebe3fe98ee350e2e5eb89dce778a39",
+    "projections/dotnet/kernel/hlp.kernel.work-items.tests/WorkItemKernelTests.cs": "8c7905635e47e9779ba98f3dadd6b052486628c05a6f137753dab6affeca051d",
+    "projections/dotnet/kernel/hlp.kernel.work-items/CommandRequestBoundary.cs": "3fddcbda34a886d8c35a5c5fe2ea05ce841186d5f9cc5d5397b5a33168e450f3",
+    "projections/dotnet/kernel/hlp.kernel.work-items/DependencyInjection/WorkItemServiceCollectionExtensions.cs": "00f6c1b05076e9dd0eb1b2cbb691869f4e467e611d82a47bbbe249d25bf076e0",
+    "projections/dotnet/kernel/hlp.kernel.work-items/FileJournalWorkItemStore.cs": "bebc530696ee0289bfd9fce1023dcee79161fc3723fb610ed4f493ece51aa05b",
+    "projections/dotnet/kernel/hlp.kernel.work-items/InMemoryWorkItemStore.cs": "76efc3d0f76f9afa1398582aa0d1878433ba84d7488347003365e8bcd09c640c",
+    "projections/dotnet/kernel/hlp.kernel.work-items/README.md": "2c0fa3582f1832dd124fe1c73c264f8115aa9652802c3fb3d5d830c0e97b4a3e",
+    "projections/dotnet/kernel/hlp.kernel.work-items/Harborline.Kernel.WorkItems.csproj": "3bef0d8bc0f1a3e5043ccbe63ffd7276c72ceab4fb8fd3bc78e5895d1d94d23c",
+    "projections/dotnet/kernel/hlp.kernel.work-items/WorkItemCanonical.cs": "dfb4e789d688df7610c192f7523a57190839cd52bdc6a00a0a0e20da64210d5c",
+    "projections/dotnet/kernel/hlp.kernel.work-items/WorkItemContracts.cs": "481c512a9226da419ffe2980da8ef5b98a7d616039a641df60f4d3347ccab7c0",
+    "projections/dotnet/kernel/hlp.kernel.work-items/WorkItemKernel.cs": "a51524524f63b01ba8b8ece28e5477481ca435b50379ed56a5a611ece21b4570",
+    "projections/dotnet/kernel/hlp.kernel.work-items/WorkItemPersistence.cs": "84609b6df1e9b83c4f987ae8f41902a26b935d089e5df22c590f9dc9eb936c74",
+    "specs/modules/kernel/hlp.kernel.work-items/interface.yaml": "38c5bdc9832cb7d6e67e5b28a142a36636802c4523bc8d1e6b0fe4c29bc5301a"
+  },
+  "nextGate": "Implement hlp.blocks.inspection-review over Forms Engine and this work-item kernel, then prove the authenticated tenant-scoped vertical slice."
+}

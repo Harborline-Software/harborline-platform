@@ -1,0 +1,27 @@
+{
+  "moduleId": "hlp.ui.badge",
+  "legacySourceHashes": {
+    "packages/ui-react/src/components/badges/Badge.tsx": "af4d12f10067078c1ba8553ac07f55393b72223bd1e5101b20e99abbeeeb4373"
+  },
+  "phase4Evidence": "specs/modules/ui/hlp.ui.badge/interface.yaml",
+  "sourceExtracted": true,
+  "sourceState": "Interface revision 1 preserves the exact pinned hlp.ui.badge source surface and proves every registered projection through native, shared-conformance, package-only, and applicable gallery/performance gates.",
+  "contentHashes": {
+    "conformance/hlp.ui.badge/fixtures.yaml": "8230cf3883b39148cff13b8d25c9c5f5d82a5dbc2bbf93765f8cf4cf6828d7d3",
+    "conformance/hlp.ui.badge/quality-fixtures.yaml": "54d4fce48d478aeeeda964daa7e514a3d535cc15a02c92650c08e92e33b6aabb",
+    "conformance/hlp.ui.badge/runners/run-shared.mjs": "8aa8b0441d0d62fcaca477f560db4f14ce98901e66ad42f91671dd67ed24858e",
+    "projections/blazor/ui/hlp.ui.badge/BadgeTypes.cs": "12faf97351a3a78f123047359affe0bb7037edc32814ea91356f14334bb979d8",
+    "projections/blazor/ui/hlp.ui.badge/HarborlineBadge.razor": "016d3e6e8f325c239e941dc030658655b8c046fa3e1bed9a4647c3c623efaa0b",
+    "projections/react/ui/hlp.ui.badge/src/Badge.tsx": "37e6d51ab13992d6d3d89d9e400e7ddd562e6929b776da4350c08d4af856802b",
+    "projections/react/ui/hlp.ui.badge/src/__tests__/Badge.test.tsx": "5f9d2dd9f59a80a709e17d9455056e93b0ef89740ad77d4ff50762b6b5db1969",
+    "projections/react/ui/hlp.ui.badge/src/index.ts": "bbcfc09a1c8e5250b6c7cb92329801e2095460c012c8520ec2d0258b8185ff1b",
+    "projections/react/ui/hlp.ui.badge/src/test-setup.ts": "977afde26bba6a51325908cd7713cbfdc87d18f06b78b237c8f364c44864b7de",
+    "projections/react/ui/hlp.ui.badge/tsconfig.build.json": "93b6d33a3b99f92b3da0b06cee624397695c9f72870bef171cf2b4abb3700f56",
+    "projections/react/ui/hlp.ui.badge/vitest.config.ts": "bceb76ee852b8060269caf7e0f7a3ea891ee344310ab5e63e7041720246c3632",
+    "specs/modules/ui/hlp.ui.badge/interface.yaml": "1a912a30093b4b3b65f7f45d8a80552a26fe254eebca260bba019eb80a210b21",
+    "specs/modules/ui/hlp.ui.badge/quality.yaml": "cde7aa3da7f2ebd61b2e4aeac036b6be62be362308a824faba0a40854fa93fb4",
+    "specs/modules/ui/hlp.ui.badge/scenarios.json": "48bc23bb008131100866ca08ca5c2448e5690f90be77603acae81614a65a5943",
+    "specs/modules/ui/hlp.ui.badge/style.css": "0f1a5f6dbd56858525c17a00d9a58e37b263b746d57f9796f8e63de48f03f64d"
+  },
+  "nextGate": "Retain this conformant aggregate contribution while HLF-052 advances to the next Carrier-essential dependency wave."
+}

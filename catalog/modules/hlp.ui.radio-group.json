@@ -1,0 +1,58 @@
+{
+  "moduleId": "hlp.ui.radio-group",
+  "module": {
+    "interface": {
+      "path": "specs/modules/ui/hlp.ui.radio-group/interface.yaml",
+      "revision": 1
+    },
+    "moduleKind": "interactive-component",
+    "presentation": {
+      "disposition": "visual"
+    },
+    "qualityProfile": {
+      "path": "specs/modules/ui/hlp.ui.radio-group/quality.yaml",
+      "revision": 1
+    },
+    "owner": "platform-ui",
+    "dependencies": [
+      "hlp.ui.cn",
+      "hlp.ui.form-field"
+    ],
+    "status": "extracted-candidate",
+    "depth": {
+      "disposition": "deep-module",
+      "deletionTest": "PASS",
+      "redistributedComplexity": [
+        "native grouped selection, per-option states and descriptions repeated by schema and authored forms",
+        "ambient validation, required and disabled behavior plus logical orientation drifting between projections"
+      ]
+    },
+    "projections": {
+      "react": {
+        "role": "adapter",
+        "seam": "ui.radio-group.framework",
+        "path": "projections/react/ui/hlp.ui.radio-group",
+        "status": "conformant",
+        "packageContribution": "@harborline-software/ui-react",
+        "conformanceRunner": "conformance/hlp.ui.radio-group/runners/run-shared.mjs"
+      },
+      "blazor": {
+        "role": "adapter",
+        "seam": "ui.radio-group.framework",
+        "path": "projections/blazor/ui/hlp.ui.radio-group",
+        "status": "conformant",
+        "packageContribution": "Harborline.UIAdapters.Blazor",
+        "conformanceRunner": "conformance/hlp.ui.radio-group/runners/run-shared.mjs"
+      }
+    }
+  },
+  "seams": {
+    "ui.radio-group.framework": {
+      "status": "conformant",
+      "adapters": [
+        "react",
+        "blazor"
+      ]
+    }
+  }
+}

@@ -1,0 +1,60 @@
+{
+  "moduleId": "hlp.ui.text-box",
+  "module": {
+    "interface": {
+      "path": "specs/modules/ui/hlp.ui.text-box/interface.yaml",
+      "revision": 1
+    },
+    "moduleKind": "interactive-component",
+    "presentation": {
+      "disposition": "visual"
+    },
+    "qualityProfile": {
+      "path": "specs/modules/ui/hlp.ui.text-box/quality.yaml",
+      "revision": 1
+    },
+    "owner": "platform-ui",
+    "dependencies": [
+      "hlp.ui.default-strings",
+      "hlp.ui.form-field",
+      "hlp.ui.input",
+      "hlp.ui.locale-provider"
+    ],
+    "status": "gap-implemented",
+    "depth": {
+      "disposition": "deep-module",
+      "deletionTest": "PASS",
+      "redistributedComplexity": [
+        "controlled and uncontrolled string ownership, clear and reveal actions, and Form Field merging repeated by every text editor",
+        "input attribute targeting, keyboard-reachable actions, disabled safety, localization, RTL, appearance, and replacement parity drifting across projections"
+      ]
+    },
+    "projections": {
+      "react": {
+        "role": "adapter",
+        "seam": "ui.text-box.framework",
+        "path": "projections/react/ui/hlp.ui.text-box",
+        "status": "conformant",
+        "packageContribution": "@harborline-software/ui-react",
+        "conformanceRunner": "conformance/hlp.ui.text-box/runners/run-shared.mjs"
+      },
+      "blazor": {
+        "role": "adapter",
+        "seam": "ui.text-box.framework",
+        "path": "projections/blazor/ui/hlp.ui.text-box",
+        "status": "conformant",
+        "packageContribution": "Harborline.UIAdapters.Blazor",
+        "conformanceRunner": "conformance/hlp.ui.text-box/runners/run-shared.mjs"
+      }
+    }
+  },
+  "seams": {
+    "ui.text-box.framework": {
+      "status": "conformant",
+      "adapters": [
+        "react",
+        "blazor"
+      ]
+    }
+  }
+}

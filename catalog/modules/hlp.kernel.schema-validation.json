@@ -1,0 +1,46 @@
+{
+  "moduleId": "hlp.kernel.schema-validation",
+  "module": {
+    "interface": {
+      "path": "specs/modules/kernel/hlp.kernel.schema-validation/interface.yaml",
+      "revision": 2
+    },
+    "moduleKind": "runtime",
+    "presentation": {
+      "disposition": "not-applicable",
+      "rationale": "JSON Schema registration and payload validation are runtime behavior with no visual presentation surface."
+    },
+    "owner": "platform-kernel",
+    "dependencies": [
+      "hlp.contracts.fields",
+      "hlp.contracts.identities"
+    ],
+    "status": "implemented-package-consumer-green",
+    "depth": {
+      "disposition": "deep-module",
+      "deletionTest": "PASS",
+      "redistributedComplexity": [
+        "draft selection, canonical addressing, resource bounds, pattern timeout, and localizable error projection repeated in every Forms host",
+        "legacy schema migration, epochs, compaction, blobs, event bus, and federation pulled into every validation-only consumer"
+      ]
+    },
+    "projections": {
+      "dotnet": {
+        "role": "implementation",
+        "path": "projections/dotnet/kernel/hlp.kernel.schema-validation",
+        "status": "preview",
+        "artifact": {
+          "type": "nuget",
+          "id": "Harborline.Kernel.SchemaValidation",
+          "assembly": "Harborline.Kernel.SchemaValidation",
+          "manifest": "projections/dotnet/kernel/hlp.kernel.schema-validation/Harborline.Kernel.SchemaValidation.csproj",
+          "identityAuthority": "Harborline",
+          "producerRepository": "harborline-platform",
+          "distribution": "internal-only",
+          "candidateRole": "local-shadow",
+          "registryAvailable": false
+        }
+      }
+    }
+  }
+}

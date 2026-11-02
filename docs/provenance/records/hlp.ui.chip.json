@@ -1,0 +1,29 @@
+{
+  "moduleId": "hlp.ui.chip",
+  "legacySourceHashes": {
+    "packages/ui-react/src/components/feedback/Chip.tsx": "0854ef385199fc11a29d5327f1c5e162ff59cd5abc4c4eba72aca50d13c53c51"
+  },
+  "phase4Evidence": "specs/modules/ui/hlp.ui.chip/interface.yaml",
+  "sourceExtracted": true,
+  "sourceState": "Interface revision 1 preserves the exact pinned hlp.ui.chip source surface and proves every registered projection through native, shared-conformance, package-only, and applicable gallery/performance gates.",
+  "contentHashes": {
+    "conformance/hlp.ui.chip/fixtures.yaml": "222417424e5c1e57db90adc29a53387f762c8497e297f9d76f3ea73f8b4d50a1",
+    "conformance/hlp.ui.chip/quality-fixtures.yaml": "4d50ffc08e8b1a7c7eb6a01bc5d7b6b429abc46064e604bc214ba6757b554360",
+    "conformance/hlp.ui.chip/runners/run-shared.mjs": "ec3deab602fc4c565b30ea635c098888dbe60430e041a219110bd262e064bb15",
+    "projections/blazor/ui/hlp.ui.chip/ChipTypes.cs": "e5d7ca317b0e3ffe698b3288aa189a99971e079361c07d680745493175e79195",
+    "projections/blazor/ui/hlp.ui.chip/HarborlineChip.razor": "ab2cf29764c1dcc7e2b0fb3232b994b9de169278335d50cb42c0a598154f0c21",
+    "projections/react/ui/hlp.ui.chip/src/Chip.tsx": "8c8b89a81aa55d9fed593a9717e8bd6a21279871041427ac0cfd929ad8582102",
+    "projections/react/ui/hlp.ui.chip/src/__tests__/Chip.conformance.test.tsx": "4654ebee54f89bf07c8eb93a73d18be13cda82b05eeb5fc8921ba7626cabb608",
+    "projections/react/ui/hlp.ui.chip/src/__tests__/Chip.native.test.tsx": "b2289fa24b82d01edb3338de895cca5122f44b8af40dba57f60dc9c4b5efcc07",
+    "projections/react/ui/hlp.ui.chip/src/__tests__/fixtures.ts": "ac4be72be4457db79df2be8ea37fe4cdb18ba62fb221144496ea669ed5221f3f",
+    "projections/react/ui/hlp.ui.chip/src/index.ts": "a74a656783a49b343356657b607d83768536d92a4563e00f07d2f9bd781cd39b",
+    "projections/react/ui/hlp.ui.chip/src/test-setup.ts": "977afde26bba6a51325908cd7713cbfdc87d18f06b78b237c8f364c44864b7de",
+    "projections/react/ui/hlp.ui.chip/tsconfig.build.json": "90d3254389c1674599c09e9eedd24d882a64cb68ce729201c9f17526ae30661b",
+    "projections/react/ui/hlp.ui.chip/vitest.config.ts": "571fbd666025d038085e2efddaaaf018f6e1b47583dd294629204f39b0e04b30",
+    "specs/modules/ui/hlp.ui.chip/interface.yaml": "a99a4dcb443af2968a5d99e56fe5e45babe72c887c4d389b091b892ffbc407c4",
+    "specs/modules/ui/hlp.ui.chip/quality.yaml": "1e245afbb513a31a27f6ffe744c6ce574c98f609dea6d16d58e6916e1f4541cf",
+    "specs/modules/ui/hlp.ui.chip/scenarios.json": "b092a930d05e0d76ec9441234e8852a6bc14e0269ba289f2f29be8036ad0f185",
+    "specs/modules/ui/hlp.ui.chip/style.css": "a4986665d44a37d61314cd92c300e7b2b66f2c7d1265ff23511e3d5fa04e4b66"
+  },
+  "nextGate": "Retain this conformant aggregate contribution while HLF-052 advances to the next Carrier-essential dependency wave."
+}

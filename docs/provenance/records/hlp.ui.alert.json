@@ -1,0 +1,27 @@
+{
+  "moduleId": "hlp.ui.alert",
+  "legacySourceHashes": {
+    "packages/ui-react/src/components/feedback/Alert.tsx": "72bbaedeab2bba250572451f84b3479b1a5a1cf8aff42b99579da922a0624444"
+  },
+  "phase4Evidence": "specs/modules/ui/hlp.ui.alert/interface.yaml",
+  "sourceExtracted": true,
+  "sourceState": "Interface revision 1 preserves the exact pinned hlp.ui.alert source surface and proves every registered projection through native, shared-conformance, package-only, and applicable gallery/performance gates.",
+  "contentHashes": {
+    "conformance/hlp.ui.alert/fixtures.yaml": "ce1ca706ddc084d3e62793272b69e8de1d7ae4085181a987538738b94a13e4e2",
+    "conformance/hlp.ui.alert/quality-fixtures.yaml": "cf9fe6a0b5027b95aba347472588c620fd19abdc2a86f155aa03f22fcf0533a0",
+    "conformance/hlp.ui.alert/runners/run-shared.mjs": "bbe73e936608f58ad11f4859d7773187ff229bf5e9b8243ef2786838bd73742e",
+    "projections/blazor/ui/hlp.ui.alert/AlertTypes.cs": "7f0bfd87cd13d10d724b74048792c76fbf8439269f32b5fdd12b2fd1a93aaa25",
+    "projections/blazor/ui/hlp.ui.alert/HarborlineAlert.razor": "bc1667f64b50ec2fab5b314b5e9eb846489761cad5e88d88466d8e5a455cf8a0",
+    "projections/react/ui/hlp.ui.alert/src/Alert.tsx": "3c6e2946c57f9d906f2dc17214630a1bd626536f9e95b15bcfde88f31b2148d6",
+    "projections/react/ui/hlp.ui.alert/src/__tests__/Alert.test.tsx": "f28a0bf7824d22aebd86bfad89549a324b3a9e4ec87b175bad4a5b8afdcef7b0",
+    "projections/react/ui/hlp.ui.alert/src/index.ts": "da9d929122c1483002bc04125778a95cb76684a3efe12c62b67f8b24a1ffe99d",
+    "projections/react/ui/hlp.ui.alert/src/test-setup.ts": "977afde26bba6a51325908cd7713cbfdc87d18f06b78b237c8f364c44864b7de",
+    "projections/react/ui/hlp.ui.alert/tsconfig.build.json": "1244ab963421038372c0286b671744446e6e463d77c845d1a3b0724187e63b50",
+    "projections/react/ui/hlp.ui.alert/vitest.config.ts": "ca9c0bc31e484eaa9d65baa9a759688a6825fed34f18fc4cb4b3c4fd8a3ec73b",
+    "specs/modules/ui/hlp.ui.alert/interface.yaml": "1eb017d77135f11b9825932c156d749917936aff1f365668dfdebab4c2718fbf",
+    "specs/modules/ui/hlp.ui.alert/quality.yaml": "d44e47c6ab11ea6dc593878f702bfe491bb1d60f13a0c0ec5089e6f25e9a1682",
+    "specs/modules/ui/hlp.ui.alert/scenarios.json": "83e6fb703689107bc373262f82b98914a5fcd9aab2e6334b6ff38d49bcbe58ae",
+    "specs/modules/ui/hlp.ui.alert/style.css": "8dbbaea6d731d6687c4d1d246877bb6ac465bb516ff158f54ce95a70c5d89dc2"
+  },
+  "nextGate": "Retain this conformant aggregate contribution while HLF-052 advances to the next Carrier-essential dependency wave."
+}

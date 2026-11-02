@@ -1,0 +1,26 @@
+{
+  "moduleId": "hlp.ui.touch-target",
+  "legacySourceHashes": {
+    "packages/ui-react/src/lib/touchTarget.ts": "70ea4908f8d2b2363175e5b9f0a35b0de39023d32be3f0f1d304806fa28b979a"
+  },
+  "phase4Evidence": "specs/modules/ui/hlp.ui.touch-target/interface.yaml",
+  "sourceExtracted": true,
+  "sourceState": "Interface revision 1 preserves the exact pinned hlp.ui.touch-target source surface and proves every registered projection through native, shared-conformance, package-only, and applicable gallery/performance gates.",
+  "contentHashes": {
+    "conformance/hlp.ui.touch-target/fixtures.yaml": "4545b351752ba1f8bd3589c700a5eb20b098ba83b33fd7d69df3a8542b8e98ca",
+    "conformance/hlp.ui.touch-target/quality-fixtures.yaml": "762e557ebf48c67c4f38fe70f02dd6267b8b127eae233edb7acd2051196599df",
+    "conformance/hlp.ui.touch-target/runners/run-shared.mjs": "5dd5f22ffd12d7929ea404c94810ff24594a27f6fbb77e2192501f1bc186b50c",
+    "projections/blazor/ui/hlp.ui.touch-target/TouchTargetAffordances.cs": "882ebfaa8141c73a0c018d1b1f2fa430e99e140f4e2d557157cae8dc6e9b3264",
+    "projections/blazor/ui/hlp.ui.touch-target/wwwroot/touch-target.css": "0f2aae74705262d038f5aeeccabbd4f78a29ebd7f96593b835bc9cf1e7c9e056",
+    "projections/react/ui/hlp.ui.touch-target/src/__tests__/fixtures.ts": "baf1bb339b1e604a72f979c09e207ec52cbc2849327dd704f295a41e7c64b19f",
+    "projections/react/ui/hlp.ui.touch-target/src/__tests__/touch-target.conformance.test.ts": "05751dd6a0246e538fbbe1f626be0c5345170b1248e489677d9dc8edd7d45d49",
+    "projections/react/ui/hlp.ui.touch-target/src/__tests__/touch-target.native.test.ts": "0f314f5f1fac8035f0a779c61171eb1a60407a0e39c788764eddfe5bcafafad2",
+    "projections/react/ui/hlp.ui.touch-target/src/index.ts": "d7db6f59ecf193c0c35bac8b0a798b518b8e4fcc17d84d0c61d06cfd197b61e8",
+    "projections/react/ui/hlp.ui.touch-target/tsconfig.build.json": "caab55072116c883a2a5e22d0559c6216141ab74887f4c473a29b4403b8a55fb",
+    "projections/react/ui/hlp.ui.touch-target/tsconfig.json": "58cfcf8ab405403f49e627025ad906cc35e884c661bb1cdcb60f70f497701d25",
+    "projections/react/ui/hlp.ui.touch-target/vitest.config.ts": "4f00a707d65b03e65ec292e32c33f651a7eaff0fc83f5c7b193f8a6803e8f644",
+    "specs/modules/ui/hlp.ui.touch-target/interface.yaml": "8c9686f57f8b95e2aa8a0ad9d9725a60edf8735e63dba0c5a1f38aecc30f096b",
+    "specs/modules/ui/hlp.ui.touch-target/quality.yaml": "cc249a2e96cd94a6b91d8bcba840d0dbecbdf0e5b6257f9282829b150b4c32a4"
+  },
+  "nextGate": "Retain this conformant aggregate contribution while HLF-052 advances to the next Carrier-essential dependency wave."
+}

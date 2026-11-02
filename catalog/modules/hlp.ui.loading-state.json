@@ -1,0 +1,55 @@
+{
+  "moduleId": "hlp.ui.loading-state",
+  "module": {
+    "interface": {
+      "path": "specs/modules/ui/hlp.ui.loading-state/interface.yaml",
+      "revision": 1
+    },
+    "moduleKind": "non-interactive-component",
+    "presentation": {
+      "disposition": "visual"
+    },
+    "qualityProfile": {
+      "path": "specs/modules/ui/hlp.ui.loading-state/quality.yaml",
+      "revision": 1
+    },
+    "owner": "platform-ui",
+    "dependencies": [],
+    "status": "extracted-candidate",
+    "depth": {
+      "disposition": "deep-module",
+      "deletionTest": "PASS",
+      "redistributedComplexity": [
+        "page versus inline element and geometry choices plus one stable polite status region repeated across twelve Harborline App production surfaces",
+        "caller-localized labels, host locale and direction, muted semantic tone, forced colors, reflow, and theme parity independently drifting across React and Blazor"
+      ]
+    },
+    "projections": {
+      "react": {
+        "role": "adapter",
+        "seam": "ui.loading-state.framework",
+        "path": "projections/react/ui/hlp.ui.loading-state",
+        "status": "conformant",
+        "packageContribution": "@harborline-software/ui-react",
+        "conformanceRunner": "conformance/hlp.ui.loading-state/runners/run-shared.mjs"
+      },
+      "blazor": {
+        "role": "adapter",
+        "seam": "ui.loading-state.framework",
+        "path": "projections/blazor/ui/hlp.ui.loading-state",
+        "status": "conformant",
+        "packageContribution": "Harborline.UIAdapters.Blazor",
+        "conformanceRunner": "conformance/hlp.ui.loading-state/runners/run-shared.mjs"
+      }
+    }
+  },
+  "seams": {
+    "ui.loading-state.framework": {
+      "status": "conformant",
+      "adapters": [
+        "react",
+        "blazor"
+      ]
+    }
+  }
+}

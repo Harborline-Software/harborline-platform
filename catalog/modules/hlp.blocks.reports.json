@@ -1,0 +1,52 @@
+{
+  "moduleId": "hlp.blocks.reports",
+  "module": {
+    "interface": {
+      "path": "specs/modules/blocks/hlp.blocks.reports/interface.yaml",
+      "revision": 2
+    },
+    "moduleKind": "runtime",
+    "presentation": {
+      "disposition": "not-applicable",
+      "rationale": "The report engine and cartridges return typed ReportRunResult envelopes; chart/grid/export rendering is owned by existing UI modules."
+    },
+    "owner": "platform-blocks",
+    "dependencies": [
+      "hlp.contracts.identities",
+      "hlp.blocks.measure-catalogue",
+      "hlp.foundation.definitions"
+    ],
+    "status": "implemented",
+    "depth": {
+      "disposition": "deep-module",
+      "deletionTest": "PASS",
+      "redistributedComplexity": [
+        "snapshot-marked deterministic report execution and kind dispatch re-implemented per report surface",
+        "aging bucket boundaries, balance-sheet sectioning, and rent-roll lease selection drifting independently in every consumer that computes them inline"
+      ]
+    },
+    "projections": {
+      "dotnet": {
+        "role": "implementation",
+        "path": "projections/dotnet/blocks/hlp.blocks.reports",
+        "status": "preview",
+        "artifact": {
+          "type": "nuget",
+          "id": "Harborline.Blocks.Reports",
+          "assembly": "Harborline.Blocks.Reports",
+          "manifest": "projections/dotnet/blocks/hlp.blocks.reports/Harborline.Blocks.Reports.csproj",
+          "dependencies": [
+            "Harborline.Contracts",
+            "Harborline.Blocks.MeasureCatalogue",
+            "Harborline.Foundation.Definitions"
+          ],
+          "identityAuthority": "Harborline",
+          "producerRepository": "harborline-platform",
+          "distribution": "internal-only",
+          "candidateRole": "new-bounded-package",
+          "registryAvailable": false
+        }
+      }
+    }
+  }
+}

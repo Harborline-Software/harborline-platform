@@ -9,10 +9,11 @@ import {resolveCommand, runnerEnvironment} from './resolve-command.mjs'
 import {resolvePinnedDotnet} from './resolve-dotnet.mjs'
 import {moduleEvidence} from './shared-module-evidence.mjs'
 import {createSharedModuleScheduler, writeSharedScheduleReport} from './shared-module-scheduler.mjs'
+import {loadModuleCatalog} from './module-catalog.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const reactRoot = resolve(root, 'projections/react/ui/hlp.ui.button')
-const catalog = JSON.parse(readFileSync(resolve(root, 'catalog/modules.yaml'), 'utf8'))
+const catalog = loadModuleCatalog(root)
 const modules = Object.entries(catalog.modules)
   .filter(([moduleId, module]) => moduleId.startsWith('hlp.ui.')
     && Object.values(module.projections ?? {}).some(projection => projection.conformanceRunner))

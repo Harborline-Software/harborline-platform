@@ -1,0 +1,61 @@
+{
+  "moduleId": "hlp.ui.segmented-control",
+  "module": {
+    "interface": {
+      "path": "specs/modules/ui/hlp.ui.segmented-control/interface.yaml",
+      "revision": 1
+    },
+    "moduleKind": "interactive-component",
+    "presentation": {
+      "disposition": "visual"
+    },
+    "qualityProfile": {
+      "path": "specs/modules/ui/hlp.ui.segmented-control/quality.yaml",
+      "revision": 1
+    },
+    "owner": "platform-ui",
+    "dependencies": [
+      "hlp.ui.default-strings",
+      "hlp.ui.locale-provider",
+      "hlp.ui.touch-target",
+      "hlp.ui.use-can-show-master-detail",
+      "hlp.ui.use-media-query"
+    ],
+    "status": "gap-implemented",
+    "depth": {
+      "disposition": "deep-module",
+      "deletionTest": "PASS",
+      "redistributedComplexity": [
+        "radio-group naming, controlled selection, roving focus, disabled-option skipping, wrapping arrows, Home and End repeated by every segmented choice surface",
+        "rich-label naming, touch density, full-width distribution, logical RTL arrows, themes, and forced colors drifting across projections"
+      ]
+    },
+    "projections": {
+      "react": {
+        "role": "adapter",
+        "seam": "ui.segmented-control.framework",
+        "path": "projections/react/ui/hlp.ui.segmented-control",
+        "status": "conformant",
+        "packageContribution": "@harborline-software/ui-react",
+        "conformanceRunner": "conformance/hlp.ui.segmented-control/runners/run-shared.mjs"
+      },
+      "blazor": {
+        "role": "adapter",
+        "seam": "ui.segmented-control.framework",
+        "path": "projections/blazor/ui/hlp.ui.segmented-control",
+        "status": "conformant",
+        "packageContribution": "Harborline.UIAdapters.Blazor",
+        "conformanceRunner": "conformance/hlp.ui.segmented-control/runners/run-shared.mjs"
+      }
+    }
+  },
+  "seams": {
+    "ui.segmented-control.framework": {
+      "status": "conformant",
+      "adapters": [
+        "react",
+        "blazor"
+      ]
+    }
+  }
+}

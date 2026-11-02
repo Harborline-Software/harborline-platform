@@ -1,0 +1,34 @@
+{
+  "moduleId": "hlp.ui.action-menu",
+  "legacySourceHashes": {
+    "packages/ui-react/src/components/buttons/ActionMenu.tsx": "1a72b126bf65dc81b0f4bc8f4fd04354016807fb5c4e1d7702acab6c662e23b3"
+  },
+  "phase4Evidence": "specs/modules/ui/hlp.ui.action-menu/interface.yaml",
+  "sourceExtracted": true,
+  "sourceState": "Interface revision 1 preserves the exact pinned hlp.ui.action-menu source surface and proves every registered projection through native, shared-conformance, package-only, and applicable gallery/performance gates.",
+  "contentHashes": {
+    "conformance/hlp.ui.action-menu/action-menu-disclosure.test.mjs": "34e016df0336173f6d3620a56460427b450f45a361982a1694280ca051da4276",
+    "conformance/hlp.ui.action-menu/disclosure-v1.json": "fe3d863cf1832748e2ee6a3dad5175d06acbb7eb9e1901391a236b78a8627bd2",
+    "conformance/hlp.ui.action-menu/fixtures.yaml": "36f49d1f9802a83d53b91bac8f2702b1cb691b534c5ebb1968ef5f4d6e4e4068",
+    "conformance/hlp.ui.action-menu/quality-fixtures.yaml": "635b41f7864ada47fda374818453aa4cf7bd6ca95f2359a8c1b5584d8f8bc3ab",
+    "conformance/hlp.ui.action-menu/runners/run-shared.mjs": "502c96c1e0133a0edd4a2c205a71414dd8139ee9ff73d2ee4d45f629bf49d907",
+    "projections/blazor/ui/hlp.ui.action-menu.tests/ActionMenuDisclosureTests.cs": "444192fafe8f80384dbf6737444b21e14b6227ab07efd46fe6fa50b90781888d",
+    "projections/blazor/ui/hlp.ui.action-menu/ActionMenuTypes.cs": "bc2b37a8b71db430dea8815655471b03b55e3ce0bfb5da0d348835c1507a73c2",
+    "projections/blazor/ui/hlp.ui.action-menu/HarborlineActionMenu.razor": "3c02f9407f0dfdf5833c6ce5e7b65440136786e3ae8ee8ff2286999a1b04701c",
+    "projections/blazor/ui/hlp.ui.action-menu/wwwroot/action-menu.js": "94eb45d312fd6f82b3884e803024fcf7c2ef7e230b21fd884c67184360ab100f",
+    "projections/react/ui/hlp.ui.action-menu/src/ActionMenu.tsx": "b99fea14f1f57f4d2f24c6f88792826567c2f4e0d654232fa147a2ded419e891",
+    "projections/react/ui/hlp.ui.action-menu/src/__tests__/ActionMenu.conformance.test.tsx": "8848f362990f6dbe74f90d228d4346d34f497d3c16c523fea7e26ef0cdca7eb2",
+    "projections/react/ui/hlp.ui.action-menu/src/__tests__/ActionMenu.disclosure.test.tsx": "51223461658180746ef1ea315383f7b1ac283df0bfce9214234bc7ff43444f26",
+    "projections/react/ui/hlp.ui.action-menu/src/__tests__/ActionMenu.native.test.tsx": "0f87a04ca25ff9812b36cfc7ffc0ac5570d2cfbf3f6393d3d84bd8653d001d60",
+    "projections/react/ui/hlp.ui.action-menu/src/__tests__/fixtures.ts": "929659ac00c229c10bd2892ba9d51f7093177198f5b5e63dda797c10a0561fa8",
+    "projections/react/ui/hlp.ui.action-menu/src/index.ts": "6f828b8b2181b9d2bb2b97fe9f2eb31eb0bb83860a76193ead8043458d51495c",
+    "projections/react/ui/hlp.ui.action-menu/src/test-setup.ts": "977afde26bba6a51325908cd7713cbfdc87d18f06b78b237c8f364c44864b7de",
+    "projections/react/ui/hlp.ui.action-menu/tsconfig.build.json": "e3407ce3813778f532bad166b6db7f0ce28e62dbcaed2bf94bc2142cb82de5f0",
+    "projections/react/ui/hlp.ui.action-menu/vitest.config.ts": "c76b892f872e42d656e7fca828d8ce3e5370c738cb1f5773241f2fb4f14f23ba",
+    "specs/modules/ui/hlp.ui.action-menu/interface.yaml": "7107e6293f7de46f947efad59c2f358ef2b2cb6e68c3476e45e32b3ba90a7fc6",
+    "specs/modules/ui/hlp.ui.action-menu/quality.yaml": "63bab05c96cef6d7166087892750532e3d84c581a01d03edd500085b56c3c56b",
+    "specs/modules/ui/hlp.ui.action-menu/scenarios.json": "718aa678b88729d914ccbe9b24a397f63ead56254c506b909a5915a0b0a02295",
+    "specs/modules/ui/hlp.ui.action-menu/style.css": "fa23bb808cf4e073e1c1e24ae6736ffdaa04fbf93de0f5fdd7c8f1856653e95e"
+  },
+  "nextGate": "Retain this conformant aggregate contribution while HLF-052 advances to the next Carrier-essential dependency wave."
+}

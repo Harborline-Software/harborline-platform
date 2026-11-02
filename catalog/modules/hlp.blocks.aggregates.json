@@ -1,0 +1,44 @@
+{
+  "moduleId": "hlp.blocks.aggregates",
+  "module": {
+    "interface": {
+      "path": "specs/modules/blocks/hlp.blocks.aggregates/interface.yaml",
+      "revision": 1
+    },
+    "moduleKind": "runtime",
+    "presentation": {
+      "disposition": "not-applicable",
+      "rationale": "The standalone engine returns neutral typed groups and owns no visual implementation."
+    },
+    "owner": "platform-blocks",
+    "dependencies": [],
+    "status": "draft-native-green",
+    "depth": {
+      "disposition": "deep-module",
+      "deletionTest": "PASS",
+      "redistributedComplexity": [
+        "cross-entity definition validation, typed filtering, deterministic grouping, exact scalar folds, and totals would otherwise fork across projections",
+        "authorization-before-enumeration, one-snapshot consistency, and fail-closed evaluation bounds would otherwise remain host-specific"
+      ]
+    },
+    "projections": {
+      "dotnet": {
+        "role": "implementation",
+        "path": "projections/dotnet/blocks/hlp.blocks.aggregates",
+        "status": "preview",
+        "artifact": {
+          "type": "nuget",
+          "id": "Harborline.Blocks.Aggregates",
+          "assembly": "Harborline.Blocks.Aggregates",
+          "manifest": "projections/dotnet/blocks/hlp.blocks.aggregates/Harborline.Blocks.Aggregates.csproj",
+          "dependencies": [],
+          "identityAuthority": "Harborline",
+          "producerRepository": "harborline-platform",
+          "distribution": "internal-only",
+          "candidateRole": "new-bounded-package",
+          "registryAvailable": false
+        }
+      }
+    }
+  }
+}

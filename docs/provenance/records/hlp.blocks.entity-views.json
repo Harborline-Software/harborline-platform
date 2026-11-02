@@ -1,0 +1,28 @@
+{
+  "moduleId": "hlp.blocks.entity-views",
+  "phase4Evidence": "specs/modules/blocks/hlp.blocks.entity-views/interface.yaml",
+  "sourceExtracted": true,
+  "sourceState": "Views Wave A substrate implemented: the four ports (IEntityReadStore with 404-only-null and the two previewed writes, IConditionHistoryStore with provenance, IFormBindingSource and IViewNavigationTargets over frozen forms r4 per ratified Design B), breadcrumb resolution below the renderer with the pinned Unnamed-item placeholder and the no-raw-id rule, the in-memory store, and the development preview adapter carrying the pinned Carrier seed tree that fails closed in Production; 20 native tests re-prove the 19 pinned TS ledger rows plus the fail-closed guard. The 20 asset-registry route rows (AssetRegistryRoutes.cs and its suites) are Wave B at the narrowed host seam and are deliberately NOT embodied here.",
+  "contentHashes": {
+    "projections/dotnet/blocks/hlp.blocks.entity-views/BreadcrumbResolver.cs": "43d270d01992f062c86f48e06b6eb1337ca0f03c0a234cae5ba0b22e2bbe8286",
+    "projections/dotnet/blocks/hlp.blocks.entity-views/ContractAliases.cs": "80d8ec11b1cc7726beb3e46a48b6e90033eef0ca63991b023a41c51c551f822e",
+    "projections/dotnet/blocks/hlp.blocks.entity-views/DevelopmentPreviewAdapter.cs": "f514367349b8cf89d2e7efdc763dabe5a2c04f91d60d09b41c183dcc135fc619",
+    "projections/dotnet/blocks/hlp.blocks.entity-views/EntityViewsModel.cs": "1c43280bd995d1ecee737331791193738c7f7d83d10a32c2ff388f2cdfc191d4",
+    "projections/dotnet/blocks/hlp.blocks.entity-views/IConditionHistoryStore.cs": "ae84234338bff0931d684003be5931ab9dd9cd33230c4b606a0b5416b40d4bb6",
+    "projections/dotnet/blocks/hlp.blocks.entity-views/IEntityReadStore.cs": "e8c347dd384edfa7396840add5f90862abecfd2c1c2300cba64967a9511fbce4",
+    "projections/dotnet/blocks/hlp.blocks.entity-views/IFormBindingSource.cs": "87cb837d570930180e997ad9824dc75ec37d7b70b4900b809f8f9e2a6a62ce76",
+    "projections/dotnet/blocks/hlp.blocks.entity-views/IViewNavigationTargets.cs": "43363c5911b8d9947bdb910b473cd06fcc1187dd08e77e3358c432ecfa8a052e",
+    "projections/dotnet/blocks/hlp.blocks.entity-views/InMemoryEntityViewsStore.cs": "c87f95d65c78a089bd656d66f0583bfe7de25971497a4864b03c3f64da75e4d8",
+    "projections/dotnet/blocks/hlp.blocks.entity-views/Harborline.Blocks.EntityViews.csproj": "057c1fd085f2c115e61ff129b6051576d661ac00a3cf43e9201c99bf84b3b6fe",
+    "projections/dotnet/blocks/hlp.blocks.entity-views/AccessViewFilter.cs": "b73dc6f424e32ba6a7b3e633ac2ea201c406198756c6a47d5ae900e99190a5aa",
+    "projections/dotnet/blocks/hlp.blocks.entity-views/InMemoryViewRowSource.cs": "1df33b7225136603279258c57a9b765e02c82e997a4a1c95828f38332d99daac",
+    "projections/dotnet/blocks/hlp.blocks.entity-views/ViewQueryRuntime.cs": "af4ed446c962fba1f91e8d191c5e85fbf122fc73a4ef0b99290ecb5a544e1117",
+    "projections/dotnet/blocks/hlp.blocks.entity-views.tests/AccessViewFilterTests.cs": "a506dee30f2096049ddaadd22317fd832043a0bd4f41947bb3c3eb944527a06e",
+    "projections/dotnet/blocks/hlp.blocks.entity-views.tests/ViewQueryRuntimeTests.cs": "ba463b496f8779fd0ff5f81487725c29c2445ee3dbab138ba4928d2fc0701ec6",
+    "specs/modules/blocks/hlp.blocks.entity-views/interface.yaml": "b2940f71343a553eeb0c370a93e2d195921813d7a08e9fd3faeead6c842f1979",
+    "tests/package-consumers/views-nuget/Program.cs": "2f7dcb2dfe37e4b0900d48637613feda91b4e5f12e4403386bb7f34cfc1d9474",
+    "tests/package-consumers/views-nuget/AccessContractProof.cs": "398058eee7e2d1997ea3961b0781f7c8086fd06c686d69517edc3ab2a0436a49",
+    "projections/dotnet/blocks/hlp.blocks.entity-views/CatalogueViewMeasures.cs": "adbe71355a40402425bc5bad1f3440c62b218ceda27629e529d864e00bc5af86"
+  },
+  "nextGate": "Wave B: re-prove the 20 route rows at the narrowed Harborline persistence/API seam (loopback WebApplication) and build the views-capability-vertical package fixture (9 anchors + four-pair fallback/store indistinguishability); only that vertical flips the views gate."
+}
