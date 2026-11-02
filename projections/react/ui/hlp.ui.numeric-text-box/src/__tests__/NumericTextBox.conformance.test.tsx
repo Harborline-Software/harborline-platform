@@ -10,6 +10,16 @@ function textbox(): HTMLInputElement {
   return screen.getByRole('textbox')
 }
 
+// Arabic-Indic digits and the Arabic decimal and group separators as their latn forms, with the bidi
+// marks dropped (T-1117).
+function latinNumerals(text: string): string {
+  return text
+    .replace(/[\u200e\u200f\u061c]/g, '')
+    .replace(/[\u0660-\u0669]/g, digit => String(digit.charCodeAt(0) - 0x0660))
+    .replace(/\u066b/g, '.')
+    .replace(/\u066c/g, ',')
+}
+
 describe('NumericTextBox revision-1 shared fixtures', () => {
   it('consumes every frozen case', () => {
     expect(sharedCases.map(value => value.id)).toEqual([
@@ -138,6 +148,105 @@ describe('NumericTextBox revision-1 shared fixtures', () => {
     expect(textbox()).toHaveValue('13%')
     rendered.rerender(<NumericTextBox aria-label="Ratio" format="p2" locale="en-US" value={0.125} />)
     expect(textbox()).toHaveValue('12.50%')
+  })
+
+  // T-1108: the Blazor lane asserts this same table, from the same fixture input.
+  it('formats the formatting fixture value in every listed format, c0 rounding its midpoint away from zero', () => {
+    const { input } = fixture(sharedCases, 'numeric-text-box.formatting')
+    const value = input.value as number
+    const formats = input.formats as Array<string | null>
+    const intl: Record<string, string> = { '': '1,234.50', c0: '$1,235', c2: '$1,234.50', p0: '123,450%', p2: '123,450.00%' }
+    const rendered = render(<NumericTextBox aria-label="Amount" currency="USD" locale="en-US" value={value} />)
+    for (const format of formats) {
+      rendered.rerender(<NumericTextBox aria-label="Amount" currency="USD" format={format ?? undefined} locale="en-US" value={value} />)
+      expect(textbox()).toHaveValue(intl[format ?? ''])
+    }
+  })
+
+  // T-1108: the Blazor lane asserts this same table. Intl's default rounding mode is halfExpand, and
+  // it keeps the sign of a negative value that rounds to zero.
+  it.each([
+    [1234.5, 'c0', 2, '$1,235'],
+    [-1234.5, 'c0', 2, '-$1,235'],
+    [0.125, 'p0', 2, '13%'],
+    [2.5, undefined, 0, '3'],
+    [0.5, undefined, 0, '1'],
+    [1.005, 'c2', 2, '$1.01'],
+    [2.675, undefined, 2, '2.68'],
+    [-0.4, undefined, 0, '-0'],
+    [-0.4, 'c0', 2, '-$0'],
+    [-0, undefined, 2, '-0.00'],
+    [-0.004, 'p0', 2, '-0%'],
+  ] as const)('formats %s with format %s and %s decimals as %s', (value, format, decimals, expected) => {
+    render(<NumericTextBox aria-label="Amount" currency="USD" decimals={decimals} format={format} locale="en-US" value={value} />)
+    expect(textbox()).toHaveValue(expected)
+  })
+
+  // T-1108: the Blazor lane asserts this same table. Intl rounds the shortest round-trip digits
+  // themselves, however far right they run and however large the value: no false midpoint past the
+  // 28th decimal place, and no binary expansion past System.Decimal's range.
+  it.each([
+    [1.4999999999999997e-15, undefined, 15, '0.000000000000001'],
+    [1.0049999999999999e-13, undefined, 15, '0.000000000000100'],
+    [4.9999999999999995e-14, undefined, 13, '0.0000000000000'],
+    [1.2345678499999995e-13, undefined, 20, '0.00000000000012345678'],
+    [1.4999999999999997e-17, 'p15', 2, '0.000000000000001%'],
+    [1e30, undefined, 2, '1,000,000,000,000,000,000,000,000,000,000.00'],
+    [-1e30, undefined, 2, '-1,000,000,000,000,000,000,000,000,000,000.00'],
+    [8e28, 'c0', 2, '$80,000,000,000,000,000,000,000,000,000'],
+    [8e28, 'p0', 2, '8,000,000,000,000,000,000,000,000,000,000%'],
+  ] as const)('formats %s with format %s and %s decimals from its shortest digits as %s', (value, format, decimals, expected) => {
+    render(<NumericTextBox aria-label="Amount" currency="USD" decimals={decimals} format={format} locale="en-US" value={value} />)
+    expect(textbox()).toHaveValue(expected)
+  })
+
+  // T-1108: the Blazor lane asserts this same table. Intl rounds the invariant shortest digits, so a
+  // culture whose decimal separator is not "." rounds a midpoint the same way. For ar, the digits and
+  // separators depend on the numbering system the ICU data gives it (T-1117), so the comparison maps
+  // arab digits, separators and bidi marks to latn first, and pins only the rounding.
+  it.each([
+    ['de-DE', 1234.5, 0, '1.235'],
+    ['de-DE', -1234.5, 0, '-1.235'],
+    ['de-DE', 2.675, 2, '2,68'],
+    ['de-DE', 1.005, 2, '1,01'],
+    ['ar', 1234.5, 0, '1,235'],
+    ['ar', 2.675, 2, '2.68'],
+  ] as const)('formats %s %s with %s decimals as %s', (locale, value, decimals, expected) => {
+    render(<NumericTextBox aria-label="Amount" decimals={decimals} locale={locale} value={value} />)
+    expect(latinNumerals(textbox().value)).toBe(expected)
+  })
+
+  // T-1108: a spinner starts from current or zero, so an empty value is at a bound of zero.
+  it('disables the spinner whose zero anchor is at its bound when the value is empty, and emits nothing', () => {
+    const onChange = vi.fn()
+    const controlled = render(<NumericTextBox aria-label="Amount" min={0} onChange={onChange} value={null} />)
+    expect(screen.getByRole('button', { name: 'Decrement' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Increment' })).toBeEnabled()
+    fireEvent.click(screen.getByRole('button', { name: 'Decrement' }))
+    fireEvent.keyDown(textbox(), { key: 'ArrowDown' })
+    controlled.unmount()
+
+    render(<NumericTextBox aria-label="Amount" max={0} onChange={onChange} />)
+    expect(screen.getByRole('button', { name: 'Increment' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Decrement' })).toBeEnabled()
+    fireEvent.click(screen.getByRole('button', { name: 'Increment' }))
+    fireEvent.keyDown(textbox(), { key: 'ArrowUp' })
+    expect(onChange).not.toHaveBeenCalled()
+  })
+
+  // T-1108: the Blazor lane asserts the same. The anchor is current or zero, not "an empty value is at
+  // every bound": with zero strictly inside the bounds, both buttons are enabled and each one spins
+  // from zero. The value is controlled and stays empty, so every request starts from zero again.
+  it('spins an empty value from the zero anchor both ways when zero is strictly inside the bounds', () => {
+    const onChange = vi.fn()
+    render(<NumericTextBox aria-label="Amount" max={10} min={-10} onChange={onChange} value={null} />)
+    expect(screen.getByRole('button', { name: 'Decrement' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Increment' })).toBeEnabled()
+    fireEvent.click(screen.getByRole('button', { name: 'Decrement' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Increment' }))
+    fireEvent.keyDown(textbox(), { key: 'ArrowDown' })
+    fireEvent.keyDown(textbox(), { key: 'ArrowUp' })
+    expect(onChange.mock.calls.map(call => call[0])).toEqual([-1, 1, -1, 1])
   })
 
   it('uses provider direction, explicit formatting locale, and label precedence', () => {
