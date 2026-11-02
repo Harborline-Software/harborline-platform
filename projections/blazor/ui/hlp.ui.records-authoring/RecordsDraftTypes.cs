@@ -18,7 +18,7 @@ public sealed record RecordsDraft(string Identity, string VersionId, string? Exp
 /// <summary>A field kind and version the host offers. The editor never selects one on its own.</summary>
 public sealed record RecordsKindOption(string KindId, string Version);
 
-/// <summary>A published Class the host offers as the type's catalogue home. The editor never selects one on its own.</summary>
+/// <summary>A published Class the host offers as the type's catalogue home and as a reference Class target. The editor never selects one on its own.</summary>
 public sealed record RecordsClassOption(string ClassId);
 
 /// <summary>A domain role the host offers as a role gate's creation role. The editor never selects one on its own.</summary>

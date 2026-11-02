@@ -1,6 +1,7 @@
 using Bunit;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
+using Microsoft.JSInterop;
 using Harborline.UIAdapters.Blazor.Components.Navigation;
 using Xunit;
 
@@ -112,6 +113,47 @@ public sealed class ContextMenuConformanceTests : BunitContext
         await cut.Instance.HideAsync();
         await cut.InvokeAsync(() => cut.Instance.ShowAsync(20, 20));
         module.VerifyInvoke("rememberOpener");
+    }
+
+    // T-1130: a host that handles Shift+F10 or the ContextMenu key on its own element opens the menu as keyboard-opened:
+    // the first enabled item takes focus, and closing returns focus to the element focused when it opened.
+    [Fact, Trait("Holds", "context-menu.quality.focus")]
+    public async Task HostKeyboardOpenFocusesTheFirstItemAndClosingReturnsFocusToTheOpener()
+    {
+        var module = JSInterop.SetupModule("./_content/Harborline.UIAdapters.Blazor/context-menu.js");
+        module.Mode = JSRuntimeMode.Loose;
+        var cut = RenderMenu();
+        await cut.Instance.ShowFromKeyboardAsync(8, 8);
+        Assert.Single(module.Invocations["triggerAnchor"]);
+        Assert.Equal("copy", cut.Find("[role=menu]").GetAttribute("data-active-id"));
+        Assert.Single(module.Invocations["focusActive"]);
+        await cut.Instance.HideAsync();
+        Assert.Single(module.Invocations["focusTrigger"]);
+    }
+
+    [Theory, Trait("Holds", "context-menu.quality.focus")]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task RepeatedHostKeyboardOpenPreservesOpenerUntilClosed(bool pointerOpened)
+    {
+        var module = JSInterop.SetupModule("./_content/Harborline.UIAdapters.Blazor/context-menu.js");
+        module.Mode = JSRuntimeMode.Loose;
+        var cut = RenderMenu();
+        if (pointerOpened) await cut.Instance.ShowAsync(8, 8);
+        await cut.Instance.ShowFromKeyboardAsync(8, 8);
+        await cut.Instance.ShowFromKeyboardAsync(40, 60);
+        if (pointerOpened)
+        {
+            Assert.Single(module.Invocations["rememberOpener"]);
+            module.VerifyNotInvoke("triggerAnchor");
+        }
+        else Assert.Single(module.Invocations["triggerAnchor"]);
+        Assert.Equal("copy", cut.Find("[role=menu]").GetAttribute("data-active-id"));
+        Assert.Contains("left:40px;top:60px", cut.Find("[role=menu]").GetAttribute("style"));
+        await cut.Instance.HideAsync();
+        Assert.Single(module.Invocations["focusTrigger"]);
+        await cut.Instance.ShowFromKeyboardAsync(8, 8);
+        Assert.Equal(pointerOpened ? 1 : 2, module.Invocations["triggerAnchor"].Count);
     }
 
     [Fact, Trait("ConformanceCase", "context-menu.reopen-reset")]
