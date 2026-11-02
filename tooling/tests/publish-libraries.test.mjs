@@ -28,7 +28,7 @@ test('publication uses exactly the gate producer ids and follows a push to main,
   assert.doesNotMatch(workflow, /ACTIONS_ENABLED/)
   // Least privilege (owner ruling 2026-11-02): pack-libraries builds, tests and packs read-only; only
   // publish-libraries holds the write scopes, and it builds nothing. The literals here are the oracle.
-  assert.match(pack, /if: github.event_name == 'push' && github.ref == 'refs\/heads\/main'\n    runs-on: ubuntu-latest\n    permissions:\n      contents: read\n    steps:/)
+  assert.match(pack, /if: github.event_name == 'push' && github.ref == 'refs\/heads\/main'\n    runs-on: ubuntu-latest\n    permissions:\n      contents: read\n    outputs:\n/)
   assert.doesNotMatch(pack, /: write|GH_TOKEN|nuget push|actions\/attest/)
   assert.match(pack, /node tooling\/verify-package-fixtures\.mjs --pack-libraries/)
   assert.match(pack, /node --test tooling\/tests\/publish-libraries\.test\.mjs tooling\/tests\/publish-libraries\.packed\.mjs/)
@@ -38,6 +38,10 @@ test('publication uses exactly the gate producer ids and follows a push to main,
     assert.ok(!job.includes(build), `publish-libraries must not build or test: ${build}`)
   }
   assert.match(job, /node tooling\/library-promotion-proof\.mjs/)
+  // A re-run of only a failed publish-libraries verifies against the attempt pack-libraries' proof records.
+  assert.ok(pack.includes('\n      attempt: ${{ github.run_attempt }}\n'), 'pack-libraries exports its attempt')
+  assert.ok(job.includes('HARBORLINE_PRODUCER_ATTEMPT: ${{ needs.pack-libraries.outputs.attempt }}\n        run: node tooling/library-promotion-proof.mjs'),
+    'publish-libraries verifies against the producer attempt')
   for (const scope of ['packages', 'id-token', 'attestations']) {
     assert.equal(workflow.match(new RegExp(`^ +${scope}: write$`, 'gm'))?.length, 1, `${scope}: write is granted once`)
   }

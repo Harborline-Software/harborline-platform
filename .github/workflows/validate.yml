@@ -21,6 +21,9 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    outputs:
+      # The attempt this job's proof records. A re-run of only a failed publish job has a later attempt.
+      attempt: ${{ github.run_attempt }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
@@ -102,6 +105,8 @@ jobs:
           name: platform-libraries-${{ github.sha }}
           path: artifacts/packages/nuget
       - name: Verify exact consumed bytes before attestation and publication
+        env:
+          HARBORLINE_PRODUCER_ATTEMPT: ${{ needs.pack-libraries.outputs.attempt }}
         run: node tooling/library-promotion-proof.mjs
       - name: Attest every packed library before push (T-705 ruling 107)
         uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4

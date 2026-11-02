@@ -4,7 +4,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, cpSync } f
 import { tmpdir } from 'node:os'
 import { resolve } from 'node:path'
 import test from 'node:test'
-import { writeLibraryProof, verifyLibraryProof, readLibraryManifest } from '../library-promotion-proof.mjs'
+import { writeLibraryProof, verifyLibraryProof, readLibraryManifest, sourceIdentity } from '../library-promotion-proof.mjs'
 
 const identity = { source: 'a'.repeat(40), repository: 'Harborline-Software/harborline-platform',
   run: '123', attempt: '1', workflow: 'validate.yml@refs/heads/main' }
@@ -94,6 +94,14 @@ test('wrong manifest, source, workflow, run and attempt cannot promote another p
   }
   writeFileSync(resolve(feed, 'manifest.json'), JSON.stringify({ ...manifest, packages: [{ ...manifest.packages[0], sha256: '0'.repeat(64) }] }))
   assert.throws(() => verifyLibraryProof(feed, [id], version, identity), /package mismatch/)
+})
+
+test('a re-run of only publish-libraries verifies against the attempt pack-libraries recorded', () => {
+  const root = resolve(import.meta.dirname, '../..')
+  const retry = { GITHUB_REPOSITORY: 'Harborline-Software/harborline-platform', GITHUB_RUN_ID: '123', GITHUB_RUN_ATTEMPT: '2' }
+  assert.equal(sourceIdentity(root, retry).attempt, '2')
+  assert.equal(sourceIdentity(root, { ...retry, HARBORLINE_PRODUCER_ATTEMPT: '1' }).attempt, '1')
+  assert.equal(sourceIdentity(root, { ...retry, HARBORLINE_PRODUCER_ATTEMPT: '1' }).run, '123')
 })
 
 test('publication proof follows the real consumer and closure assertions, and precedes attest/push', () => {
