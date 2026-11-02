@@ -1,20 +1,21 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.ui.context-menu",
-  "interfaceRevision": 1,
+  "interfaceRevision": 2,
   "semantics": {
-    "operation": "open a contextual action menu for a trigger, navigate enabled actions, and dismiss or select exactly once",
+    "operation": "open a contextual action menu for a trigger, navigate every action, and dismiss or select exactly once",
     "observableOutput": "A top-layer menu at a bounded viewport position, grouped menuitems, deterministic focus state, and at most one selected item event."
   },
   "invariants": [
     "The menu is closed initially and native context-menu presentation is suppressed when the projection opens it.",
     "Pointer opening uses client coordinates; keyboard opening uses the trigger edge and supports Shift+F10 and the ContextMenu key.",
-    "Opening focuses the first enabled item, or the menu when no enabled item exists.",
-    "Arrow navigation wraps and skips disabled items; Home and End select the first and last enabled items.",
+    "Opening focuses the first item, disabled or not, or the menu when it has no items.",
+    "Arrow navigation wraps and visits every item, disabled items included; Home and End move to the first and last items.",
     "Enter and Space select the active enabled item exactly once and close the menu.",
-    "A disabled item never emits selection and does not close the menu.",
-    "Escape and an outside pointer press close the menu without selection.",
-    "Focus returns to the keyboard opener after selection or dismissal.",
+    "A disabled item is exposed with aria-disabled=\"true\" and no native disabled attribute, stays focusable, and never emits selection or closes the menu on Enter, Space or pointer activation.",
+    "Escape, Tab, Shift+Tab and an outside pointer press close the menu without selection.",
+    "Tab and Shift+Tab are not trapped and keep their default action: in the same keydown, focus returns to the opener under the focus-return rule below, so the browser moves it on to the next or previous element in the tab sequence from the opener.",
+    "Focus returns to the opener after selection, Escape or an outside pointer press, only while focus is still in the closing menu or on the document body.",
     "Opening again resets active state rather than retaining a prior selection.",
     "Groups are separated semantically without creating selectable separator rows.",
     "The menu has a host-overridable accessible name, language, and text direction with an English fallback label.",
@@ -29,7 +30,7 @@
     "openingInputs": ["pointer", "Shift+F10", "ContextMenu"],
     "navigationKeys": ["ArrowDown", "ArrowUp", "Home", "End"],
     "activationKeys": ["Enter", "Space"],
-    "dismissalInputs": ["Escape", "outside-pointer"],
+    "dismissalInputs": ["Escape", "Tab", "Shift+Tab", "outside-pointer"],
     "viewportInsetCssPixels": 8,
     "fallbackAccessibleLabel": "Context menu",
     "hostResponsibilities": ["provide localized item labels", "override the accessible label when the active locale is not English", "supply locale and direction"]

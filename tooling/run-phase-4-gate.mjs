@@ -14,6 +14,7 @@ import { resolvePinnedDotnet } from './resolve-dotnet.mjs'
 import {galleryReconciliationFailures, headless, recordPhase4Gate, requiredStepIds} from './gate-contract.mjs'
 import {acquirePhase4GateLock} from './phase4-gate-lock.mjs'
 import {boundedReport, gateErrorDetails, interruptionDetails, reportWasTruncated, runPhase4Step} from './phase4-step-runner.mjs'
+import {loadModuleCatalog} from './module-catalog.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 if (process.argv.includes('--only')) throw new Error('phase-4 gate refuses --only; package evidence must cover every fixture')
@@ -58,7 +59,7 @@ async function launchGate(inputAttempt) {
     const gateEvidencePath = resolve(root, 'docs/evidence/phase-4/gate.json')
     const failureEvidenceDirectory = resolve(root, '.claude/gate-evidence')
     const previousPass = loadPreviousPassEvidence(gateEvidencePath)
-    const moduleCatalog = JSON.parse(readFileSync(resolve(root, 'catalog/modules.yaml'), 'utf8'))
+    const moduleCatalog = loadModuleCatalog(root)
     const generationSmokeModuleIds = Object.entries(moduleCatalog.modules)
       .filter(([moduleId, module]) => moduleId.startsWith('hlp.ui.') && module.presentation?.disposition === 'visual')
       .map(([moduleId]) => moduleId)

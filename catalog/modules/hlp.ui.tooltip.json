@@ -1,0 +1,57 @@
+{
+  "moduleId": "hlp.ui.tooltip",
+  "module": {
+    "interface": {
+      "path": "specs/modules/ui/hlp.ui.tooltip/interface.yaml",
+      "revision": 1
+    },
+    "moduleKind": "interactive-component",
+    "presentation": {
+      "disposition": "visual"
+    },
+    "qualityProfile": {
+      "path": "specs/modules/ui/hlp.ui.tooltip/quality.yaml",
+      "revision": 1
+    },
+    "owner": "platform-ui",
+    "dependencies": [
+      "hlp.ui.cn"
+    ],
+    "status": "extracted-candidate",
+    "depth": {
+      "disposition": "deep-module",
+      "deletionTest": "PASS",
+      "redistributedComplexity": [
+        "delayed hover and focus ownership, controlled state, timer disposal, side intent, and Escape dismissal repeated by every supplemental hint",
+        "actual-trigger description linkage, localization, forced colors, RTL, and reduced motion drifting between React and Blazor"
+      ]
+    },
+    "projections": {
+      "react": {
+        "role": "adapter",
+        "seam": "ui.tooltip.framework",
+        "path": "projections/react/ui/hlp.ui.tooltip",
+        "status": "conformant",
+        "packageContribution": "@harborline-software/ui-react",
+        "conformanceRunner": "conformance/hlp.ui.tooltip/runners/run-shared.mjs"
+      },
+      "blazor": {
+        "role": "adapter",
+        "seam": "ui.tooltip.framework",
+        "path": "projections/blazor/ui/hlp.ui.tooltip",
+        "status": "conformant",
+        "packageContribution": "Harborline.UIAdapters.Blazor",
+        "conformanceRunner": "conformance/hlp.ui.tooltip/runners/run-shared.mjs"
+      }
+    }
+  },
+  "seams": {
+    "ui.tooltip.framework": {
+      "status": "conformant",
+      "adapters": [
+        "react",
+        "blazor"
+      ]
+    }
+  }
+}

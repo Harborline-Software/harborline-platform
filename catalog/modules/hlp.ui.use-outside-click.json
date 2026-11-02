@@ -1,0 +1,55 @@
+{
+  "moduleId": "hlp.ui.use-outside-click",
+  "module": {
+    "interface": {
+      "path": "specs/modules/ui/hlp.ui.use-outside-click/interface.yaml",
+      "revision": 1
+    },
+    "moduleKind": "runtime",
+    "presentation": {
+      "disposition": "not-applicable",
+      "rationale": "The outside-pointer behavior support module renders no standalone interface."
+    },
+    "qualityProfile": {
+      "path": "specs/modules/ui/hlp.ui.use-outside-click/quality.yaml",
+      "revision": 1
+    },
+    "owner": "platform-ui",
+    "dependencies": [],
+    "status": "implemented-gate-model-green",
+    "depth": {
+      "disposition": "deep-module",
+      "deletionTest": "PASS",
+      "redistributedComplexity": [
+        "multi-boundary containment, latest-callback semantics, event vocabulary, and exact listener lifetime repeated by every dismissible surface",
+        "document-event interop and stale-listener cleanup independently drift between React and Blazor hosts"
+      ]
+    },
+    "projections": {
+      "react": {
+        "role": "implementation",
+        "path": "projections/react/ui/hlp.ui.use-outside-click",
+        "status": "conformant",
+        "packageContribution": "@harborline-software/ui-react",
+        "conformanceRunner": "conformance/hlp.ui.use-outside-click/runners/run-shared.mjs"
+      },
+      "blazor": {
+        "role": "adapter",
+        "seam": "ui.outside-pointer.browser",
+        "path": "projections/blazor/ui/hlp.ui.use-outside-click",
+        "status": "conformant",
+        "packageContribution": "Harborline.UIAdapters.Blazor",
+        "conformanceRunner": "conformance/hlp.ui.use-outside-click/runners/run-shared.mjs"
+      }
+    }
+  },
+  "seams": {
+    "ui.outside-pointer.browser": {
+      "status": "conformant",
+      "adapters": [
+        "react",
+        "blazor"
+      ]
+    }
+  }
+}

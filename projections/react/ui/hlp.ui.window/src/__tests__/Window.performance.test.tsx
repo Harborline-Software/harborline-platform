@@ -5,13 +5,20 @@ import { Window } from '../Window'
 import { applyWindowModelUpdates, type WindowModelUpdate } from '../window-model'
 import { fixture, performanceCases } from './fixtures'
 
+// Caller-supplied labels: the component has no built-in text of its own.
+const english = {
+  window: 'Window', close: 'Close', minimize: 'Minimize', maximize: 'Maximize', restore: 'Restore',
+  move: 'Move window', moveDescription: 'Press arrow keys to move window',
+  resizeHeight: 'Resize height from bottom edge', resizeWidth: 'Resize width from right edge',
+}
+
 describe('Window deterministic Tier-C evidence', () => {
   it('window.performance.large-content', () => {
     fixture(performanceCases, 'window.performance.large-content')
     const nodes = Array.from({ length: 256 }, (_, index) => <span data-body-node="true" key={index}>v1-{index}</span>)
-    const rendered = render(<Window title="Large">{nodes}</Window>)
+    const rendered = render(<Window labels={english} title="Large">{nodes}</Window>)
     expect(document.querySelectorAll('[data-body-node="true"]')).toHaveLength(256)
-    rendered.rerender(<Window title="Large">{nodes.map((_, index) => <span data-body-node="true" key={index}>v2-{index}</span>)}</Window>)
+    rendered.rerender(<Window labels={english} title="Large">{nodes.map((_, index) => <span data-body-node="true" key={index}>v2-{index}</span>)}</Window>)
     expect(document.querySelectorAll('[data-body-node="true"]')).toHaveLength(256)
     expect(screen.getByText('v2-255')).toBeInTheDocument()
     expect(screen.queryByText('v1-255')).toBeNull()
@@ -34,9 +41,9 @@ describe('Window deterministic Tier-C evidence', () => {
     const onStateChange = vi.fn()
     const onMove = vi.fn()
     const onResize = vi.fn()
-    const rendered = render(<Window onMove={onMove} onResize={onResize} onStateChange={onStateChange} state="default" title="Updates" />)
+    const rendered = render(<Window labels={english} onMove={onMove} onResize={onResize} onStateChange={onStateChange} state="default" title="Updates" />)
     for (let index = 0; index < 96; index += 1) {
-      rendered.rerender(<Window onMove={onMove} onResize={onResize} onStateChange={onStateChange} state={index === 95 ? latest.state : 'default'} title={`Updates ${index}`} />)
+      rendered.rerender(<Window labels={english} onMove={onMove} onResize={onResize} onStateChange={onStateChange} state={index === 95 ? latest.state : 'default'} title={`Updates ${index}`} />)
     }
     expect(screen.getByRole('dialog')).toHaveAttribute('data-window-state', 'maximized')
     expect(screen.getByRole('dialog')).toHaveAccessibleName('Updates 95')

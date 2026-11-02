@@ -1,0 +1,45 @@
+{
+  "moduleId": "hlp.ui.aspect-lens",
+  "module": {
+    "interface": {
+      "path": "specs/modules/ui/hlp.ui.aspect-lens/interface.yaml",
+      "revision": 1
+    },
+    "moduleKind": "runtime",
+    "presentation": {
+      "disposition": "not-applicable",
+      "rationale": "Framework-neutral builder read models and callbacks render no interface without a Layers Rail adapter."
+    },
+    "qualityProfile": {
+      "path": "specs/modules/ui/hlp.ui.aspect-lens/quality.yaml",
+      "revision": 1
+    },
+    "owner": "platform-ui",
+    "dependencies": [],
+    "status": "implemented-gate-model-green",
+    "depth": {
+      "disposition": "deep-module",
+      "deletionTest": "PASS",
+      "redistributedComplexity": [
+        "single-parent form-tree and workflow-graph outline projection, selection, lens kinds, optional descriptors, and dependency edges repeated in every builder host",
+        "closed semantic tones and fail-closed configuration provenance repeated across React and Blazor-consuming .NET adapters"
+      ]
+    },
+    "projections": {
+      "react": {
+        "role": "implementation",
+        "path": "projections/react/ui/hlp.ui.aspect-lens",
+        "status": "conformant",
+        "packageContribution": "@harborline-software/ui-react",
+        "conformanceRunner": "conformance/hlp.ui.aspect-lens/runners/run-shared.mjs"
+      },
+      "dotnet": {
+        "role": "implementation",
+        "path": "projections/dotnet/foundation/hlp.ui.aspect-lens",
+        "status": "conformant",
+        "packageContribution": "Harborline.Foundation",
+        "conformanceRunner": "conformance/hlp.ui.aspect-lens/runners/run-shared.mjs"
+      }
+    }
+  }
+}

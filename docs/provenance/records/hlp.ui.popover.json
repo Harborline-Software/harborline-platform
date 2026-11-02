@@ -1,0 +1,36 @@
+{
+  "moduleId": "hlp.ui.popover",
+  "legacySourceHashes": {
+    "packages/ui-react/src/components/feedback/Popover.tsx": "cfd244f49796e44161cc1ef7a0b856ff7c46274c6587dc240ba344a3a0fca098"
+  },
+  "phase4Evidence": "specs/modules/ui/hlp.ui.popover/interface.yaml",
+  "sourceExtracted": true,
+  "sourceState": "Interface revision 1 preserves the exact pinned hlp.ui.popover source surface and proves every registered projection through native, shared-conformance, package-only, and applicable gallery/performance gates.",
+  "contentHashes": {
+    "conformance/hlp.ui.popover/fixtures.yaml": "a4f66a51b8256e30505c2cf097891d19a1eeb2b8030c345dd9b01a7504f478fe",
+    "conformance/hlp.ui.popover/placement-v1.json": "c609162db6bcc3bba043e61b8ff6e74bcae939073dbfe63438cdcaeba87122ce",
+    "conformance/hlp.ui.popover/popover-placement.test.mjs": "ec912f8c42df0f1de81e7a7cf60480d22fb7e23fe1295d0889753eac68173ccb",
+    "conformance/hlp.ui.popover/quality-fixtures.yaml": "662a5b0f40f6cee57fea98508bc4330e40cf3f3970abd781a6d969edb6798384",
+    "conformance/hlp.ui.popover/runners/run-shared.mjs": "b30164d18ed207c1df30d5005921f46a08dfa2fed8033d3fb224b5e458b1fa7b",
+    "projections/blazor/ui/hlp.ui.popover/PopoverTypes.cs": "0de7864d75871a3b94b960b9c73444f56c31553d4436e78be182581804c4d54d",
+    "projections/blazor/ui/hlp.ui.popover/HarborlinePopover.razor": "1c76849c1c21bf5f20ac72fd7a8443f09eb43885111ef2bd7367376bfe402b0a",
+    "projections/blazor/ui/hlp.ui.popover/HarborlinePopoverAnchor.razor": "56c282a9e8fb936f389d420059a3a39f141e845003e00a4029a8ebad1837d17b",
+    "projections/blazor/ui/hlp.ui.popover/HarborlinePopoverClose.razor": "8f9880162499615bc98e86423c7d0348e4426859057fb076a6bc71334a4250d3",
+    "projections/blazor/ui/hlp.ui.popover/HarborlinePopoverContent.razor": "e48fb8ca277180f72186df514ba5adcddaa32385eaf0a6b6ddc5d6ef2cdbfa4e",
+    "projections/blazor/ui/hlp.ui.popover/HarborlinePopoverTrigger.razor": "dc9e36f883c6de7c760837b95f2d7070041bbbb80e78b876dfb742d8f88a8a6c",
+    "projections/blazor/ui/hlp.ui.popover/wwwroot/popover.js": "9c6754f6eb5db6ca944cfc2ba963a5769ddabb50ae26be6832125c236a0eeb4f",
+    "projections/react/ui/hlp.ui.popover/src/Popover.tsx": "d9d35816a2887272624d9ba86a6d9a77c1a1f79da1bd106cafab46ef37159c4e",
+    "projections/react/ui/hlp.ui.popover/src/__tests__/Popover.conformance.test.tsx": "c6af2f7201714ded9f2bbab23bea4ff05ac403c31547222951aecbc9ee43bca5",
+    "projections/react/ui/hlp.ui.popover/src/__tests__/Popover.native.test.tsx": "e5e31da9ee9b0e50eaec2696056ab154f5b84b2db4a084c799404fba16f4d0bc",
+    "projections/react/ui/hlp.ui.popover/src/__tests__/fixtures.ts": "47cdfc054c655aeb815bd8b546ab79ec47b479a0e501cbd1f1ef797463ec4ac9",
+    "projections/react/ui/hlp.ui.popover/src/index.ts": "44adb7adcc8c3a20c0630ccf512e6a062cf49b0bedd91bd885c6ed3c973a5e5c",
+    "projections/react/ui/hlp.ui.popover/src/test-setup.ts": "977afde26bba6a51325908cd7713cbfdc87d18f06b78b237c8f364c44864b7de",
+    "projections/react/ui/hlp.ui.popover/tsconfig.build.json": "eab1c849fbdfecccf9d8529871b7574649e95f5556e65410175bfea5490aef27",
+    "projections/react/ui/hlp.ui.popover/vitest.config.ts": "846aab8c29678bdb1560e32ba9355fbf8f24086c16a11cfe3758e916b834a739",
+    "specs/modules/ui/hlp.ui.popover/interface.yaml": "0eac6fe9ec4f0484b3c84a5b2d629f906b77ada03c82a132f4d3a998b6b22fc9",
+    "specs/modules/ui/hlp.ui.popover/quality.yaml": "d37e0f05814719ddae9bd13f1b3dd17de159b4cd60d62cf2160bb994081893b7",
+    "specs/modules/ui/hlp.ui.popover/scenarios.json": "85dff40b2e2d2d36bf9cbf62d3e1842ce01d4fbef19983ac2c300e28dc661b64",
+    "specs/modules/ui/hlp.ui.popover/style.css": "9c9965d6eb6ca3d8c2e82e1804da369c5122488406010dcbd32b292726f401c3"
+  },
+  "nextGate": "Retain this conformant aggregate contribution while HLF-052 advances to the next Carrier-essential dependency wave."
+}

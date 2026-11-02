@@ -1,0 +1,29 @@
+{
+  "moduleId": "hlp.ui.input",
+  "legacySourceHashes": {
+    "packages/ui-react/src/components/forms/Input.tsx": "0afd408fd7ab923c5a70e4d26cb47fe86aaeafc7e26571c5528645f10aa8795b"
+  },
+  "phase4Evidence": "specs/modules/ui/hlp.ui.input/interface.yaml",
+  "sourceExtracted": true,
+  "sourceState": "Interface revision 1 preserves the exact pinned hlp.ui.input source surface and proves every registered projection through native, shared-conformance, package-only, and applicable gallery/performance gates.",
+  "contentHashes": {
+    "conformance/hlp.ui.input/fixtures.yaml": "3260f8fb50ac6650f47aa785d59f531f4e0a6180448ee58eeb73b6ebb0869382",
+    "conformance/hlp.ui.input/quality-fixtures.yaml": "4b98f7947600183c9f0a60e71943c6607a3c0d98f68f1c8c3cbee97a6d0def1f",
+    "conformance/hlp.ui.input/runners/run-shared.mjs": "7e4396a3b43d747494fe56d858948aec505f2e0676f8374cb9e33242be299999",
+    "projections/blazor/ui/hlp.ui.input/InputTypes.cs": "ed5e507ca8da69debfec234fc4e4b62141be27322d4ea12efd1821e93083ebe6",
+    "projections/blazor/ui/hlp.ui.input/HarborlineInput.razor": "88fe05c1e8f2d85fe407df42dc3244c0f3e90d2a8d423b16cf42d4c071f0891c",
+    "projections/react/ui/hlp.ui.input/src/Input.tsx": "cc90a26923b8237f1c8b9177c0efb2575b08dfbf8ef061dfd301051cccef8fa9",
+    "projections/react/ui/hlp.ui.input/src/__tests__/Input.conformance.test.ts": "07f8670492320dbf061fc2d89a7627b5c539e54185ff0f52a92b0f3f0dde5faf",
+    "projections/react/ui/hlp.ui.input/src/__tests__/Input.native.test.tsx": "6854944b977585ce82b5e2c0bec98d576cfbdc046e470dd8af15f2b75dad98b9",
+    "projections/react/ui/hlp.ui.input/src/__tests__/fixtures.ts": "35eb003d0110a748c0504c474976901137d2ecd98cbe71d4efd177f0c68c990b",
+    "projections/react/ui/hlp.ui.input/src/index.ts": "202212623ff62eda0d0f2e9d8866eeaf4f8a6fbe888c57ac714d247f8289aca5",
+    "projections/react/ui/hlp.ui.input/src/test-setup.ts": "097040beeb2cc914b87790306bc835eef4a06321fa3594a6938b6754641ac2ff",
+    "projections/react/ui/hlp.ui.input/tsconfig.build.json": "dbd750731f21e04f21cc77a8813b0cfd218f0095c0c644bd348fe9adcf430c1f",
+    "projections/react/ui/hlp.ui.input/vitest.config.ts": "d0e9567484882ff387b0b1a17306428c3b53d1f433ddd4058c9cdfbb2e8d4752",
+    "specs/modules/ui/hlp.ui.input/interface.yaml": "df1f0f09fa24f4d3a6f68aa5500aee0e0302710abffe542b33eac4e9aae09c9f",
+    "specs/modules/ui/hlp.ui.input/quality.yaml": "fe93a970847c267c6b91cba76f0f4ff219ed62a26520be81b1fa4d842ed745ae",
+    "specs/modules/ui/hlp.ui.input/scenarios.json": "a83e14d905c3f40ce727778ed7712d1e636ee935ffcbbd36bde5394e01af5839",
+    "specs/modules/ui/hlp.ui.input/style.css": "2266cea0c53aa9d593d4b8dba5fee01604d81bc8d9e7a2a6af1b5eeac56c3222"
+  },
+  "nextGate": "Retain this conformant aggregate contribution while HLF-052 advances to the next Carrier-essential dependency wave."
+}

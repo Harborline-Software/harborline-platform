@@ -182,6 +182,21 @@ public sealed class RecordTypeConflictPolicyAndCategoriesTests
         Assert.Equal(AssetClassJson, Canonical(Read(AssetClassJson) with { Categories = [] }));
     }
 
+    // Owner ruling 2026-10-25: absent, an explicit null and an empty list all mean no tags.
+    [Fact]
+    [Trait("Holds", "records-ck-23")]
+    public void An_explicit_null_tag_list_reads_as_no_tags_and_canonicalizes_to_absent()
+    {
+        var body = WithCategories(AssetClassJson, "null");
+
+        var document = Read(body);
+
+        Assert.Null(document.Categories);
+        Assert.Equal(AssetClassJson, Canonical(document));
+        foreach (var phase in new[] { DefinitionAdmissionPhase.Author, DefinitionAdmissionPhase.Publish, DefinitionAdmissionPhase.Install })
+            Assert.Empty(Admit(body, phase));
+    }
+
     // How tags compare is not ruled (L103 is open), so no blank, trimming, normalization, character or duplicate rule is
     // adopted: every present text tag is admitted in every phase and kept verbatim.
     [Theory]
@@ -206,16 +221,27 @@ public sealed class RecordTypeConflictPolicyAndCategoriesTests
     [Trait("Holds", "records-ck-23")]
     [InlineData("[null]", "/categories/0")]
     [InlineData("[\"safety\",null]", "/categories/1")]
-    public void A_null_tag_is_a_malformed_document_at_its_pointer(string tags, string at) =>
-        Assert.Equal([("records.document_invalid", at)], Admit(WithCategories(AssetClassJson, tags), DefinitionAdmissionPhase.Author));
+    public void A_null_tag_is_a_malformed_document_at_its_pointer_at_every_phase(string tags, string at)
+    {
+        foreach (var phase in new[] { DefinitionAdmissionPhase.Author, DefinitionAdmissionPhase.Publish, DefinitionAdmissionPhase.Install })
+            Assert.Equal([("records.document_invalid", at)], Admit(WithCategories(AssetClassJson, tags), phase));
+    }
 
     [Theory]
     [Trait("Holds", "records-ck-23")]
     [InlineData("[1]")]
+    [InlineData("[true]")]
+    [InlineData("[[\"safety\"]]")]
+    [InlineData("[{\"tag\":\"safety\"}]")]
     [InlineData("\"safety\"")]
     [InlineData("{\"safety\":true}")]
-    public void A_non_text_tag_list_is_a_malformed_document(string tags) =>
-        Assert.Equal([("records.document_invalid", "")], Admit(WithCategories(AssetClassJson, tags), DefinitionAdmissionPhase.Author));
+    [InlineData("0")]
+    [InlineData("false")]
+    public void A_non_text_tag_list_is_a_malformed_document_at_every_phase(string tags)
+    {
+        foreach (var phase in new[] { DefinitionAdmissionPhase.Author, DefinitionAdmissionPhase.Publish, DefinitionAdmissionPhase.Install })
+            Assert.Equal([("records.document_invalid", "")], Admit(WithCategories(AssetClassJson, tags), phase));
+    }
 
     [Fact]
     [Trait("Holds", "records-ck-16")]

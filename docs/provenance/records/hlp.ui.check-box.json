@@ -1,0 +1,30 @@
+{
+  "moduleId": "hlp.ui.check-box",
+  "legacySourceHashes": {
+    "packages/ui-react/src/components/forms/CheckBox.tsx": "e868b45c1709fab9ed4b7acd8f4acfaed4275d6edfd44eede5fcac39b66d9701"
+  },
+  "phase4Evidence": "specs/modules/ui/hlp.ui.check-box/interface.yaml",
+  "sourceExtracted": true,
+  "sourceState": "Interface revision 1 preserves the exact pinned hlp.ui.check-box source surface and proves every registered projection through native, shared-conformance, package-only, and applicable gallery/performance gates.",
+  "contentHashes": {
+    "conformance/hlp.ui.check-box/fixtures.yaml": "103c67707f7fe5a43024283d7f3f31a383cf238fd2c26f4c386f306b2cb42e2d",
+    "conformance/hlp.ui.check-box/quality-fixtures.yaml": "c123b7efd1fa8f8bbab3ba2336128e82d7f00cbdb6993b301901d066156f055a",
+    "conformance/hlp.ui.check-box/runners/run-shared.mjs": "d998170f79b0a8d3a69cdf8158f6b282e2ffa70f476efedca8f74963150dfe9b",
+    "projections/blazor/ui/hlp.ui.check-box/CheckBoxTypes.cs": "349db936901a4289acb50629471e3040a9bf84d4365bd00fe7440df12f4ee8eb",
+    "projections/blazor/ui/hlp.ui.check-box/HarborlineCheckBox.razor": "3ed9b137c4b81377b4b0b8d390e112e3c9e4baa5f80a7c7321d666085ea55ae3",
+    "projections/blazor/ui/hlp.ui.check-box/wwwroot/check-box.js": "50bd0907b9c04ed7fdc5beb96ca90e043a5ba0dfca79bbaed0d1a420aee27f06",
+    "projections/react/ui/hlp.ui.check-box/src/CheckBox.tsx": "1323233ebd3f9dc5956bf1fa63d347d444e45bcc185eb10abbf4e7c8ad9b5d0d",
+    "projections/react/ui/hlp.ui.check-box/src/__tests__/CheckBox.conformance.test.tsx": "c66271e22ef08f735b89ed2492a72f77f3dfadc9a9604dc275b84289179f0ab4",
+    "projections/react/ui/hlp.ui.check-box/src/__tests__/CheckBox.native.test.tsx": "ecfe5266c257f0d2fefa49e790b91244ec780f23bcf27d488ddaef1aa4e673a1",
+    "projections/react/ui/hlp.ui.check-box/src/__tests__/fixtures.ts": "3f088d5c1f6ecac281bffd0cd7b14b52b8e6b90a700a8cf4fb8c041c404269e2",
+    "projections/react/ui/hlp.ui.check-box/src/index.ts": "cbb3d651839c57d8e7b59bfce1680c4f09098a374815f3398c9d00bce212899f",
+    "projections/react/ui/hlp.ui.check-box/src/test-setup.ts": "977afde26bba6a51325908cd7713cbfdc87d18f06b78b237c8f364c44864b7de",
+    "projections/react/ui/hlp.ui.check-box/tsconfig.build.json": "508880a933c95b25df93022629b7be798c891b5314190e12794036b547c33a46",
+    "projections/react/ui/hlp.ui.check-box/vitest.config.ts": "846aab8c29678bdb1560e32ba9355fbf8f24086c16a11cfe3758e916b834a739",
+    "specs/modules/ui/hlp.ui.check-box/interface.yaml": "9d93fd026b3f2bacf2737c8d8d1195522492d5931b9e894268bd10275ef1fce7",
+    "specs/modules/ui/hlp.ui.check-box/quality.yaml": "d2d5e15bac866c3438925ea4d70946234ed36f3939444f5eb58b6196341b1e79",
+    "specs/modules/ui/hlp.ui.check-box/scenarios.json": "bf244d10f8a5f18a24da156f387893186653f8316a2bc3c6b376e19cf95cde05",
+    "specs/modules/ui/hlp.ui.check-box/style.css": "4da26d10f80cdc9f8b988135aff024f615255dcd97ac6ecb821d6a4b7ec5d3f0"
+  },
+  "nextGate": "Retain this conformant aggregate contribution while HLF-052 advances to the next Carrier-essential dependency wave."
+}
