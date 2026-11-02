@@ -5,6 +5,8 @@
 // the closed menu left it (<body>); an item action that moved focus keeps it; a detached opener falls
 // back to the trigger's first focusable element, but no recorded opener moves focus nowhere; a re-open
 // from inside the trigger's own menu keeps the opener; and focus inside an outer menu is an opener.
+// The Tab listener (APG menu pattern: Tab closes the menu and moves on in the tab sequence) hands focus to
+// the opener inside the same keydown and never prevents the default action.
 import assert from 'node:assert/strict'
 import {resolve} from 'node:path'
 import {pathToFileURL} from 'node:url'
@@ -17,7 +19,9 @@ globalThis.document = document
 
 function element(name, {focusable = true, role = null, children = [], next = null} = {}) {
   const node = {
-    name, isConnected: true, focusable, children, nextElementSibling: next, parent: null,
+    name, isConnected: true, focusable, children, nextElementSibling: next, previousElementSibling: null, parent: null,
+    inert: false, listeners: [],
+    addEventListener(type, listener) { this.listeners.push({type, listener}) },
     focus() { if (this.focusable) document.activeElement = this },
     getAttribute: attribute => attribute === 'role' ? role : null,
     contains: other => other === node || node.children.some(child => child.contains(other)),
@@ -29,10 +33,32 @@ function element(name, {focusable = true, role = null, children = [], next = nul
     querySelector: () => node.children.find(child => child.focusable) ?? null,
   }
   for (const child of children) child.parent = node
+  if (next) next.previousElementSibling = node
   return node
 }
 
-const {focusTrigger, rememberOpener} = await import(pathToFileURL(resolve(root, 'projections/blazor/ui/hlp.ui.context-menu/wwwroot/context-menu.js')).href)
+// A keydown as the browser dispatches it to the menu's own listeners; reports whether any called preventDefault.
+function keydown(menu, key, shiftKey = false) {
+  let defaultPrevented = false
+  const event = {type: 'keydown', key, shiftKey, currentTarget: menu, target: document.activeElement, preventDefault() { defaultPrevented = true }}
+  for (const {type, listener} of menu.listeners) if (type === 'keydown') listener(event)
+  return {defaultPrevented}
+}
+
+// An open Blazor menu: <trigger><opener/></trigger><div role="menu"><item/><item/></div>, opener recorded.
+function openMenu() {
+  const opener = element('record')
+  const first = element('Blocked')
+  const second = element('Copy')
+  const menu = element('menu', {focusable: false, role: 'menu', children: [first, second]})
+  const trigger = element('trigger', {focusable: false, children: [opener], next: menu})
+  opener.focus()
+  rememberOpener(trigger)
+  focusActive(menu)
+  return {opener, first, second, menu, trigger}
+}
+
+const {focusActive, focusTrigger, rememberOpener} = await import(pathToFileURL(resolve(root, 'projections/blazor/ui/hlp.ui.context-menu/wwwroot/context-menu.js')).href)
 
 test('a close returns focus to the opener when the closed menu left it on <body>', () => {
   const opener = element('record')
@@ -107,4 +133,58 @@ test('with nothing focused at open there is no opener, so no close moves focus',
     focusTrigger(trigger)
     assert.equal(document.activeElement, body, close)
   }
+})
+
+for (const shiftKey of [false, true]) {
+  test(`${shiftKey ? 'Shift+Tab' : 'Tab'} in an open menu hands focus to the opener in the same keydown and keeps the default action`, () => {
+    const {opener, first, menu, trigger} = openMenu()
+    assert.equal(document.activeElement, first, 'focusActive focused the active item')
+    const {defaultPrevented} = keydown(menu, 'Tab', shiftKey)
+    assert.equal(defaultPrevented, false)
+    assert.equal(document.activeElement, opener)
+    assert.equal(menu.inert, true, 'the browser\'s Tab cannot land on an item of the closing menu')
+    // The browser's default Tab then moves focus off the opener (to <body> past the last element, say). The
+    // close Blazor runs next must not pull it back: the listener has already used the recorded opener.
+    document.activeElement = body
+    focusTrigger(trigger)
+    assert.equal(document.activeElement, body)
+  })
+}
+
+test('the Tab listener ignores every other key and acts on Tab only', () => {
+  const {opener, first, menu} = openMenu()
+  for (const key of ['ArrowDown', 'Enter', ' ', 'Escape']) assert.equal(keydown(menu, key).defaultPrevented, false)
+  assert.equal(document.activeElement, first)
+  assert.equal(menu.inert, false)
+  keydown(menu, 'Tab')
+  assert.equal(document.activeElement, opener)
+})
+
+test('the Tab listener follows the focus-return rule: focus outside the menu stays where it is', () => {
+  const {menu} = openMenu()
+  const editor = element('editor')
+  editor.focus()
+  keydown(menu, 'Tab')
+  assert.equal(document.activeElement, editor)
+  assert.equal(menu.inert, true, 'the closing menu still leaves the tab sequence')
+})
+
+test('with no recorded opener, Tab moves focus nowhere itself', () => {
+  const row = element('Edit row 1')
+  const first = element('Blocked')
+  const menu = element('menu', {focusable: false, role: 'menu', children: [first]})
+  const trigger = element('trigger', {focusable: false, children: [row], next: menu})
+  document.activeElement = body
+  rememberOpener(trigger)
+  focusActive(menu)
+  keydown(menu, 'Tab')
+  assert.equal(document.activeElement, first)
+  assert.equal(menu.inert, true, 'the closing menu still leaves the tab sequence')
+})
+
+test('focusActive binds the Tab listener once per menu element', () => {
+  const {menu} = openMenu()
+  focusActive(menu)
+  focusActive(menu)
+  assert.equal(menu.listeners.filter(row => row.type === 'keydown').length, 1)
 })

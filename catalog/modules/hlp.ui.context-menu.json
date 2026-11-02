@@ -3,7 +3,7 @@
   "module": {
     "interface": {
       "path": "specs/modules/ui/hlp.ui.context-menu/interface.yaml",
-      "revision": 1
+      "revision": 2
     },
     "moduleKind": "interactive-component",
     "presentation": {
@@ -11,7 +11,7 @@
     },
     "qualityProfile": {
       "path": "specs/modules/ui/hlp.ui.context-menu/quality.yaml",
-      "revision": 1
+      "revision": 2
     },
     "owner": "platform-ui",
     "dependencies": [],
@@ -20,7 +20,7 @@
       "disposition": "deep-module",
       "deletionTest": "PASS",
       "redistributedComplexity": [
-        "pointer and keyboard opening, viewport placement, focus lifecycle, dismissal, and enabled-item navigation repeated in every host",
+        "pointer and keyboard opening, viewport placement, focus lifecycle, dismissal, and item navigation repeated in every host",
         "group, separator, disabled, danger, locale, direction, theme, forced-colors, and reduced-motion semantics independently drift across renderers"
       ]
     },

@@ -38,22 +38,62 @@ public sealed class ContextMenuConformanceTests : BunitContext
     public async Task PointerSelection() { var count=0; var cut=RenderMenu(_=>count++); await cut.Instance.ShowAsync(8,8); cut.FindAll("[role=menuitem]")[1].Click(); Assert.Equal(1,count); Assert.False(cut.Instance.IsOpen); }
 
     [Fact, Trait("ConformanceCase", "context-menu.disabled-selection")]
-    public async Task DisabledSelection() { var count=0; var cut=RenderMenu(_=>count++); await cut.Instance.ShowAsync(8,8); cut.FindAll("[role=menuitem]")[0].Click(); Assert.Equal(0,count); Assert.True(cut.Instance.IsOpen); }
+    public async Task DisabledSelection()
+    {
+        // APG: a disabled menuitem is aria-disabled, stays focusable, and cannot be activated by click, Enter or Space.
+        var count=0; var cut=RenderMenu(_=>count++); await cut.Instance.ShowAsync(8,8);
+        var item=cut.FindAll("[role=menuitem]")[0];
+        Assert.Equal("true",item.GetAttribute("aria-disabled")); Assert.False(item.HasAttribute("disabled"));
+        Assert.False(cut.FindAll("[role=menuitem]")[1].HasAttribute("aria-disabled"));
+        Assert.Equal("blocked",cut.Find("[role=menu]").GetAttribute("data-active-id"));
+        item.Click();
+        await cut.Find("[role=menu]").KeyDownAsync(new KeyboardEventArgs{Key="Enter"});
+        await cut.Find("[role=menu]").KeyDownAsync(new KeyboardEventArgs{Key=" "});
+        Assert.Equal(0,count); Assert.True(cut.Instance.IsOpen);
+    }
 
     [Fact, Trait("ConformanceCase", "context-menu.dismissal")]
-    public async Task Dismissal() { var cut=RenderMenu(); await cut.Instance.ShowAsync(8,8); await cut.Find("[role=menu]").KeyDownAsync(new KeyboardEventArgs{Key="Escape"}); Assert.False(cut.Instance.IsOpen); await cut.Instance.ShowAsync(8,8); await cut.Find(".hl-context-menu-overlay").MouseDownAsync(new MouseEventArgs{Button=0}); Assert.False(cut.Instance.IsOpen); await cut.Instance.ShowAsync(8,8); await cut.Find(".hl-context-menu-overlay").MouseDownAsync(new MouseEventArgs{Button=2}); Assert.False(cut.Instance.IsOpen); }
+    public async Task Dismissal() { var count=0; var cut=RenderMenu(_=>count++); await cut.Instance.ShowAsync(8,8); await cut.Find("[role=menu]").KeyDownAsync(new KeyboardEventArgs{Key="Escape"}); Assert.False(cut.Instance.IsOpen); await cut.Instance.ShowAsync(8,8); await cut.Find(".hl-context-menu-overlay").MouseDownAsync(new MouseEventArgs{Button=0}); Assert.False(cut.Instance.IsOpen); await cut.Instance.ShowAsync(8,8); await cut.Find(".hl-context-menu-overlay").MouseDownAsync(new MouseEventArgs{Button=2}); Assert.False(cut.Instance.IsOpen); await TabAndShiftTabClose(cut); Assert.Equal(0,count); }
+
+    // APG: Tab and Shift+Tab close the menu without selection. The focus half (back to the opener inside the same
+    // keydown, default action kept) is context-menu.js's Tab listener, which focusActive binds to the open menu;
+    // tooling/tests/blazor-context-menu-focus.test.mjs drives it.
+    private async Task TabAndShiftTabClose(IRenderedComponent<HarborlineContextMenu> cut)
+    {
+        var focusActiveBefore=JSInterop.Invocations.Count(invocation=>invocation.Identifier=="focusActive");
+        foreach (var shift in new[] { false, true })
+        {
+            await cut.Find(".hl-context-menu-trigger").KeyDownAsync(new KeyboardEventArgs{Key="F10",ShiftKey=true});
+            Assert.True(cut.Instance.IsOpen);
+            await cut.Find("[role=menu]").KeyDownAsync(new KeyboardEventArgs{Key="Tab",ShiftKey=shift});
+            Assert.False(cut.Instance.IsOpen);
+            Assert.Empty(cut.FindAll("[role=menu]"));
+        }
+        Assert.Equal(focusActiveBefore+2,JSInterop.Invocations.Count(invocation=>invocation.Identifier=="focusActive"));
+    }
 
     [Fact, Trait("ConformanceCase", "context-menu.keyboard-open")]
     public async Task KeyboardOpen() { var cut=RenderMenu(); await cut.Find(".hl-context-menu-trigger").KeyDownAsync(new KeyboardEventArgs{Key="F10",ShiftKey=true}); Assert.True(cut.Instance.IsOpen); }
 
     [Fact, Trait("ConformanceCase", "context-menu.focus-entry")]
-    public async Task FocusEntry() { var cut=RenderMenu(); await cut.Instance.ShowAsync(8,8); Assert.Equal("copy",cut.Find("[role=menu]").GetAttribute("data-active-id")); }
+    public async Task FocusEntry() { var cut=RenderMenu(); await cut.Instance.ShowAsync(8,8); Assert.Equal("blocked",cut.Find("[role=menu]").GetAttribute("data-active-id")); Assert.Equal("0",cut.FindAll("[role=menuitem]")[0].GetAttribute("tabindex")); }
 
     [Fact, Trait("ConformanceCase", "context-menu.keyboard-navigation")]
-    public async Task NavigationWraps() { var cut=RenderMenu(); await cut.Instance.ShowAsync(8,8); var menu=cut.Find("[role=menu]"); await menu.KeyDownAsync(new KeyboardEventArgs{Key="End"}); Assert.Equal("delete",cut.Find("[role=menu]").GetAttribute("data-active-id")); await cut.Find("[role=menu]").KeyDownAsync(new KeyboardEventArgs{Key="ArrowDown"}); Assert.Equal("copy",cut.Find("[role=menu]").GetAttribute("data-active-id")); }
+    public async Task NavigationWraps()
+    {
+        // Every item is a stop, the disabled one included, and both directions wrap.
+        var cut=RenderMenu(); await cut.Instance.ShowAsync(8,8);
+        var visited=new List<string?>();
+        foreach (var key in new[] { "ArrowDown", "End", "ArrowDown", "ArrowUp", "Home", "ArrowDown" })
+        {
+            await cut.Find("[role=menu]").KeyDownAsync(new KeyboardEventArgs{Key=key});
+            visited.Add(cut.Find("[role=menu]").GetAttribute("data-active-id"));
+        }
+        Assert.Equal(["copy","delete","blocked","delete","blocked","copy"],visited);
+    }
 
     [Fact, Trait("ConformanceCase", "context-menu.keyboard-activation")]
-    public async Task KeyboardActivation() { string? id=null; var cut=RenderMenu(value=>id=value.ItemId); await cut.Instance.ShowAsync(8,8); await cut.Find("[role=menu]").KeyDownAsync(new KeyboardEventArgs{Key="Enter"}); Assert.Equal("copy",id); Assert.False(cut.Instance.IsOpen); }
+    public async Task KeyboardActivation() { string? id=null; var cut=RenderMenu(value=>id=value.ItemId); await cut.Instance.ShowAsync(8,8); await cut.Find("[role=menu]").KeyDownAsync(new KeyboardEventArgs{Key="ArrowDown"}); await cut.Find("[role=menu]").KeyDownAsync(new KeyboardEventArgs{Key="Enter"}); Assert.Equal("copy",id); Assert.False(cut.Instance.IsOpen); }
 
     [Fact, Trait("ConformanceCase", "context-menu.focus-return")]
     public async Task FocusReturnState() { var cut=RenderMenu(); await cut.Find(".hl-context-menu-trigger").KeyDownAsync(new KeyboardEventArgs{Key="ContextMenu"}); await cut.Find("[role=menu]").KeyDownAsync(new KeyboardEventArgs{Key="Escape"}); Assert.False(cut.Instance.IsOpen); }
@@ -98,6 +138,22 @@ public sealed class ContextMenuConformanceTests : BunitContext
         module.VerifyInvoke("focusTrigger");
     }
 
+    // PR 396 review: a disabled item is focusable, so a pointer press focuses it. It then becomes the active item, and
+    // Enter or Space acts on it (nothing) rather than on the item that was active before the press.
+    [Fact]
+    public async Task FocusingADisabledItemMakesItActiveSoEnterAndSpaceSelectNothing()
+    {
+        var count=0; var cut=RenderMenu(_=>count++); await cut.Instance.ShowAsync(8,8);
+        await cut.Find("[role=menu]").KeyDownAsync(new KeyboardEventArgs{Key="End"});
+        Assert.Equal("delete",cut.Find("[role=menu]").GetAttribute("data-active-id"));
+        await cut.FindAll("[role=menuitem]")[0].FocusAsync(new FocusEventArgs());
+        cut.FindAll("[role=menuitem]")[0].Click();
+        foreach (var key in new[] { "Enter", " " }) await cut.Find("[role=menu]").KeyDownAsync(new KeyboardEventArgs{Key=key});
+        Assert.Equal(0,count); Assert.True(cut.Instance.IsOpen);
+        Assert.Equal("blocked",cut.Find("[role=menu]").GetAttribute("data-active-id"));
+        Assert.Equal("true",cut.FindAll("[role=menuitem]")[0].GetAttribute("data-active"));
+    }
+
     // T-943 review 3: a re-open while the menu is open keeps the opener recorded at the closed-to-open
     // transition, instead of recording one of the menu's own items.
     [Fact]
@@ -116,7 +172,7 @@ public sealed class ContextMenuConformanceTests : BunitContext
     }
 
     // T-1130: a host that handles Shift+F10 or the ContextMenu key on its own element opens the menu as keyboard-opened:
-    // the first enabled item takes focus, and closing returns focus to the element focused when it opened.
+    // the first item takes focus, and closing returns focus to the element focused when it opened.
     [Fact, Trait("Holds", "context-menu.quality.focus")]
     public async Task HostKeyboardOpenFocusesTheFirstItemAndClosingReturnsFocusToTheOpener()
     {
@@ -125,7 +181,7 @@ public sealed class ContextMenuConformanceTests : BunitContext
         var cut = RenderMenu();
         await cut.Instance.ShowFromKeyboardAsync(8, 8);
         Assert.Single(module.Invocations["triggerAnchor"]);
-        Assert.Equal("copy", cut.Find("[role=menu]").GetAttribute("data-active-id"));
+        Assert.Equal("blocked", cut.Find("[role=menu]").GetAttribute("data-active-id"));
         Assert.Single(module.Invocations["focusActive"]);
         await cut.Instance.HideAsync();
         Assert.Single(module.Invocations["focusTrigger"]);
@@ -148,7 +204,7 @@ public sealed class ContextMenuConformanceTests : BunitContext
             module.VerifyNotInvoke("triggerAnchor");
         }
         else Assert.Single(module.Invocations["triggerAnchor"]);
-        Assert.Equal("copy", cut.Find("[role=menu]").GetAttribute("data-active-id"));
+        Assert.Equal("blocked", cut.Find("[role=menu]").GetAttribute("data-active-id"));
         Assert.Contains("left:40px;top:60px", cut.Find("[role=menu]").GetAttribute("style"));
         await cut.Instance.HideAsync();
         Assert.Single(module.Invocations["focusTrigger"]);
@@ -157,5 +213,5 @@ public sealed class ContextMenuConformanceTests : BunitContext
     }
 
     [Fact, Trait("ConformanceCase", "context-menu.reopen-reset")]
-    public async Task ReopenResets() { var cut=RenderMenu(); await cut.Instance.ShowAsync(8,8); await cut.Find("[role=menu]").KeyDownAsync(new KeyboardEventArgs{Key="End"}); await cut.Instance.HideAsync(); await cut.Instance.ShowAsync(8,8); Assert.Equal("copy",cut.Find("[role=menu]").GetAttribute("data-active-id")); }
+    public async Task ReopenResets() { var cut=RenderMenu(); await cut.Instance.ShowAsync(8,8); await cut.Find("[role=menu]").KeyDownAsync(new KeyboardEventArgs{Key="End"}); await cut.Instance.HideAsync(); await cut.Instance.ShowAsync(8,8); Assert.Equal("blocked",cut.Find("[role=menu]").GetAttribute("data-active-id")); }
 }
