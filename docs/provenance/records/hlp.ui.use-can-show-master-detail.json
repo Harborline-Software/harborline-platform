@@ -1,0 +1,28 @@
+{
+  "moduleId": "hlp.ui.use-can-show-master-detail",
+  "legacySourceHashes": {
+    "packages/ui-react/src/hooks/useFormFactor.ts": "ff23aa5b89dc6742af7681dd1fa629b5d4139ec6cb1334756113050eb2a18eaa"
+  },
+  "phase4Evidence": "specs/modules/ui/hlp.ui.use-can-show-master-detail/interface.yaml",
+  "sourceExtracted": true,
+  "sourceState": "Interface revision 2 tightens master-detail behind the shared detail-panel rail query (ticket 154) over the pinned hlp.ui.use-can-show-master-detail source surface and proves every registered projection through native, shared-conformance, package-only, and applicable gallery/performance gates.",
+  "contentHashes": {
+    "conformance/hlp.ui.use-can-show-master-detail/fixtures.yaml": "4370c1cbef278e9138f913099ad4e6126fda4e5dd8668a43cf53da22a60a078d",
+    "conformance/hlp.ui.use-can-show-master-detail/quality-fixtures.yaml": "aef95a48ee5a9ed5261c0d9616683cbd0e862fe5438f294b3b65bdb375fffe1d",
+    "conformance/hlp.ui.use-can-show-master-detail/runners/run-shared.mjs": "7c23b626b4969139e7e87a978e929f7a1ebbe1459414238814b9117de84f113f",
+    "projections/dotnet/foundation/hlp.ui.use-can-show-master-detail/FormFactorPolicy.cs": "2333a49c90b118cd47e67a6f563f79fc1e981713e41cb6af5d7425aa0222dd07",
+    "projections/react/ui/hlp.ui.use-can-show-master-detail/src/__tests__/fixtures.ts": "c3cc22a9f938c2e5a14a00bb5c13fbe5c09a41ea7a61b7dfb16fcbb46b06f649",
+    "projections/react/ui/hlp.ui.use-can-show-master-detail/src/__tests__/form-factor.conformance.test.tsx": "e0b2533d88233814212d56d3293c9653a87a860efe858471f1d42506400783df",
+    "projections/react/ui/hlp.ui.use-can-show-master-detail/src/__tests__/form-factor.native.test.tsx": "afe7bcc7ca07b652e492db5a3ffc638d4f934f958c98f3605d4ed7023a6c4a8b",
+    "projections/react/ui/hlp.ui.use-can-show-master-detail/src/__tests__/matchMediaHost.ts": "8d9f2da4724faf97de0149fc73119f9023ce77079140eff757cab7c1c2c774b0",
+    "projections/react/ui/hlp.ui.use-can-show-master-detail/src/formFactorPolicy.ts": "a56ca70ab981745474a3e44a0027dd2c6652aa68ba2f34010db727aee366f77b",
+    "projections/react/ui/hlp.ui.use-can-show-master-detail/src/index.ts": "75696581cee25561bb76d450523c6bc7fa19499056aa0d9aa5ac604989b2e5cd",
+    "projections/react/ui/hlp.ui.use-can-show-master-detail/src/useFormFactor.ts": "e2299466ea8ae7d7147655d8076bb2c109ae707fc29923ecd3c0cc332ea872a8",
+    "projections/react/ui/hlp.ui.use-can-show-master-detail/tsconfig.build.json": "f2344a6a71de7676f74f039d5a71dd8df72b4f18fdd1b0001055d19a66bf746b",
+    "projections/react/ui/hlp.ui.use-can-show-master-detail/tsconfig.json": "ba0c82cce314633a86246b7836ae6580237b3be827a7ea38bdf1676b8eb849a8",
+    "projections/react/ui/hlp.ui.use-can-show-master-detail/vitest.config.ts": "3ed11f191f47e273f7f292695b13d219c590d44cb34afdddf4ab9a51eae3b01e",
+    "specs/modules/ui/hlp.ui.use-can-show-master-detail/interface.yaml": "fd97cf650ae4c4d54daef13b7dad8402f2c9bce6c99f5ea2a05a9ac8ef6d9be6",
+    "specs/modules/ui/hlp.ui.use-can-show-master-detail/quality.yaml": "8d3bfac0401ee3dd1f9536ef6b767b97d5fb8a866ffe19b80494f2ed649c9f9e"
+  },
+  "nextGate": "Retain this conformant aggregate contribution while HLF-052 advances to the next Carrier-essential dependency wave."
+}

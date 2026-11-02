@@ -1,7 +1,9 @@
+using System.Text.Json.Nodes;
 using Harborline.Contracts.Authorization;
 using Harborline.Foundation.Assets.Common;
 using Harborline.Foundation.Forms;
 using Harborline.Foundation.Forms.Engine.Authoring;
+using Harborline.Foundation.Forms.Exceptions;
 using Harborline.Foundation.Forms.Models;
 using Harborline.Foundation.RuleEngine.Environments;
 using Harborline.Kernel.SchemaValidation;
@@ -12,6 +14,177 @@ namespace Harborline.Foundation.Forms.Engine.Tests;
 /// <summary>Independent literal ADR 0099 decision 7 oracles; these are not execution evidence.</summary>
 public sealed class FormPublicationImpactTests
 {
+    [Fact]
+    public void Existing_five_member_construction_and_deconstruction_do_not_invent_provenance()
+    {
+        var assessment = new FormPublicationAssessment(null, FormPublicationCompatibility.ProposalEligible, [], null, null);
+        var (basis, compatibility, surfaces, proposal, reason) = assessment;
+        Assert.Null(basis);
+        Assert.Equal(FormPublicationCompatibility.ProposalEligible, compatibility);
+        Assert.Empty(surfaces);
+        Assert.Null(proposal);
+        Assert.Null(reason);
+        Assert.True(assessment.IsComplete);
+        Assert.Null(assessment.Inputs);
+        Assert.Null(assessment.FreshnessLimit);
+    }
+
+    [Fact]
+    public async Task Positive_capture_fidelity_probe_retains_the_full_unpersisted_Draft()
+    {
+        var fixture = await ImpactFixture.CreateAsync();
+        var candidate = Rich(fixture.Candidate) with
+        {
+            Lineage = new(new("form.parent"), new(1, 4, 0)),
+            Owner = new("user", "author-17"),
+            CreatedAt = DateTimeOffset.Parse("2026-10-18T09:00:00Z"),
+            UpdatedAt = DateTimeOffset.Parse("2026-10-18T10:00:00Z"),
+        };
+        var store = new InMemoryFormDefinitionStore();
+        var basis = fixture.Basis with { NoPredecessor = true, Predecessor = null, PredecessorEnvironment = null };
+        var result = await new FormPublicationImpactAssessment().AssessAsync(candidate, store,
+            fixture.Context with { Basis = basis, Surfaces = new ImpactFixture.Source(_ =>
+                ValueTask.FromResult<FormPublishedSurfaceRead>(new FormPublishedSurfaceRead.Complete("tenant-a", []))) });
+
+        Assert.True(result.IsComplete);
+        Assert.Equal(FormPublicationCompatibility.ProposalEligible, result.Compatibility);
+        Assert.Empty(result.Surfaces);
+        Assert.Null(result.Proposal);
+        var inputs = Assert.IsType<FormPublicationAssessedInputs>(result.Inputs);
+        AssertRich(inputs.CandidateFormJson);
+        var body = JsonNode.Parse(inputs.CandidateFormJson)!;
+        Assert.Equal("form.customer", body["Id"]!.GetValue<string>());
+        Assert.Equal("2.2.0", body["Version"]!.GetValue<string>());
+        Assert.Equal("tenant-a", body["Tenant"]!.GetValue<string>());
+        Assert.Equal(0, body["Status"]!.GetValue<int>());
+        Assert.Equal("user", body["Owner"]!["Scheme"]!.GetValue<string>());
+        Assert.Equal("author-17", body["Owner"]!["Value"]!.GetValue<string>());
+        Assert.Equal("form.parent", body["Lineage"]!["ParentDefinitionId"]!.GetValue<string>());
+        Assert.Equal("1.4.0", body["Lineage"]!["ParentVersion"]!.GetValue<string>());
+        Assert.Equal(DateTimeOffset.Parse("2026-10-18T09:00:00Z"), body["CreatedAt"]!.GetValue<DateTimeOffset>());
+        Assert.Equal(DateTimeOffset.Parse("2026-10-18T10:00:00Z"), body["UpdatedAt"]!.GetValue<DateTimeOffset>());
+        Assert.Null(inputs.PredecessorFormJson);
+        Assert.Null(inputs.PredecessorSchema);
+        Assert.Equal("""{"type":"object","properties":{"name":{"type":"string"}}}""", inputs.CandidateSchema.JsonSchemaText);
+        AssertEnvironment(result.Basis!.CandidateEnvironment.Declaration!);
+        Assert.Equal("Historical inputs observed before publication; the committed Form transition and current Layout membership are not guaranteed. Reassess before acting.", result.FreshnessLimit);
+        await Assert.ThrowsAsync<FormDefinitionNotFoundException>(() => store.GetAsync(new("tenant-a"), new("form.customer"), new(2, 2, 0)).AsTask());
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Comparison_uses_captured_bytes_when_one_original_graph_changes_during_its_await(bool mutatePredecessor)
+    {
+        var fixture = await ImpactFixture.CreateAsync(configure: Rich);
+        var candidate = Rich(fixture.Candidate);
+        var previous = await fixture.Store.GetAsync(new("tenant-a"), new("form.customer"), new(2, 1, 0));
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        async ValueTask Pause(CancellationToken token)
+        {
+            entered.TrySetResult();
+            await release.Task.WaitAsync(token);
+        }
+        var schemas = new SchemaOverride(ImpactFixture.Schema) { BeforeRead = mutatePredecessor ? Pause : null };
+        var store = new ReadGateStore(fixture.Store, mutatePredecessor ? null : Pause);
+        var blocks = new[] { "form-a" };
+        var rows = new[] { new FormPublishedSurface("tenant-a", "surface.customer", "surface-opaque-a", "1.0.0", "digest-a", blocks) };
+        var source = new ImpactFixture.Source(_ => ValueTask.FromResult<FormPublishedSurfaceRead>(
+            new FormPublishedSurfaceRead.Complete("tenant-a", rows)), observed =>
+        {
+            AssertEnvironment(observed.CandidateEnvironment.Declaration!);
+            AssertEnvironment(observed.PredecessorEnvironment!.Declaration!);
+            AssertFrozen(observed.CandidateEnvironment.Declaration!);
+            AssertFrozen(observed.PredecessorEnvironment.Declaration!);
+        });
+        var pending = new FormPublicationImpactAssessment().AssessAsync(candidate, store,
+            fixture.Context with { Schemas = schemas, Surfaces = source }).AsTask();
+        await entered.Task.WaitAsync(TimeSpan.FromSeconds(10));
+        Mutate(mutatePredecessor ? previous : candidate);
+        var originalEnvironment = (mutatePredecessor ? fixture.Basis.PredecessorEnvironment! : fixture.Basis.CandidateEnvironment).Declaration!;
+        MutateEnvironment(originalEnvironment);
+        release.SetResult();
+        var result = await pending.WaitAsync(TimeSpan.FromSeconds(10));
+
+        Assert.True(result.IsComplete);
+        Assert.Equal(FormPublicationCompatibility.ProposalEligible, result.Compatibility);
+        AssertRich(result.Inputs!.CandidateFormJson);
+        AssertRich(result.Inputs.PredecessorFormJson!);
+        Mutate(mutatePredecessor ? candidate : previous);
+        MutateEnvironment((mutatePredecessor ? fixture.Basis.CandidateEnvironment : fixture.Basis.PredecessorEnvironment!).Declaration!);
+        blocks[0] = "changed-after-return";
+        rows[0] = rows[0] with { VersionId = "changed-after-return" };
+        AssertRich(result.Inputs.CandidateFormJson);
+        AssertRich(result.Inputs.PredecessorFormJson!);
+        AssertEnvironment(result.Basis!.CandidateEnvironment.Declaration!);
+        AssertEnvironment(result.Basis.PredecessorEnvironment!.Declaration!);
+        AssertFrozen(result.Basis.CandidateEnvironment.Declaration!);
+        Assert.Equal("surface-opaque-a", Assert.Single(result.Surfaces).VersionId);
+        Assert.Equal(new[] { "form-a" }, result.Surfaces[0].BlockIds);
+        Assert.Throws<NotSupportedException>(() => ((IList<FormPublishedSurface>)result.Surfaces)[0] = rows[0]);
+        Assert.Throws<NotSupportedException>(() => ((IList<string>)result.Surfaces[0].BlockIds)[0] = "changed");
+        Assert.Same(result.Surfaces, result.Proposal!.Surfaces);
+    }
+
+    [Fact]
+    public async Task Later_lifecycle_changes_do_not_replace_the_observed_predecessor_body()
+    {
+        var clock = new TestClock { Now = DateTimeOffset.Parse("2026-10-18T12:00:00Z") };
+        var fixture = await ImpactFixture.CreateAsync(clock: clock);
+        var result = await fixture.AssessAsync();
+        clock.Now = DateTimeOffset.Parse("2026-10-19T12:00:00Z");
+        var deprecated = await fixture.Store.DeprecateAsync(new("tenant-a"), new("form.customer"), new(2, 1, 0));
+        Assert.Equal(FormDefinitionStatus.Deprecated, deprecated.Status);
+        Assert.Equal(DateTimeOffset.Parse("2026-10-19T12:00:00Z"), deprecated.UpdatedAt);
+        Assert.True(result.IsComplete);
+        var body = JsonNode.Parse(result.Inputs!.PredecessorFormJson!)!;
+        Assert.Equal("2.1.0", body["Version"]!.GetValue<string>());
+        Assert.Equal(1, body["Status"]!.GetValue<int>());
+        Assert.Equal(DateTimeOffset.UnixEpoch, body["CreatedAt"]!.GetValue<DateTimeOffset>());
+        Assert.Equal(DateTimeOffset.Parse("2026-10-18T12:00:00Z"), body["UpdatedAt"]!.GetValue<DateTimeOffset>());
+    }
+
+    [Fact]
+    public async Task Separate_actual_schema_responses_are_retained_even_when_their_ids_match()
+    {
+        var fixture = await ImpactFixture.CreateAsync();
+        fixture = fixture with { Store = new InMemoryFormDefinitionStore(), Candidate = fixture.Candidate with
+            { SchemaRef = new("fixture-shared-schema-id") } };
+        await fixture.Store.RegisterAndPublishAsync(fixture.Candidate with { Version = new(2, 1, 0) });
+        const string candidateText = " { \"type\":\"object\", \"properties\":{\"name\":{\"type\":\"number\"}} } ";
+        const string predecessorText = "\n{\"type\":\"object\",\"properties\":{\"name\":{\"type\":\"string\"}}}\n";
+        var schemas = new SchemaOverride("{}") { Answers = new Queue<string>([candidateText, predecessorText]) };
+        var result = await new FormPublicationImpactAssessment().AssessAsync(fixture.Candidate, fixture.Store,
+            fixture.Context with { Schemas = schemas });
+        schemas.Text = "{\"type\":\"object\",\"properties\":{}}";
+        Assert.Equal("{\"type\":\"object\",\"properties\":{}}", (await schemas.GetAsync(new("fixture-shared-schema-id")))!.JsonSchemaText);
+        Assert.True(result.IsComplete);
+        Assert.Equal(FormPublicationCompatibility.AuthorResolution, result.Compatibility);
+        Assert.Null(result.Proposal);
+        Assert.Equal(candidateText, result.Inputs!.CandidateSchema.JsonSchemaText);
+        Assert.Equal(predecessorText, result.Inputs.PredecessorSchema!.JsonSchemaText);
+        Assert.Equal("fixture-shared-schema-id", result.Inputs.CandidateSchema.Id.Value);
+        Assert.Equal("fixture-shared-schema-id", result.Inputs.PredecessorSchema.Id.Value);
+    }
+
+    [Fact]
+    public async Task An_unserializable_input_is_unavailable_without_partial_evidence()
+    {
+        var fixture = await ImpactFixture.CreateAsync();
+        var items = new List<FormItem>();
+        items.Add(FormItem.OfGroup("cycle", items));
+        var candidate = fixture.Candidate with { Overlay = fixture.Candidate.Overlay with
+            { Sections = [new("main", InternationalizedText.FromInvariant("Main"), [], new([], []), Items: items)] } };
+        var result = await fixture.AssessAsync(candidate);
+        Assert.Equal("assessment_input_unavailable", result.UnavailableReason);
+        Assert.Null(result.Inputs);
+        Assert.Null(result.FreshnessLimit);
+        Assert.Null(result.Compatibility);
+        Assert.Null(result.Proposal);
+        Assert.Empty(result.Surfaces);
+    }
+
     [Fact]
     public async Task Optional_addition_proposes_exact_pins_without_applying_anything()
     {
@@ -380,7 +553,7 @@ public sealed class FormPublicationImpactTests
     {
         // A literal lookup port supplies unsupported schema text; no parser failure is equated with empty fields.
         var fixture = await ImpactFixture.CreateAsync();
-        var source = new SchemaOverride(fixture.Schemas, schema);
+        var source = new SchemaOverride(schema);
         var result = await new FormPublicationImpactAssessment().AssessAsync(fixture.Candidate, fixture.Store,
             fixture.Context with { Schemas = source });
         Assert.False(result.IsComplete);
@@ -425,15 +598,131 @@ public sealed class FormPublicationImpactTests
             .AssessAsync(fixture.Candidate, fixture.Store, fixture.Context with { Surfaces = source }, cancellation.Token).AsTask());
     }
 
-    private sealed class SchemaOverride(ISchemaRegistry inner, string text) : ISchemaRegistry
+    private sealed class SchemaOverride(string text) : ISchemaRegistry
     {
-        public async ValueTask<Schema?> GetAsync(Harborline.Kernel.SchemaValidation.SchemaId id, CancellationToken cancellationToken = default) =>
-            (await inner.GetAsync(id, cancellationToken))! with { JsonSchemaText = text };
+        public string Text { get; set; } = text;
+        public Queue<string>? Answers { get; init; }
+        public Func<CancellationToken, ValueTask>? BeforeRead { get; init; }
+        public async ValueTask<Schema?> GetAsync(Harborline.Kernel.SchemaValidation.SchemaId id, CancellationToken cancellationToken = default)
+        {
+            if (BeforeRead is not null) await BeforeRead(cancellationToken);
+            return new(id, Answers is { Count: > 0 } ? Answers.Dequeue() : Text, [], [], "fixture-content-address");
+        }
         public ValueTask<Schema> RegisterAsync(string jsonSchemaText, IReadOnlyList<Harborline.Kernel.SchemaValidation.SchemaId>? parents = null,
             IReadOnlyList<string>? tags = null, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public ValueTask<SchemaValidationResult> ValidateAsync(Harborline.Kernel.SchemaValidation.SchemaId id, ReadOnlyMemory<byte> bytes,
             CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public IAsyncEnumerable<Schema> ListAsync(string? tagFilter = null, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+    }
+
+    private static FormDefinition Rich(FormDefinition definition) => definition with
+    {
+        Overlay = definition.Overlay with
+        {
+            Fields = new Dictionary<string, FieldOverlay> { ["name"] = new(new("en", new Dictionary<string, string>
+                { ["en"] = "Name", ["fr"] = "Nom" })) },
+            Rules = new List<RuleDefinition> { new("name.valid", RuleTier.JsonLogic, RuleScope.Schema, "", "true", RuleActionKind.Validate) },
+            Sections = new List<FormSection> { new("main", InternationalizedText.FromInvariant("Main"), ["name"],
+                new([RoleReference.Domain("author")], [RoleReference.Domain("author")]),
+                Items: new List<FormItem> { FormItem.OfGroup("customer", new List<FormItem>
+                    { FormItem.OfCollection("aliases", new List<FormItem> { FormItem.OfField("name") }, new(0, 3)) }) }) },
+            Pages = new List<FormPage> { new("details", InternationalizedText.FromInvariant("Details"), ["main"], VisibleWhen: "true") },
+        },
+        Authoring = new(new Dictionary<string, FormFieldAuthoringMetadata>
+            { ["name"] = new("radio", false, [new("minLength", "2")], ["Alice", "Bob"]) }),
+    };
+
+    private static void Mutate(FormDefinition definition)
+    {
+        ((Dictionary<string, string>)definition.Overlay.Fields["name"].Label.Values)["fr"] = "Changed";
+        ((Dictionary<string, FieldOverlay>)definition.Overlay.Fields)["name"] = definition.Overlay.Fields["name"] with { PiiSensitivity = PiiSensitivity.Sensitive };
+        ((List<RuleDefinition>)definition.Overlay.Rules)[0] = definition.Overlay.Rules[0] with { Expression = "false" };
+        ((List<FormPage>)definition.Overlay.Pages!)[0] = definition.Overlay.Pages![0] with { VisibleWhen = "false" };
+        var children = (List<FormItem>)definition.Overlay.Sections[0].Items![0].Items!;
+        children[0] = children[0] with { Cardinality = new(1, 8) };
+        ((string[])definition.Authoring!.Fields["name"].Options!)[0] = "Changed";
+    }
+
+    private static void AssertRich(string json)
+    {
+        var body = JsonNode.Parse(json)!;
+        Assert.Equal("tax.roles", body["SubmitGate"]!["role"]!["vocabulary"]!.GetValue<string>());
+        Assert.Equal("author", body["SubmitGate"]!["role"]!["name"]!.GetValue<string>());
+        Assert.Equal("Nom", body["Overlay"]!["Fields"]!["name"]!["Label"]!["Values"]!["fr"]!.GetValue<string>());
+        Assert.Equal(0, body["Overlay"]!["Fields"]!["name"]!["PiiSensitivity"]!.GetValue<int>());
+        Assert.Equal("true", body["Overlay"]!["Rules"]![0]!["Expression"]!.GetValue<string>());
+        Assert.Equal("true", body["Overlay"]!["Pages"]![0]!["VisibleWhen"]!.GetValue<string>());
+        Assert.Equal("aliases", body["Overlay"]!["Sections"]![0]!["Items"]![0]!["Items"]![0]!["Key"]!.GetValue<string>());
+        Assert.Equal(0, body["Overlay"]!["Sections"]![0]!["Items"]![0]!["Items"]![0]!["Cardinality"]!["Min"]!.GetValue<int>());
+        Assert.Equal(3, body["Overlay"]!["Sections"]![0]!["Items"]![0]!["Items"]![0]!["Cardinality"]!["Max"]!.GetValue<int>());
+        Assert.Equal("name", body["Overlay"]!["Sections"]![0]!["Items"]![0]!["Items"]![0]!["Items"]![0]!["Key"]!.GetValue<string>());
+        Assert.Equal("radio", body["Authoring"]!["Fields"]!["name"]!["Type"]!.GetValue<string>());
+        Assert.False(body["Authoring"]!["Fields"]!["name"]!["Required"]!.GetValue<bool>());
+        Assert.Equal("minLength", body["Authoring"]!["Fields"]!["name"]!["Validations"]![0]!["Code"]!.GetValue<string>());
+        Assert.Equal("2", body["Authoring"]!["Fields"]!["name"]!["Validations"]![0]!["Param"]!.GetValue<string>());
+        Assert.Equal(new[] { "Alice", "Bob" }, body["Authoring"]!["Fields"]!["name"]!["Options"]!.AsArray().Select(value => value!.GetValue<string>()));
+    }
+
+    private static void AssertEnvironment(BorrowerEnvironmentDeclaration declaration)
+    {
+        Assert.Equal("forms-ck-13", declaration.Borrower);
+        Assert.Equal("harborline-jsonlogic/v1", declaration.Grammar);
+        Assert.Equal("form-submission-candidate", Assert.Single(declaration.Variables).Value);
+        Assert.Equal("candidate", Assert.Single(declaration.Variables).Key);
+        Assert.Equal(new[] { "==" }, declaration.Operations);
+        Assert.Equal(new[] { "field-read" }, declaration.Effects);
+        Assert.Equal("missing-field-reads-null", declaration.MissingValues);
+        Assert.Equal("evaluated-at", declaration.TimeSource);
+        Assert.Equal("utc", declaration.TimeZone);
+        Assert.Equal("deterministic-over-pinned-clock-and-candidate", declaration.Replay);
+        Assert.Equal(6, declaration.Phases.Count);
+        Assert.False(declaration.Phases[EvaluationPhase.AuthoringValidation]);
+        Assert.False(declaration.Phases[EvaluationPhase.PublishValidation]);
+        Assert.True(declaration.Phases[EvaluationPhase.Render]);
+        Assert.True(declaration.Phases[EvaluationPhase.Submission]);
+        Assert.False(declaration.Phases[EvaluationPhase.Run]);
+        Assert.False(declaration.Phases[EvaluationPhase.SignOff]);
+    }
+
+    private static void MutateEnvironment(BorrowerEnvironmentDeclaration declaration)
+    {
+        ((Dictionary<string, string>)declaration.Variables)["candidate"] = "mutated";
+        ((Dictionary<EvaluationPhase, bool>)declaration.Phases)[EvaluationPhase.Render] = false;
+        ((IList<string>)declaration.Operations)[0] = "!=";
+        ((IList<string>)declaration.Effects)[0] = "mutated";
+    }
+
+    private static void AssertFrozen(BorrowerEnvironmentDeclaration declaration)
+    {
+        Assert.Throws<NotSupportedException>(() => ((IDictionary<string, string>)declaration.Variables)["candidate"] = "changed");
+        Assert.Throws<NotSupportedException>(() => ((IDictionary<EvaluationPhase, bool>)declaration.Phases)[EvaluationPhase.Render] = false);
+        Assert.Throws<NotSupportedException>(() => ((IList<string>)declaration.Operations)[0] = "changed");
+        Assert.Throws<NotSupportedException>(() => ((IList<string>)declaration.Effects)[0] = "changed");
+    }
+
+    private sealed class TestClock : TimeProvider
+    {
+        public DateTimeOffset Now { get; set; }
+        public override DateTimeOffset GetUtcNow() => Now;
+    }
+
+    private sealed class ReadGateStore(IFormDefinitionStore inner, Func<CancellationToken, ValueTask>? beforeCurrent) : IFormDefinitionStore
+    {
+        public async ValueTask<FormDefinition?> GetCurrentPublishedAsync(TenantId tenant, FormDefinitionId id, CancellationToken ct = default)
+        {
+            if (beforeCurrent is not null) await beforeCurrent(ct);
+            return await inner.GetCurrentPublishedAsync(tenant, id, ct);
+        }
+        public ValueTask<FormDefinition> GetAsync(TenantId tenant, FormDefinitionId id, SemanticVersion version, CancellationToken ct = default) => inner.GetAsync(tenant, id, version, ct);
+        public ValueTask<FormDefinition> RegisterAsync(FormDefinition schema, CancellationToken ct = default) => throw new NotSupportedException();
+        public ValueTask<FormDefinition> RegisterAndPublishAsync(FormDefinition schema, CancellationToken ct = default) => throw new NotSupportedException();
+        public ValueTask<FormDefinition> CreateAsync(FormDefinition schema, CancellationToken ct = default) => throw new NotSupportedException();
+        public ValueTask<FormDefinition> PublishAsync(TenantId tenant, FormDefinitionId id, SemanticVersion version, CancellationToken ct = default) => throw new NotSupportedException();
+        public ValueTask<FormDefinition> DeprecateAsync(TenantId tenant, FormDefinitionId id, SemanticVersion version, CancellationToken ct = default) => throw new NotSupportedException();
+        public ValueTask<FormDefinition> WithdrawAsync(TenantId tenant, FormDefinitionId id, SemanticVersion version, CancellationToken ct = default) => throw new NotSupportedException();
+        public ValueTask<FormDefinition> RestorePackProjectionAsync(TenantId tenant, FormDefinitionId id, SemanticVersion version, CancellationToken ct = default) => throw new NotSupportedException();
+        public IAsyncEnumerable<FormDefinition> ListByTenantAsync(TenantId tenant, CancellationToken ct = default) => throw new NotSupportedException();
+        public IAsyncEnumerable<FormDefinition> ListCurrentPublishedByTenantAsync(TenantId tenant, CancellationToken ct = default) => throw new NotSupportedException();
     }
 }
 
@@ -448,12 +737,13 @@ internal sealed record ImpactFixture(InMemoryFormDefinitionStore Store, InMemory
         new FormPublicationImpactAssessment().AssessAsync(candidate ?? Candidate, Store, Context with { Basis = basis ?? Basis });
 
     internal static async Task<ImpactFixture> CreateAsync(string schema = Schema, string? recordType = null,
-        bool withPagesAndSections = false, bool withNestedItems = false, bool withoutExistingFieldMetadata = false)
+        bool withPagesAndSections = false, bool withNestedItems = false, bool withoutExistingFieldMetadata = false,
+        Func<FormDefinition, FormDefinition>? configure = null, TimeProvider? clock = null)
     {
         var schemas = new InMemorySchemaRegistry();
         var previousSchema = await schemas.RegisterAsync(Schema);
         var nextSchema = await schemas.RegisterAsync(schema);
-        var store = new InMemoryFormDefinitionStore(TimeProvider.System, recordTypePolicies: new RecordTypes());
+        var store = new InMemoryFormDefinitionStore(clock ?? TimeProvider.System, recordTypePolicies: new RecordTypes());
         var old = Definition(previousSchema.Id.Value, new(2, 1, 0)) with { RecordTypeId = recordType };
         if (withoutExistingFieldMetadata) old = old with
         {
@@ -471,6 +761,7 @@ internal sealed record ImpactFixture(InMemoryFormDefinitionStore Store, InMemory
         {
             Items = [FormItem.OfGroup("customer", [FormItem.OfCollection("aliases", [FormItem.OfField("name")], new(0, 3))])],
         }] } };
+        if (configure is not null) old = configure(old);
         await store.RegisterAndPublishAsync(old);
         var next = old with { SchemaRef = new Harborline.Foundation.Assets.Common.SchemaId(nextSchema.Id.Value), Version = new(2, 2, 0) };
         var basis = new FormPublicationBasis(new(next.Tenant, next.Id, next.Version, "f-new-y8", "writer/candidate-y8"),
@@ -486,7 +777,7 @@ internal sealed record ImpactFixture(InMemoryFormDefinitionStore Store, InMemory
         SubmitGate: new(Role: RoleReference.Domain("author")));
 
     internal static BorrowerEnvironmentDeclaration Environment() => new("forms-ck-13", "harborline-jsonlogic/v1",
-        new Dictionary<string, string> { ["candidate"] = "form-submission-candidate" }, ["=="], ["field-read"],
+        new Dictionary<string, string> { ["candidate"] = "form-submission-candidate" }, new[] { "==" }, new[] { "field-read" },
         "missing-field-reads-null", "evaluated-at", "utc", new Dictionary<EvaluationPhase, bool>
         {
             [EvaluationPhase.AuthoringValidation] = false, [EvaluationPhase.PublishValidation] = false,
@@ -494,9 +785,14 @@ internal sealed record ImpactFixture(InMemoryFormDefinitionStore Store, InMemory
             [EvaluationPhase.Run] = false, [EvaluationPhase.SignOff] = false,
         }, "deterministic-over-pinned-clock-and-candidate");
 
-    internal sealed class Source(Func<CancellationToken, ValueTask<FormPublishedSurfaceRead>> read) : IFormPublishedSurfaceSource
+    internal sealed class Source(Func<CancellationToken, ValueTask<FormPublishedSurfaceRead>> read,
+        Action<FormPublicationBasis>? inspect = null) : IFormPublishedSurfaceSource
     {
-        public ValueTask<FormPublishedSurfaceRead> ReadAsync(FormPublicationBasis basis, CancellationToken cancellationToken = default) => read(cancellationToken);
+        public ValueTask<FormPublishedSurfaceRead> ReadAsync(FormPublicationBasis basis, CancellationToken cancellationToken = default)
+        {
+            inspect?.Invoke(basis);
+            return read(cancellationToken);
+        }
     }
 
     private sealed class RecordTypes : IFormRecordTypePolicyReader

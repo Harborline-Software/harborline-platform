@@ -57,12 +57,9 @@ const licenceExceptions = new Map([['JsonSchema.Net', 'T-458: binaries ship unde
 const packages = process.env.NUGET_PACKAGES
 for (const [id, pin] of pins) {
   if (id.startsWith('Harborline.') || !packages || pin.version.includes('$')) continue
-  // Prefer the pinned version; a VersionOverride may have restored a different one, and the licence expression does not change between versions.
   // The fresh cache holds what the solution restored; projects outside it (the gallery hosts) restored to the global cache.
-  const idDirectory = [packages, path.join(process.env.USERPROFILE ?? process.env.HOME ?? '', '.nuget', 'packages')].map(base => path.join(base, id.toLowerCase())).find(existsSync) ?? path.join(packages, id.toLowerCase())
-  const versionDirectory = existsSync(path.join(idDirectory, pin.version.toLowerCase())) ? pin.version.toLowerCase() : (existsSync(idDirectory) ? readdirSync(idDirectory)[0] : undefined)
-  const nuspec = versionDirectory && path.join(idDirectory, versionDirectory, `${id}.nuspec`)
-  if (!nuspec || !existsSync(nuspec)) { fail(`nuspec missing for ${id} ${pin.version}`); continue }
+  const nuspec = [packages, path.join(process.env.USERPROFILE ?? process.env.HOME ?? '', '.nuget', 'packages')].map(base => path.join(base, id.toLowerCase(), pin.version.toLowerCase(), `${id}.nuspec`)).find(existsSync)
+  if (!nuspec) { fail(`nuspec missing for ${id} ${pin.version}`); continue }
   const body = readFileSync(nuspec, 'utf8')
   const licence = /<license\s+type="expression">([^<]+)<\/license>/.exec(body)?.[1]
   const accepted = allowed.has(licence) || (licence === 'MPL-2.0' && devOnly.has(id)) || licenceExceptions.has(id)

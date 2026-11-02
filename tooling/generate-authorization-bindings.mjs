@@ -2,13 +2,12 @@ import {createHash} from 'node:crypto'
 import {readFileSync, writeFileSync} from 'node:fs'
 import {dirname, resolve} from 'node:path'
 import {fileURLToPath} from 'node:url'
+import {loadModuleCatalog, loadProvenance, writeProvenanceRecord} from './module-catalog.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const manifestPath = resolve(root, 'projections/typescript/contracts/hlp.contracts.forms/projection-manifest.json')
 const wirePath = resolve(root, 'projections/typescript/contracts/hlp.contracts.forms/src/wire.ts')
 const formsJsonPath = resolve(root, 'projections/dotnet/contracts/hlp.contracts.identities/Forms/FormsJson.g.cs')
-const provenancePath = resolve(root, 'docs/provenance/source-map.yaml')
-const moduleCatalogPath = resolve(root, 'catalog/modules.yaml')
 const projectionCatalogPath = resolve(root, 'catalog/projections.yaml')
 const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'))
 
@@ -23,7 +22,7 @@ const formsJson = readFileSync(formsJsonPath, 'utf8')
   .replace(/\n    private static void ValidateRoleReference\(JsonElement value\)[\s\S]*?\n    \}\n\n    private static void Require/, '\n\n    private static void Require')
 writeFileSync(formsJsonPath, formsJson)
 
-const moduleCatalog = JSON.parse(readFileSync(moduleCatalogPath, 'utf8'))
+const moduleCatalog = loadModuleCatalog(root)
 const authoritativeProjections = Object.entries(moduleCatalog.modules).flatMap(([moduleId, module]) =>
   Object.entries(module.projections ?? {}).map(([projection, value]) => ({
     moduleId, projection, role: value.role, status: value.status, path: value.path,
@@ -39,7 +38,8 @@ if (missingRows.length) {
   writeFileSync(projectionCatalogPath, projectionCatalogText)
 }
 
-const provenance = JSON.parse(readFileSync(provenancePath, 'utf8'))
+// HLP-0009: the authorization record is one file. Only it is (re)written, so running this generator
+// no longer rewrites every other module's provenance.
 const authorizationPaths = [
   'conformance/hlp.contracts.authorization/fixtures.yaml',
   'conformance/hlp.contracts.authorization/runners/run-shared.mjs',
@@ -51,21 +51,17 @@ const authorizationPaths = [
   'projections/typescript/contracts/hlp.contracts.forms/tests/authorization-separation.ts',
   'specs/modules/contracts/hlp.contracts.authorization/interface.yaml',
 ]
-if (!provenance.records.some(record => record.moduleId === 'hlp.contracts.authorization')) {
-  provenance.records.unshift({
-    moduleId: 'hlp.contracts.authorization',
-    phase4Evidence: 'specs/modules/contracts/hlp.contracts.authorization/interface.yaml',
-    sourceExtracted: true,
-    sourceState: 'Revision 1 mirrors the fixed API role DTO shapes and adds powerless, pure vocabulary resolution.',
-    contentHashes: Object.fromEntries(authorizationPaths.map(path => [path, ''])),
-    nextGate: 'Consumed by workflow, Forms, and app-shell role gates.',
-  })
+const record = loadProvenance(root).records.find(candidate => candidate.moduleId === 'hlp.contracts.authorization') ?? {
+  moduleId: 'hlp.contracts.authorization',
+  phase4Evidence: 'specs/modules/contracts/hlp.contracts.authorization/interface.yaml',
+  sourceExtracted: true,
+  sourceState: 'Revision 1 mirrors the fixed API role DTO shapes and adds powerless, pure vocabulary resolution.',
+  contentHashes: Object.fromEntries(authorizationPaths.map(path => [path, ''])),
+  nextGate: 'Consumed by workflow, Forms, and app-shell role gates.',
 }
-for (const record of provenance.records) {
-  for (const path of Object.keys(record.contentHashes ?? {})) {
-    record.contentHashes[path] = createHash('sha256').update(readFileSync(resolve(root, path))).digest('hex')
-  }
+for (const path of Object.keys(record.contentHashes ?? {})) {
+  record.contentHashes[path] = createHash('sha256').update(readFileSync(resolve(root, path))).digest('hex')
 }
-writeFileSync(provenancePath, `${JSON.stringify(provenance, null, 2)}\n`)
+writeProvenanceRecord(root, record)
 
 process.stdout.write('generated authorization role bindings from projection-manifest.json\n')

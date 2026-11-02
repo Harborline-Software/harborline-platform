@@ -74,6 +74,7 @@ describe('ScrollAffordance shared fixtures', () => {
 
     fireEvent.keyDown(region, { key: 'End' })
     expect(region.scrollLeft).toBe(400)
+    fireEvent.scroll(region)
     const ignored = new KeyboardEvent('keydown', { key: 'PageDown', cancelable: true })
     region.dispatchEvent(ignored)
     expect(ignored.defaultPrevented).toBe(false)
@@ -81,6 +82,82 @@ describe('ScrollAffordance shared fixtures', () => {
     expect(screen.getByText(/7/)).toHaveAttribute('aria-live', 'polite')
     expect(screen.getByText(/7/)).toHaveAttribute('aria-atomic', 'true')
     vi.useRealTimers()
+  })
+
+  it('renders the live region empty on load and on resize, and fills it after a scroll and an arrow key (T-1135)', async () => {
+    // Oracle: WAI-ARIA 1.2 aria-live and the APG live-region practice, as ruled on T-1135. The expected
+    // messages are the en-US default-catalog literals.
+    fixture(sharedCases, 'scroll-affordance.component-live-status')
+    vi.useFakeTimers()
+    try {
+      const { container } = render(<ScrollAffordance ariaLabel="Items" itemCount={8}><span>Items</span></ScrollAffordance>)
+      const status = () => container.querySelector('.hl-scroll-affordance__status')
+      expect(status()).toHaveAttribute('aria-live', 'polite')
+      expect(status()).toHaveAttribute('aria-atomic', 'true')
+      expect(status()?.textContent).toBe('')
+
+      const region = screen.getByRole('group', { name: 'Items' })
+      geometry(region, { clientWidth: 400, scrollWidth: 800 })
+      await remeasure()
+      await act(async () => { vi.runAllTimers() })
+      expect(region).toHaveAttribute('tabindex', '0')
+      expect(status()?.textContent).toBe('')
+
+      geometry(region, { clientWidth: 200 })
+      await remeasure()
+      await act(async () => { vi.runAllTimers() })
+      expect(status()?.textContent).toBe('')
+
+      region.scrollLeft = 200
+      fireEvent.scroll(region)
+      await act(async () => { vi.runAllTimers() })
+      expect(status()?.textContent).toBe('Scrollable, showing 3 to 4 of 8')
+
+      fireEvent.keyDown(region, { key: 'ArrowRight' })
+      expect(region.scrollLeft).toBe(360)
+      fireEvent.scroll(region)
+      await act(async () => { vi.runAllTimers() })
+      expect(status()?.textContent).toBe('Scrollable, showing 5 to 6 of 8')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('reads the live position status from the host catalog, then the default catalog', async () => {
+    // T-1106 parity oracle: the Blazor lane must resolve the same keys in the same order.
+    fixture(sharedCases, 'scroll-affordance.component-live-status')
+    const view = (locale: string, catalog: Record<string, string>) => (
+      <HarborlineLocaleProvider catalog={catalog} locale={locale}>
+        <ScrollAffordance ariaLabel="Items" itemCount={8}><span>Items</span></ScrollAffordance>
+      </HarborlineLocaleProvider>
+    )
+    vi.useFakeTimers()
+    try {
+      const { container, rerender } = render(view('en-XA', {
+        'scrollAffordance.showingRange': '⟦ Šçřøļļåƀļë, šhøŵîñĝ {start} ţø {end} øƒ {total} ······ ⟧',
+      }))
+      const status = () => container.querySelector('.hl-scroll-affordance__status')?.textContent
+      const region = screen.getByRole('group', { name: 'Items' })
+      geometry(region, { clientWidth: 400, scrollWidth: 800 })
+      region.scrollLeft = 100
+      await remeasure()
+      await act(async () => { vi.runAllTimers() })
+      expect(status()).toBe('')
+      region.scrollLeft = 0
+      fireEvent.scroll(region)
+      await act(async () => { vi.runAllTimers() })
+      expect(status()).toBe('⟦ Šçřøļļåƀļë, šhøŵîñĝ 1 ţø 4 øƒ 8 ······ ⟧')
+
+      rerender(view('ar-SA', { 'scrollAffordance.showingRange': 'قابل للتمرير، عرض {start} إلى {end} من {total}' }))
+      await act(async () => { vi.runAllTimers() })
+      expect(status()).toBe('قابل للتمرير، عرض 1 إلى 4 من 8')
+
+      rerender(view('fr-FR', { 'common.close': 'Fermer' }))
+      await act(async () => { vi.runAllTimers() })
+      expect(status()).toBe('Scrollable, showing 1 to 4 of 8')
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('preserves logical RTL scrolling and replacement without duplicated caller handlers', async () => {

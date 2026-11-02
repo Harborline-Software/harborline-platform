@@ -1,0 +1,19 @@
+{
+  "moduleId": "hlp.foundation.session",
+  "phase4Evidence": "specs/modules/foundation/hlp.foundation.session/interface.yaml",
+  "sourceExtracted": true,
+  "sourceState": "Revision 1 implements the authoritative session record/store and deepens it with one fail-closed session-to-actor resolver. Transport, identity-provider validation, role lookup, establishment, and durable persistence remain outside the module.",
+  "contentHashes": {
+    "projections/dotnet/foundation/hlp.foundation.session/SessionEstablishmentReason.cs": "3c36b88f02c44c2819cb5609a1eac816fc9c802a184a254b88affce6032b5db6",
+    "projections/dotnet/foundation/hlp.foundation.session/SessionRecord.cs": "d41c11a13e3ead9a40f7dea847038260d95bedc1c5b0e5795768180ab0bc5c93",
+    "projections/dotnet/foundation/hlp.foundation.session/ISessionStore.cs": "97d37f555f79b87212d02d105ee0fd456ab278231fd21c7bdb327242f3ccba56",
+    "projections/dotnet/foundation/hlp.foundation.session/InMemorySessionStore.cs": "aac0d9c2c44a5c46b80373b73606430dd1a756dcd1facd6705c74dbf81344092",
+    "projections/dotnet/foundation/hlp.foundation.session/SessionActorContext.cs": "1f9e771977256ee0094c20ac7d7c37505ac560002cf3e9e9b16efbbdff2c6dd1",
+    "projections/dotnet/foundation/hlp.foundation.session/ISessionResolver.cs": "1ad4cb73efb2b1413792be75446155ae7b2cbdbddbda05f05f78e830e83361ac",
+    "projections/dotnet/foundation/hlp.foundation.session/SessionResolver.cs": "4f9a9b0592bb31ed3db8d5a391154c0864403904fae4d133c22dae257dd333df",
+    "projections/dotnet/foundation/hlp.foundation.session.tests/SessionContractTests.cs": "7ff2eaa6f0d175056b80711a32b3c11d7cab0c02fcc795cc6d0c6666803bb96a",
+    "conformance/hlp.foundation.session/fixtures.yaml": "72f90e38387d44b00aa1ac716d0f7700238ec09e969981143efb0dcf23b18eb9",
+    "specs/modules/foundation/hlp.foundation.session/interface.yaml": "3470dae8c03506f5a6aca86415113db124b93c67bc4718e7f1338c849d8d48cd"
+  },
+  "nextGate": "Freeze hlp.contracts.forms as the next dependency-ready contract for the inspection vertical slice."
+}

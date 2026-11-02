@@ -10,25 +10,33 @@
 </div>
 @if (IsOpen)
 {
-    <button type="button" class="hl-context-menu-overlay" aria-label="Dismiss @AccessibleLabel" @onclick="DismissAsync"></button>
     <div @ref="MenuElement" role="menu" tabindex="-1" aria-label="@AccessibleLabel" lang="@Locale" dir="@Direction"
          class="hl-context-menu" data-active-id="@ActiveItem?.Id"
          style="position:fixed;left:@(X)px;top:@(Y)px;z-index:9999" @onkeydown="HandleKeyAsync">
+        @{ var flatIndex = 0; }
         @for (var groupIndex = 0; groupIndex < Groups.Count; groupIndex++)
         {
             if (groupIndex > 0) { <div role="separator" class="hl-context-menu__separator"></div> }
             foreach (var item in Groups[groupIndex].Items)
             {
                 var current = item;
-                <button type="button" role="menuitem" disabled="@current.Disabled" tabindex="@(current == ActiveItem ? 0 : -1)"
+                var index = flatIndex++;
+                <button type="button" role="menuitem" aria-disabled="@(current.Disabled ? "true" : null)" tabindex="@(current == ActiveItem ? 0 : -1)"
                         data-danger="@(current.Danger ? "true" : null)" data-active="@(current == ActiveItem ? "true" : null)"
-                        class="hl-context-menu__item" @onclick="() => SelectAsync(current)">
+                        class="hl-context-menu__item" @onclick="() => SelectAsync(current)" @onfocus="() => SyncActive(index)">
                     @if (current.Icon is not null) { <span aria-hidden="true" class="hl-context-menu__icon">@current.Icon</span> }
                     <span>@current.Label</span>
                 </button>
             }
         }
     </div>
+    @* The outside-pointer dismissal surface only. It is a plain element, so it can never take focus
+       (a hidden button is still focused by a mouse press), and it is hidden from assistive
+       technology: Escape is the keyboard route. It dismisses on the press of any button, as React's
+       document mousedown listener does, and preventDefault keeps focus where it was so the keyboard
+       opener can still be restored. It follows the menu so the menu's place in the tree matches
+       React, which renders no overlay; z-index keeps it beneath the menu (T-943). *@
+    <div class="hl-context-menu-overlay" aria-hidden="true" @onmousedown="DismissAsync" @onmousedown:preventDefault="true"></div>
 }
 
 @code {
@@ -53,11 +61,9 @@
     private ElementReference TriggerElement { get; set; }
     private ElementReference MenuElement { get; set; }
     private IJSObjectReference? DomModule { get; set; }
-    private bool KeyboardOpened { get; set; }
     private bool FocusActiveAfterRender { get; set; }
     private bool RestoreTriggerAfterRender { get; set; }
     private IReadOnlyList<ContextMenuItem> FlatItems => Groups.SelectMany(group => group.Items).ToArray();
-    private int[] EnabledIndices => FlatItems.Select((item, index) => (item, index)).Where(row => !row.item.Disabled).Select(row => row.index).ToArray();
 
     protected override void OnParametersSet()
     {
@@ -68,13 +74,27 @@
 
     public Task ShowAsync(double x, double y) => ShowAsync(x, y, keyboardOpened: false);
 
+    // For a host that handles Shift+F10 or the ContextMenu key on its own element (T-1130). triggerAnchor records the
+    // element focused now, so closing returns focus to it; its position is unused because the host supplies one.
+    public async Task ShowFromKeyboardAsync(double x, double y)
+    {
+        if (!IsOpen)
+            await (await ModuleAsync()).InvokeVoidAsync("triggerAnchor", TriggerElement);
+        await ShowAsync(x, y, keyboardOpened: true);
+    }
+
     private async Task ShowAsync(double x, double y, bool keyboardOpened)
     {
         (X, Y) = ClampPosition(x, y, MenuWidth, MenuHeight, ViewportWidth, ViewportHeight);
+        // Whatever has focus when the menu goes from closed to open is where a close returns it, after a
+        // pointer or programmatic open as after a keyboard one (APG menu pattern, as React);
+        // triggerAnchor has already recorded the keyboard opener. A re-open while open keeps the opener.
+        // Every open then focuses the first item, disabled or not, as React does and the interface requires
+        // ("Opening focuses the first item"): disabled menu items stay focusable (APG menu pattern).
+        if (!keyboardOpened && !IsOpen) await (await ModuleAsync()).InvokeVoidAsync("rememberOpener", TriggerElement);
         IsOpen = true;
-        KeyboardOpened = keyboardOpened;
-        FocusActiveAfterRender = keyboardOpened;
-        ActiveIndex = EnabledIndices.FirstOrDefault(-1);
+        FocusActiveAfterRender = true;
+        ActiveIndex = FlatItems.Count > 0 ? 0 : -1;
         await InvokeAsync(StateHasChanged);
         await OnShow.InvokeAsync();
     }
@@ -84,8 +104,7 @@
         if (!IsOpen) return;
         IsOpen = false;
         ActiveIndex = -1;
-        RestoreTriggerAfterRender = KeyboardOpened;
-        KeyboardOpened = false;
+        RestoreTriggerAfterRender = true;
         await InvokeAsync(StateHasChanged);
         await OnHide.InvokeAsync();
     }
@@ -95,6 +114,10 @@
 
     private Task OpenPointerAsync(MouseEventArgs args) => ShowAsync(args.ClientX, args.ClientY, keyboardOpened: false);
     private Task DismissAsync() => HideAsync();
+
+    // A pointer press focuses any item, a disabled one too (it is focusable, APG), so the item with focus is the
+    // active one and Enter or Space acts on it. Focus is already there, so nothing is focused again.
+    private void SyncActive(int index) => ActiveIndex = index;
 
     private async Task SelectAsync(ContextMenuItem item)
     {
@@ -113,14 +136,16 @@
             return;
         }
         if (!IsOpen) return;
-        if (args.Key == "Escape") { await HideAsync(); return; }
-        var enabled = EnabledIndices;
-        if (enabled.Length == 0) return;
-        var slot = Array.IndexOf(enabled, ActiveIndex);
-        if (args.Key == "ArrowDown") ActiveIndex = enabled[(slot + 1 + enabled.Length) % enabled.Length];
-        else if (args.Key == "ArrowUp") ActiveIndex = enabled[(slot - 1 + enabled.Length) % enabled.Length];
-        else if (args.Key == "Home") ActiveIndex = enabled[0];
-        else if (args.Key == "End") ActiveIndex = enabled[^1];
+        // Tab and Shift+Tab close without selection. context-menu.js has already handed focus to the opener in
+        // the same keydown, before the browser's default Tab moved it on (APG menu pattern).
+        if (args.Key is "Escape" or "Tab") { await HideAsync(); return; }
+        // Every item is a stop, disabled ones included (APG menu pattern).
+        var count = FlatItems.Count;
+        if (count == 0) return;
+        if (args.Key == "ArrowDown") ActiveIndex = (ActiveIndex + 1 + count) % count;
+        else if (args.Key == "ArrowUp") ActiveIndex = (ActiveIndex - 1 + count) % count;
+        else if (args.Key == "Home") ActiveIndex = 0;
+        else if (args.Key == "End") ActiveIndex = count - 1;
         else if ((args.Key == "Enter" || args.Key == " ") && ActiveItem is not null) await SelectAsync(ActiveItem);
         else return;
         FocusActiveAfterRender = IsOpen;

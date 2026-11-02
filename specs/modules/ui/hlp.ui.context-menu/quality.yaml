@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.ui.context-menu",
-  "profileRevision": 1,
+  "profileRevision": 2,
   "riskTier": "B",
   "fixture": "conformance/hlp.ui.context-menu/quality-fixtures.yaml",
   "dimensions": {

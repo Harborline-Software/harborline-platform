@@ -1,0 +1,26 @@
+{
+  "moduleId": "hlp.ui.use-is-mobile",
+  "legacySourceHashes": {
+    "packages/ui-react/src/hooks/useBreakpoint.ts": "a6e7d55f3c8787193c8d90d6adb45e8c9813d7171dc88103edb60b0dd0d586f5"
+  },
+  "phase4Evidence": "specs/modules/ui/hlp.ui.use-is-mobile/interface.yaml",
+  "sourceExtracted": true,
+  "sourceState": "Interface revision 1 preserves the exact pinned hlp.ui.use-is-mobile source surface and proves every registered projection through native, shared-conformance, package-only, and applicable gallery/performance gates.",
+  "contentHashes": {
+    "conformance/hlp.ui.use-is-mobile/fixtures.yaml": "6e164b011c45961e99a90a6b1504bb8cc51f57f866dd1818d07279cd91f25b2f",
+    "conformance/hlp.ui.use-is-mobile/quality-fixtures.yaml": "126b3f367a4b7e6ef42716d2b98bdca3eed346e052cdc40f50832c0eea57989c",
+    "conformance/hlp.ui.use-is-mobile/runners/run-shared.mjs": "8c6364d724496ca89d065ea18b83d970b19bc57efc008f3de38fbf1660a18618",
+    "projections/dotnet/foundation/hlp.ui.use-is-mobile/BreakpointQueries.cs": "65804bff634daaa46794190984fa572c52dd767d70be495222253376023a1fb9",
+    "projections/react/ui/hlp.ui.use-is-mobile/src/__tests__/breakpoint.conformance.test.tsx": "e64acb7fe5fead64fb4d474941bc3433ebc5e2b505d791f21dfb83b8b520427b",
+    "projections/react/ui/hlp.ui.use-is-mobile/src/__tests__/breakpoint.native.test.tsx": "6d57b0ab4399d212538518c979e86f26b6a32b4545b88c8b4d5c8ac42e9c1ee6",
+    "projections/react/ui/hlp.ui.use-is-mobile/src/__tests__/fixtures.ts": "0366c658c14c0203fd5653b71b7e663a9874dc3e93ef64dfb2bb8f06a096d2ae",
+    "projections/react/ui/hlp.ui.use-is-mobile/src/index.ts": "70266dc5afabb1cdd7792bc4e0393308e638e45418616b068230f5016c398b7f",
+    "projections/react/ui/hlp.ui.use-is-mobile/src/useBreakpoint.ts": "10b79872bcb9e3ed9fa6805283ff72cf5a8d746c21b5d617b63e4ebb15f5754a",
+    "projections/react/ui/hlp.ui.use-is-mobile/tsconfig.build.json": "59c5edd3046bb4aa46882e76bb1600774720ea6e3eb0d2401716e5e9cb6309cb",
+    "projections/react/ui/hlp.ui.use-is-mobile/tsconfig.json": "ba0c82cce314633a86246b7836ae6580237b3be827a7ea38bdf1676b8eb849a8",
+    "projections/react/ui/hlp.ui.use-is-mobile/vitest.config.ts": "3ed11f191f47e273f7f292695b13d219c590d44cb34afdddf4ab9a51eae3b01e",
+    "specs/modules/ui/hlp.ui.use-is-mobile/interface.yaml": "5465822fdf22a6fdeec64078bcc11d9d976208d605999055e314a4f211b28213",
+    "specs/modules/ui/hlp.ui.use-is-mobile/quality.yaml": "d9cee431db01249740f237c4f6aa4c6a326bb32e4207d38c11b10b5a7e490de9"
+  },
+  "nextGate": "Retain this conformant aggregate contribution while HLF-052 advances to the next Carrier-essential dependency wave."
+}

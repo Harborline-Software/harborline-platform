@@ -55,6 +55,48 @@ export function validateBounds(bounds: WindowBounds | undefined, minimum: Window
   }
 }
 
+// Every label a rendered control needs comes from the caller; the window has no built-in text. The window
+// label names an untitled window; the rest name the controls the flags turn on.
+export interface WindowLabels {
+  window?: string
+  close: string
+  minimize: string
+  maximize: string
+  restore: string
+  move: string
+  moveDescription: string
+  resizeHeight: string
+  resizeWidth: string
+}
+
+export interface WindowControls {
+  titled: boolean
+  closable: boolean
+  minimizable: boolean
+  maximizable: boolean
+  resizable: boolean
+  draggable: boolean
+}
+
+// A title that renders no text (absent, a boolean, or an empty or whitespace-only string) leaves the window untitled,
+// so the caller's window label must name it.
+export function isTitled(title: unknown): boolean {
+  if (title == null || typeof title === 'boolean') return false
+  return typeof title !== 'string' || title.trim() !== ''
+}
+
+export function validateLabels(labels: Partial<WindowLabels>, controls: WindowControls): void {
+  const blank = (value: string | undefined) => !value?.trim()
+  if (!controls.titled && blank(labels.window)) throw new Error('accessible-name-required')
+  if ((controls.closable && blank(labels.close)) ||
+    (controls.minimizable && (blank(labels.minimize) || blank(labels.restore))) ||
+    (controls.maximizable && (blank(labels.maximize) || blank(labels.restore))) ||
+    (controls.resizable && (blank(labels.resizeWidth) || blank(labels.resizeHeight))) ||
+    (controls.draggable && (blank(labels.move) || blank(labels.moveDescription)))) {
+    throw new Error('localized-control-labels-required')
+  }
+}
+
 export function initialPosition(top: number | undefined, left: number | undefined, initialTop: number | undefined, initialLeft: number | undefined): WindowPosition {
   return { top: initialTop ?? top ?? 80, left: initialLeft ?? left ?? 80 }
 }

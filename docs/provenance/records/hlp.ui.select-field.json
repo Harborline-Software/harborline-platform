@@ -1,0 +1,30 @@
+{
+  "moduleId": "hlp.ui.select-field",
+  "legacySourceHashes": {
+    "packages/ui-react/src/components/forms/SelectField.tsx": "49edcfdf255df1f0bc0d7401ebcc8f840703a49ddb740eaa62dc650daaa1ad16"
+  },
+  "phase4Evidence": "specs/modules/ui/hlp.ui.select-field/interface.yaml",
+  "sourceExtracted": true,
+  "sourceState": "Interface revision 1 preserves the exact pinned hlp.ui.select-field source surface and proves every registered projection through native, shared-conformance, package-only, and applicable gallery/performance gates.",
+  "contentHashes": {
+    "conformance/hlp.ui.select-field/fixtures.yaml": "8d9954804fa7f79fbcc29f832b1c1ba942c1c01e2e53f92802ccc10448df70fc",
+    "conformance/hlp.ui.select-field/quality-fixtures.yaml": "0aaedaeee3df276f3a8d5f02cb2cb91edbbaf58644c6063eb4c9bbbe5388826a",
+    "conformance/hlp.ui.select-field/runners/run-shared.mjs": "22a6592c5764ddf8aa0da8dbb07c72285a0ef5c7a3330fa414f8f61c21c7375b",
+    "projections/blazor/ui/hlp.ui.select-field/SelectFieldTypes.cs": "0a54958d44e72f7597c61cf3438e94b7f492b73fd9ebca920631b6d73b055fff",
+    "projections/blazor/ui/hlp.ui.select-field/HarborlineSelectField.razor": "7d67634762be0b224c052e16b24e95b9a31f9ee178202acdd3e33e2c54af0db8",
+    "projections/blazor/ui/hlp.ui.select-field/wwwroot/select-field.js": "130a715dae63c9217c1c0241569e48dc7f888b32d84054f8479eaa207e54443a",
+    "projections/react/ui/hlp.ui.select-field/src/SelectField.tsx": "50c4e043558ed9929e83185701f7ff551c0ac5c4e33255976fbd5513da1a7dfe",
+    "projections/react/ui/hlp.ui.select-field/src/__tests__/SelectField.conformance.test.ts": "8229fcbd51d2f3411e69fee7b62c7c830d6b348258b9afd72e6d70660bb76a98",
+    "projections/react/ui/hlp.ui.select-field/src/__tests__/SelectField.native.test.tsx": "be3738a1ab47c089197855b4977638a7cf7970c60c46b893293bb31f07d6f137",
+    "projections/react/ui/hlp.ui.select-field/src/__tests__/fixtures.ts": "209360bb04fec4e59968cfe7a88f803e383073e5fd96fdba3e934acb9271d01e",
+    "projections/react/ui/hlp.ui.select-field/src/index.ts": "bd0410cc6bac0a4601682341a59f5e3b65051811c0dd79848f7b2bbe71afe479",
+    "projections/react/ui/hlp.ui.select-field/src/test-setup.ts": "629c98881a9bfd269f048f8af04d9d535d1cf438597ec9fc2357a6b4269925f7",
+    "projections/react/ui/hlp.ui.select-field/tsconfig.build.json": "e8de9609ed537a5ff48730c13b9413469a94dc04f205278ddd80157b0319e22c",
+    "projections/react/ui/hlp.ui.select-field/vitest.config.ts": "84df7a2055dd491f2141b252c62e01ee056c1a75bfd82f629cdd68d8cc449a60",
+    "specs/modules/ui/hlp.ui.select-field/interface.yaml": "980067ff5b36310fed338bf5b61762d53efea59ae34ea200b09dad9a6c96140b",
+    "specs/modules/ui/hlp.ui.select-field/quality.yaml": "c31921099be6d511a9bfb16c0f3dcc97ff2089a7179be21ca198b27615d6414e",
+    "specs/modules/ui/hlp.ui.select-field/scenarios.json": "5c1f60edfa4e64f582ce6726210f617ae196459ba676ea1ea04fa9b3fcd56685",
+    "specs/modules/ui/hlp.ui.select-field/style.css": "d8e7d8baf735ba60eb5592286f18d7d5e20301840fdbdb887efb4af471e1dc73"
+  },
+  "nextGate": "Retain this conformant aggregate contribution while HLF-052 advances to the next Carrier-essential dependency wave."
+}

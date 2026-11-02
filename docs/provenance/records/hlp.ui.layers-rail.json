@@ -1,0 +1,29 @@
+{
+  "moduleId": "hlp.ui.layers-rail",
+  "legacySourceHashes": {
+    "packages/builder-kit/src/LayersRail.tsx": "44e4fc4bf9120bde6542dbc1e464c1fa874460c4b1c6f19be5782185b6fbc8d3"
+  },
+  "phase4Evidence": "specs/modules/ui/hlp.ui.layers-rail/interface.yaml",
+  "sourceExtracted": true,
+  "sourceState": "Interface revision 1 preserves the exact pinned hlp.ui.layers-rail source surface and proves every registered projection through native, shared-conformance, package-only, and applicable gallery/performance gates.",
+  "contentHashes": {
+    "conformance/hlp.ui.layers-rail/fixtures.yaml": "aef133bafde54cd705bbd6fc5960689ea5e2d5a5b8f9e914ea3ee46bcedd049c",
+    "conformance/hlp.ui.layers-rail/quality-fixtures.yaml": "9ab32da2baa19c8dad3120d4221aa32992c610e40c9662390074e4b94dcb21c5",
+    "conformance/hlp.ui.layers-rail/runners/run-shared.mjs": "067f493c2ec632df89743a6475d987d13e8c52bf23a6e9a883dada1ebdd70f1a",
+    "projections/blazor/ui/hlp.ui.layers-rail/HarborlineLayersRail.razor": "6aa177cf453081da1ce9a3515f4f88ce4d4163bb2e8f5ff0a1e78cebe15e3a34",
+    "projections/blazor/ui/hlp.ui.layers-rail/wwwroot/layers-rail.js": "c9962b6fc4b29a5056c72ab8e8c45f2a1742c260b89374e2536f70dd1c6d3b36",
+    "projections/react/ui/hlp.ui.layers-rail/src/LayersRail.tsx": "f0c7d98067a83fecbed8527a08c24bf0ba9fccbcfebc0cd0790920435379c2a1",
+    "projections/react/ui/hlp.ui.layers-rail/src/__tests__/LayersRail.conformance.test.ts": "d403cc9c34f20fb82850a34af19e875c1f2891cdccb8f17505f90c27b801cc9d",
+    "projections/react/ui/hlp.ui.layers-rail/src/__tests__/LayersRail.native.test.tsx": "f6c1529752d5560d89dbfd9358d2859dbb18ece6bdc05049af6edf0cbba0f090",
+    "projections/react/ui/hlp.ui.layers-rail/src/__tests__/fixtures.ts": "fa5a29b2f8032621ae4d38bd68e57d60e04beb74fa8767cba8a1258f5889ba38",
+    "projections/react/ui/hlp.ui.layers-rail/src/index.ts": "470b476b40f9ba5b4377fe2f1da4cc153bb16a01404b73ba74535386acd371ef",
+    "projections/react/ui/hlp.ui.layers-rail/src/test-setup.ts": "977afde26bba6a51325908cd7713cbfdc87d18f06b78b237c8f364c44864b7de",
+    "projections/react/ui/hlp.ui.layers-rail/tsconfig.build.json": "39514e1a65022c90bcd42033da8fd596ce2e89c6cfccb6ff9c3dd44179e71390",
+    "projections/react/ui/hlp.ui.layers-rail/vitest.config.ts": "36c8753a3296b3655e00c6908efd1b61aeddaad48d5675af1ca1b64828b8067a",
+    "specs/modules/ui/hlp.ui.layers-rail/interface.yaml": "c15d6a5b58238f7eff61b9c802fcda30933994a8dcd5541aa7782c0898f72df5",
+    "specs/modules/ui/hlp.ui.layers-rail/quality.yaml": "f7a846c5c88dd9be8cb0744ea8d14ca0ff645aa37dcf6dc9113cc6cbe18ca940",
+    "specs/modules/ui/hlp.ui.layers-rail/scenarios.json": "85aa206351f6f915eb3bc17b5def49795f397a8b91453e4ffcd29ad9ec270d32",
+    "specs/modules/ui/hlp.ui.layers-rail/style.css": "aa045e6e70ace94aac4225283163621754ede65165928fee5cbe500a1d3c3918"
+  },
+  "nextGate": "Retain this conformant aggregate contribution while HLF-052 advances to the next Carrier-essential dependency wave."
+}
