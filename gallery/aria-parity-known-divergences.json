@@ -755,34 +755,6 @@
       ]
     },
     {
-      "scenarioId": "numeric-text-box.editing-commit",
-      "ticket": "T-1108",
-      "reason": "Component defect (Blazor): AtMinimum is false for a null value, so after the empty commit Decrement stays enabled at the min-0 bound, where React computes (current ?? 0) <= min and disables it. This contradicts the spinner invariant that a button at an active bound is disabled and emits nothing.",
-      "hunks": [
-        "@@ #1",
-        "  - textbox \"Replacement cost\"",
-        "  - button \"Increment\"",
-        "- - button \"Decrement\" [disabled]",
-        "+ - button \"Decrement\"",
-        "  - text: Focus to edit; press Enter or move focus to commit.",
-        "  - status: \"Requests: null\""
-      ]
-    },
-    {
-      "scenarioId": "numeric-text-box.formats",
-      "ticket": "T-1108",
-      "reason": "Component defect (Blazor): currency formatting through double.ToString(\"C\") rounds half to even, so 1234.5 with c0 renders \"$1,234\" where React's Intl.NumberFormat renders \"$1,235\". This contradicts the numeric-text-box.formatting and projection-equivalence conformance cases.",
-      "hunks": [
-        "@@ #1",
-        "  - button \"Decrement\"",
-        "  - strong: Currency, zero decimals",
-        "- - textbox \"Replacement cost\": $1,235",
-        "+ - textbox \"Replacement cost\": $1,234",
-        "  - button \"Increment\"",
-        "  - button \"Decrement\""
-      ]
-    },
-    {
       "scenarioId": "radio-group.rtl-theme",
       "ticket": "T-1104",
       "reason": "Gallery story input: in the RTL scene the React story keeps the English option description \"Four invoices each year\" while the Blazor story passes the Arabic one. The two lanes' gallery stories do not render the same scene for this scenario, so the comparison reads different inputs, not a component difference; the stories need aligning.",
@@ -2421,18 +2393,6 @@
         "+     - textbox \"Computed total\": USD1,250.50",
         "      - text: Review status",
         "      - textbox \"Review status\": Awaiting review"
-      ]
-    },
-    {
-      "scenarioId": "scroll-affordance.locale-pseudo",
-      "ticket": "T-1106",
-      "reason": "Component defect (Blazor): HarborlineScrollAffordance passes its English fallback as ResolveString's instanceOverride, so the host catalog is never read. Its position status stays English (\"Scrollable, showing 1 to 4 of 8\") under every locale, while React resolves the same en-XA catalog.",
-      "hunks": [
-        "@@ #1",
-        "      - strong: Structure 1-8",
-        "      - paragraph: Grid B-8",
-        "- - text: ⟦ Šçřøļļåƀļë, šhøŵîñĝ 1 ţø 4 øƒ 8 ······ ⟧",
-        "+ - text: Scrollable, showing 1 to 4 of 8"
       ]
     },
     {
