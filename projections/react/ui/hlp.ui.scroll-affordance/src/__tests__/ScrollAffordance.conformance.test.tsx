@@ -83,6 +83,37 @@ describe('ScrollAffordance shared fixtures', () => {
     vi.useRealTimers()
   })
 
+  it('reads the live position status from the host catalog, then the default catalog', async () => {
+    // T-1106 parity oracle: the Blazor lane must resolve the same keys in the same order.
+    fixture(sharedCases, 'scroll-affordance.component-live-status')
+    const view = (locale: string, catalog: Record<string, string>) => (
+      <HarborlineLocaleProvider catalog={catalog} locale={locale}>
+        <ScrollAffordance ariaLabel="Items" itemCount={8}><span>Items</span></ScrollAffordance>
+      </HarborlineLocaleProvider>
+    )
+    vi.useFakeTimers()
+    try {
+      const { container, rerender } = render(view('en-XA', {
+        'scrollAffordance.showingRange': '⟦ Šçřøļļåƀļë, šhøŵîñĝ {start} ţø {end} øƒ {total} ······ ⟧',
+      }))
+      const status = () => container.querySelector('.hl-scroll-affordance__status')?.textContent
+      geometry(screen.getByRole('group', { name: 'Items' }), { clientWidth: 400, scrollWidth: 800 })
+      await remeasure()
+      await act(async () => { vi.runAllTimers() })
+      expect(status()).toBe('⟦ Šçřøļļåƀļë, šhøŵîñĝ 1 ţø 4 øƒ 8 ······ ⟧')
+
+      rerender(view('ar-SA', { 'scrollAffordance.showingRange': 'قابل للتمرير، عرض {start} إلى {end} من {total}' }))
+      await act(async () => { vi.runAllTimers() })
+      expect(status()).toBe('قابل للتمرير، عرض 1 إلى 4 من 8')
+
+      rerender(view('fr-FR', { 'common.close': 'Fermer' }))
+      await act(async () => { vi.runAllTimers() })
+      expect(status()).toBe('Scrollable, showing 1 to 4 of 8')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('preserves logical RTL scrolling and replacement without duplicated caller handlers', async () => {
     fixture(sharedCases, 'scroll-affordance.component-rtl')
     fixture(sharedCases, 'scroll-affordance.component-replacement')

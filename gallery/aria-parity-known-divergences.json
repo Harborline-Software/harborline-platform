@@ -2424,18 +2424,6 @@
       ]
     },
     {
-      "scenarioId": "scroll-affordance.locale-pseudo",
-      "ticket": "T-1106",
-      "reason": "Component defect (Blazor): HarborlineScrollAffordance passes its English fallback as ResolveString's instanceOverride, so the host catalog is never read. Its position status stays English (\"Scrollable, showing 1 to 4 of 8\") under every locale, while React resolves the same en-XA catalog.",
-      "hunks": [
-        "@@ #1",
-        "      - strong: Structure 1-8",
-        "      - paragraph: Grid B-8",
-        "- - text: ⟦ Šçřøļļåƀļë, šhøŵîñĝ 1 ţø 4 øƒ 8 ······ ⟧",
-        "+ - text: Scrollable, showing 1 to 4 of 8"
-      ]
-    },
-    {
       "scenarioId": "segmented-control.activation",
       "ticket": "T-1104",
       "reason": "Gallery story input: the Blazor story passes the decorative glyph inside the segment label (\"▦ Week\"), so it is exposed as radio content; the React story wraps the glyph in an aria-hidden span. The two lanes' gallery stories do not render the same scene for this scenario, so the comparison reads different inputs, not a component difference; the stories need aligning.",
