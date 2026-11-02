@@ -1,0 +1,57 @@
+{
+  "moduleId": "hlp.ui.breadcrumb",
+  "module": {
+    "interface": {
+      "path": "specs/modules/ui/hlp.ui.breadcrumb/interface.yaml",
+      "revision": 1
+    },
+    "moduleKind": "interactive-component",
+    "presentation": {
+      "disposition": "visual"
+    },
+    "qualityProfile": {
+      "path": "specs/modules/ui/hlp.ui.breadcrumb/quality.yaml",
+      "revision": 1
+    },
+    "owner": "platform-ui",
+    "dependencies": [
+      "hlp.ui.cn"
+    ],
+    "status": "extracted-candidate",
+    "depth": {
+      "disposition": "deep-module",
+      "deletionTest": "PASS",
+      "redistributedComplexity": [
+        "last-item current inference and link-versus-text selection repeated by every route trail",
+        "named navigation, separator hiding, logical wrapping, and host attributes drifting between React and Blazor"
+      ]
+    },
+    "projections": {
+      "react": {
+        "role": "adapter",
+        "seam": "ui.breadcrumb.framework",
+        "path": "projections/react/ui/hlp.ui.breadcrumb",
+        "status": "conformant",
+        "packageContribution": "@harborline-software/ui-react",
+        "conformanceRunner": "conformance/hlp.ui.breadcrumb/runners/run-shared.mjs"
+      },
+      "blazor": {
+        "role": "adapter",
+        "seam": "ui.breadcrumb.framework",
+        "path": "projections/blazor/ui/hlp.ui.breadcrumb",
+        "status": "conformant",
+        "packageContribution": "Harborline.UIAdapters.Blazor",
+        "conformanceRunner": "conformance/hlp.ui.breadcrumb/runners/run-shared.mjs"
+      }
+    }
+  },
+  "seams": {
+    "ui.breadcrumb.framework": {
+      "status": "conformant",
+      "adapters": [
+        "react",
+        "blazor"
+      ]
+    }
+  }
+}

@@ -74,7 +74,9 @@ public static class ScrollAffordancePolicy
         else if (canScroll)
         {
             key = atEnd ? "scrollAffordance.endReached" : atStart ? "scrollAffordance.moreAvailable" : "scrollAffordance.percentScrolled";
-            if (!atStart && !atEnd) arguments["percent"] = maximum <= 0 ? 0 : (int)Math.Round(position / maximum * 100);
+            // AwayFromZero, not the default ToEven: position is clamped to 0 or more, so this is JS Math.round,
+            // which React's percent uses (12.5 announces 13 in both lanes).
+            if (!atStart && !atEnd) arguments["percent"] = maximum <= 0 ? 0 : (int)Math.Round(position / maximum * 100, MidpointRounding.AwayFromZero);
         }
         return new(canScroll, atStart, atEnd, mask, key, arguments);
     }

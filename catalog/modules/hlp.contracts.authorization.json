@@ -1,0 +1,39 @@
+{
+  "moduleId": "hlp.contracts.authorization",
+  "module": {
+    "interface": {
+      "path": "specs/modules/contracts/hlp.contracts.authorization/interface.yaml",
+      "revision": 3
+    },
+    "moduleKind": "runtime",
+    "presentation": {
+      "disposition": "not-applicable",
+      "rationale": "Qualified role vocabulary and deterministic gate resolution have no presentation surface."
+    },
+    "owner": "platform-contracts",
+    "dependencies": [],
+    "status": "implemented-package-consumer-green",
+    "depth": {
+      "disposition": "deep-module",
+      "deletionTest": "PASS",
+      "redistributedComplexity": [
+        "qualified API role shape, vocabulary ownership validation, duplicate rejection, and fail-closed gate resolution repeated by every workflow, Forms, and shell consumer",
+        "held roles, role definitions, and record standings collapsed into locally invented strings or job-title catalogues"
+      ]
+    },
+    "projections": {
+      "typescript": {
+        "role": "implementation",
+        "path": "projections/typescript/contracts/hlp.contracts.forms",
+        "status": "preview",
+        "packageContribution": "@harborline-software/contracts"
+      },
+      "dotnet": {
+        "role": "implementation",
+        "path": "projections/dotnet/contracts/hlp.contracts.identities/Authorization",
+        "status": "preview",
+        "packageContribution": "Harborline.Contracts"
+      }
+    }
+  }
+}

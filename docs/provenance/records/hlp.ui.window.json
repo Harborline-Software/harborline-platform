@@ -1,0 +1,33 @@
+{
+  "moduleId": "hlp.ui.window",
+  "legacySourceHashes": {
+    "packages/ui-react/src/components/layout/Window.tsx": "3e760ce754a44f39fcbce7df7ac851bafb250d78942a45c40342274ee9e2bf3a"
+  },
+  "phase4Evidence": "specs/modules/ui/hlp.ui.window/interface.yaml",
+  "sourceExtracted": true,
+  "sourceState": "Interface revision 1 preserves the exact pinned hlp.ui.window source surface and proves every registered projection through native, shared-conformance, package-only, and applicable gallery/performance gates.",
+  "contentHashes": {
+    "conformance/hlp.ui.window/fixtures.yaml": "4ea5eb4b0553665a418629d28d38e574f7ac68334bbd948b79a1a479ea3ba86c",
+    "conformance/hlp.ui.window/quality-fixtures.yaml": "e3c663b95204ae686881402b334b9653edad6c01c34422cac632d32de0344b0e",
+    "conformance/hlp.ui.window/runners/run-shared.mjs": "6bd420be5c14968805493041f423395d621a96224652f6f4115389437b79e68a",
+    "projections/blazor/ui/hlp.ui.window/HarborlineWindow.razor": "e6ebc5ac6a35e884fd0da047d0195c6d85f1cb3a4c8cdba428f4083b1d87c8e8",
+    "projections/blazor/ui/hlp.ui.window/HarborlineWindowActionsBar.razor": "aebf6987bf533e404847287d1293005c95dbc860fb5890b677dcd84c48db1e4b",
+    "projections/blazor/ui/hlp.ui.window/WindowTypes.cs": "ced725c92cbe809a47d3f375e7a02089a4331a7c0e3ebf56f42cc8962b55cf26",
+    "projections/blazor/ui/hlp.ui.window/wwwroot/window.js": "4043378bbe7dd3595ebe9c5f3de1b632ba3f5a4615d45dbece90ee2a1816e2c9",
+    "projections/react/ui/hlp.ui.window/src/Window.tsx": "39b76180d2bef619d4ab71a2ce31f507c6cdfacc2b7d8523f9ee96500bb030f9",
+    "projections/react/ui/hlp.ui.window/src/__tests__/Window.conformance.test.tsx": "41ab60e98c8b4396a2c513251a4f1500c9dc6c61ea5b15be203f8c5e4a6e3e48",
+    "projections/react/ui/hlp.ui.window/src/__tests__/Window.native.test.tsx": "8f11cbed72d92efbf7e65f60e7760e1c5b543c9deb0c855ce4db012632c16980",
+    "projections/react/ui/hlp.ui.window/src/__tests__/Window.performance.test.tsx": "c2f323f0e780adaff4ee818e83ef1dcccabb2958dc314d63300081170049333b",
+    "projections/react/ui/hlp.ui.window/src/__tests__/fixtures.ts": "adae0ac38c76aa193b7a9a494176b246e0604114e25782d216c82e5c2b414956",
+    "projections/react/ui/hlp.ui.window/src/index.ts": "3e1de9b25b2cd1e509c8c6b099c28e8ae5c41e58ba5c54e0b61453091f99a276",
+    "projections/react/ui/hlp.ui.window/src/test-setup.ts": "3a6c3647fd3d649138d47f2ec020bba184f0e8335cb69691f49438b9b11802b1",
+    "projections/react/ui/hlp.ui.window/src/window-model.ts": "9e7bdbd33ed481fea36948b089f07655b7e59232fc53e101eb9cd9dd738996c3",
+    "projections/react/ui/hlp.ui.window/tsconfig.build.json": "1d38180e0bcb566583d74fd107148f91c6a52c82cce3c0ce6e61371abe51940d",
+    "projections/react/ui/hlp.ui.window/vitest.config.ts": "a6fca9b7c6feeb04f4fd405d85fcb342b765933bf3db2329a97c0b67d245d60b",
+    "specs/modules/ui/hlp.ui.window/interface.yaml": "a02b1d5c8d93abeae90f902e3c811daf9934a4a7e8fe0433dd3a82dff755ad37",
+    "specs/modules/ui/hlp.ui.window/quality.yaml": "01c6a80822cc9332eb467b61142ba9ddd837865ae09610a012d90da35e29d99a",
+    "specs/modules/ui/hlp.ui.window/scenarios.json": "bef3acc80f809840381ca5690142a1b034ed280b1a93cc238be0e60a2a245ceb",
+    "specs/modules/ui/hlp.ui.window/style.css": "56a233d9dad3fbc09e08663600d2fb95f925cc315bb999fd3098dbc4b75fa899"
+  },
+  "nextGate": "Retain this conformant aggregate contribution while HLF-052 advances to the next Carrier-essential dependency wave."
+}

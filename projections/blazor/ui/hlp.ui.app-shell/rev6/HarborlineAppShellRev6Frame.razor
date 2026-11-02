@@ -278,7 +278,7 @@
  protected override async Task OnAfterRenderAsync(bool firstRender)
  {
   if (disposed) return;
-  var imported = module ?? await JS.InvokeAsync<IJSObjectReference>("import", "./_content/Harborline.UIAdapters.Blazor/app-shell-rev6-frame.mjs");
+  var imported = module ?? await JS.InvokeAsync<IJSObjectReference>("import", "./_content/Harborline.UIAdapters.Blazor/app-shell-rev6-frame.js");
   if (disposed) { if (module is null) await imported.DisposeAsync(); return; }
   module = imported; callback ??= DotNetObjectReference.Create(this);
   await module.InvokeVoidAsync("bind", root, callback, ShellInlineSize is null, OwnerScope);

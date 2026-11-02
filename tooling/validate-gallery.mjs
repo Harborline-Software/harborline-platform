@@ -40,6 +40,7 @@ const requiredFiles = [
   'gallery/tests/pnpm-lock.yaml',
   'gallery/tests/playwright.config.ts',
   'gallery/tests/tests/gallery.spec.ts',
+  'gallery/aria-parity-known-divergences.json',
   'tooling/prepare-galleries.mjs',
   'tooling/run-galleries.mjs',
   'tooling/run-gallery-gate.mjs',
@@ -53,7 +54,53 @@ function exists(path) {
   return statSync(resolve(root, path), { throwIfNoEntry: false })?.isFile() === true
 }
 
+// T-943: the ARIA-tree waiver register gallery.spec.ts reads. The spec judges each RUN scenario
+// against its row (unwaived, changed and stale rows fail there); what no run can see is a row that
+// names no scenario at all, or a row too thin to be reviewed, so those are refused here, statically.
+const ariaRegisterPath = 'gallery/aria-parity-known-divergences.json'
+const ariaWaiverKeys = ['scenarioId', 'state', 'ticket', 'reason', 'hunks']
+// T-943 builds the comparison and closes when it lands, so a row naming it would point at a closed
+// ticket the day it merges: every waiver names the open ticket that owns its fix (review 1, finding 2).
+const ariaRegisterTicket = 'T-943'
+export function ariaParityRegisterErrors(register, scenarioIds) {
+  if (!Array.isArray(register?.divergences)) return [`${ariaRegisterPath}: divergences must be an array`]
+  const errors = []
+  if (register.measureFlag !== 'HARBORLINE_GALLERY_ARIA_MEASURE') errors.push(`${ariaRegisterPath}: measureFlag must be HARBORLINE_GALLERY_ARIA_MEASURE`)
+  const known = new Set(scenarioIds)
+  const seen = new Set()
+  for (const [index, row] of register.divergences.entries()) {
+    const label = `${ariaRegisterPath}: waiver ${typeof row?.scenarioId === 'string' ? row.scenarioId : `#${index + 1}`}`
+    if (!row || typeof row !== 'object') {
+      errors.push(`${label} is not an object`)
+      continue
+    }
+    for (const key of Object.keys(row)) if (!ariaWaiverKeys.includes(key)) errors.push(`${label} has an unknown field ${key}`)
+    // `state` names a later moment of a timer-driven scene, judged apart from the prepared scene (the
+    // row without one); gallery.spec.ts refuses a state the scenario never reads.
+    if ('state' in row && (typeof row.state !== 'string' || !/^[a-z]+(?:-[a-z]+)*$/.test(row.state))) errors.push(`${label} has a state that is not a kebab-case name`)
+    const key = `${row.scenarioId} @${row.state ?? ''}`
+    if (typeof row.scenarioId !== 'string' || !known.has(row.scenarioId)) errors.push(`${label} names an unknown scenario id`)
+    else if (seen.has(key)) errors.push(`${label} is registered twice${row.state ? ` for state ${row.state}` : ''}; one row records the whole difference`)
+    seen.add(key)
+    if (typeof row.ticket !== 'string' || !/^T-\d+$/.test(row.ticket)) errors.push(`${label} needs the open ticket that owns the fix (T-NNN)`)
+    else if (row.ticket === ariaRegisterTicket) errors.push(`${label} names ${ariaRegisterTicket}, the ticket that builds this register and closes with it; name the open ticket that owns the fix`)
+    if (typeof row.reason !== 'string' || row.reason.trim().length < 20) errors.push(`${label} needs a reason a reviewer can check`)
+    // Hunks as laneHunks writes them: '@@ #k' opens each hunk (k anchors it among repeated lines), then
+    // context ('  '), React-only ('- ') and Blazor-only ('+ ') markers, each followed by a snapshot line,
+    // which always starts (after its indentation) with '- '. Anything else was not measured.
+    const hunks = row.hunks
+    const header = line => /^@@ #\d+$/.test(line)
+    if (!Array.isArray(hunks) || hunks.some(line => typeof line !== 'string' || !(header(line) || /^[ +-] \s*- /.test(line)))) {
+      errors.push(`${label} must record hunks as laneHunks writes them ('@@ #k', then '  ', '- ' or '+ ' lines)`)
+    } else if (!header(hunks[0] ?? '') || !hunks.some(line => line.startsWith('- ') || line.startsWith('+ '))) {
+      errors.push(`${label} records no differing snapshot line, so it waives nothing a run can measure`)
+    }
+  }
+  return errors
+}
+
 const summaries = []
+const allScenarioIds = []
 for (const definition of definitions) {
   const catalog = load(definition.catalog)
   const conformance = load(catalog.sourceFixture)
@@ -67,6 +114,7 @@ for (const definition of definitions) {
   ])
   const scenarios = catalog.scenarios ?? []
   const ids = scenarios.map(entry => entry.id)
+  allScenarioIds.push(...ids)
   const surfaces = scenarios.map(entry => entry.surface)
   const prefix = catalog.moduleId
 
@@ -111,6 +159,15 @@ for (const definition of definitions) {
 }
 
 for (const path of requiredFiles) if (!exists(path)) errors.push(`missing ${path}`)
+
+if (exists(ariaRegisterPath)) {
+  errors.push(...ariaParityRegisterErrors(load(ariaRegisterPath), allScenarioIds))
+  // A register nothing reads is a waiver list that waives nothing and checks nothing.
+  const tests = exists('gallery/tests/tests/gallery.spec.ts') ? readFileSync(resolve(root, 'gallery/tests/tests/gallery.spec.ts'), 'utf8') : ''
+  if (!tests.includes(ariaRegisterPath) || !tests.includes('await assertAriaParity(reactPage, blazorPage, scenario.id)')) {
+    errors.push('gallery tests do not compare every scenario against the ARIA parity register')
+  }
+}
 
 const rootManifest = load('package.json')
 for (const script of ['gallery:react', 'gallery:blazor', 'gallery', 'test:gallery']) {

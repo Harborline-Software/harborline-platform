@@ -250,7 +250,7 @@
     },
     {
       "scenarioId": "context-menu.theme-dark",
-      "path": ">div[1]>button[1]",
+      "path": ">div[1]>div[3]",
       "property": "element",
       "ticket": "147",
       "note": "context-menu diverges per element on main; first seen by this probe",
@@ -345,7 +345,7 @@
     },
     {
       "scenarioId": "context-menu.theme-light",
-      "path": ">div[1]>button[1]",
+      "path": ">div[1]>div[3]",
       "property": "element",
       "ticket": "147",
       "note": "context-menu diverges per element on main; first seen by this probe",

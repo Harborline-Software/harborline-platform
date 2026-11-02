@@ -1,0 +1,28 @@
+{
+  "moduleId": "hlp.ui.use-media-query",
+  "legacySourceHashes": {
+    "packages/ui-react/src/hooks/useMediaQuery.tsx": "402c83a2d6586747844ab0fe48bb191be394fdc8676b3206755d08722dd48c94"
+  },
+  "phase4Evidence": "specs/modules/ui/hlp.ui.use-media-query/interface.yaml",
+  "sourceExtracted": true,
+  "sourceState": "Interface revision 1 preserves the exact pinned hlp.ui.use-media-query source surface and proves every registered projection through native, shared-conformance, package-only, and applicable gallery/performance gates.",
+  "contentHashes": {
+    "conformance/hlp.ui.use-media-query/fixtures.yaml": "ece45c2757b69804d19822eff72bfcad1dc8ce2c4d5b4a8618d75fa8a6db49f8",
+    "conformance/hlp.ui.use-media-query/quality-fixtures.yaml": "694029a8ce2ab0b0782c9680d21ebd06d7201bf3bb2730e88bae46b5eff046ac",
+    "conformance/hlp.ui.use-media-query/runners/run-shared.mjs": "16be8cd23cb9153d5c8a71b345ccd1fd199f162b5a3299d4aca2592d7caf75a7",
+    "projections/blazor/ui/hlp.ui.use-media-query/MediaQueryObserver.cs": "f01d68750733b028438595679609756dc5d496155294508d9abf108ef399c50b",
+    "projections/blazor/ui/hlp.ui.use-media-query/wwwroot/media-query.js": "4f3c4000e7b98a9edff643b4defd7ff91989a2750f3c49a214655ae0ba21d8f6",
+    "projections/react/ui/hlp.ui.use-media-query/src/__tests__/fixtures.ts": "d721150cc5b58eb2f3a945eab974fcd4fb1935f3662d7382049dfaab47587a9a",
+    "projections/react/ui/hlp.ui.use-media-query/src/__tests__/matchMediaHost.ts": "119db08064e66529c4db1b06ac88fd37c434a355d797e5a554906bef5a029cdb",
+    "projections/react/ui/hlp.ui.use-media-query/src/__tests__/useMediaQuery.conformance.test.tsx": "e6f774ebf66cc81cf390d02edeae61d4fb415ac2610a8d8a7ed26ace8453b696",
+    "projections/react/ui/hlp.ui.use-media-query/src/__tests__/useMediaQuery.native.test.tsx": "f3b5937c9c3c193f4a0ad44b5987f1c474701d92470ffc01a71e77ddfea37850",
+    "projections/react/ui/hlp.ui.use-media-query/src/index.ts": "4bef061e77b87923b70d1b755f8b6b81a07859144f20655a37101df0057d6b4c",
+    "projections/react/ui/hlp.ui.use-media-query/src/useMediaQuery.tsx": "45a1882c9201083bf16747ca4ba1304bd1e4c4ca17fc1a5c75ebd64ffe1ceaab",
+    "projections/react/ui/hlp.ui.use-media-query/tsconfig.build.json": "5980377d7dabe8587066f9857353540d00d52c8eb76f009d63b153ca9f7aaedf",
+    "projections/react/ui/hlp.ui.use-media-query/tsconfig.json": "2ba69891c6c4e7cdf078ae5dbfe4df55e622f845ed43919a7072813636050f1f",
+    "projections/react/ui/hlp.ui.use-media-query/vitest.config.ts": "6600beb203274031a15f04f382eb42d4fbddd802c921a0e771079f9a4c948a57",
+    "specs/modules/ui/hlp.ui.use-media-query/interface.yaml": "14fac9d67cfa0ebd3371a37c5101d41b72e83b849512ca04dfccbf9fb9c66fcc",
+    "specs/modules/ui/hlp.ui.use-media-query/quality.yaml": "8b70b78aa1739e5ca173fdd74650e13edef4030b0543d94bed9f0c17f0d65ff4"
+  },
+  "nextGate": "Retain this conformant aggregate contribution while HLF-052 advances to the next Carrier-essential dependency wave."
+}

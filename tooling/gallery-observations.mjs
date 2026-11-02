@@ -157,6 +157,9 @@ export function expectedChecks(modules, { ciGallery = false, capture = false, ex
   const openPopupScans = new Set(['select-field.search', 'select-field.multiple', 'select-field.multiple-search'])
   return {
     accessibilityScans: (running.length + running.filter(scenario => openPopupScans.has(scenario.id)).length) * 2,
+    // T-943: one lane-versus-lane ARIA-tree comparison per running scenario, whatever it declares.
+    // A pixel exemption skips pixels only, so it does not reduce this; a wall-clock one skips it all.
+    ariaParityComparisons: running.length,
     visualParityComparisons: running.filter(scenario => declares(scenario, 'visual-parity') && !pixelExempt.has(scenario.id)).length
       + button.themes * 3,
     // Per-scenario reflow (one assertion per lane, gated on the declared reflow case id) plus the six

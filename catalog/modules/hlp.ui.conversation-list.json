@@ -1,0 +1,59 @@
+{
+  "moduleId": "hlp.ui.conversation-list",
+  "module": {
+    "interface": {
+      "path": "specs/modules/ui/hlp.ui.conversation-list/interface.yaml",
+      "revision": 1
+    },
+    "moduleKind": "interactive-component",
+    "presentation": {
+      "disposition": "visual"
+    },
+    "qualityProfile": {
+      "path": "specs/modules/ui/hlp.ui.conversation-list/quality.yaml",
+      "revision": 1
+    },
+    "owner": "platform-ui",
+    "dependencies": [
+      "hlp.ui.cn",
+      "hlp.ui.default-strings",
+      "hlp.ui.locale-provider"
+    ],
+    "status": "extracted-candidate",
+    "depth": {
+      "disposition": "deep-module",
+      "deletionTest": "PASS",
+      "redistributedComplexity": [
+        "host-controlled history selection plus inline rename and confirmed-delete state machines repeated by assistant shells",
+        "plain-list semantics, focus choreography, localization, RTL, themes, and timestamp boundaries drifting across projections"
+      ]
+    },
+    "projections": {
+      "react": {
+        "role": "adapter",
+        "seam": "ui.conversation-list.framework",
+        "path": "projections/react/ui/hlp.ui.conversation-list",
+        "status": "conformant",
+        "packageContribution": "@harborline-software/ui-react",
+        "conformanceRunner": "conformance/hlp.ui.conversation-list/runners/run-shared.mjs"
+      },
+      "blazor": {
+        "role": "adapter",
+        "seam": "ui.conversation-list.framework",
+        "path": "projections/blazor/ui/hlp.ui.conversation-list",
+        "status": "conformant",
+        "packageContribution": "Harborline.UIAdapters.Blazor",
+        "conformanceRunner": "conformance/hlp.ui.conversation-list/runners/run-shared.mjs"
+      }
+    }
+  },
+  "seams": {
+    "ui.conversation-list.framework": {
+      "status": "conformant",
+      "adapters": [
+        "react",
+        "blazor"
+      ]
+    }
+  }
+}

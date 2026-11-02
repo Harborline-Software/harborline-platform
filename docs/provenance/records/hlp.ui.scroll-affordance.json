@@ -1,0 +1,29 @@
+{
+  "moduleId": "hlp.ui.scroll-affordance",
+  "legacySourceHashes": {
+    "packages/ui-react/src/components/layout/ScrollAffordance.tsx": "f1b5c4ab98a2344628184086c919236e48a7b200e20886783a674e8e96963c89"
+  },
+  "phase4Evidence": "specs/modules/ui/hlp.ui.scroll-affordance/interface.yaml",
+  "sourceExtracted": true,
+  "sourceState": "Interface revision 1 preserves the exact pinned hlp.ui.scroll-affordance source surface and proves every registered projection through native, shared-conformance, package-only, and applicable gallery/performance gates.",
+  "contentHashes": {
+    "conformance/hlp.ui.scroll-affordance/fixtures.yaml": "d6c364d717c958e0d06032c0e33f3e4fbd58cfc6700de3cc684c6fa537f01aa9",
+    "conformance/hlp.ui.scroll-affordance/quality-fixtures.yaml": "1abb4129fb608719556059b76811b06ac47eb3f641cfc2c7086a7aebc4d2fcde",
+    "conformance/hlp.ui.scroll-affordance/runners/run-shared.mjs": "46dc1e5a669c3cd34266adedf79c5047a3384fa6beb625861db797e65928ec0f",
+    "projections/blazor/ui/hlp.ui.scroll-affordance/HarborlineScrollAffordance.razor": "61c1e03b23cc4b78864c40c407278e17fbeda7ae7b2d38e12e085295a069dee1",
+    "projections/blazor/ui/hlp.ui.scroll-affordance/wwwroot/scroll-affordance-component.js": "ae8133f08521288e76d5952680aa87f1a280fff00e662110989d0ca2e95e50fe",
+    "projections/react/ui/hlp.ui.scroll-affordance/src/ScrollAffordance.tsx": "4eb7b1080ccb07bb183aa400a8b834735f78725be68d1b8883f73314561588c3",
+    "projections/react/ui/hlp.ui.scroll-affordance/src/__tests__/ScrollAffordance.conformance.test.tsx": "3133ae6cd4eb16e0c49a5ac77c960ff42d73374ee0b0206b1702cad310ab346a",
+    "projections/react/ui/hlp.ui.scroll-affordance/src/__tests__/ScrollAffordance.native.test.tsx": "54656d2a4055d80cb5b6f005d90a62280be467375d5512ba8395658beb7919b6",
+    "projections/react/ui/hlp.ui.scroll-affordance/src/__tests__/fixtures.ts": "de967641dbade8919671d3cccb54fd4b40f10f2cbb4d41146a0c911a27c8e0cc",
+    "projections/react/ui/hlp.ui.scroll-affordance/src/index.ts": "329cc0f5caf624d8eed8c44be370c5e86a55ccfa98a28e7456c5197a43a60708",
+    "projections/react/ui/hlp.ui.scroll-affordance/src/test-setup.ts": "977afde26bba6a51325908cd7713cbfdc87d18f06b78b237c8f364c44864b7de",
+    "projections/react/ui/hlp.ui.scroll-affordance/tsconfig.build.json": "4c97b26356c49f04b9d8ede0e0c925c7afa480fd74459d451ead82dc09114959",
+    "projections/react/ui/hlp.ui.scroll-affordance/vitest.config.ts": "9d2edf2787f4d892294176e07440a5f944ada9c59de34b140e311244185432d4",
+    "specs/modules/ui/hlp.ui.scroll-affordance/interface.yaml": "42ef8ec46cd6794ae15a9ede418eb444051d5e3717100b62f41ccb5d8966738b",
+    "specs/modules/ui/hlp.ui.scroll-affordance/quality.yaml": "3fe8139d2d76a0c37401e0a54a6751bc717f688734c20a8ab0811b108035f11e",
+    "specs/modules/ui/hlp.ui.scroll-affordance/scenarios.json": "b014efc8c8d922b9b1eeaa13f75b7f4787be97075840569e501f4fd92aa4b06b",
+    "specs/modules/ui/hlp.ui.scroll-affordance/style.css": "945966365c7b29a684779a5477bcdd72ea0e6bab567f04021606c0ef889d614e"
+  },
+  "nextGate": "Retain this conformant aggregate contribution while HLF-052 advances to the next Carrier-essential dependency wave."
+}

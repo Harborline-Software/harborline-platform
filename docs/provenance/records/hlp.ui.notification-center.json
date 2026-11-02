@@ -1,0 +1,30 @@
+{
+  "moduleId": "hlp.ui.notification-center",
+  "legacySourceHashes": {
+    "packages/ui-react/src/components/navigation/NotificationCenter.tsx": "253f05dd8ddab6f4ec13c33720259c00d5b498dbf6a737aeca4dcc1731705cef"
+  },
+  "phase4Evidence": "specs/modules/ui/hlp.ui.notification-center/interface.yaml",
+  "sourceExtracted": true,
+  "sourceState": "Interface revision 1 preserves the exact pinned hlp.ui.notification-center source surface and proves every registered projection through native, shared-conformance, package-only, and applicable gallery/performance gates.",
+  "contentHashes": {
+    "conformance/hlp.ui.notification-center/fixtures.yaml": "9fa693dc62eb475fa3612673a3a32ba2dafab61cbc6c101e033aadf749d429bf",
+    "conformance/hlp.ui.notification-center/quality-fixtures.yaml": "b9855a7308282ea186564dcb116776f6071dcc3081874f612a3f7c2786f0628c",
+    "conformance/hlp.ui.notification-center/runners/run-shared.mjs": "ff4b3aa3dbdf28a7978149d685341a550b70475beb591efd870b563173e8912f",
+    "projections/blazor/ui/hlp.ui.notification-center/NotificationCenterTypes.cs": "34a24de0f3cde061d41ff9dc85fa2bca14effa10f651d0519c793c19cab82a96",
+    "projections/blazor/ui/hlp.ui.notification-center/HarborlineNotificationCenter.razor": "ff0552c125ba962141d2184596accd1897ebaf8eb6eaf01360f11c4b1eacad7f",
+    "projections/blazor/ui/hlp.ui.notification-center/wwwroot/notification-center.js": "64058ea8826ff1cc46bb653677571d3f1802fa6fd782ff095605cf944bc3d26c",
+    "projections/react/ui/hlp.ui.notification-center/src/NotificationCenter.tsx": "4391030dd40448c67f74cead5a52a901c85fb0578b5441a69606b84a5a925454",
+    "projections/react/ui/hlp.ui.notification-center/src/__tests__/NotificationCenter.conformance.test.ts": "a26c7128b732a58745402dbbd9c985dc55fabd09ba62e466eff1eb2e76542748",
+    "projections/react/ui/hlp.ui.notification-center/src/__tests__/NotificationCenter.native.test.tsx": "ea8aa2b06d2bd0715c0b2b57b02979061614cff26ada62e6c0ce9891a0ec27ac",
+    "projections/react/ui/hlp.ui.notification-center/src/__tests__/fixtures.ts": "77ff42a22433f3d8a3e6a7a7b274a77128c10be026dd92bd83c4dd7774e1f09f",
+    "projections/react/ui/hlp.ui.notification-center/src/index.ts": "b2feea2df2a4318375d6d116d5985086db50134a58a0ccdbc3b8ab87df89d948",
+    "projections/react/ui/hlp.ui.notification-center/src/test-setup.ts": "097040beeb2cc914b87790306bc835eef4a06321fa3594a6938b6754641ac2ff",
+    "projections/react/ui/hlp.ui.notification-center/tsconfig.build.json": "301ec812f40fbdccd933393f3b0d555b88dc79ee43943fc20bb05a6dbf5b9649",
+    "projections/react/ui/hlp.ui.notification-center/vitest.config.ts": "6542b45a4705d7395a24bfe699c0988cbb1f34c2c7352c31d0dfda1cd42f9864",
+    "specs/modules/ui/hlp.ui.notification-center/interface.yaml": "1c73cebab5ea67384453a9232afd7316472c9b27734b4679b159fb67e1f42f4b",
+    "specs/modules/ui/hlp.ui.notification-center/quality.yaml": "58b472d8a52573c1cbe4589e8eee7740bf20f9b7766741c51c9534d836e4ee9a",
+    "specs/modules/ui/hlp.ui.notification-center/scenarios.json": "eeb42d6a3103b7a9507ab211c176fbfd378a517aa89e1bd9df48389623a2daaa",
+    "specs/modules/ui/hlp.ui.notification-center/style.css": "2f5b764a7707e79190531aaf07de74ae704a800dcfe5c8c72692e953d59de626"
+  },
+  "nextGate": "Retain this conformant aggregate contribution while HLF-052 advances to the next Carrier-essential dependency wave."
+}
