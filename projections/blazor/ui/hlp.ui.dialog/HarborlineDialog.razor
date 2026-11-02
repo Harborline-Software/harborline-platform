@@ -72,19 +72,27 @@
 
   protected override async Task OnAfterRenderAsync(bool firstRender)
   {
-    if (Open && connection is null && !connecting)
+    if (Open && connection is null && !connecting && !disposed)
     {
       connecting = true;
+      var openingPortal = portal;
+      var openingDialog = dialog;
+      var openingBody = body;
       try
       {
         module ??= await JavaScript.InvokeAsync<IJSObjectReference>("import", "./_content/Harborline.UIAdapters.Blazor/dialog.js");
         callback ??= DotNetObjectReference.Create(this);
-        connection = await module.InvokeAsync<IJSObjectReference>("connect", portal, dialog, body, callback, CloseOnEscape);
+        connection = await module.InvokeAsync<IJSObjectReference>("connect", openingPortal, openingDialog, openingBody, callback, CloseOnEscape);
+        if (disposed || !Open || !openingPortal.Equals(portal)) await DisposeConnectionAsync();
       }
-      finally { connecting = false; }
-      if (disposed || !Open) await DisposeConnectionAsync();
+      finally
+      {
+        connecting = false;
+        if (disposed) await DisposeAsync();
+      }
+      if (!disposed && Open && connection is null) await InvokeAsync(StateHasChanged);
     }
-    else if (!Open && connection is not null) await DisposeConnectionAsync();
+    else if (!Open && connection is not null && !connecting) await DisposeConnectionAsync();
   }
 
   private Task RequestCloseAsync() => OpenChanged.InvokeAsync(false);
@@ -116,8 +124,11 @@
   public async ValueTask DisposeAsync()
   {
     disposed = true;
+    if (connecting) return;
     await DisposeConnectionAsync();
     if (module is not null) { try { await module.DisposeAsync(); } catch (JSDisconnectedException) { } }
+    module = null;
     callback?.Dispose();
+    callback = null;
   }
 }

@@ -1,0 +1,61 @@
+{
+  "moduleId": "hlp.ui.user-menu",
+  "module": {
+    "interface": {
+      "path": "specs/modules/ui/hlp.ui.user-menu/interface.yaml",
+      "revision": 1
+    },
+    "moduleKind": "interactive-component",
+    "presentation": {
+      "disposition": "visual"
+    },
+    "qualityProfile": {
+      "path": "specs/modules/ui/hlp.ui.user-menu/quality.yaml",
+      "revision": 1
+    },
+    "owner": "platform-ui",
+    "dependencies": [
+      "hlp.ui.cn",
+      "hlp.ui.popover",
+      "hlp.ui.touch-target",
+      "hlp.ui.use-is-mobile",
+      "hlp.ui.use-media-query"
+    ],
+    "status": "gap-implemented",
+    "depth": {
+      "disposition": "deep-module",
+      "deletionTest": "PASS",
+      "redistributedComplexity": [
+        "identity normalization, initials, ordered action and link policy, menu versus custom-dialog semantics, keyboard navigation, and focus restoration repeated by every account surface",
+        "localized trigger and sign-out chrome, disabled behavior, placement, logical alignment, touch sizing, and theme parity drifting across projections"
+      ]
+    },
+    "projections": {
+      "react": {
+        "role": "adapter",
+        "seam": "ui.user-menu.framework",
+        "path": "projections/react/ui/hlp.ui.user-menu",
+        "status": "conformant",
+        "packageContribution": "@harborline-software/ui-react",
+        "conformanceRunner": "conformance/hlp.ui.user-menu/runners/run-shared.mjs"
+      },
+      "blazor": {
+        "role": "adapter",
+        "seam": "ui.user-menu.framework",
+        "path": "projections/blazor/ui/hlp.ui.user-menu",
+        "status": "conformant",
+        "packageContribution": "Harborline.UIAdapters.Blazor",
+        "conformanceRunner": "conformance/hlp.ui.user-menu/runners/run-shared.mjs"
+      }
+    }
+  },
+  "seams": {
+    "ui.user-menu.framework": {
+      "status": "conformant",
+      "adapters": [
+        "react",
+        "blazor"
+      ]
+    }
+  }
+}

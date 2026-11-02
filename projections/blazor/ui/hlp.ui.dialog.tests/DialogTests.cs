@@ -49,6 +49,25 @@ public sealed class DialogTests : BunitContext
         await cut.InvokeAsync(() => connect.SetResult(connection));
         cut.WaitForAssertion(() => Assert.Equal(1, connection.Disposals));
         Assert.Single(connection.Interop.Invocations["dispose"]);
+        Assert.Equal(1, module.Disposals);
+        var callback = Assert.IsType<DotNetObjectReference<HarborlineDialog>>(module.Interop.Invocations["connect"][0].Arguments[3]);
+        Assert.Throws<ObjectDisposedException>(() => callback.Value);
+    }
+    [Theory, Trait("Holds", "dialog.quality.focus")]
+    [InlineData("import")]
+    [InlineData("connect")]
+    public async Task ReopenedWhileConnectingReleasesOldElementsAndConnectsNewOnes(string boundary)
+    {
+        var (module, connection, import, connect) = PlanConnection(boundary);
+        var cut = Render<HarborlineDialog>(p => p.Add(x => x.Open, true).Add(x => x.Title, "Edit").Add(x => x.ChildContent, Text("Body")));
+        cut.Render(p => p.Add(x => x.Open, false));
+        cut.Render(p => p.Add(x => x.Open, true));
+        if (boundary == "import") await cut.InvokeAsync(() => import.SetResult(module));
+        await cut.InvokeAsync(() => connect.SetResult(connection));
+        cut.WaitForAssertion(() => Assert.Equal(2, module.Interop.Invocations["connect"].Count));
+        Assert.Equal(1, connection.Disposals);
+        Assert.NotEqual(module.Interop.Invocations["connect"][0].Arguments[0], module.Interop.Invocations["connect"][1].Arguments[0]);
+        Assert.Single(JSInterop.Invocations["import"]);
     }
     // T-1129: a dialog closed while connecting must dispose the connection it receives afterwards, so the page is
     // not left inert behind a dialog that is no longer open.
@@ -86,6 +105,22 @@ public sealed class DialogTests : BunitContext
         public ValueTask<T> InvokeAsync<T>(string identifier, CancellationToken cancellationToken, object?[]? args) => Interop.JSRuntime.InvokeAsync<T>(identifier, cancellationToken, args);
         public ValueTask DisposeAsync() { Disposals++; return ValueTask.CompletedTask; }
     }
+    // T-1122: the translate is physical, so the start edge must be too, or right-to-left content
+    // moves the surface off the left edge. This deliberately pins the chosen implementation and the
+    // byte identity of the copies; the behaviour itself is proved by gallery/tests/tests/dialog-rtl.spec.ts.
+    [Fact]
+    public void LaneStylesheetCentresTheSurfaceWithAPhysicalLeftEdge()
+    {
+        var lane = File.ReadAllText(Repo("projections/blazor/ui/hlp.ui.dialog/wwwroot/dialog.css"));
+        Assert.Equal(File.ReadAllText(Repo("specs/modules/ui/hlp.ui.dialog/style.css")), lane);
+        var surface = System.Text.RegularExpressions.Regex.Match(lane, @"\n\.hl-dialog__surface \{([^}]*)\}").Groups[1].Value;
+        Assert.Contains("\n  left: 50%;", surface, StringComparison.Ordinal);
+        Assert.Contains("transform: translate(-50%, -50%)", surface, StringComparison.Ordinal);
+        Assert.DoesNotContain("\n  inset-inline-start:", surface, StringComparison.Ordinal);
+    }
+    private static string Repo(string relative) => Path.Combine(
+        Environment.GetEnvironmentVariable("HARBORLINE_REPO_ROOT") ?? Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../../../../")),
+        relative);
     private static RenderFragment Text(string value) => builder => builder.AddContent(0, value);
     private static void AssertFixture(string prefix) { var raw = SharedFixtureBatch.Current; if (string.IsNullOrWhiteSpace(raw)) return; using var fixture = System.Text.Json.JsonDocument.Parse(raw); Assert.StartsWith(prefix, fixture.RootElement.GetProperty("id").GetString()); }
 }

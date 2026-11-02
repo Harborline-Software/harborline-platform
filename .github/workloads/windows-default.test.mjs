@@ -23,10 +23,10 @@ function evaluate(expression, options = {}) {
   const needs = {route: {result: options.routeResult ?? 'success', outputs: {enabled: options.route === false ? 'false' : 'true'}},
     plan: {result: options.planResult ?? 'success', outputs: {selected: options.selected ?? 'false', mode: options.mode ?? 'normal', subject: options.subject ?? 'c'.repeat(40)}},
     partitions: {result: options.partitionsResult ?? 'skipped'}}
-  return Function('github', 'vars', 'needs', 'labels', 'contains', 'always', 'format', `return (${expression
+  return Function('github', 'inputs', 'vars', 'needs', 'labels', 'contains', 'always', 'format', `return (${expression
     .replaceAll('github.event.pull_request.labels.*.name', 'labels')
     .replaceAll('needs.workload-route', 'needs.route').replaceAll('needs.builder-plan', 'needs.plan')
-    .replaceAll('needs.builder-partitions', 'needs.partitions')})`)(context(options),
+    .replaceAll('needs.builder-partitions', 'needs.partitions')})`)(context(options), options.inputs ?? {},
     {ACTIONS_ENABLED: options.enabled === false ? 'false' : 'true'}, needs, options.labels ?? [],
     (items, value) => items.includes(value), () => true,
     (template, ...values) => template.replace(/\{(\d+)\}/g, (_match, index) => values[index]))
@@ -327,21 +327,63 @@ test('partial diagnostic attempts require only their plan and never download abs
   assert.notEqual(runGuard('mutation-diagnostic', 'Diagnostic observations are not whole qualification', {PARTITIONS_RESULT: 'failure'}).status, 0)
 })
 
-test('schedule and dispatch keep the original all-project commands budgets and Windows lock choice', () => {
+test('schedule and dispatch-full run the hosted weekly split, never the winbox stryker job', () => {
   for (const event of ['schedule', 'workflow_dispatch']) {
-    assert.equal(admits('stryker', {event}), true)
+    assert.equal(admits('stryker', {event, inputs: {scope: 'full'}}), false)
+    assert.equal(admits('weekly-plan', {event, inputs: {scope: 'full'}}), true)
+    assert.equal(admits('weekly-plan', {event, inputs: {scope: 'full'}, route: false}), false, 'paused or not main')
+    assert.equal(admits('weekly-plan', {event, inputs: {scope: 'full'}, routeResult: 'failure'}), false)
+    assert.equal(admits('weekly-plan', {event, inputs: {scope: 'full'}, enabled: false}), false)
     for (const name of ['builder-plan', 'builder-partitions', 'mutation-diagnostic', 'mutation-qualification']) assert.equal(admits(name, {event}), false)
   }
-  const normal = job('stryker')
-  assert.ok(normal.includes("timeout-minutes: ${{ github.event_name == 'pull_request' && 360 || 720 }}"))
-  const scheduled = step('stryker', 'Mutate every project and hold each to its baseline (scheduled)')
-  assert.ok(scheduled.includes("if: github.event_name != 'pull_request'"))
-  assert.ok(scheduled.includes("$env:RUNNER_OS -eq 'Windows'"))
-  const windows = scheduled.slice(scheduled.indexOf("$env:RUNNER_OS -eq 'Windows'"), scheduled.indexOf('python .github/workloads/host-workload-lock.py'))
-  assert.ok(windows.includes('& ./.github/workloads/full-mutation.ps1'))
-  assert.ok(!windows.includes('host-workload-lock.py'))
-  assert.ok(scheduled.includes('python .github/workloads/host-workload-lock.py -- pwsh -NoProfile -File .github/workloads/full-mutation.ps1'))
-  assert.match(normal, /if: .*runner\.os != 'Windows'\n        with:\n          python-version: '3\.14'/)
-  assert.equal(readFileSync(new URL('full-mutation.ps1', import.meta.url), 'utf8').replaceAll('\r\n', '\n'),
-    'dotnet tool restore\nif ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }\nnode tooling/stryker.mjs full\nexit $LASTEXITCODE\n')
+  for (const options of [{}, {event: 'workflow_dispatch', inputs: {scope: 'changed'}}, {action: 'labeled', label: 'mutation-qualification'}])
+    assert.equal(admits('weekly-plan', options), false, JSON.stringify(options))
+  assert.ok(job('stryker').includes('    timeout-minutes: 360\n'))
+  assert.ok(!source.includes('full-mutation.ps1'))
+  assert.ok(!source.includes('stryker.mjs full'))
+  const plan = job('weekly-plan'), part = job('weekly-part'), score = job('weekly-score')
+  for (const block of [plan, part, score]) {
+    assert.ok(block.includes('    runs-on: ubuntu-latest\n'))
+    assert.ok(!block.includes('workload-route.outputs.labels'))
+  }
+  assert.ok(plan.includes('node tooling/stryker-weekly.mjs plan StrykerOutput/weekly/plan.json $env:WEEKLY_PARTS'))
+  assert.ok(part.includes('    needs: weekly-plan\n'))
+  assert.ok(part.includes('      fail-fast: false\n'))
+  assert.match(part, /      max-parallel: \d+\n/)
+  assert.ok(part.includes('        part: ${{ fromJSON(needs.weekly-plan.outputs.parts) }}'))
+  assert.ok(part.includes('    timeout-minutes: 355\n'))
+  assert.ok(step('weekly-part', 'Mutate this part').includes('        timeout-minutes: 330\n'))
+  assert.ok(step('weekly-part', 'Mutate this part').includes('node tooling/stryker-weekly.mjs shard StrykerOutput/weekly-plan/plan.json $env:PART'))
+  assert.ok(step('weekly-part', 'Part results').includes('if: always()'))
+  assert.ok(step('weekly-part', 'Part results').includes('name: weekly-part-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.part }}'))
+  assert.ok(score.includes('      always() && needs.weekly-plan.result == \'success\''))
+  assert.ok(score.includes('    needs: [weekly-plan, weekly-part]\n'))
+  assert.ok(step('weekly-score', 'Join the parts and hold each project to its baseline')
+    .includes('node tooling/stryker-weekly.mjs collect StrykerOutput/weekly-plan/plan.json StrykerOutput/weekly-results'))
+})
+
+test('weekly full run, and a manual changed-files run that never takes the full or Windows route', () => {
+  assert.ok(source.includes("    - cron: '40 7 * * 0'\n"))
+  assert.ok(!source.includes("cron: '40 7 * * *'"))
+  const changed = {event: 'workflow_dispatch', inputs: {scope: 'changed'}}
+  assert.equal(admits('stryker', changed), false)
+  assert.equal(admits('weekly-plan', changed), false)
+  assert.equal(admits('weekly-plan', {event: 'workflow_dispatch', inputs: {scope: 'full'}}), true)
+  assert.equal(admits('stryker-changed', changed), true)
+  for (const refusal of [{event: 'workflow_dispatch', inputs: {scope: 'full'}}, {event: 'workflow_dispatch'}, {event: 'schedule'},
+    {...changed, enabled: false}, {}, {action: 'labeled', label: 'mutation-qualification'}])
+    assert.equal(admits('stryker-changed', refusal), false, JSON.stringify(refusal))
+  for (const name of ['builder-plan', 'builder-partitions', 'mutation-diagnostic', 'mutation-qualification']) assert.equal(admits(name, changed), false, name)
+  const manual = job('stryker-changed')
+  assert.ok(manual.includes('runs-on: ubuntu-latest'))
+  assert.ok(!manual.includes('needs:'))
+  assert.ok(!manual.includes('full-mutation.ps1'))
+  assert.ok(!manual.includes('stryker.mjs full'))
+  const mutation = step('stryker-changed', 'Mutate changed files and hold each project to its break (manual)')
+  assert.ok(mutation.includes(`          dotnet tool restore
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node tooling/stryker.mjs check
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node tooling/stryker.mjs run
+          exit $LASTEXITCODE`))
 })

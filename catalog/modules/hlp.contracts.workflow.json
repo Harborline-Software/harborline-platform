@@ -1,0 +1,42 @@
+{
+  "moduleId": "hlp.contracts.workflow",
+  "module": {
+    "interface": {
+      "path": "specs/modules/contracts/hlp.contracts.workflow/interface.yaml",
+      "revision": 2
+    },
+    "moduleKind": "runtime",
+    "presentation": {
+      "disposition": "not-applicable",
+      "rationale": "Workflow wire and admission outcomes are consumed by builders and renderers but own no presentation implementation."
+    },
+    "owner": "platform-contracts",
+    "dependencies": [
+      "hlp.contracts.authorization",
+      "hlp.contracts.forms"
+    ],
+    "status": "implemented-package-consumer-green",
+    "depth": {
+      "disposition": "deep-module",
+      "deletionTest": "PASS",
+      "redistributedComplexity": [
+        "complete workflow authoring shape, strict wire handling, graph integrity, reachability, and terminal/dead-end rules repeated in every TypeScript and .NET host",
+        "capability authority classification and human-gated CP firing reimplemented or omitted at every workflow publish boundary"
+      ]
+    },
+    "projections": {
+      "typescript": {
+        "role": "generated-binding",
+        "path": "projections/typescript/contracts/hlp.contracts.forms",
+        "status": "preview",
+        "packageContribution": "@harborline-software/contracts"
+      },
+      "dotnet": {
+        "role": "generated-binding",
+        "path": "projections/dotnet/contracts/hlp.contracts.identities/Workflow",
+        "status": "preview",
+        "packageContribution": "Harborline.Contracts"
+      }
+    }
+  }
+}

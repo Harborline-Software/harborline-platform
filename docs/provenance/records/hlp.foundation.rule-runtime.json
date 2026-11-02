@@ -1,0 +1,24 @@
+{
+  "moduleId": "hlp.foundation.rule-runtime",
+  "phase4Evidence": "specs/modules/foundation/hlp.foundation.rule-runtime/interface.yaml",
+  "sourceExtracted": true,
+  "sourceState": "Revision 1 preserves the pinned TypeScript reactive tier and .NET integrity tier as one deterministic module. The tiers share a 74-case corpus, closed operator catalog, canonical outcome vocabulary, injected clock, exact-decimal money behavior, and fail-closed resource limits. Native suites pass 201 TypeScript and 148 .NET cases; parsed canonical outcomes are structurally identical across tiers. The npm identity is preserved. The frozen HLF-055 target now uses the converged Harborline.Foundation.RuleEngine NuGet, assembly, and API identity. Host DI convenience and the broad Forms integration test remain outside this package; the latter is retained for the Forms gate.",
+  "contentHashes": {
+    "conformance/hlp.foundation.rule-runtime/corpus/output-types.json": "5b202f42008bd60d21dc9a59ef8748e2c6d04c538b66f48ae6431966b7510327",
+    "conformance/hlp.foundation.rule-runtime/runners/run-shared.mjs": "e178e67ae3fd0da902b4d962d94f239b096a7078bf52c041b845187416642ff3",
+    "projections/dotnet/foundation/hlp.foundation.rule-runtime.tests/ConformanceTests.cs": "71ae99761addacd772c810b6473af9cc9c9be4afa0267c9aac45ddad65fa2ad1",
+    "projections/dotnet/foundation/hlp.foundation.rule-runtime/Compilation/RuleCompiler.cs": "0dc73b1404f9fb507431c55ec4559aa32dcb3582d535111dbd3df0b042808d1d",
+    "projections/dotnet/foundation/hlp.foundation.rule-runtime/Evaluation/HarborlineJsonLogic.cs": "c30478fc1cdde6d6bf94d69afddf23565adc3d888873242e68cd9cb62f805322",
+    "projections/dotnet/foundation/hlp.foundation.rule-runtime/Graph/EvaluationCore.cs": "36910fbd86729d18ebc46d9741b808c8a41ed9952915f282ca1955f606c89eae",
+    "projections/dotnet/foundation/hlp.foundation.rule-runtime/Model/RuleOutcome.cs": "f3a01ae9ca416d9d564a9482939fd66a680097318c48f5975a073b94d8ff6efa",
+    "projections/dotnet/foundation/hlp.foundation.rule-runtime/RuleEngineLimits.cs": "a4b83401908c379ccaf9d9edd53b4efd5d525f57b033513c39fac2dc4aaaf139",
+    "projections/dotnet/foundation/hlp.foundation.rule-runtime/Harborline.Foundation.RuleEngine.csproj": "f423b4995c59b4dc0ab55c1ab281149367cf3c75f9bcd8feb13bd37155170d05",
+    "projections/typescript/foundation/hlp.foundation.rule-runtime/package.json": "ce68d991fec4a63b9eeac801d45a17e7d8a18ca178fdb4c93ba8dfb56877413a",
+    "projections/typescript/foundation/hlp.foundation.rule-runtime/src/compiler.ts": "8a545631a129d85f1fa261ce134b26673d24f1ebb32d14ece18801a5cfd118aa",
+    "projections/typescript/foundation/hlp.foundation.rule-runtime/src/graph.ts": "d1d0084356071c27fbc1b234fe1a5e25e954ae86ee1588c1cd09a40d3b5259ff",
+    "projections/typescript/foundation/hlp.foundation.rule-runtime/src/jsonlogic.ts": "7d15d74fdaf0893f623fcb2882bb1824aac909d8672c60620ce71d29dc22c3e6",
+    "projections/typescript/foundation/hlp.foundation.rule-runtime/src/model.ts": "900fc1ed2abb707518e4dc94abac7184e2e6b6827982de0cb52f7f9a0393be5a",
+    "specs/modules/foundation/hlp.foundation.rule-runtime/interface.yaml": "533939bcf87e370dd7061db30f7d2a54a85272a5f470563c152aab7a6ea44bff"
+  },
+  "nextGate": "Extract the complete caller-backed Forms definition/version/draft/reuse state, then the executable Forms Engine, against this runtime."
+}

@@ -1,0 +1,48 @@
+{
+  "moduleId": "hlp.blocks.workflow-interpreter",
+  "module": {
+    "interface": {
+      "path": "specs/modules/blocks/hlp.blocks.workflow-interpreter/interface.yaml",
+      "revision": 1
+    },
+    "moduleKind": "runtime",
+    "presentation": {
+      "disposition": "not-applicable",
+      "rationale": "The interpreter executes authored definitions through engine seams and owns no visual implementation."
+    },
+    "owner": "platform-blocks",
+    "dependencies": [
+      "hlp.blocks.workflow"
+    ],
+    "status": "implemented-engine-substrate-package-green",
+    "depth": {
+      "disposition": "deep-module",
+      "deletionTest": "PASS",
+      "redistributedComplexity": [
+        "generic define-admit-trigger-transition-complete execution otherwise hand-written per process as typed handlers",
+        "broker-only CP effect reach and payload-free confirm re-derivation otherwise re-implemented (or omitted) by every host executor"
+      ]
+    },
+    "projections": {
+      "dotnet": {
+        "role": "implementation",
+        "path": "projections/dotnet/blocks/hlp.blocks.workflow-interpreter",
+        "status": "preview",
+        "artifact": {
+          "type": "nuget",
+          "id": "Harborline.Blocks.Workflow.Interpreter",
+          "assembly": "Harborline.Blocks.Workflow.Interpreter",
+          "manifest": "projections/dotnet/blocks/hlp.blocks.workflow-interpreter/Harborline.Blocks.Workflow.Interpreter.csproj",
+          "dependencies": [
+            "Harborline.Blocks.Workflow"
+          ],
+          "identityAuthority": "Harborline",
+          "producerRepository": "harborline-platform",
+          "distribution": "internal-only",
+          "candidateRole": "new-bounded-package",
+          "registryAvailable": false
+        }
+      }
+    }
+  }
+}

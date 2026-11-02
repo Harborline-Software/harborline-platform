@@ -8,6 +8,7 @@
 import {mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync} from 'node:fs'
 import {tmpdir} from 'node:os'
 import {extname, join, resolve} from 'node:path'
+import {loadModuleCatalog} from '../module-catalog.mjs'
 
 const argv = process.argv.slice(2)
 // This tool lives inside the platform repository, so its default root is two levels above it.
@@ -82,7 +83,7 @@ function readSources(directory, extensions) {
 }
 
 function runScan(root) {
-  const catalog = JSON.parse(readFileSync(join(root, 'catalog/modules.yaml'), 'utf8'))
+  const catalog = loadModuleCatalog(root)
   const modules = discoverModules(catalog.modules ?? {})
   const findings = []
   for (const module of modules) {

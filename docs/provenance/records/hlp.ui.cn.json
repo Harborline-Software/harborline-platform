@@ -1,0 +1,22 @@
+{
+  "moduleId": "hlp.ui.cn",
+  "legacySourceHashes": {
+    "packages/ui-react/src/lib/cn.ts": "e46429536f43f5910f5b2b0c50bb2769b510a4558bb4b5d20a3b0a9091dbf7c3"
+  },
+  "phase4Evidence": "specs/modules/ui/hlp.ui.cn/interface.yaml",
+  "sourceExtracted": true,
+  "sourceState": "Revision 1 preserves the pinned twMerge(clsx(inputs)) behavior as the React implementation and a framework-neutral .NET projection. The shared corpus covers nested conditional inputs, responsive and state modifiers, arbitrary values, important and negative utilities, and last-applicable-token conflict resolution.",
+  "contentHashes": {
+    "projections/react/ui/hlp.ui.cn/src/cn.ts": "b31f5f709ed7d2c32daa516aca38d706852efc09dc400a457c1f0d59535937ed",
+    "projections/react/ui/hlp.ui.cn/src/index.ts": "25548331152706b2fa9c3baf731eaa0ba02b60fd03099422d9c159725b0f5eeb",
+    "projections/react/ui/hlp.ui.cn/src/__tests__/cn.native.test.ts": "9696f2f09c98e0edb904ff8f51da6a2ab147cecbb3c0dd01e7aa0d786d9bf9ea",
+    "projections/react/ui/hlp.ui.cn/src/__tests__/cn.shared-fixtures.test.ts": "bdec6fdb4fa46726aa75c5aa1dd11fed64ee7124dfc24271156d630b97d227ab",
+    "projections/dotnet/foundation/hlp.ui.cn/CssClassComposer.cs": "4c96d6fbce1acdf3c699db1ed7624e75ac6725d863ba68ff190ca1080055a57b",
+    "conformance/hlp.ui.cn/fixtures.yaml": "8d8df8b3b87e549ad9d37e8c47eddac79e69c142ccc935395fa951eb909a5ccf",
+    "conformance/hlp.ui.cn/quality-fixtures.yaml": "1eeb860030616274e227abc6802fc0d0c3c20d029a88b3fbb67e02f6d3866102",
+    "conformance/hlp.ui.cn/runners/run-shared.mjs": "e8d4c66a51935ab08a330318f252f3e74a0306016201123df8a56c32e9459f18",
+    "specs/modules/ui/hlp.ui.cn/interface.yaml": "472d88f28ac3df0405df4727b79ce7800aaee31a658a2db2db0d16a63396a5ab",
+    "specs/modules/ui/hlp.ui.cn/quality.yaml": "aaee83000fe2a3f6d9540b9b0a798bc88c0aeb5d83193db6ae0059d7a161f921"
+  },
+  "nextGate": "Retain this conformant aggregate contribution while HLF-052 advances to the next Carrier-essential dependency wave."
+}

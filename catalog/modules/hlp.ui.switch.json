@@ -1,0 +1,63 @@
+{
+  "moduleId": "hlp.ui.switch",
+  "module": {
+    "interface": {
+      "path": "specs/modules/ui/hlp.ui.switch/interface.yaml",
+      "revision": 1
+    },
+    "moduleKind": "interactive-component",
+    "presentation": {
+      "disposition": "visual"
+    },
+    "qualityProfile": {
+      "path": "specs/modules/ui/hlp.ui.switch/quality.yaml",
+      "revision": 1
+    },
+    "owner": "platform-ui",
+    "dependencies": [
+      "hlp.ui.cn",
+      "hlp.ui.default-strings",
+      "hlp.ui.form-field",
+      "hlp.ui.locale-provider",
+      "hlp.ui.touch-target",
+      "hlp.ui.use-can-show-master-detail",
+      "hlp.ui.use-media-query"
+    ],
+    "status": "gap-implemented",
+    "depth": {
+      "disposition": "deep-module",
+      "deletionTest": "PASS",
+      "redistributedComplexity": [
+        "controlled and uncontrolled binary state, stable naming, native keyboard activation, Form Field metadata, and form values repeated by every boolean control",
+        "coarse-pointer overlay, canonical sizing, non-color validation, logical RTL thumb motion, localization, and compatibility aliases drifting across projections"
+      ]
+    },
+    "projections": {
+      "react": {
+        "role": "adapter",
+        "seam": "ui.switch.framework",
+        "path": "projections/react/ui/hlp.ui.switch",
+        "status": "conformant",
+        "packageContribution": "@harborline-software/ui-react",
+        "conformanceRunner": "conformance/hlp.ui.switch/runners/run-shared.mjs"
+      },
+      "blazor": {
+        "role": "adapter",
+        "seam": "ui.switch.framework",
+        "path": "projections/blazor/ui/hlp.ui.switch",
+        "status": "conformant",
+        "packageContribution": "Harborline.UIAdapters.Blazor",
+        "conformanceRunner": "conformance/hlp.ui.switch/runners/run-shared.mjs"
+      }
+    }
+  },
+  "seams": {
+    "ui.switch.framework": {
+      "status": "conformant",
+      "adapters": [
+        "react",
+        "blazor"
+      ]
+    }
+  }
+}

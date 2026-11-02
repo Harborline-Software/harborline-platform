@@ -23,6 +23,7 @@ import {readFileSync, writeFileSync, existsSync} from 'node:fs'
 
 import {collectionProps, deriveStateSet, derivedEmptyAndErrorSupport} from './derive-state-set.mjs'
 import {resolve} from 'node:path'
+import {loadModuleCatalog} from '../module-catalog.mjs'
 
 const argv = process.argv.slice(2)
 const flag = (name, fallback = null) => {
@@ -116,7 +117,7 @@ const RULES = [
 ]
 
 function load() {
-  const catalog = readJson('catalog/modules.yaml').modules
+  const catalog = loadModuleCatalog(platformRoot).modules
   const receiptPath = 'docs/evidence/gate-model/ui-gate-model.json'
   const receipt = existsSync(resolve(platformRoot, receiptPath)) ? readJson(receiptPath) : null
   const blocking = new Map()

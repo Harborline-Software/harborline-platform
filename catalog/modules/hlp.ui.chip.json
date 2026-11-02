@@ -1,0 +1,59 @@
+{
+  "moduleId": "hlp.ui.chip",
+  "module": {
+    "interface": {
+      "path": "specs/modules/ui/hlp.ui.chip/interface.yaml",
+      "revision": 1
+    },
+    "moduleKind": "interactive-component",
+    "presentation": {
+      "disposition": "visual"
+    },
+    "qualityProfile": {
+      "path": "specs/modules/ui/hlp.ui.chip/quality.yaml",
+      "revision": 1
+    },
+    "owner": "platform-ui",
+    "dependencies": [
+      "hlp.ui.cn",
+      "hlp.ui.default-strings",
+      "hlp.ui.locale-provider"
+    ],
+    "status": "extracted-candidate",
+    "depth": {
+      "disposition": "deep-module",
+      "deletionTest": "PASS",
+      "redistributedComplexity": [
+        "controlled selection, independent appearance axes, and sibling removal controls repeated by every compact-value surface",
+        "localized removal, keyboard behavior, decorative content, RTL, themes, and forced colors drifting across projections"
+      ]
+    },
+    "projections": {
+      "react": {
+        "role": "adapter",
+        "seam": "ui.chip.framework",
+        "path": "projections/react/ui/hlp.ui.chip",
+        "status": "conformant",
+        "packageContribution": "@harborline-software/ui-react",
+        "conformanceRunner": "conformance/hlp.ui.chip/runners/run-shared.mjs"
+      },
+      "blazor": {
+        "role": "adapter",
+        "seam": "ui.chip.framework",
+        "path": "projections/blazor/ui/hlp.ui.chip",
+        "status": "conformant",
+        "packageContribution": "Harborline.UIAdapters.Blazor",
+        "conformanceRunner": "conformance/hlp.ui.chip/runners/run-shared.mjs"
+      }
+    }
+  },
+  "seams": {
+    "ui.chip.framework": {
+      "status": "conformant",
+      "adapters": [
+        "react",
+        "blazor"
+      ]
+    }
+  }
+}

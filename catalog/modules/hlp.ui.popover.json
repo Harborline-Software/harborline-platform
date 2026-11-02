@@ -1,0 +1,58 @@
+{
+  "moduleId": "hlp.ui.popover",
+  "module": {
+    "interface": {
+      "path": "specs/modules/ui/hlp.ui.popover/interface.yaml",
+      "revision": 1
+    },
+    "moduleKind": "interactive-component",
+    "presentation": {
+      "disposition": "visual"
+    },
+    "qualityProfile": {
+      "path": "specs/modules/ui/hlp.ui.popover/quality.yaml",
+      "revision": 1
+    },
+    "owner": "platform-ui",
+    "dependencies": [
+      "hlp.ui.cn",
+      "hlp.ui.use-outside-click"
+    ],
+    "status": "extracted-candidate",
+    "depth": {
+      "disposition": "deep-module",
+      "deletionTest": "PASS",
+      "redistributedComplexity": [
+        "controlled composition, anchored viewport placement, and outside or Escape dismissal repeated by transient surfaces",
+        "ARIA lifecycle, focus entry and restoration, RTL alignment, and reduced motion drifting between frameworks"
+      ]
+    },
+    "projections": {
+      "react": {
+        "role": "adapter",
+        "seam": "ui.popover.framework",
+        "path": "projections/react/ui/hlp.ui.popover",
+        "status": "conformant",
+        "packageContribution": "@harborline-software/ui-react",
+        "conformanceRunner": "conformance/hlp.ui.popover/runners/run-shared.mjs"
+      },
+      "blazor": {
+        "role": "adapter",
+        "seam": "ui.popover.framework",
+        "path": "projections/blazor/ui/hlp.ui.popover",
+        "status": "conformant",
+        "packageContribution": "Harborline.UIAdapters.Blazor",
+        "conformanceRunner": "conformance/hlp.ui.popover/runners/run-shared.mjs"
+      }
+    }
+  },
+  "seams": {
+    "ui.popover.framework": {
+      "status": "conformant",
+      "adapters": [
+        "react",
+        "blazor"
+      ]
+    }
+  }
+}

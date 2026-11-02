@@ -1,0 +1,61 @@
+{
+  "moduleId": "hlp.ui.notification-center",
+  "module": {
+    "interface": {
+      "path": "specs/modules/ui/hlp.ui.notification-center/interface.yaml",
+      "revision": 1
+    },
+    "moduleKind": "interactive-component",
+    "presentation": {
+      "disposition": "visual"
+    },
+    "qualityProfile": {
+      "path": "specs/modules/ui/hlp.ui.notification-center/quality.yaml",
+      "revision": 1
+    },
+    "owner": "platform-ui",
+    "dependencies": [
+      "hlp.ui.cn",
+      "hlp.ui.popover",
+      "hlp.ui.touch-target",
+      "hlp.ui.use-is-mobile",
+      "hlp.ui.use-media-query"
+    ],
+    "status": "gap-implemented",
+    "depth": {
+      "disposition": "deep-module",
+      "deletionTest": "PASS",
+      "redistributedComplexity": [
+        "badge accounting, ordered grouping and filtering, bounded history, proposal and informational actions, and close reasons repeated by every application shell",
+        "dialog focus, caller-owned persistence, complete localized chrome, touch floors, RTL, and forced colors drifting across projections"
+      ]
+    },
+    "projections": {
+      "react": {
+        "role": "adapter",
+        "seam": "ui.notification-center.framework",
+        "path": "projections/react/ui/hlp.ui.notification-center",
+        "status": "conformant",
+        "packageContribution": "@harborline-software/ui-react",
+        "conformanceRunner": "conformance/hlp.ui.notification-center/runners/run-shared.mjs"
+      },
+      "blazor": {
+        "role": "adapter",
+        "seam": "ui.notification-center.framework",
+        "path": "projections/blazor/ui/hlp.ui.notification-center",
+        "status": "conformant",
+        "packageContribution": "Harborline.UIAdapters.Blazor",
+        "conformanceRunner": "conformance/hlp.ui.notification-center/runners/run-shared.mjs"
+      }
+    }
+  },
+  "seams": {
+    "ui.notification-center.framework": {
+      "status": "conformant",
+      "adapters": [
+        "react",
+        "blazor"
+      ]
+    }
+  }
+}
