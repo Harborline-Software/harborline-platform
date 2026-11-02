@@ -51,3 +51,40 @@ test('sibling package origin scanner is a required phase-4 gate step after its s
   assert.ok(requiredStepIds.indexOf('sibling-package-origins') > requiredStepIds.indexOf('tooling-selftests'))
   assert.match(gate, /run\('sibling-package-origins', process\.execPath, \['tooling\/gates\/scan-sibling-package-origins\.mjs', '--json'\], root, true\)/)
 })
+
+// pnpm v9 snapshots describe dependency edges; only packages holds resolutions.
+test('pnpm local tarball packages with snapshots are not registry resolutions', () => {
+  const root = mkdtempSync(join(tmpdir(), 'sibling-package-origin-test-'))
+  try {
+    writeFileSync(join(root, 'pnpm-lock.yaml'), `lockfileVersion: '9.0'
+packages:
+  '@harborline-software/capability-host@file:host.tgz':
+    resolution: {tarball: file:host.tgz}
+snapshots:
+  '@harborline-software/capability-host@file:host.tgz': {}
+  '@harborline-software/capability-host@file:host.tgz(peer@1.0.0)':
+    dependencies:
+      peer: 1.0.0
+`)
+    assert.deepEqual(scanSiblingPackageOrigins(root).findings, [])
+  } finally {
+    rmSync(root, {recursive: true, force: true})
+  }
+})
+
+test('pnpm package resolution search stops at the next top-level section', () => {
+  const root = mkdtempSync(join(tmpdir(), 'sibling-package-origin-test-'))
+  try {
+    writeFileSync(join(root, 'pnpm-lock.yaml'), `packages:
+  '@harborline-software/capability-host@1.0.0':
+snapshots:
+    resolution: {tarball: file:unrelated.tgz}
+`)
+    assert.deepEqual(scanSiblingPackageOrigins(root).findings, [{
+      kind: 'registry-lock-resolution', file: 'pnpm-lock.yaml',
+      package: '@harborline-software/capability-host', resolution: 'implicit registry resolution',
+    }])
+  } finally {
+    rmSync(root, {recursive: true, force: true})
+  }
+})
