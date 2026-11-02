@@ -1,6 +1,6 @@
 using System.Text.Json.Nodes;
 
-using Harborline.Contracts.Forms;
+using Harborline.Contracts.Rules;
 using Harborline.Foundation.RuleAuthoring;
 using VisibilityState = Harborline.Foundation.RuleEngine.Model.VisibilityState;
 

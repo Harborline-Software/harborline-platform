@@ -1,4 +1,4 @@
-using Harborline.Contracts.Forms;
+using Harborline.Contracts.Serialization;
 
 namespace Harborline.Foundation.RuleEngine;
 

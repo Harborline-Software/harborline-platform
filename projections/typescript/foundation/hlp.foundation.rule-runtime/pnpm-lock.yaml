@@ -1,7 +1,7 @@
 lockfileVersion: '9.0'
 
 settings:
-  autoInstallPeers: true
+  autoInstallPeers: false
   excludeLinksFromLockfile: false
 
 overrides:
@@ -29,7 +29,7 @@ importers:
         version: 10.0.0(patch_hash=aaa9352ad292c7442e4dfda7c8b4e14b5812355737b7cc1b842d7b8dfdcb225c)
       '@stryker-mutator/vitest-runner':
         specifier: 10.0.0
-        version: 10.0.0(patch_hash=ad1830ce17e952b0c741c7ed3ec881304ff05836076b5e5e27d2704e9bfd5577)(@stryker-mutator/core@10.0.0(patch_hash=aaa9352ad292c7442e4dfda7c8b4e14b5812355737b7cc1b842d7b8dfdcb225c))(vitest@4.1.11(vite@8.1.6))
+        version: 10.0.0(patch_hash=ad1830ce17e952b0c741c7ed3ec881304ff05836076b5e5e27d2704e9bfd5577)(@stryker-mutator/core@10.0.0(patch_hash=aaa9352ad292c7442e4dfda7c8b4e14b5812355737b7cc1b842d7b8dfdcb225c))(vitest@4.1.11)
       '@typescript/native':
         specifier: npm:typescript@7.0.2
         version: typescript@7.0.2
@@ -44,7 +44,7 @@ importers:
         version: 8.63.0(@typescript/typescript6@6.0.2)(eslint@10.7.0)
       vitest:
         specifier: 4.1.11
-        version: 4.1.11(vite@8.1.6)
+        version: 4.1.11
 
 packages:
 
@@ -1612,7 +1612,6 @@ packages:
       '@vitest/ui': 4.1.11
       happy-dom: '*'
       jsdom: '*'
-      vite: 8.1.6
     peerDependenciesMeta:
       '@edge-runtime/vm':
         optional: true
@@ -2187,14 +2186,14 @@ snapshots:
 
   '@stryker-mutator/util@10.0.0': {}
 
-  '@stryker-mutator/vitest-runner@10.0.0(patch_hash=ad1830ce17e952b0c741c7ed3ec881304ff05836076b5e5e27d2704e9bfd5577)(@stryker-mutator/core@10.0.0(patch_hash=aaa9352ad292c7442e4dfda7c8b4e14b5812355737b7cc1b842d7b8dfdcb225c))(vitest@4.1.11(vite@8.1.6))':
+  '@stryker-mutator/vitest-runner@10.0.0(patch_hash=ad1830ce17e952b0c741c7ed3ec881304ff05836076b5e5e27d2704e9bfd5577)(@stryker-mutator/core@10.0.0(patch_hash=aaa9352ad292c7442e4dfda7c8b4e14b5812355737b7cc1b842d7b8dfdcb225c))(vitest@4.1.11)':
     dependencies:
       '@stryker-mutator/api': 10.0.0
       '@stryker-mutator/core': 10.0.0(patch_hash=aaa9352ad292c7442e4dfda7c8b4e14b5812355737b7cc1b842d7b8dfdcb225c)
       '@stryker-mutator/util': 10.0.0
       semver: 7.8.5
       tslib: 2.8.1
-      vitest: 4.1.11(vite@8.1.6)
+      vitest: 4.1.11
 
   '@tybys/wasm-util@0.10.3':
     dependencies:
@@ -3081,7 +3080,7 @@ snapshots:
     optionalDependencies:
       fsevents: 2.3.3
 
-  vitest@4.1.11(vite@8.1.6):
+  vitest@4.1.11:
     dependencies:
       '@vitest/expect': 4.1.11
       '@vitest/mocker': 4.1.11(vite@8.1.6)
@@ -3104,7 +3103,18 @@ snapshots:
       vite: 8.1.6
       why-is-node-running: 2.3.0
     transitivePeerDependencies:
+      - '@vitejs/devtools'
+      - esbuild
+      - jiti
+      - less
       - msw
+      - sass
+      - sass-embedded
+      - stylus
+      - sugarss
+      - terser
+      - tsx
+      - yaml
 
   weapon-regex@2.0.5: {}
 
