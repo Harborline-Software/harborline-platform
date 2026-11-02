@@ -67,15 +67,35 @@
     if (Open && ChildContent is null) throw new InvalidOperationException("dialog-body-required");
   }
 
+  // The page-wide connection (inert siblings, focus trap) exists at most once and never outlives the dialog (T-1129).
+  private bool connecting, disposed;
+
   protected override async Task OnAfterRenderAsync(bool firstRender)
   {
-    if (Open && connection is null)
+    if (Open && connection is null && !connecting && !disposed)
     {
-      module ??= await JavaScript.InvokeAsync<IJSObjectReference>("import", "./_content/Harborline.UIAdapters.Blazor/dialog.js");
-      callback ??= DotNetObjectReference.Create(this);
-      connection = await module.InvokeAsync<IJSObjectReference>("connect", portal, dialog, body, callback, CloseOnEscape);
+      connecting = true;
+      var openingPortal = portal;
+      var openingDialog = dialog;
+      var openingBody = body;
+      try
+      {
+        module ??= await JavaScript.InvokeAsync<IJSObjectReference>("import", "./_content/Harborline.UIAdapters.Blazor/dialog.js");
+        if (!disposed && Open && openingPortal.Equals(portal))
+        {
+          callback ??= DotNetObjectReference.Create(this);
+          connection = await module.InvokeAsync<IJSObjectReference>("connect", openingPortal, openingDialog, openingBody, callback, CloseOnEscape);
+          if (disposed || !Open || !openingPortal.Equals(portal)) await DisposeConnectionAsync();
+        }
+      }
+      finally
+      {
+        connecting = false;
+        if (disposed) await DisposeAsync();
+      }
+      if (!disposed && Open && connection is null) await InvokeAsync(StateHasChanged);
     }
-    else if (!Open && connection is not null) await DisposeConnectionAsync();
+    else if (!Open && connection is not null && !connecting) await DisposeConnectionAsync();
   }
 
   private Task RequestCloseAsync() => OpenChanged.InvokeAsync(false);
@@ -106,8 +126,12 @@
   }
   public async ValueTask DisposeAsync()
   {
+    disposed = true;
+    if (connecting) return;
     await DisposeConnectionAsync();
     if (module is not null) { try { await module.DisposeAsync(); } catch (JSDisconnectedException) { } }
+    module = null;
     callback?.Dispose();
+    callback = null;
   }
 }
