@@ -17,21 +17,47 @@ it.each(allCases)('%s', async id => {
   const target = screen.getByRole('button',{name:'Target'})
   if (id === 'context-menu.closed') { expect(screen.queryByRole('menu')).toBeNull(); return }
   if (id === 'context-menu.viewport-position') { expect(clampContextMenuPosition({x:995,y:795},{width:180,height:240},{width:1000,height:800})).toEqual({x:812,y:552}); return }
-  if (id === 'context-menu.keyboard-open' || id === 'context-menu.focus-return') { target.focus(); fireEvent.keyDown(target,{key:'F10',shiftKey:true}) } else fireEvent.contextMenu(target,{clientX:40,clientY:60})
+  if (id === 'context-menu.keyboard-open' || id === 'context-menu.focus-return' || id === 'context-menu.dismissal') { target.focus(); fireEvent.keyDown(target,{key:'F10',shiftKey:true}) } else fireEvent.contextMenu(target,{clientX:40,clientY:60})
   const menu = screen.getByRole('menu')
   if (id === 'context-menu.pointer-open') { expect(menu).toHaveStyle({left:'40px',top:'60px'}); return }
   if (id === 'context-menu.groups') { expect(screen.getAllByRole('menuitem')).toHaveLength(3); expect(screen.getByRole('separator')).toBeTruthy(); return }
   if (id === 'context-menu.pointer-selection') { fireEvent.click(screen.getByRole('menuitem',{name:'Copy'})); expect(copy).toHaveBeenCalledTimes(1); expect(screen.queryByRole('menu')).toBeNull(); return }
-  if (id === 'context-menu.disabled-selection') { fireEvent.click(screen.getByRole('menuitem',{name:'Blocked'})); expect(blocked).not.toHaveBeenCalled(); expect(screen.getByRole('menu')).toBeTruthy(); return }
-  if (id === 'context-menu.dismissal') { fireEvent.keyDown(menu,{key:'Escape'}); expect(screen.queryByRole('menu')).toBeNull(); return }
+  if (id === 'context-menu.disabled-selection') {
+    // APG: a disabled menuitem is aria-disabled, stays focusable, and cannot be activated by click, Enter or Space.
+    const item = screen.getByRole('menuitem',{name:'Blocked'})
+    expect(item).toHaveAttribute('aria-disabled','true'); expect(item).not.toHaveAttribute('disabled')
+    expect(screen.getByRole('menuitem',{name:'Copy'})).not.toHaveAttribute('aria-disabled')
+    expect(menu).toHaveAttribute('data-active-id','blocked')
+    fireEvent.click(item); fireEvent.keyDown(menu,{key:'Enter'}); fireEvent.keyDown(menu,{key:' '})
+    expect(blocked).not.toHaveBeenCalled(); expect(copy).not.toHaveBeenCalled(); expect(screen.getByRole('menu')).toBe(menu); return
+  }
+  if (id === 'context-menu.dismissal') {
+    fireEvent.keyDown(menu,{key:'Escape'}); expect(screen.queryByRole('menu')).toBeNull()
+    await Promise.resolve(); expect(target).toHaveFocus()
+    // APG: Tab and Shift+Tab close the menu and keep their default action; focus is back on the opener within
+    // the same keydown, so the browser's own Tab moves on from it. No selection is made.
+    for (const shiftKey of [false, true]) {
+      fireEvent.keyDown(target,{key:'F10',shiftKey:true}); expect(screen.getByRole('menuitem',{name:'Blocked'})).toHaveFocus()
+      expect(fireEvent.keyDown(screen.getByRole('menu'),{key:'Tab',shiftKey}), `Shift ${shiftKey}: default kept`).toBe(true)
+      expect(target, `Shift ${shiftKey}: focus on the opener before any microtask`).toHaveFocus()
+      expect(screen.queryByRole('menu')).toBeNull()
+    }
+    expect(blocked).not.toHaveBeenCalled(); expect(copy).not.toHaveBeenCalled(); expect(remove).not.toHaveBeenCalled(); return
+  }
   if (id === 'context-menu.keyboard-open') { expect(menu).toBeTruthy(); return }
-  if (id === 'context-menu.focus-entry') { expect(menu).toHaveAttribute('data-active-id','copy'); return }
-  if (id === 'context-menu.keyboard-navigation') { fireEvent.keyDown(menu,{key:'End'}); expect(menu).toHaveAttribute('data-active-id','delete'); fireEvent.keyDown(menu,{key:'ArrowDown'}); expect(menu).toHaveAttribute('data-active-id','copy'); return }
-  if (id === 'context-menu.keyboard-activation') { fireEvent.keyDown(menu,{key:'Enter'}); expect(copy).toHaveBeenCalledTimes(1); return }
+  // APG: opening focuses the first item even when it is disabled.
+  if (id === 'context-menu.focus-entry') { expect(menu).toHaveAttribute('data-active-id','blocked'); expect(screen.getByRole('menuitem',{name:'Blocked'})).toHaveFocus(); return }
+  if (id === 'context-menu.keyboard-navigation') {
+    // Every item is a stop, the disabled one included, and both directions wrap.
+    const visited = ['ArrowDown','End','ArrowDown','ArrowUp','Home','ArrowDown'].map(key => { fireEvent.keyDown(menu,{key}); return menu.getAttribute('data-active-id') })
+    expect(visited).toEqual(['copy','delete','blocked','delete','blocked','copy'])
+    expect(screen.getByRole('menuitem',{name:'Copy'})).toHaveFocus(); return
+  }
+  if (id === 'context-menu.keyboard-activation') { fireEvent.keyDown(menu,{key:'ArrowDown'}); fireEvent.keyDown(menu,{key:'Enter'}); expect(copy).toHaveBeenCalledTimes(1); expect(screen.queryByRole('menu')).toBeNull(); return }
   if (id === 'context-menu.focus-return') { fireEvent.keyDown(menu,{key:'Escape'}); await Promise.resolve(); expect(target).toHaveFocus(); return }
   if (id === 'context-menu.accessible-context') { expect(menu).toHaveAccessibleName('Actions'); expect(menu).toHaveAttribute('lang','ar-SA'); expect(menu).toHaveAttribute('dir','rtl'); return }
   if (id === 'context-menu.danger-icon') { const item=screen.getByRole('menuitem',{name:'Delete'}); expect(item).toHaveAttribute('data-danger','true'); expect(item.querySelector('[aria-hidden=true]')).toBeTruthy(); return }
-  fireEvent.keyDown(menu,{key:'End'}); fireEvent.keyDown(menu,{key:'Escape'}); fireEvent.contextMenu(target); expect(screen.getByRole('menu')).toHaveAttribute('data-active-id','copy')
+  fireEvent.keyDown(menu,{key:'End'}); fireEvent.keyDown(menu,{key:'Escape'}); fireEvent.contextMenu(target); expect(screen.getByRole('menu')).toHaveAttribute('data-active-id','blocked')
   expect(container).toBeTruthy()
 })
 
