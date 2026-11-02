@@ -13,6 +13,8 @@
 const SCENARIO_TITLE_SUFFIX = ' is accessible and visually conformant'
 const CHECK_ANNOTATION = 'hlp-check'
 const ELEMENT_PARITY_ANNOTATION = 'hlp-element-parity'
+// T-962: one per scenario test, recorded by assertTabWalk: what the keyboard walk covered and cost.
+export const TAB_WALK_ANNOTATION = 'hlp-tab-walk'
 
 function collectSpecTitles(node, titles = []) {
   for (const spec of node.specs ?? []) titles.push(spec.title)
@@ -84,21 +86,74 @@ export function reconcileChecks(checks, expected) {
   return divergences.length === 0 ? 'exact' : `gallery check counts diverge: ${divergences.join('; ')}`
 }
 
-// Per-scenario element-parity coverage, recorded by the assertion itself: how many elements it
-// compared and how many a registered absence hid from it. A registered absence exempts a whole
-// subtree, so the gate reports the size of that exemption rather than only the number of rows.
-export function collectElementParityCoverage(report) {
-  const lines = []
+// The annotations of one type, from the LAST attempt of every test only, for the same reason
+// countChecks reads only the last attempt: a retried test would otherwise report its coverage twice.
+function collectAnnotations(report, type) {
+  const descriptions = []
   for (const entry of collectTests(report)) {
     const results = entry.results ?? []
     const annotations = results.length > 0
       ? (results[results.length - 1].annotations ?? [])
       : (entry.annotations ?? [])
     for (const annotation of annotations) {
-      if (annotation.type === ELEMENT_PARITY_ANNOTATION) lines.push(annotation.description)
+      if (annotation.type === type) descriptions.push(annotation.description)
     }
   }
-  return lines.sort()
+  return descriptions
+}
+
+// Per-scenario element-parity coverage, recorded by the assertion itself: how many elements it
+// compared and how many a registered absence hid from it. A registered absence exempts a whole
+// subtree, so the gate reports the size of that exemption rather than only the number of rows.
+export function collectElementParityCoverage(report) {
+  return collectAnnotations(report, ELEMENT_PARITY_ANNOTATION).sort()
+}
+
+// T-962: per-scenario tab-walk coverage (stops per lane, walks, step presses, modal releases,
+// occlusion partials and exemptions, and the walk's wall clock), parsed, in scenario order.
+export function collectTabWalkCoverage(report) {
+  return collectAnnotations(report, TAB_WALK_ANNOTATION)
+    .map(description => JSON.parse(description))
+    .sort((left, right) => String(left.id).localeCompare(String(right.id)))
+}
+
+// The run's tab-walk totals: what it covered and what it cost. Measured, never declared.
+export function tabWalkTotals(lines) {
+  const lanes = ['react', 'blazor']
+  const sum = pick => Object.fromEntries(lanes.map(lane => [lane, lines.reduce((total, line) => total + (Number(pick(line[lane] ?? {})) || 0), 0)]))
+  const count = pick => lines.reduce((total, line) => total + lanes.filter(lane => pick(line[lane] ?? {})).length, 0)
+  return {
+    scenarios: lines.length,
+    stops: sum(lane => lane.stops),
+    reverseStops: sum(lane => lane.reverseStops),
+    stepPresses: sum(lane => lane.stepPresses),
+    walkMs: sum(lane => lane.walkMs),
+    wallMs: lines.reduce((total, line) => total + (Number(line.wallMs) || 0), 0),
+    releases: sum(lane => lane.releases),
+    partial: sum(lane => lane.partial),
+    exemptUserOpened: sum(lane => lane.exemptUserOpened),
+    unmeasured: sum(lane => lane.unmeasured),
+    zeroStopLanes: count(lane => lane.zeroStop),
+    noisyLanes: count(lane => lane.noisy),
+    attributed: lines.filter(line => line.attributed).length,
+    slowest: [...lines].sort((left, right) => (Number(right.wallMs) || 0) - (Number(left.wallMs) || 0)).slice(0, 5)
+      .map(line => ({ id: line.id, wallMs: line.wallMs })),
+  }
+}
+
+// T-962 acceptance 4, "the added shard time is recorded": each matrix shard's step and suite wall
+// clock, its worker count, and how much of it the tab walk took. Read from the producer reports
+// before they are merged, because the merge keeps neither `config` nor `stats.duration`.
+export function tabWalkByShard(shardReports) {
+  return shardReports.map((report, position) => ({
+    shard: report.shard ?? position + 1,
+    stepMs: (report.results ?? []).find(entry => entry.id === 'gallery-accessibility-and-parity')?.durationMs ?? null,
+    suiteMs: report.playwrightReport?.stats?.duration ?? null,
+    workers: report.playwrightReport?.config?.workers ?? null,
+    tabWalkWallMs: report.playwrightReport
+      ? collectTabWalkCoverage(report.playwrightReport).reduce((total, line) => total + (Number(line.wallMs) || 0), 0)
+      : null,
+  }))
 }
 
 export function observeGalleryRun(report, scenarioIds) {
@@ -117,9 +172,12 @@ export function observeGalleryRun(report, scenarioIds) {
   const notDeclared = [...observedScenarios].filter(id => !declared.has(id)).sort()
 
   const stats = report.stats ?? {}
+  const tabWalkCoverage = collectTabWalkCoverage(report)
   return {
     checks: countChecks(report),
     elementParityCoverage: collectElementParityCoverage(report),
+    tabWalkCoverage,
+    tabWalkTotals: tabWalkTotals(tabWalkCoverage),
     browserTests: titles.length,
     scenarioBrowserTests: observedScenarios.size,
     nonScenarioBrowserTests: nonScenarioTests,
@@ -160,6 +218,15 @@ export function expectedChecks(modules, { ciGallery = false, capture = false, ex
     // T-943: one lane-versus-lane ARIA-tree comparison per running scenario, whatever it declares.
     // A pixel exemption skips pixels only, so it does not reduce this; a wall-clock one skips it all.
     ariaParityComparisons: running.length,
+    // T-962: the keyboard tab walk is the last step of every scenario test, whatever it declares, and
+    // records its four families once each after all its expects pass. A pixel exemption and a capture
+    // run do not reduce them (the walk restores its own layout); a wall-clock exemption skips the test.
+    tabWalkLeaveChecks: running.length,
+    tabWalkReverseChecks: running.length,
+    tabWalkObscuredChecks: running.length,
+    tabWalkOrderComparisons: running.length,
+    // The seeded detector proofs P1 to P14 in gallery.spec.ts, one record each, like keyboardFocusChecks.
+    tabWalkDetectorProofs: 14,
     visualParityComparisons: running.filter(scenario => declares(scenario, 'visual-parity') && !pixelExempt.has(scenario.id)).length
       + button.themes * 3,
     // Per-scenario reflow (one assertion per lane, gated on the declared reflow case id) plus the six
