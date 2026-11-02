@@ -3,7 +3,7 @@
   "module": {
     "interface": {
       "path": "specs/modules/ui/hlp.ui.records-authoring/interface.yaml",
-      "revision": 4
+      "revision": 5
     },
     "moduleKind": "runtime",
     "presentation": {
