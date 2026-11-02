@@ -28,7 +28,39 @@ export function rememberOpener(trigger) {
   remember(trigger)
 }
 
+// Tab and Shift+Tab close the menu and move on in the tab sequence from the opener (APG menu pattern).
+// Blazor's keydown handler runs asynchronously and cannot decide preventDefault per key, so this real DOM
+// listener does the focus half in the same keydown: it hands focus back to the opener under the rule every
+// close follows (only while focus is in this menu or on <body>), makes the menu inert so the browser's
+// default Tab cannot land on one of its items before Blazor removes it, and forgets the opener so the
+// close that follows does not pull focus back. It never calls preventDefault: the browser then moves
+// focus to the element after (or, with Shift, before) the opener. HandleKeyAsync closes the menu.
+const tabBound = new WeakSet()
+
+function returnTarget(opener, trigger) {
+  if (!opener) return null
+  return opener.isConnected ? opener : trigger?.matches?.(focusable) ? trigger : trigger?.querySelector?.(focusable)
+}
+
+function closeOnTab(event) {
+  if (event.key !== 'Tab') return
+  const menu = event.currentTarget
+  const trigger = menu?.previousElementSibling
+  const opener = openers.get(trigger)
+  openers.delete(trigger)
+  menu.inert = true
+  const active = document.activeElement
+  if (active && active !== document.body && !menu.contains(active)) return
+  returnTarget(opener, trigger)?.focus()
+}
+
+// Called after every render that opens the menu or moves its active item; also binds the Tab listener
+// once per rendered menu element.
 export function focusActive(menu) {
+  if (menu?.addEventListener && !tabBound.has(menu)) {
+    tabBound.add(menu)
+    menu.addEventListener('keydown', closeOnTab)
+  }
   ;(menu?.querySelector('[data-active="true"]') ?? menu)?.focus()
 }
 
@@ -44,6 +76,5 @@ export function focusTrigger(trigger) {
   if (!opener) return
   const active = document.activeElement
   if (active && active !== document.body) return
-  const target = opener.isConnected ? opener : trigger?.matches?.(focusable) ? trigger : trigger?.querySelector?.(focusable)
-  target?.focus()
+  returnTarget(opener, trigger)?.focus()
 }

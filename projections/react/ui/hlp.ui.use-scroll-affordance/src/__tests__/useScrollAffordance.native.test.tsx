@@ -59,6 +59,25 @@ function hookFor(element: HTMLElement, options: UseScrollAffordanceOptions = {})
   return renderHook(() => useScrollAffordance(ref, options))
 }
 
+// A user scroll: the position moves while the scroll and client sizes hold (T-1135).
+function scrollTo(element: HTMLElement, position: number, orientation: ScrollAffordanceOrientation = 'horizontal'): void {
+  act(() => {
+    if (orientation === 'horizontal') element.scrollLeft = position
+    else element.scrollTop = position
+    element.dispatchEvent(new Event('scroll'))
+    vi.runAllTimers()
+  })
+}
+
+function resize(element: HTMLElement, clientSize: number): void {
+  act(() => {
+    Object.defineProperty(element, 'clientWidth', { configurable: true, value: clientSize })
+    TestResizeObserver.instances.at(-1)?.publish()
+    window.dispatchEvent(new Event('resize'))
+    vi.runAllTimers()
+  })
+}
+
 function keyEvent(key: string) {
   return { key, preventDefault: vi.fn() } as unknown as React.KeyboardEvent
 }
@@ -74,7 +93,7 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-describe('useScrollAffordance revision-1 native shared-fixture coverage', () => {
+describe('useScrollAffordance revision-2 native shared-fixture coverage', () => {
   it('[scroll-affordance.complete-surface] exports all five source-surface symbols', () => {
     expect(fixture(sharedCases, 'scroll-affordance.complete-surface').expected).toEqual({
       exports: ['ScrollAffordanceOrientation', 'UseScrollAffordanceOptions', 'ScrollAffordanceState', 'useScrollAffordance', 'handleScrollAffordanceKeyDown'],
@@ -125,11 +144,9 @@ describe('useScrollAffordance revision-1 native shared-fixture coverage', () => 
   })
 
   it('[scroll-affordance.item-range] announces the visible item interval', () => {
-    const { result } = hookFor(
-      elementWithGeometry({ scrollSize: 700, clientSize: 200, position: 100 }),
-      { itemCount: 7 },
-    )
-    act(() => vi.runAllTimers())
+    const element = elementWithGeometry({ scrollSize: 700, clientSize: 200, position: 0 })
+    const { result } = hookFor(element, { itemCount: 7 })
+    scrollTo(element, 100)
     expect(result.current.srMessage).toContain('2 to 3 of 7')
     expect(fixture(sharedCases, 'scroll-affordance.item-range').expected).toMatchObject({
       announcementKey: 'scrollAffordance.showingRange',
@@ -138,13 +155,13 @@ describe('useScrollAffordance revision-1 native shared-fixture coverage', () => 
   })
 
   it('[scroll-affordance.generic-announcements] announces start, middle, and end', () => {
-    const element = elementWithGeometry({ scrollSize: 500, clientSize: 100, position: 0 })
+    const element = elementWithGeometry({ scrollSize: 500, clientSize: 100, position: 200 })
     const { result } = hookFor(element)
-    act(() => vi.runAllTimers())
+    scrollTo(element, 0)
     expect(result.current.srMessage).toContain('more content available')
-    act(() => { element.scrollLeft = 200; element.dispatchEvent(new Event('scroll')); vi.runAllTimers() })
+    scrollTo(element, 200)
     expect(result.current.srMessage).toContain('50% scrolled')
-    act(() => { element.scrollLeft = 400; element.dispatchEvent(new Event('scroll')); vi.runAllTimers() })
+    scrollTo(element, 400)
     expect(result.current.srMessage).toContain('end reached')
     expect((fixture(sharedCases, 'scroll-affordance.generic-announcements').expected as { keys: string[] }).keys).toHaveLength(3)
   })
@@ -194,7 +211,9 @@ describe('useScrollAffordance revision-1 native shared-fixture coverage', () => 
     const removeWindow = vi.spyOn(window, 'removeEventListener')
     const { unmount } = hookFor(element)
     act(() => {
+      element.scrollLeft = 100
       element.dispatchEvent(new Event('scroll'))
+      element.scrollLeft = 200
       element.dispatchEvent(new Event('scroll'))
       TestResizeObserver.instances[0]?.publish()
     })
@@ -207,12 +226,67 @@ describe('useScrollAffordance revision-1 native shared-fixture coverage', () => 
     expect(fixture(sharedCases, 'scroll-affordance.debounce-remeasure-dispose').expected).toMatchObject({ listenersAfterDispose: 0 })
   })
 
+  it('[interface revision 2] stays empty on load and resize and announces a scroll or keyboard scroll (T-1135)', () => {
+    // Oracle: the revision-2 invariant (WAI-ARIA 1.2 aria-live and the APG live-region practice, as ruled on
+    // T-1135). The expected messages are the en-US default-catalog literals.
+    const element = elementWithGeometry({ scrollSize: 700, clientSize: 300, position: 0 })
+    const { result } = hookFor(element)
+    act(() => {
+      TestResizeObserver.instances[0]?.publish()
+      element.dispatchEvent(new Event('scroll'))
+      vi.runAllTimers()
+    })
+    expect(result.current).toMatchObject({ canScroll: true, srMessage: '' })
+
+    resize(element, 350)
+    expect(result.current).toMatchObject({ canScroll: true, srMessage: '' })
+
+    scrollTo(element, 175)
+    expect(result.current.srMessage).toBe('Scrollable region, 50% scrolled, use arrow keys to scroll')
+
+    handleScrollAffordanceKeyDown(keyEvent('End'), element)
+    act(() => { element.dispatchEvent(new Event('scroll')); vi.runAllTimers() })
+    expect(result.current.srMessage).toBe('Scrollable region, end reached')
+
+    resize(element, 300)
+    expect(result.current.srMessage).toBe('Scrollable region, end reached')
+
+    resize(element, 700)
+    expect(result.current).toMatchObject({ canScroll: false, srMessage: '' })
+  })
+
+  it('[interface revision 2] a resize during a pending scroll announcement announces the current geometry (T-1135)', () => {
+    // Oracle: the en-US default-catalog literals for the geometry after the resize: position 400 of
+    // maximum 500 (700 - 200) is 80% scrolled, not the end it was before the resize.
+    const element = elementWithGeometry({ scrollSize: 700, clientSize: 300, position: 0 })
+    const { result } = hookFor(element)
+    act(() => { element.scrollLeft = 400; element.dispatchEvent(new Event('scroll')) })
+    act(() => {
+      Object.defineProperty(element, 'clientWidth', { configurable: true, value: 200 })
+      TestResizeObserver.instances.at(-1)?.publish()
+      vi.runAllTimers()
+    })
+    expect(result.current.srMessage).toBe('Scrollable region, 80% scrolled, use arrow keys to scroll')
+  })
+
+  it('[interface revision 2] a new observation drops the previous message (T-1135)', () => {
+    // Oracle: the revision-2 invariant (a new observation starts from load) and the en-US default-catalog literal.
+    const element = elementWithGeometry({ scrollSize: 700, clientSize: 300, position: 0 })
+    const ref = { current: element }
+    const { result, rerender } = renderHook(({ itemCount }) => useScrollAffordance(ref, { itemCount }), { initialProps: { itemCount: 7 as number | undefined } })
+    scrollTo(element, 100)
+    expect(result.current.srMessage).toBe('Scrollable, showing 2 to 4 of 7')
+    rerender({ itemCount: undefined })
+    act(() => { vi.runAllTimers() })
+    expect(result.current).toMatchObject({ canScroll: true, srMessage: '' })
+  })
+
   it('[scroll-affordance.projection-equivalence] retains the frozen cross-projection marker', () => {
     expect(fixture(sharedCases, 'scroll-affordance.projection-equivalence').expected).toEqual({ typescriptEqualsDotnet: true })
   })
 })
 
-describe('useScrollAffordance revision-1 quality fixtures', () => {
+describe('useScrollAffordance revision-2 quality fixtures', () => {
   it('[scroll-affordance.quality.keyboard] covers all frozen keyboard paths', () => {
     expect(fixture(qualityCases, 'scroll-affordance.quality.keyboard').expected).toMatchObject({ clamped: true, unrelatedKeysIgnored: true })
   })
@@ -226,7 +300,7 @@ describe('useScrollAffordance revision-1 quality fixtures', () => {
   })
 
   it('[scroll-affordance.quality.locales] accepts host-overridden announcement templates', () => {
-    const element = elementWithGeometry({ scrollSize: 500, clientSize: 100, position: 0 })
+    const element = elementWithGeometry({ scrollSize: 500, clientSize: 100, position: 100 })
     const wrapper = ({ children }: { children: React.ReactNode }) => (
       <HarborlineLocaleProvider locale="ar-SA" catalog={{ 'scrollAffordance.moreAvailable': 'محتوى إضافي' }}>
         {children}
@@ -234,7 +308,7 @@ describe('useScrollAffordance revision-1 quality fixtures', () => {
     )
     const ref = { current: element }
     const { result } = renderHook(() => useScrollAffordance(ref), { wrapper })
-    act(() => vi.runAllTimers())
+    scrollTo(element, 0)
     expect(result.current.srMessage).toBe('محتوى إضافي')
     expect(fixture(qualityCases, 'scroll-affordance.quality.locales').expected).toMatchObject({ templatesOverridable: true })
   })
@@ -252,8 +326,9 @@ describe('useScrollAffordance percent rounding parity', () => {
     [250, 'ltr', '63% scrolled'],
     [-50, 'rtl', '13% scrolled'],
   ] as const)('announces position %d (%s) of 400 as %s', (position, direction, expected) => {
-    const { result } = hookFor(elementWithGeometry({ scrollSize: 700, clientSize: 300, position, direction }))
-    act(() => vi.runAllTimers())
+    const element = elementWithGeometry({ scrollSize: 700, clientSize: 300, position: 0, direction })
+    const { result } = hookFor(element)
+    scrollTo(element, position)
     expect(result.current.srMessage).toContain(expected)
   })
 })
