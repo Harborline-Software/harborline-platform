@@ -12,6 +12,11 @@
     // ambient types — `AbortSignal` is provided by the local `src/abort-signal.d.ts`
     // shim — so pinning `types: []` makes the dist build deterministic across envs.
     "types": [],
+    "paths": {
+      "@harborline-software/contracts/rules": ["../../contracts/hlp.contracts.forms/dist/rules.d.ts"],
+      "@harborline-software/contracts/text": ["../../contracts/hlp.contracts.forms/dist/text.d.ts"],
+      "@harborline-software/contracts/presentation": ["../../contracts/hlp.contracts.forms/dist/presentation.d.ts"]
+    },
     "declaration": true,
     "declarationMap": false,
     "emitDeclarationOnly": false,

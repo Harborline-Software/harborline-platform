@@ -1,6 +1,8 @@
 using System.Text.Json;
 
 using Harborline.Contracts.Forms;
+using Harborline.Contracts.Rules;
+using Harborline.Contracts.Text;
 using Xunit;
 
 namespace Harborline.Contracts.Tests;

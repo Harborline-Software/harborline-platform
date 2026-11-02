@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.contracts.forms",
-  "interfaceRevision": 8,
+  "interfaceRevision": 9,
   "cases": [
     {"id": "view-field-resolved-domain", "operation": "wire.round-trip", "type": "FormViewField", "input": {"name": "status", "label": {"defaultLocale": "en", "values": {"en": "Status"}}, "isSensitive": false, "isReadable": true, "controlHint": "ChoiceList", "permittedValues": ["open", "closed"]}, "expected": "same"},
     {"id": "export-surface", "operation": "surface.exports", "expected": {"declarations": 85, "interfaces": 56, "typeAliases": 28, "constants": 1, "closedLiteralMembers": 104}},
