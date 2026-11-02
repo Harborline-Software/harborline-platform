@@ -46,6 +46,9 @@ public sealed record NewRecordType(
 
     /// <summary>The authored history declaration; null takes <c>enabled</c> on creation only.</summary>
     public RecordHistoryPolicy? HistoryPolicy { get; init; }
+
+    /// <summary>The type's category tags (records-ck-23); null or empty means none.</summary>
+    public IReadOnlyList<string>? Categories { get; init; }
 }
 
 /// <summary>A created Record Type draft and the id the authoring boundary minted for it.</summary>
@@ -68,6 +71,22 @@ public sealed record RecordTypePublication(DefinitionRevision Revision, Schema S
 /// <param name="Code">The stable warning code.</param>
 /// <param name="Pointer">The RFC 6901 pointer of the unset policy.</param>
 public sealed record RecordTypePolicyWarning(string Code, string Pointer);
+
+/// <summary>
+/// Current-state content and publication-readiness diagnostics for one Record Type body, computed by
+/// <see cref="RecordTypeDefinitionStore.PreflightAsync"/> without writing anything (T-618). It is not a publication
+/// verdict: it carries no revision, replay, expected-revision or head fence, receipt or authorization.
+/// </summary>
+/// <param name="Document">The canonical materialized document; null when the run stops before kind defaults apply.</param>
+/// <param name="Refusals">Every computable refusal in stage order, the first occurrence per code, pointer and target.</param>
+/// <param name="JsonSchemaText">The draft schema when the body compiles, even beside other refusals; never registered.</param>
+/// <param name="Warnings">The publication-warning preview; never refusals.</param>
+public sealed record RecordTypePreflight(RecordTypeDocument? Document, IReadOnlyList<DefinitionRefusal> Refusals,
+    string? JsonSchemaText, IReadOnlyList<RecordTypePolicyWarning> Warnings)
+{
+    /// <summary>The stage every refusal is reported at: publication.</summary>
+    public DefinitionAdmissionPhase Stage => DefinitionAdmissionPhase.Publish;
+}
 
 /// <summary>
 /// Composes Records admission (DES-0015) with the shared versioned-definition store under
@@ -152,6 +171,7 @@ public sealed class RecordTypeDefinitionStore
         {
             AmendmentPolicy = request.AmendmentPolicy ?? new(true),
             HistoryPolicy = request.HistoryPolicy ?? RecordHistoryPolicy.Enabled,
+            Categories = request.Categories,
         });
         var candidate = await AdmitAsync(Catalogue(document, recordTypeId, request.Version), DefinitionAdmissionPhase.Author,
             cancellationToken).ConfigureAwait(false);
@@ -264,6 +284,75 @@ public sealed class RecordTypeDefinitionStore
         return new(DefinitionAdmissionPhase.Author,
             await ResolveCatalogueEdgesAsync(tenant, document, cancellationToken).ConfigureAwait(false));
     }
+
+    /// <summary>
+    /// The no-write preview (T-618): every refusal publication would raise for <paramref name="document"/> against current
+    /// state, with the draft schema and the publication warnings, and nothing written, registered or published. Each
+    /// stage runs only when its prerequisite holds: typed completeness and canonical form, the envelope's presence and
+    /// tenant, kind defaults, Publish-phase structure, then the draft compile, the catalogue edges and the warnings. It
+    /// takes no record type id, so the catalogue identity checks of <see cref="SaveDraftAsync"/> stay outside it. A blank
+    /// tenant, a null document and a field domain scope for another tenant are caller or host faults, thrown before any
+    /// read; the host validates the tenant and binds the role vocabulary to it. Dependency faults and cancellation propagate.
+    /// </summary>
+    public async ValueTask<RecordTypePreflight> PreflightAsync(string tenant, RecordTypeDocument document,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(tenant);
+        ArgumentNullException.ThrowIfNull(document);
+        if (_fieldDomainScope is { } scope && !StringComparer.Ordinal.Equals(scope.Tenant.Value, tenant))
+            throw new InvalidOperationException("The store's field domain scope belongs to another tenant.");
+
+        if (RecordTypeDefinitionJson.FirstMissing(document) is { } missing)
+            return Stopped(new("records.document_invalid", missing));
+        // The canonical serializer also throws ArgumentException for kind parameter keys that differ only by case.
+        try { RecordTypeDefinitionJson.SerializeCanonical(document); }
+        catch (Exception exception) when (exception is JsonException or ArgumentException)
+        {
+            return Stopped(new("records.document_invalid", ""));
+        }
+        if (document.Envelope is null)
+            return Stopped(new("records.envelope_required", "/envelope"));
+        if (!StringComparer.Ordinal.Equals(document.Envelope.Tenant, tenant))
+            return Stopped(new("definition.catalogue_mismatch", "/envelope/tenant"));
+
+        var materialized = Materialize(document);
+        // Only its key and body are read; this candidate is never returned, stored, registered or used as an identity.
+        var candidate = new DefinitionDocument(KeyOf(tenant, materialized.RecordTypeId ?? ""), "", "",
+            Encoding.UTF8.GetString(RecordTypeDefinitionJson.SerializeCanonical(materialized)));
+        var structural = Structural(candidate, DefinitionAdmissionPhase.Publish, _window, _compiler.IntentValidator);
+        if (structural.Parsed is not { } parsed)
+            return new(materialized, Distinct(structural.Refusals), null, []);
+        var draft = await _compiler.CompileAsync(parsed.ToDefinition(), previousVersion: null, _fieldDomainScope,
+            cancellationToken).ConfigureAwait(false);
+        var edges = await ResolveCatalogueEdgesAsync(tenant, EdgeLookup(parsed), cancellationToken, publishing: true)
+            .ConfigureAwait(false);
+        return new(parsed, Distinct(structural.Refusals
+                .Concat(draft.Refusals.Select(refusal => new DefinitionRefusal(refusal.Code, refusal.JsonPointer)))
+                .Concat(edges)),
+            draft.JsonSchemaText, PublicationPolicyWarnings(candidate));
+
+        static RecordTypePreflight Stopped(DefinitionRefusal refusal) => new(null, [refusal], null, []);
+    }
+
+    // T-618: publication never resolves the edges of a body admission refused, so the preview resolves only what such a
+    // body soundly reaches. A blank class, a reference not naming exactly one target (target_ambiguous) and a blank
+    // required trait (trait_invalid) are dropped from this lookup copy instead of resolved against an invented target.
+    // Field indices and every other member stay, so each pointer is the candidate's own.
+    private static RecordTypeDocument EdgeLookup(RecordTypeDocument document) => document with
+    {
+        ClassId = string.IsNullOrWhiteSpace(document.ClassId) ? null : document.ClassId,
+        Fields = (document.Fields ?? []).Select(field => field.Reference is not { } reference ? field
+            : string.IsNullOrWhiteSpace(reference.TargetTypeId) == string.IsNullOrWhiteSpace(reference.TargetClassId)
+                ? field with { Reference = null }
+                : reference.RequiredTraitId is { } trait && string.IsNullOrWhiteSpace(trait)
+                    ? field with { Reference = reference with { RequiredTraitId = null } }
+                    : field).ToArray(),
+    };
+
+    // T-618: the first occurrence of each refusal across and within the preview's stages. The compile re-runs the identity
+    // rules Structural already ran; a Target keeps target-bearing refusals at one pointer apart.
+    internal static IReadOnlyList<DefinitionRefusal> Distinct(IEnumerable<DefinitionRefusal> refusals)
+        => refusals.DistinctBy(refusal => (refusal.Code, refusal.Pointer, refusal.Target)).ToArray();
 
     /// <summary>
     /// Writes each cross-package reference's pin from current state (records-ck-41): the target's package, id, published
@@ -386,6 +475,11 @@ public sealed class RecordTypeDefinitionStore
             var head = await _store.GetPublishedHeadAsync(ClassDefinitionStore.KeyOf(tenant, reference.TargetClassId), cancellationToken).ConfigureAwait(false);
             return head is null ? null
                 : new(head, RecordsJson.Deserialize<ClassDocument>(Encoding.UTF8.GetBytes(head.Document.BodyJson)).Envelope, null);
+        }
+        if (string.IsNullOrWhiteSpace(reference.TargetTypeId))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return null;
         }
         if (StringComparer.Ordinal.Equals(reference.TargetTypeId, document.RecordTypeId))
             return new(null, document.Envelope, document.Traits ?? []);

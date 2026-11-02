@@ -52,7 +52,7 @@
 .hl-window__resize { background: transparent; position: absolute; transition: background-color 120ms ease-out; }
 .hl-window__resize--corner { block-size: 1rem; cursor: se-resize; inline-size: 1rem; inset-block-end: 0; inset-inline-end: 0; }
 .hl-window__resize--height { block-size: 0.25rem; cursor: s-resize; inset-block-end: 0; inset-inline: 0 1rem; }
-.hl-window__resize--width { block-size: auto; cursor: e-resize; inline-size: 0.25rem; inset-block: 2.5rem 0.25rem; inset-inline-end: 0; }
+.hl-window__resize--width { block-size: auto; cursor: e-resize; inline-size: 0.25rem; inset-block: 2.5rem 1rem; inset-inline-end: 0; }
 .hl-window__resize:hover, .hl-window__resize:focus-visible { background: color-mix(in srgb, var(--hl-window-primary) 48%, transparent); }
 .hl-window :focus-visible, .hl-window:focus-visible { outline: 2px solid var(--hl-window-focus); outline-offset: -2px; }
 [data-theme='dark'] .hl-window, .hl-window[data-theme='dark'] { --hl-window-border: var(--hl-border, color-mix(in srgb, CanvasText 36%, Canvas)); }
