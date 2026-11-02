@@ -13,6 +13,26 @@ public sealed class SchedulerTests : BunitContext
     public SchedulerTests() { JSInterop.Mode = JSRuntimeMode.Loose; Services.AddSingleton<IMediaQueryObserver>(new FakeMedia()); }
     [Fact] public void FourViewsAndReadonlyEventStructureRender() { var cut = Render<HarborlineScheduler>(p => p.Add(x => x.Data, Events).Add(x => x.DefaultDate, Anchor).Add(x => x.Now, Anchor).Add(x => x.ReadOnly, true)); Assert.Equal(4, cut.FindAll("[data-toolbar-views] button").Count); Assert.Contains("Review", cut.Markup); Assert.Contains("Holiday", cut.Markup); Assert.Empty(cut.FindAll(".hl-scheduler__agenda-actions")); }
     [Fact] public void ControlledViewRequestsWithoutMutatingAndNarrowDefaultsAgenda() { SchedulerViewType? requested = null; var cut = Render<HarborlineScheduler>(p => p.Add(x => x.Data, Events).Add(x => x.View, SchedulerViewType.Day).Add(x => x.DefaultDate, Anchor).Add(x => x.Now, Anchor).Add(x => x.ViewChanged, value => requested = value)); cut.FindAll("[data-toolbar-views] button").Single(button => button.TextContent == "Month").Click(); Assert.Equal(SchedulerViewType.Month, requested); Assert.Equal("day", cut.Find(".hl-scheduler").GetAttribute("data-hl-view")); var narrow = Render<HarborlineScheduler>(p => p.Add(x => x.Data, Events).Add(x => x.DefaultDate, Anchor).Add(x => x.Now, Anchor).Add(x => x.Narrow, true)); Assert.Equal("agenda", narrow.Find(".hl-scheduler").GetAttribute("data-hl-view")); }
+    // T-1135. Oracle: the owner's ruling on the ticket (a Scheduler view switch announces; load does not) and
+    // the en-US default-catalog literals.
+    [Fact]
+    public async Task ScrollStatusIsQuietOnLoadAndAnnouncesAfterAViewSwitch()
+    {
+        var cut = Render<HarborlineScheduler>(p => p.Add(x => x.Data, Events).Add(x => x.DefaultDate, Anchor).Add(x => x.Now, Anchor));
+        var region = cut.FindComponent<Harborline.UIAdapters.Blazor.Components.Layout.HarborlineScrollAffordance>();
+        string Status() => cut.Find(".hl-scroll-affordance__status").TextContent;
+        Assert.Equal("week", cut.Find(".hl-scheduler").GetAttribute("data-hl-view"));
+        await region.InvokeAsync(() => region.Instance.OnMeasuredAsync(new(0, 1400, 1200)));
+        Assert.Equal("", Status());
+
+        cut.FindAll("[data-toolbar-views] button").Single(button => button.TextContent == "Month").Click();
+        Assert.Equal("month", cut.Find(".hl-scheduler").GetAttribute("data-hl-view"));
+        await region.InvokeAsync(() => region.Instance.OnMeasuredAsync(new(0, 900, 600)));
+        Assert.Equal("Scrollable region, more content available, use arrow keys to scroll", Status());
+
+        await region.InvokeAsync(() => region.Instance.OnMeasuredAsync(new(0, 900, 500)));
+        Assert.Equal("Scrollable region, more content available, use arrow keys to scroll", Status());
+    }
     [Fact] public void NavigationAndTodayRequestDates() { var requests = new List<DateTimeOffset>(); var cut = Render<HarborlineScheduler>(p => p.Add(x => x.Data, Events).Add(x => x.DefaultDate, Anchor).Add(x => x.Now, Anchor).Add(x => x.DateChanged, value => requests.Add(value))); cut.Find("[aria-label=Next]").Click(); cut.Find("[aria-label=Today]").Click(); Assert.Equal(2, requests.Count); Assert.Equal(Anchor.AddDays(7), requests[0]); }
     [Fact] public void RecurrenceParsesExpandsAndCaps() { var rule = SchedulerRecurrence.ParseRRule("FREQ=WEEKLY;BYDAY=MO,WE,FR;COUNT=6"); Assert.NotNull(rule); var master = new SchedulerEvent("r", "Round", new(2026, 8, 10, 9, 0, 0, TimeSpan.Zero), new(2026, 8, 10, 10, 0, 0, TimeSpan.Zero), RecurrenceRule: "FREQ=DAILY"); var expanded = SchedulerRecurrence.Expand(master, master.Start, master.Start.AddYears(20)); Assert.Equal(SchedulerRecurrence.OccurrenceCap, expanded.Count); Assert.All(expanded, item => Assert.Equal("r", item.RecurrenceId)); }
     [Theory, Trait("ModuleConformance", "hlp.ui.scheduler")] [MemberData(nameof(SharedFixtureBatch.Cases), "hlp.ui.scheduler", MemberType = typeof(SharedFixtureBatch))]

@@ -31,6 +31,9 @@
   private DotNetObjectReference<HarborlineScrollAffordance>? callback;
   private ScrollAffordanceMeasurement measurement = new(0, 0, 0);
   private ScrollAffordanceState state = new(false, true, true, null, null, new Dictionary<string, int>());
+  private readonly ScrollAffordanceAnnouncer announcer = new();
+  private ScrollAffordanceOrientation connectedOrientation;
+  private bool remeasure;
   private string OrientationToken => Orientation == ScrollAffordanceOrientation.Horizontal ? "horizontal" : "vertical";
   private string? MaskStyle => state.MaskImage is null ? null : $"mask-image:{state.MaskImage};-webkit-mask-image:{state.MaskImage}";
   private string StatusText => state.AnnouncementKey is null ? string.Empty : Resolve(state.AnnouncementKey, state.AnnouncementArguments);
@@ -45,17 +48,47 @@
 
   protected override async Task OnAfterRenderAsync(bool firstRender)
   {
-    if (!firstRender) return;
-    module = await JavaScript.InvokeAsync<IJSObjectReference>("import", "./_content/Harborline.UIAdapters.Blazor/scroll-affordance-component.js");
-    callback = DotNetObjectReference.Create(this);
-    connection = await module.InvokeAsync<IJSObjectReference>("connect", host, callback, Orientation == ScrollAffordanceOrientation.Horizontal, InitialAnchor);
+    if (firstRender)
+    {
+      module = await JavaScript.InvokeAsync<IJSObjectReference>("import", "./_content/Harborline.UIAdapters.Blazor/scroll-affordance-component.js");
+      callback = DotNetObjectReference.Create(this);
+      connectedOrientation = Orientation;
+      connection = await module.InvokeAsync<IJSObjectReference>("connect", host, callback, Orientation == ScrollAffordanceOrientation.Horizontal, InitialAnchor);
+      return;
+    }
+    if (module is null || callback is null) return;
+    if (Orientation != connectedOrientation)
+    {
+      // The host switched axis (a Scheduler view switch): watch the new axis. Connecting measures at once.
+      remeasure = false;
+      connectedOrientation = Orientation;
+      await DisposeConnectionAsync();
+      connection = await module.InvokeAsync<IJSObjectReference>("connect", host, callback, Orientation == ScrollAffordanceOrientation.Horizontal, null);
+    }
+    else if (remeasure && connection is not null)
+    {
+      remeasure = false;
+      await connection.InvokeVoidAsync("measure");
+    }
   }
 
+  /// <summary>
+  /// Announces the position the next measurement finds, after the host replaced the region's content in
+  /// response to the user (the Scheduler's view switch). Other content changes stay quiet (T-1135).
+  /// </summary>
+  internal void RequestAnnouncement()
+  {
+    announcer.Request();
+    remeasure = true;
+  }
+
+  // The live region renders empty and speaks only for a change after load: a scroll, a keyboard scroll, or a
+  // requested announcement. Load, the initial anchor scroll and resizes stay quiet (ScrollAffordanceAnnouncer).
   [JSInvokable]
   public Task OnMeasuredAsync(ScrollAffordanceMeasurement next)
   {
     measurement = next;
-    state = ScrollAffordancePolicy.Resolve(next, new(Orientation, FadeSize, ItemCount));
+    state = announcer.Observe(next, new(Orientation, FadeSize, ItemCount));
     return InvokeAsync(StateHasChanged);
   }
 
@@ -75,9 +108,18 @@
       ?? HarborlineDefaultStrings.Interpolate(HarborlineDefaultStrings.Values.GetValueOrDefault(key, key), variables);
   }
 
+  private async ValueTask DisposeConnectionAsync()
+  {
+    if (connection is null) return;
+    var previous = connection;
+    connection = null;
+    try { await previous.InvokeVoidAsync("dispose"); } catch (JSDisconnectedException) { }
+    await previous.DisposeAsync();
+  }
+
   public async ValueTask DisposeAsync()
   {
-    if (connection is not null) { try { await connection.InvokeVoidAsync("dispose"); } catch (JSDisconnectedException) { } await connection.DisposeAsync(); }
+    await DisposeConnectionAsync();
     if (module is not null) { try { await module.DisposeAsync(); } catch (JSDisconnectedException) { } }
     callback?.Dispose();
   }

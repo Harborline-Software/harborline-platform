@@ -67,10 +67,42 @@ public sealed class ScrollAffordanceComponentTests : BunitContext
     public async Task WithoutAProviderTheStatusUsesTheDefaultCatalog()
     {
         var cut = Render<HarborlineScrollAffordance>(p => p.Add(x => x.AriaLabel, "Items").Add(x => x.ItemCount, 8));
+        await cut.InvokeAsync(() => cut.Instance.OnMeasuredAsync(new(100, 800, 400)));
         await cut.InvokeAsync(() => cut.Instance.OnMeasuredAsync(new(0, 800, 400)));
         var status = cut.Find(".hl-scroll-affordance__status");
         Assert.Equal(DefaultShowingRange(1, 4, 8), status.TextContent);
         Assert.Equal("Scrollable, showing 1 to 4 of 8", status.TextContent);
+    }
+
+    // T-1135. Oracle: WAI-ARIA 1.2 aria-live and the APG live-region practice, as ruled on the ticket; the
+    // expected messages are the en-US default-catalog literals (the React lane asserts the same sequence).
+    [Fact]
+    public async Task LiveRegionIsEmptyOnLoadAndResizeAndFollowsAScrollAndAnArrowKey()
+    {
+        var cut = Render<HarborlineScrollAffordance>(p => p.Add(x => x.AriaLabel, "Items").Add(x => x.ItemCount, 8));
+        string Status() => cut.Find(".hl-scroll-affordance__status").TextContent;
+        Assert.Equal("polite", cut.Find(".hl-scroll-affordance__status").GetAttribute("aria-live"));
+        Assert.Equal("", Status());
+
+        await cut.InvokeAsync(() => cut.Instance.OnMeasuredAsync(new(0, 800, 400)));
+        Assert.Equal("0", cut.Find("[role=group]").GetAttribute("tabindex"));
+        Assert.Equal("", Status());
+        await cut.InvokeAsync(() => cut.Instance.OnMeasuredAsync(new(0, 800, 400)));
+        Assert.Equal("", Status());
+        await cut.InvokeAsync(() => cut.Instance.OnMeasuredAsync(new(0, 800, 200)));
+        Assert.Equal("", Status());
+
+        await cut.InvokeAsync(() => cut.Instance.OnMeasuredAsync(new(200, 800, 200)));
+        Assert.Equal("Scrollable, showing 3 to 4 of 8", Status());
+
+        var scrollTo = JSInterop.SetupVoid("scrollTo", 360d);
+        cut.Find("[role=group]").KeyDown("ArrowRight");
+        scrollTo.VerifyInvoke("scrollTo");
+        await cut.InvokeAsync(() => cut.Instance.OnMeasuredAsync(new(360, 800, 200)));
+        Assert.Equal("Scrollable, showing 5 to 6 of 8", Status());
+
+        await cut.InvokeAsync(() => cut.Instance.OnMeasuredAsync(new(360, 800, 300)));
+        Assert.Equal("Scrollable, showing 5 to 6 of 8", Status());
     }
 
     private async Task AssertLiveStatusIsLocalizedAsync()
@@ -96,9 +128,13 @@ public sealed class ScrollAffordanceComponentTests : BunitContext
             .Add(x => x.Catalog, catalog)
             .AddChildContent<HarborlineScrollAffordance>(region => region.Add(x => x.AriaLabel, "Items").Add(x => x.ItemCount, itemCount)));
 
+    // T-1135: the load measurement is quiet, so the measurement under test arrives as a scroll from a
+    // different position with the same sizes.
     private static async Task MeasureAsync(IRenderedComponent<HarborlineLocaleProvider> provider, ScrollAffordanceMeasurement measurement)
     {
         var region = provider.FindComponent<HarborlineScrollAffordance>();
+        var load = measurement with { RawPosition = measurement.RawPosition == 0 ? (measurement.RightToLeft ? -1 : 1) : 0 };
+        await region.InvokeAsync(() => region.Instance.OnMeasuredAsync(load));
         await region.InvokeAsync(() => region.Instance.OnMeasuredAsync(measurement));
     }
 

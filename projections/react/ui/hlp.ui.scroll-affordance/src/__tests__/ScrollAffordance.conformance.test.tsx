@@ -74,6 +74,7 @@ describe('ScrollAffordance shared fixtures', () => {
 
     fireEvent.keyDown(region, { key: 'End' })
     expect(region.scrollLeft).toBe(400)
+    fireEvent.scroll(region)
     const ignored = new KeyboardEvent('keydown', { key: 'PageDown', cancelable: true })
     region.dispatchEvent(ignored)
     expect(ignored.defaultPrevented).toBe(false)
@@ -81,6 +82,45 @@ describe('ScrollAffordance shared fixtures', () => {
     expect(screen.getByText(/7/)).toHaveAttribute('aria-live', 'polite')
     expect(screen.getByText(/7/)).toHaveAttribute('aria-atomic', 'true')
     vi.useRealTimers()
+  })
+
+  it('renders the live region empty on load and on resize, and fills it after a scroll and an arrow key (T-1135)', async () => {
+    // Oracle: WAI-ARIA 1.2 aria-live and the APG live-region practice, as ruled on T-1135. The expected
+    // messages are the en-US default-catalog literals.
+    fixture(sharedCases, 'scroll-affordance.component-live-status')
+    vi.useFakeTimers()
+    try {
+      const { container } = render(<ScrollAffordance ariaLabel="Items" itemCount={8}><span>Items</span></ScrollAffordance>)
+      const status = () => container.querySelector('.hl-scroll-affordance__status')
+      expect(status()).toHaveAttribute('aria-live', 'polite')
+      expect(status()).toHaveAttribute('aria-atomic', 'true')
+      expect(status()?.textContent).toBe('')
+
+      const region = screen.getByRole('group', { name: 'Items' })
+      geometry(region, { clientWidth: 400, scrollWidth: 800 })
+      await remeasure()
+      await act(async () => { vi.runAllTimers() })
+      expect(region).toHaveAttribute('tabindex', '0')
+      expect(status()?.textContent).toBe('')
+
+      geometry(region, { clientWidth: 200 })
+      await remeasure()
+      await act(async () => { vi.runAllTimers() })
+      expect(status()?.textContent).toBe('')
+
+      region.scrollLeft = 200
+      fireEvent.scroll(region)
+      await act(async () => { vi.runAllTimers() })
+      expect(status()?.textContent).toBe('Scrollable, showing 3 to 4 of 8')
+
+      fireEvent.keyDown(region, { key: 'ArrowRight' })
+      expect(region.scrollLeft).toBe(360)
+      fireEvent.scroll(region)
+      await act(async () => { vi.runAllTimers() })
+      expect(status()?.textContent).toBe('Scrollable, showing 5 to 6 of 8')
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('reads the live position status from the host catalog, then the default catalog', async () => {
@@ -97,8 +137,14 @@ describe('ScrollAffordance shared fixtures', () => {
         'scrollAffordance.showingRange': '⟦ Šçřøļļåƀļë, šhøŵîñĝ {start} ţø {end} øƒ {total} ······ ⟧',
       }))
       const status = () => container.querySelector('.hl-scroll-affordance__status')?.textContent
-      geometry(screen.getByRole('group', { name: 'Items' }), { clientWidth: 400, scrollWidth: 800 })
+      const region = screen.getByRole('group', { name: 'Items' })
+      geometry(region, { clientWidth: 400, scrollWidth: 800 })
+      region.scrollLeft = 100
       await remeasure()
+      await act(async () => { vi.runAllTimers() })
+      expect(status()).toBe('')
+      region.scrollLeft = 0
+      fireEvent.scroll(region)
       await act(async () => { vi.runAllTimers() })
       expect(status()).toBe('⟦ Šçřøļļåƀļë, šhøŵîñĝ 1 ţø 4 øƒ 8 ······ ⟧')
 
