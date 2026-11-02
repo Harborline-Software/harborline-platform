@@ -1243,3 +1243,93 @@ describe('Records local draft editor, React lane, revision 4 references', () => 
     expect(checkbox(parent)).not.toBeChecked(); expect(button('Make field 3 a reference')).not.toBeNull()
   })
 })
+
+describe('Records local draft editor, React lane, revision 5 malformed-value parity', () => {
+  const malformedJson = ['7', 'true', '{"future":"kept"}', '["kept"]', 'null']
+  const draftWith = (body: Record<string, unknown>): RecordsDraft => ({ ...g1Draft(), body: body as RecordTypeBody })
+  const editor = (body: Record<string, unknown>) => {
+    const changes: RecordsDraftChange[] = []
+    const view = render(<RecordTypeDraftEditor value={draftWith(body)} kindOptions={kindOptions} onDraftChange={change => changes.push(change)} />)
+    return { changes, view }
+  }
+  const select = (name: string) => screen.getByRole('combobox', { name }) as HTMLSelectElement
+  const optionTexts = (name: string) => Array.from(select(name).options).map(option => option.textContent)
+  const choose = (name: string, text: string) => {
+    const option = Array.from(select(name).options).find(item => item.textContent === text)
+    if (option === undefined) throw new Error(`${name} offers no option "${text}"`)
+    fireEvent.change(select(name), { target: { value: option.value } })
+  }
+
+  it.each(malformedJson)('Revision5: non-string retention %s shows None and survives an unrelated edit until explicitly replaced', raw => {
+    const malformed: unknown = JSON.parse(raw)
+    const base = { ...structuredClone(g1.expectedStoredBody), fields: [{ field_key: 'valid', display_name: 'Valid' }, { field_key: 7, display_name: 'Malformed key' }], retention_clock_field_id: malformed }
+    const given = structuredClone(base); const { changes } = editor(base)
+    expect(optionTexts('Retention clock field')).toEqual(['None', 'valid'])
+    expect(select('Retention clock field')).toHaveValue(''); expect(changes).toHaveLength(0)
+    fireEvent.change(screen.getByLabelText('Record type name'), { target: { value: 'Parity local' } })
+    expect(changes).toStrictEqual([{ draft: draftWith({ ...base, name: 'Parity local' }), generation: 1 }])
+    choose('Retention clock field', 'valid')
+    expect(changes[1]).toStrictEqual({ draft: draftWith({ ...base, name: 'Parity local', retention_clock_field_id: 'valid' }), generation: 2 })
+    expect(base).toStrictEqual(given)
+  })
+
+  it.each(['field_key', 'display_name'].flatMap(member => malformedJson.map(raw => [member, raw])))('Revision5: non-string %s %s shows empty and only its own edit replaces it', (member, raw) => {
+    const malformed: unknown = JSON.parse(raw)
+    const field = { field_key: 'code', display_name: 'Code', future_field_member: { kept: true }, [member]: malformed }
+    const base = { ...structuredClone(g1.expectedStoredBody), fields: [field] }; const given = structuredClone(base); const { changes } = editor(base)
+    const label = member === 'field_key' ? 'Field 1 key' : 'Field 1 display name'
+    const otherLabel = member === 'field_key' ? 'Field 1 display name' : 'Field 1 key'
+    const otherMember = member === 'field_key' ? 'display_name' : 'field_key'
+    expect(screen.getByLabelText(label)).toHaveValue(''); expect(changes).toHaveLength(0)
+    expect(optionTexts('Retention clock field')).toEqual(member === 'field_key' ? ['None'] : ['None', 'code'])
+    fireEvent.change(screen.getByLabelText(otherLabel), { target: { value: 'Other edit' } })
+    expect(changes).toStrictEqual([{ draft: draftWith({ ...base, fields: [{ ...field, [otherMember]: 'Other edit' }] }), generation: 1 }])
+    fireEvent.change(screen.getByLabelText(label), { target: { value: 'Repaired' } })
+    expect(changes[1]).toStrictEqual({ draft: draftWith({ ...base, fields: [{ ...field, [otherMember]: 'Other edit', [member]: 'Repaired' }] }), generation: 2 })
+    expect(base).toStrictEqual(given)
+  })
+
+  it.each(['kind_id', 'version'].flatMap(member => malformedJson.map(raw => [member, raw])))('Revision5: non-string %s %s is blank in the unavailable kind label and stays unchanged until a kind is chosen', (member, raw) => {
+    const malformed: unknown = JSON.parse(raw)
+    const kind = { kind_id: 'text', version: '1.0.0', parameters: { pattern: 'kept' }, future_kind_member: true, [member]: malformed }
+    const field = { field_key: 'code', display_name: 'Code', binding: { kind, constraints: { required: false }, future_binding_member: 'kept' }, future_field_member: 'kept' }
+    const base = { ...structuredClone(g1.expectedStoredBody), fields: [field] }; const given = structuredClone(base); const { changes } = editor(base)
+    expect(select('Field 1 kind')).toHaveValue('')
+    expect(select('Field 1 kind').selectedOptions[0]?.textContent).toBe(member === 'kind_id' ? ' 1.0.0 (not offered)' : 'text  (not offered)')
+    expect(changes).toHaveLength(0)
+    fireEvent.change(screen.getByLabelText('Field 1 display name'), { target: { value: 'Local name' } })
+    expect(changes).toStrictEqual([{ draft: draftWith({ ...base, fields: [{ ...field, display_name: 'Local name' }] }), generation: 1 }])
+    choose('Field 1 kind', 'text 1.0.0')
+    expect(changes[1]).toStrictEqual({ draft: draftWith({ ...base, fields: [{ ...field, display_name: 'Local name', binding: { ...field.binding, kind: { ...kind, kind_id: 'text', version: '1.0.0' } } }] }), generation: 2 })
+    expect(base).toStrictEqual(given)
+  })
+
+  it.each(['7', 'true', '{"future":"kept"}', '"kept"', 'null'])('Revision5: non-array fields %s shows no fields and stays unchanged until Add field replaces it', raw => {
+    const malformed: unknown = JSON.parse(raw)
+    const base = { ...structuredClone(g1.expectedStoredBody), fields: malformed }; const given = structuredClone(base); const { changes } = editor(base)
+    expect(screen.queryAllByRole('group', { name: /^Field [0-9]+$/ })).toHaveLength(0)
+    expect(optionTexts('Retention clock field')).toEqual(['None']); expect(changes).toHaveLength(0)
+    fireEvent.change(screen.getByLabelText('Record type name'), { target: { value: 'Parity local' } })
+    expect(changes).toStrictEqual([{ draft: draftWith({ ...base, name: 'Parity local' }), generation: 1 }])
+    fireEvent.click(screen.getByRole('button', { name: 'Add field' }))
+    expect(changes[1]).toStrictEqual({ draft: draftWith({ ...base, name: 'Parity local', fields: [{ field_key: '', display_name: '' }] }), generation: 2 })
+    expect(screen.getByLabelText('Field 1 key')).toHaveValue(''); expect(base).toStrictEqual(given)
+  })
+
+  it('Revision5: malformed array slots keep their positions through editing, appending and removing a valid field', () => {
+    const first = { field_key: 'first', display_name: 'First', future_field_member: true }
+    const last = { field_key: 'last', display_name: 'Last', future_field_member: 'kept' }
+    const base = { ...structuredClone(g1.expectedStoredBody), fields: [null, first, 7, last, 'kept'] }; const given = structuredClone(base); const { changes } = editor(base)
+    expect(screen.getAllByRole('group', { name: /^Field [0-9]+$/ }).map(group => group.querySelector('legend')?.textContent)).toEqual(['Field 2', 'Field 4'])
+    expect(optionTexts('Retention clock field')).toEqual(['None', 'first', 'last']); expect(changes).toHaveLength(0)
+    fireEvent.change(screen.getByLabelText('Field 4 display name'), { target: { value: 'Edited last' } })
+    expect(changes[0]).toStrictEqual({ draft: draftWith({ ...base, fields: [null, first, 7, { ...last, display_name: 'Edited last' }, 'kept'] }), generation: 1 })
+    fireEvent.click(screen.getByRole('button', { name: 'Add field' }))
+    expect(changes[1]).toStrictEqual({ draft: draftWith({ ...base, fields: [null, first, 7, { ...last, display_name: 'Edited last' }, 'kept', { field_key: '', display_name: '' }] }), generation: 2 })
+    expect(screen.getByLabelText('Field 6 key')).toHaveValue('')
+    fireEvent.click(screen.getByRole('button', { name: 'Remove field 2' }))
+    expect(changes[2]).toStrictEqual({ draft: draftWith({ ...base, fields: [null, 7, { ...last, display_name: 'Edited last' }, 'kept', { field_key: '', display_name: '' }] }), generation: 3 })
+    expect(screen.getByLabelText('Field 3 display name')).toHaveValue('Edited last'); expect(screen.getByLabelText('Field 5 key')).toHaveValue('')
+    expect(changes).toHaveLength(3); expect(base).toStrictEqual(given)
+  })
+})
