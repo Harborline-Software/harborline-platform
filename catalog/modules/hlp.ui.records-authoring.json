@@ -1,0 +1,41 @@
+{
+  "moduleId": "hlp.ui.records-authoring",
+  "module": {
+    "interface": {
+      "path": "specs/modules/ui/hlp.ui.records-authoring/interface.yaml",
+      "revision": 4
+    },
+    "moduleKind": "runtime",
+    "presentation": {
+      "disposition": "not-applicable",
+      "rationale": "The aggregate contribution supplies a local Record Type draft editor with no catalogue conformance or visual-parity claim; products own the surrounding visual composition."
+    },
+    "owner": "platform-ui",
+    "dependencies": [
+      "hlp.ui.button"
+    ],
+    "status": "gap-implemented",
+    "depth": {
+      "disposition": "deep-module",
+      "deletionTest": "PASS",
+      "redistributedComplexity": [
+        "lossless carriage of unedited and unknown Record Type body members and the byte-exact string revision otherwise repeated by every Records host",
+        "dirty replacement decisions, local generation and stale diagnostic fencing drifting between React and Blazor"
+      ]
+    },
+    "projections": {
+      "react": {
+        "role": "implementation",
+        "path": "projections/react/ui/hlp.ui.records-authoring",
+        "status": "preview",
+        "packageContribution": "@harborline-software/ui-react"
+      },
+      "blazor": {
+        "role": "implementation",
+        "path": "projections/blazor/ui/hlp.ui.records-authoring",
+        "status": "preview",
+        "packageContribution": "Harborline.UIAdapters.Blazor"
+      }
+    }
+  }
+}

@@ -1,0 +1,48 @@
+{
+  "moduleId": "hlp.ui.form-view",
+  "legacySourceHashes": {
+    "packages/ui-react/src/components/forms/SchemaForm/types.ts": "84cd9cd9a7f5725899e8e9ebc92383f8a10436ba603a3196ca4416f379f356df",
+    "packages/ui-react/src/components/forms/SchemaForm/SchemaForm.stories.tsx": "002fd4b0314937b462cf1a3a716e56cf72fe1873233992541d8e37236dee9fc1",
+    "packages/ui-react/src/components/forms/__tests__/SchemaForm.f17.test.tsx": "580db44f4b06a23bb66833402d812e77f2d42bcbbdf138b1dd9da2e58208936a",
+    "packages/ui-react/src/components/forms/__tests__/SchemaForm.f17.wave2.test.tsx": "eb16c08588d56cfd193beaa5582605f3366fd46ba5cf02631fb340bc56b518e8",
+    "packages/ui-react/src/components/forms/__tests__/SchemaForm.formkey.test.tsx": "ab11d8200f5e9bffeb0752a715f8ef6563534f297dbabdb00418d5e05b4bdbad",
+    "packages/ui-react/src/components/forms/__tests__/SchemaForm.grid.test.tsx": "7a27b4cd4c9db6a6ea2330e542c5be953e7654c7a805d3a9dbbe56dc395430d6",
+    "packages/ui-react/src/components/forms/__tests__/SchemaForm.layout.test.tsx": "e6d9d521ce341ebff727bb8821ef6aed4a1eb9dffbf1ab53bd59ba9491af541c",
+    "packages/ui-react/src/components/forms/__tests__/SchemaForm.layoutBreadth.test.tsx": "5a54398e91ef3b14d52cc07ce1e09374dea0165c4daef6c77e0d34ade6ed63f1",
+    "packages/ui-react/src/components/forms/__tests__/SchemaForm.nested.test.tsx": "0e48c522d5141c3d75e07b1e0fe403c8e6549b9ef8ab7f444a3e4b2ef42fcbfc",
+    "packages/ui-react/src/components/forms/__tests__/SchemaForm.siblingCollections.test.tsx": "2f3b74698676a6385a0336cabaa592d29c78770302852a7aeac3ba8cc31674f3",
+    "packages/ui-react/src/components/forms/__tests__/SchemaForm.validation.test.tsx": "636fdb9e868ae8f69c6f7e51cfec35b0c7fddbb3eecd435e25e83afc4e5be204",
+    "apps/carrier/src/forms/builder/__tests__/projectView.test.ts": "ad6ebe3e4806cc235415198960a8273fe15b867eae2fec87b36ee49ca37b6ca2",
+    "apps/carrier/src/forms/validation/__tests__/parity.corpus.test.ts": "23dc1a665e40dc87ce5753741539bc672d88c2138eaaf91d9ba123f3780f120f",
+    "apps/carrier/src/forms/validation/prune.test.ts": "18edba3582da5f059a718f092d960c28f082366e3985ede84fbad07381c2beb0",
+    "packages/contracts/src/forms.ts": "99bd66637f4f41c05581b488b6697aa3e3f083617887fee831d1ca33b7c45627",
+    "packages/foundation-forms-engine/FormView.cs": "4237823561017c7e795538b42e80b646702438327abd22ee0a5051de2d2a2472",
+    "packages/foundation-forms-engine/ValidationResult.cs": "0197c8da72f5b69654224ba3694811c6332ba511fa5446a3ac64b6279693165e",
+    "apps/local-node-host/Health/FormsRoutes.cs": "84c632ad4dd84ed3df061cb6b9839487b3e0b3a3137a9fcc92f31d7b0927ec61"
+  },
+  "canonicalDependencyEvidence": {
+    "moduleId": "hlp.contracts.forms",
+    "minimumInterfaceRevision": 4,
+    "sourcePath": "packages/contracts/src/forms.ts",
+    "sourceBlob": "441e85ea5d431bf056eab7af7ab5e3b8800ead8c",
+    "destinationInterface": "specs/modules/contracts/hlp.contracts.forms/interface.yaml"
+  },
+  "phase4Evidence": "specs/modules/ui/hlp.ui.form-view/interface.yaml",
+  "sourceExtracted": true,
+  "sourceState": "Revision 1 captures all 29 pinned Carrier-facing FormView exports as an explicit UI compatibility binding over hlp.contracts.forms revision 4. Canonical wire declarations are reused rather than duplicated; UI-only hints and normalized rule outcomes remain at the binding seam, and localized text resolution preserves the pinned branch behavior in both projections.",
+  "contentHashes": {
+    "projections/react/ui/hlp.ui.form-view/src/index.ts": "0e68e7b08d05ceedd01ee37ede7822e7c80ded6157357c2996f82bbc6948cced",
+    "projections/react/ui/hlp.ui.form-view/src/__tests__/form-view.native.test.ts": "e46674cfb71c4f4c3dec328bb4378ef17e50d18b1cb513137753fe35053b32cf",
+    "projections/react/ui/hlp.ui.form-view/src/__tests__/form-view.conformance.test.ts": "e003b3d957aa1250a3ba53fdbc7799f5a56d9274a01e7d29d754b421cd83c2ef",
+    "projections/dotnet/foundation/hlp.ui.form-view/FormViewSupport.cs": "890e800e6254a2c4e6f02695c245194fa61c951fe77053d721b196a5410445db",
+    "conformance/hlp.ui.form-view/fixtures.yaml": "f2d17776a7dae0b66a825d32d83a5140dff917052bead57b68b73e5a53b74f02",
+    "conformance/hlp.ui.form-view/quality-fixtures.yaml": "8b2b38d7f4f101efe3232b5f9315b24bc90bca1e41cc1528f429bfc1cb3ca997",
+    "conformance/hlp.ui.form-view/runners/run-shared.mjs": "6c44fd6ea2e7ea3000f4c806e9877f7c83912e39c25f384188a676187f9d75ac",
+    "specs/modules/ui/hlp.ui.form-view/interface.yaml": "0d0ed294fb463b84ff146db83fc9514bd639d9c72506e21d793ca43d0ae0ebfe",
+    "specs/modules/ui/hlp.ui.form-view/quality.yaml": "7c2b7e01733a4a6957a563e8c87228ab99ce538df28e08695dc88ef8aeb50b9b",
+    "specs/modules/contracts/hlp.contracts.forms/interface.yaml": "8f5a740de58a5636b64e389f9102aea464cf015bf66a124b5557b82ce255597b",
+    "projections/typescript/contracts/hlp.contracts.forms/src/forms.ts": "c9dfa629f764594a6b89a40e6140f329eaf497ecdff8d1244aa09478e5dd854b",
+    "projections/dotnet/contracts/hlp.contracts.identities/Forms/FormsContracts.g.cs": "4f11a73560662b1de4277939573d33c9bec06a783173c5bcd907690bd8f9161a"
+  },
+  "nextGate": "Retain this conformant compatibility binding and canonical Forms dependency while HLF-052 advances to the next Carrier-essential dependency wave."
+}

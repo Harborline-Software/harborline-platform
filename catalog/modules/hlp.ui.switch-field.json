@@ -1,0 +1,57 @@
+{
+  "moduleId": "hlp.ui.switch-field",
+  "module": {
+    "interface": {
+      "path": "specs/modules/ui/hlp.ui.switch-field/interface.yaml",
+      "revision": 1
+    },
+    "moduleKind": "interactive-component",
+    "presentation": {
+      "disposition": "visual"
+    },
+    "qualityProfile": {
+      "path": "specs/modules/ui/hlp.ui.switch-field/quality.yaml",
+      "revision": 1
+    },
+    "owner": "platform-ui",
+    "dependencies": [
+      "hlp.ui.switch"
+    ],
+    "status": "gap-implemented",
+    "depth": {
+      "disposition": "deep-module",
+      "deletionTest": "PASS",
+      "redistributedComplexity": [
+        "deprecated name-based compatibility and controlled callback shape otherwise repeated at every Harborline App call site",
+        "exact delegation to the authoritative switch prevents a second state machine or styling seam"
+      ]
+    },
+    "projections": {
+      "react": {
+        "role": "adapter",
+        "seam": "ui.switch-field.framework",
+        "path": "projections/react/ui/hlp.ui.switch-field",
+        "status": "conformant",
+        "packageContribution": "@harborline-software/ui-react",
+        "conformanceRunner": "conformance/hlp.ui.switch-field/runners/run-shared.mjs"
+      },
+      "blazor": {
+        "role": "adapter",
+        "seam": "ui.switch-field.framework",
+        "path": "projections/blazor/ui/hlp.ui.switch-field",
+        "status": "conformant",
+        "packageContribution": "Harborline.UIAdapters.Blazor",
+        "conformanceRunner": "conformance/hlp.ui.switch-field/runners/run-shared.mjs"
+      }
+    }
+  },
+  "seams": {
+    "ui.switch-field.framework": {
+      "status": "conformant",
+      "adapters": [
+        "react",
+        "blazor"
+      ]
+    }
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "moduleId": "hlp.ui.text-area",
+  "legacySourceHashes": {
+    "packages/ui-react/src/components/forms/TextArea.tsx": "b8834f3e70470796d9e49b32f23b61495c9472f6236c348e86e7f93ca5c03dfd"
+  },
+  "phase4Evidence": "specs/modules/ui/hlp.ui.text-area/interface.yaml",
+  "sourceExtracted": true,
+  "sourceState": "Interface revision 1 preserves the exact pinned hlp.ui.text-area source surface and proves every registered projection through native, shared-conformance, package-only, and applicable gallery/performance gates.",
+  "contentHashes": {
+    "conformance/hlp.ui.text-area/fixtures.yaml": "9c62deba1a0e7a542f8d225249264a9e731efb1ba87823fc81786eeac9c61cbc",
+    "conformance/hlp.ui.text-area/quality-fixtures.yaml": "5f92a0e823c56657201091ce9d7b472dbb76d157636e3af1c0e1aa4402e08954",
+    "conformance/hlp.ui.text-area/runners/run-shared.mjs": "15587f602b72cbf38217a7479778f6a217f2038670f5d16605b063ee50760666",
+    "projections/blazor/ui/hlp.ui.text-area/HarborlineTextArea.razor": "b01b6d49cdc9dca5c000d2dfc9bdf23b8eb6dfc26fc932777c3b2b9b042fa4e7",
+    "projections/blazor/ui/hlp.ui.text-area/TextAreaTypes.cs": "dff90ca3f94bd473675afbdbf1c16a397d030ba47a5c5b7c78ec6d2880989f9a",
+    "projections/react/ui/hlp.ui.text-area/src/TextArea.tsx": "8dbb9cbbccc4c1cc223223e5543c299cd71a150786be1431b01f6f69f67ea853",
+    "projections/react/ui/hlp.ui.text-area/src/__tests__/TextArea.conformance.test.tsx": "df39f6c92d75fec584595f3147f08e22883fe352aca05eb8e0be5b7f70e64e45",
+    "projections/react/ui/hlp.ui.text-area/src/__tests__/TextArea.native.test.tsx": "26fb51e65c6438a537af43af5701ca03e0ef72cb886ed3c7cd104014d546bd43",
+    "projections/react/ui/hlp.ui.text-area/src/__tests__/fixtures.ts": "e8d0227f145e5f232ad15cc56123eab26e5ff6b5a757d6cecadd105fdb21b623",
+    "projections/react/ui/hlp.ui.text-area/src/index.ts": "7543d3ab283dfd9935ce34cbdc59b25d811a6b4c5b1a894900ce3365229785ad",
+    "projections/react/ui/hlp.ui.text-area/src/test-setup.ts": "977afde26bba6a51325908cd7713cbfdc87d18f06b78b237c8f364c44864b7de",
+    "projections/react/ui/hlp.ui.text-area/tsconfig.build.json": "35fceb15fbe8d52d47eaaa98ffbc32182b89e5a1f3d7c7171310fb38146c08e3",
+    "projections/react/ui/hlp.ui.text-area/vitest.config.ts": "f5cd8fbab34e223cf7b1ff7b733e5040ef911b5cb815957223848db3856d8aea",
+    "specs/modules/ui/hlp.ui.text-area/interface.yaml": "9766f2d8cb178c4111ef6bc17dcee0e497a1636c7d6de5be8ddf321fcc53b62a",
+    "specs/modules/ui/hlp.ui.text-area/quality.yaml": "0b1a75662e38e636ab1863d17a92792806235129424022166691072ce80e1b9a",
+    "specs/modules/ui/hlp.ui.text-area/scenarios.json": "7a6e8212ebccc2652e011e09582ef8637dfe4ae966d4b4331122b415b952baa2",
+    "specs/modules/ui/hlp.ui.text-area/style.css": "d63291362a2e21238e5e02f65a25fb6a1e3af50513b3c14912f703b8e60d6292"
+  },
+  "nextGate": "Retain this conformant aggregate contribution while HLF-052 advances to the next Carrier-essential dependency wave."
+}

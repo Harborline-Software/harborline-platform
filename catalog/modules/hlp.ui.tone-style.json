@@ -1,0 +1,47 @@
+{
+  "moduleId": "hlp.ui.tone-style",
+  "module": {
+    "interface": {
+      "path": "specs/modules/ui/hlp.ui.tone-style/interface.yaml",
+      "revision": 1
+    },
+    "moduleKind": "runtime",
+    "presentation": {
+      "disposition": "not-applicable",
+      "rationale": "Tone Style resolves semantic token references and renders no standalone interface."
+    },
+    "qualityProfile": {
+      "path": "specs/modules/ui/hlp.ui.tone-style/quality.yaml",
+      "revision": 1
+    },
+    "owner": "platform-ui",
+    "dependencies": [
+      "hlp.ui.aspect-lens"
+    ],
+    "status": "implemented-gate-model-green",
+    "depth": {
+      "disposition": "deep-module",
+      "deletionTest": "PASS",
+      "redistributedComplexity": [
+        "closed lens-tone semantic token mapping repeated by every builder renderer",
+        "sensitivity escalation and the authored info fallback independently drifting across TypeScript and .NET"
+      ]
+    },
+    "projections": {
+      "react": {
+        "role": "implementation",
+        "path": "projections/react/ui/hlp.ui.tone-style",
+        "status": "conformant",
+        "packageContribution": "@harborline-software/ui-react",
+        "conformanceRunner": "conformance/hlp.ui.tone-style/runners/run-shared.mjs"
+      },
+      "dotnet": {
+        "role": "implementation",
+        "path": "projections/dotnet/foundation/hlp.ui.tone-style",
+        "status": "conformant",
+        "packageContribution": "Harborline.Foundation",
+        "conformanceRunner": "conformance/hlp.ui.tone-style/runners/run-shared.mjs"
+      }
+    }
+  }
+}

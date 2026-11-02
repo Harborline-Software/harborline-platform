@@ -1,0 +1,57 @@
+{
+  "moduleId": "hlp.ui.spotlight",
+  "module": {
+    "interface": {
+      "path": "specs/modules/ui/hlp.ui.spotlight/interface.yaml",
+      "revision": 1
+    },
+    "moduleKind": "interactive-component",
+    "presentation": {
+      "disposition": "visual"
+    },
+    "qualityProfile": {
+      "path": "specs/modules/ui/hlp.ui.spotlight/quality.yaml",
+      "revision": 1
+    },
+    "owner": "platform-ui",
+    "dependencies": [
+      "hlp.ui.cn"
+    ],
+    "status": "extracted-candidate",
+    "depth": {
+      "disposition": "deep-module",
+      "deletionTest": "PASS",
+      "redistributedComplexity": [
+        "caller-ranked command grouping, pinned action order, controlled query, and deterministic selection repeated by every application shell",
+        "combobox/listbox state, modal focus, dismissal, result announcements, localization, and theme parity drifting across renderers"
+      ]
+    },
+    "projections": {
+      "react": {
+        "role": "adapter",
+        "seam": "ui.spotlight.framework",
+        "path": "projections/react/ui/hlp.ui.spotlight",
+        "status": "conformant",
+        "packageContribution": "@harborline-software/ui-react",
+        "conformanceRunner": "conformance/hlp.ui.spotlight/runners/run-shared.mjs"
+      },
+      "blazor": {
+        "role": "adapter",
+        "seam": "ui.spotlight.framework",
+        "path": "projections/blazor/ui/hlp.ui.spotlight",
+        "status": "conformant",
+        "packageContribution": "Harborline.UIAdapters.Blazor",
+        "conformanceRunner": "conformance/hlp.ui.spotlight/runners/run-shared.mjs"
+      }
+    }
+  },
+  "seams": {
+    "ui.spotlight.framework": {
+      "status": "conformant",
+      "adapters": [
+        "react",
+        "blazor"
+      ]
+    }
+  }
+}

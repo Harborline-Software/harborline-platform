@@ -1,0 +1,59 @@
+{
+  "moduleId": "hlp.ui.dialog",
+  "module": {
+    "interface": {
+      "path": "specs/modules/ui/hlp.ui.dialog/interface.yaml",
+      "revision": 1
+    },
+    "moduleKind": "interactive-component",
+    "presentation": {
+      "disposition": "visual"
+    },
+    "qualityProfile": {
+      "path": "specs/modules/ui/hlp.ui.dialog/quality.yaml",
+      "revision": 1
+    },
+    "owner": "platform-ui",
+    "dependencies": [
+      "hlp.ui.default-strings",
+      "hlp.ui.locale-provider",
+      "hlp.ui.use-scroll-affordance"
+    ],
+    "status": "gap-implemented",
+    "depth": {
+      "disposition": "deep-module",
+      "deletionTest": "PASS",
+      "redistributedComplexity": [
+        "controlled modal state, independent dismissal policy, focus containment and restoration repeated by every dialog consumer",
+        "pinned chrome, bounded body scrolling, locale direction, narrow reflow, and provider replacement drifting across projections"
+      ]
+    },
+    "projections": {
+      "react": {
+        "role": "adapter",
+        "seam": "ui.dialog.framework",
+        "path": "projections/react/ui/hlp.ui.dialog",
+        "status": "conformant",
+        "packageContribution": "@harborline-software/ui-react",
+        "conformanceRunner": "conformance/hlp.ui.dialog/runners/run-shared.mjs"
+      },
+      "blazor": {
+        "role": "adapter",
+        "seam": "ui.dialog.framework",
+        "path": "projections/blazor/ui/hlp.ui.dialog",
+        "status": "conformant",
+        "packageContribution": "Harborline.UIAdapters.Blazor",
+        "conformanceRunner": "conformance/hlp.ui.dialog/runners/run-shared.mjs"
+      }
+    }
+  },
+  "seams": {
+    "ui.dialog.framework": {
+      "status": "conformant",
+      "adapters": [
+        "react",
+        "blazor"
+      ]
+    }
+  }
+}

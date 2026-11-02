@@ -1,0 +1,57 @@
+{
+  "moduleId": "hlp.ui.collapsible",
+  "module": {
+    "interface": {
+      "path": "specs/modules/ui/hlp.ui.collapsible/interface.yaml",
+      "revision": 1
+    },
+    "moduleKind": "interactive-component",
+    "presentation": {
+      "disposition": "visual"
+    },
+    "qualityProfile": {
+      "path": "specs/modules/ui/hlp.ui.collapsible/quality.yaml",
+      "revision": 1
+    },
+    "owner": "platform-ui",
+    "dependencies": [
+      "hlp.ui.cn"
+    ],
+    "status": "extracted-candidate",
+    "depth": {
+      "disposition": "deep-module",
+      "deletionTest": "PASS",
+      "redistributedComplexity": [
+        "controlled and uncontrolled titled disclosure state plus independent header actions repeated by Harborline App panels",
+        "trigger-region relationships, closed focus suppression, RTL, reduced motion, and host attributes independently drifting across renderers"
+      ]
+    },
+    "projections": {
+      "react": {
+        "role": "adapter",
+        "seam": "ui.collapsible.framework",
+        "path": "projections/react/ui/hlp.ui.collapsible",
+        "status": "conformant",
+        "packageContribution": "@harborline-software/ui-react",
+        "conformanceRunner": "conformance/hlp.ui.collapsible/runners/run-shared.mjs"
+      },
+      "blazor": {
+        "role": "adapter",
+        "seam": "ui.collapsible.framework",
+        "path": "projections/blazor/ui/hlp.ui.collapsible",
+        "status": "conformant",
+        "packageContribution": "Harborline.UIAdapters.Blazor",
+        "conformanceRunner": "conformance/hlp.ui.collapsible/runners/run-shared.mjs"
+      }
+    }
+  },
+  "seams": {
+    "ui.collapsible.framework": {
+      "status": "conformant",
+      "adapters": [
+        "react",
+        "blazor"
+      ]
+    }
+  }
+}

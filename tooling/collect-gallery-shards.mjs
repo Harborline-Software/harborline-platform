@@ -15,12 +15,13 @@ import {fileURLToPath} from 'node:url'
 
 import {galleryReconciliationFailures} from './gate-contract.mjs'
 import {loadModuleSpec} from './generate-blazor-smoke.mjs'
+import {loadModuleCatalog} from './module-catalog.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 
 // Same module selection and count as run-phase-4-gate.mjs's generation-smoke step, without the build.
 export function specScenarioCount(repositoryRoot = root) {
-  const catalog = JSON.parse(readFileSync(resolve(repositoryRoot, 'catalog/modules.yaml'), 'utf8'))
+  const catalog = loadModuleCatalog(repositoryRoot)
   return Object.entries(catalog.modules)
     .filter(([moduleId, module]) => moduleId.startsWith('hlp.ui.') && module.presentation?.disposition === 'visual')
     .reduce((total, [moduleId]) => total + loadModuleSpec(resolve(repositoryRoot, 'specs/modules/ui'), moduleId).scenarios.scenarios.length, 0)

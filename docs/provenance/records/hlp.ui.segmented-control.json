@@ -1,0 +1,30 @@
+{
+  "moduleId": "hlp.ui.segmented-control",
+  "legacySourceHashes": {
+    "packages/ui-react/src/components/buttons/SegmentedControl.tsx": "3afb35f0712da27d4fef33bd6ff172bab6ed1a7032fab8e453040f093eeb3cc1"
+  },
+  "phase4Evidence": "specs/modules/ui/hlp.ui.segmented-control/interface.yaml",
+  "sourceExtracted": true,
+  "sourceState": "Interface revision 1 preserves the exact pinned hlp.ui.segmented-control source surface and proves every registered projection through native, shared-conformance, package-only, and applicable gallery/performance gates.",
+  "contentHashes": {
+    "conformance/hlp.ui.segmented-control/fixtures.yaml": "1442e1bec30c925efaa718bb7bb408533a213e7639be494aa87581b1d569081a",
+    "conformance/hlp.ui.segmented-control/quality-fixtures.yaml": "e6c60cb0e78a43ab19e2a30278e3bf43bdb62819b16ac49bdcd19d6db647f1d2",
+    "conformance/hlp.ui.segmented-control/runners/run-shared.mjs": "fb075bc84991f823719b286f0a0ad55e356b450dbef81e07cd31d6f386b64c3f",
+    "projections/blazor/ui/hlp.ui.segmented-control/SegmentedControlTypes.cs": "ef52c52fd9b25b2ff15f9a46a60821cfa5d88b47b049d7c7c78a11f18ffeafde",
+    "projections/blazor/ui/hlp.ui.segmented-control/HarborlineSegmentedControl.razor": "51e2f5fbdcc4fa1941a5a6b840e3fe4131505a376f1792af57bd612a8761062e",
+    "projections/blazor/ui/hlp.ui.segmented-control/wwwroot/segmented-control.js": "f01835f7c836abc48f5221d511132645436d72db34c571ad7ff1ccf18b88db92",
+    "projections/react/ui/hlp.ui.segmented-control/src/SegmentedControl.tsx": "8d0233eb6db3144477725b9fc2ff279b12b775703cf3c5522a0fbd756a256ae3",
+    "projections/react/ui/hlp.ui.segmented-control/src/__tests__/SegmentedControl.conformance.test.ts": "7ae13f55b33660c988edcd5e1560b75c9468a8e7cc79924b47c22c7c90ff9dff",
+    "projections/react/ui/hlp.ui.segmented-control/src/__tests__/SegmentedControl.native.test.tsx": "c4d0d2bc1ae6f610873624c0a37eacfe19904a32b2ca7bf12b7cb04b92c6337b",
+    "projections/react/ui/hlp.ui.segmented-control/src/__tests__/fixtures.ts": "ae0857f38af5701301dcb50aebf7ff0e804049c588229b174bbdf8a4c184b840",
+    "projections/react/ui/hlp.ui.segmented-control/src/index.ts": "b24a7cd21d2dcad349523bf4f1de8860f483d9ea7c83fa532b88c84342c3ebda",
+    "projections/react/ui/hlp.ui.segmented-control/src/test-setup.ts": "097040beeb2cc914b87790306bc835eef4a06321fa3594a6938b6754641ac2ff",
+    "projections/react/ui/hlp.ui.segmented-control/tsconfig.build.json": "41ba5be091b227107a89484e3e5a88f270089c64c87239349379a2f98cb0d498",
+    "projections/react/ui/hlp.ui.segmented-control/vitest.config.ts": "df21036b580fea26b29fba8698d29a0923263c5c275f759b751a3868b512b8e5",
+    "specs/modules/ui/hlp.ui.segmented-control/interface.yaml": "dec3da35f4e962268e2de32e5161c9acaf0956ac6e31f0a6a90b3ebe07080582",
+    "specs/modules/ui/hlp.ui.segmented-control/quality.yaml": "9788b55108160a6939e58b4c8389c07654984a28704c8b06729eca8283895007",
+    "specs/modules/ui/hlp.ui.segmented-control/scenarios.json": "59b4489e4ce6ad5a9a7083c7f1f93e7de5e40b2210efb2df9a7008aa4782e23a",
+    "specs/modules/ui/hlp.ui.segmented-control/style.css": "c8cf2469c80a18d92d3613777b6d528e8817566d5a638ea14b63a37e036483de"
+  },
+  "nextGate": "Retain this conformant aggregate contribution while HLF-052 advances to the next Carrier-essential dependency wave."
+}

@@ -1,0 +1,30 @@
+{
+  "moduleId": "hlp.ui.side-nav",
+  "legacySourceHashes": {
+    "packages/ui-react/src/components/navigation/SideNav.tsx": "39fe7eb42684515abc5178dc2bbc2b896a81ae3aeb05a17b78e99c3fc10e8f02"
+  },
+  "phase4Evidence": "specs/modules/ui/hlp.ui.side-nav/interface.yaml",
+  "sourceExtracted": true,
+  "sourceState": "Interface revision 1 preserves the exact pinned hlp.ui.side-nav source surface and proves every registered projection through native, shared-conformance, package-only, and applicable gallery/performance gates.",
+  "contentHashes": {
+    "conformance/hlp.ui.side-nav/fixtures.yaml": "5b3ed06b6e35e83f54c3e0e18ea5cd8e1ca7f7cb1d9141c7fefc3e81a0e5edf6",
+    "conformance/hlp.ui.side-nav/quality-fixtures.yaml": "67c6b3d482e4d61124531b11b8130653ce61b478b84624db4beb7c3e6ebc13a0",
+    "conformance/hlp.ui.side-nav/runners/run-shared.mjs": "0aeab787e8474430f3ec6f9568b9705042b7e0a76b5e21b09557e431979b5911",
+    "projections/blazor/ui/hlp.ui.side-nav/HarborlineSideNav.razor": "0747080d21430d7bcd8a1f21103b377621e7a8f4bbfa9b4c4e939a531d008d5d",
+    "projections/blazor/ui/hlp.ui.side-nav/HarborlineSideNavItems.razor": "9ebd096941184b33ee88fbc19f259a4b619d3be8560b8c7b155702372d10e56b",
+    "projections/blazor/ui/hlp.ui.side-nav/SideNavTypes.cs": "c85df5351d49849cbee27db7353a6ce432277b5543daa18779ea9204254b5427",
+    "projections/react/ui/hlp.ui.side-nav/src/SideNav.tsx": "7fec6536a44550e33b528e9117edf62e3fd56e0226a363df39354c545102c233",
+    "projections/react/ui/hlp.ui.side-nav/src/__tests__/SideNav.conformance.test.tsx": "23c088c7a86b6310f7f9b622fa5f705da933746f1e3e914ee984ca50ad398edc",
+    "projections/react/ui/hlp.ui.side-nav/src/__tests__/SideNav.native.test.tsx": "b77960568ab4506baee1dc37bd978c4288ca0b543355d1b4194f20df15f5dd98",
+    "projections/react/ui/hlp.ui.side-nav/src/__tests__/fixtures.ts": "ddf51c2ea1bbf3454dea696435ea8e52a9717d7a7fc107cfcc31bf42c6c3a406",
+    "projections/react/ui/hlp.ui.side-nav/src/index.ts": "e39a978693912d323348c6d1919f51397d4de8799cca53079a738d8bb27fa347",
+    "projections/react/ui/hlp.ui.side-nav/src/test-setup.ts": "097040beeb2cc914b87790306bc835eef4a06321fa3594a6938b6754641ac2ff",
+    "projections/react/ui/hlp.ui.side-nav/tsconfig.build.json": "85f7d1722de22e1beb1924c7b92776b4c6678575501f46fa5ed4518e60bf2aa6",
+    "projections/react/ui/hlp.ui.side-nav/vitest.config.ts": "7ffbba7a3cb29fcd8b8b06f15e57de9c69268046260898893a4b42911b6b47f8",
+    "specs/modules/ui/hlp.ui.side-nav/interface.yaml": "61cc340fbdf3d231931084e3fa871ac510639cbd9d939588af0a8307fc619a4e",
+    "specs/modules/ui/hlp.ui.side-nav/quality.yaml": "8f83f9fd25ee74bf494ea1568f8fedc382531ecbff6e4df41b2b2dd76ba63c1d",
+    "specs/modules/ui/hlp.ui.side-nav/scenarios.json": "eb3bb183be4581c99868c145d46ce3aad2eabf27e9eb2a3c404014114fbbddc3",
+    "specs/modules/ui/hlp.ui.side-nav/style.css": "8be14fb7657650c5620adf0e14224ead71a1fa2e7e63782be6d7e9b1ee8c4308"
+  },
+  "nextGate": "Retain this conformant aggregate contribution while HLF-052 advances to the next Carrier-essential dependency wave."
+}

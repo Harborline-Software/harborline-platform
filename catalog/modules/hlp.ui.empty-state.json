@@ -1,0 +1,55 @@
+{
+  "moduleId": "hlp.ui.empty-state",
+  "module": {
+    "interface": {
+      "path": "specs/modules/ui/hlp.ui.empty-state/interface.yaml",
+      "revision": 1
+    },
+    "moduleKind": "interactive-component",
+    "presentation": {
+      "disposition": "visual"
+    },
+    "qualityProfile": {
+      "path": "specs/modules/ui/hlp.ui.empty-state/quality.yaml",
+      "revision": 1
+    },
+    "owner": "platform-ui",
+    "dependencies": [],
+    "status": "extracted-candidate",
+    "depth": {
+      "disposition": "deep-module",
+      "deletionTest": "PASS",
+      "redistributedComplexity": [
+        "informational, positive, and actionable empty-result semantics plus decorative icon treatment repeated across data surfaces",
+        "localized content, optional native action, host context, theme, focus, forced-colors, reduced-motion, and reflow parity repeated in React and Blazor"
+      ]
+    },
+    "projections": {
+      "react": {
+        "role": "adapter",
+        "seam": "ui.empty-state.framework",
+        "path": "projections/react/ui/hlp.ui.empty-state",
+        "status": "conformant",
+        "packageContribution": "@harborline-software/ui-react",
+        "conformanceRunner": "conformance/hlp.ui.empty-state/runners/run-shared.mjs"
+      },
+      "blazor": {
+        "role": "adapter",
+        "seam": "ui.empty-state.framework",
+        "path": "projections/blazor/ui/hlp.ui.empty-state",
+        "status": "conformant",
+        "packageContribution": "Harborline.UIAdapters.Blazor",
+        "conformanceRunner": "conformance/hlp.ui.empty-state/runners/run-shared.mjs"
+      }
+    }
+  },
+  "seams": {
+    "ui.empty-state.framework": {
+      "status": "conformant",
+      "adapters": [
+        "react",
+        "blazor"
+      ]
+    }
+  }
+}

@@ -1,0 +1,50 @@
+{
+  "moduleId": "hlp.foundation.actor",
+  "module": {
+    "interface": {
+      "path": "specs/modules/foundation/hlp.foundation.actor/interface.yaml",
+      "revision": 6
+    },
+    "moduleKind": "runtime",
+    "presentation": {
+      "disposition": "not-applicable",
+      "rationale": "Authenticated actor and server-derived Party resolution are host/runtime behavior with no presentation surface."
+    },
+    "owner": "platform-foundation",
+    "dependencies": [
+      "hlp.contracts.identities",
+      "hlp.foundation.tenancy"
+    ],
+    "status": "implemented",
+    "depth": {
+      "disposition": "deep-module",
+      "deletionTest": "PASS",
+      "redistributedComplexity": [
+        "same-authentication-scope user and tenant derivation repeated at every mutating caller",
+        "anonymous, unresolved-tenant, sentinel-tenant, unmapped-party, and cross-tenant rejection repeated at every Party-owned operation"
+      ]
+    },
+    "projections": {
+      "dotnet": {
+        "role": "implementation",
+        "path": "projections/dotnet/foundation/hlp.foundation.actor",
+        "status": "preview",
+        "artifact": {
+          "type": "nuget",
+          "id": "Harborline.Foundation.Authorization",
+          "assembly": "Harborline.Foundation.Authorization",
+          "manifest": "projections/dotnet/foundation/hlp.foundation.actor/Harborline.Foundation.Authorization.csproj",
+          "dependencies": [
+            "Harborline.Contracts",
+            "Harborline.Foundation.MultiTenancy"
+          ],
+          "identityAuthority": "Harborline",
+          "producerRepository": "harborline-platform",
+          "distribution": "internal-only",
+          "candidateRole": "local-shadow",
+          "registryAvailable": false
+        }
+      }
+    }
+  }
+}

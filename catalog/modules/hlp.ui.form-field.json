@@ -1,0 +1,57 @@
+{
+  "moduleId": "hlp.ui.form-field",
+  "module": {
+    "interface": {
+      "path": "specs/modules/ui/hlp.ui.form-field/interface.yaml",
+      "revision": 1
+    },
+    "moduleKind": "non-interactive-component",
+    "presentation": {
+      "disposition": "visual"
+    },
+    "qualityProfile": {
+      "path": "specs/modules/ui/hlp.ui.form-field/quality.yaml",
+      "revision": 1
+    },
+    "owner": "platform-ui",
+    "dependencies": [
+      "hlp.ui.cn"
+    ],
+    "status": "extracted-candidate",
+    "depth": {
+      "disposition": "deep-module",
+      "deletionTest": "PASS",
+      "redistributedComplexity": [
+        "label, hint, alert, required, and disabled relationships repeated by every form host",
+        "ordered non-dangling ambient metadata independently drifting between React contexts and Blazor cascading values"
+      ]
+    },
+    "projections": {
+      "react": {
+        "role": "adapter",
+        "seam": "ui.form-field.framework",
+        "path": "projections/react/ui/hlp.ui.form-field",
+        "status": "conformant",
+        "packageContribution": "@harborline-software/ui-react",
+        "conformanceRunner": "conformance/hlp.ui.form-field/runners/run-shared.mjs"
+      },
+      "blazor": {
+        "role": "adapter",
+        "seam": "ui.form-field.framework",
+        "path": "projections/blazor/ui/hlp.ui.form-field",
+        "status": "conformant",
+        "packageContribution": "Harborline.UIAdapters.Blazor",
+        "conformanceRunner": "conformance/hlp.ui.form-field/runners/run-shared.mjs"
+      }
+    }
+  },
+  "seams": {
+    "ui.form-field.framework": {
+      "status": "conformant",
+      "adapters": [
+        "react",
+        "blazor"
+      ]
+    }
+  }
+}

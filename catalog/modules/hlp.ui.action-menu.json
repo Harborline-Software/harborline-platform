@@ -1,0 +1,60 @@
+{
+  "moduleId": "hlp.ui.action-menu",
+  "module": {
+    "interface": {
+      "path": "specs/modules/ui/hlp.ui.action-menu/interface.yaml",
+      "revision": 1
+    },
+    "moduleKind": "interactive-component",
+    "presentation": {
+      "disposition": "visual"
+    },
+    "qualityProfile": {
+      "path": "specs/modules/ui/hlp.ui.action-menu/quality.yaml",
+      "revision": 1
+    },
+    "owner": "platform-ui",
+    "dependencies": [
+      "hlp.ui.cn",
+      "hlp.ui.default-strings",
+      "hlp.ui.locale-provider",
+      "hlp.ui.use-outside-click"
+    ],
+    "status": "extracted-candidate",
+    "depth": {
+      "disposition": "deep-module",
+      "deletionTest": "PASS",
+      "redistributedComplexity": [
+        "menu-button state, enabled-item navigation, typeahead, activation, and dismissal repeated by every action surface",
+        "focus restoration, empty safety, logical alignment, localization, and destructive styling drifting across projections"
+      ]
+    },
+    "projections": {
+      "react": {
+        "role": "adapter",
+        "seam": "ui.action-menu.framework",
+        "path": "projections/react/ui/hlp.ui.action-menu",
+        "status": "conformant",
+        "packageContribution": "@harborline-software/ui-react",
+        "conformanceRunner": "conformance/hlp.ui.action-menu/runners/run-shared.mjs"
+      },
+      "blazor": {
+        "role": "adapter",
+        "seam": "ui.action-menu.framework",
+        "path": "projections/blazor/ui/hlp.ui.action-menu",
+        "status": "conformant",
+        "packageContribution": "Harborline.UIAdapters.Blazor",
+        "conformanceRunner": "conformance/hlp.ui.action-menu/runners/run-shared.mjs"
+      }
+    }
+  },
+  "seams": {
+    "ui.action-menu.framework": {
+      "status": "conformant",
+      "adapters": [
+        "react",
+        "blazor"
+      ]
+    }
+  }
+}
