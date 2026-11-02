@@ -63,6 +63,70 @@
     {
       "scenarioId": "app-shell.pins-threads",
       "kind": "findings",
+      "host": "windows-11-x64",
+      "ticket": "T-1126",
+      "reason": "AppShell is outside T-962's scope. AppShell row menu stays open on focus loss and covers the next stop: the scenario opens the first thread's options menu (div.hl-app-shell__row-menu), which stays open when focus leaves it and entirely covers the Pin Overview and Pin Assets buttons. React closes it only on Escape inside the menu and Blazor not on Escape at all, so Escape on the covered button does not reveal it (SC 2.4.11 Note 2), in both lanes.",
+      "reactOnly": [
+        "2.4.11 forward obscured: button \"Pin Assets\" under div.hl-app-shell__row-menu",
+        "2.4.11 forward obscured: button \"Pin Overview\" under div.hl-app-shell__row-menu",
+        "2.4.11 prepared obscured: button \"Pin Assets\" under div.hl-app-shell__row-menu",
+        "2.4.11 prepared obscured: button \"Pin Overview\" under div.hl-app-shell__row-menu",
+        "2.4.11 reverse obscured: button \"Pin Assets\" under div.hl-app-shell__row-menu",
+        "2.4.11 reverse obscured: button \"Pin Overview\" under div.hl-app-shell__row-menu"
+      ],
+      "blazorOnly": [
+        "2.4.11 forward obscured: button \"Pin Assets\" under div.hl-app-shell__row-menu",
+        "2.4.11 forward obscured: button \"Pin Overview\" under div.hl-app-shell__row-menu",
+        "2.4.11 prepared obscured: button \"Pin Assets\" under div.hl-app-shell__row-menu",
+        "2.4.11 prepared obscured: button \"Pin Overview\" under div.hl-app-shell__row-menu",
+        "2.4.11 reverse obscured: button \"Pin Assets\" under div.hl-app-shell__row-menu",
+        "2.4.11 reverse obscured: button \"Pin Overview\" under div.hl-app-shell__row-menu"
+      ]
+    },
+    {
+      "scenarioId": "app-shell.pins-threads",
+      "kind": "findings",
+      "host": "linux-x64",
+      "ticket": "T-1126",
+      "reason": "AppShell is outside T-962's scope. On linux-x64 the first thread's options menu (div.hl-app-shell__row-menu) covers Pin Overview but leaves the bottom of Pin Assets visible. The menu stays open when focus leaves it. React closes it only on Escape inside the menu and Blazor not on Escape at all, so Escape on Pin Overview does not reveal it (SC 2.4.11 Note 2), in both lanes.",
+      "reactOnly": [
+        "2.4.11 forward obscured: button \"Pin Overview\" under div.hl-app-shell__row-menu",
+        "2.4.11 prepared obscured: button \"Pin Overview\" under div.hl-app-shell__row-menu",
+        "2.4.11 reverse obscured: button \"Pin Overview\" under div.hl-app-shell__row-menu"
+      ],
+      "blazorOnly": [
+        "2.4.11 forward obscured: button \"Pin Overview\" under div.hl-app-shell__row-menu",
+        "2.4.11 prepared obscured: button \"Pin Overview\" under div.hl-app-shell__row-menu",
+        "2.4.11 reverse obscured: button \"Pin Overview\" under div.hl-app-shell__row-menu"
+      ]
+    },
+    {
+      "scenarioId": "app-shell.pins-threads",
+      "kind": "findings",
+      "host": "macos-x64-intel",
+      "ticket": "T-1126",
+      "reason": "AppShell is outside T-962's scope. AppShell row menu stays open on focus loss and covers the next stop: the scenario opens the first thread's options menu (div.hl-app-shell__row-menu), which stays open when focus leaves it and entirely covers the Pin Overview and Pin Assets buttons. React closes it only on Escape inside the menu and Blazor not on Escape at all, so Escape on the covered button does not reveal it (SC 2.4.11 Note 2), in both lanes.",
+      "reactOnly": [
+        "2.4.11 forward obscured: button \"Pin Assets\" under div.hl-app-shell__row-menu",
+        "2.4.11 forward obscured: button \"Pin Overview\" under div.hl-app-shell__row-menu",
+        "2.4.11 prepared obscured: button \"Pin Assets\" under div.hl-app-shell__row-menu",
+        "2.4.11 prepared obscured: button \"Pin Overview\" under div.hl-app-shell__row-menu",
+        "2.4.11 reverse obscured: button \"Pin Assets\" under div.hl-app-shell__row-menu",
+        "2.4.11 reverse obscured: button \"Pin Overview\" under div.hl-app-shell__row-menu"
+      ],
+      "blazorOnly": [
+        "2.4.11 forward obscured: button \"Pin Assets\" under div.hl-app-shell__row-menu",
+        "2.4.11 forward obscured: button \"Pin Overview\" under div.hl-app-shell__row-menu",
+        "2.4.11 prepared obscured: button \"Pin Assets\" under div.hl-app-shell__row-menu",
+        "2.4.11 prepared obscured: button \"Pin Overview\" under div.hl-app-shell__row-menu",
+        "2.4.11 reverse obscured: button \"Pin Assets\" under div.hl-app-shell__row-menu",
+        "2.4.11 reverse obscured: button \"Pin Overview\" under div.hl-app-shell__row-menu"
+      ]
+    },
+    {
+      "scenarioId": "app-shell.pins-threads",
+      "kind": "findings",
+      "host": "macos-arm64",
       "ticket": "T-1126",
       "reason": "AppShell is outside T-962's scope. AppShell row menu stays open on focus loss and covers the next stop: the scenario opens the first thread's options menu (div.hl-app-shell__row-menu), which stays open when focus leaves it and entirely covers the Pin Overview and Pin Assets buttons. React closes it only on Escape inside the menu and Blazor not on Escape at all, so Escape on the covered button does not reveal it (SC 2.4.11 Note 2), in both lanes.",
       "reactOnly": [
