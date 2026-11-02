@@ -1,0 +1,106 @@
+{
+  "moduleId": "hlp.ui.button",
+  "module": {
+    "interface": {
+      "path": "specs/modules/ui/hlp.ui.button/interface.yaml",
+      "revision": 2
+    },
+    "moduleKind": "interactive-component",
+    "presentation": {
+      "disposition": "visual"
+    },
+    "qualityProfile": {
+      "path": "specs/modules/ui/hlp.ui.button/quality.yaml",
+      "revision": 2
+    },
+    "owner": "platform-ui",
+    "dependencies": [],
+    "status": "extracted-candidate",
+    "depth": {
+      "disposition": "deep-module",
+      "deletionTest": "PASS",
+      "redistributedComplexity": [
+        "activation and loading suppression in every consumer",
+        "form-safe and accessible semantics in every framework projection",
+        "closed appearance mapping in every renderer and styling provider"
+      ]
+    },
+    "projections": {
+      "react": {
+        "role": "adapter",
+        "seam": "ui.button.framework",
+        "path": "projections/react/ui/hlp.ui.button",
+        "status": "conformant",
+        "artifact": {
+          "type": "npm",
+          "id": "@harborline-software/ui-react",
+          "manifest": "projections/react/ui/hlp.ui.button/package.json",
+          "identityAuthority": "Harborline",
+          "producerRepository": "harborline-platform",
+          "distribution": "internal-only",
+          "candidateRole": "local-shadow",
+          "registryAvailable": false
+        },
+        "conformanceRunner": "conformance/hlp.ui.button/runners/run-shared.mjs"
+      },
+      "blazor": {
+        "role": "adapter",
+        "seam": "ui.button.framework",
+        "path": "projections/blazor/ui/hlp.ui.button",
+        "status": "conformant",
+        "artifact": {
+          "type": "nuget",
+          "id": "Harborline.UIAdapters.Blazor",
+          "assembly": "Harborline.UIAdapters.Blazor",
+          "manifest": "projections/blazor/ui/hlp.ui.button/Harborline.UIAdapters.Blazor.csproj",
+          "dependencies": [
+            "Harborline.Foundation"
+          ],
+          "identityAuthority": "Harborline",
+          "producerRepository": "harborline-platform",
+          "distribution": "internal-only",
+          "candidateRole": "local-shadow",
+          "registryAvailable": false
+        },
+        "conformanceRunner": "conformance/hlp.ui.button/runners/run-shared.mjs"
+      },
+      "dotnet-vocabulary": {
+        "role": "compatibility-vocabulary",
+        "path": "projections/dotnet/foundation/hlp.ui.button",
+        "status": "preview",
+        "artifact": {
+          "type": "nuget",
+          "id": "Harborline.Foundation",
+          "assembly": "Harborline.Foundation",
+          "manifest": "projections/dotnet/foundation/hlp.ui.button/Harborline.Foundation.csproj",
+          "identityAuthority": "Harborline",
+          "producerRepository": "harborline-platform",
+          "distribution": "internal-only",
+          "candidateRole": "local-shadow",
+          "registryAvailable": false
+        },
+        "compatibility": {
+          "rationale": "Preserves the Button enum package, namespace, value ordering, and assembly identities without importing the broad legacy Foundation graph.",
+          "identityAuthority": "Harborline converged identity",
+          "revisit": "Before Harborline.Foundation aggregate identity or contract authority changes."
+        }
+      }
+    }
+  },
+  "seams": {
+    "ui.button.framework": {
+      "status": "conformant",
+      "adapters": [
+        "react",
+        "blazor"
+      ]
+    },
+    "ui.button.styling": {
+      "status": "internal",
+      "adapters": [
+        "react-style-map",
+        "blazor-button-style-bridge"
+      ]
+    }
+  }
+}

@@ -1,0 +1,57 @@
+{
+  "moduleId": "hlp.ui.check-box",
+  "module": {
+    "interface": {
+      "path": "specs/modules/ui/hlp.ui.check-box/interface.yaml",
+      "revision": 1
+    },
+    "moduleKind": "interactive-component",
+    "presentation": {
+      "disposition": "visual"
+    },
+    "qualityProfile": {
+      "path": "specs/modules/ui/hlp.ui.check-box/quality.yaml",
+      "revision": 1
+    },
+    "owner": "platform-ui",
+    "dependencies": [
+      "hlp.ui.cn"
+    ],
+    "status": "extracted-candidate",
+    "depth": {
+      "disposition": "deep-module",
+      "deletionTest": "PASS",
+      "redistributedComplexity": [
+        "controlled, uncontrolled, mixed, disabled, required, and error semantics repeated by every form renderer",
+        "label association, logical placement, sizing, form attributes, and host metadata drifting across React and Blazor"
+      ]
+    },
+    "projections": {
+      "react": {
+        "role": "adapter",
+        "seam": "ui.check-box.framework",
+        "path": "projections/react/ui/hlp.ui.check-box",
+        "status": "conformant",
+        "packageContribution": "@harborline-software/ui-react",
+        "conformanceRunner": "conformance/hlp.ui.check-box/runners/run-shared.mjs"
+      },
+      "blazor": {
+        "role": "adapter",
+        "seam": "ui.check-box.framework",
+        "path": "projections/blazor/ui/hlp.ui.check-box",
+        "status": "conformant",
+        "packageContribution": "Harborline.UIAdapters.Blazor",
+        "conformanceRunner": "conformance/hlp.ui.check-box/runners/run-shared.mjs"
+      }
+    }
+  },
+  "seams": {
+    "ui.check-box.framework": {
+      "status": "conformant",
+      "adapters": [
+        "react",
+        "blazor"
+      ]
+    }
+  }
+}

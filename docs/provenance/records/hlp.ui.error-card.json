@@ -1,0 +1,29 @@
+{
+  "moduleId": "hlp.ui.error-card",
+  "legacySourceHashes": {
+    "packages/ui-react/src/components/ErrorCard.tsx": "8f957fa90a8eb304117fd6025154d2045ed22aa630ab2f99064c5812984aa6cb",
+    "packages/ui-react/src/components/ErrorCard.test.tsx": "e5d1a6b80b02c8a366b2a720aa410d1ce8a18c5b8d8b985702beb6e4a6789931",
+    "packages/ui-react/src/components/ErrorCard.stories.tsx": "36704823ad42db9c0039033ef9c632f730d6ced809b2b9b060745f089155b35a",
+    "packages/ui-adapters-blazor/Components/Feedback/ShipyardErrorCard.razor": "dfe2055a1e025d8974b533e4033602e6a4901b1eb66b6614978a75629ff429c6"
+  },
+  "phase4Evidence": "specs/modules/ui/hlp.ui.error-card/interface.yaml",
+  "sourceExtracted": true,
+  "sourceState": "Revision 1 preserves the pinned React public surface and treats the pinned Blazor component as an incomplete donor. Both adapters now expose page, default, and compact presentation, alert semantics, optional message and retry action, and a caller-supplied retry label with the source-compatible English fallback.",
+  "contentHashes": {
+    "projections/react/ui/hlp.ui.error-card/src/ErrorCard.tsx": "b3011bf6f8fae40f8c3c606fcb455393c8c39f722a9f0513c82d2ccd05cd7820",
+    "projections/react/ui/hlp.ui.error-card/src/index.ts": "f526240936a890227bb7dcfaef0e3db21b7d63d78fd41cd3b7e8f36acbe2e880",
+    "projections/react/ui/hlp.ui.error-card/src/__tests__/ErrorCard.native.test.tsx": "91ce2f7ecb54b396ccf32398ae7488e2a27f1e2bd61f2228791fdd8c2e806772",
+    "projections/react/ui/hlp.ui.error-card/src/__tests__/ErrorCard.conformance.test.tsx": "e1f41cb5d0bfe2e9ab92d77bc4d9b69e9238e22cced1be05baef4b8ddbd9573e",
+    "projections/blazor/ui/hlp.ui.error-card/ErrorCardVariant.cs": "baa975e41d089135eb69cd0b634ffdcf1daa35125cc42249cf6cc5f7b41f1acf",
+    "projections/blazor/ui/hlp.ui.error-card/HarborlineErrorCard.razor": "dbff82b312ec8c2e1fa57f91f244ccf3dc9ddace3a4f5ea2ab430de418d40a7e",
+    "projections/blazor/ui/hlp.ui.error-card.tests/ErrorCardTests.cs": "7f9f0a58cb45faafd704afe02a57350aa65b4df556ba430b2b71e158004cd4b9",
+    "conformance/hlp.ui.error-card/fixtures.yaml": "c0f5d333437c159b6745702da64ab30a8dcfd08befd09f20773197533ff7ac81",
+    "conformance/hlp.ui.error-card/quality-fixtures.yaml": "bad1d690621171c0c0628bc92dc625da78eaeca9bd7b28d9b0eaebbade9f2925",
+    "conformance/hlp.ui.error-card/runners/run-shared.mjs": "0584e1dc883ad19bea8a2151fadca4b7cb4afda961b9edc68af3052aa2ca722d",
+    "specs/modules/ui/hlp.ui.error-card/interface.yaml": "c5200cbd30e9f506d91fa08ed69c24f45ccd32d33b2ece9bf855eda99fb731f3",
+    "specs/modules/ui/hlp.ui.error-card/quality.yaml": "eb813cd7f421b41f094a0e1fd7df3906d350b9dc95a3e2963144404e91d5de20",
+    "specs/modules/ui/hlp.ui.error-card/style.css": "2e62d8fe907f9eddef99f67bde35685b6d2c9098ad58d468b0e56f237c882ec2",
+    "specs/modules/ui/hlp.ui.error-card/scenarios.json": "0ca16ca27ccac70148f72e38b22774c9ba2ffffc152b9a2324d248aeeed8c9f7"
+  },
+  "nextGate": "Retain both conformant adapters and their gallery evidence while HLF-052 advances to the next Carrier-essential dependency wave."
+}

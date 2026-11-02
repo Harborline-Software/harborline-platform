@@ -1,0 +1,55 @@
+{
+  "moduleId": "hlp.ui.error-card",
+  "module": {
+    "interface": {
+      "path": "specs/modules/ui/hlp.ui.error-card/interface.yaml",
+      "revision": 1
+    },
+    "moduleKind": "interactive-component",
+    "presentation": {
+      "disposition": "visual"
+    },
+    "qualityProfile": {
+      "path": "specs/modules/ui/hlp.ui.error-card/quality.yaml",
+      "revision": 1
+    },
+    "owner": "platform-ui",
+    "dependencies": [],
+    "status": "extracted-candidate",
+    "depth": {
+      "disposition": "deep-module",
+      "deletionTest": "PASS",
+      "redistributedComplexity": [
+        "assertive alert, page-heading versus section-title semantics, message omission, retry presence, and exactly-once recovery behavior repeated in every async failure surface",
+        "localized recovery text, variant density, destructive and recovery tones, host context, forced colors, focus, reflow, and theme parity repeated in React and Blazor"
+      ]
+    },
+    "projections": {
+      "react": {
+        "role": "adapter",
+        "seam": "ui.error-card.framework",
+        "path": "projections/react/ui/hlp.ui.error-card",
+        "status": "conformant",
+        "packageContribution": "@harborline-software/ui-react",
+        "conformanceRunner": "conformance/hlp.ui.error-card/runners/run-shared.mjs"
+      },
+      "blazor": {
+        "role": "adapter",
+        "seam": "ui.error-card.framework",
+        "path": "projections/blazor/ui/hlp.ui.error-card",
+        "status": "conformant",
+        "packageContribution": "Harborline.UIAdapters.Blazor",
+        "conformanceRunner": "conformance/hlp.ui.error-card/runners/run-shared.mjs"
+      }
+    }
+  },
+  "seams": {
+    "ui.error-card.framework": {
+      "status": "conformant",
+      "adapters": [
+        "react",
+        "blazor"
+      ]
+    }
+  }
+}

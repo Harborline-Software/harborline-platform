@@ -1,0 +1,48 @@
+{
+  "moduleId": "hlp.foundation.tenancy",
+  "module": {
+    "interface": {
+      "path": "specs/modules/foundation/hlp.foundation.tenancy/interface.yaml",
+      "revision": 1
+    },
+    "moduleKind": "runtime",
+    "presentation": {
+      "disposition": "not-applicable",
+      "rationale": "Tenant resolution and query scoping are behavioral infrastructure with no visual presentation surface."
+    },
+    "owner": "platform-foundation",
+    "dependencies": [
+      "hlp.contracts.identities"
+    ],
+    "status": "implemented-package-consumer-green",
+    "depth": {
+      "disposition": "deep-module",
+      "deletionTest": "PASS",
+      "redistributedComplexity": [
+        "unresolved and sentinel tenant rejection repeated at every query and repository caller",
+        "tenant predicate construction and cross-tenant fail-closed behavior repeated across every persistence adapter"
+      ]
+    },
+    "projections": {
+      "dotnet": {
+        "role": "implementation",
+        "path": "projections/dotnet/foundation/hlp.foundation.tenancy",
+        "status": "preview",
+        "artifact": {
+          "type": "nuget",
+          "id": "Harborline.Foundation.MultiTenancy",
+          "assembly": "Harborline.Foundation.MultiTenancy",
+          "manifest": "projections/dotnet/foundation/hlp.foundation.tenancy/Harborline.Foundation.MultiTenancy.csproj",
+          "dependencies": [
+            "Harborline.Contracts"
+          ],
+          "identityAuthority": "Harborline",
+          "producerRepository": "harborline-platform",
+          "distribution": "internal-only",
+          "candidateRole": "local-shadow",
+          "registryAvailable": false
+        }
+      }
+    }
+  }
+}

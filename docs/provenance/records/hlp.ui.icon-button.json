@@ -1,0 +1,28 @@
+{
+  "moduleId": "hlp.ui.icon-button",
+  "legacySourceHashes": {
+    "packages/ui-react/src/components/buttons/IconButton.tsx": "e4137f4bcc83dde1e34ed8d0c162adafa8836f94f44ede90fc1b6866b69942f2"
+  },
+  "phase4Evidence": "specs/modules/ui/hlp.ui.icon-button/interface.yaml",
+  "sourceExtracted": true,
+  "sourceState": "Interface revision 1 preserves the exact pinned hlp.ui.icon-button source surface and proves every registered projection through native, shared-conformance, package-only, and applicable gallery/performance gates.",
+  "contentHashes": {
+    "conformance/hlp.ui.icon-button/fixtures.yaml": "c6ae59de210638fff4e32a24c3454fd936b6a53b61124c644d03eac68789900b",
+    "conformance/hlp.ui.icon-button/quality-fixtures.yaml": "8cc2d9b4e175bdf91e10648c4bbd85d58739d3fea3b56b2bcf2a63d5a4517629",
+    "conformance/hlp.ui.icon-button/runners/run-shared.mjs": "cbea8c26227e2d7142747aaa022449ec0c19624bce7a2b6e9ede9c500b522d44",
+    "projections/blazor/ui/hlp.ui.icon-button/IconButtonTypes.cs": "53dfd6f8a7aaa39167f18121b3ed72cfd65dca8afe6e1e0efe636f8650a46bfc",
+    "projections/blazor/ui/hlp.ui.icon-button/HarborlineIconButton.razor": "3cee5b1633454c4b0b1497bb65b8125daa107c47d8c3257bab4b22db8ce04e04",
+    "projections/react/ui/hlp.ui.icon-button/src/IconButton.tsx": "0a9490fb226d9c51a0415d656b7025b018d6237081b2615320a04894131c897f",
+    "projections/react/ui/hlp.ui.icon-button/src/__tests__/IconButton.conformance.test.tsx": "2d17f1af02a4b37bdb309f6d6fc35c7f14eb58a9ef05ad1ab86c32717545963b",
+    "projections/react/ui/hlp.ui.icon-button/src/__tests__/IconButton.native.test.tsx": "b66399ee85607171ba92781da9c2aef71ddf5cae92e18deb93b34bd54af693ce",
+    "projections/react/ui/hlp.ui.icon-button/src/index.ts": "619af27bee3b908cb53d8b142911aaeab3cc44e2579c7c12ce2c2472b8d0e466",
+    "projections/react/ui/hlp.ui.icon-button/src/test-setup.ts": "977afde26bba6a51325908cd7713cbfdc87d18f06b78b237c8f364c44864b7de",
+    "projections/react/ui/hlp.ui.icon-button/tsconfig.build.json": "c175739649b390f2edeea1e61b650965f251bfb818ffccb4c84c17088c9a5f33",
+    "projections/react/ui/hlp.ui.icon-button/vitest.config.ts": "846aab8c29678bdb1560e32ba9355fbf8f24086c16a11cfe3758e916b834a739",
+    "specs/modules/ui/hlp.ui.icon-button/interface.yaml": "3792215d23cadf823fe61412bfdf6fc3024a32c21df57c3d3fa7481daec7906c",
+    "specs/modules/ui/hlp.ui.icon-button/quality.yaml": "c9073c7fbaa100552c3c09ac999a7437f83369e11edfdf1b523814c04b9a8477",
+    "specs/modules/ui/hlp.ui.icon-button/scenarios.json": "d75166eb78d998cfc8529b7d4d79841ce4a357fe3a5cd773e362ab80591783e0",
+    "specs/modules/ui/hlp.ui.icon-button/style.css": "39e3f1527f4da92370bafad2d8df5ab320f2dc941612521cb2ca7c41fe20c336"
+  },
+  "nextGate": "Retain this conformant aggregate contribution while HLF-052 advances to the next Carrier-essential dependency wave."
+}

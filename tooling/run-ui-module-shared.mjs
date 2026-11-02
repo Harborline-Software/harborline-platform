@@ -7,9 +7,10 @@ import {fileURLToPath} from 'node:url'
 import {resolveCommand, runnerEnvironment} from './resolve-command.mjs'
 import {resolvePinnedDotnet} from './resolve-dotnet.mjs'
 import {executeConformanceBatch} from './dotnet-conformance-batch.mjs'
+import {loadModuleCatalog} from './module-catalog.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
-const catalog = JSON.parse(readFileSync(resolve(root, 'catalog/modules.yaml'), 'utf8'))
+const catalog = loadModuleCatalog(root)
 
 function execute(command, cwd, env = {}) {
   const started = performance.now()

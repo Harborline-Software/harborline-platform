@@ -2,10 +2,12 @@ import assert from 'node:assert/strict'
 import {readFileSync, mkdtempSync, rmSync, writeFileSync} from 'node:fs'
 import {tmpdir} from 'node:os'
 import {resolve} from 'node:path'
+import {fileURLToPath} from 'node:url'
 import test from 'node:test'
 import {createSharedModuleScheduler, selectSharedSchedule, writeSharedScheduleReport} from '../shared-module-scheduler.mjs'
 import {moduleEvidence} from '../shared-module-evidence.mjs'
 import {boundedReport} from '../phase4-step-runner.mjs'
+import {loadModuleCatalog} from '../module-catalog.mjs'
 
 // Oracles: Chris Q5's six workers / 79 total / 77 ordinary / Chat then Grid / one retry,
 // the external catalog roster, and independently controlled completion times and results.
@@ -129,7 +131,7 @@ test('unknown selectors and invalid proposed inputs refuse before any module lau
 })
 
 test('both modes keep all 79 real catalog modules; only the proposed mode has the literal Chat/Grid tail', async () => {
-  const catalog = JSON.parse(readFileSync(new URL('../../catalog/modules.yaml', import.meta.url), 'utf8'))
+  const catalog = loadModuleCatalog(fileURLToPath(new URL('../..', import.meta.url)))
   const moduleIds = Object.entries(catalog.modules)
     .filter(([id, module]) => id.startsWith('hlp.ui.')
       && Object.values(module.projections ?? {}).some(projection => projection.conformanceRunner))

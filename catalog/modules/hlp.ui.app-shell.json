@@ -1,0 +1,60 @@
+{
+  "moduleId": "hlp.ui.app-shell",
+  "module": {
+    "interface": {
+      "path": "specs/modules/ui/hlp.ui.app-shell/interface.yaml",
+      "revision": 5
+    },
+    "moduleKind": "interactive-component",
+    "presentation": {
+      "disposition": "visual"
+    },
+    "qualityProfile": {
+      "path": "specs/modules/ui/hlp.ui.app-shell/quality.yaml",
+      "revision": 1
+    },
+    "owner": "platform-ui",
+    "dependencies": [
+      "hlp.contracts.authorization",
+      "hlp.ui.app-layout",
+      "hlp.ui.icon-button",
+      "hlp.ui.tooltip"
+    ],
+    "status": "gap-implemented",
+    "depth": {
+      "disposition": "deep-module",
+      "deletionTest": "PASS",
+      "redistributedComplexity": [
+        "workspace switching, move-not-copy pinning, nav threads with rename and row menus, action overflow, storage restore, and shortcut grammar repeated by every application shell consumer",
+        "active-first switcher ordering, pin caps, end-panel overlay geometry, and chrome accessibility drifting across projections"
+      ]
+    },
+    "projections": {
+      "react": {
+        "role": "adapter",
+        "seam": "ui.app-shell.framework",
+        "path": "projections/react/ui/hlp.ui.app-shell",
+        "status": "conformant",
+        "packageContribution": "@harborline-software/ui-react",
+        "conformanceRunner": "conformance/hlp.ui.app-shell/runners/run-shared.mjs"
+      },
+      "blazor": {
+        "role": "adapter",
+        "seam": "ui.app-shell.framework",
+        "path": "projections/blazor/ui/hlp.ui.app-shell",
+        "status": "conformant",
+        "packageContribution": "Harborline.UIAdapters.Blazor",
+        "conformanceRunner": "conformance/hlp.ui.app-shell/runners/run-shared.mjs"
+      }
+    }
+  },
+  "seams": {
+    "ui.app-shell.framework": {
+      "status": "conformant",
+      "adapters": [
+        "react",
+        "blazor"
+      ]
+    }
+  }
+}
