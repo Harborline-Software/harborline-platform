@@ -13,7 +13,7 @@ public sealed class AppShellRev6TabHostTests : BunitContext
     public AppShellRev6TabHostTests()
     {
         JSInterop.Mode = JSRuntimeMode.Loose;
-        JSInterop.SetupModule("./_content/Harborline.UIAdapters.Blazor/app-shell-rev6-focus.mjs");
+        JSInterop.SetupModule("./_content/Harborline.UIAdapters.Blazor/app-shell-rev6-focus.js");
     }
 
     // DES-0008 P8 and app-shell.tab-overflow: pinned first, icon-only, full names,
