@@ -3,7 +3,7 @@
   "module": {
     "interface": {
       "path": "specs/modules/ui/hlp.ui.use-scroll-affordance/interface.yaml",
-      "revision": 1
+      "revision": 2
     },
     "moduleKind": "runtime",
     "presentation": {

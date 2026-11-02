@@ -55,6 +55,8 @@
   private DotNetObjectReference<HarborlineDialog>? callback;
   private ScrollAffordanceMeasurement bodyMeasurement = new(0, 0, 0);
   private ScrollAffordanceState bodyState = new(false, true, true, null, null, new Dictionary<string, int>());
+  // Empty on open; speaks only after the body scrolls (T-1135), the rule React's useScrollAffordance follows.
+  private ScrollAffordanceAnnouncer bodyAnnouncer = new();
   private string Direction => LocaleContext?.Direction ?? "ltr";
   private string? ThemeName => Theme?.ToLowerInvariant();
   private string ResolvedCloseLabel => LocaleContext?.ResolveString("common.close", instanceOverride: CloseLabel) ?? CloseLabel ?? "Close";
@@ -85,6 +87,8 @@
         if (!disposed && Open && openingPortal.Equals(portal))
         {
           callback ??= DotNetObjectReference.Create(this);
+          bodyAnnouncer = new();
+          bodyState = new(false, true, true, null, null, new Dictionary<string, int>());
           connection = await module.InvokeAsync<IJSObjectReference>("connect", openingPortal, openingDialog, openingBody, callback, CloseOnEscape);
           if (disposed || !Open || !openingPortal.Equals(portal)) await DisposeConnectionAsync();
         }
@@ -105,7 +109,7 @@
   [JSInvokable] public Task OnBodyMeasuredAsync(ScrollAffordanceMeasurement next)
   {
     bodyMeasurement = next;
-    bodyState = ScrollAffordancePolicy.Resolve(next, new(ScrollAffordanceOrientation.Vertical));
+    bodyState = bodyAnnouncer.Observe(next, new(ScrollAffordanceOrientation.Vertical));
     return InvokeAsync(StateHasChanged);
   }
   private async Task BodyKeyDownAsync(KeyboardEventArgs args)
