@@ -1,0 +1,25 @@
+{
+  "moduleId": "hlp.blocks.inspection-review",
+  "phase4Evidence": "specs/modules/blocks/hlp.blocks.inspection-review/interface.yaml",
+  "sourceExtracted": true,
+  "sourceState": "Revision 2 is implemented and package-consumer green over destination Forms Engine, Workflow contracts, authenticated tenant/Party scope, and durable Work Items. It corrects the source single-operator confirmation Party, route-authorization, non-transactional projection-outbox, and weak idempotency/version gaps; a clean host consumes the complete submit-to-review vertical through one direct NuGet reference without source checkout.",
+  "contentHashes": {
+    "projections/dotnet/blocks/hlp.blocks.inspection-review/InMemoryInspectionReviewAdapters.cs": "fe3f7e4a060a048a30e557fb7b69aef6da4523c6501c1d837b5a624f8a370a6e",
+    "projections/dotnet/blocks/hlp.blocks.inspection-review/InspectionReviewContracts.cs": "e9c339477feff343a9d90b89aa8ca7594323072dfab16fd55a89c18040e3d59d",
+    "projections/dotnet/blocks/hlp.blocks.inspection-review/InspectionReviewProcess.cs": "53d990fe1832e40a043f437b5486d4f66a87d48413781005a11e948f0d5781ab",
+    "projections/dotnet/blocks/hlp.blocks.inspection-review/InspectionReviewProjectionSink.cs": "386d661aab2b5a423baad59292b8c1adf52f7d04c852b7a880922d859f354ce3",
+    "projections/dotnet/blocks/hlp.blocks.inspection-review/InspectionReviewService.cs": "e21c14d516a364582c458e41cc78b4b9567ae2158d4d0cc8cbea4fc9b9de6533",
+    "projections/dotnet/blocks/hlp.blocks.inspection-review/InspectionReviewSupport.cs": "0f8da996fa940c3da5daf5868ce7616a71c75ac5b656890a9ebf0a00dd024aea",
+    "projections/dotnet/blocks/hlp.blocks.inspection-review/Harborline.Blocks.InspectionReview.csproj": "b1dd1adaac43096b0cee7ca24538e6684975c81abc53c139855e28fc5f6b8fc6",
+    "projections/dotnet/blocks/hlp.blocks.inspection-review/README.md": "376962cdea7739fa37ccaaa31ae6ee32eedb096df666ede60f7eb6fcbe6012fe",
+    "projections/dotnet/blocks/hlp.blocks.inspection-review.tests/InspectionReviewContractTests.cs": "ff2ba8e7f782a73ef2234722eb74a0667ccc9df9f118ef17eb54115b6843d10a",
+    "projections/dotnet/blocks/hlp.blocks.inspection-review.tests/InspectionReviewImplementationTests.cs": "1e98124a8211426fbffb1cb61c9f52033b985f8bdb6a599a544697737745fd94",
+    "projections/dotnet/blocks/hlp.blocks.inspection-review.tests/InspectionReviewVerticalTests.cs": "196c03cc916113a4963e3bec6b5354bc30353fe97acd8bf73f5a64b36414d316",
+    "projections/dotnet/blocks/hlp.blocks.inspection-review.tests/Harborline.Blocks.InspectionReview.Tests.csproj": "0c3c64b3e71cc95a4a4b2122f12ca2886438c4f6ffa0884a2c479e227c279546",
+    "conformance/hlp.blocks.inspection-review/fixtures.yaml": "5323348736278a63fa1d635b35ccd2a88a4e80a91b696194ba9016c7a7c2415c",
+    "specs/modules/blocks/hlp.blocks.inspection-review/interface.yaml": "05b65c0ec719a34f4a303aaa7fd9922338cffcb9c2a11b8a8434ced696ae69fe",
+    "tests/package-consumers/inspection-review-nuget/Consumer.csproj": "205bc55ebb84f4b7d11236b6fe4b5eae19079dc0c3b6fb48aa03e8d7d4b21249",
+    "tests/package-consumers/inspection-review-nuget/Program.cs": "55453a7b9f00ae894c86ee8913ceafcf086bbf79cb2e925d21110f770f4d6065"
+  },
+  "nextGate": "Use the package-green vertical as the first fixture in the Carrier React-to-Blazor pillar and shell parity harness; do not interpret substrate or this proving slice as completion of any pillar."
+}

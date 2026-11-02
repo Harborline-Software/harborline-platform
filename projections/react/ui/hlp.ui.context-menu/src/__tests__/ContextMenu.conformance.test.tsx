@@ -34,3 +34,86 @@ it.each(allCases)('%s', async id => {
   fireEvent.keyDown(menu,{key:'End'}); fireEvent.keyDown(menu,{key:'Escape'}); fireEvent.contextMenu(target); expect(screen.getByRole('menu')).toHaveAttribute('data-active-id','copy')
   expect(container).toBeTruthy()
 })
+
+// T-943 review 2: every close returns focus to the element that had it when the menu opened, after a
+// pointer open as well as a keyboard one (APG menu pattern). The titles name no conformance case, so
+// the per-case runner's `-t <case id>` still selects exactly one test.
+const opens = ['pointer', 'keyboard'] as const
+const closes = ['Escape', 'item selection', 'an outside press on nothing focusable'] as const
+it.each(opens.flatMap(opening => closes.map(closing => [opening, closing] as const)))('a %s-opened menu returns focus to its opener after %s', async (opening, closing) => {
+  if (caseId) return
+  const groups: ContextMenuGroup[] = [{items: [{id: 'copy', label: 'Copy', onSelect: vi.fn()}]}]
+  render(<><ContextMenu groups={groups} accessibleLabel="Actions"><button>Target</button></ContextMenu><p>Outside</p></>)
+  const target = screen.getByRole('button', {name: 'Target'})
+  // A browser focuses a focusable target on the press that precedes the context menu event.
+  target.focus()
+  if (opening === 'keyboard') fireEvent.keyDown(target, {key: 'F10', shiftKey: true})
+  else fireEvent.contextMenu(target, {clientX: 40, clientY: 60})
+  expect(screen.getByRole('menuitem', {name: 'Copy'})).toHaveFocus()
+  if (closing === 'Escape') fireEvent.keyDown(screen.getByRole('menu'), {key: 'Escape'})
+  else if (closing === 'item selection') fireEvent.click(screen.getByRole('menuitem', {name: 'Copy'}))
+  else {
+    fireEvent.mouseDown(screen.getByText('Outside'))
+    // The browser's own order: microtasks queued by the listener run first, then the press's default
+    // action moves focus off the menu onto the unfocusable target, which leaves it on <body>.
+    await Promise.resolve()
+    ;(document.activeElement as HTMLElement | null)?.blur()
+  }
+  await new Promise(done => setTimeout(done, 0))
+  expect(screen.queryByRole('menu')).toBeNull()
+  expect(target).toHaveFocus()
+})
+
+// T-943 review 3: a close gives focus back only if it is still where the menu left it. An item whose
+// action moves focus (an inline editor here) keeps it there, after either kind of open, as React Aria's
+// FocusScope restoreFocus does.
+it.each(opens)('a %s-opened menu leaves focus where an item action moved it', async opening => {
+  if (caseId) return
+  const groups: ContextMenuGroup[] = [{items: [{id: 'rename', label: 'Rename', onSelect: () => screen.getByRole('textbox', {name: 'Editor'}).focus()}]}]
+  render(<><ContextMenu groups={groups} accessibleLabel="Actions"><button>Target</button></ContextMenu><input aria-label="Editor" /></>)
+  const target = screen.getByRole('button', {name: 'Target'})
+  target.focus()
+  if (opening === 'keyboard') fireEvent.keyDown(target, {key: 'F10', shiftKey: true})
+  else fireEvent.contextMenu(target, {clientX: 40, clientY: 60})
+  if (opening === 'keyboard') fireEvent.keyDown(screen.getByRole('menu'), {key: 'Enter'})
+  else fireEvent.click(screen.getByRole('menuitem', {name: 'Rename'}))
+  await new Promise(done => setTimeout(done, 0))
+  expect(screen.queryByRole('menu')).toBeNull()
+  expect(screen.getByRole('textbox', {name: 'Editor'})).toHaveFocus()
+})
+
+it('a close whose opener left the document returns focus to the trigger instead', async () => {
+  if (caseId) return
+  const groups: ContextMenuGroup[] = [{items: [{id: 'copy', label: 'Copy', onSelect: vi.fn()}]}]
+  render(<ContextMenu groups={groups} accessibleLabel="Actions"><button>Target</button></ContextMenu>)
+  // An opener outside React's tree, so removing it mid-menu is the host's doing, not React's.
+  const opener = document.body.appendChild(Object.assign(document.createElement('button'), {textContent: 'Opener'}))
+  opener.focus()
+  fireEvent.contextMenu(screen.getByRole('button', {name: 'Target'}), {clientX: 40, clientY: 60})
+  opener.remove()
+  fireEvent.keyDown(screen.getByRole('menu'), {key: 'Escape'})
+  await new Promise(done => setTimeout(done, 0))
+  expect(screen.getByRole('button', {name: 'Target'})).toHaveFocus()
+})
+
+// T-943 review 4: with nothing focused at open there is no opener, so no close moves focus. A menu
+// opened on unfocusable content leaves focus on <body> after Escape, a selection or an outside press,
+// instead of jumping (and scrolling) to the trigger's first focusable element.
+it.each(closes)('a menu opened while nothing had focus leaves focus on <body> after %s', async closing => {
+  if (caseId) return
+  const groups: ContextMenuGroup[] = [{items: [{id: 'copy', label: 'Copy', onSelect: vi.fn()}]}]
+  render(<><ContextMenu groups={groups} accessibleLabel="Actions"><div><span>Row text</span><button>Edit row 1</button></div></ContextMenu><p>Outside</p></>)
+  ;(document.activeElement as HTMLElement | null)?.blur()
+  expect(document.activeElement).toBe(document.body)
+  fireEvent.contextMenu(screen.getByText('Row text'), {clientX: 40, clientY: 60})
+  if (closing === 'Escape') fireEvent.keyDown(screen.getByRole('menu'), {key: 'Escape'})
+  else if (closing === 'item selection') fireEvent.click(screen.getByRole('menuitem', {name: 'Copy'}))
+  else {
+    fireEvent.mouseDown(screen.getByText('Outside'))
+    await Promise.resolve()
+    ;(document.activeElement as HTMLElement | null)?.blur()
+  }
+  await new Promise(done => setTimeout(done, 0))
+  expect(screen.queryByRole('menu')).toBeNull()
+  expect(document.activeElement).toBe(document.body)
+})

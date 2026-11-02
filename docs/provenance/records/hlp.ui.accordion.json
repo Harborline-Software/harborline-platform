@@ -1,0 +1,29 @@
+{
+  "moduleId": "hlp.ui.accordion",
+  "legacySourceHashes": {
+    "packages/ui-react/src/components/layout/Accordion.tsx": "379325591a366284073725bab9c14e9f6ca28fa36259096862cebf4787e1f96e"
+  },
+  "phase4Evidence": "specs/modules/ui/hlp.ui.accordion/interface.yaml",
+  "sourceExtracted": true,
+  "sourceState": "Interface revision 1 preserves the exact pinned hlp.ui.accordion source surface and proves every registered projection through native, shared-conformance, package-only, and applicable gallery/performance gates.",
+  "contentHashes": {
+    "conformance/hlp.ui.accordion/fixtures.yaml": "c4f2d249d2ed95b834732b8b493e75e9927108525a0fe5423eb399f56583cd38",
+    "conformance/hlp.ui.accordion/quality-fixtures.yaml": "8f384da1dbd7075d2b7a5482babcb1bef91c46c38e1b702a693b09b90cf3bfb6",
+    "conformance/hlp.ui.accordion/runners/run-shared.mjs": "5905a75e9a0221b1047ce41f6ff90ca72822a11388d24660e54db3f2b8bd7b1b",
+    "projections/blazor/ui/hlp.ui.accordion/AccordionTypes.cs": "64e2a11e22438d29e29533f2ea8d07c8d7d1e420c4201d0b999c70e266d225e7",
+    "projections/blazor/ui/hlp.ui.accordion/HarborlineAccordion.razor": "71bbc1ad05bde38741d796e26bc50c7fe6318588a0b944c6def69c912e42c81f",
+    "projections/react/ui/hlp.ui.accordion/src/Accordion.tsx": "a0578a78b296ffbdfcf09878e9db08b3ca9af56ab33ef1f0f43e3a48e064f0f0",
+    "projections/react/ui/hlp.ui.accordion/src/__tests__/Accordion.conformance.test.tsx": "a4ecbb68610f15593c9762b2c719e21e340614887ab5b7abf3fbc68259d2cb38",
+    "projections/react/ui/hlp.ui.accordion/src/__tests__/Accordion.native.test.tsx": "7cb40067c11e043243943e59d40c2aaee586c0680043bccd8a8d13a95da99eb6",
+    "projections/react/ui/hlp.ui.accordion/src/__tests__/fixtures.ts": "aa456914e4b52b1f23099a97b11e87d9ae55994d6f23326018374143bdc1d4f7",
+    "projections/react/ui/hlp.ui.accordion/src/index.ts": "5fb5138daa9f826f3622334bf371c8651d4b3f19991f552a6362391165646bc6",
+    "projections/react/ui/hlp.ui.accordion/src/test-setup.ts": "977afde26bba6a51325908cd7713cbfdc87d18f06b78b237c8f364c44864b7de",
+    "projections/react/ui/hlp.ui.accordion/tsconfig.build.json": "17d3ddb42890d6f74829f89a271466f704a11a370c2862f6531cba88f13cf095",
+    "projections/react/ui/hlp.ui.accordion/vitest.config.ts": "846aab8c29678bdb1560e32ba9355fbf8f24086c16a11cfe3758e916b834a739",
+    "specs/modules/ui/hlp.ui.accordion/interface.yaml": "0d07bc5f1623c52ba16216c2ac55c7d032e2ebe8701e98c3c83122315678cb39",
+    "specs/modules/ui/hlp.ui.accordion/quality.yaml": "2ec7de267dfcf361f282e53d65193ba2eb60072c1ee195436e1d973b3678b741",
+    "specs/modules/ui/hlp.ui.accordion/scenarios.json": "579bdd9c3dc82db1204651182f96e86bca07a2d47b47d013a6cac25a0b0d513f",
+    "specs/modules/ui/hlp.ui.accordion/style.css": "a952d1e42b161308ff647c7e132b14dcf4dc35acf471ede2a93a7aa41c909543"
+  },
+  "nextGate": "Retain this conformant aggregate contribution while HLF-052 advances to the next Carrier-essential dependency wave."
+}

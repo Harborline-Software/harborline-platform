@@ -1,0 +1,57 @@
+{
+  "moduleId": "hlp.ui.card",
+  "module": {
+    "interface": {
+      "path": "specs/modules/ui/hlp.ui.card/interface.yaml",
+      "revision": 1
+    },
+    "moduleKind": "non-interactive-component",
+    "presentation": {
+      "disposition": "visual"
+    },
+    "qualityProfile": {
+      "path": "specs/modules/ui/hlp.ui.card/quality.yaml",
+      "revision": 1
+    },
+    "owner": "platform-ui",
+    "dependencies": [
+      "hlp.ui.cn"
+    ],
+    "status": "extracted-candidate",
+    "depth": {
+      "disposition": "deep-module",
+      "deletionTest": "PASS",
+      "redistributedComplexity": [
+        "closed appearance, padding, orientation, and logical-axis separator rules repeated across content surfaces",
+        "composable header/title/content regions and exact heading semantics independently drifting between renderers"
+      ]
+    },
+    "projections": {
+      "react": {
+        "role": "adapter",
+        "seam": "ui.card.framework",
+        "path": "projections/react/ui/hlp.ui.card",
+        "status": "conformant",
+        "packageContribution": "@harborline-software/ui-react",
+        "conformanceRunner": "conformance/hlp.ui.card/runners/run-shared.mjs"
+      },
+      "blazor": {
+        "role": "adapter",
+        "seam": "ui.card.framework",
+        "path": "projections/blazor/ui/hlp.ui.card",
+        "status": "conformant",
+        "packageContribution": "Harborline.UIAdapters.Blazor",
+        "conformanceRunner": "conformance/hlp.ui.card/runners/run-shared.mjs"
+      }
+    }
+  },
+  "seams": {
+    "ui.card.framework": {
+      "status": "conformant",
+      "adapters": [
+        "react",
+        "blazor"
+      ]
+    }
+  }
+}

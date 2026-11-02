@@ -1,0 +1,48 @@
+{
+  "moduleId": "hlp.blocks.relative-chains",
+  "module": {
+    "interface": {
+      "path": "specs/modules/blocks/hlp.blocks.relative-chains/interface.yaml",
+      "revision": 2
+    },
+    "moduleKind": "runtime",
+    "presentation": {
+      "disposition": "not-applicable",
+      "rationale": "The generator and due-source adapter own no presentation surface."
+    },
+    "owner": "platform-blocks",
+    "dependencies": [
+      "hlp.foundation.scheduling"
+    ],
+    "status": "draft-native-green",
+    "depth": {
+      "disposition": "deep-module",
+      "deletionTest": "PASS",
+      "redistributedComplexity": [
+        "versioned occurrence allocation, deterministic graph expansion, and supersession reconciliation would otherwise be reimplemented by each event-anchored scheduling consumer",
+        "current-vs-superseded resolution and exact-version completion projection would otherwise fork across queue, reminder, audit, and reconciliation consumers"
+      ]
+    },
+    "projections": {
+      "dotnet": {
+        "role": "implementation",
+        "path": "projections/dotnet/blocks/hlp.blocks.relative-chains",
+        "status": "preview",
+        "artifact": {
+          "type": "nuget",
+          "id": "Harborline.Blocks.RelativeChains",
+          "assembly": "Harborline.Blocks.RelativeChains",
+          "manifest": "projections/dotnet/blocks/hlp.blocks.relative-chains/Harborline.Blocks.RelativeChains.csproj",
+          "dependencies": [
+            "Harborline.Foundation.Scheduling"
+          ],
+          "identityAuthority": "Harborline",
+          "producerRepository": "harborline-platform",
+          "distribution": "internal-only",
+          "candidateRole": "new-bounded-package",
+          "registryAvailable": false
+        }
+      }
+    }
+  }
+}
