@@ -269,6 +269,18 @@ describe('useScrollAffordance revision-2 native shared-fixture coverage', () => 
     expect(result.current.srMessage).toBe('Scrollable region, 80% scrolled, use arrow keys to scroll')
   })
 
+  it('[interface revision 2] a new observation drops the previous message (T-1135)', () => {
+    // Oracle: the revision-2 invariant (a new observation starts from load) and the en-US default-catalog literal.
+    const element = elementWithGeometry({ scrollSize: 700, clientSize: 300, position: 0 })
+    const ref = { current: element }
+    const { result, rerender } = renderHook(({ itemCount }) => useScrollAffordance(ref, { itemCount }), { initialProps: { itemCount: 7 as number | undefined } })
+    scrollTo(element, 100)
+    expect(result.current.srMessage).toBe('Scrollable, showing 2 to 4 of 7')
+    rerender({ itemCount: undefined })
+    act(() => { vi.runAllTimers() })
+    expect(result.current).toMatchObject({ canScroll: true, srMessage: '' })
+  })
+
   it('[scroll-affordance.projection-equivalence] retains the frozen cross-projection marker', () => {
     expect(fixture(sharedCases, 'scroll-affordance.projection-equivalence').expected).toEqual({ typescriptEqualsDotnet: true })
   })

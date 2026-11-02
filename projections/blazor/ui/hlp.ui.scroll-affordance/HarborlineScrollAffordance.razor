@@ -62,6 +62,8 @@
       // The host switched axis (a Scheduler view switch): watch the new axis. Connecting measures at once.
       remeasure = false;
       connectedOrientation = Orientation;
+      announcer.Restart();
+      state = state with { AnnouncementKey = null, AnnouncementArguments = new Dictionary<string, int>() };
       await DisposeConnectionAsync();
       connection = await module.InvokeAsync<IJSObjectReference>("connect", host, callback, Orientation == ScrollAffordanceOrientation.Horizontal, null);
     }

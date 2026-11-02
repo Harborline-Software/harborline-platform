@@ -105,6 +105,25 @@ public sealed class ScrollAffordanceComponentTests : BunitContext
         Assert.Equal("Scrollable, showing 5 to 6 of 8", Status());
     }
 
+    // T-1135 review: a host-driven axis change starts a new observation, so the old axis's message is dropped
+    // and the new axis's first measurement is a quiet baseline. Oracle: the revision-2 invariant; literals
+    // from the en-US default catalog.
+    [Fact]
+    public async Task AnAxisChangeWithoutARequestStartsAQuietObservation()
+    {
+        var cut = Render<HarborlineScrollAffordance>(p => p.Add(x => x.AriaLabel, "Items"));
+        string Status() => cut.Find(".hl-scroll-affordance__status").TextContent;
+        await cut.InvokeAsync(() => cut.Instance.OnMeasuredAsync(new(0, 700, 300)));
+        await cut.InvokeAsync(() => cut.Instance.OnMeasuredAsync(new(400, 700, 300)));
+        Assert.Equal("Scrollable region, end reached", Status());
+
+        cut.Render(p => p.Add(x => x.Orientation, ScrollAffordanceOrientation.Vertical));
+        await cut.InvokeAsync(() => cut.Instance.OnMeasuredAsync(new(0, 900, 300)));
+        Assert.Equal("", Status());
+        await cut.InvokeAsync(() => cut.Instance.OnMeasuredAsync(new(300, 900, 300)));
+        Assert.Equal("Scrollable region, 50% scrolled, use arrow keys to scroll", Status());
+    }
+
     private async Task AssertLiveStatusIsLocalizedAsync()
     {
         using var fixture = System.Text.Json.JsonDocument.Parse(SharedFixtureBatch.Current!);

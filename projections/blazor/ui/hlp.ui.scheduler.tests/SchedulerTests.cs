@@ -33,6 +33,25 @@ public sealed class SchedulerTests : BunitContext
         await region.InvokeAsync(() => region.Instance.OnMeasuredAsync(new(0, 900, 500)));
         Assert.Equal("Scrollable region, more content available, use arrow keys to scroll", Status());
     }
+    // T-1135 review: a view switch that changes the scroll axis (Week is horizontal, Agenda vertical) reconnects
+    // the region as a new observation and still announces, because the user's request survives the restart.
+    [Fact]
+    public async Task AViewSwitchAcrossAxesStillAnnounces()
+    {
+        var cut = Render<HarborlineScheduler>(p => p.Add(x => x.Data, Events).Add(x => x.DefaultDate, Anchor).Add(x => x.Now, Anchor));
+        var region = cut.FindComponent<Harborline.UIAdapters.Blazor.Components.Layout.HarborlineScrollAffordance>();
+        string Status() => cut.Find(".hl-scroll-affordance__status").TextContent;
+        await region.InvokeAsync(() => region.Instance.OnMeasuredAsync(new(0, 1400, 1200)));
+        await region.InvokeAsync(() => region.Instance.OnMeasuredAsync(new(200, 1400, 1200)));
+        Assert.Equal("Scrollable, showing 2 to 7 of 7", Status());
+
+        cut.FindAll("[data-toolbar-views] button").Single(button => button.TextContent == "Agenda").Click();
+        Assert.Equal("agenda", cut.Find(".hl-scheduler").GetAttribute("data-hl-view"));
+        // The new axis's first measurement is not a scroll (the sizes changed), so only the surviving request
+        // can announce it.
+        await region.InvokeAsync(() => region.Instance.OnMeasuredAsync(new(0, 900, 600)));
+        Assert.Equal("Scrollable region, more content available, use arrow keys to scroll", Status());
+    }
     [Fact] public void NavigationAndTodayRequestDates() { var requests = new List<DateTimeOffset>(); var cut = Render<HarborlineScheduler>(p => p.Add(x => x.Data, Events).Add(x => x.DefaultDate, Anchor).Add(x => x.Now, Anchor).Add(x => x.DateChanged, value => requests.Add(value))); cut.Find("[aria-label=Next]").Click(); cut.Find("[aria-label=Today]").Click(); Assert.Equal(2, requests.Count); Assert.Equal(Anchor.AddDays(7), requests[0]); }
     [Fact] public void RecurrenceParsesExpandsAndCaps() { var rule = SchedulerRecurrence.ParseRRule("FREQ=WEEKLY;BYDAY=MO,WE,FR;COUNT=6"); Assert.NotNull(rule); var master = new SchedulerEvent("r", "Round", new(2026, 8, 10, 9, 0, 0, TimeSpan.Zero), new(2026, 8, 10, 10, 0, 0, TimeSpan.Zero), RecurrenceRule: "FREQ=DAILY"); var expanded = SchedulerRecurrence.Expand(master, master.Start, master.Start.AddYears(20)); Assert.Equal(SchedulerRecurrence.OccurrenceCap, expanded.Count); Assert.All(expanded, item => Assert.Equal("r", item.RecurrenceId)); }
     [Theory, Trait("ModuleConformance", "hlp.ui.scheduler")] [MemberData(nameof(SharedFixtureBatch.Cases), "hlp.ui.scheduler", MemberType = typeof(SharedFixtureBatch))]

@@ -127,6 +127,18 @@ internal sealed class ScrollAffordanceAnnouncer
     /// <summary>Makes the next measurement announce, whatever moved.</summary>
     public void Request() => requested = true;
 
+    /// <summary>
+    /// Starts a new observation (the host changed the region's axis): the next measurement is a quiet baseline
+    /// and the previous axis's message is dropped. A pending request survives, so a user's view switch still
+    /// announces.
+    /// </summary>
+    public void Restart()
+    {
+        previous = null;
+        key = null;
+        arguments = NoArguments;
+    }
+
     /// <summary>Resolves the measurement and returns its state carrying the announcement the rule allows.</summary>
     public ScrollAffordanceState Observe(ScrollAffordanceMeasurement next, ScrollAffordanceOptions options)
     {

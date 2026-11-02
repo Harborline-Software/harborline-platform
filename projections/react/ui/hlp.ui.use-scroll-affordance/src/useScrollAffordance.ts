@@ -146,8 +146,12 @@ export function useScrollAffordance(
     const element = ref.current
     if (!element) return
 
-    // A new observation (a new element or axis) starts from load again: its first measurement is quiet.
+    // A new observation (a new element, axis or item count) starts from load again: its first measurement is
+    // a quiet baseline, and the previous observation's message and pending announcement are dropped.
     previousRef.current = undefined
+    if (debounceRef.current !== undefined) clearTimeout(debounceRef.current)
+    debounceRef.current = undefined
+    setAnnouncement(undefined)
     measure()
     element.addEventListener('scroll', measure, { passive: true })
     const observer = typeof ResizeObserver === 'undefined' ? undefined : new ResizeObserver(measure)
