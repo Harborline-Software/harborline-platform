@@ -14,8 +14,8 @@ public sealed class AppShellRev6FrameTests : BunitContext
     public AppShellRev6FrameTests()
     {
         JSInterop.Mode = JSRuntimeMode.Loose;
-        JSInterop.SetupModule("./_content/Harborline.UIAdapters.Blazor/app-shell-rev6-frame.mjs");
-        JSInterop.SetupModule("./_content/Harborline.UIAdapters.Blazor/app-shell-rev6-focus.mjs");
+        JSInterop.SetupModule("./_content/Harborline.UIAdapters.Blazor/app-shell-rev6-frame.js");
+        JSInterop.SetupModule("./_content/Harborline.UIAdapters.Blazor/app-shell-rev6-focus.js");
         JSInterop.SetupModule("./_content/Harborline.UIAdapters.Blazor/data-grid-component.js");
     }
 
@@ -262,6 +262,18 @@ public sealed class AppShellRev6FrameTests : BunitContext
         Assert.True(action.HasAttribute("disabled"));
         Assert.Equal("Permission is required.", action.GetAttribute("title"));
         Assert.Equal("Permission is required.", cut.Find("#" + action.GetAttribute("aria-describedby")).TextContent);
+    }
+
+    // T-1131: hosts such as MAUI BlazorWebView serve .mjs static web assets without a JavaScript content type, which
+    // makes the browser refuse the module, so the frame and its tab surface import their modules as .js.
+    [Fact]
+    public void Frame_and_tab_surface_import_their_modules_as_js()
+    {
+        Frame(View(), [], 1600);
+        var imported = JSInterop.Invocations["import"].Select(call => call.Arguments[0] as string).ToArray();
+        Assert.Contains("./_content/Harborline.UIAdapters.Blazor/app-shell-rev6-frame.js", imported);
+        Assert.Contains("./_content/Harborline.UIAdapters.Blazor/app-shell-rev6-focus.js", imported);
+        Assert.DoesNotContain(imported, path => path?.EndsWith(".mjs", StringComparison.Ordinal) == true);
     }
 
     private IRenderedComponent<HarborlineAppShellRev6Frame> Frame(AppShellRev6FramePresentation view, List<AppShellRev6FrameIntent> requests, double? width) =>

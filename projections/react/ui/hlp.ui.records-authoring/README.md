@@ -24,6 +24,14 @@ This is a bounded subset of T618. It covers local editing only, not all of T618.
   A policy the host draft already declares cannot be removed (its checkbox is disabled): the producer has no "off"
   value, and save carries an omitted declaration forward (ADR-0097). On a draft not yet created, creation sets a
   policy that is absent or null, so its box shows checked and disabled with a note. An empty or non-string header value shows as not set.
+- Creates and edits reference fields (interface revision 4): "Make field N a reference" on a field with neither a
+  binding nor a reference, the target kind (Record type, with the free-text target type, or Class, chosen only from
+  host-supplied `classOptions`), cardinality, delete behaviour and the parent flag, and "Remove reference from field N".
+  Choosing a target kind removes the other target, because a reference names exactly one. `pin` and
+  `required_trait_id` are carried unchanged.
+- Treats malformed non-string retention, field key, display name, kind and version values as absent for display in both
+  lanes (interface revision 5). A non-array `fields` member shows no fields. Unrelated edits preserve these raw values;
+  an explicit edit replaces only its member. Field operations use the original array indices and preserve malformed entries.
 - Shows each host-supplied diagnostic's target, and the host's warnings in their own list after the note "Warnings do
   not block publication." (interface revision 2).
 - Kind and version can only be chosen from host-supplied `kindOptions`, and the editor never picks one for you. A
@@ -45,7 +53,7 @@ This is a bounded subset of T618. It covers local editing only, not all of T618.
 - It does not compute, reorder, merge or invent diagnostics or producer refusals.
 - It does not edit `binding.constraints`. The existing Boolean `required` floor is carried through, with no checkbox.
   It does not author or serialize required conditions, and it writes no `null` or `false` sentinel.
-- It does not author governance, defaults provenance, traits, new bindings or new references.
+- It does not author governance, defaults provenance, traits or new bindings.
   Those members are preserved, but this editor does not claim to cover them.
 - It applies no compatibility clearing or defaults materialization when a kind or version changes.
 - It reads no permission names.
@@ -62,6 +70,7 @@ This is a bounded subset of T618. It covers local editing only, not all of T618.
 | P3 | A local date 1.0.0 → 2.0.0 change, with no clearing; the supplied refusal renders | Capability validation |
 | P4 | Read-only emits nothing; the supplied list is kept exactly | Producer name-before-kind ordering |
 
-Tests: `src/RecordTypeDraftEditor.test.tsx` (React, `npm run test:records-authoring` from `hlp.ui.button`) and
-`hlp.ui.records-authoring.tests/RecordsDraftTests.cs` (Blazor aggregate tests). Neither has been run yet. Kind parameter
-editing has no fixture case, because no source case binds a non-empty parameter.
+Tests: `src/RecordTypeDraftEditor.test.tsx` (React, `pnpm run test:records-authoring` from
+`projections/react/ui/hlp.ui.button`) and `projections/blazor/ui/hlp.ui.records-authoring.tests/RecordsDraftTests.cs`
+(included by `projections/blazor/ui/hlp.ui.button.tests/Harborline.UIAdapters.Blazor.Tests.csproj`). Kind parameter editing
+has no fixture case, because no source case binds a non-empty parameter.
