@@ -1,0 +1,58 @@
+{
+  "moduleId": "hlp.ui.numeric-text-box",
+  "module": {
+    "interface": {
+      "path": "specs/modules/ui/hlp.ui.numeric-text-box/interface.yaml",
+      "revision": 1
+    },
+    "moduleKind": "interactive-component",
+    "presentation": {
+      "disposition": "visual"
+    },
+    "qualityProfile": {
+      "path": "specs/modules/ui/hlp.ui.numeric-text-box/quality.yaml",
+      "revision": 1
+    },
+    "owner": "platform-ui",
+    "dependencies": [
+      "hlp.ui.default-strings",
+      "hlp.ui.locale-provider"
+    ],
+    "status": "gap-implemented",
+    "depth": {
+      "disposition": "deep-module",
+      "deletionTest": "PASS",
+      "redistributedComplexity": [
+        "nullable controlled and uncontrolled state, raw edit buffering, strict parsing, clamping, stepping, and formatting repeated by every numeric editor",
+        "callback deduplication, c0 and p0 correctness, readonly safety, localization, RTL, and appearance parity drifting across providers"
+      ]
+    },
+    "projections": {
+      "react": {
+        "role": "adapter",
+        "seam": "ui.numeric-text-box.framework",
+        "path": "projections/react/ui/hlp.ui.numeric-text-box",
+        "status": "conformant",
+        "packageContribution": "@harborline-software/ui-react",
+        "conformanceRunner": "conformance/hlp.ui.numeric-text-box/runners/run-shared.mjs"
+      },
+      "blazor": {
+        "role": "adapter",
+        "seam": "ui.numeric-text-box.framework",
+        "path": "projections/blazor/ui/hlp.ui.numeric-text-box",
+        "status": "conformant",
+        "packageContribution": "Harborline.UIAdapters.Blazor",
+        "conformanceRunner": "conformance/hlp.ui.numeric-text-box/runners/run-shared.mjs"
+      }
+    }
+  },
+  "seams": {
+    "ui.numeric-text-box.framework": {
+      "status": "conformant",
+      "adapters": [
+        "react",
+        "blazor"
+      ]
+    }
+  }
+}

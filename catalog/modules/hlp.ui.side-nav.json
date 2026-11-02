@@ -1,0 +1,61 @@
+{
+  "moduleId": "hlp.ui.side-nav",
+  "module": {
+    "interface": {
+      "path": "specs/modules/ui/hlp.ui.side-nav/interface.yaml",
+      "revision": 1
+    },
+    "moduleKind": "interactive-component",
+    "presentation": {
+      "disposition": "visual"
+    },
+    "qualityProfile": {
+      "path": "specs/modules/ui/hlp.ui.side-nav/quality.yaml",
+      "revision": 1
+    },
+    "owner": "platform-ui",
+    "dependencies": [
+      "hlp.ui.side-nav-group",
+      "hlp.ui.tooltip",
+      "hlp.ui.use-can-show-master-detail",
+      "hlp.ui.use-media-query",
+      "hlp.ui.use-outside-click"
+    ],
+    "status": "gap-implemented",
+    "depth": {
+      "disposition": "deep-module",
+      "deletionTest": "PASS",
+      "redistributedComplexity": [
+        "recursive groups, active identity, disclosure state, navigation and activation policy repeated by every application rail",
+        "collapsed accessible naming, independent accessories, touch targets, RTL indentation, and provider replacement drifting across projections"
+      ]
+    },
+    "projections": {
+      "react": {
+        "role": "adapter",
+        "seam": "ui.side-nav.framework",
+        "path": "projections/react/ui/hlp.ui.side-nav",
+        "status": "conformant",
+        "packageContribution": "@harborline-software/ui-react",
+        "conformanceRunner": "conformance/hlp.ui.side-nav/runners/run-shared.mjs"
+      },
+      "blazor": {
+        "role": "adapter",
+        "seam": "ui.side-nav.framework",
+        "path": "projections/blazor/ui/hlp.ui.side-nav",
+        "status": "conformant",
+        "packageContribution": "Harborline.UIAdapters.Blazor",
+        "conformanceRunner": "conformance/hlp.ui.side-nav/runners/run-shared.mjs"
+      }
+    }
+  },
+  "seams": {
+    "ui.side-nav.framework": {
+      "status": "conformant",
+      "adapters": [
+        "react",
+        "blazor"
+      ]
+    }
+  }
+}

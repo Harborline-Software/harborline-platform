@@ -15,11 +15,12 @@
          data-hl-module="hlp.ui.window" data-window-state="@StateName" data-state="@StateName"
          class="@CombineClasses("hl-window", EffectiveState == HarborlineWindowState.Default ? null : $"hl-window--{StateName}")"
          style="@CombineStyles(WindowStyle)" @onkeydown="HandleWindowKeyAsync" @attributes="AdditionalAttributes">
-    <header @ref="titleBar" class="@CombineClasses("hl-window__title-bar", Draggable && EffectiveState == HarborlineWindowState.Default ? "hl-window__title-bar--draggable" : null)"
-            tabindex="@(Draggable && EffectiveState == HarborlineWindowState.Default ? "0" : null)"
+    <header @ref="titleBar" class="@CombineClasses("hl-window__title-bar", Movable ? "hl-window__title-bar--draggable" : null)"
+            role="@(Movable ? "group" : null)" aria-label="@(Movable ? MoveLabel : null)" aria-description="@(Movable ? MoveDescriptionLabel : null)"
+            tabindex="@(Movable ? "0" : null)"
             @onkeydown="HandleTitleKeyAsync" @ondblclick="ToggleMaximizeFromTitleAsync">
         <div id="@TitleId" class="hl-window__title">@Title</div>
-        <div class="hl-window__actions" @onpointerdown:stopPropagation="true">
+        <div class="hl-window__actions" @onpointerdown:stopPropagation="true" @onkeydown="NoteActionEvent" @ondblclick="NoteActionEvent">
             @ActionsBar
             @if (Minimizable)
             {
@@ -39,15 +40,14 @@
         <div class="hl-window__body">@ChildContent</div>
         @if (Resizable && EffectiveState == HarborlineWindowState.Default)
         {
-            <div class="hl-window__resize hl-window__resize--width" role="separator" tabindex="0" aria-orientation="vertical"
-                 aria-label="@ResizeWidthLabel" aria-valuemin="@MinWidth" aria-valuemax="10000" aria-valuenow="@size.Width"
-                 data-resize-edge="e" @onkeydown="HandleEastResizeKeyAsync"></div>
+            @* The corner resizes both axes by pointer only; the keyboard has one handle per axis, height then width. *@
+            <div class="hl-window__resize hl-window__resize--corner" aria-hidden="true" data-resize-edge="se"></div>
             <div class="hl-window__resize hl-window__resize--height" role="separator" tabindex="0" aria-orientation="horizontal"
                  aria-label="@ResizeHeightLabel" aria-valuemin="@MinHeight" aria-valuemax="10000" aria-valuenow="@size.Height"
                  data-resize-edge="s" @onkeydown="HandleSouthResizeKeyAsync"></div>
-            <div class="hl-window__resize hl-window__resize--corner" role="separator" tabindex="0"
-                 aria-label="@ResizeBothLabel" aria-valuemin="@MinWidth" aria-valuenow="@size.Width"
-                 data-resize-edge="se" @onkeydown="HandleCornerResizeKeyAsync"></div>
+            <div class="hl-window__resize hl-window__resize--width" role="separator" tabindex="0" aria-orientation="vertical"
+                 aria-label="@ResizeWidthLabel" aria-valuemin="@MinWidth" aria-valuemax="10000" aria-valuenow="@size.Width"
+                 data-resize-edge="e" @onkeydown="HandleEastResizeKeyAsync"></div>
         }
     }
 </section>
@@ -87,13 +87,16 @@
     [Parameter, EditorRequired] public string RestoreLabel { get; set; } = string.Empty;
     [Parameter, EditorRequired] public string ResizeWidthLabel { get; set; } = string.Empty;
     [Parameter, EditorRequired] public string ResizeHeightLabel { get; set; } = string.Empty;
-    [Parameter, EditorRequired] public string ResizeBothLabel { get; set; } = string.Empty;
+    // The movable header's caller-localized name and description; there is no built-in fallback.
+    [Parameter, EditorRequired] public string MoveLabel { get; set; } = string.Empty;
+    [Parameter, EditorRequired] public string MoveDescriptionLabel { get; set; } = string.Empty;
 
     private readonly string instanceId = $"hl-window-{Guid.NewGuid():N}";
     private HarborlineWindowState localState;
     private WindowPosition position = new(80, 80);
     private WindowSize size = new(400, 300);
     private bool initialized;
+    private bool eventFromActions;
     private ElementReference window;
     private ElementReference titleBar;
     private ElementReference portal;
@@ -102,6 +105,7 @@
     private DotNetObjectReference<HarborlineWindow>? callback;
     private HarborlineWindowState EffectiveState => State ?? localState;
     private string TitleId => $"{instanceId}-title";
+    private bool Movable => Draggable && EffectiveState == HarborlineWindowState.Default;
     private string StateName => EffectiveState.ToString().ToLowerInvariant();
     private string WindowStyle => EffectiveState == HarborlineWindowState.Maximized
         ? "position:fixed;z-index:1000;inset:0;width:100vw;height:100vh"
@@ -122,7 +126,8 @@
             throw new InvalidOperationException("accessible-name-required");
         if ((Closable && string.IsNullOrWhiteSpace(CloseLabel)) || (Minimizable && (string.IsNullOrWhiteSpace(MinimizeLabel) || string.IsNullOrWhiteSpace(RestoreLabel))) ||
             (Maximizable && (string.IsNullOrWhiteSpace(MaximizeLabel) || string.IsNullOrWhiteSpace(RestoreLabel))) ||
-            (Resizable && (string.IsNullOrWhiteSpace(ResizeWidthLabel) || string.IsNullOrWhiteSpace(ResizeHeightLabel) || string.IsNullOrWhiteSpace(ResizeBothLabel))))
+            (Resizable && (string.IsNullOrWhiteSpace(ResizeWidthLabel) || string.IsNullOrWhiteSpace(ResizeHeightLabel))) ||
+            (Draggable && (string.IsNullOrWhiteSpace(MoveLabel) || string.IsNullOrWhiteSpace(MoveDescriptionLabel))))
             throw new InvalidOperationException("localized-control-labels-required");
     }
 
@@ -145,15 +150,29 @@
     }
     private Task ToggleMinimizeAsync() => ChangeStateAsync(EffectiveState == HarborlineWindowState.Minimized ? HarborlineWindowState.Default : HarborlineWindowState.Minimized);
     private Task ToggleMaximizeAsync() => ChangeStateAsync(EffectiveState == HarborlineWindowState.Maximized ? HarborlineWindowState.Default : HarborlineWindowState.Maximized);
-    private Task ToggleMaximizeFromTitleAsync() => DoubleClickStateChange && EffectiveState != HarborlineWindowState.Minimized ? ToggleMaximizeAsync() : Task.CompletedTask;
+    private Task ToggleMaximizeFromTitleAsync()
+    {
+        if (TakeActionEvent()) return Task.CompletedTask;
+        return DoubleClickStateChange && EffectiveState != HarborlineWindowState.Minimized ? ToggleMaximizeAsync() : Task.CompletedTask;
+    }
     private Task CloseAsync() => Closable ? Closed.InvokeAsync() : Task.CompletedTask;
     private async Task HandleWindowKeyAsync(KeyboardEventArgs args)
     {
-        if (args.Key != "Escape" || !Closable) return;
+        if (args.Key != "Escape") return;
         if (EffectiveState == HarborlineWindowState.Maximized) await ChangeStateAsync(HarborlineWindowState.Default); else await CloseAsync();
+    }
+    // Keys and double clicks on an action still bubble, so Escape and the modal Tab trap see them, but the title bar
+    // ignores them: an action never moves or maximizes the window.
+    private void NoteActionEvent() => eventFromActions = true;
+    private bool TakeActionEvent()
+    {
+        var fromActions = eventFromActions;
+        eventFromActions = false;
+        return fromActions;
     }
     private async Task HandleTitleKeyAsync(KeyboardEventArgs args)
     {
+        if (TakeActionEvent()) return;
         if (!Draggable || EffectiveState != HarborlineWindowState.Default || args.Key is not ("ArrowLeft" or "ArrowRight" or "ArrowUp" or "ArrowDown")) return;
         var step = args.ShiftKey ? 50 : 10;
         var top = position.Top + (args.Key == "ArrowDown" ? step : args.Key == "ArrowUp" ? -step : 0);
@@ -170,10 +189,8 @@
     }
     private Task HandleEastResizeKeyAsync(KeyboardEventArgs args) => HandleResizeKeyAsync(args, "e");
     private Task HandleSouthResizeKeyAsync(KeyboardEventArgs args) => HandleResizeKeyAsync(args, "s");
-    private Task HandleCornerResizeKeyAsync(KeyboardEventArgs args) => HandleResizeKeyAsync(args, "se");
     [JSInvokable] public Task MoveFromJavaScriptAsync(double top, double left) => ApplyPositionAsync(top, left);
     [JSInvokable] public Task ResizeFromJavaScriptAsync(double width, double height) => ApplySizeAsync(width, height);
-    [JSInvokable] public Task EscapeFromJavaScriptAsync() => HandleWindowKeyAsync(new KeyboardEventArgs { Key = "Escape" });
     private async Task ApplyPositionAsync(double top, double left)
     {
         if (DragBounds is not null)

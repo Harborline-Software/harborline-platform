@@ -112,7 +112,7 @@ export function run(executable, args, cwd = root, extraEnv = {}, budgetMs = step
   }
 }
 
-function removeCacheWithRetry(directory, dotnet, attempts = 6) {
+export function removeCacheWithRetry(directory, dotnet, attempts = 6) {
   let shutdownTried = false
   for (let attempt = 1; attempt <= attempts; attempt += 1) {
     try {
@@ -120,6 +120,12 @@ function removeCacheWithRetry(directory, dotnet, attempts = 6) {
       return
     } catch (error) {
       if (error?.code !== 'EPERM' && error?.code !== 'EBUSY') throw error
+      if (process.env.HARBORLINE_FORBID_GLOBAL_BUILD_SERVER_SHUTDOWN === '1') {
+        throw new Error(
+          `${directory} could not be removed (${error.code}). Global build-server shutdown is forbidden `
+          + 'by HARBORLINE_FORBID_GLOBAL_BUILD_SERVER_SHUTDOWN=1; no shutdown was attempted.',
+          { cause: error })
+      }
       // The holder is almost always the dotnet build server, which keeps handles under the NuGet
       // cache indefinitely -- so waiting longer never wins. Shut it down once, then keep retrying.
       // Confirmed by hand: `dotnet build-server shutdown` released the directory immediately after

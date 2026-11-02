@@ -1,0 +1,47 @@
+{
+  "moduleId": "hlp.ui.use-can-show-master-detail",
+  "module": {
+    "interface": {
+      "path": "specs/modules/ui/hlp.ui.use-can-show-master-detail/interface.yaml",
+      "revision": 2
+    },
+    "moduleKind": "runtime",
+    "presentation": {
+      "disposition": "not-applicable",
+      "rationale": "The form-factor policy selects responsive behavior and renders no standalone interface."
+    },
+    "qualityProfile": {
+      "path": "specs/modules/ui/hlp.ui.use-can-show-master-detail/quality.yaml",
+      "revision": 1
+    },
+    "owner": "platform-ui",
+    "dependencies": [
+      "hlp.ui.use-media-query"
+    ],
+    "status": "implemented-gate-model-green",
+    "depth": {
+      "disposition": "deep-module",
+      "deletionTest": "PASS",
+      "redistributedComplexity": [
+        "short-landscape mode precedence and tablet residual rules repeated in each responsive surface",
+        "touch, hover, master-detail, and builder split affordances drifting independently between browser and Blazor hosts"
+      ]
+    },
+    "projections": {
+      "react": {
+        "role": "implementation",
+        "path": "projections/react/ui/hlp.ui.use-can-show-master-detail",
+        "status": "conformant",
+        "packageContribution": "@harborline-software/ui-react",
+        "conformanceRunner": "conformance/hlp.ui.use-can-show-master-detail/runners/run-shared.mjs"
+      },
+      "dotnet": {
+        "role": "implementation",
+        "path": "projections/dotnet/foundation/hlp.ui.use-can-show-master-detail",
+        "status": "conformant",
+        "packageContribution": "Harborline.Foundation",
+        "conformanceRunner": "conformance/hlp.ui.use-can-show-master-detail/runners/run-shared.mjs"
+      }
+    }
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "moduleId": "hlp.ui.data-export-button",
+  "legacySourceHashes": {
+    "packages/ui-react/src/components/buttons/DataExportButton.tsx": "2f097715d4e4e5bd6a6ef9003d8ff69afadfc1bfa912e05cb284c4d5562f7564"
+  },
+  "phase4Evidence": "specs/modules/ui/hlp.ui.data-export-button/interface.yaml",
+  "sourceExtracted": true,
+  "sourceState": "Interface revision 1 preserves the exact pinned hlp.ui.data-export-button source surface and proves every registered projection through native, shared-conformance, package-only, and applicable gallery/performance gates.",
+  "contentHashes": {
+    "conformance/hlp.ui.data-export-button/fixtures.yaml": "d373875bf0f2b845cc8bac26a6b08f69e10242b6eec3351f4e30431e588711d7",
+    "conformance/hlp.ui.data-export-button/quality-fixtures.yaml": "46452e361abfb25db01fd7fe5c0663200e02df7690340908e4645be2886a424b",
+    "conformance/hlp.ui.data-export-button/runners/run-shared.mjs": "633f0076fb1dd74979e63469848d1e6a90f89addc320553a324f3ff8ca939357",
+    "projections/blazor/ui/hlp.ui.data-export-button/DataExportTypes.cs": "63502c7c5f680b37bafb44f6da6d4ac50bc39a1225340e5da97c3eb62aa85240",
+    "projections/blazor/ui/hlp.ui.data-export-button/HarborlineDataExportButton.razor": "1f80b378095b5f7b43ede148f21252beee5b79a67d3dffa89bfd4c479d3defe4",
+    "projections/blazor/ui/hlp.ui.data-export-button/wwwroot/data-export-button.js": "13c87e3a645a85468c34512507aceec905059c622dc3b32b10900374a7a0b866",
+    "projections/react/ui/hlp.ui.data-export-button/src/DataExportButton.tsx": "d9445b7e503a53096c28aea76a68ca793ef57541d6b408c3e3a1225e281be5bc",
+    "projections/react/ui/hlp.ui.data-export-button/src/__tests__/DataExportButton.test.tsx": "bdbd92f1fca0c31b5dbb1f7dea90487cd02154c7aefd5d84eeb289ec181277e7",
+    "projections/react/ui/hlp.ui.data-export-button/src/index.ts": "12ec1025b504c5f5bda6104baddf0e9ecc0fb77ae619dd1cb42ca04594eadbfc",
+    "projections/react/ui/hlp.ui.data-export-button/src/test-setup.ts": "977afde26bba6a51325908cd7713cbfdc87d18f06b78b237c8f364c44864b7de",
+    "projections/react/ui/hlp.ui.data-export-button/tsconfig.build.json": "f0f8f0e86b3ccd389abdb4f09d7726f17212c15014fc424652d8606d4ff9705a",
+    "projections/react/ui/hlp.ui.data-export-button/vitest.config.ts": "8c3ae7f6abca872ea9d9fc412ad07d0dbe9b0df15f6a9f17ab7e49881684b124",
+    "specs/modules/ui/hlp.ui.data-export-button/interface.yaml": "e43b98b6c3f6ec3a22bb309bebf54567e4af944a8c05722ce0d16a5eb38df5d9",
+    "specs/modules/ui/hlp.ui.data-export-button/quality.yaml": "b770c3ab8e0bb0b3633b1c11aee53b9b4b607816aba92b73be0fb1c251a8bef9",
+    "specs/modules/ui/hlp.ui.data-export-button/scenarios.json": "e8c88ca7176ae528c8669d8ca52dae05aa54c91851712ab3cda228b30017a4c5",
+    "specs/modules/ui/hlp.ui.data-export-button/style.css": "b15b397e805fe6f3310fe3e56faefb89d3984955dbb39f45d5f52b81a6668974"
+  },
+  "nextGate": "Retain this conformant aggregate contribution while HLF-052 advances to the next Carrier-essential dependency wave."
+}

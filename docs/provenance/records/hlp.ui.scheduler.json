@@ -1,0 +1,35 @@
+{
+  "moduleId": "hlp.ui.scheduler",
+  "legacySourceHashes": {
+    "packages/ui-react/src/components/datagrid/Scheduler.tsx": "d471af19363281e5a28de128dd6945b7c22c8e25b9ef9a3efc16d1100f3dabaf"
+  },
+  "phase4Evidence": "specs/modules/ui/hlp.ui.scheduler/interface.yaml",
+  "sourceExtracted": true,
+  "sourceState": "Interface revision 1 preserves the exact pinned hlp.ui.scheduler source surface and proves every registered projection through native, shared-conformance, package-only, and applicable gallery/performance gates.",
+  "contentHashes": {
+    "conformance/hlp.ui.scheduler/fixtures.yaml": "ffcd37fcef2e1c7ca122d6e6684aadf3f54e368eac13227a5e5e871f037da22e",
+    "conformance/hlp.ui.scheduler/quality-fixtures.yaml": "46145a4145f4c6fb2ad83a57a0581be4fd30f5be6ffdb8e525379df931be5e97",
+    "conformance/hlp.ui.scheduler/runners/run-shared.mjs": "b43975f369aad1f6f161cc8fb8bc8e049ba7c0b30e87c6035eab5324badb3a9b",
+    "projections/blazor/ui/hlp.ui.scheduler/SchedulerRecurrence.cs": "cc0a777cbfc5b7122e4445d9ac76f602bbb7b690a2e7f326d11ee356338f8428",
+    "projections/blazor/ui/hlp.ui.scheduler/SchedulerTypes.cs": "55499f33d3fef301af8b678c8b70d0742fac96ff9ff29e2218c0ceb7ad8e6244",
+    "projections/blazor/ui/hlp.ui.scheduler/HarborlineScheduler.razor": "1586640abfb2e4f2148e85d6eb7cb1f78120f02e1a9d492ded25446c887d2f6a",
+    "projections/blazor/ui/hlp.ui.scheduler/wwwroot/scheduler-now.js": "d514af7d614115034d513bb1a98c51513f613a3fb1e75c4cbb92c5efc482fc33",
+    "projections/react/ui/hlp.ui.scheduler/src/Scheduler.tsx": "9165717ca0117662acde596fd1c578b7259cb1407824c9fed8e073a49c486afa",
+    "projections/react/ui/hlp.ui.scheduler/src/Scheduler.types.ts": "3d550c58b69f670321b247915b5b6a7e70789c7f901ae6c5b317b53b2862ee9d",
+    "projections/react/ui/hlp.ui.scheduler/src/SchedulerRecurrence.ts": "65a9e2060667e236e60b4e765db656d6036d1359213504296a54095cde90efaa",
+    "projections/react/ui/hlp.ui.scheduler/src/__tests__/Scheduler.conformance.test.tsx": "c647508e90610bd400f9e1f5e8f7f02d65f1d4067ed0b33c4a3cb4573bf8eb34",
+    "projections/react/ui/hlp.ui.scheduler/src/__tests__/Scheduler.native.test.tsx": "3d8f76092912e865b42081f6a745677ccd52f2d1fa2c30d42b5680d6b3927b64",
+    "projections/react/ui/hlp.ui.scheduler/src/__tests__/Scheduler.performance.test.tsx": "cf566395c31f62ce4e769a71910350f6e24d4f7c7d72a3fd43b577bb16745609",
+    "projections/react/ui/hlp.ui.scheduler/src/__tests__/fixtures.ts": "aefdf26d41cb0b03baa6d29a9017d01c9c86c5647daa794a976e1225a4be39c4",
+    "projections/react/ui/hlp.ui.scheduler/src/index.ts": "4cf0a40bf5da6e55e9c4b21e72be453e733e4758374d7d83d4fee8a8838076f8",
+    "projections/react/ui/hlp.ui.scheduler/src/scheduler-model.ts": "c8dceaca6267dd6eba0e2a82b8a85add014c148ceff102dc674bc2133b0f6186",
+    "projections/react/ui/hlp.ui.scheduler/src/test-setup.ts": "977afde26bba6a51325908cd7713cbfdc87d18f06b78b237c8f364c44864b7de",
+    "projections/react/ui/hlp.ui.scheduler/tsconfig.build.json": "c5746351b4319f3798b2696af69af5eff0365277a1ae7389195307295d3b82eb",
+    "projections/react/ui/hlp.ui.scheduler/vitest.config.ts": "39213afd4b86c80b274e7b1aa98b7499c21bae8bc65341a59c159c86d2dc17f8",
+    "specs/modules/ui/hlp.ui.scheduler/interface.yaml": "b7876b173bcae0640b1692a2ff5420c2e4fadb564db61109980fd567d701e0f2",
+    "specs/modules/ui/hlp.ui.scheduler/quality.yaml": "5560628310bb2b681eaa123ef853b163b55d33cac53942e368729cacdf33927c",
+    "specs/modules/ui/hlp.ui.scheduler/scenarios.json": "ce5ed0c24862619dc884be24aef87bbddc2550e5bb3450140568cc3a92260336",
+    "specs/modules/ui/hlp.ui.scheduler/style.css": "bd74f795546ef0ed55ad33ef4119633657fc7df1766e20fa1988381c6e0ef00a"
+  },
+  "nextGate": "Retain this conformant aggregate contribution while HLF-052 advances to the next Carrier-essential dependency wave."
+}

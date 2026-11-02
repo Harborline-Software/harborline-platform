@@ -1,0 +1,57 @@
+{
+  "moduleId": "hlp.blocks.builder-definitions",
+  "module": {
+    "interface": {
+      "path": "specs/modules/blocks/hlp.blocks.builder-definitions/interface.yaml",
+      "revision": 27
+    },
+    "moduleKind": "runtime",
+    "presentation": {
+      "disposition": "not-applicable",
+      "rationale": "Definition catalogue, package export, and replay are projection-neutral and have no presentation surface."
+    },
+    "owner": "platform-foundation",
+    "dependencies": [
+      "hlp.foundation.rule-authoring",
+      "hlp.foundation.definitions",
+      "hlp.foundation.taxonomy",
+      "hlp.kernel.core",
+      "hlp.foundation.actor",
+      "hlp.contracts.fields"
+    ],
+    "status": "draft-native-green",
+    "depth": {
+      "disposition": "deep-module",
+      "deletionTest": "PASS",
+      "redistributedComplexity": [
+        "shared ASCII key suggestion and collision sequencing forked between Forms and Workflows builders",
+        "tenant- and kind-scoped durable archive state, atomic persistence, and restart recovery reimplemented per pillar"
+      ]
+    },
+    "projections": {
+      "dotnet": {
+        "role": "implementation",
+        "path": "projections/dotnet/blocks/hlp.blocks.builder-definitions",
+        "status": "preview",
+        "artifact": {
+          "type": "nuget",
+          "id": "Harborline.Blocks.BuilderDefinitions",
+          "assembly": "Harborline.Blocks.BuilderDefinitions",
+          "manifest": "projections/dotnet/blocks/hlp.blocks.builder-definitions/Harborline.Blocks.BuilderDefinitions.csproj",
+          "dependencies": [
+            "Harborline.Foundation.RuleAuthoring",
+            "Harborline.Foundation.Definitions",
+            "Harborline.Foundation.Taxonomy",
+            "Harborline.Kernel.Core",
+            "Harborline.Foundation.Authorization"
+          ],
+          "identityAuthority": "Harborline",
+          "producerRepository": "harborline-platform",
+          "distribution": "internal-only",
+          "candidateRole": "new-bounded-package",
+          "registryAvailable": false
+        }
+      }
+    }
+  }
+}

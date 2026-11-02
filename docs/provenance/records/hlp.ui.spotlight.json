@@ -1,0 +1,30 @@
+{
+  "moduleId": "hlp.ui.spotlight",
+  "legacySourceHashes": {
+    "packages/ui-react/src/components/navigation/Spotlight.tsx": "5b894518570497d93c9e48efeeed2bd401d792e367a76d28bfe09e51b007d4d5"
+  },
+  "phase4Evidence": "specs/modules/ui/hlp.ui.spotlight/interface.yaml",
+  "sourceExtracted": true,
+  "sourceState": "Interface revision 1 preserves the exact pinned hlp.ui.spotlight source surface and proves every registered projection through native, shared-conformance, package-only, and applicable gallery/performance gates.",
+  "contentHashes": {
+    "conformance/hlp.ui.spotlight/fixtures.yaml": "997955ee3acd3b4484f62dfbc391762e69a3013dffda3be9247904eadbb2517d",
+    "conformance/hlp.ui.spotlight/quality-fixtures.yaml": "2c3d0e6c4a63301aed54c2dbbb36edd64bb2a93183714d325d79d514b782b395",
+    "conformance/hlp.ui.spotlight/runners/run-shared.mjs": "ea7d3c68d7e67c069ae0ec78ae34dcbed8c1e9c622f60fea67fbf3bc2269b1a0",
+    "projections/blazor/ui/hlp.ui.spotlight/HarborlineSpotlight.razor": "35c0c9826c4fed34c10a45d3d7291d0344751936da63c2ca43479316ee95dbec",
+    "projections/blazor/ui/hlp.ui.spotlight/SpotlightTypes.cs": "911b4bb48169e3ef758396f075e3dd39740bac18f5cc0f25de2dc90fd61b0f99",
+    "projections/blazor/ui/hlp.ui.spotlight/wwwroot/spotlight.js": "cb690c473e761ea4e5adba1ff5c6e84d8fac38723117b080debfcb54082c0c16",
+    "projections/react/ui/hlp.ui.spotlight/src/Spotlight.tsx": "49cba2ec73f40f8109eb19136957298a355a90b4659e488716eba3587cca479b",
+    "projections/react/ui/hlp.ui.spotlight/src/__tests__/Spotlight.conformance.test.tsx": "30da1472651fed48ea0dda0a01cf449f6591e3752cc132774b050d756d308e5b",
+    "projections/react/ui/hlp.ui.spotlight/src/__tests__/Spotlight.native.test.tsx": "b476c12a2ab16fa595f2342d672b5c51c771a9b725640b8a5f810bbafea7a454",
+    "projections/react/ui/hlp.ui.spotlight/src/__tests__/fixtures.ts": "47a9f245dd63e672ff990a26162497723f6e2b439c5265596d118d8799d192e3",
+    "projections/react/ui/hlp.ui.spotlight/src/index.ts": "bbd965df0ff948ccc9d5d4edfd4c60c686ae397b05724aa2958564facf10c28b",
+    "projections/react/ui/hlp.ui.spotlight/src/test-setup.ts": "977afde26bba6a51325908cd7713cbfdc87d18f06b78b237c8f364c44864b7de",
+    "projections/react/ui/hlp.ui.spotlight/tsconfig.build.json": "95602e3ad02b8450cdbee4b67c8d9c10b8f055d1bd7b4296c7561c9e36849358",
+    "projections/react/ui/hlp.ui.spotlight/vitest.config.ts": "2eb7b7c75d84ae208174a547200504d46ca0527efe882f5955f7b5942dd9c319",
+    "specs/modules/ui/hlp.ui.spotlight/interface.yaml": "bcf43b8e6eba9ef6eb4c6614432635b7783049ef6f70044a16a40d512c400e11",
+    "specs/modules/ui/hlp.ui.spotlight/quality.yaml": "3ae2ecc1619adbc529808b906f740e814f8cfd3293b82d30b804c1682067ec90",
+    "specs/modules/ui/hlp.ui.spotlight/scenarios.json": "00a0f745dd019e0d14c4dfd2caa5cbb255df2fd9f1b18d6ddac09ba32f37ea2f",
+    "specs/modules/ui/hlp.ui.spotlight/style.css": "78f924a9239c7f2afe11537f20b05e0d239aa474335f63a5c0d7693a9917d575"
+  },
+  "nextGate": "Retain this conformant aggregate contribution while HLF-052 advances to the next Carrier-essential dependency wave."
+}
