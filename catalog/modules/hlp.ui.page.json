@@ -1,0 +1,59 @@
+{
+  "moduleId": "hlp.ui.page",
+  "module": {
+    "interface": {
+      "path": "specs/modules/ui/hlp.ui.page/interface.yaml",
+      "revision": 1
+    },
+    "moduleKind": "interactive-component",
+    "presentation": {
+      "disposition": "visual"
+    },
+    "qualityProfile": {
+      "path": "specs/modules/ui/hlp.ui.page/quality.yaml",
+      "revision": 1
+    },
+    "owner": "platform-ui",
+    "dependencies": [
+      "hlp.ui.cn",
+      "hlp.ui.use-is-mobile",
+      "hlp.ui.use-media-query"
+    ],
+    "status": "gap-implemented",
+    "depth": {
+      "disposition": "deep-module",
+      "deletionTest": "PASS",
+      "redistributedComplexity": [
+        "route header, heading-level, sticky state, responsive actions, and independently scrollable body composition repeated by every application page",
+        "landmark ownership, focus-visible scrolling, logical layout, reflow, and theme parity drifting across projections"
+      ]
+    },
+    "projections": {
+      "react": {
+        "role": "adapter",
+        "seam": "ui.page.framework",
+        "path": "projections/react/ui/hlp.ui.page",
+        "status": "conformant",
+        "packageContribution": "@harborline-software/ui-react",
+        "conformanceRunner": "conformance/hlp.ui.page/runners/run-shared.mjs"
+      },
+      "blazor": {
+        "role": "adapter",
+        "seam": "ui.page.framework",
+        "path": "projections/blazor/ui/hlp.ui.page",
+        "status": "conformant",
+        "packageContribution": "Harborline.UIAdapters.Blazor",
+        "conformanceRunner": "conformance/hlp.ui.page/runners/run-shared.mjs"
+      }
+    }
+  },
+  "seams": {
+    "ui.page.framework": {
+      "status": "conformant",
+      "adapters": [
+        "react",
+        "blazor"
+      ]
+    }
+  }
+}

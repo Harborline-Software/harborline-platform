@@ -1,0 +1,54 @@
+{
+  "moduleId": "hlp.blocks.entity-views",
+  "module": {
+    "interface": {
+      "path": "specs/modules/blocks/hlp.blocks.entity-views/interface.yaml",
+      "revision": 7
+    },
+    "moduleKind": "runtime",
+    "presentation": {
+      "disposition": "not-applicable",
+      "rationale": "The entity-views read model produces list/detail/tree/condition data and navigation targets consumed by separate grid/table renderers; it renders nothing."
+    },
+    "owner": "platform-blocks",
+    "dependencies": [
+      "hlp.contracts.identities",
+      "hlp.contracts.forms",
+      "hlp.contracts.fields",
+      "hlp.foundation.actor",
+      "hlp.blocks.measure-catalogue"
+    ],
+    "status": "implemented",
+    "depth": {
+      "disposition": "deep-module",
+      "deletionTest": "PASS",
+      "redistributedComplexity": [
+        "entity list/detail/tree reads with the 404-only-null rule, breadcrumb resolution with the no-raw-id rule, and typed previewed-write rejections otherwise re-implemented by every Views surface",
+        "the development preview seed shipping inside a production client — the pinned fallback shape the fail-closed adapter exists to prevent"
+      ]
+    },
+    "projections": {
+      "dotnet": {
+        "role": "implementation",
+        "path": "projections/dotnet/blocks/hlp.blocks.entity-views",
+        "status": "preview",
+        "artifact": {
+          "type": "nuget",
+          "id": "Harborline.Blocks.EntityViews",
+          "assembly": "Harborline.Blocks.EntityViews",
+          "manifest": "projections/dotnet/blocks/hlp.blocks.entity-views/Harborline.Blocks.EntityViews.csproj",
+          "dependencies": [
+            "Harborline.Contracts",
+            "Harborline.Foundation.Authorization",
+            "Harborline.Blocks.MeasureCatalogue"
+          ],
+          "identityAuthority": "Harborline",
+          "producerRepository": "harborline-platform",
+          "distribution": "internal-only",
+          "candidateRole": "new-bounded-package",
+          "registryAvailable": false
+        }
+      }
+    }
+  }
+}

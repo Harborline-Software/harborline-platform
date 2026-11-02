@@ -1,0 +1,57 @@
+{
+  "moduleId": "hlp.ui.accordion",
+  "module": {
+    "interface": {
+      "path": "specs/modules/ui/hlp.ui.accordion/interface.yaml",
+      "revision": 1
+    },
+    "moduleKind": "interactive-component",
+    "presentation": {
+      "disposition": "visual"
+    },
+    "qualityProfile": {
+      "path": "specs/modules/ui/hlp.ui.accordion/quality.yaml",
+      "revision": 1
+    },
+    "owner": "platform-ui",
+    "dependencies": [
+      "hlp.ui.cn"
+    ],
+    "status": "extracted-candidate",
+    "depth": {
+      "disposition": "deep-module",
+      "deletionTest": "PASS",
+      "redistributedComplexity": [
+        "controlled and uncontrolled single/multiple disclosure state, disabled filtering, and noncollapsible initialization repeated in every host",
+        "header/region relationships and wrapped enabled-header keyboard focus independently drifting between React and Blazor"
+      ]
+    },
+    "projections": {
+      "react": {
+        "role": "adapter",
+        "seam": "ui.accordion.framework",
+        "path": "projections/react/ui/hlp.ui.accordion",
+        "status": "conformant",
+        "packageContribution": "@harborline-software/ui-react",
+        "conformanceRunner": "conformance/hlp.ui.accordion/runners/run-shared.mjs"
+      },
+      "blazor": {
+        "role": "adapter",
+        "seam": "ui.accordion.framework",
+        "path": "projections/blazor/ui/hlp.ui.accordion",
+        "status": "conformant",
+        "packageContribution": "Harborline.UIAdapters.Blazor",
+        "conformanceRunner": "conformance/hlp.ui.accordion/runners/run-shared.mjs"
+      }
+    }
+  },
+  "seams": {
+    "ui.accordion.framework": {
+      "status": "conformant",
+      "adapters": [
+        "react",
+        "blazor"
+      ]
+    }
+  }
+}

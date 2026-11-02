@@ -1,0 +1,57 @@
+{
+  "moduleId": "hlp.ui.detail-panel",
+  "module": {
+    "interface": {
+      "path": "specs/modules/ui/hlp.ui.detail-panel/interface.yaml",
+      "revision": 3
+    },
+    "moduleKind": "interactive-component",
+    "presentation": {
+      "disposition": "visual"
+    },
+    "qualityProfile": {
+      "path": "specs/modules/ui/hlp.ui.detail-panel/quality.yaml",
+      "revision": 1
+    },
+    "owner": "platform-ui",
+    "dependencies": [
+      "hlp.ui.use-can-show-master-detail"
+    ],
+    "status": "gap-implemented",
+    "depth": {
+      "disposition": "deep-module",
+      "deletionTest": "PASS",
+      "redistributedComplexity": [
+        "selection-detail presentation, width clamping, docked-versus-modal boundary behavior, and dismissal focus rules repeated by every master-detail page",
+        "end-side geometry, drawer-pattern dismissal, and landmark naming drifting across projections"
+      ]
+    },
+    "projections": {
+      "react": {
+        "role": "adapter",
+        "seam": "ui.detail-panel.framework",
+        "path": "projections/react/ui/hlp.ui.detail-panel",
+        "status": "conformant",
+        "packageContribution": "@harborline-software/ui-react",
+        "conformanceRunner": "conformance/hlp.ui.detail-panel/runners/run-shared.mjs"
+      },
+      "blazor": {
+        "role": "adapter",
+        "seam": "ui.detail-panel.framework",
+        "path": "projections/blazor/ui/hlp.ui.detail-panel",
+        "status": "conformant",
+        "packageContribution": "Harborline.UIAdapters.Blazor",
+        "conformanceRunner": "conformance/hlp.ui.detail-panel/runners/run-shared.mjs"
+      }
+    }
+  },
+  "seams": {
+    "ui.detail-panel.framework": {
+      "status": "conformant",
+      "adapters": [
+        "react",
+        "blazor"
+      ]
+    }
+  }
+}
