@@ -72,7 +72,8 @@
     // element focused now, so closing returns focus to it; its position is unused because the host supplies one.
     public async Task ShowFromKeyboardAsync(double x, double y)
     {
-        await (await ModuleAsync()).InvokeVoidAsync("triggerAnchor", TriggerElement);
+        if (!KeyboardOpened)
+            await (await ModuleAsync()).InvokeVoidAsync("triggerAnchor", TriggerElement);
         await ShowAsync(x, y, keyboardOpened: true);
     }
 

@@ -83,6 +83,26 @@ public sealed class ContextMenuConformanceTests : BunitContext
         Assert.Single(module.Invocations["focusTrigger"]);
     }
 
+    [Theory, Trait("Holds", "context-menu.quality.focus")]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task RepeatedHostKeyboardOpenPreservesOpenerUntilClosed(bool pointerOpened)
+    {
+        var module = JSInterop.SetupModule("./_content/Harborline.UIAdapters.Blazor/context-menu.js");
+        module.Mode = JSRuntimeMode.Loose;
+        var cut = RenderMenu();
+        if (pointerOpened) await cut.Instance.ShowAsync(8, 8);
+        await cut.Instance.ShowFromKeyboardAsync(8, 8);
+        await cut.Instance.ShowFromKeyboardAsync(40, 60);
+        Assert.Single(module.Invocations["triggerAnchor"]);
+        Assert.Equal("copy", cut.Find("[role=menu]").GetAttribute("data-active-id"));
+        Assert.Contains("left:40px;top:60px", cut.Find("[role=menu]").GetAttribute("style"));
+        await cut.Instance.HideAsync();
+        Assert.Single(module.Invocations["focusTrigger"]);
+        await cut.Instance.ShowFromKeyboardAsync(8, 8);
+        Assert.Equal(2, module.Invocations["triggerAnchor"].Count);
+    }
+
     [Fact, Trait("ConformanceCase", "context-menu.reopen-reset")]
     public async Task ReopenResets() { var cut=RenderMenu(); await cut.Instance.ShowAsync(8,8); await cut.Find("[role=menu]").KeyDownAsync(new KeyboardEventArgs{Key="End"}); await cut.Instance.HideAsync(); await cut.Instance.ShowAsync(8,8); Assert.Equal("copy",cut.Find("[role=menu]").GetAttribute("data-active-id")); }
 }
