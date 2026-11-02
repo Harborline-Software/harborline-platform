@@ -32,7 +32,8 @@ tooling/appshell-feed-provenance.json
 # Build-wide inputs: the feeds restore pulls from and the pinned SDK.
 NuGet.Config
 global.json
-# Imported by Directory.Build.props into every project.
-projections/dotnet/Harborline.PackageTargetFramework.props
+# The product the package jobs pack and ship, including the TFM props Directory.Build.props imports into every
+# project. Owner ruling 2026-11-02: listed whole, erring toward review over a narrower list.
+projections/
 # pack-libraries runs verify-package-fixtures.mjs --pack-libraries, which copies and runs every consumer here.
 tests/package-consumers/
