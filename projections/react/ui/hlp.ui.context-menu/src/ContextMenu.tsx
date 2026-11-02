@@ -157,7 +157,10 @@ export function ContextMenu({groups, children, className = '', accessibleLabel =
           const index = items.indexOf(item)
           return <button key={item.id} type="button" role="menuitem" tabIndex={index === activeIndex ? 0 : -1}
             aria-disabled={item.disabled || undefined} data-danger={item.danger || undefined} data-active={index === activeIndex || undefined}
-            className="hl-context-menu__item" onClick={() => { if (!item.disabled) { item.onSelect(); close() } }}>
+            className="hl-context-menu__item" onClick={() => { if (!item.disabled) { item.onSelect(); close() } }}
+            // A pointer press focuses any item, a disabled one too (it is focusable, APG), so the item with focus
+            // is the active one and Enter or Space acts on it, never on the previously active item.
+            onFocus={() => setActiveIndex(index)}>
             {item.icon && <span aria-hidden="true" className="hl-context-menu__icon">{item.icon}</span>}
             <span>{item.label}</span>
           </button>

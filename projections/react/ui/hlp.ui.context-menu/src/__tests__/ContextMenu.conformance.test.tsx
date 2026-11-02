@@ -1,4 +1,4 @@
-import {fireEvent, render, screen} from '@testing-library/react'
+import {act, fireEvent, render, screen} from '@testing-library/react'
 import {expect, it, vi} from 'vitest'
 import {ContextMenu, clampContextMenuPosition, type ContextMenuGroup} from '../ContextMenu'
 
@@ -106,6 +106,26 @@ it.each(opens)('a %s-opened menu leaves focus where an item action moved it', as
   await new Promise(done => setTimeout(done, 0))
   expect(screen.queryByRole('menu')).toBeNull()
   expect(screen.getByRole('textbox', {name: 'Editor'})).toHaveFocus()
+})
+
+// PR 396 review: a disabled item is focusable, so a pointer press focuses it. It then becomes the active item, and
+// Enter or Space acts on it (nothing) rather than on the item that was active before the press.
+it('focusing a disabled item makes it active, so Enter and Space then select nothing', () => {
+  if (caseId) return
+  const remove = vi.fn(); const blocked = vi.fn()
+  const groups: ContextMenuGroup[] = [{items: [{id: 'blocked', label: 'Blocked', disabled: true, onSelect: blocked}, {id: 'delete', label: 'Delete', onSelect: remove}]}]
+  render(<ContextMenu groups={groups} accessibleLabel="Actions"><button>Target</button></ContextMenu>)
+  fireEvent.contextMenu(screen.getByRole('button', {name: 'Target'}), {clientX: 40, clientY: 60})
+  const menu = screen.getByRole('menu')
+  fireEvent.keyDown(menu, {key: 'End'})
+  expect(menu).toHaveAttribute('data-active-id', 'delete')
+  const item = screen.getByRole('menuitem', {name: 'Blocked'})
+  act(() => item.focus()); fireEvent.click(item) // a browser focuses the button on the press before the click
+  expect(menu).toHaveAttribute('data-active-id', 'blocked')
+  for (const key of ['Enter', ' ']) fireEvent.keyDown(item, {key})
+  expect(remove).not.toHaveBeenCalled(); expect(blocked).not.toHaveBeenCalled()
+  expect(screen.getByRole('menu')).toHaveAttribute('data-active-id', 'blocked')
+  expect(item).toHaveAttribute('data-active', 'true')
 })
 
 it('a close whose opener left the document returns focus to the trigger instead', async () => {

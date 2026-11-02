@@ -138,6 +138,22 @@ public sealed class ContextMenuConformanceTests : BunitContext
         module.VerifyInvoke("focusTrigger");
     }
 
+    // PR 396 review: a disabled item is focusable, so a pointer press focuses it. It then becomes the active item, and
+    // Enter or Space acts on it (nothing) rather than on the item that was active before the press.
+    [Fact]
+    public async Task FocusingADisabledItemMakesItActiveSoEnterAndSpaceSelectNothing()
+    {
+        var count=0; var cut=RenderMenu(_=>count++); await cut.Instance.ShowAsync(8,8);
+        await cut.Find("[role=menu]").KeyDownAsync(new KeyboardEventArgs{Key="End"});
+        Assert.Equal("delete",cut.Find("[role=menu]").GetAttribute("data-active-id"));
+        await cut.FindAll("[role=menuitem]")[0].FocusAsync(new FocusEventArgs());
+        cut.FindAll("[role=menuitem]")[0].Click();
+        foreach (var key in new[] { "Enter", " " }) await cut.Find("[role=menu]").KeyDownAsync(new KeyboardEventArgs{Key=key});
+        Assert.Equal(0,count); Assert.True(cut.Instance.IsOpen);
+        Assert.Equal("blocked",cut.Find("[role=menu]").GetAttribute("data-active-id"));
+        Assert.Equal("true",cut.FindAll("[role=menuitem]")[0].GetAttribute("data-active"));
+    }
+
     // T-943 review 3: a re-open while the menu is open keeps the opener recorded at the closed-to-open
     // transition, instead of recording one of the menu's own items.
     [Fact]

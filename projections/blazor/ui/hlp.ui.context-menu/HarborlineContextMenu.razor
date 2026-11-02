@@ -13,15 +13,17 @@
     <div @ref="MenuElement" role="menu" tabindex="-1" aria-label="@AccessibleLabel" lang="@Locale" dir="@Direction"
          class="hl-context-menu" data-active-id="@ActiveItem?.Id"
          style="position:fixed;left:@(X)px;top:@(Y)px;z-index:9999" @onkeydown="HandleKeyAsync">
+        @{ var flatIndex = 0; }
         @for (var groupIndex = 0; groupIndex < Groups.Count; groupIndex++)
         {
             if (groupIndex > 0) { <div role="separator" class="hl-context-menu__separator"></div> }
             foreach (var item in Groups[groupIndex].Items)
             {
                 var current = item;
+                var index = flatIndex++;
                 <button type="button" role="menuitem" aria-disabled="@(current.Disabled ? "true" : null)" tabindex="@(current == ActiveItem ? 0 : -1)"
                         data-danger="@(current.Danger ? "true" : null)" data-active="@(current == ActiveItem ? "true" : null)"
-                        class="hl-context-menu__item" @onclick="() => SelectAsync(current)">
+                        class="hl-context-menu__item" @onclick="() => SelectAsync(current)" @onfocus="() => SyncActive(index)">
                     @if (current.Icon is not null) { <span aria-hidden="true" class="hl-context-menu__icon">@current.Icon</span> }
                     <span>@current.Label</span>
                 </button>
@@ -112,6 +114,10 @@
 
     private Task OpenPointerAsync(MouseEventArgs args) => ShowAsync(args.ClientX, args.ClientY, keyboardOpened: false);
     private Task DismissAsync() => HideAsync();
+
+    // A pointer press focuses any item, a disabled one too (it is focusable, APG), so the item with focus is the
+    // active one and Enter or Space acts on it. Focus is already there, so nothing is focused again.
+    private void SyncActive(int index) => ActiveIndex = index;
 
     private async Task SelectAsync(ContextMenuItem item)
     {
