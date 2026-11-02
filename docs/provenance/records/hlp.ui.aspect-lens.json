@@ -1,0 +1,24 @@
+{
+  "moduleId": "hlp.ui.aspect-lens",
+  "legacySourceHashes": {
+    "packages/builder-kit/src/types.ts": "7bb56c2cd8c285efb804e4f9537a514eae91f89a6419f259afb951d810629252",
+    "apps/carrier/src/forms/builder/__tests__/layersAdapter.test.ts": "e57b82dcd5d0603b45a9d02ac1e5c729a3bc505f0c45813d8cc6b1f18607f7cb",
+    "apps/carrier/src/forms/builder/__tests__/layersRail.test.tsx": "2bf3a801aaba95633d4af2c972f6c1157c1d14314516c68824d073e8b6e5199c",
+    "apps/carrier/src/workflows/builder/__tests__/layersAdapter.test.ts": "848a62d40cb58bae8e7f6903ce419593c71f5064e2a485644353a321c8b26511"
+  },
+  "phase4Evidence": "specs/modules/ui/hlp.ui.aspect-lens/interface.yaml",
+  "sourceExtracted": true,
+  "sourceState": "Revision 1 captures all nine pinned builder-kit exports used by the Carrier Forms and Workflow builders. React and .NET projections preserve ordered canvas nodes, lens state and edge vocabulary, synchronized selection, and fail-closed provenance without taking ownership of host form or workflow state.",
+  "contentHashes": {
+    "projections/react/ui/hlp.ui.aspect-lens/src/index.ts": "acb5df7bde1e82bbabd70dbd9181849966693ca55462d0b6618c284d44f2c03a",
+    "projections/react/ui/hlp.ui.aspect-lens/src/__tests__/aspect-lens.native.test.ts": "6c6bcc736d85b5caac16b1da4914ac9d0e4c5cfb4bba26168cb89f66a3bbee21",
+    "projections/react/ui/hlp.ui.aspect-lens/src/__tests__/aspect-lens.conformance.test.ts": "677413a97ec3996ec70a489135306d1fbaaa75506e9193fd2fe62af232a35fe2",
+    "projections/dotnet/foundation/hlp.ui.aspect-lens/AspectLensContracts.cs": "1c3d9f5a26eddac1eef90af51c1816269dbbd1dafc2b16d92ca831e5cefe3549",
+    "conformance/hlp.ui.aspect-lens/fixtures.yaml": "61fe7ce19d5189b748befa55b016b24c0fc8e68fd44a664e5a9ce7c68329c0cd",
+    "conformance/hlp.ui.aspect-lens/quality-fixtures.yaml": "2ee9608e8cc81bbee7d455b1b7ef565d33615afa0bad2d288a5ee6ba52cd249b",
+    "conformance/hlp.ui.aspect-lens/runners/run-shared.mjs": "50267b0103c3cb0d1580d248ea3b029b396e41c03f583974aa94f4da9deb0042",
+    "specs/modules/ui/hlp.ui.aspect-lens/interface.yaml": "bda83c4fbbbed6d21404bbf1ad40fad06debe9a2e08b6a0dbd408e4fb2298792",
+    "specs/modules/ui/hlp.ui.aspect-lens/quality.yaml": "31777b14500bdc35a96cc7ab668d699d54905a75289fd812ae8ab4d43a48d3ad"
+  },
+  "nextGate": "Retain this conformant aggregate contribution while HLF-052 advances to the next Carrier-essential dependency wave."
+}

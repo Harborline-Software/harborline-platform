@@ -21,6 +21,7 @@ import {resolve} from 'node:path'
 
 import {createGateModel} from './gate-rows.mjs'
 import {designReviewMessage, designReviewSummary} from './design-review-status.mjs'
+import {loadModuleCatalog} from '../module-catalog.mjs'
 
 const argv = process.argv.slice(2)
 const positional = argv.filter(argument => !argument.startsWith('--'))
@@ -38,7 +39,7 @@ export function terminalFor(rows) {
 
 function build() {
   const {TIER1_GATE_IDS, gateRows, contextFor, designReviewOptions} = createGateModel(platformRoot)
-  const catalog = JSON.parse(readFileSync(resolve(platformRoot, 'catalog/modules.yaml'), 'utf8')).modules
+  const catalog = loadModuleCatalog(platformRoot).modules
   const moduleIds = Object.keys(catalog).filter(id => id.startsWith('hlp.ui.')).sort()
 
   const tally = {}

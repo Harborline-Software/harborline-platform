@@ -1,0 +1,33 @@
+{
+  "moduleId": "hlp.ui.chat",
+  "legacySourceHashes": {
+    "packages/ui-react/src/components/ai/Chat.tsx": "d46ff18f7abca57599e7cf04955566de36d05e914ce5a596c38d7a2e3a0f1d89"
+  },
+  "phase4Evidence": "specs/modules/ui/hlp.ui.chat/interface.yaml",
+  "sourceExtracted": true,
+  "sourceState": "Interface revision 1 preserves the exact pinned hlp.ui.chat source surface and proves every registered projection through native, shared-conformance, package-only, and applicable gallery/performance gates.",
+  "contentHashes": {
+    "conformance/hlp.ui.chat/fixtures.yaml": "a115338946d40a894c58030e370f7b059049cd4cd9e3a74d4416a8f1dc7111ee",
+    "conformance/hlp.ui.chat/quality-fixtures.yaml": "fc0710d9a8aeb145620194452980b10771f604b5bfb924d54f136c4b5ccefa13",
+    "conformance/hlp.ui.chat/runners/run-shared.mjs": "95072119f3e8238b451f84d890c646868b975ddd1bbc226b637d26b2ec470532",
+    "projections/blazor/ui/hlp.ui.chat/ChatTypes.cs": "b7bcc11b35b5b74c95c1fcb5f7534c73d8797a0c7572920f4d53cd062a8cb8a0",
+    "projections/blazor/ui/hlp.ui.chat/HarborlineChat.razor": "14236c514dec03bd972b121342bfde2c3362ba121c986bd9f95017f10a59f034",
+    "projections/blazor/ui/hlp.ui.chat/wwwroot/chat.js": "8b1ce9d1509063fec0ee703ad8317622f1834b4aa791daa671dd897aa3ce4392",
+    "projections/react/ui/hlp.ui.chat/src/Chat.tsx": "e4508be1904ebdbed81baaa0e3760860a91f64ddb3f4a07bb74ca99a9f707226",
+    "projections/react/ui/hlp.ui.chat/src/Chat.types.ts": "217ca7a4e56d9ec96590cf21b5fac53abe543f86134d762f17f7a9edea31ada7",
+    "projections/react/ui/hlp.ui.chat/src/__tests__/Chat.conformance.test.tsx": "04835ba2d0a828d0450417b7dd61beb33c26f4931abc83de3e26047db9ef62be",
+    "projections/react/ui/hlp.ui.chat/src/__tests__/Chat.native.test.tsx": "f0439788514c99721ed0450ea9c6928f358ed4d2431f5b36e314f3053e3bbfb6",
+    "projections/react/ui/hlp.ui.chat/src/__tests__/Chat.performance.test.tsx": "8d0b6e098b2cce16efff156920787fd73d843776b84e61895fc5d348d4fe9d10",
+    "projections/react/ui/hlp.ui.chat/src/__tests__/fixtures.ts": "535a5da9b656ab1f50708e9360a454d770e0c976f36e88c4501cd4b9e4af2662",
+    "projections/react/ui/hlp.ui.chat/src/chat-model.ts": "4e7f6a0dce9f912e1c1599cfba26988c8d00c410e646ab3dabc9e7b4307bce8b",
+    "projections/react/ui/hlp.ui.chat/src/index.ts": "305682d7644505e6e01cde057e2405f979b131848568de4e8d14e8e4aa065c3f",
+    "projections/react/ui/hlp.ui.chat/src/test-setup.ts": "977afde26bba6a51325908cd7713cbfdc87d18f06b78b237c8f364c44864b7de",
+    "projections/react/ui/hlp.ui.chat/tsconfig.build.json": "86f8a03ecc95c1b1ca4f95334b1b1e789a452a02858e8385a7a5f890440eb61a",
+    "projections/react/ui/hlp.ui.chat/vitest.config.ts": "39213afd4b86c80b274e7b1aa98b7499c21bae8bc65341a59c159c86d2dc17f8",
+    "specs/modules/ui/hlp.ui.chat/interface.yaml": "b25c681451023175837fedb8430aafce3b365488b9cbbf3706592b3034094277",
+    "specs/modules/ui/hlp.ui.chat/quality.yaml": "eec01e535662e17126c8dfcf02f1f247b4a423968f01aecd99fe70d5db18fbb8",
+    "specs/modules/ui/hlp.ui.chat/scenarios.json": "45ab10da46563817d91b190b8b5fc9e8aadda945856f95a31968bc30fc668c6f",
+    "specs/modules/ui/hlp.ui.chat/style.css": "74d8c2c3bdab548215e5bc1839d47d8e8d8d72241d2a11a533c1ccc472961cd0"
+  },
+  "nextGate": "Retain this conformant aggregate contribution while HLF-052 advances to the next Carrier-essential dependency wave."
+}

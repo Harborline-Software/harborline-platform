@@ -963,8 +963,7 @@ function verifyNuget() {
       // developer machines that restored it under an older SDK. Fetch the exact pinned version
       // from the nuget.org flat container instead; the offline consumer restore below remains
       // the actual assertion, this only furnishes the feed.
-      run(process.execPath, ['-e',
-        'const [u, d] = process.argv.slice(1); fetch(u).then(r => { if (!r.ok) throw new Error(`${r.status} ${u}`); return r.arrayBuffer() }).then(b => require("node:fs").writeFileSync(d, Buffer.from(b))).catch(e => { console.error(e); process.exit(1) })',
+      run(process.execPath, [resolve(root, 'tooling/fetch-nuget-package.mjs'),
         `https://api.nuget.org/v3-flatcontainer/${id}/${version}/${id}.${version}.nupkg`, artifactPath])
       if (!statSync(artifactPath, { throwIfNoEntry: false })?.isFile()) {
         throw new Error(`third-party dependency package is unavailable locally and from nuget.org: ${id}/${version}`)

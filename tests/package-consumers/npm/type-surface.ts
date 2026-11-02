@@ -156,7 +156,13 @@ const spinnerProps: SpinnerProps = { label: 'Loading', type: 'converging' }
 const tableProps: TableProps = { density: 'md' }
 const textAreaProps: TextAreaProps = { defaultValue: 'Notes', resize: 'vertical' }
 const tooltipProps: TooltipProps = { content: 'Details', children: null }
-const windowProps: WindowProps = { title: 'Inspection', labels: { close: 'Close' } }
+const windowProps: WindowProps = {
+  title: 'Inspection',
+  labels: {
+    close: 'Close', minimize: 'Minimize', maximize: 'Maximize', restore: 'Restore', move: 'Move window',
+    moveDescription: 'Press arrow keys to move window', resizeHeight: 'Resize height', resizeWidth: 'Resize width',
+  },
+}
 const guardedControlProps: GuardedControlProps = { action: 'delete', classificationId: 'destructive', label: 'Delete', onCommit() {} }
 const inputProps: InputProps = { value: 'North Pier', onChange() {}, fillMode: 'outline' }
 const layersRailProps = null as unknown as LayersRailProps

@@ -1,0 +1,29 @@
+{
+  "moduleId": "hlp.ui.loading-state",
+  "legacySourceHashes": {
+    "packages/ui-react/src/components/LoadingState.tsx": "30bda0e12a81c2a9c2231d909c8a2ca438b6857bf6f050e6f07c90fba5dc962e",
+    "packages/ui-react/src/components/LoadingState.test.tsx": "b6acbcb8a52a9120cb165dd4f435067a74aef629ce13ec97acf3056f5cc042f4",
+    "packages/ui-react/src/components/LoadingState.stories.tsx": "f9e7688edb8f7ff7d5d7fbcb199554519f05e059a6a53d6d3820b7bf3464cc39",
+    "packages/ui-adapters-blazor/Components/Feedback/ShipyardLoadingState.razor": "ce91ddfd18e94897bd1ff1cc9d4b01b6256facb71fd2dc5e5f9f23e8e877a7cb"
+  },
+  "phase4Evidence": "specs/modules/ui/hlp.ui.loading-state/interface.yaml",
+  "sourceExtracted": true,
+  "sourceState": "Revision 1 preserves the pinned React page and inline surface and deepens the source Blazor donor with equivalent status semantics, caller-localized labels, bounded styling, native tests, shared conformance, and gallery scenarios. It intentionally exposes no spinner or action contract absent from the pinned source.",
+  "contentHashes": {
+    "projections/react/ui/hlp.ui.loading-state/src/LoadingState.tsx": "34dbd953dbd1f921f660fcc692d4ee3a3fc643f4a16362ea8ac87445ec64d824",
+    "projections/react/ui/hlp.ui.loading-state/src/index.ts": "169fed7194c39b88108583b430c56977b06f159a29bcfaf970bb1fb4260f31cc",
+    "projections/react/ui/hlp.ui.loading-state/src/__tests__/LoadingState.native.test.tsx": "9fb165afcb47c12b6b82f30cf1041428d0b2e14a977fe0a11d0eb4df89bfa5ad",
+    "projections/react/ui/hlp.ui.loading-state/src/__tests__/LoadingState.conformance.test.tsx": "4a72aa97b2a1f4d07e7c572a5ac69212e6d0af6601dd3ff3c90a616c50810add",
+    "projections/blazor/ui/hlp.ui.loading-state/LoadingStateVariant.cs": "823a9608904e2db9c8d073115003a8cdc33f30a8dbe56845b08d89ccb38937ed",
+    "projections/blazor/ui/hlp.ui.loading-state/HarborlineLoadingState.razor": "5f118c0eb54f945feb5dadccdc1dce32d9b77139ec4a2eefce117f925d48a30b",
+    "projections/blazor/ui/hlp.ui.loading-state.tests/LoadingStateTests.cs": "628f2bbf39e245f6213e33bb122b20293d5155ad341cdd180dc815e04178093e",
+    "conformance/hlp.ui.loading-state/fixtures.yaml": "a0ed8c3841a65804a0f02b9ac7953ce6aeb185c6af96bf9d00038fb45a564bf5",
+    "conformance/hlp.ui.loading-state/quality-fixtures.yaml": "ae28e73b7276b1c28b14a9cf67f2df313b90afcd879b1511b1b8135010320dfd",
+    "conformance/hlp.ui.loading-state/runners/run-shared.mjs": "dd6f32efa9e5a1c2fc3e9a07a31029adc690ab629f3d73df5e2f74c36a7fa4bf",
+    "specs/modules/ui/hlp.ui.loading-state/interface.yaml": "a0f81b8eb0921de780c595d455c01ffe025d55af65a97f53caab0a754f14acd1",
+    "specs/modules/ui/hlp.ui.loading-state/quality.yaml": "aec3e721748f4f1f9f7a71444b39ee8d9a87ec72fd23bb68c3db483008a79a55",
+    "specs/modules/ui/hlp.ui.loading-state/style.css": "ea674f157edacbff330cd902350176f97b37daf9d7863c72afe08190c669d274",
+    "specs/modules/ui/hlp.ui.loading-state/scenarios.json": "a12b76cb49823772047fad03849024142ba34c857a7cd40077d57d52ed79f73f"
+  },
+  "nextGate": "Retain both conformant adapters and their gallery evidence while HLF-052 advances to the next Carrier-essential dependency wave."
+}

@@ -19,12 +19,16 @@ export interface ScrollAffordanceState {
   srMessage: string
 }
 
-const IDLE_STATE: ScrollAffordanceState = {
+const IDLE_GEOMETRY: Omit<ScrollAffordanceState, 'srMessage'> = {
   canScroll: false,
   atStart: true,
   atEnd: true,
   maskImage: undefined,
-  srMessage: '',
+}
+
+interface Announcement {
+  key: string
+  values?: Record<string, number>
 }
 
 function isRightToLeft(element: HTMLElement, horizontal: boolean): boolean {
@@ -59,8 +63,10 @@ export function useScrollAffordance(
     itemCount,
     announceDebounceMs = 300,
   } = options
-  const [state, setState] = React.useState<ScrollAffordanceState>(IDLE_STATE)
+  const [geometry, setGeometry] = React.useState<Omit<ScrollAffordanceState, 'srMessage'>>(IDLE_GEOMETRY)
+  const [announcement, setAnnouncement] = React.useState<Announcement | undefined>(undefined)
   const debounceRef = React.useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  const previousRef = React.useRef<{ raw: number; scrollSize: number; clientSize: number } | undefined>(undefined)
   const { t } = useHarborlineStrings()
 
   const measure = React.useCallback(() => {
@@ -69,6 +75,7 @@ export function useScrollAffordance(
 
     const horizontal = orientation === 'horizontal'
     const rtl = isRightToLeft(element, horizontal)
+    const raw = horizontal ? element.scrollLeft : element.scrollTop
     const position = logicalPosition(element, horizontal, rtl)
     const scrollSize = horizontal ? element.scrollWidth : element.scrollHeight
     const clientSize = horizontal ? element.clientWidth : element.clientHeight
@@ -91,39 +98,60 @@ export function useScrollAffordance(
       }
     }
 
-    setState(previous => ({ canScroll, atStart, atEnd, maskImage, srMessage: previous.srMessage }))
+    // Revision 2 (T-1135): WAI-ARIA and the APG keep a live region in the DOM, empty, and write only changes
+    // that follow load. The first measurement, the initial scroll and every resize or layout re-measure (the
+    // scroll or client size changed) leave the message alone. A measurement whose sizes match the previous one
+    // while the position moved is a scroll (pointer, wheel, touch or the keyboard handler) and announces.
+    // Without overflow the message is empty.
+    const previous = previousRef.current
+    const scrolled = previous !== undefined
+      && previous.scrollSize === scrollSize
+      && previous.clientSize === clientSize
+      && previous.raw !== raw
+    previousRef.current = { raw, scrollSize, clientSize }
+
+    setGeometry({ canScroll, atStart, atEnd, maskImage })
+    if (!canScroll) {
+      if (debounceRef.current !== undefined) clearTimeout(debounceRef.current)
+      debounceRef.current = undefined
+      setAnnouncement(undefined)
+      return
+    }
+    // A resize that lands while a scroll's announcement is pending reschedules it with the current geometry,
+    // so the message never describes a position the layout no longer has. Otherwise a resize stays quiet.
+    if (!scrolled && debounceRef.current === undefined) return
     if (debounceRef.current !== undefined) clearTimeout(debounceRef.current)
     debounceRef.current = setTimeout(() => {
-      if (!canScroll) {
-        setState(previous => ({ ...previous, srMessage: '' }))
-        return
-      }
-
-      let srMessage: string
+      debounceRef.current = undefined
       if (itemCount !== undefined && itemCount > 0) {
         const unitSize = scrollSize / itemCount
         const start = Math.min(itemCount, Math.max(1, Math.round(position / unitSize) + 1))
         const visibleCount = Math.max(1, Math.round(clientSize / unitSize))
         const end = Math.min(itemCount, start + visibleCount - 1)
-        srMessage = start >= end
-          ? t('scrollAffordance.showingOne', { index: start, total: itemCount })
-          : t('scrollAffordance.showingRange', { start, end, total: itemCount })
+        setAnnouncement(start >= end
+          ? { key: 'scrollAffordance.showingOne', values: { index: start, total: itemCount } }
+          : { key: 'scrollAffordance.showingRange', values: { start, end, total: itemCount } })
       } else if (atEnd) {
-        srMessage = t('scrollAffordance.endReached')
+        setAnnouncement({ key: 'scrollAffordance.endReached' })
       } else if (atStart) {
-        srMessage = t('scrollAffordance.moreAvailable')
+        setAnnouncement({ key: 'scrollAffordance.moreAvailable' })
       } else {
         const percent = Math.round((position / (scrollSize - clientSize)) * 100)
-        srMessage = t('scrollAffordance.percentScrolled', { percent })
+        setAnnouncement({ key: 'scrollAffordance.percentScrolled', values: { percent } })
       }
-      setState(previous => ({ ...previous, srMessage }))
     }, announceDebounceMs)
-  }, [announceDebounceMs, fadeSize, itemCount, orientation, ref, t])
+  }, [announceDebounceMs, fadeSize, itemCount, orientation, ref])
 
   React.useEffect(() => {
     const element = ref.current
     if (!element) return
 
+    // A new observation (a new element, axis or item count) starts from load again: its first measurement is
+    // a quiet baseline, and the previous observation's message and pending announcement are dropped.
+    previousRef.current = undefined
+    if (debounceRef.current !== undefined) clearTimeout(debounceRef.current)
+    debounceRef.current = undefined
+    setAnnouncement(undefined)
     measure()
     element.addEventListener('scroll', measure, { passive: true })
     const observer = typeof ResizeObserver === 'undefined' ? undefined : new ResizeObserver(measure)
@@ -135,10 +163,14 @@ export function useScrollAffordance(
       observer?.disconnect()
       window.removeEventListener('resize', measure)
       if (debounceRef.current !== undefined) clearTimeout(debounceRef.current)
+      debounceRef.current = undefined
     }
   }, [measure, ref])
 
-  return state
+  // The announcement is held as a key and values and resolved here, so a catalog or locale change
+  // relocalizes the current message without announcing a new position.
+  const srMessage = announcement === undefined ? '' : t(announcement.key, announcement.values)
+  return React.useMemo(() => ({ ...geometry, srMessage }), [geometry, srMessage])
 }
 
 /** Move a scroll region in physical arrow-key directions using logical coordinates. */

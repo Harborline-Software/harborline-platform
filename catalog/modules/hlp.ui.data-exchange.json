@@ -1,0 +1,55 @@
+{
+  "moduleId": "hlp.ui.data-exchange",
+  "module": {
+    "interface": {
+      "path": "specs/modules/ui/hlp.ui.data-exchange/interface.yaml",
+      "revision": 3
+    },
+    "moduleKind": "interactive-component",
+    "presentation": {
+      "disposition": "visual"
+    },
+    "qualityProfile": {
+      "path": "specs/modules/ui/hlp.ui.data-exchange/quality.yaml",
+      "revision": 1
+    },
+    "owner": "platform-ui",
+    "dependencies": [],
+    "status": "gap-implemented",
+    "depth": {
+      "disposition": "deep-module",
+      "deletionTest": "PASS",
+      "redistributedComplexity": [
+        "profile identity, source-shape narrowing, canonical mapping rows, replay and schedule policy repeated by every Data Exchange host",
+        "stale review and commit-authority gating drifting between React and Blazor consumers"
+      ]
+    },
+    "projections": {
+      "react": {
+        "role": "adapter",
+        "seam": "ui.data-exchange.framework",
+        "path": "projections/react/ui/hlp.ui.data-exchange",
+        "status": "conformant",
+        "packageContribution": "@harborline-software/ui-react",
+        "conformanceRunner": "conformance/hlp.ui.data-exchange/runners/run-shared.mjs"
+      },
+      "blazor": {
+        "role": "adapter",
+        "seam": "ui.data-exchange.framework",
+        "path": "projections/blazor/ui/hlp.ui.data-exchange",
+        "status": "conformant",
+        "packageContribution": "Harborline.UIAdapters.Blazor",
+        "conformanceRunner": "conformance/hlp.ui.data-exchange/runners/run-shared.mjs"
+      }
+    }
+  },
+  "seams": {
+    "ui.data-exchange.framework": {
+      "status": "conformant",
+      "adapters": [
+        "react",
+        "blazor"
+      ]
+    }
+  }
+}
