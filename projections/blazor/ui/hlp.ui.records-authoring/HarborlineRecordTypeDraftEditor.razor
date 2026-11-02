@@ -31,14 +31,19 @@
                         @foreach (var parameter in Parameters(kind)) { var name = parameter.Name; var numeric = parameter.Numeric; <label>Parameter @name<input aria-label="@($"Field {n} parameter {name}")" type="@(numeric ? "number" : "text")" value="@parameter.Text" @onchange="eventArgs => ChangeParameter(current, name, numeric, eventArgs)" /></label> }
                     }
                 </div>
-                @if (field["binding"] is null) { <p class="hl-records-authoring__note">Unbound field. Bindings are not authored here.</p> }
+                @if (field["binding"] is not JsonObject) { <p class="hl-records-authoring__note">Unbound field. Bindings are not authored here.</p> }
+                @if (field["binding"] is not JsonObject && reference is null) { <HarborlineButton ButtonType="ButtonType.Button" Variant="ButtonVariant.Secondary" Size="ButtonSize.Small" OnClick="() => MakeReference(current)">Make field @n a reference</HarborlineButton> }
                 @if (reference is not null)
                 {
-                    var cardinality = Str(reference["cardinality"]); var onDelete = Str(reference["on_delete"]);
+                    var cardinality = Str(reference["cardinality"]); var onDelete = Str(reference["on_delete"]); var hasType = Str(reference["target_type_id"]) is not null; var classTarget = Str(reference["target_class_id"]); var targetKind = hasType && classTarget is not null ? "both" : classTarget is not null ? "class" : hasType ? "type" : "";
                     <fieldset class="hl-records-authoring__grid"><legend>Field @n reference</legend>
-                        <label>Target type<input aria-label="@($"Field {n} reference target type")" value="@(Str(reference["target_type_id"]))" @onchange="eventArgs => ChangeReferenceTarget(current, eventArgs)" /></label>
+                        <label>Target kind<select aria-label="@($"Field {n} reference target kind")" value="@targetKind" @onchange="eventArgs => ChooseTargetKind(current, eventArgs)"><option value="">Not set</option>@if (targetKind == "both") { <option value="both">Both targets present (choose one)</option> }<option value="type">Record type</option><option value="class">Class</option></select></label>
+                        @if (targetKind != "class") { <label>Target type<input aria-label="@($"Field {n} reference target type")" value="@(Str(reference["target_type_id"]))" @onchange="eventArgs => ChangeReferenceTarget(current, eventArgs)" /></label> }
+                        @if (targetKind is "class" or "both") { <label>Target class<select aria-label="@($"Field {n} reference target class")" value="@(classTarget ?? "")" @onchange="eventArgs => ChangeReferenceClass(current, eventArgs)"><option value="">Not set</option>@if (!string.IsNullOrEmpty(classTarget) && !ClassOptions.Any(option => option.ClassId == classTarget)) { <option value="@classTarget">@($"{classTarget} (not offered)")</option> }@foreach (var option in ClassOptions) { <option value="@option.ClassId">@option.ClassId</option> }</select></label> }
                         <label>Cardinality<select aria-label="@($"Field {n} reference cardinality")" value="@(cardinality ?? "")" @onchange="eventArgs => ChangeReferenceCardinality(current, eventArgs)">@if (cardinality is null || !Cardinalities.Contains(cardinality)) { <option value="@(cardinality ?? "")">@(cardinality is null ? "Not set" : $"{cardinality} (not a current spelling)")</option> }@foreach (var spelling in Cardinalities) { <option value="@spelling">@spelling</option> }</select></label>
                         <label>On delete<select aria-label="@($"Field {n} reference on delete")" value="@(onDelete ?? "")" @onchange="eventArgs => ChangeReferenceOnDelete(current, eventArgs)">@if (onDelete is null || !OnDeletes.Contains(onDelete)) { <option value="@(onDelete ?? "")">@(onDelete is null ? "Not set" : $"{onDelete} (not a current spelling)")</option> }@foreach (var spelling in OnDeletes) { <option value="@spelling">@spelling</option> }</select></label>
+                        <label><input type="checkbox" aria-label="@($"Field {n} reference is the parent edge")" checked="@(reference["parent"] is JsonValue parentValue && parentValue.GetValueKind() == JsonValueKind.True)" @onchange="eventArgs => SetParent(current, eventArgs)" />Parent edge</label>
+                        <HarborlineButton ButtonType="ButtonType.Button" Variant="ButtonVariant.Secondary" Size="ButtonSize.Small" OnClick="() => RemoveReference(current)">Remove reference from field @n</HarborlineButton>
                     </fieldset>
                 }
                 <HarborlineButton ButtonType="ButtonType.Button" Variant="ButtonVariant.Secondary" Size="ButtonSize.Small" OnClick="() => RemoveField(current)">Remove field @n</HarborlineButton>
@@ -62,7 +67,7 @@
     [Parameter, EditorRequired] public RecordsDraft Value { get; set; } = RecordsDraft.Empty;
     /// <summary>The field kinds and versions the host offers for a binding.</summary>
     [Parameter] public IReadOnlyList<RecordsKindOption> KindOptions { get; set; } = [];
-    /// <summary>The published Classes the host offers as the type's catalogue home; the editor never selects one on its own.</summary>
+    /// <summary>The published Classes the host offers as the type's catalogue home and as reference Class targets; the editor never selects one on its own.</summary>
     [Parameter] public IReadOnlyList<RecordsClassOption> ClassOptions { get; set; } = [];
     /// <summary>The domain roles the host offers as a role gate's creation role; the editor never selects one on its own.</summary>
     [Parameter] public IReadOnlyList<RecordsRoleOption> RoleOptions { get; set; } = [];
@@ -152,6 +157,19 @@
     private Task ChangeReferenceTarget(int index, ChangeEventArgs eventArgs) => EditReference(index, "target_type_id", eventArgs);
     private Task ChangeReferenceCardinality(int index, ChangeEventArgs eventArgs) => EditReference(index, "cardinality", eventArgs);
     private Task ChangeReferenceOnDelete(int index, ChangeEventArgs eventArgs) => EditReference(index, "on_delete", eventArgs);
+    private Task ChangeReferenceClass(int index, ChangeEventArgs eventArgs) => EditReference(index, "target_class_id", eventArgs);
+    // A reference names exactly one target (RecordTypeIdentity.cs:269), so choosing a target kind removes the other target member and
+    // keeps an existing value of the chosen kind. pin and required_trait_id are carried unchanged.
+    private Task ChooseTargetKind(int index, ChangeEventArgs eventArgs)
+    {
+        var kind = Text(eventArgs);
+        if (kind == "both") return Task.CompletedTask;
+        return EditField(index, field => { if (field["reference"] is not JsonObject reference) return; var type = Str(reference["target_type_id"]); var target = Str(reference["target_class_id"]); reference.Remove("target_type_id"); reference.Remove("target_class_id"); if (kind == "type") reference["target_type_id"] = type ?? ""; else if (kind == "class") reference["target_class_id"] = target ?? ""; });
+    }
+    // The canonical body always carries parent, so the checkbox writes true or false.
+    private Task SetParent(int index, ChangeEventArgs eventArgs) => EditField(index, field => { if (field["reference"] is JsonObject reference) reference["parent"] = eventArgs.Value is true; });
+    private Task MakeReference(int index) => EditField(index, field => field["reference"] = new JsonObject());
+    private Task RemoveReference(int index) => EditField(index, field => field.Remove("reference"));
     // Removing a member writes nothing in its place; an empty choice means absent.
     private static void SetMember(JsonObject body, string member, string value) { if (value == "") body.Remove(member); else body[member] = value; }
     private Task ChooseClass(ChangeEventArgs eventArgs) => Edit(body => SetMember(body, "class_id", Text(eventArgs)));
