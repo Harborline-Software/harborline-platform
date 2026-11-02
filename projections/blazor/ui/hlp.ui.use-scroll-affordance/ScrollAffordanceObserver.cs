@@ -107,6 +107,53 @@ public static class ScrollAffordancePolicy
     }
 }
 
+/// <summary>
+/// Decides when a scroll host's polite live region speaks (T-1135, interface revision 2). WAI-ARIA and the APG
+/// keep a live region in the DOM, empty, and write only changes that follow load. So the first measurement, the
+/// automatic initial scroll and every resize or layout re-measure (the scroll or client size changed) leave the
+/// announcement unchanged. A measurement whose sizes match the previous one while its position moved is a
+/// scroll (pointer, wheel, touch, or the keyboard handler's scrollTo) and announces. A host can also ask for
+/// the next measurement to announce, as the Scheduler does after a view switch. Without overflow the
+/// announcement is empty.
+/// </summary>
+internal sealed class ScrollAffordanceAnnouncer
+{
+    private static readonly IReadOnlyDictionary<string, int> NoArguments = new Dictionary<string, int>();
+    private ScrollAffordanceMeasurement? previous;
+    private bool requested;
+    private string? key;
+    private IReadOnlyDictionary<string, int> arguments = NoArguments;
+
+    /// <summary>Makes the next measurement announce, whatever moved.</summary>
+    public void Request() => requested = true;
+
+    /// <summary>
+    /// Starts a new observation (the host changed the region's axis): the next measurement is a quiet baseline
+    /// and the previous axis's message is dropped. A pending request survives, so a user's view switch still
+    /// announces.
+    /// </summary>
+    public void Restart()
+    {
+        previous = null;
+        key = null;
+        arguments = NoArguments;
+    }
+
+    /// <summary>Resolves the measurement and returns its state carrying the announcement the rule allows.</summary>
+    public ScrollAffordanceState Observe(ScrollAffordanceMeasurement next, ScrollAffordanceOptions options)
+    {
+        var resolved = ScrollAffordancePolicy.Resolve(next, options);
+        var scrolled = previous is { } last
+            && last.ScrollSize == next.ScrollSize
+            && last.ClientSize == next.ClientSize
+            && last.RawPosition != next.RawPosition;
+        previous = next;
+        if (!resolved.CanScroll) { key = null; arguments = NoArguments; requested = false; }
+        else if (scrolled || requested) { key = resolved.AnnouncementKey; arguments = resolved.AnnouncementArguments; requested = false; }
+        return resolved with { AnnouncementKey = key, AnnouncementArguments = arguments };
+    }
+}
+
 /// <summary>A live scroll-affordance registration, released by disposing it.</summary>
 public interface IScrollAffordanceRegistration : IAsyncDisposable { }
 
@@ -143,6 +190,7 @@ public sealed class ScrollAffordanceObserver(IJSRuntime javascript) : IScrollAff
 
     private sealed class Registration(IJSObjectReference module, ElementReference element, ScrollAffordanceOptions options, Func<ScrollAffordanceState, ValueTask> callback) : IScrollAffordanceRegistration
     {
+        private readonly ScrollAffordanceAnnouncer announcer = new();
         private DotNetObjectReference<Registration>? reference;
         private long id;
         /// <summary>Registers the element with the browser and reads the first scroll state.</summary>
@@ -152,7 +200,7 @@ public sealed class ScrollAffordanceObserver(IJSRuntime javascript) : IScrollAff
             id = await module.InvokeAsync<long>("observe", token, element, reference, options);
         }
         /// <summary>Removes the browser listeners and releases their interop reference.</summary>
-        [JSInvokable] public Task OnMeasured(ScrollAffordanceMeasurement measurement) => callback(ScrollAffordancePolicy.Resolve(measurement, options)).AsTask();
+        [JSInvokable] public Task OnMeasured(ScrollAffordanceMeasurement measurement) => callback(announcer.Observe(measurement, options)).AsTask();
         /// <summary>Releases the registration when it is disposed.</summary>
         public async ValueTask DisposeAsync()
         {
