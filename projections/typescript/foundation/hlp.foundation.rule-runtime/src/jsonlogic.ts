@@ -5,6 +5,7 @@
  * are byte-identical to the .NET tier. v1 set + exclusions: see the .NET docstring /
  * the README operator table.
  */
+import { codingAnswer, codingEqual, requireCodingBinding } from './coding-subsumption.js'
 import { Codes } from './codes.js'
 import { MoneyDecimal } from './money-decimal.js'
 import { dateAdd, dateDiffDays, today } from './date-math.js'
@@ -78,7 +79,7 @@ export const builtInRegister = {
   'date.add': def('date', 3, 3, (_a, _c, ev) => dateAddOp(ev(0), ev(1), ev(2))),
   'date.diff': def('date', 2, 2, (_a, _c, ev) => dateDiffOp(ev(0), ev(1))),
   'date.today': def('date', 0, 0, (_a, c) => today(c.now)),
-  'coding.is': def('coding', 3, 3, (_a, _c, ev) => evalCodingIs(ev(0), asString(ev(1)) ?? '', asString(ev(2)) ?? '')),
+  'coding.is': def('coding', 3, 3, (_a, c, ev) => evalCodingIs(ev(0), asString(ev(1)) ?? '', asString(ev(2)) ?? '', c)),
 } as const satisfies Record<string, BuiltInImpl>
 
 /** The folds `agg` accepts over a bounded child collection (rules-bound-4, rules-eng-16); mirrors the .NET register. */
@@ -314,7 +315,26 @@ function dateDiffOp(a: Json, b: Json): Json {
   }
 }
 
-function evalCodingIs(value: Json, system: string, code: string): Json {
+function evalCodingIs(value: Json, system: string, code: string, ctx: EvalContext): Json {
+  if (ctx.coding !== undefined) {
+    ctx.budget.chargeSize(system.length + code.length + 1)
+    requireCodingBinding(ctx.coding, system, ctx.budget)
+    let matched = false
+    for (const candidate of Array.isArray(value) ? value : [value]) {
+      ctx.budget.charge()
+      if (typeof candidate !== 'object' || candidate === null || Array.isArray(candidate)) continue
+      const candidateSystem = candidate.system
+      const descendant = candidate.code
+      if (typeof candidateSystem !== 'string' || candidateSystem.length === 0
+        || typeof descendant !== 'string' || descendant.length === 0) continue
+      ctx.budget.chargeSize(descendant.length + 1)
+      if (!codingEqual(candidateSystem, system, ctx.budget)) continue
+      // Every applicable member is checked so a true answer cannot hide an absent pair.
+      const answer = codingAnswer(ctx.coding, system, code, descendant, ctx.budget)
+      matched = answer || matched
+    }
+    return matched
+  }
   const match = (c: Json): boolean =>
     typeof c === 'object' && c !== null && !Array.isArray(c) &&
     asString((c as Record<string, Json>).system) === system &&

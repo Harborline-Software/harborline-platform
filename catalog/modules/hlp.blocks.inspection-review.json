@@ -1,0 +1,60 @@
+{
+  "moduleId": "hlp.blocks.inspection-review",
+  "module": {
+    "interface": {
+      "path": "specs/modules/blocks/hlp.blocks.inspection-review/interface.yaml",
+      "revision": 2
+    },
+    "moduleKind": "runtime",
+    "presentation": {
+      "disposition": "not-applicable",
+      "rationale": "The block exposes typed subject and review projections consumed by separate application interfaces and owns no visual implementation."
+    },
+    "owner": "platform-blocks",
+    "dependencies": [
+      "hlp.contracts.forms",
+      "hlp.contracts.identities",
+      "hlp.contracts.workflow",
+      "hlp.foundation.actor",
+      "hlp.foundation.forms",
+      "hlp.foundation.forms-engine",
+      "hlp.foundation.tenancy",
+      "hlp.kernel.work-items"
+    ],
+    "status": "implemented-package-consumer-green",
+    "depth": {
+      "disposition": "deep-module",
+      "deletionTest": "PASS",
+      "redistributedComplexity": [
+        "trusted Forms projection envelopes, condition classification, subject resolution, deterministic review identity, and at-least-once replay repeated in every inspection host",
+        "authenticated tenant/Party scope, expected-version decisions, typed Workflow admission, and Work Items result mapping exposed as route choreography"
+      ]
+    },
+    "projections": {
+      "dotnet": {
+        "role": "implementation",
+        "path": "projections/dotnet/blocks/hlp.blocks.inspection-review",
+        "status": "preview",
+        "artifact": {
+          "type": "nuget",
+          "id": "Harborline.Blocks.InspectionReview",
+          "assembly": "Harborline.Blocks.InspectionReview",
+          "manifest": "projections/dotnet/blocks/hlp.blocks.inspection-review/Harborline.Blocks.InspectionReview.csproj",
+          "dependencies": [
+            "Harborline.Contracts",
+            "Harborline.Foundation.Authorization",
+            "Harborline.Foundation.Forms",
+            "Harborline.Foundation.Forms.Engine",
+            "Harborline.Foundation.MultiTenancy",
+            "Harborline.Kernel.WorkItems"
+          ],
+          "identityAuthority": "Harborline",
+          "producerRepository": "harborline-platform",
+          "distribution": "internal-only",
+          "candidateRole": "new-bounded-package",
+          "registryAvailable": false
+        }
+      }
+    }
+  }
+}

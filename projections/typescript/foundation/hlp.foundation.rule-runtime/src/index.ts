@@ -25,6 +25,7 @@ export * from './skins/index.js'
 export { RuleInstance, RuleRowSnapshot, RuleValueSnapshot, type RuleRow } from './instance.js'
 export { FormRuleGraph, type RuleEvaluationResult } from './graph.js'
 export { GuardEvaluator, RuleContextSnapshot } from './guard.js'
+export { CodingSubsumptionSnapshot } from './coding-subsumption.js'
 export { serializeOutcome, write as canonicalJson } from './canonical.js'
 // ADR 0146 D5 named-rule registry + version policies: resolve rules by (tenant, rule-key) under a
 // latest | pinned | draft policy (draft-exclusion enforced at the resolve path — board F6), the S-8

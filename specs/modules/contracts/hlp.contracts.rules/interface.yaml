@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.contracts.rules",
+  "interfaceRevision": 1,
+  "status": "frozen",
+  "purpose": "Own declarative rule grammar independently of Forms, Workflow and evaluators.",
+  "dependencies": [
+    "hlp.contracts.text",
+    "hlp.contracts.presentation"
+  ],
+  "exports": [
+    "RuleDefinition",
+    "RuleTier",
+    "RuleScope",
+    "RuleActionKind"
+  ],
+  "wireAuthority": {
+    "manifest": "projections/typescript/contracts/hlp.contracts.forms/projection-manifest.json",
+    "typescript": "projections/typescript/contracts/hlp.contracts.forms/src/rules.ts",
+    "fixtures": "conformance/hlp.contracts.forms/fixtures.yaml"
+  },
+  "invariants": [
+    "RuleDefinition retains id, tier, scope, scopeTarget, string expression, action, optional errorMessage and optional presentation.",
+    "RuleTier values remain JsonSchema, JsonLogic and PowerFx. RuleScope remains Field, Section, Schema, Row and Table. RuleActionKind remains Visibility, Required, ReadOnly, Validate, Compute, Presentation and Options.",
+    "Forms and Workflow borrow the same nominal rule declaration; evaluation and borrower-specific admission belong to their existing runtimes.",
+    "The ownership move changes CLR namespace identities without changing the wire model. Shared optional and closed-enum infrastructure is maintained once under Harborline.Contracts.Serialization in the existing assembly."
+  ],
+  "notScope": [
+    "evaluation",
+    "rendering",
+    "new package identity",
+    "Forms admission changes"
+  ],
+  "projectionPolicy": {
+    "typescript": "maintained owner module in existing @harborline-software/contracts package",
+    "dotnet": "maintained Harborline.Contracts.Rules bindings in existing Harborline.Contracts assembly"
+  },
+  "fixture": "conformance/hlp.contracts.forms/fixtures.yaml"
+}

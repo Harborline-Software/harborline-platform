@@ -2061,7 +2061,7 @@
         {
           "id": "assertFunctionalParity",
           "status": "PASS",
-          "note": "14 conformance case(s) across both lanes"
+          "note": "16 conformance case(s) across both lanes"
         },
         {
           "id": "assertInternationalization",
@@ -2919,7 +2919,7 @@
         {
           "id": "assertFunctionalParity",
           "status": "PASS",
-          "note": "17 conformance case(s) across both lanes"
+          "note": "18 conformance case(s) across both lanes"
         },
         {
           "id": "assertInternationalization",
@@ -3231,7 +3231,7 @@
         {
           "id": "assertFunctionalParity",
           "status": "PASS",
-          "note": "20 conformance case(s) across both lanes"
+          "note": "21 conformance case(s) across both lanes"
         },
         {
           "id": "assertInternationalization",
@@ -3309,7 +3309,7 @@
         {
           "id": "assertFunctionalParity",
           "status": "PASS",
-          "note": "17 conformance case(s) across both lanes"
+          "note": "20 conformance case(s) across both lanes"
         },
         {
           "id": "assertInternationalization",
@@ -3890,7 +3890,7 @@
         {
           "id": "assertEmptyAndErrorStates",
           "status": "UNBUILT",
-          "note": "no empty or error property, but diagnostics, kindOptions can be handed an empty collection; that state is reachable and undesigned"
+          "note": "no empty or error property, but classOptions, diagnostics, kindOptions, roleOptions, warnings can be handed an empty collection; that state is reachable and undesigned"
         },
         {
           "id": "assertContentResilience",
@@ -4245,7 +4245,7 @@
         {
           "id": "assertFunctionalParity",
           "status": "PASS",
-          "note": "12 conformance case(s) across both lanes"
+          "note": "13 conformance case(s) across both lanes"
         },
         {
           "id": "assertInternationalization",
@@ -4947,7 +4947,7 @@
         {
           "id": "assertFunctionalParity",
           "status": "PASS",
-          "note": "16 conformance case(s) across both lanes"
+          "note": "18 conformance case(s) across both lanes"
         },
         {
           "id": "assertInternationalization",
@@ -5025,7 +5025,7 @@
         {
           "id": "assertFunctionalParity",
           "status": "PASS",
-          "note": "12 conformance case(s) across both lanes"
+          "note": "14 conformance case(s) across both lanes"
         },
         {
           "id": "assertInternationalization",
@@ -5070,7 +5070,7 @@
         {
           "id": "assertDesignReview",
           "status": "PASS",
-          "note": "approved by cic on 2026-08-26T20:48:48.808Z against 11 surface files"
+          "note": "approved by cic on 2026-10-24 against 11 surface files"
         },
         {
           "id": "assertDesignQuality",
@@ -6195,7 +6195,7 @@
         {
           "id": "assertFunctionalParity",
           "status": "PASS",
-          "note": "21 conformance case(s) across both lanes"
+          "note": "23 conformance case(s) across both lanes"
         },
         {
           "id": "assertInternationalization",

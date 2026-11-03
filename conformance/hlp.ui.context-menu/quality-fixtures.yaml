@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.ui.context-menu",
-  "profileRevision": 1,
+  "profileRevision": 2,
   "locales": {
     "en-US": {"direction": "ltr", "label": "Context menu"},
     "en-XA": {"direction": "ltr", "label": "[Çôñţëxţ mëñüü]"},
@@ -13,10 +13,10 @@
   ],
   "accessibilityCases": [
     {"id": "context-menu.quality.menu-pattern", "expected": {"roles": ["menu", "menuitem", "separator"], "nameRequired": true}},
-    {"id": "context-menu.quality.disabled", "expected": {"disabledNative": true, "notFocusable": true, "notSelectable": true}},
-    {"id": "context-menu.quality.keyboard", "expected": {"openKeys": ["Shift+F10", "ContextMenu"], "navigation": ["ArrowDown", "ArrowUp", "Home", "End"], "activation": ["Enter", "Space"], "skipDisabled": true, "wrap": true}},
-    {"id": "context-menu.quality.focus", "expected": {"entry": "first-enabled", "returnToKeyboardOpener": true, "visibleIndicator": true}},
-    {"id": "context-menu.quality.dismissal", "expected": {"escape": true, "outsidePointer": true, "selection": true}},
+    {"id": "context-menu.quality.disabled", "expected": {"ariaDisabled": true, "disabledNative": false, "focusable": true, "notSelectable": true}},
+    {"id": "context-menu.quality.keyboard", "expected": {"openKeys": ["Shift+F10", "ContextMenu"], "navigation": ["ArrowDown", "ArrowUp", "Home", "End"], "activation": ["Enter", "Space"], "dismissal": ["Escape", "Tab", "Shift+Tab"], "visitDisabled": true, "wrap": true}},
+    {"id": "context-menu.quality.focus", "expected": {"entry": "first-item", "returnToKeyboardOpener": true, "visibleIndicator": true}},
+    {"id": "context-menu.quality.dismissal", "expected": {"escape": true, "tab": true, "tabNotTrapped": true, "outsidePointer": true, "selection": true}},
     {"id": "context-menu.quality.forced-colors", "expected": {"visibleBorder": true, "visibleFocus": true, "dangerNotColorOnly": true}},
     {"id": "context-menu.quality.reflow-200", "expected": {"viewportWidthCssPixels": 320, "rootFontPercent": 200, "horizontalOverflowCssPixels": 0}}
   ],

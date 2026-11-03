@@ -75,12 +75,12 @@ function staticVarPath(raw: Json): string | null {
 }
 
 function deriveNode(node: Json, dependencyResult: bigint, aggregateResult: bigint,
-  staticReference?: (path: string) => bigint | undefined): NodeProof {
+  staticReference?: (path: string) => bigint | undefined, codingPresent = false): NodeProof {
   // The evaluator regards arrays and multi-key objects as literal JSON data.
   if (!isObject(node) || Object.keys(node).length !== 1) return inertProof(node)
   const [op, raw] = Object.entries(node)[0]
   const args = Array.isArray(raw) ? raw : [raw]
-  const children = args.map(arg => deriveNode(arg, dependencyResult, aggregateResult, staticReference))
+  const children = args.map(arg => deriveNode(arg, dependencyResult, aggregateResult, staticReference, codingPresent))
   const child = merge(children)
   const childResult = max(...children.map(item => item.result))
   const childBytes = sum(children.map(item => item.result))
@@ -152,7 +152,9 @@ function deriveNode(node: Json, dependencyResult: bigint, aggregateResult: bigin
     case 'date.diff': return base(NUMBER_BYTES, childBytes)
     case 'date.today': return base(12n, 0n)
     case 'coding.is':
-      return base(5n, INPUT_NODES * add(childBytes, 1n))
+      return base(5n, codingPresent
+        ? INPUT_NODES * INPUT_NODES * add(childBytes, INPUT_BYTES, 1n)
+        : INPUT_NODES * add(childBytes, 1n))
     default:
       // RuleCompiler.ValidateOperators has already closed the language.  Keeping this
       // refusal here makes a newly added evaluator arm fail proof admission until it has
@@ -163,17 +165,17 @@ function deriveNode(node: Json, dependencyResult: bigint, aggregateResult: bigin
 
 /** Derives one executable expression's transfer proof through the shared core-type walker. */
 export function deriveCoreWork(node: Json, ruleId: string, dependencyResult = INPUT_BYTES,
-  staticReference?: (path: string) => bigint | undefined, aggregateResult = INPUT_BYTES): NodeProof {
+  staticReference?: (path: string) => bigint | undefined, aggregateResult = INPUT_BYTES, codingPresent = false): NodeProof {
   // This call deliberately shares the type derivation's executable/literal boundary.
   deriveCoreTypes(node, ruleId)
-  return deriveNode(node, dependencyResult, aggregateResult, staticReference)
+  return deriveNode(node, dependencyResult, aggregateResult, staticReference, codingPresent)
 }
 
 /**
  * Combines actual admitted rules with finite runtime dimensions.  Dynamic paths are
  * not claimed to be static edges: each resolver lookup and possible cell demand is charged.
  */
-export function deriveGraphWork(rules: readonly { source: RuleDefinition, ast: Json, references?: readonly { kind: string }[] }[], limits: RuleEngineLimits): WorkProof {
+export function deriveGraphWork(rules: readonly { source: RuleDefinition, ast: Json, references?: readonly { kind: string }[] }[], limits: RuleEngineLimits, codingPresent = false): WorkProof {
   // A table admitting no rows still folds to one value (an empty sum is 0): charge at least one fold result.
   const aggregateResult = BigInt(Math.max(1, limits.maxTableRowsPerAggregate)) * MONEY_ADD_RESULT_BYTES
   let dynamicResult = INPUT_BYTES
@@ -183,7 +185,7 @@ export function deriveGraphWork(rules: readonly { source: RuleDefinition, ast: J
   // admitted program, rather than using a separately configurable host depth.
   for (let pass = 0; pass <= rules.length; pass++) {
     perRule = rules.map(rule => deriveCoreWork(rule.ast, rule.source.id, INPUT_BYTES,
-      path => staticResults.get(path), aggregateResult))
+      path => staticResults.get(path), aggregateResult, codingPresent))
     const next = new Map(staticResults)
     for (let index = 0; index < rules.length; index++) {
       const rule = rules[index]

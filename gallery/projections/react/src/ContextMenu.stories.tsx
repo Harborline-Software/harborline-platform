@@ -16,7 +16,7 @@ type ContextMenuScenarioId =
 const copy: Record<ContextMenuScenarioId, [string, string]> = {
   'context-menu.closed': ['Closed', 'The trigger remains available without rendering a latent menu.'],
   'context-menu.pointer': ['Pointer open', 'Pointer placement is clamped to the viewport and dismisses without selection.'],
-  'context-menu.keyboard': ['Keyboard and focus', 'Shift+F10 enters the first enabled item and navigation skips disabled actions.'],
+  'context-menu.keyboard': ['Keyboard and focus', 'Shift+F10 enters the first item; arrows reach disabled actions, which cannot be activated, and Tab moves on.'],
   'context-menu.groups': ['Groups and states', 'Separators, disabled actions, icons, and destructive intent retain native semantics.'],
   'context-menu.locale-en': ['English locale', 'The host supplies the accessible name and language direction.'],
   'context-menu.locale-pseudo': ['Pseudo locale', 'Expanded labels expose clipping and fixed-width assumptions.'],

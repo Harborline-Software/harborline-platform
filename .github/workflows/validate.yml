@@ -9,11 +9,49 @@ on:
   push:
     branches: [main]
 jobs:
-  publish-libraries:
+  # Least privilege (owner ruling 2026-11-02): this job builds, tests and packs with a read-only token. Only
+  # publish-libraries below holds the write scopes, and it builds nothing: it re-verifies, attests and pushes the
+  # bytes this job packed and proved.
+  pack-libraries:
     # A push to main is a landing the merge group already gated (verify, required; the phase-4
     # receipt bound to the tested tree), so publication follows that, not a rerun of the gate, which
-    # does not run on this path (T-579). The job packs and consumes through the gate's producer and pushes
-    # with --skip-duplicate, so a same-tree push publishes nothing.
+    # does not run on this path (T-579). This job packs and consumes through the gate's producer;
+    # publish-libraries pushes with --skip-duplicate, so a same-tree push publishes nothing.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      # The attempt this job's proof records. A re-run of only a failed publish job has a later attempt.
+      attempt: ${{ github.run_attempt }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 24
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
+        with:
+          global-json-file: global.json
+      - name: Test exact-byte promotion guards
+        run: node --test tooling/tests/library-promotion-proof.test.mjs
+      - name: Pack and consume the gate's libraries at the content-derived version
+        run: node tooling/verify-package-fixtures.mjs --pack-libraries
+      - name: Verify publication inventory and packed versions
+        run: node --test tooling/tests/publish-libraries.test.mjs tooling/tests/publish-libraries.packed.mjs
+      - name: Verify exact consumed bytes before attestation and publication
+        run: node tooling/library-promotion-proof.mjs
+      - name: Upload the packed libraries and their proof
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: platform-libraries-${{ github.sha }}
+          path: |
+            artifacts/packages/nuget/*.nupkg
+            artifacts/packages/nuget/manifest.json
+            artifacts/packages/nuget/consumer-proof.json
+          if-no-files-found: error
+  publish-libraries:
+    needs: pack-libraries
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
@@ -56,29 +94,20 @@ jobs:
         Harborline.UIAdapters.Blazor
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: 24
       - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
         with:
           global-json-file: global.json
-      - name: Test exact-byte promotion guards
-        run: node --test tooling/tests/library-promotion-proof.test.mjs
-      - name: Pack and consume the gate's libraries at the content-derived version
-        run: node tooling/verify-package-fixtures.mjs --pack-libraries
-      - name: Verify publication inventory and packed versions
-        run: node --test tooling/tests/publish-libraries.test.mjs tooling/tests/publish-libraries.packed.mjs
-      - name: Verify exact consumed bytes before attestation and publication
-        run: node tooling/library-promotion-proof.mjs
-      - name: Upload package manifest
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: platform-libraries-${{ github.sha }}
-          path: |
-            artifacts/packages/nuget/manifest.json
-            artifacts/packages/nuget/consumer-proof.json
-          if-no-files-found: error
+          path: artifacts/packages/nuget
+      - name: Verify exact consumed bytes before attestation and publication
+        env:
+          HARBORLINE_PRODUCER_ATTEMPT: ${{ needs.pack-libraries.outputs.attempt }}
+        run: node tooling/library-promotion-proof.mjs
       - name: Attest every packed library before push (T-705 ruling 107)
         uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4
         with:

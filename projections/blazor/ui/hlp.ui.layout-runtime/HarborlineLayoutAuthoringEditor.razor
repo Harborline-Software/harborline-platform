@@ -130,9 +130,9 @@
   // Lowered through Rules' own formula lowering, so the guard is the text the shared engine compiles.
   private static string? GuardText(FormulaExpr guide) => SkinLowering.FormulaDraftToSkin(new FormulaDraft
   {
-    Scope = Harborline.Contracts.Forms.RuleScope.Schema,
+    Scope = Harborline.Contracts.Rules.RuleScope.Schema,
     ScopeTarget = "",
-    OutputType = Harborline.Contracts.Forms.RuleActionKind.Validate,
+    OutputType = Harborline.Contracts.Rules.RuleActionKind.Validate,
     Inputs = [],
     Expression = guide,
   }, "guard").Expression?.ToJsonString();

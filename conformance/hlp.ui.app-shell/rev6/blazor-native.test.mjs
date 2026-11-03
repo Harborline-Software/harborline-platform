@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { bind, unbind } from '../../../projections/blazor/ui/hlp.ui.app-shell/rev6/wwwroot/app-shell-rev6-focus.mjs';
-import { bind as bindFrame, unbind as unbindFrame } from '../../../projections/blazor/ui/hlp.ui.app-shell/rev6/wwwroot/app-shell-rev6-frame.mjs';
+import { bind, unbind } from '../../../projections/blazor/ui/hlp.ui.app-shell/rev6/wwwroot/app-shell-rev6-focus.js';
+import { bind as bindFrame, unbind as unbindFrame } from '../../../projections/blazor/ui/hlp.ui.app-shell/rev6/wwwroot/app-shell-rev6-frame.js';
 const read = path => readFileSync(new URL('../../../' + path, import.meta.url), 'utf8');
 
 test('native contract exposes current owner presentation without reducer owners map', () => {

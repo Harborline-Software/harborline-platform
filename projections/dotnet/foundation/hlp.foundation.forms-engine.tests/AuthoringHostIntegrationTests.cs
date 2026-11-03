@@ -1,3 +1,4 @@
+using System.Text.Json.Nodes;
 using Microsoft.Extensions.DependencyInjection;
 using Harborline.Foundation.Assets.Common;
 using Harborline.Foundation.Forms;
@@ -30,6 +31,139 @@ public sealed class AuthoringHostIntegrationTests
         Assert.Equal(FormPublicationCompatibility.ProposalEligible, result.Assessment.Compatibility);
         Assert.Equal("f-new-y8", result.Assessment.Proposal!.Candidate.VersionId);
         Assert.Equal("2.2.0", (await fixture.Store.GetCurrentPublishedAsync(fixture.Candidate.Tenant, fixture.Candidate.Id))!.Version.ToString());
+        Assert.Equal(0, JsonNode.Parse(result.Assessment.Inputs!.CandidateFormJson)!["Status"]!.GetValue<int>());
+        Assert.Equal(1, JsonNode.Parse(result.Assessment.Inputs.PredecessorFormJson!)!["Status"]!.GetValue<int>());
+    }
+
+    [Fact]
+    public async Task First_publication_retains_the_assessed_Draft_separately_from_the_commit()
+    {
+        var fixture = await ImpactFixture.CreateAsync();
+        fixture = fixture with { Store = new InMemoryFormDefinitionStore(), Basis = fixture.Basis with
+            { NoPredecessor = true, Predecessor = null, PredecessorEnvironment = null } };
+        await using var provider = BuildImpactHost(fixture);
+        await using var scope = provider.CreateAsyncScope();
+        var publisher = scope.ServiceProvider.GetRequiredService<IFormDefinitionAuthoringPublisher>();
+        var result = await publisher.RegisterAndPublishWithImpactAsync(fixture.Candidate,
+            scope.ServiceProvider.FormPublicationContext(fixture.Basis) with { Surfaces = new ImpactFixture.Source(_ =>
+                ValueTask.FromResult<FormPublishedSurfaceRead>(new FormPublishedSurfaceRead.Complete("tenant-a", []))) });
+        Assert.Equal(FormDefinitionStatus.Published, result.Definition.Status);
+        Assert.Equal(FormPublicationCompatibility.ProposalEligible, result.Assessment.Compatibility);
+        Assert.Null(result.Assessment.Proposal);
+        Assert.Empty(result.Assessment.Surfaces);
+        var inputs = Assert.IsType<FormPublicationAssessedInputs>(result.Assessment.Inputs);
+        var body = JsonNode.Parse(inputs.CandidateFormJson)!;
+        Assert.Equal("2.2.0", body["Version"]!.GetValue<string>());
+        Assert.Equal(0, body["Status"]!.GetValue<int>());
+        Assert.Equal(DateTimeOffset.UnixEpoch, body["UpdatedAt"]!.GetValue<DateTimeOffset>());
+        Assert.NotEqual(DateTimeOffset.UnixEpoch, result.Definition.UpdatedAt);
+        Assert.Null(inputs.PredecessorFormJson);
+        Assert.Null(inputs.PredecessorSchema);
+        Assert.Equal("2.2.0", (await fixture.Store.GetCurrentPublishedAsync(new("tenant-a"), new("form.customer")))!.Version.ToString());
+    }
+
+    [Fact]
+    public async Task Competing_publishers_keep_historical_inputs_and_existing_identical_and_conflicting_retry_rules()
+    {
+        var fixture = await ImpactFixture.CreateAsync();
+        await using var provider = BuildImpactHost(fixture);
+        await using var scopeA = provider.CreateAsyncScope();
+        await using var scopeB = provider.CreateAsyncScope();
+        var publisherA = scopeA.ServiceProvider.GetRequiredService<IFormDefinitionAuthoringPublisher>();
+        var publisherB = scopeB.ServiceProvider.GetRequiredService<IFormDefinitionAuthoringPublisher>();
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var paused = new ImpactFixture.Source(async token =>
+        {
+            entered.SetResult();
+            await release.Task.WaitAsync(token);
+            return new FormPublishedSurfaceRead.Complete("tenant-a", []);
+        });
+        var contextA = scopeA.ServiceProvider.FormPublicationContext(fixture.Basis);
+        var pendingA = publisherA.RegisterAndPublishWithImpactAsync(fixture.Candidate, contextA with { Surfaces = paused }).AsTask();
+        await entered.Task.WaitAsync(TimeSpan.FromSeconds(10));
+        var candidateB = fixture.Candidate with { Version = new(2, 3, 0) };
+        var basisB = fixture.Basis with { Candidate = fixture.Basis.Candidate with { Version = new(2, 3, 0), VersionId = "f-competing-z7" } };
+        var resultB = await publisherB.RegisterAndPublishWithImpactAsync(candidateB, scopeB.ServiceProvider.FormPublicationContext(basisB));
+        Assert.Equal(FormDefinitionStatus.Published, resultB.Definition.Status);
+        Assert.Equal(FormPublicationCompatibility.ProposalEligible, resultB.Assessment.Compatibility);
+        release.SetResult();
+        var resultA = await pendingA.WaitAsync(TimeSpan.FromSeconds(10));
+
+        Assert.Equal(FormDefinitionStatus.Published, resultA.Definition.Status);
+        Assert.Equal(FormPublicationCompatibility.ProposalEligible, resultA.Assessment.Compatibility);
+        Assert.Equal("2.2.0", resultA.Definition.Version.ToString());
+        Assert.Equal("2.3.0", (await fixture.Store.GetCurrentPublishedAsync(new("tenant-a"), new("form.customer")))!.Version.ToString());
+        Assert.Equal("2.1.0", JsonNode.Parse(resultA.Assessment.Inputs!.PredecessorFormJson!)!["Version"]!.GetValue<string>());
+        Assert.Equal("2.2.0", JsonNode.Parse(resultA.Assessment.Inputs.CandidateFormJson)!["Version"]!.GetValue<string>());
+        Assert.Equal("f-old-x9", resultA.Assessment.Proposal!.Predecessor.VersionId);
+        Assert.Equal("f-new-y8", resultA.Assessment.Proposal.Candidate.VersionId);
+        Assert.Equal("Historical inputs observed before publication; the committed Form transition and current Layout membership are not guaranteed. Reassess before acting.", resultA.Assessment.FreshnessLimit);
+
+        var retry = await publisherA.RegisterAndPublishWithImpactAsync(fixture.Candidate, contextA);
+        Assert.Same(resultA.Definition, retry.Definition);
+        Assert.Equal("predecessor_mismatch", retry.Assessment.UnavailableReason);
+        Assert.Null(retry.Assessment.Inputs);
+        Assert.Null(retry.Assessment.Compatibility);
+        Assert.Null(retry.Assessment.Proposal);
+        Assert.Empty(retry.Assessment.Surfaces);
+        await Assert.ThrowsAsync<FormDefinitionConflictException>(() => publisherA.RegisterAndPublishWithImpactAsync(
+            fixture.Candidate with { CreatedAt = DateTimeOffset.UnixEpoch.AddSeconds(1) }, contextA).AsTask());
+        var winner = await fixture.Store.GetAsync(new("tenant-a"), new("form.customer"), new(2, 2, 0));
+        Assert.Equal(DateTimeOffset.UnixEpoch, winner.CreatedAt);
+        Assert.Equal(FormDefinitionStatus.Published, winner.Status);
+        Assert.Equal("2.1.0", JsonNode.Parse(resultA.Assessment.Inputs.PredecessorFormJson!)!["Version"]!.GetValue<string>());
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Provider_failure_or_unrelated_cancellation_is_unavailable_and_does_not_refuse_publication(bool cancellation)
+    {
+        var fixture = await ImpactFixture.CreateAsync();
+        await using var provider = BuildImpactHost(fixture);
+        await using var scope = provider.CreateAsyncScope();
+        var publisher = scope.ServiceProvider.GetRequiredService<IFormDefinitionAuthoringPublisher>();
+        var source = new ImpactFixture.Source(_ => cancellation ? throw new OperationCanceledException() : throw new IOException("private provider text"));
+        var result = await publisher.RegisterAndPublishWithImpactAsync(fixture.Candidate,
+            scope.ServiceProvider.FormPublicationContext(fixture.Basis) with { Surfaces = source });
+        Assert.Equal(FormDefinitionStatus.Published, result.Definition.Status);
+        Assert.Equal("assessment_input_unavailable", result.Assessment.UnavailableReason);
+        Assert.Null(result.Assessment.Inputs);
+        Assert.Null(result.Assessment.FreshnessLimit);
+        Assert.Null(result.Assessment.Compatibility);
+        Assert.Null(result.Assessment.Proposal);
+        Assert.Empty(result.Assessment.Surfaces);
+        Assert.Equal("2.2.0", (await fixture.Store.GetCurrentPublishedAsync(new("tenant-a"), new("form.customer")))!.Version.ToString());
+    }
+
+    [Fact]
+    public async Task Caller_cancellation_after_assessment_reads_leaves_the_candidate_absent()
+    {
+        var fixture = await ImpactFixture.CreateAsync();
+        await using var provider = BuildImpactHost(fixture);
+        await using var scope = provider.CreateAsyncScope();
+        using var cancellation = new CancellationTokenSource();
+        var source = new ImpactFixture.Source(_ =>
+        {
+            cancellation.Cancel();
+            return ValueTask.FromResult<FormPublishedSurfaceRead>(new FormPublishedSurfaceRead.Complete("tenant-a", []));
+        });
+        var publisher = scope.ServiceProvider.GetRequiredService<IFormDefinitionAuthoringPublisher>();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => publisher.RegisterAndPublishWithImpactAsync(fixture.Candidate,
+            scope.ServiceProvider.FormPublicationContext(fixture.Basis) with { Surfaces = source }, cancellation.Token).AsTask());
+        await Assert.ThrowsAsync<FormDefinitionNotFoundException>(() => fixture.Store.GetAsync(new("tenant-a"), new("form.customer"), new(2, 2, 0)).AsTask());
+        Assert.Equal("2.1.0", (await fixture.Store.GetCurrentPublishedAsync(new("tenant-a"), new("form.customer")))!.Version.ToString());
+    }
+
+    private static ServiceProvider BuildImpactHost(ImpactFixture fixture)
+    {
+        var services = new ServiceCollection();
+        services.AddSingleton<IFormDefinitionStore>(fixture.Store);
+        services.AddSingleton<Harborline.Kernel.SchemaValidation.ISchemaRegistry>(fixture.Schemas);
+        services.AddSingleton<IFormPublishedSurfaceSource>(fixture.Context.Surfaces);
+        services.AddHarborlineFormsAuthoringPublisher();
+        return services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true, ValidateOnBuild = true });
     }
 
     [Fact]
@@ -88,6 +222,11 @@ public sealed class AuthoringHostIntegrationTests
         Assert.Equal(FormDefinitionStatus.Published, result.Definition.Status);
         Assert.False(result.Assessment.IsComplete);
         Assert.Null(result.Assessment.Proposal);
+        Assert.Equal("publisher_assessment_unsupported", result.Assessment.UnavailableReason);
+        Assert.Null(result.Assessment.Inputs);
+        Assert.Null(result.Assessment.FreshnessLimit);
+        Assert.Null(result.Assessment.Compatibility);
+        Assert.Empty(result.Assessment.Surfaces);
     }
 
     private sealed class LegacyPublisher(IFormDefinitionAuthoringPublisher inner) : IFormDefinitionAuthoringPublisher
