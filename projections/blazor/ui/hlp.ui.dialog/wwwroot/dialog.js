@@ -34,8 +34,13 @@ export function connect(portal, dialog, body, callback, _closeOnEscape) {
     const first = items[0], last = items[items.length - 1]
     // Focus outside the dialog (content portaled to body after it opened) is brought back in, as in React.
     if (!dialog.contains(document.activeElement)) { event.preventDefault(); (event.shiftKey ? last : first).focus(); return }
-    if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus() }
-    else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus() }
+    // A click or script may focus a negative-tabindex control beyond a sequential boundary.
+    const active = document.activeElement
+    const unlisted = !items.includes(active)
+    const beforeFirst = unlisted && (first.compareDocumentPosition(active) & Node.DOCUMENT_POSITION_PRECEDING) !== 0
+    const afterLast = unlisted && (last.compareDocumentPosition(active) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0
+    if (event.shiftKey && (active === first || beforeFirst)) { event.preventDefault(); last.focus() }
+    else if (!event.shiftKey && (active === last || afterLast)) { event.preventDefault(); first.focus() }
   }
   const resize = new ResizeObserver(measure)
   document.addEventListener('keydown', onKey)

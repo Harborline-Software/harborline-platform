@@ -19,3 +19,19 @@ it('wraps between sequential stops, excluding a negative-tabindex button', () =>
   fireEvent.keyDown(last, { key: 'Tab' })
   expect(close).toHaveFocus()
 })
+
+it('contains Tab from a programmatically focused control beyond the last sequential stop', () => {
+  render(<Dialog open onOpenChange={vi.fn()} title="Settings"><button>Sequential stop</button><button tabIndex={-1}>Programmatic only</button></Dialog>)
+  const excluded = screen.getByRole('button', { name: 'Programmatic only' })
+  excluded.focus()
+  fireEvent.keyDown(excluded, { key: 'Tab' })
+  expect(screen.getByRole('button', { name: 'Close' })).toHaveFocus()
+})
+
+it('contains reverse Tab from the programmatically focused dialog before its first stop', () => {
+  render(<Dialog open onOpenChange={vi.fn()} title="Settings"><button>Sequential stop</button></Dialog>)
+  const dialog = screen.getByRole('dialog', { name: 'Settings' })
+  dialog.focus()
+  fireEvent.keyDown(dialog, { key: 'Tab', shiftKey: true })
+  expect(screen.getByRole('button', { name: 'Sequential stop' })).toHaveFocus()
+})

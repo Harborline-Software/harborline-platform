@@ -20,3 +20,16 @@ it('wraps between sequential stops, excluding a negative-tabindex button', () =>
     expect(first).toHaveFocus()
   } finally { connection.dispose() }
 })
+
+it.each([false, true])('contains Tab from an excluded boundary control (reverse=%s)', reverse => {
+  vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} })
+  vi.stubGlobal('requestAnimationFrame', () => 1)
+  document.body.innerHTML = '<div id="portal"><div id="dialog" role="dialog"><button id="before" tabindex="-1">Before</button><button id="first">First</button><div id="body"><button id="last">Last</button><button id="after" tabindex="-1">After</button></div></div></div>'
+  const connection = connect(document.getElementById('portal'), document.getElementById('dialog'), document.getElementById('body'), { invokeMethodAsync: vi.fn() }, true)
+  try {
+    const excluded = document.getElementById(reverse ? 'before' : 'after')!
+    excluded.focus()
+    excluded.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', shiftKey: reverse, bubbles: true, cancelable: true }))
+    expect(document.getElementById(reverse ? 'last' : 'first')).toHaveFocus()
+  } finally { connection.dispose() }
+})
