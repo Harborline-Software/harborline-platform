@@ -101,17 +101,11 @@ export function Sheet({ children, defaultOpen = false, modal = true, onOpenChang
   const [describedBy, setDescribedBy] = React.useState<string | undefined>()
   const triggerRef = React.useRef<HTMLElement | null>(null)
   const contentRef = React.useRef<HTMLDivElement | null>(null)
-  const previouslyOpen = React.useRef(renderedOpen)
 
   const requestOpen = React.useCallback((next: boolean) => {
     if (!controlled) setUncontrolledOpen(next)
     onOpenChange?.(next)
   }, [controlled, onOpenChange])
-
-  React.useLayoutEffect(() => {
-    if (previouslyOpen.current && !renderedOpen) triggerRef.current?.focus()
-    previouslyOpen.current = renderedOpen
-  }, [renderedOpen])
 
   const context = React.useMemo<SheetContextValue>(() => ({
     contentId,
@@ -202,23 +196,25 @@ export const SheetContent = React.forwardRef<HTMLDivElement, SheetContentProps>(
     const portal = portalRef.current
     if (!content || !portal) return
 
+    const initialRestoreTarget = context.triggerRef.current ?? (document.activeElement instanceof HTMLElement ? document.activeElement : null)
     const first = focusableElements(content)[0]
     ;(first ?? content).focus()
 
-    if (!context.modal) return
-    const siblings = Array.from(document.body.children).filter(element => element !== portal)
+    const siblings = context.modal ? Array.from(document.body.children).filter(element => element !== portal) : []
     const previousInert = siblings.map(element => (element as HTMLElement & { inert?: boolean }).inert ?? false)
     const previousOverflow = document.body.style.overflow
     siblings.forEach(element => { (element as HTMLElement & { inert?: boolean }).inert = true })
-    document.body.style.overflow = 'hidden'
+    if (context.modal) document.body.style.overflow = 'hidden'
 
     return () => {
       siblings.forEach((element, index) => {
         ;(element as HTMLElement & { inert?: boolean }).inert = previousInert[index]
       })
-      document.body.style.overflow = previousOverflow
+      if (context.modal) document.body.style.overflow = previousOverflow
+      const restoreTarget = context.triggerRef.current ?? initialRestoreTarget
+      if (restoreTarget?.isConnected) restoreTarget.focus()
     }
-  }, [context.contentRef, context.modal, context.open])
+  }, [context.contentRef, context.modal, context.open, context.triggerRef])
 
   React.useEffect(() => {
     if (!context.open) return
