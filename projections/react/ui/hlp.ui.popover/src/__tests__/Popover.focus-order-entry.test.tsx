@@ -3,6 +3,7 @@ import * as React from 'react'
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 
+import { Dialog } from '../../../hlp.ui.dialog/src/Dialog'
 import { Popover, PopoverContent, PopoverTrigger } from '../Popover'
 
 // T-1128, b31 re-review. The content's scope sits right after its trigger (WHATWG HTML 6.6.2), so the
@@ -174,5 +175,49 @@ describe('Popover focus order: the way in, nested (b31 final check)', () => {
     await settle()
     named('After').focus()
     expect(press(named('After'), true)).toEqual(['handled', 'Y'])
+  })
+})
+
+// Oracle: APG modal dialog keyboard interaction wraps Shift+Tab from first to last;
+// an inert background popover must not consume the modal's key.
+describe('Popover entry suspended by a modal', () => {
+  it('does not enter content that became inert while open', async () => {
+    render(<Page><button>Apply</button></Page>)
+    await settle()
+    ;(named('Details') as HTMLElement & { inert: boolean }).inert = true
+    named('After').focus()
+    expect(press(named('After'), true)).toEqual(['native', 'After'])
+  })
+
+  it('leaves reverse Tab to a Dialog opened from its content', async () => {
+    function Example() {
+      const [modal, setModal] = React.useState(false)
+      return <>
+        <Popover open><PopoverTrigger>Open</PopoverTrigger><PopoverContent aria-label="Details">
+          <button onClick={() => setModal(true)}>Launch dialog</button>
+        </PopoverContent></Popover>
+        <Dialog open={modal} onOpenChange={setModal} title="Modal" closeIcon={false}>
+          <button>First modal</button><button>Last modal</button>
+        </Dialog>
+      </>
+    }
+    render(<Example/>)
+    await settle()
+    fireEvent.click(named('Launch dialog'))
+    await settle()
+    const firstStop = document.querySelector<HTMLElement>('.hl-dialog__body')!
+    firstStop.focus()
+    expect(press(firstStop, true)).toEqual(['handled', 'Last modal'])
+  })
+
+  it.each([false, true])('ignores another modal scope (inert background: %s)', async inert => {
+    render(<>
+      <Popover open><PopoverTrigger>Open</PopoverTrigger><PopoverContent aria-label="Details"><button>Apply</button></PopoverContent></Popover>
+      <section aria-modal="true" role="dialog" aria-label="Other modal"><button>Modal control</button></section>
+    </>)
+    await settle()
+    if (inert) (named('Details') as HTMLElement & { inert: boolean }).inert = true
+    named('Modal control').focus()
+    expect(press(named('Modal control'), true)).toEqual(['native', 'Modal control'])
   })
 })

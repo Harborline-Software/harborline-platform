@@ -26,8 +26,7 @@ const scopeOf = element => element.parentElement?.closest(`${contentSelector},[a
 // The scope's Tab stops in document order, as the browser has them: tabbable, directly in this scope
 // (not in another popover's content), and a radio group as one stop, its checked radio or else its first.
 const stopsIn = scope => {
-  const own = scope && scope.matches(contentSelector) ? scope : null
-  const all = [...(scope ?? document).querySelectorAll(tabbableCandidates)].filter(tabbable).filter(element => element.closest(contentSelector) === own)
+  const all = [...(scope ?? document).querySelectorAll(tabbableCandidates)].filter(tabbable).filter(element => scopeOf(element) === scope)
   return all.filter(element => {
     if (!radioGroup(element)) return true
     const group = all.filter(other => sameGroup(other, element))
@@ -80,6 +79,10 @@ function routeTab(event, trigger, content) {
 // the content's last stop. A key already handled is left alone; nothing is handled once closed.
 function enterContent(event, trigger, content) {
   if (event.key !== 'Tab' || event.defaultPrevented || !trigger?.isConnected || !content?.isConnected) return
+  // A modal may make an already-open popover inert without unmounting its listener.
+  for (let node = content; node; node = node.parentElement) {
+    if (node.inert || node.hasAttribute('inert')) return
+  }
   let destination
   if (!event.shiftKey) {
     if (event.target !== trigger) return
