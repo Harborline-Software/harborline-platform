@@ -166,7 +166,9 @@ test('no self-hosted workflow may grant publishing or signing permissions', () =
 test('library attestations are pinned and precede package push only on main publication', () => {
   const workflow = readFileSync(new URL('../../.github/workflows/validate.yml', import.meta.url), 'utf8')
   assert.ok(workflow.indexOf('uses: actions/attest@') < workflow.indexOf('dotnet nuget push'))
-  assert.match(workflow, /subject-path: artifacts\/packages\/nuget\/\*\.nupkg/)
+  // Every packed library is a subject; since the separate signing job (2026-11-03) the manifest and the consumer
+  // proof are attested beside them, so the libraries head a subject list.
+  assert.match(workflow, /subject-path: \|\n\s+artifacts\/packages\/nuget\/\*\.nupkg\n/)
   assert.match(workflow, /id-token: write\n      attestations: write/)
   for (const line of workflow.split('\n').filter(line => /uses:/.test(line)))
     assert.match(line, /uses: [a-zA-Z0-9_./-]+@[0-9a-f]{40} # v\d/)
