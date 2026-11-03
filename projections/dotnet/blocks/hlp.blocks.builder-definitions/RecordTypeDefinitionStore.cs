@@ -183,8 +183,9 @@ public sealed class RecordTypeDefinitionStore
             Edge(CatalogueDefinitionType.Class, document.ClassId!, null, DefinitionDependencyKind.Derived, "class_id");
         foreach (var trait in document.Traits ?? [])
             Edge(CatalogueDefinitionType.Trait, trait.TraitId, trait.Version, DefinitionDependencyKind.Derived, "traits");
-        // Plain locals rather than `is not { } x` pattern variables keep each statement independently mutable.
-        foreach (var (reference, index) in (document.Fields ?? []).Select((field, index) => (field.Reference, index)))
+        // Plain locals rather than `is not { } x` pattern variables keep each statement independently mutable. Admission has
+        // already refused a body without fields (records.document_invalid at /fields).
+        foreach (var (reference, index) in document.Fields.Select((field, index) => (field.Reference, index)))
         {
             if (reference is null)
                 continue;
@@ -192,8 +193,7 @@ public sealed class RecordTypeDefinitionStore
             var classTarget = !string.IsNullOrWhiteSpace(reference.TargetClassId);
             var targetId = classTarget ? reference.TargetClassId! : reference.TargetTypeId!;
             var self = !classTarget && StringComparer.Ordinal.Equals(targetId, document.RecordTypeId);
-            var head = self ? null
-                : publishedHead(classTarget ? ClassDefinitionStore.KeyOf(tenant, targetId) : KeyOf(tenant, targetId));
+            var head = publishedHead(classTarget ? ClassDefinitionStore.KeyOf(tenant, targetId) : KeyOf(tenant, targetId));
             if (!self && head is null)
             {
                 refusals.Add(new("records.reference.target_unresolved", pointer + (classTarget ? "/target_class_id" : "/target_type_id")));

@@ -154,14 +154,18 @@ public sealed class DefinitionDependencyTests
     [InlineData("type", "records.reference.target_unresolved", "/fields/1/reference/target_type_id")]
     [InlineData("class-target", "records.reference.target_unresolved", "/fields/1/reference/target_class_id")]
     [InlineData("trait", "records.reference.trait_absent", "/fields/1/reference/required_trait_id")]
+    [InlineData("trait-not-among-others", "records.reference.trait_absent", "/fields/1/reference/required_trait_id")]
+    [InlineData("type-requiring-a-trait", "records.reference.target_unresolved", "/fields/1/reference/target_type_id")]
     public async Task an_end_naming_no_catalogue_definition_refuses_at_the_commit(string end, string code, string pointer)
     {
         var host = NewHost();
-        await PublishType(host, Type("Meter", null));
+        await PublishType(host, Type("Meter", end == "trait-not-among-others" ? [new("other", "1.0.0", [])] : null));
         var type = end switch
         {
             "class" => Type("Work Order", null, ToMeter("meter")) with { ClassId = "eam.missing" },
             "type" => Type("Work Order", null, Field("missing", new("eam.missing", null, ReferenceCardinality.One, ReferenceDeleteBehavior.Block))),
+            "type-requiring-a-trait" => Type("Work Order", null,
+                Field("missing", new("eam.missing", null, ReferenceCardinality.One, ReferenceDeleteBehavior.Block, RequiredTraitId: "locatable"))),
             "class-target" => Type("Work Order", null, Field("missing", new(null, "eam.missing", ReferenceCardinality.One, ReferenceDeleteBehavior.Block))),
             _ => Type("Work Order", null, Field("meter", new("eam.meter", null, ReferenceCardinality.One, ReferenceDeleteBehavior.Block, RequiredTraitId: "locatable"))),
         };
