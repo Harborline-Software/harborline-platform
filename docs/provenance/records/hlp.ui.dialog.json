@@ -11,7 +11,7 @@
     "conformance/hlp.ui.dialog/quality-fixtures.yaml": "d9ff39335ee5a97acd3c8bdb63c56be36bbfc20597bd80cf47780271e35ff260",
     "conformance/hlp.ui.dialog/runners/run-shared.mjs": "a2e0bc324ab5987065e048874d2be94a5ce48b346eedccd6725544d9db127ef2",
     "projections/blazor/ui/hlp.ui.dialog/HarborlineDialog.razor": "b4cfe5f869cb70c12c704d66ab35910a5b2104df31a264492cbb88481d790494",
-    "projections/blazor/ui/hlp.ui.dialog/wwwroot/dialog.js": "6871bf91a9c78d839d43bb4018f1c6a8bcf35eb07cc5801638661317915cfc2f",
+    "projections/blazor/ui/hlp.ui.dialog/wwwroot/dialog.js": "afc225a99e80ece5ca97d27b4d556ac0112a52eb8e0ecee7a17f213afbdb223b",
     "projections/react/ui/hlp.ui.dialog/src/Dialog.tsx": "6f723a69baf8c2edf4e5f2a9b136fb18124e16bd180ff7332a40489bca7ff4b5",
     "projections/react/ui/hlp.ui.dialog/src/__tests__/Dialog.conformance.test.tsx": "6c326b7ba3cafca5d995ad8974f1d6fb2e2157b0795d750d6e14c3f910e2e3ca",
     "projections/react/ui/hlp.ui.dialog/src/__tests__/Dialog.native.test.tsx": "870b688cd225a00b95234014ba895f13295009ec8a93825b1dcd6ab5f93e5da6",

@@ -51,9 +51,11 @@
         module ??= await JavaScript.InvokeAsync<IJSObjectReference>("import", "./_content/Harborline.UIAdapters.Blazor/popover.js");
         if (module is null) return;
         callback ??= DotNetObjectReference.Create(this);
+        // triggerId: popover.js resolves the trigger by id for the focus order (T-1128) when the reference is
+        // missing (the trigger captures it in its own OnAfterRender) or stale after a re-render.
         connection = await module.InvokeAsync<IJSObjectReference>("connect", Context.TriggerElement,
             reference, content,
-            new { side = SideName, align = AlignName, sideOffset = SideOffset }, callback);
+            new { side = SideName, align = AlignName, sideOffset = SideOffset, triggerId = Context.TriggerId }, callback);
         connectedArgs = args;
     }
 
