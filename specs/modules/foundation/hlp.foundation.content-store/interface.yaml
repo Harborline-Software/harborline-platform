@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.foundation.content-store",
-  "interfaceRevision": 1,
+  "interfaceRevision": 2,
   "status": "frozen",
   "purpose": "Own the tenant-scoped, envelope-encrypted content store (DES-0054, T-521 slice 2): streamed puts with detected media types and logical-byte quotas, dedup at commit under a tenant-keyed content id, segmented AEAD at rest, single-range streaming reads with typed integrity failures, reclamation and export fixity.",
   "dependencies": [],
@@ -13,7 +13,8 @@
       "Read(tenant, reference, authorized, range?, ifRange?, context?) -> a streaming delivery; an unreadable, cross-tenant or unknown id all refuse with the same ContentNotFoundException, and authorization runs before range evaluation",
       "A failed wrap or segment authentication throws ContentIntegrityException (item key, owner, segment index); the item's state is unchanged and only a full verified read ends the integrity episode",
       "RemoveReference / SweepExpired / Export / VerifyExport -> reclamation with a reclamation entry, the content-staging-sweep run on sys.sched.content-staging, and per-export keyed fixity",
-      "IContentStoreStorage and IContentStoreQuotaBase are ports a durable host implements; InMemoryContentStoreStorage is the reference implementation"
+      "IContentStoreStorage and IContentStoreQuotaBase are ports a durable host implements; InMemoryContentStoreStorage is the reference implementation",
+      "Revision 2 (T-521/content-store-storage-unit-of-work; breaking for port implementers only): IContentStoreStorage.Save(ContentStoreChange) is the port's one save step, a unit of work. The store calls it exactly once for each operation that changes state (Put, Commit, RemoveReference, SweepExpired, and a read that opens, counts or closes an integrity episode), inside SyncRoot, after all of that operation's changes to the collections and before the operation returns; an operation that changes nothing, a read included, never calls it. ContentStoreChange names the ContentStoreOperation, the Items keys and StagedItems stage ids added, changed or removed, the ReclamationEntry values appended and the IntegrityEntries keys added or changed; each named key's new value is in the collection, and an absent key was removed. A save that throws fails the operation with that exception and the store restores every collection, owner list and lifecycle state to its value before the operation; key material is destroyed only after a successful save. InMemoryContentStoreStorage.Save does nothing. The store's callers see no API change"
     ],
     "context": "Slice 2 of T-521. Applies DES-0054 section 10 rulings Q27 to Q36. The per-item limit, quota fractions and staging-expiry multiple are required inputs with no default (Q11, Q19). The HTTP request-id header, the 500 or stream abort on the wire, health and audit-read scoping, and the durable backing are api-host work."
   },
@@ -22,7 +23,8 @@
     "Each item has its own data key, wrapped under a separate HKDF subkey; the two subkeys are never interchangeable.",
     "Content is sealed in 65,536-byte AES-256-GCM segments with a last-segment flag, so reordering, dropping or truncating a segment fails authentication.",
     "Read failures are status-only; integrity details never reach a client.",
-    "Every unstated measurement is a required input with no default."
+    "Every unstated measurement is a required input with no default.",
+    "Each state-changing operation is one unit under the storage SyncRoot: its check, its changes and its one save step are never split (CWE-362, CWE-367), and a failed save leaves the store as the operation found it (CWE-460)."
   ],
   "errors": [
     "content.too-large",
@@ -35,15 +37,15 @@
     "content.field-media-type-not-allowed"
   ],
   "publicSeams": [
-    "the IContentStoreStorage port a durable host adapter implements",
+    "the IContentStoreStorage port a durable host adapter implements, including its one Save step per state-changing operation",
     "the IContentStoreQuotaBase port the host implements",
     "the ITenantContentKeyProvider port that supplies tenant keys"
   ],
   "conformance": {
     "nativeTests": {
-      "dotnet": 31
+      "dotnet": 43
     },
-    "nativeTestNote": "DES-0054 section 9 clauses ck-4 to ck-13, cc-4, cc-5, cc-7, eng-1 to eng-11 and Q27 to Q36, including a tampered middle segment under a range read, a wrap-key failure, the integrity episode and a storage-port restart."
+    "nativeTestNote": "DES-0054 section 9 clauses ck-4 to ck-13, cc-4, cc-5, cc-7, eng-1 to eng-11 and Q27 to Q36, including a tampered middle segment under a range read, a wrap-key failure, the integrity episode and a storage-port restart; revision 2 adds the save-step tests (one save per state-changing operation, none for a read, and a throwing save leaving the store unchanged)."
   },
   "selectedDesign": {
     "choice": "One packable foundation assembly owns the store engine and its storage and quota ports, so a host supplies durable backing without the engine depending on a host.",
