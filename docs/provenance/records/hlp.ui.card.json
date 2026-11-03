@@ -1,0 +1,32 @@
+{
+  "moduleId": "hlp.ui.card",
+  "legacySourceHashes": {
+    "packages/ui-react/src/components/layout/Card.tsx": "a6abb525a636a5e6363551322fc75a5aff1e94e38b561f27599339186785de4a"
+  },
+  "phase4Evidence": "specs/modules/ui/hlp.ui.card/interface.yaml",
+  "sourceExtracted": true,
+  "sourceState": "Interface revision 1 preserves the exact pinned hlp.ui.card source surface and proves every registered projection through native, shared-conformance, package-only, and applicable gallery/performance gates.",
+  "contentHashes": {
+    "conformance/hlp.ui.card/fixtures.yaml": "78b454028afa59ad8d8e805a7b3171fcaf7fd1dc58a611894530b8910705eb08",
+    "conformance/hlp.ui.card/quality-fixtures.yaml": "c31b9d428bb2b8f9ecc1a9894b375bf51e0afb59e8374216b52020ca007309b8",
+    "conformance/hlp.ui.card/runners/run-shared.mjs": "1d70685637e0b1dd6abc7b6a15d911da15a98edb4395056c376ec37d591e55b4",
+    "projections/blazor/ui/hlp.ui.card/CardTypes.cs": "fb9d4814599e5aa1c60d39a75d3f2ca84c0dd5f0cccd41ecb2a70c652d6b793a",
+    "projections/blazor/ui/hlp.ui.card/HarborlineCard.razor": "18f423e65e8aa2bb9e2252e9280f5d63dad5840e6cbc084caab0008cd73bd6dc",
+    "projections/blazor/ui/hlp.ui.card/HarborlineCardContent.razor": "1088dac73363d1d78c9465c9ded9ba10863be5c24dcbe0a39ba607ba468374de",
+    "projections/blazor/ui/hlp.ui.card/HarborlineCardHeader.razor": "268d3049ef35772f6a2710e9abb8c6d59f4e6ff76f8766576de5539a7a3268a6",
+    "projections/blazor/ui/hlp.ui.card/HarborlineCardTitle.razor": "05d980b861c8bfb9e7bfc19aa28e64b8fbf09b883c270d823bf9b8f2af0d74f2",
+    "projections/react/ui/hlp.ui.card/src/Card.tsx": "35a50babb8b77a178f9dba95c48087ae26a3dbcc779797dc7b5cc15a330bc0e5",
+    "projections/react/ui/hlp.ui.card/src/__tests__/Card.conformance.test.tsx": "619d5e5ba584b84d676c6367c07d053645f7604c309ab905b2ca99c53852681c",
+    "projections/react/ui/hlp.ui.card/src/__tests__/Card.native.test.tsx": "c2105acd74185063522794f2d3429348a05047a2190230218984f5c345f73d1a",
+    "projections/react/ui/hlp.ui.card/src/__tests__/fixtures.ts": "c077f2d5705c06dbe3d967ed59f284543717a239259822ab7084e552e06c7c70",
+    "projections/react/ui/hlp.ui.card/src/index.ts": "dcb9201ffc9f68a6500b7cba23df12bef6fdaa25f3a3c3c3e28857ed150f8f84",
+    "projections/react/ui/hlp.ui.card/src/test-setup.ts": "977afde26bba6a51325908cd7713cbfdc87d18f06b78b237c8f364c44864b7de",
+    "projections/react/ui/hlp.ui.card/tsconfig.build.json": "79f88e3d2d724b771fd801d1e7fb8017ff65f21196d37372cf563680de02a0c2",
+    "projections/react/ui/hlp.ui.card/vitest.config.ts": "846aab8c29678bdb1560e32ba9355fbf8f24086c16a11cfe3758e916b834a739",
+    "specs/modules/ui/hlp.ui.card/interface.yaml": "2df92bb1d34e56207e38a38148b206d8254f649f161d37c54d143ec2cb12f256",
+    "specs/modules/ui/hlp.ui.card/quality.yaml": "55ddbc3e093fccf0bd90c60359a177c4fbea766b66d69587077a5bdae873704e",
+    "specs/modules/ui/hlp.ui.card/scenarios.json": "a8807f46a1f2523606fa3df8d3d94d1b43d5446a74eeec923b951a4f18156755",
+    "specs/modules/ui/hlp.ui.card/style.css": "c843b5f0c76014ef9b218e0c282cd64c3f6e2863d203167e28635aa74a5a47aa"
+  },
+  "nextGate": "Retain this conformant aggregate contribution while HLF-052 advances to the next Carrier-essential dependency wave."
+}

@@ -83,7 +83,7 @@
         "context-menu.quality.focus"
       ],
       "content": {
-        "blurb": "Shift+F10 enters the first enabled item and navigation skips disabled actions.",
+        "blurb": "Shift+F10 enters the first item; arrows reach disabled actions, which cannot be activated, and Tab moves on.",
         "environment": {
           "locale": "en-US",
           "direction": "ltr",

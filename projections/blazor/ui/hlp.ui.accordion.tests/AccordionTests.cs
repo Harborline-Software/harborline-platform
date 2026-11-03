@@ -1,5 +1,6 @@
 using Bunit;
 using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Web;
 using Harborline.UIAdapters.Blazor.Components.Layout;
 using Xunit;
 
@@ -21,11 +22,78 @@ public sealed class AccordionTests : BunitContext
         var cut = Render<HarborlineAccordion>(p => p.Add(x => x.Items, Items).Add(x => x.DefaultExpandedValues, ["a", "b", "missing"]).Add(x => x.ExpandedValuesChanged, values => changed = values).Add(x => x.Class, "consumer"));
         var buttons = cut.FindAll("button");
         Assert.Equal("true", buttons[0].GetAttribute("aria-expanded"));
+        Assert.Equal("false", buttons[2].GetAttribute("aria-expanded"));
         Assert.True(buttons[1].HasAttribute("disabled"));
-        Assert.Equal(buttons[0].GetAttribute("aria-controls"), cut.FindAll("[role=region]")[0].Id);
+        AssertHeadersNameAndControlTheirPanels(cut);
         buttons[2].Click();
         Assert.Equal(["c"], changed);
+        AssertHeadersNameAndControlTheirPanels(cut);
         Assert.Contains("consumer", cut.Find(".hl-accordion").ClassList);
+    }
+
+    [Fact]
+    public void AHeaderReRenderedToTakeFocusKeepsItsNameStateAndPanel()
+    {
+        // Arrow keys re-render the target header through the branch that captures it for focus. That branch
+        // repeats the header markup, so its name, aria-expanded and panel wiring are asserted there too.
+        var cut = Render<HarborlineAccordion>(p => p.Add(x => x.Items, Items).Add(x => x.DefaultExpandedValues, ["a"]));
+        cut.FindAll("button")[0].KeyDown(new KeyboardEventArgs { Key = "ArrowDown" }); // past disabled Beta to Gamma
+        JSInterop.VerifyFocusAsyncInvoke(1)[0].Arguments[0].ShouldBeElementReferenceTo(cut.FindAll("button")[2]);
+        Assert.Equal("false", cut.FindAll("button")[2].GetAttribute("aria-expanded"));
+        AssertHeadersNameAndControlTheirPanels(cut);
+
+        cut.FindAll("button")[2].KeyDown(new KeyboardEventArgs { Key = "ArrowDown" }); // wraps to expanded Alpha
+        JSInterop.VerifyFocusAsyncInvoke(2)[1].Arguments[0].ShouldBeElementReferenceTo(cut.FindAll("button")[0]);
+        Assert.Equal("true", cut.FindAll("button")[0].GetAttribute("aria-expanded"));
+        AssertHeadersNameAndControlTheirPanels(cut);
+    }
+
+    [Fact]
+    public void TwoAccordionsOnOnePageKeepTheirIdsApart()
+    {
+        // Ids that are unique inside one accordion must also be unique beside a second one.
+        var cut = Render(builder =>
+        {
+            for (var instance = 0; instance < 2; instance++)
+            {
+                builder.OpenComponent<HarborlineAccordion>(0);
+                builder.AddAttribute(1, nameof(HarborlineAccordion.Items), Items);
+                builder.CloseComponent();
+            }
+        });
+        Accname.AssertIdReferencesResolve(cut);
+        var headers = cut.FindAll("button");
+        var panels = cut.FindAll("[role=region]");
+        Assert.Equal(2 * Items.Count, headers.Count);
+        for (var index = 0; index < headers.Count; index++)
+        {
+            Accname.AssertReferences(headers[index], "aria-controls", panels[index]);
+            Accname.AssertReferences(panels[index], "aria-labelledby", headers[index]);
+        }
+    }
+
+    // APG accordion: each header button is named by its heading text and controls its own panel, and each
+    // panel is a region named by that header through aria-labelledby. Ids resolve, once each, and a panel is
+    // hidden exactly when its header reports aria-expanded="false".
+    private static void AssertHeadersNameAndControlTheirPanels(IRenderedComponent<HarborlineAccordion> cut)
+    {
+        Accname.AssertIdReferencesResolve(cut);
+        var headers = cut.FindAll("button");
+        var panels = cut.FindAll("[role=region]");
+        string[] headings = ["Alpha", "Beta", "Gamma"];
+        Assert.Equal(headings.Length, headers.Count);
+        Assert.Equal(headings.Length, panels.Count);
+        for (var index = 0; index < headings.Length; index++)
+        {
+            Assert.Equal(headings[index], Accname.AccessibleName(headers[index]));
+            Accname.AssertReferences(headers[index], "aria-controls", panels[index]);
+            Accname.AssertReferences(panels[index], "aria-labelledby", headers[index]);
+            Assert.Equal(headings[index], Accname.AccessibleName(panels[index]));
+            var expanded = headers[index].GetAttribute("aria-expanded");
+            Assert.True(expanded is "true" or "false", $"header {index}: aria-expanded is {expanded ?? "absent"}");
+            Assert.True(panels[index].HasAttribute("hidden") == (expanded == "false"),
+                $"panel {index}: hidden must be the inverse of its header's aria-expanded=\"{expanded}\"");
+        }
     }
 
     [Fact]

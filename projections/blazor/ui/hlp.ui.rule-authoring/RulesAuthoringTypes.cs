@@ -1,4 +1,4 @@
-using Harborline.Contracts.Forms;
+using Harborline.Contracts.Rules;
 using Harborline.Foundation.RuleAuthoring;
 
 namespace Harborline.UIAdapters.Blazor.Components.RuleAuthoring;

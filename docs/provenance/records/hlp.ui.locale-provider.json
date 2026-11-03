@@ -1,0 +1,35 @@
+{
+  "moduleId": "hlp.ui.locale-provider",
+  "legacySourceHashes": {
+    "packages/ui-react/src/i18n/ShipyardLocaleProvider.tsx": "25a740c8629e2cf8b86a8f033b7e93596794bb6e9ce3c23330585dab7aa6932a",
+    "packages/ui-react/src/i18n/__tests__/ShipyardLocaleProvider.test.tsx": "138da11703912246856f784e51deaba0a91264249f3f31ca51fa572771e671df",
+    "apps/carrier/src/i18n/CarrierLocaleProvider.test.tsx": "dc5daf62f60bdcb86109c0d385c228021c50a173e4383c770638196b6df71e1e",
+    "apps/carrier/src/i18n/localeInit.drift.test.ts": "f984bb04de944638c1dcb41e1e62d231d7a31c4c85cc861b90ffadd198d0d97e",
+    "packages/ui-react/src/components/forms/FormsLocalization.stories.tsx": "5196d34cff97bc9b70335d624487efe77f9eb8e6e82a2d86112aaec9a05f1118",
+    "packages/ui-react/src/i18n/catalog.ts": "1cc2019bdc92fc32e45d809b09ddfda6c8fe53ca2dd31b59524092d3d605417a"
+  },
+  "phase4Evidence": "specs/modules/ui/hlp.ui.locale-provider/interface.yaml",
+  "sourceExtracted": true,
+  "sourceState": "Interface revision 1 preserves the pinned hlp.ui.locale-provider caller surface and supplies conformant React and Blazor or provider-neutral .NET projections, native tests, shared fixtures, and clean aggregate package-consumer evidence.",
+  "contentHashes": {
+    "conformance/hlp.ui.locale-provider/fixtures.yaml": "c556d924ad13fc5afb587328fa7b1204886b0bab60feb23f7e8dfcc71ccabed1",
+    "conformance/hlp.ui.locale-provider/quality-fixtures.yaml": "25d7323e8ce0b8cd3a5ebc7be7af88833a25efeb302115ec25a7b158d5079748",
+    "conformance/hlp.ui.locale-provider/runners/run-shared.mjs": "3d8268ff85b22d3dfd899a35a5f4d4b65cc3946aa420b73966e186427fd46f7e",
+    "projections/blazor/ui/hlp.ui.button/Localization/HarborlineLocaleContext.cs": "34bd8801b214d92407d6a3624a9ed94c6ca7568be7b416cc350adc5aa920e662",
+    "projections/blazor/ui/hlp.ui.button/Localization/HarborlineLocaleProvider.razor": "e94c523362928df584d281e16c14c3c612c2f553f30102dde300ea3afdea6d08",
+    "projections/blazor/ui/hlp.ui.locale-provider.tests/LocaleProviderTests.cs": "b459d4ed708fc7cc7a7d608e35f73567d60c6a8e72377908122f95f77e0965b5",
+    "projections/dotnet/foundation/hlp.ui.locale-provider/HarborlineLocaleScope.cs": "3f3b51f602f203c2f2046291c4273ddaad018cc3be3db05a522dfeac944d19b3",
+    "projections/dotnet/foundation/hlp.ui.support.tests/LocaleScopeTests.cs": "723b803e4d3aa764c2984a22cccccecf2e3fc0eaedfdeb22f46e36041da5aab3",
+    "projections/react/ui/hlp.ui.locale-provider/src/HarborlineLocaleProvider.tsx": "c3f4ec68b0d1006abbfb44942c6ea4020f5d334121ceeee9c4f812ba20cd6fda",
+    "projections/react/ui/hlp.ui.locale-provider/src/__tests__/fixtures.ts": "189c5db71bc55f46d1f7c4496a0c032b14bc56e59f5ac7661887ca7a0a8a3356",
+    "projections/react/ui/hlp.ui.locale-provider/src/__tests__/locale-provider.conformance.test.tsx": "22c802c949a7af84142caa34eaf358e33bd07196d26b2e955d7b0285b37e4f63",
+    "projections/react/ui/hlp.ui.locale-provider/src/__tests__/locale-provider.native.test.tsx": "8dc9f98527733f30eaa7d104472bc3e00576442c7bff73a9d8d52296a480887e",
+    "projections/react/ui/hlp.ui.locale-provider/src/index.ts": "62b53d917190c356bc6452572e7e94a7e5991a9729a78ca7ea82894b0e0c8f95",
+    "projections/react/ui/hlp.ui.locale-provider/tsconfig.build.json": "1aeff6295d2cd5634e09ac7e9d02a26c39adc1c3c85641f7d73d6dd94a01077b",
+    "projections/react/ui/hlp.ui.locale-provider/tsconfig.json": "a8281309c5a6c67d491c0d6134f55ba3b7c6cf11b0324420533c6758fd62aff6",
+    "projections/react/ui/hlp.ui.locale-provider/vitest.config.ts": "bf82961207786fb85f546b49db20ac0bc93ef17948b00c1da277a46b097e673b",
+    "specs/modules/ui/hlp.ui.locale-provider/interface.yaml": "4846544c2af7be589b6881a76ee094822da860ec723e9630e6c6cf21306484b8",
+    "specs/modules/ui/hlp.ui.locale-provider/quality.yaml": "4d35079ffd118ae01c8980785ba26300c3e582a950e191950ebc51e953a3a284"
+  },
+  "nextGate": "Retain this conformant aggregate contribution while HLF-052 advances to the next Carrier-essential dependency wave."
+}

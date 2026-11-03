@@ -1,0 +1,59 @@
+{
+  "moduleId": "hlp.ui.alert",
+  "module": {
+    "interface": {
+      "path": "specs/modules/ui/hlp.ui.alert/interface.yaml",
+      "revision": 1
+    },
+    "moduleKind": "interactive-component",
+    "presentation": {
+      "disposition": "visual"
+    },
+    "qualityProfile": {
+      "path": "specs/modules/ui/hlp.ui.alert/quality.yaml",
+      "revision": 1
+    },
+    "owner": "platform-ui",
+    "dependencies": [
+      "hlp.ui.cn",
+      "hlp.ui.default-strings",
+      "hlp.ui.locale-provider"
+    ],
+    "status": "extracted-candidate",
+    "depth": {
+      "disposition": "deep-module",
+      "deletionTest": "PASS",
+      "redistributedComplexity": [
+        "variant urgency and variant urgency role mapping and decorative icon semantics otherwise repeated by every host",
+        "variant urgency role mapping and decorative icon semantics remain framework-equivalent"
+      ]
+    },
+    "projections": {
+      "react": {
+        "role": "adapter",
+        "seam": "ui.alert.framework",
+        "path": "projections/react/ui/hlp.ui.alert",
+        "status": "conformant",
+        "packageContribution": "@harborline-software/ui-react",
+        "conformanceRunner": "conformance/hlp.ui.alert/runners/run-shared.mjs"
+      },
+      "blazor": {
+        "role": "adapter",
+        "seam": "ui.alert.framework",
+        "path": "projections/blazor/ui/hlp.ui.alert",
+        "status": "conformant",
+        "packageContribution": "Harborline.UIAdapters.Blazor",
+        "conformanceRunner": "conformance/hlp.ui.alert/runners/run-shared.mjs"
+      }
+    }
+  },
+  "seams": {
+    "ui.alert.framework": {
+      "status": "conformant",
+      "adapters": [
+        "react",
+        "blazor"
+      ]
+    }
+  }
+}

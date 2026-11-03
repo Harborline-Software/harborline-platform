@@ -1,3 +1,5 @@
+import { expect, type Page } from '@playwright/test'
+
 export type NavigationPage = {
   goto(url: string): Promise<unknown>
   waitForTimeout(milliseconds: number): Promise<void>
@@ -30,6 +32,46 @@ export async function readWithReload<T>(page: NavigationPage, url: string, label
     }
   }
   throw new Error(`${label}: no answer after ${attempts} bounded attempts of ${attemptMs} ms at ${url}: ${String(lastError)}`)
+}
+
+export type StoryEntry = { id: string; title: string; name: string; type: 'story' | 'docs' }
+export type StoryIndex = { entries: Record<string, StoryEntry> }
+
+// The gallery's story index, read from the React gallery's index.json or the Blazor gallery's
+// BlazingStory.getStoryIndex(), each with its own bounded retry. Shared so specs that open a story
+// by title and name read the index one way (T-1122).
+export async function readStoryIndex(page: Page, projection: 'react' | 'blazor', base: string): Promise<StoryIndex> {
+  if (projection === 'react') {
+    let index: StoryIndex | undefined
+    await expect(async () => {
+      const response = await page.request.get(`${base}/index.json`)
+      expect(response.ok()).toBe(true)
+      index = await response.json() as StoryIndex
+    }).toPass({ intervals: [250, 500, 1_000], timeout: 5_000 })
+    return index!
+  }
+  return readWithReload(page, base, 'BlazingStory.getStoryIndex()', async () => {
+    await page.waitForFunction(() => {
+      const host = globalThis as typeof globalThis & {
+        BlazingStory?: { getStoryIndex?: unknown }
+      }
+      return typeof host.BlazingStory?.getStoryIndex === 'function'
+    })
+    // Reissue only the existing gallery's known page-promise collection failure.
+    for (let attempt = 0; ; attempt += 1) {
+      try {
+        return await page.evaluate(() => {
+          const host = globalThis as typeof globalThis & {
+            BlazingStory: { getStoryIndex(): Promise<StoryIndex> }
+          }
+          return host.BlazingStory.getStoryIndex()
+        })
+      }
+      catch (error) {
+        if (attempt === 2 || !String(error).includes('Resulting promise was garbage collected')) throw error
+      }
+    }
+  }, 15_000)
 }
 
 export async function gotoWithTransientNetworkRetry(page: NavigationPage, url: string): Promise<unknown> {
@@ -94,4 +136,25 @@ export async function openWithSubresourceRetry(page: StoryPage, url: string, ori
     }
     await page.waitForTimeout(retryDelays[attempt])
   }
+}
+
+// Under four-worker load, an evaluate that awaits a PAGE-SIDE promise (the BlazingStory
+// index call) can lose that promise to garbage collection before it settles —
+// Playwright surfaces "Resulting promise was garbage collected" although the page is
+// healthy. Re-issue the evaluate a bounded number of times on exactly that error; every
+// other failure propagates unchanged. (Migration ticket 075 — observed on unrelated
+// scenarios at ~per-run frequency, so retry-at-test level did not clear it.) Only use this for
+// replay-safe reads: a protocol failure does not cancel a page-side operation already in progress.
+export async function evaluateSettled<T>(issue: () => Promise<T>): Promise<T> {
+  let lastError: unknown
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      return await issue()
+    }
+    catch (error) {
+      if (!String(error).includes('Resulting promise was garbage collected')) throw error
+      lastError = error
+    }
+  }
+  throw lastError
 }

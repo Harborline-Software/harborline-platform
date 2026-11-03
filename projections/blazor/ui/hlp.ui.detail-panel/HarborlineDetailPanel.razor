@@ -140,7 +140,7 @@
         var id = facet.Id;
         <button @key="id" @ref="tabElements[id]" type="button" role="tab" id="@($"{tabBaseId}-{id}")"
                 aria-selected="@((id == ActiveFacet).ToString().ToLowerInvariant())" aria-controls="@($"{tabBaseId}-panel")"
-                tabindex="@(id == ActiveFacet ? 0 : -1)" class="hl-detail-panel__tab" data-facet-id="@id"
+                tabindex="@(id == ActiveFacet ? "0" : "-1")" class="hl-detail-panel__tab" data-facet-id="@id"
                 @onclick="() => SelectFacetAsync(id)" @onkeydown="HandleTabKeyAsync">
           <span data-facet-label>@facet.Label</span><span class="hl-detail-panel__tab-count" data-facet-count>@facet.Count</span>
         </button>

@@ -755,34 +755,6 @@
       ]
     },
     {
-      "scenarioId": "numeric-text-box.editing-commit",
-      "ticket": "T-1108",
-      "reason": "Component defect (Blazor): AtMinimum is false for a null value, so after the empty commit Decrement stays enabled at the min-0 bound, where React computes (current ?? 0) <= min and disables it. This contradicts the spinner invariant that a button at an active bound is disabled and emits nothing.",
-      "hunks": [
-        "@@ #1",
-        "  - textbox \"Replacement cost\"",
-        "  - button \"Increment\"",
-        "- - button \"Decrement\" [disabled]",
-        "+ - button \"Decrement\"",
-        "  - text: Focus to edit; press Enter or move focus to commit.",
-        "  - status: \"Requests: null\""
-      ]
-    },
-    {
-      "scenarioId": "numeric-text-box.formats",
-      "ticket": "T-1108",
-      "reason": "Component defect (Blazor): currency formatting through double.ToString(\"C\") rounds half to even, so 1234.5 with c0 renders \"$1,234\" where React's Intl.NumberFormat renders \"$1,235\". This contradicts the numeric-text-box.formatting and projection-equivalence conformance cases.",
-      "hunks": [
-        "@@ #1",
-        "  - button \"Decrement\"",
-        "  - strong: Currency, zero decimals",
-        "- - textbox \"Replacement cost\": $1,235",
-        "+ - textbox \"Replacement cost\": $1,234",
-        "  - button \"Increment\"",
-        "  - button \"Decrement\""
-      ]
-    },
-    {
       "scenarioId": "radio-group.rtl-theme",
       "ticket": "T-1104",
       "reason": "Gallery story input: in the RTL scene the React story keeps the English option description \"Four invoices each year\" while the Blazor story passes the Arabic one. The two lanes' gallery stories do not render the same scene for this scenario, so the comparison reads different inputs, not a component difference; the stories need aligning.",
@@ -845,8 +817,7 @@
         "+   - 'button \"Photo-with-pose capture: 9:00 AM to 10:30 AM\"': Photo-with-pose capture 9:00 AM–10:30 AM",
         "+   - 'button \"Blueprint placement: 9:30 AM to 11:00 AM\"': Blueprint placement 9:30 AM–11:00 AM",
         "+   - 'button \"Inspection handoff: 1:00 PM to 2:00 PM\"': Inspection handoff 1:00 PM–2:00 PM",
-        "+   - 'button \"Field verification: 8:30 AM to 10:00 AM\"': Field verification 8:30 AM–10:00 AM",
-        "+ - text: Scrollable, showing 1 to 6 of 7"
+        "+   - 'button \"Field verification: 8:30 AM to 10:00 AM\"': Field verification 8:30 AM–10:00 AM"
       ]
     },
     {
@@ -1904,8 +1875,7 @@
         "+   - 'button \"Event 253: 9:00 AM to 9:30 AM\"': Event 253 9:00 AM–9:30 AM",
         "+   - 'button \"Event 254: 9:05 AM to 9:35 AM\"': Event 254 9:05 AM–9:35 AM",
         "+   - 'button \"Event 255: 9:10 AM to 9:40 AM\"': Event 255 9:10 AM–9:40 AM",
-        "+   - 'button \"Event 256: 9:15 AM to 9:45 AM\"': Event 256 9:15 AM–9:45 AM",
-        "+ - text: Scrollable, showing 1 to 6 of 7"
+        "+   - 'button \"Event 256: 9:15 AM to 9:45 AM\"': Event 256 9:15 AM–9:45 AM"
       ]
     },
     {
@@ -2207,8 +2177,7 @@
         "+   - 'button \"Photo-with-pose capture: 9:00 AM to 10:30 AM\"': Photo-with-pose capture 9:00 AM–10:30 AM",
         "+   - 'button \"Blueprint placement: 9:30 AM to 11:00 AM\"': Blueprint placement 9:30 AM–11:00 AM",
         "+   - 'button \"Inspection handoff: 1:00 PM to 2:00 PM\"': Inspection handoff 1:00 PM–2:00 PM",
-        "+   - 'button \"Field verification: 8:30 AM to 10:00 AM\"': Field verification 8:30 AM–10:00 AM",
-        "+ - text: Scrollable, showing 1 to 6 of 7"
+        "+   - 'button \"Field verification: 8:30 AM to 10:00 AM\"': Field verification 8:30 AM–10:00 AM"
       ]
     },
     {
@@ -2248,8 +2217,7 @@
         "-   - 'img \"Inspection handoff: 1:00 PM – 2:00 PM\"': Inspection handoff 1:00 PM–2:00 PM",
         "+   - 'img \"Photo-with-pose capture: 9:00 AM to 10:30 AM\"': Photo-with-pose capture 9:00 AM–10:30 AM",
         "+   - 'img \"Blueprint placement: 9:30 AM to 11:00 AM\"': Blueprint placement 9:30 AM–11:00 AM",
-        "+   - 'img \"Inspection handoff: 1:00 PM to 2:00 PM\"': Inspection handoff 1:00 PM–2:00 PM",
-        "+ - text: Scrollable region, 45% scrolled, use arrow keys to scroll"
+        "+   - 'img \"Inspection handoff: 1:00 PM to 2:00 PM\"': Inspection handoff 1:00 PM–2:00 PM"
       ]
     },
     {
@@ -2289,8 +2257,7 @@
         "-   - 'img \"Inspection handoff: 1:00 PM – 2:00 PM\"': Inspection handoff 1:00 PM–2:00 PM",
         "+   - 'img \"Photo-with-pose capture: 9:00 AM to 10:30 AM\"': Photo-with-pose capture 9:00 AM–10:30 AM",
         "+   - 'img \"Blueprint placement: 9:30 AM to 11:00 AM\"': Blueprint placement 9:30 AM–11:00 AM",
-        "+   - 'img \"Inspection handoff: 1:00 PM to 2:00 PM\"': Inspection handoff 1:00 PM–2:00 PM",
-        "+ - text: Scrollable region, 45% scrolled, use arrow keys to scroll"
+        "+   - 'img \"Inspection handoff: 1:00 PM to 2:00 PM\"': Inspection handoff 1:00 PM–2:00 PM"
       ]
     },
     {
@@ -2330,8 +2297,7 @@
         "-   - 'img \"Inspection handoff: 1:00 PM – 2:00 PM\"': Inspection handoff 1:00 PM–2:00 PM",
         "+   - 'img \"Photo-with-pose capture: 9:00 AM to 10:30 AM\"': Photo-with-pose capture 9:00 AM–10:30 AM",
         "+   - 'img \"Blueprint placement: 9:30 AM to 11:00 AM\"': Blueprint placement 9:30 AM–11:00 AM",
-        "+   - 'img \"Inspection handoff: 1:00 PM to 2:00 PM\"': Inspection handoff 1:00 PM–2:00 PM",
-        "+ - text: Scrollable region, 45% scrolled, use arrow keys to scroll"
+        "+   - 'img \"Inspection handoff: 1:00 PM to 2:00 PM\"': Inspection handoff 1:00 PM–2:00 PM"
       ]
     },
     {
@@ -2376,8 +2342,7 @@
         "+   - 'button \"Photo-with-pose capture: 9:00 AM to 10:30 AM\"': Photo-with-pose capture 9:00 AM–10:30 AM",
         "+   - 'button \"Blueprint placement: 9:30 AM to 11:00 AM\"': Blueprint placement 9:30 AM–11:00 AM",
         "+   - 'button \"Inspection handoff: 1:00 PM to 2:00 PM\"': Inspection handoff 1:00 PM–2:00 PM",
-        "+   - 'button \"Field verification: 8:30 AM to 10:00 AM\"': Field verification 8:30 AM–10:00 AM",
-        "+ - text: Scrollable, showing 1 to 6 of 7"
+        "+   - 'button \"Field verification: 8:30 AM to 10:00 AM\"': Field verification 8:30 AM–10:00 AM"
       ]
     },
     {
@@ -2421,18 +2386,6 @@
         "+     - textbox \"Computed total\": USD1,250.50",
         "      - text: Review status",
         "      - textbox \"Review status\": Awaiting review"
-      ]
-    },
-    {
-      "scenarioId": "scroll-affordance.locale-pseudo",
-      "ticket": "T-1106",
-      "reason": "Component defect (Blazor): HarborlineScrollAffordance passes its English fallback as ResolveString's instanceOverride, so the host catalog is never read. Its position status stays English (\"Scrollable, showing 1 to 4 of 8\") under every locale, while React resolves the same en-XA catalog.",
-      "hunks": [
-        "@@ #1",
-        "      - strong: Structure 1-8",
-        "      - paragraph: Grid B-8",
-        "- - text: ⟦ Šçřøļļåƀļë, šhøŵîñĝ 1 ţø 4 øƒ 8 ······ ⟧",
-        "+ - text: Scrollable, showing 1 to 4 of 8"
       ]
     },
     {

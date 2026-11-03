@@ -699,8 +699,36 @@ function verifyRuleRuntimeNpm() {
   writeFileSync(resolve(consumer, 'package.json'), '{"private":true,"type":"module"}\n')
   writeFileSync(resolve(consumer, 'exercise.mjs'), `import assert from 'node:assert/strict'\nimport {admitEnvironment, builtInFunctions, compile, fieldReadEffect, FormRuleGraph, lentGrammar, RuleInstance, serializeOutcome} from '@harborline-software/rule-engine'\nconst rule = {id:'opt.result',tier:'JsonLogic',scope:'Field',scopeTarget:'result',expression:['PASS','FAIL'],action:'Options'}\nconst admission = admitEnvironment({borrower:'rule-runtime-npm-consumer',grammar:lentGrammar,variables:{field:'form field'},operations:builtInFunctions.map(f => f.key),effects:[fieldReadEffect],missingValues:'missing-field-reads-null',timeSource:'evaluated-at',timeZone:'utc',phases:{AuthoringValidation:false,PublishValidation:false,Render:true,Submission:false,Run:false,SignOff:false},replay:'deterministic'}).forPhase('Render')
 const result = new FormRuleGraph(compile([rule]), () => new Date('2026-06-30T00:00:00.000Z'), admission).evaluateInstance(RuleInstance.fromJsonText('{}'))\nassert.equal(serializeOutcome(result.byRule.get('opt.result')), '{"options":{"options":["PASS","FAIL"],"state":"Resolved"},"outputType":"Options","ruleId":"opt.result","target":"field:result"}')\nprocess.stdout.write('packed npm reactive Rule Runtime emitted canonical Options outcome\\n')\n`)
-  run('npm', ['install', '--ignore-scripts', '--no-audit', '--no-fund', '--package-lock=false', artifact], { cwd: consumer })
+  run('npm', ['install', '--ignore-scripts', '--no-audit', '--no-fund', '--package-lock=false', artifact,
+    packedArtifact('harborline-software-contracts-', 'Rule Runtime consumer')], { cwd: consumer })
   const output = run(process.execPath, ['exercise.mjs'], { cwd: consumer }).trim()
+  assertPackedInstall(consumer, ['contracts', 'rule-engine'], 'Rule Runtime consumer')
+  writeFileSync(resolve(consumer, 'contracts-consumer.ts'), `
+import type { RuleDefinition as WireRule } from '@harborline-software/contracts/rules'
+import type { InternationalizedText } from '@harborline-software/contracts/text'
+import type { PresentationHint } from '@harborline-software/contracts/presentation'
+import type { RuleDefinition as FormsRule } from '@harborline-software/contracts/forms'
+import type { RuleDefinition as RuntimeRule, InternationalizedText as RuntimeText, PresentationHint as RuntimeHint } from '@harborline-software/rule-engine'
+
+const text = { defaultLocale: 'en', values: { en: 'Check' } } satisfies InternationalizedText
+const presentation = { severity: 'warn', badge: text } satisfies PresentationHint
+const wire = { id: 'r', tier: 'JsonLogic', scope: 'Field', scopeTarget: 'x', expression: 'true', action: 'Presentation', presentation } satisfies WireRule
+const forms: FormsRule = wire
+const runtime: RuntimeRule = forms
+const parsed: RuntimeRule = { ...wire, expression: { var: 'x' } }
+const runtimeText: RuntimeText = text
+const runtimeHint: RuntimeHint = presentation
+const canonicalText: InternationalizedText = runtimeText
+const canonicalHint: PresentationHint = runtimeHint
+// @ts-expect-error The wire contract accepts string expressions only.
+const invalidWire: WireRule = { ...wire, expression: { var: 'x' } }
+export { forms, runtime, parsed, canonicalText, canonicalHint, invalidWire }
+`)
+  writeFileSync(resolve(consumer, 'tsconfig.json'), JSON.stringify({
+    compilerOptions: { target: 'ES2022', module: 'NodeNext', strict: true, noEmit: true, types: [] },
+    include: ['contracts-consumer.ts'],
+  }))
+  run(process.execPath, [resolve(formsRoot, 'node_modules/typescript/bin/tsc'), '-p', 'tsconfig.json'], { cwd: consumer })
   const installed = resolve(consumer, 'node_modules/@harborline-software/rule-engine')
   if (lstatSync(installed).isSymbolicLink()) throw new Error('rule-runtime npm consumer resolved a source link')
   const installedManifest = readFileSync(resolve(installed, 'package.json'), 'utf8')
@@ -752,7 +780,8 @@ function verifyRuleAuthoringNpm() {
   })()
   writeFileSync(resolve(consumer, 'package.json'), '{"private":true,"type":"module"}\n')
   writeFileSync(resolve(consumer, 'exercise.mjs'), readFileSync(resolve(root, 'tests/package-consumers/rule-authoring-npm/exercise.mjs'), 'utf8'))
-  run('npm', ['install', '--ignore-scripts', '--no-audit', '--no-fund', '--package-lock=false', artifact, packedEngine], { cwd: consumer })
+  run('npm', ['install', '--ignore-scripts', '--no-audit', '--no-fund', '--package-lock=false', artifact, packedEngine,
+    packedArtifact('harborline-software-contracts-', 'Rule Authoring consumer')], { cwd: consumer })
   const output = run(process.execPath, ['exercise.mjs'], { cwd: consumer }).trim()
   const installed = resolve(consumer, 'node_modules/@harborline-software/rule-authoring')
   if (lstatSync(installed).isSymbolicLink()) throw new Error('rule-authoring npm consumer resolved a source link')
@@ -963,8 +992,7 @@ function verifyNuget() {
       // developer machines that restored it under an older SDK. Fetch the exact pinned version
       // from the nuget.org flat container instead; the offline consumer restore below remains
       // the actual assertion, this only furnishes the feed.
-      run(process.execPath, ['-e',
-        'const [u, d] = process.argv.slice(1); fetch(u).then(r => { if (!r.ok) throw new Error(`${r.status} ${u}`); return r.arrayBuffer() }).then(b => require("node:fs").writeFileSync(d, Buffer.from(b))).catch(e => { console.error(e); process.exit(1) })',
+      run(process.execPath, [resolve(root, 'tooling/fetch-nuget-package.mjs'),
         `https://api.nuget.org/v3-flatcontainer/${id}/${version}/${id}.${version}.nupkg`, artifactPath])
       if (!statSync(artifactPath, { throwIfNoEntry: false })?.isFile()) {
         throw new Error(`third-party dependency package is unavailable locally and from nuget.org: ${id}/${version}`)
@@ -1277,8 +1305,8 @@ function verifyCalculationsCapability() {
   cpSync(resolve(root, 'tests/package-consumers/calculations-npm'), rendererConsumer, { recursive: true })
   copyFileSync(corpusSource, resolve(rendererConsumer, 'authoring-verdict-cases.json'))
   copyFileSync(intentSource, resolve(rendererConsumer, 'definition-intent-cases.json'))
-  installPackedArtifacts(rendererConsumer, ['harborline-software-rule-authoring-', 'harborline-software-rule-engine-'], 'Calculations renderer')
-  assertPackedInstall(rendererConsumer, ['rule-authoring', 'rule-engine'], 'Calculations renderer')
+  installPackedArtifacts(rendererConsumer, ['harborline-software-rule-authoring-', 'harborline-software-rule-engine-', 'harborline-software-contracts-'], 'Calculations renderer')
+  assertPackedInstall(rendererConsumer, ['rule-authoring', 'rule-engine', 'contracts'], 'Calculations renderer')
   const [rendererBehavior] = proofLines(clientRun(rendererConsumer), ['CALCULATIONS_CLIENT_PASS:'], 'Calculations packed renderer lane')
   const clientVerdicts = JSON.parse(readFileSync(resolve(rendererConsumer, 'client-verdicts.json'), 'utf8'))
   if (clientVerdicts.length !== corpusCases) {
@@ -1337,8 +1365,8 @@ function verifyViewsCapability() {
   cpSync(resolve(root, 'tests/package-consumers/views-npm'), rendererConsumer, { recursive: true })
   mkdirSync(resolve(rendererConsumer, '../corpus'), { recursive: true })
   copyFileSync(corpusSource, resolve(rendererConsumer, '../corpus/views-vertical-cases.json'))
-  installPackedArtifacts(rendererConsumer, ['harborline-software-ui-react-', 'harborline-software-rule-authoring-', 'harborline-software-rule-engine-'], 'Views renderer')
-  assertPackedInstall(rendererConsumer, ['ui-react', 'rule-authoring', 'rule-engine'], 'Views renderer')
+  installPackedArtifacts(rendererConsumer, ['harborline-software-ui-react-', 'harborline-software-rule-authoring-', 'harborline-software-rule-engine-', 'harborline-software-contracts-'], 'Views renderer')
+  assertPackedInstall(rendererConsumer, ['ui-react', 'rule-authoring', 'rule-engine', 'contracts'], 'Views renderer')
   const [rendererBehavior] = proofLines(clientRun(rendererConsumer), ['VIEWS_CLIENT_PASS:'], 'Views packed renderer lane')
   const clientVerdicts = JSON.parse(readFileSync(resolve(rendererConsumer, 'client-verdicts.json'), 'utf8'))
   if (clientVerdicts.length !== 4 || clientVerdicts.some(row => row.lane !== 'renderer-acknowledged')) {
@@ -1512,9 +1540,8 @@ function verifyAggregatesCapability() {
   cpSync(resolve(root, 'tests/package-consumers/aggregates-npm'), rendererConsumer, { recursive: true })
   mkdirSync(resolve(rendererConsumer, '../corpus'), { recursive: true })
   copyFileSync(corpusSource, resolve(rendererConsumer, '../corpus/aggregates-vertical-cases.json'))
-  // Exact views-npm precedent: pass only the packed ui-react tarball; npm resolves its declared peers/dependencies.
-  installPackedArtifacts(rendererConsumer, ['harborline-software-ui-react-', 'harborline-software-rule-authoring-', 'harborline-software-rule-engine-'], 'Aggregates renderer')
-  assertPackedInstall(rendererConsumer, ['ui-react', 'rule-authoring', 'rule-engine'], 'Aggregates renderer')
+  installPackedArtifacts(rendererConsumer, ['harborline-software-ui-react-', 'harborline-software-rule-authoring-', 'harborline-software-rule-engine-', 'harborline-software-contracts-'], 'Aggregates renderer')
+  assertPackedInstall(rendererConsumer, ['ui-react', 'rule-authoring', 'rule-engine', 'contracts'], 'Aggregates renderer')
   const [rendererTimeline, rendererProof] = proofLines(clientRun(rendererConsumer), ['CROSS_LANE_TIMELINE:', 'AGGREGATES_RENDERER_PASS:'], 'Aggregates renderer')
   if (engineTimeline !== rendererTimeline) {
     throw new Error(`Aggregates cross-lane timeline diverged byte-for-byte: ${JSON.stringify({ engineTimeline, rendererTimeline })}`)
@@ -1549,6 +1576,34 @@ function walkFiles(dir) {
     const child = resolve(dir, entry.name)
     return entry.isDirectory() ? walkFiles(child) : [child]
   })
+}
+
+// T1035: Chris's finite T089 approval is the two identities in appshell-feed-provenance.json
+// (repository/ref/SHA-256) and appshell-npm/pnpm-lock.yaml (names/versions/SHA-512).
+// Freeze the entire two-file graph, including every manifest dependency lane: unknown
+// scoped packages and registry lookalikes must refuse before any age exception or install.
+function appShellLocalFeedSettings(inputs) {
+  const approved = {
+    provenance: 'c725a4ee94637d908162e39c623fc8f90893000afdf8a7b830b34bf06bfcafac',
+    lock: '4fa79d7ad62920fbd9e30588cfecbca45375c975d7c0fb29206a5be2c404a7a2',
+    manifest: 'b20dc2c52604dd1489041ab7e7327861088fdba66744947229f124aba7eba2a8',
+  }
+  for (const [key, expected] of Object.entries(approved)) {
+    if (createHash('sha256').update(inputs[key]).digest('hex') !== expected) {
+      throw new Error(`T1035 local-only approval no longer matches its pinned ${key}; renewed review required`)
+    }
+  }
+  if (JSON.stringify([...inputs.files].sort()) !== JSON.stringify(['exercise.mjs', 'package.json', 'pnpm-lock.yaml'])) {
+    throw new Error('T1035 local-only approval refuses additional consumer files or configuration')
+  }
+  const apiContracts = JSON.parse(inputs.provenance).artifacts.find(a => a.id === 'contracts')
+  return {
+    overrides: { [apiContracts.packageName]: `file:./feed/${apiContracts.tarball}` },
+    minimumReleaseAgeExclude: [
+      '@harborline-software/api-contracts@0.1.0-alpha.1',
+      '@harborline-software/capability-host@0.0.0',
+    ],
+  }
 }
 
 function verifyAppShellCapability() {
@@ -1599,26 +1654,29 @@ function verifyAppShellCapability() {
   // ticket-089 SHA-256 identities pinned here; never built or searched for implicitly.
   const npmConsumer = resolve(fixtureRoot, 'appshell-capability-npm-consumer')
   cpSync(resolve(root, 'tests/package-consumers/appshell-npm'), npmConsumer, { recursive: true })
+  const npmManifestPath = resolve(npmConsumer, 'package.json')
+  const npmManifestBytes = readFileSync(npmManifestPath)
+  const provenanceBytes = readFileSync(resolve(root, 'tooling/appshell-feed-provenance.json'))
+  const localFeedSettings = appShellLocalFeedSettings({
+    provenance: provenanceBytes,
+    lock: readFileSync(resolve(npmConsumer, 'pnpm-lock.yaml')),
+    manifest: npmManifestBytes,
+    files: readdirSync(npmConsumer),
+  })
   copyFileSync(contractSource, resolve(npmConsumer, 'appshell-contract-cases.json'))
   const feed = resolve(npmConsumer, 'feed')
   mkdirSync(feed, { recursive: true })
-  // Read the pins from the manifest rather than repeating them. resolve-appshell-feed.mjs already
-  // parses this file and verifies the same sha256 before use; a second copy here is a second thing
-  // to forget when a ref moves (ticket 099 item 7).
-  const feedProvenance = JSON.parse(readFileSync(resolve(root, 'tooling/appshell-feed-provenance.json'), 'utf8'))
+  const feedProvenance = JSON.parse(provenanceBytes)
   for (const artifact of feedProvenance.artifacts) {
     stageCheckedTarball(process.env[artifact.env], resolve(feed, artifact.tarball), artifact.sha256)
   }
-  // The committed manifest carries no local package protocol (repository rule); the
-  // disposable copy gets the staged-feed dependencies written here, at run time only.
-  const npmManifestPath = resolve(npmConsumer, 'package.json')
-  const npmManifest = JSON.parse(readFileSync(npmManifestPath, 'utf8'))
+  // Only the disposable copy receives local protocols and the two version-specific exceptions.
+  const npmManifest = JSON.parse(npmManifestBytes)
+  npmManifest.packageManager = 'pnpm@11.1.3'
   npmManifest.dependencies = { '@harborline-software/capability-host': 'file:./feed/harborline-software-capability-host-0.0.0.tgz' }
-  // 246: the api wire package is @harborline-software/api-contracts; take name and tarball from the provenance the feed was staged from.
-  const apiContracts = feedProvenance.artifacts.find(a => a.id === 'contracts')
-  npmManifest.overrides = { [apiContracts.packageName]: `file:./feed/${apiContracts.tarball}` }
+  writeFileSync(resolve(npmConsumer, 'pnpm-workspace.yaml'), `${JSON.stringify(localFeedSettings, null, 2)}\n`)
   writeFileSync(npmManifestPath, `${JSON.stringify(npmManifest, null, 2)}\n`)
-  run('npm', ['install', '--ignore-scripts', '--no-audit', '--no-fund', '--package-lock=false'], { cwd: npmConsumer })
+  run('pnpm', ['install', '--frozen-lockfile', '--ignore-scripts'], { cwd: npmConsumer })
   const npmOutput = run(process.execPath, ['--conditions=browser', 'exercise.mjs'], { cwd: npmConsumer })
   if (!npmOutput.includes('APPSHELL_CAPABILITY_HOST_PASS:')) throw new Error(`App-shell capability-host proof absent: ${npmOutput}`)
   const consumerSources = walkFiles(npmConsumer).filter(x => !x.includes('node_modules') && /\.(?:js|mjs|ts|tsx)$/.test(x) && !x.endsWith(`${'exercise'}.mjs`))
@@ -1654,7 +1712,7 @@ try {
   const plans = new Map([
     ['ui-react-package', () => runFixture('ui-react-package', verifyNpm, ['forms-contracts-package', 'rule-runtime-package', 'rule-authoring-package'])],
     ['forms-contracts-package', () => runFixture('forms-contracts-package', verifyFormsNpm)],
-    ['rule-runtime-package', () => runFixture('rule-runtime-package', verifyRuleRuntimeNpm)],
+    ['rule-runtime-package', () => runFixture('rule-runtime-package', verifyRuleRuntimeNpm, ['forms-contracts-package'])],
     ['rule-authoring-package', () => runFixture('rule-authoring-package', verifyRuleAuthoringNpm, ['rule-runtime-package'])],
     ['platform-dotnet-package-group', () => runFixture('platform-dotnet-package-group', verifyNuget)],
     ['dynamic-forms-capability-vertical', () => runFixture('dynamic-forms-capability-vertical', verifyDynamicFormsCapability, ['ui-react-package', 'forms-contracts-package', 'rule-runtime-package', 'platform-dotnet-package-group'])],

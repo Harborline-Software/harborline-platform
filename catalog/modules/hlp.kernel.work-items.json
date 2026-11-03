@@ -1,0 +1,54 @@
+{
+  "moduleId": "hlp.kernel.work-items",
+  "module": {
+    "interface": {
+      "path": "specs/modules/kernel/hlp.kernel.work-items/interface.yaml",
+      "revision": 4
+    },
+    "moduleKind": "runtime",
+    "presentation": {
+      "disposition": "not-applicable",
+      "rationale": "Durable work-item lifecycle, audit, and outbox behavior produce projections consumed by separate application interfaces."
+    },
+    "owner": "platform-kernel",
+    "dependencies": [
+      "hlp.contracts.identities",
+      "hlp.foundation.actor",
+      "hlp.foundation.tenancy",
+      "hlp.kernel.core"
+    ],
+    "status": "implemented-package-consumer-green",
+    "depth": {
+      "disposition": "deep-module",
+      "deletionTest": "PASS",
+      "redistributedComplexity": [
+        "tenant scoping, server-derived Party audit identity, typed lifecycle admission, optimistic concurrency, fingerprint-bound retry, and loop-back iteration repeated in every workflow block",
+        "snapshot, event, receipt, audit, and outbox atomicity plus restart recovery exposed as caller choreography or lost in host-specific workflow stores"
+      ]
+    },
+    "projections": {
+      "dotnet": {
+        "role": "implementation",
+        "path": "projections/dotnet/kernel/hlp.kernel.work-items",
+        "status": "preview",
+        "artifact": {
+          "type": "nuget",
+          "id": "Harborline.Kernel.WorkItems",
+          "assembly": "Harborline.Kernel.WorkItems",
+          "manifest": "projections/dotnet/kernel/hlp.kernel.work-items/Harborline.Kernel.WorkItems.csproj",
+          "dependencies": [
+            "Harborline.Contracts",
+            "Harborline.Foundation.Authorization",
+            "Harborline.Foundation.MultiTenancy",
+            "Harborline.Kernel.Core"
+          ],
+          "identityAuthority": "Harborline",
+          "producerRepository": "harborline-platform",
+          "distribution": "internal-only",
+          "candidateRole": "new-bounded-package",
+          "registryAvailable": false
+        }
+      }
+    }
+  }
+}

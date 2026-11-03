@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.contracts.workflow",
-  "interfaceRevision": 2,
+  "interfaceRevision": 3,
   "status": "frozen",
   "purpose": "Provide Harborline App's complete projection-neutral workflow authoring wire and fail-closed admission fence without introducing a general workflow interpreter.",
-  "dependencies": ["hlp.contracts.authorization", "hlp.contracts.forms"],
+  "dependencies": ["hlp.contracts.authorization", "hlp.contracts.forms", "hlp.contracts.rules", "hlp.contracts.text"],
   "sourceSurface": {
     "repository": "shipyard",
     "commit": "a5036ff8b500e0d857d7e0a698408e7cf7f6cf31",
@@ -22,6 +22,7 @@
     "reason": "Harborline App directly consumes the complete TypeScript shape and admission result. The legacy .NET mirror omits authoring members, while the admission fence needs one host-supplied authority registry so unknown capabilities remain CP without coupling contracts to Harborline App."
   },
   "invariants": [
+    "Revision 3 borrows RuleDefinition from Rules and InternationalizedText from Text in the existing Contracts artifacts. IdentityRef and SubjectFormRef ownership remain unchanged. JSON fields, requiredness, optional/null semantics, closed values, and admission are unchanged; CLR namespace identities migrate with source consumers.",
     "The 16-declaration TypeScript authoring surface retains the pinned shape plus revision-2 qualified requiredRoles gates on transitions and actions, resolved through hlp.contracts.authorization.",
     "Unknown closed enum values, missing required members, and action bindings naming both or neither state/transition fail closed; additive object members are ignored.",
     "Admission detects duplicate ids, dangling state/trigger/guard/action references, unreachable states, terminal outgoing edges, and reachable non-terminal dead ends.",
@@ -31,6 +32,6 @@
     "The TypeScript and .NET projections execute the same neutral fixtures and stable admission codes."
   ],
   "notScope": ["workflow instance execution", "general workflow interpreter", "durable work-item persistence", "workflow definition persistence", "Harborline App SDK", "React or Blazor rendering", "HTTP routes"],
-  "projectionPolicy": {"typescript": "exact package contribution plus strict wire reader and admission function", "dotnet": "complete generated binding plus equivalent admission function in Harborline.Contracts", "blazor": "consumer through workflow UI adapters"},
+  "projectionPolicy": {"typescript": "exact package contribution plus strict wire reader and admission function", "dotnet": "maintained binding plus equivalent admission function in Harborline.Contracts", "blazor": "consumer through workflow UI adapters"},
   "fixture": "conformance/hlp.contracts.workflow/fixtures.yaml"
 }

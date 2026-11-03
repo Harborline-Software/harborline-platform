@@ -1,0 +1,54 @@
+{
+  "moduleId": "hlp.blocks.layout-runtime",
+  "module": {
+    "interface": {
+      "path": "specs/modules/blocks/hlp.blocks.layout-runtime/interface.yaml",
+      "revision": 10
+    },
+    "moduleKind": "runtime",
+    "presentation": {
+      "disposition": "not-applicable",
+      "rationale": "The definition resolver and flow planner return neutral render plans and own no framework presentation."
+    },
+    "owner": "platform-foundation",
+    "dependencies": [
+      "hlp.blocks.builder-definitions",
+      "hlp.foundation.rule-runtime",
+      "hlp.foundation.actor",
+      "hlp.foundation.forms-engine"
+    ],
+    "status": "draft-native-green",
+    "depth": {
+      "disposition": "deep-module",
+      "deletionTest": "PASS",
+      "redistributedComplexity": [
+        "exact immutable definition binding, persisted-value admission, and recursive layout flow would otherwise fork across every renderer",
+        "screen and page boundaries, static regions, and break planning would otherwise become inconsistent local projection policy"
+      ]
+    },
+    "projections": {
+      "dotnet": {
+        "role": "implementation",
+        "path": "projections/dotnet/blocks/hlp.blocks.layout-runtime",
+        "status": "preview",
+        "artifact": {
+          "type": "nuget",
+          "id": "Harborline.Blocks.LayoutRuntime",
+          "assembly": "Harborline.Blocks.LayoutRuntime",
+          "manifest": "projections/dotnet/blocks/hlp.blocks.layout-runtime/Harborline.Blocks.LayoutRuntime.csproj",
+          "dependencies": [
+            "Harborline.Blocks.BuilderDefinitions",
+            "Harborline.Foundation.RuleEngine",
+            "Harborline.Foundation.Authorization",
+            "Harborline.Foundation.Forms.Engine"
+          ],
+          "identityAuthority": "Harborline",
+          "producerRepository": "harborline-platform",
+          "distribution": "internal-only",
+          "candidateRole": "new-bounded-package",
+          "registryAvailable": false
+        }
+      }
+    }
+  }
+}

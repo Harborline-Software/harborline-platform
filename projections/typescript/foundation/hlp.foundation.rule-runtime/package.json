@@ -41,6 +41,9 @@
     "directory": "projections/typescript/foundation/hlp.foundation.rule-runtime"
   },
   "private": true,
+  "peerDependencies": {
+    "@harborline-software/contracts": "0.0.0-alpha.0"
+  },
   "packageManager": "pnpm@11.1.3",
   "justifications": {
     "@eslint/js": "R-0084",

@@ -1,0 +1,29 @@
+{
+  "moduleId": "hlp.ui.date-field",
+  "legacySourceHashes": {
+    "packages/ui-react/src/components/forms/DateField.tsx": "525a60973fa3f41157a696b53aaa38d71e434d280402aeb5286e2f22e5e765aa"
+  },
+  "phase4Evidence": "specs/modules/ui/hlp.ui.date-field/interface.yaml",
+  "sourceExtracted": true,
+  "sourceState": "Interface revision 1 preserves the exact pinned hlp.ui.date-field source surface and proves every registered projection through native, shared-conformance, package-only, and applicable gallery/performance gates.",
+  "contentHashes": {
+    "conformance/hlp.ui.date-field/fixtures.yaml": "bef0a8f91b02bbb45e24121ea3d5807beb5d881cf8ded26820db771e6ee9b222",
+    "conformance/hlp.ui.date-field/quality-fixtures.yaml": "0386ef1afbf74592562723b56fb229ad8259637d23767741948dc306341b0a92",
+    "conformance/hlp.ui.date-field/runners/run-shared.mjs": "b03b5c6572afb204e575dd78a29e55768ca60f741bfdfc35cd5fdc647fbd5b8d",
+    "projections/blazor/ui/hlp.ui.date-field/HarborlineDateField.razor": "854a8ecad099e66fba303c690527d4df40474142134e73d577749877d83a650e",
+    "projections/react/ui/hlp.ui.date-field/src/DateField.tsx": "3ba78acf1fe15bbf5c2f6ddaf593e44285fc282b8d30e3b553dacc65222adc70",
+    "projections/react/ui/hlp.ui.date-field/src/__tests__/DateField.conformance.test.tsx": "b875ee349404bfe41072bec386ff578b93d7be89449a151b92b59be05cd5a2cb",
+    "projections/react/ui/hlp.ui.date-field/src/__tests__/DateField.native.test.tsx": "26544a76c17f139daa9cd71b68ac48af2a2389611b8a41b055d45baa2f0c1638",
+    "projections/react/ui/hlp.ui.date-field/src/__tests__/fixtures.ts": "7000013f53286e26cd1d3997d756c7084540daae73ff72389930e1850ab71d6d",
+    "projections/react/ui/hlp.ui.date-field/src/index.ts": "566ec7039740e1a329b152f69ab79dac4a0227b608bd3b8df2d6b4bb226f3427",
+    "projections/react/ui/hlp.ui.date-field/src/test-setup.ts": "977afde26bba6a51325908cd7713cbfdc87d18f06b78b237c8f364c44864b7de",
+    "projections/react/ui/hlp.ui.date-field/tsconfig.build.json": "9c4bf84adfa832df92f18e9da44e70018e8eaa878791825c5d50caf351c98609",
+    "projections/react/ui/hlp.ui.date-field/tsconfig.json": "d10af535a0ec619c1b520d98aa85dc83011124e0971bb8d09ee1274fb301ff2f",
+    "projections/react/ui/hlp.ui.date-field/vitest.config.ts": "85a12586ebc7385f459f3cf455e21d4d22fd0d7e8baf4d0d18baf52d0f78e06d",
+    "specs/modules/ui/hlp.ui.date-field/interface.yaml": "4e34948e9b83cc6a7a3555afdfcd3df5a289fa439ab328aac3fc86c4497ebe11",
+    "specs/modules/ui/hlp.ui.date-field/quality.yaml": "61284e0ec67b7e7b71822042416a75c7839201e87d93a7b0c9313c2340b40729",
+    "specs/modules/ui/hlp.ui.date-field/scenarios.json": "3a3c46148ab2319bce7274e100bf73c2016dddc87dceb224a5cef5fa43e9d624",
+    "specs/modules/ui/hlp.ui.date-field/style.css": "c3611bde96b2eb247759ed00b9e12a750013aabaee5c7122c6da68ee79206191"
+  },
+  "nextGate": "Retain this conformant aggregate contribution while HLF-052 advances to the next Carrier-essential dependency wave."
+}
