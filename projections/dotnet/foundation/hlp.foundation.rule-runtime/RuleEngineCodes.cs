@@ -7,6 +7,10 @@ namespace Harborline.Foundation.RuleEngine;
 /// </summary>
 public static class RuleEngineCodes
 {
+    /// <summary>The requested coding system was not captured.</summary>
+    public const string CodingBindingMissing = "rule.coding_binding_missing";
+    /// <summary>The requested descendant/ancestor pair was not captured.</summary>
+    public const string CodingAnswerMissing = "rule.coding_answer_missing";
     // ── Runtime evaluation errors (become a ComputedValue.Error / Validity.Error) ──
 
     /// <summary>Division (or modulo) by zero.</summary>

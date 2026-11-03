@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.contracts.forms",
-  "interfaceRevision": 8,
+  "interfaceRevision": 9,
   "status": "frozen",
   "purpose": "Provide the complete projection-neutral dynamic-forms authoring, rendering, validation, submission, draft, rule-outcome, layout, and governance wire vocabulary required by Harborline App.",
-  "dependencies": ["hlp.contracts.authorization"],
+  "dependencies": ["hlp.contracts.authorization", "hlp.contracts.rules", "hlp.contracts.text", "hlp.contracts.presentation"],
   "sourceSurface": {
     "repository": "shipyard",
     "commit": "a5036ff8b500e0d857d7e0a698408e7cf7f6cf31",
@@ -23,11 +23,13 @@
   "fixtureCases": 30,
   "exports": ["InternationalizedText", "FormDefinitionStatus", "PiiSensitivity", "RuleTier", "RuleScope", "RuleActionKind", "PresentationHint", "ControlHint", "SectionLayoutKind", "FlexDirection", "FlexWrap", "LayoutGap", "LayoutBreakpoint", "LayoutDensity", "LayoutAlign", "FieldWidth", "SectionLayout", "FieldPlacement", "SectionAccess", "FormItemKind", "ContentNode", "FormActionKind", "FormActionConfig", "ReusableUnitVersionSelector", "ReusableUnitRef", "Cardinality", "CollectionColumn", "CollectionTableConfig", "FormItem", "FormSection", "FieldConfig", "FieldOverlay", "RuleDefinition", "OutputType", "ValueState", "Severity", "RuleError", "ComputedValue", "Validity", "VisibilityState", "PresentationOutcome", "OptionsOutcome", "RuleOutcome", "OnSuccessConfig", "WizardSettings", "FormPage", "AsyncValidationCheck", "HarborlineOverlay", "FormDefinitionLineage", "IdentityRef", "FormFieldValidationCode", "FormFieldValidation", "FormFieldAuthoringMetadata", "FormDefinition", "FormViewFieldRules", "FormViewField", "FormViewItem", "FormViewSection", "FormViewPage", "FormView", "ValidationErrorKind", "ValidationError", "ValidationResult", "FormSubmitResponse", "HARBORLINE_JSONLOGIC_V1", "SubmissionBindingHeader", "SnapshotCaptureMode", "SignedDtbsHash", "SubmissionSnapshot", "SubmissionMintAuditPayload", "DraftSaveRequest", "DraftSavedResponse", "DraftView", "Immutability", "ProvenanceKind", "MeasureRole", "Tag", "ClassificationAspect", "AccessAspect", "RetentionRequirement", "ResidencyRequirement", "Provenance", "LifecycleAspect", "DiscoveryAspect", "AspectOverlay"],
   "selectedDesign": {
-    "choice": "one complete hash-bound Forms wire module with additive revision-4 Options, lossless Harborline App authoring vocabulary, and complete server-side field-rule projection, generated into TypeScript and C# projections",
+    "choice": "one complete hash-bound Forms wire module with additive revision-4 Options, lossless Harborline App authoring vocabulary, and complete server-side field-rule projection, maintained as TypeScript and C# bindings of the canonical wire model",
     "rejected": "Freeze only the 28 symbols imported directly from the contracts npm package for the first inspection slice.",
     "reason": "The direct import closure omits runtime FormView, submit, validation, snapshot, and draft DTOs reached through Carrier-local mirrors and HTTP clients. A partial contract would preserve two competing wire authorities and force immediate revision churn."
   },
   "invariants": [
+    "Revision 9 relocates rule grammar to Rules, locale-keyed text to Text, and presentation hints to Presentation within the existing Contracts artifacts. Forms borrows these declarations and retains its complete 85-export wire surface. This is a nominal CLR source migration, not binary compatibility; TypeScript Forms imports retain type re-exports.",
+    "The committed projection manifest model and maintained TypeScript declarations, checked against literal neutral fixtures, define the wire contract. Maintained C# bindings preserve it; the existing generator owns only wire.ts and the embedded ModelJson data.",
     "Revision 8 adds the optional FormDefinition.recordTypeId (T-485, DES-0016 forms-ck-3): the Records record type a submission of the form creates. It is omitted when absent, so every revision-7 document keeps its bytes, and a reader that does not know it ignores it.",
     "Revision 7 adds FormView.pages, present only when the definition declares pages. Each FormViewPage carries the server's visibility verdict for the caller from the page's Rules guard, never the guard expression, so a client cannot re-decide page visibility.",
     "Revision 6 adds FormViewField.permittedValues for authority-filtered domain membership. The rendered controlHint carries the shared runtime's derived editor choice, not the authored overlay hint; unreadable or withheld fields carry neither domain membership nor its editor.",
@@ -43,6 +45,6 @@
     "The engine identifier is exactly harborline-jsonlogic/v1 for revision 1."
   ],
   "notScope": ["form persistence implementation", "rule evaluation", "calculation execution", "authorization policy derivation", "React or Blazor rendering", "HTTP routing", "mutable application-local builder state"],
-  "projectionPolicy": {"typescript": "exact extracted npm projection", "dotnet": "generated canonical wire projection in Harborline.Contracts", "blazor": "consumer through forms UI adapters"},
+  "projectionPolicy": {"typescript": "maintained wire declarations with shared owner type re-exports; generated wire model reader", "dotnet": "maintained bindings in Harborline.Contracts; only FormsJson.g.cs ModelJson is generated", "blazor": "consumer through forms UI adapters"},
   "fixture": "conformance/hlp.contracts.forms/fixtures.yaml"
 }

@@ -323,8 +323,11 @@
       if (previousColumns[index].Id == focusedColumnId) { previousIndex = index; break; }
     return visibleColumns[Math.Clamp(previousIndex, 0, visibleColumns.Count - 1)].Id;
   }
-  private int TabIndex(string entryKey, string columnId) =>
-    focusedEntryKey == entryKey && focusedColumnId == columnId || focusedEntryKey is null && VisibleEntries.FirstOrDefault()?.Key == entryKey && VisibleColumns.FirstOrDefault()?.Id == columnId ? 0 : -1;
+  // A string, not an int: Blazor writes an int attribute with the current culture, whose negative sign
+  // need not be U+002D (ar, he, fa add a mark; sv, nb, fi, lt, sl, hr, eu use U+2212), and HTML integer
+  // parsing refuses it, which put every cell in the tab order (T-962).
+  private string TabIndex(string entryKey, string columnId) =>
+    focusedEntryKey == entryKey && focusedColumnId == columnId || focusedEntryKey is null && VisibleEntries.FirstOrDefault()?.Key == entryKey && VisibleColumns.FirstOrDefault()?.Id == columnId ? "0" : "-1";
   private void SetFocus(string entryKey, string columnId) { focusedEntryKey = entryKey; focusedColumnId = columnId; }
 
   private IReadOnlyList<GridEntry> BuildEntries()

@@ -486,170 +486,9 @@
       ]
     },
     {
-      "scenarioId": "guarded-control.content",
-      "ticket": "T-1105",
-      "reason": "Accessible name: Blazor names the covered action with its chrome.guard label template (\"Guarded action: {action}. Activate to arm.\"); React names it from its visible text and exposes no covered-state instruction (its aria-describedby carries only the caller's describedBy). The lanes need one naming rule (R-0125 2026-10-23 addendum, answer 1, on name precedence and label-in-name).",
-      "hunks": [
-        "@@ #1",
-        "  - paragraph: Guarded actions preserve hostile-but-valid labels as text.",
-        "  - status",
-        "- - button \"Awaiting third-party structural certification review\"",
-        "+ - 'button \"Guarded action: ⁨Awaiting third-party structural certification review⁩. Activate to arm.\"': Awaiting third-party structural certification review",
-        "  - status: \"Commit requests: 0\"",
-        "  - status",
-        "- - button \"1,284,905\"",
-        "+ - 'button \"Guarded action: ⁨1,284,905⁩. Activate to arm.\"': 1,284,905",
-        "  - status: \"Commit requests: 0\"",
-        "  - status",
-        "- - button \"Bay 4 <grid C-7> & 8\"",
-        "+ - 'button \"Guarded action: ⁨Bay 4 <grid C-7> & 8⁩. Activate to arm.\"': Bay 4 <grid C-7> & 8",
-        "  - status: \"Commit requests: 0\"",
-        "  - status",
-        "- - button \"Ordnance Survey — Niño Ångström\"",
-        "+ - 'button \"Guarded action: ⁨Ordnance Survey — Niño Ångström⁩. Activate to arm.\"': Ordnance Survey — Niño Ångström",
-        "  - status: \"Commit requests: 0\""
-      ]
-    },
-    {
-      "scenarioId": "guarded-control.covered",
-      "ticket": "T-1105",
-      "reason": "Accessible name: Blazor names the covered action with its chrome.guard label template (\"Guarded action: {action}. Activate to arm.\"); React names it from its visible text and exposes no covered-state instruction (its aria-describedby carries only the caller's describedBy). The lanes need one naming rule (R-0125 2026-10-23 addendum, answer 1, on name precedence and label-in-name).",
-      "hunks": [
-        "@@ #1",
-        "  - paragraph: A visible action begins covered; caller-owned availability remains an interaction signal, not authorization.",
-        "  - status",
-        "- - button \"Sign and save package\"",
-        "+ - 'button \"Guarded action: ⁨Sign and save package⁩. Activate to arm.\"': Sign and save package",
-        "  - status: \"Commit requests: 0\"",
-        "  - status",
-        "- - button \"Sign and save package\" [disabled]",
-        "+ - 'button \"Guarded action: ⁨Sign and save package⁩. Activate to arm.\" [disabled]': Sign and save package",
-        "  - paragraph: Complete the affirmation before signing.",
-        "  - status: \"Commit requests: 0\""
-      ]
-    },
-    {
-      "scenarioId": "guarded-control.keyboard-recovery",
-      "ticket": "T-1105",
-      "reason": "Accessible name: Blazor names the covered action with its chrome.guard label template (\"Guarded action: {action}. Activate to arm.\"); React names it from its visible text and exposes no covered-state instruction (its aria-describedby carries only the caller's describedBy). The lanes need one naming rule (R-0125 2026-10-23 addendum, answer 1, on name precedence and label-in-name).",
-      "hunks": [
-        "@@ #1",
-        "  - paragraph: Enter or Space arms, Escape recovers, and focus follows the visible action.",
-        "  - status: Guard restored for ⁨Sign and save package⁩.",
-        "- - button \"Sign and save package\"",
-        "+ - 'button \"Guarded action: ⁨Sign and save package⁩. Activate to arm.\"': Sign and save package",
-        "  - status: \"Commit requests: 0\""
-      ]
-    },
-    {
-      "scenarioId": "guarded-control.locale-ar",
-      "ticket": "T-1105",
-      "reason": "Accessible name: Blazor names the covered action with its chrome.guard label template (\"Guarded action: {action}. Activate to arm.\"); React names it from its visible text and exposes no covered-state instruction (its aria-describedby carries only the caller's describedBy). The lanes need one naming rule (R-0125 2026-10-23 addendum, answer 1, on name precedence and label-in-name).",
-      "hunks": [
-        "@@ #1",
-        "  - paragraph: RTL layout and bidi-isolated action text preserve the two-step order.",
-        "  - status",
-        "- - button \"توقيع وحفظ الحزمة\"",
-        "+ - 'button \"Guarded action: ⁨توقيع وحفظ الحزمة⁩. Activate to arm.\"': توقيع وحفظ الحزمة",
-        "  - status: \"Commit requests: 0\""
-      ]
-    },
-    {
-      "scenarioId": "guarded-control.locale-en",
-      "ticket": "T-1105",
-      "reason": "Accessible name: Blazor names the covered action with its chrome.guard label template (\"Guarded action: {action}. Activate to arm.\"); React names it from its visible text and exposes no covered-state instruction (its aria-describedby carries only the caller's describedBy). The lanes need one naming rule (R-0125 2026-10-23 addendum, answer 1, on name precedence and label-in-name).",
-      "hunks": [
-        "@@ #1",
-        "  - paragraph: Whole guard messages include a localized action label, countdown value, and duration unit.",
-        "  - status",
-        "- - button \"Sign and save package\"",
-        "+ - 'button \"Guarded action: ⁨Sign and save package⁩. Activate to arm.\"': Sign and save package",
-        "  - status: \"Commit requests: 0\""
-      ]
-    },
-    {
-      "scenarioId": "guarded-control.locale-pseudo",
-      "ticket": "T-1105",
-      "reason": "Accessible name: Blazor names the covered action with its chrome.guard label template (\"Guarded action: {action}. Activate to arm.\"); React names it from its visible text and exposes no covered-state instruction (its aria-describedby carries only the caller's describedBy). The lanes need one naming rule (R-0125 2026-10-23 addendum, answer 1, on name precedence and label-in-name).",
-      "hunks": [
-        "@@ #1",
-        "  - paragraph: Expanded whole messages expose clipping and fixed-width assumptions.",
-        "  - status",
-        "- - button \"⟦ Šîĝñ åñđ šåṽë ţhë þåçķåĝë ······ ⟧\"",
-        "+ - 'button \"Guarded action: ⁨⟦ Šîĝñ åñđ šåṽë ţhë þåçķåĝë ······ ⟧⁩. Activate to arm.\"': ⟦ Šîĝñ åñđ šåṽë ţhë þåçķåĝë ······ ⟧",
-        "  - status: \"Commit requests: 0\""
-      ]
-    },
-    {
-      "scenarioId": "guarded-control.theme-dark",
-      "ticket": "T-1105",
-      "reason": "Accessible name: Blazor names the covered action with its chrome.guard label template (\"Guarded action: {action}. Activate to arm.\"); React names it from its visible text and exposes no covered-state instruction (its aria-describedby carries only the caller's describedBy). The lanes need one naming rule (R-0125 2026-10-23 addendum, answer 1, on name precedence and label-in-name).",
-      "hunks": [
-        "@@ #1",
-        "  - paragraph: The same guarded-action vocabulary on the Harborline dark surface.",
-        "  - status",
-        "- - button \"Sign and save package\"",
-        "+ - 'button \"Guarded action: ⁨Sign and save package⁩. Activate to arm.\"': Sign and save package",
-        "  - status: \"Commit requests: 0\"",
-        "  - status",
-        "- - button \"Sign and save package\" [disabled]",
-        "+ - 'button \"Guarded action: ⁨Sign and save package⁩. Activate to arm.\" [disabled]': Sign and save package",
-        "  - paragraph: Complete the affirmation before signing.",
-        "  - status: \"Commit requests: 0\""
-      ]
-    },
-    {
-      "scenarioId": "guarded-control.theme-light",
-      "ticket": "T-1105",
-      "reason": "Accessible name: Blazor names the covered action with its chrome.guard label template (\"Guarded action: {action}. Activate to arm.\"); React names it from its visible text and exposes no covered-state instruction (its aria-describedby carries only the caller's describedBy). The lanes need one naming rule (R-0125 2026-10-23 addendum, answer 1, on name precedence and label-in-name).",
-      "hunks": [
-        "@@ #1",
-        "  - paragraph: Covered, armed, committing, disabled, focus, and recovery states use public semantic tokens.",
-        "  - status",
-        "- - button \"Sign and save package\"",
-        "+ - 'button \"Guarded action: ⁨Sign and save package⁩. Activate to arm.\"': Sign and save package",
-        "  - status: \"Commit requests: 0\"",
-        "  - status",
-        "- - button \"Sign and save package\" [disabled]",
-        "+ - 'button \"Guarded action: ⁨Sign and save package⁩. Activate to arm.\" [disabled]': Sign and save package",
-        "  - paragraph: Complete the affirmation before signing.",
-        "  - status: \"Commit requests: 0\""
-      ]
-    },
-    {
-      "scenarioId": "guarded-control.two-step",
-      "ticket": "T-1105",
-      "reason": "Armed state, read on a paused clock right after the arming activation: Blazor names the armed action with its armed-message label (\"Armed for {action}. Activate again within in 5 seconds to commit.\"), while React names it from its content, the visible label plus the role=timer element's \"in 5 seconds\". The lanes need one naming rule for the armed action as for the covered one (R-0125 2026-10-23 addendum, answer 1). The armed copy \"within in 5 seconds\", in both lanes, is T-1105's to fix too.",
-      "hunks": [
-        "@@ #1",
-        "  - paragraph: One activation arms and a distinct second activation invokes the caller operation at most once.",
-        "  - status: Armed for ⁨Sign and save package⁩. Activate again within in 5 seconds to commit.",
-        "- - button \"Sign and save package in 5 seconds\":",
-        "+ - button \"Armed for ⁨Sign and save package⁩. Activate again within in 5 seconds to commit.\":",
-        "    - text: Sign and save package",
-        "    - timer \"in 5 seconds\""
-      ]
-    },
-    {
-      "scenarioId": "guarded-control.two-step",
-      "state": "after-arm-window",
-      "ticket": "T-1105",
-      "reason": "Stale live region (Blazor), read once the arm window has run out: Blazor's action is covered again, but its role=status region still announces the armed message, because RecoverAsync sets the announcement after the render on the timeout path; React announces \"Guard restored for …\". The covered action is also named differently (Blazor's chrome.guard label template, React's visible text).",
-      "hunks": [
-        "@@ #1",
-        "  - heading \"Arm and commit\" [level=2]",
-        "  - paragraph: One activation arms and a distinct second activation invokes the caller operation at most once.",
-        "- - status: Guard restored for ⁨Sign and save package⁩.",
-        "- - button \"Sign and save package\"",
-        "+ - status: Armed for ⁨Sign and save package⁩. Activate again within in 5 seconds to commit.",
-        "+ - 'button \"Guarded action: ⁨Sign and save package⁩. Activate to arm.\"': Sign and save package",
-        "  - status: \"Commit requests: 0\""
-      ]
-    },
-    {
       "scenarioId": "notification-center.actions",
       "ticket": "T-1112",
-      "reason": "Overlay scope: the open notification panel (dialog \"Notifications\") is portaled out of [data-gallery-probe] by React (Popover) and rendered inside it by Blazor, so the probe-only comparison (the scope the axe scan has on main) sees it in Blazor only. A wider overlay scope (b19, not on main) would compare it in both lanes; the row would then need re-measuring, not deleting, because the tablist name also differs (\"Notifications\" in Blazor, \"Notification groups\" in React).",
+      "reason": "Overlay scope only: the open notification panel (dialog \"Notifications\") is portaled out of [data-gallery-probe] by React (Popover) and rendered inside it by Blazor, so the probe-only ARIA comparison sees it in Blazor only. Round-2 fixes the tablist name to \"Notification groups\" in both lanes; no tablist-name mismatch remains waived. The existing overlay-scope difference is unchanged.",
       "hunks": [
         "@@ #1",
         "  - paragraph: Proposal decisions, informational activation, mark-read, dismiss, and view-all dispatch bounded callbacks.",
@@ -657,7 +496,7 @@
         "+ - dialog \"Notifications\":",
         "+   - heading \"Notifications\" [level=2]",
         "+   - button \"Mark all read\"",
-        "+   - tablist \"Notifications\":",
+        "+   - tablist \"Notification groups\":",
         "+     - tab \"All\" [selected]",
         "+     - tab \"Approvals\"",
         "+     - tab \"Results\"",
@@ -685,7 +524,7 @@
     {
       "scenarioId": "notification-center.groups",
       "ticket": "T-1112",
-      "reason": "Overlay scope: the open notification panel (dialog \"Notifications\") is portaled out of [data-gallery-probe] by React (Popover) and rendered inside it by Blazor, so the probe-only comparison (the scope the axe scan has on main) sees it in Blazor only. A wider overlay scope (b19, not on main) would compare it in both lanes; the row would then need re-measuring, not deleting, because the tablist name also differs (\"Notifications\" in Blazor, \"Notification groups\" in React).",
+      "reason": "Overlay scope only: the open notification panel (dialog \"Notifications\") is portaled out of [data-gallery-probe] by React (Popover) and rendered inside it by Blazor, so the probe-only ARIA comparison sees it in Blazor only. Round-2 fixes the tablist name to \"Notification groups\" in both lanes; no tablist-name mismatch remains waived. The existing overlay-scope difference is unchanged.",
       "hunks": [
         "@@ #1",
         "  - paragraph: Group order follows the caller and filtering never reorders items.",
@@ -693,7 +532,7 @@
         "+ - dialog \"Notifications\":",
         "+   - heading \"Notifications\" [level=2]",
         "+   - button \"Mark all read\"",
-        "+   - tablist \"Notifications\":",
+        "+   - tablist \"Notification groups\":",
         "+     - tab \"All\" [selected]",
         "+     - tab \"Approvals\"",
         "+     - tab \"Results\"",
@@ -721,7 +560,7 @@
     {
       "scenarioId": "notification-center.keyboard-dismissal",
       "ticket": "T-1112",
-      "reason": "Overlay scope: the open notification panel (dialog \"Notifications\") is portaled out of [data-gallery-probe] by React (Popover) and rendered inside it by Blazor, so the probe-only comparison (the scope the axe scan has on main) sees it in Blazor only. A wider overlay scope (b19, not on main) would compare it in both lanes; the row would then need re-measuring, not deleting, because the tablist name also differs (\"Notifications\" in Blazor, \"Notification groups\" in React).",
+      "reason": "Overlay scope only: the open notification panel (dialog \"Notifications\") is portaled out of [data-gallery-probe] by React (Popover) and rendered inside it by Blazor, so the probe-only ARIA comparison sees it in Blazor only. Round-2 fixes the tablist name to \"Notification groups\" in both lanes; no tablist-name mismatch remains waived. The existing overlay-scope difference is unchanged.",
       "hunks": [
         "@@ #1",
         "  - paragraph: The bell opens a dialog, focus enters, and every dismissal path has a deterministic focus outcome.",
@@ -729,7 +568,7 @@
         "+ - dialog \"Notifications\":",
         "+   - heading \"Notifications\" [level=2]",
         "+   - button \"Mark all read\"",
-        "+   - tablist \"Notifications\":",
+        "+   - tablist \"Notification groups\":",
         "+     - tab \"All\" [selected]",
         "+     - tab \"Approvals\"",
         "+     - tab \"Results\"",
@@ -2954,19 +2793,6 @@
       ]
     },
     {
-      "scenarioId": "switch.locale-pseudo",
-      "ticket": "T-1111",
-      "reason": "Accessible name (React): the switch is named from the caller's aria-label (\"Inspection alerts\") while its visible label is pseudo-localized; Blazor names it from the visible label. R-0125 2026-10-23 addendum, answer 1: aria-labelledby wins, so adopt the Blazor behaviour and fix React.",
-      "hunks": [
-        "@@ #1",
-        "  - heading \"Pseudo locale\" [level=2]",
-        "  - paragraph: Expanded labels and descriptions reflow without clipping.",
-        "- - switch \"Inspection alerts\"",
-        "+ - switch \"⟦ Îñšþëçţîøñ åļëřţš åñđ řëmîñđëřš ······ ⟧\"",
-        "  - text: ⟦ Îñšþëçţîøñ åļëřţš åñđ řëmîñđëřš ······ ⟧ ⟦ Ñøţîƒÿ ëṽëřÿ šţřûçţûřë øŵñëř ······ ⟧"
-      ]
-    },
-    {
       "scenarioId": "text-box.appearance-reflow",
       "ticket": "T-1104",
       "reason": "Gallery story input: the React and Blazor stories render different fields for these scenarios (field names, values, prefixes and companion fields differ). The two lanes' gallery stories do not render the same scene for this scenario, so the comparison reads different inputs, not a component difference; the stories need aligning.",
@@ -3129,34 +2955,6 @@
         "  - button \"Show password\"",
         "- - status: \"Keys: none; value: Revision 1\"",
         "- - button \"Replace caller value\""
-      ]
-    },
-    {
-      "scenarioId": "toaster.locale-ar",
-      "ticket": "T-1107",
-      "reason": "Component defect (React): Toaster hard-codes aria-label=\"Notifications\" after the attribute spread and has no label prop, so the toast region can be neither localized nor overridden (\"Notifications\" in the Arabic scene). Blazor exposes AccessibleLabel, and its story passes the localized label.",
-      "hunks": [
-        "@@ #1",
-        "  - button \"إظهار الإشعارات\"",
-        "  - button \"إغلاق الكل\"",
-        "- - region \"Notifications\":",
-        "+ - region \"الإشعارات\":",
-        "    - status: تم Capture ready",
-        "    - status: تم Pose saved"
-      ]
-    },
-    {
-      "scenarioId": "toaster.locale-pseudo",
-      "ticket": "T-1107",
-      "reason": "Component defect (React): Toaster hard-codes aria-label=\"Notifications\" after the attribute spread and has no label prop, so the toast region can be neither localized nor overridden (\"Notifications\" in the pseudo-locale scene). Blazor exposes AccessibleLabel, and its story passes the localized label.",
-      "hunks": [
-        "@@ #1",
-        "  - button \"⟦ Šhøŵ ţøåšţš ··· ⟧\"",
-        "  - button \"Dismiss all\"",
-        "- - region \"Notifications\":",
-        "+ - region \"⟦ Ñøţîƒîçåţîøñš ···· ⟧\":",
-        "    - status: ⟦ Capture ready ······ ⟧",
-        "    - status: ⟦ Pose saved ······ ⟧"
       ]
     },
     {
