@@ -11,7 +11,7 @@ test('publication uses exactly the gate producer ids and follows a push to main,
   const workflow = readFileSync(resolve(root, '.github/workflows/validate.yml'), 'utf8')
   const job = workflow.split('  publish-libraries:\n')[1]
   assert.ok(job, 'publish-libraries job is required')
-  const pack = workflow.split('  pack-libraries:\n')[1]?.split('  publish-libraries:\n')[0]
+  const pack = workflow.split('  pack-libraries:\n')[1]?.split('  attest-libraries:\n')[0]
   assert.ok(pack, 'pack-libraries job is required')
   const ids = /PACKAGE_IDS: >-\n([\s\S]*?)    steps:/.exec(job)[1].trim().split(/\s+/).sort()
   const produced = producerIds()
@@ -27,13 +27,16 @@ test('publication uses exactly the gate producer ids and follows a push to main,
   assert.doesNotMatch(workflow, /merge_group|run-phase-4-gate/)
   assert.doesNotMatch(workflow, /ACTIONS_ENABLED/)
   // Least privilege (owner ruling 2026-11-02): pack-libraries builds, tests and packs read-only; only
-  // publish-libraries holds the write scopes, and it builds nothing. The literals here are the oracle.
+  // publish-libraries holds packages: write and only attest-libraries can sign (2026-11-03), and neither builds
+  // anything. The literals here are the oracle.
   assert.match(pack, /if: github.event_name == 'push' && github.ref == 'refs\/heads\/main'\n    runs-on: ubuntu-latest\n    permissions:\n      contents: read\n    outputs:\n/)
   assert.doesNotMatch(pack, /: write|GH_TOKEN|nuget push|actions\/attest/)
   assert.match(pack, /node tooling\/verify-package-fixtures\.mjs --pack-libraries/)
   assert.match(pack, /node --test tooling\/tests\/publish-libraries\.test\.mjs tooling\/tests\/publish-libraries\.packed\.mjs/)
-  assert.match(job, /^    needs: pack-libraries\n/)
-  assert.match(job, /permissions:\n      contents: read\n      packages: write\n      id-token: write\n      attestations: write\n/)
+  // Separate signing job (owner rulings 2026-11-03: "Separate signing job", "Keep push to main"): publish-libraries
+  // needs attest-libraries, the only signer, and keeps packages: write with only read access to attestations.
+  assert.match(job, /^    needs: \[pack-libraries, attest-libraries\]\n/)
+  assert.match(job, /permissions:\n      contents: read\n      packages: write\n      attestations: read\n    env:\n/)
   for (const build of ['verify-package-fixtures', 'dotnet pack', 'dotnet build', 'dotnet test', 'pnpm', 'node --test']) {
     assert.ok(!job.includes(build), `publish-libraries must not build or test: ${build}`)
   }
