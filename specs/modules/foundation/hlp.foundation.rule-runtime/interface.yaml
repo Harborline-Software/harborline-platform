@@ -43,7 +43,7 @@
     "One evaluator/graph holds one immutable snapshot across guard/value, full, row and incremental paths. A reactive edit requiring an uncaptured pair fails closed; changed tenant/pin/query sets require explicit construction with a new capture. No setter, callback or hidden fetch is admitted. Broader caller/package/consumer and T493/L591 acceptance remain open.",
 
     "Both tiers consume Rules revision 1 grammar, Text revision 1 and Presentation revision 1 contracts and emit canonical RuleOutcome values with all five output types, including Options.",
-    "The nine-file, 74-case corpus is one language-neutral authority; canonical per-rule outcomes from both tiers must be structurally identical.",
+    "The 15-file, 179-case corpus is one language-neutral authority; canonical per-rule outcomes from both tiers must be structurally identical.",
     "Unknown operators, PowerFx evaluation, malformed grammar, cycles, resource-bound violations, and non-array Options results fail closed with stable localizable codes.",
     "The v1 operator set is closed and contains no regex or user-pattern operator; pattern validation remains in the schema-validation module.",
     "The v1 operator set is the R1 built-in register (T-590): each tier's evaluator dispatches, and its compiler admits keys and arity, only through that register, and both editor palettes are generated from it. Function references are discriminated BuiltInFunction(key) or PackageFunction(package_id, function_key); only the register constructs the built-in arm and no package function is registered or executed in R1.",
@@ -60,8 +60,8 @@
   "publicSeams": ["finite pinned Taxonomy answer snapshot", "context adapter", "deterministic clock", "trace authority filter", "named-rule registry store"],
   "conformance": {
     "corpus": "conformance/hlp.foundation.rule-runtime/corpus",
-    "files": 9,
-    "cases": 74,
+    "files": 15,
+    "cases": 179,
     "runner": "conformance/hlp.foundation.rule-runtime/runners/run-shared.mjs",
     "nativeTests": {"typescript": 201, "dotnet": 137}
   },
