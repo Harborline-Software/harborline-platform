@@ -6,5 +6,6 @@
 .hl-records-authoring .hl-records-authoring__read-only { display: grid; gap: var(--hl-space-4, 1rem); margin: 0; padding: 0; border: 0; }
 .hl-records-authoring__scope, .hl-records-authoring__note { margin: 0; }
 .hl-records-authoring__incoming { display: flex; flex-wrap: wrap; align-items: center; gap: var(--hl-space-2, .5rem); border-inline-start: .25rem solid var(--hl-color-primary, currentColor); padding-inline-start: var(--hl-space-3, .75rem); }
-.hl-records-authoring__diagnostics { margin: 0; padding-inline-start: var(--hl-space-4, 1rem); overflow-wrap: anywhere; }
+.hl-records-authoring__diagnostics, .hl-records-authoring__warnings { margin: 0; padding-inline-start: var(--hl-space-4, 1rem); overflow-wrap: anywhere; }
+.hl-records-authoring__warnings { border-inline-start: .25rem solid var(--hl-warning, #8a5a00); }
 @media (max-width: 42rem) { .hl-records-authoring__incoming { display: grid; grid-template-columns: 1fr; } }

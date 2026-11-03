@@ -1,0 +1,43 @@
+{
+  "moduleId": "hlp.copilot.contracts",
+  "module": {
+    "interface": {
+      "path": "specs/modules/application/hlp.copilot.contracts/interface.yaml",
+      "revision": 1
+    },
+    "moduleKind": "runtime",
+    "presentation": {
+      "disposition": "not-applicable",
+      "rationale": "Provider-neutral Pilot proposal/classification/manifest contracts own no presentation surface; composition is app-side behind the adapter contract."
+    },
+    "owner": "platform-application",
+    "dependencies": [],
+    "status": "draft-package-consumer-green",
+    "depth": {
+      "disposition": "deep-module",
+      "deletionTest": "PASS",
+      "redistributedComplexity": [
+        "proposal safety validation, stale-context fencing, and NEVER-classification exclusion reimplemented per Pilot surface",
+        "descriptor/executor import fence and provider-neutral manifest generation forked between hosts"
+      ]
+    },
+    "projections": {
+      "typescript": {
+        "role": "implementation",
+        "path": "projections/typescript/application/hlp.copilot.contracts",
+        "status": "preview",
+        "artifact": {
+          "type": "npm",
+          "id": "@harborline-software/copilot-contracts",
+          "manifest": "projections/typescript/application/hlp.copilot.contracts/package.json",
+          "dependencies": [],
+          "identityAuthority": "Harborline",
+          "producerRepository": "harborline-platform",
+          "distribution": "internal-only",
+          "candidateRole": "new-bounded-package",
+          "registryAvailable": false
+        }
+      }
+    }
+  }
+}

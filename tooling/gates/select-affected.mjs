@@ -25,6 +25,7 @@
 import {execFileSync} from 'node:child_process'
 import {readFileSync} from 'node:fs'
 import {resolve} from 'node:path'
+import {loadModuleCatalog} from '../module-catalog.mjs'
 
 const argv = process.argv.slice(2)
 const flagAll = name => argv.reduce((found, argument, index) =>
@@ -88,6 +89,8 @@ export function ownershipFrom(catalog) {
       if (specDirectory) prefixes.add(specDirectory)
     }
     prefixes.add(`conformance/${moduleId}`)
+    // HLP-0009: a module's own catalog row is that module's input, not shared ground.
+    prefixes.add(`catalog/modules/${moduleId}.json`)
     prefixes.add(`gallery/scenarios/${moduleId}.json`)
     // The test project sits BESIDE its projection as `<path>.tests`, and segment-exact matching
     // rightly refuses to read that as the projection itself -- the same rule that stops
@@ -142,6 +145,12 @@ export function selectAffected(catalog, changedPaths, {strict = false} = {}) {
   const directly = new Set()
 
   for (const path of paths) {
+    // A module's own catalog row (HLP-0009) is owned before `catalog/` is treated as global. A row
+    // for a module the catalog no longer holds finds no owner here and falls through to global.
+    if (pathMatchesPrefix(path, 'catalog/modules')) {
+      const rowOwner = owners.find(candidate => candidate.prefix === path)
+      if (rowOwner) { directly.add(rowOwner.moduleId); continue }
+    }
     if (GLOBAL_PREFIXES.some(prefix => pathMatchesPrefix(path, prefix.replace(/\/$/, '')))) {
       return {
         status: 'SELECTED',
@@ -243,6 +252,15 @@ function canary() {
   const global = selectAffected(catalog, ['catalog/modules.yaml'])
   if (global.moduleIds.length !== 3) failures.push('a global input must select every module')
 
+  // HLP-0009: one module's catalog row selects that module and its dependents, not the suite; a row
+  // for a module the catalog does not hold is still shared ground.
+  const row = selectAffected(catalog, ['catalog/modules/hlp.ui.zeta.json'])
+  if (JSON.stringify(row.moduleIds) !== JSON.stringify(['hlp.ui.alpha', 'hlp.ui.zeta'])) {
+    failures.push('a module catalog row must select its module and dependents only')
+  }
+  const orphanRow = selectAffected(catalog, ['catalog/modules/hlp.ui.gone.json'])
+  if (orphanRow.moduleIds.length !== 3) failures.push('a catalog row no module owns must select every module')
+
   const unsorted = selectAffected(catalog, [
     './projections/react/ui/hlp.ui.zetaish/b.ts',
     'projections/react/ui/hlp.ui.zetaish/b.ts',
@@ -256,13 +274,13 @@ function canary() {
     process.stderr.write(`canary FAIL:\n${failures.map(failure => `  ${failure}`).join('\n')}\n`)
     process.exit(1)
   }
-  process.stdout.write('canary OK -- prefix lookalikes refused, closure runs to dependents, unowned in-scope paths select the full suite by name, --strict throws, globals select all\n')
+  process.stdout.write('canary OK -- prefix lookalikes refused, closure runs to dependents, unowned in-scope paths select the full suite by name, --strict throws, globals select all, a module catalog row selects its module\n')
   process.exit(0)
 }
 
 if (argv.includes('--canary')) canary()
 
-const catalog = JSON.parse(readFileSync(resolve(platformRoot, 'catalog/modules.yaml'), 'utf8'))
+const catalog = loadModuleCatalog(platformRoot)
 const explicit = flagAll('--path')
 const from = flag('--from')
 const changed = explicit.length > 0 ? explicit

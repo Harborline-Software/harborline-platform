@@ -1,0 +1,57 @@
+{
+  "moduleId": "hlp.ui.separator",
+  "module": {
+    "interface": {
+      "path": "specs/modules/ui/hlp.ui.separator/interface.yaml",
+      "revision": 1
+    },
+    "moduleKind": "non-interactive-component",
+    "presentation": {
+      "disposition": "visual"
+    },
+    "qualityProfile": {
+      "path": "specs/modules/ui/hlp.ui.separator/quality.yaml",
+      "revision": 1
+    },
+    "owner": "platform-ui",
+    "dependencies": [
+      "hlp.ui.cn"
+    ],
+    "status": "extracted-candidate",
+    "depth": {
+      "disposition": "deep-module",
+      "deletionTest": "PASS",
+      "redistributedComplexity": [
+        "decorative versus semantic role/orientation behavior repeated at every content boundary",
+        "single-rule and caller-labeled two-rule logical layouts independently drifting between renderers"
+      ]
+    },
+    "projections": {
+      "react": {
+        "role": "adapter",
+        "seam": "ui.separator.framework",
+        "path": "projections/react/ui/hlp.ui.separator",
+        "status": "conformant",
+        "packageContribution": "@harborline-software/ui-react",
+        "conformanceRunner": "conformance/hlp.ui.separator/runners/run-shared.mjs"
+      },
+      "blazor": {
+        "role": "adapter",
+        "seam": "ui.separator.framework",
+        "path": "projections/blazor/ui/hlp.ui.separator",
+        "status": "conformant",
+        "packageContribution": "Harborline.UIAdapters.Blazor",
+        "conformanceRunner": "conformance/hlp.ui.separator/runners/run-shared.mjs"
+      }
+    }
+  },
+  "seams": {
+    "ui.separator.framework": {
+      "status": "conformant",
+      "adapters": [
+        "react",
+        "blazor"
+      ]
+    }
+  }
+}

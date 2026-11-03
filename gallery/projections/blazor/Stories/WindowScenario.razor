@@ -4,8 +4,9 @@
     @if (visible) {
         <HarborlineWindow Title="@WindowTitle" Width="440" Height="280" Top="120" Left="120" Modal="@Modal" State="@state" StateChanged="value => state = value" Closed="() => visible = false"
                         AccessibleLabel="@(Localized ? "نافذة" : "Window")" CloseLabel="@(Localized ? "إغلاق" : "Close")" MinimizeLabel="@(Localized ? "تصغير" : "Minimize")"
-                        MaximizeLabel="@(Localized ? "تكبير" : "Maximize")" RestoreLabel="@(Localized ? "استعادة" : "Restore")" ResizeWidthLabel="@(Localized ? "تغيير العرض" : "Resize width")"
-                        ResizeHeightLabel="@(Localized ? "تغيير الارتفاع" : "Resize height")" ResizeBothLabel="@(Localized ? "تغيير الحجم" : "Resize width and height")">
+                        MaximizeLabel="@(Localized ? "تكبير" : "Maximize")" RestoreLabel="@(Localized ? "استعادة" : "Restore")" ResizeWidthLabel="@(Localized ? "تغيير العرض" : "Resize width from right edge")"
+                        ResizeHeightLabel="@(Localized ? "تغيير الارتفاع" : "Resize height from bottom edge")"
+                        MoveLabel="@(Localized ? "نقل النافذة" : "Move window")" MoveDescriptionLabel="@(Localized ? "استخدم مفاتيح الأسهم" : "Press arrow keys to move window")">
             <ActionsBar><HarborlineWindowActionsBar>@if (ScenarioId == "window.content") { <button type="button">@("1,284,905")</button> } else if (Localized) { <button type="button">حفظ</button> } else { <button type="button">Save</button> }</HarborlineWindowActionsBar></ActionsBar>
             <ChildContent>
                 @if (ScenarioId == "window.content") { <p>@("Bay 4 <grid C-7> & 8")</p><button type="button">@("Ordnance Survey — Niño Ångström")</button> }

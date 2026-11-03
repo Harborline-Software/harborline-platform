@@ -1,0 +1,54 @@
+{
+  "moduleId": "hlp.blocks.calendar",
+  "module": {
+    "interface": {
+      "path": "specs/modules/blocks/hlp.blocks.calendar/interface.yaml",
+      "revision": 5
+    },
+    "moduleKind": "runtime",
+    "presentation": {
+      "disposition": "not-applicable",
+      "rationale": "The calendar engine produces occurrences, free/busy results, booking outcomes, and context answers consumed by scheduler/gantt renderers; it renders nothing."
+    },
+    "owner": "platform-blocks",
+    "dependencies": [
+      "hlp.contracts.identities",
+      "hlp.foundation.actor",
+      "hlp.foundation.scheduling",
+      "hlp.blocks.builder-definitions"
+    ],
+    "status": "implemented",
+    "depth": {
+      "disposition": "deep-module",
+      "deletionTest": "PASS",
+      "redistributedComplexity": [
+        "DST wall-clock retention, visibility-policied free/busy, padding envelopes, and occupancy limits re-implemented (and drifting) in every scheduling caller",
+        "booking atomicity semantics dissolved into per-surface choreography"
+      ]
+    },
+    "projections": {
+      "dotnet": {
+        "role": "implementation",
+        "path": "projections/dotnet/blocks/hlp.blocks.calendar",
+        "status": "preview",
+        "artifact": {
+          "type": "nuget",
+          "id": "Harborline.Blocks.Calendar",
+          "assembly": "Harborline.Blocks.Calendar",
+          "manifest": "projections/dotnet/blocks/hlp.blocks.calendar/Harborline.Blocks.Calendar.csproj",
+          "dependencies": [
+            "Harborline.Contracts",
+            "Harborline.Foundation.Authorization",
+            "Harborline.Foundation.Scheduling",
+            "Harborline.Blocks.BuilderDefinitions"
+          ],
+          "identityAuthority": "Harborline",
+          "producerRepository": "harborline-platform",
+          "distribution": "internal-only",
+          "candidateRole": "new-bounded-package",
+          "registryAvailable": false
+        }
+      }
+    }
+  }
+}

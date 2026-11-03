@@ -1,0 +1,45 @@
+{
+  "moduleId": "hlp.ui.touch-target",
+  "module": {
+    "interface": {
+      "path": "specs/modules/ui/hlp.ui.touch-target/interface.yaml",
+      "revision": 1
+    },
+    "moduleKind": "runtime",
+    "presentation": {
+      "disposition": "not-applicable",
+      "rationale": "Touch Target supplies measurable hit-area affordances consumed by visual controls and renders no standalone chrome."
+    },
+    "qualityProfile": {
+      "path": "specs/modules/ui/hlp.ui.touch-target/quality.yaml",
+      "revision": 1
+    },
+    "owner": "platform-ui",
+    "dependencies": [],
+    "status": "implemented-gate-model-green",
+    "depth": {
+      "disposition": "deep-module",
+      "deletionTest": "PASS",
+      "redistributedComplexity": [
+        "44-by-44 box and overlay hit-area geometry repeated across compact controls",
+        "positioning-context safety and glyph-size preservation re-decided by every React and Blazor component"
+      ]
+    },
+    "projections": {
+      "react": {
+        "role": "implementation",
+        "path": "projections/react/ui/hlp.ui.touch-target",
+        "status": "conformant",
+        "packageContribution": "@harborline-software/ui-react",
+        "conformanceRunner": "conformance/hlp.ui.touch-target/runners/run-shared.mjs"
+      },
+      "blazor": {
+        "role": "implementation",
+        "path": "projections/blazor/ui/hlp.ui.touch-target",
+        "status": "conformant",
+        "packageContribution": "Harborline.UIAdapters.Blazor",
+        "conformanceRunner": "conformance/hlp.ui.touch-target/runners/run-shared.mjs"
+      }
+    }
+  }
+}

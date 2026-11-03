@@ -1,0 +1,23 @@
+{
+  "moduleId": "hlp.contracts.forms",
+  "phase4Evidence": "specs/modules/contracts/hlp.contracts.forms/interface.yaml",
+  "sourceExtracted": true,
+  "sourceState": "Historical revisions 1–4 captured the Forms wire vocabulary, Options, Carrier fieldsMeta and field-rule projection. Revision 9 assigns shared rules, localized text and presentation vocabulary to their named contract modules inside the existing Contracts artifacts. FormsContracts.cs and FormsJson.cs are maintained projections; FormsJson.g.cs contains the generated ModelJson partial. Forms continues to expose compatible TypeScript wire exports while CLR source borrowers use the new owning namespaces. Execution and package qualification are recorded separately.",
+  "contentHashes": {
+    "conformance/hlp.contracts.forms/fixtures.yaml": "2c443c60a9aa4460be5afe325479200b55500b205a680f006896132d7dba7acc",
+    "conformance/hlp.contracts.forms/runners/run-shared.mjs": "079ddaee7b11e10dc5218eefdd75df74774a640eff09d332e63116d6482f72b7",
+    "projections/dotnet/contracts/hlp.contracts.identities.tests/FormsContractTests.cs": "5a68496354515bf59745ce648f928879d008655c3e34099b93a2e45121908339",
+    "projections/dotnet/contracts/hlp.contracts.identities.tests/FormsFixtureConformanceTests.cs": "8ccf4f2c47747dbe0090b3a500dc7919083894b2db6982c48acc4e1202eeaf90",
+    "projections/dotnet/contracts/hlp.contracts.identities/Forms/FormsContracts.cs": "3e76a6195f4866cfa2a34b63077baeb83ddc7c322949ebb10a280b68e607fdb0",
+    "projections/dotnet/contracts/hlp.contracts.identities/Forms/FormsJson.g.cs": "356f2f8305d4333b0d6978c1231dfbf0a246988610e432b3694391d3f1804369",
+    "projections/typescript/contracts/hlp.contracts.forms/package.json": "3def684bd2ea26ecc05fe1d7d291f0c367f2a69e2ebacc9f64fca15d6a8b759e",
+    "projections/typescript/contracts/hlp.contracts.forms/projection-manifest.json": "19e8c4006075aa88a52f29dc640c39b4be831ea82f30cf3725988d1241cd55cf",
+    "projections/typescript/contracts/hlp.contracts.forms/src/forms.ts": "3340c018738ce0019d079c25fcacb87f4f87f8bc26a40256a7b0bc59d433835e",
+    "projections/typescript/contracts/hlp.contracts.forms/src/wire.ts": "c8fdd6ee3358a53b4345ae13dc4e0635730431601e760e82268f80bb01c3d573",
+    "specs/modules/contracts/hlp.contracts.forms/interface.yaml": "fbcdd5a32ee5cf36f9e95be3c71ff93a6c2d0c67d55db8baf86463fd9d36b942",
+    "projections/dotnet/contracts/hlp.contracts.identities/Forms/FormsJson.cs": "2c0bfe29082853a569df1df1c9134f081bc72d6d1484ad6fad056bd1a819089a",
+    "projections/dotnet/contracts/hlp.contracts.identities/Serialization/ContractJson.cs": "2b6430d636d13c147e25c663b8344f52b47cd6fef567df1c7d90bd820dce5b2b",
+    "projections/dotnet/contracts/hlp.contracts.identities/Harborline.Contracts.csproj": "b0a398be5abcd92c9634b88412cff92891b7af35454cd4fbdac6b9700bc8864c"
+  },
+  "nextGate": "Consume the completed dual-tier Rule Runtime from the Forms state and executable Forms Engine modules."
+}
