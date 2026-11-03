@@ -94,6 +94,10 @@
   private ElementReference Root, Trigger, Dialog;
   private IOutsidePointerRegistration? outsideRegistration;
   private IJSObjectReference? module;
+  // The dialog closes on Escape through @onkeydown, which cannot mark the key handled, so an enclosing
+  // Dialog or Sheet closed too. notification-center.js marks it on the dialog element while it is open,
+  // registered before focus moves into the panel so no Escape can arrive unmarked (a Server round trip).
+  private IJSObjectReference? escapeRegistration;
   // Caller text overrides each label; blank caller text keeps the catalog default, so no chrome or
   // control name is ever empty.
   private NotificationCenterLabels L = NotificationCenterLabels.English;
@@ -174,7 +178,8 @@
 
   private async Task ToggleAsync() { if (open) await CloseAsync(true); else await OpenAsync(); }
   private async Task OpenAsync() { open = true; actionLatch = false; focusDialog = true; await InvokeAsync(StateHasChanged); }
-  private async Task CloseAsync(bool restoreFocus) { if (!open) return; open = false; settleRow = null; actionLatch = false; if (outsideRegistration is not null) await outsideRegistration.DisposeAsync(); outsideRegistration = null; focusTrigger = restoreFocus; await InvokeAsync(StateHasChanged); }
+  private async Task CloseAsync(bool restoreFocus) { if (!open) return; open = false; settleRow = null; actionLatch = false; if (outsideRegistration is not null) await outsideRegistration.DisposeAsync(); outsideRegistration = null; await ReleaseEscapeAsync(); focusTrigger = restoreFocus; await InvokeAsync(StateHasChanged); }
+  private async Task ReleaseEscapeAsync() { var registration = escapeRegistration; escapeRegistration = null; if (registration is null) return; try { await registration.InvokeVoidAsync("dispose"); await registration.DisposeAsync(); } catch (JSDisconnectedException) { } catch (JSException) { } }
   private Task HandleDialogKeyAsync(KeyboardEventArgs args) => args.Key == "Escape" ? CloseAsync(true) : Task.CompletedTask;
   private async Task DecideAsync(NotificationCenterItem item, bool confirm) { if (actionLatch) return; actionLatch = true; if (confirm) await OnConfirm.InvokeAsync(item); else await OnDeny.InvokeAsync(item); await CloseAsync(true); }
   private async Task MarkAllReadAsync() { settleRow = -1; settleToken++; await OnMarkAllRead.InvokeAsync(); }
@@ -185,7 +190,7 @@
   {
     if (firstRender) module = await JavaScript.InvokeAsync<IJSObjectReference>("import", "./_content/Harborline.UIAdapters.Blazor/notification-center.js");
     if (open && outsideRegistration is null) outsideRegistration = await OutsidePointer.ObserveAsync([Root], _ => new ValueTask(CloseAsync(false)));
-    if (focusDialog) { focusDialog = false; await module!.InvokeVoidAsync("positionDialog", Trigger, Dialog); await module!.InvokeVoidAsync("focusFirst", Dialog); }
+    if (focusDialog) { focusDialog = false; await module!.InvokeVoidAsync("positionDialog", Trigger, Dialog); await ReleaseEscapeAsync(); escapeRegistration = await module!.InvokeAsync<IJSObjectReference>("observeEscape", Dialog); await module!.InvokeVoidAsync("focusFirst", Dialog); }
     if (focusTrigger) { focusTrigger = false; await module!.InvokeVoidAsync("focus", Trigger); }
     if (open && settleRow is int row && module is not null && await module.InvokeAsync<bool>("settleFocus", Dialog, row, settleToken)) settleRow = null;
   }
@@ -193,6 +198,7 @@
   public async ValueTask DisposeAsync()
   {
     if (outsideRegistration is not null) await outsideRegistration.DisposeAsync();
+    await ReleaseEscapeAsync();
     if (module is not null) try { await module.DisposeAsync(); } catch (JSDisconnectedException) { }
   }
 }

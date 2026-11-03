@@ -345,6 +345,70 @@
         ],
         "footer": []
       }
+    },
+    {
+      "id": "layers-rail.inside-dialog",
+      "name": "Inside a dialog",
+      "surface": "inside-dialog",
+      "sourceCaseIds": [
+        "layers-rail.shortcuts",
+        "layers-rail.lenses"
+      ],
+      "sourceQualityCaseIds": [],
+      "content": {
+        "blurb": "A layers rail inside an open dialog, with no lens active at first: once a lens is active, Escape clears it and the dialog stays open; with no lens active, the rail leaves Escape to the dialog, which closes.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {
+          "open": true
+        },
+        "body": [
+          {
+            "control": "raw",
+            "react": "<Dialog open onOpenChange={setOpen} title=\"Settings\"><LayersRail model={model} lenses={lenses} layers={layers} provenance={provenance} /></Dialog>",
+            "blazor": "<HarborlineDialog Open=\"@open\" OpenChanged=\"@(value => open = value)\" Title=\"Settings\"><HarborlineLayersRail Lenses=\"@OverlayLenses\" State=\"@OverlayState\" StateChanged=\"@(value => overlayState = value)\" Canvas=\"@OverlayCanvas\" Provenance=\"@OverlayProvenance\" /></HarborlineDialog>",
+            "rationale": "The closed control vocabulary cannot express a layers rail composed inside a real dialog."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "layers-rail.inside-sheet",
+      "name": "Inside a sheet",
+      "surface": "inside-sheet",
+      "sourceCaseIds": [
+        "layers-rail.shortcuts",
+        "layers-rail.lenses"
+      ],
+      "sourceQualityCaseIds": [],
+      "content": {
+        "blurb": "A layers rail inside an open sheet, with no lens active at first: once a lens is active, Escape clears it and the sheet stays open; with no lens active, the rail leaves Escape to the sheet, which closes.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {
+          "open": true
+        },
+        "body": [
+          {
+            "control": "raw",
+            "react": "<Sheet open onOpenChange={setOpen}><SheetContent closeLabel=\"Close panel\"><SheetTitle>Panel</SheetTitle><LayersRail model={model} lenses={lenses} layers={layers} provenance={provenance} /></SheetContent></Sheet>",
+            "blazor": "<HarborlineSheet Open=\"@open\" OpenChanged=\"@(value => open = value)\"><HarborlineSheetContent CloseLabel=\"Close panel\"><HarborlineSheetTitle>Panel</HarborlineSheetTitle><HarborlineLayersRail Lenses=\"@OverlayLenses\" State=\"@OverlayState\" StateChanged=\"@(value => overlayState = value)\" Canvas=\"@OverlayCanvas\" Provenance=\"@OverlayProvenance\" /></HarborlineSheetContent></HarborlineSheet>",
+            "rationale": "The closed control vocabulary cannot express a layers rail composed inside a real sheet."
+          }
+        ],
+        "footer": []
+      }
     }
   ]
 }

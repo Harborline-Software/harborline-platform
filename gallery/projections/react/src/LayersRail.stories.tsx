@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import type { Meta, StoryObj } from '@storybook/react-vite'
-import { LayersRail, useLayers } from '@harborline-software/ui-react'
+import { Dialog, LayersRail, Sheet, SheetContent, SheetTitle, useLayers } from '@harborline-software/ui-react'
 
 type ScenarioId =
   | 'layers-rail.structure'
@@ -13,6 +13,8 @@ type ScenarioId =
   | 'layers-rail.theme-light'
   | 'layers-rail.theme-dark'
   | 'layers-rail.content'
+  | 'layers-rail.inside-dialog'
+  | 'layers-rail.inside-sheet'
 
 const copy: Record<ScenarioId, [string, string]> = {
   'layers-rail.structure': ['Rail structure', 'A named complementary rail orders the lens group above one outline tree.'],
@@ -24,6 +26,8 @@ const copy: Record<ScenarioId, [string, string]> = {
   'layers-rail.locale-ar': ['Arabic locale', 'Logical indentation and alignment follow RTL while tree keys retain their meaning.'],
   'layers-rail.theme-light': ['Light theme', 'Lens, selection, provenance, focus, and outline states use public light-theme tokens.'],
   'layers-rail.theme-dark': ['Dark theme', 'The same structural rail on the Harborline dark surface.'],
+  'layers-rail.inside-dialog': ['Inside a dialog', 'Escape clears an active lens and leaves the dialog open; with no lens active, it closes the dialog.'],
+  'layers-rail.inside-sheet': ['Inside a sheet', 'Escape clears an active lens and leaves the sheet open; with no lens active, it closes the sheet.'],
   'layers-rail.content': ['Content resilience', 'Rail nodes and lens projections carry a long label, grouped large number, escaped hostile text, and an unusual name with diacritics.'],
 }
 
@@ -95,14 +99,33 @@ function RailFixture({ scenarioId, compact = false }: { scenarioId: ScenarioId; 
   />
 }
 
+// A layers rail composed inside a real, open Dialog or Sheet, with no lens active at first. Once a lens is
+// active, one Escape clears it and the outer layer stays open; with none, the rail leaves Escape to the
+// outer layer, which closes.
+function OverlayRail() {
+  const layers = useLayers(lenses, null)
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const model = useMemo(() => ({ nodes: baseNodes, selectedId, select: setSelectedId }), [selectedId])
+  const provenance = useMemo(() => ({ resolve: () => ({ source: 'tenant' as const, chain: ['tenant' as const], overridden: false, locked: false, resolved: true }) }), [])
+  return <LayersRail model={model} lenses={lenses} layers={layers} provenance={provenance} />
+}
+
+function InsideOverlay({ host }: { host: 'dialog' | 'sheet' }) {
+  const [open, setOpen] = useState(true)
+  return host === 'dialog'
+    ? <Dialog open={open} onOpenChange={setOpen} title="Settings"><OverlayRail /></Dialog>
+    : <Sheet open={open} onOpenChange={setOpen}><SheetContent closeLabel="Close panel"><SheetTitle>Panel</SheetTitle><OverlayRail /></SheetContent></Sheet>
+}
+
 function LayersRailScenario({ scenarioId }: { scenarioId: ScenarioId }) {
   const [title, description] = copy[scenarioId]
   const arabic = scenarioId === 'layers-rail.locale-ar'
   const theme = scenarioId === 'layers-rail.theme-light' ? 'light' : scenarioId === 'layers-rail.theme-dark' ? 'dark' : undefined
+  const inside = scenarioId === 'layers-rail.inside-dialog' ? 'dialog' : scenarioId === 'layers-rail.inside-sheet' ? 'sheet' : null
   return <section className="hl-gallery-scene" data-gallery-probe data-gallery-scenario={scenarioId} data-theme={theme} dir={arabic ? 'rtl' : 'ltr'}>
     <header className="hl-gallery-heading"><h2>{title}</h2><p>{description}</p></header>
     <div className="hl-gallery-stage" style={{ minHeight: 420, display: 'flex', gap: 16 }}>
-      <RailFixture scenarioId={scenarioId} />
+      {inside ? <InsideOverlay key={inside} host={inside} /> : <RailFixture scenarioId={scenarioId} />}
       {scenarioId === 'layers-rail.locale-pseudo' && <RailFixture scenarioId={scenarioId} compact />}
     </div>
   </section>
@@ -122,3 +145,5 @@ export const ArabicLocale: Story = { name: 'Arabic locale', args: { scenarioId: 
 export const LightTheme: Story = { name: 'Light theme', args: { scenarioId: 'layers-rail.theme-light' } }
 export const DarkTheme: Story = { name: 'Dark theme', args: { scenarioId: 'layers-rail.theme-dark' } }
 ;export const Content: Story = { name: 'Content resilience', args: { scenarioId: 'layers-rail.content' } }
+export const InsideADialog: Story = { name: 'Inside a dialog', args: { scenarioId: 'layers-rail.inside-dialog' } }
+export const InsideASheet: Story = { name: 'Inside a sheet', args: { scenarioId: 'layers-rail.inside-sheet' } }

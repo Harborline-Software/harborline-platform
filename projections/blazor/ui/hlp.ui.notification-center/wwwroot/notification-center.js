@@ -39,3 +39,13 @@ export function positionDialog(trigger, dialog) {
   const top = Math.min(Math.max(preferredTop, margin), Math.max(margin, viewportHeight - content.height - margin))
   Object.assign(dialog.style, { position: 'fixed', left: `${left}px`, top: `${top}px` })
 }
+
+// Escape inside the notification dialog closes it (its Razor @onkeydown). Blazor cannot mark the key
+// handled, so an enclosing Dialog or Sheet, which listens on the document and leaves a handled Escape
+// alone, closed as well. This listener sits on the dialog element, before any document listener, and
+// marks the Escape the dialog uses, as search-input.js does for Clear.
+export function observeEscape(dialog) {
+  const onKeyDown = event => { if (event.key === 'Escape' && !event.defaultPrevented) event.preventDefault() }
+  dialog?.addEventListener('keydown', onKeyDown)
+  return { dispose: () => dialog?.removeEventListener('keydown', onKeyDown) }
+}

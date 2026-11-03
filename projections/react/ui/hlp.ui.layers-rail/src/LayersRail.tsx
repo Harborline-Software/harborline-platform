@@ -149,7 +149,9 @@ export function LayersRail({
       const lens = lenses[Number(event.key) - 1]
       if (lens) layers.setActive(lens.id)
       event.preventDefault()
-    } else if (event.key === 'Escape') {
+    } else if (event.key === 'Escape' && activeLens) {
+      // Escape is used only to clear an active lens, and then marked handled so an enclosing Dialog
+      // or Sheet stays open. With no active lens it is left to them.
       layers.clearActive()
       event.preventDefault()
     }

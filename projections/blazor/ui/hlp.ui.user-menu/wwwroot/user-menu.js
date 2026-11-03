@@ -6,9 +6,13 @@ export function focusFirst(panel,custom){const selector=custom?'button:not([disa
 // By identity: nth-of-type counted same-tag siblings, so mixed links, buttons and separators moved
 // focus to the wrong entry. A null identity is the appended Sign out entry.
 export function focusItem(panel,id){const target=id==null?panel.querySelector('.hl-user-menu__sign-out'):[...panel.querySelectorAll('[data-hl-item]')].find(element=>element.dataset.hlItem===id);target?.focus()}
-// Escape from inside the surface closes it unless a control there already handled the key. The
-// listener is on the document, after Blazor's own, so a Blazor @onkeydown:preventDefault inside
-// custom content is respected too. In the menu pattern, navigation keys do not scroll the page.
+// Escape from inside the surface closes it unless a control there already handled the key, and the
+// menu marks the Escape it uses handled before the key reaches the document, where an enclosing
+// Dialog or Sheet listens and leaves a handled Escape alone (one Escape closes only the menu).
+// The mark is made on the panel. A Blazor @onkeydown:preventDefault inside custom content is applied
+// later, by Blazor's own document listener, so the panel records a preventDefault call made after
+// its mark; the document listener, registered after Blazor's, then leaves the menu open as before.
+// In the menu pattern, navigation keys do not scroll the page.
 const keys=new Map()
 // Tab out of the menu: focus moves to the trigger before the browser's default Tab, so Tab continues
 // from there (the closing render may already have removed the focused item) and Shift+Tab stops on it.
@@ -17,6 +21,7 @@ const keys=new Map()
 // and lands after the menu. It is restored on the next task, in case the host keeps the menu open.
 // From the page body no Blazor handler sees the key, so the menu is closed from here. Modified Tabs
 // (Ctrl, Alt, Meta) belong to the browser and are left alone.
-export function observeKeys(panel,menu,callback,trigger){const id=nextId++;const handler=event=>{if(!panel.contains(event.target)&&!(menu&&event.key==='Tab'&&event.target===document.body))return;if(menu&&event.key==='Tab'){if(event.ctrlKey||event.altKey||event.metaKey)return;if(!event.shiftKey){panel.inert=true;setTimeout(()=>{panel.inert=false})}trigger?.focus();if(event.shiftKey)event.preventDefault();if(event.target===document.body)callback.invokeMethodAsync('OnTabOut');return}if(menu&&['ArrowUp','ArrowDown','Home','End'].includes(event.key))event.preventDefault();if(event.key==='Escape'&&!event.defaultPrevented)callback.invokeMethodAsync('OnEscapeKey')};document.addEventListener('keydown',handler);keys.set(id,handler);return id}
-export function disposeKeys(id){const handler=keys.get(id);if(handler)document.removeEventListener('keydown',handler);keys.delete(id)}
+export function observeKeys(panel,menu,callback,trigger){const id=nextId++;const handler=event=>{if(!panel.contains(event.target)&&!(menu&&event.key==='Tab'&&event.target===document.body))return;if(menu&&event.key==='Tab'){if(event.ctrlKey||event.altKey||event.metaKey)return;if(!event.shiftKey){panel.inert=true;setTimeout(()=>{panel.inert=false})}trigger?.focus();if(event.shiftKey)event.preventDefault();if(event.target===document.body)callback.invokeMethodAsync('OnTabOut');return}if(menu&&['ArrowUp','ArrowDown','Home','End'].includes(event.key))event.preventDefault();if(event.key==='Escape'&&claims.get(event)?.()===false)callback.invokeMethodAsync('OnEscapeKey')};const mark=event=>{if(event.key!=='Escape'||event.defaultPrevented)return;let claimed=false;const prevent=event.preventDefault;event.preventDefault=function(){claimed=true;return prevent.call(this)};prevent.call(event);claims.set(event,()=>claimed)};panel.addEventListener('keydown',mark);document.addEventListener('keydown',handler);keys.set(id,{handler,panel,mark});return id}
+const claims=new WeakMap()
+export function disposeKeys(id){const entry=keys.get(id);if(entry){document.removeEventListener('keydown',entry.handler);entry.panel.removeEventListener('keydown',entry.mark)}keys.delete(id)}
 export function focus(element){element?.focus()}

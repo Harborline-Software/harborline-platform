@@ -1,5 +1,6 @@
+import { useState } from 'react'
 import type { Meta, StoryObj } from '@storybook/react-vite'
-import { NotificationCenter, HarborlineLocaleProvider } from '@harborline-software/ui-react'
+import { Dialog, NotificationCenter, HarborlineLocaleProvider, Sheet, SheetContent, SheetTitle } from '@harborline-software/ui-react'
 
 type ScenarioId =
   | 'notification-center.empty-badges'
@@ -12,6 +13,8 @@ type ScenarioId =
   | 'notification-center.theme-light'
   | 'notification-center.theme-dark'
   | 'notification-center.content'
+  | 'notification-center.inside-dialog'
+  | 'notification-center.inside-sheet'
 
 const copy: Record<ScenarioId, [string, string]> = {
   'notification-center.empty-badges': ['Empty and badge modes', 'Unread and decision counts produce bounded badges and complete bell names.'],
@@ -23,6 +26,8 @@ const copy: Record<ScenarioId, [string, string]> = {
   'notification-center.locale-ar': ['Arabic locale', 'Logical edges follow RTL while tab and action order remain stable.'],
   'notification-center.theme-light': ['Light theme', 'Unread, hover, focus, danger, dialog, and badge states use public light-theme tokens.'],
   'notification-center.theme-dark': ['Dark theme', 'The same inbox shell on the Harborline dark surface.'],
+  'notification-center.inside-dialog': ['Inside a dialog', 'Escape closes the innermost open layer first: the notification panel, then the dialog.'],
+  'notification-center.inside-sheet': ['Inside a sheet', 'Escape closes the innermost open layer first: the notification panel, then the sheet.'],
   'notification-center.content': ['Content resilience', 'Hostile notification content carries a title longer than the popover row, a grouped large number, escaped angle brackets and an ampersand, and an actor name with diacritics and an em dash.'],
 }
 
@@ -85,12 +90,24 @@ function NotificationFixture({ scenarioId, items = englishItems, badgeMode = 'un
   />
 }
 
+// A notification center composed inside a real, open Dialog or Sheet. Its one informational item has
+// no handler, so the open panel holds no control: one Escape closes only the panel and returns focus to
+// the bell; the next closes the outer layer.
+function InsideOverlay({ host }: { host: 'dialog' | 'sheet' }) {
+  const [open, setOpen] = useState(true)
+  const center = <NotificationCenter items={[{ id: 'r1', title: 'Export ready', timestamp: 'now', kind: 'result' }]} />
+  return host === 'dialog'
+    ? <Dialog open={open} onOpenChange={setOpen} title="Settings">{center}</Dialog>
+    : <Sheet open={open} onOpenChange={setOpen}><SheetContent closeLabel="Close panel"><SheetTitle>Panel</SheetTitle>{center}</SheetContent></Sheet>
+}
+
 function NotificationCenterScenario({ scenarioId }: { scenarioId: ScenarioId }) {
   const [title, description] = copy[scenarioId]
   const pseudo = scenarioId === 'notification-center.locale-pseudo'
   const arabic = scenarioId === 'notification-center.locale-ar'
   const theme = scenarioId === 'notification-center.theme-light' ? 'light' : scenarioId === 'notification-center.theme-dark' ? 'dark' : undefined
   const locale = arabic ? 'ar-SA' : pseudo ? 'en-XA' : 'en-US'
+  const inside = scenarioId === 'notification-center.inside-dialog' ? 'dialog' : scenarioId === 'notification-center.inside-sheet' ? 'sheet' : null
   const items = scenarioId === 'notification-center.content' ? contentItems : arabic ? [
     { ...englishItems[0], title: 'الموافقة على موضع المخطط', body: 'يتطابق الموضع مع الصورة.', actor: 'أمل', timestamp: 'منذ دقيقتين' },
     { ...englishItems[1], title: 'اكتمل حساب الوضعية', body: 'دقة الاتجاه ٩٧٪.', timestamp: 'منذ عشر دقائق' },
@@ -101,7 +118,7 @@ function NotificationCenterScenario({ scenarioId }: { scenarioId: ScenarioId }) 
     <header className="hl-gallery-heading"><h2>{title}</h2><p>{description}</p></header>
     <div className="hl-gallery-stage hl-gallery-feedback-grid">
       <HarborlineLocaleProvider locale={locale}>
-        {scenarioId === 'notification-center.empty-badges' ? <>
+        {inside ? <InsideOverlay key={inside} host={inside} /> : scenarioId === 'notification-center.empty-badges' ? <>
           <NotificationFixture scenarioId={scenarioId} items={[]} />
           <NotificationFixture scenarioId={scenarioId} items={items} badgeMode="unread" />
           <NotificationFixture scenarioId={scenarioId} items={items} badgeMode="decisions" />
@@ -125,3 +142,5 @@ export const ArabicLocale: Story = { name: 'Arabic locale', args: { scenarioId: 
 export const LightTheme: Story = { name: 'Light theme', args: { scenarioId: 'notification-center.theme-light' } }
 export const DarkTheme: Story = { name: 'Dark theme', args: { scenarioId: 'notification-center.theme-dark' } }
 ;export const Content: Story = { name: 'Content resilience', args: { scenarioId: 'notification-center.content' } }
+export const InsideADialog: Story = { name: 'Inside a dialog', args: { scenarioId: 'notification-center.inside-dialog' } }
+export const InsideASheet: Story = { name: 'Inside a sheet', args: { scenarioId: 'notification-center.inside-sheet' } }

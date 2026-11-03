@@ -588,6 +588,70 @@
         ],
         "footer": []
       }
+    },
+    {
+      "id": "notification-center.inside-dialog",
+      "name": "Inside a dialog",
+      "surface": "inside-dialog",
+      "sourceCaseIds": [
+        "notification-center.dismissal-focus",
+        "notification-center.open-close"
+      ],
+      "sourceQualityCaseIds": [],
+      "content": {
+        "blurb": "A notification center inside an open dialog, with one informational item and so no control in the panel: Escape closes the innermost open layer first, so the panel closes and focus returns to the bell, and the next Escape closes the dialog.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {
+          "open": true
+        },
+        "body": [
+          {
+            "control": "raw",
+            "react": "<Dialog open onOpenChange={setOpen} title=\"Settings\"><NotificationCenter items={[{id:'r1',title:'Export ready',timestamp:'now',kind:'result'}]} /></Dialog>",
+            "blazor": "<HarborlineDialog Open=\"@open\" OpenChanged=\"@(value => open = value)\" Title=\"Settings\"><HarborlineNotificationCenter Items=\"@OverlayItems\" /></HarborlineDialog>",
+            "rationale": "The closed control vocabulary cannot express a notification center composed inside a real dialog."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "notification-center.inside-sheet",
+      "name": "Inside a sheet",
+      "surface": "inside-sheet",
+      "sourceCaseIds": [
+        "notification-center.dismissal-focus",
+        "notification-center.open-close"
+      ],
+      "sourceQualityCaseIds": [],
+      "content": {
+        "blurb": "A notification center inside an open sheet, with one informational item and so no control in the panel: Escape closes the innermost open layer first, so the panel closes and focus returns to the bell, and the next Escape closes the sheet.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {
+          "open": true
+        },
+        "body": [
+          {
+            "control": "raw",
+            "react": "<Sheet open onOpenChange={setOpen}><SheetContent closeLabel=\"Close panel\"><SheetTitle>Panel</SheetTitle><NotificationCenter items={[{id:'r1',title:'Export ready',timestamp:'now',kind:'result'}]} /></SheetContent></Sheet>",
+            "blazor": "<HarborlineSheet Open=\"@open\" OpenChanged=\"@(value => open = value)\"><HarborlineSheetContent CloseLabel=\"Close panel\"><HarborlineSheetTitle>Panel</HarborlineSheetTitle><HarborlineNotificationCenter Items=\"@OverlayItems\" /></HarborlineSheetContent></HarborlineSheet>",
+            "rationale": "The closed control vocabulary cannot express a notification center composed inside a real sheet."
+          }
+        ],
+        "footer": []
+      }
     }
   ]
 }

@@ -472,6 +472,70 @@
         ],
         "footer": []
       }
+    },
+    {
+      "id": "user-menu.inside-dialog",
+      "name": "Inside a dialog",
+      "surface": "inside-dialog",
+      "sourceCaseIds": [
+        "user-menu.dismissal-focus",
+        "user-menu.keyboard-menu"
+      ],
+      "sourceQualityCaseIds": [],
+      "content": {
+        "blurb": "A user menu inside an open dialog: Escape closes the innermost open layer first, so the menu closes and focus returns to its trigger, and the next Escape closes the dialog.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {
+          "open": true
+        },
+        "body": [
+          {
+            "control": "raw",
+            "react": "<Dialog open onOpenChange={setOpen} title=\"Settings\"><UserMenu identity={{name:'Ada Lovelace'}} items={[{id:'profile',kind:'action',label:'Profile',onActivate(){}},{id:'settings',kind:'action',label:'Settings page',onActivate(){}}]} /></Dialog>",
+            "blazor": "<HarborlineDialog Open=\"@open\" OpenChanged=\"@(value => open = value)\" Title=\"Settings\"><HarborlineUserMenu Identity=\"@OverlayIdentity\" Items=\"@OverlayMenuItems\" /></HarborlineDialog>",
+            "rationale": "The closed control vocabulary cannot express a user menu composed inside a real dialog."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "user-menu.inside-sheet",
+      "name": "Inside a sheet",
+      "surface": "inside-sheet",
+      "sourceCaseIds": [
+        "user-menu.dismissal-focus",
+        "user-menu.keyboard-menu"
+      ],
+      "sourceQualityCaseIds": [],
+      "content": {
+        "blurb": "A user menu inside an open sheet: Escape closes the innermost open layer first, so the menu closes and focus returns to its trigger, and the next Escape closes the sheet.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {
+          "open": true
+        },
+        "body": [
+          {
+            "control": "raw",
+            "react": "<Sheet open onOpenChange={setOpen}><SheetContent closeLabel=\"Close panel\"><SheetTitle>Panel</SheetTitle><UserMenu identity={{name:'Ada Lovelace'}} items={[{id:'profile',kind:'action',label:'Profile',onActivate(){}},{id:'settings',kind:'action',label:'Settings page',onActivate(){}}]} /></SheetContent></Sheet>",
+            "blazor": "<HarborlineSheet Open=\"@open\" OpenChanged=\"@(value => open = value)\"><HarborlineSheetContent CloseLabel=\"Close panel\"><HarborlineSheetTitle>Panel</HarborlineSheetTitle><HarborlineUserMenu Identity=\"@OverlayIdentity\" Items=\"@OverlayMenuItems\" /></HarborlineSheetContent></HarborlineSheet>",
+            "rationale": "The closed control vocabulary cannot express a user menu composed inside a real sheet."
+          }
+        ],
+        "footer": []
+      }
     }
   ]
 }
