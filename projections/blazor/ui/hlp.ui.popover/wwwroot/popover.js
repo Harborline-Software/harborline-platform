@@ -223,7 +223,7 @@ export function connect(trigger, anchor, content, options, callback) {
   // leaves it there when the host closes later: that is where the outside press put it (ruling point 1).
   let outsidePointer = false
   const onPointer = event => {
-    if (content.contains(event.target) || trigger?.contains(event.target)) { outsidePointer = false; return }
+    if (content.contains(event.target) || currentTrigger()?.contains(event.target)) { outsidePointer = false; return }
     outsidePointer = true
     dismiss()
   }
@@ -305,7 +305,7 @@ export function connect(trigger, anchor, content, options, callback) {
       delete content.dataset.hlLayer
       if (content.isConnected && placeholder.isConnected) placeholder.before(content)
       placeholder.remove()
-      if (!outsidePointer && lostWithContent) trigger?.focus({preventScroll: true})
+      if (!outsidePointer && lostWithContent) currentTrigger()?.focus({preventScroll: true})
     }
   }
 }

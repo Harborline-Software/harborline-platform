@@ -84,6 +84,34 @@ describe('Popover Blazor dispose() focus restoration (G5)', () => {
     expect(triggerFocus).toHaveBeenCalledWith({ preventScroll: true })
   })
 
+  it('Escape restores the replacement trigger after a Blazor re-render', () => {
+    const { trigger, content, connection, dismissals } = page()
+    const replacement = trigger.cloneNode(true)
+    replacement.dataset.hlPopoverTrigger = trigger.id
+    trigger.replaceWith(replacement)
+    const focus = vi.spyOn(replacement, 'focus')
+    escape(document.activeElement)
+    expect(dismissals).toEqual(['DismissFromJavaScriptAsync'])
+    content.remove()
+    connection.dispose()
+    expect(document.activeElement).toBe(replacement)
+    expect(focus).toHaveBeenCalledWith({ preventScroll: true })
+  })
+
+  it('a press on the replacement trigger is inside, not an outside dismissal', () => {
+    const { trigger, content, connection, dismissals } = page()
+    const replacement = trigger.cloneNode(true)
+    replacement.dataset.hlPopoverTrigger = trigger.id
+    trigger.replaceWith(replacement)
+    try {
+      pointerDown(replacement)
+      expect(dismissals).toEqual([])
+    } finally {
+      content.remove()
+      connection.dispose()
+    }
+  })
+
   it('a close while focus is still inside the connected content (component disposal) restores the trigger without scrolling', () => {
     const { connection, triggerFocus } = page()
     expect(focused()).toBe('Apply')
