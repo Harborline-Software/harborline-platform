@@ -395,6 +395,18 @@ public sealed class DefinitionDependencyTests
         Assert.Equal([("definition.registry_unknown", "/dependencies")], Pairs(missing));
     }
 
+    // Binaries compiled before revision 29 call the one-argument constructor by its exact signature; an optional parameter on
+    // a wider one would leave them with MissingMethodException.
+    [Fact]
+    public void the_one_argument_constructor_remains_for_existing_binaries()
+    {
+        var constructor = typeof(InMemoryVersionedDefinitionStore).GetConstructor(
+            [typeof(IReadOnlyDictionary<DefinitionKind, DefinitionAdmission>)]);
+
+        Assert.NotNull(constructor);
+        Assert.True(constructor.IsPublic);
+    }
+
     [Fact]
     public void one_bad_derivation_beside_a_good_one_refuses_construction()
     {

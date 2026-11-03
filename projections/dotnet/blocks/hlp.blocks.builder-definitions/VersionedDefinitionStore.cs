@@ -37,12 +37,19 @@ public sealed class InMemoryVersionedDefinitionStore : IVersionedDefinitionStore
     private readonly Dictionary<(DefinitionKey Key, string RequestId), Replay> _requests = [];
     private readonly Dictionary<(DefinitionKey Key, string VersionId), IReadOnlyList<DefinitionDependency>> _dependencies = [];
 
+    /// <summary>Creates a store with explicitly admitted registry validators, copied from host configuration.</summary>
+    // Kept as its own overload, not folded into an optional parameter, so binaries compiled against it still bind.
+    public InMemoryVersionedDefinitionStore(IReadOnlyDictionary<DefinitionKind, DefinitionAdmission> admissions)
+        : this(admissions, null)
+    {
+    }
+
     /// <summary>
     /// Creates a store with explicitly admitted registry validators, copied from host configuration, and the dependency
     /// derivations of the registries that store Definition Dependencies. Each derivation's registry must also be admitted.
     /// </summary>
     public InMemoryVersionedDefinitionStore(IReadOnlyDictionary<DefinitionKind, DefinitionAdmission> admissions,
-        IReadOnlyDictionary<DefinitionKind, DefinitionDependencyDerivation>? dependencies = null)
+        IReadOnlyDictionary<DefinitionKind, DefinitionDependencyDerivation>? dependencies)
     {
         ArgumentNullException.ThrowIfNull(admissions);
         // Construction-time validation, before any operation exists to name a stage. Author is the
