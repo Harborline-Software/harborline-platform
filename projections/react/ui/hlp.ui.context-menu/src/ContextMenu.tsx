@@ -22,6 +22,18 @@ export interface ContextMenuProps {
 
 interface Position { x: number; y: number }
 
+const focusable = 'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+
+// Where a close returns focus: nowhere when no opener was recorded (focus was on <body> at open, so
+// there is nothing to return to); the opener while it is still in the document; and only when a
+// recorded opener has since left it (removed or replaced while the menu was open), the first focusable
+// element of the trigger.
+function returnTarget(opener: HTMLElement | null, trigger: HTMLElement | null): HTMLElement | null {
+  if (!opener) return null
+  if (opener.isConnected) return opener
+  return trigger?.matches(focusable) ? trigger : trigger?.querySelector<HTMLElement>(focusable) ?? null
+}
+
 export function clampContextMenuPosition(position: Position, menu: {width: number; height: number}, viewport: {width: number; height: number}, inset = 8): Position {
   return {
     x: Math.max(inset, Math.min(position.x, viewport.width - menu.width - inset)),
@@ -31,38 +43,48 @@ export function clampContextMenuPosition(position: Position, menu: {width: numbe
 
 export function ContextMenu({groups, children, className = '', accessibleLabel = 'Context menu', locale, direction}: ContextMenuProps) {
   const items = React.useMemo(() => groups.flatMap(group => group.items), [groups])
-  const enabled = React.useMemo(() => items.map((item, index) => item.disabled ? -1 : index).filter(index => index >= 0), [items])
   const [position, setPosition] = React.useState<Position | null>(null)
   const [activeIndex, setActiveIndex] = React.useState(-1)
   const triggerRef = React.useRef<HTMLDivElement>(null)
   const menuRef = React.useRef<HTMLDivElement>(null)
-  const keyboardOpener = React.useRef<HTMLElement | null>(null)
+  // The element that had focus when the menu opened, by keyboard or by pointer: every close returns
+  // focus there (APG menu pattern). <body> is no place to return to, so it is not recorded.
+  const opener = React.useRef<HTMLElement | null>(null)
 
   if (!accessibleLabel.trim()) throw new Error('accessible-name-required')
   const duplicate = items.find((item, index) => items.findIndex(candidate => candidate.id === item.id) !== index)
   if (duplicate) throw new Error(`duplicate-item-id: ${duplicate.id}`)
 
-  const open = React.useCallback((next: Position, keyboard: boolean) => {
-    keyboardOpener.current = keyboard ? document.activeElement as HTMLElement | null : null
+  const open = React.useCallback((next: Position) => {
+    const active = document.activeElement
+    opener.current = active instanceof HTMLElement && active !== document.body ? active : null
     setPosition(next)
-    setActiveIndex(enabled[0] ?? -1)
-  }, [enabled])
+    // The first item, disabled or not: disabled menu items stay focusable (APG menu pattern).
+    setActiveIndex(items.length ? 0 : -1)
+  }, [items])
 
   const close = React.useCallback((restoreFocus = true) => {
+    const menu = menuRef.current
     setPosition(null)
     setActiveIndex(-1)
-    if (restoreFocus) queueMicrotask(() => keyboardOpener.current?.focus())
+    // Focus goes back only if it is still where the menu left it: in the menu, or on <body> once the menu
+    // is gone. An item whose action moved focus elsewhere (an inline editor, a dialog) keeps it there, as
+    // React Aria's FocusScope restoreFocus does.
+    if (restoreFocus) queueMicrotask(() => {
+      const active = document.activeElement
+      if (!active || active === document.body || menu?.contains(active)) returnTarget(opener.current, triggerRef.current)?.focus()
+    })
   }, [])
 
+  // Every item is a stop, disabled ones included, so a keyboard user can discover them (APG menu pattern).
   const move = React.useCallback((kind: 'next' | 'previous' | 'first' | 'last') => {
-    if (!enabled.length) return
-    const slot = enabled.indexOf(activeIndex)
-    const next = kind === 'first' ? enabled[0]
-      : kind === 'last' ? enabled.at(-1)!
-      : kind === 'next' ? enabled[(slot + 1 + enabled.length) % enabled.length]
-      : enabled[(slot - 1 + enabled.length) % enabled.length]
-    setActiveIndex(next)
-  }, [activeIndex, enabled])
+    const count = items.length
+    if (!count) return
+    setActiveIndex(kind === 'first' ? 0
+      : kind === 'last' ? count - 1
+      : kind === 'next' ? (activeIndex + 1 + count) % count
+      : (activeIndex - 1 + count) % count)
+  }, [activeIndex, items])
 
   React.useLayoutEffect(() => {
     if (!position || !menuRef.current) return
@@ -75,8 +97,16 @@ export function ContextMenu({groups, children, className = '', accessibleLabel =
     if (!position) return
     const item = menuRef.current?.querySelectorAll<HTMLElement>('[role="menuitem"]')[activeIndex]
     ;(item ?? menuRef.current)?.focus()
+    // An outside press closes the menu and lets focus go where the press puts it. The press's default
+    // action moves focus only after this listener returns, so a restore queued now would be undone:
+    // the opener gets focus back afterwards, and only when the press landed on nothing focusable.
     const outside = (event: MouseEvent) => {
-      if (!menuRef.current?.contains(event.target as Node)) close()
+      if (menuRef.current?.contains(event.target as Node)) return
+      const returnTo = opener.current
+      close(false)
+      setTimeout(() => {
+        if (!document.activeElement || document.activeElement === document.body) returnTarget(returnTo, triggerRef.current)?.focus()
+      }, 0)
     }
     document.addEventListener('mousedown', outside)
     return () => document.removeEventListener('mousedown', outside)
@@ -86,11 +116,20 @@ export function ContextMenu({groups, children, className = '', accessibleLabel =
     if (!position && ((event.shiftKey && event.key === 'F10') || event.key === 'ContextMenu')) {
       event.preventDefault()
       const bounds = triggerRef.current?.getBoundingClientRect()
-      open({x: bounds?.left ?? 8, y: bounds?.bottom ?? 8}, true)
+      open({x: bounds?.left ?? 8, y: bounds?.bottom ?? 8})
       return
     }
     if (!position) return
     if (event.key === 'Escape') { event.preventDefault(); close(); return }
+    // Tab and Shift+Tab close the menu and move on in the tab sequence from the opener (APG menu pattern).
+    // Focus goes back to the opener now and the key keeps its default action, so the browser moves focus to
+    // the element after (or before) the opener. This keydown comes from the open menu, so focus is still in
+    // it: the every-close rule (return only from the menu or <body>) holds without a check.
+    if (event.key === 'Tab') {
+      close(false)
+      returnTarget(opener.current, triggerRef.current)?.focus()
+      return
+    }
     if (event.key === 'ArrowDown') { event.preventDefault(); move('next'); return }
     if (event.key === 'ArrowUp') { event.preventDefault(); move('previous'); return }
     if (event.key === 'Home') { event.preventDefault(); move('first'); return }
@@ -106,7 +145,7 @@ export function ContextMenu({groups, children, className = '', accessibleLabel =
     <div ref={triggerRef} className={className} onKeyDown={onKeyDown} onContextMenu={event => {
       event.preventDefault()
       event.stopPropagation()
-      open({x: event.clientX, y: event.clientY}, false)
+      open({x: event.clientX, y: event.clientY})
     }}>{children}</div>
     {position && <div ref={menuRef} role="menu" tabIndex={-1} aria-label={accessibleLabel} lang={locale} dir={direction}
       data-active-id={activeIndex >= 0 ? items[activeIndex]?.id : undefined}
@@ -117,8 +156,11 @@ export function ContextMenu({groups, children, className = '', accessibleLabel =
         {group.items.map(item => {
           const index = items.indexOf(item)
           return <button key={item.id} type="button" role="menuitem" tabIndex={index === activeIndex ? 0 : -1}
-            disabled={item.disabled} data-danger={item.danger || undefined} data-active={index === activeIndex || undefined}
-            className="hl-context-menu__item" onClick={() => { if (!item.disabled) { item.onSelect(); close() } }}>
+            aria-disabled={item.disabled || undefined} data-danger={item.danger || undefined} data-active={index === activeIndex || undefined}
+            className="hl-context-menu__item" onClick={() => { if (!item.disabled) { item.onSelect(); close() } }}
+            // A pointer press focuses any item, a disabled one too (it is focusable, APG), so the item with focus
+            // is the active one and Enter or Space acts on it, never on the previously active item.
+            onFocus={() => setActiveIndex(index)}>
             {item.icon && <span aria-hidden="true" className="hl-context-menu__icon">{item.icon}</span>}
             <span>{item.label}</span>
           </button>

@@ -1,3 +1,3 @@
-global using RuleActionKind = Harborline.Contracts.Forms.RuleActionKind;
-global using RuleDefinition = Harborline.Contracts.Forms.RuleDefinition;
-global using RuleScope = Harborline.Contracts.Forms.RuleScope;
+global using RuleActionKind = Harborline.Contracts.Rules.RuleActionKind;
+global using RuleDefinition = Harborline.Contracts.Rules.RuleDefinition;
+global using RuleScope = Harborline.Contracts.Rules.RuleScope;

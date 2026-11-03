@@ -27,12 +27,35 @@ const copy: Record<ScenarioId, [string, string]> = {
 
 const contentLabels = ['Awaiting third-party structural certification review', '1,284,905', 'Bay 4 <grid C-7> & 8', 'Ordnance Survey — Niño Ångström']
 
-const guardCatalog = {
-  'chrome.guard.covered.hint': 'Guarded — activate to unlock',
-  'chrome.guard.armed.hint': 'Armed — activate to {action}. {seconds} seconds remain.',
-  'chrome.guard.committing.status': 'Committing {action}',
-  'chrome.guard.recovered.announce': 'Guard restored.',
-  'chrome.guard.rejected.announce': 'The action was not completed. Guard restored.',
+// The en-US scenes keep the App-style host catalog. The pseudo and Arabic scenes localize the module's
+// revision-2 guard messages, with no chrome.guard.duration forms: one duration source for both lanes
+// is T-1105's deferred duration parity, and those scenes stay covered.
+const guardCatalogs: Record<string, Record<string, string>> = {
+  'en-US': {
+    'chrome.guard.covered.hint': 'Guarded — activate to unlock',
+    'chrome.guard.armed.hint': 'Armed — activate to {action}. {seconds} seconds remain.',
+    'chrome.guard.committing.status': 'Committing {action}',
+    'chrome.guard.recovered.announce': 'Guard restored.',
+    'chrome.guard.rejected.announce': 'The action was not completed. Guard restored.',
+  },
+  'en-XA': {
+    'chrome.guard.covered.instruction': '⟦ Ĝüåŕðéð åçţîöñ: {action}. Åçţîṽåţé ţö åŕɱ. ········ ⟧',
+    'chrome.guard.armed.whole': '⟦ Åŕɱéð ƒöŕ {action}. Åçţîṽåţé åĝåîñ ŵîţĥîñ {duration} ţö çöɱɱîţ. ············ ⟧',
+    'chrome.guard.committing.status': '⟦ Çöɱɱîţţîñĝ {action}. ···· ⟧',
+    'chrome.guard.recovered.whole': '⟦ Ĝüåŕð ŕéšţöŕéð ƒöŕ {action}. ······ ⟧',
+    'chrome.guard.completed.whole': '⟦ Ðöñé: {action}. Ĝüåŕð ŕéšţöŕéð. ······ ⟧',
+    'chrome.guard.rejected.whole': '⟦ Çöüļð ñöţ çöɱþļéţé {action}. Ĝüåŕð ŕéšţöŕéð. ········ ⟧',
+    'common.loading': '⟦ Ļöåðîñĝ ··· ⟧',
+  },
+  'ar-SA': {
+    'chrome.guard.covered.instruction': 'إجراء محمي: {action}. فعّل للتجهيز.',
+    'chrome.guard.armed.whole': 'تم تجهيز {action}. فعّل مرة أخرى خلال {duration} للتأكيد.',
+    'chrome.guard.committing.status': 'جارٍ تنفيذ {action}.',
+    'chrome.guard.recovered.whole': 'تمت استعادة الحماية لـ {action}.',
+    'chrome.guard.completed.whole': 'اكتمل {action}. تمت استعادة الحماية.',
+    'chrome.guard.rejected.whole': 'تعذّر إكمال {action}. تمت استعادة الحماية.',
+    'common.loading': 'جارٍ التحميل',
+  },
 }
 
 function GuardFixture({ label, disabled = false }: { label: string; disabled?: boolean }) {
@@ -69,7 +92,7 @@ function GuardedControlScenario({ scenarioId }: { scenarioId: ScenarioId }) {
     <section className="hl-gallery-scene" data-gallery-probe data-gallery-scenario={scenarioId} data-theme={theme} dir={arabic ? 'rtl' : 'ltr'}>
       <header className="hl-gallery-heading"><h2>{title}</h2><p>{description}</p></header>
       <div className="hl-gallery-stage hl-gallery-feedback-grid">
-        <HarborlineLocaleProvider locale={locale} catalog={guardCatalog}>
+        <HarborlineLocaleProvider locale={locale} catalog={guardCatalogs[locale]}>
           {scenarioId === 'guarded-control.content'
             ? contentLabels.map(contentLabel => <GuardFixture key={contentLabel} label={contentLabel} />)
             : <><GuardFixture label={label} />{(scenarioId === 'guarded-control.covered' || theme) && <GuardFixture label={label} disabled />}</>}

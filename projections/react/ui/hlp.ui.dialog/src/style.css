@@ -62,7 +62,9 @@
   display: flex;
   flex-direction: column;
   inset-block-start: 50%;
-  inset-inline-start: 50%;
+  /* Physical, not inset-inline-start: the translate below is physical, so a logical start
+     edge would move the surface off the left edge in right-to-left content (T-1122). */
+  left: 50%;
   max-block-size: min(85dvh, calc(100dvh - 2rem));
   max-inline-size: 32rem;
   overflow: hidden;

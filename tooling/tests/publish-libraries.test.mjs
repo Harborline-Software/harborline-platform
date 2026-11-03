@@ -11,6 +11,8 @@ test('publication uses exactly the gate producer ids and follows a push to main,
   const workflow = readFileSync(resolve(root, '.github/workflows/validate.yml'), 'utf8')
   const job = workflow.split('  publish-libraries:\n')[1]
   assert.ok(job, 'publish-libraries job is required')
+  const pack = workflow.split('  pack-libraries:\n')[1]?.split('  publish-libraries:\n')[0]
+  assert.ok(pack, 'pack-libraries job is required')
   const ids = /PACKAGE_IDS: >-\n([\s\S]*?)    steps:/.exec(job)[1].trim().split(/\s+/).sort()
   const produced = producerIds()
   assert.equal(new Set(produced).size, produced.length, 'one producer per package id')
@@ -24,9 +26,25 @@ test('publication uses exactly the gate producer ids and follows a push to main,
   // group) and never on the push, so the push run is green exactly when publication is.
   assert.doesNotMatch(workflow, /merge_group|run-phase-4-gate/)
   assert.doesNotMatch(workflow, /ACTIONS_ENABLED/)
-  assert.match(job, /packages: write/)
-  assert.match(job, /node tooling\/verify-package-fixtures\.mjs --pack-libraries/)
-  assert.match(job, /node --test tooling\/tests\/publish-libraries\.test\.mjs tooling\/tests\/publish-libraries\.packed\.mjs/)
+  // Least privilege (owner ruling 2026-11-02): pack-libraries builds, tests and packs read-only; only
+  // publish-libraries holds the write scopes, and it builds nothing. The literals here are the oracle.
+  assert.match(pack, /if: github.event_name == 'push' && github.ref == 'refs\/heads\/main'\n    runs-on: ubuntu-latest\n    permissions:\n      contents: read\n    outputs:\n/)
+  assert.doesNotMatch(pack, /: write|GH_TOKEN|nuget push|actions\/attest/)
+  assert.match(pack, /node tooling\/verify-package-fixtures\.mjs --pack-libraries/)
+  assert.match(pack, /node --test tooling\/tests\/publish-libraries\.test\.mjs tooling\/tests\/publish-libraries\.packed\.mjs/)
+  assert.match(job, /^    needs: pack-libraries\n/)
+  assert.match(job, /permissions:\n      contents: read\n      packages: write\n      id-token: write\n      attestations: write\n/)
+  for (const build of ['verify-package-fixtures', 'dotnet pack', 'dotnet build', 'dotnet test', 'pnpm', 'node --test']) {
+    assert.ok(!job.includes(build), `publish-libraries must not build or test: ${build}`)
+  }
+  assert.match(job, /node tooling\/library-promotion-proof\.mjs/)
+  // A re-run of only a failed publish-libraries verifies against the attempt pack-libraries' proof records.
+  assert.ok(pack.includes('\n      attempt: ${{ github.run_attempt }}\n'), 'pack-libraries exports its attempt')
+  assert.ok(job.includes('HARBORLINE_PRODUCER_ATTEMPT: ${{ needs.pack-libraries.outputs.attempt }}\n        run: node tooling/library-promotion-proof.mjs'),
+    'publish-libraries verifies against the producer attempt')
+  for (const scope of ['packages', 'id-token', 'attestations']) {
+    assert.equal(workflow.match(new RegExp(`^ +${scope}: write$`, 'gm'))?.length, 1, `${scope}: write is granted once`)
+  }
   assert.match(job, /for id in \$PACKAGE_IDS; do/)
   assert.match(job, /--source github --api-key "\$\{GH_TOKEN\}" --skip-duplicate/)
   assert.match(job, /GH_TOKEN: \$\{\{ secrets\.GITHUB_TOKEN \}\}/)

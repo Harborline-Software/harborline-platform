@@ -707,8 +707,8 @@ public sealed class FileJournalRecordTemporalTests
             Assert.True(count > 0 && count < shortInput.Length);
             using var append = new FileStream(path.FileName, FileMode.Append, FileAccess.Write, FileShare.ReadWrite);
             append.Write(added);
-        }, null);
-        // This real file-sharing witness is not skipped or represented as executed on an unqualified platform.
+        }, null, currentReadSharing: FileShare.ReadWrite);
+        // Windows requires the test reader to share writes for this real growing-file witness.
         await Assert.ThrowsAsync<InvalidDataException>(() => growing.HistoryAsync("acme", "rec-001").AsTask());
         Assert.True(grew);
         Assert.Equal(16 * 1024 * 1024L + 1, observed);

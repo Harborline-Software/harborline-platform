@@ -39,7 +39,36 @@ public sealed record FieldDefinition(
     FieldBindingDefinition? Binding = null,
     FieldGovernanceDefinition? Governance = null,
     FieldKindDefaultProvenance? DefaultsProvenance = null,
-    RecordReferenceDefinition? Reference = null);
+    RecordReferenceDefinition? Reference = null)
+{
+    /// <summary>
+    /// How an offline conflict on this field is settled (records-ck-16, L1011), declared independently of network
+    /// conditions. Null means <see cref="FieldConflictPolicy.Ask"/>, the default. This is the declaration only: raising and
+    /// settling the conflict belongs to the offline runtime (records-eng-25).
+    /// </summary>
+    public FieldConflictPolicy? ConflictPolicy { get; init; }
+
+    /// <summary>
+    /// The one domain role that may write this field (records-ck-14, L075, L1008): the only place read and write diverge
+    /// on one field. Null declares no divergence. This is the declaration only: publication and installation resolve the
+    /// name against the role vocabulary, and enforcing it belongs to the write path.
+    /// </summary>
+    public string? WriteRoleId { get; init; }
+}
+
+/// <summary>
+/// The sealed conflict-policy vocabulary of a field (DES-0004 section 1, records-ck-16, L1011). There is deliberately no
+/// last-write-wins member: an offline conflict is never resolved by timestamp order.
+/// </summary>
+public enum FieldConflictPolicy
+{
+    /// <summary><c>ask</c>, the default: the conflict is raised for a person to settle.</summary>
+    Ask,
+    /// <summary><c>additive</c>: both offline contributions are kept.</summary>
+    Additive,
+    /// <summary><c>latest_observation</c>: the value observed latest in the real world wins, not the latest write.</summary>
+    LatestObservation,
+}
 
 /// <summary>How many records one reference value names.</summary>
 public enum ReferenceCardinality

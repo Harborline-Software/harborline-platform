@@ -425,7 +425,6 @@ const ACKNOWLEDGED = [
   {rule: R5, module: 'hlp.ui.date-time-field', subject: '.hl-date-time-field:focus-visible { outline }', reason: `b20 follow-up: focus ring to Highlight; ${IN_PAGE}`},
   {rule: R5, module: 'hlp.ui.gantt', subject: '.hl-gantt__scroll:focus-visible { outline }', reason: `b20 follow-up: focus ring to Highlight; ${IN_PAGE}`},
   {rule: R5, module: 'hlp.ui.gantt', subject: '.hl-gantt td:focus-visible, .hl-gantt__zoom select:focus-visible { outline }', reason: `b20 follow-up: focus ring to Highlight; ${IN_PAGE}`},
-  {rule: R5, module: 'hlp.ui.layers-rail', subject: '.hl-layers-rail button:focus-visible { outline }', reason: `b20 follow-up: focus ring to Highlight; ${IN_PAGE}`},
   {rule: R5, module: 'hlp.ui.radio-group', subject: '.hl-radio-group__control { accent-color }', reason: `b20 follow-up: radio accent to Highlight; ${IN_PAGE}`},
   {rule: R5, module: 'hlp.ui.radio-group', subject: '.hl-radio-group__control:focus-visible { outline }', reason: `b20 follow-up: focus ring to Highlight; ${IN_PAGE}`},
   {rule: R5, module: 'hlp.ui.radio-group', subject: '.hl-radio-group--error .hl-radio-group__control { accent-color }', reason: `b20 follow-up: error accent to Mark; ${IN_PAGE}`},

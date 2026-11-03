@@ -15,6 +15,7 @@ const opensPopover = target => {
 }
 
 export function connect(portal, content, trigger, modal, callback) {
+  const restoreTarget = trigger instanceof HTMLElement ? trigger : document.activeElement
   const placeholder = document.createComment('hl-sheet-portal')
   portal.before(placeholder)
   document.body.append(portal)
@@ -59,6 +60,6 @@ export function connect(portal, content, trigger, modal, callback) {
     if (modal) document.body.style.overflow = previousOverflow
     if (portal.isConnected && placeholder.isConnected) placeholder.before(portal)
     placeholder.remove()
-    trigger?.focus()
+    if (restoreTarget instanceof HTMLElement && restoreTarget.isConnected) restoreTarget.focus()
   } }
 }

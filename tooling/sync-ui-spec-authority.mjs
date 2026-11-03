@@ -5,6 +5,7 @@ import {copyFileSync, existsSync, readFileSync, readdirSync} from 'node:fs'
 import {basename, resolve} from 'node:path'
 
 import {authoritySelectors} from './ui-class-vocabulary.mjs'
+import {loadProvenance} from './module-catalog.mjs'
 
 const root = resolve(import.meta.dirname, '..')
 
@@ -65,8 +66,7 @@ if (import.meta.main) {
   }
 
   const specRoot = resolve(root, 'specs/modules/ui')
-  const sourceMapPath = resolve(root, 'docs/provenance/source-map.yaml')
-  const sourceMap = JSON.parse(readFileSync(sourceMapPath, 'utf8'))
+  const sourceMap = loadProvenance(root)
   const provenance = new Map()
   for (const record of sourceMap.records ?? []) {
     for (const [path, hash] of Object.entries(record.contentHashes ?? {})) {

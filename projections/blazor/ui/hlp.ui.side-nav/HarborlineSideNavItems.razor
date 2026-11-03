@@ -18,7 +18,7 @@
         else if (!string.IsNullOrWhiteSpace(item.Href))
         {
           <a href="@item.Href" class="@ControlClass(current)" aria-current="@(current ? "page" : null)" aria-disabled="@(item.Disabled ? "true" : null)"
-             tabindex="@(item.Disabled ? -1 : (int?)null)" aria-label="@(State.Collapsed ? item.Label : null)" title="@(State.Collapsed ? item.Label : null)"
+             tabindex="@(item.Disabled ? "-1" : null)" aria-label="@(State.Collapsed ? item.Label : null)" title="@(State.Collapsed ? item.Label : null)"
              @onclick="@(() => ActivateAsync(item))" @onclick:preventDefault="@item.Disabled">@ItemContent(item, false, false)</a>
         }
         else

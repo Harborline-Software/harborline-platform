@@ -7,7 +7,7 @@ import test from 'node:test'
 
 const repositoryRoot = resolve(import.meta.dirname, '../..')
 // The tool imports its selector reader from ui-class-vocabulary.mjs, so the fixture root needs both.
-const sourceModules = ['sync-ui-spec-authority.mjs', 'ui-class-vocabulary.mjs']
+const sourceModules = ['sync-ui-spec-authority.mjs', 'ui-class-vocabulary.mjs', 'module-catalog.mjs']
 
 function divergence(pairKind) {
   const root = mkdtempSync(resolve(tmpdir(), 'ui-spec-authority-'))
