@@ -13,7 +13,7 @@ export function connect(portal, dialog, body, callback, _closeOnEscape) {
   const previousOverflow = document.body.style.overflow
   siblings.forEach(element => { element.inert = true })
   document.body.style.overflow = 'hidden'
-  const nodes = () => [...dialog.querySelectorAll(focusable)]
+  const nodes = () => [...dialog.querySelectorAll(focusable)].filter(element => !element.hasAttribute('tabindex') || element.tabIndex >= 0)
   const measure = () => callback.invokeMethodAsync('OnBodyMeasuredAsync', {
     rawPosition: body.scrollTop, scrollSize: body.scrollHeight, clientSize: body.clientHeight, rightToLeft: false
   })

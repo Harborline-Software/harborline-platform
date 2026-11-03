@@ -29,7 +29,7 @@ function focusableElements(root: HTMLElement): HTMLElement[] {
     'textarea:not([disabled])',
     '[tabindex]:not([tabindex="-1"])',
     '[contenteditable="true"]',
-  ].join(','))).filter(element => !element.closest('[hidden], [inert]'))
+  ].join(','))).filter(element => (!element.hasAttribute('tabindex') || element.tabIndex >= 0) && !element.closest('[hidden], [inert]'))
 }
 
 // Dialogs and sheets are both modal overlays; the topmost is whichever was portaled last.
