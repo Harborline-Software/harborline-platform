@@ -1,4 +1,5 @@
 using System.Text.Json.Nodes;
+using Harborline.Foundation.RuleEngine.Context;
 
 using Harborline.Foundation.RuleEngine.Model;
 
@@ -79,31 +80,35 @@ internal sealed class EvalBudget
     public void Charge()
     {
         if (CancellationToken.IsCancellationRequested) throw new RuleEngineTimeoutException();
-        if (++Steps > Limits.StepBudget) throw new RuleBudgetException();
+        if (Steps >= Limits.StepBudget) throw new RuleBudgetException();
+        Steps++;
     }
 
     /// <summary>Charges <paramref name="size"/> steps proportional to a large operand's size — string
     /// concat and money arithmetic do O(size) … super-linear work for ONE AST node, so a single big
     /// operand must be charged proportionally rather than the flat one step (finding F4). Fails closed
-    /// identically to <see cref="Charge"/>; the per-step add is clamped so it cannot overflow.</summary>
-    public void ChargeSize(int size)
+    /// identically to <see cref="Charge"/>; the sum is checked before narrowing so it cannot overflow.</summary>
+    public void ChargeSize(long size)
     {
         if (CancellationToken.IsCancellationRequested) throw new RuleEngineTimeoutException();
-        Steps += size > Limits.StepBudget ? Limits.StepBudget + 1 : (size < 1 ? 1 : size);
-        if (Steps > Limits.StepBudget) throw new RuleBudgetException();
+        long charge = Math.Max(1, size);
+        if (charge > (long)Limits.StepBudget - Steps) throw new RuleBudgetException();
+        Steps += (int)charge;
     }
 }
 
 /// <summary>Per-cell evaluation state: the shared <see cref="EvalBudget"/> + this cell's resolver + clock.</summary>
 internal sealed class EvalContext
 {
-    public EvalContext(IValueResolver resolver, DateTimeOffset now, EvalBudget budget)
+    public EvalContext(IValueResolver resolver, DateTimeOffset now, EvalBudget budget, CodingSubsumptionSnapshot? coding = null)
     {
+        Coding = coding;
         Resolver = resolver;
         Now = now;
         Budget = budget;
     }
 
+    public CodingSubsumptionSnapshot? Coding { get; }
     public IValueResolver Resolver { get; }
     public DateTimeOffset Now { get; }
     public EvalBudget Budget { get; }

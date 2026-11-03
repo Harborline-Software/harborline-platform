@@ -1,0 +1,42 @@
+{
+  "moduleId": "hlp.contracts.rules",
+  "module": {
+    "interface": {
+      "path": "specs/modules/contracts/hlp.contracts.rules/interface.yaml",
+      "revision": 1
+    },
+    "moduleKind": "runtime",
+    "presentation": {
+      "disposition": "not-applicable",
+      "rationale": "Shared declarative contracts carry data and own no renderer or authoring interface."
+    },
+    "owner": "platform-contracts",
+    "dependencies": [
+      "hlp.contracts.text",
+      "hlp.contracts.presentation"
+    ],
+    "status": "extracted-candidate",
+    "depth": {
+      "disposition": "deep-module",
+      "deletionTest": "PASS",
+      "redistributedComplexity": [
+        "rule grammar and closed values copied between evaluator and form consumers",
+        "optional error and presentation payloads independently maintained by each borrower"
+      ]
+    },
+    "projections": {
+      "typescript": {
+        "role": "implementation",
+        "path": "projections/typescript/contracts/hlp.contracts.forms",
+        "status": "preview",
+        "packageContribution": "@harborline-software/contracts"
+      },
+      "dotnet": {
+        "role": "implementation",
+        "path": "projections/dotnet/contracts/hlp.contracts.identities/Rules",
+        "status": "preview",
+        "packageContribution": "Harborline.Contracts"
+      }
+    }
+  }
+}

@@ -166,3 +166,28 @@ separate from authored-rule limits and the liveness timeout.
 v1 evaluates **first-party** definitions only. A `Compute` into a CP-locked field is subject to the
 deferred ADR-0135 A1 fail-closed CP-reachability validator (a load-time admission check, not an eval
 change) — SPINE-1's contract is identical either way; that gate is NOT built here.
+
+
+### Opt-in pinned coding subsumption
+
+`CodingSubsumptionSnapshot.FromJsonText(answersJsonText, expectedBindingsJsonText)` owns a finite
+Taxonomy answer table. The host supplies the expected tenant and exact definition/version/hash
+pins independently. Both versioned tuple documents obey the existing 262144-byte, depth-64,
+5000-value JSON envelope and require ordinal order, unique keys and exact pin equality.
+
+The original `GuardEvaluator(clock, limits)` and `FormRuleGraph(compiled, clock, admission, limits)`
+constructors retain flat `coding.is`, including its legacy coercions. New overloads append a
+non-null snapshot. One evaluator/graph keeps that capture for guard, value, full, row and reactive
+paths. In this mode the coding's string code is the descendant and the third argument the ancestor.
+Malformed/other-system array members are ignored, but every well-formed same-system member must
+have an answer: a true member cannot hide an uncaptured pair. Missing systems refuse with
+`rule.coding_binding_missing`, missing pairs with `rule.coding_answer_missing`; a captured unknown
+code answer can be false. A new tenant/pin/query superset requires a new capture and evaluator.
+
+Rules performs only a bounded answer scan, without a Taxonomy production reference or host callback.
+The opt-in `coding.is` transfer is `5000*5000*(sum(child result bytes)+262144+1)` with result bound 5.
+Graph construction and guard/value entry points check this proof after borrower admission and
+before values. Runtime budget charges each visited candidate and ordinal string comparison;
+exhaustion remains `rule.budget_exceeded`. The test-only Taxonomy reference joins the real producer,
+independent shared corpus and public readers/evaluators. Wider caller/released-consumer adoption,
+Collections, overlay traversal and T-493 acceptance remain separately open.

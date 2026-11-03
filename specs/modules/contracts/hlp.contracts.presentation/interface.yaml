@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.contracts.presentation",
+  "interfaceRevision": 1,
+  "status": "frozen",
+  "purpose": "Own renderer-neutral presentation hints independently of Forms and rendering.",
+  "dependencies": [
+    "hlp.contracts.text"
+  ],
+  "exports": [
+    "PresentationHint"
+  ],
+  "wireAuthority": {
+    "manifest": "projections/typescript/contracts/hlp.contracts.forms/projection-manifest.json",
+    "typescript": "projections/typescript/contracts/hlp.contracts.forms/src/presentation.ts",
+    "fixtures": "conformance/hlp.contracts.forms/fixtures.yaml"
+  },
+  "invariants": [
+    "PresentationHint carries optional severity, badge and styleToken. Severity is exactly info, warn or error.",
+    "The badge borrows InternationalizedText from Text. Absent members remain absent; non-null optional members reject null at wire admission.",
+    "The ownership move changes CLR namespace identities without changing the wire model. Shared optional and closed-enum infrastructure is maintained once under Harborline.Contracts.Serialization in the existing assembly."
+  ],
+  "notScope": [
+    "evaluation",
+    "rendering",
+    "new package identity",
+    "Forms admission changes"
+  ],
+  "projectionPolicy": {
+    "typescript": "maintained owner module in existing @harborline-software/contracts package",
+    "dotnet": "maintained Harborline.Contracts.Presentation bindings in existing Harborline.Contracts assembly"
+  },
+  "fixture": "conformance/hlp.contracts.forms/fixtures.yaml"
+}

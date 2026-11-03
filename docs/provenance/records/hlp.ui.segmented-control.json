@@ -11,7 +11,7 @@
     "conformance/hlp.ui.segmented-control/quality-fixtures.yaml": "e6c60cb0e78a43ab19e2a30278e3bf43bdb62819b16ac49bdcd19d6db647f1d2",
     "conformance/hlp.ui.segmented-control/runners/run-shared.mjs": "fb075bc84991f823719b286f0a0ad55e356b450dbef81e07cd31d6f386b64c3f",
     "projections/blazor/ui/hlp.ui.segmented-control/SegmentedControlTypes.cs": "ef52c52fd9b25b2ff15f9a46a60821cfa5d88b47b049d7c7c78a11f18ffeafde",
-    "projections/blazor/ui/hlp.ui.segmented-control/HarborlineSegmentedControl.razor": "51e2f5fbdcc4fa1941a5a6b840e3fe4131505a376f1792af57bd612a8761062e",
+    "projections/blazor/ui/hlp.ui.segmented-control/HarborlineSegmentedControl.razor": "7e9b2ce1390b3ea8629f6561e561542233d59ccda2129d6ee617c5f7b5543f1b",
     "projections/blazor/ui/hlp.ui.segmented-control/wwwroot/segmented-control.js": "f01835f7c836abc48f5221d511132645436d72db34c571ad7ff1ccf18b88db92",
     "projections/react/ui/hlp.ui.segmented-control/src/SegmentedControl.tsx": "8d0233eb6db3144477725b9fc2ff279b12b775703cf3c5522a0fbd756a256ae3",
     "projections/react/ui/hlp.ui.segmented-control/src/__tests__/SegmentedControl.conformance.test.ts": "7ae13f55b33660c988edcd5e1560b75c9468a8e7cc79924b47c22c7c90ff9dff",

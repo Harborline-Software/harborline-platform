@@ -200,6 +200,13 @@ export function UserMenu({
       // Tab out of a nonmodal menu closes it. Focus moves to the trigger first, so the browser's Tab
       // continues from there rather than from an item that is about to be removed; Shift+Tab stops
       // on the trigger, the element before the menu.
+      // Controlled closure may arrive after native Tab. Match the Blazor lane: skip the
+      // still-rendered panel for this default action, then restore it if the host keeps it open.
+      const panel = panelRef.current
+      if (!event.shiftKey && panel) {
+        panel.inert = true
+        setTimeout(() => { panel.inert = false }, 0)
+      }
       triggerRef.current?.focus()
       if (event.shiftKey) event.preventDefault()
       requestOpen(false)

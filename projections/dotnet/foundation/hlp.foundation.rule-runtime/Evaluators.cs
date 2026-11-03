@@ -77,6 +77,7 @@ public sealed class GuardEvaluator : IGuardEvaluator
 {
     private readonly RuleEngineLimits _limits;
     private readonly TimeProvider _clock;
+    private readonly CodingSubsumptionSnapshot? _coding;
 
     /// <summary>Creates an evaluator reading time from <paramref name="clock"/>, bounded by <paramref name="limits"/> or <see cref="RuleEngineLimits.Default"/>.</summary>
     public GuardEvaluator(TimeProvider clock, RuleEngineLimits? limits = null)
@@ -84,6 +85,10 @@ public sealed class GuardEvaluator : IGuardEvaluator
         _limits = limits ?? RuleEngineLimits.Default;
         _clock = clock ?? throw new ArgumentNullException(nameof(clock));
     }
+
+    /// <summary>Opt-in finite pinned coding answers; the original overload retains flat membership.</summary>
+    public GuardEvaluator(TimeProvider clock, RuleEngineLimits? limits, CodingSubsumptionSnapshot coding)
+        : this(clock, limits) => _coding = coding ?? throw new ArgumentNullException(nameof(coding));
 
     /// <summary>
     /// Refuses an uncaptured dictionary without enumerating it. Host code must explicitly capture
@@ -110,6 +115,8 @@ public sealed class GuardEvaluator : IGuardEvaluator
         catch (RuleCompilationException ex) { return Validity.Invalid(RuleError.Of(ex.Code)); }
         // rules-eng-26: evaluation needs admission evidence; the check runs before any value is read.
         if (BorrowerEnvironmentAdmission.Check(admission, compiled) is { } refusal) return Validity.Invalid(RuleError.Of(refusal));
+        if (_coding is not null && RuleCompiler.StaticWorkRefusal(CoreWorkDerivation.DeriveGraph(compiled.Rules, _limits, coding: true), _limits) is { } workRefusal)
+            return Validity.Invalid(RuleError.Of(workRefusal.Code));
         if (compiled.RuleCount == 0) return Validity.Valid;
         var cr = compiled.Rules[0];
         return Run(cr, context.CreateResolver(scope), ct,
@@ -158,6 +165,8 @@ public sealed class GuardEvaluator : IGuardEvaluator
         try { compiled = RuleCompiler.Compile(new[] { rule }, _limits); }
         catch (RuleCompilationException ex) { return ComputedValue.OfError(RuleError.Of(ex.Code)); }
         if (BorrowerEnvironmentAdmission.Check(admission, compiled) is { } refusal) return ComputedValue.OfError(RuleError.Of(refusal));
+        if (_coding is not null && RuleCompiler.StaticWorkRefusal(CoreWorkDerivation.DeriveGraph(compiled.Rules, _limits, coding: true), _limits) is { } workRefusal)
+            return ComputedValue.OfError(RuleError.Of(workRefusal.Code));
         if (compiled.RuleCount == 0) return ComputedValue.Resolved(null);
         return Run(compiled.Rules[0], context.CreateResolver(scope), ct,
             onValue: ComputedValue.Resolved, onError: ComputedValue.OfError,
@@ -182,7 +191,7 @@ public sealed class GuardEvaluator : IGuardEvaluator
     {
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         cts.CancelAfter(_limits.WallClockCeiling);
-        var ctx = new EvalContext(resolver, _clock.GetUtcNow(), new EvalBudget(_limits, cts.Token));
+        var ctx = new EvalContext(resolver, _clock.GetUtcNow(), new EvalBudget(_limits, cts.Token), _coding);
         try { return onValue(HarborlineJsonLogic.Evaluate(cr.Ast, ctx)); }
         catch (RuleEvalException ex) { return onError(ex.Error); }
         catch (RulePendingException) { return onPending(); }
