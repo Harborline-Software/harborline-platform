@@ -433,7 +433,9 @@
       "uncompared": [
         "popover.content",
         "popover.defaults",
-        "popover.dismissal"
+        "popover.dismissal",
+        "popover.inside-dialog",
+        "popover.inside-sheet"
       ]
     },
     "hlp.ui.radio-group": {

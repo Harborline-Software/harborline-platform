@@ -123,7 +123,7 @@ describe('GuardedControl deferred focus restoration', () => {
     await commitWhileUnsafe(() => undefined)
     hasFocus.mockReturnValue(true)
     fireEvent.click(action())
-    fireEvent.keyDown(document, { key: 'Escape' })
+    fireEvent.keyDown(screen.getByRole('button'), { key: 'Escape' })
     await act(async () => undefined)
     moveFocusElsewhere()
     act(() => { window.dispatchEvent(new Event('focus')) })

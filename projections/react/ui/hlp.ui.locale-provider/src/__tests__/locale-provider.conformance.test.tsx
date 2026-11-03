@@ -19,7 +19,7 @@ function wrapper(props: Omit<HarborlineLocaleProviderProps, 'children'>) {
   }
 }
 
-describe('Harborline Locale Provider revision-1 shared fixtures', () => {
+describe('Harborline Locale Provider revision-2 shared fixtures', () => {
   it('consumes every frozen case in order', () => {
     expect(sharedCases.map(value => value.id)).toEqual([
       'locale.defaults',
@@ -35,6 +35,7 @@ describe('Harborline Locale Provider revision-1 shared fixtures', () => {
       'locale.plural-ja',
       'locale.plural-other-fallback',
       'locale.plural-no-key',
+      'locale.plural-categories',
       'locale.number-default',
       'locale.number-invalid-locale',
       'locale.number-explicit-formatter',
@@ -88,6 +89,29 @@ describe('Harborline Locale Provider revision-1 shared fixtures', () => {
     ['ja', [0, 1, 2], ['other', 'other', 'other']],
   ] as const)('uses cardinal plural categories for %s', (locale, counts, categories) => {
     expect(counts.map(count => new Intl.PluralRules(locale).select(count))).toEqual(categories)
+  })
+
+  it('selects CLDR 47 cardinal categories for the shared locale and count rows', () => {
+    const value = fixture(sharedCases, 'locale.plural-categories')
+    const input = value.input as { cldr: string; rows: { locale: string; count: string; visibleFractionDigits?: number }[] }
+    expect(input.cldr).toBe('47')
+    const categories = ['zero', 'one', 'two', 'few', 'many', 'other'] as const
+    const catalog: HarborlineStringCatalog = Object.fromEntries(categories.map(category => [`fixture.${category}`, category]))
+    const keys = Object.fromEntries(categories.map(category => [category, `fixture.${category}`]))
+    const actual = input.rows.map(({ locale, count, visibleFractionDigits }) => {
+      // A JavaScript number has no visible-fraction scale (1.0 === 1), so a row that fixes the
+      // shown fraction digits is selected through Intl with exactly those digits; every other row
+      // goes through the provider's own tn, which (like the .NET default) ignores trailing zeros.
+      if (visibleFractionDigits !== undefined) {
+        return new Intl.PluralRules(locale, {
+          minimumFractionDigits: visibleFractionDigits,
+          maximumFractionDigits: visibleFractionDigits,
+        }).select(Number(count))
+      }
+      const { result } = renderHook(() => useHarborlineStrings(), { wrapper: wrapper({ locale, catalog }) })
+      return result.current.tn(Number(count), keys)
+    })
+    expect(actual).toEqual((value.expected as { categories: string[] }).categories)
   })
 
   it('selects the category key, falls back to other, then to invariant count text', () => {

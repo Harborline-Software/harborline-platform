@@ -1,0 +1,1 @@
+{"schemaVersion":1,"comparison":"plural-crosscheck.json (Node Intl.PluralRules, ICU 78.3 / CLDR 48) against the embedded CLDR 47 plurals.json","rule":"Every disagreement is listed here with the CLDR 47 to 48 rule change that explains it; an unexplained disagreement is a defect in the .NET evaluator.","entries":[]}

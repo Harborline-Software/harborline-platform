@@ -3,7 +3,7 @@
   "module": {
     "interface": {
       "path": "specs/modules/ui/hlp.ui.switch-field/interface.yaml",
-      "revision": 1
+      "revision": 2
     },
     "moduleKind": "interactive-component",
     "presentation": {

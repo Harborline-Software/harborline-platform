@@ -1,5 +1,8 @@
 import * as React from 'react'
 
+import { defaultStrings } from '@harborline-platform/hlp.ui.default-strings'
+import { useHarborlineStrings } from '@harborline-platform/hlp.ui.locale-provider'
+
 export type ToastVariant = 'default' | 'success' | 'error' | 'warning' | 'information' | 'loading'
 export type ToastPosition = 'top-left' | 'top-center' | 'top-right' | 'bottom-left' | 'bottom-center' | 'bottom-right'
 
@@ -134,12 +137,16 @@ class HostToastService implements ToastService {
 
   async trackAsync<T>(operation: Promise<T> | (() => Promise<T>), messages: TrackAsyncMessages<T>, options: Omit<ToastOptions, 'variant'> = {}) {
     const id = this.loading(messages.loading, { ...options, duration: null })
+    // A host disposed while the operation runs (an unmounted root) takes no further toasts, and the
+    // caller still receives the operation's own result or failure.
     try {
       const value = await (typeof operation === 'function' ? operation() : operation)
+      if (this.disposed) return value
       const message = typeof messages.success === 'function' ? messages.success(value) : messages.success
       this.success(message, { ...options, id })
       return value
     } catch (reason) {
+      if (this.disposed) throw reason
       const message = typeof messages.error === 'function' ? messages.error(reason) : messages.error
       this.error(message, { ...options, id })
       throw reason
@@ -252,6 +259,7 @@ export interface ToasterProps extends React.HTMLAttributes<HTMLElement> {
   keepErrorsPersistent?: boolean
   defaults?: ToastDefaults
   showCloseButton?: boolean
+  // Unset (or blank) means the current localized catalog value, common.dismissNotification.
   dismissLabel?: string
   direction?: 'ltr' | 'rtl'
 }
@@ -272,7 +280,7 @@ const BLANK_NAME = /^[\t\n\v\f\r \u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u20
 
 export function Toaster({
   service, position = 'bottom-right', duration, maximumVisible, keepErrorsPersistent,
-  defaults, showCloseButton = false, dismissLabel = 'Dismiss notification', direction,
+  defaults, showCloseButton = false, dismissLabel, direction,
   // The region's accessible name. A literal written after the spread overwrote the caller's
   // aria-label, which ToasterProps accepts through HTMLAttributes, so no host could localize the
   // landmark. The default is "Notifications", Blazor AccessibleLabel's default, and a caller's name
@@ -286,6 +294,12 @@ export function Toaster({
     service.configure({ duration, maximumVisible, keepErrorsPersistent, defaults })
   }, [defaults, duration, keepErrorsPersistent, maximumVisible, service])
   const snapshot = React.useSyncExternalStore(service.subscribe, service.getSnapshot, service.getSnapshot)
+  const { resolveString } = useHarborlineStrings()
+  // Caller text, then the current catalog value, then the default catalog value: never empty.
+  const catalogDismissLabel = resolveString(undefined, 'common.dismissNotification')
+  const resolvedDismissLabel = dismissLabel?.trim() ? dismissLabel
+    : catalogDismissLabel.trim() ? catalogDismissLabel
+    : defaultStrings['common.dismissNotification']
   // A section with a blank aria-label has no accessible name and so is no landmark (HTML-AAM), so
   // only a non-blank string names the region. An empty or blank name, and any non-string from
   // untyped JavaScript (null, false, a number), keeps the default as an absent one does, instead of
@@ -303,7 +317,7 @@ export function Toaster({
           <span aria-hidden="true" className="hl-toaster__marker"><ToastIcon variant={entry.variant} /></span>
           <div className="hl-toaster__copy"><div>{entry.message}</div>{entry.description !== undefined ? <div className="hl-toaster__description">{entry.description}</div> : null}</div>
           {entry.action ? <button type="button" className="hl-toaster__action" onClick={() => service.activate(entry.id)}>{entry.action.label}</button> : null}
-          {showCloseButton || entry.variant === 'error' ? <button type="button" className="hl-toaster__close" aria-label={dismissLabel} onClick={() => service.dismiss(entry.id)}><svg aria-hidden="true" fill="none" focusable="false" viewBox="0 0 16 16"><path d="M3 3l10 10M13 3 3 13" /></svg></button> : null}
+          {showCloseButton || entry.variant === 'error' ? <button type="button" className="hl-toaster__close" aria-label={resolvedDismissLabel} onClick={() => service.dismiss(entry.id)}><svg aria-hidden="true" fill="none" focusable="false" viewBox="0 0 16 16"><path d="M3 3l10 10M13 3 3 13" /></svg></button> : null}
         </div>
       ))}
     </section>

@@ -32,6 +32,11 @@ function focusableElements(root: HTMLElement): HTMLElement[] {
   ].join(','))).filter(element => !element.closest('[hidden], [inert]'))
 }
 
+// Dialogs and sheets are both modal overlays; the topmost is whichever was portaled last.
+function isTopmostDialog(portal: HTMLElement): boolean {
+  return Array.from(document.body.children).filter(element => element.matches('.hl-dialog__portal, .hl-sheet__portal')).at(-1) === portal
+}
+
 function DialogBody({ children }: { readonly children: React.ReactNode }) {
   const bodyRef = React.useRef<HTMLDivElement | null>(null)
   const scroll = useScrollAffordance(bodyRef, { orientation: 'vertical' })
@@ -110,9 +115,20 @@ export function Dialog({
 
   React.useEffect(() => {
     if (!open) return
+    // Bubble phase, so a widget inside the dialog that handles Escape on its own element (and
+    // prevents the default) consumes it first; the dialog dismisses only on an Escape nothing
+    // consumed, and only the dialog the key came from (or the topmost one, for a key from the page
+    // itself) acts. Tab containment stays with the topmost dialog wherever focus is, including
+    // content portaled to body after the dialog opened.
     const onDocumentKeyDown = (event: KeyboardEvent) => {
       if (event.defaultPrevented) return
+      const portal = portalRef.current
+      if (!portal) return
+      const target = event.target
+      const fromThisDialog = target instanceof Node && portal.contains(target)
+      const fromPage = target === document || target === document.body || target === document.documentElement
       if (event.key === 'Escape') {
+        if (!fromThisDialog && !(fromPage && isTopmostDialog(portal))) return
         if (!closeOnEscape) return
         event.preventDefault()
         event.stopPropagation()
@@ -120,6 +136,7 @@ export function Dialog({
         return
       }
       if (event.key !== 'Tab' || !dialogRef.current) return
+      if (!fromThisDialog && !isTopmostDialog(portal)) return
       const dialog = dialogRef.current
       const focusables = focusableElements(dialog)
       if (focusables.length === 0) {
@@ -138,8 +155,8 @@ export function Dialog({
         first.focus()
       }
     }
-    document.addEventListener('keydown', onDocumentKeyDown, true)
-    return () => document.removeEventListener('keydown', onDocumentKeyDown, true)
+    document.addEventListener('keydown', onDocumentKeyDown)
+    return () => document.removeEventListener('keydown', onDocumentKeyDown)
   }, [closeOnEscape, onOpenChange, open])
 
   if (!open || typeof document === 'undefined') return null

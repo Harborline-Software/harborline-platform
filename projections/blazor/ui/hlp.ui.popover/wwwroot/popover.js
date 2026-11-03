@@ -50,6 +50,9 @@ export function connect(trigger, anchor, content, options, callback) {
   const placeholder = document.createComment('hl-popover-portal')
   content.before(placeholder)
   document.body.append(content)
+  // Marks the content as a connected popover layer, so an overlay below it (a sheet) can tell a key
+  // from popover content, now outside the overlay's portal, from a key from ordinary page content.
+  content.dataset.hlLayer = 'popover'
   const reposition = () => {
     const reference = anchor ?? trigger
     if (!reference || !content) return
@@ -72,11 +75,19 @@ export function connect(trigger, anchor, content, options, callback) {
     content.style.top = `${placement.top}px`
   }
   const dismiss = () => callback.invokeMethodAsync('DismissFromJavaScriptAsync')
-  const onKey = event => { if (event.key === 'Escape') { event.preventDefault(); dismiss() } }
+  // The open popover is the topmost layer. An Escape from its trigger button is taken in the capture
+  // phase, before an outer layer (a dialog or sheet) listening on the document; the trigger has no
+  // Escape behaviour of its own. Any other Escape, including one from an anchor that may use Escape
+  // itself, is handled on the document after Blazor's own listener, so one already handled (including
+  // a Blazor @onkeydown:preventDefault) is left alone. Previously every Escape closed it.
+  const fromTrigger = target => target instanceof Node && trigger?.contains(target)
+  const onKeyCapture = event => { if (event.key === 'Escape' && !event.defaultPrevented && fromTrigger(event.target)) { event.preventDefault(); dismiss() } }
+  const onKey = event => { if (event.key === 'Escape' && !event.defaultPrevented) { event.preventDefault(); dismiss() } }
   const onPointer = event => {
     if (!content.contains(event.target) && !trigger?.contains(event.target)) dismiss()
   }
   const onViewport = () => reposition()
+  document.addEventListener('keydown', onKeyCapture, true)
   document.addEventListener('keydown', onKey)
   document.addEventListener('pointerdown', onPointer, true)
   window.addEventListener('resize', onViewport)
@@ -102,10 +113,12 @@ export function connect(trigger, anchor, content, options, callback) {
   return {
     dispose() {
       cancelAnimationFrame(frame)
+      document.removeEventListener('keydown', onKeyCapture, true)
       document.removeEventListener('keydown', onKey)
       document.removeEventListener('pointerdown', onPointer, true)
       window.removeEventListener('resize', onViewport)
       window.removeEventListener('scroll', onViewport, true)
+      delete content.dataset.hlLayer
       if (content.isConnected && placeholder.isConnected) placeholder.before(content)
       placeholder.remove()
       trigger?.focus()

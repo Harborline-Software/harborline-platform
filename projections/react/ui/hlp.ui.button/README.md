@@ -36,3 +36,15 @@ Hosts theme Button through inherited public CSS custom properties: `--hl-button-
 `--hl-button-secondary-foreground`, `--hl-button-border`, and `--hl-button-focus`. The packed
 stylesheet consumes every token and owns the matching hover, active, focus-visible, inert,
 forced-colors, and reduced-motion behavior.
+
+Spotlight announces an empty result set. When no option and no loading section remain, the one
+polite `role="status"` region, rendered whenever the palette is open, carries the caller's `empty`
+copy in place of the `resultsCountLabel` text, so typing to zero results is announced once and
+never beside a count (WCAG 2.2 SC 4.1.3 Status Messages). While a section is still loading and nothing is listed yet, the
+region carries that section's loading label, or nothing, so zero is never announced twice. The combobox then reports
+`aria-expanded="false"`: the APG combobox pattern sets `aria-expanded` to false when the popup is
+not visible and true when it is, and its autocomplete example calls `close()` when filtering finds
+nothing. The empty listbox has no content and its stylesheet collapses it, so it is not a visible
+popup. It stays in the DOM, and `aria-controls` keeps pointing at it, which the pattern allows for
+an element that is not visible. A loading section is displayed content, so the popup stays
+expanded while one is present.

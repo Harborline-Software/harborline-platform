@@ -6,6 +6,9 @@ export function connect(portal, dialog, input) {
   document.body.append(portal)
   const containFocus = event => { if (!dialog.contains(event.target)) input?.focus() }
   const onKey = event => {
+    // As in React: ArrowDown, ArrowUp and Enter in the query belong to the palette (the caret and an
+    // implicit form submission do not move), with or without results. Blazor's handler still runs.
+    if (event.target === input && ['ArrowDown', 'ArrowUp', 'Enter'].includes(event.key)) { event.preventDefault(); return }
     if (event.key !== 'Tab') return
     const nodes = [...dialog.querySelectorAll(focusable)]
     if (nodes.length === 0) { event.preventDefault(); dialog.focus(); return }

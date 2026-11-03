@@ -1,8 +1,9 @@
 @namespace Harborline.UIAdapters.Blazor.Components.Feedback
 @inherits HarborlineComponentBase
 @implements IDisposable
-@inject IToastService Toasts
 @using Harborline.UIAdapters.Blazor.Localization
+@using Harborline.Foundation.Localization
+@inject IToastService Toasts
 
 <section class="@CombineClasses("hl-toaster", $"hl-toaster--{PositionToken}")" style="@CombineStyles()" data-position="@PositionToken" data-hl-semantic-colors="@(UseSemanticColors ? "true" : null)" dir="@Direction" @attributes="AdditionalAttributes" aria-label="@RegionName">
   @foreach (var entry in VisibleEntries)
@@ -18,8 +19,8 @@
         }
       </span>
       <div class="hl-toaster__copy"><div>@entry.Message</div>@if(entry.Description is not null){<div class="hl-toaster__description">@entry.Description</div>}</div>
-      @if (entry.Action is not null) { <button type="button" class="hl-toaster__action" @onclick="() => ActivateAsync(entry.Action)">@entry.Action.Label</button> }
-      @if (ShowCloseButton || entry.Variant == ToastVariant.Error) { <button type="button" class="hl-toaster__close" aria-label="@DismissLabel" @onclick="() => Toasts.Dismiss(entry.Id)"><svg aria-hidden="true" fill="none" focusable="false" viewBox="0 0 16 16"><path d="M3 3l10 10M13 3 3 13"></path></svg></button> }
+      @if (entry.Action is not null) { <button type="button" class="hl-toaster__action" @onclick="() => ActivateAsync(entry)">@entry.Action.Label</button> }
+      @if (ShowCloseButton || entry.Variant == ToastVariant.Error) { <button type="button" class="hl-toaster__close" aria-label="@ResolvedDismissLabel" @onclick="() => Toasts.Dismiss(entry.Id)"><svg aria-hidden="true" fill="none" focusable="false" viewBox="0 0 16 16"><path d="M3 3l10 10M13 3 3 13"></path></svg></button> }
     </div>
   }
 </section>
@@ -35,9 +36,15 @@
   [Parameter] public bool UseSemanticColors { get; set; }
   [Parameter] public bool KeepErrorsPersistent { get; set; } = true;
   [Parameter] public ToastOptions? Defaults { get; set; }
-  [Parameter] public string DismissLabel { get; set; } = "Dismiss";
+  [CascadingParameter] private HarborlineLocaleContext? LocaleContext { get; set; }
+  // Null (or blank) means the current localized catalog value, common.dismissNotification; caller
+  // text overrides it. The resolved name is never empty.
+  [Parameter] public string? DismissLabel { get; set; }
   [Parameter] public string AccessibleLabel { get; set; } = "Notifications";
   [Parameter] public string? Direction { get; set; }
+  private string ResolvedDismissLabel => !string.IsNullOrWhiteSpace(DismissLabel) ? DismissLabel
+    : LocaleContext?.ResolveString("common.dismissNotification") is { } value && !string.IsNullOrWhiteSpace(value) && value != "common.dismissNotification" ? value
+    : HarborlineDefaultStrings.Get("common.dismissNotification");
   // The region's accessible name, written after @attributes so that it is the one the section
   // renders. A caller's splatted aria-label still wins over AccessibleLabel, and each is taken only
   // when its text is not blank; otherwise the name falls back to AccessibleLabel and then to
@@ -66,10 +73,14 @@
   protected override void OnInitialized() => Toasts.Changed += OnChanged;
   protected override void OnParametersSet()
   {
-    if (string.IsNullOrWhiteSpace(DismissLabel)) throw new InvalidOperationException("toast-message-required");
     Toasts.ConfigureHost(new(DurationMilliseconds, MaximumVisible, ShowCloseButton, UseSemanticColors, KeepErrorsPersistent, Defaults));
   }
-  private void OnChanged()=>_ = InvokeAsync(StateHasChanged);
-  private static Task ActivateAsync(ToastAction action)=>action.ActivateAsync();
+  // An action is invoked at most once per shown toast, as in React; a toast replaced under the same
+  // id is a new entry and may be activated again. Entries are tracked by reference.
+  private readonly HashSet<ToastEntry> activated = new(ReferenceEqualityComparer.Instance);
+  // Changed can be raised off the renderer thread (timers, tracked operations), so the set is only
+  // touched on the renderer, where clicks also run.
+  private void OnChanged()=>_ = InvokeAsync(()=>{var current=Toasts.Entries;activated.RemoveWhere(entry=>!current.Any(candidate=>ReferenceEquals(candidate,entry)));StateHasChanged();});
+  private Task ActivateAsync(ToastEntry entry)=>entry.Action is not null&&activated.Add(entry)?entry.Action.ActivateAsync():Task.CompletedTask;
   protected override void Dispose(bool disposing){if(disposing)Toasts.Changed-=OnChanged;base.Dispose(disposing);}
 }

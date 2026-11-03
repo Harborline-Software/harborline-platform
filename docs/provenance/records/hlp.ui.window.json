@@ -10,7 +10,7 @@
     "conformance/hlp.ui.window/fixtures.yaml": "4ea5eb4b0553665a418629d28d38e574f7ac68334bbd948b79a1a479ea3ba86c",
     "conformance/hlp.ui.window/quality-fixtures.yaml": "e3c663b95204ae686881402b334b9653edad6c01c34422cac632d32de0344b0e",
     "conformance/hlp.ui.window/runners/run-shared.mjs": "6bd420be5c14968805493041f423395d621a96224652f6f4115389437b79e68a",
-    "projections/blazor/ui/hlp.ui.window/HarborlineWindow.razor": "e6ebc5ac6a35e884fd0da047d0195c6d85f1cb3a4c8cdba428f4083b1d87c8e8",
+    "projections/blazor/ui/hlp.ui.window/HarborlineWindow.razor": "c1805c694b83a9069e32f5c0e337f87821b8cc8874d06710074b2576a9168ee5",
     "projections/blazor/ui/hlp.ui.window/HarborlineWindowActionsBar.razor": "aebf6987bf533e404847287d1293005c95dbc860fb5890b677dcd84c48db1e4b",
     "projections/blazor/ui/hlp.ui.window/WindowTypes.cs": "ced725c92cbe809a47d3f375e7a02089a4331a7c0e3ebf56f42cc8962b55cf26",
     "projections/blazor/ui/hlp.ui.window/wwwroot/window.js": "4043378bbe7dd3595ebe9c5f3de1b632ba3f5a4615d45dbece90ee2a1816e2c9",
@@ -27,7 +27,7 @@
     "specs/modules/ui/hlp.ui.window/interface.yaml": "a02b1d5c8d93abeae90f902e3c811daf9934a4a7e8fe0433dd3a82dff755ad37",
     "specs/modules/ui/hlp.ui.window/quality.yaml": "01c6a80822cc9332eb467b61142ba9ddd837865ae09610a012d90da35e29d99a",
     "specs/modules/ui/hlp.ui.window/scenarios.json": "bef3acc80f809840381ca5690142a1b034ed280b1a93cc238be0e60a2a245ceb",
-    "specs/modules/ui/hlp.ui.window/style.css": "56a233d9dad3fbc09e08663600d2fb95f925cc315bb999fd3098dbc4b75fa899"
+    "specs/modules/ui/hlp.ui.window/style.css": "12d4f61e9e97cd46aa4680aac9839edc1d13a881baf882ba4ac9ee9d977673e6"
   },
   "nextGate": "Retain this conformant aggregate contribution while HLF-052 advances to the next Carrier-essential dependency wave."
 }

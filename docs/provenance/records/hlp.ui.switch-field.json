@@ -7,7 +7,7 @@
   "sourceExtracted": true,
   "sourceState": "Interface revision 1 preserves the exact pinned hlp.ui.switch-field source surface and proves every registered projection through native, shared-conformance, package-only, and applicable gallery/performance gates.",
   "contentHashes": {
-    "conformance/hlp.ui.switch-field/fixtures.yaml": "8c98b1af0b9bb0cffd3837a29e52e097ad4c811c554dfe23e9aea0614f708bc6",
+    "conformance/hlp.ui.switch-field/fixtures.yaml": "925a2214160843b337d9f1af35101b5833e52c09d50a217680d6c75296d18798",
     "conformance/hlp.ui.switch-field/quality-fixtures.yaml": "804dc0f0e3c038380c8dffd5f2cdc84d31ca9181c6938fc1ba11589ac230acdc",
     "conformance/hlp.ui.switch-field/runners/run-shared.mjs": "889fb82c8d3f313bdf26c6abbafde7358954f00604dc87fca4f6bac34ecacb47",
     "projections/blazor/ui/hlp.ui.switch-field/HarborlineSwitchField.razor": "d657a0dd71becaa2367d35d5b98786a953e14e987a40bde65a6fae631e4168f1",
@@ -19,7 +19,7 @@
     "projections/react/ui/hlp.ui.switch-field/src/test-setup.ts": "097040beeb2cc914b87790306bc835eef4a06321fa3594a6938b6754641ac2ff",
     "projections/react/ui/hlp.ui.switch-field/tsconfig.build.json": "dbfbf4a49a1d83ae5951f634784244425d988177e6a7394da26ad7d5ad193259",
     "projections/react/ui/hlp.ui.switch-field/vitest.config.ts": "30d05c8a90ffc21f740ff6490d13324c187da7d254adeae61eed9a695d40a237",
-    "specs/modules/ui/hlp.ui.switch-field/interface.yaml": "52d81c3f6e954592fc948fd2c00d1b44f12a43937133dc660d4a606a6087b7f1",
+    "specs/modules/ui/hlp.ui.switch-field/interface.yaml": "febfb05d99e940482f6386332134aaf733ec85c0f4bd8f93775357a3af1671c4",
     "specs/modules/ui/hlp.ui.switch-field/quality.yaml": "45f983646ccbc2eb6e48463a26b3dde98e8db8910a20d224401495142e6d8633",
     "specs/modules/ui/hlp.ui.switch-field/scenarios.json": "24d5e3bcb4011b501d9ce34a78f05f5ab740eb413280a78add97c133d436bf04"
   },

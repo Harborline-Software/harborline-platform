@@ -22,7 +22,7 @@
     "projections/blazor/ui/hlp.ui.button/Components/Buttons/HarborlineButton.razor": "82d2b94399bbb9a8834ab3764921dd515d934c0a025ed50caa28c7eb71addeed",
     "projections/blazor/ui/hlp.ui.button/Components/Buttons/ButtonStyleBridge.cs": "d806a29e1089c8aadd3b83a7acea7d69fce6b25f5a284dbbfeea99c0fc085992",
     "projections/blazor/ui/hlp.ui.button/Base/HarborlineComponentBase.cs": "49f2d566de0521d59c99bed9247d72c3607cd864090a1d22241eaf8ef19f0ecb",
-    "projections/blazor/ui/hlp.ui.button/Localization/HarborlineLocaleContext.cs": "34bd8801b214d92407d6a3624a9ed94c6ca7568be7b416cc350adc5aa920e662",
+    "projections/blazor/ui/hlp.ui.button/Localization/HarborlineLocaleContext.cs": "cdbd5661a4df18d16d1727cb433ad554d2026c70a551ba877205fe038a708255",
     "projections/blazor/ui/hlp.ui.button/Localization/HarborlineLocaleProvider.razor": "e94c523362928df584d281e16c14c3c612c2f553f30102dde300ea3afdea6d08",
     "projections/blazor/ui/hlp.ui.button.tests/ButtonNativeTests.cs": "7c8d13e7840976335e2913d43f4a0d93e7cf2511e4145d26deed00337db01351",
     "conformance/hlp.ui.button/fixtures.yaml": "a0332438e88b1c819e6699d1530b0486dfb2cdd58ca01c588664180da9758c08",

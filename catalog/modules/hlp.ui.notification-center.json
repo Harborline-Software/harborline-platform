@@ -3,7 +3,7 @@
   "module": {
     "interface": {
       "path": "specs/modules/ui/hlp.ui.notification-center/interface.yaml",
-      "revision": 1
+      "revision": 2
     },
     "moduleKind": "interactive-component",
     "presentation": {
@@ -16,6 +16,8 @@
     "owner": "platform-ui",
     "dependencies": [
       "hlp.ui.cn",
+      "hlp.ui.default-strings",
+      "hlp.ui.locale-provider",
       "hlp.ui.popover",
       "hlp.ui.touch-target",
       "hlp.ui.use-is-mobile",

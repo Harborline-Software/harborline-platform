@@ -1,7 +1,7 @@
 .hl-spotlight__portal {
   --hl-spotlight-surface: var(--hl-popover, var(--hl-surface, Canvas));
   --hl-spotlight-text: var(--hl-popover-foreground, var(--hl-foreground, CanvasText));
-  --hl-spotlight-muted: var(--hl-muted-foreground, GrayText);
+  --hl-spotlight-muted: var(--hl-muted-foreground, color-mix(in srgb, CanvasText 72%, Canvas));
   --hl-spotlight-border: var(--hl-border, color-mix(in srgb, CanvasText 24%, Canvas));
   --hl-spotlight-hover: var(--hl-muted, color-mix(in srgb, CanvasText 8%, Canvas));
   --hl-spotlight-active: var(--hl-selected, var(--hl-accent, color-mix(in srgb, Highlight 14%, Canvas)));
@@ -93,6 +93,11 @@
   overscroll-behavior: contain;
   padding-block: 0.5rem;
   scrollbar-color: var(--hl-spotlight-border) transparent;
+}
+
+/* An empty listbox (no results) collapses; the empty copy beside it carries the space. */
+.hl-spotlight__results:not(:has(*)) {
+  padding-block: 0;
 }
 
 .hl-spotlight__group-label {

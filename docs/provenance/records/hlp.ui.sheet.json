@@ -19,10 +19,10 @@
     "projections/blazor/ui/hlp.ui.sheet/HarborlineSheetHeader.razor": "e00caf771bf24a8423a8333ad2aea174cfe12eb77c6bba7e4dec784d3390f405",
     "projections/blazor/ui/hlp.ui.sheet/HarborlineSheetTitle.razor": "32b753e8110153776870425333d19b30e8d78db97b6f78ef629b055382fec152",
     "projections/blazor/ui/hlp.ui.sheet/HarborlineSheetTrigger.razor": "1230b30fc917364506dd93d100ca877931056fde75db7eb0bfc6671a5de07c37",
-    "projections/blazor/ui/hlp.ui.sheet/wwwroot/sheet.js": "7d79efeada674bc80b0724eb53268ed2b8dc2c5b3c72446798773248a772a241",
-    "projections/react/ui/hlp.ui.sheet/src/Sheet.tsx": "09082f00d6faf97d82eb9fcaaf2e104f60be9ebdc5546ed85807cf7b6dc5e375",
+    "projections/blazor/ui/hlp.ui.sheet/wwwroot/sheet.js": "2efe7235e3fd8fba9431e857736af2ebfce2bbb70dfb4789e9cf011f5f41d8be",
+    "projections/react/ui/hlp.ui.sheet/src/Sheet.tsx": "945bee76c3744ceb60935f5ae357697b969fe78846edaeb77da1e0b8adb23e7a",
     "projections/react/ui/hlp.ui.sheet/src/__tests__/Sheet.conformance.test.tsx": "ab7a3a2fa6dab814c3a23232e8a48e552a464f02f75f338fef052a2a9fc92431",
-    "projections/react/ui/hlp.ui.sheet/src/__tests__/Sheet.native.test.tsx": "e637092d01920bfad4d15451f3a5d2d038ffd4821a8556f9b3e77c732bd405da",
+    "projections/react/ui/hlp.ui.sheet/src/__tests__/Sheet.native.test.tsx": "d59e3a16024a72307d149f12641e289d374259db38b7047f2bad83c206e8321f",
     "projections/react/ui/hlp.ui.sheet/src/__tests__/fixtures.ts": "b2157180d8158931f37f0a4181cf2e8d71db75d37bf1d69c9c49713d2cc96504",
     "projections/react/ui/hlp.ui.sheet/src/index.ts": "c5f57b788d13033b170273e3900da3b0b5db895247e374bc717cf0ed38f6d032",
     "projections/react/ui/hlp.ui.sheet/src/test-setup.ts": "977afde26bba6a51325908cd7713cbfdc87d18f06b78b237c8f364c44864b7de",
@@ -31,7 +31,7 @@
     "specs/modules/ui/hlp.ui.sheet/interface.yaml": "b72fd169407543df80e2ade44b36d723b526b59dfdde3655fc55d17b7135e450",
     "specs/modules/ui/hlp.ui.sheet/quality.yaml": "d321a6828b471367c545fa505813e4d932eb6990ceddd3bbd80deb2bb4c0fa6a",
     "specs/modules/ui/hlp.ui.sheet/scenarios.json": "c413854a690b5219852b432a5cd237a9d9a0ffb7f17bce7a63217633e41110a9",
-    "specs/modules/ui/hlp.ui.sheet/style.css": "fe757ce40001689f801dca39a39cc90d238f7afcb12226a7dc68a5818d3cdee3"
+    "specs/modules/ui/hlp.ui.sheet/style.css": "d4e673af82b3afedd9f3c083f7bfd2f9394a8127658c49e49c333e384a61f5dd"
   },
   "nextGate": "Retain this conformant aggregate contribution while HLF-052 advances to the next Carrier-essential dependency wave."
 }

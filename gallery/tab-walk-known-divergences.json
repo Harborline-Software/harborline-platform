@@ -1138,22 +1138,6 @@
         "- - button \"Replace caller value\"",
         "  exited"
       ]
-    },
-    {
-      "scenarioId": "user-menu.placement-dismissal",
-      "kind": "findings",
-      "ticket": "T-1125",
-      "reason": "UserMenu panel does not close on Tab or focus loss (APG menu button). The scenario opens the first menu; its panel stays open when focus leaves it and entirely covers the second menu's trigger. Escape is handled only by the panel's own keydown handler, so with focus on the covered trigger Escape does nothing, and the user would have to move focus back into the panel to dismiss it, which SC 2.4.11 Note 2 does not exempt. The frozen round-2 batches b7 and b7f1 fix this; T-962 does not duplicate them.",
-      "reactOnly": [
-        "2.4.11 forward obscured: button \"Account for Ada Lovelace\" under div.hl-user-menu__surface",
-        "2.4.11 prepared obscured: button \"Account for Ada Lovelace\" under div.hl-user-menu__surface",
-        "2.4.11 reverse obscured: button \"Account for Ada Lovelace\" under div.hl-user-menu__surface"
-      ],
-      "blazorOnly": [
-        "2.4.11 forward obscured: button \"Account for Ada Lovelace\" under div.hl-user-menu__surface",
-        "2.4.11 prepared obscured: button \"Account for Ada Lovelace\" under div.hl-user-menu__surface",
-        "2.4.11 reverse obscured: button \"Account for Ada Lovelace\" under div.hl-user-menu__surface"
-      ]
     }
   ]
 }

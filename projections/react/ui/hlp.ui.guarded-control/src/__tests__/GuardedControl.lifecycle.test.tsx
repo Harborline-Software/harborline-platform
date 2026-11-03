@@ -59,7 +59,7 @@ describe('GuardedControl after an effect cleanup and re-setup', () => {
     render(<React.StrictMode>{elsewhere}<GuardedControl action="a" classificationId="c" label="Publish" onCommit={() => undefined}/></React.StrictMode>)
     fireEvent.click(action())
     dropFocus()
-    fireEvent.keyDown(document, { key: 'Escape' })
+    fireEvent.keyDown(screen.getByRole('button'), { key: 'Escape' })
     await act(async () => undefined)
     expect(action()).toHaveAttribute('data-guard-state', 'covered')
     expect(action()).toHaveFocus()

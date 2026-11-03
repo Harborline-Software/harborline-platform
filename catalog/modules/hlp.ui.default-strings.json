@@ -3,7 +3,7 @@
   "module": {
     "interface": {
       "path": "specs/modules/ui/hlp.ui.default-strings/interface.yaml",
-      "revision": 1
+      "revision": 2
     },
     "moduleKind": "runtime",
     "presentation": {
@@ -21,7 +21,7 @@
       "disposition": "deep-module",
       "deletionTest": "PASS",
       "redistributedComplexity": [
-        "the exact 713-key English fallback vocabulary, key typing, namespaces, accessibility strings, and placeholder shapes duplicated across twenty-seven dependent UI modules",
+        "the exact 733-key English fallback vocabulary (713 revision-1 keys plus 20 platform UI keys), key typing, namespaces, accessibility strings, and placeholder shapes duplicated across twenty-seven dependent UI modules",
         "single-brace string and numeric interpolation, visible missing variables, and empty override semantics independently drifting across TypeScript and .NET"
       ]
     },

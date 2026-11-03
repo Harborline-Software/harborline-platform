@@ -2,10 +2,12 @@
 @inherits HarborlineComponentBase
 @using Harborline.UIAdapters.Blazor.Components.Forms
 @using Harborline.UIAdapters.Blazor.Localization
+@using Harborline.UIAdapters.Blazor.Browser
+@using Microsoft.Extensions.DependencyInjection
 
-<span class="@CombineClasses("hl-switch", ResolvedDisabled ? "hl-switch--disabled" : null)" style="@CombineStyles()" data-hl-size="@SizeToken" dir="@ResolvedDirection">
+<span class="@CombineClasses("hl-switch", ResolvedDisabled ? "hl-switch--disabled" : null)" style="@CombineStyles()" data-hl-size="@SizeToken" data-hl-touch="@(touchSized ? "true" : null)" dir="@ResolvedDirection">
   <button type="button" role="switch" id="@ResolvedId" aria-checked="@EffectiveChecked.ToString().ToLowerInvariant()"
-          aria-label="@AccessibleName" aria-labelledby="@LabelledBy" aria-describedby="@DescribedBy"
+          aria-label="@ResolvedAccessibleName" aria-labelledby="@LabelledBy" aria-describedby="@DescribedBy"
           aria-invalid="@(Error ? "true" : null)" aria-required="@(ResolvedRequired ? "true" : null)"
           disabled="@ResolvedDisabled" class="@(Error ? "hl-switch__control hl-switch__control--invalid" : "hl-switch__control")" data-hl-checked="@(EffectiveChecked ? "true" : null)"
           @onclick="ToggleAsync" @attributes="AdditionalAttributes"><span aria-hidden="true" class="hl-switch__thumb"></span></button>
@@ -18,6 +20,38 @@
 
 @code {
   [CascadingParameter] private FormFieldContextValue? FieldContext { get; set; }
+  [Inject] private IServiceProvider Services { get; set; } = default!;
+  // Touch sizing follows the shared form-factor policy (phone mode or any coarse pointer), observed once per
+  // media-query observer for all switches. The observer is optional, so a host that registers none renders
+  // the pointer-sized switch; so does a browser where observing fails, since the target is an enhancement.
+  private SwitchTouchSizing? touch;
+  private bool touchSized;
+  private bool disposed;
+
+  protected override async Task OnAfterRenderAsync(bool firstRender)
+  {
+    if (!firstRender || Services.GetService<IMediaQueryObserver>() is not { } observer) return;
+    touch = SwitchTouchSizing.For(observer);
+    touch.Changed += OnTouchChangedAsync;
+    try { await touch.StartAsync(); }
+    catch (Microsoft.JSInterop.JSException) { return; }
+    catch (Microsoft.JSInterop.JSDisconnectedException) { return; }
+    catch (OperationCanceledException) { return; }
+    await OnTouchChangedAsync();
+  }
+
+  private async Task OnTouchChangedAsync()
+  {
+    if (disposed || touch is null || touch.TouchSized == touchSized) return;
+    touchSized = touch.TouchSized;
+    await InvokeAsync(StateHasChanged);
+  }
+
+  protected override void Dispose(bool disposing)
+  {
+    if (disposing) { disposed = true; if (touch is not null) touch.Changed -= OnTouchChangedAsync; }
+    base.Dispose(disposing);
+  }
   [CascadingParameter] private HarborlineLocaleContext? LocaleContext { get; set; }
   [Parameter] public bool? Checked { get; set; }
   [Parameter] public bool DefaultChecked { get; set; }
@@ -52,18 +86,22 @@
   private bool ResolvedDisabled => (Disabled ?? FieldContext?.Disabled ?? false) || !Enabled;
   private bool ResolvedRequired => Required ?? FieldContext?.Required ?? false;
   private string ResolvedDirection => Direction ?? LocaleContext?.Direction ?? "ltr";
-  private string ResolvedOnText => LocalizedText("forms.switch.on", OnText ?? OnLabel, "On");
-  private string ResolvedOffText => LocalizedText("forms.switch.off", OffText ?? OffLabel, "Off");
+  private string ResolvedOnText => LocalizedText("forms.switch.on", FirstNonBlank(OnText, OnLabel));
+  private string ResolvedOffText => LocalizedText("forms.switch.off", FirstNonBlank(OffText, OffLabel));
+  private static string? FirstNonBlank(params string?[] values) => values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
+  // A blank name is no name: it falls through to the label or the field label.
+  private string? ResolvedAccessibleName => string.IsNullOrWhiteSpace(AccessibleName) ? null : AccessibleName;
 
-  // Instance override, then catalog, then fallback. A catalog miss echoes the key back, so an
-  // echoed key counts as unresolved rather than as user-facing text.
-  private string LocalizedText(string key, string? instanceOverride, string fallback)
+  // Instance override, then the host catalog, then the default catalog. A catalog miss echoes the key back, so an
+  // echoed key counts as unresolved rather than as user-facing text; so does blank catalog text.
+  private string LocalizedText(string key, string? instanceOverride)
   {
     if (!string.IsNullOrWhiteSpace(instanceOverride)) return LocaleContext?.ResolveString(key, instanceOverride: instanceOverride) ?? instanceOverride;
-    var resolved = LocaleContext?.ResolveString(key);
-    return string.IsNullOrEmpty(resolved) || resolved == key ? fallback : resolved;
+    var catalogDefault = Harborline.Foundation.Localization.HarborlineDefaultStrings.Get(key);
+    var resolved = LocaleContext?.ResolveString(key) ?? catalogDefault;
+    return string.IsNullOrWhiteSpace(resolved) || resolved == key ? catalogDefault : resolved;
   }
-  private string? LabelledBy => !string.IsNullOrWhiteSpace(Label) ? LocalLabelId : AccessibleName is null ? FieldContext?.LabelId : null;
+  private string? LabelledBy => !string.IsNullOrWhiteSpace(Label) ? LocalLabelId : ResolvedAccessibleName is null ? FieldContext?.LabelId : null;
   private string? DescribedBy => string.Join(" ", new[]{FieldContext?.DescribedBy,!string.IsNullOrWhiteSpace(Description)?DescriptionId:null}.Where(value=>!string.IsNullOrWhiteSpace(value)));
   private string SizeToken => Size switch { SwitchSize.Sm => "sm", SwitchSize.Lg => "lg", SwitchSize.Md => "md", _ => throw new InvalidOperationException("unsupported-switch-size") };
 

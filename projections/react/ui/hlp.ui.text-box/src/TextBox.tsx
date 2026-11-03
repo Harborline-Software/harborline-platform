@@ -27,8 +27,10 @@ function resolvedLabel(
   fallback: string,
   resolveString: (override: string | undefined, key: string) => string,
 ): string {
-  const value = resolveString(override, key)
-  return value === key ? fallback : value
+  // Blank caller text or a blank catalog value is not a name; fall through to the next source.
+  if (override?.trim()) return resolveString(override, key)
+  const value = resolveString(undefined, key)
+  return value === key || !value.trim() ? fallback : value
 }
 
 export const TextBox = React.forwardRef<HTMLInputElement, TextBoxProps>(function TextBox(

@@ -17,44 +17,44 @@
   </button>
   @if (open)
   {
-    <section @ref="Dialog" id="@DialogId" role="dialog" aria-modal="false" aria-label="@Labels.Title" class="hl-popover__content hl-notification-center__dialog" @onkeydown="HandleDialogKeyAsync">
-      <header class="hl-notification-center__header"><h2>@Labels.Title</h2>@if(UnreadCount > 0 && OnMarkAllRead.HasDelegate){<button type="button" @onclick="MarkAllReadAsync">@Labels.MarkAllRead</button>}</header>
+    <section @ref="Dialog" id="@DialogId" role="dialog" aria-modal="false" tabindex="-1" aria-label="@L.Title" class="hl-popover__content hl-notification-center__dialog" @onkeydown="HandleDialogKeyAsync">
+      <header class="hl-notification-center__header"><h2>@L.Title</h2>@if(UnreadCount > 0 && OnMarkAllRead.HasDelegate){<button type="button" @onclick="MarkAllReadAsync">@L.MarkAllRead</button>}</header>
       @if (ResolvedGroups.Count > 1)
       {
-        <div role="tablist" aria-label="@Labels.Title" class="hl-notification-center__tabs">
-          <button type="button" role="tab" aria-selected="@(activeKind is null ? "true" : "false")" @onclick="() => SetKind(null)">@Labels.All</button>
+        <div role="tablist" aria-label="@L.GroupLabel" class="hl-notification-center__tabs">
+          <button type="button" role="tab" aria-selected="@(activeKind is null ? "true" : "false")" @onclick="() => SetKind(null)">@L.All</button>
           @foreach (var group in ResolvedGroups) { <button type="button" role="tab" aria-selected="@(activeKind == group.Kind ? "true" : "false")" @onclick="() => SetKind(group.Kind)">@group.Label</button> }
         </div>
       }
       <div class="hl-notification-center__scroll">
         @if (VisibleItems.Count == 0)
         {
-          <p class="hl-notification-center__empty">@Labels.Empty</p>
+          <p class="hl-notification-center__empty">@L.Empty</p>
         }
         else
         {
           <ul class="hl-notification-center__items">
-            @foreach (var item in VisibleItems)
+            @foreach (var (item, row) in VisibleItems.Select((item, row) => (item, row)))
             {
-              <li class="hl-notification-center__item" data-hl-kind="@item.Kind" data-hl-read="@(item.Read ? "true" : null)">
+              <li @key="item.Id" class="hl-notification-center__item" data-hl-kind="@item.Kind" data-hl-read="@(item.Read ? "true" : null)">
                 <div class="hl-notification-center__item-copy">
-                  @if (!item.Read) { <span role="img" class="hl-notification-center__unread" aria-label="@Labels.Unread"></span> }
+                  @if (!item.Read) { <span role="img" class="hl-notification-center__unread" aria-label="@L.Unread"></span> }
                   <strong>@item.Title</strong>@if(item.Actor is not null){<span>@item.Actor</span>}@if(item.Body is not null){<p>@item.Body</p>}@if(item.Preview is not null){<code>@item.Preview</code>}<time>@item.Timestamp</time>
                 </div>
                 @if (item.Kind == "proposal")
                 {
-                  <div class="hl-notification-center__actions"><button type="button" disabled="@actionLatch" aria-label="@($"{Labels.Confirm}: {item.Title}")" @onclick="() => DecideAsync(item, true)">@Labels.Confirm</button><button type="button" disabled="@actionLatch" aria-label="@($"{Labels.Deny}: {item.Title}")" @onclick="() => DecideAsync(item, false)">@Labels.Deny</button></div>
+                  <div class="hl-notification-center__actions"><button type="button" disabled="@actionLatch" aria-label="@($"{L.Confirm}: {item.Title}")" @onclick="() => DecideAsync(item, true)">@L.Confirm</button><button type="button" disabled="@actionLatch" aria-label="@($"{L.Deny}: {item.Title}")" @onclick="() => DecideAsync(item, false)">@L.Deny</button></div>
                 }
                 else
                 {
-                  <div class="hl-notification-center__actions">@if(OnAction.HasDelegate){<button type="button" @onclick="() => OnAction.InvokeAsync(item)">@item.Title</button>}@if(OnDismiss.HasDelegate){<button type="button" class="hl-notification-center__dismiss" aria-label="@Labels.Dismiss(item.Title)" @onclick="() => OnDismiss.InvokeAsync(item)"><svg aria-hidden="true" fill="none" focusable="false" viewBox="0 0 16 16"><path d="M3 3l10 10M13 3 3 13"></path></svg></button>}</div>
+                  <div class="hl-notification-center__actions">@if(OnAction.HasDelegate){<button type="button" @onclick="() => OnAction.InvokeAsync(item)">@item.Title</button>}@if(OnDismiss.HasDelegate){<button type="button" class="hl-notification-center__dismiss" aria-label="@L.Dismiss(item.Title)" @onclick="() => DismissAsync(item, row)"><svg aria-hidden="true" fill="none" focusable="false" viewBox="0 0 16 16"><path d="M3 3l10 10M13 3 3 13"></path></svg></button>}</div>
                 }
               </li>
             }
           </ul>
         }
       </div>
-      @if (ShowViewAll) { <footer><button type="button" @onclick="ViewAllAsync">@Labels.ViewAll</button></footer> }
+      @if (ShowViewAll) { <footer><button type="button" @onclick="ViewAllAsync">@L.ViewAll</button></footer> }
     </section>
   }
 </div>
@@ -81,11 +81,44 @@
   private bool actionLatch;
   private bool focusDialog;
   private bool focusTrigger;
+  // An action that removes its own control (dismissing an item, marking all read) leaves focus nowhere
+  // once the host applies the change, which may be in a later render. Focus then settles on the row now
+  // at the same position (else the last row), else the first control in the dialog.
+  // The settle waits only while focus is still on the control the action started from: focus anywhere
+  // else cancels it, so focus the user moved is never taken back. -1 means no row; the token tells the
+  // module a new settle has started.
+  private int? settleRow;
+  private int settleToken;
   private string? activeKind;
   private string DialogId { get; } = $"hl-notifications-{Guid.NewGuid():N}";
   private ElementReference Root, Trigger, Dialog;
   private IOutsidePointerRegistration? outsideRegistration;
   private IJSObjectReference? module;
+  // Caller text overrides each label; blank caller text keeps the catalog default, so no chrome or
+  // control name is ever empty.
+  private NotificationCenterLabels L = NotificationCenterLabels.English;
+  // The default record (Labels not supplied) takes every label from the host catalog, else the default
+  // catalog (navigation.notifications.*). A supplied record's text is kept exactly, except that blank
+  // text is no text and falls back to the catalog; an unset GroupLabel also comes from the catalog.
+  private NotificationCenterLabels ResolveLabels(NotificationCenterLabels labels)
+  {
+    var fromCatalog = ReferenceEquals(labels, NotificationCenterLabels.English);
+    string Field(string key, string? caller) => Localized(key, fromCatalog ? null : caller);
+    return new(Field("navigation.notifications.title", labels.Title), Field("navigation.notifications.all", labels.All),
+      Field("navigation.notifications.confirm", labels.Confirm), Field("navigation.notifications.deny", labels.Deny),
+      Field("navigation.notifications.markAllRead", labels.MarkAllRead), Field("navigation.notifications.viewAll", labels.ViewAll),
+      Field("navigation.notifications.empty", labels.Empty),
+      title => Localized("navigation.notifications.dismiss", fromCatalog ? null : labels.Dismiss?.Invoke(title), new Dictionary<string, object?> { ["title"] = title }),
+      Field("navigation.notifications.unread", labels.Unread),
+      Field("navigation.notifications.groups", labels.GroupLabel));
+  }
+  private string Localized(string key, string? caller, IReadOnlyDictionary<string, object?>? variables = null)
+  {
+    if (!string.IsNullOrWhiteSpace(caller)) return caller;
+    var fallback = Harborline.Foundation.Localization.HarborlineDefaultStrings.Interpolate(Harborline.Foundation.Localization.HarborlineDefaultStrings.Get(key), variables);
+    var catalog = LocaleContext?.ResolveString(key, variables) ?? fallback;
+    return string.IsNullOrWhiteSpace(catalog) || catalog == key ? fallback : catalog;
+  }
   private int UnreadCount => Items.Count(item => !item.Read);
   private int PendingCount => Items.Count(item => item.Kind == "proposal");
   private int OtherUnreadCount => Items.Count(item => item.Kind != "proposal" && !item.Read);
@@ -101,20 +134,39 @@
 
   protected override void OnParametersSet()
   {
+    L = ResolveLabels(Labels);
     if (Items.GroupBy(item => item.Id, StringComparer.Ordinal).Any(group => group.Count() > 1)) throw new InvalidOperationException("duplicate-notification-id");
     if (MaxVisible < 0) throw new InvalidOperationException("invalid-notification-limit");
-    if (string.IsNullOrWhiteSpace(BellLabel) || string.IsNullOrWhiteSpace(Labels.Title)) throw new InvalidOperationException("accessible-notification-label-required");
+    if (string.IsNullOrWhiteSpace(BellLabel)) throw new InvalidOperationException("accessible-notification-label-required");
   }
 
   private string DefaultBellLabel()
   {
     if (BadgeMode == NotificationBadgeMode.Decisions)
     {
-      if (PendingCount > 0) return $"{Labels.Title}, {FormatCount(PendingCount)} approval pending";
-      if (OtherUnreadCount > 0) return $"{Labels.Title}, {FormatCount(OtherUnreadCount)} unread";
-      return Labels.Title;
+      if (PendingCount > 0) return BellPhrase("pending", PendingCount);
+      if (OtherUnreadCount > 0) return BellPhrase("unread", OtherUnreadCount);
+      return L.Title;
     }
-    return UnreadCount > 0 ? $"{Labels.Title}, {FormatCount(UnreadCount)} unread" : Labels.Title;
+    return UnreadCount > 0 ? BellPhrase("unread", UnreadCount) : L.Title;
+  }
+  private static readonly Harborline.Foundation.Localization.HarborlineLocaleScope ZeroScope = new();
+  // navigation.notifications.bell.<kind>.<category>, then .other, in the host catalog and then in the default
+  // catalog: a host that translates only .other keeps its own language at every count. The category is the
+  // locale provider's cardinal plural category; blank text counts as absent; {count} is the caller-formatted count.
+  private string BellPhrase(string kind, int count)
+  {
+    var category = LocaleContext?.PluralCategory(count) ?? ZeroScope.PluralCategory(count);
+    var variables = new Dictionary<string, object?> { ["title"] = L.Title, ["count"] = FormatCount(count) };
+    var keys = new[] { $"navigation.notifications.bell.{kind}.{category.ToString().ToLowerInvariant()}", $"navigation.notifications.bell.{kind}.other" };
+    foreach (var source in new[] { LocaleContext?.Catalog, Harborline.Foundation.Localization.HarborlineDefaultStrings.Values })
+    {
+      if (source is null) continue;
+      foreach (var key in keys)
+        if (source.TryGetValue(key, out var text) && !string.IsNullOrWhiteSpace(text))
+          return Harborline.Foundation.Localization.HarborlineDefaultStrings.Interpolate(text, variables);
+    }
+    return L.Title;
   }
 
   private static string KindLabel(string kind) => kind.Length == 0 ? kind : char.ToUpperInvariant(kind[0]) + kind[1..];
@@ -122,10 +174,11 @@
 
   private async Task ToggleAsync() { if (open) await CloseAsync(true); else await OpenAsync(); }
   private async Task OpenAsync() { open = true; actionLatch = false; focusDialog = true; await InvokeAsync(StateHasChanged); }
-  private async Task CloseAsync(bool restoreFocus) { if (!open) return; open = false; actionLatch = false; if (outsideRegistration is not null) await outsideRegistration.DisposeAsync(); outsideRegistration = null; focusTrigger = restoreFocus; await InvokeAsync(StateHasChanged); }
+  private async Task CloseAsync(bool restoreFocus) { if (!open) return; open = false; settleRow = null; actionLatch = false; if (outsideRegistration is not null) await outsideRegistration.DisposeAsync(); outsideRegistration = null; focusTrigger = restoreFocus; await InvokeAsync(StateHasChanged); }
   private Task HandleDialogKeyAsync(KeyboardEventArgs args) => args.Key == "Escape" ? CloseAsync(true) : Task.CompletedTask;
   private async Task DecideAsync(NotificationCenterItem item, bool confirm) { if (actionLatch) return; actionLatch = true; if (confirm) await OnConfirm.InvokeAsync(item); else await OnDeny.InvokeAsync(item); await CloseAsync(true); }
-  private async Task MarkAllReadAsync() => await OnMarkAllRead.InvokeAsync();
+  private async Task MarkAllReadAsync() { settleRow = -1; settleToken++; await OnMarkAllRead.InvokeAsync(); }
+  private async Task DismissAsync(NotificationCenterItem item, int row) { settleRow = row; settleToken++; await OnDismiss.InvokeAsync(item); }
   private async Task ViewAllAsync() { await OnViewAll.InvokeAsync(); await CloseAsync(true); }
 
   protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -134,6 +187,7 @@
     if (open && outsideRegistration is null) outsideRegistration = await OutsidePointer.ObserveAsync([Root], _ => new ValueTask(CloseAsync(false)));
     if (focusDialog) { focusDialog = false; await module!.InvokeVoidAsync("positionDialog", Trigger, Dialog); await module!.InvokeVoidAsync("focusFirst", Dialog); }
     if (focusTrigger) { focusTrigger = false; await module!.InvokeVoidAsync("focus", Trigger); }
+    if (open && settleRow is int row && module is not null && await module.InvokeAsync<bool>("settleFocus", Dialog, row, settleToken)) settleRow = null;
   }
 
   public async ValueTask DisposeAsync()

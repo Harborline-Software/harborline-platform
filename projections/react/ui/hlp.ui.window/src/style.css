@@ -3,9 +3,9 @@
   --hl-window-surface: var(--hl-card, var(--hl-surface, Canvas));
   --hl-window-text: var(--hl-card-foreground, var(--hl-foreground, CanvasText));
   --hl-window-muted: var(--hl-muted, color-mix(in srgb, CanvasText 8%, Canvas));
-  --hl-window-muted-text: var(--hl-muted-foreground, GrayText);
+  --hl-window-muted-text: var(--hl-muted-foreground, color-mix(in srgb, CanvasText 72%, Canvas));
   --hl-window-border: var(--hl-border, color-mix(in srgb, CanvasText 24%, Canvas));
-  --hl-window-focus: var(--hl-focus, Highlight);
+  --hl-window-focus: var(--hl-focus, color-mix(in srgb, CanvasText 72%, Canvas));
   --hl-window-danger: var(--hl-danger, var(--hl-destructive, Mark));
   --hl-window-danger-text: var(--hl-destructive-foreground, var(--hl-primary-foreground, #fff));
   --hl-window-primary: var(--hl-primary, Highlight);

@@ -161,7 +161,7 @@ describe('GuardedControl revision 2 names and descriptions', () => {
       </HarborlineLocaleProvider>,
     )
     fireEvent.click(action())
-    fireEvent.keyDown(document, { key: 'Escape' })
+    fireEvent.keyDown(screen.getByRole('button'), { key: 'Escape' })
     expect(screen.getByRole('status').textContent).toBe(fill('chrome.guard.recovered.whole'))
     fireEvent.click(action())
     fireEvent.click(action())

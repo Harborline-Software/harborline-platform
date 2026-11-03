@@ -30,10 +30,9 @@ describe('LayersRail React projection', () => {
   it('moves focus to the visible ancestor when collapsing', () => {
     const values = setup()
     render(<LayersRail {...values}/>)
-    const child = screen.getByText('Child').closest('button')!
-    child.focus()
+    screen.getByRole('treeitem', { name: 'Child' }).focus()
     fireEvent.click(screen.getByRole('button', { name: 'Collapse' }))
     expect(screen.queryByText('Child')).toBeNull()
-    expect(screen.getByText('Root').closest('button')).toHaveFocus()
+    expect(screen.getByRole('treeitem', { name: 'Root' })).toHaveFocus()
   })
 })

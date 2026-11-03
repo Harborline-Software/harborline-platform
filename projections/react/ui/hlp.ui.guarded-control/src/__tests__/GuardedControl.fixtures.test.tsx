@@ -7,8 +7,7 @@ import { sharedCases } from './fixtures'
 // Revision 2 shared cases run the production component against the fixture's own input and expected
 // values, as the Blazor lane's AssertCase does, so both lanes are held to the same names and
 // descriptions. `disabled` is asserted too, because revision 2 changes what its describedBy carries.
-// The other revision-1 behaviour cases are asserted by name in the native suite, not per case here:
-// making them case-addressable is the follow-up the shared runner records (ticket 081).
+// The revision-1 behavior cases also run case-by-case in GuardedControl.behavior-fixtures.test.tsx.
 // projection-equivalence compares lanes. An unknown case id fails.
 type Case = { id: string; input: Record<string, any>; expected: Record<string, any> }
 const cases = sharedCases as unknown as Case[]

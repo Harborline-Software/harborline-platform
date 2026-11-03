@@ -235,17 +235,10 @@ export function GuardedControl({
     let blurTimer = 0
     const blur = () => { blurTimer = window.setTimeout(() => recover('window-blur'), BLUR_GRACE_MS) }
     const focus = () => { window.clearTimeout(blurTimer) }
-    const escape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        event.preventDefault()
-        recover('escape')
-      }
-    }
     window.addEventListener('popstate', navigate)
     window.addEventListener('blur', blur)
     window.addEventListener('focus', focus)
     document.addEventListener('visibilitychange', visibility)
-    document.addEventListener('keydown', escape)
     return () => {
       window.clearInterval(tick)
       window.clearTimeout(blurTimer)
@@ -253,7 +246,6 @@ export function GuardedControl({
       window.removeEventListener('blur', blur)
       window.removeEventListener('focus', focus)
       document.removeEventListener('visibilitychange', visibility)
-      document.removeEventListener('keydown', escape)
     }
   }, [state]) // recover keeps one identity for the control's lifetime
 
@@ -344,7 +336,10 @@ export function GuardedControl({
           <span aria-hidden="true">▣</span><span id={labelId}>{label}</span>
         </button>
       ) : (
-        <button ref={armedRef} type="button" disabled={state === 'committing' || inert} aria-labelledby={labelId} aria-describedby={ids} data-guard-state={state} className="hl-guarded-control__action hl-guarded-control__action--armed" onClick={commit}>
+        <button ref={armedRef} type="button" disabled={state === 'committing' || inert} aria-labelledby={labelId} aria-describedby={ids} data-guard-state={state} className="hl-guarded-control__action hl-guarded-control__action--armed" onClick={commit} onKeyDown={event => {
+          // Escape belongs to this focused widget; another control's Escape is left alone.
+          if (event.key === 'Escape' && state === 'armed') { event.preventDefault(); recover('escape') }
+        }}>
           <span aria-hidden="true">□</span><span id={labelId}>{label}</span>
           {state === 'armed' ? <span role="timer" aria-label={duration} className="hl-guarded-control__timer">{duration}</span> : <span>{t('common.loading')}</span>}
         </button>

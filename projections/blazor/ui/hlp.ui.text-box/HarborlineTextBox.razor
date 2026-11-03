@@ -3,6 +3,9 @@
 @using Microsoft.AspNetCore.Components.Web
 @using Harborline.UIAdapters.Blazor.Components.Forms
 @using Harborline.UIAdapters.Blazor.Localization
+@using Microsoft.JSInterop
+@implements IAsyncDisposable
+@inject IJSRuntime JavaScript
 
 @* hlp.ui.text-box composes hlp.ui.input: the input module owns appearance, host
    attributes, prefix/suffix composition, touch sizing, and focus treatment, while
@@ -75,7 +78,7 @@
   {
     if (!string.IsNullOrWhiteSpace(instanceOverride)) return LocaleContext?.ResolveString(key, instanceOverride: instanceOverride) ?? instanceOverride;
     var resolved = LocaleContext?.ResolveString(key);
-    return string.IsNullOrEmpty(resolved) || resolved == key ? fallback : resolved;
+    return string.IsNullOrWhiteSpace(resolved) || resolved == key ? fallback : resolved;
   }
   private readonly string instanceId = Guid.NewGuid().ToString("N");
 
@@ -126,7 +129,7 @@
       builder.AddAttribute(16, "data-hl-action", "reveal");
       builder.AddAttribute(17, "aria-label", ResolvedRevealLabel);
       builder.AddAttribute(18, "aria-pressed", PasswordVisible ? "true" : "false");
-      builder.AddAttribute(19, "onclick", EventCallback.Factory.Create<MouseEventArgs>(this, ToggleReveal));
+      builder.AddAttribute(19, "onclick", EventCallback.Factory.Create<MouseEventArgs>(this, ToggleRevealAsync));
       builder.AddEventPreventDefaultAttribute(20, "onmousedown", true);
       builder.OpenElement(21, "svg");
       builder.AddAttribute(22, "aria-hidden", "true");
@@ -185,18 +188,79 @@
   private async Task HandleInputAsync(string next)
   {
     if (ResolvedDisabled) return;
+    clearAwaitingValue = false;
     if (!Controlled) internalValue = next;
     await ValueChanged.InvokeAsync(next);
   }
 
   private Task HandleKeyDownAsync(KeyboardEventArgs args) => KeyDown.InvokeAsync(args);
 
+  private IJSObjectReference? module;
+  private bool disposed;
+  private bool pendingFocus;
+  private bool clearAwaitingValue;
+  private int[]? pendingSelection;
+
+  // The clear action is removed with the value, and hlp.ui.input renders a new input element when its
+  // suffix goes away. Focus moves to the input after the handler's render; a controlled host may apply
+  // the empty value in a later render, which replaces the input again, so focus is recovered then if it
+  // fell to the page. A host that removes this field while handling the change disposes it, and a
+  // disposed component doesn't render, so no call follows.
   private async Task ClearAsync()
   {
     if (!ShowClear) return;
     if (!Controlled) internalValue = string.Empty;
-    await ValueChanged.InvokeAsync(string.Empty);
+    pendingFocus = clearAwaitingValue = true;
+    try { await ValueChanged.InvokeAsync(string.Empty); }
+    catch { pendingFocus = clearAwaitingValue = false; throw; }
   }
 
-  private void ToggleReveal() { if (RevealVisible) revealed = !revealed; }
+  // Reveal changes only the rendered type; focus and the text selection return to the input after the
+  // type change renders, as the browser may reset the selection when the type changes.
+  private async Task ToggleRevealAsync()
+  {
+    if (!RevealVisible) return;
+    int[]? selection = null;
+    await InvokeModuleAsync(async js => selection = await js.InvokeAsync<int[]?>("readSelection", ResolvedId));
+    if (disposed) return;
+    revealed = !revealed;
+    pendingSelection = selection ?? [-1, -1];
+  }
+
+  protected override async Task OnAfterRenderAsync(bool firstRender)
+  {
+    if (pendingSelection is { Length: 2 } selection)
+    {
+      pendingSelection = null; pendingFocus = false;
+      await InvokeModuleAsync(js => js.InvokeVoidAsync("restoreSelection", ResolvedId, selection[0], selection[1]));
+    }
+    else if (pendingFocus || (clearAwaitingValue && !ShowClear))
+    {
+      var call = pendingFocus ? "focusInput" : "focusInputIfLost";
+      pendingFocus = false;
+      if (!ShowClear) clearAwaitingValue = false;
+      await InvokeModuleAsync(js => js.InvokeVoidAsync(call, ResolvedId));
+    }
+  }
+
+  private async Task InvokeModuleAsync(Func<IJSObjectReference, ValueTask> call)
+  {
+    if (disposed) return;
+    try
+    {
+      module ??= await JavaScript.InvokeAsync<IJSObjectReference>("import", "./_content/Harborline.UIAdapters.Blazor/text-box.js");
+      if (disposed && module is not null) { await module.DisposeAsync(); return; }
+      if (module is not null && !disposed) await call(module);
+    }
+    catch (JSException) { }
+    catch (JSDisconnectedException) { }
+    catch (InvalidOperationException) { } // includes ObjectDisposedException
+    catch (TaskCanceledException) { }
+  }
+
+  public async ValueTask DisposeAsync()
+  {
+    disposed = true;
+    if (module is not null) try { await module.DisposeAsync(); } catch (JSDisconnectedException) { } catch (ObjectDisposedException) { }
+  }
 }

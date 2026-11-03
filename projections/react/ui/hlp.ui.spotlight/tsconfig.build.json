@@ -21,6 +21,8 @@
       "react/jsx-runtime": ["../hlp.ui.button/node_modules/@types/react/jsx-runtime.d.ts"],
       "react-dom": ["../hlp.ui.button/node_modules/@types/react-dom/index.d.ts"],
       "@harborline-platform/hlp.ui.cn": ["../hlp.ui.cn/dist/index.d.ts"],
+      "@harborline-platform/hlp.ui.default-strings": ["../hlp.ui.default-strings/dist/index.d.ts"],
+      "@harborline-platform/hlp.ui.locale-provider": ["../hlp.ui.locale-provider/dist/index.d.ts"],
       "clsx": ["../hlp.ui.button/node_modules/clsx/clsx.d.ts"],
       "tailwind-merge": ["../hlp.ui.button/node_modules/tailwind-merge/dist/types.d.ts"]
     },

@@ -42,7 +42,7 @@ describe('GuardedControl focus restoration', () => {
     render(<><input aria-label="Elsewhere"/><GuardedControl action="a" classificationId="c" label="Publish" onCommit={() => undefined}/></>)
     fireEvent.click(action())
     moveFocusElsewhere()
-    fireEvent.keyDown(document, { key: 'Escape' })
+    fireEvent.keyDown(screen.getByRole('button'), { key: 'Escape' })
     await act(async () => undefined)
     expect(action()).toHaveAttribute('data-guard-state', 'covered')
     expect(action()).toHaveFocus()
