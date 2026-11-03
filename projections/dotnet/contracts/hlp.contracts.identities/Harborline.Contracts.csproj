@@ -5,7 +5,7 @@
     <PackageId>Harborline.Contracts</PackageId>
     <AssemblyName>Harborline.Contracts</AssemblyName>
     <RootNamespace>Harborline.Contracts</RootNamespace>
-    <Description>Typed identities and generated Dynamic Forms wire contracts for Harborline Platform boundaries.</Description>
+    <Description>Typed identities and maintained Rules, Text, Presentation, Forms and Workflow wire contracts for Harborline Platform boundaries.</Description>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageReleaseNotes>Internal-only projection; public distribution is not authorized.</PackageReleaseNotes>
   </PropertyGroup>

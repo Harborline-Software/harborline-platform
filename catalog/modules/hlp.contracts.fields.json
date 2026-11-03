@@ -1,0 +1,35 @@
+{
+  "moduleId": "hlp.contracts.fields",
+  "module": {
+    "interface": {
+      "path": "specs/modules/contracts/hlp.contracts.fields/interface.yaml",
+      "revision": 1
+    },
+    "moduleKind": "runtime",
+    "presentation": {
+      "disposition": "not-applicable",
+      "rationale": "Shared field declarations carry no rendering or authoring surface."
+    },
+    "owner": "platform-contracts",
+    "dependencies": [
+      "hlp.contracts.identities"
+    ],
+    "status": "extracted-candidate",
+    "depth": {
+      "disposition": "deep-module",
+      "deletionTest": "PASS",
+      "redistributedComplexity": [
+        "kind, governance and scalar-shape declarations copied between the Records compiler and field consumers",
+        "three-source domain, narrowing constraint and refusal shapes independently invented by each member"
+      ]
+    },
+    "projections": {
+      "dotnet": {
+        "role": "implementation",
+        "path": "projections/dotnet/contracts/hlp.contracts.identities/Fields",
+        "status": "preview",
+        "packageContribution": "Harborline.Contracts"
+      }
+    }
+  }
+}

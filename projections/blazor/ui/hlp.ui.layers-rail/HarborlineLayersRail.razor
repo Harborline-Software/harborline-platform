@@ -54,7 +54,7 @@
         // The name is the label alone; badge and provenance text stay announced as the description.
         var describedBy = string.Join(' ', new[] { hasBadge ? NodeElementId(node.Id, "badge") : null, showSource ? NodeElementId(node.Id, "source") : null }.Where(part => part is not null));
         @* The treeitem itself takes focus (APG treeview): it is the tree's one tab stop and handles its keys. *@
-        <div role="treeitem" tabindex="@(focusedId == node.Id ? 0 : -1)" aria-labelledby="@NodeElementId(node.Id, "label")" aria-describedby="@(describedBy.Length > 0 ? describedBy : null)" aria-level="@(node.Depth + 1)" aria-expanded="@(expandable ? expanded.ToString().ToLowerInvariant() : null)"
+        <div role="treeitem" tabindex="@(focusedId == node.Id ? "0" : "-1")" aria-labelledby="@NodeElementId(node.Id, "label")" aria-describedby="@(describedBy.Length > 0 ? describedBy : null)" aria-level="@(node.Depth + 1)" aria-expanded="@(expandable ? expanded.ToString().ToLowerInvariant() : null)"
              aria-selected="@(Canvas.SelectedId == node.Id ? "true" : "false")" data-node-id="@node.Id"
              data-hl-ghosted="@(projection.Ghosted ? "true" : null)" data-ghosted="@(projection.Ghosted ? "true" : null)"
              class="hl-layers-rail__node" style="--hl-depth:@node.Depth" @onfocus="() => focusedId = node.Id" @onkeydown="args => HandleTreeKeyAsync(node, args)" @onclick="() => SelectNodeAsync(node.Id)">

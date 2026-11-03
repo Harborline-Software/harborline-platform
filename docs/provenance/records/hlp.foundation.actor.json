@@ -1,0 +1,32 @@
+{
+  "moduleId": "hlp.foundation.actor",
+  "phase4Evidence": "specs/modules/foundation/hlp.foundation.actor/interface.yaml",
+  "sourceExtracted": true,
+  "sourceState": "Revision 2 promotes reusable API evidence projection and stored trace read contracts; adds Access-owned set and predicate-time check providers over the existing host decider and admitted scope evaluation through the shared rule runtime. No gate, grant algebra, roster policy, audit store or HTTP adapter is duplicated.",
+  "contentHashes": {
+    "projections/dotnet/foundation/hlp.foundation.actor/ICurrentUser.cs": "39e71b295cbbc0f5c886a0d7458bcdbd54a4dcb5c1ed1418113ec2e7e3d5ab04",
+    "projections/dotnet/foundation/hlp.foundation.actor/IAuthenticatedActorContext.cs": "4b235e343f714fac13eb077c2d043fcbb95e0baa5ba44e3cd6ec6bcca9b72d16",
+    "projections/dotnet/foundation/hlp.foundation.actor/IPrincipalPartyResolver.cs": "6ad2d092f66df906e9e11faa5e9404bc6b483647dbda5ff03f7ab220f53e44f4",
+    "projections/dotnet/foundation/hlp.foundation.actor/IPartyContext.cs": "2436629d98a77f575a3fe2b00723843969274565e11657887af39910f8529a9b",
+    "projections/dotnet/foundation/hlp.foundation.actor/PrincipalPartyResolutionFailure.cs": "b1104954438bf5087db71fe82184cd3991703af11f337bccfad3ca077b5f3b24",
+    "projections/dotnet/foundation/hlp.foundation.actor/PrincipalPartyResolutionException.cs": "a0c18aec1cdaafc116695b64a0d2e92f7222e58793344180882f5fa6f9b5bdfd",
+    "projections/dotnet/foundation/hlp.foundation.actor.tests/ActorContractTests.cs": "c7945d1136828437d42c2f9b43d6fd8d8ad03139567baf0e7fe46a44526aef88",
+    "conformance/hlp.foundation.actor/fixtures.yaml": "8ffc0599e0dede5d9412b9a80415b48528404d5803edfc7a8d12d0dda1a97b35",
+    "specs/modules/foundation/hlp.foundation.actor/interface.yaml": "bba605bbf68aa709f5a875911e76725f7d399801fa06b20809f33e14097d82e7",
+    "projections/dotnet/foundation/hlp.foundation.actor/AccessScope.cs": "b13593d6d1b4ce151b51f1378ee47dd87bbf1dce9e8774860cf02194f114110f",
+    "projections/dotnet/foundation/hlp.foundation.actor/AccessProvider.cs": "81d4cd522cf3fcc8b2486f78c43bf42b3eccef9a119a7422e2ae3ee1917231f3",
+    "projections/dotnet/foundation/hlp.foundation.actor/AuthorizationDecisionEvidence.cs": "cff3ae2ba7dd1b97d7b4213c766f1dda9cc4a5830360465a3aec6f8e91a80c1b",
+    "projections/dotnet/foundation/hlp.foundation.actor/AuthorizationTraceReader.cs": "764eb7cf49eadec35eeb67a8e193bbbc6a9628ba589de66c9536ba3ec83c5e5f",
+    "projections/dotnet/foundation/hlp.foundation.actor/Harborline.Foundation.Authorization.csproj": "59e580618b2fa29c31cc4bfcd83e016d2dda2072d7a92984a12e8d90ccfe2fbf",
+    "projections/dotnet/foundation/hlp.foundation.actor/README.md": "6e23326591a038337c32d161fa366e921cdb3a5078e43ebb51fc1ee91cd34d4b",
+    "projections/dotnet/foundation/hlp.foundation.actor.tests/AccessProviderTests.cs": "612bd51ce1bccc09ebaba25e1b1bf167d2871f9d90e6e51f644865cd2ebac819",
+    "projections/dotnet/foundation/hlp.foundation.actor.tests/AuthorizationTraceTests.cs": "502bc29c8e80491f5aa261068cbf57280fa993b9f54f448233f36bb6936971ee",
+    "projections/dotnet/foundation/hlp.foundation.actor.tests/AccessConsumerTests.cs": "7b65e1ce1d9506a05e40d4609df92c566c2f89d9bd76d86b3517979f9f086942",
+    "projections/dotnet/foundation/hlp.foundation.actor.tests/Harborline.Foundation.Authorization.Tests.csproj": "58eb58df029b7d16473fe3fc536f7544fedb21b53f447f04f85add360b5328bc",
+    "projections/dotnet/architecture/hlp.architecture.tests/AccessDeciderArchitectureTests.cs": "43ca7c22e1ca1cc5df4a09e02e114f941ecd47ef0095803730298e1109f6296e",
+    "projections/dotnet/foundation/hlp.foundation.actor.tests/TypedRecordTargetTests.cs": "235abd622878de9e19ea3b54c8a32bed0f85bcf49045edf72676609714d6e074",
+    "projections/dotnet/foundation/hlp.foundation.actor/AuthoritySnapshotEncoding.cs": "ad5bf4b97ef17aa15b4bda01b3726a9c29c8afcf1a8dc21530fe8dce2abcb352",
+    "projections/dotnet/foundation/hlp.foundation.actor.tests/AuthoritySnapshotEncodingTests.cs": "6da3338ed2a661973ebd1f8061dc5f858558012f4d499cc92a9ec504c97f8dfc"
+  },
+  "nextGate": "Run ordinary audited native and clean package-consumer verification of shared Access and stored traces."
+}

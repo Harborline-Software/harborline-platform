@@ -5,6 +5,7 @@
  * dependents on a single-cell change or a child-table row add/remove.
  */
 import { admissionRefusal, type EvaluationAdmission } from './environment.js'
+import { CodingSubsumptionSnapshot, requireCodingSnapshot } from './coding-subsumption.js'
 import { Codes } from './codes.js'
 import { cell } from './model.js'
 import type {
@@ -278,6 +279,7 @@ export class FormRuleGraph {
   private outcomes = new Map<string, RuleOutcome>()
   private evaluationInstant: Date | null = null
 
+  readonly #coding: CodingSubsumptionSnapshot | undefined
   readonly compiled: CompiledGraph
   /** Instantiated under this graph's independently supplied structural limits. */
   readonly workProof: WorkProof
@@ -292,13 +294,16 @@ export class FormRuleGraph {
     private readonly clock: () => Date,
     admission: EvaluationAdmission | null,
     limits: RuleEngineLimits = DEFAULT_LIMITS,
+    coding?: CodingSubsumptionSnapshot,
   ) {
+    if (arguments.length >= 5) requireCodingSnapshot(coding)
+    this.#coding = coding
     const ownedRules = ownedCompiledRulesOf(compiled)
     if (!ownedRules) throw new Error(Codes.contextSnapshotRequired)
     this.compiled = compiled
     this.compiledRules = ownedRules
     this.limits = { ...limits }
-    this.workProof = deriveGraphWork(ownedRules, this.limits)
+    this.workProof = deriveGraphWork(ownedRules, this.limits, this.#coding !== undefined)
     // T-818: the admission refusal keeps priority; otherwise the proof under THIS graph's limits must fit.
     this.refusal = admissionRefusal(admission, ownedRules.map((rule) => rule.ast))
       ?? staticWorkRefusal(this.workProof, this.limits)?.code ?? null
@@ -677,7 +682,7 @@ export class FormRuleGraph {
       scope.rowSection,
       scope.rowId,
     )
-    const ctx: EvalContext = { resolver, now: this.evaluationInstant!, budget }
+    const ctx: EvalContext = { resolver, now: this.evaluationInstant!, budget, coding: this.#coding }
     try {
       return { state: 'Resolved', value: evaluate(c.rule!.ast as Json, ctx) }
     } catch (e) {
@@ -701,7 +706,7 @@ export class FormRuleGraph {
       scope.rowSection,
       scope.rowId,
     )
-    const ctx: EvalContext = { resolver, now: this.evaluationInstant!, budget }
+    const ctx: EvalContext = { resolver, now: this.evaluationInstant!, budget, coding: this.#coding }
     const previousRule = demand.inFlightRule
     demand.inFlightRule = plan.rule.source.id
     const outcome = buildOutcome(plan.rule, plan.target, ctx).outcome

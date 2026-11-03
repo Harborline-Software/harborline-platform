@@ -90,6 +90,14 @@ public sealed record RecordTypeDocument(
     /// <summary>The declared history policy, or null for a legacy body without a declaration.</summary>
     public RecordHistoryPolicy? HistoryPolicy { get; init; }
 
+    /// <summary>
+    /// The type's category tags (records-ck-23, L103): many per type, independent of the automatic package label. A null
+    /// element is <c>records.document_invalid</c>; every other text tag is kept verbatim, because how tags compare is not
+    /// ruled (L103 is open). Null or empty means none; the canonical body omits an empty list. Unlike the policies, save
+    /// does not carry an omitted list forward: a resave without it clears the tags.
+    /// </summary>
+    public IReadOnlyList<string>? Categories { get; init; }
+
     /// <summary>The typed Records grammar the validator and schema compiler read.</summary>
     public RecordTypeDefinition ToDefinition() => new(RecordTypeId, Fields, Traits, RetentionClockFieldId);
 }
@@ -173,16 +181,24 @@ public enum RecordClass
 public static class RecordTypeDefinitionJson
 {
     /// <summary>
-    /// Serializes a Record Type definition to canonical UTF-8 JSON with a trailing newline. An explicit
-    /// <c>creation_gate</c> of <c>form_only</c> is the default and is omitted, so a body that spells it and one that does
-    /// not have the same bytes and digest.
+    /// Serializes a Record Type definition to canonical UTF-8 JSON with a trailing newline. Defaults are omitted so that a
+    /// body that spells one and a body that does not have the same bytes and digest: an explicit <c>creation_gate</c> of
+    /// <c>form_only</c>, a field <c>conflict_policy</c> of <c>ask</c>, and an empty <c>categories</c> list.
     /// </summary>
     public static byte[] SerializeCanonical(RecordTypeDocument document)
     {
         ArgumentNullException.ThrowIfNull(document);
-        return RecordsJson.SerializeCanonical(document.CreationGate == RecordCreationGate.FormOnly
-            ? document with { CreationGate = null }
-            : document);
+        var canonical = document;
+        if (canonical.CreationGate == RecordCreationGate.FormOnly) canonical = canonical with { CreationGate = null };
+        if (canonical.Categories is { Count: 0 }) canonical = canonical with { Categories = null };
+        if (canonical.Fields?.Any(field => field is { ConflictPolicy: FieldConflictPolicy.Ask }) == true)
+            canonical = canonical with
+            {
+                Fields = canonical.Fields
+                    .Select(field => field is { ConflictPolicy: FieldConflictPolicy.Ask } ? field with { ConflictPolicy = null } : field)
+                    .ToArray(),
+            };
+        return RecordsJson.SerializeCanonical(canonical);
     }
 
     /// <summary>
@@ -203,6 +219,8 @@ public static class RecordTypeDefinitionJson
         if (document.Envelope is null) return null;
         foreach (var (requirement, index) in (document.Envelope.Requires ?? []).Select((requirement, index) => (requirement, index)))
             if (requirement is null) return $"/envelope/requires/{index}";
+        foreach (var (category, index) in (document.Categories ?? []).Select((category, index) => (category, index)))
+            if (category is null) return $"/categories/{index}";
         if (document.Fields is null) return "/fields";
         foreach (var (field, index) in document.Fields.Select((field, index) => (field, index)))
         {
@@ -279,6 +297,7 @@ internal static class RecordsJson
         };
         options.Converters.Add(new RecordClassJsonConverter());
         options.Converters.Add(new RecordCreationGateJsonConverter());
+        options.Converters.Add(new FieldConflictPolicyJsonConverter());
         options.Converters.Add(new RecordAmendmentPolicyJsonConverter());
         options.Converters.Add(new RecordHistoryPolicyJsonConverter());
         options.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.SnakeCaseLower, allowIntegerValues: false));
@@ -360,6 +379,33 @@ internal static class RecordsJson
                 RecordCreationGate.Role => "role",
                 RecordCreationGate.Engine => "engine",
                 _ => throw new JsonException("Unknown creation gate."),
+            });
+    }
+
+    // The conflict policy is a sealed literal set with exact lowercase spellings (records-ck-16); the general enum converter
+    // would accept case variants such as "Ask", and there is deliberately no last-write-wins spelling to accept.
+    private sealed class FieldConflictPolicyJsonConverter : JsonConverter<FieldConflictPolicy>
+    {
+        public override FieldConflictPolicy Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        {
+            if (reader.TokenType != JsonTokenType.String)
+                throw new JsonException("A conflict policy must be a lowercase named value.");
+            return reader.GetString() switch
+            {
+                "ask" => FieldConflictPolicy.Ask,
+                "additive" => FieldConflictPolicy.Additive,
+                "latest_observation" => FieldConflictPolicy.LatestObservation,
+                _ => throw new JsonException("Unknown conflict policy."),
+            };
+        }
+
+        public override void Write(Utf8JsonWriter writer, FieldConflictPolicy value, JsonSerializerOptions options)
+            => writer.WriteStringValue(value switch
+            {
+                FieldConflictPolicy.Ask => "ask",
+                FieldConflictPolicy.Additive => "additive",
+                FieldConflictPolicy.LatestObservation => "latest_observation",
+                _ => throw new JsonException("Unknown conflict policy."),
             });
     }
 

@@ -1,0 +1,63 @@
+{
+  "moduleId": "hlp.foundation.rule-authoring",
+  "module": {
+    "interface": {
+      "path": "specs/modules/foundation/hlp.foundation.rule-authoring/interface.yaml",
+      "revision": 3
+    },
+    "moduleKind": "runtime",
+    "presentation": {
+      "disposition": "not-applicable",
+      "rationale": "The authoring bridge produces typed source, lint findings, intent diagnostics, and previews consumed by separate editor surfaces; it renders nothing."
+    },
+    "owner": "platform-foundation",
+    "dependencies": [
+      "hlp.foundation.rule-runtime"
+    ],
+    "status": "implemented",
+    "depth": {
+      "disposition": "deep-module",
+      "deletionTest": "PASS",
+      "redistributedComplexity": [
+        "draft-to-skin lowering, ECMAScript coercion parity, probe-derived fired-row attribution, and advisory lint reimplemented by every Calculations editor surface",
+        "strict source decoding and full compiler intent diagnostics shared by editors and authoritative store admission"
+      ]
+    },
+    "projections": {
+      "typescript": {
+        "role": "implementation",
+        "path": "projections/typescript/foundation/hlp.foundation.rule-authoring",
+        "status": "preview",
+        "artifact": {
+          "type": "npm",
+          "id": "@harborline-software/rule-authoring",
+          "manifest": "projections/typescript/foundation/hlp.foundation.rule-authoring/package.json",
+          "identityAuthority": "Harborline",
+          "producerRepository": "harborline-platform",
+          "distribution": "internal-only",
+          "candidateRole": "new-bounded-package",
+          "registryAvailable": false
+        }
+      },
+      "dotnet": {
+        "role": "implementation",
+        "path": "projections/dotnet/foundation/hlp.foundation.rule-authoring",
+        "status": "preview",
+        "artifact": {
+          "type": "nuget",
+          "id": "Harborline.Foundation.RuleAuthoring",
+          "assembly": "Harborline.Foundation.RuleAuthoring",
+          "manifest": "projections/dotnet/foundation/hlp.foundation.rule-authoring/Harborline.Foundation.RuleAuthoring.csproj",
+          "dependencies": [
+            "Harborline.Foundation.RuleEngine"
+          ],
+          "identityAuthority": "Harborline",
+          "producerRepository": "harborline-platform",
+          "distribution": "internal-only",
+          "candidateRole": "new-bounded-package",
+          "registryAvailable": false
+        }
+      }
+    }
+  }
+}

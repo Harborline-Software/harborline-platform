@@ -1,3 +1,4 @@
+import type { CodingSubsumptionSnapshot } from './coding-subsumption.js'
 import { Codes } from './codes.js'
 import type { Json, RuleError, ValueState } from './model.js'
 import type { RuleEngineLimits } from './limits.js'
@@ -65,6 +66,7 @@ export class EvalBudget {
 /** Per-cell evaluation state. */
 export interface EvalContext {
   resolver: ValueResolver
+  coding?: CodingSubsumptionSnapshot
   now: Date
   budget: EvalBudget
 }

@@ -35,7 +35,9 @@
  */
 
 import type { RoleReference } from './authorization.js'
-import type { IdentityRef, InternationalizedText, RuleDefinition } from './forms.js'
+import type { IdentityRef } from './forms.js'
+import type { InternationalizedText } from './text.js'
+import type { RuleDefinition } from './rules.js'
 
 // -- Enums (closed; mirror the .NET enums) ------------------------------------
 

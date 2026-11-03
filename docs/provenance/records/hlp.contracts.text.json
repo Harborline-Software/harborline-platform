@@ -1,0 +1,14 @@
+{
+  "moduleId": "hlp.contracts.text",
+  "phase4Evidence": "specs/modules/contracts/hlp.contracts.text/interface.yaml",
+  "sourceExtracted": true,
+  "sourceState": "Revision 1 gives this shared vocabulary explicit ownership in the existing Harborline.Contracts and @harborline-software/contracts artifacts. Maintained C# and TypeScript projections are composed with shared ownership checks. Wire fields and values retain their existing meanings; runtime and package qualification are recorded separately.",
+  "contentHashes": {
+    "specs/modules/contracts/hlp.contracts.text/interface.yaml": "8313447cd3ed7144054b2dd850317848c12dd7ed06b8c61c16162f77d6df77ff",
+    "projections/dotnet/contracts/hlp.contracts.identities/Text/TextContracts.cs": "2035492c0e0d985d72e969d967a970143475499c4cea70d447dea9e77adb24bf",
+    "projections/typescript/contracts/hlp.contracts.forms/src/text.ts": "aba51a0859484307a4b4b50963e4c62e1eca82d506019ef80954bc462225d3b8",
+    "projections/dotnet/contracts/hlp.contracts.identities.tests/SharedContractOwnershipTests.cs": "a71c02909c062b0e1ace9eb3b6f6632df0c11472d7916a119a86e0b6430a89e8",
+    "projections/typescript/contracts/hlp.contracts.forms/tests/shared-ownership.test.ts": "dd07e31c53cec7030f2fb208583ce790047764f6328ce929af48631b194e2f75"
+  },
+  "nextGate": "Qualify the final combined ownership, regeneration, native, TypeScript and package consumer checks through the normal protected delivery procedure."
+}

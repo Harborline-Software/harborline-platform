@@ -1,0 +1,28 @@
+{
+  "moduleId": "hlp.ui.text-box",
+  "legacySourceHashes": {
+    "packages/ui-react/src/components/forms/TextBox.tsx": "7e604d669041078c9edeb0d36bd438a66822e2d5179fad21995d1469a4432d26"
+  },
+  "phase4Evidence": "specs/modules/ui/hlp.ui.text-box/interface.yaml",
+  "sourceExtracted": true,
+  "sourceState": "Interface revision 2 adds blank/whitespace caller accessible-name fallback to the FormField label and the text-box.blank-caller-name conformance case in both projections.",
+  "contentHashes": {
+    "conformance/hlp.ui.text-box/fixtures.yaml": "fec3633671320e61669a370068e36bfe5d4227a0710655a523322605dcd15766",
+    "conformance/hlp.ui.text-box/quality-fixtures.yaml": "de9656790036991185ad8f1fcbc2d7d970f7261a8aa0328ac4a1a5db2dcab464",
+    "conformance/hlp.ui.text-box/runners/run-shared.mjs": "82f59ba914f998a3d93aa8f07c69f634d6af68398b3cce3c7f09e6c88c015fde",
+    "projections/blazor/ui/hlp.ui.text-box/HarborlineTextBox.razor": "81ee4a299e4dc8705fa6aa6e12ff0b88a63027afaee2e0112353759e35299ad3",
+    "projections/react/ui/hlp.ui.text-box/src/TextBox.tsx": "907a8a8e3d2e34ca9527de4741fe7ee6edd9d356660f9beb2199aadc7d17d36b",
+    "projections/react/ui/hlp.ui.text-box/src/__tests__/TextBox.conformance.test.tsx": "8bbcac1ffba8de6373c3a8fdfac177d7b6e3e2953ebc6f620cd8ad3a0876fc49",
+    "projections/react/ui/hlp.ui.text-box/src/__tests__/TextBox.native.test.tsx": "e5209535882699570c9cd66d96b497e812914f1700710916b974ddd1fcc4c670",
+    "projections/react/ui/hlp.ui.text-box/src/__tests__/fixtures.ts": "20652dd0122d03b7a1db483c35ab6793c9f0d667fa7f72045e7e7c76607822d1",
+    "projections/react/ui/hlp.ui.text-box/src/index.ts": "be51799600596ed0d9e5e91d08849427a6de16e2475e93d64abd522a2b83ff56",
+    "projections/react/ui/hlp.ui.text-box/src/test-setup.ts": "097040beeb2cc914b87790306bc835eef4a06321fa3594a6938b6754641ac2ff",
+    "projections/react/ui/hlp.ui.text-box/tsconfig.build.json": "4f66bba78ff63f04b8e22c5a083d5ce42f784b13040608c8572d67c09939bcfe",
+    "projections/react/ui/hlp.ui.text-box/vitest.config.ts": "566490ab7568e089734ef0931fe1ab70aa0b82395f685355b848add23054313d",
+    "specs/modules/ui/hlp.ui.text-box/interface.yaml": "86d501aa095fc675767e568544ab7eeaed5585f4568102ca90d57f7859ba0de9",
+    "specs/modules/ui/hlp.ui.text-box/quality.yaml": "fb3e14589504e976ad2948fdf4b15a82011c8b2a2ec17ff073b3d8e1a956077c",
+    "specs/modules/ui/hlp.ui.text-box/scenarios.json": "052ad53ae5827fa9486ea8a3458210f606a7c387e5a93ea1073da50a5b8c854f",
+    "specs/modules/ui/hlp.ui.text-box/style.css": "964f6b43d812f50cb87d78df2063d2334b6548d8a1a443677ea5aeb3197effa2"
+  },
+  "nextGate": "Retain this conformant aggregate contribution while HLF-052 advances to the next Carrier-essential dependency wave."
+}

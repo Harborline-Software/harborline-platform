@@ -15,6 +15,7 @@ using Harborline.Kernel.Core;
 using Harborline.Kernel.WorkItems;
 using Harborline.Blocks.InspectionReview;
 using Harborline.Contracts.Forms;
+using Harborline.Contracts.Rules;
 using Harborline.Contracts.Workflow;
 using Harborline.Foundation.RuleEngine.Compilation;
 using Harborline.Foundation.RuleEngine.Graph;
