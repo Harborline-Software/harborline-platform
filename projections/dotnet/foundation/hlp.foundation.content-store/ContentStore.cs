@@ -297,6 +297,40 @@ public sealed class ContentIntegrityException : CryptographicException
     public int SegmentIndex { get; }
 }
 
+/// <summary>The state-changing store operation a <see cref="ContentStoreChange"/> saves.</summary>
+public enum ContentStoreOperation
+{
+    /// <summary><see cref="InMemoryContentStore.Put"/> staged an upload.</summary>
+    Put,
+    /// <summary><see cref="InMemoryContentStore.Commit"/> promoted a staged item, added an owner to a duplicate's held item, or reclaimed an expired stage before refusing.</summary>
+    Commit,
+    /// <summary><see cref="InMemoryContentStore.RemoveReference"/> removed an owner, and reclaimed the item when it was the last.</summary>
+    RemoveReference,
+    /// <summary><see cref="InMemoryContentStore.SweepExpired"/> reclaimed expired staged items.</summary>
+    SweepExpired,
+    /// <summary>A failed read opened an integrity episode, or counted another failure in the active one.</summary>
+    IntegrityFailure,
+    /// <summary>A full verified read closed the item's active integrity episode.</summary>
+    IntegrityRecovery,
+}
+
+/// <summary>
+/// One operation's changes, named entry by entry, for a backing to write as one atomic unit (a unit of work, Fowler,
+/// Patterns of Enterprise Application Architecture). Each named key's new value is in the backing's collection, and a key
+/// that is absent there was removed.
+/// </summary>
+/// <param name="Operation">The operation that made the changes.</param>
+/// <param name="Items">Keys of the committed items the operation added, changed or removed.</param>
+/// <param name="StagedItems">Stage ids of the staged items the operation added or removed.</param>
+/// <param name="Reclamations">The entries the operation appended to the reclamation log, in order.</param>
+/// <param name="IntegrityEntries">Keys of the integrity entries the operation added or changed.</param>
+public sealed record ContentStoreChange(
+    ContentStoreOperation Operation,
+    IReadOnlyList<ContentStorageItemKey> Items,
+    IReadOnlyList<Guid> StagedItems,
+    IReadOnlyList<ReclamationEntry> Reclamations,
+    IReadOnlyList<(TenantId TenantId, Guid ItemKey)> IntegrityEntries);
+
 /// <summary>Storage port implemented by the host's durable backing or the supplied in-memory backing (DES-0054 Q31).</summary>
 public interface IContentStoreStorage
 {
@@ -310,11 +344,25 @@ public interface IContentStoreStorage
     IList<ReclamationEntry> Reclamations { get; }
     /// <summary>Stores durable integrity episode entries keyed by tenant and internal item key.</summary>
     IDictionary<(TenantId TenantId, Guid ItemKey), ContentIntegrityEntry> IntegrityEntries { get; }
+
+    /// <summary>
+    /// Writes one operation's changes as one atomic unit. The store calls it exactly once for each operation that changes
+    /// state, while it holds <see cref="SyncRoot"/>, after it has made all of that operation's changes to the collections
+    /// above and before the operation returns. An operation that changes nothing, a read included, never calls it. When it
+    /// throws, the operation fails with that exception and the store puts every collection back as it was before the
+    /// operation, so the backing must keep its durable state unchanged as well.
+    /// </summary>
+    void Save(ContentStoreChange change);
 }
 
 /// <summary>One non-durable storage-port implementation for tests, prototypes and a host that explicitly chooses process-local state.</summary>
 public sealed class InMemoryContentStoreStorage : IContentStoreStorage
 {
+    /// <summary>Does nothing: the collections are the only state, so the store's changes to them are already the whole save.</summary>
+    public void Save(ContentStoreChange change)
+    {
+    }
+
     /// <inheritdoc />
     public object SyncRoot { get; } = new object();
     /// <inheritdoc />
@@ -506,7 +554,13 @@ public sealed class InMemoryContentStore
             var contentId = new ContentId(ContentId.Algorithm + Convert.ToHexStringLower(id.GetHashAndReset()));
             var (wrapped, wrapNonce, wrapTag) = Wrap(dataKeyWrapKey, dataKey, contentId);
             var item = new ContentStoreItem(Guid.NewGuid(), tenant, contentId, length, mediaType, _clock.GetUtcNow(), wrapped, wrapNonce, wrapTag, noncePrefix, SegmentSizeBytes, segments);
-            lock (_storage.SyncRoot) _storage.StagedItems.Add(item.StageId, item);
+            lock (_storage.SyncRoot)
+            {
+                using var unit = new UnitOfWork(_storage, ContentStoreOperation.Put);
+                unit.SetStaged(item.StageId, item);
+                unit.Save();
+            }
+
             return item.StageId;
         }
         finally
@@ -529,6 +583,7 @@ public sealed class InMemoryContentStore
         ArgumentException.ThrowIfNullOrWhiteSpace(displayName);
         lock (_storage.SyncRoot)
         {
+            using var unit = new UnitOfWork(_storage, ContentStoreOperation.Commit);
             if (!_storage.StagedItems.TryGetValue(stageId, out var staged) || staged.Tenant != tenant)
             {
                 throw new ContentRefusedException(ContentRefusals.StagingExpired, "The staged item is no longer available.", StoreDeclaration);
@@ -536,7 +591,8 @@ public sealed class InMemoryContentStore
 
             if (Expired(staged))
             {
-                ReclaimStaged(staged, "staging-expired", "commit");
+                ReclaimStaged(unit, staged, "staging-expired", "commit");
+                unit.Save();
                 throw new ContentRefusedException(ContentRefusals.StagingExpired, "The staged item is no longer available.", StoreDeclaration);
             }
 
@@ -552,17 +608,21 @@ public sealed class InMemoryContentStore
                 throw new ContentRefusedException(ContentRefusals.TenantQuota, "The tenant's quota would be exceeded.", StoreDeclaration, Detail(_options.TenantQuotaBytes, tenantObserved));
             }
 
-            _storage.StagedItems.Remove(stageId);
+            unit.SetStaged(stageId, null);
             if (_storage.Items.TryGetValue(new(tenant, staged.ContentId), out var existing))
             {
-                staged.Destroy();
+                unit.Touch(existing);
                 existing.Owners.Add(owner);
+                unit.DestroyAfterSave(staged);
+                unit.Save();
                 return new(existing.ContentId, existing.Length, existing.MediaType, displayName, owner);
             }
 
+            unit.Touch(staged);
             staged.State = ContentLifecycleState.Committed;
             staged.Owners.Add(owner);
-            _storage.Items.Add(new(tenant, staged.ContentId), staged);
+            unit.SetItem(new(tenant, staged.ContentId), staged);
+            unit.Save();
             return new(staged.ContentId, staged.Length, staged.MediaType, displayName, owner);
         }
     }
@@ -611,13 +671,21 @@ public sealed class InMemoryContentStore
         if (hold != HoldStatus.None) return false;
         lock (_storage.SyncRoot)
         {
-            if (!_storage.Items.TryGetValue(new(tenant, reference.ContentId), out var item) || !item.Owners.Remove(reference.Owner)) return false;
-            if (item.Owners.Count != 0) return false;
-            _storage.Items.Remove(new(tenant, item.ContentId));
-            item.Destroy();
-            item.State = ContentLifecycleState.Reclaimed;
-            ResolveIntegrity(item); // completed erasure ends the episode (DES-0054 Q34, design.md:212)
-            _storage.Reclamations.Add(new(item.ContentId, tenant, "last-reference-removed", run));
+            if (!_storage.Items.TryGetValue(new(tenant, reference.ContentId), out var item) || !item.Owners.Contains(reference.Owner)) return false;
+            using var unit = new UnitOfWork(_storage, ContentStoreOperation.RemoveReference);
+            unit.Touch(item);
+            item.Owners.Remove(reference.Owner);
+            if (item.Owners.Count != 0)
+            {
+                unit.Save();
+                return false;
+            }
+
+            unit.SetItem(new(tenant, item.ContentId), null);
+            unit.DestroyAfterSave(item);
+            ResolveIntegrity(unit, item); // completed erasure ends the episode (DES-0054 Q34, design.md:212)
+            unit.Append(new(item.ContentId, tenant, "last-reference-removed", run));
+            unit.Save();
             return true;
         }
     }
@@ -628,8 +696,10 @@ public sealed class InMemoryContentStore
         ArgumentException.ThrowIfNullOrWhiteSpace(run);
         lock (_storage.SyncRoot)
         {
+            using var unit = new UnitOfWork(_storage, ContentStoreOperation.SweepExpired);
             var expired = _storage.StagedItems.Values.Where(Expired).ToArray();
-            foreach (var item in expired) ReclaimStaged(item, "staging-expired", run);
+            foreach (var item in expired) ReclaimStaged(unit, item, "staging-expired", run);
+            unit.Save();
             return expired.Length;
         }
     }
@@ -791,13 +861,12 @@ public sealed class InMemoryContentStore
 
     private bool Expired(ContentStoreItem item) => _clock.GetUtcNow() - item.CreatedUtc >= _options.StagingExpiry;
 
-    private void ReclaimStaged(ContentStoreItem item, string cause, string run)
+    private static void ReclaimStaged(UnitOfWork unit, ContentStoreItem item, string cause, string run)
     {
-        _storage.StagedItems.Remove(item.StageId);
-        item.Destroy();
-        item.State = ContentLifecycleState.Reclaimed;
-        ResolveIntegrity(item); // completed erasure ends the episode (DES-0054 Q34)
-        _storage.Reclamations.Add(new(item.ContentId, item.Tenant, cause, run));
+        unit.SetStaged(item.StageId, null);
+        unit.DestroyAfterSave(item);
+        ResolveIntegrity(unit, item); // completed erasure ends the episode (DES-0054 Q34)
+        unit.Append(new(item.ContentId, item.Tenant, cause, run));
     }
 
     private ContentStoreItem Readable(TenantId tenant, ContentReference reference, bool authorized)
@@ -854,7 +923,7 @@ public sealed class InMemoryContentStore
         var wrapKey = DeriveSubkey(tenantKey, item.Tenant, DataKeyWrapKeyInfo);
         try
         {
-            return new ContentReadStream(item, owner, wrapKey, first, last, offset, length, verifiesWholeItem, context, ReportIntegrity, ResolveIntegrity);
+            return new ContentReadStream(item, owner, wrapKey, first, last, offset, length, verifiesWholeItem, context, ReportIntegrity, ResolveVerified);
         }
         finally
         {
@@ -873,18 +942,21 @@ public sealed class InMemoryContentStore
         lock (_storage.SyncRoot)
         {
             if (item.State == ContentLifecycleState.Reclaimed) return; // a read racing erasure cannot reopen an episode (Q34)
+            using var unit = new UnitOfWork(_storage, ContentStoreOperation.IntegrityFailure);
             var key = (item.Tenant, item.StageId);
             if (!_storage.IntegrityEntries.TryGetValue(key, out var prior) || !prior.Active)
             {
                 beginsEpisode = true;
-                _storage.IntegrityEntries[key] = new(item.StageId, item.Tenant, _clock.GetUtcNow(), _clock.GetUtcNow(), 1, segmentIndex, true,
-                    effective.TraceId, effective.OperationId, effective.PrincipalId, owner);
+                unit.SetIntegrity(key, new(item.StageId, item.Tenant, _clock.GetUtcNow(), _clock.GetUtcNow(), 1, segmentIndex, true,
+                    effective.TraceId, effective.OperationId, effective.PrincipalId, owner));
             }
             else
             {
-                _storage.IntegrityEntries[key] = prior with { LastSeenUtc = _clock.GetUtcNow(), Count = prior.Count + 1, SegmentIndex = segmentIndex,
-                    TraceId = effective.TraceId, OperationId = effective.OperationId, PrincipalId = effective.PrincipalId, Owner = owner };
+                unit.SetIntegrity(key, prior with { LastSeenUtc = _clock.GetUtcNow(), Count = prior.Count + 1, SegmentIndex = segmentIndex,
+                    TraceId = effective.TraceId, OperationId = effective.OperationId, PrincipalId = effective.PrincipalId, Owner = owner });
             }
+
+            unit.Save();
         }
 
         if (beginsEpisode)
@@ -894,15 +966,112 @@ public sealed class InMemoryContentStore
         }
     }
 
-    private void ResolveIntegrity(ContentStoreItem item)
+    // A full verified read ends the item's episode as its own operation; with no active episode it changes nothing.
+    private void ResolveVerified(ContentStoreItem item)
     {
         lock (_storage.SyncRoot)
         {
-            var key = (item.Tenant, item.StageId);
-            if (_storage.IntegrityEntries.TryGetValue(key, out var entry) && entry.Active)
+            using var unit = new UnitOfWork(_storage, ContentStoreOperation.IntegrityRecovery);
+            ResolveIntegrity(unit, item);
+            unit.Save();
+        }
+    }
+
+    private static void ResolveIntegrity(UnitOfWork unit, ContentStoreItem item)
+    {
+        var key = (item.Tenant, item.StageId);
+        if (unit.Storage.IntegrityEntries.TryGetValue(key, out var entry) && entry.Active)
+        {
+            unit.SetIntegrity(key, entry with { Active = false });
+        }
+    }
+
+    // One operation's unit of work (Fowler, Patterns of Enterprise Application Architecture). Each change goes through it:
+    // it keeps the entry's before-image, then applies the change to the backing, so the backing sees all of the operation's
+    // changes when Save hands it the one save step naming them. Disposing the unit without a successful Save puts every
+    // before-image back, so a throwing save step, or any exception before it, leaves the store as the operation found it
+    // (CWE-460). Destroying key material cannot be undone, so it waits until the save succeeds. The caller holds SyncRoot
+    // from the first check to the save, so no other operation sees or splits the unit (CWE-362, CWE-367).
+    private sealed class UnitOfWork(IContentStoreStorage storage, ContentStoreOperation operation) : IDisposable
+    {
+        private readonly Dictionary<ContentStorageItemKey, ContentStoreItem?> _items = [];
+        private readonly Dictionary<Guid, ContentStoreItem?> _staged = [];
+        private readonly Dictionary<(TenantId TenantId, Guid ItemKey), ContentIntegrityEntry?> _integrity = [];
+        private readonly Dictionary<ContentStoreItem, (ContentOwner[] Owners, ContentLifecycleState State)> _touched = new(ReferenceEqualityComparer.Instance);
+        private readonly List<ReclamationEntry> _reclamations = [];
+        private readonly List<ContentStoreItem> _destroy = [];
+        private bool _saved;
+
+        public IContentStoreStorage Storage => storage;
+
+        public void SetItem(ContentStorageItemKey key, ContentStoreItem? value)
+        {
+            _items.TryAdd(key, storage.Items.TryGetValue(key, out var prior) ? prior : null);
+            Apply(storage.Items, key, value);
+        }
+
+        public void SetStaged(Guid stageId, ContentStoreItem? value)
+        {
+            _staged.TryAdd(stageId, storage.StagedItems.TryGetValue(stageId, out var prior) ? prior : null);
+            Apply(storage.StagedItems, stageId, value);
+        }
+
+        public void SetIntegrity((TenantId TenantId, Guid ItemKey) key, ContentIntegrityEntry value)
+        {
+            _integrity.TryAdd(key, storage.IntegrityEntries.TryGetValue(key, out var prior) ? prior : null);
+            storage.IntegrityEntries[key] = value;
+        }
+
+        // Called before the caller changes the item's owners or state in place; names the item as changed.
+        public void Touch(ContentStoreItem item)
+        {
+            _touched.TryAdd(item, (item.Owners.ToArray(), item.State));
+            _items.TryAdd(new(item.Tenant, item.ContentId), storage.Items.TryGetValue(new(item.Tenant, item.ContentId), out var prior) ? prior : null);
+        }
+
+        public void Append(ReclamationEntry entry)
+        {
+            _reclamations.Add(entry);
+            storage.Reclamations.Add(entry);
+        }
+
+        public void DestroyAfterSave(ContentStoreItem item) => _destroy.Add(item);
+
+        public void Save()
+        {
+            if (_items.Count + _staged.Count + _integrity.Count + _reclamations.Count != 0)
             {
-                _storage.IntegrityEntries[key] = entry with { Active = false };
+                storage.Save(new(operation, [.. _items.Keys], [.. _staged.Keys], [.. _reclamations], [.. _integrity.Keys]));
             }
+
+            _saved = true;
+            foreach (var item in _destroy)
+            {
+                item.Destroy();
+                item.State = ContentLifecycleState.Reclaimed;
+            }
+        }
+
+        public void Dispose()
+        {
+            if (_saved) return;
+            foreach (var (item, (owners, state)) in _touched)
+            {
+                item.Owners.Clear();
+                item.Owners.AddRange(owners);
+                item.State = state;
+            }
+
+            foreach (var (key, prior) in _items) Apply(storage.Items, key, prior);
+            foreach (var (key, prior) in _staged) Apply(storage.StagedItems, key, prior);
+            foreach (var (key, prior) in _integrity) Apply(storage.IntegrityEntries, key, prior);
+            for (var appended = 0; appended < _reclamations.Count; appended++) storage.Reclamations.RemoveAt(storage.Reclamations.Count - 1);
+        }
+
+        private static void Apply<TKey, TValue>(IDictionary<TKey, TValue> entries, TKey key, TValue? value) where TValue : class
+        {
+            if (value is null) entries.Remove(key);
+            else entries[key] = value;
         }
     }
 
@@ -1083,9 +1252,9 @@ public sealed class InMemoryContentStore
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
             if (_failure is not null) throw _failure;
+            var copied = 0;
             try
             {
-                var copied = 0;
                 while (!buffer.IsEmpty && _remaining > 0)
                 {
                     if (_offset == _clear.Length)
@@ -1102,14 +1271,6 @@ public sealed class InMemoryContentStore
                     copied += take;
                     buffer = buffer[take..];
                 }
-
-                if (_remaining == 0 && !_completed)
-                {
-                    _completed = true;
-                    if (_verifiesWholeItem) _resolve(_item);
-                }
-
-                return copied;
             }
             catch (ContentIntegrityException)
             {
@@ -1119,6 +1280,16 @@ public sealed class InMemoryContentStore
             {
                 return Fail(exception);
             }
+
+            // Outside the try: a failed save step of the recovery fails this read as itself, never as tampering, and a
+            // later read retries it.
+            if (_remaining == 0 && !_completed)
+            {
+                if (_verifiesWholeItem) _resolve(_item);
+                _completed = true;
+            }
+
+            return copied;
         }
 
         protected override void Dispose(bool disposing)

@@ -6,7 +6,7 @@ The content store substrate ([DES-0054](https://github.com/Harborline-Software/h
 - **Commit** turns a staged item into a reference inside one critical section, counting record and tenant quotas in logical bytes and deduplicating within the tenant.
 - **Read** authorizes before range evaluation, then returns a segment-streaming body. A first-segment or data-key failure is a typed `ContentIntegrityException` before a host writes headers; a later failure escapes the body so the host aborts it. Delivery uses `filename*` (RFC 8187 UTF-8) after an ASCII `filename` fallback where needed.
 - **Erasure** destroys the item's own data key. Each item is sealed in fixed 65,536-byte AES-256-GCM segments; the item records that size. HKDF-SHA-256 derives separate tenant subkeys for content ids and data-key wrapping.
-- **Ports.** `IContentStoreStorage` owns item metadata, ciphertext segments, wrapped keys, staged items, reclamation entries and integrity episodes. `InMemoryContentStoreStorage` is one implementation; a host supplies durable storage. `IContentStoreQuotaBase` declares the host-owned Q22 volume measurement.
+- **Ports.** `IContentStoreStorage` owns item metadata, ciphertext segments, wrapped keys, staged items, reclamation entries and integrity episodes, and takes one `Save` step per state-changing operation (below). `InMemoryContentStoreStorage` is one implementation; a host supplies durable storage. `IContentStoreQuotaBase` declares the host-owned Q22 volume measurement.
 - **Integrity telemetry.** Every failed read marks `content.integrity` on an Activity span and increments the zero-alarm counter. The optional `IContentIntegrityLogger` receives one structured first-failure event per episode; the backing retains count and last-seen state until a full verified read or erasure.
 - **The staging sweep** is registered as `content-staging-sweep`, triggered by `schedule` on `sys.sched.content-staging`.
 
@@ -59,3 +59,38 @@ restart hook retains the same in-memory backing; it proves producer reconstructi
 not process/disk durability. `InMemoryContentStoreStorageContract` runs the complete
 inherited suite. HTTP protocol tests and durable timing evidence still belong to
 the durable-host slice.
+
+## The storage save step (interface revision 2)
+
+`IContentStoreStorage.Save(ContentStoreChange)` is the port's one save step, a unit of work in Fowler's sense
+(*Patterns of Enterprise Application Architecture*). It lets a durable backing write each operation as one atomic
+unit. The store calls it:
+
+- exactly once for each operation that changes state: `Put`, `Commit` (a new item, a duplicate's added owner, or an
+  expired stage reclaimed before the refusal), `RemoveReference`, `SweepExpired`, and a read that opens or counts an
+  integrity episode (`IntegrityFailure`) or closes one with a full verified read (`IntegrityRecovery`);
+- while it holds `SyncRoot`, after it has made all of the operation's changes to the collections, and before the
+  operation returns. The quota check, the changes and the save are never split (CWE-362, CWE-367);
+- never for an operation that changes nothing. That covers every read that leaves the integrity episodes as they
+  were, a refusal, a held or unknown reference, and a sweep with nothing expired.
+
+`ContentStoreChange` names the `ContentStoreOperation`, the `Items` keys and `StagedItems` stage ids it added,
+changed or removed, the `ReclamationEntry` values it appended, and the `IntegrityEntries` keys it added or changed.
+The new value of each named key is in its collection; a named key missing from the collection was removed. A durable
+backing writes those entries in one transaction (for example one SQLite transaction, or a journal record it fsyncs
+before returning).
+
+If `Save` throws, the operation fails with that exception, and the store puts every collection, owner list and
+lifecycle state back to its value before the operation (CWE-460). It destroys key material only after a successful
+save, so a failed reclamation or duplicate collapse loses no bytes. The backing must leave its durable state
+unchanged when it throws. `InMemoryContentStoreStorage.Save` does nothing; its collections are the whole state.
+
+The internal test hooks that corrupt a segment or a wrap tag are not operations and do not save. Evidence for
+T-521/content-store-storage-unit-of-work is in `hlp.foundation.content-store.tests/ContentStoreSaveStepTests.cs`:
+
+| Clause | Test |
+|---|---|
+| 1. One save per state-changing operation, inside `SyncRoot`, after all its changes, naming them; none for a read | `Clause_1_4_every_state_changing_operation_saves_once_inside_the_lock_after_all_its_changes_naming_exactly_what_changed`, `Clause_1_4_reads_and_operations_that_change_nothing_never_call_the_save_step` |
+| 2. A throwing save fails the operation and leaves the store as it was | `Clause_2_4_a_throwing_save_fails_a_commit_a_duplicate_commit_and_a_reference_removal_and_leaves_the_store_as_it_was`, `Clause_2_a_throwing_save_also_leaves_a_put_an_expired_commit_the_sweep_and_integrity_episodes_as_they_were` |
+| 3. The in-memory save does nothing; the section 9 and restart tests pass unchanged | `InMemoryContentStoreStorageContract` and `ContentIntegrityTelemetryPrivacyTests`, with `ContentStoreTests.cs` unchanged |
+| 4. A recording backing and a throwing backing | `RecordingStorage` in the tests above. The expected entries come from the test's own diff of the backing's collections before and after each operation, not from the store. |
