@@ -24,7 +24,7 @@ describe('NotificationCenter React projection', () => {
     const action = vi.fn()
     render(<NotificationCenter items={items} onAction={action}/>)
     fireEvent.click(screen.getByRole('button', { name: 'Notifications, 2 unread' }))
-    fireEvent.click(screen.getByRole('tab', { name: 'Result' }))
+    fireEvent.click(screen.getByRole('tab', { name: 'Results' }))
     expect(screen.queryByText('Approve export')).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'Export ready' }))
     expect(action).toHaveBeenCalledWith(items[1])

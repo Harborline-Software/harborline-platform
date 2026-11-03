@@ -731,5 +731,9 @@
   "navigation.userMenu.panel": "Account menu",
   "navigation.userMenu.signOut": "Sign out",
   "navigation.userMenu.trigger": "Account menu for {name}",
-  "structural.spotlight.empty": "No results"
+  "structural.spotlight.empty": "No results",
+  "navigation.notifications.group.other": "Other",
+  "navigation.notifications.group.proposal": "Proposals",
+  "navigation.notifications.group.result": "Results",
+  "navigation.notifications.group.system": "System"
 }

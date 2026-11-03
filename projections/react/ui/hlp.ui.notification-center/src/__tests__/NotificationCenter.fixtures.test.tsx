@@ -18,6 +18,11 @@ const dialogOpen = () => screen.queryByRole('dialog') !== null
 // The dialog, group tab list and dismiss names, read with the dialog open, then closed again. Two kinds
 // make the tab list exist; the result row carries the dismiss control.
 const namedItems = (title: string): NotificationCenterItem[] => [{ id: 'p1', title: 'Approve export', timestamp: 'Now', kind: 'proposal' }, { id: 'r1', title, timestamp: 'Now', kind: 'result' }]
+// The tab labels after the All tab, and the kinds each tab shows (read from the rows it leaves visible).
+const tabLabels = () => screen.getAllByRole('tab').map(tab => tab.textContent)
+const visibleIds = () => Array.from(document.querySelectorAll('.hl-notification-center__item strong')).map(node => node.textContent!.replace('Title ', ''))
+const shownKinds = (tab: HTMLElement) => { fireEvent.click(tab); return [...new Set(Array.from(document.querySelectorAll<HTMLElement>('.hl-notification-center__item')).map(row => row.dataset.hlKind))] }
+const fromSpecs = (specs: string[]) => specs.map(entry => { const [kind, id] = entry.split(':'); return item(id!, kind!) })
 function chromeNames() {
   open()
   const names = { dialog: screen.getByRole('dialog').getAttribute('aria-label'), tablist: screen.getByRole('tablist').getAttribute('aria-label'), dismiss: document.querySelector('.hl-notification-center__dismiss')!.getAttribute('aria-label') }
@@ -120,22 +125,53 @@ const assertions: Record<string, (entry: Case) => void | Promise<void>> = {
     expect(outcomes.every(outcome => outcome.focus)).toBe(expected.triggerFocusRestoredExceptOutsideTarget)
   },
   'notification-center.groups': ({ input, expected }) => {
+    // Each derived tab's label comes from the catalog, and the kind it filters to is read from the rows it shows.
     render(<NotificationCenter items={(input.kinds as string[]).map((kind, index) => item(`n${index}`, kind))}/>)
     open()
     const tabs = screen.getAllByRole('tab')
     expect(tabs).toHaveLength(expected.tabs)
-    const labels = tabs.slice(1).map(tab => tab.textContent!.toLowerCase())
-    expect(labels).toEqual(expected.groupKinds)
-    expect(JSON.stringify(labels) === JSON.stringify([...new Set(input.kinds as string[])])).toBe(expected.firstAppearanceOrder)
+    expect(tabs.slice(1).map(tab => tab.textContent)).toEqual(expected.labels)
+    const kinds = tabs.slice(1).map(tab => shownKinds(tab))
+    expect(kinds.map(shown => shown.join())).toEqual(expected.groupKinds)
+    expect(JSON.stringify(kinds.flat()) === JSON.stringify([...new Set(input.kinds as string[])])).toBe(expected.firstAppearanceOrder)
+    // Not the old rule: no label is a kind id with its first letter raised.
+    for (const kind of expected.groupKinds as string[]) expect(expected.labels).not.toContain(kind.charAt(0).toUpperCase() + kind.slice(1))
   },
   'notification-center.filter': ({ input, expected }) => {
-    const items = (input.items as string[]).map(entry => { const [kind, id] = entry.split(':'); return item(id!, kind!) })
+    const items = fromSpecs(input.items)
     render(<NotificationCenter items={items}/>)
     open()
-    fireEvent.click(screen.getByRole('tab', { name: input.activeKind.charAt(0).toUpperCase() + input.activeKind.slice(1) }))
-    const visible = Array.from(document.querySelectorAll('.hl-notification-center__item strong')).map(node => node.textContent!.replace('Title ', ''))
+    fireEvent.click(screen.getByRole('tab', { name: input.activeLabel }))
+    const visible = visibleIds()
     expect(visible).toEqual(expected.visibleIds)
     expect(JSON.stringify(visible) === JSON.stringify(items.filter(entry => entry.kind === input.activeKind).map(entry => entry.id))).toBe(expected.callerOrderPreserved)
+  },
+  'notification-center.group-labels-localized': ({ input, expected }) => {
+    // A host catalog overriding each built-in group key labels those tabs; under en-XA every tab is the
+    // pseudo-localized string, and none is a kind id, raw or capitalized.
+    const kinds = input.kinds as string[]
+    const items = kinds.map((kind, index) => item(`n${index}`, kind))
+    for (const [host, outcome] of [[input.hostCatalog, expected.hostCatalog], [input.pseudoCatalog, expected.pseudo]] as const) {
+      const view = render(<HarborlineLocaleProvider locale={host.locale} catalog={host.entries}><NotificationCenter items={items}/></HarborlineLocaleProvider>)
+      open()
+      expect(tabLabels()).toEqual(outcome.tabs)
+      view.unmount()
+    }
+    expect(expected.pseudo.tabs.filter((label: string) => kinds.some(kind => label.toLowerCase() === kind.toLowerCase())).length).toBe(expected.pseudo.kindIdLabels)
+  },
+  'notification-center.custom-kind-fallback': ({ input, expected }) => {
+    // Without groups every custom kind shares one last tab, labelled from the fallback key, that shows them all;
+    // with caller groups the caller's tabs and labels win.
+    const items = fromSpecs(input.items)
+    for (const [groups, active, outcome] of [[undefined, input.activeLabel, expected.derived], [input.groups, input.callerActiveLabel, expected.callerGroups]] as const) {
+      const view = render(<NotificationCenter items={items} groups={groups}/>)
+      open()
+      expect(tabLabels()).toEqual(outcome.tabs)
+      fireEvent.click(screen.getByRole('tab', { name: active }))
+      expect(screen.getByRole('tab', { name: active }).getAttribute('aria-selected')).toBe('true')
+      expect(visibleIds()).toEqual(outcome.visibleIds)
+      view.unmount()
+    }
   },
   'notification-center.proposal': ({ input, expected }) => {
     const confirm = vi.fn(); const deny = vi.fn()

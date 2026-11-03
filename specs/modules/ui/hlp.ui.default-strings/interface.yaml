@@ -1,14 +1,16 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.ui.default-strings",
-  "interfaceRevision": 2,
+  "interfaceRevision": 3,
   "semantics": {
     "operation": "provide the complete application-essential UI string-key catalog, English fallback values, partial host overrides, and bounded runtime interpolation",
     "observableOutput": "A deterministic resolved string for a known key without coupling the UI package to an application i18n runtime."
   },
   "invariants": [
-    "Revision 2 contains exactly 733 unique dot-namespaced keys: the 713 revision-1 keys from the pinned Harborline App source, unchanged in identity, value and order, followed by 20 platform-originated keys (forms.switch.*, navigation.notifications.*, navigation.userMenu.*, structural.spotlight.empty) that give Switch, NotificationCenter, UserMenu and Spotlight catalog-backed default copy.",
-    "Revision 1 is preserved as evidence: selecting the revision-1 keys from the revision-2 catalog, in catalog order, reproduces revision 1 exactly (713 keys, SHA-256 73c7cec0b07f0058d0a48784e76fe8aa86f8e421f85716ff2ea9cc53975c3f7c over JSON.stringify(Object.entries(...))).",
+    "Revision 3 contains exactly 737 unique dot-namespaced keys: the 713 revision-1 keys from the pinned Harborline App source, unchanged in identity, value and order, followed by the 20 revision-2 platform keys (forms.switch.*, navigation.notifications.*, navigation.userMenu.*, structural.spotlight.empty) that give Switch, NotificationCenter, UserMenu and Spotlight catalog-backed default copy, followed by the 4 revision-3 keys navigation.notifications.group.other, .proposal, .result and .system that label NotificationCenter's derived group tabs (T-1137).",
+    "Revision 2 is preserved as evidence: the first 733 entries of the revision-3 catalog reproduce revision 2 exactly (SHA-256 ca8ea96dbf3bf6ee98766ccbfd3352122cafbf9bb60cd52cf1a0f0612daa564a over JSON.stringify(Object.entries(...))).",
+    "Every revision-3 key carries a non-empty translator note saying where the text appears and what it means, in default-strings.notes.json beside each projection's catalog (a flat key-to-note map; every note names a catalog key). The notes are source metadata for translators, like a .resx comment or an ARB description: they are not part of the shipped string map, which keeps its flat key-to-English shape. Both projections carry the same entries and notes.",
+    "Revision 1 is preserved as evidence: selecting the revision-1 keys from the revision-3 catalog, in catalog order, reproduces revision 1 exactly (713 keys, SHA-256 73c7cec0b07f0058d0a48784e76fe8aa86f8e421f85716ff2ea9cc53975c3f7c over JSON.stringify(Object.entries(...))).",
     "The default catalog is the sole source of the closed HarborlineStringKey vocabulary.",
     "A host catalog may override any known key and may omit all other keys.",
     "The module owns catalog data and interpolation only; runtime locale, direction, plural selection, formatter selection, and provider precedence belong to hlp.ui.locale-provider.",
@@ -18,7 +20,7 @@
     "Catalog resolution performs no network access, persistent I/O, or dependency on react-i18next, FormatJS, Telerik, or Blazor localization services."
   ],
   "errors": [{"code": "unknown-key", "when": "A statically typed caller requests a key outside the frozen catalog vocabulary."}],
-  "performance": {"operation": "O(p) interpolation for template length p and O(1) catalog lookup", "catalogKeyCount": 733},
+  "performance": {"operation": "O(p) interpolation for template length p and O(1) catalog lookup", "catalogKeyCount": 737},
   "presentation": {"disposition": "not-applicable", "rationale": "The catalog supplies localized text but renders no visual element itself."},
   "cases": [
     {"id": "default-strings.keyset"},
@@ -34,6 +36,7 @@
     {"id": "default-strings.missing-variable"},
     {"id": "default-strings.no-variables"},
     {"id": "default-strings.app-en-us-closure"},
-    {"id": "default-strings.runtime-neutral"}
+    {"id": "default-strings.runtime-neutral"},
+    {"id": "default-strings.translator-notes"}
   ]
 }
