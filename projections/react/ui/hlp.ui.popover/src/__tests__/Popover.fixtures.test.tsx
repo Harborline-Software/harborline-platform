@@ -36,7 +36,7 @@ const samePlace = (element: HTMLElement, placed: { side: string; left: number; t
   return actual.side === placed.side && actual.left === placed.left && actual.top === placed.top
 }
 
-afterEach(() => { vi.restoreAllMocks() })
+afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals() })
 
 describe('Popover shared fixture semantics', () => {
   it('covers every case or names it as unasserted', () => {
@@ -55,7 +55,7 @@ describe('Popover shared fixture semantics', () => {
 const assertions: Record<string, (entry: Case) => void | Promise<void>> = {
   'popover.closed': ({ expected }) => {
     render(<Popover><PopoverTrigger>Open</PopoverTrigger><PopoverContent aria-label="Details">Body</PopoverContent></Popover>)
-    expect(dialog() !== null).toBe(expected.contentMounted)
+    expect(document.querySelector('.hl-popover__content') !== null).toBe(expected.contentMounted)
     expect(trigger().getAttribute('aria-expanded')).toBe(expected.ariaExpanded)
   },
   'popover.uncontrolled': async ({ input: given, expected }) => {
@@ -176,3 +176,19 @@ const assertions: Record<string, (entry: Case) => void | Promise<void>> = {
     expect([...dialog()!.classList]).toEqual(expected.contentClasses)
   },
 }
+
+// Oracle: explicit geometry and the existing six-pixel offset contract: 750 - 40 - 6 = 704;
+// centered horizontal placement is 300 + (80 - 100) / 2 = 290.
+it('renders the flipped side and coordinates at the bottom viewport edge', () => {
+  vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(100)
+  vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockReturnValue(40)
+  vi.stubGlobal('innerWidth', 1000)
+  vi.stubGlobal('innerHeight', 800)
+  vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function (this: Element) {
+    return (this.classList.contains('hl-popover__content')
+      ? { left: 0, top: 0, right: 100, bottom: 40, width: 100, height: 40 }
+      : { left: 300, top: 750, right: 380, bottom: 780, width: 80, height: 30 }) as DOMRect
+  })
+  render(<Popover open><PopoverAnchor>Anchor</PopoverAnchor><PopoverTrigger>Open</PopoverTrigger><PopoverContent aria-label="Edge" side="bottom" align="center" sideOffset={6}>Body</PopoverContent></Popover>)
+  expect(at(screen.getByRole('dialog', { name: 'Edge' }))).toEqual({ side: 'top', left: 290, top: 704 })
+})
