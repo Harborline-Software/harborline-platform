@@ -137,6 +137,7 @@ public sealed class NotificationCenterTests : BunitContext
     private static string[] Strings(System.Text.Json.JsonElement value) => value.EnumerateArray().Select(v => v.GetString()!).ToArray();
     // The tab labels, the ids of the visible rows, and the kinds a tab shows (read from the rows it leaves visible).
     private static string[] TabLabels(IRenderedComponent<HarborlineNotificationCenter> cut) => cut.FindAll("[role=tab]").Select(tab => tab.TextContent).ToArray();
+    private static string[] SelectedTabs(IRenderedComponent<HarborlineNotificationCenter> cut) => cut.FindAll("[role=tab]").Where(tab => tab.GetAttribute("aria-selected") == "true").Select(tab => tab.TextContent).ToArray();
     private static string[] VisibleIds(IRenderedComponent<HarborlineNotificationCenter> cut) => cut.FindAll(".hl-notification-center__item strong").Select(node => node.TextContent.Replace("Title ", "", StringComparison.Ordinal)).ToArray();
     private static string[] ShownKinds(IRenderedComponent<HarborlineNotificationCenter> cut, int tab)
     {
@@ -269,8 +270,12 @@ public sealed class NotificationCenterTests : BunitContext
                     Open(cut);
                     Assert.Equal(Strings(outcome.GetProperty("tabs")), TabLabels(cut));
                     cut.FindAll("[role=tab]").Single(tab => tab.TextContent == active).Click();
-                    Assert.Equal("true", cut.FindAll("[role=tab]").Single(tab => tab.TextContent == active).GetAttribute("aria-selected"));
+                    Assert.Equal(new[] { active! }, SelectedTabs(cut));
                     Assert.Equal(Strings(outcome.GetProperty("visibleIds")), VisibleIds(cut));
+                    // The All tab restores every item, in caller order.
+                    cut.FindAll("[role=tab]")[0].Click();
+                    Assert.Equal(new[] { Strings(outcome.GetProperty("tabs"))[0] }, SelectedTabs(cut));
+                    Assert.Equal(items.Select(item => item.Id).ToArray(), VisibleIds(cut));
                 }
                 break;
             }

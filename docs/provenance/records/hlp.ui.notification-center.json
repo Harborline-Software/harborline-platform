@@ -15,7 +15,7 @@
     "projections/blazor/ui/hlp.ui.notification-center/wwwroot/notification-center.js": "d62ab9f9134a57774bfc7c8e8a0bee4bfa7f7f1b485ad4758ae0a840cc1dbdaf",
     "projections/react/ui/hlp.ui.notification-center/src/NotificationCenter.tsx": "cd57631b152dbb9123e8f9dcf84a185485c80fb473e2f3a0dcb1c7d795ef9949",
     "projections/react/ui/hlp.ui.notification-center/src/__tests__/NotificationCenter.conformance.test.ts": "a26c7128b732a58745402dbbd9c985dc55fabd09ba62e466eff1eb2e76542748",
-    "projections/react/ui/hlp.ui.notification-center/src/__tests__/NotificationCenter.native.test.tsx": "7ae266afe5ceff84f0d5642a0e0534017026af777dd84cf434cbf08bf1a66ad3",
+    "projections/react/ui/hlp.ui.notification-center/src/__tests__/NotificationCenter.native.test.tsx": "f754e30827b0cc0ecc38c0987915976c05de1704d25633ba2c6ce33584ed5955",
     "projections/react/ui/hlp.ui.notification-center/src/__tests__/fixtures.ts": "77ff42a22433f3d8a3e6a7a7b274a77128c10be026dd92bd83c4dd7774e1f09f",
     "projections/react/ui/hlp.ui.notification-center/src/index.ts": "b2feea2df2a4318375d6d116d5985086db50134a58a0ccdbc3b8ab87df89d948",
     "projections/react/ui/hlp.ui.notification-center/src/test-setup.ts": "097040beeb2cc914b87790306bc835eef4a06321fa3594a6938b6754641ac2ff",

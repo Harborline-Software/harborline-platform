@@ -31,6 +31,14 @@ describe('NotificationCenter React projection', () => {
     expect(screen.getByRole('dialog')).toBeInTheDocument()
   })
 
+  it('derives its tabs again when the caller passes new items', () => {
+    const view = render(<NotificationCenter items={[items[0]!]}/>)
+    fireEvent.click(screen.getByRole('button', { name: 'Notifications, 1 unread' }))
+    expect(screen.queryByRole('tablist')).toBeNull()
+    view.rerender(<NotificationCenter items={[...items, { id: 'd1', title: 'Deployed', timestamp: 'Now', kind: 'deploy' }]}/>)
+    expect(screen.getAllByRole('tab').map(tab => tab.textContent)).toEqual(['All', 'Proposals', 'Results', 'Other'])
+  })
+
   // b19: the unread marker is a labelled graphic, as in the Blazor lane. aria-label on a role-less
   // span is prohibited (axe aria-prohibited-attr) and is not announced, found once the gallery scan
   // reached the portaled popover.

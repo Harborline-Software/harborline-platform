@@ -20,6 +20,7 @@ const dialogOpen = () => screen.queryByRole('dialog') !== null
 const namedItems = (title: string): NotificationCenterItem[] => [{ id: 'p1', title: 'Approve export', timestamp: 'Now', kind: 'proposal' }, { id: 'r1', title, timestamp: 'Now', kind: 'result' }]
 // The tab labels after the All tab, and the kinds each tab shows (read from the rows it leaves visible).
 const tabLabels = () => screen.getAllByRole('tab').map(tab => tab.textContent)
+const selectedTabs = () => screen.getAllByRole('tab').filter(tab => tab.getAttribute('aria-selected') === 'true').map(tab => tab.textContent)
 const visibleIds = () => Array.from(document.querySelectorAll('.hl-notification-center__item strong')).map(node => node.textContent!.replace('Title ', ''))
 const shownKinds = (tab: HTMLElement) => { fireEvent.click(tab); return [...new Set(Array.from(document.querySelectorAll<HTMLElement>('.hl-notification-center__item')).map(row => row.dataset.hlKind))] }
 const fromSpecs = (specs: string[]) => specs.map(entry => { const [kind, id] = entry.split(':'); return item(id!, kind!) })
@@ -168,8 +169,12 @@ const assertions: Record<string, (entry: Case) => void | Promise<void>> = {
       open()
       expect(tabLabels()).toEqual(outcome.tabs)
       fireEvent.click(screen.getByRole('tab', { name: active }))
-      expect(screen.getByRole('tab', { name: active }).getAttribute('aria-selected')).toBe('true')
+      expect(selectedTabs()).toEqual([active])
       expect(visibleIds()).toEqual(outcome.visibleIds)
+      // The All tab restores every item, in caller order.
+      fireEvent.click(screen.getAllByRole('tab')[0]!)
+      expect(selectedTabs()).toEqual([outcome.tabs[0]])
+      expect(visibleIds()).toEqual(items.map(entry => entry.id))
       view.unmount()
     }
   },
