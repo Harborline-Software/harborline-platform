@@ -1,0 +1,58 @@
+{
+  "moduleId": "hlp.ui.rule-authoring",
+  "module": {
+    "interface": {
+      "path": "specs/modules/ui/hlp.ui.rule-authoring/interface.yaml",
+      "revision": 1
+    },
+    "moduleKind": "interactive-component",
+    "presentation": {
+      "disposition": "visual"
+    },
+    "qualityProfile": {
+      "path": "specs/modules/ui/hlp.ui.rule-authoring/quality.yaml",
+      "revision": 1
+    },
+    "owner": "platform-ui",
+    "dependencies": [
+      "hlp.ui.button",
+      "hlp.foundation.rule-authoring"
+    ],
+    "status": "gap-implemented",
+    "depth": {
+      "disposition": "deep-module",
+      "deletionTest": "PASS",
+      "redistributedComplexity": [
+        "closed formula and decision-table drafting repeated by every Rules host",
+        "dirty replacement decisions, immutable materialization, and stale lifecycle response fencing drifting between React and Blazor"
+      ]
+    },
+    "projections": {
+      "react": {
+        "role": "adapter",
+        "seam": "ui.rule-authoring.framework",
+        "path": "projections/react/ui/hlp.ui.rule-authoring",
+        "status": "conformant",
+        "packageContribution": "@harborline-software/ui-react",
+        "conformanceRunner": "conformance/hlp.ui.rule-authoring/runners/run-shared.mjs"
+      },
+      "blazor": {
+        "role": "adapter",
+        "seam": "ui.rule-authoring.framework",
+        "path": "projections/blazor/ui/hlp.ui.rule-authoring",
+        "status": "conformant",
+        "packageContribution": "Harborline.UIAdapters.Blazor",
+        "conformanceRunner": "conformance/hlp.ui.rule-authoring/runners/run-shared.mjs"
+      }
+    }
+  },
+  "seams": {
+    "ui.rule-authoring.framework": {
+      "status": "conformant",
+      "adapters": [
+        "react",
+        "blazor"
+      ]
+    }
+  }
+}

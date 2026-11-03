@@ -8,7 +8,7 @@ import { createServer } from 'node:net'
 import { tmpdir } from 'node:os'
 import { fileURLToPath } from 'node:url'
 
-import { expectedChecks, observeGalleryRun, reconcileChecks } from './gallery-observations.mjs'
+import { expectedChecks, observeGalleryRun, reconcileChecks, tabWalkByShard } from './gallery-observations.mjs'
 import { registeredFlakeRecords, unregisteredFlakes, validateFlakeRegistry } from './flake-registry.mjs'
 import { recordGalleryBaselines } from './gallery-baseline-store.mjs'
 import { prepareGalleries } from './prepare-galleries.mjs'
@@ -335,6 +335,9 @@ if (import.meta.main) {
   // Set by the collector; the observation below reads it instead of a results.json this job never
   // produced, because the collector runs no browsers.
   let mergedShardReport
+  // T-962: each producer's step and suite wall clock and tab-walk share, taken before the merge
+  // drops `config` and `stats.duration`.
+  let shardTiming
   try {
     if (mergeDirectory) {
       const shardReports = readdirSync(mergeDirectory, {recursive: true, withFileTypes: true})
@@ -342,6 +345,7 @@ if (import.meta.main) {
         .map(entry => JSON.parse(readFileSync(resolve(entry.parentPath ?? entry.path, entry.name), 'utf8')))
         .sort((left, right) => left.shard - right.shard)
       const complete = collectShardReports(shardReports)
+      shardTiming = tabWalkByShard(complete)
       results.push(...aggregateShardResults(complete, requiredGalleryStepIds))
       // A missing shard has already thrown above. A shard that RAN and failed is recorded as a
       // failed step rather than thrown, so its failure text reaches the report.
@@ -586,6 +590,11 @@ if (import.meta.main) {
     // Per scenario: elements compared and elements hidden behind a registered absence, so the
     // register's exemption is visible in the gate's output rather than only in its row count.
     elementParityCoverage: observation?.elementParityCoverage ?? [],
+    // T-962: per scenario, what the keyboard tab walk covered in each lane and what it cost, the
+    // run's totals, and (collector only) each matrix shard's wall clock and the walk's share of it.
+    tabWalkCoverage: observation?.tabWalkCoverage ?? [],
+    tabWalkTotals: observation?.tabWalkTotals,
+    ...(shardTiming ? { tabWalkByShard: shardTiming } : {}),
     scenarioReconciliation: observation?.reconciliation,
     checkReconciliation,
     // Declared expectations, kept for COMPARISON only (see `checkReconciliation`). They are never the

@@ -16,7 +16,7 @@ public sealed class AppShellRev6NativeScenarioTests : BunitContext
     public void Retained_fragment_cannot_read_or_edit_another_owner_or_a_later_same_owner_epoch()
     {
         JSInterop.Mode = JSRuntimeMode.Loose;
-        JSInterop.SetupModule("./_content/Harborline.UIAdapters.Blazor/app-shell-rev6-focus.mjs");
+        JSInterop.SetupModule("./_content/Harborline.UIAdapters.Blazor/app-shell-rev6-focus.js");
         var module = JSInterop.SetupModule("./rev6/tab-identity-state.mjs");
         module.Setup<JsonElement>("runScenario", _ => true).SetResult(State("alice"));
         foreach (var person in new[] { "alice", "bob" })

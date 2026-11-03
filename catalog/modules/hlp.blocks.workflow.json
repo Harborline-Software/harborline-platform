@@ -1,0 +1,44 @@
+{
+  "moduleId": "hlp.blocks.workflow",
+  "module": {
+    "interface": {
+      "path": "specs/modules/blocks/hlp.blocks.workflow/interface.yaml",
+      "revision": 5
+    },
+    "moduleKind": "runtime",
+    "presentation": {
+      "disposition": "not-applicable",
+      "rationale": "The engine core exposes runtime, dispatch, admission, store-port, and broker seams and owns no visual implementation."
+    },
+    "owner": "platform-blocks",
+    "dependencies": [],
+    "status": "implemented-engine-substrate-package-green",
+    "depth": {
+      "disposition": "deep-module",
+      "deletionTest": "PASS",
+      "redistributedComplexity": [
+        "idempotency-keyed atomic advance, crash-stable loop-back iteration accounting, and four-trigger dispatch re-implemented by every workflow host",
+        "fail-closed CP/AP admission over a canonical authority registry, SoD-gated CP confirmation, and compiler-contained effect factories re-derived at every effecting seam"
+      ]
+    },
+    "projections": {
+      "dotnet": {
+        "role": "implementation",
+        "path": "projections/dotnet/blocks/hlp.blocks.workflow",
+        "status": "preview",
+        "artifact": {
+          "type": "nuget",
+          "id": "Harborline.Blocks.Workflow",
+          "assembly": "Harborline.Blocks.Workflow",
+          "manifest": "projections/dotnet/blocks/hlp.blocks.workflow/Harborline.Blocks.Workflow.csproj",
+          "dependencies": [],
+          "identityAuthority": "Harborline",
+          "producerRepository": "harborline-platform",
+          "distribution": "internal-only",
+          "candidateRole": "new-bounded-package",
+          "registryAvailable": false
+        }
+      }
+    }
+  }
+}

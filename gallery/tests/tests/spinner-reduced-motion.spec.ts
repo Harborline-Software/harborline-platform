@@ -1,10 +1,8 @@
 import { expect, test, type Locator, type Page } from '@playwright/test'
 
-import { openWithSubresourceRetry, readWithReload } from './navigation-resilience.ts'
+import { openWithSubresourceRetry, readStoryIndex } from './navigation-resilience.ts'
 
 type Projection = 'react' | 'blazor'
-type StoryEntry = { id: string; title: string; name: string; type: 'story' | 'docs' }
-type StoryIndex = { entries: Record<string, StoryEntry> }
 
 const bases = {
   react: process.env.REACT_GALLERY_URL ?? 'http://127.0.0.1:6106',
@@ -13,41 +11,10 @@ const bases = {
 
 async function openSpinnerTypes(page: Page, projection: Projection) {
   const base = bases[projection]
-  let index: StoryIndex | undefined
-  if (projection === 'react') {
-    await expect(async () => {
-      const response = await page.request.get(`${base}/index.json`)
-      expect(response.ok()).toBe(true)
-      index = await response.json() as StoryIndex
-    }).toPass({ intervals: [250, 500, 1_000], timeout: 5_000 })
-  }
-  else {
-    index = await readWithReload(page, base, 'BlazingStory.getStoryIndex()', async () => {
-      await page.waitForFunction(() => {
-        const host = globalThis as typeof globalThis & {
-          BlazingStory?: { getStoryIndex?: unknown }
-        }
-        return typeof host.BlazingStory?.getStoryIndex === 'function'
-      })
-      // Reissue only the existing gallery's known page-promise collection failure.
-      for (let attempt = 0; ; attempt += 1) {
-        try {
-          return await page.evaluate(() => {
-            const host = globalThis as typeof globalThis & {
-              BlazingStory: { getStoryIndex(): Promise<StoryIndex> }
-            }
-            return host.BlazingStory.getStoryIndex()
-          })
-        }
-        catch (error) {
-          if (attempt === 2 || !String(error).includes('Resulting promise was garbage collected')) throw error
-        }
-      }
-    }, 15_000)
-  }
+  const index = await readStoryIndex(page, projection, base)
 
   expect(index).toBeDefined()
-  const entries = Object.values(index!.entries)
+  const entries = Object.values(index.entries)
     .filter(entry => entry.type === 'story' && entry.title === 'Platform/Spinner' && entry.name === 'Types')
   expect(entries, 'the actual Spinner Types story').toHaveLength(1)
   const probe = page.locator('[data-gallery-probe][data-gallery-scenario="spinner.types"]')

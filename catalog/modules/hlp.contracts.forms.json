@@ -1,0 +1,53 @@
+{
+  "moduleId": "hlp.contracts.forms",
+  "module": {
+    "interface": {
+      "path": "specs/modules/contracts/hlp.contracts.forms/interface.yaml",
+      "revision": 9
+    },
+    "moduleKind": "runtime",
+    "presentation": {
+      "disposition": "not-applicable",
+      "rationale": "Forms wire contracts are consumed by renderers but own no presentation implementation."
+    },
+    "owner": "platform-contracts",
+    "dependencies": [
+      "hlp.contracts.authorization",
+      "hlp.contracts.rules",
+      "hlp.contracts.text",
+      "hlp.contracts.presentation"
+    ],
+    "status": "implemented-package-consumer-green",
+    "depth": {
+      "disposition": "deep-module",
+      "deletionTest": "PASS",
+      "redistributedComplexity": [
+        "85 wire exports and 104 closed literals manually mirrored across every React, Blazor, App, and API consumer",
+        "wire casing, optionality, recursive discriminators, redaction, submission binding, and forward-compatible object reads reimplemented by each transport"
+      ]
+    },
+    "projections": {
+      "typescript": {
+        "role": "implementation",
+        "path": "projections/typescript/contracts/hlp.contracts.forms",
+        "status": "preview",
+        "artifact": {
+          "type": "npm",
+          "id": "@harborline-software/contracts",
+          "manifest": "projections/typescript/contracts/hlp.contracts.forms/package.json",
+          "identityAuthority": "Harborline",
+          "producerRepository": "harborline-platform",
+          "distribution": "internal-only",
+          "candidateRole": "local-shadow",
+          "registryAvailable": false
+        }
+      },
+      "dotnet": {
+        "role": "implementation",
+        "path": "projections/dotnet/contracts/hlp.contracts.identities/Forms",
+        "status": "preview",
+        "packageContribution": "Harborline.Contracts"
+      }
+    }
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "moduleId": "hlp.ui.conversation-list",
+  "legacySourceHashes": {
+    "packages/ui-react/src/components/ai/ConversationList.tsx": "24f88c77639f766f67f79196cc892a8867e2991ef7131502bcb57788c4de3483"
+  },
+  "phase4Evidence": "specs/modules/ui/hlp.ui.conversation-list/interface.yaml",
+  "sourceExtracted": true,
+  "sourceState": "Interface revision 1 preserves the exact pinned hlp.ui.conversation-list source surface and proves every registered projection through native, shared-conformance, package-only, and applicable gallery/performance gates.",
+  "contentHashes": {
+    "conformance/hlp.ui.conversation-list/fixtures.yaml": "5a12a8b89c1770cfd66beb097de0ab14cda4ee7c00498e43dedaa36e47dd9d77",
+    "conformance/hlp.ui.conversation-list/quality-fixtures.yaml": "ae7265d01098670c3d8ce82b64444adc38e4646ef1e1f0c0808e2dc509855368",
+    "conformance/hlp.ui.conversation-list/runners/run-shared.mjs": "65ce560faaee76895c6de3e348f965b95280822442b2c5dd1937fba70b4b2d88",
+    "projections/blazor/ui/hlp.ui.conversation-list/ConversationListTypes.cs": "7d0a8cdd9b777f3fdd3459d3adc6a61e41b36837d74a9f3e4197289c14ef6912",
+    "projections/blazor/ui/hlp.ui.conversation-list/ResolvedConversationLabels.cs": "262bc08a78796eefb4c7e3e6c0443b1df1cc103ebb9763fe3912f61d1c0e0316",
+    "projections/blazor/ui/hlp.ui.conversation-list/HarborlineConversationList.razor": "6288e9578de3488342baa1fa68e31ad4db67884216d0a39b28490ae2098c7be2",
+    "projections/blazor/ui/hlp.ui.conversation-list/HarborlineConversationRow.razor": "eec2bfb225c5ae036e4c4ef8248a28df362246361546c30c62ae266a34069b96",
+    "projections/blazor/ui/hlp.ui.conversation-list/wwwroot/conversation-list.js": "bc1c83c7fce0fe10b3e5fe612dc3824f3056561c629d50f8f014dc199cae6728",
+    "projections/react/ui/hlp.ui.conversation-list/src/ConversationList.tsx": "bb03e2ef7dd97432c12ba06fdbec904030d15eb37a313830ff0851d7995a94df",
+    "projections/react/ui/hlp.ui.conversation-list/src/__tests__/ConversationList.conformance.test.tsx": "52e3bcbc26a6da3c8be1210c6b5cd14c7e619938d1ae85b2574dcd41c50c18c3",
+    "projections/react/ui/hlp.ui.conversation-list/src/__tests__/ConversationList.native.test.tsx": "9373ea11b79d5a8e0d2cd01da1eb29d33dd3298d2d9fec48508560c91b66f46b",
+    "projections/react/ui/hlp.ui.conversation-list/src/__tests__/fixtures.ts": "abc14bd556159bc4999c0b5f5eafe4e54bb81c251564d7672a8a12d37f908f1e",
+    "projections/react/ui/hlp.ui.conversation-list/src/index.ts": "8e060990f2441f83499e610003c3ec5e17f8b2f835569b4d4a8e12791077cc94",
+    "projections/react/ui/hlp.ui.conversation-list/src/test-setup.ts": "977afde26bba6a51325908cd7713cbfdc87d18f06b78b237c8f364c44864b7de",
+    "projections/react/ui/hlp.ui.conversation-list/tsconfig.build.json": "8d92b87ad66f89cb880a7469a606fa70d5b35232d7fa699f2d2d9c2dceca4a26",
+    "projections/react/ui/hlp.ui.conversation-list/vitest.config.ts": "571fbd666025d038085e2efddaaaf018f6e1b47583dd294629204f39b0e04b30",
+    "specs/modules/ui/hlp.ui.conversation-list/interface.yaml": "4c29f5a15de7ea03f84b2ab790608329913a8dac977ea599caa1fc7d4f80c4e3",
+    "specs/modules/ui/hlp.ui.conversation-list/quality.yaml": "779fdfedeede79ca52b4b5a32629c90d68ce42de708195ce3ca310b1f2c2aa1a",
+    "specs/modules/ui/hlp.ui.conversation-list/scenarios.json": "3bd03b668c523b28145bb7c25b793be5b72fa40cbd34d0017357ff1a4f998d69",
+    "specs/modules/ui/hlp.ui.conversation-list/style.css": "0b6718e2872613b78cd2076d9f47db7e1d14daa610f4189d7d459e870c59446a"
+  },
+  "nextGate": "Retain this conformant aggregate contribution while HLF-052 advances to the next Carrier-essential dependency wave."
+}

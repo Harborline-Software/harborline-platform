@@ -1,8 +1,44 @@
-import { expect, test } from '@playwright/test'
+import { expect, test, type Page } from '@playwright/test'
 import { createServer, type Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
 
 import { gotoWithTransientNetworkRetry, openWithSubresourceRetry, readWithReload } from './navigation-resilience.ts'
+import { prepareLane, teardownLane, walkLane, type ReadResult } from './tab-walk.ts'
+
+// The first stepped read only leaves the start sentinel; the second consumes a real stop.
+for (const { method, failAt } of [{ method: 'read', failAt: 1 }, { method: 'readSettled', failAt: 2 }] as const) {
+  test(`tab walk fails instead of replaying ${method} after a lost evaluation promise`, async ({ page }) => {
+    await page.setContent('<main data-gallery-probe><button>First</button><button>Last</button></main>')
+    const { scroll } = await prepareLane(page, { width: 920, height: 720 })
+    const evaluate = page.evaluate
+    const lost = new Error('Resulting promise was garbage collected')
+    let attempts = 0
+    let pending: Promise<unknown> | undefined
+    // A protocol failure does not cancel the dispatched page-side read. Let the real
+    // destructive read finish while the caller receives the collection error.
+    page.evaluate = (async (...args: Parameters<Page['evaluate']>) => {
+      const issued = evaluate.apply(page, args)
+      if (String(args[0]).includes(`.${method}()`) && ++attempts === failAt) {
+        pending = issued
+        issued.catch(() => {})
+        throw lost
+      }
+      return issued
+    }) as Page['evaluate']
+    try {
+      await expect(walkLane(page, {
+        lane: 'react', deadline: Date.now() + 5_000, scroll,
+        ...(method === 'readSettled' ? { pressBudget: 2 } : {}),
+      })).rejects.toThrow(lost)
+      expect(attempts, 'the failed destructive read must not be reissued').toBe(failAt)
+      expect(((await pending) as ReadResult).entries.length, 'the dispatched read still consumed observations').toBeGreaterThan(0)
+    } finally {
+      await pending?.catch(() => {})
+      page.evaluate = evaluate
+      await teardownLane(page)
+    }
+  })
+}
 
 // A fake page whose goto fails one request per attempt as `failures` says, and whose readiness never
 // settles on an attempt that lost a request -- the shape the T-709 capture recorded.

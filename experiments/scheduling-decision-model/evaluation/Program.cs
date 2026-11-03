@@ -10,7 +10,6 @@ using Harborline.Experiments.SchedulingDecisionModel.Oracle;
 using static Harborline.Experiments.SchedulingDecisionModel.Evaluation.Stats;
 
 // T-1053 evaluation tool.
-//   equivalence <corpus> <split>                   engine "incumbent" vs production solver, exact
 //   calibrate   <corpus> [count]                   work units per 0.5 s for the incumbent, single thread, train split
 //   baselines   <corpus> <split> <budget> <out> [threads] [--phase3]
 //   report      <corpus> <results.jsonl> <budget>
@@ -20,6 +19,23 @@ var inv = CultureInfo.InvariantCulture;
 
 switch (args.ElementAtOrDefault(0))
 {
+    case "t1054-evidence":
+        if (args.Length != 4 || args[3] != "--phase3")
+        {
+            Console.Error.WriteLine("usage: t1054-evidence <corpus> <out.jsonl> --phase3");
+            return 2;
+        }
+
+        try
+        {
+            return T1054Evidence(args[1], args[2], phase3: true) ? 0 : 1;
+        }
+        catch (Exception ex) when (ex is IOException or InvalidDataException or JsonException or InvalidOperationException
+            or ArgumentException or FormatException or OverflowException or KeyNotFoundException)
+        {
+            Console.Error.WriteLine(ex.Message);
+            return 2;
+        }
     case "equivalence": return Equivalence(args[1], args[2]) ? 0 : 1;
     case "calibrate": Calibrate(args[1], args.Length > 2 ? int.Parse(args[2], inv) : 25); return 0;
     case "baselines":
@@ -38,8 +54,196 @@ switch (args.ElementAtOrDefault(0))
         PilotHardness(args[1], Corpus.ParseSize(args[2]), int.Parse(args[3], inv), long.Parse(args[4], inv));
         return 0;
     default:
-        Console.Error.WriteLine("usage: equivalence|calibrate|baselines|report");
+        Console.Error.WriteLine("usage: equivalence|calibrate|baselines|report|t1054-evidence");
         return 2;
+}
+
+bool T1054Evidence(string dir, string outPath, bool phase3)
+{
+    GuardSplit("test-unseen-family", phase3);
+    const string manifestHash = "d6916b48c35a40c3ead99445a36e25499aeec174431df553f4c082b41d4341c3";
+    if (Canonical.Sha256(File.ReadAllText(Path.Combine(dir, "manifest.jsonl"))) != manifestHash)
+    {
+        throw new InvalidDataException("T1054 requires the frozen corpus-v2 manifest.");
+    }
+
+    var (manifest, oracle) = Load(dir);
+    var labels = File.ReadLines(Path.Combine(dir, "labels.jsonl")).Where(line => line.Length > 0)
+        .Select(line => JsonSerializer.Deserialize<InstanceLabel>(line, json)
+            ?? throw new InvalidDataException("Null label."))
+        .ToDictionary(label => label.InstanceId, StringComparer.Ordinal);
+    if (manifest.Length != 6000 || manifest.Select(row => row.InstanceId).Distinct(StringComparer.Ordinal).Count() != 6000
+        || labels.Count != 6000 || oracle.Count != 6000
+        || manifest.GroupBy(row => (row.Family, row.SizeClass, row.Split)).Count() != 25)
+    {
+        throw new InvalidDataException("Expected 6000 unique paired corpus identities in 25 cells.");
+    }
+
+    foreach (var entry in manifest)
+    {
+        if (!labels.TryGetValue(entry.InstanceId, out var label) || label.InputSha256 != entry.InputSha256
+            || label.Disagreement || label.OracleOutcome is not ("Feasible" or "Infeasible")
+            || oracle[entry.InstanceId] != label.OracleOutcome)
+        {
+            throw new InvalidDataException($"{entry.InstanceId}: missing, mismatched or indefinite label.");
+        }
+    }
+
+    foreach (var group in manifest.GroupBy(entry => entry.GroupId))
+    {
+        if (!group.Select(entry => entry.Variant).Order(StringComparer.Ordinal).SequenceEqual(new[] { "base", "tightened" })
+            || group.Select(entry => (entry.Family, entry.SizeClass, entry.Split)).Distinct().Count() != 1)
+        {
+            throw new InvalidDataException($"{group.Key}: incomplete or inconsistent variant pair.");
+        }
+    }
+
+    var profiles = manifest.Select(Profile).ToArray();
+    var results = new List<RunResult>(12000);
+    for (var i = 0; i < manifest.Length; i++)
+    {
+        var entry = manifest[i];
+        var profile = profiles[i];
+        var compiled = new FiniteCandidateCompiler().Compile(profile);
+        var watch = Stopwatch.StartNew();
+        var production = new DeterministicExhaustiveProofSolver().Solve(compiled, 1_826_301);
+        watch.Stop();
+        results.Add(JudgeT1054(entry, oracle[entry.InstanceId], profile, "production", production.Status,
+            production.Assignments, production.WorkUnits, watch.Elapsed.TotalMilliseconds));
+        watch.Restart();
+        var incumbent = new SearchEngine().Run(compiled, new IncumbentPolicy(), 1_826_301, dedupe: false);
+        watch.Stop();
+        results.Add(JudgeT1054(entry, oracle[entry.InstanceId], profile, "incumbent", incumbent.Status,
+            incumbent.Assignments, incumbent.Work, watch.Elapsed.TotalMilliseconds) with
+        {
+            Fallbacks = incumbent.Fallbacks,
+            FallbackReason = incumbent.FirstFallbackReason,
+        });
+    }
+
+    File.WriteAllText(outPath, string.Join('\n', results.OrderBy(row => row.InstanceId, StringComparer.Ordinal)
+        .ThenBy(row => row.Method, StringComparer.Ordinal).Select(row => JsonSerializer.Serialize(row, json))) + "\n");
+    return ReportT1054(results);
+}
+
+RunResult JudgeT1054(ManifestEntry entry, string label, SchedulingProfile profile, string method,
+    SolveStatus status, IReadOnlyList<AssignmentCandidate> plan, long work, double wallMs)
+{
+    var valid = status == SolveStatus.Feasible && new PlanChecker(profile).Check(plan).IsFeasible;
+    var solved = work is >= 0 and <= 1_826_301 &&
+        ((status == SolveStatus.Feasible && valid && label == "Feasible")
+        || (status == SolveStatus.ProvenInfeasible && label == "Infeasible"));
+    return new(method, entry.InstanceId, entry.GroupId, entry.Family, entry.SizeClass, entry.Split, label,
+        status.ToString(), work, wallMs, valid, solved,
+        status == SolveStatus.Feasible && !valid,
+        status == SolveStatus.ProvenInfeasible && label == "Feasible", 0, null);
+}
+
+bool ReportT1054(IReadOnlyList<RunResult> rows)
+{
+    const long budget = 1_826_301;
+    var pairs = rows.GroupBy(row => row.InstanceId).ToArray();
+    if (rows.Count != 12000 || pairs.Length != 6000 || pairs.Any(pair => pair.Count() != 2
+        || !pair.Select(row => row.Method).Order(StringComparer.Ordinal).SequenceEqual(new[] { "incumbent", "production" })
+        || pair.Select(row => (row.GroupId, row.Family, row.SizeClass, row.Split, row.Oracle)).Distinct().Count() != 1))
+    {
+        Console.Error.WriteLine("Insufficient evidence. Expected 12000 unique paired results.");
+        return false;
+    }
+
+    var production = rows.Where(row => row.Method == "production").ToDictionary(row => row.InstanceId, StringComparer.Ordinal);
+    var incumbent = rows.Where(row => row.Method == "incumbent").ToDictionary(row => row.InstanceId, StringComparer.Ordinal);
+    var all = production.Values.OrderBy(row => row.InstanceId, StringComparer.Ordinal).ToArray();
+    var cells = new List<(string Dimension, string Name, RunResult[] Rows)> { ("overall", "all", all) };
+    cells.AddRange(all.GroupBy(row => row.Family).Select(group => ("family", group.Key, group.ToArray())));
+    cells.AddRange(all.GroupBy(row => row.SizeClass).Select(group => ("size", group.Key, group.ToArray())));
+    cells.AddRange(all.GroupBy(row => row.Split).Select(group => ("split", group.Key, group.ToArray())));
+    cells.AddRange(all.GroupBy(row => $"{row.Family}/{row.SizeClass}/{row.Split}")
+        .Select(group => ("family/size/split", group.Key, group.ToArray())));
+    if (cells.Count(cell => cell.Dimension == "family/size/split") != 25
+        || !all.Select(row => row.Split).Distinct().Order(StringComparer.Ordinal).SequenceEqual(new[]
+        {
+            "test-seen", "test-unseen-family", "test-unseen-size", "train", "validation",
+        }))
+    {
+        Console.Error.WriteLine("Insufficient evidence. Frozen cells or splits are missing.");
+        return false;
+    }
+
+    var correctnessFaults = rows.Count(row => row.InvalidAccepted || row.FalseInfeasible || Contradiction(row)
+        || row.Work is < 0 or > budget || row.Fallbacks != 0
+        || row.Status is not ("Feasible" or "ProvenInfeasible" or "Indeterminate"));
+    var reports = new List<object>();
+    var regressions = new List<string>();
+    var primaryPass = false;
+    foreach (var cell in cells.OrderBy(cell => cell.Dimension, StringComparer.Ordinal).ThenBy(cell => cell.Name, StringComparer.Ordinal))
+    {
+        if (cell.Rows.Length == 0)
+        {
+            return false;
+        }
+
+        var a = cell.Rows;
+        var b = a.Select(row => incumbent[row.InstanceId]).ToArray();
+        var solved = Stats.SolvedDifference(a.Select(row => (row.GroupId, row.Solved, incumbent[row.InstanceId].Solved)).ToArray(), 1054);
+        var work = Stats.WorkRatio(a.Select(row => (row.GroupId,
+            (double)(row.Solved ? row.Work : budget),
+            (double)(incumbent[row.InstanceId].Solved ? incumbent[row.InstanceId].Work : budget))).ToArray(), 1054);
+        if (solved.High < 0)
+        {
+            regressions.Add($"{cell.Dimension}/{cell.Name}");
+        }
+
+        if (cell.Dimension == "split" && cell.Name == "test-unseen-family")
+        {
+            primaryPass = a.Count(row => row.Solved) >= b.Count(row => row.Solved) && solved.Low > 0;
+        }
+
+        reports.Add(new
+        {
+            cell.Dimension, cell.Name, Count = a.Length, Groups = a.Select(row => row.GroupId).Distinct().Count(),
+            Production = Describe(a), Incumbent = Describe(b),
+            BothSolved = a.Count(row => row.Solved && incumbent[row.InstanceId].Solved),
+            ProductionOnly = a.Count(row => row.Solved && !incumbent[row.InstanceId].Solved),
+            IncumbentOnly = a.Count(row => !row.Solved && incumbent[row.InstanceId].Solved),
+            NeitherSolved = a.Count(row => !row.Solved && !incumbent[row.InstanceId].Solved),
+            SolvedDifference = solved, AllPairCappedWorkRatio = work,
+        });
+    }
+
+    var pass = correctnessFaults == 0 && primaryPass && regressions.Count == 0;
+    Console.WriteLine(JsonSerializer.Serialize(new
+    {
+        Task = "T1054", Budget = budget, ResultRows = rows.Count, Instances = pairs.Length,
+        BootstrapReplicates = 2000, Confidence = 0.95, BootstrapSeed = 1054,
+        WorkEstimand = "Production/incumbent geometric mean of capped work over every definite-label pair, including both unsolved; unsolved sides cost the budget.",
+        WallTime = "Descriptive only; no wall-time acceptance threshold.",
+        CorrectnessFaults = correctnessFaults, PrimaryPass = primaryPass, Regressions = regressions,
+        Accepted = pass, Cells = reports,
+    }, json));
+    return pass;
+
+    static bool Contradiction(RunResult row) =>
+        (row.Status == "Feasible" && row.Oracle != "Feasible")
+        || (row.Status == "ProvenInfeasible" && row.Oracle != "Infeasible");
+
+    static object Describe(RunResult[] arm)
+    {
+        var work = arm.Select(row => row.Work).Order().ToArray();
+        return new
+        {
+            Count = arm.Length, Solved = arm.Count(row => row.Solved),
+            SolvedProportion = (double)arm.Count(row => row.Solved) / arm.Length,
+            CheckedPlans = arm.Count(row => row.Status == "Feasible"),
+            ValidPlans = arm.Count(row => row.PlanValid),
+            InvalidAccepted = arm.Count(row => row.InvalidAccepted),
+            FalseInfeasible = arm.Count(row => row.FalseInfeasible),
+            LabelContradictions = arm.Count(Contradiction),
+            StatusCounts = arm.GroupBy(row => row.Status).OrderBy(group => group.Key, StringComparer.Ordinal)
+                .ToDictionary(group => group.Key, group => group.Count(), StringComparer.Ordinal),
+            Work = new { Min = work[0], P50 = work[work.Length / 2], P90 = work[work.Length * 9 / 10], Max = work[^1] },
+        };
+    }
 }
 
 (ManifestEntry[] Manifest, Dictionary<string, string> Oracle) Load(string dir)
@@ -84,7 +288,7 @@ bool Equivalence(string dir, string split)
         foreach (var budget in new[] { 1_000L, 50_000L, Labeler.IncumbentWorkCap })
         {
             var production = new DeterministicExhaustiveProofSolver().Solve(compiled, (int)budget);
-            var engine = new SearchEngine().Run(compiled, new IncumbentPolicy(), budget);
+            var engine = new SearchEngine().Run(compiled, new DynamicDomainPolicy(), budget, dedupe: false);
             var same = production.Status == engine.Status &&
                 production.WorkUnits == engine.Work &&
                 production.ReasonCode == engine.ReasonCode &&

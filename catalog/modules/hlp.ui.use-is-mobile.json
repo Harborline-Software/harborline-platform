@@ -1,0 +1,47 @@
+{
+  "moduleId": "hlp.ui.use-is-mobile",
+  "module": {
+    "interface": {
+      "path": "specs/modules/ui/hlp.ui.use-is-mobile/interface.yaml",
+      "revision": 1
+    },
+    "moduleKind": "runtime",
+    "presentation": {
+      "disposition": "not-applicable",
+      "rationale": "Breakpoint hooks select layout branches and render no standalone interface."
+    },
+    "qualityProfile": {
+      "path": "specs/modules/ui/hlp.ui.use-is-mobile/quality.yaml",
+      "revision": 1
+    },
+    "owner": "platform-ui",
+    "dependencies": [
+      "hlp.ui.use-media-query"
+    ],
+    "status": "implemented-gate-model-green",
+    "depth": {
+      "disposition": "deep-module",
+      "deletionTest": "PASS",
+      "redistributedComplexity": [
+        "phone and persistent-rail query identity repeated by each layout host",
+        "the short-landscape rail safeguard and held width-only dock exception allowed to drift across platforms"
+      ]
+    },
+    "projections": {
+      "react": {
+        "role": "implementation",
+        "path": "projections/react/ui/hlp.ui.use-is-mobile",
+        "status": "conformant",
+        "packageContribution": "@harborline-software/ui-react",
+        "conformanceRunner": "conformance/hlp.ui.use-is-mobile/runners/run-shared.mjs"
+      },
+      "dotnet": {
+        "role": "implementation",
+        "path": "projections/dotnet/foundation/hlp.ui.use-is-mobile",
+        "status": "conformant",
+        "packageContribution": "Harborline.Foundation",
+        "conformanceRunner": "conformance/hlp.ui.use-is-mobile/runners/run-shared.mjs"
+      }
+    }
+  }
+}

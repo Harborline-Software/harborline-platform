@@ -1,0 +1,28 @@
+{
+  "moduleId": "hlp.ui.collapsible",
+  "legacySourceHashes": {
+    "packages/ui-react/src/components/layout/Collapsible.tsx": "8cf15faceb71d8cb7bdc7c43f988e734d3c72ca14498fe0deb9af735b3a247ea"
+  },
+  "phase4Evidence": "specs/modules/ui/hlp.ui.collapsible/interface.yaml",
+  "sourceExtracted": true,
+  "sourceState": "Interface revision 1 preserves the exact pinned hlp.ui.collapsible source surface and proves every registered projection through native, shared-conformance, package-only, and applicable gallery/performance gates.",
+  "contentHashes": {
+    "conformance/hlp.ui.collapsible/fixtures.yaml": "edcd4f8c35c82de5e063c39fa2c654b0be055424d54a7970054abb8feea94394",
+    "conformance/hlp.ui.collapsible/quality-fixtures.yaml": "ec82652ebcc268c60a746768ca102929c9d498671bbb1d04a174ec46403cae6d",
+    "conformance/hlp.ui.collapsible/runners/run-shared.mjs": "c04c2d6a7cd52eca7094a8a9d9a75cca4850315029b4f716daf725c079a30464",
+    "projections/blazor/ui/hlp.ui.collapsible/HarborlineCollapsible.razor": "fe990a824ad3ab50fe3332dfd582e79a37cf13e584d56030452b54ea11ed8d8c",
+    "projections/react/ui/hlp.ui.collapsible/src/Collapsible.tsx": "9e9d091afbc784437e6e8ca4b0652cb1307ea240cb3f17ea9f8bd1db4deaf311",
+    "projections/react/ui/hlp.ui.collapsible/src/__tests__/Collapsible.conformance.test.tsx": "7a2b276a550beeff640490aa10a4bf66a7ccc00ca9e170bc4a201131bc391748",
+    "projections/react/ui/hlp.ui.collapsible/src/__tests__/Collapsible.native.test.tsx": "a4e1115c4dc5eb21ddc84975ea569f7a94e84ac0d16733ef7d2a3aa61e159624",
+    "projections/react/ui/hlp.ui.collapsible/src/__tests__/fixtures.ts": "0b93cb4aea5e21a00de6dde67c56843f6ce21262efeff81b9b46b0686aadd0a3",
+    "projections/react/ui/hlp.ui.collapsible/src/index.ts": "db7ec5dcb00c7835d9a6e11331d69b3d42c72abf64339443649dbc14fbbd20a8",
+    "projections/react/ui/hlp.ui.collapsible/src/test-setup.ts": "977afde26bba6a51325908cd7713cbfdc87d18f06b78b237c8f364c44864b7de",
+    "projections/react/ui/hlp.ui.collapsible/tsconfig.build.json": "5f200aa248773b3ef0f1c6d53e1537359b21246e1155128e35c3f2357a770c98",
+    "projections/react/ui/hlp.ui.collapsible/vitest.config.ts": "846aab8c29678bdb1560e32ba9355fbf8f24086c16a11cfe3758e916b834a739",
+    "specs/modules/ui/hlp.ui.collapsible/interface.yaml": "27cf8b6a8234a1dc0078521f8e8d16b61b406f18407d97ae06d1afbab5fe6ec7",
+    "specs/modules/ui/hlp.ui.collapsible/quality.yaml": "dde0044a1c5c47824c5a9649a6e8b4df2ff605acd2822b8c6f1a86ba0f2668eb",
+    "specs/modules/ui/hlp.ui.collapsible/scenarios.json": "05560eb0b9a0969fe09b929de4f11e9633483c7eaf2cefb663f8d8a3fe786f46",
+    "specs/modules/ui/hlp.ui.collapsible/style.css": "c2b0933cb010a9a8d248d87333575215881576ca94618f2650fab36bc213e981"
+  },
+  "nextGate": "Retain this conformant aggregate contribution while HLF-052 advances to the next Carrier-essential dependency wave."
+}

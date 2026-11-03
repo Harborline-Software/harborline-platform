@@ -1,0 +1,61 @@
+{
+  "moduleId": "hlp.ui.select-field",
+  "module": {
+    "interface": {
+      "path": "specs/modules/ui/hlp.ui.select-field/interface.yaml",
+      "revision": 2
+    },
+    "moduleKind": "interactive-component",
+    "presentation": {
+      "disposition": "visual"
+    },
+    "qualityProfile": {
+      "path": "specs/modules/ui/hlp.ui.select-field/quality.yaml",
+      "revision": 2
+    },
+    "owner": "platform-ui",
+    "dependencies": [
+      "hlp.ui.cn",
+      "hlp.ui.default-strings",
+      "hlp.ui.form-field",
+      "hlp.ui.locale-provider",
+      "hlp.ui.input"
+    ],
+    "status": "gap-implemented",
+    "depth": {
+      "disposition": "deep-module",
+      "deletionTest": "PASS",
+      "redistributedComplexity": [
+        "controlled combobox state, listbox navigation, typeahead, selection, dismissal, focus return, and Form Field metadata repeated by every enumerated form control",
+        "localized placeholder, logical popup geometry, viewport clamping, validation, themes, and projection parity drifting independently"
+      ]
+    },
+    "projections": {
+      "react": {
+        "role": "adapter",
+        "seam": "ui.select-field.framework",
+        "path": "projections/react/ui/hlp.ui.select-field",
+        "status": "conformant",
+        "packageContribution": "@harborline-software/ui-react",
+        "conformanceRunner": "conformance/hlp.ui.select-field/runners/run-shared.mjs"
+      },
+      "blazor": {
+        "role": "adapter",
+        "seam": "ui.select-field.framework",
+        "path": "projections/blazor/ui/hlp.ui.select-field",
+        "status": "conformant",
+        "packageContribution": "Harborline.UIAdapters.Blazor",
+        "conformanceRunner": "conformance/hlp.ui.select-field/runners/run-shared.mjs"
+      }
+    }
+  },
+  "seams": {
+    "ui.select-field.framework": {
+      "status": "conformant",
+      "adapters": [
+        "react",
+        "blazor"
+      ]
+    }
+  }
+}

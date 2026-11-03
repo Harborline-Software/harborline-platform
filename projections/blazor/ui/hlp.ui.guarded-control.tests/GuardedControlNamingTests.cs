@@ -196,7 +196,7 @@ public sealed class GuardedControlNamingTests : BunitContext
         Assert.Equal(values[0].Replace("{action}", Isolated(label), StringComparison.Ordinal), cut.Find("[role=status]").TextContent);
         cut.Find("button").Click();
         var commit = cut.Find("button").ClickAsync(new MouseEventArgs());
-        Assert.Equal(values[3], cut.Find("button > span:last-child").TextContent);
+        cut.WaitForAssertion(() => Assert.Equal(values[3], cut.Find("button[data-guard-state=committing] > span:last-child").TextContent));
         operation.SetResult();
         await commit;
         cut.WaitForAssertion(() => Assert.Equal(values[1].Replace("{action}", Isolated(label), StringComparison.Ordinal), cut.Find("[role=status]").TextContent));

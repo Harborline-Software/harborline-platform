@@ -46,6 +46,7 @@ public sealed class FileJournalRecordWriteStore : IKernelPreparedTransactionPort
     }
     private readonly string _path;
     private readonly Action<long>? _currentReadProgress;
+    private readonly FileShare _currentReadSharing = FileShare.Read;
     private readonly Action? _beforeReplace;
     private readonly Action<string>? _completedTemporaryBeforeDecode;
 
@@ -83,9 +84,11 @@ public sealed class FileJournalRecordWriteStore : IKernelPreparedTransactionPort
     }
 
     internal FileJournalRecordWriteStore(string path, TimeProvider authorityClock,
-        Action<long>? currentReadProgress, Action? beforeReplace) : this(path, authorityClock)
+        Action<long>? currentReadProgress, Action? beforeReplace,
+        FileShare currentReadSharing = FileShare.Read) : this(path, authorityClock)
     {
         _currentReadProgress = currentReadProgress;
+        _currentReadSharing = currentReadSharing;
         _beforeReplace = beforeReplace;
     }
 
@@ -731,7 +734,7 @@ public sealed class FileJournalRecordWriteStore : IKernelPreparedTransactionPort
         FileStream stream;
         try
         {
-            stream = new FileStream(_path, FileMode.Open, FileAccess.Read, FileShare.Read, 4096,
+            stream = new FileStream(_path, FileMode.Open, FileAccess.Read, _currentReadSharing, 4096,
                 FileOptions.Asynchronous | FileOptions.SequentialScan);
         }
         catch (FileNotFoundException) { cancellationToken.ThrowIfCancellationRequested(); return []; }
