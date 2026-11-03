@@ -4,7 +4,7 @@ namespace Harborline.Foundation.RuleEngine.Model;
 
 /// <summary>
 /// The output-type taxonomy of a <see cref="RuleOutcome"/> (SPINE-1 design §1.3).
-/// Maps onto <see cref="Harborline.Contracts.Forms.RuleActionKind"/>:
+/// Maps onto <see cref="Harborline.Contracts.Rules.RuleActionKind"/>:
 /// <c>Compute → Value</c>, <c>Validate → Validity</c>,
 /// <c>Visibility/Required/ReadOnly → Visibility</c>, <c>Presentation → Presentation</c>.
 /// </summary>
@@ -116,7 +116,7 @@ public sealed record VisibilityState(bool Visible = true, bool Required = false,
 /// <summary>A presentation hint outcome (SPINE-1 Decision DA).</summary>
 public sealed record PresentationOutcome(
     Severity? Severity = null,
-    Harborline.Contracts.Forms.InternationalizedText? Badge = null,
+    Harborline.Contracts.Text.InternationalizedText? Badge = null,
     string? StyleToken = null);
 
 /// <summary>

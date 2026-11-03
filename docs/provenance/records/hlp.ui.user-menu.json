@@ -13,7 +13,7 @@
     "projections/blazor/ui/hlp.ui.user-menu/HarborlineUserMenu.razor": "e0a84b193a6fe3e6ae0cc1c33a39fef628f79fce73e00cb74410f9bc360fd397",
     "projections/blazor/ui/hlp.ui.user-menu/UserMenuTypes.cs": "12879cb29564f29115b549588235163804e94e557e0840a97485f06e8b6ed7fa",
     "projections/blazor/ui/hlp.ui.user-menu/wwwroot/user-menu.js": "a61d3fbe81824d3cfcc2e959ccd03355911d3f6f2f10ff94fa2bc48ba2dac15e",
-    "projections/react/ui/hlp.ui.user-menu/src/UserMenu.tsx": "f0ff7fc588e7a88f54e32648c7756e3b371c305e4cdf0629d444ff410c2951ac",
+    "projections/react/ui/hlp.ui.user-menu/src/UserMenu.tsx": "4dec8dbe059eb62a31229713efc0f1ec3055dbdb6b6c2d35f6a5f69219cf0fbc",
     "projections/react/ui/hlp.ui.user-menu/src/__tests__/UserMenu.conformance.test.ts": "24f05e654c8fc93d9410710a87d603eff92c88d747109fb3a9a373ab155baf6f",
     "projections/react/ui/hlp.ui.user-menu/src/__tests__/UserMenu.native.test.tsx": "46af2882291b4ca7a5adaeaf28f8b4133bf6c4e54847de735f497cd2de529785",
     "projections/react/ui/hlp.ui.user-menu/src/__tests__/fixtures.ts": "1fcffc27af35c3bf0f2c3b82a94d1706bbac5ec3f3aa0859d69069fb38417014",

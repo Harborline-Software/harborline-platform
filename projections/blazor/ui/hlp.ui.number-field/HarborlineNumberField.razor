@@ -1,7 +1,7 @@
 @namespace Harborline.UIAdapters.Blazor.Components.Forms
 @inherits HarborlineComponentBase
 
-<input type="number" id="@Name" name="@Name" value="@Value" min="@Min" max="@Max" step="@Step" tabindex="@TabIndex"
+<input type="number" id="@Name" name="@Name" value="@Value" min="@Invariant(Min)" max="@Invariant(Max)" step="@Invariant(Step)" tabindex="@Invariant(TabIndex)"
        disabled="@EffectiveDisabled" required="@EffectiveRequired"
        aria-required="@(EffectiveRequired ? "true" : null)" aria-invalid="@(Error ? "true" : null)"
        aria-label="@AccessibleLabel" aria-labelledby="@FieldContext?.LabelId"
@@ -25,5 +25,9 @@
     [Parameter] public string? DescribedBy { get; set; }
     private bool EffectiveDisabled => Disabled || FieldContext?.Disabled == true;
     private bool EffectiveRequired => Required || FieldContext?.Required == true;
+    // HTML parses these as numbers with a dot decimal and an ASCII minus whatever the culture; Blazor would
+    // write them with the current one (de-DE writes "0,5", and sv-SE's minus is U+2212), which the browser ignores (T-962).
+    private static string? Invariant(double? value) => value?.ToString(System.Globalization.CultureInfo.InvariantCulture);
+    private static string? Invariant(int? value) => value?.ToString(System.Globalization.CultureInfo.InvariantCulture);
     private Task OnInputAsync(ChangeEventArgs args) => EffectiveDisabled ? Task.CompletedTask : ValueChanged.InvokeAsync(args.Value?.ToString() ?? string.Empty);
 }

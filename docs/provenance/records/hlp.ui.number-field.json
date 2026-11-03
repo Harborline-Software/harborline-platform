@@ -10,7 +10,7 @@
     "conformance/hlp.ui.number-field/fixtures.yaml": "748c4d4414a1f44a0fcaf645608400dc054bdc55284fec840e4e234c53e9eb12",
     "conformance/hlp.ui.number-field/quality-fixtures.yaml": "be7deaa6edabc27a8a2e35fa08de46b335336d7d60313a06fd3b25651c4f7efe",
     "conformance/hlp.ui.number-field/runners/run-shared.mjs": "1c0f1203654618cf2f51bed277f9653aaa9ab82d459935217926ecec1fdc2e90",
-    "projections/blazor/ui/hlp.ui.number-field/HarborlineNumberField.razor": "217930d5a66b9391079a6c927578e85cb69a6b5818f1fa22f69bfe7bdc1a5e1b",
+    "projections/blazor/ui/hlp.ui.number-field/HarborlineNumberField.razor": "f098b33dfcfbe404077fd3977761b9ec11d9eb47d06f75f6ee9f4d2148d215ab",
     "projections/react/ui/hlp.ui.number-field/src/NumberField.tsx": "e0691d2b19e3c196c75e1b0f507c360d46794cf81346340807d9e0ba03823ceb",
     "projections/react/ui/hlp.ui.number-field/src/__tests__/NumberField.conformance.test.tsx": "65cd61f8b9521ddd61558d55e8e023e3ad1923ed6da9ef87f750376ed000587e",
     "projections/react/ui/hlp.ui.number-field/src/__tests__/NumberField.native.test.tsx": "dc7ac3cbd55437111db8eee4dc6b8d0b3dd00709d6e1375995244156e0bb6ace",

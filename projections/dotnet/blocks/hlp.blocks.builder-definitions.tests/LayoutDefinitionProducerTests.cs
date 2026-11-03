@@ -13,14 +13,14 @@ public sealed class LayoutDefinitionProducerTests
     // Publication resolves the fixture's named validation rule (T-724 ruling 36).
     private static readonly LayoutHostRegisters Hosted = new(LayoutBlockKindRegistry.Platform, ValidationRules: new LayoutValidationRuleRegistry(
     [
-        new Harborline.Contracts.Forms.RuleDefinition
+        new Harborline.Contracts.Rules.RuleDefinition
         {
             Id = "customer.name.required",
-            Tier = Harborline.Contracts.Forms.RuleTier.JsonLogic,
-            Scope = Harborline.Contracts.Forms.RuleScope.Schema,
+            Tier = Harborline.Contracts.Rules.RuleTier.JsonLogic,
+            Scope = Harborline.Contracts.Rules.RuleScope.Schema,
             ScopeTarget = "",
             Expression = "{\"!!\":[{\"var\":\"customer.name\"}]}",
-            Action = Harborline.Contracts.Forms.RuleActionKind.Validate,
+            Action = Harborline.Contracts.Rules.RuleActionKind.Validate,
         },
     ]), Roles: RoleVocabulary.FromApi(
     [
