@@ -15,22 +15,26 @@ public enum NotificationBadgeMode
     Decisions
 }
 
-/// <summary>Text shown by the notification center: title, filters, actions, empty message and dismiss text.</summary>
+/// <summary>Text shown by the notification center: title, filters, actions, empty message and dismiss text. Every field
+/// is optional: a null or blank field (blank meaning only ECMA-262 white space and line terminators) comes from the
+/// locale catalog, and any other field is kept exactly. Override one label with
+/// <c>new NotificationCenterLabels(Confirm: "Approve")</c> or <c>new NotificationCenterLabels { Confirm = "Approve" }</c>.</summary>
 public sealed record NotificationCenterLabels(
-    string Title,
-    string All,
-    string Confirm,
-    string Deny,
-    string MarkAllRead,
-    string ViewAll,
-    string Empty,
-    Func<string, string> Dismiss,
-    string Unread,
+    string? Title = null,
+    string? All = null,
+    string? Confirm = null,
+    string? Deny = null,
+    string? MarkAllRead = null,
+    string? ViewAll = null,
+    string? Empty = null,
+    Func<string, string>? Dismiss = null,
+    string? Unread = null,
     string? GroupLabel = null)
 {
     /// <summary>The default English notification center text. Leaving <c>Labels</c> unset (this instance) takes every label
-    /// from the locale catalog; any other record, including <c>English with { ... }</c>, is caller text and is kept exactly,
-    /// except that blank fields and an unset <c>GroupLabel</c> come from the catalog.</summary>
+    /// from the locale catalog. Any other record is caller text field by field: a copy such as <c>English with { ... }</c>
+    /// has every field but <c>GroupLabel</c> set, so those are kept exactly, English included, and the unset
+    /// <c>GroupLabel</c> comes from the catalog; to override one label, set only that field on a new record.</summary>
     public static NotificationCenterLabels English { get; } = new(
         "Notifications", "All", "Confirm", "Deny", "Mark all read", "View all", "No notifications",
         title => $"Dismiss: {title}", "Unread");

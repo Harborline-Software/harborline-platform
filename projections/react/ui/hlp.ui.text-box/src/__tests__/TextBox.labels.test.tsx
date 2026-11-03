@@ -1,6 +1,7 @@
 import { fireEvent, render } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { HarborlineLocaleProvider } from '@harborline-platform/hlp.ui.locale-provider'
+import { FormFieldContext } from '../../../hlp.ui.form-field/src/FormFieldContext'
 import { TextBox } from '../TextBox'
 
 // Contract: clear and reveal labels follow instance, catalog, then fallback precedence, and every
@@ -51,5 +52,27 @@ describe('TextBox action labels', () => {
     expect(names()).toEqual({ clear: 'Effacer', reveal: 'Afficher le mot de passe' })
     view.rerender(<HarborlineLocaleProvider locale="fr-FR" catalog={{ 'common.clear': '  ' }}>{box()}</HarborlineLocaleProvider>)
     expect(names().clear).toBe('Clear')
+  })
+})
+
+describe('TextBox caller name', () => {
+  // A blank caller name is no name (WCAG 4.1.2): the FormField label still names the input, as Switch does.
+  const field = (props: Partial<React.ComponentProps<typeof TextBox>>) => (
+    <FormFieldContext.Provider value={{ id: 'email', labelId: 'email-label' }}><span id="email-label">Email</span><TextBox {...props}/></FormFieldContext.Provider>
+  )
+  it.each([' ', '\t\n', ''])('ignores a blank aria-label (%j) so the FormField label names the input', name => {
+    render(field({ 'aria-label': name }))
+    const input = document.querySelector('input')!
+    expect([input.getAttribute('aria-label'), input.getAttribute('aria-labelledby')]).toEqual([null, 'email-label'])
+    expect(input).toHaveAccessibleName('Email')
+  })
+  it('keeps a nonblank aria-label exactly, over the FormField label', () => {
+    render(field({ 'aria-label': ' Work email ' }))
+    const input = document.querySelector('input')!
+    expect([input.getAttribute('aria-label'), input.getAttribute('aria-labelledby')]).toEqual([' Work email ', null])
+  })
+  it('lets an explicit aria-labelledby win over a blank aria-label', () => {
+    render(<><span id="own">Own</span>{field({ 'aria-label': ' ', 'aria-labelledby': 'own' })}</>)
+    expect(document.querySelector('input')).toHaveAccessibleName('Own')
   })
 })

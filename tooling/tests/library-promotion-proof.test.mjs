@@ -14,23 +14,31 @@ const version = '0.1.0-preview.probe'
 const sha256 = 'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad'
 const manifest = { schema: 'harborline-platform/library-manifest/1', packages: [{ id, version, sha256 }] }
 
-// Two jobs since the least-privilege split (owner ruling 2026-11-02): pack-libraries proves the bytes, then uploads
-// them; publish-libraries proves the downloaded bytes again, then attests and pushes. Each order is checked in its job.
+// Three jobs since the separate signing job (owner rulings 2026-11-03): pack-libraries proves the bytes, then uploads
+// them; attest-libraries (which needs pack-libraries, so it starts after that proof) attests the uploaded bytes and
+// runs no repository code; publish-libraries proves the downloaded bytes again, checks every file against that
+// attestation, then pushes. T-705 ruling 107 still holds: every packed library is attested before the push. Each order
+// is checked in its job.
 function assertPublicationProofOrder(workflow) {
   const [beforePublish, publish = ''] = workflow.split('\n  publish-libraries:\n')
-  const pack = beforePublish.split('\n  pack-libraries:\n')[1] ?? ''
+  const [beforeAttest, attest = ''] = beforePublish.split('\n  attest-libraries:\n')
+  const pack = beforeAttest.split('\n  pack-libraries:\n')[1] ?? ''
   const proof = 'run: node tooling/library-promotion-proof.mjs'
   const packVerifier = pack.indexOf(proof)
   const publishVerifier = publish.indexOf(proof)
-  const attestation = publish.indexOf('subject-path:')
+  const attestation = attest.indexOf('subject-path:')
+  const attestationCheck = publish.indexOf('run: bash tooling/verify-attestations.sh')
   const push = publish.indexOf('dotnet nuget push')
   const upload = pack.indexOf('- name: Upload the packed libraries and their proof')
   assert.ok(packVerifier >= 0 && publishVerifier >= 0, 'publication verifier is required')
   assert.ok(attestation >= 0, 'attestation is required')
+  assert.ok(attestationCheck >= 0, 'attestation check is required')
   assert.ok(push >= 0, 'publication push is required')
   assert.ok(upload >= 0, 'accepted proof upload is required')
+  assert.ok(/^    needs: pack-libraries\n/.test(attest), 'attestation must follow the packing proof')
   assert.ok(packVerifier < upload, 'proof must precede accepted proof upload')
-  assert.ok(publishVerifier < attestation, 'proof must precede attestation')
+  assert.ok(publishVerifier < attestationCheck, 'proof must precede the attestation check')
+  assert.ok(attestationCheck < push, 'the attestation check must precede push')
   assert.ok(publishVerifier < push, 'proof must precede push')
 }
 
@@ -119,12 +127,25 @@ test('deleting any required publication marker is refused before comparing order
   assert.notEqual(deleted, workflow, 'the planted deletion must remove the verifier step')
   assert.throws(() => assertPublicationProofOrder(deleted), /publication verifier is required/)
   for (const [marker, refusal] of [['subject-path:', /attestation is required/],
+    ['run: bash tooling/verify-attestations.sh', /attestation check is required/],
     ['dotnet nuget push', /publication push is required/],
     ['- name: Upload the packed libraries and their proof', /accepted proof upload is required/]]) {
     const removed = workflow.replace(marker, '')
     assert.notEqual(removed, workflow, `planted deletion must remove ${marker}`)
     assert.throws(() => assertPublicationProofOrder(removed), refusal)
   }
+})
+
+test('the attestation check cannot follow the push, and signing cannot start before the packing proof', () => {
+  const workflow = readFileSync(resolve(import.meta.dirname, '../../.github/workflows/validate.yml'), 'utf8')
+  const check = workflow.match(/      - name: Refuse any file without attest-libraries' attestation for this commit\n(?:        .*\n)+?        run: bash tooling\/verify-attestations\.sh artifacts\/packages\/nuget\n/)?.[0]
+  assert.ok(check, 'the attestation check step is present')
+  const moved = workflow.replace(check, '') + check
+  assert.notEqual(moved, workflow, 'the planted move must place the check after the push')
+  assert.throws(() => assertPublicationProofOrder(moved), /the attestation check must precede push/)
+  const early = workflow.replace('\n  attest-libraries:\n    needs: pack-libraries\n', '\n  attest-libraries:\n')
+  assert.notEqual(early, workflow, 'the planted edit must drop the attest job dependency')
+  assert.throws(() => assertPublicationProofOrder(early), /attestation must follow the packing proof/)
 })
 
 test('deleting either consumer/proof marker is refused before comparing order', () => {

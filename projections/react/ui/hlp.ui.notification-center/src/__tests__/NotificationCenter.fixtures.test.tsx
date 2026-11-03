@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { HarborlineLocaleProvider } from '@harborline-platform/hlp.ui.locale-provider'
@@ -22,6 +22,41 @@ function chromeNames() {
   open()
   const names = { dialog: screen.getByRole('dialog').getAttribute('aria-label'), tablist: screen.getByRole('tablist').getAttribute('aria-label'), dismiss: document.querySelector('.hl-notification-center__dismiss')!.getAttribute('aria-label') }
   open()
+  return names
+}
+
+// Only the fixture's labels (a dismiss template takes {title}).
+function partialLabels(given: Record<string, string>) {
+  const { dismiss, ...text } = given
+  return { ...text, ...(dismiss === undefined ? {} : { dismiss: (title: string) => dismiss.replace('{title}', title) }) }
+}
+// Every visible label at once, under a host catalog: an unread proposal and an unread result (two kinds, so tabs;
+// Confirm and Deny; the unread marker; Dismiss), with Mark all read and View all supplied, then an empty center
+// for the empty text.
+function allChrome(host: { locale: string; entries: Record<string, string> }, title: string, labels: React.ComponentProps<typeof NotificationCenter>['labels']) {
+  const center = (items: NotificationCenterItem[]) => (
+    <HarborlineLocaleProvider locale={host.locale} catalog={host.entries}>
+      <NotificationCenter items={items} labels={labels} onConfirm={() => undefined} onDeny={() => undefined} onDismiss={() => undefined} onMarkAllRead={() => undefined} onViewAll={() => undefined}/>
+    </HarborlineLocaleProvider>
+  )
+  const view = render(center(namedItems(title)))
+  open()
+  const actions = document.querySelector('.hl-notification-center__actions')!.querySelectorAll('button')
+  const names: Record<string, string | null> = {
+    dialog: screen.getByRole('dialog').getAttribute('aria-label'),
+    markAllRead: document.querySelector('.hl-notification-center__header button')!.textContent,
+    tablist: screen.getByRole('tablist').getAttribute('aria-label'),
+    all: screen.getAllByRole('tab')[0]!.textContent,
+    confirm: actions[0]!.textContent,
+    deny: actions[1]!.textContent,
+    unread: document.querySelector('.hl-notification-center__unread')!.getAttribute('aria-label'),
+    dismiss: document.querySelector('.hl-notification-center__dismiss')!.getAttribute('aria-label'),
+    viewAll: document.querySelector('footer button')!.textContent,
+  }
+  view.unmount()
+  render(center([]))
+  open()
+  names.empty = document.querySelector('.hl-notification-center__empty')!.textContent
   return names
 }
 
@@ -167,6 +202,35 @@ const assertions: Record<string, (entry: Case) => void | Promise<void>> = {
     render(<HarborlineLocaleProvider locale={input.hostCatalog.locale} catalog={input.hostCatalog.entries}><NotificationCenter items={namedItems(input.dismissedTitle)} labels={input.labels} onDismiss={() => undefined}/></HarborlineLocaleProvider>)
     const { dialog, tablist } = chromeNames()
     expect({ dialog, tablist }).toEqual(expected)
+  },
+  'notification-center.partial-labels': ({ input, expected }) => {
+    // Each fixture label sets that field of a Partial labels object; every field it omits comes from the catalog.
+    // Every visible name is asserted.
+    expect(allChrome(input.hostCatalog, input.dismissedTitle, partialLabels(input.labels))).toEqual(expected.partial)
+    cleanup()
+    // Blank labels (ECMA-262 white space and line terminators only, U+FEFF included) fall back; a U+0085-only label is kept.
+    expect(allChrome(input.hostCatalog, input.dismissedTitle, partialLabels(input.blankLabels))).toEqual(expected.blank)
+  },
+  'notification-center.catalog-blank-set': ({ input, expected }) => {
+    // Host catalog text, a host bell phrase and a caller bell label made only of U+FEFF are blank (the first two fall back,
+    // the last is the empty-label error); made only of U+0085 they are kept.
+    const view = render(<HarborlineLocaleProvider locale={input.hostCatalog.locale} catalog={input.hostCatalog.entries}><NotificationCenter items={namedItems(input.dismissedTitle)} onDismiss={() => undefined}/></HarborlineLocaleProvider>)
+    expect(chromeNames()).toEqual(expected.chrome)
+    view.unmount()
+    const unread = Array.from({ length: input.bellUnread }, (_, index) => item(`u${index}`, 'result'))
+    for (const variant of ['feff', 'nel']) {
+      const host = input.bellCatalogs[variant]
+      const bellView = render(<HarborlineLocaleProvider locale={host.locale} catalog={host.entries}><NotificationCenter items={unread}/></HarborlineLocaleProvider>)
+      expect(bell().getAttribute('aria-label')).toBe(expected.bell[variant])
+      bellView.unmount()
+      const label = input.callerBellLabels[variant]
+      const silence = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+      let observed: string | null
+      try { const callerView = render(<NotificationCenter items={unread} getBellLabel={() => label}/>); observed = bell().getAttribute('aria-label'); callerView.unmount() }
+      catch (error) { observed = `error:${(error as Error).message}` }
+      finally { silence.mockRestore() }
+      expect(observed).toBe(expected.callerBell[variant])
+    }
   },
   'notification-center.bell-catalog': ({ input, expected }) => {
     // Bell names for N pending proposals (decisions mode) or N unread results (unread mode).
