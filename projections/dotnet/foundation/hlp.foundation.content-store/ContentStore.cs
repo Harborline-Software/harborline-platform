@@ -1031,11 +1031,14 @@ public sealed class InMemoryContentStore
         private readonly Action<ContentStoreItem, ContentOwner, int, ContentReadContext?> _report;
         private readonly Action<ContentStoreItem> _resolve;
         private readonly byte[] _dataKey = new byte[KeyBytes];
+        private readonly long _length;
         private long _remaining;
         private int _index;
         private int _offset;
         private byte[] _clear = [];
         private bool _completed;
+        private bool _disposed;
+        private ContentIntegrityException? _failure;
 
         public ContentReadStream(ContentStoreItem item, ContentOwner owner, byte[] wrapKey, int first, int last, long offset, long length,
             bool verifiesWholeItem, ContentReadContext? context, Action<ContentStoreItem, ContentOwner, int, ContentReadContext?> report,
@@ -1044,6 +1047,7 @@ public sealed class InMemoryContentStore
             _item = item;
             _owner = owner;
             _last = last;
+            _length = length;
             _remaining = length;
             _index = first;
             _offset = checked((int)offset);
@@ -1063,10 +1067,10 @@ public sealed class InMemoryContentStore
             }
         }
 
-        public override bool CanRead => true;
+        public override bool CanRead => !_disposed;
         public override bool CanSeek => false;
         public override bool CanWrite => false;
-        public override long Length => _remaining;
+        public override long Length => _length;
         public override long Position { get => 0; set => throw new NotSupportedException(); }
         public override void Flush() { }
         public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
@@ -1077,6 +1081,8 @@ public sealed class InMemoryContentStore
 
         public override int Read(Span<byte> buffer)
         {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            if (_failure is not null) throw _failure;
             try
             {
                 var copied = 0;
@@ -1117,12 +1123,18 @@ public sealed class InMemoryContentStore
 
         protected override void Dispose(bool disposing)
         {
-            if (disposing) CryptographicOperations.ZeroMemory(_dataKey);
+            if (disposing)
+            {
+                _disposed = true;
+                CryptographicOperations.ZeroMemory(_dataKey);
+                CryptographicOperations.ZeroMemory(_clear);
+            }
             base.Dispose(disposing);
         }
 
         private void LoadSegment()
         {
+            CryptographicOperations.ZeroMemory(_clear);
             if (_index > _last || _index >= _item.Segments.Count)
             {
                 throw new AuthenticationTagMismatchException("A ciphertext segment is missing.");
@@ -1136,8 +1148,11 @@ public sealed class InMemoryContentStore
 
         private int Fail(Exception exception)
         {
+            _failure = new ContentIntegrityException(_item.StageId, _owner, _index, exception);
+            CryptographicOperations.ZeroMemory(_dataKey);
+            CryptographicOperations.ZeroMemory(_clear);
             _report(_item, _owner, _index, _context);
-            throw new ContentIntegrityException(_item.StageId, _owner, _index, exception);
+            throw _failure;
         }
     }
 }
