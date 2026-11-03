@@ -14,8 +14,11 @@ export function sourceIdentity(root, environment = process.env) {
   assert.equal(environment.GITHUB_SHA ?? source, source, 'checkout/source mismatch')
   const repository = environment.GITHUB_REPOSITORY ?? 'Harborline-Software/harborline-platform'
   assert.equal(repository, 'Harborline-Software/harborline-platform', 'repository mismatch')
+  // publish-libraries verifies bytes pack-libraries proved, and re-running only a failed publish job bumps
+  // GITHUB_RUN_ATTEMPT, so it passes the attempt pack-libraries ran in. Run, source and bytes still match.
   return { source, repository, run: environment.GITHUB_RUN_ID ?? 'local',
-    attempt: environment.GITHUB_RUN_ATTEMPT ?? 'local', workflow: environment.GITHUB_WORKFLOW_REF ?? 'local' }
+    attempt: environment.HARBORLINE_PRODUCER_ATTEMPT || (environment.GITHUB_RUN_ATTEMPT ?? 'local'),
+    workflow: environment.GITHUB_WORKFLOW_REF ?? 'local' }
 }
 
 export function writeLibraryProof(feed, cache, manifest, identity) {

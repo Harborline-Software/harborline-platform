@@ -6,6 +6,7 @@ import {readFileSync} from 'node:fs'
 import {resolve} from 'node:path'
 
 import {byLane} from './derive-state-set.mjs'
+import {loadModuleCatalog} from '../module-catalog.mjs'
 
 const EMPTY_CANDIDATE = /empty|noData/i
 const READ_ONLY_CANDIDATE = /^read.?only$/i
@@ -65,7 +66,7 @@ function discoverModules(modules) {
 }
 
 function runScan(platformRoot) {
-  const catalog = JSON.parse(readFileSync(resolve(platformRoot, 'catalog/modules.yaml'), 'utf8'))
+  const catalog = loadModuleCatalog(platformRoot)
   const moduleIds = discoverModules(catalog.modules ?? {})
   const findings = []
   for (const moduleId of moduleIds) {

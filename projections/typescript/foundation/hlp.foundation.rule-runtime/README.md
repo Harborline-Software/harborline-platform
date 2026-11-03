@@ -62,3 +62,39 @@ pnpm test          # conformance corpus + reactive/bounds/guard unit suites
 pnpm typecheck
 pnpm lint
 ```
+
+## Pinned Taxonomy coding answers
+
+A host can opt into hierarchy-aware `coding.is` with an immutable finite capture.
+Taxonomy produces the answers outside evaluation. The host independently supplies its
+admitted tenant, definition version and SHA-256 binding manifest.
+
+```ts
+const coding = CodingSubsumptionSnapshot.fromJsonText(answersJsonText, expectedBindingsJsonText)
+const guard = new GuardEvaluator(businessClock, limits, coding)
+const graph = new FormRuleGraph(compiled, businessClock, admission, limits, coding)
+```
+
+Both documents use the versioned tuple formats in the module interface and separately
+fit the existing 262,144-byte, depth-64, 5,000-value JSON envelope. Tags, types, tuple
+order, unique aliases/answer keys, tenant and every exact version/hash pin are checked.
+Codes and aliases remain opaque and case-sensitive. The reader never normalizes pins.
+A supplied null or forged capture refuses construction. Omitting the final constructor
+argument preserves legacy flat equality, coercions and array short circuit.
+
+With a capture, the coding code is the descendant and the third operator argument is
+the ancestor. Missing systems refuse with `rule.coding_binding_missing`; missing
+finite pairs refuse with `rule.coding_answer_missing`. Every well-formed same-system
+array member is checked, so a true member cannot hide a missing answer. Malformed
+members are ignored. A completed negative answer remains false.
+
+One graph or guard retains one capture for full, row and reactive evaluation. To use
+another tenant, pin or finite query set, construct a new evaluator. Rules never fetches
+definitions, calls a provider or traverses taxonomy edges. Capture hashes bind bytes;
+they do not authenticate an untrusted producer. Existing borrower admission still
+precedes value access. Opt-in work proofs conservatively bound each `coding.is` by
+`5000 * 5000 * (sum(child maximum result bytes) + 262144 + 1)` and runtime scans charge
+the existing step budget. Legacy proofs stay unchanged.
+
+This source slice does not establish caller integration, released-package evidence or
+the wider T-493 acceptance. Its authored tests require a separately admitted execution.

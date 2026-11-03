@@ -1,0 +1,43 @@
+{
+  "moduleId": "hlp.contracts.identities",
+  "module": {
+    "interface": {
+      "path": "specs/modules/contracts/hlp.contracts.identities/interface.yaml",
+      "revision": 2
+    },
+    "moduleKind": "runtime",
+    "presentation": {
+      "disposition": "not-applicable",
+      "rationale": "Typed identity vocabulary has no presentation surface; React and Blazor consume its wire and .NET projections."
+    },
+    "owner": "platform-contracts",
+    "dependencies": [],
+    "status": "implemented-package-consumer-green",
+    "depth": {
+      "disposition": "deep-module",
+      "deletionTest": "PASS",
+      "redistributedComplexity": [
+        "reserved and default tenant sentinel rejection at every tenant-scoped caller",
+        "canonical entity parsing, serialization, and malformed-wire rejection in every transport and store"
+      ]
+    },
+    "projections": {
+      "dotnet": {
+        "role": "implementation",
+        "path": "projections/dotnet/contracts/hlp.contracts.identities",
+        "status": "preview",
+        "artifact": {
+          "type": "nuget",
+          "id": "Harborline.Contracts",
+          "assembly": "Harborline.Contracts",
+          "manifest": "projections/dotnet/contracts/hlp.contracts.identities/Harborline.Contracts.csproj",
+          "identityAuthority": "Harborline",
+          "producerRepository": "harborline-platform",
+          "distribution": "internal-only",
+          "candidateRole": "local-shadow",
+          "registryAvailable": false
+        }
+      }
+    }
+  }
+}

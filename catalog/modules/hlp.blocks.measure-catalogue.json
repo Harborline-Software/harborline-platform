@@ -1,0 +1,50 @@
+{
+  "moduleId": "hlp.blocks.measure-catalogue",
+  "module": {
+    "interface": {
+      "path": "specs/modules/blocks/hlp.blocks.measure-catalogue/interface.yaml",
+      "revision": 1
+    },
+    "moduleKind": "runtime",
+    "presentation": {
+      "disposition": "not-applicable",
+      "rationale": "The catalogue resolves references and returns neutral typed cells; every renderer of those cells is a separate consumer module."
+    },
+    "owner": "platform-blocks",
+    "dependencies": [
+      "hlp.blocks.aggregates",
+      "hlp.foundation.actor"
+    ],
+    "status": "draft-native-green",
+    "depth": {
+      "disposition": "deep-module",
+      "deletionTest": "PASS",
+      "redistributedComplexity": [
+        "one address for declared and bound entries would otherwise fork into a per-consumer naming scheme and a kind-specific dispatch in every caller",
+        "binding the authorization-filtered input set before grouping, paging and folding would otherwise be re-decided, or forgotten, by each measure consumer"
+      ]
+    },
+    "projections": {
+      "dotnet": {
+        "role": "implementation",
+        "path": "projections/dotnet/blocks/hlp.blocks.measure-catalogue",
+        "status": "preview",
+        "artifact": {
+          "type": "nuget",
+          "id": "Harborline.Blocks.MeasureCatalogue",
+          "assembly": "Harborline.Blocks.MeasureCatalogue",
+          "manifest": "projections/dotnet/blocks/hlp.blocks.measure-catalogue/Harborline.Blocks.MeasureCatalogue.csproj",
+          "dependencies": [
+            "Harborline.Blocks.Aggregates",
+            "Harborline.Foundation.Authorization"
+          ],
+          "identityAuthority": "Harborline",
+          "producerRepository": "harborline-platform",
+          "distribution": "internal-only",
+          "candidateRole": "new-bounded-package",
+          "registryAvailable": false
+        }
+      }
+    }
+  }
+}

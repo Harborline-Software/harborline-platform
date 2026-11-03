@@ -1,17 +1,18 @@
+import type { RuleDefinition as WireRuleDefinition } from '@harborline-software/contracts/rules'
+import type { InternationalizedText } from '@harborline-software/contracts/text'
+
+export type { RuleActionKind, RuleScope, RuleTier } from '@harborline-software/contracts/rules'
+export type { InternationalizedText } from '@harborline-software/contracts/text'
+export type { PresentationHint } from '@harborline-software/contracts/presentation'
+
 /**
- * SPINE-1 neutral contract shapes (TS mirror of Harborline.Foundation.RuleEngine.Model).
+ * SPINE-1 outcome shapes (TS mirror of Harborline.Foundation.RuleEngine.Model).
  * Structurally identical to the .NET records; the shared conformance corpus proves the
  * two tiers emit byte-identical {@link RuleOutcome} values.
  */
 
 /** A JSON value flowing through the engine (instance values, computed values, AST literals). */
 export type Json = null | boolean | number | string | Json[] | { [key: string]: Json }
-
-/** Locale-keyed text — mirrors the .NET `InternationalizedText`. */
-export interface InternationalizedText {
-  defaultLocale: string
-  values: Record<string, string>
-}
 
 /** The output-type taxonomy of a {@link RuleOutcome}. `Options` is the additive fifth (ADR 0146 D2). */
 export type OutputType = 'Value' | 'Validity' | 'Visibility' | 'Presentation' | 'Options'
@@ -79,30 +80,10 @@ export interface RuleOutcome {
   options?: OptionsOutcome
 }
 
-// ── authoring shape (mirror of foundation-forms RuleDefinition + enums) ──────────
-
-export type RuleTier = 'JsonSchema' | 'JsonLogic' | 'PowerFx'
-export type RuleScope = 'Field' | 'Section' | 'Schema' | 'Row' | 'Table'
-export type RuleActionKind = 'Visibility' | 'Required' | 'ReadOnly' | 'Validate' | 'Compute' | 'Presentation' | 'Options'
-
-/** Presentation payload carried by a `Presentation` rule (SPINE-1 Decision DA). */
-export interface PresentationHint {
-  severity?: 'info' | 'warn' | 'error'
-  badge?: InternationalizedText
-  styleToken?: string
-}
-
-/** One cross-field rule (mirror of the .NET `RuleDefinition`). `expression` is the JsonLogic AST. */
-export interface RuleDefinition {
-  id: string
-  tier: RuleTier
-  scope: RuleScope
-  scopeTarget: string
+/** The canonical Rules wire shape also accepts a parsed expression inside the runtime. */
+export interface RuleDefinition extends Omit<WireRuleDefinition, 'expression'> {
   /** The opaque JsonLogic expression — a JSON string OR a parsed object. */
   expression: string | Json
-  action: RuleActionKind
-  errorMessage?: InternationalizedText
-  presentation?: PresentationHint
 }
 
 // ── cell address helpers (string keys, cross-tier identical with the .NET CellAddress.Key) ──

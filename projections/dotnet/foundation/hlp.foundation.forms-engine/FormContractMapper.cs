@@ -1,5 +1,9 @@
 using System.Text.Json;
 using Contract = Harborline.Contracts.Forms;
+using Harborline.Contracts.Serialization;
+using RuleContract = Harborline.Contracts.Rules;
+using PresentationContract = Harborline.Contracts.Presentation;
+using TextContract = Harborline.Contracts.Text;
 using State = Harborline.Foundation.Forms.Models;
 using Harborline.Foundation.RuleEngine;
 using Harborline.Foundation.RuleEngine.Model;
@@ -9,32 +13,32 @@ namespace Harborline.Foundation.Forms.Engine;
 internal static class FormContractMapper
 {
     /// <summary>Converts an internal rule definition into its public contract representation.</summary>
-    public static Contract.RuleDefinition ToContractRule(State.RuleDefinition rule) => new()
+    public static RuleContract.RuleDefinition ToContractRule(State.RuleDefinition rule) => new()
     {
         Id = rule.Id,
-        Tier = rule.Tier switch { State.RuleTier.JsonSchema => Contract.RuleTier.JsonSchema, State.RuleTier.JsonLogic => Contract.RuleTier.JsonLogic, _ => Contract.RuleTier.PowerFx },
-        Scope = rule.Scope switch { State.RuleScope.Field => Contract.RuleScope.Field, State.RuleScope.Section => Contract.RuleScope.Section, State.RuleScope.Schema => Contract.RuleScope.Schema, State.RuleScope.Row => Contract.RuleScope.Row, _ => Contract.RuleScope.Table },
+        Tier = rule.Tier switch { State.RuleTier.JsonSchema => RuleContract.RuleTier.JsonSchema, State.RuleTier.JsonLogic => RuleContract.RuleTier.JsonLogic, _ => RuleContract.RuleTier.PowerFx },
+        Scope = rule.Scope switch { State.RuleScope.Field => RuleContract.RuleScope.Field, State.RuleScope.Section => RuleContract.RuleScope.Section, State.RuleScope.Schema => RuleContract.RuleScope.Schema, State.RuleScope.Row => RuleContract.RuleScope.Row, _ => RuleContract.RuleScope.Table },
         ScopeTarget = rule.ScopeTarget,
         Expression = rule.Expression,
         Action = rule.Action switch
         {
-            State.RuleActionKind.Visibility => Contract.RuleActionKind.Visibility,
-            State.RuleActionKind.Required => Contract.RuleActionKind.Required,
-            State.RuleActionKind.ReadOnly => Contract.RuleActionKind.ReadOnly,
-            State.RuleActionKind.Validate => Contract.RuleActionKind.Validate,
-            State.RuleActionKind.Compute => Contract.RuleActionKind.Compute,
-            State.RuleActionKind.Presentation => Contract.RuleActionKind.Presentation,
-            _ => Contract.RuleActionKind.Options,
+            State.RuleActionKind.Visibility => RuleContract.RuleActionKind.Visibility,
+            State.RuleActionKind.Required => RuleContract.RuleActionKind.Required,
+            State.RuleActionKind.ReadOnly => RuleContract.RuleActionKind.ReadOnly,
+            State.RuleActionKind.Validate => RuleContract.RuleActionKind.Validate,
+            State.RuleActionKind.Compute => RuleContract.RuleActionKind.Compute,
+            State.RuleActionKind.Presentation => RuleContract.RuleActionKind.Presentation,
+            _ => RuleContract.RuleActionKind.Options,
         },
         ErrorMessage = rule.ErrorMessage is null ? default : ToText(rule.ErrorMessage),
-        Presentation = rule.Presentation is null ? default : new Contract.PresentationHint
+        Presentation = rule.Presentation is null ? default : new PresentationContract.PresentationHint
         {
             Severity = rule.Presentation.Severity switch
             {
-                "info" => Contract.PresentationHintSeverityValue.Info,
-                "warn" => Contract.PresentationHintSeverityValue.Warn,
-                "error" => Contract.PresentationHintSeverityValue.Error,
-                _ => default(Contract.Optional<Contract.PresentationHintSeverityValue>),
+                "info" => PresentationContract.PresentationHintSeverityValue.Info,
+                "warn" => PresentationContract.PresentationHintSeverityValue.Warn,
+                "error" => PresentationContract.PresentationHintSeverityValue.Error,
+                _ => default(Optional<PresentationContract.PresentationHintSeverityValue>),
             },
             Badge = rule.Presentation.Badge is null ? default : ToText(rule.Presentation.Badge),
             StyleToken = rule.Presentation.StyleToken is null ? default : rule.Presentation.StyleToken,
@@ -61,15 +65,15 @@ internal static class FormContractMapper
             var ruleState = rules?.Visibility.GetValueOrDefault($"field:{name}");
             var presentation = RulePresentationFor(name, rules);
             var value = isReadable && candidate?.RootElement.TryGetProperty(name, out var element) == true
-                ? Contract.Optional<JsonElement>.Some(element.Clone())
+                ? Optional<JsonElement>.Some(element.Clone())
                 : default;
             projected[name] = new Contract.FormViewField
             {
                 Name = name,
                 Label = ToText(field.Label),
-                HelpText = field.HelpText is null ? default : Contract.Optional<Contract.InternationalizedText?>.Some(ToText(field.HelpText)),
-                ControlHint = isReadable && binding?.Constraints.Editor is { } editor ? Contract.Optional<string?>.Some(editor.ToString()) : default,
-                PermittedValues = isReadable && binding?.Constraints.Values is { } values ? Contract.Optional<IReadOnlyList<string>>.Some(values) : default,
+                HelpText = field.HelpText is null ? default : Optional<TextContract.InternationalizedText?>.Some(ToText(field.HelpText)),
+                ControlHint = isReadable && binding?.Constraints.Editor is { } editor ? Optional<string?>.Some(editor.ToString()) : default,
+                PermittedValues = isReadable && binding?.Constraints.Values is { } values ? Optional<IReadOnlyList<string>>.Some(values) : default,
                 IsSensitive = sensitiveFields.Contains(name) || field.PiiSensitivity == State.PiiSensitivity.Sensitive,
                 IsReadable = isReadable,
                 Value = value,
@@ -85,20 +89,20 @@ internal static class FormContractMapper
             Title = ToText(section.Title),
             Fields = section.Fields.Where(projected.ContainsKey).Select(name => projected[name]).ToArray(),
             Layout = section.Layout is null
-                ? default(Contract.Optional<Contract.SectionLayout>)
+                ? default(Optional<Contract.SectionLayout>)
                 : ToLayout(section.Layout),
             FieldPlacement = section.FieldPlacement is null
-                ? default(Contract.Optional<IReadOnlyDictionary<string, Contract.FieldPlacement>>)
+                ? default(Optional<IReadOnlyDictionary<string, Contract.FieldPlacement>>)
                 : section.FieldPlacement.ToDictionary(row => row.Key, row => ToPlacement(row.Value), StringComparer.Ordinal),
-            Items = section.Items is null ? default : Contract.Optional<IReadOnlyList<Contract.FormViewItem>>.Some(ToItems(section.Items, projected)),
+            Items = section.Items is null ? default : Optional<IReadOnlyList<Contract.FormViewItem>>.Some(ToItems(section.Items, projected)),
         }).ToArray();
 
         return new Contract.FormView
         {
             FormId = definition.Id.Value,
             Version = definition.Version.ToString(),
-            Title = definition.Overlay.Title is null ? default : Contract.Optional<Contract.InternationalizedText?>.Some(ToText(definition.Overlay.Title)),
-            Description = definition.Overlay.Description is null ? default : Contract.Optional<Contract.InternationalizedText?>.Some(ToText(definition.Overlay.Description)),
+            Title = definition.Overlay.Title is null ? default : Optional<TextContract.InternationalizedText?>.Some(ToText(definition.Overlay.Title)),
+            Description = definition.Overlay.Description is null ? default : Optional<TextContract.InternationalizedText?>.Some(ToText(definition.Overlay.Description)),
             Sections = sections,
             Pages = definition.Overlay.Pages is { Count: > 0 } pages
                 ? pages.Select(page => new Contract.FormViewPage
@@ -108,12 +112,12 @@ internal static class FormContractMapper
                     Sections = page.Sections.ToArray(),
                     Visible = !hiddenPages.Contains(page.Id),
                 }).ToArray()
-                : default(Contract.Optional<IReadOnlyList<Contract.FormViewPage>>),
+                : default(Optional<IReadOnlyList<Contract.FormViewPage>>),
         };
     }
 
     /// <summary>Converts localized internal text into the public contract shape.</summary>
-    public static Contract.InternationalizedText ToText(State.InternationalizedText text) => new()
+    public static TextContract.InternationalizedText ToText(State.InternationalizedText text) => new()
     {
         DefaultLocale = text.DefaultLocale,
         Values = new Dictionary<string, string>(text.Values, StringComparer.Ordinal),
@@ -125,12 +129,12 @@ internal static class FormContractMapper
             row => row.Target.Key == $"field:{field}" && row.Presentation is not null)?.Presentation;
     }
 
-    private static Contract.Optional<Contract.PresentationOutcome> ToPresentation(PresentationOutcome? outcome)
+    private static Optional<Contract.PresentationOutcome> ToPresentation(PresentationOutcome? outcome)
     {
         if (outcome is null) return default;
         return new Contract.PresentationOutcome
         {
-            Severity = outcome.Severity is null ? default : Contract.Optional<Contract.Severity?>.Some(outcome.Severity.Value switch
+            Severity = outcome.Severity is null ? default : Optional<Contract.Severity?>.Some(outcome.Severity.Value switch
             {
                 Severity.Info => Contract.Severity.Info,
                 Severity.Warn => Contract.Severity.Warn,
@@ -141,7 +145,7 @@ internal static class FormContractMapper
         };
     }
 
-    private static Contract.Optional<Contract.FormViewFieldRules> RulesFor(
+    private static Optional<Contract.FormViewFieldRules> RulesFor(
         string field,
         RuleEvaluationResult? rules,
         VisibilityState? visibility,
@@ -156,11 +160,11 @@ internal static class FormContractMapper
             Required = visibility?.Required ?? false,
             ReadOnly = visibility?.ReadOnly ?? false,
             Computed = computed is { State: ValueState.Resolved }
-                ? Contract.Optional<JsonElement>.Some(JsonSerializer.SerializeToElement(computed.Value))
+                ? Optional<JsonElement>.Some(JsonSerializer.SerializeToElement(computed.Value))
                 : default,
             PresentationSeverity = presentation?.Severity is null
                 ? default
-                : Contract.Optional<Contract.Severity?>.Some(presentation.Severity.Value switch
+                : Optional<Contract.Severity?>.Some(presentation.Severity.Value switch
                 {
                     Severity.Info => Contract.Severity.Info,
                     Severity.Warn => Contract.Severity.Warn,
@@ -178,8 +182,8 @@ internal static class FormContractMapper
         Wrap = layout.Wrap == State.FlexWrap.Wrap ? Contract.FlexWrap.Wrap : Contract.FlexWrap.Nowrap,
         Columns = layout.Columns,
         Gap = new Contract.LayoutGap(layout.Gap),
-        CollapseBelow = layout.CollapseBelow switch { "sm" => Contract.LayoutBreakpoint.Sm, "md" => Contract.LayoutBreakpoint.Md, "lg" => Contract.LayoutBreakpoint.Lg, _ => default(Contract.Optional<Contract.LayoutBreakpoint>) },
-        Density = layout.Density switch { "comfortable" => Contract.LayoutDensity.Comfortable, "compact" => Contract.LayoutDensity.Compact, _ => default(Contract.Optional<Contract.LayoutDensity>) },
+        CollapseBelow = layout.CollapseBelow switch { "sm" => Contract.LayoutBreakpoint.Sm, "md" => Contract.LayoutBreakpoint.Md, "lg" => Contract.LayoutBreakpoint.Lg, _ => default(Optional<Contract.LayoutBreakpoint>) },
+        Density = layout.Density switch { "comfortable" => Contract.LayoutDensity.Comfortable, "compact" => Contract.LayoutDensity.Compact, _ => default(Optional<Contract.LayoutDensity>) },
         Align = ToAlign(layout.Align),
     };
 
@@ -191,7 +195,7 @@ internal static class FormContractMapper
         Align = ToAlign(placement.Align),
     };
 
-    private static Contract.Optional<Contract.LayoutAlign> ToAlign(string? value) => value switch
+    private static Optional<Contract.LayoutAlign> ToAlign(string? value) => value switch
     {
         "start" => Contract.LayoutAlign.Start,
         "center" => Contract.LayoutAlign.Center,
@@ -218,10 +222,10 @@ internal static class FormContractMapper
                         Key = item.Key, Items = ToItems(item.Items ?? Array.Empty<State.FormItem>(), fields),
                         Title = item.Title is null ? default : ToText(item.Title),
                         Layout = item.Layout is null
-                            ? default(Contract.Optional<Contract.SectionLayout>)
+                            ? default(Optional<Contract.SectionLayout>)
                             : ToLayout(item.Layout),
                         Placement = item.Placement is null
-                            ? default(Contract.Optional<IReadOnlyDictionary<string, Contract.FieldPlacement>>)
+                            ? default(Optional<IReadOnlyDictionary<string, Contract.FieldPlacement>>)
                             : item.Placement.ToDictionary(row => row.Key, row => ToPlacement(row.Value), StringComparer.Ordinal),
                     });
                     break;
@@ -230,7 +234,7 @@ internal static class FormContractMapper
                     {
                         Key = item.Key, Items = ToItems(item.Items ?? Array.Empty<State.FormItem>(), fields),
                         Title = item.Title is null ? default : ToText(item.Title),
-                        Cardinality = item.Cardinality is null ? default : new Contract.Cardinality { Min = item.Cardinality.Min, Max = Contract.Optional<decimal?>.Some(item.Cardinality.Max) },
+                        Cardinality = item.Cardinality is null ? default : new Contract.Cardinality { Min = item.Cardinality.Min, Max = Optional<decimal?>.Some(item.Cardinality.Max) },
                         Table = item.Table is null ? default : ToTable(item.Table),
                     });
                     break;
@@ -268,7 +272,7 @@ internal static class FormContractMapper
         Totals = table.Totals is null ? default : table.Totals.ToArray(),
     };
 
-    private static Contract.Optional<Contract.FieldWidth> ToWidth(string? width) => width switch
+    private static Optional<Contract.FieldWidth> ToWidth(string? width) => width switch
     {
         "auto" => Contract.FieldWidth.Auto,
         "1/4" => Contract.FieldWidth.OneQuarter,

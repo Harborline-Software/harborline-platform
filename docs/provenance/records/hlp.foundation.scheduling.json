@@ -1,0 +1,19 @@
+{
+  "moduleId": "hlp.foundation.scheduling",
+  "phase4Evidence": "specs/modules/foundation/hlp.foundation.scheduling/interface.yaml",
+  "sourceExtracted": true,
+  "sourceState": "Scheduling Wave A: the bounded RRULE expansion engine and derived due-queue query ported verbatim (19 + 6 pinned cases green under their pinned names), plus the writer-lane-authored source-agnostic due-occurrence seam (IDueOccurrenceSource / RruleDueOccurrenceSource / CompositeDueOccurrenceSource, 3 seam tests) required by the user ruling of 2026-08-16 so the ticket-086 relative-chain generator lands behind the same port later. The pinned DI extension is retained without an explicit M.E.DI.Abstractions reference (implicit on net11-preview).",
+  "contentHashes": {
+    "projections/dotnet/foundation/hlp.foundation.scheduling/DependencyInjection/SchedulingServiceCollectionExtensions.cs": "799055dc914cd4fb9a2d66ea5e02979d69129fd9af3de0b58b6e94befe07d7cf",
+    "projections/dotnet/foundation/hlp.foundation.scheduling/Models/DueQueueModels.cs": "6cfffa30429cfc445aaf1002f25ee9d21d6d4627bf4278ebfdd2cf8c06ad55c3",
+    "projections/dotnet/foundation/hlp.foundation.scheduling/README.md": "d23866bd1dd7f37b00525edf5173960bdec1145d126ff482a604c65cfd5b0ad5",
+    "projections/dotnet/foundation/hlp.foundation.scheduling/Services/IDueOccurrenceSource.cs": "88f45fefba0271333255f54322d4850666c4a8c3d36877c68f3b0754e39f8db6",
+    "projections/dotnet/foundation/hlp.foundation.scheduling/Services/IDueQueueQueryService.cs": "1bb48e044529dc1988f2f1a6d84ca04255ae55938b0e80d12804b03665229e2e",
+    "projections/dotnet/foundation/hlp.foundation.scheduling/Services/IRruleExpansionService.cs": "f6acd0418dfbbccfcc0844f0567dfa5bf78c9db98fe692bf77d97d0aebbbab68",
+    "projections/dotnet/foundation/hlp.foundation.scheduling/Services/InMemoryRruleExpansionService.cs": "f596a41a1ebcff0148de480a90d32dca763792b420047631348e42b68c7a4b80",
+    "projections/dotnet/foundation/hlp.foundation.scheduling/Services/RruleExpansionCapExceededException.cs": "b9415a1e1c842a573bb536244ba9eecd4d11a73727c8ae86423ac6ef943a0f91",
+    "projections/dotnet/foundation/hlp.foundation.scheduling/Services/RruleDueQueueQueryService.cs": "89394ed483ee5641fe702ba1ce71823d74c0c86e95ed48cd43eee94c9f11c9eb",
+    "projections/dotnet/foundation/hlp.foundation.scheduling/Harborline.Foundation.Scheduling.csproj": "ba4b7aa71d22f8f49f0bec1c76d19b0c7574a4697758914cf378f567b519c4d8"
+  },
+  "nextGate": "Wave B ports the calendar domain engine (packages/blocks-calendar, 163 cases); Wave C re-proves the 88 host rows at narrowed seams and flips the scheduling gate only through the scheduling-capability-vertical."
+}

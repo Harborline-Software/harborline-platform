@@ -1,32 +1,50 @@
 # stryker: Stryker.NET mutation testing (control T-720; PROC-0002 "Mutation evidence as an artefact"; owner ruling Q43).
 #
-# Pull request: `node tooling/stryker.mjs run` mutates in full each project whose .cs/.razor source changed since
-# origin/main and fails when that project's score is below max(its baseline in tooling/stryker-baselines.json, its
-# configured break), or when 0 mutants were tested. Survivors on changed lines go to the step summary as review
-# feedback. No source change: skipped, green. (Owner order 2026-09-30; PR #227 lost 16 points and merged green.)
+# Pull request (owner, 2026-10-30): tooling/stryker.mjs run selects each project whose source changed and mutates only
+# its changed files, held to the project's floor. Builder runs the same way; its four complete-file partitions are kept
+# for the mutation-diagnostic and mutation-qualification label commands. No source change: skipped, green. The
+# whole-project PR run (owner order 2026-09-30) could not finish the Blazor library's 25,539 mutants on a hosted runner.
 #
-# Schedule (07:40 UTC) and workflow_dispatch: `node tooling/stryker.mjs full` runs every
-# configured project on main and fails when a project scores below its baseline in tooling/stryker-baselines.json.
+# Weekly schedule (Sunday 07:40 UTC) and workflow_dispatch with scope `full`: every configured project on main is
+# mutated and fails when it scores below its baseline in tooling/stryker-baselines.json. That full run is the
+# whole-project floor PRs no longer measure. Owner, 2026-10-30: it runs split across GitHub-hosted runners, free for
+# this public repository, instead of one winbox job that never finished (weekly-plan, weekly-part, weekly-score;
+# tooling/stryker-weekly.mjs). A hosted job stops at six hours and the whole run is well over a hundred runner-hours,
+# so weekly-plan cuts it into WEEKLY_PARTS parts of about three hours each, and at most 12 run at once so the rest
+# of the organisation's hosted CI keeps some of its 20 free slots. The route job still decides whether the run
+# happens at all: only on main, and BACKGROUND_MUTATION_ROUTE=paused pauses it.
 #
-# winbox, not the Macs: macpro carries verify-shared, the platform bottleneck, and mac16 is the perf-quiet runner
-# (T-724 ruling 8). The fork guard is verify-shared's, character for character, so a fork pull request never runs
+# workflow_dispatch with scope `changed` runs the PR check by hand on any branch, hosted (stryker-changed): for a
+# draft, which the PR route skips, or a branch with no PR.
+#
+# PR command routes run where workload-route says: macpro carries verify-shared, the platform bottleneck, and mac16
+# is the perf-quiet runner (T-724 ruling 8). The fork guard is verify-shared's, character for character, so a fork pull request never runs
 # its author's code on our machine; a draft waits until it is marked ready.
 #
 # T-724 ruling 118 (Q50): the pull_request path (changed-project score gate) moved to a standard GitHub-hosted
 # ubuntu-latest runner -- Stryker.NET and its msbuild-path fallback are both no-ops off win32 (tooling/stryker.mjs),
-# so nothing in `node tooling/stryker.mjs run` is Windows-only. The schedule/workflow_dispatch path (full run held
-# to baselines) stays on winbox exactly as before.
+# so nothing in `node tooling/stryker.mjs run` is Windows-only. Ruling 118 kept the schedule/workflow_dispatch full
+# run on winbox; the owner's 2026-10-30 decision above moves it to hosted parts.
 name: stryker
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
+    types: [opened, synchronize, reopened, ready_for_review, labeled]
   schedule:
-    - cron: '40 7 * * *'
+    - cron: '40 7 * * 0'
   workflow_dispatch:
+    inputs:
+      scope:
+        description: 'full: every project on main, held to baselines. changed: the PR check, only files changed since main.'
+        type: choice
+        default: full
+        options:
+          - full
+          - changed
 
 concurrency:
-  group: ${{ github.event_name == 'pull_request' && format('stryker-pr-{0}', github.event.pull_request.number) || format('stryker-{0}', github.ref) }}
+  # Normal PRs, explicit commands and unrelated labels have distinct cancellation groups.
+  group: ${{ github.event_name == 'pull_request' && github.event.action == 'labeled' && (github.event.label.name == 'mutation-diagnostic' || github.event.label.name == 'mutation-qualification') && format('stryker-command-{0}-{1}', github.event.pull_request.number, github.event.label.name) || github.event_name == 'pull_request' && github.event.action == 'labeled' && format('stryker-label-{0}', github.run_id) || github.event_name == 'pull_request' && format('stryker-pr-{0}', github.event.pull_request.number) || format('stryker-{0}', github.ref) }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
@@ -34,7 +52,10 @@ permissions:
 
 jobs:
   workload-route:
-    if: vars.ACTIONS_ENABLED == 'true'
+    if: >-
+      vars.ACTIONS_ENABLED == 'true' &&
+      (github.event_name != 'pull_request' || github.event.action != 'labeled' ||
+       github.event.label.name == 'mutation-diagnostic' || github.event.label.name == 'mutation-qualification')
     runs-on: ubuntu-latest
     outputs:
       enabled: ${{ steps.route.outputs.enabled }}
@@ -52,52 +73,138 @@ jobs:
           node --test .github/workloads/workload-route.test.mjs .github/workloads/windows-default.test.mjs
           python3 .github/workloads/host-workload-lock.test.py
           node .github/workloads/workload-route.mjs
-  stryker:
+  # Source-bound file owners preserve the full Builder scope across four native attempts.
+  builder-plan:
     needs: workload-route
     if: >-
+      needs.workload-route.result == 'success' && github.event_name == 'pull_request' &&
       vars.ACTIONS_ENABLED == 'true' && needs.workload-route.outputs.enabled == 'true' &&
-      (github.event_name == 'schedule' ||
-       github.event_name == 'workflow_dispatch' ||
-       (github.event.pull_request.head.repo.full_name == github.repository &&
-        github.event.pull_request.draft == false &&
-        !contains(github.event.pull_request.labels.*.name, 'stacked')))
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.draft == false &&
+      !contains(github.event.pull_request.labels.*.name, 'stacked') &&
+      (github.event.action != 'labeled' || github.event.label.name == 'mutation-diagnostic' ||
+       github.event.label.name == 'mutation-qualification')
+    runs-on: ubuntu-latest
+    outputs:
+      selected: ${{ steps.plan.outputs.selected }}
+      subject: ${{ steps.plan.outputs.subject }}
+      base: ${{ steps.plan.outputs.base }}
+      mode: ${{ steps.plan.outputs.mode }}
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      PARTITION_MODE: ${{ github.event.action == 'labeled' && github.event.label.name == 'mutation-diagnostic' && 'diagnostic' || github.event.action == 'labeled' && github.event.label.name == 'mutation-qualification' && 'qualification' || 'normal' }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.action == 'labeled' && github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          clean: true
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - name: Build exact complete-file ownership plan
+        id: plan
+        env:
+          EXPECTED_HEAD: ${{ github.event.action == 'labeled' && github.event.pull_request.head.sha || github.sha }}
+        run: |
+          node tooling/stryker-builder-partitions.mjs plan $env:PARTITION_MODE 'StrykerOutput/builder-plan/plan.json'
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          "mode=$env:PARTITION_MODE" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+      - name: Refuse unselected full partition execution
+        if: steps.plan.outputs.selected == 'true' && env.PARTITION_MODE != 'diagnostic'
+        run: |
+          @'
+          const fullPartitionProfile = 'four-complete-files-default-two'
+          if (fullPartitionProfile !== 'four-complete-files-default-two')
+            throw new Error('Full partition execution is not frozen; only bounded diagnostic is admitted.')
+          '@ | node --input-type=module
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Keep exact plan even after refusal
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: builder-plan-${{ github.run_id }}-${{ github.run_attempt }}
+          path: StrykerOutput/builder-plan/plan.json
+          if-no-files-found: ignore
+          retention-days: 7
+
+  builder-partitions:
+    needs: [workload-route, builder-plan]
+    if: >-
+      needs.workload-route.result == 'success' && github.event_name == 'pull_request' &&
+      vars.ACTIONS_ENABLED == 'true' && needs.workload-route.outputs.enabled == 'true' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.draft == false &&
+      !contains(github.event.pull_request.labels.*.name, 'stacked') &&
+      (github.event.action != 'labeled' || github.event.label.name == 'mutation-diagnostic' ||
+       github.event.label.name == 'mutation-qualification') &&
+      needs.builder-plan.result == 'success' && needs.builder-plan.outputs.selected == 'true'
     runs-on: ${{ fromJSON(needs.workload-route.outputs.labels) }}
-    timeout-minutes: ${{ github.event_name == 'pull_request' && 60 || 720 }}
+    timeout-minutes: ${{ needs.builder-plan.outputs.mode == 'diagnostic' && 30 || 360 }}
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        partition: [1, 2, 3, 4]
     defaults:
       run:
         shell: pwsh
     env:
       DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+      EXPECTED_BASE: ${{ needs.builder-plan.outputs.base }}
     steps:
-      # fetch-depth 0 so refs/remotes/origin/main exists: the configs' since target and the script's changed-source
-      # test both diff against it. A plain clone, never a linked worktree (see tooling/stryker.mjs). Every later git
-      # call is local (diff, ls-files, rev-parse), so the checkout token is not left in .git/config.
       - uses: actions/checkout@v7
         with:
+          ref: ${{ needs.builder-plan.outputs.subject }}
           fetch-depth: 0
           clean: true
           persist-credentials: false
-
-      # Provision the pinned toolchain on every route, using the hosted Node version.
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - name: Download exact Builder plan
+        uses: actions/download-artifact@v8
+        with:
+          name: builder-plan-${{ github.run_id }}-${{ github.run_attempt }}
+          path: StrykerOutput/builder-plan
+      - name: Admit exact partition plan before SDK setup
+        env:
+          EXPECTED_HEAD: ${{ needs.builder-plan.outputs.subject }}
+        run: |
+          node tooling/stryker-builder-partitions.mjs admit 'StrykerOutput/builder-plan/plan.json'
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Record whitelisted partition host context
+        env:
+          PARTITION_INDEX: ${{ matrix.partition }}
+        run: |
+          @'
+          import {closeSync, fsyncSync, mkdirSync, openSync, readFileSync, writeFileSync} from 'node:fs'
+          import {availableParallelism, cpus, release, totalmem} from 'node:os'
+          const plan = JSON.parse(readFileSync('StrykerOutput/builder-plan/plan.json', 'utf8'))
+          const context = {
+            capturedUtc: new Date().toISOString(), partition: Number(process.env.PARTITION_INDEX),
+            head: plan.head, tree: plan.tree, runId: plan.runId, runAttempt: plan.runAttempt, mode: plan.mode,
+            availableParallelism: availableParallelism(), logicalCpuCount: cpus().length, totalMemory: totalmem(),
+            platform: process.platform, arch: process.arch, osRelease: release(), nodeVersion: process.version,
+            runnerName: process.env.RUNNER_NAME ?? null, imageVersion: process.env.ImageVersion ?? null,
+          }
+          const directory = 'StrykerOutput/builder-host/diagnostics'
+          mkdirSync(directory, {recursive: true})
+          const file = `${directory}/host.json`, fd = openSync(file, 'wx')
+          try { writeFileSync(fd, JSON.stringify(context, null, 2) + '\n'); fsyncSync(fd) }
+          finally { closeSync(fd) }
+          console.log(JSON.stringify(context))
+          '@ | node --input-type=module
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - uses: actions/setup-dotnet@v6
         env:
           DOTNET_INSTALL_DIR: ${{ runner.temp }}/dotnet
         with:
           global-json-file: global.json
-
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 24
-
-      - uses: actions/setup-python@v7
-        if: github.event_name != 'pull_request' && runner.os != 'Windows'
-        with:
-          python-version: '3.14'
-
-      # The builder-definitions tests read DES-0007 from a control checkout, as verify's gate does. The token reaches
-      # git as an environment-only config entry (GIT_CONFIG_COUNT): it is not in the URL, not in git's argv, and not
-      # written to the mirror's .git/config.
-      - name: Mirror harborline-control for the tests that read it
+      - name: Mirror the pinned control input
         env:
           PINS_TOKEN: ${{ secrets.HARBORLINE_PINS_TOKEN }}
         run: |
@@ -108,34 +215,507 @@ jobs:
           $env:GIT_CONFIG_VALUE_0 = "AUTHORIZATION: basic $basic"
           git clone --quiet https://github.com/Harborline-Software/harborline-control.git "$env:RUNNER_TEMP/harborline-control"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-
-      - name: Mutate changed projects and hold each to its break (pull request)
-        if: github.event_name == 'pull_request'
+          git -C "$env:RUNNER_TEMP/harborline-control" checkout --quiet --detach 69b2798f55790ef5c29056d04a998b8c626db823
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Execute one complete-file Builder partition
+        timeout-minutes: ${{ needs.builder-plan.outputs.mode == 'diagnostic' && 20 || 330 }}
+        env:
+          EXPECTED_HEAD: ${{ needs.builder-plan.outputs.subject }}
+          HARBORLINE_CONTROL_REPO: ${{ runner.temp }}/harborline-control
+          PARTITION_INDEX: ${{ matrix.partition }}
         run: |
           dotnet tool restore
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          node tooling/stryker.mjs run
-        env:
-          HARBORLINE_CONTROL_REPO: ${{ runner.temp }}/harborline-control
+          node tooling/stryker-builder-partitions.mjs shard 'StrykerOutput/builder-plan/plan.json' $env:PARTITION_INDEX
+          exit $LASTEXITCODE
+      # Step timeout attempts upload; whole-job cancellation/runner loss can still prevent it.
+      - name: Keep partial native diagnostics
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: builder-native-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.partition }}
+          if-no-files-found: ignore
+          retention-days: 7
+          path: |
+            StrykerOutput/*/reports/mutation-report.json
+            StrykerOutput/*/stryker-config.json
+            StrykerOutput/*/logs/*.txt
+            StrykerOutput/*/diagnostics/**
+            StrykerOutput/builder-plan/plan.json
+      - name: Keep the flat complete partition packet
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: builder-partition-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.partition }}
+          if-no-files-found: ignore
+          retention-days: 7
+          # Adjacent exact files give the packet a flat diagnostics/ least common ancestor.
+          path: |
+            StrykerOutput/builder-partition-${{ matrix.partition }}/diagnostics/receipt.json
+            StrykerOutput/builder-partition-${{ matrix.partition }}/diagnostics/report.json
 
-      - name: Mutate every project and hold each to its baseline (scheduled)
-        if: github.event_name != 'pull_request'
+  stryker:
+    # A labeled command's skipped owner must not replace the normal stryker context.
+    name: ${{ github.event_name == 'pull_request' && github.event.action == 'labeled' && 'stryker-command-owner' || 'stryker' }}
+    needs: [workload-route, builder-plan, builder-partitions]
+    if: >-
+      always() && needs.workload-route.result == 'success' && vars.ACTIONS_ENABLED == 'true' && needs.workload-route.outputs.enabled == 'true' &&
+      github.event_name == 'pull_request' && github.event.action != 'labeled' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.draft == false &&
+      !contains(github.event.pull_request.labels.*.name, 'stacked')
+    runs-on: ${{ fromJSON(needs.workload-route.outputs.labels) }}
+    timeout-minutes: 360
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+      EXPECTED_BASE: ${{ needs.builder-plan.outputs.base }}
+    steps:
+      # fetch-depth 0 so refs/remotes/origin/main exists: the configs' since target and the script's changed-source
+      # test both diff against it. A plain clone, never a linked worktree (see tooling/stryker.mjs). Every later git
+      # call is local (diff, ls-files, rev-parse), so the checkout token is not left in .git/config.
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event_name == 'pull_request' && needs.builder-plan.outputs.subject || github.sha }}
+          fetch-depth: 0
+          clean: true
+          persist-credentials: false
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - name: Require admitted PR dependencies
+        if: github.event_name == 'pull_request'
+        env:
+          PLAN_RESULT: ${{ needs.builder-plan.result }}
+          BUILDER_SELECTED: ${{ needs.builder-plan.outputs.selected }}
+          PARTITIONS_RESULT: ${{ needs.builder-partitions.result }}
         run: |
-          if ($env:RUNNER_OS -eq 'Windows') {
-            & ./.github/workloads/full-mutation.ps1
-            exit $LASTEXITCODE
+          @'
+          const selected = process.env.BUILDER_SELECTED
+          if (process.env.PLAN_RESULT !== 'success' || !['true', 'false'].includes(selected) ||
+              process.env.PARTITIONS_RESULT !== (selected === 'true' ? 'success' : 'skipped'))
+            throw new Error('Required Builder partition dependencies did not complete as admitted.')
+          '@ | node --input-type=module
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Download admitted Builder plan
+        if: github.event_name == 'pull_request'
+        uses: actions/download-artifact@v8
+        with:
+          name: builder-plan-${{ github.run_id }}-${{ github.run_attempt }}
+          path: StrykerOutput/builder-plan
+      - name: Download complete Builder partition reports
+        if: github.event_name == 'pull_request' && needs.builder-plan.outputs.selected == 'true'
+        uses: actions/download-artifact@v8
+        with:
+          pattern: builder-partition-${{ github.run_id }}-${{ github.run_attempt }}-*
+          path: StrykerOutput/builder-partitions
+          merge-multiple: false
+      - name: Admit exact PR plan before SDK setup
+        if: github.event_name == 'pull_request'
+        env:
+          EXPECTED_HEAD: ${{ needs.builder-plan.outputs.subject }}
+        run: |
+          node tooling/stryker-builder-partitions.mjs admit 'StrykerOutput/builder-plan/plan.json'
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      # Provision the pinned toolchain on every route, using the hosted Node version.
+      - uses: actions/setup-dotnet@v6
+        env:
+          DOTNET_INSTALL_DIR: ${{ runner.temp }}/dotnet
+        with:
+          global-json-file: global.json
+
+      # The builder-definitions tests read DES-0007 from a control checkout, as verify's gate does. The token reaches
+      # git as an environment-only config entry (GIT_CONFIG_COUNT): it is not in the URL, not in git's argv, and not
+      # written to the mirror's .git/config.
+      - name: Mirror harborline-control for the tests that read it
+        env:
+          PINS_TOKEN: ${{ secrets.HARBORLINE_PINS_TOKEN }}
+          BUILDER_SELECTED: ${{ needs.builder-plan.outputs.selected }}
+        run: |
+          $basic = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("x-access-token:$env:PINS_TOKEN"))
+          Write-Output "::add-mask::$basic"
+          $env:GIT_CONFIG_COUNT = '1'
+          $env:GIT_CONFIG_KEY_0 = 'http.https://github.com/.extraheader'
+          $env:GIT_CONFIG_VALUE_0 = "AUTHORIZATION: basic $basic"
+          git clone --quiet https://github.com/Harborline-Software/harborline-control.git "$env:RUNNER_TEMP/harborline-control"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if ($env:GITHUB_EVENT_NAME -eq 'pull_request' -and $env:BUILDER_SELECTED -eq 'true') {
+            git -C "$env:RUNNER_TEMP/harborline-control" checkout --quiet --detach 69b2798f55790ef5c29056d04a998b8c626db823
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
-          python .github/workloads/host-workload-lock.py -- pwsh -NoProfile -File .github/workloads/full-mutation.ps1
+
+      - name: Mutate changed projects and hold each to its break (pull request)
+        if: github.event_name == 'pull_request'
+        # Reserve a nominal 30 minutes for setup, diagnostic upload, and cleanup within the 360-minute PR job.
+        timeout-minutes: 330
+        run: |
+          dotnet tool restore
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node tooling/stryker.mjs check
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node tooling/stryker-builder-partitions.mjs pr 'StrykerOutput/builder-plan/plan.json' 'StrykerOutput/builder-partitions'
           exit $LASTEXITCODE
         env:
           HARBORLINE_CONTROL_REPO: ${{ runner.temp }}/harborline-control
-          NUGET_PACKAGES: ${{ runner.temp }}/mutation-nuget-${{ github.run_id }}-${{ github.run_attempt }}
+          EXPECTED_HEAD: ${{ needs.builder-plan.outputs.subject }}
 
       - name: Mutation reports
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: stryker-report-${{ github.run_id }}
+          name: stryker-report-${{ github.run_id }}-${{ github.run_attempt }}-normal
           if-no-files-found: ignore
           retention-days: ${{ github.event_name == 'pull_request' && 7 || 14 }}
-          path: StrykerOutput/*/reports/mutation-report.json
+          path: |
+            StrykerOutput/*/reports/mutation-report.json
+            StrykerOutput/*/stryker-config.json
+            StrykerOutput/*/logs/*.txt
+            StrykerOutput/*/diagnostics/**
+            StrykerOutput/builder-plan/plan.json
+
+  # The PR check by hand (workflow_dispatch, scope changed) on the dispatched branch: its changed files against main.
+  stryker-changed:
+    if: >-
+      github.event_name == 'workflow_dispatch' && inputs.scope == 'changed' && vars.ACTIONS_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          clean: true
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - uses: actions/setup-dotnet@v6
+        env:
+          DOTNET_INSTALL_DIR: ${{ runner.temp }}/dotnet
+        with:
+          global-json-file: global.json
+      - name: Mirror harborline-control for the tests that read it
+        env:
+          PINS_TOKEN: ${{ secrets.HARBORLINE_PINS_TOKEN }}
+        run: |
+          $basic = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("x-access-token:$env:PINS_TOKEN"))
+          Write-Output "::add-mask::$basic"
+          $env:GIT_CONFIG_COUNT = '1'
+          $env:GIT_CONFIG_KEY_0 = 'http.https://github.com/.extraheader'
+          $env:GIT_CONFIG_VALUE_0 = "AUTHORIZATION: basic $basic"
+          git clone --quiet https://github.com/Harborline-Software/harborline-control.git "$env:RUNNER_TEMP/harborline-control"
+          exit $LASTEXITCODE
+      - name: Mutate changed files and hold each project to its break (manual)
+        timeout-minutes: 330
+        run: |
+          dotnet tool restore
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node tooling/stryker.mjs check
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node tooling/stryker.mjs run
+          exit $LASTEXITCODE
+        env:
+          HARBORLINE_CONTROL_REPO: ${{ runner.temp }}/harborline-control
+      - name: Mutation reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: stryker-report-${{ github.run_id }}-${{ github.run_attempt }}-changed
+          if-no-files-found: ignore
+          retention-days: 7
+          path: |
+            StrykerOutput/*/reports/mutation-report.json
+            StrykerOutput/*/stryker-config.json
+            StrykerOutput/*/logs/*.txt
+            StrykerOutput/*/diagnostics/**
+
+  # The weekly full run, split (see the header): plan the parts, mutate each part on its own hosted runner, then join
+  # the parts into one score per project. Artifacts are named by run attempt like the Builder packets, so a rerun
+  # reruns every part; weekly-score fails when any planned chunk has no result.
+  weekly-plan:
+    needs: workload-route
+    if: >-
+      needs.workload-route.result == 'success' && vars.ACTIONS_ENABLED == 'true' && needs.workload-route.outputs.enabled == 'true' &&
+      (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.scope != 'changed'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      parts: ${{ steps.plan.outputs.shards }}
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      WEEKLY_PARTS: '48'
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - name: Plan the parts
+        id: plan
+        run: |
+          node tooling/stryker-weekly.mjs plan StrykerOutput/weekly/plan.json $env:WEEKLY_PARTS
+          exit $LASTEXITCODE
+      - uses: actions/upload-artifact@v7
+        with:
+          name: weekly-plan-${{ github.run_id }}-${{ github.run_attempt }}
+          path: StrykerOutput/weekly/plan.json
+          retention-days: 14
+
+  weekly-part:
+    needs: weekly-plan
+    if: >-
+      needs.weekly-plan.result == 'success' && vars.ACTIONS_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 355
+    strategy:
+      fail-fast: false
+      max-parallel: 12
+      matrix:
+        part: ${{ fromJSON(needs.weekly-plan.outputs.parts) }}
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+    steps:
+      # fetch-depth 0 as the other mutation jobs do; the part refuses a plan made for another commit.
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          clean: true
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - uses: actions/setup-dotnet@v6
+        env:
+          DOTNET_INSTALL_DIR: ${{ runner.temp }}/dotnet
+        with:
+          global-json-file: global.json
+      - uses: actions/download-artifact@v8
+        with:
+          name: weekly-plan-${{ github.run_id }}-${{ github.run_attempt }}
+          path: StrykerOutput/weekly-plan
+      - name: Mirror harborline-control for the tests that read it
+        env:
+          PINS_TOKEN: ${{ secrets.HARBORLINE_PINS_TOKEN }}
+        run: |
+          $basic = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("x-access-token:$env:PINS_TOKEN"))
+          Write-Output "::add-mask::$basic"
+          $env:GIT_CONFIG_COUNT = '1'
+          $env:GIT_CONFIG_KEY_0 = 'http.https://github.com/.extraheader'
+          $env:GIT_CONFIG_VALUE_0 = "AUTHORIZATION: basic $basic"
+          git clone --quiet https://github.com/Harborline-Software/harborline-control.git "$env:RUNNER_TEMP/harborline-control"
+          exit $LASTEXITCODE
+      - name: Mutate this part
+        # Leave room inside the 355-minute job for setup and the uploads below, which keep a timed-out part's evidence.
+        timeout-minutes: 330
+        run: |
+          dotnet tool restore
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node tooling/stryker-weekly.mjs shard StrykerOutput/weekly-plan/plan.json $env:PART
+          exit $LASTEXITCODE
+        env:
+          PART: ${{ matrix.part }}
+          HARBORLINE_CONTROL_REPO: ${{ runner.temp }}/harborline-control
+      - name: Part results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: weekly-part-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.part }}
+          path: StrykerOutput/weekly/results/*.json
+          if-no-files-found: ignore
+          retention-days: 14
+      - name: Mutation reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: stryker-report-${{ github.run_id }}-${{ github.run_attempt }}-weekly-${{ matrix.part }}
+          if-no-files-found: ignore
+          retention-days: 14
+          path: |
+            StrykerOutput/*/reports/mutation-report.json
+            StrykerOutput/*/stryker-config.json
+            StrykerOutput/*/logs/*.txt
+            StrykerOutput/*/diagnostics/**
+
+  weekly-score:
+    needs: [weekly-plan, weekly-part]
+    if: >-
+      always() && needs.weekly-plan.result == 'success' && vars.ACTIONS_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - uses: actions/download-artifact@v8
+        with:
+          name: weekly-plan-${{ github.run_id }}-${{ github.run_attempt }}
+          path: StrykerOutput/weekly-plan
+      # No part results at all is reported by the next step, chunk by chunk, so a failed download must not hide it.
+      - uses: actions/download-artifact@v8
+        continue-on-error: true
+        with:
+          pattern: weekly-part-${{ github.run_id }}-${{ github.run_attempt }}-*
+          path: StrykerOutput/weekly-results
+          merge-multiple: true
+      - name: Join the parts and hold each project to its baseline
+        run: |
+          node tooling/stryker-weekly.mjs collect StrykerOutput/weekly-plan/plan.json StrykerOutput/weekly-results
+          exit $LASTEXITCODE
+
+  mutation-diagnostic:
+    needs: [workload-route, builder-plan, builder-partitions]
+    if: >-
+      always() && needs.workload-route.result == 'success' &&
+      github.event_name == 'pull_request' &&
+      vars.ACTIONS_ENABLED == 'true' && needs.workload-route.outputs.enabled == 'true' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.draft == false &&
+      !contains(github.event.pull_request.labels.*.name, 'stacked') &&
+      github.event.action == 'labeled' && github.event.label.name == 'mutation-diagnostic'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      EXPECTED_BASE: ${{ needs.builder-plan.outputs.base }}
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          clean: true
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - name: Require exact plan dependency
+        env:
+          PLAN_RESULT: ${{ needs.builder-plan.result }}
+        run: |
+          @'
+          if (process.env.PLAN_RESULT !== 'success') throw new Error('Required Builder plan did not complete.')
+          '@ | node --input-type=module
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Download admitted Builder plan
+        uses: actions/download-artifact@v8
+        with:
+          name: builder-plan-${{ github.run_id }}-${{ github.run_attempt }}
+          path: StrykerOutput/builder-plan
+      - name: Admit exact owner plan
+        env:
+          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          node tooling/stryker-builder-partitions.mjs admit 'StrykerOutput/builder-plan/plan.json'
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Diagnostic observations are not whole qualification
+        env:
+          PARTITIONS_RESULT: ${{ needs.builder-partitions.result }}
+        run: |
+          @'
+          console.log('Four bounded attempts only; raw artifacts remain separate. No mutation score or qualification is asserted.')
+          if (process.env.PARTITIONS_RESULT !== 'success') throw new Error('Diagnostic attempts are partial or refused; inspect their retained evidence.')
+          '@ | node --input-type=module
+          exit $LASTEXITCODE
+
+  mutation-qualification:
+    needs: [workload-route, builder-plan, builder-partitions]
+    if: >-
+      always() && needs.workload-route.result == 'success' &&
+      github.event_name == 'pull_request' &&
+      vars.ACTIONS_ENABLED == 'true' && needs.workload-route.outputs.enabled == 'true' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.draft == false &&
+      !contains(github.event.pull_request.labels.*.name, 'stacked') &&
+      github.event.action == 'labeled' && github.event.label.name == 'mutation-qualification'
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    env:
+      EXPECTED_BASE: ${{ needs.builder-plan.outputs.base }}
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          clean: true
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - name: Require exact plan dependency
+        env:
+          PLAN_RESULT: ${{ needs.builder-plan.result }}
+        run: |
+          @'
+          if (process.env.PLAN_RESULT !== 'success') throw new Error('Required Builder plan did not complete.')
+          '@ | node --input-type=module
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Download admitted Builder plan
+        uses: actions/download-artifact@v8
+        with:
+          name: builder-plan-${{ github.run_id }}-${{ github.run_attempt }}
+          path: StrykerOutput/builder-plan
+      - name: Download partition evidence without merging outer folders
+        uses: actions/download-artifact@v8
+        with:
+          pattern: builder-partition-${{ github.run_id }}-${{ github.run_attempt }}-*
+          path: StrykerOutput/builder-partitions
+          merge-multiple: false
+      - name: Admit exact owner plan
+        env:
+          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          node tooling/stryker-builder-partitions.mjs admit 'StrykerOutput/builder-plan/plan.json'
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Require all four complete dependencies
+        env:
+          PARTITIONS_RESULT: ${{ needs.builder-partitions.result }}
+        run: |
+          @'
+          if (process.env.PARTITIONS_RESULT !== 'success') throw new Error('Whole Builder qualification requires all four complete partitions.')
+          '@ | node --input-type=module
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Judge the complete owner-file union once
+        timeout-minutes: 330
+        env:
+          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          node tooling/stryker-builder-partitions.mjs collect 'StrykerOutput/builder-plan/plan.json' 'StrykerOutput/builder-partitions'
+          exit $LASTEXITCODE
+      - name: Keep explicitly composed owner evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: builder-owner-${{ github.run_id }}-${{ github.run_attempt }}
+          if-no-files-found: ignore
+          retention-days: 7
+          path: |
+            StrykerOutput/builder-owner/**
+            StrykerOutput/builder-plan/plan.json

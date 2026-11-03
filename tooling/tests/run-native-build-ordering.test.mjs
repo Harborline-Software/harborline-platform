@@ -61,6 +61,7 @@ test('run-native build completes React declarations before SelectField typecheck
   assert.equal(report.status, 'PASS')
   assert.equal(report.mode, 'build')
   assert.deepEqual(report.results.map(result => result.id), resultIds)
+  assert.ok(events.indexOf('contracts-build:complete') < events.indexOf('rule-runtime-build:start'), events.join('\n'))
   assert.ok(events.indexOf('react-build:complete') < events.indexOf('select-field-typecheck:start'), events.join('\n'))
 })
 

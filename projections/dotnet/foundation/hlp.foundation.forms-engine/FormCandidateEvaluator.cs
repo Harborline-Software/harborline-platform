@@ -3,6 +3,8 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using Harborline.Contracts.Authorization;
 using Contract = Harborline.Contracts.Forms;
+using Harborline.Contracts.Serialization;
+using RuleContract = Harborline.Contracts.Rules;
 using State = Harborline.Foundation.Forms.Models;
 using Harborline.Foundation.RuleEngine;
 using Harborline.Foundation.RuleEngine.Compilation;
@@ -287,10 +289,10 @@ internal static class FormCandidateEvaluator
         var evaluator = new GuardEvaluator(clock: clock);
         foreach (var page in definition.Overlay.Pages.Where(row => row.VisibleWhen is not null))
         {
-            var guard = new Contract.RuleDefinition
+            var guard = new RuleContract.RuleDefinition
             {
-                Id = $"page-guard:{page.Id}", Tier = Contract.RuleTier.JsonLogic, Scope = Contract.RuleScope.Schema,
-                ScopeTarget = "", Expression = page.VisibleWhen!, Action = Contract.RuleActionKind.Validate,
+                Id = $"page-guard:{page.Id}", Tier = RuleContract.RuleTier.JsonLogic, Scope = RuleContract.RuleScope.Schema,
+                ScopeTarget = "", Expression = page.VisibleWhen!, Action = RuleContract.RuleActionKind.Validate,
             };
             if (evaluator.EvaluateGuard(guard, RuleContextSnapshot.Capture(context), RuleEvalScope.Root, admission, cancellationToken).Ok) continue;
             hiddenPages.Add(page.Id);
@@ -366,8 +368,8 @@ internal static class FormCandidateEvaluator
             JsonPointer = pointer,
             Message = message,
             Kind = kind,
-            Code = code is null ? default : Contract.Optional<string>.Some(code),
-            Params = parameters is null ? default : Contract.Optional<IReadOnlyDictionary<string, string>>.Some(parameters),
+            Code = code is null ? default : Optional<string>.Some(code),
+            Params = parameters is null ? default : Optional<IReadOnlyDictionary<string, string>>.Some(parameters),
         };
 
     private static bool IsEmpty(JsonObject candidate, string field) =>

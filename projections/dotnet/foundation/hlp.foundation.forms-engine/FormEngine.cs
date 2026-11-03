@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Contract = Harborline.Contracts.Forms;
+using Harborline.Contracts.Serialization;
 using State = Harborline.Foundation.Forms.Models;
 using Harborline.Foundation.Forms.Engine.Persistence;
 using Harborline.Foundation.Forms.Engine.Projection;
@@ -645,7 +646,7 @@ public sealed class FormEngine : IFormEngine
             Message = "A form rule could not be compiled.",
             Kind = Contract.ValidationErrorKind.Schema,
             Code = exception.Code,
-            Params = parameters.Count == 0 ? default : Contract.Optional<IReadOnlyDictionary<string, string>>.Some(parameters),
+            Params = parameters.Count == 0 ? default : Optional<IReadOnlyDictionary<string, string>>.Some(parameters),
         };
     }
 

@@ -1,0 +1,60 @@
+{
+  "moduleId": "hlp.ui.side-nav-group",
+  "module": {
+    "interface": {
+      "path": "specs/modules/ui/hlp.ui.side-nav-group/interface.yaml",
+      "revision": 1
+    },
+    "moduleKind": "runtime",
+    "presentation": {
+      "disposition": "not-applicable",
+      "rationale": "Side Nav owns rendering."
+    },
+    "qualityProfile": {
+      "path": "specs/modules/ui/hlp.ui.side-nav-group/quality.yaml",
+      "revision": 1
+    },
+    "owner": "platform-ui",
+    "dependencies": [
+      "hlp.ui.cn",
+      "hlp.ui.tooltip",
+      "hlp.ui.use-can-show-master-detail",
+      "hlp.ui.use-media-query",
+      "hlp.ui.use-outside-click"
+    ],
+    "status": "implemented-gate-model-green",
+    "depth": {
+      "disposition": "deep-module",
+      "deletionTest": "PASS",
+      "redistributedComplexity": [
+        "stable group and recursive item wire vocabulary shared by TypeScript and .NET hosts",
+        "null-label and invalid-identity outcomes otherwise repeated by every host"
+      ]
+    },
+    "projections": {
+      "react": {
+        "role": "implementation",
+        "path": "projections/react/ui/hlp.ui.side-nav-group",
+        "status": "conformant",
+        "packageContribution": "@harborline-software/ui-react",
+        "conformanceRunner": "conformance/hlp.ui.side-nav-group/runners/run-shared.mjs"
+      },
+      "dotnet": {
+        "role": "implementation",
+        "path": "projections/dotnet/foundation/hlp.ui.side-nav-group",
+        "status": "conformant",
+        "packageContribution": "Harborline.Foundation",
+        "conformanceRunner": "conformance/hlp.ui.side-nav-group/runners/run-shared.mjs"
+      }
+    }
+  },
+  "seams": {
+    "ui.side-nav-group.support": {
+      "status": "conformant",
+      "adapters": [
+        "react",
+        "dotnet"
+      ]
+    }
+  }
+}

@@ -1,0 +1,61 @@
+{
+  "moduleId": "hlp.ui.app-layout",
+  "module": {
+    "interface": {
+      "path": "specs/modules/ui/hlp.ui.app-layout/interface.yaml",
+      "revision": 2
+    },
+    "moduleKind": "interactive-component",
+    "presentation": {
+      "disposition": "visual"
+    },
+    "qualityProfile": {
+      "path": "specs/modules/ui/hlp.ui.app-layout/quality.yaml",
+      "revision": 1
+    },
+    "owner": "platform-ui",
+    "dependencies": [
+      "hlp.ui.cn",
+      "hlp.ui.icon-button",
+      "hlp.ui.touch-target",
+      "hlp.ui.use-is-mobile",
+      "hlp.ui.use-media-query"
+    ],
+    "status": "gap-implemented",
+    "depth": {
+      "disposition": "deep-module",
+      "deletionTest": "PASS",
+      "redistributedComplexity": [
+        "single-main and single-navigation ownership, exact rail capability, controlled drawer lifecycle, viewport transition, focus containment, and scroll ownership repeated by every application shell",
+        "rail geometry, fixed header reservation, logical drawer placement, safe areas, reflow, deterministic structural performance, and theme parity drifting across projections"
+      ]
+    },
+    "projections": {
+      "react": {
+        "role": "adapter",
+        "seam": "ui.app-layout.framework",
+        "path": "projections/react/ui/hlp.ui.app-layout",
+        "status": "conformant",
+        "packageContribution": "@harborline-software/ui-react",
+        "conformanceRunner": "conformance/hlp.ui.app-layout/runners/run-shared.mjs"
+      },
+      "blazor": {
+        "role": "adapter",
+        "seam": "ui.app-layout.framework",
+        "path": "projections/blazor/ui/hlp.ui.app-layout",
+        "status": "conformant",
+        "packageContribution": "Harborline.UIAdapters.Blazor",
+        "conformanceRunner": "conformance/hlp.ui.app-layout/runners/run-shared.mjs"
+      }
+    }
+  },
+  "seams": {
+    "ui.app-layout.framework": {
+      "status": "conformant",
+      "adapters": [
+        "react",
+        "blazor"
+      ]
+    }
+  }
+}

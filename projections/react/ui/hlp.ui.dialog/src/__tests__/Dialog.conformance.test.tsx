@@ -156,6 +156,46 @@ describe('Dialog shared fixtures', () => {
     vi.useRealTimers()
   })
 
+  it('reads the body scroll status from the host catalog, then the default catalog', async () => {
+    // T-1106 parity oracle: the Blazor dialog must resolve the same keys in the same order.
+    fixture(sharedCases, 'dialog.scrollable-body')
+    const view = (locale: string, catalog: Record<string, string>) => (
+      <HarborlineLocaleProvider catalog={catalog} locale={locale}>
+        <Dialog onOpenChange={() => undefined} open title="Scrollable"><p>Long body</p></Dialog>
+      </HarborlineLocaleProvider>
+    )
+    vi.useFakeTimers()
+    try {
+      const { rerender } = render(view('en-XA', {
+        'scrollAffordance.percentScrolled': '⟦ Šçřøļļåƀļë řëĝîøñ, {percent}% šçřøļļëđ ······ ⟧',
+      }))
+      const body = document.querySelector<HTMLElement>('[data-dialog-body]')!
+      Object.defineProperties(body, {
+        clientHeight: { configurable: true, value: 300 },
+        scrollHeight: { configurable: true, value: 700 },
+        scrollTop: { configurable: true, writable: true, value: 0 },
+      })
+      const status = () => document.querySelector('.hl-dialog__status')?.textContent
+      // T-1135: the body's layout measurement on open is quiet; the scroll that follows announces.
+      await act(async () => { window.dispatchEvent(new Event('resize')); vi.runAllTimers() })
+      expect(status()).toBe('')
+      body.scrollTop = 200
+      fireEvent.scroll(body)
+      await act(async () => { vi.runAllTimers() })
+      expect(status()).toBe('⟦ Šçřøļļåƀļë řëĝîøñ, 50% šçřøļļëđ ······ ⟧')
+
+      rerender(view('ar-SA', { 'scrollAffordance.percentScrolled': 'منطقة قابلة للتمرير، تم تمرير {percent}%' }))
+      await act(async () => { vi.runAllTimers() })
+      expect(status()).toBe('منطقة قابلة للتمرير، تم تمرير 50%')
+
+      rerender(view('fr-FR', { 'common.close': 'Fermer' }))
+      await act(async () => { vi.runAllTimers() })
+      expect(status()).toBe('Scrollable region, 50% scrolled, use arrow keys to scroll')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('uses locale direction, supports long content, and completely replaces controlled content and policy', () => {
     fixture(sharedCases, 'dialog.localized-close-rtl')
     fixture(sharedCases, 'dialog.long-content-reflow')

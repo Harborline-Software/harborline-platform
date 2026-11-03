@@ -2,7 +2,7 @@
   "name": "@harborline-software/contracts",
   "version": "0.0.0-alpha.0",
   "private": true,
-  "description": "Generated Harborline Forms and Workflow wire contracts.",
+  "description": "Maintained Harborline Rules, Text, Presentation, Forms and Workflow wire contracts.",
   "type": "module",
   "packageManager": "pnpm@11.1.3",
   "justifications": {
@@ -26,6 +26,18 @@
     "./authorization": {
       "types": "./dist/authorization.d.ts",
       "import": "./dist/authorization.js"
+    },
+    "./rules": {
+      "types": "./dist/rules.d.ts",
+      "import": "./dist/rules.js"
+    },
+    "./text": {
+      "types": "./dist/text.d.ts",
+      "import": "./dist/text.js"
+    },
+    "./presentation": {
+      "types": "./dist/presentation.d.ts",
+      "import": "./dist/presentation.js"
     }
   },
   "files": [

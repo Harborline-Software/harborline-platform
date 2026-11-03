@@ -1,0 +1,39 @@
+# Scripts that the packing and publishing jobs run, and the files those scripts import or call. A change to any of
+# them also needs a clean Codex security review (PROC-0001, "Review policy, 2026-11-01"). review-gate reads this
+# file from main, or from a PR's base branch when a ruleset requires pull requests there.
+# One path per line; a path ending in / covers a folder.
+#
+# Only the publish jobs hold write scopes, and they build nothing: they re-verify, attest and push the bytes the
+# read-only stage and pack-libraries jobs made. Those bytes ship as they are, so what makes them is still risky even
+# though those jobs run read-only. Product code and dependencies are not listed; they no longer run with the token.
+#
+# Keep it current: a PR that adds a script to those jobs adds it here.
+# review-gate.sh itself counts Directory.Build.props, Directory.Build.targets and Directory.Packages.props at any
+# depth. This file is under .github/, so changing it is itself risky.
+
+# release-platform.yml (stage, then publish with contents, id-token, attestations: write)
+# validate.yml (pack-libraries, then publish-libraries with packages, id-token, attestations: write)
+tooling/fetch-nuget-package.mjs
+tooling/gate-contract.mjs
+tooling/library-promotion-proof.mjs
+tooling/package-fixture-selection.mjs
+tooling/package-producers.mjs
+tooling/package-version.mjs
+tooling/platform-release.mjs
+tooling/release-receipt.mjs
+tooling/resolve-command.mjs
+tooling/resolve-dotnet.mjs
+tooling/tests/library-promotion-proof.test.mjs
+tooling/tests/publish-libraries.packed.mjs
+tooling/tests/publish-libraries.test.mjs
+tooling/verify-package-fixtures.mjs
+# Pins the hashes of the tarballs verify-package-fixtures.mjs stages and installs.
+tooling/appshell-feed-provenance.json
+# Build-wide inputs: the feeds restore pulls from and the pinned SDK.
+NuGet.Config
+global.json
+# The product the package jobs pack and ship, including the TFM props Directory.Build.props imports into every
+# project. Owner ruling 2026-11-02: listed whole, erring toward review over a narrower list.
+projections/
+# pack-libraries runs verify-package-fixtures.mjs --pack-libraries, which copies and runs every consumer here.
+tests/package-consumers/

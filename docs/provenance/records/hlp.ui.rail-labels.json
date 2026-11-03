@@ -1,0 +1,25 @@
+{
+  "moduleId": "hlp.ui.rail-labels",
+  "legacySourceHashes": {
+    "packages/builder-kit/src/labels.ts": "7e267828f41e49791ab95c5196e146af4014d9be8c895bce47973585411ba04e"
+  },
+  "phase4Evidence": "specs/modules/ui/hlp.ui.rail-labels/interface.yaml",
+  "sourceExtracted": true,
+  "sourceState": "Interface revision 1 preserves the exact pinned hlp.ui.rail-labels source surface and proves every registered projection through native, shared-conformance, package-only, and applicable gallery/performance gates.",
+  "contentHashes": {
+    "conformance/hlp.ui.rail-labels/fixtures.yaml": "678d636c41fb121bf4a9b77f4aaa00df8171b2b818e2ec422a8a6568093ee398",
+    "conformance/hlp.ui.rail-labels/quality-fixtures.yaml": "6137f1798787230427da0aaad03cf32972603bd883dc954abf712fd9f5bd1b37",
+    "conformance/hlp.ui.rail-labels/runners/run-shared.mjs": "be3c7a63ecf102a0f97632c3e8bf658066f2d8278d5b5883710dba705d62fec6",
+    "projections/dotnet/foundation/hlp.ui.rail-labels/RailLabels.cs": "8eefade18f0a49cdd4b9cbdcb1afa77c140c7c7fa677a330166bbdc3c7a624be",
+    "projections/react/ui/hlp.ui.rail-labels/src/__tests__/fixtures.ts": "56e0b09af62a6c875f332d6fd4cd9bd4458d498a34c832bc78e86a940ca4bb59",
+    "projections/react/ui/hlp.ui.rail-labels/src/__tests__/rail-labels.conformance.test.ts": "00c927b4f89fb06d0eb3dbd8940f6af4f91fd2706ac0be2c87b174317e1b49b7",
+    "projections/react/ui/hlp.ui.rail-labels/src/__tests__/rail-labels.native.test.ts": "1ce227baa65af5d312852ae26c81e13f33e4e67de13b4f0e0c612b7e5d48e88b",
+    "projections/react/ui/hlp.ui.rail-labels/src/index.ts": "b11358362f8359a7fe44c3000b6a77f1137e467156d6a1313307d3a5d4fa6896",
+    "projections/react/ui/hlp.ui.rail-labels/tsconfig.build.json": "caab55072116c883a2a5e22d0559c6216141ab74887f4c473a29b4403b8a55fb",
+    "projections/react/ui/hlp.ui.rail-labels/tsconfig.json": "58cfcf8ab405403f49e627025ad906cc35e884c661bb1cdcb60f70f497701d25",
+    "projections/react/ui/hlp.ui.rail-labels/vitest.config.ts": "4f00a707d65b03e65ec292e32c33f651a7eaff0fc83f5c7b193f8a6803e8f644",
+    "specs/modules/ui/hlp.ui.rail-labels/interface.yaml": "7d5ed70e9e2407ebd76f4530aee576f2229dc56b8cf9344021b2c0d7c8a70007",
+    "specs/modules/ui/hlp.ui.rail-labels/quality.yaml": "487440ef58ff628d000434e2b76c51957f8cb66ba26e893bba12a31782269cae"
+  },
+  "nextGate": "Retain this conformant aggregate contribution while HLF-052 advances to the next Carrier-essential dependency wave."
+}

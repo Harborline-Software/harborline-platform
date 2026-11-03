@@ -181,6 +181,17 @@ describe('ConfirmDialog React projection', () => {
     expect(document.querySelector('[dir="rtl"]')).not.toBeNull()
   })
 
+  // T-1122: the actions sit on the composed Dialog surface, so the surface's own centring (in
+  // hlp.ui.dialog's stylesheet) is what keeps them onscreen in right-to-left content.
+  it('places its right-to-left actions on the composed Dialog surface', () => {
+    renderConfirm({}, {direction: 'rtl', locale: 'ar', catalog: {'common.confirm': 'تأكيد', 'common.cancel': 'إلغاء'}})
+    const dialog = screen.getByRole('dialog', {name: baseProps.title})
+    expect(dialog).toHaveClass('hl-dialog__surface')
+    expect(dialog).toHaveAttribute('dir', 'rtl')
+    expect(dialog).toContainElement(screen.getByRole('button', {name: 'إلغاء'}))
+    expect(dialog).toContainElement(screen.getByRole('button', {name: 'تأكيد'}))
+  })
+
   // confirm-dialog.replacement
   it('renders replaced content without retaining stale copy', () => {
     const {rerender} = renderConfirm({confirmLabel: 'First'})
