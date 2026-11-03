@@ -3,7 +3,7 @@
   "module": {
     "interface": {
       "path": "specs/modules/ui/hlp.ui.notification-center/interface.yaml",
-      "revision": 2
+      "revision": 3
     },
     "moduleKind": "interactive-component",
     "presentation": {
