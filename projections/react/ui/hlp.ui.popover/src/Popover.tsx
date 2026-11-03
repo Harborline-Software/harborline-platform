@@ -109,8 +109,24 @@ const contentOwners = new WeakMap<Element, () => HTMLElement | null>()
 // The open contents, to find the content an open trigger owns (the way in, nested).
 const openContents = new Set<HTMLElement>()
 
+// HTML editing hosts have an implicit sequential stop even though tabIndex reads -1.
+// Resolve inherited editability so nested editable descendants do not become extra stops.
+function editable(element: HTMLElement | null): boolean {
+  for (let node = element; node; node = node.parentElement) {
+    const value = node.getAttribute('contenteditable')?.toLowerCase()
+    if (value === '' || value === 'true' || value === 'plaintext-only') return true
+    if (value === 'false') return false
+  }
+  return false
+}
+
+function tabRank(element: HTMLElement): number {
+  if (!element.hasAttribute('tabindex') && editable(element) && !editable(element.parentElement)) return 0
+  return element.tabIndex
+}
+
 function tabbable(element: HTMLElement): boolean {
-  if (element.tabIndex < 0 || element.matches(':disabled')) return false
+  if (tabRank(element) < 0 || element.matches(':disabled')) return false
   if (element instanceof HTMLInputElement && element.type === 'hidden') return false
   for (let node: HTMLElement | null = element; node; node = node.parentElement) {
     if (node.hidden || (node as HTMLElement & { inert?: boolean }).inert === true) return false
@@ -144,16 +160,16 @@ function stopsIn(scope: HTMLElement | null): HTMLElement[] {
     if (!radioGroup(element)) return true
     const group = all.filter(other => sameGroup(other, element))
     return element === (group.find(radio => (radio as HTMLInputElement).checked) ?? group[0])
-  }).sort((a, b) => (a.tabIndex > 0 ? a.tabIndex : Infinity) - (b.tabIndex > 0 ? b.tabIndex : Infinity))
+  }).sort((a, b) => (tabRank(a) > 0 ? tabRank(a) : Infinity) - (tabRank(b) > 0 ? tabRank(b) : Infinity))
 }
 
 // WHATWG tabindex-ordered scope: positives first, ascending; equal ranks use tree order.
 // Programmatically focused negative-tabindex anchors retain their tree-position fallback.
 function follows(from: HTMLElement, other: HTMLElement): boolean {
   if (other.contains(from)) return false
-  if (from.tabIndex >= 0 && other.tabIndex >= 0) {
-    const left = from.tabIndex > 0 ? from.tabIndex : Infinity
-    const right = other.tabIndex > 0 ? other.tabIndex : Infinity
+  if (tabRank(from) >= 0 && tabRank(other) >= 0) {
+    const left = tabRank(from) > 0 ? tabRank(from) : Infinity
+    const right = tabRank(other) > 0 ? tabRank(other) : Infinity
     if (left !== right) return left < right
   }
   return !!(from.compareDocumentPosition(other) & Node.DOCUMENT_POSITION_FOLLOWING)

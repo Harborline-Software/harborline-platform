@@ -239,3 +239,24 @@ describe('Popover positive tabindex order', () => {
     expect(press(named(from), shift)).toEqual([kind, to])
   })
 })
+
+// HTML focus rules: an editing host without tabindex participates at the implicit
+// zero rank; explicit negative tabindex, hidden and inert hosts remain excluded.
+describe('Popover editing-host Tab stops', () => {
+  it.each(['', 'true', 'plaintext-only'])('keeps implicit %s editing hosts in forward and reverse-entry order', async value => {
+    render(<Page><button>Apply</button><div contentEditable={value as 'true'} aria-label="Editor" suppressContentEditableWarning>Editable</div></Page>)
+    await settle()
+    named('Apply').focus()
+    expect(press(named('Apply'))).toEqual(['native', 'Apply'])
+    named('After').focus()
+    expect(press(named('After'), true)).toEqual(['handled', 'Editor'])
+  })
+
+  it.each(['negative', 'hidden', 'inert'])('excludes an editing host when %s', async exclusion => {
+    render(<Page><button>Apply</button><div contentEditable tabIndex={exclusion === 'negative' ? -1 : undefined} hidden={exclusion === 'hidden'} ref={node => { if (node && exclusion === 'inert') node.inert = true }} aria-label="Editor" suppressContentEditableWarning>Editable</div></Page>)
+    await settle()
+    named('Apply').focus()
+    expect(press(named('Apply'))).toEqual(['handled', 'After'])
+    expect(press(named('After'), true)).toEqual(['handled', 'Apply'])
+  })
+})

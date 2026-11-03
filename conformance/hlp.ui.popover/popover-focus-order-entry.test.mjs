@@ -71,6 +71,25 @@ describe('Popover Blazor focus order: the way into the content (b31 re-review)',
     expect(press(shift)).toEqual([kind, to])
   })
 
+  it.each(['', 'true', 'plaintext-only'])('includes implicit %s editing hosts in forward and reverse-entry order', value => {
+    build('<button id=t>Open</button><button id=after>After</button>', 't', '<button id=a>Apply</button><div contenteditable="' + value + '" aria-label="Editor">Editable</div>')
+    focus('#a')
+    expect(press()).toEqual(['native', 'Apply'])
+    focus('#after')
+    expect(press(true)).toEqual(['handled', 'Editor'])
+  })
+
+  it.each(['negative', 'hidden', 'inert'])('excludes %s editing hosts', exclusion => {
+    build('<button id=t>Open</button><button id=after>After</button>', 't', '<button id=a>Apply</button><div id=editor contenteditable=true aria-label="Editor">Editable</div>')
+    const editor = document.querySelector('#editor')
+    if (exclusion === 'negative') editor.tabIndex = -1
+    if (exclusion === 'hidden') editor.hidden = true
+    if (exclusion === 'inert') editor.inert = true
+    focus('#a')
+    expect(press()).toEqual(['handled', 'After'])
+    expect(press(true)).toEqual(['handled', 'Apply'])
+  })
+
   const page = '<button>Before</button><button id=t>Open</button><button id=after>After</button><button id=further>Further</button>'
 
   it('Tab on the trigger while open goes to the content\'s first stop', () => {
