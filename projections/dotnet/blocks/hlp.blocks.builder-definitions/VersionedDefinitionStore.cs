@@ -6,7 +6,8 @@ namespace Harborline.Blocks.BuilderDefinitions;
 
 /// <summary>
 /// Registry-neutral promotion of the Layout reference store. Maintains its locked revision map,
-/// detached snapshots and restore-as-draft lifecycle; adds stream fencing and exact replay.
+/// detached snapshots and restore-as-draft lifecycle; adds stream fencing and exact replay, and stores
+/// each publication's Definition Dependencies under the same lock that commits it.
 /// This in-memory reference implementation does not claim restart durability.
 /// </summary>
 public sealed class InMemoryVersionedDefinitionStore : IVersionedDefinitionStore
@@ -30,19 +31,36 @@ public sealed class InMemoryVersionedDefinitionStore : IVersionedDefinitionStore
     }
 
     private readonly IReadOnlyDictionary<DefinitionKind, DefinitionAdmission> _admissions;
+    private readonly IReadOnlyDictionary<DefinitionKind, DefinitionDependencyDerivation> _derivations;
     private readonly Dictionary<(DefinitionKey Key, string VersionId), DefinitionRevision> _revisions = [];
     private readonly Dictionary<DefinitionKey, List<DefinitionRevision>> _history = [];
     private readonly Dictionary<(DefinitionKey Key, string RequestId), Replay> _requests = [];
+    private readonly Dictionary<(DefinitionKey Key, string VersionId), IReadOnlyList<DefinitionDependency>> _dependencies = [];
 
     /// <summary>Creates a store with explicitly admitted registry validators, copied from host configuration.</summary>
+    // Kept as its own overload, not folded into an optional parameter, so binaries compiled against it still bind.
     public InMemoryVersionedDefinitionStore(IReadOnlyDictionary<DefinitionKind, DefinitionAdmission> admissions)
+        : this(admissions, null)
+    {
+    }
+
+    /// <summary>
+    /// Creates a store with explicitly admitted registry validators, copied from host configuration, and the dependency
+    /// derivations of the registries that store Definition Dependencies. Each derivation's registry must also be admitted.
+    /// </summary>
+    public InMemoryVersionedDefinitionStore(IReadOnlyDictionary<DefinitionKind, DefinitionAdmission> admissions,
+        IReadOnlyDictionary<DefinitionKind, DefinitionDependencyDerivation>? dependencies)
     {
         ArgumentNullException.ThrowIfNull(admissions);
         // Construction-time validation, before any operation exists to name a stage. Author is the
         // earliest lifecycle stage and matches host wiring, which always runs during authoring setup.
         if (admissions.Any(pair => !Enum.IsDefined(pair.Key) || pair.Value is null))
             throw Refuse("definition.registry_unknown", "/registry", DefinitionAdmissionPhase.Author);
+        if (dependencies?.Any(pair => !admissions.ContainsKey(pair.Key) || pair.Value is null) == true)
+            throw Refuse("definition.registry_unknown", "/dependencies", DefinitionAdmissionPhase.Author);
         _admissions = new Dictionary<DefinitionKind, DefinitionAdmission>(admissions);
+        _derivations = new Dictionary<DefinitionKind, DefinitionDependencyDerivation>(
+            dependencies ?? new Dictionary<DefinitionKind, DefinitionDependencyDerivation>());
     }
 
     /// <inheritdoc />
@@ -158,10 +176,7 @@ public sealed class InMemoryVersionedDefinitionStore : IVersionedDefinitionStore
         // composition (LoadAsync's published-head fallback, ResolveAsync's Latest policy).
         ValidateKey(key, DefinitionAdmissionPhase.Author);
         lock (_gate)
-            return ValueTask.FromResult(_revisions.Values
-                .Where(revision => revision.Document.Key == key && revision.Status == DefinitionStatus.Published)
-                .OrderByDescending(revision => DefinitionSemanticVersion.Parse(revision.Document.Version))
-                .FirstOrDefault());
+            return ValueTask.FromResult(Head(key));
     }
 
     /// <inheritdoc />
@@ -179,6 +194,39 @@ public sealed class InMemoryVersionedDefinitionStore : IVersionedDefinitionStore
             return ValueTask.FromResult(_revisions.TryGetValue((binding.Key, binding.VersionId), out var revision)
                 && revision.Status == DefinitionStatus.Published ? revision : null);
     }
+
+    /// <inheritdoc />
+    public ValueTask<DefinitionDependencies> ReadDependenciesAsync(string tenant, string definitionType, string definitionId,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        Require(tenant, "definition.tenant_required", "/tenant", DefinitionAdmissionPhase.Author);
+        Require(definitionType, "definition.type_required", "/definitionType", DefinitionAdmissionPhase.Author);
+        Require(definitionId, "definition.id_required", "/definitionId", DefinitionAdmissionPhase.Author);
+        if (_derivations.Count == 0)
+            throw Refuse("definition.dependencies_unsupported", "/dependencies", DefinitionAdmissionPhase.Author);
+        lock (_gate)
+        {
+            // Only each definition's published head counts, so a later published version replaces the edges of an
+            // earlier one, and an edge appears in Dependents exactly when its source still depends on the definition.
+            var edges = _history.Keys
+                .Where(key => key.Tenant == tenant)
+                .OrderBy(key => key.DefinitionId, StringComparer.Ordinal).ThenBy(key => key.Kind)
+                .SelectMany(key => Head(key) is { } head && _dependencies.TryGetValue((key, head.Document.VersionId), out var stored)
+                    ? stored : [])
+                .ToArray();
+            bool Names(CatalogueDefinitionReference end) => end.DefinitionType == definitionType && end.DefinitionId == definitionId;
+            return ValueTask.FromResult(new DefinitionDependencies(
+                edges.Where(edge => Names(edge.FromDefinitionId)).ToArray(),
+                edges.Where(edge => Names(edge.ToDefinitionId)).ToArray()));
+        }
+    }
+
+    // The highest published semantic version of a key; the caller holds the gate.
+    private DefinitionRevision? Head(DefinitionKey key) => _revisions.Values
+        .Where(revision => revision.Document.Key == key && revision.Status == DefinitionStatus.Published)
+        .OrderByDescending(revision => DefinitionSemanticVersion.Parse(revision.Document.Version))
+        .FirstOrDefault();
 
     private ValueTask<DefinitionRevision> Apply(DefinitionKey key, long expectedRevision, string requestId,
         string signature, DefinitionAdmissionPhase phase, Func<DefinitionRevision> prepare,
@@ -206,13 +254,11 @@ public sealed class InMemoryVersionedDefinitionStore : IVersionedDefinitionStore
             if (replay is not null) return ValueTask.FromResult(replay);
             if (conditions is not null)
             {
-                var changed = conditions.Where(condition => _revisions.Values
-                    .Where(item => item.Document.Key == condition.Key && item.Status == DefinitionStatus.Published)
-                    .OrderByDescending(item => DefinitionSemanticVersion.Parse(item.Document.Version))
-                    .FirstOrDefault()?.Revision != condition.Revision)
+                var changed = conditions.Where(condition => Head(condition.Key)?.Revision != condition.Revision)
                     .Select(condition => new DefinitionRefusal("definition.published_head_conflict", condition.Pointer)).ToArray();
                 if (changed.Length > 0) throw new DefinitionRefusalException(phase, changed);
             }
+            IReadOnlyList<DefinitionDependency>? dependencies = null;
             if (phase == DefinitionAdmissionPhase.Publish)
             {
                 var version = DefinitionSemanticVersion.Parse(candidate.Document.Version);
@@ -227,11 +273,17 @@ public sealed class InMemoryVersionedDefinitionStore : IVersionedDefinitionStore
                     return ValueTask.FromResult(candidate);
                 }
                 candidate = candidate with { Status = DefinitionStatus.Published };
+                // The derivation sees exactly the heads this commit is fenced against and is handed no store, so it cannot
+                // re-enter a mutation. A refusal or fault from it leaves nothing committed.
+                if (_derivations.TryGetValue(key.Kind, out var derive))
+                    dependencies = derive(candidate.Document, Head)?.ToArray()
+                        ?? throw Refuse("definition.admission_invalid", "/dependencies", phase);
             }
             var appended = candidate with { Revision = checked(expectedRevision + 1) };
             if (!_history.TryGetValue(key, out var history)) _history[key] = history = [];
             history.Add(appended);
             _revisions[(key, appended.Document.VersionId)] = appended;
+            if (dependencies is not null) _dependencies[(key, appended.Document.VersionId)] = dependencies;
             _requests.Add((key, requestId), new(expectedRevision, signature, appended,
                 phase == DefinitionAdmissionPhase.Publish ? appended.Document.VersionId : null));
             return ValueTask.FromResult(appended);
