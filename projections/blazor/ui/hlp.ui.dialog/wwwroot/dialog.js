@@ -51,14 +51,20 @@ export function connect(portal, dialog, body, callback, _closeOnEscape) {
     else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus() }
   }
   const resize = new ResizeObserver(measure)
-  document.addEventListener('keydown', onKey)
+  // Content widgets (including portaled Popover) route Tab after Blazor's document
+  // dispatcher. Apply the outer trap afterward; keep Escape's existing ordering.
+  const onDocumentKey = event => { if (event.key !== 'Tab') onKey(event) }
+  const onWindowTab = event => { if (event.key === 'Tab') onKey(event) }
+  document.addEventListener('keydown', onDocumentKey)
+  window.addEventListener('keydown', onWindowTab)
   body.addEventListener('scroll', measure, { passive: true })
   resize.observe(body)
   requestAnimationFrame(() => { (nodes()[0] ?? dialog).focus(); measure() })
   return {
     scrollBodyTo(top) { body.scrollTo({ top, behavior: 'auto' }) },
     dispose() {
-      document.removeEventListener('keydown', onKey)
+      document.removeEventListener('keydown', onDocumentKey)
+      window.removeEventListener('keydown', onWindowTab)
       body.removeEventListener('scroll', measure)
       resize.disconnect()
       siblings.forEach((element, index) => { element.inert = inert[index] })

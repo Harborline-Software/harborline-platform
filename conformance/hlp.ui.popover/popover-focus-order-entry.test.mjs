@@ -50,6 +50,27 @@ describe('Popover Blazor focus order: the way into the content (b31 re-review)',
     expect(press(true)).toEqual(['native', 'Modal control'])
   })
 
+  it('lets a delegated content handler consume Tab before moving focus', () => {
+    const delegated = event => { if (event.target.id === 'a' && event.key === 'Tab') event.preventDefault() }
+    // Blazor's global dispatcher is installed before component interop connects.
+    document.addEventListener('keydown', delegated)
+    try {
+      build('<button id=t>Open</button><button>After</button>', 't', '<button id=a>Apply</button>')
+      focus('#a')
+      expect(press()).toEqual(['handled', 'Apply'])
+    } finally { document.removeEventListener('keydown', delegated) }
+  })
+
+  it.each([
+    ['b', false, 'native', 'B'], ['a', true, 'native', 'A'],
+    ['a', false, 'handled', 'After'], ['b', true, 'handled', 'Open'],
+    ['t', false, 'handled', 'B'], ['after', true, 'handled', 'A'],
+  ])('positive tabindex: %s shift=%s follows sequential boundaries', (from, shift, kind, to) => {
+    build('<button id=t>Open</button><button id=after>After</button>', 't', '<button id=a tabindex=2>A</button><button id=b tabindex=1>B</button>')
+    focus('#' + from)
+    expect(press(shift)).toEqual([kind, to])
+  })
+
   const page = '<button>Before</button><button id=t>Open</button><button id=after>After</button><button id=further>Further</button>'
 
   it('Tab on the trigger while open goes to the content\'s first stop', () => {

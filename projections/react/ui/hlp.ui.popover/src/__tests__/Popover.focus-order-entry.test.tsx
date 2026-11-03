@@ -221,3 +221,21 @@ describe('Popover entry suspended by a modal', () => {
     expect(press(named('Modal control'), true)).toEqual(['native', 'Modal control'])
   })
 })
+
+// Oracle: WHATWG HTML tabindex-ordered focus navigation scope: positive values
+// precede zero, ascending, with equal values in tree order.
+describe('Popover positive tabindex order', () => {
+  it.each([
+    ['B', false, 'native', 'B'],
+    ['A', true, 'native', 'A'],
+    ['A', false, 'handled', 'After'],
+    ['B', true, 'handled', 'Open'],
+    ['Open', false, 'handled', 'B'],
+    ['After', true, 'handled', 'A'],
+  ] as const)('%s shift=%s follows sequential boundaries', async (from, shift, kind, to) => {
+    render(<Page><button tabIndex={2}>A</button><button tabIndex={1}>B</button></Page>)
+    await settle()
+    named(from).focus()
+    expect(press(named(from), shift)).toEqual([kind, to])
+  })
+})

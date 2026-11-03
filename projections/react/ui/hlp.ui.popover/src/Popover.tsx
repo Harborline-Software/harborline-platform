@@ -144,15 +144,23 @@ function stopsIn(scope: HTMLElement | null): HTMLElement[] {
     if (!radioGroup(element)) return true
     const group = all.filter(other => sameGroup(other, element))
     return element === (group.find(radio => (radio as HTMLInputElement).checked) ?? group[0])
-  })
+  }).sort((a, b) => (a.tabIndex > 0 ? a.tabIndex : Infinity) - (b.tabIndex > 0 ? b.tabIndex : Infinity))
 }
 
-function follows(from: Element, other: Element): boolean {
-  return !!(from.compareDocumentPosition(other) & Node.DOCUMENT_POSITION_FOLLOWING) && !other.contains(from)
+// WHATWG tabindex-ordered scope: positives first, ascending; equal ranks use tree order.
+// Programmatically focused negative-tabindex anchors retain their tree-position fallback.
+function follows(from: HTMLElement, other: HTMLElement): boolean {
+  if (other.contains(from)) return false
+  if (from.tabIndex >= 0 && other.tabIndex >= 0) {
+    const left = from.tabIndex > 0 ? from.tabIndex : Infinity
+    const right = other.tabIndex > 0 ? other.tabIndex : Infinity
+    if (left !== right) return left < right
+  }
+  return !!(from.compareDocumentPosition(other) & Node.DOCUMENT_POSITION_FOLLOWING)
 }
 
-function precedes(from: Element, other: Element): boolean {
-  return !!(from.compareDocumentPosition(other) & Node.DOCUMENT_POSITION_PRECEDING) && !other.contains(from)
+function precedes(from: HTMLElement, other: HTMLElement): boolean {
+  return follows(other, from)
 }
 
 function ownerOf(content: HTMLElement): HTMLElement | null {
