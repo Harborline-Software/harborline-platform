@@ -155,6 +155,22 @@ describe('Popover focus after a dismissal (G5)', () => {
     expect(triggerFocus).toHaveBeenCalledWith({ preventScroll: true })
   })
 
+  it('restores after focus returns to a child that stops focusin propagation', () => {
+    const refuse = vi.fn()
+    const { rerender } = render(<Page open onOpenChange={refuse} />)
+    const trigger = screen.getByRole('button', { name: 'Open' })
+    const apply = screen.getByRole('button', { name: 'Apply' })
+    fireEvent.pointerDown(screen.getByText('Plain text'))
+    apply.blur()
+    apply.addEventListener('focusin', event => event.stopPropagation(), { once: true })
+    act(() => apply.focus())
+    expect(document.activeElement).toBe(apply)
+    const triggerFocus = vi.spyOn(trigger, 'focus')
+    rerender(<Page open={false} onOpenChange={refuse} />)
+    expect(triggerFocus).toHaveBeenCalledWith({ preventScroll: true })
+    expect(trigger).toHaveFocus()
+  })
+
   it('an outside press a controlled host refuses, focus left on the outside field, then a host close: focus stays on the field', async () => {
     const user = userEvent.setup()
     const refuse = vi.fn()

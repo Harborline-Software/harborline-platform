@@ -228,7 +228,7 @@ export function connect(trigger, anchor, content, options, callback) {
   owners.set(content, currentTrigger)
   openContents.add(content)
   document.addEventListener('keydown', onContentKey)
-  content.addEventListener('focusin', onFocusIn)
+  content.addEventListener('focusin', onFocusIn, true)
   content.addEventListener('keydown', onKeyInside, true)
   // Tab on the trigger and Shift+Tab from the stop after it, on window in the bubble phase: after Blazor's
   // delegated dispatch on the document, so a caller's @onkeydown (and @onkeydown:preventDefault) or any
@@ -276,7 +276,7 @@ export function connect(trigger, anchor, content, options, callback) {
       const lostWithContent = active === null || active === document.body || content.contains(active)
       cancelAnimationFrame(frame)
       document.removeEventListener('keydown', onContentKey)
-      content.removeEventListener('focusin', onFocusIn)
+      content.removeEventListener('focusin', onFocusIn, true)
       content.removeEventListener('keydown', onKeyInside, true)
       owners.delete(content)
       openContents.delete(content)

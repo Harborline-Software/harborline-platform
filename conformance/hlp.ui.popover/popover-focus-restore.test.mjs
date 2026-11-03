@@ -116,12 +116,13 @@ describe('Popover Blazor dispose() focus restoration (G5)', () => {
   // Server circuit the refusal is only known when the request completes, a round trip after the press.
   const settle = async () => { for (let i = 0; i < 3; i++) await Promise.resolve() }
 
-  it('an outside press the host refuses, then focus back in the content, then a host close: the trigger is restored', async () => {
+  it.each([false, true])('refused outside press, focus returns (child stops focusin: %s), host close restores trigger', async stopPropagation => {
     const { content, plain, connection, triggerFocus } = page()
     pointerDown(plain)
     document.activeElement.blur()
     await settle() // the request completes; the host kept it open
     expect(content.isConnected).toBe(true)
+    if (stopPropagation) content.querySelector('button').addEventListener('focusin', event => event.stopPropagation(), { once: true })
     content.querySelector('button').focus()
     content.remove() // the host's own close, later
     connection.dispose()

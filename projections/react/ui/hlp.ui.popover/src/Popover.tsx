@@ -421,14 +421,14 @@ export function Popover({ children, defaultOpen = false, open, onOpenChange }: P
 
     document.addEventListener('pointerdown', onPointerInside, true)
     document.addEventListener('pointerdown', onPointerDown)
-    document.addEventListener('focusin', onFocusIn)
+    document.addEventListener('focusin', onFocusIn, true)
     document.addEventListener('keydown', onKeyInside, true)
     document.addEventListener('keydown', onKeyDownCapture, true)
     document.addEventListener('keydown', onKeyDown)
     return () => {
       document.removeEventListener('pointerdown', onPointerInside, true)
       document.removeEventListener('pointerdown', onPointerDown)
-      document.removeEventListener('focusin', onFocusIn)
+      document.removeEventListener('focusin', onFocusIn, true)
       document.removeEventListener('keydown', onKeyInside, true)
       document.removeEventListener('keydown', onKeyDownCapture, true)
       document.removeEventListener('keydown', onKeyDown)
