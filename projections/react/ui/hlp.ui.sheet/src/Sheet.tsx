@@ -196,7 +196,7 @@ export const SheetContent = React.forwardRef<HTMLDivElement, SheetContentProps>(
     const portal = portalRef.current
     if (!content || !portal) return
 
-    const restoreTarget = context.triggerRef.current ?? (document.activeElement instanceof HTMLElement ? document.activeElement : null)
+    const initialRestoreTarget = context.triggerRef.current ?? (document.activeElement instanceof HTMLElement ? document.activeElement : null)
     const first = focusableElements(content)[0]
     ;(first ?? content).focus()
 
@@ -211,6 +211,7 @@ export const SheetContent = React.forwardRef<HTMLDivElement, SheetContentProps>(
         ;(element as HTMLElement & { inert?: boolean }).inert = previousInert[index]
       })
       if (context.modal) document.body.style.overflow = previousOverflow
+      const restoreTarget = context.triggerRef.current ?? initialRestoreTarget
       if (restoreTarget?.isConnected) restoreTarget.focus()
     }
   }, [context.contentRef, context.modal, context.open, context.triggerRef])

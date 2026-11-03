@@ -24,3 +24,13 @@ it('returns focus to a registered trigger', () => {
   view.rerender(<Sheet open={false}>{content}</Sheet>)
   expect(screen.getByRole('button', { name: 'Open settings' })).toHaveFocus()
 })
+
+it('restores a registered trigger rendered after initially open content', () => {
+  const opener = document.createElement('button')
+  document.body.append(opener)
+  opener.focus()
+  const content = <><SheetContent closeLabel="Close settings"><SheetTitle>Settings</SheetTitle></SheetContent><SheetTrigger>Open settings</SheetTrigger></>
+  const view = render(<Sheet open>{content}</Sheet>)
+  view.rerender(<Sheet open={false}>{content}</Sheet>)
+  expect(screen.getByRole('button', { name: 'Open settings' })).toHaveFocus()
+})
