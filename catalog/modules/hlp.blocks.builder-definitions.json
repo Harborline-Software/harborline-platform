@@ -3,7 +3,7 @@
   "module": {
     "interface": {
       "path": "specs/modules/blocks/hlp.blocks.builder-definitions/interface.yaml",
-      "revision": 28
+      "revision": 29
     },
     "moduleKind": "runtime",
     "presentation": {

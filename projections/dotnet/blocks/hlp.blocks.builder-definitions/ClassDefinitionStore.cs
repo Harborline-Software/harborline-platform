@@ -49,6 +49,13 @@ public sealed class ClassDefinitionStore
         };
     }
 
+    /// <summary>
+    /// The store's dependency derivation for <see cref="DefinitionKind.Classes"/>, which the host registers beside
+    /// <see cref="Admission"/>: a Class body references no other definition, so a published Class depends on nothing. A Class
+    /// is a target that Record Types depend on.
+    /// </summary>
+    public static DefinitionDependencyDerivation Dependencies { get; } = (_, _) => [];
+
     /// <summary>The shared-store key for one tenant's Class.</summary>
     public static DefinitionKey KeyOf(string tenant, string classId) => new(tenant, DefinitionKind.Classes, classId);
 

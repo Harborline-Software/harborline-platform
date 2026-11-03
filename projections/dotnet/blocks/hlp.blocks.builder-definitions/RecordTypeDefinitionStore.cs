@@ -151,6 +151,77 @@ public sealed class RecordTypeDefinitionStore
         return (document, phase) => Structural(document, phase, window, validator).Refusals;
     }
 
+    /// <summary>
+    /// The store's dependency derivation for <see cref="DefinitionKind.Records"/> (DES-0004 §2; L769), which the host
+    /// registers beside <see cref="Admission"/>. A published Record Type depends on its Class (<c>class_id</c>), on each
+    /// Trait revision it declares (<c>traits</c>), on each reference's one target (<c>reference_target_type_id</c> or
+    /// <c>reference_target_class_id</c>), and on a reference's required Trait (<c>reference_trait_id</c>). A pinned
+    /// cross-package reference is <see cref="DefinitionDependencyKind.Declared"/> at its pinned version, since publication
+    /// admits it only where the envelope requires the package and the target exposes itself; every other edge is
+    /// <see cref="DefinitionDependencyKind.Derived"/>. A required Trait is pinned to the revision a target type declares and
+    /// is unpinned on a Class target, whose members are checked per record. The edge set is definition grain: repeats collapse.
+    /// A Class or target type with no published head refuses <c>records.class.unresolved</c> or
+    /// <c>records.reference.target_unresolved</c>, and a target type that does not declare a required Trait refuses
+    /// <c>records.reference.trait_absent</c>, each at the referencing member; a declared Trait was resolved by admission.
+    /// </summary>
+    public static DefinitionDependencyDerivation Dependencies { get; } = DeriveDependencies;
+
+    private static IReadOnlyList<DefinitionDependency> DeriveDependencies(DefinitionDocument published,
+        Func<DefinitionKey, DefinitionRevision?> publishedHead)
+    {
+        var document = RecordTypeDefinitionJson.Deserialize(Encoding.UTF8.GetBytes(published.BodyJson));
+        var tenant = published.Key.Tenant;
+        var from = new CatalogueDefinitionReference(CatalogueDefinitionType.RecordType, published.Key.DefinitionId, published.Version);
+        var edges = new List<DefinitionDependency>();
+        var refusals = new List<DefinitionRefusal>();
+        void Edge(string type, string id, string? version, DefinitionDependencyKind kind, string reason)
+            => edges.Add(new(from, new(type, id, version), kind, reason));
+
+        if (publishedHead(ClassDefinitionStore.KeyOf(tenant, document.ClassId!)) is null)
+            refusals.Add(new("records.class.unresolved", "/class_id"));
+        else
+            Edge(CatalogueDefinitionType.Class, document.ClassId!, null, DefinitionDependencyKind.Derived, "class_id");
+        foreach (var trait in document.Traits ?? [])
+            Edge(CatalogueDefinitionType.Trait, trait.TraitId, trait.Version, DefinitionDependencyKind.Derived, "traits");
+        // Plain locals rather than `is not { } x` pattern variables keep each statement independently mutable. Admission has
+        // already refused a body without fields (records.document_invalid at /fields).
+        foreach (var (reference, index) in document.Fields.Select((field, index) => (field.Reference, index)))
+        {
+            if (reference is null)
+                continue;
+            var pointer = $"/fields/{index}/reference";
+            var classTarget = !string.IsNullOrWhiteSpace(reference.TargetClassId);
+            var targetId = classTarget ? reference.TargetClassId! : reference.TargetTypeId!;
+            var self = !classTarget && StringComparer.Ordinal.Equals(targetId, document.RecordTypeId);
+            var head = publishedHead(classTarget ? ClassDefinitionStore.KeyOf(tenant, targetId) : KeyOf(tenant, targetId));
+            if (!self && head is null)
+            {
+                refusals.Add(new("records.reference.target_unresolved", pointer + (classTarget ? "/target_class_id" : "/target_type_id")));
+                continue;
+            }
+            Edge(classTarget ? CatalogueDefinitionType.Class : CatalogueDefinitionType.RecordType, targetId, reference.Pin?.Version,
+                reference.Pin is null ? DefinitionDependencyKind.Derived : DefinitionDependencyKind.Declared,
+                classTarget ? "reference_target_class_id" : "reference_target_type_id");
+            var required = reference.RequiredTraitId;
+            if (required is null)
+                continue;
+            if (classTarget)
+            {
+                Edge(CatalogueDefinitionType.Trait, required, null, DefinitionDependencyKind.Derived, "reference_trait_id");
+                continue;
+            }
+            var declared = (self ? document.Traits : RecordTypeDefinitionJson.Deserialize(Encoding.UTF8.GetBytes(head!.Document.BodyJson)).Traits)
+                ?.FirstOrDefault(trait => StringComparer.Ordinal.Equals(trait.TraitId, required));
+            if (declared is null)
+                refusals.Add(new("records.reference.trait_absent", pointer + "/required_trait_id"));
+            else
+                Edge(CatalogueDefinitionType.Trait, required, declared.Version, DefinitionDependencyKind.Derived, "reference_trait_id");
+        }
+        if (refusals.Count > 0)
+            throw new DefinitionRefusalException(DefinitionAdmissionPhase.Publish, refusals);
+        return edges.Distinct().ToArray();
+    }
+
     /// <summary>The shared-store key for one tenant's Record Type.</summary>
     public static DefinitionKey KeyOf(string tenant, string recordTypeId) => new(tenant, DefinitionKind.Records, recordTypeId);
 

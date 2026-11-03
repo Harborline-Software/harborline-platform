@@ -76,7 +76,9 @@ export const TextBox = React.forwardRef<HTMLInputElement, TextBoxProps>(function
   const effectiveDirection = dir ?? direction
   const effectiveId = id ?? formField.id
   const describedBy = ariaDescribedBy ?? formField.describedBy
-  const labelledBy = ariaLabelledBy ?? (ariaLabel ? undefined : formField.labelId)
+  // A blank caller name is no name (WCAG 4.1.2): it is dropped, so the FormField label still names the input.
+  const callerName = ariaLabel?.trim() ? ariaLabel : undefined
+  const labelledBy = ariaLabelledBy ?? (callerName ? undefined : formField.labelId)
   const password = type === 'password'
   const passwordVisible = password && revealed && !effectiveDisabled
   const showClear = clearButton && effectiveValue.length > 0 && !effectiveDisabled
@@ -161,7 +163,7 @@ export const TextBox = React.forwardRef<HTMLInputElement, TextBoxProps>(function
       {...inputAttributes}
       aria-describedby={describedBy}
       aria-invalid={effectiveInvalid || undefined}
-      aria-label={ariaLabel}
+      aria-label={callerName}
       aria-labelledby={labelledBy}
       aria-required={effectiveRequired || undefined}
       data-hl-revealed={passwordVisible || undefined}
