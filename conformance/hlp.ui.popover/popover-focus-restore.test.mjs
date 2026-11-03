@@ -235,11 +235,12 @@ describe('Popover Blazor dispose() focus restoration (G5)', () => {
   // Confirmation pass: an outside press that does not take focus (mousedown prevented, or a touch that becomes a
   // scroll) leaves focus in the content, so no focusin follows. A key in the content is the user acting on the
   // popover again, so it clears the flag too.
-  it('an outside press that keeps focus in the content, refused, then Enter in the content, then a host close: the trigger is restored', async () => {
+  it.each([false, true])('a refused outside press, then Enter (child stops propagation: %s), then host close restores the trigger', async stopPropagation => {
     const { content, plain, connection, triggerFocus } = page()
     pointerDown(plain) // mousedown prevented: focus stays on Apply
     await settle()
     expect(focused()).toBe('Apply')
+    if (stopPropagation) document.activeElement.addEventListener('keydown', event => event.stopPropagation(), { once: true })
     document.activeElement.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }))
     content.remove()
     connection.dispose()

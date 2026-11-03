@@ -213,7 +213,7 @@ export function connect(trigger, anchor, content, options, callback) {
   openContents.add(content)
   content.addEventListener('keydown', onContentKey)
   content.addEventListener('focusin', onFocusIn)
-  content.addEventListener('keydown', onKeyInside)
+  content.addEventListener('keydown', onKeyInside, true)
   // Tab on the trigger and Shift+Tab from the stop after it, on window in the bubble phase: after Blazor's
   // delegated dispatch on the document, so a caller's @onkeydown (and @onkeydown:preventDefault) or any
   // handler on the trigger runs first and a key it handled is left alone (b31 final check). The browser's
@@ -261,7 +261,7 @@ export function connect(trigger, anchor, content, options, callback) {
       cancelAnimationFrame(frame)
       content.removeEventListener('keydown', onContentKey)
       content.removeEventListener('focusin', onFocusIn)
-      content.removeEventListener('keydown', onKeyInside)
+      content.removeEventListener('keydown', onKeyInside, true)
       owners.delete(content)
       openContents.delete(content)
       window.removeEventListener('keydown', onEnter)
