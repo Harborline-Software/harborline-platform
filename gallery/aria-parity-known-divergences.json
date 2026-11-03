@@ -488,7 +488,7 @@
     {
       "scenarioId": "notification-center.actions",
       "ticket": "T-1112",
-      "reason": "Overlay scope: the open notification panel (dialog \"Notifications\") is portaled out of [data-gallery-probe] by React (Popover) and rendered inside it by Blazor, so the probe-only comparison (the scope the axe scan has on main) sees it in Blazor only. A wider overlay scope (b19, not on main) would compare it in both lanes; the row would then need re-measuring, not deleting, because the tablist name also differs (\"Notifications\" in Blazor, \"Notification groups\" in React).",
+      "reason": "Overlay scope only: the open notification panel (dialog \"Notifications\") is portaled out of [data-gallery-probe] by React (Popover) and rendered inside it by Blazor, so the probe-only ARIA comparison sees it in Blazor only. Round-2 fixes the tablist name to \"Notification groups\" in both lanes; no tablist-name mismatch remains waived. The existing overlay-scope difference is unchanged.",
       "hunks": [
         "@@ #1",
         "  - paragraph: Proposal decisions, informational activation, mark-read, dismiss, and view-all dispatch bounded callbacks.",
@@ -496,7 +496,7 @@
         "+ - dialog \"Notifications\":",
         "+   - heading \"Notifications\" [level=2]",
         "+   - button \"Mark all read\"",
-        "+   - tablist \"Notifications\":",
+        "+   - tablist \"Notification groups\":",
         "+     - tab \"All\" [selected]",
         "+     - tab \"Approvals\"",
         "+     - tab \"Results\"",
@@ -524,7 +524,7 @@
     {
       "scenarioId": "notification-center.groups",
       "ticket": "T-1112",
-      "reason": "Overlay scope: the open notification panel (dialog \"Notifications\") is portaled out of [data-gallery-probe] by React (Popover) and rendered inside it by Blazor, so the probe-only comparison (the scope the axe scan has on main) sees it in Blazor only. A wider overlay scope (b19, not on main) would compare it in both lanes; the row would then need re-measuring, not deleting, because the tablist name also differs (\"Notifications\" in Blazor, \"Notification groups\" in React).",
+      "reason": "Overlay scope only: the open notification panel (dialog \"Notifications\") is portaled out of [data-gallery-probe] by React (Popover) and rendered inside it by Blazor, so the probe-only ARIA comparison sees it in Blazor only. Round-2 fixes the tablist name to \"Notification groups\" in both lanes; no tablist-name mismatch remains waived. The existing overlay-scope difference is unchanged.",
       "hunks": [
         "@@ #1",
         "  - paragraph: Group order follows the caller and filtering never reorders items.",
@@ -532,7 +532,7 @@
         "+ - dialog \"Notifications\":",
         "+   - heading \"Notifications\" [level=2]",
         "+   - button \"Mark all read\"",
-        "+   - tablist \"Notifications\":",
+        "+   - tablist \"Notification groups\":",
         "+     - tab \"All\" [selected]",
         "+     - tab \"Approvals\"",
         "+     - tab \"Results\"",
@@ -560,7 +560,7 @@
     {
       "scenarioId": "notification-center.keyboard-dismissal",
       "ticket": "T-1112",
-      "reason": "Overlay scope: the open notification panel (dialog \"Notifications\") is portaled out of [data-gallery-probe] by React (Popover) and rendered inside it by Blazor, so the probe-only comparison (the scope the axe scan has on main) sees it in Blazor only. A wider overlay scope (b19, not on main) would compare it in both lanes; the row would then need re-measuring, not deleting, because the tablist name also differs (\"Notifications\" in Blazor, \"Notification groups\" in React).",
+      "reason": "Overlay scope only: the open notification panel (dialog \"Notifications\") is portaled out of [data-gallery-probe] by React (Popover) and rendered inside it by Blazor, so the probe-only ARIA comparison sees it in Blazor only. Round-2 fixes the tablist name to \"Notification groups\" in both lanes; no tablist-name mismatch remains waived. The existing overlay-scope difference is unchanged.",
       "hunks": [
         "@@ #1",
         "  - paragraph: The bell opens a dialog, focus enters, and every dismissal path has a deterministic focus outcome.",
@@ -568,7 +568,7 @@
         "+ - dialog \"Notifications\":",
         "+   - heading \"Notifications\" [level=2]",
         "+   - button \"Mark all read\"",
-        "+   - tablist \"Notifications\":",
+        "+   - tablist \"Notification groups\":",
         "+     - tab \"All\" [selected]",
         "+     - tab \"Approvals\"",
         "+     - tab \"Results\"",
@@ -2790,19 +2790,6 @@
         "- - status: \"Requests: 0\"",
         "+ - switch \"⟦ Þûɓļîšĥëđ šţåţë ······ ⟧\" [checked]",
         "+ - text: ⟦ Þûɓļîšĥëđ šţåţë ······ ⟧ Visible to workspace users"
-      ]
-    },
-    {
-      "scenarioId": "switch.locale-pseudo",
-      "ticket": "T-1111",
-      "reason": "Accessible name (React): the switch is named from the caller's aria-label (\"Inspection alerts\") while its visible label is pseudo-localized; Blazor names it from the visible label. R-0125 2026-10-23 addendum, answer 1: aria-labelledby wins, so adopt the Blazor behaviour and fix React.",
-      "hunks": [
-        "@@ #1",
-        "  - heading \"Pseudo locale\" [level=2]",
-        "  - paragraph: Expanded labels and descriptions reflow without clipping.",
-        "- - switch \"Inspection alerts\"",
-        "+ - switch \"⟦ Îñšþëçţîøñ åļëřţš åñđ řëmîñđëřš ······ ⟧\"",
-        "  - text: ⟦ Îñšþëçţîøñ åļëřţš åñđ řëmîñđëřš ······ ⟧ ⟦ Ñøţîƒÿ ëṽëřÿ šţřûçţûřë øŵñëř ······ ⟧"
       ]
     },
     {
