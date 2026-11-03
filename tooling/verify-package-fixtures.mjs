@@ -967,10 +967,10 @@ function verifyNuget() {
   const consumer = resolve(fixtureRoot, 'nuget-consumer')
   const packageCache = resolve(fixtureRoot, 'nuget-packages')
   for (const [id, version] of [
-    // The pinned JsonSchema.Net comes from the central pin, so a version bump cannot strand this
-    // offline feed; its transitive JsonPointer.Net is listed by hand (9.4.1 needs 7.0.3).
+    // JsonSchema.Net comes from the central pin; keep its hand-listed transitive JsonPointer.Net
+    // aligned with that package's dependency requirement (9.6.0 needs 7.0.4).
     ['jsonschema.net', /Include="JsonSchema\.Net" Version="([^"]+)"/.exec(readFileSync(resolve(root, 'Directory.Packages.props'), 'utf8'))[1]],
-    ['jsonpointer.net', '7.0.3'],
+    ['jsonpointer.net', '7.0.4'],
     ['json.more.net', '3.0.1'],
     ['humanizer.core', '3.0.10'],
     ['microsoft.extensions.dependencyinjection.abstractions', '10.0.10'],

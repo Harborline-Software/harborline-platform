@@ -9,7 +9,9 @@
 # CONTRIBUTING.md, PRODUCT.md and docs/engineering-reuse.md (rules the reviewers and agents follow), LICENSE,
 # NOTICE, SECURITY.md and TRADEMARKS.md (legal and security policy), docs/evidence/, docs/provenance/,
 # docs/architecture/ and docs/releases/ (records the gates and the release read), and specs/ and catalog/ (they
-# drive generated code). This file is under .github/, so changing it is itself risky.
+# drive generated code). The gate never exempts an agent instruction file (AGENTS.md, AGENTS.override.md, CLAUDE.md
+# or CLAUDE.local.md) at any depth, even inside a folder listed here. This file is under .github/, so changing it is
+# itself risky.
 SUPPORT.md
 docs/superpowers/plans/
 docs/actions-timing-report.md
