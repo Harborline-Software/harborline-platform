@@ -183,9 +183,10 @@ public sealed class RecordTypeDefinitionStore
             Edge(CatalogueDefinitionType.Class, document.ClassId!, null, DefinitionDependencyKind.Derived, "class_id");
         foreach (var trait in document.Traits ?? [])
             Edge(CatalogueDefinitionType.Trait, trait.TraitId, trait.Version, DefinitionDependencyKind.Derived, "traits");
-        foreach (var (field, index) in (document.Fields ?? []).Select((field, index) => (field, index)))
+        // Plain locals rather than `is not { } x` pattern variables keep each statement independently mutable.
+        foreach (var (reference, index) in (document.Fields ?? []).Select((field, index) => (field.Reference, index)))
         {
-            if (field.Reference is not { } reference)
+            if (reference is null)
                 continue;
             var pointer = $"/fields/{index}/reference";
             var classTarget = !string.IsNullOrWhiteSpace(reference.TargetClassId);
@@ -201,7 +202,8 @@ public sealed class RecordTypeDefinitionStore
             Edge(classTarget ? CatalogueDefinitionType.Class : CatalogueDefinitionType.RecordType, targetId, reference.Pin?.Version,
                 reference.Pin is null ? DefinitionDependencyKind.Derived : DefinitionDependencyKind.Declared,
                 classTarget ? "reference_target_class_id" : "reference_target_type_id");
-            if (reference.RequiredTraitId is not { } required)
+            var required = reference.RequiredTraitId;
+            if (required is null)
                 continue;
             if (classTarget)
             {

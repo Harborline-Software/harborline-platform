@@ -392,6 +392,41 @@ public sealed class DefinitionDependencyTests
     }
 
     [Fact]
+    public void one_bad_derivation_beside_a_good_one_refuses_construction()
+    {
+        var admissions = new Dictionary<DefinitionKind, DefinitionAdmission> { [DefinitionKind.Classes] = ClassDefinitionStore.Admission(Window) };
+
+        var refused = Assert.Throws<DefinitionRefusalException>(() => new InMemoryVersionedDefinitionStore(admissions,
+            new Dictionary<DefinitionKind, DefinitionDependencyDerivation>
+            {
+                [DefinitionKind.Classes] = ClassDefinitionStore.Dependencies,
+                [DefinitionKind.Records] = RecordTypeDefinitionStore.Dependencies,
+            }));
+
+        Assert.Equal([("definition.registry_unknown", "/dependencies")], Pairs(refused));
+    }
+
+    [Fact]
+    public async Task dependents_sharing_an_id_across_registries_are_ordered_by_registry()
+    {
+        // A Class derivation that names the Equipment Class lets two registries' sources share the id eam.thing.
+        var host = NewHost(new Dictionary<DefinitionKind, DefinitionDependencyDerivation>
+        {
+            [DefinitionKind.Records] = RecordTypeDefinitionStore.Dependencies,
+            [DefinitionKind.Classes] = (published, _) => published.Key.DefinitionId == "eam.thing"
+                ? [new(new(Class, "eam.thing", published.Version), new(Class, "eam.equipment"), DefinitionDependencyKind.Derived, "test")]
+                : [],
+        });
+        await PublishClass(host, "Thing");
+        await PublishType(host, Type("Thing", null));
+
+        Assert.Equal([
+                new DefinitionDependency(new(RecordType, "eam.thing", "1.0.0"), new(Class, "eam.equipment"), DefinitionDependencyKind.Derived, "class_id"),
+                new DefinitionDependency(new(Class, "eam.thing", "1.0.0"), new(Class, "eam.equipment"), DefinitionDependencyKind.Derived, "test"),
+            ], (await Read(host, Class, "eam.equipment")).Dependents);
+    }
+
+    [Fact]
     public async Task a_derivation_that_returns_nothing_publishes_nothing()
     {
         var host = NewHost(new Dictionary<DefinitionKind, DefinitionDependencyDerivation>
