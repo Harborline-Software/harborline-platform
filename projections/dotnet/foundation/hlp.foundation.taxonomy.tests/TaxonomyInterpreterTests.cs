@@ -518,6 +518,7 @@ public sealed class TaxonomyInterpreterTests
         var refusal = Assert.Throws<TaxonomyCodingCaptureException>(() => Interpreter(definition).CaptureCodingAnswers(
             "tenant-a", [binding], [new("s", "root", "child")], CaptureWindow));
         Assert.Equal("taxonomy.coding_capture_invalid", refusal.Code);
+        Assert.False(string.IsNullOrWhiteSpace(refusal.Message));
     }
 
     [Fact]
