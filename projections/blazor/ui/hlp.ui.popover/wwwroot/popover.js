@@ -31,10 +31,21 @@ const stopsIn = scope => {
     if (!radioGroup(element)) return true
     const group = all.filter(other => sameGroup(other, element))
     return element === (group.find(radio => radio.checked) ?? group[0])
-  })
+  }).sort((a, b) => (a.tabIndex > 0 ? a.tabIndex : Infinity) - (b.tabIndex > 0 ? b.tabIndex : Infinity))
 }
-const follows = (from, other) => !!(from.compareDocumentPosition(other) & Node.DOCUMENT_POSITION_FOLLOWING) && !other.contains(from)
-const precedes = (from, other) => !!(from.compareDocumentPosition(other) & Node.DOCUMENT_POSITION_PRECEDING) && !other.contains(from)
+// WHATWG tabindex-ordered scope: positives first, ascending; equal ranks use tree order.
+// Programmatically focused negative-tabindex anchors retain their tree-position fallback.
+const follows = (from, other) => {
+  if (other.contains(from)) return false
+  if (from.tabIndex >= 0 && other.tabIndex >= 0) {
+    const left = from.tabIndex > 0 ? from.tabIndex : Infinity
+    const right = other.tabIndex > 0 ? other.tabIndex : Infinity
+    if (left !== right) return left < right
+  }
+  return !!(from.compareDocumentPosition(other) & Node.DOCUMENT_POSITION_FOLLOWING)
+}
+const precedes = (from, other) => follows(other, from)
+
 const ownerOf = content => { const trigger = owners.get(content)?.(); return trigger?.isConnected ? trigger : null }
 const contentOf = trigger => { for (const content of openContents) if (content.isConnected && ownerOf(content) === trigger) return content; return null }
 // The next Tab stop after an element in its scope; past the end of a popover content, the next stop
@@ -193,10 +204,12 @@ export function connect(trigger, anchor, content, options, callback) {
   // after the caller's attributes, so a caller's own id cannot defeat the lookup (b31 review note 2).
   const currentTrigger = () => (trigger?.isConnected ? trigger : null)
     ?? (options.triggerId ? [...document.querySelectorAll('[data-hl-popover-trigger]')].find(node => node.dataset.hlPopoverTrigger === options.triggerId) ?? null : null)
+  // Blazor installs its delegated document dispatcher before component JS interop connects.
+  // Route content after that dispatcher; the Dialog Tab trap runs on window afterward.
   const onContentKey = event => routeTab(event, currentTrigger(), content)
   owners.set(content, currentTrigger)
   openContents.add(content)
-  content.addEventListener('keydown', onContentKey)
+  document.addEventListener('keydown', onContentKey)
   // Tab on the trigger and Shift+Tab from the stop after it, on window in the bubble phase: after Blazor's
   // delegated dispatch on the document, so a caller's @onkeydown (and @onkeydown:preventDefault) or any
   // handler on the trigger runs first and a key it handled is left alone (b31 final check). The browser's
@@ -235,7 +248,7 @@ export function connect(trigger, anchor, content, options, callback) {
     dispose() {
       delete content.dataset.hlPopoverOpen
       cancelAnimationFrame(frame)
-      content.removeEventListener('keydown', onContentKey)
+      document.removeEventListener('keydown', onContentKey)
       owners.delete(content)
       openContents.delete(content)
       window.removeEventListener('keydown', onEnter)
