@@ -46,6 +46,61 @@ Rules binds first in T-588; Layout, Records, Views and Data exchange retire thei
 through their own slices. Forms, Workflows and Aggregates retain their existing stores under T-620's
 explicit scope boundary. No released host consumption is claimed here.
 
+### Definition Dependency (T-615, interface revision 29)
+
+A Definition Dependency is DES-0004 §2's catalogue edge. `DefinitionDependency` carries
+`FromDefinitionId`, `ToDefinitionId`, `Kind` (`Declared` or `Derived`) and `EdgeReason`. Each end is
+a `CatalogueDefinitionReference` that targets the Catalogue Class (L769, ADR-0054). It holds the
+definition's type, one of the seeded `platform.definition-type.*` ids in `CatalogueDefinitionType`,
+beside its id (L1426), plus the version where the reference is pinned.
+
+Edges are written by the store, not by member code after it. A host registers a
+`DefinitionDependencyDerivation` for a registry beside its admission:
+`RecordTypeDefinitionStore.Dependencies` for `Records` and `ClassDefinitionStore.Dependencies` for
+`Classes`. The in-memory store runs the derivation under the same lock that commits the
+publication. The derivation sees that commit's published heads and no store handle, and the store
+keeps its edges with the published version. So:
+
+- a refused publication commits no edges, and neither does a fault in the derivation;
+- saving a draft writes none;
+- a derivation that returns null refuses `definition.admission_invalid` at `/dependencies`;
+- a derivation for an unadmitted registry, or a null one, refuses construction with
+  `definition.registry_unknown` at `/dependencies`.
+
+`ReadDependenciesAsync(tenant, definitionType, definitionId)` answers both directions from each
+definition's published head only, so a later published version replaces an earlier version's
+edges. It returns `DependsOn`, the edges from the definition, and `Dependents`, the edges to it from
+any registry with a derivation. Dependents are ordered by source id, then registry. A store with no
+derivations refuses `definition.dependencies_unsupported`, and so does the interface default, so a
+host never mistakes "unsupported" for "no dependents". A blank type refuses
+`definition.type_required` at `/definitionType`.
+
+A published Record Type derives one edge for each reference it holds. The `EdgeReason` is the
+DES-0004 §1 member that carries the reference:
+
+| Reference | `EdgeReason` | Pinned version |
+|---|---|---|
+| Its Class | `class_id` | none |
+| Each declared Trait revision | `traits` | the declared revision |
+| Each reference target | `reference_target_type_id` or `reference_target_class_id` | the pin's version, if any |
+| A reference's required Trait | `reference_trait_id` | the revision a target type declares; none on a Class target |
+
+A self-reference is an edge to the type itself, and it takes the type's own Trait revision. A
+pinned cross-package reference is `Declared`, because slice 9's publication gate already admits it
+only where the envelope `requires` the package and the target `exposes` itself. This slice adds no
+second gate. Every other edge is `Derived`, and repeated edges collapse, since edges are definition
+grain.
+
+An end with no published head refuses at the commit with the same code and pointer the Records
+boundary uses, even for a caller that publishes through the store directly:
+`records.class.unresolved` at `/class_id`, or `records.reference.target_unresolved` at
+`/fields/{i}/reference/target_type_id` or `…/target_class_id`. A target type that does not declare
+a required Trait refuses `records.reference.trait_absent` at `…/required_trait_id`. A declared
+Trait revision was already resolved by admission. A Class depends on nothing.
+
+Out of scope: other primitives' edges, field-grain edges, pack transport (the api's
+records-reference-extraction slice), and any UI for the seeded `platform.view.catalogue.*` views.
+
 ## Layout producer (T-580)
 
 The Layout producer adds the platform-owned surface contract: versioned envelopes, one ordered recursive block tree for screen and page media, typed bindings, intent, portable placement, page geometry and masters, authored interactions, and immutable form references. `LayoutDefinitionAdmission` is the common structural authoring and publish validator. Its numeric limits come only from `LayoutDefinitionSchema`; the React and Blazor persisted-value entry points use the same validator and refuse invalid storage without clamping. Admitted definitions export through the existing provider-neutral package content boundary. The shared versioned store, publication concurrency, immutable history, restore and production resolution belong to T-620; this producer neither persists nor publishes. Runtime layout, binding resolution, authorization, and editors remain outside this slice.

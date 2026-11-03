@@ -50,15 +50,39 @@ jobs:
             artifacts/packages/nuget/manifest.json
             artifacts/packages/nuget/consumer-proof.json
           if-no-files-found: error
-  publish-libraries:
+  # Owner rulings 2026-11-03 ("Separate signing job", and for Platform "Keep push to main"; the same design as
+  # harborline-api). The only job that can sign: it checks nothing out and runs no repository code, so nothing a
+  # commit runs while packing can mint an attestation. It attests every packed library, the manifest and the consumer
+  # proof with SLSA build provenance for this workflow and commit, before any push (T-705 ruling 107). It has
+  # publish-libraries' T-579 trigger, a push to main, so pull requests create no attestations.
+  attest-libraries:
     needs: pack-libraries
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      packages: write
       id-token: write
       attestations: write
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: platform-libraries-${{ github.sha }}
+          path: artifacts/packages/nuget
+      - name: Attest every packed library before push (T-705 ruling 107)
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4
+        with:
+          subject-path: |
+            artifacts/packages/nuget/*.nupkg
+            artifacts/packages/nuget/manifest.json
+            artifacts/packages/nuget/consumer-proof.json
+  publish-libraries:
+    needs: [pack-libraries, attest-libraries]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      attestations: read
     env:
       PACKAGE_IDS: >-
         Harborline.Blocks.ActivityTimeline
@@ -108,10 +132,10 @@ jobs:
         env:
           HARBORLINE_PRODUCER_ATTEMPT: ${{ needs.pack-libraries.outputs.attempt }}
         run: node tooling/library-promotion-proof.mjs
-      - name: Attest every packed library before push (T-705 ruling 107)
-        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4
-        with:
-          subject-path: artifacts/packages/nuget/*.nupkg
+      - name: Refuse any file without attest-libraries' attestation for this commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash tooling/verify-attestations.sh artifacts/packages/nuget
       - name: Publish to GitHub Packages
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

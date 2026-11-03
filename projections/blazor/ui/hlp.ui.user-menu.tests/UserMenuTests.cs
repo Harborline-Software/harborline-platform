@@ -95,6 +95,13 @@ public sealed class UserMenuTests : BunitContext
     private IRenderedComponent<HarborlineLocaleProvider> InHostCatalog(System.Text.Json.JsonElement host,string name,UserMenuLabels? labels)=>
         Render<HarborlineLocaleProvider>(p=>p.Add(x=>x.Locale,host.GetProperty("locale").GetString()).Add(x=>x.Catalog,host.GetProperty("entries").EnumerateObject().ToDictionary(entry=>entry.Name,entry=>entry.Value.GetString()!))
             .AddChildContent<HarborlineUserMenu>(c=>{c.Add(x=>x.Identity,new UserIdentity(name)).Add(x=>x.OnSignOut,()=>{});if(labels is not null)c.Add(x=>x.Labels,labels);}));
+    // A record holding only the fixture's labels: a trigger template ({name}), panel and sign-out text.
+    internal static UserMenuLabels PartialLabels(System.Text.Json.JsonElement given)
+    {
+        string? Given(string field)=>given.TryGetProperty(field,out var value)?value.GetString():null;
+        var trigger=Given("trigger");
+        return new UserMenuLabels{Trigger=trigger is null?null:name=>trigger.Replace("{name}",name,StringComparison.Ordinal),Panel=Given("panel"),SignOut=Given("signOut")};
+    }
     private static bool Open(IRenderedComponent<HarborlineUserMenu> cut)=>cut.FindAll(".hl-user-menu__surface").Count>0;
     private static void Key(IRenderedComponent<HarborlineUserMenu> cut,string key)=>cut.Find(".hl-user-menu__surface").KeyDown(new Microsoft.AspNetCore.Components.Web.KeyboardEventArgs{Key=key});
     private void AssertCase(string id,System.Text.Json.JsonElement input,System.Text.Json.JsonElement expected)
@@ -293,6 +300,21 @@ public sealed class UserMenuTests : BunitContext
                 var labels=UserMenuLabels.English with{Panel=Given("panel")??UserMenuLabels.English.Panel,SignOut=Given("signOut")??UserMenuLabels.English.SignOut};
                 var (_,panel,signOut)=MenuNames(InHostCatalog(input.GetProperty("hostCatalog"),input.GetProperty("name").GetString()!,labels));
                 Assert.Equal((expected.GetProperty("panel").GetString(),expected.GetProperty("signOut").GetString()),(panel,signOut));
+                break;
+            }
+            case "user-menu.partial-labels":
+            {
+                // Each fixture label sets that field of a new record; every field it omits stays null and comes
+                // from the catalog. Every name is asserted.
+                Assert.Equal(Names(expected.GetProperty("partial")),MenuNames(InHostCatalog(input.GetProperty("hostCatalog"),input.GetProperty("name").GetString()!,PartialLabels(input.GetProperty("labels")))));
+                // Blank labels (ECMA-262 white space and line terminators only, U+FEFF included) fall back; a U+0085-only label is kept.
+                Assert.Equal(Names(expected.GetProperty("blank")),MenuNames(InHostCatalog(input.GetProperty("hostCatalog"),input.GetProperty("name").GetString()!,PartialLabels(input.GetProperty("blankLabels")))));
+                break;
+            }
+            case "user-menu.catalog-blank-set":
+            {
+                // Host catalog text made only of U+FEFF is blank and falls back to the default catalog; only U+0085 is kept.
+                Assert.Equal((expected.GetProperty("trigger").GetString(),expected.GetProperty("panel").GetString(),expected.GetProperty("signOut").GetString()),MenuNames(InHostCatalog(input.GetProperty("hostCatalog"),input.GetProperty("name").GetString()!,null)));
                 break;
             }
             case "user-menu.invalid-input":

@@ -43,8 +43,9 @@ public delegate IReadOnlyList<DefinitionRefusal> DefinitionAdmission(
 /// <summary>
 /// One registry-neutral revision store. Mutations require the expected per-definition stream
 /// revision (zero for creation) and a nonempty replay identity. Replays match the complete original
-/// operation, fence and payload. Durable implementations must commit history, head and replay
-/// result in one conditional transaction. Validators are trusted composition, never author input.
+/// operation, fence and payload. Durable implementations must commit history, head, replay result and
+/// the publication's Definition Dependencies in one conditional transaction. Validators and dependency
+/// derivations are trusted composition, never author input.
 /// </summary>
 public interface IVersionedDefinitionStore
 {
@@ -105,4 +106,19 @@ public interface IVersionedDefinitionStore
     /// <summary>Resolves an exact immutable consumer pin. An absent or draft version returns null.</summary>
     ValueTask<DefinitionRevision?> ResolvePublishedAsync(DefinitionBinding binding,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Reads one definition's Definition Dependencies in both directions (DES-0004 §2): the edges of its own published head,
+    /// and every edge of another published head in the same tenant that targets it. Only registries with a host-registered
+    /// <see cref="DefinitionDependencyDerivation"/> contribute edges. An implementation that answers this commits each
+    /// publication's edges in that publication's own transaction; one that cannot refuses
+    /// <c>definition.dependencies_unsupported</c> rather than answer with no edges.
+    /// </summary>
+    ValueTask<DefinitionDependencies> ReadDependenciesAsync(string tenant, string definitionType, string definitionId,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        throw new DefinitionRefusalException(DefinitionAdmissionPhase.Author,
+            [new("definition.dependencies_unsupported", "/dependencies")]);
+    }
 }

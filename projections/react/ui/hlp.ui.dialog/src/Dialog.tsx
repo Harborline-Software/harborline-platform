@@ -29,7 +29,7 @@ function focusableElements(root: HTMLElement): HTMLElement[] {
     'textarea:not([disabled])',
     '[tabindex]:not([tabindex="-1"])',
     '[contenteditable="true"]',
-  ].join(','))).filter(element => !element.closest('[hidden], [inert]'))
+  ].join(','))).filter(element => (!element.hasAttribute('tabindex') || element.tabIndex >= 0) && !element.closest('[hidden], [inert]'))
 }
 
 // Dialogs and sheets are both modal overlays; the topmost is whichever was portaled last.
@@ -147,10 +147,14 @@ export function Dialog({
       const first = focusables[0]!
       const last = focusables.at(-1)!
       const active = document.activeElement
-      if (event.shiftKey && (active === first || !dialog.contains(active))) {
+      // A click or script may focus a negative-tabindex control beyond a sequential boundary.
+      const unlisted = active instanceof HTMLElement && dialog.contains(active) && !focusables.includes(active)
+      const beforeFirst = unlisted && (first.compareDocumentPosition(active) & Node.DOCUMENT_POSITION_PRECEDING) !== 0
+      const afterLast = unlisted && (last.compareDocumentPosition(active) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0
+      if (event.shiftKey && (active === first || beforeFirst || !dialog.contains(active))) {
         event.preventDefault()
         last.focus()
-      } else if (!event.shiftKey && (active === last || !dialog.contains(active))) {
+      } else if (!event.shiftKey && (active === last || afterLast || !dialog.contains(active))) {
         event.preventDefault()
         first.focus()
       }

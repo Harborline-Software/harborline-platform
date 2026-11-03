@@ -12,7 +12,8 @@
 # depth. This file is under .github/, so changing it is itself risky.
 
 # release-platform.yml (stage, then publish with contents, id-token, attestations: write)
-# validate.yml (pack-libraries, then publish-libraries with packages, id-token, attestations: write)
+# validate.yml (pack-libraries, then attest-libraries with id-token, attestations: write, then publish-libraries with
+# packages: write, which runs tooling/verify-attestations.sh before it pushes)
 tooling/fetch-nuget-package.mjs
 tooling/gate-contract.mjs
 tooling/library-promotion-proof.mjs
@@ -27,6 +28,8 @@ tooling/tests/library-promotion-proof.test.mjs
 tooling/tests/publish-libraries.packed.mjs
 tooling/tests/publish-libraries.test.mjs
 tooling/verify-package-fixtures.mjs
+tooling/verify-attestations.sh
+tooling/tests/attestation-verify.test.mjs
 # Pins the hashes of the tarballs verify-package-fixtures.mjs stages and installs.
 tooling/appshell-feed-provenance.json
 # Build-wide inputs: the feeds restore pulls from and the pinned SDK.
