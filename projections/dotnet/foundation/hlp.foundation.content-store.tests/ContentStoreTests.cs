@@ -15,6 +15,7 @@ namespace Harborline.Foundation.ContentStore.Tests;
 public abstract class ContentStoreStorageContract
 {
     protected abstract IContentStoreStorage CreateStorage();
+    protected virtual IContentStoreStorage RestartStorage(IContentStoreStorage storage) => storage;
 
     [Fact, Trait("DES-0054", "content-store-ck-17")]
     public void Clause_q31_storage_port_preserves_committed_staged_and_reclamation_state_when_a_store_is_rebuilt()
@@ -29,8 +30,8 @@ public abstract class ContentStoreStorageContract
         var reclaimed = first.Commit(new TenantId("contract"), reclaimedStage, new ContentOwner("record", "gone"), "gone.txt");
         first.RemoveReference(new TenantId("contract"), reclaimed, HoldStatus.None, "dispose");
 
-        var rebuilt = new InMemoryContentStore(new(300_000, 600_000, 600_000, TimeSpan.FromMinutes(1)), new ContractKeys(), clock, backing);
-        Assert.Single(rebuilt.Reclamations);
+        var rebuilt = new InMemoryContentStore(new(300_000, 600_000, 600_000, TimeSpan.FromMinutes(1)), new ContractKeys(), clock, RestartStorage(backing));
+        Assert.Equal(new ReclamationEntry(reclaimed.ContentId, new TenantId("contract"), "last-reference-removed", "dispose"), Assert.Single(rebuilt.Reclamations));
         using var body = rebuilt.Read(new TenantId("contract"), committed, true).Body;
         using var plaintext = new MemoryStream();
         body.CopyTo(plaintext);
@@ -39,6 +40,14 @@ public abstract class ContentStoreStorageContract
         clock.Advance(TimeSpan.FromMinutes(1));
         Assert.Equal(1, rebuilt.SweepExpired("sweep"));
         Assert.Equal(ContentRefusals.StagingExpired, Assert.Throws<ContentRefusedException>(() => rebuilt.Commit(new TenantId("contract"), staged, new ContentOwner("record", "two"), "two.txt")).Code);
+        Assert.Collection(rebuilt.Reclamations,
+            entry => Assert.Equal(new ReclamationEntry(reclaimed.ContentId, new TenantId("contract"), "last-reference-removed", "dispose"), entry),
+            entry =>
+            {
+                Assert.Equal(new TenantId("contract"), entry.TenantId);
+                Assert.Equal("staging-expired", entry.Cause);
+                Assert.Equal("sweep", entry.Run);
+            });
     }
 
     private sealed class ContractKeys : ITenantContentKeyProvider
@@ -54,16 +63,131 @@ public abstract class ContentStoreStorageContract
     }
 }
 
-public sealed class InMemoryContentStoreStorageContract : ContentStoreStorageContract
+public sealed class InMemoryContentStoreStorageContract : ContentStoreTests
 {
     protected override IContentStoreStorage CreateStorage() => new InMemoryContentStoreStorage();
 }
 
-public sealed class ContentStoreTests
+public abstract class ContentStoreTests : ContentStoreStorageContract
 {
     private static readonly TenantId TenantA = new("tenant-a");
     private static readonly TenantId TenantB = new("tenant-b");
     private static readonly byte[] Hello = "hello"u8.ToArray();
+
+    [Fact, Trait("DES-0054", "content-store-eng-1")]
+    public void Clause_ck7_eng1_one_byte_over_a_segment_boundary_retains_no_partial_item()
+    {
+        var backing = CreateStorage();
+        var store = new InMemoryContentStore(new(131_072, 300_000, 300_000, TimeSpan.FromMinutes(1)),
+            new TestKeys(), new FakeTimeProvider(), backing);
+        var bytes = LargeBytes(2);
+
+        var refusal = Assert.Throws<ContentRefusedException>(() => store.Put(TenantA, new MemoryStream(bytes), "text/plain", null));
+
+        Assert.Equal("content.too-large", refusal.Code);
+        Assert.Equal(131_072, refusal.Detail["limit"]);
+        Assert.Equal(131_073, refusal.Detail["observed"]);
+        Assert.Empty(backing.StagedItems);
+        Assert.Empty(backing.Items);
+        Assert.Empty(backing.Reclamations);
+        var stage = store.Put(TenantA, new MemoryStream(bytes[..131_072]), "text/plain", null);
+        var reference = store.Commit(TenantA, stage, new("record", "file"), "exact.txt");
+        Assert.Equal(bytes[..131_072], ReadBytes(store.Read(TenantA, reference, true)));
+    }
+
+    [Fact, Trait("DES-0054", "content-store-eng-10")]
+    public void Clause_q30_a_failed_body_never_skips_a_corrupt_middle_segment_or_completes_normally()
+    {
+        var log = new CapturingLogger();
+        var store = LargeStore(new FakeTimeProvider(), log);
+        var reference = Commit(store, TenantA, "record", LargeBytes(2));
+        var unaffected = Commit(store, TenantA, "other", "safe"u8.ToArray());
+        store.CorruptCiphertext(TenantA, reference.ContentId, 1);
+        using var body = store.Read(TenantA, reference, true).Body;
+        var buffer = new byte[65_536];
+        var clear = Assert.Single(body.GetType().GetFields(BindingFlags.Instance | BindingFlags.NonPublic)
+            .Select(field => field.GetValue(body)).OfType<byte[]>(), bytes => bytes.Length == 65_536);
+
+        Assert.Equal(65_536, body.Read(buffer));
+        Assert.Equal(Enumerable.Repeat((byte)'a', 65_536).ToArray(), buffer);
+        var failure = Assert.Throws<ContentIntegrityException>(() => body.ReadByte());
+        Assert.Equal(1, failure.SegmentIndex);
+        Assert.All(clear, value => Assert.Equal(0, value));
+        Assert.Same(failure, Assert.Throws<ContentIntegrityException>(() => body.ReadByte()));
+        Assert.Same(failure, Assert.Throws<ContentIntegrityException>(() => body.Read(Span<byte>.Empty)));
+        Assert.Equal(1, Assert.Single(store.IntegrityEntries).Count);
+        Assert.Single(log.Events);
+        Assert.Equal("Committed", store.StorageItem(TenantA, reference.ContentId).State.ToString());
+        Assert.Equal("safe"u8.ToArray(), ReadBytes(store.Read(TenantA, unaffected, true)));
+    }
+
+    [Fact, Trait("DES-0054", "content-store-eng-10")]
+    public async Task Clause_eng10_stream_cancellation_and_disposal_are_not_integrity_failures()
+    {
+        var store = Store();
+        var reference = Commit(store, TenantA, "record");
+        var body = store.Read(TenantA, reference, true).Body;
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+        var buffer = new byte[2];
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
+        {
+            var read = await body.ReadAsync(buffer.AsMemory(), cancellation.Token);
+            Assert.InRange(read, 0, 2);
+        });
+        Assert.Equal(5, body.Length);
+        Assert.Equal(2, body.Read(buffer));
+        Assert.Equal("he"u8.ToArray(), buffer);
+        Assert.Equal(5, body.Length);
+        var privateBuffers = body.GetType().GetFields(BindingFlags.Instance | BindingFlags.NonPublic)
+            .Select(field => field.GetValue(body)).OfType<byte[]>().ToArray();
+        Assert.Contains(privateBuffers, bytes => bytes.AsSpan().SequenceEqual("hello"u8));
+        body.Dispose();
+        Assert.All(privateBuffers, bytes => Assert.All(bytes, value => Assert.Equal(0, value)));
+        Assert.False(body.CanRead);
+        Assert.Throws<ObjectDisposedException>(() => body.Read(buffer));
+        Assert.Empty(store.IntegrityEntries);
+        Assert.True(store.IsIntegrityHealthy);
+    }
+
+    [Fact, Trait("DES-0054", "content-store-ck-18")]
+    public void Clause_q34_storage_restart_preserves_integrity_until_full_verification_or_erasure()
+    {
+        var backing = CreateStorage();
+        var clock = new FakeTimeProvider();
+        var log = new CapturingLogger();
+        var options = new ContentStoreOptions(300_000, 600_000, 600_000, TimeSpan.FromMinutes(1));
+        var first = new InMemoryContentStore(options, new TestKeys(), clock, backing, log);
+        var reference = Commit(first, TenantA, "record", LargeBytes(2));
+        first.CorruptCiphertext(TenantA, reference.ContentId, 1);
+        Assert.Throws<ContentIntegrityException>(() => first.Read(TenantA, reference, true, new ContentByteRange(65_536, 65_538)));
+        var episode = Assert.Single(first.IntegrityEntries);
+
+        backing = RestartStorage(backing);
+        var rebuilt = new InMemoryContentStore(options, new TestKeys(), clock, backing, log);
+        Assert.Equal(episode, Assert.Single(rebuilt.IntegrityEntries));
+        Assert.False(rebuilt.IsIntegrityHealthy);
+        Assert.Equal("aaa"u8.ToArray(), ReadBytes(rebuilt.Read(TenantA, reference, true, new ContentByteRange(0, 2))));
+        Assert.False(rebuilt.IsIntegrityHealthy);
+        clock.Advance(TimeSpan.FromSeconds(1));
+        Assert.Throws<ContentIntegrityException>(() => rebuilt.Read(TenantA, reference, true, new ContentByteRange(65_536, 65_538)));
+        Assert.Equal(2, Assert.Single(rebuilt.IntegrityEntries).Count);
+        Assert.Equal(DateTimeOffset.UnixEpoch.AddSeconds(1), Assert.Single(rebuilt.IntegrityEntries).LastSeenUtc);
+        Assert.Single(log.Events);
+
+        rebuilt.CorruptCiphertext(TenantA, reference.ContentId, 1);
+        Assert.Equal(LargeBytes(2), ReadBytes(rebuilt.Read(TenantA, reference, true)));
+        Assert.True(rebuilt.IsIntegrityHealthy);
+        backing = RestartStorage(backing);
+        var recovered = new InMemoryContentStore(options, new TestKeys(), clock, backing, log);
+        Assert.False(Assert.Single(recovered.IntegrityEntries).Active);
+        recovered.CorruptCiphertext(TenantA, reference.ContentId, 1);
+        Assert.Throws<ContentIntegrityException>(() => recovered.Read(TenantA, reference, true, new ContentByteRange(65_536, 65_538)));
+        Assert.Equal(2, log.Events.Count);
+        Assert.True(recovered.RemoveReference(TenantA, reference, HoldStatus.None, "erase"));
+        Assert.True(recovered.IsIntegrityHealthy);
+    }
 
     [Fact, Trait("DES-0054", "content-store-ck-7")]
     public void Clause_ck7_eng1_put_one_byte_over_the_effective_limit_refuses_too_large_with_detail_and_stages_nothing()
@@ -96,7 +220,7 @@ public sealed class ContentStoreTests
             (new ContentStoreOptions(100, 1000, 5, TimeSpan.FromMinutes(1)), ContentRefusals.TenantQuota),
         })
         {
-            var store = new InMemoryContentStore(options, new TestKeys(), new FakeTimeProvider());
+            var store = new InMemoryContentStore(options, new TestKeys(), new FakeTimeProvider(), CreateStorage());
             var first = store.Put(TenantA, new MemoryStream(Hello), "text/plain", null);
             var second = store.Put(TenantA, new MemoryStream("world"u8.ToArray()), "text/plain", null);
             using var barrier = new Barrier(2);
@@ -322,7 +446,7 @@ public sealed class ContentStoreTests
     [Fact]
     public void A_tampered_or_truncated_ciphertext_refuses_on_read()
     {
-        var store = new InMemoryContentStore(new(200_000, 600_000, 600_000, TimeSpan.FromMinutes(1)), new TestKeys(), new FakeTimeProvider());
+        var store = new InMemoryContentStore(new(200_000, 600_000, 600_000, TimeSpan.FromMinutes(1)), new TestKeys(), new FakeTimeProvider(), CreateStorage());
         var tampered = Commit(store, TenantA, "record-1", LargeBytes(2));
         store.CorruptCiphertext(TenantA, tampered.ContentId, 1);
         Assert.Throws<ContentIntegrityException>(() => ReadBytes(store.Read(TenantA, tampered, true)));
@@ -446,7 +570,7 @@ public sealed class ContentStoreTests
     [Fact]
     public void A_short_tenant_key_a_malformed_content_id_and_a_missing_segment_are_refused()
     {
-        var store = new InMemoryContentStore(new(100, 100, 100, TimeSpan.FromMinutes(1)), new ShortKeys(), new FakeTimeProvider());
+        var store = new InMemoryContentStore(new(100, 100, 100, TimeSpan.FromMinutes(1)), new ShortKeys(), new FakeTimeProvider(), CreateStorage());
         Assert.Throws<InvalidOperationException>(() => store.Put(TenantA, new MemoryStream(Hello), "text/plain", null));
 
         foreach (var malformed in new[] { "sha256:" + new string('a', 64), "hmac-sha256:" + new string('a', 63), "hmac-sha256:" + new string('A', 64), "hmac-sha256:" + new string('g', 64), "hmac-sha256:" + new string('/', 64) })
@@ -470,7 +594,7 @@ public sealed class ContentStoreTests
         var dataKeyWrapKey = IndependentlyDeriveHkdfSha256(root, TenantA, "harborline-content-store:data-key-wrap:v1");
         Assert.NotEqual(contentIdKey, dataKeyWrapKey);
 
-        var store = new InMemoryContentStore(new(300_000, 600_000, 600_000, TimeSpan.FromMinutes(1)), keys, new FakeTimeProvider());
+        var store = new InMemoryContentStore(new(300_000, 600_000, 600_000, TimeSpan.FromMinutes(1)), keys, new FakeTimeProvider(), CreateStorage());
         var bytes = LargeBytes(2);
         var reference = Commit(store, TenantA, "record", bytes);
         var expectedContentId = new ContentId(ContentId.Algorithm + Convert.ToHexStringLower(HMACSHA256.HashData(contentIdKey, bytes)));
@@ -486,7 +610,7 @@ public sealed class ContentStoreTests
         var clock = new FakeTimeProvider();
         var log = new CapturingLogger();
         var store = new InMemoryContentStore(new(300_000, 600_000, 600_000, TimeSpan.FromMinutes(1)), new TestKeys(), clock,
-            new InMemoryContentStoreStorage(), log);
+            CreateStorage(), log);
         var reference = Commit(store, TenantA, "record", LargeBytes(2));
         store.CorruptCiphertext(TenantA, reference.ContentId, 1);
         var context = new ContentReadContext("trace-1", "operation-1", "tenant-opaque", "principal-1");
@@ -540,7 +664,7 @@ public sealed class ContentStoreTests
         meter.SetMeasurementEventCallback<long>((_, value, _, _) => failures += value);
         meter.Start();
 
-        var store = new InMemoryContentStore(new(300_000, 600_000, 600_000, TimeSpan.FromMinutes(1)), new TestKeys(), new FakeTimeProvider());
+        var store = new InMemoryContentStore(new(300_000, 600_000, 600_000, TimeSpan.FromMinutes(1)), new TestKeys(), new FakeTimeProvider(), CreateStorage());
         var reference = Commit(store, TenantA, "record", LargeBytes(2));
         store.CorruptCiphertext(TenantA, reference.ContentId, 1);
         Assert.Throws<ContentIntegrityException>(() => store.Read(TenantA, reference, true, new ContentByteRange(65_536, 65_538)));
@@ -565,8 +689,8 @@ public sealed class ContentStoreTests
         Assert.Equal("attachment; filename=\"ab%4\"", store.Read(TenantA, percent, true).ContentDisposition);
     }
 
-    private static InMemoryContentStore LargeStore(FakeTimeProvider clock, CapturingLogger log) =>
-        new(new(300_000, 600_000, 600_000, TimeSpan.FromMinutes(1)), new TestKeys(), clock, new InMemoryContentStoreStorage(), log);
+    private InMemoryContentStore LargeStore(FakeTimeProvider clock, CapturingLogger log) =>
+        new(new(300_000, 600_000, 600_000, TimeSpan.FromMinutes(1)), new TestKeys(), clock, CreateStorage(), log);
 
     [Fact, Trait("DES-0054", "content-store-ck-18")]
     public void Clause_q34_erasing_the_last_reference_ends_its_integrity_episode()
@@ -636,13 +760,13 @@ public sealed class ContentStoreTests
         var options = new ContentStoreOptions(5, 10, 10, TimeSpan.FromMinutes(1));
         var keys = new TestKeys();
         var clock = new FakeTimeProvider();
-        var backing = new InMemoryContentStoreStorage();
+        var backing = CreateStorage();
         Assert.Throws<ArgumentNullException>(() => new InMemoryContentStore(null!, keys, clock, backing));
         Assert.Throws<ArgumentNullException>(() => new InMemoryContentStore(options, null!, clock, backing));
         Assert.Throws<ArgumentNullException>(() => new InMemoryContentStore(options, keys, null!, backing));
         Assert.Throws<ArgumentNullException>(() => new InMemoryContentStore(options, keys, clock, null!));
 
-        var store = new InMemoryContentStore(options, keys, clock);
+        var store = new InMemoryContentStore(options, keys, clock, backing);
         Assert.Throws<ArgumentNullException>(() => store.Put(TenantA, null!, "text/plain", null));
         Assert.Throws<ArgumentOutOfRangeException>(() => store.Put(TenantA, new MemoryStream(Hello), "text/plain", null, new("zero", 0, null)));
         var sameLimit = Assert.Throws<ContentRefusedException>(() => store.Put(TenantA, new MemoryStream("123456"u8.ToArray()), "text/plain", null, new("field", 5, null)));
@@ -662,7 +786,7 @@ public sealed class ContentStoreTests
     [Fact]
     public void Contract_range_math_wrap_corruption_and_multiple_integrity_episodes_remain_observable()
     {
-        var store = new InMemoryContentStore(new(300_000, 600_000, 600_000, TimeSpan.FromMinutes(1)), new TestKeys(), new FakeTimeProvider());
+        var store = new InMemoryContentStore(new(300_000, 600_000, 600_000, TimeSpan.FromMinutes(1)), new TestKeys(), new FakeTimeProvider(), CreateStorage());
         var bytes = LargeBytes(2);
         var first = Commit(store, TenantA, "first", bytes);
         var second = Commit(store, TenantA, "second", bytes.Select(value => (byte)(value ^ 1)).ToArray());
@@ -724,8 +848,8 @@ public sealed class ContentStoreTests
     private static ContentReference Commit(InMemoryContentStore store, TenantId tenant, string record, byte[]? bytes = null) =>
         store.Commit(tenant, store.Put(tenant, new MemoryStream(bytes ?? Hello), "text/plain", null), new ContentOwner(record, "files/0"), "x.txt");
 
-    private static InMemoryContentStore Store(long itemLimit = 100, FakeTimeProvider? clock = null) =>
-        new(new(itemLimit, 1000, 1000, TimeSpan.FromMinutes(1)), new TestKeys(), clock ?? new FakeTimeProvider());
+    private InMemoryContentStore Store(long itemLimit = 100, FakeTimeProvider? clock = null) =>
+        new(new(itemLimit, 1000, 1000, TimeSpan.FromMinutes(1)), new TestKeys(), clock ?? new FakeTimeProvider(), CreateStorage());
 
     private static byte[] ReadBytes(ContentDelivery delivery)
     {
