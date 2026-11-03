@@ -36,6 +36,20 @@ describe('Popover Blazor focus order: the way into the content (b31 re-review)',
   })
   afterEach(() => { while (connections.length) connections.pop().dispose(); vi.useRealTimers(); document.body.replaceChildren() })
 
+  it('does not enter content that became inert while open', () => {
+    build('<button id=t>Open</button><button id=after>After</button>', 't', '<button>Apply</button>')
+    document.querySelector('.hl-popover__content').inert = true
+    focus('#after')
+    expect(press(true)).toEqual(['native', 'After'])
+  })
+
+  it.each([false, true])('leaves reverse entry in another modal alone (inert: %s)', inert => {
+    build('<button id=t>Open</button><section aria-modal="true" role="dialog"><button id=modal>Modal control</button></section>', 't', '<button>Apply</button>')
+    document.querySelector('.hl-popover__content').inert = inert
+    focus('#modal')
+    expect(press(true)).toEqual(['native', 'Modal control'])
+  })
+
   const page = '<button>Before</button><button id=t>Open</button><button id=after>After</button><button id=further>Further</button>'
 
   it('Tab on the trigger while open goes to the content\'s first stop', () => {
