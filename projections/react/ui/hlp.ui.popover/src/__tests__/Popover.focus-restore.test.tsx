@@ -282,6 +282,27 @@ describe('Popover focus after a dismissal (G5)', () => {
     expect(triggerFocus).toHaveBeenCalledWith({ preventScroll: true })
   })
 
+  // G5 oracle: interaction resumed inside, so a later host close restores the trigger.
+  it('restores after an inside pointer handler stops propagation and prevents focus movement', () => {
+    const refuse = vi.fn()
+    const { rerender } = render(<Page open onOpenChange={refuse} />)
+    const trigger = screen.getByRole('button', { name: 'Open' })
+    const apply = screen.getByRole('button', { name: 'Apply' })
+    expect(document.activeElement).toBe(apply)
+    fireEvent.pointerDown(screen.getByText('Plain text'))
+    expect(refuse).toHaveBeenCalledWith(false)
+    apply.addEventListener('pointerdown', event => {
+      event.stopPropagation()
+      event.preventDefault()
+    }, { once: true })
+    fireEvent.pointerDown(apply)
+    expect(document.activeElement).toBe(apply)
+    const triggerFocus = vi.spyOn(trigger, 'focus')
+    rerender(<Page open={false} onOpenChange={refuse} />)
+    expect(triggerFocus).toHaveBeenCalledWith({ preventScroll: true })
+    expect(document.activeElement).toBe(trigger)
+  })
+
   it('an outside press that keeps focus in the content, refused, no key, then a host close: not restored (residual case, pinned)', () => {
     const refuse = vi.fn()
     const { rerender } = render(<Page open onOpenChange={refuse} />)

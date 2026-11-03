@@ -358,6 +358,13 @@ export function Popover({ children, defaultOpen = false, open, onOpenChange }: P
   React.useEffect(() => {
     if (!renderedOpen) return
 
+    // Resume inside interaction before widgets can stop propagation or close synchronously.
+    const onPointerInside = (event: PointerEvent) => {
+      const target = event.target
+      if (target instanceof Node && (contentRef.current?.contains(target) || triggerRef.current?.contains(target))) {
+        outsidePointer.current = false
+      }
+    }
     const onPointerDown = (originalEvent: PointerEvent) => {
       const target = originalEvent.target
       if (!(target instanceof Node)) return
@@ -404,12 +411,14 @@ export function Popover({ children, defaultOpen = false, open, onOpenChange }: P
       requestOpen(false)
     }
 
+    document.addEventListener('pointerdown', onPointerInside, true)
     document.addEventListener('pointerdown', onPointerDown)
     document.addEventListener('focusin', onFocusIn)
     document.addEventListener('keydown', onKeyInside, true)
     document.addEventListener('keydown', onKeyDownCapture, true)
     document.addEventListener('keydown', onKeyDown)
     return () => {
+      document.removeEventListener('pointerdown', onPointerInside, true)
       document.removeEventListener('pointerdown', onPointerDown)
       document.removeEventListener('focusin', onFocusIn)
       document.removeEventListener('keydown', onKeyInside, true)
