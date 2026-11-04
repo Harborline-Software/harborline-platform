@@ -24,7 +24,7 @@ public sealed class InstallReceiptTests
         Assert.Equal(Published().Digest, parsed.Artifact.Digest);
         var installed = Assert.Single(parsed.Installed);
         Assert.Equal("harborline.platform", installed.Id);
-        Assert.Equal("1.0.0", installed.Version);
+        Assert.Equal("2.0.0", installed.Version);
         Assert.Equal(node.Witness, installed.Witness);
         Assert.Equal(["audit:read", "catalogue:read", "records:read"], parsed.Capabilities.Select(capability => capability.Name));
         Assert.All(parsed.Capabilities, capability => Assert.False(capability.ExpectedAllowed));

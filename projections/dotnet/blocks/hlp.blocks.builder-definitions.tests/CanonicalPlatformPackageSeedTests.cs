@@ -7,12 +7,19 @@ namespace Harborline.Blocks.BuilderDefinitions.Tests;
 
 public sealed class CanonicalPlatformPackageSeedTests
 {
+    // DES-0007 ck-1 to ck-14, with the released navigation definition (DES-0052 layout-eng-24) after the ck-6 register.
+    private static readonly string[] SeedItemIds =
+    [
+        "platform-package-ck-1", "platform-package-ck-2", "platform-package-ck-3", "platform-package-ck-4",
+        "platform-package-ck-5", "platform-package-ck-6", "platform.navigation.workshop", "platform-package-ck-7",
+        "platform-package-ck-8", "platform-package-ck-9", "platform-package-ck-10", "platform-package-ck-11",
+        "platform-package-ck-12", "platform-package-ck-13", "platform-package-ck-14",
+    ];
+
     [Fact]
-    public void Fixture_covers_ck_1_through_ck_14_in_declared_order_and_is_valid()
+    public void Fixture_covers_ck_1_through_ck_14_and_the_released_navigation_in_declared_order_and_is_valid()
     {
-        Assert.Equal(
-            Enumerable.Range(1, 14).Select(index => $"platform-package-ck-{index}"),
-            PlatformPackageSeed.Manifest.Items.Select(item => item.Id));
+        Assert.Equal(SeedItemIds, PlatformPackageSeed.Manifest.Items.Select(item => item.Id));
         Assert.True(PlatformPackageReplayer.Validate(PlatformPackageSeed.Manifest).Succeeded);
     }
 
@@ -34,56 +41,161 @@ public sealed class CanonicalPlatformPackageSeedTests
     }
 
     [Fact]
-    public void Views_authoring_is_mounted_in_Workshop_as_platform_package_metadata()
+    public void The_seed_is_revision_2_0_0_in_its_export_its_package_record_and_its_navigation_definition()
+    {
+        using var export = JsonDocument.Parse(PlatformPackageSeed.Export());
+
+        Assert.Equal("2.0.0", export.RootElement.GetProperty("revision").GetString());
+        Assert.Equal("2.0.0", Payload("platform-package-ck-1").GetProperty("version").GetString());
+        Assert.Equal("2.0.0", PlatformPackageSeed.ReleasedNavigation.Version);
+    }
+
+    [Fact]
+    public void The_seed_declares_no_editor_destination_or_navigation_entry_outside_the_released_definition()
     {
         var views = Payload("platform-package-ck-7");
-        var authoring = views.GetProperty("authoring");
+        foreach (var retired in new[] { "authoring", "dataExchangeAuthoring", "schedulingAuthoring" })
+            Assert.False(views.TryGetProperty(retired, out _), retired);
 
-        Assert.Equal("platform.workspace.workshop", authoring.GetProperty("workspace").GetString());
-        Assert.Equal("platform.navigation.views.author", authoring.GetProperty("navigationEntry").GetProperty("id").GetString());
-        Assert.Equal("views", authoring.GetProperty("navigationEntry").GetProperty("pillar").GetString());
-        Assert.Equal("platform.editor.views", authoring.GetProperty("editor").GetProperty("id").GetString());
-        Assert.Equal("ViewDefinition", authoring.GetProperty("editor").GetProperty("definitionKind").GetString());
-        Assert.Equal(["react", "blazor"], authoring.GetProperty("editor").GetProperty("projections").EnumerateArray().Select(value => value.GetString()));
-        Assert.Equal(39, views.GetProperty("members").GetArrayLength());
+        foreach (var item in PlatformPackageSeed.Manifest.Items.Where(item => item.Id != "platform.navigation.workshop"))
+        {
+            using var payload = JsonDocument.Parse(item.Content.Payload);
+            var names = PropertyNames(payload.RootElement).ToHashSet(StringComparer.Ordinal);
+            foreach (var retired in new[] { "navigationEntry", "editor", "surface" }) Assert.DoesNotContain(retired, names);
+        }
     }
 
     [Fact]
-    public void Data_exchange_authoring_is_mounted_in_Workshop_with_the_fixed_mapping_profile()
+    public void Mapping_profile_create_actions_and_scheduling_defaults_keep_their_values_at_named_homes()
     {
-        var authoring = Payload("platform-package-ck-7").GetProperty("dataExchangeAuthoring");
+        var views = Payload("platform-package-ck-7");
 
-        Assert.Equal("platform.workspace.workshop", authoring.GetProperty("workspace").GetString());
-        Assert.Equal("platform.navigation.data-exchanges.author", authoring.GetProperty("navigationEntry").GetProperty("id").GetString());
-        Assert.Equal("data-exchanges", authoring.GetProperty("navigationEntry").GetProperty("pillar").GetString());
-        Assert.Equal("platform.editor.data-exchange", authoring.GetProperty("editor").GetProperty("id").GetString());
-        Assert.Equal("DataExchangeDefinition", authoring.GetProperty("editor").GetProperty("definitionKind").GetString());
-        Assert.Equal("hl:tabular-mapping/v1", authoring.GetProperty("mappingProfile").GetProperty("id").GetString());
-        Assert.Equal("https://schemas.harborline.software/mapping/tabular/v1", authoring.GetProperty("mappingProfile").GetProperty("schemaUri").GetString());
-        Assert.Equal("1.0.0", authoring.GetProperty("mappingProfile").GetProperty("documentVersion").GetString());
-        Assert.Equal(["react", "blazor"], authoring.GetProperty("editor").GetProperty("projections").EnumerateArray().Select(value => value.GetString()));
-    }
+        var profile = views.GetProperty("dataExchangeMappingProfile");
+        Assert.Equal("hl:tabular-mapping/v1", profile.GetProperty("id").GetString());
+        Assert.Equal("https://schemas.harborline.software/mapping/tabular/v1", profile.GetProperty("schemaUri").GetString());
+        Assert.Equal("1.0.0", profile.GetProperty("documentVersion").GetString());
 
-    [Fact]
-    public void Scheduling_authoring_is_mounted_in_Workshop_with_only_ruled_defaults()
-    {
-        var authoring = Payload("platform-package-ck-7").GetProperty("schedulingAuthoring");
+        Assert.Equal(
+            [("platform.action.schedules.create", "schedule", "ScheduleDefinition"), ("platform.action.protocols.create", "protocol", "Protocol"),
+             ("platform.action.constraints.create", "constraint", "Constraint")],
+            views.GetProperty("schedulingCreateActions").EnumerateArray().Select(action => (
+                action.GetProperty("id").GetString(), action.GetProperty("kind").GetString(), action.GetProperty("definitionKind").GetString())));
 
-        Assert.Equal("platform.workspace.workshop", authoring.GetProperty("workspace").GetString());
-        Assert.Equal("platform.navigation.schedules.author", authoring.GetProperty("navigationEntry").GetProperty("id").GetString());
-        Assert.Equal("schedules", authoring.GetProperty("navigationEntry").GetProperty("pillar").GetString());
-        Assert.Equal("platform.editor.scheduling", authoring.GetProperty("editor").GetProperty("id").GetString());
-        Assert.Equal(["ScheduleDefinition", "Protocol", "Constraint"], authoring.GetProperty("editor").GetProperty("definitionKinds").EnumerateArray().Select(value => value.GetString()));
-        Assert.Equal(["react", "blazor"], authoring.GetProperty("editor").GetProperty("projections").EnumerateArray().Select(value => value.GetString()));
-        Assert.Equal(["schedule", "protocol", "constraint"], authoring.GetProperty("createActions").EnumerateArray().Select(action => action.GetProperty("kind").GetString()));
-
-        var defaults = authoring.GetProperty("defaults");
+        var defaults = views.GetProperty("schedulingEditorDefaults");
         Assert.Equal("None", defaults.GetProperty("problemClass").GetString());
         Assert.Equal("none", defaults.GetProperty("planner").GetString());
         Assert.Equal(JsonValueKind.Null, defaults.GetProperty("planHorizon").ValueKind);
         Assert.Empty(defaults.GetProperty("constraintScopes").EnumerateArray());
         Assert.Equal("domain-package", defaults.GetProperty("protocolInstanceOwner").GetString());
-        Assert.False(authoring.TryGetProperty("grammar", out _));
+        Assert.False(defaults.TryGetProperty("grammar", out _));
+    }
+
+    [Fact]
+    public void The_export_carries_exactly_one_admitted_released_navigation_definition_naming_the_three_editors()
+    {
+        var export = PlatformPackageSeed.Export();
+        using var document = JsonDocument.Parse(export);
+        var definitions = document.RootElement.GetProperty("items").EnumerateArray()
+            .Select(item => TryReadDefinition(item.GetProperty("content").GetProperty("payload").GetRawText()))
+            .OfType<ReleasedNavigationDefinition>()
+            .ToArray();
+
+        var definition = Assert.Single(definitions);
+        ReleasedNavigationDefinitionAdmission.Validate(definition, DefinitionAdmissionPhase.Install);
+        var entry = Assert.Single(ReleasedNavigationDefinitionPackageExporter.Read(export, "platform.navigation.workshop"));
+        Assert.Equal(("platform.navigation.workshop", "2.0.0"), (entry.DefinitionId, entry.Version));
+        Assert.Equal(("platform.navigation.workshop", "2.0.0", "platform.workspace.workshop"), (definition.Identity, definition.Version, definition.Workspace));
+        Assert.Equal(
+            [("platform.navigation.views.author", "Create view", "views", "platform.editor.views"),
+             ("platform.navigation.data-exchanges.author", "Create data exchange", "data-exchanges", "platform.editor.data-exchange"),
+             ("platform.navigation.schedules.author", "Create schedule", "schedules", "platform.editor.scheduling")],
+            definition.NavigationEntries.Select(value => (value.Id, value.Label, value.Pillar, value.EditorDestinationId)));
+        Assert.Equal(
+            [("platform.editor.views", "platform.editor.views", "ViewDefinition"),
+             ("platform.editor.data-exchange", "platform.editor.data-exchange", "DataExchangeDefinition"),
+             ("platform.editor.scheduling", "platform.editor.scheduling", "ScheduleDefinition,Protocol,Constraint")],
+            definition.EditorDestinations.Select(value => (value.Id, value.SurfaceId, string.Join(',', value.DefinitionKinds))));
+        Assert.All(definition.EditorDestinations, value => Assert.Equal(["react", "blazor"], value.Projections));
+    }
+
+    [Theory]
+    [InlineData("platform.navigation.views.author", "platform.editor.views", "platform.editor.views")]
+    [InlineData("platform.navigation.data-exchanges.author", "platform.editor.data-exchange", "platform.editor.data-exchange")]
+    [InlineData("platform.navigation.schedules.author", "platform.editor.scheduling", "platform.editor.scheduling")]
+    public void Lookup_over_the_seed_export_resolves_each_navigation_entry_to_its_editor_and_surface(string entry, string destination, string surface)
+    {
+        var lookup = ReleasedNavigationLookup.Install(
+            ReleasedNavigationDefinitionPackageExporter.Read(PlatformPackageSeed.LoadCheckedInExport(), "platform.navigation.workshop"));
+
+        var resolved = lookup.Resolve(entry, AllowsAll);
+
+        Assert.Equal((entry, destination, surface), (resolved.Entry.Id, resolved.Destination.Id, resolved.Surface.Id));
+    }
+
+    [Fact]
+    public void A_seed_without_the_definition_refuses_each_entry_with_no_compiled_fallback()
+    {
+        var export = PlatformPackageExporter.Export(Replacing(null));
+        var entries = ReleasedNavigationDefinitionPackageExporter.Read(export, "platform.navigation.workshop");
+        var lookup = ReleasedNavigationLookup.Install(entries);
+
+        Assert.Empty(entries);
+        var refused = Assert.Throws<DefinitionRefusalException>(() => lookup.Resolve("platform.navigation.views.author", AllowsAll));
+        Assert.Equal([new DefinitionRefusal("released-navigation.navigation-entry.missing", "/navigation_entries/platform.navigation.views.author")], refused.Refusals);
+    }
+
+    [Fact]
+    public void A_seed_with_an_unreadable_definition_refuses_at_install()
+    {
+        var export = PlatformPackageExporter.Export(Replacing(PlatformPackageContent.PresentJson("""{"identity":"platform.navigation.workshop","editors":[]}"""u8)));
+
+        var refused = Assert.Throws<DefinitionRefusalException>(() =>
+            ReleasedNavigationLookup.Install(ReleasedNavigationDefinitionPackageExporter.Read(export, "platform.navigation.workshop")));
+
+        Assert.Equal(DefinitionAdmissionPhase.Install, refused.Stage);
+        Assert.Equal([new DefinitionRefusal("released-navigation.definition.invalid", "/", "platform.navigation.workshop@2.0.0")], refused.Refusals);
+    }
+
+    [Fact]
+    public void A_malformed_platform_export_refuses_at_install()
+    {
+        var refused = Assert.Throws<DefinitionRefusalException>(() =>
+            ReleasedNavigationDefinitionPackageExporter.Read("""{"revision":"2.0.0"}"""u8, "platform.navigation.workshop"));
+
+        Assert.Equal([new DefinitionRefusal("released-navigation.definition.invalid", "/", "platform.navigation.workshop")], refused.Refusals);
+    }
+
+    [Fact]
+    public void The_revision_and_digest_are_stable_across_exports_and_the_digest_changes_when_an_entry_changes()
+    {
+        var first = PublishedArtifact.FromExport(PlatformPackageSeed.Export());
+        var second = PublishedArtifact.FromExport(PlatformPackageSeed.Export());
+        var relabelled = PlatformPackageSeed.ReleasedNavigation with
+        {
+            NavigationEntries = [.. PlatformPackageSeed.ReleasedNavigation.NavigationEntries.Select(entry =>
+                entry.Id == "platform.navigation.views.author" ? entry with { Label = "Create a view" } : entry)],
+        };
+        var changed = PublishedArtifact.FromExport(PlatformPackageExporter.Export(
+            Replacing(ReleasedNavigationDefinitionPackageExporter.Export(relabelled).Content)));
+
+        Assert.Equal(first, second);
+        Assert.Equal("2.0.0", first.Version);
+        Assert.Matches("^[0-9a-f]{64}$", first.Digest);
+        Assert.Equal("2.0.0", changed.Version);
+        Assert.NotEqual(first.Digest, changed.Digest);
+    }
+
+    [Fact]
+    public void The_released_definition_refuses_an_entry_whose_editor_destination_is_missing()
+    {
+        var broken = PlatformPackageSeed.ReleasedNavigation with
+        {
+            EditorDestinations = [.. PlatformPackageSeed.ReleasedNavigation.EditorDestinations.Where(value => value.Id != "platform.editor.scheduling")],
+        };
+
+        var refused = Assert.Throws<DefinitionRefusalException>(() => ReleasedNavigationDefinitionAdmission.Validate(broken, DefinitionAdmissionPhase.Publish));
+
+        Assert.Equal([new DefinitionRefusal("released-navigation.editor-destination.missing", "/navigation_entries/2/editor_destination_id")], refused.Refusals);
     }
 
     [Fact]
@@ -174,7 +286,7 @@ public sealed class CanonicalPlatformPackageSeedTests
         var result = await PlatformPackageReplayer.ReplayAsync(PlatformPackageSeed.Manifest, target);
 
         Assert.True(result.Succeeded);
-        Assert.Equal(Enumerable.Range(1, 14).Select(index => $"platform-package-ck-{index}"), target.ItemIds);
+        Assert.Equal(SeedItemIds, target.ItemIds);
     }
 
     [Fact]
@@ -195,6 +307,39 @@ public sealed class CanonicalPlatformPackageSeedTests
     }
 
     private static JsonElement Members(string id) => Payload(id).GetProperty("members");
+
+    private static readonly IReleasedNavigationAccess AllowsAll = new AllowingAccess();
+
+    // The seed manifest with its released navigation item's content replaced, or the item removed when content is null.
+    private static PlatformPackageManifest Replacing(PlatformPackageContent? content)
+    {
+        var seed = PlatformPackageSeed.Manifest;
+        var items = seed.Items
+            .Where(item => content is not null || item.Id != "platform.navigation.workshop")
+            .Select(item => content is not null && item.Id == "platform.navigation.workshop"
+                ? new PlatformPackageItem(item.Id, item.Stage, item.Dependencies, content)
+                : item);
+        return new(seed.SchemaVersion, seed.PackageKey, seed.Revision, items);
+    }
+
+    private static ReleasedNavigationDefinition? TryReadDefinition(string payload)
+    {
+        try { return ReleasedNavigationDefinitionJson.Deserialize(Encoding.UTF8.GetBytes(payload)); }
+        catch (JsonException) { return null; }
+    }
+
+    private static IEnumerable<string> PropertyNames(JsonElement element) => element.ValueKind switch
+    {
+        JsonValueKind.Object => element.EnumerateObject().SelectMany(property => PropertyNames(property.Value).Prepend(property.Name)),
+        JsonValueKind.Array => element.EnumerateArray().SelectMany(PropertyNames),
+        _ => [],
+    };
+
+    private sealed class AllowingAccess : IReleasedNavigationAccess
+    {
+        public bool CanRead(ReleasedNavigationDefinition definition, ReleasedNavigationEntry entry, ReleasedEditorDestination destination, ReleasedSurface surface)
+            => true;
+    }
 
     private sealed class AtomicRecordingTarget : IPlatformPackageReplayTarget
     {

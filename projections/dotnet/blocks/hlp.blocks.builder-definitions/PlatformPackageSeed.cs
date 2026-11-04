@@ -7,9 +7,22 @@ namespace Harborline.Blocks.BuilderDefinitions;
 public static class PlatformPackageSeed
 {
     private const string ResourceName = "Harborline.Blocks.BuilderDefinitions.platform-pack.export.json";
-    // The released revision. Its ck-14 creationGate keeps the released spelling (K6); a new revision writes form_only.
-    private const string PackageRevision = PlatformCreationGateCompatibility.LegacyRevision;
+    // SemVer 2.0.0 item 8: 2.0.0 removes the published authoring, dataExchangeAuthoring and schedulingAuthoring members
+    // (owner ruling 2026-11-04). It writes the ck-14 creationGate form_only (K6); 1.0.0 survives only as a test fixture.
+    private const string PackageRevision = "2.0.0";
+    private const string Workshop = "platform.workspace.workshop";
     private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+
+    /// <summary>
+    /// The identity of the seed's one <see cref="ReleasedNavigationDefinition"/> (DES-0052 layout-eng-24), and the id of
+    /// the seed item that carries it.
+    /// </summary>
+    public const string ReleasedNavigationIdentity = "platform.navigation.workshop";
+
+    /// <summary>The Workshop editor destinations and their navigation entries, released at the seed revision.</summary>
+    public static ReleasedNavigationDefinition ReleasedNavigation { get; } = BuildReleasedNavigation();
+
+    // Declared after ReleasedNavigation: static initializers run in text order, and the manifest exports it.
     private static readonly PlatformPackageManifest CanonicalManifest = BuildManifest();
 
     /// <summary>The canonical dependency-free platform package manifest.</summary>
@@ -36,7 +49,8 @@ public static class PlatformPackageSeed
 
     /// <summary>
     /// Reads the record creation default (ck-14 <c>creationGate</c>) from the checked-in export through its
-    /// version-specific reader (K6): the released 1.0.0 spelling <c>form-only</c> is <see cref="RecordCreationGate.FormOnly"/>.
+    /// version-specific reader (K6), which reads 1.0.0's <c>form-only</c> and every later revision's <c>form_only</c> as
+    /// <see cref="RecordCreationGate.FormOnly"/>.
     /// </summary>
     public static RecordCreationGate CreationGate => PlatformCreationGateCompatibility.ReadCreationGate(LoadCheckedInExport());
 
@@ -166,8 +180,10 @@ public static class PlatformPackageSeed
                     new { id = "platform.trait.bookable-resource", sealedTrait = true, slots = Array.Empty<string>() },
                 },
             }, "platform-package-ck-3"),
-            Item("platform-package-ck-5", PlatformSeedStage.Workspace, new { id = "platform.workspace.workshop", name = "Workshop" }, "platform-package-ck-4"),
+            Item("platform-package-ck-5", PlatformSeedStage.Workspace, new { id = Workshop, name = "Workshop" }, "platform-package-ck-4"),
             Item("platform-package-ck-6", PlatformSeedStage.Navigation, new { members = navigation }, "platform-package-ck-5"),
+            new PlatformPackageItem(ReleasedNavigationIdentity, PlatformSeedStage.Navigation, ["platform-package-ck-6"],
+                ReleasedNavigationDefinitionPackageExporter.Export(ReleasedNavigation).Content),
             Item("platform-package-ck-7", PlatformSeedStage.Views, new
             {
                 members = pillarViews,
@@ -196,81 +212,32 @@ public static class PlatformPackageSeed
                 },
                 listDefaultShape = "table",
                 showInListsOwner = "views",
-                authoring = new
+                // What the released navigation definition does not carry, each at a named home (owner ruling
+                // 2026-11-04). DataExchange's TabularMappingProfile.Family names the mapping profile's family.
+                dataExchangeMappingProfile = new
                 {
-                    workspace = "platform.workspace.workshop",
-                    navigationEntry = new
-                    {
-                        id = "platform.navigation.views.author",
-                        pillar = "views",
-                        label = "Create view",
-                        surface = "platform.editor.views",
-                    },
-                    editor = new
-                    {
-                        id = "platform.editor.views",
-                        definitionKind = "ViewDefinition",
-                        projections = new[] { "react", "blazor" },
-                    },
+                    id = "hl:tabular-mapping/v1",
+                    schemaUri = "https://schemas.harborline.software/mapping/tabular/v1",
+                    documentVersion = "1.0.0",
                 },
-                dataExchangeAuthoring = new
+                schedulingCreateActions = new[]
                 {
-                    workspace = "platform.workspace.workshop",
-                    navigationEntry = new
-                    {
-                        id = "platform.navigation.data-exchanges.author",
-                        pillar = "data-exchanges",
-                        label = "Create data exchange",
-                        surface = "platform.editor.data-exchange",
-                    },
-                    editor = new
-                    {
-                        id = "platform.editor.data-exchange",
-                        definitionKind = "DataExchangeDefinition",
-                        projections = new[] { "react", "blazor" },
-                    },
-                    mappingProfile = new
-                    {
-                        id = "hl:tabular-mapping/v1",
-                        schemaUri = "https://schemas.harborline.software/mapping/tabular/v1",
-                        documentVersion = "1.0.0",
-                    },
+                    new { id = "platform.action.schedules.create", kind = "schedule", definitionKind = "ScheduleDefinition" },
+                    new { id = "platform.action.protocols.create", kind = "protocol", definitionKind = "Protocol" },
+                    new { id = "platform.action.constraints.create", kind = "constraint", definitionKind = "Constraint" },
                 },
-                schedulingAuthoring = new
+                // Scheduling editor defaults the records rule on, and nothing else: problem class and planner start
+                // at none (scheduling-ck-10, L1149), the plan horizon has no default and is authored
+                // (ADR-0097 ruling 5), no constraint scope is preselected and chain is never chosen
+                // implicitly (L1148), and Protocol instances are domain-package-owned with none in the
+                // platform seed (ADR-0097 ruling 3). The grammar itself is the definition kinds' own.
+                schedulingEditorDefaults = new
                 {
-                    workspace = "platform.workspace.workshop",
-                    navigationEntry = new
-                    {
-                        id = "platform.navigation.schedules.author",
-                        pillar = "schedules",
-                        label = "Create schedule",
-                        surface = "platform.editor.scheduling",
-                    },
-                    editor = new
-                    {
-                        id = "platform.editor.scheduling",
-                        definitionKinds = new[] { "ScheduleDefinition", "Protocol", "Constraint" },
-                        projections = new[] { "react", "blazor" },
-                    },
-                    createActions = new[]
-                    {
-                        new { id = "platform.action.schedules.create", kind = "schedule", definitionKind = "ScheduleDefinition" },
-                        new { id = "platform.action.protocols.create", kind = "protocol", definitionKind = "Protocol" },
-                        new { id = "platform.action.constraints.create", kind = "constraint", definitionKind = "Constraint" },
-                    },
-                    // Editor defaults the records rule on, and nothing else: problem class and planner start
-                    // at none (scheduling-ck-10, L1149), the plan horizon has no default and is authored
-                    // (ADR-0097 ruling 5), no constraint scope is preselected and chain is never chosen
-                    // implicitly (L1148), and Protocol instances are domain-package-owned with none in the
-                    // platform seed (ADR-0097 ruling 3). The grammar itself is the definition kinds' own.
-                    defaults = new
-                    {
-                        problemClass = "None",
-                        planner = "none",
-                        planHorizon = (string?)null,
-                        constraintScopes = Array.Empty<string>(),
-                        protocolInstanceOwner = "domain-package",
-                    },
+                    problemClass = "None",
+                    planner = "none",
+                    planHorizon = (string?)null,
+                    constraintScopes = Array.Empty<string>(),
+                    protocolInstanceOwner = "domain-package",
                 },
             }, "platform-package-ck-6"),
             Item("platform-package-ck-8", PlatformSeedStage.Views, new
@@ -349,6 +316,30 @@ public static class PlatformPackageSeed
                 theme = "dark",
             }, "platform-package-ck-13"),
         });
+    }
+
+    // The three Workshop editors the 1.0.0 seed declared in ck-7's authoring objects, with the same ids and labels.
+    // platform.editor.views stays the surface id: app links use ?surface=platform.editor.views.
+    private static ReleasedNavigationDefinition BuildReleasedNavigation()
+    {
+        string[] lanes = ["react", "blazor"];
+        return new(ReleasedNavigationIdentity, PackageRevision, Workshop,
+            new("platform.surface-catalogue.workshop",
+            [
+                new("platform.editor.views", "Views editor"),
+                new("platform.editor.data-exchange", "Data exchange editor"),
+                new("platform.editor.scheduling", "Scheduling editor"),
+            ]),
+            [
+                new("platform.navigation.views.author", "Create view", "views", "platform.editor.views"),
+                new("platform.navigation.data-exchanges.author", "Create data exchange", "data-exchanges", "platform.editor.data-exchange"),
+                new("platform.navigation.schedules.author", "Create schedule", "schedules", "platform.editor.scheduling"),
+            ],
+            [
+                new("platform.editor.views", "platform.editor.views", ["ViewDefinition"], lanes),
+                new("platform.editor.data-exchange", "platform.editor.data-exchange", ["DataExchangeDefinition"], lanes),
+                new("platform.editor.scheduling", "platform.editor.scheduling", ["ScheduleDefinition", "Protocol", "Constraint"], lanes),
+            ]);
     }
 
     private static PlatformPackageItem Item(string id, PlatformSeedStage stage, object payload, params string[] dependencies)

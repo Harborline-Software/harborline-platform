@@ -193,7 +193,7 @@
       "name": "ReleasedNavigationDefinition",
       "value": 21,
       "pillar": "Navigation",
-      "status": "reserved"
+      "status": "shipped"
     }
   ]
 }

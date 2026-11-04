@@ -26,6 +26,7 @@ public static class ReleasedNavigationDefinitionAdmission
         ArgumentNullException.ThrowIfNull(definition);
         var refusals = new List<DefinitionRefusal>();
         if (string.IsNullOrWhiteSpace(definition.Identity) || !LayoutVersionSyntax.IsValid(definition.Version)
+            || string.IsNullOrWhiteSpace(definition.Workspace)
             || definition.SurfaceCatalogue is null || string.IsNullOrWhiteSpace(definition.SurfaceCatalogue.Id))
             refusals.Add(new(ReleasedNavigationDefinitionCodes.DefinitionInvalid, "/"));
 
@@ -38,7 +39,8 @@ public static class ReleasedNavigationDefinitionAdmission
         foreach (var (destination, index) in (definition.EditorDestinations ?? []).Select((value, index) => (value, index)))
         {
             var pointer = $"/editor_destinations/{index}";
-            if (destination is null || string.IsNullOrWhiteSpace(destination.Id) || !destinations.Add(destination.Id))
+            if (destination is null || string.IsNullOrWhiteSpace(destination.Id) || !IsNamedSet(destination.DefinitionKinds)
+                || !IsNamedSet(destination.Projections) || !destinations.Add(destination.Id))
                 refusals.Add(new(ReleasedNavigationDefinitionCodes.MemberInvalid, pointer));
             else if (string.IsNullOrWhiteSpace(destination.SurfaceId) || !surfaces.Contains(destination.SurfaceId))
                 refusals.Add(new(ReleasedNavigationDefinitionCodes.SurfaceMissing, $"{pointer}/surface_id"));
@@ -48,7 +50,8 @@ public static class ReleasedNavigationDefinitionAdmission
         foreach (var (entry, index) in (definition.NavigationEntries ?? []).Select((value, index) => (value, index)))
         {
             var pointer = $"/navigation_entries/{index}";
-            if (entry is null || string.IsNullOrWhiteSpace(entry.Id) || string.IsNullOrWhiteSpace(entry.Label) || !entries.Add(entry.Id))
+            if (entry is null || string.IsNullOrWhiteSpace(entry.Id) || string.IsNullOrWhiteSpace(entry.Label)
+                || string.IsNullOrWhiteSpace(entry.Pillar) || !entries.Add(entry.Id))
                 refusals.Add(new(ReleasedNavigationDefinitionCodes.MemberInvalid, pointer));
             else if (string.IsNullOrWhiteSpace(entry.EditorDestinationId) || !destinations.Contains(entry.EditorDestinationId))
                 refusals.Add(new(ReleasedNavigationDefinitionCodes.EditorDestinationMissing, $"{pointer}/editor_destination_id"));
@@ -56,4 +59,9 @@ public static class ReleasedNavigationDefinitionAdmission
 
         if (refusals.Count > 0) throw new DefinitionRefusalException(stage, refusals);
     }
+
+    // A non-empty list of distinct, non-blank names.
+    private static bool IsNamedSet(IReadOnlyList<string>? names) =>
+        names is { Count: > 0 } && names.All(name => !string.IsNullOrWhiteSpace(name))
+        && names.Distinct(StringComparer.Ordinal).Count() == names.Count;
 }
