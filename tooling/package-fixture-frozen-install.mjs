@@ -265,10 +265,10 @@ export function installFrozenUiConsumer(consumer, paths, run) {
   unchanged()
 }
 
-
-export function installFrozenContractsConsumer(consumer, path, run) {
-  const name = '@harborline-software/contracts'
-  const spec = 'file:.packed/contracts.tgz'
+// One zero-dependency package over the committed empty baseline lock: baseline frozen install, staged tarball,
+// offline lock derivation checked literally, then a frozen offline install.
+function installFrozenSingletonConsumer(consumer, path, run, label, name, tarball) {
+  const spec = `file:.packed/${tarball}`
   const manifestPath = resolve(consumer, 'package.json')
   const lockPath = resolve(consumer, 'pnpm-lock.yaml')
   const workspacePath = resolve(consumer, 'pnpm-workspace.yaml')
@@ -276,31 +276,31 @@ export function installFrozenContractsConsumer(consumer, path, run) {
   const manifest = JSON.parse(manifestText)
   const baselineText = readFileSync(lockPath, 'utf8')
   const workspace = readFileSync(workspacePath, 'utf8')
-  assert.deepEqual(manifest, { private: true, type: 'module', packageManager: 'pnpm@11.1.3' }, 'Contracts consumer manifest changed')
-  assert.equal(createHash('sha256').update(baselineText).digest('hex'), '878a7b60746fb21ffe11029327f29ea50cfc840bfeb9e0b3cbb46a77f828b7e7', 'Contracts empty baseline changed')
-  assert.equal(workspace, 'packages:\n  - .\nnodeLinker: hoisted\nautoInstallPeers: false\n', 'Contracts consumer workspace changed')
+  assert.deepEqual(manifest, { private: true, type: 'module', packageManager: 'pnpm@11.1.3' }, `${label} consumer manifest changed`)
+  assert.equal(createHash('sha256').update(baselineText).digest('hex'), '878a7b60746fb21ffe11029327f29ea50cfc840bfeb9e0b3cbb46a77f828b7e7', `${label} empty baseline changed`)
+  assert.equal(workspace, 'packages:\n  - .\nnodeLinker: hoisted\nautoInstallPeers: false\n', `${label} consumer workspace changed`)
   run('pnpm', ['install', '--frozen-lockfile', '--ignore-scripts'], { cwd: consumer })
-  assert.equal(readFileSync(lockPath, 'utf8'), baselineText, 'Contracts baseline install rewrote lock')
-  assert.equal(readFileSync(manifestPath, 'utf8'), manifestText, 'Contracts baseline install rewrote manifest')
-  assert.equal(readFileSync(workspacePath, 'utf8'), workspace, 'Contracts baseline install rewrote workspace')
-  assert.ok(lstatSync(path).isFile(), 'Contracts packed artifact must be a regular file')
+  assert.equal(readFileSync(lockPath, 'utf8'), baselineText, `${label} baseline install rewrote lock`)
+  assert.equal(readFileSync(manifestPath, 'utf8'), manifestText, `${label} baseline install rewrote manifest`)
+  assert.equal(readFileSync(workspacePath, 'utf8'), workspace, `${label} baseline install rewrote workspace`)
+  assert.ok(lstatSync(path).isFile(), `${label} packed artifact must be a regular file`)
   const bytes = readFileSync(path)
   const packed = packedManifest(bytes)
-  assert.equal(packed.name, name, 'Contracts packed artifact identity mismatch')
+  assert.equal(packed.name, name, `${label} packed artifact identity mismatch`)
   assert.match(packed.version, /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/, 'unsupported Contracts package version')
   for (const field of ['dependencies', 'optionalDependencies', 'peerDependencies', 'peerDependenciesMeta']) {
-    assert.deepEqual(packed[field] === undefined ? {} : packed[field], {}, `Contracts packed ${field} must be empty`)
+    assert.deepEqual(packed[field] === undefined ? {} : packed[field], {}, `${label} packed ${field} must be empty`)
   }
   const integrity = `sha512-${createHash('sha512').update(bytes).digest('base64')}`
   mkdirSync(resolve(consumer, '.packed'))
-  const staged = resolve(consumer, '.packed/contracts.tgz')
+  const staged = resolve(consumer, `.packed/${tarball}`)
   writeFileSync(staged, bytes, { flag: 'wx' })
   run('pnpm', ['add', '--lockfile-only', '--offline', '--ignore-scripts', spec], { cwd: consumer })
   const derivedText = readFileSync(lockPath, 'utf8')
   const derivedManifestText = readFileSync(manifestPath, 'utf8')
   const derivedManifest = JSON.parse(derivedManifestText)
   if (typeof derivedManifest.dependencies?.[name] === 'string') derivedManifest.dependencies[name] = derivedManifest.dependencies[name].replaceAll('\\', '/')
-  assert.deepEqual(derivedManifest, { ...manifest, dependencies: { [name]: spec } }, 'Contracts derived manifest changed')
+  assert.deepEqual(derivedManifest, { ...manifest, dependencies: { [name]: spec } }, `${label} derived manifest changed`)
   // Actual pnpm 11.1.3 singleton shape; any additional closure needs separate admission.
   const expected = baselineText.replace('  .: {}\n', `  .:
     dependencies:
@@ -318,17 +318,25 @@ snapshots:
 
   '${name}@${spec}': {}
 `
-  assert.equal(derivedText.replace('specifier: file:.packed\\contracts.tgz', 'specifier: file:.packed/contracts.tgz'), expected, 'Contracts singleton lock graph changed')
+  assert.equal(derivedText.replace(`specifier: file:.packed\\${tarball}`, `specifier: ${spec}`), expected, `${label} singleton lock graph changed`)
   const unchanged = () => {
-    assert.equal(readFileSync(workspacePath, 'utf8'), workspace, 'Contracts workspace changed')
-    assert.deepEqual(readFileSync(path), bytes, 'Contracts producer tarball changed')
-    assert.deepEqual(readFileSync(staged), bytes, 'Contracts staged tarball changed')
+    assert.equal(readFileSync(workspacePath, 'utf8'), workspace, `${label} workspace changed`)
+    assert.deepEqual(readFileSync(path), bytes, `${label} producer tarball changed`)
+    assert.deepEqual(readFileSync(staged), bytes, `${label} staged tarball changed`)
   }
   unchanged()
   run('pnpm', ['install', '--frozen-lockfile', '--offline', '--ignore-scripts'], { cwd: consumer })
-  assert.equal(readFileSync(lockPath, 'utf8'), derivedText, 'Contracts final install rewrote lock')
-  assert.equal(readFileSync(manifestPath, 'utf8'), derivedManifestText, 'Contracts final install rewrote manifest')
+  assert.equal(readFileSync(lockPath, 'utf8'), derivedText, `${label} final install rewrote lock`)
+  assert.equal(readFileSync(manifestPath, 'utf8'), derivedManifestText, `${label} final install rewrote manifest`)
   unchanged()
+}
+
+export function installFrozenContractsConsumer(consumer, path, run) {
+  installFrozenSingletonConsumer(consumer, path, run, 'Contracts', '@harborline-software/contracts', 'contracts.tgz')
+}
+
+export function installFrozenCopilotContractsConsumer(consumer, path, run) {
+  installFrozenSingletonConsumer(consumer, path, run, 'Copilot contracts', '@harborline-software/copilot-contracts', 'copilot-contracts.tgz')
 }
 
 export function installFrozenRuleRuntimeConsumer(consumer, enginePath, contractsPath, run) {

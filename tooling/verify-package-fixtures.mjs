@@ -26,6 +26,7 @@ import { sourceIdentity, writeLibraryProof } from './library-promotion-proof.mjs
 import {
   installFrozenUiConsumer,
   installFrozenContractsConsumer,
+  installFrozenCopilotContractsConsumer,
   installFrozenRuleRuntimeConsumer,
   installFrozenRuleAuthoringConsumer,
 } from './package-fixture-frozen-install.mjs'
@@ -357,11 +358,6 @@ function packedArtifact(prefix, label) {
   return resolve(npmArtifacts, names[0])
 }
 
-function installPackedArtifacts(consumer, prefixes, label) {
-  run('npm', ['install', '--ignore-scripts', '--no-audit', '--no-fund', '--package-lock=false',
-    ...prefixes.map(prefix => packedArtifact(prefix, label))], { cwd: consumer })
-}
-
 function assertPackedInstall(consumer, packageNames, label) {
   for (const name of packageNames) {
     const installed = resolve(consumer, `node_modules/@harborline-software/${name}`)
@@ -599,7 +595,7 @@ function verifyCopilotContractsNpm() {
 
   const consumer = resolve(fixtureRoot, 'copilot-contracts-npm-consumer')
   cpSync(resolve(root, 'tests/package-consumers/copilot-contracts-npm'), consumer, { recursive: true })
-  run('npm', ['install', '--ignore-scripts', '--no-audit', '--no-fund', '--package-lock=false', artifact], { cwd: consumer })
+  installFrozenCopilotContractsConsumer(consumer, artifact, run)
   run(process.execPath, ['exercise.mjs'], { cwd: consumer })
   const installed = resolve(consumer, 'node_modules/@harborline-software/copilot-contracts')
   if (lstatSync(installed).isSymbolicLink()) throw new Error('copilot contracts npm consumer resolved a source link')
