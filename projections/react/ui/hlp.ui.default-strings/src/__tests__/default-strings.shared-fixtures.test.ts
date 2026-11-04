@@ -30,6 +30,16 @@ const qualityFixtureUrl = new URL(
   import.meta.url,
 )
 const catalogSourceUrl = new URL('../catalog.ts', import.meta.url)
+const notesUrl = new URL('../default-strings.notes.json', import.meta.url)
+const dotnetCatalogUrl = new URL(
+  '../../../../../../projections/dotnet/foundation/hlp.ui.default-strings/default-strings.json',
+  import.meta.url,
+)
+const dotnetNotesUrl = new URL(
+  '../../../../../../projections/dotnet/foundation/hlp.ui.default-strings/default-strings.notes.json',
+  import.meta.url,
+)
+const readJson = (url: URL) => JSON.parse(readFileSync(url, 'utf8')) as Record<string, string>
 
 function readFixture(url: URL): FixtureDocument {
   return JSON.parse(readFileSync(url, 'utf8')) as FixtureDocument
@@ -51,10 +61,20 @@ function digestCatalog(): string {
   return digestEntries(Object.entries(defaultStrings))
 }
 
-// Revision 2's additions, read from the fixture; revision 1 is every other entry, in catalog order.
+function fixtureEntries(id: string): Array<[string, string]> {
+  const fixtureCase = readFixture(fixtureUrl).cases?.find(value => value.id === id)
+  return (fixtureCase?.expected as { entries: Array<[string, string]> }).entries
+}
+
+// Revision 2's additions, read from the fixture.
 function revision2Keys(): Set<string> {
-  const additions = readFixture(fixtureUrl).cases?.find(value => value.id === 'default-strings.revision-2-additions')
-  return new Set(((additions?.expected as { entries: Array<[string, string]> }).entries).map(([key]) => key))
+  return new Set(fixtureEntries('default-strings.revision-2-additions').map(([key]) => key))
+}
+
+// Every key added after revision 1 (revisions 2 and 3), read from the fixture; revision 1 is every other
+// entry, in catalog order.
+function laterKeys(): Set<string> {
+  return new Set([...revision2Keys(), ...fixtureEntries('default-strings.translator-notes').map(([key]) => key)])
 }
 
 function runCase(fixtureCase: FixtureCase): void {
@@ -74,7 +94,7 @@ function runCase(fixtureCase: FixtureCase): void {
       expect({ sha256: digestCatalog() }).toEqual(fixtureCase.expected)
       return
     case 'default-strings.revision-1-subset': {
-      const additions = revision2Keys()
+      const additions = laterKeys()
       const revision1 = Object.entries(defaultStrings).filter(([key]) => !additions.has(key))
       expect({ count: revision1.length, first: revision1.at(0)?.[0], last: revision1.at(-1)?.[0], sha256: digestEntries(revision1) }).toEqual(fixtureCase.expected)
       return
@@ -110,7 +130,7 @@ function runCase(fixtureCase: FixtureCase): void {
       const families = input.families as string[]
       expect({
         allPresent: families.every(family => Object.keys(defaultStrings).some(key => key.startsWith(`${family}.`))),
-        exactValuesCoveredByDigest: digestCatalog() === 'ca8ea96dbf3bf6ee98766ccbfd3352122cafbf9bb60cd52cf1a0f0612daa564a',
+        exactValuesCoveredByDigest: digestCatalog() === '46506932519d30decab36c2e682ea20a526f37ec8328e82e476f7f70941e10f6',
       }).toEqual(fixtureCase.expected)
       return
     }
@@ -141,14 +161,33 @@ function runCase(fixtureCase: FixtureCase): void {
       )
       return
     }
+    case 'default-strings.translator-notes': {
+      // The revision-3 entries are the catalog's tail, so dropping them leaves revision 2 byte for byte; each
+      // has a non-empty note, no note names a missing key, and the .NET catalog and notes carry the same.
+      const prefix = String(input.prefix)
+      const expected = fixtureCase.expected as { entries: Array<[string, string]> }
+      const entries = Object.entries(defaultStrings)
+      const notes = readJson(notesUrl)
+      const dotnetEntries = Object.entries(readJson(dotnetCatalogUrl))
+      expect({
+        entries: entries.filter(([key]) => key.startsWith(prefix)),
+        revision2Sha256: digestEntries(entries.slice(0, entries.length - expected.entries.length)),
+        everyKeyNoted: expected.entries.every(([key]) => (notes[key] ?? '').trim().length > 0),
+        noOrphanNotes: Object.keys(notes).every(key => key in defaultStrings),
+        lanesEqual:
+          JSON.stringify(dotnetEntries.filter(([key]) => key.startsWith(prefix))) === JSON.stringify(entries.filter(([key]) => key.startsWith(prefix))) &&
+          JSON.stringify(readJson(dotnetNotesUrl)) === JSON.stringify(notes),
+      }).toEqual(fixtureCase.expected)
+      return
+    }
     default:
       throw new Error(`Unimplemented shared fixture: ${fixtureCase.id}`)
   }
 }
 
-describe('hlp.ui.default-strings shared fixture revision 2', () => {
+describe('hlp.ui.default-strings shared fixture revision 3', () => {
   const fixture = readFixture(fixtureUrl)
-  expect(fixture.fixtureRevision).toBe(2)
+  expect(fixture.fixtureRevision).toBe(3)
 
   for (const fixtureCase of fixture.cases ?? []) {
     it(fixtureCase.id, () => runCase(fixtureCase))
@@ -162,7 +201,7 @@ describe('hlp.ui.default-strings shared quality fixtures', () => {
     const fixtureCase = qualityFixture.accessibilityCases?.find(value => value.id.endsWith('accessible-families'))
     const expected = fixtureCase?.expected as { families: string[]; exactValuesCoveredByDigest: boolean }
     expect(expected.families.every(family => Object.keys(defaultStrings).some(key => key.startsWith(`${family}.`)))).toBe(true)
-    expect(digestCatalog()).toBe('ca8ea96dbf3bf6ee98766ccbfd3352122cafbf9bb60cd52cf1a0f0612daa564a')
+    expect(digestCatalog()).toBe('46506932519d30decab36c2e682ea20a526f37ec8328e82e476f7f70941e10f6')
   })
 
   it('keeps every English fallback nonempty', () => {

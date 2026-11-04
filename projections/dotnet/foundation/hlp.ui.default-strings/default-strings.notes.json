@@ -1,0 +1,6 @@
+{
+  "navigation.notifications.group.other": "Tab label in the notification panel, in a row of short tabs. The tab collects every notification whose kind the application defined itself, that is, anything that is not a proposal, a result or a system notice. Means 'other kinds': a catch-all category name, not 'another one'.",
+  "navigation.notifications.group.proposal": "Tab label in the notification panel, in a row of short tabs. The tab shows only proposals: notifications that ask the user to confirm or deny a suggested change. Plural noun naming a category.",
+  "navigation.notifications.group.result": "Tab label in the notification panel, in a row of short tabs. The tab shows only results: notifications that report the outcome of an action that has finished, such as a completed export. Plural noun naming a category.",
+  "navigation.notifications.group.system": "Tab label in the notification panel, in a row of short tabs. The tab shows only system notices: messages from the platform itself, such as maintenance or connection notices. A category name meaning 'from the system', not 'the computer system' as an object."
+}

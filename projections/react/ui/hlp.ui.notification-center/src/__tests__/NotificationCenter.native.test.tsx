@@ -24,11 +24,36 @@ describe('NotificationCenter React projection', () => {
     const action = vi.fn()
     render(<NotificationCenter items={items} onAction={action}/>)
     fireEvent.click(screen.getByRole('button', { name: 'Notifications, 2 unread' }))
-    fireEvent.click(screen.getByRole('tab', { name: 'Result' }))
+    fireEvent.click(screen.getByRole('tab', { name: 'Results' }))
     expect(screen.queryByText('Approve export')).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'Export ready' }))
     expect(action).toHaveBeenCalledWith(items[1])
     expect(screen.getByRole('dialog')).toBeInTheDocument()
+  })
+
+  it('derives its tabs again when the caller passes new items', () => {
+    const view = render(<NotificationCenter items={[items[0]!]}/>)
+    fireEvent.click(screen.getByRole('button', { name: 'Notifications, 1 unread' }))
+    expect(screen.queryByRole('tablist')).toBeNull()
+    view.rerender(<NotificationCenter items={[...items, { id: 'd1', title: 'Deployed', timestamp: 'Now', kind: 'deploy' }]}/>)
+    expect(screen.getAllByRole('tab').map(tab => tab.textContent)).toEqual(['All', 'Proposals', 'Results', 'Other'])
+  })
+
+  it('falls back to All when the selected tab disappears, and keeps that fallback', () => {
+    // Select a caller group, then drop groups: the derived tabs have no such key and, with only custom kinds, no
+    // tab list, so the view must return to All rather than keep filtering by the vanished tab.
+    const custom: NotificationCenterItem[] = [{ id: 'd1', title: 'Deployed', timestamp: 'Now', kind: 'deploy' }, { id: 'a1', title: 'Audited', timestamp: 'Now', kind: 'audit' }]
+    const groups = [{ kind: 'deploy', label: 'Deployments' }, { kind: 'audit', label: 'Audit log' }]
+    const titles = () => Array.from(document.querySelectorAll('.hl-notification-center__item strong')).map(node => node.textContent)
+    const view = render(<NotificationCenter items={custom} groups={groups}/>)
+    fireEvent.click(screen.getByRole('button', { name: 'Notifications, 2 unread' }))
+    fireEvent.click(screen.getByRole('tab', { name: 'Deployments' }))
+    expect(titles()).toEqual(['Deployed'])
+    view.rerender(<NotificationCenter items={custom}/>)
+    expect(screen.queryByRole('tablist')).toBeNull()
+    expect(titles()).toEqual(['Deployed', 'Audited'])
+    view.rerender(<NotificationCenter items={custom} groups={groups}/>)
+    expect(screen.getAllByRole('tab').filter(tab => tab.getAttribute('aria-selected') === 'true').map(tab => tab.textContent)).toEqual(['All'])
   })
 
   // b19: the unread marker is a labelled graphic, as in the Blazor lane. aria-label on a role-less

@@ -17,6 +17,13 @@ export interface NotificationCenterItem {
   preview?: string
   actor?: string
 }
+/**
+ * One caller-supplied tab: the kind it filters to and its label, kept exactly. Without caller `groups`,
+ * the tabs are derived: one per built-in kind present (proposal, result, system), in order of first
+ * appearance, labelled from the catalog (navigation.notifications.group.<kind>), then a single tab for every
+ * custom kind present, labelled navigation.notifications.group.other. A kind id is never shown as a label.
+ * Pass `groups` for a separate tab per custom kind.
+ */
 export interface NotificationGroup { kind: NotificationKind; label: string }
 export interface NotificationCenterLabels {
   title: string
@@ -57,13 +64,15 @@ const catalogKeys: Record<Exclude<keyof NotificationCenterLabels, 'dismiss'>, st
 
 // The default copy comes from the host catalog, else the default catalog (navigation.notifications.*),
 // which is also the fallback for a blank host value; no English literal is used.
-function catalogDefaults(t: Translate): NotificationCenterLabels {
-  const read = (key: string, vars?: Record<string, string | number>) => {
-    const fallback = interpolate(defaultStrings[key as HarborlineStringKey], vars)
+function catalogReader(t: Translate) {
+  return (key: HarborlineStringKey, vars?: Record<string, string | number>) => {
+    const fallback = interpolate(defaultStrings[key], vars)
     const value = t(key, vars)
     return value.trim() && value !== key ? value : fallback
   }
-  const text = Object.fromEntries(Object.entries(catalogKeys).map(([label, key]) => [label, read(key)])) as Record<keyof typeof catalogKeys, string>
+}
+function catalogDefaults(read: ReturnType<typeof catalogReader>): NotificationCenterLabels {
+  const text = Object.fromEntries(Object.entries(catalogKeys).map(([label, key]) => [label, read(key as HarborlineStringKey)])) as Record<keyof typeof catalogKeys, string>
   return { ...text, dismiss: title => read('navigation.notifications.dismiss', { title }) }
 }
 
@@ -77,14 +86,26 @@ function resolveLabels(overrides: Partial<NotificationCenterLabels> | undefined,
   return resolved
 }
 
-function derivedGroups(items: readonly NotificationCenterItem[]): NotificationGroup[] {
+// A tab is a selection key and a label. `kind:<id>` filters to one kind and `other` (derived tabs only) to every
+// custom kind; `all` is the all-kinds tab. The prefix keeps a custom kind named "all" or "other" distinct.
+type Tab = { key: string; label: string }
+const builtInKinds: ReadonlySet<string> = new Set(['proposal', 'result', 'system'])
+const matches = (key: string, kind: NotificationKind) => key === 'other' ? !builtInKinds.has(kind) : key === `kind:${kind}`
+
+function tabsFor(items: readonly NotificationCenterItem[], groups: readonly NotificationGroup[] | undefined, read: ReturnType<typeof catalogReader>): Tab[] {
+  if (groups) return groups.map(group => ({ key: `kind:${group.kind}`, label: group.label }))
+  const tabs: Tab[] = []
   const seen = new Set<string>()
-  const groups: NotificationGroup[] = []
-  for (const item of items) if (!seen.has(item.kind)) {
-    seen.add(item.kind)
-    groups.push({ kind: item.kind, label: item.kind.charAt(0).toUpperCase() + item.kind.slice(1) })
+  let custom = false
+  for (const { kind } of items) {
+    if (!builtInKinds.has(kind)) custom = true
+    else if (!seen.has(kind)) {
+      seen.add(kind)
+      tabs.push({ key: `kind:${kind}`, label: read(`navigation.notifications.group.${kind}` as HarborlineStringKey) })
+    }
   }
-  return groups
+  if (custom) tabs.push({ key: 'other', label: read('navigation.notifications.group.other') })
+  return tabs
 }
 
 export function NotificationCenter({
@@ -98,7 +119,8 @@ export function NotificationCenter({
   // chrome or control name is ever empty.
   const { t, locale } = useHarborlineStrings()
   const { catalog: hostCatalog } = useHarborlineLocale()
-  const labels = React.useMemo(() => resolveLabels(overrides, catalogDefaults(t)), [overrides, t])
+  const read = React.useMemo(() => catalogReader(t), [t])
+  const labels = React.useMemo(() => resolveLabels(overrides, catalogDefaults(read)), [overrides, read])
   const unread = items.filter(item => !item.read).length
   const pending = items.filter(item => item.kind === 'proposal').length
   const otherUnread = items.filter(item => item.kind !== 'proposal' && !item.read).length
@@ -120,10 +142,13 @@ export function NotificationCenter({
       ? pending ? bellPhrase('pending', pending) : otherUnread ? bellPhrase('unread', otherUnread) : labels.title
       : unread ? bellPhrase('unread', unread) : labels.title)
   if (!bellLabel.trim() || !labels.title.trim()) throw new Error('accessible-notification-label-required')
-  const groups = React.useMemo(() => explicitGroups ?? derivedGroups(items), [explicitGroups, items])
+  const tabs = React.useMemo(() => tabsFor(items, explicitGroups, read), [items, explicitGroups, read])
   const [open, setOpen] = React.useState(false)
   const [theme, setTheme] = React.useState<string>()
-  const [kind, setKind] = React.useState<NotificationKind | 'all'>('all')
+  const [active, setActive] = React.useState('all')
+  // A selected tab whose key is gone (caller groups or items changed) falls back to All and stays there; with one
+  // tab left there is no tab list, so a stale selection could never be cleared. React re-renders before committing.
+  if (active !== 'all' && !tabs.some(tab => tab.key === active)) setActive('all')
   const actionLatch = React.useRef(new Set<string>())
   const rootRef = React.useRef<HTMLDivElement>(null)
   const contentRef = React.useRef<HTMLDivElement>(null)
@@ -150,7 +175,7 @@ export function NotificationCenter({
     target.focus({ preventScroll: true })
   })
   const canShowRail = useCanShowRail()
-  const filtered = kind === 'all' ? items : items.filter(item => item.kind === kind)
+  const filtered = active === 'all' ? items : items.filter(item => matches(active, item.kind))
   const visible = filtered.slice(0, maxVisible)
   const numeric = badgeMode === 'unread' ? unread : pending
   const dot = badgeMode === 'decisions' && pending === 0 && otherUnread > 0
@@ -201,10 +226,10 @@ export function NotificationCenter({
             <h2>{labels.title}</h2>
             {unread > 0 && onMarkAllRead ? <button type="button" onClick={() => { startSettle(null); onMarkAllRead() }}>{labels.markAllRead}</button> : null}
           </header>
-          {groups.length > 1 ? (
+          {tabs.length > 1 ? (
             <div role="tablist" aria-label={labels.groupLabel} className="hl-notification-center__tabs">
-              <button type="button" role="tab" aria-selected={kind === 'all'} onClick={() => setKind('all')}>{labels.all}</button>
-              {groups.map(group => <button key={group.kind} type="button" role="tab" aria-selected={kind === group.kind} onClick={() => setKind(group.kind)}>{group.label}</button>)}
+              <button type="button" role="tab" aria-selected={active === 'all'} onClick={() => setActive('all')}>{labels.all}</button>
+              {tabs.map(tab => <button key={tab.key} type="button" role="tab" aria-selected={active === tab.key} onClick={() => setActive(tab.key)}>{tab.label}</button>)}
             </div>
           ) : null}
           <div className="hl-notification-center__scroll">

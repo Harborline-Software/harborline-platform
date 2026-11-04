@@ -135,6 +135,15 @@ public sealed class NotificationCenterTests : BunitContext
     private static void Open(IRenderedComponent<HarborlineNotificationCenter> cut) => cut.Find(".hl-notification-center__trigger").Click();
     private static bool IsOpen(IRenderedComponent<HarborlineNotificationCenter> cut) => cut.FindAll("[role=dialog]").Count > 0;
     private static string[] Strings(System.Text.Json.JsonElement value) => value.EnumerateArray().Select(v => v.GetString()!).ToArray();
+    // The tab labels, the ids of the visible rows, and the kinds a tab shows (read from the rows it leaves visible).
+    private static string[] TabLabels(IRenderedComponent<HarborlineNotificationCenter> cut) => cut.FindAll("[role=tab]").Select(tab => tab.TextContent).ToArray();
+    private static string[] SelectedTabs(IRenderedComponent<HarborlineNotificationCenter> cut) => cut.FindAll("[role=tab]").Where(tab => tab.GetAttribute("aria-selected") == "true").Select(tab => tab.TextContent).ToArray();
+    private static string[] VisibleIds(IRenderedComponent<HarborlineNotificationCenter> cut) => cut.FindAll(".hl-notification-center__item strong").Select(node => node.TextContent.Replace("Title ", "", StringComparison.Ordinal)).ToArray();
+    private static string[] ShownKinds(IRenderedComponent<HarborlineNotificationCenter> cut, int tab)
+    {
+        cut.FindAll("[role=tab]")[tab].Click();
+        return cut.FindAll(".hl-notification-center__item").Select(row => row.GetAttribute("data-hl-kind")!).Distinct().ToArray();
+    }
 
     private void AssertCase(string id, System.Text.Json.JsonElement input, System.Text.Json.JsonElement expected)
     {
@@ -206,14 +215,18 @@ public sealed class NotificationCenterTests : BunitContext
             }
             case "notification-center.groups":
             {
+                // Each derived tab's label comes from the catalog, and the kind it filters to is read from the rows it shows.
                 var kinds = Strings(input.GetProperty("kinds"));
                 var cut = Center(kinds.Select((kind, i) => Item($"n{i}", kind)).ToArray());
                 Open(cut);
-                var tabs = cut.FindAll("[role=tab]");
-                Assert.Equal(expected.GetProperty("tabs").GetInt32(), tabs.Count);
-                var labels = tabs.Skip(1).Select(tab => tab.TextContent.ToLowerInvariant()).ToArray();
-                Assert.Equal(Strings(expected.GetProperty("groupKinds")), labels);
-                Assert.Equal(expected.GetProperty("firstAppearanceOrder").GetBoolean(), labels.SequenceEqual(kinds.Distinct()));
+                Assert.Equal(expected.GetProperty("tabs").GetInt32(), cut.FindAll("[role=tab]").Count);
+                var labels = Strings(expected.GetProperty("labels"));
+                Assert.Equal(labels, TabLabels(cut).Skip(1).ToArray());
+                var shown = Enumerable.Range(1, labels.Length).Select(i => ShownKinds(cut, i)).ToArray();
+                Assert.Equal(Strings(expected.GetProperty("groupKinds")), shown.Select(k => string.Join(',', k)).ToArray());
+                Assert.Equal(expected.GetProperty("firstAppearanceOrder").GetBoolean(), shown.SelectMany(k => k).SequenceEqual(kinds.Distinct()));
+                // Not the old rule: no label is a kind id with its first letter raised.
+                foreach (var kind in Strings(expected.GetProperty("groupKinds"))) Assert.DoesNotContain(char.ToUpperInvariant(kind[0]) + kind[1..], labels);
                 break;
             }
             case "notification-center.filter":
@@ -222,10 +235,48 @@ public sealed class NotificationCenterTests : BunitContext
                 var active = input.GetProperty("activeKind").GetString()!;
                 var cut = Center(items);
                 Open(cut);
-                cut.FindAll("[role=tab]").Single(tab => tab.TextContent.Equals(active, StringComparison.OrdinalIgnoreCase)).Click();
-                var visible = cut.FindAll(".hl-notification-center__item strong").Select(node => node.TextContent.Replace("Title ", "", StringComparison.Ordinal)).ToArray();
+                cut.FindAll("[role=tab]").Single(tab => tab.TextContent == input.GetProperty("activeLabel").GetString()).Click();
+                var visible = VisibleIds(cut);
                 Assert.Equal(Strings(expected.GetProperty("visibleIds")), visible);
                 Assert.Equal(expected.GetProperty("callerOrderPreserved").GetBoolean(), visible.SequenceEqual(items.Where(i => i.Kind == active).Select(i => i.Id)));
+                break;
+            }
+            case "notification-center.group-labels-localized":
+            {
+                // A host catalog overriding each built-in group key labels those tabs; under en-XA every tab is the
+                // pseudo-localized string, and none is a kind id, raw or capitalized.
+                var kinds = Strings(input.GetProperty("kinds"));
+                var items = kinds.Select((kind, i) => Item($"n{i}", kind)).ToArray();
+                foreach (var (host, outcome) in new[] { (input.GetProperty("hostCatalog"), expected.GetProperty("hostCatalog")), (input.GetProperty("pseudoCatalog"), expected.GetProperty("pseudo")) })
+                {
+                    var provider = Render<HarborlineLocaleProvider>(p => p.Add(x => x.Locale, host.GetProperty("locale").GetString()).Add(x => x.Catalog, host.GetProperty("entries").EnumerateObject().ToDictionary(entry => entry.Name, entry => entry.Value.GetString()!))
+                        .AddChildContent<HarborlineNotificationCenter>(c => c.Add(x => x.Items, items)));
+                    provider.Find(".hl-notification-center__trigger").Click();
+                    Assert.Equal(Strings(outcome.GetProperty("tabs")), provider.FindAll("[role=tab]").Select(tab => tab.TextContent).ToArray());
+                }
+                var pseudo = Strings(expected.GetProperty("pseudo").GetProperty("tabs"));
+                Assert.Equal(expected.GetProperty("pseudo").GetProperty("kindIdLabels").GetInt32(), pseudo.Count(label => kinds.Any(kind => string.Equals(label, kind, StringComparison.OrdinalIgnoreCase))));
+                break;
+            }
+            case "notification-center.custom-kind-fallback":
+            {
+                // Without groups every custom kind shares one last tab, labelled from the fallback key, that shows them
+                // all; with caller groups the caller's tabs and labels win.
+                var items = Strings(input.GetProperty("items")).Select(entry => entry.Split(':')).Select(parts => Item(parts[1], parts[0])).ToArray();
+                var groups = input.GetProperty("groups").EnumerateArray().Select(g => new NotificationGroup(g.GetProperty("kind").GetString()!, g.GetProperty("label").GetString()!)).ToArray();
+                foreach (var (callerGroups, active, outcome) in new[] { ((NotificationGroup[]?)null, input.GetProperty("activeLabel").GetString(), expected.GetProperty("derived")), (groups, input.GetProperty("callerActiveLabel").GetString(), expected.GetProperty("callerGroups")) })
+                {
+                    var cut = Center(items, p => p.Add(x => x.Groups, callerGroups));
+                    Open(cut);
+                    Assert.Equal(Strings(outcome.GetProperty("tabs")), TabLabels(cut));
+                    cut.FindAll("[role=tab]").Single(tab => tab.TextContent == active).Click();
+                    Assert.Equal(new[] { active! }, SelectedTabs(cut));
+                    Assert.Equal(Strings(outcome.GetProperty("visibleIds")), VisibleIds(cut));
+                    // The All tab restores every item, in caller order.
+                    cut.FindAll("[role=tab]")[0].Click();
+                    Assert.Equal(new[] { Strings(outcome.GetProperty("tabs"))[0] }, SelectedTabs(cut));
+                    Assert.Equal(items.Select(item => item.Id).ToArray(), VisibleIds(cut));
+                }
                 break;
             }
             case "notification-center.proposal":

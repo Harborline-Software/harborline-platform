@@ -2,7 +2,11 @@ namespace Harborline.UIAdapters.Blazor.Components.Navigation;
 
 /// <summary>One notification: id, title, timestamp, kind, read state and optional body, preview and actor.</summary>
 public sealed record NotificationCenterItem(string Id, string Title, string Timestamp, string Kind, bool Read = false, string? Body = null, string? Preview = null, string? Actor = null);
-/// <summary>A group of notifications shown under one heading: the kind it collects and its label.</summary>
+/// <summary>A caller-supplied tab: the kind it collects and its label, kept exactly. Without caller <c>Groups</c> the tabs
+/// are derived: one per built-in kind present (proposal, result, system), in order of first appearance, labelled from the
+/// locale catalog (<c>navigation.notifications.group.&lt;kind&gt;</c>), then a single tab for every custom kind present,
+/// labelled <c>navigation.notifications.group.other</c>. A kind id is never shown as a label. Pass <c>Groups</c> for a
+/// separate tab per custom kind.</summary>
 public sealed record NotificationGroup(string Kind, string Label);
 /// <summary>Notification totals: pending, unread and which count the badge shows.</summary>
 public sealed record NotificationCounts(int Pending, int Unread, NotificationBadgeMode Mode);

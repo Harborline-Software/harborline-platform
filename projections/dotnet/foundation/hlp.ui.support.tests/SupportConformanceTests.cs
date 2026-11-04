@@ -105,22 +105,32 @@ public sealed class DefaultStringsConformanceTests
     [Fact]
     public void NativeCatalogHasExactDigestAndInterpolation()
     {
-        Assert.Equal(733, HarborlineDefaultStrings.Values.Count);
+        Assert.Equal(737, HarborlineDefaultStrings.Values.Count);
         Assert.Equal("Loading", HarborlineDefaultStrings.Get("common.loading"));
         Assert.Equal("Step 2 of {total}", HarborlineDefaultStrings.Interpolate("Step {current} of {total}", new Dictionary<string, object?> { ["current"] = 2 }));
-        Assert.Equal("ca8ea96dbf3bf6ee98766ccbfd3352122cafbf9bb60cd52cf1a0f0612daa564a", CatalogDigest());
+        Assert.Equal("46506932519d30decab36c2e682ea20a526f37ec8328e82e476f7f70941e10f6", CatalogDigest());
     }
 
     // Revision 2 appends 20 platform keys; revision 1 is every other entry, by identity and in catalog order.
     private static readonly string[] Revision2Keys = ["forms.switch.off", "forms.switch.on", "navigation.notifications.all", "navigation.notifications.bell.pending.one", "navigation.notifications.bell.pending.other", "navigation.notifications.bell.unread.one", "navigation.notifications.bell.unread.other", "navigation.notifications.confirm", "navigation.notifications.deny", "navigation.notifications.dismiss", "navigation.notifications.empty", "navigation.notifications.groups", "navigation.notifications.markAllRead", "navigation.notifications.title", "navigation.notifications.unread", "navigation.notifications.viewAll", "navigation.userMenu.panel", "navigation.userMenu.signOut", "navigation.userMenu.trigger", "structural.spotlight.empty"];
 
+    // Revision 3 appends the four NotificationCenter group keys (T-1137) after revision 2.
+    private static readonly string[] Revision3Keys = ["navigation.notifications.group.other", "navigation.notifications.group.proposal", "navigation.notifications.group.result", "navigation.notifications.group.system"];
+
     [Fact]
     public void RevisionOneIsPreservedExactly()
     {
-        var revision1 = HarborlineDefaultStrings.Values.Where(pair => !Revision2Keys.Contains(pair.Key)).ToArray();
+        var revision1 = HarborlineDefaultStrings.Values.Where(pair => !Revision2Keys.Contains(pair.Key) && !Revision3Keys.Contains(pair.Key)).ToArray();
         Assert.Equal(713, revision1.Length);
         Assert.Equal("73c7cec0b07f0058d0a48784e76fe8aa86f8e421f85716ff2ea9cc53975c3f7c", Digest(revision1));
-        Assert.Equal(Revision2Keys, HarborlineDefaultStrings.Values.Keys.Skip(713).ToArray());
+        Assert.Equal(Revision2Keys, HarborlineDefaultStrings.Values.Keys.Skip(713).Take(20).ToArray());
+    }
+
+    [Fact]
+    public void RevisionTwoIsPreservedAndRevisionThreeAppendsTheGroupKeys()
+    {
+        Assert.Equal("ca8ea96dbf3bf6ee98766ccbfd3352122cafbf9bb60cd52cf1a0f0612daa564a", Digest(HarborlineDefaultStrings.Values.Take(733)));
+        Assert.Equal(Revision3Keys, HarborlineDefaultStrings.Values.Keys.Skip(733).ToArray());
     }
 
     [Theory]
@@ -139,7 +149,7 @@ public sealed class DefaultStringsConformanceTests
                 case "default-strings.digest": Assert.Equal(fixture.RootElement.GetProperty("expected").GetProperty("sha256").GetString(), CatalogDigest()); break;
                 case "default-strings.revision-1-subset":
                 {
-                    var revision1 = HarborlineDefaultStrings.Values.Where(pair => !Revision2Keys.Contains(pair.Key)).ToArray();
+                    var revision1 = HarborlineDefaultStrings.Values.Where(pair => !Revision2Keys.Contains(pair.Key) && !Revision3Keys.Contains(pair.Key)).ToArray();
                     var expected = fixture.RootElement.GetProperty("expected");
                     Assert.Equal(expected.GetProperty("count").GetInt32(), revision1.Length);
                     Assert.Equal(expected.GetProperty("first").GetString(), revision1[0].Key);
@@ -151,6 +161,23 @@ public sealed class DefaultStringsConformanceTests
                 {
                     var expected = fixture.RootElement.GetProperty("expected").GetProperty("entries").EnumerateArray().Select(entry => (entry[0].GetString(), entry[1].GetString())).ToArray();
                     Assert.Equal(expected, HarborlineDefaultStrings.Values.Where(pair => Revision2Keys.Contains(pair.Key)).Select(pair => ((string?)pair.Key, (string?)pair.Value)).ToArray());
+                    break;
+                }
+                case "default-strings.translator-notes":
+                {
+                    // The revision-3 entries are the catalog's tail, so dropping them leaves revision 2 byte for byte;
+                    // each has a non-empty note, no note names a missing key, and the React catalog's notes are the same.
+                    var prefix = fixture.RootElement.GetProperty("input").GetProperty("prefix").GetString()!;
+                    var expected = fixture.RootElement.GetProperty("expected");
+                    var entries = expected.GetProperty("entries").EnumerateArray().Select(entry => (entry[0].GetString(), entry[1].GetString())).ToArray();
+                    Assert.Equal(entries, HarborlineDefaultStrings.Values.Where(pair => pair.Key.StartsWith(prefix, StringComparison.Ordinal)).Select(pair => ((string?)pair.Key, (string?)pair.Value)).ToArray());
+                    Assert.Equal(expected.GetProperty("revision2Sha256").GetString(), Digest(HarborlineDefaultStrings.Values.Take(HarborlineDefaultStrings.Values.Count - entries.Length)));
+                    var notesFile = Path.Combine(Fixture.FindRepositoryRoot(), "projections/dotnet/foundation/hlp.ui.default-strings/default-strings.notes.json");
+                    var notes = JsonSerializer.Deserialize<Dictionary<string, string>>(File.ReadAllText(notesFile))!;
+                    Assert.Equal(expected.GetProperty("everyKeyNoted").GetBoolean(), entries.All(entry => notes.TryGetValue(entry.Item1!, out var note) && !string.IsNullOrWhiteSpace(note)));
+                    Assert.Equal(expected.GetProperty("noOrphanNotes").GetBoolean(), notes.Keys.All(HarborlineDefaultStrings.Values.ContainsKey));
+                    var reactNotes = File.ReadAllText(Path.Combine(Fixture.FindRepositoryRoot(), "projections/react/ui/hlp.ui.default-strings/src/default-strings.notes.json"));
+                    Assert.Equal(expected.GetProperty("lanesEqual").GetBoolean(), reactNotes == File.ReadAllText(notesFile));
                     break;
                 }
                 case "default-strings.english-fallback": Assert.Equal("Loading", HarborlineDefaultStrings.Get("common.loading")); break;
@@ -275,7 +302,7 @@ internal static class Fixture
         return document.RootElement.GetProperty("cases").EnumerateArray().Select(row => row.GetProperty("id").GetString()!).ToArray();
     }
 
-    private static string FindRepositoryRoot()
+    internal static string FindRepositoryRoot()
     {
         for (var directory = new DirectoryInfo(AppContext.BaseDirectory); directory is not null; directory = directory.Parent)
         {

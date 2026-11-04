@@ -1386,6 +1386,18 @@ export const defaultStrings = {
   'navigation.userMenu.trigger': 'Account menu for {name}',
   /** Spotlight: visible empty copy and status announcement when no option and no loading section exist. */
   'structural.spotlight.empty': 'No results',
+  // ── Revision 3 (T-1137, 2026-11-03) ──────────────────────────────────────────────────────
+  // NotificationCenter's derived group tabs, one per built-in kind plus one tab for every custom kind.
+  // Appended after revision 2, which is unchanged. Each key's translator note is in
+  // default-strings.notes.json beside this file; the notes are source metadata and are not shipped.
+  /** NotificationCenter: tab collecting every custom (application-defined) kind. */
+  'navigation.notifications.group.other': 'Other',
+  /** NotificationCenter: tab for proposal items. */
+  'navigation.notifications.group.proposal': 'Proposals',
+  /** NotificationCenter: tab for result items. */
+  'navigation.notifications.group.result': 'Results',
+  /** NotificationCenter: tab for system items. */
+  'navigation.notifications.group.system': 'System',
 } as const
 
 /**

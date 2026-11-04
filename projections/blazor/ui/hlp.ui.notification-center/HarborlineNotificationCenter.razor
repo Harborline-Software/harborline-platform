@@ -19,11 +19,11 @@
   {
     <section @ref="Dialog" id="@DialogId" role="dialog" aria-modal="false" tabindex="-1" aria-label="@L.Title" class="hl-popover__content hl-notification-center__dialog" @onkeydown="HandleDialogKeyAsync">
       <header class="hl-notification-center__header"><h2>@L.Title</h2>@if(UnreadCount > 0 && OnMarkAllRead.HasDelegate){<button type="button" @onclick="MarkAllReadAsync">@L.MarkAllRead</button>}</header>
-      @if (ResolvedGroups.Count > 1)
+      @if (Tabs.Count > 1)
       {
         <div role="tablist" aria-label="@L.GroupLabel" class="hl-notification-center__tabs">
-          <button type="button" role="tab" aria-selected="@(activeKind is null ? "true" : "false")" @onclick="() => SetKind(null)">@L.All</button>
-          @foreach (var group in ResolvedGroups) { <button type="button" role="tab" aria-selected="@(activeKind == group.Kind ? "true" : "false")" @onclick="() => SetKind(group.Kind)">@group.Label</button> }
+          <button type="button" role="tab" aria-selected="@(activeTab == AllTab ? "true" : "false")" @onclick="() => SetTab(AllTab)">@L.All</button>
+          @foreach (var tab in Tabs) { <button type="button" role="tab" aria-selected="@(activeTab == tab.Key ? "true" : "false")" @onclick="() => SetTab(tab.Key)">@tab.Label</button> }
         </div>
       }
       <div class="hl-notification-center__scroll">
@@ -89,7 +89,7 @@
   // module a new settle has started.
   private int? settleRow;
   private int settleToken;
-  private string? activeKind;
+  private string activeTab = AllTab;
   private string DialogId { get; } = $"hl-notifications-{Guid.NewGuid():N}";
   private ElementReference Root, Trigger, Dialog;
   private IOutsidePointerRegistration? outsideRegistration;
@@ -134,14 +134,36 @@
   private int BadgeValue => BadgeMode == NotificationBadgeMode.Decisions ? PendingCount : UnreadCount;
   private string BadgeText => BadgeValue > 99 ? $"{FormatCount(99)}+" : FormatCount(BadgeValue);
   private string BellLabel => GetBellLabel?.Invoke(new(PendingCount, UnreadCount, BadgeMode)) ?? DefaultBellLabel();
-  private IReadOnlyList<NotificationGroup> ResolvedGroups => Groups ?? Items.Aggregate(new List<NotificationGroup>(), (groups, item) => { if (groups.All(group => group.Kind != item.Kind)) groups.Add(new(item.Kind, KindLabel(item.Kind))); return groups; });
-  private IReadOnlyList<NotificationCenterItem> FilteredItems => activeKind is null ? Items : Items.Where(item => item.Kind == activeKind).ToArray();
+  // A tab is a selection key and a label. "kind:<id>" filters to one kind and "other" (derived tabs only) to every
+  // custom kind; "all" is the all-kinds tab. The prefix keeps a custom kind named "all" or "other" distinct.
+  private sealed record Tab(string Key, string Label);
+  private const string AllTab = "all", OtherTab = "other";
+  private static readonly HashSet<string> BuiltInKinds = new(StringComparer.Ordinal) { "proposal", "result", "system" };
+  // Caller groups are kept exactly. Derived tabs: one per built-in kind present, in order of first appearance,
+  // labelled from the catalog (navigation.notifications.group.<kind>), then one tab for every custom kind
+  // (navigation.notifications.group.other). A kind id is never shown as a label (interface revision 4).
+  private IReadOnlyList<Tab> Tabs
+  {
+    get
+    {
+      if (Groups is not null) return Groups.Select(group => new Tab($"kind:{group.Kind}", group.Label)).ToArray();
+      var tabs = Items.Select(item => item.Kind).Where(BuiltInKinds.Contains).Distinct(StringComparer.Ordinal)
+        .Select(kind => new Tab($"kind:{kind}", Localized($"navigation.notifications.group.{kind}", null))).ToList();
+      if (Items.Any(item => !BuiltInKinds.Contains(item.Kind))) tabs.Add(new(OtherTab, Localized("navigation.notifications.group.other", null)));
+      return tabs;
+    }
+  }
+  private static bool Matches(string tab, string kind) => tab == OtherTab ? !BuiltInKinds.Contains(kind) : tab == $"kind:{kind}";
+  private IReadOnlyList<NotificationCenterItem> FilteredItems => activeTab == AllTab ? Items : Items.Where(item => Matches(activeTab, item.Kind)).ToArray();
   private IReadOnlyList<NotificationCenterItem> VisibleItems => FilteredItems.Take(MaxVisible).ToArray();
   private bool ShowViewAll => OnViewAll.HasDelegate || FilteredItems.Count > MaxVisible;
 
   protected override void OnParametersSet()
   {
     L = ResolveLabels(Labels);
+    // A selected tab whose key is gone (caller groups or items changed) falls back to All and stays there; with one
+    // tab left there is no tab list, so a stale selection could never be cleared.
+    if (activeTab != AllTab && Tabs.All(tab => tab.Key != activeTab)) activeTab = AllTab;
     if (Items.GroupBy(item => item.Id, StringComparer.Ordinal).Any(group => group.Count() > 1)) throw new InvalidOperationException("duplicate-notification-id");
     if (MaxVisible < 0) throw new InvalidOperationException("invalid-notification-limit");
     if (HarborlineBlankText.IsBlank(BellLabel)) throw new InvalidOperationException("accessible-notification-label-required");
@@ -176,8 +198,7 @@
     return L.Title;
   }
 
-  private static string KindLabel(string kind) => kind.Length == 0 ? kind : char.ToUpperInvariant(kind[0]) + kind[1..];
-  private void SetKind(string? kind) => activeKind = kind;
+  private void SetTab(string tab) => activeTab = tab;
 
   private async Task ToggleAsync() { if (open) await CloseAsync(true); else await OpenAsync(); }
   private async Task OpenAsync() { open = true; actionLatch = false; focusDialog = true; await InvokeAsync(StateHasChanged); }
