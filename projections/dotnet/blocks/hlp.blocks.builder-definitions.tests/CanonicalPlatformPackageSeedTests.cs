@@ -166,6 +166,20 @@ public sealed class CanonicalPlatformPackageSeedTests
     }
 
     [Fact]
+    public void A_platform_export_with_two_items_of_the_definition_id_refuses_rather_than_combining_them()
+    {
+        var seed = PlatformPackageSeed.Manifest;
+        var released = seed.Items.Single(item => item.Id == "platform.navigation.workshop");
+        var export = PlatformPackageExporter.Export(new PlatformPackageManifest(seed.SchemaVersion, seed.PackageKey, seed.Revision,
+            seed.Items.SelectMany(item => item == released ? new[] { item, item } : [item])));
+
+        var refused = Assert.Throws<DefinitionRefusalException>(() =>
+            ReleasedNavigationDefinitionPackageExporter.Read(export, "platform.navigation.workshop"));
+
+        Assert.Equal([new DefinitionRefusal("released-navigation.definition.invalid", "/", "platform.navigation.workshop")], refused.Refusals);
+    }
+
+    [Fact]
     public void The_revision_and_digest_are_stable_across_exports_and_the_digest_changes_when_an_entry_changes()
     {
         var first = PublishedArtifact.FromExport(PlatformPackageSeed.Export());

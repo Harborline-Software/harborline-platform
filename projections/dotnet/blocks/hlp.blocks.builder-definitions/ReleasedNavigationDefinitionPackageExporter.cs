@@ -50,7 +50,8 @@ public static class ReleasedNavigationDefinitionPackageExporter
     /// Reads the entries a platform package export carries under <paramref name="definitionId"/>: each item of that id,
     /// at the export's revision, with its payload left for <see cref="ReleasedNavigationLookup.Install"/> to admit or
     /// refuse. An export with no such item yields none, and lookup then refuses each entry as missing; nothing compiled
-    /// stands in. A malformed export, or an item of that id with no present payload, refuses at install.
+    /// stands in. A malformed export, a second item of that id, or an item of that id with no present payload, refuses at
+    /// install.
     /// </summary>
     public static IReadOnlyList<ReleasedNavigationDefinitionPackageEntry> Read(ReadOnlySpan<byte> platformExport, string definitionId)
     {
@@ -65,7 +66,7 @@ public static class ReleasedNavigationDefinitionPackageExporter
             {
                 if (item.GetProperty("id").GetString() != definitionId) continue;
                 var content = item.GetProperty("content");
-                if (content.GetProperty("classification").GetString() != "present") throw Unreadable(definitionId);
+                if (content.GetProperty("classification").GetString() != "present" || entries.Count > 0) throw Unreadable(definitionId);
                 entries.Add(new(definitionId, revision,
                     PlatformPackageContent.PresentJson(Encoding.UTF8.GetBytes(content.GetProperty("payload").GetRawText()))));
             }
