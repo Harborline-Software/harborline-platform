@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.foundation.documents",
-  "interfaceRevision": 2,
+  "interfaceRevision": 3,
   "status": "frozen",
   "purpose": "Own the Documents composition's TemplateDefinition (content kind 7): its envelope, canonical JSON, pack content and structural admission over an exactly pinned Layout page surface with intent issue (DES-0021, ADR 0092, ADR 0094).",
   "dependencies": [
@@ -19,6 +19,9 @@
       "TemplatePack.TryParse(content, tenant, provenance) -> a template stamped with the installing tenant and provenance, or a named miss; never an exception; owner, tenant, pack_key and provenance in authored content refuse by name",
       "TemplatePack.InstallAsync(entries, target) -> one outcome per entry (Published, AlreadyPresent, Refused); a refused entry never blocks its siblings; a stored key and version with a different body refuses with pinned_tuple_conflict and is never replaced",
       "DocumentsExpressionEnvironment.Declaration / Admitted -> documents-ck-25 stated in Rules' shared BorrowerEnvironmentDeclaration and admitted by Rules; EvaluateGuard(evaluator, blockId, expression, snapshot, phase) presents the admission for the phase before the shared engine reads a value",
+      "DocumentRuntime.RenderForIssuanceAsync(reference, layoutPageFlow, context) -> renders a published template through the path PreviewAsync uses and returns the semantic document with its DocumentContentHash; it stores nothing, and an inline draft cannot reach it",
+      "DocumentContentHash.Of(document) -> sha256: and 64 lowercase hex digits over the compact JSON array of document type, locale, currency, brand name, logo reference and each block's id, page variant and content",
+      "DocumentOutputWriters(bindings).Resolve(format) -> the named, parameterised binding for a format, case-insensitively; an unregistered format refuses documents.writer.format_unknown and two bindings for one format refuse documents.writer.format_duplicate",
       "DocumentRuntime.PreviewAsync(input, layoutPageFlow, context, authoringUiLocale) -> parses published and inline template bodies through TemplateDefinitionJson, re-admits the pinned surface at render, resolves only the authored document locale policy, and emits a non-minting RenderedDocument; Layout supplies page flow through DocumentPageFlow so foundation never references blocks",
       "IDocumentOutputWriter.WriteAsync(renderedDocument) -> a host-selected, library-neutral bytes-out adapter consumes semantic output without changing its order"
     ],
@@ -30,7 +33,10 @@
     "Tenant and provenance are server-derived: exported content never carries them and installation stamps them.",
     "A published key and version never changes body; a reinstall with a different body refuses by name.",
     "A document guard evaluates only under the admitted documents-ck-25 environment: field reads only, render and sign-off phases, no ambient default.",
-    "Publication refuses a Template -> pinned surface -> Template walk that returns to the version being published; detach lineage is not an edge."
+    "Publication refuses a Template -> pinned surface -> Template walk that returns to the version being published; detach lineage is not an edge.",
+    "A merge run formats in the document locale resolved from the template's locale policy, never the UI locale: currency with the render context's code, date as the short date, integer and decimal grouped, decimal at the value's own scale. A null value prints the authored fallback, or nothing. A malformed canonical value refuses documents.merge.value_malformed rather than printing raw. Only predefined cultures are used, so an unknown tag formats as en-US on every host.",
+    "A template logo reference must be digest-pinned, sha256: and 64 lowercase hex digits (DES-0054 ruling 9). Any other form refuses documents.style.logo_not_pinned at render, in preview and issuance alike, so a URL or path is never resolved (CWE-918, CWE-79).",
+    "Preview and issuance render through one method, so a preview cannot differ from the document it previews; only issuance returns a content hash, and only a published reference reaches it."
   ],
   "errors": [
     "documents.template.envelope_invalid",
@@ -45,7 +51,7 @@
     "documents.template.envelope_mismatch",
     "documents.template.catalogue_mismatch",
     "documents.template.pinned_tuple_conflict",
-    "documents.template.composition_cycle"
+    "documents.template.composition_cycle", "documents.merge.value_malformed", "documents.merge.format_unsupported", "documents.merge.run_unsupported", "documents.style.logo_not_pinned", "documents.writer.format_unknown", "documents.writer.format_duplicate"
   ],
   "publicSeams": [
     "template intent admission and canonical JSON",
@@ -53,6 +59,10 @@
     "TemplateSurfaces: exact surface pin resolution, Layout admission and the required application-contract window supplied by the host",
     "TemplateInstallTarget: stored-tuple lookup and publication over the shared catalogue supplied by the host",
     "DocumentRuntime: published or inline template resolution, semantic preview and Layout page-flow boundary",
+    "DocumentRuntime.RenderForIssuanceAsync: the render an issuing host mints from, on the preview path",
+    "DocumentMergeRun and DocumentLiteralRun: runs a host resolves from Layout text runs; the five canonical formats",
+    "DocumentContentHash: the semantic hash an issued record stores",
+    "DocumentOutputWriters and DocumentOutputWriterBinding: one named, parameterised writer per format, chosen by host registration",
     "IDocumentOutputWriter: host-selected library-neutral output writer"
   ],
   "conformance": {

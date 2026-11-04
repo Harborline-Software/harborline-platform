@@ -27,8 +27,9 @@ public interface IDocumentTemplateSource
 /// <summary>One Layout-produced block in page-flow order, represented without a blocks-tier dependency.</summary>
 /// <param name="Id">The definition-local Layout block identifier.</param>
 /// <param name="PageVariant">The Layout page variant that carries the block.</param>
-/// <param name="Content">The already-resolved semantic content.</param>
-public sealed record DocumentFlowBlock(string Id, string PageVariant, string Content);
+/// <param name="Content">The already-resolved semantic content, used when the block carries no runs.</param>
+/// <param name="Runs">The block's literal and merge runs, formatted in the document locale in place of <paramref name="Content"/>.</param>
+public sealed record DocumentFlowBlock(string Id, string PageVariant, string Content, IReadOnlyList<DocumentFlowRun>? Runs = null);
 
 /// <summary>Layout's page-flow output passed across the foundation-tier boundary.</summary>
 /// <param name="Blocks">The page-flow blocks in Layout's declared order.</param>
@@ -67,6 +68,11 @@ public sealed record DocumentPreview(RenderedDocument Document)
     public bool Minted => false;
 }
 
+/// <summary>The issuance render: the same semantic document a preview produces, with the hash an issued record stores.</summary>
+/// <param name="Document">The renderer-neutral semantic output.</param>
+/// <param name="ContentHash">The deterministic hash of <paramref name="Document"/>'s semantic content.</param>
+public sealed record DocumentIssuanceRender(RenderedDocument Document, string ContentHash);
+
 /// <summary>Library-neutral writer boundary; a host selects one adapter by its declared output format.</summary>
 public interface IDocumentOutputWriter
 {
@@ -80,7 +86,8 @@ public interface IDocumentOutputWriter
 /// <summary>
 /// Resolves a published or inline template through its canonical contract and creates a non-minting semantic
 /// preview from Layout-owned page flow. Layout owns traversal and page selection; this seam retains Documents'
-/// locale, style, semantic output, and writer boundary.
+/// locale, style, semantic output, and writer boundary. Preview and issuance share one render path
+/// (documents-eng-10), so a preview cannot differ from the document it previews.
 /// </summary>
 public sealed class DocumentRuntime
 {
@@ -106,19 +113,48 @@ public sealed class DocumentRuntime
         string? authoringUiLocale,
         CancellationToken cancellationToken = default)
     {
+        _ = authoringUiLocale;
+        return new(await RenderAsync(input, pageFlow, context, cancellationToken).ConfigureAwait(false));
+    }
+
+    /// <summary>
+    /// Renders a published template for issuance through the path <see cref="PreviewAsync"/> uses, and hashes the
+    /// result. It takes only a published reference, because an inline draft never mints, and it stores nothing:
+    /// recording the issued document stays with the host.
+    /// </summary>
+    public async ValueTask<DocumentIssuanceRender> RenderForIssuanceAsync(
+        DocumentTemplateReference template,
+        DocumentPageFlow pageFlow,
+        DocumentRenderContext context,
+        CancellationToken cancellationToken = default)
+    {
+        var document = await RenderAsync(template, pageFlow, context, cancellationToken).ConfigureAwait(false);
+        return new(document, DocumentContentHash.Of(document));
+    }
+
+    private async ValueTask<RenderedDocument> RenderAsync(
+        DocumentTemplateInput input,
+        DocumentPageFlow pageFlow,
+        DocumentRenderContext context,
+        CancellationToken cancellationToken)
+    {
         ArgumentNullException.ThrowIfNull(input);
         ArgumentNullException.ThrowIfNull(pageFlow);
         ArgumentNullException.ThrowIfNull(context);
-        _ = authoringUiLocale;
 
         var body = await ResolveAsync(input, cancellationToken).ConfigureAwait(false);
         var template = TemplateDefinitionJson.Deserialize(body.Span);
         TemplateDefinitionAdmission.ValidatePersisted(template, _surfaces);
+        DocumentStyleAssets.RefuseUnpinned(template.Style);
         var locale = ResolveLocale(template.Locale, context);
+        var formatter = new DocumentValueFormatter(locale, context.CurrencyCode);
         var blocks = (pageFlow.Blocks ?? [])
-            .Select(block => new RenderedDocumentBlock(block.Id, block.PageVariant, block.Content))
+            .Select(block => new RenderedDocumentBlock(
+                block.Id,
+                block.PageVariant,
+                block.Runs is { } runs ? formatter.FormatRuns(runs) : block.Content))
             .ToArray();
-        return new(new(template.DocumentType, locale, context.CurrencyCode, template.Style, blocks));
+        return new(template.DocumentType, locale, context.CurrencyCode, template.Style, blocks);
     }
 
     private async ValueTask<ReadOnlyMemory<byte>> ResolveAsync(DocumentTemplateInput input, CancellationToken cancellationToken)
