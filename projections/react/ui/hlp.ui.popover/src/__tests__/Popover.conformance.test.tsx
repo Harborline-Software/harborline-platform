@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 
@@ -173,19 +173,58 @@ describe('Popover shared fixtures', () => {
   })
 
   it('popover.focus', async () => {
-    fixture(sharedCases, 'popover.focus')
+    const { input, expected } = fixture(sharedCases, 'popover.focus')
+    const user = userEvent.setup()
     render(
-      <Popover>
-        <PopoverTrigger>Open</PopoverTrigger>
-        <PopoverContent aria-label="Details"><PopoverClose>Done</PopoverClose></PopoverContent>
-      </Popover>,
+      <>
+        <Popover>
+          <PopoverTrigger>Open</PopoverTrigger>
+          <PopoverContent aria-label="Details"><PopoverClose>Done</PopoverClose></PopoverContent>
+        </Popover>
+        <input aria-label="Outside" />
+        <div>Plain</div>
+      </>,
     )
     const trigger = screen.getByRole('button', { name: 'Open' })
-    await userEvent.setup().click(trigger)
-    const close = screen.getByRole('button', { name: 'Done' })
-    expect(close).toHaveFocus()
-    await userEvent.setup().click(close)
-    expect(trigger).toHaveFocus()
+    const outside = screen.getByRole('textbox', { name: 'Outside' })
+    const open = async () => {
+      await user.click(trigger)
+      return screen.getByRole('button', { name: 'Done' })
+    }
+    const restored: Record<string, boolean> = {}
+    let entered = true
+    let outsideKept = false
+    let nonFocusableNotTrigger = false
+    for (const method of input.methods as string[]) {
+      const close = await open()
+      entered &&= close === document.activeElement
+      if (method === 'Escape') await user.keyboard('{Escape}')
+      if (method === 'close-control') await user.click(close)
+      if (method === 'trigger-toggle') await user.click(trigger)
+      if (method === 'outside-pointer-focusable') {
+        // A press with no mousedown default first, then the browser's focus: the trigger must never take it.
+        let triggerTookFocus = false
+        const onTriggerFocus = () => { triggerTookFocus = true }
+        trigger.addEventListener('focus', onTriggerFocus)
+        fireEvent.pointerDown(outside)
+        act(() => outside.focus())
+        trigger.removeEventListener('focus', onTriggerFocus)
+        outsideKept = document.activeElement === outside && !triggerTookFocus
+      }
+      if (method === 'outside-pointer-non-focusable') {
+        fireEvent.pointerDown(screen.getByText('Plain'))
+        await act(async () => { await Promise.resolve() })
+        nonFocusableNotTrigger = document.activeElement !== trigger
+      }
+      expect(screen.queryByRole('dialog')).toBeNull()
+      if (['Escape', 'close-control', 'trigger-toggle'].includes(method)) restored[method] = document.activeElement === trigger
+    }
+    expect({
+      focusEnteredContent: entered,
+      escapeCloseControlAndToggleRestoreTrigger: Object.values(restored).length === 3 && Object.values(restored).every(Boolean),
+      outsideTargetRetainsFocus: outsideKept,
+      outsideNonFocusableNotTrigger: nonFocusableNotTrigger,
+    }).toEqual(expected)
   })
 
   it('popover.projection-equivalence', () => {

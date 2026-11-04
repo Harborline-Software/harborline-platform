@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
@@ -135,14 +135,59 @@ const assertions: Record<string, (entry: Case) => void | Promise<void>> = {
     expect(dialog() !== null).toBe(expected.open)
     expect(onOpenChange).toHaveBeenCalledTimes(expected.callbacks)
   },
+  // Oracle: the revision-2 shared fixture (G5 owner ruling); exercise every declared dismissal method.
   'popover.focus': async ({ input: given, expected }) => {
-    render(<Popover><PopoverTrigger>Open</PopoverTrigger><PopoverContent aria-label="Details"><PopoverClose>Done</PopoverClose></PopoverContent></Popover>)
     const user = userEvent.setup()
-    if (given.open) await user.click(trigger())
-    const close = screen.queryByRole('button', { name: 'Done' })
-    expect(close !== null && document.activeElement === close).toBe(expected.focusEnteredContent)
-    if (given.dismiss && close) await user.click(close)
-    expect(dialog() === null && document.activeElement === trigger()).toBe(expected.focusRestoredToTrigger)
+    render(
+      <>
+        <Popover>
+          <PopoverTrigger>Open</PopoverTrigger>
+          <PopoverContent aria-label="Details"><PopoverClose>Done</PopoverClose></PopoverContent>
+        </Popover>
+        <input aria-label="Outside" />
+        <div>Plain</div>
+      </>,
+    )
+    const trigger = screen.getByRole('button', { name: 'Open' })
+    const outside = screen.getByRole('textbox', { name: 'Outside' })
+    const open = async () => {
+      if (given.open) await user.click(trigger)
+      return screen.getByRole('button', { name: 'Done' })
+    }
+    const restored: Record<string, boolean> = {}
+    let entered = true
+    let outsideKept = false
+    let nonFocusableNotTrigger = false
+    for (const method of given.methods as string[]) {
+      const close = await open()
+      entered &&= close === document.activeElement
+      if (method === 'Escape') await user.keyboard('{Escape}')
+      if (method === 'close-control') await user.click(close)
+      if (method === 'trigger-toggle') await user.click(trigger)
+      if (method === 'outside-pointer-focusable') {
+        // A press with no mousedown default first, then the browser's focus: the trigger must never take it.
+        let triggerTookFocus = false
+        const onTriggerFocus = () => { triggerTookFocus = true }
+        trigger.addEventListener('focus', onTriggerFocus)
+        fireEvent.pointerDown(outside)
+        act(() => outside.focus())
+        trigger.removeEventListener('focus', onTriggerFocus)
+        outsideKept = document.activeElement === outside && !triggerTookFocus
+      }
+      if (method === 'outside-pointer-non-focusable') {
+        fireEvent.pointerDown(screen.getByText('Plain'))
+        await act(async () => { await Promise.resolve() })
+        nonFocusableNotTrigger = document.activeElement !== trigger
+      }
+      expect(screen.queryByRole('dialog')).toBeNull()
+      if (['Escape', 'close-control', 'trigger-toggle'].includes(method)) restored[method] = document.activeElement === trigger
+    }
+    expect({
+      focusEnteredContent: entered,
+      escapeCloseControlAndToggleRestoreTrigger: Object.values(restored).length === 3 && Object.values(restored).every(Boolean),
+      outsideTargetRetainsFocus: outsideKept,
+      outsideNonFocusableNotTrigger: nonFocusableNotTrigger,
+    }).toEqual(expected)
   },
   // Every row of the placement table the case names, resolved side AND left/top (ticket 298); the
   // Blazor lane replays the same file in conformance/hlp.ui.popover/popover-placement.test.mjs.
