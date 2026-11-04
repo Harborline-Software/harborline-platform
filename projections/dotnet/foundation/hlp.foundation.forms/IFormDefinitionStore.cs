@@ -118,6 +118,32 @@ public interface IFormDefinitionStore
     ValueTask<FormDefinition> WithdrawAsync(TenantId tenant, FormDefinitionId id, SemanticVersion version, CancellationToken ct = default);
 
     /// <summary>
+    /// Saves <paramref name="definition"/> as the next revision of its id (forms-ck-8, ADR 0006). When the id already
+    /// has revisions in the tenant, the store mints the version: the highest existing version with its patch part
+    /// incremented (SemVer 2.0.0 §6), whatever version the caller supplied. When the id has no revision yet, the
+    /// caller's version is registered unchanged, as <see cref="CreateAsync"/> would. Every check
+    /// <see cref="RegisterAsync"/> runs for the revision's status runs here too; no existing revision changes.
+    /// </summary>
+    /// <remarks>An additive member: a store that does not persist revisions inherits this refusal.</remarks>
+    /// <exception cref="FormDefinitionValidationException">The revision violates a definition invariant.</exception>
+    ValueTask<FormDefinition> SaveNextAsync(FormDefinition definition, CancellationToken ct = default)
+        => throw new NotSupportedException($"{GetType().Name} does not mint form definition versions.");
+
+    /// <summary>
+    /// Restores revision <paramref name="version"/> as a new Draft revision (forms-ck-9, ADR 0006): the body of
+    /// <paramref name="version"/> registered at the next minted version, with lineage naming
+    /// <paramref name="version"/>. It publishes nothing, and every existing revision keeps its body and status. The
+    /// new Draft runs every admission check a Draft registration runs.
+    /// </summary>
+    /// <remarks>An additive member: a store that does not persist revisions inherits this refusal.</remarks>
+    /// <exception cref="FormDefinitionNotFoundException">No revision of this id at this version exists in the
+    /// tenant.</exception>
+    /// <exception cref="FormDefinitionValidationException">The restored Draft violates a definition invariant.</exception>
+    ValueTask<FormDefinition> RestoreAsDraftAsync(
+        TenantId tenant, FormDefinitionId id, SemanticVersion version, CancellationToken ct = default)
+        => throw new NotSupportedException($"{GetType().Name} does not restore form definition revisions.");
+
+    /// <summary>
     /// Restores a matching System-owned pack projection from Withdrawn to Published. This narrow
     /// reverse-projector seam does not relax the ordinary forward-only <see cref="PublishAsync"/>
     /// lifecycle and rejects non-System-owned revisions.
