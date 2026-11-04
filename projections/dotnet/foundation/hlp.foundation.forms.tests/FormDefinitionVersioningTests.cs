@@ -49,14 +49,16 @@ public sealed class FormDefinitionVersioningTests
     [Fact(DisplayName = "forms-ck-8: the published head is read by semantic version, so 1.10.0 outranks 1.9.0")]
     public async Task Published_head_is_read_by_semantic_version()
     {
-        using var store = new InMemoryFormDefinitionStore(new FixedClock(Now));
-        await store.RegisterAsync(Form("1.9.0", FormDefinitionStatus.Published));
-        await store.RegisterAsync(Form("1.10.0", FormDefinitionStatus.Published));
+        foreach (var order in new[] { new[] { "1.9.0", "1.10.0" }, new[] { "1.10.0", "1.9.0" } })
+        {
+            using var store = new InMemoryFormDefinitionStore(new FixedClock(Now));
+            foreach (var version in order) await store.RegisterAsync(Form(version, FormDefinitionStatus.Published));
 
-        var head = await store.GetCurrentPublishedAsync(Tenant, Id);
+            var head = await store.GetCurrentPublishedAsync(Tenant, Id);
 
-        Assert.Equal(SemanticVersion.Parse("1.10.0"), head!.Version);
-        Assert.Equal(SemanticVersion.Parse("1.10.1"), (await store.SaveNextAsync(Form("1.0.0"))).Version);
+            Assert.Equal(SemanticVersion.Parse("1.10.0"), head!.Version);
+            Assert.Equal(SemanticVersion.Parse("1.10.1"), (await store.SaveNextAsync(Form("1.0.0"))).Version);
+        }
     }
 
     [Fact(DisplayName = "forms-ck-9: restoring 1.0.0 registers 1.0.2 as a Draft derived from 1.0.0 and leaves history unchanged")]
@@ -75,6 +77,8 @@ public sealed class FormDefinitionVersioningTests
         Assert.Equal(new FormDefinitionLineage(Id, v100.Version), restored.Lineage);
         Assert.True(JsonNode.DeepEquals(Content(v100), Content(restored)));
         Assert.Equal(Now.AddHours(1), restored.CreatedAt);
+        Assert.Equal(Now.AddHours(1), restored.UpdatedAt);
+        Assert.Equal(3, (await Revisions(store)).Count);
         Assert.Equal(v100, await store.GetAsync(Tenant, Id, v100.Version));
         Assert.Equal(v101, await store.GetAsync(Tenant, Id, v101.Version));
         Assert.Equal(v101, await store.GetCurrentPublishedAsync(Tenant, Id));
@@ -133,37 +137,116 @@ public sealed class FormDefinitionVersioningTests
         await store.DeprecateAsync(Tenant, Id, SemanticVersion.Parse("1.0.1"));
         await store.WithdrawAsync(Tenant, Id, SemanticVersion.Parse("1.0.2"));
 
-        var operations = new (string Name, Func<Task> Run)[]
+        var pack = new FormDefinitionId("platform.pack.form");
+        await store.RegisterAsync(Form("1.0.0", FormDefinitionStatus.Published, id: pack.Value, owner: IdentityRef.System));
+        await store.WithdrawAsync(Tenant, pack, SemanticVersion.Parse("1.0.0"));
+
+        // Each operation names the one revision it may move (status and UpdatedAt only); every other revision must
+        // come back byte for byte.
+        var operations = new (string Name, (FormDefinitionId, SemanticVersion)? Target, Func<Task> Run)[]
         {
-            ("RegisterAsync", async () => await store.RegisterAsync(Form("2.0.0", label: "Avenue"))),
-            ("RegisterAndPublishAsync", async () => await store.RegisterAndPublishAsync(Form("3.0.0", label: "Lane"))),
-            ("CreateAsync", async () => await store.CreateAsync(Form("1.0.0", id: "other.form"))),
-            ("SaveNextAsync", async () => await store.SaveNextAsync(Form("1.0.0", label: "Close"))),
-            ("RestoreAsDraftAsync", async () => await store.RestoreAsDraftAsync(Tenant, Id, SemanticVersion.Parse("1.0.1"))),
-            ("PublishAsync", async () => await store.PublishAsync(Tenant, Id, SemanticVersion.Parse("2.0.0"))),
-            ("DeprecateAsync", async () => await store.DeprecateAsync(Tenant, Id, SemanticVersion.Parse("1.0.0"))),
-            ("WithdrawAsync", async () => await store.WithdrawAsync(Tenant, Id, SemanticVersion.Parse("3.0.0"))),
+            ("RegisterAsync", null, async () => await store.RegisterAsync(Form("2.0.0", label: "Avenue"))),
+            ("RegisterAndPublishAsync", null, async () => await store.RegisterAndPublishAsync(Form("3.0.0", label: "Lane"))),
+            ("CreateAsync", null, async () => await store.CreateAsync(Form("1.0.0", id: "other.form"))),
+            ("SaveNextAsync", null, async () => await store.SaveNextAsync(Form("1.0.0", label: "Close"))),
+            ("RestoreAsDraftAsync", null, async () => await store.RestoreAsDraftAsync(Tenant, Id, SemanticVersion.Parse("1.0.1"))),
+            ("PublishAsync", (Id, SemanticVersion.Parse("2.0.0")), async () => await store.PublishAsync(Tenant, Id, SemanticVersion.Parse("2.0.0"))),
+            ("DeprecateAsync", (Id, SemanticVersion.Parse("1.0.0")), async () => await store.DeprecateAsync(Tenant, Id, SemanticVersion.Parse("1.0.0"))),
+            ("WithdrawAsync", (Id, SemanticVersion.Parse("3.0.0")), async () => await store.WithdrawAsync(Tenant, Id, SemanticVersion.Parse("3.0.0"))),
+            ("RestorePackProjectionAsync", (pack, SemanticVersion.Parse("1.0.0")), async () => await store.RestorePackProjectionAsync(Tenant, pack, SemanticVersion.Parse("1.0.0"))),
         };
 
-        foreach (var (name, run) in operations)
+        foreach (var (name, target, run) in operations)
         {
-            var released = (await Revisions(store))
-                .Where(revision => revision.Status != FormDefinitionStatus.Draft)
-                .ToDictionary(revision => (revision.Id, revision.Version), Body);
+            var before = (await Revisions(store)).ToDictionary(revision => (revision.Id, revision.Version));
             clock.Advance(TimeSpan.FromMinutes(1));
 
             await run();
 
             var after = (await Revisions(store)).ToDictionary(revision => (revision.Id, revision.Version));
-            foreach (var (key, body) in released)
+            foreach (var (key, revision) in before)
             {
-                Assert.True(after.TryGetValue(key, out var revision), $"{name} removed {key.Id} v{key.Version}");
-                Assert.True(JsonNode.DeepEquals(body, Body(revision!)), $"{name} changed the body of {key.Id} v{key.Version}");
+                Assert.True(after.TryGetValue(key, out var now), $"{name} removed {key.Id} v{key.Version}");
+                if (key == target)
+                {
+                    if (revision.Status != FormDefinitionStatus.Draft)
+                        Assert.True(JsonNode.DeepEquals(Body(revision), Body(now!)), $"{name} changed the body of {key.Id} v{key.Version}");
+                }
+                else
+                {
+                    Assert.True(JsonNode.DeepEquals(JsonSerializer.SerializeToNode(revision), JsonSerializer.SerializeToNode(now)),
+                        $"{name} changed {key.Id} v{key.Version}, which it does not target");
+                }
             }
         }
     }
 
+    [Fact(DisplayName = "forms-ck-8: a Published save runs the publication submit-gate check and registers nothing when refused")]
+    public async Task Published_save_runs_publication_checks()
+    {
+        using var store = new InMemoryFormDefinitionStore(new FixedClock(Now));
+        await store.RegisterAsync(Form("1.0.0", FormDefinitionStatus.Published));
+
+        var refusal = await Assert.ThrowsAsync<FormDefinitionValidationException>(
+            async () => await store.SaveNextAsync(Form("1.0.0", FormDefinitionStatus.Published) with { SubmitGate = null }));
+
+        Assert.Equal(FormDefinitionCodes.SubmitGateRequired, refusal.Code);
+        Assert.Single(await Revisions(store));
+    }
+
+    [Fact(DisplayName = "forms-ck-8: a Published save runs record-type continuity against the revisions it mints above")]
+    public async Task Published_save_runs_record_type_continuity()
+    {
+        using var store = new InMemoryFormDefinitionStore(new FixedClock(Now), recordTypePolicies: new RoleGatedReader());
+        await store.RegisterAsync(Form("1.0.0", FormDefinitionStatus.Published) with { RecordTypeId = "notes.entry" });
+
+        var refusal = await Assert.ThrowsAsync<FormDefinitionValidationException>(
+            async () => await store.SaveNextAsync(Form("1.0.0", FormDefinitionStatus.Published) with { RecordTypeId = "work.order" }));
+
+        Assert.Equal(FormDefinitionCodes.RecordTypeChanged, refusal.Code);
+        Assert.Single(await Revisions(store));
+    }
+
+    [Fact(DisplayName = "forms-ck-8: concurrent saves of one id mint distinct versions")]
+    public async Task Concurrent_saves_mint_distinct_versions()
+    {
+        using var store = new InMemoryFormDefinitionStore(new FixedClock(Now));
+        await store.RegisterAsync(Form("1.0.0"));
+
+        var saved = await Task.WhenAll(Enumerable.Range(0, 24).Select(_ => store.SaveNextAsync(Form("1.0.0")).AsTask()));
+
+        Assert.Equal(24, saved.Select(revision => revision.Version).Distinct().Count());
+        Assert.Equal(SemanticVersion.Parse("1.0.24"), saved.Max(revision => revision.Version));
+    }
+
+    [Fact(DisplayName = "forms-ck-9: a System-owned pack projection is not restored as a tenant Draft")]
+    public async Task Restore_refuses_a_system_owned_projection()
+    {
+        using var store = new InMemoryFormDefinitionStore(new FixedClock(Now));
+        await store.RegisterAsync(Form("1.0.0", FormDefinitionStatus.Published, owner: IdentityRef.System));
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            async () => await store.RestoreAsDraftAsync(Tenant, Id, SemanticVersion.Parse("1.0.0")));
+        Assert.Single(await Revisions(store));
+    }
+
+    [Fact(DisplayName = "forms-ck-9: a restored Draft's lineage names the restored revision, replacing any extension lineage it carried")]
+    public async Task Restore_lineage_names_the_restored_revision()
+    {
+        using var store = new InMemoryFormDefinitionStore(new FixedClock(Now));
+        var parent = await store.RegisterAsync(Form("1.0.0", FormDefinitionStatus.Published, id: "property.base"));
+        await store.RegisterAsync(Form("1.0.0", FormDefinitionStatus.Published) with
+        {
+            Lineage = new FormDefinitionLineage(parent.Id, parent.Version),
+        });
+
+        var restored = await store.RestoreAsDraftAsync(Tenant, Id, SemanticVersion.Parse("1.0.0"));
+
+        Assert.Equal(new FormDefinitionLineage(Id, SemanticVersion.Parse("1.0.0")), restored.Lineage);
+    }
+
     private static readonly FormDefinitionId Id = new("property.intake");
+    private static readonly IdentityRef Author = new("party", "author-1");
 
     // A revision's body: everything except its lifecycle status and the timestamp a transition stamps.
     private static JsonNode Body(FormDefinition revision)
@@ -195,13 +278,14 @@ public sealed class FormDefinitionVersioningTests
         string version,
         FormDefinitionStatus status = FormDefinitionStatus.Draft,
         string label = "Street",
-        string? id = null)
+        string? id = null,
+        IdentityRef? owner = null)
         => new(
             Id: id is null ? Id : new FormDefinitionId(id),
             Version: SemanticVersion.Parse(version),
             Status: status,
             Tenant: Tenant,
-            Owner: IdentityRef.System,
+            Owner: owner ?? Author,
             SchemaRef: new SchemaId("sha256:test-property-intake"),
             Overlay: new HarborlineOverlay(
                 Fields: new Dictionary<string, FieldOverlay> { ["street"] = new(Label: InternationalizedText.FromInvariant(label)) },
@@ -220,6 +304,12 @@ public sealed class FormDefinitionVersioningTests
             CreatedAt: Now,
             UpdatedAt: Now,
             SubmitGate: new SubmitGate(Role: RoleReference.Domain("tenant:admin")));
+
+    private sealed class RoleGatedReader : IFormRecordTypePolicyReader
+    {
+        public ValueTask<RecordTypeCreationGate?> GetCreationGateAsync(TenantId tenant, string recordTypeId, CancellationToken cancellationToken = default)
+            => ValueTask.FromResult<RecordTypeCreationGate?>(RecordTypeCreationGate.Role);
+    }
 
     private sealed class FixedClock(DateTimeOffset now) : TimeProvider
     {

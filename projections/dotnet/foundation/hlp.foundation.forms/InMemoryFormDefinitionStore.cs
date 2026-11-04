@@ -258,6 +258,14 @@ public sealed class InMemoryFormDefinitionStore : IFormDefinitionStore, IDisposa
         TenantId tenant, FormDefinitionId id, SemanticVersion version, CancellationToken ct = default)
     {
         var source = await GetAsync(tenant, id, version, ct).ConfigureAwait(false);
+        // A System-owned revision is a pack projection; it is restored by RestorePackProjectionAsync. Copying it into a
+        // tenant Draft would let tenant content claim System ownership, which RestorePackProjectionAsync trusts.
+        if (source.Owner == IdentityRef.System)
+        {
+            throw new InvalidOperationException(
+                $"'{id}' v{version} is a System-owned pack projection; restore it through RestorePackProjectionAsync, not as a tenant Draft.");
+        }
+
         var now = _time.GetUtcNow();
         var draft = source with
         {
