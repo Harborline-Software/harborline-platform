@@ -30,6 +30,7 @@ public sealed class DefinitionEnvelopeContractArchitectureTests
         "TaxonomyDefinitionEnvelope",
         "ReportDefinitionEnvelope",
         "RecordsDefinitionEnvelope",
+        "ScheduleDefinitionEnvelope",
     ];
 
     [Fact]
