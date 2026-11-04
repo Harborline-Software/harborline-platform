@@ -43,7 +43,8 @@ public sealed class NotificationCenterGroupTabsTests : BunitContext
         Assert.Equal(["All", "Proposals", "System", "Results", "Other"], Tabs(cut));
         Assert.Equal(["All"], Selected(cut));
         Choose(cut, "Other");
-        Assert.Equal(["Other"], Selected(cut));
+        // Every tab states its selection: "true" on the chosen tab and "false", never an empty value, on the rest.
+        Assert.Equal(["false", "false", "false", "false", "true"], cut.FindAll("[role=tab]").Select(tab => tab.GetAttribute("aria-selected") ?? "(absent)").ToArray());
         Assert.Equal(["d1", "a1", "d2"], Visible(cut));
         Choose(cut, "System");
         Assert.Equal(["System"], Selected(cut));
