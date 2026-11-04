@@ -151,7 +151,8 @@ public sealed class DocumentRuntime
         var template = TemplateDefinitionJson.Deserialize(body.Span);
         TemplateDefinitionAdmission.ValidatePersisted(template, _surfaces);
         RefuseOtherTemplate(input, template);
-        // The resolved culture's own name, so equal content hashes equally whichever spelling of a tag selected it.
+        // The resolved culture's own name, so case spellings of one tag hash equally. An alias such as zh-TW for
+        // zh-Hant-TW keeps its own name and hashes apart.
         var culture = DocumentValueFormatter.ResolveCulture(ResolveLocale(template.Locale, context));
         var formatter = new DocumentValueFormatter(culture, context.CurrencyCode);
         var blocks = (pageFlow.Blocks ?? [])

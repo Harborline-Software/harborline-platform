@@ -181,6 +181,8 @@ public sealed class DocumentRuntimeCompletionTests
     [InlineData("en-US-x-private")]
     [InlineData("de-")]
     [InlineData("d")]
+    [InlineData("de-DE\n")]
+    [InlineData("es-٤١٩")]
     public async Task MalformedLocaleTagIsRefused(string tag)
     {
         var refused = await Assert.ThrowsAsync<InvalidOperationException>(() => Rendered(new(tag, "en-US", "USD"), new DocumentLiteralRun("x")));
@@ -191,6 +193,7 @@ public sealed class DocumentRuntimeCompletionTests
     [InlineData("zh-Hant-TW", "zh-Hant-TW")]
     [InlineData("es-419", "es-419")]
     [InlineData("sr-Latn", "sr-Latn")]
+    [InlineData("und", "en-US")]
     public async Task WellFormedLocaleTagsPass(string tag, string name)
     {
         var template = FromRecord();
@@ -200,12 +203,29 @@ public sealed class DocumentRuntimeCompletionTests
         Assert.Equal(name, preview.Document.LocaleTag);
     }
 
+    [Theory(DisplayName = "documents-eng-7: BCP 47 variant subtags pass the shape check")]
+    [InlineData("ca-ES-valencia")]
+    [InlineData("de-DE-1996")]
+    public async Task VariantTagsAreWellFormed(string tag)
+        => Assert.Equal("x", await Rendered(new(tag, "en-US", "USD"), new DocumentLiteralRun("x")));
+
+    [Theory(DisplayName = "documents-eng-7: publish refuses a fixed locale tag that could never render")]
+    [InlineData("de_DE")]
+    [InlineData("de-DE-u-nu-arab")]
+    public void PublishRefusesAMalformedFixedLocale(string tag)
+    {
+        var template = Template() with { Locale = new(TemplateLocaleKind.Fixed, tag) };
+
+        Assert.Equal([new DefinitionRefusal(TemplateDefinitionCodes.LocaleInvalid, "/locale")], TemplateDefinitionAdmission.Validate(template, Surfaces()));
+        Assert.Throws<DefinitionRefusalException>(() => TemplatePack.Export(template, Surfaces()));
+    }
+
     [Theory(DisplayName = "documents-eng-7: a date outside the culture's calendar is refused by name, never an unnamed exception")]
-    [InlineData("2100-01-01")]
-    [InlineData("2100-01-01T00:00:00Z")]
+    [InlineData("0001-01-01")]
+    [InlineData("0001-01-01T00:00:00Z")]
     public async Task DateOutsideTheCalendarIsRefused(string value)
     {
-        var refused = await Assert.ThrowsAsync<InvalidOperationException>(() => Rendered(new("ar-SA", "en-US", "SAR"), new DocumentMergeRun(value, DocumentMergeFormat.Date)));
+        var refused = await Assert.ThrowsAsync<InvalidOperationException>(() => Rendered(new("fa-IR", "en-US", "IRR"), new DocumentMergeRun(value, DocumentMergeFormat.Date)));
         Assert.Equal("documents.merge.date_outside_calendar", refused.Message);
     }
 
@@ -233,6 +253,7 @@ public sealed class DocumentRuntimeCompletionTests
     [InlineData(DocumentMergeFormat.Date, "2026-03-04T10:15:00-5:00")]
     [InlineData(DocumentMergeFormat.Date, "2026-13-04")]
     [InlineData(DocumentMergeFormat.Date, "2026-03-04T25:15:00Z")]
+    [InlineData(DocumentMergeFormat.Date, "2026-03-04T24:00:00Z")]
     [InlineData(DocumentMergeFormat.Decimal, "1.00000000000000000000000000000001")]
     [InlineData(DocumentMergeFormat.Integer, "1.00000000000000000000000000000001")]
     [InlineData(DocumentMergeFormat.Currency, "10.00000000000000000000000000000049")]

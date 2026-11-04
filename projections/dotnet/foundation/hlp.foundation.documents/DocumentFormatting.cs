@@ -50,22 +50,27 @@ internal sealed partial class DocumentValueFormatter(CultureInfo culture, string
         => string.Concat(runs.Select(run => run is DocumentLiteralRun literal ? literal.Text : FormatMerge((DocumentMergeRun)run)));
 
     /// <summary>
-    /// The predefined culture for a language[-script][-region] tag. A well-formed unknown tag is en-US on every host,
-    /// never a fabricated culture. Any other shape is refused: an underscore would change the reported name, and a
-    /// Unicode extension such as -u-nu-arab would change the digits.
+    /// The predefined culture for a BCP 47 language[-script][-region][-variant] tag. A well-formed tag with no
+    /// predefined culture is en-US, never a fabricated culture. Any other shape is refused: an underscore would change
+    /// the reported name, and a Unicode extension such as -u-nu-arab would change the digits.
     /// </summary>
     public static CultureInfo ResolveCulture(string tag)
     {
-        if (!LocaleTag().IsMatch(tag)) throw new InvalidOperationException("documents.template.locale_invalid");
+        if (!IsWellFormedLocaleTag(tag)) throw new InvalidOperationException(TemplateDefinitionCodes.LocaleInvalid);
         try
         {
-            return CultureInfo.GetCultureInfo(tag, predefinedOnly: true);
+            var culture = CultureInfo.GetCultureInfo(tag, predefinedOnly: true);
+            // Linux ICU resolves "und" to the invariant culture, whose empty name would report no locale at all.
+            return culture.Name.Length == 0 ? CultureInfo.GetCultureInfo("en-US") : culture;
         }
         catch (CultureNotFoundException)
         {
             return CultureInfo.GetCultureInfo("en-US");
         }
     }
+
+    /// <summary>Whether a tag has the shape <see cref="ResolveCulture"/> accepts; publish refuses a fixed tag that lacks it.</summary>
+    public static bool IsWellFormedLocaleTag(string tag) => LocaleTag().IsMatch(tag);
 
     private string FormatMerge(DocumentMergeRun merge)
         => merge.CanonicalValue is null ? merge.Fallback ?? string.Empty : Format(merge.CanonicalValue, merge.Format);
@@ -151,15 +156,15 @@ internal sealed partial class DocumentValueFormatter(CultureInfo culture, string
         }
         catch (ArgumentOutOfRangeException)
         {
-            // A date outside the culture's own calendar, such as 2100 under ar-SA's Umm al-Qura.
+            // A date outside the culture's own calendar, such as year 1 under fa-IR's Persian calendar.
             throw new InvalidOperationException("documents.merge.date_outside_calendar");
         }
     }
 
-    [GeneratedRegex(@"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,7})?(Z|[+-]\d{2}:\d{2})$", RegexOptions.CultureInvariant)]
+    [GeneratedRegex(@"\A[0-9]{4}-[0-9]{2}-[0-9]{2}T([01][0-9]|2[0-3]):[0-9]{2}:[0-9]{2}(\.[0-9]{1,7})?(Z|[+-][0-9]{2}:[0-9]{2})\z", RegexOptions.CultureInvariant)]
     private static partial Regex CanonicalInstant();
 
-    [GeneratedRegex(@"^[A-Za-z]{2,3}(-[A-Za-z]{4})?(-([A-Za-z]{2}|\d{3}))?$", RegexOptions.CultureInvariant)]
+    [GeneratedRegex(@"\A[A-Za-z]{2,3}(-[A-Za-z]{4})?(-([A-Za-z]{2}|[0-9]{3}))?(-([0-9A-Za-z]{5,8}|[0-9][0-9A-Za-z]{3}))*\z", RegexOptions.CultureInvariant)]
     private static partial Regex LocaleTag();
 
     private static InvalidOperationException Malformed() => new("documents.merge.value_malformed");

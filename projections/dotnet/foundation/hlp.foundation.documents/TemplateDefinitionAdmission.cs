@@ -37,6 +37,8 @@ public static class TemplateDefinitionCodes
     public const string CompositionCycle = "documents.template.composition_cycle";
     /// <summary>A template logo is not a digest-pinned pack asset (documents-bound-8, DES-0054 ruling 9).</summary>
     public const string LogoNotPinned = "documents.style.logo_not_pinned";
+    /// <summary>A locale tag is not BCP 47 language[-script][-region][-variant], so it could never render.</summary>
+    public const string LocaleInvalid = "documents.template.locale_invalid";
 }
 
 /// <summary>
@@ -83,6 +85,8 @@ public static class TemplateDefinitionAdmission
         if (template.Locale is null || !Enum.IsDefined(template.Locale.Kind)
             || (template.Locale.Kind == TemplateLocaleKind.Fixed) == Blank(template.Locale.Tag))
             refusals.Add(new(TemplateDefinitionCodes.BodyInvalid, "/locale"));
+        else if (template.Locale.Tag is { } tag && template.Locale.Kind == TemplateLocaleKind.Fixed && !DocumentValueFormatter.IsWellFormedLocaleTag(tag))
+            refusals.Add(new(TemplateDefinitionCodes.LocaleInvalid, "/locale"));
         if (template.Style?.LogoAssetRef is { } logo && !IsDigestPinned(logo))
             refusals.Add(new(TemplateDefinitionCodes.LogoNotPinned, "/style/logo_asset_ref"));
         if (template.Surface is null || Blank(template.Surface.SurfaceDefinitionId) || Blank(template.Surface.SurfaceVersion))
