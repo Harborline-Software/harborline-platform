@@ -297,13 +297,12 @@ public sealed class InMemoryFormDefinitionStore : IFormDefinitionStore, IDisposa
     }
 
     // The registration RegisterAsync performs, under the mutation lock, for a revision whose version the store chose.
+    // No conflict check: the version is either above every existing revision or, for an id with none, the first.
     private FormDefinition CommitRegistration(
         Dictionary<TenantId, Dictionary<FormDefinitionId, Dictionary<SemanticVersion, FormDefinition>>> snapshot,
         FormDefinition definition,
         IReadOnlyCollection<FormDefinition> revisions)
     {
-        if (revisions.Any(revision => revision.Version == definition.Version))
-            throw new FormDefinitionConflictException(definition.Id, definition.Version, definition.Tenant);
         ValidateLineage(snapshot, definition);
         if (definition.Status == FormDefinitionStatus.Published)
             FormDefinitionValidation.ValidateRecordTypeContinuityOrThrow(definition, revisions);

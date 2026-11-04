@@ -245,6 +245,36 @@ public sealed class FormDefinitionVersioningTests
         Assert.Equal(new FormDefinitionLineage(Id, SemanticVersion.Parse("1.0.0")), restored.Lineage);
     }
 
+    [Fact(DisplayName = "forms-ck-8: a save refuses a null definition, lineage to an unregistered parent, and a patch overflow")]
+    public async Task Save_refuses_malformed_input()
+    {
+        using var store = new InMemoryFormDefinitionStore(new FixedClock(Now));
+        await Assert.ThrowsAsync<ArgumentNullException>(async () => await store.SaveNextAsync(null!));
+
+        await store.RegisterAsync(Form("1.0.0"));
+        await Assert.ThrowsAsync<FormDefinitionValidationException>(async () => await store.SaveNextAsync(Form("1.0.0") with
+        {
+            Lineage = new FormDefinitionLineage(new FormDefinitionId("absent.parent"), SemanticVersion.Parse("1.0.0")),
+        }));
+
+        await store.RegisterAsync(Form("1.0.0") with { Version = new SemanticVersion(1, 0, int.MaxValue) });
+        await Assert.ThrowsAsync<OverflowException>(async () => await store.SaveNextAsync(Form("1.0.0")));
+        Assert.Equal(2, (await Revisions(store)).Count);
+    }
+
+    [Fact(DisplayName = "forms-ck-8, forms-ck-9: a store that does not persist revisions refuses to mint or restore, naming itself")]
+    public async Task Non_persisting_store_refuses_versioning_operations()
+    {
+        IFormDefinitionStore store = new ReadOnlyStore();
+
+        var save = await Assert.ThrowsAsync<NotSupportedException>(async () => await store.SaveNextAsync(Form("1.0.0")));
+        var restore = await Assert.ThrowsAsync<NotSupportedException>(
+            async () => await store.RestoreAsDraftAsync(Tenant, Id, SemanticVersion.Parse("1.0.0")));
+
+        Assert.Equal("ReadOnlyStore does not mint form definition versions.", save.Message);
+        Assert.Equal("ReadOnlyStore does not restore form definition revisions.", restore.Message);
+    }
+
     private static readonly FormDefinitionId Id = new("property.intake");
     private static readonly IdentityRef Author = new("party", "author-1");
 
@@ -304,6 +334,22 @@ public sealed class FormDefinitionVersioningTests
             CreatedAt: Now,
             UpdatedAt: Now,
             SubmitGate: new SubmitGate(Role: RoleReference.Domain("tenant:admin")));
+
+    // Implements only the members every store must; inherits the two versioning members' refusals.
+    private sealed class ReadOnlyStore : IFormDefinitionStore
+    {
+        public ValueTask<FormDefinition> GetAsync(TenantId tenant, FormDefinitionId id, SemanticVersion version, CancellationToken ct = default) => throw new NotImplementedException();
+        public ValueTask<FormDefinition?> GetCurrentPublishedAsync(TenantId tenant, FormDefinitionId id, CancellationToken ct = default) => throw new NotImplementedException();
+        public ValueTask<FormDefinition> RegisterAsync(FormDefinition schema, CancellationToken ct = default) => throw new NotImplementedException();
+        public ValueTask<FormDefinition> RegisterAndPublishAsync(FormDefinition schema, CancellationToken ct = default) => throw new NotImplementedException();
+        public ValueTask<FormDefinition> CreateAsync(FormDefinition schema, CancellationToken ct = default) => throw new NotImplementedException();
+        public ValueTask<FormDefinition> PublishAsync(TenantId tenant, FormDefinitionId id, SemanticVersion version, CancellationToken ct = default) => throw new NotImplementedException();
+        public ValueTask<FormDefinition> DeprecateAsync(TenantId tenant, FormDefinitionId id, SemanticVersion version, CancellationToken ct = default) => throw new NotImplementedException();
+        public ValueTask<FormDefinition> WithdrawAsync(TenantId tenant, FormDefinitionId id, SemanticVersion version, CancellationToken ct = default) => throw new NotImplementedException();
+        public ValueTask<FormDefinition> RestorePackProjectionAsync(TenantId tenant, FormDefinitionId id, SemanticVersion version, CancellationToken ct = default) => throw new NotImplementedException();
+        public IAsyncEnumerable<FormDefinition> ListByTenantAsync(TenantId tenant, CancellationToken ct = default) => throw new NotImplementedException();
+        public IAsyncEnumerable<FormDefinition> ListCurrentPublishedByTenantAsync(TenantId tenant, CancellationToken ct = default) => throw new NotImplementedException();
+    }
 
     private sealed class RoleGatedReader : IFormRecordTypePolicyReader
     {
