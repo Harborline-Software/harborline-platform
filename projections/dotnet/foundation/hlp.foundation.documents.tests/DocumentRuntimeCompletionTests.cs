@@ -167,6 +167,48 @@ public sealed class DocumentRuntimeCompletionTests
         Assert.Equal("3/4/2026", await Rendered(new("zz-ZZ", "en-US", "USD"), new DocumentMergeRun("2026-03-04", DocumentMergeFormat.Date)));
     }
 
+    [Theory(DisplayName = "documents-eng-7: a negative amount keeps its sign under each locale's own pattern")]
+    [InlineData("en-US", "USD", "-$1,234.50")]
+    [InlineData("de-DE", "EUR", "-1.234,50 €")]
+    [InlineData("en-GB", "GBP", "-£1,234.50")]
+    public async Task NegativeCurrencyKeepsItsSign(string locale, string code, string expected)
+        => Assert.Equal(expected, await Rendered(new(locale, "en-US", code), new DocumentMergeRun("-1234.5", DocumentMergeFormat.Currency)));
+
+    [Theory(DisplayName = "documents-eng-7: a locale tag that is not language, script and region is refused rather than half-parsed")]
+    [InlineData("de_DE")]
+    [InlineData("de-DE-u-nu-arab")]
+    [InlineData("ar-SA-u-ca-gregory")]
+    [InlineData("en-US-x-private")]
+    [InlineData("de-")]
+    [InlineData("d")]
+    public async Task MalformedLocaleTagIsRefused(string tag)
+    {
+        var refused = await Assert.ThrowsAsync<InvalidOperationException>(() => Rendered(new(tag, "en-US", "USD"), new DocumentLiteralRun("x")));
+        Assert.Equal("documents.template.locale_invalid", refused.Message);
+    }
+
+    [Theory(DisplayName = "documents-eng-7: script and numeric-region tags pass the shape check")]
+    [InlineData("zh-Hant-TW", "zh-Hant-TW")]
+    [InlineData("es-419", "es-419")]
+    [InlineData("sr-Latn", "sr-Latn")]
+    public async Task WellFormedLocaleTagsPass(string tag, string name)
+    {
+        var template = FromRecord();
+        var preview = await Runtime(template).PreviewAsync(
+            new DocumentInlineTemplate(TemplateDefinitionJson.SerializeCanonical(template)),
+            new DocumentPageFlow([new("a", "first", "x")]), new(tag, "en-US", "USD"), null);
+        Assert.Equal(name, preview.Document.LocaleTag);
+    }
+
+    [Theory(DisplayName = "documents-eng-7: a date outside the culture's calendar is refused by name, never an unnamed exception")]
+    [InlineData("2100-01-01")]
+    [InlineData("2100-01-01T00:00:00Z")]
+    public async Task DateOutsideTheCalendarIsRefused(string value)
+    {
+        var refused = await Assert.ThrowsAsync<InvalidOperationException>(() => Rendered(new("ar-SA", "en-US", "SAR"), new DocumentMergeRun(value, DocumentMergeFormat.Date)));
+        Assert.Equal("documents.merge.date_outside_calendar", refused.Message);
+    }
+
     [Theory(DisplayName = "documents-eng-7: a malformed canonical value is refused rather than printed raw")]
     [InlineData(DocumentMergeFormat.Currency, "ten")]
     [InlineData(DocumentMergeFormat.Integer, "ten")]
@@ -186,6 +228,17 @@ public sealed class DocumentRuntimeCompletionTests
     [InlineData(DocumentMergeFormat.Date, "10:15")]
     [InlineData(DocumentMergeFormat.Date, "3/4/2026")]
     [InlineData(DocumentMergeFormat.Date, "2026-03-04T10:15:00")]
+    [InlineData(DocumentMergeFormat.Date, "2026-03-04T10:15:00.Z")]
+    [InlineData(DocumentMergeFormat.Date, "2026-03-04T10:15:00-0500")]
+    [InlineData(DocumentMergeFormat.Date, "2026-03-04T10:15:00-5:00")]
+    [InlineData(DocumentMergeFormat.Date, "2026-13-04")]
+    [InlineData(DocumentMergeFormat.Date, "2026-03-04T25:15:00Z")]
+    [InlineData(DocumentMergeFormat.Decimal, "1.00000000000000000000000000000001")]
+    [InlineData(DocumentMergeFormat.Integer, "1.00000000000000000000000000000001")]
+    [InlineData(DocumentMergeFormat.Currency, "10.00000000000000000000000000000049")]
+    [InlineData(DocumentMergeFormat.Decimal, "007")]
+    [InlineData(DocumentMergeFormat.Decimal, "-0")]
+    [InlineData(DocumentMergeFormat.Currency, "-0.00")]
     public async Task MalformedCanonicalValueIsRefused(DocumentMergeFormat format, string value)
     {
         var refused = await Assert.ThrowsAsync<InvalidOperationException>(() => Rendered(EnUsContext, new DocumentMergeRun(value, format)));
@@ -313,17 +366,54 @@ public sealed class DocumentRuntimeCompletionTests
         var document = Document();
 
         Assert.Equal(DocumentContentHash.Of(document), DocumentContentHash.Of(Document()));
-        // The expected value was computed outside this code: SHA-256 of the compact JSON array of the semantic fields.
-        Assert.Equal("sha256:0e682231d9deb2ac818fa77d65a6003ec8e9ce473e60c88c86dc964f0bd7dd74", DocumentContentHash.Of(document));
+        // The expected value was computed outside this code, from the encoding interface.yaml specifies.
+        Assert.Equal("sha256:caa445cbfa44e265c3e41436a64a94a5790ac561ada0c68dfc33f0ed43be84b9", DocumentContentHash.Of(document));
         Assert.Throws<ArgumentNullException>(() => DocumentContentHash.Of(null!));
     }
 
-    [Fact(DisplayName = "documents-run-1: non-ASCII text hashes as raw UTF-8, matching a literal computed outside this code")]
-    public void HashWritesNonAsciiRaw()
+    [Fact(DisplayName = "documents-run-1: any text hashes as its UTF-8 bytes, so a French amount's U+202F grouping and an emoji match a literal computed outside this code")]
+    public void HashEncodesEveryCharacterAsUtf8()
     {
-        var document = new RenderedDocument("invoice", "de-DE", "EUR", new("Müller & Söhne", PinnedLogo), [new("a", "first", "1.234,50 € <b>"), new("b", "left", "two")]);
+        var document = new RenderedDocument("invoice", "fr-FR", "EUR", new("Müller & Söhne \"SA\"", PinnedLogo),
+            [new("a", "first", "1\u202f234,50\u00a0€ <b> 😀\u2028"), new("b", "left", "two\n")]);
 
-        Assert.Equal("sha256:86cf21e842706612341f5655b4903d1255e270c1bbdc04316e745e9b09a5e823", DocumentContentHash.Of(document));
+        Assert.Equal("sha256:584e4a6682dd8bce38e192e936272f7e78733a1e5f257b5495864766be6334ef", DocumentContentHash.Of(document));
+    }
+
+    [Fact(DisplayName = "documents-run-1: an absent style encodes as the specified null fields, matching a literal computed outside this code")]
+    public void HashEncodesAbsentFields()
+        => Assert.Equal(
+            "sha256:ef4358e5a0e082e71d3e1c3749e29797b4faf6f1d68e1575e2ddde14b04ce2de",
+            DocumentContentHash.Of(new RenderedDocument("invoice", "en-US", "USD", null, [])));
+
+    [Theory(DisplayName = "documents-run-1: spellings of one currency code report and hash as ISO 4217 upper case")]
+    [InlineData("usd")]
+    [InlineData("Usd")]
+    public async Task CurrencyIsReportedUpperCase(string spelled)
+    {
+        var template = FromRecord();
+        var input = new DocumentInlineTemplate(TemplateDefinitionJson.SerializeCanonical(template));
+        var flow = new DocumentPageFlow([new("a", "first", "x")]);
+
+        var preview = await Runtime(template).PreviewAsync(input, flow, new("en-US", "en-US", spelled), null);
+        var upper = await Runtime(template).PreviewAsync(input, flow, new("en-US", "en-US", "USD"), null);
+
+        Assert.Equal("USD", preview.Document.CurrencyCode);
+        Assert.Equal(DocumentContentHash.Of(upper.Document), DocumentContentHash.Of(preview.Document));
+    }
+
+    [Theory(DisplayName = "documents-run-1: a currency code that is not alpha-3 is reported as given, because only a currency run refuses it")]
+    [InlineData(null)]
+    [InlineData("usdx")]
+    [InlineData("us1")]
+    public async Task OtherCurrencyIsReportedAsGiven(string? given)
+    {
+        var template = FromRecord();
+        var input = new DocumentInlineTemplate(TemplateDefinitionJson.SerializeCanonical(template));
+
+        var preview = await Runtime(template).PreviewAsync(input, new DocumentPageFlow([new("a", "first", "x")]), new("en-US", "en-US", given!), null);
+
+        Assert.Equal(given, preview.Document.CurrencyCode);
     }
 
     [Theory(DisplayName = "documents-run-1: spellings of one locale report and hash as the resolved culture, so equal content hashes equally")]

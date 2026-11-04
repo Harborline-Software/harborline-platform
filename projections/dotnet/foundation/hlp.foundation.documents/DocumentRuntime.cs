@@ -160,7 +160,7 @@ public sealed class DocumentRuntime
                 PageVariant(block),
                 block.Runs is { } runs ? formatter.FormatRuns(runs) : block.Content))
             .ToArray();
-        return (template, new(template.DocumentType, culture.Name, context.CurrencyCode, template.Style, blocks));
+        return (template, new(template.DocumentType, culture.Name, DocumentValueFormatter.NormalizeCurrency(context.CurrencyCode), template.Style, blocks));
     }
 
     // A host's template source cannot answer a pin with a different template: the body must name what was asked for.

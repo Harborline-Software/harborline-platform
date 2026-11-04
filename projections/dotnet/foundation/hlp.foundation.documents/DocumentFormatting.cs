@@ -1,8 +1,7 @@
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
-using System.Text.Encodings.Web;
-using System.Text.Json;
+using System.Text.RegularExpressions;
 
 namespace Harborline.Foundation.Documents;
 
@@ -38,24 +37,26 @@ public sealed record DocumentLiteralRun(string Text) : DocumentFlowRun;
 public sealed record DocumentMergeRun(string? CanonicalValue, DocumentMergeFormat Format, string? Fallback = null) : DocumentFlowRun;
 
 /// <summary>
-/// Formats canonical merge values in the document's locale (documents-eng-7). It is deterministic across hosts and
-/// days: only predefined cultures are used, because ICU fabricates patterns for unknown tags, and only strict canonical
-/// forms parse, so a value that could be misread (a grouped "1,5", a time with no date) is refused, never guessed at.
+/// Formats canonical merge values in the document's locale (documents-eng-7). The host's clock and time zone never
+/// enter, only predefined cultures are used, because ICU fabricates patterns for unknown tags, and only strict
+/// canonical forms parse, so a value that could be misread (a grouped "1,5", a time with no date) is refused, never
+/// guessed at. The printed text still follows the host's ICU data, which is why an issued record stores its hash.
 /// </summary>
-internal sealed class DocumentValueFormatter(CultureInfo culture, string? currencyCode)
+internal sealed partial class DocumentValueFormatter(CultureInfo culture, string? currencyCode)
 {
-    private static readonly string[] CanonicalInstants =
-    [
-        "yyyy-MM-dd'T'HH:mm:ss'Z'", "yyyy-MM-dd'T'HH:mm:ss.FFFFFFF'Z'",
-        "yyyy-MM-dd'T'HH:mm:sszzz", "yyyy-MM-dd'T'HH:mm:ss.FFFFFFFzzz",
-    ];
+    private static readonly string[] CanonicalInstants = ["yyyy-MM-dd'T'HH:mm:ss.FFFFFFFK"];
 
     public string FormatRuns(IEnumerable<DocumentFlowRun> runs)
         => string.Concat(runs.Select(run => run is DocumentLiteralRun literal ? literal.Text : FormatMerge((DocumentMergeRun)run)));
 
-    /// <summary>The predefined culture for a tag; an unknown tag is en-US on every host, never a fabricated culture.</summary>
+    /// <summary>
+    /// The predefined culture for a language[-script][-region] tag. A well-formed unknown tag is en-US on every host,
+    /// never a fabricated culture. Any other shape is refused: an underscore would change the reported name, and a
+    /// Unicode extension such as -u-nu-arab would change the digits.
+    /// </summary>
     public static CultureInfo ResolveCulture(string tag)
     {
+        if (!LocaleTag().IsMatch(tag)) throw new InvalidOperationException("documents.template.locale_invalid");
         try
         {
             return CultureInfo.GetCultureInfo(tag, predefinedOnly: true);
@@ -123,29 +124,43 @@ internal sealed class DocumentValueFormatter(CultureInfo culture, string? curren
         _ => code,
     };
 
-    // Canonical form only: an optional minus, digits, and optional fraction digits, in invariant notation.
-    private static decimal CanonicalDecimal(string value)
-    {
-        var digits = value.StartsWith('-') ? value[1..] : value;
-        var point = digits.IndexOf('.');
-        var whole = point < 0 ? digits : digits[..point];
-        var fraction = point < 0 ? "0" : digits[(point + 1)..];
-        if (whole.Length == 0 || fraction.Length == 0 || !whole.All(char.IsAsciiDigit) || !fraction.All(char.IsAsciiDigit))
-            throw Malformed();
-        return decimal.TryParse(value, NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out var number)
-            ? number
-            : throw Malformed();
-    }
+    /// <summary>The currency code an issued document reports: ISO 4217 upper case, so spellings of one code hash equally.</summary>
+    public static string NormalizeCurrency(string code)
+        => code is { Length: 3 } && code.All(char.IsAsciiLetter) ? code.ToUpperInvariant() : code;
 
-    // ISO-8601 only. A date-time carries its own offset, so the host's time zone and today's date never enter.
+    // Canonical form only: the value must be exactly how the invariant decimal prints it. That refuses a sign, spaces,
+    // grouping, leading zeros, a bare point, negative zero, and a value with more digits than a decimal holds, which
+    // would otherwise be rounded silently.
+    private static decimal CanonicalDecimal(string value)
+        => decimal.TryParse(value, NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out var number)
+            && number.ToString(CultureInfo.InvariantCulture) == value
+                ? number
+                : throw Malformed();
+
+    // ISO-8601 only. A date-time carries its own Z or offset, so the host's time zone and today's date never enter.
     private string Date(string value)
     {
-        if (DateOnly.TryParseExact(value, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var date))
-            return date.ToString("d", culture);
-        return DateTimeOffset.TryParseExact(value, CanonicalInstants, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var instant)
-            ? instant.ToString("d", culture)
-            : throw Malformed();
+        try
+        {
+            if (DateOnly.TryParseExact(value, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var date))
+                return date.ToString("d", culture);
+            return CanonicalInstant().IsMatch(value)
+                && DateTimeOffset.TryParseExact(value, CanonicalInstants, CultureInfo.InvariantCulture, DateTimeStyles.None, out var instant)
+                    ? instant.ToString("d", culture)
+                    : throw Malformed();
+        }
+        catch (ArgumentOutOfRangeException)
+        {
+            // A date outside the culture's own calendar, such as 2100 under ar-SA's Umm al-Qura.
+            throw new InvalidOperationException("documents.merge.date_outside_calendar");
+        }
     }
+
+    [GeneratedRegex(@"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,7})?(Z|[+-]\d{2}:\d{2})$", RegexOptions.CultureInvariant)]
+    private static partial Regex CanonicalInstant();
+
+    [GeneratedRegex(@"^[A-Za-z]{2,3}(-[A-Za-z]{4})?(-([A-Za-z]{2}|\d{3}))?$", RegexOptions.CultureInvariant)]
+    private static partial Regex LocaleTag();
 
     private static InvalidOperationException Malformed() => new("documents.merge.value_malformed");
 }
@@ -153,8 +168,10 @@ internal sealed class DocumentValueFormatter(CultureInfo culture, string? curren
 /// <summary>
 /// The deterministic hash of a rendered document's semantic content (documents-ck-19, documents-eng-12,
 /// documents-run-1): its type, locale, currency, style and resolved blocks. PDF bytes are not deterministic, so bytes
-/// never enter it. Fields are written as a compact JSON array with non-ASCII text left as raw UTF-8, so no two
-/// different documents share a serialization and another implementation can reproduce it.
+/// never enter it. The encoding is specified rather than borrowed from a serializer, whose escaping varies by runtime,
+/// so another implementation reproduces it and a stored hash never has to migrate. Each field is its UTF-8 length in
+/// decimal, a colon, its UTF-8 bytes and a comma; a null field is <c>~,</c>. The fields are type, locale, currency,
+/// brand name and logo reference, then each block's id, page variant and content, in order.
 /// </summary>
 public static class DocumentContentHash
 {
@@ -163,26 +180,20 @@ public static class DocumentContentHash
     {
         ArgumentNullException.ThrowIfNull(document);
         using var buffer = new MemoryStream();
-        using (var writer = new Utf8JsonWriter(buffer, new JsonWriterOptions { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping }))
+        foreach (var field in new[] { document.DocumentType, document.LocaleTag, document.CurrencyCode, document.Style?.BrandName, document.Style?.LogoAssetRef }
+            .Concat(document.Blocks.SelectMany(block => new[] { block.Id, block.PageVariant, block.Content })))
         {
-            writer.WriteStartArray();
-            writer.WriteStringValue(document.DocumentType);
-            writer.WriteStringValue(document.LocaleTag);
-            writer.WriteStringValue(document.CurrencyCode);
-            writer.WriteStringValue(document.Style?.BrandName);
-            writer.WriteStringValue(document.Style?.LogoAssetRef);
-            foreach (var block in document.Blocks)
-            {
-                writer.WriteStartArray();
-                writer.WriteStringValue(block.Id);
-                writer.WriteStringValue(block.PageVariant);
-                writer.WriteStringValue(block.Content);
-                writer.WriteEndArray();
-            }
-            writer.WriteEndArray();
+            var bytes = field is null ? "~,"u8.ToArray() : Framed(field);
+            buffer.Write(bytes);
         }
 
         return "sha256:" + Convert.ToHexStringLower(SHA256.HashData(buffer.ToArray()));
+    }
+
+    private static byte[] Framed(string field)
+    {
+        var utf8 = Encoding.UTF8.GetBytes(field);
+        return [.. Encoding.ASCII.GetBytes(utf8.Length.ToString(CultureInfo.InvariantCulture) + ":"), .. utf8, (byte)','];
     }
 }
 
