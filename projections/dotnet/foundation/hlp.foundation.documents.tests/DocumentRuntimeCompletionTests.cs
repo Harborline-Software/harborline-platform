@@ -182,6 +182,9 @@ public sealed class DocumentRuntimeCompletionTests
     [InlineData("de-")]
     [InlineData("d")]
     [InlineData("de-DE\n")]
+    [InlineData("ca-ES-valencia")]
+    [InlineData("de-DE-1996")]
+    [InlineData("en-US-posix")]
     [InlineData("es-٤١٩")]
     public async Task MalformedLocaleTagIsRefused(string tag)
     {
@@ -203,15 +206,10 @@ public sealed class DocumentRuntimeCompletionTests
         Assert.Equal(name, preview.Document.LocaleTag);
     }
 
-    [Theory(DisplayName = "documents-eng-7: BCP 47 variant subtags pass the shape check")]
-    [InlineData("ca-ES-valencia")]
-    [InlineData("de-DE-1996")]
-    public async Task VariantTagsAreWellFormed(string tag)
-        => Assert.Equal("x", await Rendered(new(tag, "en-US", "USD"), new DocumentLiteralRun("x")));
-
     [Theory(DisplayName = "documents-eng-7: publish refuses a fixed locale tag that could never render")]
     [InlineData("de_DE")]
     [InlineData("de-DE-u-nu-arab")]
+    [InlineData("ca-ES-valencia")]
     public void PublishRefusesAMalformedFixedLocale(string tag)
     {
         var template = Template() with { Locale = new(TemplateLocaleKind.Fixed, tag) };

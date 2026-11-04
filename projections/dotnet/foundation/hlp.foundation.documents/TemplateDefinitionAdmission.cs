@@ -37,7 +37,7 @@ public static class TemplateDefinitionCodes
     public const string CompositionCycle = "documents.template.composition_cycle";
     /// <summary>A template logo is not a digest-pinned pack asset (documents-bound-8, DES-0054 ruling 9).</summary>
     public const string LogoNotPinned = "documents.style.logo_not_pinned";
-    /// <summary>A locale tag is not BCP 47 language[-script][-region][-variant], so it could never render.</summary>
+    /// <summary>A locale tag is not BCP 47 language[-script][-region], so it could never render.</summary>
     public const string LocaleInvalid = "documents.template.locale_invalid";
 }
 

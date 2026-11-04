@@ -50,9 +50,10 @@ internal sealed partial class DocumentValueFormatter(CultureInfo culture, string
         => string.Concat(runs.Select(run => run is DocumentLiteralRun literal ? literal.Text : FormatMerge((DocumentMergeRun)run)));
 
     /// <summary>
-    /// The predefined culture for a BCP 47 language[-script][-region][-variant] tag. A well-formed tag with no
-    /// predefined culture is en-US, never a fabricated culture. Any other shape is refused: an underscore would change
-    /// the reported name, and a Unicode extension such as -u-nu-arab would change the digits.
+    /// The predefined culture for a language[-script][-region] tag, the BCP 47 subset this module formats. A
+    /// well-formed tag with no predefined culture is en-US, never a fabricated culture. Any other shape is refused: an
+    /// underscore would change the reported name, a Unicode extension such as -u-nu-arab would change the digits, and a
+    /// variant such as ca-ES-valencia has no predefined culture, so it would print a Catalan document in US format.
     /// </summary>
     public static CultureInfo ResolveCulture(string tag)
     {
@@ -164,7 +165,7 @@ internal sealed partial class DocumentValueFormatter(CultureInfo culture, string
     [GeneratedRegex(@"\A[0-9]{4}-[0-9]{2}-[0-9]{2}T([01][0-9]|2[0-3]):[0-9]{2}:[0-9]{2}(\.[0-9]{1,7})?(Z|[+-][0-9]{2}:[0-9]{2})\z", RegexOptions.CultureInvariant)]
     private static partial Regex CanonicalInstant();
 
-    [GeneratedRegex(@"\A[A-Za-z]{2,3}(-[A-Za-z]{4})?(-([A-Za-z]{2}|[0-9]{3}))?(-([0-9A-Za-z]{5,8}|[0-9][0-9A-Za-z]{3}))*\z", RegexOptions.CultureInvariant)]
+    [GeneratedRegex(@"\A[A-Za-z]{2,3}(-[A-Za-z]{4})?(-([A-Za-z]{2}|[0-9]{3}))?\z", RegexOptions.CultureInvariant)]
     private static partial Regex LocaleTag();
 
     private static InvalidOperationException Malformed() => new("documents.merge.value_malformed");
