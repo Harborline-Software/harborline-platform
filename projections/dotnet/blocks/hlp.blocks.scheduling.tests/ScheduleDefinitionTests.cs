@@ -380,6 +380,41 @@ public sealed class ScheduleDefinitionTests
         Assert.Equal("/envelope/contract", Assert.Single(refusals).Pointer);
     }
 
+    [Theory(DisplayName = "scheduling-ck-4: a threshold missing its crossing or value refuses, not reading as above zero")]
+    [InlineData("""{"kind":"threshold","reading":"hours_run"}""")]
+    [InlineData("""{"kind":"threshold","reading":"hours_run","crossing":"above"}""")]
+    [InlineData("""{"kind":"threshold","reading":"hours_run","value":5}""")]
+    public async Task ThresholdNeedsCrossingAndValue(string basis)
+        => Assert.Equal([new DefinitionRefusal(ScheduleDefinitionCodes.BodyInvalid, "")],
+            await RefusalsAsync(Body("\"basis\":" + basis + ",\"window\":" + Offsets)));
+
+    [Fact(DisplayName = "scheduling-ck-13: starts with no kind refuses, not reading as a form")]
+    public async Task StartsNeedsAKind()
+        => Assert.Equal([new DefinitionRefusal(ScheduleDefinitionCodes.BodyInvalid, "")],
+            await RefusalsAsync("{\"name\":\"n\",\"starts\":{\"target_id\":\"f\"},\"window\":" + Instants + "}"));
+
+    [Theory(DisplayName = "scheduling-ck-19: an envelope with no cascade layer or legal hold refuses, not reading as the default")]
+    [InlineData("\"legal_hold\":false")]
+    [InlineData("\"cascade_layer\":\"tenant_configuration\"")]
+    public async Task EnvelopeNeedsCascadeLayerAndLegalHold(string member)
+        => Assert.Equal([new DefinitionRefusal(ScheduleDefinitionCodes.BodyInvalid, "")], await RefusalsAsync(
+            "{\"envelope\":{\"identity\":\"" + Id + "\",\"tenant\":\"" + Tenant + "\"," + member
+            + ",\"provenance\":{},\"retention_class\":\"r\",\"requires\":[],\"contract\":{\"major\":1,\"minor\":0}},\"name\":\"n\",\"starts\":" + Form + ",\"window\":" + Instants + "}"));
+
+    [Theory(DisplayName = "scheduling-ck-4, scheduling-ck-11: a null list entry refuses at its index")]
+    [InlineData("\"basis\":{\"kind\":\"event_anchored_chain\",\"anchor\":\"e\",\"nodes\":[null]}", "scheduling.definition.basis_invalid", "/basis/nodes/0")]
+    [InlineData("\"window\":{\"earliest\":\"2027-01-01T00:00:00Z\",\"latest\":\"2027-01-02T00:00:00Z\"},\"problem_class\":\"Project\",\"modules\":[null]", "scheduling.definition.module_invalid", "/modules/0")]
+    public async Task NullListEntryRefuses(string members, string code, string pointer)
+        => Assert.Equal([new DefinitionRefusal(code, pointer)], await RefusalsAsync(Body(members)));
+
+    [Theory(DisplayName = "scheduling-ck-19: a null or blank required capability refuses at its index")]
+    [InlineData("null")]
+    [InlineData("{\"capability\":\" \"}")]
+    public async Task EnvelopeRequirementRefuses(string requirement)
+        => Assert.Equal([new DefinitionRefusal("scheduling.definition.envelope_invalid", "/envelope/requires/0")], await RefusalsAsync(
+            "{\"envelope\":{\"identity\":\"" + Id + "\",\"tenant\":\"" + Tenant + "\",\"cascade_layer\":\"tenant_configuration\",\"legal_hold\":false"
+            + ",\"provenance\":{},\"retention_class\":\"r\",\"requires\":[" + requirement + "],\"contract\":{\"major\":1,\"minor\":0}},\"name\":\"n\",\"starts\":" + Form + ",\"window\":" + Instants + "}"));
+
     [Fact(DisplayName = "scheduling-ck-22: the sealed Schedulable trait and its three slots agree with the seed, and only it admits a type to planning")]
     public void SchedulableTraitAgreesWithTheSeed()
     {

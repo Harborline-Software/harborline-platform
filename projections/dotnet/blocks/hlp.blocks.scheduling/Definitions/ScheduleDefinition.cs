@@ -25,10 +25,10 @@ public sealed record ScheduleDefinitionEnvelope(
     string Identity,
     string? Version,
     string Tenant,
-    LayoutCascadeLayer CascadeLayer,
+    [property: JsonRequired] LayoutCascadeLayer CascadeLayer,
     JsonElement? Provenance,
     string RetentionClass,
-    bool LegalHold,
+    [property: JsonRequired] bool LegalHold,
     IReadOnlyList<LayoutDefinitionRequirement> Requires,
     DefinitionContractVersion? Contract);
 
@@ -66,7 +66,7 @@ public enum ThresholdCrossing
 /// <param name="Reading">The reading the threshold watches.</param>
 /// <param name="Crossing">The direction that makes work due.</param>
 /// <param name="Value">The threshold value.</param>
-public sealed record ThresholdBasis(string Reading, ThresholdCrossing Crossing, decimal Value) : ScheduleBasis;
+public sealed record ThresholdBasis(string Reading, [property: JsonRequired] ThresholdCrossing Crossing, [property: JsonRequired] decimal Value) : ScheduleBasis;
 
 /// <summary>
 /// A generator distinct from recurrence: one external anchor, so moving it re-anchors the whole chain (L449). A node
@@ -153,7 +153,7 @@ public enum ScheduleStartKind
 /// <summary>The work a schedule starts. A schedule never does the work itself (scheduling-ck-13).</summary>
 /// <param name="Kind">What is started.</param>
 /// <param name="TargetId">The definition it names.</param>
-public sealed record ScheduleStarts(ScheduleStartKind Kind, string TargetId);
+public sealed record ScheduleStarts([property: JsonRequired] ScheduleStartKind Kind, string TargetId);
 
 /// <summary>
 /// The Scheduling definition, content kind 11 (scheduling-ck-1, DES-0022 section 2). A due date and a form are a complete
@@ -204,7 +204,10 @@ public static class SchedulableTrait
     }
 }
 
-/// <summary>Provider-neutral JSON for <see cref="ScheduleDefinition"/>. An unknown member, kind or literal fails to read.</summary>
+/// <summary>
+/// Provider-neutral JSON for <see cref="ScheduleDefinition"/>. An unknown member, kind or literal fails to read, and so does a
+/// missing member marked <see cref="JsonRequiredAttribute"/>: a value type would otherwise read as its default, which nobody authored.
+/// </summary>
 public static class ScheduleDefinitionJson
 {
     private static readonly JsonSerializerOptions Options = CreateOptions();

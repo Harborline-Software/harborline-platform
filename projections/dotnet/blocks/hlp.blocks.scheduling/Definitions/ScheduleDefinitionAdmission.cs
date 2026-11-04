@@ -50,6 +50,9 @@ internal static class ScheduleDefinitionAdmission
         if (string.IsNullOrWhiteSpace(envelope.RetentionClass))
             refusals.Add(new(ScheduleDefinitionCodes.EnvelopeInvalid, "/envelope/retention_class"));
         if (envelope.Requires is null) refusals.Add(new(ScheduleDefinitionCodes.EnvelopeInvalid, "/envelope/requires"));
+        foreach (var (requirement, index) in (envelope.Requires ?? []).Select((value, index) => (value, index)))
+            if (requirement is null || string.IsNullOrWhiteSpace(requirement.Capability))
+                refusals.Add(new(ScheduleDefinitionCodes.EnvelopeInvalid, $"/envelope/requires/{index}"));
         var contract = window.Check(envelope.Contract, null);
         if (contract is not null) refusals.Add(new(contract.Code, contract.Pointer));
     }
@@ -85,6 +88,11 @@ internal static class ScheduleDefinitionAdmission
         foreach (var (node, index) in chain.Nodes.Select((value, index) => (value, index)))
         {
             var pointer = $"/basis/nodes/{index}";
+            if (node is null)
+            {
+                refusals.Add(new(ScheduleDefinitionCodes.BasisInvalid, pointer));
+                continue;
+            }
             if (string.IsNullOrWhiteSpace(node.NodeId) || earlier.Contains(node.NodeId))
                 refusals.Add(new(ScheduleDefinitionCodes.BasisInvalid, pointer + "/node_id"));
             // Only the chain has an external anchor, so moving it moves every node (L449).
@@ -124,8 +132,8 @@ internal static class ScheduleDefinitionAdmission
         if (modules.Count > 0 && definition.ProblemClass == ScheduleProblemClass.None)
             refusals.Add(new(ScheduleDefinitionCodes.ModulesWithoutProblemClass, "/modules"));
         foreach (var (module, index) in modules.Select((value, index) => (value, index)))
-            if (string.IsNullOrWhiteSpace(module.Module))
-                refusals.Add(new(ScheduleDefinitionCodes.ModuleInvalid, $"/modules/{index}/module"));
+            if (module is null) refusals.Add(new(ScheduleDefinitionCodes.ModuleInvalid, $"/modules/{index}"));
+            else if (string.IsNullOrWhiteSpace(module.Module)) refusals.Add(new(ScheduleDefinitionCodes.ModuleInvalid, $"/modules/{index}/module"));
     }
 
     private static void Duration(string? value, string pointer, List<DefinitionRefusal> refusals)
