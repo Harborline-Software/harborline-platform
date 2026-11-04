@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.Json.Nodes;
 
 using Harborline.Blocks.BuilderDefinitions;
 
@@ -34,17 +35,43 @@ public sealed class DocumentRuntimeCompletionTests
         Assert.Equal([new RenderedDocumentBlock("zeta", "first", "first block"), new RenderedDocumentBlock("alpha", "left", "second block")], preview.Document.Blocks);
     }
 
-    [Fact(DisplayName = "documents-eng-3: a stored placement the pinned surface refuses diagnoses at render rather than normalizing")]
+    [Fact(DisplayName = "documents-eng-3: an invalid stored placement diagnoses at render by name, rather than normalizing")]
     public async Task InvalidStoredPlacementDiagnoses()
     {
+        var range = LayoutDefinitionSchema.Numeric(LayoutNumericMember.Span);
+        var stored = JsonNode.Parse(LayoutDefinitionJson.SerializeCanonical(Surface()))!;
+        stored["blocks"]![0]!["placement"] = new JsonObject { ["span"] = range.Maximum + 5 };
         var bytes = TemplateDefinitionJson.SerializeCanonical(Template());
-        var refusing = new TemplateSurfaces(_ => null, (_, _) => [], (_, _) => null, PlatformPackageSeed.ContractWindow);
-        var runtime = new DocumentRuntime(new Templates(bytes), refusing);
+        var runtime = new DocumentRuntime(new Templates(bytes), Surfaces(stored.ToJsonString()));
 
         var refused = await Assert.ThrowsAsync<DefinitionRefusalException>(async () =>
-            await runtime.PreviewAsync(new DocumentInlineTemplate(bytes), new DocumentPageFlow([]), EnUsContext, null));
+            await runtime.PreviewAsync(new DocumentInlineTemplate(bytes), new DocumentPageFlow([new("masthead", "first", "x")]), EnUsContext, null));
 
         Assert.Equal(DefinitionAdmissionPhase.Render, refused.Stage);
+        Assert.Equal([new DefinitionRefusal(LayoutDefinitionCodes.NumericOutOfRange, "/surface/blocks/0/placement/span")], refused.Refusals);
+    }
+
+    [Theory(DisplayName = "documents-eng-3: a page variant Layout does not produce is refused by name")]
+    [InlineData("")]
+    [InlineData("First")]
+    [InlineData("second")]
+    public async Task UnknownPageVariantIsRefused(string variant)
+    {
+        var refused = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await Runtime(Template()).PreviewAsync(new DocumentTemplateReference("template.invoice", "1.0.0"), new DocumentPageFlow([new("a", variant, "x")]), EnUsContext, null));
+
+        Assert.Equal("documents.flow.page_variant_invalid", refused.Message);
+    }
+
+    [Theory(DisplayName = "documents-eng-3: Layout's three page variants pass")]
+    [InlineData("first")]
+    [InlineData("left")]
+    [InlineData("right")]
+    public async Task KnownPageVariantsPass(string variant)
+    {
+        var preview = await Runtime(Template()).PreviewAsync(new DocumentTemplateReference("template.invoice", "1.0.0"), new DocumentPageFlow([new("a", variant, "x")]), EnUsContext, null);
+
+        Assert.Equal(variant, preview.Document.Blocks.Single().PageVariant);
     }
 
     [Fact(DisplayName = "documents-eng-7: a recipient locale renders one value identically under two UI locales")]
@@ -65,6 +92,9 @@ public sealed class DocumentRuntimeCompletionTests
     [InlineData(DocumentMergeFormat.Currency, "1234.5", "$1,234.50", "1.234,50 €")]
     [InlineData(DocumentMergeFormat.Date, "2026-03-04", "3/4/2026", "04.03.2026")]
     [InlineData(DocumentMergeFormat.Date, "2026-03-04T10:15:00Z", "3/4/2026", "04.03.2026")]
+    [InlineData(DocumentMergeFormat.Date, "2026-03-04T23:30:00.5-05:00", "3/4/2026", "04.03.2026")]
+    [InlineData(DocumentMergeFormat.Decimal, "-1234.5", "-1,234.5", "-1.234,5")]
+    [InlineData(DocumentMergeFormat.Integer, "1234.0", "1,234", "1.234")]
     [InlineData(DocumentMergeFormat.Integer, "1234", "1,234", "1.234")]
     [InlineData(DocumentMergeFormat.Decimal, "1234.5", "1,234.5", "1.234,5")]
     [InlineData(DocumentMergeFormat.Decimal, "1234.50", "1,234.50", "1.234,50")]
@@ -81,15 +111,43 @@ public sealed class DocumentRuntimeCompletionTests
             new DocumentLiteralRun("Total: "), new DocumentMergeRun("1234", DocumentMergeFormat.Integer),
             new DocumentLiteralRun(" units of "), new DocumentMergeRun("1.5", DocumentMergeFormat.Text)));
 
-    [Theory(DisplayName = "documents-eng-7: currency symbols come from the render context's code, and an unknown code prints itself")]
-    [InlineData("GBP", "£10.00")]
-    [InlineData("JPY", "¥10.00")]
-    [InlineData("CAD", "CA$10.00")]
-    [InlineData("AUD", "A$10.00")]
-    [InlineData("usd", "$10.00")]
-    [InlineData("CHF", "CHF10.00")]
-    public async Task CurrencySymbolFollowsTheContext(string code, string expected)
-        => Assert.Equal(expected, await Rendered(new("en-US", "en-US", code), new DocumentMergeRun("10", DocumentMergeFormat.Currency)));
+    [Theory(DisplayName = "documents-eng-7: currency symbol and digits come from the render context's code (ISO 4217), and an unknown code prints itself")]
+    [InlineData("GBP", "10", "£10.00")]
+    [InlineData("JPY", "10", "¥10")]
+    [InlineData("CAD", "10", "CA$10.00")]
+    [InlineData("AUD", "10", "A$10.00")]
+    [InlineData("usd", "10", "$10.00")]
+    [InlineData("CHF", "10", "CHF10.00")]
+    [InlineData("KWD", "10.125", "KWD10.125")]
+    [InlineData("CLF", "10.1255", "CLF10.1255")]
+    public async Task CurrencyFollowsTheCode(string code, string value, string expected)
+        => Assert.Equal(expected, await Rendered(new("en-US", "en-US", code), new DocumentMergeRun(value, DocumentMergeFormat.Currency)));
+
+    [Fact(DisplayName = "documents-eng-7: a culture's own currency digits never drop an amount's minor units")]
+    public async Task CultureDoesNotChooseCurrencyDigits()
+        => Assert.Equal("$1,234.56", await Rendered(new("ja-JP", "en-US", "USD"), new DocumentMergeRun("1234.56", DocumentMergeFormat.Currency)));
+
+    [Theory(DisplayName = "documents-eng-7: an amount finer than the currency's minor unit is refused rather than rounded")]
+    [InlineData("USD", "1234.567")]
+    [InlineData("JPY", "10.5")]
+    public async Task SubMinorAmountIsRefused(string code, string value)
+    {
+        var refused = await Assert.ThrowsAsync<InvalidOperationException>(() => Rendered(new("en-US", "en-US", code), new DocumentMergeRun(value, DocumentMergeFormat.Currency)));
+        Assert.Equal("documents.merge.value_malformed", refused.Message);
+    }
+
+    [Theory(DisplayName = "documents-eng-7: a currency run needs a three-letter currency code; other runs do not")]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("US")]
+    [InlineData("US1")]
+    [InlineData("USDX")]
+    public async Task CurrencyRunNeedsAValidCode(string? code)
+    {
+        var refused = await Assert.ThrowsAsync<InvalidOperationException>(() => Rendered(new("en-US", "en-US", code!), new DocumentMergeRun("10", DocumentMergeFormat.Currency)));
+        Assert.Equal("documents.merge.currency_invalid", refused.Message);
+        Assert.Equal("10", await Rendered(new("en-US", "en-US", code!), new DocumentMergeRun("10", DocumentMergeFormat.Text)));
+    }
 
     [Fact(DisplayName = "documents-eng-7: an unknown locale tag formats as en-US, never as a culture the host fabricates")]
     public async Task UnknownLocaleFallsBackToEnUs()
@@ -103,6 +161,20 @@ public sealed class DocumentRuntimeCompletionTests
     [InlineData(DocumentMergeFormat.Integer, "ten")]
     [InlineData(DocumentMergeFormat.Decimal, "ten")]
     [InlineData(DocumentMergeFormat.Date, "not a date")]
+    [InlineData(DocumentMergeFormat.Decimal, "1,5")]
+    [InlineData(DocumentMergeFormat.Decimal, "1,2,3")]
+    [InlineData(DocumentMergeFormat.Decimal, "12-")]
+    [InlineData(DocumentMergeFormat.Decimal, "+12")]
+    [InlineData(DocumentMergeFormat.Decimal, " 12")]
+    [InlineData(DocumentMergeFormat.Decimal, ".5")]
+    [InlineData(DocumentMergeFormat.Decimal, "5.")]
+    [InlineData(DocumentMergeFormat.Decimal, "-")]
+    [InlineData(DocumentMergeFormat.Decimal, "")]
+    [InlineData(DocumentMergeFormat.Decimal, "99999999999999999999999999999999")]
+    [InlineData(DocumentMergeFormat.Integer, "1234.5")]
+    [InlineData(DocumentMergeFormat.Date, "10:15")]
+    [InlineData(DocumentMergeFormat.Date, "3/4/2026")]
+    [InlineData(DocumentMergeFormat.Date, "2026-03-04T10:15:00")]
     public async Task MalformedCanonicalValueIsRefused(DocumentMergeFormat format, string value)
     {
         var refused = await Assert.ThrowsAsync<InvalidOperationException>(() => Rendered(EnUsContext, new DocumentMergeRun(value, format)));
@@ -114,13 +186,6 @@ public sealed class DocumentRuntimeCompletionTests
     {
         var refused = await Assert.ThrowsAsync<InvalidOperationException>(() => Rendered(EnUsContext, new DocumentMergeRun("1", (DocumentMergeFormat)99)));
         Assert.Equal("documents.merge.format_unsupported", refused.Message);
-    }
-
-    [Fact(DisplayName = "documents-eng-7: an unknown run kind is refused")]
-    public async Task UnknownRunKindIsRefused()
-    {
-        var refused = await Assert.ThrowsAsync<InvalidOperationException>(() => Rendered(EnUsContext, new UnknownRun()));
-        Assert.Equal("documents.merge.run_unsupported", refused.Message);
     }
 
     [Fact(DisplayName = "documents-auth-10: a null merge renders the authored literal fallback, or nothing when none is authored")]
@@ -164,8 +229,8 @@ public sealed class DocumentRuntimeCompletionTests
         var plain = Encoding.UTF8.GetString((await new Utf8Writer("pdf").WriteAsync(document)).Span);
         var framed = Encoding.UTF8.GetString((await new FramedWriter().WriteAsync(document)).Span);
 
-        Assert.NotEqual(plain, framed);
-        Assert.Equal(plain, framed.Replace("[", "").Replace("]", ""));
+        Assert.Equal("one\ntwo", plain);
+        Assert.Equal("[one]\n[two]", framed);
     }
 
     [Fact(DisplayName = "documents-eng-10, documents-run-2: issuance renders through the preview's path, and only a preview is non-minting")]
@@ -181,7 +246,8 @@ public sealed class DocumentRuntimeCompletionTests
         Assert.Equal(DocumentContentHash.Of(preview.Document), issuance.ContentHash);
         Assert.Equal(preview.Document.Blocks, issuance.Document.Blocks);
         Assert.Equal("1,234", issuance.Document.Blocks.Single().Content);
-        Assert.False(preview.Minted);
+        Assert.Equal("template.invoice", issuance.TemplateKey);
+        Assert.Equal("1.0.0", issuance.TemplateVersion);
     }
 
     [Fact(DisplayName = "documents-eng-10: issuance is refused for what preview refuses, so neither path is laxer")]
@@ -189,10 +255,45 @@ public sealed class DocumentRuntimeCompletionTests
     {
         var template = Template() with { Style = new("Harborline", "https://assets.example/logo.svg") };
 
-        var refused = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+        var refused = await Assert.ThrowsAsync<DefinitionRefusalException>(async () =>
             await Runtime(template).RenderForIssuanceAsync(new DocumentTemplateReference("template.invoice", "1.0.0"), new DocumentPageFlow([]), EnUsContext));
 
-        Assert.Equal("documents.style.logo_not_pinned", refused.Message);
+        Assert.Equal([new DefinitionRefusal(TemplateDefinitionCodes.LogoNotPinned, "/style/logo_asset_ref")], refused.Refusals);
+    }
+
+    [Theory(DisplayName = "documents-eng-10: issuance needs an exact version, because the issued record pins it")]
+    [InlineData(null)]
+    [InlineData(" ")]
+    public async Task IssuanceNeedsAnExactVersion(string? version)
+    {
+        var refused = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await Runtime(Template()).RenderForIssuanceAsync(new DocumentTemplateReference("template.invoice", version), new DocumentPageFlow([]), EnUsContext));
+
+        Assert.Equal("documents.template.version_required", refused.Message);
+    }
+
+    [Fact(DisplayName = "documents-eng-10: issuance refuses a null reference")]
+    public async Task IssuanceRefusesANullReference()
+        => await Assert.ThrowsAsync<ArgumentNullException>(async () =>
+            await Runtime(Template()).RenderForIssuanceAsync(null!, new DocumentPageFlow([]), EnUsContext));
+
+    [Theory(DisplayName = "documents-eng-1: a template source answering a pin with another template is refused")]
+    [InlineData("template.other", "1.0.0")]
+    [InlineData("template.invoice", "2.0.0")]
+    public async Task ReferenceMustMatchTheBody(string key, string version)
+    {
+        var refused = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await Runtime(Template()).PreviewAsync(new DocumentTemplateReference(key, version), new DocumentPageFlow([]), EnUsContext, null));
+
+        Assert.Equal("documents.template.reference_mismatch", refused.Message);
+    }
+
+    [Fact(DisplayName = "documents-eng-1: a preview reference with no version matches the body's identity")]
+    public async Task PreviewReferenceWithoutAVersionPasses()
+    {
+        var preview = await Runtime(Template()).PreviewAsync(new DocumentTemplateReference("template.invoice", null), new DocumentPageFlow([]), EnUsContext, null);
+
+        Assert.Equal("invoice", preview.Document.DocumentType);
     }
 
     [Fact(DisplayName = "documents-run-1: the semantic hash is stable and matches a literal computed outside this code")]
@@ -204,6 +305,31 @@ public sealed class DocumentRuntimeCompletionTests
         // The expected value was computed outside this code: SHA-256 of the compact JSON array of the semantic fields.
         Assert.Equal("sha256:0e682231d9deb2ac818fa77d65a6003ec8e9ce473e60c88c86dc964f0bd7dd74", DocumentContentHash.Of(document));
         Assert.Throws<ArgumentNullException>(() => DocumentContentHash.Of(null!));
+    }
+
+    [Fact(DisplayName = "documents-run-1: non-ASCII text hashes as raw UTF-8, matching a literal computed outside this code")]
+    public void HashWritesNonAsciiRaw()
+    {
+        var document = new RenderedDocument("invoice", "de-DE", "EUR", new("Müller & Söhne", PinnedLogo), [new("a", "first", "1.234,50 € <b>"), new("b", "left", "two")]);
+
+        Assert.Equal("sha256:86cf21e842706612341f5655b4903d1255e270c1bbdc04316e745e9b09a5e823", DocumentContentHash.Of(document));
+    }
+
+    [Theory(DisplayName = "documents-run-1: spellings of one locale report and hash as the resolved culture, so equal content hashes equally")]
+    [InlineData("de-de", "de-DE")]
+    [InlineData("DE-DE", "de-DE")]
+    [InlineData("zz-ZZ", "en-US")]
+    public async Task LocaleIsReportedAsResolved(string spelled, string resolved)
+    {
+        var template = FromRecord();
+        var input = new DocumentInlineTemplate(TemplateDefinitionJson.SerializeCanonical(template));
+        var flow = new DocumentPageFlow([new("a", "first", "x")]);
+
+        var spelledPreview = await Runtime(template).PreviewAsync(input, flow, new(spelled, "en-US", "USD"), null);
+        var resolvedPreview = await Runtime(template).PreviewAsync(input, flow, new(resolved, "en-US", "USD"), null);
+
+        Assert.Equal(resolved, spelledPreview.Document.LocaleTag);
+        Assert.Equal(DocumentContentHash.Of(resolvedPreview.Document), DocumentContentHash.Of(spelledPreview.Document));
     }
 
     public static TheoryData<string, RenderedDocument> HashChanges => new()
@@ -250,10 +376,20 @@ public sealed class DocumentRuntimeCompletionTests
     {
         var template = Template() with { Style = new("Harborline", reference) };
 
-        var refused = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+        var refused = await Assert.ThrowsAsync<DefinitionRefusalException>(async () =>
             await Runtime(template).PreviewAsync(new DocumentTemplateReference("template.invoice", "1.0.0"), new DocumentPageFlow([]), EnUsContext, null));
 
-        Assert.Equal("documents.style.logo_not_pinned", refused.Message);
+        Assert.Equal(DefinitionAdmissionPhase.Render, refused.Stage);
+        Assert.Equal([new DefinitionRefusal(TemplateDefinitionCodes.LogoNotPinned, "/style/logo_asset_ref")], refused.Refusals);
+    }
+
+    [Fact(DisplayName = "documents-bound-8: publish refuses an unpinned logo, so a published template can always render")]
+    public void PublishRefusesAnUnpinnedLogo()
+    {
+        var template = Template() with { Style = new("Harborline", "https://assets.example/logo.svg") };
+
+        Assert.Equal([new DefinitionRefusal(TemplateDefinitionCodes.LogoNotPinned, "/style/logo_asset_ref")], TemplateDefinitionAdmission.Validate(template, Surfaces()));
+        Assert.Throws<DefinitionRefusalException>(() => TemplatePack.Export(template, Surfaces()));
     }
 
     [Theory(DisplayName = "documents-bound-8: a digest-pinned logo and no logo both pass")]
@@ -270,8 +406,6 @@ public sealed class DocumentRuntimeCompletionTests
 
     private static RenderedDocument Document() => new("invoice", "en-US", "USD", new("Harborline", PinnedLogo),
         [new("a", "first", "one"), new("b", "left", "two")]);
-
-    private sealed record UnknownRun : DocumentFlowRun;
 
     private sealed class Templates(byte[] body) : IDocumentTemplateSource
     {

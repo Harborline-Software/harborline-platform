@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Encodings.Web;
 using System.Text.Json;
 
 namespace Harborline.Foundation.Documents;
@@ -21,7 +22,11 @@ public enum DocumentMergeFormat
 }
 
 /// <summary>One run of a block's line, already resolved from Layout's text runs by the host seam.</summary>
-public abstract record DocumentFlowRun;
+public abstract record DocumentFlowRun
+{
+    /// <summary>The two run kinds are the whole set; a host cannot add a third.</summary>
+    private protected DocumentFlowRun() { }
+}
 
 /// <summary>Authored literal text, rendered unchanged.</summary>
 public sealed record DocumentLiteralRun(string Text) : DocumentFlowRun;
@@ -33,64 +38,23 @@ public sealed record DocumentLiteralRun(string Text) : DocumentFlowRun;
 public sealed record DocumentMergeRun(string? CanonicalValue, DocumentMergeFormat Format, string? Fallback = null) : DocumentFlowRun;
 
 /// <summary>
-/// Formats canonical merge values in the document's locale (documents-eng-7). It is deterministic across hosts: only
-/// predefined cultures are used, because ICU fabricates patterns for unknown tags, and an unknown tag falls back to
-/// en-US rather than to a fabricated or invariant culture.
+/// Formats canonical merge values in the document's locale (documents-eng-7). It is deterministic across hosts and
+/// days: only predefined cultures are used, because ICU fabricates patterns for unknown tags, and only strict canonical
+/// forms parse, so a value that could be misread (a grouped "1,5", a time with no date) is refused, never guessed at.
 /// </summary>
-internal sealed class DocumentValueFormatter(string localeTag, string currencyCode)
+internal sealed class DocumentValueFormatter(CultureInfo culture, string? currencyCode)
 {
-    private readonly CultureInfo _culture = ResolveCulture(localeTag);
+    private static readonly string[] CanonicalInstants =
+    [
+        "yyyy-MM-dd'T'HH:mm:ss'Z'", "yyyy-MM-dd'T'HH:mm:ss.FFFFFFF'Z'",
+        "yyyy-MM-dd'T'HH:mm:sszzz", "yyyy-MM-dd'T'HH:mm:ss.FFFFFFFzzz",
+    ];
 
     public string FormatRuns(IEnumerable<DocumentFlowRun> runs)
-        => string.Concat(runs.Select(run => run switch
-        {
-            DocumentLiteralRun literal => literal.Text,
-            DocumentMergeRun merge => merge.CanonicalValue is null ? merge.Fallback ?? string.Empty : Format(merge.CanonicalValue, merge.Format),
-            _ => throw new InvalidOperationException("documents.merge.run_unsupported"),
-        }));
+        => string.Concat(runs.Select(run => run is DocumentLiteralRun literal ? literal.Text : FormatMerge((DocumentMergeRun)run)));
 
-    private string Format(string value, DocumentMergeFormat format) => format switch
-    {
-        DocumentMergeFormat.Text => value,
-        DocumentMergeFormat.Currency => Decimal(value).ToString("C", CurrencyFormat()),
-        DocumentMergeFormat.Date => Date(value),
-        DocumentMergeFormat.Integer => Decimal(value).ToString("N0", _culture),
-        // The value's own scale: "N" alone pads to the culture's digit count, printing a precision the value never had.
-        DocumentMergeFormat.Decimal => Decimal(value) is var number ? number.ToString("N" + number.Scale.ToString(CultureInfo.InvariantCulture), _culture) : value,
-        _ => throw new InvalidOperationException("documents.merge.format_unsupported"),
-    };
-
-    private NumberFormatInfo CurrencyFormat()
-    {
-        var format = (NumberFormatInfo)_culture.NumberFormat.Clone();
-        format.CurrencySymbol = currencyCode.ToUpperInvariant() switch
-        {
-            "USD" => "$",
-            "EUR" => "€",
-            "GBP" => "£",
-            "JPY" => "¥",
-            "CAD" => "CA$",
-            "AUD" => "A$",
-            var other => other,
-        };
-        return format;
-    }
-
-    private static decimal Decimal(string value)
-        => decimal.TryParse(value, NumberStyles.Number, CultureInfo.InvariantCulture, out var amount)
-            ? amount
-            : throw new InvalidOperationException("documents.merge.value_malformed");
-
-    private string Date(string value)
-    {
-        if (DateOnly.TryParseExact(value, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var date))
-            return date.ToString("d", _culture);
-        return DateTimeOffset.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var instant)
-            ? instant.ToString("d", _culture)
-            : throw new InvalidOperationException("documents.merge.value_malformed");
-    }
-
-    private static CultureInfo ResolveCulture(string tag)
+    /// <summary>The predefined culture for a tag; an unknown tag is en-US on every host, never a fabricated culture.</summary>
+    public static CultureInfo ResolveCulture(string tag)
     {
         try
         {
@@ -101,12 +65,96 @@ internal sealed class DocumentValueFormatter(string localeTag, string currencyCo
             return CultureInfo.GetCultureInfo("en-US");
         }
     }
+
+    private string FormatMerge(DocumentMergeRun merge)
+        => merge.CanonicalValue is null ? merge.Fallback ?? string.Empty : Format(merge.CanonicalValue, merge.Format);
+
+    private string Format(string value, DocumentMergeFormat format) => format switch
+    {
+        DocumentMergeFormat.Text => value,
+        DocumentMergeFormat.Currency => Currency(value),
+        DocumentMergeFormat.Date => Date(value),
+        DocumentMergeFormat.Integer => Integer(value),
+        // The value's own scale: "N" alone pads to the culture's digit count, printing a precision the value never had.
+        DocumentMergeFormat.Decimal => WithOwnScale(CanonicalDecimal(value)),
+        _ => throw new InvalidOperationException("documents.merge.format_unsupported"),
+    };
+
+    private string WithOwnScale(decimal number) => number.ToString("N" + number.Scale.ToString(CultureInfo.InvariantCulture), culture);
+
+    private string Integer(string value)
+    {
+        var number = CanonicalDecimal(value);
+        return number == decimal.Truncate(number) ? number.ToString("N0", culture) : throw Malformed();
+    }
+
+    // ISO 4217 sets the digits, not the culture: a culture's own currency digits would print USD with no cents under
+    // ja-JP. An amount finer than the currency's minor unit is refused rather than rounded, since it would be hashed.
+    private string Currency(string value)
+    {
+        if (currencyCode is not { Length: 3 } code || !code.All(char.IsAsciiLetter))
+            throw new InvalidOperationException("documents.merge.currency_invalid");
+        var upper = code.ToUpperInvariant();
+        var digits = MinorUnits(upper);
+        var amount = CanonicalDecimal(value);
+        if (decimal.Round(amount, digits) != amount) throw Malformed();
+        var format = (NumberFormatInfo)culture.NumberFormat.Clone();
+        format.CurrencySymbol = Symbol(upper);
+        format.CurrencyDecimalDigits = digits;
+        return amount.ToString("C", format);
+    }
+
+    private static int MinorUnits(string code) => code switch
+    {
+        "BIF" or "CLP" or "DJF" or "GNF" or "ISK" or "JPY" or "KMF" or "KRW" or "PYG" or "RWF" or "UGX" or "UYI" or "VND" or "VUV" or "XAF" or "XOF" or "XPF" => 0,
+        "BHD" or "IQD" or "JOD" or "KWD" or "LYD" or "OMR" or "TND" => 3,
+        "CLF" or "UYW" => 4,
+        _ => 2,
+    };
+
+    private static string Symbol(string code) => code switch
+    {
+        "USD" => "$",
+        "EUR" => "€",
+        "GBP" => "£",
+        "JPY" => "¥",
+        "CAD" => "CA$",
+        "AUD" => "A$",
+        _ => code,
+    };
+
+    // Canonical form only: an optional minus, digits, and optional fraction digits, in invariant notation.
+    private static decimal CanonicalDecimal(string value)
+    {
+        var digits = value.StartsWith('-') ? value[1..] : value;
+        var point = digits.IndexOf('.');
+        var whole = point < 0 ? digits : digits[..point];
+        var fraction = point < 0 ? "0" : digits[(point + 1)..];
+        if (whole.Length == 0 || fraction.Length == 0 || !whole.All(char.IsAsciiDigit) || !fraction.All(char.IsAsciiDigit))
+            throw Malformed();
+        return decimal.TryParse(value, NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out var number)
+            ? number
+            : throw Malformed();
+    }
+
+    // ISO-8601 only. A date-time carries its own offset, so the host's time zone and today's date never enter.
+    private string Date(string value)
+    {
+        if (DateOnly.TryParseExact(value, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var date))
+            return date.ToString("d", culture);
+        return DateTimeOffset.TryParseExact(value, CanonicalInstants, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var instant)
+            ? instant.ToString("d", culture)
+            : throw Malformed();
+    }
+
+    private static InvalidOperationException Malformed() => new("documents.merge.value_malformed");
 }
 
 /// <summary>
 /// The deterministic hash of a rendered document's semantic content (documents-ck-19, documents-eng-12,
 /// documents-run-1): its type, locale, currency, style and resolved blocks. PDF bytes are not deterministic, so bytes
-/// never enter it. Fields are written as a JSON array, so no two different documents share a serialization.
+/// never enter it. Fields are written as a compact JSON array with non-ASCII text left as raw UTF-8, so no two
+/// different documents share a serialization and another implementation can reproduce it.
 /// </summary>
 public static class DocumentContentHash
 {
@@ -115,7 +163,7 @@ public static class DocumentContentHash
     {
         ArgumentNullException.ThrowIfNull(document);
         using var buffer = new MemoryStream();
-        using (var writer = new Utf8JsonWriter(buffer))
+        using (var writer = new Utf8JsonWriter(buffer, new JsonWriterOptions { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping }))
         {
             writer.WriteStartArray();
             writer.WriteStringValue(document.DocumentType);
@@ -171,25 +219,4 @@ public sealed class DocumentOutputWriters
         => _byFormat.TryGetValue(format, out var binding)
             ? binding
             : throw new InvalidOperationException("documents.writer.format_unknown");
-}
-
-/// <summary>
-/// The style-asset boundary (documents-bound-8). A template logo is a digest-pinned pack asset (DES-0054 ruling 9), so
-/// only a digest reference passes. A URL or path could make the host fetch an attacker-chosen resource (CWE-918) or
-/// serve unpinned active content such as script in an SVG (CWE-79) when a preview renders.
-/// </summary>
-internal static class DocumentStyleAssets
-{
-    private const string Prefix = "sha256:";
-
-    public static void RefuseUnpinned(TemplateStyle? style)
-    {
-        if (style?.LogoAssetRef is { } reference && !IsPinned(reference))
-            throw new InvalidOperationException("documents.style.logo_not_pinned");
-    }
-
-    private static bool IsPinned(string reference)
-        => reference.Length == Prefix.Length + 64
-            && reference.StartsWith(Prefix, StringComparison.Ordinal)
-            && reference.AsSpan(Prefix.Length).IndexOfAnyExcept("0123456789abcdef") < 0;
 }

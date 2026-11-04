@@ -69,9 +69,11 @@ public sealed record DocumentPreview(RenderedDocument Document)
 }
 
 /// <summary>The issuance render: the same semantic document a preview produces, with the hash an issued record stores.</summary>
+/// <param name="TemplateKey">The issued template's stable identifier, which the issued record pins.</param>
+/// <param name="TemplateVersion">The exact issued template version, which the issued record pins.</param>
 /// <param name="Document">The renderer-neutral semantic output.</param>
 /// <param name="ContentHash">The deterministic hash of <paramref name="Document"/>'s semantic content.</param>
-public sealed record DocumentIssuanceRender(RenderedDocument Document, string ContentHash);
+public sealed record DocumentIssuanceRender(string TemplateKey, string TemplateVersion, RenderedDocument Document, string ContentHash);
 
 /// <summary>Library-neutral writer boundary; a host selects one adapter by its declared output format.</summary>
 public interface IDocumentOutputWriter
@@ -114,13 +116,14 @@ public sealed class DocumentRuntime
         CancellationToken cancellationToken = default)
     {
         _ = authoringUiLocale;
-        return new(await RenderAsync(input, pageFlow, context, cancellationToken).ConfigureAwait(false));
+        var (_, document) = await RenderAsync(input, pageFlow, context, cancellationToken).ConfigureAwait(false);
+        return new(document);
     }
 
     /// <summary>
     /// Renders a published template for issuance through the path <see cref="PreviewAsync"/> uses, and hashes the
-    /// result. It takes only a published reference, because an inline draft never mints, and it stores nothing:
-    /// recording the issued document stays with the host.
+    /// result. It takes only a published reference with an exact version, because an inline draft never mints and an
+    /// issued record pins what it issued from. It stores nothing: recording the issued document stays with the host.
     /// </summary>
     public async ValueTask<DocumentIssuanceRender> RenderForIssuanceAsync(
         DocumentTemplateReference template,
@@ -128,11 +131,13 @@ public sealed class DocumentRuntime
         DocumentRenderContext context,
         CancellationToken cancellationToken = default)
     {
-        var document = await RenderAsync(template, pageFlow, context, cancellationToken).ConfigureAwait(false);
-        return new(document, DocumentContentHash.Of(document));
+        ArgumentNullException.ThrowIfNull(template);
+        if (string.IsNullOrWhiteSpace(template.Version)) throw new InvalidOperationException("documents.template.version_required");
+        var (definition, document) = await RenderAsync(template, pageFlow, context, cancellationToken).ConfigureAwait(false);
+        return new(definition.Envelope.Identity, definition.Envelope.Version, document, DocumentContentHash.Of(document));
     }
 
-    private async ValueTask<RenderedDocument> RenderAsync(
+    private async ValueTask<(TemplateDefinition Template, RenderedDocument Document)> RenderAsync(
         DocumentTemplateInput input,
         DocumentPageFlow pageFlow,
         DocumentRenderContext context,
@@ -145,17 +150,32 @@ public sealed class DocumentRuntime
         var body = await ResolveAsync(input, cancellationToken).ConfigureAwait(false);
         var template = TemplateDefinitionJson.Deserialize(body.Span);
         TemplateDefinitionAdmission.ValidatePersisted(template, _surfaces);
-        DocumentStyleAssets.RefuseUnpinned(template.Style);
-        var locale = ResolveLocale(template.Locale, context);
-        var formatter = new DocumentValueFormatter(locale, context.CurrencyCode);
+        RefuseOtherTemplate(input, template);
+        // The resolved culture's own name, so equal content hashes equally whichever spelling of a tag selected it.
+        var culture = DocumentValueFormatter.ResolveCulture(ResolveLocale(template.Locale, context));
+        var formatter = new DocumentValueFormatter(culture, context.CurrencyCode);
         var blocks = (pageFlow.Blocks ?? [])
             .Select(block => new RenderedDocumentBlock(
                 block.Id,
-                block.PageVariant,
+                PageVariant(block),
                 block.Runs is { } runs ? formatter.FormatRuns(runs) : block.Content))
             .ToArray();
-        return new(template.DocumentType, locale, context.CurrencyCode, template.Style, blocks);
+        return (template, new(template.DocumentType, culture.Name, context.CurrencyCode, template.Style, blocks));
     }
+
+    // A host's template source cannot answer a pin with a different template: the body must name what was asked for.
+    private static void RefuseOtherTemplate(DocumentTemplateInput input, TemplateDefinition template)
+    {
+        if (input is DocumentTemplateReference reference
+            && (template.Envelope.Identity != reference.Key || (reference.Version is { } version && template.Envelope.Version != version)))
+            throw new InvalidOperationException("documents.template.reference_mismatch");
+    }
+
+    // Layout selects first, then left and right alternately; anything else is an invalid placement, diagnosed by name.
+    private static string PageVariant(DocumentFlowBlock block)
+        => block.PageVariant is "first" or "left" or "right"
+            ? block.PageVariant
+            : throw new InvalidOperationException("documents.flow.page_variant_invalid");
 
     private async ValueTask<ReadOnlyMemory<byte>> ResolveAsync(DocumentTemplateInput input, CancellationToken cancellationToken)
         => input switch

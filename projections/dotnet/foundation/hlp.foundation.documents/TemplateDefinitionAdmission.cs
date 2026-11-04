@@ -35,6 +35,8 @@ public static class TemplateDefinitionCodes
     public const string PinnedTupleConflict = "documents.template.pinned_tuple_conflict";
     /// <summary>The pinned surface leads back to the template version being published (owner ruling Q8).</summary>
     public const string CompositionCycle = "documents.template.composition_cycle";
+    /// <summary>A template logo is not a digest-pinned pack asset (documents-bound-8, DES-0054 ruling 9).</summary>
+    public const string LogoNotPinned = "documents.style.logo_not_pinned";
 }
 
 /// <summary>
@@ -81,6 +83,8 @@ public static class TemplateDefinitionAdmission
         if (template.Locale is null || !Enum.IsDefined(template.Locale.Kind)
             || (template.Locale.Kind == TemplateLocaleKind.Fixed) == Blank(template.Locale.Tag))
             refusals.Add(new(TemplateDefinitionCodes.BodyInvalid, "/locale"));
+        if (template.Style?.LogoAssetRef is { } logo && !IsDigestPinned(logo))
+            refusals.Add(new(TemplateDefinitionCodes.LogoNotPinned, "/style/logo_asset_ref"));
         if (template.Surface is null || Blank(template.Surface.SurfaceDefinitionId) || Blank(template.Surface.SurfaceVersion))
             refusals.Add(new(TemplateDefinitionCodes.BodyInvalid, "/surface"));
         else
@@ -89,6 +93,16 @@ public static class TemplateDefinitionAdmission
             if (template.Envelope is not null) Cycle(template, surfaces, refusals);
         }
         return refusals;
+    }
+
+    // A digest is the only reference form. A URL or path could make the host fetch an attacker-chosen resource
+    // (CWE-918) or serve unpinned active content such as script in an SVG (CWE-79) when a preview renders.
+    private static bool IsDigestPinned(string reference)
+    {
+        const string prefix = "sha256:";
+        return reference.Length == prefix.Length + 64
+            && reference.StartsWith(prefix, StringComparison.Ordinal)
+            && reference.AsSpan(prefix.Length).IndexOfAnyExcept("0123456789abcdef") < 0;
     }
 
     /// <summary>
