@@ -123,6 +123,17 @@ public sealed class DocumentRuntimeCompletionTests
     public async Task CurrencyFollowsTheCode(string code, string value, string expected)
         => Assert.Equal(expected, await Rendered(new("en-US", "en-US", code), new DocumentMergeRun(value, DocumentMergeFormat.Currency)));
 
+    [Theory(DisplayName = "documents-eng-7: every ISO 4217 currency with other than two minor units prints its own digits")]
+    [InlineData(0, "BIF", "CLP", "DJF", "GNF", "ISK", "KMF", "KRW", "PYG", "RWF", "UGX", "UYI", "VND", "VUV", "XAF", "XOF", "XPF")]
+    [InlineData(3, "BHD", "IQD", "JOD", "KWD", "LYD", "OMR", "TND")]
+    [InlineData(4, "CLF", "UYW")]
+    public async Task MinorUnitsFollowIso4217(int digits, params string[] codes)
+    {
+        var fraction = digits == 0 ? "" : "." + new string('0', digits);
+        foreach (var code in codes)
+            Assert.Equal(code + "10" + fraction, await Rendered(new("en-US", "en-US", code), new DocumentMergeRun("10", DocumentMergeFormat.Currency)));
+    }
+
     [Fact(DisplayName = "documents-eng-7: a culture's own currency digits never drop an amount's minor units")]
     public async Task CultureDoesNotChooseCurrencyDigits()
         => Assert.Equal("$1,234.56", await Rendered(new("ja-JP", "en-US", "USD"), new DocumentMergeRun("1234.56", DocumentMergeFormat.Currency)));
