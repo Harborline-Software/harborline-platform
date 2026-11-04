@@ -66,6 +66,23 @@ public sealed class NotificationCenterGroupTabsTests : BunitContext
     }
 
     [Fact]
+    public void ASelectedTabThatDisappearsFallsBackToAll()
+    {
+        // Select a caller group, then drop Groups: the derived tabs have no such key and, with only custom kinds,
+        // no tab list, so the view must return to All rather than keep filtering by the vanished tab.
+        NotificationCenterItem[] custom = [Item("d1", "deploy"), Item("a1", "audit")];
+        var cut = Open(custom, [new("deploy", "Deployments"), new("audit", "Audit log")]);
+        Choose(cut, "Deployments");
+        Assert.Equal(["d1"], Visible(cut));
+        cut.Render(p => p.Add(x => x.Items, custom).Add(x => x.Groups, (IReadOnlyList<NotificationGroup>?)null));
+        Assert.Empty(cut.FindAll("[role=tablist]"));
+        Assert.Equal(["d1", "a1"], Visible(cut));
+        // The fallback is kept: the caller group coming back does not reselect it.
+        cut.Render(p => p.Add(x => x.Items, custom).Add(x => x.Groups, new NotificationGroup[] { new("deploy", "Deployments"), new("audit", "Audit log") }));
+        Assert.Equal(["All"], Selected(cut));
+    }
+
+    [Fact]
     public void OnlyCustomKindsMakeOneTabAndSoNoTabList()
     {
         Assert.Empty(Open([Item("d1", "deploy"), Item("a1", "audit")]).FindAll("[role=tablist]"));

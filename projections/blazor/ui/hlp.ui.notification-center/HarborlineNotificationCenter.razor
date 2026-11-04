@@ -161,6 +161,9 @@
   protected override void OnParametersSet()
   {
     L = ResolveLabels(Labels);
+    // A selected tab whose key is gone (caller groups or items changed) falls back to All and stays there; with one
+    // tab left there is no tab list, so a stale selection could never be cleared.
+    if (activeTab != AllTab && Tabs.All(tab => tab.Key != activeTab)) activeTab = AllTab;
     if (Items.GroupBy(item => item.Id, StringComparer.Ordinal).Any(group => group.Count() > 1)) throw new InvalidOperationException("duplicate-notification-id");
     if (MaxVisible < 0) throw new InvalidOperationException("invalid-notification-limit");
     if (HarborlineBlankText.IsBlank(BellLabel)) throw new InvalidOperationException("accessible-notification-label-required");

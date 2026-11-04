@@ -146,6 +146,9 @@ export function NotificationCenter({
   const [open, setOpen] = React.useState(false)
   const [theme, setTheme] = React.useState<string>()
   const [active, setActive] = React.useState('all')
+  // A selected tab whose key is gone (caller groups or items changed) falls back to All and stays there; with one
+  // tab left there is no tab list, so a stale selection could never be cleared. React re-renders before committing.
+  if (active !== 'all' && !tabs.some(tab => tab.key === active)) setActive('all')
   const actionLatch = React.useRef(new Set<string>())
   const rootRef = React.useRef<HTMLDivElement>(null)
   const contentRef = React.useRef<HTMLDivElement>(null)
