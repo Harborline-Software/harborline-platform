@@ -28,7 +28,7 @@
     "projections/dotnet/foundation/hlp.foundation.forms.tests/FormRecordTypeTargetAdmissionTests.cs": "696a83e51c12c7cd5aa9dbd54ad1a553cc7f83db1aba2e17e9a606b27c001197",
     "projections/dotnet/foundation/hlp.foundation.forms/RecordCreationDeclarations.cs": "5db697d015620d4efeb0c6735774690a163f906f3739d600796fc4af7d64a6a6",
     "projections/dotnet/foundation/hlp.foundation.forms.tests/FormRecordCreationDeclarationTests.cs": "1458b4d32002daf2bef2c270655ba5334c99177b89c3e38786a86f78e17f9fe0",
-    "projections/dotnet/foundation/hlp.foundation.forms.tests/FormDefinitionVersioningTests.cs": "2dcfb3c9747e30d10955b11f035a3be16daf24c927a9ad647d1b496bc4f06ca8"
+    "projections/dotnet/foundation/hlp.foundation.forms.tests/FormDefinitionVersioningTests.cs": "ce6dfe92672dc0ed8890b83e039e855b02c50ba4a1ba94e5b4fa9f8b2e1f6d53"
   },
   "nextGate": "Consume the package-green Forms state through the Forms Engine in the authenticated inspection-review vertical slice."
 }

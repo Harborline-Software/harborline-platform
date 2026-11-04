@@ -225,8 +225,11 @@ public sealed class FormDefinitionVersioningTests
         using var store = new InMemoryFormDefinitionStore(new FixedClock(Now));
         await store.RegisterAsync(Form("1.0.0", FormDefinitionStatus.Published, owner: IdentityRef.System));
 
-        await Assert.ThrowsAsync<InvalidOperationException>(
+        var refusal = await Assert.ThrowsAsync<InvalidOperationException>(
             async () => await store.RestoreAsDraftAsync(Tenant, Id, SemanticVersion.Parse("1.0.0")));
+        Assert.Equal(
+            "'property.intake' v1.0.0 is a System-owned pack projection; restore it through RestorePackProjectionAsync, not as a tenant Draft.",
+            refusal.Message);
         Assert.Single(await Revisions(store));
     }
 
