@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Text.RegularExpressions;
 using Harborline.Contracts.Fields;
 using Harborline.Foundation.Authorization;
 using Harborline.Foundation.Definitions;
@@ -116,6 +117,7 @@ public sealed class RecordWriteOperationTests
 
     [Fact]
     [Trait("Holds", "records-eng-7")]
+    [Trait("Holds", "records-eng-29")]
     public async Task a_schema_the_validating_registry_does_not_hold_refuses_by_name_at_validate()
     {
         var fixture = await Published(validatingRegistry: new InMemorySchemaRegistry());
@@ -127,6 +129,115 @@ public sealed class RecordWriteOperationTests
         Assert.Empty(outcome.Refusal.Pointers);
         Assert.Equal(["begin", "rollback", "dispose"], fixture.Port.Events);
         Assert.Empty(fixture.Port.Published);
+    }
+
+    [Fact]
+    [Trait("Holds", "records-eng-28")]
+    public async Task a_client_supplied_record_id_or_tenant_in_the_body_replaces_neither_identity()
+    {
+        var fixture = await Published();
+        // The stub admits the extra members, so this proves the identity is never read from the body even if a schema allows them.
+        fixture.Registry.StubResult = new(true, []);
+        const string clientId = "0190a000000070008000000000000001";
+        var body = "{\"asset_tag\":\"A-1\",\"quantity\":3,\"notes\":\"spare\",\"record_id\":\"" + clientId
+            + "\",\"id\":\"" + clientId + "\",\"tenant\":\"tenant-b\"}";
+
+        var outcome = await fixture.Operation.CreateAsync(new("tenant-a", Actor), Request("op-client-id", body));
+
+        Assert.True(outcome.Committed);
+        Assert.NotEqual(clientId, outcome.Receipt!.RecordId);
+        var (_, row, _) = Assert.Single(fixture.Port.Published);
+        Assert.Equal(outcome.Receipt.RecordId, row.RecordId);
+        Assert.Equal("tenant-a", row.Tenant);
+        Assert.Equal("tenant-a", Assert.Single(fixture.Gate.Requests).Tenant);
+        Assert.Equal(outcome.Receipt.RecordId, Assert.Single(fixture.Gate.Requests).Record.Id);
+    }
+
+    [Fact]
+    [Trait("Holds", "records-eng-28")]
+    public async Task a_temporal_create_mints_a_uuid_v7_record_id()
+    {
+        using var fixture = await RecordTemporalWriteOperationTests.Fixture.Create();
+
+        var created = RecordTemporalWriteOperationTests.Committed(await fixture.CreateEvent());
+
+        // RFC 9562 section 5.7: version 7, and the RFC variant bits (section 4.1) in the top of the variant nibble.
+        var id = Guid.ParseExact(created.Receipt.RecordId, "N");
+        Assert.Equal(7, id.Version);
+        Assert.InRange(id.Variant, 0x8, 0xB);
+    }
+
+    [Fact]
+    [Trait("Holds", "records-eng-2")]
+    public async Task a_denied_amend_cannot_tell_a_missing_record_from_one_it_may_not_amend()
+    {
+        using var fixture = await RecordTemporalWriteOperationTests.Fixture.Create();
+        var first = RecordTemporalWriteOperationTests.Committed(await fixture.CreateEvent());
+        var before = fixture.Bytes();
+        var lookups = fixture.Storage.ReceiptLookups;
+        fixture.Access.Allow = false;
+
+        var existing = await fixture.AmendEvent(first);
+        var missing = await fixture.Writer.AmendAsync(new(RecordTemporalWriteOperationTests.Tenant, RecordTemporalWriteOperationTests.Actor),
+            new("no-such-record", "r2", RecordTemporalWriteOperationTests.Basis(first), RecordTemporalWriteOperationTests.Body(20),
+                RecordTemporalWriteOperationTests.GateAt, null, "reviewed"));
+
+        // CWE-203: both answers are the same authorize refusal, never a not-found.
+        foreach (var denied in new[] { existing, missing })
+        {
+            Assert.Equal(RecordTemporalWriteStatus.Refused, denied.Status);
+            Assert.Equal(("authorize", "TemporalDenied"), (denied.Refusal!.Stage, denied.Refusal.Code));
+            Assert.Empty(denied.Pointers);
+            Assert.Null(denied.Receipt);
+            Assert.False(denied.Decision!.Allowed);
+        }
+        Assert.Equal(lookups, fixture.Storage.ReceiptLookups);
+        Assert.Equal(before, fixture.Bytes());
+
+        fixture.Access.Allow = true;
+        var allowed = await fixture.Writer.AmendAsync(new(RecordTemporalWriteOperationTests.Tenant, RecordTemporalWriteOperationTests.Actor),
+            new("no-such-record", "r3", RecordTemporalWriteOperationTests.Basis(first), RecordTemporalWriteOperationTests.Body(20),
+                RecordTemporalWriteOperationTests.GateAt, null, "reviewed"));
+
+        Assert.Equal(RecordTemporalWriteStatus.RecordNotFound, allowed.Status);
+        Assert.Equal(["/record_id"], allowed.Pointers);
+        Assert.True(allowed.Decision!.Allowed);
+        Assert.Equal("no-such-record", allowed.Decision.RecordId);
+        Assert.Equal(before, fixture.Bytes());
+    }
+
+    // ADR 0111 decision 2: no write path orders, deduplicates or decides by the time inside a record id. The id is compared
+    // only for equality, so an ordering or decoding call on it in this module is the violation.
+    private static readonly Regex RecordIdTimeUse = new(
+        @"\b(?:OrderBy(?:Descending)?|ThenBy(?:Descending)?|MaxBy|MinBy|Max|Min|Sort|CompareTo|CompareOrdinal|Compare|Guid\.(?:Try)?Parse(?:Exact)?)\b[^;\r\n]*\bRecordId\b"
+        + @"|\bRecordId\.(?:CompareTo|Version|ToByteArray)\b",
+        RegexOptions.CultureInvariant);
+
+    [Theory]
+    [Trait("Holds", "records-eng-28")]
+    [InlineData("rows.OrderBy(row => row.RecordId)")]
+    [InlineData("entries.Sort((left, right) => left.RecordId.CompareTo(right.RecordId));")]
+    [InlineData("string.CompareOrdinal(a.RecordId, b.RecordId)")]
+    [InlineData("Guid.ParseExact(row.RecordId, \"N\")")]
+    public void the_id_time_scan_catches_a_planted_ordering_or_decoding(string planted)
+        => Assert.Matches(RecordIdTimeUse, planted);
+
+    [Fact]
+    [Trait("Holds", "records-eng-28")]
+    public void no_write_path_orders_or_decodes_by_the_time_inside_a_record_id()
+    {
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        const string module = "projections/dotnet/blocks/hlp.blocks.builder-definitions";
+        while (directory is not null && !Directory.Exists(Path.Combine(directory.FullName, module))) directory = directory.Parent;
+        Assert.NotNull(directory);
+
+        var sources = Directory.EnumerateFiles(Path.Combine(directory!.FullName, module), "*.cs", SearchOption.TopDirectoryOnly).ToArray();
+        Assert.Contains(sources, source => Path.GetFileName(source) == "RecordWriteOperation.cs");
+        var offenders = sources.SelectMany(source => File.ReadLines(source)
+            .Where(line => RecordIdTimeUse.IsMatch(line))
+            .Select(line => Path.GetFileName(source) + ": " + line.Trim()));
+
+        Assert.Empty(offenders);
     }
 
     [Fact]
@@ -264,6 +375,7 @@ public sealed class RecordWriteOperationTests
     [Theory]
     [Trait("Holds", "records-eng-9")]
     [InlineData("throw")]
+    [InlineData("timeout")]
     [InlineData("cancel")]
     public async Task a_registry_fault_or_cancellation_propagates_after_rollback_and_is_never_a_pass(string fault)
     {
@@ -273,7 +385,12 @@ public sealed class RecordWriteOperationTests
         var thrown = await Assert.ThrowsAnyAsync<Exception>(() =>
             fixture.Operation.CreateAsync(new("tenant-a", Actor), Request("op-0001", ValidBody)).AsTask());
 
-        Assert.IsType(fault == "throw" ? typeof(InvalidOperationException) : typeof(OperationCanceledException), thrown);
+        Assert.IsType(fault switch
+        {
+            "throw" => typeof(InvalidOperationException),
+            "timeout" => typeof(TimeoutException),
+            _ => typeof(OperationCanceledException),
+        }, thrown);
         Assert.Equal(["begin", "rollback", "dispose"], fixture.Port.Events);
         Assert.Empty(fixture.Port.Published);
     }
@@ -1728,6 +1845,7 @@ public sealed class RecordWriteOperationTests
             return ValidateFault switch
             {
                 "throw" => throw new InvalidOperationException("registry fault"),
+                "timeout" => throw new TimeoutException("registry timeout"),
                 "cancel" => throw new OperationCanceledException(),
                 _ => CaptureAsync(id, documentBytes, cancellationToken),
             };

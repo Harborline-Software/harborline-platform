@@ -63,7 +63,8 @@ public sealed record RecordWriteOperationKey(string Tenant, string CallerId, str
 
 /// <summary>The record row the operation stages into the host's transaction, exactly as it was validated.</summary>
 /// <param name="Tenant">The ambient tenant.</param>
-/// <param name="RecordId">The opaque id the operation minted.</param>
+/// <param name="RecordId">The opaque id the operation minted: a UUIDv7 in 32-digit form (ADR 0111). Nothing parses it, and the
+/// time inside it orders nothing.</param>
 /// <param name="RecordTypeId">The bound Record Type.</param>
 /// <param name="Version">The published version the write was bound to.</param>
 /// <param name="DefinitionDigest">The catalogue digest of that published body.</param>
@@ -621,6 +622,10 @@ public sealed class RecordWriteOperation
 
     private static readonly IReadOnlyDictionary<string, JsonNode?> NoFields = new Dictionary<string, JsonNode?>().AsReadOnly();
 
+    // ADR 0111 decisions 1 and 2 (RFC 9562 section 5.7): the node mints every record id with the platform's standard
+    // generator. The id stays opaque, so no code reads the time inside it, and a client never supplies it (records-eng-28).
+    private static string MintRecordId() => Guid.CreateVersion7().ToString("N");
+
     private readonly AccessProvider _access;
     private readonly RecordTypeDefinitionStore _recordTypes;
     private readonly ISchemaRegistry _registry;
@@ -766,22 +771,30 @@ public sealed class RecordWriteOperation
         RecordTemporalTarget? metadata = null;
         if (kind == RecordTemporalCommandKind.Amend)
         {
+            // The amend's decision is typed by the target's Record Type, so this one read of its type precedes the gate.
+            // A missing target therefore answers only after the gate, on an untyped request: a caller the gate denies
+            // cannot tell a record that does not exist from one it may not amend (CWE-203).
             metadata = await _temporalRecords.FindTemporalTargetAsync(scope.Tenant, target!, ct).ConfigureAwait(false);
-            if (metadata is null) return TemporalStatus(RecordTemporalWriteStatus.RecordNotFound, "/record_id");
-            if (TemporalBlank(metadata.RecordTypeId)) throw new InvalidOperationException("The temporal target has no type.");
-            type = metadata.RecordTypeId;
+            if (metadata is not null)
+            {
+                if (TemporalBlank(metadata.RecordTypeId)) throw new InvalidOperationException("The temporal target has no type.");
+                type = metadata.RecordTypeId;
+            }
         }
-        string digest;
-        try
+        var digest = string.Empty;
+        if (type is not null)
         {
-            digest = RecordWriteIntent.Digest(RecordTemporalJournalBinding.EncodeIntent(scope.Tenant, type!, kind,
-                target, basis, from, to, reason, version, body));
+            try
+            {
+                digest = RecordWriteIntent.Digest(RecordTemporalJournalBinding.EncodeIntent(scope.Tenant, type, kind,
+                    target, basis, from, to, reason, version, body));
+            }
+            catch (Exception error) when (error is EncoderFallbackException or InvalidOperationException or FormatException or OverflowException)
+            { return TemporalRefused(new(ValidateStage, BodyInvalid, [])); }
         }
-        catch (Exception error) when (error is EncoderFallbackException or InvalidOperationException or FormatException or OverflowException)
-        { return TemporalRefused(new(ValidateStage, BodyInvalid, [])); }
         var key = new RecordWriteOperationKey(scope.Tenant, scope.ActorId, operationId);
         var instant = _clock.GetUtcNow();
-        var recordId = target ?? Guid.NewGuid().ToString("N");
+        var recordId = target ?? MintRecordId();
         IReadOnlyDictionary<string, JsonNode?> fields = kind == RecordTemporalCommandKind.Create ? NoFields
             : new Dictionary<string, JsonNode?>(body.Select(member =>
                 new KeyValuePair<string, JsonNode?>(member.Key, member.Value?.DeepClone())), StringComparer.Ordinal).AsReadOnly();
@@ -790,6 +803,8 @@ public sealed class RecordWriteOperation
         if (!access.Check.Allowed)
             return TemporalRefused(new(AuthorizeStage, access.Check.Reason, [])) with { Decision = access.Evidence };
         var evidence = access.Evidence ?? throw new InvalidOperationException("The gate allowed without its evidence.");
+        if (kind == RecordTemporalCommandKind.Amend && metadata is null)
+            return TemporalStatus(RecordTemporalWriteStatus.RecordNotFound, "/record_id") with { Decision = evidence };
         var prior = await _temporalReceipts.FindTemporalOperationAsync(key, ct).ConfigureAwait(false);
         if (prior is not null) return SettleTemporal(prior, key, type!, target, digest) with { Decision = evidence };
         if (metadata is { IsTemporal: false })
@@ -968,7 +983,7 @@ public sealed class RecordWriteOperation
         if (request.Version is not null) ArgumentException.ThrowIfNullOrWhiteSpace(request.Version);
 
         var instant = _clock.GetUtcNow();
-        var recordId = Guid.NewGuid().ToString("N");
+        var recordId = MintRecordId();
 
         // W9: the target is typed by the requested Record Type, so the decider decides a create of exactly that type.
         var access = await _access.CheckWithEvidenceAsync(new AccessRequest(WriteAct, scope.ActorId, scope.Tenant,
@@ -1040,7 +1055,7 @@ public sealed class RecordWriteOperation
         ArgumentNullException.ThrowIfNull(command.AcceptanceAuditId);
 
         var instant = _clock.GetUtcNow();
-        var recordId = Guid.NewGuid().ToString("N");
+        var recordId = MintRecordId();
 
         // RW-1 and K7: the worker's own bounded act on exactly this command, never the submitter's records:write.
         var access = await _access.CheckWithEvidenceAsync(AcceptedRecordCommandAuthorization.Request(worker, command, instant),
