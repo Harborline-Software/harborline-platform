@@ -75,6 +75,16 @@ public sealed class InstallReceiptTests
         Assert.NotEqual(installedDigest, Digest(drifted));
     }
 
+    [Fact]
+    public async Task A_node_that_lost_the_package_capability_requirement_reports_a_digest_that_differs_from_the_published_one()
+    {
+        var (_, published) = await InstallAsync();
+        var (_, drifted) = await InstallAsync(PlatformPackageSeed.Manifest with { CapabilityRequirements = [] }, Published());
+
+        Assert.Equal(Published().Digest, Digest(published));
+        Assert.NotEqual(Published().Digest, Digest(drifted));
+    }
+
     [RequiresControlRepositoryFact]
     public async Task A_receipt_whose_authorization_outcome_differs_from_the_gate_is_refused_naming_the_capability()
     {

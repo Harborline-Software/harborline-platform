@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Harborline.Foundation.Definitions;
 
 namespace Harborline.Blocks.BuilderDefinitions;
@@ -9,6 +10,7 @@ public static class PlatformPackageSeed
     private const string ResourceName = "Harborline.Blocks.BuilderDefinitions.platform-pack.export.json";
     // SemVer 2.0.0 item 8: 2.0.0 removes the published authoring, dataExchangeAuthoring and schedulingAuthoring members
     // (owner ruling 2026-11-04). It writes the ck-14 creationGate form_only (K6); 1.0.0 survives only as a test fixture.
+    private const string PackageKey = "harborline.platform";
     private const string PackageRevision = "2.0.0";
     private const string Workshop = "platform.workspace.workshop";
     private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
@@ -152,6 +154,7 @@ public static class PlatformPackageSeed
             id = pillar,
             order = index + 1,
             pillar,
+            labelKey = $"workshop.{pillar}",
         }).ToArray();
         var pillarViews = pillars.SelectMany(pillar => new[] { "list", "health", "browse" }.Select(kind => new
         {
@@ -161,11 +164,11 @@ public static class PlatformPackageSeed
             shape = "table",
         })).ToArray();
 
-        return new PlatformPackageManifest(1, "harborline.platform", PackageRevision, new[]
+        return new PlatformPackageManifest(1, PackageKey, PackageRevision, new[]
         {
             Item("platform-package-ck-1", PlatformSeedStage.PackageRecord, new
             {
-                id = "harborline.platform",
+                id = PackageKey,
                 provenance = new { kind = "platform" },
                 version = PackageRevision,
                 contract = new { major = 1, minor = 0, window = new[] { 1, 1 } },
@@ -180,8 +183,14 @@ public static class PlatformPackageSeed
                     new { id = "platform.trait.bookable-resource", sealedTrait = true, slots = Array.Empty<string>() },
                 },
             }, "platform-package-ck-3"),
-            Item("platform-package-ck-5", PlatformSeedStage.Workspace, new { id = Workshop, name = "Workshop" }, "platform-package-ck-4"),
+            Item("platform-package-ck-5", PlatformSeedStage.Workspace, new { id = Workshop, name = "Workshop", labelKey = "workshop.workspace" }, "platform-package-ck-4"),
             Item("platform-package-ck-6", PlatformSeedStage.Navigation, new { members = navigation }, "platform-package-ck-5"),
+            // The workspace and its thirteen entries stay at ck-5 and ck-6 (ADR-0102 decision 5). This item names them
+            // and adds what neither carries: the one group and the inspector panel set.
+            Definition("platform.workshop", PlatformSeedStage.Navigation, "NavWorkspaceConfig", """
+                {"seedWorkspaces":[{"id":"workshop","workspaceItem":"platform-package-ck-5","groups":[{"id":"definitions","labelKey":"workshop.definitions","entriesItem":"platform-package-ck-6"}]}],
+                 "panelSet":[{"id":"inspector","binding":"panels.inspector.toggle","shortcut":"mod+shift+i","defaultWidth":360,"minimumHeight":180,"defaultOpen":false}]}
+                """, "platform-package-ck-6"),
             new PlatformPackageItem(ReleasedNavigationIdentity, PlatformSeedStage.Navigation, ["platform-package-ck-6"],
                 ReleasedNavigationDefinitionPackageExporter.Export(ReleasedNavigation).Content),
             Item("platform-package-ck-7", PlatformSeedStage.Views, new
@@ -279,6 +288,13 @@ public static class PlatformPackageSeed
                 action = "dispose-per-type-policy",
             }, "platform-package-ck-10"),
             Item("platform-package-ck-12", PlatformSeedStage.SealedDefinitions, new { disposition = "none", protocols = Array.Empty<object>() }, "platform-package-ck-11"),
+            // Form text is the public wire shape, {defaultLocale, values}, that the api's ValidateReleasedFormText requires.
+            Definition("platform.detail.form", PlatformSeedStage.SealedDefinitions, "FormDefinition", """
+                {"catalogueFieldSource":{"capabilityId":"forms.catalogue-field-source","coordinateSchemaVersion":1,"sourceMappingSchemaVersion":1,"sourceKind":"FormDefinition","fields":[{"fieldId":"formId","source":"catalogue.entry.formId"},{"fieldId":"title","source":"catalogue.entry.title"},{"fieldId":"version","source":"catalogue.entry.version"},{"fieldId":"cascadeLayer","source":"catalogue.entry.cascadeLayer"}]},"overlay":{"title":{"defaultLocale":"en","values":{"en":"Form details"}},"fields":{"formId":{"label":{"defaultLocale":"en","values":{"en":"Form ID"}},"controlHint":"text","readOnly":true,"piiSensitivity":"None"},"title":{"label":{"defaultLocale":"en","values":{"en":"Title"}},"controlHint":"text","readOnly":true,"piiSensitivity":"None"},"version":{"label":{"defaultLocale":"en","values":{"en":"Version"}},"controlHint":"text","readOnly":true,"piiSensitivity":"None"},"cascadeLayer":{"label":{"defaultLocale":"en","values":{"en":"Cascade layer"}},"controlHint":"text","readOnly":true,"piiSensitivity":"None"}},"sections":[{"id":"details","title":{"defaultLocale":"en","values":{"en":"Details"}},"fields":["formId","title","version","cascadeLayer"]}],"rules":[]},"fieldsMeta":{"formId":{"type":"text","required":false},"title":{"type":"text","required":false},"version":{"type":"text","required":false},"cascadeLayer":{"type":"text","required":false}}}
+                """, "platform-package-ck-2"),
+            Definition("platform.pack.author", PlatformSeedStage.SealedDefinitions, "FormDefinition", """
+                {"overlay":{"title":{"defaultLocale":"en","values":{"en":"Author a domain pack"}},"description":{"defaultLocale":"en","values":{"en":"Enter a pack export document containing a record type and its bound form, then validate it."}},"fields":{"packJson":{"label":{"defaultLocale":"en","values":{"en":"Pack document"}},"controlHint":"textarea","piiSensitivity":"None"}},"sections":[{"id":"document","title":{"defaultLocale":"en","values":{"en":"Pack"}},"fields":["packJson"]}],"rules":[]},"fieldsMeta":{"packJson":{"type":"textarea","required":true}}}
+                """, "platform-package-ck-2"),
             Item("platform-package-ck-13", PlatformSeedStage.GovernanceDefaults, new
             {
                 defaults = new object[]
@@ -315,7 +331,16 @@ public static class PlatformPackageSeed
                 notificationChannel = "in-app",
                 theme = "dark",
             }, "platform-package-ck-13"),
-        });
+            Definition("platform.defaults.pack-author", PlatformSeedStage.GovernanceDefaults, "CascadeDefaults", """
+                {"schemaVersion":1,"title":"Pack author change tracking","defaults":[{"recordType":"platform.pack.author","trackChanges":true}]}
+                """, "platform.pack.author"),
+        })
+        {
+            // platform.detail.form opts in to catalogue fields, so the pack must declare the capability exactly once
+            // (harborline-api packages/foundation-forms/Contracts/catalogue-field-source-v1.md, "Producer declaration and
+            // exact member locations"). A body's capabilityId does not stand in for it.
+            CapabilityRequirements = ["forms.catalogue-field-source"],
+        };
     }
 
     // The three Workshop editors the 1.0.0 seed declared in ck-7's authoring objects, with the same ids and labels.
@@ -341,6 +366,10 @@ public static class PlatformPackageSeed
                 new("platform.editor.scheduling", "platform.editor.scheduling", ["ScheduleDefinition", "Protocol", "Constraint"], lanes),
             ]);
     }
+
+    // T-667 route 1's item shape: the producer states the transport's content kind by name, and the api converts mechanically.
+    private static PlatformPackageItem Definition(string key, PlatformSeedStage stage, string contentKind, string body, params string[] dependencies)
+        => Item(key, stage, new { definitionKey = key, packageKey = PackageKey, contentKind, body = JsonNode.Parse(body) }, dependencies);
 
     private static PlatformPackageItem Item(string id, PlatformSeedStage stage, object payload, params string[] dependencies)
         => new(id, stage, dependencies, PlatformPackageContent.PresentJson(JsonSerializer.SerializeToUtf8Bytes(payload, JsonOptions)));

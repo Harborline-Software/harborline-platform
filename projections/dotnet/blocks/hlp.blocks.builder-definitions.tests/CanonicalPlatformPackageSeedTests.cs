@@ -1,19 +1,23 @@
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Harborline.Blocks.BuilderDefinitions;
+using Harborline.Foundation.Definitions;
 using Xunit;
 
 namespace Harborline.Blocks.BuilderDefinitions.Tests;
 
 public sealed class CanonicalPlatformPackageSeedTests
 {
-    // DES-0007 ck-1 to ck-14, with the released navigation definition (DES-0052 layout-eng-24) after the ck-6 register.
+    // The replay order of the DES-0007 section 2 table: ck-1 to ck-14, the released navigation definition (DES-0052
+    // layout-eng-24) and the four items the api carried alone that have a platform home (T-670 owner ruling 2026-11-04).
     private static readonly string[] SeedItemIds =
     [
         "platform-package-ck-1", "platform-package-ck-2", "platform-package-ck-3", "platform-package-ck-4",
-        "platform-package-ck-5", "platform-package-ck-6", "platform.navigation.workshop", "platform-package-ck-7",
-        "platform-package-ck-8", "platform-package-ck-9", "platform-package-ck-10", "platform-package-ck-11",
-        "platform-package-ck-12", "platform-package-ck-13", "platform-package-ck-14",
+        "platform-package-ck-5", "platform-package-ck-6", "platform.workshop", "platform.navigation.workshop",
+        "platform-package-ck-7", "platform-package-ck-8", "platform-package-ck-9", "platform-package-ck-10",
+        "platform-package-ck-11", "platform-package-ck-12", "platform.detail.form", "platform.pack.author",
+        "platform-package-ck-13", "platform-package-ck-14", "platform.defaults.pack-author",
     ];
 
     [Fact]
@@ -312,6 +316,117 @@ public sealed class CanonicalPlatformPackageSeedTests
         Assert.Empty(document.RootElement.GetProperty("closure").GetProperty("dependencies").EnumerateArray());
         Assert.Equal("sha256", document.RootElement.GetProperty("digest").GetProperty("algorithm").GetString());
     }
+
+    [Fact]
+    public void The_export_declares_the_catalogue_field_source_capability_exactly_once_at_package_level()
+    {
+        using var export = JsonDocument.Parse(PlatformPackageSeed.LoadCheckedInExport());
+
+        Assert.Equal(["forms.catalogue-field-source"],
+            export.RootElement.GetProperty("capabilityRequirements").EnumerateArray().Select(value => value.GetString()));
+        Assert.Equal("forms.catalogue-field-source", Body("platform.detail.form")["catalogueFieldSource"]!["capabilityId"]!.GetValue<string>());
+    }
+
+    [Theory]
+    [InlineData("platform.detail.form", "FormDefinition", 0)]
+    [InlineData("platform.pack.author", "FormDefinition", 0)]
+    [InlineData("platform.workshop", "NavWorkspaceConfig", 3)]
+    [InlineData("platform.defaults.pack-author", "CascadeDefaults", 4)]
+    public void The_export_states_each_api_only_item_and_its_shipped_content_kind(string key, string kind, int value)
+    {
+        using var export = JsonDocument.Parse(PlatformPackageSeed.LoadCheckedInExport());
+        var payload = Assert.Single(export.RootElement.GetProperty("items").EnumerateArray(), item => item.GetProperty("id").GetString() == key)
+            .GetProperty("content").GetProperty("payload");
+
+        Assert.Equal(key, payload.GetProperty("definitionKey").GetString());
+        Assert.Equal("harborline.platform", payload.GetProperty("packageKey").GetString());
+        Assert.Equal(kind, payload.GetProperty("contentKind").GetString());
+        Assert.Equal(kind, ApiItems()[key]!["kind"]!.GetValue<string>());
+        var row = PackContentKindRegistry.Kinds.Single(candidate => candidate.Name == kind);
+        Assert.Equal((value, PackContentKindStatus.Shipped), (row.Value, row.Status));
+    }
+
+    [Theory]
+    [InlineData("platform.detail.form")]
+    [InlineData("platform.pack.author")]
+    [InlineData("platform.defaults.pack-author")]
+    public void An_api_only_item_keeps_the_api_content_unchanged(string key)
+        => Assert.True(JsonNode.DeepEquals(ApiItems()[key]!["content"], Body(key)), key);
+
+    [Fact]
+    public void Workshop_config_resolves_through_ck_5_and_ck_6_to_the_api_content_and_carries_no_entry_of_its_own()
+    {
+        var body = Body("platform.workshop");
+        Assert.DoesNotContain("itemIds", body.ToJsonString(), StringComparison.Ordinal);
+        Assert.DoesNotContain("\"items\"", body.ToJsonString(), StringComparison.Ordinal);
+
+        var workspace = body["seedWorkspaces"]![0]!.AsObject();
+        Assert.Equal("platform-package-ck-5", workspace["workspaceItem"]!.GetValue<string>());
+        workspace.Remove("workspaceItem");
+        workspace["labelKey"] = Payload("platform-package-ck-5").GetProperty("labelKey").GetString();
+        var group = workspace["groups"]![0]!.AsObject();
+        Assert.Equal("platform-package-ck-6", group["entriesItem"]!.GetValue<string>());
+        group.Remove("entriesItem");
+        var entries = Members("platform-package-ck-6").EnumerateArray()
+            .Select(member => (Id: member.GetProperty("id").GetString()!, Label: member.GetProperty("labelKey").GetString()!)).ToArray();
+        group["itemIds"] = new JsonArray(entries.Select(entry => (JsonNode)entry.Id).ToArray());
+        group["items"] = new JsonArray(entries.Select(entry => (JsonNode)new JsonObject { ["id"] = entry.Id, ["labelKey"] = entry.Label }).ToArray());
+
+        Assert.True(JsonNode.DeepEquals(ApiItems()["platform.workshop"]!["content"], body), body.ToJsonString());
+    }
+
+    [Fact]
+    public void Released_navigation_uses_the_one_workspace_and_register_the_workshop_config_names()
+    {
+        var pillars = Members("platform-package-ck-6").EnumerateArray().Select(member => member.GetProperty("pillar").GetString()).ToArray();
+
+        Assert.Equal(Payload("platform-package-ck-5").GetProperty("id").GetString(), PlatformPackageSeed.ReleasedNavigation.Workspace);
+        Assert.All(PlatformPackageSeed.ReleasedNavigation.NavigationEntries, entry => Assert.Contains(entry.Pillar, pillars));
+    }
+
+    [Theory]
+    [InlineData("platform.detail.form")]
+    [InlineData("platform.pack.author")]
+    public void Form_text_passes_the_api_released_form_text_rules(string key)
+        => Assert.Empty(FormTextFaults(Body(key)));
+
+    [Theory]
+    [InlineData("""{"overlay":{"title":"plain"}}""", "overlay.title")]
+    [InlineData("""{"overlay":{"title":{"defaultLocale":"en","values":{"fr":"x"}}}}""", "overlay.title")]
+    [InlineData("""{"overlay":{"fields":{"a":{}}}}""", "overlay.fields.a.label")]
+    [InlineData("""{"overlay":{"sections":[{"id":"s"}]}}""", "overlay.sections[0].title")]
+    [InlineData("""{"title":"no overlay"}""", "overlay")]
+    public void The_form_text_rules_refuse_what_the_api_refuses(string form, string fault)
+        => Assert.Equal([fault], FormTextFaults(JsonNode.Parse(form)!));
+
+    // The rule of harborline-api PlatformPackPreloadHostedService.ValidateReleasedFormText, written separately for the seed's forms.
+    private static List<string> FormTextFaults(JsonNode form)
+    {
+        var faults = new List<string>();
+        if (form["overlay"] is not JsonObject overlay) return ["overlay"];
+        void Text(JsonNode? node, string path, bool required)
+        {
+            if (node is null && !required) return;
+            var locale = node is JsonObject text && text.Count == 2 ? text["defaultLocale"]?.GetValue<string>() : null;
+            var values = locale is null ? null : node!["values"] as JsonObject;
+            if (string.IsNullOrWhiteSpace(locale) || values is null || !values.ContainsKey(locale)
+                || values.Any(value => string.IsNullOrWhiteSpace(value.Key) || string.IsNullOrWhiteSpace(value.Value?.GetValue<string>())))
+                faults.Add(path);
+        }
+        Text(overlay["title"], "overlay.title", required: false);
+        Text(overlay["description"], "overlay.description", required: false);
+        foreach (var field in overlay["fields"]?.AsObject() ?? [])
+            Text(field.Value?["label"], $"overlay.fields.{field.Key}.label", required: true);
+        foreach (var (section, index) in (overlay["sections"]?.AsArray() ?? []).Select((section, index) => (section, index)))
+            Text(section?["title"], $"overlay.sections[{index}].title", required: true);
+        return faults;
+    }
+
+    private static JsonNode Body(string key) => JsonNode.Parse(Payload(key).GetProperty("body").GetRawText())!;
+
+    // The api's own copy of the four items, which the seed does not read.
+    private static JsonNode ApiItems() => JsonNode.Parse(File.ReadAllText(
+        RecordWriteJournalBindingTests.Fixture("api-platform-1.6.1/platform-only-items.json")))!;
 
     private static JsonElement Payload(string id)
     {
