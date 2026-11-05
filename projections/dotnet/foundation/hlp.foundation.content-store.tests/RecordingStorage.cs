@@ -86,6 +86,7 @@ internal sealed class RecordingStorage : IContentStoreStorage
         public ValueTask StageRecordAsync(ContentStoreOperation record, CancellationToken cancellationToken = default)
         {
             _operation = record;
+            owner.Log("stage-record:" + record);
             return Session.StageRecordAsync(record, cancellationToken);
         }
 

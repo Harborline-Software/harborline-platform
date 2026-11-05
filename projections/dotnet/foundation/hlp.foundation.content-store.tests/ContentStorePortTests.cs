@@ -434,6 +434,80 @@ public sealed class ContentStorePortTests
         Assert.True(memory.FindIntegrity(Tenant, staged.StageId)!.Active);
     }
 
+    [Fact]
+    public async Task Clause_6_a_rolled_back_transaction_frees_its_idempotency_key_and_a_committed_one_keeps_it_and_answers_true()
+    {
+        var memory = new InMemoryContentBookkeeping();
+        var operation = new Harborline.Kernel.Core.KernelOperationIdentity("command", "key", "fingerprint");
+        IContentBookkeepingSession first = await memory.BeginTransactionAsync();
+        await first.StageOperationAsync(operation);
+        await ((IContentBookkeepingTransaction)first).RollbackAsync();
+
+        var second = await memory.BeginTransactionAsync();
+        await ((IContentBookkeepingSession)second).StageOperationAsync(operation);
+        Assert.True(await second.CommitAsync());
+        await second.RollbackAsync(); // a transaction that ended stays ended
+
+        var third = await memory.BeginTransactionAsync();
+        var repeated = await Assert.ThrowsAsync<InvalidOperationException>(async () => await ((IContentBookkeepingSession)third).StageOperationAsync(operation));
+        Assert.Equal("That idempotency key was already used.", repeated.Message);
+    }
+
+    [Fact]
+    public async Task Clause_6_the_in_memory_ports_and_the_store_refuse_null_arguments()
+    {
+        var memory = new InMemoryContentBookkeeping();
+        IContentBookkeepingSession session = await memory.BeginTransactionAsync();
+        await Assert.ThrowsAsync<ArgumentNullException>(async () => await session.StageOperationAsync(null!));
+        await Assert.ThrowsAsync<ArgumentNullException>(async () => await session.StageAuditAsync(null!));
+        await Assert.ThrowsAsync<ArgumentNullException>(async () => await session.AddStagedAsync(null!));
+        await Assert.ThrowsAsync<ArgumentNullException>(async () => await session.TryCreateItemAsync(null!));
+        await Assert.ThrowsAsync<ArgumentNullException>(async () => await session.SetIntegrityAsync(null!));
+        Assert.Throws<ArgumentNullException>(() => memory.WriteIntegrityFromRead(ContentStoreOperation.IntegrityFailure, null!));
+        Assert.Throws<ArgumentNullException>(() => Store(new HalfStorage(null, new InMemoryContentByteStore())));
+        Assert.Throws<ArgumentNullException>(() => Store(new HalfStorage(memory, null)));
+    }
+
+    [Fact]
+    public async Task Clause_5_deleting_bytes_zeroes_them_and_a_writer_whose_key_was_reused_cannot_complete()
+    {
+        var bytes = new InMemoryContentByteStore();
+        var key = Guid.NewGuid();
+        var stale = await bytes.OpenWriteAsync(key, DateTimeOffset.UnixEpoch);
+        var segment = new ContentCiphertextSegment([7, 7], [1]);
+        await stale.AppendAsync(segment);
+        await bytes.DeleteAsync(key);
+        Assert.Equal(new byte[2], segment.Ciphertext);
+
+        await bytes.OpenWriteAsync(key, DateTimeOffset.UnixEpoch);
+        var refused = await Assert.ThrowsAsync<IOException>(async () => await stale.CompleteAsync(DateTimeOffset.UnixEpoch));
+        Assert.Equal("The item's bytes were deleted before the write completed.", refused.Message);
+    }
+
+    [Fact]
+    public async Task Clause_3_each_refusal_keeps_its_stated_message()
+    {
+        var store = new InMemoryContentStore(new(10, 5, 8, Expiry), new Keys(), new Clock(), new InMemoryContentStoreStorage());
+        Assert.Equal("The item exceeds its effective size limit.",
+            (await Assert.ThrowsAsync<ContentRefusedException>(async () => await store.PutAsync(Tenant, new MemoryStream(new byte[11]), "text/plain", null))).Message);
+        Assert.Equal("The declared SHA-256 does not match the uploaded bytes.",
+            (await Assert.ThrowsAsync<ContentRefusedException>(async () => await store.PutAsync(Tenant, new MemoryStream(Hello), "text/plain", new string('0', 64)))).Message);
+        Assert.Equal("The staged item is no longer available.",
+            (await Assert.ThrowsAsync<ContentRefusedException>(async () => await store.CommitReferenceAsync(Tenant, Guid.NewGuid(), new("record-1", "0"), "a.txt"))).Message);
+        var first = await store.CommitReferenceAsync(Tenant, await Put(store, Hello), new("record-1", "0"), "a.txt");
+        Assert.Equal("The record's quota would be exceeded.",
+            (await Assert.ThrowsAsync<ContentRefusedException>(async () => await store.CommitReferenceAsync(Tenant, await Put(store, World), new("record-1", "1"), "b.txt"))).Message);
+        Assert.Equal("The tenant's quota would be exceeded.",
+            (await Assert.ThrowsAsync<ContentRefusedException>(async () => await store.CommitReferenceAsync(Tenant, await Put(store, World), new("record-2", "0"), "c.txt"))).Message);
+        Assert.Equal("a.txt", first.DisplayName);
+    }
+
+    private sealed record HalfStorage(IContentBookkeeping? Part, IContentByteStore? Other) : IContentStoreStorage
+    {
+        public IContentBookkeeping Bookkeeping => Part!;
+        public IContentByteStore Bytes => Other!;
+    }
+
     private static async Task<(ContentReference? Reference, Exception? Failure)[]> Race(params Func<Task<ContentReference>>[] commits) =>
         await Task.WhenAll(commits.Select(commit => Task.Run(async () =>
         {

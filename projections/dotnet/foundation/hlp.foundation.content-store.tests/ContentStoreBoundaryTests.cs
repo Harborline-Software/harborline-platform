@@ -308,6 +308,53 @@ public sealed class ContentStoreBoundaryTests
         Assert.Null(backing.Bytes.ReadSegment(stage, 0));
     }
 
+    [Fact]
+    public async Task Clause_1_a_joined_write_stages_its_record_and_audit_and_one_that_changes_nothing_stages_neither()
+    {
+        var backing = new RecordingStorage();
+        var store = Store(backing);
+        var reference = await store.CommitReferenceAsync(Tenant, await Put(store, "put"), new("record-1", "0"), "a.txt", Write("commit"));
+        var stage = await Put(store, "put-2");
+        var rows = Rows(backing);
+        backing.Events.Clear();
+        var caller = new RecordWrite(backing.Bookkeeping);
+
+        await caller.RunAsync(async session =>
+        {
+            Assert.False(await store.RemoveReferenceAsync(Tenant, reference with { Owner = new("record-9", "0") }, HoldStatus.None, "unknown", Write("unknown", Actor, session)));
+            Assert.DoesNotContain(backing.Events, entry => entry.StartsWith("stage-record", StringComparison.Ordinal));
+            Assert.Equal(rows, Rows(backing));
+            await store.CommitReferenceAsync(Tenant, stage, new("record-2", "0"), "b.txt", Write("joined", Actor, session));
+            Assert.Contains("stage-record:Commit", backing.Events);
+        });
+
+        Assert.Equal([.. rows, ("audit-joined", Actor)], Rows(backing));
+    }
+
+    [Fact]
+    public async Task Clause_1_removal_and_the_sweep_refuse_evidence_without_a_whole_identity_and_a_null_write()
+    {
+        var clock = new Clock();
+        var backing = new RecordingStorage();
+        var store = Store(backing, clock);
+        var reference = await store.CommitReferenceAsync(Tenant, await Put(store, "put"), new("record-1", "0"), "a.txt", Write("commit"));
+        var blank = new ContentStoreWrite(new("command", " ", "fingerprint"), new("audit", "sys.scheduler", DateTimeOffset.UnixEpoch, ReadOnlyMemory<byte>.Empty));
+
+        await Assert.ThrowsAsync<ArgumentException>(async () => await store.RemoveReferenceAsync(Tenant, reference, HoldStatus.Held, "dispose", blank));
+        await Assert.ThrowsAsync<ArgumentException>(async () => await store.SweepExpiredAsync("sweep", blank));
+        await Assert.ThrowsAsync<ArgumentNullException>(async () => await store.SweepExpiredAsync("sweep", null!));
+        await Assert.ThrowsAsync<ArgumentNullException>(async () => await store.SweepExpiredAsync("sweep", new(null!, Write("x").Audit)));
+        await Assert.ThrowsAsync<ArgumentNullException>(async () => await store.SweepExpiredAsync("sweep", new(Write("x").Operation, null!)));
+    }
+
+    [Fact]
+    public async Task Clause_1_the_sweeps_refusal_names_the_actor_it_requires()
+    {
+        var store = Store(new RecordingStorage());
+        var refused = await Assert.ThrowsAsync<ArgumentException>(async () => await store.SweepExpiredAsync("sweep", Write("sweep", Actor)));
+        Assert.StartsWith("The staging sweep acts as sys.scheduler.", refused.Message, StringComparison.Ordinal);
+    }
+
     private sealed class InjectedFault : Exception;
 
     // A stand-in records write: it owns the boundary execution and its one transaction, and hands the store only the session.

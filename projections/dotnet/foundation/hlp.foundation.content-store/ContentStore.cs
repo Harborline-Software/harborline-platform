@@ -1144,10 +1144,9 @@ public sealed class InMemoryContentStore
     {
         // The store's own transaction committed, so what its removal unnamed can be destroyed now.
         Committed,
-        // The write is staged in the caller's transaction. The store cannot see that commit, so what it unnamed stays for the sweep.
-        Joined,
-        // Nothing changed; no transaction committed and no audit row was written.
-        NoChange,
+        // Nothing of the store's committed yet: nothing changed, or the write is staged in the caller's transaction. The
+        // store cannot see that commit, so what it unnamed stays for the sweep.
+        NotCommitted,
     }
 
     // The one path every store write takes through the kernel boundary (ck-6). With the caller's transaction it joins the
@@ -1160,7 +1159,7 @@ public sealed class InMemoryContentStore
         {
             var joined = new JoinedWrite(session, writes);
             await KernelTransactionBoundary.JoinAsync(command, joined, cancellationToken).ConfigureAwait(false);
-            return joined.Changed ? WriteOutcome.Joined : WriteOutcome.NoChange;
+            return WriteOutcome.NotCommitted;
         }
 
         var port = new OwnWritePort(_bookkeeping);
@@ -1175,7 +1174,7 @@ public sealed class InMemoryContentStore
         }
         catch (NothingChangedException)
         {
-            return WriteOutcome.NoChange;
+            return WriteOutcome.NotCommitted;
         }
     }
 
@@ -1293,7 +1292,7 @@ public sealed class InMemoryContentStore
         var cutoff = StagedCutoff();
         var expired = await _bookkeeping.StagedCreatedAtOrBeforeAsync(cutoff, cancellationToken).ConfigureAwait(false);
         var reclaimed = new List<ContentStoreItem>();
-        var outcome = WriteOutcome.NoChange;
+        var outcome = WriteOutcome.NotCommitted;
         if (expired.Count != 0)
         {
             outcome = await RunAsync(ContentStoreOperation.SweepExpired, write, async (session, token) =>
