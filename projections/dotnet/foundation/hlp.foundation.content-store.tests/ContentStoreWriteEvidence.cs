@@ -24,6 +24,16 @@ internal static class ContentStoreWriteEvidence
     public static ValueTask<bool> RemoveReferenceAsync(this InMemoryContentStore store, TenantId tenant, ContentReference reference, HoldStatus hold, string run) =>
         store.RemoveReferenceAsync(tenant, reference, hold, run, New());
 
+    // A reader for tests about something else; the reader's own rules are tested in ContentStoreBoundaryTests.
+    public static readonly ContentReadContext Reader = new("trace-test", "operation-test", "tenant-opaque-test", "principal.test-reader");
+
+    public static ValueTask<ContentDelivery> ReadAsync(this InMemoryContentStore store, TenantId tenant, ContentReference reference, bool authorized,
+        ContentByteRange? range = null, string? ifRange = null) =>
+        store.ReadAsync(tenant, reference, authorized, Reader, range, ifRange);
+
+    public static ValueTask<ContentExportResult> ExportAsync(this InMemoryContentStore store, TenantId tenant, IEnumerable<ContentReference> references, bool authorized) =>
+        store.ExportAsync(tenant, references, authorized, Reader);
+
     public static ValueTask<int> SweepExpiredAsync(this InMemoryContentStore store, string run) =>
         store.SweepExpiredAsync(run, New(ContentStoreRunRegistration.StagingSweepActor));
 }

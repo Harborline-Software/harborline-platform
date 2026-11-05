@@ -17,7 +17,7 @@ public sealed class ContentStoreBoundaryTests
     private static readonly TimeSpan Expiry = TimeSpan.FromMinutes(1);
     private const string Actor = "principal.alice";
 
-    private static InMemoryContentStore Store(IContentStoreStorage backing, TimeProvider? clock = null, long record = 1000, long tenant = 1000) =>
+    private static InMemoryContentStore Store(IContentStoreStorage backing, TimeProvider? clock = null, long record = 1_000_000, long tenant = 1_000_000) =>
         new(new(100_000, record, tenant, Expiry), new Keys(), clock ?? new Clock(), backing);
 
     private static ContentStoreWrite Write(string name, string actor = Actor, IContentBookkeepingSession? transaction = null) =>
@@ -29,11 +29,11 @@ public sealed class ContentStoreBoundaryTests
     private static ValueTask<Guid> Put(InMemoryContentStore store, string name, IContentBookkeepingSession? transaction = null) =>
         store.PutAsync(Tenant, new MemoryStream(Hello), "text/plain", null, Write(name, Actor, transaction));
 
-    private static byte[] ReadBytes(ContentDelivery delivery)
+    private static async Task<byte[]> ReadBytes(ContentDelivery delivery)
     {
         using var body = delivery.Body;
         using var buffer = new MemoryStream();
-        body.CopyTo(buffer);
+        await body.CopyToAsync(buffer);
         return buffer.ToArray();
     }
 
@@ -218,7 +218,7 @@ public sealed class ContentStoreBoundaryTests
         Assert.Equal(stage, Assert.Single(after.Staged).StageId);
         Assert.Equal(before.Audits.Length, after.Audits.Length);
         var reference = await store.CommitReferenceAsync(Tenant, stage, new("record-1", "0"), "a.txt", Write("retry")); // the quota and the stage are both still there
-        Assert.Equal(Hello, ReadBytes(store.Read(Tenant, reference, true)));
+        Assert.Equal(Hello, await ReadBytes(await store.ReadAsync(Tenant, reference, true)));
     }
 
     [Fact]
@@ -255,12 +255,12 @@ public sealed class ContentStoreBoundaryTests
 
         Assert.DoesNotContain("bytes-delete", backing.Events);
         Assert.Empty(store.Reclamations);
-        Assert.Equal(Hello, ReadBytes(store.Read(Tenant, reference, true)));
+        Assert.Equal(Hello, await ReadBytes(await store.ReadAsync(Tenant, reference, true)));
         var over = await Put(store, "over");
         await Assert.ThrowsAsync<ContentRefusedException>(async () => await store.CommitReferenceAsync(Tenant, over, new("record-1", "1"), "b.txt", Write("refused")));
         clock.Advance(Expiry * 10);
         await store.SweepExpiredAsync("sweep", Write("sweep", "sys.scheduler"));
-        Assert.Equal(Hello, ReadBytes(store.Read(Tenant, reference, true)));
+        Assert.Equal(Hello, await ReadBytes(await store.ReadAsync(Tenant, reference, true)));
     }
 
     [Fact]
@@ -278,12 +278,12 @@ public sealed class ContentStoreBoundaryTests
             Assert.True(await store.RemoveReferenceAsync(Tenant, reference, HoldStatus.None, "dispose", Write("remove", Actor, session))));
 
         Assert.DoesNotContain("bytes-delete", backing.Events); // the store cannot see the caller's commit
-        Assert.NotNull(backing.Bytes.ReadSegment(stage, 0));
+        Assert.NotNull(await backing.Bytes.ReadSegmentAsync(stage, 0));
         Assert.Equal("last-reference-removed", Assert.Single(store.Reclamations).Cause);
 
         clock.Advance(Expiry);
         await store.SweepExpiredAsync("sweep", Write("sweep", "sys.scheduler"));
-        Assert.Null(backing.Bytes.ReadSegment(stage, 0));
+        Assert.Null(await backing.Bytes.ReadSegmentAsync(stage, 0));
     }
 
     [Fact]
@@ -302,10 +302,10 @@ public sealed class ContentStoreBoundaryTests
         }));
 
         Assert.Equal(0, store.StagedCount);
-        Assert.NotNull(backing.Bytes.ReadSegment(stage, 0));
+        Assert.NotNull(await backing.Bytes.ReadSegmentAsync(stage, 0));
         clock.Advance(Expiry);
         Assert.Equal(0, await store.SweepExpiredAsync("sweep", Write("sweep", "sys.scheduler")));
-        Assert.Null(backing.Bytes.ReadSegment(stage, 0));
+        Assert.Null(await backing.Bytes.ReadSegmentAsync(stage, 0));
     }
 
     [Fact]
@@ -353,6 +353,200 @@ public sealed class ContentStoreBoundaryTests
         var store = Store(new RecordingStorage());
         var refused = await Assert.ThrowsAsync<ArgumentException>(async () => await store.SweepExpiredAsync("sweep", Write("sweep", Actor)));
         Assert.StartsWith("The staging sweep acts as sys.scheduler.", refused.Message, StringComparison.Ordinal);
+    }
+
+    private static readonly ContentReadContext Alice = new("trace-a", "operation-a", "tenant-opaque", "principal.reader-alice");
+    private static readonly ContentReadContext Bob = new("trace-b", "operation-b", "tenant-opaque", "principal.reader-bob");
+    private static readonly byte[] TwoSegments = Enumerable.Repeat((byte)'a', 65_536 + 3).ToArray();
+
+    private static async Task<ContentReference> CommitTwoSegments(InMemoryContentStore store) =>
+        await store.CommitReferenceAsync(Tenant, await store.PutAsync(Tenant, new MemoryStream(TwoSegments), "text/plain", null, Write("put-large")), new("record-1", "0"), "a.txt", Write("commit-large"));
+
+    private static async Task ReadAll(InMemoryContentStore store, ContentReference reference, ContentReadContext reader)
+    {
+        await using var body = (await store.ReadAsync(Tenant, reference, true, reader)).Body;
+        await body.CopyToAsync(Stream.Null);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData(" ")]
+    public async Task Clause_1_a_blank_reader_is_refused_before_any_byte_is_read_and_never_as_an_integrity_failure(string principal)
+    {
+        var backing = new RecordingStorage();
+        var store = Store(backing);
+        var reference = await CommitTwoSegments(store);
+        await store.CorruptCiphertextAsync(Tenant, reference.ContentId, 0);
+        var rows = Rows(backing);
+        backing.SegmentReads.Clear(); // the corruption hook read one
+
+        await Assert.ThrowsAsync<ArgumentException>(async () => await store.ReadAsync(Tenant, reference, true, new("trace", "operation", "tenant", principal)));
+
+        Assert.Empty(backing.SegmentReads);
+        Assert.Empty(store.IntegrityEntries);
+        Assert.Equal(rows, Rows(backing));
+    }
+
+    [Fact]
+    public async Task Clause_1_a_read_or_export_with_no_reader_is_refused_before_any_byte_is_read()
+    {
+        var backing = new RecordingStorage();
+        var store = Store(backing);
+        var reference = await CommitTwoSegments(store);
+        await Assert.ThrowsAsync<ArgumentNullException>(async () => await store.ReadAsync(Tenant, reference, true, null!));
+        await Assert.ThrowsAsync<ArgumentNullException>(async () => await store.ExportAsync(Tenant, [reference], true, null!));
+        Assert.Empty(backing.SegmentReads);
+    }
+
+    [Fact]
+    public async Task Clause_1_each_episode_write_has_its_own_audit_row_naming_that_reader_and_revealing_nothing_else()
+    {
+        var backing = new RecordingStorage();
+        var store = Store(backing);
+        var reference = await CommitTwoSegments(store);
+        var before = backing.Memory.Snapshot().Audits.Length;
+        await store.CorruptCiphertextAsync(Tenant, reference.ContentId, 1);
+
+        await Assert.ThrowsAsync<ContentIntegrityException>(() => ReadAll(store, reference, Alice));
+        await Assert.ThrowsAsync<ContentIntegrityException>(() => ReadAll(store, reference, Bob));
+        await store.CorruptCiphertextAsync(Tenant, reference.ContentId, 1); // restores the byte
+        await ReadAll(store, reference, Bob);
+        await ReadAll(store, reference, Alice); // no active episode, so nothing to close and no row
+
+        var rows = backing.Memory.Snapshot().Audits[before..];
+        Assert.Equal(["principal.reader-alice", "principal.reader-bob", "principal.reader-bob"], rows.Select(row => row.ActorId));
+        Assert.Equal(3, rows.Select(row => row.AuditId).Distinct(StringComparer.Ordinal).Count());
+        Assert.Collection(rows,
+            row => Assert.StartsWith("content-integrity-failure:", row.AuditId, StringComparison.Ordinal),
+            row => Assert.StartsWith("content-integrity-failure:", row.AuditId, StringComparison.Ordinal),
+            row => Assert.StartsWith("content-integrity-recovery:", row.AuditId, StringComparison.Ordinal));
+        Assert.All(rows, row =>
+        {
+            Assert.True(row.Payload.IsEmpty);
+            Assert.DoesNotContain(reference.ContentId.Value, row.AuditId, StringComparison.Ordinal);
+            Assert.DoesNotContain(Tenant.Value, row.AuditId, StringComparison.Ordinal);
+        });
+        Assert.Equal(
+            [ContentStoreOperation.IntegrityFailure, ContentStoreOperation.IntegrityFailure, ContentStoreOperation.IntegrityRecovery],
+            backing.Commits.Select(commit => commit.Operation).Where(operation => operation is ContentStoreOperation.IntegrityFailure or ContentStoreOperation.IntegrityRecovery));
+        var entry = Assert.Single(store.IntegrityEntries);
+        Assert.Equal("principal.reader-bob", entry.PrincipalId);
+        Assert.False(entry.Active);
+    }
+
+    [Fact]
+    public async Task Clause_1_a_damaged_first_segment_fails_inside_the_read_call_before_a_body_exists()
+    {
+        var store = Store(new RecordingStorage());
+        var reference = await CommitTwoSegments(store);
+        await store.CorruptCiphertextAsync(Tenant, reference.ContentId, 0);
+
+        var failure = await Assert.ThrowsAsync<ContentIntegrityException>(async () => await store.ReadAsync(Tenant, reference, true, Alice));
+
+        Assert.Equal(0, failure.SegmentIndex);
+        Assert.Equal("principal.reader-alice", Assert.Single(store.IntegrityEntries).PrincipalId);
+    }
+
+    [Fact]
+    public async Task Clause_1_the_bodys_synchronous_reads_refuse_and_leave_it_readable_asynchronously()
+    {
+        var store = Store(new RecordingStorage());
+        var reference = await store.CommitReferenceAsync(Tenant, await Put(store, "put"), new("record-1", "0"), "a.txt", Write("commit"));
+        await using var body = (await store.ReadAsync(Tenant, reference, true, Alice)).Body;
+
+        Assert.Throws<NotSupportedException>(() => body.Read(new byte[1], 0, 1));
+        Assert.Throws<NotSupportedException>(() => body.Read(new byte[1].AsSpan()));
+        Assert.Throws<NotSupportedException>(() => body.ReadByte());
+        Assert.Throws<NotSupportedException>(() => body.CopyTo(Stream.Null));
+
+        var bytes = new byte[5];
+        Assert.Equal(5, await body.ReadAsync(bytes, 0, 5));
+        Assert.Equal(Hello, bytes);
+    }
+
+    [Fact]
+    public async Task Clause_4_a_read_inside_an_open_execution_is_refused_before_any_byte_is_read_and_the_write_still_commits()
+    {
+        var backing = new RecordingStorage();
+        var store = Store(backing);
+        var reference = await store.CommitReferenceAsync(Tenant, await Put(store, "put"), new("record-1", "0"), "a.txt", Write("commit"));
+        var caller = new RecordWrite(backing.Bookkeeping);
+
+        await caller.RunAsync(async _ =>
+        {
+            var refused = await Assert.ThrowsAsync<KernelTransactionStateException>(async () => await store.ReadAsync(Tenant, reference, true, Alice));
+            Assert.Equal(KernelTransactionErrors.NestedExecution, refused.Code);
+        });
+
+        Assert.Empty(backing.SegmentReads);
+        Assert.Equal(1, caller.Commits);
+        Assert.Equal(Hello, await ReadBytes(await store.ReadAsync(Tenant, reference, true, Alice))); // the probe left nothing behind
+    }
+
+    [Fact]
+    public async Task Clause_4_a_body_read_inside_an_execution_writes_no_episode_there_so_a_rollback_has_none_to_erase_and_a_later_read_opens_it()
+    {
+        var backing = new RecordingStorage();
+        var store = Store(backing);
+        var reference = await CommitTwoSegments(store);
+        await store.CorruptCiphertextAsync(Tenant, reference.ContentId, 1);
+        var body = (await store.ReadAsync(Tenant, reference, true, Alice)).Body;
+        await using (body)
+        {
+            var caller = new RecordWrite(backing.Bookkeeping);
+            await Assert.ThrowsAsync<InjectedFault>(async () => await caller.RunAsync(async _ =>
+            {
+                var refused = await Assert.ThrowsAsync<KernelTransactionStateException>(() => body.CopyToAsync(Stream.Null));
+                Assert.Equal(KernelTransactionErrors.NestedExecution, refused.Code); // the failed episode write surfaces as itself
+                Assert.Empty(store.IntegrityEntries);
+                throw new InjectedFault();
+            }));
+
+            await Assert.ThrowsAsync<ContentIntegrityException>(() => body.CopyToAsync(Stream.Null)); // the body keeps its typed failure
+        }
+
+        await Assert.ThrowsAsync<ContentIntegrityException>(() => ReadAll(store, reference, Bob));
+        Assert.Equal("principal.reader-bob", Assert.Single(store.IntegrityEntries).PrincipalId);
+    }
+
+    [Fact]
+    public async Task Clause_1_a_read_cancelled_on_a_segment_fetch_resumes_on_that_segment_and_skips_nothing()
+    {
+        var backing = new RecordingStorage();
+        var store = Store(backing);
+        var reference = await CommitTwoSegments(store);
+        await using var body = (await store.ReadAsync(Tenant, reference, true, Alice)).Body;
+        backing.BeforeSegmentRead = index =>
+        {
+            if (index == 1) throw new OperationCanceledException();
+        };
+        var bytes = new byte[TwoSegments.Length];
+
+        await Assert.ThrowsAsync<OperationCanceledException>(async () => await body.ReadAsync(bytes.AsMemory()));
+        backing.BeforeSegmentRead = null;
+        await body.ReadExactlyAsync(bytes.AsMemory(0, 3));
+
+        Assert.Equal("aaa"u8.ToArray(), bytes[..3]);
+        Assert.Empty(store.IntegrityEntries);
+    }
+
+    [Fact]
+    public async Task Clause_1_an_episode_a_read_racing_erasure_would_open_is_not_written_and_writes_no_audit_row()
+    {
+        var backing = new RecordingStorage();
+        var store = Store(backing);
+        var reference = await CommitTwoSegments(store);
+        await store.CorruptCiphertextAsync(Tenant, reference.ContentId, 1);
+        var body = (await store.ReadAsync(Tenant, reference, true, Alice)).Body;
+        await using (body)
+        {
+            Assert.True(await store.RemoveReferenceAsync(Tenant, reference, HoldStatus.None, "dispose", Write("erase")));
+            var rows = Rows(backing);
+            await Assert.ThrowsAsync<ContentIntegrityException>(() => body.CopyToAsync(Stream.Null));
+            Assert.Equal(rows, Rows(backing));
+        }
+
+        Assert.Empty(store.IntegrityEntries);
     }
 
     private sealed class InjectedFault : Exception;

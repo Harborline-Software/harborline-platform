@@ -31,20 +31,20 @@ public sealed class ContentStoreSaveStepTests
         Assert.True(await SavesAsync(backing, ContentStoreOperation.RemoveReference, async () => await store.RemoveReferenceAsync(Tenant, second, HoldStatus.None, "dispose-2")));
 
         var large = await store.CommitReferenceAsync(Tenant, await store.PutAsync(Tenant, new MemoryStream(LargeBytes()), "text/plain", null), new("record-3", "0"), "c.txt");
-        store.CorruptCiphertext(Tenant, large.ContentId, 1);
-        Saves(backing, ContentStoreOperation.IntegrityFailure, () => Assert.Throws<ContentIntegrityException>(() => store.Read(Tenant, large, true, new ContentByteRange(65_536, 65_538))));
-        Saves(backing, ContentStoreOperation.IntegrityFailure, () => Assert.Throws<ContentIntegrityException>(() => store.Read(Tenant, large, true, new ContentByteRange(65_536, 65_538))));
+        await store.CorruptCiphertextAsync(Tenant, large.ContentId, 1);
+        await SavesAsync(backing, ContentStoreOperation.IntegrityFailure, async () => await Assert.ThrowsAsync<ContentIntegrityException>(async () => await store.ReadAsync(Tenant, large, true, new ContentByteRange(65_536, 65_538))));
+        await SavesAsync(backing, ContentStoreOperation.IntegrityFailure, async () => await Assert.ThrowsAsync<ContentIntegrityException>(async () => await store.ReadAsync(Tenant, large, true, new ContentByteRange(65_536, 65_538))));
         Assert.Equal(2, Assert.Single(store.IntegrityEntries).Count);
-        store.CorruptCiphertext(Tenant, large.ContentId, 1); // restores the byte
-        using (var body = store.Read(Tenant, large, true).Body)
+        await store.CorruptCiphertextAsync(Tenant, large.ContentId, 1); // restores the byte
+        using (var body = (await store.ReadAsync(Tenant, large, true)).Body)
         {
             var buffer = new byte[LargeBytes().Length];
-            NoSave(backing, () => body.Read(buffer, 0, 1)); // a partly read body has not verified the item yet
-            Saves(backing, ContentStoreOperation.IntegrityRecovery, () => body.ReadAtLeast(buffer.AsSpan(1), buffer.Length - 1));
+            await NoSaveAsync(backing, async () => await body.ReadAsync(buffer.AsMemory(0, 1))); // a partly read body has not verified the item yet
+            await SavesAsync(backing, ContentStoreOperation.IntegrityRecovery, async () => await body.ReadAtLeastAsync(buffer.AsMemory(1), buffer.Length - 1));
             Assert.Equal(LargeBytes(), buffer);
-            store.CorruptCiphertext(Tenant, large.ContentId, 1);
-            Saves(backing, ContentStoreOperation.IntegrityFailure, () => Assert.Throws<ContentIntegrityException>(() => store.Read(Tenant, large, true, new ContentByteRange(65_536, 65_538))));
-            NoSave(backing, () => body.Read(buffer, 0, 1)); // a finished body never closes a later episode
+            await store.CorruptCiphertextAsync(Tenant, large.ContentId, 1);
+            await SavesAsync(backing, ContentStoreOperation.IntegrityFailure, async () => await Assert.ThrowsAsync<ContentIntegrityException>(async () => await store.ReadAsync(Tenant, large, true, new ContentByteRange(65_536, 65_538))));
+            await NoSaveAsync(backing, async () => await body.ReadAsync(buffer.AsMemory(0, 1))); // a finished body never closes a later episode
         }
 
         Assert.True(await SavesAsync(backing, ContentStoreOperation.RemoveReference, async () => await store.RemoveReferenceAsync(Tenant, large, HoldStatus.None, "erase"))); // erasure closes the episode in the same unit
@@ -67,11 +67,11 @@ public sealed class ContentStoreSaveStepTests
         var reference = await store.CommitReferenceAsync(Tenant, await store.PutAsync(Tenant, new MemoryStream(Hello), "text/plain", null), new("record", "0"), "a.txt");
         var tooBig = await store.PutAsync(Tenant, new MemoryStream("world"u8.ToArray()), "text/plain", null);
 
-        NoSave(backing, () => ReadBytes(store.Read(Tenant, reference, true)));
-        NoSave(backing, () => ReadBytes(store.Read(Tenant, reference, true, new ContentByteRange(1, 2))));
-        NoSave(backing, () => store.Read(Tenant, reference, true, new ContentByteRange(9, 10)));
-        NoSave(backing, () => Assert.Throws<ContentNotFoundException>(() => store.Read(Tenant, reference, false)));
-        NoSave(backing, () => store.Export(Tenant, [reference], true));
+        await NoSaveAsync(backing, async () => await ReadBytes(await store.ReadAsync(Tenant, reference, true)));
+        await NoSaveAsync(backing, async () => await ReadBytes(await store.ReadAsync(Tenant, reference, true, new ContentByteRange(1, 2))));
+        await NoSaveAsync(backing, async () => await store.ReadAsync(Tenant, reference, true, new ContentByteRange(9, 10)));
+        await NoSaveAsync(backing, async () => await Assert.ThrowsAsync<ContentNotFoundException>(async () => await store.ReadAsync(Tenant, reference, false)));
+        await NoSaveAsync(backing, async () => await store.ExportAsync(Tenant, [reference], true));
         NoSave(backing, () => (store.Reclamations, store.StagedCount, store.CommittedCount, store.IntegrityEntries, store.IsIntegrityHealthy));
         await NoSaveAsync(backing, async () => await Assert.ThrowsAsync<ContentRefusedException>(async () => await store.CommitReferenceAsync(Tenant, tooBig, new("record", "1"), "b.txt"))); // record quota
         await NoSaveAsync(backing, async () => await Assert.ThrowsAsync<ContentRefusedException>(async () => await store.CommitReferenceAsync(new TenantId("other"), tooBig, new("record", "1"), "b.txt")));
@@ -91,19 +91,19 @@ public sealed class ContentStoreSaveStepTests
         var stage = await store.PutAsync(Tenant, new MemoryStream(Hello), "text/plain", null);
         await FailsAsync(backing, ContentStoreOperation.Commit, async () => await store.CommitReferenceAsync(Tenant, stage, new("record-1", "0"), "a.txt"));
         var first = await store.CommitReferenceAsync(Tenant, stage, new("record-1", "0"), "a.txt"); // the stage survived whole
-        Assert.Equal(Hello, ReadBytes(store.Read(Tenant, first, true)));
+        Assert.Equal(Hello, await ReadBytes(await store.ReadAsync(Tenant, first, true)));
 
         var again = await store.PutAsync(Tenant, new MemoryStream(Hello), "text/plain", null);
         await FailsAsync(backing, ContentStoreOperation.Commit, async () => await store.CommitReferenceAsync(Tenant, again, new("record-2", "0"), "b.txt"));
-        Assert.Throws<ContentNotFoundException>(() => store.Read(Tenant, first with { Owner = new("record-2", "0") }, true));
+        await Assert.ThrowsAsync<ContentNotFoundException>(async () => await store.ReadAsync(Tenant, first with { Owner = new("record-2", "0") }, true));
         var second = await store.CommitReferenceAsync(Tenant, again, new("record-2", "0"), "b.txt"); // the duplicate's staged copy was not destroyed
         Assert.Equal(first.ContentId, second.ContentId);
 
         await FailsAsync(backing, ContentStoreOperation.RemoveReference, async () => await store.RemoveReferenceAsync(Tenant, first, HoldStatus.None, "dispose-1"));
-        Assert.Equal(Hello, ReadBytes(store.Read(Tenant, first, true)));
+        Assert.Equal(Hello, await ReadBytes(await store.ReadAsync(Tenant, first, true)));
         Assert.False(await store.RemoveReferenceAsync(Tenant, first, HoldStatus.None, "dispose-1"));
         await FailsAsync(backing, ContentStoreOperation.RemoveReference, async () => await store.RemoveReferenceAsync(Tenant, second, HoldStatus.None, "dispose-2"));
-        Assert.Equal(Hello, ReadBytes(store.Read(Tenant, second, true))); // the key material outlived the failed reclamation
+        Assert.Equal(Hello, await ReadBytes(await store.ReadAsync(Tenant, second, true))); // the key material outlived the failed reclamation
         Assert.Empty(store.Reclamations);
         Assert.True(await store.RemoveReferenceAsync(Tenant, second, HoldStatus.None, "dispose-2"));
         Assert.Single(store.Reclamations);
@@ -121,23 +121,23 @@ public sealed class ContentStoreSaveStepTests
         Assert.Equal(0, store.StagedCount);
 
         var large = await store.CommitReferenceAsync(Tenant, await store.PutAsync(Tenant, new MemoryStream(LargeBytes()), "text/plain", null), new("record", "0"), "a.txt");
-        store.CorruptCiphertext(Tenant, large.ContentId, 1);
+        await store.CorruptCiphertextAsync(Tenant, large.ContentId, 1);
         var range = new ContentByteRange(65_536, 65_538);
-        Fails(backing, ContentStoreOperation.IntegrityFailure, () => store.Read(Tenant, large, true, range));
+        await FailsAsync(backing, ContentStoreOperation.IntegrityFailure, async () => await store.ReadAsync(Tenant, large, true, range));
         Assert.Empty(log.Events); // an episode that was not saved was not announced
-        Assert.Throws<ContentIntegrityException>(() => store.Read(Tenant, large, true, range));
-        Fails(backing, ContentStoreOperation.IntegrityFailure, () => store.Read(Tenant, large, true, range));
+        await Assert.ThrowsAsync<ContentIntegrityException>(async () => await store.ReadAsync(Tenant, large, true, range));
+        await FailsAsync(backing, ContentStoreOperation.IntegrityFailure, async () => await store.ReadAsync(Tenant, large, true, range));
         Assert.Equal(1, Assert.Single(store.IntegrityEntries).Count);
         Assert.Single(log.Events);
 
-        store.CorruptCiphertext(Tenant, large.ContentId, 1);
-        Fails(backing, ContentStoreOperation.IntegrityRecovery, () => ReadBytes(store.Read(Tenant, large, true)));
+        await store.CorruptCiphertextAsync(Tenant, large.ContentId, 1);
+        await FailsAsync(backing, ContentStoreOperation.IntegrityRecovery, async () => await ReadBytes(await store.ReadAsync(Tenant, large, true)));
         Assert.False(store.IsIntegrityHealthy);
-        Assert.Equal(LargeBytes(), ReadBytes(store.Read(Tenant, large, true)));
+        Assert.Equal(LargeBytes(), await ReadBytes(await store.ReadAsync(Tenant, large, true)));
         Assert.True(store.IsIntegrityHealthy);
 
-        store.CorruptCiphertext(Tenant, large.ContentId, 1);
-        Assert.Throws<ContentIntegrityException>(() => store.Read(Tenant, large, true, range));
+        await store.CorruptCiphertextAsync(Tenant, large.ContentId, 1);
+        await Assert.ThrowsAsync<ContentIntegrityException>(async () => await store.ReadAsync(Tenant, large, true, range));
         await FailsAsync(backing, ContentStoreOperation.RemoveReference, async () => await store.RemoveReferenceAsync(Tenant, large, HoldStatus.None, "erase"));
         Assert.False(store.IsIntegrityHealthy); // erasure's episode closure is undone with the rest of its unit
 
@@ -150,20 +150,16 @@ public sealed class ContentStoreSaveStepTests
         Assert.Equal("staging-expired", Assert.Single(store.Reclamations).Cause);
     }
 
-    // Runs one operation and checks its single committed unit against the before and after images of the backing.
-    private static T Saves<T>(RecordingStorage backing, ContentStoreOperation operation, Func<T> act)
+    private static void NoSave<T>(RecordingStorage backing, Func<T> act)
     {
         var before = Image.Of(backing);
         var count = backing.Commits.Count;
-        var result = act();
-        var after = Image.Of(backing);
-        var save = Assert.Single(backing.Commits.Skip(count));
-        Assert.Equal(operation, save.Operation);
-        Assert.Equal(after.Text, Image.Of(save.Image).Text); // every change was made before the commit and none after it
-        Assert.NotEqual(before.Text, after.Text);
-        return result;
+        act();
+        Assert.Equal(count, backing.Commits.Count);
+        Assert.Equal(before.Text, Image.Of(backing).Text);
     }
 
+    // Runs one operation and checks its single committed unit against the before and after images of the backing.
     private static async Task<T> SavesAsync<T>(RecordingStorage backing, ContentStoreOperation operation, Func<Task<T>> act)
     {
         var before = Image.Of(backing);
@@ -197,31 +193,11 @@ public sealed class ContentStoreSaveStepTests
         Assert.Equal(before.Text, Image.Of(backing).Text);
     }
 
-    private static void NoSave<T>(RecordingStorage backing, Func<T> act)
-    {
-        var before = Image.Of(backing);
-        var count = backing.Commits.Count;
-        act();
-        Assert.Equal(count, backing.Commits.Count);
-        Assert.Equal(before.Text, Image.Of(backing).Text);
-    }
-
-    private static void Fails<T>(RecordingStorage backing, ContentStoreOperation operation, Func<T> act)
-    {
-        var before = Image.Of(backing);
-        var count = backing.Commits.Count;
-        backing.FailNextCommit = true;
-        var failure = Assert.Throws<IOException>(() => act());
-        Assert.Same(backing.Failure, failure);
-        Assert.Equal(operation, Assert.Single(backing.Commits.Skip(count)).Operation);
-        Assert.Equal(before.Text, Image.Of(backing).Text);
-    }
-
-    private static byte[] ReadBytes(ContentDelivery delivery)
+    private static async Task<byte[]> ReadBytes(ContentDelivery delivery)
     {
         using var body = delivery.Body;
         using var buffer = new MemoryStream();
-        body.CopyTo(buffer);
+        await body.CopyToAsync(buffer);
         return buffer.ToArray();
     }
 

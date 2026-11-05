@@ -4,7 +4,7 @@ The content store substrate ([DES-0054](https://github.com/Harborline-Software/h
 
 - **Put** streams bytes into a staged item, refusing at a named stage: `content.too-large`, `content.media-type-not-allowed`, `content.media-type-mismatch`, `content.digest-mismatch`. Size and quota refusals carry `limit` and `observed` in the DES-0014 C3 `detail`.
 - **Commit** turns a staged item into a reference inside one transaction. The backing decides the record and tenant quotas, counted in logical bytes, and the duplicate within the tenant.
-- **Read** authorizes before range evaluation, then returns a segment-streaming body. A first-segment or data-key failure is a typed `ContentIntegrityException` before a host writes headers; a later failure escapes the body so the host aborts it. Delivery uses `filename*` (RFC 8187 UTF-8) after an ASCII `filename` fallback where needed.
+- **ReadAsync** authorizes before range evaluation, then returns a segment-streaming body. A first-segment or data-key failure is a typed `ContentIntegrityException` before a host writes headers; a later failure escapes the body so the host aborts it. Delivery uses `filename*` (RFC 8187 UTF-8) after an ASCII `filename` fallback where needed.
 - **Erasure** destroys the item's own data key. Each item is sealed in fixed 65,536-byte AES-256-GCM segments; the item records that size. HKDF-SHA-256 derives separate tenant subkeys for content ids and data-key wrapping.
 - **Ports.** `IContentBookkeeping` owns items and their wrapped keys, owners, staged items, quota counts, reclamation entries and integrity episodes, with no ciphertext. `IContentByteStore` owns the ciphertext segments. `IContentStoreStorage` hands the store the pair (below). `InMemoryContentStoreStorage` backs both; a host supplies durable storage. `IContentStoreQuotaBase` declares the host-owned Q22 volume measurement.
 - **Integrity telemetry.** Every failed read marks `content.integrity` on an Activity span and increments the zero-alarm counter. The optional `IContentIntegrityLogger` receives one structured first-failure event per episode; the backing retains count and last-seen state until a full verified read or erasure.
@@ -70,7 +70,16 @@ By the owner's ruling of 2026-11-05 (17:47 UTC), every store write carries its o
 - **A write that changes nothing** commits nothing and writes no audit row.
 - **Async.** These calls and the ports behind them are async, with no sync-over-async.
 
-**Open: integrity episodes.** Opening or closing an episode still writes through `IContentBookkeeping.WriteIntegrityFromRead`, outside the boundary and with no audit row. A read can carry no principal and the read stream is synchronous, and how to change that waits on the owner. Erasure's closing of an episode is the exception: it commits inside the erasure's own write.
+## Reads and integrity episodes
+
+By the owner's ruling of 2026-11-05 (22:11 UTC), a failed integrity check writes an audit entry, so reads are async and each needs a named reader.
+
+- **`ReadAsync` and `ExportAsync` require a `ContentReadContext`.** A missing reader or a blank `PrincipalId` is refused before any byte is read, so it can never take the place of a `ContentIntegrityException`.
+- **The first covering segment is verified inside `ReadAsync`,** before a host writes headers. The body reads through `ReadAsync` and `CopyToAsync` only; its synchronous `Read`, `ReadByte` and `CopyTo` throw `NotSupportedException`. Kestrel's own default suits this: [`KestrelServerOptions.AllowSynchronousIO`](https://learn.microsoft.com/en-us/dotnet/api/microsoft.aspnetcore.server.kestrel.core.kestrelserveroptions.allowsynchronousio) "Defaults to false."
+- **Each episode write goes through the kernel boundary with the reader as actor** and writes its own audit row. The row names no tenant or content id (Q36). Closing an episode through erasure commits inside the erasure's own write.
+- **An episode always commits in its own transaction,** so a caller's rollback cannot erase it (Q34). The boundary refuses a nested execution, so `ReadAsync` is refused as `kernel.nested-execution` inside an open execution, before any byte is read. A body opened earlier and read inside an execution surfaces that same refusal if it needs to write an episode, and keeps its typed failure for later reads; a later read outside the execution opens the episode.
+- **A failed episode write surfaces as itself,** never as tampering.
+- **Cancelling a read does not cancel its episode write,** and a read cancelled on a segment fetch resumes on that segment.
 
 ## The two storage ports
 

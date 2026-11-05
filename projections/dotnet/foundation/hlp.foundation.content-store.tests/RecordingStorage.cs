@@ -14,12 +14,14 @@ internal sealed class RecordingStorage : IContentStoreStorage
     public InMemoryContentByteStore MemoryBytes { get; } = new();
     public List<string> Events { get; } = [];
     public List<ContentStoreOperation> StagedRecords { get; } = [];
+    public List<int> SegmentReads { get; } = [];
     public List<(ContentStoreOperation Operation, BookkeepingImage Image)> Commits { get; } = [];
     public bool FailNextCommit { get; set; }
     public IOException? Failure { get; private set; }
     public Exception? ThrowOnBegin { get; set; }
     public Exception? ThrowOnDelete { get; set; }
     public Action? BeforeFindStaged { get; set; }
+    public Action<int>? BeforeSegmentRead { get; set; }
     public Action? BeforeTryCreate { get; set; }
 
     public RecordingStorage()
@@ -61,16 +63,8 @@ internal sealed class RecordingStorage : IContentStoreStorage
 
         public ValueTask<IReadOnlyList<ContentStoreItem>> StagedCreatedAtOrBeforeAsync(DateTimeOffset cutoff, CancellationToken cancellationToken = default) => owner.Memory.StagedCreatedAtOrBeforeAsync(cutoff, cancellationToken);
         public ValueTask<bool> NamesBytesAsync(Guid itemKey, CancellationToken cancellationToken = default) => owner.Memory.NamesBytesAsync(itemKey, cancellationToken);
-        public ContentStoreItem? FindItem(ContentStorageItemKey key) => owner.Memory.FindItem(key);
-        public ContentIntegrityEntry? FindIntegrity(TenantId tenant, Guid itemKey) => owner.Memory.FindIntegrity(tenant, itemKey);
-
-        public void WriteIntegrityFromRead(ContentStoreOperation operation, ContentIntegrityEntry entry)
-        {
-            if (owner.FailNextCommit) owner.RecordCommit(operation); // throws, leaving the entry unwritten
-            owner.Memory.WriteIntegrityFromRead(operation, entry);
-            owner.RecordCommit(operation);
-        }
-
+        public ValueTask<ContentStoreItem?> FindItemAsync(ContentStorageItemKey key, CancellationToken cancellationToken = default) => owner.Memory.FindItemAsync(key, cancellationToken);
+        public ValueTask<ContentIntegrityEntry?> FindIntegrityAsync(TenantId tenant, Guid itemKey, CancellationToken cancellationToken = default) => owner.Memory.FindIntegrityAsync(tenant, itemKey, cancellationToken);
         public IReadOnlyList<ReclamationEntry> Reclamations => owner.Memory.Reclamations;
         public IReadOnlyList<ContentIntegrityEntry> IntegrityEntries => owner.Memory.IntegrityEntries;
         public int StagedCount => owner.Memory.StagedCount;
@@ -142,7 +136,12 @@ internal sealed class RecordingStorage : IContentStoreStorage
         public async ValueTask<IContentByteWriter> OpenWriteAsync(Guid itemKey, DateTimeOffset startedUtc, CancellationToken cancellationToken = default) =>
             new Writer(owner, await owner.MemoryBytes.OpenWriteAsync(itemKey, startedUtc, cancellationToken));
 
-        public ContentCiphertextSegment? ReadSegment(Guid itemKey, int index) => owner.MemoryBytes.ReadSegment(itemKey, index);
+        public ValueTask<ContentCiphertextSegment?> ReadSegmentAsync(Guid itemKey, int index, CancellationToken cancellationToken = default)
+        {
+            lock (owner.SegmentReads) owner.SegmentReads.Add(index);
+            owner.BeforeSegmentRead?.Invoke(index);
+            return owner.MemoryBytes.ReadSegmentAsync(itemKey, index, cancellationToken);
+        }
 
         public ValueTask DeleteAsync(Guid itemKey, CancellationToken cancellationToken = default)
         {

@@ -240,7 +240,14 @@ public interface IContentIntegrityLogger
     void LogIntegrityFailure(ContentIntegrityLogEvent integrityEvent);
 }
 
-/// <summary>Optional read correlation supplied by the host after it has minted trace and operation identifiers.</summary>
+/// <summary>
+/// The reader of one read, required on every read. <see cref="PrincipalId"/> is the actor of any integrity episode the read
+/// opens or closes (owner's ruling, 2026-11-05, 22:11 UTC; DES-0041 ck-1), so a blank one is refused before any byte is read.
+/// </summary>
+/// <param name="TraceId">The host's trace identifier for the read.</param>
+/// <param name="OperationId">The host's operation identifier for the read.</param>
+/// <param name="OpaqueTenantId">The opaque tenant identifier for operational events.</param>
+/// <param name="PrincipalId">The reader; never blank.</param>
 public sealed record ContentReadContext(string TraceId, string OperationId, string OpaqueTenantId, string PrincipalId);
 
 /// <summary>Typed encrypted-content failure that preserves host-only item, owner and segment context and never becomes a refusal code.</summary>
@@ -363,15 +370,10 @@ public interface IContentBookkeeping
     ValueTask<IReadOnlyList<ContentStoreItem>> StagedCreatedAtOrBeforeAsync(DateTimeOffset cutoff, CancellationToken cancellationToken = default);
     /// <summary>Whether any staged or committed entry names these bytes.</summary>
     ValueTask<bool> NamesBytesAsync(Guid itemKey, CancellationToken cancellationToken = default);
-    /// <summary>Reads a committed item's entry for the read path, which is synchronous; or null.</summary>
-    ContentStoreItem? FindItem(ContentStorageItemKey key);
-    /// <summary>Reads an item's integrity episode for the read path, which is synchronous; or null.</summary>
-    ContentIntegrityEntry? FindIntegrity(TenantId tenant, Guid itemKey);
-    /// <summary>
-    /// Writes an integrity episode from the read path as one atomic write, outside the kernel boundary. The read path is
-    /// synchronous and may carry no principal; how an episode reaches the boundary waits on the owner (slice record, clause 1).
-    /// </summary>
-    void WriteIntegrityFromRead(ContentStoreOperation operation, ContentIntegrityEntry entry);
+    /// <summary>Reads a committed item's entry outside any transaction, or null.</summary>
+    ValueTask<ContentStoreItem?> FindItemAsync(ContentStorageItemKey key, CancellationToken cancellationToken = default);
+    /// <summary>Reads an item's integrity episode outside any transaction, or null.</summary>
+    ValueTask<ContentIntegrityEntry?> FindIntegrityAsync(TenantId tenant, Guid itemKey, CancellationToken cancellationToken = default);
     /// <summary>The append-only reclamation entries, in order (ck-18).</summary>
     IReadOnlyList<ReclamationEntry> Reclamations { get; }
     /// <summary>Every integrity episode, active or closed.</summary>
@@ -404,8 +406,8 @@ public interface IContentByteStore
     /// <param name="startedUtc">The server time the grace period counts from until the writer completes.</param>
     /// <param name="cancellationToken">Cancels the open.</param>
     ValueTask<IContentByteWriter> OpenWriteAsync(Guid itemKey, DateTimeOffset startedUtc, CancellationToken cancellationToken = default);
-    /// <summary>Reads one segment for the read path, which is synchronous, or null when the item has no such segment.</summary>
-    ContentCiphertextSegment? ReadSegment(Guid itemKey, int index);
+    /// <summary>Reads one segment, or null when the item has no such segment.</summary>
+    ValueTask<ContentCiphertextSegment?> ReadSegmentAsync(Guid itemKey, int index, CancellationToken cancellationToken = default);
     /// <summary>Deletes an item's bytes; deleting bytes that are not there does nothing.</summary>
     ValueTask DeleteAsync(Guid itemKey, CancellationToken cancellationToken = default);
     /// <summary>Lists the keys whose bytes were last written at or before the cutoff, completed or not.</summary>
@@ -466,22 +468,15 @@ public sealed class InMemoryContentBookkeeping : IContentBookkeeping
     }
 
     /// <inheritdoc />
-    public ContentStoreItem? FindItem(ContentStorageItemKey key)
+    public ValueTask<ContentStoreItem?> FindItemAsync(ContentStorageItemKey key, CancellationToken cancellationToken = default)
     {
-        lock (_gate) return _items.GetValueOrDefault(key);
+        lock (_gate) return ValueTask.FromResult(_items.GetValueOrDefault(key));
     }
 
     /// <inheritdoc />
-    public ContentIntegrityEntry? FindIntegrity(TenantId tenant, Guid itemKey)
+    public ValueTask<ContentIntegrityEntry?> FindIntegrityAsync(TenantId tenant, Guid itemKey, CancellationToken cancellationToken = default)
     {
-        lock (_gate) return _integrity.GetValueOrDefault((tenant, itemKey));
-    }
-
-    /// <inheritdoc />
-    public void WriteIntegrityFromRead(ContentStoreOperation operation, ContentIntegrityEntry entry)
-    {
-        ArgumentNullException.ThrowIfNull(entry);
-        lock (_gate) _integrity[(entry.TenantId, entry.ItemKey)] = entry;
+        lock (_gate) return ValueTask.FromResult(_integrity.GetValueOrDefault((tenant, itemKey)));
     }
 
     /// <inheritdoc />
@@ -556,7 +551,7 @@ public sealed class InMemoryContentBookkeeping : IContentBookkeeping
             return ValueTask.CompletedTask;
         }
 
-        public ValueTask<ContentStoreItem?> FindItemAsync(ContentStorageItemKey key, CancellationToken cancellationToken = default) => ValueTask.FromResult(owner.FindItem(key));
+        public ValueTask<ContentStoreItem?> FindItemAsync(ContentStorageItemKey key, CancellationToken cancellationToken = default) => owner.FindItemAsync(key, cancellationToken);
 
         public ValueTask<ContentStoreItem?> FindStagedAsync(Guid stageId, CancellationToken cancellationToken = default)
         {
@@ -564,7 +559,7 @@ public sealed class InMemoryContentBookkeeping : IContentBookkeeping
         }
 
         public ValueTask<ContentIntegrityEntry?> FindIntegrityAsync(TenantId tenant, Guid itemKey, CancellationToken cancellationToken = default) =>
-            ValueTask.FromResult(owner.FindIntegrity(tenant, itemKey));
+            owner.FindIntegrityAsync(tenant, itemKey, cancellationToken);
 
         public ValueTask AddStagedAsync(ContentStoreItem item, CancellationToken cancellationToken = default)
         {
@@ -780,9 +775,9 @@ public sealed class InMemoryContentByteStore : IContentByteStore
     }
 
     /// <inheritdoc />
-    public ContentCiphertextSegment? ReadSegment(Guid itemKey, int index)
+    public ValueTask<ContentCiphertextSegment?> ReadSegmentAsync(Guid itemKey, int index, CancellationToken cancellationToken = default)
     {
-        lock (_gate) return _entries.TryGetValue(itemKey, out var entry) && index < entry.Segments.Count ? entry.Segments[index] : null;
+        lock (_gate) return ValueTask.FromResult(_entries.TryGetValue(itemKey, out var entry) && index < entry.Segments.Count ? entry.Segments[index] : null);
     }
 
     /// <inheritdoc />
@@ -1213,18 +1208,25 @@ public sealed class InMemoryContentStore
     /// missing id, an unauthorized owner and another tenant's id all throw the same <see cref="ContentNotFoundException"/>.
     /// A single range is served as 206, or 416 when unsatisfiable; an <paramref name="ifRange"/> that is not the current
     /// ETag, or an invalid range, is answered with the whole item (RFC 9110 §13.1.5, §14.2). The caller answers a
-    /// multi-range request with the whole item by passing no range (§10 ruling 5).
+    /// multi-range request with the whole item by passing no range (§10 ruling 5). The first covering segment is verified
+    /// here, before a host writes headers. The body reads asynchronously only; its synchronous reads refuse.
+    /// A read is refused inside an open boundary execution, because an episode it opens or closes commits in its own
+    /// transaction, where a caller's rollback cannot erase it (Q34).
     /// </summary>
-    public ContentDelivery Read(TenantId tenant, ContentReference reference, bool authorized, ContentByteRange? range = null, string? ifRange = null,
-        ContentReadContext? context = null)
+    public async ValueTask<ContentDelivery> ReadAsync(TenantId tenant, ContentReference reference, bool authorized, ContentReadContext context,
+        ContentByteRange? range = null, string? ifRange = null, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(reference);
-        var item = Readable(tenant, reference, authorized);
+        ArgumentNullException.ThrowIfNull(context);
+        ArgumentException.ThrowIfNullOrWhiteSpace(context.PrincipalId);
+        await RefuseOpenExecutionAsync().ConfigureAwait(false);
+        var item = await ReadableAsync(tenant, reference, authorized, cancellationToken).ConfigureAwait(false);
         var etag = "\"" + item.ContentId.Value + "\"";
         var disposition = Attachment(reference.DisplayName);
         if (range is not { } requested || (ifRange is not null && ifRange != etag) || requested.Start < 0 || requested.End < requested.Start)
         {
-            return new(OpenRead(item, reference.Owner, RequireKey(tenant), 0, item.LastSegment, 0, item.Length, true, context), 200, item.MediaType, disposition, etag, null);
+            return new(await OpenReadAsync(item, reference.Owner, RequireKey(tenant), 0, item.LastSegment, 0, item.Length, true, context, cancellationToken).ConfigureAwait(false),
+                200, item.MediaType, disposition, etag, null);
         }
 
         if (requested.Start >= item.Length)
@@ -1236,8 +1238,32 @@ public sealed class InMemoryContentStore
         var first = (int)(requested.Start / item.SegmentSize);
         var last = (int)(end / item.SegmentSize);
         var offset = requested.Start - ((long)first * item.SegmentSize);
-        return new(OpenRead(item, reference.Owner, RequireKey(tenant), first, last, offset, end - requested.Start + 1, false, context), 206,
-            item.MediaType, disposition, etag, $"bytes {requested.Start}-{end}/{item.Length}");
+        return new(await OpenReadAsync(item, reference.Owner, RequireKey(tenant), first, last, offset, end - requested.Start + 1, false, context, cancellationToken).ConfigureAwait(false),
+            206, item.MediaType, disposition, etag, $"bytes {requested.Start}-{end}/{item.Length}");
+    }
+
+    // The boundary's own nesting check, asked before any byte is read: Enter refuses an open execution, and otherwise the
+    // port ends the probe before anything begins. Without it a read inside a write works until the day a segment fails,
+    // and the nesting refusal then takes the place of the integrity failure.
+    private static async ValueTask RefuseOpenExecutionAsync()
+    {
+        try
+        {
+            await KernelTransactionBoundary.ExecutePreparedAsync<ContentStoreOperation, bool>(
+                static _ => throw new InvalidOperationException("The probe never prepares a command."), ExecutionProbe.Instance).ConfigureAwait(false);
+        }
+        catch (ExecutionProbe.Ended)
+        {
+        }
+    }
+
+    private sealed class ExecutionProbe : IKernelPreparedTransactionPort<ContentStoreOperation, bool>
+    {
+        public static readonly ExecutionProbe Instance = new();
+
+        public ValueTask<IKernelPreparedTransaction<ContentStoreOperation, bool>> BeginAsync(CancellationToken cancellationToken = default) => throw new Ended();
+
+        public sealed class Ended : Exception;
     }
 
     /// <summary>
@@ -1323,19 +1349,26 @@ public sealed class InMemoryContentStore
     /// Exports the items behind authorized references with a fresh per-export key (DES-0054 cc-7, Q20). The package
     /// carries each item's content id, bytes and keyed digest, and no plain SHA-256.
     /// </summary>
-    public ContentExportResult Export(TenantId tenant, IEnumerable<ContentReference> references, bool authorized)
+    public async ValueTask<ContentExportResult> ExportAsync(TenantId tenant, IEnumerable<ContentReference> references, bool authorized, ContentReadContext context,
+        CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(references);
         var exportKey = RandomNumberGenerator.GetBytes(KeyBytes);
-        var items = references.Select(reference =>
+        var items = new List<ContentExportItem>();
+        foreach (var reference in references)
         {
-            var item = Readable(tenant, reference, authorized);
-            using var body = Read(tenant, reference, authorized).Body;
-            using var plaintext = new MemoryStream();
-            body.CopyTo(plaintext);
-            var bytes = plaintext.ToArray();
-            return new ContentExportItem(item.ContentId, bytes, FixityDigest(exportKey, item.ContentId, bytes));
-        }).ToArray();
+            var delivery = await ReadAsync(tenant, reference, authorized, context, cancellationToken: cancellationToken).ConfigureAwait(false);
+            var body = delivery.Body;
+            await using (body.ConfigureAwait(false))
+            {
+                using var plaintext = new MemoryStream();
+                await body.CopyToAsync(plaintext, cancellationToken).ConfigureAwait(false);
+                var bytes = plaintext.ToArray();
+                var contentId = reference.ContentId;
+                items.Add(new ContentExportItem(contentId, bytes, FixityDigest(exportKey, contentId, bytes)));
+            }
+        }
+
         return new(new ContentExport(items), exportKey);
     }
 
@@ -1381,14 +1414,14 @@ public sealed class InMemoryContentStore
     /// <summary>Reports the generic count-free health signal: true when no unresolved item integrity episode exists.</summary>
     public bool IsIntegrityHealthy => !_bookkeeping.IntegrityEntries.Any(entry => entry.Active);
 
-    internal void CorruptCiphertext(TenantId tenant, ContentId contentId, int segment) =>
-        _bytes.ReadSegment(StorageItem(tenant, contentId).StageId, segment)!.Ciphertext[0] ^= 1;
+    internal async ValueTask CorruptCiphertextAsync(TenantId tenant, ContentId contentId, int segment) =>
+        (await _bytes.ReadSegmentAsync((await StorageItemAsync(tenant, contentId).ConfigureAwait(false)).StageId, segment).ConfigureAwait(false))!.Ciphertext[0] ^= 1;
 
-    internal void CorruptWrapTag(TenantId tenant, ContentId contentId) => StorageItem(tenant, contentId).WrapTag[0] ^= 1;
+    internal async ValueTask CorruptWrapTagAsync(TenantId tenant, ContentId contentId) => (await StorageItemAsync(tenant, contentId).ConfigureAwait(false)).WrapTag[0] ^= 1;
 
-    internal void RewrapWithContentIdSubkey(TenantId tenant, ContentId contentId)
+    internal async ValueTask RewrapWithContentIdSubkeyAsync(TenantId tenant, ContentId contentId)
     {
-        var item = StorageItem(tenant, contentId);
+        var item = await StorageItemAsync(tenant, contentId).ConfigureAwait(false);
         var root = RequireKey(tenant);
         var (_, correctWrapKey) = DeriveSubkeys(root, tenant);
         var (contentIdKey, _) = DeriveSubkeys(root, tenant);
@@ -1411,19 +1444,19 @@ public sealed class InMemoryContentStore
         }
     }
 
-    internal ContentStoreItem StorageItem(TenantId tenant, ContentId contentId) =>
-        _bookkeeping.FindItem(new(tenant, contentId)) ?? throw new KeyNotFoundException();
+    internal async ValueTask<ContentStoreItem> StorageItemAsync(TenantId tenant, ContentId contentId) =>
+        await _bookkeeping.FindItemAsync(new(tenant, contentId)).ConfigureAwait(false) ?? throw new KeyNotFoundException();
 
-    internal void DropLastSegmentKeepingLength(TenantId tenant, ContentId contentId)
+    internal async ValueTask DropLastSegmentKeepingLengthAsync(TenantId tenant, ContentId contentId)
     {
-        var segments = ((InMemoryContentByteStore)_bytes).LiveSegments(StorageItem(tenant, contentId).StageId);
+        var segments = ((InMemoryContentByteStore)_bytes).LiveSegments((await StorageItemAsync(tenant, contentId).ConfigureAwait(false)).StageId);
         segments.RemoveAt(segments.Count - 1);
     }
 
     // Live references to an item's key material, captured before an erase so a test can see it destroyed.
-    internal (byte[] WrappedDataKey, ICollection Segments) KeyMaterial(TenantId tenant, ContentId contentId)
+    internal async ValueTask<(byte[] WrappedDataKey, ICollection Segments)> KeyMaterialAsync(TenantId tenant, ContentId contentId)
     {
-        var item = StorageItem(tenant, contentId);
+        var item = await StorageItemAsync(tenant, contentId).ConfigureAwait(false);
         return (item.WrappedDataKey, ((InMemoryContentByteStore)_bytes).LiveSegments(item.StageId));
     }
 
@@ -1434,9 +1467,9 @@ public sealed class InMemoryContentStore
 
     // Simulates an attacker who drops the tail segment and shortens the length to match, so only the last-segment
     // flag in the nonce can detect it.
-    internal void TruncateLastSegment(TenantId tenant, ContentId contentId)
+    internal async ValueTask TruncateLastSegmentAsync(TenantId tenant, ContentId contentId)
     {
-        var item = StorageItem(tenant, contentId);
+        var item = await StorageItemAsync(tenant, contentId).ConfigureAwait(false);
         var segments = ((InMemoryContentByteStore)_bytes).LiveSegments(item.StageId);
         segments.RemoveAt(segments.Count - 1);
         ((InMemoryContentBookkeeping)_bookkeeping).ReplaceItem(item with { Length = (long)segments.Count * item.SegmentSize });
@@ -1482,9 +1515,9 @@ public sealed class InMemoryContentStore
         }
     }
 
-    private ContentStoreItem Readable(TenantId tenant, ContentReference reference, bool authorized)
+    private async ValueTask<ContentStoreItem> ReadableAsync(TenantId tenant, ContentReference reference, bool authorized, CancellationToken cancellationToken)
     {
-        if (!authorized || _bookkeeping.FindItem(new(tenant, reference.ContentId)) is not { } item || !item.Owners.Contains(reference.Owner))
+        if (!authorized || await _bookkeeping.FindItemAsync(new(tenant, reference.ContentId), cancellationToken).ConfigureAwait(false) is not { } item || !item.Owners.Contains(reference.Owner))
         {
             throw new ContentNotFoundException();
         }
@@ -1527,13 +1560,15 @@ public sealed class InMemoryContentStore
         return (wrapped, nonce, tag);
     }
 
-    private ContentReadStream OpenRead(ContentStoreItem item, ContentOwner owner, byte[] tenantKey, int first, int last, long offset, long length,
-        bool verifiesWholeItem, ContentReadContext? context)
+    private async ValueTask<ContentReadStream> OpenReadAsync(ContentStoreItem item, ContentOwner owner, byte[] tenantKey, int first, int last, long offset, long length,
+        bool verifiesWholeItem, ContentReadContext context, CancellationToken cancellationToken)
     {
         var wrapKey = DeriveSubkey(tenantKey, item.Tenant, DataKeyWrapKeyInfo);
         try
         {
-            return new ContentReadStream(item, _bytes, owner, wrapKey, first, last, offset, length, verifiesWholeItem, context, ReportIntegrity, ResolveVerified);
+            var body = new ContentReadStream(item, _bytes, owner, first, last, offset, length, verifiesWholeItem, context, ReportIntegrityAsync, ResolveVerifiedAsync);
+            await body.VerifyFirstSegmentAsync(wrapKey, cancellationToken).ConfigureAwait(false);
+            return body;
         }
         finally
         {
@@ -1541,43 +1576,60 @@ public sealed class InMemoryContentStore
         }
     }
 
-    private void ReportIntegrity(ContentStoreItem item, ContentOwner owner, int segmentIndex, ContentReadContext? context)
+    // One episode write's kernel evidence: the reader is the actor (the owner's ruling of 2026-11-05, 22:11 UTC), and each
+    // write has its own identity and audit row. They name no tenant or content id, so the row reveals nothing (Q36).
+    private ContentStoreWrite EpisodeWrite(string kind, ContentReadContext context)
     {
-        var effective = context ?? new ContentReadContext(Activity.Current?.TraceId.ToString() ?? string.Empty, string.Empty, item.Tenant.Value, string.Empty);
+        var id = Guid.NewGuid().ToString("N");
+        return new(new("content-" + kind + ":" + id, id, id), new("content-" + kind + ":" + id, context.PrincipalId, _clock.GetUtcNow(), ReadOnlyMemory<byte>.Empty));
+    }
+
+    // The episode commits in its own transaction, never a caller's, and is not cancelled with the read: the failure happened
+    // whether or not the reader is still there. A failed write surfaces as itself; the body keeps its typed failure.
+    private async ValueTask ReportIntegrityAsync(ContentStoreItem item, ContentOwner owner, int segmentIndex, ContentReadContext context)
+    {
         using var activity = IntegrityActivitySource.StartActivity("content.integrity");
         (activity ?? Activity.Current)?.SetStatus(ActivityStatusCode.Error);
         (activity ?? Activity.Current)?.SetTag("error.type", "content.integrity");
         IntegrityFailures.Add(1);
         var beginsEpisode = false;
-        // A read racing erasure cannot reopen an episode (Q34); bytes staged again later are a different item.
-        if (_bookkeeping.FindItem(new(item.Tenant, item.ContentId))?.StageId != item.StageId) return;
-        var prior = _bookkeeping.FindIntegrity(item.Tenant, item.StageId);
-        if (prior is not { Active: true })
+        await RunAsync(ContentStoreOperation.IntegrityFailure, EpisodeWrite("integrity-failure", context), async (session, token) =>
         {
-            beginsEpisode = true;
-            _bookkeeping.WriteIntegrityFromRead(ContentStoreOperation.IntegrityFailure, new(item.StageId, item.Tenant, _clock.GetUtcNow(), _clock.GetUtcNow(), 1, segmentIndex, true,
-                effective.TraceId, effective.OperationId, effective.PrincipalId, owner));
-        }
-        else
-        {
-            _bookkeeping.WriteIntegrityFromRead(ContentStoreOperation.IntegrityFailure, prior with { LastSeenUtc = _clock.GetUtcNow(), Count = prior.Count + 1, SegmentIndex = segmentIndex,
-                TraceId = effective.TraceId, OperationId = effective.OperationId, PrincipalId = effective.PrincipalId, Owner = owner });
-        }
+            // A read racing erasure cannot reopen an episode (Q34); bytes staged again later are a different item.
+            var current = await session.FindItemAsync(new(item.Tenant, item.ContentId), token).ConfigureAwait(false);
+            if (current?.StageId != item.StageId) return false;
+            var prior = await session.FindIntegrityAsync(item.Tenant, item.StageId, token).ConfigureAwait(false);
+            var now = _clock.GetUtcNow();
+            if (prior is not { Active: true })
+            {
+                beginsEpisode = true;
+                await session.SetIntegrityAsync(new(item.StageId, item.Tenant, now, now, 1, segmentIndex, true, context.TraceId, context.OperationId, context.PrincipalId, owner), token).ConfigureAwait(false);
+            }
+            else
+            {
+                await session.SetIntegrityAsync(prior with { LastSeenUtc = now, Count = prior.Count + 1, SegmentIndex = segmentIndex,
+                    TraceId = context.TraceId, OperationId = context.OperationId, PrincipalId = context.PrincipalId, Owner = owner }, token).ConfigureAwait(false);
+            }
+
+            return true;
+        }, CancellationToken.None).ConfigureAwait(false);
 
         if (beginsEpisode)
         {
-            _integrityLogger?.LogIntegrityFailure(new(effective.TraceId, effective.OperationId, effective.OpaqueTenantId, effective.PrincipalId,
-                item.StageId, owner, segmentIndex));
+            _integrityLogger?.LogIntegrityFailure(new(context.TraceId, context.OperationId, context.OpaqueTenantId, context.PrincipalId, item.StageId, owner, segmentIndex));
         }
     }
 
     // A full verified read ends the item's episode as its own write; with no active episode it changes nothing.
-    private void ResolveVerified(ContentStoreItem item)
+    private async ValueTask ResolveVerifiedAsync(ContentStoreItem item, ContentReadContext context)
     {
-        if (_bookkeeping.FindIntegrity(item.Tenant, item.StageId) is { Active: true } entry)
+        if (await _bookkeeping.FindIntegrityAsync(item.Tenant, item.StageId).ConfigureAwait(false) is not { Active: true }) return;
+        await RunAsync(ContentStoreOperation.IntegrityRecovery, EpisodeWrite("integrity-recovery", context), async (session, token) =>
         {
-            _bookkeeping.WriteIntegrityFromRead(ContentStoreOperation.IntegrityRecovery, entry with { Active = false });
-        }
+            if (await session.FindIntegrityAsync(item.Tenant, item.StageId, token).ConfigureAwait(false) is not { Active: true } entry) return false;
+            await session.SetIntegrityAsync(entry with { Active = false }, token).ConfigureAwait(false);
+            return true;
+        }, CancellationToken.None).ConfigureAwait(false);
     }
 
     private static async ValueTask ResolveIntegrityAsync(IContentBookkeepingSession session, ContentStoreItem item, CancellationToken cancellationToken)
@@ -1701,14 +1753,15 @@ public sealed class InMemoryContentStore
 
     private sealed class ContentReadStream : Stream
     {
+        private const string AsyncOnly = "This body reads asynchronously only; call ReadAsync or CopyToAsync.";
         private readonly ContentStoreItem _item;
         private readonly IContentByteStore _bytes;
         private readonly ContentOwner _owner;
         private readonly int _last;
         private readonly bool _verifiesWholeItem;
-        private readonly ContentReadContext? _context;
-        private readonly Action<ContentStoreItem, ContentOwner, int, ContentReadContext?> _report;
-        private readonly Action<ContentStoreItem> _resolve;
+        private readonly ContentReadContext _context;
+        private readonly Func<ContentStoreItem, ContentOwner, int, ContentReadContext, ValueTask> _report;
+        private readonly Func<ContentStoreItem, ContentReadContext, ValueTask> _resolve;
         private readonly byte[] _dataKey = new byte[KeyBytes];
         private readonly long _length;
         private long _remaining;
@@ -1719,9 +1772,9 @@ public sealed class InMemoryContentStore
         private bool _disposed;
         private ContentIntegrityException? _failure;
 
-        public ContentReadStream(ContentStoreItem item, IContentByteStore bytes, ContentOwner owner, byte[] wrapKey, int first, int last, long offset, long length,
-            bool verifiesWholeItem, ContentReadContext? context, Action<ContentStoreItem, ContentOwner, int, ContentReadContext?> report,
-            Action<ContentStoreItem> resolve)
+        public ContentReadStream(ContentStoreItem item, IContentByteStore bytes, ContentOwner owner, int first, int last, long offset, long length,
+            bool verifiesWholeItem, ContentReadContext context, Func<ContentStoreItem, ContentOwner, int, ContentReadContext, ValueTask> report,
+            Func<ContentStoreItem, ContentReadContext, ValueTask> resolve)
         {
             _item = item;
             _bytes = bytes;
@@ -1735,15 +1788,23 @@ public sealed class InMemoryContentStore
             _context = context;
             _report = report;
             _resolve = resolve;
+        }
+
+        // Verifies the first covering segment before the host writes headers.
+        public async ValueTask VerifyFirstSegmentAsync(byte[] wrapKey, CancellationToken cancellationToken)
+        {
             try
             {
-                using var wrapper = new AesGcm(wrapKey, TagBytes);
-                wrapper.Decrypt(item.WrapNonce, item.WrappedDataKey, item.WrapTag, _dataKey, Encoding.ASCII.GetBytes(item.ContentId.Value));
-                LoadSegment(); // Verify the first covering segment before the host writes headers.
+                using (var wrapper = new AesGcm(wrapKey, TagBytes))
+                {
+                    wrapper.Decrypt(_item.WrapNonce, _item.WrappedDataKey, _item.WrapTag, _dataKey, Encoding.ASCII.GetBytes(_item.ContentId.Value));
+                }
+
+                await LoadSegmentAsync(_index, cancellationToken).ConfigureAwait(false);
             }
             catch (Exception exception) when (exception is CryptographicException or IndexOutOfRangeException)
             {
-                Fail(exception);
+                await FailAsync(exception).ConfigureAwait(false);
             }
         }
 
@@ -1756,12 +1817,16 @@ public sealed class InMemoryContentStore
         public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
         public override void SetLength(long value) => throw new NotSupportedException();
         public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+        public override int Read(byte[] buffer, int offset, int count) => throw new NotSupportedException(AsyncOnly);
+        public override int Read(Span<byte> buffer) => throw new NotSupportedException(AsyncOnly);
 
-        public override int Read(byte[] buffer, int offset, int count) => Read(buffer.AsSpan(offset, count));
+        public override Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken) =>
+            ReadAsync(buffer.AsMemory(offset, count), cancellationToken).AsTask();
 
-        public override int Read(Span<byte> buffer)
+        public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
+            cancellationToken.ThrowIfCancellationRequested();
             if (_failure is not null) throw _failure;
             var copied = 0;
             try
@@ -1770,33 +1835,27 @@ public sealed class InMemoryContentStore
                 {
                     if (_offset == _clear.Length)
                     {
-                        _index++;
-                        LoadSegment();
+                        await LoadSegmentAsync(_index + 1, cancellationToken).ConfigureAwait(false);
                         _offset = 0;
                     }
 
                     var take = (int)Math.Min(Math.Min(_clear.Length - _offset, buffer.Length), _remaining);
-                    _clear.AsSpan(_offset, take).CopyTo(buffer);
+                    _clear.AsMemory(_offset, take).CopyTo(buffer);
                     _offset += take;
                     _remaining -= take;
                     copied += take;
                     buffer = buffer[take..];
                 }
             }
-            catch (ContentIntegrityException)
+            catch (Exception exception) when (exception is CryptographicException and not ContentIntegrityException or IndexOutOfRangeException)
             {
-                throw;
-            }
-            catch (Exception exception) when (exception is CryptographicException or IndexOutOfRangeException)
-            {
-                return Fail(exception);
+                await FailAsync(exception).ConfigureAwait(false);
             }
 
-            // Outside the try: a failed save step of the recovery fails this read as itself, never as tampering, and a
-            // later read retries it.
+            // Outside the try: a failed recovery write fails this read as itself, never as tampering, and a later read retries it.
             if (_remaining == 0 && !_completed)
             {
-                if (_verifiesWholeItem) _resolve(_item);
+                if (_verifiesWholeItem) await _resolve(_item, _context).ConfigureAwait(false);
                 _completed = true;
             }
 
@@ -1814,10 +1873,13 @@ public sealed class InMemoryContentStore
             base.Dispose(disposing);
         }
 
-        private void LoadSegment()
+        // A cancelled fetch changes nothing, so a later read fetches the same segment and never skips it.
+        private async ValueTask LoadSegmentAsync(int index, CancellationToken cancellationToken)
         {
+            var segment = index > _last ? null : await _bytes.ReadSegmentAsync(_item.StageId, index, cancellationToken).ConfigureAwait(false);
+            _index = index;
             CryptographicOperations.ZeroMemory(_clear);
-            if (_index > _last || _bytes.ReadSegment(_item.StageId, _index) is not { } segment)
+            if (segment is null)
             {
                 throw new AuthenticationTagMismatchException("A ciphertext segment is missing.");
             }
@@ -1827,12 +1889,12 @@ public sealed class InMemoryContentStore
             aead.Decrypt(SegmentNonce(_item.NoncePrefix, _index, _index == _item.LastSegment), segment.Ciphertext, segment.Tag, _clear);
         }
 
-        private int Fail(Exception exception)
+        private async ValueTask FailAsync(Exception exception)
         {
             _failure = new ContentIntegrityException(_item.StageId, _owner, _index, exception);
             CryptographicOperations.ZeroMemory(_dataKey);
             CryptographicOperations.ZeroMemory(_clear);
-            _report(_item, _owner, _index, _context);
+            await _report(_item, _owner, _index, _context).ConfigureAwait(false);
             throw _failure;
         }
     }

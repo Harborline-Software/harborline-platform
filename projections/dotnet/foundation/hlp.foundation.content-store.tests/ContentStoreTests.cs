@@ -32,9 +32,9 @@ public abstract class ContentStoreStorageContract
 
         var rebuilt = new InMemoryContentStore(new(300_000, 600_000, 600_000, TimeSpan.FromMinutes(1)), new ContractKeys(), clock, RestartStorage(backing));
         Assert.Equal(new ReclamationEntry(reclaimed.ContentId, new TenantId("contract"), "last-reference-removed", "dispose"), Assert.Single(rebuilt.Reclamations));
-        using var body = rebuilt.Read(new TenantId("contract"), committed, true).Body;
+        using var body = (await rebuilt.ReadAsync(new TenantId("contract"), committed, true)).Body;
         using var plaintext = new MemoryStream();
-        body.CopyTo(plaintext);
+        await body.CopyToAsync(plaintext);
         Assert.Equal("committed"u8.ToArray(), plaintext.ToArray());
         Assert.Equal(1, rebuilt.StagedCount);
         clock.Advance(TimeSpan.FromMinutes(1));
@@ -63,6 +63,8 @@ public abstract class ContentStoreStorageContract
     }
 }
 
+// Runs apart from the other classes because its counter test reads a process-wide meter they would add to.
+[Collection("Content integrity telemetry privacy")]
 public sealed class InMemoryContentStoreStorageContract : ContentStoreTests
 {
     protected override IContentStoreStorage CreateStorage() => new InMemoryContentStoreStorage();
@@ -93,7 +95,7 @@ public abstract class ContentStoreTests : ContentStoreStorageContract
         Assert.Empty(await backing.Bytes.WrittenAtOrBeforeAsync(DateTimeOffset.MaxValue));
         var stage = await store.PutAsync(TenantA, new MemoryStream(bytes[..131_072]), "text/plain", null);
         var reference = await store.CommitReferenceAsync(TenantA, stage, new("record", "file"), "exact.txt");
-        Assert.Equal(bytes[..131_072], ReadBytes(store.Read(TenantA, reference, true)));
+        Assert.Equal(bytes[..131_072], await ReadBytes(await store.ReadAsync(TenantA, reference, true)));
     }
 
     [Fact, Trait("DES-0054", "content-store-eng-10")]
@@ -103,23 +105,23 @@ public abstract class ContentStoreTests : ContentStoreStorageContract
         var store = LargeStore(new FakeTimeProvider(), log);
         var reference = await Commit(store, TenantA, "record", LargeBytes(2));
         var unaffected = await Commit(store, TenantA, "other", "safe"u8.ToArray());
-        store.CorruptCiphertext(TenantA, reference.ContentId, 1);
-        using var body = store.Read(TenantA, reference, true).Body;
+        await store.CorruptCiphertextAsync(TenantA, reference.ContentId, 1);
+        using var body = (await store.ReadAsync(TenantA, reference, true)).Body;
         var buffer = new byte[65_536];
         var clear = Assert.Single(body.GetType().GetFields(BindingFlags.Instance | BindingFlags.NonPublic)
             .Select(field => field.GetValue(body)).OfType<byte[]>(), bytes => bytes.Length == 65_536);
 
-        Assert.Equal(65_536, body.Read(buffer));
+        Assert.Equal(65_536, await body.ReadAsync(buffer.AsMemory()));
         Assert.Equal(Enumerable.Repeat((byte)'a', 65_536).ToArray(), buffer);
-        var failure = Assert.Throws<ContentIntegrityException>(() => body.ReadByte());
+        var failure = await Assert.ThrowsAsync<ContentIntegrityException>(async () => await body.ReadAsync(new byte[1].AsMemory()));
         Assert.Equal(1, failure.SegmentIndex);
         Assert.All(clear, value => Assert.Equal(0, value));
-        Assert.Same(failure, Assert.Throws<ContentIntegrityException>(() => body.ReadByte()));
-        Assert.Same(failure, Assert.Throws<ContentIntegrityException>(() => body.Read(Span<byte>.Empty)));
+        Assert.Same(failure, await Assert.ThrowsAsync<ContentIntegrityException>(async () => await body.ReadAsync(new byte[1].AsMemory())));
+        Assert.Same(failure, await Assert.ThrowsAsync<ContentIntegrityException>(async () => await body.ReadAsync(Memory<byte>.Empty)));
         Assert.Equal(1, Assert.Single(store.IntegrityEntries).Count);
         Assert.Single(log.Events);
-        Assert.Equal("Committed", store.StorageItem(TenantA, reference.ContentId).State.ToString());
-        Assert.Equal("safe"u8.ToArray(), ReadBytes(store.Read(TenantA, unaffected, true)));
+        Assert.Equal("Committed", (await store.StorageItemAsync(TenantA, reference.ContentId)).State.ToString());
+        Assert.Equal("safe"u8.ToArray(), await ReadBytes(await store.ReadAsync(TenantA, unaffected, true)));
     }
 
     [Fact, Trait("DES-0054", "content-store-eng-10")]
@@ -127,7 +129,7 @@ public abstract class ContentStoreTests : ContentStoreStorageContract
     {
         var store = Store();
         var reference = await Commit(store, TenantA, "record");
-        var body = store.Read(TenantA, reference, true).Body;
+        var body = (await store.ReadAsync(TenantA, reference, true)).Body;
         using var cancellation = new CancellationTokenSource();
         cancellation.Cancel();
         var buffer = new byte[2];
@@ -138,7 +140,7 @@ public abstract class ContentStoreTests : ContentStoreStorageContract
             Assert.InRange(read, 0, 2);
         });
         Assert.Equal(5, body.Length);
-        Assert.Equal(2, body.Read(buffer));
+        Assert.Equal(2, await body.ReadAsync(buffer.AsMemory()));
         Assert.Equal("he"u8.ToArray(), buffer);
         Assert.Equal(5, body.Length);
         var privateBuffers = body.GetType().GetFields(BindingFlags.Instance | BindingFlags.NonPublic)
@@ -147,7 +149,7 @@ public abstract class ContentStoreTests : ContentStoreStorageContract
         body.Dispose();
         Assert.All(privateBuffers, bytes => Assert.All(bytes, value => Assert.Equal(0, value)));
         Assert.False(body.CanRead);
-        Assert.Throws<ObjectDisposedException>(() => body.Read(buffer));
+        await Assert.ThrowsAsync<ObjectDisposedException>(async () => await body.ReadAsync(buffer.AsMemory()));
         Assert.Empty(store.IntegrityEntries);
         Assert.True(store.IsIntegrityHealthy);
     }
@@ -161,30 +163,30 @@ public abstract class ContentStoreTests : ContentStoreStorageContract
         var options = new ContentStoreOptions(300_000, 600_000, 600_000, TimeSpan.FromMinutes(1));
         var first = new InMemoryContentStore(options, new TestKeys(), clock, backing, log);
         var reference = await Commit(first, TenantA, "record", LargeBytes(2));
-        first.CorruptCiphertext(TenantA, reference.ContentId, 1);
-        Assert.Throws<ContentIntegrityException>(() => first.Read(TenantA, reference, true, new ContentByteRange(65_536, 65_538)));
+        await first.CorruptCiphertextAsync(TenantA, reference.ContentId, 1);
+        await Assert.ThrowsAsync<ContentIntegrityException>(async () => await first.ReadAsync(TenantA, reference, true, new ContentByteRange(65_536, 65_538)));
         var episode = Assert.Single(first.IntegrityEntries);
 
         backing = RestartStorage(backing);
         var rebuilt = new InMemoryContentStore(options, new TestKeys(), clock, backing, log);
         Assert.Equal(episode, Assert.Single(rebuilt.IntegrityEntries));
         Assert.False(rebuilt.IsIntegrityHealthy);
-        Assert.Equal("aaa"u8.ToArray(), ReadBytes(rebuilt.Read(TenantA, reference, true, new ContentByteRange(0, 2))));
+        Assert.Equal("aaa"u8.ToArray(), await ReadBytes(await rebuilt.ReadAsync(TenantA, reference, true, new ContentByteRange(0, 2))));
         Assert.False(rebuilt.IsIntegrityHealthy);
         clock.Advance(TimeSpan.FromSeconds(1));
-        Assert.Throws<ContentIntegrityException>(() => rebuilt.Read(TenantA, reference, true, new ContentByteRange(65_536, 65_538)));
+        await Assert.ThrowsAsync<ContentIntegrityException>(async () => await rebuilt.ReadAsync(TenantA, reference, true, new ContentByteRange(65_536, 65_538)));
         Assert.Equal(2, Assert.Single(rebuilt.IntegrityEntries).Count);
         Assert.Equal(DateTimeOffset.UnixEpoch.AddSeconds(1), Assert.Single(rebuilt.IntegrityEntries).LastSeenUtc);
         Assert.Single(log.Events);
 
-        rebuilt.CorruptCiphertext(TenantA, reference.ContentId, 1);
-        Assert.Equal(LargeBytes(2), ReadBytes(rebuilt.Read(TenantA, reference, true)));
+        await rebuilt.CorruptCiphertextAsync(TenantA, reference.ContentId, 1);
+        Assert.Equal(LargeBytes(2), await ReadBytes(await rebuilt.ReadAsync(TenantA, reference, true)));
         Assert.True(rebuilt.IsIntegrityHealthy);
         backing = RestartStorage(backing);
         var recovered = new InMemoryContentStore(options, new TestKeys(), clock, backing, log);
         Assert.False(Assert.Single(recovered.IntegrityEntries).Active);
-        recovered.CorruptCiphertext(TenantA, reference.ContentId, 1);
-        Assert.Throws<ContentIntegrityException>(() => recovered.Read(TenantA, reference, true, new ContentByteRange(65_536, 65_538)));
+        await recovered.CorruptCiphertextAsync(TenantA, reference.ContentId, 1);
+        await Assert.ThrowsAsync<ContentIntegrityException>(async () => await recovered.ReadAsync(TenantA, reference, true, new ContentByteRange(65_536, 65_538)));
         Assert.Equal(2, log.Events.Count);
         Assert.True(await recovered.RemoveReferenceAsync(TenantA, reference, HoldStatus.None, "erase"));
         Assert.True(recovered.IsIntegrityHealthy);
@@ -306,10 +308,10 @@ public abstract class ContentStoreTests : ContentStoreStorageContract
     {
         var store = Store();
         var reference = await Commit(store, TenantA, "record-1");
-        var missing = Assert.Throws<ContentNotFoundException>(() => store.Read(TenantA, reference with { ContentId = new("hmac-sha256:" + new string('a', 64)) }, true));
-        var denied = Assert.Throws<ContentNotFoundException>(() => store.Read(TenantA, reference, false));
-        var cross = Assert.Throws<ContentNotFoundException>(() => store.Read(TenantB, reference, true));
-        var wrongOwner = Assert.Throws<ContentNotFoundException>(() => store.Read(TenantA, reference with { Owner = new("record-9", "x") }, true));
+        var missing = await Assert.ThrowsAsync<ContentNotFoundException>(async () => await store.ReadAsync(TenantA, reference with { ContentId = new("hmac-sha256:" + new string('a', 64)) }, true));
+        var denied = await Assert.ThrowsAsync<ContentNotFoundException>(async () => await store.ReadAsync(TenantA, reference, false));
+        var cross = await Assert.ThrowsAsync<ContentNotFoundException>(async () => await store.ReadAsync(TenantB, reference, true));
+        var wrongOwner = await Assert.ThrowsAsync<ContentNotFoundException>(async () => await store.ReadAsync(TenantA, reference with { Owner = new("record-9", "x") }, true));
         Assert.All(new[] { denied, cross, wrongOwner }, refusal => Assert.Equal(missing.Message, refusal.Message));
     }
 
@@ -319,7 +321,7 @@ public abstract class ContentStoreTests : ContentStoreStorageContract
         var store = Store();
         var stage = await store.PutAsync(TenantA, new MemoryStream("a,b\r\n1,2\r\n"u8.ToArray()), "text/csv; charset=utf-8", null);
         var reference = await store.CommitReferenceAsync(TenantA, stage, new ContentOwner("record-1", "files/0"), "evil\"\r\nSet-Cookie: x.csv");
-        var delivery = store.Read(TenantA, reference, true);
+        var delivery = await store.ReadAsync(TenantA, reference, true);
         Assert.Equal("nosniff", ContentDelivery.XContentTypeOptions);
         Assert.Equal("text/csv", delivery.ContentType);
         Assert.Equal("attachment; filename=\"evil___Set-Cookie: x.csv\"; filename*=UTF-8''evil%22%0D%0ASet-Cookie%3A%20x.csv", delivery.ContentDisposition);
@@ -329,7 +331,7 @@ public abstract class ContentStoreTests : ContentStoreStorageContract
 
         var unicode = await store.CommitReferenceAsync(TenantA, await store.PutAsync(TenantA, new MemoryStream("still text"u8.ToArray()), "text/plain", null),
             new ContentOwner("record-1", "files/1"), "résumé.pdf");
-        var unicodeDelivery = store.Read(TenantA, unicode, true);
+        var unicodeDelivery = await store.ReadAsync(TenantA, unicode, true);
         Assert.Equal("attachment; filename=\"r_sum_.pdf\"; filename*=UTF-8''r%C3%A9sum%C3%A9.pdf", unicodeDelivery.ContentDisposition);
     }
 
@@ -340,10 +342,10 @@ public abstract class ContentStoreTests : ContentStoreStorageContract
         var first = await Commit(store, TenantA, "record-1");
         var second = await Commit(store, TenantA, "record-2");
         Assert.False(await store.RemoveReferenceAsync(TenantA, first, HoldStatus.None, "disposal-1"));
-        Assert.Equal(Hello, ReadBytes(store.Read(TenantA, second, true)));
+        Assert.Equal(Hello, await ReadBytes(await store.ReadAsync(TenantA, second, true)));
 
         Assert.True(await store.RemoveReferenceAsync(TenantA, second, HoldStatus.None, "disposal-2"));
-        Assert.Throws<ContentNotFoundException>(() => store.Read(TenantA, second, true));
+        await Assert.ThrowsAsync<ContentNotFoundException>(async () => await store.ReadAsync(TenantA, second, true));
         Assert.Equal(0, store.CommittedCount);
         var entry = Assert.Single(store.Reclamations);
         Assert.Equal(new ReclamationEntry(second.ContentId, TenantA, "last-reference-removed", "disposal-2"), entry);
@@ -358,7 +360,7 @@ public abstract class ContentStoreTests : ContentStoreStorageContract
         Assert.False(await store.RemoveReferenceAsync(TenantA, other, HoldStatus.None, "disposal-1"));
         Assert.False(await store.RemoveReferenceAsync(TenantA, held, HoldStatus.Held, "disposal-2"));
         Assert.False(await store.RemoveReferenceAsync(TenantA, held, HoldStatus.Unreadable, "disposal-3"));
-        Assert.Equal(Hello, ReadBytes(store.Read(TenantA, held, true)));
+        Assert.Equal(Hello, await ReadBytes(await store.ReadAsync(TenantA, held, true)));
         Assert.Empty(store.Reclamations);
 
         Assert.True(await store.RemoveReferenceAsync(TenantA, held, HoldStatus.None, "disposal-4"));
@@ -403,8 +405,8 @@ public abstract class ContentStoreTests : ContentStoreStorageContract
         Assert.Equal(open.ContentId, restricted.ContentId);
 
         // The gate evaluates each reference's field marking upstream; the store keeps no marking of its own.
-        Assert.Equal(Hello, ReadBytes(store.Read(TenantA, open, authorized: true)));
-        Assert.Throws<ContentNotFoundException>(() => store.Read(TenantA, restricted, authorized: false));
+        Assert.Equal(Hello, await ReadBytes(await store.ReadAsync(TenantA, open, authorized: true)));
+        await Assert.ThrowsAsync<ContentNotFoundException>(async () => await store.ReadAsync(TenantA, restricted, authorized: false));
     }
 
     [Fact, Trait("DES-0054", "content-store-cc-7")]
@@ -412,7 +414,7 @@ public abstract class ContentStoreTests : ContentStoreStorageContract
     {
         var store = Store();
         var references = new[] { await Commit(store, TenantA, "record-1"), await Commit(store, TenantA, "record-2", "second"u8.ToArray()) };
-        var export = store.Export(TenantA, references, authorized: true);
+        var export = await store.ExportAsync(TenantA, references, authorized: true);
         InMemoryContentStore.VerifyExport(export.Package, export.FixityKey);
 
         foreach (var item in export.Package.Items)
@@ -421,10 +423,10 @@ public abstract class ContentStoreTests : ContentStoreStorageContract
             Assert.DoesNotContain(Convert.ToHexStringLower(SHA256.HashData(item.Bytes)), System.Text.Json.JsonSerializer.Serialize(export.Package), StringComparison.Ordinal);
         }
 
-        Assert.NotEqual(export.FixityKey, store.Export(TenantA, references, authorized: true).FixityKey); // fresh per export
+        Assert.NotEqual(export.FixityKey, (await store.ExportAsync(TenantA, references, authorized: true)).FixityKey); // fresh per export
         export.Package.Items[1].Bytes[^1] ^= 1;
         Assert.Throws<InvalidDataException>(() => InMemoryContentStore.VerifyExport(export.Package, export.FixityKey));
-        Assert.Throws<ContentNotFoundException>(() => store.Export(TenantA, references, authorized: false));
+        await Assert.ThrowsAsync<ContentNotFoundException>(async () => await store.ExportAsync(TenantA, references, authorized: false));
     }
 
     [Fact]
@@ -449,12 +451,12 @@ public abstract class ContentStoreTests : ContentStoreStorageContract
     {
         var store = new InMemoryContentStore(new(200_000, 600_000, 600_000, TimeSpan.FromMinutes(1)), new TestKeys(), new FakeTimeProvider(), CreateStorage());
         var tampered = await Commit(store, TenantA, "record-1", LargeBytes(2));
-        store.CorruptCiphertext(TenantA, tampered.ContentId, 1);
-        Assert.Throws<ContentIntegrityException>(() => ReadBytes(store.Read(TenantA, tampered, true)));
+        await store.CorruptCiphertextAsync(TenantA, tampered.ContentId, 1);
+        await Assert.ThrowsAsync<ContentIntegrityException>(async () => await ReadBytes(await store.ReadAsync(TenantA, tampered, true)));
 
         var truncated = await Commit(store, TenantA, "record-2", LargeBytes(2));
-        store.TruncateLastSegment(TenantA, truncated.ContentId);
-        Assert.Throws<ContentIntegrityException>(() => ReadBytes(store.Read(TenantA, truncated, true)));
+        await store.TruncateLastSegmentAsync(TenantA, truncated.ContentId);
+        await Assert.ThrowsAsync<ContentIntegrityException>(async () => await ReadBytes(await store.ReadAsync(TenantA, truncated, true)));
     }
 
     [Fact]
@@ -464,22 +466,22 @@ public abstract class ContentStoreTests : ContentStoreStorageContract
         var reference = await Commit(store, TenantA, "record-1", "0123456789"u8.ToArray());
         var etag = "\"" + reference.ContentId.Value + "\"";
 
-        var partial = store.Read(TenantA, reference, true, new ContentByteRange(2, 7));
+        var partial = await store.ReadAsync(TenantA, reference, true, new ContentByteRange(2, 7));
         Assert.Equal(206, partial.StatusCode);
-        Assert.Equal("234567"u8.ToArray(), ReadBytes(partial));
+        Assert.Equal("234567"u8.ToArray(), await ReadBytes(partial));
         Assert.Equal("bytes 2-7/10", partial.ContentRange);
 
-        var tail = store.Read(TenantA, reference, true, new ContentByteRange(8, 500), etag);
-        Assert.Equal("89"u8.ToArray(), ReadBytes(tail));
+        var tail = await store.ReadAsync(TenantA, reference, true, new ContentByteRange(8, 500), etag);
+        Assert.Equal("89"u8.ToArray(), await ReadBytes(tail));
         Assert.Equal("bytes 8-9/10", tail.ContentRange);
 
-        var unsatisfiable = store.Read(TenantA, reference, true, new ContentByteRange(10, 12));
+        var unsatisfiable = await store.ReadAsync(TenantA, reference, true, new ContentByteRange(10, 12));
         Assert.Equal(416, unsatisfiable.StatusCode);
         Assert.Equal("bytes */10", unsatisfiable.ContentRange);
 
-        var stale = store.Read(TenantA, reference, true, new ContentByteRange(2, 7), "\"hmac-sha256:" + new string('0', 64) + "\"");
+        var stale = await store.ReadAsync(TenantA, reference, true, new ContentByteRange(2, 7), "\"hmac-sha256:" + new string('0', 64) + "\"");
         Assert.Equal(200, stale.StatusCode);
-        Assert.Equal("0123456789"u8.ToArray(), ReadBytes(stale));
+        Assert.Equal("0123456789"u8.ToArray(), await ReadBytes(stale));
     }
 
     [Fact]
@@ -524,7 +526,7 @@ public abstract class ContentStoreTests : ContentStoreStorageContract
         var clock = new FakeTimeProvider();
         var store = Store(clock: clock);
         var reference = await Commit(store, TenantA, "record-1");
-        var committed = store.KeyMaterial(TenantA, reference.ContentId);
+        var committed = await store.KeyMaterialAsync(TenantA, reference.ContentId);
         Assert.False(await store.RemoveReferenceAsync(TenantA, reference with { Owner = new("record-9", "x") }, HoldStatus.None, "disposal-0"));
         Assert.True(await store.RemoveReferenceAsync(TenantA, reference, HoldStatus.None, "disposal-1"));
         Assert.All(committed.WrappedDataKey, value => Assert.Equal(0, value));
@@ -536,7 +538,7 @@ public abstract class ContentStoreTests : ContentStoreStorageContract
         await store.CommitReferenceAsync(TenantA, duplicate, new ContentOwner("record-3", "0"), "x.txt");
         Assert.All(collapsed.WrappedDataKey, value => Assert.Equal(0, value));
         Assert.Empty(collapsed.Segments);
-        Assert.Equal(Hello, ReadBytes(store.Read(TenantA, kept, true)));
+        Assert.Equal(Hello, await ReadBytes(await store.ReadAsync(TenantA, kept, true)));
 
         var abandoned = await store.PutAsync(TenantA, new MemoryStream(Hello), "text/plain", null);
         var swept = store.KeyMaterial(abandoned);
@@ -581,9 +583,9 @@ public abstract class ContentStoreTests : ContentStoreStorageContract
 
         var valid = Store();
         var reference = await Commit(valid, TenantA, "record-1", "0123456789"u8.ToArray());
-        Assert.Equal("5"u8.ToArray(), ReadBytes(valid.Read(TenantA, reference, true, new ContentByteRange(5, 5))));
-        valid.DropLastSegmentKeepingLength(TenantA, reference.ContentId);
-        Assert.Throws<ContentIntegrityException>(() => ReadBytes(valid.Read(TenantA, reference, true)));
+        Assert.Equal("5"u8.ToArray(), await ReadBytes(await valid.ReadAsync(TenantA, reference, true, new ContentByteRange(5, 5))));
+        await valid.DropLastSegmentKeepingLengthAsync(TenantA, reference.ContentId);
+        await Assert.ThrowsAsync<ContentIntegrityException>(async () => await ReadBytes(await valid.ReadAsync(TenantA, reference, true)));
     }
 
     [Fact, Trait("DES-0054", "content-store-eng-10")]
@@ -600,9 +602,9 @@ public abstract class ContentStoreTests : ContentStoreStorageContract
         var reference = await Commit(store, TenantA, "record", bytes);
         var expectedContentId = new ContentId(ContentId.Algorithm + Convert.ToHexStringLower(HMACSHA256.HashData(contentIdKey, bytes)));
         Assert.Equal(expectedContentId, reference.ContentId);
-        Assert.Equal(65_536, store.StorageItem(TenantA, reference.ContentId).SegmentSize);
-        store.RewrapWithContentIdSubkey(TenantA, reference.ContentId);
-        Assert.Throws<ContentIntegrityException>(() => store.Read(TenantA, reference, true));
+        Assert.Equal(65_536, (await store.StorageItemAsync(TenantA, reference.ContentId)).SegmentSize);
+        await store.RewrapWithContentIdSubkeyAsync(TenantA, reference.ContentId);
+        await Assert.ThrowsAsync<ContentIntegrityException>(async () => await store.ReadAsync(TenantA, reference, true));
     }
 
     [Fact, Trait("DES-0054", "content-store-eng-10")]
@@ -613,10 +615,10 @@ public abstract class ContentStoreTests : ContentStoreStorageContract
         var store = new InMemoryContentStore(new(300_000, 600_000, 600_000, TimeSpan.FromMinutes(1)), new TestKeys(), clock,
             CreateStorage(), log);
         var reference = await Commit(store, TenantA, "record", LargeBytes(2));
-        store.CorruptCiphertext(TenantA, reference.ContentId, 1);
+        await store.CorruptCiphertextAsync(TenantA, reference.ContentId, 1);
         var context = new ContentReadContext("trace-1", "operation-1", "tenant-opaque", "principal-1");
 
-        var first = Assert.Throws<ContentIntegrityException>(() => store.Read(TenantA, reference, true, new ContentByteRange(65_536, 65_538), context: context));
+        var first = await Assert.ThrowsAsync<ContentIntegrityException>(async () => await store.ReadAsync(TenantA, reference, true, context, new ContentByteRange(65_536, 65_538)));
         Assert.Equal(1, first.SegmentIndex);
         Assert.Single(log.Events);
         var entry = Assert.Single(store.IntegrityEntries);
@@ -625,22 +627,22 @@ public abstract class ContentStoreTests : ContentStoreStorageContract
         Assert.False(store.IsIntegrityHealthy);
 
         clock.Advance(TimeSpan.FromSeconds(1));
-        Assert.Throws<ContentIntegrityException>(() => store.Read(TenantA, reference, true, new ContentByteRange(65_536, 65_538), context: context));
+        await Assert.ThrowsAsync<ContentIntegrityException>(async () => await store.ReadAsync(TenantA, reference, true, context, new ContentByteRange(65_536, 65_538)));
         entry = Assert.Single(store.IntegrityEntries);
         Assert.Equal(2, entry.Count);
         Assert.Single(log.Events);
         Assert.Equal(DateTimeOffset.UnixEpoch.AddSeconds(1), entry.LastSeenUtc);
 
-        Assert.Equal(LargeBytes(2).AsSpan(0, 3).ToArray(), ReadBytes(store.Read(TenantA, reference, true, new ContentByteRange(0, 2), context: context)));
+        Assert.Equal(LargeBytes(2).AsSpan(0, 3).ToArray(), await ReadBytes(await store.ReadAsync(TenantA, reference, true, context, new ContentByteRange(0, 2))));
         Assert.True(Assert.Single(store.IntegrityEntries).Active);
 
-        store.CorruptCiphertext(TenantA, reference.ContentId, 1); // restored backing bytes
-        Assert.Equal(LargeBytes(2), ReadBytes(store.Read(TenantA, reference, true, context: context)));
+        await store.CorruptCiphertextAsync(TenantA, reference.ContentId, 1); // restored backing bytes
+        Assert.Equal(LargeBytes(2), await ReadBytes(await store.ReadAsync(TenantA, reference, true, context: context)));
         Assert.True(store.IsIntegrityHealthy);
         Assert.False(Assert.Single(store.IntegrityEntries).Active);
 
-        store.CorruptCiphertext(TenantA, reference.ContentId, 1);
-        Assert.Throws<ContentIntegrityException>(() => store.Read(TenantA, reference, true, new ContentByteRange(65_536, 65_538), context: context));
+        await store.CorruptCiphertextAsync(TenantA, reference.ContentId, 1);
+        await Assert.ThrowsAsync<ContentIntegrityException>(async () => await store.ReadAsync(TenantA, reference, true, context, new ContentByteRange(65_536, 65_538)));
         Assert.Equal(2, log.Events.Count);
         Assert.Equal(1, Assert.Single(store.IntegrityEntries).Count);
     }
@@ -667,9 +669,9 @@ public abstract class ContentStoreTests : ContentStoreStorageContract
 
         var store = new InMemoryContentStore(new(300_000, 600_000, 600_000, TimeSpan.FromMinutes(1)), new TestKeys(), new FakeTimeProvider(), CreateStorage());
         var reference = await Commit(store, TenantA, "record", LargeBytes(2));
-        store.CorruptCiphertext(TenantA, reference.ContentId, 1);
-        Assert.Throws<ContentIntegrityException>(() => store.Read(TenantA, reference, true, new ContentByteRange(65_536, 65_538)));
-        Assert.Throws<ContentIntegrityException>(() => store.Read(TenantA, reference, true, new ContentByteRange(65_536, 65_538)));
+        await store.CorruptCiphertextAsync(TenantA, reference.ContentId, 1);
+        await Assert.ThrowsAsync<ContentIntegrityException>(async () => await store.ReadAsync(TenantA, reference, true, new ContentByteRange(65_536, 65_538)));
+        await Assert.ThrowsAsync<ContentIntegrityException>(async () => await store.ReadAsync(TenantA, reference, true, new ContentByteRange(65_536, 65_538)));
 
         Assert.Equal(2, failures);
         Assert.Equal(2, spans.Count);
@@ -685,9 +687,9 @@ public abstract class ContentStoreTests : ContentStoreStorageContract
     {
         var store = Store(itemLimit: 100);
         var reference = await store.CommitReferenceAsync(TenantA, await store.PutAsync(TenantA, new MemoryStream("%PDF-1.4\n"u8.ToArray()), "application/pdf", null), new("record", "n"), "0azAZ9é~.pdf");
-        Assert.Equal("attachment; filename=\"0azAZ9_~.pdf\"; filename*=UTF-8''0azAZ9%C3%A9~.pdf", store.Read(TenantA, reference, true).ContentDisposition);
+        Assert.Equal("attachment; filename=\"0azAZ9_~.pdf\"; filename*=UTF-8''0azAZ9%C3%A9~.pdf", (await store.ReadAsync(TenantA, reference, true)).ContentDisposition);
         var percent = await store.CommitReferenceAsync(TenantA, await store.PutAsync(TenantA, new MemoryStream("%PDF-1.4\n"u8.ToArray()), "application/pdf", null), new("record", "p"), "ab%4");
-        Assert.Equal("attachment; filename=\"ab%4\"", store.Read(TenantA, percent, true).ContentDisposition);
+        Assert.Equal("attachment; filename=\"ab%4\"", (await store.ReadAsync(TenantA, percent, true)).ContentDisposition);
     }
 
     private InMemoryContentStore LargeStore(FakeTimeProvider clock, CapturingLogger log) =>
@@ -700,8 +702,8 @@ public abstract class ContentStoreTests : ContentStoreStorageContract
         var log = new CapturingLogger();
         var store = LargeStore(clock, log);
         var reference = await Commit(store, TenantA, "record", LargeBytes(2));
-        store.CorruptCiphertext(TenantA, reference.ContentId, 1);
-        Assert.Throws<ContentIntegrityException>(() => store.Read(TenantA, reference, true, new ContentByteRange(65_536, 65_538)));
+        await store.CorruptCiphertextAsync(TenantA, reference.ContentId, 1);
+        await Assert.ThrowsAsync<ContentIntegrityException>(async () => await store.ReadAsync(TenantA, reference, true, new ContentByteRange(65_536, 65_538)));
         Assert.False(store.IsIntegrityHealthy);
         Assert.True(await store.RemoveReferenceAsync(TenantA, reference, HoldStatus.None, "run"));
         Assert.True(store.IsIntegrityHealthy);
@@ -709,8 +711,8 @@ public abstract class ContentStoreTests : ContentStoreStorageContract
 
         // A different item's later corruption opens a new episode and logs again.
         var other = await Commit(store, TenantA, "record-2", "two"u8.ToArray());
-        store.CorruptCiphertext(TenantA, other.ContentId, 0);
-        Assert.Throws<ContentIntegrityException>(() => store.Read(TenantA, other, true));
+        await store.CorruptCiphertextAsync(TenantA, other.ContentId, 0);
+        await Assert.ThrowsAsync<ContentIntegrityException>(async () => await store.ReadAsync(TenantA, other, true));
         Assert.False(store.IsIntegrityHealthy);
         Assert.Equal(2, log.Events.Count);
 
@@ -723,9 +725,9 @@ public abstract class ContentStoreTests : ContentStoreStorageContract
     {
         var store = LargeStore(new FakeTimeProvider(), new CapturingLogger());
         var reference = await Commit(store, TenantA, "record", LargeBytes(2));
-        var delivery = store.Read(TenantA, reference, true);
+        var delivery = await store.ReadAsync(TenantA, reference, true);
         Assert.True(await store.RemoveReferenceAsync(TenantA, reference, HoldStatus.None, "run"));
-        Assert.Throws<ContentIntegrityException>(() => ReadBytes(delivery));
+        await Assert.ThrowsAsync<ContentIntegrityException>(() => ReadBytes(delivery));
         Assert.Empty(store.IntegrityEntries);
         Assert.True(store.IsIntegrityHealthy);
     }
@@ -736,7 +738,7 @@ public abstract class ContentStoreTests : ContentStoreStorageContract
         var store = Store();
         var a = await Commit(store, TenantA, "record-1", "one"u8.ToArray());
         var b = await Commit(store, TenantA, "record-2", "two"u8.ToArray());
-        var export = store.Export(TenantA, [a, b], authorized: true);
+        var export = await store.ExportAsync(TenantA, [a, b], authorized: true);
         var swapped = new ContentExport([export.Package.Items[0] with { ContentId = export.Package.Items[1].ContentId },
             export.Package.Items[1] with { ContentId = export.Package.Items[0].ContentId }]);
         Assert.Throws<InvalidDataException>(() => InMemoryContentStore.VerifyExport(swapped, export.FixityKey));
@@ -748,9 +750,9 @@ public abstract class ContentStoreTests : ContentStoreStorageContract
     {
         var store = Store();
         var reference = await Commit(store, TenantA, "record");
-        var missing = Assert.Throws<ContentNotFoundException>(() => store.Read(TenantA, reference with { ContentId = new("hmac-sha256:" + new string('b', 64)) }, true, new ContentByteRange(999, 1000)));
-        var denied = Assert.Throws<ContentNotFoundException>(() => store.Read(TenantA, reference, false, new ContentByteRange(999, 1000)));
-        var cross = Assert.Throws<ContentNotFoundException>(() => store.Read(TenantB, reference, true, new ContentByteRange(999, 1000)));
+        var missing = await Assert.ThrowsAsync<ContentNotFoundException>(async () => await store.ReadAsync(TenantA, reference with { ContentId = new("hmac-sha256:" + new string('b', 64)) }, true, new ContentByteRange(999, 1000)));
+        var denied = await Assert.ThrowsAsync<ContentNotFoundException>(async () => await store.ReadAsync(TenantA, reference, false, new ContentByteRange(999, 1000)));
+        var cross = await Assert.ThrowsAsync<ContentNotFoundException>(async () => await store.ReadAsync(TenantB, reference, true, new ContentByteRange(999, 1000)));
         Assert.Equal(missing.Message, denied.Message);
         Assert.Equal(missing.Message, cross.Message);
     }
@@ -775,11 +777,11 @@ public abstract class ContentStoreTests : ContentStoreStorageContract
 
         await Assert.ThrowsAsync<ArgumentNullException>(async () => await store.CommitReferenceAsync(TenantA, Guid.NewGuid(), null!, "x.txt"));
         await Assert.ThrowsAsync<ArgumentException>(async () => await store.CommitReferenceAsync(TenantA, Guid.NewGuid(), new("record", "field"), " "));
-        Assert.Throws<ArgumentNullException>(() => store.Read(TenantA, null!, true));
+        await Assert.ThrowsAsync<ArgumentNullException>(async () => await store.ReadAsync(TenantA, null!, true));
         await Assert.ThrowsAsync<ArgumentNullException>(async () => await store.RemoveReferenceAsync(TenantA, null!, HoldStatus.None, "run"));
         await Assert.ThrowsAsync<ArgumentException>(async () => await store.RemoveReferenceAsync(TenantA, new(new("hmac-sha256:" + new string('a', 64)), 0, "text/plain", "x", new("r", "e")), HoldStatus.None, " "));
         await Assert.ThrowsAsync<ArgumentException>(async () => await store.SweepExpiredAsync(" "));
-        Assert.Throws<ArgumentNullException>(() => store.Export(TenantA, null!, true));
+        await Assert.ThrowsAsync<ArgumentNullException>(async () => await store.ExportAsync(TenantA, null!, true));
         Assert.Throws<ArgumentNullException>(() => InMemoryContentStore.VerifyExport(null!, new byte[32]));
         Assert.Throws<ArgumentNullException>(() => InMemoryContentStore.VerifyExport(new ContentExport([]), null!));
     }
@@ -791,14 +793,14 @@ public abstract class ContentStoreTests : ContentStoreStorageContract
         var bytes = LargeBytes(2);
         var first = await Commit(store, TenantA, "first", bytes);
         var second = await Commit(store, TenantA, "second", bytes.Select(value => (byte)(value ^ 1)).ToArray());
-        Assert.Equal(bytes.AsSpan(65_535, 3).ToArray(), ReadBytes(store.Read(TenantA, first, true, new ContentByteRange(65_535, 65_537))));
+        Assert.Equal(bytes.AsSpan(65_535, 3).ToArray(), await ReadBytes(await store.ReadAsync(TenantA, first, true, new ContentByteRange(65_535, 65_537))));
 
-        store.CorruptWrapTag(TenantA, first.ContentId);
-        Assert.Throws<ContentIntegrityException>(() => store.Read(TenantA, first, true));
-        store.CorruptCiphertext(TenantA, second.ContentId, 1);
-        Assert.Throws<ContentIntegrityException>(() => ReadBytes(store.Read(TenantA, second, true)));
-        store.CorruptCiphertext(TenantA, second.ContentId, 1);
-        Assert.Equal(bytes.Select(value => (byte)(value ^ 1)).ToArray(), ReadBytes(store.Read(TenantA, second, true)));
+        await store.CorruptWrapTagAsync(TenantA, first.ContentId);
+        await Assert.ThrowsAsync<ContentIntegrityException>(async () => await store.ReadAsync(TenantA, first, true));
+        await store.CorruptCiphertextAsync(TenantA, second.ContentId, 1);
+        await Assert.ThrowsAsync<ContentIntegrityException>(async () => await ReadBytes(await store.ReadAsync(TenantA, second, true)));
+        await store.CorruptCiphertextAsync(TenantA, second.ContentId, 1);
+        Assert.Equal(bytes.Select(value => (byte)(value ^ 1)).ToArray(), await ReadBytes(await store.ReadAsync(TenantA, second, true)));
         Assert.False(store.IsIntegrityHealthy);
     }
 
@@ -808,7 +810,7 @@ public abstract class ContentStoreTests : ContentStoreStorageContract
         var store = Store(itemLimit: 100);
         var exactWebp = "RIFF\0\0\0\0WEBPVP"u8.ToArray();
         var webp = await store.CommitReferenceAsync(TenantA, await store.PutAsync(TenantA, new MemoryStream(exactWebp), "image/webp", null), new("record", "webp"), "a%ab.txt");
-        var delivery = store.Read(TenantA, webp, true);
+        var delivery = await store.ReadAsync(TenantA, webp, true);
         Assert.Equal("image/webp", delivery.ContentType);
         Assert.Equal("attachment; filename=\"a_ab.txt\"; filename*=UTF-8''a%25ab.txt", delivery.ContentDisposition);
 
@@ -820,7 +822,7 @@ public abstract class ContentStoreTests : ContentStoreStorageContract
         Assert.Equal(InMemoryContentStore.StoreDeclaration, refusal.Definition);
 
         var ascii = await store.CommitReferenceAsync(TenantA, await store.PutAsync(TenantA, new MemoryStream(Hello), "text/plain", null), new("record", "ascii"), "AZaz09!#$&+-.^_`|~ space");
-        Assert.Equal("attachment; filename=\"AZaz09!#$&+-.^_`|~ space\"", store.Read(TenantA, ascii, true).ContentDisposition);
+        Assert.Equal("attachment; filename=\"AZaz09!#$&+-.^_`|~ space\"", (await store.ReadAsync(TenantA, ascii, true)).ContentDisposition);
     }
 
     [Fact]
@@ -828,11 +830,11 @@ public abstract class ContentStoreTests : ContentStoreStorageContract
     {
         var store = Store();
         var reference = await Commit(store, TenantA, "record");
-        store.CorruptCiphertext(TenantA, reference.ContentId, 0);
-        Assert.Throws<ContentIntegrityException>(() => store.Read(TenantA, reference, true));
-        store.CorruptCiphertext(TenantA, reference.ContentId, 0);
+        await store.CorruptCiphertextAsync(TenantA, reference.ContentId, 0);
+        await Assert.ThrowsAsync<ContentIntegrityException>(async () => await store.ReadAsync(TenantA, reference, true));
+        await store.CorruptCiphertextAsync(TenantA, reference.ContentId, 0);
 
-        using var body = store.Read(TenantA, reference, true).Body;
+        using var body = (await store.ReadAsync(TenantA, reference, true)).Body;
         Assert.True(body.CanRead);
         Assert.False(body.CanSeek);
         Assert.False(body.CanWrite);
@@ -840,9 +842,9 @@ public abstract class ContentStoreTests : ContentStoreStorageContract
         Assert.Throws<NotSupportedException>(() => body.SetLength(0));
         Assert.Throws<NotSupportedException>(() => body.Write([], 0, 0));
         var buffer = new byte[Hello.Length];
-        Assert.Equal(Hello.Length, body.Read(buffer, 0, buffer.Length));
+        Assert.Equal(Hello.Length, await body.ReadAsync(buffer.AsMemory()));
         Assert.Equal(Hello, buffer);
-        Assert.Equal(0, body.Read(buffer, 0, buffer.Length));
+        Assert.Equal(0, await body.ReadAsync(buffer.AsMemory()));
         Assert.True(store.IsIntegrityHealthy);
     }
 
@@ -852,11 +854,11 @@ public abstract class ContentStoreTests : ContentStoreStorageContract
     private InMemoryContentStore Store(long itemLimit = 100, FakeTimeProvider? clock = null) =>
         new(new(itemLimit, 1000, 1000, TimeSpan.FromMinutes(1)), new TestKeys(), clock ?? new FakeTimeProvider(), CreateStorage());
 
-    private static byte[] ReadBytes(ContentDelivery delivery)
+    private static async Task<byte[]> ReadBytes(ContentDelivery delivery)
     {
         using var body = delivery.Body;
         using var buffer = new MemoryStream();
-        body.CopyTo(buffer);
+        await body.CopyToAsync(buffer);
         return buffer.ToArray();
     }
 

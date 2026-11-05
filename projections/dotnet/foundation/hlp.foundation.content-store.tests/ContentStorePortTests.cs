@@ -20,11 +20,11 @@ public sealed class ContentStorePortTests
 
     private static Task<Guid> Put(InMemoryContentStore store, byte[] bytes) => store.PutAsync(Tenant, new MemoryStream(bytes), "text/plain", null).AsTask();
 
-    private static byte[] ReadBytes(ContentDelivery delivery)
+    private static async Task<byte[]> ReadBytes(ContentDelivery delivery)
     {
         using var body = delivery.Body;
         using var buffer = new MemoryStream();
-        body.CopyTo(buffer);
+        await body.CopyToAsync(buffer);
         return buffer.ToArray();
     }
 
@@ -61,10 +61,10 @@ public sealed class ContentStorePortTests
     {
         var backing = new RecordingStorage();
         var stage = await Put(Store(backing), Hello);
-        var segment = Assert.IsType<ContentCiphertextSegment>(backing.MemoryBytes.ReadSegment(stage, 0));
+        var segment = Assert.IsType<ContentCiphertextSegment>(await backing.MemoryBytes.ReadSegmentAsync(stage, 0));
         Assert.Equal(5, segment.Ciphertext.Length);
         Assert.NotEqual(Hello, segment.Ciphertext);
-        Assert.Null(backing.MemoryBytes.ReadSegment(stage, 1));
+        Assert.Null(await backing.MemoryBytes.ReadSegmentAsync(stage, 1));
         Assert.Equal(stage, Assert.Single(backing.Memory.Snapshot().Staged).StageId);
     }
 
@@ -128,7 +128,7 @@ public sealed class ContentStorePortTests
             var item = Assert.Single(backing.Memory.Snapshot().Items);
             Assert.Equal(["record-1", "record-2"], item.Owners.Select(owner => owner.Record).Order(StringComparer.Ordinal));
             Assert.Equal(item.StageId, Assert.Single(await backing.MemoryBytes.WrittenAtOrBeforeAsync(DateTimeOffset.MaxValue)));
-            Assert.All(outcomes, outcome => Assert.Equal(Hello, ReadBytes(store.Read(Tenant, outcome.Reference!, true))));
+            foreach (var outcome in outcomes) Assert.Equal(Hello, await ReadBytes(await store.ReadAsync(Tenant, outcome.Reference!, true)));
         }
     }
 
@@ -172,7 +172,7 @@ public sealed class ContentStorePortTests
         var waiting = await Put(store, World);
         await Assert.ThrowsAsync<ContentRefusedException>(async () => await store.CommitReferenceAsync(Tenant, waiting, new("record-1", "1"), "b.txt"));
         Assert.True(await store.RemoveReferenceAsync(Tenant, reference, HoldStatus.None, "dispose"));
-        Assert.Equal(World, ReadBytes(store.Read(Tenant, await store.CommitReferenceAsync(Tenant, waiting, new("record-1", "1"), "b.txt"), true)));
+        Assert.Equal(World, await ReadBytes(await store.ReadAsync(Tenant, await store.CommitReferenceAsync(Tenant, waiting, new("record-1", "1"), "b.txt"), true)));
     }
 
     [Fact]
@@ -221,8 +221,8 @@ public sealed class ContentStorePortTests
         backing.Events.Clear();
         await store.CommitReferenceAsync(Tenant, duplicate, new("record-2", "0"), "b.txt");
         Assert.Equal(["unit-commit", "bytes-delete"], backing.Events);
-        Assert.Null(backing.MemoryBytes.ReadSegment(duplicate, 0));
-        Assert.Equal(Hello, ReadBytes(store.Read(Tenant, kept, true)));
+        Assert.Null(await backing.MemoryBytes.ReadSegmentAsync(duplicate, 0));
+        Assert.Equal(Hello, await ReadBytes(await store.ReadAsync(Tenant, kept, true)));
 
         var expiredAtCommit = await Put(store, World);
         clock.Advance(Expiry);
@@ -235,7 +235,7 @@ public sealed class ContentStorePortTests
         backing.Events.Clear();
         Assert.Equal(1, await store.SweepExpiredAsync("sweep"));
         Assert.Equal(["unit-commit", "bytes-delete"], backing.Events);
-        Assert.Null(backing.MemoryBytes.ReadSegment(abandoned, 0));
+        Assert.Null(await backing.MemoryBytes.ReadSegmentAsync(abandoned, 0));
     }
 
     [Fact]
@@ -248,11 +248,11 @@ public sealed class ContentStorePortTests
 
         backing.FailNextCommit = true;
         await Assert.ThrowsAsync<IOException>(async () => await store.CommitReferenceAsync(Tenant, duplicate, new("record-2", "0"), "b.txt"));
-        Assert.NotNull(backing.MemoryBytes.ReadSegment(duplicate, 0));
+        Assert.NotNull(await backing.MemoryBytes.ReadSegmentAsync(duplicate, 0));
 
         backing.FailNextCommit = true;
         await Assert.ThrowsAsync<IOException>(async () => await store.RemoveReferenceAsync(Tenant, first, HoldStatus.None, "dispose"));
-        Assert.Equal(Hello, ReadBytes(store.Read(Tenant, first, true)));
+        Assert.Equal(Hello, await ReadBytes(await store.ReadAsync(Tenant, first, true)));
     }
 
     [Fact]
@@ -271,11 +271,11 @@ public sealed class ContentStorePortTests
 
         clock.Advance(Expiry - TimeSpan.FromTicks(1));
         Assert.Equal(0, await restarted.SweepExpiredAsync("sweep-early"));
-        Assert.NotNull(backing.MemoryBytes.ReadSegment(orphan, 0));
+        Assert.NotNull(await backing.MemoryBytes.ReadSegmentAsync(orphan, 0));
 
         clock.Advance(TimeSpan.FromTicks(1));
         Assert.Equal(0, await restarted.SweepExpiredAsync("sweep-late"));
-        Assert.Null(backing.MemoryBytes.ReadSegment(orphan, 0));
+        Assert.Null(await backing.MemoryBytes.ReadSegmentAsync(orphan, 0));
         Assert.Empty(restarted.Reclamations); // no item ever existed, so there is no reclamation to record
     }
 
@@ -287,7 +287,7 @@ public sealed class ContentStorePortTests
         var reference = await store.CommitReferenceAsync(Tenant, await Put(store, Hello), new("record-1", "0"), "a.txt");
         clock.Advance(Expiry * 10);
         Assert.Equal(0, await store.SweepExpiredAsync("sweep"));
-        Assert.Equal(Hello, ReadBytes(store.Read(Tenant, reference, true)));
+        Assert.Equal(Hello, await ReadBytes(await store.ReadAsync(Tenant, reference, true)));
     }
 
     [Fact]
@@ -304,7 +304,7 @@ public sealed class ContentStorePortTests
 
         clock.Advance((Expiry / 2) + TimeSpan.FromTicks(1)); // a minute after the upload began, under a minute after durable
         await store.SweepExpiredAsync("sweep");
-        Assert.NotNull(backing.MemoryBytes.ReadSegment(orphan, 0));
+        Assert.NotNull(await backing.MemoryBytes.ReadSegmentAsync(orphan, 0));
     }
 
     [Fact]
@@ -319,7 +319,7 @@ public sealed class ContentStorePortTests
 
         clock.Advance(Expiry);
         await store.SweepExpiredAsync("sweep");
-        Assert.Null(backing.MemoryBytes.ReadSegment(key, 0));
+        Assert.Null(await backing.MemoryBytes.ReadSegmentAsync(key, 0));
         await Assert.ThrowsAsync<IOException>(async () => await abandoned.CompleteAsync(clock.GetUtcNow()));
     }
 
@@ -334,15 +334,15 @@ public sealed class ContentStorePortTests
 
         backing.ThrowOnDelete = new IOException("the file is open elsewhere");
         Assert.True(await store.RemoveReferenceAsync(Tenant, reference, HoldStatus.None, "dispose"));
-        Assert.Throws<ContentNotFoundException>(() => store.Read(Tenant, reference, true));
-        Assert.NotNull(backing.MemoryBytes.ReadSegment(stage, 0));
+        await Assert.ThrowsAsync<ContentNotFoundException>(async () => await store.ReadAsync(Tenant, reference, true));
+        Assert.NotNull(await backing.MemoryBytes.ReadSegmentAsync(stage, 0));
         clock.Advance(Expiry);
         Assert.Equal(0, await store.SweepExpiredAsync("sweep-while-still-failing"));
-        Assert.NotNull(backing.MemoryBytes.ReadSegment(stage, 0));
+        Assert.NotNull(await backing.MemoryBytes.ReadSegmentAsync(stage, 0));
 
         backing.ThrowOnDelete = null;
         await store.SweepExpiredAsync("sweep");
-        Assert.Null(backing.MemoryBytes.ReadSegment(stage, 0));
+        Assert.Null(await backing.MemoryBytes.ReadSegmentAsync(stage, 0));
     }
 
     [Fact]
@@ -374,7 +374,7 @@ public sealed class ContentStorePortTests
         var store = new InMemoryContentStore(new(100, 100, 100, TimeSpan.MaxValue), new Keys(), new Clock(), backing);
         var stage = await Put(store, Hello);
         Assert.Equal(0, await store.SweepExpiredAsync("sweep"));
-        Assert.NotNull(backing.Bytes.ReadSegment(stage, 0));
+        Assert.NotNull(await backing.Bytes.ReadSegmentAsync(stage, 0));
     }
 
     [Fact]
@@ -430,8 +430,8 @@ public sealed class ContentStorePortTests
             await removal.SetIntegrityAsync(episode with { Active = false });
         }
 
-        Assert.Equal([owner], memory.FindItem(key)!.Owners);
-        Assert.True(memory.FindIntegrity(Tenant, staged.StageId)!.Active);
+        Assert.Equal([owner], (await memory.FindItemAsync(key))!.Owners);
+        Assert.True((await memory.FindIntegrityAsync(Tenant, staged.StageId))!.Active);
     }
 
     [Fact]
@@ -463,7 +463,6 @@ public sealed class ContentStorePortTests
         await Assert.ThrowsAsync<ArgumentNullException>(async () => await session.AddStagedAsync(null!));
         await Assert.ThrowsAsync<ArgumentNullException>(async () => await session.TryCreateItemAsync(null!));
         await Assert.ThrowsAsync<ArgumentNullException>(async () => await session.SetIntegrityAsync(null!));
-        Assert.Throws<ArgumentNullException>(() => memory.WriteIntegrityFromRead(ContentStoreOperation.IntegrityFailure, null!));
         Assert.Throws<ArgumentNullException>(() => Store(new HalfStorage(null, new InMemoryContentByteStore())));
         Assert.Throws<ArgumentNullException>(() => Store(new HalfStorage(memory, null)));
     }
