@@ -230,6 +230,33 @@ public sealed class RecordWriteOperationTests
         await Assert.ThrowsAnyAsync<Exception>(() => fixture.AmendEvent(first));
     }
 
+    [Fact]
+    [Trait("Holds", "records-eng-8")]
+    public async Task an_unencodable_temporal_body_refuses_before_the_gate_on_both_entries()
+    {
+        using var fixture = await RecordTemporalWriteOperationTests.Fixture.Create();
+        var first = RecordTemporalWriteOperationTests.Committed(await fixture.CreateEvent());
+        var requests = fixture.Access.Requests.Count;
+        var lookups = fixture.Storage.ReceiptLookups;
+        var body = RecordTemporalWriteOperationTests.Body(20);
+        body["status"] = "bad\ud800"; // A lone surrogate is not Unicode text, so it has no intent.
+
+        var created = await fixture.Writer.CreateEffectiveAsync(new(RecordTemporalWriteOperationTests.Tenant, RecordTemporalWriteOperationTests.Actor),
+            new(RecordTemporalWriteOperationTests.Type, "bad-create", body, RecordTemporalWriteOperationTests.GateAt, null));
+        var amended = await fixture.Writer.AmendAsync(new(RecordTemporalWriteOperationTests.Tenant, RecordTemporalWriteOperationTests.Actor),
+            new(first.Receipt.RecordId, "bad-amend", RecordTemporalWriteOperationTests.Basis(first), body,
+                RecordTemporalWriteOperationTests.GateAt, null, "reviewed"));
+
+        foreach (var refused in new[] { created, amended })
+        {
+            Assert.Equal(("validate", "entity.validation.body_invalid"), (refused.Refusal!.Stage, refused.Refusal.Code));
+            Assert.Empty(refused.Pointers);
+            Assert.Null(refused.Decision);
+        }
+        Assert.Equal(requests, fixture.Access.Requests.Count);
+        Assert.Equal(lookups, fixture.Storage.ReceiptLookups);
+    }
+
     private static Task<RecordTemporalWriteOutcome> Amend(RecordTemporalWriteOperationTests.Fixture fixture, string recordId,
         RecordTemporalReceipt basis, string operation = "r2")
         => fixture.Writer.AmendAsync(new(RecordTemporalWriteOperationTests.Tenant, RecordTemporalWriteOperationTests.Actor),
