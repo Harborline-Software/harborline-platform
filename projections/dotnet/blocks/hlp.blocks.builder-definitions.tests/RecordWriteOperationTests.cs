@@ -176,11 +176,10 @@ public sealed class RecordWriteOperationTests
         var before = fixture.Bytes();
         var lookups = fixture.Storage.ReceiptLookups;
         fixture.Access.Allow = false;
+        while (fixture.Access.Requests.TryDequeue(out _)) { }
 
         var existing = await fixture.AmendEvent(first);
-        var missing = await fixture.Writer.AmendAsync(new(RecordTemporalWriteOperationTests.Tenant, RecordTemporalWriteOperationTests.Actor),
-            new("no-such-record", "r2", RecordTemporalWriteOperationTests.Basis(first), RecordTemporalWriteOperationTests.Body(20),
-                RecordTemporalWriteOperationTests.GateAt, null, "reviewed"));
+        var missing = await Amend(fixture, "no-such-record", first);
 
         // CWE-203: both answers are the same authorize refusal, never a not-found.
         foreach (var denied in new[] { existing, missing })
@@ -190,14 +189,17 @@ public sealed class RecordWriteOperationTests
             Assert.Empty(denied.Pointers);
             Assert.Null(denied.Receipt);
             Assert.False(denied.Decision!.Allowed);
+            Assert.Null(denied.Decision.RecordTypeId);
         }
+        // The owner's ruling (Option A): the request is untyped, so no type-scoped decider can answer the two differently.
+        Assert.Equal(2, fixture.Access.Requests.Count);
+        Assert.All(fixture.Access.Requests, request => Assert.Null(request.Record.RecordTypeId));
+        Assert.Equal(existing.Decision!.Refusal, missing.Decision!.Refusal);
         Assert.Equal(lookups, fixture.Storage.ReceiptLookups);
         Assert.Equal(before, fixture.Bytes());
 
         fixture.Access.Allow = true;
-        var allowed = await fixture.Writer.AmendAsync(new(RecordTemporalWriteOperationTests.Tenant, RecordTemporalWriteOperationTests.Actor),
-            new("no-such-record", "r3", RecordTemporalWriteOperationTests.Basis(first), RecordTemporalWriteOperationTests.Body(20),
-                RecordTemporalWriteOperationTests.GateAt, null, "reviewed"));
+        var allowed = await Amend(fixture, "no-such-record", first, "r3");
 
         Assert.Equal(RecordTemporalWriteStatus.RecordNotFound, allowed.Status);
         Assert.Equal(["/record_id"], allowed.Pointers);
@@ -205,6 +207,34 @@ public sealed class RecordWriteOperationTests
         Assert.Equal("no-such-record", allowed.Decision.RecordId);
         Assert.Equal(before, fixture.Bytes());
     }
+
+    [Fact]
+    [Trait("Holds", "records-eng-2")]
+    public async Task a_denied_amend_reads_nothing_from_the_store()
+    {
+        using var fixture = await RecordTemporalWriteOperationTests.Fixture.Create();
+        var first = RecordTemporalWriteOperationTests.Committed(await fixture.CreateEvent());
+        // Any read of this journal now throws, so a refusal below can only mean the store was not read. It fails if the
+        // gate moves back after the target read.
+        File.WriteAllBytes(fixture.PathName, "not a journal"u8.ToArray());
+        fixture.Access.Allow = false;
+
+        var existing = await fixture.AmendEvent(first);
+        var missing = await Amend(fixture, "no-such-record", first);
+
+        Assert.Equal(("authorize", "TemporalDenied"), (existing.Refusal!.Stage, existing.Refusal.Code));
+        Assert.Equal(("authorize", "TemporalDenied"), (missing.Refusal!.Stage, missing.Refusal.Code));
+
+        // Positive control: once the gate allows, the same call does read the store and the corrupt journal surfaces.
+        fixture.Access.Allow = true;
+        await Assert.ThrowsAnyAsync<Exception>(() => fixture.AmendEvent(first));
+    }
+
+    private static Task<RecordTemporalWriteOutcome> Amend(RecordTemporalWriteOperationTests.Fixture fixture, string recordId,
+        RecordTemporalReceipt basis, string operation = "r2")
+        => fixture.Writer.AmendAsync(new(RecordTemporalWriteOperationTests.Tenant, RecordTemporalWriteOperationTests.Actor),
+            new(recordId, operation, RecordTemporalWriteOperationTests.Basis(basis), RecordTemporalWriteOperationTests.Body(20),
+                RecordTemporalWriteOperationTests.GateAt, null, "reviewed")).AsTask();
 
     // ADR 0111 decision 2: no write path orders, deduplicates or decides by the time inside a record id. The id is compared
     // only for equality, so an ordering or decoding call on it in this module is the violation.

@@ -691,7 +691,7 @@ public sealed class FileJournalRecordTemporalTests
         await Assert.ThrowsAsync<InvalidDataException>(() => fixture.Writer.AmendAsync(new("acme", "alice"),
             new("rec-001", "op-r2", temporal.Predecessor!, JsonNode.Parse(row.Body.Span)!.AsObject(),
                 temporal.EffectiveFrom, temporal.EffectiveTo, temporal.Reason!)).AsTask());
-        Assert.Empty(fixture.Access.Requests);
+        Assert.Single(fixture.Access.Requests);
         Assert.Equal(0, fixture.Storage.ReceiptLookups);
 
         var shortInput = PaddedUnion(16 * 1024 * 1024 - 81920);
