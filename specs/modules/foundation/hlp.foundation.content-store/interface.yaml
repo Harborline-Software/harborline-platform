@@ -47,7 +47,7 @@
   ],
   "conformance": {
     "nativeTests": {
-      "dotnet": 89
+      "dotnet": 90
     },
     "nativeTestNote": "DES-0054 section 9 clauses ck-4 to ck-13, cc-4, cc-5, cc-7, eng-1 to eng-11 and Q27 to Q36, including a tampered middle segment under a range read, a wrap-key failure, the integrity episode and a storage-port restart; revision 3 adds the kernel-boundary tests (own audit row, join, nesting refusal, doom, rollback), the two-port split, conditional quota and create under concurrency, and byte order with the sweep's grace period."
   },

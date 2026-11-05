@@ -1457,7 +1457,6 @@ public sealed class InMemoryContentStore
     private static async ValueTask<bool> ReclaimStagedAsync(IContentBookkeepingSession session, ContentStoreItem item, string cause, string run, CancellationToken cancellationToken)
     {
         if (!await session.RemoveStagedAsync(item.StageId, cancellationToken).ConfigureAwait(false)) return false;
-        await ResolveIntegrityAsync(session, item, cancellationToken).ConfigureAwait(false); // completed erasure ends the episode (DES-0054 Q34)
         await session.AppendReclamationAsync(new(item.ContentId, item.Tenant, cause, run), cancellationToken).ConfigureAwait(false);
         return true;
     }

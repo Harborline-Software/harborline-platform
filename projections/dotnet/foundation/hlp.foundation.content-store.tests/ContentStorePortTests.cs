@@ -502,6 +502,23 @@ public sealed class ContentStorePortTests
         Assert.Equal("a.txt", first.DisplayName);
     }
 
+    [Fact]
+    public async Task Clause_3_a_create_waiting_on_a_concurrent_creator_can_be_cancelled_and_leaves_the_creator_alone()
+    {
+        var memory = new InMemoryContentBookkeeping();
+        var item = new ContentStoreItem(Guid.NewGuid(), Tenant, new(ContentId.Algorithm + new string('c', 64)), 5, "text/plain", DateTimeOffset.UnixEpoch, [1], [2], [3], [4], 65_536);
+        var creator = await memory.BeginTransactionAsync();
+        Assert.Null(await creator.TryCreateItemAsync(item));
+        using var cancel = new CancellationTokenSource(TimeSpan.FromMilliseconds(50));
+        var waiter = await memory.BeginTransactionAsync();
+
+        var waiting = Task.Run(async () => await waiter.TryCreateItemAsync(item with { StageId = Guid.NewGuid() }, cancel.Token));
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(async () => await waiting.WaitAsync(TimeSpan.FromSeconds(30)));
+
+        await creator.CommitAsync();
+        Assert.Equal(item.StageId, Assert.Single(memory.Snapshot().Items).StageId);
+    }
+
     private sealed record HalfStorage(IContentBookkeeping? Part, IContentByteStore? Other) : IContentStoreStorage
     {
         public IContentBookkeeping Bookkeeping => Part!;
