@@ -316,16 +316,16 @@ public sealed class ContentStoreBoundaryTests
         var reference = await store.CommitReferenceAsync(Tenant, await Put(store, "put"), new("record-1", "0"), "a.txt", Write("commit"));
         var stage = await Put(store, "put-2");
         var rows = Rows(backing);
-        backing.Events.Clear();
+        backing.StagedRecords.Clear();
         var caller = new RecordWrite(backing.Bookkeeping);
 
         await caller.RunAsync(async session =>
         {
             Assert.False(await store.RemoveReferenceAsync(Tenant, reference with { Owner = new("record-9", "0") }, HoldStatus.None, "unknown", Write("unknown", Actor, session)));
-            Assert.DoesNotContain(backing.Events, entry => entry.StartsWith("stage-record", StringComparison.Ordinal));
+            Assert.Empty(backing.StagedRecords);
             Assert.Equal(rows, Rows(backing));
             await store.CommitReferenceAsync(Tenant, stage, new("record-2", "0"), "b.txt", Write("joined", Actor, session));
-            Assert.Contains("stage-record:Commit", backing.Events);
+            Assert.Equal([ContentStoreOperation.Commit], backing.StagedRecords);
         });
 
         Assert.Equal([.. rows, ("audit-joined", Actor)], Rows(backing));

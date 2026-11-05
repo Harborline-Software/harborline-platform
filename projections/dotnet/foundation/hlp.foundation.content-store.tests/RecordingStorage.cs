@@ -13,6 +13,7 @@ internal sealed class RecordingStorage : IContentStoreStorage
     public InMemoryContentBookkeeping Memory { get; } = new();
     public InMemoryContentByteStore MemoryBytes { get; } = new();
     public List<string> Events { get; } = [];
+    public List<ContentStoreOperation> StagedRecords { get; } = [];
     public List<(ContentStoreOperation Operation, BookkeepingImage Image)> Commits { get; } = [];
     public bool FailNextCommit { get; set; }
     public IOException? Failure { get; private set; }
@@ -86,7 +87,7 @@ internal sealed class RecordingStorage : IContentStoreStorage
         public ValueTask StageRecordAsync(ContentStoreOperation record, CancellationToken cancellationToken = default)
         {
             _operation = record;
-            owner.Log("stage-record:" + record);
+            lock (owner.StagedRecords) owner.StagedRecords.Add(record);
             return Session.StageRecordAsync(record, cancellationToken);
         }
 
