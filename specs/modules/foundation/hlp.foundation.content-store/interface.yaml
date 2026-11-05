@@ -1,20 +1,22 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.foundation.content-store",
-  "interfaceRevision": 2,
+  "interfaceRevision": 3,
   "status": "frozen",
   "purpose": "Own the tenant-scoped, envelope-encrypted content store (DES-0054, T-521 slice 2): streamed puts with detected media types and logical-byte quotas, dedup at commit under a tenant-keyed content id, segmented AEAD at rest, single-range streaming reads with typed integrity failures, reclamation and export fixity.",
-  "dependencies": [],
+  "dependencies": [
+    {"moduleId": "hlp.kernel.core", "minimumRevision": 8}
+  ],
   "callerInterface": {
-    "name": "InMemoryContentStore / IContentStoreStorage / IContentStoreQuotaBase / ITenantContentKeyProvider",
+    "name": "InMemoryContentStore / ContentStoreWrite / IContentBookkeeping / IContentByteStore / IContentStoreQuotaBase / ITenantContentKeyProvider",
     "operations": [
-      "Put(tenant, stream, declaredType, declaredSha256?, field?) -> a stage id; one byte over the effective limit refuses content.too-large with detail.limit and detail.observed and stages nothing",
-      "Commit(tenant, stage, owner, name) -> a content reference; a record or tenant over its logical-byte quota refuses content.record-quota or content.tenant-quota; a duplicate within the tenant collapses to the held item and answers as a promotion",
+      "PutAsync(tenant, stream, declaredType, declaredSha256?, write, field?) -> a stage id; one byte over the effective limit refuses content.too-large with detail.limit and detail.observed and stages nothing",
+      "CommitReferenceAsync(tenant, stage, owner, name, write) -> a content reference; a record or tenant over its logical-byte quota refuses content.record-quota or content.tenant-quota; a duplicate within the tenant collapses to the held item and answers as a promotion",
       "Read(tenant, reference, authorized, range?, ifRange?, context?) -> a streaming delivery; an unreadable, cross-tenant or unknown id all refuse with the same ContentNotFoundException, and authorization runs before range evaluation",
       "A failed wrap or segment authentication throws ContentIntegrityException (item key, owner, segment index); the item's state is unchanged and only a full verified read ends the integrity episode",
-      "RemoveReference / SweepExpired / Export / VerifyExport -> reclamation with a reclamation entry, the content-staging-sweep run on sys.sched.content-staging, and per-export keyed fixity",
-      "IContentStoreStorage and IContentStoreQuotaBase are ports a durable host implements; InMemoryContentStoreStorage is the reference implementation",
-      "Revision 2 (T-521/content-store-storage-unit-of-work; breaking for port implementers only): IContentStoreStorage.Save(ContentStoreChange) is the port's one save step, a unit of work. The store calls it exactly once for each operation that changes state (Put, Commit, RemoveReference, SweepExpired, and a read that opens, counts or closes an integrity episode), inside SyncRoot, after all of that operation's changes to the collections and before the operation returns; an operation that changes nothing, a read included, never calls it. ContentStoreChange names the ContentStoreOperation, the Items keys and StagedItems stage ids added, changed or removed, the ReclamationEntry values appended and the IntegrityEntries keys added or changed; each named key's new value is in the collection, and an absent key was removed. A save that throws fails the operation with that exception and the store restores every collection, owner list and lifecycle state to its value before the operation; key material is destroyed only after a successful save. InMemoryContentStoreStorage.Save does nothing. The store's callers see no API change"
+      "RemoveReferenceAsync / SweepExpiredAsync / Export / VerifyExport -> reclamation with a reclamation entry, the content-staging-sweep run on sys.sched.content-staging, and per-export keyed fixity",
+      "IContentBookkeeping, IContentByteStore (handed over together as IContentStoreStorage) and IContentStoreQuotaBase are ports a durable host implements; InMemoryContentStoreStorage is the reference implementation",
+      "Revision 3 (T-521/content-store-host-transaction; breaking for every caller and port implementer): every state-changing store call is async and takes a ContentStoreWrite: the caller's KernelOperationIdentity, its KernelAuditEvidence, and optionally the caller's open IContentBookkeepingSession. With a session the write joins through KernelTransactionBoundary.JoinAsync, stages its own operation, writes and audit row, and never commits or rolls back; any failure dooms the caller's execution. Without one it runs its own ExecutePreparedAsync, which is refused as kernel.nested-execution inside an open execution. The store never invents an actor, and the sweep acts as sys.scheduler. A write that changes nothing commits nothing and writes no audit row. IContentStoreStorage.Save and SyncRoot are gone: IContentBookkeeping holds items, owners, staged items, quota counts, reclamation and integrity entries and no ciphertext, with conditional quota reservation and conditional create; IContentByteStore holds ciphertext segments, and their bytes are durable before the staged entry and deleted only after the store's own commit, or by the sweep once no entry names them and the grace period (the staging expiry) has passed. Open pending the owner's call: an integrity episode opened or closed by a read still writes through IContentBookkeeping.WriteIntegrityFromRead, outside the boundary and with no audit row"
     ],
     "context": "Slice 2 of T-521. Applies DES-0054 section 10 rulings Q27 to Q36. The per-item limit, quota fractions and staging-expiry multiple are required inputs with no default (Q11, Q19). The HTTP request-id header, the 500 or stream abort on the wire, health and audit-read scoping, and the durable backing are api-host work."
   },
@@ -24,7 +26,8 @@
     "Content is sealed in 65,536-byte AES-256-GCM segments with a last-segment flag, so reordering, dropping or truncating a segment fails authentication.",
     "Read failures are status-only; integrity details never reach a client.",
     "Every unstated measurement is a required input with no default.",
-    "Each state-changing operation is one unit under the storage SyncRoot: its check, its changes and its one save step are never split (CWE-362, CWE-367), and a failed save leaves the store as the operation found it (CWE-460)."
+    "Quota and duplicates are decided by the backing's conditional writes, never a store lock or copy (CWE-362, CWE-367); a failed write leaves the bookkeeping as the operation found it (CWE-460).",
+    "Bytes are durable before the staged entry that names them, and are never deleted while an entry names them."
   ],
   "errors": [
     "content.too-large",
@@ -37,15 +40,16 @@
     "content.field-media-type-not-allowed"
   ],
   "publicSeams": [
-    "the IContentStoreStorage port a durable host adapter implements, including its one Save step per state-changing operation",
+    "the IContentBookkeeping and IContentByteStore ports a durable host adapter implements, passed together as IContentStoreStorage",
+    "ContentStoreWrite, which carries each write's kernel evidence and the caller's optional IContentBookkeepingSession",
     "the IContentStoreQuotaBase port the host implements",
     "the ITenantContentKeyProvider port that supplies tenant keys"
   ],
   "conformance": {
     "nativeTests": {
-      "dotnet": 43
+      "dotnet": 82
     },
-    "nativeTestNote": "DES-0054 section 9 clauses ck-4 to ck-13, cc-4, cc-5, cc-7, eng-1 to eng-11 and Q27 to Q36, including a tampered middle segment under a range read, a wrap-key failure, the integrity episode and a storage-port restart; revision 2 adds the save-step tests (one save per state-changing operation, none for a read, and a throwing save leaving the store unchanged)."
+    "nativeTestNote": "DES-0054 section 9 clauses ck-4 to ck-13, cc-4, cc-5, cc-7, eng-1 to eng-11 and Q27 to Q36, including a tampered middle segment under a range read, a wrap-key failure, the integrity episode and a storage-port restart; revision 3 adds the kernel-boundary tests (own audit row, join, nesting refusal, doom, rollback), the two-port split, conditional quota and create under concurrency, and byte order with the sweep's grace period."
   },
   "selectedDesign": {
     "choice": "One packable foundation assembly owns the store engine and its storage and quota ports, so a host supplies durable backing without the engine depending on a host.",

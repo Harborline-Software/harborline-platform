@@ -12,6 +12,7 @@
   <ItemGroup>
     <ProjectReference Include="../../contracts/hlp.contracts.identities/Harborline.Contracts.csproj" />
     <ProjectReference Include="../hlp.foundation.execution-runtime/Harborline.Foundation.ExecutionRuntime.csproj" />
+    <ProjectReference Include="../../kernel/hlp.kernel.core/Harborline.Kernel.Core.csproj" />
   </ItemGroup>
   <ItemGroup>
     <None Include="README.md" Pack="true" PackagePath="/" />

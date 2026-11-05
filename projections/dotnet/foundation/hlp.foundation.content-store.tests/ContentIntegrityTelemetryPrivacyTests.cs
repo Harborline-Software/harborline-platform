@@ -27,7 +27,7 @@ public sealed class ContentIntegrityTelemetryPrivacyTests
     private const int SegmentSizeBytes = 65_536;
 
     [Fact]
-    public void Real_content_integrity_telemetry_emits_positive_signals_without_payload_or_filename_values()
+    public async Task Real_content_integrity_telemetry_emits_positive_signals_without_payload_or_filename_values()
     {
         using var telemetry = new TelemetryCapture();
         var log = new CapturingLogger();
@@ -41,8 +41,8 @@ public sealed class ContentIntegrityTelemetryPrivacyTests
             PayloadSentinel + new string('x', SegmentSizeBytes - PayloadSentinel.Length) + PayloadSentinel);
         Assert.Equal(SegmentSizeBytes + PayloadSentinel.Length, payload.Length);
         using var upload = new MemoryStream(payload);
-        var stage = store.Put(tenant, upload, "text/plain", null);
-        var reference = store.Commit(
+        var stage = await store.PutAsync(tenant, upload, "text/plain", null);
+        var reference = await store.CommitReferenceAsync(
             tenant, stage, new ContentOwner("privacy-record", "privacy-element"),
             "FILENAME_PRIVACY_SENTINEL_79E5A2C6.txt");
         var context = new ContentReadContext("trace-fixed", "operation-fixed", "tenant-opaque", "principal-fixed");

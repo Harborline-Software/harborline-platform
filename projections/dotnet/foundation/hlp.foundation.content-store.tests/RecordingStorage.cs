@@ -1,0 +1,167 @@
+using Harborline.Foundation.Assets.Common;
+using Harborline.Kernel.Core;
+
+namespace Harborline.Foundation.ContentStore.Tests;
+
+internal sealed record BookkeepingImage(ContentStoreItem[] Items, ContentStoreItem[] Staged,
+    KeyValuePair<(TenantId Tenant, string? Record), long>[] Quota, KernelAuditEvidence[] Audits, IReadOnlyList<ReclamationEntry> Reclamations, IReadOnlyList<ContentIntegrityEntry> Integrity);
+
+// The in-memory backing behind a decorator that records the order of what reaches each port, and can pause, fail or
+// crash at a named step. It decides nothing itself, so what it shows is the store's order and the backing's conditions.
+internal sealed class RecordingStorage : IContentStoreStorage
+{
+    public InMemoryContentBookkeeping Memory { get; } = new();
+    public InMemoryContentByteStore MemoryBytes { get; } = new();
+    public List<string> Events { get; } = [];
+    public List<(ContentStoreOperation Operation, BookkeepingImage Image)> Commits { get; } = [];
+    public bool FailNextCommit { get; set; }
+    public IOException? Failure { get; private set; }
+    public Exception? ThrowOnBegin { get; set; }
+    public Exception? ThrowOnDelete { get; set; }
+    public Action? BeforeFindStaged { get; set; }
+    public Action? BeforeTryCreate { get; set; }
+
+    public RecordingStorage()
+    {
+        Bookkeeping = new RecordingBookkeeping(this);
+        Bytes = new RecordingBytes(this);
+    }
+
+    public IContentBookkeeping Bookkeeping { get; }
+    public IContentByteStore Bytes { get; }
+
+    public static BookkeepingImage Capture(InMemoryContentBookkeeping memory)
+    {
+        var (items, staged, quota, audits) = memory.Snapshot();
+        return new(items, staged, quota, audits, memory.Reclamations, memory.IntegrityEntries);
+    }
+
+    private void Log(string entry)
+    {
+        lock (Events) Events.Add(entry);
+    }
+
+    private void RecordCommit(ContentStoreOperation operation)
+    {
+        lock (Commits) Commits.Add((operation, Capture(Memory)));
+        if (!FailNextCommit) return;
+        FailNextCommit = false;
+        Failure = new IOException("The backing could not write the unit.");
+        throw Failure;
+    }
+
+    private sealed class RecordingBookkeeping(RecordingStorage owner) : IContentBookkeeping
+    {
+        public async ValueTask<IContentBookkeepingTransaction> BeginTransactionAsync(CancellationToken cancellationToken = default)
+        {
+            if (owner.ThrowOnBegin is { } crash) throw crash;
+            return new Transaction(owner, await owner.Memory.BeginTransactionAsync(cancellationToken));
+        }
+
+        public ValueTask<IReadOnlyList<ContentStoreItem>> StagedCreatedAtOrBeforeAsync(DateTimeOffset cutoff, CancellationToken cancellationToken = default) => owner.Memory.StagedCreatedAtOrBeforeAsync(cutoff, cancellationToken);
+        public ValueTask<bool> NamesBytesAsync(Guid itemKey, CancellationToken cancellationToken = default) => owner.Memory.NamesBytesAsync(itemKey, cancellationToken);
+        public ContentStoreItem? FindItem(ContentStorageItemKey key) => owner.Memory.FindItem(key);
+        public ContentIntegrityEntry? FindIntegrity(TenantId tenant, Guid itemKey) => owner.Memory.FindIntegrity(tenant, itemKey);
+
+        public void WriteIntegrityFromRead(ContentStoreOperation operation, ContentIntegrityEntry entry)
+        {
+            if (owner.FailNextCommit) owner.RecordCommit(operation); // throws, leaving the entry unwritten
+            owner.Memory.WriteIntegrityFromRead(operation, entry);
+            owner.RecordCommit(operation);
+        }
+
+        public IReadOnlyList<ReclamationEntry> Reclamations => owner.Memory.Reclamations;
+        public IReadOnlyList<ContentIntegrityEntry> IntegrityEntries => owner.Memory.IntegrityEntries;
+        public int StagedCount => owner.Memory.StagedCount;
+        public int CommittedCount => owner.Memory.CommittedCount;
+    }
+
+    private sealed class Transaction(RecordingStorage owner, IContentBookkeepingTransaction inner) : IContentBookkeepingTransaction
+    {
+        private IContentBookkeepingSession Session => inner;
+        private ContentStoreOperation _operation;
+
+        public ValueTask StageOperationAsync(KernelOperationIdentity operation, CancellationToken cancellationToken = default) => Session.StageOperationAsync(operation, cancellationToken);
+
+        public ValueTask StageRecordAsync(ContentStoreOperation record, CancellationToken cancellationToken = default)
+        {
+            _operation = record;
+            return Session.StageRecordAsync(record, cancellationToken);
+        }
+
+        public ValueTask StageAuditAsync(KernelAuditEvidence audit, CancellationToken cancellationToken = default) => Session.StageAuditAsync(audit, cancellationToken);
+        public ValueTask<ContentStoreItem?> FindItemAsync(ContentStorageItemKey key, CancellationToken cancellationToken = default) => inner.FindItemAsync(key, cancellationToken);
+
+        public ValueTask<ContentStoreItem?> FindStagedAsync(Guid stageId, CancellationToken cancellationToken = default)
+        {
+            owner.BeforeFindStaged?.Invoke();
+            return inner.FindStagedAsync(stageId, cancellationToken);
+        }
+
+        public ValueTask<ContentIntegrityEntry?> FindIntegrityAsync(TenantId tenant, Guid itemKey, CancellationToken cancellationToken = default) => inner.FindIntegrityAsync(tenant, itemKey, cancellationToken);
+
+        public ValueTask AddStagedAsync(ContentStoreItem item, CancellationToken cancellationToken = default)
+        {
+            owner.Log("staged-entry");
+            return inner.AddStagedAsync(item, cancellationToken);
+        }
+
+        public ValueTask<bool> RemoveStagedAsync(Guid stageId, CancellationToken cancellationToken = default) => inner.RemoveStagedAsync(stageId, cancellationToken);
+        public ValueTask<ContentQuotaReservation> TryReserveQuotaAsync(TenantId tenant, string record, long bytes, long recordLimit, long tenantLimit, CancellationToken cancellationToken = default) =>
+            inner.TryReserveQuotaAsync(tenant, record, bytes, recordLimit, tenantLimit, cancellationToken);
+        public ValueTask ReleaseQuotaAsync(TenantId tenant, string record, long bytes, CancellationToken cancellationToken = default) => inner.ReleaseQuotaAsync(tenant, record, bytes, cancellationToken);
+
+        public ValueTask<ContentStoreItem?> TryCreateItemAsync(ContentStoreItem item, CancellationToken cancellationToken = default)
+        {
+            owner.BeforeTryCreate?.Invoke();
+            return inner.TryCreateItemAsync(item, cancellationToken);
+        }
+
+        public ValueTask<bool> AddOwnerAsync(ContentStorageItemKey key, ContentOwner added, CancellationToken cancellationToken = default) => inner.AddOwnerAsync(key, added, cancellationToken);
+        public ValueTask<bool> RemoveOwnerAsync(ContentStorageItemKey key, ContentOwner removed, CancellationToken cancellationToken = default) => inner.RemoveOwnerAsync(key, removed, cancellationToken);
+        public ValueTask<bool> DeleteItemIfUnownedAsync(ContentStorageItemKey key, CancellationToken cancellationToken = default) => inner.DeleteItemIfUnownedAsync(key, cancellationToken);
+        public ValueTask AppendReclamationAsync(ReclamationEntry entry, CancellationToken cancellationToken = default) => inner.AppendReclamationAsync(entry, cancellationToken);
+        public ValueTask SetIntegrityAsync(ContentIntegrityEntry entry, CancellationToken cancellationToken = default) => inner.SetIntegrityAsync(entry, cancellationToken);
+
+        public async ValueTask<bool> CommitAsync(CancellationToken cancellationToken = default)
+        {
+            owner.RecordCommit(_operation);
+            var result = await inner.CommitAsync(cancellationToken);
+            owner.Log("unit-commit");
+            return result;
+        }
+
+        public ValueTask RollbackAsync(CancellationToken cancellationToken = default) => inner.RollbackAsync(cancellationToken);
+        public ValueTask DisposeAsync() => inner.DisposeAsync();
+    }
+
+    private sealed class RecordingBytes(RecordingStorage owner) : IContentByteStore
+    {
+        public async ValueTask<IContentByteWriter> OpenWriteAsync(Guid itemKey, DateTimeOffset startedUtc, CancellationToken cancellationToken = default) =>
+            new Writer(owner, await owner.MemoryBytes.OpenWriteAsync(itemKey, startedUtc, cancellationToken));
+
+        public ContentCiphertextSegment? ReadSegment(Guid itemKey, int index) => owner.MemoryBytes.ReadSegment(itemKey, index);
+
+        public ValueTask DeleteAsync(Guid itemKey, CancellationToken cancellationToken = default)
+        {
+            if (owner.ThrowOnDelete is { } failure) throw failure;
+            owner.Log("bytes-delete");
+            return owner.MemoryBytes.DeleteAsync(itemKey, cancellationToken);
+        }
+
+        public ValueTask<IReadOnlyList<Guid>> WrittenAtOrBeforeAsync(DateTimeOffset cutoff, CancellationToken cancellationToken = default) => owner.MemoryBytes.WrittenAtOrBeforeAsync(cutoff, cancellationToken);
+    }
+
+    private sealed class Writer(RecordingStorage owner, IContentByteWriter inner) : IContentByteWriter
+    {
+        public ValueTask AppendAsync(ContentCiphertextSegment segment, CancellationToken cancellationToken = default) => inner.AppendAsync(segment, cancellationToken);
+
+        public async ValueTask CompleteAsync(DateTimeOffset durableUtc, CancellationToken cancellationToken = default)
+        {
+            await inner.CompleteAsync(durableUtc, cancellationToken);
+            owner.Log("bytes-durable");
+        }
+
+        public ValueTask DisposeAsync() => inner.DisposeAsync();
+    }
+}
