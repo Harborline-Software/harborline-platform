@@ -648,6 +648,92 @@ public sealed class ContentStoreBoundaryTests
         Assert.Empty(store.IntegrityEntries);
     }
 
+    [Theory]
+    [InlineData("add-owner")]
+    [InlineData("remove-owner")]
+    [InlineData("delete-unowned")]
+    public async Task Clause_3_each_write_to_an_entry_waits_for_the_transaction_holding_its_row(string write)
+    {
+        var memory = new InMemoryContentBookkeeping();
+        var owner = new ContentOwner("record-1", "0");
+        var item = new ContentStoreItem(Guid.NewGuid(), Tenant, new(ContentId.Algorithm + new string('e', 64)), 5, "text/plain", DateTimeOffset.UnixEpoch, [1], [2], [3], [4], 65_536) { Owners = [owner] };
+        var key = new ContentStorageItemKey(Tenant, item.ContentId);
+        await using (var seed = await memory.BeginTransactionAsync())
+        {
+            await seed.TryCreateItemAsync(item);
+            await seed.CommitAsync();
+        }
+
+        var holder = await memory.BeginTransactionAsync();
+        Assert.True(await holder.RemoveOwnerAsync(key, owner));
+        var other = await memory.BeginTransactionAsync();
+        var waiting = Task.Run(async () => write switch
+        {
+            "add-owner" => await other.AddOwnerAsync(key, new("record-2", "0")),
+            "remove-owner" => await other.RemoveOwnerAsync(key, owner),
+            _ => await other.DeleteItemIfUnownedAsync(key),
+        });
+        await Task.Delay(100);
+        Assert.False(waiting.IsCompleted);
+        await holder.RollbackAsync();
+
+        Assert.Equal(write != "delete-unowned", await waiting.WaitAsync(TimeSpan.FromSeconds(30))); // the owner came back, so it is not unowned
+        await other.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task Clause_3_one_caller_can_replace_a_reference_within_a_full_quota_because_its_own_release_counts_for_itself()
+    {
+        var backing = new RecordingStorage();
+        var store = Store(backing, record: 5, tenant: 5);
+        var old = await store.CommitReferenceAsync(Tenant, await Put(store, "put"), new("record-1", "0"), "a.txt", Write("commit"));
+        var replacement = await store.PutAsync(Tenant, new MemoryStream("world"u8.ToArray()), "text/plain", null, Write("put-2"));
+        var caller = new RecordWrite(backing.Bookkeeping);
+
+        await caller.RunAsync(async session =>
+        {
+            Assert.True(await store.RemoveReferenceAsync(Tenant, old, HoldStatus.None, "replace", Write("remove", Actor, session)));
+            await store.CommitReferenceAsync(Tenant, replacement, new("record-1", "0"), "b.txt", Write("replace", Actor, session));
+        });
+
+        Assert.Equal(1, store.CommittedCount);
+        Assert.All(backing.Memory.Snapshot().Quota, pair => Assert.Equal(5, pair.Value));
+    }
+
+    [Fact]
+    public async Task Clause_4_an_integrity_entry_is_read_by_its_own_transaction_and_by_no_one_else_until_commit()
+    {
+        var memory = new InMemoryContentBookkeeping();
+        var key = Guid.NewGuid();
+        var first = new ContentIntegrityEntry(key, Tenant, DateTimeOffset.UnixEpoch, DateTimeOffset.UnixEpoch, 1, 0, true, "t", "o", "p", new("r", "e"));
+        await using var open = await memory.BeginTransactionAsync();
+        Assert.Null(await open.FindIntegrityAsync(Tenant, key));
+        await open.SetIntegrityAsync(first);
+        Assert.Same(first, await open.FindIntegrityAsync(Tenant, key));
+        Assert.Null(await memory.FindIntegrityAsync(Tenant, key));
+        await open.CommitAsync();
+
+        await using var later = await memory.BeginTransactionAsync();
+        Assert.Same(first, await later.FindIntegrityAsync(Tenant, key));
+    }
+
+    [Fact]
+    public async Task Clause_1_a_missing_segment_fails_as_integrity_with_its_stated_cause_and_clears_the_data_key()
+    {
+        var store = Store(new InMemoryContentStoreStorage());
+        var reference = await CommitTwoSegments(store);
+        await store.DropLastSegmentKeepingLengthAsync(Tenant, reference.ContentId);
+        await using var body = (await store.ReadAsync(Tenant, reference, true, Alice)).Body;
+        var dataKey = Assert.Single(body.GetType().GetFields(System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)
+            .Select(field => field.GetValue(body)).OfType<byte[]>(), bytes => bytes.Length == 32);
+        Assert.Contains(dataKey, value => value != 0);
+
+        var failure = await Assert.ThrowsAsync<ContentIntegrityException>(() => body.CopyToAsync(Stream.Null));
+
+        Assert.Equal("A ciphertext segment is missing.", failure.InnerException!.Message);
+        Assert.All(dataKey, value => Assert.Equal(0, value));
+    }
+
     private sealed class InjectedFault : Exception;
 
     // A stand-in records write: it owns the boundary execution and its one transaction, and hands the store only the session.

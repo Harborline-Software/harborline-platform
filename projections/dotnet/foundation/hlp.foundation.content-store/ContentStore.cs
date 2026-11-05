@@ -576,12 +576,7 @@ public sealed class InMemoryContentBookkeeping : IContentBookkeeping
         public ValueTask AddStagedAsync(ContentStoreItem item, CancellationToken cancellationToken = default)
         {
             ArgumentNullException.ThrowIfNull(item);
-            lock (owner._gate)
-            {
-                owner._rowLocks.Add(item.StageId, this); // a stage id is minted for this put, so nothing can hold it
-                _staged[item.StageId] = item;
-            }
-
+            lock (owner._gate) _staged[item.StageId] = item; // a stage id is minted for this put, so no other writer can name it yet
             return ValueTask.CompletedTask;
         }
 
