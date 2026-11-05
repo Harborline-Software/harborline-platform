@@ -247,6 +247,18 @@ public sealed class CodingSubsumptionTests
         Assert.False(excluded.Value!.GetValue<bool>());
     }
 
+    [Theory]
+    [InlineData("""{"system":"xx\ud800yy","code":"d"}""", 22, null)]
+    [InlineData("""{"system":"s","code":"dd\n\ud800é"}""", 36, "rule.coding_answer_missing")]
+    public void An_escaped_lone_surrogate_candidate_charges_its_full_length(string candidate, int exactBudget, string? refusal)
+    {
+        const string expression = """{"coding.is":[{"var":"coding"},"s","a"]}""";
+        var admitted = Value(candidate, Read(Row()), RuleEngineLimits.Default with { StepBudget = exactBudget }, expression);
+        if (refusal is null) Assert.False(admitted.Value!.GetValue<bool>());
+        else Assert.Equal(refusal, admitted.Error!.Code);
+        Assert.Equal("rule.budget_exceeded", Value(candidate, Read(Row()), RuleEngineLimits.Default with { StepBudget = exactBudget - 1 }, expression).Error!.Code);
+    }
+
     [Fact]
     public void Empty_candidate_members_are_excluded_rather_than_looked_up()
     {

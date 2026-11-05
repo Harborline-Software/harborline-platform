@@ -297,6 +297,16 @@ describe('T-493 work proof and runtime budget', () => {
     expect(new FormRuleGraph(compile([validation]), clock, admission, flat).workProof.maximumEvaluationWork).toBe(105029n)
   })
 
+  it.each([
+    { text: '{"code":{"system":"xx\\ud800yy","code":"d"}}', exact: 22, outcome: { state: 'Resolved', value: false } },
+    { text: '{"code":{"system":"s","code":"dd\\n\\ud800é"}}', exact: 36, outcome: error('rule.coding_answer_missing') },
+  ])('charges the full length of an escaped lone surrogate candidate: $text', ({ text, exact, outcome }) => {
+    const scan = rule({ 'coding.is': [{ var: 'code' }, 's', 'a'] })
+    const evaluate = (stepBudget: number) => new GuardEvaluator(clock, { ...limits, stepBudget }, snapshot()).evaluateValue(scan, RuleContextSnapshot.fromJsonText(text), admission)
+    expect(evaluate(exact)).toEqual(outcome)
+    expect(evaluate(exact - 1)).toEqual({ state: 'Error', error: { code: 'rule.budget_exceeded', params: { rule: 'c' } } })
+  })
+
   it('reads an escaped lone surrogate candidate as an unanswerable pair or another system', () => {
     const scan = rule({ 'coding.is': [{ var: 'code' }, 's', 'a'] })
     const evaluate = (text: string) => new GuardEvaluator(clock, limits, snapshot()).evaluateValue(scan, RuleContextSnapshot.fromJsonText(text), admission)

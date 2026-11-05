@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.Json;
 using System.Text.Json.Nodes;
 
 using Harborline.Foundation.RuleEngine.Functions;
@@ -357,13 +358,20 @@ internal static class HarborlineJsonLogic
         return Bool(Match(value));
     }
 
-    // An escaped lone surrogate throws when read as a string. No admitted capture can hold one, so the
-    // stand-in equals no bound system and has no answer, which is what the TypeScript tier does with the original.
+    // An escaped lone surrogate throws when read as a string. No admitted capture can hold one, so a stand-in of
+    // the same UTF-16 length equals no bound system, has no answer and charges what the TypeScript tier charges.
     private static string? CodingMember(JsonNode? node)
     {
         if (node is not JsonValue value) return null;
         try { return value.TryGetValue<string>(out var text) ? text : null; }
-        catch (InvalidOperationException) { return "\uD800"; }
+        catch (InvalidOperationException)
+        {
+            var escaped = value.GetValue<JsonElement>().GetRawText();
+            int units = 0;
+            for (int i = 1; i < escaped.Length - 1; i++, units++)
+                if (escaped[i] == '\\') i += escaped[i + 1] == 'u' ? 5 : 1;
+            return new string('\uD800', units);
+        }
     }
 
     // ── coercion helpers ────────────────────────────────────────────────────

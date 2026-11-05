@@ -8,7 +8,7 @@
     "conformance/hlp.foundation.rule-runtime/runners/run-shared.mjs": "e178e67ae3fd0da902b4d962d94f239b096a7078bf52c041b845187416642ff3",
     "projections/dotnet/foundation/hlp.foundation.rule-runtime.tests/ConformanceTests.cs": "71ae99761addacd772c810b6473af9cc9c9be4afa0267c9aac45ddad65fa2ad1",
     "projections/dotnet/foundation/hlp.foundation.rule-runtime/Compilation/RuleCompiler.cs": "0dc73b1404f9fb507431c55ec4559aa32dcb3582d535111dbd3df0b042808d1d",
-    "projections/dotnet/foundation/hlp.foundation.rule-runtime/Evaluation/HarborlineJsonLogic.cs": "16c98e37f6636a416a060ef4d81e33f7d4f164c37be79753d9a5180e073f5144",
+    "projections/dotnet/foundation/hlp.foundation.rule-runtime/Evaluation/HarborlineJsonLogic.cs": "f4c6dc63a346ff342deb08a665d3879bba3c5a53c845633b2c186d4569e9a0d7",
     "projections/dotnet/foundation/hlp.foundation.rule-runtime/Graph/EvaluationCore.cs": "36910fbd86729d18ebc46d9741b808c8a41ed9952915f282ca1955f606c89eae",
     "projections/dotnet/foundation/hlp.foundation.rule-runtime/Model/RuleOutcome.cs": "586c21b2a2c08691be45e52c811cb92517737607b6cd0dddd88a9991728a4bfb",
     "projections/dotnet/foundation/hlp.foundation.rule-runtime/RuleEngineLimits.cs": "a4b83401908c379ccaf9d9edd53b4efd5d525f57b033513c39fac2dc4aaaf139",
