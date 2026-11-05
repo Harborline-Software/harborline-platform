@@ -212,6 +212,17 @@ describe('T-493 coding evaluation', () => {
     expect(evaluator.evaluateValue(rule({ 'coding.is': [{ var: 'code' }, 'asset-class', 'unknown'] }), context(coding('unknown')), admission)).toEqual({ state: 'Resolved', value: true })
   })
 
+  it.each<[Json, Json]>([
+    [{ '-': [5] }, -5],
+    [{ 'coding.is': [{ system: '', code: '' }, null, null] }, true],
+    [{ missing: [''] }, []],
+    [{ missing: [[null]] }, []],
+    [{ missing: [null, null] }, []],
+    [{ cat: [null, 'a'] }, 'a'],
+  ])('flat evaluator matches the native literal for %j', (expression, expected) => {
+    expect(new GuardEvaluator(clock, limits).evaluateValue(rule(expression), context(null), admission)).toEqual({ state: 'Resolved', value: expected })
+  })
+
   it('keeps taxonomy traversal and callback-like operators outside the grammar', () => {
     for (const op of ['taxonomy.subsumes', 'taxonomy.succeeds', 'coding.descendant'])
       expect(() => compile([rule({ [op]: ['x', 'y'] })])).toThrow()

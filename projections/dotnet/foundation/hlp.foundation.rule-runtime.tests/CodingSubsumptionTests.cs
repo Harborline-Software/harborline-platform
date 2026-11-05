@@ -177,6 +177,20 @@ public sealed class CodingSubsumptionTests
             Assert.Throws<ArgumentException>(() => Read(Row(), answer));
     }
 
+    [Theory]
+    [InlineData("""{"-":[5]}""", "-5")]
+    [InlineData("""{"coding.is":[{"system":"","code":""},null,null]}""", "true")]
+    [InlineData("""{"missing":[""]}""", "[]")]
+    [InlineData("""{"missing":[[null]]}""", "[]")]
+    [InlineData("""{"missing":[null,null]}""", "[]")]
+    [InlineData("""{"cat":[null,"a"]}""", "\"a\"")]
+    public void Flat_evaluator_null_and_unary_operands_are_literal(string expression, string expected)
+    {
+        var result = new GuardEvaluator(Clock).EvaluateValue(Rule(expression), Facts("null"), RuleEvalScope.Root, TestAdmission.Any);
+        Assert.Equal(ValueState.Resolved, result.State);
+        Assert.Equal(expected, result.Value!.ToJsonString());
+    }
+
     [Fact]
     public void Answers_may_not_carry_more_or_fewer_bindings_than_the_expected_manifest()
     {
