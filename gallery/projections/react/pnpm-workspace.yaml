@@ -7,3 +7,5 @@ nodeLinker: hoisted
 overrides:
   "brace-expansion@>=4.0.0 <5.0.12": ">=5.0.12" # GHSA-6j4f-fj2g-mc7p, GHSA-qhr7-859c-m2p7, GHSA-q2hr-2g5m-vwhr
   "source-map-js@>=1.0.0 <1.2.2": ">=1.2.2" # GHSA-68fv-2mgg-jv7q
+  "@joshwooding/vite-plugin-react-docgen-typescript>glob@>=13.0.0 <14.0.2": "14.0.2" # GHSA-3g3m-2fjr-6pw4, major jump approved by the owner 2026-11-05
+  "glob>minimatch@^11.0.0": "11.0.1" # GHSA-g3hv-75wg-m249, holds glob 14 at the approved version, major jump approved by the owner 2026-11-05
