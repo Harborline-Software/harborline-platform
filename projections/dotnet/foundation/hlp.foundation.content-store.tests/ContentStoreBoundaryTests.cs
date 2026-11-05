@@ -207,7 +207,7 @@ public sealed class ContentStoreBoundaryTests
         await Assert.ThrowsAsync<InjectedFault>(async () => await caller.RunAsync(async session =>
         {
             await store.CommitReferenceAsync(Tenant, stage, new("record-1", "0"), "a.txt", Write("joined", Actor, session));
-            Assert.Equal(1, store.CommittedCount);
+            Assert.Equal(0, store.CommittedCount); // uncommitted, so no other reader sees it
             throw new InjectedFault();
         }));
 
@@ -357,10 +357,16 @@ public sealed class ContentStoreBoundaryTests
 
     private static readonly ContentReadContext Alice = new("trace-a", "operation-a", "tenant-opaque", "principal.reader-alice");
     private static readonly ContentReadContext Bob = new("trace-b", "operation-b", "tenant-opaque", "principal.reader-bob");
-    private static readonly byte[] TwoSegments = Enumerable.Repeat((byte)'a', 65_536 + 3).ToArray();
+    private static readonly byte[] TwoSegments = [.. Enumerable.Repeat((byte)'a', 65_536), .. "bbb"u8.ToArray()];
 
     private static async Task<ContentReference> CommitTwoSegments(InMemoryContentStore store) =>
         await store.CommitReferenceAsync(Tenant, await store.PutAsync(Tenant, new MemoryStream(TwoSegments), "text/plain", null, Write("put-large")), new("record-1", "0"), "a.txt", Write("commit-large"));
+
+    // Another request: its own async flow, so the caller's open execution does not come with it.
+    private static Task<T> OnAnotherRequest<T>(Func<Task<T>> work)
+    {
+        using (ExecutionContext.SuppressFlow()) return Task.Run(work);
+    }
 
     private static async Task ReadAll(InMemoryContentStore store, ContentReference reference, ContentReadContext reader)
     {
@@ -522,12 +528,105 @@ public sealed class ContentStoreBoundaryTests
         };
         var bytes = new byte[TwoSegments.Length];
 
+        Assert.Equal(65_536, await body.ReadAsync(bytes.AsMemory())); // what it copied is handed over before the next fetch
         await Assert.ThrowsAsync<OperationCanceledException>(async () => await body.ReadAsync(bytes.AsMemory()));
         backing.BeforeSegmentRead = null;
-        await body.ReadExactlyAsync(bytes.AsMemory(0, 3));
+        var rest = new byte[3];
+        await body.ReadExactlyAsync(rest.AsMemory());
 
-        Assert.Equal("aaa"u8.ToArray(), bytes[..3]);
+        Assert.Equal("bbb"u8.ToArray(), rest);
+        Assert.Equal(0, await body.ReadAsync(rest.AsMemory()));
         Assert.Empty(store.IntegrityEntries);
+    }
+
+    [Fact]
+    public async Task Clause_5_a_sweep_during_an_open_removal_keeps_its_bytes_because_the_rollback_needs_them()
+    {
+        var clock = new Clock();
+        var backing = new RecordingStorage();
+        var store = Store(backing, clock);
+        var stage = await Put(store, "put");
+        var reference = await store.CommitReferenceAsync(Tenant, stage, new("record-1", "0"), "a.txt", Write("commit"));
+        clock.Advance(Expiry);
+        var caller = new RecordWrite(backing.Bookkeeping);
+
+        await Assert.ThrowsAsync<InjectedFault>(async () => await caller.RunAsync(async session =>
+        {
+            Assert.True(await store.RemoveReferenceAsync(Tenant, reference, HoldStatus.None, "dispose", Write("remove", Actor, session)));
+            await OnAnotherRequest(async () => await store.SweepExpiredAsync("sweep", Write("sweep", "sys.scheduler")));
+            Assert.NotNull(await backing.Bytes.ReadSegmentAsync(stage, 0));
+            throw new InjectedFault();
+        }));
+
+        Assert.Equal(Hello, await ReadBytes(await store.ReadAsync(Tenant, reference, true, Alice)));
+    }
+
+    [Fact]
+    public async Task Clause_3_quota_an_open_removal_would_free_stays_unavailable_until_it_commits()
+    {
+        var backing = new RecordingStorage();
+        var store = Store(backing, record: 5, tenant: 5);
+        var reference = await store.CommitReferenceAsync(Tenant, await Put(store, "put"), new("record-1", "0"), "a.txt", Write("commit"));
+        var waiting = await store.PutAsync(Tenant, new MemoryStream("world"u8.ToArray()), "text/plain", null, Write("put-2"));
+        var caller = new RecordWrite(backing.Bookkeeping);
+
+        await Assert.ThrowsAsync<InjectedFault>(async () => await caller.RunAsync(async session =>
+        {
+            Assert.True(await store.RemoveReferenceAsync(Tenant, reference, HoldStatus.None, "dispose", Write("remove", Actor, session)));
+            var refused = await OnAnotherRequest(async () => await Assert.ThrowsAsync<ContentRefusedException>(async () =>
+                await store.CommitReferenceAsync(Tenant, waiting, new("record-1", "1"), "b.txt", Write("competing"))));
+            Assert.Equal(ContentRefusals.RecordQuota, refused.Code);
+            throw new InjectedFault();
+        }));
+
+        Assert.Equal(1, store.CommittedCount);
+        Assert.All(backing.Memory.Snapshot().Quota, pair => Assert.Equal(5, pair.Value)); // never over the limit
+    }
+
+    [Fact]
+    public async Task Clause_3_a_removal_overlapping_an_open_one_waits_for_it_and_a_rollback_leaves_the_content_whole()
+    {
+        var backing = new RecordingStorage();
+        var store = Store(backing);
+        var a = await store.CommitReferenceAsync(Tenant, await Put(store, "put-a"), new("record-a", "0"), "a.txt", Write("commit-a"));
+        var b = await store.CommitReferenceAsync(Tenant, await Put(store, "put-b"), new("record-b", "0"), "b.txt", Write("commit-b"));
+        Assert.Equal(a.ContentId, b.ContentId);
+        var caller = new RecordWrite(backing.Bookkeeping);
+        Task<bool>? overlapping = null;
+
+        await Assert.ThrowsAsync<InjectedFault>(async () => await caller.RunAsync(async session =>
+        {
+            Assert.False(await store.RemoveReferenceAsync(Tenant, a, HoldStatus.None, "dispose-a", Write("remove-a", Actor, session)));
+            overlapping = OnAnotherRequest(async () => await store.RemoveReferenceAsync(Tenant, b, HoldStatus.None, "dispose-b", Write("remove-b")));
+            await Task.Delay(100);
+            Assert.False(overlapping.IsCompleted); // the entry's row lock holds it
+            throw new InjectedFault();
+        }));
+
+        Assert.False(await overlapping!.WaitAsync(TimeSpan.FromSeconds(30))); // a's owner came back, so b was not the last
+        Assert.Equal(Hello, await ReadBytes(await store.ReadAsync(Tenant, a, true, Alice)));
+        Assert.Empty(store.Reclamations);
+    }
+
+    [Fact]
+    public async Task Clause_4_a_transactions_writes_are_invisible_to_other_readers_until_it_commits()
+    {
+        var memory = new InMemoryContentBookkeeping();
+        var owner = new ContentOwner("record-1", "0");
+        var item = new ContentStoreItem(Guid.NewGuid(), Tenant, new(ContentId.Algorithm + new string('d', 64)), 5, "text/plain", DateTimeOffset.UnixEpoch, [1], [2], [3], [4], 65_536);
+        var key = new ContentStorageItemKey(Tenant, item.ContentId);
+        await using var open = await memory.BeginTransactionAsync();
+        await open.AddStagedAsync(item);
+        Assert.NotNull(await open.FindStagedAsync(item.StageId)); // it reads its own write
+        Assert.False(await memory.NamesBytesAsync(item.StageId));
+        Assert.Equal(0, memory.StagedCount);
+        await open.RemoveStagedAsync(item.StageId);
+        Assert.Null(await open.TryCreateItemAsync(item with { Owners = [owner] }));
+        Assert.NotNull(await open.FindItemAsync(key));
+        Assert.Null(await memory.FindItemAsync(key));
+        await open.CommitAsync();
+        Assert.NotNull(await memory.FindItemAsync(key));
+        Assert.True(await memory.NamesBytesAsync(item.StageId));
     }
 
     [Fact]

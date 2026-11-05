@@ -46,12 +46,12 @@ internal sealed class RecordingStorage : IContentStoreStorage
         lock (Events) Events.Add(entry);
     }
 
-    private void RecordCommit(ContentStoreOperation operation)
+    private void ThrowIfFailing(ContentStoreOperation operation)
     {
-        lock (Commits) Commits.Add((operation, Capture(Memory)));
         if (!FailNextCommit) return;
         FailNextCommit = false;
         Failure = new IOException("The backing could not write the unit.");
+        lock (Commits) Commits.Add((operation, Capture(Memory)));
         throw Failure;
     }
 
@@ -124,8 +124,9 @@ internal sealed class RecordingStorage : IContentStoreStorage
 
         public async ValueTask<bool> CommitAsync(CancellationToken cancellationToken = default)
         {
-            owner.RecordCommit(_operation);
+            owner.ThrowIfFailing(_operation);
             var result = await inner.CommitAsync(cancellationToken);
+            lock (owner.Commits) owner.Commits.Add((_operation, Capture(owner.Memory)));
             owner.Log("unit-commit");
             return result;
         }

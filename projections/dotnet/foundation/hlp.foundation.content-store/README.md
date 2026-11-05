@@ -79,13 +79,15 @@ By the owner's ruling of 2026-11-05 (22:11 UTC), a failed integrity check writes
 - **Each episode write goes through the kernel boundary with the reader as actor** and writes its own audit row. The row names no tenant or content id (Q36). Closing an episode through erasure commits inside the erasure's own write.
 - **An episode always commits in its own transaction,** so a caller's rollback cannot erase it (Q34). The boundary refuses a nested execution, so `ReadAsync` is refused as `kernel.nested-execution` inside an open execution, before any byte is read. A body opened earlier and read inside an execution surfaces that same refusal if it needs to write an episode, and keeps its typed failure for later reads; a later read outside the execution opens the episode.
 - **A failed episode write surfaces as itself,** never as tampering.
-- **Cancelling a read does not cancel its episode write,** and a read cancelled on a segment fetch resumes on that segment.
+- **Cancelling a read does not cancel its episode write.** A read returns what it has copied before fetching another segment, so a fetch that is cancelled loses nothing and a later read resumes on that segment.
 
 ## The two storage ports
 
 The storage port is split by [ADR 0113](https://github.com/Harborline-Software/harborline-control/blob/main/adrs/ADR-0113-content-store-bookkeeping-lives-in-the-node-model-and-commits-with-the-record/adr.md). Bookkeeping commits in a transaction; bytes are written outside it.
 
 **The backing decides, not the store.** The store holds no lock and no copy of the state. `IContentBookkeepingSession.TryReserveQuotaAsync` is a conditional update that refuses when a new total would pass its limit, and a total equal to the limit fits. `TryCreateItemAsync` is a conditional create on tenant and content id. `RemoveStagedAsync`, `AddOwnerAsync`, `RemoveOwnerAsync` and `DeleteItemIfUnownedAsync` are conditional too, so two concurrent operations cannot both act on one entry (CWE-362, CWE-367).
+
+**Isolation.** A backing isolates its transactions at read committed or stronger. The sweep decides what to delete from what the port reads, so an uncommitted removal must still name its bytes, and a rollback finds them there. `InMemoryContentBookkeeping` keeps a transaction's writes to itself until commit and holds a row lock on each staged or item entry it writes, so an overlapping writer waits. A pending reservation counts against concurrent ones, and a pending release frees nothing for anyone else until it commits, so a total never passes its limit.
 
 **Byte order** (ADR 0113 decision 3):
 

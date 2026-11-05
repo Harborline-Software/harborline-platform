@@ -360,7 +360,9 @@ public interface IContentBookkeepingTransaction : IContentBookkeepingSession, IK
 
 /// <summary>
 /// The bookkeeping port: items, owners, staged items, quota counts, reclamation entries and integrity entries, and no
-/// ciphertext (ADR 0113 decision 1). A host keeps these in its own storage model (DES-0054 Q31).
+/// ciphertext (ADR 0113 decision 1). A host keeps these in its own storage model (DES-0054 Q31). A backing isolates its
+/// transactions at read committed or stronger: the sweep decides what bytes to delete from what this port reads, so an
+/// uncommitted removal must still name its bytes.
 /// </summary>
 public interface IContentBookkeeping
 {
@@ -433,11 +435,12 @@ public sealed class InMemoryContentStoreStorage : IContentStoreStorage
 }
 
 /// <summary>
-/// The in-memory bookkeeping backing. Each conditional write is decided and applied under a short lock, with an inverse kept
-/// for rollback, so transactions interleave as a database's do. Other transactions see uncommitted writes, and a reservation
-/// counts against a concurrent one until it rolls back, which errs toward refusing and never toward exceeding a limit. A
-/// create of a key another open transaction created waits for that transaction, as a unique index does. A repeated
-/// idempotency key is refused; replaying its first answer is a durable host's work.
+/// The in-memory bookkeeping backing, isolated as a database at read committed is. A transaction's writes stay in the
+/// transaction until it commits, and no other reader sees them. Writing a staged or item entry takes that entry's row lock
+/// until the transaction ends, and a second writer waits for it, as a row lock and a unique index make it wait. A quota
+/// reservation counts against concurrent ones while it is pending, which errs toward refusing and never toward exceeding a
+/// limit; a release frees nothing for anyone else until it commits. A repeated idempotency key is refused; replaying its
+/// first answer is a durable host's work.
 /// </summary>
 public sealed class InMemoryContentBookkeeping : IContentBookkeeping
 {
@@ -447,7 +450,8 @@ public sealed class InMemoryContentBookkeeping : IContentBookkeeping
     private readonly List<ReclamationEntry> _reclamations = [];
     private readonly Dictionary<(TenantId Tenant, Guid ItemKey), ContentIntegrityEntry> _integrity = [];
     private readonly Dictionary<(TenantId Tenant, string? Record), long> _quota = [];
-    private readonly Dictionary<ContentStorageItemKey, (Transaction Creator, TaskCompletionSource Ended)> _pendingCreates = [];
+    private readonly Dictionary<(TenantId Tenant, string? Record), long> _pendingReservations = [];
+    private readonly Dictionary<object, Transaction> _rowLocks = [];
     private readonly HashSet<string> _idempotencyKeys = new(StringComparer.Ordinal);
     private readonly List<KernelAuditEvidence> _audits = [];
 
@@ -522,8 +526,16 @@ public sealed class InMemoryContentBookkeeping : IContentBookkeeping
 
     private sealed class Transaction(InMemoryContentBookkeeping owner) : IContentBookkeepingTransaction
     {
-        private readonly List<Action> _undo = [];
-        private bool _ended;
+        private readonly TaskCompletionSource _ended = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly Dictionary<ContentStorageItemKey, ContentStoreItem?> _items = [];
+        private readonly Dictionary<Guid, ContentStoreItem?> _staged = [];
+        private readonly Dictionary<(TenantId Tenant, Guid ItemKey), ContentIntegrityEntry> _integrity = [];
+        private readonly Dictionary<(TenantId Tenant, string? Record), long> _reservations = [];
+        private readonly Dictionary<(TenantId Tenant, string? Record), long> _releases = [];
+        private readonly List<ReclamationEntry> _reclamations = [];
+        private readonly List<KernelAuditEvidence> _audits = [];
+        private readonly List<string> _keys = [];
+        private bool _finished;
 
         public ValueTask StageOperationAsync(KernelOperationIdentity operation, CancellationToken cancellationToken = default)
         {
@@ -531,7 +543,7 @@ public sealed class InMemoryContentBookkeeping : IContentBookkeeping
             lock (owner._gate)
             {
                 if (!owner._idempotencyKeys.Add(operation.IdempotencyKey)) throw new InvalidOperationException("That idempotency key was already used.");
-                _undo.Add(() => owner._idempotencyKeys.Remove(operation.IdempotencyKey));
+                _keys.Add(operation.IdempotencyKey);
             }
 
             return ValueTask.CompletedTask;
@@ -542,44 +554,45 @@ public sealed class InMemoryContentBookkeeping : IContentBookkeeping
         public ValueTask StageAuditAsync(KernelAuditEvidence audit, CancellationToken cancellationToken = default)
         {
             ArgumentNullException.ThrowIfNull(audit);
-            lock (owner._gate)
-            {
-                owner._audits.Add(audit);
-                _undo.Add(() => owner._audits.Remove(audit));
-            }
-
+            lock (owner._gate) _audits.Add(audit);
             return ValueTask.CompletedTask;
         }
 
-        public ValueTask<ContentStoreItem?> FindItemAsync(ContentStorageItemKey key, CancellationToken cancellationToken = default) => owner.FindItemAsync(key, cancellationToken);
+        public ValueTask<ContentStoreItem?> FindItemAsync(ContentStorageItemKey key, CancellationToken cancellationToken = default)
+        {
+            lock (owner._gate) return ValueTask.FromResult(CurrentItem(key));
+        }
 
         public ValueTask<ContentStoreItem?> FindStagedAsync(Guid stageId, CancellationToken cancellationToken = default)
         {
-            lock (owner._gate) return ValueTask.FromResult(owner._staged.GetValueOrDefault(stageId));
+            lock (owner._gate) return ValueTask.FromResult(CurrentStaged(stageId));
         }
 
-        public ValueTask<ContentIntegrityEntry?> FindIntegrityAsync(TenantId tenant, Guid itemKey, CancellationToken cancellationToken = default) =>
-            owner.FindIntegrityAsync(tenant, itemKey, cancellationToken);
+        public ValueTask<ContentIntegrityEntry?> FindIntegrityAsync(TenantId tenant, Guid itemKey, CancellationToken cancellationToken = default)
+        {
+            lock (owner._gate) return ValueTask.FromResult(_integrity.GetValueOrDefault((tenant, itemKey)) ?? owner._integrity.GetValueOrDefault((tenant, itemKey)));
+        }
 
         public ValueTask AddStagedAsync(ContentStoreItem item, CancellationToken cancellationToken = default)
         {
             ArgumentNullException.ThrowIfNull(item);
             lock (owner._gate)
             {
-                owner._staged.Add(item.StageId, item);
-                _undo.Add(() => owner._staged.Remove(item.StageId));
+                owner._rowLocks.Add(item.StageId, this); // a stage id is minted for this put, so nothing can hold it
+                _staged[item.StageId] = item;
             }
 
             return ValueTask.CompletedTask;
         }
 
-        public ValueTask<bool> RemoveStagedAsync(Guid stageId, CancellationToken cancellationToken = default)
+        public async ValueTask<bool> RemoveStagedAsync(Guid stageId, CancellationToken cancellationToken = default)
         {
+            await LockAsync(stageId, cancellationToken).ConfigureAwait(false);
             lock (owner._gate)
             {
-                if (!owner._staged.Remove(stageId, out var item)) return ValueTask.FromResult(false);
-                _undo.Add(() => owner._staged.Add(stageId, item));
-                return ValueTask.FromResult(true);
+                if (CurrentStaged(stageId) is null) return false;
+                _staged[stageId] = null;
+                return true;
             }
         }
 
@@ -587,12 +600,16 @@ public sealed class InMemoryContentBookkeeping : IContentBookkeeping
         {
             lock (owner._gate)
             {
-                var recordTotal = owner._quota.GetValueOrDefault((tenant, record)) + bytes;
+                var recordTotal = Held((tenant, record)) + bytes;
                 if (recordTotal > recordLimit) return ValueTask.FromResult(new ContentQuotaReservation(ContentQuotaGrain.Record, recordTotal));
-                var tenantTotal = owner._quota.GetValueOrDefault((tenant, null)) + bytes;
+                var tenantTotal = Held((tenant, null)) + bytes;
                 if (tenantTotal > tenantLimit) return ValueTask.FromResult(new ContentQuotaReservation(ContentQuotaGrain.Tenant, tenantTotal));
-                owner.AddQuota(tenant, record, bytes);
-                _undo.Add(() => owner.AddQuota(tenant, record, -bytes));
+                foreach (var key in new (TenantId, string?)[] { (tenant, record), (tenant, null) })
+                {
+                    _reservations[key] = _reservations.GetValueOrDefault(key) + bytes;
+                    owner._pendingReservations[key] = owner._pendingReservations.GetValueOrDefault(key) + bytes;
+                }
+
                 return ValueTask.FromResult(new ContentQuotaReservation(null, 0));
             }
         }
@@ -601,8 +618,7 @@ public sealed class InMemoryContentBookkeeping : IContentBookkeeping
         {
             lock (owner._gate)
             {
-                owner.AddQuota(tenant, record, -bytes);
-                _undo.Add(() => owner.AddQuota(tenant, record, bytes));
+                foreach (var key in new (TenantId, string?)[] { (tenant, record), (tenant, null) }) _releases[key] = _releases.GetValueOrDefault(key) + bytes;
             }
 
             return ValueTask.CompletedTask;
@@ -612,151 +628,149 @@ public sealed class InMemoryContentBookkeeping : IContentBookkeeping
         {
             ArgumentNullException.ThrowIfNull(item);
             var key = new ContentStorageItemKey(item.Tenant, item.ContentId);
-            while (true)
+            await LockAsync(key, cancellationToken).ConfigureAwait(false);
+            lock (owner._gate)
             {
-                Task other;
-                lock (owner._gate)
-                {
-                    if (!owner._pendingCreates.TryGetValue(key, out var pending) || pending.Creator == this)
-                    {
-                        if (owner._items.TryGetValue(key, out var held)) return held;
-                        owner._items.Add(key, item);
-                        owner._pendingCreates[key] = (this, new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously));
-                        _undo.Add(() => owner._items.Remove(key));
-                        return null;
-                    }
-
-                    other = pending.Ended.Task;
-                }
-
-                await other.WaitAsync(cancellationToken).ConfigureAwait(false);
+                if (CurrentItem(key) is { } held) return held;
+                _items[key] = item;
+                return null;
             }
         }
 
-        public ValueTask<bool> AddOwnerAsync(ContentStorageItemKey key, ContentOwner added, CancellationToken cancellationToken = default)
+        public async ValueTask<bool> AddOwnerAsync(ContentStorageItemKey key, ContentOwner added, CancellationToken cancellationToken = default)
         {
+            await LockAsync(key, cancellationToken).ConfigureAwait(false);
             lock (owner._gate)
             {
-                if (!owner._items.TryGetValue(key, out var item)) return ValueTask.FromResult(false);
-                owner._items[key] = item with { Owners = [.. item.Owners, added] };
-                _undo.Add(() => owner.DropOwner(key, added));
-                return ValueTask.FromResult(true);
+                if (CurrentItem(key) is not { } item) return false;
+                _items[key] = item with { Owners = [.. item.Owners, added] };
+                return true;
             }
         }
 
-        public ValueTask<bool> RemoveOwnerAsync(ContentStorageItemKey key, ContentOwner removed, CancellationToken cancellationToken = default)
+        public async ValueTask<bool> RemoveOwnerAsync(ContentStorageItemKey key, ContentOwner removed, CancellationToken cancellationToken = default)
         {
+            await LockAsync(key, cancellationToken).ConfigureAwait(false);
             lock (owner._gate)
             {
-                var position = owner._items.TryGetValue(key, out var item) ? item.Owners.ToList().IndexOf(removed) : -1;
-                if (position < 0) return ValueTask.FromResult(false);
-                owner.DropOwner(key, removed);
-                _undo.Add(() =>
-                {
-                    var owners = owner._items[key].Owners.ToList();
-                    owners.Insert(Math.Min(position, owners.Count), removed);
-                    owner._items[key] = owner._items[key] with { Owners = owners };
-                });
-                return ValueTask.FromResult(true);
+                if (CurrentItem(key) is not { } item) return false;
+                var owners = item.Owners.ToList();
+                if (!owners.Remove(removed)) return false;
+                _items[key] = item with { Owners = owners };
+                return true;
             }
         }
 
-        public ValueTask<bool> DeleteItemIfUnownedAsync(ContentStorageItemKey key, CancellationToken cancellationToken = default)
+        public async ValueTask<bool> DeleteItemIfUnownedAsync(ContentStorageItemKey key, CancellationToken cancellationToken = default)
         {
+            await LockAsync(key, cancellationToken).ConfigureAwait(false);
             lock (owner._gate)
             {
-                if (!owner._items.TryGetValue(key, out var item) || item.Owners.Count != 0) return ValueTask.FromResult(false);
-                owner._items.Remove(key);
-                _undo.Add(() => owner._items.Add(key, item));
-                return ValueTask.FromResult(true);
+                if (CurrentItem(key) is not { Owners.Count: 0 }) return false;
+                _items[key] = null;
+                return true;
             }
         }
 
         public ValueTask AppendReclamationAsync(ReclamationEntry entry, CancellationToken cancellationToken = default)
         {
-            lock (owner._gate)
-            {
-                owner._reclamations.Add(entry);
-                _undo.Add(() => owner._reclamations.Remove(entry));
-            }
-
+            lock (owner._gate) _reclamations.Add(entry);
             return ValueTask.CompletedTask;
         }
 
         public ValueTask SetIntegrityAsync(ContentIntegrityEntry entry, CancellationToken cancellationToken = default)
         {
             ArgumentNullException.ThrowIfNull(entry);
-            lock (owner._gate)
-            {
-                var key = (entry.TenantId, entry.ItemKey);
-                var prior = owner._integrity.GetValueOrDefault(key);
-                owner._integrity[key] = entry;
-                _undo.Add(() =>
-                {
-                    if (prior is null) owner._integrity.Remove(key);
-                    else owner._integrity[key] = prior;
-                });
-            }
-
+            lock (owner._gate) _integrity[(entry.TenantId, entry.ItemKey)] = entry;
             return ValueTask.CompletedTask;
         }
 
         public ValueTask<bool> CommitAsync(CancellationToken cancellationToken = default)
         {
-            End(rollBack: false);
+            End(publish: true);
             return ValueTask.FromResult(true);
         }
 
         public ValueTask RollbackAsync(CancellationToken cancellationToken = default)
         {
-            End(rollBack: true);
+            End(publish: false);
             return ValueTask.CompletedTask;
         }
 
         public ValueTask DisposeAsync()
         {
-            End(rollBack: true);
+            End(publish: false);
             return ValueTask.CompletedTask;
         }
 
-        private void End(bool rollBack)
+        private ContentStoreItem? CurrentItem(ContentStorageItemKey key) => _items.TryGetValue(key, out var own) ? own : owner._items.GetValueOrDefault(key);
+
+        private ContentStoreItem? CurrentStaged(Guid stageId) => _staged.TryGetValue(stageId, out var own) ? own : owner._staged.GetValueOrDefault(stageId);
+
+        // Committed bytes, plus every pending reservation, minus only this transaction's own releases.
+        private long Held((TenantId Tenant, string? Record) key) =>
+            owner._quota.GetValueOrDefault(key) + owner._pendingReservations.GetValueOrDefault(key) - _releases.GetValueOrDefault(key);
+
+        private async ValueTask LockAsync(object row, CancellationToken cancellationToken)
         {
-            var ended = new List<TaskCompletionSource>();
+            while (true)
+            {
+                Task other;
+                lock (owner._gate)
+                {
+                    if (!owner._rowLocks.TryGetValue(row, out var holder) || holder == this)
+                    {
+                        owner._rowLocks[row] = this;
+                        return;
+                    }
+
+                    other = holder._ended.Task;
+                }
+
+                await other.WaitAsync(cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        private void End(bool publish)
+        {
             lock (owner._gate)
             {
-                if (_ended) return;
-                _ended = true;
-                if (rollBack)
+                if (_finished) return;
+                _finished = true;
+                foreach (var (key, bytes) in _reservations) Move(owner._pendingReservations, key, -bytes);
+                if (publish)
                 {
-                    for (var index = _undo.Count - 1; index >= 0; index--) _undo[index]();
+                    foreach (var (key, bytes) in _reservations) Move(owner._quota, key, bytes);
+                    foreach (var (key, bytes) in _releases) Move(owner._quota, key, -bytes);
+                    foreach (var (key, item) in _items) Publish(owner._items, key, item);
+                    foreach (var (key, item) in _staged) Publish(owner._staged, key, item);
+                    foreach (var (key, entry) in _integrity) owner._integrity[key] = entry;
+                    owner._reclamations.AddRange(_reclamations);
+                    owner._audits.AddRange(_audits);
+                }
+                else
+                {
+                    foreach (var key in _keys) owner._idempotencyKeys.Remove(key);
                 }
 
-                foreach (var pair in owner._pendingCreates.Where(pair => pair.Value.Creator == this).ToArray())
-                {
-                    owner._pendingCreates.Remove(pair.Key);
-                    ended.Add(pair.Value.Ended);
-                }
+                foreach (var row in owner._rowLocks.Where(pair => pair.Value == this).Select(pair => pair.Key).ToArray()) owner._rowLocks.Remove(row);
             }
 
-            foreach (var signal in ended) signal.SetResult();
+            _ended.SetResult();
         }
-    }
 
-    private void AddQuota(TenantId tenant, string record, long bytes)
-    {
-        foreach (var key in new (TenantId, string?)[] { (tenant, record), (tenant, null) })
+        private static void Publish<TKey>(Dictionary<TKey, ContentStoreItem> rows, TKey key, ContentStoreItem? item) where TKey : notnull
         {
-            var total = _quota.GetValueOrDefault(key) + bytes;
-            if (total == 0) _quota.Remove(key);
-            else _quota[key] = total;
+            if (item is null) rows.Remove(key);
+            else rows[key] = item;
         }
     }
 
-    private void DropOwner(ContentStorageItemKey key, ContentOwner owner)
+    private static void Move(Dictionary<(TenantId Tenant, string? Record), long> rows, (TenantId Tenant, string? Record) key, long bytes)
     {
-        var owners = _items[key].Owners.ToList();
-        owners.Remove(owner);
-        _items[key] = _items[key] with { Owners = owners };
+        var total = rows.GetValueOrDefault(key) + bytes;
+        if (total == 0) rows.Remove(key);
+        else rows[key] = total;
     }
 }
 
@@ -1835,6 +1849,8 @@ public sealed class InMemoryContentStore
                 {
                     if (_offset == _clear.Length)
                     {
+                        // Hand over what is already copied first: a fetch that throws now could not report those bytes.
+                        if (copied != 0) break;
                         await LoadSegmentAsync(_index + 1, cancellationToken).ConfigureAwait(false);
                         _offset = 0;
                     }

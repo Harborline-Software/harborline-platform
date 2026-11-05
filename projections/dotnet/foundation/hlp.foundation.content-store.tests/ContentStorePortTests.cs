@@ -158,6 +158,7 @@ public sealed class ContentStorePortTests
         Assert.Equal(new ContentQuotaReservation(ContentQuotaGrain.Tenant, 16), await unit.TryReserveQuotaAsync(Tenant, "record-2", 6, 100, 15));
         Assert.Null((await unit.TryReserveQuotaAsync(Tenant, "record-2", 5, 100, 15)).Refused);
         Assert.Equal(new ContentQuotaReservation(ContentQuotaGrain.Record, 16), await unit.TryReserveQuotaAsync(Tenant, "record-1", 6, 10, 15)); // record is checked first
+        await unit.CommitAsync();
         var counts = memory.Snapshot().Quota.ToDictionary(pair => pair.Key.Record ?? "tenant", pair => pair.Value);
         Assert.Equal(10, counts["record-1"]);
         Assert.Equal(5, counts["record-2"]);
