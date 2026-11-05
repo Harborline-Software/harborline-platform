@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text;
 using System.Text.Json.Nodes;
 using Harborline.Foundation.RuleEngine.Evaluation;
 using Harborline.Foundation.RuleEngine.Model;
@@ -8,6 +9,7 @@ namespace Harborline.Foundation.RuleEngine.Context;
 /// <summary>Owned finite Taxonomy answers joined to the host's independently admitted pins.</summary>
 public sealed class CodingSubsumptionSnapshot
 {
+    private static readonly UTF8Encoding StrictUtf8 = new(false, true);
     private readonly string[][] _bindings;
     private readonly Answer[] _answers;
     private sealed record Answer(string System, string Ancestor, string Descendant, bool Subsumes);
@@ -21,8 +23,8 @@ public sealed class CodingSubsumptionSnapshot
     /// <summary>Copies bounded tuple documents and refuses mismatched tenant, pins, order or keys.</summary>
     public static CodingSubsumptionSnapshot FromJsonText(string answersJsonText, string expectedBindingsJsonText)
     {
-        var expected = Tuple(RuntimeInputEnvelope.Parse(expectedBindingsJsonText, nameof(expectedBindingsJsonText)), 3);
-        var actual = Tuple(RuntimeInputEnvelope.Parse(answersJsonText, nameof(answersJsonText)), 4);
+        var expected = Tuple(Document(expectedBindingsJsonText, nameof(expectedBindingsJsonText)), 3);
+        var actual = Tuple(Document(answersJsonText, nameof(answersJsonText)), 4);
         if (Text(expected[0]) != "harborline-taxonomy-coding-bindings/1"
             || Text(actual[0]) != "harborline-taxonomy-coding-answers/1"
             || Text(expected[1]) != Text(actual[1])) throw Invalid();
@@ -95,9 +97,22 @@ public sealed class CodingSubsumptionSnapshot
         return result.ToArray();
     }
 
+    // The envelope encodes with replacement, so two different raw lone surrogates would parse as equal U+FFFD pins.
+    private static JsonNode? Document(string text, string parameterName)
+    {
+        var node = RuntimeInputEnvelope.Parse(text, parameterName);
+        try { _ = StrictUtf8.GetByteCount(text); }
+        catch (EncoderFallbackException) { throw Invalid(); }
+        return node;
+    }
+
     private static JsonArray Tuple(JsonNode? node, int count)
         => node is JsonArray array && array.Count == count ? array : throw Invalid();
     private static string Text(JsonNode? node)
-        => node is JsonValue value && value.TryGetValue<string>(out var text) && !string.IsNullOrEmpty(text) ? text : throw Invalid();
+    {
+        // An escaped lone surrogate parses, then throws InvalidOperationException when read as a string.
+        try { return node is JsonValue value && value.TryGetValue<string>(out var text) && !string.IsNullOrEmpty(text) ? text : throw Invalid(); }
+        catch (InvalidOperationException) { throw Invalid(); }
+    }
     private static ArgumentException Invalid() => new("Invalid pinned Taxonomy coding capture.");
 }

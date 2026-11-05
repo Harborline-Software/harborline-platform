@@ -104,6 +104,59 @@ describe('T-493 finite pinned coding reader', () => {
     expect(() => read(wire([binding], [...answers, ['s', 'a', '0998', true]]))).toThrow(TypeError)
   })
 
+  const refused = 'Invalid pinned Taxonomy coding capture'
+
+  it('refuses each malformed shape with the capture error, not an incidental one', () => {
+    const pair = wire()
+    expect(() => CodingSubsumptionSnapshot.fromJsonText(1 as never, pair.expected)).toThrow(refused)
+    expect(() => CodingSubsumptionSnapshot.fromJsonText(pair.actual, 1 as never)).toThrow(refused)
+    for (const rows of [[], 'x', [[]], [['s', 'vendor.domain.asset', '1.0.0']], [['', ...binding.slice(1)]], [[1, ...binding.slice(1)]]] as Json[])
+      expect(() => read(wire(rows))).toThrow(refused)
+    expect(() => read({ ...pair, actual: '{}' })).toThrow(refused)
+    expect(() => read({ ...pair, actual: JSON.stringify(['harborline-taxonomy-coding-answers/1', 'tenant-a', [binding]]) })).toThrow(refused)
+    expect(() => read(wire([binding], [['s', 'a', 'd', true], ['s', 'a', 'd', true]]))).toThrow(refused)
+  })
+
+  it('names the oversized document and keeps its cause', () => {
+    const pair = wire()
+    const huge = ' '.repeat(262145)
+    expect(() => read({ ...pair, actual: huge })).toThrow('coding answers exceeds byte ceiling')
+    expect(() => read({ ...pair, expected: huge })).toThrow('coding bindings exceeds byte ceiling')
+    let thrown: unknown
+    try { read({ ...pair, actual: huge }) } catch (error) { thrown = error }
+    expect((thrown as Error).cause).toBeInstanceOf(RangeError)
+    expect(() => read({ ...pair, actual: 'not json' })).toThrow('coding answers is not valid JSON')
+  })
+
+  it('compares every binding row of the expected manifest', () => {
+    const second = ['t', 'vendor.domain.asset', '2.0.0', digest]
+    const expected = JSON.stringify(['harborline-taxonomy-coding-bindings/1', 'tenant-a', [binding, second]])
+    const answers = (rows: Json) => JSON.stringify(['harborline-taxonomy-coding-answers/1', 'tenant-a', rows, [['s', 'a', 'd', true]]])
+    expect(() => CodingSubsumptionSnapshot.fromJsonText(answers([binding, second]), expected)).not.toThrow()
+    expect(() => CodingSubsumptionSnapshot.fromJsonText(answers([binding, ['t', 'vendor.domain.asset', '3.0.0', digest]]), expected)).toThrow(refused)
+    expect(() => CodingSubsumptionSnapshot.fromJsonText(answers([binding]), expected)).toThrow(refused)
+  })
+
+  it('refuses a bad pin format even when both documents agree on it', () => {
+    for (const bad of ['a'.repeat(63), 'a'.repeat(65), 'g' + 'a'.repeat(63), 'a'.repeat(63) + 'g', 'A'.repeat(64)])
+      expect(() => read(wire([['s', 'vendor.domain.asset', '1.0.0', bad]]))).toThrow(refused)
+    for (const version of ['100000000000.0.0', '4294967296.0.0', '99999999999.0.0'])
+      expect(() => read(wire([['s', 'vendor.domain.asset', version, digest]]))).toThrow(refused)
+    expect(() => read(wire([['s', 'vendor.domain.asset', '0000000000001.0.0', digest]]))).not.toThrow()
+  })
+
+  it('refuses lone surrogates, raw or escaped, and keeps a well-formed pair', () => {
+    const raw = (tenant: string) => ({
+      expected: `["harborline-taxonomy-coding-bindings/1","${tenant}",[${JSON.stringify(binding)}]]`,
+      actual: `["harborline-taxonomy-coding-answers/1","${tenant}",[${JSON.stringify(binding)}],[["s","a","d",true]]]`,
+    })
+    for (const lone of ['\\ud800', '\ud800']) {
+      expect(() => read(raw(`t${lone}`))).toThrow(refused)
+      expect(() => read({ ...wire(), actual: `["harborline-taxonomy-coding-answers/1","tenant-a",[${JSON.stringify(binding)}],[["s","a","d${lone}",true]]]` })).toThrow(refused)
+    }
+    expect(() => read({ ...wire(), actual: `["harborline-taxonomy-coding-answers/1","tenant-a",[${JSON.stringify(binding)}],[["s","a","\\ud83d\\ude00",true]]]` })).not.toThrow()
+  })
+
   it('rejects supplied null, undefined and forged objects without reading their properties', () => {
     let reads = 0
     const forged = new Proxy({}, { get() { reads++; throw new Error('read') }, ownKeys() { reads++; throw new Error('keys') }, getPrototypeOf() { reads++; throw new Error('prototype') } })
@@ -126,6 +179,7 @@ describe('T-493 coding evaluation', () => {
     expect(value([coding('leaf'), coding('uncaptured')])).toEqual(error('rule.coding_answer_missing'))
     expect(value([coding('uncaptured'), coding('leaf')])).toEqual(error('rule.coding_answer_missing'))
     expect(value([coding('missing'), coding('leaf')])).toEqual({ state: 'Resolved', value: true })
+    expect(value([coding('leaf'), coding('missing')])).toEqual({ state: 'Resolved', value: true })
     expect(value([null, {}, { system: 'other', code: 'uncaptured' }, { system: 'asset-class', code: 1 }, { system: 'asset-class', code: '' }])).toEqual({ state: 'Resolved', value: false })
     expect(value([])).toEqual({ state: 'Resolved', value: false })
   })
@@ -218,6 +272,25 @@ describe('T-493 work proof and runtime budget', () => {
     const graph = new FormRuleGraph(compile([validation]), clock, null, tiny, snapshot())
     expect(graph.evaluateInstance(RuleInstance.fromJsonText('{}')).validations[0].validity).toEqual({ ok: false, error: { code: 'rule.environment.not_admitted', params: {} } })
     expect(reads).toBe(0)
+    const notAdmitted = { ok: false, error: { code: 'rule.environment.not_admitted', params: {} } }
+    expect(graph.reevaluate('code', RuleValueSnapshot.fromJsonText('null')).validations[0].validity).toEqual(notAdmitted)
+    expect(graph.addRow('items', RuleRowSnapshot.fromJsonText('{"id":"r","fields":{}}')).validations[0].validity).toEqual(notAdmitted)
+    expect(graph.removeRow('items', 'r').validations[0].validity).toEqual(notAdmitted)
+  })
+
+  it('keeps the flat proof at its equality limit when no capture is supplied', () => {
+    const flat = { ...limits, maxStaticWork: 105029n }
+    const guard = new GuardEvaluator(clock, flat)
+    expect(guard.evaluateValue(validation, context(null), admission)).toEqual({ state: 'Resolved', value: false })
+    expect(guard.evaluateGuard(validation, context(null), admission)).toEqual({ ok: false, error: { code: 'c', params: {} } })
+    expect(new FormRuleGraph(compile([validation]), clock, admission, flat).workProof.maximumEvaluationWork).toBe(105029n)
+  })
+
+  it('reads an escaped lone surrogate candidate as an unanswerable pair or another system', () => {
+    const scan = rule({ 'coding.is': [{ var: 'code' }, 's', 'a'] })
+    const evaluate = (text: string) => new GuardEvaluator(clock, limits, snapshot()).evaluateValue(scan, RuleContextSnapshot.fromJsonText(text), admission)
+    expect(evaluate('{"code":{"system":"s","code":"\\ud800"}}')).toEqual(error('rule.coding_answer_missing'))
+    expect(evaluate('{"code":{"system":"\\ud800","code":"d"}}')).toEqual({ state: 'Resolved', value: false })
   })
 
   it('charges string work and every candidate against the existing deterministic budget', () => {
