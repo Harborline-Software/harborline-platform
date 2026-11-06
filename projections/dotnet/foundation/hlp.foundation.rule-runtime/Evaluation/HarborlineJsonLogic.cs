@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.Json;
 using System.Text.Json.Nodes;
 
 using Harborline.Foundation.RuleEngine.Functions;
@@ -338,9 +339,8 @@ internal static class HarborlineJsonLogic
             {
                 ctx.Charge();
                 if (candidate is not JsonObject obj
-                    || obj["system"] is not JsonValue sv || !sv.TryGetValue<string>(out var candidateSystem)
-                    || obj["code"] is not JsonValue cv || !cv.TryGetValue<string>(out var descendant)
-                    || string.IsNullOrEmpty(candidateSystem) || string.IsNullOrEmpty(descendant)) return;
+                    || CodingMember(obj["system"]) is not { Length: > 0 } candidateSystem
+                    || CodingMember(obj["code"]) is not { Length: > 0 } descendant) return;
                 ctx.Budget.ChargeSize((long)descendant.Length + 1);
                 if (Context.CodingSubsumptionSnapshot.Equal(candidateSystem, system, ctx.Budget))
                     captured |= coding.Lookup(system, code, descendant, ctx.Budget);
@@ -356,6 +356,22 @@ internal static class HarborlineJsonLogic
 
         if (value is JsonArray arr) return Bool(arr.Any(Match));
         return Bool(Match(value));
+    }
+
+    // An escaped lone surrogate throws when read as a string. No admitted capture can hold one, so a stand-in of
+    // the same UTF-16 length equals no bound system, has no answer and charges what the TypeScript tier charges.
+    private static string? CodingMember(JsonNode? node)
+    {
+        if (node is not JsonValue value) return null;
+        try { return value.TryGetValue<string>(out var text) ? text : null; }
+        catch (InvalidOperationException)
+        {
+            var escaped = value.GetValue<JsonElement>().GetRawText();
+            int units = 0;
+            for (int i = 1; i < escaped.Length - 1; i++, units++)
+                if (escaped[i] == '\\') i += escaped[i + 1] == 'u' ? 5 : 1;
+            return new string('\uD800', units);
+        }
     }
 
     // ── coercion helpers ────────────────────────────────────────────────────

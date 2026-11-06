@@ -15,6 +15,7 @@ ordered `harborline-taxonomy-coding-answers/1` tuple document with one trailing 
 Bindings and queries must be nonempty and unique. Selected nodes and requests are each bounded
 at 5000 before traversal; the output is capped while writing at 262144 UTF-8 bytes and 5000 JSON
 values (containers included), within depth 64. Unknown codes in a complete admitted definition
-produce false. Missing definitions, wrong pins, malformed requests and overflow refuse with
+produce false. Missing definitions, wrong pins, malformed requests (including a lone surrogate in
+any request string, which the writer would otherwise rewrite to U+FFFD) and overflow refuse with
 `TaxonomyCodingCaptureException.Code`; existing admission/traversal refusals propagate. Capture
 supplies subsumption answers only; it does not expand a permitted-value domain or walk overlays.

@@ -616,6 +616,53 @@ public sealed class TaxonomyInterpreterTests
         Assert.Equal("taxonomy.coding_capture_too_large", Assert.Throws<TaxonomyCodingCaptureException>(() => Interpreter(definition).CaptureCodingAnswers("tenant-a", [binding], [new("s", new string('x', length + 1), "root")], CaptureWindow)).Code);
     }
 
+    [Fact]
+    public void Coding_capture_refuses_a_lone_surrogate_instead_of_answering_a_rewritten_key()
+    {
+        var definition = Definition([Node("�"), Node("leaf", "�")]);
+        var binding = Binding(definition);
+        string Code(Func<string> capture) => Assert.Throws<TaxonomyCodingCaptureException>(capture).Code;
+        Assert.Equal("taxonomy.coding_capture_invalid", Code(() => Interpreter(definition).CaptureCodingAnswers("tenant-a", [binding], [new("s", "\ud800", "leaf")], CaptureWindow)));
+        Assert.Equal("taxonomy.coding_capture_invalid", Code(() => Interpreter(definition).CaptureCodingAnswers("tenant-a", [binding], [new("s", "leaf", "\ud800")], CaptureWindow)));
+        Assert.Equal("taxonomy.coding_capture_invalid", Code(() => Interpreter(definition).CaptureCodingAnswers("tenant-a", [binding], [new("s", "\ud800", "leaf"), new("s", "\ud801", "leaf")], CaptureWindow)));
+        Assert.Equal("taxonomy.coding_capture_invalid", Code(() => Interpreter(definition).CaptureCodingAnswers("tenant-a", [Binding(definition, "s\ud800")], [new("s\ud800", "leaf", "leaf")], CaptureWindow)));
+        Assert.Equal("taxonomy.coding_capture_invalid", Code(() => Interpreter(definition).CaptureCodingAnswers("tenant\ud800", [binding], [new("s", "leaf", "leaf")], CaptureWindow)));
+        string real = Interpreter(definition).CaptureCodingAnswers("tenant-a", [binding], [new("s", "�", "leaf")], CaptureWindow);
+        using var document = JsonDocument.Parse(real);
+        Assert.Equal("�", document.RootElement[3][0][1].GetString());
+        Assert.True(document.RootElement[3][0][3].GetBoolean());
+    }
+
+    [Fact]
+    public void Coding_capture_refuses_a_definition_its_own_canonical_bytes_cannot_restore()
+    {
+        var withoutOwner = Definition([Node("root")]) with { Owner = null! };
+        var withoutDisplay = Definition([Node("root") with { Display = null! }]);
+        var wrongDigest = Binding(withoutOwner) with { DefinitionSha256 = new string('0', 64) };
+        Assert.Equal("taxonomy.coding_definition_mismatch", Assert.Throws<TaxonomyCodingCaptureException>(() => Interpreter(withoutOwner).CaptureCodingAnswers("tenant-a", [wrongDigest], [new("s", "root", "root")], CaptureWindow)).Code);
+        foreach (var definition in new[] { withoutOwner, withoutDisplay })
+            Assert.Equal("taxonomy.coding_capture_invalid", Assert.Throws<TaxonomyCodingCaptureException>(() => Interpreter(definition).CaptureCodingAnswers("tenant-a", [Binding(definition)], [new("s", "root", "root")], CaptureWindow)).Code);
+    }
+
+    [Fact]
+    public void Coding_capture_bounds_the_selected_node_total_across_definitions()
+    {
+        var first = Definition(Enumerable.Range(0, 2500).Select(i => Node("n" + i)).ToArray());
+        var atLimit = Definition("tenant-a", Id, "2.0.0", Enumerable.Range(0, 2500).Select(i => Node("n" + i)).ToArray());
+        var overLimit = Definition("tenant-a", Id, "2.0.0", Enumerable.Range(0, 2501).Select(i => Node("n" + i)).ToArray());
+        Assert.NotEmpty(new TaxonomyInterpreter([first, atLimit]).CaptureCodingAnswers("tenant-a", [Binding(first, "a"), Binding(atLimit, "b")], [new("a", "n0", "n0")], CaptureWindow));
+        Assert.Equal("taxonomy.coding_capture_too_large", Assert.Throws<TaxonomyCodingCaptureException>(() => new TaxonomyInterpreter([first, overLimit]).CaptureCodingAnswers("tenant-a", [Binding(first, "a"), Binding(overLimit, "b")], [new("a", "n0", "n0")], CaptureWindow)).Code);
+    }
+
+    [Fact]
+    public void Coding_capture_keeps_the_existing_cycle_and_depth_refusal_identities()
+    {
+        var cycle = Definition([Node("root"), Node("bad", "bad")]);
+        Assert.Contains("definition.parent_cycle", Assert.Throws<TaxonomyAdmissionException>(() => Interpreter(cycle).CaptureCodingAnswers("tenant-a", [Binding(cycle)], [new("s", "root", "unknown")], CaptureWindow)).Refusals.Select(refusal => refusal.Code));
+        var deep = Definition(Enumerable.Range(0, 66).Select(i => Node("n" + i, i == 0 ? null : "n" + (i - 1))).ToArray());
+        Assert.Contains("definition.traversal_depth_exceeded", Assert.Throws<TaxonomyAdmissionException>(() => Interpreter(deep).CaptureCodingAnswers("tenant-a", [Binding(deep)], [new("s", "unknown", "unknown")], CaptureWindow)).Refusals.Select(refusal => refusal.Code));
+    }
+
     private static readonly TaxonomyDefinitionId Id = new("acme", "health", "icd");
     private static readonly TaxonomyDefinitionCoordinates Coordinates = new("tenant-a", Id, "1.0.0");
     private static TaxonomyClassificationReference Reference(string code) => new("tenant-a", Id, "1.0.0", code);

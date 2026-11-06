@@ -211,7 +211,9 @@ public sealed class TaxonomyInterpreter
                 var digest = Convert.ToHexString(SHA256.HashData(buffer)).ToLowerInvariant();
                 if (digest != binding.DefinitionSha256)
                     throw new TaxonomyCodingCaptureException("taxonomy.coding_definition_mismatch");
-                var clone = TaxonomyDefinitionJson.Deserialize(buffer);
+                TaxonomyDefinition clone;
+                try { clone = TaxonomyDefinitionJson.Deserialize(buffer); }
+                catch (JsonException) { throw CaptureInvalid(); }
                 if (CoordinatesOf(clone) != binding.Coordinates)
                     throw new TaxonomyCodingCaptureException("taxonomy.coding_definition_mismatch");
                 if (clone.Nodes.Count > maximum - nodes) throw CaptureTooLarge();
@@ -262,9 +264,15 @@ public sealed class TaxonomyInterpreter
             && parts.All(part => uint.TryParse(part, NumberStyles.None, CultureInfo.InvariantCulture, out _));
     private static bool CaptureDigest(string? digest)
         => digest is { Length: 64 } && digest.All(c => c is >= '0' and <= '9' or >= 'a' and <= 'f');
+    private static readonly UTF8Encoding StrictUtf8 = new(false, true);
+    // The writer would turn a lone surrogate into U+FFFD, answering a different key than the one asked (RFC 7493 section 2.1).
     private static void CheckCaptureText(string text)
     {
-        if (text.Length > 262_144 || Encoding.UTF8.GetByteCount(text) > 262_144) throw CaptureTooLarge();
+        if (text.Length > 262_144) throw CaptureTooLarge();
+        int bytes;
+        try { bytes = StrictUtf8.GetByteCount(text); }
+        catch (EncoderFallbackException) { throw CaptureInvalid(); }
+        if (bytes > 262_144) throw CaptureTooLarge();
     }
     // Reject each write before MemoryStream can grow beyond the existing JSON byte envelope.
     private sealed class CaptureStream : MemoryStream

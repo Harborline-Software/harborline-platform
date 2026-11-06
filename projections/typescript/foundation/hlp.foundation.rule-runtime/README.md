@@ -78,7 +78,8 @@ const graph = new FormRuleGraph(compiled, businessClock, admission, limits, codi
 Both documents use the versioned tuple formats in the module interface and separately
 fit the existing 262,144-byte, depth-64, 5,000-value JSON envelope. Tags, types, tuple
 order, unique aliases/answer keys, tenant and every exact version/hash pin are checked.
-Codes and aliases remain opaque and case-sensitive. The reader never normalizes pins.
+Codes and aliases remain opaque and case-sensitive. The reader never normalizes pins,
+and refuses a lone surrogate, raw or escaped (RFC 7493 section 2.1).
 A supplied null or forged capture refuses construction. Omitting the final constructor
 argument preserves legacy flat equality, coercions and array short circuit.
 
