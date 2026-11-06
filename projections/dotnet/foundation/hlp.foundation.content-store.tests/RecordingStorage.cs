@@ -25,6 +25,7 @@ internal sealed class RecordingStorage : IContentStoreStorage
     public Action? BeforeFindStaged { get; set; }
     public Action<int>? BeforeSegmentRead { get; set; }
     public Action? BeforeTryCreate { get; set; }
+    public Func<Task>? BeforeFindItemForUpdate { get; set; }
 
     public RecordingStorage()
     {
@@ -91,7 +92,16 @@ internal sealed class RecordingStorage : IContentStoreStorage
         public ValueTask StageAuditAsync(KernelAuditEvidence audit, CancellationToken cancellationToken = default) => Session.StageAuditAsync(audit, cancellationToken);
         public ValueTask<ContentStoreItem?> FindItemAsync(ContentStorageItemKey key, CancellationToken cancellationToken = default) => inner.FindItemAsync(key, cancellationToken);
 
-        public ValueTask<ContentStoreItem?> FindItemForUpdateAsync(ContentStorageItemKey key, CancellationToken cancellationToken = default) => inner.FindItemForUpdateAsync(key, cancellationToken);
+        public async ValueTask<ContentStoreItem?> FindItemForUpdateAsync(ContentStorageItemKey key, CancellationToken cancellationToken = default)
+        {
+            if (owner.BeforeFindItemForUpdate is { } hook)
+            {
+                owner.BeforeFindItemForUpdate = null;
+                await hook();
+            }
+
+            return await inner.FindItemForUpdateAsync(key, cancellationToken);
+        }
 
         public ValueTask<ContentStoreItem?> FindStagedAsync(Guid stageId, CancellationToken cancellationToken = default)
         {

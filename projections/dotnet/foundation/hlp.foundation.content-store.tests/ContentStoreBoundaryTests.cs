@@ -859,6 +859,99 @@ public sealed class ContentStoreBoundaryTests
         Assert.NotNull(await backing.Bytes.ReadSegmentAsync(oldStage, 0));
     }
 
+    public static TheoryData<string> FailuresBeforeTheBoundary => ["too-large", "media-type", "digest", "blank-evidence", "null-stream"];
+
+    [Theory]
+    [MemberData(nameof(FailuresBeforeTheBoundary))]
+    public async Task Clause_1_a_joined_put_refused_before_it_reaches_the_boundary_still_dooms_the_callers_execution(string failure)
+    {
+        var backing = new RecordingStorage();
+        var store = new InMemoryContentStore(new(10, 1000, 1000, Expiry), new Keys(), new Clock(), backing);
+        var stage = await Put(store, "put");
+        var caller = new RecordWrite(backing.Bookkeeping);
+
+        var doomed = await Assert.ThrowsAsync<KernelTransactionStateException>(async () => await caller.RunAsync(async session =>
+        {
+            await store.CommitReferenceAsync(Tenant, stage, new("record-1", "0"), "a.txt", Write("fits", Actor, session));
+            var write = Write("refused", Actor, session);
+            Exception caught = failure switch
+            {
+                "too-large" => await Assert.ThrowsAsync<ContentRefusedException>(async () => await store.PutAsync(Tenant, new MemoryStream(new byte[11]), "text/plain", null, write)),
+                "media-type" => await Assert.ThrowsAsync<ContentRefusedException>(async () => await store.PutAsync(Tenant, new MemoryStream(Hello), "application/pdf", null, write)),
+                "digest" => await Assert.ThrowsAsync<ContentRefusedException>(async () => await store.PutAsync(Tenant, new MemoryStream(Hello), "text/plain", new string('0', 64), write)),
+                "blank-evidence" => await Assert.ThrowsAsync<ArgumentException>(async () => await store.PutAsync(Tenant, new MemoryStream(Hello), "text/plain", null,
+                    new(new(" ", "key", "fingerprint"), write.Audit, session))),
+                _ => await Assert.ThrowsAsync<ArgumentNullException>(async () => await store.PutAsync(Tenant, null!, "text/plain", null, write)),
+            };
+            Assert.IsNotType<KernelTransactionStateException>(caught); // the caller sees the real failure
+        }));
+
+        Assert.Equal(KernelTransactionErrors.EnclosingExecutionDoomed, doomed.Code);
+        Assert.Equal(0, caller.Commits);
+        Assert.Equal(0, store.CommittedCount);
+        Assert.Equal(1, store.StagedCount);
+        Assert.DoesNotContain(backing.Memory.Snapshot().Audits, audit => audit.ActorId == "content-store:never-staged");
+    }
+
+    [Fact]
+    public async Task Clause_1_a_refused_write_with_a_transaction_but_no_open_execution_surfaces_its_own_failure()
+    {
+        var backing = new RecordingStorage();
+        var store = new InMemoryContentStore(new(10, 1000, 1000, Expiry), new Keys(), new Clock(), backing);
+        await using var orphan = await backing.Bookkeeping.BeginTransactionAsync();
+        var refused = await Assert.ThrowsAsync<ContentRefusedException>(async () => await store.PutAsync(Tenant, new MemoryStream(new byte[11]), "text/plain", null, Write("x", Actor, orphan)));
+        Assert.Equal(ContentRefusals.TooLarge, refused.Code);
+    }
+
+    [Fact]
+    public async Task Clause_1_joined_removal_and_sweep_failures_before_the_boundary_doom_the_callers_execution_too()
+    {
+        var backing = new RecordingStorage();
+        var store = Store(backing);
+        var reference = await store.CommitReferenceAsync(Tenant, await Put(store, "put"), new("record-1", "0"), "a.txt", Write("commit"));
+
+        var removal = new RecordWrite(backing.Bookkeeping);
+        await Assert.ThrowsAsync<KernelTransactionStateException>(async () => await removal.RunAsync(async session =>
+            await Assert.ThrowsAsync<ArgumentException>(async () => await store.RemoveReferenceAsync(Tenant, reference, HoldStatus.None, " ", Write("blank-run", Actor, session)))));
+
+        var sweep = new RecordWrite(backing.Bookkeeping);
+        await Assert.ThrowsAsync<KernelTransactionStateException>(async () => await sweep.RunAsync(async session =>
+            await Assert.ThrowsAsync<ArgumentException>(async () => await store.SweepExpiredAsync("sweep", Write("wrong-actor", Actor, session)))));
+
+        var commit = new RecordWrite(backing.Bookkeeping);
+        await Assert.ThrowsAsync<KernelTransactionStateException>(async () => await commit.RunAsync(async session =>
+            await Assert.ThrowsAsync<ArgumentException>(async () => await store.CommitReferenceAsync(Tenant, Guid.NewGuid(), new("record-1", "1"), " ", Write("blank-name", Actor, session)))));
+
+        Assert.Equal(0, removal.Commits + sweep.Commits + commit.Commits);
+    }
+
+    [Fact]
+    public async Task Q34_a_recovery_that_lost_the_race_to_a_newer_failure_leaves_the_episode_open_with_its_count()
+    {
+        var backing = new RecordingStorage();
+        var store = Store(backing);
+        var reference = await CommitTwoSegments(store);
+        await store.CorruptCiphertextAsync(Tenant, reference.ContentId, 1);
+        await Assert.ThrowsAsync<ContentIntegrityException>(() => ReadAll(store, reference, Alice));
+        await store.CorruptCiphertextAsync(Tenant, reference.ContentId, 1); // restores the byte
+        backing.BeforeFindItemForUpdate = () => OnAnotherRequest(async () =>
+        {
+            await store.CorruptCiphertextAsync(Tenant, reference.ContentId, 1);
+            await Assert.ThrowsAsync<ContentIntegrityException>(() => ReadAll(store, reference, Bob));
+            await store.CorruptCiphertextAsync(Tenant, reference.ContentId, 1);
+            return 0;
+        });
+
+        await ReadAll(store, reference, Alice);
+
+        var entry = Assert.Single(store.IntegrityEntries);
+        Assert.True(entry.Active);
+        Assert.Equal(2, entry.Count);
+        Assert.Equal("principal.reader-bob", entry.PrincipalId);
+        await ReadAll(store, reference, Alice); // a later verified read still closes it
+        Assert.True(store.IsIntegrityHealthy);
+    }
+
     private sealed class InjectedFault : Exception;
 
     // A stand-in records write: it owns the boundary execution and its one transaction, and hands the store only the session.

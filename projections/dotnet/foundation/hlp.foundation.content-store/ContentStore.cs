@@ -1000,8 +1000,12 @@ public sealed class InMemoryContentStore
     /// must match and is then discarded (eng-2). The put never looks at what the tenant already holds (eng-4). The bytes are
     /// durable before the staged entry is written (ADR 0113 decision 3); a crash between the two leaves bytes the sweep reclaims.
     /// </summary>
-    public async ValueTask<Guid> PutAsync(TenantId tenant, Stream stream, string? declaredMediaType, string? declaredSha256Hex, ContentStoreWrite write,
-        FieldNarrowing? field = null, CancellationToken cancellationToken = default)
+    public ValueTask<Guid> PutAsync(TenantId tenant, Stream stream, string? declaredMediaType, string? declaredSha256Hex, ContentStoreWrite write,
+        FieldNarrowing? field = null, CancellationToken cancellationToken = default) =>
+        DoomingCallerOnFailureAsync(write, () => PutCoreAsync(tenant, stream, declaredMediaType, declaredSha256Hex, write, field, cancellationToken));
+
+    private async ValueTask<Guid> PutCoreAsync(TenantId tenant, Stream stream, string? declaredMediaType, string? declaredSha256Hex, ContentStoreWrite write,
+        FieldNarrowing? field, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(stream);
         RequireEvidence(write);
@@ -1084,8 +1088,12 @@ public sealed class InMemoryContentStore
     /// destroyed once that transaction commits (eng-4, board P2). The answer is the same shape either way. A refusal inside
     /// a caller's execution dooms it, so a caught refusal cannot commit half of the write.
     /// </summary>
-    public async ValueTask<ContentReference> CommitReferenceAsync(TenantId tenant, Guid stageId, ContentOwner owner, string displayName, ContentStoreWrite write,
-        CancellationToken cancellationToken = default)
+    public ValueTask<ContentReference> CommitReferenceAsync(TenantId tenant, Guid stageId, ContentOwner owner, string displayName, ContentStoreWrite write,
+        CancellationToken cancellationToken = default) =>
+        DoomingCallerOnFailureAsync(write, () => CommitReferenceCoreAsync(tenant, stageId, owner, displayName, write, cancellationToken));
+
+    private async ValueTask<ContentReference> CommitReferenceCoreAsync(TenantId tenant, Guid stageId, ContentOwner owner, string displayName, ContentStoreWrite write,
+        CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(owner);
         ArgumentException.ThrowIfNullOrWhiteSpace(displayName);
@@ -1148,6 +1156,42 @@ public sealed class InMemoryContentStore
 
     private static ContentRefusedException StagingExpiredRefusal() =>
         new(ContentRefusals.StagingExpired, "The staged item is no longer available.", StoreDeclaration);
+
+    // Any failure of a joined write dooms the caller's execution, even one raised before the write reaches the boundary, such
+    // as a refused upload, so a caller that catches it cannot commit the rest of its work.
+    private static async ValueTask<T> DoomingCallerOnFailureAsync<T>(ContentStoreWrite write, Func<ValueTask<T>> operation)
+    {
+        ArgumentNullException.ThrowIfNull(write);
+        try
+        {
+            return await operation().ConfigureAwait(false);
+        }
+        catch (Exception failure) when (write.Transaction is not null)
+        {
+            try
+            {
+                await KernelTransactionBoundary.JoinAsync(DoomingCommand, new FailedParticipant(failure)).ConfigureAwait(false);
+            }
+            catch (Exception doomed) when (ReferenceEquals(doomed, failure) || doomed is KernelTransactionStateException)
+            {
+                // The join reports the same failure, or finds no open execution to doom. The caller gets the original below.
+            }
+
+            throw;
+        }
+    }
+
+    // Never staged: the participant fails on its first step, which is what dooms the execution.
+    private static readonly KernelCommand<ContentStoreOperation> DoomingCommand = new(
+        new("content-store:failed-write", "content-store:failed-write", "content-store:failed-write"), ContentStoreOperation.Put,
+        new("content-store:failed-write", "content-store:never-staged", DateTimeOffset.UnixEpoch, ReadOnlyMemory<byte>.Empty));
+
+    private sealed class FailedParticipant(Exception failure) : IKernelTransactionParticipant<ContentStoreOperation>
+    {
+        public ValueTask StageOperationAsync(KernelOperationIdentity operation, CancellationToken cancellationToken = default) => throw failure;
+        public ValueTask StageRecordAsync(ContentStoreOperation record, CancellationToken cancellationToken = default) => throw failure;
+        public ValueTask StageAuditAsync(KernelAuditEvidence audit, CancellationToken cancellationToken = default) => throw failure;
+    }
 
     private static void RequireEvidence(ContentStoreWrite write)
     {
@@ -1296,8 +1340,12 @@ public sealed class InMemoryContentStore
     /// 0113 decision 3). Inside a caller's transaction the store cannot see that commit, so the sweep deletes them.
     /// Returns true when the item was reclaimed.
     /// </summary>
-    public async ValueTask<bool> RemoveReferenceAsync(TenantId tenant, ContentReference reference, HoldStatus hold, string run, ContentStoreWrite write,
-        CancellationToken cancellationToken = default)
+    public ValueTask<bool> RemoveReferenceAsync(TenantId tenant, ContentReference reference, HoldStatus hold, string run, ContentStoreWrite write,
+        CancellationToken cancellationToken = default) =>
+        DoomingCallerOnFailureAsync(write, () => RemoveReferenceCoreAsync(tenant, reference, hold, run, write, cancellationToken));
+
+    private async ValueTask<bool> RemoveReferenceCoreAsync(TenantId tenant, ContentReference reference, HoldStatus hold, string run, ContentStoreWrite write,
+        CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(reference);
         ArgumentException.ThrowIfNullOrWhiteSpace(run);
@@ -1330,7 +1378,10 @@ public sealed class InMemoryContentStore
     /// the sweep never takes bytes whose entry is still coming (ADR 0113 decision 3). It acts as
     /// <see cref="ContentStoreRunRegistration.StagingSweepActor"/>. Returns how many staged items it reclaimed.
     /// </summary>
-    public async ValueTask<int> SweepExpiredAsync(string run, ContentStoreWrite write, CancellationToken cancellationToken = default)
+    public ValueTask<int> SweepExpiredAsync(string run, ContentStoreWrite write, CancellationToken cancellationToken = default) =>
+        DoomingCallerOnFailureAsync(write, () => SweepExpiredCoreAsync(run, write, cancellationToken));
+
+    private async ValueTask<int> SweepExpiredCoreAsync(string run, ContentStoreWrite write, CancellationToken cancellationToken)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(run);
         RequireEvidence(write);
@@ -1648,10 +1699,12 @@ public sealed class InMemoryContentStore
     // A full verified read ends the item's episode as its own write; with no active episode it changes nothing.
     private async ValueTask ResolveVerifiedAsync(ContentStoreItem item, ContentReadContext context)
     {
-        if (await _bookkeeping.FindIntegrityAsync(item.Tenant, item.StageId).ConfigureAwait(false) is not { Active: true }) return;
+        if (await _bookkeeping.FindIntegrityAsync(item.Tenant, item.StageId).ConfigureAwait(false) is not { Active: true } seen) return;
         await RunAsync(ContentStoreOperation.IntegrityRecovery, EpisodeWrite("integrity-recovery", context), async (session, token) =>
         {
-            if (await session.FindIntegrityAsync(item.Tenant, item.StageId, token).ConfigureAwait(false) is not { Active: true } entry) return false;
+            // Holding the item's row orders this with other episode writes; a failure counted since this read looked stays open.
+            await session.FindItemForUpdateAsync(new(item.Tenant, item.ContentId), token).ConfigureAwait(false);
+            if (await session.FindIntegrityAsync(item.Tenant, item.StageId, token).ConfigureAwait(false) is not { Active: true } entry || entry.Count != seen.Count) return false;
             await session.SetIntegrityAsync(entry with { Active = false }, token).ConfigureAwait(false);
             return true;
         }, CancellationToken.None).ConfigureAwait(false);

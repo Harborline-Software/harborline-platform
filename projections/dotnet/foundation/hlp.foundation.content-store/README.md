@@ -64,7 +64,7 @@ the durable-host slice.
 
 By the owner's ruling of 2026-11-05 (17:47 UTC), every store write carries its own actor and audit. `PutAsync`, `CommitReferenceAsync`, `RemoveReferenceAsync` and `SweepExpiredAsync` take a `ContentStoreWrite`: the caller's `KernelOperationIdentity`, its `KernelAuditEvidence`, and optionally the caller's open transaction.
 
-- **With the caller's transaction** the write runs through `KernelTransactionBoundary.JoinAsync`. It stages its own operation, writes and audit row, and never commits or rolls back. Any failure dooms the caller's execution, even one the caller catches, so half a write never commits. A transaction with no open execution is refused.
+- **With the caller's transaction** the write runs through `KernelTransactionBoundary.JoinAsync`. It stages its own operation, writes and audit row, and never commits or rolls back. Any failure dooms the caller's execution, even one the caller catches and one raised before the write reaches the boundary, such as a refused upload, so half a write never commits. A transaction with no open execution is refused.
 - **Without one** it runs its own `ExecutePreparedAsync`. Inside an open execution that is refused as `kernel.nested-execution`, so a write can't commit apart from the caller who forgot to pass the transaction.
 - **Actors.** The store never invents one. Evidence without a whole identity and actor is refused before any byte is kept. The sweep acts as `sys.scheduler` and refuses any other actor.
 - **A write that changes nothing** commits nothing and writes no audit row.
@@ -79,6 +79,7 @@ By the owner's ruling of 2026-11-05 (22:11 UTC), a failed integrity check writes
 - **Each episode write goes through the kernel boundary with the reader as actor** and writes its own audit row. The row names no tenant or content id (Q36). The episode holds the item's row, so an open erasure finishes first and an erasure that follows closes the episode; no erased item is left with an active one. Because an episode write is not cancelled with its read, a durable backing must bound that row wait with its own lock timeout, which surfaces as a failed episode write. The in-memory backing has no such bound. Closing an episode through erasure commits inside the erasure's own write.
 - **An episode always commits in its own transaction,** so a caller's rollback cannot erase it (Q34). The boundary refuses a nested execution, so `ReadAsync` is refused as `kernel.nested-execution` inside an open execution, before any byte is read. A body opened earlier and read inside an execution surfaces that same refusal if it needs to write an episode, and keeps its typed failure for later reads; a later read outside the execution opens the episode.
 - **A failed episode write surfaces as itself,** never as tampering.
+- **Recovery holds the item's row** and closes an episode only if its count hasn't changed since the read looked, so it never overwrites a newer failure.
 - **Cancelling a read does not cancel its episode write.** A read returns what it has copied before fetching another segment, so a fetch that is cancelled loses nothing and a later read resumes on that segment.
 
 ## The two storage ports
