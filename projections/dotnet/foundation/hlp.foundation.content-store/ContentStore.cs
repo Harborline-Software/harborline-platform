@@ -1495,7 +1495,7 @@ public sealed class InMemoryContentStore
         try
         {
             await KernelTransactionBoundary.ExecutePreparedAsync<ContentStoreOperation, bool>(
-                static _ => throw new InvalidOperationException("The probe never prepares a command."), ExecutionProbe.Instance).ConfigureAwait(false);
+                static _ => throw new UnreachableException(), ExecutionProbe.Instance).ConfigureAwait(false);
         }
         catch (ExecutionProbe.Ended)
         {
@@ -2129,7 +2129,7 @@ public sealed class InMemoryContentStore
         if (header.StartsWith((ReadOnlySpan<byte>)[0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A])) return "image/png";
         if (header.StartsWith((ReadOnlySpan<byte>)[0xFF, 0xD8, 0xFF])) return "image/jpeg";
         if (header.Length >= 14 && header.StartsWith("RIFF"u8) && header[8..].StartsWith("WEBPVP"u8)) return "image/webp";
-        if (IsText(header)) return declaredType is "text/plain" or "text/csv" ? declaredType : "text/plain";
+        if (IsText(header)) return declaredType == "text/csv" ? "text/csv" : "text/plain";
         if (declaredType is "text/plain" or "text/csv")
         {
             throw new ContentRefusedException(ContentRefusals.MediaTypeMismatch, "The declared text type is on bytes that are not text.", StoreDeclaration);
@@ -2348,7 +2348,7 @@ public sealed class InMemoryContentStore
         // A cancelled fetch changes nothing, so a later read fetches the same segment and never skips it.
         private async ValueTask LoadSegmentAsync(int index, CancellationToken cancellationToken)
         {
-            var segment = index > _last ? null : await _bytes.ReadSegmentAsync(_item.StageId, index, cancellationToken).ConfigureAwait(false);
+            var segment = await _bytes.ReadSegmentAsync(_item.StageId, index, cancellationToken).ConfigureAwait(false);
             _index = index;
             CryptographicOperations.ZeroMemory(_clear);
             if (segment is null)
