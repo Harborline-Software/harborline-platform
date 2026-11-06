@@ -1096,7 +1096,8 @@ public sealed class InMemoryContentStore
             if (await session.FindStagedAsync(stageId, token).ConfigureAwait(false) is not { } staged || staged.Tenant != tenant) throw StagingExpiredRefusal();
             if (StagedCutoff() >= staged.CreatedUtc)
             {
-                if (!await ReclaimStagedAsync(session, staged, "staging-expired", "commit", token).ConfigureAwait(false)) throw StagingExpiredRefusal();
+                // Inside a caller's execution the refusal must fail the join and doom it; the sweep reclaims the stage.
+                if (write.Transaction is not null || !await ReclaimStagedAsync(session, staged, "staging-expired", "commit", token).ConfigureAwait(false)) throw StagingExpiredRefusal();
                 expired = staged;
                 return true;
             }
@@ -1306,7 +1307,8 @@ public sealed class InMemoryContentStore
         ContentStoreItem? reclaimed = null;
         var outcome = await RunAsync(ContentStoreOperation.RemoveReference, write, async (session, token) =>
         {
-            if (await session.FindItemAsync(key, token).ConfigureAwait(false) is not { } item) return false;
+            // Held first, so what this captures is the entry it removes, even if the item was erased and recreated during the wait.
+            if (await session.FindItemForUpdateAsync(key, token).ConfigureAwait(false) is not { } item) return false;
             if (!await session.RemoveOwnerAsync(key, reference.Owner, token).ConfigureAwait(false)) return false;
             await session.ReleaseQuotaAsync(tenant, reference.Owner.Record, item.Length, token).ConfigureAwait(false);
             if (!await session.DeleteItemIfUnownedAsync(key, token).ConfigureAwait(false)) return true;

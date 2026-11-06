@@ -805,6 +805,60 @@ public sealed class ContentStoreBoundaryTests
         Assert.True(store.IsIntegrityHealthy);
     }
 
+    [Fact]
+    public async Task Clause_1_a_joined_commit_of_an_expired_stage_dooms_the_callers_execution_even_when_caught()
+    {
+        var clock = new Clock();
+        var backing = new RecordingStorage();
+        var store = Store(backing, clock);
+        var expired = await Put(store, "expired");
+        clock.Advance(Expiry);
+        var fresh = await store.PutAsync(Tenant, new MemoryStream("world"u8.ToArray()), "text/plain", null, Write("fresh"));
+        var caller = new RecordWrite(backing.Bookkeeping);
+
+        var doomed = await Assert.ThrowsAsync<KernelTransactionStateException>(async () => await caller.RunAsync(async session =>
+        {
+            await store.CommitReferenceAsync(Tenant, fresh, new("record-1", "0"), "a.txt", Write("fits", Actor, session));
+            var refused = await Assert.ThrowsAsync<ContentRefusedException>(async () => await store.CommitReferenceAsync(Tenant, expired, new("record-1", "1"), "b.txt", Write("expired-commit", Actor, session)));
+            Assert.Equal(ContentRefusals.StagingExpired, refused.Code);
+        }));
+
+        Assert.Equal(KernelTransactionErrors.EnclosingExecutionDoomed, doomed.Code);
+        Assert.Equal(0, caller.Commits);
+        Assert.Equal(0, store.CommittedCount);
+        Assert.Equal(2, store.StagedCount);
+        Assert.Empty(store.Reclamations);
+        Assert.Equal(1, await store.SweepExpiredAsync("sweep", Write("sweep", "sys.scheduler"))); // the sweep takes the expired stage
+    }
+
+    [Fact]
+    public async Task Clause_5_a_removal_that_waited_through_an_erase_and_recreate_destroys_the_new_items_bytes_not_the_old_ones()
+    {
+        var backing = new RecordingStorage();
+        var store = Store(backing);
+        var oldStage = await Put(store, "put");
+        var reference = await store.CommitReferenceAsync(Tenant, oldStage, new("record-1", "0"), "a.txt", Write("commit"));
+        var key = new ContentStorageItemKey(Tenant, reference.ContentId);
+        var incarnation = await store.StorageItemAsync(Tenant, reference.ContentId);
+        var newStage = Guid.NewGuid();
+        var writer = await backing.Bytes.OpenWriteAsync(newStage, DateTimeOffset.UnixEpoch);
+        await writer.AppendAsync(new([1], [2]));
+        await writer.CompleteAsync(DateTimeOffset.UnixEpoch);
+
+        var holder = await backing.Bookkeeping.BeginTransactionAsync();
+        Assert.True(await holder.RemoveOwnerAsync(key, reference.Owner));
+        Assert.True(await holder.DeleteItemIfUnownedAsync(key));
+        Assert.Null(await holder.TryCreateItemAsync(incarnation with { StageId = newStage }));
+        var removal = OnAnotherRequest(async () => await store.RemoveReferenceAsync(Tenant, reference, HoldStatus.None, "dispose", Write("remove")));
+        await Task.Delay(100);
+        Assert.False(removal.IsCompleted);
+        await holder.CommitAsync();
+
+        Assert.True(await removal.WaitAsync(TimeSpan.FromSeconds(30)));
+        Assert.Null(await backing.Bytes.ReadSegmentAsync(newStage, 0));
+        Assert.NotNull(await backing.Bytes.ReadSegmentAsync(oldStage, 0));
+    }
+
     private sealed class InjectedFault : Exception;
 
     // A stand-in records write: it owns the boundary execution and its one transaction, and hands the store only the session.
