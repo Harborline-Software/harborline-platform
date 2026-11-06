@@ -1736,19 +1736,28 @@ public sealed class InMemoryContentStore
             var moved = 0;
             await RunAsync(ContentStoreOperation.EpochRewrap, write, async (session, token) =>
             {
-                var items = await session.ItemsUnderEpochAsync(tenant, fromEpoch, batchSize, token).ConfigureAwait(false);
-                if (items.Count == 0) return false;
-                // Both are held from here: the destination by this pin, the source by the rows just listed.
-                if (!await session.PinEpochAsync(tenant, toEpoch, token).ConfigureAwait(false)) throw new InvalidOperationException("That epoch is being destroyed.");
-                fromKey = OpenEpoch(tenant, subkey, from);
-                toKey = OpenEpoch(tenant, subkey, to);
-                foreach (var item in items)
+                // Pinned first, so the source can't be retired while its rows are read and moved. Retired already means drained.
+                if (!await session.PinEpochAsync(tenant, fromEpoch, token).ConfigureAwait(false)) return false;
+                while (true)
                 {
-                    var (wrapped, nonce, tag) = MoveWrap(item, fromKey, toKey);
-                    if (await session.ReplaceWrapAsync(item, toEpoch, wrapped, nonce, tag, token).ConfigureAwait(false)) moved++;
-                }
+                    var items = await session.ItemsUnderEpochAsync(tenant, fromEpoch, batchSize, token).ConfigureAwait(false);
+                    if (items.Count == 0) return moved != 0;
+                    if (!await session.PinEpochAsync(tenant, toEpoch, token).ConfigureAwait(false)) throw new InvalidOperationException("That epoch is being destroyed.");
+                    if (fromKey.Length == 0)
+                    {
+                        fromKey = OpenEpoch(tenant, subkey, from);
+                        toKey = OpenEpoch(tenant, subkey, to);
+                    }
 
-                return moved != 0;
+                    foreach (var item in items)
+                    {
+                        var (wrapped, nonce, tag) = MoveWrap(item, fromKey, toKey);
+                        if (await session.ReplaceWrapAsync(item, toEpoch, wrapped, nonce, tag, token).ConfigureAwait(false)) moved++;
+                    }
+
+                    // A concurrent rewrap took this whole batch; only an empty listing means the epoch is drained.
+                    if (moved != 0) return true;
+                }
             }, cancellationToken).ConfigureAwait(false);
             return moved;
         }

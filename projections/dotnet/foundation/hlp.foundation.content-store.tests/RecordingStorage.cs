@@ -45,6 +45,7 @@ internal sealed class RecordingStorage : IContentStoreStorage
     public Action<string>? OnEpochStep { get; set; }
     public Func<Task>? BeforeFirstSetCurrent { get; set; }
     public Func<Task>? BeforePin { get; set; }
+    public Func<Task>? BeforeReplaceWrap { get; set; }
     public Func<Task>? BeforeEpochGet { get; set; }
 
     public static BookkeepingImage Capture(InMemoryContentBookkeeping memory)
@@ -143,8 +144,16 @@ internal sealed class RecordingStorage : IContentStoreStorage
             owner.BeforeFindStaged?.Invoke();
             return inner.FindStagedForUpdateAsync(stageId, cancellationToken);
         }
-        public ValueTask<bool> ReplaceWrapAsync(ContentStoreItem item, Guid epochId, byte[] wrappedDataKey, byte[] wrapNonce, byte[] wrapTag, CancellationToken cancellationToken = default) =>
-            inner.ReplaceWrapAsync(item, epochId, wrappedDataKey, wrapNonce, wrapTag, cancellationToken);
+        public async ValueTask<bool> ReplaceWrapAsync(ContentStoreItem item, Guid epochId, byte[] wrappedDataKey, byte[] wrapNonce, byte[] wrapTag, CancellationToken cancellationToken = default)
+        {
+            if (owner.BeforeReplaceWrap is { } hook)
+            {
+                owner.BeforeReplaceWrap = null;
+                await hook();
+            }
+
+            return await inner.ReplaceWrapAsync(item, epochId, wrappedDataKey, wrapNonce, wrapTag, cancellationToken);
+        }
 
         public ValueTask<ContentStoreItem?> FindStagedAsync(Guid stageId, CancellationToken cancellationToken = default)
         {

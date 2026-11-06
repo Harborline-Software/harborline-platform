@@ -924,6 +924,85 @@ public sealed class ContentStoreEpochTests
         Assert.Equal(World, await Read(store, seeded));
     }
 
+    [Fact]
+    public async Task A_rewrap_whose_whole_batch_moved_concurrently_takes_the_next_batch_and_zero_still_means_drained()
+    {
+        var backing = new RecordingStorage();
+        var store = Store(backing);
+        var a = await Commit(store, "aaa"u8.ToArray());
+        var b = await Commit(store, "bbb"u8.ToArray());
+        var rotation = await store.RotateEpochAsync(Tenant, Write("rotate"));
+        var from = rotation.From!.Value;
+        backing.BeforeReplaceWrap = async () => await OnAnotherRequest(async () =>
+            await store.RewrapEpochAsync(Tenant, from, rotation.To, 1, Write("rival")));
+
+        // The rival takes this call's one row and commits, so its replace answers false and the other row is still there.
+        Assert.Equal(1, await store.RewrapEpochAsync(Tenant, from, rotation.To, 1, Write("mine")));
+
+        Assert.Equal(0, await store.RewrapEpochAsync(Tenant, from, rotation.To, 1, Write("drained")));
+        Assert.True(await store.DestroyEpochAsync(Tenant, from, Write("destroy")));
+        Assert.Equal("aaa"u8.ToArray(), await Read(store, a));
+        Assert.Equal("bbb"u8.ToArray(), await Read(store, b));
+    }
+
+    [Fact]
+    public async Task A_rewrap_that_finds_its_rows_all_gone_returns_zero_and_writes_no_audit_row()
+    {
+        var backing = new RecordingStorage();
+        var store = Store(backing);
+        await Commit(store, Hello);
+        var rotation = await store.RotateEpochAsync(Tenant, Write("rotate"));
+        var from = rotation.From!.Value;
+        backing.BeforeReplaceWrap = async () => await OnAnotherRequest(async () =>
+            await store.RewrapEpochAsync(Tenant, from, rotation.To, 5, Write("rival")));
+
+        Assert.Equal(0, await store.RewrapEpochAsync(Tenant, from, rotation.To, 5, Write("mine")));
+
+        Assert.DoesNotContain(backing.Memory.Snapshot().Audits, audit => audit.AuditId == "audit-mine");
+    }
+
+    [Fact]
+    public async Task A_rewrap_whose_source_was_retired_before_it_could_pin_it_returns_zero_without_touching_the_key()
+    {
+        var backing = new RecordingStorage();
+        var store = Store(backing);
+        var reference = await Commit(store, Hello);
+        var rotation = await store.RotateEpochAsync(Tenant, Write("rotate"));
+        var from = rotation.From!.Value;
+        backing.BeforePin = async () => await OnAnotherRequest(async () =>
+        {
+            await store.RewrapEpochAsync(Tenant, from, rotation.To, 5, Write("rival"));
+            await store.DestroyEpochAsync(Tenant, from, Write("destroy"));
+            return 0;
+        });
+
+        Assert.Equal(0, await store.RewrapEpochAsync(Tenant, from, rotation.To, 5, Write("mine")));
+
+        Assert.Null(await backing.Epochs.GetAsync(Tenant, from));
+        Assert.Equal(Hello, await Read(store, reference));
+    }
+
+    [Fact]
+    public async Task A_destroy_waits_for_a_rewrap_reading_that_source_epoch()
+    {
+        var backing = new RecordingStorage();
+        var store = Store(backing);
+        var rotation = await store.RotateEpochAsync(Tenant, Write("rotate-1"));
+        var turned = await store.RotateEpochAsync(Tenant, Write("rotate-2"));
+        var caller = new CallerTransaction(backing.Bookkeeping);
+        Task<bool>? destroy = null;
+
+        await caller.RunAsync(async session =>
+        {
+            Assert.Equal(0, await store.RewrapEpochAsync(Tenant, rotation.To, turned.To, 5, Write("joined", Scheduler, session))); // nothing to move, but its pin stands
+            destroy = OnAnotherRequest(async () => await store.DestroyEpochAsync(Tenant, rotation.To, Write("destroy")));
+            await Task.Delay(100);
+            Assert.False(destroy.IsCompleted);
+        });
+
+        Assert.True(await destroy!.WaitAsync(TimeSpan.FromSeconds(30)));
+    }
+
     private sealed class Crash : Exception;
 
     private sealed class InjectedFault : Exception;
