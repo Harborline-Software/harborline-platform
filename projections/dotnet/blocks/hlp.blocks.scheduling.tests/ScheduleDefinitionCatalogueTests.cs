@@ -236,6 +236,33 @@ public sealed class ScheduleDefinitionCatalogueTests
     public async Task ResolutionRequiresAPin()
         => await Assert.ThrowsAsync<ArgumentNullException>(() => Catalogue.ResolveAsync(null!).AsTask());
 
+    [Theory(DisplayName = "scheduling-ck-20: a member spelled in another case refuses, so it cannot carry a version past the version check")]
+    [InlineData("\"envelope\":{", "\"envelope\":{\"Version\":\"9.9.9\",")]
+    [InlineData("\"name\":", "\"Name\":")]
+    public async Task MemberInAnotherCaseRefuses(string member, string spelled)
+    {
+        var body = ScheduleDefinitionJson.Serialize(Definition with { Envelope = Definition.Envelope! with { Version = null } });
+        Assert.Contains(member, body, StringComparison.Ordinal);
+        var refused = await Assert.ThrowsAsync<DefinitionRefusalException>(() => SaveRawAsync(body.Replace(member, spelled, StringComparison.Ordinal)));
+        Assert.Equal([new DefinitionRefusal("scheduling.definition.body_invalid", "")], refused.Refusals);
+    }
+
+    [Fact(DisplayName = "scheduling-ck-8: a definition that cannot serialize refuses instead of throwing")]
+    public async Task UndefinedEnumValueRefusesAtSave()
+    {
+        var refused = await Assert.ThrowsAsync<DefinitionRefusalException>(() => Catalogue.SaveDraftAsync(Tenant, Id, "1.0.0",
+            Definition with { MissedBehaviour = (ScheduleMissedBehaviour)99 }, 0, "draft").AsTask());
+        Assert.Equal([new DefinitionRefusal("scheduling.definition.body_invalid", "")], refused.Refusals);
+    }
+
+    [Fact(DisplayName = "scheduling-ck-19: an undefined provenance element refuses instead of throwing")]
+    public async Task UndefinedProvenanceRefusesAtSave()
+    {
+        var refused = await Assert.ThrowsAsync<DefinitionRefusalException>(() => Catalogue.SaveDraftAsync(Tenant, Id, "1.0.0",
+            Definition with { Envelope = Definition.Envelope! with { Provenance = default(JsonElement) } }, 0, "draft").AsTask());
+        Assert.Equal([new DefinitionRefusal("scheduling.definition.body_invalid", "")], refused.Refusals);
+    }
+
     private static ScheduleDefinition Schedule(string name) => new(
         new ScheduleDefinitionEnvelope(Id, "1.0.0", Tenant, Harborline.Blocks.BuilderDefinitions.LayoutCascadeLayer.DomainPackage,
             JsonSerializer.SerializeToElement(new { pack = "general" }), "standard", false, [], new DefinitionContractVersion(1, 0)),

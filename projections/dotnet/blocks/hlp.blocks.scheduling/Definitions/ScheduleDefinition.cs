@@ -229,6 +229,8 @@ public static class ScheduleDefinitionJson
         var options = new JsonSerializerOptions(JsonSerializerDefaults.Web)
         {
             PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
+            // Web defaults match any case, so "Version" would slip past the catalogue's exact version check.
+            PropertyNameCaseInsensitive = false,
             DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
             UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow,
             AllowOutOfOrderMetadataProperties = true,

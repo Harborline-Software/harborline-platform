@@ -94,8 +94,17 @@ public sealed class ScheduleDefinitionCatalogue
         var stored = definition.Envelope is { } envelope && envelope.Version == version
             ? definition with { Envelope = envelope with { Version = null } }
             : definition;
-        var document = new DefinitionDocument(Key(tenant, definitionId), VersionIdFor(definitionId, version), version,
-            ScheduleDefinitionJson.Serialize(stored));
+        string body;
+        try
+        {
+            body = ScheduleDefinitionJson.Serialize(stored);
+        }
+        catch (Exception exception) when (exception is JsonException or InvalidOperationException)
+        {
+            throw new DefinitionRefusalException(DefinitionAdmissionPhase.Author,
+                [new DefinitionRefusal(ScheduleDefinitionCodes.BodyInvalid, "")]);
+        }
+        var document = new DefinitionDocument(Key(tenant, definitionId), VersionIdFor(definitionId, version), version, body);
         try
         {
             return Typed(await _store.SaveDraftAsync(document, expectedRevision, requestId, cancellationToken).ConfigureAwait(false));
