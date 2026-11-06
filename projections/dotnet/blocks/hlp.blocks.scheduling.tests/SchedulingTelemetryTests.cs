@@ -186,9 +186,9 @@ public sealed class SchedulingTelemetryTests
         using var measurements = new SchedulingMeterMeasurements();
         var catalogue = new ScheduleDefinitionCatalogue(new InMemoryVersionedDefinitionStore(
             new Dictionary<DefinitionKind, DefinitionAdmission> { [DefinitionKind.Schedules] = ScheduleDefinitionCatalogue.Admission }));
-        await catalogue.SaveDraftAsync("tenant-a", "definition-1", "1.0.0", "{}", 0, "first");
+        await catalogue.SaveDraftAsync("tenant-a", "definition-1", "1.0.0", DueDateAndForm, 0, "first");
         var stale = await Assert.ThrowsAsync<DefinitionRefusalException>(
-            () => catalogue.SaveDraftAsync("tenant-a", "definition-1", "1.0.1", "{}", 0, "second").AsTask());
+            () => catalogue.SaveDraftAsync("tenant-a", "definition-1", "1.0.1", DueDateAndForm, 0, "second").AsTask());
         Assert.Equal([new DefinitionRefusal("definition.revision_conflict", "/expectedRevision")], stale.Refusals);
 
         var refusal = Assert.Single(measurements.ForInstrument("scheduling.commit.stale_refusals"));
@@ -203,7 +203,7 @@ public sealed class SchedulingTelemetryTests
         var catalogue = new ScheduleDefinitionCatalogue(new InMemoryVersionedDefinitionStore(
             new Dictionary<DefinitionKind, DefinitionAdmission> { [DefinitionKind.Schedules] = ScheduleDefinitionCatalogue.Admission }));
         await Assert.ThrowsAsync<DefinitionRefusalException>(
-            () => catalogue.SaveDraftAsync("tenant-a", "definition-1", "3", "{}", 0, "first").AsTask());
+            () => catalogue.SaveDraftAsync("tenant-a", "definition-1", "3", DueDateAndForm, 0, "first").AsTask());
         Assert.Empty(measurements.ForInstrument("scheduling.commit.stale_refusals"));
     }
 
@@ -213,9 +213,12 @@ public sealed class SchedulingTelemetryTests
         using var measurements = new SchedulingMeterMeasurements();
         var catalogue = new ScheduleDefinitionCatalogue(new RefusingStore());
         await Assert.ThrowsAsync<DefinitionRefusalException>(
-            () => catalogue.SaveDraftAsync("tenant-a", "definition-1", "1.0.0", "{}", 0, "first").AsTask());
+            () => catalogue.SaveDraftAsync("tenant-a", "definition-1", "1.0.0", DueDateAndForm, 0, "first").AsTask());
         Assert.Empty(measurements.ForInstrument("scheduling.commit.stale_refusals"));
     }
+
+    private static readonly ScheduleDefinition DueDateAndForm = new(null, "Due", new ScheduleStarts(ScheduleStartKind.Form, "forms.a"),
+        Window: new("2027-01-01T00:00:00Z", "2027-01-31T00:00:00Z"));
 
     // A store whose draft save refuses with no reasons: nothing in it names a stale fence.
     private sealed class RefusingStore : IVersionedDefinitionStore
