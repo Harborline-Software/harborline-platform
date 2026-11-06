@@ -734,6 +734,77 @@ public sealed class ContentStoreBoundaryTests
         Assert.All(dataKey, value => Assert.Equal(0, value));
     }
 
+    [Fact]
+    public async Task Q34_an_episode_during_an_open_erasure_waits_and_a_committed_erasure_leaves_no_episode_and_a_healthy_store()
+    {
+        var backing = new RecordingStorage();
+        var store = Store(backing);
+        var reference = await CommitTwoSegments(store);
+        await store.CorruptCiphertextAsync(Tenant, reference.ContentId, 1);
+        var body = (await store.ReadAsync(Tenant, reference, true, Alice)).Body;
+        var caller = new RecordWrite(backing.Bookkeeping);
+        Task<int>? failing = null;
+
+        await caller.RunAsync(async session =>
+        {
+            Assert.True(await store.RemoveReferenceAsync(Tenant, reference, HoldStatus.None, "erase", Write("erase", Actor, session)));
+            failing = OnAnotherRequest(async () =>
+            {
+                await body.CopyToAsync(Stream.Null);
+                return 0;
+            });
+            await Task.Delay(100);
+            Assert.False(failing.IsCompleted); // the erasure holds the item's row
+        });
+
+        await Assert.ThrowsAsync<ContentIntegrityException>(() => failing!.WaitAsync(TimeSpan.FromSeconds(30)));
+        await body.DisposeAsync();
+        Assert.Empty(store.IntegrityEntries);
+        Assert.True(store.IsIntegrityHealthy);
+    }
+
+    [Fact]
+    public async Task Q34_an_episode_during_an_erasure_that_rolls_back_is_written_once_the_row_is_free()
+    {
+        var backing = new RecordingStorage();
+        var store = Store(backing);
+        var reference = await CommitTwoSegments(store);
+        await store.CorruptCiphertextAsync(Tenant, reference.ContentId, 1);
+        var body = (await store.ReadAsync(Tenant, reference, true, Alice)).Body;
+        var caller = new RecordWrite(backing.Bookkeeping);
+        Task<int>? failing = null;
+
+        await Assert.ThrowsAsync<InjectedFault>(async () => await caller.RunAsync(async session =>
+        {
+            Assert.True(await store.RemoveReferenceAsync(Tenant, reference, HoldStatus.None, "erase", Write("erase", Actor, session)));
+            failing = OnAnotherRequest(async () =>
+            {
+                await body.CopyToAsync(Stream.Null);
+                return 0;
+            });
+            await Task.Delay(100);
+            throw new InjectedFault();
+        }));
+
+        await Assert.ThrowsAsync<ContentIntegrityException>(() => failing!.WaitAsync(TimeSpan.FromSeconds(30)));
+        await body.DisposeAsync();
+        Assert.Equal("principal.reader-alice", Assert.Single(store.IntegrityEntries).PrincipalId);
+        Assert.False(store.IsIntegrityHealthy);
+    }
+
+    [Fact]
+    public async Task Q34_an_erasure_after_a_committed_episode_closes_it()
+    {
+        var store = Store(new RecordingStorage());
+        var reference = await CommitTwoSegments(store);
+        await store.CorruptCiphertextAsync(Tenant, reference.ContentId, 1);
+        await Assert.ThrowsAsync<ContentIntegrityException>(() => ReadAll(store, reference, Alice));
+        Assert.False(store.IsIntegrityHealthy);
+
+        Assert.True(await store.RemoveReferenceAsync(Tenant, reference, HoldStatus.None, "erase", Write("erase")));
+        Assert.True(store.IsIntegrityHealthy);
+    }
+
     private sealed class InjectedFault : Exception;
 
     // A stand-in records write: it owns the boundary execution and its one transaction, and hands the store only the session.

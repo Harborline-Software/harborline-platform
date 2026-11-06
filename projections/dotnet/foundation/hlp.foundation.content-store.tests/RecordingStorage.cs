@@ -91,6 +91,8 @@ internal sealed class RecordingStorage : IContentStoreStorage
         public ValueTask StageAuditAsync(KernelAuditEvidence audit, CancellationToken cancellationToken = default) => Session.StageAuditAsync(audit, cancellationToken);
         public ValueTask<ContentStoreItem?> FindItemAsync(ContentStorageItemKey key, CancellationToken cancellationToken = default) => inner.FindItemAsync(key, cancellationToken);
 
+        public ValueTask<ContentStoreItem?> FindItemForUpdateAsync(ContentStorageItemKey key, CancellationToken cancellationToken = default) => inner.FindItemForUpdateAsync(key, cancellationToken);
+
         public ValueTask<ContentStoreItem?> FindStagedAsync(Guid stageId, CancellationToken cancellationToken = default)
         {
             owner.BeforeFindStaged?.Invoke();

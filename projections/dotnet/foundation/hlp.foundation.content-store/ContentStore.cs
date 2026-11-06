@@ -323,6 +323,11 @@ public interface IContentBookkeepingSession : IKernelTransactionParticipant<Cont
 {
     /// <summary>Reads a committed item's entry, or null.</summary>
     ValueTask<ContentStoreItem?> FindItemAsync(ContentStorageItemKey key, CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Reads a committed item's entry and holds its row until the transaction ends, as <c>SELECT ... FOR UPDATE</c> does, or
+    /// answers null. An episode write and an erasure of the same item take this row, so they run one after the other.
+    /// </summary>
+    ValueTask<ContentStoreItem?> FindItemForUpdateAsync(ContentStorageItemKey key, CancellationToken cancellationToken = default);
     /// <summary>Reads a staged item's entry, or null.</summary>
     ValueTask<ContentStoreItem?> FindStagedAsync(Guid stageId, CancellationToken cancellationToken = default);
     /// <summary>Reads an item's integrity episode, or null.</summary>
@@ -561,6 +566,12 @@ public sealed class InMemoryContentBookkeeping : IContentBookkeeping
         public ValueTask<ContentStoreItem?> FindItemAsync(ContentStorageItemKey key, CancellationToken cancellationToken = default)
         {
             lock (owner._gate) return ValueTask.FromResult(CurrentItem(key));
+        }
+
+        public async ValueTask<ContentStoreItem?> FindItemForUpdateAsync(ContentStorageItemKey key, CancellationToken cancellationToken = default)
+        {
+            await LockAsync(key, cancellationToken).ConfigureAwait(false);
+            lock (owner._gate) return CurrentItem(key);
         }
 
         public ValueTask<ContentStoreItem?> FindStagedAsync(Guid stageId, CancellationToken cancellationToken = default)
@@ -1604,8 +1615,9 @@ public sealed class InMemoryContentStore
         var beginsEpisode = false;
         await RunAsync(ContentStoreOperation.IntegrityFailure, EpisodeWrite("integrity-failure", context), async (session, token) =>
         {
-            // A read racing erasure cannot reopen an episode (Q34); bytes staged again later are a different item.
-            var current = await session.FindItemAsync(new(item.Tenant, item.ContentId), token).ConfigureAwait(false);
+            // A read racing erasure cannot reopen an episode (Q34); bytes staged again later are a different item. Holding the
+            // item's row means an open erasure finishes first, and an erasure that follows sees this episode and closes it.
+            var current = await session.FindItemForUpdateAsync(new(item.Tenant, item.ContentId), token).ConfigureAwait(false);
             if (current?.StageId != item.StageId) return false;
             var prior = await session.FindIntegrityAsync(item.Tenant, item.StageId, token).ConfigureAwait(false);
             var now = _clock.GetUtcNow();
