@@ -952,6 +952,45 @@ public sealed class ContentStoreBoundaryTests
         Assert.True(store.IsIntegrityHealthy);
     }
 
+    [Fact]
+    public async Task Q34_a_verified_read_that_began_before_an_episode_opened_cannot_close_it()
+    {
+        var backing = new RecordingStorage();
+        var store = Store(backing);
+        var reference = await CommitTwoSegments(store);
+        await using var early = (await store.ReadAsync(Tenant, reference, true, Alice)).Body;
+
+        await store.CorruptCiphertextAsync(Tenant, reference.ContentId, 1);
+        await Assert.ThrowsAsync<ContentIntegrityException>(() => ReadAll(store, reference, Bob));
+        await store.CorruptCiphertextAsync(Tenant, reference.ContentId, 1); // restored, so the early read verifies
+        await early.CopyToAsync(Stream.Null);
+
+        Assert.False(store.IsIntegrityHealthy);
+        Assert.Equal("principal.reader-bob", Assert.Single(store.IntegrityEntries).PrincipalId);
+        await ReadAll(store, reference, Alice); // a read that began during the episode does close it
+        Assert.True(store.IsIntegrityHealthy);
+    }
+
+    [Fact]
+    public async Task Q34_a_verified_read_cannot_close_a_second_episode_opened_after_the_one_it_saw_ended()
+    {
+        var backing = new RecordingStorage();
+        var store = Store(backing);
+        var reference = await CommitTwoSegments(store);
+        await store.CorruptCiphertextAsync(Tenant, reference.ContentId, 1);
+        await Assert.ThrowsAsync<ContentIntegrityException>(() => ReadAll(store, reference, Alice));
+        await store.CorruptCiphertextAsync(Tenant, reference.ContentId, 1);
+        await using var early = (await store.ReadAsync(Tenant, reference, true, Alice)).Body; // sees the first episode
+        await ReadAll(store, reference, Bob); // closes it
+
+        await store.CorruptCiphertextAsync(Tenant, reference.ContentId, 1);
+        await Assert.ThrowsAsync<ContentIntegrityException>(() => ReadAll(store, reference, Bob)); // opens a second, also with count 1
+        await store.CorruptCiphertextAsync(Tenant, reference.ContentId, 1);
+        await early.CopyToAsync(Stream.Null);
+
+        Assert.False(store.IsIntegrityHealthy);
+    }
+
     private sealed class InjectedFault : Exception;
 
     // A stand-in records write: it owns the boundary execution and its one transaction, and hands the store only the session.

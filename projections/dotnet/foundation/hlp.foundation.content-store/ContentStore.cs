@@ -1641,7 +1641,9 @@ public sealed class InMemoryContentStore
         var wrapKey = DeriveSubkey(tenantKey, item.Tenant, DataKeyWrapKeyInfo);
         try
         {
-            var body = new ContentReadStream(item, _bytes, owner, first, last, offset, length, verifiesWholeItem, context, ReportIntegrityAsync, ResolveVerifiedAsync);
+            // Taken before any segment is read: a verified read may close only the episode that existed when it began.
+            var episodeAtStart = verifiesWholeItem ? await _bookkeeping.FindIntegrityAsync(item.Tenant, item.StageId, cancellationToken).ConfigureAwait(false) : null;
+            var body = new ContentReadStream(item, _bytes, owner, first, last, offset, length, verifiesWholeItem, context, episodeAtStart, ReportIntegrityAsync, ResolveVerifiedAsync);
             await body.VerifyFirstSegmentAsync(wrapKey, cancellationToken).ConfigureAwait(false);
             return body;
         }
@@ -1696,16 +1698,16 @@ public sealed class InMemoryContentStore
         }
     }
 
-    // A full verified read ends the item's episode as its own write; with no active episode it changes nothing.
-    private async ValueTask ResolveVerifiedAsync(ContentStoreItem item, ContentReadContext context)
+    // A full verified read ends the episode that existed when it began, as its own write. With none then it changes nothing,
+    // and under the item's row an episode that has changed since stays open: this read cannot vouch for a later failure.
+    private async ValueTask ResolveVerifiedAsync(ContentStoreItem item, ContentReadContext context, ContentIntegrityEntry? episodeAtStart)
     {
-        if (await _bookkeeping.FindIntegrityAsync(item.Tenant, item.StageId).ConfigureAwait(false) is not { Active: true } seen) return;
+        if (episodeAtStart is not { Active: true }) return;
         await RunAsync(ContentStoreOperation.IntegrityRecovery, EpisodeWrite("integrity-recovery", context), async (session, token) =>
         {
-            // Holding the item's row orders this with other episode writes; a failure counted since this read looked stays open.
             await session.FindItemForUpdateAsync(new(item.Tenant, item.ContentId), token).ConfigureAwait(false);
-            if (await session.FindIntegrityAsync(item.Tenant, item.StageId, token).ConfigureAwait(false) is not { Active: true } entry || entry.Count != seen.Count) return false;
-            await session.SetIntegrityAsync(entry with { Active = false }, token).ConfigureAwait(false);
+            if (await session.FindIntegrityAsync(item.Tenant, item.StageId, token).ConfigureAwait(false) != episodeAtStart) return false;
+            await session.SetIntegrityAsync(episodeAtStart with { Active = false }, token).ConfigureAwait(false);
             return true;
         }, CancellationToken.None).ConfigureAwait(false);
     }
@@ -1839,7 +1841,8 @@ public sealed class InMemoryContentStore
         private readonly bool _verifiesWholeItem;
         private readonly ContentReadContext _context;
         private readonly Func<ContentStoreItem, ContentOwner, int, ContentReadContext, ValueTask> _report;
-        private readonly Func<ContentStoreItem, ContentReadContext, ValueTask> _resolve;
+        private readonly ContentIntegrityEntry? _episodeAtStart;
+        private readonly Func<ContentStoreItem, ContentReadContext, ContentIntegrityEntry?, ValueTask> _resolve;
         private readonly byte[] _dataKey = new byte[KeyBytes];
         private readonly long _length;
         private long _remaining;
@@ -1851,8 +1854,8 @@ public sealed class InMemoryContentStore
         private ContentIntegrityException? _failure;
 
         public ContentReadStream(ContentStoreItem item, IContentByteStore bytes, ContentOwner owner, int first, int last, long offset, long length,
-            bool verifiesWholeItem, ContentReadContext context, Func<ContentStoreItem, ContentOwner, int, ContentReadContext, ValueTask> report,
-            Func<ContentStoreItem, ContentReadContext, ValueTask> resolve)
+            bool verifiesWholeItem, ContentReadContext context, ContentIntegrityEntry? episodeAtStart, Func<ContentStoreItem, ContentOwner, int, ContentReadContext, ValueTask> report,
+            Func<ContentStoreItem, ContentReadContext, ContentIntegrityEntry?, ValueTask> resolve)
         {
             _item = item;
             _bytes = bytes;
@@ -1864,6 +1867,7 @@ public sealed class InMemoryContentStore
             _offset = checked((int)offset);
             _verifiesWholeItem = verifiesWholeItem;
             _context = context;
+            _episodeAtStart = episodeAtStart;
             _report = report;
             _resolve = resolve;
         }
@@ -1935,7 +1939,7 @@ public sealed class InMemoryContentStore
             // Outside the try: a failed recovery write fails this read as itself, never as tampering, and a later read retries it.
             if (_remaining == 0 && !_completed)
             {
-                if (_verifiesWholeItem) await _resolve(_item, _context).ConfigureAwait(false);
+                if (_verifiesWholeItem) await _resolve(_item, _context, _episodeAtStart).ConfigureAwait(false);
                 _completed = true;
             }
 
