@@ -8,7 +8,7 @@ import {readFileSync} from 'node:fs'
 import {dirname, join, resolve} from 'node:path'
 import {test} from 'node:test'
 import {fileURLToPath} from 'node:url'
-import {PACK_PATH, exportDocumentsUnder, memberShellAndExportFindings} from '../member-shell-and-export.mjs'
+import {NAVIGATION_ITEM, PACK_PATH, exportDocumentsUnder, memberShellAndExportFindings} from '../member-shell-and-export.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..')
 const released = () => JSON.parse(readFileSync(join(root, PACK_PATH), 'utf8'))
@@ -38,37 +38,69 @@ test('a member whose view leaves the shared export path is named', () => {
   ])
 })
 
-test('a member that carries its own shell is named with the shell it carries', () => {
+const navigation = pack => item(pack, NAVIGATION_ITEM)
+const destination = (pack, id) => navigation(pack).editor_destinations.find(entry => entry.id === id)
+
+test('a released navigation that mounts its own shell is named with the shell it carries', () => {
   const pack = released()
-  item(pack, 'platform-package-ck-7').dataExchangeAuthoring.workspace = 'platform.workspace.data-exchange'
+  navigation(pack).workspace = 'platform.workspace.data-exchange'
   assert.deepEqual(findings(pack), [
-    'member data-exchanges: editor platform.editor.data-exchange mounts workspace platform.workspace.data-exchange,'
+    'released navigation: platform.navigation.workshop mounts workspace platform.workspace.data-exchange,'
     + ' not the shared builder shell platform.workspace.workshop',
   ])
 })
 
 test('a member that builds its own projection of the shell is named', () => {
   const pack = released()
-  item(pack, 'platform-package-ck-7').authoring.editor.projections = ['react']
+  destination(pack, 'platform.editor.views').projections = ['react']
   assert.deepEqual(findings(pack), [
     'member views: editor platform.editor.views declares projections ["react"], not the shared shell\'s ["react","blazor"]',
   ])
 })
 
-test('an editor that opens a surface its navigation entry does not name is a finding', () => {
+test('a navigation entry whose editor destination is missing is a finding', () => {
   const pack = released()
-  item(pack, 'platform-package-ck-7').authoring.navigationEntry.surface = 'platform.editor.views.legacy'
+  const destinations = navigation(pack).editor_destinations
+  destinations.splice(destinations.findIndex(entry => entry.id === 'platform.editor.scheduling'), 1)
   assert.deepEqual(findings(pack), [
-    'member views: navigation entry platform.navigation.views.author opens surface platform.editor.views.legacy,'
-    + ' which is not its editor platform.editor.views',
+    'member schedules: navigation entry platform.navigation.schedules.author names editor destination platform.editor.scheduling,'
+    + ' which platform.navigation.workshop does not release',
   ])
 })
 
-test('an editor for a member outside the register is a finding', () => {
+test('an editor that opens a surface the catalogue does not release is a finding', () => {
   const pack = released()
-  item(pack, 'platform-package-ck-7').authoring.navigationEntry.pillar = 'inspectors'
+  destination(pack, 'platform.editor.views').surface_id = 'platform.editor.views.legacy'
   assert.deepEqual(findings(pack), [
-    'member inspectors: editor platform.editor.views at platform-package-ck-7.authoring names no member in the register',
+    'member views: editor platform.editor.views opens surface platform.editor.views.legacy, which the surface catalogue does not release',
+  ])
+})
+
+test('a navigation entry for a member outside the register is a finding', () => {
+  const pack = released()
+  navigation(pack).navigation_entries[0].pillar = 'inspectors'
+  assert.deepEqual(findings(pack), [
+    'member inspectors: navigation entry platform.navigation.views.author names no member in the register',
+  ])
+})
+
+test('a pack without the released navigation fails rather than passing over no editors', () => {
+  const pack = released()
+  pack.items = pack.items.filter(entry => entry.id !== NAVIGATION_ITEM)
+  assert.deepEqual(findings(pack), [
+    'released navigation: platform.navigation.workshop releases no navigation entries, so no editor destination can be checked',
+  ])
+})
+
+test('an editor declared outside the released navigation is a second source and is named', () => {
+  const pack = released()
+  item(pack, 'platform-package-ck-7').authoring = {
+    workspace: 'platform.workspace.workshop',
+    navigationEntry: {id: 'platform.navigation.views.author', pillar: 'views', surface: 'platform.editor.views'},
+    editor: {id: 'platform.editor.views', projections: ['react', 'blazor']},
+  }
+  assert.deepEqual(findings(pack), [
+    'editor platform.editor.views at platform-package-ck-7.authoring is declared outside the released navigation platform.navigation.workshop',
   ])
 })
 

@@ -11,11 +11,12 @@ public sealed class ReleasedNavigationDefinitionProducerTests
         var definition = new ReleasedNavigationDefinition(
             "platform.navigation.workshop",
             "1.0.0",
+            "platform.workspace.workshop",
             new ReleasedSurfaceCatalogue("platform.surface-catalogue.workshop", [
                 new ReleasedSurface("platform.surface.views", "Views"),
             ]),
-            [new ReleasedNavigationEntry("platform.navigation.views", "Views", "platform.destination.views")],
-            [new ReleasedEditorDestination("platform.destination.views", "platform.surface.views")]);
+            [new ReleasedNavigationEntry("platform.navigation.views", "Views", "views", "platform.destination.views")],
+            [new ReleasedEditorDestination("platform.destination.views", "platform.surface.views", ["ViewDefinition"], ["react", "blazor"])]);
 
         var exported = ReleasedNavigationDefinitionPackageExporter.Export(definition);
         var artifact = PublishedArtifact.FromExport(PlatformPackageExporter.Export(new PlatformPackageManifest(

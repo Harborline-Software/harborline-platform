@@ -24,7 +24,7 @@ public sealed class InstallReceiptTests
         Assert.Equal(Published().Digest, parsed.Artifact.Digest);
         var installed = Assert.Single(parsed.Installed);
         Assert.Equal("harborline.platform", installed.Id);
-        Assert.Equal("1.0.0", installed.Version);
+        Assert.Equal("2.0.0", installed.Version);
         Assert.Equal(node.Witness, installed.Witness);
         Assert.Equal(["audit:read", "catalogue:read", "records:read"], parsed.Capabilities.Select(capability => capability.Name));
         Assert.All(parsed.Capabilities, capability => Assert.False(capability.ExpectedAllowed));
@@ -73,6 +73,16 @@ public sealed class InstallReceiptTests
         // because the value is recomputed from the items the node committed.
         Assert.Equal(Published().Digest, installedDigest);
         Assert.NotEqual(installedDigest, Digest(drifted));
+    }
+
+    [Fact]
+    public async Task A_node_that_lost_the_package_capability_requirement_reports_a_digest_that_differs_from_the_published_one()
+    {
+        var (_, published) = await InstallAsync();
+        var (_, drifted) = await InstallAsync(PlatformPackageSeed.Manifest with { CapabilityRequirements = [] }, Published());
+
+        Assert.Equal(Published().Digest, Digest(published));
+        Assert.NotEqual(Published().Digest, Digest(drifted));
     }
 
     [RequiresControlRepositoryFact]

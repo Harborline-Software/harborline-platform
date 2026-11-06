@@ -1,4 +1,6 @@
+using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 using System.Text.Json.Nodes;
 using Xunit;
 
@@ -12,17 +14,39 @@ namespace Harborline.Blocks.BuilderDefinitions.Tests;
 /// </summary>
 public sealed class PlatformCreationGateCompatibilityTests
 {
+    // The released 1.0.0 export, frozen outside _shared/packs (owner ruling 2026-11-04). Both pins are literals taken
+    // from origin/main 1a97bc7b's _shared/packs/platform/platform-pack.export.json before seed 2.0.0 replaced it.
+    private const string Seed100FileSha256 = "d61bd9917294dff815c5879e5d89b8271225cacc5e99f5f191b584eb8048e04c";
+    private const string Seed100Digest = "13147f6a99b8c1369e7fb80b406614fb1ad39c6b727ad4e3f99ed37defa7b603";
+
+    private static byte[] Seed100() =>
+        File.ReadAllBytes(RecordWriteJournalBindingTests.Fixture("platform-seed-1.0.0/platform-pack.export.json"));
+
     [Fact]
     [Trait("Holds", "platform-package-ck-14")]
-    public void The_released_export_keeps_its_legacy_spelling_and_reads_as_form_only()
+    public void The_1_0_0_fixture_keeps_its_bytes_and_its_legacy_spelling_and_reads_as_form_only()
+    {
+        var export = Seed100();
+
+        Assert.Equal(Seed100FileSha256, Convert.ToHexStringLower(SHA256.HashData(export)));
+        var artifact = PublishedArtifact.FromExport(export);
+        Assert.Equal(("harborline.platform", "1.0.0", Seed100Digest), (artifact.Id, artifact.Version, artifact.Digest));
+        Assert.Contains("\"creationGate\":\"form-only\"", Encoding.UTF8.GetString(export), StringComparison.Ordinal);
+        Assert.DoesNotContain("\"creationGate\":\"form_only\"", Encoding.UTF8.GetString(export), StringComparison.Ordinal);
+        Assert.Equal(RecordCreationGate.FormOnly, PlatformCreationGateCompatibility.ReadCreationGate(export));
+    }
+
+    [Fact]
+    [Trait("Holds", "platform-package-ck-14")]
+    public void The_2_0_0_seed_spells_form_only_and_reads_as_form_only()
     {
         var export = PlatformPackageSeed.LoadCheckedInExport();
 
-        Assert.Contains("\"creationGate\":\"form-only\"", Encoding.UTF8.GetString(export), StringComparison.Ordinal);
-        Assert.DoesNotContain("\"creationGate\":\"form_only\"", Encoding.UTF8.GetString(export), StringComparison.Ordinal);
-        Assert.Equal("1.0.0", PlatformPackageSeed.Manifest.Revision);
+        Assert.Equal("2.0.0", PlatformPackageSeed.Manifest.Revision);
+        Assert.Equal("2.0.0", JsonDocument.Parse(export).RootElement.GetProperty("revision").GetString());
+        Assert.Contains("\"creationGate\":\"form_only\"", Encoding.UTF8.GetString(export), StringComparison.Ordinal);
+        Assert.DoesNotContain("\"creationGate\":\"form-only\"", Encoding.UTF8.GetString(export), StringComparison.Ordinal);
         Assert.True(PlatformPackageSeed.VerifyCheckedInExport());
-        Assert.Equal(export, PlatformPackageSeed.Export());
         Assert.Equal(RecordCreationGate.FormOnly, PlatformCreationGateCompatibility.ReadCreationGate(export));
         Assert.Equal(RecordCreationGate.FormOnly, PlatformPackageSeed.CreationGate);
     }
@@ -90,7 +114,7 @@ public sealed class PlatformCreationGateCompatibilityTests
         }
     }
 
-    // The checked-in export re-labelled as revision with the ck-14 creationGate replaced (or removed); bytes need not be canonical.
+    // The 1.0.0 fixture re-labelled as revision with the ck-14 creationGate replaced (or removed); bytes need not be canonical.
     private static byte[] Export(string revision, JsonNode? creationGate, bool remove = false, string? packageVersion = null) =>
         Mutate(root =>
         {
@@ -114,7 +138,7 @@ public sealed class PlatformCreationGateCompatibilityTests
 
     private static byte[] Mutate(Action<JsonNode> change)
     {
-        var root = JsonNode.Parse(PlatformPackageSeed.LoadCheckedInExport())!;
+        var root = JsonNode.Parse(Seed100())!;
         change(root);
         return Encoding.UTF8.GetBytes(root.ToJsonString());
     }

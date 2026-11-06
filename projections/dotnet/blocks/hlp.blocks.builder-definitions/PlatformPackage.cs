@@ -217,6 +217,25 @@ public sealed record PlatformPackageManifest
     public IReadOnlyList<PlatformPackageDependency> Dependencies { get; }
     /// <summary>The definitions other packages may reference, or null when the package exposes none.</summary>
     public PlatformPackageExposure? Exposure { get; }
+
+    /// <summary>
+    /// The capabilities the package requires of its host, each non-blank and listed once, in the order authored. The name
+    /// matches the api's package-level export member, <c>/capabilityRequirements</c>.
+    /// </summary>
+    public IReadOnlyList<string> CapabilityRequirements
+    {
+        get => _capabilityRequirements;
+        init
+        {
+            ArgumentNullException.ThrowIfNull(value);
+            var requirements = value.ToArray();
+            if (requirements.Any(string.IsNullOrWhiteSpace) || requirements.Distinct(StringComparer.Ordinal).Count() != requirements.Length)
+                throw new ArgumentException("platform-package-capability-requirements-malformed", nameof(value));
+            _capabilityRequirements = Array.AsReadOnly(requirements);
+        }
+    }
+
+    private readonly IReadOnlyList<string> _capabilityRequirements = [];
 }
 
 /// <summary>Exports the public manifest with stable property and item ordering.</summary>
@@ -279,6 +298,13 @@ public static class PlatformPackageExporter
                     writer.WriteEndArray();
                 }
             }
+            // Written only for a package that requires a capability, so any other exports the bytes it always did.
+            if (manifest.CapabilityRequirements.Count > 0)
+            {
+                writer.WriteStartArray("capabilityRequirements");
+                foreach (var requirement in manifest.CapabilityRequirements) writer.WriteStringValue(requirement);
+                writer.WriteEndArray();
+            }
             writer.WriteStartArray("items");
             foreach (var item in manifest.Items)
             {
@@ -324,6 +350,13 @@ public interface IPlatformPackageReplayTarget
     /// items or none, including under concurrency and failure.
     /// </summary>
     ValueTask<bool> TryApplyToEmptyAsync(IReadOnlyList<PlatformPackageItem> items, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Applies a validated manifest under the same contract. A target that reports installed state overrides this to
+    /// keep the package-level members its digest covers; any other target applies the items.
+    /// </summary>
+    ValueTask<bool> TryApplyToEmptyAsync(PlatformPackageManifest manifest, CancellationToken cancellationToken = default)
+        => TryApplyToEmptyAsync(manifest.Items, cancellationToken);
 }
 
 /// <summary>The result of manifest validation or replay.</summary>
@@ -393,7 +426,7 @@ public static class PlatformPackageReplayer
         ArgumentNullException.ThrowIfNull(target);
         var validation = Validate(manifest);
         if (!validation.Succeeded) return validation;
-        if (!await target.TryApplyToEmptyAsync(manifest.Items, cancellationToken).ConfigureAwait(false))
+        if (!await target.TryApplyToEmptyAsync(manifest, cancellationToken).ConfigureAwait(false))
             return PlatformPackageReplayResult.Refused("platform-seed-target-not-empty");
         return PlatformPackageReplayResult.Success;
     }

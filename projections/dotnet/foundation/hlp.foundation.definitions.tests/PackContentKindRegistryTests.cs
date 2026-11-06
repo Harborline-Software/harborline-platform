@@ -33,8 +33,16 @@ public sealed class PackContentKindRegistryTests
         { "Bookable", 19, "Booking" },
     };
 
+    // Active on the wire because the platform seed 2.0.0 emits it; the api adds it at this value when it takes 2.0.0 in
+    // (T-584/api-installs-released-navigation).
+    public static TheoryData<string, int, string> PlatformReleasedKinds => new()
+    {
+        { "ReleasedNavigationDefinition", 21, "Navigation" },
+    };
+
     [Theory]
     [MemberData(nameof(ApiShippedKinds))]
+    [MemberData(nameof(PlatformReleasedKinds))]
     public void Every_kind_the_api_ships_keeps_the_api_value_and_pillar(string name, int value, string pillar)
     {
         Assert.Equal(new PackContentKindEntry(name, value, pillar, PackContentKindStatus.Shipped), PackContentKindRegistry.Kind(name));
@@ -43,12 +51,12 @@ public sealed class PackContentKindRegistryTests
     [Fact]
     public void The_registry_ships_exactly_the_api_kinds_and_reserves_the_rest()
     {
-        var shipped = ApiShippedKinds.Select(row => (string)row[0]).ToHashSet(StringComparer.Ordinal);
+        var shipped = ApiShippedKinds.Concat(PlatformReleasedKinds).Select(row => (string)row[0]).ToHashSet(StringComparer.Ordinal);
         Assert.Equal(
             shipped.Order(StringComparer.Ordinal),
             PackContentKindRegistry.Kinds.Where(kind => kind.Status == PackContentKindStatus.Shipped).Select(kind => kind.Name).Order(StringComparer.Ordinal));
         Assert.Equal(
-            ["AssistanceDefinition", "ReleasedNavigationDefinition"],
+            ["AssistanceDefinition"],
             PackContentKindRegistry.Kinds.Where(kind => kind.Status == PackContentKindStatus.Reserved).Select(kind => kind.Name));
     }
 
@@ -56,7 +64,7 @@ public sealed class PackContentKindRegistryTests
     public void Released_navigation_takes_the_next_free_value_after_every_other_kind()
     {
         var navigation = PackContentKindRegistry.Kind("ReleasedNavigationDefinition");
-        Assert.Equal(new PackContentKindEntry("ReleasedNavigationDefinition", 21, "Navigation", PackContentKindStatus.Reserved), navigation);
+        Assert.Equal(new PackContentKindEntry("ReleasedNavigationDefinition", 21, "Navigation", PackContentKindStatus.Shipped), navigation);
         Assert.Equal(PackContentKindRegistry.Kinds.Where(kind => kind != navigation).Max(kind => kind.Value) + 1, navigation.Value);
         Assert.Equal(new PackContentKindEntry("AssistanceDefinition", 20, "Other", PackContentKindStatus.Reserved), PackContentKindRegistry.Kind("AssistanceDefinition"));
     }

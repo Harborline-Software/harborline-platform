@@ -18,6 +18,8 @@ export const PACK_PATH = '_shared/packs/platform/platform-pack.export.json'
 const REGISTER_ITEM = 'platform-package-ck-6'
 const WORKSPACE_ITEM = 'platform-package-ck-5'
 const CATALOGUE_VIEW_ITEM = 'platform-package-ck-7'
+// DES-0052 layout-eng-24: the one released definition of the Workshop editor destinations (T-584).
+export const NAVIGATION_ITEM = 'platform.navigation.workshop'
 const CATALOGUE_VIEW_KINDS = ['list', 'health', 'browse']
 
 const payload = (pack, itemId) => pack.items?.find(item => item.id === itemId)?.content?.payload
@@ -67,26 +69,40 @@ export function memberShellAndExportFindings({pack, exportDocuments}) {
     }
   }
 
-  // An editor is allowed to be absent -- ADR 0097 decision 7 lands each member's editor with that
-  // member's slice. What is not allowed is an editor that mounts somewhere other than the one
-  // shared shell: a different workspace, or a projection set only that member builds.
-  const declarations = editorDeclarations(catalogue ?? {})
+  // The editor destinations are released in one definition. Each member's editor lands with that
+  // member's slice (ADR 0097 decision 7), so a member with no navigation entry is fine; but the
+  // definition itself must be there, every entry must reach a destination and a surface, and every
+  // destination mounts in the one shared shell with the shared projections.
   const sharedProjections = JSON.stringify(['react', 'blazor'])
-  for (const {path, declaration} of declarations) {
-    const pillar = declaration.navigationEntry?.pillar
-    const member = typeof pillar === 'string' ? pillar : `(no pillar at ${CATALOGUE_VIEW_ITEM}.${path})`
+  for (const {path, declaration} of editorDeclarations(catalogue ?? {})) {
+    findings.push(`editor ${declaration.editor.id} at ${CATALOGUE_VIEW_ITEM}.${path} is declared outside the released navigation ${NAVIGATION_ITEM}`)
+  }
+  const navigation = payload(pack, NAVIGATION_ITEM)
+  if (!Array.isArray(navigation?.navigation_entries) || navigation.navigation_entries.length === 0) {
+    findings.push(`released navigation: ${NAVIGATION_ITEM} releases no navigation entries, so no editor destination can be checked`)
+    return findings
+  }
+  const destinations = new Map((navigation.editor_destinations ?? []).map(destination => [String(destination.id), destination]))
+  const surfaces = new Set((navigation.surface_catalogue?.surfaces ?? []).map(surface => String(surface.id)))
+  if (navigation.workspace !== workspace) {
+    findings.push(`released navigation: ${NAVIGATION_ITEM} mounts workspace ${navigation.workspace}, not the shared builder shell ${workspace}`)
+  }
+  for (const entry of navigation.navigation_entries) {
+    const member = typeof entry.pillar === 'string' ? entry.pillar : `(no pillar on ${entry.id})`
     if (!members.includes(member)) {
-      findings.push(`member ${member}: editor ${declaration.editor.id} at ${CATALOGUE_VIEW_ITEM}.${path} names no member in the register`)
+      findings.push(`member ${member}: navigation entry ${entry.id} names no member in the register`)
       continue
     }
-    if (declaration.workspace !== workspace) {
-      findings.push(`member ${member}: editor ${declaration.editor.id} mounts workspace ${declaration.workspace}, not the shared builder shell ${workspace}`)
+    const destination = destinations.get(String(entry.editor_destination_id))
+    if (!destination) {
+      findings.push(`member ${member}: navigation entry ${entry.id} names editor destination ${entry.editor_destination_id}, which ${NAVIGATION_ITEM} does not release`)
+      continue
     }
-    if (JSON.stringify(declaration.editor.projections) !== sharedProjections) {
-      findings.push(`member ${member}: editor ${declaration.editor.id} declares projections ${JSON.stringify(declaration.editor.projections)}, not the shared shell's ${sharedProjections}`)
+    if (!surfaces.has(String(destination.surface_id))) {
+      findings.push(`member ${member}: editor ${destination.id} opens surface ${destination.surface_id}, which the surface catalogue does not release`)
     }
-    if (declaration.navigationEntry?.surface !== declaration.editor.id) {
-      findings.push(`member ${member}: navigation entry ${declaration.navigationEntry?.id} opens surface ${declaration.navigationEntry?.surface}, which is not its editor ${declaration.editor.id}`)
+    if (JSON.stringify(destination.projections) !== sharedProjections) {
+      findings.push(`member ${member}: editor ${destination.id} declares projections ${JSON.stringify(destination.projections)}, not the shared shell's ${sharedProjections}`)
     }
   }
 
