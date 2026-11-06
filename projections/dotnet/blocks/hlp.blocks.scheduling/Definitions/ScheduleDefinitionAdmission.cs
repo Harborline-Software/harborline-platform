@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using System.Xml;
 
 using Harborline.Blocks.BuilderDefinitions;
@@ -10,6 +11,7 @@ namespace Harborline.Blocks.Scheduling.Definitions;
 /// <summary>The structural check of a typed schedule. Every refusal is a stable code and an RFC 6901 pointer.</summary>
 internal static class ScheduleDefinitionAdmission
 {
+    private static readonly Regex WeekDuration = new(@"^(-?)P([0-9]{1,15})W\z", RegexOptions.CultureInvariant);
     private static readonly string[] InstantFormats = ["yyyy-MM-ddTHH:mm:ss.FFFFFFFzzz", "yyyy-MM-ddTHH:mm:ss.FFFFFFF'Z'"];
 
     internal static List<DefinitionRefusal> Validate(ScheduleDefinition definition, DefinitionDocument document,
@@ -144,10 +146,16 @@ internal static class ScheduleDefinitionAdmission
 
     // ponytail: XmlConvert counts a month as 30 days and a year as 365, enough to order a window; a calendar-exact
     // comparison belongs with the occurrence generator that owns dates.
+    // One unpadded spelling (R-0144 ruling 5): xs:duration collapses whitespace, which would store two texts for one value.
+    // A week stands alone as PnW (RFC 5545 section 3.3.6). xs:duration has no W, so XmlConvert reads it as days.
     private static TimeSpan? SignedDuration(string? value)
     {
-        if (string.IsNullOrWhiteSpace(value)) return null;
-        try { return XmlConvert.ToTimeSpan(value); }
+        if (string.IsNullOrEmpty(value) || value.Any(char.IsWhiteSpace)) return null;
+        var week = WeekDuration.Match(value);
+        var text = week.Success
+            ? $"{week.Groups[1].Value}P{long.Parse(week.Groups[2].Value, CultureInfo.InvariantCulture) * 7}D"
+            : value;
+        try { return XmlConvert.ToTimeSpan(text); }
         catch (Exception exception) when (exception is FormatException or OverflowException) { return null; }
     }
 

@@ -113,6 +113,49 @@ public sealed class ScheduleDefinitionTests
     public async Task IncompleteGeneratorRefuses(string basis, string code, string pointer)
         => Assert.Equal([new DefinitionRefusal(code, pointer)], await RefusalsAsync(Body("\"" + $$"""basis":{{basis}},"window":{{Offsets}}""")));
 
+    [Theory(DisplayName = "scheduling-ck-4: a duration may be whole weeks, PnW, as RFC 5545 section 3.3.6 writes them")]
+    [InlineData("P1W")]
+    [InlineData("P0W")]
+    [InlineData("P52W")]
+    public async Task WeekDurationIsAdmitted(string offset)
+        => Assert.Equal(offset, Assert.IsType<CompletionOffsetBasis>((await RoundTripAsync(Body("\"" + $$"""basis":{"kind":"completion_offset","offset":"{{offset}}"},"window":{{Offsets}}"""))).Definition.Basis).Offset);
+
+    [Theory(DisplayName = "scheduling-ck-5: a week counts seven days when bounds are ordered")]
+    [InlineData("""{"earliest":"P6D","latest":"P1W"}""")]
+    [InlineData("""{"earliest":"P1W","latest":"P8D"}""")]
+    [InlineData("""{"earliest":"-P1W","latest":"-P6D"}""")]
+    public async Task WeekOrdersAsSevenDays(string window)
+        => Assert.IsType<FixedCalendarBasis>((await RoundTripAsync(Body("\"" + $$"""basis":{"kind":"fixed_calendar","rrule":"FREQ=DAILY"},"window":{{window}}"""))).Definition.Basis);
+
+    [Theory(DisplayName = "scheduling-ck-5: a week that is not seven days past the other bound does not order")]
+    [InlineData("""{"earliest":"P1W","latest":"P7D"}""")]
+    [InlineData("""{"earliest":"P8D","latest":"P1W"}""")]
+    [InlineData("""{"earliest":"-P6D","latest":"-P1W"}""")]
+    public async Task WeekOutOfOrderRefuses(string window)
+        => Assert.Equal([new DefinitionRefusal(ScheduleDefinitionCodes.WindowInvalid, "/window")],
+            await RefusalsAsync(Body("\"" + $$"""basis":{"kind":"fixed_calendar","rrule":"FREQ=DAILY"},"window":{{window}}""")));
+
+    [Theory(DisplayName = "scheduling-ck-4: a duration has one unpadded spelling, and a week stands alone")]
+    [InlineData(" P1D")]
+    [InlineData("P1D ")]
+    [InlineData(" P1W ")]
+    [InlineData("""\tP1D""")]
+    [InlineData("""P1D\n""")]
+    [InlineData("P1W2D")]
+    [InlineData("P1.5W")]
+    [InlineData("+P1W")]
+    [InlineData("-P1W")]
+    [InlineData("p1w")]
+    [InlineData("P1600000W")]
+    public async Task UnadmittedDurationSpellingRefuses(string offset)
+        => Assert.Equal([new DefinitionRefusal(ScheduleDefinitionCodes.DurationInvalid, "/basis/offset")],
+            await RefusalsAsync(Body("\"" + $$"""basis":{"kind":"completion_offset","offset":"{{offset}}"},"window":{{Offsets}}""")));
+
+    [Fact(DisplayName = "scheduling-ck-5: a padded window bound refuses")]
+    public async Task PaddedWindowBoundRefuses()
+        => Assert.Equal([new DefinitionRefusal(ScheduleDefinitionCodes.WindowInvalid, "/window")],
+            await RefusalsAsync(Body("\"" + $$"""basis":{"kind":"fixed_calendar","rrule":"FREQ=DAILY"},"window":{"earliest":" P1D","latest":"P2D"}""")));
+
     [Fact(DisplayName = "scheduling-ck-4, scheduling-auth-6: a chain has one anchor; nodes carry an offset and their own tolerance, and need no window")]
     public async Task ChainNodesCarryOffsetAndTolerance()
     {
