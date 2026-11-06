@@ -1391,29 +1391,30 @@ public sealed class InMemoryContentStore
 
         var cutoff = StagedCutoff();
         var expired = await _bookkeeping.StagedCreatedAtOrBeforeAsync(cutoff, cancellationToken).ConfigureAwait(false);
-        var reclaimed = new List<ContentStoreItem>();
-        var outcome = WriteOutcome.NotCommitted;
-        if (expired.Count != 0)
+        var orphans = new List<Guid>();
+        foreach (var written in await _bytes.WrittenAtOrBeforeAsync(cutoff, cancellationToken).ConfigureAwait(false))
         {
-            outcome = await RunAsync(ContentStoreOperation.SweepExpired, write, async (session, token) =>
-            {
-                foreach (var item in expired)
-                {
-                    if (await ReclaimStagedAsync(session, item, "staging-expired", run, token).ConfigureAwait(false)) reclaimed.Add(item);
-                }
-
-                return reclaimed.Count != 0;
-            }, cancellationToken).ConfigureAwait(false);
+            if (!await _bookkeeping.NamesBytesAsync(written, cancellationToken).ConfigureAwait(false)) orphans.Add(written);
         }
+
+        var reclaimed = new List<ContentStoreItem>();
+        if (expired.Count == 0 && orphans.Count == 0) return 0;
+
+        // Deleting orphans changes state, so even a sweep that finds nothing else carries its actor and audit row.
+        var outcome = await RunAsync(ContentStoreOperation.SweepExpired, write, async (session, token) =>
+        {
+            foreach (var item in expired)
+            {
+                if (await ReclaimStagedAsync(session, item, "staging-expired", run, token).ConfigureAwait(false)) reclaimed.Add(item);
+            }
+
+            return reclaimed.Count != 0 || orphans.Count != 0;
+        }, cancellationToken).ConfigureAwait(false);
 
         if (outcome == WriteOutcome.Committed)
         {
             foreach (var item in reclaimed) await DestroyAsync(item, cancellationToken).ConfigureAwait(false);
-        }
-
-        foreach (var orphan in await _bytes.WrittenAtOrBeforeAsync(cutoff, cancellationToken).ConfigureAwait(false))
-        {
-            if (!await _bookkeeping.NamesBytesAsync(orphan, cancellationToken).ConfigureAwait(false)) await DeleteBytesAsync(orphan, cancellationToken).ConfigureAwait(false);
+            foreach (var orphan in orphans) await DeleteBytesAsync(orphan, cancellationToken).ConfigureAwait(false);
         }
 
         return reclaimed.Count;

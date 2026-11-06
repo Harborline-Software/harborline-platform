@@ -1045,6 +1045,74 @@ public sealed class ContentStoreBoundaryTests
         Assert.Equal("attachment; filename=\"a%4\"", (await store.ReadAsync(Tenant, reference, true, Alice)).ContentDisposition);
     }
 
+    [Fact]
+    public async Task Clause_1_a_sweep_that_only_deletes_orphan_bytes_writes_its_audit_row_and_deletes_them_after_the_commit()
+    {
+        var clock = new Clock();
+        var backing = new RecordingStorage();
+        var store = Store(backing, clock);
+        var orphan = Guid.NewGuid();
+        var writer = await backing.Bytes.OpenWriteAsync(orphan, clock.GetUtcNow());
+        await writer.AppendAsync(new([1], [2]));
+        await writer.CompleteAsync(clock.GetUtcNow());
+        clock.Advance(Expiry);
+
+        backing.FailNextCommit = true;
+        await Assert.ThrowsAsync<IOException>(async () => await store.SweepExpiredAsync("sweep-failed", Write("sweep-failed", "sys.scheduler")));
+        Assert.NotNull(await backing.Bytes.ReadSegmentAsync(orphan, 0)); // nothing deleted without the commit
+        Assert.Empty(Rows(backing));
+
+        backing.Events.Clear();
+        Assert.Equal(0, await store.SweepExpiredAsync("sweep", Write("sweep", "sys.scheduler")));
+        Assert.Equal(["unit-commit", "bytes-delete"], backing.Events);
+        Assert.Equal([("audit-sweep", "sys.scheduler")], Rows(backing));
+        Assert.Null(await backing.Bytes.ReadSegmentAsync(orphan, 0));
+
+        Assert.Equal(0, await store.SweepExpiredAsync("sweep-empty", Write("sweep-empty", "sys.scheduler"))); // nothing left, so no row
+        Assert.Single(Rows(backing));
+    }
+
+    [Fact]
+    public async Task Clause_1_a_sweep_refuses_a_wrong_actor_before_deleting_orphan_bytes_and_inside_an_open_execution()
+    {
+        var clock = new Clock();
+        var backing = new RecordingStorage();
+        var store = Store(backing, clock);
+        var orphan = Guid.NewGuid();
+        var writer = await backing.Bytes.OpenWriteAsync(orphan, clock.GetUtcNow());
+        await writer.AppendAsync(new([1], [2]));
+        await writer.CompleteAsync(clock.GetUtcNow());
+        clock.Advance(Expiry);
+
+        await Assert.ThrowsAsync<ArgumentException>(async () => await store.SweepExpiredAsync("sweep", Write("wrong", Actor)));
+        var caller = new RecordWrite(backing.Bookkeeping);
+        await caller.RunAsync(async _ =>
+        {
+            var nested = await Assert.ThrowsAsync<KernelTransactionStateException>(async () => await store.SweepExpiredAsync("sweep", Write("nested", "sys.scheduler")));
+            Assert.Equal(KernelTransactionErrors.NestedExecution, nested.Code);
+        });
+        Assert.NotNull(await backing.Bytes.ReadSegmentAsync(orphan, 0));
+    }
+
+    [Fact]
+    public async Task Clause_5_a_joined_sweep_leaves_orphan_bytes_for_a_sweep_whose_commit_it_can_see()
+    {
+        var clock = new Clock();
+        var backing = new RecordingStorage();
+        var store = Store(backing, clock);
+        var orphan = Guid.NewGuid();
+        var writer = await backing.Bytes.OpenWriteAsync(orphan, clock.GetUtcNow());
+        await writer.AppendAsync(new([1], [2]));
+        await writer.CompleteAsync(clock.GetUtcNow());
+        clock.Advance(Expiry);
+        var caller = new RecordWrite(backing.Bookkeeping);
+
+        await caller.RunAsync(async session => await store.SweepExpiredAsync("sweep", Write("joined", "sys.scheduler", session)));
+
+        Assert.NotNull(await backing.Bytes.ReadSegmentAsync(orphan, 0));
+        Assert.Equal([("audit-joined", "sys.scheduler")], Rows(backing));
+    }
+
     private sealed class InjectedFault : Exception;
 
     // A stand-in records write: it owns the boundary execution and its one transaction, and hands the store only the session.

@@ -67,7 +67,7 @@ By the owner's ruling of 2026-11-05 (17:47 UTC), every store write carries its o
 - **With the caller's transaction** the write runs through `KernelTransactionBoundary.JoinAsync`. It stages its own operation, writes and audit row, and never commits or rolls back. Any failure dooms the caller's execution, even one the caller catches and one raised before the write reaches the boundary, such as a refused upload, so half a write never commits. A transaction with no open execution is refused.
 - **Without one** it runs its own `ExecutePreparedAsync`. Inside an open execution that is refused as `kernel.nested-execution`, so a write can't commit apart from the caller who forgot to pass the transaction.
 - **Actors.** The store never invents one. Evidence without a whole identity and actor is refused before any byte is kept. The sweep acts as `sys.scheduler` and refuses any other actor.
-- **A write that changes nothing** commits nothing and writes no audit row.
+- **A write that changes nothing** commits nothing and writes no audit row. A sweep that deletes orphan bytes changes state, so it writes its audit row and deletes them after its commit.
 - **Async.** These calls and the ports behind them are async, with no sync-over-async.
 
 ## Reads and integrity episodes
