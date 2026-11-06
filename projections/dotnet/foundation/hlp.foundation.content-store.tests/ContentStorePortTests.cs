@@ -180,7 +180,7 @@ public sealed class ContentStorePortTests
     public async Task Clause_3_a_create_waits_for_a_concurrent_creator_of_the_same_key_and_sees_its_outcome()
     {
         var memory = new InMemoryContentBookkeeping();
-        var item = new ContentStoreItem(Guid.NewGuid(), Tenant, new(ContentId.Algorithm + new string('a', 64)), 5, "text/plain", DateTimeOffset.UnixEpoch, [1], [2], [3], [4], 65_536);
+        var item = new ContentStoreItem(Guid.NewGuid(), Tenant, new(ContentId.Algorithm + new string('a', 64)), 5, "text/plain", DateTimeOffset.UnixEpoch, [1], [2], [3], [4], 65_536, Guid.Empty);
         var rollingBack = await memory.BeginTransactionAsync();
         Assert.Null(await rollingBack.TryCreateItemAsync(item));
         var waiter = Task.Run(async () =>
@@ -383,7 +383,7 @@ public sealed class ContentStorePortTests
     {
         var memory = new InMemoryContentBookkeeping();
         var owner = new ContentOwner("record-1", "0");
-        var staged = new ContentStoreItem(Guid.NewGuid(), Tenant, new(ContentId.Algorithm + new string('b', 64)), 5, "text/plain", DateTimeOffset.UnixEpoch, [1], [2], [3], [4], 65_536);
+        var staged = new ContentStoreItem(Guid.NewGuid(), Tenant, new(ContentId.Algorithm + new string('b', 64)), 5, "text/plain", DateTimeOffset.UnixEpoch, [1], [2], [3], [4], 65_536, Guid.Empty);
         var key = new ContentStorageItemKey(Tenant, staged.ContentId);
         var episode = new ContentIntegrityEntry(staged.StageId, Tenant, DateTimeOffset.UnixEpoch, DateTimeOffset.UnixEpoch, 1, 0, true, "t", "o", "p", owner);
         await using (var seed = await memory.BeginTransactionAsync())
@@ -506,7 +506,7 @@ public sealed class ContentStorePortTests
     public async Task Clause_3_a_create_waiting_on_a_concurrent_creator_can_be_cancelled_and_leaves_the_creator_alone()
     {
         var memory = new InMemoryContentBookkeeping();
-        var item = new ContentStoreItem(Guid.NewGuid(), Tenant, new(ContentId.Algorithm + new string('c', 64)), 5, "text/plain", DateTimeOffset.UnixEpoch, [1], [2], [3], [4], 65_536);
+        var item = new ContentStoreItem(Guid.NewGuid(), Tenant, new(ContentId.Algorithm + new string('c', 64)), 5, "text/plain", DateTimeOffset.UnixEpoch, [1], [2], [3], [4], 65_536, Guid.Empty);
         var creator = await memory.BeginTransactionAsync();
         Assert.Null(await creator.TryCreateItemAsync(item));
         using var cancel = new CancellationTokenSource(TimeSpan.FromMilliseconds(50));
@@ -519,10 +519,11 @@ public sealed class ContentStorePortTests
         Assert.Equal(item.StageId, Assert.Single(memory.Snapshot().Items).StageId);
     }
 
-    private sealed record HalfStorage(IContentBookkeeping? Part, IContentByteStore? Other) : IContentStoreStorage
+    private sealed record HalfStorage(IContentBookkeeping? Part, IContentByteStore? Other, IContentEpochKeyStore? Keys = null) : IContentStoreStorage
     {
         public IContentBookkeeping Bookkeeping => Part!;
         public IContentByteStore Bytes => Other!;
+        public IContentEpochKeyStore Epochs => Keys ?? new InMemoryContentEpochKeyStore();
     }
 
     private static async Task<(ContentReference? Reference, Exception? Failure)[]> Race(params Func<Task<ContentReference>>[] commits) =>

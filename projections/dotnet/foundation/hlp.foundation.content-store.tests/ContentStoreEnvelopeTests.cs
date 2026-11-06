@@ -46,8 +46,19 @@ public sealed class ContentStoreEnvelopeTests
 
         Assert.Equal("hmac-sha256:" + Convert.ToHexStringLower(HMACSHA256.HashData(Subkey("harborline-content-store:content-id:v1"), Pattern)), reference.ContentId.Value);
 
+        // The data-key-wrap subkey opens only the epoch key, and the epoch key opens the data key (eng-10, ADR 0116 decision 1).
+        var epoch = (await backing.Epochs.GetAsync(Tenant, item.EpochId))!;
+        var epochKey = new byte[32];
+        using (var subkey = new AesGcm(Subkey("harborline-content-store:data-key-wrap:v1"), 16))
+        {
+            subkey.Decrypt(epoch.WrapNonce, epoch.WrappedKey, epoch.WrapTag, epochKey,
+                Encoding.UTF8.GetBytes("harborline-content-store:epoch-key:v1|" + epoch.EpochId.ToString("N") + "|" + Tenant.Value));
+            Assert.ThrowsAny<CryptographicException>(() =>
+                subkey.Decrypt(item.WrapNonce, item.WrappedDataKey, item.WrapTag, new byte[32], Encoding.ASCII.GetBytes(reference.ContentId.Value)));
+        }
+
         var dataKey = new byte[32];
-        using (var wrap = new AesGcm(Subkey("harborline-content-store:data-key-wrap:v1"), 16))
+        using (var wrap = new AesGcm(epochKey, 16))
         {
             wrap.Decrypt(item.WrapNonce, item.WrappedDataKey, item.WrapTag, dataKey, Encoding.ASCII.GetBytes(reference.ContentId.Value));
         }
