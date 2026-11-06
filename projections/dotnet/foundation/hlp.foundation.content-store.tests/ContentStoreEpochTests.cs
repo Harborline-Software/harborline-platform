@@ -900,6 +900,30 @@ public sealed class ContentStoreEpochTests
         Assert.Empty(store.IntegrityEntries);
     }
 
+    [Fact]
+    public async Task A_put_doesnt_open_an_epoch_key_until_it_holds_a_pin_on_it()
+    {
+        var backing = new RecordingStorage();
+        var store = Store(backing);
+        var seeded = await Commit(store, World);
+        var first = await store.RotateEpochAsync(Tenant, Write("rotate-1"));
+        await store.RewrapEpochAsync(Tenant, first.From!.Value, first.To, 5, Write("rewrap-1"));
+        var stale = (await backing.Epochs.GetCurrentAsync(Tenant))!;
+        backing.BeforePin = async () => await OnAnotherRequest(async () =>
+        {
+            var next = await store.RotateEpochAsync(Tenant, Write("rotate-2"));
+            await store.RewrapEpochAsync(Tenant, first.To, next.To, 5, Write("rewrap-2"));
+            await store.DestroyEpochAsync(Tenant, first.To, Write("destroy"));
+            return 0;
+        });
+
+        var reference = await store.CommitReferenceAsync(Tenant, await store.PutAsync(Tenant, new MemoryStream(Hello), "text/plain", null), new("record-2", "0"), "b.txt");
+
+        Assert.Equal(new byte[32], stale.WrappedKey); // the key it first looked at was destroyed under it, and it never tried to open that
+        Assert.Equal(Hello, await Read(store, reference));
+        Assert.Equal(World, await Read(store, seeded));
+    }
+
     private sealed class Crash : Exception;
 
     private sealed class InjectedFault : Exception;

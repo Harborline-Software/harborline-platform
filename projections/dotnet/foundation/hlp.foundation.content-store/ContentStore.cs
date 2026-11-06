@@ -1310,13 +1310,15 @@ public sealed class InMemoryContentStore
                 {
                     while (true)
                     {
-                        var (epochId, epochKey) = await CurrentEpochAsync(tenant, dataKeyWrapKey, token).ConfigureAwait(false);
+                        var epoch = await CurrentEpochAsync(tenant, dataKeyWrapKey, token).ConfigureAwait(false);
+                        // Pinned before it is opened: from here it can't be destroyed. A retired epoch can't be the current
+                        // one any more, so the next look finds a usable one.
+                        if (!await session.PinEpochAsync(tenant, epoch.EpochId, token).ConfigureAwait(false)) continue;
+                        var epochKey = OpenEpoch(tenant, dataKeyWrapKey, epoch);
                         try
                         {
-                            // A retired epoch can't be the current one any more, so the next look finds a usable one.
-                            if (!await session.PinEpochAsync(tenant, epochId, token).ConfigureAwait(false)) continue;
                             var (wrapped, wrapNonce, wrapTag) = Wrap(epochKey, dataKey, contentId);
-                            await session.AddStagedAsync(new ContentStoreItem(stageId, tenant, contentId, length, mediaType, createdUtc, wrapped, wrapNonce, wrapTag, noncePrefix, SegmentSizeBytes, epochId), token).ConfigureAwait(false);
+                            await session.AddStagedAsync(new ContentStoreItem(stageId, tenant, contentId, length, mediaType, createdUtc, wrapped, wrapNonce, wrapTag, noncePrefix, SegmentSizeBytes, epoch.EpochId), token).ConfigureAwait(false);
                             return true;
                         }
                         finally
@@ -1729,17 +1731,17 @@ public sealed class InMemoryContentStore
         byte[] fromKey = [], toKey = [];
         try
         {
-            fromKey = OpenEpoch(tenant, subkey, await RequireEpochAsync(tenant, fromEpoch, cancellationToken).ConfigureAwait(false));
-            toKey = OpenEpoch(tenant, subkey, await RequireEpochAsync(tenant, toEpoch, cancellationToken).ConfigureAwait(false));
+            var from = await RequireEpochAsync(tenant, fromEpoch, cancellationToken).ConfigureAwait(false);
+            var to = await RequireEpochAsync(tenant, toEpoch, cancellationToken).ConfigureAwait(false);
             var moved = 0;
             await RunAsync(ContentStoreOperation.EpochRewrap, write, async (session, token) =>
             {
                 var items = await session.ItemsUnderEpochAsync(tenant, fromEpoch, batchSize, token).ConfigureAwait(false);
-                if (items.Count != 0 && !await session.PinEpochAsync(tenant, toEpoch, token).ConfigureAwait(false))
-                {
-                    throw new InvalidOperationException("That epoch is being destroyed.");
-                }
-
+                if (items.Count == 0) return false;
+                // Both are held from here: the destination by this pin, the source by the rows just listed.
+                if (!await session.PinEpochAsync(tenant, toEpoch, token).ConfigureAwait(false)) throw new InvalidOperationException("That epoch is being destroyed.");
+                fromKey = OpenEpoch(tenant, subkey, from);
+                toKey = OpenEpoch(tenant, subkey, to);
                 foreach (var item in items)
                 {
                     var (wrapped, nonce, tag) = MoveWrap(item, fromKey, toKey);
@@ -1813,14 +1815,14 @@ public sealed class InMemoryContentStore
         await _epochs.GetAsync(tenant, epochId, cancellationToken).ConfigureAwait(false)
         ?? throw new InvalidOperationException("That epoch does not exist.");
 
-    // The tenant's current epoch and its plaintext key, which the caller zeroes. A tenant's first put makes its first epoch.
-    private async ValueTask<(Guid EpochId, byte[] Key)> CurrentEpochAsync(TenantId tenant, byte[] subkey, CancellationToken cancellationToken)
+    // The tenant's current epoch, still wrapped. A tenant's first put makes its first epoch.
+    private async ValueTask<ContentEpochKey> CurrentEpochAsync(TenantId tenant, byte[] subkey, CancellationToken cancellationToken)
     {
         while (true)
         {
-            if (await _epochs.GetCurrentAsync(tenant, cancellationToken).ConfigureAwait(false) is { } current) return (current.EpochId, OpenEpoch(tenant, subkey, current));
+            if (await _epochs.GetCurrentAsync(tenant, cancellationToken).ConfigureAwait(false) is { } current) return current;
             var made = await MakeEpochAsync(tenant, subkey, cancellationToken).ConfigureAwait(false);
-            if (await _epochs.TrySetCurrentAsync(tenant, null, made.EpochId, cancellationToken).ConfigureAwait(false)) return (made.EpochId, OpenEpoch(tenant, subkey, made));
+            if (await _epochs.TrySetCurrentAsync(tenant, null, made.EpochId, cancellationToken).ConfigureAwait(false)) return made;
             await _epochs.DestroyAsync(tenant, made.EpochId, cancellationToken).ConfigureAwait(false); // a concurrent first put won; nothing names this one
         }
     }
