@@ -325,7 +325,9 @@ public interface IContentBookkeepingSession : IKernelTransactionParticipant<Cont
     ValueTask<ContentStoreItem?> FindItemAsync(ContentStorageItemKey key, CancellationToken cancellationToken = default);
     /// <summary>
     /// Reads a committed item's entry and holds its row until the transaction ends, as <c>SELECT ... FOR UPDATE</c> does, or
-    /// answers null. An episode write and an erasure of the same item take this row, so they run one after the other.
+    /// answers null. An episode write and an erasure of the same item take this row, so they run one after the other. An
+    /// episode write is not cancelled with its read, so a durable backing must bound this wait with its own lock timeout;
+    /// the timeout surfaces as a failed episode write.
     /// </summary>
     ValueTask<ContentStoreItem?> FindItemForUpdateAsync(ContentStorageItemKey key, CancellationToken cancellationToken = default);
     /// <summary>Reads a staged item's entry, or null.</summary>
