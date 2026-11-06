@@ -27,7 +27,7 @@ public sealed class ContentIntegrityTelemetryPrivacyTests
     private const int SegmentSizeBytes = 65_536;
 
     [Fact]
-    public void Real_content_integrity_telemetry_emits_positive_signals_without_payload_or_filename_values()
+    public async Task Real_content_integrity_telemetry_emits_positive_signals_without_payload_or_filename_values()
     {
         using var telemetry = new TelemetryCapture();
         var log = new CapturingLogger();
@@ -41,27 +41,27 @@ public sealed class ContentIntegrityTelemetryPrivacyTests
             PayloadSentinel + new string('x', SegmentSizeBytes - PayloadSentinel.Length) + PayloadSentinel);
         Assert.Equal(SegmentSizeBytes + PayloadSentinel.Length, payload.Length);
         using var upload = new MemoryStream(payload);
-        var stage = store.Put(tenant, upload, "text/plain", null);
-        var reference = store.Commit(
+        var stage = await store.PutAsync(tenant, upload, "text/plain", null);
+        var reference = await store.CommitReferenceAsync(
             tenant, stage, new ContentOwner("privacy-record", "privacy-element"),
             "FILENAME_PRIVACY_SENTINEL_79E5A2C6.txt");
         var context = new ContentReadContext("trace-fixed", "operation-fixed", "tenant-opaque", "principal-fixed");
 
-        var delivery = store.Read(tenant, reference, true, context: context);
+        var delivery = await store.ReadAsync(tenant, reference, true, context: context);
         Assert.Equal(200, delivery.StatusCode);
         Assert.Equal("attachment; filename=\"FILENAME_PRIVACY_SENTINEL_79E5A2C6.txt\"", delivery.ContentDisposition);
         using (delivery.Body)
         using (var clear = new MemoryStream())
         {
-            delivery.Body.CopyTo(clear);
+            await delivery.Body.CopyToAsync(clear);
             Assert.Equal(payload, clear.ToArray());
             Assert.Contains("PAYLOAD_PRIVACY_SENTINEL_53B1C4D8", Encoding.UTF8.GetString(clear.ToArray()));
         }
 
-        store.CorruptCiphertext(tenant, reference.ContentId, 1);
-        using var damagedBody = store.Read(tenant, reference, true, context: context).Body;
+        await store.CorruptCiphertextAsync(tenant, reference.ContentId, 1);
+        using var damagedBody = (await store.ReadAsync(tenant, reference, true, context: context)).Body;
         using var discarded = new MemoryStream();
-        var failure = Assert.Throws<ContentIntegrityException>(() => damagedBody.CopyTo(discarded));
+        var failure = await Assert.ThrowsAsync<ContentIntegrityException>(() => damagedBody.CopyToAsync(discarded));
         Assert.Equal(1, failure.SegmentIndex);
 
         var integrity = Assert.Single(telemetry.Activities, activity => activity.OperationName == "content.integrity");

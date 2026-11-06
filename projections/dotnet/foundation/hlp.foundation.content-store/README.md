@@ -3,10 +3,10 @@
 The content store substrate ([DES-0054](https://github.com/Harborline-Software/harborline-control/blob/main/designs/DES-0054-content-store/design.md), T-521 slice 2): immutable bytes behind tenant-keyed `hmac-sha256:<hex>` content ids.
 
 - **Put** streams bytes into a staged item, refusing at a named stage: `content.too-large`, `content.media-type-not-allowed`, `content.media-type-mismatch`, `content.digest-mismatch`. Size and quota refusals carry `limit` and `observed` in the DES-0014 C3 `detail`.
-- **Commit** turns a staged item into a reference inside one critical section, counting record and tenant quotas in logical bytes and deduplicating within the tenant.
-- **Read** authorizes before range evaluation, then returns a segment-streaming body. A first-segment or data-key failure is a typed `ContentIntegrityException` before a host writes headers; a later failure escapes the body so the host aborts it. Delivery uses `filename*` (RFC 8187 UTF-8) after an ASCII `filename` fallback where needed.
+- **Commit** turns a staged item into a reference inside one transaction. The backing decides the record and tenant quotas, counted in logical bytes, and the duplicate within the tenant.
+- **ReadAsync** authorizes before range evaluation, then returns a segment-streaming body. A first-segment or data-key failure is a typed `ContentIntegrityException` before a host writes headers; a later failure escapes the body so the host aborts it. Delivery uses `filename*` (RFC 8187 UTF-8) after an ASCII `filename` fallback where needed.
 - **Erasure** destroys the item's own data key. Each item is sealed in fixed 65,536-byte AES-256-GCM segments; the item records that size. HKDF-SHA-256 derives separate tenant subkeys for content ids and data-key wrapping.
-- **Ports.** `IContentStoreStorage` owns item metadata, ciphertext segments, wrapped keys, staged items, reclamation entries and integrity episodes, and takes one `Save` step per state-changing operation (below). `InMemoryContentStoreStorage` is one implementation; a host supplies durable storage. `IContentStoreQuotaBase` declares the host-owned Q22 volume measurement.
+- **Ports.** `IContentBookkeeping` owns items and their wrapped keys, owners, staged items, quota counts, reclamation entries and integrity episodes, with no ciphertext. `IContentByteStore` owns the ciphertext segments. `IContentStoreStorage` hands the store the pair (below). `InMemoryContentStoreStorage` backs both; a host supplies durable storage. `IContentStoreQuotaBase` declares the host-owned Q22 volume measurement.
 - **Integrity telemetry.** Every failed read marks `content.integrity` on an Activity span and increments the zero-alarm counter. The optional `IContentIntegrityLogger` receives one structured first-failure event per episode; the backing retains count and last-seen state until a full verified read or erasure.
 - **The staging sweep** is registered as `content-staging-sweep`, triggered by `schedule` on `sys.sched.content-staging`.
 
@@ -60,37 +60,47 @@ not process/disk durability. `InMemoryContentStoreStorageContract` runs the comp
 inherited suite. HTTP protocol tests and durable timing evidence still belong to
 the durable-host slice.
 
-## The storage save step (interface revision 2)
+## Writes through the kernel boundary (T-521/content-store-host-transaction)
 
-`IContentStoreStorage.Save(ContentStoreChange)` is the port's one save step, a unit of work in Fowler's sense
-(*Patterns of Enterprise Application Architecture*). It lets a durable backing write each operation as one atomic
-unit. The store calls it:
+By the owner's ruling of 2026-11-05 (17:47 UTC), every store write carries its own actor and audit. `PutAsync`, `CommitReferenceAsync`, `RemoveReferenceAsync` and `SweepExpiredAsync` take a `ContentStoreWrite`: the caller's `KernelOperationIdentity`, its `KernelAuditEvidence`, and optionally the caller's open transaction.
 
-- exactly once for each operation that changes state: `Put`, `Commit` (a new item, a duplicate's added owner, or an
-  expired stage reclaimed before the refusal), `RemoveReference`, `SweepExpired`, and a read that opens or counts an
-  integrity episode (`IntegrityFailure`) or closes one with a full verified read (`IntegrityRecovery`);
-- while it holds `SyncRoot`, after it has made all of the operation's changes to the collections, and before the
-  operation returns. The quota check, the changes and the save are never split (CWE-362, CWE-367);
-- never for an operation that changes nothing. That covers every read that leaves the integrity episodes as they
-  were, a refusal, a held or unknown reference, and a sweep with nothing expired.
+- **With the caller's transaction** the write runs through `KernelTransactionBoundary.JoinAsync`. It stages its own operation, writes and audit row, and never commits or rolls back. Any failure dooms the caller's execution, even one the caller catches and one raised before the write reaches the boundary, such as a refused upload, so half a write never commits. A transaction with no open execution is refused.
+- **Without one** it runs its own `ExecutePreparedAsync`. Inside an open execution that is refused as `kernel.nested-execution`, so a write can't commit apart from the caller who forgot to pass the transaction.
+- **Actors.** The store never invents one. Evidence without a whole identity and actor is refused before any byte is kept. The sweep acts as `sys.scheduler` and refuses any other actor.
+- **A write that changes nothing** commits nothing and writes no audit row. A sweep that deletes orphan bytes changes state, so it writes its audit row and deletes them after its commit. The exception is a joined sweep: it can't see the caller's commit, so it writes its row and leaves the orphan bytes for a later standalone sweep. Run the scheduled sweep standalone.
+- **Async.** These calls and the ports behind them are async, with no sync-over-async.
 
-`ContentStoreChange` names the `ContentStoreOperation`, the `Items` keys and `StagedItems` stage ids it added,
-changed or removed, the `ReclamationEntry` values it appended, and the `IntegrityEntries` keys it added or changed.
-The new value of each named key is in its collection; a named key missing from the collection was removed. A durable
-backing writes those entries in one transaction (for example one SQLite transaction, or a journal record it fsyncs
-before returning).
+## Reads and integrity episodes
 
-If `Save` throws, the operation fails with that exception, and the store puts every collection, owner list and
-lifecycle state back to its value before the operation (CWE-460). It destroys key material only after a successful
-save, so a failed reclamation or duplicate collapse loses no bytes. The backing must leave its durable state
-unchanged when it throws. `InMemoryContentStoreStorage.Save` does nothing; its collections are the whole state.
+By the owner's ruling of 2026-11-05 (22:11 UTC), a failed integrity check writes an audit entry, so reads are async and each needs a named reader.
 
-The internal test hooks that corrupt a segment or a wrap tag are not operations and do not save. Evidence for
-T-521/content-store-storage-unit-of-work is in `hlp.foundation.content-store.tests/ContentStoreSaveStepTests.cs`:
+- **`ReadAsync` and `ExportAsync` require a `ContentReadContext`.** A missing reader or a blank `PrincipalId` is refused before any byte is read, so it can never take the place of a `ContentIntegrityException`.
+- **The first covering segment is verified inside `ReadAsync`,** before a host writes headers. The body reads through `ReadAsync` and `CopyToAsync` only; its synchronous `Read`, `ReadByte` and `CopyTo` throw `NotSupportedException`. Kestrel's own default suits this: [`KestrelServerOptions.AllowSynchronousIO`](https://learn.microsoft.com/en-us/dotnet/api/microsoft.aspnetcore.server.kestrel.core.kestrelserveroptions.allowsynchronousio) "Defaults to false."
+- **Each episode write goes through the kernel boundary with the reader as actor** and writes its own audit row. The row names no tenant or content id (Q36). The episode holds the item's row, so an open erasure finishes first and an erasure that follows closes the episode; no erased item is left with an active one. Because an episode write is not cancelled with its read, a durable backing must bound that row wait with its own lock timeout, which surfaces as a failed episode write. The in-memory backing has no such bound. Closing an episode through erasure commits inside the erasure's own write.
+- **An episode always commits in its own transaction,** so a caller's rollback cannot erase it (Q34). The boundary refuses a nested execution, so `ReadAsync` is refused as `kernel.nested-execution` inside an open execution, before any byte is read. A body opened earlier and read inside an execution surfaces that same refusal if it needs to write an episode, and keeps its typed failure for later reads; a later read outside the execution opens the episode.
+- **A failed episode write surfaces as itself,** never as tampering.
+- **A verified read closes only the episode that existed when it began.** It captures that episode before reading any segment, holds the item's row, and closes it only if it is unchanged. A read that began with no active episode, or one that a later failure has changed, leaves the episode open.
+- **Cancelling a read does not cancel its episode write.** A read returns what it has copied before fetching another segment, so a fetch that is cancelled loses nothing and a later read resumes on that segment.
 
-| Clause | Test |
-|---|---|
-| 1. One save per state-changing operation, inside `SyncRoot`, after all its changes, naming them; none for a read | `Clause_1_4_every_state_changing_operation_saves_once_inside_the_lock_after_all_its_changes_naming_exactly_what_changed`, `Clause_1_4_reads_and_operations_that_change_nothing_never_call_the_save_step` |
-| 2. A throwing save fails the operation and leaves the store as it was | `Clause_2_4_a_throwing_save_fails_a_commit_a_duplicate_commit_and_a_reference_removal_and_leaves_the_store_as_it_was`, `Clause_2_a_throwing_save_also_leaves_a_put_an_expired_commit_the_sweep_and_integrity_episodes_as_they_were` |
-| 3. The in-memory save does nothing; the section 9 and restart tests pass unchanged | `InMemoryContentStoreStorageContract` and `ContentIntegrityTelemetryPrivacyTests`, with `ContentStoreTests.cs` unchanged |
-| 4. A recording backing and a throwing backing | `RecordingStorage` in the tests above. The expected entries come from the test's own diff of the backing's collections before and after each operation, not from the store. |
+## The two storage ports
+
+The storage port is split by [ADR 0113](https://github.com/Harborline-Software/harborline-control/blob/main/adrs/ADR-0113-content-store-bookkeeping-lives-in-the-node-model-and-commits-with-the-record/adr.md). Bookkeeping commits in a transaction; bytes are written outside it.
+
+**The backing decides, not the store.** The store holds no lock and no copy of the state. `IContentBookkeepingSession.TryReserveQuotaAsync` is a conditional update that refuses when a new total would pass its limit, and a total equal to the limit fits. `TryCreateItemAsync` is a conditional create on tenant and content id. `RemoveStagedAsync`, `AddOwnerAsync`, `RemoveOwnerAsync` and `DeleteItemIfUnownedAsync` are conditional too, so two concurrent operations cannot both act on one entry (CWE-362, CWE-367).
+
+**Isolation.** A backing isolates its transactions at read committed or stronger. The sweep decides what to delete from what the port reads, so an uncommitted removal must still name its bytes, and a rollback finds them there. `InMemoryContentBookkeeping` keeps a transaction's writes to itself until commit and holds a row lock on each staged or item entry it writes, so an overlapping writer waits. A pending reservation counts against concurrent ones, and a pending release frees nothing for anyone else until it commits, so a total never passes its limit.
+
+**Byte order** (ADR 0113 decision 3):
+
+1. An upload's bytes are complete and durable (`IContentByteWriter.CompleteAsync` has returned) before its staged entry is written.
+2. Bytes and the wrapped key are destroyed only after the store's own transaction that removed their last entry commits. A delete that fails with an `IOException` or `UnauthorizedAccessException` does not fail the committed removal; the sweep finishes it.
+3. Inside a caller's transaction the store cannot see that commit, so it leaves the bytes, and the sweep deletes them once no entry names them.
+4. `content-staging-sweep` deletes bytes no staged or committed entry names once the grace period has passed, and never before. It checks again after its commit, and `DeleteIfWrittenAtOrBeforeAsync` refuses atomically if a writer has completed since, so a put finishing during a sweep keeps its bytes.
+
+**The grace period is `ContentStoreOptions.StagingExpiry`**, counted from when the bytes were last written: from the writer's completion, or from when it opened if it never completed. It adds no measurement of its own (Q19). A put writes its staged entry within its own put time, and ck-13 sets the expiry as a stated multiple of the longest put, so the sweep never takes bytes whose entry is still coming. A slower upload that does lose its bytes fails when its writer completes, and stages nothing.
+
+**Known limit.** The sweep reads committed state. A caller that holds a joined put's staged entry uncommitted past the grace period could lose those bytes, so a caller must commit within the staging expiry.
+
+Where the bytes live on the node, and the rule that no path deletes bytes during a backup, belong to the api backing ([ADR 0114](https://github.com/Harborline-Software/harborline-control/blob/main/adrs/ADR-0114-content-store-bytes-are-files-beside-the-node-database-and-each-key-stays-in-its-row/adr.md)). So does replaying a repeated idempotency key; the in-memory backing refuses one.
+
+The internal test hooks that corrupt a segment or a wrap tag are not operations. Evidence is in `ContentStoreBoundaryTests.cs`, `ContentStorePortTests.cs` and `ContentStoreSaveStepTests.cs` in `hlp.foundation.content-store.tests`.
