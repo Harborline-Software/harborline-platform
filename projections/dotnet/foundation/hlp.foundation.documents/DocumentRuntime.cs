@@ -27,8 +27,9 @@ public interface IDocumentTemplateSource
 /// <summary>One Layout-produced block in page-flow order, represented without a blocks-tier dependency.</summary>
 /// <param name="Id">The definition-local Layout block identifier.</param>
 /// <param name="PageVariant">The Layout page variant that carries the block.</param>
-/// <param name="Content">The already-resolved semantic content.</param>
-public sealed record DocumentFlowBlock(string Id, string PageVariant, string Content);
+/// <param name="Content">The already-resolved semantic content, used when the block carries no runs.</param>
+/// <param name="Runs">The block's literal and merge runs, formatted in the document locale in place of <paramref name="Content"/>.</param>
+public sealed record DocumentFlowBlock(string Id, string PageVariant, string Content, IReadOnlyList<DocumentFlowRun>? Runs = null);
 
 /// <summary>Layout's page-flow output passed across the foundation-tier boundary.</summary>
 /// <param name="Blocks">The page-flow blocks in Layout's declared order.</param>
@@ -67,6 +68,13 @@ public sealed record DocumentPreview(RenderedDocument Document)
     public bool Minted => false;
 }
 
+/// <summary>The issuance render: the same semantic document a preview produces, with the hash an issued record stores.</summary>
+/// <param name="TemplateKey">The issued template's stable identifier, which the issued record pins.</param>
+/// <param name="TemplateVersion">The exact issued template version, which the issued record pins.</param>
+/// <param name="Document">The renderer-neutral semantic output.</param>
+/// <param name="ContentHash">The deterministic hash of <paramref name="Document"/>'s semantic content.</param>
+public sealed record DocumentIssuanceRender(string TemplateKey, string TemplateVersion, RenderedDocument Document, string ContentHash);
+
 /// <summary>Library-neutral writer boundary; a host selects one adapter by its declared output format.</summary>
 public interface IDocumentOutputWriter
 {
@@ -80,7 +88,8 @@ public interface IDocumentOutputWriter
 /// <summary>
 /// Resolves a published or inline template through its canonical contract and creates a non-minting semantic
 /// preview from Layout-owned page flow. Layout owns traversal and page selection; this seam retains Documents'
-/// locale, style, semantic output, and writer boundary.
+/// locale, style, semantic output, and writer boundary. Preview and issuance share one render path
+/// (documents-eng-10), so a preview cannot differ from the document it previews.
 /// </summary>
 public sealed class DocumentRuntime
 {
@@ -106,20 +115,68 @@ public sealed class DocumentRuntime
         string? authoringUiLocale,
         CancellationToken cancellationToken = default)
     {
+        _ = authoringUiLocale;
+        var (_, document) = await RenderAsync(input, pageFlow, context, cancellationToken).ConfigureAwait(false);
+        return new(document);
+    }
+
+    /// <summary>
+    /// Renders a published template for issuance through the path <see cref="PreviewAsync"/> uses, and hashes the
+    /// result. It takes only a published reference with an exact version, because an inline draft never mints and an
+    /// issued record pins what it issued from. It stores nothing: recording the issued document stays with the host.
+    /// </summary>
+    public async ValueTask<DocumentIssuanceRender> RenderForIssuanceAsync(
+        DocumentTemplateReference template,
+        DocumentPageFlow pageFlow,
+        DocumentRenderContext context,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(template);
+        if (string.IsNullOrWhiteSpace(template.Version)) throw new InvalidOperationException("documents.template.version_required");
+        var (definition, document) = await RenderAsync(template, pageFlow, context, cancellationToken).ConfigureAwait(false);
+        return new(definition.Envelope.Identity, definition.Envelope.Version, document, DocumentContentHash.Of(document));
+    }
+
+    private async ValueTask<(TemplateDefinition Template, RenderedDocument Document)> RenderAsync(
+        DocumentTemplateInput input,
+        DocumentPageFlow pageFlow,
+        DocumentRenderContext context,
+        CancellationToken cancellationToken)
+    {
         ArgumentNullException.ThrowIfNull(input);
         ArgumentNullException.ThrowIfNull(pageFlow);
         ArgumentNullException.ThrowIfNull(context);
-        _ = authoringUiLocale;
 
         var body = await ResolveAsync(input, cancellationToken).ConfigureAwait(false);
         var template = TemplateDefinitionJson.Deserialize(body.Span);
         TemplateDefinitionAdmission.ValidatePersisted(template, _surfaces);
-        var locale = ResolveLocale(template.Locale, context);
+        RefuseOtherTemplate(input, template);
+        // The resolved culture's own name, so case spellings of one tag hash equally. An alias such as zh-TW for
+        // zh-Hant-TW keeps its own name and hashes apart.
+        var culture = DocumentValueFormatter.ResolveCulture(ResolveLocale(template.Locale, context));
+        var formatter = new DocumentValueFormatter(culture, context.CurrencyCode);
         var blocks = (pageFlow.Blocks ?? [])
-            .Select(block => new RenderedDocumentBlock(block.Id, block.PageVariant, block.Content))
+            .Select(block => new RenderedDocumentBlock(
+                block.Id,
+                PageVariant(block),
+                block.Runs is { } runs ? formatter.FormatRuns(runs) : block.Content))
             .ToArray();
-        return new(new(template.DocumentType, locale, context.CurrencyCode, template.Style, blocks));
+        return (template, new(template.DocumentType, culture.Name, DocumentValueFormatter.NormalizeCurrency(context.CurrencyCode), template.Style, blocks));
     }
+
+    // A host's template source cannot answer a pin with a different template: the body must name what was asked for.
+    private static void RefuseOtherTemplate(DocumentTemplateInput input, TemplateDefinition template)
+    {
+        if (input is DocumentTemplateReference reference
+            && (template.Envelope.Identity != reference.Key || (reference.Version is { } version && template.Envelope.Version != version)))
+            throw new InvalidOperationException("documents.template.reference_mismatch");
+    }
+
+    // Layout selects first, then left and right alternately; anything else is an invalid placement, diagnosed by name.
+    private static string PageVariant(DocumentFlowBlock block)
+        => block.PageVariant is "first" or "left" or "right"
+            ? block.PageVariant
+            : throw new InvalidOperationException("documents.flow.page_variant_invalid");
 
     private async ValueTask<ReadOnlyMemory<byte>> ResolveAsync(DocumentTemplateInput input, CancellationToken cancellationToken)
         => input switch
