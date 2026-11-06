@@ -1,5 +1,8 @@
 using Harborline.Blocks.BuilderDefinitions;
+using System.Text.Json;
+
 using Harborline.Blocks.Scheduling.Definitions;
+using Harborline.Foundation.Definitions;
 
 namespace Harborline.Blocks.Scheduling.Tests;
 
@@ -12,7 +15,7 @@ public sealed class ScheduleDefinitionCatalogueTests
 {
     private const string Tenant = "tenant-a";
     private const string Id = "inspection.quarterly";
-    private const string Body = "{\"name\":\"Quarterly inspection\"}";
+    private static readonly ScheduleDefinition Definition = Schedule("Quarterly inspection");
 
     private readonly InMemoryVersionedDefinitionStore _store = new(new Dictionary<DefinitionKind, DefinitionAdmission>
     {
@@ -30,10 +33,10 @@ public sealed class ScheduleDefinitionCatalogueTests
         var pin = await Catalogue.PinHeadAsync(Tenant, Id);
         Assert.Equal(new ScheduleDefinitionPin(Tenant, Id, "inspection.quarterly@1.0.0"), pin);
         var resolved = await Catalogue.ResolveAsync(pin);
-        Assert.Equal(Key, resolved.Document.Key);
-        Assert.Equal("1.0.0", resolved.Document.Version);
-        Assert.Equal(DefinitionStatus.Published, resolved.Status);
-        Assert.Same(resolved, await _store.ResolvePublishedAsync(new(Key, pin.VersionId!)));
+        Assert.Equal(Key, resolved.Revision.Document.Key);
+        Assert.Equal("1.0.0", resolved.Revision.Document.Version);
+        Assert.Equal(DefinitionStatus.Published, resolved.Revision.Status);
+        Assert.Same(resolved.Revision, await _store.ResolvePublishedAsync(new(Key, pin.VersionId!)));
     }
 
     [Fact(DisplayName = "scheduling-ck-20: the head is the highest semantic version, not the latest publication")]
@@ -50,10 +53,10 @@ public sealed class ScheduleDefinitionCatalogueTests
     {
         await PublishAsync("1.0.0", 0);
         var pin = await Catalogue.PinHeadAsync(Tenant, Id);
-        await PublishAsync("2.0.0", 2, "{\"name\":\"Renamed\"}");
+        await PublishAsync("2.0.0", 2, Schedule("Renamed"));
         var resolved = await Catalogue.ResolveAsync(pin);
-        Assert.Equal("1.0.0", resolved.Document.Version);
-        Assert.Equal(Body, resolved.Document.BodyJson);
+        Assert.Equal("1.0.0", resolved.Revision.Document.Version);
+        Assert.Equal("Quarterly inspection", resolved.Definition.Name);
         Assert.Equal("inspection.quarterly@2.0.0", (await Catalogue.PinHeadAsync(Tenant, Id)).VersionId);
     }
 
@@ -83,7 +86,7 @@ public sealed class ScheduleDefinitionCatalogueTests
     [Fact(DisplayName = "scheduling-eng-1: a pin to a draft refuses; drafts never resolve")]
     public async Task DraftPinRefuses()
     {
-        await Catalogue.SaveDraftAsync(Tenant, Id, "1.0.0", Body, 0, "draft");
+        await Catalogue.SaveDraftAsync(Tenant, Id, "1.0.0", Definition, 0, "draft");
         var refusal = await Assert.ThrowsAsync<DefinitionRefusalException>(
             () => Catalogue.ResolveAsync(new(Tenant, Id, "inspection.quarterly@1.0.0")).AsTask());
         Assert.Equal([new DefinitionRefusal(ScheduleDefinitionCodes.NotFound, "/versionId")], refusal.Refusals);
@@ -92,7 +95,7 @@ public sealed class ScheduleDefinitionCatalogueTests
     [Fact(DisplayName = "scheduling-eng-1: pinning a schedule with no published head refuses")]
     public async Task PinningWithoutAPublishedHeadRefuses()
     {
-        await Catalogue.SaveDraftAsync(Tenant, Id, "1.0.0", Body, 0, "draft");
+        await Catalogue.SaveDraftAsync(Tenant, Id, "1.0.0", Definition, 0, "draft");
         var refusal = await Assert.ThrowsAsync<DefinitionRefusalException>(
             () => Catalogue.PinHeadAsync(Tenant, Id).AsTask());
         Assert.Equal(DefinitionAdmissionPhase.Publish, refusal.Stage);
@@ -104,11 +107,11 @@ public sealed class ScheduleDefinitionCatalogueTests
     {
         await PublishAsync("1.0.0", 0);
         var refusal = await Assert.ThrowsAsync<DefinitionRefusalException>(
-            () => Catalogue.SaveDraftAsync(Tenant, Id, "1.0.0", "{\"name\":\"Edited\"}", 2, "edit").AsTask());
+            () => Catalogue.SaveDraftAsync(Tenant, Id, "1.0.0", Schedule("Edited"), 2, "edit").AsTask());
         Assert.Equal([new DefinitionRefusal("definition.version_immutable", "/versionId")], refusal.Refusals);
         Assert.Equal(2, (await _store.ListHistoryAsync(Key)).Count);
         var resolved = await Catalogue.ResolveAsync(new(Tenant, Id, "inspection.quarterly@1.0.0"));
-        Assert.Equal(Body, resolved.Document.BodyJson);
+        Assert.Equal("Quarterly inspection", resolved.Definition.Name);
     }
 
     [Fact(DisplayName = "scheduling-ck-21: restore registers a new draft, publishing it moves the head, and history is untouched")]
@@ -117,16 +120,18 @@ public sealed class ScheduleDefinitionCatalogueTests
         await PublishAsync("1.0.0", 0);
         var original = await Catalogue.ResolveAsync(new(Tenant, Id, "inspection.quarterly@1.0.0"));
         var restored = await Catalogue.RestoreAsDraftAsync(Tenant, Id, "1.0.0", "1.1.0", 2, "restore");
-        Assert.Equal(DefinitionStatus.Draft, restored.Status);
-        Assert.Equal("inspection.quarterly@1.0.0", restored.RestoredFromVersionId);
-        Assert.Equal("inspection.quarterly@1.1.0", restored.Document.VersionId);
+        Assert.Equal(DefinitionStatus.Draft, restored.Revision.Status);
+        Assert.Equal("inspection.quarterly@1.0.0", restored.Revision.RestoredFromVersionId);
+        Assert.Equal("inspection.quarterly@1.1.0", restored.Revision.Document.VersionId);
+        Assert.Equal("1.1.0", restored.Definition.Envelope!.Version);
         Assert.Equal("inspection.quarterly@1.0.0", (await Catalogue.PinHeadAsync(Tenant, Id)).VersionId);
 
         await Catalogue.PublishAsync(Tenant, Id, "1.1.0", 3, "publish-restored");
         Assert.Equal("inspection.quarterly@1.1.0", (await Catalogue.PinHeadAsync(Tenant, Id)).VersionId);
         var after = await Catalogue.ResolveAsync(new(Tenant, Id, "inspection.quarterly@1.0.0"));
-        Assert.Equal(original.Document, after.Document);
-        Assert.Equal(original.Digest, after.Digest);
+        Assert.Equal(original.Revision.Document, after.Revision.Document);
+        Assert.Equal(original.Revision.Digest, after.Revision.Digest);
+        Assert.Equal("1.0.0", after.Definition.Envelope!.Version);
     }
 
     [Theory(DisplayName = "DES-0022 ruling 8: an integer revision is not a version and refuses before anything is written")]
@@ -136,7 +141,7 @@ public sealed class ScheduleDefinitionCatalogueTests
     public async Task IntegerRevisionVersionRefuses(string version)
     {
         var refusal = await Assert.ThrowsAsync<DefinitionRefusalException>(
-            () => Catalogue.SaveDraftAsync(Tenant, Id, version, Body, 0, "draft").AsTask());
+            () => Catalogue.SaveDraftAsync(Tenant, Id, version, Definition, 0, "draft").AsTask());
         Assert.Equal([new DefinitionRefusal("definition.version_invalid", "/version")], refusal.Refusals);
         Assert.Empty(await _store.ListHistoryAsync(Key));
     }
@@ -150,7 +155,7 @@ public sealed class ScheduleDefinitionCatalogueTests
     public async Task BodyIntegerRevisionRefuses(string body, string pointer)
     {
         var refusal = await Assert.ThrowsAsync<DefinitionRefusalException>(
-            () => Catalogue.SaveDraftAsync(Tenant, Id, "1.0.0", body, 0, "draft").AsTask());
+            () => SaveRawAsync(body));
         Assert.Equal(DefinitionAdmissionPhase.Author, refusal.Stage);
         Assert.Equal([new DefinitionRefusal(ScheduleDefinitionCodes.IntegerRevisionRetired, pointer)], refusal.Refusals);
         Assert.Empty(await _store.ListHistoryAsync(Key));
@@ -162,15 +167,16 @@ public sealed class ScheduleDefinitionCatalogueTests
     public async Task BodyVersionMismatchRefuses(string body, string pointer)
     {
         var refusal = await Assert.ThrowsAsync<DefinitionRefusalException>(
-            () => Catalogue.SaveDraftAsync(Tenant, Id, "1.0.0", body, 0, "draft").AsTask());
+            () => SaveRawAsync(body));
         Assert.Equal([new DefinitionRefusal(ScheduleDefinitionCodes.VersionMismatch, pointer)], refusal.Refusals);
     }
 
     [Fact(DisplayName = "scheduling-ck-20: a body version equal to the store's semantic version is admitted")]
     public async Task MatchingBodyVersionIsAdmitted()
     {
-        var saved = await Catalogue.SaveDraftAsync(Tenant, Id, "1.0.0",
-            "{\"version\":\"1.0.0\",\"envelope\":{\"version\":\"1.0.0\"}}", 0, "draft");
+        var saved = await _store.SaveDraftAsync(new DefinitionDocument(Key, "inspection.quarterly@1.0.0", "1.0.0",
+            ScheduleDefinitionJson.Serialize(Definition)), 0, "draft");
+        Assert.Contains("\"version\":\"1.0.0\"", saved.Document.BodyJson, StringComparison.Ordinal);
         Assert.Equal(DefinitionStatus.Draft, saved.Status);
         Assert.Equal(1, saved.Revision);
     }
@@ -184,7 +190,7 @@ public sealed class ScheduleDefinitionCatalogueTests
     public async Task NonObjectBodyRefuses(string body)
     {
         var refusal = await Assert.ThrowsAsync<DefinitionRefusalException>(
-            () => Catalogue.SaveDraftAsync(Tenant, Id, "1.0.0", body, 0, "draft").AsTask());
+            () => SaveRawAsync(body));
         Assert.Equal([new DefinitionRefusal(ScheduleDefinitionCodes.BodyInvalid, "")], refusal.Refusals);
     }
 
@@ -194,7 +200,7 @@ public sealed class ScheduleDefinitionCatalogueTests
     [InlineData("other@1.0.0")]
     public async Task VersionIdNotDerivedFromTheSemanticVersionRefuses(string versionId)
     {
-        var document = new DefinitionDocument(Key, versionId, "1.0.0", Body);
+        var document = new DefinitionDocument(Key, versionId, "1.0.0", ScheduleDefinitionJson.Serialize(Definition));
         var refusal = await Assert.ThrowsAsync<DefinitionRefusalException>(
             () => _store.SaveDraftAsync(document, 0, "draft").AsTask());
         Assert.Equal([new DefinitionRefusal(ScheduleDefinitionCodes.VersionIdMismatch, "/versionId")], refusal.Refusals);
@@ -213,7 +219,7 @@ public sealed class ScheduleDefinitionCatalogueTests
             },
         });
         var catalogue = new ScheduleDefinitionCatalogue(store);
-        await catalogue.SaveDraftAsync(Tenant, Id, "1.0.0", Body, 0, "draft");
+        await catalogue.SaveDraftAsync(Tenant, Id, "1.0.0", Definition, 0, "draft");
         await catalogue.PublishAsync(Tenant, Id, "1.0.0", 1, "publish");
         Assert.Equal([DefinitionAdmissionPhase.Author, DefinitionAdmissionPhase.Publish], phases);
     }
@@ -230,9 +236,48 @@ public sealed class ScheduleDefinitionCatalogueTests
     public async Task ResolutionRequiresAPin()
         => await Assert.ThrowsAsync<ArgumentNullException>(() => Catalogue.ResolveAsync(null!).AsTask());
 
-    private async Task PublishAsync(string version, long expectedRevision, string body = Body)
+    [Theory(DisplayName = "scheduling-ck-20: a member spelled in another case refuses, so it cannot carry a version past the version check")]
+    [InlineData("\"envelope\":{", "\"envelope\":{\"Version\":\"9.9.9\",")]
+    [InlineData("\"name\":", "\"Name\":")]
+    public async Task MemberInAnotherCaseRefuses(string member, string spelled)
     {
-        await Catalogue.SaveDraftAsync(Tenant, Id, version, body, expectedRevision, "draft-" + version);
+        var body = ScheduleDefinitionJson.Serialize(Definition with { Envelope = Definition.Envelope! with { Version = null } });
+        Assert.Contains(member, body, StringComparison.Ordinal);
+        var refused = await Assert.ThrowsAsync<DefinitionRefusalException>(() => SaveRawAsync(body.Replace(member, spelled, StringComparison.Ordinal)));
+        Assert.Equal([new DefinitionRefusal("scheduling.definition.body_invalid", "")], refused.Refusals);
+    }
+
+    [Fact(DisplayName = "scheduling-ck-8: a definition that cannot serialize refuses instead of throwing")]
+    public async Task UndefinedEnumValueRefusesAtSave()
+    {
+        var refused = await Assert.ThrowsAsync<DefinitionRefusalException>(() => Catalogue.SaveDraftAsync(Tenant, Id, "1.0.0",
+            Definition with { MissedBehaviour = (ScheduleMissedBehaviour)99 }, 0, "draft").AsTask());
+        Assert.Equal([new DefinitionRefusal("scheduling.definition.body_invalid", "")], refused.Refusals);
+    }
+
+    [Fact(DisplayName = "scheduling-ck-19: an undefined provenance element refuses instead of throwing")]
+    public async Task UndefinedProvenanceRefusesAtSave()
+    {
+        var refused = await Assert.ThrowsAsync<DefinitionRefusalException>(() => Catalogue.SaveDraftAsync(Tenant, Id, "1.0.0",
+            Definition with { Envelope = Definition.Envelope! with { Provenance = default(JsonElement) } }, 0, "draft").AsTask());
+        Assert.Equal([new DefinitionRefusal("scheduling.definition.body_invalid", "")], refused.Refusals);
+    }
+
+    private static ScheduleDefinition Schedule(string name) => new(
+        new ScheduleDefinitionEnvelope(Id, "1.0.0", Tenant, Harborline.Blocks.BuilderDefinitions.LayoutCascadeLayer.DomainPackage,
+            JsonSerializer.SerializeToElement(new { pack = "general" }), "standard", false, [], new DefinitionContractVersion(1, 0)),
+        name,
+        new ScheduleStarts(ScheduleStartKind.Form, "forms.inspection"),
+        Window: new("2027-01-01T00:00:00Z", "2027-01-31T00:00:00Z"));
+
+    private Task<DefinitionRevision> SaveRawAsync(string body)
+        => _store.SaveDraftAsync(new DefinitionDocument(Key, "inspection.quarterly@1.0.0", "1.0.0", body), 0, "draft").AsTask();
+
+    private async Task PublishAsync(string version, long expectedRevision, ScheduleDefinition? definition = null)
+    {
+        var body = definition ?? Definition;
+        await Catalogue.SaveDraftAsync(Tenant, Id, version, body with { Envelope = body.Envelope! with { Version = version } },
+            expectedRevision, "draft-" + version);
         await Catalogue.PublishAsync(Tenant, Id, version, expectedRevision + 1, "publish-" + version);
     }
 }
