@@ -1470,7 +1470,7 @@ public sealed class InMemoryContentStore
         var disposition = Attachment(reference.DisplayName);
         if (range is not { } requested || (ifRange is not null && ifRange != etag) || requested.Start < 0 || requested.End < requested.Start)
         {
-            return new(await OpenReadAsync(item, reference.Owner, RequireKey(tenant), 0, item.LastSegment, 0, item.Length, true, context, cancellationToken).ConfigureAwait(false),
+            return new(await OpenReadAsync(item, reference.Owner, RequireKey(tenant), 0, 0, item.Length, true, context, cancellationToken).ConfigureAwait(false),
                 200, item.MediaType, disposition, etag, null);
         }
 
@@ -1481,9 +1481,8 @@ public sealed class InMemoryContentStore
 
         var end = Math.Min(requested.End, item.Length - 1);
         var first = (int)(requested.Start / item.SegmentSize);
-        var last = (int)(end / item.SegmentSize);
         var offset = requested.Start - ((long)first * item.SegmentSize);
-        return new(await OpenReadAsync(item, reference.Owner, RequireKey(tenant), first, last, offset, end - requested.Start + 1, false, context, cancellationToken).ConfigureAwait(false),
+        return new(await OpenReadAsync(item, reference.Owner, RequireKey(tenant), first, offset, end - requested.Start + 1, false, context, cancellationToken).ConfigureAwait(false),
             206, item.MediaType, disposition, etag, $"bytes {requested.Start}-{end}/{item.Length}");
     }
 
@@ -2017,7 +2016,7 @@ public sealed class InMemoryContentStore
         return (wrapped, nonce, tag);
     }
 
-    private async ValueTask<ContentReadStream> OpenReadAsync(ContentStoreItem item, ContentOwner owner, byte[] tenantKey, int first, int last, long offset, long length,
+    private async ValueTask<ContentReadStream> OpenReadAsync(ContentStoreItem item, ContentOwner owner, byte[] tenantKey, int first, long offset, long length,
         bool verifiesWholeItem, ContentReadContext context, CancellationToken cancellationToken)
     {
         var wrapKey = DeriveSubkey(tenantKey, item.Tenant, DataKeyWrapKeyInfo);
@@ -2025,7 +2024,7 @@ public sealed class InMemoryContentStore
         {
             // Taken before any segment is read: a verified read may close only the episode that existed when it began.
             var episodeAtStart = await _bookkeeping.FindIntegrityAsync(item.Tenant, item.StageId, cancellationToken).ConfigureAwait(false);
-            var body = new ContentReadStream(item, _bytes, owner, first, last, offset, length, verifiesWholeItem, context, episodeAtStart, ReportIntegrityAsync, ResolveVerifiedAsync);
+            var body = new ContentReadStream(item, _bytes, owner, first, offset, length, verifiesWholeItem, context, episodeAtStart, ReportIntegrityAsync, ResolveVerifiedAsync);
             await body.VerifyFirstSegmentAsync(token => OpenItemEpochAsync(item, wrapKey, token), cancellationToken).ConfigureAwait(false);
             return body;
         }
@@ -2219,7 +2218,6 @@ public sealed class InMemoryContentStore
         private readonly ContentStoreItem _item;
         private readonly IContentByteStore _bytes;
         private readonly ContentOwner _owner;
-        private readonly int _last;
         private readonly bool _verifiesWholeItem;
         private readonly ContentReadContext _context;
         private readonly Func<ContentStoreItem, ContentOwner, int, ContentReadContext, ValueTask> _report;
@@ -2235,14 +2233,13 @@ public sealed class InMemoryContentStore
         private bool _disposed;
         private ContentIntegrityException? _failure;
 
-        public ContentReadStream(ContentStoreItem item, IContentByteStore bytes, ContentOwner owner, int first, int last, long offset, long length,
+        public ContentReadStream(ContentStoreItem item, IContentByteStore bytes, ContentOwner owner, int first, long offset, long length,
             bool verifiesWholeItem, ContentReadContext context, ContentIntegrityEntry? episodeAtStart, Func<ContentStoreItem, ContentOwner, int, ContentReadContext, ValueTask> report,
             Func<ContentStoreItem, ContentReadContext, ContentIntegrityEntry?, ValueTask> resolve)
         {
             _item = item;
             _bytes = bytes;
             _owner = owner;
-            _last = last;
             _length = length;
             _remaining = length;
             _index = first;
