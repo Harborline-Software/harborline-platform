@@ -1542,12 +1542,12 @@ public sealed class InMemoryContentStore
         ArgumentNullException.ThrowIfNull(context);
         ArgumentException.ThrowIfNullOrWhiteSpace(context.PrincipalId);
         await RefuseOpenExecutionAsync().ConfigureAwait(false);
-        var item = await ReadableAsync(tenant, reference, authorized, cancellationToken).ConfigureAwait(false);
+        var (item, epoch) = await ReadSnapshotAsync(tenant, reference, authorized, cancellationToken).ConfigureAwait(false);
         var etag = "\"" + item.ContentId.Value + "\"";
         var disposition = Attachment(reference.DisplayName);
         if (range is not { } requested || (ifRange is not null && ifRange != etag) || requested.Start < 0 || requested.End < requested.Start)
         {
-            return new(await OpenReadAsync(item, reference.Owner, RequireKey(tenant), 0, 0, item.Length, true, context, cancellationToken).ConfigureAwait(false),
+            return new(await OpenReadAsync(item, epoch, reference.Owner, RequireKey(tenant), 0, 0, item.Length, true, context, cancellationToken).ConfigureAwait(false),
                 200, item.MediaType, disposition, etag, null);
         }
 
@@ -1559,7 +1559,7 @@ public sealed class InMemoryContentStore
         var end = Math.Min(requested.End, item.Length - 1);
         var first = (int)(requested.Start / item.SegmentSize);
         var offset = requested.Start - ((long)first * item.SegmentSize);
-        return new(await OpenReadAsync(item, reference.Owner, RequireKey(tenant), first, offset, end - requested.Start + 1, false, context, cancellationToken).ConfigureAwait(false),
+        return new(await OpenReadAsync(item, epoch, reference.Owner, RequireKey(tenant), first, offset, end - requested.Start + 1, false, context, cancellationToken).ConfigureAwait(false),
             206, item.MediaType, disposition, etag, $"bytes {requested.Start}-{end}/{item.Length}");
     }
 
@@ -1862,13 +1862,9 @@ public sealed class InMemoryContentStore
     private static byte[] EpochAad(TenantId tenant, Guid epochId) =>
         Encoding.UTF8.GetBytes("harborline-content-store:epoch-key:v1|" + epochId.ToString("N") + "|" + tenant.Value);
 
-    // The plaintext key of the epoch an item names, for one read. A missing epoch fails like any other unreadable wrap.
-    private async ValueTask<byte[]> OpenItemEpochAsync(ContentStoreItem item, byte[] subkey, CancellationToken cancellationToken)
-    {
-        var epoch = await _epochs.GetAsync(item.Tenant, item.EpochId, cancellationToken).ConfigureAwait(false)
-            ?? throw new AuthenticationTagMismatchException("The item's epoch key is gone.");
-        return OpenEpoch(item.Tenant, subkey, epoch);
-    }
+    // The plaintext key of the epoch a read took with its row. A missing epoch fails like any other unreadable wrap.
+    private static byte[] OpenSnapshotEpoch(ContentStoreItem item, ContentEpochKey? epoch, byte[] subkey) =>
+        OpenEpoch(item.Tenant, subkey, epoch ?? throw new AuthenticationTagMismatchException("The item's epoch key is gone."));
 
     /// <summary>
     /// Exports the items behind authorized references with a fresh per-export key (DES-0054 cc-7, Q20). The package
@@ -1949,7 +1945,7 @@ public sealed class InMemoryContentStore
     {
         var item = await StorageItemAsync(tenant, contentId).ConfigureAwait(false);
         var (contentIdKey, wrapSubkey) = DeriveSubkeys(RequireKey(tenant), tenant);
-        var epochKey = await OpenItemEpochAsync(item, wrapSubkey, CancellationToken.None).ConfigureAwait(false);
+        var epochKey = OpenEpoch(tenant, wrapSubkey, (await _epochs.GetAsync(tenant, item.EpochId).ConfigureAwait(false))!);
         var dataKey = new byte[KeyBytes];
         try
         {
@@ -2099,7 +2095,26 @@ public sealed class InMemoryContentStore
         return (wrapped, nonce, tag);
     }
 
-    private async ValueTask<ContentReadStream> OpenReadAsync(ContentStoreItem item, ContentOwner owner, byte[] tenantKey, int first, long offset, long length,
+    // An item and the epoch key it names, taken together. A rotation can finish between reading the row and finding its key;
+    // the row then names another epoch, so it is read again. Only a row that still names a missing key is an integrity failure.
+    // The wrap is copied so a destroy can't change it under this read.
+    private async ValueTask<(ContentStoreItem Item, ContentEpochKey? Epoch)> ReadSnapshotAsync(TenantId tenant, ContentReference reference, bool authorized, CancellationToken cancellationToken)
+    {
+        var item = await ReadableAsync(tenant, reference, authorized, cancellationToken).ConfigureAwait(false);
+        while (true)
+        {
+            if (await _epochs.GetAsync(item.Tenant, item.EpochId, cancellationToken).ConfigureAwait(false) is { } epoch)
+            {
+                return (item, epoch with { WrappedKey = [.. epoch.WrappedKey], WrapNonce = [.. epoch.WrapNonce], WrapTag = [.. epoch.WrapTag] });
+            }
+
+            var fresh = await ReadableAsync(tenant, reference, authorized, cancellationToken).ConfigureAwait(false);
+            if (fresh.EpochId == item.EpochId) return (fresh, null);
+            item = fresh;
+        }
+    }
+
+    private async ValueTask<ContentReadStream> OpenReadAsync(ContentStoreItem item, ContentEpochKey? epoch, ContentOwner owner, byte[] tenantKey, int first, long offset, long length,
         bool verifiesWholeItem, ContentReadContext context, CancellationToken cancellationToken)
     {
         var wrapKey = DeriveSubkey(tenantKey, item.Tenant, DataKeyWrapKeyInfo);
@@ -2108,7 +2123,7 @@ public sealed class InMemoryContentStore
             // Taken before any segment is read: a verified read may close only the episode that existed when it began.
             var episodeAtStart = await _bookkeeping.FindIntegrityAsync(item.Tenant, item.StageId, cancellationToken).ConfigureAwait(false);
             var body = new ContentReadStream(item, _bytes, owner, first, offset, length, verifiesWholeItem, context, episodeAtStart, ReportIntegrityAsync, ResolveVerifiedAsync);
-            await body.VerifyFirstSegmentAsync(token => OpenItemEpochAsync(item, wrapKey, token), cancellationToken).ConfigureAwait(false);
+            await body.VerifyFirstSegmentAsync(_ => ValueTask.FromResult(OpenSnapshotEpoch(item, epoch, wrapKey)), cancellationToken).ConfigureAwait(false);
             return body;
         }
         finally

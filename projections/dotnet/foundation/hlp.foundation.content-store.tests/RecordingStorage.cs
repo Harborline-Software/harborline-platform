@@ -45,6 +45,7 @@ internal sealed class RecordingStorage : IContentStoreStorage
     public Action<string>? OnEpochStep { get; set; }
     public Func<Task>? BeforeFirstSetCurrent { get; set; }
     public Func<Task>? BeforePin { get; set; }
+    public Func<Task>? BeforeEpochGet { get; set; }
 
     public static BookkeepingImage Capture(InMemoryContentBookkeeping memory)
     {
@@ -193,7 +194,16 @@ internal sealed class RecordingStorage : IContentStoreStorage
     private sealed class RecordingEpochs(RecordingStorage owner) : IContentEpochKeyStore
     {
         public ValueTask<ContentEpochKey?> GetCurrentAsync(TenantId tenant, CancellationToken cancellationToken = default) => owner.MemoryEpochs.GetCurrentAsync(tenant, cancellationToken);
-        public ValueTask<ContentEpochKey?> GetAsync(TenantId tenant, Guid epochId, CancellationToken cancellationToken = default) => owner.MemoryEpochs.GetAsync(tenant, epochId, cancellationToken);
+        public async ValueTask<ContentEpochKey?> GetAsync(TenantId tenant, Guid epochId, CancellationToken cancellationToken = default)
+        {
+            if (owner.BeforeEpochGet is { } hook)
+            {
+                owner.BeforeEpochGet = null;
+                await hook();
+            }
+
+            return await owner.MemoryEpochs.GetAsync(tenant, epochId, cancellationToken);
+        }
 
         public async ValueTask CreateAsync(TenantId tenant, ContentEpochKey epoch, CancellationToken cancellationToken = default)
         {

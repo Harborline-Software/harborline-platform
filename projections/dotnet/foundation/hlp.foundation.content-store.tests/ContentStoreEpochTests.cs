@@ -838,6 +838,68 @@ public sealed class ContentStoreEpochTests
         await Assert.ThrowsAnyAsync<OperationCanceledException>(async () => await pinning.PinEpochAsync(Tenant, epoch, cancelPin.Token));
     }
 
+    [Fact]
+    public async Task A_read_that_took_its_row_just_before_a_rotation_finished_reads_the_new_wrap_and_reports_no_integrity_failure()
+    {
+        var backing = new RecordingStorage();
+        var store = Store(backing);
+        var reference = await Commit(store, Hello);
+        var rotated = Guid.Empty;
+        backing.BeforeEpochGet = async () =>
+        {
+            var rotation = await store.RotateEpochAsync(Tenant, Write("rotate"));
+            await store.RewrapEpochAsync(Tenant, rotation.From!.Value, rotation.To, 5, Write("rewrap"));
+            await store.DestroyEpochAsync(Tenant, rotation.From!.Value, Write("destroy"));
+            rotated = rotation.To;
+        };
+
+        Assert.Equal(Hello, await Read(store, reference));
+
+        Assert.NotEqual(Guid.Empty, rotated);
+        Assert.Empty(store.IntegrityEntries);
+        Assert.True(store.IsIntegrityHealthy);
+    }
+
+    [Fact]
+    public async Task A_read_racing_two_rotations_follows_the_row_until_it_finds_a_key()
+    {
+        var backing = new RecordingStorage();
+        var store = Store(backing);
+        var reference = await Commit(store, Hello);
+        async Task Turn(string name)
+        {
+            var rotation = await store.RotateEpochAsync(Tenant, Write("rotate-" + name));
+            await store.RewrapEpochAsync(Tenant, rotation.From!.Value, rotation.To, 5, Write("rewrap-" + name));
+            await store.DestroyEpochAsync(Tenant, rotation.From!.Value, Write("destroy-" + name));
+        }
+
+        backing.BeforeEpochGet = async () =>
+        {
+            await Turn("first");
+            backing.BeforeEpochGet = () => Turn("second");
+        };
+
+        Assert.Equal(Hello, await Read(store, reference));
+        Assert.Empty(store.IntegrityEntries);
+    }
+
+    [Fact]
+    public async Task A_read_that_loses_its_authorization_while_following_the_row_is_refused_as_not_found()
+    {
+        var backing = new RecordingStorage();
+        var store = Store(backing);
+        var reference = await Commit(store, Hello);
+        var epoch = (await store.StorageItemAsync(Tenant, reference.ContentId)).EpochId;
+        backing.BeforeEpochGet = async () =>
+        {
+            await store.RemoveReferenceAsync(Tenant, reference, HoldStatus.None, "dispose");
+            await backing.MemoryEpochs.DestroyAsync(Tenant, epoch);
+        };
+
+        await Assert.ThrowsAsync<ContentNotFoundException>(() => Read(store, reference));
+        Assert.Empty(store.IntegrityEntries);
+    }
+
     private sealed class Crash : Exception;
 
     private sealed class InjectedFault : Exception;
