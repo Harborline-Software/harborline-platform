@@ -719,6 +719,8 @@ public sealed class RecordWriteOperation
     }
 
     /// <summary>Appends an immutable amendment against the exact observed causal head.</summary>
+    /// <remarks>The gate decides first, on an untyped request naming the record id, before any store read. A decider that
+    /// scopes an amend by Record Type resolves the record itself; a denied caller learns nothing about whether it exists.</remarks>
     public ValueTask<RecordTemporalWriteOutcome> AmendAsync(RecordWriteScope scope,
         RecordTemporalAmendRequest request, CancellationToken cancellationToken = default)
     {
@@ -768,43 +770,37 @@ public sealed class RecordWriteOperation
         catch (Exception error) when (error is EncoderFallbackException or InvalidOperationException or FormatException)
         { return TemporalRefused(new(ValidateStage, BodyInvalid, [])); }
         basis = basis is null ? null : new(basis.Revision, basis.Hash);
-        RecordTemporalTarget? metadata = null;
-        if (kind == RecordTemporalCommandKind.Amend)
-        {
-            // The amend's decision is typed by the target's Record Type, so this one read of its type precedes the gate.
-            // A missing target therefore answers only after the gate, on an untyped request: a caller the gate denies
-            // cannot tell a record that does not exist from one it may not amend (CWE-203).
-            metadata = await _temporalRecords.FindTemporalTargetAsync(scope.Tenant, target!, ct).ConfigureAwait(false);
-            if (metadata is not null)
-            {
-                if (TemporalBlank(metadata.RecordTypeId)) throw new InvalidOperationException("The temporal target has no type.");
-                type = metadata.RecordTypeId;
-            }
-        }
-        var digest = string.Empty;
-        if (type is not null)
-        {
-            try
-            {
-                digest = RecordWriteIntent.Digest(RecordTemporalJournalBinding.EncodeIntent(scope.Tenant, type, kind,
-                    target, basis, from, to, reason, version, body));
-            }
-            catch (Exception error) when (error is EncoderFallbackException or InvalidOperationException or FormatException or OverflowException)
-            { return TemporalRefused(new(ValidateStage, BodyInvalid, [])); }
-        }
         var key = new RecordWriteOperationKey(scope.Tenant, scope.ActorId, operationId);
         var instant = _clock.GetUtcNow();
         var recordId = target ?? MintRecordId();
         IReadOnlyDictionary<string, JsonNode?> fields = kind == RecordTemporalCommandKind.Create ? NoFields
             : new Dictionary<string, JsonNode?>(body.Select(member =>
                 new KeyValuePair<string, JsonNode?>(member.Key, member.Value?.DeepClone())), StringComparer.Ordinal).AsReadOnly();
+        // RW-1 and the owner's ruling of 2026-11-05 (T-616, "Option A"): an amend is decided before any read, on an untyped
+        // request naming only the record id. Nothing the gate sees or answers depends on whether the record exists, so a
+        // caller it denies cannot tell a missing record from one it may not amend (CWE-203). A create is typed by the
+        // requested Record Type (RecordCreationAuthorization).
         var access = await _access.CheckWithEvidenceAsync(new AccessRequest(WriteAct, scope.ActorId, scope.Tenant,
             new AccessRecord(scope.Tenant, RecordKind, recordId, fields) { RecordTypeId = type }, instant), ct).ConfigureAwait(false);
         if (!access.Check.Allowed)
             return TemporalRefused(new(AuthorizeStage, access.Check.Reason, [])) with { Decision = access.Evidence };
         var evidence = access.Evidence ?? throw new InvalidOperationException("The gate allowed without its evidence.");
-        if (kind == RecordTemporalCommandKind.Amend && metadata is null)
-            return TemporalStatus(RecordTemporalWriteStatus.RecordNotFound, "/record_id") with { Decision = evidence };
+        RecordTemporalTarget? metadata = null;
+        if (kind == RecordTemporalCommandKind.Amend)
+        {
+            metadata = await _temporalRecords.FindTemporalTargetAsync(scope.Tenant, target!, ct).ConfigureAwait(false);
+            if (metadata is null) return TemporalStatus(RecordTemporalWriteStatus.RecordNotFound, "/record_id") with { Decision = evidence };
+            if (TemporalBlank(metadata.RecordTypeId)) throw new InvalidOperationException("The temporal target has no type.");
+            type = metadata.RecordTypeId;
+        }
+        string digest;
+        try
+        {
+            digest = RecordWriteIntent.Digest(RecordTemporalJournalBinding.EncodeIntent(scope.Tenant, type!, kind,
+                target, basis, from, to, reason, version, body));
+        }
+        catch (Exception error) when (error is EncoderFallbackException or InvalidOperationException or FormatException or OverflowException)
+        { return TemporalRefused(new(ValidateStage, BodyInvalid, [])) with { Decision = evidence }; }
         var prior = await _temporalReceipts.FindTemporalOperationAsync(key, ct).ConfigureAwait(false);
         if (prior is not null) return SettleTemporal(prior, key, type!, target, digest) with { Decision = evidence };
         if (metadata is { IsTemporal: false })
