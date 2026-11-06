@@ -1195,7 +1195,6 @@ public sealed class InMemoryContentStore
 
     private static void RequireEvidence(ContentStoreWrite write)
     {
-        ArgumentNullException.ThrowIfNull(write);
         ArgumentNullException.ThrowIfNull(write.Operation);
         ArgumentNullException.ThrowIfNull(write.Audit);
         write.Operation.Validate();
@@ -1642,7 +1641,7 @@ public sealed class InMemoryContentStore
         try
         {
             // Taken before any segment is read: a verified read may close only the episode that existed when it began.
-            var episodeAtStart = verifiesWholeItem ? await _bookkeeping.FindIntegrityAsync(item.Tenant, item.StageId, cancellationToken).ConfigureAwait(false) : null;
+            var episodeAtStart = await _bookkeeping.FindIntegrityAsync(item.Tenant, item.StageId, cancellationToken).ConfigureAwait(false);
             var body = new ContentReadStream(item, _bytes, owner, first, last, offset, length, verifiesWholeItem, context, episodeAtStart, ReportIntegrityAsync, ResolveVerifiedAsync);
             await body.VerifyFirstSegmentAsync(wrapKey, cancellationToken).ConfigureAwait(false);
             return body;

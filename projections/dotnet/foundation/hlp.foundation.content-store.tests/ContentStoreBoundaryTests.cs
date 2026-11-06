@@ -991,6 +991,60 @@ public sealed class ContentStoreBoundaryTests
         Assert.False(store.IsIntegrityHealthy);
     }
 
+    [Fact]
+    public async Task Clause_1_each_episode_write_has_its_own_stated_operation_identity()
+    {
+        var backing = new RecordingStorage();
+        var store = Store(backing);
+        var reference = await CommitTwoSegments(store);
+        await store.CorruptCiphertextAsync(Tenant, reference.ContentId, 1);
+        await Assert.ThrowsAsync<ContentIntegrityException>(() => ReadAll(store, reference, Alice));
+        await store.CorruptCiphertextAsync(Tenant, reference.ContentId, 1);
+        backing.StagedOperations.Clear();
+        await ReadAll(store, reference, Alice);
+
+        var operation = Assert.Single(backing.StagedOperations);
+        Assert.StartsWith("content-integrity-recovery:", operation.CommandId, StringComparison.Ordinal);
+        Assert.Equal(operation.IdempotencyKey, operation.Fingerprint);
+        Assert.DoesNotContain("-", operation.IdempotencyKey, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Q34_a_finished_body_read_again_opens_no_second_recovery()
+    {
+        var backing = new RecordingStorage();
+        var store = Store(backing);
+        var reference = await CommitTwoSegments(store);
+        await store.CorruptCiphertextAsync(Tenant, reference.ContentId, 1);
+        await Assert.ThrowsAsync<ContentIntegrityException>(() => ReadAll(store, reference, Alice));
+        await store.CorruptCiphertextAsync(Tenant, reference.ContentId, 1);
+        await using var body = (await store.ReadAsync(Tenant, reference, true, Alice)).Body;
+        await body.CopyToAsync(Stream.Null);
+        var begun = backing.TransactionsBegun;
+
+        Assert.Equal(0, await body.ReadAsync(new byte[1].AsMemory()));
+        Assert.Equal(begun, backing.TransactionsBegun);
+    }
+
+    [Fact]
+    public async Task Clause_1_a_null_write_is_refused_on_each_store_write()
+    {
+        var store = Store(new RecordingStorage());
+        var reference = await store.CommitReferenceAsync(Tenant, await Put(store, "put"), new("record-1", "0"), "a.txt", Write("commit"));
+        await Assert.ThrowsAsync<ArgumentNullException>(async () => await store.PutAsync(Tenant, new MemoryStream(Hello), "text/plain", null, (ContentStoreWrite)null!));
+        await Assert.ThrowsAsync<ArgumentNullException>(async () => await store.CommitReferenceAsync(Tenant, Guid.NewGuid(), new("r", "e"), "a.txt", (ContentStoreWrite)null!));
+        await Assert.ThrowsAsync<ArgumentNullException>(async () => await store.RemoveReferenceAsync(Tenant, reference, HoldStatus.None, "run", (ContentStoreWrite)null!));
+    }
+
+    [Fact]
+    public async Task Eng7_a_display_name_ending_in_part_of_a_percent_escape_stays_a_plain_filename()
+    {
+        var store = Store(new RecordingStorage());
+        var reference = await store.CommitReferenceAsync(Tenant, await Put(store, "put"), new("record-1", "0"), "a%4", Write("commit"));
+        await using var body = (await store.ReadAsync(Tenant, reference, true, Alice)).Body;
+        Assert.Equal("attachment; filename=\"a%4\"", (await store.ReadAsync(Tenant, reference, true, Alice)).ContentDisposition);
+    }
+
     private sealed class InjectedFault : Exception;
 
     // A stand-in records write: it owns the boundary execution and its one transaction, and hands the store only the session.

@@ -15,6 +15,7 @@ internal sealed class RecordingStorage : IContentStoreStorage
     public List<string> Events { get; } = [];
     public List<ContentStoreOperation> StagedRecords { get; } = [];
     public List<int> SegmentReads { get; } = [];
+    public List<KernelOperationIdentity> StagedOperations { get; } = [];
     private int _transactionsBegun;
     public int TransactionsBegun => Volatile.Read(ref _transactionsBegun);
     public List<(ContentStoreOperation Operation, BookkeepingImage Image)> Commits { get; } = [];
@@ -80,7 +81,11 @@ internal sealed class RecordingStorage : IContentStoreStorage
         private IContentBookkeepingSession Session => inner;
         private ContentStoreOperation _operation;
 
-        public ValueTask StageOperationAsync(KernelOperationIdentity operation, CancellationToken cancellationToken = default) => Session.StageOperationAsync(operation, cancellationToken);
+        public ValueTask StageOperationAsync(KernelOperationIdentity operation, CancellationToken cancellationToken = default)
+        {
+            lock (owner.StagedOperations) owner.StagedOperations.Add(operation);
+            return Session.StageOperationAsync(operation, cancellationToken);
+        }
 
         public ValueTask StageRecordAsync(ContentStoreOperation record, CancellationToken cancellationToken = default)
         {
