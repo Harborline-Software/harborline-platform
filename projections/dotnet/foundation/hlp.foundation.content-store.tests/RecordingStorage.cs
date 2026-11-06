@@ -26,6 +26,7 @@ internal sealed class RecordingStorage : IContentStoreStorage
     public Action? BeforeFindStaged { get; set; }
     public Action<int>? BeforeSegmentRead { get; set; }
     public Action? BeforeTryCreate { get; set; }
+    public Action? AfterCommit { get; set; }
     public Func<Task>? BeforeBegin { get; set; }
     public Func<Task>? BeforeFindItemForUpdate { get; set; }
 
@@ -152,6 +153,7 @@ internal sealed class RecordingStorage : IContentStoreStorage
             var result = await inner.CommitAsync(cancellationToken);
             lock (owner.Commits) owner.Commits.Add((_operation, Capture(owner.Memory)));
             owner.Log("unit-commit");
+            owner.AfterCommit?.Invoke();
             return result;
         }
 
@@ -173,6 +175,7 @@ internal sealed class RecordingStorage : IContentStoreStorage
 
         public ValueTask DeleteAsync(Guid itemKey, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             if (owner.ThrowOnDelete is { } failure) throw failure;
             owner.Log("bytes-delete");
             return owner.MemoryBytes.DeleteAsync(itemKey, cancellationToken);
@@ -182,6 +185,7 @@ internal sealed class RecordingStorage : IContentStoreStorage
 
         public async ValueTask<bool> DeleteIfWrittenAtOrBeforeAsync(Guid itemKey, DateTimeOffset cutoff, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             if (owner.ThrowOnDelete is { } failure) throw failure;
             var deleted = await owner.MemoryBytes.DeleteIfWrittenAtOrBeforeAsync(itemKey, cutoff, cancellationToken);
             if (deleted) owner.Log("bytes-delete");

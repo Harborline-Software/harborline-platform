@@ -1173,6 +1173,43 @@ public sealed class ContentStoreBoundaryTests
         Assert.Equal(new byte[1], segment.Ciphertext);
     }
 
+    [Fact]
+    public async Task Clause_5_a_token_cancelled_after_the_commit_cannot_fail_the_write_or_stop_its_cleanup()
+    {
+        var clock = new Clock();
+        var backing = new RecordingStorage();
+        var store = Store(backing, clock);
+        var held = await store.CommitReferenceAsync(Tenant, await Put(store, "put"), new("record-1", "0"), "a.txt", Write("commit"));
+
+        using var duplicateToken = new CancellationTokenSource();
+        var duplicate = await Put(store, "put-2");
+        backing.AfterCommit = duplicateToken.Cancel;
+        var second = await store.CommitReferenceAsync(Tenant, duplicate, new("record-2", "0"), "b.txt", Write("commit-2"), duplicateToken.Token);
+        Assert.Equal(held.ContentId, second.ContentId);
+        Assert.Null(await backing.Bytes.ReadSegmentAsync(duplicate, 0));
+
+        using var removalToken = new CancellationTokenSource();
+        backing.AfterCommit = removalToken.Cancel;
+        Assert.False(await store.RemoveReferenceAsync(Tenant, second, HoldStatus.None, "dispose-2", Write("remove-2"), removalToken.Token));
+        using var lastToken = new CancellationTokenSource();
+        backing.AfterCommit = lastToken.Cancel;
+        var stage = (await store.StorageItemAsync(Tenant, held.ContentId)).StageId;
+        Assert.True(await store.RemoveReferenceAsync(Tenant, held, HoldStatus.None, "dispose", Write("remove"), lastToken.Token));
+        Assert.Null(await backing.Bytes.ReadSegmentAsync(stage, 0));
+
+        var abandoned = await Put(store, "abandoned");
+        var orphan = Guid.NewGuid();
+        var writer = await backing.Bytes.OpenWriteAsync(orphan, clock.GetUtcNow());
+        await writer.AppendAsync(new([1], [2]));
+        await writer.CompleteAsync(clock.GetUtcNow());
+        clock.Advance(Expiry);
+        using var sweepToken = new CancellationTokenSource();
+        backing.AfterCommit = sweepToken.Cancel;
+        Assert.Equal(1, await store.SweepExpiredAsync("sweep", Write("sweep", "sys.scheduler"), sweepToken.Token));
+        Assert.Null(await backing.Bytes.ReadSegmentAsync(abandoned, 0));
+        Assert.Null(await backing.Bytes.ReadSegmentAsync(orphan, 0));
+    }
+
     private sealed class InjectedFault : Exception;
 
     // A stand-in records write: it owns the boundary execution and its one transaction, and hands the store only the session.

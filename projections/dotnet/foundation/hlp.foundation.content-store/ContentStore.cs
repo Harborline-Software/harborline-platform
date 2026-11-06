@@ -1152,11 +1152,11 @@ public sealed class InMemoryContentStore
 
         if (expired is not null)
         {
-            if (outcome == WriteOutcome.Committed) await DestroyAsync(expired, cancellationToken).ConfigureAwait(false);
+            if (outcome == WriteOutcome.Committed) await DestroyAsync(expired).ConfigureAwait(false);
             throw StagingExpiredRefusal();
         }
 
-        if (collapsed is not null && outcome == WriteOutcome.Committed) await DestroyAsync(collapsed, cancellationToken).ConfigureAwait(false);
+        if (collapsed is not null && outcome == WriteOutcome.Committed) await DestroyAsync(collapsed).ConfigureAwait(false);
         return new(held!.ContentId, held.Length, held.MediaType, displayName, owner);
     }
 
@@ -1384,7 +1384,7 @@ public sealed class InMemoryContentStore
         }, cancellationToken).ConfigureAwait(false);
 
         if (reclaimed is null) return false;
-        if (outcome == WriteOutcome.Committed) await DestroyAsync(reclaimed, cancellationToken).ConfigureAwait(false);
+        if (outcome == WriteOutcome.Committed) await DestroyAsync(reclaimed).ConfigureAwait(false);
         return true;
     }
 
@@ -1431,11 +1431,11 @@ public sealed class InMemoryContentStore
 
         if (outcome == WriteOutcome.Committed)
         {
-            foreach (var item in reclaimed) await DestroyAsync(item, cancellationToken).ConfigureAwait(false);
+            foreach (var item in reclaimed) await DestroyAsync(item).ConfigureAwait(false);
             // Checked again now: a put may have staged these bytes or completed its write since they were listed.
             foreach (var orphan in orphans)
             {
-                if (!await _bookkeeping.NamesBytesAsync(orphan, cancellationToken).ConfigureAwait(false)) await DeleteOrphanAsync(orphan, cutoff, cancellationToken).ConfigureAwait(false);
+                if (!await _bookkeeping.NamesBytesAsync(orphan).ConfigureAwait(false)) await DeleteOrphanAsync(orphan, cutoff).ConfigureAwait(false);
             }
         }
 
@@ -1591,18 +1591,19 @@ public sealed class InMemoryContentStore
         return true;
     }
 
-    // Runs only after the transaction that removed the item's last entry committed. Destroying key material and bytes cannot be undone.
-    private async ValueTask DestroyAsync(ContentStoreItem item, CancellationToken cancellationToken)
+    // Runs only after the transaction that removed the item's last entry committed. Destroying key material and bytes cannot
+    // be undone. It takes no token: the write has already succeeded, so cancelling now must not report it as failed (CWE-460).
+    private async ValueTask DestroyAsync(ContentStoreItem item)
     {
         CryptographicOperations.ZeroMemory(item.WrappedDataKey);
-        await DeleteBytesAsync(item.StageId, cancellationToken).ConfigureAwait(false);
+        await DeleteBytesAsync(item.StageId).ConfigureAwait(false);
     }
 
-    private async ValueTask DeleteOrphanAsync(Guid itemKey, DateTimeOffset cutoff, CancellationToken cancellationToken)
+    private async ValueTask DeleteOrphanAsync(Guid itemKey, DateTimeOffset cutoff)
     {
         try
         {
-            await _bytes.DeleteIfWrittenAtOrBeforeAsync(itemKey, cutoff, cancellationToken).ConfigureAwait(false);
+            await _bytes.DeleteIfWrittenAtOrBeforeAsync(itemKey, cutoff).ConfigureAwait(false);
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
@@ -1612,11 +1613,11 @@ public sealed class InMemoryContentStore
 
     // The removal already committed, so a failed delete must not report the operation as failed (CWE-460). The bytes now
     // have no entry, and the sweep deletes them after the grace period.
-    private async ValueTask DeleteBytesAsync(Guid itemKey, CancellationToken cancellationToken)
+    private async ValueTask DeleteBytesAsync(Guid itemKey)
     {
         try
         {
-            await _bytes.DeleteAsync(itemKey, cancellationToken).ConfigureAwait(false);
+            await _bytes.DeleteAsync(itemKey).ConfigureAwait(false);
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
