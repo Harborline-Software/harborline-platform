@@ -339,6 +339,8 @@ public interface IContentBookkeepingSession : IKernelTransactionParticipant<Cont
     ValueTask<ContentStoreItem?> FindItemForUpdateAsync(ContentStorageItemKey key, CancellationToken cancellationToken = default);
     /// <summary>Reads a staged item's entry, or null.</summary>
     ValueTask<ContentStoreItem?> FindStagedAsync(Guid stageId, CancellationToken cancellationToken = default);
+    /// <summary>Reads a staged item's entry and holds its row until the transaction ends, or answers null, so what it read is what a promotion moves.</summary>
+    ValueTask<ContentStoreItem?> FindStagedForUpdateAsync(Guid stageId, CancellationToken cancellationToken = default);
     /// <summary>Reads an item's integrity episode, or null.</summary>
     ValueTask<ContentIntegrityEntry?> FindIntegrityAsync(TenantId tenant, Guid itemKey, CancellationToken cancellationToken = default);
     /// <summary>Writes a staged item's entry. The store calls it only after the item's bytes are durable.</summary>
@@ -365,8 +367,17 @@ public interface IContentBookkeepingSession : IKernelTransactionParticipant<Cont
     ValueTask<bool> DeleteItemIfUnownedAsync(ContentStorageItemKey key, CancellationToken cancellationToken = default);
     /// <summary>Lists up to <paramref name="limit"/> staged and committed entries of the tenant wrapped under the epoch.</summary>
     ValueTask<IReadOnlyList<ContentStoreItem>> ItemsUnderEpochAsync(TenantId tenant, Guid epochId, int limit, CancellationToken cancellationToken = default);
-    /// <summary>Whether any staged or committed entry of the tenant is wrapped under the epoch.</summary>
-    ValueTask<bool> NamesEpochAsync(TenantId tenant, Guid epochId, CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Holds the epoch against retirement until this transaction ends, as <c>SELECT ... FOR SHARE</c> does, so rows this
+    /// transaction writes under it can't lose their key. Any number of transactions can pin one epoch. It waits for an open
+    /// retirement, and false means the epoch is retired and must not be used.
+    /// </summary>
+    ValueTask<bool> PinEpochAsync(TenantId tenant, Guid epochId, CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Takes the epoch exclusively, waiting for every transaction pinning it, then retires it if no staged or committed
+    /// entry of the tenant names it. Commits as a durable marker that refuses every later pin. False means an entry still names it.
+    /// </summary>
+    ValueTask<bool> RetireEpochIfUnnamedAsync(TenantId tenant, Guid epochId, CancellationToken cancellationToken = default);
     /// <summary>
     /// Replaces an entry's wrap and epoch if the entry still holds the epoch <paramref name="item"/> names; false means it
     /// was removed or already moved. Only ever given wrapped key material.
@@ -575,6 +586,9 @@ public sealed class InMemoryContentBookkeeping : IContentBookkeeping
     private readonly Dictionary<(TenantId Tenant, string? Record), long> _quota = [];
     private readonly Dictionary<(TenantId Tenant, string? Record), long> _pendingReservations = [];
     private readonly Dictionary<object, Transaction> _rowLocks = [];
+    private readonly Dictionary<(TenantId Tenant, Guid EpochId), HashSet<Transaction>> _epochPins = [];
+    private readonly Dictionary<(TenantId Tenant, Guid EpochId), Transaction> _epochRetirements = [];
+    private readonly HashSet<(TenantId Tenant, Guid EpochId)> _retiredEpochs = [];
     private readonly HashSet<string> _idempotencyKeys = new(StringComparer.Ordinal);
     private readonly List<KernelAuditEvidence> _audits = [];
 
@@ -697,6 +711,12 @@ public sealed class InMemoryContentBookkeeping : IContentBookkeeping
             lock (owner._gate) return ValueTask.FromResult(CurrentStaged(stageId));
         }
 
+        public async ValueTask<ContentStoreItem?> FindStagedForUpdateAsync(Guid stageId, CancellationToken cancellationToken = default)
+        {
+            await LockAsync(stageId, cancellationToken).ConfigureAwait(false);
+            lock (owner._gate) return CurrentStaged(stageId);
+        }
+
         public ValueTask<ContentIntegrityEntry?> FindIntegrityAsync(TenantId tenant, Guid itemKey, CancellationToken cancellationToken = default)
         {
             lock (owner._gate) return ValueTask.FromResult(_integrity.GetValueOrDefault((tenant, itemKey)) ?? owner._integrity.GetValueOrDefault((tenant, itemKey)));
@@ -804,9 +824,51 @@ public sealed class InMemoryContentBookkeeping : IContentBookkeeping
             }
         }
 
-        public ValueTask<bool> NamesEpochAsync(TenantId tenant, Guid epochId, CancellationToken cancellationToken = default)
+        public async ValueTask<bool> PinEpochAsync(TenantId tenant, Guid epochId, CancellationToken cancellationToken = default)
         {
-            lock (owner._gate) return ValueTask.FromResult(VisibleRows().Any(item => item.Tenant == tenant && item.EpochId == epochId));
+            var epoch = (tenant, epochId);
+            while (true)
+            {
+                Task other;
+                lock (owner._gate)
+                {
+                    if (owner._retiredEpochs.Contains(epoch)) return false;
+                    if (!owner._epochRetirements.TryGetValue(epoch, out var retiring) || retiring == this)
+                    {
+                        if (!owner._epochPins.TryGetValue(epoch, out var pins)) owner._epochPins[epoch] = pins = [];
+                        pins.Add(this);
+                        return true;
+                    }
+
+                    other = retiring._ended.Task;
+                }
+
+                await other.WaitAsync(cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        public async ValueTask<bool> RetireEpochIfUnnamedAsync(TenantId tenant, Guid epochId, CancellationToken cancellationToken = default)
+        {
+            var epoch = (tenant, epochId);
+            while (true)
+            {
+                Task other;
+                lock (owner._gate)
+                {
+                    var holder = owner._epochRetirements.TryGetValue(epoch, out var retiring) && retiring != this ? retiring
+                        : owner._epochPins.TryGetValue(epoch, out var pins) ? pins.FirstOrDefault(pin => pin != this) : null;
+                    if (holder is null)
+                    {
+                        if (VisibleRows().Any(item => item.Tenant == tenant && item.EpochId == epochId)) return false;
+                        owner._epochRetirements[epoch] = this;
+                        return true;
+                    }
+
+                    other = holder._ended.Task;
+                }
+
+                await other.WaitAsync(cancellationToken).ConfigureAwait(false);
+            }
         }
 
         public async ValueTask<bool> ReplaceWrapAsync(ContentStoreItem item, Guid epochId, byte[] wrappedDataKey, byte[] wrapNonce, byte[] wrapTag, CancellationToken cancellationToken = default)
@@ -915,6 +977,17 @@ public sealed class InMemoryContentBookkeeping : IContentBookkeeping
                 }
 
                 foreach (var row in owner._rowLocks.Where(pair => pair.Value == this).Select(pair => pair.Key).ToArray()) owner._rowLocks.Remove(row);
+                foreach (var epoch in owner._epochRetirements.Where(pair => pair.Value == this).Select(pair => pair.Key).ToArray())
+                {
+                    owner._epochRetirements.Remove(epoch);
+                    if (publish) owner._retiredEpochs.Add(epoch);
+                }
+
+                foreach (var (epoch, pins) in owner._epochPins.ToArray())
+                {
+                    pins.Remove(this);
+                    if (pins.Count == 0) owner._epochPins.Remove(epoch);
+                }
             }
 
             _ended.SetResult();
@@ -1231,23 +1304,26 @@ public sealed class InMemoryContentStore
                 }
 
                 var contentId = new ContentId(ContentId.Algorithm + Convert.ToHexStringLower(id.GetHashAndReset()));
-                var (epochId, epochKey) = await CurrentEpochAsync(tenant, dataKeyWrapKey, cancellationToken).ConfigureAwait(false);
-                byte[] wrapped, wrapNonce, wrapTag;
-                try
-                {
-                    (wrapped, wrapNonce, wrapTag) = Wrap(epochKey, dataKey, contentId);
-                }
-                finally
-                {
-                    CryptographicOperations.ZeroMemory(epochKey);
-                }
-
-                var item = new ContentStoreItem(stageId, tenant, contentId, length, mediaType, _clock.GetUtcNow(), wrapped, wrapNonce, wrapTag, noncePrefix, SegmentSizeBytes, epochId);
+                var createdUtc = _clock.GetUtcNow();
                 await bytes.CompleteAsync(_clock.GetUtcNow(), cancellationToken).ConfigureAwait(false);
                 await RunAsync(ContentStoreOperation.Put, write, async (session, token) =>
                 {
-                    await session.AddStagedAsync(item, token).ConfigureAwait(false);
-                    return true;
+                    while (true)
+                    {
+                        var (epochId, epochKey) = await CurrentEpochAsync(tenant, dataKeyWrapKey, token).ConfigureAwait(false);
+                        try
+                        {
+                            // A retired epoch can't be the current one any more, so the next look finds a usable one.
+                            if (!await session.PinEpochAsync(tenant, epochId, token).ConfigureAwait(false)) continue;
+                            var (wrapped, wrapNonce, wrapTag) = Wrap(epochKey, dataKey, contentId);
+                            await session.AddStagedAsync(new ContentStoreItem(stageId, tenant, contentId, length, mediaType, createdUtc, wrapped, wrapNonce, wrapTag, noncePrefix, SegmentSizeBytes, epochId), token).ConfigureAwait(false);
+                            return true;
+                        }
+                        finally
+                        {
+                            CryptographicOperations.ZeroMemory(epochKey);
+                        }
+                    }
                 }, cancellationToken).ConfigureAwait(false);
                 return stageId;
             }
@@ -1280,7 +1356,8 @@ public sealed class InMemoryContentStore
         ContentStoreItem? expired = null, collapsed = null, held = null;
         var outcome = await RunAsync(ContentStoreOperation.Commit, write, async (session, token) =>
         {
-            if (await session.FindStagedAsync(stageId, token).ConfigureAwait(false) is not { } staged || staged.Tenant != tenant) throw StagingExpiredRefusal();
+            // Held from here, so a rewrap can't change the wrap this promotion carries into the committed item.
+            if (await session.FindStagedForUpdateAsync(stageId, token).ConfigureAwait(false) is not { } staged || staged.Tenant != tenant) throw StagingExpiredRefusal();
             if (StagedCutoff() >= staged.CreatedUtc)
             {
                 // Inside a caller's execution the refusal must fail the join and doom it; the sweep reclaims the stage.
@@ -1657,7 +1734,13 @@ public sealed class InMemoryContentStore
             var moved = 0;
             await RunAsync(ContentStoreOperation.EpochRewrap, write, async (session, token) =>
             {
-                foreach (var item in await session.ItemsUnderEpochAsync(tenant, fromEpoch, batchSize, token).ConfigureAwait(false))
+                var items = await session.ItemsUnderEpochAsync(tenant, fromEpoch, batchSize, token).ConfigureAwait(false);
+                if (items.Count != 0 && !await session.PinEpochAsync(tenant, toEpoch, token).ConfigureAwait(false))
+                {
+                    throw new InvalidOperationException("That epoch is being destroyed.");
+                }
+
+                foreach (var item in items)
                 {
                     var (wrapped, nonce, tag) = MoveWrap(item, fromKey, toKey);
                     if (await session.ReplaceWrapAsync(item, toEpoch, wrapped, nonce, tag, token).ConfigureAwait(false)) moved++;
@@ -1713,7 +1796,7 @@ public sealed class InMemoryContentStore
         if ((await _epochs.GetCurrentAsync(tenant, cancellationToken).ConfigureAwait(false))?.EpochId == epochId) throw new ContentEpochInUseException(epochId);
         await RunAsync(ContentStoreOperation.EpochDestroy, write, async (session, token) =>
         {
-            if (await session.NamesEpochAsync(tenant, epochId, token).ConfigureAwait(false)) throw new ContentEpochInUseException(epochId);
+            if (!await session.RetireEpochIfUnnamedAsync(tenant, epochId, token).ConfigureAwait(false)) throw new ContentEpochInUseException(epochId);
             return true;
         }, cancellationToken).ConfigureAwait(false);
         await _epochs.DestroyAsync(tenant, epochId, CancellationToken.None).ConfigureAwait(false); // the audit committed; the destroy is not cancellable

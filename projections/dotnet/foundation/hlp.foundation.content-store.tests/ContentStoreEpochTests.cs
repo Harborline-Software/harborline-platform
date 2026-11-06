@@ -263,8 +263,7 @@ public sealed class ContentStoreEpochTests
         Assert.Empty(await unit.ItemsUnderEpochAsync(Tenant, item.EpochId, 5));
         Assert.Single(await unit.ItemsUnderEpochAsync(Tenant, moved, 5));
         Assert.Empty(await unit.ItemsUnderEpochAsync(Other, moved, 5));
-        Assert.False(await unit.NamesEpochAsync(Other, moved));
-        Assert.True(await unit.NamesEpochAsync(Tenant, moved));
+        Assert.False(await unit.RetireEpochIfUnnamedAsync(Tenant, moved)); // its own write names it
     }
 
     [Fact]
@@ -653,6 +652,190 @@ public sealed class ContentStoreEpochTests
         var live = bytes.LiveSegments(key);
         Assert.True(await bytes.DeleteIfWrittenAtOrBeforeAsync(key, DateTimeOffset.UnixEpoch));
         Assert.Empty(live);
+    }
+
+    private static Task<T> OnAnotherRequest<T>(Func<Task<T>> work)
+    {
+        using (ExecutionContext.SuppressFlow()) return Task.Run(work);
+    }
+
+    [Fact]
+    public async Task A_destroy_waits_for_a_joined_rewrap_into_that_epoch_and_is_refused_once_the_rewrap_commits()
+    {
+        var backing = new RecordingStorage();
+        var store = Store(backing);
+        var reference = await Commit(store, Hello);
+        var first = await store.RotateEpochAsync(Tenant, Write("rotate-1"));
+        var second = await store.RotateEpochAsync(Tenant, Write("rotate-2")); // first.To is now an old epoch no row names
+        var caller = new CallerTransaction(backing.Bookkeeping);
+        Task<bool>? destroy = null;
+
+        await caller.RunAsync(async session =>
+        {
+            Assert.Equal(1, await store.RewrapEpochAsync(Tenant, first.From!.Value, first.To, 5, Write("joined", Scheduler, session)));
+            destroy = OnAnotherRequest(async () => await store.DestroyEpochAsync(Tenant, first.To, Write("destroy")));
+            await Task.Delay(100);
+            Assert.False(destroy.IsCompleted); // the rewrap's pin holds it
+        });
+
+        await Assert.ThrowsAsync<ContentEpochInUseException>(async () => await destroy!.WaitAsync(TimeSpan.FromSeconds(30)));
+        Assert.NotNull(await backing.Epochs.GetAsync(Tenant, first.To));
+        Assert.Equal(first.To, (await store.StorageItemAsync(Tenant, reference.ContentId)).EpochId);
+        Assert.Equal(Hello, await Read(store, reference));
+        Assert.NotEqual(first.To, second.To);
+    }
+
+    [Fact]
+    public async Task A_destroy_goes_ahead_once_a_joined_rewrap_into_that_epoch_rolls_back_and_the_items_keep_their_old_epoch()
+    {
+        var backing = new RecordingStorage();
+        var store = Store(backing);
+        var reference = await Commit(store, Hello);
+        var first = await store.RotateEpochAsync(Tenant, Write("rotate-1"));
+        await store.RotateEpochAsync(Tenant, Write("rotate-2"));
+        var caller = new CallerTransaction(backing.Bookkeeping);
+        Task<bool>? destroy = null;
+
+        await Assert.ThrowsAsync<InjectedFault>(async () => await caller.RunAsync(async session =>
+        {
+            await store.RewrapEpochAsync(Tenant, first.From!.Value, first.To, 5, Write("joined", Scheduler, session));
+            destroy = OnAnotherRequest(async () => await store.DestroyEpochAsync(Tenant, first.To, Write("destroy")));
+            await Task.Delay(100);
+            throw new InjectedFault();
+        }));
+
+        Assert.True(await destroy!.WaitAsync(TimeSpan.FromSeconds(30)));
+        Assert.Equal(first.From, (await store.StorageItemAsync(Tenant, reference.ContentId)).EpochId);
+        Assert.Equal(Hello, await Read(store, reference));
+    }
+
+    [Fact]
+    public async Task A_rewrap_into_a_retired_epoch_is_refused_and_moves_nothing()
+    {
+        var backing = new RecordingStorage();
+        var store = Store(backing);
+        var reference = await Commit(store, Hello);
+        var first = await store.RotateEpochAsync(Tenant, Write("rotate-1"));
+        await store.RotateEpochAsync(Tenant, Write("rotate-2"));
+        backing.OnEpochStep = current => { if (current == "before-destroy") throw new Crash(); };
+        await Assert.ThrowsAsync<Crash>(async () => await store.DestroyEpochAsync(Tenant, first.To, Write("retires-then-crashes")));
+        backing.OnEpochStep = null;
+        Assert.NotNull(await backing.Epochs.GetAsync(Tenant, first.To)); // the key survived, but its retirement committed
+
+        var refused = await Assert.ThrowsAsync<InvalidOperationException>(async () => await store.RewrapEpochAsync(Tenant, first.From!.Value, first.To, 5, Write("rewrap")));
+
+        Assert.Equal("That epoch is being destroyed.", refused.Message);
+        Assert.Equal(first.From, (await store.StorageItemAsync(Tenant, reference.ContentId)).EpochId);
+        Assert.True(await store.DestroyEpochAsync(Tenant, first.To, Write("retried"))); // the retirement is idempotent
+    }
+
+    [Fact]
+    public async Task A_put_that_read_an_epoch_destroyed_before_it_could_pin_it_wraps_under_the_current_one_instead()
+    {
+        var backing = new RecordingStorage();
+        var store = Store(backing);
+        var seeded = await Commit(store, World);
+        var first = await store.RotateEpochAsync(Tenant, Write("rotate-1"));
+        await store.RewrapEpochAsync(Tenant, first.From!.Value, first.To, 5, Write("rewrap-1"));
+        Guid? current = null;
+        backing.BeforePin = async () => current = await OnAnotherRequest(async () =>
+        {
+            var next = await store.RotateEpochAsync(Tenant, Write("rotate-2"));
+            await store.RewrapEpochAsync(Tenant, first.To, next.To, 5, Write("rewrap-2"));
+            await store.DestroyEpochAsync(Tenant, first.To, Write("destroy"));
+            return next.To;
+        });
+
+        var reference = await store.CommitReferenceAsync(Tenant, await store.PutAsync(Tenant, new MemoryStream(Hello), "text/plain", null), new("record-2", "0"), "b.txt");
+
+        Assert.Equal(current, (await store.StorageItemAsync(Tenant, reference.ContentId)).EpochId);
+        Assert.Equal(Hello, await Read(store, reference));
+        Assert.Equal(World, await Read(store, seeded));
+    }
+
+    [Fact]
+    public async Task A_rewrap_of_a_staged_item_is_not_undone_by_a_reference_commit_of_it()
+    {
+        var backing = new RecordingStorage();
+        var store = Store(backing);
+        var stage = await store.PutAsync(Tenant, new MemoryStream(Hello), "text/plain", null);
+        var rotation = await store.RotateEpochAsync(Tenant, Write("rotate"));
+        var rewrap = new CallerTransaction(backing.Bookkeeping);
+        Task<ContentReference>? commit = null;
+
+        await rewrap.RunAsync(async session =>
+        {
+            Assert.Equal(1, await store.RewrapEpochAsync(Tenant, rotation.From!.Value, rotation.To, 5, Write("joined", Scheduler, session)));
+            commit = OnAnotherRequest(async () => await store.CommitReferenceAsync(Tenant, stage, new("record-1", "0"), "a.txt", Write("commit")));
+            await Task.Delay(100);
+            Assert.False(commit.IsCompleted); // the staged row is held by the rewrap
+        });
+
+        var reference = await commit!.WaitAsync(TimeSpan.FromSeconds(30));
+        Assert.Equal(rotation.To, (await store.StorageItemAsync(Tenant, reference.ContentId)).EpochId);
+        Assert.Equal(Hello, await Read(store, reference));
+        Assert.True(await store.DestroyEpochAsync(Tenant, rotation.From!.Value, Write("destroy")));
+        Assert.Equal(Hello, await Read(store, reference));
+    }
+
+    [Fact]
+    public async Task The_in_memory_backing_orders_pins_and_retirement()
+    {
+        var memory = new InMemoryContentBookkeeping();
+        var epoch = Guid.NewGuid();
+
+        var pinned = await memory.BeginTransactionAsync();
+        Assert.True(await pinned.PinEpochAsync(Tenant, epoch));
+        var alsoPinned = await memory.BeginTransactionAsync();
+        Assert.True(await alsoPinned.PinEpochAsync(Tenant, epoch)); // shared
+        var retiring = await memory.BeginTransactionAsync();
+        var retire = Task.Run(async () => await retiring.RetireEpochIfUnnamedAsync(Tenant, epoch));
+        await Task.Delay(50);
+        Assert.False(retire.IsCompleted);
+        await pinned.RollbackAsync();
+        await Task.Delay(50);
+        Assert.False(retire.IsCompleted); // still one pin
+        await alsoPinned.RollbackAsync();
+        Assert.True(await retire.WaitAsync(TimeSpan.FromSeconds(30)));
+
+        var late = await memory.BeginTransactionAsync();
+        var waiting = Task.Run(async () => await late.PinEpochAsync(Tenant, epoch));
+        await Task.Delay(50);
+        Assert.False(waiting.IsCompleted); // an open retirement holds it
+        await retiring.RollbackAsync();
+        Assert.True(await waiting.WaitAsync(TimeSpan.FromSeconds(30))); // rolled back, so it isn't retired
+        await late.RollbackAsync();
+
+        await using (var commit = await memory.BeginTransactionAsync())
+        {
+            Assert.True(await commit.PinEpochAsync(Tenant, epoch)); // its own pin doesn't hold it up
+            Assert.True(await commit.RetireEpochIfUnnamedAsync(Tenant, epoch));
+            Assert.True(await commit.RetireEpochIfUnnamedAsync(Tenant, epoch));
+            Assert.True(await commit.PinEpochAsync(Tenant, epoch)); // nor does its own retirement
+            await commit.CommitAsync();
+        }
+
+        await using var after = await memory.BeginTransactionAsync();
+        Assert.False(await after.PinEpochAsync(Tenant, epoch));
+        Assert.True(await after.PinEpochAsync(Other, epoch)); // another tenant's epoch is separate
+        Assert.True(await after.RetireEpochIfUnnamedAsync(Tenant, epoch)); // a retry after a crash
+    }
+
+    [Fact]
+    public async Task A_waiting_pin_or_retirement_can_be_cancelled()
+    {
+        var memory = new InMemoryContentBookkeeping();
+        var epoch = Guid.NewGuid();
+        await using var holder = await memory.BeginTransactionAsync();
+        Assert.True(await holder.PinEpochAsync(Tenant, epoch));
+        await using var retiring = await memory.BeginTransactionAsync();
+        using var cancelRetire = new CancellationTokenSource(TimeSpan.FromMilliseconds(50));
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(async () => await retiring.RetireEpochIfUnnamedAsync(Tenant, epoch, cancelRetire.Token));
+        await holder.RollbackAsync();
+        Assert.True(await retiring.RetireEpochIfUnnamedAsync(Tenant, epoch));
+        await using var pinning = await memory.BeginTransactionAsync();
+        using var cancelPin = new CancellationTokenSource(TimeSpan.FromMilliseconds(50));
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(async () => await pinning.PinEpochAsync(Tenant, epoch, cancelPin.Token));
     }
 
     private sealed class Crash : Exception;

@@ -44,6 +44,7 @@ internal sealed class RecordingStorage : IContentStoreStorage
     public InMemoryContentEpochKeyStore MemoryEpochs { get; } = new();
     public Action<string>? OnEpochStep { get; set; }
     public Func<Task>? BeforeFirstSetCurrent { get; set; }
+    public Func<Task>? BeforePin { get; set; }
 
     public static BookkeepingImage Capture(InMemoryContentBookkeeping memory)
     {
@@ -123,7 +124,24 @@ internal sealed class RecordingStorage : IContentStoreStorage
         }
 
         public ValueTask<IReadOnlyList<ContentStoreItem>> ItemsUnderEpochAsync(TenantId tenant, Guid epochId, int limit, CancellationToken cancellationToken = default) => inner.ItemsUnderEpochAsync(tenant, epochId, limit, cancellationToken);
-        public ValueTask<bool> NamesEpochAsync(TenantId tenant, Guid epochId, CancellationToken cancellationToken = default) => inner.NamesEpochAsync(tenant, epochId, cancellationToken);
+        public async ValueTask<bool> PinEpochAsync(TenantId tenant, Guid epochId, CancellationToken cancellationToken = default)
+        {
+            if (owner.BeforePin is { } hook)
+            {
+                owner.BeforePin = null;
+                await hook();
+            }
+
+            return await inner.PinEpochAsync(tenant, epochId, cancellationToken);
+        }
+
+        public ValueTask<bool> RetireEpochIfUnnamedAsync(TenantId tenant, Guid epochId, CancellationToken cancellationToken = default) => inner.RetireEpochIfUnnamedAsync(tenant, epochId, cancellationToken);
+
+        public ValueTask<ContentStoreItem?> FindStagedForUpdateAsync(Guid stageId, CancellationToken cancellationToken = default)
+        {
+            owner.BeforeFindStaged?.Invoke();
+            return inner.FindStagedForUpdateAsync(stageId, cancellationToken);
+        }
         public ValueTask<bool> ReplaceWrapAsync(ContentStoreItem item, Guid epochId, byte[] wrappedDataKey, byte[] wrapNonce, byte[] wrapTag, CancellationToken cancellationToken = default) =>
             inner.ReplaceWrapAsync(item, epochId, wrappedDataKey, wrapNonce, wrapTag, cancellationToken);
 
