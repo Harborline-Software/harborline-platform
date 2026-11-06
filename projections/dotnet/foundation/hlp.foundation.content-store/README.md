@@ -95,7 +95,7 @@ The storage port is split by [ADR 0113](https://github.com/Harborline-Software/h
 1. An upload's bytes are complete and durable (`IContentByteWriter.CompleteAsync` has returned) before its staged entry is written.
 2. Bytes and the wrapped key are destroyed only after the store's own transaction that removed their last entry commits. A delete that fails with an `IOException` or `UnauthorizedAccessException` does not fail the committed removal; the sweep finishes it.
 3. Inside a caller's transaction the store cannot see that commit, so it leaves the bytes, and the sweep deletes them once no entry names them.
-4. `content-staging-sweep` deletes bytes no staged or committed entry names once the grace period has passed, and never before.
+4. `content-staging-sweep` deletes bytes no staged or committed entry names once the grace period has passed, and never before. It checks again after its commit, and `DeleteIfWrittenAtOrBeforeAsync` refuses atomically if a writer has completed since, so a put finishing during a sweep keeps its bytes.
 
 **The grace period is `ContentStoreOptions.StagingExpiry`**, counted from when the bytes were last written: from the writer's completion, or from when it opened if it never completed. It adds no measurement of its own (Q19). A put writes its staged entry within its own put time, and ck-13 sets the expiry as a stated multiple of the longest put, so the sweep never takes bytes whose entry is still coming. A slower upload that does lose its bytes fails when its writer completes, and stages nothing.
 

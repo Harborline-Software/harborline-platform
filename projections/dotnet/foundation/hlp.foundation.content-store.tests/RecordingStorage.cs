@@ -26,6 +26,7 @@ internal sealed class RecordingStorage : IContentStoreStorage
     public Action? BeforeFindStaged { get; set; }
     public Action<int>? BeforeSegmentRead { get; set; }
     public Action? BeforeTryCreate { get; set; }
+    public Func<Task>? BeforeBegin { get; set; }
     public Func<Task>? BeforeFindItemForUpdate { get; set; }
 
     public RecordingStorage()
@@ -62,6 +63,12 @@ internal sealed class RecordingStorage : IContentStoreStorage
         public async ValueTask<IContentBookkeepingTransaction> BeginTransactionAsync(CancellationToken cancellationToken = default)
         {
             if (owner.ThrowOnBegin is { } crash) throw crash;
+            if (owner.BeforeBegin is { } before)
+            {
+                owner.BeforeBegin = null;
+                await before();
+            }
+
             Interlocked.Increment(ref owner._transactionsBegun);
             return new Transaction(owner, await owner.Memory.BeginTransactionAsync(cancellationToken));
         }
@@ -172,6 +179,14 @@ internal sealed class RecordingStorage : IContentStoreStorage
         }
 
         public ValueTask<IReadOnlyList<Guid>> WrittenAtOrBeforeAsync(DateTimeOffset cutoff, CancellationToken cancellationToken = default) => owner.MemoryBytes.WrittenAtOrBeforeAsync(cutoff, cancellationToken);
+
+        public async ValueTask<bool> DeleteIfWrittenAtOrBeforeAsync(Guid itemKey, DateTimeOffset cutoff, CancellationToken cancellationToken = default)
+        {
+            if (owner.ThrowOnDelete is { } failure) throw failure;
+            var deleted = await owner.MemoryBytes.DeleteIfWrittenAtOrBeforeAsync(itemKey, cutoff, cancellationToken);
+            if (deleted) owner.Log("bytes-delete");
+            return deleted;
+        }
     }
 
     private sealed class Writer(RecordingStorage owner, IContentByteWriter inner) : IContentByteWriter

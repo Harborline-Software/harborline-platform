@@ -1113,6 +1113,66 @@ public sealed class ContentStoreBoundaryTests
         Assert.Equal([("audit-joined", "sys.scheduler")], Rows(backing));
     }
 
+    [Fact]
+    public async Task Clause_5_bytes_whose_slow_write_completes_after_the_sweep_listed_them_are_not_deleted()
+    {
+        var clock = new Clock();
+        var backing = new RecordingStorage();
+        var store = Store(backing, clock);
+        var slow = Guid.NewGuid();
+        var writer = await backing.Bytes.OpenWriteAsync(slow, clock.GetUtcNow());
+        await writer.AppendAsync(new([1], [2]));
+        clock.Advance(Expiry);
+        backing.BeforeBegin = async () => await writer.CompleteAsync(clock.GetUtcNow() + TimeSpan.FromTicks(1)); // after the sweep's cutoff
+
+        await store.SweepExpiredAsync("sweep", Write("sweep", "sys.scheduler"));
+
+        Assert.NotNull(await backing.Bytes.ReadSegmentAsync(slow, 0));
+    }
+
+    [Fact]
+    public async Task Clause_5_bytes_that_gain_an_entry_after_the_sweep_listed_them_are_not_deleted()
+    {
+        var clock = new Clock();
+        var backing = new RecordingStorage();
+        var store = Store(backing, clock);
+        var late = Guid.NewGuid();
+        var writer = await backing.Bytes.OpenWriteAsync(late, clock.GetUtcNow());
+        await writer.AppendAsync(new([1], [2]));
+        await writer.CompleteAsync(clock.GetUtcNow());
+        clock.Advance(Expiry);
+        var entry = new ContentStoreItem(late, Tenant, new(ContentId.Algorithm + new string('f', 64)), 2, "text/plain", clock.GetUtcNow(), [1], [2], [3], [4], 65_536);
+        backing.BeforeBegin = async () =>
+        {
+            await using var put = await backing.Memory.BeginTransactionAsync();
+            await put.AddStagedAsync(entry);
+            await put.CommitAsync();
+        };
+
+        await store.SweepExpiredAsync("sweep", Write("sweep", "sys.scheduler"));
+
+        Assert.NotNull(await backing.Bytes.ReadSegmentAsync(late, 0));
+    }
+
+    [Fact]
+    public async Task Clause_5_the_conditional_delete_takes_only_bytes_at_or_before_its_cutoff_and_zeroes_them()
+    {
+        var bytes = new InMemoryContentByteStore();
+        var key = Guid.NewGuid();
+        var at = DateTimeOffset.UnixEpoch.AddHours(1);
+        var writer = await bytes.OpenWriteAsync(key, at);
+        var segment = new ContentCiphertextSegment([7], [8]);
+        await writer.AppendAsync(segment);
+        await writer.CompleteAsync(at);
+
+        Assert.False(await bytes.DeleteIfWrittenAtOrBeforeAsync(Guid.NewGuid(), at));
+        Assert.False(await bytes.DeleteIfWrittenAtOrBeforeAsync(key, at - TimeSpan.FromTicks(1)));
+        Assert.NotNull(await bytes.ReadSegmentAsync(key, 0));
+        Assert.True(await bytes.DeleteIfWrittenAtOrBeforeAsync(key, at));
+        Assert.Null(await bytes.ReadSegmentAsync(key, 0));
+        Assert.Equal(new byte[1], segment.Ciphertext);
+    }
+
     private sealed class InjectedFault : Exception;
 
     // A stand-in records write: it owns the boundary execution and its one transaction, and hands the store only the session.

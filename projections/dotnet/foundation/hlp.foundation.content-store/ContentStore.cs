@@ -419,6 +419,11 @@ public interface IContentByteStore
     ValueTask<ContentCiphertextSegment?> ReadSegmentAsync(Guid itemKey, int index, CancellationToken cancellationToken = default);
     /// <summary>Deletes an item's bytes; deleting bytes that are not there does nothing.</summary>
     ValueTask DeleteAsync(Guid itemKey, CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Deletes an item's bytes only if they were last written at or before the cutoff, as one atomic step with
+    /// <see cref="IContentByteWriter.CompleteAsync"/>: bytes a writer completed after the cutoff stay. Answers whether it deleted them.
+    /// </summary>
+    ValueTask<bool> DeleteIfWrittenAtOrBeforeAsync(Guid itemKey, DateTimeOffset cutoff, CancellationToken cancellationToken = default);
     /// <summary>Lists the keys whose bytes were last written at or before the cutoff, completed or not.</summary>
     ValueTask<IReadOnlyList<Guid>> WrittenAtOrBeforeAsync(DateTimeOffset cutoff, CancellationToken cancellationToken = default);
 }
@@ -815,6 +820,19 @@ public sealed class InMemoryContentByteStore : IContentByteStore
         }
 
         return ValueTask.CompletedTask;
+    }
+
+    /// <inheritdoc />
+    public ValueTask<bool> DeleteIfWrittenAtOrBeforeAsync(Guid itemKey, DateTimeOffset cutoff, CancellationToken cancellationToken = default)
+    {
+        lock (_gate)
+        {
+            if (!_entries.TryGetValue(itemKey, out var entry) || entry.WrittenUtc > cutoff) return ValueTask.FromResult(false);
+            foreach (var segment in entry.Segments) CryptographicOperations.ZeroMemory(segment.Ciphertext);
+            entry.Segments.Clear();
+            _entries.Remove(itemKey);
+            return ValueTask.FromResult(true);
+        }
     }
 
     /// <inheritdoc />
@@ -1414,7 +1432,11 @@ public sealed class InMemoryContentStore
         if (outcome == WriteOutcome.Committed)
         {
             foreach (var item in reclaimed) await DestroyAsync(item, cancellationToken).ConfigureAwait(false);
-            foreach (var orphan in orphans) await DeleteBytesAsync(orphan, cancellationToken).ConfigureAwait(false);
+            // Checked again now: a put may have staged these bytes or completed its write since they were listed.
+            foreach (var orphan in orphans)
+            {
+                if (!await _bookkeeping.NamesBytesAsync(orphan, cancellationToken).ConfigureAwait(false)) await DeleteOrphanAsync(orphan, cutoff, cancellationToken).ConfigureAwait(false);
+            }
         }
 
         return reclaimed.Count;
@@ -1574,6 +1596,18 @@ public sealed class InMemoryContentStore
     {
         CryptographicOperations.ZeroMemory(item.WrappedDataKey);
         await DeleteBytesAsync(item.StageId, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async ValueTask DeleteOrphanAsync(Guid itemKey, DateTimeOffset cutoff, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _bytes.DeleteIfWrittenAtOrBeforeAsync(itemKey, cutoff, cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            Trace.TraceWarning("Deferring an orphan byte delete to the next staging sweep: {0}", exception.GetType().Name);
+        }
     }
 
     // The removal already committed, so a failed delete must not report the operation as failed (CWE-460). The bytes now
