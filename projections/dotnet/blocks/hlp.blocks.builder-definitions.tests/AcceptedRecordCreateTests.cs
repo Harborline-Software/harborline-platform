@@ -381,6 +381,90 @@ public sealed class AcceptedRecordCreateTests
         Assert.Single(fixture.Port.Published);
     }
 
+    [Theory]
+    [InlineData("operation", new[] { "begin", "operation", "rollback", "dispose" })]
+    [InlineData("record", new[] { "begin", "operation", "record", "rollback", "dispose" })]
+    [InlineData("audit", new[] { "begin", "operation", "record", "audit", "rollback", "dispose" })]
+    [Trait("Proves", "platform")]
+    public async Task A_fault_at_any_stage_leaves_no_record_without_its_audit_and_recovery_completes_once(string stage, string[] events)
+    {
+        var fixture = await Fixture.CreateAsync();
+        fixture.Port.Fault = stage;
+
+        await Assert.ThrowsAsync<InjectedFault>(async () => await fixture.Operation.CompleteAcceptedAsync(new(Tenant, Worker), Command()));
+
+        Assert.Empty(fixture.Port.Published);
+        Assert.Equal(events, fixture.Port.Events);
+
+        fixture.Port.Fault = null;
+        var recovered = await fixture.Operation.CompleteAcceptedAsync(new(Tenant, Worker), Command());
+        Assert.True(recovered.Committed);
+        var published = Assert.Single(fixture.Port.Published);
+        Assert.Equal(published.Row.RecordId, recovered.Receipt!.RecordId);
+        Assert.Equal(Worker, published.Audit.ActorId);
+        Assert.False(published.Audit.AuthoritySnapshot.IsEmpty);
+    }
+
+    [Theory]
+    [InlineData("blank-record-id")]
+    [InlineData("other-type")]
+    [InlineData("blank-version")]
+    [InlineData("blank-schema")]
+    [InlineData("digest-not-a-hash")]
+    [Trait("Proves", "platform")]
+    public async Task A_stored_receipt_that_is_not_whole_or_names_another_type_never_reads_as_a_completed_command(string shape)
+    {
+        var fixture = await Fixture.CreateAsync();
+        var key = new RecordWriteOperationKey(Tenant, Submitter, "op-accepted-1") { Origin = RecordWriteOperationKey.AcceptedCommandOrigin };
+        var digest = RecordWriteIntent.Digest(RecordWriteIntent.Encode("eam.asset-class", null, Body()));
+        var whole = new RecordWriteReceipt("record-0", "op-accepted-1", "eam.asset-class", "1.0.0", new string('a', 64), new("schema"), AcceptedAt);
+        fixture.Port.Seed(key, new(RecordWriteIntent.EncodingVersion, digest, shape switch
+        {
+            "blank-record-id" => whole with { RecordId = " " },
+            "other-type" => whole with { RecordTypeId = "other.type" },
+            "blank-version" => whole with { Version = "" },
+            "blank-schema" => whole with { Schema = default },
+            _ => whole with { DefinitionDigest = "not-a-digest" },
+        }));
+
+        var outcome = await fixture.Operation.CompleteAcceptedAsync(new(Tenant, Worker), Command());
+
+        Assert.Equal(("commit", "records.write.receipt_unsupported"), (outcome.Refusal!.Stage, outcome.Refusal.Code));
+        Assert.Null(outcome.Receipt);
+        Assert.False(outcome.Replayed);
+        Assert.Equal(0, fixture.Port.Begun);
+    }
+
+    [Fact]
+    [Trait("Proves", "platform")]
+    public async Task A_whole_stored_receipt_still_replays_unchanged()
+    {
+        var fixture = await Fixture.CreateAsync();
+        var key = new RecordWriteOperationKey(Tenant, Submitter, "op-accepted-1") { Origin = RecordWriteOperationKey.AcceptedCommandOrigin };
+        var digest = RecordWriteIntent.Digest(RecordWriteIntent.Encode("eam.asset-class", null, Body()));
+        var whole = new RecordWriteReceipt("record-0", "op-accepted-1", "eam.asset-class", "1.0.0", new string('a', 64), new("schema"), AcceptedAt);
+        fixture.Port.Seed(key, new(RecordWriteIntent.EncodingVersion, digest, whole));
+
+        var outcome = await fixture.Operation.CompleteAcceptedAsync(new(Tenant, Worker), Command());
+
+        Assert.True(outcome.Replayed);
+        Assert.Equal(whole, outcome.Receipt);
+    }
+
+    [Fact]
+    [Trait("Proves", "platform")]
+    public async Task A_body_with_a_duplicate_member_refuses_without_throwing_so_an_accepted_command_cannot_stay_pending_forever()
+    {
+        var fixture = await Fixture.CreateAsync();
+        var duplicate = System.Text.Json.Nodes.JsonNode.Parse("""{"name":"a","name":"b"}""")!.AsObject();
+
+        var outcome = await fixture.Operation.CompleteAcceptedAsync(new(Tenant, Worker), Command() with { Body = duplicate });
+
+        Assert.Null(outcome.Receipt);
+        Assert.Equal("entity.validation.body_invalid", outcome.Refusal!.Code);
+        Assert.Equal(0, fixture.Port.Begun);
+    }
+
     [Fact]
     [Trait("Proves", "platform")]
     public async Task A_principals_direct_create_of_the_form_only_type_is_still_refused_and_keeps_its_unchanged_key()
@@ -525,6 +609,7 @@ public sealed class AcceptedRecordCreateTests
             public ValueTask StageOperationAsync(KernelOperationIdentity operation, CancellationToken cancellationToken = default)
             {
                 owner.Events.Add("operation");
+                if (owner.Fault == "operation") throw new InjectedFault();
                 _operation = operation;
                 return ValueTask.CompletedTask;
             }
@@ -532,6 +617,7 @@ public sealed class AcceptedRecordCreateTests
             public ValueTask StageRecordAsync(RecordWriteRow record, CancellationToken cancellationToken = default)
             {
                 owner.Events.Add("record");
+                if (owner.Fault == "record") throw new InjectedFault();
                 _row = record;
                 return ValueTask.CompletedTask;
             }
@@ -539,6 +625,7 @@ public sealed class AcceptedRecordCreateTests
             public ValueTask StageAuditAsync(KernelAuditEvidence audit, CancellationToken cancellationToken = default)
             {
                 owner.Events.Add("audit");
+                if (owner.Fault == "audit") throw new InjectedFault();
                 _audit = audit;
                 owner.StagedAudits.Add(audit);
                 return ValueTask.CompletedTask;

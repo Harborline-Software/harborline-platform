@@ -767,7 +767,7 @@ public sealed class RecordWriteOperation
             if (version is not null) _ = RecordWriteIntent.Strict.GetByteCount(version);
             if (reason is not null) _ = RecordWriteIntent.Strict.GetByteCount(reason);
         }
-        catch (Exception error) when (error is EncoderFallbackException or InvalidOperationException or FormatException)
+        catch (Exception error) when (error is EncoderFallbackException or InvalidOperationException or FormatException or ArgumentException)
         { return TemporalRefused(new(ValidateStage, BodyInvalid, [])); }
         basis = basis is null ? null : new(basis.Revision, basis.Hash);
         var key = new RecordWriteOperationKey(scope.Tenant, scope.ActorId, operationId);
@@ -1100,7 +1100,7 @@ public sealed class RecordWriteOperation
         {
             return RecordWriteIntent.Digest(RecordWriteIntent.Encode(command.RecordTypeId, null, command.Body));
         }
-        catch (Exception unencodable) when (unencodable is EncoderFallbackException or InvalidOperationException or FormatException)
+        catch (Exception unencodable) when (unencodable is EncoderFallbackException or InvalidOperationException or FormatException or ArgumentException)
         {
             return null;
         }
@@ -1118,13 +1118,14 @@ public sealed class RecordWriteOperation
         {
             intentDigest = RecordWriteIntent.Digest(RecordWriteIntent.Encode(request.RecordTypeId, request.Version, request.Body));
         }
-        catch (Exception unencodable) when (unencodable is EncoderFallbackException or InvalidOperationException or FormatException)
+        catch (Exception unencodable) when (unencodable is EncoderFallbackException or InvalidOperationException or FormatException or ArgumentException)
         {
-            // A string that is not Unicode text (a lone surrogate) has no intent; it refuses before any lookup or store.
+            // A string that is not Unicode text (a lone surrogate), or an object with a duplicate member, has no intent; it
+            // refuses before any lookup or store, so an accepted command can't become a message that never settles.
             return (Refused(ValidateStage, BodyInvalid, []), false);
         }
         var committed = await _receipts.FindAsync(key, cancellationToken).ConfigureAwait(false);
-        if (committed is not null) return (Settle(committed, key, intentDigest), false);
+        if (committed is not null) return (Settle(committed, key, request.RecordTypeId, intentDigest), false);
 
         RecordTypePublication? bound;
         try
@@ -1222,7 +1223,7 @@ public sealed class RecordWriteOperation
 
         var commit = transaction.Value
             ?? throw new InvalidOperationException(transaction.Refusal?.Code ?? "The kernel transaction did not return a result.");
-        return (SettleCommit(commit, key, intentDigest), commit.Disposition == RecordWriteCommitDisposition.Created);
+        return (SettleCommit(commit, key, request.RecordTypeId, intentDigest), commit.Disposition == RecordWriteCommitDisposition.Created);
     }
 
     // The creation gate of the bound revision, by origin. A principal's direct create admits only a role type (the decider
@@ -1244,31 +1245,35 @@ public sealed class RecordWriteOperation
     // first-seen write.
     // Another intent conflicts whether or not a receipt is readable, as the atomic stage settles it; only the same intent
     // needs the stored receipt.
-    private static RecordWriteOutcome Settle(RecordWriteCommittedOperation committed, RecordWriteOperationKey key, string intentDigest)
+    private static RecordWriteOutcome Settle(RecordWriteCommittedOperation committed, RecordWriteOperationKey key, string recordTypeId, string intentDigest)
     {
         if (committed.IntentEncodingVersion != RecordWriteIntent.EncodingVersion || string.IsNullOrWhiteSpace(committed.IntentDigest))
             return Refused(CommitStage, ReceiptUnsupported, []);
         if (committed.IntentDigest != intentDigest) return Refused(CommitStage, ReplayConflict, [OperationIdPointer]);
-        return Readable(committed.Receipt, key) ? new(committed.Receipt, true, null) : Refused(CommitStage, ReceiptUnsupported, []);
+        return Readable(committed.Receipt, key, recordTypeId) ? new(committed.Receipt, true, null) : Refused(CommitStage, ReceiptUnsupported, []);
     }
 
     // Created needs the new receipt for this operation id. When the atomic stage found the operation already accepted (a
     // concurrent first write), the host's disposition only says so: what it is settles from the stored operation through
     // Settle, exactly as a lookup hit, and without a stored operation nothing can be settled or disclosed.
-    private static RecordWriteOutcome SettleCommit(RecordWriteCommit commit, RecordWriteOperationKey key, string intentDigest)
+    private static RecordWriteOutcome SettleCommit(RecordWriteCommit commit, RecordWriteOperationKey key, string recordTypeId, string intentDigest)
         => commit.Disposition switch
         {
-            RecordWriteCommitDisposition.Created => Readable(commit.Receipt, key)
+            RecordWriteCommitDisposition.Created => Readable(commit.Receipt, key, recordTypeId)
                 ? new(commit.Receipt, false, null)
                 : Refused(CommitStage, ReceiptUnsupported, []),
             RecordWriteCommitDisposition.Replayed or RecordWriteCommitDisposition.Conflict => commit.Stored is { } stored
-                ? Settle(stored, key, intentDigest)
+                ? Settle(stored, key, recordTypeId, intentDigest)
                 : Refused(CommitStage, ReceiptUnsupported, []),
             _ => throw new InvalidOperationException("The host returned an unknown commit disposition."),
         };
 
-    private static bool Readable(RecordWriteReceipt? receipt, RecordWriteOperationKey key)
-        => receipt is not null && receipt.OperationId == key.OperationId;
+    // A receipt is disclosed only whole and only for what was asked: the same rule as UsableTemporalReceipt. A stored receipt
+    // that fails it never reads as a completed write.
+    private static bool Readable(RecordWriteReceipt? receipt, RecordWriteOperationKey key, string recordTypeId)
+        => receipt is not null && receipt.OperationId == key.OperationId && receipt.RecordTypeId == recordTypeId
+            && !string.IsNullOrWhiteSpace(receipt.RecordId) && !string.IsNullOrWhiteSpace(receipt.Version)
+            && !string.IsNullOrWhiteSpace(receipt.Schema.Value) && RecordWriteJournalBinding.IsHash(receipt.DefinitionDigest);
 
     // Nonempty and at most 255 UTF-8 bytes, measured on the id exactly as sent. Every UTF-16 code unit is at least one
     // UTF-8 byte, so a longer string is over the bound unmeasured; a lone surrogate is not text and has no byte length.
