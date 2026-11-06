@@ -1247,7 +1247,7 @@ public sealed class RecordWriteOperation
     // needs the stored receipt.
     private static RecordWriteOutcome Settle(RecordWriteCommittedOperation committed, RecordWriteOperationKey key, string recordTypeId, string intentDigest)
     {
-        if (committed.IntentEncodingVersion != RecordWriteIntent.EncodingVersion || string.IsNullOrWhiteSpace(committed.IntentDigest))
+        if (committed.IntentEncodingVersion != RecordWriteIntent.EncodingVersion || !RecordWriteJournalBinding.IsHash(committed.IntentDigest))
             return Refused(CommitStage, ReceiptUnsupported, []);
         if (committed.IntentDigest != intentDigest) return Refused(CommitStage, ReplayConflict, [OperationIdPointer]);
         return Readable(committed.Receipt, key, recordTypeId) ? new(committed.Receipt, true, null) : Refused(CommitStage, ReceiptUnsupported, []);
