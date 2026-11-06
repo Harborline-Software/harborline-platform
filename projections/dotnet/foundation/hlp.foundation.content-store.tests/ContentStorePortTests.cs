@@ -464,8 +464,9 @@ public sealed class ContentStorePortTests
         await Assert.ThrowsAsync<ArgumentNullException>(async () => await session.AddStagedAsync(null!));
         await Assert.ThrowsAsync<ArgumentNullException>(async () => await session.TryCreateItemAsync(null!));
         await Assert.ThrowsAsync<ArgumentNullException>(async () => await session.SetIntegrityAsync(null!));
-        Assert.Throws<ArgumentNullException>(() => Store(new HalfStorage(null, new InMemoryContentByteStore())));
-        Assert.Throws<ArgumentNullException>(() => Store(new HalfStorage(memory, null)));
+        Assert.Throws<ArgumentNullException>(() => Store(new HalfStorage(null, new InMemoryContentByteStore(), new InMemoryContentEpochKeyStore())));
+        Assert.Throws<ArgumentNullException>(() => Store(new HalfStorage(memory, null, new InMemoryContentEpochKeyStore())));
+        Assert.Throws<ArgumentNullException>(() => Store(new HalfStorage(memory, new InMemoryContentByteStore())));
     }
 
     [Fact]
@@ -523,7 +524,7 @@ public sealed class ContentStorePortTests
     {
         public IContentBookkeeping Bookkeeping => Part!;
         public IContentByteStore Bytes => Other!;
-        public IContentEpochKeyStore Epochs => Keys ?? new InMemoryContentEpochKeyStore();
+        public IContentEpochKeyStore Epochs => Keys!;
     }
 
     private static async Task<(ContentReference? Reference, Exception? Failure)[]> Race(params Func<Task<ContentReference>>[] commits) =>

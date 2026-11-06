@@ -526,6 +526,135 @@ public sealed class ContentStoreEpochTests
         await Assert.ThrowsAsync<ArgumentNullException>(async () => await keys.CreateAsync(Tenant, null!));
     }
 
+    [Fact]
+    public async Task Clause_3_replacing_a_wrap_waits_for_the_transaction_holding_that_row_whether_staged_or_committed()
+    {
+        var memory = new InMemoryContentBookkeeping();
+        var owner = new ContentOwner("record-1", "0");
+        var staged = new ContentStoreItem(Guid.NewGuid(), Tenant, new(ContentId.Algorithm + new string('b', 64)), 5, "text/plain", DateTimeOffset.UnixEpoch, [1], [2], [3], [4], 65_536, Guid.NewGuid());
+        var committed = new ContentStoreItem(Guid.NewGuid(), Tenant, new(ContentId.Algorithm + new string('c', 64)), 5, "text/plain", DateTimeOffset.UnixEpoch, [1], [2], [3], [4], 65_536, Guid.NewGuid()) { State = ContentLifecycleState.Committed, Owners = [owner] };
+        await using (var seed = await memory.BeginTransactionAsync())
+        {
+            await seed.AddStagedAsync(staged);
+            await seed.TryCreateItemAsync(committed);
+            await seed.CommitAsync();
+        }
+
+        var holder = await memory.BeginTransactionAsync();
+        Assert.True(await holder.RemoveStagedAsync(staged.StageId));
+        Assert.True(await holder.RemoveOwnerAsync(new(Tenant, committed.ContentId), owner));
+        await using var other = await memory.BeginTransactionAsync();
+        var waitingStaged = Task.Run(async () => await other.ReplaceWrapAsync(staged, Guid.NewGuid(), [9], [9], [9]));
+        var waitingCommitted = Task.Run(async () => await other.ReplaceWrapAsync(committed, Guid.NewGuid(), [9], [9], [9]));
+        await Task.Delay(100);
+        Assert.False(waitingStaged.IsCompleted);
+        Assert.False(waitingCommitted.IsCompleted);
+
+        await holder.RollbackAsync();
+
+        Assert.True(await waitingStaged.WaitAsync(TimeSpan.FromSeconds(30)));
+        Assert.True(await waitingCommitted.WaitAsync(TimeSpan.FromSeconds(30)));
+        await Assert.ThrowsAsync<ArgumentNullException>(async () => await other.ReplaceWrapAsync(null!, Guid.NewGuid(), [9], [9], [9]));
+    }
+
+    [Fact]
+    public async Task Clause_3_a_transaction_lists_a_committed_row_it_moved_only_under_the_new_epoch_and_only_once()
+    {
+        var memory = new InMemoryContentBookkeeping();
+        var from = Guid.NewGuid();
+        var to = Guid.NewGuid();
+        var committed = new ContentStoreItem(Guid.NewGuid(), Tenant, new(ContentId.Algorithm + new string('d', 64)), 5, "text/plain", DateTimeOffset.UnixEpoch, [1], [2], [3], [4], 65_536, from) { State = ContentLifecycleState.Committed };
+        await using (var seed = await memory.BeginTransactionAsync())
+        {
+            await seed.TryCreateItemAsync(committed);
+            await seed.CommitAsync();
+        }
+
+        await using var unit = await memory.BeginTransactionAsync();
+        Assert.True(await unit.ReplaceWrapAsync(committed, to, [9], [9], [9]));
+        Assert.Empty(await unit.ItemsUnderEpochAsync(Tenant, from, 5));
+        Assert.Single(await unit.ItemsUnderEpochAsync(Tenant, to, 5));
+        Assert.Equal(from, (await memory.FindItemAsync(new(Tenant, committed.ContentId)))!.EpochId); // other readers still see it committed
+    }
+
+    [Fact]
+    public async Task Clause_3_an_integrity_failure_in_a_rewrap_names_the_committed_owner_or_a_blank_one_for_a_staged_item()
+    {
+        var backing = new RecordingStorage();
+        var store = Store(backing);
+        var bad = await Commit(store, "bad"u8.ToArray());
+        await store.CorruptWrapTagAsync(Tenant, bad.ContentId);
+        var rotation = await store.RotateEpochAsync(Tenant, Write("rotate"));
+        var failure = await Assert.ThrowsAsync<ContentIntegrityException>(async () => await store.RewrapEpochAsync(Tenant, rotation.From!.Value, rotation.To, 5, Write("rewrap")));
+        Assert.Equal(new ContentOwner("record-1", "0"), failure.Owner);
+
+        var second = new RecordingStorage();
+        var other = Store(second);
+        var stage = await other.PutAsync(Tenant, new MemoryStream(Hello), "text/plain", null);
+        var tag = second.Memory.Snapshot().Staged.Single().WrapTag;
+        tag[0] ^= 1;
+        var turned = await other.RotateEpochAsync(Tenant, Write("rotate"));
+        var stagedFailure = await Assert.ThrowsAsync<ContentIntegrityException>(async () => await other.RewrapEpochAsync(Tenant, turned.From!.Value, turned.To, 5, Write("rewrap")));
+        Assert.Equal(stage, stagedFailure.ItemKey);
+        Assert.Equal(new ContentOwner("", ""), stagedFailure.Owner);
+    }
+
+    [Fact]
+    public async Task Clause_4_the_current_epoch_is_refused_even_when_no_item_names_it()
+    {
+        var backing = new RecordingStorage();
+        var store = Store(backing);
+        var rotation = await store.RotateEpochAsync(Tenant, Write("rotate"));
+        var refused = await Assert.ThrowsAsync<ContentEpochInUseException>(async () => await store.DestroyEpochAsync(Tenant, rotation.To, Write("destroy")));
+        Assert.Equal(rotation.To, refused.EpochId);
+        Assert.NotNull(await backing.Epochs.GetAsync(Tenant, rotation.To));
+    }
+
+    [Fact]
+    public async Task The_store_states_why_a_rewrap_or_a_joined_key_write_is_refused()
+    {
+        var backing = new RecordingStorage();
+        var store = Store(backing);
+        var rotation = await store.RotateEpochAsync(Tenant, Write("rotate"));
+        var same = await Assert.ThrowsAsync<ArgumentException>(async () => await store.RewrapEpochAsync(Tenant, rotation.To, rotation.To, 5, Write("same")));
+        Assert.StartsWith("A rewrap moves items to a different epoch.", same.Message, StringComparison.Ordinal);
+        await using var orphan = await backing.Bookkeeping.BeginTransactionAsync();
+        var joined = await Assert.ThrowsAsync<ArgumentException>(async () => await store.RotateEpochAsync(Tenant, Write("joined", Scheduler, orphan)));
+        Assert.StartsWith("A key write can't roll back, so it runs in its own transaction.", joined.Message, StringComparison.Ordinal);
+        Assert.Equal(ContentId.Algorithm + new string('a', 64), new ContentId(ContentId.Algorithm + new string('a', 64)).ToString());
+    }
+
+    [Fact]
+    public async Task A_transactions_own_episode_outranks_the_committed_one_it_is_replacing()
+    {
+        var memory = new InMemoryContentBookkeeping();
+        var key = Guid.NewGuid();
+        var first = new ContentIntegrityEntry(key, Tenant, DateTimeOffset.UnixEpoch, DateTimeOffset.UnixEpoch, 1, 0, true, "t", "o", "p", new("r", "e"));
+        await using (var seed = await memory.BeginTransactionAsync())
+        {
+            await seed.SetIntegrityAsync(first);
+            await seed.CommitAsync();
+        }
+
+        await using var unit = await memory.BeginTransactionAsync();
+        var second = first with { Count = 2 };
+        await unit.SetIntegrityAsync(second);
+        Assert.Same(second, await unit.FindIntegrityAsync(Tenant, key));
+    }
+
+    [Fact]
+    public async Task A_conditional_delete_clears_the_segments_it_held()
+    {
+        var bytes = new InMemoryContentByteStore();
+        var key = Guid.NewGuid();
+        var writer = await bytes.OpenWriteAsync(key, DateTimeOffset.UnixEpoch);
+        await writer.AppendAsync(new([7], [8]));
+        await writer.CompleteAsync(DateTimeOffset.UnixEpoch);
+        var live = bytes.LiveSegments(key);
+        Assert.True(await bytes.DeleteIfWrittenAtOrBeforeAsync(key, DateTimeOffset.UnixEpoch));
+        Assert.Empty(live);
+    }
+
     private sealed class Crash : Exception;
 
     private sealed class InjectedFault : Exception;

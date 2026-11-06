@@ -94,7 +94,7 @@ By the owner's ruling of 2026-11-05 (22:11 UTC), a failed integrity check writes
 - **Actors.** All three carry the caller's actor and audit evidence, one row each. A rotation or destroy runs alone, because a key write can't roll back with a caller's transaction.
 - **Crashes.** At every step, each item stays readable under a key that still exists, and a retry finishes the work.
 
-Left to the host (`T-521/content-store-epoch-key-store`): the key files, the `content-key-rotation` run and its schedule, the settings, the checkpoint, and the waiting period before it calls destroy. That wait also covers a staged entry a caller holds uncommitted, which the zero-rows check can't see, because a caller must commit within the staging expiry and the wait is longer. Snapshot backups and their per-backup keys are not built in R1 (ADR 0116 decision 6).
+Left to the host (`T-521/content-store-epoch-key-store`): the key files, the `content-key-rotation` run and its schedule, the settings, the checkpoint, and the waiting period before it calls destroy. The zero-rows check can't see a staged entry a caller holds uncommitted, so the host's waiting period must be longer than the staging expiry, within which a caller must commit. Snapshot backups and their per-backup keys are not built in R1 (ADR 0116 decision 6).
 
 ## The two storage ports
 

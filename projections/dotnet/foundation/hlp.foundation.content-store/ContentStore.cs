@@ -550,11 +550,7 @@ public sealed class InMemoryContentEpochKeyStore : IContentEpochKeyStore
     {
         lock (_gate)
         {
-            if (_epochs.Remove((tenant, epochId), out var epoch))
-            {
-                CryptographicOperations.ZeroMemory(epoch.WrappedKey);
-                if (_current.TryGetValue(tenant, out var current) && current == epochId) _current.Remove(tenant);
-            }
+            if (_epochs.Remove((tenant, epochId), out var epoch)) CryptographicOperations.ZeroMemory(epoch.WrappedKey);
         }
 
         return ValueTask.CompletedTask;
@@ -804,7 +800,7 @@ public sealed class InMemoryContentBookkeeping : IContentBookkeeping
         {
             lock (owner._gate)
             {
-                return ValueTask.FromResult<IReadOnlyList<ContentStoreItem>>([.. VisibleRows().Where(item => item.Tenant == tenant && item.EpochId == epochId).OrderBy(item => item.StageId).Take(limit)]);
+                return ValueTask.FromResult<IReadOnlyList<ContentStoreItem>>([.. VisibleRows().Where(item => item.Tenant == tenant && item.EpochId == epochId).Take(limit)]);
             }
         }
 
@@ -1654,7 +1650,7 @@ public sealed class InMemoryContentStore
         RequireEvidence(write);
         if (fromEpoch == toEpoch) throw new ArgumentException("A rewrap moves items to a different epoch.", nameof(toEpoch));
         var subkey = DeriveSubkey(RequireKey(tenant), tenant, DataKeyWrapKeyInfo);
-        byte[]? fromKey = null, toKey = null;
+        byte[] fromKey = [], toKey = [];
         try
         {
             fromKey = OpenEpoch(tenant, subkey, await RequireEpochAsync(tenant, fromEpoch, cancellationToken).ConfigureAwait(false));
@@ -1675,8 +1671,8 @@ public sealed class InMemoryContentStore
         finally
         {
             CryptographicOperations.ZeroMemory(subkey);
-            if (fromKey is not null) CryptographicOperations.ZeroMemory(fromKey);
-            if (toKey is not null) CryptographicOperations.ZeroMemory(toKey);
+            CryptographicOperations.ZeroMemory(fromKey);
+            CryptographicOperations.ZeroMemory(toKey);
         }
     }
 
