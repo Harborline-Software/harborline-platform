@@ -950,6 +950,7 @@ public sealed class RecordWriteOperationTests
     [InlineData("records-write-intent/0", "d8aaf9e5e4d27d1d3292ab997a13f2e3bba54091ffc7092a476eb62c3af82af5", true, "op-0001")]
     [InlineData("records-write-intent/2", "d8aaf9e5e4d27d1d3292ab997a13f2e3bba54091ffc7092a476eb62c3af82af5", true, "op-0001")]
     [InlineData("records-write-intent/1", "", true, "op-0001")]
+    [InlineData("records-write-intent/1", "not-a-hash", true, "op-0001")]
     [InlineData("records-write-intent/1", "d8aaf9e5e4d27d1d3292ab997a13f2e3bba54091ffc7092a476eb62c3af82af5", false, "op-0001")]
     [InlineData("records-write-intent/1", "d8aaf9e5e4d27d1d3292ab997a13f2e3bba54091ffc7092a476eb62c3af82af5", true, "op-other")]
     public async Task an_unsupported_or_malformed_stored_operation_refuses_without_disclosure(
