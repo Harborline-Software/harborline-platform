@@ -1,28 +1,30 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.foundation.content-store",
-  "interfaceRevision": 3,
+  "interfaceRevision": 4,
   "status": "frozen",
   "purpose": "Own the tenant-scoped, envelope-encrypted content store (DES-0054, T-521 slice 2): streamed puts with detected media types and logical-byte quotas, dedup at commit under a tenant-keyed content id, segmented AEAD at rest, single-range streaming reads with typed integrity failures, reclamation and export fixity.",
   "dependencies": [
     {"moduleId": "hlp.kernel.core", "minimumRevision": 8}
   ],
   "callerInterface": {
-    "name": "InMemoryContentStore / ContentStoreWrite / IContentBookkeeping / IContentByteStore / IContentStoreQuotaBase / ITenantContentKeyProvider",
+    "name": "InMemoryContentStore / ContentStoreWrite / IContentBookkeeping / IContentByteStore / IContentEpochKeyStore / IContentStoreQuotaBase / ITenantContentKeyProvider",
     "operations": [
       "PutAsync(tenant, stream, declaredType, declaredSha256?, write, field?) -> a stage id; one byte over the effective limit refuses content.too-large with detail.limit and detail.observed and stages nothing",
       "CommitReferenceAsync(tenant, stage, owner, name, write) -> a content reference; a record or tenant over its logical-byte quota refuses content.record-quota or content.tenant-quota; a duplicate within the tenant collapses to the held item and answers as a promotion",
       "ReadAsync(tenant, reference, authorized, context, range?, ifRange?) -> a streaming delivery; an unreadable, cross-tenant or unknown id all refuse with the same ContentNotFoundException, and authorization runs before range evaluation",
       "A failed wrap or segment authentication throws ContentIntegrityException (item key, owner, segment index); the item's state is unchanged and only a full verified read ends the integrity episode",
       "RemoveReferenceAsync / SweepExpiredAsync / ExportAsync / VerifyExport -> reclamation with a reclamation entry, the content-staging-sweep run on sys.sched.content-staging, and per-export keyed fixity",
-      "IContentBookkeeping, IContentByteStore (handed over together as IContentStoreStorage) and IContentStoreQuotaBase are ports a durable host implements; InMemoryContentStoreStorage is the reference implementation",
-      "Revision 3 (T-521/content-store-host-transaction; breaking for every caller and port implementer): every state-changing store call is async and takes a ContentStoreWrite: the caller's KernelOperationIdentity, its KernelAuditEvidence, and optionally the caller's open IContentBookkeepingSession. With a session the write joins through KernelTransactionBoundary.JoinAsync, stages its own operation, writes and audit row, and never commits or rolls back; any failure dooms the caller's execution. Without one it runs its own ExecutePreparedAsync, which is refused as kernel.nested-execution inside an open execution. The store never invents an actor, and the sweep acts as sys.scheduler. A write that changes nothing commits nothing and writes no audit row. IContentStoreStorage.Save and SyncRoot are gone: IContentBookkeeping holds items, owners, staged items, quota counts, reclamation and integrity entries and no ciphertext, with conditional quota reservation and conditional create; IContentByteStore holds ciphertext segments, and their bytes are durable before the staged entry and deleted only after the store's own commit, or by the sweep once no entry names them and the grace period (the staging expiry) has passed. ReadAsync and ExportAsync require a ContentReadContext: a missing reader or blank principal is refused before any byte is read, the first covering segment is verified inside the call, and the body reads asynchronously only (its synchronous reads throw NotSupportedException). An integrity episode opened or closed by a read goes through the boundary in its own transaction with the reader as actor and its own audit row; the episode holds the item's row (IContentBookkeepingSession.FindItemForUpdateAsync), so it and an erasure of that item run one after the other; a read inside an open execution is refused as kernel.nested-execution, and a failed episode write surfaces as itself"
+      "IContentBookkeeping, IContentByteStore, IContentEpochKeyStore (handed over together as IContentStoreStorage) and IContentStoreQuotaBase are ports a durable host implements; InMemoryContentStoreStorage is the reference implementation",
+      "Revision 3 (T-521/content-store-host-transaction; breaking for every caller and port implementer): every state-changing store call is async and takes a ContentStoreWrite: the caller's KernelOperationIdentity, its KernelAuditEvidence, and optionally the caller's open IContentBookkeepingSession. With a session the write joins through KernelTransactionBoundary.JoinAsync, stages its own operation, writes and audit row, and never commits or rolls back; any failure dooms the caller's execution. Without one it runs its own ExecutePreparedAsync, which is refused as kernel.nested-execution inside an open execution. The store never invents an actor, and the sweep acts as sys.scheduler. A write that changes nothing commits nothing and writes no audit row. IContentStoreStorage.Save and SyncRoot are gone: IContentBookkeeping holds items, owners, staged items, quota counts, reclamation and integrity entries and no ciphertext, with conditional quota reservation and conditional create; IContentByteStore holds ciphertext segments, and their bytes are durable before the staged entry and deleted only after the store's own commit, or by the sweep once no entry names them and the grace period (the staging expiry) has passed. ReadAsync and ExportAsync require a ContentReadContext: a missing reader or blank principal is refused before any byte is read, the first covering segment is verified inside the call, and the body reads asynchronously only (its synchronous reads throw NotSupportedException). An integrity episode opened or closed by a read goes through the boundary in its own transaction with the reader as actor and its own audit row; the episode holds the item's row (IContentBookkeepingSession.FindItemForUpdateAsync), so it and an erasure of that item run one after the other; a read inside an open execution is refused as kernel.nested-execution, and a failed episode write surfaces as itself",
+      "Revision 4 (T-521/content-store-epoch-wrap-key, ADR 0116; breaking for port implementers): IContentStoreStorage gains IContentEpochKeyStore, which holds a tenant's epoch keys only wrapped by the data-key-wrap subkey. ContentStoreItem gains EpochId, and each item's data key is wrapped under that epoch. IContentBookkeepingSession gains ItemsUnderEpochAsync, ReplaceWrapAsync, FindStagedForUpdateAsync, PinEpochAsync and RetireEpochIfUnnamedAsync: a writer pins the epoch it wraps under, and retirement waits for every pin, checks for rows and commits a marker that refuses later pins. RotateEpochAsync makes a new key durable, commits its audit, then switches new wraps to it. RewrapEpochAsync moves one batch, optionally joining the caller's transaction, and returns only a count; no plaintext data key is written, logged or returned. DestroyEpochAsync refuses with ContentEpochInUseException while the epoch is current or any item names it. Rotate and destroy run alone"
     ],
     "context": "Slice 2 of T-521. Applies DES-0054 section 10 rulings Q27 to Q36. The per-item limit, quota fractions and staging-expiry multiple are required inputs with no default (Q11, Q19). The HTTP request-id header, the 500 or stream abort on the wire, health and audit-read scoping, and the durable backing are api-host work."
   },
   "invariants": [
+    "The data-key-wrap subkey wraps only epoch keys, and an epoch key is destroyed only when it is not current and no item names it.",
     "The content id is hmac-sha256 under an HKDF-SHA-256 subkey of the tenant key; plain SHA-256 is never persisted or exported.",
-    "Each item has its own data key, wrapped under a separate HKDF subkey; the two subkeys are never interchangeable.",
+    "Each item has its own data key, wrapped under an epoch key that a separate HKDF subkey wraps; the two subkeys are never interchangeable.",
     "Content is sealed in 65,536-byte AES-256-GCM segments with a last-segment flag, so reordering, dropping or truncating a segment fails authentication.",
     "Read failures are status-only; integrity details never reach a client.",
     "Every unstated measurement is a required input with no default.",
@@ -43,11 +45,12 @@
     "the IContentBookkeeping and IContentByteStore ports a durable host adapter implements, passed together as IContentStoreStorage",
     "ContentStoreWrite, which carries each write's kernel evidence and the caller's optional IContentBookkeepingSession",
     "the IContentStoreQuotaBase port the host implements",
+    "the IContentEpochKeyStore port that holds wrapped epoch keys",
     "the ITenantContentKeyProvider port that supplies tenant keys"
   ],
   "conformance": {
     "nativeTests": {
-      "dotnet": 160
+      "dotnet": 214
     },
     "nativeTestNote": "DES-0054 section 9 clauses ck-4 to ck-13, cc-4, cc-5, cc-7, eng-1 to eng-11 and Q27 to Q36, including a tampered middle segment under a range read, a wrap-key failure, the integrity episode and a storage-port restart; revision 3 adds the kernel-boundary tests (own audit row, join, nesting refusal, doom, rollback), the two-port split, conditional quota and create under concurrency, and byte order with the sweep's grace period."
   },
