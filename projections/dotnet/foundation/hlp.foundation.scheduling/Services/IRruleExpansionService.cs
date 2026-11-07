@@ -69,8 +69,7 @@ public interface IRruleExpansionService
     /// IANA timezone id for the schedule owner (e.g. <c>America/Los_Angeles</c>).
     /// V1 treats all dates as naive (no timezone conversion); the
     /// parameter is accepted now so callers are timezone-aware at the
-    /// call site and the Ical.Net follow-on can use it without a
-    /// signature change.
+    /// call site.
     /// </param>
     /// <returns>
     /// Occurrences in ascending date order, filtered by
