@@ -357,6 +357,7 @@ public interface IContentBookkeepingSession : IKernelTransactionParticipant<Cont
     /// <summary>
     /// Creates the item if the tenant does not hold that content id, and answers null. If it does, changes nothing and answers
     /// the held item (eng-4). A concurrent create of the same key decides first: the answer waits until that transaction ends.
+    /// Only a committed item belongs here, because <see cref="ContentStoreItem.State"/> is how a rewrap finds an entry's row.
     /// </summary>
     ValueTask<ContentStoreItem?> TryCreateItemAsync(ContentStoreItem item, CancellationToken cancellationToken = default);
     /// <summary>Adds an owner to a held item; false means the item no longer exists.</summary>
@@ -365,7 +366,11 @@ public interface IContentBookkeepingSession : IKernelTransactionParticipant<Cont
     ValueTask<bool> RemoveOwnerAsync(ContentStorageItemKey key, ContentOwner owner, CancellationToken cancellationToken = default);
     /// <summary>Deletes the item's entry only if it has no owners; false means it is still referenced or already gone.</summary>
     ValueTask<bool> DeleteItemIfUnownedAsync(ContentStorageItemKey key, CancellationToken cancellationToken = default);
-    /// <summary>Lists up to <paramref name="limit"/> staged and committed entries of the tenant wrapped under the epoch.</summary>
+    /// <summary>
+    /// Lists up to <paramref name="limit"/> entries of the tenant wrapped under the epoch, staged entries before committed
+    /// ones. A rewrap locks rows in this order, and a promotion locks its staged row before its committed one, so the two
+    /// can't wait on each other.
+    /// </summary>
     ValueTask<IReadOnlyList<ContentStoreItem>> ItemsUnderEpochAsync(TenantId tenant, Guid epochId, int limit, CancellationToken cancellationToken = default);
     /// <summary>
     /// Holds the epoch against retirement until this transaction ends, as <c>SELECT ... FOR SHARE</c> does, so rows this
@@ -476,7 +481,7 @@ public interface IContentEpochKeyStore
     ValueTask CreateAsync(TenantId tenant, ContentEpochKey epoch, CancellationToken cancellationToken = default);
     /// <summary>Makes an epoch current if the current one is still <paramref name="expectedCurrent"/>; false means another writer switched first.</summary>
     ValueTask<bool> TrySetCurrentAsync(TenantId tenant, Guid? expectedCurrent, Guid epochId, CancellationToken cancellationToken = default);
-    /// <summary>Destroys an epoch's key; destroying one that is not there does nothing.</summary>
+    /// <summary>Destroys an epoch's key and, if it is current, leaves the tenant with no current epoch; destroying one that is not there does nothing.</summary>
     ValueTask DestroyAsync(TenantId tenant, Guid epochId, CancellationToken cancellationToken = default);
 }
 
@@ -562,6 +567,7 @@ public sealed class InMemoryContentEpochKeyStore : IContentEpochKeyStore
         lock (_gate)
         {
             if (_epochs.Remove((tenant, epochId), out var epoch)) CryptographicOperations.ZeroMemory(epoch.WrappedKey);
+            if (_current.TryGetValue(tenant, out var current) && current == epochId) _current.Remove(tenant);
         }
 
         return ValueTask.CompletedTask;
@@ -725,6 +731,7 @@ public sealed class InMemoryContentBookkeeping : IContentBookkeeping
         public ValueTask AddStagedAsync(ContentStoreItem item, CancellationToken cancellationToken = default)
         {
             ArgumentNullException.ThrowIfNull(item);
+            if (item.State != ContentLifecycleState.Staged) throw new ArgumentException("Only a staged item can be staged.", nameof(item));
             lock (owner._gate) _staged[item.StageId] = item; // a stage id is minted for this put, so no other writer can name it yet
             return ValueTask.CompletedTask;
         }
@@ -771,6 +778,7 @@ public sealed class InMemoryContentBookkeeping : IContentBookkeeping
         public async ValueTask<ContentStoreItem?> TryCreateItemAsync(ContentStoreItem item, CancellationToken cancellationToken = default)
         {
             ArgumentNullException.ThrowIfNull(item);
+            if (item.State != ContentLifecycleState.Committed) throw new ArgumentException("Only a committed item can be created.", nameof(item));
             var key = new ContentStorageItemKey(item.Tenant, item.ContentId);
             await LockAsync(key, cancellationToken).ConfigureAwait(false);
             lock (owner._gate)
@@ -888,12 +896,12 @@ public sealed class InMemoryContentBookkeeping : IContentBookkeeping
             }
         }
 
-        // Committed rows as this transaction sees them, with its own writes applied.
+        // Committed rows as this transaction sees them, with its own writes applied, staged entries first.
         private IEnumerable<ContentStoreItem> VisibleRows() =>
-            owner._items.Where(pair => !_items.ContainsKey(pair.Key)).Select(pair => pair.Value)
-                .Concat(_items.Values.OfType<ContentStoreItem>())
-                .Concat(owner._staged.Where(pair => !_staged.ContainsKey(pair.Key)).Select(pair => pair.Value))
-                .Concat(_staged.Values.OfType<ContentStoreItem>());
+            owner._staged.Where(pair => !_staged.ContainsKey(pair.Key)).Select(pair => pair.Value)
+                .Concat(_staged.Values.OfType<ContentStoreItem>())
+                .Concat(owner._items.Where(pair => !_items.ContainsKey(pair.Key)).Select(pair => pair.Value))
+                .Concat(_items.Values.OfType<ContentStoreItem>());
 
         public ValueTask AppendReclamationAsync(ReclamationEntry entry, CancellationToken cancellationToken = default)
         {
@@ -1751,8 +1759,13 @@ public sealed class InMemoryContentStore
 
                     foreach (var item in items)
                     {
-                        var (wrapped, nonce, tag) = MoveWrap(item, fromKey, toKey);
-                        if (await session.ReplaceWrapAsync(item, toEpoch, wrapped, nonce, tag, token).ConfigureAwait(false)) moved++;
+                        // The row is held before its wrap is opened: the listing is a snapshot, and a removal that committed since then zeroed that wrap.
+                        var held = item.State == ContentLifecycleState.Staged
+                            ? await session.FindStagedForUpdateAsync(item.StageId, token).ConfigureAwait(false)
+                            : await session.FindItemForUpdateAsync(new(item.Tenant, item.ContentId), token).ConfigureAwait(false);
+                        if (held?.EpochId != fromEpoch) continue;
+                        var (wrapped, nonce, tag) = MoveWrap(held, fromKey, toKey);
+                        if (await session.ReplaceWrapAsync(held, toEpoch, wrapped, nonce, tag, token).ConfigureAwait(false)) moved++;
                     }
 
                     // A concurrent rewrap took this whole batch; only an empty listing means the epoch is drained.

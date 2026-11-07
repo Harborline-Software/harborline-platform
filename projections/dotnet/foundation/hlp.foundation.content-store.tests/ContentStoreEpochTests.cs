@@ -522,6 +522,9 @@ public sealed class ContentStoreEpochTests
         await keys.DestroyAsync(Tenant, Guid.NewGuid());
         await keys.DestroyAsync(Tenant, second.EpochId);
         Assert.Null(await keys.GetCurrentAsync(Tenant));
+        var third = new ContentEpochKey(Guid.NewGuid(), [7], [8], [9]);
+        await keys.CreateAsync(Tenant, third);
+        Assert.True(await keys.TrySetCurrentAsync(Tenant, null, third.EpochId));
         await Assert.ThrowsAsync<ArgumentNullException>(async () => await keys.CreateAsync(Tenant, null!));
     }
 
@@ -933,10 +936,10 @@ public sealed class ContentStoreEpochTests
         var b = await Commit(store, "bbb"u8.ToArray());
         var rotation = await store.RotateEpochAsync(Tenant, Write("rotate"));
         var from = rotation.From!.Value;
-        backing.BeforeReplaceWrap = async () => await OnAnotherRequest(async () =>
+        backing.AfterEpochListing = async () => await OnAnotherRequest(async () =>
             await store.RewrapEpochAsync(Tenant, from, rotation.To, 1, Write("rival")));
 
-        // The rival takes this call's one row and commits, so its replace answers false and the other row is still there.
+        // The rival takes this call's one row and commits, so this call finds it moved and the other row is still there.
         Assert.Equal(1, await store.RewrapEpochAsync(Tenant, from, rotation.To, 1, Write("mine")));
 
         Assert.Equal(0, await store.RewrapEpochAsync(Tenant, from, rotation.To, 1, Write("drained")));
@@ -953,12 +956,119 @@ public sealed class ContentStoreEpochTests
         await Commit(store, Hello);
         var rotation = await store.RotateEpochAsync(Tenant, Write("rotate"));
         var from = rotation.From!.Value;
-        backing.BeforeReplaceWrap = async () => await OnAnotherRequest(async () =>
+        backing.AfterEpochListing = async () => await OnAnotherRequest(async () =>
             await store.RewrapEpochAsync(Tenant, from, rotation.To, 5, Write("rival")));
 
         Assert.Equal(0, await store.RewrapEpochAsync(Tenant, from, rotation.To, 5, Write("mine")));
 
         Assert.DoesNotContain(backing.Memory.Snapshot().Audits, audit => audit.AuditId == "audit-mine");
+    }
+
+    [Fact]
+    public async Task A_rewrap_skips_a_row_reclaimed_after_its_listing_rather_than_reporting_the_zeroed_wrap_as_corruption()
+    {
+        var backing = new RecordingStorage();
+        var store = Store(backing);
+        var reference = await Commit(store, Hello);
+        var rotation = await store.RotateEpochAsync(Tenant, Write("rotate"));
+        backing.AfterEpochListing = async () => await OnAnotherRequest(async () =>
+            await store.RemoveReferenceAsync(Tenant, reference, HoldStatus.None, "dispose"));
+
+        Assert.Equal(0, await store.RewrapEpochAsync(Tenant, rotation.From!.Value, rotation.To, 5, Write("mine")));
+
+        Assert.DoesNotContain(backing.Memory.Snapshot().Audits, audit => audit.AuditId == "audit-mine");
+    }
+
+    [Fact]
+    public async Task A_rewrap_follows_a_staged_row_promoted_after_its_listing_and_moves_the_committed_item()
+    {
+        var backing = new RecordingStorage();
+        var store = Store(backing);
+        var stage = await store.PutAsync(Tenant, new MemoryStream(Hello), "text/plain", null);
+        var rotation = await store.RotateEpochAsync(Tenant, Write("rotate"));
+        ContentReference? reference = null;
+        backing.AfterEpochListing = async () => reference = await OnAnotherRequest(async () =>
+            await store.CommitReferenceAsync(Tenant, stage, new("record-1", "0"), "a.txt"));
+
+        Assert.Equal(1, await store.RewrapEpochAsync(Tenant, rotation.From!.Value, rotation.To, 5, Write("mine")));
+
+        Assert.Equal(rotation.To, (await store.StorageItemAsync(Tenant, reference!.ContentId)).EpochId);
+        Assert.Equal(Hello, await Read(store, reference));
+    }
+
+    [Fact]
+    public async Task A_rewrap_and_a_promotion_of_the_same_content_lock_in_one_order_so_neither_waits_on_the_other()
+    {
+        var backing = new RecordingStorage();
+        var store = Store(backing);
+        var reference = await Commit(store, Hello);
+        var stage = await store.PutAsync(Tenant, new MemoryStream(Hello), "text/plain", null);
+        var rotation = await store.RotateEpochAsync(Tenant, Write("rotate"));
+        await using var promotion = await backing.Bookkeeping.BeginTransactionAsync();
+        Assert.NotNull(await promotion.FindStagedForUpdateAsync(stage)); // a promotion's first lock
+
+        var rewrap = OnAnotherRequest(async () => await store.RewrapEpochAsync(Tenant, rotation.From!.Value, rotation.To, 5, Write("rewrap")));
+        await Task.Delay(100);
+        Assert.False(rewrap.IsCompleted);
+
+        // A promotion's second lock. A rewrap that took the committed row first would hold it here while it waits for the staged row.
+        Assert.NotNull(await promotion.FindItemForUpdateAsync(new(Tenant, reference.ContentId)).AsTask().WaitAsync(TimeSpan.FromSeconds(10)));
+        await promotion.RollbackAsync();
+
+        Assert.Equal(2, await rewrap.WaitAsync(TimeSpan.FromSeconds(30)));
+    }
+
+    [Fact]
+    public async Task The_in_memory_backing_lists_an_epochs_staged_entries_before_its_committed_ones()
+    {
+        var memory = new InMemoryContentBookkeeping();
+        var epoch = Guid.NewGuid();
+        ContentStoreItem Row(char digit, ContentLifecycleState state) =>
+            new(Guid.NewGuid(), Tenant, new(ContentId.Algorithm + new string(digit, 64)), 5, "text/plain", DateTimeOffset.UnixEpoch, [1], [2], [3], [4], 65_536, epoch) { State = state };
+        var (seededItem, seededStage, ownItem, ownStage) = (Row('a', ContentLifecycleState.Committed), Row('b', ContentLifecycleState.Staged), Row('c', ContentLifecycleState.Committed), Row('d', ContentLifecycleState.Staged));
+        await using (var seed = await memory.BeginTransactionAsync())
+        {
+            await seed.TryCreateItemAsync(seededItem);
+            await seed.AddStagedAsync(seededStage);
+            await seed.CommitAsync();
+        }
+
+        await using var unit = await memory.BeginTransactionAsync();
+        await unit.TryCreateItemAsync(ownItem);
+        await unit.AddStagedAsync(ownStage);
+
+        Assert.Equal([seededStage.StageId, ownStage.StageId, seededItem.StageId, ownItem.StageId], (await unit.ItemsUnderEpochAsync(Tenant, epoch, 5)).Select(row => row.StageId));
+        Assert.Equal([seededStage.StageId], (await unit.ItemsUnderEpochAsync(Tenant, epoch, 1)).Select(row => row.StageId));
+    }
+
+    [Fact]
+    public async Task The_in_memory_backing_refuses_an_entry_whose_state_does_not_match_its_table()
+    {
+        var memory = new InMemoryContentBookkeeping();
+        var epoch = Guid.NewGuid();
+        var staged = new ContentStoreItem(Guid.NewGuid(), Tenant, new(ContentId.Algorithm + new string('e', 64)), 5, "text/plain", DateTimeOffset.UnixEpoch, [1], [2], [3], [4], 65_536, epoch);
+        await using var unit = await memory.BeginTransactionAsync();
+
+        var create = await Assert.ThrowsAsync<ArgumentException>(async () => await unit.TryCreateItemAsync(staged));
+        var stage = await Assert.ThrowsAsync<ArgumentException>(async () => await unit.AddStagedAsync(staged with { State = ContentLifecycleState.Committed }));
+
+        Assert.StartsWith("Only a committed item can be created.", create.Message);
+        Assert.StartsWith("Only a staged item can be staged.", stage.Message);
+        Assert.Empty(await unit.ItemsUnderEpochAsync(Tenant, epoch, 5));
+    }
+
+    [Fact]
+    public async Task A_put_after_the_current_key_was_destroyed_starts_a_new_epoch()
+    {
+        var backing = new RecordingStorage();
+        var store = Store(backing);
+        await store.PutAsync(Tenant, new MemoryStream(Hello), "text/plain", null);
+        var destroyed = (await backing.Epochs.GetCurrentAsync(Tenant))!.EpochId;
+        await backing.Epochs.DestroyAsync(Tenant, destroyed);
+
+        await OnAnotherRequest(async () => await store.PutAsync(Tenant, new MemoryStream("fresh"u8.ToArray()), "text/plain", null)).WaitAsync(TimeSpan.FromSeconds(30));
+
+        Assert.NotEqual(destroyed, (await backing.Epochs.GetCurrentAsync(Tenant))!.EpochId);
     }
 
     [Fact]

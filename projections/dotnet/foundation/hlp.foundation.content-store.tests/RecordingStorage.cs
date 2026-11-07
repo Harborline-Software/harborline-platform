@@ -45,7 +45,8 @@ internal sealed class RecordingStorage : IContentStoreStorage
     public Action<string>? OnEpochStep { get; set; }
     public Func<Task>? BeforeFirstSetCurrent { get; set; }
     public Func<Task>? BeforePin { get; set; }
-    public Func<Task>? BeforeReplaceWrap { get; set; }
+    /// <summary>Runs once, after a listing is taken and before the transaction acts on it.</summary>
+    public Func<Task>? AfterEpochListing { get; set; }
     public Func<Task>? BeforeEpochGet { get; set; }
 
     public static BookkeepingImage Capture(InMemoryContentBookkeeping memory)
@@ -125,7 +126,18 @@ internal sealed class RecordingStorage : IContentStoreStorage
             return await inner.FindItemForUpdateAsync(key, cancellationToken);
         }
 
-        public ValueTask<IReadOnlyList<ContentStoreItem>> ItemsUnderEpochAsync(TenantId tenant, Guid epochId, int limit, CancellationToken cancellationToken = default) => inner.ItemsUnderEpochAsync(tenant, epochId, limit, cancellationToken);
+        public async ValueTask<IReadOnlyList<ContentStoreItem>> ItemsUnderEpochAsync(TenantId tenant, Guid epochId, int limit, CancellationToken cancellationToken = default)
+        {
+            var items = await inner.ItemsUnderEpochAsync(tenant, epochId, limit, cancellationToken);
+            if (owner.AfterEpochListing is { } hook)
+            {
+                owner.AfterEpochListing = null;
+                await hook();
+            }
+
+            return items;
+        }
+
         public async ValueTask<bool> PinEpochAsync(TenantId tenant, Guid epochId, CancellationToken cancellationToken = default)
         {
             if (owner.BeforePin is { } hook)
@@ -144,16 +156,8 @@ internal sealed class RecordingStorage : IContentStoreStorage
             owner.BeforeFindStaged?.Invoke();
             return inner.FindStagedForUpdateAsync(stageId, cancellationToken);
         }
-        public async ValueTask<bool> ReplaceWrapAsync(ContentStoreItem item, Guid epochId, byte[] wrappedDataKey, byte[] wrapNonce, byte[] wrapTag, CancellationToken cancellationToken = default)
-        {
-            if (owner.BeforeReplaceWrap is { } hook)
-            {
-                owner.BeforeReplaceWrap = null;
-                await hook();
-            }
-
-            return await inner.ReplaceWrapAsync(item, epochId, wrappedDataKey, wrapNonce, wrapTag, cancellationToken);
-        }
+        public ValueTask<bool> ReplaceWrapAsync(ContentStoreItem item, Guid epochId, byte[] wrappedDataKey, byte[] wrapNonce, byte[] wrapTag, CancellationToken cancellationToken = default) =>
+            inner.ReplaceWrapAsync(item, epochId, wrappedDataKey, wrapNonce, wrapTag, cancellationToken);
 
         public ValueTask<ContentStoreItem?> FindStagedAsync(Guid stageId, CancellationToken cancellationToken = default)
         {
