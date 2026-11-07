@@ -173,6 +173,39 @@ public sealed class ViewsEngineContractTests
         Assert.Equal("view_definition.filter_function_unknown", ViewDefinitionCodes.FilterFunctionUnknown);
     }
 
+    [Fact(DisplayName = "T-486 engine-gaps: the row source refuses an unknown filter kind, operand or function with its named code and message")]
+    public async Task TheRowSourceRefusesUnknownFilterPartsWithTheirCodes()
+    {
+        static ViewQueryPlan Plan(ViewFilter filter) => new(
+            "tenant-a", "work-item", new Dictionary<string, ViewRecordFieldKind> { ["state"] = ViewRecordFieldKind.Scalar },
+            [], [new(ViewPredicateSource.Authored, filter)], [], null, null, new ViewPage(0, 10), DateTimeOffset.UnixEpoch);
+        var source = new InMemoryViewRowSource([Row("a", "open", 1)]);
+
+        var kind = await Assert.ThrowsAsync<ViewQueryException>(async () => await source.QueryAsync(Plan(new ForeignFilter())));
+        var operand = await Assert.ThrowsAsync<ViewQueryException>(async () =>
+            await source.QueryAsync(Plan(new ViewFunctionFilter("isBlank", [new ForeignOperand()]))));
+        var function = await Assert.ThrowsAsync<ViewQueryException>(async () =>
+            await source.QueryAsync(Plan(new ViewFunctionFilter("no.such.function", []))));
+
+        // Wire spellings and messages as the slice's scope anchor (platform 1a97bc7b) emitted them.
+        Assert.Equal(("view.filter.kind_unknown", "The view filter kind is not registered."), (kind.Code, kind.Message));
+        Assert.Equal(("view.filter.operand_unknown", "The view filter operand is not registered."), (operand.Code, operand.Message));
+        Assert.Equal(("view.filter.function_unknown", "The view filter function is not registered."), (function.Code, function.Message));
+    }
+
+    [Fact(DisplayName = "T-486 engine-gaps: the draft wire refuses a null argument and names a null document")]
+    public void TheDraftWireRefusesANullArgumentAndNamesANullDocument()
+    {
+        Assert.Throws<ArgumentNullException>(() => ViewDefinitionDraftJson.Serialize(null!));
+        Assert.Throws<ArgumentNullException>(() => ViewDefinitionDraftJson.Deserialize(null!));
+        var empty = Assert.Throws<System.Text.Json.JsonException>(() => ViewDefinitionDraftJson.Deserialize("null"));
+        Assert.Equal("The view-definition draft is null.", empty.Message);
+    }
+
+    private sealed record ForeignFilter : ViewFilter;
+
+    private sealed record ForeignOperand : ViewFilterOperand;
+
     private static ViewRow Row(string id, string state, int priority) => new(
         id,
         new Dictionary<string, object?> { ["state"] = state, ["priority"] = priority });
