@@ -209,13 +209,14 @@ public sealed record ContentCiphertextSegment(byte[] Ciphertext, byte[] Tag);
 /// <param name="Length">The plaintext length used for delivery and range validation.</param>
 /// <param name="MediaType">The detected, stored media type.</param>
 /// <param name="CreatedUtc">The server time at which the upload was staged.</param>
-/// <param name="WrappedDataKey">The data key wrapped under the tenant's data-key-wrap subkey.</param>
+/// <param name="WrappedDataKey">The data key wrapped under the epoch key <paramref name="EpochId"/> names (ADR 0116 decision 1).</param>
 /// <param name="WrapNonce">The nonce used to wrap the per-item data key.</param>
 /// <param name="WrapTag">The authentication tag for the wrapped data key.</param>
 /// <param name="NoncePrefix">The random prefix from which segment nonces are built.</param>
 /// <param name="SegmentSize">The immutable plaintext segment size selected when the item was written.</param>
+/// <param name="EpochId">The epoch whose key wraps this item's data key (ADR 0116 decision 4).</param>
 public sealed record ContentStoreItem(Guid StageId, TenantId Tenant, ContentId ContentId, long Length, string MediaType, DateTimeOffset CreatedUtc,
-    byte[] WrappedDataKey, byte[] WrapNonce, byte[] WrapTag, byte[] NoncePrefix, int SegmentSize)
+    byte[] WrappedDataKey, byte[] WrapNonce, byte[] WrapTag, byte[] NoncePrefix, int SegmentSize, Guid EpochId)
 {
     /// <summary>The committed owners that currently reference the item.</summary>
     public IReadOnlyList<ContentOwner> Owners { get; init; } = [];
@@ -285,6 +286,12 @@ public enum ContentStoreOperation
     IntegrityFailure,
     /// <summary>A full verified read closed the item's active integrity episode.</summary>
     IntegrityRecovery,
+    /// <summary><see cref="InMemoryContentStore.RotateEpochAsync"/> made a tenant's new current epoch.</summary>
+    EpochRotation,
+    /// <summary><see cref="InMemoryContentStore.RewrapEpochAsync"/> moved a batch of data keys to another epoch.</summary>
+    EpochRewrap,
+    /// <summary><see cref="InMemoryContentStore.DestroyEpochAsync"/> destroyed an epoch no item names.</summary>
+    EpochDestroy,
 }
 
 /// <summary>Which quota refused a reservation (DES-0054 ck-8).</summary>
@@ -332,6 +339,8 @@ public interface IContentBookkeepingSession : IKernelTransactionParticipant<Cont
     ValueTask<ContentStoreItem?> FindItemForUpdateAsync(ContentStorageItemKey key, CancellationToken cancellationToken = default);
     /// <summary>Reads a staged item's entry, or null.</summary>
     ValueTask<ContentStoreItem?> FindStagedAsync(Guid stageId, CancellationToken cancellationToken = default);
+    /// <summary>Reads a staged item's entry and holds its row until the transaction ends, or answers null, so what it read is what a promotion moves.</summary>
+    ValueTask<ContentStoreItem?> FindStagedForUpdateAsync(Guid stageId, CancellationToken cancellationToken = default);
     /// <summary>Reads an item's integrity episode, or null.</summary>
     ValueTask<ContentIntegrityEntry?> FindIntegrityAsync(TenantId tenant, Guid itemKey, CancellationToken cancellationToken = default);
     /// <summary>Writes a staged item's entry. The store calls it only after the item's bytes are durable.</summary>
@@ -348,6 +357,7 @@ public interface IContentBookkeepingSession : IKernelTransactionParticipant<Cont
     /// <summary>
     /// Creates the item if the tenant does not hold that content id, and answers null. If it does, changes nothing and answers
     /// the held item (eng-4). A concurrent create of the same key decides first: the answer waits until that transaction ends.
+    /// Only a committed item belongs here, because <see cref="ContentStoreItem.State"/> is how a rewrap finds an entry's row.
     /// </summary>
     ValueTask<ContentStoreItem?> TryCreateItemAsync(ContentStoreItem item, CancellationToken cancellationToken = default);
     /// <summary>Adds an owner to a held item; false means the item no longer exists.</summary>
@@ -356,6 +366,28 @@ public interface IContentBookkeepingSession : IKernelTransactionParticipant<Cont
     ValueTask<bool> RemoveOwnerAsync(ContentStorageItemKey key, ContentOwner owner, CancellationToken cancellationToken = default);
     /// <summary>Deletes the item's entry only if it has no owners; false means it is still referenced or already gone.</summary>
     ValueTask<bool> DeleteItemIfUnownedAsync(ContentStorageItemKey key, CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Lists up to <paramref name="limit"/> entries of the tenant wrapped under the epoch, staged entries before committed
+    /// ones. A rewrap locks rows in this order, and a promotion locks its staged row before its committed one, so the two
+    /// can't wait on each other.
+    /// </summary>
+    ValueTask<IReadOnlyList<ContentStoreItem>> ItemsUnderEpochAsync(TenantId tenant, Guid epochId, int limit, CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Holds the epoch against retirement until this transaction ends, as <c>SELECT ... FOR SHARE</c> does, so rows this
+    /// transaction writes under it can't lose their key. Any number of transactions can pin one epoch. It waits for an open
+    /// retirement, and false means the epoch is retired and must not be used.
+    /// </summary>
+    ValueTask<bool> PinEpochAsync(TenantId tenant, Guid epochId, CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Takes the epoch exclusively, waiting for every transaction pinning it, then retires it if no staged or committed
+    /// entry of the tenant names it. Commits as a durable marker that refuses every later pin. False means an entry still names it.
+    /// </summary>
+    ValueTask<bool> RetireEpochIfUnnamedAsync(TenantId tenant, Guid epochId, CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Replaces an entry's wrap and epoch if the entry still holds the epoch <paramref name="item"/> names; false means it
+    /// was removed or already moved. Only ever given wrapped key material.
+    /// </summary>
+    ValueTask<bool> ReplaceWrapAsync(ContentStoreItem item, Guid epochId, byte[] wrappedDataKey, byte[] wrapNonce, byte[] wrapTag, CancellationToken cancellationToken = default);
     /// <summary>Appends a reclamation entry.</summary>
     ValueTask AppendReclamationAsync(ReclamationEntry entry, CancellationToken cancellationToken = default);
     /// <summary>Writes an item's integrity episode.</summary>
@@ -428,22 +460,118 @@ public interface IContentByteStore
     ValueTask<IReadOnlyList<Guid>> WrittenAtOrBeforeAsync(DateTimeOffset cutoff, CancellationToken cancellationToken = default);
 }
 
-/// <summary>A durable host's two storage ports, passed to the store together (DES-0054 Q31; ADR 0113).</summary>
+/// <summary>An epoch key in the only form it leaves the store: wrapped by the tenant's data-key-wrap subkey (DES-0054 eng-10).</summary>
+/// <param name="EpochId">The epoch's id, which each item's row names.</param>
+/// <param name="WrappedKey">The 256-bit epoch key, wrapped.</param>
+/// <param name="WrapNonce">The wrap's nonce.</param>
+/// <param name="WrapTag">The wrap's authentication tag.</param>
+public sealed record ContentEpochKey(Guid EpochId, byte[] WrappedKey, byte[] WrapNonce, byte[] WrapTag);
+
+/// <summary>
+/// The key port: a tenant's epoch keys, never in the node's database, a backup or sync (ADR 0116 decision 4). The port holds
+/// only wrapped keys. Waiting out the period before an unused key is destroyed, and the rotation run itself, are the host's.
+/// </summary>
+public interface IContentEpochKeyStore
+{
+    /// <summary>The tenant's current epoch, which new wraps use, or null before the tenant has one.</summary>
+    ValueTask<ContentEpochKey?> GetCurrentAsync(TenantId tenant, CancellationToken cancellationToken = default);
+    /// <summary>An epoch by id, or null once it is destroyed.</summary>
+    ValueTask<ContentEpochKey?> GetAsync(TenantId tenant, Guid epochId, CancellationToken cancellationToken = default);
+    /// <summary>Stores a new epoch, not yet current. Returns only once it is durable, before any row can name it (ADR 0116 decision 5).</summary>
+    ValueTask CreateAsync(TenantId tenant, ContentEpochKey epoch, CancellationToken cancellationToken = default);
+    /// <summary>Makes an epoch current if the current one is still <paramref name="expectedCurrent"/>; false means another writer switched first.</summary>
+    ValueTask<bool> TrySetCurrentAsync(TenantId tenant, Guid? expectedCurrent, Guid epochId, CancellationToken cancellationToken = default);
+    /// <summary>Destroys an epoch's key and, if it is current, leaves the tenant with no current epoch; destroying one that is not there does nothing.</summary>
+    ValueTask DestroyAsync(TenantId tenant, Guid epochId, CancellationToken cancellationToken = default);
+}
+
+/// <summary>A rotation's two epochs.</summary>
+/// <param name="From">The epoch that was current, or null if the tenant had none.</param>
+/// <param name="To">The new current epoch.</param>
+public sealed record ContentEpochRotation(Guid? From, Guid To);
+
+/// <summary>An epoch can't be destroyed: it is current, or an item still names it (ADR 0116 decision 5, R-0143).</summary>
+public sealed class ContentEpochInUseException : InvalidOperationException
+{
+    /// <summary>Creates the refusal.</summary>
+    public ContentEpochInUseException(Guid epochId) : base("That epoch is still in use.") => EpochId = epochId;
+
+    /// <summary>The epoch that stays.</summary>
+    public Guid EpochId { get; }
+}
+
+/// <summary>A durable host's storage ports, passed to the store together (DES-0054 Q31; ADR 0113, ADR 0116).</summary>
 public interface IContentStoreStorage
 {
+    /// <summary>The port that holds the tenant's wrapped epoch keys.</summary>
+    IContentEpochKeyStore Epochs { get; }
     /// <summary>The port that holds everything except ciphertext.</summary>
     IContentBookkeeping Bookkeeping { get; }
     /// <summary>The port that holds the ciphertext.</summary>
     IContentByteStore Bytes { get; }
 }
 
-/// <summary>One non-durable backing of both ports for tests, prototypes and a host that explicitly chooses process-local state.</summary>
+/// <summary>One non-durable backing of the ports for tests, prototypes and a host that explicitly chooses process-local state.</summary>
 public sealed class InMemoryContentStoreStorage : IContentStoreStorage
 {
     /// <inheritdoc />
     public IContentBookkeeping Bookkeeping { get; } = new InMemoryContentBookkeeping();
     /// <inheritdoc />
     public IContentByteStore Bytes { get; } = new InMemoryContentByteStore();
+    /// <inheritdoc />
+    public IContentEpochKeyStore Epochs { get; } = new InMemoryContentEpochKeyStore();
+}
+
+/// <summary>The in-memory key backing. Keeping a key at all is all the durability it has.</summary>
+public sealed class InMemoryContentEpochKeyStore : IContentEpochKeyStore
+{
+    private readonly object _gate = new();
+    private readonly Dictionary<(TenantId Tenant, Guid EpochId), ContentEpochKey> _epochs = [];
+    private readonly Dictionary<TenantId, Guid> _current = [];
+
+    /// <inheritdoc />
+    public ValueTask<ContentEpochKey?> GetCurrentAsync(TenantId tenant, CancellationToken cancellationToken = default)
+    {
+        lock (_gate) return ValueTask.FromResult(_current.TryGetValue(tenant, out var id) ? _epochs.GetValueOrDefault((tenant, id)) : null);
+    }
+
+    /// <inheritdoc />
+    public ValueTask<ContentEpochKey?> GetAsync(TenantId tenant, Guid epochId, CancellationToken cancellationToken = default)
+    {
+        lock (_gate) return ValueTask.FromResult(_epochs.GetValueOrDefault((tenant, epochId)));
+    }
+
+    /// <inheritdoc />
+    public ValueTask CreateAsync(TenantId tenant, ContentEpochKey epoch, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(epoch);
+        lock (_gate) _epochs.Add((tenant, epoch.EpochId), epoch);
+        return ValueTask.CompletedTask;
+    }
+
+    /// <inheritdoc />
+    public ValueTask<bool> TrySetCurrentAsync(TenantId tenant, Guid? expectedCurrent, Guid epochId, CancellationToken cancellationToken = default)
+    {
+        lock (_gate)
+        {
+            Guid? current = _current.TryGetValue(tenant, out var id) ? id : null;
+            if (current != expectedCurrent || !_epochs.ContainsKey((tenant, epochId))) return ValueTask.FromResult(false);
+            _current[tenant] = epochId;
+            return ValueTask.FromResult(true);
+        }
+    }
+
+    /// <inheritdoc />
+    public ValueTask DestroyAsync(TenantId tenant, Guid epochId, CancellationToken cancellationToken = default)
+    {
+        lock (_gate)
+        {
+            if (_epochs.Remove((tenant, epochId), out var epoch)) CryptographicOperations.ZeroMemory(epoch.WrappedKey);
+            if (_current.TryGetValue(tenant, out var current) && current == epochId) _current.Remove(tenant);
+        }
+
+        return ValueTask.CompletedTask;
+    }
 }
 
 /// <summary>
@@ -464,6 +592,9 @@ public sealed class InMemoryContentBookkeeping : IContentBookkeeping
     private readonly Dictionary<(TenantId Tenant, string? Record), long> _quota = [];
     private readonly Dictionary<(TenantId Tenant, string? Record), long> _pendingReservations = [];
     private readonly Dictionary<object, Transaction> _rowLocks = [];
+    private readonly Dictionary<(TenantId Tenant, Guid EpochId), HashSet<Transaction>> _epochPins = [];
+    private readonly Dictionary<(TenantId Tenant, Guid EpochId), Transaction> _epochRetirements = [];
+    private readonly HashSet<(TenantId Tenant, Guid EpochId)> _retiredEpochs = [];
     private readonly HashSet<string> _idempotencyKeys = new(StringComparer.Ordinal);
     private readonly List<KernelAuditEvidence> _audits = [];
 
@@ -586,6 +717,12 @@ public sealed class InMemoryContentBookkeeping : IContentBookkeeping
             lock (owner._gate) return ValueTask.FromResult(CurrentStaged(stageId));
         }
 
+        public async ValueTask<ContentStoreItem?> FindStagedForUpdateAsync(Guid stageId, CancellationToken cancellationToken = default)
+        {
+            await LockAsync(stageId, cancellationToken).ConfigureAwait(false);
+            lock (owner._gate) return CurrentStaged(stageId);
+        }
+
         public ValueTask<ContentIntegrityEntry?> FindIntegrityAsync(TenantId tenant, Guid itemKey, CancellationToken cancellationToken = default)
         {
             lock (owner._gate) return ValueTask.FromResult(_integrity.GetValueOrDefault((tenant, itemKey)) ?? owner._integrity.GetValueOrDefault((tenant, itemKey)));
@@ -594,6 +731,7 @@ public sealed class InMemoryContentBookkeeping : IContentBookkeeping
         public ValueTask AddStagedAsync(ContentStoreItem item, CancellationToken cancellationToken = default)
         {
             ArgumentNullException.ThrowIfNull(item);
+            if (item.State != ContentLifecycleState.Staged) throw new ArgumentException("Only a staged item can be staged.", nameof(item));
             lock (owner._gate) _staged[item.StageId] = item; // a stage id is minted for this put, so no other writer can name it yet
             return ValueTask.CompletedTask;
         }
@@ -640,6 +778,7 @@ public sealed class InMemoryContentBookkeeping : IContentBookkeeping
         public async ValueTask<ContentStoreItem?> TryCreateItemAsync(ContentStoreItem item, CancellationToken cancellationToken = default)
         {
             ArgumentNullException.ThrowIfNull(item);
+            if (item.State != ContentLifecycleState.Committed) throw new ArgumentException("Only a committed item can be created.", nameof(item));
             var key = new ContentStorageItemKey(item.Tenant, item.ContentId);
             await LockAsync(key, cancellationToken).ConfigureAwait(false);
             lock (owner._gate)
@@ -684,6 +823,85 @@ public sealed class InMemoryContentBookkeeping : IContentBookkeeping
                 return true;
             }
         }
+
+        public ValueTask<IReadOnlyList<ContentStoreItem>> ItemsUnderEpochAsync(TenantId tenant, Guid epochId, int limit, CancellationToken cancellationToken = default)
+        {
+            lock (owner._gate)
+            {
+                return ValueTask.FromResult<IReadOnlyList<ContentStoreItem>>([.. VisibleRows().Where(item => item.Tenant == tenant && item.EpochId == epochId).Take(limit)]);
+            }
+        }
+
+        public async ValueTask<bool> PinEpochAsync(TenantId tenant, Guid epochId, CancellationToken cancellationToken = default)
+        {
+            var epoch = (tenant, epochId);
+            while (true)
+            {
+                Task other;
+                lock (owner._gate)
+                {
+                    if (owner._retiredEpochs.Contains(epoch)) return false;
+                    if (!owner._epochRetirements.TryGetValue(epoch, out var retiring) || retiring == this)
+                    {
+                        if (!owner._epochPins.TryGetValue(epoch, out var pins)) owner._epochPins[epoch] = pins = [];
+                        pins.Add(this);
+                        return true;
+                    }
+
+                    other = retiring._ended.Task;
+                }
+
+                await other.WaitAsync(cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        public async ValueTask<bool> RetireEpochIfUnnamedAsync(TenantId tenant, Guid epochId, CancellationToken cancellationToken = default)
+        {
+            var epoch = (tenant, epochId);
+            while (true)
+            {
+                Task other;
+                lock (owner._gate)
+                {
+                    var holder = owner._epochRetirements.TryGetValue(epoch, out var retiring) && retiring != this ? retiring
+                        : owner._epochPins.TryGetValue(epoch, out var pins) ? pins.FirstOrDefault(pin => pin != this) : null;
+                    if (holder is null)
+                    {
+                        if (VisibleRows().Any(item => item.Tenant == tenant && item.EpochId == epochId)) return false;
+                        owner._epochRetirements[epoch] = this;
+                        return true;
+                    }
+
+                    other = holder._ended.Task;
+                }
+
+                await other.WaitAsync(cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        public async ValueTask<bool> ReplaceWrapAsync(ContentStoreItem item, Guid epochId, byte[] wrappedDataKey, byte[] wrapNonce, byte[] wrapTag, CancellationToken cancellationToken = default)
+        {
+            ArgumentNullException.ThrowIfNull(item);
+            var staged = item.State == ContentLifecycleState.Staged;
+            var key = new ContentStorageItemKey(item.Tenant, item.ContentId);
+            await LockAsync(staged ? item.StageId : key, cancellationToken).ConfigureAwait(false);
+            lock (owner._gate)
+            {
+                var current = staged ? CurrentStaged(item.StageId) : CurrentItem(key);
+                if (current is null || current.StageId != item.StageId || current.EpochId != item.EpochId) return false;
+                var moved = current with { EpochId = epochId, WrappedDataKey = wrappedDataKey, WrapNonce = wrapNonce, WrapTag = wrapTag };
+                if (staged) _staged[item.StageId] = moved;
+                else _items[key] = moved;
+                return true;
+            }
+        }
+
+        // Committed rows as this transaction sees them, with its own writes applied, staged entries first.
+        private IEnumerable<ContentStoreItem> VisibleRows() =>
+            owner._staged.Where(pair => !_staged.ContainsKey(pair.Key)).Select(pair => pair.Value)
+                .Concat(_staged.Values.OfType<ContentStoreItem>())
+                .Concat(owner._items.Where(pair => !_items.ContainsKey(pair.Key)).Select(pair => pair.Value))
+                .Concat(_items.Values.OfType<ContentStoreItem>());
 
         public ValueTask AppendReclamationAsync(ReclamationEntry entry, CancellationToken cancellationToken = default)
         {
@@ -767,6 +985,17 @@ public sealed class InMemoryContentBookkeeping : IContentBookkeeping
                 }
 
                 foreach (var row in owner._rowLocks.Where(pair => pair.Value == this).Select(pair => pair.Key).ToArray()) owner._rowLocks.Remove(row);
+                foreach (var epoch in owner._epochRetirements.Where(pair => pair.Value == this).Select(pair => pair.Key).ToArray())
+                {
+                    owner._epochRetirements.Remove(epoch);
+                    if (publish) owner._retiredEpochs.Add(epoch);
+                }
+
+                foreach (var (epoch, pins) in owner._epochPins.ToArray())
+                {
+                    pins.Remove(this);
+                    if (pins.Count == 0) owner._epochPins.Remove(epoch);
+                }
             }
 
             _ended.SetResult();
@@ -976,6 +1205,7 @@ public sealed class InMemoryContentStore
     private readonly TimeProvider _clock;
     private readonly IContentBookkeeping _bookkeeping;
     private readonly IContentByteStore _bytes;
+    private readonly IContentEpochKeyStore _epochs;
     private readonly IContentIntegrityLogger? _integrityLogger;
 
     // DES-0054 design.md:205 (Q27): 65,536 plaintext bytes is a store constant recorded on every item, not an installation option.
@@ -1003,12 +1233,14 @@ public sealed class InMemoryContentStore
         ArgumentNullException.ThrowIfNull(storage);
         ArgumentNullException.ThrowIfNull(storage.Bookkeeping);
         ArgumentNullException.ThrowIfNull(storage.Bytes);
+        ArgumentNullException.ThrowIfNull(storage.Epochs);
         options.Validate();
         _options = options;
         _keys = keys;
         _clock = clock;
         _bookkeeping = storage.Bookkeeping;
         _bytes = storage.Bytes;
+        _epochs = storage.Epochs;
         _integrityLogger = integrityLogger;
     }
 
@@ -1080,13 +1312,28 @@ public sealed class InMemoryContentStore
                 }
 
                 var contentId = new ContentId(ContentId.Algorithm + Convert.ToHexStringLower(id.GetHashAndReset()));
-                var (wrapped, wrapNonce, wrapTag) = Wrap(dataKeyWrapKey, dataKey, contentId);
-                var item = new ContentStoreItem(stageId, tenant, contentId, length, mediaType, _clock.GetUtcNow(), wrapped, wrapNonce, wrapTag, noncePrefix, SegmentSizeBytes);
+                var createdUtc = _clock.GetUtcNow();
                 await bytes.CompleteAsync(_clock.GetUtcNow(), cancellationToken).ConfigureAwait(false);
                 await RunAsync(ContentStoreOperation.Put, write, async (session, token) =>
                 {
-                    await session.AddStagedAsync(item, token).ConfigureAwait(false);
-                    return true;
+                    while (true)
+                    {
+                        var epoch = await CurrentEpochAsync(tenant, dataKeyWrapKey, token).ConfigureAwait(false);
+                        // Pinned before it is opened: from here it can't be destroyed. A retired epoch can't be the current
+                        // one any more, so the next look finds a usable one.
+                        if (!await session.PinEpochAsync(tenant, epoch.EpochId, token).ConfigureAwait(false)) continue;
+                        var epochKey = OpenEpoch(tenant, dataKeyWrapKey, epoch);
+                        try
+                        {
+                            var (wrapped, wrapNonce, wrapTag) = Wrap(epochKey, dataKey, contentId);
+                            await session.AddStagedAsync(new ContentStoreItem(stageId, tenant, contentId, length, mediaType, createdUtc, wrapped, wrapNonce, wrapTag, noncePrefix, SegmentSizeBytes, epoch.EpochId), token).ConfigureAwait(false);
+                            return true;
+                        }
+                        finally
+                        {
+                            CryptographicOperations.ZeroMemory(epochKey);
+                        }
+                    }
                 }, cancellationToken).ConfigureAwait(false);
                 return stageId;
             }
@@ -1119,7 +1366,8 @@ public sealed class InMemoryContentStore
         ContentStoreItem? expired = null, collapsed = null, held = null;
         var outcome = await RunAsync(ContentStoreOperation.Commit, write, async (session, token) =>
         {
-            if (await session.FindStagedAsync(stageId, token).ConfigureAwait(false) is not { } staged || staged.Tenant != tenant) throw StagingExpiredRefusal();
+            // Held from here, so a rewrap can't change the wrap this promotion carries into the committed item.
+            if (await session.FindStagedForUpdateAsync(stageId, token).ConfigureAwait(false) is not { } staged || staged.Tenant != tenant) throw StagingExpiredRefusal();
             if (StagedCutoff() >= staged.CreatedUtc)
             {
                 // Inside a caller's execution the refusal must fail the join and doom it; the sweep reclaims the stage.
@@ -1304,12 +1552,12 @@ public sealed class InMemoryContentStore
         ArgumentNullException.ThrowIfNull(context);
         ArgumentException.ThrowIfNullOrWhiteSpace(context.PrincipalId);
         await RefuseOpenExecutionAsync().ConfigureAwait(false);
-        var item = await ReadableAsync(tenant, reference, authorized, cancellationToken).ConfigureAwait(false);
+        var (item, epoch) = await ReadSnapshotAsync(tenant, reference, authorized, cancellationToken).ConfigureAwait(false);
         var etag = "\"" + item.ContentId.Value + "\"";
         var disposition = Attachment(reference.DisplayName);
         if (range is not { } requested || (ifRange is not null && ifRange != etag) || requested.Start < 0 || requested.End < requested.Start)
         {
-            return new(await OpenReadAsync(item, reference.Owner, RequireKey(tenant), 0, item.LastSegment, 0, item.Length, true, context, cancellationToken).ConfigureAwait(false),
+            return new(await OpenReadAsync(item, epoch, reference.Owner, RequireKey(tenant), 0, 0, item.Length, true, context, cancellationToken).ConfigureAwait(false),
                 200, item.MediaType, disposition, etag, null);
         }
 
@@ -1320,9 +1568,8 @@ public sealed class InMemoryContentStore
 
         var end = Math.Min(requested.End, item.Length - 1);
         var first = (int)(requested.Start / item.SegmentSize);
-        var last = (int)(end / item.SegmentSize);
         var offset = requested.Start - ((long)first * item.SegmentSize);
-        return new(await OpenReadAsync(item, reference.Owner, RequireKey(tenant), first, last, offset, end - requested.Start + 1, false, context, cancellationToken).ConfigureAwait(false),
+        return new(await OpenReadAsync(item, epoch, reference.Owner, RequireKey(tenant), first, offset, end - requested.Start + 1, false, context, cancellationToken).ConfigureAwait(false),
             206, item.MediaType, disposition, etag, $"bytes {requested.Start}-{end}/{item.Length}");
     }
 
@@ -1334,7 +1581,7 @@ public sealed class InMemoryContentStore
         try
         {
             await KernelTransactionBoundary.ExecutePreparedAsync<ContentStoreOperation, bool>(
-                static _ => throw new InvalidOperationException("The probe never prepares a command."), ExecutionProbe.Instance).ConfigureAwait(false);
+                static _ => throw new UnreachableException(), ExecutionProbe.Instance).ConfigureAwait(false);
         }
         catch (ExecutionProbe.Ended)
         {
@@ -1435,12 +1682,224 @@ public sealed class InMemoryContentStore
             // Checked again now: a put may have staged these bytes or completed its write since they were listed.
             foreach (var orphan in orphans)
             {
-                if (!await _bookkeeping.NamesBytesAsync(orphan).ConfigureAwait(false)) await DeleteOrphanAsync(orphan, cutoff).ConfigureAwait(false);
+                if (!await _bookkeeping.NamesBytesAsync(orphan, CancellationToken.None).ConfigureAwait(false)) await DeleteOrphanAsync(orphan, cutoff).ConfigureAwait(false);
             }
         }
 
         return reclaimed.Count;
     }
+
+    /// <summary>
+    /// Makes a new current epoch (ADR 0116 decision 5): its key is durable before anything can name it, then the audit
+    /// commits, then new wraps switch to it. A crash at any step leaves every item readable under a key that still exists,
+    /// and a retry starts over; that crash can leave a key nothing names. A failed audit destroys the new key. Key writes
+    /// can't roll back, so this runs alone, never in a caller's transaction.
+    /// </summary>
+    public ValueTask<ContentEpochRotation> RotateEpochAsync(TenantId tenant, ContentStoreWrite write, CancellationToken cancellationToken = default) =>
+        DoomingCallerOnFailureAsync(write, () => RotateEpochCoreAsync(tenant, write, cancellationToken));
+
+    private async ValueTask<ContentEpochRotation> RotateEpochCoreAsync(TenantId tenant, ContentStoreWrite write, CancellationToken cancellationToken)
+    {
+        RequireStandaloneKeyWrite(write);
+        var subkey = DeriveSubkey(RequireKey(tenant), tenant, DataKeyWrapKeyInfo);
+        try
+        {
+            var current = await _epochs.GetCurrentAsync(tenant, cancellationToken).ConfigureAwait(false);
+            var made = await MakeEpochAsync(tenant, subkey, cancellationToken).ConfigureAwait(false);
+            try
+            {
+                await RunAsync(ContentStoreOperation.EpochRotation, write, static (_, _) => ValueTask.FromResult(true), cancellationToken).ConfigureAwait(false);
+            }
+            catch
+            {
+                // Safe even if the audit did commit: its row doesn't name this epoch, and nothing else can yet.
+                await _epochs.DestroyAsync(tenant, made.EpochId, CancellationToken.None).ConfigureAwait(false);
+                throw;
+            }
+
+            if (!await _epochs.TrySetCurrentAsync(tenant, current?.EpochId, made.EpochId, CancellationToken.None).ConfigureAwait(false))
+            {
+                await _epochs.DestroyAsync(tenant, made.EpochId, CancellationToken.None).ConfigureAwait(false); // nothing can name it yet
+                throw new InvalidOperationException("Another rotation of this tenant's epoch finished first.");
+            }
+
+            return new(current?.EpochId, made.EpochId);
+        }
+        finally
+        {
+            CryptographicOperations.ZeroMemory(subkey);
+        }
+    }
+
+    /// <summary>
+    /// Moves up to <paramref name="batchSize"/> items from one epoch to another and returns how many moved, zero when none
+    /// remain. Each data key is unwrapped and rewrapped in memory only and never written, logged or returned (CWE-212). Items
+    /// under a legal hold move like the rest: a hold keeps bytes, and this changes only their wrap. It joins the caller's
+    /// transaction when given one. A wrap that fails authentication throws <see cref="ContentIntegrityException"/> and moves
+    /// nothing in the batch, so the old epoch stays and that item is no worse off.
+    /// </summary>
+    public ValueTask<int> RewrapEpochAsync(TenantId tenant, Guid fromEpoch, Guid toEpoch, int batchSize, ContentStoreWrite write, CancellationToken cancellationToken = default) =>
+        DoomingCallerOnFailureAsync(write, () => RewrapEpochCoreAsync(tenant, fromEpoch, toEpoch, batchSize, write, cancellationToken));
+
+    private async ValueTask<int> RewrapEpochCoreAsync(TenantId tenant, Guid fromEpoch, Guid toEpoch, int batchSize, ContentStoreWrite write, CancellationToken cancellationToken)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(batchSize);
+        RequireEvidence(write);
+        if (fromEpoch == toEpoch) throw new ArgumentException("A rewrap moves items to a different epoch.", nameof(toEpoch));
+        var subkey = DeriveSubkey(RequireKey(tenant), tenant, DataKeyWrapKeyInfo);
+        byte[] fromKey = [], toKey = [];
+        try
+        {
+            var from = await RequireEpochAsync(tenant, fromEpoch, cancellationToken).ConfigureAwait(false);
+            var to = await RequireEpochAsync(tenant, toEpoch, cancellationToken).ConfigureAwait(false);
+            var moved = 0;
+            await RunAsync(ContentStoreOperation.EpochRewrap, write, async (session, token) =>
+            {
+                // Pinned first, so the source can't be retired while its rows are read and moved. Retired already means drained.
+                if (!await session.PinEpochAsync(tenant, fromEpoch, token).ConfigureAwait(false)) return false;
+                while (true)
+                {
+                    var items = await session.ItemsUnderEpochAsync(tenant, fromEpoch, batchSize, token).ConfigureAwait(false);
+                    if (items.Count == 0) return moved != 0;
+                    if (!await session.PinEpochAsync(tenant, toEpoch, token).ConfigureAwait(false)) throw new InvalidOperationException("That epoch is being destroyed.");
+                    if (fromKey.Length == 0)
+                    {
+                        fromKey = OpenEpoch(tenant, subkey, from);
+                        toKey = OpenEpoch(tenant, subkey, to);
+                    }
+
+                    foreach (var item in items)
+                    {
+                        // The row is held before its wrap is opened: the listing is a snapshot, and a removal that committed since then zeroed that wrap.
+                        var held = item.State == ContentLifecycleState.Staged
+                            ? await session.FindStagedForUpdateAsync(item.StageId, token).ConfigureAwait(false)
+                            : await session.FindItemForUpdateAsync(new(item.Tenant, item.ContentId), token).ConfigureAwait(false);
+                        if (held?.EpochId != fromEpoch) continue;
+                        var (wrapped, nonce, tag) = MoveWrap(held, fromKey, toKey);
+                        if (await session.ReplaceWrapAsync(held, toEpoch, wrapped, nonce, tag, token).ConfigureAwait(false)) moved++;
+                    }
+
+                    // A concurrent rewrap took this whole batch; only an empty listing means the epoch is drained.
+                    if (moved != 0) return true;
+                }
+            }, cancellationToken).ConfigureAwait(false);
+            return moved;
+        }
+        finally
+        {
+            CryptographicOperations.ZeroMemory(subkey);
+            CryptographicOperations.ZeroMemory(fromKey);
+            CryptographicOperations.ZeroMemory(toKey);
+        }
+    }
+
+    private static (byte[] Wrapped, byte[] Nonce, byte[] Tag) MoveWrap(ContentStoreItem item, byte[] fromKey, byte[] toKey)
+    {
+        var dataKey = new byte[KeyBytes];
+        try
+        {
+            using (var opener = new AesGcm(fromKey, TagBytes))
+            {
+                opener.Decrypt(item.WrapNonce, item.WrappedDataKey, item.WrapTag, dataKey, Encoding.ASCII.GetBytes(item.ContentId.Value));
+            }
+
+            return Wrap(toKey, dataKey, item.ContentId);
+        }
+        catch (CryptographicException failure)
+        {
+            throw new ContentIntegrityException(item.StageId, item.Owners.Count != 0 ? item.Owners[0] : new(string.Empty, string.Empty), 0, failure);
+        }
+        finally
+        {
+            CryptographicOperations.ZeroMemory(dataKey);
+        }
+    }
+
+    /// <summary>
+    /// Destroys an epoch's key and returns true, or false if it is already gone. It refuses with
+    /// <see cref="ContentEpochInUseException"/> while the epoch is current or any item names it, because that key is the only
+    /// way to those items (R-0143). The waiting period before this call is the host's (ADR 0116 decision 5). Runs alone, never
+    /// in a caller's transaction: the key can't come back if that transaction rolls back.
+    /// </summary>
+    public ValueTask<bool> DestroyEpochAsync(TenantId tenant, Guid epochId, ContentStoreWrite write, CancellationToken cancellationToken = default) =>
+        DoomingCallerOnFailureAsync(write, () => DestroyEpochCoreAsync(tenant, epochId, write, cancellationToken));
+
+    private async ValueTask<bool> DestroyEpochCoreAsync(TenantId tenant, Guid epochId, ContentStoreWrite write, CancellationToken cancellationToken)
+    {
+        RequireStandaloneKeyWrite(write);
+        if (await _epochs.GetAsync(tenant, epochId, cancellationToken).ConfigureAwait(false) is null) return false;
+        if ((await _epochs.GetCurrentAsync(tenant, cancellationToken).ConfigureAwait(false))?.EpochId == epochId) throw new ContentEpochInUseException(epochId);
+        await RunAsync(ContentStoreOperation.EpochDestroy, write, async (session, token) =>
+        {
+            if (!await session.RetireEpochIfUnnamedAsync(tenant, epochId, token).ConfigureAwait(false)) throw new ContentEpochInUseException(epochId);
+            return true;
+        }, cancellationToken).ConfigureAwait(false);
+        await _epochs.DestroyAsync(tenant, epochId, CancellationToken.None).ConfigureAwait(false); // the audit committed; the destroy is not cancellable
+        return true;
+    }
+
+    private static void RequireStandaloneKeyWrite(ContentStoreWrite write)
+    {
+        RequireEvidence(write);
+        if (write.Transaction is not null) throw new ArgumentException("A key write can't roll back, so it runs in its own transaction.", nameof(write));
+    }
+
+    private async ValueTask<ContentEpochKey> RequireEpochAsync(TenantId tenant, Guid epochId, CancellationToken cancellationToken) =>
+        await _epochs.GetAsync(tenant, epochId, cancellationToken).ConfigureAwait(false)
+        ?? throw new InvalidOperationException("That epoch does not exist.");
+
+    // The tenant's current epoch, still wrapped. A tenant's first put makes its first epoch.
+    private async ValueTask<ContentEpochKey> CurrentEpochAsync(TenantId tenant, byte[] subkey, CancellationToken cancellationToken)
+    {
+        while (true)
+        {
+            if (await _epochs.GetCurrentAsync(tenant, cancellationToken).ConfigureAwait(false) is { } current) return current;
+            var made = await MakeEpochAsync(tenant, subkey, cancellationToken).ConfigureAwait(false);
+            if (await _epochs.TrySetCurrentAsync(tenant, null, made.EpochId, cancellationToken).ConfigureAwait(false)) return made;
+            await _epochs.DestroyAsync(tenant, made.EpochId, cancellationToken).ConfigureAwait(false); // a concurrent first put won; nothing names this one
+        }
+    }
+
+    private async ValueTask<ContentEpochKey> MakeEpochAsync(TenantId tenant, byte[] subkey, CancellationToken cancellationToken)
+    {
+        var plaintext = RandomNumberGenerator.GetBytes(KeyBytes);
+        try
+        {
+            var epochId = Guid.NewGuid();
+            var nonce = RandomNumberGenerator.GetBytes(NonceBytes);
+            var wrapped = new byte[KeyBytes];
+            var tag = new byte[TagBytes];
+            using (var wrapper = new AesGcm(subkey, TagBytes))
+            {
+                wrapper.Encrypt(nonce, plaintext, wrapped, tag, EpochAad(tenant, epochId));
+            }
+
+            var epoch = new ContentEpochKey(epochId, wrapped, nonce, tag);
+            await _epochs.CreateAsync(tenant, epoch, cancellationToken).ConfigureAwait(false);
+            return epoch;
+        }
+        finally
+        {
+            CryptographicOperations.ZeroMemory(plaintext);
+        }
+    }
+
+    private static byte[] OpenEpoch(TenantId tenant, byte[] subkey, ContentEpochKey epoch)
+    {
+        var plaintext = new byte[KeyBytes];
+        using var opener = new AesGcm(subkey, TagBytes);
+        opener.Decrypt(epoch.WrapNonce, epoch.WrappedKey, epoch.WrapTag, plaintext, EpochAad(tenant, epoch.EpochId));
+        return plaintext;
+    }
+
+    // Binds a wrapped epoch key to its purpose, tenant and id, so it can't pass for another epoch or for anything else the
+    // subkey could be asked to open.
+    private static byte[] EpochAad(TenantId tenant, Guid epochId) =>
+        Encoding.UTF8.GetBytes("harborline-content-store:epoch-key:v1|" + epochId.ToString("N") + "|" + tenant.Value);
+
+    // The plaintext key of the epoch a read took with its row. A missing epoch fails like any other unreadable wrap.
+    private static byte[] OpenSnapshotEpoch(ContentStoreItem item, ContentEpochKey? epoch, byte[] subkey) =>
+        OpenEpoch(item.Tenant, subkey, epoch ?? throw new AuthenticationTagMismatchException("The item's epoch key is gone."));
 
     /// <summary>
     /// Exports the items behind authorized references with a fresh per-export key (DES-0054 cc-7, Q20). The package
@@ -1516,16 +1975,16 @@ public sealed class InMemoryContentStore
 
     internal async ValueTask CorruptWrapTagAsync(TenantId tenant, ContentId contentId) => (await StorageItemAsync(tenant, contentId).ConfigureAwait(false)).WrapTag[0] ^= 1;
 
+    // Simulates a wrap under the wrong key: the content-id subkey in place of the item's epoch key.
     internal async ValueTask RewrapWithContentIdSubkeyAsync(TenantId tenant, ContentId contentId)
     {
         var item = await StorageItemAsync(tenant, contentId).ConfigureAwait(false);
-        var root = RequireKey(tenant);
-        var (_, correctWrapKey) = DeriveSubkeys(root, tenant);
-        var (contentIdKey, _) = DeriveSubkeys(root, tenant);
+        var (contentIdKey, wrapSubkey) = DeriveSubkeys(RequireKey(tenant), tenant);
+        var epochKey = OpenEpoch(tenant, wrapSubkey, (await _epochs.GetAsync(tenant, item.EpochId).ConfigureAwait(false))!);
         var dataKey = new byte[KeyBytes];
         try
         {
-            using (var wrapper = new AesGcm(correctWrapKey, TagBytes))
+            using (var wrapper = new AesGcm(epochKey, TagBytes))
             {
                 wrapper.Decrypt(item.WrapNonce, item.WrappedDataKey, item.WrapTag, dataKey, Encoding.ASCII.GetBytes(item.ContentId.Value));
             }
@@ -1535,8 +1994,9 @@ public sealed class InMemoryContentStore
         }
         finally
         {
-            CryptographicOperations.ZeroMemory(correctWrapKey);
+            CryptographicOperations.ZeroMemory(wrapSubkey);
             CryptographicOperations.ZeroMemory(contentIdKey);
+            CryptographicOperations.ZeroMemory(epochKey);
             CryptographicOperations.ZeroMemory(dataKey);
         }
     }
@@ -1670,7 +2130,26 @@ public sealed class InMemoryContentStore
         return (wrapped, nonce, tag);
     }
 
-    private async ValueTask<ContentReadStream> OpenReadAsync(ContentStoreItem item, ContentOwner owner, byte[] tenantKey, int first, int last, long offset, long length,
+    // An item and the epoch key it names, taken together. A rotation can finish between reading the row and finding its key;
+    // the row then names another epoch, so it is read again. Only a row that still names a missing key is an integrity failure.
+    // The wrap is copied so a destroy can't change it under this read.
+    private async ValueTask<(ContentStoreItem Item, ContentEpochKey? Epoch)> ReadSnapshotAsync(TenantId tenant, ContentReference reference, bool authorized, CancellationToken cancellationToken)
+    {
+        var item = await ReadableAsync(tenant, reference, authorized, cancellationToken).ConfigureAwait(false);
+        while (true)
+        {
+            if (await _epochs.GetAsync(item.Tenant, item.EpochId, cancellationToken).ConfigureAwait(false) is { } epoch)
+            {
+                return (item, epoch with { WrappedKey = [.. epoch.WrappedKey], WrapNonce = [.. epoch.WrapNonce], WrapTag = [.. epoch.WrapTag] });
+            }
+
+            var fresh = await ReadableAsync(tenant, reference, authorized, cancellationToken).ConfigureAwait(false);
+            if (fresh.EpochId == item.EpochId) return (fresh, null);
+            item = fresh;
+        }
+    }
+
+    private async ValueTask<ContentReadStream> OpenReadAsync(ContentStoreItem item, ContentEpochKey? epoch, ContentOwner owner, byte[] tenantKey, int first, long offset, long length,
         bool verifiesWholeItem, ContentReadContext context, CancellationToken cancellationToken)
     {
         var wrapKey = DeriveSubkey(tenantKey, item.Tenant, DataKeyWrapKeyInfo);
@@ -1678,8 +2157,8 @@ public sealed class InMemoryContentStore
         {
             // Taken before any segment is read: a verified read may close only the episode that existed when it began.
             var episodeAtStart = await _bookkeeping.FindIntegrityAsync(item.Tenant, item.StageId, cancellationToken).ConfigureAwait(false);
-            var body = new ContentReadStream(item, _bytes, owner, first, last, offset, length, verifiesWholeItem, context, episodeAtStart, ReportIntegrityAsync, ResolveVerifiedAsync);
-            await body.VerifyFirstSegmentAsync(wrapKey, cancellationToken).ConfigureAwait(false);
+            var body = new ContentReadStream(item, _bytes, owner, first, offset, length, verifiesWholeItem, context, episodeAtStart, ReportIntegrityAsync, ResolveVerifiedAsync);
+            await body.VerifyFirstSegmentAsync(_ => ValueTask.FromResult(OpenSnapshotEpoch(item, epoch, wrapKey)), cancellationToken).ConfigureAwait(false);
             return body;
         }
         finally
@@ -1782,7 +2261,7 @@ public sealed class InMemoryContentStore
         if (header.StartsWith((ReadOnlySpan<byte>)[0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A])) return "image/png";
         if (header.StartsWith((ReadOnlySpan<byte>)[0xFF, 0xD8, 0xFF])) return "image/jpeg";
         if (header.Length >= 14 && header.StartsWith("RIFF"u8) && header[8..].StartsWith("WEBPVP"u8)) return "image/webp";
-        if (IsText(header)) return declaredType is "text/plain" or "text/csv" ? declaredType : "text/plain";
+        if (IsText(header)) return declaredType == "text/csv" ? "text/csv" : "text/plain";
         if (declaredType is "text/plain" or "text/csv")
         {
             throw new ContentRefusedException(ContentRefusals.MediaTypeMismatch, "The declared text type is on bytes that are not text.", StoreDeclaration);
@@ -1872,7 +2351,6 @@ public sealed class InMemoryContentStore
         private readonly ContentStoreItem _item;
         private readonly IContentByteStore _bytes;
         private readonly ContentOwner _owner;
-        private readonly int _last;
         private readonly bool _verifiesWholeItem;
         private readonly ContentReadContext _context;
         private readonly Func<ContentStoreItem, ContentOwner, int, ContentReadContext, ValueTask> _report;
@@ -1888,14 +2366,13 @@ public sealed class InMemoryContentStore
         private bool _disposed;
         private ContentIntegrityException? _failure;
 
-        public ContentReadStream(ContentStoreItem item, IContentByteStore bytes, ContentOwner owner, int first, int last, long offset, long length,
+        public ContentReadStream(ContentStoreItem item, IContentByteStore bytes, ContentOwner owner, int first, long offset, long length,
             bool verifiesWholeItem, ContentReadContext context, ContentIntegrityEntry? episodeAtStart, Func<ContentStoreItem, ContentOwner, int, ContentReadContext, ValueTask> report,
             Func<ContentStoreItem, ContentReadContext, ContentIntegrityEntry?, ValueTask> resolve)
         {
             _item = item;
             _bytes = bytes;
             _owner = owner;
-            _last = last;
             _length = length;
             _remaining = length;
             _index = first;
@@ -1908,13 +2385,19 @@ public sealed class InMemoryContentStore
         }
 
         // Verifies the first covering segment before the host writes headers.
-        public async ValueTask VerifyFirstSegmentAsync(byte[] wrapKey, CancellationToken cancellationToken)
+        public async ValueTask VerifyFirstSegmentAsync(Func<CancellationToken, ValueTask<byte[]>> openEpochKey, CancellationToken cancellationToken)
         {
             try
             {
-                using (var wrapper = new AesGcm(wrapKey, TagBytes))
+                var epochKey = await openEpochKey(cancellationToken).ConfigureAwait(false);
+                try
                 {
+                    using var wrapper = new AesGcm(epochKey, TagBytes);
                     wrapper.Decrypt(_item.WrapNonce, _item.WrappedDataKey, _item.WrapTag, _dataKey, Encoding.ASCII.GetBytes(_item.ContentId.Value));
+                }
+                finally
+                {
+                    CryptographicOperations.ZeroMemory(epochKey);
                 }
 
                 await LoadSegmentAsync(_index, cancellationToken).ConfigureAwait(false);
@@ -1995,7 +2478,7 @@ public sealed class InMemoryContentStore
         // A cancelled fetch changes nothing, so a later read fetches the same segment and never skips it.
         private async ValueTask LoadSegmentAsync(int index, CancellationToken cancellationToken)
         {
-            var segment = index > _last ? null : await _bytes.ReadSegmentAsync(_item.StageId, index, cancellationToken).ConfigureAwait(false);
+            var segment = await _bytes.ReadSegmentAsync(_item.StageId, index, cancellationToken).ConfigureAwait(false);
             _index = index;
             CryptographicOperations.ZeroMemory(_clear);
             if (segment is null)

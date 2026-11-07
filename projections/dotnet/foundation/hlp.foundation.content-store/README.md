@@ -82,6 +82,21 @@ By the owner's ruling of 2026-11-05 (22:11 UTC), a failed integrity check writes
 - **A verified read closes only the episode that existed when it began.** It captures that episode before reading any segment, holds the item's row, and closes it only if it is unchanged. A read that began with no active episode, or one that a later failure has changed, leaves the episode open.
 - **Cancelling a read does not cancel its episode write.** A read returns what it has copied before fetching another segment, so a fetch that is cancelled loses nothing and a later read resumes on that segment.
 
+## Epoch keys (T-521/content-store-epoch-wrap-key)
+
+[ADR 0116](https://github.com/Harborline-Software/harborline-control/blob/main/adrs/ADR-0116-content-store-item-keys-are-wrapped-under-a-rotating-epoch-key-and-each-backup-gets-its-own-key/adr.md) puts a rotating key between the tenant key and every item key, so destroying one epoch key makes every leftover copy of the item keys it wrapped unreadable at once: free pages, WAL, dead tuples and old disk blocks.
+
+- **The chain.** The tenant's `harborline-content-store:data-key-wrap:v1` subkey wraps only epoch keys, and each epoch key wraps item data keys. Each bookkeeping row names its epoch in `ContentStoreItem.EpochId`.
+- **The port.** `IContentEpochKeyStore` holds epoch keys only in wrapped form. A host keeps them outside its database, backups and sync, and `CreateAsync` returns only once the key is durable.
+- **`RotateEpochAsync`** makes a new key durable, commits its audit row, then switches new wraps to it. A tenant's first put makes its first epoch.
+- **`RewrapEpochAsync`** moves one batch and returns only a count, zero when none remain. Data keys exist in plaintext only in memory during the step, and are never written, logged or returned (CWE-212). It joins the caller's transaction when given one. Items under a legal hold move like the rest. A wrap that fails authentication throws `ContentIntegrityException` and moves nothing in that batch, so the old epoch stays.
+- **`DestroyEpochAsync`** refuses with `ContentEpochInUseException` while the epoch is current or any item names it, commits its audit row, then destroys the key.
+- **Pins and retirement.** A put or a rewrap pins the epoch it wraps under in its transaction, as `SELECT ... FOR SHARE` does. A destroy retires the epoch under an exclusive lock, which waits for every pin, then checks for rows and commits a marker that refuses later pins. So an uncommitted write can't lose its key, however long its transaction stays open, and a durable backing doesn't need a timing rule for this.
+- **Actors.** All three carry the caller's actor and audit evidence, one row each. A rotation or destroy runs alone, because a key write can't roll back with a caller's transaction.
+- **Crashes.** At every step, each item stays readable under a key that still exists, and a retry finishes the work.
+
+Left to the host (`T-521/content-store-epoch-key-store`): the key files, the `content-key-rotation` run and its schedule, the settings, the checkpoint, and the waiting period before it calls destroy.  Snapshot backups and their per-backup keys are not built in R1 (ADR 0116 decision 6).
+
 ## The two storage ports
 
 The storage port is split by [ADR 0113](https://github.com/Harborline-Software/harborline-control/blob/main/adrs/ADR-0113-content-store-bookkeeping-lives-in-the-node-model-and-commits-with-the-record/adr.md). Bookkeeping commits in a transaction; bytes are written outside it.
