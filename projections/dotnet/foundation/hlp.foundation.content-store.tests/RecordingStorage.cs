@@ -13,6 +13,7 @@ internal sealed class RecordingStorage : IContentStoreStorage
     public InMemoryContentBookkeeping Memory { get; } = new();
     public InMemoryContentByteStore MemoryBytes { get; } = new();
     public List<string> Events { get; } = [];
+    public List<string> EpochEvents { get; } = [];
     public List<ContentStoreOperation> StagedRecords { get; } = [];
     public List<int> SegmentReads { get; } = [];
     public List<KernelOperationIdentity> StagedOperations { get; } = [];
@@ -34,10 +35,19 @@ internal sealed class RecordingStorage : IContentStoreStorage
     {
         Bookkeeping = new RecordingBookkeeping(this);
         Bytes = new RecordingBytes(this);
+        Epochs = new RecordingEpochs(this);
     }
 
     public IContentBookkeeping Bookkeeping { get; }
     public IContentByteStore Bytes { get; }
+    public IContentEpochKeyStore Epochs { get; }
+    public InMemoryContentEpochKeyStore MemoryEpochs { get; } = new();
+    public Action<string>? OnEpochStep { get; set; }
+    public Func<Task>? BeforeFirstSetCurrent { get; set; }
+    public Func<Task>? BeforePin { get; set; }
+    /// <summary>Runs once, after a listing is taken and before the transaction acts on it.</summary>
+    public Func<Task>? AfterEpochListing { get; set; }
+    public Func<Task>? BeforeEpochGet { get; set; }
 
     public static BookkeepingImage Capture(InMemoryContentBookkeeping memory)
     {
@@ -116,6 +126,39 @@ internal sealed class RecordingStorage : IContentStoreStorage
             return await inner.FindItemForUpdateAsync(key, cancellationToken);
         }
 
+        public async ValueTask<IReadOnlyList<ContentStoreItem>> ItemsUnderEpochAsync(TenantId tenant, Guid epochId, int limit, CancellationToken cancellationToken = default)
+        {
+            var items = await inner.ItemsUnderEpochAsync(tenant, epochId, limit, cancellationToken);
+            if (owner.AfterEpochListing is { } hook)
+            {
+                owner.AfterEpochListing = null;
+                await hook();
+            }
+
+            return items;
+        }
+
+        public async ValueTask<bool> PinEpochAsync(TenantId tenant, Guid epochId, CancellationToken cancellationToken = default)
+        {
+            if (owner.BeforePin is { } hook)
+            {
+                owner.BeforePin = null;
+                await hook();
+            }
+
+            return await inner.PinEpochAsync(tenant, epochId, cancellationToken);
+        }
+
+        public ValueTask<bool> RetireEpochIfUnnamedAsync(TenantId tenant, Guid epochId, CancellationToken cancellationToken = default) => inner.RetireEpochIfUnnamedAsync(tenant, epochId, cancellationToken);
+
+        public ValueTask<ContentStoreItem?> FindStagedForUpdateAsync(Guid stageId, CancellationToken cancellationToken = default)
+        {
+            owner.BeforeFindStaged?.Invoke();
+            return inner.FindStagedForUpdateAsync(stageId, cancellationToken);
+        }
+        public ValueTask<bool> ReplaceWrapAsync(ContentStoreItem item, Guid epochId, byte[] wrappedDataKey, byte[] wrapNonce, byte[] wrapTag, CancellationToken cancellationToken = default) =>
+            inner.ReplaceWrapAsync(item, epochId, wrappedDataKey, wrapNonce, wrapTag, cancellationToken);
+
         public ValueTask<ContentStoreItem?> FindStagedAsync(Guid stageId, CancellationToken cancellationToken = default)
         {
             owner.BeforeFindStaged?.Invoke();
@@ -159,6 +202,49 @@ internal sealed class RecordingStorage : IContentStoreStorage
 
         public ValueTask RollbackAsync(CancellationToken cancellationToken = default) => inner.RollbackAsync(cancellationToken);
         public ValueTask DisposeAsync() => inner.DisposeAsync();
+    }
+
+    private sealed class RecordingEpochs(RecordingStorage owner) : IContentEpochKeyStore
+    {
+        public ValueTask<ContentEpochKey?> GetCurrentAsync(TenantId tenant, CancellationToken cancellationToken = default) => owner.MemoryEpochs.GetCurrentAsync(tenant, cancellationToken);
+        public async ValueTask<ContentEpochKey?> GetAsync(TenantId tenant, Guid epochId, CancellationToken cancellationToken = default)
+        {
+            if (owner.BeforeEpochGet is { } hook)
+            {
+                owner.BeforeEpochGet = null;
+                await hook();
+            }
+
+            return await owner.MemoryEpochs.GetAsync(tenant, epochId, cancellationToken);
+        }
+
+        public async ValueTask CreateAsync(TenantId tenant, ContentEpochKey epoch, CancellationToken cancellationToken = default)
+        {
+            await owner.MemoryEpochs.CreateAsync(tenant, epoch, cancellationToken);
+            lock (owner.EpochEvents) owner.EpochEvents.Add("epoch-created");
+            owner.OnEpochStep?.Invoke("epoch-created");
+        }
+
+        public async ValueTask<bool> TrySetCurrentAsync(TenantId tenant, Guid? expectedCurrent, Guid epochId, CancellationToken cancellationToken = default)
+        {
+            if (owner.BeforeFirstSetCurrent is { } before)
+            {
+                owner.BeforeFirstSetCurrent = null;
+                await before();
+            }
+
+            owner.OnEpochStep?.Invoke("before-switch");
+            var switched = await owner.MemoryEpochs.TrySetCurrentAsync(tenant, expectedCurrent, epochId, cancellationToken);
+            if (switched) owner.OnEpochStep?.Invoke("epoch-switched");
+            return switched;
+        }
+
+        public async ValueTask DestroyAsync(TenantId tenant, Guid epochId, CancellationToken cancellationToken = default)
+        {
+            owner.OnEpochStep?.Invoke("before-destroy");
+            await owner.MemoryEpochs.DestroyAsync(tenant, epochId, cancellationToken);
+            lock (owner.EpochEvents) owner.EpochEvents.Add("epoch-destroyed");
+        }
     }
 
     private sealed class RecordingBytes(RecordingStorage owner) : IContentByteStore
