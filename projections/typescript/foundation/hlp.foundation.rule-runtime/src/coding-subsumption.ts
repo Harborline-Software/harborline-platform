@@ -83,7 +83,8 @@ function tuple(value: Json | undefined, count: number): Json[] {
   return value
 }
 function text(value: Json | undefined): string {
-  if (typeof value !== 'string' || value.length === 0) throw invalid()
+  // A lone surrogate is not interchangeable text (RFC 7493 section 2.1), and the native tier cannot read one.
+  if (typeof value !== 'string' || value.length === 0 || /\p{Surrogate}/u.test(value)) throw invalid()
   return value
 }
 function bindings(value: Json | undefined): Binding[] {
