@@ -1692,7 +1692,8 @@ public sealed class InMemoryContentStore
     /// <summary>
     /// Makes a new current epoch (ADR 0116 decision 5): its key is durable before anything can name it, then the audit
     /// commits, then new wraps switch to it. A crash at any step leaves every item readable under a key that still exists,
-    /// and a retry starts over. Key writes can't roll back, so this runs alone, never in a caller's transaction.
+    /// and a retry starts over; that crash can leave a key nothing names. A failed audit destroys the new key. Key writes
+    /// can't roll back, so this runs alone, never in a caller's transaction.
     /// </summary>
     public ValueTask<ContentEpochRotation> RotateEpochAsync(TenantId tenant, ContentStoreWrite write, CancellationToken cancellationToken = default) =>
         DoomingCallerOnFailureAsync(write, () => RotateEpochCoreAsync(tenant, write, cancellationToken));
@@ -1705,7 +1706,17 @@ public sealed class InMemoryContentStore
         {
             var current = await _epochs.GetCurrentAsync(tenant, cancellationToken).ConfigureAwait(false);
             var made = await MakeEpochAsync(tenant, subkey, cancellationToken).ConfigureAwait(false);
-            await RunAsync(ContentStoreOperation.EpochRotation, write, static (_, _) => ValueTask.FromResult(true), cancellationToken).ConfigureAwait(false);
+            try
+            {
+                await RunAsync(ContentStoreOperation.EpochRotation, write, static (_, _) => ValueTask.FromResult(true), cancellationToken).ConfigureAwait(false);
+            }
+            catch
+            {
+                // Safe even if the audit did commit: its row doesn't name this epoch, and nothing else can yet.
+                await _epochs.DestroyAsync(tenant, made.EpochId, CancellationToken.None).ConfigureAwait(false);
+                throw;
+            }
+
             if (!await _epochs.TrySetCurrentAsync(tenant, current?.EpochId, made.EpochId, CancellationToken.None).ConfigureAwait(false))
             {
                 await _epochs.DestroyAsync(tenant, made.EpochId, CancellationToken.None).ConfigureAwait(false); // nothing can name it yet

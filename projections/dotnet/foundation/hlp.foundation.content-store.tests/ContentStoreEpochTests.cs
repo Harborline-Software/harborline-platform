@@ -420,10 +420,12 @@ public sealed class ContentStoreEpochTests
         var store = Store(backing);
         var reference = await Commit(store, Hello);
         var from = (await backing.Epochs.GetCurrentAsync(Tenant))!.EpochId;
+        backing.EpochEvents.Clear();
 
         backing.FailNextCommit = true;
         await Assert.ThrowsAsync<IOException>(async () => await store.RotateEpochAsync(Tenant, Write("audit-fails")));
 
+        Assert.Equal(["epoch-created", "epoch-destroyed"], backing.EpochEvents); // the port can't list keys, so nothing could find this one later
         Assert.Equal(from, (await backing.Epochs.GetCurrentAsync(Tenant))!.EpochId);
         Assert.Equal(Hello, await Read(store, reference));
     }
