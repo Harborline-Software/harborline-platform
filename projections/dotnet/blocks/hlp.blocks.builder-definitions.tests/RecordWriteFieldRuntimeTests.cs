@@ -44,6 +44,28 @@ public sealed class RecordWriteFieldRuntimeTests
     }
 
     [Theory]
+    [Trait("Holds", "records-eng-28")]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task both_write_entries_mint_an_opaque_uuid_v7_record_id(bool accepted)
+    {
+        var fixture = await Fixture.CreateAsync(accepted: accepted);
+
+        var first = await fixture.WriteAsync("mint-1", """{"status":"A"}""");
+        var second = await fixture.WriteAsync("mint-2", """{"status":"A"}""");
+
+        // RFC 9562 section 5.7: version 7 with the RFC variant, 32 hexadecimal digits, and a fresh id per operation.
+        foreach (var outcome in new[] { first, second })
+        {
+            Assert.Equal(32, outcome.Receipt!.RecordId.Length);
+            var id = Guid.ParseExact(outcome.Receipt.RecordId, "N");
+            Assert.Equal(7, id.Version);
+            Assert.InRange(id.Variant, 0x8, 0xB);
+        }
+        Assert.NotEqual(first.Receipt!.RecordId, second.Receipt!.RecordId);
+    }
+
+    [Theory]
     [InlineData(false)]
     [InlineData(true)]
     public async Task literal_domain_membership_runs_before_staging_on_both_write_entries(bool accepted)

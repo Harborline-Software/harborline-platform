@@ -27,7 +27,7 @@ public sealed class ContentIntegrityTelemetryPrivacyTests
     private const int SegmentSizeBytes = 65_536;
 
     [Fact]
-    public void Real_content_integrity_telemetry_emits_positive_signals_without_payload_or_filename_values()
+    public async Task Real_content_integrity_telemetry_emits_positive_signals_without_payload_or_filename_values()
     {
         using var telemetry = new TelemetryCapture();
         var log = new CapturingLogger();
@@ -41,27 +41,27 @@ public sealed class ContentIntegrityTelemetryPrivacyTests
             PayloadSentinel + new string('x', SegmentSizeBytes - PayloadSentinel.Length) + PayloadSentinel);
         Assert.Equal(SegmentSizeBytes + PayloadSentinel.Length, payload.Length);
         using var upload = new MemoryStream(payload);
-        var stage = store.Put(tenant, upload, "text/plain", null);
-        var reference = store.Commit(
+        var stage = await store.PutAsync(tenant, upload, "text/plain", null);
+        var reference = await store.CommitReferenceAsync(
             tenant, stage, new ContentOwner("privacy-record", "privacy-element"),
             "FILENAME_PRIVACY_SENTINEL_79E5A2C6.txt");
         var context = new ContentReadContext("trace-fixed", "operation-fixed", "tenant-opaque", "principal-fixed");
 
-        var delivery = store.Read(tenant, reference, true, context: context);
+        var delivery = await store.ReadAsync(tenant, reference, true, context: context);
         Assert.Equal(200, delivery.StatusCode);
         Assert.Equal("attachment; filename=\"FILENAME_PRIVACY_SENTINEL_79E5A2C6.txt\"", delivery.ContentDisposition);
         using (delivery.Body)
         using (var clear = new MemoryStream())
         {
-            delivery.Body.CopyTo(clear);
+            await delivery.Body.CopyToAsync(clear);
             Assert.Equal(payload, clear.ToArray());
             Assert.Contains("PAYLOAD_PRIVACY_SENTINEL_53B1C4D8", Encoding.UTF8.GetString(clear.ToArray()));
         }
 
-        store.CorruptCiphertext(tenant, reference.ContentId, 1);
-        using var damagedBody = store.Read(tenant, reference, true, context: context).Body;
+        await store.CorruptCiphertextAsync(tenant, reference.ContentId, 1);
+        using var damagedBody = (await store.ReadAsync(tenant, reference, true, context: context)).Body;
         using var discarded = new MemoryStream();
-        var failure = Assert.Throws<ContentIntegrityException>(() => damagedBody.CopyTo(discarded));
+        var failure = await Assert.ThrowsAsync<ContentIntegrityException>(() => damagedBody.CopyToAsync(discarded));
         Assert.Equal(1, failure.SegmentIndex);
 
         var integrity = Assert.Single(telemetry.Activities, activity => activity.OperationName == "content.integrity");
@@ -181,6 +181,63 @@ public sealed class ContentIntegrityTelemetryPrivacyTests
         object Value, KeyValuePair<string, object?>[] MeterTags,
         KeyValuePair<string, object?>[] InstrumentTags, KeyValuePair<string, object?>[] Tags);
 
+    [Fact]
+    public async Task A_deferred_byte_delete_warns_operators_by_exception_type_and_names_no_item()
+    {
+        using var writer = new StringWriter();
+        using var listener = new System.Diagnostics.TextWriterTraceListener(writer);
+        System.Diagnostics.Trace.Listeners.Add(listener);
+        try
+        {
+            var tenant = new TenantId("deferred-delete-tenant");
+            var clock = new SteppingClock();
+            var backing = new RecordingStorage();
+            var store = new InMemoryContentStore(new(1000, 1000, 1000, TimeSpan.Zero + TimeSpan.FromMinutes(1)), new TestKeys(), clock, backing);
+            var stage = await store.PutAsync(tenant, new MemoryStream("hello"u8.ToArray()), "text/plain", null);
+            var reference = await store.CommitReferenceAsync(tenant, stage, new("record", "0"), "a.txt");
+            backing.ThrowOnDelete = new IOException("SECRET_PATH_SENTINEL");
+
+            Assert.True(await store.RemoveReferenceAsync(tenant, reference, HoldStatus.None, "dispose"));
+            clock.Advance(TimeSpan.FromMinutes(1));
+            await store.SweepExpiredAsync("sweep");
+
+            listener.Flush();
+            var text = writer.ToString();
+            Assert.Contains("Deferring a content byte delete to the staging sweep: IOException", text, StringComparison.Ordinal);
+            Assert.Contains("Deferring an orphan byte delete to the next staging sweep: IOException", text, StringComparison.Ordinal);
+            Assert.DoesNotContain("SECRET_PATH_SENTINEL", text, StringComparison.Ordinal);
+            Assert.DoesNotContain(stage.ToString(), text, StringComparison.Ordinal);
+        }
+        finally
+        {
+            System.Diagnostics.Trace.Listeners.Remove(listener);
+        }
+    }
+
+    [Fact]
+    public async Task A_read_failure_marks_the_ambient_span_when_no_one_listens_to_the_content_store_source()
+    {
+        using var ambientSource = new ActivitySource("ambient-host-source");
+        using var ambientListener = new ActivityListener
+        {
+            ShouldListenTo = source => source.Name == "ambient-host-source",
+            Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllData,
+        };
+        ActivitySource.AddActivityListener(ambientListener);
+        var tenant = new TenantId("ambient-tenant");
+        var store = new InMemoryContentStore(new(300_000, 600_000, 600_000, TimeSpan.FromMinutes(1)), new TestKeys(), new TestClock(), new InMemoryContentStoreStorage());
+        var payload = new byte[65_536 + 5];
+        Array.Fill(payload, (byte)'a');
+        var reference = await store.CommitReferenceAsync(tenant, await store.PutAsync(tenant, new MemoryStream(payload), "text/plain", null), new("record", "0"), "a.txt");
+        await store.CorruptCiphertextAsync(tenant, reference.ContentId, 1);
+        using var ambient = ambientSource.StartActivity("host-request")!;
+
+        await Assert.ThrowsAsync<ContentIntegrityException>(async () => await store.ReadAsync(tenant, reference, true, new ContentByteRange(65_536, 65_538)));
+
+        Assert.Equal(ActivityStatusCode.Error, ambient.Status);
+        Assert.Equal("content.integrity", ambient.GetTagItem("error.type"));
+    }
+
     private sealed class TelemetryCapture : IDisposable
     {
         private readonly ActivityListener _activities;
@@ -234,6 +291,13 @@ public sealed class ContentIntegrityTelemetryPrivacyTests
     {
         public ConcurrentQueue<ContentIntegrityLogEvent> Events { get; } = new();
         public void LogIntegrityFailure(ContentIntegrityLogEvent integrityEvent) => Events.Enqueue(integrityEvent);
+    }
+
+    private sealed class SteppingClock : TimeProvider
+    {
+        private DateTimeOffset _now = DateTimeOffset.UnixEpoch;
+        public override DateTimeOffset GetUtcNow() => _now;
+        public void Advance(TimeSpan duration) => _now += duration;
     }
 
     private sealed class TestKeys : ITenantContentKeyProvider

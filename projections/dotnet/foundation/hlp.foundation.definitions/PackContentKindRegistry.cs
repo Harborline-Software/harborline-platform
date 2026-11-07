@@ -6,7 +6,10 @@ namespace Harborline.Foundation.Definitions;
 /// <summary>Whether the api's transport already ships a content kind, or the platform only holds its value.</summary>
 public enum PackContentKindStatus
 {
-    /// <summary>The api's <c>PackContentKind</c> ships this kind at this value. The value never moves.</summary>
+    /// <summary>
+    /// The kind is active on the wire at this value, which never moves: the api's <c>PackContentKind</c> ships it, or a
+    /// released platform package emits it and the api adds it at exactly this value when it takes that release in.
+    /// </summary>
     Shipped,
 
     /// <summary>
@@ -84,8 +87,8 @@ public static class PackContentKindRegistry
         new("Bookable", 19, "Booking", PackContentKindStatus.Shipped),
         // DES-0026: Assistance owns no pillar of its own.
         new("AssistanceDefinition", 20, "Other", PackContentKindStatus.Reserved),
-        // Owner ruling 2026-09-29: the next free value; 18 is Resource's.
-        new("ReleasedNavigationDefinition", 21, "Navigation", PackContentKindStatus.Reserved),
+        // Owner ruling 2026-09-29: the next free value; 18 is Resource's. Active since platform seed 2.0.0 emits it (T-584).
+        new("ReleasedNavigationDefinition", 21, "Navigation", PackContentKindStatus.Shipped),
     ];
 
     private static readonly Dictionary<string, PackContentKindEntry> KindsByName =

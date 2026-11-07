@@ -691,7 +691,7 @@ public sealed class FileJournalRecordTemporalTests
         await Assert.ThrowsAsync<InvalidDataException>(() => fixture.Writer.AmendAsync(new("acme", "alice"),
             new("rec-001", "op-r2", temporal.Predecessor!, JsonNode.Parse(row.Body.Span)!.AsObject(),
                 temporal.EffectiveFrom, temporal.EffectiveTo, temporal.Reason!)).AsTask());
-        Assert.Empty(fixture.Access.Requests);
+        Assert.Single(fixture.Access.Requests);
         Assert.Equal(0, fixture.Storage.ReceiptLookups);
 
         var shortInput = PaddedUnion(16 * 1024 * 1024 - 81920);
@@ -1089,6 +1089,47 @@ public sealed class FileJournalRecordTemporalTests
         public ValueTask StageOperationAsync(KernelOperationIdentity operation, CancellationToken cancellationToken = default) => throw failure;
         public ValueTask StageRecordAsync(string record, CancellationToken cancellationToken = default) => ValueTask.CompletedTask;
         public ValueTask StageAuditAsync(KernelAuditEvidence audit, CancellationToken cancellationToken = default) => ValueTask.CompletedTask;
+    }
+
+    [Theory]
+    [InlineData("begin")]
+    [InlineData("operation")]
+    [InlineData("record")]
+    [InlineData("audit")]
+    [InlineData("commit")]
+    public async Task An_amend_fault_at_any_stage_publishes_nothing_so_no_amendment_stands_without_its_audit_and_a_retry_commits_once(string stage)
+    {
+        using var fixture = await Fixture.Create();
+        var first = Committed(await fixture.CreateEvent());
+        var before = fixture.Bytes();
+        var request = new RecordTemporalAmendRequest(first.Receipt.RecordId, "amend-fault", Basis(first), Body(20),
+            Date("2031-06-01T00:00:00-04:00"), null, "fault reviewed");
+        var fault = new IOException("amend-staging-" + stage);
+        fixture.Storage.FaultAt = stage;
+        fixture.Storage.Fault = fault;
+
+        Assert.Same(fault, await Assert.ThrowsAsync<IOException>(() => fixture.Writer.AmendAsync(new(Tenant, Actor), request).AsTask()));
+
+        Assert.Equal(before, fixture.Bytes());
+        Assert.Empty(Directory.GetFiles(fixture.DirectoryName, "*.tmp"));
+        if (stage != "begin") Assert.Contains("rollback", fixture.Storage.Events);
+
+        fixture.Storage.FaultAt = null;
+        var amended = Committed(await fixture.Writer.AmendAsync(new(Tenant, Actor), request));
+        Assert.Equal(first.Receipt.RecordId, amended.Receipt.RecordId);
+        Assert.Equal(2, (await new FileJournalRecordWriteStore(fixture.PathName).HistoryAsync(Tenant, first.Receipt.RecordId)).Versions.Count);
+    }
+
+    [Fact]
+    public async Task A_body_with_a_duplicate_member_refuses_a_temporal_write_without_throwing()
+    {
+        using var fixture = await Fixture.Create();
+        var duplicate = System.Text.Json.Nodes.JsonNode.Parse("""{"name":"a","name":"b"}""")!.AsObject();
+
+        var outcome = await fixture.Writer.CreateEffectiveAsync(new(Tenant, Actor), new(RecordTemporalWriteOperationTests.Type, "duplicate-body", duplicate, GateAt, null));
+
+        Assert.Equal("entity.validation.body_invalid", outcome.Refusal!.Code);
+        Assert.False(File.Exists(fixture.PathName));
     }
 
     [Fact]

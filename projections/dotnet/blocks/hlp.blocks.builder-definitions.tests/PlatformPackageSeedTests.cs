@@ -72,6 +72,33 @@ public sealed class PlatformPackageSeedTests
     // ADR-0028 / T-396: an exposure is exported after the closure as the api manifest's exposes and interfaceVersion,
     // in ordinal order whatever order the producer listed it in; a manifest exposing nothing exports the bytes it did.
     [Fact]
+    public void Export_writes_capability_requirements_as_authored_and_omits_them_when_absent()
+    {
+        PlatformPackageItem[] items = [Entry("package", PlatformSeedStage.PackageRecord, "{}")];
+        var plain = new PlatformPackageManifest(1, "tenant.release", "1.0.0", items);
+        var required = plain with { CapabilityRequirements = ["z.capability", "a.capability"] };
+
+        using var document = JsonDocument.Parse(PlatformPackageExporter.Export(required));
+        Assert.Equal(["schemaVersion", "packageKey", "revision", "closure", "capabilityRequirements", "items", "digest"],
+            document.RootElement.EnumerateObject().Select(member => member.Name));
+        Assert.Equal(["z.capability", "a.capability"], document.RootElement.GetProperty("capabilityRequirements").EnumerateArray().Select(item => item.GetString()));
+
+        using var none = JsonDocument.Parse(PlatformPackageExporter.Export(plain));
+        Assert.False(none.RootElement.TryGetProperty("capabilityRequirements", out _));
+    }
+
+    [Theory]
+    [InlineData("a.capability", "a.capability")]
+    [InlineData("a.capability", " ")]
+    public void Capability_requirements_refuse_a_duplicate_or_blank_entry(string first, string second)
+    {
+        var plain = new PlatformPackageManifest(1, "tenant.release", "1.0.0", [Entry("package", PlatformSeedStage.PackageRecord, "{}")]);
+
+        var exception = Assert.Throws<ArgumentException>(() => plain with { CapabilityRequirements = [first, second] });
+        Assert.StartsWith("platform-package-capability-requirements-malformed", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Export_writes_the_exposure_in_ordinal_order_and_omits_it_when_absent()
     {
         PlatformPackageItem[] items = [Entry("package", PlatformSeedStage.PackageRecord, "{}")];

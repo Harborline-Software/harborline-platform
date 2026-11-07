@@ -12,6 +12,7 @@ public sealed class InstalledPlatformCatalogue : IPlatformPackageReplayTarget, I
 {
     private readonly Func<string, bool> gate;
     private readonly List<PlatformPackageItem> stored = [];
+    private IReadOnlyList<string> capabilityRequirements = [];
     private string witness = string.Empty;
 
     /// <summary>
@@ -44,16 +45,25 @@ public sealed class InstalledPlatformCatalogue : IPlatformPackageReplayTarget, I
     }
 
     /// <inheritdoc />
+    public async ValueTask<bool> TryApplyToEmptyAsync(PlatformPackageManifest manifest, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(manifest);
+        if (!await TryApplyToEmptyAsync(manifest.Items, cancellationToken).ConfigureAwait(false)) return false;
+        capabilityRequirements = manifest.CapabilityRequirements;
+        return true;
+    }
+
+    /// <inheritdoc />
     public ValueTask<InstalledState> ReadInstalledStateAsync(CancellationToken cancellationToken = default)
     {
         if (stored.Count == 0) throw new InvalidOperationException("install-receipt-node-not-installed");
         using var record = Read("platform-package-ck-1");
         var key = record.RootElement.GetProperty("id").GetString()!;
         var version = record.RootElement.GetProperty("version").GetString()!;
-        // Re-exported from the stored items. The published digest is never remembered, so a stored
-        // item that differs from the published one moves this value and the checker refuses.
+        // Re-exported from the stored items and requirements. The published digest is never remembered,
+        // so a stored value that differs from the published one moves this value and the checker refuses.
         var digest = PublishedArtifact
-            .FromExport(PlatformPackageExporter.Export(new PlatformPackageManifest(1, key, version, stored)))
+            .FromExport(PlatformPackageExporter.Export(new PlatformPackageManifest(1, key, version, stored) { CapabilityRequirements = capabilityRequirements }))
             .Digest;
 
         return ValueTask.FromResult(new InstalledState(

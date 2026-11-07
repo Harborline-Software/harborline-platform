@@ -154,6 +154,148 @@ public sealed class CodingSubsumptionTests
         Assert.Throws<ArgumentException>(() => CodingSubsumptionSnapshot.FromJsonText("[\"" + new string('é', 131073) + "\"]", expected));
     }
 
+    private static string Row(string system = "s", string id = "vendor.domain.asset", string version = "1.0.0", string? digest = null)
+        => "[\"" + system + "\",\"" + id + "\",\"" + version + "\",\"" + (digest ?? new string('a', 64)) + "\"]";
+    private static CodingSubsumptionSnapshot Read(string binding, string answer = "[\"s\",\"a\",\"d\",true]", string tenant = "tenant-a")
+        => CodingSubsumptionSnapshot.FromJsonText(
+            "[\"harborline-taxonomy-coding-answers/1\",\"" + tenant + "\",[" + binding + "],[" + answer + "]]",
+            "[\"harborline-taxonomy-coding-bindings/1\",\"" + tenant + "\",[" + binding + "]]");
+
+    [Fact]
+    public void Both_documents_carrying_the_same_invalid_pin_still_refuse()
+    {
+        Assert.NotNull(Read(Row()));
+        Assert.Contains("Invalid pinned Taxonomy coding capture", Assert.Throws<ArgumentException>(() => Read(Row(version: "1.0"))).Message, StringComparison.Ordinal);
+        foreach (var binding in new[]
+        {
+            Row(id: "two.parts"), Row(id: "vendor..asset"), Row(digest: new string('a', 63)), Row(digest: new string('a', 65)),
+            Row(digest: new string('A', 64)), Row(digest: new string('a', 63) + "g"), Row(system: ""), Row(version: "1.0"), Row(version: "4294967296.0.0"),
+        })
+            Assert.Throws<ArgumentException>(() => Read(binding));
+        Assert.Throws<ArgumentException>(() => Read(Row(), tenant: ""));
+        foreach (var answer in new[] { "[\"\",\"a\",\"d\",true]", "[\"s\",\"\",\"d\",true]", "[\"s\",\"a\",\"\",true]" })
+            Assert.Throws<ArgumentException>(() => Read(Row(), answer));
+    }
+
+    [Theory]
+    [InlineData("""{"-":[5]}""", "-5")]
+    [InlineData("""{"coding.is":[{"system":"","code":""},null,null]}""", "true")]
+    [InlineData("""{"missing":[""]}""", "[]")]
+    [InlineData("""{"missing":[[null]]}""", "[]")]
+    [InlineData("""{"missing":[null,null]}""", "[]")]
+    [InlineData("""{"cat":[null,"a"]}""", "\"a\"")]
+    public void Flat_evaluator_null_and_unary_operands_are_literal(string expression, string expected)
+    {
+        var result = new GuardEvaluator(Clock).EvaluateValue(Rule(expression), Facts("null"), RuleEvalScope.Root, TestAdmission.Any);
+        Assert.Equal(ValueState.Resolved, result.State);
+        Assert.Equal(expected, result.Value!.ToJsonString());
+    }
+
+    [Fact]
+    public void Answers_may_not_carry_more_or_fewer_bindings_than_the_expected_manifest()
+    {
+        static string Answers(string bindings) => "[\"harborline-taxonomy-coding-answers/1\",\"tenant-a\",[" + bindings + "],[[\"s\",\"a\",\"d\",true]]]";
+        static string Expected(string bindings) => "[\"harborline-taxonomy-coding-bindings/1\",\"tenant-a\",[" + bindings + "]]";
+        string both = Row() + "," + Row(system: "t");
+        Assert.NotNull(CodingSubsumptionSnapshot.FromJsonText(Answers(both), Expected(both)));
+        Assert.Throws<ArgumentException>(() => CodingSubsumptionSnapshot.FromJsonText(Answers(both), Expected(Row())));
+        Assert.Throws<ArgumentException>(() => CodingSubsumptionSnapshot.FromJsonText(Answers(Row()), Expected(both)));
+    }
+
+    [Fact]
+    public void An_answer_for_an_unbound_alias_refuses_on_its_own()
+        => Assert.Throws<ArgumentException>(() => Read(Row(), "[\"other\",\"a\",\"d\",true]"));
+
+    [Fact]
+    public void A_later_false_member_does_not_erase_an_earlier_true_member()
+    {
+        Assert.True(Value("""[{"system":"asset-class","code":"leaf"},{"system":"asset-class","code":"missing"}]""").Value!.GetValue<bool>());
+        Assert.True(Value("""[{"system":"asset-class","code":"missing"},{"system":"asset-class","code":"leaf"}]""").Value!.GetValue<bool>());
+        Assert.False(Value("""[{"system":"asset-class","code":"missing"},{"system":"asset-class","code":"missing"}]""").Value!.GetValue<bool>());
+    }
+
+    [Fact]
+    public void Validation_rules_on_the_graph_plan_path_read_the_capture()
+    {
+        var validate = RuleDefinitionFactory.Create("is-root", RuleTier.JsonLogic, RuleScope.Field, "out", Rule().Expression, RuleActionKind.Validate);
+        var graph = new FormRuleGraph(RuleCompiler.Compile([validate]), Clock, TestAdmission.Any, null, Snapshot());
+        Assert.Empty(graph.EvaluateInstance(Instance("""{"coding":{"system":"asset-class","code":"leaf"}}""")).Validations);
+        Assert.Equal("rule.coding_answer_missing", graph.EvaluateInstance(Instance("""{"coding":{"system":"asset-class","code":"uncaptured"}}""")).Validations.Single().Validity!.Error!.Code);
+    }
+
+    [Fact]
+    public void Lone_surrogates_refuse_as_capture_errors_and_cannot_equate_two_pins()
+    {
+        foreach (var lone in new[] { "\\ud800", "\ud800" })
+        {
+            Assert.Throws<ArgumentException>(() => Read(Row(), tenant: "t" + lone));
+            Assert.Throws<ArgumentException>(() => Read(Row(system: "s" + lone), "[\"s" + lone + "\",\"a\",\"d\",true]"));
+            Assert.Throws<ArgumentException>(() => Read(Row(), "[\"s\",\"a\",\"d" + lone + "\",true]"));
+        }
+        Assert.Throws<ArgumentException>(() => CodingSubsumptionSnapshot.FromJsonText(
+            "[\"harborline-taxonomy-coding-answers/1\",\"t\ud800\",[" + Row() + "],[[\"s\",\"a\",\"d\",true]]]",
+            "[\"harborline-taxonomy-coding-bindings/1\",\"t\ud801\",[" + Row() + "]]"));
+        Assert.NotNull(Read(Row(), "[\"s\",\"a\",\"\\ud83d\\ude00\",true]"));
+    }
+
+    [Fact]
+    public void An_escaped_lone_surrogate_candidate_is_a_refused_or_excluded_rule_outcome()
+    {
+        Assert.Equal("rule.coding_answer_missing", Value("""{"system":"asset-class","code":"\ud800"}""").Error!.Code);
+        var excluded = Value("""{"system":"\ud800","code":"leaf"}""");
+        Assert.Equal(ValueState.Resolved, excluded.State);
+        Assert.False(excluded.Value!.GetValue<bool>());
+    }
+
+    [Theory]
+    [InlineData("""{"system":"xx\ud800yy","code":"d"}""", 22, null)]
+    [InlineData("""{"system":"s","code":"dd\n\ud800é"}""", 36, "rule.coding_answer_missing")]
+    public void An_escaped_lone_surrogate_candidate_charges_its_full_length(string candidate, int exactBudget, string? refusal)
+    {
+        const string expression = """{"coding.is":[{"var":"coding"},"s","a"]}""";
+        var admitted = Value(candidate, Read(Row()), RuleEngineLimits.Default with { StepBudget = exactBudget }, expression);
+        if (refusal is null) Assert.False(admitted.Value!.GetValue<bool>());
+        else Assert.Equal(refusal, admitted.Error!.Code);
+        Assert.Equal("rule.budget_exceeded", Value(candidate, Read(Row()), RuleEngineLimits.Default with { StepBudget = exactBudget - 1 }, expression).Error!.Code);
+    }
+
+    [Fact]
+    public void Empty_candidate_members_are_excluded_rather_than_looked_up()
+    {
+        foreach (var candidate in new[] { """{"system":"asset-class","code":""}""", """{"system":"","code":"leaf"}""" })
+        {
+            var result = Value(candidate);
+            Assert.Equal(ValueState.Resolved, result.State);
+            Assert.False(result.Value!.GetValue<bool>());
+        }
+    }
+
+    [Fact]
+    public void Row_insertion_and_removal_keep_the_capture()
+    {
+        var rowRule = Rule("""{"coding.is":[{"var":"row.coding"},"asset-class","root"]}""", RuleScope.Row, "items/out");
+        var graph = new FormRuleGraph(RuleCompiler.Compile([rowRule]), Clock, TestAdmission.Any, null, Snapshot());
+        Assert.True(graph.EvaluateInstance(Instance("""{"items":[{"_id":"a","coding":{"system":"asset-class","code":"leaf"}}]}""")).Values["row:items/a/out"].Value!.GetValue<bool>());
+        var added = graph.AddRow("items", Instance("""{"items":[{"_id":"b","coding":{"system":"asset-class","code":"uncaptured"}}]}""").Tables["items"][0]);
+        Assert.Equal("rule.coding_answer_missing", added.Values["row:items/b/out"].Error!.Code);
+        var removed = graph.RemoveRow("items", "b");
+        Assert.False(removed.Values.ContainsKey("row:items/b/out"));
+        Assert.True(removed.Values["row:items/a/out"].Value!.GetValue<bool>());
+    }
+
+    [Fact]
+    public void Borrower_refusal_precedes_the_capture_on_guard_and_incremental_entry_points()
+    {
+        var rule = RuleDefinitionFactory.Create("is-root", RuleTier.JsonLogic, RuleScope.Field, "out", Rule().Expression, RuleActionKind.Validate);
+        var compiled = RuleCompiler.Compile([rule]);
+        var limits = RuleEngineLimits.Default with { MaxStaticWork = compiled.WorkProof.MaximumEvaluationWork };
+        Assert.Equal("rule.environment.not_admitted", new GuardEvaluator(Clock, limits, Snapshot()).EvaluateGuard(rule, Facts("null"), RuleEvalScope.Root, null).Error!.Code);
+        var graph = new FormRuleGraph(compiled, Clock, null, limits, Snapshot());
+        Assert.Equal("rule.environment.not_admitted", graph.Reevaluate("coding", RuleInputValue.FromJsonText("null")).Validations.Single().Validity!.Error!.Code);
+        Assert.Equal("rule.environment.not_admitted", graph.AddRow("items", new RuleRow("b", new Dictionary<string, JsonNode?>())).Validations.Single().Validity!.Error!.Code);
+        Assert.Equal("rule.environment.not_admitted", graph.RemoveRow("items", "b").Validations.Single().Validity!.Error!.Code);
+    }
+
     [Fact]
     public void Full_incremental_row_and_guard_paths_share_one_capture()
     {

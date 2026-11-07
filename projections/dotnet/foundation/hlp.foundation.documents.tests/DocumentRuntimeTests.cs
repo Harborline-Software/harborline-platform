@@ -11,13 +11,15 @@ namespace Harborline.Foundation.Documents.Tests;
 /// <summary>Regression coverage for the Documents semantic-render and non-minting preview seam.</summary>
 public sealed class DocumentRuntimeTests
 {
+    private const string PinnedLogo = "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+
     [Fact(DisplayName = "documents-eng-1,3,7,8,9,10 and documents-run-1,2: published and inline templates use one parser and one semantic preview path")]
     public async Task PreviewUsesOneSemanticPathForPublishedAndInlineTemplates()
     {
         var template = Template() with
         {
             Locale = new(TemplateLocaleKind.FromRecord),
-            Style = new("Harborline", "https://assets.example/logo.svg"),
+            Style = new("Harborline", PinnedLogo),
         };
         var bytes = TemplateDefinitionJson.SerializeCanonical(template);
         var source = new CapturingTemplates(bytes);

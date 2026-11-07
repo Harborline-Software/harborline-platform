@@ -173,7 +173,8 @@ change) — SPINE-1's contract is identical either way; that gate is NOT built h
 `CodingSubsumptionSnapshot.FromJsonText(answersJsonText, expectedBindingsJsonText)` owns a finite
 Taxonomy answer table. The host supplies the expected tenant and exact definition/version/hash
 pins independently. Both versioned tuple documents obey the existing 262144-byte, depth-64,
-5000-value JSON envelope and require ordinal order, unique keys and exact pin equality.
+5000-value JSON envelope and require ordinal order, unique keys and exact pin equality. Either
+document refuses a lone surrogate, raw or escaped (RFC 7493 section 2.1).
 
 The original `GuardEvaluator(clock, limits)` and `FormRuleGraph(compiled, clock, admission, limits)`
 constructors retain flat `coding.is`, including its legacy coercions. New overloads append a

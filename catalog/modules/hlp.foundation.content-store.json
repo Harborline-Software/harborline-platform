@@ -3,7 +3,7 @@
   "module": {
     "interface": {
       "path": "specs/modules/foundation/hlp.foundation.content-store/interface.yaml",
-      "revision": 2
+      "revision": 4
     },
     "moduleKind": "runtime",
     "presentation": {
@@ -11,7 +11,9 @@
       "rationale": "The foundation package owns the projection-neutral tenant content store (envelope encryption, quotas, dedup, reclamation, export fixity); attachment fields and document views are separate projections that reference it."
     },
     "owner": "platform-foundation",
-    "dependencies": [],
+    "dependencies": [
+      "hlp.kernel.core"
+    ],
     "status": "implemented",
     "depth": {
       "disposition": "deep-module",
