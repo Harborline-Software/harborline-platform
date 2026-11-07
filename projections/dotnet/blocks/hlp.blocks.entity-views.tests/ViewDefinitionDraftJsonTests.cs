@@ -70,6 +70,29 @@ public sealed class ViewDefinitionDraftJsonTests
         Assert.True(JsonNode.DeepEquals(JsonNode.Parse(Wire), JsonNode.Parse(ViewDefinitionDraftJson.Serialize(draft))));
     }
 
+    [Fact(DisplayName = "T-486 engine-gaps: a draft with no filter, grouping, measure or contract reads and writes back with those members absent")]
+    public void ADraftWithoutOptionalMembersRoundTrips()
+    {
+        const string minimal = """
+            {
+              "definition": {
+                "envelope": {"identity": "work.queue", "version": "1.0.0", "tenant": "tenant-a", "cascadeLayer": "tenant", "provenance": {}, "requires": []},
+                "schemaVersion": 1, "title": "Work queue", "recordType": "work-item", "ownership": "public", "openPermission": "work:read",
+                "parameters": {"columns": [{"field": "title", "width": 240, "presentation": "text"}], "sort": []}
+              },
+              "binding": {"kind": "layout.table", "shapeRoles": {"title": "title"}, "density": "standard"}
+            }
+            """;
+
+        var draft = ViewDefinitionDraftJson.Deserialize(minimal);
+
+        Assert.Null(draft.Definition.Envelope.Contract); // admission, not the wire, refuses a missing contract at /envelope/contract
+        Assert.Null(draft.Definition.Parameters.Filter);
+        Assert.Null(draft.Definition.Parameters.GroupBy);
+        Assert.Null(draft.Definition.Parameters.Measure);
+        Assert.True(JsonNode.DeepEquals(JsonNode.Parse(minimal), JsonNode.Parse(ViewDefinitionDraftJson.Serialize(draft))));
+    }
+
     [Fact(DisplayName = "T-486 engine-gaps: the inputs admission refuses travel on the wire, so the api can refuse them with their pointers")]
     public void TheInputsAdmissionRefusesTravelOnTheWire()
     {

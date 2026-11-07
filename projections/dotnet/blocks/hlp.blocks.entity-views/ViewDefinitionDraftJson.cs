@@ -41,9 +41,22 @@ public static class ViewDefinitionDraftJson
             AllowDuplicateProperties = false,
             RespectNullableAnnotations = true,
             RespectRequiredConstructorParameters = true,
+            // A nullable constructor parameter is optional on the wire, as writing omits a null member; every other one stays required.
+            TypeInfoResolver = new System.Text.Json.Serialization.Metadata.DefaultJsonTypeInfoResolver
+            {
+                Modifiers = { NullableParametersAreOptional },
+            },
         };
         options.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase, allowIntegerValues: false));
         options.MakeReadOnly(populateMissingResolver: true);
         return options;
+    }
+
+    private static void NullableParametersAreOptional(System.Text.Json.Serialization.Metadata.JsonTypeInfo type)
+    {
+        foreach (var property in type.Properties)
+        {
+            if (property.AssociatedParameter is { IsNullable: true }) property.IsRequired = false;
+        }
     }
 }
