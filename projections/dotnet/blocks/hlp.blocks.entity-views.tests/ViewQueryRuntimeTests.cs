@@ -86,7 +86,7 @@ public sealed class ViewQueryRuntimeTests
         Assert.Equal(["open", "kind", "record-type", "access", "rows"], calls);
     }
 
-    [Fact(DisplayName = "a denied open decision prevents Access evaluation and every row read")]
+    [Fact(DisplayName = "views-eng-2: the open check runs before anything else resolves, and a denied open prevents Access evaluation and every row read")]
     public async Task DeniedOpenPreventsAccessAndEveryRowRead()
     {
         var calls = new List<string>();
