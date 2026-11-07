@@ -150,6 +150,29 @@ public sealed class ViewsEngineContractTests
         Assert.Empty(await store.ListHistoryAsync("tenant-a", "work.queue"));
     }
 
+    [Theory(DisplayName = "T-486 engine-gaps: every refusal code that was a bare literal is a named constant with its wire spelling unchanged")]
+    [InlineData("definition", "NotFound", "view_definition.not_found")]
+    [InlineData("definition", "RevisionConflict", "view_definition.revision_conflict")]
+    [InlineData("definition", "VersionInvalid", "view_definition.version_invalid")]
+    [InlineData("query", "FilterKindUnknown", "view.filter.kind_unknown")]
+    [InlineData("query", "FilterOperandUnknown", "view.filter.operand_unknown")]
+    [InlineData("query", "FilterFunctionUnknown", "view.filter.function_unknown")]
+    public void EveryRefusalCodeIsANamedConstantWithItsWireSpellingUnchanged(string owner, string constant, string wire)
+    {
+        // The literals are the wire spellings at platform 1a97bc7b, the slice's scope anchor; none is renamed or merged.
+        var field = (owner == "query" ? typeof(ViewQueryCodes) : typeof(ViewDefinitionCodes)).GetField(constant);
+        Assert.NotNull(field);
+        Assert.True(field.IsLiteral);
+        Assert.Equal(wire, field.GetValue(null));
+    }
+
+    [Fact(DisplayName = "T-486 engine-gaps: the evaluation-time and admission-time unknown-function codes stay distinct")]
+    public void TheTwoUnknownFunctionCodesStayDistinct()
+    {
+        Assert.Equal("view.filter.function_unknown", ViewQueryCodes.FilterFunctionUnknown);
+        Assert.Equal("view_definition.filter_function_unknown", ViewDefinitionCodes.FilterFunctionUnknown);
+    }
+
     private static ViewRow Row(string id, string state, int priority) => new(
         id,
         new Dictionary<string, object?> { ["state"] = state, ["priority"] = priority });

@@ -9,8 +9,17 @@ namespace Harborline.Blocks.EntityViews;
 /// <summary>Stable refusal codes emitted by the Views query runtime.</summary>
 public static class ViewQueryCodes
 {
-    /// <summary>The principal may not open the view.</summary>
+    /// <summary>
+    /// No longer emitted. Since the owner's ruling of 2026-11-07 on <c>views-eng-1</c>, a view the principal may not open
+    /// refuses exactly as a missing one does, with <see cref="ViewDefinitionCodes.NotFound"/> (CWE-203).
+    /// </summary>
     public const string OpenForbidden = "view.open_forbidden";
+    /// <summary>A filter node's kind is not in the closed filter grammar.</summary>
+    public const string FilterKindUnknown = "view.filter.kind_unknown";
+    /// <summary>A filter operand's kind is not in the closed filter grammar.</summary>
+    public const string FilterOperandUnknown = "view.filter.operand_unknown";
+    /// <summary>At evaluation, a filter calls a function that is not registered with that arity; admission's code is <see cref="ViewDefinitionCodes.FilterFunctionUnknown"/>.</summary>
+    public const string FilterFunctionUnknown = "view.filter.function_unknown";
 }
 
 /// <summary>Stable structural refusal codes shared by authoring and execution.</summary>
@@ -48,6 +57,12 @@ public static class ViewDefinitionCodes
     public const string WorkflowTransitionUnknown = "view_definition.workflow_transition_unknown";
     /// <summary>A column, sort, group or filter names a field the record type lacks.</summary>
     public const string FieldUnknown = "view_definition.field_unknown";
+    /// <summary>No published head for the tenant and key, or a view the principal may not open: the two are indistinguishable (<c>views-eng-1</c>).</summary>
+    public const string NotFound = "view_definition.not_found";
+    /// <summary>A draft revision already exists at those coordinates.</summary>
+    public const string RevisionConflict = "view_definition.revision_conflict";
+    /// <summary>A view-definition version is not semantic versioning.</summary>
+    public const string VersionInvalid = "view_definition.version_invalid";
 }
 
 /// <summary>A fail-closed refusal from the Views query runtime.</summary>
@@ -503,7 +518,7 @@ public sealed class ViewQueryRuntime
         _fieldDomains = fieldDomains;
     }
 
-    /// <summary>Resolves the published definition, checks the open gate, binding and field domains, then queries with the Access predicate first and the authored filter second. Throws <see cref="ViewQueryException"/> when no definition is published (view_definition.not_found), or for a forbidden open, unknown kind or incompatible binding, and a field-admission error for an unresolved column binding. Returns not-modified (no rows) when the ETag matches.</summary>
+    /// <summary>Resolves the published definition, checks the open gate, binding and field domains, then queries with the Access predicate first and the authored filter second. Throws <see cref="ViewQueryException"/> with <see cref="ViewDefinitionCodes.NotFound"/> both when no definition is published and when the principal may not open it, indistinguishably (views-eng-1), or for an unknown kind or incompatible binding, and a field-admission error for an unresolved column binding. Returns not-modified (no rows) when the ETag matches.</summary>
     public async ValueTask<ViewQueryResult> ExecuteAsync(
         ViewQueryRequest request,
         CancellationToken cancellationToken = default)
@@ -513,13 +528,15 @@ public sealed class ViewQueryRuntime
         var definition = await _definitions
             .ResolvePublishedHeadAsync(request.Tenant, request.DefinitionKey, cancellationToken)
             .ConfigureAwait(false)
-            ?? throw new ViewQueryException("view_definition.not_found", "The published view definition does not exist.");
+            ?? throw NotFound();
         var authority = await _openGate
             .AuthorizeAsync(definition, request.Principal, cancellationToken)
             .ConfigureAwait(false);
         if (!authority.CanOpen)
         {
-            throw new ViewQueryException(ViewQueryCodes.OpenForbidden, "The view cannot be opened.");
+            // views-eng-1, the owner's ruling of 2026-11-07 (CWE-203; his T-735 ruling, authorize before revealing
+            // existence): a view the principal may not open refuses exactly as a missing one does.
+            throw NotFound();
         }
         var kind = await _kinds.ResolveAsync(request.Binding.Kind, cancellationToken).ConfigureAwait(false);
         if (kind is null)
@@ -666,6 +683,10 @@ public sealed class ViewQueryRuntime
         var serialized = JsonSerializer.SerializeToUtf8Bytes(canonical);
         return Convert.ToHexString(SHA256.HashData(serialized));
     }
+
+    // One refusal for a missing head and a forbidden open: same type, code and message, and no field that differs.
+    private static ViewQueryException NotFound() =>
+        new(ViewDefinitionCodes.NotFound, "The published view definition does not exist.");
 
     private static FieldAdmissionException BindingRefusal(string pointer)
         => new([new("field.binding_unresolved", pointer, "The selected column has no admitted field binding.")]);

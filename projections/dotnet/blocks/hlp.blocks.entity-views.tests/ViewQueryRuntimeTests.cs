@@ -54,6 +54,41 @@ public sealed class ViewQueryRuntimeTests
         Assert.Empty(calls);
     }
 
+    [Fact(DisplayName = "views-eng-1: a forbidden open and a missing view are indistinguishable to the caller (owner ruling 2026-11-07, CWE-203)")]
+    public async Task AForbiddenOpenAndAMissingViewAreIndistinguishable()
+    {
+        var missingCalls = new List<string>();
+        var missing = RuntimeWithStore(new InMemoryViewDefinitionStore(), missingCalls);
+        var forbiddenCalls = new List<string>();
+        var forbidden = new ViewQueryRuntime(
+            new RecordingDefinitions(forbiddenCalls, Definition()),
+            new RecordingOpenGate(forbiddenCalls, new ViewAuthority(CanOpen: false, Actions: [])),
+            new RecordingKinds(forbiddenCalls, IsRegistered: true),
+            new RecordingRecordTypes(forbiddenCalls),
+            new RecordingAccessFilter(forbiddenCalls),
+            new RecordingRows(forbiddenCalls),
+            new RecordingMeasures(forbiddenCalls),
+            new FixedTimeProvider(DateTimeOffset.UnixEpoch));
+
+        var whenMissing = await Assert.ThrowsAsync<ViewQueryException>(async () => await missing.ExecuteAsync(Request()));
+        var whenForbidden = await Assert.ThrowsAsync<ViewQueryException>(async () => await forbidden.ExecuteAsync(Request()));
+
+        // The ruling is the oracle: one code and one message for both, whatever the runtime's constants say.
+        Assert.Equal("view_definition.not_found", whenMissing.Code);
+        Assert.Equal("The published view definition does not exist.", whenMissing.Message);
+        // Every caller-visible member agrees. The stack trace is a server-side diagnostic no transport carries.
+        foreach (var property in typeof(ViewQueryException).GetProperties()
+            .Where(property => property.Name is not (nameof(Exception.StackTrace) or nameof(Exception.TargetSite))))
+        {
+            Assert.Equal(property.GetValue(whenMissing), property.GetValue(whenForbidden));
+        }
+        Assert.Empty(whenForbidden.Data);
+        Assert.Null(whenForbidden.InnerException);
+        // Neither reaches Access or a row read.
+        Assert.Empty(missingCalls);
+        Assert.Equal(["resolve", "open"], forbiddenCalls);
+    }
+
     [Fact(DisplayName = "views-eng-1: a cancelled real-store read remains cancellation rather than missing-head refusal")]
     public async Task CancelledPublishedHeadReadPropagatesCancellation()
     {
@@ -104,7 +139,7 @@ public sealed class ViewQueryRuntimeTests
         var error = await Assert.ThrowsAsync<ViewQueryException>(async () =>
             await runtime.ExecuteAsync(Request()));
 
-        Assert.Equal(ViewQueryCodes.OpenForbidden, error.Code);
+        Assert.Equal("view_definition.not_found", error.Code); // views-eng-1: a denied open refuses as a missing view does
         Assert.Equal(["resolve", "open"], calls);
     }
 
