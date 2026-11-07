@@ -213,7 +213,16 @@ public sealed class FormDefinitionVersioningTests
         using var store = new InMemoryFormDefinitionStore(new FixedClock(Now));
         await store.RegisterAsync(Form("1.0.0"));
 
-        var saved = await Task.WhenAll(Enumerable.Range(0, 24).Select(_ => store.SaveNextAsync(Form("1.0.0")).AsTask()));
+        // Each save runs on its own thread behind one start gate, so the saves overlap and only the store's lock keeps
+        // two of them from reading the same latest revision (CodeRabbit review of 539c8906).
+        using var gate = new ManualResetEventSlim(false);
+        var saves = Enumerable.Range(0, 24).Select(_ => Task.Run(async () =>
+        {
+            gate.Wait();
+            return await store.SaveNextAsync(Form("1.0.0"));
+        })).ToArray();
+        gate.Set();
+        var saved = await Task.WhenAll(saves);
 
         Assert.Equal(24, saved.Select(revision => revision.Version).Distinct().Count());
         Assert.Equal(SemanticVersion.Parse("1.0.24"), saved.Max(revision => revision.Version));
