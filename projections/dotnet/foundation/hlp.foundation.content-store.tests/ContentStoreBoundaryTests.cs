@@ -613,7 +613,7 @@ public sealed class ContentStoreBoundaryTests
     {
         var memory = new InMemoryContentBookkeeping();
         var owner = new ContentOwner("record-1", "0");
-        var item = new ContentStoreItem(Guid.NewGuid(), Tenant, new(ContentId.Algorithm + new string('d', 64)), 5, "text/plain", DateTimeOffset.UnixEpoch, [1], [2], [3], [4], 65_536);
+        var item = new ContentStoreItem(Guid.NewGuid(), Tenant, new(ContentId.Algorithm + new string('d', 64)), 5, "text/plain", DateTimeOffset.UnixEpoch, [1], [2], [3], [4], 65_536, Guid.Empty);
         var key = new ContentStorageItemKey(Tenant, item.ContentId);
         await using var open = await memory.BeginTransactionAsync();
         await open.AddStagedAsync(item);
@@ -621,7 +621,7 @@ public sealed class ContentStoreBoundaryTests
         Assert.False(await memory.NamesBytesAsync(item.StageId));
         Assert.Equal(0, memory.StagedCount);
         await open.RemoveStagedAsync(item.StageId);
-        Assert.Null(await open.TryCreateItemAsync(item with { Owners = [owner] }));
+        Assert.Null(await open.TryCreateItemAsync(item with { State = ContentLifecycleState.Committed, Owners = [owner] }));
         Assert.NotNull(await open.FindItemAsync(key));
         Assert.Null(await memory.FindItemAsync(key));
         await open.CommitAsync();
@@ -656,7 +656,7 @@ public sealed class ContentStoreBoundaryTests
     {
         var memory = new InMemoryContentBookkeeping();
         var owner = new ContentOwner("record-1", "0");
-        var item = new ContentStoreItem(Guid.NewGuid(), Tenant, new(ContentId.Algorithm + new string('e', 64)), 5, "text/plain", DateTimeOffset.UnixEpoch, [1], [2], [3], [4], 65_536) { Owners = [owner] };
+        var item = new ContentStoreItem(Guid.NewGuid(), Tenant, new(ContentId.Algorithm + new string('e', 64)), 5, "text/plain", DateTimeOffset.UnixEpoch, [1], [2], [3], [4], 65_536, Guid.Empty) { State = ContentLifecycleState.Committed, Owners = [owner] };
         var key = new ContentStorageItemKey(Tenant, item.ContentId);
         await using (var seed = await memory.BeginTransactionAsync())
         {
@@ -1141,7 +1141,7 @@ public sealed class ContentStoreBoundaryTests
         await writer.AppendAsync(new([1], [2]));
         await writer.CompleteAsync(clock.GetUtcNow());
         clock.Advance(Expiry);
-        var entry = new ContentStoreItem(late, Tenant, new(ContentId.Algorithm + new string('f', 64)), 2, "text/plain", clock.GetUtcNow(), [1], [2], [3], [4], 65_536);
+        var entry = new ContentStoreItem(late, Tenant, new(ContentId.Algorithm + new string('f', 64)), 2, "text/plain", clock.GetUtcNow(), [1], [2], [3], [4], 65_536, Guid.Empty);
         backing.BeforeBegin = async () =>
         {
             await using var put = await backing.Memory.BeginTransactionAsync();
