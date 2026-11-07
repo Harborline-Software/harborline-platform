@@ -19,6 +19,11 @@
     </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>
+    <!-- The typed gate references and the contract version the envelope fence demands (T-488). -->
+    <ProjectReference Include="../../contracts/hlp.contracts.identities/Harborline.Contracts.csproj" />
+    <ProjectReference Include="../../foundation/hlp.foundation.definitions/Harborline.Foundation.Definitions.csproj" />
+  </ItemGroup>
+  <ItemGroup>
     <InternalsVisibleTo Include="Harborline.Blocks.Workflow.Tests" />
   </ItemGroup>
   <ItemGroup>

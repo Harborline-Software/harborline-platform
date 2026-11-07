@@ -1,3 +1,8 @@
+using System.Text.Json;
+
+using Harborline.Contracts.Authorization;
+using Harborline.Foundation.Definitions;
+
 namespace Harborline.Blocks.Workflow.Durable;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -113,6 +118,12 @@ public sealed class WorkflowTransitionDef
 
     /// <summary>Optional guard rule id.</summary>
     public string? Guard { get; init; }
+
+    /// <summary>Any-of role gate (workflows-auth-10): the workflow names the role, Access owns it.</summary>
+    public IReadOnlyList<RoleReference> RequiredRoles { get; init; } = [];
+
+    /// <summary>Record-derived standings, every one of which must hold, so they only narrow (workflows-auth-11).</summary>
+    public IReadOnlyList<RecordStandingReference> RequiredStandings { get; init; } = [];
 }
 
 /// <summary>A trigger the definition declares against (reuses the four <see cref="WorkflowTriggerKind"/>).</summary>
@@ -164,6 +175,12 @@ public sealed class WorkflowActionBindingDef
 
     /// <summary>Optional action-condition rule id ("should this run?").</summary>
     public string? Condition { get; init; }
+
+    /// <summary>Any-of role gate (workflows-auth-10): the workflow names the role, Access owns it.</summary>
+    public IReadOnlyList<RoleReference> RequiredRoles { get; init; } = [];
+
+    /// <summary>Record-derived standings, every one of which must hold, so they only narrow (workflows-auth-11).</summary>
+    public IReadOnlyList<RecordStandingReference> RequiredStandings { get; init; } = [];
 }
 
 /// <summary>A content-addressed reference to a FormDefinition (the composition binding, ADR 0140 D3).</summary>
@@ -175,12 +192,58 @@ public sealed class FormDefinitionRef
     public required string Version { get; init; }
 }
 
+/// <summary>Identifies the definition layer that supplied a Workflow revision.</summary>
+public enum WorkflowCascadeLayer
+{
+    /// <summary>The kernel-owned baseline.</summary>
+    KernelCore,
+    /// <summary>A platform subsystem baseline.</summary>
+    Subsystem,
+    /// <summary>A platform package contribution.</summary>
+    PlatformPackage,
+    /// <summary>A domain package contribution.</summary>
+    DomainPackage,
+    /// <summary>Tenant configuration.</summary>
+    TenantConfiguration,
+}
+
+/// <summary>A platform capability the workflow's envelope requires.</summary>
+/// <param name="Capability">The required capability.</param>
+public sealed record WorkflowDefinitionRequirement(string Capability);
+
+/// <summary>
+/// The portable envelope (DES-0019 workflows-ck-2, ADR 0006). <see cref="Contract"/> is required with no default
+/// (T-572), and <see cref="DefinitionContractWindow"/> checks it at admission when the host composes a window.
+/// </summary>
+/// <param name="Identity">The stable definition identifier, equal to <see cref="WorkflowDefinition.Key"/>.</param>
+/// <param name="Version">The semantic version, equal to <see cref="WorkflowDefinition.Version"/>.</param>
+/// <param name="Tenant">The owning tenant, equal to <see cref="WorkflowDefinition.Tenant"/>.</param>
+/// <param name="CascadeLayer">The contributing cascade layer.</param>
+/// <param name="Provenance">The producer-supplied provenance document, a JSON object.</param>
+/// <param name="RetentionClass">The governed retention class.</param>
+/// <param name="LegalHold">Whether legal hold applies.</param>
+/// <param name="Requires">The required platform capabilities.</param>
+/// <param name="Contract">The declared application-contract version.</param>
+public sealed record WorkflowDefinitionEnvelope(
+    string Identity,
+    string Version,
+    string Tenant,
+    WorkflowCascadeLayer CascadeLayer,
+    JsonElement? Provenance,
+    string RetentionClass,
+    bool LegalHold,
+    IReadOnlyList<WorkflowDefinitionRequirement> Requires,
+    DefinitionContractVersion? Contract);
+
 /// <summary>
 /// The canonical declarative workflow keystone (the process analog of FormDefinition). The editable
 /// template the builder authors; the ADR 0135 engine instantiates it into a Process.
 /// </summary>
 public sealed class WorkflowDefinition
 {
+    /// <summary>The control envelope, or null for a revision that declares none.</summary>
+    public WorkflowDefinitionEnvelope? Envelope { get; init; }
+
     /// <summary>Definition key (matches <see cref="WorkflowInstanceRecord.DefinitionKey"/>).</summary>
     public required string Key { get; init; }
 

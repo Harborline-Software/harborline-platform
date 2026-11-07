@@ -1150,6 +1150,8 @@ function verifyNuget() {
   const workflowExpectedIds = [
     'Harborline.Blocks.Workflow',
     'Harborline.Blocks.Workflow.Interpreter',
+    'Harborline.Contracts',
+    'Harborline.Foundation.Definitions',
   ]
   const workflowExpectedNodes = inspections
     .filter(entry => workflowExpectedIds.includes(entry.id))

@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.blocks.workflow",
-  "interfaceRevision": 5,
+  "interfaceRevision": 6,
   "status": "frozen",
   "purpose": "Own the workflow engine core — the typed state-machine runtime, the provider-neutral durable-execution seams (store port, dispatcher, admission gate, effect broker, definition-store port, typed step handlers), and the built-in durable file-journal store — without importing an entity store, an EF/SQLite host topology, a financial cluster, or a UI framework.",
-  "dependencies": [],
+  "dependencies": ["hlp.contracts.identities", "hlp.foundation.definitions"],
   "callerInterface": {
     "name": "IWorkflowRuntime / IWorkflowTriggerDispatcher / IWorkflowDefinitionStore / IWorkflowDefinitionExecutionStore / IWorkflowEffectBroker",
     "operations": [
@@ -20,6 +20,8 @@
     "context": "All durable state lives behind the IWorkflowStore seam a host supplies. The engine composes ports, never a persistence backend. Confirmer and proposer identities are server-derived, never payload-supplied."
   },
   "invariants": [
+    "WorkflowDefinition carries a typed WorkflowDefinitionEnvelope (DES-0019 workflows-ck-2) whose Contract has no default; a validator composed with a DefinitionContractWindow requires the envelope and checks the contract, and one composed without it still refuses a present envelope that is malformed or names another revision.",
+    "Transitions and actions carry RequiredRoles and RequiredStandings. sys.roles is sealed to Anyone, Author, Reviewer and Approver and Access owns every other role (ADR 0041); a standing is a bare name and every one must hold, so a workflow can only narrow. Refusing a required role that widens the record type's own gate is workflows-auth-23, in T-488/admission-refusals.",
     "The idempotency key derives from (instance, iteration, step) with a cross-architecture byte-stable v5 GUID derivation, never from a freshly minted id.",
     "The atomic-advance contract co-commits effect, outcome event, idempotency row, and instance position in one store transaction; a redelivered trigger replays as a no-op.",
     "A loop-back park bumps the durable iteration counter and escalates to a terminal Failed state at the max-iterations cap; the counter is read back on resume, never recomputed.",
