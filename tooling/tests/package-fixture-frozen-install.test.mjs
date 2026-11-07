@@ -1188,7 +1188,7 @@ function runCalculationsRendererInstall(state, { failCopy } = {}) {
   assert.ok(body.indexOf('  const engineConsumer = ') > end)
   assert.doesNotMatch(body, /installPackedArtifacts\(|package-lock=false|run\('npm', \['install'/, 'no mutable Calculations install fallback')
   const resolverStart = source.indexOf('function packedArtifact(')
-  const resolverEnd = source.indexOf('function installPackedArtifacts(', resolverStart)
+  const resolverEnd = source.indexOf('function assertPackedInstall(', resolverStart)
   assert.ok(resolverStart > 0 && resolverEnd > resolverStart, 'real shared exactly-one packed artifact resolver')
   const packedArtifact = new Function('readdirSync', 'npmArtifacts', 'resolve', `${source.slice(resolverStart, resolverEnd)}\nreturn packedArtifact`)(
     readdirSync, state.npmArtifacts, resolve)
@@ -1368,7 +1368,7 @@ function runViewsRendererInstall(state, { failCopy, failMkdir } = {}) {
   assert.ok(body.indexOf('  const engineConsumer = ') > end)
   assert.doesNotMatch(body, /installPackedArtifacts\(|package-lock=false|run\('npm', \['install'/, 'no mutable Views install fallback')
   const resolverStart = source.indexOf('function packedArtifact(')
-  const resolverEnd = source.indexOf('function installPackedArtifacts(', resolverStart)
+  const resolverEnd = source.indexOf('function assertPackedInstall(', resolverStart)
   assert.ok(resolverStart > 0 && resolverEnd > resolverStart, 'real shared exactly-one packed artifact resolver')
   const packedArtifact = new Function('readdirSync', 'npmArtifacts', 'resolve', `${source.slice(resolverStart, resolverEnd)}\nreturn packedArtifact`)(
     readdirSync, state.npmArtifacts, resolve)
@@ -1604,7 +1604,7 @@ function runAggregatesRendererInstall(state, { failCopy, failMkdir } = {}) {
   assert.ok(body.slice(end).startsWith("  assertPackedInstall(rendererConsumer, ['ui-react', 'rule-authoring', 'rule-engine', 'contracts'], 'Aggregates renderer')"))
   assert.doesNotMatch(body, /installPackedArtifacts\(|package-lock=false|run\('npm', \['install'/, 'no mutable Aggregates install fallback')
   const resolverStart = source.indexOf('function packedArtifact(')
-  const resolverEnd = source.indexOf('function installPackedArtifacts(', resolverStart)
+  const resolverEnd = source.indexOf('function assertPackedInstall(', resolverStart)
   assert.ok(resolverStart > 0 && resolverEnd > resolverStart, 'real shared exactly-one packed artifact resolver')
   const packedArtifact = new Function('readdirSync', 'npmArtifacts', 'resolve', `${source.slice(resolverStart, resolverEnd)}\nreturn packedArtifact`)(
     readdirSync, state.npmArtifacts, resolve)
@@ -1817,4 +1817,28 @@ for (const [label, contractsManifest, expected] of [
   assert.throws(() => runRuleRuntimeCaller(state), expected)
   assert.equal(state.calls.length, 1)
   assert.equal(existsSync(resolve(state.consumer, '.packed')), false)
+})
+
+// T-1035: every package consumer installs from a committed lockfile. A run that resolves versions at install time
+// fails on a package published mid-run or one the registry has not propagated (api #305, `ignore@7.0.11` 404).
+test('T-1035: the fixture driver has no unlocked install path', () => {
+  const source = readFileSync(resolve(root, 'tooling/verify-package-fixtures.mjs'), 'utf8')
+  assert.doesNotMatch(source, /--package-lock=false/, 'no install may opt out of a lockfile')
+  assert.doesNotMatch(source, /run\('npm', \['(?:install|i|add)'/, 'consumers install with pnpm from a committed lock')
+  assert.doesNotMatch(source, /--no-frozen-lockfile/, 'no install may repair its lock')
+  for (const match of source.matchAll(/run\('pnpm', \['install'([^\]]*)\]/g)) {
+    assert.match(match[1], /'--frozen-lockfile'/, `pnpm install without a frozen lockfile: ${match[0]}`)
+  }
+})
+
+test('T-1035: the Copilot contracts consumer installs frozen from its committed empty baseline', () => {
+  const source = readFileSync(resolve(root, 'tooling/verify-package-fixtures.mjs'), 'utf8')
+  const body = source.slice(source.indexOf('function verifyCopilotContractsNpm()'))
+  const install = body.indexOf('  installFrozenCopilotContractsConsumer(consumer, artifact, run)')
+  assert.ok(install > 0, 'the Copilot consumer uses the frozen installer')
+  assert.ok(install < body.indexOf("run(process.execPath, ['exercise.mjs']"), 'frozen install precedes the unchanged exercise')
+  const fixture = resolve(root, 'tests/package-consumers/copilot-contracts-npm')
+  assert.deepEqual(JSON.parse(readFileSync(resolve(fixture, 'package.json'), 'utf8')), { private: true, type: 'module', packageManager: 'pnpm@11.1.3' })
+  assert.equal(readFileSync(resolve(fixture, 'pnpm-workspace.yaml'), 'utf8'), 'packages:\n  - .\nnodeLinker: hoisted\nautoInstallPeers: false\n')
+  assert.equal(createHash('sha256').update(readFileSync(resolve(fixture, 'pnpm-lock.yaml'))).digest('hex'), '878a7b60746fb21ffe11029327f29ea50cfc840bfeb9e0b3cbb46a77f828b7e7')
 })
