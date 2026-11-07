@@ -2061,7 +2061,7 @@
         {
           "id": "assertFunctionalParity",
           "status": "PASS",
-          "note": "16 conformance case(s) across both lanes"
+          "note": "17 conformance case(s) across both lanes"
         },
         {
           "id": "assertInternationalization",
@@ -2685,7 +2685,7 @@
         {
           "id": "assertFunctionalParity",
           "status": "PASS",
-          "note": "22 conformance case(s) across both lanes"
+          "note": "26 conformance case(s) across both lanes"
         },
         {
           "id": "assertInternationalization",
@@ -2909,7 +2909,7 @@
         {
           "id": "assertAccessible",
           "status": "PASS",
-          "note": "axe-core over 10 scenarios x 2 lanes in gallery-gate"
+          "note": "axe-core over 12 scenarios x 2 lanes in gallery-gate"
         },
         {
           "id": "assertVisualParity",
@@ -3299,7 +3299,7 @@
         {
           "id": "assertAccessible",
           "status": "PASS",
-          "note": "axe-core over 10 scenarios x 2 lanes in gallery-gate"
+          "note": "axe-core over 12 scenarios x 2 lanes in gallery-gate"
         },
         {
           "id": "assertVisualParity",
@@ -3309,7 +3309,7 @@
         {
           "id": "assertFunctionalParity",
           "status": "PASS",
-          "note": "20 conformance case(s) across both lanes"
+          "note": "24 conformance case(s) across both lanes"
         },
         {
           "id": "assertInternationalization",
@@ -5259,7 +5259,7 @@
         {
           "id": "assertFunctionalParity",
           "status": "PASS",
-          "note": "20 conformance case(s) across both lanes"
+          "note": "21 conformance case(s) across both lanes"
         },
         {
           "id": "assertInternationalization",
@@ -6185,7 +6185,7 @@
         {
           "id": "assertAccessible",
           "status": "PASS",
-          "note": "axe-core over 11 scenarios x 2 lanes in gallery-gate"
+          "note": "axe-core over 13 scenarios x 2 lanes in gallery-gate"
         },
         {
           "id": "assertVisualParity",
@@ -6195,7 +6195,7 @@
         {
           "id": "assertFunctionalParity",
           "status": "PASS",
-          "note": "23 conformance case(s) across both lanes"
+          "note": "25 conformance case(s) across both lanes"
         },
         {
           "id": "assertInternationalization",

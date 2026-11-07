@@ -34,7 +34,7 @@
  * `__tests__/workflow.test.ts` pins.
  */
 
-import type { RoleReference } from './authorization.js'
+import type { RecordStandingReference, RoleReference } from './authorization.js'
 import type { IdentityRef } from './forms.js'
 import type { InternationalizedText } from './text.js'
 import type { RuleDefinition } from './rules.js'
@@ -141,8 +141,10 @@ export interface WorkflowTransition {
   to: string
   /** Optional guard rule id (a `RuleDefinition` in `guards`). */
   guard?: GuardRef
-  /** Qualified any-of role gate. Every entry must resolve in the supplied vocabulary. */
-  requiredRoles?: RoleReference[]
+  /** Qualified any-of role gate. Every entry must resolve in the supplied vocabulary; sys.roles is sealed. */
+  requiredRoles?: WorkflowGateRole[]
+  /** Record-derived standings. Every one must hold, so they only narrow. */
+  requiredStandings?: RecordStandingReference[]
 }
 
 /**
@@ -191,9 +193,48 @@ export interface WorkflowActionBinding {
   /** Optional `IGuardEvaluator` action-condition rule id ("should this run?"). */
   condition?: GuardRef
   /** Qualified any-of role gate for this workflow verb. */
-  requiredRoles?: RoleReference[]
+  requiredRoles?: WorkflowGateRole[]
+  /** Record-derived standings. Every one must hold, so they only narrow. */
+  requiredStandings?: RecordStandingReference[]
   /** Declarative effect params (lowered to a `WorkflowEffect` by the gated A1 path). */
   params?: WorkflowEffectParams
+}
+
+/**
+ * A role a workflow gate names: an Access-owned reference, or a position in the sealed record-relative
+ * `sys.roles` vocabulary, which only workflow gates use (ADR 0041).
+ */
+export type WorkflowGateRole = RoleReference | { readonly vocabulary: 'sys.roles'; readonly name: string }
+
+/** The definition layer that supplied a workflow revision. */
+export type WorkflowCascadeLayer = 'KernelCore' | 'Subsystem' | 'PlatformPackage' | 'DomainPackage' | 'TenantConfiguration'
+
+/** A definition's declared application-contract version. */
+export interface WorkflowContractVersion {
+  major: number
+  minor: number
+}
+
+/** A platform capability the envelope requires. */
+export interface WorkflowEnvelopeRequirement {
+  capability: string
+}
+
+/**
+ * The workflow control envelope (DES-0019 workflows-ck-2, ADR 0006). A missing `contract` survives the read
+ * so that admission gives the one stable refusal.
+ */
+export interface WorkflowEnvelope {
+  identity: string
+  version: string
+  tenant: string
+  cascadeLayer: WorkflowCascadeLayer
+  /** The producer-supplied provenance document, a JSON object. */
+  provenance: Record<string, unknown>
+  retentionClass: string
+  legalHold: boolean
+  requires: WorkflowEnvelopeRequirement[]
+  contract?: WorkflowContractVersion
 }
 
 /** Optional extension lineage -- this definition forks another. */
@@ -217,6 +258,8 @@ export interface FormDefinitionRef {
  * engine instantiates it into a Process.
  */
 export interface WorkflowDefinition {
+  /** The control envelope; admission requires it when a contract window is supplied. */
+  envelope?: WorkflowEnvelope
   /** Definition key (matches `WorkflowInstanceRecord.DefinitionKey`). */
   key: string
   /** Canonical `"{major}.{minor}.{patch}"` -- the D7-pinned version. */
