@@ -82,17 +82,24 @@ public sealed class RruleRfcCaseTests
         { "a Monday every seven days from a Tuesday", "FREQ=DAILY;INTERVAL=7;BYDAY=MO" },
     };
 
-    // The engine's enumeration is unbounded; without a step limit these never yield and the call never returns.
-    [Theory(DisplayName = "T-1175: a subset rule whose parts can never all match refuses promptly instead of enumerating without end")]
+    // The engine searches no further than the walk's horizon, so a rule that can never match is the empty set RFC 5545
+    // gives it, returned promptly rather than searched for without end.
+    [Theory(DisplayName = "T-1175: a subset rule whose parts can never all match returns no dates, promptly, instead of enumerating without end")]
     [MemberData(nameof(NeverMatchingRules))]
-    public void NeverMatchingRuleRefusesPromptly(string _, string rule)
+    public void NeverMatchingRuleIsEmptyAndPrompt(string _, string rule)
     {
         var watch = System.Diagnostics.Stopwatch.StartNew();
 
-        Assert.Throws<FormatException>(() => Dates(rule, new(2026, 1, 6), new(2026, 12, 31)));
+        Assert.Empty(Dates(rule, new(2026, 1, 6), new(2126, 12, 31)));
 
         Assert.True(watch.Elapsed < TimeSpan.FromSeconds(10), $"took {watch.Elapsed}");
     }
+
+    // Codex on platform #439 (bcdee2ed): the next match is 11 970 steps later, in 2749. Oracle: python-dateutil 4.0.0.
+    [Fact(DisplayName = "T-1175: a valid rule whose next match is centuries away still returns what lies in the requested range")]
+    public void SparseRuleReturnsWhatLiesInRange() =>
+        Assert.Equal([new DateOnly(2028, 2, 28)],
+            Dates("FREQ=DAILY;INTERVAL=22;BYMONTH=2;BYMONTHDAY=28;BYDAY=MO", new(2028, 2, 28), new(2028, 2, 29)));
 
     // Oracle: python-dateutil 4.0.0 (Corpus/record-dateutil.py's engine), recorded for these rules.
     [Fact(DisplayName = "T-1175: the sparsest rules that do match still expand: a fifth Monday in February, and 28 February on a Monday")]

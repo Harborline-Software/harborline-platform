@@ -41,8 +41,9 @@ public sealed class InMemoryRruleExpansionService : IRruleExpansionService
 
         // A date-valued series (RFC 5545 DTSTART;VALUE=DATE): UNTIL bounds by date. A DATE-TIME UNTIL keeps its UTC date
         // here, as DES-0057 ck-7's date-granular contract always has; a timed series uses ExpandZonedOccurrences instead.
-        var occurrences = Evaluate(parsed, new CalDateTime(start)).Select(occurrence => occurrence.Date);
-        return Collect(rrule, parsed, start, occurrences, end ?? today.AddDays(lookaheadDays), today.AddDays(leadDays),
+        var horizon = end ?? today.AddDays(lookaheadDays);
+        var occurrences = Evaluate(parsed, new CalDateTime(start), SearchEnd(horizon, null)).Select(occurrence => occurrence.Date);
+        return Collect(rrule, parsed, start, occurrences, horizon, today.AddDays(leadDays),
             static (date, until) => date > until.Date);
     }
 
@@ -69,42 +70,41 @@ public sealed class InMemoryRruleExpansionService : IRruleExpansionService
         // recurrences in local time, and each nominal time resolves to its instant through the one resolver. Evaluating in
         // the zone instead lets the engine shift a spring-forward gap time past midnight (23:30 on 28 March 2026 in Nuuk
         // became 00:30 on the 29th), which would change the occurrence's date.
-        var dated = Evaluate(parsed, new CalDateTime(start, startTime, null))
+        var horizon = end ?? today.AddDays(lookaheadDays);
+        var dated = Evaluate(parsed, new CalDateTime(start, startTime, null), SearchEnd(horizon, TimeOnly.MaxValue))
             .Select(occurrence => (occurrence.Date, Instant: WallClockResolver.ToUtcInstant(occurrence.Date, startTime, timezone)));
         var bounded = parsed.Until is { Instant: { } untilInstant }
             ? dated.TakeWhile(occurrence => occurrence.Instant <= untilInstant)
             : dated;
         return Collect(rrule, parsed, start, bounded.Select(occurrence => occurrence.Date),
-            end ?? today.AddDays(lookaheadDays), today.AddDays(leadDays),
+            horizon, today.AddDays(leadDays),
             static (date, until) => until.Instant is null && date > until.Date);
     }
 
     /// <summary>
-    /// The most frequency steps the engine may take without a match before the rule is refused. The engine's enumeration
-    /// is unbounded, and a subset rule that can never match (a fifth Monday that must also be the 1st; a weekly Monday
-    /// every seven days from a Tuesday) would otherwise never yield, so the horizon check below would never run. The
-    /// sparsest subset rule that does match, a fifth Monday in February, needs about 336 monthly steps, and a daily
-    /// BYMONTH, BYMONTHDAY and BYDAY intersection under about 4 100 daily steps.
+    /// The engine's search end: the walk's horizon, set as the engine rule's UNTIL. The engine stops searching at its UNTIL
+    /// (Ical.Net 5.2.4 <c>GetSearchEndDate</c>), so a sparse rule still returns what lies in range, and a subset rule whose
+    /// parts can never all match (a fifth Monday that must also be the 1st) ends empty at the horizon instead of searching
+    /// without end. Every occurrence on or before the horizon is still produced, so COUNT, which counts from the anchor,
+    /// is unaffected. The rule's own UNTIL is applied by the caller. Capped one day short of the last DateOnly, because
+    /// the engine pads its search end by a day.
     /// </summary>
-    private const int UnmatchedStepLimit = 10_000;
-
-    private static IEnumerable<CalDateTime> Evaluate(ParsedRrule parsed, CalDateTime dtStart)
+    private static CalDateTime SearchEnd(DateOnly horizon, TimeOnly? time)
     {
-        using var periods = new RecurrencePatternEvaluator(new RecurrenceRule(parsed.ToRuleWithoutUntil()))
-            .Evaluate(dtStart, null, new EvaluationOptions { MaxUnmatchedIncrementsLimit = UnmatchedStepLimit })
-            .GetEnumerator();
+        var day = horizon < DateOnly.MaxValue.AddDays(-1) ? horizon : DateOnly.MaxValue.AddDays(-1);
+        return time is { } at ? new CalDateTime(day, at, null) : new CalDateTime(day);
+    }
+
+    private static IEnumerable<CalDateTime> Evaluate(ParsedRrule parsed, CalDateTime dtStart, CalDateTime searchEnd)
+    {
+        var rule = new RecurrenceRule(parsed.ToRuleWithoutUntil()) { Until = searchEnd };
+        using var periods = new RecurrencePatternEvaluator(rule).Evaluate(dtStart, null, null).GetEnumerator();
         while (true)
         {
             try
             {
                 if (!periods.MoveNext())
                     yield break;
-            }
-            catch (EvaluationLimitExceededException exception)
-            {
-                throw new FormatException(
-                    $"RRULE '{parsed.ToRuleWithoutUntil()}' produces no further occurrence within {UnmatchedStepLimit} steps; "
-                    + "its parts cannot all match.", exception);
             }
             catch (EvaluationOutOfRangeException)
             {
