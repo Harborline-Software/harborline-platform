@@ -100,6 +100,9 @@ export function memberShellAndExportFindings({pack, exportDocuments}) {
     }
     if (!surfaces.has(String(destination.surface_id))) {
       findings.push(`member ${member}: editor ${destination.id} opens surface ${destination.surface_id}, which the surface catalogue does not release`)
+    } else if (String(destination.surface_id) !== String(destination.id)) {
+      // Each editor is its own surface, so a link names the editor it opens (?surface=platform.editor.views).
+      findings.push(`member ${member}: editor ${destination.id} opens surface ${destination.surface_id}, not its own surface ${destination.id}`)
     }
     if (JSON.stringify(destination.projections) !== sharedProjections) {
       findings.push(`member ${member}: editor ${destination.id} declares projections ${JSON.stringify(destination.projections)}, not the shared shell's ${sharedProjections}`)
