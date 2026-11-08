@@ -322,6 +322,95 @@ public sealed class FormRecordTypeTargetAdmissionTests
         Assert.Equal([("tenant:acme", "notes.entry")], reader.Asked);
     }
 
+    private static readonly SubmitGate AuthorStanding = new(Standing: new RecordStandingReference("author"));
+
+    public static TheoryData<RecordTypeCreationGate, string> StandingPaths => new()
+    {
+        { RecordTypeCreationGate.FormOnly, "atomic" }, { RecordTypeCreationGate.FormOnly, "direct" }, { RecordTypeCreationGate.FormOnly, "transition" },
+        { RecordTypeCreationGate.Role, "atomic" }, { RecordTypeCreationGate.Role, "direct" }, { RecordTypeCreationGate.Role, "transition" },
+    };
+
+    // T-485/standing-gate-on-record-creation. Oracle: the code and pointer are the slice record's literals, and the
+    // ruling is the owner's of 2026-10-28, clause 3 (DES-0016 §2 "Declared record-creation targets").
+    [Theory(DisplayName = "T-485 standing gate: a targeted form gated on a standing is refused at /submit_gate/standing on every publication path, whatever the target's creation gate, and nothing is published")]
+    [MemberData(nameof(StandingPaths))]
+    public async Task StandingGateOnRecordCreationIsRefusedOnEveryPublicationPath(RecordTypeCreationGate creationGate, string path)
+    {
+        using var store = new InMemoryFormDefinitionStore(new FixedClock(Now), recordTypePolicies: new RecordingReader(creationGate));
+        var definition = Form(AuthorStanding, $"standing-{path}", "notes.entry");
+
+        var refusal = await Assert.ThrowsAsync<FormDefinitionValidationException>(async () =>
+        {
+            switch (path)
+            {
+                case "atomic":
+                    await store.RegisterAndPublishAsync(definition);
+                    break;
+                case "direct":
+                    await store.RegisterAsync(definition with { Status = FormDefinitionStatus.Published });
+                    break;
+                default:
+                    await store.RegisterAsync(definition);
+                    await store.PublishAsync(definition.Tenant, definition.Id, definition.Version);
+                    break;
+            }
+        });
+
+        Assert.Equal(("form.submit_gate.standing_on_record_creation", "/submit_gate/standing"), (refusal.Code, refusal.Target));
+        Assert.Null(await store.GetCurrentPublishedAsync(definition.Tenant, definition.Id));
+        if (path == "transition")
+            Assert.Equal(FormDefinitionStatus.Draft, (await store.GetAsync(definition.Tenant, definition.Id, definition.Version)).Status);
+    }
+
+    [Fact(DisplayName = "T-485 standing gate: a Draft that targets a record type and gates on a standing still registers; the refusal is at publication")]
+    public async Task StandingGateOnRecordCreationStillSavesAsDraft()
+    {
+        var reader = new RecordingReader(RecordTypeCreationGate.FormOnly);
+        using var store = new InMemoryFormDefinitionStore(new FixedClock(Now), recordTypePolicies: reader);
+
+        var saved = await store.RegisterAsync(Form(AuthorStanding, "standing-draft", "notes.entry"));
+
+        Assert.Equal((FormDefinitionStatus.Draft, "author", "notes.entry"), (saved.Status, saved.SubmitGate!.Standing!.Name, saved.RecordTypeId));
+        Assert.Empty(reader.Asked);
+    }
+
+    [Fact(DisplayName = "T-485 standing gate: a form with no record type target keeps the standing arm and publishes without a policy lookup (forms-auth-11)")]
+    public async Task UntargetedFormKeepsTheStandingArm()
+    {
+        var reader = new RecordingReader(RecordTypeCreationGate.FormOnly);
+        using var store = new InMemoryFormDefinitionStore(new FixedClock(Now), recordTypePolicies: reader);
+
+        var published = await store.RegisterAndPublishAsync(Form(AuthorStanding, "standing-untargeted"));
+
+        Assert.Equal((FormDefinitionStatus.Published, "author"), (published.Status, published.SubmitGate!.Standing!.Name));
+        Assert.Empty(reader.Asked);
+    }
+
+    [Fact(DisplayName = "T-485 standing gate: an engine target with a standing gate keeps its own refusal at /record_type_id, which comes first")]
+    public async Task EngineTargetRefusalPrecedesTheStandingRefusal()
+    {
+        using var store = new InMemoryFormDefinitionStore(new FixedClock(Now), recordTypePolicies: new RecordingReader(RecordTypeCreationGate.Engine));
+
+        var refusal = await Assert.ThrowsAsync<FormDefinitionValidationException>(
+            async () => await store.RegisterAndPublishAsync(Form(AuthorStanding, "standing-engine", "ledger.posting")));
+
+        Assert.Equal(("form.record_type.not_form_creatable", "/record_type_id"), (refusal.Code, refusal.Target));
+    }
+
+    [Fact(DisplayName = "T-485 standing gate: the publication check refuses a standing gate by itself, for both creation gates a form may target")]
+    public void PublicationCheckRefusesTheStandingArmByItself()
+    {
+        foreach (var creationGate in new[] { RecordTypeCreationGate.FormOnly, RecordTypeCreationGate.Role })
+        {
+            var refusal = Assert.Throws<FormDefinitionValidationException>(() =>
+                FormDefinitionValidation.ValidateRecordTypePublicationOrThrow(Form(AuthorStanding, target: "notes.entry"), creationGate));
+            Assert.Equal(("form.submit_gate.standing_on_record_creation", "/submit_gate/standing"), (refusal.Code, refusal.Target));
+        }
+
+        FormDefinitionValidation.ValidateRecordTypePublicationOrThrow(Form(InspectorGate, target: "notes.entry"), RecordTypeCreationGate.FormOnly);
+        FormDefinitionValidation.ValidateRecordTypePublicationOrThrow(Form(AuthorStanding), RecordTypeCreationGate.FormOnly);
+    }
+
     private static FormDefinition Form(SubmitGate? gate = null, string id = "record-target", string? target = null, SemanticVersion? version = null)
     {
         var fields = new Dictionary<string, FieldOverlay> { ["name"] = new(InternationalizedText.FromInvariant("name")) };
