@@ -2908,8 +2908,8 @@
         },
         {
           "id": "assertAccessible",
-          "status": "PASS",
-          "note": "axe-core over 12 scenarios x 2 lanes in gallery-gate"
+          "status": "PARTIAL",
+          "note": "axe-core over 10 scenarios x 2 lanes in the recorded gallery-gate; 2 added since it was recorded are unscanned until it is re-recorded: layers-rail.inside-dialog, layers-rail.inside-sheet"
         },
         {
           "id": "assertVisualParity",
@@ -3298,8 +3298,8 @@
         },
         {
           "id": "assertAccessible",
-          "status": "PASS",
-          "note": "axe-core over 12 scenarios x 2 lanes in gallery-gate"
+          "status": "PARTIAL",
+          "note": "axe-core over 10 scenarios x 2 lanes in the recorded gallery-gate; 2 added since it was recorded are unscanned until it is re-recorded: notification-center.inside-dialog, notification-center.inside-sheet"
         },
         {
           "id": "assertVisualParity",
@@ -6184,8 +6184,8 @@
         },
         {
           "id": "assertAccessible",
-          "status": "PASS",
-          "note": "axe-core over 13 scenarios x 2 lanes in gallery-gate"
+          "status": "PARTIAL",
+          "note": "axe-core over 11 scenarios x 2 lanes in the recorded gallery-gate; 2 added since it was recorded are unscanned until it is re-recorded: user-menu.inside-dialog, user-menu.inside-sheet"
         },
         {
           "id": "assertVisualParity",
@@ -6407,8 +6407,8 @@
     }
   ],
   "tally": {
-    "PASS": 674,
-    "PARTIAL": 100,
+    "PASS": 671,
+    "PARTIAL": 103,
     "UNBUILT": 199,
     "NOT-APPLICABLE": 159,
     "FAIL": 2
