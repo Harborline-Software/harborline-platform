@@ -134,6 +134,19 @@ The legacy offline `RuleRegistry` watermark remains separate and is not this sha
 VersionPolicy is a caller selector, absent from authored source. Restore keeps original body
 bytes while reconstructing source with the new shared identity and version metadata.
 
+## Views catalogue (T-486, DES-0017 views-eng-16)
+
+Register `DefinitionKind.Views` (2) with `ViewDefinitionCatalogue.Admission(registers)` and its
+dependency derivation `ViewDefinitionCatalogue.Dependencies` (both in `hlp.blocks.entity-views`), then
+bind one `ViewDefinitionCatalogue` over the store. The body is the `ViewDefinitionDraftJson` wire and
+the version id is the definition's semantic version. Admission is pure and synchronous: the wire, the
+catalogue key, and every structural rule over the host's fixed `ViewAdmissionRegisters` (kinds,
+catalogue measures, filter functions, widgets, row actions, workflow transitions). As Records does, the
+record type is checked in the derivation at publication, against its published head:
+`view_definition.record_type_unresolved` at `/definition/recordType`, or `view_definition.field_unknown`
+and `view_definition.shape_role_field_missing` at the naming member. Each publish stores the `record_type`
+edge. A caller that writes through the store directly is refused the same way.
+
 ## Taxonomy catalogue (T-493 S7, DES-0024)
 
 Register `DefinitionKind.Taxonomy` (14) with `TaxonomyDefinitionStore.Admission(window)` in the

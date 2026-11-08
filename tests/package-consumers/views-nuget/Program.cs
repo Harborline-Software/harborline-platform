@@ -2,7 +2,9 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Reflection;
 using System.Text.Json;
+using Harborline.Blocks.BuilderDefinitions;
 using Harborline.Blocks.EntityViews;
+using Harborline.Kernel.SchemaValidation.Records;
 using Harborline.Foundation.Authorization;
 
 const string Building = "entity:preview/building-1";
@@ -61,7 +63,23 @@ async Task ProveAuthoredAndBoundQuery()
             ViewFilter.Equal("state", "open"),
             "state",
             new("work.count", new Dictionary<string, string> { ["format"] = "integer" })));
-    var store = new InMemoryViewDefinitionStore();
+    // Views lives in the shared definition store (views-eng-16): its admission and record-type dependency are registered
+    // there, so the publish below is re-admitted inside the store, and the record type it reads is published first.
+    var shared = new InMemoryVersionedDefinitionStore(
+        new Dictionary<DefinitionKind, DefinitionAdmission>
+        {
+            [DefinitionKind.Views] = ViewDefinitionCatalogue.Admission(new ViewAdmissionRegisters(
+                await kinds.ListAsync(), [new("work.count", ["format"])], new ViewExpressionFunctionRegistry(), [], ["work.open"], [])),
+            [DefinitionKind.Records] = (_, _) => [],
+        },
+        new Dictionary<DefinitionKind, DefinitionDependencyDerivation> { [DefinitionKind.Views] = ViewDefinitionCatalogue.Dependencies });
+    var workItem = RecordTypeDefinitionStore.KeyOf("team-a", "work-item");
+    await shared.SaveDraftAsync(new DefinitionDocument(workItem, "1.0.0", "1.0.0", System.Text.Encoding.UTF8.GetString(
+        RecordTypeDefinitionJson.SerializeCanonical(new RecordTypeDocument(
+            new RecordsDefinitionEnvelope("team-a", "operations", new(1, 0)), "work-item", "work-item",
+            [new("title", "title"), new("assignee", "assignee"), new("state", "state")])))), 0, "seed-work-item");
+    await shared.PublishAsync(workItem, "1.0.0", 1, "publish-work-item");
+    var store = new ViewDefinitionCatalogue(shared);
     var authoring = new ViewDefinitionAuthoring(
         new ViewDefinitionAdmission(
             kinds,

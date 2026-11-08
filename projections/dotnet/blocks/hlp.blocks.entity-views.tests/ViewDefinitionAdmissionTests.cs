@@ -37,7 +37,7 @@ public sealed class ViewDefinitionAdmissionTests
     [Fact(DisplayName = "structural admission runs before the definition-store write")]
     public async Task StructuralAdmissionRunsBeforeTheDefinitionStoreWrite()
     {
-        var store = new InMemoryViewDefinitionStore();
+        var store = ViewStores.Catalogue();
         var authoring = new ViewDefinitionAuthoring(
             Admission(),
             store);
@@ -57,7 +57,7 @@ public sealed class ViewDefinitionAdmissionTests
     [Fact(DisplayName = "T-572 slice 2 (ruling 85): authoring stamps the platform seed's contract window on a new draft; authors never type it")]
     public async Task AuthoringStampsTheSeedContractWindowOnANewDraft()
     {
-        var authoring = new ViewDefinitionAuthoring(Admission(), new InMemoryViewDefinitionStore());
+        var authoring = new ViewDefinitionAuthoring(Admission(), ViewStores.Catalogue());
         var unstamped = Definition() with { Envelope = Definition().Envelope with { Contract = null } };
         var created = await authoring.CreateDraftAsync(new ViewDefinitionDraft(
             unstamped,
@@ -93,7 +93,7 @@ public sealed class ViewDefinitionAdmissionTests
     [Fact(DisplayName = "T-572 slice 3 (ruling 85): authoring stamps the seed contract over an out-of-window one before admission, so the author never types it")]
     public async Task AuthoringStampsOverAnOutOfWindowContract()
     {
-        var authoring = new ViewDefinitionAuthoring(Admission(), new InMemoryViewDefinitionStore());
+        var authoring = new ViewDefinitionAuthoring(Admission(), ViewStores.Catalogue());
         var created = await authoring.CreateDraftAsync(new ViewDefinitionDraft(
             Definition() with { Envelope = Definition().Envelope with { Contract = new(9, 9) } },
             new ViewBinding("layout.table", new Dictionary<ViewShapeRole, string> { [ViewShapeRole.Title] = "title" })));
