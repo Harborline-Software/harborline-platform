@@ -8,7 +8,8 @@ namespace Harborline.Blocks.EntityViews;
 /// invents its own (T-486/engine-gaps). Member names are camelCase, so the RFC 6901 pointers admission reports, such as
 /// <c>/envelope/contract</c> and <c>/aggregationExpression</c>, address this document. Enums are camelCase strings, the
 /// filter tree keeps its <c>kind</c> discriminator, and null members are omitted. Reading is strict: an unknown member, a
-/// repeated member, a missing required member or a trailing value refuses with <see cref="JsonException"/>. The runtime
+/// repeated member, a missing required member, a null list entry or map value, or a trailing value refuses with
+/// <see cref="JsonException"/>. The runtime
 /// Access predicate is not part of the grammar and cannot be written. Schema: <c>viewDefinitionDraftWire</c> in this
 /// module's <c>interface.yaml</c>.
 /// </summary>
@@ -44,7 +45,7 @@ public static class ViewDefinitionDraftJson
             // A nullable constructor parameter is optional on the wire, as writing omits a null member; every other one stays required.
             TypeInfoResolver = new System.Text.Json.Serialization.Metadata.DefaultJsonTypeInfoResolver
             {
-                Modifiers = { NullableParametersAreOptional },
+                Modifiers = { NullableParametersAreOptional, CollectionEntriesAreNotNull },
             },
         };
         options.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase, allowIntegerValues: false));
@@ -58,5 +59,27 @@ public static class ViewDefinitionDraftJson
         {
             if (property.AssociatedParameter is { IsNullable: true }) property.IsRequired = false;
         }
+    }
+
+    // RespectNullableAnnotations does not reach collection elements, and no list or map in the draft grammar admits a null entry.
+    private static void CollectionEntriesAreNotNull(System.Text.Json.Serialization.Metadata.JsonTypeInfo type)
+    {
+        if (type.Kind != System.Text.Json.Serialization.Metadata.JsonTypeInfoKind.Object) return;
+        var properties = type.Properties.Where(property => property.Get is not null).ToArray();
+        type.OnDeserialized = value =>
+        {
+            foreach (var property in properties)
+            {
+                var entries = property.Get!(value) switch
+                {
+                    System.Collections.IDictionary map => map.Values,
+                    string => null,
+                    System.Collections.IEnumerable list => list,
+                    _ => null,
+                };
+                if (entries is not null && entries.Cast<object?>().Any(entry => entry is null))
+                    throw new JsonException($"The '{property.Name}' member holds a null entry.");
+            }
+        };
     }
 }

@@ -43,6 +43,21 @@ public sealed class ViewDefinitionCatalogueTests
         Assert.Contains(new DefinitionRefusal("definition.catalogue_mismatch", "/definition/envelope"), elsewhere.Refusals);
     }
 
+    [Fact(DisplayName = "views-eng-16: a draft with a null column is refused at the store as an invalid body, so it never reaches publication")]
+    public async Task ADraftWithANullColumnIsRefusedAtTheStore()
+    {
+        var (_, shared) = ViewStores.Create();
+        var key = ViewDefinitionCatalogue.KeyOf(Tenant, "work.queue");
+        var body = System.Text.Json.Nodes.JsonNode.Parse(ViewDefinitionDraftJson.Serialize(Draft()))!;
+        body["definition"]!["parameters"]!["columns"] = new System.Text.Json.Nodes.JsonArray((System.Text.Json.Nodes.JsonNode?)null);
+
+        var refused = await Assert.ThrowsAsync<DefinitionRefusalException>(async () =>
+            await shared.SaveDraftAsync(new DefinitionDocument(key, "1.0.0", "1.0.0", body.ToJsonString()), 0, "null-column"));
+
+        Assert.Equal([new DefinitionRefusal("view_definition.body_invalid", "")], refused.Refusals);
+        Assert.Empty(await shared.ListHistoryAsync(key));
+    }
+
     [Fact(DisplayName = "views-eng-16: publishing a view whose record type has no published version is refused at the commit, and no head appears")]
     public async Task PublishingAViewOverAnUnpublishedRecordTypeIsRefused()
     {

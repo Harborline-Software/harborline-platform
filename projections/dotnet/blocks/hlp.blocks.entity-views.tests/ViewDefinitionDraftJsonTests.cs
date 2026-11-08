@@ -113,6 +113,12 @@ public sealed class ViewDefinitionDraftJsonTests
     [InlineData("an unknown enum spelling", "/binding/density", "\"tight\"")]
     [InlineData("an unknown filter kind", "/definition/parameters/filter/kind", "\"sql\"")]
     [InlineData("a null required string", "/definition/title", "null")]
+    [InlineData("a null column", "/definition/parameters/columns", "[null]")]
+    [InlineData("a null sort entry", "/definition/parameters/sort", "[null]")]
+    [InlineData("a null requirement", "/definition/envelope/requires", "[null]")]
+    [InlineData("a null filter inside a filter list", "/definition/parameters/filter", "{\"kind\":\"all\",\"filters\":[null]}")]
+    [InlineData("a null shape-role field", "/binding/shapeRoles/title", "null")]
+    [InlineData("a null measure parameter", "/definition/parameters/measure/parameters/format", "null")]
     public void AnythingOutsideTheContractRefuses(string _, string pointer, string value)
     {
         var wire = JsonNode.Parse(Wire)!;
