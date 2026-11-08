@@ -98,6 +98,19 @@ public sealed class FormDefinitionVersioningTests
         Assert.Single(await Revisions(store));
     }
 
+    [Fact(DisplayName = "forms-ck-9: a restored Draft needs no submit gate, as a Draft registration needs none")]
+    public async Task Restore_of_a_revision_without_a_submit_gate_registers_a_draft()
+    {
+        using var store = new InMemoryFormDefinitionStore(new FixedClock(Now));
+        await store.RegisterAsync(Form("1.0.0") with { SubmitGate = null });
+
+        var restored = await store.RestoreAsDraftAsync(Tenant, Id, SemanticVersion.Parse("1.0.0"));
+
+        Assert.Equal(FormDefinitionStatus.Draft, restored.Status);
+        Assert.Null(restored.SubmitGate);
+        Assert.Equal(2, (await Revisions(store)).Count);
+    }
+
     [Fact(DisplayName = "forms-ck-9: a restored Draft runs the Draft submit-gate admission and registers nothing when refused")]
     public async Task Restore_runs_the_draft_submit_gate_admission()
     {
