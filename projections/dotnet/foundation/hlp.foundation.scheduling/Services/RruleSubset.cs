@@ -97,6 +97,13 @@ internal static class RruleSubset
         if (freq is "DAILY" or "WEEKLY" && byDay.Any(entry => entry.Ordinal != 0))
             throw new NotSupportedException($"RRULE component 'BYDAY' with an ordinal is not applicable with FREQ={freq}.");
 
+        // Under YEARLY without BYMONTH, an ordinal BYDAY is an offset within the year (Errata 1913) while BYMONTHDAY
+        // spans every month; the engine cannot give that combination its RFC answer, so the subset refuses it rather
+        // than expand it wrongly. Naming BYMONTH makes it unambiguous and admitted.
+        if (freq == "YEARLY" && byMonthDay.Count > 0 && byMonth.Count == 0 && byDay.Any(entry => entry.Ordinal != 0))
+            throw new NotSupportedException(
+                "RRULE component 'BYDAY' with an ordinal and 'BYMONTHDAY' under FREQ=YEARLY need 'BYMONTH'.");
+
         return new ParsedRrule(freq, interval, count, until, byDay, byMonthDay, byMonth);
     }
 
@@ -179,7 +186,13 @@ internal sealed record ParsedRrule(
             parts.Add("BYDAY=" + string.Join(",", ByDay.Select(entry =>
                 entry.Ordinal == 0 ? entry.Weekday : FormattableString.Invariant($"{entry.Ordinal}{entry.Weekday}"))));
         if (ByMonthDay.Count > 0) parts.Add("BYMONTHDAY=" + string.Join(",", ByMonthDay.Select(day => day.ToString(CultureInfo.InvariantCulture))));
-        if (ByMonth.Count > 0) parts.Add("BYMONTH=" + string.Join(",", ByMonth.Select(month => month.ToString(CultureInfo.InvariantCulture))));
+        if (ByMonth.Count > 0)
+            parts.Add("BYMONTH=" + string.Join(",", ByMonth.Select(month => month.ToString(CultureInfo.InvariantCulture))));
+        // RFC 5545 §3.3.10: under YEARLY, BYMONTHDAY expands across every month when BYMONTH is absent. Ical.Net 5.2.4
+        // instead limits it to the anchor's month (its ProcessRecurrencePattern injects BYMONTH from DTSTART), so
+        // FREQ=YEARLY;BYMONTHDAY=15 would give one date a year. Naming all twelve months is the RFC's own reading.
+        else if (Freq == "YEARLY" && ByMonthDay.Count > 0)
+            parts.Add("BYMONTH=1,2,3,4,5,6,7,8,9,10,11,12");
         return string.Join(";", parts);
     }
 }

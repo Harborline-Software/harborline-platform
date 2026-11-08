@@ -108,6 +108,16 @@ public sealed class RruleRfcCaseTests
     public void SeriesEndsPastYear9999() =>
         Assert.Equal([new DateOnly(2026, 6, 1)], Dates("FREQ=YEARLY;INTERVAL=10000", new(2026, 6, 1), new(9999, 12, 31)));
 
+    // Oracle: RFC 5545 §3.3.10's BYxxx table (BYMONTHDAY expands under YEARLY) and python-dateutil 4.0.0.
+    [Fact(DisplayName = "T-1175: YEARLY with BYMONTHDAY and no BYMONTH spans every month, not only the anchor's (RFC 5545 §3.3.10)")]
+    public void YearlyMonthDayWithoutMonthSpansEveryMonth() =>
+        Assert.Equal([new(2026, 1, 15), new(2026, 2, 15), new DateOnly(2026, 3, 15)],
+            Dates("FREQ=YEARLY;BYMONTHDAY=15;COUNT=3", new(2026, 1, 1), new(2030, 12, 31)));
+
+    [Fact(DisplayName = "T-1175: YEARLY with an ordinal BYDAY, BYMONTHDAY and no BYMONTH refuses rather than expand it wrongly")]
+    public void YearlyOrdinalWithMonthDayNeedsMonth() =>
+        Assert.Throws<NotSupportedException>(() => Dates("FREQ=YEARLY;BYMONTHDAY=1,2,3,4,5,6,7;BYDAY=1MO;COUNT=4", new(2026, 3, 1), new(2030, 12, 31)));
+
     [Fact(DisplayName = "R-0146 (e): New York 01:30 on 2026-11-01 is 05:30Z, the first occurrence of the ambiguous time (RFC 5545 §3.3.5) [calendar resolver: 06:30Z]")]
     public void AmbiguousLocalTimeIsItsFirstOccurrence() =>
         Assert.Equal(new DateTimeOffset(2026, 11, 1, 5, 30, 0, TimeSpan.Zero),
