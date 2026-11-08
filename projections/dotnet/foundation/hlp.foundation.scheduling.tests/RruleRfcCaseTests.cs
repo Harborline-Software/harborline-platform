@@ -118,6 +118,23 @@ public sealed class RruleRfcCaseTests
     public void YearlyOrdinalWithMonthDayNeedsMonth() =>
         Assert.Throws<NotSupportedException>(() => Dates("FREQ=YEARLY;BYMONTHDAY=1,2,3,4,5,6,7;BYDAY=1MO;COUNT=4", new(2026, 3, 1), new(2030, 12, 31)));
 
+    // Codex on platform #439 (6e7e1385): 23:30 on 28 March 2026 in Nuuk is inside the spring-forward gap. The occurrence
+    // keeps its nominal date; only its instant moves (RFC 5545 §3.3.5).
+    [Fact(DisplayName = "T-1175: a timed occurrence inside a gap that crosses midnight keeps its own date (Nuuk 23:30, 26 to 30 March 2026)")]
+    public void GapAcrossMidnightKeepsTheOccurrenceDate() =>
+        Assert.Equal(
+            [new(2026, 3, 26), new(2026, 3, 27), new(2026, 3, 28), new(2026, 3, 29), new DateOnly(2026, 3, 30)],
+            Sut.ExpandZonedOccurrences("FREQ=DAILY;COUNT=5", new(2026, 3, 26), new(23, 30), "America/Nuuk",
+                end: new(2026, 4, 30), lookaheadDays: 0, leadDays: 0, today: new(2026, 3, 26)));
+
+    // Oracle: Python zoneinfo, fold=0 (the offset before the transition): 2026-03-28 23:30 America/Nuuk is 01:30Z on the 29th.
+    [Fact(DisplayName = "T-1175: a zoned UTC UNTIL compares against the gap time's resolved instant, not a shifted one")]
+    public void ZonedUntilUsesTheResolvedGapInstant() =>
+        Assert.Equal(
+            [new(2026, 3, 27), new DateOnly(2026, 3, 28)],
+            Sut.ExpandZonedOccurrences("FREQ=DAILY;UNTIL=20260329T013000Z", new(2026, 3, 27), new(23, 30), "America/Nuuk",
+                end: new(2026, 4, 30), lookaheadDays: 0, leadDays: 0, today: new(2026, 3, 27)));
+
     [Fact(DisplayName = "R-0146 (e): New York 01:30 on 2026-11-01 is 05:30Z, the first occurrence of the ambiguous time (RFC 5545 §3.3.5) [calendar resolver: 06:30Z]")]
     public void AmbiguousLocalTimeIsItsFirstOccurrence() =>
         Assert.Equal(new DateTimeOffset(2026, 11, 1, 5, 30, 0, TimeSpan.Zero),

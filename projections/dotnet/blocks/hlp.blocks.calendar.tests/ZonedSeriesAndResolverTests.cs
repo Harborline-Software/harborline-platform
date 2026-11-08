@@ -60,6 +60,18 @@ public sealed class ZonedSeriesAndResolverTests
         Assert.Equal([Utc(11, 2, 4), Utc(11, 3, 4), Utc(11, 4, 4), Utc(11, 5, 4)], starts);
     }
 
+    // Oracle: Python zoneinfo (fold=0, the offset before the transition) for each local 23:30 in America/Nuuk.
+    [Fact(DisplayName = "T-1175: a daily 23:30 Nuuk event keeps one occurrence per date across the gap, and the gap date resolves at the offset before it")]
+    public void GapAcrossMidnightKeepsOneOccurrencePerDate()
+    {
+        var ev = CalendarEvent.Create(Tenant, "Night check", new(2026, 3, 26), new(2026, 3, 26), Actor,
+            rrule: "FREQ=DAILY;COUNT=5", timezone: "America/Nuuk", startTime: new(23, 30), endTime: new(23, 45));
+
+        var starts = Events().ExpandInstants(ev, Utc(3, 26, 0), Utc(4, 2, 0)).Select(occurrence => occurrence.StartUtc);
+
+        Assert.Equal([Utc(3, 27, 1, 30), Utc(3, 28, 1, 30), Utc(3, 29, 1, 30), Utc(3, 30, 0, 30), Utc(3, 31, 0, 30)], starts);
+    }
+
     [Fact(DisplayName = "calendar expansion refuses a null event and an inverted window, and accepts an empty one")]
     public void EventExpansionGuardsItsArguments()
     {

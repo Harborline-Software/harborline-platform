@@ -63,10 +63,14 @@ public sealed class InMemoryRruleExpansionService : IRruleExpansionService
             throw new ArgumentException($"'{timezone}' is not an IANA time zone id.", nameof(timezone));
         var parsed = RruleSubset.Parse(rrule);
 
-        // A timed series: the occurrence's local date is what callers key on, and a DATE-TIME UNTIL is a UTC instant that
-        // bounds the series inclusively (RFC 5545 §3.3.10). A DATE UNTIL on a timed series keeps bounding by local date.
-        var dated = Evaluate(parsed, new CalDateTime(start, startTime, timezone))
-            .Select(occurrence => (occurrence.Date, Instant: new DateTimeOffset(occurrence.AsUtc, TimeSpan.Zero)));
+        // A timed series: the occurrence's nominal local date is what callers key on (EXDATE, RECURRENCE-ID), and a
+        // DATE-TIME UNTIL is a UTC instant that bounds the series inclusively (RFC 5545 §3.3.10). A DATE UNTIL on a timed
+        // series keeps bounding by local date. The rule is evaluated on the floating wall clock, as RFC 5545 computes
+        // recurrences in local time, and each nominal time resolves to its instant through the one resolver. Evaluating in
+        // the zone instead lets the engine shift a spring-forward gap time past midnight (23:30 on 28 March 2026 in Nuuk
+        // became 00:30 on the 29th), which would change the occurrence's date.
+        var dated = Evaluate(parsed, new CalDateTime(start, startTime, null))
+            .Select(occurrence => (occurrence.Date, Instant: WallClockResolver.ToUtcInstant(occurrence.Date, startTime, timezone)));
         var bounded = parsed.Until is { Instant: { } untilInstant }
             ? dated.TakeWhile(occurrence => occurrence.Instant <= untilInstant)
             : dated;
