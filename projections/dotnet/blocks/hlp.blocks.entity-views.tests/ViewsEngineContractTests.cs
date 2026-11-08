@@ -130,8 +130,8 @@ public sealed class ViewsEngineContractTests
     [Fact(DisplayName = "DES-0017 §3 layers: views-eng-16's admission runs at the definition-write pipeline's validate stage, before the draft is stored")]
     public async Task AdmissionRunsAtValidateBeforeTheDraftIsStored()
     {
-        // ADR 0071 decision 2: admission adds no pipeline stage; it runs at validate. The publish half is pending (see the PR).
-        var store = new InMemoryViewDefinitionStore();
+        // ADR 0071 decision 2: admission adds no pipeline stage; it runs at validate. The store half is ViewDefinitionCatalogueTests.
+        var store = ViewStores.Catalogue();
         var authoring = new ViewDefinitionAuthoring(
             new ViewDefinitionAdmission(new NoKinds(), new NoRecordTypes(), new NoMeasures(), new ViewExpressionFunctionRegistry(), new NoInteractions()),
             store);

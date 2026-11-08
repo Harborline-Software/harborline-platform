@@ -6,7 +6,7 @@
   "purpose": "Own the Views read model, authored view-definition lifecycle, and authorized query runtime behind Harborline-owned ports: entity list/type-filter/detail-with-breadcrumb/containment-tree reads with the 404-only-null rule, immutable authored coordinates with draft/publish/restore history, typed filter/shape/interaction admission, Access-first query execution, condition history with provenance, the two previewed writes with typed rejections, breadcrumb resolution below any renderer with the no-raw-id rule, form-binding descriptors and navigation targets over the frozen Forms wire (Design B), and a development preview adapter that fails closed in Production.",
   "dependencies": [{"moduleId": "hlp.contracts.identities", "minimumRevision": 1}, {"moduleId": "hlp.contracts.forms", "minimumRevision": 4}, {"moduleId": "hlp.contracts.fields", "minimumRevision": 1}, {"moduleId": "hlp.foundation.actor", "minimumRevision": 2}, {"moduleId": "hlp.blocks.measure-catalogue", "minimumRevision": 1}],
   "callerInterface": {
-    "name": "IEntityReadStore / IConditionHistoryStore / IFormBindingSource / IViewNavigationTargets / BreadcrumbResolver / IViewDefinitionStore / ViewDefinitionAuthoring / ViewQueryRuntime / ViewKindRegistry",
+    "name": "IEntityReadStore / IConditionHistoryStore / IFormBindingSource / IViewNavigationTargets / BreadcrumbResolver / IViewDefinitionCatalogue / ViewDefinitionAuthoring / ViewQueryRuntime / ViewKindRegistry",
     "operations": [
       "ListEntitiesAsync(type?) -> EntitySummary[] (display-name ordered)",
       "GetEntityAsync(id) -> EntityDetail? (null MEANS not-found ONLY)",
@@ -22,7 +22,7 @@
       "ITypeCatalogStore: GetEffectiveCatalogAsync (immutable pack seed + tenant overrides), GetTypeAsync (null = unknown-or-other-tenant only), CreateTypeAsync/UpdateTypeAsync (editing a SEEDED type creates an override, never mutates the seed), RevertTypeAsync (pack seed effective again), bindings + capital-planning round-trip",
       "ConditionCapture.CaptureFromSubmission -> one act, two artifacts; an out-of-range grade records NOTHING and returns a surfaced skip; an in-range capture returns no skip fields",
       "SubmissionLinking.LinkFromCase(caseRef?, ...) -> links the submission to the case-resolved record via an injected resolver; a null/absent case ref leaves no link",
-      "IViewDefinitionStore: save drafts at immutable coordinates, publish a version, resolve the highest published semantic-version head, restore a published revision into a new draft, and expose append-only revision history",
+      "IViewDefinitionCatalogue / ViewDefinitionCatalogue(IVersionedDefinitionStore): Views is the DefinitionKind.Views member of the shared definition store (T-620; views-eng-16). Save drafts at immutable coordinates, publish a version, resolve the highest published semantic-version head, restore a published revision into a new draft, and expose append-only revision history. ViewDefinitionCatalogue.Admission(ViewAdmissionRegisters) is the pure, synchronous store validator (wire, catalogue key, every structural admission rule over fixed kind, measure, function and interaction registers), and ViewDefinitionCatalogue.Dependencies derives the record_type edge at publication, refusing view_definition.record_type_unresolved or an undeclared field; a caller writing through IVersionedDefinitionStore directly is refused the same way",
       "ViewDefinitionAuthoring.CreateDraftAsync -> stamps the platform seed contract, then terminal definition.validate admission over an envelope contract that is missing or outside the seed window (definition.contract.missing or definition.contract.out_of_window at /envelope/contract, T-572), record fields, registered kinds/functions/measures/widgets/actions/transitions, typed parameters, and forbidden row-visibility/aggregation/viewer-relative constructs before storing the definition and authored binding",
       "ViewDefinitionDraftJson.Serialize(draft) / Deserialize(json) -> the one ViewDefinitionDraft wire (viewDefinitionDraftWire): camelCase, so admission pointers address it; strict reading refuses unknown, repeated or missing required members with JsonException",
       "ViewDefinitionPackExporter.Export -> published system/public definitions and their authored bindings only; personal definitions are never pack content",
@@ -68,6 +68,8 @@
     "views.type.inspection_form_ref_required",
     "views.type.seed_exists_use_put",
     "view_definition.not_found",
+    "view_definition.body_invalid",
+    "view_definition.record_type_unresolved",
     "view_definition.kind_unknown",
     "view_definition.shape_role_field_missing",
     "view_definition.shape_role_field_incompatible",

@@ -1,4 +1,7 @@
-using System.Collections.Immutable;
+using System.Text;
+using System.Text.Json;
+using Harborline.Blocks.BuilderDefinitions;
+using Harborline.Foundation.Definitions;
 
 namespace Harborline.Blocks.EntityViews;
 
@@ -23,19 +26,26 @@ public sealed record ViewDefinitionPackageEntry(
     ViewBinding Binding);
 
 /// <summary>The authoring and execution store for immutable view-definition revisions.</summary>
-public interface IViewDefinitionStore : IViewDefinitionSource
+public interface IViewDefinitionCatalogue : IViewDefinitionSource
 {
+    /// <summary>Saves a new draft revision at fresh coordinates; refuses an existing version.</summary>
     ValueTask<ViewDefinitionRevision> CreateDraftAsync(
         ViewDefinition definition,
         ViewBinding binding,
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Publishes a stored draft. The shared definition store re-admits it with Views admission and derives its record-type
+    /// dependency in the same commit (DES-0017 <c>views-eng-16</c>, ADR 0071); a refusal throws
+    /// <see cref="DefinitionRefusalException"/> and publishes nothing.
+    /// </summary>
     ValueTask<ViewDefinitionRevision> PublishAsync(
         string tenant,
         string key,
         string version,
         CancellationToken cancellationToken = default);
 
+    /// <summary>Copies a published revision into a new draft version.</summary>
     ValueTask<ViewDefinitionRevision> RestoreAsDraftAsync(
         string tenant,
         string key,
@@ -43,6 +53,7 @@ public interface IViewDefinitionStore : IViewDefinitionSource
         string draftVersion,
         CancellationToken cancellationToken = default);
 
+    /// <summary>Every version of the definition, one entry each, in semantic-version order.</summary>
     ValueTask<IReadOnlyList<ViewDefinitionRevision>> ListHistoryAsync(
         string tenant,
         string key,
@@ -66,13 +77,127 @@ public static class ViewDefinitionPackExporter
     }
 }
 
-/// <summary>An in-process reference store with immutable coordinates and semver head resolution.</summary>
-public sealed class InMemoryViewDefinitionStore : IViewDefinitionStore
-{
-    private readonly object _gate = new();
-    private readonly Dictionary<(string Tenant, string Key, string Version), ViewDefinitionRevision> _revisions = [];
+/// <summary>The host's fixed Views registers, supplied once when the shared definition store is composed.</summary>
+/// <param name="Kinds">Every registered view kind.</param>
+/// <param name="Measures">Every catalogue measure, as <see cref="MeasureCatalogue"/> registers them at construction.</param>
+/// <param name="Functions">The filter-function registry.</param>
+/// <param name="Widgets">Every registered widget.</param>
+/// <param name="RowActions">Every registered row action.</param>
+/// <param name="WorkflowTransitions">Every registered board-move workflow transition.</param>
+public sealed record ViewAdmissionRegisters(
+    IReadOnlyList<ViewKindDescriptor> Kinds,
+    IReadOnlyList<ViewMeasureDescriptor> Measures,
+    IViewExpressionFunctionRegistry Functions,
+    IReadOnlyList<ViewWidgetDescriptor> Widgets,
+    IReadOnlyList<string> RowActions,
+    IReadOnlyList<string> WorkflowTransitions);
 
-    public ValueTask<ViewDefinitionRevision> CreateDraftAsync(
+/// <summary>
+/// The Views member of the shared definition store (T-620): each view definition is a <see cref="DefinitionKind.Views"/>
+/// document whose body is the <see cref="ViewDefinitionDraftJson"/> wire, and whose version id is its semantic version.
+/// The host registers <see cref="Admission"/> and <see cref="Dependencies"/> for <see cref="DefinitionKind.Views"/> when it
+/// composes the store, so every draft save and every publish passes Views admission inside the store, whoever calls it
+/// (ADR 0071 decision 1; DES-0017 <c>views-eng-16</c>).
+/// </summary>
+public sealed class ViewDefinitionCatalogue(IVersionedDefinitionStore store) : IViewDefinitionCatalogue
+{
+    /// <summary>The definition type a Views end of a Definition Dependency names.</summary>
+    public const string DefinitionType = "platform.definition-type.view";
+
+    private const string CatalogueMismatch = "definition.catalogue_mismatch";
+    private readonly IVersionedDefinitionStore _store = store ?? throw new ArgumentNullException(nameof(store));
+
+    /// <summary>
+    /// The store validator for <see cref="DefinitionKind.Views"/>, pure and synchronous as the store's contract requires
+    /// (<see cref="DefinitionAdmission"/>). The body must be the draft wire and name the catalogue's tenant and key, and
+    /// every structural rule of <see cref="ViewDefinitionAdmission"/> holds against the fixed <paramref name="registers"/>.
+    /// The record type's fields are checked at publication by <see cref="Dependencies"/>, against its published head.
+    /// </summary>
+    public static DefinitionAdmission Admission(ViewAdmissionRegisters registers)
+    {
+        ArgumentNullException.ThrowIfNull(registers);
+        var kinds = registers.Kinds.ToDictionary(kind => kind.Kind, StringComparer.Ordinal);
+        var measures = registers.Measures.ToDictionary(measure => measure.Name, StringComparer.Ordinal);
+        var widgets = registers.Widgets.ToDictionary(widget => widget.Widget, StringComparer.Ordinal);
+        var actions = registers.RowActions.ToHashSet(StringComparer.Ordinal);
+        var transitions = registers.WorkflowTransitions.ToHashSet(StringComparer.Ordinal);
+        return (document, phase) =>
+        {
+            if (!TryDecode(document, out var draft))
+            {
+                return [new(ViewDefinitionCodes.BodyInvalid, "")];
+            }
+            var definition = draft.Definition;
+            if (!StringComparer.Ordinal.Equals(definition.Tenant, document.Key.Tenant)
+                || !StringComparer.Ordinal.Equals(definition.Key, document.Key.DefinitionId))
+            {
+                return [new(CatalogueMismatch, "/definition/envelope")];
+            }
+            var facts = new ViewAdmissionFacts(
+                kinds.GetValueOrDefault(draft.Binding.Kind),
+                RecordTypeChecked: false,
+                RecordType: null,
+                definition.Parameters.Measure is { } measure ? measures.GetValueOrDefault(measure.Name) : null,
+                registers.Functions,
+                draft.Binding.Widget is { } widget ? widgets.GetValueOrDefault(widget.Widget) : null,
+                draft.Binding.RowBehavior?.OpenAction is not { } action || actions.Contains(action),
+                draft.Binding.BoardMoveTransition is not { } transition || transitions.Contains(transition));
+            return ViewDefinitionAdmission.Check(draft, facts)
+                .Select(refusal => new DefinitionRefusal(refusal.Code, refusal.Pointer))
+                .ToArray();
+        };
+    }
+
+    /// <summary>
+    /// The store's dependency derivation for <see cref="DefinitionKind.Views"/> (DES-0004 §2), registered beside
+    /// <see cref="Admission"/>. A published view depends on the Record Type it reads (<c>record_type</c>). A record type with
+    /// no published head refuses <see cref="ViewDefinitionCodes.RecordTypeUnresolved"/>, and a column, sort, grouping, filter
+    /// or shape-role field the head does not declare refuses <see cref="ViewDefinitionCodes.FieldUnknown"/> or
+    /// <see cref="ViewDefinitionCodes.ShapeRoleFieldMissing"/> at its pointer, as Records refuses its own references.
+    /// </summary>
+    public static DefinitionDependencyDerivation Dependencies { get; } = DeriveDependencies;
+
+    private static IReadOnlyList<DefinitionDependency> DeriveDependencies(DefinitionDocument published,
+        Func<DefinitionKey, DefinitionRevision?> publishedHead)
+    {
+        if (!TryDecode(published, out var draft))
+        {
+            throw new DefinitionRefusalException(DefinitionAdmissionPhase.Publish, [new(ViewDefinitionCodes.BodyInvalid, "")]);
+        }
+        var definition = draft.Definition;
+        var head = publishedHead(RecordTypeDefinitionStore.KeyOf(published.Key.Tenant, definition.RecordType));
+        if (head is null)
+        {
+            throw new DefinitionRefusalException(DefinitionAdmissionPhase.Publish,
+                [new(ViewDefinitionCodes.RecordTypeUnresolved, "/definition/recordType")]);
+        }
+        var declared = RecordTypeDefinitionJson.Deserialize(Encoding.UTF8.GetBytes(head.Document.BodyJson)).Fields
+            .Select(field => field.FieldKey)
+            .ToHashSet(StringComparer.Ordinal);
+        var refusals = ViewDefinitionAdmission.ReferencedFields(definition)
+            .Where(reference => !declared.Contains(reference.Field))
+            .Select(reference => new DefinitionRefusal(ViewDefinitionCodes.FieldUnknown, reference.Pointer))
+            .ToList();
+        foreach (var (role, field) in draft.Binding.ShapeRoles.OrderBy(role => role.Key))
+        {
+            if (!declared.Contains(field))
+            {
+                refusals.Add(new(ViewDefinitionCodes.ShapeRoleFieldMissing, $"/binding/shapeRoles/{JsonNamingPolicy.CamelCase.ConvertName(role.ToString())}"));
+            }
+        }
+        if (refusals.Count > 0)
+        {
+            throw new DefinitionRefusalException(DefinitionAdmissionPhase.Publish, refusals);
+        }
+        return [new(
+            new(DefinitionType, published.Key.DefinitionId, published.Version),
+            new(CatalogueDefinitionType.RecordType, definition.RecordType),
+            DefinitionDependencyKind.Derived,
+            "record_type")];
+    }
+
+    /// <inheritdoc />
+    public async ValueTask<ViewDefinitionRevision> CreateDraftAsync(
         ViewDefinition definition,
         ViewBinding binding,
         CancellationToken cancellationToken = default)
@@ -81,39 +206,39 @@ public sealed class InMemoryViewDefinitionStore : IViewDefinitionStore
         ArgumentNullException.ThrowIfNull(binding);
         cancellationToken.ThrowIfCancellationRequested();
         _ = ViewSemanticVersion.Parse(definition.Version);
-
-        var revision = new ViewDefinitionRevision(
-            Snapshot(definition),
-            Snapshot(binding),
-            ViewDefinitionStatus.Draft);
-        lock (_gate)
+        var key = KeyOf(definition.Tenant, definition.Key);
+        var history = await _store.ListHistoryAsync(key, cancellationToken).ConfigureAwait(false);
+        if (history.Any(revision => StringComparer.Ordinal.Equals(revision.Document.VersionId, definition.Version)))
         {
-            Add(revision);
+            throw new ViewQueryException(ViewDefinitionCodes.RevisionConflict, "The view-definition revision already exists.");
         }
-        return ValueTask.FromResult(revision);
+        var body = ViewDefinitionDraftJson.Serialize(new ViewDefinitionDraft(definition, binding));
+        var saved = await _store.SaveDraftAsync(new(key, definition.Version, definition.Version, body),
+            Head(history), NewRequestId(), cancellationToken).ConfigureAwait(false);
+        return Revision(saved, ViewDefinitionStatus.Draft);
     }
 
-    public ValueTask<ViewDefinitionRevision> PublishAsync(
+    /// <inheritdoc />
+    public async ValueTask<ViewDefinitionRevision> PublishAsync(
         string tenant,
         string key,
         string version,
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        lock (_gate)
+        var definitionKey = KeyOf(tenant, key);
+        var history = await _store.ListHistoryAsync(definitionKey, cancellationToken).ConfigureAwait(false);
+        if (!history.Any(revision => StringComparer.Ordinal.Equals(revision.Document.VersionId, version)))
         {
-            var coordinates = (tenant, key, version);
-            if (!_revisions.TryGetValue(coordinates, out var current))
-            {
-                throw new ViewQueryException("view_definition.not_found", "The view-definition revision does not exist.");
-            }
-            var published = current with { Status = ViewDefinitionStatus.Published };
-            _revisions[coordinates] = published;
-            return ValueTask.FromResult(published);
+            throw new ViewQueryException(ViewDefinitionCodes.NotFound, "The view-definition revision does not exist.");
         }
+        var published = await _store.PublishAsync(definitionKey, version, Head(history), NewRequestId(), cancellationToken)
+            .ConfigureAwait(false);
+        return Revision(published, ViewDefinitionStatus.Published);
     }
 
-    public ValueTask<ViewDefinitionRevision> RestoreAsDraftAsync(
+    /// <inheritdoc />
+    public async ValueTask<ViewDefinitionRevision> RestoreAsDraftAsync(
         string tenant,
         string key,
         string sourceVersion,
@@ -122,135 +247,87 @@ public sealed class InMemoryViewDefinitionStore : IViewDefinitionStore
     {
         cancellationToken.ThrowIfCancellationRequested();
         _ = ViewSemanticVersion.Parse(draftVersion);
-        lock (_gate)
+        var definitionKey = KeyOf(tenant, key);
+        var history = await _store.ListHistoryAsync(definitionKey, cancellationToken).ConfigureAwait(false);
+        if (!history.Any(revision => StringComparer.Ordinal.Equals(revision.Document.VersionId, sourceVersion)))
         {
-            if (!_revisions.TryGetValue((tenant, key, sourceVersion), out var source))
-            {
-                throw new ViewQueryException("view_definition.not_found", "The view-definition revision does not exist.");
-            }
-            var restoredDefinition = source.Definition with
-            {
-                Envelope = source.Definition.Envelope with { Version = draftVersion },
-            };
-            var restored = new ViewDefinitionRevision(
-                Snapshot(restoredDefinition),
-                source.Binding,
-                ViewDefinitionStatus.Draft,
-                sourceVersion);
-            Add(restored);
-            return ValueTask.FromResult(restored);
+            throw new ViewQueryException(ViewDefinitionCodes.NotFound, "The view-definition revision does not exist.");
         }
+        if (history.Any(revision => StringComparer.Ordinal.Equals(revision.Document.VersionId, draftVersion)))
+        {
+            throw new ViewQueryException(ViewDefinitionCodes.RevisionConflict, "The view-definition revision already exists.");
+        }
+        var restored = await _store.RestoreAsDraftAsync(definitionKey, sourceVersion, draftVersion, draftVersion,
+            Head(history), NewRequestId(), cancellationToken).ConfigureAwait(false);
+        return Revision(restored, ViewDefinitionStatus.Draft);
     }
 
-    public ValueTask<ViewDefinition?> ResolvePublishedHeadAsync(
+    /// <inheritdoc />
+    public async ValueTask<ViewDefinition?> ResolvePublishedHeadAsync(
         string tenant,
         string key,
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        lock (_gate)
-        {
-            var head = _revisions.Values
-                .Where(revision => revision.Status == ViewDefinitionStatus.Published
-                    && StringComparer.Ordinal.Equals(revision.Definition.Tenant, tenant)
-                    && StringComparer.Ordinal.Equals(revision.Definition.Key, key))
-                .OrderByDescending(revision => ViewSemanticVersion.Parse(revision.Definition.Version))
-                .FirstOrDefault();
-            return ValueTask.FromResult(head?.Definition);
-        }
+        var head = await _store.GetPublishedHeadAsync(KeyOf(tenant, key), cancellationToken).ConfigureAwait(false);
+        return head is null ? null : Revision(head, ViewDefinitionStatus.Published).Definition;
     }
 
-    public ValueTask<IReadOnlyList<ViewDefinitionRevision>> ListHistoryAsync(
+    /// <inheritdoc />
+    public async ValueTask<IReadOnlyList<ViewDefinitionRevision>> ListHistoryAsync(
         string tenant,
         string key,
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        lock (_gate)
-        {
-            IReadOnlyList<ViewDefinitionRevision> history = _revisions.Values
-                .Where(revision => StringComparer.Ordinal.Equals(revision.Definition.Tenant, tenant)
-                    && StringComparer.Ordinal.Equals(revision.Definition.Key, key))
-                .OrderBy(revision => ViewSemanticVersion.Parse(revision.Definition.Version))
-                .ToArray();
-            return ValueTask.FromResult(history);
-        }
-    }
-
-    private void Add(ViewDefinitionRevision revision)
-    {
-        var definition = revision.Definition;
-        if (!_revisions.TryAdd((definition.Tenant, definition.Key, definition.Version), revision))
-        {
-            throw new ViewQueryException("view_definition.revision_conflict", "The view-definition revision already exists.");
-        }
-    }
-
-    private static ViewDefinition Snapshot(ViewDefinition definition) => definition with
-    {
-        Envelope = definition.Envelope with
-        {
-            Provenance = definition.Envelope.Provenance.Clone(),
-            Requires = definition.Envelope.Requires
-                .Select(requirement => requirement with { })
-                .ToImmutableArray(),
-        },
-        Parameters = definition.Parameters with
-        {
-            Columns = definition.Parameters.Columns
-                .Select(column => column with { })
-                .ToImmutableArray(),
-            Sort = definition.Parameters.Sort
-                .Select(sort => sort with { })
-                .ToImmutableArray(),
-            Filter = definition.Parameters.Filter is null
-                ? null
-                : Snapshot(definition.Parameters.Filter),
-            Measure = definition.Parameters.Measure is null
-                ? null
-                : definition.Parameters.Measure with
-                {
-                    Parameters = definition.Parameters.Measure.Parameters
-                        .ToImmutableDictionary(StringComparer.Ordinal),
-                },
-        },
-    };
-
-    private static ViewBinding Snapshot(ViewBinding binding) => binding with
-    {
-        ShapeRoles = binding.ShapeRoles.ToImmutableDictionary(),
-        RowBehavior = binding.RowBehavior is null ? null : binding.RowBehavior with { },
-        Widget = binding.Widget is null
-            ? null
-            : binding.Widget with
+        var history = await _store.ListHistoryAsync(KeyOf(tenant, key), cancellationToken).ConfigureAwait(false);
+        return history
+            .GroupBy(revision => revision.Document.VersionId, StringComparer.Ordinal)
+            .Select(version =>
             {
-                Parameters = binding.Widget.Parameters.ToImmutableDictionary(StringComparer.Ordinal),
-            },
-    };
+                var latest = version.Last();
+                var restoredFrom = version.First().RestoredFromVersionId;
+                var status = version.Any(revision => revision.Status == DefinitionStatus.Published)
+                    ? ViewDefinitionStatus.Published
+                    : ViewDefinitionStatus.Draft;
+                return Revision(latest, status) with { RestoredFromVersion = restoredFrom };
+            })
+            .OrderBy(revision => ViewSemanticVersion.Parse(revision.Definition.Version))
+            .ToArray();
+    }
 
-    private static ViewFilter Snapshot(ViewFilter filter) => filter switch
-    {
-        ViewComparisonFilter comparison => comparison with { Value = comparison.Value.Clone() },
-        ViewAllFilter all => new ViewAllFilter(all.Filters.Select(Snapshot).ToImmutableArray()),
-        ViewAnyOfFilter any => new ViewAnyOfFilter(any.Filters.Select(Snapshot).ToImmutableArray()),
-        ViewNotFilter not => new ViewNotFilter(Snapshot(not.Filter)),
-        ViewFunctionFilter function => new ViewFunctionFilter(
-            function.Function,
-            function.Arguments.Select(Snapshot).ToImmutableArray()),
-        ViewCollectionFilter collection => collection with { Predicate = Snapshot(collection.Predicate) },
-        _ => throw new ViewQueryException(
-            "view.filter.kind_unknown",
-            "The view filter kind is not registered."),
-    };
+    /// <summary>The shared-store key of a tenant's view definition.</summary>
+    public static DefinitionKey KeyOf(string tenant, string key) => new(tenant, DefinitionKind.Views, key);
 
-    private static ViewFilterOperand Snapshot(ViewFilterOperand operand) => operand switch
+    private static long Head(IReadOnlyList<DefinitionRevision> history) => history.Count == 0 ? 0 : history.Max(revision => revision.Revision);
+
+    // Views keeps no client replay identity, so each call is its own operation.
+    private static string NewRequestId() => Guid.NewGuid().ToString("N");
+
+    // The store's metadata is authoritative for the version: a restore keeps the source body and gives it a new version.
+    private static ViewDefinitionRevision Revision(DefinitionRevision revision, ViewDefinitionStatus status)
     {
-        ViewFieldOperand field => field with { },
-        ViewLiteralOperand literal => literal with { Value = literal.Value.Clone() },
-        _ => throw new ViewQueryException(
-            "view.filter.operand_unknown",
-            "The view filter operand is not registered."),
-    };
+        var draft = ViewDefinitionDraftJson.Deserialize(revision.Document.BodyJson);
+        var definition = draft.Definition with
+        {
+            Envelope = draft.Definition.Envelope with { Version = revision.Document.Version },
+        };
+        return new(definition, draft.Binding, status, revision.RestoredFromVersionId);
+    }
+
+    private static bool TryDecode(DefinitionDocument document, out ViewDefinitionDraft draft)
+    {
+        try
+        {
+            draft = ViewDefinitionDraftJson.Deserialize(document.BodyJson);
+            return true;
+        }
+        catch (JsonException)
+        {
+            draft = null!;
+            return false;
+        }
+    }
 
     private sealed record ViewSemanticVersion(
         int Major,
@@ -296,7 +373,7 @@ public sealed class InMemoryViewDefinitionStore : IViewDefinitionStore
             }
 
             static ViewQueryException Invalid() =>
-                new("view_definition.version_invalid", "The view-definition version is not semantic versioning.");
+                new(ViewDefinitionCodes.VersionInvalid, "The view-definition version is not semantic versioning.");
         }
 
         public int CompareTo(ViewSemanticVersion? other)

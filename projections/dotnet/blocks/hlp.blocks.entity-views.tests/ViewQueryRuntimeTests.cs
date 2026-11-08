@@ -12,7 +12,7 @@ public sealed class ViewQueryRuntimeTests
     [InlineData("other-tenant-published")]
     public async Task MissingPublishedHeadUsesOpaqueCodedRefusal(string storedState)
     {
-        var store = new InMemoryViewDefinitionStore();
+        var store = ViewStores.Catalogue("tenant-sensitive-marker", "other-tenant");
         var request = Request() with
         {
             Tenant = "tenant-sensitive-marker",
@@ -58,7 +58,7 @@ public sealed class ViewQueryRuntimeTests
     public async Task AForbiddenOpenAndAMissingViewAreIndistinguishable()
     {
         var missingCalls = new List<string>();
-        var missing = RuntimeWithStore(new InMemoryViewDefinitionStore(), missingCalls);
+        var missing = RuntimeWithStore(ViewStores.Catalogue(), missingCalls);
         var forbiddenCalls = new List<string>();
         var forbidden = new ViewQueryRuntime(
             new RecordingDefinitions(forbiddenCalls, Definition()),
@@ -93,7 +93,7 @@ public sealed class ViewQueryRuntimeTests
     public async Task CancelledPublishedHeadReadPropagatesCancellation()
     {
         var calls = new List<string>();
-        var runtime = RuntimeWithStore(new InMemoryViewDefinitionStore(), calls);
+        var runtime = RuntimeWithStore(ViewStores.Catalogue(), calls);
         using var cancellation = new CancellationTokenSource();
         cancellation.Cancel();
 
@@ -107,7 +107,7 @@ public sealed class ViewQueryRuntimeTests
     [Fact(DisplayName = "views-eng-1: a real published head still runs the authorized query")]
     public async Task PublishedHeadStillRunsTheAuthorizedQuery()
     {
-        var store = new InMemoryViewDefinitionStore();
+        var store = ViewStores.Catalogue();
         var definition = Definition();
         var request = Request();
         await store.CreateDraftAsync(definition, request.Binding);
@@ -477,7 +477,7 @@ public sealed class ViewQueryRuntimeTests
         Assert.NotNull(nonMatching.Measure);
     }
 
-    private static ViewQueryRuntime RuntimeWithStore(IViewDefinitionStore store, List<string> calls) => new(
+    private static ViewQueryRuntime RuntimeWithStore(IViewDefinitionCatalogue store, List<string> calls) => new(
         store,
         new RecordingOpenGate(calls, new ViewAuthority(CanOpen: true, Actions: [])),
         new RecordingKinds(calls, IsRegistered: true),

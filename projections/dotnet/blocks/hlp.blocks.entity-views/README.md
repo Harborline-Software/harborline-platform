@@ -22,8 +22,11 @@ The package also owns the platform definition and execution seams for authored v
   measure, widget, action, and transition registries used by runtime composition.
 - `ViewKindRegistry.Platform` supplies the production registry for the canonical `layout.table`
   identity; hosts may compose another immutable registry from additional Layout descriptors.
-- `IViewDefinitionStore` keeps immutable definition-and-binding snapshots at append-only coordinates;
+- `IViewDefinitionCatalogue` keeps immutable definition-and-binding snapshots at append-only coordinates;
   publishing selects the highest semantic-version head, while restore creates a new draft.
+  `ViewDefinitionCatalogue` binds it to the shared definition store as `DefinitionKind.Views`; the host registers
+  `ViewDefinitionCatalogue.Admission(registers)` and `ViewDefinitionCatalogue.Dependencies`, so admission is
+  structural on every draft save and publish (DES-0017 `views-eng-16`).
 - `ViewDefinitionPackExporter` exports published system/public definitions with their authored
   bindings and excludes personal definitions.
 - `ViewQueryRuntime` checks view-open authority and record shape before data access, then applies

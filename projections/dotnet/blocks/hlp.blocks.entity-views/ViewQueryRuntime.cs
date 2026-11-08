@@ -63,6 +63,10 @@ public static class ViewDefinitionCodes
     public const string RevisionConflict = "view_definition.revision_conflict";
     /// <summary>A view-definition version is not semantic versioning.</summary>
     public const string VersionInvalid = "view_definition.version_invalid";
+    /// <summary>A stored view-definition body is not the <see cref="ViewDefinitionDraftJson"/> wire.</summary>
+    public const string BodyInvalid = "view_definition.body_invalid";
+    /// <summary>At publication, the record type the view reads has no published version in the tenant.</summary>
+    public const string RecordTypeUnresolved = "view_definition.record_type_unresolved";
 }
 
 /// <summary>A fail-closed refusal from the Views query runtime.</summary>
