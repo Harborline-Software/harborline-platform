@@ -391,6 +391,14 @@ public sealed class WorkflowModelParityTests
         if (mutation.TryGetProperty("transitionRole", out var transitionRole)) gated["requiredRoles"] = new JsonArray(JsonNode.Parse(transitionRole.GetRawText()));
         if (mutation.TryGetProperty("actionRole", out var actionRole)) action["requiredRoles"] = new JsonArray(JsonNode.Parse(actionRole.GetRawText()));
         if (mutation.TryGetProperty("transitionStanding", out var transitionStanding)) gated["requiredStandings"] = new JsonArray(new JsonObject { ["name"] = transitionStanding.GetString() });
+        // T-1176 mixed reachability: an action firing on entry to a state, and an autonomous edge into that state.
+        if (mutation.TryGetProperty("actionState", out var actionState)) action["on"] = new JsonObject { ["state"] = actionState.GetString() };
+        if (mutation.TryGetProperty("autonomousEdgeInto", out var edgeInto))
+        {
+            var autonomousTrigger = definition["triggers"]!.AsArray().First(t => (string?)t!["kind"] != "HumanAction")!["id"]!.GetValue<string>();
+            var from = (string?)gated["from"];
+            definition["transitions"]!.AsArray().Add(new JsonObject { ["id"] = "t-autonomous-into", ["from"] = from, ["on"] = autonomousTrigger, ["to"] = edgeInto.GetString() });
+        }
         if (mutation.TryGetProperty("autonomousTransitionRole", out var autonomousRole)) transition["requiredRoles"] = new JsonArray(JsonNode.Parse(autonomousRole.GetRawText()));
         if (mutation.TryGetProperty("autonomousTransitionStanding", out var autonomousStanding)) transition["requiredStandings"] = new JsonArray(new JsonObject { ["name"] = autonomousStanding.GetString() });
         if (mutation.TryGetProperty("actionStanding", out var actionStanding)) action["requiredStandings"] = new JsonArray(new JsonObject { ["name"] = actionStanding.GetString() });

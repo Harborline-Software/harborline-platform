@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 
 using Harborline.Blocks.Workflow.Durable;
 
@@ -97,5 +99,24 @@ public sealed class WorkflowDefinitionLoadValidatorTests
         Assert.Equal("tenant-X", model.Tenant);
         Assert.Equal("key-Y", model.Key);
         Assert.Equal("9.9.9", model.Version);
+    }
+
+    [Theory(DisplayName = "T-1176 Q1: a stored definition gating a scheduled (timer) step is refused when re-read for execution")]
+    [InlineData("transitions", "t1")]
+    [InlineData("actions", "a1")]
+    public void A_stored_gate_on_a_scheduled_step_is_refused_at_load(string collection, string id)
+    {
+        // A definition persisted before the Q1 rule (or imported by any path that skipped the authoring check) is re-admitted
+        // here before it executes, with the same validator; a role gate on a Schedule-triggered step fails closed.
+        var node = JsonNode.Parse(AuthoredAutonomousApAction().GetRawText())!.AsObject();
+        node[collection]!.AsArray().Single(e => (string?)e!["id"] == id)!.AsObject()["requiredRoles"] =
+            new JsonArray(new JsonObject { ["vocabulary"] = "sys.roles", ["name"] = "Approver" });
+        var stored = JsonSerializer.SerializeToElement(node);
+        var validator = ValidatorWith(ActionClassification.AP);
+
+        var ex = Assert.Throws<WorkflowAdmissionException>(() => validator.ReadAdmissibleOrThrow(stored, "t1", "nightly-dispatch", "1.0.0"));
+        Assert.Contains(ex.Result.Violations, v => v.Code == WorkflowAdmissionCodes.GateOnAutonomousStep && v.Locator == id);
+        Assert.Contains(validator.Revalidate(stored, "t1", "nightly-dispatch", "1.0.0").Violations,
+            v => v.Code == WorkflowAdmissionCodes.GateOnAutonomousStep);
     }
 }

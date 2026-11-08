@@ -5,7 +5,7 @@
   "sourceState": "Revision 1 is implemented and engine-substrate package green: the declarative interpreter executes authored, admitted, persisted definitions through the re-validating execution store and the broker-PEP only, in its own assembly so broker-only effect reach is compile-time; all 10 interpreter ledger cases green natively including the two execution-store binding architecture rows re-proven on Harborline assemblies. Revision 2 refuses, with workflow.interpreter.gate_unenforced, any selected transition or applied effecting action that declares a required role or standing, until the authorization gate that decides it is wired (DES-0019 workflows-eng-13).",
   "contentHashes": {
     "conformance/hlp.blocks.workflow-interpreter/fixtures.yaml": "75814ffbfd9aeeec5645c90581072b98992ae2fafd8539c12c936564e8279f4f",
-    "projections/dotnet/blocks/hlp.blocks.workflow-interpreter.tests/DeclarativeWorkflowInterpreterTests.cs": "2c844b8aaafba1884fd4321e83b0ef4be0f0f9fc88ecf21d99df3f0485c6635e",
+    "projections/dotnet/blocks/hlp.blocks.workflow-interpreter.tests/DeclarativeWorkflowInterpreterTests.cs": "50e15786c4b20ccf7b0346262f6604f4ec6576e85293592390fb8cce086a59a6",
     "projections/dotnet/blocks/hlp.blocks.workflow-interpreter.tests/DurableDeclarativeExecutionTests.cs": "5a218f9b760ee3cd0b430ed000b2ee9e8729c1f2c9aa4948f18d90f0c34ff91b",
     "projections/dotnet/blocks/hlp.blocks.workflow-interpreter.tests/Harborline.Blocks.Workflow.Interpreter.Tests.csproj": "9ef330c2b40409c0dc7b435398a68de5197d3cd4743d23ce4089ac282c463dcf",
     "projections/dotnet/blocks/hlp.blocks.workflow-interpreter.tests/WorkflowExecutionStoreBindingArchitectureTests.cs": "04e71d9a98372b3d27961316ff470623b25c81fe91968132b797fbf8a84c46ee",

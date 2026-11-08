@@ -268,6 +268,32 @@ public sealed class DeclarativeWorkflowInterpreterTests
         Assert.Contains("'a-notify'", refusal.Message, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public async Task A_gated_step_reachable_by_a_person_and_automatically_is_refused_at_admission_and_on_the_automatic_path()
+    {
+        // 'Posted' is entered by the person's approve (t-approve) AND by an automatic edge (t-auto, Event). Its on-enter
+        // action carries a role: since an automatic path reaches it, the gate is refused, whatever the human path does.
+        var root = JsonNode.Parse(CpAuthored().GetRawText())!.AsObject();
+        root["transitions"]!.AsArray().Add(new JsonObject { ["id"] = "t-auto", ["from"] = "PendingApproval", ["on"] = "issued", ["to"] = "Posted" });
+        var action = root["actions"]!.AsArray()[0]!.AsObject();
+        action["on"] = new JsonObject { ["state"] = "Posted" };
+        action["requiredRoles"] = ApproverRole();
+        var authored = JsonSerializer.SerializeToElement(root);
+
+        var admission = await Assert.ThrowsAsync<WorkflowAdmissionException>(async () =>
+            await PersistAndPublishAsync(BuildProvider(HumanConfirmer()), authored, CpKey));
+        Assert.Contains(admission.Result.Violations, v => v.Code == WorkflowAdmissionCodes.GateOnAutonomousStep && v.Locator == "a-post-je");
+
+        var gate = new RecordingGate(satisfied: true);
+        var sp = BuildProvider(HumanConfirmer(), rawDefinition: (CpKey, authored), gate: gate);
+        var refusal = await Assert.ThrowsAsync<WorkflowGateUnenforcedException>(async () =>
+            await Interpreter(sp).DecideAsync(CpInstance("mixed-1", "Draft"),
+                WorkflowTrigger.For(WorkflowTriggerKind.Event, "mixed-1", "Draft"), Authority("mixed-1")));
+        Assert.Contains("'a-post-je'", refusal.Message, StringComparison.Ordinal);
+        Assert.Empty(gate.Asked);
+        Assert.Equal(0, sp.GetRequiredService<CountingWorkflowApprovalDecisionSink>().ConfirmedCount);
+    }
+
     // ── T-1176/platform-role-gate: the host gate port decides a role gate where a person acts ──
 
     [Fact]
