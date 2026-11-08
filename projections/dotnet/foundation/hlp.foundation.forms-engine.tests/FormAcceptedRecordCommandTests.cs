@@ -986,7 +986,6 @@ public sealed class FormAcceptedRecordCommandTests
         Assert.Equal(executor, record.Value);
     }
 
-    // The one terminal or quarantining transition's audit envelope beside the acceptance audit (review M1, R2-M1).
     // ---- ADR-0110 open item 6: a revocation that is not ordinary (the owner's ruling, 2026-11-07) -----------------------
     // Oracles: the ruling's text (refuse before the fence, the result stands after it, ordinary revocations keep decision 3)
     // and literal instants either side of the claim, which the fixed clock puts at Now.
@@ -1144,6 +1143,7 @@ public sealed class FormAcceptedRecordCommandTests
         }
     }
 
+    // The one terminal or quarantining transition's audit envelope beside the acceptance audit (review M1, R2-M1).
     private static void AssertTerminalAudit(InMemoryFormSubmissionState state, string operation, string actor, string code, bool afterClaim)
     {
         var audit = Assert.Single(state.Audits.Values, envelope => JsonNode.Parse(envelope.Payload.Span)!["op"]?.GetValue<string>() == operation);
