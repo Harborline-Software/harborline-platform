@@ -230,6 +230,14 @@ public static class FormAcceptedCommandAuthority
     /// <summary>The terminal refusal of a command without valid persisted acceptance evidence (provisional, open item 7).</summary>
     public const string NotAccepted = "records.command.not_accepted";
 
+    /// <summary>The terminal refusal of a command whose submitter's authority was revoked for compromise before execution
+    /// claimed it (ADR-0110 open item 6, the owner's ruling of 2026-11-07; code name provisional, open item 7).</summary>
+    public const string RevokedForCompromise = "records.command.revoked_compromise";
+
+    /// <summary>The terminal refusal of a command whose tenant was suspended before execution claimed it (ADR-0110 open
+    /// item 6, the owner's ruling of 2026-11-07; code name provisional, open item 7).</summary>
+    public const string RevokedForTenantSuspension = "records.command.revoked_tenant_suspension";
+
     /// <summary>The pending code of a command whose configured worker is its own submitter; it is never executed.</summary>
     public const string WorkerIsSubmitter = "form.engine.accepted-command.worker-is-submitter";
 
@@ -405,6 +413,45 @@ public sealed class FormAcceptedCommandCancellation
     }
 }
 
+/// <summary>Why a revocation was made (ADR-0110 open item 6, the owner's ruling of 2026-11-07).</summary>
+public enum FormAcceptedCommandRevocationReason
+{
+    /// <summary>Any revocation that is neither a compromise nor a tenant suspension, such as a role change. Decision 3: it does
+    /// not cancel, refuse or re-decide an accepted command.</summary>
+    Ordinary,
+    /// <summary>The submitter's authority was revoked because it was compromised.</summary>
+    Compromise,
+    /// <summary>The tenant was suspended.</summary>
+    TenantSuspension,
+}
+
+/// <summary>One revocation that affects an accepted command: of its submitter's authority in its tenant, or of the tenant.</summary>
+/// <param name="Reason">Why the revocation was made.</param>
+/// <param name="RevokedAt">The instant the revocation took effect, on the host's clock.</param>
+public sealed record FormAcceptedCommandRevocation(FormAcceptedCommandRevocationReason Reason, DateTimeOffset RevokedAt);
+
+/// <summary>One claimed accepted command whose revocations the host is asked about.</summary>
+/// <param name="Tenant">The command's tenant.</param>
+/// <param name="SubmitterId">The principal whose authority accepted the command.</param>
+/// <param name="Command">The claimed command; its <see cref="FormAcceptedRecordCommand.StateChangedAt"/> is the claim instant.</param>
+public sealed record FormAcceptedCommandRevocationQuery(TenantId Tenant, string SubmitterId, FormAcceptedRecordCommand Command);
+
+/// <summary>
+/// ADR-0110 open item 6, the owner's ruling of 2026-11-07: the host's record of revocations, each with its reason. A
+/// compromise or a tenant suspension that took effect at or before the command's claim (the cancel/execute fence, open item 1)
+/// ends the command as an audited terminal refusal, as a won cancel does; one after the claim leaves the command to run and
+/// its result stands (any undo is decision 5's authorized amend or delete). An ordinary revocation never refuses (decision 3).
+/// A conforming host answers every revocation of the submitter's authority in the tenant, and the tenant's suspension, that
+/// took effect at or before the claim; a failure is thrown and the command stays pending. Whether the host's revocations
+/// join the claim's fence atomically is open item 2 (T-619). Without the port no revocation is known and every accepted
+/// command runs as decision 3 has it; host enablement stays held until a host supplies it.
+/// </summary>
+public interface IFormAcceptedCommandRevocations
+{
+    /// <summary>Returns the revocations that affect <paramref name="query"/>'s command; empty when there are none.</summary>
+    ValueTask<IReadOnlyList<FormAcceptedCommandRevocation>> FindAsync(FormAcceptedCommandRevocationQuery query, CancellationToken cancellationToken = default);
+}
+
 /// <summary>How one resolution of a quarantined command ended (review R3-L1).</summary>
 public enum FormAcceptedCommandResolveStatus
 {
@@ -501,7 +548,8 @@ internal sealed class FormAcceptedCommandExecution(
     IFormProjectionSink projections,
     Harborline.Foundation.Forms.IFormDefinitionStore definitions,
     TimeProvider clock,
-    int bindingRetryLimit)
+    int bindingRetryLimit,
+    IFormAcceptedCommandRevocations? revocations = null)
 {
     internal async ValueTask<FormAcceptedCommandRun> RunAsync(FormProjectionEnvelope row, string workerId, CancellationToken cancellationToken)
     {
@@ -568,6 +616,29 @@ internal sealed class FormAcceptedCommandExecution(
             await ReleaseAsync(row).ConfigureAwait(false);
             return FormAcceptedCommandRun.Settled;
         }
+
+        // ADR-0110 open item 6 (the owner's ruling, 2026-11-07): a compromise or tenant suspension that took effect at or
+        // before the claim refuses the command before any effect. On a resumed claim an earlier run may have committed it,
+        // so it is quarantined instead (DES-0029 section 9, review R2-M1).
+        string? revoked;
+        try
+        {
+            revoked = await RevocationRefusalAsync(row, held.Command, cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            await ReleaseAsync(row).ConfigureAwait(false);
+            throw;
+        }
+        catch
+        {
+            await RetryAsync(row, "form.engine.projection-pending").ConfigureAwait(false);
+            return FormAcceptedCommandRun.Pending;
+        }
+        if (revoked is not null)
+            return held.Changed
+                ? await RefuseAsync(commands, row, held.Command, workerId, revoked).ConfigureAwait(false)
+                : await QuarantineAsync(commands, row, held.Command, workerId, revoked).ConfigureAwait(false);
 
         try
         {
@@ -636,6 +707,26 @@ internal sealed class FormAcceptedCommandExecution(
         return StringComparer.Ordinal.Equals(revision.RecordTypeId, command.RecordTypeId) && revision.SchemaRef == row.SchemaRef
             ? null
             : FormAcceptedCommandAuthority.BindingMismatch;
+    }
+
+    // Returns the refusal code of the earliest compromise or tenant suspension at or before the claim, or null. The claim
+    // instant is the claimed command's last transition. ponytail: compared on the host's and the engine's clocks; joining the
+    // revocation and the claim in one fence is open item 2 (T-619).
+    private async ValueTask<string?> RevocationRefusalAsync(FormProjectionEnvelope row, FormAcceptedRecordCommand claimed, CancellationToken cancellationToken)
+    {
+        if (revocations is null) return null;
+        var claimedAt = claimed.StateChangedAt ?? throw new InvalidOperationException("A claimed command carries its claim instant.");
+        var found = await revocations.FindAsync(new(row.Tenant, row.ActorId, claimed), cancellationToken).ConfigureAwait(false);
+        var first = found
+            .Where(revocation => revocation.Reason != FormAcceptedCommandRevocationReason.Ordinary && revocation.RevokedAt <= claimedAt)
+            .OrderBy(revocation => revocation.RevokedAt)
+            .FirstOrDefault();
+        return first?.Reason switch
+        {
+            FormAcceptedCommandRevocationReason.Compromise => FormAcceptedCommandAuthority.RevokedForCompromise,
+            FormAcceptedCommandRevocationReason.TenantSuspension => FormAcceptedCommandAuthority.RevokedForTenantSuspension,
+            _ => null,
+        };
     }
 
     private async ValueTask<FormAcceptedCommandRun> RefuseAsync(IFormAcceptedCommandStore commands, FormProjectionEnvelope row,

@@ -27,6 +27,15 @@ const mutate = (value, mutation = {}) => {
   if (mutation.terminalOutgoing) value.transitions.push({id: 't-terminal', from: 'Posted', on: 'approve', to: 'Rejected'})
   if (mutation.unknownActionRole) value.actions[0].requiredRoles = [{vocabulary: 'tax.roles', name: 'Missing'}]
   if (mutation.unknownTransitionRole) value.transitions[0].requiredRoles = [{vocabulary: 'tax.roles', name: 'Missing'}]
+  if (mutation.envelope) value.envelope = clone(fixture.envelope)
+  if (Object.hasOwn(mutation, 'envelopeContract')) { if (mutation.envelopeContract === null) delete value.envelope.contract; else value.envelope.contract = mutation.envelopeContract }
+  if (mutation.envelopeIdentity) value.envelope.identity = mutation.envelopeIdentity
+  if (mutation.envelopeRetentionClass) value.envelope.retentionClass = mutation.envelopeRetentionClass
+  if (mutation.envelopeRequirement) value.envelope.requires = [{capability: mutation.envelopeRequirement}]
+  if (mutation.transitionRole) value.transitions[0].requiredRoles = [mutation.transitionRole]
+  if (mutation.actionRole) value.actions[0].requiredRoles = [mutation.actionRole]
+  if (mutation.transitionStanding) value.transitions[0].requiredStandings = [{name: mutation.transitionStanding}]
+  if (mutation.actionStanding) value.actions[0].requiredStandings = [{name: mutation.actionStanding}]
   return value
 }
 
@@ -38,9 +47,9 @@ for (const row of fixture.cases) {
     else assert.deepEqual(wire.readWorkflowWire(row.type, input(row)), row.expected === 'same' ? input(row) : row.expected)
   } else {
     const definition = wire.readWorkflowWire('WorkflowDefinition', mutate(input(row), row.mutation))
-    const result = wire.validateWorkflowAdmission(definition, authority, roleVocabulary)
-    assert.equal(result.isValid, row.expected.isValid)
-    for (const code of row.expected.codes) assert.ok(result.violations.some(violation => violation.code === code), code)
+    const result = wire.validateWorkflowAdmission(definition, authority, roleVocabulary, row.window ? fixture.contractWindow : undefined)
+    assert.equal(result.isValid, row.expected.isValid, row.id)
+    assert.deepEqual([...new Set(result.violations.map(violation => violation.code))].sort(), [...row.expected.codes].sort(), row.id)
   }
 }
 

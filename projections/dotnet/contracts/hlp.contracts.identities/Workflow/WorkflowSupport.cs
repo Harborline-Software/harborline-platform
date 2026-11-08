@@ -67,6 +67,7 @@ public static class WorkflowContractSurface
         "WorkflowTriggerKind", "WorkflowActionKind", "ActionClassification", "GuardRef", "WorkflowState",
         "WorkflowTransition", "WorkflowTriggerBinding", "WorkflowEffectParams", "WorkflowActionBinding",
         "WorkflowDefinitionLineage", "FormDefinitionRef", "WorkflowDefinition",
+        "WorkflowCascadeLayer", "WorkflowContractVersion", "WorkflowEnvelopeRequirement", "WorkflowEnvelope", "WorkflowGateRole",
     ];
 
     public static IReadOnlyDictionary<string, IReadOnlyList<string>> ClosedValues { get; } =
@@ -79,6 +80,7 @@ public static class WorkflowContractSurface
             ["WorkflowTriggerKind"] = ["Event", "Schedule", "HumanAction", "DependencyComplete"],
             ["WorkflowActionKind"] = ["Notify", "CreateRecord", "UpdateField", "InvokeService", "StartSubProcess", "EmitEvent"],
             ["ActionClassification"] = ["CP", "AP"],
+            ["WorkflowCascadeLayer"] = ["KernelCore", "Subsystem", "PlatformPackage", "DomainPackage", "TenantConfiguration"],
         };
 }
 
@@ -94,6 +96,8 @@ public static class WorkflowWire
         ["WorkflowTriggerBinding"] = typeof(WorkflowTriggerBinding), ["WorkflowEffectParams"] = typeof(WorkflowEffectParams),
         ["WorkflowActionBinding"] = typeof(WorkflowActionBinding), ["WorkflowDefinitionLineage"] = typeof(WorkflowDefinitionLineage),
         ["FormDefinitionRef"] = typeof(FormDefinitionRef), ["WorkflowDefinition"] = typeof(WorkflowDefinition),
+        ["WorkflowCascadeLayer"] = typeof(WorkflowCascadeLayer), ["WorkflowContractVersion"] = typeof(WorkflowContractVersion),
+        ["WorkflowEnvelopeRequirement"] = typeof(WorkflowEnvelopeRequirement), ["WorkflowEnvelope"] = typeof(WorkflowEnvelope),
     };
 
     public static object Deserialize(string type, string json)
@@ -134,6 +138,9 @@ public static class WorkflowWire
             case "WorkflowDefinitionLineage": Lineage(value); break;
             case "FormDefinitionRef": FormRef(value); break;
             case "WorkflowDefinition": Definition(value); break;
+            case "WorkflowContractVersion": ContractVersion(value); break;
+            case "WorkflowEnvelopeRequirement": Requirement(value); break;
+            case "WorkflowEnvelope": Envelope(value); break;
             default: throw new WorkflowWireException("unknown-type", type);
         }
     }
@@ -153,6 +160,7 @@ public static class WorkflowWire
         foreach (var name in new[] { "id", "from", "on", "to" }) String(Required(value, name, "WorkflowTransition"), $"WorkflowTransition.{name}");
         Optional(value, "guard", item => String(item, "WorkflowTransition.guard"));
         Optional(value, "requiredRoles", item => RoleArray(item, "WorkflowTransition.requiredRoles"));
+        Optional(value, "requiredStandings", item => StandingArray(item, "WorkflowTransition.requiredStandings"));
     }
 
     private static void Trigger(JsonElement value)
@@ -178,7 +186,36 @@ public static class WorkflowWire
         Validate("ActionClassification", Required(value, "classification", "WorkflowActionBinding"));
         Optional(value, "condition", item => String(item, "WorkflowActionBinding.condition"));
         Optional(value, "requiredRoles", item => RoleArray(item, "WorkflowActionBinding.requiredRoles"));
+        Optional(value, "requiredStandings", item => StandingArray(item, "WorkflowActionBinding.requiredStandings"));
         Optional(value, "params", item => Object(item, "WorkflowEffectParams"));
+    }
+
+    private static void ContractVersion(JsonElement value)
+    {
+        Object(value, "WorkflowContractVersion");
+        foreach (var name in new[] { "major", "minor" })
+        {
+            var member = Required(value, name, "WorkflowContractVersion");
+            Require(member.ValueKind == JsonValueKind.Number && member.TryGetInt32(out _), "invalid-integer", $"WorkflowContractVersion.{name}");
+        }
+    }
+
+    private static void Requirement(JsonElement value)
+    {
+        Object(value, "WorkflowEnvelopeRequirement");
+        String(Required(value, "capability", "WorkflowEnvelopeRequirement"), "WorkflowEnvelopeRequirement.capability");
+    }
+
+    private static void Envelope(JsonElement value)
+    {
+        Object(value, "WorkflowEnvelope");
+        foreach (var name in new[] { "identity", "version", "tenant", "retentionClass" }) String(Required(value, name, "WorkflowEnvelope"), $"WorkflowEnvelope.{name}");
+        Validate("WorkflowCascadeLayer", Required(value, "cascadeLayer", "WorkflowEnvelope"));
+        Object(Required(value, "provenance", "WorkflowEnvelope"), "WorkflowEnvelope.provenance");
+        var legalHold = Required(value, "legalHold", "WorkflowEnvelope");
+        Require(legalHold.ValueKind is JsonValueKind.True or JsonValueKind.False, "invalid-boolean", "WorkflowEnvelope.legalHold");
+        Array(value, "requires", "WorkflowEnvelope", Requirement);
+        Optional(value, "contract", ContractVersion);
     }
 
     private static void Lineage(JsonElement value)
@@ -204,6 +241,7 @@ public static class WorkflowWire
         FormsJson.Validate("InternationalizedText", Required(value, "title", "WorkflowDefinition"));
         Optional(value, "description", item => FormsJson.Validate("InternationalizedText", item));
         Optional(value, "subjectFormRef", FormRef);
+        Optional(value, "envelope", Envelope);
         Validate("WorkflowMutability", Required(value, "mutability", "WorkflowDefinition"));
         Array(value, "states", "WorkflowDefinition", State);
         Array(value, "transitions", "WorkflowDefinition", Transition);
@@ -234,8 +272,17 @@ public static class WorkflowWire
             Object(role, "RoleReference");
             var vocabulary = Required(role, "vocabulary", "RoleReference");
             String(vocabulary, "RoleReference.vocabulary");
-            Require(vocabulary.GetString() is RoleVocabularies.Platform or RoleVocabularies.Domain, "unknown-role-vocabulary", "RoleReference");
+            Require(WorkflowGateVocabulary.IsKnownVocabulary(vocabulary.GetString()), "unknown-role-vocabulary", "RoleReference");
             String(Required(role, "name", "RoleReference"), "RoleReference.name");
+        }
+    }
+    private static void StandingArray(JsonElement value, string type)
+    {
+        Require(value.ValueKind == JsonValueKind.Array, "invalid-array", type);
+        foreach (var standing in value.EnumerateArray())
+        {
+            Object(standing, "RecordStandingReference");
+            String(Required(standing, "name", "RecordStandingReference"), "RecordStandingReference.name");
         }
     }
     private static void Require(bool condition, string code, string type, string? detail = null) { if (!condition) throw new WorkflowWireException(code, type, detail); }
@@ -253,6 +300,66 @@ public static class WorkflowAdmissionCodes
     public const string ActionBindingInvalid = "workflow.admission.action_binding_invalid";
     public const string DuplicateId = "workflow.admission.duplicate_id";
     public const string UnknownRoleReference = "workflow.admission.unknown_role_reference";
+    public const string InvalidStanding = "workflow.admission.invalid_standing";
+    public const string EnvelopeRequired = "workflow.admission.envelope_required";
+    public const string EnvelopeMismatch = "workflow.admission.envelope_mismatch";
+    public const string EnvelopeInvalid = "workflow.admission.envelope_invalid";
+    public const string ContractMissing = "definition.contract.missing";
+    public const string ContractOutOfWindow = "definition.contract.out_of_window";
+}
+
+/// <summary>
+/// The vocabulary a workflow gate may name (ADR 0041, DES-0019 workflows-ck-15 and workflows-auth-10/11). sys.roles is
+/// sealed here, because the engine works its four record-relative positions out for itself; the other two
+/// vocabularies stay references that Access resolves. The engine's model reads this same list.
+/// </summary>
+public static class WorkflowGateVocabulary
+{
+    /// <summary>The sealed record-relative vocabulary.</summary>
+    public const string SealedRoles = "sys.roles";
+
+    /// <summary>The only names sys.roles carries (L421).</summary>
+    public static IReadOnlyList<string> SealedRoleNames { get; } = ["Anyone", "Author", "Reviewer", "Approver"];
+
+    /// <summary>True for the three ADR 0041 vocabularies.</summary>
+    public static bool IsKnownVocabulary(string? vocabulary) =>
+        vocabulary is SealedRoles or RoleVocabularies.Platform or RoleVocabularies.Domain;
+
+    /// <summary>
+    /// True when the reference can name a role: a known vocabulary, a non-blank name and, inside sys.roles, one of the
+    /// sealed names compared exactly.
+    /// </summary>
+    public static bool IsAdmissibleRole(RoleReference role) =>
+        IsKnownVocabulary(role.Vocabulary)
+        && !string.IsNullOrWhiteSpace(role.Name)
+        && (role.Vocabulary != SealedRoles || SealedRoleNames.Contains(role.Name, StringComparer.Ordinal));
+
+    /// <summary>
+    /// True for a bare standing name. Standings are record-derived facts that a gate adds to and every one of them must
+    /// hold, so a gate can only narrow; a role path, a wildcard or a negation has no bare name and cannot be stated.
+    /// </summary>
+    public static bool IsStandingName(string? name)
+    {
+        if (string.IsNullOrEmpty(name) || !char.IsAsciiLetter(name[0])) return false;
+        foreach (var c in name)
+            if (!char.IsAsciiLetterOrDigit(c) && c is not ('.' or '_' or '-')) return false;
+        return true;
+    }
+}
+
+/// <summary>The wire mirror of DefinitionContractWindow: same rule, same codes, proven by the shared fixtures.</summary>
+public sealed record WorkflowContractWindow(int Major, int Minor, int OldestMajor)
+{
+    /// <summary>Returns the refusal code when <paramref name="declared"/> is absent, invalid, or outside this window.</summary>
+    public string? Check(WorkflowContractVersion? declared)
+    {
+        if (declared is null || declared.Major < 0 || declared.Minor < 0) return WorkflowAdmissionCodes.ContractMissing;
+        var outside = declared.Major > Major
+            || declared.Major < OldestMajor
+            || (declared.Major == Major && declared.Minor > Minor)
+            || (Major == 0 && declared.Major == 0 && declared.Minor != Minor);
+        return outside ? WorkflowAdmissionCodes.ContractOutOfWindow : null;
+    }
 }
 
 public sealed record WorkflowAdmissionViolation(string Code, string Message, string Locator);
@@ -274,10 +381,11 @@ public sealed class ImmutableWorkflowAuthorityResolver : IWorkflowAuthorityResol
 
 public static class WorkflowAdmissionValidator
 {
-    public static WorkflowAdmissionResult Validate(WorkflowDefinition definition, IWorkflowAuthorityResolver authority, RoleVocabulary? roleVocabulary = null)
+    public static WorkflowAdmissionResult Validate(WorkflowDefinition definition, IWorkflowAuthorityResolver authority, RoleVocabulary? roleVocabulary = null, WorkflowContractWindow? contractWindow = null)
     {
         var violations = new List<WorkflowAdmissionViolation>();
         void Add(string code, string message, string locator) => violations.Add(new(code, message, locator));
+        CheckEnvelope(definition, contractWindow, Add);
         var stateIds = Unique(definition.States, row => row.Id, "state", Add);
         var triggerById = UniqueMap(definition.Triggers, row => row.Id, "trigger", Add);
         var transitionById = UniqueMap(definition.Transitions, row => row.Id, "transition", Add);
@@ -291,9 +399,10 @@ public static class WorkflowAdmissionValidator
                 Add(WorkflowAdmissionCodes.DanglingReference, "transition contains a dangling reference", transition.Id);
             if (transition.Guard.HasValue && !guardIds.Contains(transition.Guard.Value.Value))
                 Add(WorkflowAdmissionCodes.DanglingReference, "transition guard does not exist", transition.Id);
-            if (roleVocabulary is not null && transition.RequiredRoles.HasValue
-                && transition.RequiredRoles.Value!.Any(role => roleVocabulary.Resolve(role) is null))
+            if (transition.RequiredRoles.HasValue && transition.RequiredRoles.Value!.Any(role => !RoleAdmits(role, roleVocabulary)))
                 Add(WorkflowAdmissionCodes.UnknownRoleReference, "transition requires an unknown role", transition.Id);
+            if (transition.RequiredStandings.HasValue && transition.RequiredStandings.Value!.Any(standing => !WorkflowGateVocabulary.IsStandingName(standing?.Name)))
+                Add(WorkflowAdmissionCodes.InvalidStanding, "transition requires a malformed standing", transition.Id);
         }
         foreach (var action in definition.Actions)
         {
@@ -301,9 +410,10 @@ public static class WorkflowAdmissionValidator
             else if (action.On is WorkflowTransitionActionTarget transition && !transitionById.ContainsKey(transition.Transition)) Add(WorkflowAdmissionCodes.DanglingReference, "action transition does not exist", action.Id);
             else if (action.On is not WorkflowStateActionTarget and not WorkflowTransitionActionTarget) Add(WorkflowAdmissionCodes.ActionBindingInvalid, "action target is invalid", action.Id);
             if (action.Condition.HasValue && !guardIds.Contains(action.Condition.Value.Value)) Add(WorkflowAdmissionCodes.DanglingReference, "action condition does not exist", action.Id);
-            if (roleVocabulary is not null && action.RequiredRoles.HasValue
-                && action.RequiredRoles.Value!.Any(role => roleVocabulary.Resolve(role) is null))
+            if (action.RequiredRoles.HasValue && action.RequiredRoles.Value!.Any(role => !RoleAdmits(role, roleVocabulary)))
                 Add(WorkflowAdmissionCodes.UnknownRoleReference, "action requires an unknown role", action.Id);
+            if (action.RequiredStandings.HasValue && action.RequiredStandings.Value!.Any(standing => !WorkflowGateVocabulary.IsStandingName(standing?.Name)))
+                Add(WorkflowAdmissionCodes.InvalidStanding, "action requires a malformed standing", action.Id);
         }
 
         if (stateIds.Contains(definition.InitialState))
@@ -325,6 +435,34 @@ public static class WorkflowAdmissionValidator
             }
         }
         return new(violations.Count == 0, violations);
+    }
+
+    private static bool RoleAdmits(RoleReference role, RoleVocabulary? roleVocabulary) =>
+        role is not null
+        && WorkflowGateVocabulary.IsAdmissibleRole(role)
+        && (role.Vocabulary == WorkflowGateVocabulary.SealedRoles || roleVocabulary is null || roleVocabulary.Resolve(role) is not null);
+
+    private static void CheckEnvelope(WorkflowDefinition definition, WorkflowContractWindow? window, Action<string, string, string> add)
+    {
+        if (!definition.Envelope.HasValue)
+        {
+            if (window is not null) add(WorkflowAdmissionCodes.EnvelopeRequired, "definition carries no envelope", "/envelope");
+            return;
+        }
+        var envelope = definition.Envelope.Value!;
+        if (envelope.Identity != definition.Key || envelope.Version != definition.Version || envelope.Tenant != definition.Tenant)
+            add(WorkflowAdmissionCodes.EnvelopeMismatch, "envelope does not name this definition", "/envelope");
+        if (envelope.Provenance.ValueKind != JsonValueKind.Object)
+            add(WorkflowAdmissionCodes.EnvelopeInvalid, "envelope provenance is not an object", "/envelope/provenance");
+        if (string.IsNullOrWhiteSpace(envelope.RetentionClass))
+            add(WorkflowAdmissionCodes.EnvelopeInvalid, "envelope retention class is blank", "/envelope/retentionClass");
+        if (envelope.Requires is null) add(WorkflowAdmissionCodes.EnvelopeInvalid, "envelope requires is missing", "/envelope/requires");
+        else
+            for (var index = 0; index < envelope.Requires.Count; index++)
+                if (string.IsNullOrWhiteSpace(envelope.Requires[index]?.Capability))
+                    add(WorkflowAdmissionCodes.EnvelopeInvalid, "envelope requirement names no capability", $"/envelope/requires/{index}");
+        if (window?.Check(envelope.Contract.HasValue ? envelope.Contract.Value : null) is { } refusal)
+            add(refusal, "envelope contract is absent or outside the window", "/envelope/contract");
     }
 
     private static HashSet<string> Unique<T>(IEnumerable<T> rows, Func<T, string> id, string kind, Action<string, string, string> add)
