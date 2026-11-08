@@ -142,6 +142,7 @@ public sealed class InMemoryFormDefinitionStore : IFormDefinitionStore, IDisposa
                 }
             }
 
+            ValidateDerivedFrom(snapshot, definition);
             if (definition.Status == FormDefinitionStatus.Published)
                 FormDefinitionValidation.ValidateRecordTypeContinuityOrThrow(definition, Revisions(snapshot, definition.Tenant, definition.Id));
             _store = MutateStore(snapshot, definition);
@@ -224,6 +225,8 @@ public sealed class InMemoryFormDefinitionStore : IFormDefinitionStore, IDisposa
                     "the first revision of a definition id cannot carry lineage; use RegisterAsync for a derived revision.");
             }
 
+            ValidateDerivedFrom(snapshot, definition);
+
             _store = MutateStore(snapshot, definition);
             return definition;
         }
@@ -270,7 +273,9 @@ public sealed class InMemoryFormDefinitionStore : IFormDefinitionStore, IDisposa
         var draft = source with
         {
             Status = FormDefinitionStatus.Draft,
-            Lineage = new FormDefinitionLineage(id, version),
+            // Lineage keeps the source's extension parent; the restore itself is recorded as DerivedFrom (owner ruling,
+            // 2026-11-07: keep the real parent and add a separate restored-from link).
+            DerivedFrom = version,
             CreatedAt = now,
             UpdatedAt = now,
         };
@@ -286,6 +291,21 @@ public sealed class InMemoryFormDefinitionStore : IFormDefinitionStore, IDisposa
         finally
         {
             _mutationLock.Release();
+        }
+    }
+
+    // forms-ck-9: a DerivedFrom names a revision of the same tenant and id that is already registered.
+    private static void ValidateDerivedFrom(
+        Dictionary<TenantId, Dictionary<FormDefinitionId, Dictionary<SemanticVersion, FormDefinition>>> snapshot,
+        FormDefinition definition)
+    {
+        if (definition.DerivedFrom is not { } source) return;
+        if (!snapshot.TryGetValue(definition.Tenant, out var byId) || !byId.TryGetValue(definition.Id, out var byVersion)
+            || !byVersion.ContainsKey(source))
+        {
+            throw new FormDefinitionValidationException(
+                definition.Id,
+                $"derivedFrom names version '{source}' of '{definition.Id}', which is not registered in tenant '{definition.Tenant}'.");
         }
     }
 
@@ -623,6 +643,7 @@ public sealed class InMemoryFormDefinitionStore : IFormDefinitionStore, IDisposa
         Dictionary<TenantId, Dictionary<FormDefinitionId, Dictionary<SemanticVersion, FormDefinition>>> snapshot,
         FormDefinition definition)
     {
+        ValidateDerivedFrom(snapshot, definition);
         if (definition.Lineage is not { } lineage) return;
         if (!snapshot.TryGetValue(definition.Tenant, out var lineageById) ||
             !lineageById.TryGetValue(lineage.ParentDefinitionId, out var lineageByVersion) ||

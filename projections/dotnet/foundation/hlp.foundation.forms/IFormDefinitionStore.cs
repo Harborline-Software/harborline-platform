@@ -132,8 +132,9 @@ public interface IFormDefinitionStore
 
     /// <summary>
     /// Restores revision <paramref name="version"/> as a new Draft revision (forms-ck-9, ADR 0006): the body of
-    /// <paramref name="version"/> registered at the next minted version, with lineage naming
-    /// <paramref name="version"/>. It publishes nothing, and every existing revision keeps its body and status. The
+    /// <paramref name="version"/> registered at the next minted version, with <see cref="FormDefinition.DerivedFrom"/>
+    /// naming <paramref name="version"/> and <see cref="FormDefinition.Lineage"/> keeping the source's extension parent
+    /// unchanged. It publishes nothing, and every existing revision keeps its body and status. The
     /// new Draft runs every admission check a Draft registration runs. A System-owned revision is a pack projection and
     /// is refused here; <see cref="RestorePackProjectionAsync"/> restores it. An adapter that persists revisions must
     /// override this member.

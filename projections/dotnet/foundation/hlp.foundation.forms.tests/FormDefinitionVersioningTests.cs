@@ -74,7 +74,8 @@ public sealed class FormDefinitionVersioningTests
 
         Assert.Equal(SemanticVersion.Parse("1.0.2"), restored.Version);
         Assert.Equal(FormDefinitionStatus.Draft, restored.Status);
-        Assert.Equal(new FormDefinitionLineage(Id, v100.Version), restored.Lineage);
+        Assert.Equal(SemanticVersion.Parse("1.0.0"), restored.DerivedFrom);
+        Assert.Null(restored.Lineage);
         Assert.True(JsonNode.DeepEquals(Content(v100), Content(restored)));
         Assert.Equal(Now.AddHours(1), restored.CreatedAt);
         Assert.Equal(Now.AddHours(1), restored.UpdatedAt);
@@ -242,19 +243,48 @@ public sealed class FormDefinitionVersioningTests
         Assert.Single(await Revisions(store));
     }
 
-    [Fact(DisplayName = "forms-ck-9: a restored Draft's lineage names the restored revision, replacing any extension lineage it carried")]
-    public async Task Restore_lineage_names_the_restored_revision()
+    [Fact(DisplayName = "forms-ck-9: a restored Draft keeps its source's extension parent as lineage and names the source version in derivedFrom")]
+    public async Task Restore_keeps_the_extension_parent_and_records_the_source_as_derived_from()
     {
         using var store = new InMemoryFormDefinitionStore(new FixedClock(Now));
-        var parent = await store.RegisterAsync(Form("1.0.0", FormDefinitionStatus.Published, id: "property.base"));
+        await store.RegisterAsync(Form("1.0.0", FormDefinitionStatus.Published, id: "property.base"));
         await store.RegisterAsync(Form("1.0.0", FormDefinitionStatus.Published) with
         {
-            Lineage = new FormDefinitionLineage(parent.Id, parent.Version),
+            Lineage = new FormDefinitionLineage(new FormDefinitionId("property.base"), SemanticVersion.Parse("1.0.0")),
         });
+        await store.RegisterAsync(Form("1.0.1", FormDefinitionStatus.Published));
 
         var restored = await store.RestoreAsDraftAsync(Tenant, Id, SemanticVersion.Parse("1.0.0"));
 
-        Assert.Equal(new FormDefinitionLineage(Id, SemanticVersion.Parse("1.0.0")), restored.Lineage);
+        // Owner ruling 2026-11-07 (option 1): lineage means extends, so the real parent survives the restore.
+        Assert.Equal(new FormDefinitionLineage(new FormDefinitionId("property.base"), SemanticVersion.Parse("1.0.0")), restored.Lineage);
+        Assert.Equal(SemanticVersion.Parse("1.0.2"), restored.Version);
+        Assert.Equal(SemanticVersion.Parse("1.0.0"), restored.DerivedFrom);
+        Assert.Equal(restored, await store.GetAsync(Tenant, Id, SemanticVersion.Parse("1.0.2")));
+    }
+
+    [Fact(DisplayName = "forms-ck-9: a derivedFrom that names no registered revision of the same id is refused on every registration path")]
+    public async Task Derived_from_must_name_a_registered_revision_of_the_same_id()
+    {
+        using var store = new InMemoryFormDefinitionStore(new FixedClock(Now));
+        await store.RegisterAsync(Form("1.0.0", FormDefinitionStatus.Published, id: "property.base"));
+        await store.RegisterAsync(Form("1.0.0"));
+        var missing = SemanticVersion.Parse("0.9.0");
+
+        var register = await Assert.ThrowsAsync<FormDefinitionValidationException>(
+            async () => await store.RegisterAsync(Form("1.0.1") with { DerivedFrom = missing }));
+        await Assert.ThrowsAsync<FormDefinitionValidationException>(
+            async () => await store.SaveNextAsync(Form("1.0.0") with { DerivedFrom = missing }));
+        await Assert.ThrowsAsync<FormDefinitionValidationException>(
+            async () => await store.CreateAsync(Form("1.0.0", id: "property.fresh") with { DerivedFrom = SemanticVersion.Parse("1.0.0") }));
+        // property.base holds 1.0.0, but a derivedFrom names a version of the revision's own id.
+        await Assert.ThrowsAsync<FormDefinitionValidationException>(
+            async () => await store.RegisterAsync(Form("1.0.0", id: "property.other") with { DerivedFrom = SemanticVersion.Parse("1.0.0") }));
+
+        Assert.Contains("derivedFrom names version '0.9.0' of 'property.intake'", register.Message);
+        Assert.Equal(2, (await Revisions(store)).Count);
+        Assert.Equal(SemanticVersion.Parse("1.0.0"),
+            (await store.RegisterAsync(Form("1.0.1") with { DerivedFrom = SemanticVersion.Parse("1.0.0") })).DerivedFrom);
     }
 
     [Fact(DisplayName = "forms-ck-8: a save refuses a null definition, lineage to an unregistered parent, and a patch overflow")]
@@ -299,12 +329,13 @@ public sealed class FormDefinitionVersioningTests
         return node;
     }
 
-    // What a restore copies: the body without the identity a new revision gets (version, lineage, creation time).
+    // What a restore copies: the body without the identity a new revision gets (version, derivedFrom, creation time).
+    // Lineage is copied: a restore keeps the source's extension parent.
     private static JsonNode Content(FormDefinition revision)
     {
         var node = Body(revision).AsObject();
         node.Remove(nameof(FormDefinition.Version));
-        node.Remove(nameof(FormDefinition.Lineage));
+        node.Remove(nameof(FormDefinition.DerivedFrom));
         node.Remove(nameof(FormDefinition.CreatedAt));
         return node;
     }
