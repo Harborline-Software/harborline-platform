@@ -142,6 +142,7 @@ public sealed class InMemoryFormDefinitionStore : IFormDefinitionStore, IDisposa
                 }
             }
 
+            ValidateDerivedFrom(snapshot, definition);
             if (definition.Status == FormDefinitionStatus.Published)
                 FormDefinitionValidation.ValidateRecordTypeContinuityOrThrow(definition, Revisions(snapshot, definition.Tenant, definition.Id));
             _store = MutateStore(snapshot, definition);
@@ -224,6 +225,8 @@ public sealed class InMemoryFormDefinitionStore : IFormDefinitionStore, IDisposa
                     "the first revision of a definition id cannot carry lineage; use RegisterAsync for a derived revision.");
             }
 
+            ValidateDerivedFrom(snapshot, definition);
+
             _store = MutateStore(snapshot, definition);
             return definition;
         }
@@ -231,6 +234,100 @@ public sealed class InMemoryFormDefinitionStore : IFormDefinitionStore, IDisposa
         {
             _mutationLock.Release();
         }
+    }
+
+    /// <inheritdoc />
+    public async ValueTask<FormDefinition> SaveNextAsync(FormDefinition definition, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(definition);
+        await ValidateDefinitionAsync(definition, requireSubmitGate: definition.Status == FormDefinitionStatus.Published, ct).ConfigureAwait(false);
+
+        await _mutationLock.WaitAsync(ct).ConfigureAwait(false);
+        try
+        {
+            var snapshot = _store;
+            var revisions = Revisions(snapshot, definition.Tenant, definition.Id).ToList();
+            var minted = revisions.Count == 0 ? definition : definition with { Version = NextVersion(revisions) };
+            return CommitRegistration(snapshot, minted, revisions);
+        }
+        finally
+        {
+            _mutationLock.Release();
+        }
+    }
+
+    /// <inheritdoc />
+    public async ValueTask<FormDefinition> RestoreAsDraftAsync(
+        TenantId tenant, FormDefinitionId id, SemanticVersion version, CancellationToken ct = default)
+    {
+        var source = await GetAsync(tenant, id, version, ct).ConfigureAwait(false);
+        // A System-owned revision is a pack projection; it is restored by RestorePackProjectionAsync. Copying it into a
+        // tenant Draft would let tenant content claim System ownership, which RestorePackProjectionAsync trusts.
+        if (source.Owner == IdentityRef.System)
+        {
+            throw new InvalidOperationException(
+                $"'{id}' v{version} is a System-owned pack projection; restore it through RestorePackProjectionAsync, not as a tenant Draft.");
+        }
+
+        var now = _time.GetUtcNow();
+        var draft = source with
+        {
+            Status = FormDefinitionStatus.Draft,
+            // Lineage keeps the source's extension parent; the restore itself is recorded as DerivedFrom (owner ruling,
+            // 2026-11-07: keep the real parent and add a separate restored-from link).
+            DerivedFrom = version,
+            CreatedAt = now,
+            UpdatedAt = now,
+        };
+        await ValidateDefinitionAsync(draft, requireSubmitGate: false, ct).ConfigureAwait(false);
+
+        await _mutationLock.WaitAsync(ct).ConfigureAwait(false);
+        try
+        {
+            var snapshot = _store;
+            var revisions = Revisions(snapshot, tenant, id).ToList();
+            return CommitRegistration(snapshot, draft with { Version = NextVersion(revisions) }, revisions);
+        }
+        finally
+        {
+            _mutationLock.Release();
+        }
+    }
+
+    // forms-ck-9: a DerivedFrom names a revision of the same tenant and id that is already registered.
+    private static void ValidateDerivedFrom(
+        Dictionary<TenantId, Dictionary<FormDefinitionId, Dictionary<SemanticVersion, FormDefinition>>> snapshot,
+        FormDefinition definition)
+    {
+        if (definition.DerivedFrom is not { } source) return;
+        if (!snapshot.TryGetValue(definition.Tenant, out var byId) || !byId.TryGetValue(definition.Id, out var byVersion)
+            || !byVersion.ContainsKey(source))
+        {
+            throw new FormDefinitionValidationException(
+                definition.Id,
+                $"derivedFrom names version '{source}' of '{definition.Id}', which is not registered in tenant '{definition.Tenant}'.");
+        }
+    }
+
+    // forms-ck-8: the next version is the highest existing version, of any status, with its patch part incremented.
+    private static SemanticVersion NextVersion(IReadOnlyCollection<FormDefinition> revisions)
+    {
+        var highest = revisions.Max(revision => revision.Version);
+        return highest with { Patch = checked(highest.Patch + 1) };
+    }
+
+    // The registration RegisterAsync performs, under the mutation lock, for a revision whose version the store chose.
+    // No conflict check: the version is either above every existing revision or, for an id with none, the first.
+    private FormDefinition CommitRegistration(
+        Dictionary<TenantId, Dictionary<FormDefinitionId, Dictionary<SemanticVersion, FormDefinition>>> snapshot,
+        FormDefinition definition,
+        IReadOnlyCollection<FormDefinition> revisions)
+    {
+        ValidateLineage(snapshot, definition);
+        if (definition.Status == FormDefinitionStatus.Published)
+            FormDefinitionValidation.ValidateRecordTypeContinuityOrThrow(definition, revisions);
+        _store = MutateStore(snapshot, definition);
+        return definition;
     }
 
     /// <inheritdoc />
@@ -546,6 +643,7 @@ public sealed class InMemoryFormDefinitionStore : IFormDefinitionStore, IDisposa
         Dictionary<TenantId, Dictionary<FormDefinitionId, Dictionary<SemanticVersion, FormDefinition>>> snapshot,
         FormDefinition definition)
     {
+        ValidateDerivedFrom(snapshot, definition);
         if (definition.Lineage is not { } lineage) return;
         if (!snapshot.TryGetValue(definition.Tenant, out var lineageById) ||
             !lineageById.TryGetValue(lineage.ParentDefinitionId, out var lineageByVersion) ||
