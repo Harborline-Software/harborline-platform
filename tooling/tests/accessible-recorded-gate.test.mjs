@@ -43,5 +43,5 @@ test('this repository: the overlay scenarios merged after the recorded gate are 
   const added = ctx.catalog.scenarios.map(s => s.id).filter(id => !ctx.recordedScenarios.has(id))
   const [status, note] = accessible(ctx)
   assert.equal(status, added.length === 0 ? 'PASS' : 'PARTIAL')
-  for (const id of added) assert.match(note, new RegExp(id.replace(/\./g, '\\.')))
+  for (const id of added) assert.ok(note.includes(id), `${id} must be named in: ${note}`)
 })
