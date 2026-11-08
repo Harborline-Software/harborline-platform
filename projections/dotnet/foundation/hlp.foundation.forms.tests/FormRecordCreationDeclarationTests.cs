@@ -108,17 +108,21 @@ public sealed class FormRecordCreationDeclarationTests
         Assert.Equal([("tenant:acme", "work.order")], reader.Asked);
     }
 
-    [Fact(DisplayName = "K1: a standing submit gate on a declared form_only target publishes; no standing prohibition applies to Records")]
-    public async Task StandingGateOnFormOnlyTargetPublishes()
+    // Replaces the K1 test of 2026-10-11, which asserted that this configuration publishes. The owner's ruling of
+    // 2026-10-28 (clause 3) withdrew that clause: standing is computed over an existing record, and the record does not
+    // exist at submit. Oracle: the slice record's code and pointer literals.
+    [Fact(DisplayName = "T-485 standing gate (replaces K1): a standing submit gate on a declared form_only target is refused at /submit_gate/standing and nothing is published")]
+    public async Task StandingGateOnDeclaredFormOnlyTargetIsRefused()
     {
         using var store = new InMemoryFormDefinitionStore(new FixedClock(Now), recordTypePolicies: new Reader(RecordTypeCreationGate.FormOnly),
             recordCreations: new Declarations(("capture", "notes.entry")));
+        var definition = Form(new SubmitGate(Standing: new RecordStandingReference("author")), "capture", "notes.entry");
 
-        var published = await store.RegisterAndPublishAsync(
-            Form(new SubmitGate(Standing: new RecordStandingReference("author")), "capture", "notes.entry"));
+        var refusal = await Assert.ThrowsAsync<FormDefinitionValidationException>(
+            async () => await store.RegisterAndPublishAsync(definition));
 
-        Assert.Equal(FormDefinitionStatus.Published, published.Status);
-        Assert.Equal("author", published.SubmitGate!.Standing!.Name);
+        Assert.Equal(("form.submit_gate.standing_on_record_creation", "/submit_gate/standing"), (refusal.Code, refusal.Target));
+        Assert.Null(await store.GetCurrentPublishedAsync(definition.Tenant, definition.Id));
     }
 
     public static TheoryData<string> BrokenDeclarations => ["throws", "blank", "ambiguous"];
