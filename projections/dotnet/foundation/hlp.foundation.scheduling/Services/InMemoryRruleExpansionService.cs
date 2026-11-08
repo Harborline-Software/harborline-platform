@@ -42,7 +42,7 @@ public sealed class InMemoryRruleExpansionService : IRruleExpansionService
         // A date-valued series (RFC 5545 DTSTART;VALUE=DATE): UNTIL bounds by date. A DATE-TIME UNTIL keeps its UTC date
         // here, as DES-0057 ck-7's date-granular contract always has; a timed series uses ExpandZonedOccurrences instead.
         var horizon = end ?? today.AddDays(lookaheadDays);
-        var occurrences = Evaluate(parsed, new CalDateTime(start), SearchEnd(horizon, null)).Select(occurrence => occurrence.Date);
+        var occurrences = Evaluate(parsed, new CalDateTime(start), SearchEnd(horizon, null, parsed)).Select(occurrence => occurrence.Date);
         return Collect(rrule, parsed, start, occurrences, horizon, today.AddDays(leadDays),
             static (date, until) => date > until.Date);
     }
@@ -71,7 +71,7 @@ public sealed class InMemoryRruleExpansionService : IRruleExpansionService
         // the zone instead lets the engine shift a spring-forward gap time past midnight (23:30 on 28 March 2026 in Nuuk
         // became 00:30 on the 29th), which would change the occurrence's date.
         var horizon = end ?? today.AddDays(lookaheadDays);
-        var dated = Evaluate(parsed, new CalDateTime(start, startTime, null), SearchEnd(horizon, TimeOnly.MaxValue))
+        var dated = Evaluate(parsed, new CalDateTime(start, startTime, null), SearchEnd(horizon, TimeOnly.MaxValue, parsed))
             .Select(occurrence => (occurrence.Date, Instant: WallClockResolver.ToUtcInstant(occurrence.Date, startTime, timezone)));
         var bounded = parsed.Until is { Instant: { } untilInstant }
             ? dated.TakeWhile(occurrence => occurrence.Instant <= untilInstant)
@@ -82,16 +82,29 @@ public sealed class InMemoryRruleExpansionService : IRruleExpansionService
     }
 
     /// <summary>
-    /// The engine's search end: the walk's horizon, set as the engine rule's UNTIL. The engine stops searching at its UNTIL
-    /// (Ical.Net 5.2.4 <c>GetSearchEndDate</c>), so a sparse rule still returns what lies in range, and a subset rule whose
-    /// parts can never all match (a fifth Monday that must also be the 1st) ends empty at the horizon instead of searching
-    /// without end. Every occurrence on or before the horizon is still produced, so COUNT, which counts from the anchor,
-    /// is unaffected. The rule's own UNTIL is applied by the caller. Capped one day short of the last DateOnly, because
-    /// the engine pads its search end by a day.
+    /// The engine's search end, set as the engine rule's UNTIL: the walk's horizon plus one whole interval period. The
+    /// engine stops searching at its UNTIL (Ical.Net 5.2.4 <c>GetSearchEndDate</c>), so a sparse rule still returns what
+    /// lies in range, and a subset rule whose parts can never all match (a fifth Monday that must also be the 1st) ends
+    /// empty near the horizon instead of searching without end. The period of padding is there because the engine compares
+    /// each interval's lower limit, which follows the anchor (a YEARLY rule without BYMONTH starts each year at the anchor's
+    /// month), with that search end before it expands the interval: a bound at the horizon itself would cut off an
+    /// interval whose early matches lie inside the window (FREQ=YEARLY;BYDAY=MO from 1 June, asked for January). Collect
+    /// applies the exact horizon. Every occurrence on or before the horizon is produced, so COUNT, which counts from the
+    /// anchor, is unaffected; the rule's own UNTIL is applied by the caller. Clamped one day short of the last DateOnly,
+    /// because the engine pads its search end by a day.
     /// </summary>
-    private static CalDateTime SearchEnd(DateOnly horizon, TimeOnly? time)
+    private static CalDateTime SearchEnd(DateOnly horizon, TimeOnly? time, ParsedRrule parsed)
     {
-        var day = horizon < DateOnly.MaxValue.AddDays(-1) ? horizon : DateOnly.MaxValue.AddDays(-1);
+        var last = DateOnly.MaxValue.AddDays(-1);
+        var periods = parsed.Interval + 1L;
+        var room = parsed.Freq switch
+        {
+            "YEARLY" => periods * 366,
+            "MONTHLY" => periods * 31,
+            "WEEKLY" => periods * 7,
+            _ => periods,
+        };
+        var day = room >= last.DayNumber - horizon.DayNumber ? last : horizon.AddDays((int)room);
         return time is { } at ? new CalDateTime(day, at, null) : new CalDateTime(day);
     }
 

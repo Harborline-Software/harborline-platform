@@ -142,6 +142,28 @@ public sealed class RruleRfcCaseTests
             Sut.ExpandZonedOccurrences("FREQ=DAILY;UNTIL=20260329T013000Z", new(2026, 3, 27), new(23, 30), "America/Nuuk",
                 end: new(2026, 4, 30), lookaheadDays: 0, leadDays: 0, today: new(2026, 3, 27)));
 
+    public static TheoryData<string, string, string, string, string[]> ShortWindowsAfterALateAnchor => new()
+    {
+        { "FREQ=YEARLY;BYDAY=MO", "2026-06-01", "2027-01-01", "2027-01-31", ["2027-01-04", "2027-01-11", "2027-01-18", "2027-01-25"] },
+        { "FREQ=MONTHLY;BYMONTHDAY=1", "2026-01-31", "2026-02-01", "2026-02-10", ["2026-02-01"] },
+        { "FREQ=WEEKLY;BYDAY=MO,SU", "2026-01-04", "2026-01-05", "2026-01-05", ["2026-01-05"] },
+        { "FREQ=YEARLY;INTERVAL=3;BYMONTHDAY=2", "2026-11-20", "2029-01-01", "2029-01-05", ["2029-01-02"] },
+    };
+
+    // Codex on platform #439 (f8232fe9): the engine checks each interval's lower limit, which follows the anchor, against
+    // its search end, so a horizon short of that limit must not cut off the interval's earlier matches.
+    // Oracle: python-dateutil 4.0.0, between(window start, window end), recorded for each row.
+    [Theory(DisplayName = "T-1175: a short window keeps the matches of an interval whose anchor-aligned start falls after the window")]
+    [MemberData(nameof(ShortWindowsAfterALateAnchor))]
+    public void ShortWindowAfterALateAnchorKeepsItsMatches(string rule, string anchor, string from, string to, string[] expected)
+    {
+        static DateOnly Day(string text) => DateOnly.ParseExact(text, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
+
+        var actual = Sut.ExpandOccurrences(rule, Day(anchor), Day(to), lookaheadDays: 0, leadDays: 0, today: Day(from), timezone: "UTC");
+
+        Assert.Equal(expected.Select(Day), actual);
+    }
+
     [Fact(DisplayName = "R-0146 (e): New York 01:30 on 2026-11-01 is 05:30Z, the first occurrence of the ambiguous time (RFC 5545 §3.3.5) [calendar resolver: 06:30Z]")]
     public void AmbiguousLocalTimeIsItsFirstOccurrence() =>
         Assert.Equal(new DateTimeOffset(2026, 11, 1, 5, 30, 0, TimeSpan.Zero),
