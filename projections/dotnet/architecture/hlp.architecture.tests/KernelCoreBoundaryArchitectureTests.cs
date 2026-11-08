@@ -15,15 +15,12 @@ public sealed class KernelCoreBoundaryArchitectureTests
         RegexOptions.Compiled);
 
     // Existing non-kernel-facing clocks are frozen, not blessed. Their owning member tickets must
-    // remove the row when migrating the seam; T-623 removes Forms Engine and Work Items from it.
+    // remove the row when migrating the seam; T-623 removes Forms Engine and Work Items from it, and T-1178 the workflow block.
     private static readonly Dictionary<string, (int Count, string Reason)> ClockAllowList = new(StringComparer.Ordinal)
     {
         ["projections/dotnet/blocks/hlp.blocks.activity-timeline/ActivityTimeline.cs"] = (2, "member-local reference adapter"),
         ["projections/dotnet/blocks/hlp.blocks.reports/DependencyInjection/ReportSubstrateServiceCollectionExtensions.cs"] = (1, "report host composition"),
-        ["projections/dotnet/blocks/hlp.blocks.workflow.restart-probe/Program.cs"] = (2, "restart fixture executable"),
-        ["projections/dotnet/blocks/hlp.blocks.workflow/Durable/DurableWorkflowServiceCollectionExtensions.cs"] = (1, "workflow host composition"),
-        ["projections/dotnet/blocks/hlp.blocks.workflow/Durable/FileJournalWorkflowStore.cs"] = (2, "workflow store adapter"),
-        ["projections/dotnet/blocks/hlp.blocks.workflow/InMemoryWorkflowRuntime.cs"] = (2, "retiring workflow runtime"),
+        ["projections/dotnet/blocks/hlp.blocks.workflow.restart-probe/Program.cs"] = (1, "T-1178 restart fixture executable is the host: it supplies the one clock it injects"),
         ["projections/dotnet/foundation/hlp.foundation.forms/DependencyInjection/FormsServiceCollectionExtensions.cs"] = (1, "Forms state host composition"),
         ["projections/dotnet/foundation/hlp.foundation.forms/Drafts/PreAuthCaptureService.cs"] = (2, "Forms draft member seam"),
         ["projections/dotnet/foundation/hlp.foundation.forms/Drafts/SubmissionDraftService.cs"] = (2, "Forms draft member seam"),

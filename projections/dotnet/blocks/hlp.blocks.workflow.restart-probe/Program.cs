@@ -22,7 +22,11 @@ if (args.Length != 2 || (args[0] != "write-crash" && args[0] != "write-partial-c
 var mode = args[0];
 var journalPath = args[1];
 
-var store = new FileJournalWorkflowStore(new FileJournalWorkflowStoreOptions { JournalPath = journalPath });
+// The probe is its own composition root, so it creates the one clock and hands it in (T-1178); nothing below it
+// reads wall time.
+var clock = TimeProvider.System;
+var store = new FileJournalWorkflowStore(new FileJournalWorkflowStoreOptions { JournalPath = journalPath }, clock);
+var startedAt = clock.GetUtcNow();
 await store.CreateInstanceAsync(new WorkflowInstanceRecord
 {
     Id = "restart-1",
@@ -31,8 +35,8 @@ await store.CreateInstanceAsync(new WorkflowInstanceRecord
     DefinitionVersion = "2026-06-23.1",
     CurrentStep = "decide",
     Status = WorkflowStatus.Running,
-    CreatedAt = DateTimeOffset.UtcNow,
-    UpdatedAt = DateTimeOffset.UtcNow,
+    CreatedAt = startedAt,
+    UpdatedAt = startedAt,
 });
 
 // One effecting advance — the effect payload must survive the crash exactly once.
