@@ -5,7 +5,7 @@
   "sourceState": "Historical revision 1 extracted the Workflow authoring wire and capability admission boundary. Revision 3 retains that wire contract while maintained WorkflowContracts.cs and WorkflowSupport.cs borrow the shared Text and Serialization declarations inside the existing Contracts artifacts. The immutable authority resolver and human-gated CP firing fence remain; this provenance composition claims no new interpreter or runtime qualification. Revision 4 (T-488/platform-model-parity) adds the optional envelope, requiredStandings and the sealed sys.roles vocabulary to the wire and to both admission mirrors; the engine model runs the same fixtures.",
   "contentHashes": {
     "conformance/hlp.contracts.workflow/fixtures.yaml": "30c39dd2ea917ba9f5323f14ea2ca5600eb7390870c72e16764399ed421d3b43",
-    "conformance/hlp.contracts.workflow/runners/run-shared.mjs": "04d601f319c9ec0925520f4ddc68663572b6fe68613cc47e4fc059b15b7b47c4",
+    "conformance/hlp.contracts.workflow/runners/run-shared.mjs": "7d3ac7543de4a995a4e2df017f047a044da1448ce8045320401530a293631821",
     "projections/dotnet/contracts/hlp.contracts.identities.tests/WorkflowFixtureConformanceTests.cs": "13f2c8d2f7adcec6110f0a74753b826357cc849eb89da76817084fb675fef2b5",
     "projections/dotnet/contracts/hlp.contracts.identities/Workflow/WorkflowContracts.cs": "7169b27c2f13b2f8743dbc3fbe87070e5eaf63122c56be28b0f662d2ab28cbc4",
     "projections/dotnet/contracts/hlp.contracts.identities/Workflow/WorkflowSupport.cs": "b6ddc4e3cd8fa18ac285aaf5c5bbc3628e79bfae7e2d4bb68804fc72102db9a1",
