@@ -59,6 +59,21 @@ public sealed class ContentStoreEpochTests
         return plain;
     }
 
+    // A backing that keeps one audit chain per tenant places a transaction's row by the tenant its calls name (the api node
+    // refuses "a content-store write named no tenant"). Rotation's transaction names it by pinning the new epoch.
+    [Fact]
+    public async Task Clause_4_a_rotation_transaction_names_its_tenant_by_pinning_the_new_epoch()
+    {
+        var backing = new RecordingStorage();
+        var store = Store(backing);
+        await Commit(store, Hello);
+        lock (backing.Pins) backing.Pins.Clear();
+
+        var rotation = await store.RotateEpochAsync(Tenant, Write("rotate"));
+
+        Assert.Equal([(Tenant, rotation.To)], backing.Pins);
+    }
+
     [Fact]
     public async Task Clause_1_the_key_port_holds_only_a_wrapped_256_bit_epoch_key_bound_to_its_tenant_and_id()
     {

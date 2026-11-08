@@ -1708,7 +1708,10 @@ public sealed class InMemoryContentStore
             var made = await MakeEpochAsync(tenant, subkey, cancellationToken).ConfigureAwait(false);
             try
             {
-                await RunAsync(ContentStoreOperation.EpochRotation, write, static (_, _) => ValueTask.FromResult(true), cancellationToken).ConfigureAwait(false);
+                // Pinning the new epoch names the tenant in the transaction, so a backing that keeps one audit chain per tenant
+                // can place the rotation's row (the api node does); nothing names the epoch yet, so the pin holds nothing back.
+                await RunAsync(ContentStoreOperation.EpochRotation, write,
+                    async (session, token) => await session.PinEpochAsync(tenant, made.EpochId, token).ConfigureAwait(false), cancellationToken).ConfigureAwait(false);
             }
             catch
             {

@@ -14,6 +14,7 @@ internal sealed class RecordingStorage : IContentStoreStorage
     public InMemoryContentByteStore MemoryBytes { get; } = new();
     public List<string> Events { get; } = [];
     public List<string> EpochEvents { get; } = [];
+    public List<(TenantId Tenant, Guid EpochId)> Pins { get; } = [];
     public List<ContentStoreOperation> StagedRecords { get; } = [];
     public List<int> SegmentReads { get; } = [];
     public List<KernelOperationIdentity> StagedOperations { get; } = [];
@@ -140,6 +141,7 @@ internal sealed class RecordingStorage : IContentStoreStorage
 
         public async ValueTask<bool> PinEpochAsync(TenantId tenant, Guid epochId, CancellationToken cancellationToken = default)
         {
+            lock (owner.Pins) owner.Pins.Add((tenant, epochId));
             if (owner.BeforePin is { } hook)
             {
                 owner.BeforePin = null;
