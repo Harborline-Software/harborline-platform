@@ -1,36 +1,17 @@
 namespace Harborline.Blocks.Calendar.Services;
 
 /// <summary>
-/// Resolves a wall-clock local date+time in an IANA timezone to a UTC <see cref="DateTimeOffset"/>,
-/// applying DST and the two RFC-5545 DST edge policies. Slice S1 — the time-of-day + timezone/DST
-/// layer that sits <i>on top of</i> the date-granular RRULE expansion (the shared expander stays
-/// date-only; this converts each generated date+time-of-day to a real instant).
+/// Resolves a wall-clock local date+time in an IANA timezone to a UTC <see cref="DateTimeOffset"/>. The time-of-day and
+/// zone layer that sits on top of the date-granular RRULE expansion: each generated date and its time of day become a
+/// real instant here.
 /// </summary>
 /// <remarks>
-/// <para>
-/// <b>Why a thin helper, not Ical.Net.</b> The fleet RRULE expander
-/// (<c>IRruleExpansionService</c>) deliberately mirrors the ui-react <c>expandRecurrence</c>
-/// function exactly (council-verdict-net-arch §C-2) so the frontend Scheduler and the backend
-/// produce the <i>same occurrence set</i>. Swapping in Ical.Net for the calendar block would create
-/// a second, divergent RRULE engine. Instead we keep the shared expander's date output and apply
-/// time-of-day + DST here with <see cref="TimeZoneInfo"/> — which on .NET 11 resolves IANA ids
-/// natively (ICU) and converts with full DST awareness. Both candidates are MIT; this introduces no
-/// new dependency.
-/// </para>
-/// <para>
-/// <b>DST edge policies (RFC 5545 §3.3.5 spirit):</b>
-/// <list type="bullet">
-///   <item><description><b>Spring-forward gap</b> (a local time that does not exist — e.g.
-///   02:30 on a "skip 02:00→03:00" day):
-///   <see cref="TimeZoneInfo.ConvertTimeToUtc(DateTime, TimeZoneInfo)"/> throws on an
-///   invalid time, so we <i>snap the wall-clock forward</i> by the DST delta into the valid range
-///   (the common calendar behavior — a 02:30 event lands at 03:30). A typical 9 a.m. event is never
-///   in the gap, so this only affects events deliberately scheduled in the lost hour.</description></item>
-///   <item><description><b>Fall-back ambiguity</b> (a local time that occurs twice): .NET resolves
-///   the ambiguous time to the <i>standard</i> (later) offset by default and does not throw; we
-///   accept that deterministic resolution.</description></item>
-/// </list>
-/// </para>
+/// The conversion is the platform's one wall-clock resolver,
+/// <see cref="Harborline.Foundation.Scheduling.WallClockResolver"/> (ADR-0123 decision 4), so the calendar block, the
+/// availability runtime and Scheduling cannot resolve a local time differently. It follows RFC 5545 §3.3.5 and Errata
+/// 4271: an ambiguous fall-back time is its <b>first</b> occurrence (01:30 on 1 November 2026 in New York is 05:30Z), and
+/// a spring-forward gap time is read at the offset before the gap (02:30 on 8 March 2026 there is 07:30Z). The standard
+/// offset this helper used to pick for an ambiguous time was R-0146 call 5's case (e) and is gone (T-1175).
 /// </remarks>
 public static class TimezoneResolver
 {
@@ -46,44 +27,16 @@ public static class TimezoneResolver
     }
 
     /// <summary>
-    /// Convert a wall-clock <paramref name="localDate"/> + <paramref name="localTime"/> in
-    /// <paramref name="tz"/> to a UTC <see cref="DateTimeOffset"/>, applying DST. Spring-forward
-    /// gap times are snapped forward by the DST delta; fall-back ambiguous times resolve to the
-    /// standard offset (no throw).
+    /// Convert a wall-clock <paramref name="localDate"/> + <paramref name="localTime"/> in <paramref name="tz"/> to a UTC
+    /// <see cref="DateTimeOffset"/> through <see cref="Harborline.Foundation.Scheduling.WallClockResolver"/>.
     /// </summary>
     public static DateTimeOffset ToUtcInstant(DateOnly localDate, TimeOnly localTime, TimeZoneInfo tz)
     {
         ArgumentNullException.ThrowIfNull(tz);
-
-        var wall = localDate.ToDateTime(localTime, DateTimeKind.Unspecified);
-
-        // Spring-forward gap: the local time does not exist. Snap forward by the DST delta so the
-        // event lands in the valid range instead of throwing (calendar-standard behavior).
-        if (tz.IsInvalidTime(wall))
-        {
-            var delta = GapDelta(wall, tz);
-            wall = wall.Add(delta);
-        }
-
-        // ConvertTimeToUtc resolves a fall-back-ambiguous time to the standard offset (deterministic,
-        // no throw) and applies DST for every other time.
-        var utc = TimeZoneInfo.ConvertTimeToUtc(wall, tz);
-        return new DateTimeOffset(utc, TimeSpan.Zero);
+        return Harborline.Foundation.Scheduling.WallClockResolver.ToUtcInstant(localDate, localTime, IanaId(tz));
     }
 
-    /// <summary>
-    /// The DST adjustment delta covering an invalid (skipped) local time — the size of the
-    /// spring-forward gap (typically +1h). Derived from the rule whose
-    /// <see cref="TimeZoneInfo.AdjustmentRule.DaylightTransitionStart"/> brackets the date, falling
-    /// back to one hour (the universal DST shift) if no rule is found.
-    /// </summary>
-    private static TimeSpan GapDelta(DateTime invalidWall, TimeZoneInfo tz)
-    {
-        foreach (var rule in tz.GetAdjustmentRules())
-        {
-            if (invalidWall.Date >= rule.DateStart.Date && invalidWall.Date <= rule.DateEnd.Date)
-                return rule.DaylightDelta;
-        }
-        return TimeSpan.FromHours(1);
-    }
+    // TimeZoneInfo found by an IANA id keeps that id; one found by a Windows id is mapped to its IANA equivalent.
+    internal static string IanaId(TimeZoneInfo tz) =>
+        tz.HasIanaId || !TimeZoneInfo.TryConvertWindowsIdToIanaId(tz.Id, out var iana) ? tz.Id : iana;
 }

@@ -1,22 +1,29 @@
-using System.Globalization;
+using Ical.Net.DataTypes;
+using Ical.Net.Evaluation;
+using NodaTime;
 
 namespace Harborline.Foundation.Scheduling;
 
 /// <summary>
-/// In-process <see cref="IRruleExpansionService"/> implementing the
-/// fleet bounded RRULE subset. Widened from the prior work-orders stub
-/// (DAILY/WEEKLY/MONTHLY + INTERVAL only) to the full subset that
-/// mirrors ui-react's <c>expandRecurrence</c> function per
-/// council-verdict-net-arch-2026-06-12T2213Z §C-2:
-/// FREQ daily/weekly/monthly/yearly, INTERVAL, COUNT/UNTIL,
-/// BYDAY (with monthly ordinals), BYMONTHDAY 1-28, BYMONTH.
+/// The in-process <see cref="IRruleExpansionService"/>. Expansion runs on Ical.Net (MIT) behind this interface, and the
+/// bounded subset (DES-0057 <c>recurrence-expansion-ck-1</c>) stays the contract as a validator in front of it
+/// (ADR-0122, the owner's ruling of 2026-11-07; R-0146 call 5).
 /// </summary>
+/// <remarks>
+/// <para>
+/// Ical.Net gives RFC 5545's answers where the hand-written walker this replaces did not (R-0146 call 5): an invalid date
+/// such as 31 February is skipped and not counted (§3.3.10), a numeric BYDAY under YEARLY without BYMONTH is an offset
+/// within the year (Errata 1913), and a zoned series' UTC UNTIL bounds it at that instant (§3.3.10). Ical.Net accepts a
+/// repeated FREQ and a numeric BYDAY under WEEKLY, which <see cref="RruleSubset"/> refuses first.
+/// </para>
+/// <para>
+/// Completeness is unchanged (DES-0057 §10 ruling 3): a walk that would return more than 1 000 occurrences in the
+/// requested range refuses with <see cref="RruleExpansionCapExceededException"/> instead of returning a partial list.
+/// </para>
+/// </remarks>
 public sealed class InMemoryRruleExpansionService : IRruleExpansionService
 {
-    /// <summary>
-    /// Hard cap on occurrences per call, matching the ui-react
-    /// <c>expandRecurrence</c> 1 000-occurrence guard.
-    /// </summary>
+    /// <summary>Hard cap on occurrences per call, matching the ui-react <c>expandRecurrence</c> 1 000-occurrence guard.</summary>
     private const int OccurrenceCap = 1_000;
 
     /// <inheritdoc />
@@ -30,391 +37,143 @@ public sealed class InMemoryRruleExpansionService : IRruleExpansionService
         string timezone)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(rrule);
+        var parsed = RruleSubset.Parse(rrule);
 
-        var parsed = ParseRrule(rrule);
+        // A date-valued series (RFC 5545 DTSTART;VALUE=DATE): UNTIL bounds by date. A DATE-TIME UNTIL keeps its UTC date
+        // here, as DES-0057 ck-7's date-granular contract always has; a timed series uses ExpandZonedOccurrences instead.
         var horizon = end ?? today.AddDays(lookaheadDays);
-        var earliest = today.AddDays(leadDays);
+        var occurrences = Evaluate(parsed, new CalDateTime(start), SearchEnd(horizon, null, parsed)).Select(occurrence => occurrence.Date);
+        return Collect(rrule, parsed, start, occurrences, horizon, today.AddDays(leadDays),
+            static (date, until) => date > until.Date);
+    }
 
-        var result = new List<DateOnly>();
-        var cursor = start;
-        int occurrenceCount = 0;
-        DateOnly? lastEvaluated = null;
+    /// <inheritdoc />
+    public IReadOnlyList<DateOnly> ExpandZonedOccurrences(
+        string rrule,
+        DateOnly start,
+        TimeOnly startTime,
+        string timezone,
+        DateOnly? end,
+        int lookaheadDays,
+        int leadDays,
+        DateOnly today)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(rrule);
+        ArgumentException.ThrowIfNullOrWhiteSpace(timezone);
+        if (DateTimeZoneProviders.Tzdb.GetZoneOrNull(timezone) is null)
+            throw new ArgumentException($"'{timezone}' is not an IANA time zone id.", nameof(timezone));
+        var parsed = RruleSubset.Parse(rrule);
 
-        // UNTIL is a date upper bound; COUNT limits total candidate
-        // occurrences from the anchor (not filtered occurrences).
-        DateOnly? untilBound = parsed.Until;
-        var effectiveHorizon = (untilBound.HasValue && untilBound.Value < horizon)
-            ? untilBound.Value
-            : horizon;
+        // A timed series: the occurrence's nominal local date is what callers key on (EXDATE, RECURRENCE-ID), and a
+        // DATE-TIME UNTIL is a UTC instant that bounds the series inclusively (RFC 5545 §3.3.10). A DATE UNTIL on a timed
+        // series keeps bounding by local date. The rule is evaluated on the floating wall clock, as RFC 5545 computes
+        // recurrences in local time, and each nominal time resolves to its instant through the one resolver. Evaluating in
+        // the zone instead lets the engine shift a spring-forward gap time past midnight (23:30 on 28 March 2026 in Nuuk
+        // became 00:30 on the 29th), which would change the occurrence's date.
+        var horizon = end ?? today.AddDays(lookaheadDays);
+        var dated = Evaluate(parsed, new CalDateTime(start, startTime, null), SearchEnd(horizon, TimeOnly.MaxValue, parsed))
+            .Select(occurrence => (occurrence.Date, Instant: WallClockResolver.ToUtcInstant(occurrence.Date, startTime, timezone)));
+        var bounded = parsed.Until is { Instant: { } untilInstant }
+            ? dated.TakeWhile(occurrence => occurrence.Instant <= untilInstant)
+            : dated;
+        return Collect(rrule, parsed, start, bounded.Select(occurrence => occurrence.Date),
+            horizon, today.AddDays(leadDays),
+            static (date, until) => until.Instant is null && date > until.Date);
+    }
 
-        // The walk ends on one of two complete conditions: the cursor passes the horizon, or the
-        // rule's own COUNT is satisfied. Reaching the cap is neither, so it refuses below.
-        while (cursor <= effectiveHorizon
-            && (parsed.Count is null || occurrenceCount < parsed.Count.Value))
+    /// <summary>
+    /// The engine's search end, set as the engine rule's UNTIL: the walk's horizon plus one whole interval period. The
+    /// engine stops searching at its UNTIL (Ical.Net 5.2.4 <c>GetSearchEndDate</c>), so a sparse rule still returns what
+    /// lies in range, and a subset rule whose parts can never all match (a fifth Monday that must also be the 1st) ends
+    /// empty near the horizon instead of searching without end. The period of padding is there because the engine compares
+    /// each interval's lower limit, which follows the anchor (a YEARLY rule without BYMONTH starts each year at the anchor's
+    /// month), with that search end before it expands the interval: a bound at the horizon itself would cut off an
+    /// interval whose early matches lie inside the window (FREQ=YEARLY;BYDAY=MO from 1 June, asked for January). Collect
+    /// applies the exact horizon. Every occurrence on or before the horizon is produced, so COUNT, which counts from the
+    /// anchor, is unaffected; the rule's own UNTIL is applied by the caller. Clamped one day short of the last DateOnly,
+    /// because the engine pads its search end by a day.
+    /// </summary>
+    private static CalDateTime SearchEnd(DateOnly horizon, TimeOnly? time, ParsedRrule parsed)
+    {
+        var last = DateOnly.MaxValue.AddDays(-1);
+        var periods = parsed.Interval + 1L;
+        var room = parsed.Freq switch
         {
-            if (IsMatchingOccurrence(cursor, start, parsed))
-            {
-                occurrenceCount++;
-                lastEvaluated = cursor;
-                if (cursor >= earliest)
-                {
-                    // DES-0057 §10 ruling 3 (2026-09-20): occurrences may be returned only when
-                    // every occurrence relevant to the requested range has been evaluated. One
-                    // more occurrence than the cap admits means the range was not evaluated, so
-                    // the expansion refuses rather than returning a partial a caller cannot tell
-                    // from a complete one. A walk that fills the cap exactly and then runs out of
-                    // range is complete and returns normally.
-                    if (result.Count == OccurrenceCap)
-                        throw new RruleExpansionCapExceededException(
-                            recurrenceId: rrule,
-                            anchor: start,
-                            requestedRangeStart: earliest,
-                            requestedRangeEnd: effectiveHorizon,
-                            candidateLimit: OccurrenceCap,
-                            candidatesExamined: occurrenceCount,
-                            lastEvaluatedOccurrence: lastEvaluated,
-                            bound: parsed.Until is not null
-                                ? RecurrenceBound.Until
-                                : parsed.Count is not null
-                                    ? RecurrenceBound.Count
-                                    : RecurrenceBound.None);
+            "YEARLY" => periods * 366,
+            "MONTHLY" => periods * 31,
+            "WEEKLY" => periods * 7,
+            _ => periods,
+        };
+        var day = room >= last.DayNumber - horizon.DayNumber ? last : horizon.AddDays((int)room);
+        return time is { } at ? new CalDateTime(day, at, null) : new CalDateTime(day);
+    }
 
-                    result.Add(cursor);
-                }
+    private static IEnumerable<CalDateTime> Evaluate(ParsedRrule parsed, CalDateTime dtStart, CalDateTime searchEnd)
+    {
+        var rule = new RecurrenceRule(parsed.ToRuleWithoutUntil()) { Until = searchEnd };
+        using var periods = new RecurrencePatternEvaluator(rule).Evaluate(dtStart, null, null).GetEnumerator();
+        while (true)
+        {
+            try
+            {
+                if (!periods.MoveNext())
+                    yield break;
+            }
+            catch (EvaluationOutOfRangeException)
+            {
+                // The next occurrence would fall after year 9999, which no DateOnly horizon reaches: the series has ended.
+                yield break;
             }
 
-            cursor = Advance(cursor, parsed);
+            yield return periods.Current.StartTime;
+        }
+    }
+
+    /// <summary>
+    /// Walks ascending occurrences from the anchor. COUNT is applied by the engine and counts from the anchor; UNTIL, the
+    /// explicit end, the lookahead horizon and the lead filter bound the walk here, exactly as DES-0057 ck-4 to ck-6 state.
+    /// </summary>
+    private static List<DateOnly> Collect(
+        string rrule,
+        ParsedRrule parsed,
+        DateOnly start,
+        IEnumerable<DateOnly> occurrences,
+        DateOnly horizon,
+        DateOnly earliest,
+        Func<DateOnly, RruleUntil, bool> pastUntil)
+    {
+        var rangeEnd = parsed.Until is { } bound && bound.Date < horizon ? bound.Date : horizon;
+        var result = new List<DateOnly>();
+        var examined = 0;
+        DateOnly? lastEvaluated = null;
+
+        foreach (var date in occurrences)
+        {
+            if (date > horizon || (parsed.Until is { } until && pastUntil(date, until)))
+                break;
+            examined++;
+            lastEvaluated = date;
+            if (date < earliest)
+                continue;
+
+            // DES-0057 §10 ruling 3 (2026-09-20): occurrences may be returned only when every occurrence relevant to the
+            // requested range has been evaluated. One more occurrence than the cap admits means the range was not
+            // evaluated, so the expansion refuses rather than returning a partial a caller cannot tell from a complete one.
+            if (result.Count == OccurrenceCap)
+                throw new RruleExpansionCapExceededException(
+                    recurrenceId: rrule,
+                    anchor: start,
+                    requestedRangeStart: earliest,
+                    requestedRangeEnd: rangeEnd,
+                    candidateLimit: OccurrenceCap,
+                    candidatesExamined: examined,
+                    lastEvaluatedOccurrence: lastEvaluated,
+                    bound: parsed.Until is not null ? RecurrenceBound.Until
+                        : parsed.Count is not null ? RecurrenceBound.Count
+                        : RecurrenceBound.None);
+            result.Add(date);
         }
 
         return result;
     }
-
-    // ----------------------------------------------------------------
-    // Occurrence matching
-    // ----------------------------------------------------------------
-
-    private static bool IsMatchingOccurrence(DateOnly date, DateOnly start, ParsedRrule parsed)
-    {
-        // BYMONTH filter
-        if (parsed.ByMonth.Count > 0 && !parsed.ByMonth.Contains(date.Month))
-            return false;
-
-        return parsed.Freq switch
-        {
-            "DAILY"   => IsMatchingDaily(date, start, parsed),
-            "WEEKLY"  => IsMatchingWeekly(date, start, parsed),
-            "MONTHLY" => IsMatchingMonthly(date, start, parsed),
-            "YEARLY"  => IsMatchingYearly(date, start, parsed),
-            _ => throw new NotSupportedException(
-                $"RRULE FREQ '{parsed.Freq}' is not supported. "
-                + "Supported: DAILY / WEEKLY / MONTHLY / YEARLY."),
-        };
-    }
-
-    private static bool IsMatchingDaily(DateOnly date, DateOnly start, ParsedRrule parsed)
-    {
-        // RFC 5545 §3.3.10: BYDAY and BYMONTHDAY limit DAILY. With a selector the cursor walks
-        // day by day, so INTERVAL is measured in elapsed days from the anchor here.
-        if ((date.DayNumber - start.DayNumber) % parsed.Interval != 0) return false;
-        if (parsed.ByDay.Count > 0 && !MatchesPlainWeekday(date, parsed)) return false;
-        return parsed.ByMonthDay.Count == 0 || parsed.ByMonthDay.Contains(date.Day);
-    }
-
-    private static bool IsMatchingWeekly(DateOnly date, DateOnly start, ParsedRrule parsed)
-    {
-        // With no BYDAY, every occurrence in the iteration is valid.
-        if (parsed.ByDay.Count == 0) return true;
-        var elapsedWeeks = (StartOfWeek(date).DayNumber - StartOfWeek(start).DayNumber) / 7;
-        if (elapsedWeeks % parsed.Interval != 0) return false;
-        // With BYDAY, the date's day-of-week must be in the set.
-        return MatchesPlainWeekday(date, parsed);
-    }
-
-    private static bool MatchesPlainWeekday(DateOnly date, ParsedRrule parsed)
-    {
-        var dow = ToDayOfWeekCode(date.DayOfWeek);
-        return parsed.ByDay.Any(bd => bd.Weekday == dow && bd.Ordinal == 0);
-    }
-
-    private static DateOnly StartOfWeek(DateOnly date)
-    {
-        // RFC 5545 defaults WKST to Monday. WKST itself is outside this bounded subset.
-        var daysSinceMonday = ((int)date.DayOfWeek + 6) % 7;
-        return date.AddDays(-daysSinceMonday);
-    }
-
-    private static bool IsMatchingMonthly(DateOnly date, DateOnly start, ParsedRrule parsed)
-    {
-        var elapsedMonths = ((date.Year - start.Year) * 12) + date.Month - start.Month;
-        if (elapsedMonths % parsed.Interval != 0) return false;
-
-        // BYDAY (plain or ordinal, e.g. 1MO, -1FR) and BYMONTHDAY intersect (RFC 5545 §3.3.10).
-        // With no BY* selector every monthly step from the anchor is valid.
-        if (parsed.ByDay.Count > 0 && !parsed.ByDay.Any(bd => MatchesByDay(date, bd))) return false;
-        return parsed.ByMonthDay.Count == 0 || parsed.ByMonthDay.Contains(date.Day);
-    }
-
-    private static bool IsMatchingYearly(DateOnly date, DateOnly start, ParsedRrule parsed)
-    {
-        // BYMONTH is applied by the caller. With a selector the cursor walks day by day and
-        // INTERVAL is measured in elapsed years from the anchor; without one it steps whole years.
-        if ((date.Year - start.Year) % parsed.Interval != 0) return false;
-        if (parsed.ByDay.Count > 0 && !parsed.ByDay.Any(bd => MatchesByDay(date, bd))) return false;
-        if (parsed.ByMonthDay.Count > 0) return parsed.ByMonthDay.Contains(date.Day);
-        // RFC 5545 §3.3.10: a part the rule does not carry is taken from DTSTART, so
-        // FREQ=YEARLY;BYMONTH=3 anchored on the 15th is every 15 March.
-        return parsed.ByDay.Count > 0 || date.Day == start.Day;
-    }
-
-    // ----------------------------------------------------------------
-    // BYDAY ordinal matching
-    // ----------------------------------------------------------------
-
-    private static bool MatchesByDay(DateOnly date, ByDayEntry bd)
-    {
-        var dow = ToDayOfWeekCode(date.DayOfWeek);
-        if (bd.Weekday != dow) return false;
-        if (bd.Ordinal == 0) return true; // plain weekday, every occurrence
-
-        // Positive ordinal: Nth weekday of the month.
-        if (bd.Ordinal > 0)
-        {
-            int occurrence = GetNthWeekdayOccurrenceInMonth(date);
-            return occurrence == bd.Ordinal;
-        }
-        // Negative ordinal: Nth-last weekday of the month.
-        // bd.Ordinal == -1 → last, -2 → second-last, etc.
-        int occurrenceFromEnd = GetNthLastWeekdayOccurrenceInMonth(date);
-        return occurrenceFromEnd == -bd.Ordinal;
-    }
-
-    /// <summary>
-    /// Returns how many times the given weekday has appeared in the month
-    /// up to and including <paramref name="date"/>
-    /// (e.g. the first Monday of the month → 1).
-    /// </summary>
-    private static int GetNthWeekdayOccurrenceInMonth(DateOnly date)
-    {
-        int count = 0;
-        for (int d = 1; d <= date.Day; d++)
-        {
-            if (new DateOnly(date.Year, date.Month, d).DayOfWeek == date.DayOfWeek)
-                count++;
-        }
-        return count;
-    }
-
-    /// <summary>
-    /// Returns how many times the given weekday appears in the month
-    /// counting backwards from the end of the month to <paramref name="date"/>
-    /// (e.g. the last Monday → 1, second-last Monday → 2).
-    /// </summary>
-    private static int GetNthLastWeekdayOccurrenceInMonth(DateOnly date)
-    {
-        int daysInMonth = DateTime.DaysInMonth(date.Year, date.Month);
-        int count = 0;
-        for (int d = daysInMonth; d >= date.Day; d--)
-        {
-            if (new DateOnly(date.Year, date.Month, d).DayOfWeek == date.DayOfWeek)
-                count++;
-        }
-        return count;
-    }
-
-    // ----------------------------------------------------------------
-    // Cursor advancement
-    // ----------------------------------------------------------------
-
-    private static DateOnly Advance(DateOnly cursor, ParsedRrule parsed)
-    {
-        // A selector means the matcher must see every day; the plain frequency jumps by INTERVAL.
-        var hasSelector = parsed.ByDay.Count > 0 || parsed.ByMonthDay.Count > 0;
-        return parsed.Freq switch
-        {
-            "DAILY"   => cursor.AddDays(hasSelector ? 1 : parsed.Interval),
-            "WEEKLY"  => AdvanceWeekly(cursor, parsed),
-            "MONTHLY" => AdvanceMonthly(cursor, parsed),
-            "YEARLY"  => hasSelector || parsed.ByMonth.Count > 0 ? cursor.AddDays(1) : cursor.AddYears(parsed.Interval),
-            _ => throw new NotSupportedException(
-                $"RRULE FREQ '{parsed.Freq}' is not supported."),
-        };
-    }
-
-    private static DateOnly AdvanceWeekly(DateOnly cursor, ParsedRrule parsed)
-    {
-        if (parsed.ByDay.Count == 0)
-            return cursor.AddDays(7 * parsed.Interval);
-
-        // BYDAY weekly: walk day-by-day within the week interval.
-        // The iteration cursor advances one day at a time; the outer
-        // loop calls Advance once per day until a matching day is found.
-        // This is the simplest correct approach — the outer loop stops at the
-        // horizon so a pathological BYDAY won't run away.
-        return cursor.AddDays(1);
-    }
-
-    private static DateOnly AdvanceMonthly(DateOnly cursor, ParsedRrule parsed)
-    {
-        if (parsed.ByDay.Count > 0 || parsed.ByMonthDay.Count > 0)
-        {
-            // BY* monthly: advance one day at a time; the outer loop
-            // matches via IsMatchingMonthly. Cap at 32 days per month to
-            // avoid iterating indefinitely if a BY* selector is pathological.
-            // The outer loop's horizon provides the hard outer bound.
-            return cursor.AddDays(1);
-        }
-        // Plain FREQ=MONTHLY: jump by interval months anchored to start day.
-        return cursor.AddMonths(parsed.Interval);
-    }
-
-    // ----------------------------------------------------------------
-    // RRULE parser
-    // ----------------------------------------------------------------
-
-    private static ParsedRrule ParseRrule(string rrule)
-    {
-        string? freq = null;
-        int interval = 1;
-        int? count = null;
-        DateOnly? until = null;
-        var byDay = new List<ByDayEntry>();
-        var byMonthDay = new List<int>();
-        var byMonth = new List<int>();
-
-        foreach (var token in rrule.Split(';',
-            StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
-        {
-            var eq = token.IndexOf('=');
-            if (eq < 0) continue;
-            var key = token[..eq].Trim().ToUpperInvariant();
-            var value = token[(eq + 1)..].Trim();
-
-            switch (key)
-            {
-                case "FREQ":
-                    freq = value.ToUpperInvariant();
-                    break;
-                // An admitted part whose value is out of bound or malformed is refused, not
-                // dropped: dropping it would expand a wider series than the author wrote.
-                case "INTERVAL":
-                    interval = ParseBounded(key, value, 1, int.MaxValue);
-                    break;
-                case "COUNT":
-                    count = ParseBounded(key, value, 1, int.MaxValue);
-                    break;
-                case "UNTIL":
-                    until = ParseUntilDate(value);
-                    break;
-                case "BYDAY":
-                    byDay.AddRange(ParseByDay(value));
-                    break;
-                case "BYMONTHDAY":
-                    byMonthDay.AddRange(ParseIntList(key, value, min: 1, max: 28));
-                    break;
-                case "BYMONTH":
-                    byMonth.AddRange(ParseIntList(key, value, min: 1, max: 12));
-                    break;
-                default:
-                    throw new NotSupportedException(
-                        $"RRULE component '{key}' is not supported by the bounded subset.");
-            }
-        }
-
-        if (freq is null)
-            throw new FormatException(
-                $"RRULE missing FREQ= component: '{rrule}'.");
-
-        // RFC 5545 §3.3.10 marks BYMONTHDAY not applicable under WEEKLY.
-        if (freq == "WEEKLY" && byMonthDay.Count > 0)
-            throw new NotSupportedException(
-                "RRULE component 'BYMONTHDAY' is not applicable with FREQ=WEEKLY.");
-
-        // COUNT and UNTIL are mutually exclusive; UNTIL wins per RFC 5545 §3.8.5.3.
-        if (until.HasValue) count = null;
-
-        return new ParsedRrule(freq, interval, count, until, byDay, byMonthDay, byMonth);
-    }
-
-    private static int ParseBounded(string key, string value, int min, int max)
-    {
-        if (int.TryParse(value, NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out var n)
-            && n >= min && n <= max)
-            return n;
-        throw new FormatException(
-            $"RRULE component '{key}' value '{value}' is not "
-            + (max == int.MaxValue ? "a positive integer." : $"an integer in {min}..{max}."));
-    }
-
-    private static DateOnly ParseUntilDate(string value)
-    {
-        // RFC 5545 UNTIL: YYYYMMDD (date) or YYYYMMDDTHHMMSSZ (datetime).
-        if (value.Length == 8 || (value.Length == 16 && value[8] == 'T' && value[15] == 'Z'))
-        {
-            if (DateOnly.TryParseExact(value[..8], "yyyyMMdd", CultureInfo.InvariantCulture,
-                    DateTimeStyles.None, out var date))
-                return date;
-        }
-        throw new FormatException(
-            $"RRULE component 'UNTIL' value '{value}' is not a YYYYMMDD or YYYYMMDDTHHMMSSZ date.");
-    }
-
-    private static readonly string[] WeekdayCodes = ["MO", "TU", "WE", "TH", "FR", "SA", "SU"];
-
-    private static IEnumerable<ByDayEntry> ParseByDay(string value)
-    {
-        foreach (var part in value.Split(',',
-            StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
-        {
-            // Patterns: "MO", "1MO", "-1FR", "2TU" etc. Last two chars are the weekday code.
-            var span = part.ToUpperInvariant();
-            var wdStr = span.Length >= 2 ? span[^2..] : span;
-            if (!WeekdayCodes.Contains(wdStr))
-                throw new FormatException(
-                    $"RRULE component 'BYDAY' entry '{part}' is not one of the seven weekday codes.");
-
-            var ordinalStr = span[..^2];
-            int ordinal = 0;
-            if (ordinalStr.Length > 0
-                && (!int.TryParse(ordinalStr, NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out ordinal)
-                    || ordinal == 0 || Math.Abs(ordinal) > 5))
-                throw new FormatException(
-                    $"RRULE component 'BYDAY' entry '{part}' ordinal is not in -5..-1 or 1..5.");
-
-            yield return new ByDayEntry(wdStr, ordinal);
-        }
-    }
-
-    private static IEnumerable<int> ParseIntList(string key, string value, int min, int max)
-    {
-        foreach (var part in value.Split(',',
-            StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
-            yield return ParseBounded(key, part, min, max);
-    }
-
-    private static string ToDayOfWeekCode(DayOfWeek dow) => dow switch
-    {
-        DayOfWeek.Monday    => "MO",
-        DayOfWeek.Tuesday   => "TU",
-        DayOfWeek.Wednesday => "WE",
-        DayOfWeek.Thursday  => "TH",
-        DayOfWeek.Friday    => "FR",
-        DayOfWeek.Saturday  => "SA",
-        DayOfWeek.Sunday    => "SU",
-        _ => throw new ArgumentOutOfRangeException(nameof(dow)),
-    };
-
-    // ----------------------------------------------------------------
-    // Internal model
-    // ----------------------------------------------------------------
-
-    private sealed record ParsedRrule(
-        string Freq,
-        int Interval,
-        int? Count,
-        DateOnly? Until,
-        IReadOnlyList<ByDayEntry> ByDay,
-        IReadOnlyList<int> ByMonthDay,
-        IReadOnlyList<int> ByMonth);
-
-    private sealed record ByDayEntry(string Weekday, int Ordinal);
 }

@@ -16,4 +16,8 @@
   <ItemGroup>
     <ProjectReference Include="../hlp.foundation.scheduling/Harborline.Foundation.Scheduling.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <!-- T-1175: the differential corpus, recorded from python-dateutil and libical (Corpus/*.py say how). -->
+    <None Include="Corpus/*.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>

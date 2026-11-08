@@ -64,17 +64,20 @@ public sealed class AvailabilityExpansionService : IAvailabilityExpansionService
 
         foreach (var window in availability.Windows)
         {
+            // A window is a timed series anchored at its local start time, so a UTC UNTIL bounds it at
+            // that instant (RFC 5545 §3.3.10; ADR-0122 decision 3).
             IEnumerable<DateOnly> dates = window.IsRecurring
-                ? _rrule.ExpandOccurrences(
+                ? _rrule.ExpandZonedOccurrences(
                     rrule:         window.Rrule!,
                     start:         window.AnchorDate,
+                    startTime:     window.StartTime,
+                    timezone:      TimezoneResolver.IanaId(tz),
                     end:           localWindowEnd,
                     lookaheadDays: 0,
                     leadDays:      0,
                     // The producer caps emitted occurrences at 1 000: emit from the window start,
                     // not the anchor, or a series older than the cap is empty here (T-653).
-                    today:         localWindowStart,
-                    timezone:      availability.Timezone)
+                    today:         localWindowStart)
                 // A single (non-recurring) window applies only on its anchor date.
                 : (window.AnchorDate >= localWindowStart && window.AnchorDate <= localWindowEnd
                     ? new[] { window.AnchorDate }

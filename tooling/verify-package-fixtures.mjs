@@ -969,6 +969,8 @@ function verifyNuget() {
     ['jsonpointer.net', '7.0.4'],
     ['json.more.net', '3.0.1'],
     ['humanizer.core', '3.0.10'],
+    ['ical.net', /Include="Ical\.Net" Version="([^"]+)"/.exec(readFileSync(resolve(root, 'Directory.Packages.props'), 'utf8'))[1]],
+    ['nodatime', /Include="NodaTime" Version="([^"]+)"/.exec(readFileSync(resolve(root, 'Directory.Packages.props'), 'utf8'))[1]],
     ['microsoft.extensions.dependencyinjection.abstractions', '10.0.10'],
     ['microsoft.extensions.dependencyinjection', '10.0.10'],
     ['microsoft.extensions.logging.abstractions', '10.0.10'],
