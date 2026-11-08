@@ -987,6 +987,163 @@ public sealed class FormAcceptedRecordCommandTests
     }
 
     // The one terminal or quarantining transition's audit envelope beside the acceptance audit (review M1, R2-M1).
+    // ---- ADR-0110 open item 6: a revocation that is not ordinary (the owner's ruling, 2026-11-07) -----------------------
+    // Oracles: the ruling's text (refuse before the fence, the result stands after it, ordinary revocations keep decision 3)
+    // and literal instants either side of the claim, which the fixed clock puts at Now.
+
+    [Theory(DisplayName = "Open item 6: a compromise or tenant suspension at or before the claim refuses the command, audited, with no Records effect")]
+    [InlineData(FormAcceptedCommandRevocationReason.Compromise, -1, "records.command.revoked_compromise")]
+    [InlineData(FormAcceptedCommandRevocationReason.Compromise, 0, "records.command.revoked_compromise")]
+    [InlineData(FormAcceptedCommandRevocationReason.TenantSuspension, -1, "records.command.revoked_tenant_suspension")]
+    public async Task NonOrdinaryRevocationBeforeTheClaimRefusesTheCommand(FormAcceptedCommandRevocationReason reason, int minutes, string code)
+    {
+        var state = await AcceptedAsync();
+        var sink = new RevokingSink();
+        sink.Revocations.Add(new(reason, Now.AddMinutes(minutes)));
+        var worker = await RevokingWorkerAsync(state, sink);
+
+        await worker.Engine.RecoverProjectionsAsync(10);
+        var again = await worker.Engine.RecoverProjectionsAsync(10);
+
+        Assert.Equal(new FormProjectionRecoveryResult(0, 0, 0), again);
+        Assert.Empty(sink.Records.Executions);
+        Assert.Empty(sink.Records.Records);
+        var refused = Assert.Single(state.Commands.Values).Command;
+        Assert.Equal(FormAcceptedCommandState.Refused, refused.State);
+        Assert.Equal(code, refused.RefusalCode);
+        Assert.Equal(FormProjectionStatus.Refused, Assert.Single(state.Idempotency.Values).Receipt.ProjectionStatus);
+        var query = Assert.Single(sink.Queries);
+        Assert.Equal("alice", query.SubmitterId);
+        Assert.Equal("tenant-engine", query.Tenant.Value);
+        AssertTerminalAudit(state, "accepted-command-refused", Worker, code, afterClaim: true);
+    }
+
+    [Fact(DisplayName = "Open item 6: an earlier ordinary revocation does not mask a later compromise before the claim; the command is refused")]
+    public async Task EarlierOrdinaryRevocationDoesNotMaskACompromise()
+    {
+        var state = await AcceptedAsync();
+        var sink = new RevokingSink();
+        sink.Revocations.Add(new(FormAcceptedCommandRevocationReason.Ordinary, Now.AddMinutes(-2)));
+        sink.Revocations.Add(new(FormAcceptedCommandRevocationReason.Compromise, Now.AddMinutes(-1)));
+        var worker = await RevokingWorkerAsync(state, sink);
+
+        await worker.Engine.RecoverProjectionsAsync(10);
+
+        Assert.Empty(sink.Records.Records);
+        var refused = Assert.Single(state.Commands.Values).Command;
+        Assert.Equal(FormAcceptedCommandState.Refused, refused.State);
+        Assert.Equal("records.command.revoked_compromise", refused.RefusalCode);
+    }
+
+    [Fact(DisplayName = "Open item 6 and decision 3: an ordinary revocation before the claim does not refuse; the command completes")]
+    public async Task OrdinaryRevocationBeforeTheClaimStillCompletes()
+    {
+        var state = await AcceptedAsync();
+        var sink = new RevokingSink();
+        sink.Revocations.Add(new(FormAcceptedCommandRevocationReason.Ordinary, Now.AddMinutes(-1)));
+        var worker = await RevokingWorkerAsync(state, sink);
+
+        var recovered = await worker.Engine.RecoverProjectionsAsync(10);
+
+        Assert.Equal(new FormProjectionRecoveryResult(1, 1, 0), recovered);
+        Assert.Single(sink.Records.Records);
+        Assert.Equal(FormAcceptedCommandState.Completed, Assert.Single(state.Commands.Values).Command.State);
+    }
+
+    [Theory(DisplayName = "Open item 6: a compromise or tenant suspension after the claim leaves the command to run, and its result stands")]
+    [InlineData(FormAcceptedCommandRevocationReason.Compromise)]
+    [InlineData(FormAcceptedCommandRevocationReason.TenantSuspension)]
+    public async Task NonOrdinaryRevocationAfterTheClaimDoesNotRefuse(FormAcceptedCommandRevocationReason reason)
+    {
+        var state = await AcceptedAsync();
+        var sink = new RevokingSink();
+        sink.Revocations.Add(new(reason, Now.AddTicks(1)));
+        var worker = await RevokingWorkerAsync(state, sink);
+
+        var recovered = await worker.Engine.RecoverProjectionsAsync(10);
+
+        Assert.Equal(new FormProjectionRecoveryResult(1, 1, 0), recovered);
+        Assert.Single(sink.Records.Records);
+        Assert.Equal(FormAcceptedCommandState.Completed, Assert.Single(state.Commands.Values).Command.State);
+    }
+
+    [Fact(DisplayName = "Open item 6: a resumed claim is never refused for a revocation, since its interrupted run may have committed; it is quarantined, audited, and the record stands")]
+    public async Task RevocationFoundOnAResumedClaimQuarantinesAndTheRecordStands()
+    {
+        var sink = new RevokingSink();
+        sink.Records.FailuresAfterEffect = 1;
+        var harness = await RevokingWorkerAsync(new InMemoryFormSubmissionState(), sink, actorId: "alice");
+        using var ada = JsonDocument.Parse("""{"name":"Ada"}""");
+        await harness.Engine.SubmitAsync(new(harness.Definition.Id, ada, "op-1"));
+        sink.Revocations.Add(new(FormAcceptedCommandRevocationReason.Compromise, Now.AddMinutes(-1)));
+
+        await harness.Engine.RecoverProjectionsAsync(10);
+
+        var quarantined = Assert.Single(harness.State.Commands.Values).Command;
+        Assert.Equal(FormAcceptedCommandState.Quarantined, quarantined.State);
+        Assert.Equal("records.command.revoked_compromise", quarantined.RefusalCode);
+        Assert.Single(sink.Records.Records);
+        Assert.Single(sink.Records.Executions);
+        AssertTerminalAudit(harness.State, "accepted-command-quarantined", Worker, "records.command.revoked_compromise", afterClaim: true);
+    }
+
+    [Fact(DisplayName = "Open item 6: a failing revocation lookup executes nothing and leaves the command claimed and pending")]
+    public async Task FailingRevocationLookupLeavesTheCommandPending()
+    {
+        var state = await AcceptedAsync();
+        var sink = new RevokingSink { FailLookup = true };
+        var worker = await RevokingWorkerAsync(state, sink);
+
+        var recovered = await worker.Engine.RecoverProjectionsAsync(10);
+
+        Assert.Equal(new FormProjectionRecoveryResult(1, 0, 1), recovered);
+        Assert.Empty(sink.Records.Executions);
+        Assert.Equal(FormAcceptedCommandState.Claimed, Assert.Single(state.Commands.Values).Command.State);
+    }
+
+    // One accepted, unexecuted command of alice's in a fresh state.
+    private static async Task<InMemoryFormSubmissionState> AcceptedAsync()
+    {
+        var state = new InMemoryFormSubmissionState();
+        var submitter = await AcceptingAsync(state: state);
+        using var ada = JsonDocument.Parse("""{"name":"Ada"}""");
+        await submitter.Engine.SubmitAsync(new(submitter.Definition.Id, ada, "op-1"));
+        return state;
+    }
+
+    // AcceptingAsync with the configured worker and a sink that also answers the host's revocation lookup.
+    private static Task<Harness> RevokingWorkerAsync(InMemoryFormSubmissionState state, RevokingSink sink, string actorId = "sys.forms-recovery") =>
+        Harness.CreateAsync(state: state, definitionFactory: Targeted, submitGates: Port(new Decider()),
+            recordTypePolicies: new FormOnlyReader(), projectionSink: sink,
+            options: new FormEngineOptions { AcceptedCommandWorkerId = Worker }, actorId: actorId);
+
+    // The host's sink with its revocation record (ADR-0110 open item 6): the revocations are literal test state.
+    private sealed class RevokingSink : IFormProjectionSink, IFormAcceptedRecordBodies, IFormAcceptedCommandRevocations
+    {
+        public RecordsSink Records { get; } = new();
+        public List<FormAcceptedCommandRevocation> Revocations { get; } = [];
+        public List<FormAcceptedCommandRevocationQuery> Queries { get; } = [];
+        public bool FailLookup { get; set; }
+        public bool ExecutesAcceptedCommands => true;
+
+        public ValueTask<FormProjectionDeliveryResult> DeliverAsync(FormProjectionEnvelope envelope, CancellationToken cancellationToken = default) =>
+            Records.DeliverAsync(envelope, cancellationToken);
+
+        public ValueTask<FormProjectionDeliveryResult> DeliverAcceptedAsync(FormAcceptedCommandDelivery delivery, CancellationToken cancellationToken = default) =>
+            Records.DeliverAcceptedAsync(delivery, cancellationToken);
+
+        public ValueTask<FormAcceptedRecordBodyDigest> DigestAsync(FormAcceptedRecordBodyRequest request, CancellationToken cancellationToken = default) =>
+            Records.DigestAsync(request, cancellationToken);
+
+        public ValueTask<IReadOnlyList<FormAcceptedCommandRevocation>> FindAsync(FormAcceptedCommandRevocationQuery query, CancellationToken cancellationToken = default)
+        {
+            Queries.Add(query);
+            return FailLookup
+                ? ValueTask.FromException<IReadOnlyList<FormAcceptedCommandRevocation>>(new IOException("revocations unavailable"))
+                : ValueTask.FromResult<IReadOnlyList<FormAcceptedCommandRevocation>>([.. Revocations]);
+        }
+    }
+
     private static void AssertTerminalAudit(InMemoryFormSubmissionState state, string operation, string actor, string code, bool afterClaim)
     {
         var audit = Assert.Single(state.Audits.Values, envelope => JsonNode.Parse(envelope.Payload.Span)!["op"]?.GetValue<string>() == operation);

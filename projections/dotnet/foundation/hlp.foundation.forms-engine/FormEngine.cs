@@ -35,6 +35,7 @@ public sealed class FormEngine : IFormEngine
     private readonly Harborline.Foundation.Forms.IFormRecordTypePolicyReader? _recordTypePolicies;
     private readonly Harborline.Foundation.Forms.IFormRecordCreationDeclarations? _recordCreations;
     private readonly IFormAcceptedRecordBodies? _recordBodies;
+    private readonly IFormAcceptedCommandRevocations? _revocations;
 
     /// <summary>
     /// Creates an engine with the providers required to authorize, evaluate, protect, persist, and project forms.
@@ -63,9 +64,11 @@ public sealed class FormEngine : IFormEngine
         IFormSubmitGateAccess? submitGates = null,
         Harborline.Foundation.Forms.IFormRecordTypePolicyReader? recordTypePolicies = null,
         Harborline.Foundation.Forms.IFormRecordCreationDeclarations? recordCreations = null,
-        IFormAcceptedRecordBodies? recordBodies = null)
+        IFormAcceptedRecordBodies? recordBodies = null,
+        IFormAcceptedCommandRevocations? revocations = null)
     {
         _recordBodies = recordBodies ?? projections as IFormAcceptedRecordBodies;
+        _revocations = revocations ?? projections as IFormAcceptedCommandRevocations;
         _submitGates = submitGates;
         _recordTypePolicies = recordTypePolicies;
         _recordCreations = Harborline.Foundation.Forms.RecordCreationDeclarations.Select(recordCreations, projections);
@@ -439,7 +442,7 @@ public sealed class FormEngine : IFormEngine
         : TimeoutException("The acceptance bound expired.", innerException);
 
     private FormAcceptedCommandExecution AcceptedExecution() =>
-        new(_submissions, _projections, _definitions, _clock, _options.AcceptedCommandBindingRetryLimit);
+        new(_submissions, _projections, _definitions, _clock, _options.AcceptedCommandBindingRetryLimit, _revocations);
 
     // Review M2: accepted commands execute only with a configured worker and a sink that declares it executes them.
     private bool CanExecuteAccepted => _options.AcceptedCommandWorkerId is not null && _projections.ExecutesAcceptedCommands;
