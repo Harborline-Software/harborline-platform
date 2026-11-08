@@ -147,10 +147,13 @@ public sealed class WorkflowWireRefusalTests
         Assert.Equal("unknown-type", Assert.Throws<WorkflowWireException>(() => WorkflowWire.Serialize("NotAWorkflowType", new object())).Code);
     }
 
-    [Fact(DisplayName = "T-892: a closed value outside its set is refused, and each member inside it is admitted")]
+    [Fact(DisplayName = "T-892: each frozen closed-value member is admitted, and a value outside the frozen set is refused")]
     public void ClosedValuesAreExact()
     {
-        foreach (var (type, members) in WorkflowContractSurface.ClosedValues)
+        // The oracle is the fixture's frozen closed.values case, never the production table WorkflowWire.Validate reads.
+        var frozen = FrozenClosedValues();
+        Assert.NotEmpty(frozen);
+        foreach (var (type, members) in frozen)
         {
             foreach (var member in members)
                 WorkflowWire.Validate(type, JsonDocument.Parse(JsonSerializer.Serialize(member)).RootElement);
@@ -158,6 +161,11 @@ public sealed class WorkflowWireRefusalTests
             Assert.Equal(("unknown-closed-value", type), Code(() => WorkflowWire.Validate(type, JsonDocument.Parse("1").RootElement)));
         }
     }
+
+    private static Dictionary<string, string[]> FrozenClosedValues() =>
+        Fixture["cases"]!.AsArray()
+            .Single(row => (string?)row!["operation"] == "closed.values")!["expected"]!.AsObject()
+            .ToDictionary(entry => entry.Key, entry => entry.Value!.AsArray().Select(member => (string)member!).ToArray(), StringComparer.Ordinal);
 
     private static (string, string) Code(Action act)
     {
@@ -186,7 +194,7 @@ public sealed class WorkflowWireRefusalTests
         return root;
     }
 
-    private static string FirstMember(string type) => WorkflowContractSurface.ClosedValues[type].First();
+    private static string FirstMember(string type) => FrozenClosedValues()[type].First();
 
     private static string Break(string id)
     {
