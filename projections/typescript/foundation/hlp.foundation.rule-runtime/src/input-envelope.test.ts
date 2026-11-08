@@ -168,10 +168,25 @@ describe('exact UTF-8 counts', () => {
     expectCountStringToExceed(value, exact - 1)
   })
 
-  it.each(codeUnitSamples)('bounds a member name by its exact UTF-8 length for %j', sample => {
+  it.each(codeUnitSamples.filter(sample => wellFormed(sample.repeat(3))))('bounds a member name by its exact UTF-8 length for %j', sample => {
     const tail = sample.repeat(3)
     const atCeiling = 'a'.repeat(INPUT_MAX_UTF8_BYTES - utf8Bytes(tail)) + tail
     expect(() => assertBoundedMemberName(atCeiling, 'name')).not.toThrow()
     expect(() => assertBoundedMemberName(`a${atCeiling}`, 'name')).toThrow(RangeError)
   })
+
+  // T-1143, the owner's ruling of 2026-11-07: a member name holding a lone surrogate is not I-JSON (RFC 7493 §2.1), so it
+  // is refused however short it is. It is a RangeError, as the byte ceiling is, so the graph refuses it with the same code.
+  it.each(codeUnitSamples.filter(sample => !wellFormed(sample.repeat(3))))('refuses a member name holding a lone surrogate for %j', sample => {
+    expect(() => assertBoundedMemberName(sample.repeat(3), 'name')).toThrow(new RangeError('name is not I-JSON: it holds a lone surrogate (RFC 7493 §2.1)'))
+  })
 })
+
+// Independent oracle for RFC 7493 §2.1: iterating a string by code point yields a lone surrogate as its own code point.
+function wellFormed(text: string): boolean {
+  for (const character of text) {
+    const point = character.codePointAt(0) ?? 0
+    if (point >= 0xd800 && point <= 0xdfff) return false
+  }
+  return true
+}
