@@ -1,3 +1,9 @@
+using System.Text.Json;
+
+using Harborline.Contracts.Authorization;
+using Harborline.Contracts.Workflow;
+using Harborline.Foundation.Definitions;
+
 namespace Harborline.Blocks.Workflow.Durable;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -70,6 +76,21 @@ public static class WorkflowAdmissionCodes
 
     /// <summary>Duplicate id within states / transitions / triggers / actions.</summary>
     public const string DuplicateId = "workflow.admission.duplicate_id";
+
+    /// <summary>A required role is outside the three vocabularies, unsealed in sys.roles, or unresolved (ADR 0041).</summary>
+    public const string UnknownRoleReference = "workflow.admission.unknown_role_reference";
+
+    /// <summary>A required standing is not a bare name, so it could state something other than a narrowing.</summary>
+    public const string InvalidStanding = "workflow.admission.invalid_standing";
+
+    /// <summary>A contract window is composed and the revision carries no envelope.</summary>
+    public const string EnvelopeRequired = "workflow.admission.envelope_required";
+
+    /// <summary>The envelope's identity, version or tenant does not name this revision.</summary>
+    public const string EnvelopeMismatch = "workflow.admission.envelope_mismatch";
+
+    /// <summary>The envelope's provenance, retention class or requirements are malformed.</summary>
+    public const string EnvelopeInvalid = "workflow.admission.envelope_invalid";
 }
 
 /// <summary>A single admission failure — a stable code + a human-readable message + the offending locator.</summary>
@@ -126,6 +147,8 @@ public sealed class WorkflowAdmissionValidator : IWorkflowAdmissionValidator
 {
     private readonly ICapabilityAuthorityRegistry _registry;
     private readonly IWorkflowEffectCatalog? _effectCatalog;
+    private readonly RoleVocabulary? _roleVocabulary;
+    private readonly DefinitionContractWindow? _contractWindow;
 
     /// <summary>Constructs the validator over the CANONICAL capability→authority registry (ADR 0143).</summary>
     public WorkflowAdmissionValidator()
@@ -152,9 +175,26 @@ public sealed class WorkflowAdmissionValidator : IWorkflowAdmissionValidator
     /// DurableWorkflowServiceCollectionExtensions) always supplies the real one.
     /// </summary>
     public WorkflowAdmissionValidator(ICapabilityAuthorityRegistry registry, IWorkflowEffectCatalog? effectCatalog)
+        : this(registry, effectCatalog, null, null)
+    {
+    }
+
+    /// <summary>
+    /// Constructs the full gate. A composed <paramref name="roleVocabulary"/> resolves platform and domain roles, as
+    /// Access owns them; sys.roles is sealed and checked either way. A composed <paramref name="contractWindow"/> makes
+    /// the envelope and its Contract mandatory (T-572). Without it an envelope that is present is still checked for
+    /// shape and identity, and a revision may declare none, which is what the lifecycle that stamps the contract relies on.
+    /// </summary>
+    public WorkflowAdmissionValidator(
+        ICapabilityAuthorityRegistry registry,
+        IWorkflowEffectCatalog? effectCatalog,
+        RoleVocabulary? roleVocabulary,
+        DefinitionContractWindow? contractWindow)
     {
         _registry = registry ?? throw new ArgumentNullException(nameof(registry));
         _effectCatalog = effectCatalog;
+        _roleVocabulary = roleVocabulary;
+        _contractWindow = contractWindow;
     }
 
     /// <inheritdoc />
@@ -178,6 +218,9 @@ public sealed class WorkflowAdmissionValidator : IWorkflowAdmissionValidator
         _ = BuildIdSet(definition.Actions.Select(a => a.Id), "action", v);
         var guardIds = new HashSet<string>(definition.GuardRuleIds);
 
+        // ── Envelope and gate references (workflows-ck-2, ck-15, auth-10, auth-11) ──
+        CheckEnvelope(definition, v);
+
         // ── Referential integrity ────────────────────────────────────────────
         if (!stateIds.Contains(definition.InitialState))
             v.Add(new(WorkflowAdmissionCodes.InitialStateMissing,
@@ -193,6 +236,7 @@ public sealed class WorkflowAdmissionValidator : IWorkflowAdmissionValidator
                 v.Add(Dangling($"transition '{t.Id}' trigger '{t.On}'", t.Id));
             if (t.Guard is { Length: > 0 } g && !guardIds.Contains(g))
                 v.Add(Dangling($"transition '{t.Id}' guard '{g}'", t.Id));
+            CheckGate($"transition '{t.Id}'", t.Id, t.RequiredRoles, t.RequiredStandings, v);
         }
 
         foreach (var a in definition.Actions)
@@ -208,6 +252,7 @@ public sealed class WorkflowAdmissionValidator : IWorkflowAdmissionValidator
                 v.Add(Dangling($"action '{a.Id}' OnTransition '{a.OnTransition}'", a.Id));
             if (a.Condition is { Length: > 0 } c && !guardIds.Contains(c))
                 v.Add(Dangling($"action '{a.Id}' condition '{c}'", a.Id));
+            CheckGate($"action '{a.Id}'", a.Id, a.RequiredRoles, a.RequiredStandings, v);
         }
 
         // ── Reachability (only meaningful once the initial state is valid) ────
@@ -292,6 +337,56 @@ public sealed class WorkflowAdmissionValidator : IWorkflowAdmissionValidator
 
         return v.Count == 0 ? WorkflowAdmissionResult.Valid : new WorkflowAdmissionResult { Violations = v };
     }
+
+    private void CheckEnvelope(WorkflowDefinition definition, List<WorkflowAdmissionViolation> v)
+    {
+        if (definition.Envelope is not { } envelope)
+        {
+            if (_contractWindow is not null)
+                v.Add(new(WorkflowAdmissionCodes.EnvelopeRequired, "the definition carries no envelope.", "/envelope"));
+            return;
+        }
+
+        if (envelope.Identity != definition.Key || envelope.Version != definition.Version || envelope.Tenant != definition.Tenant)
+            v.Add(new(WorkflowAdmissionCodes.EnvelopeMismatch, "the envelope does not name this definition.", "/envelope"));
+        if (envelope.Provenance is not { ValueKind: JsonValueKind.Object })
+            v.Add(new(WorkflowAdmissionCodes.EnvelopeInvalid, "the envelope provenance is not an object.", "/envelope/provenance"));
+        if (string.IsNullOrWhiteSpace(envelope.RetentionClass))
+            v.Add(new(WorkflowAdmissionCodes.EnvelopeInvalid, "the envelope retention class is blank.", "/envelope/retentionClass"));
+        if (envelope.Requires is null)
+        {
+            v.Add(new(WorkflowAdmissionCodes.EnvelopeInvalid, "the envelope requires list is missing.", "/envelope/requires"));
+        }
+        else
+        {
+            for (var index = 0; index < envelope.Requires.Count; index++)
+            {
+                if (string.IsNullOrWhiteSpace(envelope.Requires[index]?.Capability))
+                    v.Add(new(WorkflowAdmissionCodes.EnvelopeInvalid, "the envelope requirement names no capability.", $"/envelope/requires/{index}"));
+            }
+        }
+
+        if (_contractWindow?.Check(envelope.Contract, null) is { } refusal)
+            v.Add(new(refusal.Code, "the envelope contract is absent or outside the window.", refusal.Pointer));
+    }
+
+    private void CheckGate(
+        string owner,
+        string locator,
+        IReadOnlyList<RoleReference> roles,
+        IReadOnlyList<RecordStandingReference> standings,
+        List<WorkflowAdmissionViolation> v)
+    {
+        if (roles.Any(role => !RoleAdmits(role)))
+            v.Add(new(WorkflowAdmissionCodes.UnknownRoleReference, $"{owner} requires an unknown role.", locator));
+        if (standings.Any(standing => !WorkflowGateVocabulary.IsStandingName(standing?.Name)))
+            v.Add(new(WorkflowAdmissionCodes.InvalidStanding, $"{owner} requires a malformed standing.", locator));
+    }
+
+    private bool RoleAdmits(RoleReference role) =>
+        role is not null
+        && WorkflowGateVocabulary.IsAdmissibleRole(role)
+        && (role.Vocabulary == WorkflowGateVocabulary.SealedRoles || _roleVocabulary is null || _roleVocabulary.Resolve(role) is not null);
 
     /// <summary>
     /// Does this CP action's fire-point fail the "park before firing" property — i.e. can it fire WITHOUT

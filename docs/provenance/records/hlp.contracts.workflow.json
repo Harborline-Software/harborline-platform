@@ -2,18 +2,18 @@
   "moduleId": "hlp.contracts.workflow",
   "phase4Evidence": "specs/modules/contracts/hlp.contracts.workflow/interface.yaml",
   "sourceExtracted": true,
-  "sourceState": "Historical revision 1 extracted the Workflow authoring wire and capability admission boundary. Revision 3 retains that wire contract while maintained WorkflowContracts.cs and WorkflowSupport.cs borrow the shared Text and Serialization declarations inside the existing Contracts artifacts. The immutable authority resolver and human-gated CP firing fence remain; this provenance composition claims no new interpreter or runtime qualification.",
+  "sourceState": "Historical revision 1 extracted the Workflow authoring wire and capability admission boundary. Revision 3 retains that wire contract while maintained WorkflowContracts.cs and WorkflowSupport.cs borrow the shared Text and Serialization declarations inside the existing Contracts artifacts. The immutable authority resolver and human-gated CP firing fence remain; this provenance composition claims no new interpreter or runtime qualification. Revision 4 (T-488/platform-model-parity) adds the optional envelope, requiredStandings and the sealed sys.roles vocabulary to the wire and to both admission mirrors; the engine model runs the same fixtures.",
   "contentHashes": {
-    "conformance/hlp.contracts.workflow/fixtures.yaml": "718169526cc8ae6d43f5544210fc2d0de43c5c09238406cbfe251670281c7bf6",
-    "conformance/hlp.contracts.workflow/runners/run-shared.mjs": "17155635d309d968f1101292c6034e3439995e2a592752e81b473c265db2408e",
-    "projections/dotnet/contracts/hlp.contracts.identities.tests/WorkflowFixtureConformanceTests.cs": "450a2269fec12ad0e1bef4d8e2a8a1f05336ea3f402244b0451738627a7aab5e",
-    "projections/dotnet/contracts/hlp.contracts.identities/Workflow/WorkflowContracts.cs": "b8e7bff04ec8162675183e0dd4227dd62eef13230a7978c02eb665b34234a1ee",
-    "projections/dotnet/contracts/hlp.contracts.identities/Workflow/WorkflowSupport.cs": "315d696e03cd8627d8c6782778072d5c6e436023682c142eea382dd69c48e508",
-    "projections/typescript/contracts/hlp.contracts.forms/src/workflow-admission.ts": "7924d53f6027e4fa999a6ef87df0f6b7e744c24cfcdfd8bbb9a1345e8e6d2474",
-    "projections/typescript/contracts/hlp.contracts.forms/src/workflow-wire.ts": "2610a1d18ae012a3b30b775793e225c64af51534ae499f2b741e500889677e50",
-    "projections/typescript/contracts/hlp.contracts.forms/src/workflow.ts": "2a97d2482618804c3b417c916a7fb341ee860a3bbc1b73e9819172d634b30d1a",
-    "projections/typescript/contracts/hlp.contracts.forms/tests/workflow.test.mjs": "cc6452df734c70332f457c9c5210e5616bf539ce32d34def9cc779cec0b15020",
-    "specs/modules/contracts/hlp.contracts.workflow/interface.yaml": "9bdb0ab551774a98a243e926987ae115f4fb9bc3397b6e6b002465dd8775466b"
+    "conformance/hlp.contracts.workflow/fixtures.yaml": "d5eadb8248ee6818754e991327f2a1efdea9b593058d6fc5386d6683d89b9af6",
+    "conformance/hlp.contracts.workflow/runners/run-shared.mjs": "04d601f319c9ec0925520f4ddc68663572b6fe68613cc47e4fc059b15b7b47c4",
+    "projections/dotnet/contracts/hlp.contracts.identities.tests/WorkflowFixtureConformanceTests.cs": "0487c7babf322f38f2ef5914bbba5ffdcdcf4b90fd51f2bf74fb737d89af92dd",
+    "projections/dotnet/contracts/hlp.contracts.identities/Workflow/WorkflowContracts.cs": "7169b27c2f13b2f8743dbc3fbe87070e5eaf63122c56be28b0f662d2ab28cbc4",
+    "projections/dotnet/contracts/hlp.contracts.identities/Workflow/WorkflowSupport.cs": "5c5c491391c3269460e4528bb8d79b17a3ef97d4953242638bf825780f93184d",
+    "projections/typescript/contracts/hlp.contracts.forms/src/workflow-admission.ts": "324f04be38792ff4e820aab025ec733cbe29f3883b26abfd6119df3eacceb718",
+    "projections/typescript/contracts/hlp.contracts.forms/src/workflow-wire.ts": "14c8a70998fd5dc97201b80562bafe3ea2f9ced6c3422a8d24f716e0ef6cbbd9",
+    "projections/typescript/contracts/hlp.contracts.forms/src/workflow.ts": "fd9963b1ef488a31033643fed684777ab43040dd146672bd8f4e00ad32075f0e",
+    "projections/typescript/contracts/hlp.contracts.forms/tests/workflow.test.mjs": "f9191abe9b38ce09281ee48985bd23a483cdeb6232b015bbedf59b24f7b4dd06",
+    "specs/modules/contracts/hlp.contracts.workflow/interface.yaml": "5f3615f0aade5b5945924f5259c1e6aec22c27101ccf6b030856d53e9133e63c"
   },
   "nextGate": "Freeze and implement the caller-backed durable work-items boundary before the inspection-review vertical slice."
 }

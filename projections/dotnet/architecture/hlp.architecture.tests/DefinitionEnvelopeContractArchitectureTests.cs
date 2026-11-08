@@ -31,6 +31,7 @@ public sealed class DefinitionEnvelopeContractArchitectureTests
         "ReportDefinitionEnvelope",
         "RecordsDefinitionEnvelope",
         "ScheduleDefinitionEnvelope",
+        "WorkflowDefinitionEnvelope",
     ];
 
     [Fact]

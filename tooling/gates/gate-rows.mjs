@@ -29,6 +29,29 @@ export function createGateModel(platformRoot, designReviewOptions = {}) {
     ? read('docs/evidence/phase-4/gate.json')
     : null
 
+  // The scenarios the recorded gallery-gate actually scanned are the catalog as it stood in the gate's
+  // tested tree, not the working tree. A scenario added after the gate was recorded was never drawn
+  // or axe-scanned by it, so counting the working-tree catalog overstates the evidence (platform #424:
+  // six overlay scenarios merged after gate tree 7486f460 were reported as scanned). release-receipt
+  // requires testedTree to be a real object; when it is not readable here, nothing is counted.
+  const recordedTree = typeof gate?.subject?.testedTree === 'string' ? gate.subject.testedTree : null
+  const git = args => execFileSync('git', ['-C', platformRoot, ...args],
+    {encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], maxBuffer: 64 * 1024 * 1024})
+  let recordedTreeReadable
+  function recordedScenarioIds(moduleId) {
+    if (recordedTree === null) return null
+    if (recordedTreeReadable === undefined) {
+      try { git(['cat-file', '-e', `${recordedTree}^{tree}`]); recordedTreeReadable = true } catch { recordedTreeReadable = false }
+    }
+    if (!recordedTreeReadable) return null
+    try {
+      return new Set(JSON.parse(git(['show', `${recordedTree}:gallery/scenarios/${moduleId}.json`])).scenarios.map(s => s.id))
+    } catch {
+      // The tree is readable and this module had no catalog in it: the gate scanned none of its scenarios.
+      return new Set()
+    }
+  }
+
   function catalogFor(moduleId) {
     const path = `gallery/scenarios/${moduleId}.json`
     return existsSync(resolve(platformRoot, path)) ? read(path) : null
@@ -160,9 +183,19 @@ export function createGateModel(platformRoot, designReviewOptions = {}) {
     },
     {
       id: 'assertAccessible',
-      verdict: ctx => ctx.gallery
-        ? ['PASS', `axe-core over ${ctx.catalog?.scenarios.length ?? 0} scenarios x 2 lanes in gallery-gate`]
-        : ['UNBUILT', 'no recorded gallery-gate evidence'],
+      verdict: ctx => {
+        if (!ctx.gallery) return ['UNBUILT', 'no recorded gallery-gate evidence']
+        if (!ctx.recordedScenarios) {
+          return ['PARTIAL', "the recorded gallery-gate's tested tree is not readable here, so no scanned scenario can be counted"]
+        }
+        const current = (ctx.catalog?.scenarios ?? []).map(scenario => scenario.id)
+        const scanned = current.filter(id => ctx.recordedScenarios.has(id))
+        const unscanned = current.filter(id => !ctx.recordedScenarios.has(id))
+        return unscanned.length === 0
+          ? ['PASS', `axe-core over ${scanned.length} scenarios x 2 lanes in gallery-gate`]
+          : ['PARTIAL', `axe-core over ${scanned.length} scenarios x 2 lanes in the recorded gallery-gate; `
+            + `${unscanned.length} added since it was recorded are unscanned until it is re-recorded: ${unscanned.join(', ')}`]
+      },
     },
     {
       id: 'assertVisualParity',
@@ -361,6 +394,7 @@ export function createGateModel(platformRoot, designReviewOptions = {}) {
       qualityProfile: profileFor(moduleId),
       conformanceCases: existsSync(resolve(platformRoot, fixturePath)) ? read(fixturePath).cases.length : 0,
       gallery: Boolean(gate?.results?.find(r => r.id === 'gallery-gate')?.passed),
+      recordedScenarios: recordedScenarioIds(moduleId),
       determinism: scannerRows('scan-scenario-determinism.mjs', moduleId),
       focus: (scannerRows('scan-focus-quality.mjs', moduleId) ?? [])[0] ?? null,
       tokens: tokenSummary(moduleId),

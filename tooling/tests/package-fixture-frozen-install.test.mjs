@@ -583,7 +583,7 @@ test('the actual Workflows renderer copies the admitted baseline and unchanged e
       for (const file of ['package.json', 'pnpm-lock.yaml', 'pnpm-workspace.yaml']) {
         assert.deepEqual(readFileSync(resolve(state.consumer, file)), readFileSync(resolve(contractsFixture, file)))
       }
-      assert.equal(createHash('sha256').update(readFileSync(resolve(state.consumer, 'exercise.mjs'))).digest('hex'), '4cac9e17c5259f2b6e1422ce28394a8d209275aaaa9f5320d1f189e875fca6ec')
+      assert.equal(createHash('sha256').update(readFileSync(resolve(state.consumer, 'exercise.mjs'))).digest('hex'), 'd74323875197596f8c47785bc8d97679f01c22ca2a5a195842865eccc5ef688f')
       assert.equal(createHash('sha256').update(readFileSync(resolve(state.consumer, 'admission-mirror-cases.json'))).digest('hex'), 'bebe7d8774fb01a8cbc75cc37ebf37be905416d08c3ba2fa8b971970c2da2048')
     }
     return ordinaryRun(...args)

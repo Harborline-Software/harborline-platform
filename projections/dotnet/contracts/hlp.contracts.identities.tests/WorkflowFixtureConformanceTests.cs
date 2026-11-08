@@ -45,16 +45,22 @@ public sealed class WorkflowFixtureConformanceTests
             }
 
             var node = JsonNode.Parse(input)!.AsObject();
-            ApplyMutation(node, row);
+            ApplyMutation(node, row, root);
             var definition = (WorkflowDefinition)WorkflowWire.Deserialize("WorkflowDefinition", node.ToJsonString());
-            var result = WorkflowAdmissionValidator.Validate(definition, resolver, roleVocabulary);
+            var window = row.TryGetProperty("window", out _) ? JsonSerializer.Deserialize<WorkflowContractWindow>(root.GetProperty("contractWindow").GetRawText(), new JsonSerializerOptions(JsonSerializerDefaults.Web)) : null;
+            var result = WorkflowAdmissionValidator.Validate(definition, resolver, roleVocabulary, window);
             var expectedResult = row.GetProperty("expected");
             Assert.Equal(expectedResult.GetProperty("isValid").GetBoolean(), result.IsValid);
-            foreach (var code in expectedResult.GetProperty("codes").EnumerateArray().Select(value => value.GetString()!))
-                Assert.Contains(result.Violations, violation => violation.Code == code);
+            // The exact distinct code set, as the TypeScript projection asserts: an extra violation fails too.
+            var expectedCodes = expectedResult.GetProperty("codes").EnumerateArray().Select(value => value.GetString()!)
+                .Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray();
+            var actualCodes = result.Violations.Select(violation => violation.Code)
+                .Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray();
+            Assert.True(expectedCodes.SequenceEqual(actualCodes, StringComparer.Ordinal),
+                $"{row.GetProperty("id").GetString()}: expected [{string.Join(", ", expectedCodes)}], got [{string.Join(", ", actualCodes)}]");
         }
 
-        Assert.Equal(19, cases.Length);
+        Assert.Equal(52, cases.Length);
         Assert.Equal(ActionClassification.CP, resolver.AuthorityOf("unregistered.capability"));
         Assert.Throws<ArgumentOutOfRangeException>(() => new ImmutableWorkflowAuthorityResolver(
             new Dictionary<string, ActionClassification> { ["invalid"] = (ActionClassification)99 }));
@@ -83,7 +89,7 @@ public sealed class WorkflowFixtureConformanceTests
         Assert.True(JsonNode.DeepEquals(expected, actual), $"{row.GetProperty("id").GetString()} expected {expected} but received {actual}");
     }
 
-    private static void ApplyMutation(JsonObject definition, JsonElement row)
+    private static void ApplyMutation(JsonObject definition, JsonElement row, JsonElement root)
     {
         if (!row.TryGetProperty("mutation", out var mutation)) return;
         var action = definition["actions"]!.AsArray()[0]!.AsObject();
@@ -101,6 +107,20 @@ public sealed class WorkflowFixtureConformanceTests
             action["requiredRoles"] = new JsonArray(new JsonObject { ["vocabulary"] = "tax.roles", ["name"] = "Missing" });
         if (mutation.TryGetProperty("unknownTransitionRole", out _))
             transition["requiredRoles"] = new JsonArray(new JsonObject { ["vocabulary"] = "tax.roles", ["name"] = "Missing" });
+        if (mutation.TryGetProperty("envelope", out _)) definition["envelope"] = JsonNode.Parse(root.GetProperty("envelope").GetRawText());
+        var envelope = definition["envelope"]?.AsObject();
+        if (mutation.TryGetProperty("envelopeContract", out var contract))
+        {
+            if (contract.ValueKind == JsonValueKind.Null) envelope!.Remove("contract");
+            else envelope!["contract"] = JsonNode.Parse(contract.GetRawText());
+        }
+        if (mutation.TryGetProperty("envelopeIdentity", out var identity)) envelope!["identity"] = identity.GetString();
+        if (mutation.TryGetProperty("envelopeRetentionClass", out var retention)) envelope!["retentionClass"] = retention.GetString();
+        if (mutation.TryGetProperty("envelopeRequirement", out var requirement)) envelope!["requires"] = new JsonArray(new JsonObject { ["capability"] = requirement.GetString() });
+        if (mutation.TryGetProperty("transitionRole", out var transitionRole)) transition["requiredRoles"] = new JsonArray(JsonNode.Parse(transitionRole.GetRawText()));
+        if (mutation.TryGetProperty("actionRole", out var actionRole)) action["requiredRoles"] = new JsonArray(JsonNode.Parse(actionRole.GetRawText()));
+        if (mutation.TryGetProperty("transitionStanding", out var transitionStanding)) transition["requiredStandings"] = new JsonArray(new JsonObject { ["name"] = transitionStanding.GetString() });
+        if (mutation.TryGetProperty("actionStanding", out var actionStanding)) action["requiredStandings"] = new JsonArray(new JsonObject { ["name"] = actionStanding.GetString() });
     }
 
     private static string FindFixture()

@@ -20,6 +20,16 @@ public enum WorkflowDefinitionStatus
     [JsonStringEnumMemberName("Withdrawn")] Withdrawn,
 }
 
+[JsonConverter(typeof(ClosedEnumJsonConverter<WorkflowCascadeLayer>))]
+public enum WorkflowCascadeLayer
+{
+    [JsonStringEnumMemberName("KernelCore")] KernelCore,
+    [JsonStringEnumMemberName("Subsystem")] Subsystem,
+    [JsonStringEnumMemberName("PlatformPackage")] PlatformPackage,
+    [JsonStringEnumMemberName("DomainPackage")] DomainPackage,
+    [JsonStringEnumMemberName("TenantConfiguration")] TenantConfiguration,
+}
+
 [JsonConverter(typeof(ClosedEnumJsonConverter<WorkflowMutability>))]
 public enum WorkflowMutability
 {
@@ -99,6 +109,8 @@ public sealed record WorkflowTransition
     public Optional<GuardRef> Guard { get; init; }
     [JsonPropertyName("requiredRoles"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public Optional<IReadOnlyList<RoleReference>> RequiredRoles { get; init; }
+    [JsonPropertyName("requiredStandings"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public Optional<IReadOnlyList<RecordStandingReference>> RequiredStandings { get; init; }
 }
 
 public sealed record WorkflowTriggerBinding
@@ -125,6 +137,7 @@ public sealed record WorkflowActionBinding
     [JsonPropertyName("classification"), JsonRequired] public required ActionClassification Classification { get; init; }
     [JsonPropertyName("condition"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public Optional<GuardRef> Condition { get; init; }
     [JsonPropertyName("requiredRoles"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public Optional<IReadOnlyList<RoleReference>> RequiredRoles { get; init; }
+    [JsonPropertyName("requiredStandings"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public Optional<IReadOnlyList<RecordStandingReference>> RequiredStandings { get; init; }
     [JsonPropertyName("params"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public Optional<WorkflowEffectParams> Params { get; init; }
 }
 
@@ -140,8 +153,41 @@ public sealed record FormDefinitionRef
     [JsonPropertyName("version"), JsonRequired] public required string Version { get; init; }
 }
 
+/// <summary>A definition's declared application-contract version on the wire.</summary>
+public sealed record WorkflowContractVersion
+{
+    [JsonPropertyName("major"), JsonRequired] public required int Major { get; init; }
+    [JsonPropertyName("minor"), JsonRequired] public required int Minor { get; init; }
+}
+
+/// <summary>A platform capability the envelope requires.</summary>
+public sealed record WorkflowEnvelopeRequirement
+{
+    [JsonPropertyName("capability"), JsonRequired] public required string Capability { get; init; }
+}
+
+/// <summary>
+/// The workflow control envelope on the wire (DES-0019 workflows-ck-2, ADR 0006). Named without the
+/// *DefinitionEnvelope suffix on purpose: that fence demands Foundation.Definitions' contract type, which
+/// the dependency-free Contracts artifact cannot name. The engine's typed WorkflowDefinitionEnvelope carries it.
+/// A missing contract survives the read so that admission, not the reader, gives the one stable refusal.
+/// </summary>
+public sealed record WorkflowEnvelope
+{
+    [JsonPropertyName("identity"), JsonRequired] public required string Identity { get; init; }
+    [JsonPropertyName("version"), JsonRequired] public required string Version { get; init; }
+    [JsonPropertyName("tenant"), JsonRequired] public required string Tenant { get; init; }
+    [JsonPropertyName("cascadeLayer"), JsonRequired] public required WorkflowCascadeLayer CascadeLayer { get; init; }
+    [JsonPropertyName("provenance"), JsonRequired] public required JsonElement Provenance { get; init; }
+    [JsonPropertyName("retentionClass"), JsonRequired] public required string RetentionClass { get; init; }
+    [JsonPropertyName("legalHold"), JsonRequired] public required bool LegalHold { get; init; }
+    [JsonPropertyName("requires"), JsonRequired] public required IReadOnlyList<WorkflowEnvelopeRequirement> Requires { get; init; }
+    [JsonPropertyName("contract"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public Optional<WorkflowContractVersion> Contract { get; init; }
+}
+
 public sealed record WorkflowDefinition
 {
+    [JsonPropertyName("envelope"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public Optional<WorkflowEnvelope> Envelope { get; init; }
     [JsonPropertyName("key"), JsonRequired] public required string Key { get; init; }
     [JsonPropertyName("version"), JsonRequired] public required string Version { get; init; }
     [JsonPropertyName("status"), JsonRequired] public required WorkflowDefinitionStatus Status { get; init; }

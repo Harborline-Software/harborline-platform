@@ -20,8 +20,8 @@
  * it reasons over the state/transition/trigger/action graph, never over runtime data.
  */
 
-import type { RoleVocabulary } from './authorization.js'
-import type { ActionClassification, WorkflowDefinition } from './workflow.js'
+import type { RecordStandingReference, RoleVocabulary } from './authorization.js'
+import type { ActionClassification, WorkflowContractVersion, WorkflowDefinition, WorkflowGateRole } from './workflow.js'
 
 /** Stable, locale-independent admission-violation codes (mirror WorkflowAdmissionCodes.cs). */
 export const WORKFLOW_ADMISSION_CODES = {
@@ -37,6 +37,12 @@ export const WORKFLOW_ADMISSION_CODES = {
   actionBindingInvalid: 'workflow.admission.action_binding_invalid',
   duplicateId: 'workflow.admission.duplicate_id',
   unknownRoleReference: 'workflow.admission.unknown_role_reference',
+  invalidStanding: 'workflow.admission.invalid_standing',
+  envelopeRequired: 'workflow.admission.envelope_required',
+  envelopeMismatch: 'workflow.admission.envelope_mismatch',
+  envelopeInvalid: 'workflow.admission.envelope_invalid',
+  contractMissing: 'definition.contract.missing',
+  contractOutOfWindow: 'definition.contract.out_of_window',
 } as const
 
 export type WorkflowAdmissionCode =
@@ -52,6 +58,41 @@ export interface WorkflowAdmissionViolation {
 export interface WorkflowAdmissionResult {
   isValid: boolean
   violations: WorkflowAdmissionViolation[]
+}
+
+/** The application-contract version and the oldest major release it admits (DefinitionContractWindow's mirror). */
+export interface WorkflowContractWindow {
+  major: number
+  minor: number
+  oldestMajor: number
+}
+
+/** The sealed record-relative vocabulary (ADR 0041, DES-0019 workflows-ck-15). */
+export const WORKFLOW_SEALED_ROLES = Object.freeze({
+  vocabulary: 'sys.roles',
+  names: Object.freeze(['Anyone', 'Author', 'Reviewer', 'Approver']),
+})
+
+const KNOWN_ROLE_VOCABULARIES: readonly string[] = [WORKFLOW_SEALED_ROLES.vocabulary, 'sys.platform-roles', 'tax.roles']
+
+function roleAdmits(role: WorkflowGateRole, roleVocabulary?: RoleVocabulary): boolean {
+  if (!KNOWN_ROLE_VOCABULARIES.includes(role.vocabulary) || role.name.trim() === '') return false
+  if (role.vocabulary === 'sys.roles') return WORKFLOW_SEALED_ROLES.names.includes(role.name)
+  return roleVocabulary === undefined || roleVocabulary.resolve(role) !== undefined
+}
+
+/** A bare name only: standings every one of which must hold can narrow and nothing else. */
+function isStandingName(standing: RecordStandingReference): boolean {
+  return /^[A-Za-z][A-Za-z0-9._-]*$/.test(standing.name)
+}
+
+function contractRefusal(declared: WorkflowContractVersion | undefined, window: WorkflowContractWindow): WorkflowAdmissionCode | undefined {
+  if (declared === undefined || declared.major < 0 || declared.minor < 0) return WORKFLOW_ADMISSION_CODES.contractMissing
+  const outside = declared.major > window.major
+    || declared.major < window.oldestMajor
+    || (declared.major === window.major && declared.minor > window.minor)
+    || (window.major === 0 && declared.major === 0 && declared.minor !== window.minor)
+  return outside ? WORKFLOW_ADMISSION_CODES.contractOutOfWindow : undefined
 }
 
 /** BFS over the state graph from the initial state, traversing ALL transitions. */
@@ -94,10 +135,30 @@ export function validateWorkflowAdmission(
   def: WorkflowDefinition,
   authorityResolver: WorkflowAuthorityResolver,
   roleVocabulary?: RoleVocabulary,
+  contractWindow?: WorkflowContractWindow,
 ): WorkflowAdmissionResult {
   const v: WorkflowAdmissionViolation[] = []
   const add = (code: WorkflowAdmissionCode, message: string, locator: string) =>
     v.push({ code, message, locator })
+
+  // -- envelope --
+  if (def.envelope === undefined) {
+    if (contractWindow) add(WORKFLOW_ADMISSION_CODES.envelopeRequired, 'definition carries no envelope.', '/envelope')
+  } else {
+    const envelope = def.envelope
+    if (envelope.identity !== def.key || envelope.version !== def.version || envelope.tenant !== def.tenant)
+      add(WORKFLOW_ADMISSION_CODES.envelopeMismatch, 'envelope does not name this definition.', '/envelope')
+    if (envelope.provenance === null || typeof envelope.provenance !== 'object' || Array.isArray(envelope.provenance))
+      add(WORKFLOW_ADMISSION_CODES.envelopeInvalid, 'envelope provenance is not an object.', '/envelope/provenance')
+    if (envelope.retentionClass.trim() === '')
+      add(WORKFLOW_ADMISSION_CODES.envelopeInvalid, 'envelope retention class is blank.', '/envelope/retentionClass')
+    envelope.requires.forEach((requirement, index) => {
+      if (requirement.capability.trim() === '')
+        add(WORKFLOW_ADMISSION_CODES.envelopeInvalid, 'envelope requirement names no capability.', `/envelope/requires/${index}`)
+    })
+    const refusal = contractWindow && contractRefusal(envelope.contract, contractWindow)
+    if (refusal) add(refusal, 'envelope contract is absent or outside the window.', '/envelope/contract')
+  }
 
   // -- indices + duplicate detection --
   const stateIds = new Set<string>()
@@ -135,8 +196,10 @@ export function validateWorkflowAdmission(
     if (!stateIds.has(t.to)) add(WORKFLOW_ADMISSION_CODES.danglingReference, `transition '${t.id}' to-state '${t.to}' does not exist.`, t.id)
     if (!triggerKind.has(t.on)) add(WORKFLOW_ADMISSION_CODES.danglingReference, `transition '${t.id}' trigger '${t.on}' does not exist.`, t.id)
     if (t.guard && !guardIds.has(t.guard)) add(WORKFLOW_ADMISSION_CODES.danglingReference, `transition '${t.id}' guard '${t.guard}' does not exist.`, t.id)
-    if (roleVocabulary && t.requiredRoles?.some(role => roleVocabulary.resolve(role) === undefined))
+    if (t.requiredRoles?.some(role => !roleAdmits(role, roleVocabulary)))
       add(WORKFLOW_ADMISSION_CODES.unknownRoleReference, `transition '${t.id}' requires an unknown role.`, t.id)
+    if (t.requiredStandings?.some(standing => !isStandingName(standing)))
+      add(WORKFLOW_ADMISSION_CODES.invalidStanding, `transition '${t.id}' requires a malformed standing.`, t.id)
   }
 
   for (const a of def.actions) {
@@ -150,8 +213,10 @@ export function validateWorkflowAdmission(
       add(WORKFLOW_ADMISSION_CODES.danglingReference, `action '${a.id}' transition does not exist.`, a.id)
     if (a.condition && !guardIds.has(a.condition))
       add(WORKFLOW_ADMISSION_CODES.danglingReference, `action '${a.id}' condition '${a.condition}' does not exist.`, a.id)
-    if (roleVocabulary && a.requiredRoles?.some(role => roleVocabulary.resolve(role) === undefined))
+    if (a.requiredRoles?.some(role => !roleAdmits(role, roleVocabulary)))
       add(WORKFLOW_ADMISSION_CODES.unknownRoleReference, `action '${a.id}' requires an unknown role.`, a.id)
+    if (a.requiredStandings?.some(standing => !isStandingName(standing)))
+      add(WORKFLOW_ADMISSION_CODES.invalidStanding, `action '${a.id}' requires a malformed standing.`, a.id)
   }
 
   // -- reachability + the two security invariants (only once initial is valid) --

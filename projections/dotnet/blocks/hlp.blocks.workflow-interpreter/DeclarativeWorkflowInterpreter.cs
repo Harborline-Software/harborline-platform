@@ -1,6 +1,7 @@
 using System.Text.Json;
 
 using Harborline.Blocks.Workflow.Durable;
+using Harborline.Contracts.Authorization;
 
 namespace Harborline.Blocks.Workflow.Interpreter;
 
@@ -165,6 +166,7 @@ public sealed class DeclarativeWorkflowInterpreter : IDeclarativeWorkflowInterpr
             }
 
             var transition = autonomous[0];
+            RefuseUnenforcedGate("transition", transition.Id, transition.RequiredRoles, transition.RequiredStandings, instance);
 
             // An effect bound to the transition itself (vs on-enter of the destination).
             var onTransition = FindEffectingAction(definition, onState: null, onTransition: transition.Id);
@@ -213,6 +215,7 @@ public sealed class DeclarativeWorkflowInterpreter : IDeclarativeWorkflowInterpr
         }
 
         var transition = selected[0];
+        RefuseUnenforcedGate("transition", transition.Id, transition.RequiredRoles, transition.RequiredStandings, instance);
 
         // send-back → a bounded loop-back (the dispatcher bumps the iteration + enforces the cap).
         if (string.Equals(verb, SendBackVerb, StringComparison.Ordinal))
@@ -258,6 +261,8 @@ public sealed class DeclarativeWorkflowInterpreter : IDeclarativeWorkflowInterpr
         bool isHumanConfirm,
         WorkflowConfirmerIdentity confirmer)
     {
+        RefuseUnenforcedGate("action", action.Id, action.RequiredRoles, action.RequiredStandings, instance);
+
         // The effect's step key is derived from the DESTINATION step (not the parked/current step), so the
         // factory derives a deterministic, replay-stable effect id independent of the advance's idempotency key.
         var effectKey = new WorkflowStepKey(instance.Id, instance.Iteration, nextStep);
@@ -342,6 +347,25 @@ public sealed class DeclarativeWorkflowInterpreter : IDeclarativeWorkflowInterpr
             ((onState is not null && a.OnState == onState) || (onTransition is not null && a.OnTransition == onTransition))
             && _catalog.IsEffectingCapability(a.CapabilityRef));
 
+    // DES-0019 workflows-eng-13 and section 6 (L422): the authorization gate resolves before any guard or effect
+    // runs, and section 3: the engine may not bypass it. This interpreter has no authorization gate yet, so a
+    // declared role or standing cannot be decided here. Deny by default (OWASP; CWE-862): refuse the element
+    // before anything is selected, built or recorded, rather than run a gate nothing checks.
+    private static void RefuseUnenforcedGate(
+        string element,
+        string id,
+        IReadOnlyList<RoleReference> roles,
+        IReadOnlyList<RecordStandingReference> standings,
+        WorkflowInstanceRecord instance)
+    {
+        if (roles.Count == 0 && standings.Count == 0) return;
+        throw new WorkflowGateUnenforcedException(
+            $"Interpreter: {element} '{id}' (instance '{instance.Id}', definition '{instance.DefinitionKey}' " +
+            $"{instance.DefinitionVersion}) declares {roles.Count} required role(s) and {standings.Count} required " +
+            "standing(s); the authorization gate that decides them is not wired into the declarative interpreter, " +
+            "so it refuses to execute rather than run the gate unchecked.");
+    }
+
     private static bool MatchesDecision(WorkflowTransitionDef transition, string verb)
         => transition.Guard is { Length: > 0 } g
            && string.Equals(g, DecisionGuardPrefix + verb, StringComparison.Ordinal);
@@ -369,4 +393,24 @@ public sealed class DeclarativeWorkflowInterpreter : IDeclarativeWorkflowInterpr
             typedOutcomes = verbs,
         });
     }
+}
+
+/// <summary>Stable refusal codes the declarative interpreter throws.</summary>
+public static class DeclarativeWorkflowInterpreterCodes
+{
+    /// <summary>
+    /// A transition or action declares a role or standing gate, and the interpreter cannot resolve it through the
+    /// authorization gate yet (DES-0019 workflows-eng-13, section 6). Refused, never run ungated.
+    /// </summary>
+    public const string GateUnenforced = "workflow.interpreter.gate_unenforced";
+}
+
+/// <summary>
+/// Thrown when the interpreter reaches a transition or action whose declared role or standing gate it cannot
+/// decide. Nothing is selected, built or recorded. Carries <see cref="DeclarativeWorkflowInterpreterCodes.GateUnenforced"/>.
+/// </summary>
+public sealed class WorkflowGateUnenforcedException(string message) : InvalidOperationException(message)
+{
+    /// <summary>The stable refusal code (a localizing client keys off this).</summary>
+    public string Code => DeclarativeWorkflowInterpreterCodes.GateUnenforced;
 }
