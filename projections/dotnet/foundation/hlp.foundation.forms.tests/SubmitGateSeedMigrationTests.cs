@@ -14,7 +14,7 @@ public sealed class SubmitGateSeedMigrationTests
     [Fact(DisplayName = "forms-ck-4: the submit-gate seed migration republishes explicitly mapped legacy forms once and reports unmapped forms")]
     public async Task RepublishesLegacyFormsOnceAndReportsFormsWithoutReplacementGates()
     {
-        using var store = new InMemoryFormDefinitionStore(new FixedClock(Now));
+        using var store = FormGateRegisters.Store(new FixedClock(Now));
         var alpha = Form("alpha");
         var beta = Form("beta");
         var unmapped = Form("unmapped");
@@ -68,7 +68,7 @@ public sealed class SubmitGateSeedMigrationTests
     [Fact(DisplayName = "forms-ck-4: the migration defers a form whose pending Draft outranks the ungated Published revision, instead of publishing legacy content above it")]
     public async Task DefersFormWithHigherPendingDraft()
     {
-        using var store = new InMemoryFormDefinitionStore(new FixedClock(Now));
+        using var store = FormGateRegisters.Store(new FixedClock(Now));
         var published = Form("gamma");
         store.SeedLegacyRevisionForTesting(published);
         var pendingDraft = Form("gamma", version: new SemanticVersion(2, 0, 0), status: FormDefinitionStatus.Draft);
@@ -92,7 +92,7 @@ public sealed class SubmitGateSeedMigrationTests
     [Fact(DisplayName = "forms-ck-4: the migration reports a System-owned Withdrawn revision with no gate so an operator can repair and restore it")]
     public async Task ReportsWithdrawnSystemOwnedRevisionWithNoGate()
     {
-        using var store = new InMemoryFormDefinitionStore(new FixedClock(Now));
+        using var store = FormGateRegisters.Store(new FixedClock(Now));
         var withdrawn = Form("delta", status: FormDefinitionStatus.Withdrawn);
         store.SeedLegacyRevisionForTesting(withdrawn);
 
@@ -109,7 +109,7 @@ public sealed class SubmitGateSeedMigrationTests
     [Fact(DisplayName = "T-485 standing gate: the seed migration refuses a standing replacement gate on a targeted legacy form and leaves the legacy revision current")]
     public async Task MigrationRefusesAStandingGateOnATargetedForm()
     {
-        using var store = new InMemoryFormDefinitionStore(new FixedClock(Now), recordTypePolicies: new FormOnlyReader());
+        using var store = FormGateRegisters.Store(new FixedClock(Now), recordTypePolicies: new FormOnlyReader());
         var legacy = Form("targeted") with { RecordTypeId = "notes.entry" };
         store.SeedLegacyRevisionForTesting(legacy);
 

@@ -18,7 +18,7 @@ public sealed class FormRuleTierAdmissionTests
     [Fact(DisplayName = "forms-eng-16: the store refuses a JsonSchema-tier visibility rule at validate and persists nothing")]
     public async Task JsonSchemaVisibilityRuleIsRefusedByTheStore()
     {
-        using var store = new InMemoryFormDefinitionStore(new FixedClock(Now));
+        using var store = FormGateRegisters.Store(new FixedClock(Now));
         var definition = Form(Rule("hide-employer", RuleTier.JsonSchema, RuleActionKind.Visibility));
 
         var refusal = await Assert.ThrowsAsync<FormDefinitionValidationException>(async () => await store.RegisterAsync(definition));
@@ -38,7 +38,7 @@ public sealed class FormRuleTierAdmissionTests
     [InlineData(RuleActionKind.Options)]
     public async Task JsonSchemaTierIsRefusedForEveryNonValidationAction(RuleActionKind action)
     {
-        using var store = new InMemoryFormDefinitionStore(new FixedClock(Now));
+        using var store = FormGateRegisters.Store(new FixedClock(Now));
 
         var refusal = await Assert.ThrowsAsync<FormDefinitionValidationException>(
             async () => await store.RegisterAsync(Form(Rule("r", RuleTier.JsonSchema, action))));
@@ -51,7 +51,7 @@ public sealed class FormRuleTierAdmissionTests
     [InlineData((RuleTier)7)]
     public async Task UnevaluableTierIsRefusedByTheStore(RuleTier tier)
     {
-        using var store = new InMemoryFormDefinitionStore(new FixedClock(Now));
+        using var store = FormGateRegisters.Store(new FixedClock(Now));
 
         var refusal = await Assert.ThrowsAsync<FormDefinitionValidationException>(
             async () => await store.RegisterAsync(Form(Rule("r", tier, RuleActionKind.Visibility))));
@@ -62,7 +62,7 @@ public sealed class FormRuleTierAdmissionTests
     [Fact(DisplayName = "forms-eng-4: a visibility rule in Rules' JsonLogic grammar is admitted")]
     public async Task JsonLogicVisibilityRuleIsAdmitted()
     {
-        using var store = new InMemoryFormDefinitionStore(new FixedClock(Now));
+        using var store = FormGateRegisters.Store(new FixedClock(Now));
 
         var stored = await store.RegisterAsync(Form(Rule("hide-employer", RuleTier.JsonLogic, RuleActionKind.Visibility)));
 
@@ -72,7 +72,7 @@ public sealed class FormRuleTierAdmissionTests
     [Fact(DisplayName = "forms-eng-4: a JsonSchema-tier validation rule stays admitted for T-732 to compile")]
     public async Task JsonSchemaValidationRuleIsStillAdmitted()
     {
-        using var store = new InMemoryFormDefinitionStore(new FixedClock(Now));
+        using var store = FormGateRegisters.Store(new FixedClock(Now));
 
         await store.RegisterAsync(Form(Rule("shape", RuleTier.JsonSchema, RuleActionKind.Validate)));
     }

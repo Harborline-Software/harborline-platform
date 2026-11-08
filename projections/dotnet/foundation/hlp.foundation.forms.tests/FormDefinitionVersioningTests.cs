@@ -23,7 +23,7 @@ public sealed class FormDefinitionVersioningTests
     [Fact(DisplayName = "forms-ck-8: saving an id that has revisions mints the highest version's next patch, not the caller's version")]
     public async Task SaveNext_mints_above_the_highest_existing_version()
     {
-        using var store = new InMemoryFormDefinitionStore(new FixedClock(Now));
+        using var store = FormGateRegisters.Store(new FixedClock(Now));
         await store.RegisterAsync(Form("1.0.0", FormDefinitionStatus.Published));
         await store.RegisterAsync(Form("1.2.3"));
 
@@ -38,7 +38,7 @@ public sealed class FormDefinitionVersioningTests
     [Fact(DisplayName = "forms-ck-8: a re-save after 1.0.0 mints 1.0.1, the retiring api copy's increment")]
     public async Task ReSave_mints_the_next_patch_version()
     {
-        using var store = new InMemoryFormDefinitionStore(new FixedClock(Now));
+        using var store = FormGateRegisters.Store(new FixedClock(Now));
         var first = await store.SaveNextAsync(Form("1.0.0"));
         var second = await store.SaveNextAsync(Form("1.0.0"));
 
@@ -51,7 +51,7 @@ public sealed class FormDefinitionVersioningTests
     {
         foreach (var order in new[] { new[] { "1.9.0", "1.10.0" }, new[] { "1.10.0", "1.9.0" } })
         {
-            using var store = new InMemoryFormDefinitionStore(new FixedClock(Now));
+            using var store = FormGateRegisters.Store(new FixedClock(Now));
             foreach (var version in order) await store.RegisterAsync(Form(version, FormDefinitionStatus.Published));
 
             var head = await store.GetCurrentPublishedAsync(Tenant, Id);
@@ -65,7 +65,7 @@ public sealed class FormDefinitionVersioningTests
     public async Task Restore_registers_a_new_draft_without_mutating_history()
     {
         var clock = new FixedClock(Now);
-        using var store = new InMemoryFormDefinitionStore(clock);
+        using var store = FormGateRegisters.Store(clock);
         var v100 = await store.RegisterAsync(Form("1.0.0", FormDefinitionStatus.Published));
         var v101 = await store.RegisterAsync(Form("1.0.1", FormDefinitionStatus.Published, label: "Street name"));
         clock.Advance(TimeSpan.FromHours(1));
@@ -88,7 +88,7 @@ public sealed class FormDefinitionVersioningTests
     [Fact(DisplayName = "forms-ck-9: restoring a version the tenant does not hold is refused and registers nothing")]
     public async Task Restore_of_an_unknown_version_is_refused()
     {
-        using var store = new InMemoryFormDefinitionStore(new FixedClock(Now));
+        using var store = FormGateRegisters.Store(new FixedClock(Now));
         await store.RegisterAsync(Form("1.0.0", FormDefinitionStatus.Published));
 
         await Assert.ThrowsAsync<FormDefinitionNotFoundException>(
@@ -101,7 +101,7 @@ public sealed class FormDefinitionVersioningTests
     [Fact(DisplayName = "forms-ck-9: a restored Draft needs no submit gate, as a Draft registration needs none")]
     public async Task Restore_of_a_revision_without_a_submit_gate_registers_a_draft()
     {
-        using var store = new InMemoryFormDefinitionStore(new FixedClock(Now));
+        using var store = FormGateRegisters.Store(new FixedClock(Now));
         await store.RegisterAsync(Form("1.0.0") with { SubmitGate = null });
 
         var restored = await store.RestoreAsDraftAsync(Tenant, Id, SemanticVersion.Parse("1.0.0"));
@@ -114,7 +114,7 @@ public sealed class FormDefinitionVersioningTests
     [Fact(DisplayName = "forms-ck-9: a restored Draft runs the Draft submit-gate admission and registers nothing when refused")]
     public async Task Restore_runs_the_draft_submit_gate_admission()
     {
-        using var store = new InMemoryFormDefinitionStore(new FixedClock(Now));
+        using var store = FormGateRegisters.Store(new FixedClock(Now));
         store.SeedLegacyRevisionForTesting(Form("1.0.0", FormDefinitionStatus.Published) with
         {
             SubmitGate = new SubmitGate(Capability: new AuthorizationCapabilityReference("access:undeclared")),
@@ -130,7 +130,7 @@ public sealed class FormDefinitionVersioningTests
     [Fact(DisplayName = "forms-ck-9: a restored Draft runs the Draft record-type target admission and registers nothing when refused")]
     public async Task Restore_runs_the_draft_record_type_admission()
     {
-        using var store = new InMemoryFormDefinitionStore(new FixedClock(Now));
+        using var store = FormGateRegisters.Store(new FixedClock(Now));
         store.SeedLegacyRevisionForTesting(Form("1.0.0", FormDefinitionStatus.Published) with { RecordTypeId = " " });
 
         var refusal = await Assert.ThrowsAsync<FormDefinitionValidationException>(
@@ -144,7 +144,7 @@ public sealed class FormDefinitionVersioningTests
     public async Task No_mutating_operation_changes_a_released_body()
     {
         var clock = new FixedClock(Now);
-        using var store = new InMemoryFormDefinitionStore(clock);
+        using var store = FormGateRegisters.Store(clock);
         await store.RegisterAsync(Form("1.0.0", FormDefinitionStatus.Published));
         await store.RegisterAsync(Form("1.0.1", FormDefinitionStatus.Published, label: "Street name"));
         await store.RegisterAsync(Form("1.0.2", FormDefinitionStatus.Published, label: "Road"));
@@ -198,7 +198,7 @@ public sealed class FormDefinitionVersioningTests
     [Fact(DisplayName = "forms-ck-8: a Published save runs the publication submit-gate check and registers nothing when refused")]
     public async Task Published_save_runs_publication_checks()
     {
-        using var store = new InMemoryFormDefinitionStore(new FixedClock(Now));
+        using var store = FormGateRegisters.Store(new FixedClock(Now));
         await store.RegisterAsync(Form("1.0.0", FormDefinitionStatus.Published));
 
         var refusal = await Assert.ThrowsAsync<FormDefinitionValidationException>(
@@ -211,7 +211,7 @@ public sealed class FormDefinitionVersioningTests
     [Fact(DisplayName = "forms-ck-8: a Published save runs record-type continuity against the revisions it mints above")]
     public async Task Published_save_runs_record_type_continuity()
     {
-        using var store = new InMemoryFormDefinitionStore(new FixedClock(Now), recordTypePolicies: new RoleGatedReader());
+        using var store = FormGateRegisters.Store(new FixedClock(Now), recordTypePolicies: new RoleGatedReader());
         await store.RegisterAsync(Form("1.0.0", FormDefinitionStatus.Published) with { RecordTypeId = "notes.entry" });
 
         var refusal = await Assert.ThrowsAsync<FormDefinitionValidationException>(
@@ -224,7 +224,7 @@ public sealed class FormDefinitionVersioningTests
     [Fact(DisplayName = "forms-ck-8: concurrent saves of one id mint distinct versions")]
     public async Task Concurrent_saves_mint_distinct_versions()
     {
-        using var store = new InMemoryFormDefinitionStore(new FixedClock(Now));
+        using var store = FormGateRegisters.Store(new FixedClock(Now));
         await store.RegisterAsync(Form("1.0.0"));
 
         // Each save runs on its own thread behind one start gate, so the saves overlap and only the store's lock keeps
@@ -245,7 +245,7 @@ public sealed class FormDefinitionVersioningTests
     [Fact(DisplayName = "forms-ck-9: a System-owned pack projection is not restored as a tenant Draft")]
     public async Task Restore_refuses_a_system_owned_projection()
     {
-        using var store = new InMemoryFormDefinitionStore(new FixedClock(Now));
+        using var store = FormGateRegisters.Store(new FixedClock(Now));
         await store.RegisterAsync(Form("1.0.0", FormDefinitionStatus.Published, owner: IdentityRef.System));
 
         var refusal = await Assert.ThrowsAsync<InvalidOperationException>(
@@ -259,7 +259,7 @@ public sealed class FormDefinitionVersioningTests
     [Fact(DisplayName = "forms-ck-9: a restored Draft keeps its source's extension parent as lineage and names the source version in derivedFrom")]
     public async Task Restore_keeps_the_extension_parent_and_records_the_source_as_derived_from()
     {
-        using var store = new InMemoryFormDefinitionStore(new FixedClock(Now));
+        using var store = FormGateRegisters.Store(new FixedClock(Now));
         await store.RegisterAsync(Form("1.0.0", FormDefinitionStatus.Published, id: "property.base"));
         await store.RegisterAsync(Form("1.0.0", FormDefinitionStatus.Published) with
         {
@@ -279,7 +279,7 @@ public sealed class FormDefinitionVersioningTests
     [Fact(DisplayName = "forms-ck-9: a derivedFrom that names no registered revision of the same id is refused on every registration path")]
     public async Task Derived_from_must_name_a_registered_revision_of_the_same_id()
     {
-        using var store = new InMemoryFormDefinitionStore(new FixedClock(Now));
+        using var store = FormGateRegisters.Store(new FixedClock(Now));
         await store.RegisterAsync(Form("1.0.0", FormDefinitionStatus.Published, id: "property.base"));
         await store.RegisterAsync(Form("1.0.0"));
         var missing = SemanticVersion.Parse("0.9.0");
@@ -303,7 +303,7 @@ public sealed class FormDefinitionVersioningTests
     [Fact(DisplayName = "forms-ck-8: a save refuses a null definition, lineage to an unregistered parent, and a patch overflow")]
     public async Task Save_refuses_malformed_input()
     {
-        using var store = new InMemoryFormDefinitionStore(new FixedClock(Now));
+        using var store = FormGateRegisters.Store(new FixedClock(Now));
         await Assert.ThrowsAsync<ArgumentNullException>(async () => await store.SaveNextAsync(null!));
 
         await store.RegisterAsync(Form("1.0.0"));

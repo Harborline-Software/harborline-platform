@@ -24,7 +24,7 @@ public sealed class FormSubmitGateAdmissionTests
     [MemberData(nameof(Arms))]
     public async Task OneArmGateIsStoredAndRoundTrips(string arm)
     {
-        using var store = new InMemoryFormDefinitionStore(new FixedClock(Now), Register);
+        using var store = FormGateRegisters.Store(new FixedClock(Now), Register);
         var gate = arm switch
         {
             "role" => new SubmitGate(Role: RoleReference.Domain("inspector")),
@@ -44,7 +44,7 @@ public sealed class FormSubmitGateAdmissionTests
     [InlineData(true)]
     public async Task MalformedGateIsRefused(bool twoArms)
     {
-        using var store = new InMemoryFormDefinitionStore(new FixedClock(Now), Register);
+        using var store = FormGateRegisters.Store(new FixedClock(Now), Register);
         var gate = twoArms
             ? new SubmitGate(Role: RoleReference.Domain("inspector"), Capability: RoleGrant)
             : new SubmitGate();
@@ -58,7 +58,7 @@ public sealed class FormSubmitGateAdmissionTests
     [Fact(DisplayName = "forms-auth-16: a form declaring a capability Access does not register is refused by name and persists nothing")]
     public async Task FormOwnCapabilityIsRefused()
     {
-        using var store = new InMemoryFormDefinitionStore(new FixedClock(Now), Register);
+        using var store = FormGateRegisters.Store(new FixedClock(Now), Register);
         var definition = Form(new SubmitGate(Capability: new AuthorizationCapabilityReference("forms:submit-inspection")));
 
         var refusal = await Assert.ThrowsAsync<FormDefinitionValidationException>(async () => await store.RegisterAsync(definition));
@@ -72,7 +72,7 @@ public sealed class FormSubmitGateAdmissionTests
     [Fact(DisplayName = "forms-auth-16: with no Access register, every capability arm is refused")]
     public async Task CapabilityArmWithoutRegisterIsRefused()
     {
-        using var store = new InMemoryFormDefinitionStore(new FixedClock(Now));
+        using var store = FormGateRegisters.Store(new FixedClock(Now));
 
         var refusal = await Assert.ThrowsAsync<FormDefinitionValidationException>(
             async () => await store.RegisterAsync(Form(new SubmitGate(Capability: RoleGrant))));
@@ -83,7 +83,7 @@ public sealed class FormSubmitGateAdmissionTests
     [Fact(DisplayName = "forms-ck-4: publish requires an explicit submit gate while draft saves remain ungated")]
     public async Task PublishRequiresGateWhileDraftSaveDoesNot()
     {
-        using var store = new InMemoryFormDefinitionStore(new FixedClock(Now), Register);
+        using var store = FormGateRegisters.Store(new FixedClock(Now), Register);
 
         var atomicRefusal = await Assert.ThrowsAsync<FormDefinitionValidationException>(
             async () => await store.RegisterAndPublishAsync(Form(id: "missing-gate-atomic")));
@@ -116,7 +116,7 @@ public sealed class FormSubmitGateAdmissionTests
     [Fact(DisplayName = "forms-ck-4: RegisterAsync and CreateAsync refuse a directly persisted Published definition with no gate")]
     public async Task DirectPersistOfPublishedRequiresGate()
     {
-        using var store = new InMemoryFormDefinitionStore(new FixedClock(Now), Register);
+        using var store = FormGateRegisters.Store(new FixedClock(Now), Register);
 
         var registerRefusal = await Assert.ThrowsAsync<FormDefinitionValidationException>(
             async () => await store.RegisterAsync(Form(id: "direct-register-published") with { Status = FormDefinitionStatus.Published }));
@@ -143,7 +143,7 @@ public sealed class FormSubmitGateAdmissionTests
     [Fact(DisplayName = "forms-ck-4: restoring a System-owned Withdrawn legacy revision with no gate is refused by the same stable code")]
     public async Task RestoreOfUngatedWithdrawnLegacyRevisionIsRefused()
     {
-        using var store = new InMemoryFormDefinitionStore(new FixedClock(Now), Register);
+        using var store = FormGateRegisters.Store(new FixedClock(Now), Register);
         // Simulates a row persisted before submit_gate became required at publish (T-756); no
         // write path in this package can produce an ungated Withdrawn revision today.
         var legacy = Form(id: "legacy-pack-projection") with { Status = FormDefinitionStatus.Withdrawn };

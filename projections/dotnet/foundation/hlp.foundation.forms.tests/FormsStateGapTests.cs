@@ -14,7 +14,7 @@ public sealed class FormsStateGapTests
     [Fact]
     public async Task CreateAsync_is_atomic_for_a_definition_id()
     {
-        using var store = new InMemoryFormDefinitionStore();
+        using var store = FormGateRegisters.Store();
         var definition = Definition(FormOne, new SemanticVersion(1, 0, 0));
 
         var outcomes = await Task.WhenAll(Enumerable.Range(0, 24).Select(async _ =>
@@ -37,7 +37,7 @@ public sealed class FormsStateGapTests
     public async Task RegisterAndPublishAsync_exposes_only_the_published_revision()
     {
         var clock = new FixedClock(DateTimeOffset.Parse("2026-08-08T12:00:00Z"));
-        using var store = new InMemoryFormDefinitionStore(clock);
+        using var store = FormGateRegisters.Store(clock);
         var definition = Definition(FormOne, new SemanticVersion(1, 0, 0));
 
         var published = await store.RegisterAndPublishAsync(definition);
@@ -51,7 +51,7 @@ public sealed class FormsStateGapTests
     [Fact]
     public async Task RegisterAndPublishAsync_cancellation_persists_nothing()
     {
-        using var store = new InMemoryFormDefinitionStore();
+        using var store = FormGateRegisters.Store();
         var definition = Definition(FormOne, new SemanticVersion(1, 0, 0));
         using var cancellation = new CancellationTokenSource();
         cancellation.Cancel();
@@ -67,7 +67,7 @@ public sealed class FormsStateGapTests
     public async Task RegisterAndPublishAsync_cancellation_during_commit_window_persists_nothing()
     {
         using var cancellation = new CancellationTokenSource();
-        using var store = new InMemoryFormDefinitionStore(
+        using var store = FormGateRegisters.Store(
             new CancelingClock(cancellation, DateTimeOffset.Parse("2026-08-08T12:00:00Z")));
         var definition = Definition(FormOne, new SemanticVersion(1, 0, 0));
 
@@ -82,7 +82,7 @@ public sealed class FormsStateGapTests
     public async Task RegisterAndPublishAsync_identical_retry_returns_the_committed_revision()
     {
         var clock = new FixedClock(DateTimeOffset.Parse("2026-08-08T12:00:00Z"));
-        using var store = new InMemoryFormDefinitionStore(clock);
+        using var store = FormGateRegisters.Store(clock);
         var definition = Definition(FormOne, new SemanticVersion(1, 0, 0));
 
         var first = await store.RegisterAndPublishAsync(definition);
@@ -95,7 +95,7 @@ public sealed class FormsStateGapTests
     [Fact]
     public async Task RegisterAndPublishAsync_different_retry_conflicts()
     {
-        using var store = new InMemoryFormDefinitionStore();
+        using var store = FormGateRegisters.Store();
         var definition = Definition(FormOne, new SemanticVersion(1, 0, 0));
         await store.RegisterAndPublishAsync(definition);
         var different = definition with { SchemaRef = new SchemaId("sha256:different") };
@@ -107,7 +107,7 @@ public sealed class FormsStateGapTests
     [Fact]
     public async Task Current_list_returns_one_highest_published_revision_per_id()
     {
-        using var store = new InMemoryFormDefinitionStore();
+        using var store = FormGateRegisters.Store();
         var v1 = Definition(FormOne, new SemanticVersion(1, 0, 0));
         var v2 = Definition(FormOne, new SemanticVersion(1, 0, 1));
         var draftOnly = Definition(new FormDefinitionId("draft-only"), new SemanticVersion(1, 0, 0));
@@ -154,7 +154,7 @@ public sealed class FormsStateGapTests
     [Fact]
     public async Task Authoring_metadata_round_trips_exact_type_constraints_and_options()
     {
-        using var store = new InMemoryFormDefinitionStore();
+        using var store = FormGateRegisters.Store();
         var options = new List<string> { "PASS", "FAIL" };
         var validations = new List<FormFieldValidation>
         {

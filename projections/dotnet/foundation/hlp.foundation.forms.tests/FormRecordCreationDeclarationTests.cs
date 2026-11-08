@@ -25,7 +25,7 @@ public sealed class FormRecordCreationDeclarationTests
     {
         var declarations = new Declarations(("capture", "notes.entry"));
         var reader = new Reader(RecordTypeCreationGate.FormOnly);
-        using var store = new InMemoryFormDefinitionStore(new FixedClock(Now), recordTypePolicies: reader, recordCreations: declarations);
+        using var store = FormGateRegisters.Store(new FixedClock(Now), recordTypePolicies: reader, recordCreations: declarations);
 
         var atomic = await Assert.ThrowsAsync<FormDefinitionValidationException>(
             async () => await store.RegisterAndPublishAsync(Form(InspectorGate, "capture")));
@@ -50,7 +50,7 @@ public sealed class FormRecordCreationDeclarationTests
     [Fact(DisplayName = "K9: a pack restore of a declared Withdrawn revision without a target stays Withdrawn")]
     public async Task PackRestoreOfDeclaredTargetlessRevisionIsRefused()
     {
-        using var store = new InMemoryFormDefinitionStore(new FixedClock(Now), recordTypePolicies: new Reader(RecordTypeCreationGate.FormOnly),
+        using var store = FormGateRegisters.Store(new FixedClock(Now), recordTypePolicies: new Reader(RecordTypeCreationGate.FormOnly),
             recordCreations: new Declarations(("capture", "notes.entry")));
         var legacy = Form(InspectorGate, "capture") with { Status = FormDefinitionStatus.Withdrawn };
         store.SeedLegacyRevisionForTesting(legacy);
@@ -66,7 +66,7 @@ public sealed class FormRecordCreationDeclarationTests
     public async Task DeclaredFormWithAnotherTargetIsRefused()
     {
         var reader = new Reader(RecordTypeCreationGate.FormOnly);
-        using var store = new InMemoryFormDefinitionStore(new FixedClock(Now), recordTypePolicies: reader,
+        using var store = FormGateRegisters.Store(new FixedClock(Now), recordTypePolicies: reader,
             recordCreations: new Declarations(("capture", "notes.entry")));
 
         var refusal = await Assert.ThrowsAsync<FormDefinitionValidationException>(
@@ -81,7 +81,7 @@ public sealed class FormRecordCreationDeclarationTests
     {
         var reader = new Reader(RecordTypeCreationGate.FormOnly);
         var declarations = new Declarations(("capture", "notes.entry"));
-        using var store = new InMemoryFormDefinitionStore(new FixedClock(Now), recordTypePolicies: reader, recordCreations: declarations);
+        using var store = FormGateRegisters.Store(new FixedClock(Now), recordTypePolicies: reader, recordCreations: declarations);
 
         var published = await store.RegisterAndPublishAsync(Form(InspectorGate, "capture", "notes.entry"));
 
@@ -95,7 +95,7 @@ public sealed class FormRecordCreationDeclarationTests
     public async Task DeclaredRoleTargetPublishes()
     {
         var reader = new Reader(RecordTypeCreationGate.Role);
-        using var store = new InMemoryFormDefinitionStore(new FixedClock(Now), recordTypePolicies: reader,
+        using var store = FormGateRegisters.Store(new FixedClock(Now), recordTypePolicies: reader,
             recordCreations: new Declarations(("capture", "work.order")));
         var draft = Form(InspectorGate, "capture", "work.order");
         await store.RegisterAsync(draft);
@@ -114,7 +114,7 @@ public sealed class FormRecordCreationDeclarationTests
     [Fact(DisplayName = "T-485 standing gate (replaces K1): a standing submit gate on a declared form_only target is refused at /submit_gate/standing and nothing is published")]
     public async Task StandingGateOnDeclaredFormOnlyTargetIsRefused()
     {
-        using var store = new InMemoryFormDefinitionStore(new FixedClock(Now), recordTypePolicies: new Reader(RecordTypeCreationGate.FormOnly),
+        using var store = FormGateRegisters.Store(new FixedClock(Now), recordTypePolicies: new Reader(RecordTypeCreationGate.FormOnly),
             recordCreations: new Declarations(("capture", "notes.entry")));
         var definition = Form(new SubmitGate(Standing: new RecordStandingReference("author")), "capture", "notes.entry");
 
@@ -137,7 +137,7 @@ public sealed class FormRecordCreationDeclarationTests
             "blank" => new Declarations(("capture", " ")),
             _ => new Declarations(("capture", "notes.entry"), ("capture", "notes.other")),
         };
-        using var store = new InMemoryFormDefinitionStore(new FixedClock(Now), recordTypePolicies: new Reader(RecordTypeCreationGate.FormOnly),
+        using var store = FormGateRegisters.Store(new FixedClock(Now), recordTypePolicies: new Reader(RecordTypeCreationGate.FormOnly),
             recordCreations: declarations);
 
         var refusal = await Assert.ThrowsAsync<FormDefinitionValidationException>(
@@ -152,7 +152,7 @@ public sealed class FormRecordCreationDeclarationTests
     [Fact(DisplayName = "K9: a declaration repeating one type is unambiguous")]
     public async Task RepeatedDeclarationIsOneType()
     {
-        using var store = new InMemoryFormDefinitionStore(new FixedClock(Now), recordTypePolicies: new Reader(RecordTypeCreationGate.FormOnly),
+        using var store = FormGateRegisters.Store(new FixedClock(Now), recordTypePolicies: new Reader(RecordTypeCreationGate.FormOnly),
             recordCreations: new Declarations(("capture", "notes.entry"), ("capture", "notes.entry")));
 
         var published = await store.RegisterAndPublishAsync(Form(InspectorGate, "capture", "notes.entry"));
@@ -165,8 +165,8 @@ public sealed class FormRecordCreationDeclarationTests
     {
         var declarations = new Declarations(("capture", "notes.entry"));
         var reader = new Reader(RecordTypeCreationGate.FormOnly);
-        using var declared = new InMemoryFormDefinitionStore(new FixedClock(Now), recordTypePolicies: reader, recordCreations: declarations);
-        using var bare = new InMemoryFormDefinitionStore(new FixedClock(Now));
+        using var declared = FormGateRegisters.Store(new FixedClock(Now), recordTypePolicies: reader, recordCreations: declarations);
+        using var bare = FormGateRegisters.Store(new FixedClock(Now));
 
         var other = await declared.RegisterAndPublishAsync(Form(InspectorGate, "survey"));
         var plain = await bare.RegisterAndPublishAsync(Form(InspectorGate, "capture"));
@@ -183,7 +183,7 @@ public sealed class FormRecordCreationDeclarationTests
     public async Task DraftAndGenericChecksPrecedeTheDeclaration()
     {
         var declarations = new Declarations(("capture", "notes.entry"));
-        using var store = new InMemoryFormDefinitionStore(new FixedClock(Now), recordTypePolicies: new Reader(RecordTypeCreationGate.FormOnly),
+        using var store = FormGateRegisters.Store(new FixedClock(Now), recordTypePolicies: new Reader(RecordTypeCreationGate.FormOnly),
             recordCreations: declarations);
 
         await store.RegisterAsync(Form(InspectorGate, "capture"));
@@ -197,7 +197,7 @@ public sealed class FormRecordCreationDeclarationTests
     [Fact(DisplayName = "K9: a legacy Published revision without a target stays readable, and its next revision must add the declared target")]
     public async Task LegacyRevisionStaysReadableAndMigrationAddsTheTarget()
     {
-        using var store = new InMemoryFormDefinitionStore(new FixedClock(Now), recordTypePolicies: new Reader(RecordTypeCreationGate.FormOnly),
+        using var store = FormGateRegisters.Store(new FixedClock(Now), recordTypePolicies: new Reader(RecordTypeCreationGate.FormOnly),
             recordCreations: new Declarations(("capture", "notes.entry")));
         var legacy = Form(InspectorGate, "capture") with { Status = FormDefinitionStatus.Published };
         store.SeedLegacyRevisionForTesting(legacy);
@@ -244,7 +244,7 @@ public sealed class FormRecordCreationDeclarationTests
     public async Task ProducerDeclarationIsUsedWhenNoPortIsGiven()
     {
         var producer = new Declarations(("capture", "notes.entry"));
-        using var store = new InMemoryFormDefinitionStore(new FixedClock(Now), recordTypePolicies: new Reader(RecordTypeCreationGate.FormOnly),
+        using var store = FormGateRegisters.Store(new FixedClock(Now), recordTypePolicies: new Reader(RecordTypeCreationGate.FormOnly),
             recordCreationProducer: producer);
 
         var refusal = await Assert.ThrowsAsync<FormDefinitionValidationException>(
@@ -261,8 +261,8 @@ public sealed class FormRecordCreationDeclarationTests
     {
         var producer = new Declarations(("capture", "notes.entry"));
         var explicitPort = new Declarations();
-        using var explicitStore = new InMemoryFormDefinitionStore(new FixedClock(Now), recordCreations: explicitPort, recordCreationProducer: producer);
-        using var plainProducerStore = new InMemoryFormDefinitionStore(new FixedClock(Now), recordCreationProducer: null);
+        using var explicitStore = FormGateRegisters.Store(new FixedClock(Now), recordCreations: explicitPort, recordCreationProducer: producer);
+        using var plainProducerStore = FormGateRegisters.Store(new FixedClock(Now), recordCreationProducer: null);
 
         var withExplicit = await explicitStore.RegisterAndPublishAsync(Form(InspectorGate, "capture"));
         var withPlainProducer = await plainProducerStore.RegisterAndPublishAsync(Form(InspectorGate, "capture"));

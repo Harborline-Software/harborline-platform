@@ -563,7 +563,8 @@ if (typeof(HarborlineDataExchangeAuthoringEditor).Assembly != typeof(HarborlineB
     throw new InvalidOperationException("Data Exchange authoring is not packaged with the aggregate Blazor UI projection.");
 if (typeof(FormsState.IFormDefinitionStore).Assembly.GetName().Name != "Harborline.Foundation.Forms")
     throw new InvalidOperationException("Forms state assembly identity changed.");
-var formsStateStore = new FormsState.InMemoryFormDefinitionStore();
+// The host supplies Access's role vocabulary so publication resolves the submit gate's role (T-485, forms-auth-11).
+var formsStateStore = new FormsState.InMemoryFormDefinitionStore(TimeProvider.System, roles: Harborline.Contracts.Authorization.RoleVocabulary.FromApi([new(Guid.Parse("4f0c2b8e-0000-4000-8000-000000000031"), Harborline.Contracts.Authorization.RoleReference.Domain("inspector"), "Inspector", new(Harborline.Contracts.Authorization.RoleOwnerKind.Package, "nuget-consumer"), IsSealed: false)]));
 var formsHostServices = new ServiceCollection();
 formsHostServices.AddSingleton<FormsState.IFormDefinitionStore>(formsStateStore);
 formsHostServices.AddHarborlineFormsAuthoringPublisher();

@@ -33,7 +33,7 @@ public sealed class FormRecordTypeTargetAdmissionTests
             "unknown-type" => new RecordingReader(null),
             _ => new RecordingReader(RecordTypeCreationGate.FormOnly),
         };
-        using var store = new InMemoryFormDefinitionStore(new FixedClock(Now), recordTypePolicies: reader);
+        using var store = FormGateRegisters.Store(new FixedClock(Now), recordTypePolicies: reader);
         var definition = Form(target: "notes.entry");
 
         var refusal = await Assert.ThrowsAsync<FormDefinitionValidationException>(
@@ -65,7 +65,7 @@ public sealed class FormRecordTypeTargetAdmissionTests
     public async Task GatedFormOnlyTargetPublishes()
     {
         var reader = new RecordingReader(RecordTypeCreationGate.FormOnly);
-        using var store = new InMemoryFormDefinitionStore(new FixedClock(Now), recordTypePolicies: reader);
+        using var store = FormGateRegisters.Store(new FixedClock(Now), recordTypePolicies: reader);
 
         var published = await store.RegisterAndPublishAsync(Form(InspectorGate, target: "notes.entry"));
 
@@ -77,7 +77,7 @@ public sealed class FormRecordTypeTargetAdmissionTests
     [Fact(DisplayName = "D1: a gated form targeting a role-created type publishes; the form gate is not an extra creation gate")]
     public async Task RoleTargetPublishes()
     {
-        using var store = new InMemoryFormDefinitionStore(new FixedClock(Now), recordTypePolicies: new RecordingReader(RecordTypeCreationGate.Role));
+        using var store = FormGateRegisters.Store(new FixedClock(Now), recordTypePolicies: new RecordingReader(RecordTypeCreationGate.Role));
 
         var published = await store.RegisterAndPublishAsync(Form(InspectorGate, target: "work.order"));
 
@@ -87,7 +87,7 @@ public sealed class FormRecordTypeTargetAdmissionTests
     [Fact(DisplayName = "D3: a form targeting an engine-created type is refused at /record_type_id on every publication path and persists nothing published")]
     public async Task EngineTargetIsRefusedAtPublication()
     {
-        using var store = new InMemoryFormDefinitionStore(new FixedClock(Now), recordTypePolicies: new RecordingReader(RecordTypeCreationGate.Engine));
+        using var store = FormGateRegisters.Store(new FixedClock(Now), recordTypePolicies: new RecordingReader(RecordTypeCreationGate.Engine));
 
         var atomic = await Assert.ThrowsAsync<FormDefinitionValidationException>(
             async () => await store.RegisterAndPublishAsync(Form(InspectorGate, "engine-atomic", "ledger.posting")));
@@ -115,7 +115,7 @@ public sealed class FormRecordTypeTargetAdmissionTests
     public async Task BlankTargetIsRefused(string target)
     {
         var reader = new RecordingReader(RecordTypeCreationGate.FormOnly);
-        using var store = new InMemoryFormDefinitionStore(new FixedClock(Now), recordTypePolicies: reader);
+        using var store = FormGateRegisters.Store(new FixedClock(Now), recordTypePolicies: reader);
 
         var refusal = await Assert.ThrowsAsync<FormDefinitionValidationException>(
             async () => await store.RegisterAsync(Form(target: target)));
@@ -129,7 +129,7 @@ public sealed class FormRecordTypeTargetAdmissionTests
     public async Task DraftSavesWithoutPolicyLookup()
     {
         var reader = new RecordingReader(RecordTypeCreationGate.FormOnly);
-        using var store = new InMemoryFormDefinitionStore(new FixedClock(Now), recordTypePolicies: reader);
+        using var store = FormGateRegisters.Store(new FixedClock(Now), recordTypePolicies: reader);
 
         var saved = await store.RegisterAsync(Form(target: "notes.entry"));
 
@@ -142,7 +142,7 @@ public sealed class FormRecordTypeTargetAdmissionTests
     public async Task UntargetedFormIsUnaffected()
     {
         var reader = new RecordingReader(RecordTypeCreationGate.Engine);
-        using var store = new InMemoryFormDefinitionStore(new FixedClock(Now), recordTypePolicies: reader);
+        using var store = FormGateRegisters.Store(new FixedClock(Now), recordTypePolicies: reader);
 
         var published = await store.RegisterAndPublishAsync(Form(InspectorGate));
         var ungatedDraft = await store.RegisterAsync(Form(id: "untargeted-draft"));
@@ -161,7 +161,7 @@ public sealed class FormRecordTypeTargetAdmissionTests
     [Fact(DisplayName = "forms-ck-3: the captured target is immutable within a version; an atomic retry naming another type conflicts")]
     public async Task TargetIsImmutableWithinAVersion()
     {
-        using var store = new InMemoryFormDefinitionStore(new FixedClock(Now), recordTypePolicies: new RecordingReader(RecordTypeCreationGate.FormOnly));
+        using var store = FormGateRegisters.Store(new FixedClock(Now), recordTypePolicies: new RecordingReader(RecordTypeCreationGate.FormOnly));
         var first = await store.RegisterAndPublishAsync(Form(InspectorGate, target: "notes.entry"));
 
         var identical = await store.RegisterAndPublishAsync(Form(InspectorGate, target: "notes.entry"));
@@ -185,7 +185,7 @@ public sealed class FormRecordTypeTargetAdmissionTests
             "out-of-range-value" => new RecordingReader((RecordTypeCreationGate)7),
             _ => new RecordingReader(null),
         };
-        using var store = new InMemoryFormDefinitionStore(new FixedClock(Now), recordTypePolicies: reader);
+        using var store = FormGateRegisters.Store(new FixedClock(Now), recordTypePolicies: reader);
         var definition = Form(InspectorGate, target: "notes.entry");
 
         var refusal = await Assert.ThrowsAsync<FormDefinitionValidationException>(
@@ -200,7 +200,7 @@ public sealed class FormRecordTypeTargetAdmissionTests
     [Fact(DisplayName = "K6 (F3): an untargeted form publishes with no policy reader wired")]
     public async Task UntargetedFormNeedsNoReader()
     {
-        using var store = new InMemoryFormDefinitionStore(new FixedClock(Now));
+        using var store = FormGateRegisters.Store(new FixedClock(Now));
 
         var published = await store.RegisterAndPublishAsync(Form(InspectorGate));
 
@@ -214,7 +214,7 @@ public sealed class FormRecordTypeTargetAdmissionTests
     [InlineData(null)]
     public async Task ChangingACapturedTargetIsRefused(string? laterTarget)
     {
-        using var store = new InMemoryFormDefinitionStore(new FixedClock(Now), recordTypePolicies: new RecordingReader(RecordTypeCreationGate.FormOnly));
+        using var store = FormGateRegisters.Store(new FixedClock(Now), recordTypePolicies: new RecordingReader(RecordTypeCreationGate.FormOnly));
         await store.RegisterAndPublishAsync(Form(InspectorGate, target: "notes.entry"));
         var later = Form(InspectorGate, target: laterTarget, version: new SemanticVersion(1, 1, 0));
 
@@ -235,7 +235,7 @@ public sealed class FormRecordTypeTargetAdmissionTests
     [Fact(DisplayName = "ADR 0099 d7 / K9 (F2): adding a target to a definition whose published revisions have none is allowed")]
     public async Task AddingATargetIsAllowed()
     {
-        using var store = new InMemoryFormDefinitionStore(new FixedClock(Now), recordTypePolicies: new RecordingReader(RecordTypeCreationGate.FormOnly));
+        using var store = FormGateRegisters.Store(new FixedClock(Now), recordTypePolicies: new RecordingReader(RecordTypeCreationGate.FormOnly));
         await store.RegisterAndPublishAsync(Form(InspectorGate));
 
         var migrated = await store.RegisterAndPublishAsync(Form(InspectorGate, target: "notes.entry", version: new SemanticVersion(1, 1, 0)));
@@ -248,7 +248,7 @@ public sealed class FormRecordTypeTargetAdmissionTests
     [Fact(DisplayName = "ADR 0099 d7 (F2): a Deprecated revision's captured target still binds later versions")]
     public async Task DeprecatedRevisionStillCapturesTarget()
     {
-        using var store = new InMemoryFormDefinitionStore(new FixedClock(Now), recordTypePolicies: new RecordingReader(RecordTypeCreationGate.FormOnly));
+        using var store = FormGateRegisters.Store(new FixedClock(Now), recordTypePolicies: new RecordingReader(RecordTypeCreationGate.FormOnly));
         var first = await store.RegisterAndPublishAsync(Form(InspectorGate, target: "notes.entry"));
         await store.DeprecateAsync(first.Tenant, first.Id, first.Version);
 
@@ -264,7 +264,7 @@ public sealed class FormRecordTypeTargetAdmissionTests
     [InlineData("notes.entry", null)]
     public async Task WithdrawnRevisionStillCapturesTarget(string? laterTarget, string? expectedCode)
     {
-        using var store = new InMemoryFormDefinitionStore(new FixedClock(Now), recordTypePolicies: new RecordingReader(RecordTypeCreationGate.FormOnly));
+        using var store = FormGateRegisters.Store(new FixedClock(Now), recordTypePolicies: new RecordingReader(RecordTypeCreationGate.FormOnly));
         var first = await store.RegisterAndPublishAsync(Form(InspectorGate, target: "notes.entry"));
         await store.WithdrawAsync(first.Tenant, first.Id, first.Version);
         var later = Form(InspectorGate, target: laterTarget, version: new SemanticVersion(2, 0, 0));
@@ -296,7 +296,7 @@ public sealed class FormRecordTypeTargetAdmissionTests
             "form-only-ungated" => new RecordingReader(RecordTypeCreationGate.FormOnly),
             _ => null,
         };
-        using var store = new InMemoryFormDefinitionStore(new FixedClock(Now), recordTypePolicies: reader);
+        using var store = FormGateRegisters.Store(new FixedClock(Now), recordTypePolicies: reader);
         var legacy = Form(shape == "form-only-ungated" ? null : InspectorGate, "pack-restore", "notes.entry") with { Status = FormDefinitionStatus.Withdrawn };
         store.SeedLegacyRevisionForTesting(legacy);
 
@@ -312,7 +312,7 @@ public sealed class FormRecordTypeTargetAdmissionTests
     public async Task PackRestoreOfGatedFormOnlyTargetSucceeds()
     {
         var reader = new RecordingReader(RecordTypeCreationGate.FormOnly);
-        using var store = new InMemoryFormDefinitionStore(new FixedClock(Now), recordTypePolicies: reader);
+        using var store = FormGateRegisters.Store(new FixedClock(Now), recordTypePolicies: reader);
         var legacy = Form(InspectorGate, "pack-restore", "notes.entry") with { Status = FormDefinitionStatus.Withdrawn };
         store.SeedLegacyRevisionForTesting(legacy);
 
@@ -336,7 +336,7 @@ public sealed class FormRecordTypeTargetAdmissionTests
     [MemberData(nameof(StandingPaths))]
     public async Task StandingGateOnRecordCreationIsRefusedOnEveryPublicationPath(RecordTypeCreationGate creationGate, string path)
     {
-        using var store = new InMemoryFormDefinitionStore(new FixedClock(Now), recordTypePolicies: new RecordingReader(creationGate));
+        using var store = FormGateRegisters.Store(new FixedClock(Now), recordTypePolicies: new RecordingReader(creationGate));
         var definition = Form(AuthorStanding, $"standing-{path}", "notes.entry");
 
         var refusal = await Assert.ThrowsAsync<FormDefinitionValidationException>(async () =>
@@ -366,7 +366,7 @@ public sealed class FormRecordTypeTargetAdmissionTests
     public async Task StandingGateOnRecordCreationStillSavesAsDraft()
     {
         var reader = new RecordingReader(RecordTypeCreationGate.FormOnly);
-        using var store = new InMemoryFormDefinitionStore(new FixedClock(Now), recordTypePolicies: reader);
+        using var store = FormGateRegisters.Store(new FixedClock(Now), recordTypePolicies: reader);
 
         var saved = await store.RegisterAsync(Form(AuthorStanding, "standing-draft", "notes.entry"));
 
@@ -378,7 +378,7 @@ public sealed class FormRecordTypeTargetAdmissionTests
     public async Task UntargetedFormKeepsTheStandingArm()
     {
         var reader = new RecordingReader(RecordTypeCreationGate.FormOnly);
-        using var store = new InMemoryFormDefinitionStore(new FixedClock(Now), recordTypePolicies: reader);
+        using var store = FormGateRegisters.Store(new FixedClock(Now), recordTypePolicies: reader);
 
         var published = await store.RegisterAndPublishAsync(Form(AuthorStanding, "standing-untargeted"));
 
@@ -389,7 +389,7 @@ public sealed class FormRecordTypeTargetAdmissionTests
     [Fact(DisplayName = "T-485 standing gate: an engine target with a standing gate keeps its own refusal at /record_type_id, which comes first")]
     public async Task EngineTargetRefusalPrecedesTheStandingRefusal()
     {
-        using var store = new InMemoryFormDefinitionStore(new FixedClock(Now), recordTypePolicies: new RecordingReader(RecordTypeCreationGate.Engine));
+        using var store = FormGateRegisters.Store(new FixedClock(Now), recordTypePolicies: new RecordingReader(RecordTypeCreationGate.Engine));
 
         var refusal = await Assert.ThrowsAsync<FormDefinitionValidationException>(
             async () => await store.RegisterAndPublishAsync(Form(AuthorStanding, "standing-engine", "ledger.posting")));

@@ -31,7 +31,8 @@ var schemaProperties = corpusRoot.GetProperty("schema").GetProperty("properties"
 
 var schemas = new InMemorySchemaRegistry();
 var schema = await schemas.RegisterAsync(corpusRoot.GetProperty("schema").GetRawText());
-var definitionStore = new InMemoryFormDefinitionStore();
+// The host supplies Access's role vocabulary so publication resolves the submit gate's role (T-485, forms-auth-11).
+var definitionStore = new InMemoryFormDefinitionStore(TimeProvider.System, roles: Harborline.Contracts.Authorization.RoleVocabulary.FromApi([new(Guid.Parse("4f0c2b8e-0000-4000-8000-000000000032"), Harborline.Contracts.Authorization.RoleReference.Domain("admin"), "Admin", new(Harborline.Contracts.Authorization.RoleOwnerKind.Package, "dynamic-forms-consumer"), IsSealed: false)]));
 
 var caseRows = corpusRoot.GetProperty("cases").EnumerateArray().ToArray();
 for (var index = 0; index < caseRows.Length; index += 1)

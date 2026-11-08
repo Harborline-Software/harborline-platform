@@ -40,7 +40,7 @@ public sealed class FormPublicationImpactTests
             CreatedAt = DateTimeOffset.Parse("2026-10-18T09:00:00Z"),
             UpdatedAt = DateTimeOffset.Parse("2026-10-18T10:00:00Z"),
         };
-        var store = new InMemoryFormDefinitionStore();
+        var store = FormGateRegisters.Store();
         var basis = fixture.Basis with { NoPredecessor = true, Predecessor = null, PredecessorEnvironment = null };
         var result = await new FormPublicationImpactAssessment().AssessAsync(candidate, store,
             fixture.Context with { Basis = basis, Surfaces = new ImpactFixture.Source(_ =>
@@ -149,7 +149,7 @@ public sealed class FormPublicationImpactTests
     public async Task Separate_actual_schema_responses_are_retained_even_when_their_ids_match()
     {
         var fixture = await ImpactFixture.CreateAsync();
-        fixture = fixture with { Store = new InMemoryFormDefinitionStore(), Candidate = fixture.Candidate with
+        fixture = fixture with { Store = FormGateRegisters.Store(), Candidate = fixture.Candidate with
             { SchemaRef = new("fixture-shared-schema-id") } };
         await fixture.Store.RegisterAndPublishAsync(fixture.Candidate with { Version = new(2, 1, 0) });
         const string candidateText = " { \"type\":\"object\", \"properties\":{\"name\":{\"type\":\"number\"}} } ";
@@ -522,7 +522,7 @@ public sealed class FormPublicationImpactTests
     public async Task An_explicit_first_publication_is_not_a_failed_predecessor_lookup()
     {
         var fixture = await ImpactFixture.CreateAsync();
-        var emptyStore = new InMemoryFormDefinitionStore();
+        var emptyStore = FormGateRegisters.Store();
         var basis = fixture.Basis with { NoPredecessor = true, Predecessor = null, PredecessorEnvironment = null };
         var source = new ImpactFixture.Source(_ => ValueTask.FromResult<FormPublishedSurfaceRead>(
             new FormPublishedSurfaceRead.Complete("tenant-a", [])));
@@ -743,7 +743,7 @@ internal sealed record ImpactFixture(InMemoryFormDefinitionStore Store, InMemory
         var schemas = new InMemorySchemaRegistry();
         var previousSchema = await schemas.RegisterAsync(Schema);
         var nextSchema = await schemas.RegisterAsync(schema);
-        var store = new InMemoryFormDefinitionStore(clock ?? TimeProvider.System, recordTypePolicies: new RecordTypes());
+        var store = FormGateRegisters.Store(clock ?? TimeProvider.System, recordTypePolicies: new RecordTypes());
         var old = Definition(previousSchema.Id.Value, new(2, 1, 0)) with { RecordTypeId = recordType };
         if (withoutExistingFieldMetadata) old = old with
         {

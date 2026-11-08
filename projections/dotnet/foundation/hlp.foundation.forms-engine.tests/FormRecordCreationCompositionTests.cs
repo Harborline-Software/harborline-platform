@@ -28,6 +28,7 @@ public sealed class FormRecordCreationCompositionTests
         var services = new ServiceCollection();
         services.AddSingleton<TimeProvider>(new FixedClock(Now));
         services.AddSingleton<IFormProjectionSink, DeclaringSink>();
+        services.AddFormGateRegisters();
         services.AddInMemoryFormDefinitionStore();
         services.AddHarborlineFormsEngine(FormEngineHostEnvironment.Test);
         using var provider = services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true });
