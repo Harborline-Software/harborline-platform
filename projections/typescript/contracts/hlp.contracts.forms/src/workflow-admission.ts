@@ -43,6 +43,7 @@ export const WORKFLOW_ADMISSION_CODES = {
   envelopeInvalid: 'workflow.admission.envelope_invalid',
   contractMissing: 'definition.contract.missing',
   contractOutOfWindow: 'definition.contract.out_of_window',
+  gateOnAutonomousStep: 'workflow.admission.gate_on_autonomous_step',
 } as const
 
 export type WorkflowAdmissionCode =
@@ -218,6 +219,15 @@ export function validateWorkflowAdmission(
     if (a.requiredStandings?.some(standing => !isStandingName(standing)))
       add(WORKFLOW_ADMISSION_CODES.invalidStanding, `action '${a.id}' requires a malformed standing.`, a.id)
   }
+
+  // T-1176 Q1 (owner ruling 2026-11-07): a role or standing gate where no human acts is refused; the engine
+  // principal holds none (ADR-0051). "No human acts" is the CP fence's own test, so the two rules agree.
+  for (const t of def.transitions)
+    if (((t.requiredRoles?.length ?? 0) > 0 || (t.requiredStandings?.length ?? 0) > 0) && !isHumanAction(t.on, triggerKind))
+      add(WORKFLOW_ADMISSION_CODES.gateOnAutonomousStep, `transition '${t.id}' has no human actor but declares a role or standing gate.`, t.id)
+  for (const a of def.actions)
+    if (((a.requiredRoles?.length ?? 0) > 0 || (a.requiredStandings?.length ?? 0) > 0) && firesWithoutHumanGate(a, def, transitionById, triggerKind))
+      add(WORKFLOW_ADMISSION_CODES.gateOnAutonomousStep, `action '${a.id}' fires with no human actor but declares a role or standing gate.`, a.id)
 
   // -- reachability + the two security invariants (only once initial is valid) --
   if (stateIds.has(def.initialState)) {

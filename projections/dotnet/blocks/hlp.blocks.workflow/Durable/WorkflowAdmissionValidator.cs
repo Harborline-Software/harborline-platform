@@ -91,6 +91,13 @@ public static class WorkflowAdmissionCodes
 
     /// <summary>The envelope's provenance, retention class or requirements are malformed.</summary>
     public const string EnvelopeInvalid = "workflow.admission.envelope_invalid";
+
+    /// <summary>
+    /// A transition with no human actor, or an action that fires without a HumanAction gating it, declares a required
+    /// role or standing (T-1176 Q1, owner ruling 2026-11-07). The engine principal holds no role or standing
+    /// (ADR-0051), so such a gate could never pass; it is refused when the definition is written.
+    /// </summary>
+    public const string GateOnAutonomousStep = "workflow.admission.gate_on_autonomous_step";
 }
 
 /// <summary>A single admission failure — a stable code + a human-readable message + the offending locator.</summary>
@@ -254,6 +261,21 @@ public sealed class WorkflowAdmissionValidator : IWorkflowAdmissionValidator
                 v.Add(Dangling($"action '{a.Id}' condition '{c}'", a.Id));
             CheckGate($"action '{a.Id}'", a.Id, a.RequiredRoles, a.RequiredStandings, v);
         }
+
+        // T-1176 Q1 (owner ruling 2026-11-07): a role or standing gate where no human acts is refused at admission.
+        // The engine fires autonomous steps as a principal holding no grant (ADR-0051), so the gate could never pass.
+        // "No human acts" is the CP fence's own test, so the two rules agree on what is autonomous.
+        foreach (var t in definition.Transitions)
+            if ((t.RequiredRoles.Count > 0 || t.RequiredStandings.Count > 0) && !IsHumanAction(t.On, triggerById))
+                v.Add(new(WorkflowAdmissionCodes.GateOnAutonomousStep,
+                    $"transition '{t.Id}' declares a required role or standing but its trigger '{t.On}' is not a " +
+                    "HumanAction, so no person performs it and the engine holds no role or standing.", t.Id));
+        foreach (var a in definition.Actions)
+            if ((a.RequiredRoles.Count > 0 || a.RequiredStandings.Count > 0)
+                && FiresWithoutHumanGate(a, definition, transitionById, triggerById))
+                v.Add(new(WorkflowAdmissionCodes.GateOnAutonomousStep,
+                    $"action '{a.Id}' declares a required role or standing but fires without a HumanAction gating " +
+                    "its firing, so no person performs it and the engine holds no role or standing.", a.Id));
 
         // ── Reachability (only meaningful once the initial state is valid) ────
         if (stateIds.Contains(definition.InitialState))
