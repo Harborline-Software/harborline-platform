@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 
 using Microsoft.Extensions.DependencyInjection;
 
@@ -190,6 +191,88 @@ public sealed class DeclarativeWorkflowInterpreterTests
     // ─────────────────────────────────────────────────────────────────────────
     //  Harness
     // ─────────────────────────────────────────────────────────────────────────
+
+    // ── FAIL CLOSED ON AN UNENFORCED GATE (DES-0019 workflows-eng-13, section 6 L422; OWASP deny by default,
+    //    CWE-862). The interpreter has no authorization gate yet, so a declared role or standing refuses with a
+    //    stable code before anything is selected, built or recorded. Removing the refusal makes each of these
+    //    run the gated element and fail. ──
+
+    [Fact]
+    public async Task A_human_transition_that_declares_a_role_is_refused_and_builds_nothing()
+    {
+        var sp = BuildProvider(HumanConfirmer());
+        await PersistAndPublishAsync(sp, Gate(CpAuthored(), "transitions", "t-approve",
+            "requiredRoles", new JsonArray(new JsonObject { ["vocabulary"] = "sys.roles", ["name"] = "Approver" })), CpKey);
+        var interpreter = sp.GetRequiredService<IDeclarativeWorkflowInterpreter>();
+
+        var refusal = await Assert.ThrowsAsync<WorkflowGateUnenforcedException>(async () =>
+            await interpreter.DecideAsync(CpInstance("gate-1", "PendingApproval"), Human("gate-1", "PendingApproval", "approve")));
+
+        Assert.Equal("workflow.interpreter.gate_unenforced", refusal.Code);
+        Assert.Contains("'t-approve'", refusal.Message, StringComparison.Ordinal);
+        var sink = sp.GetRequiredService<CountingWorkflowApprovalDecisionSink>();
+        Assert.Equal(0, sink.ConfirmedCount);
+        Assert.Equal(0, sink.OverriddenCount);
+    }
+
+    [Fact]
+    public async Task An_autonomous_transition_that_declares_a_standing_is_refused()
+    {
+        var sp = BuildProvider(HumanConfirmer());
+        await PersistAndPublishAsync(sp, Gate(ApAuthored(), "transitions", "t-go",
+            "requiredStandings", new JsonArray("assigned-approver")), ApKey);
+        var interpreter = sp.GetRequiredService<IDeclarativeWorkflowInterpreter>();
+
+        var refusal = await Assert.ThrowsAsync<WorkflowGateUnenforcedException>(async () =>
+            await interpreter.DecideAsync(ApInstance("gate-2"), WorkflowTrigger.For(WorkflowTriggerKind.Event, "gate-2", "Start")));
+
+        Assert.Equal(DeclarativeWorkflowInterpreterCodes.GateUnenforced, refusal.Code);
+        Assert.Contains("'t-go'", refusal.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task An_effecting_action_that_declares_a_role_is_refused_before_its_effect_is_built()
+    {
+        var sp = BuildProvider(HumanConfirmer());
+        await PersistAndPublishAsync(sp, Gate(ApAuthored(), "actions", "a-notify",
+            "requiredRoles", new JsonArray(new JsonObject { ["vocabulary"] = "sys.roles", ["name"] = "Author" })), ApKey);
+        var interpreter = sp.GetRequiredService<IDeclarativeWorkflowInterpreter>();
+
+        var refusal = await Assert.ThrowsAsync<WorkflowGateUnenforcedException>(async () =>
+            await interpreter.DecideAsync(ApInstance("gate-3"), WorkflowTrigger.For(WorkflowTriggerKind.Event, "gate-3", "Start")));
+
+        Assert.Equal(DeclarativeWorkflowInterpreterCodes.GateUnenforced, refusal.Code);
+        Assert.Contains("'a-notify'", refusal.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task A_gate_on_an_element_the_step_does_not_reach_does_not_block_the_step()
+    {
+        // The refusal is per element: the reject path carries no gate and still records its override.
+        var sp = BuildProvider(HumanConfirmer());
+        await PersistAndPublishAsync(sp, Gate(CpAuthored(), "transitions", "t-approve",
+            "requiredRoles", new JsonArray(new JsonObject { ["vocabulary"] = "sys.roles", ["name"] = "Approver" })), CpKey);
+        var interpreter = sp.GetRequiredService<IDeclarativeWorkflowInterpreter>();
+
+        var outcome = await interpreter.DecideAsync(CpInstance("gate-4", "PendingApproval"), Human("gate-4", "PendingApproval", "reject"));
+
+        Assert.Equal("Rejected", outcome.NextStep);
+        Assert.Equal(1, sp.GetRequiredService<CountingWorkflowApprovalDecisionSink>().OverriddenCount);
+    }
+
+    private static JsonElement Gate(JsonElement authored, string collection, string id, string member, JsonArray gate)
+    {
+        var root = JsonNode.Parse(authored.GetRawText())!.AsObject();
+        var element = root[collection]!.AsArray().Single(e => (string?)e!["id"] == id)!.AsObject();
+        element[member] = gate;
+        return JsonSerializer.SerializeToElement(root);
+    }
+
+    private static WorkflowInstanceRecord ApInstance(string id) => new()
+    {
+        Id = id, TenantId = Tenant, DefinitionKey = ApKey, DefinitionVersion = Version,
+        CurrentStep = "Start", Status = WorkflowStatus.Running, StateJson = "{}",
+    };
 
     private static WorkflowConfirmerIdentity HumanConfirmer() => new(HumanParty, IsHuman: true);
 

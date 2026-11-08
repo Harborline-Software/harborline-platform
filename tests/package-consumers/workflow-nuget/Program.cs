@@ -12,12 +12,15 @@
 
 using System.Net;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 
 using Microsoft.Extensions.DependencyInjection;
 
 using Harborline.Blocks.Workflow;
 using Harborline.Blocks.Workflow.Durable;
 using Harborline.Blocks.Workflow.Interpreter;
+using Harborline.Contracts.Authorization;
+using Harborline.Foundation.Definitions;
 
 const string Tenant = "tenant:consumer";
 // T-525 item 1: every dispatch carries the host gate's records:write decision on the instance.
@@ -80,6 +83,49 @@ try
 catch (WorkflowAdmissionException)
 {
     // fail-closed, as required.
+}
+
+// T-488: the envelope, sealed role and narrowing standing reach admission through the package alone.
+var enveloped = JsonNode.Parse(authored.GetRawText())!.AsObject();
+enveloped["envelope"] = JsonNode.Parse($$"""
+    {"identity": "{{Key}}", "version": "{{Version}}", "tenant": "{{Tenant}}", "cascadeLayer": "TenantConfiguration",
+     "provenance": {"source": "consumer"}, "retentionClass": "standard", "legalHold": false,
+     "requires": [], "contract": {"major": 1, "minor": 0} }
+    """);
+var gatedTransition = enveloped["transitions"]!.AsArray()[0]!.AsObject();
+gatedTransition["requiredRoles"] = new JsonArray("sys.roles/Approver", new JsonObject { ["vocabulary"] = "sys.platform-roles", ["name"] = "auditor" });
+gatedTransition["requiredStandings"] = new JsonArray("assigned-approver");
+WorkflowAdmissionResult AdmitEnveloped(JsonNode body)
+{
+    using var parsed = JsonDocument.Parse(body.ToJsonString());
+    return new WorkflowAdmissionValidator(CapabilityAuthorityRegistry.Canonical, null, null, new DefinitionContractWindow(1, 0, 1))
+        .Validate(WorkflowDefinitionWireMapper.ToModel(parsed.RootElement, Tenant, Key, Version));
+}
+if (!AdmitEnveloped(enveloped).IsValid)
+{
+    throw new InvalidOperationException("the packaged admission gate refused a well-formed envelope: " + string.Join(",", AdmitEnveloped(enveloped).Violations.Select(violation => violation.Code)));
+}
+using (var envelopedDocument = JsonDocument.Parse(enveloped.ToJsonString()))
+{
+    var envelopedModel = WorkflowDefinitionWireMapper.ToModel(envelopedDocument.RootElement, Tenant, Key, Version);
+    if (envelopedModel.Envelope?.Contract != new DefinitionContractVersion(1, 0)
+        || envelopedModel.Transitions[0].RequiredRoles[0] != new RoleReference("sys.roles", "Approver")
+        || envelopedModel.Transitions[0].RequiredStandings[0] != new RecordStandingReference("assigned-approver"))
+    {
+        throw new InvalidOperationException("the packaged mapper lost the envelope, the role or the standing.");
+    }
+}
+var outOfWindow = enveloped.DeepClone().AsObject();
+outOfWindow["envelope"]!["contract"] = new JsonObject { ["major"] = 2, ["minor"] = 0 };
+if (AdmitEnveloped(outOfWindow).Violations.All(violation => violation.Code != "definition.contract.out_of_window"))
+{
+    throw new InvalidOperationException("the packaged admission gate admitted a contract outside its window.");
+}
+var unsealed = enveloped.DeepClone().AsObject();
+unsealed["transitions"]![0]!["requiredRoles"] = new JsonArray("sys.roles/Owner");
+if (AdmitEnveloped(unsealed).Violations.All(violation => violation.Code != WorkflowAdmissionCodes.UnknownRoleReference))
+{
+    throw new InvalidOperationException("the packaged admission gate admitted a name outside sealed sys.roles.");
 }
 
 // ── 4. Instantiate + dispatch: autonomous event → CP park on the human task ──
