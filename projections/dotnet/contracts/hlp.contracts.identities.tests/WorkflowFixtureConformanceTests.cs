@@ -60,7 +60,7 @@ public sealed class WorkflowFixtureConformanceTests
                 $"{row.GetProperty("id").GetString()}: expected [{string.Join(", ", expectedCodes)}], got [{string.Join(", ", actualCodes)}]");
         }
 
-        Assert.Equal(52, cases.Length);
+        Assert.Equal(55, cases.Length);
         Assert.Equal(ActionClassification.CP, resolver.AuthorityOf("unregistered.capability"));
         Assert.Throws<ArgumentOutOfRangeException>(() => new ImmutableWorkflowAuthorityResolver(
             new Dictionary<string, ActionClassification> { ["invalid"] = (ActionClassification)99 }));
@@ -94,6 +94,10 @@ public sealed class WorkflowFixtureConformanceTests
         if (!row.TryGetProperty("mutation", out var mutation)) return;
         var action = definition["actions"]!.AsArray()[0]!.AsObject();
         var transition = definition["transitions"]!.AsArray()[0]!.AsObject();
+        // Role and standing mutations target the first HumanAction transition: since T-1176 Q1 a gate on an
+        // autonomous transition is its own refusal (gate_on_autonomous_step), tested by the autonomous* keys.
+        var humanTriggers = definition["triggers"]!.AsArray().Where(t => (string?)t!["kind"] == "HumanAction").Select(t => (string?)t!["id"]).ToHashSet();
+        var gated = definition["transitions"]!.AsArray().First(t => humanTriggers.Contains((string?)t!["on"]))!.AsObject();
         if (mutation.TryGetProperty("actionTransition", out var actionTransition))
             action["on"] = new JsonObject { ["transition"] = actionTransition.GetString() };
         if (mutation.TryGetProperty("actionClassification", out var classification)) action["classification"] = classification.GetString();
@@ -106,7 +110,7 @@ public sealed class WorkflowFixtureConformanceTests
         if (mutation.TryGetProperty("unknownActionRole", out _))
             action["requiredRoles"] = new JsonArray(new JsonObject { ["vocabulary"] = "tax.roles", ["name"] = "Missing" });
         if (mutation.TryGetProperty("unknownTransitionRole", out _))
-            transition["requiredRoles"] = new JsonArray(new JsonObject { ["vocabulary"] = "tax.roles", ["name"] = "Missing" });
+            gated["requiredRoles"] = new JsonArray(new JsonObject { ["vocabulary"] = "tax.roles", ["name"] = "Missing" });
         if (mutation.TryGetProperty("envelope", out _)) definition["envelope"] = JsonNode.Parse(root.GetProperty("envelope").GetRawText());
         var envelope = definition["envelope"]?.AsObject();
         if (mutation.TryGetProperty("envelopeContract", out var contract))
@@ -117,9 +121,11 @@ public sealed class WorkflowFixtureConformanceTests
         if (mutation.TryGetProperty("envelopeIdentity", out var identity)) envelope!["identity"] = identity.GetString();
         if (mutation.TryGetProperty("envelopeRetentionClass", out var retention)) envelope!["retentionClass"] = retention.GetString();
         if (mutation.TryGetProperty("envelopeRequirement", out var requirement)) envelope!["requires"] = new JsonArray(new JsonObject { ["capability"] = requirement.GetString() });
-        if (mutation.TryGetProperty("transitionRole", out var transitionRole)) transition["requiredRoles"] = new JsonArray(JsonNode.Parse(transitionRole.GetRawText()));
+        if (mutation.TryGetProperty("transitionRole", out var transitionRole)) gated["requiredRoles"] = new JsonArray(JsonNode.Parse(transitionRole.GetRawText()));
         if (mutation.TryGetProperty("actionRole", out var actionRole)) action["requiredRoles"] = new JsonArray(JsonNode.Parse(actionRole.GetRawText()));
-        if (mutation.TryGetProperty("transitionStanding", out var transitionStanding)) transition["requiredStandings"] = new JsonArray(new JsonObject { ["name"] = transitionStanding.GetString() });
+        if (mutation.TryGetProperty("transitionStanding", out var transitionStanding)) gated["requiredStandings"] = new JsonArray(new JsonObject { ["name"] = transitionStanding.GetString() });
+        if (mutation.TryGetProperty("autonomousTransitionRole", out var autonomousRole)) transition["requiredRoles"] = new JsonArray(JsonNode.Parse(autonomousRole.GetRawText()));
+        if (mutation.TryGetProperty("autonomousTransitionStanding", out var autonomousStanding)) transition["requiredStandings"] = new JsonArray(new JsonObject { ["name"] = autonomousStanding.GetString() });
         if (mutation.TryGetProperty("actionStanding", out var actionStanding)) action["requiredStandings"] = new JsonArray(new JsonObject { ["name"] = actionStanding.GetString() });
     }
 

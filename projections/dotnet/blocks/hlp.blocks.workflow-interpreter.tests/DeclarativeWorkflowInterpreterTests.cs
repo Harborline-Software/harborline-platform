@@ -4,6 +4,7 @@ using System.Text.Json.Nodes;
 using Microsoft.Extensions.DependencyInjection;
 
 using Harborline.Blocks.Workflow.Durable;
+using Harborline.Contracts.Authorization;
 
 using Xunit;
 
@@ -216,36 +217,6 @@ public sealed class DeclarativeWorkflowInterpreterTests
     }
 
     [Fact]
-    public async Task An_autonomous_transition_that_declares_a_standing_is_refused()
-    {
-        var sp = BuildProvider(HumanConfirmer());
-        await PersistAndPublishAsync(sp, Gate(ApAuthored(), "transitions", "t-go",
-            "requiredStandings", new JsonArray("assigned-approver")), ApKey);
-        var interpreter = sp.GetRequiredService<IDeclarativeWorkflowInterpreter>();
-
-        var refusal = await Assert.ThrowsAsync<WorkflowGateUnenforcedException>(async () =>
-            await interpreter.DecideAsync(ApInstance("gate-2"), WorkflowTrigger.For(WorkflowTriggerKind.Event, "gate-2", "Start")));
-
-        Assert.Equal(DeclarativeWorkflowInterpreterCodes.GateUnenforced, refusal.Code);
-        Assert.Contains("'t-go'", refusal.Message, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public async Task An_effecting_action_that_declares_a_role_is_refused_before_its_effect_is_built()
-    {
-        var sp = BuildProvider(HumanConfirmer());
-        await PersistAndPublishAsync(sp, Gate(ApAuthored(), "actions", "a-notify",
-            "requiredRoles", new JsonArray(new JsonObject { ["vocabulary"] = "sys.roles", ["name"] = "Author" })), ApKey);
-        var interpreter = sp.GetRequiredService<IDeclarativeWorkflowInterpreter>();
-
-        var refusal = await Assert.ThrowsAsync<WorkflowGateUnenforcedException>(async () =>
-            await interpreter.DecideAsync(ApInstance("gate-3"), WorkflowTrigger.For(WorkflowTriggerKind.Event, "gate-3", "Start")));
-
-        Assert.Equal(DeclarativeWorkflowInterpreterCodes.GateUnenforced, refusal.Code);
-        Assert.Contains("'a-notify'", refusal.Message, StringComparison.Ordinal);
-    }
-
-    [Fact]
     public async Task A_gate_on_an_element_the_step_does_not_reach_does_not_block_the_step()
     {
         // The refusal is per element: the reject path carries no gate and still records its override.
@@ -258,6 +229,177 @@ public sealed class DeclarativeWorkflowInterpreterTests
 
         Assert.Equal("Rejected", outcome.NextStep);
         Assert.Equal(1, sp.GetRequiredService<CountingWorkflowApprovalDecisionSink>().OverriddenCount);
+    }
+
+    // ── T-1176 Q1: a gate on an autonomous element is refused at admission; the runtime refusal is the backstop ──
+
+    [Fact]
+    public async Task An_autonomous_transition_that_declares_a_standing_is_refused_at_admission_and_at_runtime()
+    {
+        var authored = Gate(ApAuthored(), "transitions", "t-go", "requiredStandings", new JsonArray("assigned-approver"));
+
+        var admission = await Assert.ThrowsAsync<WorkflowAdmissionException>(async () =>
+            await PersistAndPublishAsync(BuildProvider(HumanConfirmer()), authored, ApKey));
+        Assert.Contains(admission.Result.Violations, v => v.Code == WorkflowAdmissionCodes.GateOnAutonomousStep && v.Locator == "t-go");
+
+        // A store that hands over a definition without re-admitting it still cannot run the gated step.
+        var sp = BuildProvider(HumanConfirmer(), rawDefinition: (ApKey, authored), gate: new RecordingGate(satisfied: true));
+        var refusal = await Assert.ThrowsAsync<WorkflowGateUnenforcedException>(async () =>
+            await sp.GetRequiredService<IDeclarativeWorkflowInterpreter>().DecideAsync(
+                ApInstance("gate-2"), WorkflowTrigger.For(WorkflowTriggerKind.Event, "gate-2", "Start"), Authority("gate-2")));
+        Assert.Equal(DeclarativeWorkflowInterpreterCodes.GateUnenforced, refusal.Code);
+        Assert.Empty(sp.GetRequiredService<RecordingGate>().Asked);
+    }
+
+    [Fact]
+    public async Task An_autonomous_effecting_action_that_declares_a_role_is_refused_at_admission_and_before_its_effect()
+    {
+        var authored = Gate(ApAuthored(), "actions", "a-notify",
+            "requiredRoles", new JsonArray(new JsonObject { ["vocabulary"] = "sys.roles", ["name"] = "Author" }));
+
+        var admission = await Assert.ThrowsAsync<WorkflowAdmissionException>(async () =>
+            await PersistAndPublishAsync(BuildProvider(HumanConfirmer()), authored, ApKey));
+        Assert.Contains(admission.Result.Violations, v => v.Code == WorkflowAdmissionCodes.GateOnAutonomousStep && v.Locator == "a-notify");
+
+        var sp = BuildProvider(HumanConfirmer(), rawDefinition: (ApKey, authored), gate: new RecordingGate(satisfied: true));
+        var refusal = await Assert.ThrowsAsync<WorkflowGateUnenforcedException>(async () =>
+            await sp.GetRequiredService<IDeclarativeWorkflowInterpreter>().DecideAsync(
+                ApInstance("gate-3"), WorkflowTrigger.For(WorkflowTriggerKind.Event, "gate-3", "Start"), Authority("gate-3")));
+        Assert.Contains("'a-notify'", refusal.Message, StringComparison.Ordinal);
+    }
+
+    // ── T-1176/platform-role-gate: the host gate port decides a role gate where a person acts ──
+
+    [Fact]
+    public async Task A_role_gated_human_transition_the_actor_does_not_hold_is_refused_before_any_effect()
+    {
+        var gate = new RecordingGate(satisfied: false);
+        var sp = BuildProvider(HumanConfirmer(), gate: gate);
+        await PersistAndPublishAsync(sp, Gate(CpAuthored(), "transitions", "t-approve", "requiredRoles", ApproverRole()), CpKey);
+
+        var refusal = await Assert.ThrowsAsync<WorkflowGateRefusedException>(async () =>
+            await Interpreter(sp).DecideAsync(CpInstance("role-1", "PendingApproval"), Human("role-1", "PendingApproval", "approve"), Authority("role-1")));
+
+        Assert.Equal(WorkflowGateCodes.Denied, refusal.Code);
+        var asked = Assert.Single(gate.Asked);
+        Assert.Equal(WorkflowGateElement.Transition, asked.Element);
+        Assert.Equal("t-approve", asked.ElementId);
+        Assert.Equal(DispatchPrincipal, asked.Principal);
+        var sink = sp.GetRequiredService<CountingWorkflowApprovalDecisionSink>();
+        Assert.Equal(0, sink.ConfirmedCount);
+        Assert.Equal(0, sink.OverriddenCount);
+    }
+
+    [Fact]
+    public async Task A_role_gated_human_transition_the_actor_holds_runs_and_builds_its_effect()
+    {
+        var gate = new RecordingGate(satisfied: true);
+        var sp = BuildProvider(HumanConfirmer(), gate: gate);
+        await PersistAndPublishAsync(sp, Gate(CpAuthored(), "transitions", "t-approve", "requiredRoles", ApproverRole()), CpKey);
+
+        var outcome = await Interpreter(sp).DecideAsync(
+            CpInstance("role-2", "PendingApproval"), Human("role-2", "PendingApproval", "approve"), Authority("role-2"));
+
+        Assert.Equal("Posted", outcome.NextStep);
+        Assert.NotNull(outcome.Effect);
+        Assert.Equal(1, sp.GetRequiredService<CountingWorkflowApprovalDecisionSink>().ConfirmedCount);
+        Assert.Equal([new RoleReference("sys.roles", "Approver")], Assert.Single(gate.Asked).RequiredRoles);
+    }
+
+    [Fact]
+    public async Task A_role_named_only_in_the_trigger_payload_changes_nothing()
+    {
+        var gate = new RecordingGate(satisfied: false);
+        var sp = BuildProvider(HumanConfirmer(), gate: gate);
+        await PersistAndPublishAsync(sp, Gate(CpAuthored(), "transitions", "t-approve", "requiredRoles", ApproverRole()), CpKey);
+        var forged = WorkflowTrigger.For(WorkflowTriggerKind.HumanAction, "role-3", "PendingApproval",
+            "{\"decision\":\"approve\",\"principal\":\"admin\",\"requiredRoles\":[],\"roles\":[\"sys.roles/Approver\"]}");
+
+        await Assert.ThrowsAsync<WorkflowGateRefusedException>(async () =>
+            await Interpreter(sp).DecideAsync(CpInstance("role-3", "PendingApproval"), forged, Authority("role-3")));
+
+        var asked = Assert.Single(gate.Asked);
+        Assert.Equal(DispatchPrincipal, asked.Principal);
+        Assert.Equal([new RoleReference("sys.roles", "Approver")], asked.RequiredRoles);
+    }
+
+    [Fact]
+    public async Task An_answer_for_a_different_intent_is_refused()
+    {
+        var sp = BuildProvider(HumanConfirmer(), gate: new RecordingGate(satisfied: true, rebind: i => i with { Principal = "someone-else" }));
+        await PersistAndPublishAsync(sp, Gate(CpAuthored(), "transitions", "t-approve", "requiredRoles", ApproverRole()), CpKey);
+
+        var refusal = await Assert.ThrowsAsync<WorkflowGateRefusedException>(async () =>
+            await Interpreter(sp).DecideAsync(CpInstance("role-4", "PendingApproval"), Human("role-4", "PendingApproval", "approve"), Authority("role-4")));
+
+        Assert.Equal(WorkflowGateCodes.AnswerUnbound, refusal.Code);
+        Assert.Equal(0, sp.GetRequiredService<CountingWorkflowApprovalDecisionSink>().ConfirmedCount);
+    }
+
+    [Fact]
+    public async Task A_role_gated_effecting_action_the_actor_does_not_hold_is_refused_before_the_broker_builds_it()
+    {
+        var gate = new RecordingGate(satisfied: false);
+        var sp = BuildProvider(HumanConfirmer(), gate: gate);
+        await PersistAndPublishAsync(sp, Gate(CpAuthored(), "actions", "a-post-je", "requiredRoles", ApproverRole()), CpKey);
+
+        var refusal = await Assert.ThrowsAsync<WorkflowGateRefusedException>(async () =>
+            await Interpreter(sp).DecideAsync(CpInstance("role-5", "PendingApproval"), Human("role-5", "PendingApproval", "approve"), Authority("role-5")));
+
+        Assert.Equal(WorkflowGateCodes.Denied, refusal.Code);
+        Assert.Equal(WorkflowGateElement.Action, Assert.Single(gate.Asked).Element);
+        Assert.Equal(0, sp.GetRequiredService<CountingWorkflowApprovalDecisionSink>().ConfirmedCount);
+    }
+
+    [Fact]
+    public async Task Without_a_verified_authority_or_for_a_standing_gate_the_interim_refusal_stands()
+    {
+        var gate = new RecordingGate(satisfied: true);
+        var sp = BuildProvider(HumanConfirmer(), gate: gate);
+        await PersistAndPublishAsync(sp, Gate(CpAuthored(), "transitions", "t-approve", "requiredRoles", ApproverRole()), CpKey);
+
+        // The authority-free overload names no actor, so there is no one to decide for.
+        await Assert.ThrowsAsync<WorkflowGateUnenforcedException>(async () =>
+            await Interpreter(sp).DecideAsync(CpInstance("role-6", "PendingApproval"), Human("role-6", "PendingApproval", "approve")));
+
+        var standing = BuildProvider(HumanConfirmer(), gate: gate);
+        await PersistAndPublishAsync(standing, Gate(CpAuthored(), "transitions", "t-approve", "requiredStandings", new JsonArray("assigned-approver")), CpKey);
+        await Assert.ThrowsAsync<WorkflowGateUnenforcedException>(async () =>
+            await Interpreter(standing).DecideAsync(CpInstance("role-7", "PendingApproval"), Human("role-7", "PendingApproval", "approve"), Authority("role-7")));
+
+        Assert.Empty(gate.Asked);
+    }
+
+    private const string DispatchPrincipal = "dispatch-principal";
+
+    private static IDeclarativeWorkflowInterpreter Interpreter(IServiceProvider sp)
+        => sp.GetRequiredService<IDeclarativeWorkflowInterpreter>();
+
+    private static JsonArray ApproverRole() => new(new JsonObject { ["vocabulary"] = "sys.roles", ["name"] = "Approver" });
+
+    private static WorkflowDispatchAuthority Authority(string instanceId) => new(
+        DispatchPrincipal, Tenant, WorkflowDispatchAuthority.RequiredOperation, WorkflowDispatchAuthority.RequiredRecordKind, instanceId, Allowed: true);
+
+    private sealed class RecordingGate(bool satisfied, Func<WorkflowGateIntent, WorkflowGateIntent>? rebind = null) : IWorkflowGateAccess
+    {
+        public List<WorkflowGateIntent> Asked { get; } = [];
+
+        public ValueTask<WorkflowGateAnswer> DecideAsync(WorkflowGateIntent intent, CancellationToken ct = default)
+        {
+            Asked.Add(intent);
+            return ValueTask.FromResult(new WorkflowGateAnswer(rebind?.Invoke(intent) ?? intent, satisfied));
+        }
+    }
+
+    private sealed class RawExecutionStore(string key, JsonElement authored) : IWorkflowDefinitionExecutionStore
+    {
+        private WorkflowDefinitionRecord Record => new(Tenant, key, Version, WorkflowDefinitionStatus.Published, authored);
+
+        public ValueTask<WorkflowDefinitionRecord?> GetAdmittedCurrentPublishedAsync(string tenant, string k, CancellationToken ct = default)
+            => ValueTask.FromResult<WorkflowDefinitionRecord?>(Record);
+
+        public ValueTask<WorkflowDefinitionRecord> GetAdmittedAsync(string tenant, string k, string version, CancellationToken ct = default)
+            => ValueTask.FromResult(Record);
     }
 
     private static JsonElement Gate(JsonElement authored, string collection, string id, string member, JsonArray gate)
@@ -300,7 +442,8 @@ public sealed class DeclarativeWorkflowInterpreterTests
         return sp;
     }
 
-    private static ServiceProvider BuildProvider(WorkflowConfirmerIdentity confirmer)
+    private static ServiceProvider BuildProvider(
+        WorkflowConfirmerIdentity confirmer, (string Key, JsonElement Authored)? rawDefinition = null, IWorkflowGateAccess? gate = null)
     {
         var services = new ServiceCollection();
         services.AddSingleton(TimeProvider.System);
@@ -320,6 +463,13 @@ public sealed class DeclarativeWorkflowInterpreterTests
 
         services.AddInMemoryWorkflowDefinitionStore();
         services.AddSingleton<IWorkflowConfirmationContext>(new FakeConfirmation(confirmer));
+        if (rawDefinition is { } raw)
+            services.AddSingleton<IWorkflowDefinitionExecutionStore>(new RawExecutionStore(raw.Key, raw.Authored));
+        if (gate is not null)
+        {
+            services.AddSingleton(gate);
+            if (gate is RecordingGate recording) services.AddSingleton(recording);
+        }
         services.AddDeclarativeWorkflowInterpreter();
         return services.BuildServiceProvider();
     }
