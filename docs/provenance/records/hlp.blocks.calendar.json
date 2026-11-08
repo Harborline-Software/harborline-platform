@@ -30,7 +30,7 @@
     "projections/dotnet/blocks/hlp.blocks.calendar/Models/SharedCalendarId.cs": "5194f8bd917c0f0563f1d7acccc1da6994c7c2e097b49c1ad9f32010a59332b4",
     "projections/dotnet/blocks/hlp.blocks.calendar/Models/TimeInterval.cs": "f31332ac5bbeff3b4f7332da89622f53ff91c093e608428c720ef386606316c5",
     "projections/dotnet/blocks/hlp.blocks.calendar/Models/ViewerFreeBusyResult.cs": "75eee85cd1a800420e4175679df94bce7d1bdc79b30fae395f46ad1990073719",
-    "projections/dotnet/blocks/hlp.blocks.calendar/README.md": "5951efe34cccd3401f5444388cbd0ec072bf30b28887d9b871c8be9b1b0898d3",
+    "projections/dotnet/blocks/hlp.blocks.calendar/README.md": "416210d07001285f9bb40233a9b97aa325688c1d736afa6370523448ed1ea52e",
     "projections/dotnet/blocks/hlp.blocks.calendar/Services/AvailabilityExpansionService.cs": "a45f05f93514cd4483926d34c77d8dfb8bbfe92e84604f722ead36f66d559bd9",
     "projections/dotnet/blocks/hlp.blocks.calendar/Services/BookingOutcome.cs": "b7e3010dd58a92fa7871108c952c8188801b05c499740fa72c97a566a151c4fe",
     "projections/dotnet/blocks/hlp.blocks.calendar/Services/BookingService.cs": "af39c232d5297a788a90016057aa55cfbee583cd708426612f860ccf948aeb05",

@@ -42,6 +42,7 @@ public sealed class BookableClaimTests
     [Theory]
     [InlineData(10, 30)]
     [InlineData(11, 0)]
+    [Trait("Holds", "booking-eng-3")]
     public async Task Each_declared_duration_commits_the_requested_window(int endHour, int endMinute)
     {
         var store = new InMemoryCalendarEventStore();
@@ -65,6 +66,7 @@ public sealed class BookableClaimTests
     [InlineData(10, 45)]
     [InlineData(10, 0)]
     [InlineData(9, 30)]
+    [Trait("Holds", "booking-eng-3")]
     public async Task Undeclared_zero_and_inverted_durations_stop_before_capacity(int endHour, int endMinute)
         => await AssertInvalidDurationBeforeCapacityAsync(Utc(10), Utc(endHour, endMinute), [30, 60]);
 
@@ -82,6 +84,7 @@ public sealed class BookableClaimTests
     }
 
     [Fact]
+    [Trait("Holds", "booking-eng-21")]
     public async Task An_availability_runtime_refusal_maps_to_window_invalid_without_mutation()
     {
         var probe = new RefusedAvailabilityProbe();
@@ -108,6 +111,7 @@ public sealed class BookableClaimTests
     }
 
     [Fact]
+    [Trait("Holds", "booking-eng-3")]
     public async Task Duration_uses_elapsed_instants_rather_than_offset_clock_labels()
     {
         var store = new InMemoryCalendarEventStore();
@@ -127,6 +131,7 @@ public sealed class BookableClaimTests
     }
 
     [Fact]
+    [Trait("Holds", "booking-eng-3")]
     public async Task An_available_declared_duration_across_midnight_keeps_both_event_dates()
     {
         // Capacity is a granted port answer here; this checks the claim's duration and event boundary,
@@ -198,6 +203,7 @@ public sealed class BookableClaimTests
     // ----------------------------------------------------------------
 
     [Fact]
+    [Trait("Holds", "booking-eng-8")]
     public async Task Pool_of_two_refuses_the_third_overlapping_claim()
     {
         var store = new InMemoryCalendarEventStore();
@@ -223,6 +229,7 @@ public sealed class BookableClaimTests
     // ----------------------------------------------------------------
 
     [Fact]
+    [Trait("Holds", "booking-eng-7")]
     public async Task Exclusive_resource_refuses_a_second_overlapping_claim()
     {
         var store = new InMemoryCalendarEventStore();
@@ -242,6 +249,7 @@ public sealed class BookableClaimTests
     }
 
     [Fact]
+    [Trait("Holds", "booking-eng-5")]
     public async Task Exclusive_resource_refuses_a_claim_inside_the_previous_claims_cleanup()
     {
         // The room's 30 minutes of cleanup belong to the first claim: 11:00-11:30 is still occupied,
@@ -259,6 +267,7 @@ public sealed class BookableClaimTests
     // ----------------------------------------------------------------
 
     [Fact]
+    [Trait("Holds", "booking-eng-6")]
     public async Task Mixed_conjunction_is_refused_when_the_exclusive_sides_buffered_footprint_is_taken()
     {
         var store = new InMemoryCalendarEventStore();
@@ -274,6 +283,8 @@ public sealed class BookableClaimTests
     }
 
     [Fact]
+    [Trait("Holds", "booking-eng-5")]
+    [Trait("Holds", "booking-eng-6")]
     public async Task Mixed_conjunction_is_refused_when_the_pool_sides_setup_buffer_meets_a_full_pool()
     {
         var store = new InMemoryCalendarEventStore();
@@ -292,6 +303,8 @@ public sealed class BookableClaimTests
     }
 
     [Fact]
+    [Trait("Holds", "booking-eng-5")]
+    [Trait("Holds", "booking-eng-6")]
     public async Task Mixed_conjunction_claims_every_resource_with_its_own_buffers()
     {
         var store = new InMemoryCalendarEventStore();
@@ -322,6 +335,7 @@ public sealed class BookableClaimTests
     // ----------------------------------------------------------------
 
     [Fact]
+    [Trait("Holds", "booking-eng-8")]
     public async Task Two_racing_claims_for_the_last_pool_place_yield_exactly_one_winner()
     {
         var store = new RendezvousEventStore(parties: 2);
@@ -437,6 +451,7 @@ public sealed class BookableClaimTests
     }
 
     [Fact]
+    [Trait("Holds", "booking-eng-6")]
     public async Task A_claim_outside_one_required_resources_supply_is_refused_though_the_other_has_supply()
     {
         // The annex has no supply at all; the room is free. The conjunction refuses on the annex alone.
@@ -488,6 +503,39 @@ public sealed class BookableClaimTests
             (await new BookableClaimService(await RuntimeAsync(store), store, new FixedRequester(Guid.Empty))
                 .Claim(Acme, Procedure, All, Utc(10), Utc(11))).Refusal);
         Assert.Empty(await store.ListAsync(Acme));
+    }
+
+    // booking-eng-13 (DES-0025): the waitlist flag declares that a queue exists and the claim owns nothing after it; an
+    // expiring offer is a Workflow (booking-auth-16). Oracle: the refusal code and the stored count are literals.
+    [Fact(DisplayName = "booking-eng-13: a full pool refuses a waitlisted Bookable exactly as an unlisted one, and queues or writes nothing")]
+    [Trait("Holds", "booking-eng-13")]
+    public async Task A_waitlist_flag_owns_nothing_after_a_full_pool()
+    {
+        var store = new InMemoryCalendarEventStore();
+        var claims = await SutAsync(store);
+        var waitlisted = SeatBooking with { Waitlist = true };
+        Assert.True((await claims.Claim(Acme, waitlisted, All, Utc(10), Utc(11))).Claimed);
+        Assert.True((await claims.Claim(Acme, waitlisted, All, Utc(10), Utc(11))).Claimed);
+
+        var listed = await claims.Claim(Acme, waitlisted, All, Utc(10), Utc(11));
+        var unlisted = await claims.Claim(Acme, SeatBooking, All, Utc(10), Utc(11));
+
+        Assert.Equal((false, "booking.claim.capacity_exhausted", 0), (listed.Claimed, listed.Refusal, listed.Events.Count));
+        Assert.Equal((unlisted.Claimed, unlisted.Refusal, unlisted.Events.Count), (listed.Claimed, listed.Refusal, listed.Events.Count));
+        Assert.Equal(2, (await store.ListAsync(Acme)).Count);
+    }
+
+    // booking-eng-21 (DES-0025, DES-0033): the availability runtime is met inside Booking and never owned by it. The
+    // claim reads capacity only through an injected IAvailabilityRuntime and implements none of it.
+    [Fact(DisplayName = "booking-eng-21: the claim takes the availability runtime by injection and does not implement it")]
+    [Trait("Holds", "booking-eng-21")]
+    public void The_claim_meets_the_availability_runtime_and_never_owns_it()
+    {
+        var claim = typeof(BookableClaimService);
+
+        Assert.False(typeof(IAvailabilityRuntime).IsAssignableFrom(claim));
+        Assert.All(claim.GetConstructors(), constructor =>
+            Assert.Contains(constructor.GetParameters(), parameter => parameter.ParameterType == typeof(IAvailabilityRuntime)));
     }
 
     // ----------------------------------------------------------------

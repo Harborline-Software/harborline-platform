@@ -264,8 +264,9 @@ S0/S1 left these `null`/empty; **S2 (below) populates them** — the participati
   event per Resource. Refusals are stable `booking.claim.*` codes and write nothing.
   - **Buffers are the Resource's `SetupMinutes` and `CleanupMinutes`.** Each Resource's footprint is
     widened by its own buffers, and each committed event carries them as its padding, so the next read
-    sees the full buffered footprint. The DES-0025 ruling on where buffers live is still open; the
-    Resource fields are the recommended answer.
+    sees the full buffered footprint. This is the owner's ruling of 2026-09-29 (DES-0025 open ruling 5,
+    `booking-ck-5`): the buffer lives on the Resource and is part of the hold, and `EventPadding` survives
+    only on the legacy single-resource `Book` path until T-541 retires it.
   - **Atomic across the conjunction.** `SaveAllIfCapacityUnchangedAsync(tenant, events, epochs)` is
     the multi-resource form of the T-659 epoch-conditional save: every epoch is compared and every event
     written in one store step, or nothing is written. A claim that loses an epoch re-reads, up to three
