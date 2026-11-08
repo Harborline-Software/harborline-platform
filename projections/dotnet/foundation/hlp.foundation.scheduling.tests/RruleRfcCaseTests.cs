@@ -76,6 +76,38 @@ public sealed class RruleRfcCaseTests
         Assert.Throws<ArgumentException>(() =>
             Sut.ExpandZonedOccurrences("FREQ=DAILY;COUNT=1", new(2026, 1, 1), new(9, 0), "Mars/Olympus_Mons", null, 30, 0, new(2026, 1, 1)));
 
+    public static TheoryData<string, string> NeverMatchingRules => new()
+    {
+        { "a fifth Monday that must also be the 1st", "FREQ=MONTHLY;BYDAY=5MO;BYMONTHDAY=1" },
+        { "a Monday every seven days from a Tuesday", "FREQ=DAILY;INTERVAL=7;BYDAY=MO" },
+    };
+
+    // The engine's enumeration is unbounded; without a step limit these never yield and the call never returns.
+    [Theory(DisplayName = "T-1175: a subset rule whose parts can never all match refuses promptly instead of enumerating without end")]
+    [MemberData(nameof(NeverMatchingRules))]
+    public void NeverMatchingRuleRefusesPromptly(string _, string rule)
+    {
+        var watch = System.Diagnostics.Stopwatch.StartNew();
+
+        Assert.Throws<FormatException>(() => Dates(rule, new(2026, 1, 6), new(2026, 12, 31)));
+
+        Assert.True(watch.Elapsed < TimeSpan.FromSeconds(10), $"took {watch.Elapsed}");
+    }
+
+    // Oracle: python-dateutil 4.0.0 (Corpus/record-dateutil.py's engine), recorded for these rules.
+    [Fact(DisplayName = "T-1175: the sparsest rules that do match still expand: a fifth Monday in February, and 28 February on a Monday")]
+    public void SparseRulesThatMatchStillExpand()
+    {
+        Assert.Equal([new(2044, 2, 29), new DateOnly(2072, 2, 29)],
+            Dates("FREQ=MONTHLY;BYMONTH=2;BYDAY=5MO;COUNT=2", new(2026, 1, 1), new(2099, 12, 31)));
+        Assert.Equal([new(2028, 2, 28), new DateOnly(2033, 2, 28)],
+            Dates("FREQ=DAILY;BYMONTH=2;BYMONTHDAY=28;BYDAY=MO;COUNT=2", new(2026, 1, 1), new(2099, 12, 31)));
+    }
+
+    [Fact(DisplayName = "T-1175: a series whose next occurrence falls after year 9999 ends there rather than failing")]
+    public void SeriesEndsPastYear9999() =>
+        Assert.Equal([new DateOnly(2026, 6, 1)], Dates("FREQ=YEARLY;INTERVAL=10000", new(2026, 6, 1), new(9999, 12, 31)));
+
     [Fact(DisplayName = "R-0146 (e): New York 01:30 on 2026-11-01 is 05:30Z, the first occurrence of the ambiguous time (RFC 5545 §3.3.5) [calendar resolver: 06:30Z]")]
     public void AmbiguousLocalTimeIsItsFirstOccurrence() =>
         Assert.Equal(new DateTimeOffset(2026, 11, 1, 5, 30, 0, TimeSpan.Zero),

@@ -10,7 +10,7 @@
     "projections/dotnet/foundation/hlp.foundation.scheduling/Services/IDueOccurrenceSource.cs": "88f45fefba0271333255f54322d4850666c4a8c3d36877c68f3b0754e39f8db6",
     "projections/dotnet/foundation/hlp.foundation.scheduling/Services/IDueQueueQueryService.cs": "1bb48e044529dc1988f2f1a6d84ca04255ae55938b0e80d12804b03665229e2e",
     "projections/dotnet/foundation/hlp.foundation.scheduling/Services/IRruleExpansionService.cs": "6dc75b8024b81696ba3c691857694394095fbf371d9e5f825a0d655ae046c453",
-    "projections/dotnet/foundation/hlp.foundation.scheduling/Services/InMemoryRruleExpansionService.cs": "ee62b450ba1d9255a19015f120bd95e97dd4869b0aad18ec7c0f0cb7986a8aef",
+    "projections/dotnet/foundation/hlp.foundation.scheduling/Services/InMemoryRruleExpansionService.cs": "51e9de32c2cb0a3f053cc150099381ac2a5a0545c91fa2c3c87c2542ccfa36a9",
     "projections/dotnet/foundation/hlp.foundation.scheduling/Services/RruleExpansionCapExceededException.cs": "b9415a1e1c842a573bb536244ba9eecd4d11a73727c8ae86423ac6ef943a0f91",
     "projections/dotnet/foundation/hlp.foundation.scheduling/Services/RruleDueQueueQueryService.cs": "89394ed483ee5641fe702ba1ce71823d74c0c86e95ed48cd43eee94c9f11c9eb",
     "projections/dotnet/foundation/hlp.foundation.scheduling/Harborline.Foundation.Scheduling.csproj": "9148411963b0fdcb148fec828d3dc9e5e13253cd259ba75e05b251c049134d92"

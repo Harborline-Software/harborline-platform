@@ -75,10 +75,42 @@ public sealed class InMemoryRruleExpansionService : IRruleExpansionService
             static (date, until) => until.Instant is null && date > until.Date);
     }
 
-    private static IEnumerable<CalDateTime> Evaluate(ParsedRrule parsed, CalDateTime dtStart) =>
-        new RecurrencePatternEvaluator(new RecurrenceRule(parsed.ToRuleWithoutUntil()))
-            .Evaluate(dtStart, null, null)
-            .Select(period => period.StartTime);
+    /// <summary>
+    /// The most frequency steps the engine may take without a match before the rule is refused. The engine's enumeration
+    /// is unbounded, and a subset rule that can never match (a fifth Monday that must also be the 1st; a weekly Monday
+    /// every seven days from a Tuesday) would otherwise never yield, so the horizon check below would never run. The
+    /// sparsest subset rule that does match, a fifth Monday in February, needs about 336 monthly steps, and a daily
+    /// BYMONTH, BYMONTHDAY and BYDAY intersection under about 4 100 daily steps.
+    /// </summary>
+    private const int UnmatchedStepLimit = 10_000;
+
+    private static IEnumerable<CalDateTime> Evaluate(ParsedRrule parsed, CalDateTime dtStart)
+    {
+        using var periods = new RecurrencePatternEvaluator(new RecurrenceRule(parsed.ToRuleWithoutUntil()))
+            .Evaluate(dtStart, null, new EvaluationOptions { MaxUnmatchedIncrementsLimit = UnmatchedStepLimit })
+            .GetEnumerator();
+        while (true)
+        {
+            try
+            {
+                if (!periods.MoveNext())
+                    yield break;
+            }
+            catch (EvaluationLimitExceededException exception)
+            {
+                throw new FormatException(
+                    $"RRULE '{parsed.ToRuleWithoutUntil()}' produces no further occurrence within {UnmatchedStepLimit} steps; "
+                    + "its parts cannot all match.", exception);
+            }
+            catch (EvaluationOutOfRangeException)
+            {
+                // The next occurrence would fall after year 9999, which no DateOnly horizon reaches: the series has ended.
+                yield break;
+            }
+
+            yield return periods.Current.StartTime;
+        }
+    }
 
     /// <summary>
     /// Walks ascending occurrences from the anchor. COUNT is applied by the engine and counts from the anchor; UNTIL, the
