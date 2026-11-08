@@ -51,8 +51,13 @@ public sealed class WorkflowFixtureConformanceTests
             var result = WorkflowAdmissionValidator.Validate(definition, resolver, roleVocabulary, window);
             var expectedResult = row.GetProperty("expected");
             Assert.Equal(expectedResult.GetProperty("isValid").GetBoolean(), result.IsValid);
-            foreach (var code in expectedResult.GetProperty("codes").EnumerateArray().Select(value => value.GetString()!))
-                Assert.Contains(result.Violations, violation => violation.Code == code);
+            // The exact distinct code set, as the TypeScript projection asserts: an extra violation fails too.
+            var expectedCodes = expectedResult.GetProperty("codes").EnumerateArray().Select(value => value.GetString()!)
+                .Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray();
+            var actualCodes = result.Violations.Select(violation => violation.Code)
+                .Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray();
+            Assert.True(expectedCodes.SequenceEqual(actualCodes, StringComparer.Ordinal),
+                $"{row.GetProperty("id").GetString()}: expected [{string.Join(", ", expectedCodes)}], got [{string.Join(", ", actualCodes)}]");
         }
 
         Assert.Equal(52, cases.Length);
