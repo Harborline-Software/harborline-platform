@@ -275,6 +275,190 @@ public sealed class BookingAuthoringTests : BunitContext
         Assert.NotNull(cut.Find("main[aria-label='Host shell'] form[aria-label='Booking definition draft']"));
     }
 
+    private static BookingDiagnosticSet Refused(BookingDraft draft, params (string Code, string Pointer)[] diagnostics) => new(draft.Identity, draft.ExpectedRevision, 0, [.. diagnostics.Select(item => new BookingDiagnostic(item.Code, item.Pointer))]);
+    private static string[] OptionTexts(IRenderedComponent<HarborlineBookingAuthoringEditor> cut, string select) => [.. cut.FindAll($"select[aria-label='{select}'] option").Select(option => option.TextContent)];
+
+    [Fact(DisplayName = "booking-eng-20: the revision grammar admits only \"0\" or [1-9][0-9]* up to Int64.MaxValue, compared as text")]
+    [Trait("Holds", "booking-eng-20")]
+    public void RevisionGrammar()
+    {
+        // Literals from the canonical revision rule shared with Records and Rules (ADR 0096 option and revision shapes).
+        (string? Text, bool Canonical)[] table = [("0", true), ("7", true), ("10", true), ("9223372036854775806", true), ("9223372036854775807", true), ("999999999999999999", true),
+            ("9223372036854775808", false), ("10000000000000000000", false), ("00", false), ("01", false), ("", false), ("1a", false), (" 1", false), ("-1", false), ("/", false), (":", false), (null, false)];
+        Assert.Equal(table.Select(row => row.Canonical), table.Select(row => BookingRevisionText.IsCanonical(row.Text)));
+        Assert.Equal([true, true, false], new[] { null, "3", "03" }.Select(BookingRevisionText.IsAcceptable));
+    }
+
+    [Fact(DisplayName = "booking-eng-20: every Resource pointer renders under its own field, and a Bookable member on a Resource is listed with its pointer")]
+    [Trait("Holds", "booking-eng-20")]
+    public void ResourcePointersByField()
+    {
+        (string Pointer, string Field)[] pointers = [("/name", "Name"), ("/from_type_id", "Resource record type"), ("/capacity_kind", "Capacity"), ("/pool_size", "Pool size"), ("/setup_minutes", "Setup minutes"), ("/cleanup_minutes", "Cleanup minutes"), ("/maintenance_windows/0", "Maintenance"), ("/availability_from", "Availability source")];
+        var draft = Resource("""{"capacity_kind":"pool"}""");
+        var cut = Editor(draft, [], Refused(draft, [.. pointers.Select(item => ($"code{item.Pointer}", item.Pointer)), ("code.on", "/on_type_id")]));
+        foreach (var (pointer, field) in pointers) Assert.Equal([$"code{pointer}"], Items(cut, $"{field} refusals"));
+        foreach (var field in new[] { "Name", "Resource record type", "Capacity", "Pool size", "Setup minutes", "Cleanup minutes", "Availability source" }) Assert.Equal("true", Labelled(cut, field).GetAttribute("aria-invalid"));
+        Assert.Equal("true", cut.FindAll("fieldset").Single(set => set.QuerySelector("legend")!.TextContent == "Maintenance").GetAttribute("aria-invalid"));
+        Assert.Equal(["code.on at /on_type_id"], Items(cut, "Other refusals"));
+    }
+
+    [Fact(DisplayName = "booking-eng-20: every Bookable pointer renders under its own field, and a Resource member on a Bookable is listed with its pointer")]
+    [Trait("Holds", "booking-eng-20")]
+    public void BookablePointersByField()
+    {
+        (string Pointer, string Field)[] pointers = [("/name", "Name"), ("/on_type_id", "Offered against record type"), ("/duration_intervals_minutes/1", "Durations"), ("/requires/0", "Required resources"), ("/waitlist", "Waitlist")];
+        var draft = Bookable("{}") with { ExpectedRevision = "2" };
+        var cut = Editor(draft, [], Refused(draft, [.. pointers.Select(item => ($"code{item.Pointer}", item.Pointer)), ("code.pool", "/pool_size"), ("code.root", "")]));
+        foreach (var (pointer, field) in pointers) Assert.Equal([$"code{pointer}"], Items(cut, $"{field} refusals"));
+        foreach (var legend in new[] { "Durations", "Required resources" }) Assert.Equal("true", cut.FindAll("fieldset").Single(set => set.QuerySelector("legend")!.TextContent == legend).GetAttribute("aria-invalid"));
+        Assert.Equal("true", Labelled(cut, "Waitlist").GetAttribute("aria-invalid"));
+        Assert.Equal(["code.pool at /pool_size", "code.root at "], Items(cut, "Other refusals"));
+    }
+
+    [Fact(DisplayName = "booking-eng-20: with nothing refused no field is marked invalid and no refusal list renders")]
+    [Trait("Holds", "booking-eng-20")]
+    public void NothingRefused()
+    {
+        var draft = Resource("""{"capacity_kind":"pool","pool_size":2}""");
+        var cut = Editor(draft, [], Refused(draft));
+        foreach (var field in new[] { "Name", "Resource record type", "Capacity", "Pool size", "Setup minutes", "Availability source" }) Assert.False(Labelled(cut, field).HasAttribute("aria-invalid"), field);
+        Assert.Empty(cut.FindAll("ul"));
+    }
+
+    [Fact(DisplayName = "booking-eng-20: each local change reports the next local generation, Discard reports one more, and a discarded draft is clean again")]
+    [Trait("Holds", "booking-eng-20")]
+    public void Generations()
+    {
+        var changes = new List<BookingDraftChange>(); var draft = Resource("""{"name":"Room"}""");
+        var cut = Editor(draft, changes);
+        Type(cut, "Name", "A"); Type(cut, "Name", "B");
+        Assert.Equal([1, 2], changes.Select(change => change.Generation));
+        Assert.Equal("2", cut.Find("form").GetAttribute("data-generation"));
+        cut.Render(parameters => parameters.Add(component => component.Value, draft with { ExpectedRevision = "4" }));
+        Button(cut, "Discard edits").Click();
+        Assert.Equal([1, 2, 3], changes.Select(change => change.Generation));
+        cut.Render(parameters => parameters.Add(component => component.Value, Resource("""{"name":"Five"}""", "5")));
+        Assert.Empty(cut.FindAll("[role='alert']"));
+        Assert.Equal("Five", Labelled(cut, "Name").GetAttribute("value"));
+        Assert.Equal("4", cut.Find("form").GetAttribute("data-generation"));
+    }
+
+    [Fact(DisplayName = "read-only ignores edits and Keep, so a waiting draft stays waiting")]
+    [Trait("Holds", "booking-eng-20")]
+    public void ReadOnlyIgnoresKeep()
+    {
+        var changes = new List<BookingDraftChange>(); var draft = Resource("""{"name":"Room"}""");
+        var cut = Editor(draft, changes);
+        Type(cut, "Name", "Mine");
+        cut.Render(parameters => parameters.Add(component => component.Value, draft with { ExpectedRevision = "4" }).Add(component => component.ReadOnly, true));
+        Type(cut, "Name", "Ignored");
+        Button(cut, "Keep edits").Click();
+        Assert.Single(changes);
+        Assert.NotEmpty(cut.FindAll("[role='alert']"));
+        Assert.Equal("", cut.Find("form").GetAttribute("data-read-only"));
+    }
+
+    [Fact(DisplayName = "a later host draft with a non-canonical revision is ignored: the current draft stays and nothing is emitted")]
+    [Trait("Holds", "booking-eng-20")]
+    public void LaterNonCanonicalRevisionIgnored()
+    {
+        var changes = new List<BookingDraftChange>(); var draft = Resource("""{"name":"Room"}""");
+        var cut = Editor(draft, changes);
+        cut.Render(parameters => parameters.Add(component => component.Value, Resource("""{"name":"Bad"}""", "04")));
+        Assert.Equal("Room", Labelled(cut, "Name").GetAttribute("value"));
+        Assert.Equal("A host draft was not loaded because its revision is not a canonical decimal string.", cut.Find("p[role='status']").TextContent);
+        Assert.Empty(changes);
+    }
+
+    [Fact(DisplayName = "the header shows unassigned identity, version and revision, and offers a kind only until one is chosen")]
+    [Trait("Holds", "booking-eng-20")]
+    public void HeaderAndKind()
+    {
+        var cut = Editor(BookingDraft.Empty, []);
+        Assert.Equal(("Not yet assigned", "Not yet assigned", "None"), (Labelled(cut, "Identity").TextContent, Labelled(cut, "Version").TextContent, Labelled(cut, "Expected revision").TextContent));
+        Assert.Equal(["Choose a definition kind", "Resource", "Bookable"], OptionTexts(cut, "Definition kind"));
+        Type(cut, "Definition kind", "bookable");
+        Assert.Equal(["Resource", "Bookable"], OptionTexts(cut, "Definition kind"));
+    }
+
+    [Fact(DisplayName = "an unknown kind is shown as not a Booking kind and is never rewritten")]
+    [Trait("Holds", "booking-eng-20")]
+    public void UnknownKind()
+    {
+        var changes = new List<BookingDraftChange>();
+        var cut = Editor(new BookingDraft("x", "1", null, JsonNode.Parse("""{"kind":"resource_pool"}""")!.AsObject()), changes);
+        Assert.Equal(["resource_pool (not a Booking kind)", "Resource", "Bookable"], OptionTexts(cut, "Definition kind"));
+        Assert.Empty(cut.FindAll("[aria-label='Name']"));
+        Type(cut, "Definition kind", "resource_pool");
+        Assert.Empty(changes);
+    }
+
+    [Fact(DisplayName = "booking-auth-2: clearing capacity removes it and the pool size; choosing pool shows an empty pool size; a stray pool size is still shown")]
+    [Trait("Holds", "booking-auth-2")]
+    public void CapacityEdges()
+    {
+        var changes = new List<BookingDraftChange>();
+        var cut = Editor(Resource("""{"capacity_kind":"pool","pool_size":3}"""), changes);
+        Type(cut, "Capacity", "");
+        Same(JsonNode.Parse("""{"kind":"resource"}"""), changes[^1].Draft.Body);
+        Type(cut, "Capacity", "pool");
+        Same(JsonNode.Parse("""{"kind":"resource","capacity_kind":"pool"}"""), changes[^1].Draft.Body);
+        Assert.Equal("", Labelled(cut, "Pool size").GetAttribute("value"));
+        var stray = Editor(Resource("""{"pool_size":3}"""), []);
+        Assert.Equal("3", Labelled(stray, "Pool size").GetAttribute("value"));
+        Assert.Equal(["Not set (exclusive)", "exclusive", "pool"], OptionTexts(stray, "Capacity"));
+    }
+
+    [Fact(DisplayName = "booking-auth-2: a capacity outside the grammar is shown as not a current spelling")]
+    [Trait("Holds", "booking-auth-2")]
+    public void UnknownCapacity()
+    {
+        var cut = Editor(Resource("""{"capacity_kind":"scalar"}"""), []);
+        Assert.Equal("scalar", Labelled(cut, "Capacity").GetAttribute("value"));
+        Assert.Contains("scalar (not a current spelling)", OptionTexts(cut, "Capacity"));
+    }
+
+    [Fact(DisplayName = "booking-auth-6: an empty list shows its note, labels count from one, an invalid edit is a no-op and removing the last duration removes the member")]
+    [Trait("Holds", "booking-auth-6")]
+    public void DurationEdges()
+    {
+        Assert.Contains("No durations authored.", Editor(Bookable("{}"), []).FindAll(".hl-booking-authoring__note").Select(note => note.TextContent));
+        var changes = new List<BookingDraftChange>();
+        var cut = Editor(Bookable("""{"duration_intervals_minutes":[30,60]}"""), changes);
+        Assert.DoesNotContain("No durations authored.", cut.FindAll(".hl-booking-authoring__note").Select(note => note.TextContent));
+        Assert.Equal("30", Labelled(cut, "Duration 1 minutes").GetAttribute("value"));
+        Assert.NotNull(Button(cut, "Remove duration 2"));
+        Type(cut, "Duration 1 minutes", "x");
+        Assert.Empty(changes);
+        Button(cut, "Remove duration 2").Click(); Button(cut, "Remove duration 1").Click();
+        Same(JsonNode.Parse("""{"kind":"bookable"}"""), changes[^1].Draft.Body);
+        Type(cut, "New duration minutes", "45"); Button(cut, "Add duration").Click();
+        Same(JsonNode.Parse("""{"kind":"bookable","duration_intervals_minutes":[45]}"""), changes[^1].Draft.Body);
+        Assert.Equal("", Labelled(cut, "New duration minutes").GetAttribute("value"));
+    }
+
+    [Fact(DisplayName = "emptying the name writes an empty name; emptying the availability source removes it")]
+    [Trait("Holds", "booking-eng-20")]
+    public void NameAndAvailability()
+    {
+        var changes = new List<BookingDraftChange>();
+        var cut = Editor(Resource("""{"name":"Room","availability_from":"supply.base-hours"}"""), changes);
+        Type(cut, "Name", "");
+        Same(JsonNode.Parse("""{"kind":"resource","name":"","availability_from":"supply.base-hours"}"""), changes[^1].Draft.Body);
+        Type(cut, "Availability source", "");
+        Same(JsonNode.Parse("""{"kind":"resource","name":""}"""), changes[^1].Draft.Body);
+    }
+
+    [Fact(DisplayName = "booking-auth-1, -7: a not-offered note appears only for chosen ids the host does not offer, and an empty choice is never one")]
+    [Trait("Holds", "booking-auth-1"), Trait("Holds", "booking-auth-7")]
+    public void NotOfferedNotes()
+    {
+        var cut = Editor(Bookable("""{"on_type_id":"","requires":["pump","room"]}"""), []);
+        Assert.Equal(["pump (not offered)"], cut.FindAll("p, option").Select(node => node.TextContent).Where(text => text.EndsWith("(not offered)", StringComparison.Ordinal)));
+        Assert.True(Labelled(cut, "Required resource Training room").HasAttribute("checked"));
+        Assert.False(Labelled(cut, "Required resource instructor").HasAttribute("checked"));
+    }
+
     // The shared runner's per-case lane (tooling/run-ui-module-shared.mjs): each fixture case, replayed or rendered with its refusals.
     [Theory, Trait("ModuleConformance", "hlp.ui.booking-authoring"), Trait("Holds", "booking-eng-20")]
     [MemberData(nameof(SharedFixtureBatch.Cases), "hlp.ui.booking-authoring", MemberType = typeof(SharedFixtureBatch))]
