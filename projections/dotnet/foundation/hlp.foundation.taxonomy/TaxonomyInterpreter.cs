@@ -207,6 +207,11 @@ public sealed class TaxonomyInterpreter
                     throw new TaxonomyCodingCaptureException("taxonomy.coding_definition_missing");
                 if (resolved.Definition.Nodes is null) throw CaptureInvalid();
                 if (resolved.Definition.Nodes.Count > maximum - nodes) throw CaptureTooLarge();
+                foreach (var node in resolved.Definition.Nodes)
+                {
+                    if (node?.Code is { } code) CheckDefinitionText(code);
+                    if (node?.ParentCode is { } parent) CheckDefinitionText(parent);
+                }
                 var buffer = TaxonomyDefinitionJson.SerializeCanonical(resolved.Definition);
                 var digest = Convert.ToHexString(SHA256.HashData(buffer)).ToLowerInvariant();
                 if (digest != binding.DefinitionSha256)
@@ -273,6 +278,14 @@ public sealed class TaxonomyInterpreter
         try { bytes = StrictUtf8.GetByteCount(text); }
         catch (EncoderFallbackException) { throw CaptureInvalid(); }
         if (bytes > 262_144) throw CaptureTooLarge();
+    }
+    // T-1173: canonical serialization would rewrite a lone surrogate in a node's own code or parent code to U+FFFD, so the
+    // capture would answer from a definition nobody authored and the digest pin, taken over the rewritten bytes, could not
+    // tell (RFC 7493 section 2.1; DES-0024 section 3, corrupt data refuse the entire capture).
+    private static void CheckDefinitionText(string text)
+    {
+        try { _ = StrictUtf8.GetByteCount(text); }
+        catch (EncoderFallbackException) { throw CaptureInvalid(); }
     }
     // Reject each write before MemoryStream can grow beyond the existing JSON byte envelope.
     private sealed class CaptureStream : MemoryStream

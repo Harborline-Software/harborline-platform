@@ -8,7 +8,7 @@ namespace Harborline.Blocks.Workflow.Tests;
 /// </summary>
 public sealed class InMemoryWorkflowRuntimeTests
 {
-    private static InMemoryWorkflowRuntime CreateRuntime() => new();
+    private static InMemoryWorkflowRuntime CreateRuntime() => new(TimeProvider.System);
 
     private static IWorkflowDefinition<DemoMaintenanceState, DemoMaintenanceTrigger, DemoMaintenanceContext>
         Def(Func<DemoMaintenanceState, DemoMaintenanceState, DemoMaintenanceTrigger,
@@ -245,5 +245,27 @@ public sealed class InMemoryWorkflowRuntimeTests
         var result = await runtime.GetAsync<DemoMaintenanceState, DemoMaintenanceTrigger, DemoMaintenanceContext>(
             WorkflowInstanceId.NewId());
         Assert.Null(result);
+    }
+
+    [Fact(DisplayName = "T-1178: start and transition are stamped from the injected clock, not wall time")]
+    public async Task Start_and_transition_are_stamped_from_the_injected_clock()
+    {
+        var clock = new SteppingClock(DateTimeOffset.Parse("2001-02-03T04:05:06Z"));
+        var runtime = new InMemoryWorkflowRuntime(clock);
+        var started = await runtime.StartAsync(Def(), new DemoMaintenanceContext());
+        Assert.Equal(DateTimeOffset.Parse("2001-02-03T04:05:06Z"), started.StartedAtUtc);
+        Assert.Equal(started.StartedAtUtc, started.LastTransitionAtUtc);
+
+        clock.Now = DateTimeOffset.Parse("2001-02-03T05:00:00Z");
+        var fired = await runtime.FireAsync<DemoMaintenanceState, DemoMaintenanceTrigger, DemoMaintenanceContext>(
+            started.Id, DemoMaintenanceTrigger.Approve);
+        Assert.Equal(DateTimeOffset.Parse("2001-02-03T05:00:00Z"), fired.LastTransitionAtUtc);
+        Assert.Equal(started.StartedAtUtc, fired.StartedAtUtc);
+    }
+
+    private sealed class SteppingClock(DateTimeOffset now) : TimeProvider
+    {
+        public DateTimeOffset Now { get; set; } = now;
+        public override DateTimeOffset GetUtcNow() => Now;
     }
 }

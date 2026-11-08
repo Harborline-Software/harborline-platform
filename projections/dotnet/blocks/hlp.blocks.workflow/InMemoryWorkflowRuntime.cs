@@ -23,6 +23,14 @@ public sealed class InMemoryWorkflowRuntime : IWorkflowRuntime
 {
     // Stores type-erased wrappers keyed by instance id.
     private readonly ConcurrentDictionary<WorkflowInstanceId, InstanceEntry> _entries = new();
+    private readonly TimeProvider _clock;
+
+    /// <summary>
+    /// Creates the runtime over the host's injected clock (T-1178, DES-0029 kernel-core-ck-9: the server clock is
+    /// authority). The block never reads wall time itself; one read per operation stamps it.
+    /// </summary>
+    public InMemoryWorkflowRuntime(TimeProvider clock) =>
+        _clock = clock ?? throw new ArgumentNullException(nameof(clock));
 
     // ---------------------------------------------------------------------------
     // IWorkflowRuntime
@@ -37,7 +45,7 @@ public sealed class InMemoryWorkflowRuntime : IWorkflowRuntime
         where TTrigger : struct, Enum
     {
         var id = WorkflowInstanceId.NewId();
-        var now = DateTimeOffset.UtcNow;
+        var now = _clock.GetUtcNow();
         var instance = new WorkflowInstance<TState, TTrigger, TContext>(
             Id: id,
             CurrentState: definition.InitialState,
@@ -88,7 +96,7 @@ public sealed class InMemoryWorkflowRuntime : IWorkflowRuntime
             {
                 CurrentState = next.Value,
                 IsTerminal = entry.Definition.TerminalStates.Contains(next.Value),
-                LastTransitionAtUtc = DateTimeOffset.UtcNow,
+                LastTransitionAtUtc = _clock.GetUtcNow(),
                 TransitionCount = current.TransitionCount + 1
             };
 
