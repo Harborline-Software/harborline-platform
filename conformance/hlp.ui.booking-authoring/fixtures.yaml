@@ -63,19 +63,45 @@
               }
             }
           }
-        }
+        },
+        "steps": [
+          {
+            "set": "Definition kind",
+            "value": "resource"
+          },
+          {
+            "set": "Name",
+            "value": "Training room"
+          },
+          {
+            "set": "Resource record type",
+            "value": "type.room"
+          },
+          {
+            "set": "Capacity",
+            "value": "pool"
+          },
+          {
+            "set": "Pool size",
+            "value": "2"
+          },
+          {
+            "set": "Setup minutes",
+            "value": "10"
+          },
+          {
+            "set": "Cleanup minutes",
+            "value": "15"
+          },
+          {
+            "check": "Maintenance from Out of service"
+          },
+          {
+            "set": "Availability source",
+            "value": "supply.base-hours"
+          }
+        ]
       },
-      "steps": [
-        "Definition kind: Resource",
-        "Name: Training room",
-        "Resource record type: Room",
-        "Capacity: pool",
-        "Pool size: 2",
-        "Setup minutes: 10",
-        "Cleanup minutes: 15",
-        "Maintenance from Out of service: checked",
-        "Availability source: supply.base-hours"
-      ],
       "expected": {
         "body": {
           "envelope": {
@@ -134,18 +160,45 @@
               }
             }
           }
-        }
+        },
+        "steps": [
+          {
+            "set": "Definition kind",
+            "value": "bookable"
+          },
+          {
+            "set": "Name",
+            "value": "Induction class"
+          },
+          {
+            "set": "Offered against record type",
+            "value": "type.learner"
+          },
+          {
+            "set": "New duration minutes",
+            "value": "60"
+          },
+          {
+            "click": "Add duration"
+          },
+          {
+            "set": "New duration minutes",
+            "value": "90"
+          },
+          {
+            "click": "Add duration"
+          },
+          {
+            "check": "Required resource Training room"
+          },
+          {
+            "check": "Required resource instructor"
+          },
+          {
+            "check": "Waitlist"
+          }
+        ]
       },
-      "steps": [
-        "Definition kind: Bookable",
-        "Name: Induction class",
-        "Offered against record type: Learner",
-        "New duration minutes: 60, Add duration",
-        "New duration minutes: 90, Add duration",
-        "Required resource Training room: checked",
-        "Required resource instructor: checked",
-        "Waitlist: checked"
-      ],
       "expected": {
         "body": {
           "envelope": {

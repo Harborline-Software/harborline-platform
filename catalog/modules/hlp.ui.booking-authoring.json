@@ -1,0 +1,57 @@
+{
+  "moduleId": "hlp.ui.booking-authoring",
+  "module": {
+    "interface": {
+      "path": "specs/modules/ui/hlp.ui.booking-authoring/interface.yaml",
+      "revision": 1
+    },
+    "moduleKind": "interactive-component",
+    "presentation": {
+      "disposition": "visual"
+    },
+    "qualityProfile": {
+      "path": "specs/modules/ui/hlp.ui.booking-authoring/quality.yaml",
+      "revision": 1
+    },
+    "owner": "platform-ui",
+    "dependencies": [
+      "hlp.ui.button"
+    ],
+    "status": "gap-implemented",
+    "depth": {
+      "disposition": "deep-module",
+      "deletionTest": "PASS",
+      "redistributedComplexity": [
+        "Resource and Bookable drafting in the Booking grammar repeated by every Booking host",
+        "dirty replacement decisions, by-field admission refusals and stale refusal fencing drifting between React and Blazor"
+      ]
+    },
+    "projections": {
+      "react": {
+        "role": "adapter",
+        "seam": "ui.booking-authoring.framework",
+        "path": "projections/react/ui/hlp.ui.booking-authoring",
+        "status": "conformant",
+        "packageContribution": "@harborline-software/ui-react",
+        "conformanceRunner": "conformance/hlp.ui.booking-authoring/runners/run-shared.mjs"
+      },
+      "blazor": {
+        "role": "adapter",
+        "seam": "ui.booking-authoring.framework",
+        "path": "projections/blazor/ui/hlp.ui.booking-authoring",
+        "status": "conformant",
+        "packageContribution": "Harborline.UIAdapters.Blazor",
+        "conformanceRunner": "conformance/hlp.ui.booking-authoring/runners/run-shared.mjs"
+      }
+    }
+  },
+  "seams": {
+    "ui.booking-authoring.framework": {
+      "status": "conformant",
+      "adapters": [
+        "react",
+        "blazor"
+      ]
+    }
+  }
+}

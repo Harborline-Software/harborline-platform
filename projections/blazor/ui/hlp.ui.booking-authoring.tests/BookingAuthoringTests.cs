@@ -27,6 +27,16 @@ public sealed class BookingAuthoringTests : BunitContext
     private static void Check(IRenderedComponent<HarborlineBookingAuthoringEditor> cut, string label, bool on) => Labelled(cut, label).Change(on);
     private static IElement Button(IRenderedComponent<HarborlineBookingAuthoringEditor> cut, string text) => cut.FindAll("button").Single(button => button.TextContent.Trim() == text);
     private static string[] Items(IRenderedComponent<HarborlineBookingAuthoringEditor> cut, string list) => [.. cut.FindAll($"ul[aria-label='{list}'] li").Select(item => item.TextContent)];
+    // Replays a fixture case's steps through the rendered editor's labelled controls, exactly as the React lane does.
+    private static void Replay(IRenderedComponent<HarborlineBookingAuthoringEditor> cut, JsonNode? steps)
+    {
+        foreach (var step in steps!.AsArray())
+        {
+            if (step!["set"] is { } set) Type(cut, set.GetValue<string>(), step["value"]!.GetValue<string>());
+            else if (step["check"] is { } check) Check(cut, check.GetValue<string>(), Labelled(cut, check.GetValue<string>()).HasAttribute("checked") is false);
+            else Button(cut, step["click"]!.GetValue<string>()).Click();
+        }
+    }
     private static void Same(JsonNode? expected, JsonNode actual) => Assert.True(JsonNode.DeepEquals(expected, actual), actual.ToJsonString());
 
     [Fact(DisplayName = "booking-eng-20, booking-auth-1, -2, -3, -5: a Resource authored from nothing is exactly the fixture body, envelope carried unchanged")]
@@ -35,15 +45,7 @@ public sealed class BookingAuthoringTests : BunitContext
     {
         var item = Case("booking-authoring.resource-from-nothing"); var changes = new List<BookingDraftChange>();
         var cut = Editor(DraftOf(item["input"]!["draft"]!), changes);
-        Type(cut, "Definition kind", "resource");
-        Type(cut, "Name", "Training room");
-        Type(cut, "Resource record type", "type.room");
-        Type(cut, "Capacity", "pool");
-        Type(cut, "Pool size", "2");
-        Type(cut, "Setup minutes", "10");
-        Type(cut, "Cleanup minutes", "15");
-        Check(cut, "Maintenance from Out of service", true);
-        Type(cut, "Availability source", "supply.base-hours");
+        Replay(cut, item["input"]!["steps"]);
 
         Same(item["expected"]!["body"], changes[^1].Draft.Body);
         Assert.Equal("", changes[^1].Draft.Identity);
@@ -55,14 +57,7 @@ public sealed class BookingAuthoringTests : BunitContext
     {
         var item = Case("booking-authoring.bookable-from-nothing"); var changes = new List<BookingDraftChange>();
         var cut = Editor(DraftOf(item["input"]!["draft"]!), changes);
-        Type(cut, "Definition kind", "bookable");
-        Type(cut, "Name", "Induction class");
-        Type(cut, "Offered against record type", "type.learner");
-        Type(cut, "New duration minutes", "60"); Button(cut, "Add duration").Click();
-        Type(cut, "New duration minutes", "90"); Button(cut, "Add duration").Click();
-        Check(cut, "Required resource Training room", true);
-        Check(cut, "Required resource instructor", true);
-        Check(cut, "Waitlist", true);
+        Replay(cut, item["input"]!["steps"]);
 
         Same(item["expected"]!["body"], changes[^1].Draft.Body);
     }
@@ -278,5 +273,33 @@ public sealed class BookingAuthoringTests : BunitContext
         RenderFragment<RenderFragment> shell = editor => builder => { builder.OpenElement(0, "main"); builder.AddAttribute(1, "aria-label", "Host shell"); builder.AddContent(2, editor); builder.CloseElement(); };
         var cut = Render<HarborlineBookingAuthoringScreen>(parameters => parameters.Add(component => component.Shell, shell).Add(component => component.Value, BookingDraft.Empty).Add(component => component.Catalogue, Catalogue));
         Assert.NotNull(cut.Find("main[aria-label='Host shell'] form[aria-label='Booking definition draft']"));
+    }
+
+    // The shared runner's per-case lane (tooling/run-ui-module-shared.mjs): each fixture case, replayed or rendered with its refusals.
+    [Theory, Trait("ModuleConformance", "hlp.ui.booking-authoring"), Trait("Holds", "booking-eng-20")]
+    [MemberData(nameof(SharedFixtureBatch.Cases), "hlp.ui.booking-authoring", MemberType = typeof(SharedFixtureBatch))]
+    public void Shared_fixture_conforms(string caseId, string? rawFixture)
+    {
+        SharedFixtureBatch.Run(caseId, rawFixture, () =>
+        {
+            var raw = SharedFixtureBatch.Current;
+            if (string.IsNullOrWhiteSpace(raw)) return;
+            var item = JsonNode.Parse(raw)!;
+            var draft = DraftOf(item["input"]!["draft"]!);
+            var diagnostics = item["input"]!["diagnostics"] is JsonArray list
+                ? new BookingDiagnosticSet(draft.Identity, draft.ExpectedRevision, 0, [.. list.Select(entry => new BookingDiagnostic(entry!["code"]!.GetValue<string>(), entry["pointer"]!.GetValue<string>()))])
+                : null;
+            var changes = new List<BookingDraftChange>();
+            var cut = Editor(draft, changes, diagnostics);
+            var expected = item["expected"]!;
+            if (item["input"]!["steps"] is { } steps)
+            {
+                Replay(cut, steps);
+                Same(expected["body"], changes[^1].Draft.Body);
+            }
+            if (expected["byField"] is JsonObject byField)
+                foreach (var (field, codes) in byField) Assert.Equal(codes!.AsArray().Select(code => code!.GetValue<string>()), Items(cut, $"{field} refusals"));
+            if (expected["unplaced"] is JsonArray unplaced) Assert.Equal(unplaced.Select(entry => entry!.GetValue<string>()), Items(cut, "Other refusals"));
+        });
     }
 }

@@ -8,7 +8,8 @@ import type { BookingCatalogue, BookingDiagnosticSet, BookingDraft, BookingDraft
 
 // The shared conformance fixture both lanes read. Expected bodies are literals written from the Booking grammar, never captured
 // from an editor (T-724 ruling 121); hlp.blocks.calendar.tests admits the same bodies through BookingDefinitionAdmission.
-interface FixtureCase { readonly id: string; readonly input: { readonly draft: BookingDraft; readonly diagnostics?: BookingDiagnosticSet['diagnostics'] }; readonly expected: { readonly body?: Record<string, unknown>; readonly byField?: Record<string, string[]>; readonly unplaced?: string[] } }
+type FixtureStep = { readonly set: string; readonly value: string } | { readonly check: string } | { readonly click: string }
+interface FixtureCase { readonly id: string; readonly input: { readonly draft: BookingDraft; readonly steps?: readonly FixtureStep[]; readonly diagnostics?: BookingDiagnosticSet['diagnostics'] }; readonly expected: { readonly body?: Record<string, unknown>; readonly byField?: Record<string, string[]>; readonly unplaced?: string[] } }
 const fixture = JSON.parse(readFileSync(resolve(process.cwd(), '../../../../conformance/hlp.ui.booking-authoring/fixtures.yaml'), 'utf8')) as { readonly catalogue: BookingCatalogue; readonly cases: readonly FixtureCase[] }
 const fixtureCase = (id: string) => fixture.cases.find(item => item.id === id)!
 const catalogue = fixture.catalogue
@@ -20,21 +21,15 @@ const editor = (value: BookingDraft, options: { readonly readOnly?: boolean; rea
 }
 const type = (label: string, value: string) => fireEvent.change(screen.getByLabelText(label), { target: { value } })
 const check = (label: string) => fireEvent.click(screen.getByLabelText(label))
+// Replays a fixture case's steps through the rendered editor's labelled controls, exactly as the Blazor lane does.
+const replay = (steps: readonly FixtureStep[]) => { for (const step of steps) { if ('set' in step) type(step.set, step.value); else if ('check' in step) check(step.check); else fireEvent.click(screen.getByRole('button', { name: step.click })) } }
 const resourceDraft = (body: Record<string, unknown>, extra: Partial<BookingDraft> = {}): BookingDraft => ({ identity: 'resource.room', versionId: '1.0.0', expectedRevision: '3', body: { kind: 'resource', ...body }, ...extra })
 
 describe('hlp.ui.booking-authoring (T-606/member-editors)', () => {
   it('booking-eng-20, booking-auth-1, -2, -3, -5: a Resource authored from nothing is exactly the fixture body, envelope carried unchanged', () => {
     const item = fixtureCase('booking-authoring.resource-from-nothing')
     const { last } = editor(item.input.draft)
-    type('Definition kind', 'resource')
-    type('Name', 'Training room')
-    type('Resource record type', 'type.room')
-    type('Capacity', 'pool')
-    type('Pool size', '2')
-    type('Setup minutes', '10')
-    type('Cleanup minutes', '15')
-    check('Maintenance from Out of service')
-    type('Availability source', 'supply.base-hours')
+    replay(item.input.steps!)
 
     expect(last().draft.body).toEqual(item.expected.body)
     expect(last().draft.identity).toBe('')
@@ -43,14 +38,7 @@ describe('hlp.ui.booking-authoring (T-606/member-editors)', () => {
   it('booking-eng-20, booking-auth-6, -7, -10: a Bookable authored from nothing is exactly the fixture body', () => {
     const item = fixtureCase('booking-authoring.bookable-from-nothing')
     const { last } = editor(item.input.draft)
-    type('Definition kind', 'bookable')
-    type('Name', 'Induction class')
-    type('Offered against record type', 'type.learner')
-    type('New duration minutes', '60'); fireEvent.click(screen.getByRole('button', { name: 'Add duration' }))
-    type('New duration minutes', '90'); fireEvent.click(screen.getByRole('button', { name: 'Add duration' }))
-    check('Required resource Training room')
-    check('Required resource instructor')
-    check('Waitlist')
+    replay(item.input.steps!)
 
     expect(last().draft.body).toEqual(item.expected.body)
   })

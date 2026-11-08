@@ -1,0 +1,6 @@
+@namespace Harborline.Gallery.Blazor.Stories
+@attribute [Stories("Platform/Booking authoring")]
+<Stories TComponent="BookingAuthoringScenario">
+  <Story Name="Pooled Resource"><Arguments><Arg For="_ => _.ScenarioId" Value='"booking-authoring.resource"' /></Arguments><Template><BookingAuthoringScenario @attributes="context.Args" /></Template></Story>
+  <Story Name="Refusals by field"><Arguments><Arg For="_ => _.ScenarioId" Value='"booking-authoring.refusals"' /></Arguments><Template><BookingAuthoringScenario @attributes="context.Args" /></Template></Story>
+</Stories>
