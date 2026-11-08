@@ -24,6 +24,14 @@ public sealed class RruleSubsetTests
         Assert.Equal($"RRULE component '{part}' has no value.", refusal.Message);
     }
 
+    [Theory]
+    [InlineData("BYDAY=")]
+    [InlineData("BYDAY=,")]
+    [InlineData("BYMONTHDAY=")]
+    [InlineData("BYMONTH=")]
+    public void EmptyListPartsAreMalformed(string part) =>
+        Assert.Throws<FormatException>(() => Sut.ExpandOccurrences($"FREQ=DAILY;{part}", Today, null, 30, 0, Today, "UTC"));
+
     [Fact(DisplayName = "T-1175: a repeated part refuses as malformed, naming the part (RFC 5545 §3.3.10: each part only once)")]
     public void RepeatedPartNamesThePart() =>
         Assert.Equal("RRULE component 'INTERVAL' is given more than once.",

@@ -37,6 +37,6 @@ public static class TimezoneResolver
     }
 
     // TimeZoneInfo found by an IANA id keeps that id; one found by a Windows id is mapped to its IANA equivalent.
-    private static string IanaId(TimeZoneInfo tz) =>
+    internal static string IanaId(TimeZoneInfo tz) =>
         tz.HasIanaId || !TimeZoneInfo.TryConvertWindowsIdToIanaId(tz.Id, out var iana) ? tz.Id : iana;
 }

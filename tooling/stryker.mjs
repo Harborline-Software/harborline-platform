@@ -577,6 +577,19 @@ export const unmatchedChanges = (report, files) => files.filter(file => file.end
   return entries.length > 0 && entries.every(unmatchedEntry)
 })
 
+// PR mode scores the changed files only. Stryker also reports mutants it placed in files the mutate list did not select,
+// such as CompileError mutants from compiling the whole project, and those are neither tested nor the change's. Keeping
+// them made a logic-free change fail "0 mutants tested" instead of reporting it had nothing to score (T-486). Razor spans
+// are kept: they are generated from a changed .razor and keyed under stryker-razor/.
+const changedEntry = (name, files) => {
+  const normal = reportPath(name)
+  return normal.includes('/stryker-razor/') || files.some(file => normal === file || normal.endsWith(`/${file}`))
+}
+export const changedReport = (report, files) => {
+  const selected = selectedReport(report)
+  return {...selected, files: Object.fromEntries(Object.entries(selected.files).filter(([name]) => changedEntry(name, files)))}
+}
+
 export const mutableChanges = (changed, exists = file => existsSync(path.join(root, file))) =>
   changed.filter(file => /\.(cs|razor)$/.test(file) && exists(file))
 
@@ -608,7 +621,7 @@ export async function run(repo, only, strykerArgs, mutate = mutateProject, sourc
       if (!await summarize(`- ${test}: **FAIL**, ${JSON.stringify(result.outcome)}`)) return failed
       continue
     }
-    const report = result.report && selectedReport(result.report)
+    const report = result.report && changedReport(result.report, files)
     const floor = fullModeBreak(repo.baselines[test], configOf(test, read))
     const unmatched = result.report ? unmatchedChanges(result.report, files) : []
     if (unmatched.length) {

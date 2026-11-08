@@ -40,7 +40,7 @@ var definition = new WorkflowDefinitionBuilder<DemoState, DemoTrigger, object>()
     .Transition(DemoState.Submitted, DemoTrigger.Approve, DemoState.Approved)
     .Terminal(DemoState.Approved)
     .Build();
-var runtime = new InMemoryWorkflowRuntime();
+var runtime = new InMemoryWorkflowRuntime(TimeProvider.System);
 var typedInstance = await runtime.StartAsync(definition, new object());
 typedInstance = await runtime.FireAsync<DemoState, DemoTrigger, object>(typedInstance.Id, DemoTrigger.Submit);
 typedInstance = await runtime.FireAsync<DemoState, DemoTrigger, object>(typedInstance.Id, DemoTrigger.Approve);
@@ -92,7 +92,9 @@ enveloped["envelope"] = JsonNode.Parse($$"""
      "provenance": {"source": "consumer"}, "retentionClass": "standard", "legalHold": false,
      "requires": [], "contract": {"major": 1, "minor": 0} }
     """);
-var gatedTransition = enveloped["transitions"]!.AsArray()[0]!.AsObject();
+// The gate sits on t-approve, which a person performs (HumanAction). A role or standing gate where no person acts is
+// refused at admission, because the engine principal holds none (T-1176 Q1 ruling, workflow.admission.gate_on_autonomous_step).
+var gatedTransition = enveloped["transitions"]!.AsArray()[1]!.AsObject();
 gatedTransition["requiredRoles"] = new JsonArray("sys.roles/Approver", new JsonObject { ["vocabulary"] = "sys.platform-roles", ["name"] = "auditor" });
 gatedTransition["requiredStandings"] = new JsonArray("assigned-approver");
 WorkflowAdmissionResult AdmitEnveloped(JsonNode body)
@@ -109,8 +111,8 @@ using (var envelopedDocument = JsonDocument.Parse(enveloped.ToJsonString()))
 {
     var envelopedModel = WorkflowDefinitionWireMapper.ToModel(envelopedDocument.RootElement, Tenant, Key, Version);
     if (envelopedModel.Envelope?.Contract != new DefinitionContractVersion(1, 0)
-        || envelopedModel.Transitions[0].RequiredRoles[0] != new RoleReference("sys.roles", "Approver")
-        || envelopedModel.Transitions[0].RequiredStandings[0] != new RecordStandingReference("assigned-approver"))
+        || envelopedModel.Transitions[1].RequiredRoles[0] != new RoleReference("sys.roles", "Approver")
+        || envelopedModel.Transitions[1].RequiredStandings[0] != new RecordStandingReference("assigned-approver"))
     {
         throw new InvalidOperationException("the packaged mapper lost the envelope, the role or the standing.");
     }
@@ -122,7 +124,7 @@ if (AdmitEnveloped(outOfWindow).Violations.All(violation => violation.Code != "d
     throw new InvalidOperationException("the packaged admission gate admitted a contract outside its window.");
 }
 var unsealed = enveloped.DeepClone().AsObject();
-unsealed["transitions"]![0]!["requiredRoles"] = new JsonArray("sys.roles/Owner");
+unsealed["transitions"]![1]!["requiredRoles"] = new JsonArray("sys.roles/Owner");
 if (AdmitEnveloped(unsealed).Violations.All(violation => violation.Code != WorkflowAdmissionCodes.UnknownRoleReference))
 {
     throw new InvalidOperationException("the packaged admission gate admitted a name outside sealed sys.roles.");

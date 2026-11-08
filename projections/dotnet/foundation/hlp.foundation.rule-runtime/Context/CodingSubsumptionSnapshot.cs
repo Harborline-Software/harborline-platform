@@ -1,5 +1,4 @@
 using System.Globalization;
-using System.Text;
 using System.Text.Json.Nodes;
 using Harborline.Foundation.RuleEngine.Evaluation;
 using Harborline.Foundation.RuleEngine.Model;
@@ -9,7 +8,6 @@ namespace Harborline.Foundation.RuleEngine.Context;
 /// <summary>Owned finite Taxonomy answers joined to the host's independently admitted pins.</summary>
 public sealed class CodingSubsumptionSnapshot
 {
-    private static readonly UTF8Encoding StrictUtf8 = new(false, true);
     private readonly string[][] _bindings;
     private readonly Answer[] _answers;
     private sealed record Answer(string System, string Ancestor, string Descendant, bool Subsumes);
@@ -97,14 +95,8 @@ public sealed class CodingSubsumptionSnapshot
         return result.ToArray();
     }
 
-    // The envelope encodes with replacement, so two different raw lone surrogates would parse as equal U+FFFD pins.
-    private static JsonNode? Document(string text, string parameterName)
-    {
-        var node = RuntimeInputEnvelope.Parse(text, parameterName);
-        try { _ = StrictUtf8.GetByteCount(text); }
-        catch (EncoderFallbackException) { throw Invalid(); }
-        return node;
-    }
+    // The envelope refuses a lone surrogate, raw or escaped (T-1143), so two different ones can never parse as equal pins.
+    private static JsonNode? Document(string text, string parameterName) => RuntimeInputEnvelope.Parse(text, parameterName);
 
     private static JsonArray Tuple(JsonNode? node, int count)
         => node is JsonArray array && array.Count == count ? array : throw Invalid();

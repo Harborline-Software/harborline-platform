@@ -10,7 +10,7 @@ namespace Harborline.Blocks.Workflow.Tests;
 /// </summary>
 public sealed class DemoMaintenanceWorkflowTests
 {
-    private static InMemoryWorkflowRuntime CreateRuntime() => new();
+    private static InMemoryWorkflowRuntime CreateRuntime() => new(TimeProvider.System);
     private static readonly IWorkflowDefinition<DemoMaintenanceState, DemoMaintenanceTrigger, DemoMaintenanceContext>
         _def = DemoMaintenanceWorkflow.Build();
 

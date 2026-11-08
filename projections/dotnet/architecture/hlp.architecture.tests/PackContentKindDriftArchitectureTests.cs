@@ -2,6 +2,7 @@ using System.Reflection;
 
 using Harborline.Blocks.BuilderDefinitions;
 using Harborline.Blocks.Calendar.Booking;
+using Harborline.Blocks.EntityViews;
 using Harborline.Blocks.Reports.Definitions;
 using Harborline.Foundation.Assistance;
 using Harborline.Foundation.DataExchange;
@@ -33,6 +34,7 @@ public sealed class PackContentKindDriftArchitectureTests
         ("Harborline.Blocks.Calendar.Booking.BookingPackIdentity.ResourceContentKind", BookingPackIdentity.ResourceContentKind, "Resource"),
         ("Harborline.Blocks.Calendar.Booking.BookingPackIdentity.BookableContentKind", BookingPackIdentity.BookableContentKind, "Bookable"),
         ("Harborline.Blocks.Reports.Definitions.ReportPackIdentity.ContentKind", ReportPackIdentity.ContentKind, "ReportDefinition"),
+        ("Harborline.Blocks.EntityViews.ViewsPackIdentity.ContentKind", ViewsPackIdentity.ContentKind, "ViewDefinition"),
     ];
 
     // Pillar ("primitive bucket") constants and the registry kind whose pillar each one states.
@@ -41,6 +43,7 @@ public sealed class PackContentKindDriftArchitectureTests
         ("Harborline.Blocks.BuilderDefinitions.LayoutPackIdentity.Primitive", LayoutPackIdentity.Primitive, "Layout"),
         ("Harborline.Blocks.BuilderDefinitions.ReleasedNavigationPackIdentity.Primitive", ReleasedNavigationPackIdentity.Primitive, "ReleasedNavigationDefinition"),
         ("Harborline.Blocks.Calendar.Booking.BookingPackIdentity.Primitive", BookingPackIdentity.Primitive, "Resource"),
+        ("Harborline.Blocks.EntityViews.ViewsPackIdentity.Primitive", ViewsPackIdentity.Primitive, "ViewDefinition"),
     ];
 
     [Fact]

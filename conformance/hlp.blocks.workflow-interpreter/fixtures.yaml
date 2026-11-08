@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.blocks.workflow-interpreter",
-  "interfaceRevision": 2,
+  "interfaceRevision": 3,
   "cases": [
     {"id": "autonomous-start-parks", "trigger": "Event", "step": "Draft", "expected": "Park", "expectedStep": "PendingApproval", "basisKind": "cp-approval-basis"},
     {"id": "approve-confirms-cp-through-broker", "decision": "approve", "expected": "Advance", "expectedStep": "Posted", "confirmsRecorded": 1},

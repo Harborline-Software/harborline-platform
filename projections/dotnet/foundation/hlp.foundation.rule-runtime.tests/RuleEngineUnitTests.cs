@@ -938,14 +938,13 @@ public sealed class RuleEngineUnitTests
         Assert.Equal(ValueState.Resolved, result.Values["field:copy"].State);
     }
 
+    // T-1143, the owner's ruling of 2026-11-07: JSON text with an escaped lone surrogate is not I-JSON (RFC 7493 §2.1) and is
+    // refused when it is captured. Platform 419 captured it and evaluated it as the lone code unit.
     [Fact]
-    public void Parsed_lone_surrogate_is_captured_and_evaluated_as_json_stringify_escaped_text()
+    public void Parsed_lone_surrogate_is_refused_when_the_instance_is_captured()
     {
-        var result = Graph(new[] { Compute("c.copy", "copy", "{\"var\":\"payload\"}") })
-            .EvaluateInstance(RuleInstance.FromJsonText("{\"payload\":\"\\uD800\"}"));
-
-        Assert.Equal(ValueState.Resolved, result.Values["field:copy"].State);
-        Assert.Equal("\uD800", result.Values["field:copy"].Value!.GetValue<string>());
+        var refused = Assert.Throws<ArgumentException>(() => RuleInstance.FromJsonText("{\"payload\":\"\\uD800\"}"));
+        Assert.StartsWith("Rule context is not I-JSON: it holds a lone surrogate (RFC 7493 §2.1).", refused.Message, StringComparison.Ordinal);
     }
 
     [Fact]

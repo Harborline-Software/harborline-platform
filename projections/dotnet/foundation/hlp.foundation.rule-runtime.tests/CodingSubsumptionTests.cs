@@ -238,25 +238,26 @@ public sealed class CodingSubsumptionTests
         Assert.NotNull(Read(Row(), "[\"s\",\"a\",\"\\ud83d\\ude00\",true]"));
     }
 
+    // T-1143, the owner's ruling of 2026-11-07: an escaped lone surrogate is not I-JSON (RFC 7493 §2.1), so the context
+    // carrying the candidate is refused at the envelope, before any rule reads it. Platform 419 answered these candidates as
+    // a missing answer or another system; that is the behaviour the ruling replaces.
     [Fact]
-    public void An_escaped_lone_surrogate_candidate_is_a_refused_or_excluded_rule_outcome()
+    public void An_escaped_lone_surrogate_candidate_is_refused_before_any_rule_reads_it()
     {
-        Assert.Equal("rule.coding_answer_missing", Value("""{"system":"asset-class","code":"\ud800"}""").Error!.Code);
-        var excluded = Value("""{"system":"\ud800","code":"leaf"}""");
-        Assert.Equal(ValueState.Resolved, excluded.State);
-        Assert.False(excluded.Value!.GetValue<bool>());
+        foreach (var candidate in new[] { """{"system":"asset-class","code":"\ud800"}""", """{"system":"\ud800","code":"leaf"}""" })
+            Assert.StartsWith("Rule context is not I-JSON: it holds a lone surrogate (RFC 7493 §2.1).", Assert.Throws<ArgumentException>(() => Value(candidate)).Message, StringComparison.Ordinal);
     }
 
+    // The two candidates 419 charged against the step budget now never reach it: the refusal comes first at any budget.
     [Theory]
-    [InlineData("""{"system":"xx\ud800yy","code":"d"}""", 22, null)]
-    [InlineData("""{"system":"s","code":"dd\n\ud800é"}""", 36, "rule.coding_answer_missing")]
-    public void An_escaped_lone_surrogate_candidate_charges_its_full_length(string candidate, int exactBudget, string? refusal)
+    [InlineData("""{"system":"xx\ud800yy","code":"d"}""", 22)]
+    [InlineData("""{"system":"s","code":"dd\n\ud800é"}""", 36)]
+    public void An_escaped_lone_surrogate_candidate_is_refused_before_the_budget_is_charged(string candidate, int exactBudget)
     {
         const string expression = """{"coding.is":[{"var":"coding"},"s","a"]}""";
-        var admitted = Value(candidate, Read(Row()), RuleEngineLimits.Default with { StepBudget = exactBudget }, expression);
-        if (refusal is null) Assert.False(admitted.Value!.GetValue<bool>());
-        else Assert.Equal(refusal, admitted.Error!.Code);
-        Assert.Equal("rule.budget_exceeded", Value(candidate, Read(Row()), RuleEngineLimits.Default with { StepBudget = exactBudget - 1 }, expression).Error!.Code);
+        foreach (var budget in new[] { exactBudget, exactBudget - 1 })
+            Assert.StartsWith("Rule context is not I-JSON: it holds a lone surrogate (RFC 7493 §2.1).", Assert.Throws<ArgumentException>(() =>
+                Value(candidate, Read(Row()), RuleEngineLimits.Default with { StepBudget = budget }, expression)).Message, StringComparison.Ordinal);
     }
 
     [Fact]

@@ -95,7 +95,7 @@ public sealed class CanonicalPlatformPackageSeedTests
     }
 
     [Fact]
-    public void The_export_carries_exactly_one_admitted_released_navigation_definition_naming_the_three_editors()
+    public void The_export_carries_exactly_one_admitted_released_navigation_definition_naming_the_four_editors()
     {
         var export = PlatformPackageSeed.Export();
         using var document = JsonDocument.Parse(export);
@@ -112,12 +112,14 @@ public sealed class CanonicalPlatformPackageSeedTests
         Assert.Equal(
             [("platform.navigation.views.author", "Create view", "views", "platform.editor.views"),
              ("platform.navigation.data-exchanges.author", "Create data exchange", "data-exchanges", "platform.editor.data-exchange"),
-             ("platform.navigation.schedules.author", "Create schedule", "schedules", "platform.editor.scheduling")],
+             ("platform.navigation.schedules.author", "Create schedule", "schedules", "platform.editor.scheduling"),
+             ("platform.navigation.standards.author", "Create rule", "standards", "platform.editor.rules")],
             definition.NavigationEntries.Select(value => (value.Id, value.Label, value.Pillar, value.EditorDestinationId)));
         Assert.Equal(
             [("platform.editor.views", "platform.editor.views", "ViewDefinition"),
              ("platform.editor.data-exchange", "platform.editor.data-exchange", "DataExchangeDefinition"),
-             ("platform.editor.scheduling", "platform.editor.scheduling", "ScheduleDefinition,Protocol,Constraint")],
+             ("platform.editor.scheduling", "platform.editor.scheduling", "ScheduleDefinition,Protocol,Constraint"),
+             ("platform.editor.rules", "platform.editor.rules", "Rules")],
             definition.EditorDestinations.Select(value => (value.Id, value.SurfaceId, string.Join(',', value.DefinitionKinds))));
         Assert.All(definition.EditorDestinations, value => Assert.Equal(["react", "blazor"], value.Projections));
     }
@@ -126,6 +128,7 @@ public sealed class CanonicalPlatformPackageSeedTests
     [InlineData("platform.navigation.views.author", "platform.editor.views", "platform.editor.views")]
     [InlineData("platform.navigation.data-exchanges.author", "platform.editor.data-exchange", "platform.editor.data-exchange")]
     [InlineData("platform.navigation.schedules.author", "platform.editor.scheduling", "platform.editor.scheduling")]
+    [InlineData("platform.navigation.standards.author", "platform.editor.rules", "platform.editor.rules")]
     public void Lookup_over_the_seed_export_resolves_each_navigation_entry_to_its_editor_and_surface(string entry, string destination, string surface)
     {
         var lookup = ReleasedNavigationLookup.Install(

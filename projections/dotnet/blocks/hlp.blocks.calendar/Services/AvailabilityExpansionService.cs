@@ -71,7 +71,7 @@ public sealed class AvailabilityExpansionService : IAvailabilityExpansionService
                     rrule:         window.Rrule!,
                     start:         window.AnchorDate,
                     startTime:     window.StartTime,
-                    timezone:      availability.Timezone,
+                    timezone:      TimezoneResolver.IanaId(tz),
                     end:           localWindowEnd,
                     lookaheadDays: 0,
                     leadDays:      0,

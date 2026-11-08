@@ -238,6 +238,14 @@ public static class FormDefinitionCodes
     /// <c>record_type_id</c> target is <c>form_only</c> is refused with this code too (D3, T-485).</summary>
     public const string SubmitGateRequired = "form.submit_gate.required";
 
+    /// <summary>
+    /// A revision reaching Published targets a Record Type (<c>record_type_id</c>) and names a standing as its submit
+    /// gate. Standing is computed over an existing record, and the record does not exist at submit, so a form that
+    /// creates Records gates on a role or an authorization capability instead (owner ruling 2026-10-28, clause 3;
+    /// DES-0016 §2 "Declared record-creation targets"). Pointer <c>/submit_gate/standing</c>.
+    /// </summary>
+    public const string SubmitGateStandingOnRecordCreation = "form.submit_gate.standing_on_record_creation";
+
     // ── Record type target (DES-0016 forms-ck-3, ADR 0099 decision 7; T-485; decision D3) ──
 
     /// <summary>A definition declares a <c>record_type_id</c> target with an empty or whitespace value. A

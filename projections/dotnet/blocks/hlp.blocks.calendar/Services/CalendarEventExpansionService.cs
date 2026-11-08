@@ -164,7 +164,7 @@ public sealed class CalendarEventExpansionService : ICalendarEventExpansionServi
                 rrule:          ev.Rrule!,
                 start:          ev.Start,
                 startTime:      ev.StartTime,
-                timezone:       ev.Timezone,
+                timezone:       TimezoneResolver.IanaId(TimezoneResolver.Resolve(ev.Timezone)),
                 end:            windowEnd,
                 lookaheadDays:  0,
                 leadDays:       0,

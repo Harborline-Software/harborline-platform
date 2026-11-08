@@ -25,7 +25,8 @@ public static class DeclarativeWorkflowInterpreterServiceCollectionExtensions
             sp.GetRequiredService<IWorkflowDefinitionExecutionStore>(),
             sp.GetRequiredService<IWorkflowEffectBroker>(),
             sp.GetRequiredService<IWorkflowEffectCatalog>(),
-            sp.GetRequiredService<IWorkflowConfirmationContext>()));
+            sp.GetRequiredService<IWorkflowConfirmationContext>(),
+            sp.GetService<IWorkflowGateAccess>()));
         return services;
     }
 }
