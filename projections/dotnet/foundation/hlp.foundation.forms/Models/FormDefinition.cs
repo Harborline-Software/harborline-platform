@@ -93,6 +93,11 @@ namespace Harborline.Foundation.Forms.Models;
 /// ADR 0099 decision 7, T-485). Optional and additive: a definition without a target is unaffected. When present it is
 /// nonblank, captured once for the immutable (tenant, id, version) revision, and publication resolves the type's
 /// creation policy through <see cref="IFormRecordTypePolicyReader"/>; a form_only target requires a submit gate.</param>
+/// <param name="DerivedFrom">The version of this same definition id that this revision was restored from (DES-0016
+/// forms-ck-9, T-485). A restore is a revision of its source, not an extension, so it is recorded here and
+/// <see cref="Lineage"/> keeps the source's extension parent unchanged (W3C PROV-DM §2.2.1.1 keeps a revision as its
+/// own relation). Null for a revision that was not restored. When present it names a revision already registered for
+/// the same tenant and id.</param>
 public sealed record FormDefinition(
     FormDefinitionId Id,
     SemanticVersion Version,
@@ -106,4 +111,5 @@ public sealed record FormDefinition(
     DateTimeOffset UpdatedAt,
     FormDefinitionAuthoring? Authoring = null,
     SubmitGate? SubmitGate = null,
-    string? RecordTypeId = null);
+    string? RecordTypeId = null,
+    SemanticVersion? DerivedFrom = null);

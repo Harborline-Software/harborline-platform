@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.blocks.workflow-interpreter",
-  "interfaceRevision": 1,
+  "interfaceRevision": 2,
   "cases": [
     {"id": "autonomous-start-parks", "trigger": "Event", "step": "Draft", "expected": "Park", "expectedStep": "PendingApproval", "basisKind": "cp-approval-basis"},
     {"id": "approve-confirms-cp-through-broker", "decision": "approve", "expected": "Advance", "expectedStep": "Posted", "confirmsRecorded": 1},
@@ -10,6 +10,10 @@
     {"id": "reject-records-override-no-effect", "decision": "reject", "expected": "Advance", "expectedStep": "Rejected", "overridesRecorded": 1, "effect": null},
     {"id": "send-back-loops-back", "decision": "send-back", "expected": "Park", "expectedStep": "Draft", "isLoopBack": true},
     {"id": "ap-effect-autonomous", "trigger": "Event", "expected": "Advance", "effect": "built-without-human"},
-    {"id": "inadmissible-pinned-definition-throws-at-load", "expected": "WorkflowAdmissionException"}
+    {"id": "inadmissible-pinned-definition-throws-at-load", "expected": "WorkflowAdmissionException"},
+    {"id": "role-gated-human-transition-refused", "decision": "approve", "gate": {"transition": "t-approve", "requiredRoles": [{"vocabulary": "sys.roles", "name": "Approver"}]}, "expected": "workflow.interpreter.gate_unenforced", "confirmsRecorded": 0},
+    {"id": "standing-gated-autonomous-transition-refused", "trigger": "Event", "gate": {"transition": "t-go", "requiredStandings": ["assigned-approver"]}, "expected": "workflow.interpreter.gate_unenforced"},
+    {"id": "role-gated-effecting-action-refused", "trigger": "Event", "gate": {"action": "a-notify", "requiredRoles": [{"vocabulary": "sys.roles", "name": "Author"}]}, "expected": "workflow.interpreter.gate_unenforced", "effect": null},
+    {"id": "ungated-path-beside-a-gate-runs", "decision": "reject", "gate": {"transition": "t-approve", "requiredRoles": [{"vocabulary": "sys.roles", "name": "Approver"}]}, "expected": "Advance", "expectedStep": "Rejected", "overridesRecorded": 1}
   ]
 }

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.blocks.workflow-interpreter",
-  "interfaceRevision": 1,
+  "interfaceRevision": 2,
   "status": "frozen",
   "purpose": "Execute any authored, admitted, persisted workflow definition through the engine core as the dispatcher's fallback, reaching every side-effect only through the public effect broker, in a separate assembly so broker-only effect reach is a compile-time fact.",
   "dependencies": [
@@ -23,11 +23,13 @@
     "send-back is a bounded loop-back park; the dispatcher bumps the iteration and enforces the cap.",
     "A CP effect request is re-derived from the pinned definition and durable instance state, never from the confirm payload, and builds only through the broker's SoD-gated confirm path.",
     "A reject onto a terminal state records exactly one override and builds nothing.",
-    "The interpreter composes only the public broker and catalog seams; it cannot name the internal effect-factory surface."
+    "The interpreter composes only the public broker and catalog seams; it cannot name the internal effect-factory surface.",
+    "Revision 2: a selected transition or an applied effecting action that declares a required role or standing is refused with workflow.interpreter.gate_unenforced before anything is selected, built or recorded, until the authorization gate that decides it is wired (DES-0019 workflows-eng-13 and section 6, L422; deny by default, CWE-862). Ungated elements execute as in revision 1."
   ],
   "errors": [
     "workflow.admission.classification_mismatch",
-    "workflow.approval.separation_of_duties_violation"
+    "workflow.approval.separation_of_duties_violation",
+    "workflow.interpreter.gate_unenforced"
   ],
   "selectedDesign": {
     "choice": "A single stateless interpreter class over the execution store, broker, catalog, and server-side confirmation context, packaged apart from the engine core.",
