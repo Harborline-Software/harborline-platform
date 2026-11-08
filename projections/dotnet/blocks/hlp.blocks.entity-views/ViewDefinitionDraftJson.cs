@@ -28,8 +28,17 @@ public static class ViewDefinitionDraftJson
     public static ViewDefinitionDraft Deserialize(string json)
     {
         ArgumentNullException.ThrowIfNull(json);
-        return JsonSerializer.Deserialize<ViewDefinitionDraft>(json, Options)
-            ?? throw new JsonException("The view-definition draft is null.");
+        try
+        {
+            return JsonSerializer.Deserialize<ViewDefinitionDraft>(json, Options)
+                ?? throw new JsonException("The view-definition draft is null.");
+        }
+        catch (NotSupportedException exception)
+        {
+            // A filter or operand object without its `kind` discriminator makes System.Text.Json try to construct the
+            // abstract base, which it reports as NotSupportedException. On this fixed grammar that is malformed input.
+            throw new JsonException("A filter or operand in the view-definition draft has no recognised kind.", exception);
+        }
     }
 
     private static JsonSerializerOptions CreateOptions()

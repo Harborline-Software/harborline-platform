@@ -119,6 +119,9 @@ public sealed class ViewDefinitionDraftJsonTests
     [InlineData("a null filter inside a filter list", "/definition/parameters/filter", "{\"kind\":\"all\",\"filters\":[null]}")]
     [InlineData("a null shape-role field", "/binding/shapeRoles/title", "null")]
     [InlineData("a null measure parameter", "/definition/parameters/measure/parameters/format", "null")]
+    [InlineData("a filter with no kind", "/definition/parameters/filter", "{}")]
+    [InlineData("a filter naming a field but no kind", "/definition/parameters/filter", "{\"field\":\"state\",\"operator\":\"equal\",\"value\":\"open\"}")]
+    [InlineData("a function argument with no kind", "/definition/parameters/filter", "{\"kind\":\"function\",\"function\":\"isOpen\",\"arguments\":[{\"field\":\"state\"}]}")]
     public void AnythingOutsideTheContractRefuses(string _, string pointer, string value)
     {
         var wire = JsonNode.Parse(Wire)!;
