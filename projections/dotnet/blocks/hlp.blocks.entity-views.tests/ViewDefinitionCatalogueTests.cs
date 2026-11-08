@@ -86,6 +86,78 @@ public sealed class ViewDefinitionCatalogueTests
         Assert.Equal("1.0.0", (await catalogue.ResolvePublishedHeadAsync(Tenant, "work.queue"))!.Version);
     }
 
+    [Fact(DisplayName = "views-eng-16: the store refuses a binding that leaves a role its kind requires unbound")]
+    public async Task TheStoreRefusesAnUnboundRequiredRole()
+    {
+        var registers = ViewStores.Registers([new("views.timeline", "hlp.ui.timeline", [ViewShapeRole.Title, ViewShapeRole.PlacedBy])]);
+        var (_, shared) = ViewStores.Create(registers);
+        var draft = Draft(kind: "views.timeline");
+
+        var refused = await Assert.ThrowsAsync<DefinitionRefusalException>(async () => await shared.SaveDraftAsync(Document(draft), 0, "roles"));
+
+        Assert.Equal([new DefinitionRefusal("view_definition.shape_role_field_missing", "/binding/shapeRoles")], refused.Refusals);
+    }
+
+    [Fact(DisplayName = "views-eng-16: publication refuses a shape role bound to a field the record type does not declare")]
+    public async Task PublicationRefusesAShapeRoleOnAnUndeclaredField()
+    {
+        var catalogue = ViewStores.Catalogue();
+        var draft = Draft();
+        await catalogue.CreateDraftAsync(draft.Definition, draft.Binding with
+        {
+            ShapeRoles = new Dictionary<ViewShapeRole, string> { [ViewShapeRole.Title] = "not-a-field" },
+        });
+
+        var refused = await Assert.ThrowsAsync<DefinitionRefusalException>(async () => await catalogue.PublishAsync(Tenant, "work.queue", "1.0.0"));
+
+        Assert.Equal([new DefinitionRefusal("view_definition.shape_role_field_missing", "/binding/shapeRoles/title")], refused.Refusals);
+    }
+
+    [Fact(DisplayName = "views-eng-16: a registered row action and board transition are admitted, and unregistered ones are refused")]
+    public async Task RowActionsAndTransitionsAreCheckedAgainstTheRegisters()
+    {
+        var registers = ViewStores.Registers() with { RowActions = ["work.open"], WorkflowTransitions = ["work.close"] };
+        var (_, shared) = ViewStores.Create(registers);
+        var registered = Draft() with
+        {
+            Binding = Draft().Binding with { RowBehavior = new("work.open", false), BoardMoveTransition = "work.close" },
+        };
+        var unregistered = registered with
+        {
+            Binding = registered.Binding with { RowBehavior = new("work.delete", false), BoardMoveTransition = "work.reopen" },
+        };
+
+        await shared.SaveDraftAsync(Document(registered), 0, "registered");
+        var refused = await Assert.ThrowsAsync<DefinitionRefusalException>(async () =>
+            await shared.SaveDraftAsync(Document(unregistered, ViewDefinitionCatalogue.KeyOf(Tenant, "work.queue")) with { VersionId = "1.0.1", Version = "1.0.1" }, 1, "unregistered"));
+
+        Assert.Equal(
+            [new DefinitionRefusal("view_definition.row_action_unknown", "/binding/rowBehavior/openAction"),
+             new DefinitionRefusal("view_definition.workflow_transition_unknown", "/binding/boardMoveTransition")],
+            refused.Refusals);
+    }
+
+    [Fact(DisplayName = "the Views catalogue refuses a reused version, a missing version, and a restore onto an existing version")]
+    public async Task TheCatalogueRefusesReusedAndMissingVersions()
+    {
+        var catalogue = ViewStores.Catalogue();
+        var draft = Draft();
+        await catalogue.CreateDraftAsync(draft.Definition, draft.Binding);
+        await catalogue.PublishAsync(Tenant, "work.queue", "1.0.0");
+
+        var reused = await Assert.ThrowsAsync<ViewQueryException>(async () => await catalogue.CreateDraftAsync(draft.Definition, draft.Binding));
+        var missing = await Assert.ThrowsAsync<ViewQueryException>(async () => await catalogue.PublishAsync(Tenant, "work.queue", "9.9.9"));
+        var missingSource = await Assert.ThrowsAsync<ViewQueryException>(async () => await catalogue.RestoreAsDraftAsync(Tenant, "work.queue", "9.9.9", "1.0.1"));
+        var occupied = await Assert.ThrowsAsync<ViewQueryException>(async () => await catalogue.RestoreAsDraftAsync(Tenant, "work.queue", "1.0.0", "1.0.0"));
+
+        Assert.Equal(("view_definition.revision_conflict", "The view-definition revision already exists."), (reused.Code, reused.Message));
+        Assert.Equal(("view_definition.not_found", "The view-definition revision does not exist."), (missing.Code, missing.Message));
+        Assert.Equal("view_definition.not_found", missingSource.Code);
+        Assert.Equal("view_definition.revision_conflict", occupied.Code);
+        var only = Assert.Single(await catalogue.ListHistoryAsync(Tenant, "work.queue"));
+        Assert.Equal(("1.0.0", ViewDefinitionStatus.Published, (string?)null), (only.Definition.Version, only.Status, only.RestoredFromVersion));
+    }
+
     private static DefinitionDocument Document(ViewDefinitionDraft draft, DefinitionKey? key = null) =>
         new(key ?? ViewDefinitionCatalogue.KeyOf(Tenant, draft.Definition.Key), draft.Definition.Version, draft.Definition.Version,
             ViewDefinitionDraftJson.Serialize(draft));
