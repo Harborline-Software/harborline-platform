@@ -345,6 +345,8 @@ public static class PlatformPackageSeed
 
     // The three Workshop editors the 1.0.0 seed declared in ck-7's authoring objects, with the same ids and labels.
     // platform.editor.views stays the surface id: app links use ?surface=platform.editor.views.
+    // Rules is the fourth (T-592, DES-0018 rules-eng-24): released here, and kept hidden by both app lanes until Rules
+    // transport ships (ADR 0005, ADR-0079).
     private static ReleasedNavigationDefinition BuildReleasedNavigation()
     {
         string[] lanes = ["react", "blazor"];
@@ -354,16 +356,19 @@ public static class PlatformPackageSeed
                 new("platform.editor.views", "Views editor"),
                 new("platform.editor.data-exchange", "Data exchange editor"),
                 new("platform.editor.scheduling", "Scheduling editor"),
+                new("platform.editor.rules", "Rules editor"),
             ]),
             [
                 new("platform.navigation.views.author", "Create view", "views", "platform.editor.views"),
                 new("platform.navigation.data-exchanges.author", "Create data exchange", "data-exchanges", "platform.editor.data-exchange"),
                 new("platform.navigation.schedules.author", "Create schedule", "schedules", "platform.editor.scheduling"),
+                new("platform.navigation.standards.author", "Create rule", "standards", "platform.editor.rules"),
             ],
             [
                 new("platform.editor.views", "platform.editor.views", ["ViewDefinition"], lanes),
                 new("platform.editor.data-exchange", "platform.editor.data-exchange", ["DataExchangeDefinition"], lanes),
                 new("platform.editor.scheduling", "platform.editor.scheduling", ["ScheduleDefinition", "Protocol", "Constraint"], lanes),
+                new("platform.editor.rules", "platform.editor.rules", [nameof(DefinitionKind.Rules)], lanes),
             ]);
     }
 

@@ -82,7 +82,7 @@ public sealed class InMemoryViewRowSource : IViewRowSource
         ViewNotFilter not => !Matches(row, not.Filter, fieldKinds),
         ViewFunctionFilter function => Call(row, function),
         ViewCollectionFilter collection => Quantify(row, collection, fieldKinds),
-        _ => throw new ViewQueryException("view.filter.kind_unknown", "The view filter kind is not registered."),
+        _ => throw new ViewQueryException(ViewQueryCodes.FilterKindUnknown, "The view filter kind is not registered."),
     };
 
     private bool Quantify(
@@ -112,7 +112,7 @@ public sealed class InMemoryViewRowSource : IViewRowSource
     {
         ViewFieldOperand field => Read(row, field.Field),
         ViewLiteralOperand literal => FromJson(literal.Value),
-        _ => throw new ViewQueryException("view.filter.operand_unknown", "The view filter operand is not registered."),
+        _ => throw new ViewQueryException(ViewQueryCodes.FilterOperandUnknown, "The view filter operand is not registered."),
     };
 
     private static bool Compare(

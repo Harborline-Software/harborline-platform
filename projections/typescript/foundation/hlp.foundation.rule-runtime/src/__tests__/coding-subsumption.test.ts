@@ -150,9 +150,11 @@ describe('T-493 finite pinned coding reader', () => {
       expected: `["harborline-taxonomy-coding-bindings/1","${tenant}",[${JSON.stringify(binding)}]]`,
       actual: `["harborline-taxonomy-coding-answers/1","${tenant}",[${JSON.stringify(binding)}],[["s","a","d",true]]]`,
     })
+    // T-1143 (owner's ruling, 2026-11-07): the input envelope now refuses these first, with the I-JSON reason (RFC 7493 §2.1).
+    const captureLoneSurrogate = 'is not I-JSON: it holds a lone surrogate (RFC 7493 §2.1)'
     for (const lone of ['\\ud800', '\ud800']) {
-      expect(() => read(raw(`t${lone}`))).toThrow(refused)
-      expect(() => read({ ...wire(), actual: `["harborline-taxonomy-coding-answers/1","tenant-a",[${JSON.stringify(binding)}],[["s","a","d${lone}",true]]]` })).toThrow(refused)
+      expect(() => read(raw(`t${lone}`))).toThrow(captureLoneSurrogate)
+      expect(() => read({ ...wire(), actual: `["harborline-taxonomy-coding-answers/1","tenant-a",[${JSON.stringify(binding)}],[["s","a","d${lone}",true]]]` })).toThrow(captureLoneSurrogate)
     }
     expect(() => read({ ...wire(), actual: `["harborline-taxonomy-coding-answers/1","tenant-a",[${JSON.stringify(binding)}],[["s","a","\\ud83d\\ude00",true]]]` })).not.toThrow()
   })
@@ -297,21 +299,21 @@ describe('T-493 work proof and runtime budget', () => {
     expect(new FormRuleGraph(compile([validation]), clock, admission, flat).workProof.maximumEvaluationWork).toBe(105029n)
   })
 
+  // T-1143, the owner's ruling of 2026-11-07: an escaped lone surrogate is not I-JSON (RFC 7493 §2.1), so the context
+  // carrying the candidate is refused at the envelope, before any budget is charged or any rule reads it. Platform 419
+  // charged these candidates and answered them as a missing answer or another system; the ruling replaces that.
+  const loneSurrogate = 'rule context is not I-JSON: it holds a lone surrogate (RFC 7493 §2.1)'
+
   it.each([
-    { text: '{"code":{"system":"xx\\ud800yy","code":"d"}}', exact: 22, outcome: { state: 'Resolved', value: false } },
-    { text: '{"code":{"system":"s","code":"dd\\n\\ud800é"}}', exact: 36, outcome: error('rule.coding_answer_missing') },
-  ])('charges the full length of an escaped lone surrogate candidate: $text', ({ text, exact, outcome }) => {
-    const scan = rule({ 'coding.is': [{ var: 'code' }, 's', 'a'] })
-    const evaluate = (stepBudget: number) => new GuardEvaluator(clock, { ...limits, stepBudget }, snapshot()).evaluateValue(scan, RuleContextSnapshot.fromJsonText(text), admission)
-    expect(evaluate(exact)).toEqual(outcome)
-    expect(evaluate(exact - 1)).toEqual({ state: 'Error', error: { code: 'rule.budget_exceeded', params: { rule: 'c' } } })
+    { text: '{"code":{"system":"xx\\ud800yy","code":"d"}}' },
+    { text: '{"code":{"system":"s","code":"dd\\n\\ud800é"}}' },
+  ])('refuses an escaped lone surrogate candidate before the budget is charged: $text', ({ text }) => {
+    expect(() => RuleContextSnapshot.fromJsonText(text)).toThrow(new TypeError(loneSurrogate))
   })
 
-  it('reads an escaped lone surrogate candidate as an unanswerable pair or another system', () => {
-    const scan = rule({ 'coding.is': [{ var: 'code' }, 's', 'a'] })
-    const evaluate = (text: string) => new GuardEvaluator(clock, limits, snapshot()).evaluateValue(scan, RuleContextSnapshot.fromJsonText(text), admission)
-    expect(evaluate('{"code":{"system":"s","code":"\\ud800"}}')).toEqual(error('rule.coding_answer_missing'))
-    expect(evaluate('{"code":{"system":"\\ud800","code":"d"}}')).toEqual({ state: 'Resolved', value: false })
+  it('refuses an escaped lone surrogate candidate before any rule reads it', () => {
+    for (const text of ['{"code":{"system":"s","code":"\\ud800"}}', '{"code":{"system":"\\ud800","code":"d"}}'])
+      expect(() => RuleContextSnapshot.fromJsonText(text)).toThrow(new TypeError(loneSurrogate))
   })
 
   it('charges string work and every candidate against the existing deterministic budget', () => {

@@ -22,9 +22,6 @@ public sealed class DefinitionStoreOwnershipArchitectureTests
     // the corresponding row when migrating the member. A new or changed copy fails the fence.
     private static readonly Dictionary<string, (string Path, string Hash, string Ticket)> RetiringUnchanged = new(StringComparer.Ordinal)
     {
-        ["Harborline.Blocks.EntityViews.InMemoryViewDefinitionStore"] = (
-            "projections/dotnet/blocks/hlp.blocks.entity-views/ViewDefinitionStore.cs",
-            "07127313417a6f2120c3833dd9923dcaf8f94ba6a0548b7515caca0f5851cbe9", "T-486"),
     };
 
     [Fact]
