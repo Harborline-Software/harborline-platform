@@ -1710,8 +1710,14 @@ public sealed class InMemoryContentStore
             {
                 // Pinning the new epoch names the tenant in the transaction, so a backing that keeps one audit chain per tenant
                 // can place the rotation's row (the api node does); nothing names the epoch yet, so the pin holds nothing back.
-                await RunAsync(ContentStoreOperation.EpochRotation, write,
-                    async (session, token) => await session.PinEpochAsync(tenant, made.EpochId, token).ConfigureAwait(false), cancellationToken).ConfigureAwait(false);
+                // A pin that fails means the backing already retired the new epoch, so the rotation refuses, as a rewrap does,
+                // and the catch below destroys the key rather than making a retired epoch current.
+                await RunAsync(ContentStoreOperation.EpochRotation, write, async (session, token) =>
+                {
+                    if (!await session.PinEpochAsync(tenant, made.EpochId, token).ConfigureAwait(false))
+                        throw new InvalidOperationException("That epoch is being destroyed.");
+                    return true;
+                }, cancellationToken).ConfigureAwait(false);
             }
             catch
             {

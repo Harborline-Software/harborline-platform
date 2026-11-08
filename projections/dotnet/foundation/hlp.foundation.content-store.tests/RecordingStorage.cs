@@ -46,6 +46,8 @@ internal sealed class RecordingStorage : IContentStoreStorage
     public Action<string>? OnEpochStep { get; set; }
     public Func<Task>? BeforeFirstSetCurrent { get; set; }
     public Func<Task>? BeforePin { get; set; }
+    /// <summary>Answers the next pin as if the epoch were already retired, then resets.</summary>
+    public bool RefuseNextPin { get; set; }
     /// <summary>Runs once, after a listing is taken and before the transaction acts on it.</summary>
     public Func<Task>? AfterEpochListing { get; set; }
     public Func<Task>? BeforeEpochGet { get; set; }
@@ -142,6 +144,11 @@ internal sealed class RecordingStorage : IContentStoreStorage
         public async ValueTask<bool> PinEpochAsync(TenantId tenant, Guid epochId, CancellationToken cancellationToken = default)
         {
             lock (owner.Pins) owner.Pins.Add((tenant, epochId));
+            if (owner.RefuseNextPin)
+            {
+                owner.RefuseNextPin = false;
+                return false;
+            }
             if (owner.BeforePin is { } hook)
             {
                 owner.BeforePin = null;
