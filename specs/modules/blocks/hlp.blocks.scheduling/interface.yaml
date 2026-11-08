@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.blocks.scheduling",
-  "interfaceRevision": 5,
+  "interfaceRevision": 6,
   "status": "frozen",
   "purpose": "Own schedule reservation coordination (caller-supplied stable reservation ids with global idempotency, exactly-one-wins under concurrency, fail-closed quorum-unavailable, lease-guarded writes) and the harvested planning seed: the prototype's finite-candidate compiler, validators, complete-pinned-fact admission, and constructive/exhaustive/greedy solvers with the 12-fixture authored corpus (ticket 084 dispositions).",
-  "dependencies": ["hlp.blocks.builder-definitions"],
+  "dependencies": ["hlp.blocks.builder-definitions", "hlp.foundation.rule-runtime"],
   "callerInterface": {
     "name": "IScheduleReservationCoordinator / Planning (FixtureSchedulingValidator, FixtureConstructivePlanner) / ScheduleDefinitionCatalogue",
     "operations": [
@@ -18,6 +18,7 @@
     "context": "The lease dependency is carried as a LOCAL narrow compatibility port under the Harborline.Kernel.Lease namespace because no lease kernel module exists in the platform catalog yet; composition replaces it with the ratified platform lease contract when one lands (recorded deviation, not a design endorsement). The planning seed is the ticket-084 harvest: corpus + solver seed, never a matrix module; the authored corpus carries the six unsatisfied-reason classes."
   },
   "invariants": [
+    "Revision 6 (T-491/expression-environment, DES-0022 scheduling-ck-23, ADR 0099 decision 8): SchedulingExpressionEnvironment.Declaration states the constraint-expression environment in Rules' shared BorrowerEnvironmentDeclaration and is admitted by BorrowerEnvironmentAdmission; it equals the released scheduling-ck-23 entry in conformance/hlp.foundation.rule-runtime/borrower-contracts.json, canonical form included: variables field (candidate assignment or resource/chain/occurrence fact) and clock (planning clock), Rules' kernel functions without table aggregation, field-read the only effect, missing fields read null, the planning clock in UTC, the Run phase only, deterministic replay (scheduling-auth-14, scheduling-bound-5). The solver's inner loop stays local arithmetic and names no expression language, fenced by SchedulingInnerLoopArchitectureTests (scheduling-eng-11); attaching an expression to a constraint and evaluating it is a later slice.",
     "Reservation ids are caller-supplied and globally idempotent: a duplicate id returns the prior outcome and never rebinds to a different slot or resource.",
     "Under concurrent reservation of the same slot exactly one caller wins; disjoint resources all succeed.",
     "Quorum-unavailable fails closed on both reserve and cancel: no write occurs and the outcome says so.",
