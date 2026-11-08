@@ -1,5 +1,6 @@
 using Harborline.Contracts.Authorization;
 using Harborline.Foundation.Assets.Common;
+using Harborline.Foundation.Forms.Exceptions;
 using Harborline.Foundation.Forms.Models;
 using Xunit;
 
@@ -101,6 +102,32 @@ public sealed class SubmitGateSeedMigrationTests
         Assert.Equal([withdrawn.Id], result.WithdrawnPendingGate.Select(definition => definition.Id));
         // The migration never republishes a Withdrawn revision on the operator's behalf.
         Assert.Null(await store.GetCurrentPublishedAsync(Tenant, withdrawn.Id));
+    }
+
+    // T-485/standing-gate-on-record-creation: the migration republishes through RegisterAndPublishAsync, so a standing
+    // replacement gate on a form that targets a record type is refused there too. Oracle: the slice record's literals.
+    [Fact(DisplayName = "T-485 standing gate: the seed migration refuses a standing replacement gate on a targeted legacy form and leaves the legacy revision current")]
+    public async Task MigrationRefusesAStandingGateOnATargetedForm()
+    {
+        using var store = new InMemoryFormDefinitionStore(new FixedClock(Now), recordTypePolicies: new FormOnlyReader());
+        var legacy = Form("targeted") with { RecordTypeId = "notes.entry" };
+        store.SeedLegacyRevisionForTesting(legacy);
+
+        var refusal = await Assert.ThrowsAsync<FormDefinitionValidationException>(async () =>
+            await new SubmitGateSeedMigration(store).ApplyAsync(Tenant, new Dictionary<FormDefinitionId, SubmitGate>
+            {
+                [legacy.Id] = new SubmitGate(Standing: new RecordStandingReference("author")),
+            }));
+
+        Assert.Equal(("form.submit_gate.standing_on_record_creation", "/submit_gate/standing"), (refusal.Code, refusal.Target));
+        Assert.Equal(legacy, await store.GetCurrentPublishedAsync(Tenant, legacy.Id));
+        Assert.Equal([legacy], await AllAsync(store));
+    }
+
+    private sealed class FormOnlyReader : IFormRecordTypePolicyReader
+    {
+        public ValueTask<RecordTypeCreationGate?> GetCreationGateAsync(TenantId tenant, string recordTypeId, CancellationToken cancellationToken = default) =>
+            ValueTask.FromResult<RecordTypeCreationGate?>(RecordTypeCreationGate.FormOnly);
     }
 
     private static async ValueTask<IReadOnlyList<FormDefinition>> AllAsync(IFormDefinitionStore store)
