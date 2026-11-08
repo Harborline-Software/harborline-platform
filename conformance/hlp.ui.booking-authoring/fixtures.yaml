@@ -1,0 +1,244 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.booking-authoring",
+  "fixtureRevision": 1,
+  "description": "T-606/member-editors. Both lanes run the same steps from the same empty host draft and must emit these exact bodies; hlp.blocks.calendar.tests admits each expected body through BookingDefinitionAdmission. Expected bodies are literals written from DES-0025 and the Booking grammar (BookingDefinitionAdmission.cs), never captured from an editor (T-724 ruling 121).",
+  "catalogue": {
+    "resourceTypes": [
+      {
+        "id": "type.room",
+        "label": "Room"
+      },
+      "type.nurse"
+    ],
+    "bookableTypes": [
+      {
+        "id": "type.learner",
+        "label": "Learner"
+      },
+      "type.note"
+    ],
+    "resources": [
+      {
+        "id": "room",
+        "label": "Training room"
+      },
+      "instructor"
+    ],
+    "maintenanceSources": [
+      {
+        "id": "field.out_of_service",
+        "label": "Out of service"
+      },
+      "field.under_repair"
+    ]
+  },
+  "cases": [
+    {
+      "id": "booking-authoring.resource-from-nothing",
+      "items": [
+        "booking-eng-20",
+        "booking-auth-1",
+        "booking-auth-2",
+        "booking-auth-3",
+        "booking-auth-5"
+      ],
+      "input": {
+        "draft": {
+          "identity": "",
+          "versionId": "",
+          "body": {
+            "envelope": {
+              "cascade_layer": "domain_package",
+              "provenance": {
+                "kind": "package",
+                "package": "training"
+              },
+              "retention_class": "definition",
+              "legal_hold": false,
+              "requires": [],
+              "contract": {
+                "major": 1,
+                "minor": 0
+              }
+            }
+          }
+        }
+      },
+      "steps": [
+        "Definition kind: Resource",
+        "Name: Training room",
+        "Resource record type: Room",
+        "Capacity: pool",
+        "Pool size: 2",
+        "Setup minutes: 10",
+        "Cleanup minutes: 15",
+        "Maintenance from Out of service: checked",
+        "Availability source: supply.base-hours"
+      ],
+      "expected": {
+        "body": {
+          "envelope": {
+            "cascade_layer": "domain_package",
+            "provenance": {
+              "kind": "package",
+              "package": "training"
+            },
+            "retention_class": "definition",
+            "legal_hold": false,
+            "requires": [],
+            "contract": {
+              "major": 1,
+              "minor": 0
+            }
+          },
+          "kind": "resource",
+          "name": "Training room",
+          "from_type_id": "type.room",
+          "capacity_kind": "pool",
+          "pool_size": 2,
+          "setup_minutes": 10,
+          "cleanup_minutes": 15,
+          "maintenance_windows": [
+            "field.out_of_service"
+          ],
+          "availability_from": "supply.base-hours"
+        }
+      }
+    },
+    {
+      "id": "booking-authoring.bookable-from-nothing",
+      "items": [
+        "booking-eng-20",
+        "booking-auth-6",
+        "booking-auth-7",
+        "booking-auth-10"
+      ],
+      "input": {
+        "draft": {
+          "identity": "",
+          "versionId": "",
+          "body": {
+            "envelope": {
+              "cascade_layer": "domain_package",
+              "provenance": {
+                "kind": "package",
+                "package": "training"
+              },
+              "retention_class": "definition",
+              "legal_hold": false,
+              "requires": [],
+              "contract": {
+                "major": 1,
+                "minor": 0
+              }
+            }
+          }
+        }
+      },
+      "steps": [
+        "Definition kind: Bookable",
+        "Name: Induction class",
+        "Offered against record type: Learner",
+        "New duration minutes: 60, Add duration",
+        "New duration minutes: 90, Add duration",
+        "Required resource Training room: checked",
+        "Required resource instructor: checked",
+        "Waitlist: checked"
+      ],
+      "expected": {
+        "body": {
+          "envelope": {
+            "cascade_layer": "domain_package",
+            "provenance": {
+              "kind": "package",
+              "package": "training"
+            },
+            "retention_class": "definition",
+            "legal_hold": false,
+            "requires": [],
+            "contract": {
+              "major": 1,
+              "minor": 0
+            }
+          },
+          "kind": "bookable",
+          "name": "Induction class",
+          "on_type_id": "type.learner",
+          "duration_intervals_minutes": [
+            60,
+            90
+          ],
+          "requires": [
+            "room",
+            "instructor"
+          ],
+          "waitlist": true
+        }
+      }
+    },
+    {
+      "id": "booking-authoring.refusals-by-field",
+      "items": [
+        "booking-eng-20"
+      ],
+      "input": {
+        "draft": {
+          "identity": "resource.room",
+          "versionId": "1.0.0",
+          "expectedRevision": "3",
+          "body": {
+            "envelope": {
+              "cascade_layer": "domain_package",
+              "provenance": {
+                "kind": "package",
+                "package": "training"
+              },
+              "retention_class": "definition",
+              "legal_hold": false,
+              "requires": [],
+              "contract": {
+                "major": 1,
+                "minor": 0
+              }
+            },
+            "kind": "resource",
+            "name": "",
+            "from_type_id": "type.room",
+            "capacity_kind": "pool",
+            "pool_size": 0,
+            "availability_from": "supply.base-hours",
+            "extra": true
+          }
+        },
+        "diagnostics": [
+          {
+            "code": "booking.definition.member_unknown",
+            "pointer": "/extra"
+          },
+          {
+            "code": "booking.definition.name_required",
+            "pointer": "/name"
+          },
+          {
+            "code": "booking.resource.pool_size_invalid",
+            "pointer": "/pool_size"
+          }
+        ]
+      },
+      "expected": {
+        "byField": {
+          "Name": [
+            "booking.definition.name_required"
+          ],
+          "Pool size": [
+            "booking.resource.pool_size_invalid"
+          ]
+        },
+        "unplaced": [
+          "booking.definition.member_unknown at /extra"
+        ]
+      }
+    }
+  ]
+}

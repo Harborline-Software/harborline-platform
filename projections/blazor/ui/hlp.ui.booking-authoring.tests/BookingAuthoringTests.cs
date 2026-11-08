@@ -1,0 +1,282 @@
+using System.Text.Json.Nodes;
+using AngleSharp.Dom;
+using Bunit;
+using Harborline.UIAdapters.Blazor.Components.BookingAuthoring;
+using Microsoft.AspNetCore.Components;
+using Xunit;
+
+namespace Harborline.UIAdapters.Blazor.Tests;
+
+// T-606/member-editors, the Blazor lane. It reads the same conformance fixture as the React lane; expected bodies are literals written
+// from the Booking grammar, never captured from an editor (T-724 ruling 121), and hlp.blocks.calendar.tests admits the same bodies
+// through BookingDefinitionAdmission.
+public sealed class BookingAuthoringTests : BunitContext
+{
+    private static readonly JsonNode Fixture = JsonNode.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "booking-authoring-fixtures", "fixtures.yaml")))!;
+    private static JsonNode Case(string id) => Fixture["cases"]!.AsArray().Single(item => item!["id"]!.GetValue<string>() == id)!;
+    private static IReadOnlyList<BookingOption> Options(string member) => [.. Fixture["catalogue"]![member]!.AsArray().Select(entry => entry is JsonObject option ? new BookingOption(option["id"]!.GetValue<string>(), option["label"]!.GetValue<string>()) : (BookingOption)entry!.GetValue<string>())];
+    private static readonly BookingCatalogue Catalogue = new() { ResourceTypes = Options("resourceTypes"), BookableTypes = Options("bookableTypes"), Resources = Options("resources"), MaintenanceSources = Options("maintenanceSources") };
+    private static BookingDraft DraftOf(JsonNode draft) => new(draft["identity"]!.GetValue<string>(), draft["versionId"]!.GetValue<string>(), draft["expectedRevision"]?.GetValue<string>(), draft["body"]!.DeepClone().AsObject());
+    private static BookingDraft Resource(string body, string revision = "3") { var parsed = JsonNode.Parse(body)!.AsObject(); parsed["kind"] = "resource"; return new("resource.room", "1.0.0", revision, parsed); }
+    private static BookingDraft Bookable(string body) { var parsed = JsonNode.Parse(body)!.AsObject(); parsed["kind"] = "bookable"; return new("bookable.x", "1.0.0", null, parsed); }
+
+    private IRenderedComponent<HarborlineBookingAuthoringEditor> Editor(BookingDraft value, List<BookingDraftChange> changes, BookingDiagnosticSet? diagnostics = null, bool readOnly = false, BookingCatalogue? catalogue = null)
+        => Render<HarborlineBookingAuthoringEditor>(parameters => parameters.Add(component => component.Value, value).Add(component => component.Catalogue, catalogue ?? Catalogue).Add(component => component.Diagnostics, diagnostics).Add(component => component.ReadOnly, readOnly).Add(component => component.DraftChanged, (BookingDraftChange change) => changes.Add(change)));
+    private static IElement Labelled(IRenderedComponent<HarborlineBookingAuthoringEditor> cut, string label) => cut.Find($"[aria-label='{label}']");
+    private static void Type(IRenderedComponent<HarborlineBookingAuthoringEditor> cut, string label, string value) => Labelled(cut, label).Change(value);
+    private static void Check(IRenderedComponent<HarborlineBookingAuthoringEditor> cut, string label, bool on) => Labelled(cut, label).Change(on);
+    private static IElement Button(IRenderedComponent<HarborlineBookingAuthoringEditor> cut, string text) => cut.FindAll("button").Single(button => button.TextContent.Trim() == text);
+    private static string[] Items(IRenderedComponent<HarborlineBookingAuthoringEditor> cut, string list) => [.. cut.FindAll($"ul[aria-label='{list}'] li").Select(item => item.TextContent)];
+    private static void Same(JsonNode? expected, JsonNode actual) => Assert.True(JsonNode.DeepEquals(expected, actual), actual.ToJsonString());
+
+    [Fact(DisplayName = "booking-eng-20, booking-auth-1, -2, -3, -5: a Resource authored from nothing is exactly the fixture body, envelope carried unchanged")]
+    [Trait("Holds", "booking-eng-20"), Trait("Holds", "booking-auth-1"), Trait("Holds", "booking-auth-2"), Trait("Holds", "booking-auth-3"), Trait("Holds", "booking-auth-5")]
+    public void ResourceFromNothing()
+    {
+        var item = Case("booking-authoring.resource-from-nothing"); var changes = new List<BookingDraftChange>();
+        var cut = Editor(DraftOf(item["input"]!["draft"]!), changes);
+        Type(cut, "Definition kind", "resource");
+        Type(cut, "Name", "Training room");
+        Type(cut, "Resource record type", "type.room");
+        Type(cut, "Capacity", "pool");
+        Type(cut, "Pool size", "2");
+        Type(cut, "Setup minutes", "10");
+        Type(cut, "Cleanup minutes", "15");
+        Check(cut, "Maintenance from Out of service", true);
+        Type(cut, "Availability source", "supply.base-hours");
+
+        Same(item["expected"]!["body"], changes[^1].Draft.Body);
+        Assert.Equal("", changes[^1].Draft.Identity);
+    }
+
+    [Fact(DisplayName = "booking-eng-20, booking-auth-6, -7, -10: a Bookable authored from nothing is exactly the fixture body")]
+    [Trait("Holds", "booking-eng-20"), Trait("Holds", "booking-auth-6"), Trait("Holds", "booking-auth-7"), Trait("Holds", "booking-auth-10")]
+    public void BookableFromNothing()
+    {
+        var item = Case("booking-authoring.bookable-from-nothing"); var changes = new List<BookingDraftChange>();
+        var cut = Editor(DraftOf(item["input"]!["draft"]!), changes);
+        Type(cut, "Definition kind", "bookable");
+        Type(cut, "Name", "Induction class");
+        Type(cut, "Offered against record type", "type.learner");
+        Type(cut, "New duration minutes", "60"); Button(cut, "Add duration").Click();
+        Type(cut, "New duration minutes", "90"); Button(cut, "Add duration").Click();
+        Check(cut, "Required resource Training room", true);
+        Check(cut, "Required resource instructor", true);
+        Check(cut, "Waitlist", true);
+
+        Same(item["expected"]!["body"], changes[^1].Draft.Body);
+    }
+
+    [Fact(DisplayName = "booking-eng-20: admission refusals render by field, and a pointer the editor shows no field for is listed with its pointer")]
+    [Trait("Holds", "booking-eng-20")]
+    public void RefusalsRenderByField()
+    {
+        var item = Case("booking-authoring.refusals-by-field"); var draft = DraftOf(item["input"]!["draft"]!);
+        IReadOnlyList<BookingDiagnostic> diagnostics = [.. item["input"]!["diagnostics"]!.AsArray().Select(entry => new BookingDiagnostic(entry!["code"]!.GetValue<string>(), entry["pointer"]!.GetValue<string>()))];
+        var cut = Editor(draft, [], new BookingDiagnosticSet(draft.Identity, draft.ExpectedRevision, 0, diagnostics));
+
+        foreach (var (field, codes) in item["expected"]!["byField"]!.AsObject())
+        {
+            Assert.Equal(codes!.AsArray().Select(code => code!.GetValue<string>()), Items(cut, $"{field} refusals"));
+            Assert.Equal("true", Labelled(cut, field).GetAttribute("aria-invalid"));
+        }
+        Assert.Equal(item["expected"]!["unplaced"]!.AsArray().Select(entry => entry!.GetValue<string>()), Items(cut, "Other refusals"));
+    }
+
+    [Fact(DisplayName = "booking-eng-20: refusals for another identity, revision or local generation are stale and never shown")]
+    [Trait("Holds", "booking-eng-20")]
+    public void StaleRefusalsAreNotShown()
+    {
+        IReadOnlyList<BookingDiagnostic> refusal = [new("booking.definition.name_required", "/name")];
+        foreach (var stale in new[] { new BookingDiagnosticSet("resource.other", "3", 0, refusal), new BookingDiagnosticSet("resource.room", "4", 0, refusal), new BookingDiagnosticSet("resource.room", "3", 1, refusal) })
+        {
+            var cut = Editor(Resource("""{"name":""}"""), [], stale);
+            Assert.Empty(Items(cut, "Name refusals"));
+            Assert.Null(Labelled(cut, "Name").GetAttribute("aria-invalid"));
+        }
+        Assert.Equal(["booking.definition.name_required"], Items(Editor(Resource("""{"name":""}"""), [], new BookingDiagnosticSet("resource.room", "3", 0, refusal)), "Name refusals"));
+    }
+
+    [Fact(DisplayName = "read-only disables every control and emits nothing, including Keep and Discard after a new revision arrives")]
+    [Trait("Holds", "booking-eng-20")]
+    public void ReadOnlyEmitsNothing()
+    {
+        var changes = new List<BookingDraftChange>(); var draft = Resource("""{"name":"Room"}""");
+        var cut = Editor(draft, changes);
+        Type(cut, "Name", "Room 2");
+        cut.Render(parameters => parameters.Add(component => component.Value, draft with { ExpectedRevision = "4" }).Add(component => component.ReadOnly, true));
+        var before = changes.Count;
+
+        Assert.True(cut.Find("fieldset.hl-booking-authoring__read-only").HasAttribute("disabled"));
+        Assert.All(cut.FindAll("input, select"), control => Assert.NotNull(control.Closest("fieldset[disabled]")));
+        Assert.True(Button(cut, "Keep edits").HasAttribute("disabled"));
+        Assert.True(Button(cut, "Discard edits").HasAttribute("disabled"));
+        Type(cut, "Name", "Room 3");
+        Button(cut, "Discard edits").Click();
+        Assert.Equal(before, changes.Count);
+    }
+
+    [Fact(DisplayName = "a new identity or revision never silently overwrites local edits: Keep keeps them, Discard loads the host draft")]
+    [Trait("Holds", "booking-eng-20")]
+    public void DiscardLoadsTheHostDraft()
+    {
+        var changes = new List<BookingDraftChange>(); var draft = Resource("""{"name":"Room"}""");
+        var cut = Editor(draft, changes);
+        Type(cut, "Name", "Local name");
+        cut.Render(parameters => parameters.Add(component => component.Value, Resource("""{"name":"Host name"}""", "4")));
+
+        Assert.Contains("A different draft or revision arrived while you have local edits.", cut.Find("[role='alert']").TextContent, StringComparison.Ordinal);
+        Assert.Equal("Local name", Labelled(cut, "Name").GetAttribute("value"));
+        Button(cut, "Discard edits").Click();
+        Assert.Equal("Host name", Labelled(cut, "Name").GetAttribute("value"));
+        Assert.Equal("4", changes[^1].Draft.ExpectedRevision);
+        Assert.Empty(cut.FindAll("[role='alert']"));
+    }
+
+    [Fact(DisplayName = "a clean draft is replaced by a new revision without asking, and Keep leaves local edits in place")]
+    [Trait("Holds", "booking-eng-20")]
+    public void CleanReplacementAndKeep()
+    {
+        var cut = Editor(Resource("""{"name":"Room"}"""), []);
+        cut.Render(parameters => parameters.Add(component => component.Value, Resource("""{"name":"Replaced"}""", "4")));
+        Assert.Equal("Replaced", Labelled(cut, "Name").GetAttribute("value"));
+        Assert.Empty(cut.FindAll("[role='alert']"));
+
+        Type(cut, "Name", "Mine");
+        cut.Render(parameters => parameters.Add(component => component.Value, Resource("""{"name":"Room"}""", "5")));
+        Button(cut, "Keep edits").Click();
+        Assert.Equal("Mine", Labelled(cut, "Name").GetAttribute("value"));
+        Assert.Empty(cut.FindAll("[role='alert']"));
+    }
+
+    [Fact(DisplayName = "a host draft whose revision is not a canonical decimal string is refused, never repaired")]
+    [Trait("Holds", "booking-eng-20")]
+    public void NonCanonicalRevisionIsRefused()
+    {
+        var changes = new List<BookingDraftChange>();
+        var cut = Editor(Resource("{}", "03"), changes);
+        Assert.Contains("revision is not a canonical decimal string", cut.Find("[role='status']").TextContent, StringComparison.Ordinal);
+        Assert.Empty(cut.FindAll("[aria-label='Name']"));
+        Assert.Empty(changes);
+    }
+
+    [Fact(DisplayName = "booking-auth-1: options take either shape, a current value the host does not offer is shown, and no offer shows a fallback note")]
+    [Trait("Holds", "booking-auth-1")]
+    public void OptionShapesAndNotOffered()
+    {
+        var cut = Editor(Resource("""{"from_type_id":"type.retired"}"""), []);
+        var options = cut.FindAll("select[aria-label='Resource record type'] option").Select(option => (option.GetAttribute("value"), option.TextContent)).ToArray();
+        Assert.Contains(("type.room", "Room"), options);
+        Assert.Contains(("type.nurse", "type.nurse"), options);
+        Assert.Contains(("type.retired", "type.retired (not offered)"), options);
+        Assert.Equal("type.retired", Labelled(cut, "Resource record type").GetAttribute("value"));
+    }
+
+    [Fact(DisplayName = "an empty option list shows its fallback note instead of choices")]
+    [Trait("Holds", "booking-auth-1")]
+    public void FallbackNotes()
+    {
+        var cut = Editor(Resource("{}"), [], catalogue: new BookingCatalogue());
+        var notes = cut.FindAll(".hl-booking-authoring__note").Select(note => note.TextContent).ToArray();
+        Assert.Contains("No resource record types offered.", notes);
+        Assert.Contains(notes, note => note.StartsWith("No maintenance sources offered", StringComparison.Ordinal));
+    }
+
+    [Fact(DisplayName = "booking-auth-2: choosing exclusive capacity removes the pool size; pool keeps it")]
+    [Trait("Holds", "booking-auth-2")]
+    public void ExclusiveRemovesPoolSize()
+    {
+        var changes = new List<BookingDraftChange>();
+        var cut = Editor(Resource("""{"capacity_kind":"pool","pool_size":3}"""), changes);
+        Type(cut, "Capacity", "exclusive");
+        Same(JsonNode.Parse("""{"capacity_kind":"exclusive","kind":"resource"}"""), changes[^1].Draft.Body);
+        Assert.Empty(cut.FindAll("[aria-label='Pool size']"));
+    }
+
+    [Fact(DisplayName = "booking-auth-3: an emptied buffer removes the member; text that is not a number leaves the draft unchanged")]
+    [Trait("Holds", "booking-auth-3")]
+    public void BufferNumbers()
+    {
+        var changes = new List<BookingDraftChange>();
+        var cut = Editor(Resource("""{"setup_minutes":10}"""), changes);
+        Type(cut, "Setup minutes", "");
+        Same(JsonNode.Parse("""{"kind":"resource"}"""), changes[^1].Draft.Body);
+        var before = changes.Count;
+        Type(cut, "Cleanup minutes", "ten");
+        Assert.Equal(before, changes.Count);
+    }
+
+    [Fact(DisplayName = "booking-auth-5: maintenance is chosen from the record state the host offers, and unchecking the last source removes the member")]
+    [Trait("Holds", "booking-auth-5")]
+    public void MaintenanceSources()
+    {
+        var changes = new List<BookingDraftChange>();
+        var cut = Editor(Resource("""{"maintenance_windows":["field.under_repair"]}"""), changes);
+        Check(cut, "Maintenance from Out of service", true);
+        Same(JsonNode.Parse("""["field.under_repair","field.out_of_service"]"""), changes[^1].Draft.Body["maintenance_windows"]!);
+        Check(cut, "Maintenance from field.under_repair", false); Check(cut, "Maintenance from Out of service", false);
+        Same(JsonNode.Parse("""{"kind":"resource"}"""), changes[^1].Draft.Body);
+    }
+
+    [Fact(DisplayName = "booking-auth-6: a duration is edited in place and removed, and an invalid duration is not added")]
+    [Trait("Holds", "booking-auth-6")]
+    public void Durations()
+    {
+        var changes = new List<BookingDraftChange>();
+        var cut = Editor(Bookable("""{"duration_intervals_minutes":[30,60]}"""), changes);
+        Type(cut, "Duration 2 minutes", "45");
+        Same(JsonNode.Parse("[30,45]"), changes[^1].Draft.Body["duration_intervals_minutes"]!);
+        Button(cut, "Remove duration 1").Click();
+        Same(JsonNode.Parse("[45]"), changes[^1].Draft.Body["duration_intervals_minutes"]!);
+        var before = changes.Count;
+        Type(cut, "New duration minutes", ""); Button(cut, "Add duration").Click();
+        Assert.Equal(before, changes.Count);
+    }
+
+    [Fact(DisplayName = "booking-auth-7: required resources keep the order they were chosen, and a required id the host does not offer is shown")]
+    [Trait("Holds", "booking-auth-7")]
+    public void RequiredResourcesOrder()
+    {
+        var changes = new List<BookingDraftChange>();
+        var cut = Editor(Bookable("""{"requires":["pump"]}"""), changes);
+        Assert.Contains("pump (not offered)", cut.FindAll(".hl-booking-authoring__note").Select(note => note.TextContent));
+        Check(cut, "Required resource instructor", true); Check(cut, "Required resource Training room", true);
+        Same(JsonNode.Parse("""["pump","instructor","room"]"""), changes[^1].Draft.Body["requires"]!);
+    }
+
+    [Fact(DisplayName = "booking-auth-10: the waitlist is only a flag; clearing an absent flag writes nothing and clearing true writes false")]
+    [Trait("Holds", "booking-auth-10")]
+    public void WaitlistFlag()
+    {
+        var changes = new List<BookingDraftChange>();
+        var cut = Editor(Bookable("""{"waitlist":true}"""), changes);
+        Check(cut, "Waitlist", false);
+        Same(JsonValue.Create(false), changes[^1].Draft.Body["waitlist"]!);
+        Assert.False(Labelled(cut, "Waitlist").HasAttribute("checked"));
+
+        var absent = new List<BookingDraftChange>();
+        Check(Editor(Bookable("{}"), absent), "Waitlist", false);
+        Same(JsonNode.Parse("""{"kind":"bookable"}"""), absent[^1].Draft.Body);
+    }
+
+    [Fact(DisplayName = "members the editor does not author are carried unchanged through an edit")]
+    [Trait("Holds", "booking-eng-20")]
+    public void UnauthoredMembersSurvive()
+    {
+        const string body = """{"envelope":{"cascade_layer":"domain_package"},"book_gate":[{"capability":"training.book"}],"eligibility_expression":"x == 1","require_all":true,"future_member":{"a":1}}""";
+        var changes = new List<BookingDraftChange>();
+        var cut = Editor(Bookable(body), changes);
+        Type(cut, "Name", "Renamed");
+        var expected = JsonNode.Parse(body)!.AsObject(); expected["kind"] = "bookable"; expected["name"] = "Renamed";
+        Same(expected, changes[^1].Draft.Body);
+    }
+
+    [Fact(DisplayName = "booking-eng-20: the screen renders the editor inside the host-supplied shell")]
+    [Trait("Holds", "booking-eng-20")]
+    public void ScreenUsesTheHostShell()
+    {
+        RenderFragment<RenderFragment> shell = editor => builder => { builder.OpenElement(0, "main"); builder.AddAttribute(1, "aria-label", "Host shell"); builder.AddContent(2, editor); builder.CloseElement(); };
+        var cut = Render<HarborlineBookingAuthoringScreen>(parameters => parameters.Add(component => component.Shell, shell).Add(component => component.Value, BookingDraft.Empty).Add(component => component.Catalogue, Catalogue));
+        Assert.NotNull(cut.Find("main[aria-label='Host shell'] form[aria-label='Booking definition draft']"));
+    }
+}
