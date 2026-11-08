@@ -60,6 +60,22 @@ public sealed class ZonedSeriesAndResolverTests
         Assert.Equal([Utc(11, 2, 4), Utc(11, 3, 4), Utc(11, 4, 4), Utc(11, 5, 4)], starts);
     }
 
+    [Fact]
+    public void WindowsTimezoneWorksForRecurringEventsAndAvailability()
+    {
+        const string zone = "Pacific Standard Time";
+        var ev = CalendarEvent.Create(Tenant, "Evening", new(2026, 11, 1), new(2026, 11, 1), Actor,
+            rrule: CaseD, timezone: zone, startTime: new(20, 0), endTime: new(20, 30));
+        var supply = ResourceAvailability.Create(Tenant, Doctor, zone)
+            .AddWindow(AvailabilityWindow.Create(new(2026, 11, 1), new(20, 0), new(21, 0), CaseD));
+
+        Assert.Equal(4, Events().Expand(ev, new(2026, 11, 1), new(2026, 11, 30)).Count);
+        Assert.Equal([Utc(11, 2, 4), Utc(11, 3, 4), Utc(11, 4, 4), Utc(11, 5, 4)],
+            Events().ExpandInstants(ev, Utc(11, 1, 0), Utc(11, 30, 0)).Select(x => x.StartUtc));
+        Assert.Equal([Utc(11, 2, 4), Utc(11, 3, 4), Utc(11, 4, 4), Utc(11, 5, 4)],
+            Supply().Expand(supply, Utc(11, 1, 0), Utc(11, 30, 0)).Select(x => x.StartUtc));
+    }
+
     // Oracle: Python zoneinfo (fold=0, the offset before the transition) for each local 23:30 in America/Nuuk.
     [Fact(DisplayName = "T-1175: a daily 23:30 Nuuk event keeps one occurrence per date across the gap, and the gap date resolves at the offset before it")]
     public void GapAcrossMidnightKeepsOneOccurrencePerDate()

@@ -134,7 +134,7 @@ internal static class RruleSubset
 
     private static IEnumerable<ByDayEntry> ParseByDay(string value)
     {
-        foreach (var part in value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        foreach (var part in value.Split(',', StringSplitOptions.TrimEntries))
         {
             // Patterns: "MO", "1MO", "-1FR", "2TU". The last two characters are the weekday code.
             var span = part.ToUpperInvariant();
@@ -155,7 +155,7 @@ internal static class RruleSubset
 
     private static IEnumerable<int> ParseIntList(string key, string value, int min, int max)
     {
-        foreach (var part in value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        foreach (var part in value.Split(',', StringSplitOptions.TrimEntries))
             yield return ParseBounded(key, part, min, max);
     }
 }
