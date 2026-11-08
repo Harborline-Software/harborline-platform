@@ -250,6 +250,41 @@ public sealed class FileJournalWorkflowStoreTests
             services.AddFileJournalWorkflowStore(new FileJournalWorkflowStoreOptions { JournalPath = fixture.JournalPath }));
     }
 
+    // ── T-1178: the store stamps from the injected clock, and a composition without one fails by name ──
+
+    [Fact(DisplayName = "T-1178: a park is stamped from the injected clock, not wall time")]
+    public async Task A_park_is_stamped_from_the_injected_clock()
+    {
+        using var fixture = new JournalFixture();
+        var stamped = DateTimeOffset.Parse("2001-02-03T04:05:06Z");
+        using var store = fixture.Open(new FixedClock(stamped));
+        await CreateInstanceAsync(store, "inst-clock");
+
+        await store.ParkAsync("inst-clock", "await-approval", "{}");
+
+        Assert.Equal(stamped, (await store.LoadAsync("inst-clock"))!.UpdatedAt);
+    }
+
+    [Fact(DisplayName = "T-1178: composing the durable store or the engine with no TimeProvider fails by name")]
+    public void A_composition_without_a_clock_fails_by_name()
+    {
+        using var fixture = new JournalFixture();
+        var services = new ServiceCollection();
+        services.AddFileJournalWorkflowStore(new FileJournalWorkflowStoreOptions { JournalPath = fixture.JournalPath });
+        services.AddDurableWorkflowEngine();
+        using var provider = services.BuildServiceProvider();
+
+        var store = Assert.Throws<InvalidOperationException>(() => provider.GetRequiredService<IWorkflowStore>());
+        Assert.Contains("kernel clock", store.Message, StringComparison.Ordinal);
+        var broker = Assert.Throws<InvalidOperationException>(() => provider.GetRequiredService<IWorkflowEffectBroker>());
+        Assert.Contains("kernel clock", broker.Message, StringComparison.Ordinal);
+    }
+
+    private sealed class FixedClock(DateTimeOffset now) : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow() => now;
+    }
+
     // ── Harness ─────────────────────────────────────────────────────────────
 
     internal static WorkflowEffect Effect(string payload) => new((unitOfWork, _) =>
@@ -364,8 +399,8 @@ public sealed class FileJournalWorkflowStoreTests
 
         public string JournalPath { get; }
 
-        public FileJournalWorkflowStore Open()
-            => new(new FileJournalWorkflowStoreOptions { JournalPath = JournalPath });
+        public FileJournalWorkflowStore Open(TimeProvider? clock = null)
+            => new(new FileJournalWorkflowStoreOptions { JournalPath = JournalPath }, clock ?? TimeProvider.System);
 
         public void Dispose()
         {

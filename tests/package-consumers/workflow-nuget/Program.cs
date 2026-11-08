@@ -40,7 +40,7 @@ var definition = new WorkflowDefinitionBuilder<DemoState, DemoTrigger, object>()
     .Transition(DemoState.Submitted, DemoTrigger.Approve, DemoState.Approved)
     .Terminal(DemoState.Approved)
     .Build();
-var runtime = new InMemoryWorkflowRuntime();
+var runtime = new InMemoryWorkflowRuntime(TimeProvider.System);
 var typedInstance = await runtime.StartAsync(definition, new object());
 typedInstance = await runtime.FireAsync<DemoState, DemoTrigger, object>(typedInstance.Id, DemoTrigger.Submit);
 typedInstance = await runtime.FireAsync<DemoState, DemoTrigger, object>(typedInstance.Id, DemoTrigger.Approve);

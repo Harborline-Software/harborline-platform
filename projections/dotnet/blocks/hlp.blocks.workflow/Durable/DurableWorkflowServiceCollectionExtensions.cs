@@ -75,7 +75,7 @@ public static class DurableWorkflowServiceCollectionExtensions
             sp.GetRequiredService<IWorkflowEffectFactoryResolver>(),
             sp.GetRequiredService<ICapabilityAuthorityRegistry>(),
             sp.GetRequiredService<IWorkflowApprovalDecisionSink>(),
-            sp.GetService<TimeProvider>() ?? TimeProvider.System));
+            RequireClock(sp)));
 
         return services;
     }
@@ -118,4 +118,14 @@ public static class DurableWorkflowServiceCollectionExtensions
             sp => sp.GetRequiredService<InMemoryWorkflowDefinitionStore>());
         return services;
     }
+
+    /// <summary>
+    /// The host's kernel clock, which the workflow engine never supplies itself (T-1178, DES-0029 kernel-core-ck-9).
+    /// A composition with no <see cref="TimeProvider"/> registered fails here by name instead of silently falling back
+    /// to wall time.
+    /// </summary>
+    internal static TimeProvider RequireClock(IServiceProvider services) =>
+        services.GetService<TimeProvider>() ?? throw new InvalidOperationException(
+            "The workflow engine requires the host's kernel clock: register a TimeProvider before composing it "
+            + "(T-1178, DES-0029 kernel-core-ck-9). It never falls back to wall time.");
 }
