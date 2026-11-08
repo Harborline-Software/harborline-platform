@@ -306,6 +306,7 @@ public static class WorkflowAdmissionCodes
     public const string EnvelopeInvalid = "workflow.admission.envelope_invalid";
     public const string ContractMissing = "definition.contract.missing";
     public const string ContractOutOfWindow = "definition.contract.out_of_window";
+    public const string GateOnAutonomousStep = "workflow.admission.gate_on_autonomous_step";
 }
 
 /// <summary>
@@ -415,6 +416,16 @@ public static class WorkflowAdmissionValidator
             if (action.RequiredStandings.HasValue && action.RequiredStandings.Value!.Any(standing => !WorkflowGateVocabulary.IsStandingName(standing?.Name)))
                 Add(WorkflowAdmissionCodes.InvalidStanding, "action requires a malformed standing", action.Id);
         }
+        // T-1176 Q1 (owner ruling 2026-11-07): a role or standing gate where no human acts is refused; the engine
+        // principal holds none (ADR-0051). "No human acts" is the CP fence's own test, so the two rules agree.
+        foreach (var transition in definition.Transitions)
+            if (Gated(transition.RequiredRoles.HasValue && transition.RequiredRoles.Value!.Any(), transition.RequiredStandings.HasValue && transition.RequiredStandings.Value!.Any())
+                && !(triggerById.TryGetValue(transition.On, out var trigger) && trigger.Kind == WorkflowTriggerKind.HumanAction))
+                Add(WorkflowAdmissionCodes.GateOnAutonomousStep, "transition with no human actor declares a role or standing gate", transition.Id);
+        foreach (var action in definition.Actions)
+            if (Gated(action.RequiredRoles.HasValue && action.RequiredRoles.Value!.Any(), action.RequiredStandings.HasValue && action.RequiredStandings.Value!.Any())
+                && FiresWithoutHumanGate(action, definition, transitionById, triggerById))
+                Add(WorkflowAdmissionCodes.GateOnAutonomousStep, "action that fires with no human actor declares a role or standing gate", action.Id);
 
         if (stateIds.Contains(definition.InitialState))
         {
@@ -483,6 +494,7 @@ public static class WorkflowAdmissionValidator
         while (queue.TryDequeue(out var state)) foreach (var transition in definition.Transitions.Where(row => row.From == state)) if (visited.Add(transition.To)) queue.Enqueue(transition.To);
         return visited;
     }
+    private static bool Gated(bool roles, bool standings) => roles || standings;
     private static bool FiresWithoutHumanGate(WorkflowActionBinding action, WorkflowDefinition definition, Dictionary<string, WorkflowTransition> transitions, Dictionary<string, WorkflowTriggerBinding> triggers)
     {
         bool Human(string trigger) => triggers.TryGetValue(trigger, out var binding) && binding.Kind == WorkflowTriggerKind.HumanAction;

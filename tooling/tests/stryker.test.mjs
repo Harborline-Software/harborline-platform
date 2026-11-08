@@ -935,6 +935,18 @@ test('changed-files PR mode counts only the mutants its mutate list selected', a
   assert.equal((await changedFilesRun(['p/lib/A.cs'], {report: {files: {...elsewhere, 'p/lib/A.cs': {mutants: [{status: 'Ignored', statusReason: 'Ignored by ignore-methods'}]}}}})).outcome, 1)
 })
 
+test('changed-files PR mode scores only the changed files, so compile errors elsewhere leave a logic-free change with nothing to score', async () => {
+  // T-486: Stryker.NET reports CompileError mutants from files its mutate list did not select. A change to a file with no
+  // logic, such as a class of constants, then failed "0 mutants tested" instead of passing with a note.
+  const compileErrors = {'C:\\r\\p\\lib\\Other.cs': {mutants: [{status: 'CompileError'}, {status: 'CompileError'}]}}
+  assert.equal((await changedFilesRun(['p/lib/A.cs'], {report: {files: {...compileErrors, 'C:\\r\\p\\lib\\A.cs': {mutants: []}}}})).outcome, 0)
+  assert.equal((await changedFilesRun(['p/lib/A.cs'], {report: {files: {...compileErrors}}})).outcome, 0)
+  // A tested changed file is still held to the break, whatever lies elsewhere.
+  assert.equal((await changedFilesRun(['p/lib/A.cs'], {report: {files: {...compileErrors, ...killedOf(69, 100).files}}})).outcome, 1)
+  // A changed file whose own mutants were never tested still fails: it had logic and none of it was scored.
+  assert.equal((await changedFilesRun(['p/lib/A.cs'], {report: {files: {...compileErrors, 'p/lib/A.cs': {mutants: [{status: 'CompileError'}]}}}})).outcome, 1)
+})
+
 test('changed-files PR mode matches a linked file whose report key keeps its /../ hop', async () => {
   const excluded = {source: 'File ignored by mutate filter', language: 'none', mutants: []}
   // Stryker.NET 5.0.0 keys a file another project links by the linking project's folder, then "..".

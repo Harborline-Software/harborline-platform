@@ -14,6 +14,17 @@ public sealed record ViewDefinitionDraft(
 /// <summary>One structural admission refusal and its RFC 6901 target.</summary>
 public sealed record ViewDefinitionRefusal(string Code, string Pointer);
 
+/// <summary>The host facts the structural rules need, read before the rules run.</summary>
+internal sealed record ViewAdmissionFacts(
+    ViewKindDescriptor? Kind,
+    bool RecordTypeChecked,
+    ViewRecordTypeDescriptor? RecordType,
+    ViewMeasureDescriptor? Measure,
+    IViewExpressionFunctionRegistry Functions,
+    ViewWidgetDescriptor? Widget,
+    bool RowActionKnown,
+    bool TransitionKnown);
+
 /// <summary>All structural refusals found during one terminal validation stage.</summary>
 public sealed class ViewDefinitionAdmissionException(
     string stage,
@@ -48,6 +59,36 @@ public sealed class ViewDefinitionAdmission(
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(draft);
+        // Every host fact the rules need is read first; the rules themselves are the one synchronous check the shared
+        // definition store also runs (ViewDefinitionCatalogue.Admission), so author time and the store cannot disagree.
+        var kind = await _kinds.ResolveAsync(draft.Binding.Kind, cancellationToken).ConfigureAwait(false);
+        var recordType = kind is null
+            ? null
+            : await _recordTypes.ResolveAsync(draft.Definition.RecordType, cancellationToken).ConfigureAwait(false);
+        var measure = draft.Definition.Parameters.Measure is { } binding
+            ? await _measures.ResolveAsync(binding.Name, cancellationToken).ConfigureAwait(false)
+            : null;
+        var widget = draft.Binding.Widget is { } bound
+            ? await _interactions.ResolveWidgetAsync(bound.Widget, cancellationToken).ConfigureAwait(false)
+            : null;
+        var rowActionKnown = draft.Binding.RowBehavior?.OpenAction is not { } action
+            || await _interactions.HasRowActionAsync(action, cancellationToken).ConfigureAwait(false);
+        var transitionKnown = draft.Binding.BoardMoveTransition is not { } transition
+            || await _interactions.HasWorkflowTransitionAsync(transition, cancellationToken).ConfigureAwait(false);
+
+        var refusals = Check(draft, new(kind, RecordTypeChecked: true, recordType, measure, _functions, widget, rowActionKnown, transitionKnown));
+        if (refusals.Count > 0)
+        {
+            throw new ViewDefinitionAdmissionException(Stage, refusals);
+        }
+    }
+
+    /// <summary>
+    /// The structural rules over facts already read from the host. With <see cref="ViewAdmissionFacts.RecordTypeChecked"/>
+    /// false, the record type's fields are not consulted: the shared store checks them in its dependency derivation.
+    /// </summary>
+    internal static List<ViewDefinitionRefusal> Check(ViewDefinitionDraft draft, ViewAdmissionFacts facts)
+    {
         var refusals = new List<ViewDefinitionRefusal>();
         if (draft.AggregationExpression is not null)
         {
@@ -74,65 +115,33 @@ public sealed class ViewDefinitionAdmission(
                 "/scopeToken"));
         }
 
-        ViewRecordTypeDescriptor? recordType = null;
-        var kind = await _kinds.ResolveAsync(draft.Binding.Kind, cancellationToken).ConfigureAwait(false);
-        if (kind is null)
+        if (facts.Kind is null)
         {
             refusals.Add(new(ViewDefinitionCodes.KindUnknown, "/binding/kind"));
         }
-        else
+        else if (facts.RecordTypeChecked)
         {
-            recordType = await _recordTypes
-                .ResolveAsync(draft.Definition.RecordType, cancellationToken)
-                .ConfigureAwait(false);
-            if (ViewBindingCompatibility.GetRefusalCode(kind, draft.Binding, recordType) is { } bindingCode)
+            if (ViewBindingCompatibility.GetRefusalCode(facts.Kind, draft.Binding, facts.RecordType) is { } bindingCode)
             {
                 refusals.Add(new(bindingCode, "/binding/shapeRoles"));
             }
         }
-
-        if (recordType is not null)
+        else if (facts.Kind.RequiredRoles.Any(role => !draft.Binding.ShapeRoles.TryGetValue(role, out var field) || string.IsNullOrWhiteSpace(field)))
         {
-            for (var index = 0; index < draft.Definition.Parameters.Columns.Count; index++)
+            refusals.Add(new(ViewDefinitionCodes.ShapeRoleFieldMissing, "/binding/shapeRoles"));
+        }
+
+        if (facts.RecordTypeChecked && facts.RecordType is { } recordType)
+        {
+            foreach (var (field, pointer) in ReferencedFields(draft.Definition))
             {
-                AddUnknownField(
-                    draft.Definition.Parameters.Columns[index].Field,
-                    $"/definition/parameters/columns/{index}/field",
-                    recordType,
-                    refusals);
-            }
-            for (var index = 0; index < draft.Definition.Parameters.Sort.Count; index++)
-            {
-                AddUnknownField(
-                    draft.Definition.Parameters.Sort[index].Field,
-                    $"/definition/parameters/sort/{index}/field",
-                    recordType,
-                    refusals);
-            }
-            if (draft.Definition.Parameters.GroupBy is { } groupBy)
-            {
-                AddUnknownField(
-                    groupBy,
-                    "/definition/parameters/groupBy",
-                    recordType,
-                    refusals);
-            }
-            if (draft.Definition.Parameters.Filter is { } authoredFilter)
-            {
-                foreach (var (field, pointer) in Fields(authoredFilter, "/definition/parameters/filter"))
-                {
-                    if (field != "$")
-                    {
-                        AddUnknownField(field, pointer, recordType, refusals);
-                    }
-                }
+                AddUnknownField(field, pointer, recordType, refusals);
             }
         }
 
         if (draft.Definition.Parameters.Measure is { } measure)
         {
-            var descriptor = await _measures.ResolveAsync(measure.Name, cancellationToken).ConfigureAwait(false);
-            if (descriptor is null)
+            if (facts.Measure is not { } descriptor)
             {
                 refusals.Add(new(
                     ViewDefinitionCodes.MeasureUnknown,
@@ -167,7 +176,7 @@ public sealed class ViewDefinitionAdmission(
                 filter,
                 "/definition/parameters/filter"))
             {
-                if (!_functions.IsRegistered(function.Function, function.Arguments.Count))
+                if (!facts.Functions.IsRegistered(function.Function, function.Arguments.Count))
                 {
                     refusals.Add(new(
                         ViewDefinitionCodes.FilterFunctionUnknown,
@@ -178,10 +187,7 @@ public sealed class ViewDefinitionAdmission(
 
         if (draft.Binding.Widget is { } widget)
         {
-            var descriptor = await _interactions
-                .ResolveWidgetAsync(widget.Widget, cancellationToken)
-                .ConfigureAwait(false);
-            if (descriptor is null)
+            if (facts.Widget is not { } descriptor)
             {
                 refusals.Add(new(ViewDefinitionCodes.WidgetUnknown, "/binding/widget/widget"));
             }
@@ -207,20 +213,41 @@ public sealed class ViewDefinitionAdmission(
                 }
             }
         }
-        if (draft.Binding.RowBehavior?.OpenAction is { } action
-            && !await _interactions.HasRowActionAsync(action, cancellationToken).ConfigureAwait(false))
+        if (draft.Binding.RowBehavior?.OpenAction is not null && !facts.RowActionKnown)
         {
             refusals.Add(new(ViewDefinitionCodes.RowActionUnknown, "/binding/rowBehavior/openAction"));
         }
-        if (draft.Binding.BoardMoveTransition is { } transition
-            && !await _interactions.HasWorkflowTransitionAsync(transition, cancellationToken).ConfigureAwait(false))
+        if (draft.Binding.BoardMoveTransition is not null && !facts.TransitionKnown)
         {
             refusals.Add(new(ViewDefinitionCodes.WorkflowTransitionUnknown, "/binding/boardMoveTransition"));
         }
+        return refusals;
+    }
 
-        if (refusals.Count > 0)
+    /// <summary>Every record field the definition names, with the RFC 6901 pointer of the naming member.</summary>
+    internal static IEnumerable<(string Field, string Pointer)> ReferencedFields(ViewDefinition definition)
+    {
+        for (var index = 0; index < definition.Parameters.Columns.Count; index++)
         {
-            throw new ViewDefinitionAdmissionException(Stage, refusals);
+            yield return (definition.Parameters.Columns[index].Field, $"/definition/parameters/columns/{index}/field");
+        }
+        for (var index = 0; index < definition.Parameters.Sort.Count; index++)
+        {
+            yield return (definition.Parameters.Sort[index].Field, $"/definition/parameters/sort/{index}/field");
+        }
+        if (definition.Parameters.GroupBy is { } groupBy)
+        {
+            yield return (groupBy, "/definition/parameters/groupBy");
+        }
+        if (definition.Parameters.Filter is { } authoredFilter)
+        {
+            foreach (var (field, pointer) in Fields(authoredFilter, "/definition/parameters/filter"))
+            {
+                if (field != "$")
+                {
+                    yield return (field, pointer);
+                }
+            }
         }
     }
 
@@ -241,7 +268,7 @@ public sealed class ViewDefinitionAdmission(
             .ToArray();
     }
 
-    private static string Escape(string token) => token.Replace("~", "~0", StringComparison.Ordinal)
+    internal static string Escape(string token) => token.Replace("~", "~0", StringComparison.Ordinal)
         .Replace("/", "~1", StringComparison.Ordinal);
 
     private static IEnumerable<(ViewFunctionFilter Function, string Pointer)> Functions(
@@ -320,10 +347,10 @@ public sealed class ViewDefinitionAdmission(
 /// <summary>The authoring command surface; admission always precedes persistence.</summary>
 public sealed class ViewDefinitionAuthoring(
     ViewDefinitionAdmission admission,
-    IViewDefinitionStore store)
+    IViewDefinitionCatalogue store)
 {
     private readonly ViewDefinitionAdmission _admission = admission ?? throw new ArgumentNullException(nameof(admission));
-    private readonly IViewDefinitionStore _store = store ?? throw new ArgumentNullException(nameof(store));
+    private readonly IViewDefinitionCatalogue _store = store ?? throw new ArgumentNullException(nameof(store));
 
     /// <summary>Stamps the platform's current contract version onto the draft, validates it (throwing <see cref="ViewDefinitionAdmissionException"/> on refusal) and only then persists it as a draft revision.</summary>
     public async ValueTask<ViewDefinitionRevision> CreateDraftAsync(

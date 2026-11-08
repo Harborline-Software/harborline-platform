@@ -633,6 +633,49 @@ public sealed class TaxonomyInterpreterTests
         Assert.True(document.RootElement[3][0][3].GetBoolean());
     }
 
+    // T-1173 (R-0146 call 7, ruled "1"): a lone surrogate in a definition's own node code or parent code is not text, so
+    // the capture refuses it before canonical serialization rewrites it to U+FFFD. Expected code: DES-0024 section 3
+    // ("corrupt data refuse the entire capture") and RFC 7493 section 2.1, not this code's output.
+    [Theory]
+    [InlineData(0xD800, "code")]
+    [InlineData(0xDC00, "code")]
+    [InlineData(0xD800, "parent")]
+    [InlineData(0xDC00, "parent")]
+    public void T1173_coding_capture_refuses_a_definition_whose_node_code_or_parent_holds_a_lone_surrogate(int unit, string where)
+    {
+        // The code unit travels as a number: a lone surrogate string does not survive test-case serialization.
+        string lone = ((char)unit).ToString();
+        var definition = where == "code"
+            ? Definition([Node("root"), Node(lone, "root"), Node("leaf", "root")])
+            : Definition([Node("root"), Node("leaf", lone)]);
+        var binding = Binding(definition);
+        var refused = Assert.Throws<TaxonomyCodingCaptureException>(() =>
+            Interpreter(definition).CaptureCodingAnswers("tenant-a", [binding], [new("s", "root", "leaf")], CaptureWindow));
+        Assert.Equal("taxonomy.coding_capture_invalid", refused.Code);
+    }
+
+    [Fact]
+    public void T1173_the_reviewers_probe_never_answers_true_for_a_code_the_definition_never_held()
+    {
+        var definition = Definition([Node("\ud800"), Node("leaf", "\ud800")]);
+        Assert.False(Interpreter(definition).Subsumes(definition, "\ufffd", "leaf"));
+        var refused = Assert.Throws<TaxonomyCodingCaptureException>(() =>
+            Interpreter(definition).CaptureCodingAnswers("tenant-a", [Binding(definition)], [new("s", "\ufffd", "leaf")], CaptureWindow));
+        Assert.Equal("taxonomy.coding_capture_invalid", refused.Code);
+    }
+
+    [Fact]
+    public void T1173_a_definition_whose_codes_hold_a_valid_surrogate_pair_still_captures_as_subsumes_answers()
+    {
+        const string pair = "\ud83d\ude00";
+        var definition = Definition([Node(pair), Node("leaf", pair)]);
+        string captured = Interpreter(definition).CaptureCodingAnswers("tenant-a", [Binding(definition)], [new("s", pair, "leaf")], CaptureWindow);
+        using var document = JsonDocument.Parse(captured);
+        Assert.Equal(pair, document.RootElement[3][0][1].GetString());
+        Assert.True(Interpreter(definition).Subsumes(definition, pair, "leaf"));
+        Assert.Equal(Interpreter(definition).Subsumes(definition, pair, "leaf"), document.RootElement[3][0][3].GetBoolean());
+    }
+
     [Fact]
     public void Coding_capture_refuses_a_definition_its_own_canonical_bytes_cannot_restore()
     {

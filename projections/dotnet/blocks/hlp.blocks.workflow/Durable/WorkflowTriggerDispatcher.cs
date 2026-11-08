@@ -145,7 +145,7 @@ public sealed class WorkflowTriggerDispatcher : IWorkflowTriggerDispatcher
         var outcome = _handlers.TryGetValue(instance.DefinitionKey, out var handler)
             ? await handler.DecideAsync(instance, trigger, ct).ConfigureAwait(false)
             : _interpreter is not null
-                ? await _interpreter.DecideAsync(instance, trigger, ct).ConfigureAwait(false)
+                ? await _interpreter.DecideAsync(instance, trigger, authority, ct).ConfigureAwait(false)
                 : throw new InvalidOperationException(
                     $"No {nameof(IWorkflowStepHandler)} registered for definition '{instance.DefinitionKey}' " +
                     $"(instance '{trigger.InstanceId}') and no {nameof(IDeclarativeWorkflowInterpreter)} fallback " +

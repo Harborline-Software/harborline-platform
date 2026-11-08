@@ -84,6 +84,22 @@ test('a navigation entry for a member outside the register is a finding', () => 
   ])
 })
 
+test('the Rules entry opening the released surface of another editor is a finding', () => {
+  const pack = released()
+  destination(pack, 'platform.editor.rules').surface_id = 'platform.editor.views'
+  assert.deepEqual(findings(pack), [
+    'member standards: editor platform.editor.rules opens surface platform.editor.views, not its own surface platform.editor.rules',
+  ])
+})
+
+test('the Rules entry naming a pillar outside the register is a finding', () => {
+  const pack = released()
+  navigation(pack).navigation_entries.find(entry => entry.id === 'platform.navigation.standards.author').pillar = 'rules'
+  assert.deepEqual(findings(pack), [
+    'member rules: navigation entry platform.navigation.standards.author names no member in the register',
+  ])
+})
+
 test('a pack without the released navigation fails rather than passing over no editors', () => {
   const pack = released()
   pack.items = pack.items.filter(entry => entry.id !== NAVIGATION_ITEM)

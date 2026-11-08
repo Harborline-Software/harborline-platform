@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.contracts.workflow",
-  "interfaceRevision": 4,
+  "interfaceRevision": 5,
   "authority": {"notify.email": "AP", "ledger.post-journal-entry": "CP", "ledger.void-payment": "CP"},
   "roleDefinitions": [{"roleDefinitionId":"3b69e3cb-ec5e-4ad7-8c90-16ebc1896102","role":{"vocabulary":"sys.platform-roles","name":"auditor"},"displayName":"Auditor","owner":{"kind":"Platform","ownerId":"harborline-platform"},"isSealed":true}],
   "contractWindow": {"major": 1, "minor": 2, "oldestMajor": 1},
@@ -47,7 +47,7 @@
     {"id": "unknown-action-role-refused", "operation": "admission.mutate", "input": "$canonical", "mutation": {"unknownActionRole": true}, "expected": {"isValid": false, "codes": ["workflow.admission.unknown_role_reference"]}},
     {"id": "unknown-transition-role-refused", "operation": "admission.mutate", "input": "$canonical", "mutation": {"unknownTransitionRole": true}, "expected": {"isValid": false, "codes": ["workflow.admission.unknown_role_reference"]}},
     {"id": "canonical-admits", "operation": "admission.validate", "input": "$canonical", "expected": {"isValid": true, "codes": []}},
-    {"id": "autonomous-cp-refused", "operation": "admission.mutate", "input": "$canonical", "mutation": {"actionTransition": "t-issue"}, "expected": {"isValid": false, "codes": ["workflow.admission.cp_reachable_without_human_task"]}},
+    {"id": "autonomous-cp-refused", "operation": "admission.mutate", "input": "$canonical", "mutation": {"actionTransition": "t-issue"}, "expected": {"isValid": false, "codes": ["workflow.admission.cp_reachable_without_human_task", "workflow.admission.gate_on_autonomous_step"]}},
     {"id": "classification-mismatch-refused", "operation": "admission.mutate", "input": "$canonical", "mutation": {"actionClassification": "AP"}, "expected": {"isValid": false, "codes": ["workflow.admission.classification_mismatch"]}},
     {"id": "dangling-guard-refused", "operation": "admission.mutate", "input": "$canonical", "mutation": {"transitionGuard": "missing"}, "expected": {"isValid": false, "codes": ["workflow.admission.dangling_reference"]}},
     {"id": "terminal-outgoing-refused", "operation": "admission.mutate", "input": "$canonical", "mutation": {"terminalOutgoing": true}, "expected": {"isValid": false, "codes": ["workflow.admission.terminal_has_outgoing"]}},
@@ -83,6 +83,11 @@
     {"id": "workflows-auth-11-wildcard-standing-refused", "operation": "admission.mutate", "input": "$canonical", "mutation": {"transitionStanding":"*"}, "expected": {"isValid": false, "codes": ["workflow.admission.invalid_standing"]}, "engineParseRefuses": "authorization.gate_reference.required_standings_invalid"},
     {"id": "workflows-auth-11-negated-standing-refused", "operation": "admission.mutate", "input": "$canonical", "mutation": {"transitionStanding":"!author"}, "expected": {"isValid": false, "codes": ["workflow.admission.invalid_standing"]}, "engineParseRefuses": "authorization.gate_reference.required_standings_invalid"},
     {"id": "workflows-auth-11-trailing-newline-standing-refused", "operation": "admission.mutate", "input": "$canonical", "mutation": {"transitionStanding":"author\n"}, "expected": {"isValid": false, "codes": ["workflow.admission.invalid_standing"]}, "engineParseRefuses": "authorization.gate_reference.required_standings_invalid"},
-    {"id": "workflows-auth-11-action-role-shaped-standing-refused", "operation": "admission.mutate", "input": "$canonical", "mutation": {"actionStanding":"sys.platform-roles/administrator"}, "expected": {"isValid": false, "codes": ["workflow.admission.invalid_standing"]}, "engineParseRefuses": "authorization.gate_reference.required_standings_invalid"}
+    {"id": "workflows-auth-11-action-role-shaped-standing-refused", "operation": "admission.mutate", "input": "$canonical", "mutation": {"actionStanding":"sys.platform-roles/administrator"}, "expected": {"isValid": false, "codes": ["workflow.admission.invalid_standing"]}, "engineParseRefuses": "authorization.gate_reference.required_standings_invalid"},
+    {"id": "t-1176-q1-autonomous-transition-role-refused", "operation": "admission.mutate", "input": "$canonical", "mutation": {"autonomousTransitionRole": {"vocabulary": "sys.roles", "name": "Approver"}}, "expected": {"isValid": false, "codes": ["workflow.admission.gate_on_autonomous_step"]}},
+    {"id": "t-1176-q1-autonomous-transition-standing-refused", "operation": "admission.mutate", "input": "$canonical", "mutation": {"autonomousTransitionStanding": "assigned-approver"}, "expected": {"isValid": false, "codes": ["workflow.admission.gate_on_autonomous_step"]}},
+    {"id": "t-1176-q1-gated-action-on-autonomous-transition-refused", "operation": "admission.mutate", "input": "$canonical", "mutation": {"actionTransition": "t-issue", "actionStanding": "assigned-approver"}, "expected": {"isValid": false, "codes": ["workflow.admission.cp_reachable_without_human_task", "workflow.admission.gate_on_autonomous_step"]}},
+    {"id": "t-1176-q1-gated-action-on-a-state-only-a-person-enters-admits", "operation": "admission.mutate", "input": "$canonical", "mutation": {"actionState": "Posted"}, "expected": {"isValid": true, "codes": []}},
+    {"id": "t-1176-q1-gated-action-on-a-state-reached-by-a-person-and-automatically-refused", "operation": "admission.mutate", "input": "$canonical", "mutation": {"actionState": "Posted", "autonomousEdgeInto": "Posted"}, "expected": {"isValid": false, "codes": ["workflow.admission.cp_reachable_without_human_task", "workflow.admission.gate_on_autonomous_step"]}}
   ]
 }

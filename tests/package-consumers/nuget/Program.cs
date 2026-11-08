@@ -365,7 +365,7 @@ var packedEngineDefinition = new Harborline.Blocks.Workflow.WorkflowDefinitionBu
     .Transition(ConsumerFlowState.Draft, ConsumerFlowTrigger.Approve, ConsumerFlowState.Done)
     .Terminal(ConsumerFlowState.Done)
     .Build();
-var packedEngineRuntime = new Harborline.Blocks.Workflow.InMemoryWorkflowRuntime();
+var packedEngineRuntime = new Harborline.Blocks.Workflow.InMemoryWorkflowRuntime(TimeProvider.System);
 var packedEngineInstance = await packedEngineRuntime.StartAsync(packedEngineDefinition, new object());
 packedEngineInstance = await packedEngineRuntime.FireAsync<ConsumerFlowState, ConsumerFlowTrigger, object>(
     packedEngineInstance.Id, ConsumerFlowTrigger.Approve);
