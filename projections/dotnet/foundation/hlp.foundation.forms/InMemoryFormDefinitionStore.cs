@@ -32,6 +32,8 @@ public sealed class InMemoryFormDefinitionStore : IFormDefinitionStore, IDisposa
     private readonly SemaphoreSlim _mutationLock = new(initialCount: 1, maxCount: 1);
     private readonly TimeProvider _time;
     private readonly AuthorizationCapabilityRegister? _capabilities;
+    private readonly RoleVocabulary? _roles;
+    private readonly IReadOnlySet<RecordStandingReference>? _standings;
     private readonly IFormRecordTypePolicyReader? _recordTypePolicies;
     private readonly IFormRecordCreationDeclarations? _recordCreations;
 
@@ -57,16 +59,25 @@ public sealed class InMemoryFormDefinitionStore : IFormDefinitionStore, IDisposa
     /// rather than a silent absence of any declaration. When <paramref name="recordCreations"/> is null its declaration is
     /// used: the same fallback the form engine applies to its sink (<see cref="RecordCreationDeclarations.Select"/>), so
     /// publication and submit refuse consistently.</param>
+    /// <param name="roles">Access's role vocabulary a submit gate's role arm resolves through (forms-auth-11, L356). Absent,
+    /// publication refuses every role arm (<c>form.submit_gate.role_unknown</c>); a Draft is checked only when supplied.</param>
+    /// <param name="standings">The standings installed standing rules declare, which a submit gate's standing arm names
+    /// (forms-auth-11, L356). Absent, publication refuses every standing arm (<c>form.submit_gate.standing_unknown</c>); a
+    /// Draft is checked only when supplied.</param>
     public InMemoryFormDefinitionStore(
         TimeProvider time,
         AuthorizationCapabilityRegister? capabilities = null,
         IFormRecordTypePolicyReader? recordTypePolicies = null,
         IFormRecordCreationDeclarations? recordCreations = null,
-        IFormRecordCreationDeclarations? recordCreationProducer = null)
+        IFormRecordCreationDeclarations? recordCreationProducer = null,
+        RoleVocabulary? roles = null,
+        IReadOnlySet<RecordStandingReference>? standings = null)
     {
         ArgumentNullException.ThrowIfNull(time);
         _time = time;
         _capabilities = capabilities;
+        _roles = roles;
+        _standings = standings;
         _recordTypePolicies = recordTypePolicies;
         _recordCreations = RecordCreationDeclarations.Select(recordCreations, recordCreationProducer);
     }
@@ -561,7 +572,7 @@ public sealed class InMemoryFormDefinitionStore : IFormDefinitionStore, IDisposa
         FormDefinitionValidation.ValidateOverlayOrThrow(definition);
         FormDefinitionValidation.ValidateSchemaRefOrThrow(definition);
         FormDefinitionAuthoringValidation.ValidateOrThrow(definition);
-        FormDefinitionValidation.ValidateSubmitGateOrThrow(definition, _capabilities, requireSubmitGate);
+        FormDefinitionValidation.ValidateSubmitGateOrThrow(definition, _capabilities, requireSubmitGate, _roles, _standings);
         FormDefinitionValidation.ValidateRecordTypeTargetOrThrow(definition);
     }
 
