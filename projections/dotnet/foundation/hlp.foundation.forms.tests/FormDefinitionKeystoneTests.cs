@@ -24,7 +24,7 @@ public sealed class FormDefinitionKeystoneTests
     [Fact]
     public async Task Register_then_Get_round_trips_the_record()
     {
-        using var registry = new InMemoryFormDefinitionStore(new FixedClock(Now));
+        using var registry = FormGateRegisters.Store(new FixedClock(Now));
         var schema = NewSchema("property", new SemanticVersion(1, 0, 0), TenantA);
 
         var registered = await registry.RegisterAsync(schema);
@@ -37,7 +37,7 @@ public sealed class FormDefinitionKeystoneTests
     [Fact]
     public async Task Get_other_tenant_throws_NotFound()
     {
-        using var registry = new InMemoryFormDefinitionStore(new FixedClock(Now));
+        using var registry = FormGateRegisters.Store(new FixedClock(Now));
         var schema = NewSchema("property", new SemanticVersion(1, 0, 0), TenantA);
         await registry.RegisterAsync(schema);
 
@@ -48,7 +48,7 @@ public sealed class FormDefinitionKeystoneTests
     [Fact]
     public async Task Duplicate_version_throws_Conflict()
     {
-        using var registry = new InMemoryFormDefinitionStore(new FixedClock(Now));
+        using var registry = FormGateRegisters.Store(new FixedClock(Now));
         var schema = NewSchema("property", new SemanticVersion(1, 0, 0), TenantA);
         await registry.RegisterAsync(schema);
 
@@ -61,7 +61,7 @@ public sealed class FormDefinitionKeystoneTests
     [Fact]
     public async Task GetCurrentPublishedAsync_picks_highest_Published_version()
     {
-        using var registry = new InMemoryFormDefinitionStore(new FixedClock(Now));
+        using var registry = FormGateRegisters.Store(new FixedClock(Now));
         var v1 = NewSchema("property", new SemanticVersion(1, 0, 0), TenantA, status: FormDefinitionStatus.Published);
         var v2 = NewSchema("property", new SemanticVersion(2, 0, 0), TenantA, status: FormDefinitionStatus.Published);
         var v3draft = NewSchema("property", new SemanticVersion(3, 0, 0), TenantA, status: FormDefinitionStatus.Draft);
@@ -79,7 +79,7 @@ public sealed class FormDefinitionKeystoneTests
     public async Task PublishAsync_transitions_Draft_to_Published_and_stamps_UpdatedAt()
     {
         var clock = new FixedClock(Now);
-        using var registry = new InMemoryFormDefinitionStore(clock);
+        using var registry = FormGateRegisters.Store(clock);
         var draft = NewSchema("property", new SemanticVersion(1, 0, 0), TenantA, status: FormDefinitionStatus.Draft);
         await registry.RegisterAsync(draft);
 
@@ -94,7 +94,7 @@ public sealed class FormDefinitionKeystoneTests
     [Fact]
     public async Task WithdrawAsync_then_PublishAsync_is_rejected()
     {
-        using var registry = new InMemoryFormDefinitionStore(new FixedClock(Now));
+        using var registry = FormGateRegisters.Store(new FixedClock(Now));
         var schema = NewSchema("property", new SemanticVersion(1, 0, 0), TenantA, status: FormDefinitionStatus.Published);
         await registry.RegisterAsync(schema);
         await registry.WithdrawAsync(TenantA, schema.Id, schema.Version);
@@ -106,7 +106,7 @@ public sealed class FormDefinitionKeystoneTests
     [Fact]
     public async Task Withdrawn_System_projection_can_be_explicitly_restored()
     {
-        using var registry = new InMemoryFormDefinitionStore(new FixedClock(Now));
+        using var registry = FormGateRegisters.Store(new FixedClock(Now));
         var schema = NewSchema(
             "pack-form", new SemanticVersion(1, 0, 0), TenantA,
             status: FormDefinitionStatus.Published);
@@ -121,7 +121,7 @@ public sealed class FormDefinitionKeystoneTests
     [Fact]
     public async Task Overlay_with_orphan_section_field_is_rejected()
     {
-        using var registry = new InMemoryFormDefinitionStore(new FixedClock(Now));
+        using var registry = FormGateRegisters.Store(new FixedClock(Now));
         var bogus = NewSchema("property", new SemanticVersion(1, 0, 0), TenantA) with
         {
             Overlay = new HarborlineOverlay(
@@ -145,7 +145,7 @@ public sealed class FormDefinitionKeystoneTests
     [Fact]
     public async Task Lineage_to_unregistered_parent_is_rejected()
     {
-        using var registry = new InMemoryFormDefinitionStore(new FixedClock(Now));
+        using var registry = FormGateRegisters.Store(new FixedClock(Now));
         var orphanChild = NewSchema("equipment", new SemanticVersion(1, 0, 0), TenantA) with
         {
             Lineage = new FormDefinitionLineage(new FormDefinitionId("property"), new SemanticVersion(1, 0, 0)),
@@ -158,7 +158,7 @@ public sealed class FormDefinitionKeystoneTests
     [Fact]
     public async Task ListByTenantAsync_returns_only_that_tenants_schemas()
     {
-        using var registry = new InMemoryFormDefinitionStore(new FixedClock(Now));
+        using var registry = FormGateRegisters.Store(new FixedClock(Now));
         await registry.RegisterAsync(NewSchema("property", new SemanticVersion(1, 0, 0), TenantA));
         await registry.RegisterAsync(NewSchema("equipment", new SemanticVersion(1, 0, 0), TenantA));
         await registry.RegisterAsync(NewSchema("property", new SemanticVersion(1, 0, 0), TenantB));

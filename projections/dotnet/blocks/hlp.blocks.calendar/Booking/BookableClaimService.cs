@@ -46,8 +46,9 @@ public sealed record BookableClaimOutcome(IReadOnlyList<CalendarEvent> Events, s
 /// own <see cref="BookingResourceDefinition.SetupMinutes"/> before and
 /// <see cref="BookingResourceDefinition.CleanupMinutes"/> after. The claim writes one
 /// <see cref="Occupancy.Bookable"/> event per Resource carrying that Resource's buffers as its padding,
-/// so a later read sees each Resource's full buffered footprint. The DES-0025 ruling on where buffers
-/// live is still open; the Resource fields are the recommended answer.
+/// so a later read sees each Resource's full buffered footprint. This is the owner's ruling of 2026-09-29
+/// (DES-0025 open ruling 5, <c>booking-ck-5</c>): the buffer lives on the Resource and is part of the hold,
+/// and <see cref="EventPadding"/> survives only on the legacy single-resource <c>Book</c> path until T-541.
 /// </para>
 /// <para>
 /// <b>Atomic across the conjunction.</b> Every Resource's capacity epoch is read before the capacity

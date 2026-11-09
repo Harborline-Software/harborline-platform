@@ -234,6 +234,16 @@ public static class FormDefinitionCodes
     /// declare an authorization capability of its own (forms-auth-16, T-747).</summary>
     public const string SubmitGateCapabilityUnknown = "form.submit_gate.capability_unknown";
 
+    /// <summary>A submit gate names a role Access's role vocabulary does not declare, or a definition reaching Published
+    /// names a role with no role vocabulary supplied (forms-auth-11, L356; Layout's layout-auth-23 rule for the same
+    /// gate). Pointer <c>/submit_gate/role</c>.</summary>
+    public const string SubmitGateRoleUnknown = "form.submit_gate.role_unknown";
+
+    /// <summary>A submit gate names a standing no installed standing rule declares, or a definition reaching Published
+    /// names a standing with no standing set supplied (forms-auth-11, L356; layout-auth-23). Pointer
+    /// <c>/submit_gate/standing/name</c>.</summary>
+    public const string SubmitGateStandingUnknown = "form.submit_gate.standing_unknown";
+
     /// <summary>A definition reaching Published status does not declare a submit gate. A definition whose
     /// <c>record_type_id</c> target is <c>form_only</c> is refused with this code too (D3, T-485).</summary>
     public const string SubmitGateRequired = "form.submit_gate.required";

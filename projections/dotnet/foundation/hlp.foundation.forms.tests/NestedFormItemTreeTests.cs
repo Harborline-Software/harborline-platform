@@ -27,7 +27,7 @@ public sealed class NestedFormItemTreeTests
     [Fact]
     public async Task Nested_tree_round_trips_through_the_store_intact()
     {
-        using var store = new InMemoryFormDefinitionStore(new FixedClock(Now));
+        using var store = FormGateRegisters.Store(new FixedClock(Now));
         var def = QuoteFormWithNestedTree();
 
         await store.RegisterAsync(def); // exercises the DEFAULT-limit tree validation
@@ -57,7 +57,7 @@ public sealed class NestedFormItemTreeTests
     [Fact]
     public async Task Flat_definition_is_unchanged_back_compat()
     {
-        using var store = new InMemoryFormDefinitionStore(new FixedClock(Now));
+        using var store = FormGateRegisters.Store(new FixedClock(Now));
         var flat = FlatForm();
 
         // A flat form carries no tree — a depth-1 tree by definition.

@@ -52,7 +52,7 @@ public sealed class FormValidationDepthTests
             .Select(i => $"sec-{i}").ToArray();
         var pages = sectionIds.Select(id => Page($"page-{id}", id)).ToArray();
 
-        using var store = new InMemoryFormDefinitionStore(new FixedClock(Now));
+        using var store = FormGateRegisters.Store(new FixedClock(Now));
         await store.RegisterAsync(NewForm(pages: pages, sectionIds: sectionIds)); // must not throw
     }
 
@@ -125,7 +125,7 @@ public sealed class FormValidationDepthTests
                     Inputs: new[] { "employment" }, DebounceMs: 250),
             });
 
-        using var store = new InMemoryFormDefinitionStore(new FixedClock(Now));
+        using var store = FormGateRegisters.Store(new FixedClock(Now));
         await store.RegisterAsync(def);
         var loaded = await store.GetAsync(Tenant, def.Id, def.Version);
 
@@ -221,7 +221,7 @@ public sealed class FormValidationDepthTests
 
     private static void AssertRejected(FormDefinition def, string expectedCode)
     {
-        using var store = new InMemoryFormDefinitionStore(new FixedClock(Now));
+        using var store = FormGateRegisters.Store(new FixedClock(Now));
         var ex = Assert.ThrowsAsync<FormDefinitionValidationException>(async () => await store.RegisterAsync(def))
             .GetAwaiter()
             .GetResult();

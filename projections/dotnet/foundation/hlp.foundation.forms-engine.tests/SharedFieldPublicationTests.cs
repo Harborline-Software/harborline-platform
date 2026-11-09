@@ -48,6 +48,7 @@ public sealed class SharedFieldPublicationTests
                 Role: Harborline.Contracts.Authorization.RoleReference.Domain("admin")),
         };
         var services = new ServiceCollection();
+        services.AddFormGateRegisters();
         services.AddSingleton<IFormDefinitionStore, InMemoryFormDefinitionStore>();
         if (scenario != "missing-caller")
             services.AddSingleton<IAuthenticatedActorContext>(new PublicationActor(
@@ -110,6 +111,7 @@ public sealed class SharedFieldPublicationTests
                 : null,
         };
         var services = new ServiceCollection();
+        services.AddFormGateRegisters();
         services.AddSingleton<IFormDefinitionStore, InMemoryFormDefinitionStore>();
         services.AddSingleton<IAuthenticatedActorContext>(new PublicationActor(host.Tenant));
         services.AddSingleton<IFormFieldBindingSource>(host);
