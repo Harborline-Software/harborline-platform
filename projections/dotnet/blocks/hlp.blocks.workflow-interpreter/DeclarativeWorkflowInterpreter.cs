@@ -187,6 +187,15 @@ public sealed class DeclarativeWorkflowInterpreter : IDeclarativeWorkflowInterpr
             }
 
             var transition = autonomous[0];
+
+            // workflows-ck-5 (R-0155 D1): an edge fires only on the trigger its `on` binding names. A trigger it does
+            // not name is discarded and the run rests here (SCXML: "If no transition matches in any state, the event
+            // is discarded."). The delivered trigger carries its kind, not its binding id, so the kind is compared.
+            if (!triggerKinds.TryGetValue(transition.On, out var onKind) || onKind != trigger.Kind)
+            {
+                return WorkflowStepOutcome.Advance(state);
+            }
+
             RefuseUnenforcedGate("transition", transition.Id, transition.RequiredRoles, transition.RequiredStandings, instance);
 
             // An effect bound to the transition itself (vs on-enter of the destination).

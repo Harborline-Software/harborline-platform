@@ -168,6 +168,40 @@ public sealed class DeclarativeWorkflowInterpreterTests
         Assert.NotNull(outcome.Effect); // built autonomously — no human, no SoD.
     }
 
+    // ── workflows-ck-5 (R-0155 D1): an autonomous edge fires only on the trigger its `on` binding names. SCXML:
+    //    "If no transition matches in any state, the event is discarded." The run rests where it is, with no
+    //    transition, effect or park. ──
+
+    [Theory]
+    [InlineData(WorkflowTriggerKind.Schedule)]
+    [InlineData(WorkflowTriggerKind.DependencyComplete)]
+    public async Task Workflows_ck_5_an_autonomous_trigger_the_edge_does_not_name_leaves_the_run_where_it_is(WorkflowTriggerKind delivered)
+    {
+        var ap = Interpreter(await NewProviderWithApDefinitionAsync());
+        var rested = await ap.DecideAsync(ApInstance("match-ap"), WorkflowTrigger.For(delivered, "match-ap", "Start"));
+        Assert.Equal(WorkflowStepOutcomeKind.Advance, rested.Kind);
+        Assert.Equal("Start", rested.NextStep);
+        Assert.Equal(WorkflowStatus.Running, rested.NextStatus);
+        Assert.Null(rested.Effect);
+
+        var cp = Interpreter(await NewProviderWithCpDefinitionAsync(HumanConfirmer()));
+        var unparked = await cp.DecideAsync(CpInstance("match-cp", "Draft"), WorkflowTrigger.For(delivered, "match-cp", "Draft"));
+        Assert.Equal(WorkflowStepOutcomeKind.Advance, unparked.Kind);
+        Assert.Equal("Draft", unparked.NextStep);
+        Assert.Equal(WorkflowStatus.Running, unparked.NextStatus);
+        Assert.Null(unparked.Effect);
+    }
+
+    [Fact]
+    public async Task Workflows_ck_5_the_trigger_the_edge_names_takes_it()
+    {
+        var ap = Interpreter(await NewProviderWithApDefinitionAsync());
+        var taken = await ap.DecideAsync(ApInstance("match-go"), WorkflowTrigger.For(WorkflowTriggerKind.Event, "match-go", "Start"));
+        Assert.Equal("Notified", taken.NextStep);
+        Assert.Equal(WorkflowStatus.Completed, taken.NextStatus);
+        Assert.NotNull(taken.Effect);
+    }
+
     // ── FAIL-CLOSED: a now-inadmissible pinned definition throws at load (never executes) ──
 
     [Fact]
