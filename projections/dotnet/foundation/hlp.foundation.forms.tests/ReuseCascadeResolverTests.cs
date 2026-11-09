@@ -195,7 +195,7 @@ public sealed class ReuseCascadeResolverTests
     {
         // The reference node is a valid FormItem in a definition tree (no field-declared check;
         // the referenced unit is resolved separately) — it registers through the keystone store.
-        using var forms = new InMemoryFormDefinitionStore(new FixedClock(Now));
+        using var forms = FormGateRegisters.Store(new FixedClock(Now));
         var def = ConsumingDef(Ref(ReusableUnitVersionSelector.LatestPublished), new[] { "title" });
 
         var stored = await forms.RegisterAsync(def);

@@ -39,7 +39,7 @@ public sealed class AuthoringHostIntegrationTests
     public async Task First_publication_retains_the_assessed_Draft_separately_from_the_commit()
     {
         var fixture = await ImpactFixture.CreateAsync();
-        fixture = fixture with { Store = new InMemoryFormDefinitionStore(), Basis = fixture.Basis with
+        fixture = fixture with { Store = FormGateRegisters.Store(), Basis = fixture.Basis with
             { NoPredecessor = true, Predecessor = null, PredecessorEnvironment = null } };
         await using var provider = BuildImpactHost(fixture);
         await using var scope = provider.CreateAsyncScope();
@@ -414,6 +414,7 @@ public sealed class AuthoringHostIntegrationTests
     private static ServiceProvider BuildHost()
     {
         var services = new ServiceCollection();
+        services.AddFormGateRegisters();
         services.AddSingleton<IFormDefinitionStore, InMemoryFormDefinitionStore>();
         services.AddHarborlineFormsAuthoringPublisher();
         return services.BuildServiceProvider(

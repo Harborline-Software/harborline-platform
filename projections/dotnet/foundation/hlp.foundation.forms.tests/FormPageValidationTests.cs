@@ -28,7 +28,7 @@ public sealed class FormPageValidationTests
     [Fact]
     public async Task Paged_definition_round_trips_through_the_store_intact()
     {
-        using var store = new InMemoryFormDefinitionStore(new FixedClock(Now));
+        using var store = FormGateRegisters.Store(new FixedClock(Now));
         var def = PagedForm();
 
         await store.RegisterAsync(def); // exercises the fail-closed page invariants
@@ -62,7 +62,7 @@ public sealed class FormPageValidationTests
     [Fact]
     public async Task Pageless_definition_is_unchanged_back_compat()
     {
-        using var store = new InMemoryFormDefinitionStore(new FixedClock(Now));
+        using var store = FormGateRegisters.Store(new FixedClock(Now));
         var flat = PagelessForm();
 
         Assert.Null(flat.Overlay.Pages);
@@ -140,7 +140,7 @@ public sealed class FormPageValidationTests
 
     private static void AssertRejected(FormDefinition def, string expectedCode)
     {
-        using var store = new InMemoryFormDefinitionStore(new FixedClock(Now));
+        using var store = FormGateRegisters.Store(new FixedClock(Now));
         var ex = Assert.ThrowsAsync<FormDefinitionValidationException>(async () => await store.RegisterAsync(def))
             .GetAwaiter()
             .GetResult();

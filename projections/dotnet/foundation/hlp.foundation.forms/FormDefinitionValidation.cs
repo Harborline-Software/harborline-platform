@@ -13,13 +13,19 @@ namespace Harborline.Foundation.Forms;
 internal static class FormDefinitionValidation
 {
     /// <summary>
-    /// DES-0016 forms-ck-4 and forms-auth-16: a declared submit gate names exactly one arm, and its
-    /// capability arm resolves through Access's register. No register means no capability is admitted.
+    /// DES-0016 forms-ck-4, forms-auth-11 and forms-auth-16: a declared submit gate names exactly one arm, and each
+    /// arm resolves through its owner's register. The capability arm resolves through Access's capability register, and
+    /// no register admits no capability. The role arm resolves through Access's role vocabulary and the standing arm
+    /// through the standings installed standing rules declare (T-485, L356): publication refuses either arm when its
+    /// register is absent, and a supplied register is honoured at every stage. This is Layout's rule for the same shared
+    /// <see cref="SubmitGate"/> (layout-auth-23).
     /// </summary>
     public static void ValidateSubmitGateOrThrow(
         FormDefinition definition,
         AuthorizationCapabilityRegister? capabilities,
-        bool requiredForPublish = false)
+        bool requiredForPublish = false,
+        RoleVocabulary? roles = null,
+        IReadOnlySet<RecordStandingReference>? standings = null)
     {
         if (definition.SubmitGate is not { } gate)
         {
@@ -43,6 +49,17 @@ internal static class FormDefinitionValidation
             throw new FormDefinitionValidationException(
                 definition.Id, $"submit_gate names capability '{capability.Name}', which Access does not declare.",
                 FormDefinitionCodes.SubmitGateCapabilityUnknown, "/submit_gate/capability/name");
+        if (gate.Role is { } role && (roles is not null || requiredForPublish) && !IsDefined(role, roles))
+            throw new FormDefinitionValidationException(
+                definition.Id, "submit_gate names a role Access's role vocabulary does not declare.",
+                FormDefinitionCodes.SubmitGateRoleUnknown, "/submit_gate/role");
+        // A targeted form may not gate on a standing at all (form.submit_gate.standing_on_record_creation, checked once the
+        // target's policy resolves), so that refusal comes first and the name is not resolved here.
+        if (gate.Standing is { } standing && definition.RecordTypeId is null
+            && (standings is not null || requiredForPublish) && standings?.Contains(standing) != true)
+            throw new FormDefinitionValidationException(
+                definition.Id, $"submit_gate names standing '{standing.Name}', which no installed standing rule declares.",
+                FormDefinitionCodes.SubmitGateStandingUnknown, "/submit_gate/standing/name");
     }
 
     /// <summary>
@@ -131,6 +148,12 @@ internal static class FormDefinitionValidation
     private static bool IsRegistered(AuthorizationCapabilityReference capability, AuthorizationCapabilityRegister? capabilities)
     {
         try { return capabilities?.Resolve(capability) is not null; }
+        catch (ArgumentException) { return false; }
+    }
+
+    private static bool IsDefined(RoleReference role, RoleVocabulary? roles)
+    {
+        try { return roles?.Resolve(role) is not null; }
         catch (ArgumentException) { return false; }
     }
 

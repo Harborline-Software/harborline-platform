@@ -316,7 +316,11 @@ public sealed class LayoutFormPublicationImpactTests
         await shared.PublishAsync(formKey, "f-old-x9", 1, "form-old-publish");
         var schemas = new InMemorySchemaRegistry();
         var schema = await schemas.RegisterAsync("""{"type":"object","properties":{"name":{"type":"string"}}}""");
-        var forms = new InMemoryFormDefinitionStore();
+        // T-485/submit-gate-name-resolution: publication resolves the gate's role through Access's role vocabulary, so the
+        // store is given one that declares "author".
+        var forms = new InMemoryFormDefinitionStore(TimeProvider.System, roles: RoleVocabulary.FromApi(
+            [new(Guid.Parse("4f0c2b8e-0000-4000-8000-000000000021"), RoleReference.Domain("author"), "Author",
+                new(RoleOwnerKind.Package, "layout-runtime-tests"), IsSealed: false)]));
         var old = new FormDefinition(new("form.customer"), new(2, 1, 0), FormDefinitionStatus.Draft,
             new("tenant-a"), IdentityRef.System, new Harborline.Foundation.Assets.Common.SchemaId(schema.Id.Value),
             new(new Dictionary<string, FieldOverlay> { ["name"] = new(InternationalizedText.FromInvariant("Name")) }, [], []),

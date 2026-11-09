@@ -28,7 +28,7 @@ public sealed class FormLayoutBreadthTests
     [Fact]
     public async Task Definition_with_blocks_and_zones_round_trips_through_the_store_intact()
     {
-        using var store = new InMemoryFormDefinitionStore(new FixedClock(Now));
+        using var store = FormGateRegisters.Store(new FixedClock(Now));
         var def = LayoutBreadthForm();
 
         await store.RegisterAsync(def); // exercises the fail-closed F-23 invariants
@@ -70,7 +70,7 @@ public sealed class FormLayoutBreadthTests
     [Fact]
     public async Task Blockless_zoneless_definition_is_unchanged_back_compat()
     {
-        using var store = new InMemoryFormDefinitionStore(new FixedClock(Now));
+        using var store = FormGateRegisters.Store(new FixedClock(Now));
         var legacy = LegacyForm();
 
         await store.RegisterAsync(legacy);
@@ -185,7 +185,7 @@ public sealed class FormLayoutBreadthTests
     [Fact]
     public async Task ScrollToSection_action_may_target_a_LATER_section()
     {
-        using var store = new InMemoryFormDefinitionStore(new FixedClock(Now));
+        using var store = FormGateRegisters.Store(new FixedClock(Now));
         // The action lives in sec-a and targets sec-b (declared after it) — valid.
         var def = Items(FormItem.OfAction("jump", new FormActionConfig(
             FormActionKinds.ScrollToSection, Text("Jump to details"), SectionId: "sec-b")));
@@ -324,7 +324,7 @@ public sealed class FormLayoutBreadthTests
             var definition = groupGrain
                 ? Items(new FormItem(FormItemKind.Group, "zone", Items: new[] { FormItem.OfField("name") }, Layout: layout, Placement: placement))
                 : SectionLayoutForm(layout, placement);
-            using var store = new InMemoryFormDefinitionStore(new FixedClock(Now));
+            using var store = FormGateRegisters.Store(new FixedClock(Now));
             if (value < range.Minimum || value > range.Maximum)
             {
                 var error = await Assert.ThrowsAsync<FormDefinitionValidationException>(async () => await store.RegisterAsync(definition));
@@ -346,7 +346,7 @@ public sealed class FormLayoutBreadthTests
 
     private static void AssertRejected(FormDefinition def, string expectedCode)
     {
-        using var store = new InMemoryFormDefinitionStore(new FixedClock(Now));
+        using var store = FormGateRegisters.Store(new FixedClock(Now));
         var ex = Assert.ThrowsAsync<FormDefinitionValidationException>(async () => await store.RegisterAsync(def))
             .GetAwaiter()
             .GetResult();

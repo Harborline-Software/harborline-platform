@@ -12,6 +12,10 @@ using Harborline.Foundation.Forms.Exceptions;
 using Harborline.Foundation.Forms.Models;
 
 var builder = WebApplication.CreateBuilder(args);
+// The host supplies a clock and Access's role vocabulary, so the container builds the store with them and publication
+// resolves the submit gate's role (T-485, forms-auth-11).
+builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddSingleton(Harborline.Contracts.Authorization.RoleVocabulary.FromApi([new(Guid.Parse("4f0c2b8e-0000-4000-8000-000000000033"), Harborline.Contracts.Authorization.RoleReference.Domain("inspector"), "Inspector", new(Harborline.Contracts.Authorization.RoleOwnerKind.Package, "forms-engine-consumer"), IsSealed: false)]));
 builder.Services.AddSingleton<IFormDefinitionStore, InMemoryFormDefinitionStore>();
 builder.Services.AddHarborlineFormsAuthoringPublisher();
 var app = builder.Build();

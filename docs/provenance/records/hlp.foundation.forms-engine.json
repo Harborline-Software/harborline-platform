@@ -6,7 +6,7 @@
   "contentHashes": {
     "projections/dotnet/foundation/hlp.foundation.forms-engine.restart-probe/Program.cs": "3202f8f4e5dc168c2df5bccf3fc4375b305bdcc3270e6be7ed03e2d8e8b73d96",
     "projections/dotnet/foundation/hlp.foundation.forms-engine.restart-probe/Harborline.Foundation.Forms.Engine.RestartProbe.csproj": "c7614aceefb947714ae0179900373e0e49db9864759c180bf239a32c2766c716",
-    "projections/dotnet/foundation/hlp.foundation.forms-engine.tests/AuthoringHostIntegrationTests.cs": "a67b0d87634d29c4349886d9f8f1295496aa47cdd2868d39577a38ebf7313a67",
+    "projections/dotnet/foundation/hlp.foundation.forms-engine.tests/AuthoringHostIntegrationTests.cs": "1a3a84c7417fb9f84f9b6b7ff375c871314e2a6d2ea7b0686c405589beb65d4a",
     "projections/dotnet/foundation/hlp.foundation.forms-engine.tests/CurrentFormExecutionContextProviderTests.cs": "e5821b4853cff14b3d9afb04c1122363b2a5a6bc733a1fe43412fc1a98314949",
     "projections/dotnet/foundation/hlp.foundation.forms-engine.tests/DecryptOnRenderTests.cs": "b75f89a56683585cc96ce8f83a6e9935b0907d68ea2cb1ecf5971094fb5e39d6",
     "projections/dotnet/foundation/hlp.foundation.forms-engine.tests/FileJournalFormSubmissionStoreTests.cs": "7122d1ce130e6f9f9638f73b14aa8e4b90cd9dfb9ea338c276085a6deee08a87",
@@ -55,7 +55,7 @@
     "projections/dotnet/foundation/hlp.foundation.forms-engine.tests/FormSubmitGateEvidenceTests.cs": "bd33878a0e650989bd62f62bfe3bfc00af45f2cfb46bfc6a91d53c3f756e4058",
     "projections/dotnet/foundation/hlp.foundation.forms-engine.tests/FormSubmissionBindingPersistenceTests.cs": "531c99734667be0500c238d817a4a06c8959d920a2f7a85b581e18a5c5d1efd8",
     "projections/dotnet/foundation/hlp.foundation.forms-engine.tests/FormRecordCreationSubmitTests.cs": "376192533f28749bedc37c5b382bb7f2da8cd661d86ddd88b4605007d12d77e0",
-    "projections/dotnet/foundation/hlp.foundation.forms-engine.tests/FormRecordCreationCompositionTests.cs": "1fac3d825bb074efea44ac58de6de9657a9d275ef207412ec92245292f364d57",
+    "projections/dotnet/foundation/hlp.foundation.forms-engine.tests/FormRecordCreationCompositionTests.cs": "1c683bac93ce655c64f9082558c388c3fa65eb95f5a225d8ab60fed062e14b1c",
     "projections/dotnet/foundation/hlp.foundation.forms-engine/AcceptedRecordCommands.cs": "885bbfc1b544a67e1e13d28b53727a0765307611695bfb934f85d061909d2ad7",
     "projections/dotnet/foundation/hlp.foundation.forms-engine.tests/FormAcceptedRecordCommandTests.cs": "5e0bce9b584333b16e7a1429929cb18dd2923af9225d12adb4209cd8278fef2e",
     "projections/dotnet/foundation/hlp.foundation.forms-engine.tests/FormAcceptedCommandCancellationTests.cs": "9f7357d6b41bc4f58737849bbef651c457321920f461d7102df52b9d17a3e1ce",
