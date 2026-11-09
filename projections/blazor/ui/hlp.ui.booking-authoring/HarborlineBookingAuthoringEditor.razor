@@ -129,7 +129,7 @@
     private Task Edit(Action<JsonObject> mutate) { if (ReadOnly || !Adopted) return Task.CompletedTask; var body = Current.Body.DeepClone().AsObject(); mutate(body); return Change(Current with { Body = body }); }
     // Setting a member writes it; null removes it and writes nothing in its place.
     private static void Put(JsonObject body, string member, JsonNode? value) { if (value is null) body.Remove(member); else body[member] = value; }
-    private Task ChooseKind(ChangeEventArgs eventArgs) => Str(Current.Body["kind"]) is not ("resource" or "bookable") && (Text(eventArgs) is "resource" or "bookable") ? Edit(body => body["kind"] = Text(eventArgs)) : Task.CompletedTask;
+    private Task ChooseKind(ChangeEventArgs eventArgs) => Str(Current.Body["kind"]) is not ("resource" or "bookable") && (Text(eventArgs) is "resource" or "bookable") ? Edit(body => { var chosen = Text(eventArgs); body["kind"] = chosen; if (chosen == "bookable" && !body.ContainsKey("requires")) body["requires"] = new JsonArray(); }) : Task.CompletedTask;
     private Task ChangeName(ChangeEventArgs eventArgs) => Edit(body => body["name"] = Text(eventArgs));
     private Task SetText(string member, string value) => Edit(body => Put(body, member, value == "" ? null : JsonValue.Create(value)));
     private Task ChangeAvailability(ChangeEventArgs eventArgs) => SetText("availability_from", Text(eventArgs));

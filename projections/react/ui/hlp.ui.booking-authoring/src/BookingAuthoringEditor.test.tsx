@@ -115,6 +115,13 @@ describe('hlp.ui.booking-authoring (T-606/member-editors)', () => {
     expect(changes).toHaveLength(0)
   })
 
+  it('booking-auth-7: a new Bookable with no resources authors an empty requires array', () => {
+    const { last } = editor({ identity: '', versionId: '', body: {} }, { catalogue: {} })
+    type('Definition kind', 'bookable')
+    expect(last().draft.body).toEqual({ kind: 'bookable', requires: [] })
+    expect(screen.getByText('No resources offered.')).toBeInTheDocument()
+  })
+
   it('booking-auth-7: clearing the last required resource retains the required empty array', () => {
     const { last } = editor({ identity: 'bookable.x', versionId: '1', body: { kind: 'bookable', requires: ['room'] } })
     check('Required resource Training room')

@@ -381,6 +381,17 @@ public sealed class BookingAuthoringTests : BunitContext
         Assert.Equal(["Resource", "Bookable"], OptionTexts(cut, "Definition kind"));
     }
 
+    [Fact(DisplayName = "booking-auth-7: a new Bookable with no resources authors an empty requires array")]
+    [Trait("Holds", "booking-auth-7")]
+    public void NewBookableWithoutResources()
+    {
+        var changes = new List<BookingDraftChange>();
+        var cut = Editor(BookingDraft.Empty, changes, catalogue: new BookingCatalogue());
+        Type(cut, "Definition kind", "bookable");
+        Same(JsonNode.Parse("""{"kind":"bookable","requires":[]}"""), changes[^1].Draft.Body);
+        Assert.Contains("No resources offered.", cut.Markup);
+    }
+
     [Fact(DisplayName = "booking-auth-7: clearing the last required resource retains the required empty array")]
     [Trait("Holds", "booking-auth-7")]
     public void ClearLastRequiredResource()
