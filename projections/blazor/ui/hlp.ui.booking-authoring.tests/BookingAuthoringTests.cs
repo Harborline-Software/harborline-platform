@@ -237,6 +237,8 @@ public sealed class BookingAuthoringTests : BunitContext
         Assert.Contains("pump (not offered)", cut.FindAll(".hl-booking-authoring__note").Select(note => note.TextContent));
         Check(cut, "Required resource instructor", true); Check(cut, "Required resource Training room", true);
         Same(JsonNode.Parse("""["pump","instructor","room"]"""), changes[^1].Draft.Body["requires"]!);
+        Check(cut, "Required resource pump (not offered)", false);
+        Same(JsonNode.Parse("""["instructor","room"]"""), changes[^1].Draft.Body["requires"]!);
     }
 
     [Fact(DisplayName = "booking-auth-10: the waitlist is only a flag; clearing an absent flag writes nothing and clearing true writes false")]

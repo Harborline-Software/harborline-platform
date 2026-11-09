@@ -114,7 +114,7 @@
     private RenderFragment Checks(string legend, string member, IReadOnlyList<BookingOption> options, string prefix, string fallback)
     {
         var chosen = Strings(Current.Body[member]);
-        return @<fieldset class="hl-booking-authoring__group" aria-invalid="@Invalid(legend)"><legend>@legend</legend>@if (options.Count == 0) { <p class="hl-booking-authoring__note">@fallback</p> }@foreach (var id in chosen.Where(id => !options.Any(option => option.Id == id))) { <p class="hl-booking-authoring__note">@($"{id} (not offered)")</p> }@foreach (var option in options) { var id = option.Id; <label><input type="checkbox" aria-label="@($"{prefix} {option.Label}")" checked="@chosen.Contains(id)" @onchange="eventArgs => Toggle(member, id, eventArgs.Value is true)" />@option.Label</label> }@Refusals(legend)</fieldset>;
+        return @<fieldset class="hl-booking-authoring__group" aria-invalid="@Invalid(legend)"><legend>@legend</legend>@if (options.Count == 0) { <p class="hl-booking-authoring__note">@fallback</p> }@foreach (var id in chosen.Where(id => !options.Any(option => option.Id == id))) { <p class="hl-booking-authoring__note"><label><input type="checkbox" aria-label="@($"{prefix} {id} (not offered)")" checked @onchange="eventArgs => Toggle(member, id, eventArgs.Value is true)" />@($"{id} (not offered)")</label></p> }@foreach (var option in options) { var id = option.Id; <label><input type="checkbox" aria-label="@($"{prefix} {option.Label}")" checked="@chosen.Contains(id)" @onchange="eventArgs => Toggle(member, id, eventArgs.Value is true)" />@option.Label</label> }@Refusals(legend)</fieldset>;
     }
 
     private static string? Str(JsonNode? node) => node is JsonValue value && value.TryGetValue<string>(out var text) ? text : null;

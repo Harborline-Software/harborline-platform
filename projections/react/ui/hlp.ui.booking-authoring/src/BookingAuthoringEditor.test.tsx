@@ -191,6 +191,8 @@ describe('hlp.ui.booking-authoring (T-606/member-editors)', () => {
     expect(screen.getByText('pump (not offered)')).toBeInTheDocument()
     check('Required resource instructor'); check('Required resource Training room')
     expect(last().draft.body.requires).toEqual(['pump', 'instructor', 'room'])
+    check('Required resource pump (not offered)')
+    expect(last().draft.body.requires).toEqual(['instructor', 'room'])
   })
 
   it('booking-auth-10: the waitlist is only a flag; clearing an absent flag writes nothing and clearing true writes false', () => {
