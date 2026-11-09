@@ -183,13 +183,39 @@ public sealed class WorkflowActionBindingDef
     public IReadOnlyList<RecordStandingReference> RequiredStandings { get; init; } = [];
 }
 
-/// <summary>A content-addressed reference to a FormDefinition (the composition binding, ADR 0140 D3).</summary>
-public sealed class FormDefinitionRef
+/// <summary>Which kind of thing a workflow runs on (DES-0019 workflows-ck-12, ADR 0099).</summary>
+public enum WorkflowSubjectKind
 {
-    /// <summary>The referenced form definition's id.</summary>
-    public required string FormId { get; init; }
-    /// <summary>The exact form definition version the workflow is pinned to.</summary>
-    public required string Version { get; init; }
+    /// <summary>One record of a Record Type.</summary>
+    Record,
+    /// <summary>A set of records of a Record Type.</summary>
+    Set,
+}
+
+/// <summary>
+/// What a workflow runs on. A record or set names its Record Type (ADR 0126).
+/// </summary>
+public sealed record WorkflowSubjectDef
+{
+    private WorkflowSubjectDef(WorkflowSubjectKind kind, string? recordType) => (Kind, RecordType) = (kind, recordType);
+
+    /// <summary>The subject's kind.</summary>
+    public WorkflowSubjectKind Kind { get; }
+
+    /// <summary>The Record Type the subject names.</summary>
+    public string? RecordType { get; }
+
+    /// <summary>One record of <paramref name="recordType"/>.</summary>
+    public static WorkflowSubjectDef Record(string recordType) => new(WorkflowSubjectKind.Record, Named(recordType));
+
+    /// <summary>A set of records of <paramref name="recordType"/>.</summary>
+    public static WorkflowSubjectDef Set(string recordType) => new(WorkflowSubjectKind.Set, Named(recordType));
+
+    private static string Named(string recordType)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(recordType);
+        return recordType;
+    }
 }
 
 /// <summary>Identifies the definition layer that supplied a Workflow revision.</summary>
@@ -256,8 +282,8 @@ public sealed class WorkflowDefinition
     /// <summary>Owning tenant id.</summary>
     public required string Tenant { get; init; }
 
-    /// <summary>The FormDefinition this process operates on (ADR 0140 D3 composition binding).</summary>
-    public FormDefinitionRef? SubjectFormRef { get; init; }
+    /// <summary>What this process runs on (ADR 0099, ADR 0126), or null for a revision that names none.</summary>
+    public WorkflowSubjectDef? Subject { get; init; }
 
     /// <summary>The editability posture; defaults to <see cref="WorkflowMutability.Locked"/>.</summary>
     public WorkflowMutability Mutability { get; init; } = WorkflowMutability.Locked;

@@ -62,7 +62,6 @@ public static class InspectionReviewProcess
             Tenant = tenant,
             Owner = new IdentityRef { Scheme = "system", Value = DefinitionKey },
             Title = title,
-            SubjectFormRef = new FormDefinitionRef { FormId = binding.FormId.Value, Version = binding.FormVersion.ToString() },
             Mutability = WorkflowMutability.Locked,
             InitialState = ReviewState,
             States =

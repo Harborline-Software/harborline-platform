@@ -132,7 +132,7 @@ public static class WorkflowDefinitionWireMapper
             Version = version,
             Status = WorkflowDefinitionStatus.Draft,
             Tenant = tenant,
-            SubjectFormRef = ReadSubjectFormRef(el),
+            Subject = ReadSubject(el),
             Mutability = ParseEnum(el, "mutability", WorkflowMutability.Locked),
             InitialState = OptionalString(el, "initialState") ?? string.Empty,
             States = states,
@@ -238,19 +238,23 @@ public static class WorkflowDefinitionWireMapper
         return entries.EnumerateArray().Select((entry, index) => read(entry, $"{field}[{index}]")).ToArray();
     }
 
-    private static FormDefinitionRef? ReadSubjectFormRef(JsonElement el)
+    // Exactly one of record or set (ADR 0126), as the contract wire reads it; a malformed subject throws rather
+    // than reading as no subject.
+    private static WorkflowSubjectDef? ReadSubject(JsonElement el)
     {
-        if (!el.TryGetProperty("subjectFormRef", out var s) || s.ValueKind != JsonValueKind.Object)
+        if (!el.TryGetProperty("subject", out var subject)) return null;
+        string[] kinds = subject.ValueKind == JsonValueKind.Object
+            ? [.. new[] { "record", "set" }.Where(kind => subject.TryGetProperty(kind, out _))]
+            : [];
+        if (kinds.Length != 1 || subject.EnumerateObject().Count() != 1 || subject.GetProperty(kinds[0]).ValueKind != JsonValueKind.Object)
+            throw new ArgumentException("workflow definition 'subject' must be an object naming exactly one of record or set.");
+        var body = subject.GetProperty(kinds[0]);
+        return kinds[0] switch
         {
-            return null;
-        }
-        var formId = OptionalString(s, "formId");
-        var version = OptionalString(s, "version");
-        if (string.IsNullOrEmpty(formId) || string.IsNullOrEmpty(version))
-        {
-            return null;
-        }
-        return new FormDefinitionRef { FormId = formId, Version = version };
+            "record" => WorkflowSubjectDef.Record(RequireString(body, "recordType", "subject.record")),
+            "set" => WorkflowSubjectDef.Set(RequireString(body, "recordType", "subject.set")),
+            _ => throw new ArgumentException("Unknown subject kind."),
+        };
     }
 
     private static IEnumerable<JsonElement> ReadArray(JsonElement el, string prop)
