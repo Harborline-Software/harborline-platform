@@ -140,7 +140,7 @@ public sealed class WorkflowSubjectUnionTests
             compared++;
         }
 
-        Assert.Equal(8, compared);
+        Assert.Equal(10, compared);
     }
 
     [Fact(DisplayName = "workflows-ck-12: the shared canonical definition names a record subject in both models")]

@@ -69,7 +69,8 @@ public sealed class WorkflowSubjectJsonConverter : JsonConverter<WorkflowSubject
         if (body.ValueKind != JsonValueKind.Object) throw new WorkflowWireException("invalid-object", $"WorkflowSubject.{kinds[0]}");
         if (!body.TryGetProperty("recordType", out var recordType))
             throw new WorkflowWireException("missing-required-property", $"WorkflowSubject.{kinds[0]}", "recordType");
-        if (recordType.ValueKind != JsonValueKind.String) throw new WorkflowWireException("invalid-string", $"WorkflowSubject.{kinds[0]}.recordType");
+        // ADR 0125: a subject names a Record Type, and an empty string names none (the engine mapper refuses it too).
+        if (recordType.ValueKind != JsonValueKind.String || recordType.GetString()!.Length == 0) throw new WorkflowWireException("invalid-string", $"WorkflowSubject.{kinds[0]}.recordType");
         return kinds[0] == "record" ? new WorkflowRecordSubject(recordType.GetString()!) : new WorkflowSetSubject(recordType.GetString()!);
     }
 
