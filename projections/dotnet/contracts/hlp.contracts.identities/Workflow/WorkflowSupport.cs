@@ -51,6 +51,41 @@ public sealed class WorkflowActionTargetJsonConverter : JsonConverter<WorkflowAc
     }
 }
 
+public sealed class WorkflowSubjectJsonConverter : JsonConverter<WorkflowSubject>
+{
+    private static readonly string[] Kinds = ["record", "set", "case"];
+
+    public override WorkflowSubject Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+        using var document = JsonDocument.ParseValue(ref reader);
+        var value = document.RootElement;
+        if (value.ValueKind != JsonValueKind.Object) throw new WorkflowWireException("invalid-object", "WorkflowSubject");
+        var kinds = Kinds.Where(kind => value.TryGetProperty(kind, out _)).ToArray();
+        if (kinds.Length != 1) throw new WorkflowWireException("exclusive-union-mismatch", "WorkflowSubject");
+        var body = value.GetProperty(kinds[0]);
+        if (body.ValueKind != JsonValueKind.Object) throw new WorkflowWireException("invalid-object", $"WorkflowSubject.{kinds[0]}");
+        if (kinds[0] == "case") return new WorkflowCaseSubject();
+        if (!body.TryGetProperty("recordType", out var recordType))
+            throw new WorkflowWireException("missing-required-property", $"WorkflowSubject.{kinds[0]}", "recordType");
+        if (recordType.ValueKind != JsonValueKind.String) throw new WorkflowWireException("invalid-string", $"WorkflowSubject.{kinds[0]}.recordType");
+        return kinds[0] == "record" ? new WorkflowRecordSubject(recordType.GetString()!) : new WorkflowSetSubject(recordType.GetString()!);
+    }
+
+    public override void Write(Utf8JsonWriter writer, WorkflowSubject value, JsonSerializerOptions options)
+    {
+        writer.WriteStartObject();
+        switch (value)
+        {
+            case WorkflowRecordSubject record: writer.WriteStartObject("record"); writer.WriteString("recordType", record.RecordType); break;
+            case WorkflowSetSubject set: writer.WriteStartObject("set"); writer.WriteString("recordType", set.RecordType); break;
+            case WorkflowCaseSubject: writer.WriteStartObject("case"); break;
+            default: throw new JsonException("Unknown WorkflowSubject subtype.");
+        }
+        writer.WriteEndObject();
+        writer.WriteEndObject();
+    }
+}
+
 public sealed class WorkflowWireException(string code, string type, string? detail = null)
     : JsonException($"{code}: {type}{(detail is null ? string.Empty : $" ({detail})")}")
 {
@@ -66,7 +101,7 @@ public static class WorkflowContractSurface
         "WorkflowDefinitionStatus", "WorkflowMutability", "WorkflowStateKind", "WorkflowViewHint",
         "WorkflowTriggerKind", "WorkflowActionKind", "ActionClassification", "GuardRef", "WorkflowState",
         "WorkflowTransition", "WorkflowTriggerBinding", "WorkflowEffectParams", "WorkflowActionBinding",
-        "WorkflowDefinitionLineage", "FormDefinitionRef", "WorkflowDefinition",
+        "WorkflowDefinitionLineage", "WorkflowSubject", "WorkflowDefinition",
         "WorkflowCascadeLayer", "WorkflowContractVersion", "WorkflowEnvelopeRequirement", "WorkflowEnvelope", "WorkflowGateRole",
     ];
 
@@ -95,7 +130,7 @@ public static class WorkflowWire
         ["WorkflowState"] = typeof(WorkflowState), ["WorkflowTransition"] = typeof(WorkflowTransition),
         ["WorkflowTriggerBinding"] = typeof(WorkflowTriggerBinding), ["WorkflowEffectParams"] = typeof(WorkflowEffectParams),
         ["WorkflowActionBinding"] = typeof(WorkflowActionBinding), ["WorkflowDefinitionLineage"] = typeof(WorkflowDefinitionLineage),
-        ["FormDefinitionRef"] = typeof(FormDefinitionRef), ["WorkflowDefinition"] = typeof(WorkflowDefinition),
+        ["WorkflowSubject"] = typeof(WorkflowSubject), ["WorkflowDefinition"] = typeof(WorkflowDefinition),
         ["WorkflowCascadeLayer"] = typeof(WorkflowCascadeLayer), ["WorkflowContractVersion"] = typeof(WorkflowContractVersion),
         ["WorkflowEnvelopeRequirement"] = typeof(WorkflowEnvelopeRequirement), ["WorkflowEnvelope"] = typeof(WorkflowEnvelope),
     };
@@ -136,7 +171,7 @@ public static class WorkflowWire
             case "WorkflowTriggerBinding": Trigger(value); break;
             case "WorkflowActionBinding": Action(value); break;
             case "WorkflowDefinitionLineage": Lineage(value); break;
-            case "FormDefinitionRef": FormRef(value); break;
+            case "WorkflowSubject": Subject(value); break;
             case "WorkflowDefinition": Definition(value); break;
             case "WorkflowContractVersion": ContractVersion(value); break;
             case "WorkflowEnvelopeRequirement": Requirement(value); break;
@@ -225,12 +260,8 @@ public static class WorkflowWire
         String(Required(value, "parentVersion", "WorkflowDefinitionLineage"), "WorkflowDefinitionLineage.parentVersion");
     }
 
-    private static void FormRef(JsonElement value)
-    {
-        Object(value, "FormDefinitionRef");
-        String(Required(value, "formId", "FormDefinitionRef"), "FormDefinitionRef.formId");
-        String(Required(value, "version", "FormDefinitionRef"), "FormDefinitionRef.version");
-    }
+    // The converter is the one reader of the union, so the validator and the deserializer cannot disagree.
+    private static void Subject(JsonElement value) => JsonSerializer.Deserialize<WorkflowSubject>(value, FormsJson.Options);
 
     private static void Definition(JsonElement value)
     {
@@ -240,7 +271,7 @@ public static class WorkflowWire
         FormsJson.Validate("IdentityRef", Required(value, "owner", "WorkflowDefinition"));
         FormsJson.Validate("InternationalizedText", Required(value, "title", "WorkflowDefinition"));
         Optional(value, "description", item => FormsJson.Validate("InternationalizedText", item));
-        Optional(value, "subjectFormRef", FormRef);
+        Optional(value, "subject", Subject);
         Optional(value, "envelope", Envelope);
         Validate("WorkflowMutability", Required(value, "mutability", "WorkflowDefinition"));
         Array(value, "states", "WorkflowDefinition", State);

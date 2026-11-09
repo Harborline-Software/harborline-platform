@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.contracts.workflow",
-  "interfaceRevision": 5,
+  "interfaceRevision": 6,
   "status": "frozen",
   "purpose": "Provide Harborline App's complete projection-neutral workflow authoring wire and fail-closed admission fence without introducing a general workflow interpreter.",
   "dependencies": ["hlp.contracts.authorization", "hlp.contracts.forms", "hlp.contracts.rules", "hlp.contracts.text"],
@@ -13,9 +13,9 @@
     "dotnetAdmission": {"path": "packages/blocks-workflow/src/durable/WorkflowAdmissionValidator.cs", "blob": "ce8010fcc08da5320bd2197813dcc1f8fb176028"},
     "authorityRegistry": {"path": "packages/carrier-sdk/src/command-authority.json", "blob": "74d32d5a7060aa39aa277f8bab606788404f2d8f"}
   },
-  "surfaceCounts": {"declarations": 21, "interfaces": 10, "typeAliases": 11, "constants": 0, "closedLiteralMembers": 28},
-  "fixtureCases": 57,
-  "exports": ["WorkflowDefinitionStatus", "WorkflowMutability", "WorkflowStateKind", "WorkflowViewHint", "WorkflowTriggerKind", "WorkflowActionKind", "ActionClassification", "GuardRef", "WorkflowState", "WorkflowTransition", "WorkflowTriggerBinding", "WorkflowEffectParams", "WorkflowActionBinding", "WorkflowDefinitionLineage", "FormDefinitionRef", "WorkflowDefinition", "WorkflowCascadeLayer", "WorkflowContractVersion", "WorkflowEnvelopeRequirement", "WorkflowEnvelope", "WorkflowGateRole"],
+  "surfaceCounts": {"declarations": 21, "interfaces": 9, "typeAliases": 12, "constants": 0, "closedLiteralMembers": 28},
+  "fixtureCases": 64,
+  "exports": ["WorkflowDefinitionStatus", "WorkflowMutability", "WorkflowStateKind", "WorkflowViewHint", "WorkflowTriggerKind", "WorkflowActionKind", "ActionClassification", "GuardRef", "WorkflowState", "WorkflowTransition", "WorkflowTriggerBinding", "WorkflowEffectParams", "WorkflowActionBinding", "WorkflowDefinitionLineage", "WorkflowSubject", "WorkflowDefinition", "WorkflowCascadeLayer", "WorkflowContractVersion", "WorkflowEnvelopeRequirement", "WorkflowEnvelope", "WorkflowGateRole"],
   "selectedDesign": {
     "choice": "one exact workflow authoring wire plus a deterministic admission function parameterized by an immutable capability-authority resolver",
     "rejected": ["copy the incomplete legacy .NET mirror", "import Carrier SDK into Platform", "ship a general data-driven workflow interpreter"],
@@ -34,7 +34,8 @@
     "A required standing is a bare name and every one must hold, so a gate can only narrow; a role path, wildcard or negation is refused with workflow.admission.invalid_standing.",
     "When a contract window is supplied the envelope is required and its contract must fall inside the window, refused with definition.contract.missing or definition.contract.out_of_window; an envelope that does not name its definition or has malformed governance members is refused whether or not a window is supplied.",
     "The TypeScript and .NET projections and the engine's hlp.blocks.workflow model execute the same neutral fixtures and stable admission codes.",
-    "Revision 5 (T-1176 Q1, owner ruling 2026-11-07): a requiredRoles or requiredStandings gate on a transition whose trigger is not HumanAction, or on an action that fires without a HumanAction gating it, is refused with workflow.admission.gate_on_autonomous_step, in the .NET and TypeScript validators and the engine's alike."
+    "Revision 5 (T-1176 Q1, owner ruling 2026-11-07): a requiredRoles or requiredStandings gate on a transition whose trigger is not HumanAction, or on an action that fires without a HumanAction gating it, is refused with workflow.admission.gate_on_autonomous_step, in the .NET and TypeScript validators and the engine's alike.",
+    "Revision 6 (T-488/subject-union; ADR 0099, ADR 0125): the optional subject replaces subjectFormRef and FormDefinitionRef, so the contract carries no Forms definition reference. A subject is exactly one of {record: {recordType}}, {set: {recordType}} or {case: {}}; both or neither is refused with exclusive-union-mismatch, and a record or set without a string recordType is refused. A case names no Record Type until DES-0019 open ruling 3 defines the Case Surface; members it gains then are additive. A revision-5 document's subjectFormRef is an unknown member and is ignored."
   ],
   "notScope": ["workflow instance execution", "general workflow interpreter", "durable work-item persistence", "workflow definition persistence", "Harborline App SDK", "React or Blazor rendering", "HTTP routes"],
   "projectionPolicy": {"typescript": "exact package contribution plus strict wire reader and admission function", "dotnet": "maintained binding plus equivalent admission function in Harborline.Contracts", "blazor": "consumer through workflow UI adapters"},

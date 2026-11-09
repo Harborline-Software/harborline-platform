@@ -147,11 +147,18 @@ public sealed record WorkflowDefinitionLineage
     [JsonPropertyName("parentVersion"), JsonRequired] public required string ParentVersion { get; init; }
 }
 
-public sealed record FormDefinitionRef
-{
-    [JsonPropertyName("formId"), JsonRequired] public required string FormId { get; init; }
-    [JsonPropertyName("version"), JsonRequired] public required string Version { get; init; }
-}
+/// <summary>
+/// What a Workflow runs on (DES-0019 workflows-ck-12, ADR 0099): exactly one of a record, a set or a case, written
+/// <c>{"record": {...}}</c>, <c>{"set": {...}}</c> or <c>{"case": {...}}</c>. ADR 0125 decides what each kind names.
+/// </summary>
+[JsonConverter(typeof(WorkflowSubjectJsonConverter))]
+public abstract record WorkflowSubject;
+/// <summary>One record of the named Record Type (ADR 0125 decision 1).</summary>
+public sealed record WorkflowRecordSubject(string RecordType) : WorkflowSubject;
+/// <summary>A set of records of the named Record Type (ADR 0125 decision 2).</summary>
+public sealed record WorkflowSetSubject(string RecordType) : WorkflowSubject;
+/// <summary>A case. It names no Record Type until DES-0019 open ruling 3 defines the Case Surface (ADR 0125 decision 3).</summary>
+public sealed record WorkflowCaseSubject : WorkflowSubject;
 
 /// <summary>A definition's declared application-contract version on the wire.</summary>
 public sealed record WorkflowContractVersion
@@ -195,7 +202,7 @@ public sealed record WorkflowDefinition
     [JsonPropertyName("owner"), JsonRequired] public required IdentityRef Owner { get; init; }
     [JsonPropertyName("title"), JsonRequired] public required InternationalizedText Title { get; init; }
     [JsonPropertyName("description"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public Optional<InternationalizedText> Description { get; init; }
-    [JsonPropertyName("subjectFormRef"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public Optional<FormDefinitionRef> SubjectFormRef { get; init; }
+    [JsonPropertyName("subject"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public Optional<WorkflowSubject> Subject { get; init; }
     [JsonPropertyName("mutability"), JsonRequired] public required WorkflowMutability Mutability { get; init; }
     [JsonPropertyName("initialState"), JsonRequired] public required string InitialState { get; init; }
     [JsonPropertyName("states"), JsonRequired] public required IReadOnlyList<WorkflowState> States { get; init; }

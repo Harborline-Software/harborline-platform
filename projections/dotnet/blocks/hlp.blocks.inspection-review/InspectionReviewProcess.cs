@@ -62,7 +62,8 @@ public static class InspectionReviewProcess
             Tenant = tenant,
             Owner = new IdentityRef { Scheme = "system", Value = DefinitionKey },
             Title = title,
-            SubjectFormRef = new FormDefinitionRef { FormId = binding.FormId.Value, Version = binding.FormVersion.ToString() },
+            // ADR 0125 decision 3: a case subject from the binding's existing case reference; it names no Record Type.
+            Subject = new WorkflowCaseSubject(),
             Mutability = WorkflowMutability.Locked,
             InitialState = ReviewState,
             States =

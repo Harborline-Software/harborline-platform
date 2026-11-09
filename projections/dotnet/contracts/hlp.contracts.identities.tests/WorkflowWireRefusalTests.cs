@@ -114,11 +114,18 @@ public sealed class WorkflowWireRefusalTests
         Add("contract-string-major", "invalid-integer", "WorkflowContractVersion.major");
         Add("contract-fraction-minor", "invalid-integer", "WorkflowContractVersion.minor");
 
-        Add("form-ref-not-object", "invalid-object", "FormDefinitionRef");
-        Add("form-ref-missing-form", "missing-required-property", "FormDefinitionRef", "formId");
-        Add("form-ref-number-form", "invalid-string", "FormDefinitionRef.formId");
-        Add("form-ref-missing-version", "missing-required-property", "FormDefinitionRef", "version");
-        Add("form-ref-number-version", "invalid-string", "FormDefinitionRef.version");
+        // workflows-ck-12: the subject is exactly one of record, set or case (ADR 0099); record and set name a Record Type
+        // and a case names none (ADR 0125).
+        Add("subject-not-object", "invalid-object", "WorkflowSubject");
+        Add("subject-no-kind", "exclusive-union-mismatch", "WorkflowSubject");
+        Add("subject-two-kinds", "exclusive-union-mismatch", "WorkflowSubject");
+        Add("subject-record-not-object", "invalid-object", "WorkflowSubject.record");
+        Add("subject-record-missing-type", "missing-required-property", "WorkflowSubject.record", "recordType");
+        Add("subject-record-number-type", "invalid-string", "WorkflowSubject.record.recordType");
+        Add("subject-set-not-object", "invalid-object", "WorkflowSubject.set");
+        Add("subject-set-missing-type", "missing-required-property", "WorkflowSubject.set", "recordType");
+        Add("subject-set-number-type", "invalid-string", "WorkflowSubject.set.recordType");
+        Add("subject-case-not-object", "invalid-object", "WorkflowSubject.case");
         Add("lineage-not-object", "invalid-object", "WorkflowDefinitionLineage");
         Add("lineage-missing-parent", "missing-required-property", "WorkflowDefinitionLineage", "parentDefinitionKey");
         Add("lineage-number-parent", "invalid-string", "WorkflowDefinitionLineage.parentDefinitionKey");
@@ -137,6 +144,11 @@ public sealed class WorkflowWireRefusalTests
         var error = Assert.Throws<WorkflowWireException>(() => WorkflowWire.Deserialize("WorkflowDefinition", Break(id)));
 
         Assert.Equal((code, type, detail), (error.Code, error.WireType, error.Detail));
+
+        // Validate is public on its own, so it must refuse the same break without the deserializer behind it.
+        using var broken = JsonDocument.Parse(Break(id));
+        var validated = Assert.Throws<WorkflowWireException>(() => WorkflowWire.Validate("WorkflowDefinition", broken.RootElement));
+        Assert.Equal((code, type, detail), (validated.Code, validated.WireType, validated.Detail));
     }
 
     [Fact(DisplayName = "T-892: an unknown wire type is refused by name")]
@@ -208,7 +220,6 @@ public sealed class WorkflowWireRefusalTests
         var standing = (JsonObject)transition["requiredStandings"]![0]!;
         var requirement = (JsonObject)envelope["requires"]![0]!;
         var contract = (JsonObject)envelope["contract"]!;
-        var formRef = (JsonObject)root["subjectFormRef"]!;
         var lineage = (JsonObject)root["lineage"]!;
         JsonNode Number() => JsonValue.Create(7);
 
@@ -275,7 +286,12 @@ public sealed class WorkflowWireRefusalTests
             case ("contract", "missing", _): Remove(contract, member); break;
             case ("contract", "string", _): Set(contract, "major", "1"); break;
             case ("contract", "fraction", _): Set(contract, "minor", 1.5); break;
-            case ("form", "ref", _): BreakRef(formRef, root, "subjectFormRef", id[("form-ref-".Length)..], new() { ["form"] = "formId", ["version"] = "version" }); break;
+            case ("subject", "not", _): Set(root, "subject", "invoice"); break;
+            case ("subject", "no", _): Set(root, "subject", new JsonObject()); break;
+            case ("subject", "two", _): Set(root, "subject", new JsonObject { ["record"] = new JsonObject { ["recordType"] = "invoice" }, ["case"] = new JsonObject() }); break;
+            case ("subject", var kind, "not-object"): Set(root, "subject", new JsonObject { [kind] = "invoice" }); break;
+            case ("subject", var kind, "missing-type"): Set(root, "subject", new JsonObject { [kind] = new JsonObject() }); break;
+            case ("subject", var kind, "number-type"): Set(root, "subject", new JsonObject { [kind] = new JsonObject { ["recordType"] = Number() } }); break;
             case ("lineage", _, _): BreakRef(lineage, root, "lineage", id[("lineage-".Length)..], new() { ["parent"] = "parentDefinitionKey", ["version"] = "parentVersion" }); break;
             default: throw new InvalidOperationException($"no break for '{id}'");
         }
