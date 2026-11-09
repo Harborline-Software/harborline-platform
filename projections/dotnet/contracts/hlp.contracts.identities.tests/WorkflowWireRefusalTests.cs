@@ -117,6 +117,7 @@ public sealed class WorkflowWireRefusalTests
         // workflows-ck-12: the subject is exactly one of record, set or case (ADR 0099); record and set name a Record Type
         // and a case names none (ADR 0125).
         Add("subject-not-object", "invalid-object", "WorkflowSubject");
+        Add("subject-null", "invalid-object", "WorkflowSubject");
         Add("subject-no-kind", "exclusive-union-mismatch", "WorkflowSubject");
         Add("subject-two-kinds", "exclusive-union-mismatch", "WorkflowSubject");
         Add("subject-record-not-object", "invalid-object", "WorkflowSubject.record");
@@ -287,6 +288,7 @@ public sealed class WorkflowWireRefusalTests
             case ("contract", "string", _): Set(contract, "major", "1"); break;
             case ("contract", "fraction", _): Set(contract, "minor", 1.5); break;
             case ("subject", "not", _): Set(root, "subject", "invoice"); break;
+            case ("subject", "null", _): root["subject"] = null; break;
             case ("subject", "no", _): Set(root, "subject", new JsonObject()); break;
             case ("subject", "two", _): Set(root, "subject", new JsonObject { ["record"] = new JsonObject { ["recordType"] = "invoice" }, ["case"] = new JsonObject() }); break;
             case ("subject", var kind, "not-object"): Set(root, "subject", new JsonObject { [kind] = "invoice" }); break;

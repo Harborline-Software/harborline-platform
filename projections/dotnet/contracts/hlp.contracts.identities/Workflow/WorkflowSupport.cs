@@ -55,6 +55,9 @@ public sealed class WorkflowSubjectJsonConverter : JsonConverter<WorkflowSubject
 {
     private static readonly string[] Kinds = ["record", "set", "case"];
 
+    // A null subject is not a subject: without this the serializer returns null for it and Read never refuses it.
+    public override bool HandleNull => true;
+
     public override WorkflowSubject Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
         using var document = JsonDocument.ParseValue(ref reader);

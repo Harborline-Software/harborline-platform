@@ -14,7 +14,7 @@
     "authorityRegistry": {"path": "packages/carrier-sdk/src/command-authority.json", "blob": "74d32d5a7060aa39aa277f8bab606788404f2d8f"}
   },
   "surfaceCounts": {"declarations": 21, "interfaces": 9, "typeAliases": 12, "constants": 0, "closedLiteralMembers": 28},
-  "fixtureCases": 64,
+  "fixtureCases": 65,
   "exports": ["WorkflowDefinitionStatus", "WorkflowMutability", "WorkflowStateKind", "WorkflowViewHint", "WorkflowTriggerKind", "WorkflowActionKind", "ActionClassification", "GuardRef", "WorkflowState", "WorkflowTransition", "WorkflowTriggerBinding", "WorkflowEffectParams", "WorkflowActionBinding", "WorkflowDefinitionLineage", "WorkflowSubject", "WorkflowDefinition", "WorkflowCascadeLayer", "WorkflowContractVersion", "WorkflowEnvelopeRequirement", "WorkflowEnvelope", "WorkflowGateRole"],
   "selectedDesign": {
     "choice": "one exact workflow authoring wire plus a deterministic admission function parameterized by an immutable capability-authority resolver",
