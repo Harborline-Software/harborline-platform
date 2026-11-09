@@ -69,6 +69,28 @@ public sealed class InspectionReviewContractTests
         Assert.Throws<ArgumentOutOfRangeException>(() => (Binding() with { ReviewRequiredAtOrBelow = 5 }).Validate());
     }
 
+    [Fact]
+    public void ClassifierFailsClosedOnMissingOrInvalidBindingAndOutOfRangeScore()
+    {
+        Assert.Throws<ArgumentNullException>(() => InspectionReviewProcess.Classify(null!, 3));
+        Assert.Throws<ArgumentOutOfRangeException>(() => InspectionReviewProcess.Classify(Binding() with { ReviewRequiredAtOrBelow = 5 }, 3));
+        Assert.Throws<ArgumentOutOfRangeException>(() => InspectionReviewProcess.Classify(Binding(), 0));
+        Assert.Throws<ArgumentOutOfRangeException>(() => InspectionReviewProcess.Classify(Binding(), 6));
+    }
+
+    [Fact]
+    public void ReviewIdentityRefusesABlankSubmission()
+        => Assert.Throws<ArgumentException>(() => InspectionReviewProcess.DeriveReviewId(" "));
+
+    [Fact]
+    public void FrozenWorkflowRefusesABlankTenantOrMissingOrInvalidBinding()
+    {
+        var frozenAt = DateTimeOffset.Parse("2026-08-09T00:00:00Z");
+        Assert.Throws<ArgumentException>(() => InspectionReviewProcess.BuildWorkflow(" ", Binding(), frozenAt));
+        Assert.Throws<ArgumentNullException>(() => InspectionReviewProcess.BuildWorkflow("tenant-a", null!, frozenAt));
+        Assert.Throws<ArgumentOutOfRangeException>(() => InspectionReviewProcess.BuildWorkflow("tenant-a", Binding() with { ReviewRequiredAtOrBelow = 5 }, frozenAt));
+    }
+
     private static InspectionReviewBinding Binding() => new()
     {
         FormId = new FormDefinitionId("equipment-inspection.v1"),
