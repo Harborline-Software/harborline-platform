@@ -20,21 +20,34 @@ const authority = wire.createWorkflowAuthorityResolver(fixture.authority)
 const roleVocabulary = wire.RoleVocabulary.fromApi(fixture.roleDefinitions)
 const clone = value => JSON.parse(JSON.stringify(value))
 const input = row => row.input === '$canonical' ? clone(fixture.canonical) : clone(row.input)
+// The transition a person performs: T-1176 Q1 refuses a role or standing gate where no person acts
+// (workflow.admission.gate_on_autonomous_step), so gate mutations target it. Mirrors workflow.test.mjs.
+const gated = value => {
+  const human = new Set(value.triggers.filter(trigger => trigger.kind === 'HumanAction').map(trigger => trigger.id))
+  return value.transitions.find(transition => human.has(transition.on))
+}
 const mutate = (value, mutation = {}) => {
   if (mutation.actionTransition) value.actions[0].on = {transition: mutation.actionTransition}
   if (mutation.actionClassification) value.actions[0].classification = mutation.actionClassification
   if (mutation.transitionGuard) value.transitions[0].guard = mutation.transitionGuard
   if (mutation.terminalOutgoing) value.transitions.push({id: 't-terminal', from: 'Posted', on: 'approve', to: 'Rejected'})
   if (mutation.unknownActionRole) value.actions[0].requiredRoles = [{vocabulary: 'tax.roles', name: 'Missing'}]
-  if (mutation.unknownTransitionRole) value.transitions[0].requiredRoles = [{vocabulary: 'tax.roles', name: 'Missing'}]
+  if (mutation.unknownTransitionRole) gated(value).requiredRoles = [{vocabulary: 'tax.roles', name: 'Missing'}]
   if (mutation.envelope) value.envelope = clone(fixture.envelope)
   if (Object.hasOwn(mutation, 'envelopeContract')) { if (mutation.envelopeContract === null) delete value.envelope.contract; else value.envelope.contract = mutation.envelopeContract }
   if (mutation.envelopeIdentity) value.envelope.identity = mutation.envelopeIdentity
   if (mutation.envelopeRetentionClass) value.envelope.retentionClass = mutation.envelopeRetentionClass
   if (mutation.envelopeRequirement) value.envelope.requires = [{capability: mutation.envelopeRequirement}]
-  if (mutation.transitionRole) value.transitions[0].requiredRoles = [mutation.transitionRole]
+  if (mutation.transitionRole) gated(value).requiredRoles = [mutation.transitionRole]
   if (mutation.actionRole) value.actions[0].requiredRoles = [mutation.actionRole]
-  if (mutation.transitionStanding) value.transitions[0].requiredStandings = [{name: mutation.transitionStanding}]
+  if (mutation.transitionStanding) gated(value).requiredStandings = [{name: mutation.transitionStanding}]
+  if (mutation.actionState) value.actions[0].on = {state: mutation.actionState}
+  if (mutation.autonomousEdgeInto) {
+    const autonomous = value.triggers.find(trigger => trigger.kind !== 'HumanAction').id
+    value.transitions.push({id: 't-autonomous-into', from: gated(value).from, on: autonomous, to: mutation.autonomousEdgeInto})
+  }
+  if (mutation.autonomousTransitionRole) value.transitions[0].requiredRoles = [mutation.autonomousTransitionRole]
+  if (mutation.autonomousTransitionStanding) value.transitions[0].requiredStandings = [{name: mutation.autonomousTransitionStanding}]
   if (mutation.actionStanding) value.actions[0].requiredStandings = [{name: mutation.actionStanding}]
   return value
 }

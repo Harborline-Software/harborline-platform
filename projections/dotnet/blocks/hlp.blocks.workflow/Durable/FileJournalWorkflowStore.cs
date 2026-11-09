@@ -87,10 +87,16 @@ public sealed class FileJournalWorkflowStore : IWorkflowStore, IDisposable
     private readonly FileStream _journal;
     private bool _disposed;
 
-    /// <summary>Opens (or creates) the journal, replays it, and takes the exclusive process lock.</summary>
-    public FileJournalWorkflowStore(FileJournalWorkflowStoreOptions options)
+    private readonly TimeProvider _clock;
+
+    /// <summary>
+    /// Opens (or creates) the journal, replays it, and takes the exclusive process lock. Advance and park records are
+    /// stamped from the host's injected clock (T-1178, DES-0029 kernel-core-ck-9), never from wall time read here.
+    /// </summary>
+    public FileJournalWorkflowStore(FileJournalWorkflowStoreOptions options, TimeProvider clock)
     {
         ArgumentNullException.ThrowIfNull(options);
+        _clock = clock ?? throw new ArgumentNullException(nameof(clock));
         options.Validate();
         _options = new() { JournalPath = Path.GetFullPath(options.JournalPath), MaximumFrameBytes = options.MaximumFrameBytes };
         var directory = Path.GetDirectoryName(_options.JournalPath)!;
@@ -168,7 +174,7 @@ public sealed class FileJournalWorkflowStore : IWorkflowStore, IDisposable
                 await effect.StageAsync(unitOfWork, ct).ConfigureAwait(false);
             }
 
-            var now = DateTimeOffset.UtcNow;
+            var now = _clock.GetUtcNow();
             var seq = NextSeq(key.InstanceId);
             var dto = new AdvanceDto(
                 key.InstanceId, key.Iteration, key.Step, key.Value,
@@ -189,7 +195,7 @@ public sealed class FileJournalWorkflowStore : IWorkflowStore, IDisposable
         {
             if (!_instances.ContainsKey(instanceId))
                 throw new KeyNotFoundException($"No workflow instance '{instanceId}' exists.");
-            var now = DateTimeOffset.UtcNow;
+            var now = _clock.GetUtcNow();
             var dto = new ParkDto(
                 instanceId, step, iteration,
                 new EventDto(instanceId, NextSeq(instanceId), step, "Parked", reasonJson, Format(now)),
@@ -503,7 +509,7 @@ public static class FileJournalWorkflowStoreServiceCollectionExtensions
         if (services.Any(descriptor => descriptor.ServiceType == typeof(IWorkflowStore)))
             throw new InvalidOperationException(
                 "An IWorkflowStore is already registered — the durable workflow store must be the sole store registration.");
-        services.AddSingleton(sp => new FileJournalWorkflowStore(options));
+        services.AddSingleton(sp => new FileJournalWorkflowStore(options, DurableWorkflowServiceCollectionExtensions.RequireClock(sp)));
         services.AddSingleton<IWorkflowStore>(sp => sp.GetRequiredService<FileJournalWorkflowStore>());
         return services;
     }

@@ -69,6 +69,7 @@ public sealed class AvailabilityRuntimeTests
     [Theory]
     [InlineData(false, true, AvailabilityRefusal.WindowUnbounded, "from")]
     [InlineData(true, false, AvailabilityRefusal.WindowUnbounded, "to")]
+    [Trait("Holds", "T-606")]
     public async Task Window_MissingAnEndpoint_IsRefused_BeforeAnyStoreRead(bool hasFrom, bool hasTo, string code, string pointer)
     {
         var sut = NewSut();
@@ -275,6 +276,7 @@ public sealed class AvailabilityRuntimeTests
     // ================================================================
 
     [Fact]
+    [Trait("Holds", "T-606")]
     public async Task TwoReads_SpanningAnAllocation_DifferWithoutInvalidation()
     {
         var sut = NewSut();

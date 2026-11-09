@@ -4,6 +4,12 @@ import type { Json } from './model.js'
  * Finite host-capture envelope for runtime-owned JSON data.  These limits apply to
  * UTF-8 encoded source text, JSON value nesting, and JSON values (containers and
  * scalars alike); they are intentionally separate from authored-rule limits.
+ *
+ * The text must also be I-JSON in two respects (T-1143, the owner's ruling of 2026-11-07): no
+ * lone surrogate, raw or escaped, in a member name or a string (RFC 7493 §2.1; RFC 8259 §8.2 calls
+ * such text unpredictable), and no duplicate member name after unescaping (RFC 7493 §2.3).
+ * JSON.parse accepts both, keeping the surrogate and the last repeat, so both refuse here, with
+ * the same reason the .NET tier gives.
  */
 export const INPUT_MAX_UTF8_BYTES = 262_144
 export const INPUT_MAX_DEPTH = 64
@@ -21,7 +27,46 @@ export function parseBoundedJsonText(jsonText: string, label: string): Json {
     throw new TypeError(`${label} is not valid JSON`, { cause: error })
   }
   validateJsonEnvelope(parsed, label)
+  assertUniqueMemberNames(jsonText, label)
   return parsed as Json
+}
+
+const loneSurrogate = (label: string) => `${label} is not I-JSON: it holds a lone surrogate (RFC 7493 §2.1)`
+
+/** True when every surrogate in the string is half of a pair (ES2024 String.prototype.isWellFormed). */
+function isWellFormed(value: string): boolean {
+  for (let i = 0; i < value.length; i++) {
+    const unit = value.charCodeAt(i)
+    if (unit >= 0xd800 && unit <= 0xdbff && i + 1 < value.length && value.charCodeAt(i + 1) >= 0xdc00 && value.charCodeAt(i + 1) <= 0xdfff) i++
+    else if (unit >= 0xd800 && unit <= 0xdfff) return false
+  }
+  return true
+}
+
+/**
+ * JSON.parse keeps only the last of a repeated name, so repeats are found on the text, which
+ * JSON.parse has just accepted: a string inside an object that a colon follows is a member name.
+ */
+function assertUniqueMemberNames(jsonText: string, label: string): void {
+  const open: Array<Set<string> | null> = []
+  for (let i = 0; i < jsonText.length; i++) {
+    const unit = jsonText.charCodeAt(i)
+    if (unit === 0x7b) open.push(new Set())
+    else if (unit === 0x5b) open.push(null)
+    else if (unit === 0x7d || unit === 0x5d) open.pop()
+    else if (unit === 0x22) {
+      const start = i
+      for (i++; jsonText.charCodeAt(i) !== 0x22; i++) if (jsonText.charCodeAt(i) === 0x5c) i++
+      const names = open[open.length - 1]
+      if (!names) continue
+      let next = i + 1
+      while (/[ \t\n\r]/.test(jsonText[next] ?? '')) next++
+      if (jsonText[next] !== ':') continue
+      const name = JSON.parse(jsonText.slice(start, i + 1)) as string
+      if (names.has(name)) throw new TypeError(`${label} is not I-JSON: it repeats a member name (RFC 7493 §2.3)`)
+      names.add(name)
+    }
+  }
 }
 
 /** Rejects hostile dynamic property names before graph state can coerce or store them. */
@@ -29,6 +74,8 @@ export function assertBoundedMemberName(value: unknown, label: string): asserts 
   if (typeof value !== 'string' || value.length > INPUT_MAX_UTF8_BYTES || utf8ByteLength(value) > INPUT_MAX_UTF8_BYTES) {
     throw new RangeError(`${label} exceeds byte ceiling`)
   }
+  // A RangeError, like the byte ceiling above, so the graph refuses it with the same code as .NET does.
+  if (!isWellFormed(value)) throw new RangeError(loneSurrogate(label))
 }
 
 /**
@@ -99,6 +146,7 @@ function validateJsonEnvelope(value: unknown, label: string): void {
   let nodes = 0
   const visit = (current: unknown, containerDepth: number): void => {
     if (++nodes > INPUT_MAX_NODES) throw new RangeError(`${label} exceeds node ceiling`)
+    if (typeof current === 'string' && !isWellFormed(current)) throw new TypeError(loneSurrogate(label))
     if (current === null || typeof current === 'string' || typeof current === 'number' || typeof current === 'boolean') return
     if (Array.isArray(current)) {
       if (containerDepth + 1 > INPUT_MAX_DEPTH) throw new RangeError(`${label} exceeds depth ceiling`)
@@ -109,7 +157,10 @@ function validateJsonEnvelope(value: unknown, label: string): void {
       // JSON.parse produces ordinary data records; no caller-owned accessor or Proxy is
       // inspected at this boundary.
       if (containerDepth + 1 > INPUT_MAX_DEPTH) throw new RangeError(`${label} exceeds depth ceiling`)
-      for (const child of Object.values(current as Record<string, unknown>)) visit(child, containerDepth + 1)
+      for (const [name, child] of Object.entries(current as Record<string, unknown>)) {
+        if (!isWellFormed(name)) throw new TypeError(loneSurrogate(label))
+        visit(child, containerDepth + 1)
+      }
       return
     }
     throw new TypeError(`${label} contains a non-JSON value`)

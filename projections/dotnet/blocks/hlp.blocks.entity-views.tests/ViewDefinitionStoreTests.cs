@@ -11,7 +11,7 @@ public sealed class ViewDefinitionStoreTests
     [Fact(DisplayName = "published heads use semver and restore creates only a new draft revision")]
     public async Task PublishedHeadsUseSemverAndRestoreCreatesOnlyANewDraftRevision()
     {
-        var store = new InMemoryViewDefinitionStore();
+        var store = ViewStores.Catalogue();
         await store.CreateDraftAsync(Definition("1.0.0"), Binding());
         await store.PublishAsync("tenant-a", "work.queue", "1.0.0");
         await store.CreateDraftAsync(Definition("1.1.0"), Binding());
@@ -89,7 +89,7 @@ public sealed class ViewDefinitionStoreTests
             ShapeRoles = shapeRoles,
             Widget = new("helm.counter", widgetParameters),
         };
-        var store = new InMemoryViewDefinitionStore();
+        var store = ViewStores.Catalogue();
 
         var stored = await store.CreateDraftAsync(definition, binding);
         columns[0] = new("mutated", 1);

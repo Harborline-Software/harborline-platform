@@ -51,4 +51,15 @@ public interface IDeclarativeWorkflowInterpreter
         WorkflowInstanceRecord instance,
         WorkflowTrigger trigger,
         CancellationToken ct = default);
+
+    /// <summary>
+    /// As <see cref="DecideAsync(WorkflowInstanceRecord, WorkflowTrigger, CancellationToken)"/>, with the dispatch's
+    /// verified authority, whose principal is the actor a role gate is decided for (T-1176). Without it there is no
+    /// actor to decide for, so a gated element refuses (<c>workflow.interpreter.gate_unenforced</c>).
+    /// </summary>
+    ValueTask<WorkflowStepOutcome> DecideAsync(
+        WorkflowInstanceRecord instance,
+        WorkflowTrigger trigger,
+        WorkflowDispatchAuthority authority,
+        CancellationToken ct = default) => DecideAsync(instance, trigger, ct);
 }

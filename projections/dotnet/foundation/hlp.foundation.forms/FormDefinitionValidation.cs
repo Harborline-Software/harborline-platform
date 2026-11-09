@@ -60,7 +60,9 @@ internal static class FormDefinitionValidation
     /// <summary>
     /// D3 publication check for a targeted definition, given its target's resolved creation gate. A <c>form_only</c>
     /// target requires a submit gate; an <c>engine</c> target cannot be created through any form. A <c>role</c> target
-    /// adds no requirement here: the form invokes the same role-gated operation (D1).
+    /// adds no requirement here: the form invokes the same role-gated operation (D1). Whatever the creation gate, a
+    /// targeted form may not gate on a standing: standing is computed over an existing record, and the record does not
+    /// exist at submit (owner ruling 2026-10-28, clause 3, which withdraws the K1 clause of 2026-10-11; DES-0016 §2).
     /// </summary>
     public static void ValidateRecordTypePublicationOrThrow(FormDefinition definition, RecordTypeCreationGate creationGate)
     {
@@ -69,6 +71,11 @@ internal static class FormDefinitionValidation
             throw new FormDefinitionValidationException(
                 definition.Id, $"record type '{definition.RecordTypeId}' is created only by the engine; no form may target it.",
                 FormDefinitionCodes.RecordTypeNotFormCreatable, "/record_type_id");
+        if (definition.SubmitGate?.Standing is not null)
+            throw new FormDefinitionValidationException(
+                definition.Id,
+                $"a form that creates records of '{definition.RecordTypeId}' cannot gate submission on a standing; the record does not exist at submit. Gate it on a role or a capability.",
+                FormDefinitionCodes.SubmitGateStandingOnRecordCreation, "/submit_gate/standing");
         if (creationGate == RecordTypeCreationGate.FormOnly && definition.SubmitGate is null)
             throw new FormDefinitionValidationException(
                 definition.Id, $"record type '{definition.RecordTypeId}' is form_only; a form targeting it must declare submit_gate.",

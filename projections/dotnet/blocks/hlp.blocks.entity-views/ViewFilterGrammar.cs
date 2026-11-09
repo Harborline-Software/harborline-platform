@@ -168,7 +168,7 @@ public sealed class ViewExpressionFunctionRegistry : IViewExpressionFunctionRegi
     {
         if (!_functions.TryGetValue(name, out var function) || function.Arity != arguments.Count)
         {
-            throw new ViewQueryException("view.filter.function_unknown", "The view filter function is not registered.");
+            throw new ViewQueryException(ViewQueryCodes.FilterFunctionUnknown, "The view filter function is not registered.");
         }
         return function.Evaluate(arguments);
     }
