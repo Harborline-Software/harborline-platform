@@ -240,6 +240,13 @@ describe('hlp.ui.booking-authoring (T-606/member-editors)', () => {
     expect(within(screen.getByRole('list', { name: 'Other refusals' })).getAllByRole('listitem').map(item => item.textContent)).toEqual(['code.pool at /pool_size', 'code.root at '])
   })
 
+  it('shows unknown prototype-named members among other refusals', () => {
+    const draft = resourceDraft({})
+    const pointers = ['/constructor', '/toString', '/__proto__']
+    editor(draft, { diagnostics: { identity: draft.identity, expectedRevision: draft.expectedRevision, generation: 0, diagnostics: pointers.map(pointer => ({ code: 'booking.definition.member_unknown', pointer })) } })
+    expect(within(screen.getByRole('list', { name: 'Other refusals' })).getAllByRole('listitem').map(item => item.textContent)).toEqual(pointers.map(pointer => `booking.definition.member_unknown at ${pointer}`))
+  })
+
   it('booking-eng-20: with nothing refused no field is marked invalid and no refusal list renders', () => {
     const draft = resourceDraft({ capacity_kind: 'pool', pool_size: 2 })
     editor(draft, { diagnostics: { identity: draft.identity, expectedRevision: draft.expectedRevision, generation: 0, diagnostics: [] } })
