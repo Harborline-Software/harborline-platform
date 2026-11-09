@@ -1,0 +1,60 @@
+{
+  "about": "T-1143: rule-context JSON text both tiers refuse, or admit, at the input envelope. The expected outcome of each case is read from RFC 7493 (I-JSON), not from either tier: section 2.1 forbids a surrogate code point, escaped or not (its own example is an escaped unpaired surrogate), and section 2.3 forbids a repeated member name. Each text is the JSON text handed to RuleInstance.FromJsonText / fromJsonText. A marker such as <U+D800> stands for that one raw UTF-16 code unit, which this file cannot hold itself.",
+  "cases": [
+    {
+      "name": "repeated member name",
+      "text": "{\"a\":1,\"a\":2}",
+      "refusal": "it repeats a member name (RFC 7493 §2.3)"
+    },
+    {
+      "name": "repeated member name after unescaping, one level down",
+      "text": "{\"a\":{\"b\":1,\"\\u0062\":2}}",
+      "refusal": "it repeats a member name (RFC 7493 §2.3)"
+    },
+    {
+      "name": "raw lone high surrogate in a string",
+      "text": "{\"a\":\"<U+D800>\"}",
+      "refusal": "it holds a lone surrogate (RFC 7493 §2.1)"
+    },
+    {
+      "name": "escaped lone high surrogate in a string",
+      "text": "{\"a\":\"\\uD800\"}",
+      "refusal": "it holds a lone surrogate (RFC 7493 §2.1)"
+    },
+    {
+      "name": "escaped lone low surrogate in a string",
+      "text": "{\"a\":\"\\uDC00\"}",
+      "refusal": "it holds a lone surrogate (RFC 7493 §2.1)"
+    },
+    {
+      "name": "raw lone high surrogate in a member name",
+      "text": "{\"<U+D800>\":1}",
+      "refusal": "it holds a lone surrogate (RFC 7493 §2.1)"
+    },
+    {
+      "name": "escaped lone high surrogate in a member name",
+      "text": "{\"\\uD800\":1}",
+      "refusal": "it holds a lone surrogate (RFC 7493 §2.1)"
+    },
+    {
+      "name": "escaped lone low surrogate in a member name",
+      "text": "{\"\\uDC00\":1}",
+      "refusal": "it holds a lone surrogate (RFC 7493 §2.1)"
+    },
+    {
+      "name": "escaped surrogate pair",
+      "text": "{\"a\":\"\\uD83D\\uDE00\"}",
+      "refusal": null
+    },
+    {
+      "name": "raw surrogate pair",
+      "text": "{\"a\":\"<U+D83D><U+DE00>\"}",
+      "refusal": null
+    },
+    {
+      "name": "the same name in two different objects",
+      "text": "{\"a\":{\"b\":1},\"c\":{\"b\":2}}",
+      "refusal": null
+    }
+  ]
+}

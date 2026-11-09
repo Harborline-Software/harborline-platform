@@ -59,6 +59,46 @@ public sealed class ContentStoreEpochTests
         return plain;
     }
 
+    // A backing that keeps one audit chain per tenant places a transaction's row by the tenant its calls name (the api node
+    // refuses "a content-store write named no tenant"). Rotation's transaction names it by pinning the new epoch.
+    [Fact]
+    public async Task Clause_4_a_rotation_transaction_names_its_tenant_by_pinning_the_new_epoch()
+    {
+        var backing = new RecordingStorage();
+        var store = Store(backing);
+        await Commit(store, Hello);
+        lock (backing.Pins) backing.Pins.Clear();
+
+        var rotation = await store.RotateEpochAsync(Tenant, Write("rotate"));
+
+        Assert.Equal([(Tenant, rotation.To)], backing.Pins);
+    }
+
+    // CodeRabbit on #431: a backing can retire the new epoch before the rotation pins it. The rotation must then refuse and
+    // destroy the key, never make a retired epoch current.
+    [Fact]
+    public async Task Clause_4_a_rotation_whose_new_epoch_is_already_retired_refuses_and_destroys_it()
+    {
+        var backing = new RecordingStorage();
+        var store = Store(backing);
+        var reference = await Commit(store, Hello);
+        var first = (await backing.Epochs.GetCurrentAsync(Tenant))!.EpochId;
+        lock (backing.Pins) backing.Pins.Clear();
+        backing.EpochEvents.Clear();
+        backing.RefuseNextPin = true;
+
+        var refusal = await Assert.ThrowsAsync<InvalidOperationException>(async () => await store.RotateEpochAsync(Tenant, Write("rotate-retired")));
+
+        Assert.Equal("That epoch is being destroyed.", refusal.Message);
+        var (tenant, made) = Assert.Single(backing.Pins);
+        Assert.Equal(Tenant, tenant);
+        Assert.NotEqual(first, made);
+        Assert.Equal(first, (await backing.Epochs.GetCurrentAsync(Tenant))!.EpochId);
+        Assert.Null(await backing.Epochs.GetAsync(Tenant, made));
+        Assert.Equal(["epoch-created", "epoch-destroyed"], backing.EpochEvents);
+        Assert.Equal(Hello, await Read(store, reference));
+    }
+
     [Fact]
     public async Task Clause_1_the_key_port_holds_only_a_wrapped_256_bit_epoch_key_bound_to_its_tenant_and_id()
     {

@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.blocks.calendar",
-  "interfaceRevision": 5,
+  "interfaceRevision": 6,
   "status": "frozen",
   "purpose": "Own the calendar domain engine: event/occurrence/instant expansion with DST wall-clock retention, availability expansion, free/busy and viewer free/busy, booking outcomes, participation invariants, shared-calendar layers with visibility policy, padding envelopes, occupancy, and the calendar context query.",
-  "dependencies": [{"moduleId": "hlp.contracts.identities", "minimumRevision": 1}, {"moduleId": "hlp.foundation.actor", "minimumRevision": 2}, {"moduleId": "hlp.foundation.scheduling", "minimumRevision": 1}, {"moduleId": "hlp.blocks.builder-definitions", "minimumRevision": 10}],
+  "dependencies": [{"moduleId": "hlp.contracts.identities", "minimumRevision": 1}, {"moduleId": "hlp.foundation.actor", "minimumRevision": 2}, {"moduleId": "hlp.foundation.scheduling", "minimumRevision": 5}, {"moduleId": "hlp.blocks.builder-definitions", "minimumRevision": 10}],
   "callerInterface": {
     "name": "ICalendarEventExpansionService / IAvailabilityExpansionService / IFreeBusyService / IBookingService / ICalendarContextQuery / calendar models",
     "operations": [
@@ -19,7 +19,8 @@
     "context": "The module reads NO ambient time: callers supply civil dates, instants, and zone ids; entity timestamps are caller-supplied with deterministic defaults when omitted (the pinned package's six executable ambient-clock reads were deliberately not ported — the full 163-case pinned suite proves the behavior identical without them). Recurrence expansion composes the packed hlp.foundation.scheduling RRULE engine — the draft-era local compatibility copy was replaced by the real module reference at merge review to prevent cross-assembly type ambiguity."
   },
   "invariants": [
-    "DST wall-clock retention: an occurrence's civil time is preserved across zone transitions; instants are derived from explicit zone ids only.",
+    "DST wall-clock retention: an occurrence's civil time is preserved across zone transitions; instants are derived from explicit zone ids only. A local time resolves through the shared WallClockResolver per RFC 5545 s3.3.5 and Errata 4271: an ambiguous fall-back time is its first occurrence (01:30 on 2026-11-01 in New York is 05:30Z) and a spring-forward gap time is read at the offset before the gap (T-1175; ADR-0123 decision 4).",
+    "A timed event or availability window expands as a timed series (ExpandZonedOccurrences), so a UTC UNTIL bounds it at that instant (RFC 5545 s3.3.10; ADR-0122 decision 3); an all-day event expands as a date-valued series.",
     "The engine reads no ambient clock or zone (no DateTime.Now/UtcNow/Today, DateTimeOffset.Now/UtcNow, TimeZoneInfo.Local, or TimeProvider.System anywhere in the module).",
     "Free/busy never leaks event detail beyond the visibility policy; viewer free/busy folds shared-calendar layers under that policy.",
     "Booking respects padding envelopes and occupancy limits with typed outcomes — never a silent double-book.",

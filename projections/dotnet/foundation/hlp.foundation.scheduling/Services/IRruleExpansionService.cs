@@ -6,20 +6,19 @@ namespace Harborline.Foundation.Scheduling;
 /// </summary>
 /// <remarks>
 /// <para>
-/// <b>Fleet bounded RRULE subset</b> — this contract mirrors the
-/// ui-react <c>expandRecurrence</c> function in
-/// <c>SchedulerRecurrence.ts</c> exactly so the same RRULE configured
-/// in the Scheduler UI expands to the same occurrence set on the
-/// backend. Cross-tier consistency is a binding requirement per
-/// council-verdict-net-arch-2026-06-12T2213Z §C-2.
+/// <b>Fleet bounded RRULE subset</b> — the subset below is the contract (DES-0057 <c>recurrence-expansion-ck-1</c>),
+/// checked in front of the engine. Expansion runs on Ical.Net behind this interface (ADR-0122, the owner's ruling of
+/// 2026-11-07), so occurrences follow RFC 5545: an invalid date such as 31 February is skipped and not counted, a numeric
+/// BYDAY under YEARLY without BYMONTH is an offset within the year (Errata 1913), and a timed series' UTC UNTIL bounds it
+/// at that instant. The web tier's own expander is not bound to this one (ADR-0122 decision 4, T-1092).
 /// </para>
 /// <para>
 /// <b>Supported subset:</b>
 /// <list type="bullet">
 ///   <item><description><c>FREQ</c> — DAILY | WEEKLY | MONTHLY | YEARLY</description></item>
 ///   <item><description><c>INTERVAL=N</c> — positive integer (default 1)</description></item>
-///   <item><description><c>COUNT=N</c> or <c>UNTIL=YYYYMMDD</c> (mutually exclusive; UNTIL wins when both present)</description></item>
-///   <item><description><c>BYDAY</c> — weekday list e.g. <c>MO,WE,FR</c>; with monthly ordinal e.g. <c>1MO</c> (first Monday), <c>-1FR</c> (last Friday)</description></item>
+///   <item><description><c>COUNT=N</c> or <c>UNTIL</c> (<c>YYYYMMDD</c> or <c>YYYYMMDDTHHMMSSZ</c>); both in one rule refuses (RFC 5545 §3.3.10)</description></item>
+///   <item><description><c>BYDAY</c> — weekday list e.g. <c>MO,WE,FR</c>; under MONTHLY or YEARLY with an ordinal e.g. <c>1MO</c>, <c>-1FR</c> (an ordinal under DAILY or WEEKLY refuses)</description></item>
 ///   <item><description><c>BYMONTHDAY</c> — calendar day 1–28 (capped at 28 to avoid month-end ambiguity across February and 30-day months)</description></item>
 ///   <item><description><c>BYMONTH</c> — month number 1–12</description></item>
 ///   <item><description>Hard occurrence cap: 1 000 occurrences per call to prevent runaway expansion</description></item>
@@ -27,7 +26,8 @@ namespace Harborline.Foundation.Scheduling;
 /// </para>
 /// <para>
 /// Unsupported RRULE components (EXDATE, BYWEEKNO, BYYEARDAY, etc.)
-/// are refused so an authored restriction cannot be silently discarded.
+/// are refused so an authored restriction cannot be silently discarded. Part names and values are case-insensitive
+/// (RFC 5234 §2.3, RFC 5545 §3.1), and a part given twice refuses (RFC 5545 §3.3.10).
 /// </para>
 /// <para>
 /// <b>Completeness</b> — occurrences are returned only when every occurrence relevant to the
@@ -66,11 +66,9 @@ public interface IRruleExpansionService
     /// deterministic without mocking <c>DateTime.UtcNow</c>.
     /// </param>
     /// <param name="timezone">
-    /// IANA timezone id for the schedule owner (e.g. <c>America/Los_Angeles</c>).
-    /// V1 treats all dates as naive (no timezone conversion); the
-    /// parameter is accepted now so callers are timezone-aware at the
-    /// call site and the Ical.Net follow-on can use it without a
-    /// signature change.
+    /// IANA timezone id for the schedule owner (e.g. <c>America/Los_Angeles</c>). This date-valued expansion treats the
+    /// series as naive and does not apply it (DES-0057 ck-7); a timed series uses
+    /// <see cref="ExpandZonedOccurrences"/>, which does.
     /// </param>
     /// <returns>
     /// Occurrences in ascending date order, filtered by
@@ -79,8 +77,8 @@ public interface IRruleExpansionService
     /// result: see the completeness remark above.
     /// </returns>
     /// <exception cref="FormatException">
-    /// Thrown when <paramref name="rrule"/> is missing a <c>FREQ=</c> component, or when an
-    /// admitted part carries an out-of-bound or malformed value (named in the message).
+    /// Thrown when <paramref name="rrule"/> is missing a <c>FREQ=</c> component, gives a part twice, gives COUNT with
+    /// UNTIL, or when an admitted part carries an out-of-bound or malformed value (named in the message).
     /// </exception>
     /// <exception cref="ArgumentException">
     /// Thrown when <paramref name="rrule"/> is null or whitespace.
@@ -100,4 +98,25 @@ public interface IRruleExpansionService
         int leadDays,
         DateOnly today,
         string timezone);
+
+    /// <summary>
+    /// Expands a timed series anchored at <paramref name="start"/> and <paramref name="startTime"/> in
+    /// <paramref name="timezone"/>, and returns each occurrence's local date (ADR-0122 decision 3). A DATE-TIME UNTIL is a
+    /// UTC instant that bounds the series inclusively (RFC 5545 §3.3.10), so <c>UNTIL=20261105T040000Z</c> on a 20:00
+    /// Los Angeles series ends on 4 November. A DATE UNTIL bounds it by local date. <paramref name="end"/>,
+    /// <paramref name="lookaheadDays"/>, <paramref name="leadDays"/> and <paramref name="today"/> bound by local date
+    /// exactly as in <see cref="ExpandOccurrences"/>, and the same subset, cap and exceptions apply.
+    /// </summary>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="timezone"/> is not an IANA time zone id.</exception>
+    /// <exception cref="NotSupportedException">Thrown by implementations written before this member existed.</exception>
+    IReadOnlyList<DateOnly> ExpandZonedOccurrences(
+        string rrule,
+        DateOnly start,
+        TimeOnly startTime,
+        string timezone,
+        DateOnly? end,
+        int lookaheadDays,
+        int leadDays,
+        DateOnly today) =>
+        throw new NotSupportedException($"{GetType().Name} does not expand timed series.");
 }

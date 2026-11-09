@@ -149,14 +149,26 @@ public sealed class CalendarEventExpansionService : ICalendarEventExpansionServi
         //    keeps a multi-day occurrence straddling windowStart. lookaheadDays is unused because
         //    we pass an explicit `end`.
         var earliest = windowStart.AddDays(-durationDays);
-        var raw = _rrule.ExpandOccurrences(
-            rrule:          ev.Rrule!,
-            start:          ev.Start,
-            end:            windowEnd,
-            lookaheadDays:  0,
-            leadDays:       0,
-            today:          earliest,
-            timezone:       ev.Timezone);
+        // An all-day event is a date-valued series; a timed one is anchored at its wall-clock start in its zone, so a
+        // UTC UNTIL bounds it at that instant (RFC 5545 §3.3.10; ADR-0122 decision 3).
+        var raw = ev.AllDay
+            ? _rrule.ExpandOccurrences(
+                rrule:          ev.Rrule!,
+                start:          ev.Start,
+                end:            windowEnd,
+                lookaheadDays:  0,
+                leadDays:       0,
+                today:          earliest,
+                timezone:       ev.Timezone)
+            : _rrule.ExpandZonedOccurrences(
+                rrule:          ev.Rrule!,
+                start:          ev.Start,
+                startTime:      ev.StartTime,
+                timezone:       TimezoneResolver.IanaId(TimezoneResolver.Resolve(ev.Timezone)),
+                end:            windowEnd,
+                lookaheadDays:  0,
+                leadDays:       0,
+                today:          earliest);
 
         var exDates = ev.ExceptionDates;          // EXDATE set (HashSet/SortedSet — O(1)/O(log n) lookup)
         var overrides = ev.Overrides;             // RECURRENCE-ID → override

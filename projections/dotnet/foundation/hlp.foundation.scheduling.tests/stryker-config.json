@@ -13,6 +13,7 @@
     },
     "reporters": [
       "json"
-    ]
+    ],
+    "coverage-analysis": "off"
   }
 }

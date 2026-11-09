@@ -434,21 +434,21 @@ public sealed class InMemoryRruleExpansionServiceTests
         Assert.Equal(new DateOnly(2026, 1, 10), occurrences[^1]);
     }
 
+    // Rewritten for T-1175: this test pinned the walker's "UNTIL wins", which RFC 5545 §3.3.10 forbids: "The UNTIL or
+    // COUNT rule parts are OPTIONAL, but they MUST NOT occur in the same 'recur'." The rule now refuses.
     [Fact]
-    public void Expand_Until_WinsOverCount_WhenBothPresent()
+    public void Expand_CountWithUntil_Refuses()
     {
-        // Per RFC 5545: UNTIL wins when both present.
-        var occurrences = Sut.ExpandOccurrences(
+        var refusal = Assert.Throws<FormatException>(() => Sut.ExpandOccurrences(
             rrule: "FREQ=DAILY;UNTIL=20260105;COUNT=100",
             start: Today,
             end: null,
             lookaheadDays: 365,
             leadDays: 0,
             today: Today,
-            timezone: "UTC");
+            timezone: "UTC"));
 
-        Assert.Equal(5, occurrences.Count);
-        Assert.Equal(new DateOnly(2026, 1, 5), occurrences[^1]);
+        Assert.Contains("'COUNT' and 'UNTIL'", refusal.Message, StringComparison.Ordinal);
     }
 
     // ----------------------------------------------------------------
