@@ -5,6 +5,7 @@ using Harborline.Contracts.Fields;
 using Harborline.Foundation.Authorization;
 using Harborline.Foundation.Definitions;
 using Harborline.Foundation.FieldRuntime;
+using Harborline.Foundation.RuleEngine.References;
 using Harborline.Kernel.Core;
 using Harborline.Kernel.SchemaValidation;
 using Harborline.Kernel.SchemaValidation.Records;
@@ -332,6 +333,84 @@ public sealed class RecordWriteFieldRuntimeTests
     }
 
     private static JsonObject Body(string json) => JsonNode.Parse(json)!.AsObject();
+    private static readonly NamedCalculation LineTotal = new("line-total", "1.0.0", """{"*":[{"var":"price"},{"var":"qty"}]}""");
+
+    // T-616/prevalidation-mutation (records-eng-5, ADR 0124 decision 1): the composed write fills a derived field before the
+    // real validator judges the candidate, and commits exactly that candidate. Oracles: literal bodies, the arithmetic of the
+    // literal calculation, ADR 0038's stage names and the published refusal codes.
+    [Theory]
+    [Trait("Holds", "records-eng-5")]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task records_eng_5_a_derived_field_is_filled_before_validation_and_that_candidate_commits(bool accepted)
+    {
+        var fixture = await Fixture.CreateAsync(accepted: accepted, derived: LineTotal, calculations: new([], [LineTotal]));
+        const string supplied = """{"status":"A","price":2.5,"qty":4,"total":999}""";
+
+        // The supplied total is replaced; every other supplied value is kept as it came. The row is the canonical, member-sorted body.
+        var outcome = await fixture.WriteAsync("derive-1", supplied);
+
+        Assert.True(outcome.Committed, outcome.Refusal?.Code);
+        var row = Assert.Single(fixture.Port.Rows);
+        Assert.Equal("""{"price":2.5,"qty":4,"status":"A","total":10}""", Encoding.UTF8.GetString(row.Body.Span));
+        // The intent stays the caller's own body, so the same operation replays rather than deriving again.
+        Assert.Equal(RecordWriteIntent.Digest(RecordWriteIntent.Encode(Type, null, Body(supplied))), row.IntentDigest);
+        var replay = await fixture.WriteAsync("derive-1", supplied);
+        Assert.True(replay.Replayed);
+        Assert.Single(fixture.Port.Rows);
+    }
+
+    [Theory]
+    [Trait("Holds", "records-eng-5")]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task records_eng_5_an_absent_derived_field_is_filled_so_a_required_one_validates(bool accepted)
+    {
+        var fixture = await Fixture.CreateAsync(accepted: accepted, derived: LineTotal, calculations: new([], [LineTotal]));
+
+        var outcome = await fixture.WriteAsync("derive-absent", """{"status":"B","price":3,"qty":2}""");
+
+        Assert.True(outcome.Committed, outcome.Refusal?.Code);
+        Assert.Equal("""{"price":3,"qty":2,"status":"B","total":6}""", Encoding.UTF8.GetString(Assert.Single(fixture.Port.Rows).Body.Span));
+    }
+
+    [Theory]
+    [Trait("Holds", "records-eng-5")]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task records_eng_5_a_derived_value_the_validator_refuses_stops_the_write_at_validate(bool accepted)
+    {
+        // A text value for a number field: the mutated candidate is invalid, and the validator judges it.
+        var text = new NamedCalculation("line-total", "1.0.0", """{"cat":["x",{"var":"qty"}]}""");
+        var fixture = await Fixture.CreateAsync(accepted: accepted, derived: text, calculations: new([], [text]));
+
+        var outcome = await fixture.WriteAsync("derive-invalid", """{"status":"A","price":2.5,"qty":4}""");
+
+        Refused(outcome, "/total");
+        Assert.Empty(fixture.Port.Rows);
+    }
+
+    public static TheoryData<bool, bool> UnresolvedCases() => new() { { false, false }, { true, false }, { false, true }, { true, true } };
+
+    [Theory]
+    [Trait("Holds", "records-eng-5")]
+    [MemberData(nameof(UnresolvedCases))]
+    public async Task records_eng_5_a_calculation_that_does_not_resolve_refuses_at_mutate_before_anything_is_staged(bool accepted, bool composed)
+    {
+        // Composed with a closure whose line-total is another expression (a digest mismatch), or with none at all.
+        var other = new NamedCalculation("line-total", "1.0.0", """{"+":[{"var":"price"},{"var":"qty"}]}""");
+        var fixture = await Fixture.CreateAsync(accepted: accepted, derived: LineTotal, calculations: composed ? new([], [other]) : null);
+
+        var outcome = await fixture.WriteAsync("derive-unresolved", """{"status":"A","price":2.5,"qty":4}""");
+
+        Assert.False(outcome.Committed);
+        Assert.Null(outcome.Receipt);
+        Assert.Equal(("mutate", "records.mutate.calculation_unresolved"), (outcome.Refusal!.Stage, outcome.Refusal.Code));
+        Assert.Equal(["/total"], outcome.Refusal.Pointers);
+        Assert.Empty(fixture.Port.Events);
+        Assert.Empty(fixture.Port.Rows);
+    }
+
     private static void Refused(RecordWriteOutcome outcome, string pointer)
     {
         Assert.False(outcome.Committed);
@@ -344,11 +423,12 @@ public sealed class RecordWriteFieldRuntimeTests
     private sealed class Fixture
     {
         private Fixture(bool accepted, string key, bool number, RecordTypeDefinitionStore records, InMemorySchemaRegistry registry,
-            IFieldKindRuntime kinds, IFieldDomainRuntime domains, Source source, ReadAuthority reads, TraitSource? traits)
+            IFieldKindRuntime kinds, IFieldDomainRuntime domains, Source source, ReadAuthority reads, TraitSource? traits,
+            PinnedClosure? calculations = null)
         {
             Accepted = accepted; Key = key; Number = number; Records = records; Registry = registry;
             Kinds = kinds; Domains = domains; Source = source; Reads = reads; Traits = traits;
-            Operation = new(new AccessProvider(Gate), records, registry, Port, Port, Clock, kinds, domains);
+            Operation = new(new AccessProvider(Gate), records, registry, Port, Port, Clock, kinds, domains) { Calculations = calculations };
         }
         public bool Accepted { get; }
         public string Key { get; }
@@ -366,7 +446,8 @@ public sealed class RecordWriteFieldRuntimeTests
         public RecordWriteOperation Operation { get; }
 
         public static async Task<Fixture> CreateAsync(bool accepted = false, string key = "status",
-            FieldConstraintDefinition? constraints = null, bool number = false, bool trait = false)
+            FieldConstraintDefinition? constraints = null, bool number = false, bool trait = false,
+            NamedCalculation? derived = null, PinnedClosure? calculations = null)
         {
             var kinds = new FieldKindRuntime(new FieldKindRegistry([
                 new("text", "1.0.0", null, FieldScalarValueShape.Text),
@@ -394,6 +475,15 @@ public sealed class RecordWriteFieldRuntimeTests
             List<FieldDefinition> fields = [Field(key, constraints)];
             if (number) fields.Add(new("amount", "Amount", new(new("amount", "1.0.0", new Dictionary<string, string>()),
                 new(false, 0, 1, [], null))));
+            if (derived is not null)
+            {
+                // Required, so a write whose mutate stage did not fill the total would refuse at validate.
+                FieldBindingDefinition Amount() => new(new("amount", "1.0.0", new Dictionary<string, string>()), new(true, 1, 1, [], null));
+                fields.Add(new("price", "Price", Amount()));
+                fields.Add(new("qty", "Quantity", Amount()));
+                fields.Add(new FieldDefinition("total", "Total", Amount())
+                    { Calculation = new(derived.Pin.Name, derived.Pin.Version, derived.Pin.Digest) });
+            }
             await records.CreateDraftAsync(new(Tenant, "eam", "Runtime Check", "1.0.0", fields, new(1, 0),
                 Traits: trait ? [new("status-trait", "1.0.0", [new("status-slot", key)])] : null,
                 ClassId: "eam.equipment", RecordClass: RecordClass.Master, PackageId: "eam-core",
@@ -402,7 +492,7 @@ public sealed class RecordWriteFieldRuntimeTests
             await records.PublishAsync(Tenant, Type, "1.0.0", 1, "type-publish");
             source.Opens = 0;
             reads.Scopes.Clear(); reads.Members.Clear();
-            return new(accepted, key, number, records, registry, kinds, domains, source, reads, traits);
+            return new(accepted, key, number, records, registry, kinds, domains, source, reads, traits, calculations);
         }
 
         public async Task PublishNextAsync(string[] values)

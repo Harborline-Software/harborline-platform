@@ -7,6 +7,8 @@ using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using Harborline.Contracts.Fields;
 using Harborline.Foundation.Authorization;
+using Harborline.Foundation.RuleEngine.Records;
+using Harborline.Foundation.RuleEngine.References;
 using Harborline.Kernel.Core;
 using Harborline.Kernel.SchemaValidation;
 
@@ -595,6 +597,7 @@ public sealed class RecordWriteOperation
     private const string RecordKind = RecordCreationAuthorization.RecordKind;
     private const string AuthorizeStage = "authorize";
     private const string BindStage = "bind";
+    private const string MutateStage = "mutate";
     private const string ValidateStage = "validate";
     private const string CommitStage = "commit";
     private const string SchemaUnknown = "entity.validation.schema_unknown";
@@ -705,6 +708,13 @@ public sealed class RecordWriteOperation
         _temporalReceipts = temporalReceipts;
         _temporalRecords = temporalRecords;
     }
+
+    /// <summary>
+    /// The pinned closure the bound Record Types' derived fields resolve their calculations through (ADR 0124 decision 1,
+    /// rules-ck-23), as a Layout host composes its <c>show_when</c> predicates. Null composes none, so a write to a type with a
+    /// derived field refuses in the mutate stage with <c>records.mutate.calculation_unresolved</c>.
+    /// </summary>
+    public PinnedClosure? Calculations { get; init; }
 
     /// <summary>Creates a new logical record with an explicitly declared business interval.</summary>
     public ValueTask<RecordTemporalWriteOutcome> CreateEffectiveAsync(RecordWriteScope scope,
@@ -820,7 +830,9 @@ public sealed class RecordWriteOperation
             var refusal = CreationRefusal(RecordCreationPolicy.Of(definition).Gate, false);
             if (refusal is not null) return TemporalRefused(refusal.Refusal!) with { Decision = evidence };
         }
-        var submitted = Submitted(body);
+        if (Mutate(definition, body, instant, out var candidate) is { } mutateRefusal)
+            return TemporalRefused(mutateRefusal) with { Decision = evidence };
+        var submitted = Submitted(candidate);
         try
         {
             var transaction = await KernelTransactionBoundary.ExecutePreparedAsync(async token =>
@@ -1146,7 +1158,9 @@ public sealed class RecordWriteOperation
         var gate = RecordCreationPolicy.Of(definition).Gate;
         if (CreationRefusal(gate, plan.AcceptedCommand) is { } creationRefusal) return (creationRefusal, false);
 
-        var body = Submitted(request.Body);
+        if (Mutate(definition, request.Body, instant, out var candidate) is { } mutateRefusal)
+            return (Refused(mutateRefusal.Stage, mutateRefusal.Code, mutateRefusal.Pointers), false);
+        var body = Submitted(candidate);
         KernelTransactionResult<RecordWriteCommit> transaction;
         try
         {
@@ -1288,6 +1302,23 @@ public sealed class RecordWriteOperation
         {
             return false;
         }
+    }
+
+    // ADR 0038 mutate (records-eng-5, ADR 0124 decision 1): the bound type's derived fields are filled on the candidate
+    // before validation, and that same candidate is validated and committed. The intent digest stays the caller's body, so
+    // a retry replays rather than deriving again as a new write. Creation defaults and early automations are not here yet.
+    private RecordWriteRefusal? Mutate(RecordTypeDocument definition, JsonObject body, DateTimeOffset instant, out JsonObject candidate)
+    {
+        var calculations = definition.Fields
+            .Where(field => field.Calculation is not null)
+            .Select(field => new RecordFieldCalculation(field.FieldKey,
+                new ExactPin(field.Calculation!.Name, field.Calculation.Version, field.Calculation.Digest)))
+            .ToArray();
+        var derivation = RecordDerivedFields.Derive(body, calculations, Calculations, instant);
+        candidate = derivation.Candidate ?? body;
+        return derivation.Refusal is { } refusal
+            ? new(MutateStage, refusal.Code, ["/" + refusal.FieldKey.Replace("~", "~0", StringComparison.Ordinal).Replace("/", "~1", StringComparison.Ordinal)])
+            : null;
     }
 
     private static RecordWriteOutcome Refused(string stage, string code, IReadOnlyList<string> pointers)

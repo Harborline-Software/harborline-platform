@@ -8,6 +8,7 @@ using Harborline.Contracts.Fields;
 using Harborline.Foundation.Authorization;
 using Harborline.Foundation.Definitions;
 using Harborline.Foundation.FieldRuntime;
+using Harborline.Foundation.RuleEngine.References;
 using Harborline.Kernel.Core;
 using Harborline.Kernel.SchemaValidation;
 using Harborline.Kernel.SchemaValidation.Records;
@@ -524,6 +525,41 @@ public sealed class RecordTemporalWriteOperationTests
         => new() { ["value"] = value, [key] = status };
     internal static RecordTemporalBasis Basis(RecordTemporalReceipt receipt)
         => new(receipt.Temporal.Revision, receipt.BindingHash);
+    // T-616/prevalidation-mutation (records-eng-5, ADR 0124 decision 1): an effective-dated create and its amendment each
+    // fill the derived field from their own body before validation. Oracles: the literal calculation's arithmetic and the
+    // canonical stored bodies.
+    [Fact]
+    [Trait("Holds", "records-eng-5")]
+    public async Task records_eng_5_a_temporal_create_and_its_amendment_each_fill_the_derived_field_before_validation()
+    {
+        var doubled = new NamedCalculation("doubled", "1.0.0", """{"*":[{"var":"value"},2]}""");
+        using var fixture = await Fixture.Create(derived: doubled);
+
+        var created = Committed(await fixture.CreateEvent(value: 10));
+        var amended = Committed(await fixture.AmendEvent(created, value: 21));
+
+        var history = await fixture.Storage.HistoryAsync(Tenant, created.Receipt.RecordId);
+        Assert.Equal(["""{"doubled":20,"status":"A","value":10}""", """{"doubled":42,"status":"A","value":21}"""],
+            history.Versions.Select(version => Encoding.UTF8.GetString(version.Row.Body.Span)).Order(StringComparer.Ordinal).ToArray());
+        Assert.NotEqual(created.Receipt.RecordId, string.Empty);
+        Assert.Equal(created.Receipt.RecordId, amended.Receipt.RecordId);
+    }
+
+    [Fact]
+    [Trait("Holds", "records-eng-5")]
+    public async Task records_eng_5_a_temporal_write_whose_calculation_does_not_resolve_refuses_at_mutate()
+    {
+        var doubled = new NamedCalculation("doubled", "1.0.0", """{"*":[{"var":"value"},2]}""");
+        using var fixture = await Fixture.Create(derived: doubled, composeCalculations: false);
+
+        var refused = await fixture.CreateEvent(value: 10);
+
+        Assert.False(refused.Committed);
+        Assert.Equal(("mutate", "records.mutate.calculation_unresolved"), (refused.Refusal!.Stage, refused.Refusal.Code));
+        Assert.Equal(["/doubled"], refused.Refusal.Pointers);
+        Assert.Equal(0, fixture.Entries());
+    }
+
     internal static RecordTemporalReceipt Committed(RecordTemporalWriteOutcome outcome)
     {
         Assert.True(outcome.Committed);
@@ -720,10 +756,12 @@ public sealed class RecordTemporalWriteOperationTests
         internal Store Storage { get; private set; } = null!;
         internal RecordWriteOperation Writer => Compose(Storage);
         internal RecordReadOperation Reader => new(Storage, new AccessProvider(Access), Types, OperationClock);
+        internal PinnedClosure? Calculations { get; init; }
         internal RecordWriteOperation Compose(Store store, bool temporal = true) => temporal
-            ? new(new AccessProvider(Access), Types, Schemas, store, store, OperationClock, Kinds, Domains, store, store, store)
-            : new(new AccessProvider(Access), Types, Schemas, store, store, OperationClock, Kinds, Domains);
-        internal static async Task<Fixture> Create(bool mode = true, bool clock = true, bool opaque = false, string key = "status")
+            ? new(new AccessProvider(Access), Types, Schemas, store, store, OperationClock, Kinds, Domains, store, store, store) { Calculations = Calculations }
+            : new(new AccessProvider(Access), Types, Schemas, store, store, OperationClock, Kinds, Domains) { Calculations = Calculations };
+        internal static async Task<Fixture> Create(bool mode = true, bool clock = true, bool opaque = false, string key = "status",
+            NamedCalculation? derived = null, bool composeCalculations = true)
         {
             var kinds = new FieldKindRuntime(new FieldKindRegistry([
                 new("text", "1.0.0", null, FieldScalarValueShape.Text),
@@ -745,9 +783,13 @@ public sealed class RecordTemporalWriteOperationTests
             await classes.PublishAsync(Tenant, "temporal.items", "1.0.0", 1, "class-publish");
             var publisher = new RecordTypeDefinitionStore(definitions, compiler, defaults, registry, window,
                 new(TenantId.FromString(Tenant), "type-author"), CreationRoles);
-            await publisher.CreateDraftAsync(new(Tenant, "temporal", "Entry", "1.0.0",
+            List<FieldDefinition> fields =
                 [new("value", "Value", new(new("amount", "1.0.0", new Dictionary<string, string>()), new(true, 1, 1, [], null))),
-                 new(key, "Status", new(new("text", "1.0.0", new Dictionary<string, string>()), new(false, 0, 1, [], new(LiteralValues: ["A", "B"]))))],
+                 new(key, "Status", new(new("text", "1.0.0", new Dictionary<string, string>()), new(false, 0, 1, [], new(LiteralValues: ["A", "B"]))))];
+            if (derived is not null)
+                fields.Add(new FieldDefinition("doubled", "Doubled", new(new("amount", "1.0.0", new Dictionary<string, string>()), new(true, 1, 1, [], null)))
+                    { Calculation = new(derived.Pin.Name, derived.Pin.Version, derived.Pin.Digest) });
+            await publisher.CreateDraftAsync(new(Tenant, "temporal", "Entry", "1.0.0", fields,
                 new(1, 0), ClassId: "temporal.items", RecordClass: RecordClass.Master, PackageId: "temporal-tests",
                 CreationGate: RecordCreationGate.Role, CreationRoleId: "asset-author")
                 { AmendmentPolicy = new(true) { Mode = mode ? RecordAmendmentMode.Supersession : null }, HistoryPolicy = RecordHistoryPolicy.Enabled }, "type-create");
@@ -758,6 +800,7 @@ public sealed class RecordTemporalWriteOperationTests
                 Schemas = registry, RawDefinitions = definitions, Definitions = observed, Publisher = publisher,
                 Types = new(observed, compiler, defaults, registry, window,
                     new(TenantId.FromString(Tenant), "type-author"), CreationRoles), Kinds = kinds, Domains = domains,
+                Calculations = derived is not null && composeCalculations ? new([], [derived]) : null,
             };
             Directory.CreateDirectory(fixture.DirectoryName);
             fixture.Storage = new(clock ? new(fixture.PathName, fixture.AuthorityClock) : new(fixture.PathName));

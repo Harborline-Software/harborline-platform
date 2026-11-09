@@ -345,6 +345,9 @@ public sealed class RecordTypeDefinitionStoreTests
     [InlineData("""{"envelope":{"contract":{"major":1,"minor":0},"section":"eam","tenant":"tenant-a"},"name":"Asset Class","record_type_id":"eam.asset-class","fields":[],"traits":[null]}""", "records.document_invalid", "/traits/0")]
     [InlineData("""{"envelope":{"contract":{"major":1,"minor":0},"section":"eam","tenant":"tenant-a"},"name":"Asset Class","record_type_id":"eam.asset-class","fields":[{"field_key":"a","display_name":"A","defaults_provenance":{"kind_id":"text"}}]}""", "records.document_invalid", "/fields/0/defaults_provenance/kind_version")]
     [InlineData("""{"envelope":{"contract":{"major":1,"minor":0},"section":"eam","tenant":"tenant-a"},"name":"Asset Class","record_type_id":"eam.asset-class","fields":[{"field_key":"a","display_name":"A","reference":{"target_type_id":"eam.meter","cardinality":"one","on_delete":"block","pin":{"package_id":"eam-core","definition_id":"eam.meter","version":"1.0.0","interface_version":1}}}]}""", "records.document_invalid", "/fields/0/reference/pin/digest")]
+    [InlineData("""{"envelope":{"contract":{"major":1,"minor":0},"section":"eam","tenant":"tenant-a"},"name":"Asset Class","record_type_id":"eam.asset-class","fields":[{"field_key":"a","display_name":"A","calculation":{"version":"1.0.0","digest":"d"}}]}""", "records.document_invalid", "/fields/0/calculation/name")]
+    [InlineData("""{"envelope":{"contract":{"major":1,"minor":0},"section":"eam","tenant":"tenant-a"},"name":"Asset Class","record_type_id":"eam.asset-class","fields":[{"field_key":"a","display_name":"A","calculation":{"name":"line-total","digest":"d"}}]}""", "records.document_invalid", "/fields/0/calculation/version")]
+    [InlineData("""{"envelope":{"contract":{"major":1,"minor":0},"section":"eam","tenant":"tenant-a"},"name":"Asset Class","record_type_id":"eam.asset-class","fields":[{"field_key":"a","display_name":"A","calculation":{"name":"line-total","version":"1.0.0"}}]}""", "records.document_invalid", "/fields/0/calculation/digest")]
     [InlineData("""{"envelope":{"contract":{"major":1,"minor":0},"section":"eam","tenant":"tenant-a","requires":[null]},"name":"Asset Class","record_type_id":"eam.asset-class","fields":[]}""", "records.document_invalid", "/envelope/requires/0")]
     [InlineData("""{"envelope":{"contract":{"major":1,"minor":0},"section":"eam","tenant":"tenant-a"},"name":"Asset Class","record_type_id":"eam.asset-class","fields":[{"display_name":"A","field_key":"a"},{"display_name":"B","field_key":"a"}]}""", "records.identity.duplicate_field_key", "/fields/1/field_key")]
     public async Task the_registered_validator_refuses_a_malformed_body_before_any_write(string body, string code, string pointer)
@@ -357,6 +360,23 @@ public sealed class RecordTypeDefinitionStoreTests
 
         Assert.Equal([(code, pointer)], Pairs(refused));
         Assert.Single(await host.Catalogue.ListHistoryAsync(RecordTypeDefinitionStore.KeyOf(Tenant, "eam.asset-class")));
+    }
+
+    [Fact]
+    [Trait("Holds", "records-eng-5")]
+    public void A_derived_fields_calculation_pin_round_trips_through_the_canonical_body()
+    {
+        var document = Document() with
+        {
+            Fields = [new FieldDefinition("total", "Total") { Calculation = new("line-total", "1.0.0", "ab12") }],
+        };
+
+        var json = Encoding.UTF8.GetString(RecordTypeDefinitionJson.SerializeCanonical(document));
+
+        Assert.Contains("\"calculation\":{\"digest\":\"ab12\",\"name\":\"line-total\",\"version\":\"1.0.0\"}", json, StringComparison.Ordinal);
+        var read = RecordTypeDefinitionJson.Deserialize(Encoding.UTF8.GetBytes(json));
+        Assert.Equal(new FieldCalculationPin("line-total", "1.0.0", "ab12"), Assert.Single(read.Fields).Calculation);
+        Assert.Null(RecordTypeDefinitionJson.FirstMissing(read));
     }
 
     [Fact]
