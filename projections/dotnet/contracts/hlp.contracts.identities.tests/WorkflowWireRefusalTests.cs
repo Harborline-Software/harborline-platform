@@ -126,7 +126,7 @@ public sealed class WorkflowWireRefusalTests
         Add("subject-set-not-object", "invalid-object", "WorkflowSubject.set");
         Add("subject-set-missing-type", "missing-required-property", "WorkflowSubject.set", "recordType");
         Add("subject-set-number-type", "invalid-string", "WorkflowSubject.set.recordType");
-        Add("subject-case-not-object", "invalid-object", "WorkflowSubject.case");
+        Add("subject-case-not-object", "exclusive-union-mismatch", "WorkflowSubject");
         Add("lineage-not-object", "invalid-object", "WorkflowDefinitionLineage");
         Add("lineage-missing-parent", "missing-required-property", "WorkflowDefinitionLineage", "parentDefinitionKey");
         Add("lineage-number-parent", "invalid-string", "WorkflowDefinitionLineage.parentDefinitionKey");
