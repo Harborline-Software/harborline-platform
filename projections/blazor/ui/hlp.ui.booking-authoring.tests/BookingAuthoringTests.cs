@@ -381,6 +381,28 @@ public sealed class BookingAuthoringTests : BunitContext
         Assert.Equal(["Resource", "Bookable"], OptionTexts(cut, "Definition kind"));
     }
 
+    [Fact(DisplayName = "booking-auth-7: clearing the last required resource retains the required empty array")]
+    [Trait("Holds", "booking-auth-7")]
+    public void ClearLastRequiredResource()
+    {
+        var changes = new List<BookingDraftChange>();
+        var cut = Editor(Bookable("""{"requires":["room"]}"""), changes);
+        Check(cut, "Required resource Training room", false);
+        Same(JsonNode.Parse("[]"), changes[^1].Draft.Body["requires"]!);
+    }
+
+    [Fact(DisplayName = "booking-eng-20: an established kind cannot be changed and its fields stay intact")]
+    [Trait("Holds", "booking-eng-20")]
+    public void EstablishedKindIsFixed()
+    {
+        var changes = new List<BookingDraftChange>();
+        var cut = Editor(Resource("""{"from_type_id":"type.room","availability_from":"base-hours"}"""), changes);
+        Assert.True(Labelled(cut, "Definition kind").HasAttribute("disabled"));
+        Type(cut, "Definition kind", "bookable");
+        Assert.Empty(changes);
+        Assert.Equal("base-hours", Labelled(cut, "Availability source").GetAttribute("value"));
+    }
+
     [Fact(DisplayName = "an unknown kind is shown as not a Booking kind and is never rewritten")]
     [Trait("Holds", "booking-eng-20")]
     public void UnknownKind()

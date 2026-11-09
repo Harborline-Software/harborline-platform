@@ -7,7 +7,7 @@
 @{ var body = Current.Body; var kind = Str(body["kind"]); var capacity = Str(body["capacity_kind"]); var durations = Durations(body);
     RenderFragment content = @<text>
     <header class="hl-booking-authoring__grid">
-        <label>Definition kind<select aria-label="Definition kind" value="@(kind ?? "")" @onchange="ChooseKind">@if (kind is null) { <option value="">Choose a definition kind</option> }@if (kind is not null && kind != "resource" && kind != "bookable") { <option value="@kind">@($"{kind} (not a Booking kind)")</option> }<option value="resource">Resource</option><option value="bookable">Bookable</option></select></label>
+        <label>Definition kind<select aria-label="Definition kind" disabled="@(kind is "resource" or "bookable")" value="@(kind ?? "")" @onchange="ChooseKind">@if (kind is null) { <option value="">Choose a definition kind</option> }@if (kind is not null && kind != "resource" && kind != "bookable") { <option value="@kind">@($"{kind} (not a Booking kind)")</option> }<option value="resource">Resource</option><option value="bookable">Bookable</option></select></label>
         <output aria-label="Identity">@(Current.Identity == "" ? "Not yet assigned" : Current.Identity)</output>
         <output aria-label="Version">@(Current.VersionId == "" ? "Not yet assigned" : Current.VersionId)</output>
         <output aria-label="Expected revision">@(Current.ExpectedRevision ?? "None")</output>
@@ -129,7 +129,7 @@
     private Task Edit(Action<JsonObject> mutate) { if (ReadOnly || !Adopted) return Task.CompletedTask; var body = Current.Body.DeepClone().AsObject(); mutate(body); return Change(Current with { Body = body }); }
     // Setting a member writes it; null removes it and writes nothing in its place.
     private static void Put(JsonObject body, string member, JsonNode? value) { if (value is null) body.Remove(member); else body[member] = value; }
-    private Task ChooseKind(ChangeEventArgs eventArgs) => Text(eventArgs) is "resource" or "bookable" ? Edit(body => body["kind"] = Text(eventArgs)) : Task.CompletedTask;
+    private Task ChooseKind(ChangeEventArgs eventArgs) => Str(Current.Body["kind"]) is not ("resource" or "bookable") && (Text(eventArgs) is "resource" or "bookable") ? Edit(body => body["kind"] = Text(eventArgs)) : Task.CompletedTask;
     private Task ChangeName(ChangeEventArgs eventArgs) => Edit(body => body["name"] = Text(eventArgs));
     private Task SetText(string member, string value) => Edit(body => Put(body, member, value == "" ? null : JsonValue.Create(value)));
     private Task ChangeAvailability(ChangeEventArgs eventArgs) => SetText("availability_from", Text(eventArgs));
@@ -144,7 +144,7 @@
     {
         var current = Strings(body[member]);
         var next = on ? (current.Contains(id) ? current : [.. current, id]) : [.. current.Where(entry => entry != id)];
-        Put(body, member, next.Count > 0 ? new JsonArray([.. next.Select(entry => (JsonNode)JsonValue.Create(entry))]) : null);
+        Put(body, member, next.Count > 0 || member == "requires" ? new JsonArray([.. next.Select(entry => (JsonNode)JsonValue.Create(entry))]) : null);
     });
     private Task SetDuration(int index, ChangeEventArgs eventArgs) => Parsed(Text(eventArgs)) is { } number
         ? Edit(body => { if (body["duration_intervals_minutes"] is JsonArray durations && index < durations.Count) durations[index] = number; })

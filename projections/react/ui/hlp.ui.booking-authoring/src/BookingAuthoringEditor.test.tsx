@@ -115,6 +115,20 @@ describe('hlp.ui.booking-authoring (T-606/member-editors)', () => {
     expect(changes).toHaveLength(0)
   })
 
+  it('booking-auth-7: clearing the last required resource retains the required empty array', () => {
+    const { last } = editor({ identity: 'bookable.x', versionId: '1', body: { kind: 'bookable', requires: ['room'] } })
+    check('Required resource Training room')
+    expect(last().draft.body.requires).toEqual([])
+  })
+
+  it('booking-eng-20: an established kind cannot be changed and its fields stay intact', () => {
+    const { changes } = editor(resourceDraft({ from_type_id: 'type.room', availability_from: 'base-hours' }))
+    expect(screen.getByLabelText('Definition kind')).toBeDisabled()
+    type('Definition kind', 'bookable')
+    expect(changes).toHaveLength(0)
+    expect(screen.getByLabelText('Availability source')).toHaveValue('base-hours')
+  })
+
   it('booking-auth-1: options take either shape, a current value the host does not offer is shown, and no offer shows a fallback note', () => {
     editor(resourceDraft({ from_type_id: 'type.retired' }))
     const types = screen.getByLabelText('Resource record type')

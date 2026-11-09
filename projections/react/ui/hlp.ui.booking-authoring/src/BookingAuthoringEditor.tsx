@@ -37,7 +37,7 @@ export function BookingAuthoringEditor(props: BookingAuthoringEditorProps) {
   const setNumber = (member: string, raw: string) => { if (raw.trim() === '') { set(member, undefined); return } const number = parsed(raw); if (number !== undefined) set(member, number) }
   // Exclusive capacity carries no pool size (the producer refuses one), so choosing it removes pool_size in the same edit.
   const chooseCapacity = (kind: string) => { const { capacity_kind: _kind, pool_size: size, ...rest } = latest.current.body; change({ ...latest.current, body: { ...rest, ...(kind ? { capacity_kind: kind } : {}), ...(kind === 'pool' && size !== undefined ? { pool_size: size } : {}) } }) }
-  const toggle = (member: string, id: string, on: boolean) => { const current = strings(latest.current.body[member]); const next = on ? (current.includes(id) ? current : [...current, id]) : current.filter(entry => entry !== id); set(member, next.length > 0 ? next : undefined) }
+  const toggle = (member: string, id: string, on: boolean) => { const current = strings(latest.current.body[member]); const next = on ? (current.includes(id) ? current : [...current, id]) : current.filter(entry => entry !== id); set(member, next.length > 0 || member === 'requires' ? next : undefined) }
   const setDuration = (index: number, raw: string) => { const number = parsed(raw); if (number === undefined) return; set('duration_intervals_minutes', numbers(latest.current.body.duration_intervals_minutes).map((entry, current) => current === index ? number : entry)) }
   const addDuration = () => { const number = parsed(newDuration); if (number === undefined) return; set('duration_intervals_minutes', [...numbers(latest.current.body.duration_intervals_minutes), number]); setNewDuration('') }
   const removeDuration = (index: number) => { const next = numbers(latest.current.body.duration_intervals_minutes).filter((_, current) => current !== index); set('duration_intervals_minutes', next.length > 0 ? next : undefined) }
@@ -79,7 +79,7 @@ export function BookingAuthoringEditor(props: BookingAuthoringEditorProps) {
 
   const content = <>
     <header className="hl-booking-authoring__grid">
-      <label>Definition kind<select aria-label="Definition kind" value={kind ?? ''} onChange={event => { const next = event.currentTarget.value; if (next === 'resource' || next === 'bookable') set('kind', next) }}>{kind === undefined && <option value="">Choose a definition kind</option>}{kind !== undefined && kind !== 'resource' && kind !== 'bookable' && <option value={kind}>{`${kind} (not a Booking kind)`}</option>}<option value="resource">Resource</option><option value="bookable">Bookable</option></select></label>
+      <label>Definition kind<select aria-label="Definition kind" disabled={kind === 'resource' || kind === 'bookable'} value={kind ?? ''} onChange={event => { const next = event.currentTarget.value; if (kind !== 'resource' && kind !== 'bookable' && (next === 'resource' || next === 'bookable')) set('kind', next) }}>{kind === undefined && <option value="">Choose a definition kind</option>}{kind !== undefined && kind !== 'resource' && kind !== 'bookable' && <option value={kind}>{`${kind} (not a Booking kind)`}</option>}<option value="resource">Resource</option><option value="bookable">Bookable</option></select></label>
       <output aria-label="Identity">{value.identity || 'Not yet assigned'}</output>
       <output aria-label="Version">{value.versionId || 'Not yet assigned'}</output>
       <output aria-label="Expected revision">{value.expectedRevision ?? 'None'}</output>
