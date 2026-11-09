@@ -245,14 +245,11 @@ export interface WorkflowDefinitionLineage {
 }
 
 /**
- * What a workflow runs on (`WorkflowSubject`, DES-0019 workflows-ck-12, ADR 0099): exactly one of a record, a set
- * or a case. A record or set names its Record Type; a case names none until DES-0019 open ruling 3 defines the
- * Case Surface (ADR 0125).
+ * What a workflow runs on (`WorkflowSubject`, DES-0019 workflows-ck-12, ADR 0099): exactly one of a record or a set, each naming its Record Type (ADR 0126).
  */
 export type WorkflowSubject =
   | { record: { recordType: string } }
   | { set: { recordType: string } }
-  | { case: Record<string, never> }
 
 /**
  * The canonical declarative workflow keystone (`WorkflowDefinition`) -- the process
@@ -273,7 +270,7 @@ export interface WorkflowDefinition {
   /** Display title (chrome). */
   title: InternationalizedText
   description?: InternationalizedText
-  /** What this process runs on: a record, a set or a case (ADR 0099, ADR 0125). */
+  /** What this process runs on: a record or a set (ADR 0099, ADR 0126). */
   subject?: WorkflowSubject
   /** Editability posture (ADR 0135 4.4). */
   mutability: WorkflowMutability

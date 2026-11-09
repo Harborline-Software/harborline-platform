@@ -11,9 +11,7 @@ using Wire = Harborline.Contracts.Workflow;
 namespace Harborline.Blocks.Workflow.Tests;
 
 /// <summary>
-/// T-488/subject-union. Oracles: ADR 0099 (a record, set or case union replaces SubjectFormRef), ADR 0125 decisions 1
-/// to 3 (record and set name a Record Type, a case names none), and the WorkflowSubject rows of
-/// conformance/hlp.contracts.workflow/fixtures.yaml, whose inputs and verdicts are data neither reader produces.
+/// T-488/subject-union. Oracle: ADR 0126 and the independent conformance fixtures.
 /// </summary>
 public sealed class WorkflowSubjectUnionTests
 {
@@ -51,14 +49,9 @@ public sealed class WorkflowSubjectUnionTests
         Assert.Equal("invoice", subject.RecordType);
     }
 
-    [Fact(DisplayName = "workflows-auth-12: a case subject names no Record Type")]
-    public void Workflows_auth_12_a_case_subject_names_no_record_type()
-    {
-        var subject = Map("""{"case": {}}""").Subject!;
-
-        Assert.Equal(WorkflowSubjectKind.Case, subject.Kind);
-        Assert.Null(subject.RecordType);
-    }
+    [Fact(DisplayName = "workflows-auth-12: a case subject is refused")]
+    public void Workflows_auth_12_a_case_subject_is_refused() =>
+        Assert.Throws<ArgumentException>(() => Map("""{"case": {}}"""));
 
     [Fact(DisplayName = "workflows-ck-12: a definition with no subject maps to none and the legacy form reference is not read")]
     public void Workflows_ck_12_a_definition_with_no_subject_maps_to_none_and_the_legacy_form_reference_is_not_read()

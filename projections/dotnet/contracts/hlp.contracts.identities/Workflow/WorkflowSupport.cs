@@ -53,7 +53,7 @@ public sealed class WorkflowActionTargetJsonConverter : JsonConverter<WorkflowAc
 
 public sealed class WorkflowSubjectJsonConverter : JsonConverter<WorkflowSubject>
 {
-    private static readonly string[] Kinds = ["record", "set", "case"];
+    private static readonly string[] Kinds = ["record", "set"];
 
     // A null subject is not a subject: without this the serializer returns null for it and Read never refuses it.
     public override bool HandleNull => true;
@@ -64,10 +64,9 @@ public sealed class WorkflowSubjectJsonConverter : JsonConverter<WorkflowSubject
         var value = document.RootElement;
         if (value.ValueKind != JsonValueKind.Object) throw new WorkflowWireException("invalid-object", "WorkflowSubject");
         var kinds = Kinds.Where(kind => value.TryGetProperty(kind, out _)).ToArray();
-        if (kinds.Length != 1) throw new WorkflowWireException("exclusive-union-mismatch", "WorkflowSubject");
+        if (kinds.Length != 1 || value.EnumerateObject().Count() != 1) throw new WorkflowWireException("exclusive-union-mismatch", "WorkflowSubject");
         var body = value.GetProperty(kinds[0]);
         if (body.ValueKind != JsonValueKind.Object) throw new WorkflowWireException("invalid-object", $"WorkflowSubject.{kinds[0]}");
-        if (kinds[0] == "case") return new WorkflowCaseSubject();
         if (!body.TryGetProperty("recordType", out var recordType))
             throw new WorkflowWireException("missing-required-property", $"WorkflowSubject.{kinds[0]}", "recordType");
         if (recordType.ValueKind != JsonValueKind.String) throw new WorkflowWireException("invalid-string", $"WorkflowSubject.{kinds[0]}.recordType");
@@ -81,7 +80,6 @@ public sealed class WorkflowSubjectJsonConverter : JsonConverter<WorkflowSubject
         {
             case WorkflowRecordSubject record: writer.WriteStartObject("record"); writer.WriteString("recordType", record.RecordType); break;
             case WorkflowSetSubject set: writer.WriteStartObject("set"); writer.WriteString("recordType", set.RecordType); break;
-            case WorkflowCaseSubject: writer.WriteStartObject("case"); break;
             default: throw new JsonException("Unknown WorkflowSubject subtype.");
         }
         writer.WriteEndObject();

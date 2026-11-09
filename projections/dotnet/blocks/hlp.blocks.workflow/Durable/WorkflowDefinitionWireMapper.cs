@@ -238,22 +238,22 @@ public static class WorkflowDefinitionWireMapper
         return entries.EnumerateArray().Select((entry, index) => read(entry, $"{field}[{index}]")).ToArray();
     }
 
-    // Exactly one of record, set or case (ADR 0099), as the contract wire reads it; a malformed subject throws rather
+    // Exactly one of record or set (ADR 0126), as the contract wire reads it; a malformed subject throws rather
     // than reading as no subject.
     private static WorkflowSubjectDef? ReadSubject(JsonElement el)
     {
         if (!el.TryGetProperty("subject", out var subject)) return null;
         string[] kinds = subject.ValueKind == JsonValueKind.Object
-            ? [.. new[] { "record", "set", "case" }.Where(kind => subject.TryGetProperty(kind, out _))]
+            ? [.. new[] { "record", "set" }.Where(kind => subject.TryGetProperty(kind, out _))]
             : [];
-        if (kinds.Length != 1 || subject.GetProperty(kinds[0]).ValueKind != JsonValueKind.Object)
-            throw new ArgumentException("workflow definition 'subject' must be an object naming exactly one of record, set or case.");
+        if (kinds.Length != 1 || subject.EnumerateObject().Count() != 1 || subject.GetProperty(kinds[0]).ValueKind != JsonValueKind.Object)
+            throw new ArgumentException("workflow definition 'subject' must be an object naming exactly one of record or set.");
         var body = subject.GetProperty(kinds[0]);
         return kinds[0] switch
         {
             "record" => WorkflowSubjectDef.Record(RequireString(body, "recordType", "subject.record")),
             "set" => WorkflowSubjectDef.Set(RequireString(body, "recordType", "subject.set")),
-            _ => WorkflowSubjectDef.Case,
+            _ => throw new ArgumentException("Unknown subject kind."),
         };
     }
 

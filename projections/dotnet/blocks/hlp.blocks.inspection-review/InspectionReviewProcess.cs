@@ -62,8 +62,6 @@ public static class InspectionReviewProcess
             Tenant = tenant,
             Owner = new IdentityRef { Scheme = "system", Value = DefinitionKey },
             Title = title,
-            // ADR 0125 decision 3: a case subject from the binding's existing case reference; it names no Record Type.
-            Subject = new WorkflowCaseSubject(),
             Mutability = WorkflowMutability.Locked,
             InitialState = ReviewState,
             States =

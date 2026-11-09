@@ -51,16 +51,13 @@ public sealed class InspectionReviewContractTests
         Assert.All(workflow.Triggers, trigger => Assert.Equal(WorkflowTriggerKind.HumanAction, trigger.Kind));
     }
 
-    // ADR 0125 decision 3 (T-488/subject-union, workflows-ck-12): the frozen workflow's subject is a case, from the
-    // binding's case reference, with no Forms definition reference and no Record Type; the binding is unchanged.
+    // ADR 0126 decision 4: inspection review writes no subject.
     [Fact]
-    public void Workflows_ck_12_frozen_workflow_runs_on_a_case_subject_without_a_form_reference()
+    public void Workflows_ck_12_frozen_workflow_has_no_subject()
     {
         var workflow = InspectionReviewProcess.BuildWorkflow("tenant-a", Binding(), DateTimeOffset.Parse("2026-08-09T00:00:00Z"));
-
-        Assert.IsType<WorkflowCaseSubject>(workflow.Subject.Value);
         var wire = JsonNode.Parse(WorkflowWire.Serialize("WorkflowDefinition", workflow))!.AsObject();
-        Assert.True(JsonNode.DeepEquals(JsonNode.Parse("{\"case\":{}}"), wire["subject"]), wire["subject"]?.ToJsonString());
+        Assert.False(wire.ContainsKey("subject"));
         Assert.False(wire.ContainsKey("subjectFormRef"));
     }
 

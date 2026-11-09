@@ -115,7 +115,7 @@ public sealed class WorkflowWireRefusalTests
         Add("contract-fraction-minor", "invalid-integer", "WorkflowContractVersion.minor");
 
         // workflows-ck-12: the subject is exactly one of record, set or case (ADR 0099); record and set name a Record Type
-        // and a case names none (ADR 0125).
+        // (ADR 0126).
         Add("subject-not-object", "invalid-object", "WorkflowSubject");
         Add("subject-null", "invalid-object", "WorkflowSubject");
         Add("subject-no-kind", "exclusive-union-mismatch", "WorkflowSubject");

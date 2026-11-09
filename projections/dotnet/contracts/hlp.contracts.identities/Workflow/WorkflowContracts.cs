@@ -149,16 +149,14 @@ public sealed record WorkflowDefinitionLineage
 
 /// <summary>
 /// What a Workflow runs on (DES-0019 workflows-ck-12, ADR 0099): exactly one of a record, a set or a case, written
-/// <c>{"record": {...}}</c>, <c>{"set": {...}}</c> or <c>{"case": {...}}</c>. ADR 0125 decides what each kind names.
+/// <c>{"record": {...}}</c> or <c>{"set": {...}}</c>. ADR 0126 decides what each kind names.
 /// </summary>
 [JsonConverter(typeof(WorkflowSubjectJsonConverter))]
 public abstract record WorkflowSubject;
-/// <summary>One record of the named Record Type (ADR 0125 decision 1).</summary>
+/// <summary>One record of the named Record Type (ADR 0126 decision 1).</summary>
 public sealed record WorkflowRecordSubject(string RecordType) : WorkflowSubject;
-/// <summary>A set of records of the named Record Type (ADR 0125 decision 2).</summary>
+/// <summary>A set of records of the named Record Type (ADR 0126 decision 2).</summary>
 public sealed record WorkflowSetSubject(string RecordType) : WorkflowSubject;
-/// <summary>A case. It names no Record Type until DES-0019 open ruling 3 defines the Case Surface (ADR 0125 decision 3).</summary>
-public sealed record WorkflowCaseSubject : WorkflowSubject;
 
 /// <summary>A definition's declared application-contract version on the wire.</summary>
 public sealed record WorkflowContractVersion

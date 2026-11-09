@@ -190,13 +190,10 @@ public enum WorkflowSubjectKind
     Record,
     /// <summary>A set of records of a Record Type.</summary>
     Set,
-    /// <summary>A case.</summary>
-    Case,
 }
 
 /// <summary>
-/// What a workflow runs on. A record or set names its Record Type; a case names none until DES-0019 open ruling 3
-/// defines the Case Surface (ADR 0125 decisions 1 to 3). Built only through the factories, so no other shape exists.
+/// What a workflow runs on. A record or set names its Record Type (ADR 0126).
 /// </summary>
 public sealed record WorkflowSubjectDef
 {
@@ -205,11 +202,8 @@ public sealed record WorkflowSubjectDef
     /// <summary>The subject's kind.</summary>
     public WorkflowSubjectKind Kind { get; }
 
-    /// <summary>The Record Type a record or set subject names; null for a case.</summary>
+    /// <summary>The Record Type the subject names.</summary>
     public string? RecordType { get; }
-
-    /// <summary>A case subject, which names no Record Type.</summary>
-    public static WorkflowSubjectDef Case { get; } = new(WorkflowSubjectKind.Case, null);
 
     /// <summary>One record of <paramref name="recordType"/>.</summary>
     public static WorkflowSubjectDef Record(string recordType) => new(WorkflowSubjectKind.Record, Named(recordType));
@@ -288,7 +282,7 @@ public sealed class WorkflowDefinition
     /// <summary>Owning tenant id.</summary>
     public required string Tenant { get; init; }
 
-    /// <summary>What this process runs on (ADR 0099, ADR 0125), or null for a revision that names none.</summary>
+    /// <summary>What this process runs on (ADR 0099, ADR 0126), or null for a revision that names none.</summary>
     public WorkflowSubjectDef? Subject { get; init; }
 
     /// <summary>The editability posture; defaults to <see cref="WorkflowMutability.Locked"/>.</summary>

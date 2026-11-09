@@ -48,7 +48,7 @@
     {"id": "unknown-transition-role-refused", "operation": "admission.mutate", "input": "$canonical", "mutation": {"unknownTransitionRole": true}, "expected": {"isValid": false, "codes": ["workflow.admission.unknown_role_reference"]}},
     {"id": "workflows-ck-12-record-subject-names-a-record-type", "operation": "wire.round-trip", "type": "WorkflowSubject", "input": {"record": {"recordType": "invoice"}}, "expected": "same"},
     {"id": "workflows-ck-12-set-subject-names-a-record-type", "operation": "wire.round-trip", "type": "WorkflowSubject", "input": {"set": {"recordType": "invoice"}}, "expected": "same"},
-    {"id": "workflows-ck-12-case-subject-names-none", "operation": "wire.round-trip", "type": "WorkflowSubject", "input": {"case": {}}, "expected": "same"},
+    {"id": "workflows-ck-12-case-subject-rejected", "operation": "wire.read", "type": "WorkflowSubject", "input": {"case": {}}, "expectedError": "exclusive-union-mismatch"},
     {"id": "workflows-ck-12-two-subject-kinds-rejected", "operation": "wire.read", "type": "WorkflowSubject", "input": {"record": {"recordType": "invoice"}, "case": {}}, "expectedError": "exclusive-union-mismatch"},
     {"id": "workflows-ck-12-null-subject-rejected", "operation": "wire.read", "type": "WorkflowSubject", "input": null, "expectedError": "invalid-object"},
     {"id": "workflows-ck-12-no-subject-kind-rejected", "operation": "wire.read", "type": "WorkflowSubject", "input": {}, "expectedError": "exclusive-union-mismatch"},
