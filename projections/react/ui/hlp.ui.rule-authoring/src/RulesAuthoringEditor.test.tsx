@@ -13,6 +13,21 @@ const contracts = [{ site: 'rule', returnContract: 'typed value', executionTimeC
 const props = (overrides: Partial<React.ComponentProps<typeof RulesAuthoringEditor>> = {}) => ({ value: emptyRulesDraft(), expressionContracts: contracts, previewKind: 'real' as const, onChange: vi.fn(), onOperation: vi.fn(), ...overrides })
 
 describe('Rules authoring React projection', () => {
+  it('rules-auth-19 navigates consumer and calculation and names dead weight from producer lineage', () => {
+    const fixture = JSON.parse(readFileSync(resolve(process.cwd(), '../../../../conformance/hlp.ui.rule-authoring/lineage.json'), 'utf8'))
+    const rules = fixture.documents.map((doc: { envelope: { id: string }; name: string; draft: unknown }) => ({ ...emptyRulesDraft(), identity: doc.envelope.id, name: doc.name, draft: doc.draft }))
+    render(<RulesAuthoringEditor {...props({ value: rules[0], catalogue: { rules }, lineage: fixture.lineage })} />)
+    expect(screen.getByRole('heading', { name: 'Total' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Calculations read by Total' })).toBeInTheDocument()
+    expect(screen.getByText('1 consumers')).toBeInTheDocument()
+    expect(screen.getByText('0 consumers — unreferenced calculation')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Consumer' }))
+    expect(screen.getByLabelText('Rule identity')).toHaveTextContent('consumer')
+    expect(screen.getByRole('heading', { name: 'Calculations read by Consumer' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Total' }))
+    expect(screen.getByLabelText('Rule identity')).toHaveTextContent('total')
+  })
+
   it('replays every supplied producer preview outcome and lifecycle identity from the exact fixture', () => {
     expect(fixture.lifecycle.responses).toHaveLength(6)
     for (const item of fixture.preview.cases) { const expected = item.expected; const empty = emptyRulesDraft(); const { unmount } = render(<RulesAuthoringEditor {...props({ value: { ...empty, identity: expected.ruleName, draft: { ...empty.draft, scopeTarget: expected.memberName } }, outcome: { ...expected, kind: expected.kind as never, inputLabel: fixture.preview.label, clockUtc: fixture.preview.clockUtc } })} />); expect(screen.getByLabelText('Rule identity')).toHaveTextContent(expected.ruleName); expect(screen.getByText(new RegExp(expected.kind === 'Value' ? expected.value! : expected.kind === 'Validity' ? expected.validity! : expected.kind === 'Visibility' ? expected.visibility! : expected.kind === 'Presentation' ? expected.presentation! : expected.kind === 'Pending' ? 'Preview pending' : expected.code!))).toHaveTextContent(expected.ruleName); expect(screen.getByText(new RegExp(fixture.preview.clockUtc))).toBeInTheDocument(); unmount() }

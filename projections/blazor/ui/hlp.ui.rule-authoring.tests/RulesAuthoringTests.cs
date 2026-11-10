@@ -13,6 +13,28 @@ namespace Harborline.UIAdapters.Blazor.Tests;
 
 public sealed class RulesAuthoringTests : BunitContext
 {
+    [Fact(DisplayName = "rules-auth-19: navigates producer lineage and names unreferenced calculation")]
+    public void NavigatesLineage()
+    {
+        var path = FindFixture().Replace("hlp.blocks.builder-definitions/rules-editor-contract-fixtures.json", "hlp.ui.rule-authoring/lineage.json", StringComparison.Ordinal);
+        using var fixture = JsonDocument.Parse(File.ReadAllText(path));
+        var root = fixture.RootElement;
+        var rules = root.GetProperty("documents").EnumerateArray().Select(row => {
+            var document = RuleIntentValidator.ValidateJson(row.GetRawText(), RuleIntentPhase.Author).Document!;
+            return new RulesDraft(document.Envelope.Id, "", document.Name, "Draft", "", document.Draft);
+        }).ToArray();
+        var lineage = root.GetProperty("lineage");
+        static Dictionary<string, IReadOnlyList<string>> Map(JsonElement element) => element.EnumerateObject().ToDictionary(p => p.Name, p => (IReadOnlyList<string>)p.Value.EnumerateArray().Select(x => x.GetString()!).ToArray());
+        var view = new RulesLineageView(Map(lineage.GetProperty("consumersOf")), Map(lineage.GetProperty("calculationsReadBy")), lineage.GetProperty("deadWeight").EnumerateArray().Select(x => x.GetString()!).ToArray());
+        var cut = Render<HarborlineRulesAuthoringEditor>(p => p.Add(x => x.Value, rules[0]).Add(x => x.Catalogue, new RulesRuleCatalogue(rules)).Add(x => x.Lineage, view));
+        Assert.Contains("1 consumers", cut.Markup);
+        Assert.Contains("0 consumers — unreferenced calculation", cut.Markup);
+        cut.FindButton("Edit Consumer").Click();
+        Assert.Equal("consumer", cut.Find("output[aria-label='Rule identity']").TextContent);
+        cut.FindButton("Edit Total").Click();
+        Assert.Equal("total", cut.Find("output[aria-label='Rule identity']").TextContent);
+    }
+
     [Theory]
     [Trait("ModuleConformance", "hlp.ui.rule-authoring")]
     [MemberData(nameof(SharedFixtureBatch.Cases), "hlp.ui.rule-authoring", MemberType = typeof(SharedFixtureBatch))]
