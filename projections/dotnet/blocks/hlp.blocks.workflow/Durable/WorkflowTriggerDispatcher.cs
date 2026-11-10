@@ -18,7 +18,8 @@ namespace Harborline.Blocks.Workflow.Durable;
 ///     <see cref="WorkflowDispatchResult.ReplayedNoOp"/>. This is what makes a redelivered trigger or a
 ///     post-crash re-fire safe (ADR 0135 §Idempotency).</item>
 ///   <item>Ask the definition's handler for a <see cref="WorkflowStepOutcome"/>.</item>
-///   <item>Commit it: <see cref="WorkflowStepOutcomeKind.Park"/> → durable park; otherwise the
+///   <item>Commit it: <see cref="WorkflowStepOutcomeKind.Discard"/> → commit nothing and return
+///     <see cref="WorkflowDispatchResult.Discarded"/>; <see cref="WorkflowStepOutcomeKind.Park"/> → durable park; otherwise the
 ///     idempotency-guarded ATOMIC advance (effect + event + idempotency row + position in one
 ///     transaction — build invariant #1). A crash inside the advance rolls everything back, so the resume
 ///     finds NO idempotency row and re-runs cleanly with no double-effect (ADR 0135 SC1).</item>
@@ -150,6 +151,11 @@ public sealed class WorkflowTriggerDispatcher : IWorkflowTriggerDispatcher
                     $"No {nameof(IWorkflowStepHandler)} registered for definition '{instance.DefinitionKey}' " +
                     $"(instance '{trigger.InstanceId}') and no {nameof(IDeclarativeWorkflowInterpreter)} fallback " +
                     "is configured.");
+
+        if (outcome.Kind == WorkflowStepOutcomeKind.Discard)
+        {
+            return WorkflowDispatchResult.Discarded;
+        }
 
         if (outcome.Kind == WorkflowStepOutcomeKind.Park)
         {
