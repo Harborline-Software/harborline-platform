@@ -567,3 +567,16 @@ for (const [label, revision] of [['mismatched', 'b'.repeat(40)], ['missing', und
     assert.deepEqual(result.reads, [])
   })
 }
+
+test('every external action in the receipt workflow is pinned; only its local reusable call is exempt', () => {
+  const workflow = readWorkflow('verify-gallery-receipt.yml')
+  const uses = [...workflow.matchAll(/^\s*(?:-\s+)?uses:\s*(.+)$/gm)].map(match => match[1])
+  const local = './.github/workflows/sign-gallery-receipt.yml'
+  assert.ok(uses.length > 1)
+  assert.equal(uses.filter(reference => reference === local).length, 1)
+  for (const reference of uses) {
+    if (reference === local) continue
+    assert.match(reference, /^[\w.-]+\/[\w./-]+@[0-9a-f]{40} # v\d+(?:\s.*)?$/,
+      `receipt workflow action must use an immutable commit and version comment: ${reference}`)
+  }
+})
