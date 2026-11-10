@@ -156,4 +156,35 @@ public sealed class ReportDefinitionCatalogueTests
         Assert.Empty(await store.ListHistoryAsync(key));
     }
 
+    [Fact, Trait("Holds", "reports-ck-1"), Trait("Holds", "reports-eng-2")]
+    public async Task reports_ck_1_direct_store_requires_canonical_bytes_and_preserves_their_digest()
+    {
+        // Independent literal of the versionless report representation; the shared store hashes these exact UTF-8 bytes.
+        const string canonical = """
+            {"tenant":"tenant-r","key":"report-a","measures":[],"envelope":{"identity":"report-a","tenant":"tenant-r","contract":{"major":1,"minor":0},"cascade_layer":"domain_package","provenance":{},"retention_class":"business","legal_hold":false,"requires":[]}}
+            """;
+        var store = Store();
+        var key = new DefinitionKey("tenant-r", DefinitionKind.Reports, "report-a");
+        var document = new DefinitionDocument(key, "report-a@1.0.0", "1.0.0", canonical);
+        var reordered = canonical.Replace("\"tenant\":\"tenant-r\",\"key\":\"report-a\"", "\"key\":\"report-a\",\"tenant\":\"tenant-r\"", StringComparison.Ordinal);
+        var indented = JsonSerializer.Serialize(JsonDocument.Parse(canonical).RootElement, new JsonSerializerOptions { WriteIndented = true });
+        foreach (var body in new[] { reordered, indented })
+        {
+            var refused = await Assert.ThrowsAsync<DefinitionRefusalException>(async () =>
+                await store.SaveDraftAsync(document with { BodyJson = body }, 0, "noncanonical"));
+            Assert.Equal("report.definition.body_invalid", Assert.Single(refused.Refusals).Code);
+            Assert.Empty(await store.ListHistoryAsync(key));
+        }
+        await store.SaveDraftAsync(document, 0, "raw");
+        await store.PublishAsync(key, "report-a@1.0.0", 1, "publish");
+        var published = await new ReportDefinitionCatalogue(store).ResolveHeadAsync("tenant-r", "report-a");
+        var pack = ReportDefinitionCatalogue.Export(published);
+        var imported = await new ReportDefinitionCatalogue(Store()).ImportDraftAsync(pack, 0, "import");
+        var expectedDigest = Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(canonical)));
+        Assert.Equal(canonical, published.Revision.Document.BodyJson);
+        Assert.Equal(canonical, imported.Revision.Document.BodyJson);
+        Assert.Equal(expectedDigest, published.Revision.Digest);
+        Assert.Equal(expectedDigest, imported.Revision.Digest);
+    }
+
 }

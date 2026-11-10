@@ -89,9 +89,9 @@
     "projections/dotnet/blocks/hlp.blocks.reports.tests/ReportMeasureEntryTests.cs": "ddc56156358a6668c078c1ed1d8bdd98d28cff6c81bdd79498586c7ad051676c",
     "projections/dotnet/blocks/hlp.blocks.reports/Definitions/ReportDefinition.cs": "490dd1f87ca0886b5c226800619539177c9a439b926c9e9a8f53fb26cb2e9da8",
     "projections/dotnet/blocks/hlp.blocks.reports/Definitions/ReportDefinitionAdmission.cs": "4381e65a78a581e7dfab8f212dad1b7a9df06346234a6f7b83398a099055bf32",
-    "projections/dotnet/blocks/hlp.blocks.reports/Definitions/ReportDefinitionCatalogue.cs": "5196fc8a9ebfd42458bab74ddeb3b661645cd8b0e8b563e2ea53e70102d081be",
+    "projections/dotnet/blocks/hlp.blocks.reports/Definitions/ReportDefinitionCatalogue.cs": "e3ca55811cf59db91985065f2f6bb8c667b711ed5a1b2ac50b357ba0a9f55931",
     "projections/dotnet/blocks/hlp.blocks.reports.tests/ReportDefinitionAdmissionTests.cs": "319e17047680307b49b46caff06c0afad44a5211d76eeb5ae05672ddb7773a79",
-    "projections/dotnet/blocks/hlp.blocks.reports.tests/ReportDefinitionCatalogueTests.cs": "57c463fd9cbfb7df228ec1cf1dc6cb57fcfe5b335fe2d12501c785cd483a19f3"
+    "projections/dotnet/blocks/hlp.blocks.reports.tests/ReportDefinitionCatalogueTests.cs": "e097add1fcaedd47eb9eac74c5a1ebb92c64452bd4e8c2d4239b5c7572a259df"
   },
   "nextGate": "Wave B: re-prove the 12 host-transport rows + 3 renderer-client rows at the narrowed loopback WebApplication seam and build the reports-capability-vertical package fixture (162-anchor corpus, sole Harborline package references); only that vertical flips the reports gate."
 }

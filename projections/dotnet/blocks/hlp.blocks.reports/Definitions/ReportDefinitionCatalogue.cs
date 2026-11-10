@@ -33,6 +33,8 @@ public sealed class ReportDefinitionCatalogue(IVersionedDefinitionStore store)
             try
             {
                 var definition = Decode(document);
+                if (document.BodyJson != Document(definition).BodyJson)
+                    throw new JsonException("Stored reports must use the typed codec representation.");
                 return ReportDefinitionAdmission.AdmitAsync(definition, phase, window, catalogue).AsTask()
                     .GetAwaiter().GetResult().Refusals.Select(item => new DefinitionRefusal(item.Code, item.Pointer)).ToArray();
             }
