@@ -29,6 +29,8 @@ public sealed class RulesAuthoringTests : BunitContext
         var cut = Render<HarborlineRulesAuthoringEditor>(p => p.Add(x => x.Value, rules[0]).Add(x => x.Catalogue, new RulesRuleCatalogue(rules)).Add(x => x.Lineage, view));
         Assert.Contains("1 consumers", cut.Markup);
         Assert.Contains("0 consumers — unreferenced calculation", cut.Markup);
+        cut.FindButton("Edit calculation Unused").Click();
+        Assert.Equal("unused", cut.Find("output[aria-label='Rule identity']").TextContent);
         cut.FindButton("Edit Consumer").Click();
         Assert.Equal("consumer", cut.Find("output[aria-label='Rule identity']").TextContent);
         cut.FindButton("Edit Total").Click();

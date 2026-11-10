@@ -21,6 +21,8 @@ describe('Rules authoring React projection', () => {
     expect(screen.getByRole('heading', { name: 'Calculations read by Total' })).toBeInTheDocument()
     expect(screen.getByText('1 consumers')).toBeInTheDocument()
     expect(screen.getByText('0 consumers — unreferenced calculation')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Edit calculation Unused' }))
+    expect(screen.getByLabelText('Rule identity')).toHaveTextContent('unused')
     fireEvent.click(screen.getByRole('button', { name: 'Edit Consumer' }))
     expect(screen.getByLabelText('Rule identity')).toHaveTextContent('consumer')
     expect(screen.getByRole('heading', { name: 'Calculations read by Consumer' })).toBeInTheDocument()
