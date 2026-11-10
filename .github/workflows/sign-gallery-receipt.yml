@@ -14,12 +14,12 @@ jobs:
       id-token: write
       attestations: write
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           ref: ${{ github.sha }}
           fetch-depth: 0
           persist-credentials: false
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: 24
       - name: Fetch candidate only as Git data
@@ -30,7 +30,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: node tooling/gates/scan-evidence-provenance.mjs --receipt plan
-      - uses: actions/download-artifact@v8
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         if: steps.plan.outputs.changed == 'true'
         with:
           name: gallery-run-${{ github.run_id }}-${{ github.run_attempt }}
@@ -42,7 +42,7 @@ jobs:
         run: node tooling/gates/scan-evidence-provenance.mjs --receipt build
       - id: attest
         if: steps.plan.outputs.changed == 'true'
-        uses: actions/attest@v4
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4 (actions/attest@v4)
         with:
           subject-name: gallery-tree
           subject-digest: ${{ steps.predicate.outputs.digest }}
@@ -60,7 +60,7 @@ jobs:
         run: node tooling/gates/scan-evidence-provenance.mjs --receipt verify
       - id: evidence
         if: steps.verify.outcome == 'success'
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: gallery-receipt-${{ github.run_id }}-${{ github.run_attempt }}
           path: receipt
@@ -68,7 +68,7 @@ jobs:
           retention-days: 90
       - id: app
         if: always()
-        uses: actions/create-github-app-token@v3
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3
         with:
           client-id: ${{ vars.GALLERY_RECEIPT_APP_CLIENT_ID }}
           private-key: ${{ secrets.GALLERY_RECEIPT_APP_KEY }}
