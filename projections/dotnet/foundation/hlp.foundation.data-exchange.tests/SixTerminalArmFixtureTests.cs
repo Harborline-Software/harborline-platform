@@ -8,6 +8,7 @@ namespace Harborline.Foundation.DataExchange.Tests;
 public sealed class SixTerminalArmFixtureTests
 {
     [Fact]
+    [Trait("Holds", "data-exchange-eng-8")]
     public async Task Dry_run_classifies_one_effect_into_each_terminal_arm()
     {
         var mapping = new TabularMappingDocument(
