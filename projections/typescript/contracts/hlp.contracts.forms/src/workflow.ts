@@ -244,13 +244,12 @@ export interface WorkflowDefinitionLineage {
   parentVersion: string
 }
 
-/** A content-addressed reference to a `FormDefinition` (`FormDefinitionRef`). */
-export interface FormDefinitionRef {
-  /** The form definition id. */
-  formId: string
-  /** Canonical `"{major}.{minor}.{patch}"`. */
-  version: string
-}
+/**
+ * What a workflow runs on (`WorkflowSubject`, DES-0019 workflows-ck-12, ADR 0099): exactly one of a record or a set, each naming its Record Type (ADR 0126).
+ */
+export type WorkflowSubject =
+  | { record: { recordType: string } }
+  | { set: { recordType: string } }
 
 /**
  * The canonical declarative workflow keystone (`WorkflowDefinition`) -- the process
@@ -271,12 +270,8 @@ export interface WorkflowDefinition {
   /** Display title (chrome). */
   title: InternationalizedText
   description?: InternationalizedText
-  /**
-   * The `FormDefinition` this process operates on (ADR 0140 D3 composition binding).
-   * A guard reads its fields via the shared `field.<name>` grammar; a `CreateRecord`
-   * / `UpdateField` action writes it via the Store-PEP.
-   */
-  subjectFormRef?: FormDefinitionRef
+  /** What this process runs on: a record or a set (ADR 0099, ADR 0126). */
+  subject?: WorkflowSubject
   /** Editability posture (ADR 0135 4.4). */
   mutability: WorkflowMutability
   /** The state new instances start in (must be a `states[].id`). */
