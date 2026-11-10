@@ -128,6 +128,21 @@ public sealed class WorkflowStepOutcome
     public static WorkflowStepOutcome Discard(string step)
         => new(WorkflowStepOutcomeKind.Discard, step, WorkflowStatus.Running, null, "{}", "", "{}");
 
+    /// <summary>
+    /// Terminal definition-decision failure (ADR-0141). No effect or retry; the ordinary atomic
+    /// advance records the failed position, outcome event and idempotency result together.
+    /// </summary>
+    public static WorkflowStepOutcome InterpreterFailure(string step)
+    {
+        var payload = System.Text.Json.JsonSerializer.Serialize(new
+        {
+            kind = "interpreter-failure",
+            reason = "not-retryable",
+            step,
+        });
+        return new(WorkflowStepOutcomeKind.Advance, step, WorkflowStatus.Failed, null, payload, "Failed", payload);
+    }
+
     /// <summary>Terminal advance to <see cref="WorkflowStatus.Completed"/>.</summary>
     public static WorkflowStepOutcome Complete(
         string finalStep,

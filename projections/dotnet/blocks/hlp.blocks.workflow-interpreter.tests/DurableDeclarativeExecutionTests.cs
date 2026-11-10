@@ -184,6 +184,17 @@ public sealed class DurableDeclarativeExecutionTests : IDisposable
 
         Assert.Equal(WorkflowDispatchResult.Terminal, await dispatcher.DispatchAsync(trigger, Authorized("bad-1")));
         Assert.Equal(events.Count, (await store.EventsAsync("bad-1")).Count);
+
+        store.Dispose();
+        using var reopened = new FileJournalWorkflowStore(new FileJournalWorkflowStoreOptions
+        {
+            JournalPath = Path.Combine(_directory, "workflow.hlwj"),
+        }, TimeProvider.System);
+        Assert.Equal(WorkflowStatus.Failed, (await reopened.LoadAsync("bad-1"))!.Status);
+        Assert.Equal("B", (await reopened.LoadAsync("bad-1"))!.CurrentStep);
+        Assert.Equal(result.ResultJson,
+            (await reopened.FindStepResultAsync(new WorkflowStepKey("bad-1", 0, "A")))!.ResultJson);
+        Assert.Equal(events.Count, (await reopened.EventsAsync("bad-1")).Count);
     }
 
     // ── Harness ─────────────────────────────────────────────────────────────

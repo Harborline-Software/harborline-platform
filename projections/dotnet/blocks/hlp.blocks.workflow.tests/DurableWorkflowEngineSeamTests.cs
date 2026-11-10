@@ -30,6 +30,41 @@ public sealed class DurableWorkflowEngineSeamTests
     private const string Tenant = "tenant:acme";
     private static readonly IWorkflowDefinitionExecutionStore AdmittedDefinitionStore = new AlwaysAdmittedDefinitionStore();
 
+    [Theory]
+    [InlineData("gate")]
+    [InlineData("cancel")]
+    [InlineData("action")]
+    public async Task Interpreter_non_decision_exceptions_pass_through_without_committing(string kind)
+    {
+        // ADR-0141 D2: compare the exact thrown object, and durable state before/after.
+        using var fixture = new JournalFixture();
+        using var store = fixture.Open();
+        await CreateAsync(store, "preserve", step: "step-1");
+        Exception error = kind switch
+        {
+            "gate" => new WorkflowGateRefusedException("workflow.gate.denied", "denied"),
+            "cancel" => new OperationCanceledException(),
+            _ => new InvalidOperationException("action failure"),
+        };
+        var dispatcher = new WorkflowTriggerDispatcher(store, Array.Empty<IWorkflowStepHandler>(),
+            interpreter: new ThrowingInterpreter(error), definitionStore: AdmittedDefinitionStore);
+        var before = await store.EventsAsync("preserve");
+        Assert.Same(error, await Record.ExceptionAsync(() => dispatcher.DispatchAsync(
+            WorkflowTrigger.For(WorkflowTriggerKind.Event, "preserve", "step-1"), Authorized("preserve"))));
+        var instance = (await store.LoadAsync("preserve"))!;
+        Assert.Equal(WorkflowStatus.Running, instance.Status);
+        Assert.Equal("step-1", instance.CurrentStep);
+        Assert.Null(await store.FindStepResultAsync(new WorkflowStepKey("preserve", 0, "step-1")));
+        Assert.Equal(before.Count, (await store.EventsAsync("preserve")).Count);
+    }
+
+    private sealed class ThrowingInterpreter(Exception error) : IDeclarativeWorkflowInterpreter
+    {
+        public ValueTask<WorkflowStepOutcome> DecideAsync(
+            WorkflowInstanceRecord instance, WorkflowTrigger trigger, CancellationToken ct = default)
+            => throw error;
+    }
+
     [Fact]
     public async Task TypedHandlerDispatch_WithMissingPinnedDefinition_IsRefusedBeforeTheHandlerRuns()
     {
