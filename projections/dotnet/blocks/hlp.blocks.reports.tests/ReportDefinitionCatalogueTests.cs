@@ -112,4 +112,48 @@ public sealed class ReportDefinitionCatalogueTests
         var envelope = await Assert.ThrowsAsync<DefinitionRefusalException>(async () => await catalogue.SaveDraftAsync(badEnvelope, 1, "bad-envelope"));
         Assert.Equal("/envelope/retention_class", Assert.Single(envelope.Refusals).Pointer);
     }
+    [Theory, Trait("Holds", "reports-ck-3"), Trait("Holds", "reports-eng-2")]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task reports_ck_3_direct_store_refuses_repeated_versions_before_commit(bool inEnvelope)
+    {
+        var store = Store();
+        var body = System.Text.Json.Nodes.JsonNode.Parse("""
+            {"tenant":"tenant-r","key":"report-a","measures":[]}
+            """)!.AsObject();
+        if (inEnvelope)
+            body["envelope"] = System.Text.Json.Nodes.JsonNode.Parse("""
+                {"identity":"report-a","version":"1.0.0","tenant":"tenant-r","contract":{"major":1,"minor":0},
+                 "cascade_layer":"domain_package","provenance":{},"retention_class":"business","legal_hold":false,"requires":[]}
+                """);
+        else body["version"] = "1.0.0";
+        var key = new DefinitionKey("tenant-r", DefinitionKind.Reports, "report-a");
+        var refused = await Assert.ThrowsAsync<DefinitionRefusalException>(async () =>
+            await store.SaveDraftAsync(new(key, "report-a@1.0.0", "1.0.0", body.ToJsonString()), 0, "raw"));
+        Assert.Equal("report.definition.body_invalid", Assert.Single(refused.Refusals).Code);
+        Assert.Empty(await store.ListHistoryAsync(key));
+    }
+
+    [Theory, Trait("Holds", "reports-eng-2")]
+    [InlineData("measures")]
+    [InlineData("parameters")]
+    public async Task reports_eng_2_null_elements_refuse_on_raw_and_pack_writes(string collection)
+    {
+        var store = Store();
+        var key = new DefinitionKey("tenant-r", DefinitionKind.Reports, "report-a");
+        var body = System.Text.Json.Nodes.JsonNode.Parse("""
+            {"tenant":"tenant-r","key":"report-a","measures":[]}
+            """)!.AsObject();
+        body[collection] = new System.Text.Json.Nodes.JsonArray((System.Text.Json.Nodes.JsonNode?)null);
+        var raw = await Assert.ThrowsAsync<DefinitionRefusalException>(async () =>
+            await store.SaveDraftAsync(new(key, "report-a@1.0.0", "1.0.0", body.ToJsonString()), 0, "raw"));
+        Assert.Equal("report.definition.body_invalid", Assert.Single(raw.Refusals).Code);
+        body["version"] = "1.0.0";
+        var pack = new ReportDefinitionPackEntry(9, "report-a", "1.0.0", body.ToJsonString());
+        var imported = await Assert.ThrowsAsync<DefinitionRefusalException>(async () =>
+            await new ReportDefinitionCatalogue(store).ImportDraftAsync(pack, 0, "pack"));
+        Assert.Equal("report.definition.body_invalid", Assert.Single(imported.Refusals).Code);
+        Assert.Empty(await store.ListHistoryAsync(key));
+    }
+
 }

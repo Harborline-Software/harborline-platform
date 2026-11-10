@@ -22,7 +22,7 @@
     "Identical neutral inputs at an identical marker produce identical results.",
     "Open-item reads are tenant-isolated: another tenant's bills/invoices never enter a cartridge's rows (proven by the pinned AP isolation case).",
     "All seven cartridges are registered by Harborline package composition.",
-    "ReportDefinitionEnvelope carries identity, version, tenant, contract, cascade layer, provenance, retention class, legal hold and requires. Store document metadata owns the version; restoration copies the body into a new draft and publications remain immutable. Reports admission is registered on shared-store writes, including publication."
+    "ReportDefinitionEnvelope carries identity, version, tenant, contract, cascade layer, provenance, retention class, legal hold and requires. Store document metadata owns the version; restoration copies the body into a new draft and publications remain immutable. Reports admission is registered on shared-store writes, including publication. Raw stored bodies and envelopes must omit version fields so every admitted publication remains restorable. Null measure or parameter elements refuse report.definition.body_invalid before typed admission."
   ],
   "errors": ["unknown-report-kind", "report-parameter-validation", "report-cartridge-execution"],
   "publicSeams": ["IReportQuerySource neutral read port (tenant+chart-scoped open items)", "ISnapshotMarkerSource", "injected TimeProvider"],

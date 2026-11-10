@@ -97,23 +97,26 @@ public sealed class ReportDefinitionCatalogue(IVersionedDefinitionStore store)
         if (document.Key.Kind != DefinitionKind.Reports || document.VersionId != VersionId(document.Key.DefinitionId, document.Version))
             throw new JsonException("Report catalogue coordinates are invalid.");
         var body = JsonNode.Parse(document.BodyJson)!.AsObject();
-        CheckVersion(body, document.Version);
+        RequireVersionless(body);
         body["version"] = document.Version;
         if (body["envelope"] is JsonObject envelope)
         {
-            CheckVersion(envelope, document.Version);
+            RequireVersionless(envelope);
             envelope["version"] = document.Version;
         }
         var definition = body.Deserialize<ReportDefinition>(Json) ?? throw new JsonException("Report body required.");
-        if (definition.Tenant != document.Key.Tenant || definition.Key != document.Key.DefinitionId || definition.Measures is null)
+        if (definition.Tenant != document.Key.Tenant || definition.Key != document.Key.DefinitionId || definition.Measures is null
+            || definition.Measures.Any(measure => measure is null)
+            || definition.Parameters?.Any(parameter => parameter is null) == true)
             throw new JsonException("Report body coordinates are invalid.");
         return definition;
     }
 
-    private static void CheckVersion(JsonObject body, string version)
+    private static void RequireVersionless(JsonObject body)
     {
-        if (body.ContainsKey("version") && body["version"]?.GetValue<string>() != version)
-            throw new JsonException("Report version mismatch.");
+        // Raw shared-store callers must obey the same representation as typed saves: restore copies the body unchanged.
+        if (body.ContainsKey("version"))
+            throw new JsonException("Stored report bodies must omit versions.");
     }
 
     private static ReportDefinitionRevision Typed(DefinitionRevision revision) => new(revision, Decode(revision.Document));
