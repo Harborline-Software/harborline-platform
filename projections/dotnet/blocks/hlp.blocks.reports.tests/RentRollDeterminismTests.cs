@@ -94,7 +94,7 @@ public sealed class RentRollDeterminismTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_IsDeterministic_AcrossRepeatedRuns()
+    [Trait("Holds", "reports-eng-21")] public async Task ExecuteAsync_IsDeterministic_AcrossRepeatedRuns()
     {
         var (sut, leases, _, _) = Build();
         var t1 = NewPartyId();

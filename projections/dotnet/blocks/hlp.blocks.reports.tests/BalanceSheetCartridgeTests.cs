@@ -114,6 +114,7 @@ public sealed class BalanceSheetCartridgeTests
     }
 
     [Fact]
+    [Trait("Holds", "reports-eng-19")]
     public async Task BalanceSheet_AccountingEquationBalances_WithTypicalEntry()
     {
         // Cash (Asset) debit, Equity credit. Classic initial capital contribution.

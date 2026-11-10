@@ -123,6 +123,7 @@ public sealed class ArAgingSummaryCartridgeTests
     // ──────────────────────────────────────────────────────────────────
 
     [Fact]
+    [Trait("Holds", "reports-eng-19")]
     public async Task ArAgingSummary_SingleInvoiceCurrent_AppearsInCurrentBucket()
     {
         var (sut, invoices, _) = Build();

@@ -101,6 +101,7 @@ public sealed class ReportRunnerTests
     }
 
     [Fact]
+    [Trait("Holds", "reports-eng-20")]
     public async Task RunAsync_DispatchesToRegisteredCartridge()
     {
         var (runner, registry, _, _) = Build();
@@ -129,6 +130,7 @@ public sealed class ReportRunnerTests
     }
 
     [Fact]
+    [Trait("Holds", "reports-eng-20")]
     public async Task RunAsync_CapturesSnapshotMarkerBeforeCartridgeInvocation()
     {
         var (runner, registry, markers, _) = Build();
@@ -198,6 +200,7 @@ public sealed class ReportRunnerTests
     }
 
     [Fact]
+    [Trait("Holds", "reports-eng-20")]
     public async Task RunAsync_PopulatesSnapshotMarkerInResult()
     {
         var (runner, registry, _, _) = Build();
