@@ -4,7 +4,7 @@
   "sourceExtracted": true,
   "sourceState": "Scheduling Wave B: the calendar domain engine ported verbatim (all 163 pinned cases green under their pinned names; 159 declarations with two 3-row theories). The pinned packages six executable ambient-clock reads were deliberately not ported - callers supply time and zone ids, deterministic defaults when omitted - and the pinned suite proved the behavior identical. The draft-era local Shipyard.Foundation.Scheduling compatibility copy was replaced at writer-lane merge review with a ProjectReference to the real hlp.foundation.scheduling module to prevent cross-assembly type ambiguity. T-626 promoted the composition to the IAvailabilityRuntime substrate contract (mandatory bounded window, pool capacity by overlap depth, required-resource conjunction with buffers) and routed BookingService through it, removing its duplicate shared-exception resolver.",
   "contentHashes": {
-    "projections/dotnet/blocks/hlp.blocks.calendar/DependencyInjection/CalendarServiceCollectionExtensions.cs": "2f7d28c94b0e47a277cb2805a9b23ca66a9f6c1be8877f52aa434faa0b79c523",
+    "projections/dotnet/blocks/hlp.blocks.calendar/DependencyInjection/CalendarServiceCollectionExtensions.cs": "1c02a1a4abccc4b98b1fb715b0337733c1d3d98907b88e8a0805751f8afaaf35",
     "projections/dotnet/blocks/hlp.blocks.calendar/Models/AvailabilityWindow.cs": "dda853fe74c06821c205d36c2e70a589a513f6c32207ef6d8089b102958c2d5c",
     "projections/dotnet/blocks/hlp.blocks.calendar/Models/BusyEvent.cs": "33dc490cd93357e6e7299794dd01a291478d66f7aa1d6d1561e8d51dce5c0056",
     "projections/dotnet/blocks/hlp.blocks.calendar/Models/CalendarEvent.cs": "d24b349343226ad3e64757d6695631651772a63576c759c8ec8daf30fcfd3505",
