@@ -62,6 +62,7 @@ public sealed class TrialBalanceCartridgeTests
     }
 
     [Fact]
+    [Trait("Holds", "reports-eng-19")]
     public async Task TrialBalance_SingleAccountWithBalance_AppearsInDebitColumn()
     {
         var cash = Acct("1000", GLAccountType.Asset);
@@ -112,6 +113,7 @@ public sealed class TrialBalanceCartridgeTests
     }
 
     [Fact]
+    [Trait("Holds", "reports-eng-22")]
     public async Task TrialBalance_PeriodSoftClosed_IsProvisionalTrue_WithWarning()
     {
         var (sut, source) = Build();
@@ -229,6 +231,7 @@ public sealed class TrialBalanceCartridgeTests
     }
 
     [Fact]
+    [Trait("Holds", "reports-eng-22")]
     public async Task TrialBalance_PeriodOpen_IsProvisionalTrue_WithWarning()
     {
         var (sut, source) = Build();

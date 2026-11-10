@@ -29,6 +29,7 @@ public sealed class ReportMeasureEntryTests
 
     // measure-catalogue-eng-9 / measure-catalogue-ck-2.
     [Fact]
+    [Trait("Holds", "reports-bound-3")]
     public async Task Exactly_the_seven_shipped_computations_are_registered_as_bound_entries()
     {
         var entries = ReportMeasureEntries.All();

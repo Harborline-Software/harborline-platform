@@ -79,7 +79,7 @@ public sealed class ProfitAndLossByPropertyDeterminismTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_IsDeterministic_AcrossRepeatedRuns()
+    [Trait("Holds", "reports-eng-21")] public async Task ExecuteAsync_IsDeterministic_AcrossRepeatedRuns()
     {
         var rev = RevAcct("4000");
         var exp = ExpAcct("5000");
