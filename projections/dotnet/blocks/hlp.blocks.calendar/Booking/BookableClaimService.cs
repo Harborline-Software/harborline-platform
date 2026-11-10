@@ -6,7 +6,10 @@ using Harborline.Foundation.Authorization;
 namespace Harborline.Blocks.Calendar.Booking;
 
 /// <summary>One required Resource of a Bookable, resolved to the Party or Asset that supplies it.</summary>
-public sealed record BookableClaimResource(ParticipantRef Resource, BookingResourceDefinition Definition);
+public sealed record BookableClaimResource(ParticipantRef Resource, BookingResourceDefinition Definition, string? DefinitionId = null);
+
+/// <summary>The supplier and its buffered candidate footprint.</summary>
+public sealed record BookableClaimCandidate(ParticipantRef Resource, TimeInterval Interval);
 
 /// <summary>Stable refusal codes of a Bookable claim (T-606).</summary>
 public static class BookableClaimCodes
@@ -28,6 +31,10 @@ public static class BookableClaimCodes
 /// <summary>The events a claim committed, one per required Resource, or the refusal and nothing written.</summary>
 public sealed record BookableClaimOutcome(IReadOnlyList<CalendarEvent> Events, string? Refusal)
 {
+    /// <summary>Candidate footprints for a valid window with resolved resources.</summary>
+    public IReadOnlyList<BookableClaimCandidate> Candidates { get; init; } = [];
+    /// <summary>The unresolved definition or supplier identity, if any.</summary>
+    public string? UnresolvedName { get; init; }
     /// <summary>True when every required Resource was claimed.</summary>
     public bool Claimed => Refusal is null;
 
@@ -99,12 +106,19 @@ public sealed class BookableClaimService
         var required = new List<BookableClaimResource>(bookable.Requires.Count);
         foreach (var name in bookable.Requires)
         {
-            if (resources.FirstOrDefault(r => r.Definition.Name == name) is not { } resolved)
-                return BookableClaimOutcome.Refused(BookableClaimCodes.RequirementUnresolved);
+            if (resources.FirstOrDefault(r => (r.DefinitionId ?? r.Definition.Name) == name) is not { } resolved)
+                return BookableClaimOutcome.Refused(BookableClaimCodes.RequirementUnresolved) with { UnresolvedName = name };
             required.Add(resolved);
         }
         if (required.Count == 0)
             return BookableClaimOutcome.Refused(BookableClaimCodes.RequirementUnresolved);
+
+        var durationTicks = (endUtc - startUtc).Ticks;
+        var validWindow = durationTicks > 0 && bookable.DurationIntervalsMinutes.Any(minutes =>
+            durationTicks == minutes * TimeSpan.TicksPerMinute);
+        var capacities = validWindow ? required.Select(Capacity).ToArray() : [];
+        var candidates = capacities.Select(c => new BookableClaimCandidate(c.Resource,
+            TimeInterval.Of(startUtc - c.Buffer.Pre, endUtc + c.Buffer.Post))).ToArray();
 
         // The requester is the authenticated Party, resolved before any read (T-568, L535).
         Guid claimedBy;
@@ -114,17 +128,14 @@ public sealed class BookableClaimService
         }
         catch (PrincipalPartyResolutionException)
         {
-            return BookableClaimOutcome.Refused(BookableClaimCodes.NoRequester);
+            return BookableClaimOutcome.Refused(BookableClaimCodes.NoRequester) with { Candidates = candidates };
         }
         if (claimedBy == Guid.Empty)
-            return BookableClaimOutcome.Refused(BookableClaimCodes.NoRequester);
+            return BookableClaimOutcome.Refused(BookableClaimCodes.NoRequester) with { Candidates = candidates };
 
-        var durationTicks = (endUtc - startUtc).Ticks;
-        if (durationTicks <= 0 || !bookable.DurationIntervalsMinutes.Any(minutes =>
-                durationTicks == minutes * TimeSpan.TicksPerMinute))
+        if (!validWindow)
             return BookableClaimOutcome.Refused(BookableClaimCodes.WindowInvalid);
 
-        var capacities = required.Select(Capacity).ToArray();
         for (var attempt = 1; attempt <= MaxCapacityAttempts; attempt++)
         {
             // Epochs first: the capacity read below is advisory until the conditional write accepts it.
@@ -134,21 +145,21 @@ public sealed class BookableClaimService
 
             var read = await _runtime.Read(tenantId, new AvailabilityRequest(startUtc, endUtc, capacities), ct).ConfigureAwait(false);
             if (read.Refusal is not null)
-                return BookableClaimOutcome.Refused(BookableClaimCodes.WindowInvalid);
+                return BookableClaimOutcome.Refused(BookableClaimCodes.WindowInvalid) with { Candidates = candidates };
             if (read.Resources.Any(r => r.Unavailability == Unavailability.OutsideSupply))
-                return BookableClaimOutcome.Refused(BookableClaimCodes.OutsideSupply);
+                return BookableClaimOutcome.Refused(BookableClaimCodes.OutsideSupply) with { Candidates = candidates };
             if (!read.Available)
-                return BookableClaimOutcome.Refused(BookableClaimCodes.CapacityExhausted);
+                return BookableClaimOutcome.Refused(BookableClaimCodes.CapacityExhausted) with { Candidates = candidates };
 
             var claimed = required
                 .Select((resource, i) => Occupying(tenantId, bookable.Name, resource.Resource, capacities[i].Buffer, startUtc, endUtc, claimedBy))
                 .ToArray();
             if (await _events.SaveAllIfCapacityUnchangedAsync(tenantId, claimed, epochs, ct).ConfigureAwait(false))
-                return new BookableClaimOutcome(claimed, null);
+                return new BookableClaimOutcome(claimed, null) { Candidates = candidates };
             // An epoch moved: nothing was written. Re-read; a claim that lost the last place is refused
             // CapacityExhausted on the next pass.
         }
-        return BookableClaimOutcome.Refused(BookableClaimCodes.Contended);
+        return BookableClaimOutcome.Refused(BookableClaimCodes.Contended) with { Candidates = candidates };
     }
 
     /// <summary>The runtime input for one required Resource: its capacity kind and its own buffers.</summary>
