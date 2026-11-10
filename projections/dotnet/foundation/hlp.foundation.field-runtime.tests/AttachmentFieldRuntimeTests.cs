@@ -111,6 +111,25 @@ public sealed class AttachmentFieldRuntimeTests
         Assert.Equal(remaining == 0 ? 1 : 0, f.Store.Reclamations.Count);
     }
 
+    [Theory]
+    [InlineData("[\"text/plain\"]", 51, "content.too-large")]
+    [InlineData("[\"application/pdf\"]", 3, "content.field-media-type-not-allowed")]
+    public async Task A_stage_uploaded_without_field_narrowing_is_rechecked_at_commit(string acceptedMedia, int size, string code)
+    {
+        var f = new Fixture();
+        var field = (ICompiledAttachmentFieldKind)new FieldKindRuntime(new FieldKindRegistry([new("attachment", "1.0.0", null, FieldScalarValueShape.ContentReference)]), 100)
+            .Bind(new("attachment", "1.0.0", new Dictionary<string,string> { ["item_limit_bytes"] = "50", ["accepted_media_types"] = acceptedMedia }), "/kind");
+        var stage = await f.Store.PutAsync(new("tenant"), new MemoryStream(Encoding.UTF8.GetBytes(new string('x', size))), "text/plain", null, Evidence());
+        var entries = JsonSerializer.SerializeToElement(new[] { new { stage_id = stage, display_name = "evidence.txt" } });
+        var port = new Port(f.Storage.Bookkeeping);
+        var error = await Assert.ThrowsAsync<ContentRefusedException>(async () => await KernelTransactionBoundary.ExecutePreparedAsync(async token =>
+            new KernelCommand<JsonArray>(Evidence().Operation, await f.Runtime.ResolveWriteAsync(field, entries, new("tenant"), new("record", "evidence"), Evidence(port.Session), token), Evidence().Audit), port));
+        Assert.Equal(code, error.Code);
+        if (code == "content.too-large") { Assert.Equal(50, error.Detail["limit"]); Assert.Equal(51, error.Detail["observed"]); }
+        Assert.Equal(0, f.Store.CommittedCount);
+        Assert.Equal(1, f.Store.StagedCount);
+    }
+
     private static ContentStoreWrite Evidence(IContentBookkeepingSession? session = null) =>
         new(new(Guid.NewGuid().ToString("N"), Guid.NewGuid().ToString("N"), "fingerprint"), new(Guid.NewGuid().ToString("N"), "writer", DateTimeOffset.UnixEpoch, ReadOnlyMemory<byte>.Empty), session);
     private sealed class Fixture

@@ -43,12 +43,12 @@ public sealed class AttachmentFieldRuntime(InMemoryContentStore store)
                         Audit = evidence.Audit with { AuditId = Guid.NewGuid().ToString("N") },
                     }, cancellationToken).ConfigureAwait(false);
                 var value = ToJson(reference);
-                if (field.Validate(JsonSerializer.SerializeToElement(value), "").Count != 0) throw Invalid();
+                ValidateReference(field, JsonSerializer.SerializeToElement(value), owner.Element);
                 resolved.Add(value);
             }
             else
             {
-                if (field.Validate(entry, "").Count != 0) throw Invalid();
+                ValidateReference(field, entry, owner.Element);
                 var reference = FromJson(entry);
                 var item = await evidence.Transaction.FindItemForUpdateAsync(new(tenant, reference.ContentId), cancellationToken).ConfigureAwait(false);
                 if (reference.Owner.Record != owner.Record || !reference.Owner.Element.StartsWith(owner.Element + "/", StringComparison.Ordinal)
@@ -71,6 +71,18 @@ public sealed class AttachmentFieldRuntime(InMemoryContentStore store)
                 Operation = new(Guid.NewGuid().ToString("N"), Guid.NewGuid().ToString("N"), evidence.Operation.Fingerprint),
                 Audit = evidence.Audit with { AuditId = Guid.NewGuid().ToString("N") },
             }, cancellationToken).ConfigureAwait(false);
+    }
+
+    private static void ValidateReference(ICompiledAttachmentFieldKind field, JsonElement value, string declaration)
+    {
+        var refusals = field.Validate(value, "");
+        if (refusals.Count == 0) return;
+        if (refusals[0].Code == "content.too-large")
+            throw new ContentRefusedException("content.too-large", "The item exceeds the effective field limit.", declaration,
+                new Dictionary<string, long> { ["limit"] = field.EffectiveLimitBytes, ["observed"] = value.GetProperty("length").GetInt64() });
+        if (refusals[0].Code == "content.field-media-type-not-allowed")
+            throw new ContentRefusedException("content.field-media-type-not-allowed", "The field does not accept this media type.", declaration);
+        throw Invalid();
     }
 
     private static FieldAdmissionException Invalid() => new([new("field.value_type_mismatch", "", "An attachment write requires kept references or staged entries.")]);
