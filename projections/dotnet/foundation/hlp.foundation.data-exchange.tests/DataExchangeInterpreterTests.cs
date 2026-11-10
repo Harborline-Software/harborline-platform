@@ -7,6 +7,27 @@ namespace Harborline.Foundation.DataExchange.Tests;
 public sealed class DataExchangeInterpreterTests
 {
     [Fact]
+    [Trait("Holds", "data-exchange-eng-1")]
+    public async Task Missing_published_head_refuses_before_source_is_resolved()
+    {
+        var source = new StubSource(new DiscoveredSourceShape([]), []);
+        var interpreter = new DataExchangeInterpreter(
+            new StubCapabilities(source),
+            new DataExchangeRuntime(new InMemoryExchangeRunStore(), TimeProvider.System, new FakeLifecyclePolicy()),
+            new InMemoryProtectedEffectPayloadStore());
+        var refusal = await Assert.ThrowsAsync<DataExchangeCapabilityException>(() => interpreter.CreateDryRunAsync(
+            new MissingDefinition(), "tenant", "missing",
+            new ExchangeEvaluationContext("actor", "source", "window", null, "authz", "standard")).AsTask());
+        Assert.Equal("definition.published_head_not_found", refusal.Code);
+        Assert.Equal(0, source.Discoveries);
+    }
+
+    private sealed class MissingDefinition : IDataExchangeDefinitionResolver
+    {
+        public ValueTask<DataExchangeDefinition?> ResolvePublishedHeadAsync(string tenant, string definitionKey, CancellationToken cancellationToken = default)
+            => ValueTask.FromResult<DataExchangeDefinition?>(null);
+    }
+    [Fact]
     public async Task Composite_external_key_does_not_collide_with_the_effect_identity_separator()
     {
         // A two-column external key previously joined with '|', the same character
@@ -80,6 +101,8 @@ public sealed class DataExchangeInterpreterTests
     }
 
     [Fact]
+    [Trait("Holds", "data-exchange-eng-10")]
+    [Trait("Holds", "data-exchange-auth-24")]
     public async Task Invalid_row_is_recorded_as_rejected_and_later_rows_are_still_proposed()
     {
         var source = new StubSource(
@@ -106,6 +129,7 @@ public sealed class DataExchangeInterpreterTests
         Assert.Equal(2, dryRun.NormalizedEffects.Count);
         Assert.Equal(2, dryRun.Census.Accounted);
         Assert.Equal(1, dryRun.Census.Rejected);
+        Assert.Equal(ExchangeRunTerminalStatus.CompletedWithRefusals, dryRun.TerminalStatus);
 
         var target = new CapturingTarget();
         var policies = new FakeSourcePolicies
@@ -211,10 +235,14 @@ public sealed class DataExchangeInterpreterTests
 internal sealed class StubSource(DiscoveredSourceShape shape, IReadOnlyList<AcquiredSourceRecord> records)
     : IReadOnlyAcquisitionSource
 {
+    public int Discoveries { get; private set; }
     public string CapabilityId => "erpnext";
     public string ConnectorVersion => "4.1.0";
     public ValueTask<DiscoveredSourceShape> DiscoverAsync(ExchangeSourceBinding binding, CancellationToken cancellationToken = default)
-        => ValueTask.FromResult(shape);
+    {
+        Discoveries++;
+        return ValueTask.FromResult(shape);
+    }
 
     public async IAsyncEnumerable<AcquiredSourceRecord> ReadAsync(
         ExchangeSourceBinding binding,

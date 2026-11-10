@@ -496,11 +496,7 @@ public sealed class DataExchangeCommitter(
             durableCheckpointOrdinal = result.Effect.SourceOrdinal;
         }
         var census = ExchangeRunClosure.Census(results);
-        var terminalStatus = census.Halted > 0
-            ? ExchangeRunTerminalStatus.Halted
-            : census.Skipped + census.Conflicted + census.Rejected + census.Failed > 0
-                ? ExchangeRunTerminalStatus.CompletedWithRefusals
-                : ExchangeRunTerminalStatus.Completed;
+        var terminalStatus = ExchangeRunClosure.TerminalStatus(census);
         var commitRun = new CommitRunArtifact(
             commitRunId,
             dryRun.Id,

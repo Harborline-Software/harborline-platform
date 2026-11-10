@@ -82,7 +82,11 @@ public sealed record DryRunArtifact(
     ExchangeCensus Census,
     string? ExpectedCheckpoint,
     bool LegalHold = false,
-    DryRunId? SupersedesDryRunId = null);
+    DryRunId? SupersedesDryRunId = null)
+{
+    /// <summary>Terminal result derived from the reviewed census.</summary>
+    public ExchangeRunTerminalStatus TerminalStatus => ExchangeRunClosure.TerminalStatus(Census);
+}
 
 /// <summary>Whether a commit run's checkpoint promotion has completed.</summary>
 public enum CheckpointFinalizationStatus

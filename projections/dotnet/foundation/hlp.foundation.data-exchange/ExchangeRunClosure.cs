@@ -3,6 +3,11 @@ namespace Harborline.Foundation.DataExchange;
 /// <summary>Admission for closed, exactly conserved run evidence. Durable stores must enforce this too.</summary>
 public static class ExchangeRunClosure
 {
+    /// <summary>Derives the terminal result from the conserved census.</summary>
+    public static ExchangeRunTerminalStatus TerminalStatus(ExchangeCensus census)
+        => census.Halted > 0 ? ExchangeRunTerminalStatus.Halted
+            : census.Applied == census.Accounted ? ExchangeRunTerminalStatus.Completed
+            : ExchangeRunTerminalStatus.CompletedWithRefusals;
     /// <summary>Throws run.outcome_unknown when the outcome is null or its status is not a defined arm.</summary>
     public static void ValidateOutcome(EffectTerminalOutcome outcome)
     {
@@ -57,9 +62,7 @@ public static class ExchangeRunClosure
         var census = Census(artifact.Effects);
         if (artifact.Census != census || census.Accounted != approved.NormalizedEffects.Count)
             throw new DataExchangeCommitRefusedException("run.census_incomplete", "The census must conserve every reviewed effect.");
-        var terminal = census.Halted > 0 ? ExchangeRunTerminalStatus.Halted
-            : census.Applied == census.Accounted ? ExchangeRunTerminalStatus.Completed
-            : ExchangeRunTerminalStatus.CompletedWithRefusals;
+        var terminal = TerminalStatus(census);
         if (artifact.TerminalStatus != terminal)
             throw new DataExchangeCommitRefusedException("run.terminal_inconsistent", "The terminal state must agree with the census.");
     }

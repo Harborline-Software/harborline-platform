@@ -9,6 +9,7 @@ public sealed class SixTerminalArmFixtureTests
 {
     [Fact]
     [Trait("Holds", "data-exchange-eng-8")]
+    [Trait("Holds", "data-exchange-eng-21")]
     public async Task Dry_run_classifies_one_effect_into_each_terminal_arm()
     {
         var mapping = new TabularMappingDocument(
@@ -60,6 +61,7 @@ public sealed class SixTerminalArmFixtureTests
         Assert.Equal(1, dryRun.Census.Rejected);
         Assert.Equal(1, dryRun.Census.Failed);
         Assert.Equal(1, dryRun.Census.Halted);
+        Assert.Equal(ExchangeRunTerminalStatus.Halted, dryRun.TerminalStatus);
         // A dry run reads the ledger and never claims or writes to it (T-601 acceptance, "dry run
         // writes zero target records"; ADR-0098 C8): the fake's write surface must stay untouched.
         Assert.Equal(0, ledger.WriteAttempts);

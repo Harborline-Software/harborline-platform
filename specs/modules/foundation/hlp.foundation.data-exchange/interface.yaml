@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.foundation.data-exchange",
-  "interfaceRevision": 3,
+  "interfaceRevision": 4,
   "status": "frozen",
   "purpose": "Own the inbound-only Data Exchange definition, constrained CSVW mapping profile, immutable tenant run evidence, distinct replay identities, bounded canonical Records command orchestration, target Access gate, effect ledger, and conservative checkpoint promotion required by ADR 0098.",
   "dependencies": [],
@@ -13,7 +13,7 @@
       "DataExchangeDefinitionJson.SerializeCanonical / Deserialize -> canonical snake_case, ordinal-sorted, newline-terminated UTF-8 JSON for every definition member; DataExchangeDefinitionPackExporter.Export(definition, window, sources) -> content kind 12 entry of canonical bytes after publish admission, carried by PlatformPackageExporter with closure, manifest and digest",
       "IDataExchangeDefinitionResolver.ResolvePublishedHeadAsync -> the published head the interpreter runs, supplied by the host over the shared catalogue",
       "DataExchangeInterpreter.CreateDryRunAsync -> resolve a read-only source capability, discover and validate source shape, stream rows, apply CSVW null/default/type semantics and registered transforms, bind canonical payloads, persist payloads behind protected references, and continue with a closed rejection for an invalid row",
-      "DataExchangeRuntime.CreateDryRunAsync -> persist a new immutable tenant review artifact with proposal fingerprints, normalized evidence, candidate checkpoint, protected snapshot reference and policy-owned lifecycle",
+      "DataExchangeRuntime.CreateDryRunAsync -> persist a new immutable tenant review artifact with proposal fingerprints, normalized evidence, census-derived terminal status, candidate checkpoint, protected snapshot reference and policy-owned lifecycle",
       "DataExchangeCommitter.CommitAsync(DryRunId, CommitOptions?, CancellationToken) -> reevaluate via IProposalEvaluationPort; stale preimage creates a linked superseding dry run and refuses; resolve mandatory source outcome policy; bounded dispatch and exact census closure",
       "DataExchangePermissions -> closed author, dry-run, commit and read-run-results capability vocabulary; target Access remains independent"
     ],
@@ -31,7 +31,7 @@
     "Durable checkpoint state advances only through the maximal contiguous source-defined acknowledgement-safe prefix.",
     "Ordinary evidence contains normalized metadata and protected payload references, never embedded raw source or full proposed payloads.",
     "DryRunRequest accepts only a string RetentionClass; caller RetainUntil is refused. IRunLifecyclePolicyPort derives retention for each run; stored or current legal hold prevents disposition.",
-    "The terminal outcome vocabulary is Applied, Skipped, Conflicted, Rejected, Failed and Halted; CompletedWithRefusals is distinct from clean completion."
+    "The terminal outcome vocabulary is Applied, Skipped, Conflicted, Rejected, Failed and Halted; dry runs and commits derive Halted if any effect halted, Completed when all applied, and CompletedWithRefusals otherwise."
   ],
   "errors": [
     "mapping.profile_unknown",
@@ -110,7 +110,7 @@
   ],
   "conformance": {
     "nativeTests": {
-      "dotnet": 91
+      "dotnet": 123
     },
     "nativeTestNote": "Includes shared-catalogue immutable heads, restore-as-new-draft, canonical JSON round trip, content kind 12 platform-package export with digest, boundary refusals with valid counterparts, semantic dependency identity and supersession, closed census/status/policy refusal, lifecycle-derived retention and legal holds, rollback refusal and domain correction, execution registry admission, authorization-context propagation, lost-response replay, read-only acquisition, CSVW mapping/coercion, protected payload handling, bounded concurrent dispatch, stale promotion refusal, and recoverable checkpoint finalization."
   },
