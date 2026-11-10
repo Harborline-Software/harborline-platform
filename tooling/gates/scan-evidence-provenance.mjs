@@ -358,6 +358,8 @@ if (import.meta.main && process.argv.includes('--receipt')) {
     // Sanitized external ledger authority: only the two fields the existing ledger reads.
     // No private source, credentials, full research prose, or .git objects leave this trusted job.
     if (mode === 'ledger-data') {
+      requireThat(git(root, 'rev-parse', 'HEAD') === objectId(process.env.GITHUB_SHA),
+        'ledger checkout differs from trusted workflow revision')
       const source = resolve(process.argv.at(-2)), destination = resolve(process.argv.at(-1))
       for (const [directory, field] of [['research', 'reach-platform'], ['tickets', 'status']]) {
         for (const entry of readdirSync(resolve(source, directory), {withFileTypes: true})) {

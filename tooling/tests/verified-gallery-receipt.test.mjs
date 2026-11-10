@@ -507,3 +507,63 @@ test('post CLI does not post a check when the trusted workflow context cannot be
   assert.equal(result.status, 1)
   assert.equal(result.requests.length, 0)
 })
+
+test('plan actions are pinned and the credentialed ledger checkout uses the trusted workflow SHA directly', () => {
+  const workflow = readWorkflow('verify-gallery-receipt.yml')
+  const plan = workflow.split('\n  plan:\n')[1].split('\n  ledger-data:\n')[0]
+  const ledger = workflow.split('\n  ledger-data:\n')[1].split('\n  gallery-shard:\n')[0]
+  const uses = [...plan.matchAll(/^\s*- uses: (.+)$/gm)].map(match => match[1])
+  assert.deepEqual(uses, [
+    'actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7',
+    'actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7',
+  ])
+  assert.match(ledger, /uses: actions\/checkout@[0-9a-f]{40} # v7\n        with:\n          ref: \$\{\{ github.sha \}\}/)
+  assert.doesNotMatch(ledger, /needs\.plan\.outputs\.revision/)
+})
+
+function runLedgerCli(f, revision) {
+  const source = resolve(f.root, 'control-authority')
+  const destination = resolve(f.root, 'ledger-data')
+  const log = resolve(f.root, 'ledger-reads.jsonl')
+  put(f.root, 'control-authority/research/R-0001-fixture/note.md', 'reach-platform: test\nprivate prose omitted\n')
+  put(f.root, 'control-authority/tickets/T-0001-fixture/ticket.md', 'status: READY\n')
+  put(f.root, 'ledger-reads.jsonl', '')
+  // Observe actual private-tree filesystem access in the child, not just the final exit code.
+  put(f.root, 'ledger-observer.mjs', `
+import fs from 'node:fs'
+import {syncBuiltinESMExports} from 'node:module'
+const source = ${JSON.stringify(source)}
+const log = ${JSON.stringify(log)}
+for (const method of ['readdirSync', 'readFileSync']) {
+  const original = fs[method]
+  fs[method] = (path, ...args) => {
+    if (String(path).startsWith(source)) fs.appendFileSync(log, JSON.stringify({method}) + '\\n')
+    return original(path, ...args)
+  }
+}
+syncBuiltinESMExports()
+`)
+  const result = spawnSync(process.execPath, ['--import', pathToFileURL(resolve(f.root, 'ledger-observer.mjs')).href,
+    resolve(import.meta.dirname, '../gates/scan-evidence-provenance.mjs'), '--receipt', 'ledger-data', source, destination],
+  {cwd: f.root, encoding: 'utf8', timeout: 15000, env: {...process.env, GITHUB_SHA: revision}})
+  const reads = readFileSync(log, 'utf8').trim().split('\n').filter(Boolean).map(line => JSON.parse(line))
+  return {...result, reads, destination}
+}
+
+test('ledger-data CLI reads and exports ledger metadata only at the trusted workflow revision', t => {
+  const f = fixture(t)
+  const result = runLedgerCli(f, f.head)
+  assert.equal(result.status, 0, result.stderr)
+  assert.ok(result.reads.some(read => read.method === 'readFileSync'))
+  assert.equal(readFileSync(resolve(result.destination, 'research/R-0001-fixture/note.md'), 'utf8'), 'reach-platform: test\n')
+  assert.equal(readFileSync(resolve(result.destination, 'tickets/T-0001-fixture/ticket.md'), 'utf8'), 'status: READY\n')
+})
+
+for (const [label, revision] of [['mismatched', 'b'.repeat(40)], ['missing', undefined], ['malformed', 'not-a-sha']]) {
+  test(`ledger-data CLI refuses a ${label} GITHUB_SHA before reading control-authority`, t => {
+    const f = fixture(t)
+    const result = runLedgerCli(f, revision)
+    assert.equal(result.status, 1)
+    assert.deepEqual(result.reads, [])
+  })
+}
