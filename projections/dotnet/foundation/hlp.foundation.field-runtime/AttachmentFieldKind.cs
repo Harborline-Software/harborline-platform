@@ -20,15 +20,18 @@ internal sealed class AttachmentFieldKind : ICompiledAttachmentFieldKind
         foreach (var name in parameters.Keys)
             if (name is not ("item_limit_bytes" or "accepted_media_types"))
                 throw Refuse("field.kind_parameter_unknown", pointer + "/parameters/" + name.Replace("~", "~0", StringComparison.Ordinal).Replace("/", "~1", StringComparison.Ordinal));
-        if (parameters.TryGetValue("item_limit_bytes", out var limit))
+        if (parameters.ContainsKey("item_limit_bytes"))
         {
-            if (!long.TryParse(limit, NumberStyles.None, CultureInfo.InvariantCulture, out var parsed) || parsed <= 0)
+            var limit = parameters["item_limit_bytes"];
+            long parsed = 0;
+            if (!long.TryParse(limit, NumberStyles.None, CultureInfo.InvariantCulture, out parsed) || parsed <= 0)
                 throw Refuse("field.kind_parameter_invalid", pointer + "/parameters/item_limit_bytes");
             DeclaredLimitBytes = parsed;
         }
         var mediaTypes = StoreMediaTypes.ToArray();
-        if (parameters.TryGetValue("accepted_media_types", out var media))
+        if (parameters.ContainsKey("accepted_media_types"))
         {
+            var media = parameters["accepted_media_types"];
             try { mediaTypes = JsonSerializer.Deserialize<string[]>(media) ?? throw new JsonException(); }
             catch (JsonException) { throw Refuse("field.kind_parameter_invalid", pointer + "/parameters/accepted_media_types"); }
             if (mediaTypes.Length == 0 || mediaTypes.Distinct(StringComparer.Ordinal).Count() != mediaTypes.Length
@@ -67,12 +70,14 @@ internal sealed class AttachmentFieldKind : ICompiledAttachmentFieldKind
 
     public IReadOnlyList<FieldRefusal> Validate(JsonElement value, string jsonPointer)
     {
+        string id = string.Empty, media = string.Empty;
+        long length = 0;
         if (!ObjectWith(value, ["content_id", "length", "media_type", "display_name", "owner"])
-            || !Text(value, "content_id", out var id) || id.Length != 76 || !id.StartsWith("hmac-sha256:", StringComparison.Ordinal)
+            || !Text(value, "content_id", out id) || id.Length != 76 || !id.StartsWith("hmac-sha256:", StringComparison.Ordinal)
             || id.AsSpan(12).ContainsAnyExcept("0123456789abcdef")
             || value.GetProperty("length").ValueKind != JsonValueKind.Number
-            || !value.GetProperty("length").TryGetInt64(out var length) || length < 0
-            || !Text(value, "media_type", out var media) || !Text(value, "display_name", out _)
+            || !value.GetProperty("length").TryGetInt64(out length) || length < 0
+            || !Text(value, "media_type", out media) || !Text(value, "display_name", out _)
             || !ObjectWith(value.GetProperty("owner"), ["record", "element"])
             || !Text(value.GetProperty("owner"), "record", out _) || !Text(value.GetProperty("owner"), "element", out _))
             return [new("field.value_type_mismatch", jsonPointer, "An attachment value must be a content reference.")];

@@ -31,10 +31,12 @@ public sealed class AttachmentFieldRuntime(InMemoryContentStore store)
         foreach (var entry in entries.EnumerateArray())
         {
             cancellationToken.ThrowIfCancellationRequested();
-            if (entry.ValueKind == JsonValueKind.Object && entry.TryGetProperty("stage_id", out var stage))
+            JsonElement stage = default, display = default;
+            Guid stageId = Guid.Empty;
+            if (entry.ValueKind == JsonValueKind.Object && entry.TryGetProperty("stage_id", out stage))
             {
-                if (entry.EnumerateObject().Count() != 2 || stage.ValueKind != JsonValueKind.String || !stage.TryGetGuid(out var stageId)
-                    || !entry.TryGetProperty("display_name", out var display) || display.ValueKind != JsonValueKind.String
+                if (entry.EnumerateObject().Count() != 2 || stage.ValueKind != JsonValueKind.String || !stage.TryGetGuid(out stageId)
+                    || !entry.TryGetProperty("display_name", out display) || display.ValueKind != JsonValueKind.String
                     || string.IsNullOrWhiteSpace(display.GetString())) throw Invalid();
                 var reference = await store.CommitReferenceAsync(tenant, stageId,
                     new(owner.Record, owner.Element + "/" + stageId.ToString("N")), display.GetString()!, evidence with

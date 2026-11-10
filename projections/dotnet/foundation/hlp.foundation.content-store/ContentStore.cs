@@ -1375,8 +1375,10 @@ public sealed class InMemoryContentStore
         var outcome = await RunAsync(ContentStoreOperation.Commit, write, async (session, token) =>
         {
             // Held from here, so a rewrap can't change the wrap this promotion carries into the committed item.
-            if (await session.FindStagedForUpdateAsync(stageId, token).ConfigureAwait(false) is not { } staged || staged.Tenant != tenant
-                || !StringComparer.Ordinal.Equals(staged.StagingPrincipal, write.Audit.ActorId)) throw StagingExpiredRefusal();
+            var staged = await session.FindStagedForUpdateAsync(stageId, token).ConfigureAwait(false);
+            if (staged is null) throw StagingExpiredRefusal();
+            if (staged.Tenant != tenant || !StringComparer.Ordinal.Equals(staged.StagingPrincipal, write.Audit.ActorId))
+                throw StagingExpiredRefusal();
             if (StagedCutoff() >= staged.CreatedUtc)
             {
                 // Inside a caller's execution the refusal must fail the join and doom it; the sweep reclaims the stage.

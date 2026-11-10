@@ -1359,13 +1359,16 @@ public sealed class RecordWriteOperation
     {
         foreach (var field in definition.Fields)
         {
-            if (field.Binding is not { } binding) continue;
+            var binding = field.Binding;
+            if (binding is null) continue;
             var pointer = "/" + field.FieldKey.Replace("~", "~0", StringComparison.Ordinal).Replace("/", "~1", StringComparison.Ordinal);
             try
             {
-                if (_fieldKinds.Bind(binding.Kind, pointer) is not ICompiledAttachmentFieldKind attachment) continue;
-                if (candidate.TryGetPropertyValue(field.FieldKey, out var entries))
+                var attachment = _fieldKinds.Bind(binding.Kind, pointer) as ICompiledAttachmentFieldKind;
+                if (attachment is null) continue;
+                if (candidate.ContainsKey(field.FieldKey))
                 {
+                    var entries = candidate[field.FieldKey];
                     if (Attachments is null || session is null)
                         throw new RefusedWriteException(new(BindStage, "content.transaction-required", [pointer]));
                     var write = new ContentStoreWrite(new(recordId, operationId, fingerprint),
@@ -1374,10 +1377,11 @@ public sealed class RecordWriteOperation
                     candidate[field.FieldKey] = await Attachments.ResolveWriteAsync(attachment, JsonSerializer.SerializeToElement(entries),
                         Harborline.Foundation.Assets.Common.TenantId.FromString(tenant), new(recordId, field.FieldKey), write, cancellationToken).ConfigureAwait(false);
                 }
-                if (field.RequiredCondition is { } condition)
+                var condition = field.RequiredCondition;
+                if (condition.HasValue)
                 {
                     var hasEvidence = candidate[field.FieldKey] is JsonArray { Count: > 0 };
-                    var expression = new JsonObject { ["if"] = new JsonArray(JsonNode.Parse(condition.GetRawText()), JsonValue.Create(hasEvidence), JsonValue.Create(true)) };
+                    var expression = new JsonObject { ["if"] = new JsonArray(JsonNode.Parse(condition.Value.GetRawText()), JsonValue.Create(hasEvidence), JsonValue.Create(true)) };
                     var rule = new RuleDefinition
                     {
                         Id = "evidence:" + field.FieldKey, Tier = RuleTier.JsonLogic, Scope = RuleScope.Schema,

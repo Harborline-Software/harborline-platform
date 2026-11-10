@@ -534,8 +534,10 @@ public sealed class RecordTypeSchemaCompiler
                     "The declared field multiplicity has no permitted value count."));
             }
 
-            if (compiledField is { } compiled)
+            if (compiledField.HasValue)
             {
+                // A plain local keeps the attachment admission branches independently mutable.
+                var compiled = compiledField.Value;
                 if (compiled.Kind.ValueShape == FieldScalarValueShape.ContentReference && bounds?.MaximumCount is not null)
                     refusals.Add(new("field.attachment_count_cap", $"/fields/{index}/binding/constraints/maximum_count",
                         "Attachment fields are many-valued without a count cap."));
