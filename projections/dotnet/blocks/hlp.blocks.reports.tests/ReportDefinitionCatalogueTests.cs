@@ -167,7 +167,8 @@ public sealed class ReportDefinitionCatalogueTests
         var key = new DefinitionKey("tenant-r", DefinitionKind.Reports, "report-a");
         var document = new DefinitionDocument(key, "report-a@1.0.0", "1.0.0", canonical);
         var reordered = canonical.Replace("\"tenant\":\"tenant-r\",\"key\":\"report-a\"", "\"key\":\"report-a\",\"tenant\":\"tenant-r\"", StringComparison.Ordinal);
-        var indented = JsonSerializer.Serialize(JsonDocument.Parse(canonical).RootElement, new JsonSerializerOptions { WriteIndented = true });
+        using var parsed = JsonDocument.Parse(canonical);
+        var indented = JsonSerializer.Serialize(parsed.RootElement, new JsonSerializerOptions { WriteIndented = true });
         foreach (var body in new[] { reordered, indented })
         {
             var refused = await Assert.ThrowsAsync<DefinitionRefusalException>(async () =>
@@ -185,6 +186,38 @@ public sealed class ReportDefinitionCatalogueTests
         Assert.Equal(canonical, imported.Revision.Document.BodyJson);
         Assert.Equal(expectedDigest, published.Revision.Digest);
         Assert.Equal(expectedDigest, imported.Revision.Digest);
+    }
+
+    [Theory, Trait("Holds", "reports-eng-2")]
+    [InlineData("{")]
+    [InlineData("null")]
+    [InlineData("[]")]
+    [InlineData("{\"tenant\":\"tenant-r\",\"key\":\"report-a\",\"version\":\"1.0.0\",\"measures\":[],\"parameters\":[{\"name\":\"p\",\"type\":\"integer\",\"default\":{\"kind\":\"unknown\",\"value\":7}}]}")]
+    [InlineData("{\"tenant\":\"tenant-r\",\"key\":\"report-a\",\"version\":\"1.0.0\",\"measures\":[],\"envelope\":{\"identity\":\"report-a\",\"version\":\"1.0.0\",\"tenant\":\"tenant-r\",\"cascade_layer\":\"domain_package\"}}")]
+    public async Task reports_eng_2_pack_codec_failures_are_named_without_committing(string body)
+    {
+        var store = Store();
+        var refusal = await Assert.ThrowsAsync<DefinitionRefusalException>(async () =>
+            await new ReportDefinitionCatalogue(store).ImportDraftAsync(new(9, "report-a", "1.0.0", body), 0, "pack"));
+        Assert.Equal("report.definition.body_invalid", Assert.Single(refusal.Refusals).Code);
+        Assert.Equal("/body", Assert.Single(refusal.Refusals).Pointer);
+        Assert.Empty(await store.ListHistoryAsync(new("tenant-r", DefinitionKind.Reports, "report-a")));
+    }
+
+    [Theory, Trait("Holds", "reports-eng-2")]
+    [InlineData("null")]
+    [InlineData("[]")]
+    [InlineData("true")]
+    [InlineData("17")]
+    public async Task reports_eng_2_raw_nonobject_roots_are_named_without_committing(string body)
+    {
+        var store = Store();
+        var key = new DefinitionKey("tenant-r", DefinitionKind.Reports, "report-a");
+        var refusal = await Assert.ThrowsAsync<DefinitionRefusalException>(async () =>
+            await store.SaveDraftAsync(new(key, "report-a@1.0.0", "1.0.0", body), 0, "raw"));
+        Assert.Equal("report.definition.body_invalid", Assert.Single(refusal.Refusals).Code);
+        Assert.Equal("/body", Assert.Single(refusal.Refusals).Pointer);
+        Assert.Empty(await store.ListHistoryAsync(key));
     }
 
 }

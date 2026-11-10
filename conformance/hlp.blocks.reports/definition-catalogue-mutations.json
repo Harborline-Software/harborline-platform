@@ -1,15 +1,15 @@
 {
   "slice": "T-489/definition-catalogue",
   "command": "node tooling/stryker.mjs run hlp.blocks.reports.tests",
-  "reportSha256": "ae076b49ae4d2ad1f6b9b8d8a21819c1bbbee7648fb889ab8a5835261fe41b9a",
-  "tested": 144,
-  "score": 68.86,
+  "reportSha256": "fd4a5b3611a9ebbbb4880f36f9d75922594b27dc2ecfa704f570b24cefe2c4ca",
+  "tested": 155,
+  "score": 71.02,
   "break": 58,
   "sourceHashes": {
     "projections/dotnet/blocks/hlp.blocks.reports/Definitions/ReportDefinition.cs": "490dd1f87ca0886b5c226800619539177c9a439b926c9e9a8f53fb26cb2e9da8",
     "projections/dotnet/blocks/hlp.blocks.reports/Definitions/ReportDefinitionAdmission.cs": "4381e65a78a581e7dfab8f212dad1b7a9df06346234a6f7b83398a099055bf32",
-    "projections/dotnet/blocks/hlp.blocks.reports/Definitions/ReportDefinitionCatalogue.cs": "e3ca55811cf59db91985065f2f6bb8c667b711ed5a1b2ac50b357ba0a9f55931",
-    "projections/dotnet/blocks/hlp.blocks.reports.tests/ReportDefinitionCatalogueTests.cs": "e097add1fcaedd47eb9eac74c5a1ebb92c64452bd4e8c2d4239b5c7572a259df"
+    "projections/dotnet/blocks/hlp.blocks.reports/Definitions/ReportDefinitionCatalogue.cs": "6a46bf25a4d537937102ca9f90520212b447d6388d66b85e914d3919760900b4",
+    "projections/dotnet/blocks/hlp.blocks.reports.tests/ReportDefinitionCatalogueTests.cs": "17e8920368d1461d6b1f65d7717657ab5785a6a09f53fcc815b4e7634ae08178"
   },
   "mutations": [
     {
@@ -24,7 +24,7 @@
       "killingTests": [
         "Harborline.Blocks.Reports.Tests.ReportDefinitionCatalogueTests.reports_eng_2_admission_refuses_invalid_writes_and_rechecks_publish"
       ],
-      "oracle": "DES-0020 sections 2/3; literal kind/envelope/refusal fixtures and immutable publication/draft-restore properties. Document metadata owns versions; null entries refuse before commit. The direct-store pack test hashes an independent literal representation with SHA-256 and asserts both original and imported stored bytes equal that literal; noncanonical raw writes must refuse without history."
+      "oracle": "DES-0020 sections 2/3; literal kind/envelope/refusal fixtures and immutable publication/draft-restore properties. Document metadata owns versions; malformed bodies, codec errors and null entries refuse by the literal code report.definition.body_invalid at /body without committing. The direct-store pack test hashes an independent literal with SHA-256 and pins original/imported stored bytes; noncanonical writes refuse without history."
     },
     {
       "items": [
@@ -38,10 +38,15 @@
       "killingTests": [
         "Harborline.Blocks.Reports.Tests.ReportDefinitionCatalogueTests.reports_eng_2_null_elements_refuse_on_raw_and_pack_writes",
         "Harborline.Blocks.Reports.Tests.ReportDefinitionCatalogueTests.reports_eng_2_null_elements_refuse_on_raw_and_pack_writes",
+        "Harborline.Blocks.Reports.Tests.ReportDefinitionCatalogueTests.reports_eng_2_pack_codec_failures_are_named_without_committing",
+        "Harborline.Blocks.Reports.Tests.ReportDefinitionCatalogueTests.reports_eng_2_pack_codec_failures_are_named_without_committing",
+        "Harborline.Blocks.Reports.Tests.ReportDefinitionCatalogueTests.reports_eng_2_pack_codec_failures_are_named_without_committing",
+        "Harborline.Blocks.Reports.Tests.ReportDefinitionCatalogueTests.reports_eng_2_pack_codec_failures_are_named_without_committing",
+        "Harborline.Blocks.Reports.Tests.ReportDefinitionCatalogueTests.reports_eng_2_pack_codec_failures_are_named_without_committing",
         "Harborline.Blocks.Reports.Tests.ReportDefinitionCatalogueTests.reports_ck_1_direct_store_requires_canonical_bytes_and_preserves_their_digest",
         "Harborline.Blocks.Reports.Tests.ReportDefinitionCatalogueTests.reports_ck_1_ck_2_pack_preserves_digest_and_full_envelope_without_authority"
       ],
-      "oracle": "DES-0020 sections 2/3; literal kind/envelope/refusal fixtures and immutable publication/draft-restore properties. Document metadata owns versions; null entries refuse before commit. The direct-store pack test hashes an independent literal representation with SHA-256 and asserts both original and imported stored bytes equal that literal; noncanonical raw writes must refuse without history."
+      "oracle": "DES-0020 sections 2/3; literal kind/envelope/refusal fixtures and immutable publication/draft-restore properties. Document metadata owns versions; malformed bodies, codec errors and null entries refuse by the literal code report.definition.body_invalid at /body without committing. The direct-store pack test hashes an independent literal with SHA-256 and pins original/imported stored bytes; noncanonical writes refuse without history."
     },
     {
       "items": [
@@ -56,7 +61,29 @@
       "killingTests": [
         "Harborline.Blocks.Reports.Tests.ReportDefinitionCatalogueTests.reports_ck_1_direct_store_requires_canonical_bytes_and_preserves_their_digest"
       ],
-      "oracle": "DES-0020 sections 2/3; literal kind/envelope/refusal fixtures and immutable publication/draft-restore properties. Document metadata owns versions; null entries refuse before commit. The direct-store pack test hashes an independent literal representation with SHA-256 and asserts both original and imported stored bytes equal that literal; noncanonical raw writes must refuse without history."
+      "oracle": "DES-0020 sections 2/3; literal kind/envelope/refusal fixtures and immutable publication/draft-restore properties. Document metadata owns versions; malformed bodies, codec errors and null entries refuse by the literal code report.definition.body_invalid at /body without committing. The direct-store pack test hashes an independent literal with SHA-256 and pins original/imported stored bytes; noncanonical writes refuse without history."
+    },
+    {
+      "items": [
+        "reports-eng-2"
+      ],
+      "file": "projections/dotnet/blocks/hlp.blocks.reports/Definitions/ReportDefinitionCatalogue.cs",
+      "line": 41,
+      "mutator": "Equality mutation",
+      "replacement": "error is not JsonException or NotSupportedException or InvalidOperationException or ArgumentException",
+      "status": "Killed",
+      "killingTests": [
+        "Harborline.Blocks.Reports.Tests.ReportDefinitionCatalogueTests.reports_eng_2_null_elements_refuse_on_raw_and_pack_writes",
+        "Harborline.Blocks.Reports.Tests.ReportDefinitionCatalogueTests.reports_eng_2_null_elements_refuse_on_raw_and_pack_writes",
+        "Harborline.Blocks.Reports.Tests.ReportDefinitionCatalogueTests.reports_eng_2_raw_nonobject_roots_are_named_without_committing",
+        "Harborline.Blocks.Reports.Tests.ReportDefinitionCatalogueTests.reports_eng_2_raw_nonobject_roots_are_named_without_committing",
+        "Harborline.Blocks.Reports.Tests.ReportDefinitionCatalogueTests.reports_eng_2_raw_nonobject_roots_are_named_without_committing",
+        "Harborline.Blocks.Reports.Tests.ReportDefinitionCatalogueTests.reports_eng_2_raw_nonobject_roots_are_named_without_committing",
+        "Harborline.Blocks.Reports.Tests.ReportDefinitionCatalogueTests.reports_ck_1_direct_store_requires_canonical_bytes_and_preserves_their_digest",
+        "Harborline.Blocks.Reports.Tests.ReportDefinitionCatalogueTests.reports_ck_3_direct_store_refuses_repeated_versions_before_commit",
+        "Harborline.Blocks.Reports.Tests.ReportDefinitionCatalogueTests.reports_ck_3_direct_store_refuses_repeated_versions_before_commit"
+      ],
+      "oracle": "DES-0020 sections 2/3; literal kind/envelope/refusal fixtures and immutable publication/draft-restore properties. Document metadata owns versions; malformed bodies, codec errors and null entries refuse by the literal code report.definition.body_invalid at /body without committing. The direct-store pack test hashes an independent literal with SHA-256 and pins original/imported stored bytes; noncanonical writes refuse without history."
     },
     {
       "items": [
@@ -71,11 +98,13 @@
       "killingTests": [
         "Harborline.Blocks.Reports.Tests.ReportDefinitionCatalogueTests.reports_eng_2_null_elements_refuse_on_raw_and_pack_writes",
         "Harborline.Blocks.Reports.Tests.ReportDefinitionCatalogueTests.reports_eng_2_null_elements_refuse_on_raw_and_pack_writes",
-        "Harborline.Blocks.Reports.Tests.ReportDefinitionCatalogueTests.reports_ck_1_direct_store_requires_canonical_bytes_and_preserves_their_digest",
-        "Harborline.Blocks.Reports.Tests.ReportDefinitionCatalogueTests.reports_ck_3_direct_store_refuses_repeated_versions_before_commit",
-        "Harborline.Blocks.Reports.Tests.ReportDefinitionCatalogueTests.reports_ck_3_direct_store_refuses_repeated_versions_before_commit"
+        "Harborline.Blocks.Reports.Tests.ReportDefinitionCatalogueTests.reports_eng_2_raw_nonobject_roots_are_named_without_committing",
+        "Harborline.Blocks.Reports.Tests.ReportDefinitionCatalogueTests.reports_eng_2_raw_nonobject_roots_are_named_without_committing",
+        "Harborline.Blocks.Reports.Tests.ReportDefinitionCatalogueTests.reports_eng_2_raw_nonobject_roots_are_named_without_committing",
+        "Harborline.Blocks.Reports.Tests.ReportDefinitionCatalogueTests.reports_eng_2_raw_nonobject_roots_are_named_without_committing",
+        "Harborline.Blocks.Reports.Tests.ReportDefinitionCatalogueTests.reports_ck_1_direct_store_requires_canonical_bytes_and_preserves_their_digest"
       ],
-      "oracle": "DES-0020 sections 2/3; literal kind/envelope/refusal fixtures and immutable publication/draft-restore properties. Document metadata owns versions; null entries refuse before commit. The direct-store pack test hashes an independent literal representation with SHA-256 and asserts both original and imported stored bytes equal that literal; noncanonical raw writes must refuse without history."
+      "oracle": "DES-0020 sections 2/3; literal kind/envelope/refusal fixtures and immutable publication/draft-restore properties. Document metadata owns versions; malformed bodies, codec errors and null entries refuse by the literal code report.definition.body_invalid at /body without committing. The direct-store pack test hashes an independent literal with SHA-256 and pins original/imported stored bytes; noncanonical writes refuse without history."
     },
     {
       "items": [
@@ -89,14 +118,45 @@
       "killingTests": [
         "Harborline.Blocks.Reports.Tests.ReportDefinitionCatalogueTests.reports_eng_1_head_refuses_missing_and_drafts_and_chooses_semver"
       ],
-      "oracle": "DES-0020 sections 2/3; literal kind/envelope/refusal fixtures and immutable publication/draft-restore properties. Document metadata owns versions; null entries refuse before commit. The direct-store pack test hashes an independent literal representation with SHA-256 and asserts both original and imported stored bytes equal that literal; noncanonical raw writes must refuse without history."
+      "oracle": "DES-0020 sections 2/3; literal kind/envelope/refusal fixtures and immutable publication/draft-restore properties. Document metadata owns versions; malformed bodies, codec errors and null entries refuse by the literal code report.definition.body_invalid at /body without committing. The direct-store pack test hashes an independent literal with SHA-256 and pins original/imported stored bytes; noncanonical writes refuse without history."
+    },
+    {
+      "items": [
+        "reports-eng-2"
+      ],
+      "file": "projections/dotnet/blocks/hlp.blocks.reports/Definitions/ReportDefinitionCatalogue.cs",
+      "line": 86,
+      "mutator": "Equality mutation",
+      "replacement": "error is not JsonException or NotSupportedException or InvalidOperationException or ArgumentException",
+      "status": "Killed",
+      "killingTests": [
+        "Harborline.Blocks.Reports.Tests.ReportDefinitionCatalogueTests.reports_eng_2_pack_codec_failures_are_named_without_committing",
+        "Harborline.Blocks.Reports.Tests.ReportDefinitionCatalogueTests.reports_eng_2_pack_codec_failures_are_named_without_committing",
+        "Harborline.Blocks.Reports.Tests.ReportDefinitionCatalogueTests.reports_eng_2_pack_codec_failures_are_named_without_committing",
+        "Harborline.Blocks.Reports.Tests.ReportDefinitionCatalogueTests.reports_eng_2_pack_codec_failures_are_named_without_committing"
+      ],
+      "oracle": "DES-0020 sections 2/3; literal kind/envelope/refusal fixtures and immutable publication/draft-restore properties. Document metadata owns versions; malformed bodies, codec errors and null entries refuse by the literal code report.definition.body_invalid at /body without committing. The direct-store pack test hashes an independent literal with SHA-256 and pins original/imported stored bytes; noncanonical writes refuse without history."
+    },
+    {
+      "items": [
+        "reports-eng-2"
+      ],
+      "file": "projections/dotnet/blocks/hlp.blocks.reports/Definitions/ReportDefinitionCatalogue.cs",
+      "line": 90,
+      "mutator": "Statement mutation",
+      "replacement": ";",
+      "status": "Killed",
+      "killingTests": [
+        "Harborline.Blocks.Reports.Tests.ReportDefinitionCatalogueTests.reports_eng_2_pack_codec_failures_are_named_without_committing"
+      ],
+      "oracle": "DES-0020 sections 2/3; literal kind/envelope/refusal fixtures and immutable publication/draft-restore properties. Document metadata owns versions; malformed bodies, codec errors and null entries refuse by the literal code report.definition.body_invalid at /body without committing. The direct-store pack test hashes an independent literal with SHA-256 and pins original/imported stored bytes; noncanonical writes refuse without history."
     },
     {
       "items": [
         "reports-ck-2"
       ],
       "file": "projections/dotnet/blocks/hlp.blocks.reports/Definitions/ReportDefinitionCatalogue.cs",
-      "line": 107,
+      "line": 116,
       "mutator": "String mutation",
       "replacement": "\"\"",
       "status": "Killed",
@@ -107,14 +167,14 @@
         "Harborline.Blocks.Reports.Tests.ReportDefinitionCatalogueTests.reports_eng_1_head_refuses_missing_and_drafts_and_chooses_semver",
         "Harborline.Blocks.Reports.Tests.ReportDefinitionCatalogueTests.reports_eng_2_admission_refuses_invalid_writes_and_rechecks_publish"
       ],
-      "oracle": "DES-0020 sections 2/3; literal kind/envelope/refusal fixtures and immutable publication/draft-restore properties. Document metadata owns versions; null entries refuse before commit. The direct-store pack test hashes an independent literal representation with SHA-256 and asserts both original and imported stored bytes equal that literal; noncanonical raw writes must refuse without history."
+      "oracle": "DES-0020 sections 2/3; literal kind/envelope/refusal fixtures and immutable publication/draft-restore properties. Document metadata owns versions; malformed bodies, codec errors and null entries refuse by the literal code report.definition.body_invalid at /body without committing. The direct-store pack test hashes an independent literal with SHA-256 and pins original/imported stored bytes; noncanonical writes refuse without history."
     },
     {
       "items": [
         "reports-eng-2"
       ],
       "file": "projections/dotnet/blocks/hlp.blocks.reports/Definitions/ReportDefinitionCatalogue.cs",
-      "line": 111,
+      "line": 120,
       "mutator": "Equality mutation",
       "replacement": "measure is not null",
       "status": "Killed",
@@ -122,14 +182,14 @@
         "Harborline.Blocks.Reports.Tests.ReportDefinitionCatalogueTests.reports_eng_2_null_elements_refuse_on_raw_and_pack_writes",
         "Harborline.Blocks.Reports.Tests.ReportDefinitionCatalogueTests.reports_eng_2_admission_refuses_invalid_writes_and_rechecks_publish"
       ],
-      "oracle": "DES-0020 sections 2/3; literal kind/envelope/refusal fixtures and immutable publication/draft-restore properties. Document metadata owns versions; null entries refuse before commit. The direct-store pack test hashes an independent literal representation with SHA-256 and asserts both original and imported stored bytes equal that literal; noncanonical raw writes must refuse without history."
+      "oracle": "DES-0020 sections 2/3; literal kind/envelope/refusal fixtures and immutable publication/draft-restore properties. Document metadata owns versions; malformed bodies, codec errors and null entries refuse by the literal code report.definition.body_invalid at /body without committing. The direct-store pack test hashes an independent literal with SHA-256 and pins original/imported stored bytes; noncanonical writes refuse without history."
     },
     {
       "items": [
         "reports-eng-2"
       ],
       "file": "projections/dotnet/blocks/hlp.blocks.reports/Definitions/ReportDefinitionCatalogue.cs",
-      "line": 112,
+      "line": 121,
       "mutator": "Equality mutation",
       "replacement": "parameter is not null",
       "status": "Killed",
@@ -140,14 +200,14 @@
         "Harborline.Blocks.Reports.Tests.ReportDefinitionCatalogueTests.reports_eng_1_head_refuses_missing_and_drafts_and_chooses_semver",
         "Harborline.Blocks.Reports.Tests.ReportDefinitionCatalogueTests.reports_eng_2_admission_refuses_invalid_writes_and_rechecks_publish"
       ],
-      "oracle": "DES-0020 sections 2/3; literal kind/envelope/refusal fixtures and immutable publication/draft-restore properties. Document metadata owns versions; null entries refuse before commit. The direct-store pack test hashes an independent literal representation with SHA-256 and asserts both original and imported stored bytes equal that literal; noncanonical raw writes must refuse without history."
+      "oracle": "DES-0020 sections 2/3; literal kind/envelope/refusal fixtures and immutable publication/draft-restore properties. Document metadata owns versions; malformed bodies, codec errors and null entries refuse by the literal code report.definition.body_invalid at /body without committing. The direct-store pack test hashes an independent literal with SHA-256 and pins original/imported stored bytes; noncanonical writes refuse without history."
     },
     {
       "items": [
         "reports-ck-3"
       ],
       "file": "projections/dotnet/blocks/hlp.blocks.reports/Definitions/ReportDefinitionCatalogue.cs",
-      "line": 126,
+      "line": 135,
       "mutator": "String mutation",
       "replacement": "\"\"",
       "status": "Killed",
@@ -155,7 +215,7 @@
         "Harborline.Blocks.Reports.Tests.ReportDefinitionCatalogueTests.reports_ck_3_restore_is_a_new_draft_and_publications_are_immutable",
         "Harborline.Blocks.Reports.Tests.ReportDefinitionCatalogueTests.reports_ck_1_direct_store_requires_canonical_bytes_and_preserves_their_digest"
       ],
-      "oracle": "DES-0020 sections 2/3; literal kind/envelope/refusal fixtures and immutable publication/draft-restore properties. Document metadata owns versions; null entries refuse before commit. The direct-store pack test hashes an independent literal representation with SHA-256 and asserts both original and imported stored bytes equal that literal; noncanonical raw writes must refuse without history."
+      "oracle": "DES-0020 sections 2/3; literal kind/envelope/refusal fixtures and immutable publication/draft-restore properties. Document metadata owns versions; malformed bodies, codec errors and null entries refuse by the literal code report.definition.body_invalid at /body without committing. The direct-store pack test hashes an independent literal with SHA-256 and pins original/imported stored bytes; noncanonical writes refuse without history."
     }
   ]
 }

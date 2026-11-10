@@ -78,8 +78,16 @@ public sealed class ReportDefinitionCatalogue(IVersionedDefinitionStore store)
         string requestId, CancellationToken cancellationToken = default)
     {
         if (entry.ContentKind != ContentKind) throw Refuse("report.definition.content_kind_unsupported", "/contentKind");
-        var definition = JsonSerializer.Deserialize<ReportDefinition>(entry.BodyJson, Json)
-            ?? throw Refuse("report.definition.body_invalid", "/body");
+        ReportDefinition? definition = null;
+        try
+        {
+            definition = JsonSerializer.Deserialize<ReportDefinition>(entry.BodyJson, Json);
+        }
+        catch (Exception error) when (error is JsonException or NotSupportedException or InvalidOperationException or ArgumentException)
+        {
+            throw Refuse("report.definition.body_invalid", "/body");
+        }
+        if (definition is null) throw Refuse("report.definition.body_invalid", "/body");
         if (definition.Key != entry.DefinitionId || definition.Version != entry.Version)
             throw Refuse("definition.envelope_mismatch", "/envelope");
         return await SaveDraftAsync(definition, expectedRevision, requestId, cancellationToken).ConfigureAwait(false);
@@ -98,7 +106,8 @@ public sealed class ReportDefinitionCatalogue(IVersionedDefinitionStore store)
     {
         if (document.Key.Kind != DefinitionKind.Reports || document.VersionId != VersionId(document.Key.DefinitionId, document.Version))
             throw new JsonException("Report catalogue coordinates are invalid.");
-        var body = JsonNode.Parse(document.BodyJson)!.AsObject();
+        var body = JsonNode.Parse(document.BodyJson) as JsonObject
+            ?? throw new JsonException("Report body must be an object.");
         RequireVersionless(body);
         body["version"] = document.Version;
         if (body["envelope"] is JsonObject envelope)
