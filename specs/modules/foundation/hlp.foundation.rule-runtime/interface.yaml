@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.foundation.rule-runtime",
-  "interfaceRevision": 5,
+  "interfaceRevision": 6,
   "status": "frozen",
   "purpose": "Evaluate the closed harborline-jsonlogic/v1 language deterministically for Dynamic Forms, Calculations, and workflow guards through reactive TypeScript and authoritative .NET integrity tiers.",
   "dependencies": [{"moduleId": "hlp.contracts.rules", "minimumRevision": 1}, {"moduleId": "hlp.contracts.text", "minimumRevision": 1}, {"moduleId": "hlp.contracts.presentation", "minimumRevision": 1}],
@@ -32,6 +32,7 @@
     "wallClockMilliseconds": 250
   },
   "invariants": [
+    "Revision 6 (T-616/prevalidation-mutation, ADR 0124 decision 1): RecordDerivedFields.Derive(bound, calculations, closure, instant, limits?, cancellationToken) fills each RecordFieldCalculation(FieldKey, ExactPin) of a Records write with NamedReferences.Compute through the closure, under the records-auth-12 environment (RecordWriteRules.Declaration, Submission phase), and returns RecordDerivation(Candidate, Refusal). The bound object is not changed; a supplied derived value is replaced. A calculation may read only top-level record fields; one that reads another derived field runs after it. It fails closed with RecordDerivedFieldRefusal codes records.mutate.calculation_unresolved (no closure, absent pin, digest mismatch), records.mutate.calculation_unreadable (a non-field reference, a self-read or a cycle) and records.mutate.calculation_failed (a value that does not resolve).",
     "Revision 4 relocates nominal CLR rule, text, presentation and serialization types inside the existing Contracts artifact. Forms and Workflow borrow the same declarations. Wire fields, closed values, absent versus null behavior and Runtime parsed-JSON expression input remain unchanged; clean source borrowers must migrate to the new namespaces.",
     "RuleEngine contains no Forms-owned TypeRefs or erased imports. Its neutral property, generic and converter dependency closure remains independent of Forms. Existing T493 constructors, opt-in capture positions, admission priority and budgets remain unchanged.",
     "Legacy constructors retain flat coding.is equality, coercions and array short circuit. Native GuardEvaluator(TimeProvider,RuleEngineLimits?) and FormRuleGraph(CompiledGraph,TimeProvider,EvaluationAdmission?,RuleEngineLimits?) binary signatures remain; added overloads append CodingSubsumptionSnapshot, with optional final TS arguments third/fifth. Supplied null or forged snapshots refuse instead of downgrading.",
