@@ -30,6 +30,83 @@ public sealed class DurableWorkflowEngineSeamTests
     private const string Tenant = "tenant:acme";
     private static readonly IWorkflowDefinitionExecutionStore AdmittedDefinitionStore = new AlwaysAdmittedDefinitionStore();
 
+    [Fact]
+    public async Task Interpreter_decision_failure_commits_the_actual_step_reason_and_event_once()
+    {
+        // ADR-0141 D1 is the oracle: fail once as not-retryable at the state reached,
+        // not the trigger's initial step. Exercise the workflow assembly's public dispatch seam.
+        using var fixture = new JournalFixture();
+        using var store = fixture.Open();
+        await CreateAsync(store, "definition-error", step: "step-1");
+        var dispatcher = new WorkflowTriggerDispatcher(store, Array.Empty<IWorkflowStepHandler>(),
+            interpreter: new ThrowingInterpreter(new WorkflowInterpreterDecisionException("step-2", "ambiguous edge")),
+            definitionStore: AdmittedDefinitionStore);
+        var trigger = WorkflowTrigger.For(WorkflowTriggerKind.Event, "definition-error", "step-1");
+
+        Assert.Equal(WorkflowDispatchResult.Advanced,
+            await dispatcher.DispatchAsync(trigger, Authorized("definition-error")));
+        var failed = (await store.LoadAsync("definition-error"))!;
+        Assert.Equal(WorkflowStatus.Failed, failed.Status);
+        Assert.Equal("step-2", failed.CurrentStep);
+        Assert.Equal(0, failed.Iteration);
+        var key = new WorkflowStepKey("definition-error", 0, "step-1");
+        var result = await store.FindStepResultAsync(key);
+        Assert.NotNull(result);
+        using var payload = JsonDocument.Parse(result.ResultJson);
+        Assert.Equal("interpreter-failure", payload.RootElement.GetProperty("kind").GetString());
+        Assert.Equal("not-retryable", payload.RootElement.GetProperty("reason").GetString());
+        Assert.Equal("step-2", payload.RootElement.GetProperty("step").GetString());
+        var events = await store.EventsAsync("definition-error");
+        Assert.Equal("Failed", events.Last().EventType);
+        Assert.Equal(result.ResultJson, events.Last().DataJson);
+        Assert.Empty(await store.CommittedEffectPayloadsAsync("definition-error"));
+        Assert.Equal(WorkflowDispatchResult.Terminal,
+            await dispatcher.DispatchAsync(trigger, Authorized("definition-error")));
+        Assert.Equal(events.Count, (await store.EventsAsync("definition-error")).Count);
+
+        store.Dispose();
+        using var reopened = fixture.Open();
+        Assert.Equal(WorkflowStatus.Failed, (await reopened.LoadAsync("definition-error"))!.Status);
+        Assert.Equal("step-2", (await reopened.LoadAsync("definition-error"))!.CurrentStep);
+        Assert.Equal(result.ResultJson, (await reopened.FindStepResultAsync(key))!.ResultJson);
+        Assert.Equal("Failed", (await reopened.EventsAsync("definition-error")).Last().EventType);
+    }
+
+    [Theory]
+    [InlineData("park", "Parked", WorkflowStatus.Parked, false)]
+    [InlineData("loop-back", "Parked", WorkflowStatus.Parked, true)]
+    [InlineData("discard", "", WorkflowStatus.Running, false)]
+    [InlineData("complete", "Completed", WorkflowStatus.Completed, false)]
+    public void Step_outcomes_expose_their_event_and_empty_result_contract(
+        string decision, string expectedEvent, WorkflowStatus expectedStatus, bool expectedLoopBack)
+    {
+        // Public outcome defaults from IWorkflowStepHandler / the module contract, not
+        // values read back from production constants. Run the actual outcome factories.
+        var outcome = decision switch
+        {
+            "park" => WorkflowStepOutcome.Park("step-2"),
+            "loop-back" => WorkflowStepOutcome.ParkLoopBack("step-2"),
+            "discard" => WorkflowStepOutcome.Discard("step-2"),
+            _ => WorkflowStepOutcome.Complete("step-2"),
+        };
+        Assert.Equal(expectedEvent, outcome.EventType);
+        Assert.Equal("{}", outcome.ResultJson);
+        Assert.Equal("{}", outcome.EventDataJson);
+        Assert.Equal("step-2", outcome.NextStep);
+        Assert.Equal(expectedStatus, outcome.NextStatus);
+        Assert.Equal(expectedLoopBack, outcome.IsLoopBack);
+        Assert.Null(outcome.Effect);
+    }
+
+    [Fact]
+    public void Dispatcher_requires_a_handler_registry()
+    {
+        using var fixture = new JournalFixture();
+        using var store = fixture.Open();
+        var error = Assert.Throws<ArgumentNullException>(() => new WorkflowTriggerDispatcher(store, null!));
+        Assert.Equal("handlers", error.ParamName);
+    }
+
     [Theory]
     [InlineData("gate")]
     [InlineData("cancel")]
@@ -291,6 +368,19 @@ public sealed class DurableWorkflowEngineSeamTests
         Assert.Equal(WorkflowStatus.Failed, escalated!.Status);
         Assert.Equal(WorkflowTriggerDispatcher.EscalatedStep, escalated.CurrentStep);
         Assert.Equal(WorkflowDispatchResult.Advanced, last);
+
+        // The cap is a different failure from ADR-0141, with its own durable diagnosis.
+        var events = await store.EventsAsync("inst-runaway");
+        Assert.Equal("Escalated", events.Last().EventType);
+        using var payload = JsonDocument.Parse(events.Last().DataJson);
+        Assert.Equal("max-iterations-escalation", payload.RootElement.GetProperty("kind").GetString());
+        Assert.Equal("loop-back iteration cap reached", payload.RootElement.GetProperty("reason").GetString());
+        Assert.Equal("decide", payload.RootElement.GetProperty("step").GetString());
+        Assert.Equal(2, payload.RootElement.GetProperty("iteration").GetInt32());
+        Assert.Equal(3, payload.RootElement.GetProperty("maxIterations").GetInt32());
+        var result = await store.FindStepResultAsync(new WorkflowStepKey("inst-runaway", 2, "decide"));
+        Assert.NotNull(result);
+        Assert.Equal(events.Last().DataJson, result.ResultJson);
     }
 
     [Fact]
