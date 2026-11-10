@@ -6,7 +6,7 @@
   "contentHashes": {
     "projections/dotnet/blocks/hlp.blocks.workflow.tests/WorkflowStateDeclarationsTests.cs": "174620b94d2dd2d8922075887e4d8579403bbe4ea7a65cbeca1223de597c3a63",
     "conformance/hlp.blocks.workflow/admission-mirror-cases.json": "48b33271390ad47ba3872a47fa4292a5e2fc4f0374d034e609d4bfca6b94c4d8",
-    "conformance/hlp.blocks.workflow/fixtures.yaml": "b3ef006b55f3c152e52fdbfe977bc5b74413e432b9ac50962a855d53b4307a63",
+    "conformance/hlp.blocks.workflow/fixtures.yaml": "0855459e35ab664de91b0f625c27542341cbebb2f24a8715575c49c6b91e156b",
     "projections/dotnet/blocks/hlp.blocks.workflow.restart-probe/Program.cs": "d46024078ca10f5c5bfafc2433b7604ec550a3d4090a3a9804c5b38fb66e250a",
     "projections/dotnet/blocks/hlp.blocks.workflow.restart-probe/Harborline.Blocks.Workflow.RestartProbe.csproj": "52d44796dac092b902bb26a2e7c212fd1113eb0abec88eb7e094ad00109a5fff",
     "projections/dotnet/blocks/hlp.blocks.workflow.tests/CapabilityAuthorityRegistryTests.cs": "b8b696e1456427e4207afe9c81caf0272ad99dd3cc54a7c0ec06e8daffd5fa97",
@@ -72,8 +72,8 @@
     "projections/dotnet/blocks/hlp.blocks.workflow/WorkflowInstance.cs": "0f27aabca637bcdbaee0134991b3cf9a6e7c5b8c91b18a03cae49cec87dfbd14",
     "projections/dotnet/blocks/hlp.blocks.workflow/WorkflowInstanceId.cs": "08d1915d88e889548861afc1e8f90098203740a9445240bcd22c76df94512839",
     "projections/dotnet/blocks/hlp.blocks.workflow/WorkflowServiceCollectionExtensions.cs": "98899233e372446d1050944b36a94cd4d453528b3816f5dc45055e00d20b2a87",
-    "specs/modules/blocks/hlp.blocks.workflow/interface.yaml": "b90a0dc00d5c67d3b605d92d2dee6c735624c9fdb1f8ccde194a9c79e61fea89",
-    "tests/package-consumers/workflow-npm/exercise.mjs": "d74323875197596f8c47785bc8d97679f01c22ca2a5a195842865eccc5ef688f",
+    "specs/modules/blocks/hlp.blocks.workflow/interface.yaml": "fdb97af87fe6eda06f7dfe5a01a8d8d520fe0d684db2ae1cb2b79258bdd17534",
+    "tests/package-consumers/workflow-npm/exercise.mjs": "b568834ec0e73b22dd4ceb32c43dd588c65a3bd72fa3dd2d743d830c62ff7ef4",
     "tests/package-consumers/workflow-npm/package.json": "c608aa6a839cf1a24f62d6c3959de372b48eeb36eaa83d60a2d2451a7250c207",
     "tests/package-consumers/workflow-nuget/Consumer.csproj": "a9fdd23856b203b72af941cd00b82a54ed47a0c6e65cc83945268017a5165aaf",
     "tests/package-consumers/workflow-nuget/Program.cs": "fd2866e91d226a6f9575dbb03dd6cc8b225f8e495ad4537f57f778811546e66c"
