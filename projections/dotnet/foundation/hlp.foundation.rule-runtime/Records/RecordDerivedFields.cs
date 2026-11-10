@@ -42,7 +42,7 @@ public static class RecordDerivedFields
     /// <summary>The calculation reads something other than the record's own fields, or derived fields read each other in a cycle.</summary>
     public const string Unreadable = "records.mutate.calculation_unreadable";
 
-    /// <summary>The calculation's value did not resolve (a type error, a division by zero, an upstream error).</summary>
+    /// <summary>The calculation's value did not resolve (a type error, a division by zero, an upstream error, or a candidate past the rule context's input envelope).</summary>
     public const string Failed = "records.mutate.calculation_failed";
 
     private static readonly EvaluationAdmission Admission =
@@ -76,7 +76,11 @@ public static class RecordDerivedFields
             var ready = pending.FindIndex(item => !pending.Any(other => item.Reads.Contains(other.Field.FieldKey)));
             if (ready < 0) return Refused(pending[0].Field, Unreadable);
             var field = pending[ready].Field;
-            var snapshot = RuleContextSnapshot.Capture(candidate.ToDictionary(member => member.Key, member => member.Value?.DeepClone()));
+            // The candidate is the context, so a body past the rule context's input envelope (256 KiB, 5,000 values) cannot
+            // be computed over; that is this field's value not resolving, not a fault of the write.
+            RuleContextSnapshot snapshot;
+            try { snapshot = RuleContextSnapshot.Capture(candidate.ToDictionary(member => member.Key, member => member.Value?.DeepClone())); }
+            catch (ArgumentException) { return Refused(field, Failed); }
             var value = NamedReferences.Compute(field.Pin, closure!, evaluator, snapshot, Admission, cancellationToken);
             if (value.State != ValueState.Resolved) return Refused(field, Failed);
             candidate[field.FieldKey] = value.Value?.DeepClone();

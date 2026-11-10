@@ -129,4 +129,22 @@ public sealed class RecordDerivedFieldsTests
 
         Assert.Equal(new RecordDerivedFieldRefusal("total", "records.mutate.calculation_failed"), result.Refusal);
     }
+
+    public static TheoryData<string, string> OverEnvelope() => new()
+    {
+        // 256 KiB of UTF-8 and 5,000 JSON values are the rule context's input envelope (RuleContextSnapshot.MaxUtf8Bytes, MaxNodes).
+        { "a string over 256 KiB", "\"" + new string('x', 262_145) + "\"" },
+        { "more than 5,000 JSON values", "[" + string.Join(",", Enumerable.Repeat("0", 5_001)) + "]" },
+    };
+
+    [Theory(DisplayName = "records-eng-5: a body the rule context cannot admit refuses calculation_failed rather than throwing")]
+    [MemberData(nameof(OverEnvelope))]
+    public void Records_eng_5_a_body_the_rule_context_cannot_admit_refuses(string because, string note)
+    {
+        // The calculation never reads note, but the whole candidate is the context it is captured from.
+        var result = Derive("{\"price\":2.5,\"qty\":4,\"note\":" + note + "}", Closure(LineTotal), Derived("total", LineTotal));
+
+        Assert.Null(result.Candidate);
+        Assert.True(new RecordDerivedFieldRefusal("total", "records.mutate.calculation_failed") == result.Refusal, because);
+    }
 }

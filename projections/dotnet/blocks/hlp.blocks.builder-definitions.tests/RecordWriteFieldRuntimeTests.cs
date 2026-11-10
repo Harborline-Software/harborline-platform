@@ -411,6 +411,26 @@ public sealed class RecordWriteFieldRuntimeTests
         Assert.Empty(fixture.Port.Rows);
     }
 
+    [Theory]
+    [Trait("Holds", "records-eng-5")]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task records_eng_5_a_body_over_the_rule_context_envelope_refuses_at_mutate_before_anything_is_staged(bool accepted)
+    {
+        // A string of 256 KiB + 1 that the calculation never reads still exceeds the rule context's UTF-8 envelope.
+        var fixture = await Fixture.CreateAsync(accepted: accepted, derived: LineTotal, calculations: new([], [LineTotal]));
+
+        var outcome = await fixture.WriteAsync("derive-oversized",
+            "{\"status\":\"A\",\"price\":2.5,\"qty\":4,\"note\":\"" + new string('x', 262_145) + "\"}");
+
+        Assert.False(outcome.Committed);
+        Assert.Null(outcome.Receipt);
+        Assert.Equal(("mutate", "records.mutate.calculation_failed"), (outcome.Refusal!.Stage, outcome.Refusal.Code));
+        Assert.Equal(["/total"], outcome.Refusal.Pointers);
+        Assert.Empty(fixture.Port.Events);
+        Assert.Empty(fixture.Port.Rows);
+    }
+
     private static void Refused(RecordWriteOutcome outcome, string pointer)
     {
         Assert.False(outcome.Committed);
