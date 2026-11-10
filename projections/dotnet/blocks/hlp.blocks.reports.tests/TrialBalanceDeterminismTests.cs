@@ -72,6 +72,7 @@ public sealed class TrialBalanceDeterminismTests
     }
 
     [Fact]
+    [Trait("Holds", "reports-eng-21")]
     public async Task ExecuteAsync_IsDeterministic_AcrossRepeatedRuns()
     {
         var (sut, _) = Build();
