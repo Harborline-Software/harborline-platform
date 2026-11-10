@@ -13,6 +13,10 @@
     <PackageReference Include="xunit.runner.visualstudio" PrivateAssets="all" />
   </ItemGroup>
   <ItemGroup>
+    <!-- T-606/member-editors: the bodies both UI lanes author, admitted here through BookingDefinitionAdmission. -->
+    <None Include="../../../../conformance/hlp.ui.booking-authoring/fixtures.yaml" Link="booking-authoring-fixtures/fixtures.yaml" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="../hlp.blocks.calendar/Harborline.Blocks.Calendar.csproj" />
     <ProjectReference Include="../../kernel/hlp.kernel.core/Harborline.Kernel.Core.csproj" />
   </ItemGroup>

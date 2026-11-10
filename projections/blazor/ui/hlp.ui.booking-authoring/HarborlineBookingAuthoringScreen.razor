@@ -1,0 +1,21 @@
+@namespace Harborline.UIAdapters.Blazor.Components.BookingAuthoring
+
+@* The host seam (T-606/member-editors): the host's shell lays the editor out; this screen adds no chrome, persistence or admission of its own. *@
+@if (Shell is not null) { @Shell(Editor) } else { @Editor }
+
+@code {
+    /// <summary>The host's layout, given the editor to place. Without one the editor renders on its own.</summary>
+    [Parameter] public RenderFragment<RenderFragment>? Shell { get; set; }
+    /// <summary>The host's draft, passed to the editor.</summary>
+    [Parameter, EditorRequired] public BookingDraft Value { get; set; } = BookingDraft.Empty;
+    /// <summary>What the host offers, passed to the editor.</summary>
+    [Parameter] public BookingCatalogue Catalogue { get; set; } = new();
+    /// <summary>Host-supplied refusals, passed to the editor.</summary>
+    [Parameter] public BookingDiagnosticSet? Diagnostics { get; set; }
+    /// <summary>The local read-only flag, passed to the editor.</summary>
+    [Parameter] public bool ReadOnly { get; set; }
+    /// <summary>Receives each local change from the editor.</summary>
+    [Parameter] public EventCallback<BookingDraftChange> DraftChanged { get; set; }
+
+    private RenderFragment Editor => @<HarborlineBookingAuthoringEditor Value="Value" Catalogue="Catalogue" Diagnostics="Diagnostics" ReadOnly="ReadOnly" DraftChanged="DraftChanged" />;
+}

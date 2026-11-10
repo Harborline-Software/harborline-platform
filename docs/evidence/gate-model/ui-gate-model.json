@@ -68,7 +68,7 @@
   },
   "ticket": "098",
   "subject": {
-    "moduleCount": 81,
+    "moduleCount": 82,
     "gateIds": [
       "assertDeterminism",
       "assertAccessible",
@@ -708,6 +708,84 @@
           "id": "assertDesignQuality",
           "status": "UNBUILT",
           "note": "UNBUILT inherited from assertEmptyAndErrorStates"
+        }
+      ]
+    },
+    {
+      "moduleId": "hlp.ui.booking-authoring",
+      "presentation": "visual",
+      "catalogStatus": "gap-implemented",
+      "terminal": false,
+      "gates": [
+        {
+          "id": "assertDeterminism",
+          "status": "PASS",
+          "note": "cheap half only: no timing or async construct declared"
+        },
+        {
+          "id": "assertAccessible",
+          "status": "PARTIAL",
+          "note": "axe-core over 0 scenarios x 2 lanes in the recorded gallery-gate; 2 added since it was recorded are unscanned until it is re-recorded: booking-authoring.resource, booking-authoring.refusals"
+        },
+        {
+          "id": "assertVisualParity",
+          "status": "PASS",
+          "note": "2 visual-parity scenario(s), lane vs lane, pixelmatch"
+        },
+        {
+          "id": "assertFunctionalParity",
+          "status": "PASS",
+          "note": "3 conformance case(s) across both lanes"
+        },
+        {
+          "id": "assertInternationalization",
+          "status": "PARTIAL",
+          "note": "no locale fixtures; only the shared canvas is exercised"
+        },
+        {
+          "id": "assertPerformanceProfile",
+          "status": "UNBUILT",
+          "note": "no client-performance measurement exists for this module; run-ui-performance.mjs records test-process wall clock and declares wallClockBudgetUsed: false"
+        },
+        {
+          "id": "assertTokenAdherence",
+          "status": "PASS",
+          "note": "every value resolves to an approved token"
+        },
+        {
+          "id": "assertStateCompleteness",
+          "status": "UNBUILT",
+          "note": "no component interface found in either lane"
+        },
+        {
+          "id": "assertFocusQuality",
+          "status": "UNBUILT",
+          "note": "focus scanner reported nothing for this module"
+        },
+        {
+          "id": "assertResponsiveQuality",
+          "status": "PASS",
+          "note": "reflow measured at 320px and 200% text in both lanes, with no horizontal overflow"
+        },
+        {
+          "id": "assertEmptyAndErrorStates",
+          "status": "UNBUILT",
+          "note": "no empty or error property, but bookableTypes, diagnostics, maintenanceSources, resourceTypes, resources can be handed an empty collection; that state is reachable and undesigned"
+        },
+        {
+          "id": "assertContentResilience",
+          "status": "UNBUILT",
+          "note": "no long-content, missing-field or large-number case declared"
+        },
+        {
+          "id": "assertDesignReview",
+          "status": "UNBUILT",
+          "note": "no design-review verdict recorded for this module"
+        },
+        {
+          "id": "assertDesignQuality",
+          "status": "UNBUILT",
+          "note": "UNBUILT inherited from assertStateCompleteness, assertFocusQuality, assertEmptyAndErrorStates, assertContentResilience, assertDesignReview"
         }
       ]
     },
@@ -6407,9 +6485,9 @@
     }
   ],
   "tally": {
-    "PASS": 671,
-    "PARTIAL": 103,
-    "UNBUILT": 199,
+    "PASS": 676,
+    "PARTIAL": 105,
+    "UNBUILT": 206,
     "NOT-APPLICABLE": 159,
     "FAIL": 2
   }
