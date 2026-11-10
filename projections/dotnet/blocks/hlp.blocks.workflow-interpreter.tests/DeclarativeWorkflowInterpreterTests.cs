@@ -202,6 +202,26 @@ public sealed class DeclarativeWorkflowInterpreterTests
         Assert.NotNull(taken.Effect);
     }
 
+    [Fact]
+    public async Task Workflows_ck_5_a_trigger_that_took_an_edge_commits_up_to_the_state_where_the_next_edge_does_not_match()
+    {
+        var sp = BuildProvider(HumanConfirmer());
+        await PersistAndPublishAsync(sp, ChainAuthored(), ChainKey);
+        var interpreter = Interpreter(sp);
+        var instance = new WorkflowInstanceRecord
+        {
+            Id = "chain-1", TenantId = Tenant, DefinitionKey = ChainKey, DefinitionVersion = Version,
+            CurrentStep = "A", Status = WorkflowStatus.Running, StateJson = "{}",
+        };
+
+        var progressed = await interpreter.DecideAsync(instance, WorkflowTrigger.For(WorkflowTriggerKind.Event, "chain-1", "A"));
+
+        Assert.Equal(WorkflowStepOutcomeKind.Advance, progressed.Kind);
+        Assert.Equal("B", progressed.NextStep);
+        Assert.Equal(WorkflowStatus.Running, progressed.NextStatus);
+        Assert.Null(progressed.Effect);
+    }
+
     // ── FAIL-CLOSED: a now-inadmissible pinned definition throws at load (never executes) ──
 
     [Fact]
@@ -540,6 +560,32 @@ public sealed class DeclarativeWorkflowInterpreterTests
         var model = WorkflowDefinitionWireMapper.ToModel(authored, Tenant, key, Version);
         await store.RegisterAsync(model, authored);
         await store.PublishAsync(Tenant, key, Version);
+    }
+
+    // A --Event--> B --Schedule--> C, with no effect or park at B: the Codex P1 chain on #446 at be28abe5.
+    internal const string ChainKey = "event-then-schedule.v1";
+
+    internal static JsonElement ChainAuthored()
+    {
+        const string json = """
+        {
+          "initialState": "A",
+          "states": [
+            { "id": "A", "kind": "Normal" },
+            { "id": "B", "kind": "Normal" },
+            { "id": "C", "kind": "Terminal" }
+          ],
+          "triggers": [
+            { "id": "issued", "kind": "Event", "eventType": "Issued" },
+            { "id": "daily", "kind": "Schedule", "rrule": "FREQ=DAILY" }
+          ],
+          "transitions": [
+            { "id": "t-ab", "from": "A", "on": "issued", "to": "B" },
+            { "id": "t-bc", "from": "B", "on": "daily", "to": "C" }
+          ]
+        }
+        """;
+        return JsonDocument.Parse(json).RootElement.Clone();
     }
 
     /// <summary>The vendor-invoice-approval shape: Draft →(issued)→ PendingApproval →(human approve, CP post)→ Posted.</summary>

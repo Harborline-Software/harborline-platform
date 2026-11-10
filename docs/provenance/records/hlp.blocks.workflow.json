@@ -71,7 +71,7 @@
     "projections/dotnet/blocks/hlp.blocks.workflow/WorkflowInstance.cs": "0f27aabca637bcdbaee0134991b3cf9a6e7c5b8c91b18a03cae49cec87dfbd14",
     "projections/dotnet/blocks/hlp.blocks.workflow/WorkflowInstanceId.cs": "08d1915d88e889548861afc1e8f90098203740a9445240bcd22c76df94512839",
     "projections/dotnet/blocks/hlp.blocks.workflow/WorkflowServiceCollectionExtensions.cs": "98899233e372446d1050944b36a94cd4d453528b3816f5dc45055e00d20b2a87",
-    "specs/modules/blocks/hlp.blocks.workflow/interface.yaml": "3cc87607fcb1ab83b5c3efb0e3bb71d2ffe9758596d59e4799f791844c40c583",
+    "specs/modules/blocks/hlp.blocks.workflow/interface.yaml": "b90a0dc00d5c67d3b605d92d2dee6c735624c9fdb1f8ccde194a9c79e61fea89",
     "tests/package-consumers/workflow-npm/exercise.mjs": "d74323875197596f8c47785bc8d97679f01c22ca2a5a195842865eccc5ef688f",
     "tests/package-consumers/workflow-npm/package.json": "c608aa6a839cf1a24f62d6c3959de372b48eeb36eaa83d60a2d2451a7250c207",
     "tests/package-consumers/workflow-nuget/Consumer.csproj": "a9fdd23856b203b72af941cd00b82a54ed47a0c6e65cc83945268017a5165aaf",

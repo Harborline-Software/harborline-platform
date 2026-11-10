@@ -94,6 +94,28 @@ public sealed class DurableDeclarativeExecutionTests : IDisposable
     }
 
     [Fact]
+    public async Task A_matched_trigger_commits_progress_and_rests_where_the_next_edge_does_not_match()
+    {
+        var chainKey = DeclarativeWorkflowInterpreterTests.ChainKey;
+        await using var provider = await BuildAsync(DeclarativeWorkflowInterpreterTests.ChainAuthored(), chainKey);
+        var store = provider.GetRequiredService<FileJournalWorkflowStore>();
+        var dispatcher = provider.GetRequiredService<IWorkflowTriggerDispatcher>();
+        await CreateInstanceAsync(store, "chain-1", chainKey, "A");
+
+        Assert.Equal(WorkflowDispatchResult.Advanced, await dispatcher.DispatchAsync(
+            WorkflowTrigger.For(WorkflowTriggerKind.Event, "chain-1", "A"), Authorized("chain-1")));
+        var rested = await store.LoadAsync("chain-1");
+        Assert.Equal("B", rested!.CurrentStep);
+        Assert.Equal(WorkflowStatus.Running, rested.Status);
+
+        Assert.Equal(WorkflowDispatchResult.Advanced, await dispatcher.DispatchAsync(
+            WorkflowTrigger.For(WorkflowTriggerKind.Schedule, "chain-1", "B"), Authorized("chain-1")));
+        var completed = await store.LoadAsync("chain-1");
+        Assert.Equal("C", completed!.CurrentStep);
+        Assert.Equal(WorkflowStatus.Completed, completed.Status);
+    }
+
+    [Fact]
     public async Task Declarative_dispatch_under_a_denied_authority_is_refused_before_the_interpreter_runs()
     {
         // T-525 item 1: the interpreter branch verifies the same authority as a typed handler.
@@ -131,7 +153,7 @@ public sealed class DurableDeclarativeExecutionTests : IDisposable
 
     // ── Harness ─────────────────────────────────────────────────────────────
 
-    private async Task<ServiceProvider> BuildAsync()
+    private async Task<ServiceProvider> BuildAsync(JsonElement? authoredDefinition = null, string key = Key)
     {
         Directory.CreateDirectory(_directory);
         var services = new ServiceCollection();
@@ -155,20 +177,20 @@ public sealed class DurableDeclarativeExecutionTests : IDisposable
         var provider = services.BuildServiceProvider();
 
         var definitions = provider.GetRequiredService<IWorkflowDefinitionStore>();
-        var authored = Authored();
-        await definitions.RegisterAsync(WorkflowDefinitionWireMapper.ToModel(authored, Tenant, Key, Version), authored);
-        await definitions.PublishAsync(Tenant, Key, Version);
+        var authored = authoredDefinition ?? Authored();
+        await definitions.RegisterAsync(WorkflowDefinitionWireMapper.ToModel(authored, Tenant, key, Version), authored);
+        await definitions.PublishAsync(Tenant, key, Version);
         return provider;
     }
 
-    private static Task CreateInstanceAsync(FileJournalWorkflowStore store, string id)
+    private static Task CreateInstanceAsync(FileJournalWorkflowStore store, string id, string key = Key, string step = "Draft")
         => store.CreateInstanceAsync(new WorkflowInstanceRecord
         {
             Id = id,
             TenantId = Tenant,
-            DefinitionKey = Key,
+            DefinitionKey = key,
             DefinitionVersion = Version,
-            CurrentStep = "Draft",
+            CurrentStep = step,
             Status = WorkflowStatus.Running,
             CreatedAt = DateTimeOffset.UtcNow,
             UpdatedAt = DateTimeOffset.UtcNow,

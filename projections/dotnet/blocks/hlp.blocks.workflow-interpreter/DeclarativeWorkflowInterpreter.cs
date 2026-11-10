@@ -136,6 +136,7 @@ public sealed class DeclarativeWorkflowInterpreter : IDeclarativeWorkflowInterpr
         WorkflowTrigger trigger)
     {
         var state = trigger.Step;
+        var matched = false;
 
         // Bound the traversal by the state count — an autonomous cycle (admission checks reachability +
         // dead-ends, not autonomous cycles) is a fail-closed error rather than an infinite loop.
@@ -188,13 +189,16 @@ public sealed class DeclarativeWorkflowInterpreter : IDeclarativeWorkflowInterpr
 
             var transition = autonomous[0];
 
-            // workflows-ck-5 (R-0155 D1): an edge fires only on the trigger its `on` binding names. A trigger it does
-            // not name is discarded and the run rests here (SCXML: "If no transition matches in any state, the event
-            // is discarded."). The delivered trigger carries its kind, not its binding id, so the kind is compared.
+            // workflows-ck-5 (R-0155 D1): an edge fires only on the trigger its `on` binding names. The delivered
+            // trigger carries its kind, not its binding id, so the kind is compared. When no edge has matched, the
+            // trigger is discarded and commits nothing (SCXML: "If no transition matches in any state, the event is
+            // discarded."). Once one has, the progress so far commits and the run rests at this state.
             if (!triggerKinds.TryGetValue(transition.On, out var onKind) || onKind != trigger.Kind)
             {
-                return WorkflowStepOutcome.Discard(state);
+                return matched ? WorkflowStepOutcome.Advance(state) : WorkflowStepOutcome.Discard(state);
             }
+
+            matched = true;
 
             RefuseUnenforcedGate("transition", transition.Id, transition.RequiredRoles, transition.RequiredStandings, instance);
 
