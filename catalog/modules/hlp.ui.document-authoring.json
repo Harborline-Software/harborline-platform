@@ -1,0 +1,57 @@
+{
+  "moduleId": "hlp.ui.document-authoring",
+  "module": {
+    "interface": {
+      "path": "specs/modules/ui/hlp.ui.document-authoring/interface.yaml",
+      "revision": 1
+    },
+    "moduleKind": "interactive-component",
+    "presentation": {
+      "disposition": "visual"
+    },
+    "qualityProfile": {
+      "path": "specs/modules/ui/hlp.ui.document-authoring/quality.yaml",
+      "revision": 1
+    },
+    "owner": "platform-ui",
+    "dependencies": [
+      "hlp.ui.button"
+    ],
+    "status": "gap-implemented",
+    "depth": {
+      "disposition": "deep-module",
+      "deletionTest": "PASS",
+      "redistributedComplexity": [
+        "Template text-run and page-control drafting repeated by every Documents host",
+        "Pending edits, stale server preview fencing and admission refusals drifting across React and Blazor"
+      ]
+    },
+    "projections": {
+      "react": {
+        "role": "adapter",
+        "seam": "ui.document-authoring.framework",
+        "path": "projections/react/ui/hlp.ui.document-authoring",
+        "status": "conformant",
+        "packageContribution": "@harborline-software/ui-react",
+        "conformanceRunner": "conformance/hlp.ui.document-authoring/runners/run-shared.mjs"
+      },
+      "blazor": {
+        "role": "adapter",
+        "seam": "ui.document-authoring.framework",
+        "path": "projections/blazor/ui/hlp.ui.document-authoring",
+        "status": "conformant",
+        "packageContribution": "Harborline.UIAdapters.Blazor",
+        "conformanceRunner": "conformance/hlp.ui.document-authoring/runners/run-shared.mjs"
+      }
+    }
+  },
+  "seams": {
+    "ui.document-authoring.framework": {
+      "status": "conformant",
+      "adapters": [
+        "react",
+        "blazor"
+      ]
+    }
+  }
+}

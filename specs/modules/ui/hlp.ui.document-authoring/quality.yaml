@@ -1,0 +1,167 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.document-authoring",
+  "profileRevision": 1,
+  "riskTier": "B",
+  "fixture": "conformance/hlp.ui.document-authoring/quality-fixtures.yaml",
+  "dimensions": {
+    "accessibility": {
+      "disposition": "required",
+      "caseIds": [
+        "document-authoring.quality.labels"
+      ]
+    },
+    "internationalization": {
+      "disposition": "required",
+      "caseIds": [
+        "document-authoring.quality.reflow"
+      ],
+      "localeSensitiveFormatting": {
+        "disposition": "not-applicable",
+        "rationale": "The editor renders server-produced semantic content in the document locale and formats no merge values locally."
+      }
+    },
+    "theming": {
+      "disposition": "required",
+      "caseIds": [
+        "document-authoring.quality.visual-parity"
+      ]
+    },
+    "keyboard": {
+      "disposition": "required",
+      "caseIds": [
+        "document-authoring.quality.labels"
+      ]
+    },
+    "focus": {
+      "disposition": "required",
+      "caseIds": [
+        "document-authoring.quality.labels"
+      ]
+    },
+    "dismissal": {
+      "disposition": "not-applicable",
+      "rationale": "The editor owns no modal, popover, or other transient dismissal surface."
+    },
+    "rtl": {
+      "disposition": "not-applicable",
+      "rationale": "The editor uses logical flow and declares no directional geometry or navigation semantics."
+    },
+    "reduced-motion": {
+      "disposition": "not-applicable",
+      "rationale": "The editor creates no animation or motion-dependent state transition."
+    },
+    "workflow": {
+      "disposition": "required",
+      "caseIds": [
+        "document-authoring.quality.pending-edits"
+      ]
+    },
+    "state": {
+      "disposition": "required",
+      "caseIds": [
+        "document-authoring.quality.pending-edits"
+      ]
+    },
+    "performance": {
+      "disposition": "not-applicable",
+      "rationale": "The host bounds a single template draft and its catalogues."
+    },
+    "largeData": {
+      "disposition": "not-applicable",
+      "rationale": "Record and sample catalogues are supplied by the host; the editor queries no remote collection."
+    }
+  },
+  "componentStages": [
+    {
+      "id": "contract",
+      "dimensions": [
+        "accessibility",
+        "internationalization",
+        "theming",
+        "keyboard",
+        "focus",
+        "dismissal",
+        "rtl",
+        "reduced-motion",
+        "workflow",
+        "state",
+        "performance",
+        "largeData"
+      ],
+      "gate": "profile and neutral fixture validation"
+    },
+    {
+      "id": "projection-native",
+      "dimensions": [
+        "accessibility",
+        "internationalization",
+        "theming",
+        "keyboard",
+        "focus",
+        "dismissal",
+        "rtl",
+        "reduced-motion",
+        "workflow",
+        "state",
+        "performance",
+        "largeData"
+      ],
+      "gate": "public React and Blazor native tests"
+    },
+    {
+      "id": "package-consumer",
+      "dimensions": [
+        "accessibility",
+        "internationalization",
+        "theming",
+        "keyboard",
+        "focus",
+        "dismissal",
+        "rtl",
+        "reduced-motion",
+        "workflow",
+        "state",
+        "performance",
+        "largeData"
+      ],
+      "gate": "packed package consumer tests"
+    },
+    {
+      "id": "gallery",
+      "dimensions": [
+        "accessibility",
+        "internationalization",
+        "theming",
+        "keyboard",
+        "focus",
+        "dismissal",
+        "rtl",
+        "reduced-motion",
+        "workflow",
+        "state",
+        "performance",
+        "largeData"
+      ],
+      "gate": "Axe, reflow, and visual parity"
+    },
+    {
+      "id": "clean-clone",
+      "dimensions": [
+        "accessibility",
+        "internationalization",
+        "theming",
+        "keyboard",
+        "focus",
+        "dismissal",
+        "rtl",
+        "reduced-motion",
+        "workflow",
+        "state",
+        "performance",
+        "largeData"
+      ],
+      "gate": "complete repository gate from the recorded implementation commit"
+    }
+  ]
+}
