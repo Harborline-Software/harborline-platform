@@ -1,16 +1,17 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.blocks.reports",
-  "interfaceRevision": 2,
+  "interfaceRevision": 3,
   "status": "frozen",
   "purpose": "Own deterministic snapshot-marked report execution and seven report cartridges (trial balance, balance sheet, P&L, P&L by property, AR aging, AP aging, rent roll) over a Harborline-owned neutral read port.",
-  "dependencies": [{"moduleId": "hlp.contracts.identities", "minimumRevision": 1}, {"moduleId": "hlp.blocks.measure-catalogue", "minimumRevision": 1}, {"moduleId": "hlp.foundation.definitions", "minimumRevision": 1}],
+  "dependencies": [{"moduleId": "hlp.contracts.identities", "minimumRevision": 1}, {"moduleId": "hlp.blocks.measure-catalogue", "minimumRevision": 1}, {"moduleId": "hlp.foundation.definitions", "minimumRevision": 1}, {"moduleId": "hlp.blocks.builder-definitions", "minimumRevision": 1}],
   "callerInterface": {
     "name": "IReportRunner / IReportQuerySource",
     "operations": [
       "RunAsync(kind, tenantId, principalId, parameters) -> ReportRunResult: validate, capture the snapshot marker before dispatch, execute, and carry duration/provisionality/warnings in the envelope",
       "IReportQuerySource: read charts, accounts, posted journal rows, fiscal periods, tenant+chart-scoped AR/AP open items, parties, and leases as immutable neutral rows; no storage type crosses the seam",
-      "ReportMeasureEntries.All() -> the seven computations as bound entries in the shared measure catalogue, each running its existing cartridge over the caller-supplied ReportMeasureBasis behind the catalogue's bound Access predicate and projecting typed cells"
+      "ReportMeasureEntries.All() -> the seven computations as bound entries in the shared measure catalogue, each running its existing cartridge over the caller-supplied ReportMeasureBasis behind the catalogue's bound Access predicate and projecting typed cells",
+      "ReportDefinitionCatalogue: admitted SaveDraftAsync / PublishAsync / RestoreAsDraftAsync in the shared Reports registry; ResolveHeadAsync returns the highest published semantic version or report.definition.no_published_head; Export / ImportDraftAsync transport the full envelope as registry content kind 9 without authority, preserving the stored-body digest."
     ],
     "context": "Cartridges and their neutral feed model remain inside hlp.blocks.reports. Storage adapters are intentionally outside this wave; the port keeps re-binding to a future financial substrate possible without promising it (migration reports WAVE-STATE ruling 1). Open-item queries are (TenantId, ChartOfAccountsId, DateOnly)-scoped and ReportOpenItem carries both identities — restoring the pinned AP tenant-isolation semantics the first draft dropped."
   },
@@ -20,7 +21,8 @@
     "Unknown kinds fail closed; validation and cancellation exceptions pass through; other cartridge failures are wrapped.",
     "Identical neutral inputs at an identical marker produce identical results.",
     "Open-item reads are tenant-isolated: another tenant's bills/invoices never enter a cartridge's rows (proven by the pinned AP isolation case).",
-    "All seven cartridges are registered by Harborline package composition."
+    "All seven cartridges are registered by Harborline package composition.",
+    "ReportDefinitionEnvelope carries identity, version, tenant, contract, cascade layer, provenance, retention class, legal hold and requires. Store document metadata owns the version; restoration copies the body into a new draft and publications remain immutable. Reports admission is registered on shared-store writes, including publication."
   ],
   "errors": ["unknown-report-kind", "report-parameter-validation", "report-cartridge-execution"],
   "publicSeams": ["IReportQuerySource neutral read port (tenant+chart-scoped open items)", "ISnapshotMarkerSource", "injected TimeProvider"],

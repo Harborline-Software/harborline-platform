@@ -1,0 +1,89 @@
+{
+  "slice": "T-489/definition-catalogue",
+  "command": "node tooling/stryker.mjs run hlp.blocks.reports.tests",
+  "reportSha256": "00fb6d23e7aa36c3d37d567dc33d3ed83551e3945e6dfe1b37e7c69f67854746",
+  "tested": 127,
+  "score": 65,
+  "break": 58,
+  "sourceHashes": {
+    "projections/dotnet/blocks/hlp.blocks.reports/Definitions/ReportDefinition.cs": "490dd1f87ca0886b5c226800619539177c9a439b926c9e9a8f53fb26cb2e9da8",
+    "projections/dotnet/blocks/hlp.blocks.reports/Definitions/ReportDefinitionAdmission.cs": "4381e65a78a581e7dfab8f212dad1b7a9df06346234a6f7b83398a099055bf32",
+    "projections/dotnet/blocks/hlp.blocks.reports/Definitions/ReportDefinitionCatalogue.cs": "0927071676425da6bebe4c5ce3e8c327fe552375bd1e5f29b2032da9a952ab62",
+    "projections/dotnet/blocks/hlp.blocks.reports.tests/ReportDefinitionCatalogueTests.cs": "3d7ffd566ebe1ea45a59ad2b5fb179cf39da8ad4995342b23294b504ed4d1bda"
+  },
+  "mutations": [
+    {
+      "items": [
+        "reports-eng-2"
+      ],
+      "file": "projections/dotnet/blocks/hlp.blocks.reports/Definitions/ReportDefinitionAdmission.cs",
+      "line": 48,
+      "mutator": "Statement mutation",
+      "replacement": ";",
+      "status": "Killed",
+      "killingTests": [
+        "Harborline.Blocks.Reports.Tests.ReportDefinitionCatalogueTests.reports_eng_2_admission_refuses_invalid_writes_and_rechecks_publish"
+      ],
+      "oracle": "DES-0020 section 2 reports-ck-1/2/3 and section 3 reports-eng-1/2; literal kind 9, full envelope fixture literals, new-version draft restore and immutable publication properties, named refusal literals."
+    },
+    {
+      "items": [
+        "reports-ck-1"
+      ],
+      "file": "projections/dotnet/blocks/hlp.blocks.reports/Definitions/ReportDefinitionCatalogue.cs",
+      "line": 27,
+      "mutator": "String mutation",
+      "replacement": "\"\"",
+      "status": "Killed",
+      "killingTests": [
+        "Harborline.Blocks.Reports.Tests.ReportDefinitionCatalogueTests.reports_ck_1_ck_2_pack_preserves_digest_and_full_envelope_without_authority"
+      ],
+      "oracle": "DES-0020 section 2 reports-ck-1/2/3 and section 3 reports-eng-1/2; literal kind 9, full envelope fixture literals, new-version draft restore and immutable publication properties, named refusal literals."
+    },
+    {
+      "items": [
+        "reports-eng-1"
+      ],
+      "file": "projections/dotnet/blocks/hlp.blocks.reports/Definitions/ReportDefinitionCatalogue.cs",
+      "line": 64,
+      "mutator": "String mutation",
+      "replacement": "\"\"",
+      "status": "Killed",
+      "killingTests": [
+        "Harborline.Blocks.Reports.Tests.ReportDefinitionCatalogueTests.reports_eng_1_head_refuses_missing_and_drafts_and_chooses_semver"
+      ],
+      "oracle": "DES-0020 section 2 reports-ck-1/2/3 and section 3 reports-eng-1/2; literal kind 9, full envelope fixture literals, new-version draft restore and immutable publication properties, named refusal literals."
+    },
+    {
+      "items": [
+        "reports-ck-3"
+      ],
+      "file": "projections/dotnet/blocks/hlp.blocks.reports/Definitions/ReportDefinitionCatalogue.cs",
+      "line": 121,
+      "mutator": "String mutation",
+      "replacement": "\"\"",
+      "status": "Killed",
+      "killingTests": [
+        "Harborline.Blocks.Reports.Tests.ReportDefinitionCatalogueTests.reports_ck_3_restore_is_a_new_draft_and_publications_are_immutable"
+      ],
+      "oracle": "DES-0020 section 2 reports-ck-1/2/3 and section 3 reports-eng-1/2; literal kind 9, full envelope fixture literals, new-version draft restore and immutable publication properties, named refusal literals."
+    },
+    {
+      "items": [
+        "reports-ck-2"
+      ],
+      "file": "projections/dotnet/blocks/hlp.blocks.reports/Definitions/ReportDefinitionCatalogue.cs",
+      "line": 105,
+      "mutator": "String mutation",
+      "replacement": "\"\"",
+      "status": "Killed",
+      "killingTests": [
+        "Harborline.Blocks.Reports.Tests.ReportDefinitionCatalogueTests.reports_ck_3_restore_is_a_new_draft_and_publications_are_immutable",
+        "Harborline.Blocks.Reports.Tests.ReportDefinitionCatalogueTests.reports_ck_1_ck_2_pack_preserves_digest_and_full_envelope_without_authority",
+        "Harborline.Blocks.Reports.Tests.ReportDefinitionCatalogueTests.reports_eng_1_head_refuses_missing_and_drafts_and_chooses_semver",
+        "Harborline.Blocks.Reports.Tests.ReportDefinitionCatalogueTests.reports_eng_2_admission_refuses_invalid_writes_and_rechecks_publish"
+      ],
+      "oracle": "DES-0020 reports-ck-2: the transported envelope version is the literal 1.0.0; a restored draft envelope carries its new literal version 2.0.0."
+    }
+  ]
+}
