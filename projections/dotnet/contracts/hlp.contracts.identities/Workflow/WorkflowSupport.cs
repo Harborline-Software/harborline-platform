@@ -235,7 +235,7 @@ public static class WorkflowWire
         Optional(value, "params", item => Object(item, "WorkflowEffectParams"));
         Optional(value, "notification", item => { Object(item, "WorkflowNotification"); foreach (var name in new[] { "eventKey", "tier" }) String(Required(item, name, "WorkflowNotification"), $"WorkflowNotification.{name}");
             var key = item.GetProperty("eventKey").GetString(); var hasWindow = item.TryGetProperty("batchingWindow", out var windowValue); if (hasWindow) String(windowValue, "WorkflowNotification.batchingWindow"); var window = hasWindow ? windowValue.GetString() : null; var tier = item.GetProperty("tier").GetString();
-            Require(value.GetProperty("kind").GetString() == "Notify" && !string.IsNullOrWhiteSpace(key) && tier is "decision" or "observation" or "information" && (window is null || (tier != "decision" && System.Text.RegularExpressions.Regex.IsMatch(window, @"^P(?=[0-9]|T[0-9])(?:[0-9]+D)?(?:T(?=[0-9])(?:[0-9]+H)?(?:[0-9]+M)?(?:[0-9]+S)?)?$"))), "workflow.invalid_notification", "WorkflowNotification"); });
+            Require(value.GetProperty("kind").GetString() == "Notify" && !string.IsNullOrWhiteSpace(key) && tier is "decision" or "observation" or "information" && (window is null || (tier != "decision" && System.Text.RegularExpressions.Regex.IsMatch(window, @"^P(?=[0-9]|T[0-9])(?:[0-9]+D)?(?:T(?=[0-9])(?:[0-9]+H)?(?:[0-9]+M)?(?:[0-9]+S)?)?\z"))), "workflow.invalid_notification", "WorkflowNotification"); });
     }
 
     private static void ContractVersion(JsonElement value)
@@ -441,7 +441,7 @@ public static class WorkflowAdmissionValidator
         {
             if (!action.Notification.HasValue) continue;
             var notification = action.Notification.Value;
-            if (notification is null || action.Kind != WorkflowActionKind.Notify || string.IsNullOrWhiteSpace(notification.EventKey) || !Enum.IsDefined(notification.Tier) || (notification.BatchingWindow.HasValue && (notification.Tier == WorkflowNotificationTier.Decision || notification.BatchingWindow.Value is null || !System.Text.RegularExpressions.Regex.IsMatch(notification.BatchingWindow.Value, @"^P(?=[0-9]|T[0-9])(?:[0-9]+D)?(?:T(?=[0-9])(?:[0-9]+H)?(?:[0-9]+M)?(?:[0-9]+S)?)?$"))))
+            if (notification is null || action.Kind != WorkflowActionKind.Notify || string.IsNullOrWhiteSpace(notification.EventKey) || !Enum.IsDefined(notification.Tier) || (notification.BatchingWindow.HasValue && (notification.Tier == WorkflowNotificationTier.Decision || notification.BatchingWindow.Value is null || !System.Text.RegularExpressions.Regex.IsMatch(notification.BatchingWindow.Value, @"^P(?=[0-9]|T[0-9])(?:[0-9]+D)?(?:T(?=[0-9])(?:[0-9]+H)?(?:[0-9]+M)?(?:[0-9]+S)?)?\z"))))
                 Add("workflow.invalid_notification", "Invalid notification declaration.", action.Id);
         }
         CheckEnvelope(definition, contractWindow, Add);

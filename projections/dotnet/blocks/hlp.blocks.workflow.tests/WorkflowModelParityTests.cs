@@ -63,8 +63,8 @@ public sealed class WorkflowModelParityTests
         var authority = new Wire.ImmutableWorkflowAuthorityResolver(new Dictionary<string, Wire.ActionClassification> { ["notify.email"] = Wire.ActionClassification.AP });
         var cases = fixture.RootElement.GetProperty("cases").EnumerateArray()
             .Where(row => row.GetProperty("id").GetString()!.StartsWith("workflows-ck-22-", StringComparison.Ordinal))
-            .Where(row => row.GetProperty("id").GetString()!.Contains("digit-refused", StringComparison.Ordinal) || row.GetProperty("id").GetString() == "workflows-ck-22-notification-action-round-trip").ToArray();
-        Assert.Equal(4, cases.Length);
+            .Where(row => row.GetProperty("id").GetString()!.Contains("digit-refused", StringComparison.Ordinal) || row.GetProperty("id").GetString() == "workflows-ck-22-trailing-newline-refused" || row.GetProperty("id").GetString() == "workflows-ck-22-notification-action-round-trip").ToArray();
+        Assert.Equal(5, cases.Length);
         foreach (var row in cases)
         {
             var window = row.GetProperty("input").GetProperty("notification").GetProperty("batchingWindow").GetString()!;
