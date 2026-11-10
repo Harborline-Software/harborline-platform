@@ -5,7 +5,7 @@ namespace Harborline.Foundation.NotificationDelivery.Tests;
 
 public sealed class InboxChannelTests
 {
-    [Fact]
+    [Fact(DisplayName = "notification-delivery-ck-7 notification-delivery-ck-10: write and mark read")]
     public async Task Write_then_read_and_mark_read_share_one_principal_inbox()
     {
         var inbox = new InMemoryInboxStore();
@@ -33,7 +33,7 @@ public sealed class InboxChannelTests
         Assert.Equal(InboxReadState.Read, (await inbox.ListAsync("tenant-a", recipient))[0].ReadState);
     }
 
-    [Fact]
+    [Fact(DisplayName = "notification-delivery-ck-1: inbox channel registration")]
     public void Inbox_is_the_only_registered_initial_channel_and_needs_no_secret_or_retry_profile()
     {
         var channel = DeliveryChannels.Require(DeliveryChannelKey.Inbox);
@@ -46,7 +46,7 @@ public sealed class InboxChannelTests
         Assert.Throws<NotificationDeliveryRefusedException>(() => DeliveryChannels.Require(default));
     }
 
-    [Fact]
+    [Fact(DisplayName = "notification-delivery-ck-2: inbox binding refuses secrets")]
     public void Inbox_binding_refuses_secret_references_because_the_inbox_needs_none()
     {
         var exception = Assert.Throws<NotificationDeliveryRefusedException>(() => new ChannelBinding(
@@ -59,7 +59,7 @@ public sealed class InboxChannelTests
         Assert.Equal("notification_delivery.secret_reference_not_allowed", exception.Code);
     }
 
-    [Fact]
+    [Fact(DisplayName = "notification-delivery-ck-10: rendered content required")]
     public async Task Inbox_refuses_an_entry_missing_rendered_content()
     {
         var channel = new InboxChannel(new InMemoryInboxStore(), TimeProvider.System);
@@ -77,7 +77,7 @@ public sealed class InboxChannelTests
         Assert.Equal("notification_delivery.inbox_entry_invalid", exception.Code);
     }
 
-    [Theory]
+    [Theory(DisplayName = "notification-delivery-ck-10: tenant and recipient required")]
     [InlineData(" ", "principal-a")]
     [InlineData("tenant-a", " ")]
     public async Task Inbox_refuses_and_does_not_persist_an_entry_with_a_blank_tenant_or_recipient(string tenant, string recipient)
