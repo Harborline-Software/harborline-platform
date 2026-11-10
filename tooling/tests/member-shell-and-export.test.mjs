@@ -23,19 +23,28 @@ test('the register is the member list, so a new member is covered without editin
   const pack = released()
   item(pack, 'platform-package-ck-6').members.push({id: 'ledgers', order: 14, pillar: 'ledgers'})
   assert.deepEqual(findings(pack), [
-    'member ledgers: no list view platform.list.ledgers on the shared export path (platform-package-ck-7)',
-    'member ledgers: no health view platform.health.ledgers on the shared export path (platform-package-ck-7)',
-    'member ledgers: no browse view platform.browse.ledgers on the shared export path (platform-package-ck-7)',
+    'member ledgers: no list ViewDefinition platform.list.ledgers on the shared export path',
+    'member ledgers: no health ViewDefinition platform.health.ledgers on the shared export path',
+    'member ledgers: no browse ViewDefinition platform.browse.ledgers on the shared export path',
   ])
 })
 
 test('a member whose view leaves the shared export path is named', () => {
   const pack = released()
-  const views = item(pack, 'platform-package-ck-7').members
-  views.splice(views.findIndex(view => view.id === 'platform.health.reports'), 1)
+  pack.items.splice(pack.items.findIndex(view => view.content.payload.definitionKey === 'platform.health.reports'), 1)
   assert.deepEqual(findings(pack), [
-    'member reports: no health view platform.health.reports on the shared export path (platform-package-ck-7)',
+    'member reports: no health ViewDefinition platform.health.reports on the shared export path',
   ])
+})
+
+test('a view with the right item id but a wrong definitionKey or content kind does not cover the member', () => {
+  for (const [property, value] of [['definitionKey', 'platform.health.other'], ['contentKind', 'FormDefinition']]) {
+    const pack = released()
+    item(pack, 'platform.health.reports')[property] = value
+    assert.deepEqual(findings(pack), [
+      'member reports: no health ViewDefinition platform.health.reports on the shared export path',
+    ])
+  }
 })
 
 const navigation = pack => item(pack, NAVIGATION_ITEM)
