@@ -175,13 +175,13 @@ public sealed class DeclarativeWorkflowInterpreter : IDeclarativeWorkflowInterpr
                 .ToList();
             if (autonomous.Count == 0)
             {
-                throw new InvalidOperationException(
+                throw new WorkflowInterpreterDecisionException(state,
                     $"Interpreter: state '{state}' (instance '{instance.Id}') has no autonomous outgoing " +
                     "transition and is not a human-task park point or terminal — the instance cannot advance.");
             }
             if (autonomous.Count > 1)
             {
-                throw new InvalidOperationException(
+                throw new WorkflowInterpreterDecisionException(state,
                     $"Interpreter: state '{state}' (instance '{instance.Id}') has {autonomous.Count} autonomous " +
                     "outgoing transitions; the v1 interpreter supports a single autonomous edge (a guarded " +
                     "multi-way branch requires a guard evaluator).");
@@ -217,7 +217,7 @@ public sealed class DeclarativeWorkflowInterpreter : IDeclarativeWorkflowInterpr
             state = transition.To;
         }
 
-        throw new InvalidOperationException(
+        throw new WorkflowInterpreterDecisionException(state,
             $"Interpreter: autonomous traversal from '{trigger.Step}' (instance '{instance.Id}') exceeded the " +
             "state-count bound — the definition has an autonomous cycle with no park/effect/terminal.");
     }
@@ -366,7 +366,7 @@ public sealed class DeclarativeWorkflowInterpreter : IDeclarativeWorkflowInterpr
 
     private static WorkflowStateDef FindState(WorkflowDefinition definition, string stateId)
         => definition.States.FirstOrDefault(s => s.Id == stateId)
-           ?? throw new InvalidOperationException(
+           ?? throw new WorkflowInterpreterDecisionException(stateId,
                $"Interpreter: state '{stateId}' is not defined in '{definition.Key}' v{definition.Version}.");
 
     private static bool IsHumanAction(IReadOnlyDictionary<string, WorkflowTriggerKind> triggerKinds, string triggerId)

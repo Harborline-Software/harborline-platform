@@ -1,8 +1,9 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.blocks.workflow-interpreter",
-  "interfaceRevision": 3,
+  "interfaceRevision": 4,
   "cases": [
+    {"id": "interpreter-decision-failure", "expectedStatus": "Failed", "reason": "not-retryable", "step": "actual-failing-state", "effect": null, "retry": false},
     {"id": "autonomous-start-parks", "trigger": "Event", "step": "Draft", "expected": "Park", "expectedStep": "PendingApproval", "basisKind": "cp-approval-basis"},
     {"id": "approve-confirms-cp-through-broker", "decision": "approve", "expected": "Advance", "expectedStep": "Posted", "confirmsRecorded": 1},
     {"id": "non-human-confirmer-refused", "decision": "approve", "confirmerIsHuman": false, "expected": "workflow.approval.separation_of_duties_violation"},
