@@ -78,6 +78,19 @@
       "report": "C:/hl-ab/wt-strykerjs/platform-reports/hlp.ui.badge/mutation.json",
       "measured": "2026-09-26, winbox, every mutable file (--all), StrykerJS 10.0.0 vitest-runner, 15 workers, sequential"
     },
+    "projections/react/ui/hlp.ui.booking-authoring": {
+      "baseline": 89,
+      "break": 89,
+      "score": 89.66,
+      "tested": 545,
+      "observed": [
+        92.56,
+        89.66
+      ],
+      "report": "projections/react/ui/hlp.ui.booking-authoring/reports/mutation/mutation.json",
+      "measured": "2026-11-08, Mac validation lane, every mutable file (--all), StrykerJS 10.0.0 vitest-runner, 15 workers",
+      "note": "two full runs: 92.56 with 132 timeouts under host load, 89.66 with 21; the lower run is the floor. The 51 survivors left are equivalent (charCodeAt past the end is NaN) or unreachable (Discard and Keep guards behind disabled buttons)."
+    },
     "projections/react/ui/hlp.ui.breadcrumb": {
       "baseline": 72,
       "break": 72,

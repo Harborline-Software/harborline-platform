@@ -104,7 +104,7 @@ public sealed class RecordWriteRules
         return null;
     }
 
-    private sealed class PinnedClock(DateTimeOffset instant) : TimeProvider
+    internal sealed class PinnedClock(DateTimeOffset instant) : TimeProvider
     {
         public override DateTimeOffset GetUtcNow() => instant.ToUniversalTime();
     }

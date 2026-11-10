@@ -130,13 +130,13 @@ test('unknown selectors and invalid proposed inputs refuse before any module lau
   assert.equal(calls, 0)
 })
 
-test('both modes keep all 79 real catalog modules; only the proposed mode has the literal Chat/Grid tail', async () => {
+test('both modes keep all 80 real catalog modules; only the proposed mode has the literal Chat/Grid tail', async () => {
   const catalog = loadModuleCatalog(fileURLToPath(new URL('../..', import.meta.url)))
   const moduleIds = Object.entries(catalog.modules)
     .filter(([id, module]) => id.startsWith('hlp.ui.')
       && Object.values(module.projections ?? {}).some(projection => projection.conformanceRunner))
     .map(([id]) => id).sort()
-  assert.equal(moduleIds.length, 79)
+  assert.equal(moduleIds.length, 80)
   assert.ok(moduleIds.includes('hlp.ui.chat'))
   assert.ok(moduleIds.includes('hlp.ui.data-grid'))
   const originalInput = [...moduleIds]
@@ -144,17 +144,17 @@ test('both modes keep all 79 real catalog modules; only the proposed mode has th
     const calls = []
     const completed = await createSharedModuleScheduler({moduleIds, concurrency: 6, mode})
       .run(async id => { calls.push(id); return result(id) })
-    assert.equal(calls.length, 79)
-    assert.equal(new Set(calls).size, 79)
+    assert.equal(calls.length, 80)
+    assert.equal(new Set(calls).size, 80)
     for (const id of originalInput) assert.equal(calls.filter(called => called === id).length, 1)
     if (mode === 'exclusive-tail') {
       assert.deepEqual(calls.slice(-2), ['hlp.ui.chat', 'hlp.ui.data-grid'])
-      assert.equal(completed.evidence.phases[0].moduleIds.length, 77)
+      assert.equal(completed.evidence.phases[0].moduleIds.length, 78)
       assert.deepEqual(completed.evidence.phases.map(phase => phase.name), [
         'ordinary-pool', 'exclusive:hlp.ui.chat', 'exclusive:hlp.ui.data-grid',
       ])
     } else {
-      assert.equal(completed.evidence.phases[0].moduleIds.length, 79)
+      assert.equal(completed.evidence.phases[0].moduleIds.length, 80)
       assert.deepEqual(completed.evidence.phases.map(phase => phase.name), ['original-pool'])
     }
     assert.deepEqual(completed.results.map(entry => entry.id), originalInput)

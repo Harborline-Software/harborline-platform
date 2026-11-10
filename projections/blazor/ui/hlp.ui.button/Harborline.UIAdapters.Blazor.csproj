@@ -192,6 +192,9 @@
     <RazorComponent Include="../hlp.ui.records-authoring/**/*.razor" Link="Components/RecordsAuthoring/%(Filename)%(Extension)" />
     <Compile Include="../hlp.ui.records-authoring/**/*.cs" Link="Components/RecordsAuthoring/%(Filename)%(Extension)" />
     <Content Include="../hlp.ui.records-authoring/wwwroot/**" Link="wwwroot/%(Filename)%(Extension)" />
+    <RazorComponent Include="../hlp.ui.booking-authoring/**/*.razor" Link="Components/BookingAuthoring/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.booking-authoring/**/*.cs" Link="Components/BookingAuthoring/%(Filename)%(Extension)" />
+    <Content Include="../hlp.ui.booking-authoring/wwwroot/**" Link="wwwroot/%(Filename)%(Extension)" />
     <RazorComponent Include="../hlp.ui.layout-runtime/**/*.razor" Link="Components/Layout/%(Filename)%(Extension)" />
     <Compile Include="../hlp.ui.layout-runtime/**/*.cs" Link="Components/Layout/%(Filename)%(Extension)" />
     <Content Include="../hlp.ui.layout-runtime/wwwroot/**" Link="wwwroot/%(Filename)%(Extension)" />

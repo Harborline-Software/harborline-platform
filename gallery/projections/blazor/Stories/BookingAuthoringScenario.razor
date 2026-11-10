@@ -1,0 +1,26 @@
+@namespace Harborline.Gallery.Blazor.Stories
+@using System.Text.Json.Nodes
+<section class="hl-gallery-scene" data-gallery-probe data-gallery-scenario="@ScenarioId">
+  <header class="hl-gallery-heading"><h2>@Copy.Title</h2><p>@Copy.Description</p></header>
+  <div class="hl-gallery-stage"><HarborlineBookingAuthoringEditor Value="@(Refusing ? Refused : Resource)" Catalogue="@Catalogue" Diagnostics="@(Refusing ? Refusals : null)" /></div>
+</section>
+@code {
+  [Parameter, EditorRequired] public string ScenarioId { get; set; } = "booking-authoring.resource";
+  private bool Refusing => ScenarioId == "booking-authoring.refusals";
+  // Copies of conformance/hlp.ui.booking-authoring/fixtures.yaml, written out identically in BookingAuthoring.stories.tsx; the
+  // gallery's ARIA parity check holds the two lanes together.
+  private const string Envelope = """{"cascade_layer":"domain_package","provenance":{"kind":"package","package":"training"},"retention_class":"definition","legal_hold":false,"requires":[],"contract":{"major":1,"minor":0}}""";
+  private static readonly BookingCatalogue Catalogue = new()
+  {
+    ResourceTypes = [new("type.room", "Room"), "type.nurse"],
+    BookableTypes = [new("type.learner", "Learner"), "type.note"],
+    Resources = [new("room", "Training room"), "instructor"],
+    MaintenanceSources = [new("field.out_of_service", "Out of service"), "field.under_repair"],
+  };
+  private static readonly BookingDraft Resource = new("resource.training-room", "1.0.0", "1", JsonNode.Parse($$"""{"envelope":{{Envelope}},"kind":"resource","name":"Training room","from_type_id":"type.room","capacity_kind":"pool","pool_size":2,"setup_minutes":10,"cleanup_minutes":15,"maintenance_windows":["field.out_of_service"],"availability_from":"supply.base-hours"}""")!.AsObject());
+  private static readonly BookingDraft Refused = new("resource.room", "1.0.0", "3", JsonNode.Parse($$"""{"envelope":{{Envelope}},"kind":"resource","name":"","from_type_id":"type.room","capacity_kind":"pool","pool_size":0,"availability_from":"supply.base-hours","extra":true}""")!.AsObject());
+  private static readonly BookingDiagnosticSet Refusals = new("resource.room", "3", 0, [new("booking.definition.member_unknown", "/extra"), new("booking.definition.name_required", "/name"), new("booking.resource.pool_size_invalid", "/pool_size")]);
+  private (string Title, string Description) Copy => Refusing
+    ? ("Refusals by field", "Admission refusals render beside the field they name; a member the editor shows no field for is listed with its pointer.")
+    : ("Pooled Resource", "A pooled training room with buffers, a maintenance source and an availability source; fields stack at a narrow viewport.");
+}

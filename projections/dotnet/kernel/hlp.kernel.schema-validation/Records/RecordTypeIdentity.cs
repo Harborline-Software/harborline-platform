@@ -54,7 +54,20 @@ public sealed record FieldDefinition(
     /// name against the role vocabulary, and enforcing it belongs to the write path.
     /// </summary>
     public string? WriteRoleId { get; init; }
+
+    /// <summary>
+    /// The named calculation that derives this field (ADR 0124 decision 1, DES-0030 field-runtime-ck-4), by exact name,
+    /// version and digest, never inlined (DES-0018 rules-ck-23). Null declares an ordinary field. The write fills a derived
+    /// field in its mutate stage, before validation, replacing any supplied value: nobody edits a derived value.
+    /// </summary>
+    public FieldCalculationPin? Calculation { get; init; }
 }
+
+/// <summary>The exact pin of the named calculation that derives a field (DES-0018 rules-ck-23). Nothing floats.</summary>
+/// <param name="Name">The calculation's name.</param>
+/// <param name="Version">The calculation's exact version.</param>
+/// <param name="Digest">The digest of the calculation's canonical expression.</param>
+public sealed record FieldCalculationPin(string Name, string Version, string Digest);
 
 /// <summary>
 /// The sealed conflict-policy vocabulary of a field (DES-0004 section 1, records-ck-16, L1011). There is deliberately no

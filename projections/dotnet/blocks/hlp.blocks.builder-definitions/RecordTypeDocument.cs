@@ -237,6 +237,9 @@ public static class RecordTypeDefinitionJson
                 if (pin.Version is null) return pointer + "/reference/pin/version";
                 if (pin.Digest is null) return pointer + "/reference/pin/digest";
             }
+            if (field.Calculation is { Name: null }) return pointer + "/calculation/name";
+            if (field.Calculation is { Version: null }) return pointer + "/calculation/version";
+            if (field.Calculation is { Digest: null }) return pointer + "/calculation/digest";
             if (field.Binding is not { } binding) continue;
             if (binding.Kind is null) return pointer + "/binding/kind";
             if (binding.Kind.KindId is null) return pointer + "/binding/kind/kind_id";

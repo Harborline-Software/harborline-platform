@@ -1,0 +1,95 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.booking-authoring",
+  "sourceFixture": "conformance/hlp.ui.booking-authoring/fixtures.yaml",
+  "qualityFixture": "conformance/hlp.ui.booking-authoring/quality-fixtures.yaml",
+  "galleryInterface": {
+    "probeAttribute": "data-gallery-probe",
+    "scenarioAttribute": "data-gallery-scenario",
+    "projectionTitles": {
+      "react": "Platform/Booking authoring",
+      "blazor": "Platform/Booking authoring"
+    }
+  },
+  "scenarios": [
+    {
+      "id": "booking-authoring.resource",
+      "name": "Pooled Resource",
+      "surface": "authoring",
+      "sourceCaseIds": [
+        "booking-authoring.resource-from-nothing"
+      ],
+      "sourceQualityCaseIds": [
+        "booking-authoring.quality.labels",
+        "booking-authoring.quality.reflow",
+        "booking-authoring.quality.visual-parity"
+      ],
+      "content": {
+        "blurb": "A pooled training room with buffers, a maintenance source and an availability source; fields stack at a narrow viewport.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "kind": "resource"
+        },
+        "state": {
+          "narrow": true
+        },
+        "body": [
+          {
+            "control": "raw",
+            "react": "<BookingAuthoringEditor value={resource} catalogue={catalogue} onDraftChange={()=>undefined}/>",
+            "blazor": "<HarborlineBookingAuthoringEditor Value=\"@Resource\" Catalogue=\"@Catalogue\" />",
+            "rationale": "The gallery supplies only the host-owned draft and catalogue; saving and admission stay with the host."
+          }
+        ],
+        "footer": []
+      },
+      "states": [
+        "filled"
+      ]
+    },
+    {
+      "id": "booking-authoring.refusals",
+      "name": "Refusals by field",
+      "surface": "refusals",
+      "sourceCaseIds": [
+        "booking-authoring.refusals-by-field"
+      ],
+      "sourceQualityCaseIds": [
+        "booking-authoring.quality.labels",
+        "booking-authoring.quality.visual-parity"
+      ],
+      "content": {
+        "blurb": "Admission refusals render beside the field they name; a member the editor shows no field for is listed with its pointer.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "kind": "resource"
+        },
+        "state": {
+          "refusals": 3
+        },
+        "body": [
+          {
+            "control": "raw",
+            "react": "<BookingAuthoringEditor value={refused} catalogue={catalogue} diagnostics={refusals} onDraftChange={()=>undefined}/>",
+            "blazor": "<HarborlineBookingAuthoringEditor Value=\"@Refused\" Catalogue=\"@Catalogue\" Diagnostics=\"@Refusals\" />",
+            "rationale": "The refusals are the producer's own codes and pointers for this draft (hlp.blocks.calendar.tests admits it)."
+          }
+        ],
+        "footer": []
+      },
+      "states": [
+        "invalid"
+      ]
+    }
+  ]
+}

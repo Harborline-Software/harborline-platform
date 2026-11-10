@@ -124,6 +124,10 @@ public sealed class WorkflowStepOutcome
     public static WorkflowStepOutcome ParkLoopBack(string step, string reasonJson = "{}")
         => new(WorkflowStepOutcomeKind.Park, step, WorkflowStatus.Parked, null, "{}", "Parked", reasonJson, isLoopBack: true);
 
+    /// <summary>Discard an unmatched trigger without committing a step.</summary>
+    public static WorkflowStepOutcome Discard(string step)
+        => new(WorkflowStepOutcomeKind.Discard, step, WorkflowStatus.Running, null, "{}", "", "{}");
+
     /// <summary>Terminal advance to <see cref="WorkflowStatus.Completed"/>.</summary>
     public static WorkflowStepOutcome Complete(
         string finalStep,
@@ -141,4 +145,7 @@ public enum WorkflowStepOutcomeKind
 
     /// <summary>Park durably on a delegated step and await the performer's typed result.</summary>
     Park = 1,
+
+    /// <summary>Discard the trigger without committing anything.</summary>
+    Discard = 2,
 }

@@ -1,0 +1,168 @@
+@namespace Harborline.UIAdapters.Blazor.Components.BookingAuthoring
+@using System.Globalization
+@using System.Text.Json
+@using System.Text.Json.Nodes
+@using Harborline.UIAdapters.Blazor.Components.Buttons
+
+@{ var body = Current.Body; var kind = Str(body["kind"]); var capacity = Str(body["capacity_kind"]); var durations = Durations(body);
+    RenderFragment content = @<text>
+    <header class="hl-booking-authoring__grid">
+        <label>Definition kind<select aria-label="Definition kind" disabled="@(kind is "resource" or "bookable")" value="@(kind ?? "")" @onchange="ChooseKind">@if (kind is null) { <option value="">Choose a definition kind</option> }@if (kind is not null && kind != "resource" && kind != "bookable") { <option value="@kind">@($"{kind} (not a Booking kind)")</option> }<option value="resource">Resource</option><option value="bookable">Bookable</option></select></label>
+        <output aria-label="Identity">@(Current.Identity == "" ? "Not yet assigned" : Current.Identity)</output>
+        <output aria-label="Version">@(Current.VersionId == "" ? "Not yet assigned" : Current.VersionId)</output>
+        <output aria-label="Expected revision">@(Current.ExpectedRevision ?? "None")</output>
+    </header>
+    @if (kind == "resource")
+    {
+        <div class="hl-booking-authoring__grid">
+            <label>Name<input aria-label="Name" aria-invalid="@Invalid("Name")" value="@(Str(body["name"]) ?? "")" @onchange="ChangeName" />@Refusals("Name")</label>
+            @Select("Resource record type", "from_type_id", Catalogue.ResourceTypes, "No resource record types offered.")
+            <label>Capacity<select aria-label="Capacity" aria-invalid="@Invalid("Capacity")" value="@(capacity ?? "")" @onchange="ChooseCapacity"><option value="">Not set (exclusive)</option>@if (capacity is not null && !CapacityKinds.Contains(capacity)) { <option value="@capacity">@($"{capacity} (not a current spelling)")</option> }@foreach (var spelling in CapacityKinds) { <option value="@spelling">@spelling</option> }</select>@Refusals("Capacity")</label>
+            @if (capacity == "pool" || body.ContainsKey("pool_size")) { @NumberInput("Pool size", "pool_size") }
+            @NumberInput("Setup minutes", "setup_minutes")
+            @NumberInput("Cleanup minutes", "cleanup_minutes")
+            @Checks("Maintenance", "maintenance_windows", Catalogue.MaintenanceSources, "Maintenance from", "No maintenance sources offered. Maintenance is read from the resource record, not authored here.")
+            <label>Availability source<input aria-label="Availability source" aria-invalid="@Invalid("Availability source")" value="@(Str(body["availability_from"]) ?? "")" @onchange="ChangeAvailability" />@Refusals("Availability source")</label>
+        </div>
+    }
+    @if (kind == "bookable")
+    {
+        <div class="hl-booking-authoring__grid">
+            <label>Name<input aria-label="Name" aria-invalid="@Invalid("Name")" value="@(Str(body["name"]) ?? "")" @onchange="ChangeName" />@Refusals("Name")</label>
+            @Select("Offered against record type", "on_type_id", Catalogue.BookableTypes, "No record types offered.")
+            <fieldset class="hl-booking-authoring__group" aria-invalid="@Invalid("Durations")"><legend>Durations</legend>
+                @if (durations.Count == 0) { <p class="hl-booking-authoring__note">No durations authored.</p> }
+                @for (var index = 0; index < durations.Count; index++)
+                {
+                    var current = index; var n = current + 1;
+                    <div class="hl-booking-authoring__row"><label>@($"Duration {n} minutes")<input aria-label="@($"Duration {n} minutes")" type="number" inputmode="numeric" value="@durations[current]" @onchange="eventArgs => SetDuration(current, eventArgs)" /></label><HarborlineButton ButtonType="ButtonType.Button" Variant="ButtonVariant.Secondary" Size="ButtonSize.Small" OnClick="() => RemoveDuration(current)">@($"Remove duration {n}")</HarborlineButton></div>
+                }
+                <div class="hl-booking-authoring__row"><label>New duration minutes<input aria-label="New duration minutes" type="number" inputmode="numeric" value="@_newDuration" @onchange="eventArgs => _newDuration = Text(eventArgs)" /></label><HarborlineButton ButtonType="ButtonType.Button" Variant="ButtonVariant.Secondary" Size="ButtonSize.Small" OnClick="AddDuration">Add duration</HarborlineButton></div>
+                @Refusals("Durations")
+            </fieldset>
+            @Checks("Required resources", "requires", Catalogue.Resources, "Required resource", "No resources offered.")
+            <label><input type="checkbox" aria-label="Waitlist" aria-invalid="@Invalid("Waitlist")" checked="@(body["waitlist"] is JsonValue waitlist && waitlist.GetValueKind() == JsonValueKind.True)" @onchange="ChangeWaitlist" />Waitlist: a queue exists. Offers and their expiry are a Workflow.@Refusals("Waitlist")</label>
+        </div>
+    }
+</text>; }
+<form class="hl-booking-authoring" aria-label="Booking definition draft" data-read-only="@(ReadOnly ? "" : null)" data-generation="@_generation" @onsubmit:preventDefault="true">
+    <p class="hl-booking-authoring__scope">Local draft. Edits stay in this editor and are not saved.</p>
+    @if (!BookingRevisionText.IsAcceptable(Value.ExpectedRevision)) { <p role="status" class="hl-booking-authoring__note">@RejectedRevision</p> }
+    @if (Adopted) { if (ReadOnly) { <fieldset class="hl-booking-authoring__read-only" disabled>@content</fieldset> } else { @content } }
+    @if (Unplaced.Count > 0) { <ul class="hl-booking-authoring__refusals" aria-label="Other refusals">@foreach (var diagnostic in Unplaced) { <li data-code="@diagnostic.Code" data-pointer="@diagnostic.Pointer">@diagnostic.Code at @diagnostic.Pointer</li> }</ul> }
+    @if (_incoming is not null) { <aside role="alert" class="hl-booking-authoring__incoming">A different draft or revision arrived while you have local edits.<HarborlineButton ButtonType="ButtonType.Button" Enabled="!ReadOnly" OnClick="Keep">Keep edits</HarborlineButton><HarborlineButton ButtonType="ButtonType.Button" Enabled="!ReadOnly" OnClick="Discard">Discard edits</HarborlineButton></aside> }
+</form>
+
+@code {
+    /// <summary>The host's draft. A different identity, version or revision replaces a clean draft and waits behind Keep/Discard on a dirty one.</summary>
+    [Parameter, EditorRequired] public BookingDraft Value { get; set; } = BookingDraft.Empty;
+    /// <summary>The record types, Resources and maintenance sources the host offers; the editor never chooses one on its own.</summary>
+    [Parameter] public BookingCatalogue Catalogue { get; set; } = new();
+    /// <summary>Host-supplied admission refusals; shown only when identity, revision and generation all match the current draft.</summary>
+    [Parameter] public BookingDiagnosticSet? Diagnostics { get; set; }
+    /// <summary>A local flag that disables every control and edit handler. It is not an authorization decision.</summary>
+    [Parameter] public bool ReadOnly { get; set; }
+    /// <summary>Receives each local change with its generation. Local state only; nothing is persisted.</summary>
+    [Parameter] public EventCallback<BookingDraftChange> DraftChanged { get; set; }
+
+    // Spellings of the Booking grammar (BookingDefinitionAdmission.cs). A value outside them is shown, never rewritten.
+    private static readonly string[] CapacityKinds = ["exclusive", "pool"];
+    // The field a refusal pointer belongs to, by its first reference token. Any other pointer is listed under "Other refusals".
+    private static readonly Dictionary<string, string> ResourceFields = new(StringComparer.Ordinal) { ["name"] = "Name", ["from_type_id"] = "Resource record type", ["capacity_kind"] = "Capacity", ["pool_size"] = "Pool size", ["setup_minutes"] = "Setup minutes", ["cleanup_minutes"] = "Cleanup minutes", ["maintenance_windows"] = "Maintenance", ["availability_from"] = "Availability source" };
+    private static readonly Dictionary<string, string> BookableFields = new(StringComparer.Ordinal) { ["name"] = "Name", ["on_type_id"] = "Offered against record type", ["duration_intervals_minutes"] = "Durations", ["requires"] = "Required resources", ["waitlist"] = "Waitlist" };
+    private static readonly Dictionary<string, string> NoFields = new(StringComparer.Ordinal);
+    private const string RejectedRevision = "A host draft was not loaded because its revision is not a canonical decimal string.";
+    private BookingDraft Current = BookingDraft.Empty; private BookingDraft? _incoming; private string? _lifecycle; private string? _held; private bool _dirty; private int _generation; private string _newDuration = "";
+    // No draft exists until the first host value with an acceptable revision; the Empty placeholder is never shown or reported.
+    private bool Adopted => _lifecycle is not null;
+
+    // A host echo of the same identity, version and revision is not a replacement. A host value whose revision is present but not
+    // canonical is rejected: never adopted, held, repaired or emitted. The generation is local and never reads the revision.
+    protected override void OnParametersSet()
+    {
+        if (!BookingRevisionText.IsAcceptable(Value.ExpectedRevision)) return;
+        var key = LifecycleKey(Value);
+        if (_lifecycle is null) { Current = Value; _lifecycle = key; return; }
+        if (key == _lifecycle) { _incoming = null; _held = null; return; }
+        if (key == _held) return;
+        if (_dirty) { _held = key; _incoming = Value; } else { Current = Value; _lifecycle = key; _generation++; }
+    }
+
+    private static string LifecycleKey(BookingDraft value) => $"{value.Identity}\u0000{value.VersionId}\u0000{value.ExpectedRevision}";
+    // Refusals match only the exact identity, canonical revision and local generation; anything else is stale and never shown.
+    private IReadOnlyList<BookingDiagnostic> Matched => Adopted && Diagnostics is { } supplied && BookingRevisionText.IsAcceptable(supplied.ExpectedRevision) && supplied.Identity == Current.Identity && string.Equals(supplied.ExpectedRevision, Current.ExpectedRevision, StringComparison.Ordinal) && supplied.Generation == _generation ? supplied.Diagnostics : [];
+    private Dictionary<string, string> Fields => Str(Current.Body["kind"]) switch { "resource" => ResourceFields, "bookable" => BookableFields, _ => NoFields };
+    private static string FirstToken(string pointer) { var tokens = pointer.Split('/'); return tokens.Length > 1 ? tokens[1] : ""; }
+    private List<BookingDiagnostic> Placed(string field) => [.. Matched.Where(diagnostic => Fields.TryGetValue(FirstToken(diagnostic.Pointer), out var owner) && owner == field)];
+    private List<BookingDiagnostic> Unplaced => [.. Matched.Where(diagnostic => !Fields.ContainsKey(FirstToken(diagnostic.Pointer)))];
+    private string? Invalid(string field) => Placed(field).Count > 0 ? "true" : null;
+    private RenderFragment Refusals(string field) => builder =>
+    {
+        var own = Placed(field);
+        if (own.Count == 0) return;
+        builder.OpenElement(0, "ul"); builder.AddAttribute(1, "class", "hl-booking-authoring__refusals"); builder.AddAttribute(2, "aria-label", $"{field} refusals");
+        foreach (var diagnostic in own) { builder.OpenElement(3, "li"); builder.AddAttribute(4, "data-code", diagnostic.Code); builder.AddAttribute(5, "data-pointer", diagnostic.Pointer); builder.AddContent(6, diagnostic.Code); builder.CloseElement(); }
+        builder.CloseElement();
+    };
+    private RenderFragment Select(string field, string member, IReadOnlyList<BookingOption> options, string fallback)
+    {
+        var current = Str(Current.Body[member]);
+        return @<label>@field@if (options.Count == 0) { <span class="hl-booking-authoring__note">@fallback</span> }<select aria-label="@field" aria-invalid="@Invalid(field)" value="@(current ?? "")" @onchange="eventArgs => SetText(member, Text(eventArgs))"><option value="">Not set</option>@if (!string.IsNullOrEmpty(current) && !options.Any(option => option.Id == current)) { <option value="@current">@($"{current} (not offered)")</option> }@foreach (var option in options) { <option value="@option.Id">@option.Label</option> }</select>@Refusals(field)</label>;
+    }
+    private RenderFragment NumberInput(string field, string member) =>
+        @<label>@field<input aria-label="@field" aria-invalid="@Invalid(field)" type="number" inputmode="numeric" value="@(Current.Body[member] is JsonValue number && number.GetValueKind() == JsonValueKind.Number ? number.ToJsonString() : "")" @onchange="eventArgs => SetNumber(member, Text(eventArgs))" />@Refusals(field)</label>;
+    private RenderFragment Checks(string legend, string member, IReadOnlyList<BookingOption> options, string prefix, string fallback)
+    {
+        var chosen = Strings(Current.Body[member]);
+        return @<fieldset class="hl-booking-authoring__group" aria-invalid="@Invalid(legend)"><legend>@legend</legend>@if (options.Count == 0) { <p class="hl-booking-authoring__note">@fallback</p> }@foreach (var id in chosen.Where(id => !options.Any(option => option.Id == id))) { <p class="hl-booking-authoring__note"><label><input type="checkbox" aria-label="@($"{prefix} {id} (not offered)")" checked @onchange="eventArgs => Toggle(member, id, eventArgs.Value is true)" />@($"{id} (not offered)")</label></p> }@foreach (var option in options) { var id = option.Id; <label><input type="checkbox" aria-label="@($"{prefix} {option.Label}")" checked="@chosen.Contains(id)" @onchange="eventArgs => Toggle(member, id, eventArgs.Value is true)" />@option.Label</label> }@Refusals(legend)</fieldset>;
+    }
+
+    private static string? Str(JsonNode? node) => node is JsonValue value && value.TryGetValue<string>(out var text) ? text : null;
+    private static List<string> Strings(JsonNode? node) => node is JsonArray array ? [.. array.Select(Str).OfType<string>()] : [];
+    private static List<string> Durations(JsonObject body) => body["duration_intervals_minutes"] is JsonArray array ? [.. array.Select(entry => entry is JsonValue value && value.GetValueKind() == JsonValueKind.Number ? value.ToJsonString() : "")] : [];
+    private static string Text(ChangeEventArgs eventArgs) => eventArgs.Value?.ToString() ?? "";
+    // A number is read invariantly from the input text. Empty or non-finite text is not a number, and leaves the draft unchanged.
+    private static JsonNode? Parsed(string raw) => double.TryParse(raw.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out var number) && double.IsFinite(number) ? JsonValue.Create(number) : null;
+
+    private Task Change(BookingDraft next) { if (ReadOnly || !Adopted) return Task.CompletedTask; Current = next; _dirty = true; _generation++; return DraftChanged.InvokeAsync(new BookingDraftChange(next, _generation)); }
+    // Every edit works on a copy, so the host's body is never mutated and unedited members (envelope, hold policy, gates) survive.
+    private Task Edit(Action<JsonObject> mutate) { if (ReadOnly || !Adopted) return Task.CompletedTask; var body = Current.Body.DeepClone().AsObject(); mutate(body); return Change(Current with { Body = body }); }
+    // Setting a member writes it; null removes it and writes nothing in its place.
+    private static void Put(JsonObject body, string member, JsonNode? value) { if (value is null) body.Remove(member); else body[member] = value; }
+    private Task ChooseKind(ChangeEventArgs eventArgs) => Str(Current.Body["kind"]) is not ("resource" or "bookable") && (Text(eventArgs) is "resource" or "bookable") ? Edit(body => { var chosen = Text(eventArgs); body["kind"] = chosen; if (chosen == "bookable" && !body.ContainsKey("requires")) body["requires"] = new JsonArray(); }) : Task.CompletedTask;
+    private Task ChangeName(ChangeEventArgs eventArgs) => Edit(body => body["name"] = Text(eventArgs));
+    private Task SetText(string member, string value) => Edit(body => Put(body, member, value == "" ? null : JsonValue.Create(value)));
+    private Task ChangeAvailability(ChangeEventArgs eventArgs) => SetText("availability_from", Text(eventArgs));
+    private Task SetNumber(string member, string raw)
+    {
+        if (raw.Trim() == "") return Edit(body => body.Remove(member));
+        return Parsed(raw) is { } number ? Edit(body => body[member] = number) : Task.CompletedTask;
+    }
+    // Exclusive capacity carries no pool size (the producer refuses one), so choosing it removes pool_size in the same edit.
+    private Task ChooseCapacity(ChangeEventArgs eventArgs) => Edit(body => { var chosen = Text(eventArgs); Put(body, "capacity_kind", chosen == "" ? null : JsonValue.Create(chosen)); if (chosen != "pool") body.Remove("pool_size"); });
+    private Task Toggle(string member, string id, bool on) => Edit(body =>
+    {
+        var current = Strings(body[member]);
+        var next = on ? (current.Contains(id) ? current : [.. current, id]) : [.. current.Where(entry => entry != id)];
+        Put(body, member, next.Count > 0 || member == "requires" ? new JsonArray([.. next.Select(entry => (JsonNode)JsonValue.Create(entry))]) : null);
+    });
+    private Task SetDuration(int index, ChangeEventArgs eventArgs) => Parsed(Text(eventArgs)) is { } number
+        ? Edit(body => { if (body["duration_intervals_minutes"] is JsonArray durations && index < durations.Count) durations[index] = number; })
+        : Task.CompletedTask;
+    private Task AddDuration()
+    {
+        if (Parsed(_newDuration) is not { } number) return Task.CompletedTask;
+        _newDuration = "";
+        return Edit(body => { if (body["duration_intervals_minutes"] is not JsonArray durations) { durations = new JsonArray(); body["duration_intervals_minutes"] = durations; } durations.Add(number); });
+    }
+    private Task RemoveDuration(int index) => Edit(body => { if (body["duration_intervals_minutes"] is JsonArray durations && index < durations.Count) { durations.RemoveAt(index); if (durations.Count == 0) body.Remove("duration_intervals_minutes"); } });
+    // Unchecking writes false only where the draft already carries the member; an absent waitlist stays absent.
+    private Task ChangeWaitlist(ChangeEventArgs eventArgs) => Edit(body => { if (eventArgs.Value is true) body["waitlist"] = true; else if (body.ContainsKey("waitlist")) body["waitlist"] = false; });
+    private Task Keep() { if (ReadOnly) return Task.CompletedTask; _incoming = null; return Task.CompletedTask; }
+    private Task Discard()
+    {
+        if (ReadOnly || _incoming is not { } next) return Task.CompletedTask;
+        Current = next; _incoming = null; _held = null; _dirty = false; _generation++; _lifecycle = LifecycleKey(next);
+        return DraftChanged.InvokeAsync(new BookingDraftChange(next, _generation));
+    }
+}
