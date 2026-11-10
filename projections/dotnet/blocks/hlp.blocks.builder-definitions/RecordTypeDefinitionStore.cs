@@ -70,7 +70,24 @@ public sealed record RecordTypePublication(DefinitionRevision Revision, Schema S
 /// <summary>One advisory publication warning, independent of admission and its refusal report.</summary>
 /// <param name="Code">The stable warning code.</param>
 /// <param name="Pointer">The RFC 6901 pointer of the unset policy.</param>
-public sealed record RecordTypePolicyWarning(string Code, string Pointer);
+public sealed record RecordTypePolicyWarning(string Code, string Pointer)
+{
+    /// <summary>The attachment field named by a store-limit warning.</summary>
+    public string? FieldKey { get; init; }
+    /// <summary>The pack's unchanged byte limit.</summary>
+    public long? DeclaredLimitBytes { get; init; }
+    /// <summary>The installing store's byte limit.</summary>
+    public long? StoreLimitBytes { get; init; }
+}
+
+/// <summary>The Records installation verdict, with advisory warnings separate from refusals.</summary>
+public sealed record RecordTypeInstallReport(DefinitionAdmissionPhase Stage, IReadOnlyList<DefinitionRefusal> Refusals)
+{
+    /// <summary>Advisories that do not refuse installation or rewrite the pack.</summary>
+    public IReadOnlyList<RecordTypePolicyWarning> Warnings { get; init; } = [];
+    /// <summary>Projects the unchanged shared refusal envelope for consumers that need only admission.</summary>
+    public static implicit operator DefinitionRefusalReport(RecordTypeInstallReport report) => new(report.Stage, report.Refusals);
+}
 
 /// <summary>
 /// Current-state content and publication-readiness diagnostics for one Record Type body, computed by
@@ -726,7 +743,7 @@ public sealed class RecordTypeDefinitionStore
     /// at the pin's interface version and must equal the exposure its pinned dependency closure declares. Every refusal
     /// comes back together and nothing is written, so a host installs the edge set whole or not at all.
     /// </summary>
-    public async ValueTask<DefinitionRefusalReport> AdmitInstallAsync(string tenant, RecordTypeDefinitionPackageEntry entry,
+    public async ValueTask<RecordTypeInstallReport> AdmitInstallAsync(string tenant, RecordTypeDefinitionPackageEntry entry,
         RecordsInstallClosure closure, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(entry);
@@ -744,7 +761,8 @@ public sealed class RecordTypeDefinitionStore
         var parsed = RecordTypeDefinitionJson.Deserialize(entry.Content.Payload.Span);
         // F5: a pack cannot install a role-gated type whose creation role this host's vocabulary does not define: a gate
         // nothing can satisfy is worse than an open one (ADR 0043). Each field's write role resolves the same way.
-        return new(DefinitionAdmissionPhase.Install, RoleRefusals(parsed, required: true).Concat(InstallEdges(parsed, closure)).ToArray());
+        return new(DefinitionAdmissionPhase.Install, RoleRefusals(parsed, required: true).Concat(InstallEdges(parsed, closure)).ToArray())
+        { Warnings = AttachmentWarnings(parsed) };
     }
 
     private static IEnumerable<DefinitionRefusal> InstallEdges(RecordTypeDocument document, RecordsInstallClosure closure)
@@ -864,12 +882,26 @@ public sealed class RecordTypeDefinitionStore
         }
     }
 
-    private static IReadOnlyList<RecordTypePolicyWarning> PublicationPolicyWarnings(DefinitionDocument document)
+    private IReadOnlyList<RecordTypePolicyWarning> AttachmentWarnings(RecordTypeDocument document)
+    {
+        var warnings = new List<RecordTypePolicyWarning>();
+        foreach (var (field, index) in document.Fields.Select((field, index) => (field, index)))
+            if (field.Binding is { } binding && _compiler.FieldKinds?.Bind(binding.Kind, $"/fields/{index}/binding/kind")
+                is ICompiledAttachmentFieldKind { LimitAboveStore: true } attachment)
+                warnings.Add(new("content.field-limit-above-store", $"/fields/{index}/binding/kind/parameters/item_limit_bytes")
+                { FieldKey = field.FieldKey, DeclaredLimitBytes = attachment.DeclaredLimitBytes, StoreLimitBytes = attachment.EffectiveLimitBytes });
+        return warnings;
+    }
+
+    private IReadOnlyList<RecordTypePolicyWarning> PublicationPolicyWarnings(DefinitionDocument document)
     {
         using var body = JsonDocument.Parse(document.BodyJson);
-        return !body.RootElement.TryGetProperty("retention_policy", out var retention) || retention.ValueKind == JsonValueKind.Null
-            ? [new("records.retention.unset", "/retention_policy")]
-            : [];
+        var warnings = new List<RecordTypePolicyWarning>();
+        if (!body.RootElement.TryGetProperty("retention_policy", out var retention) || retention.ValueKind == JsonValueKind.Null)
+            warnings.Add(new("records.retention.unset", "/retention_policy"));
+        warnings.AddRange(AttachmentWarnings(RecordTypeDefinitionJson.Deserialize(Encoding.UTF8.GetBytes(document.BodyJson))));
+        return warnings;
+
     }
 
 }

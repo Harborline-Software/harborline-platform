@@ -3,7 +3,7 @@
   "module": {
     "interface": {
       "path": "specs/modules/foundation/hlp.foundation.field-runtime/interface.yaml",
-      "revision": 1
+      "revision": 2
     },
     "moduleKind": "runtime",
     "presentation": {
@@ -14,7 +14,8 @@
     "dependencies": [
       "hlp.contracts.fields",
       "hlp.contracts.identities",
-      "hlp.foundation.rule-runtime"
+      "hlp.foundation.rule-runtime",
+      "hlp.foundation.content-store"
     ],
     "status": "extracted-candidate",
     "depth": {

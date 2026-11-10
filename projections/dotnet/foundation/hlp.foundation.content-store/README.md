@@ -119,3 +119,7 @@ The storage port is split by [ADR 0113](https://github.com/Harborline-Software/h
 Where the bytes live on the node, and the rule that no path deletes bytes during a backup, belong to the api backing ([ADR 0114](https://github.com/Harborline-Software/harborline-control/blob/main/adrs/ADR-0114-content-store-bytes-are-files-beside-the-node-database-and-each-key-stays-in-its-row/adr.md)). So does replaying a repeated idempotency key; the in-memory backing refuses one.
 
 The internal test hooks that corrupt a segment or a wrap tag are not operations. Evidence is in `ContentStoreBoundaryTests.cs`, `ContentStorePortTests.cs` and `ContentStoreSaveStepTests.cs` in `hlp.foundation.content-store.tests`.
+
+### Attachment staging (ADR-0142)
+
+A put records its audit actor in `ContentStoreItem.StagingPrincipal`. A promotion requires the same tenant and actor; another actor, another tenant, an expired stage, an unknown stage and a consumed stage all refuse `content.staging-expired`. Rejected actor/tenant checks do not consume or reclaim the stage. A host backing must persist `StagingPrincipal`; a legacy stage without one cannot be promoted. `ItemLimitBytes` and `SupportedMediaTypes` let the field runtime bind the same store limits.

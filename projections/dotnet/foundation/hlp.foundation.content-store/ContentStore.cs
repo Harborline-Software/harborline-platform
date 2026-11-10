@@ -218,6 +218,8 @@ public sealed record ContentCiphertextSegment(byte[] Ciphertext, byte[] Tag);
 public sealed record ContentStoreItem(Guid StageId, TenantId Tenant, ContentId ContentId, long Length, string MediaType, DateTimeOffset CreatedUtc,
     byte[] WrappedDataKey, byte[] WrapNonce, byte[] WrapTag, byte[] NoncePrefix, int SegmentSize, Guid EpochId)
 {
+    /// <summary>The authenticated put actor allowed to promote this stage (ADR-0142); absent legacy stages cannot commit.</summary>
+    public string? StagingPrincipal { get; init; }
     /// <summary>The committed owners that currently reference the item.</summary>
     public IReadOnlyList<ContentOwner> Owners { get; init; } = [];
     /// <summary>The item's lifecycle state.</summary>
@@ -1200,6 +1202,12 @@ public sealed class InMemoryContentStore
     private const int TagBytes = 16;
     private const int NoncePrefixBytes = 7;
 
+    /// <summary>The measured store per-item limit, used by field admission without rewriting pack declarations.</summary>
+    public long ItemLimitBytes => _options.ItemLimitBytes;
+
+    /// <summary>A detached view of the store's closed R1 media-type allowlist.</summary>
+    public static IReadOnlyList<string> SupportedMediaTypes { get; } = Array.AsReadOnly(Allowlist.Order(StringComparer.Ordinal).ToArray());
+
     private readonly ContentStoreOptions _options;
     private readonly ITenantContentKeyProvider _keys;
     private readonly TimeProvider _clock;
@@ -1326,7 +1334,7 @@ public sealed class InMemoryContentStore
                         try
                         {
                             var (wrapped, wrapNonce, wrapTag) = Wrap(epochKey, dataKey, contentId);
-                            await session.AddStagedAsync(new ContentStoreItem(stageId, tenant, contentId, length, mediaType, createdUtc, wrapped, wrapNonce, wrapTag, noncePrefix, SegmentSizeBytes, epoch.EpochId), token).ConfigureAwait(false);
+                            await session.AddStagedAsync(new ContentStoreItem(stageId, tenant, contentId, length, mediaType, createdUtc, wrapped, wrapNonce, wrapTag, noncePrefix, SegmentSizeBytes, epoch.EpochId) { StagingPrincipal = write.Audit.ActorId }, token).ConfigureAwait(false);
                             return true;
                         }
                         finally
@@ -1367,7 +1375,8 @@ public sealed class InMemoryContentStore
         var outcome = await RunAsync(ContentStoreOperation.Commit, write, async (session, token) =>
         {
             // Held from here, so a rewrap can't change the wrap this promotion carries into the committed item.
-            if (await session.FindStagedForUpdateAsync(stageId, token).ConfigureAwait(false) is not { } staged || staged.Tenant != tenant) throw StagingExpiredRefusal();
+            if (await session.FindStagedForUpdateAsync(stageId, token).ConfigureAwait(false) is not { } staged || staged.Tenant != tenant
+                || !StringComparer.Ordinal.Equals(staged.StagingPrincipal, write.Audit.ActorId)) throw StagingExpiredRefusal();
             if (StagedCutoff() >= staged.CreatedUtc)
             {
                 // Inside a caller's execution the refusal must fail the join and doom it; the sweep reclaims the stage.

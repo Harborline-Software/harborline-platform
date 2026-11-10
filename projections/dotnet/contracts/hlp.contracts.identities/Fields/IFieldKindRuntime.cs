@@ -28,3 +28,16 @@ public interface ICompiledFieldKind
     /// <summary>Validates original JSON while preserving decimal trailing zeroes for digit checks.</summary>
     IReadOnlyList<FieldRefusal> ValidateJson(string json, string jsonPointer);
 }
+
+/// <summary>The attachment kind's admitted field-owned limits; the declared limit is never rewritten.</summary>
+public interface ICompiledAttachmentFieldKind : ICompiledFieldKind
+{
+    /// <summary>The field's authored per-item byte limit, absent when it uses the store's.</summary>
+    long? DeclaredLimitBytes { get; }
+    /// <summary>The lower of the store's and the field's per-item limits.</summary>
+    long EffectiveLimitBytes { get; }
+    /// <summary>The admitted media types this field accepts.</summary>
+    IReadOnlyList<string> AcceptedMediaTypes { get; }
+    /// <summary>Whether installation must warn that the declared field limit exceeds the store's.</summary>
+    bool LimitAboveStore { get; }
+}

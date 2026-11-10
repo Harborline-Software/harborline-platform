@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.contracts.identities",
-  "interfaceRevision": 2,
+  "interfaceRevision": 3,
   "status": "frozen",
   "purpose": "Own the typed tenant and entity identities used at every tenant-scoped Platform seam without importing the broad Foundation aggregate.",
   "types": {
@@ -17,7 +17,9 @@
       "canonicalForm": "{scheme}:{authority}/{localPart}",
       "segments": ["scheme", "authority", "localPart"],
       "emptySegmentDisposition": "reject"
-    }
+    },
+    "FieldScalarValueShape": "Text | Boolean | Integer | Number | ContentReference (existing ordinal values unchanged)",
+    "ICompiledAttachmentFieldKind": ["DeclaredLimitBytes", "EffectiveLimitBytes", "AcceptedMediaTypes", "LimitAboveStore"]
   },
   "operations": [
     {"id": "tenant.construct", "input": "string", "result": "TenantId or argument error"},
@@ -31,8 +33,7 @@
     "A default TenantId and every reserved-prefix TenantId are system sentinels and must be rejected by tenant-scoped operations.",
     "Public TenantId construction rejects null, empty, whitespace-only, and reserved-prefix values.",
     "EntityId parsing requires non-empty scheme, authority, and localPart segments and round-trips canonically.",
-    "JSON null and malformed identity values fail closed rather than creating default identities."
-  ],
+    "JSON null and malformed identity values fail closed rather than creating default identities.", "An attachment binding exposes the original declared byte limit separately from the effective lower store/field limit."],
   "projectionPolicy": {
     "dotnet": "canonical typed implementation",
     "typescript": "opaque branded/wire value",

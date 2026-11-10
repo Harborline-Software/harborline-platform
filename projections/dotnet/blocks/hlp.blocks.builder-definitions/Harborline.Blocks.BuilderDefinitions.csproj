@@ -11,6 +11,7 @@
     <PackageReleaseNotes>Owner ruling Q48 / T-724 ruling 116: DefinitionAdmissionPhase, DefinitionRefusal, DefinitionRefusalReport and DefinitionRefusalException moved to the new Harborline.Foundation.Definitions package; this package now takes a dependency on it and forwards those four types with [TypeForwardedTo] for binary compatibility (same namespace, same members, no source change required of existing consumers). Internal-only projection; public distribution is not authorized.</PackageReleaseNotes>
   </PropertyGroup>
   <ItemGroup>
+    <ProjectReference Include="../../foundation/hlp.foundation.field-runtime/Harborline.Foundation.FieldRuntime.csproj" />
     <ProjectReference Include="../../foundation/hlp.foundation.definitions/Harborline.Foundation.Definitions.csproj" />
     <ProjectReference Include="../../foundation/hlp.foundation.rule-authoring/Harborline.Foundation.RuleAuthoring.csproj" />
     <!-- T-615: RecordTypeDefinitionStore binds Records admission and its schema compile to DefinitionKind.Records. -->

@@ -3,7 +3,7 @@
   "module": {
     "interface": {
       "path": "specs/modules/kernel/hlp.kernel.schema-validation/interface.yaml",
-      "revision": 2
+      "revision": 3
     },
     "moduleKind": "runtime",
     "presentation": {

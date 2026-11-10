@@ -50,6 +50,7 @@ public sealed record FieldKindDefaultProvenance(string KindId, string KindVersio
 /// <summary>The JSON scalar shape produced by an admitted field-kind revision.</summary>
 public enum FieldScalarValueShape
 {
+
     /// <summary>A JSON string.</summary>
     Text,
     /// <summary>A JSON boolean.</summary>
@@ -58,6 +59,8 @@ public enum FieldScalarValueShape
     Integer,
     /// <summary>A JSON number, including non-integral values.</summary>
     Number,
+    /// <summary>An immutable content-store reference (DES-0054 ck-3).</summary>
+    ContentReference,
 }
 
 /// <summary>A typed capability an admitted field-kind revision declares to the primitives that bind it.</summary>

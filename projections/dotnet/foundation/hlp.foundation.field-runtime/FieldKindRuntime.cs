@@ -8,12 +8,15 @@ namespace Harborline.Foundation.FieldRuntime;
 public sealed class FieldKindRuntime : IFieldKindRuntime
 {
     private readonly FieldKindRegistry _kinds;
+    private readonly long? _attachmentStoreLimitBytes;
 
     /// <summary>Uses the composing runtime's admitted registry, without guessing built-in kinds.</summary>
-    public FieldKindRuntime(FieldKindRegistry kinds)
+    public FieldKindRuntime(FieldKindRegistry kinds, long? attachmentStoreLimitBytes = null)
     {
         ArgumentNullException.ThrowIfNull(kinds);
         _kinds = kinds;
+        if (attachmentStoreLimitBytes is <= 0) throw new ArgumentOutOfRangeException(nameof(attachmentStoreLimitBytes));
+        _attachmentStoreLimitBytes = attachmentStoreLimitBytes;
     }
 
     /// <inheritdoc />
@@ -24,6 +27,8 @@ public sealed class FieldKindRuntime : IFieldKindRuntime
             throw new FieldAdmissionException([new("field.kind_parameter_invalid", jsonPointer + "/parameters",
                 "A kind reference requires its parameter object.")]);
         var parameters = new Dictionary<string, string>(reference.Parameters, StringComparer.Ordinal);
+        if (kind.ValueShape == FieldScalarValueShape.ContentReference)
+            return new AttachmentFieldKind(kind, parameters, _attachmentStoreLimitBytes, jsonPointer);
         var limits = FieldKindLimits.FromKindParameters(parameters, jsonPointer + "/parameters");
         if ((limits.HasNumericLimits && kind.ValueShape is not (FieldScalarValueShape.Number or FieldScalarValueShape.Integer))
             || (limits.HasTextLimits && kind.ValueShape != FieldScalarValueShape.Text))
