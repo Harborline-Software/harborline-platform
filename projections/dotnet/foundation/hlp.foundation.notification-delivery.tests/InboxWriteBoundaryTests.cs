@@ -21,7 +21,7 @@ public sealed class InboxWriteBoundaryTests
     // DES-0055 notification-delivery-ck-10 defines the inbox content role. Required fields and
     // exact diagnostic wording below pin the local API compatibility contract.
     // The recording store is independent of InMemoryInboxStore's validation and query behavior.
-    [Theory]
+    [Theory(DisplayName = "notification-delivery-ck-10: missing required content refuses before any append")]
     [MemberData(nameof(InvalidRequiredContent))]
     public async Task Notification_delivery_ck_10_missing_required_content_refuses_before_any_append(string field, string? value)
     {
@@ -48,7 +48,7 @@ public sealed class InboxWriteBoundaryTests
         Assert.Null(store.Appended);
     }
 
-    [Fact]
+    [Fact(DisplayName = "notification-delivery-ck-10: null request refuses before any append")]
     public async Task Notification_delivery_ck_10_null_request_refuses_before_any_append()
     {
         var store = new RecordingInboxStore();
@@ -62,7 +62,7 @@ public sealed class InboxWriteBoundaryTests
     }
 
     // DES-0055 notification-delivery-ck-7 and ck-10: full on-node content, unread state, answer owed and time.
-    [Theory]
+    [Theory(DisplayName = "notification-delivery-ck-10: write preserves all content and stamps a new unread entry")]
     [InlineData(true)]
     [InlineData(false)]
     public async Task Notification_delivery_ck_10_write_preserves_all_content_and_stamps_a_new_unread_entry(bool answerOwed)
@@ -94,7 +94,7 @@ public sealed class InboxWriteBoundaryTests
         Assert.Equal(2, store.AppendCalls);
     }
 
-    [Fact]
+    [Fact(DisplayName = "notification-delivery-ck-10: write waits for commit and returns the stores committed entry")]
     public async Task Notification_delivery_ck_10_write_waits_for_commit_and_returns_the_stores_committed_entry()
     {
         var completion = new TaskCompletionSource<InboxEntry>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -113,7 +113,7 @@ public sealed class InboxWriteBoundaryTests
         Assert.Same(committed, await writing);
     }
 
-    [Fact]
+    [Fact(DisplayName = "notification-delivery-ck-10: persistence failure propagates without returning an uncommitted entry")]
     public async Task Notification_delivery_ck_10_persistence_failure_propagates_without_returning_an_uncommitted_entry()
     {
         var refusal = new InvalidOperationException("Store commit refused");
@@ -126,7 +126,7 @@ public sealed class InboxWriteBoundaryTests
         Assert.Equal(1, store.AppendCalls);
     }
 
-    [Fact]
+    [Fact(DisplayName = "notification-delivery-ck-10: cancelled write never persists an entry")]
     public async Task Notification_delivery_ck_10_cancelled_write_never_persists_an_entry()
     {
         var store = new InMemoryInboxStore();
