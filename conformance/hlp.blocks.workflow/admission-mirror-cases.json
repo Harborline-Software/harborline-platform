@@ -41,9 +41,10 @@
         "en": "Route an issued invoice over the threshold through approval before it posts."
       }
     },
-    "subjectFormRef": {
-      "formId": "invoice.v1",
-      "version": "1.0.0"
+    "subject": {
+      "record": {
+        "recordType": "invoice"
+      }
     },
     "mutability": "Locked",
     "initialState": "Draft",
@@ -181,9 +182,10 @@
           "en": "Route an issued invoice over the threshold through approval before it posts."
         }
       },
-      "subjectFormRef": {
-        "formId": "invoice.v1",
-        "version": "1.0.0"
+      "subject": {
+        "record": {
+          "recordType": "invoice"
+        }
       },
       "mutability": "Locked",
       "initialState": "Draft",
@@ -341,9 +343,10 @@
             "en": "Route an issued invoice over the threshold through approval before it posts."
           }
         },
-        "subjectFormRef": {
-          "formId": "invoice.v1",
-          "version": "1.0.0"
+        "subject": {
+          "record": {
+            "recordType": "invoice"
+          }
         },
         "mutability": "Locked",
         "initialState": "Draft",
@@ -485,9 +488,10 @@
             "en": "Route an issued invoice over the threshold through approval before it posts."
           }
         },
-        "subjectFormRef": {
-          "formId": "invoice.v1",
-          "version": "1.0.0"
+        "subject": {
+          "record": {
+            "recordType": "invoice"
+          }
         },
         "mutability": "Locked",
         "initialState": "Draft",
@@ -630,9 +634,10 @@
             "en": "Route an issued invoice over the threshold through approval before it posts."
           }
         },
-        "subjectFormRef": {
-          "formId": "invoice.v1",
-          "version": "1.0.0"
+        "subject": {
+          "record": {
+            "recordType": "invoice"
+          }
         },
         "mutability": "Locked",
         "initialState": "Draft",
@@ -775,9 +780,10 @@
             "en": "Route an issued invoice over the threshold through approval before it posts."
           }
         },
-        "subjectFormRef": {
-          "formId": "invoice.v1",
-          "version": "1.0.0"
+        "subject": {
+          "record": {
+            "recordType": "invoice"
+          }
         },
         "mutability": "Locked",
         "initialState": "Draft",
@@ -919,9 +925,10 @@
             "en": "Route an issued invoice over the threshold through approval before it posts."
           }
         },
-        "subjectFormRef": {
-          "formId": "invoice.v1",
-          "version": "1.0.0"
+        "subject": {
+          "record": {
+            "recordType": "invoice"
+          }
         },
         "mutability": "Locked",
         "initialState": "Draft",
@@ -1063,9 +1070,10 @@
             "en": "Route an issued invoice over the threshold through approval before it posts."
           }
         },
-        "subjectFormRef": {
-          "formId": "invoice.v1",
-          "version": "1.0.0"
+        "subject": {
+          "record": {
+            "recordType": "invoice"
+          }
         },
         "mutability": "Locked",
         "initialState": "Draft",
@@ -1218,9 +1226,10 @@
             "en": "Route an issued invoice over the threshold through approval before it posts."
           }
         },
-        "subjectFormRef": {
-          "formId": "invoice.v1",
-          "version": "1.0.0"
+        "subject": {
+          "record": {
+            "recordType": "invoice"
+          }
         },
         "mutability": "Locked",
         "initialState": "Draft",
@@ -1363,9 +1372,10 @@
             "en": "Route an issued invoice over the threshold through approval before it posts."
           }
         },
-        "subjectFormRef": {
-          "formId": "invoice.v1",
-          "version": "1.0.0"
+        "subject": {
+          "record": {
+            "recordType": "invoice"
+          }
         },
         "mutability": "Locked",
         "initialState": "Draft",
@@ -1472,9 +1482,10 @@
             "en": "Route an issued invoice over the threshold through approval before it posts."
           }
         },
-        "subjectFormRef": {
-          "formId": "invoice.v1",
-          "version": "1.0.0"
+        "subject": {
+          "record": {
+            "recordType": "invoice"
+          }
         },
         "mutability": "Locked",
         "initialState": "Draft",
@@ -1592,9 +1603,10 @@
             "en": "Route an issued invoice over the threshold through approval before it posts."
           }
         },
-        "subjectFormRef": {
-          "formId": "invoice.v1",
-          "version": "1.0.0"
+        "subject": {
+          "record": {
+            "recordType": "invoice"
+          }
         },
         "mutability": "Locked",
         "initialState": "Draft",
@@ -1737,9 +1749,10 @@
             "en": "Route an issued invoice over the threshold through approval before it posts."
           }
         },
-        "subjectFormRef": {
-          "formId": "invoice.v1",
-          "version": "1.0.0"
+        "subject": {
+          "record": {
+            "recordType": "invoice"
+          }
         },
         "mutability": "Locked",
         "initialState": "Draft",
@@ -1882,9 +1895,10 @@
             "en": "Route an issued invoice over the threshold through approval before it posts."
           }
         },
-        "subjectFormRef": {
-          "formId": "invoice.v1",
-          "version": "1.0.0"
+        "subject": {
+          "record": {
+            "recordType": "invoice"
+          }
         },
         "mutability": "Locked",
         "initialState": "Draft",
@@ -2027,9 +2041,10 @@
             "en": "Route an issued invoice over the threshold through approval before it posts."
           }
         },
-        "subjectFormRef": {
-          "formId": "invoice.v1",
-          "version": "1.0.0"
+        "subject": {
+          "record": {
+            "recordType": "invoice"
+          }
         },
         "mutability": "Locked",
         "initialState": "Draft",

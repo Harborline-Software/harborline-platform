@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Harborline.Contracts.Workflow;
 using Harborline.Foundation.Forms.Models;
 using Xunit;
@@ -50,12 +51,44 @@ public sealed class InspectionReviewContractTests
         Assert.All(workflow.Triggers, trigger => Assert.Equal(WorkflowTriggerKind.HumanAction, trigger.Kind));
     }
 
+    // ADR 0126 decision 4: inspection review writes no subject.
+    [Fact]
+    public void Workflows_ck_12_frozen_workflow_has_no_subject()
+    {
+        var workflow = InspectionReviewProcess.BuildWorkflow("tenant-a", Binding(), DateTimeOffset.Parse("2026-08-09T00:00:00Z"));
+        var wire = JsonNode.Parse(WorkflowWire.Serialize("WorkflowDefinition", workflow))!.AsObject();
+        Assert.False(wire.ContainsKey("subject"));
+        Assert.False(wire.ContainsKey("subjectFormRef"));
+    }
+
     [Fact]
     public void BindingFailsClosedForAmbiguousSubjectOrThreshold()
     {
         Assert.Throws<ArgumentException>(() => (Binding() with { ConditionPointer = "condition" }).Validate());
         Assert.Throws<ArgumentException>(() => (Binding() with { SubjectPointer = "/asset" }).Validate());
         Assert.Throws<ArgumentOutOfRangeException>(() => (Binding() with { ReviewRequiredAtOrBelow = 5 }).Validate());
+    }
+
+    [Fact]
+    public void ClassifierFailsClosedOnMissingOrInvalidBindingAndOutOfRangeScore()
+    {
+        Assert.Throws<ArgumentNullException>(() => InspectionReviewProcess.Classify(null!, 3));
+        Assert.Throws<ArgumentOutOfRangeException>(() => InspectionReviewProcess.Classify(Binding() with { ReviewRequiredAtOrBelow = 5 }, 3));
+        Assert.Throws<ArgumentOutOfRangeException>(() => InspectionReviewProcess.Classify(Binding(), 0));
+        Assert.Throws<ArgumentOutOfRangeException>(() => InspectionReviewProcess.Classify(Binding(), 6));
+    }
+
+    [Fact]
+    public void ReviewIdentityRefusesABlankSubmission()
+        => Assert.Throws<ArgumentException>(() => InspectionReviewProcess.DeriveReviewId(" "));
+
+    [Fact]
+    public void FrozenWorkflowRefusesABlankTenantOrMissingOrInvalidBinding()
+    {
+        var frozenAt = DateTimeOffset.Parse("2026-08-09T00:00:00Z");
+        Assert.Throws<ArgumentException>(() => InspectionReviewProcess.BuildWorkflow(" ", Binding(), frozenAt));
+        Assert.Throws<ArgumentNullException>(() => InspectionReviewProcess.BuildWorkflow("tenant-a", null!, frozenAt));
+        Assert.Throws<ArgumentOutOfRangeException>(() => InspectionReviewProcess.BuildWorkflow("tenant-a", Binding() with { ReviewRequiredAtOrBelow = 5 }, frozenAt));
     }
 
     private static InspectionReviewBinding Binding() => new()

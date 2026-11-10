@@ -3,7 +3,7 @@
   "module": {
     "interface": {
       "path": "specs/modules/blocks/hlp.blocks.workflow/interface.yaml",
-      "revision": 7
+      "revision": 8
     },
     "moduleKind": "runtime",
     "presentation": {
