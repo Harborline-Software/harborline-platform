@@ -26,6 +26,21 @@ public sealed class ScheduleDefinitionCatalogueTests
 
     private static DefinitionKey Key => new(Tenant, DefinitionKind.Schedules, Id);
 
+    [Fact(DisplayName = "scheduling-auth-18: an unadmitted module refuses at authoring")]
+    public async Task UnadmittedModuleRefusesAtAuthoring()
+    {
+        var definition = Definition with
+        {
+            ProblemClass = ScheduleProblemClass.Workforce,
+            Modules = [new("unknown-module")],
+        };
+        var refusal = await Assert.ThrowsAsync<DefinitionRefusalException>(
+            () => Catalogue.SaveDraftAsync(Tenant, Id, "1.0.0", definition, 0, "draft").AsTask());
+        Assert.Contains(refusal.Refusals, item => item.Code.Contains("unsupported", StringComparison.Ordinal)
+            && item.Pointer == "/modules/0/module");
+        Assert.Empty(await _store.ListHistoryAsync(Key));
+    }
+
     [Fact(DisplayName = "scheduling-ck-20: a schedule binds to the shared store's Schedules registry, pinned by id and semantic version")]
     public async Task ScheduleBindsToTheSharedStoreSchedulesRegistry()
     {
