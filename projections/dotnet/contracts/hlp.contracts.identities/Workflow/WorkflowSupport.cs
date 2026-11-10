@@ -100,7 +100,7 @@ public static class WorkflowContractSurface
 {
     public static IReadOnlyList<string> Exports { get; } =
     [
-        "WorkflowDefinitionStatus", "WorkflowMutability", "WorkflowStateKind", "WorkflowViewHint",
+        "WorkflowDefinitionStatus", "WorkflowMutability", "WorkflowStateKind", "WorkflowViewHint", "WorkflowLockScope", "WorkflowNotificationTier",
         "WorkflowTriggerKind", "WorkflowActionKind", "ActionClassification", "GuardRef", "WorkflowState",
         "WorkflowTransition", "WorkflowTriggerBinding", "WorkflowEffectParams", "WorkflowActionBinding",
         "WorkflowDefinitionLineage", "WorkflowSubject", "WorkflowDefinition",
@@ -114,6 +114,8 @@ public static class WorkflowContractSurface
             ["WorkflowMutability"] = ["Locked", "Editable"],
             ["WorkflowStateKind"] = ["Normal", "Terminal"],
             ["WorkflowViewHint"] = ["flow", "gantt", "kanban"],
+            ["WorkflowLockScope"] = ["every field", "dates only", "attachments only", "nothing"],
+            ["WorkflowNotificationTier"] = ["decision", "observation", "information"],
             ["WorkflowTriggerKind"] = ["Event", "Schedule", "HumanAction", "DependencyComplete"],
             ["WorkflowActionKind"] = ["Notify", "CreateRecord", "UpdateField", "InvokeService", "StartSubProcess", "EmitEvent"],
             ["ActionClassification"] = ["CP", "AP"],
@@ -127,6 +129,7 @@ public static class WorkflowWire
     {
         ["WorkflowDefinitionStatus"] = typeof(WorkflowDefinitionStatus), ["WorkflowMutability"] = typeof(WorkflowMutability),
         ["WorkflowStateKind"] = typeof(WorkflowStateKind), ["WorkflowViewHint"] = typeof(WorkflowViewHint),
+        ["WorkflowLockScope"] = typeof(WorkflowLockScope), ["WorkflowNotificationTier"] = typeof(WorkflowNotificationTier),
         ["WorkflowTriggerKind"] = typeof(WorkflowTriggerKind), ["WorkflowActionKind"] = typeof(WorkflowActionKind),
         ["ActionClassification"] = typeof(ActionClassification), ["GuardRef"] = typeof(GuardRef),
         ["WorkflowState"] = typeof(WorkflowState), ["WorkflowTransition"] = typeof(WorkflowTransition),
@@ -185,10 +188,15 @@ public static class WorkflowWire
     private static void State(JsonElement value)
     {
         Object(value, "WorkflowState");
+        Require(!value.TryGetProperty("notification", out _), "workflow.notification_on_state", "WorkflowState.notification");
         String(Required(value, "id", "WorkflowState"), "WorkflowState.id");
         FormsJson.Validate("InternationalizedText", Required(value, "label", "WorkflowState"));
         Validate("WorkflowStateKind", Required(value, "kind", "WorkflowState"));
+        Require(value.GetProperty("kind").GetString() != "Terminal" || !(value.TryGetProperty("fieldRequirements", out _) || value.TryGetProperty("locks", out _) || value.TryGetProperty("escalation", out _)), "workflow.declaration_on_terminal", "WorkflowState");
         Optional(value, "viewHint", item => Validate("WorkflowViewHint", item));
+        Optional(value, "fieldRequirements", _ => Array(value, "fieldRequirements", "WorkflowState", entry => { Object(entry, "WorkflowFieldRequirement"); foreach (var name in new[] { "field", "condition" }) { var member = Required(entry, name, "WorkflowFieldRequirement"); String(member, $"WorkflowFieldRequirement.{name}"); Require(!string.IsNullOrWhiteSpace(member.GetString()), "workflow.invalid_field_requirement", "WorkflowFieldRequirement"); } }));
+        Optional(value, "locks", item => { String(item, "WorkflowState.locks"); Require(item.GetString() is "every field" or "dates only" or "attachments only" or "nothing", "workflow.invalid_field_lock", "WorkflowState.locks"); });
+        Optional(value, "escalation", item => { Object(item, "WorkflowEscalation"); var schedule = Required(item, "schedule", "WorkflowEscalation"); String(schedule, "WorkflowEscalation.schedule"); Require(!string.IsNullOrWhiteSpace(schedule.GetString()), "workflow.invalid_escalation", "WorkflowEscalation.schedule"); });
     }
 
     private static void Transition(JsonElement value)
@@ -225,6 +233,9 @@ public static class WorkflowWire
         Optional(value, "requiredRoles", item => RoleArray(item, "WorkflowActionBinding.requiredRoles"));
         Optional(value, "requiredStandings", item => StandingArray(item, "WorkflowActionBinding.requiredStandings"));
         Optional(value, "params", item => Object(item, "WorkflowEffectParams"));
+        Optional(value, "notification", item => { Object(item, "WorkflowNotification"); foreach (var name in new[] { "eventKey", "tier" }) String(Required(item, name, "WorkflowNotification"), $"WorkflowNotification.{name}");
+            var key = item.GetProperty("eventKey").GetString(); var hasWindow = item.TryGetProperty("batchingWindow", out var windowValue); if (hasWindow) String(windowValue, "WorkflowNotification.batchingWindow"); var window = hasWindow ? windowValue.GetString() : null; var tier = item.GetProperty("tier").GetString();
+            Require(value.GetProperty("kind").GetString() == "Notify" && !string.IsNullOrWhiteSpace(key) && tier is "decision" or "observation" or "information" && (window is null || (tier != "decision" && System.Text.RegularExpressions.Regex.IsMatch(window, @"^P(?=\d|T\d)(?:\d+D)?(?:T(?=\d)(?:\d+H)?(?:\d+M)?(?:\d+S)?)?$"))), "workflow.invalid_notification", "WorkflowNotification"); });
     }
 
     private static void ContractVersion(JsonElement value)
@@ -419,6 +430,20 @@ public static class WorkflowAdmissionValidator
     {
         var violations = new List<WorkflowAdmissionViolation>();
         void Add(string code, string message, string locator) => violations.Add(new(code, message, locator));
+        foreach (var state in definition.States)
+        {
+            if (state.Kind == WorkflowStateKind.Terminal && (state.FieldRequirements.HasValue || state.Locks.HasValue || state.Escalation.HasValue)) Add("workflow.declaration_on_terminal", "Terminal state cannot carry state declarations.", state.Id);
+            if (state.FieldRequirements.HasValue && (state.FieldRequirements.Value is null || state.FieldRequirements.Value.Any(f => f is null || string.IsNullOrWhiteSpace(f.Field) || string.IsNullOrWhiteSpace(f.Condition)))) Add("workflow.invalid_field_requirement", "Invalid field requirement.", state.Id);
+            if (state.Locks.HasValue && !Enum.IsDefined(state.Locks.Value)) Add("workflow.invalid_field_lock", "Invalid field lock scope.", state.Id);
+            if (state.Escalation.HasValue && string.IsNullOrWhiteSpace(state.Escalation.Value?.Schedule)) Add("workflow.invalid_escalation", "Invalid escalation schedule.", state.Id);
+        }
+        foreach (var action in definition.Actions)
+        {
+            if (!action.Notification.HasValue) continue;
+            var notification = action.Notification.Value;
+            if (notification is null || action.Kind != WorkflowActionKind.Notify || string.IsNullOrWhiteSpace(notification.EventKey) || !Enum.IsDefined(notification.Tier) || (notification.BatchingWindow.HasValue && (notification.Tier == WorkflowNotificationTier.Decision || notification.BatchingWindow.Value is null || !System.Text.RegularExpressions.Regex.IsMatch(notification.BatchingWindow.Value, @"^P(?=\d|T\d)(?:\d+D)?(?:T(?=\d)(?:\d+H)?(?:\d+M)?(?:\d+S)?)?$"))))
+                Add("workflow.invalid_notification", "Invalid notification declaration.", action.Id);
+        }
         CheckEnvelope(definition, contractWindow, Add);
         var stateIds = Unique(definition.States, row => row.Id, "state", Add);
         var triggerById = UniqueMap(definition.Triggers, row => row.Id, "trigger", Add);

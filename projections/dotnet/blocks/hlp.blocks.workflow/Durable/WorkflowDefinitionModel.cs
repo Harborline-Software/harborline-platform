@@ -85,6 +85,13 @@ public enum WorkflowActionKind
     EmitEvent = 5,
 }
 
+/// <summary>A conditional requirement for a subject field.</summary>
+public sealed record WorkflowFieldRequirementDef(string Field, string Condition);
+/// <summary>A state escalation names its schedule.</summary>
+public sealed record WorkflowEscalationDef(string Schedule);
+/// <summary>Notification declaration attached to an existing Notify action.</summary>
+public sealed record WorkflowNotificationDef(string EventKey, string? BatchingWindow, Harborline.Contracts.Workflow.WorkflowNotificationTier Tier);
+
 /// <summary>A state an instance parks at / advances through (the engine's CurrentStep).</summary>
 public sealed class WorkflowStateDef
 {
@@ -96,6 +103,12 @@ public sealed class WorkflowStateDef
 
     /// <summary>Presentation lens hint (flow/gantt/kanban); does not affect admission.</summary>
     public string? ViewHint { get; init; }
+    /// <summary>Conditional requiredness owned by this state.</summary>
+    public IReadOnlyList<WorkflowFieldRequirementDef> FieldRequirements { get; init; } = [];
+    /// <summary>The state lock scope, as defined by DES-0004.</summary>
+    public Harborline.Contracts.Workflow.WorkflowLockScope? Locks { get; init; }
+    /// <summary>Optional state escalation schedule.</summary>
+    public WorkflowEscalationDef? Escalation { get; init; }
 }
 
 /// <summary>
@@ -172,6 +185,9 @@ public sealed class WorkflowActionBindingDef
 
     /// <summary>Authoring-declared authority class. Unspecified ⇒ refused at admission (fail-closed).</summary>
     public ActionClassification Classification { get; init; } = ActionClassification.Unspecified;
+
+    /// <summary>Optional notification definition on this Notify action.</summary>
+    public WorkflowNotificationDef? Notification { get; init; }
 
     /// <summary>Optional action-condition rule id ("should this run?").</summary>
     public string? Condition { get; init; }

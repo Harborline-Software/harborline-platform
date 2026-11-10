@@ -57,3 +57,10 @@ assert.ok(admit({ ...gated, transitions: [{ ...gated.transitions[0], requiredSta
 
 writeFileSync(new URL('./client-verdicts.json', import.meta.url), JSON.stringify(verdicts, null, 2))
 console.log('WORKFLOW_CLIENT_PASS:' + JSON.stringify({ cases: verdicts.length, admitted: verdicts.filter(v => v.isValid).length, refused: verdicts.filter(v => !v.isValid).length }))
+
+// T-488/state-declarations: the published wire retains state data and the Notify action's definition.
+const stateWithDeclarations = { ...gated.states[0], fieldRequirements: [{ field: 'invoice.amount', condition: 'required.amount' }], locks: 'dates only', escalation: { schedule: 'review-overdue' } }
+assert.deepEqual(readWorkflowWire('WorkflowState', stateWithDeclarations), stateWithDeclarations)
+const notifyAction = { id: 'notify', on: { transition: 'close' }, kind: 'Notify', capabilityRef: 'notify.email', classification: 'AP', notification: { eventKey: 'invoice.issued', batchingWindow: 'PT10M', tier: 'observation' } }
+assert.deepEqual(readWorkflowWire('WorkflowActionBinding', notifyAction), notifyAction)
+assert.throws(() => readWorkflowWire('WorkflowState', { ...stateWithDeclarations, notification: {} }), /workflow.notification_on_state/)

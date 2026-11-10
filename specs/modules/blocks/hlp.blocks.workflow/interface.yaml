@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.blocks.workflow",
-  "interfaceRevision": 8,
+  "interfaceRevision": 9,
   "status": "frozen",
   "purpose": "Own the workflow engine core — the typed state-machine runtime, the provider-neutral durable-execution seams (store port, dispatcher, admission gate, effect broker, definition-store port, typed step handlers), and the built-in durable file-journal store — without importing an entity store, an EF/SQLite host topology, a financial cluster, or a UI framework.",
   "dependencies": ["hlp.contracts.identities", "hlp.foundation.definitions"],
@@ -20,6 +20,7 @@
     "context": "All durable state lives behind the IWorkflowStore seam a host supplies. The engine composes ports, never a persistence backend. Confirmer and proposer identities are server-derived, never payload-supplied."
   },
   "invariants": [
+    "Revision 9 adds typed state field requirements, lock scope and escalation schedule, and a notification declaration on a Notify action (ADR-0057, DES-0055).",
     "Revision 8 (T-488/subject-union; ADR 0099, ADR 0126): WorkflowDefinition.Subject is a WorkflowSubjectDef that replaces SubjectFormRef and FormDefinitionRef, so the model carries no Forms definition reference. Its WorkflowSubjectKind is Record or Set, built only through factories: a record or set names a non-empty Record Type. The mapper reads exactly one of the wire's record or set members and throws on any other shape.",
     "WorkflowDefinition carries a typed WorkflowDefinitionEnvelope (DES-0019 workflows-ck-2) whose Contract has no default; a validator composed with a DefinitionContractWindow requires the envelope and checks the contract, and one composed without it still refuses a present envelope that is malformed or names another revision.",
     "Transitions and actions carry RequiredRoles and RequiredStandings. sys.roles is sealed to Anyone, Author, Reviewer and Approver and Access owns every other role (ADR 0041); a standing is a bare name and every one must hold, so a workflow can only narrow. Refusing a required role that widens the record type's own gate is workflows-auth-23, in T-488/admission-refusals.",

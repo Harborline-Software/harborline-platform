@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 
 using Harborline.Contracts.Authorization;
 using Harborline.Contracts.Workflow;
@@ -61,11 +62,16 @@ public static class WorkflowDefinitionWireMapper
     /// </summary>
     public static WorkflowDefinition ToModel(JsonElement el, string tenant, string key, string version)
     {
+        foreach (var state in ReadArray(el, "states")) ValidateDeclarations(state, false);
+        foreach (var action in ReadArray(el, "actions")) ValidateDeclarations(action, true);
         var states = ReadArray(el, "states").Select(s => new WorkflowStateDef
         {
             Id = RequireString(s, "id", "state"),
             Kind = ParseEnum(s, "kind", WorkflowStateKind.Normal),
             ViewHint = OptionalString(s, "viewHint"),
+            FieldRequirements = ReadArray(s, "fieldRequirements").Select(f => new WorkflowFieldRequirementDef(RequireString(f, "field", "fieldRequirement"), RequireString(f, "condition", "fieldRequirement"))).ToArray(),
+            Locks = OptionalString(s, "locks") switch { "every field" => WorkflowLockScope.EveryField, "dates only" => WorkflowLockScope.DatesOnly, "attachments only" => WorkflowLockScope.AttachmentsOnly, "nothing" => WorkflowLockScope.Nothing, _ => null },
+            Escalation = s.TryGetProperty("escalation", out var escalation) ? new WorkflowEscalationDef(RequireString(escalation, "schedule", "escalation")) : null,
         }).ToList();
 
         var transitions = ReadArray(el, "transitions").Select(t => new WorkflowTransitionDef
@@ -114,6 +120,7 @@ public static class WorkflowDefinitionWireMapper
                 // Fail-closed: an absent/unknown classification ⇒ Unspecified ⇒ refused at admission.
                 Classification = ParseEnum(a, "classification", ActionClassification.Unspecified),
                 Condition = OptionalString(a, "condition"),
+                Notification = a.TryGetProperty("notification", out var notification) ? new WorkflowNotificationDef(RequireString(notification, "eventKey", "notification"), OptionalString(notification, "batchingWindow"), RequireString(notification, "tier", "notification") switch { "decision" => WorkflowNotificationTier.Decision, "observation" => WorkflowNotificationTier.Observation, "information" => WorkflowNotificationTier.Information, _ => throw new ArgumentException("workflow.invalid_notification") }) : null,
                 RequiredRoles = ReadRoles(a, "action.requiredRoles"),
                 RequiredStandings = ReadStandings(a, "action.requiredStandings"),
             };
@@ -255,6 +262,20 @@ public static class WorkflowDefinitionWireMapper
             "set" => WorkflowSubjectDef.Set(RequireString(body, "recordType", "subject.set")),
             _ => throw new ArgumentException("Unknown subject kind."),
         };
+    }
+
+    private static void ValidateDeclarations(JsonElement source, bool action)
+    {
+        var names = action ? new[] { "notification" } : new[] { "notification", "fieldRequirements", "locks", "escalation" };
+        if (!names.Any(name => source.TryGetProperty(name, out _))) return;
+        var json = action
+            ? JsonNode.Parse("""{"id":"probe","on":{"state":"probe"},"kind":"Notify","capabilityRef":"probe","classification":"AP"}""")!.AsObject()
+            : JsonNode.Parse("""{"id":"probe","label":{"defaultLocale":"en","values":{"en":"probe"}},"kind":"Normal"}""")!.AsObject();
+        if (source.TryGetProperty("kind", out var kind)) json["kind"] = JsonNode.Parse(kind.GetRawText());
+        foreach (var name in names)
+            if (source.TryGetProperty(name, out var value)) json[name] = JsonNode.Parse(value.GetRawText());
+        try { _ = WorkflowWire.Deserialize(action ? "WorkflowActionBinding" : "WorkflowState", json.ToJsonString()); }
+        catch (WorkflowWireException error) { throw new WorkflowGateReferenceException(error.Code, action ? "action" : "state", error.Message); }
     }
 
     private static IEnumerable<JsonElement> ReadArray(JsonElement el, string prop)

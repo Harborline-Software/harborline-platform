@@ -44,6 +44,23 @@ public enum WorkflowStateKind
     [JsonStringEnumMemberName("Terminal")] Terminal,
 }
 
+[JsonConverter(typeof(ClosedEnumJsonConverter<WorkflowLockScope>))]
+public enum WorkflowLockScope
+{
+    [JsonStringEnumMemberName("every field")] EveryField,
+    [JsonStringEnumMemberName("dates only")] DatesOnly,
+    [JsonStringEnumMemberName("attachments only")] AttachmentsOnly,
+    [JsonStringEnumMemberName("nothing")] Nothing,
+}
+
+[JsonConverter(typeof(ClosedEnumJsonConverter<WorkflowNotificationTier>))]
+public enum WorkflowNotificationTier
+{
+    [JsonStringEnumMemberName("decision")] Decision,
+    [JsonStringEnumMemberName("observation")] Observation,
+    [JsonStringEnumMemberName("information")] Information,
+}
+
 [JsonConverter(typeof(ClosedEnumJsonConverter<WorkflowViewHint>))]
 public enum WorkflowViewHint
 {
@@ -90,6 +107,24 @@ public readonly record struct GuardRef(string Value)
 [JsonConverter(typeof(WorkflowEffectParamsJsonConverter))]
 public readonly record struct WorkflowEffectParams(IReadOnlyDictionary<string, JsonElement> Values);
 
+public sealed record WorkflowFieldRequirement
+{
+    [JsonPropertyName("field"), JsonRequired] public required string Field { get; init; }
+    [JsonPropertyName("condition"), JsonRequired] public required string Condition { get; init; }
+}
+
+public sealed record WorkflowEscalation
+{
+    [JsonPropertyName("schedule"), JsonRequired] public required string Schedule { get; init; }
+}
+
+public sealed record WorkflowNotification
+{
+    [JsonPropertyName("eventKey"), JsonRequired] public required string EventKey { get; init; }
+    [JsonPropertyName("batchingWindow"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public Optional<string> BatchingWindow { get; init; }
+    [JsonPropertyName("tier"), JsonRequired] public required WorkflowNotificationTier Tier { get; init; }
+}
+
 public sealed record WorkflowState
 {
     [JsonPropertyName("id"), JsonRequired] public required string Id { get; init; }
@@ -97,6 +132,9 @@ public sealed record WorkflowState
     [JsonPropertyName("kind"), JsonRequired] public required WorkflowStateKind Kind { get; init; }
     [JsonPropertyName("viewHint"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public Optional<WorkflowViewHint> ViewHint { get; init; }
+    [JsonPropertyName("fieldRequirements"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public Optional<IReadOnlyList<WorkflowFieldRequirement>> FieldRequirements { get; init; }
+    [JsonPropertyName("locks"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public Optional<WorkflowLockScope> Locks { get; init; }
+    [JsonPropertyName("escalation"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public Optional<WorkflowEscalation> Escalation { get; init; }
 }
 
 public sealed record WorkflowTransition
@@ -139,6 +177,7 @@ public sealed record WorkflowActionBinding
     [JsonPropertyName("requiredRoles"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public Optional<IReadOnlyList<RoleReference>> RequiredRoles { get; init; }
     [JsonPropertyName("requiredStandings"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public Optional<IReadOnlyList<RecordStandingReference>> RequiredStandings { get; init; }
     [JsonPropertyName("params"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public Optional<WorkflowEffectParams> Params { get; init; }
+    [JsonPropertyName("notification"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public Optional<WorkflowNotification> Notification { get; init; }
 }
 
 public sealed record WorkflowDefinitionLineage
