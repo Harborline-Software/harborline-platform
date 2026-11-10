@@ -220,4 +220,23 @@ public sealed class ReportDefinitionCatalogueTests
         Assert.Empty(await store.ListHistoryAsync(key));
     }
 
+    [Theory, Trait("Holds", "reports-eng-2")]
+    [InlineData(double.NaN)]
+    [InlineData(double.PositiveInfinity)]
+    [InlineData(double.NegativeInfinity)]
+    public async Task reports_eng_2_typed_codec_failures_are_named_without_committing(double value)
+    {
+        var store = Store();
+        var definition = Definition() with
+        {
+            Parameters = [new("amount", ReportParameterType.Float, new FloatReportParameterDefault(value))],
+        };
+        var refusal = await Assert.ThrowsAsync<DefinitionRefusalException>(async () =>
+            await new ReportDefinitionCatalogue(store).SaveDraftAsync(definition, 0, "typed"));
+        Assert.Equal(DefinitionAdmissionPhase.Author, refusal.Stage);
+        Assert.Equal("report.definition.body_invalid", Assert.Single(refusal.Refusals).Code);
+        Assert.Equal("/body", Assert.Single(refusal.Refusals).Pointer);
+        Assert.Empty(await store.ListHistoryAsync(new("tenant-r", DefinitionKind.Reports, "report-a")));
+    }
+
 }

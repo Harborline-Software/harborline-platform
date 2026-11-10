@@ -47,7 +47,7 @@ public sealed class ReportDefinitionCatalogue(IVersionedDefinitionStore store)
     /// <summary>Appends an admitted report draft; the shared store fences writes and freezes publications.</summary>
     public async ValueTask<ReportDefinitionRevision> SaveDraftAsync(ReportDefinition definition, long expectedRevision,
         string requestId, CancellationToken cancellationToken = default)
-        => Typed(await store.SaveDraftAsync(Document(definition), expectedRevision, requestId, cancellationToken).ConfigureAwait(false));
+        => Typed(await store.SaveDraftAsync(EncodeDraft(definition), expectedRevision, requestId, cancellationToken).ConfigureAwait(false));
 
     /// <summary>Re-admits and publishes a draft immutably.</summary>
     public async ValueTask<ReportDefinitionRevision> PublishAsync(string tenant, string id, string version, long expectedRevision,
@@ -91,6 +91,19 @@ public sealed class ReportDefinitionCatalogue(IVersionedDefinitionStore store)
         if (definition.Key != entry.DefinitionId || definition.Version != entry.Version)
             throw Refuse("definition.envelope_mismatch", "/envelope");
         return await SaveDraftAsync(definition, expectedRevision, requestId, cancellationToken).ConfigureAwait(false);
+    }
+
+    private static DefinitionDocument EncodeDraft(ReportDefinition definition)
+    {
+        try
+        {
+            return Document(definition);
+        }
+        catch (Exception error) when (error is JsonException or NotSupportedException or InvalidOperationException or ArgumentException)
+        {
+            throw new DefinitionRefusalException(DefinitionAdmissionPhase.Author,
+                [new("report.definition.body_invalid", "/body")]);
+        }
     }
 
     private static DefinitionDocument Document(ReportDefinition definition)
