@@ -45,7 +45,8 @@ public interface IDeclarativeWorkflowInterpreter
     /// the instance's pinned, re-admitted definition. Pure decision logic — produces a
     /// <see cref="WorkflowStepOutcome"/>; the dispatcher commits it durably. Throws
     /// <see cref="WorkflowAdmissionException"/> if the pinned definition is no longer admissible (fail-closed —
-    /// it must not execute), or <see cref="WorkflowDefinitionNotFoundException"/> if it is gone.
+    /// it must not execute), or <see cref="WorkflowDefinitionNotFoundException"/> if it is gone. A definition-level decision error throws
+    /// <see cref="WorkflowInterpreterDecisionException"/> naming the actual state reached.
     /// </summary>
     ValueTask<WorkflowStepOutcome> DecideAsync(
         WorkflowInstanceRecord instance,
@@ -62,4 +63,14 @@ public interface IDeclarativeWorkflowInterpreter
         WorkflowTrigger trigger,
         WorkflowDispatchAuthority authority,
         CancellationToken ct = default) => DecideAsync(instance, trigger, ct);
+}
+
+/// <summary>
+/// A definition-level interpreter decision error, distinct from admission, authorization,
+/// cancellation and action failures. The dispatcher commits it once as not-retryable (ADR-0141).
+/// </summary>
+public sealed class WorkflowInterpreterDecisionException(string step, string message) : InvalidOperationException(message)
+{
+    /// <summary>The actual state where the interpreter could not decide, including after autonomous hops.</summary>
+    public string Step { get; } = step;
 }

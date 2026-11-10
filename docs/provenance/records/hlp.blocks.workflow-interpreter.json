@@ -2,19 +2,19 @@
   "moduleId": "hlp.blocks.workflow-interpreter",
   "phase4Evidence": "specs/modules/blocks/hlp.blocks.workflow-interpreter/interface.yaml",
   "sourceExtracted": true,
-  "sourceState": "Revision 1 is implemented and engine-substrate package green: the declarative interpreter executes authored, admitted, persisted definitions through the re-validating execution store and the broker-PEP only, in its own assembly so broker-only effect reach is compile-time; all 10 interpreter ledger cases green natively including the two execution-store binding architecture rows re-proven on Harborline assemblies. Revision 2 refuses, with workflow.interpreter.gate_unenforced, any selected transition or applied effecting action that declares a required role or standing, until the authorization gate that decides it is wired (DES-0019 workflows-eng-13).",
+  "sourceState": "Revision 1 is implemented and engine-substrate package green: the declarative interpreter executes authored, admitted, persisted definitions through the re-validating execution store and the broker-PEP only, in its own assembly so broker-only effect reach is compile-time; all 10 interpreter ledger cases green natively including the two execution-store binding architecture rows re-proven on Harborline assemblies. Revision 2 refuses, with workflow.interpreter.gate_unenforced, any selected transition or applied effecting action that declares a required role or standing, until the authorization gate that decides it is wired (DES-0019 workflows-eng-13). Revision 4 (T-488/interpreter-failure-outcome, ADR-0141/control 1237) records interpreter definition decision errors through the existing atomic advance as Failed/not-retryable naming the actual step, with no effect or retry. Refusals, cancellation and unrelated failures propagate unchanged.",
   "contentHashes": {
-    "conformance/hlp.blocks.workflow-interpreter/fixtures.yaml": "75814ffbfd9aeeec5645c90581072b98992ae2fafd8539c12c936564e8279f4f",
-    "projections/dotnet/blocks/hlp.blocks.workflow-interpreter.tests/DeclarativeWorkflowInterpreterTests.cs": "3a620ad0f142a4e9f11e5512c2662e122c2322162259121efe603f079da1e2b6",
-    "projections/dotnet/blocks/hlp.blocks.workflow-interpreter.tests/DurableDeclarativeExecutionTests.cs": "e6a5db2316ff1ffcd9e18c59446c0411e368a573656515fc63a12cddcd414b67",
+    "conformance/hlp.blocks.workflow-interpreter/fixtures.yaml": "f97dcb88499afa12ec7351e023e7020d87cde7f5e511ce559f2ab773b7fb1888",
+    "projections/dotnet/blocks/hlp.blocks.workflow-interpreter.tests/DeclarativeWorkflowInterpreterTests.cs": "526b769c08e52beb33a306deb0dc219f232044b907a3ae2251601a16033f16a7",
+    "projections/dotnet/blocks/hlp.blocks.workflow-interpreter.tests/DurableDeclarativeExecutionTests.cs": "972e76422201b882fea68ebf16439f45f692bebb2fe82a9574a3cd6aecc3989d",
     "projections/dotnet/blocks/hlp.blocks.workflow-interpreter.tests/Harborline.Blocks.Workflow.Interpreter.Tests.csproj": "9ef330c2b40409c0dc7b435398a68de5197d3cd4743d23ce4089ac282c463dcf",
     "projections/dotnet/blocks/hlp.blocks.workflow-interpreter.tests/WorkflowExecutionStoreBindingArchitectureTests.cs": "04e71d9a98372b3d27961316ff470623b25c81fe91968132b797fbf8a84c46ee",
-    "projections/dotnet/blocks/hlp.blocks.workflow-interpreter/DeclarativeWorkflowInterpreter.cs": "9893e42fda4e877d89d1c90e0394c4efc37385dbb9f2a00f6eb5dfbfa6311da0",
+    "projections/dotnet/blocks/hlp.blocks.workflow-interpreter/DeclarativeWorkflowInterpreter.cs": "b4c2b94d9d794743890ffa49356cd77da8d7c2f6af6c3923f69eab0f76569490",
     "projections/dotnet/blocks/hlp.blocks.workflow-interpreter/DeclarativeWorkflowInterpreterServiceCollectionExtensions.cs": "f01d0ccacf0c9482c640ffc5d7a0367556c770bce201ea7a31097695cb2d7f26",
     "projections/dotnet/blocks/hlp.blocks.workflow-interpreter/IWorkflowConfirmationContext.cs": "50e4933ae9def5a0d51c02c5ed97df18885fa84bbe16688d7ed66b06d515faea",
     "projections/dotnet/blocks/hlp.blocks.workflow-interpreter/README.md": "3e9fb625f0b90f677ab196b7c9c4b79b7be3b16d44680378f6787246dfbfe48e",
     "projections/dotnet/blocks/hlp.blocks.workflow-interpreter/Harborline.Blocks.Workflow.Interpreter.csproj": "3829c259bb4912a84cd5997f7cbc87ba170eaa52e1eed002222c76bec5d0e4f0",
-    "specs/modules/blocks/hlp.blocks.workflow-interpreter/interface.yaml": "6103ff7ce060d5d0a3764b335f441858df4aeff7c0a272023edb79c5bbf91186"
+    "specs/modules/blocks/hlp.blocks.workflow-interpreter/interface.yaml": "192a494ad9c6ccd63713aa65b6eab4c280b12a36246bbb60737ab13e4b1c86ab"
   },
   "nextGate": "Consume the interpreter from the Workflows package-only capability vertical (ticket 074); the vertical, not this substrate, flips the workflows capability gate."
 }

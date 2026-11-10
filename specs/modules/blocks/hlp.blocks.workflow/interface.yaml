@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.blocks.workflow",
-  "interfaceRevision": 10,
+  "interfaceRevision": 11,
   "status": "frozen",
   "purpose": "Own the workflow engine core — the typed state-machine runtime, the provider-neutral durable-execution seams (store port, dispatcher, admission gate, effect broker, definition-store port, typed step handlers), and the built-in durable file-journal store — without importing an entity store, an EF/SQLite host topology, a financial cluster, or a UI framework.",
   "dependencies": ["hlp.contracts.identities", "hlp.foundation.definitions"],
@@ -20,6 +20,7 @@
     "context": "All durable state lives behind the IWorkflowStore seam a host supplies. The engine composes ports, never a persistence backend. Confirmer and proposer identities are server-derived, never payload-supplied."
   },
   "invariants": [
+    "ADR-0141: a typed WorkflowInterpreterDecisionException names the actual failing step; the dispatcher converts only this interpreter decision error into WorkflowStepOutcome.InterpreterFailure and commits Failed with reason not-retryable, no effect and no retry through its existing atomic advance. Admission, authorization refusals, cancellation and action exceptions propagate unchanged.",
     "Revision 10 adds typed state field requirements, lock scope and escalation schedule, and a notification declaration on a Notify action (ADR-0057, DES-0055).",
     "Revision 9 (T-488/autonomous-trigger-match; R-0155 D1, control 1227): a trigger that matches no transition is discarded. The step handler returns WorkflowStepOutcome.Discard, the dispatcher commits nothing (no event, no step result, no position change) and returns WorkflowDispatchResult.Discarded, so the same step can still advance on a later matching trigger. A trigger that has already taken an edge in this dispatch is not discarded: its progress commits and the run rests at the first state whose edge it does not match.",
     "Revision 8 (T-488/subject-union; ADR 0099, ADR 0126): WorkflowDefinition.Subject is a WorkflowSubjectDef that replaces SubjectFormRef and FormDefinitionRef, so the model carries no Forms definition reference. Its WorkflowSubjectKind is Record or Set, built only through factories: a record or set names a non-empty Record Type. The mapper reads exactly one of the wire's record or set members and throws on any other shape.",

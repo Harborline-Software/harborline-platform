@@ -29,6 +29,32 @@ public sealed class DeclarativeWorkflowInterpreterTests
     private static readonly Guid EngineParty = Guid.Parse("e0000000-0000-0000-0000-0000000000e1");
     private static readonly Guid HumanParty = Guid.Parse("40000000-0000-0000-0000-000000000001");
 
+    [Theory]
+    [InlineData("dead-end", "B")]
+    [InlineData("ambiguous", "B")]
+    [InlineData("cycle", "A")]
+    public async Task Definition_decision_errors_are_typed_and_name_the_state_reached(string kind, string expectedStep)
+    {
+        // ADR-0141 D1. Raw execution-store backstop also exercises shapes admission normally refuses.
+        var authored = JsonNode.Parse(ChainAuthored().GetRawText())!;
+        var transitions = authored["transitions"]!.AsArray();
+        if (kind == "dead-end") transitions.RemoveAt(1);
+        else if (kind == "ambiguous") transitions.Add(JsonNode.Parse(
+            """{"id":"other","from":"B","on":"issued","to":"C"}"""));
+        else
+        {
+            transitions[1]!["to"] = "A";
+            transitions[1]!["on"] = "issued";
+        }
+        using var provider = BuildProvider(HumanConfirmer(), (ChainKey, JsonSerializer.SerializeToElement(authored)));
+        var instance = CpInstance("decision-1", "A");
+        instance.DefinitionKey = ChainKey;
+        var error = await Assert.ThrowsAsync<WorkflowInterpreterDecisionException>(async () =>
+            await provider.GetRequiredService<IDeclarativeWorkflowInterpreter>().DecideAsync(
+                instance, WorkflowTrigger.For(WorkflowTriggerKind.Event, "decision-1", "A")));
+        Assert.Equal(expectedStep, error.Step);
+    }
+
     // ── AUTONOMOUS: a CP workflow parks on the human-task carrying the CP basis ──
 
     [Fact]

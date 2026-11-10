@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 
 using Microsoft.Extensions.DependencyInjection;
 
@@ -149,6 +150,51 @@ public sealed class DurableDeclarativeExecutionTests : IDisposable
         var sink = provider.GetRequiredService<CountingWorkflowApprovalDecisionSink>();
         Assert.Equal(0, sink.ConfirmedCount);
         Assert.Equal(1, sink.OverriddenCount);
+    }
+
+    [Fact]
+    public async Task Interpreter_decision_error_atomically_fails_the_run_at_the_actual_step_without_retry()
+    {
+        // ADR-0141 D1: a pinned definition's ambiguous decision fails once, naming B,
+        // even though this dispatch started at A. Literal expectations are the oracle.
+        var authored = JsonNode.Parse(DeclarativeWorkflowInterpreterTests.ChainAuthored().GetRawText())!;
+        authored["transitions"]!.AsArray().Add(JsonNode.Parse(
+            """{"id":"t-bc-other","from":"B","on":"issued","to":"C"}"""));
+        await using var provider = await BuildAsync(JsonSerializer.SerializeToElement(authored), "ambiguous.v1");
+        var store = provider.GetRequiredService<FileJournalWorkflowStore>();
+        var dispatcher = provider.GetRequiredService<IWorkflowTriggerDispatcher>();
+        await CreateInstanceAsync(store, "bad-1", "ambiguous.v1", "A");
+        var trigger = WorkflowTrigger.For(WorkflowTriggerKind.Event, "bad-1", "A");
+
+        Assert.Equal(WorkflowDispatchResult.Advanced, await dispatcher.DispatchAsync(trigger, Authorized("bad-1")));
+        var failed = (await store.LoadAsync("bad-1"))!;
+        Assert.Equal(WorkflowStatus.Failed, failed.Status);
+        Assert.Equal("B", failed.CurrentStep);
+        Assert.Equal(0, failed.Iteration);
+        var result = await store.FindStepResultAsync(new WorkflowStepKey("bad-1", 0, "A"));
+        Assert.NotNull(result);
+        using var payload = JsonDocument.Parse(result.ResultJson);
+        Assert.Equal("interpreter-failure", payload.RootElement.GetProperty("kind").GetString());
+        Assert.Equal("not-retryable", payload.RootElement.GetProperty("reason").GetString());
+        Assert.Equal("B", payload.RootElement.GetProperty("step").GetString());
+        var events = await store.EventsAsync("bad-1");
+        Assert.Equal("Failed", events.Last().EventType);
+        Assert.Equal(result.ResultJson, events.Last().DataJson);
+        Assert.Empty(await store.CommittedEffectPayloadsAsync("bad-1"));
+
+        Assert.Equal(WorkflowDispatchResult.Terminal, await dispatcher.DispatchAsync(trigger, Authorized("bad-1")));
+        Assert.Equal(events.Count, (await store.EventsAsync("bad-1")).Count);
+
+        store.Dispose();
+        using var reopened = new FileJournalWorkflowStore(new FileJournalWorkflowStoreOptions
+        {
+            JournalPath = Path.Combine(_directory, "workflow.hlwj"),
+        }, TimeProvider.System);
+        Assert.Equal(WorkflowStatus.Failed, (await reopened.LoadAsync("bad-1"))!.Status);
+        Assert.Equal("B", (await reopened.LoadAsync("bad-1"))!.CurrentStep);
+        Assert.Equal(result.ResultJson,
+            (await reopened.FindStepResultAsync(new WorkflowStepKey("bad-1", 0, "A")))!.ResultJson);
+        Assert.Equal(events.Count, (await reopened.EventsAsync("bad-1")).Count);
     }
 
     // ── Harness ─────────────────────────────────────────────────────────────
