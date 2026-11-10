@@ -115,6 +115,9 @@ export type GuardRef = string
 // -- States / transitions / triggers / actions --------------------------------
 
 /** A state an instance parks at / advances through (the engine's `CurrentStep`). */
+export type WorkflowLockScope = 'every field' | 'dates only' | 'attachments only' | 'nothing'
+export type WorkflowNotificationTier = 'decision' | 'observation' | 'information'
+
 export interface WorkflowState {
   /** Stable state id (matches `WorkflowInstanceRecord.CurrentStep`). */
   id: string
@@ -124,6 +127,9 @@ export interface WorkflowState {
   kind: WorkflowStateKind
   /** Presentation lens hint; absent => `'flow'`. Does not affect admission. */
   viewHint?: WorkflowViewHint
+  fieldRequirements?: { field: string; condition: string }[]
+  locks?: WorkflowLockScope
+  escalation?: { schedule: string }
 }
 
 /**
@@ -198,6 +204,7 @@ export interface WorkflowActionBinding {
   requiredStandings?: RecordStandingReference[]
   /** Declarative effect params (lowered to a `WorkflowEffect` by the gated A1 path). */
   params?: WorkflowEffectParams
+  notification?: { eventKey: string; batchingWindow?: string; tier: WorkflowNotificationTier }
 }
 
 /**

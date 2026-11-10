@@ -246,8 +246,24 @@ public sealed class WorkflowAdmissionValidator : IWorkflowAdmissionValidator
             CheckGate($"transition '{t.Id}'", t.Id, t.RequiredRoles, t.RequiredStandings, v);
         }
 
+        foreach (var state in definition.States)
+        {
+            if (state.Kind == WorkflowStateKind.Terminal && (state.FieldRequirements.Count > 0 || state.Locks is not null || state.Escalation is not null))
+                v.Add(new("workflow.declaration_on_terminal", "Terminal state cannot carry state declarations.", state.Id));
+            if (state.FieldRequirements.Any(f => f is null || string.IsNullOrWhiteSpace(f.Field) || string.IsNullOrWhiteSpace(f.Condition)))
+                v.Add(new("workflow.invalid_field_requirement", "A field requirement must name a field and condition.", state.Id));
+            if (state.Locks is { } lockScope && !Enum.IsDefined(lockScope))
+                v.Add(new("workflow.invalid_field_lock", "A field lock must name a field.", state.Id));
+            if (state.Escalation is { } escalation && string.IsNullOrWhiteSpace(escalation.Schedule))
+                v.Add(new("workflow.invalid_escalation", "Escalation must name a schedule.", state.Id));
+        }
+
         foreach (var a in definition.Actions)
         {
+            if (a.Notification is { } notification && (a.Kind != WorkflowActionKind.Notify || string.IsNullOrWhiteSpace(notification.EventKey)
+                || !Enum.IsDefined(notification.Tier)
+                || (notification.BatchingWindow is { } window && (notification.Tier == Harborline.Contracts.Workflow.WorkflowNotificationTier.Decision || !System.Text.RegularExpressions.Regex.IsMatch(window, @"^P(?=\d|T\d)(?:\d+D)?(?:T(?=\d)(?:\d+H)?(?:\d+M)?(?:\d+S)?)?$")))))
+                v.Add(new("workflow.invalid_notification", "Invalid notification declaration.", a.Id));
             bool hasState = a.OnState is { Length: > 0 };
             bool hasTransition = a.OnTransition is { Length: > 0 };
             if (hasState == hasTransition) // neither or both

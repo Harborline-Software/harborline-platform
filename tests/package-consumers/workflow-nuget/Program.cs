@@ -66,6 +66,18 @@ services.AddSingleton<IWorkflowConfirmationContext>(
 services.AddDeclarativeWorkflowInterpreter();
 await using var provider = services.BuildServiceProvider();
 
+// T-488/state-declarations: the packaged mapper retains the settled state and action ownership.
+using (var declared = JsonDocument.Parse("""
+    {"initialState":"Open","states":[{"id":"Open","kind":"Normal","fieldRequirements":[{"field":"invoice.amount","condition":"required.amount"}],"locks":"dates only","escalation":{"schedule":"review-overdue"}}],"transitions":[],"triggers":[],"actions":[{"id":"notify","on":{"state":"Open"},"kind":"Notify","capabilityRef":"notify.email","classification":"AP","notification":{"eventKey":"invoice.issued","batchingWindow":"PT10M","tier":"observation"}}],"guards":[]}
+    """))
+{
+    var retained = WorkflowDefinitionWireMapper.ToModel(declared.RootElement, Tenant, Key, Version);
+    if (retained.States[0].FieldRequirements[0].Condition != "required.amount" || retained.States[0].Locks != Harborline.Contracts.Workflow.WorkflowLockScope.DatesOnly
+        || retained.States[0].Escalation?.Schedule != "review-overdue" || retained.Actions[0].Notification?.EventKey != "invoice.issued"
+        || retained.Actions[0].Notification?.BatchingWindow != "PT10M" || retained.Actions[0].Notification?.Tier != Harborline.Contracts.Workflow.WorkflowNotificationTier.Observation)
+        throw new InvalidOperationException("packaged workflow lost state or notification declarations");
+}
+
 // ── 3. Define + admit + publish through the packaged definition-store port ──
 var authored = AuthoredDefinition();
 var store = provider.GetRequiredService<IWorkflowDefinitionStore>();

@@ -21,6 +21,7 @@
  */
 
 import type { RecordStandingReference, RoleVocabulary } from './authorization.js'
+import { readWorkflowWire } from './workflow-wire.js'
 import type { ActionClassification, WorkflowContractVersion, WorkflowDefinition, WorkflowGateRole } from './workflow.js'
 
 /** Stable, locale-independent admission-violation codes (mirror WorkflowAdmissionCodes.cs). */
@@ -44,6 +45,12 @@ export const WORKFLOW_ADMISSION_CODES = {
   contractMissing: 'definition.contract.missing',
   contractOutOfWindow: 'definition.contract.out_of_window',
   gateOnAutonomousStep: 'workflow.admission.gate_on_autonomous_step',
+  invalidFieldRequirement: 'workflow.invalid_field_requirement',
+  invalidFieldLock: 'workflow.invalid_field_lock',
+  invalidEscalation: 'workflow.invalid_escalation',
+  invalidNotification: 'workflow.invalid_notification',
+  notificationOnState: 'workflow.notification_on_state',
+  declarationOnTerminal: 'workflow.declaration_on_terminal',
 } as const
 
 export type WorkflowAdmissionCode =
@@ -141,6 +148,23 @@ export function validateWorkflowAdmission(
   const v: WorkflowAdmissionViolation[] = []
   const add = (code: WorkflowAdmissionCode, message: string, locator: string) =>
     v.push({ code, message, locator })
+
+  const declarationCodes = new Set<string>([WORKFLOW_ADMISSION_CODES.invalidFieldRequirement, WORKFLOW_ADMISSION_CODES.invalidFieldLock, WORKFLOW_ADMISSION_CODES.invalidEscalation, WORKFLOW_ADMISSION_CODES.invalidNotification, WORKFLOW_ADMISSION_CODES.notificationOnState, WORKFLOW_ADMISSION_CODES.declarationOnTerminal, 'missing-required-property', 'invalid-object', 'invalid-array', 'invalid-string', 'unknown-closed-value'])
+  for (const [type, rows] of [['WorkflowState', def.states], ['WorkflowActionBinding', def.actions]] as const) {
+    for (const row of rows) {
+      const names = type === 'WorkflowState' ? ['notification', 'fieldRequirements', 'locks', 'escalation'] : ['notification']
+      if (!names.some(name => Object.hasOwn(row, name))) continue
+      const probe: Record<string, unknown> = type === 'WorkflowState'
+        ? { id: 'probe', label: { defaultLocale: 'en', values: { en: 'probe' } }, kind: row.kind }
+        : { id: 'probe', on: { state: 'probe' }, kind: row.kind, capabilityRef: 'probe', classification: 'AP' }
+      for (const name of names) if (Object.hasOwn(row, name)) probe[name] = (row as unknown as Record<string, unknown>)[name]
+      try { readWorkflowWire(type, probe) } catch (error) {
+        const code = error instanceof Error ? error.message.split(':')[0] : ''
+        if (declarationCodes.has(code)) add(code as WorkflowAdmissionCode, 'Invalid workflow declaration.', row.id)
+        else throw error
+      }
+    }
+  }
 
   // -- envelope --
   if (def.envelope === undefined) {
