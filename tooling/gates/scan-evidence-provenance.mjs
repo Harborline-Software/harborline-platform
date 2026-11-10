@@ -53,6 +53,9 @@ function mainRef(root) {
 export function checkEvidenceProvenance(root, bytes) {
   let recorded
   try { recorded = JSON.parse(bytes) } catch { return {field: 'subject', reason: 'the evidence is not readable JSON'} }
+  if (recorded?.schemaVersion !== 3 || recorded?.phase !== 4 || recorded?.status !== 'PASS') {
+    return {field: 'status', reason: 'durable evidence must be a schema-v3 phase-4 PASS'}
+  }
   const {baseHead, testedTree} = recorded?.subject ?? {}
   const main = mainRef(root)
   // Fail closed. A clone with no main history cannot judge this, and "cannot judge" is never "pass".

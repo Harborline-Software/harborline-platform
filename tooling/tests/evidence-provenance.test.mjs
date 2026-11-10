@@ -47,6 +47,15 @@ test('a run recorded at a commit main holds is accepted', t => {
   assert.equal(checkEvidenceProvenance(root, evidence({baseHead: onMain, testedTree: onMainTree})), null)
 })
 
+// Oracle: the slice requires a complete passing phase-4 run, even if gallery alone passed.
+test('gallery success cannot authorize a failed or unidentified durable phase-4 run', t => {
+  const {root, onMain, onMainTree} = fixture(t)
+  const valid = JSON.parse(evidence({baseHead: onMain, testedTree: onMainTree}))
+  for (const mutation of [{status: 'FAIL'}, {schemaVersion: 2}, {phase: 3}]) {
+    assert.equal(checkEvidenceProvenance(root, JSON.stringify({...valid, ...mutation}))?.field, 'status')
+  }
+})
+
 test('a run recorded on a lane branch is refused by name', t => {
   const {root, branchOnly} = fixture(t)
   const branchTree = git(root, 'rev-parse', `${branchOnly}^{tree}`)
