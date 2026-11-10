@@ -53,24 +53,24 @@ jobs:
     if: needs.plan.outputs.changed == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           ref: ${{ needs.plan.outputs.revision }}
           persist-credentials: false
       # This job never checks out or executes candidate code. The existing private credential is
       # supplied only to checkout, never interpolated into a command or persisted in Git config.
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           repository: Harborline-Software/harborline-control
           ref: main
           token: ${{ secrets.HARBORLINE_PINS_TOKEN }}
           persist-credentials: false
           path: control-authority
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: 24
       - run: node tooling/gates/scan-evidence-provenance.mjs --receipt ledger-data control-authority ledger-data
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: ledger-data-${{ github.run_id }}-${{ github.run_attempt }}
           path: ledger-data
@@ -284,12 +284,12 @@ jobs:
       contents: read
       issues: write
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           ref: ${{ github.sha }}
           fetch-depth: 0
           persist-credentials: false
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: 24
       - name: Open or update the single labelled failure issue
