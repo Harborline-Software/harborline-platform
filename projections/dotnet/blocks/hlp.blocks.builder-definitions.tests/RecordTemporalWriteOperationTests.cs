@@ -108,8 +108,7 @@ public sealed class RecordTemporalWriteOperationTests
         Assert.Equal("1.1.0", second.Receipt.Version);
         var asked = fixture.Access.Requests.Last();
         Assert.Equal(first.Receipt.RecordId, asked.Record.Id);
-        Assert.Equal(20, asked.Record.Fields["value"]!.GetValue<int>());
-        Assert.Equal("A", asked.Record.Fields["status"]!.GetValue<string>());
+        Assert.Empty(asked.Record.Fields);
         var history = await fixture.Storage.HistoryAsync(Tenant, first.Receipt.RecordId);
         Assert.Equal(new[] { "1.0.0", "1.1.0" }, history.Versions.Select(value => value.Row.PublicationVersionId));
         Assert.Equal(new[] { 1L, 2L }, history.Versions.Select(value => value.Temporal.Revision));
@@ -543,6 +542,35 @@ public sealed class RecordTemporalWriteOperationTests
             history.Versions.Select(version => Encoding.UTF8.GetString(version.Row.Body.Span)).Order(StringComparer.Ordinal).ToArray());
         Assert.NotEqual(created.Receipt.RecordId, string.Empty);
         Assert.Equal(created.Receipt.RecordId, amended.Receipt.RecordId);
+    }
+
+    [Fact]
+    [Trait("Holds", "records-eng-5")]
+    public async Task an_amend_gate_never_sees_caller_values_so_a_derived_value_cannot_slip_past_an_earlier_allow()
+    {
+        // Codex 4521203376 (CWE-863, CWE-807) and the M11 ruling: an amend is decided on an untyped request naming only the
+        // record id (T-616 Option A), and AccessRecord facts come from the tenant-bound record reader, never the caller
+        // (AccessScope.cs). A policy that would deny doubled > 50 is shown no field at all, while the pinned calculation
+        // over value 30 still commits doubled 60. Oracles: the literal policy and the literal calculation's arithmetic.
+        var doubled = new NamedCalculation("doubled", "1.0.0", """{"*":[{"var":"value"},2]}""");
+        using var fixture = await Fixture.Create(derived: doubled);
+        var created = Committed(await fixture.CreateEvent(value: 10));
+        var seen = new List<int>();
+        fixture.Access.Predicate = request =>
+        {
+            seen.Add(request.Record.Fields.Count);
+            return !(request.Record.Fields.TryGetValue("doubled", out var value) && value!.GetValue<int>() > 50);
+        };
+        var body = Body(30);
+        body["doubled"] = 0;
+
+        var amended = Committed(await fixture.Writer.AmendAsync(new(Tenant, Actor), new(created.Receipt.RecordId, "amend-derived",
+            Basis(created), body, Date("2031-06-01T00:00:00-04:00"), null, "reviewed", null)));
+
+        Assert.Equal([0], seen);
+        var history = await fixture.Storage.HistoryAsync(Tenant, amended.Receipt.RecordId);
+        Assert.Contains("""{"doubled":60,"status":"A","value":30}""",
+            history.Versions.Select(version => Encoding.UTF8.GetString(version.Row.Body.Span)));
     }
 
     [Fact]
