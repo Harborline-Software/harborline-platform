@@ -179,14 +179,14 @@ public sealed class DeclarativeWorkflowInterpreterTests
     {
         var ap = Interpreter(await NewProviderWithApDefinitionAsync());
         var rested = await ap.DecideAsync(ApInstance("match-ap"), WorkflowTrigger.For(delivered, "match-ap", "Start"));
-        Assert.Equal(WorkflowStepOutcomeKind.Advance, rested.Kind);
+        Assert.Equal(WorkflowStepOutcomeKind.Discard, rested.Kind);
         Assert.Equal("Start", rested.NextStep);
         Assert.Equal(WorkflowStatus.Running, rested.NextStatus);
         Assert.Null(rested.Effect);
 
         var cp = Interpreter(await NewProviderWithCpDefinitionAsync(HumanConfirmer()));
         var unparked = await cp.DecideAsync(CpInstance("match-cp", "Draft"), WorkflowTrigger.For(delivered, "match-cp", "Draft"));
-        Assert.Equal(WorkflowStepOutcomeKind.Advance, unparked.Kind);
+        Assert.Equal(WorkflowStepOutcomeKind.Discard, unparked.Kind);
         Assert.Equal("Draft", unparked.NextStep);
         Assert.Equal(WorkflowStatus.Running, unparked.NextStatus);
         Assert.Null(unparked.Effect);

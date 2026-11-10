@@ -74,6 +74,26 @@ public sealed class DurableDeclarativeExecutionTests : IDisposable
     }
 
     [Fact]
+    public async Task Unmatched_trigger_commits_nothing_and_matching_trigger_can_advance()
+    {
+        await using var provider = await BuildAsync();
+        var store = provider.GetRequiredService<FileJournalWorkflowStore>();
+        var dispatcher = provider.GetRequiredService<IWorkflowTriggerDispatcher>();
+        await CreateInstanceAsync(store, "discard-1");
+        var before = await store.EventsAsync("discard-1");
+
+        Assert.Equal(WorkflowDispatchResult.Discarded, await dispatcher.DispatchAsync(
+            WorkflowTrigger.For(WorkflowTriggerKind.Schedule, "discard-1", "Draft"), Authorized("discard-1")));
+
+        Assert.Equal(before.Count, (await store.EventsAsync("discard-1")).Count);
+        Assert.Null(await store.FindStepResultAsync(new WorkflowStepKey("discard-1", 0, "Draft")));
+        Assert.Equal("Draft", (await store.LoadAsync("discard-1"))!.CurrentStep);
+        Assert.Equal(WorkflowDispatchResult.Parked, await dispatcher.DispatchAsync(
+            WorkflowTrigger.For(WorkflowTriggerKind.Event, "discard-1", "Draft"), Authorized("discard-1")));
+        Assert.Equal("PendingApproval", (await store.LoadAsync("discard-1"))!.CurrentStep);
+    }
+
+    [Fact]
     public async Task Declarative_dispatch_under_a_denied_authority_is_refused_before_the_interpreter_runs()
     {
         // T-525 item 1: the interpreter branch verifies the same authority as a typed handler.

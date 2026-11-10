@@ -18,7 +18,7 @@ public interface IWorkflowTriggerDispatcher
     /// dispatch is refused before a typed handler or the interpreter runs (T-525 item 1).
     /// </param>
     /// <param name="ct">Cancellation token.</param>
-    /// <returns>The dispatch result — what happened (advanced / parked / replayed / unknown-instance).</returns>
+    /// <returns>The dispatch result — what happened (advanced / parked / replayed / unknown-instance / terminal / discarded).</returns>
     Task<WorkflowDispatchResult> DispatchAsync(
         WorkflowTrigger trigger, WorkflowDispatchAuthority authority, CancellationToken ct = default);
 }
@@ -61,4 +61,7 @@ public enum WorkflowDispatchResult
 
     /// <summary>The instance is in a terminal state (Completed / Failed) — the trigger was ignored.</summary>
     Terminal = 4,
+
+    /// <summary>The trigger did not match; nothing was committed.</summary>
+    Discarded = 5,
 }
