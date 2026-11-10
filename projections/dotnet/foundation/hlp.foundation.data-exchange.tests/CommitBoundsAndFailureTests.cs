@@ -5,6 +5,23 @@ namespace Harborline.Foundation.DataExchange.Tests;
 
 public sealed class CommitBoundsAndFailureTests
 {
+    [Fact]
+    [Trait("Holds", "data-exchange-run-3")]
+    public async Task Halted_effect_produces_halted_commit()
+    {
+        var runs = new InMemoryExchangeRunStore();
+        var dryRun = await new DataExchangeRuntime(runs, TimeProvider.System, new FakeLifecyclePolicy())
+            .CreateDryRunAsync(Fixtures.DryRunRequest());
+        var target = new ScriptedTarget(new Dictionary<string, Queue<ExchangeEffectStatus>>
+        {
+            ["customer-42"] = new([ExchangeEffectStatus.Halted]),
+            ["customer-43"] = new([ExchangeEffectStatus.Applied]),
+        });
+        var commit = await CreateCommitter(runs, target, target, new CommitBounds(10, 1, 64 * 1024)).CommitAsync(dryRun.Id);
+        Assert.Equal(1, commit.Census.Halted);
+        Assert.Equal(ExchangeRunTerminalStatus.Halted, commit.TerminalStatus);
+    }
+
     [Theory]
     [InlineData(0, 1, 1024)]
     [InlineData(1, 0, 1024)]

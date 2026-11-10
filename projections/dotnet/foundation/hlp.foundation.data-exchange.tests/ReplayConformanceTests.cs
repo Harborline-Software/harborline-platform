@@ -5,6 +5,79 @@ namespace Harborline.Foundation.DataExchange.Tests;
 
 public sealed class ReplayConformanceTests
 {
+    [Fact]
+    public async Task Closure_refuses_a_census_that_disagrees_with_complete_effects()
+    {
+        var runs = new InMemoryExchangeRunStore();
+        var dryRun = await new DataExchangeRuntime(runs, TimeProvider.System, new FakeLifecyclePolicy()).CreateDryRunAsync(Fixtures.DryRunRequest());
+        var commit = await Create(runs, new RecordingTarget()).CommitAsync(dryRun.Id);
+        var forged = commit with { Id = new CommitRunId("forged-census"), Census = new ExchangeCensus(1, 0, 0, 1, 0, 0) };
+
+        var refusal = await Assert.ThrowsAsync<DataExchangeCommitRefusedException>(() => runs.SaveCommitRunAsync(forged).AsTask());
+        Assert.Equal("run.census_incomplete", refusal.Code);
+        Assert.Null(await runs.GetCommitRunAsync(forged.Id));
+    }
+
+    [Fact]
+    public async Task Closure_refuses_a_terminal_status_that_disagrees_with_the_census()
+    {
+        var runs = new InMemoryExchangeRunStore();
+        var dryRun = await new DataExchangeRuntime(runs, TimeProvider.System, new FakeLifecyclePolicy()).CreateDryRunAsync(Fixtures.DryRunRequest());
+        var commit = await Create(runs, new RecordingTarget()).CommitAsync(dryRun.Id);
+        var forged = commit with { Id = new CommitRunId("forged-terminal"), TerminalStatus = ExchangeRunTerminalStatus.Halted };
+
+        var refusal = await Assert.ThrowsAsync<DataExchangeCommitRefusedException>(() => runs.SaveCommitRunAsync(forged).AsTask());
+        Assert.Equal("run.terminal_inconsistent", refusal.Code);
+        Assert.Null(await runs.GetCommitRunAsync(forged.Id));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(2)]
+    public async Task Closure_refuses_changed_batch_evidence(int changedPart)
+    {
+        var runs = new InMemoryExchangeRunStore();
+        var dryRun = await new DataExchangeRuntime(runs, TimeProvider.System, new FakeLifecyclePolicy()).CreateDryRunAsync(Fixtures.DryRunRequest());
+        var commit = await Create(runs, new RecordingTarget()).CommitAsync(dryRun.Id);
+        var forged = changedPart switch
+        {
+            0 => commit with { ApprovedDryRunId = DryRunId.New() },
+            1 => commit with { BatchDerivation = commit.BatchDerivation with { TenantId = "other" } },
+            _ => commit with { BatchIdentity = new BatchIdentity("other") },
+        };
+
+        var refusal = Assert.Throws<DataExchangeCommitRefusedException>(() => ExchangeRunClosure.Validate(dryRun, forged));
+        Assert.Equal("run.stale", refusal.Code);
+    }
+
+    [Fact]
+    public async Task Closure_refuses_duplicate_effect_identity_even_when_count_matches()
+    {
+        var runs = new InMemoryExchangeRunStore();
+        var dryRun = await new DataExchangeRuntime(runs, TimeProvider.System, new FakeLifecyclePolicy()).CreateDryRunAsync(Fixtures.DryRunRequest());
+        var commit = await Create(runs, new RecordingTarget()).CommitAsync(dryRun.Id);
+        var forged = commit with { Effects = [commit.Effects[0], commit.Effects[0]] };
+
+        var refusal = Assert.Throws<DataExchangeCommitRefusedException>(() => ExchangeRunClosure.Validate(dryRun, forged));
+        Assert.Equal("run.census_incomplete", refusal.Code);
+    }
+
+    [Fact]
+    public async Task Closure_refuses_changed_metadata_even_if_another_entry_matches()
+    {
+        var runs = new InMemoryExchangeRunStore();
+        var dryRun = await new DataExchangeRuntime(runs, TimeProvider.System, new FakeLifecyclePolicy()).CreateDryRunAsync(Fixtures.DryRunRequest());
+        var commit = await Create(runs, new RecordingTarget()).CommitAsync(dryRun.Id);
+        var effect = commit.Effects[0];
+        var metadata = effect.Effect.Metadata.ToDictionary(pair => pair.Key, pair => pair.Value);
+        metadata["digest"] = "tampered";
+        var forged = commit with { Effects = [effect with { Effect = effect.Effect with { Metadata = metadata } }, commit.Effects[1]] };
+
+        var refusal = Assert.Throws<DataExchangeCommitRefusedException>(() => ExchangeRunClosure.Validate(dryRun, forged));
+        Assert.Equal("run.stale", refusal.Code);
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]

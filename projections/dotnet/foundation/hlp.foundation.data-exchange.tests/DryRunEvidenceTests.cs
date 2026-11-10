@@ -6,6 +6,42 @@ namespace Harborline.Foundation.DataExchange.Tests;
 public sealed class DryRunEvidenceTests
 {
     [Fact]
+    public async Task Halt_takes_precedence_over_refusals()
+    {
+        var request = Fixtures.DryRunRequest();
+        var evaluations = new[]
+        {
+            new DryRunEffectEvaluation(request.Effects[0], new(ExchangeEffectStatus.Rejected, "fixture")),
+            new DryRunEffectEvaluation(request.Effects[1], new(ExchangeEffectStatus.Halted, "fixture")),
+        };
+        var run = await new DataExchangeRuntime(new InMemoryExchangeRunStore(), TimeProvider.System, new FakeLifecyclePolicy())
+            .CreateDryRunAsync(request with { Evaluations = evaluations });
+        Assert.Equal(ExchangeRunTerminalStatus.Halted, run.TerminalStatus);
+    }
+
+    [Theory]
+    [InlineData(ExchangeEffectStatus.Applied, ExchangeRunTerminalStatus.Completed)]
+    [InlineData(ExchangeEffectStatus.Skipped, ExchangeRunTerminalStatus.CompletedWithRefusals)]
+    [InlineData(ExchangeEffectStatus.Conflicted, ExchangeRunTerminalStatus.CompletedWithRefusals)]
+    [InlineData(ExchangeEffectStatus.Rejected, ExchangeRunTerminalStatus.CompletedWithRefusals)]
+    [InlineData(ExchangeEffectStatus.Failed, ExchangeRunTerminalStatus.CompletedWithRefusals)]
+    [InlineData(ExchangeEffectStatus.Halted, ExchangeRunTerminalStatus.Halted)]
+    [Trait("Holds", "data-exchange-eng-9")]
+    [Trait("Holds", "data-exchange-run-3")]
+    public async Task Dry_run_terminal_result_follows_its_census(ExchangeEffectStatus status, ExchangeRunTerminalStatus expected)
+    {
+        var store = new InMemoryExchangeRunStore();
+        var request = Fixtures.DryRunRequest();
+        var evaluations = request.Effects.Select(effect => new DryRunEffectEvaluation(effect, new(status, "fixture"))).ToArray();
+        var run = await new DataExchangeRuntime(store, TimeProvider.System, new FakeLifecyclePolicy())
+            .CreateDryRunAsync(request with { Evaluations = evaluations });
+
+        Assert.Equal(2, run.Census.Accounted);
+        Assert.Equal(expected, run.TerminalStatus);
+        Assert.Equal(expected, (await store.GetDryRunAsync(run.Id))!.TerminalStatus);
+    }
+
+    [Fact]
     public async Task Dry_run_persists_immutable_policy_owned_evidence_outside_the_definition()
     {
         var store = new InMemoryExchangeRunStore();

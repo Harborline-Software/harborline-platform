@@ -5,19 +5,23 @@ namespace Harborline.Foundation.DataExchange.Tests;
 
 public sealed class CommitReplayTests
 {
-    [Fact]
-    public void Every_terminal_outcome_has_closed_replay_correction_acknowledgement_and_visibility_policy()
+    [Theory]
+    [InlineData(ExchangeEffectStatus.Applied, false, false, true, "applied")]
+    [InlineData(ExchangeEffectStatus.Skipped, false, false, true, "skipped")]
+    [InlineData(ExchangeEffectStatus.Conflicted, false, true, true, "conflicted")]
+    [InlineData(ExchangeEffectStatus.Rejected, false, true, true, "rejected")]
+    [InlineData(ExchangeEffectStatus.Failed, true, false, false, "failed")]
+    [InlineData(ExchangeEffectStatus.Halted, true, false, false, "halted")]
+    [Trait("Holds", "data-exchange-run-2")]
+    public void Every_terminal_outcome_has_closed_replay_correction_acknowledgement_and_visibility_policy(
+        ExchangeEffectStatus status, bool retry, bool correction, bool acknowledgement, string readerCode)
     {
-        var policies = Enum.GetValues<ExchangeEffectStatus>()
-            .Select(ExchangeOutcomePolicies.For)
-            .ToArray();
-
-        Assert.Equal(6, policies.Length);
-        Assert.All(policies, policy => Assert.False(string.IsNullOrWhiteSpace(policy.OrdinaryReaderCode)));
-        Assert.True(ExchangeOutcomePolicies.For(ExchangeEffectStatus.Applied).AcknowledgementSafe);
-        Assert.True(ExchangeOutcomePolicies.For(ExchangeEffectStatus.Failed).Retryable);
-        Assert.True(ExchangeOutcomePolicies.For(ExchangeEffectStatus.Conflicted).CorrectionRequired);
-        Assert.False(ExchangeOutcomePolicies.For(ExchangeEffectStatus.Halted).AcknowledgementSafe);
+        var policy = ExchangeOutcomePolicies.For(status);
+        Assert.Equal(status, policy.Status);
+        Assert.Equal(retry, policy.Retryable);
+        Assert.Equal(correction, policy.CorrectionRequired);
+        Assert.Equal(acknowledgement, policy.AcknowledgementSafe);
+        Assert.Equal(readerCode, policy.OrdinaryReaderCode);
     }
 
     [Fact]
