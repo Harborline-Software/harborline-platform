@@ -17,27 +17,30 @@ import {boundedReport, gateErrorDetails, interruptionDetails, reportWasTruncated
 import {loadModuleCatalog} from './module-catalog.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
-if (process.argv.includes('--only')) throw new Error('phase-4 gate refuses --only; package evidence must cover every fixture')
-const reentryGrant = await receiveLockReentryGrant()
-await acquirePhase4GateLock({repositoryRoot: root, reentryGrant})
-const inputOutcome = process.env.GITHUB_ACTIONS === 'true' && !process.argv.includes('--phase4-lock-reentry')
-  ? await launchGate()
-  : await runPhase4InputAttempt({
-  repositoryRoot: root,
-  kind: 'gate',
-  subject: {
-    baseHead: process.env.HARBORLINE_BASE_HEAD,
-    testedTree: process.env.HARBORLINE_TESTED_TREE,
-    mode: process.env.HARBORLINE_TESTED_TREE ? 'exact-staged-tree' : 'current-index',
-  },
-  inherited: process.argv.includes('--phase4-lock-reentry') ? reentryGrant?.phase4Input ?? {} : undefined,
-  launch: launchGate,
-})
-if (inputOutcome.error) {
-  process.stderr.write(`${inputOutcome.error.message}\n`)
-  process.stderr.write(`${JSON.stringify(inputOutcome.observation, null, 2)}\n`)
+// Importing the step runner must not acquire the gate lock or launch phase 4.
+if (import.meta.main) {
+  if (process.argv.includes('--only')) throw new Error('phase-4 gate refuses --only; package evidence must cover every fixture')
+  const reentryGrant = await receiveLockReentryGrant()
+  await acquirePhase4GateLock({repositoryRoot: root, reentryGrant})
+  const inputOutcome = process.env.GITHUB_ACTIONS === 'true' && !process.argv.includes('--phase4-lock-reentry')
+    ? await launchGate()
+    : await runPhase4InputAttempt({
+    repositoryRoot: root,
+    kind: 'gate',
+    subject: {
+      baseHead: process.env.HARBORLINE_BASE_HEAD,
+      testedTree: process.env.HARBORLINE_TESTED_TREE,
+      mode: process.env.HARBORLINE_TESTED_TREE ? 'exact-staged-tree' : 'current-index',
+    },
+    inherited: process.argv.includes('--phase4-lock-reentry') ? reentryGrant?.phase4Input ?? {} : undefined,
+    launch: launchGate,
+  })
+  if (inputOutcome.error) {
+    process.stderr.write(`${inputOutcome.error.message}\n`)
+    process.stderr.write(`${JSON.stringify(inputOutcome.observation, null, 2)}\n`)
+  }
+  process.exitCode = inputOutcome.exitCode
 }
-process.exitCode = inputOutcome.exitCode
 
 async function launchGate(inputAttempt) {
     const actualSubject = {
@@ -110,50 +113,8 @@ async function launchGate(inputAttempt) {
       return report
     }
 
-    function runReusable(id, executable, args, cwd = root, json = false, stepEnvironment = {}) {
-      // Candidate receipts report a fresh invocation, never a cached PASS from another run.
-      if (process.env.HARBORLINE_RECEIPT_RUN === '1') return run(id, executable, args, cwd, json, stepEnvironment)
-      let inputHash
-      let reuseRefusal
-      try {
-        inputHash = hashStepInputs({repositoryRoot: root, testedTree, stepId: id})
-        const decision = decideStepReuse({stepId: id, inputHash, previousPass})
-        if (decision.mode === 'reuse' && !reportWasTruncated(decision.previous.report)) {
-          const report = decision.previous.report
-          const entry = {
-            ...decision.previous,
-            report: boundedReport(report),
-            durationMs: 0,
-            inputHash,
-            reuseRefusal: undefined,
-            reusedFrom: {
-              evidence: 'docs/evidence/phase-4/gate.json',
-              testedTree: previousPass.gate.subject.testedTree,
-              inputHash: decision.previous.inputHash,
-            },
-          }
-          results.push(entry)
-          reports.set(id, report)
-          return report
-        }
-        reuseRefusal = decision.mode === 'reuse'
-          ? 'previous step report was truncated'
-          : decision.reason
-      } catch (error) {
-        reuseRefusal = `input hashing failed: ${error instanceof Error ? error.message : String(error)}`
-      }
-
-      try {
-        return run(id, executable, args, cwd, json, stepEnvironment)
-      } finally {
-        const entry = results.at(-1)
-        if (entry?.id === id) {
-          entry.inputHash = inputHash
-          entry.reuseRefusal = reuseRefusal
-          entry.reusedFrom = undefined
-        }
-      }
-    }
+    const runReusable = createReusableStepRunner({env: process.env, repositoryRoot: root,
+      testedTree, previousPass, results, reports, run})
 
     // The app-shell fixture stages two cross-repo tarballs from explicit environment paths and
     // verifies their sha256 itself. Resolving them is a PRE-step, not a gate step: adding a step id
@@ -321,6 +282,55 @@ async function launchGate(inputAttempt) {
     process.stdout.write(`${JSON.stringify(report, null, 2)}\n`)
     process.exitCode = passed ? 0 : 1
     return {status: report.status, exitCode: passed ? 0 : 1, headless}
+}
+
+// Keep the existing reuse policy and evidence bookkeeping; inject effects for behaviour tests.
+export function createReusableStepRunner({env, repositoryRoot, testedTree, previousPass, results, reports, run,
+  hashInputs = hashStepInputs, decideReuse = decideStepReuse}) {
+  return function runReusable(id, executable, args, cwd = repositoryRoot, json = false, stepEnvironment = {}) {
+    // Candidate receipts report a fresh invocation, never a cached PASS from another run.
+    if (env.HARBORLINE_RECEIPT_RUN === '1') return run(id, executable, args, cwd, json, stepEnvironment)
+    let inputHash
+    let reuseRefusal
+    try {
+      inputHash = hashInputs({repositoryRoot, testedTree, stepId: id})
+      const decision = decideReuse({stepId: id, inputHash, previousPass})
+      if (decision.mode === 'reuse' && !reportWasTruncated(decision.previous.report)) {
+        const report = decision.previous.report
+        const entry = {
+          ...decision.previous,
+          report: boundedReport(report),
+          durationMs: 0,
+          inputHash,
+          reuseRefusal: undefined,
+          reusedFrom: {
+            evidence: 'docs/evidence/phase-4/gate.json',
+            testedTree: previousPass.gate.subject.testedTree,
+            inputHash: decision.previous.inputHash,
+          },
+        }
+        results.push(entry)
+        reports.set(id, report)
+        return report
+      }
+      reuseRefusal = decision.mode === 'reuse'
+        ? 'previous step report was truncated'
+        : decision.reason
+    } catch (error) {
+      reuseRefusal = `input hashing failed: ${error instanceof Error ? error.message : String(error)}`
+    }
+
+    try {
+      return run(id, executable, args, cwd, json, stepEnvironment)
+    } finally {
+      const entry = results.at(-1)
+      if (entry?.id === id) {
+        entry.inputHash = inputHash
+        entry.reuseRefusal = reuseRefusal
+        entry.reusedFrom = undefined
+      }
+    }
+  }
 }
 
 function receiveLockReentryGrant() {
