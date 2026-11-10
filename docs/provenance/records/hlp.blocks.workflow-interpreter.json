@@ -6,7 +6,7 @@
   "contentHashes": {
     "conformance/hlp.blocks.workflow-interpreter/fixtures.yaml": "75814ffbfd9aeeec5645c90581072b98992ae2fafd8539c12c936564e8279f4f",
     "projections/dotnet/blocks/hlp.blocks.workflow-interpreter.tests/DeclarativeWorkflowInterpreterTests.cs": "3a620ad0f142a4e9f11e5512c2662e122c2322162259121efe603f079da1e2b6",
-    "projections/dotnet/blocks/hlp.blocks.workflow-interpreter.tests/DurableDeclarativeExecutionTests.cs": "e6a5db2316ff1ffcd9e18c59446c0411e368a573656515fc63a12cddcd414b67",
+    "projections/dotnet/blocks/hlp.blocks.workflow-interpreter.tests/DurableDeclarativeExecutionTests.cs": "3c80b2a45900f0217d58f1a800f6bf4c2e0b4d996242dc5544947ca671496698",
     "projections/dotnet/blocks/hlp.blocks.workflow-interpreter.tests/Harborline.Blocks.Workflow.Interpreter.Tests.csproj": "9ef330c2b40409c0dc7b435398a68de5197d3cd4743d23ce4089ac282c463dcf",
     "projections/dotnet/blocks/hlp.blocks.workflow-interpreter.tests/WorkflowExecutionStoreBindingArchitectureTests.cs": "04e71d9a98372b3d27961316ff470623b25c81fe91968132b797fbf8a84c46ee",
     "projections/dotnet/blocks/hlp.blocks.workflow-interpreter/DeclarativeWorkflowInterpreter.cs": "9893e42fda4e877d89d1c90e0394c4efc37385dbb9f2a00f6eb5dfbfa6311da0",
