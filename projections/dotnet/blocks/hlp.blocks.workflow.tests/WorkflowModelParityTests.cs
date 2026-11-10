@@ -55,6 +55,33 @@ public sealed class WorkflowModelParityTests
 
     private static IEnumerable<string> Codes(WorkflowAdmissionResult result) => result.Violations.Select(violation => violation.Code);
 
+    [Fact]
+    public void Notification_windows_match_shared_wire_cases_in_both_admission_validators()
+    {
+        using var fixture = JsonDocument.Parse(File.ReadAllText(FindFixture()));
+        var canonical = (Wire.WorkflowDefinition)Wire.WorkflowWire.Deserialize("WorkflowDefinition", fixture.RootElement.GetProperty("canonical").GetRawText());
+        var authority = new Wire.ImmutableWorkflowAuthorityResolver(new Dictionary<string, Wire.ActionClassification> { ["notify.email"] = Wire.ActionClassification.AP });
+        var cases = fixture.RootElement.GetProperty("cases").EnumerateArray()
+            .Where(row => row.GetProperty("id").GetString()!.StartsWith("workflows-ck-22-", StringComparison.Ordinal))
+            .Where(row => row.GetProperty("id").GetString()!.Contains("digit-refused", StringComparison.Ordinal) || row.GetProperty("id").GetString() == "workflows-ck-22-notification-action-round-trip").ToArray();
+        Assert.Equal(4, cases.Length);
+        foreach (var row in cases)
+        {
+            var window = row.GetProperty("input").GetProperty("notification").GetProperty("batchingWindow").GetString()!;
+            var invalid = row.TryGetProperty("expectedError", out _);
+            var action = canonical.Actions[0] with { Kind = Wire.WorkflowActionKind.Notify, Notification = new Wire.WorkflowNotification { EventKey = "k", BatchingWindow = window, Tier = Wire.WorkflowNotificationTier.Observation } };
+            var wire = Wire.WorkflowAdmissionValidator.Validate(canonical with { Actions = [action] }, authority);
+            Assert.Equal(invalid, wire.Violations.Any(v => v.Code == "workflow.invalid_notification"));
+            var engine = Admit(new WorkflowDefinition
+            {
+                Key = Key, Version = Version, Tenant = Tenant, InitialState = "Closed",
+                States = [new WorkflowStateDef { Id = "Closed", Kind = WorkflowStateKind.Terminal }],
+                Actions = [new WorkflowActionBindingDef { Id = "notify", OnState = "Closed", Kind = WorkflowActionKind.Notify, CapabilityRef = "notify.email", Classification = ActionClassification.AP, Notification = new WorkflowNotificationDef("k", window, Wire.WorkflowNotificationTier.Observation) }],
+            });
+            Assert.Equal(invalid, engine.Violations.Any(v => v.Code == "workflow.invalid_notification"));
+        }
+    }
+
     [Fact(DisplayName = "workflows-ck-2: the envelope round trips every member through the mapper")]
     public void Workflows_ck_2_the_envelope_round_trips_every_member_through_the_mapper()
     {
