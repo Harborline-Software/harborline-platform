@@ -3,11 +3,13 @@
 // The CLI boundary double does not claim to test Sigstore cryptography or hosted environment rules.
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import {execFileSync} from 'node:child_process'
+import {execFileSync, spawnSync} from 'node:child_process'
 import {mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync} from 'node:fs'
 import {tmpdir} from 'node:os'
 import {resolve, dirname} from 'node:path'
 import {createHash} from 'node:crypto'
+import {runInNewContext} from 'node:vm'
+import {pathToFileURL} from 'node:url'
 import {buildGalleryPredicate, verifyGalleryReceipt, receiptTree, receiptScope, queueIdentity,
   scopeMatchesGate, receiptCheckPayload, shouldRerecord, refreshPublication, refreshFailureIssue} from '../gates/scan-evidence-provenance.mjs'
 
@@ -340,4 +342,168 @@ test('only the refresh job holds the rerecord environment and App, and no automa
   assert.match(workflow, /paths-ignore: \[docs\/evidence\/phase-4\/gate.json\]/)
   const source = readFileSync(new URL('../gates/scan-evidence-provenance.mjs', import.meta.url), 'utf8')
   assert.doesNotMatch(source + workflow, /gh pr merge|--auto|enablePullRequestAutoMerge|enqueuePullRequest|--force/)
+})
+
+// Run the real CLI in a fixture Git repository. Only the gh process boundary is replaced;
+// Git, file reads, provenance/scope checks, receipt reconciliation and mode dispatch remain real.
+// A Node preload keeps this portable without shell shims or any live credential/API access.
+const GH_BOUNDARY = `
+import childProcess from 'node:child_process'
+import {syncBuiltinESMExports} from 'node:module'
+import {readFileSync, appendFileSync} from 'node:fs'
+const realExec = childProcess.execFileSync
+const fixture = JSON.parse(readFileSync(process.env.RECEIPT_CLI_FIXTURE, 'utf8'))
+const RealDate = Date
+globalThis.Date = class extends RealDate {
+  constructor(...args) { super(...(args.length ? args : [fixture.now])) }
+  static now() { return fixture.now }
+}
+childProcess.execFileSync = (command, args, options) => {
+  if (command !== 'gh') return realExec(command, args, options)
+  if (args[0] === 'attestation') {
+    appendFileSync(fixture.log, JSON.stringify({command: 'attestation'}) + '\\n')
+    if (fixture.rejectVerification) throw new Error('fixture verification refusal')
+    return JSON.stringify(fixture.verification)
+  }
+  if (args[0] !== 'api') throw new Error('unexpected gh command')
+  const methodIndex = args.indexOf('--method')
+  const method = methodIndex < 0 ? 'GET' : args[methodIndex + 1]
+  const endpoint = methodIndex < 0 ? args[1] : args[methodIndex + 2]
+  let body
+  if (method !== 'GET') {
+    const input = args[args.indexOf('--input') + 1]
+    body = JSON.parse(input === '-' ? options.input : readFileSync(input, 'utf8'))
+  }
+  appendFileSync(fixture.log, JSON.stringify({command: 'api', method, endpoint, body}) + '\\n')
+  if (fixture.rejectPaths.includes(endpoint)) throw new Error('fixture API refusal')
+  if (method !== 'GET') return '{}'
+  if (!Object.hasOwn(fixture.routes, endpoint)) throw new Error('unexpected fixture API route')
+  return JSON.stringify(fixture.routes[endpoint])
+}
+syncBuiltinESMExports()
+`
+
+function runReceiptCli(f, mode, {durable = f.gate, queueHead = f.head, before = f.head,
+  rejectVerification = false, rejectPaths = [], env = {}} = {}) {
+  put(f.root, 'docs/evidence/phase-4/gate.json', durable)
+  const event = mode === 'refresh-alert' ? {after: f.head, before} : {
+    workflow_run: {...f.run, head_sha: queueHead, updated_at: new Date(f.args.now.getTime() - 60000).toISOString()},
+  }
+  put(f.root, 'receipt-cli/event.json', event)
+  put(f.root, 'receipt-cli/gh-boundary.mjs', GH_BOUNDARY)
+  put(f.root, 'receipt-cli/requests.jsonl', '')
+  const fixturePath = resolve(f.root, 'receipt-cli/fixture.json')
+  const base = `repos/${REPO}`
+  put(f.root, 'receipt-cli/fixture.json', {log: resolve(f.root, 'receipt-cli/requests.jsonl'),
+    now: f.args.now.getTime(), rejectVerification, rejectPaths, verification: [f.result], routes: {
+      [`${base}/actions/runs/101/attempts/2`]: {...f.run, head_sha: queueHead},
+      [`${base}/actions/runs/202/attempts/1`]: {event: 'workflow_run', head_sha: f.head,
+        path: '.github/workflows/verify-gallery-receipt.yml', repository: {full_name: REPO}},
+      [`${base}/actions/artifacts/303`]: {id: 303, name: 'gallery-run-202-1', digest: `sha256:${'a'.repeat(64)}`,
+        expired: false, workflow_run: {id: 202}},
+      [`${base}/actions/runs/202/artifacts?per_page=100`]: {artifacts: [{name: 'gallery-receipt-202-1', expired: false}]},
+      [`${base}/rulesets/22915054`]: {rules: [{type: 'merge_queue', parameters: {check_response_timeout_minutes: 120}}]},
+      [`${base}/issues?state=open&labels=phase-4-rerecord-failure&per_page=100`]: [],
+      [`${base}/labels?per_page=100`]: [{name: 'phase-4-rerecord-failure'}],
+    }})
+  const cli = resolve(import.meta.dirname, '../gates/scan-evidence-provenance.mjs')
+  const result = spawnSync(process.execPath, ['--import', pathToFileURL(resolve(f.root, 'receipt-cli/gh-boundary.mjs')).href,
+    cli, '--receipt', mode], {cwd: f.root, encoding: 'utf8', timeout: 15000, env: {
+      ...process.env, RECEIPT_CLI_FIXTURE: fixturePath, GITHUB_EVENT_PATH: resolve(f.root, 'receipt-cli/event.json'),
+      GITHUB_EVENT_NAME: mode === 'refresh-alert' ? 'push' : 'workflow_run', GITHUB_REF: 'refs/heads/main',
+      GITHUB_REPOSITORY: REPO, GITHUB_SHA: f.head, GITHUB_RUN_ID: '202', GITHUB_RUN_ATTEMPT: '1',
+      RECEIPT_DIRECTORY: f.directory, RECEIPT_VERIFIED: 'true', RECEIPT_ARTIFACT_ID: '404',
+      GITHUB_STEP_SUMMARY: resolve(f.root, 'receipt-cli/summary.md'), ...env,
+    }})
+  const requests = readFileSync(resolve(f.root, 'receipt-cli/requests.jsonl'), 'utf8').trim()
+    .split('\n').filter(Boolean).map(line => JSON.parse(line))
+  return {...result, requests}
+}
+
+test('refresh alert condition includes failed planning without requiring a changed output', () => {
+  const job = readWorkflow('verify-gallery-receipt.yml').split('\n  refresh-alert:\n')[1]
+  const condition = job.match(/    if: >-\n((?:      .*\n)+)/)[1].trim()
+    .replace(/\bneeds\.([\w-]+)/g, "needs['$1']")
+  // This workflow condition uses only the shared JS/GitHub boolean/equality subset; execute the
+  // actual expression against literal outcomes instead of asserting source spelling.
+  const evaluate = (plan, downstream = {}, event = 'push') => runInNewContext(condition, {
+    always: () => true, github: {event_name: event}, needs: {plan,
+      ...Object.fromEntries(['ledger-data', 'gallery-shard', 'phase-4', 'refresh']
+        .map(id => [id, {result: downstream[id] ?? 'success'}])),
+    },
+  })
+  assert.equal(evaluate({result: 'failure', outputs: {}}), true)
+  assert.equal(evaluate({result: 'cancelled', outputs: {}}), true)
+  assert.equal(evaluate({result: 'success', outputs: {changed: 'false'}}, {'phase-4': 'skipped'}), false)
+  assert.equal(evaluate({result: 'success', outputs: {changed: 'true'}}), false)
+  for (const id of ['ledger-data', 'gallery-shard', 'phase-4', 'refresh']) {
+    assert.equal(evaluate({result: 'success', outputs: {changed: 'true'}}, {[id]: 'failure'}), true)
+  }
+  assert.equal(evaluate({result: 'failure', outputs: {}}, {}, 'workflow_run'), false)
+})
+
+test('refresh-alert CLI opens the issue despite unreadable provenance and an unusable rerecord base', t => {
+  const f = fixture(t)
+  const result = runReceiptCli(f, 'refresh-alert', {durable: '{broken durable JSON', before: 'unusable-base'})
+  assert.equal(result.status, 0, result.stderr)
+  const issues = result.requests.filter(request => request.method === 'POST' && request.endpoint.endsWith('/issues'))
+  assert.equal(issues.length, 1)
+  assert.deepEqual(issues[0].body.labels, ['phase-4-rerecord-failure'])
+  assert.match(issues[0].body.body, new RegExp(f.head))
+  assert.match(issues[0].body.body, /actions\/runs\/202/)
+})
+
+test('refresh-alert CLI still refuses a push outside main without posting', t => {
+  const f = fixture(t)
+  const result = runReceiptCli(f, 'refresh-alert', {durable: '{broken', env: {GITHUB_REF: 'refs/heads/other'}})
+  assert.equal(result.status, 1)
+  assert.equal(result.requests.length, 0)
+})
+
+for (const [name, options] of [
+  ['unreadable durable evidence', f => ({durable: '{broken'})],
+  ['refused durable provenance', f => ({durable: {...f.gate, status: 'FAIL'}})],
+  ['unavailable candidate tree', f => ({queueHead: 'b'.repeat(40)})],
+  ['invalid bundle', f => ({durable: {...f.gate, counts: {...f.gate.counts, galleryScenarios: 1}}, rejectVerification: true})],
+  ['missing retained receipt', f => ({durable: {...f.gate, counts: {...f.gate.counts, galleryScenarios: 1}},
+    rejectPaths: [`repos/${REPO}/actions/runs/202/artifacts?per_page=100`]})],
+]) test(`post CLI posts a failure check for ${name}`, t => {
+  const f = fixture(t)
+  const selected = options(f)
+  const result = runReceiptCli(f, 'post', selected)
+  assert.equal(result.status, 1, result.stderr)
+  const checks = result.requests.filter(request => request.method === 'POST' && request.endpoint.endsWith('/check-runs'))
+  assert.equal(checks.length, 1, JSON.stringify(result.requests))
+  assert.equal(checks[0].body.name, 'gallery-receipt')
+  assert.equal(checks[0].body.head_sha, selected.queueHead ?? f.head)
+  assert.equal(checks[0].body.status, 'completed')
+  assert.equal(checks[0].body.conclusion, 'failure')
+  assert.doesNotMatch(result.stderr + checks[0].body.output.summary, /fixture verification refusal|fixture API refusal/)
+})
+
+test('post CLI still passes unchanged scope without a receipt verification result', t => {
+  const f = fixture(t)
+  const result = runReceiptCli(f, 'post', {env: {RECEIPT_VERIFIED: 'false'}})
+  assert.equal(result.status, 0, result.stderr)
+  const checks = result.requests.filter(request => request.endpoint?.endsWith('/check-runs'))
+  assert.equal(checks.length, 1)
+  assert.equal(checks[0].body.conclusion, 'success')
+  assert.equal(result.requests.some(request => request.command === 'attestation'), false)
+})
+
+test('post CLI still requires and re-verifies complete retained evidence for changed scope', t => {
+  const f = fixture(t)
+  const result = runReceiptCli(f, 'post', {durable: {...f.gate, counts: {...f.gate.counts, galleryScenarios: 1}}})
+  assert.equal(result.status, 0, result.stderr)
+  assert.equal(result.requests.some(request => request.command === 'attestation'), true)
+  const checks = result.requests.filter(request => request.endpoint?.endsWith('/check-runs'))
+  assert.equal(checks.length, 1)
+  assert.equal(checks[0].body.conclusion, 'success')
+})
+
+test('post CLI does not post a check when the trusted workflow context cannot be established', t => {
+  const f = fixture(t)
+  const result = runReceiptCli(f, 'post', {env: {GITHUB_EVENT_NAME: 'pull_request'}})
+  assert.equal(result.status, 1)
+  assert.equal(result.requests.length, 0)
 })

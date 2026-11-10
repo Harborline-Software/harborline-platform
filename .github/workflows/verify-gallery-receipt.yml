@@ -273,9 +273,11 @@ jobs:
   refresh-alert:
     needs: [plan, ledger-data, gallery-shard, phase-4, refresh]
     if: >-
-      always() && github.event_name == 'push' && needs.plan.outputs.changed == 'true' &&
-      (needs.ledger-data.result != 'success' || needs.gallery-shard.result != 'success' ||
-       needs.phase-4.result != 'success' || needs.refresh.result != 'success')
+      always() && github.event_name == 'push' &&
+      (needs.plan.result != 'success' ||
+       (needs.plan.outputs.changed == 'true' &&
+        (needs.ledger-data.result != 'success' || needs.gallery-shard.result != 'success' ||
+         needs.phase-4.result != 'success' || needs.refresh.result != 'success')))
     runs-on: ubuntu-latest
     concurrency:
       group: gallery-rerecord-failure-issue

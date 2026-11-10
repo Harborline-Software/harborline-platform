@@ -379,25 +379,29 @@ if (import.meta.main && process.argv.includes('--receipt')) {
       const event = jsonFile(process.env.GITHUB_EVENT_PATH)
       const head = objectId(process.env.GITHUB_SHA)
       requireThat(head === event.after && git(root, 'rev-parse', 'HEAD') === head, 'refresh checkout differs from landed main')
-      const durable = jsonFile(resolve(root, EVIDENCE_PATH))
-      const refusal = checkEvidenceProvenance(root, JSON.stringify(durable))
-      requireThat(!refusal, 'durable main evidence failed provenance')
-      const changed = shouldRerecord(root, event.before, head, durable)
-      if (mode === 'plan-refresh') {
-        writeFileSync(process.env.GITHUB_OUTPUT, `changed=${changed}\nhead=${head}\nrevision=${head}\n`, {flag: 'a'})
-      } else if (mode === 'publish-refresh') {
-        requireThat(changed, 'record-only or unchanged-scope landing cannot start a refresh')
-        const directory = resolve(process.env.RECEIPT_DIRECTORY ?? 'receipt')
-        const report = jsonFile(resolve(directory, 'phase4.json'))
-        const shards = readdirSync(directory).filter(name => /^gallery-shard-\d+\.json$/.test(name)).sort()
-          .map(name => jsonFile(resolve(directory, name)))
-        // Reuse the same fresh full-run/scope/raw-shard validation, without producing a queue receipt.
-        buildGalleryPredicate({root, head, queue: null, producer: {revision: head,
-          runId: Number(process.env.GITHUB_RUN_ID), attempt: Number(process.env.GITHUB_RUN_ATTEMPT),
-          queueCompletedAt: event.head_commit.timestamp}, gate: report, shards, artifacts: [], artifactFiles: []})
-        refreshPublication({root, head, report, runId: process.env.GITHUB_RUN_ID, writeApi})
-      } else {
+      if (mode === 'refresh-alert') {
+        // Alerting must survive the same broken evidence that refused planning or publication.
+        // The main-push and checkout identity checks above still apply.
         refreshFailureIssue({head, runId: process.env.GITHUB_RUN_ID, readApi: api, writeApi})
+      } else {
+        const durable = jsonFile(resolve(root, EVIDENCE_PATH))
+        const refusal = checkEvidenceProvenance(root, JSON.stringify(durable))
+        requireThat(!refusal, 'durable main evidence failed provenance')
+        const changed = shouldRerecord(root, event.before, head, durable)
+        if (mode === 'plan-refresh') {
+          writeFileSync(process.env.GITHUB_OUTPUT, `changed=${changed}\nhead=${head}\nrevision=${head}\n`, {flag: 'a'})
+        } else if (mode === 'publish-refresh') {
+          requireThat(changed, 'record-only or unchanged-scope landing cannot start a refresh')
+          const directory = resolve(process.env.RECEIPT_DIRECTORY ?? 'receipt')
+          const report = jsonFile(resolve(directory, 'phase4.json'))
+          const shards = readdirSync(directory).filter(name => /^gallery-shard-\d+\.json$/.test(name)).sort()
+            .map(name => jsonFile(resolve(directory, name)))
+          // Reuse the same fresh full-run/scope/raw-shard validation, without producing a queue receipt.
+          buildGalleryPredicate({root, head, queue: null, producer: {revision: head,
+            runId: Number(process.env.GITHUB_RUN_ID), attempt: Number(process.env.GITHUB_RUN_ATTEMPT),
+            queueCompletedAt: event.head_commit.timestamp}, gate: report, shards, artifacts: [], artifactFiles: []})
+          refreshPublication({root, head, report, runId: process.env.GITHUB_RUN_ID, writeApi})
+        }
       }
     } else {
       const context = workflowContext(root)
@@ -434,18 +438,28 @@ if (import.meta.main && process.argv.includes('--receipt')) {
       } else if (mode === 'verify') {
         verifyGalleryReceipt({root, directory, head: expected.head, queue: expected, revision, requireStoredReceipt: false})
       } else if (mode === 'post') {
-        requireThat(!checkEvidenceProvenance(root, JSON.stringify(jsonFile(resolve(root, EVIDENCE_PATH)))), 'durable evidence failed provenance')
-        const scopeChanged = needsGalleryReceipt(root, expected.head, jsonFile(resolve(root, EVIDENCE_PATH)))
-        let passed = process.env.RECEIPT_VERIFIED === 'true' || !scopeChanged
-        // Never let a caller's success output substitute for actual cryptographic verification.
-        if (passed && scopeChanged) verifyGalleryReceipt({root, directory, head: expected.head, queue: expected, revision})
+        let scopeChanged = null
+        let passed = false
+        let exceeded = false
         const waitMs = Date.now() - Date.parse(run.updated_at)
-        const timeout = api(`repos/${RECEIPT_REPOSITORY}/rulesets/22915054`).rules
-          .find(rule => rule.type === 'merge_queue')?.parameters?.check_response_timeout_minutes
-        requireThat(Number.isFinite(timeout) && timeout > 0, 'merge queue timeout unavailable')
-        const exceeded = scopeChanged && waitMs > timeout * 60000
-        if (exceeded) {
+        try {
+          const durable = jsonFile(resolve(root, EVIDENCE_PATH))
+          requireThat(!checkEvidenceProvenance(root, JSON.stringify(durable)), 'durable evidence failed provenance')
+          scopeChanged = needsGalleryReceipt(root, expected.head, durable)
+          passed = process.env.RECEIPT_VERIFIED === 'true' || !scopeChanged
+          // Never let a caller's success output substitute for actual cryptographic verification.
+          if (passed && scopeChanged) verifyGalleryReceipt({root, directory, head: expected.head, queue: expected, revision})
+          const timeout = api(`repos/${RECEIPT_REPOSITORY}/rulesets/22915054`).rules
+            .find(rule => rule.type === 'merge_queue')?.parameters?.check_response_timeout_minutes
+          requireThat(Number.isFinite(timeout) && timeout > 0, 'merge queue timeout unavailable')
+          exceeded = scopeChanged && waitMs > timeout * 60000
+          if (exceeded) passed = false
+        } catch {
+          // Identity was established by workflowContext. Refuse with a check on that queue head;
+          // never expose child errors, which can include credential-bearing command input.
           passed = false
+        }
+        if (exceeded) {
           process.stdout.write('::error::Gallery queue wait exceeded the merge queue status-check timeout; owner action required before landing.\n')
         }
         const artifactId = process.env.RECEIPT_ARTIFACT_ID
