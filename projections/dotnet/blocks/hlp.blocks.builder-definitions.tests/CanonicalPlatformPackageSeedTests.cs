@@ -45,6 +45,26 @@ public sealed class CanonicalPlatformPackageSeedTests
     }
 
     [Fact]
+    public void Ck_7_carries_every_api_pillar_view_body_unchanged()
+    {
+        var expected = JsonNode.Parse(File.ReadAllText(
+            RecordWriteJournalBindingTests.Fixture("pillar-view-bodies/api-0a7a163c.json")))!.AsArray();
+        var members = Members("platform-package-ck-7").EnumerateArray().ToArray();
+        var expectedIds = expected.Select(item => item!["key"]!.GetValue<string>()).ToArray();
+        var actualIds = members.Select(member => member.GetProperty("id").GetString()!).ToArray();
+
+        Assert.Equal(39, expectedIds.Length);
+        Assert.Equal(39, expectedIds.Distinct(StringComparer.Ordinal).Count());
+        Assert.Equal(expectedIds.Order(StringComparer.Ordinal), actualIds.Order(StringComparer.Ordinal));
+        foreach (var item in expected)
+        {
+            var id = item!["key"]!.GetValue<string>();
+            var member = Assert.Single(members, value => value.GetProperty("id").GetString() == id);
+            Assert.True(JsonNode.DeepEquals(item["content"], JsonNode.Parse(member.GetProperty("body").GetRawText())), id);
+        }
+    }
+
+    [Fact]
     public void The_seed_is_revision_2_0_0_in_its_export_its_package_record_and_its_navigation_definition()
     {
         using var export = JsonDocument.Parse(PlatformPackageSeed.Export());

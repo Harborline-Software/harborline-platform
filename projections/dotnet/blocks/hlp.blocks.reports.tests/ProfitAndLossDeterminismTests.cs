@@ -35,7 +35,7 @@ public sealed class ProfitAndLossDeterminismTests
         Assert.Equal(a.NetProfit, b.NetProfit);
     }
 
-    [Fact] public async Task ExecuteAsync_IsDeterministic_AcrossRepeatedRuns()
+    [Fact] [Trait("Holds", "reports-eng-21")] public async Task ExecuteAsync_IsDeterministic_AcrossRepeatedRuns()
     { var (s, p, c) = Build(); AssertEqual(await s.ExecuteAsync(c, p), await s.ExecuteAsync(c, p)); }
     [Fact] public async Task ExecuteAsync_SameMarker_SameResult()
     { var (s, p, c) = Build(); var c2 = c with { SnapshotMarker = c.SnapshotMarker }; AssertEqual(await s.ExecuteAsync(c, p), await s.ExecuteAsync(c2, p)); }

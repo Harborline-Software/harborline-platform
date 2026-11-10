@@ -159,6 +159,7 @@ public sealed class RentRollCartridgeTests
     // ──────────────────────────────────────────────────────────────────
 
     [Fact]
+    [Trait("Holds", "reports-eng-19")]
     public async Task RentRoll_OneOccupiedUnit_ShowsTenantAndRent()
     {
         var (sut, leases, _, parties) = Build();

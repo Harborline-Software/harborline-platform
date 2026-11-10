@@ -87,6 +87,7 @@ public sealed class ProfitAndLossCartridgeTests
     }
 
     [Fact]
+    [Trait("Holds", "reports-eng-19")]
     public async Task ProfitAndLoss_NetProfitEqualsRevenueMinusExpenses()
     {
         // Cash (Asset) debit; Revenue credit => revenue +300.

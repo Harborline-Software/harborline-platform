@@ -156,6 +156,7 @@ public sealed class ProfitAndLossByPropertyCartridgeTests
     // ──────────────────────────────────────────────────────────────────
 
     [Fact]
+    [Trait("Holds", "reports-eng-19")]
     public async Task PnL_RevenueAndExpense_NetIncomeIsRevMinusExp()
     {
         var rev = RevAcct("4000");

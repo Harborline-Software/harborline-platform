@@ -484,6 +484,7 @@ public sealed class ApAgingSummaryCartridgeTests
     // ──────────────────────────────────────────────────────────────────
 
     [Fact]
+    [Trait("Holds", "reports-eng-19")]
     public async Task ApAgingSummary_AllBuckets_PopulatedCorrectly()
     {
         var (sut, source) = Build();

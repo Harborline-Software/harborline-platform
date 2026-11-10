@@ -77,7 +77,7 @@ public sealed class ArAgingSummaryDeterminismTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_IsDeterministic_AcrossRepeatedRuns()
+    [Trait("Holds", "reports-eng-21")] public async Task ExecuteAsync_IsDeterministic_AcrossRepeatedRuns()
     {
         var (sut, invoices) = Build();
         var c1 = NewPartyId();
