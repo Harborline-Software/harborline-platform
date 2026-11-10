@@ -11,6 +11,8 @@
 # blocked and the existing stacked-PR deferment remains. Merge groups require every full lane, judged
 # by the queue base commit's aggregator. Base-sourced policy reduces self-classification risk; this
 # workflow's wiring remains candidate-controlled and has no enforced independent review (PROC-0001).
+# Candidate verification never produces or signs the gallery receipt. The separate main
+# workflow_run producer and reusable signer own that check (ADR-0137/0139).
 name: verify
 
 on:

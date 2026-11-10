@@ -1,0 +1,298 @@
+# ADR-0137/0139: main chooses the producer and policy. Candidate results travel only as artifacts.
+name: verify-gallery-receipt
+on:
+  push:
+    branches: [main]
+    paths-ignore: [docs/evidence/phase-4/gate.json]
+  workflow_run:
+    workflows: [verify]
+    types: [completed]
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: gallery-receipt-${{ github.event_name }}-${{ github.event_name == 'push' && 'main' || github.event.workflow_run.id }}-${{ github.event.workflow_run.run_attempt || 1 }}
+  cancel-in-progress: false
+jobs:
+  plan:
+    if: >-
+      github.event_name == 'push' ||
+      (github.event.workflow_run.event == 'merge_group' &&
+       github.event.workflow_run.repository.full_name == github.repository)
+    runs-on: ubuntu-latest
+    outputs:
+      changed: ${{ steps.plan.outputs.changed }}
+      head: ${{ steps.plan.outputs.head }}
+      revision: ${{ steps.plan.outputs.revision }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - name: Fetch the queue object as data
+        if: github.event_name == 'workflow_run'
+        env:
+          QUEUE_HEAD: ${{ github.event.workflow_run.head_sha }}
+        run: git fetch --no-tags origin "$QUEUE_HEAD"
+      - id: plan
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = push ]; then
+            node tooling/gates/scan-evidence-provenance.mjs --receipt plan-refresh
+          else
+            node tooling/gates/scan-evidence-provenance.mjs --receipt plan
+          fi
+
+  ledger-data:
+    needs: plan
+    if: needs.plan.outputs.changed == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.plan.outputs.revision }}
+          persist-credentials: false
+      # This job never checks out or executes candidate code. The existing private credential is
+      # supplied only to checkout, never interpolated into a command or persisted in Git config.
+      - uses: actions/checkout@v7
+        with:
+          repository: Harborline-Software/harborline-control
+          ref: main
+          token: ${{ secrets.HARBORLINE_PINS_TOKEN }}
+          persist-credentials: false
+          path: control-authority
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - run: node tooling/gates/scan-evidence-provenance.mjs --receipt ledger-data control-authority ledger-data
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ledger-data-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ledger-data
+          if-no-files-found: error
+          retention-days: 90
+
+  gallery-shard:
+    needs: [plan, ledger-data]
+    if: needs.plan.outputs.changed == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      actions: read
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4, 5, 6]
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.plan.outputs.head }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.plan.outputs.revision }}
+          path: .trusted-orchestration
+          persist-credentials: false
+      - name: Use main orchestration, preserving candidate tests
+        run: |
+          python3 - <<'PY'
+          import os, shutil
+          for directory, children, files in os.walk('.trusted-orchestration/tooling'):
+              children[:] = [name for name in children if name != 'tests']
+              target = directory.replace('.trusted-orchestration/', '', 1)
+              os.makedirs(target, exist_ok=True)
+              for name in files:
+                  if name.endswith(('.mjs', '.json')):
+                      shutil.copyfile(os.path.join(directory, name), os.path.join(target, name))
+          shutil.rmtree('.trusted-orchestration')
+          PY
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+      - name: Install gallery and projection dependencies
+        run: |
+          pnpm install --frozen-lockfile --ignore-scripts
+          pnpm --dir gallery/tests install --frozen-lockfile --ignore-scripts
+          cd gallery/tests && npx playwright install --with-deps chromium
+      - name: Mirror public API feed inputs
+        run: git clone --quiet https://github.com/Harborline-Software/harborline-api.git "$RUNNER_TEMP/harborline-api"
+      - name: Build the candidate projections
+        run: |
+          for project in projections/react/ui/hlp.ui.button projections/typescript/contracts/hlp.contracts.forms projections/typescript/foundation/hlp.foundation.rule-runtime projections/typescript/foundation/hlp.foundation.rule-authoring projections/typescript/application/hlp.copilot.contracts; do
+            pnpm --dir "$project" install --frozen-lockfile --ignore-scripts
+          done
+          dotnet restore Harborline.Platform.slnx -v:minimal
+          node tooling/run-native.mjs --build
+      - name: Report raw gallery shard
+        env:
+          SHARD: ${{ matrix.shard }}
+          HARBORLINE_API_REPO: ${{ runner.temp }}/harborline-api
+          HARBORLINE_CI_GALLERY: '1'
+          PW_WORKERS: '2'
+        run: |
+          set -o pipefail
+          node tooling/run-gallery-gate.mjs --shard="$SHARD/6" > "gallery-shard-$SHARD.json"
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: receipt-shard-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.shard }}
+          path: gallery-shard-${{ matrix.shard }}.json
+          if-no-files-found: error
+          retention-days: 90
+
+  phase-4:
+    needs: [plan, ledger-data, gallery-shard]
+    if: needs.plan.outputs.changed == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.plan.outputs.head }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.plan.outputs.revision }}
+          path: .trusted-orchestration
+          persist-credentials: false
+      - name: Use main orchestration, preserving candidate tests
+        run: |
+          python3 - <<'PY'
+          import os, shutil
+          for directory, children, files in os.walk('.trusted-orchestration/tooling'):
+              children[:] = [name for name in children if name != 'tests']
+              target = directory.replace('.trusted-orchestration/', '', 1)
+              os.makedirs(target, exist_ok=True)
+              for name in files:
+                  if name.endswith(('.mjs', '.json')):
+                      shutil.copyfile(os.path.join(directory, name), os.path.join(target, name))
+          shutil.rmtree('.trusted-orchestration')
+          PY
+      - uses: actions/download-artifact@v8
+        with:
+          name: ledger-data-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/control-ledger
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: receipt-shard-${{ github.run_id }}-${{ github.run_attempt }}-*
+          path: ${{ runner.temp }}/gallery-receipt
+          merge-multiple: true
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+      - name: Install gallery browser dependencies
+        run: |
+          pnpm --dir gallery/tests install --frozen-lockfile --ignore-scripts
+          cd gallery/tests && npx playwright install --with-deps chromium
+      - name: Mirror public API feed inputs
+        run: git clone --quiet https://github.com/Harborline-Software/harborline-api.git "$RUNNER_TEMP/harborline-api"
+      - name: Full fresh phase-4 under main orchestration
+        env:
+          HARBORLINE_API_REPO: ${{ runner.temp }}/harborline-api
+          HARBORLINE_CONTROL_REPO: ${{ runner.temp }}/control-ledger
+          HARBORLINE_RECEIPT_RUN: '1'
+          HARBORLINE_CI_GALLERY: '1'
+          HARBORLINE_GALLERY_SHARD_REPORTS: ${{ runner.temp }}/gallery-receipt
+        run: node tooling/run-phase-4-gate.mjs > "$RUNNER_TEMP/gallery-receipt/phase4.json"
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: gallery-run-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/gallery-receipt
+          if-no-files-found: error
+          retention-days: 90
+
+  sign:
+    needs: [plan, ledger-data, gallery-shard, phase-4]
+    if: >-
+      always() && github.event_name == 'workflow_run' && github.event.workflow_run.event == 'merge_group' &&
+      github.event.workflow_run.repository.full_name == github.repository
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
+      attestations: write
+    uses: ./.github/workflows/sign-gallery-receipt.yml
+
+  refresh:
+    needs: [plan, gallery-shard, phase-4]
+    if: github.event_name == 'push' && needs.plan.outputs.changed == 'true'
+    runs-on: ubuntu-latest
+    environment: gallery-rerecord
+    concurrency:
+      group: gallery-rerecord-publication
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - uses: actions/download-artifact@v8
+        with:
+          name: gallery-run-${{ github.run_id }}-${{ github.run_attempt }}
+          path: receipt
+      - id: app
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.GALLERY_RERECORD_APP_CLIENT_ID }}
+          private-key: ${{ secrets.GALLERY_RERECORD_APP_KEY }}
+          repositories: harborline-platform
+          permission-contents: write
+          permission-pull-requests: write
+      - name: Publish only the durable record through an owner-queued PR
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token }}
+        run: node tooling/gates/scan-evidence-provenance.mjs --receipt publish-refresh
+
+  refresh-alert:
+    needs: [plan, ledger-data, gallery-shard, phase-4, refresh]
+    if: >-
+      always() && github.event_name == 'push' && needs.plan.outputs.changed == 'true' &&
+      (needs.ledger-data.result != 'success' || needs.gallery-shard.result != 'success' ||
+       needs.phase-4.result != 'success' || needs.refresh.result != 'success')
+    runs-on: ubuntu-latest
+    concurrency:
+      group: gallery-rerecord-failure-issue
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - name: Open or update the single labelled failure issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node tooling/gates/scan-evidence-provenance.mjs --receipt refresh-alert

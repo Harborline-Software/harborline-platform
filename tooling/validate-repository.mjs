@@ -5,6 +5,7 @@ import { createHash } from 'node:crypto'
 import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { dirname, relative, resolve } from 'node:path'
 
+import {checkEvidenceProvenance, needsGalleryReceipt, verifyGalleryReceipt} from './gates/scan-evidence-provenance.mjs'
 import { npmPackageContributionErrors } from './package-contribution-policy.mjs'
 import {requiredStepIds} from './gate-contract.mjs'
 import {errorContractPolicyErrors, moduleStatusErrors,
@@ -147,7 +148,8 @@ const aggregateBuildSource = readFileSync(resolve(root, 'projections/react/ui/hl
 errors.push(...npmPackageContributionErrors(catalog, aggregateBuildSource))
 const projectionView = load('catalog/projections.yaml')
 const provenance = loadProvenance(root)
-const gate = load('docs/evidence/phase-4/gate.json')
+const durableGate = load('docs/evidence/phase-4/gate.json')
+let gate = durableGate
 const allowStaleGate = process.argv.includes('--allow-stale-gate')
 if (repository.repository !== 'harborline-platform') errors.push('repository identity mismatch')
 // Ticket 063 phase 1 (authority). This assertion previously REQUIRED the source-era aggregate
@@ -167,6 +169,21 @@ if (repository.packageDistributionAuthority !== null) {
 if (catalog.repository !== repository.repository) errors.push('catalog repository mismatch')
 if (JSON.parse(readFileSync(resolve(root, 'package.json'), 'utf8')).private !== true) errors.push('root package must be private')
 if (!allowStaleGate) {
+  const refusal = checkEvidenceProvenance(root, JSON.stringify(durableGate))
+  if (refusal) errors.push(`durable phase-4 evidence: ${refusal.field}: ${refusal.reason}`)
+  try {
+    const head = execFileSync('git', ['rev-parse', 'HEAD'], {cwd: root, encoding: 'utf8'}).trim()
+    if (needsGalleryReceipt(root, head, durableGate)) {
+      if (!process.env.HARBORLINE_GALLERY_RECEIPT_DIRECTORY) throw new Error('changed scope requires a verified gallery receipt')
+      const event = JSON.parse(readFileSync(process.env.GITHUB_EVENT_PATH, 'utf8'))
+      if (process.env.GITHUB_EVENT_NAME !== 'workflow_run' || event.workflow_run?.head_sha !== head)
+        throw new Error('candidate receipt requires the actual workflow_run queue context')
+      gate = verifyGalleryReceipt({root, directory: resolve(process.env.HARBORLINE_GALLERY_RECEIPT_DIRECTORY),
+        head, queue: {id: event.workflow_run.id, attempt: event.workflow_run.run_attempt, head},
+        revision: process.env.GITHUB_SHA})
+    }
+  } catch (error) { errors.push(`candidate phase-4 evidence: ${error.message}`) }
+
   const expectedModuleIds = Object.entries(catalog.modules)
     .filter(([moduleId, module]) => moduleId.startsWith('hlp.ui.')
       && Object.values(module.projections ?? {}).some(projection => projection.conformanceRunner))

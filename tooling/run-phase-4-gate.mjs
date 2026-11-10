@@ -111,6 +111,8 @@ async function launchGate(inputAttempt) {
     }
 
     function runReusable(id, executable, args, cwd = root, json = false, stepEnvironment = {}) {
+      // Candidate receipts report a fresh invocation, never a cached PASS from another run.
+      if (process.env.HARBORLINE_RECEIPT_RUN === '1') return run(id, executable, args, cwd, json, stepEnvironment)
       let inputHash
       let reuseRefusal
       try {

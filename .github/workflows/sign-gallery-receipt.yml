@@ -1,0 +1,85 @@
+# The reusable workflow is the certificate's Build Signer, pinned at main's digest (ADR-0139).
+name: sign-gallery-receipt
+on:
+  workflow_call:
+permissions: {}
+jobs:
+  sign-and-post:
+    if: github.event_name == 'workflow_run' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: gallery-receipt
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - name: Fetch candidate only as Git data
+        env:
+          QUEUE_HEAD: ${{ github.event.workflow_run.head_sha }}
+        run: git fetch --no-tags origin "$QUEUE_HEAD"
+      - id: plan
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node tooling/gates/scan-evidence-provenance.mjs --receipt plan
+      - uses: actions/download-artifact@v8
+        if: steps.plan.outputs.changed == 'true'
+        with:
+          name: gallery-run-${{ github.run_id }}-${{ github.run_attempt }}
+          path: receipt
+      - id: predicate
+        if: steps.plan.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node tooling/gates/scan-evidence-provenance.mjs --receipt build
+      - id: attest
+        if: steps.plan.outputs.changed == 'true'
+        uses: actions/attest@v4
+        with:
+          subject-name: gallery-tree
+          subject-digest: ${{ steps.predicate.outputs.digest }}
+          predicate-type: https://harborline.software/attestations/gallery-run/v1
+          predicate-path: receipt/predicate.json
+      - name: Retain the bundle beside the reports
+        if: steps.attest.outcome == 'success'
+        env:
+          BUNDLE: ${{ steps.attest.outputs.bundle-path }}
+        run: cp "$BUNDLE" receipt/receipt.sigstore.json
+      - id: verify
+        if: steps.plan.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node tooling/gates/scan-evidence-provenance.mjs --receipt verify
+      - id: evidence
+        if: steps.verify.outcome == 'success'
+        uses: actions/upload-artifact@v7
+        with:
+          name: gallery-receipt-${{ github.run_id }}-${{ github.run_attempt }}
+          path: receipt
+          if-no-files-found: error
+          retention-days: 90
+      - id: app
+        if: always()
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.GALLERY_RECEIPT_APP_CLIENT_ID }}
+          private-key: ${{ secrets.GALLERY_RECEIPT_APP_KEY }}
+          repositories: harborline-platform
+          permission-checks: write
+          permission-statuses: write
+      - name: Post on the authenticated queue head, after verification
+        if: always() && steps.app.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RECEIPT_CHECK_TOKEN: ${{ steps.app.outputs.token }}
+          RECEIPT_VERIFIED: ${{ steps.verify.outcome == 'success' && steps.evidence.outcome == 'success' }}
+          RECEIPT_ARTIFACT_ID: ${{ steps.evidence.outputs.artifact-id }}
+        run: node tooling/gates/scan-evidence-provenance.mjs --receipt post

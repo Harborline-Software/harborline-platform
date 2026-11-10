@@ -46,3 +46,12 @@ test('a headless passing gate records no gallery assertion and never overwrites 
     rmSync(root, {recursive: true, force: true})
   }
 })
+
+// Oracle: a candidate receipt is evidence of this invocation, not a cached earlier PASS.
+test('receipt orchestration executes reusable steps afresh without changing ordinary reuse', () => {
+  const runner = readFileSync(new URL('../run-phase-4-gate.mjs', import.meta.url), 'utf8')
+  const reusable = runner.split('function runReusable(')[1].split('// The app-shell fixture')[0]
+  assert.match(reusable, /if \(process\.env\.HARBORLINE_RECEIPT_RUN === '1'\) return run\(id, executable, args, cwd, json, stepEnvironment\)/)
+  assert.ok(reusable.indexOf('HARBORLINE_RECEIPT_RUN') < reusable.indexOf('decideStepReuse'))
+  assert.match(reusable, /decideStepReuse\(/)
+})
