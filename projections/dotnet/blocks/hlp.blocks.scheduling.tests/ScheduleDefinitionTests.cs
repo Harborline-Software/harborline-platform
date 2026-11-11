@@ -224,7 +224,7 @@ public sealed class ScheduleDefinitionTests
 
     [Fact(DisplayName = "scheduling-ck-5: a schedule without a basis requires its own due instant")]
     public async Task LoneDueDateIsRequired()
-        => Assert.Equal([new DefinitionRefusal(ScheduleDefinitionCodes.DueDateInvalid, "/due_date")],
+        => Assert.Equal([new DefinitionRefusal("scheduling.definition.due_date_invalid", "/due_date")],
             await RefusalsAsync($$"""{"envelope":{{Envelope}},"name":"n","starts":{{Form}}}"""));
 
     [Fact(DisplayName = "scheduling-ck-6, scheduling-ck-7, scheduling-ck-8, scheduling-ck-9, scheduling-auth-4, scheduling-auth-5: tolerance, grace, missed behaviour and escalation are separate members")]
