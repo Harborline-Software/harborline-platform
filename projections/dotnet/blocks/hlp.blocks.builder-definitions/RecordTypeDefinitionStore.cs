@@ -3,6 +3,7 @@ using System.Text.Json;
 using Harborline.Contracts.Authorization;
 using Harborline.Contracts.Fields;
 using Harborline.Foundation.Definitions;
+using Harborline.Foundation.RuleEngine.Compilation;
 using Harborline.Kernel.SchemaValidation;
 using Harborline.Kernel.SchemaValidation.Records;
 
@@ -844,6 +845,7 @@ public sealed class RecordTypeDefinitionStore
             parsed.Envelope, parsed.Name, parsed.RecordTypeId, "record_type_id", document.Key, phase, window));
         refusals.AddRange(validator.Validate(parsed.ToDefinition(), previousVersion: null)
             .Select(refusal => new DefinitionRefusal(refusal.Code, refusal.JsonPointer)));
+        refusals.AddRange(EvidenceConditionRefusals(parsed));
         // A draft may still be choosing its home and its data category; a published type has exactly one of each
         // (records-ck-17, records-ck-18, records-auth-1), with no default (DES-0046 ck-1, ADR 0025).
         if (phase != DefinitionAdmissionPhase.Author)
@@ -860,6 +862,23 @@ public sealed class RecordTypeDefinitionStore
                 refusals.Add(new("records.creation_role.unexpected", "/creation_role_id"));
         }
         return (parsed, refusals);
+    }
+
+    // content-store-cc-2: every write binds an evidence condition through the shared Rules compiler, so admission binds
+    // the same rule first. A condition that cannot compile refuses here, at every phase, instead of publishing a type
+    // whose every write is body_invalid. The kernel compiler already refuses a non-object condition at this pointer.
+    private static IEnumerable<DefinitionRefusal> EvidenceConditionRefusals(RecordTypeDocument document)
+    {
+        var recordTypeId = string.IsNullOrWhiteSpace(document.RecordTypeId) ? "record" : document.RecordTypeId;
+        foreach (var (field, index) in (document.Fields ?? []).Select((field, index) => (field, index)))
+        {
+            if (field.RequiredCondition is not { ValueKind: JsonValueKind.Object } condition) continue;
+            DefinitionRefusal? refusal = null;
+            try { _ = RecordWriteOperation.BindEvidenceRule(recordTypeId, field.FieldKey, condition, hasEvidence: false); }
+            catch (Exception invalid) when (invalid is ArgumentException or RuleCompilationException)
+            { refusal = new("field.required_condition_invalid", $"/fields/{index}/required_condition"); }
+            if (refusal is not null) yield return refusal;
+        }
     }
 
     // The creation path for fields: a field saved for the first time takes its kind's defaults here, before

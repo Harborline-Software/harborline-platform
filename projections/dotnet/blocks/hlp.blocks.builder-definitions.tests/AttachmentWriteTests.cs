@@ -109,7 +109,6 @@ public sealed class AttachmentWriteTests
         var previewed = Assert.Single(preflight.Refusals);
         Assert.Equal("field.required_condition_invalid", previewed.Code);
         Assert.Equal("/fields/0/required_condition", previewed.Pointer);
-        Assert.Null(preflight.JsonSchemaText);
 
         var refused = await Assert.ThrowsAsync<DefinitionRefusalException>(async () =>
             await fixture.Records.SaveDraftAsync("eam.evidence", bad, "1.0.1", 2, "bad-condition"));

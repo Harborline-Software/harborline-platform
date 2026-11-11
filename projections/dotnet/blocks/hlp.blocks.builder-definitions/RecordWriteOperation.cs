@@ -1422,19 +1422,29 @@ public sealed class RecordWriteOperation
                 if (condition.HasValue)
                 {
                     var hasEvidence = candidate[field.FieldKey] is JsonArray { Count: > 0 };
-                    var expression = new JsonObject { ["if"] = new JsonArray(JsonNode.Parse(condition.Value.GetRawText()), JsonValue.Create(hasEvidence), JsonValue.Create(true)) };
-                    var rule = new RuleDefinition
-                    {
-                        Id = "evidence:" + field.FieldKey, Tier = RuleTier.JsonLogic, Scope = RuleScope.Schema,
-                        ScopeTarget = definition.RecordTypeId, Action = RuleActionKind.Validate, Expression = expression.ToJsonString(),
-                    };
-                    if (RecordWriteRules.Bind(definition.RecordTypeId, [rule]).Evaluate(candidate, instant, cancellationToken) is not null)
+                    if (BindEvidenceRule(definition.RecordTypeId, field.FieldKey, condition.Value, hasEvidence).Evaluate(candidate, instant, cancellationToken) is not null)
                         throw new RefusedWriteException(new("rules", "field.evidence_required", [pointer]));
                 }
             }
             catch (Exception invalid) when (invalid is FieldAdmissionException or ArgumentException or RuleCompilationException)
             { throw new RefusedWriteException(new(ValidateStage, BodyInvalid, [pointer])); }
         }
+    }
+
+    /// <summary>
+    /// Binds a field's evidence condition as the one schema-scoped Rules predicate a write evaluates (content-store-cc-2):
+    /// when the condition holds, the field must carry evidence. Admission binds the same shape, so a condition the shared
+    /// compiler refuses never publishes. Throws <see cref="ArgumentException"/> or <see cref="RuleCompilationException"/>.
+    /// </summary>
+    internal static RecordWriteRules BindEvidenceRule(string recordTypeId, string fieldKey, JsonElement condition, bool hasEvidence)
+    {
+        var expression = new JsonObject { ["if"] = new JsonArray(JsonNode.Parse(condition.GetRawText()), JsonValue.Create(hasEvidence), JsonValue.Create(true)) };
+        var rule = new RuleDefinition
+        {
+            Id = "evidence:" + fieldKey, Tier = RuleTier.JsonLogic, Scope = RuleScope.Schema,
+            ScopeTarget = recordTypeId, Action = RuleActionKind.Validate, Expression = expression.ToJsonString(),
+        };
+        return RecordWriteRules.Bind(recordTypeId, [rule]);
     }
 
     // One wrapper per invocation, so simultaneous writes cannot share a session. The boundary still owns disposal/commit.
