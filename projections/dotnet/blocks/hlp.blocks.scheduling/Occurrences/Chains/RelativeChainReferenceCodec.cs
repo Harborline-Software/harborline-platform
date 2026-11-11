@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace Harborline.Blocks.RelativeChains;
+namespace Harborline.Blocks.Scheduling;
 
 /// <summary>Canonical r2 encoder for opaque versioned occurrence references.</summary>
 public static class RelativeChainReferenceCodec
@@ -15,7 +15,7 @@ public static class RelativeChainReferenceCodec
     {
         ArgumentNullException.ThrowIfNull(id);
         if (id.OccurrenceRevision is < 1) throw new ArgumentOutOfRangeException(nameof(id));
-        return $"rc1/{Escape(id.ChainInstanceId)}/{Escape(id.NodeId)}/{id.DueDate:yyyy-MM-dd}/r{id.OccurrenceRevision}";
+        return $"rc1/{Escape(id.ChainInstanceId)}/{Escape(id.NodeId)}/{Escape(id.DueDate.ToString("O", System.Globalization.CultureInfo.InvariantCulture))}/r{id.OccurrenceRevision}";
     }
 
     /// <summary>Percent-escapes one bounded UTF-8 component using uppercase hexadecimal.</summary>
@@ -25,7 +25,7 @@ public static class RelativeChainReferenceCodec
     {
         ArgumentNullException.ThrowIfNull(value);
         var bytes = Encoding.UTF8.GetBytes(value);
-        if (bytes.Length is < 1 or > MaximumReferenceUtf8Bytes) throw new ArgumentOutOfRangeException(nameof(value));
+        if (bytes.Length < 1) throw new ArgumentOutOfRangeException(nameof(value));
         var builder = new StringBuilder(bytes.Length);
         foreach (var valueByte in bytes)
         {

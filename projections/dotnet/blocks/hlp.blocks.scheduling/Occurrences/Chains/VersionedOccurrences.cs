@@ -1,11 +1,11 @@
-namespace Harborline.Blocks.RelativeChains;
+namespace Harborline.Blocks.Scheduling;
 
 /// <summary>The immutable identity of one materialized occurrence revision.</summary>
 /// <param name="ChainInstanceId">The instantiated chain.</param>
 /// <param name="NodeId">The definition-local node.</param>
 /// <param name="DueDate">The nominal derived date.</param>
 /// <param name="OccurrenceRevision">The positive node-ledger revision.</param>
-public sealed record RelativeChainOccurrenceId(string ChainInstanceId, string NodeId, DateOnly DueDate, int OccurrenceRevision)
+public sealed record RelativeChainOccurrenceId(string ChainInstanceId, string NodeId, DateTimeOffset DueDate, int OccurrenceRevision)
 {
     /// <summary>Returns the injective r2 opaque reference encoding.</summary>
     public override string ToString() => RelativeChainReferenceCodec.Encode(this);
@@ -20,11 +20,9 @@ public sealed record RelativeChainOccurrenceId(string ChainInstanceId, string No
 /// <param name="EarliestDate">Inclusive earliest date.</param>
 /// <param name="LatestDate">Inclusive latest date.</param>
 /// <param name="SubjectRef">Opaque subject binding.</param>
-/// <param name="ProviderRef">Opaque provider binding.</param>
-/// <param name="ResourceRef">Opaque resource binding.</param>
 /// <param name="DerivationFingerprint">Canonical effective-semantics fingerprint.</param>
 /// <param name="ExplanationRefs">Deterministically ordered explanation refs.</param>
-public sealed record RelativeChainOccurrence(RelativeChainOccurrenceId OccurrenceId, int DefinitionRevision, string BasisRef, int BasisRevision, DateOnly DueDate, DateOnly EarliestDate, DateOnly LatestDate, string SubjectRef, string ProviderRef, string ResourceRef, string DerivationFingerprint, IReadOnlyList<string> ExplanationRefs);
+public sealed record RelativeChainOccurrence(RelativeChainOccurrenceId OccurrenceId, int DefinitionRevision, string BasisRef, int BasisRevision, DateTimeOffset DueDate, DateTimeOffset? EarliestDate, DateTimeOffset? LatestDate, string SubjectRef, string DerivationFingerprint, IReadOnlyList<string> ExplanationRefs);
 
 /// <summary>A closed reason for superseding an immutable occurrence.</summary>
 public enum SupersessionReasonCode

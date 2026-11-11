@@ -27,8 +27,8 @@ public static class ScheduleDefinitionCodes
     public const string NameRequired = "scheduling.definition.name_required";
     /// <summary>The definition does not name what it starts.</summary>
     public const string StartsRequired = "scheduling.definition.starts_required";
-    /// <summary>A definition that is not an event-anchored chain has no validity window.</summary>
-    public const string WindowRequired = "scheduling.definition.window_required";
+    /// <summary>A lone due instant is missing, unreadable, or supplied alongside a basis.</summary>
+    public const string DueDateInvalid = "scheduling.definition.due_date_invalid";
     /// <summary>The window's bounds are unreadable, or do not open before they close.</summary>
     public const string WindowInvalid = "scheduling.definition.window_invalid";
     /// <summary>A generator is missing a member or breaks its own rules.</summary>

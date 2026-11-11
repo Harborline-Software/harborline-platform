@@ -1,4 +1,4 @@
-namespace Harborline.Blocks.RelativeChains;
+namespace Harborline.Blocks.Scheduling;
 
 /// <summary>A closed typed expansion failure.</summary>
 public enum RelativeChainFailureCode
@@ -19,7 +19,7 @@ public enum RelativeChainFailureCode
     MissingAnchor,
     /// <summary>A supplied external anchor is deleted.</summary>
     DeletedAnchor,
-    /// <summary>Checked DateOnly arithmetic overflowed.</summary>
+    /// <summary>Checked DateTimeOffset arithmetic overflowed.</summary>
     DateArithmeticOverflow,
     /// <summary>More than one unsuperseded current revision exists.</summary>
     AmbiguousCurrentOccurrence,

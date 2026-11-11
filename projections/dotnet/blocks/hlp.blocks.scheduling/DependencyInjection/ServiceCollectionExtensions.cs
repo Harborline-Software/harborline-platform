@@ -10,6 +10,7 @@ public static class ServiceCollectionExtensions
     public static IServiceCollection AddHarborlineBlocksScheduling(this IServiceCollection services)
     {
         ArgumentNullException.ThrowIfNull(services);
+        services.TryAddSingleton<IDueQueueQueryService, RruleDueQueueQueryService>();
         services.TryAddSingleton<IScheduleReservationCoordinator, ScheduleReservationCoordinator>();
         return services;
     }

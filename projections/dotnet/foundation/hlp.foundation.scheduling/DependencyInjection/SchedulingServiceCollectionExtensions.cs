@@ -9,15 +9,14 @@ namespace Harborline.Foundation.Scheduling.DependencyInjection;
 public static class SchedulingServiceCollectionExtensions
 {
     /// <summary>
-    /// Register the RRULE expansion and derived due-queue services. Idempotent via
+    /// Register the RRULE expansion producer. Idempotent via
     /// <see cref="ServiceCollectionDescriptorExtensions.TryAddSingleton{TService, TImplementation}(IServiceCollection)"/>
-    /// â€” re-invocation does not double-register.
+    /// — re-invocation does not double-register.
     /// </summary>
     public static IServiceCollection AddFoundationScheduling(this IServiceCollection services)
     {
         ArgumentNullException.ThrowIfNull(services);
         services.TryAddSingleton<IRruleExpansionService, InMemoryRruleExpansionService>();
-        services.TryAddSingleton<IDueQueueQueryService, RruleDueQueueQueryService>();
         return services;
     }
 }

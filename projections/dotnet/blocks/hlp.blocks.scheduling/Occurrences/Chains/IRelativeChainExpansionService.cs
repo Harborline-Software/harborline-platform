@@ -1,4 +1,4 @@
-namespace Harborline.Blocks.RelativeChains;
+namespace Harborline.Blocks.Scheduling;
 
 /// <summary>The pure deterministic relative-chain expansion port.</summary>
 public interface IRelativeChainExpansionService
