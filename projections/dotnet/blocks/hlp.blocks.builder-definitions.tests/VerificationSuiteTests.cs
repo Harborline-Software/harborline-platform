@@ -100,6 +100,10 @@ public sealed class VerificationSuiteTests
     [InlineData("effectiveFrom", "not-an-instant")]
     [InlineData("effectiveTo", "not-an-instant")]
     [InlineData("effectiveFrom", null)]
+    [InlineData("effectiveFrom", "2026-09-20T10:00:00")]
+    [InlineData("effectiveTo", "10:00:00+01:00")]
+    [InlineData("effectiveFrom", "2026-09-20")]
+    [InlineData("effectiveTo", "2026-09-20 10:00:00+01:00")]
     public void Malformed_present_grant_instants_are_refused(string key, string? value)
     {
         var document = JsonNode.Parse(Fixture().GetProperty("suite").GetRawText())!;

@@ -255,8 +255,9 @@ public sealed class VerificationSuite
         DateTimeOffset? GrantInstant(JsonElement grant, string name, string fixtureId)
         {
             if (!grant.TryGetProperty(name, out var value)) return null;
-            if (value.ValueKind == JsonValueKind.String && DateTimeOffset.TryParse(value.GetString(),
-                    CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var instant)) return instant;
+            if (value.ValueKind == JsonValueKind.String && DateTimeOffset.TryParseExact(value.GetString(),
+                    ["yyyy-MM-dd'T'HH:mm:ss.FFFFFFFzzz", "yyyy-MM-dd'T'HH:mm:ss.FFFFFFF'Z'"],
+                    CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var instant)) return instant;
             invalidInstants.Add(new("verification-fixture-grant-invalid", fixtureId,
                 $"Fixture {fixtureId} grant {Text(grant, "roleKey")}@{Text(grant, "scope")} has an invalid {name} instant."));
             return null;
