@@ -54,6 +54,9 @@ public interface IInboxStore
     /// <summary>Marks one entry read for every session belonging to its recipient.</summary>
     Task MarkReadAsync(string tenant, string recipient, Guid entryId, CancellationToken cancellationToken = default);
 
+    /// <summary>Dismisses one delivery for its tenant and recipient; an entry outside that scope refuses.</summary>
+    Task DismissAsync(string tenant, string recipient, Guid entryId, CancellationToken cancellationToken = default);
+
     /// <summary>Marks every unread entry read for the recipient's notification centre.</summary>
     Task MarkAllReadAsync(string tenant, string recipient, CancellationToken cancellationToken = default);
 }
@@ -116,7 +119,28 @@ public sealed class InMemoryInboxStore : IInboxStore
                     $"Inbox entry '{entryId}' is not in this recipient's inbox.");
             }
 
-            _entries[entryId] = entry with { ReadState = InboxReadState.Read };
+            if (entry.ReadState == InboxReadState.Unread)
+            {
+                _entries[entryId] = entry with { ReadState = InboxReadState.Read };
+            }
+            return Task.CompletedTask;
+        }
+    }
+
+    /// <inheritdoc />
+    public Task DismissAsync(string tenant, string recipient, Guid entryId, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        lock (_gate)
+        {
+            if (!_entries.TryGetValue(entryId, out var entry) || entry.Tenant != tenant || entry.Recipient != recipient)
+            {
+                throw new NotificationDeliveryRefusedException(
+                    NotificationDeliveryRefusals.InboxEntryUnknown,
+                    $"Inbox entry '{entryId}' is not in this recipient's inbox.");
+            }
+
+            _entries[entryId] = entry with { ReadState = InboxReadState.Dismissed };
             return Task.CompletedTask;
         }
     }
