@@ -3,8 +3,8 @@
   "oracle": "DES-0055 ck-1, ck-7, ck-8 and ruling 7, clarified by control PR 1263",
   "sourceSha256": {
     "projections/dotnet/foundation/hlp.foundation.notification-delivery/DeliveryChannels.cs": "90bb18620fed29f9c11148e8f39197b2fd9db09676853f8d984f0288579aa250",
-    "projections/dotnet/foundation/hlp.foundation.notification-delivery/InboxChannel.cs": "ea598279dacbfa111b3a1d589f756f2e7dc6b446f0c3a56dfb8ffbb645013d8d",
-    "projections/dotnet/foundation/hlp.foundation.notification-delivery.tests/ClassificationAndDismissTests.cs": "3471a90102e758b62b3e6588e93c85286c076fcf5117fde74832c04887d1aade"
+    "projections/dotnet/foundation/hlp.foundation.notification-delivery/InboxChannel.cs": "2362b71b1130d6ea56c382a5ef8e1748b6fa90ad55b83be95a1c7b8af77c796b",
+    "projections/dotnet/foundation/hlp.foundation.notification-delivery.tests/ClassificationAndDismissTests.cs": "e7eb16b6776c85fcca57b34d301fb4831ca8eb598566365be23c9a2a542f6357"
   },
   "controls": [
     {
@@ -36,9 +36,9 @@
       "after": "new DeliveryOutcome(classification, string.Empty)",
       "killingTest": "Declared_classifier_preserves_diagnostic",
       "failedDisplayNames": [
-        "notification-delivery-ck-1 notification-delivery-ck-8: declared classifier preserves diagnostic verbatim(expected: Delivered)",
-        "notification-delivery-ck-1 notification-delivery-ck-8: declared classifier preserves diagnostic verbatim(expected: Permanent)",
         "notification-delivery-ck-1 notification-delivery-ck-8: declared classifier preserves diagnostic verbatim(expected: Accepted)",
+        "notification-delivery-ck-1 notification-delivery-ck-8: declared classifier preserves diagnostic verbatim(expected: Permanent)",
+        "notification-delivery-ck-1 notification-delivery-ck-8: declared classifier preserves diagnostic verbatim(expected: Delivered)",
         "notification-delivery-ck-1 notification-delivery-ck-8: declared classifier preserves diagnostic verbatim(expected: Transient)"
       ],
       "exitCode": 1
@@ -61,8 +61,19 @@
       "after": "!result.Succeeded ? DeliveryOutcomeClass.Delivered",
       "killingTest": "Inbox_classifies_write_completion",
       "failedDisplayNames": [
-        "notification-delivery-ck-1 notification-delivery-ck-8: inbox classifies committed and failed writes without retry(fail: True, expected: Permanent)",
-        "notification-delivery-ck-1 notification-delivery-ck-8: inbox classifies committed and failed writes without retry(fail: False, expected: Delivered)"
+        "notification-delivery-ck-1 notification-delivery-ck-8: inbox classifies committed and failed writes without retry(fail: False, expected: Delivered)",
+        "notification-delivery-ck-1 notification-delivery-ck-8: inbox classifies committed and failed writes without retry(fail: True, expected: Permanent)"
+      ],
+      "exitCode": 1
+    },
+    {
+      "mutation": "mark-read-undismiss",
+      "file": "projections/dotnet/foundation/hlp.foundation.notification-delivery/InboxChannel.cs",
+      "before": "entry.ReadState == InboxReadState.Unread",
+      "after": "true",
+      "killingTest": "Dismiss_changes_only_one_delivery",
+      "failedDisplayNames": [
+        "notification-delivery-ck-7: dismiss changes only one scoped delivery"
       ],
       "exitCode": 1
     },

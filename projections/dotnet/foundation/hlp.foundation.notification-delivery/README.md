@@ -11,5 +11,5 @@ profile. No external transport mapping is defined. `ChannelContentClass` is unch
 
 `IInboxStore.DismissAsync(tenant, recipient, entryId)` sets that one delivery to `Dismissed`, so it
 no longer contributes to unread count. A missing entry or a mismatched tenant or recipient refuses
-`notification_delivery.inbox_entry_unknown`. Repeating dismissal is idempotent. List retains the
+`notification_delivery.inbox_entry_unknown`. Repeating dismissal is idempotent; later mark-read operations preserve dismissal. List retains the
 entry and its dismissed state; retention and surface filtering remain separate concerns.

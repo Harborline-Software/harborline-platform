@@ -59,6 +59,8 @@ public sealed class ClassificationAndDismissTests
     }
 
     // Oracle: control #1263 / DES-0055 ruling 7: committed = delivered, failed = permanent.
+    // This exercises the declared mapping. The test adapts write completion into a transport result;
+    // production write-to-result orchestration belongs to the later delivery-attempt slice.
     // Mutation inbox-inverted: negate result.Succeeded in the inbox classifier.
     [Theory(DisplayName = "notification-delivery-ck-1 notification-delivery-ck-8: inbox classifies committed and failed writes without retry")]
     [InlineData(false, DeliveryOutcomeClass.Delivered)]
@@ -88,6 +90,7 @@ public sealed class ClassificationAndDismissTests
 
     // Oracle: ck-7 is per delivery, not per recipient or tenant; dismissal clears unread count.
     // Mutation dismiss-read: write Read rather than Dismissed in DismissAsync.
+    // Mutation mark-read-undismiss: remove the unread-only guard in MarkReadAsync.
     [Fact(DisplayName = "notification-delivery-ck-7: dismiss changes only one scoped delivery")]
     public async Task Dismiss_changes_only_one_delivery()
     {
@@ -99,6 +102,7 @@ public sealed class ClassificationAndDismissTests
         foreach (var entry in new[] { target, other, otherPerson, otherTenant }) await store.AppendAsync(entry);
         await store.DismissAsync("tenant-a", "person-a", target.Id);
         await store.DismissAsync("tenant-a", "person-a", target.Id); // idempotent
+        await store.MarkReadAsync("tenant-a", "person-a", target.Id); // a late read must not undo dismissal
         var listed = await store.ListAsync("tenant-a", "person-a");
         Assert.Equal(InboxReadState.Dismissed, listed.Single(entry => entry.Id == target.Id).ReadState);
         Assert.Equal(InboxReadState.Unread, listed.Single(entry => entry.Id == other.Id).ReadState);

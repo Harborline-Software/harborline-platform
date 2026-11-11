@@ -20,6 +20,7 @@ CONTROLS = [
     ('diagnostic-replaced', CHANNEL, 'new DeliveryOutcome(classification, result.Diagnostic)', 'new DeliveryOutcome(classification, string.Empty)', 'Declared_classifier_preserves_diagnostic'),
     ('unknown-admitted', CHANNEL, '!Enum.IsDefined(classification)', 'false', 'Undefined_outcome_refuses'),
     ('inbox-inverted', CHANNEL, 'result.Succeeded ? DeliveryOutcomeClass.Delivered', '!result.Succeeded ? DeliveryOutcomeClass.Delivered', 'Inbox_classifies_write_completion'),
+    ('mark-read-undismiss', INBOX, 'entry.ReadState == InboxReadState.Unread', 'true', 'Dismiss_changes_only_one_delivery'),
     ('dismiss-read', INBOX, 'ReadState = InboxReadState.Dismissed', 'ReadState = InboxReadState.Read', 'Dismiss_changes_only_one_delivery'),
     ('dismiss-tenant', INBOX, ' || entry.Tenant != tenant', '', 'Dismiss_refuses_foreign_or_unknown'),
     ('dismiss-recipient', INBOX, ' || entry.Recipient != recipient', '', 'Dismiss_refuses_foreign_or_unknown'),
@@ -36,7 +37,8 @@ def main():
         for name, file, before, after, test in CONTROLS:
             original = file.read_bytes()
             source = original.decode()
-            start = source.index('    public Task DismissAsync(') if file == INBOX else 0
+            method = 'MarkReadAsync' if name == 'mark-read-undismiss' else 'DismissAsync'
+            start = source.index(f'    public Task {method}(') if file == INBOX else 0
             end = source.index('    /// <inheritdoc />', start) if file == INBOX else len(source)
             prefix, body, suffix = source[:start], source[start:end], source[end:]
             if body.count(before) != 1:

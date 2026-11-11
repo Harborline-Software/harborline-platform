@@ -119,7 +119,10 @@ public sealed class InMemoryInboxStore : IInboxStore
                     $"Inbox entry '{entryId}' is not in this recipient's inbox.");
             }
 
-            _entries[entryId] = entry with { ReadState = InboxReadState.Read };
+            if (entry.ReadState == InboxReadState.Unread)
+            {
+                _entries[entryId] = entry with { ReadState = InboxReadState.Read };
+            }
             return Task.CompletedTask;
         }
     }

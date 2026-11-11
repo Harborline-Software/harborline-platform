@@ -24,7 +24,8 @@
     "The external default content class is link-only; the on-node inbox is the only full-content class.",
     "Every inbox read and write is scoped to one tenant and one recipient.",
     "The closed outcome vocabulary is accepted, delivered, transient, permanent. No external transport mapping is defined.",
-    "The inbox classifies a committed write as delivered and a failed write as permanent, never transient (no retry profile)."
+    "The inbox classifies a committed write as delivered and a failed write as permanent, never transient (no retry profile).",
+    "MarkReadAsync and MarkAllReadAsync change unread entries only; a later read never undoes dismissal."
   ],
   "errors": [
     "notification_delivery.channel_unknown",
