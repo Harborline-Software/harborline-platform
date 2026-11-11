@@ -122,6 +122,20 @@ public sealed class AttachmentWriteTests
         Assert.True((await fixture.Write("still-writable", body)).Committed);
     }
 
+    // content-store-cc-2: an evidence condition reads the final candidate the write commits, so it sees a later
+    // attachment field's promoted references, never its staged {stage_id, display_name} entries.
+    [Fact]
+    public async Task Content_store_cc_2_an_evidence_condition_reads_later_attachment_fields_after_promotion()
+    {
+        // True while documents still holds a staged entry; false once every entry is a committed reference.
+        var fixture = await Fixture.CreateWithLaterAttachment("""{"in":["stage_id",{"cat":[{"var":"documents"}]}]}""");
+        var body = new JsonObject { ["evidence"] = new JsonArray(), ["documents"] = List(await fixture.Upload("document"))["evidence"]!.DeepClone() };
+        var outcome = await fixture.Write("later-field", body);
+        Assert.True(outcome.Committed, outcome.Refusal?.Code);
+        using var row = JsonDocument.Parse(Assert.Single(fixture.Port.Rows).Body);
+        Assert.False(row.RootElement.GetProperty("documents")[0].TryGetProperty("stage_id", out _));
+    }
+
     [Fact]
     public async Task Kept_and_new_entries_round_trip_in_order_through_one_enclosing_write()
     {
@@ -331,7 +345,7 @@ public sealed class AttachmentWriteTests
         public Port Port { get; }
         public RecordWriteOperation Operation { get; }
         public RecordTypePublication Publication { get; }
-        private Fixture(bool condition, bool composeRuntime, bool exposeSession, string fieldKey, bool temporalMode)
+        private Fixture(bool condition, bool composeRuntime, bool exposeSession, string fieldKey, bool temporalMode, string? conditionJson = null)
         {
             Store = new(new(100, 1000, 10000, TimeSpan.FromHours(1)), new Keys(), TimeProvider.System, Storage);
             Runtime = new(Store);
@@ -348,13 +362,15 @@ public sealed class AttachmentWriteTests
             classes.PublishAsync("tenant-a", "eam.equipment", "1.0.0", 1, "class-publish").AsTask().GetAwaiter().GetResult();
             Records = new(catalogue, compiler, new(kinds), Registry, Window, roles: CreationRoles);
             var field = new FieldDefinition(fieldKey, "Evidence", new(kind, new(false, 0, null, [], null)))
-            { RequiredCondition = condition ? JsonSerializer.Deserialize<JsonElement>("""{"==":[{"var":"status"},"closed"]}""") : null };
-            Records.CreateDraftAsync(new("tenant-a", "eam", "Evidence", "1.0.0", [field, new("status", "Status")], new(1, 0),
+            { RequiredCondition = conditionJson is not null ? JsonSerializer.Deserialize<JsonElement>(conditionJson) : condition ? JsonSerializer.Deserialize<JsonElement>("""{"==":[{"var":"status"},"closed"]}""") : null };
+            FieldDefinition[] fields = conditionJson is null ? [field, new("status", "Status")] : [field, new("status", "Status"), new("documents", "Documents", new(kind, new(false, 0, null, [], null)))];
+            Records.CreateDraftAsync(new("tenant-a", "eam", "Evidence", "1.0.0", fields, new(1, 0),
                 ClassId: "eam.equipment", RecordClass: RecordClass.Master, PackageId: "eam-core", CreationGate: RecordCreationGate.Role, CreationRoleId: "asset-author") { AmendmentPolicy = new(true) { Mode = temporalMode ? RecordAmendmentMode.Supersession : null } }, "type").AsTask().GetAwaiter().GetResult();
             Publication = Records.PublishAsync("tenant-a", "eam.evidence", "1.0.0", 1, "publish").AsTask().GetAwaiter().GetResult();
             Port = new(Storage.Bookkeeping) { ExposeSession = exposeSession };
             Operation = new(new AccessProvider(new Gate()), Records, Registry, Port, Port, TimeProvider.System, kinds, RecordWriteFieldRuntimeTests.FixtureDomains(TimeProvider.System), Port, Port, Port) { Attachments = composeRuntime ? Runtime : null };
         }
+        public static Task<Fixture> CreateWithLaterAttachment(string conditionJson) => Task.FromResult(new Fixture(false, true, true, "evidence", false, conditionJson));
         public static Task<Fixture> Create(bool condition = false, bool composeRuntime = true, bool exposeSession = true, string fieldKey = "evidence", bool temporalMode = false) => Task.FromResult(new Fixture(condition, composeRuntime, exposeSession, fieldKey, temporalMode));
         public ValueTask<Guid> Upload(string text) => Runtime.PutAsync(Attachment, new("tenant-a"), "evidence", new MemoryStream(Encoding.UTF8.GetBytes(text)), "text/plain", null, Evidence());
         public async Task<RecordWriteOutcome> WriteEither(bool temporal, string operation, JsonObject body)
