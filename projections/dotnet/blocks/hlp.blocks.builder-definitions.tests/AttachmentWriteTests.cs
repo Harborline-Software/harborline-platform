@@ -60,6 +60,7 @@ public sealed class AttachmentWriteTests
         Assert.False((await fixture.Registry.ValidateAsync(publication.Schema.Id, Encoding.UTF8.GetBytes(List(first).ToJsonString()))).IsValid);
         var refused = await fixture.Write("second-write", List(first));
         Assert.False(refused.Committed);
+        Assert.False(refused.Replayed);
         Assert.Equal("content.staging-expired", refused.Refusal!.Code);
         Assert.Single(fixture.Port.Rows);
     }
@@ -71,6 +72,7 @@ public sealed class AttachmentWriteTests
         var good = await fixture.Upload("first");
         var refused = await fixture.Write("refused", List(good, Guid.Parse("11111111-1111-1111-1111-111111111111")));
         Assert.Equal("content.staging-expired", refused.Refusal!.Code);
+        Assert.False(refused.Replayed);
         Assert.Empty(fixture.Port.Rows);
         Assert.Equal(0, fixture.Store.CommittedCount);
         Assert.Equal(1, fixture.Store.StagedCount);
