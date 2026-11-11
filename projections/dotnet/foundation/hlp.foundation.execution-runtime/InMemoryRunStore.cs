@@ -68,5 +68,5 @@ public sealed class InMemoryRunStore : IRunStore
         return ValueTask.FromResult(matches);
     }
 
-    private static RunRecord Snapshot(RunRecord record) => record with { Attempts = record.Attempts.ToArray() };
+    private static RunRecord Snapshot(RunRecord record) => record with { Attempts = record.Attempts.ToArray(), Waits = record.Waits.ToArray() };
 }
