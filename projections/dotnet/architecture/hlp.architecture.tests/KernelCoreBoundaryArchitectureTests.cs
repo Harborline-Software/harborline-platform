@@ -7,7 +7,7 @@ namespace Harborline.Architecture.Tests;
 public sealed class KernelCoreBoundaryArchitectureTests
 {
     private static readonly Regex ForbiddenClock = new(
-        @"(?:\b(?:DateTime(?:Offset)?\s*\.\s*(?:Now|UtcNow)|TimeProvider\s*\.\s*System|Environment\s*\.\s*TickCount(?:64)?)|:\s*TimeProvider\b|TimeProvider\s*\?)",
+        @"(?:\b(?:DateTime(?:Offset)?\s*\.\s*(?:Now|UtcNow|Today)|TimeProvider\s*\.\s*System|Environment\s*\.\s*TickCount(?:64)?)|:\s*TimeProvider\b|TimeProvider\s*\?)",
         RegexOptions.Compiled);
 
     private static readonly Regex StoreCommit = new(
@@ -55,7 +55,7 @@ public sealed class KernelCoreBoundaryArchitectureTests
     }
 
     [Fact]
-    public void ClockFenceReportsExactlyFourPlantedReferences()
+    public void ClockFenceReportsExactlyFivePlantedReferences()
     {
         var root = Path.Combine(Path.GetTempPath(), "t623-clock-" + Guid.NewGuid().ToString("N"));
         var planted = Path.Combine(root, "projections", "dotnet", "kernel", "planted");
@@ -64,11 +64,11 @@ public sealed class KernelCoreBoundaryArchitectureTests
         {
             File.WriteAllText(Path.Combine(planted, "Offender.cs"),
                 "sealed class BadClock : TimeProvider { long N() => Environment.TickCount64; " +
-                "DateTimeOffset U() => TimeProvider.System.GetUtcNow(); DateTime L() => DateTime.Now; }");
+                "DateTimeOffset U() => TimeProvider.System.GetUtcNow(); DateTime L() => DateTime.Now; DateTime T() => DateTime.Today; }");
 
             var finding = Assert.Single(ScanClock(root));
             Assert.Equal("projections/dotnet/kernel/planted/Offender.cs", finding.Path);
-            Assert.Equal(4, finding.Count);
+            Assert.Equal(5, finding.Count);
         }
         finally
         {
