@@ -33,6 +33,10 @@ public sealed class ContentStoreStagedPrincipalTests
         var reference = await store.CommitReferenceAsync(new("tenant-a"), stage, new("record", "evidence"), "evidence.txt",
             ContentStoreWriteEvidence.New("uploader"));
         Assert.Equal(8, reference.Length);
+        var delivery = await store.ReadAsync(new("tenant-a"), reference, true, ContentStoreWriteEvidence.Reader);
+        using (delivery.Body)
+        using (var body = new StreamReader(delivery.Body))
+            Assert.Equal("evidence", await body.ReadToEndAsync());
         Assert.Equal(0, store.StagedCount);
         Assert.Equal(1, store.CommittedCount);
     }

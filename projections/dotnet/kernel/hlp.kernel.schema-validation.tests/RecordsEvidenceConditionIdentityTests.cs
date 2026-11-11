@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text;
 using Harborline.Contracts.Fields;
 using Harborline.Foundation.FieldRuntime;
 using Harborline.Kernel.SchemaValidation.Records;
@@ -29,7 +30,10 @@ public sealed class RecordsEvidenceConditionIdentityTests
     {
         var field = Field() with { RequiredCondition = JsonSerializer.Deserialize<JsonElement>(expression) };
         var compiled = await Compiler().CompileAsync(new("case", [field]), null);
-        Assert.Contains(compiled.Refusals, refusal => refusal.Code == "field.required_condition_invalid" && refusal.JsonPointer == "/fields/0/required_condition");
+        var refusal = Assert.Single(compiled.Refusals);
+        Assert.Equal("field.required_condition_invalid", refusal.Code);
+        Assert.Equal("/fields/0/required_condition", refusal.JsonPointer);
+        Assert.False(string.IsNullOrWhiteSpace(refusal.Message));
         Assert.Null(compiled.JsonSchemaText);
     }
 
@@ -39,8 +43,21 @@ public sealed class RecordsEvidenceConditionIdentityTests
         var field = Field();
         var capped = field with { Binding = field.Binding! with { Constraints = new(false, 0, 2, [], null) } };
         Assert.Empty((await Compiler().CompileAsync(new("case", [field]), null)).Refusals);
-        Assert.Contains((await Compiler().CompileAsync(new("case", [capped]), null)).Refusals,
-            refusal => refusal.Code == "field.attachment_count_cap");
+        var refusal = Assert.Single((await Compiler().CompileAsync(new("case", [capped]), null)).Refusals);
+        Assert.Equal("field.attachment_count_cap", refusal.Code);
+        Assert.Equal("/fields/0/binding/constraints/maximum_count", refusal.JsonPointer);
+        Assert.False(string.IsNullOrWhiteSpace(refusal.Message));
+    }
+
+    [Fact]
+    public async Task An_optional_attachment_field_may_be_absent_from_the_read_body()
+    {
+        var kinds = new FieldKindRuntime(new FieldKindRegistry([new("attachment", "1.0.0", null, FieldScalarValueShape.ContentReference)]), 100);
+        var compiler = new RecordTypeSchemaCompiler(new RecordsIntentValidator(), kinds, new SharedValueDomainAdmission());
+        var registry = new InMemorySchemaRegistry(fieldKindRuntime: kinds);
+        var compiled = await compiler.CompileAndRegisterAsync(new("case", [Field()]), null, registry);
+        Assert.Empty(compiled.Refusals);
+        Assert.True((await registry.ValidateAsync(compiled.Schema!.Id, Encoding.UTF8.GetBytes("{}"))).IsValid);
     }
 
     private static FieldDefinition Field() => new("evidence", "Evidence", new(new("attachment", "1.0.0", new Dictionary<string, string>()), new(false, 0, null, [], null)));

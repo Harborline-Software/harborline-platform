@@ -1,3 +1,4 @@
+using System.Reflection;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -43,6 +44,7 @@ public sealed class AttachmentFieldRuntimeTests
     [InlineData("[{\"stage_id\":3,\"display_name\":\"x\"}]")]
     [InlineData("[{\"stage_id\":\"bad\",\"display_name\":\"x\"}]")]
     [InlineData("[{\"stage_id\":\"11111111-1111-1111-1111-111111111111\"}]")]
+    [InlineData("[{\"stage_id\":\"11111111-1111-1111-1111-111111111111\",\"display_name\":42}]")]
     [InlineData("[{\"stage_id\":\"11111111-1111-1111-1111-111111111111\",\"display_name\":null}]")]
     [InlineData("[{\"stage_id\":\"11111111-1111-1111-1111-111111111111\",\"display_name\":\" \"}]")]
     [InlineData("[{\"stage_id\":\"11111111-1111-1111-1111-111111111111\",\"display_name\":\"x\",\"extra\":true}]")]
@@ -50,7 +52,10 @@ public sealed class AttachmentFieldRuntimeTests
     {
         var f = new Fixture();
         var refused = await Assert.ThrowsAsync<FieldAdmissionException>(async () => await f.Write(JsonSerializer.Deserialize<JsonElement>(entries)));
-        Assert.Equal("field.value_type_mismatch", Assert.Single(refused.Refusals).Code);
+        var refusal = Assert.Single(refused.Refusals);
+        Assert.Equal("field.value_type_mismatch", refusal.Code);
+        Assert.False(string.IsNullOrWhiteSpace(refusal.Message));
+        Assert.True(refusal.JsonPointer.Length == 0 || refusal.JsonPointer.StartsWith('/'));
         Assert.Equal(0, f.Store.CommittedCount);
     }
 
@@ -89,8 +94,10 @@ public sealed class AttachmentFieldRuntimeTests
     {
         var f = new Fixture();
         var entries = JsonSerializer.Deserialize<JsonElement>("[]");
-        await Assert.ThrowsAsync<ArgumentException>(async () => await f.Runtime.ResolveWriteAsync(f.Field, entries, new("tenant"), new("record", "evidence"), Evidence()));
-        await Assert.ThrowsAsync<ArgumentException>(async () => await f.Runtime.RemoveAsync(entries, new("tenant"), HoldStatus.None, "purge", Evidence()));
+        var write = await Assert.ThrowsAsync<ArgumentException>(async () => await f.Runtime.ResolveWriteAsync(f.Field, entries, new("tenant"), new("record", "evidence"), Evidence()));
+        var remove = await Assert.ThrowsAsync<ArgumentException>(async () => await f.Runtime.RemoveAsync(entries, new("tenant"), HoldStatus.None, "purge", Evidence()));
+        Assert.Contains("transaction", write.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("transaction", remove.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Theory]
@@ -125,9 +132,115 @@ public sealed class AttachmentFieldRuntimeTests
         var error = await Assert.ThrowsAsync<ContentRefusedException>(async () => await KernelTransactionBoundary.ExecutePreparedAsync(async token =>
             new KernelCommand<JsonArray>(Evidence().Operation, await f.Runtime.ResolveWriteAsync(field, entries, new("tenant"), new("record", "evidence"), Evidence(port.Session), token), Evidence().Audit), port));
         Assert.Equal(code, error.Code);
+        Assert.False(string.IsNullOrWhiteSpace(error.Message));
+        Assert.Equal("evidence", error.Definition);
         if (code == "content.too-large") { Assert.Equal(50, error.Detail["limit"]); Assert.Equal(51, error.Detail["observed"]); }
         Assert.Equal(0, f.Store.CommittedCount);
         Assert.Equal(1, f.Store.StagedCount);
+    }
+
+    [Theory]
+    [InlineData("other-record", "evidence/slot")]
+    [InlineData("record", "other/slot")]
+    [InlineData("record", "evidence_extra/slot")]
+    public async Task A_real_store_owner_from_another_record_or_field_cannot_be_kept(string record, string element)
+    {
+        var f = new Fixture();
+        var reference = await f.Store.CommitReferenceAsync(new("tenant"), await f.Upload("one"), new(record, element), "one.txt", Evidence());
+        var entries = JsonSerializer.SerializeToElement(new[] { new
+        { content_id = reference.ContentId.Value, length = reference.Length, media_type = reference.MediaType, display_name = reference.DisplayName,
+          owner = new { record = reference.Owner.Record, element = reference.Owner.Element } } });
+        await Assert.ThrowsAsync<FieldAdmissionException>(async () => await f.Write(entries));
+        Assert.Equal(1, f.Store.CommittedCount);
+    }
+
+    [Fact]
+    public async Task A_cancelled_write_stops_before_examining_its_entries()
+    {
+        var f = new Fixture(); var port = new Port(f.Storage.Bookkeeping);
+        using var cancelled = new CancellationTokenSource(); cancelled.Cancel();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(async () => await KernelTransactionBoundary.ExecutePreparedAsync(async token =>
+            new KernelCommand<JsonArray>(Evidence().Operation,
+                await f.Runtime.ResolveWriteAsync(f.Field, JsonSerializer.Deserialize<JsonElement>("[{}]"), new("tenant"), new("record", "evidence"), Evidence(port.Session), cancelled.Token),
+                Evidence().Audit), port));
+        Assert.Equal(0, f.Store.CommittedCount);
+    }
+
+    [Theory]
+    [InlineData("staged", 2)]
+    [InlineData("kept", 1)]
+    [InlineData("remove", 0)]
+    public async Task Field_operations_do_not_capture_a_callers_context_during_async_store_IO(string operation, int items)
+    {
+        var f = new Fixture();
+        var initial = await f.Write(JsonSerializer.SerializeToElement(new[] { new { stage_id = await f.Upload("one"), display_name = "one.txt" } }));
+        var entries = operation == "staged"
+            ? JsonSerializer.SerializeToElement(new[] { new { stage_id = await f.Upload("two"), display_name = "two.txt" } })
+            : JsonSerializer.SerializeToElement(initial);
+        var port = new ContextPort(f.Storage.Bookkeeping, operation == "staged" ? "FindStagedForUpdateAsync" : "FindItemForUpdateAsync");
+        var context = new CountingContext(); var previous = SynchronizationContext.Current;
+        Task<KernelTransactionResult<bool>> pending;
+        try
+        {
+            SynchronizationContext.SetSynchronizationContext(context);
+            pending = KernelTransactionBoundary.ExecutePreparedAsync(async token =>
+            {
+                JsonArray resolved = [];
+                if (operation == "remove") await f.Runtime.RemoveAsync(entries, new("tenant"), HoldStatus.None, "record-purge", Evidence(port.Session), token).ConfigureAwait(false);
+                else resolved = await f.Runtime.ResolveWriteAsync(f.Field, entries, new("tenant"), new("record", "evidence"), Evidence(port.Session), token).ConfigureAwait(false);
+                return new KernelCommand<JsonArray>(Evidence().Operation, resolved, Evidence().Audit);
+            }, port).AsTask();
+        }
+        finally { SynchronizationContext.SetSynchronizationContext(previous); }
+        Assert.True(port.Delay.Entered); Assert.False(pending.IsCompleted);
+        port.Delay.Release.SetResult();
+        Assert.True((await pending.WaitAsync(TimeSpan.FromSeconds(30))).Committed);
+        Assert.Equal(0, context.Posts);
+        Assert.Equal(items, f.Store.CommittedCount);
+    }
+
+    private sealed class CountingContext : SynchronizationContext
+    {
+        private int posts;
+        public int Posts => Volatile.Read(ref posts);
+        public override void Post(SendOrPostCallback callback, object? state)
+        { Interlocked.Increment(ref posts); ThreadPool.QueueUserWorkItem(_ => callback(state)); }
+    }
+    public class DelayedSession : DispatchProxy
+    {
+        public IContentBookkeepingSession Inner { get; set; } = null!;
+        public string Method { get; set; } = "";
+        public bool Entered { get; private set; }
+        public TaskCompletionSource Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        protected override object? Invoke(MethodInfo? targetMethod, object?[]? args)
+        {
+            var result = targetMethod!.Invoke(Inner, args);
+            if (targetMethod.Name != Method) return result;
+            Entered = true; return Wait((ValueTask<ContentStoreItem?>)result!);
+        }
+        private async ValueTask<ContentStoreItem?> Wait(ValueTask<ContentStoreItem?> operation)
+        { await Release.Task.ConfigureAwait(false); return await operation.ConfigureAwait(false); }
+    }
+    private sealed class ContextPort(IContentBookkeeping bookkeeping, string method) : IKernelPreparedTransactionPort<JsonArray, bool>
+    {
+        public DelayedSession Delay { get; private set; } = null!;
+        public IContentBookkeepingSession Session { get; private set; } = null!;
+        public async ValueTask<IKernelPreparedTransaction<JsonArray, bool>> BeginAsync(CancellationToken cancellationToken = default)
+        {
+            var transaction = await bookkeeping.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
+            Session = DispatchProxy.Create<IContentBookkeepingSession, DelayedSession>();
+            Delay = (DelayedSession)Session; Delay.Inner = transaction; Delay.Method = method;
+            return new Transaction(transaction);
+        }
+        private sealed class Transaction(IContentBookkeepingTransaction content) : IKernelPreparedTransaction<JsonArray, bool>
+        {
+            public ValueTask StageOperationAsync(KernelOperationIdentity operation, CancellationToken cancellationToken = default) => ((IContentBookkeepingSession)content).StageOperationAsync(operation, cancellationToken);
+            public ValueTask StageRecordAsync(JsonArray record, CancellationToken cancellationToken = default) => ValueTask.CompletedTask;
+            public ValueTask StageAuditAsync(KernelAuditEvidence audit, CancellationToken cancellationToken = default) => ((IContentBookkeepingSession)content).StageAuditAsync(audit, cancellationToken);
+            public ValueTask<bool> CommitAsync(CancellationToken cancellationToken = default) => content.CommitAsync(cancellationToken);
+            public ValueTask RollbackAsync(CancellationToken cancellationToken = default) => content.RollbackAsync(cancellationToken);
+            public ValueTask DisposeAsync() => content.DisposeAsync();
+        }
     }
 
     private static ContentStoreWrite Evidence(IContentBookkeepingSession? session = null) =>

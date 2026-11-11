@@ -17,7 +17,9 @@ public sealed class AttachmentFieldKindTests
         Assert.True(field.LimitAboveStore);
         Assert.Equal("200", field.JsonSchema.GetProperty("x-harborline-field-kind")
             .GetProperty("parameters").GetProperty("item_limit_bytes").GetString());
-        Assert.Equal("content.too-large", Assert.Single(field.ValidateJson(Reference(101), "/evidence/0")).Code);
+        var refusal = Assert.Single(field.ValidateJson(Reference(101), "/evidence/0"));
+        Assert.Equal("content.too-large", refusal.Code);
+        Assert.False(string.IsNullOrWhiteSpace(refusal.Message));
     }
 
     [Fact]
@@ -25,10 +27,12 @@ public sealed class AttachmentFieldKindTests
     {
         var field = Bind(new() { ["accepted_media_types"] = "[\"text/plain\"]", ["item_limit_bytes"] = "50" });
         Assert.Equal(50, field.EffectiveLimitBytes);
+        Assert.Equal(["text/plain"], field.JsonSchema.GetProperty("properties").GetProperty("media_type").GetProperty("enum").EnumerateArray().Select(item => item.GetString()));
         Assert.Equal(["text/plain"], field.AcceptedMediaTypes);
         Assert.Empty(field.ValidateJson(Reference(50), "/evidence/0"));
-        Assert.Equal("content.field-media-type-not-allowed", Assert.Single(field.ValidateJson(
-            Reference(50).Replace("text/plain", "image/png", StringComparison.Ordinal), "/evidence/0")).Code);
+        var refusal = Assert.Single(field.ValidateJson(Reference(50).Replace("text/plain", "image/png", StringComparison.Ordinal), "/evidence/0"));
+        Assert.Equal("content.field-media-type-not-allowed", refusal.Code);
+        Assert.False(string.IsNullOrWhiteSpace(refusal.Message));
         Assert.Equal("field.value_type_mismatch", Assert.Single(field.ValidateJson("\"id\"", "/evidence/0")).Code);
     }
 
@@ -36,6 +40,8 @@ public sealed class AttachmentFieldKindTests
     [InlineData("item_limit_bytes", "0", "field.kind_parameter_invalid")]
     [InlineData("item_limit_bytes", "-1", "field.kind_parameter_invalid")]
     [InlineData("accepted_media_types", "[]", "content.field-media-type-not-allowed")]
+    [InlineData("accepted_media_types", "[\"text/plain\",\"application/exe\"]", "content.field-media-type-not-allowed")]
+    [InlineData("accepted_media_types", "[\"text/plain\",\"text/plain\"]", "content.field-media-type-not-allowed")]
     [InlineData("accepted_media_types", "[\"application/exe\"]", "content.field-media-type-not-allowed")]
     [InlineData("accepted_media_types", "null", "field.kind_parameter_invalid")]
     [InlineData("maximum_count", "1", "field.kind_parameter_unknown")]
@@ -76,6 +82,7 @@ public sealed class AttachmentFieldKindTests
     [InlineData("media_type", "null")]
     [InlineData("display_name", "false")]
     [InlineData("owner", "{\"record\":true,\"element\":\"evidence\"}")]
+    [InlineData("owner", "{\"record\":\"r1\",\"other\":\"evidence\"}")]
     [InlineData("owner", "{}")]
     [InlineData("owner", "{\"record\":\"\",\"element\":\"evidence\"}")]
     [InlineData("owner", "{\"record\":\"r1\",\"element\":null}")]
@@ -94,7 +101,11 @@ public sealed class AttachmentFieldKindTests
     [InlineData("[")]
     [InlineData(null)]
     public void Malformed_json_never_throws_out_of_the_field_contract(string? json)
-        => Assert.Equal("field.value_malformed", Assert.Single(Bind(new()).ValidateJson(json!, "/evidence/0")).Code);
+    {
+        var refusal = Assert.Single(Bind(new()).ValidateJson(json!, "/evidence/0"));
+        Assert.Equal("field.value_malformed", refusal.Code);
+        Assert.False(string.IsNullOrWhiteSpace(refusal.Message));
+    }
 
     [Theory]
     [InlineData(0)]
@@ -112,13 +123,15 @@ public sealed class AttachmentFieldKindTests
     }
 
     [Theory]
-    [InlineData("hmac-sha257:", 'a')]
-    [InlineData("hmac-sha256:", 'g')]
-    [InlineData("hmac-sha256:", 'A')]
-    public void Content_identity_uses_the_declared_algorithm_and_lowercase_hex(string prefix, char digit)
+    [InlineData("hmac-sha257:", 'a', 64)]
+    [InlineData("hmac-sha256:", 'g', 64)]
+    [InlineData("hmac-sha256:", 'A', 64)]
+    [InlineData("hmac-sha256:", 'a', 63)]
+    [InlineData("hmac-sha256:", 'a', 65)]
+    public void Content_identity_uses_the_declared_algorithm_and_lowercase_hex(string prefix, char digit, int count)
     {
         var value = JsonNode.Parse(Reference(3))!.AsObject();
-        value["content_id"] = prefix + new string(digit, 64);
+        value["content_id"] = prefix + new string(digit, count);
         Assert.Equal("field.value_type_mismatch", Assert.Single(Bind(new()).ValidateJson(value.ToJsonString(), "/evidence/0")).Code);
     }
 
@@ -129,6 +142,21 @@ public sealed class AttachmentFieldKindTests
         var refusal = Assert.Single(Assert.Throws<FieldAdmissionException>(() => Bind(new() { ["path/~"] = "1" })).Refusals);
         Assert.Equal("field.kind_parameter_unknown", refusal.Code);
         Assert.Equal("/fields/0/kind/parameters/path~1~0", refusal.JsonPointer);
+    }
+
+    [Fact]
+    public void An_equal_limit_needs_no_warning_and_a_zero_byte_reference_is_valid()
+    {
+        var field = Bind(new() { ["item_limit_bytes"] = "100" });
+        Assert.False(field.LimitAboveStore);
+        Assert.Empty(field.ValidateJson(Reference(0), "/evidence/0"));
+    }
+
+    [Fact]
+    public void A_missing_reference_member_cannot_be_replaced_with_an_unknown_member_of_the_same_count()
+    {
+        var value = JsonNode.Parse(Reference(3))!.AsObject(); value.Remove("media_type"); value["extra"] = "text/plain";
+        Assert.Equal("field.value_type_mismatch", Assert.Single(Bind(new()).ValidateJson(value.ToJsonString(), "/evidence/0")).Code);
     }
 
     private static ICompiledAttachmentFieldKind Bind(Dictionary<string, string> parameters)

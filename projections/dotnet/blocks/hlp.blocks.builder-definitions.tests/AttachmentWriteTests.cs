@@ -1,3 +1,4 @@
+using System.Reflection;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -29,6 +30,9 @@ public sealed class AttachmentWriteTests
         var warning = Assert.Single(installed.Warnings);
         Assert.Equal("content.field-limit-above-store", warning.Code);
         Assert.Equal("evidence", warning.FieldKey);
+        Assert.Equal("/fields/0/binding/kind/parameters/item_limit_bytes", warning.Pointer);
+        var publishedWarning = Assert.Single(fixture.Publication.PolicyWarnings, item => item.Code == "content.field-limit-above-store");
+        Assert.Equal("/fields/0/binding/kind/parameters/item_limit_bytes", publishedWarning.Pointer);
         Assert.Equal(200, warning.DeclaredLimitBytes);
         Assert.Equal(100, warning.StoreLimitBytes);
         Assert.Equal("200", head.Fields[0].Binding!.Kind.Parameters["item_limit_bytes"]);
@@ -84,7 +88,7 @@ public sealed class AttachmentWriteTests
         body["status"] = status;
         var outcome = await fixture.Write("condition", body);
         Assert.Equal(expected, outcome.Committed);
-        if (!expected) { Assert.Equal("field.evidence_required", outcome.Refusal!.Code); Assert.Empty(fixture.Port.Rows); Assert.Equal(0, fixture.Store.CommittedCount); }
+        if (!expected) { Assert.Equal("field.evidence_required", outcome.Refusal!.Code); Assert.Equal("rules", outcome.Refusal.Stage); Assert.Equal(["/evidence"], outcome.Refusal.Pointers); Assert.Empty(fixture.Port.Rows); Assert.Equal(0, fixture.Store.CommittedCount); }
     }
 
     [Fact]
@@ -129,6 +133,66 @@ public sealed class AttachmentWriteTests
         Assert.Equal(1, fixture.Store.StagedCount);
     }
 
+    [Theory]
+    [InlineData("evidence", "/evidence")]
+    [InlineData("proof/~", "/proof~1~0")]
+    public async Task Malformed_entries_become_a_structured_refusal_with_an_escaped_field_pointer(string field, string pointer)
+    {
+        var fixture = await Fixture.Create(fieldKey: field);
+        var outcome = await fixture.Write("malformed", new JsonObject { [field] = new JsonArray(new JsonObject()) });
+        Assert.False(outcome.Committed);
+        Assert.Equal("validate", outcome.Refusal!.Stage);
+        Assert.Equal("entity.validation.body_invalid", outcome.Refusal.Code);
+        Assert.Equal([pointer], outcome.Refusal.Pointers);
+        Assert.Empty(fixture.Port.Rows);
+        Assert.Equal(0, fixture.Store.CommittedCount);
+    }
+
+    [Fact]
+    public async Task Records_does_not_capture_a_callers_context_while_promoting_a_stage()
+    {
+        var fixture = await Fixture.Create();
+        var stage = await fixture.Upload("evidence");
+        var session = DispatchProxy.Create<IContentBookkeepingSession, DelayedSession>();
+        var delay = (DelayedSession)session;
+        fixture.Port.DecorateSession = inner => { delay.Inner = inner; return session; };
+        var context = new CountingContext(); var previous = SynchronizationContext.Current;
+        Task<RecordWriteOutcome> pending;
+        try
+        {
+            SynchronizationContext.SetSynchronizationContext(context);
+            pending = fixture.Write("context", List(stage)).AsTask();
+        }
+        finally { SynchronizationContext.SetSynchronizationContext(previous); }
+        Assert.True(delay.Entered); Assert.False(pending.IsCompleted);
+        delay.Release.SetResult();
+        Assert.True((await pending.WaitAsync(TimeSpan.FromSeconds(30))).Committed);
+        Assert.Equal(0, context.Posts);
+        Assert.Single(fixture.Port.Rows);
+    }
+
+    private sealed class CountingContext : SynchronizationContext
+    {
+        private int posts;
+        public int Posts => Volatile.Read(ref posts);
+        public override void Post(SendOrPostCallback callback, object? state)
+        { Interlocked.Increment(ref posts); ThreadPool.QueueUserWorkItem(_ => callback(state)); }
+    }
+    public class DelayedSession : DispatchProxy
+    {
+        public IContentBookkeepingSession Inner { get; set; } = null!;
+        public bool Entered { get; private set; }
+        public TaskCompletionSource Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        protected override object? Invoke(MethodInfo? targetMethod, object?[]? args)
+        {
+            var result = targetMethod!.Invoke(Inner, args);
+            if (targetMethod.Name != "FindStagedForUpdateAsync") return result;
+            Entered = true; return Wait((ValueTask<ContentStoreItem?>)result!);
+        }
+        private async ValueTask<ContentStoreItem?> Wait(ValueTask<ContentStoreItem?> operation)
+        { await Release.Task.ConfigureAwait(false); return await operation.ConfigureAwait(false); }
+    }
+
     private static JsonObject List(params Guid[] stages) => new() { ["evidence"] = new JsonArray(stages.Select((stage, index) => (JsonNode)Stage(stage, index == 0 ? "first.txt" : "second.txt")).ToArray()) };
     private static JsonObject Stage(Guid stage, string name) => new() { ["stage_id"] = stage.ToString(), ["display_name"] = name };
     private static ContentStoreWrite Evidence(IContentBookkeepingSession? session = null) => new(new(Guid.NewGuid().ToString("N"), Guid.NewGuid().ToString("N"), "literal-fingerprint"), new(Guid.NewGuid().ToString("N"), "operator-7", DateTimeOffset.UnixEpoch, ReadOnlyMemory<byte>.Empty), session);
@@ -143,7 +207,8 @@ public sealed class AttachmentWriteTests
         public InMemorySchemaRegistry Registry { get; }
         public Port Port { get; }
         public RecordWriteOperation Operation { get; }
-        private Fixture(bool condition, bool composeRuntime, bool exposeSession)
+        public RecordTypePublication Publication { get; }
+        private Fixture(bool condition, bool composeRuntime, bool exposeSession, string fieldKey)
         {
             Store = new(new(100, 1000, 10000, TimeSpan.FromHours(1)), new Keys(), TimeProvider.System, Storage);
             Runtime = new(Store);
@@ -159,15 +224,15 @@ public sealed class AttachmentWriteTests
             classes.CreateDraftAsync(new("tenant-a", "eam", "Equipment", "1.0.0", new(1, 0), "eam-core"), "class").AsTask().GetAwaiter().GetResult();
             classes.PublishAsync("tenant-a", "eam.equipment", "1.0.0", 1, "class-publish").AsTask().GetAwaiter().GetResult();
             Records = new(catalogue, compiler, new(kinds), Registry, Window, roles: CreationRoles);
-            var field = new FieldDefinition("evidence", "Evidence", new(kind, new(false, 0, null, [], null)))
+            var field = new FieldDefinition(fieldKey, "Evidence", new(kind, new(false, 0, null, [], null)))
             { RequiredCondition = condition ? JsonSerializer.Deserialize<JsonElement>("""{"==":[{"var":"status"},"closed"]}""") : null };
             Records.CreateDraftAsync(new("tenant-a", "eam", "Evidence", "1.0.0", [field, new("status", "Status")], new(1, 0),
                 ClassId: "eam.equipment", RecordClass: RecordClass.Master, PackageId: "eam-core", CreationGate: RecordCreationGate.Role, CreationRoleId: "asset-author"), "type").AsTask().GetAwaiter().GetResult();
-            Records.PublishAsync("tenant-a", "eam.evidence", "1.0.0", 1, "publish").AsTask().GetAwaiter().GetResult();
+            Publication = Records.PublishAsync("tenant-a", "eam.evidence", "1.0.0", 1, "publish").AsTask().GetAwaiter().GetResult();
             Port = new(Storage.Bookkeeping) { ExposeSession = exposeSession };
             Operation = new(new AccessProvider(new Gate()), Records, Registry, Port, Port, TimeProvider.System, kinds, RecordWriteFieldRuntimeTests.FixtureDomains(TimeProvider.System)) { Attachments = composeRuntime ? Runtime : null };
         }
-        public static Task<Fixture> Create(bool condition = false, bool composeRuntime = true, bool exposeSession = true) => Task.FromResult(new Fixture(condition, composeRuntime, exposeSession));
+        public static Task<Fixture> Create(bool condition = false, bool composeRuntime = true, bool exposeSession = true, string fieldKey = "evidence") => Task.FromResult(new Fixture(condition, composeRuntime, exposeSession, fieldKey));
         public ValueTask<Guid> Upload(string text) => Runtime.PutAsync(Attachment, new("tenant-a"), "evidence", new MemoryStream(Encoding.UTF8.GetBytes(text)), "text/plain", null, Evidence());
         public ValueTask<RecordWriteOutcome> Write(string operation, JsonObject body) => Operation.CreateAsync(new("tenant-a", "operator-7"), new("eam.evidence", operation, body));
     }
@@ -180,6 +245,7 @@ public sealed class AttachmentWriteTests
     private sealed class Port(IContentBookkeeping bookkeeping) : IKernelPreparedTransactionPort<RecordWriteRow, RecordWriteCommit>, IRecordWriteReceiptReader
     {
         public bool ExposeSession { get; init; } = true;
+        public Func<IContentBookkeepingSession, IContentBookkeepingSession>? DecorateSession { get; set; }
         public List<RecordWriteRow> Rows { get; } = [];
         private readonly Dictionary<string, RecordWriteCommittedOperation> receipts = new(StringComparer.Ordinal);
         public ValueTask<RecordWriteCommittedOperation?> FindAsync(RecordWriteOperationKey key, CancellationToken cancellationToken = default) => ValueTask.FromResult(receipts.GetValueOrDefault(key.IdempotencyKey));
@@ -199,7 +265,7 @@ public sealed class AttachmentWriteTests
         }
         private sealed class Transaction(Port owner, IContentBookkeepingTransaction content) : IKernelPreparedTransaction<RecordWriteRow, RecordWriteCommit>, IRecordContentTransaction
         {
-            public IContentBookkeepingSession ContentSession => content;
+            public IContentBookkeepingSession ContentSession => owner.DecorateSession?.Invoke(content) ?? content;
             private RecordWriteRow row = null!;
             private KernelOperationIdentity operation = null!;
             public ValueTask StageOperationAsync(KernelOperationIdentity value, CancellationToken cancellationToken = default) { operation = value; return ((IContentBookkeepingSession)content).StageOperationAsync(value, cancellationToken); }
