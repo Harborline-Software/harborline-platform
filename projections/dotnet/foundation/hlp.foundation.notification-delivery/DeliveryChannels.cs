@@ -33,11 +33,75 @@ public enum ChannelContentClass
 /// Code-registered transport capabilities. Secret requirements and retry profiles are names rather
 /// than values, so a binding can never become a credential store.
 /// </summary>
-public sealed record DeliveryChannel(
-    DeliveryChannelKey Key,
-    IReadOnlySet<string> RequiredSecretReferenceNames,
-    IReadOnlySet<string> AllowedRetryProfiles,
-    ChannelContentClass ContentClass);
+public sealed record DeliveryChannel
+{
+    /// <summary>Registers capabilities and the required transport-result classifier.</summary>
+    public DeliveryChannel(
+        DeliveryChannelKey key,
+        IReadOnlySet<string> requiredSecretReferenceNames,
+        IReadOnlySet<string> allowedRetryProfiles,
+        ChannelContentClass contentClass,
+        Func<DeliveryTransportResult, DeliveryOutcomeClass> classifyResult)
+    {
+        if (classifyResult is null)
+        {
+            throw new NotificationDeliveryRefusedException(
+                NotificationDeliveryRefusals.ClassificationRequired,
+                "A channel must declare its outcome classification.");
+        }
+
+        Key = key;
+        RequiredSecretReferenceNames = requiredSecretReferenceNames;
+        AllowedRetryProfiles = allowedRetryProfiles;
+        ContentClass = contentClass;
+        _classifyResult = classifyResult;
+    }
+
+    private readonly Func<DeliveryTransportResult, DeliveryOutcomeClass> _classifyResult;
+
+    /// <summary>The registered transport identifier.</summary>
+    public DeliveryChannelKey Key { get; }
+    /// <summary>Secret reference names required by the transport.</summary>
+    public IReadOnlySet<string> RequiredSecretReferenceNames { get; }
+    /// <summary>Retry profiles admitted by the transport.</summary>
+    public IReadOnlySet<string> AllowedRetryProfiles { get; }
+    /// <summary>The amount of rendered content admitted by the transport.</summary>
+    public ChannelContentClass ContentClass { get; }
+
+    /// <summary>Classifies a transport result, retaining its diagnostic verbatim (notification-delivery-ck-8).</summary>
+    public DeliveryOutcome Classify(DeliveryTransportResult result)
+    {
+        ArgumentNullException.ThrowIfNull(result);
+        var classification = _classifyResult(result);
+        if (!Enum.IsDefined(classification))
+        {
+            throw new NotificationDeliveryRefusedException(
+                NotificationDeliveryRefusals.OutcomeUnknown,
+                "The transport classifier returned an unknown outcome.");
+        }
+
+        return new DeliveryOutcome(classification, result.Diagnostic);
+    }
+}
+
+/// <summary>The closed notification-delivery-ck-8 outcome vocabulary.</summary>
+public enum DeliveryOutcomeClass
+{
+    /// <summary>Handed to a relay without further confirmation.</summary>
+    Accepted = 0,
+    /// <summary>Committed to the inbox or confirmed by the transport.</summary>
+    Delivered = 1,
+    /// <summary>A temporary failure eligible for the declared retry profile.</summary>
+    Transient = 2,
+    /// <summary>A permanent failure that never retries.</summary>
+    Permanent = 3,
+}
+
+/// <summary>A transport's completion fact and unmodified diagnostic; for the inbox, success means a committed write.</summary>
+public sealed record DeliveryTransportResult(bool Succeeded, string Diagnostic);
+
+/// <summary>A classified outcome beside the transport's diagnostic, never parsed by consumers.</summary>
+public sealed record DeliveryOutcome(DeliveryOutcomeClass Classification, string Diagnostic);
 
 /// <summary>
 /// Tenant configuration for a registered channel. It can identify secrets held by the tenant, but
@@ -105,6 +169,12 @@ public static class NotificationDeliveryRefusals
     /// <summary>The caller named a transport that this release does not register.</summary>
     public const string ChannelUnknown = "notification_delivery.channel_unknown";
 
+    /// <summary>A channel did not declare an outcome classifier.</summary>
+    public const string ClassificationRequired = "notification_delivery.classification_required";
+
+    /// <summary>A classifier returned a value outside the closed outcome vocabulary.</summary>
+    public const string OutcomeUnknown = "notification_delivery.outcome_unknown";
+
     /// <summary>The binding supplied secret references to a transport that declares none.</summary>
     public const string SecretReferenceNotAllowed = "notification_delivery.secret_reference_not_allowed";
 
@@ -122,7 +192,8 @@ public static class DeliveryChannels
         DeliveryChannelKey.Inbox,
         Array.Empty<string>().ToFrozenSet(StringComparer.Ordinal),
         Array.Empty<string>().ToFrozenSet(StringComparer.Ordinal),
-        ChannelContentClass.OnNodeFull);
+        ChannelContentClass.OnNodeFull,
+        result => result.Succeeded ? DeliveryOutcomeClass.Delivered : DeliveryOutcomeClass.Permanent);
 
     /// <summary>The mandatory privacy class with which a future off-node channel must begin.</summary>
     public static ChannelContentClass ExternalDefaultContentClass => ChannelContentClass.LinkOnly;
