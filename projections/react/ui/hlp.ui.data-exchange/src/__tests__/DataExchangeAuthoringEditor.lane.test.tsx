@@ -24,6 +24,27 @@ const intents = () => ({ onChange: vi.fn(), onDiscoverSource: vi.fn(), onDryRun:
 const evidenceSection = () => screen.getByRole('group', { name: 'Persisted run evidence' })
 
 describe('DataExchangeAuthoringEditor ADR 0096 lane conformance (React)', () => {
+  it('exports the shared authored-content oracle from nothing (data-exchange-eng-22, data-exchange-auth-1, data-exchange-auth-5, data-exchange-auth-6, data-exchange-auth-7, data-exchange-auth-8, data-exchange-auth-12)', () => {
+    const { input, expected } = fixtureCase('data-exchange.from-empty')
+    let authored: DataExchangeAuthoringDraft = { ...emptyDataExchangeDraft(), identity: '', expectedRevision: '' }
+    let saved: DataExchangeAuthoringDraft | undefined
+    const handlers = { ...intents(), onChange: (next: DataExchangeAuthoringDraft) => { authored = next }, onSaveDraft: () => { saved = authored } }
+    const view = render(<DataExchangeAuthoringEditor value={authored} catalogue={catalogue} canCommit={false} {...handlers} />)
+    expect(screen.queryByLabelText('Mapping 1 source column')).toBeNull()
+    for (const step of input.steps) {
+      if (step.button) {
+        fireEvent.click(screen.getByRole('button', { name: step.button, exact: true }))
+        if (step.button === 'Discover source') view.rerender(<DataExchangeAuthoringEditor value={{ ...authored, discoveredColumns: input.discoveredColumns }} catalogue={catalogue} canCommit={false} {...handlers} />)
+      } else {
+        const control = screen.getByLabelText(step.label)
+        if (typeof step.value === 'boolean') fireEvent.click(control)
+        else fireEvent.change(control, { target: { value: step.value } })
+      }
+    }
+    expect(handlers.onDiscoverSource).toHaveBeenCalledOnce()
+    expect(saved).toEqual(expected.draft)
+  })
+
   it('readOnly_admission_disables_every_input_and_publish (data-exchange-auth-9)', () => {
     const { input, expected } = fixtureCase('data-exchange.read-only')
     const handlers = intents()
@@ -185,7 +206,7 @@ describe('DataExchangeAuthoringEditor ADR 0096 lane conformance (React)', () => 
     expect(screen.queryByRole('alert')).toBeNull()
   })
 
-  it.each(['data-exchange.run-evidence', 'data-exchange.stale-review', 'data-exchange.read-only'])('renders the server census and staleness from %s verbatim and exposes no run-evidence control (data-exchange-run-4)', id => {
+  it.each(['data-exchange.run-evidence', 'data-exchange.stale-review', 'data-exchange.read-only', 'data-exchange.partial-failure'])('renders the server census and staleness from %s verbatim and exposes no run-evidence control (data-exchange-run-4, data-exchange-auth-9, data-exchange-auth-10)', id => {
     const { input, expected } = fixtureCase(id)
     render(<DataExchangeAuthoringEditor value={draftOf(input.value)} catalogue={catalogue} run={runOf(input.run)} canCommit={input.canCommit} readOnly={input.readOnly} {...intents()} />)
     const section = evidenceSection()
@@ -232,7 +253,7 @@ describe('DataExchangeAuthoringEditor ADR 0096 lane conformance (React)', () => 
   })
 
   it('the empty draft is blank apart from its csv and append defaults', () => {
-    expect(emptyDataExchangeDraft()).toEqual({ name: '', sourceCapability: '', connectorVersion: '', formatCapability: 'csv', secretReference: '', discoveredColumns: [], mappings: [], externalKeyColumns: [], replayPolicy: 'append', scheduleReference: '', referenceDataset: '', packDistribution: '', feedDistribution: '' })
+    expect(emptyDataExchangeDraft()).toEqual({ name: '', recordType: '', sourceCapability: '', connectorVersion: '', formatCapability: 'csv', secretReference: '', discoveredColumns: [], mappings: [], externalKeyColumns: [], replayPolicy: 'append', scheduleReference: '', referenceDataset: '', packDistribution: '', feedDistribution: '' })
     const { container } = render(<DataExchangeAuthoringEditor value={emptyDataExchangeDraft()} catalogue={catalogue} canCommit={false} {...intents()} />)
     expect(container.querySelector('form.hl-data-exchange-authoring')).not.toBeNull()
   })

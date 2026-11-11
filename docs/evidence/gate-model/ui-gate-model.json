@@ -1738,18 +1738,18 @@
         },
         {
           "id": "assertAccessible",
-          "status": "PASS",
-          "note": "axe-core over 2 scenarios x 2 lanes in gallery-gate"
+          "status": "PARTIAL",
+          "note": "axe-core over 2 scenarios x 2 lanes in the recorded gallery-gate; 2 added since it was recorded are unscanned until it is re-recorded: data-exchange.partial-failure, data-exchange.from-empty"
         },
         {
           "id": "assertVisualParity",
           "status": "PASS",
-          "note": "2 visual-parity scenario(s), lane vs lane, pixelmatch"
+          "note": "4 visual-parity scenario(s), lane vs lane, pixelmatch"
         },
         {
           "id": "assertFunctionalParity",
           "status": "PASS",
-          "note": "5 conformance case(s) across both lanes"
+          "note": "7 conformance case(s) across both lanes"
         },
         {
           "id": "assertInternationalization",
@@ -1778,8 +1778,8 @@
         },
         {
           "id": "assertResponsiveQuality",
-          "status": "PARTIAL",
-          "note": "no scenario declares a reflow case, so WCAG 1.4.10 reflow is unmeasured for this module"
+          "status": "PASS",
+          "note": "reflow measured at 320px and 200% text in both lanes, with no horizontal overflow"
         },
         {
           "id": "assertEmptyAndErrorStates",

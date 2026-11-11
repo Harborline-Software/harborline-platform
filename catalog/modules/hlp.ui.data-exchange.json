@@ -3,7 +3,7 @@
   "module": {
     "interface": {
       "path": "specs/modules/ui/hlp.ui.data-exchange/interface.yaml",
-      "revision": 3
+      "revision": 4
     },
     "moduleKind": "interactive-component",
     "presentation": {
@@ -11,7 +11,7 @@
     },
     "qualityProfile": {
       "path": "specs/modules/ui/hlp.ui.data-exchange/quality.yaml",
-      "revision": 1
+      "revision": 2
     },
     "owner": "platform-ui",
     "dependencies": [],

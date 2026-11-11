@@ -3217,7 +3217,36 @@ for (const catalog of catalogs) for (const scenario of catalog.scenarios) {
       ariaDiffs.push(await assertAriaParity(reactPage, blazorPage, scenario.id))
       await Promise.all([reactPage.clock.resume(), blazorPage.clock.resume()])
     }
-    if (scenario.id === 'data-exchange.authoring' || scenario.id === 'data-exchange.stale-review') {
+    if (scenario.id === 'data-exchange.from-empty') {
+      for (const page of [reactPage, blazorPage]) {
+        await expect(page.getByLabel('Definition name', { exact: true })).toHaveValue('')
+        await expect(page.getByText('No mappings authored.', { exact: true })).toBeVisible()
+        await page.getByLabel('Definition name', { exact: true }).fill('Customer intake')
+        await page.getByLabel('Exchange record type', { exact: true }).selectOption('records.customer/v1')
+        await page.getByLabel('Source capability', { exact: true }).selectOption('files.csv')
+        await page.getByRole('button', { name: 'Discover source', exact: true }).click()
+        await page.getByRole('button', { name: 'Add mapping', exact: true }).click()
+        await page.getByLabel('Mapping 1 source column', { exact: true }).selectOption('CustomerNumber')
+        await page.getByLabel('Mapping 1 canonical target', { exact: true }).selectOption('records.customer/v1')
+        await page.getByLabel('Mapping 1 target pointer', { exact: true }).fill('/customerNumber')
+        await page.getByLabel('Mapping 1 transform', { exact: true }).selectOption('trimToNull')
+        for (const term of ['hl:operation', 'hl:entityType', 'hl:identity', 'hl:role', 'hl:matchPolicy', 'hl:onInvalid', 'hl:onMissing', 'hl:errorPolicy']) {
+          await page.getByLabel(`Mapping 1 ${term}`, { exact: true }).fill('profile-value')
+        }
+        await page.getByLabel('External key columns', { exact: true }).fill('CustomerNumber')
+        await page.getByLabel('Replay policy', { exact: true }).selectOption('append_dedup')
+        await expect(page.getByText('No dry run recorded.', { exact: true })).toBeVisible()
+      }
+    }
+    if (scenario.id === 'data-exchange.partial-failure') {
+      for (const page of [reactPage, blazorPage]) {
+        const evidence = page.getByRole('group', { name: 'Persisted run evidence' })
+        for (const value of ['CompletedWithRefusals', 'source.changed', 'standard-7y', 'review-81', 'commit-12', 'batch-12', 'effect-3', 'attempt-2']) await expect(evidence.getByText(value, { exact: true })).toBeVisible()
+        await expect(evidence).toContainText('Applied 11; skipped 2; conflicted 3; rejected 5; failed 7; halted 0')
+        await expect(evidence.locator('input, select, textarea, button, [contenteditable]')).toHaveCount(0)
+      }
+    }
+    if (scenario.id === 'data-exchange.authoring' || scenario.id === 'data-exchange.stale-review' || scenario.id === 'data-exchange.partial-failure') {
       for (const page of [reactPage, blazorPage]) {
         await expect(page.getByRole('textbox', { name: 'Reference dataset', exact: true })).toHaveValue('dataset.customers')
         await expect(page.getByRole('textbox', { name: 'Pack distribution', exact: true })).toHaveValue('pack://customers')
@@ -3254,6 +3283,28 @@ for (const catalog of catalogs) for (const scenario of catalog.scenarios) {
     // A baseline RECORDING run is the same case: recordReactBaseline screenshots the React probe the
     // same way, and b19 measured it moving layers-rail.locale-pseudo into a 320px/200% overflow that
     // the same scenario does not show without the capture (focused gate, back to back).
+    if (scenario.id.startsWith('data-exchange.')) {
+      for (const page of [reactPage, blazorPage]) {
+        await page.setViewportSize({ width: 1440, height: 720 })
+        const scene = page.locator('[data-gallery-probe]')
+        await scene.evaluate(element => { element.style.inlineSize = '1120px' })
+        const editor = page.locator('form.hl-data-exchange-authoring')
+        for (const [width, columns] of [[320, 1], [640, 2], [1024, 3]]) {
+          await editor.evaluate((element, size) => { element.style.inlineSize = `${size}px` }, width)
+          await expect.poll(() => editor.evaluate(element => ({
+            width: Math.round(element.getBoundingClientRect().width),
+            overflow: Math.max(0, element.scrollWidth - element.clientWidth),
+          }))).toEqual({ width, overflow: 0 })
+          await expect.poll(() => editor.getByRole('group', { name: 'Source', exact: true }).locator(':scope > label').evaluateAll(labels => {
+            const bounds = labels.map(label => label.getBoundingClientRect())
+            return bounds.filter(bound => Math.abs(bound.top - bounds[0].top) < 1).length
+          })).toBe(columns)
+        }
+        await editor.evaluate(element => { element.style.removeProperty('inline-size') })
+        await scene.evaluate(element => { element.style.removeProperty('inline-size') })
+        await page.setViewportSize(scenarioViewport)
+      }
+    }
     if (!galleryReviewCaptureRoot && !baselineCaptureRoot && scenario.sourceQualityCaseIds?.some(id => id.endsWith('.quality.reflow'))) {
       await assertReflow(reactPage, scenario, 'react')
       await assertReflow(blazorPage, scenario, 'blazor')

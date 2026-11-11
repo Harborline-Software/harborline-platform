@@ -6,6 +6,96 @@ namespace Harborline.UIAdapters.Blazor.Tests;
 
 public sealed class DataExchangeAuthoringEditorTests : BunitContext
 {
+    [Fact]
+    [Trait("Holds", "data-exchange-eng-22")]
+    [Trait("Holds", "data-exchange-auth-1")]
+    [Trait("Holds", "data-exchange-auth-5")]
+    [Trait("Holds", "data-exchange-auth-6")]
+    [Trait("Holds", "data-exchange-auth-7")]
+    [Trait("Holds", "data-exchange-auth-8")]
+    [Trait("Holds", "data-exchange-auth-12")]
+    public void Exports_the_shared_authored_content_oracle_from_nothing()
+    {
+        var fixture = FindFixture("data-exchange.from-empty");
+        var input = fixture.GetProperty("input");
+        var authored = DataExchangeAuthoringDraft.Empty;
+        DataExchangeAuthoringDraft? saved = null;
+        var discoveries = 0;
+        var cut = Render<HarborlineDataExchangeAuthoringEditor>(parameters => parameters
+            .Add(component => component.Value, authored)
+            .Add(component => component.Catalogue, Catalogue)
+            .Add(component => component.ValueChanged, next => authored = next)
+            .Add(component => component.SaveDraft, () => saved = authored)
+            .Add(component => component.DiscoverSource, () => discoveries++));
+        Assert.Empty(cut.FindAll("select[aria-label='Mapping 1 source column']"));
+
+        foreach (var step in input.GetProperty("steps").EnumerateArray())
+        {
+            if (step.TryGetProperty("button", out var button))
+            {
+                Button(cut, button.GetString()!).Click();
+                if (button.GetString() == "Discover source")
+                    cut.Render(parameters => parameters.Add(component => component.Value, authored with
+                    {
+                        DiscoveredColumns = input.GetProperty("discoveredColumns").EnumerateArray()
+                            .Select(column => new DiscoveredSourceColumn(Text(column, "name"), column.GetProperty("selected").GetBoolean())).ToArray(),
+                    }));
+            }
+            else
+            {
+                var control = cut.Find($"[aria-label='{Text(step, "label")}']");
+                var value = step.GetProperty("value");
+                if (value.ValueKind == System.Text.Json.JsonValueKind.String) control.Change(value.GetString());
+                else control.Change(value.GetBoolean());
+            }
+        }
+
+        Assert.Equal(1, discoveries);
+        Assert.NotNull(saved);
+        var expected = System.Text.Json.Nodes.JsonNode.Parse(fixture.GetProperty("expected").GetProperty("draft").GetRawText());
+        var actual = System.Text.Json.JsonSerializer.SerializeToNode(saved, new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web));
+        Assert.True(System.Text.Json.Nodes.JsonNode.DeepEquals(expected, actual), actual!.ToJsonString());
+    }
+
+    [Theory]
+    [Trait("Holds", "data-exchange-auth-6")]
+    [InlineData("hl:operation")]
+    [InlineData("hl:entityType")]
+    [InlineData("hl:identity")]
+    [InlineData("hl:role")]
+    [InlineData("hl:matchPolicy")]
+    [InlineData("hl:onInvalid")]
+    [InlineData("hl:onMissing")]
+    [InlineData("hl:errorPolicy")]
+    public void Authors_each_admitted_column_extension(string term)
+    {
+        DataExchangeAuthoringDraft? changed = null;
+        var cut = Render<HarborlineDataExchangeAuthoringEditor>(parameters => parameters
+            .Add(component => component.Value, DataExchangeAuthoringDraft.Empty)
+            .Add(component => component.Catalogue, Catalogue)
+            .Add(component => component.ValueChanged, next => changed = next));
+
+        Button(cut, "Add mapping").Click();
+        cut.Find($"input[aria-label='Mapping 1 {term}']").Change("profile-value");
+        Assert.Equal("profile-value", Assert.Single(changed!.Mappings).Extensions[term]);
+    }
+
+    [Fact]
+    [Trait("Holds", "data-exchange-auth-1")]
+    public void Exchange_record_type_is_authored_independently_of_column_mappings()
+    {
+        DataExchangeAuthoringDraft? changed = null;
+        var cut = Render<HarborlineDataExchangeAuthoringEditor>(parameters => parameters
+            .Add(component => component.Value, DataExchangeAuthoringDraft.Empty)
+            .Add(component => component.Catalogue, Catalogue)
+            .Add(component => component.ValueChanged, next => changed = next));
+
+        cut.Find("select[aria-label='Exchange record type']").Change("records.customer/v1");
+        Assert.NotNull(changed);
+        Assert.Empty(changed.Mappings);
+        Assert.Equal("records.customer/v1", changed.RecordType);
+    }
+
     private static readonly DataExchangeAuthoringCatalogue Catalogue = new(
         [new("connector.csv/v1", "CSV upload")],
         [new("records.customer/v1", "Customer")],
@@ -376,7 +466,8 @@ public sealed class DataExchangeAuthoringEditorTests : BunitContext
         Assert.Empty(cut.FindAll("[role='alert']"));
     }
 
-    [Theory, Trait("Holds", "data-exchange-run-4")]
+    [Theory, Trait("Holds", "data-exchange-run-4"), Trait("Holds", "data-exchange-auth-9"), Trait("Holds", "data-exchange-auth-10")]
+    [InlineData("data-exchange.partial-failure")]
     [InlineData("data-exchange.run-evidence")]
     [InlineData("data-exchange.stale-review")]
     [InlineData("data-exchange.read-only")]
@@ -530,6 +621,7 @@ public sealed class DataExchangeAuthoringEditorTests : BunitContext
         Identity = Text(value, "identity"),
         ExpectedRevision = Text(value, "expectedRevision"),
         Name = Text(value, "name"),
+        RecordType = Text(value, "recordType"),
         DiscoveredColumns = value.TryGetProperty("discoveredColumns", out var columns)
             ? columns.EnumerateArray().Select(column => new DiscoveredSourceColumn(Text(column, "name"), column.GetProperty("selected").GetBoolean())).ToArray()
             : [],
@@ -554,6 +646,8 @@ public sealed class DataExchangeAuthoringEditorTests : BunitContext
             CommitRunId = Text(run, "commitRunId"),
             EffectIdentity = Text(run, "effectIdentity"),
             AttemptId = Text(run, "attemptId"),
+            RetentionClass = run.TryGetProperty("retentionClass", out var retention) ? retention.GetString() : null,
+            DriftReason = run.TryGetProperty("driftReason", out var drift) ? drift.GetString() : null,
         };
     }
 
