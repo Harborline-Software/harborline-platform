@@ -756,6 +756,20 @@ public sealed class RecordWriteOperation
         ct.ThrowIfCancellationRequested();
         if (_temporalPort is null || _temporalReceipts is null || _temporalRecords is null)
             return TemporalStatus(RecordTemporalWriteStatus.TemporalStoreUnavailable);
+        var instant = _clock.GetUtcNow();
+        var recordId = target ?? MintRecordId();
+        // RW-1 and the owner's ruling of 2026-11-05 (T-616, "Option A"): an amend is decided before any read, on an untyped
+        // request naming only the record id. Nothing the gate sees or answers depends on whether the record exists, so a
+        // caller it denies cannot tell a missing record from one it may not amend (CWE-203). A create is typed by the
+        // requested Record Type (RecordCreationAuthorization). The gate never sees caller values, on any kind: AccessRecord
+        // facts come from the tenant-bound record reader (CWE-807), and the mutate stage may replace what the caller sent.
+        // Value conditions on the record belong to the Rules stage, which judges the final candidate.
+        var access = await _access.CheckWithEvidenceAsync(new AccessRequest(WriteAct, scope.ActorId, scope.Tenant,
+            new AccessRecord(scope.Tenant, RecordKind, recordId, NoFields) { RecordTypeId = type }, instant), ct).ConfigureAwait(false);
+        if (!access.Check.Allowed)
+            return TemporalRefused(new(AuthorizeStage, access.Check.Reason, [])) with { Decision = access.Evidence };
+        var evidence = access.Evidence ?? throw new InvalidOperationException("The gate allowed without its evidence.");
+        // RW-1 / records-eng-2: request-shape refusals follow the gate, before any store read.
         if (!IsOperationId(operationId)) return TemporalRefused(new(ValidateStage, OperationIdInvalid, [OperationIdPointer]));
         if (to is { } end && end.UtcTicks <= from.UtcTicks)
             return TemporalStatus(RecordTemporalWriteStatus.InvalidTemporalInput, "/effective_to");
@@ -781,19 +795,6 @@ public sealed class RecordWriteOperation
         { return TemporalRefused(new(ValidateStage, BodyInvalid, [])); }
         basis = basis is null ? null : new(basis.Revision, basis.Hash);
         var key = new RecordWriteOperationKey(scope.Tenant, scope.ActorId, operationId);
-        var instant = _clock.GetUtcNow();
-        var recordId = target ?? MintRecordId();
-        // RW-1 and the owner's ruling of 2026-11-05 (T-616, "Option A"): an amend is decided before any read, on an untyped
-        // request naming only the record id. Nothing the gate sees or answers depends on whether the record exists, so a
-        // caller it denies cannot tell a missing record from one it may not amend (CWE-203). A create is typed by the
-        // requested Record Type (RecordCreationAuthorization). The gate never sees caller values, on any kind: AccessRecord
-        // facts come from the tenant-bound record reader (CWE-807), and the mutate stage may replace what the caller sent.
-        // Value conditions on the record belong to the Rules stage, which judges the final candidate.
-        var access = await _access.CheckWithEvidenceAsync(new AccessRequest(WriteAct, scope.ActorId, scope.Tenant,
-            new AccessRecord(scope.Tenant, RecordKind, recordId, NoFields) { RecordTypeId = type }, instant), ct).ConfigureAwait(false);
-        if (!access.Check.Allowed)
-            return TemporalRefused(new(AuthorizeStage, access.Check.Reason, [])) with { Decision = access.Evidence };
-        var evidence = access.Evidence ?? throw new InvalidOperationException("The gate allowed without its evidence.");
         RecordTemporalTarget? metadata = null;
         if (kind == RecordTemporalCommandKind.Amend)
         {

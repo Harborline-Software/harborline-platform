@@ -232,7 +232,7 @@ public sealed class RecordWriteOperationTests
 
     [Fact]
     [Trait("Holds", "records-eng-8")]
-    public async Task an_unencodable_temporal_body_refuses_before_the_gate_on_both_entries()
+    public async Task an_unencodable_temporal_body_refuses_after_the_gate_on_both_entries()
     {
         using var fixture = await RecordTemporalWriteOperationTests.Fixture.Create();
         var first = RecordTemporalWriteOperationTests.Committed(await fixture.CreateEvent());
@@ -253,7 +253,7 @@ public sealed class RecordWriteOperationTests
             Assert.Empty(refused.Pointers);
             Assert.Null(refused.Decision);
         }
-        Assert.Equal(requests, fixture.Access.Requests.Count);
+        Assert.Equal(requests + 2, fixture.Access.Requests.Count);
         Assert.Equal(lookups, fixture.Storage.ReceiptLookups);
     }
 

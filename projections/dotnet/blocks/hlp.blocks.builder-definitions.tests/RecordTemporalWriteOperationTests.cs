@@ -125,9 +125,11 @@ public sealed class RecordTemporalWriteOperationTests
     [InlineData("reason-space", "/reason")]
     [InlineData("reason-nbsp", "/reason")]
     [InlineData("version-space", "/version")]
-    public async Task Temporal_inputs_refuse_before_gate_or_write(string fault, string pointer)
+    [Trait("Holds", "records-eng-2")]
+    public async Task Temporal_inputs_refuse_after_gate_allows_and_before_write(string fault, string pointer)
     {
         using var fixture = await Fixture.Create();
+        fixture.Access.Allow = true; // Reach shape validation only after the gate authorizes this caller.
         var from = Date("2031-04-01T00:00:00+00:00");
         var basis = new RecordTemporalBasis(fault == "basis-zero" ? 0 : fault == "basis-overflow" ? long.MaxValue : 1,
             new string(fault == "basis-upper" ? 'A' : 'a', 64));
@@ -139,7 +141,8 @@ public sealed class RecordTemporalWriteOperationTests
         Assert.Equal(RecordTemporalWriteStatus.InvalidTemporalInput, outcome.Status);
         Assert.Equal(new[] { pointer }, outcome.Pointers);
         Assert.Null(outcome.Decision);
-        Assert.Empty(fixture.Access.Requests);
+        Assert.Single(fixture.Access.Requests);
+        Assert.True(Assert.Single(fixture.Access.Evidence).Allowed);
         Assert.Equal(0, fixture.Storage.ReceiptLookups);
         Assert.Empty(fixture.Storage.Events);
         Assert.False(File.Exists(fixture.PathName));
@@ -424,9 +427,11 @@ public sealed class RecordTemporalWriteOperationTests
     [InlineData("ascii-over", false)]
     [InlineData("unicode-over", false)]
     [InlineData("invalid-scalar", false)]
-    public async Task Temporal_operation_id_utf8_boundaries_are_enforced_before_gate(string kind, bool lawful)
+    [Trait("Holds", "records-eng-2")]
+    public async Task Temporal_operation_id_utf8_boundaries_are_enforced_after_gate_allows(string kind, bool lawful)
     {
         using var fixture = await Fixture.Create();
+        fixture.Access.Allow = true; // Reach shape validation only after the gate authorizes this caller.
         var operation = kind switch
         {
             "empty" => "",
@@ -448,7 +453,8 @@ public sealed class RecordTemporalWriteOperationTests
             Assert.Equal(RecordTemporalWriteStatus.Refused, outcome.Status);
             Assert.Equal("records.write.operation_id_invalid", outcome.Refusal!.Code);
             Assert.Equal(new[] { "/operation_id" }, outcome.Pointers);
-            Assert.Empty(fixture.Access.Requests);
+            Assert.Single(fixture.Access.Requests);
+            Assert.True(Assert.Single(fixture.Access.Evidence).Allowed);
             Assert.Equal(0, fixture.Storage.ReceiptLookups);
             Assert.Empty(fixture.Storage.Events);
             Assert.False(File.Exists(fixture.PathName));
