@@ -1,0 +1,13 @@
+@namespace Harborline.Gallery.Blazor.Stories
+@using System.Text.Json
+<section class="hl-gallery-scene" data-gallery-probe data-gallery-scenario="@ScenarioId"><header class="hl-gallery-heading"><h2>@Title</h2><p>A local template with Layout text runs and page controls. Preview uses a labelled host contract fixture; native integration tests use DocumentRuntime.</p></header><div class="hl-gallery-stage"><HarborlineDocumentAuthoringEditor Value='@(Kind == "empty" ? DocumentDraft.Empty : Draft)' PageFlow="@Flow" Catalogue="@Catalogue" ReadOnly='@(Kind == "read-only")' CanPreview="true" Denial='@(Kind == "refusals" ? Denial : null)' Preview="@Preview" /></div></section>
+@code {
+  [Parameter] public string ScenarioId { get; set; } = "document-authoring.draft";
+  private string Kind => ScenarioId switch { "document-authoring.refusals" => "refusals", "document-authoring.read-only" => "read-only", "document-authoring.empty" => "empty", _ => "draft" };
+  private string Title => Kind switch { "refusals" => "Admission refusals", "read-only" => "Read only", "empty" => "From empty", _ => "Template draft" };
+  private static readonly DocumentDraft Draft = JsonSerializer.Deserialize<DocumentDraft>("""{"identity":"","revision":null,"name":"template.invoice","documentType":"invoice","locale":{"kind":"fixed","tag":"fr-FR"},"style":{"brandName":"Harborline","logoAssetRef":"sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"},"blocks":[{"id":"block-1","collapseBelow":"md","breakBefore":true,"breakAfter":true,"breakInside":"avoid_page","lines":[{"runs":[{"text":"Total: "},{"fieldPath":"record.total","fallback":"Not supplied"}]}]}],"masters":{"first":{"centerRegion":"masthead"},"left":{"leftRegion":"folio"},"right":{"rightRegion":"folio"}}}""", new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
+  private static readonly DocumentCatalogue Catalogue = new() { Fields = ["record.total"], Regions = [new("masthead", "Masthead"), "folio"], Samples = [new("example", "Example invoice (sample)")], Records = ["record.1"] };
+  private static readonly DocumentPageFlow Flow = new([new("block-1", "first", "Host contract fixture")]);
+  private static readonly DocumentDenial Denial = new("", null, 0, [new("documents.preview.denied", "/style")]);
+  private static Task<DocumentPreviewResult> Preview(DocumentPreviewRequest request) => Task.FromResult(new DocumentPreviewResult(false, "fr-FR", [new("block-1", "Total: Not supplied")]));
+}

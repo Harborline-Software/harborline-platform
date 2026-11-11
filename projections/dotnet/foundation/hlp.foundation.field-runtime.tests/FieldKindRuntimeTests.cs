@@ -6,6 +6,24 @@ namespace Harborline.Foundation.FieldRuntime.Tests;
 
 public sealed class FieldKindRuntimeTests
 {
+    [Theory]
+    [InlineData("date")]
+    [InlineData("date-time")]
+    [InlineData("time")]
+    public void Temporal_semantics_keep_string_validation_without_enforcing_rfc3339(string format)
+    {
+        // Oracle: T-1177 explicitly retains string shape and excludes RFC 3339 value validation.
+        var runtime = new FieldKindRuntime(new FieldKindRegistry(
+            [new("temporal", "1", null, TemporalFormat: format)]));
+        var compiled = runtime.Bind(new("temporal", "1", new Dictionary<string, string>()), "/kind");
+        Assert.Equal("string", compiled.JsonSchema.GetProperty("type").GetString());
+        Assert.False(compiled.JsonSchema.TryGetProperty("format", out _));
+        Assert.Empty(compiled.ValidateJson("\"not a timestamp\"", "/value"));
+        var refusal = Assert.Single(compiled.ValidateJson("123", "/value"));
+        Assert.Equal("field.value_type_mismatch", refusal.Code);
+        Assert.Equal("/value", refusal.JsonPointer);
+    }
+
     [Fact]
     public void A_bound_kind_carries_its_schema_and_total_digit_validator_through_the_shared_contract()
     {

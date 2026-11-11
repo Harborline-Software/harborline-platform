@@ -18,6 +18,12 @@ public sealed class FieldKindRegistry
                 throw new FieldAdmissionException([new("field.kind_registration_invalid", "",
                     "A kind registration requires an identity, version and supported scalar shape.")]);
 
+            if (kind.TemporalFormat is not null
+                && (kind.ValueShape != FieldScalarValueShape.Text
+                    || kind.TemporalFormat is not ("date" or "date-time" or "time")))
+                throw new FieldAdmissionException([new("field.kind_registration_invalid", "",
+                    "A temporal format must be date, date-time or time on a Text kind.")]);
+
             var capabilities = kind.Capabilities?.ToArray();
             if (capabilities is not null && capabilities.Any(capability => !Enum.IsDefined(capability)))
                 throw new FieldAdmissionException([new("field.kind_registration_invalid", "",

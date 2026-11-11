@@ -4,7 +4,7 @@
     { "name": "node",   "spawnedBy": ["gate"], "version": { "major": 24 } },
     { "name": "npm",    "spawnedBy": ["gate"], "version": { "major": 11 } },
     { "name": "pnpm",   "spawnedBy": ["gate"], "version": { "major": 11 } },
-    { "name": "dotnet", "spawnedBy": ["gate"], "version": { "sdkBand": "11.0.100-preview" } },
+    { "name": "dotnet", "spawnedBy": ["gate"], "version": { "sdkBand": "11.0.100" } },
     { "name": "git",    "spawnedBy": ["gate", "chain"], "version": { "minMajor": 2 } },
     { "name": "gh",     "spawnedBy": ["chain"], "version": { "minMajor": 2 } }
   ]

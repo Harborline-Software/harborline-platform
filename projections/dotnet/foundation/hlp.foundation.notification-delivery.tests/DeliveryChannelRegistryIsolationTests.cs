@@ -14,7 +14,7 @@ public sealed class DeliveryChannelRegistryIsolationTests
     private const string UndeclaredName = "undeclared-reference";
 
     // DES-0055 ck-1/ck-2: callers cannot turn the inbox into a secret-needing channel.
-    [Theory]
+    [Theory(DisplayName = "notification-delivery-ck-1 notification-delivery-ck-2: secret declarations remain closed")]
     [InlineData("set-add")]
     [InlineData("set-remove")]
     [InlineData("set-clear")]
@@ -43,7 +43,7 @@ public sealed class DeliveryChannelRegistryIsolationTests
     }
 
     // DES-0055 ruling 7: this observes the declaration, not retry execution.
-    [Theory]
+    [Theory(DisplayName = "notification-delivery-ck-1 notification-delivery-ck-2: registry remains canonical after retry declaration mutations")]
     [InlineData("set-add")]
     [InlineData("set-remove")]
     [InlineData("set-clear")]

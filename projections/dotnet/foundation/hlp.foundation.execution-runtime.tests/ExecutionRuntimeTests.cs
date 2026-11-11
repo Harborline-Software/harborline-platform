@@ -17,7 +17,7 @@ public sealed class ExecutionRuntimeTests
 
     // ---- red first: the four refusals T-528 slice 1 exists for ----
 
-    [Fact(DisplayName = "T-528 S1 ck-1: an illegal status transition is refused and the stored run does not move")]
+    [Fact(DisplayName = "execution-runtime-ck-1: an illegal status transition is refused and the stored run does not move")]
     public async Task Illegal_status_transition_is_refused()
     {
         var (lifecycle, store, _) = Build();
@@ -54,7 +54,7 @@ public sealed class ExecutionRuntimeTests
         Assert.Single(stored.Attempts);
     }
 
-    [Fact(DisplayName = "T-528 S1 ck-8: a retry profile outside the capability's allowed set is refused, and a raw retry parameter is not a profile")]
+    [Fact(DisplayName = "execution-runtime-ck-8: a retry profile outside the capability's allowed set is refused, and a raw retry parameter is not a profile")]
     public async Task Retry_outside_allowed_profiles_is_refused()
     {
         var (lifecycle, store, _) = Build();
@@ -122,7 +122,7 @@ public sealed class ExecutionRuntimeTests
         Assert.Empty(await lifecycle.DeadLetteredAsync(OtherTenant));
     }
 
-    [Fact(DisplayName = "T-528 S1 cc-5: two run kinds never share an identity; caused_by correlates without merging")]
+    [Fact(DisplayName = "execution-runtime-ck-1 execution-runtime-cc-5: two run kinds never share an identity; caused_by correlates without merging")]
     public async Task Two_run_kinds_never_share_an_identity()
     {
         var (lifecycle, store, _) = Build();
@@ -151,7 +151,7 @@ public sealed class ExecutionRuntimeTests
 
     // ---- the rest of the contract ----
 
-    [Fact(DisplayName = "T-528 S1: the transition table is exactly the closed vocabulary's legal moves")]
+    [Fact(DisplayName = "execution-runtime-ck-1: the transition table is exactly the closed vocabulary's legal moves")]
     public void Transition_table_is_exact()
     {
         var legal = new HashSet<(RunStatus, RunStatus)>
@@ -214,7 +214,7 @@ public sealed class ExecutionRuntimeTests
         Assert.Equal(DeadLetterReason.RetriesExhausted, dead.DeadLetter!.Reason);
     }
 
-    [Fact(DisplayName = "T-528 S1: the substrate's profiles are fixed, and backoff doubles to its cap")]
+    [Fact(DisplayName = "execution-runtime-ck-8: the substrate's profiles are fixed, and backoff doubles to its cap")]
     public void Profiles_are_substrate_owned()
     {
         Assert.Equal(
@@ -235,7 +235,7 @@ public sealed class ExecutionRuntimeTests
         Assert.Equal(string.Empty, default(RetryProfileName).ToString());
     }
 
-    [Fact(DisplayName = "T-528 S1 cc-5: a run kind is registered once, and an unregistered kind cannot start a run")]
+    [Fact(DisplayName = "execution-runtime-cc-5: a run kind is registered once, and an unregistered kind cannot start a run")]
     public async Task Run_kind_registration()
     {
         var registry = new RunKindRegistry();
@@ -462,7 +462,7 @@ public sealed class ExecutionRuntimeTests
         Assert.Equal([older.Id, newer.Id], (await store.ListByStatusAsync(Tenant, RunStatus.Pending)).Select(run => run.Id));
     }
 
-    [Fact(DisplayName = "T-528 S1 ck-8: a capability cannot allow a profile the substrate does not define")]
+    [Fact(DisplayName = "execution-runtime-ck-8: a capability cannot allow a profile the substrate does not define")]
     public void Capability_allows_only_defined_profiles()
     {
         var refused = Assert.Throws<ExecutionRuntimeRefusedException>(() => new CapabilityRetryPolicy(

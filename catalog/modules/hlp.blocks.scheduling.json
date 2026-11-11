@@ -3,7 +3,7 @@
   "module": {
     "interface": {
       "path": "specs/modules/blocks/hlp.blocks.scheduling/interface.yaml",
-      "revision": 6
+      "revision": 7
     },
     "moduleKind": "runtime",
     "presentation": {
@@ -13,7 +13,9 @@
     "owner": "platform-blocks",
     "dependencies": [
       "hlp.blocks.builder-definitions",
-      "hlp.foundation.rule-runtime"
+      "hlp.foundation.rule-runtime",
+      "hlp.foundation.scheduling",
+      "hlp.kernel.core"
     ],
     "status": "implemented",
     "depth": {

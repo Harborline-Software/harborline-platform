@@ -218,7 +218,7 @@ public sealed class SchedulingTelemetryTests
     }
 
     private static readonly ScheduleDefinition DueDateAndForm = new(null, "Due", new ScheduleStarts(ScheduleStartKind.Form, "forms.a"),
-        Window: new("2027-01-01T00:00:00Z", "2027-01-31T00:00:00Z"));
+        DueDate: "2027-01-01T00:00:00Z", Window: new("2027-01-01T00:00:00Z", "2027-01-31T00:00:00Z"));
 
     // A store whose draft save refuses with no reasons: nothing in it names a stale fence.
     private sealed class RefusingStore : IVersionedDefinitionStore

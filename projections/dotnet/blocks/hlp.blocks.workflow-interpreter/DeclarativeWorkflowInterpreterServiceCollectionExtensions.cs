@@ -16,7 +16,7 @@ public static class DeclarativeWorkflowInterpreterServiceCollectionExtensions
     /// Requires (register FIRST): the durable engine (<c>AddDurableWorkflowEngine</c> — the broker +
     /// <see cref="IWorkflowEffectCatalog"/>), the definition store (<c>AddInMemoryWorkflowDefinitionStore</c>
     /// — the <see cref="IWorkflowDefinitionExecutionStore"/> face), and a host
-    /// <see cref="IWorkflowConfirmationContext"/> (the server-derived confirmer + engine proposer).
+    /// kernel <see cref="TimeProvider"/> and <see cref="IWorkflowConfirmationContext"/> (the server-derived confirmer + engine proposer).
     /// </summary>
     public static IServiceCollection AddDeclarativeWorkflowInterpreter(this IServiceCollection services)
     {
@@ -26,7 +26,14 @@ public static class DeclarativeWorkflowInterpreterServiceCollectionExtensions
             sp.GetRequiredService<IWorkflowEffectBroker>(),
             sp.GetRequiredService<IWorkflowEffectCatalog>(),
             sp.GetRequiredService<IWorkflowConfirmationContext>(),
+            RequireClock(sp),
             sp.GetService<IWorkflowGateAccess>()));
         return services;
     }
+
+    // This assembly composes only public engine seams; the engine's internal clock resolver is not exported.
+    private static TimeProvider RequireClock(IServiceProvider services) =>
+        services.GetService<TimeProvider>() ?? throw new InvalidOperationException(
+            "The workflow interpreter requires the host's kernel clock: register a TimeProvider before composing it "
+            + "(DES-0029 kernel-core-ck-9). It never falls back to wall time.");
 }

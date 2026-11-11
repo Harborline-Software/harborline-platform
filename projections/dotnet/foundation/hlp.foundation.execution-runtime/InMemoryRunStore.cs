@@ -68,5 +68,18 @@ public sealed class InMemoryRunStore : IRunStore
         return ValueTask.FromResult(matches);
     }
 
-    private static RunRecord Snapshot(RunRecord record) => record with { Attempts = record.Attempts.ToArray() };
+    private static RunRecord Snapshot(RunRecord record)
+    {
+        var waits = record.Waits.ToArray();
+        var steps = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var wait in waits)
+        {
+            if (!steps.Add(wait.StepId))
+            {
+                throw new ExecutionRuntimeRefusedException(
+                    ExecutionRuntimeRefusals.WaitDuplicate, $"Step '{wait.StepId}' has more than one wait.");
+            }
+        }
+        return record with { Attempts = record.Attempts.ToArray(), Waits = waits };
+    }
 }

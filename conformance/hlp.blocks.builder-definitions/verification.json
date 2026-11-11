@@ -1,4 +1,5 @@
 {
+  "grantValidity": "Optional effectiveFrom and effectiveTo are ISO 8601 instants with offset, from-inclusive and to-exclusive. effectiveTo must be after effectiveFrom when both are set; refusal names the fixture and grant. Absent keys preserve existing suite, fixture and receipt bytes and SHA-256 digests.",
   "example": "records-and-rules",
   "tenantKey": "tenant-a",
   "baselineDigest": "3309edea3c19076754982559718f2ada9a5c005ae9d2e5c9d783a58de0e419e5",

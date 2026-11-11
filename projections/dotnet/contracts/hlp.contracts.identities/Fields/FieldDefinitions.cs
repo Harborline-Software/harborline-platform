@@ -50,7 +50,6 @@ public sealed record FieldKindDefaultProvenance(string KindId, string KindVersio
 /// <summary>The JSON scalar shape produced by an admitted field-kind revision.</summary>
 public enum FieldScalarValueShape
 {
-
     /// <summary>A JSON string.</summary>
     Text,
     /// <summary>A JSON boolean.</summary>
@@ -68,7 +67,7 @@ public enum FieldKindCapability
 {
     /// <summary>
     /// The kind's value may start a Record Type's retention clock (DES-0015 records-ck-38, ADR 0095 ruling 3).
-    /// Records checks only that the bound revision declares it; the kind's schema owns the date/time meaning.
+    /// Records checks only that the bound revision declares it; TemporalFormat separately declares the kind's temporal meaning.
     /// </summary>
     RetentionClock,
 }
@@ -79,12 +78,14 @@ public enum FieldKindCapability
 /// <param name="GovernanceDefaults">The governance values copied into a newly created field.</param>
 /// <param name="ValueShape">The JSON scalar shape produced by this exact kind revision.</param>
 /// <param name="Capabilities">The typed capabilities this exact revision declares; none when absent.</param>
+/// <param name="TemporalFormat">Optional date, date-time or time semantics (RFC 3339 section 5.6), only for Text; not a display pattern.</param>
 public sealed record AdmittedFieldKind(
     string KindId,
     string Version,
     FieldGovernanceDefinition? GovernanceDefaults,
     FieldScalarValueShape ValueShape = FieldScalarValueShape.Text,
-    IReadOnlyList<FieldKindCapability>? Capabilities = null);
+    IReadOnlyList<FieldKindCapability>? Capabilities = null,
+    string? TemporalFormat = null);
 
 /// <summary>Constraints shared by fields and the declarations that narrow them.</summary>
 /// <param name="Required">Whether a value is always required at this floor.</param>

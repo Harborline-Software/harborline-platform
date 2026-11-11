@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.blocks.workflow",
-  "interfaceRevision": 10,
+  "interfaceRevision": 12,
   "durableCases": [
     {"id": "atomic-advance-crash-rolls-back", "expect": "staging-throw-appends-nothing; resume posts exactly once"},
     {"id": "advance-survives-process-restart", "probe": "write-crash", "expect": "effect committed exactly once after kill without dispose"},
@@ -13,6 +13,7 @@
     {"id": "single-node-disclaimer", "expect": "no distributed-lease or multi-node claim"}
   ],
   "dispatchCases": [
+    {"id": "interpreter-decision-failure", "expectedStatus": "Failed", "reason": "not-retryable", "step": "actual-failing-state", "effect": null, "retry": false},
     {"id": "autonomous-event-parks-cp", "trigger": "Event", "step": "Draft", "expected": "Parked", "expectedStep": "PendingApproval"},
     {"id": "human-approve-advances-with-effect", "trigger": "HumanAction", "step": "PendingApproval", "decision": "approve", "expected": "Advanced", "expectedStep": "Posted", "expectedStatus": "Completed", "effectsStaged": 1},
     {"id": "redelivered-trigger-replays", "trigger": "HumanAction", "step": "PendingApproval", "decision": "approve", "expected": "ReplayedNoOp|Terminal", "effectsStaged": 0},
