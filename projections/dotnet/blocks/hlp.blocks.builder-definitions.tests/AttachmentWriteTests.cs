@@ -134,6 +134,44 @@ public sealed class AttachmentWriteTests
     }
 
     [Theory]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public async Task Concurrent_attachment_retries_settle_the_committed_operation_after_stage_consumption(bool temporal, bool divergent)
+    {
+        var fixture = await Fixture.Create(temporalMode: temporal);
+        var stage = await fixture.Upload("evidence");
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        fixture.Port.BeforeNextLookup = async () => { entered.SetResult(); await release.Task.ConfigureAwait(false); };
+        var loserBody = List(stage);
+        if (divergent) loserBody["status"] = "different intent";
+        var loser = fixture.WriteEither(temporal, "same-operation", loserBody);
+        await entered.Task.WaitAsync(TimeSpan.FromSeconds(30));
+        var winner = await fixture.WriteEither(temporal, "same-operation", List(stage));
+        Assert.True(winner.Committed); Assert.False(winner.Replayed);
+        release.SetResult();
+        var settled = await loser.WaitAsync(TimeSpan.FromSeconds(30));
+        if (divergent)
+        {
+            Assert.False(settled.Committed);
+            Assert.Equal("commit", settled.Refusal!.Stage);
+            Assert.Equal("records.write.replay_conflict", settled.Refusal.Code);
+            Assert.Equal(["/operation_id"], settled.Refusal.Pointers);
+        }
+        else
+        {
+            Assert.True(settled.Replayed, settled.Refusal?.Code);
+            Assert.Equal(winner.Receipt, settled.Receipt);
+        }
+        Assert.Single(fixture.Port.Rows);
+        Assert.Equal(1, fixture.Port.Rollbacks);
+        Assert.Equal(1, fixture.Store.CommittedCount);
+        Assert.Equal(0, fixture.Store.StagedCount);
+    }
+
+    [Theory]
     [InlineData("evidence", "/evidence")]
     [InlineData("proof/~", "/proof~1~0")]
     public async Task Malformed_entries_become_a_structured_refusal_with_an_escaped_field_pointer(string field, string pointer)
@@ -208,7 +246,7 @@ public sealed class AttachmentWriteTests
         public Port Port { get; }
         public RecordWriteOperation Operation { get; }
         public RecordTypePublication Publication { get; }
-        private Fixture(bool condition, bool composeRuntime, bool exposeSession, string fieldKey)
+        private Fixture(bool condition, bool composeRuntime, bool exposeSession, string fieldKey, bool temporalMode)
         {
             Store = new(new(100, 1000, 10000, TimeSpan.FromHours(1)), new Keys(), TimeProvider.System, Storage);
             Runtime = new(Store);
@@ -227,13 +265,19 @@ public sealed class AttachmentWriteTests
             var field = new FieldDefinition(fieldKey, "Evidence", new(kind, new(false, 0, null, [], null)))
             { RequiredCondition = condition ? JsonSerializer.Deserialize<JsonElement>("""{"==":[{"var":"status"},"closed"]}""") : null };
             Records.CreateDraftAsync(new("tenant-a", "eam", "Evidence", "1.0.0", [field, new("status", "Status")], new(1, 0),
-                ClassId: "eam.equipment", RecordClass: RecordClass.Master, PackageId: "eam-core", CreationGate: RecordCreationGate.Role, CreationRoleId: "asset-author"), "type").AsTask().GetAwaiter().GetResult();
+                ClassId: "eam.equipment", RecordClass: RecordClass.Master, PackageId: "eam-core", CreationGate: RecordCreationGate.Role, CreationRoleId: "asset-author") { AmendmentPolicy = new(true) { Mode = temporalMode ? RecordAmendmentMode.Supersession : null } }, "type").AsTask().GetAwaiter().GetResult();
             Publication = Records.PublishAsync("tenant-a", "eam.evidence", "1.0.0", 1, "publish").AsTask().GetAwaiter().GetResult();
             Port = new(Storage.Bookkeeping) { ExposeSession = exposeSession };
-            Operation = new(new AccessProvider(new Gate()), Records, Registry, Port, Port, TimeProvider.System, kinds, RecordWriteFieldRuntimeTests.FixtureDomains(TimeProvider.System)) { Attachments = composeRuntime ? Runtime : null };
+            Operation = new(new AccessProvider(new Gate()), Records, Registry, Port, Port, TimeProvider.System, kinds, RecordWriteFieldRuntimeTests.FixtureDomains(TimeProvider.System), Port, Port, Port) { Attachments = composeRuntime ? Runtime : null };
         }
-        public static Task<Fixture> Create(bool condition = false, bool composeRuntime = true, bool exposeSession = true, string fieldKey = "evidence") => Task.FromResult(new Fixture(condition, composeRuntime, exposeSession, fieldKey));
+        public static Task<Fixture> Create(bool condition = false, bool composeRuntime = true, bool exposeSession = true, string fieldKey = "evidence", bool temporalMode = false) => Task.FromResult(new Fixture(condition, composeRuntime, exposeSession, fieldKey, temporalMode));
         public ValueTask<Guid> Upload(string text) => Runtime.PutAsync(Attachment, new("tenant-a"), "evidence", new MemoryStream(Encoding.UTF8.GetBytes(text)), "text/plain", null, Evidence());
+        public async Task<RecordWriteOutcome> WriteEither(bool temporal, string operation, JsonObject body)
+        {
+            if (!temporal) return await Write(operation, body);
+            var outcome = await Operation.CreateEffectiveAsync(new("tenant-a", "operator-7"), new("eam.evidence", operation, body, DateTimeOffset.UnixEpoch, null));
+            return new(outcome.Receipt?.Receipt, outcome.Status == RecordTemporalWriteStatus.Replayed, outcome.Refusal);
+        }
         public ValueTask<RecordWriteOutcome> Write(string operation, JsonObject body) => Operation.CreateAsync(new("tenant-a", "operator-7"), new("eam.evidence", operation, body));
     }
     private sealed class Keys : ITenantContentKeyProvider { public byte[] GetKey(TenantId tenant) => SHA256.HashData(Encoding.UTF8.GetBytes("test:" + tenant.Value)); }
@@ -242,13 +286,51 @@ public sealed class AttachmentWriteTests
         public ValueTask<AuthorizationDecisionEvidence> DecideAsync(AccessRequest request, CancellationToken cancellationToken = default)
             => ValueTask.FromResult(new AuthorizationDecisionEvidence(request, true, "None", "grant:writer", [], []));
     }
-    private sealed class Port(IContentBookkeeping bookkeeping) : IKernelPreparedTransactionPort<RecordWriteRow, RecordWriteCommit>, IRecordWriteReceiptReader
+    private sealed class Port(IContentBookkeeping bookkeeping) : IKernelPreparedTransactionPort<RecordWriteRow, RecordWriteCommit>, IRecordWriteReceiptReader,
+        IRecordTemporalWritePort, IRecordTemporalReceiptReader, IRecordTemporalReadStore
     {
         public bool ExposeSession { get; init; } = true;
         public Func<IContentBookkeepingSession, IContentBookkeepingSession>? DecorateSession { get; set; }
         public List<RecordWriteRow> Rows { get; } = [];
+        public Func<ValueTask>? BeforeNextLookup { get; set; }
+        public int Rollbacks { get; private set; }
+        public bool HasAuthorityClock => true;
+        private readonly Dictionary<string, RecordTemporalCommittedOperation> temporalReceipts = new(StringComparer.Ordinal);
         private readonly Dictionary<string, RecordWriteCommittedOperation> receipts = new(StringComparer.Ordinal);
-        public ValueTask<RecordWriteCommittedOperation?> FindAsync(RecordWriteOperationKey key, CancellationToken cancellationToken = default) => ValueTask.FromResult(receipts.GetValueOrDefault(key.IdempotencyKey));
+        public async ValueTask<RecordWriteCommittedOperation?> FindAsync(RecordWriteOperationKey key, CancellationToken cancellationToken = default)
+        { var prior = receipts.GetValueOrDefault(key.IdempotencyKey); await PauseLookupAsync(); return prior; }
+        public async ValueTask<RecordTemporalCommittedOperation?> FindTemporalOperationAsync(RecordWriteOperationKey key, CancellationToken cancellationToken = default)
+        { var prior = temporalReceipts.GetValueOrDefault(key.IdempotencyKey); await PauseLookupAsync(); return prior; }
+        private async ValueTask PauseLookupAsync()
+        { var pause = BeforeNextLookup; BeforeNextLookup = null; if (pause is not null) await pause().ConfigureAwait(false); }
+        public ValueTask<RecordWriteRow?> FindAsync(string tenant, string recordId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public ValueTask<RecordTemporalLookup> FindAtAsync(string tenant, string recordId, DateTimeOffset effectiveAt, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public ValueTask<RecordTemporalHistory> HistoryAsync(string tenant, string recordId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public ValueTask<RecordTemporalTarget?> FindTemporalTargetAsync(string tenant, string recordId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        async ValueTask<IKernelPreparedTransaction<RecordTemporalWrite, RecordTemporalCommit>> IKernelPreparedTransactionPort<RecordTemporalWrite, RecordTemporalCommit>.BeginAsync(CancellationToken cancellationToken)
+            => new TemporalTransaction(this, await bookkeeping.BeginTransactionAsync(cancellationToken));
+        private sealed class TemporalTransaction(Port owner, IContentBookkeepingTransaction content) : IKernelPreparedTransaction<RecordTemporalWrite, RecordTemporalCommit>, IRecordContentTransaction
+        {
+            public IContentBookkeepingSession ContentSession => content;
+            private RecordTemporalWrite write = null!;
+            private KernelOperationIdentity operation = null!;
+            private KernelAuditEvidence audit = null!;
+            public ValueTask StageOperationAsync(KernelOperationIdentity value, CancellationToken cancellationToken = default) { operation = value; return ((IContentBookkeepingSession)content).StageOperationAsync(value, cancellationToken); }
+            public ValueTask StageRecordAsync(RecordTemporalWrite value, CancellationToken cancellationToken = default) { write = value; return ValueTask.CompletedTask; }
+            public ValueTask StageAuditAsync(KernelAuditEvidence value, CancellationToken cancellationToken = default) { audit = value; return ((IContentBookkeepingSession)content).StageAuditAsync(value, cancellationToken); }
+            public async ValueTask<RecordTemporalCommit> CommitAsync(CancellationToken cancellationToken = default)
+            {
+                var row = write.Row;
+                var temporal = new RecordTemporalEvidence(1, null, [], write.EffectiveFrom, write.EffectiveTo, null, DateTimeOffset.UnixEpoch);
+                var receipt = new RecordTemporalReceipt(new(row.RecordId, row.OperationId, row.RecordTypeId, row.Version, row.DefinitionDigest, row.Schema, row.RecordedAt),
+                    temporal, RecordTemporalJournalBinding.HashBinding(operation.IdempotencyKey, operation, row, audit, temporal));
+                await content.CommitAsync(cancellationToken);
+                owner.Rows.Add(row); owner.temporalReceipts.Add(operation.IdempotencyKey, new(row.IntentEncodingVersion, row.IntentDigest, receipt));
+                return new(RecordTemporalCommitDisposition.Created, receipt);
+            }
+            public ValueTask RollbackAsync(CancellationToken cancellationToken = default) { owner.Rollbacks++; return content.RollbackAsync(cancellationToken); }
+            public ValueTask DisposeAsync() => content.DisposeAsync();
+        }
         public async ValueTask<IKernelPreparedTransaction<RecordWriteRow, RecordWriteCommit>> BeginAsync(CancellationToken cancellationToken = default)
         {
             var transaction = new Transaction(this, await bookkeeping.BeginTransactionAsync(cancellationToken));
@@ -278,7 +360,7 @@ public sealed class AttachmentWriteTests
                 owner.Rows.Add(row); owner.receipts.Add(operation.IdempotencyKey, new(row.IntentEncodingVersion, row.IntentDigest, receipt));
                 return new(RecordWriteCommitDisposition.Created, receipt);
             }
-            public ValueTask RollbackAsync(CancellationToken cancellationToken = default) => content.RollbackAsync(cancellationToken);
+            public ValueTask RollbackAsync(CancellationToken cancellationToken = default) { owner.Rollbacks++; return content.RollbackAsync(cancellationToken); }
             public ValueTask DisposeAsync() => content.DisposeAsync();
         }
     }

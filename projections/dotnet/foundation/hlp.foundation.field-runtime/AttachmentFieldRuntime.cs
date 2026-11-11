@@ -53,7 +53,9 @@ public sealed class AttachmentFieldRuntime(InMemoryContentStore store)
                 ValidateReference(field, entry, owner.Element);
                 var reference = FromJson(entry);
                 var item = await evidence.Transaction.FindItemForUpdateAsync(new(tenant, reference.ContentId), cancellationToken).ConfigureAwait(false);
-                if (reference.Owner.Record != owner.Record || !reference.Owner.Element.StartsWith(owner.Element + "/", StringComparison.Ordinal)
+                // The final separator precedes the opaque slot; field keys themselves may contain separators.
+                var fieldEnd = reference.Owner.Element.LastIndexOf('/');
+                if (reference.Owner.Record != owner.Record || fieldEnd < 0 || reference.Owner.Element[..fieldEnd] != owner.Element
                     || item is null || !item.Owners.Contains(reference.Owner) || item.Length != reference.Length || item.MediaType != reference.MediaType)
                     throw Invalid();
                 resolved.Add(JsonNode.Parse(entry.GetRawText()));

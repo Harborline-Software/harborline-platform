@@ -143,6 +143,7 @@ public sealed class AttachmentFieldRuntimeTests
     [InlineData("other-record", "evidence/slot")]
     [InlineData("record", "other/slot")]
     [InlineData("record", "evidence_extra/slot")]
+    [InlineData("record", "evidence/photos/slot")]
     public async Task A_real_store_owner_from_another_record_or_field_cannot_be_kept(string record, string element)
     {
         var f = new Fixture();
@@ -151,6 +152,16 @@ public sealed class AttachmentFieldRuntimeTests
         { content_id = reference.ContentId.Value, length = reference.Length, media_type = reference.MediaType, display_name = reference.DisplayName,
           owner = new { record = reference.Owner.Record, element = reference.Owner.Element } } });
         await Assert.ThrowsAsync<FieldAdmissionException>(async () => await f.Write(entries));
+        Assert.Equal(1, f.Store.CommittedCount);
+    }
+
+    [Fact]
+    public async Task A_field_key_containing_a_separator_keeps_its_own_reference()
+    {
+        var f = new Fixture();
+        var first = await f.Write(JsonSerializer.SerializeToElement(new[] { new { stage_id = await f.Upload("one"), display_name = "one.txt" } }), "evidence/photos");
+        var kept = await f.Write(JsonSerializer.SerializeToElement(first), "evidence/photos");
+        Assert.Equal(first.ToJsonString(), kept.ToJsonString());
         Assert.Equal(1, f.Store.CommittedCount);
     }
 
@@ -259,11 +270,11 @@ public sealed class AttachmentFieldRuntimeTests
                 .Bind(new("attachment", "1.0.0", new Dictionary<string,string> { ["item_limit_bytes"] = "50" }), "/kind");
         }
         public ValueTask<Guid> Upload(string text) => Runtime.PutAsync(Field, new("tenant"), "evidence", new MemoryStream(Encoding.UTF8.GetBytes(text)), "text/plain", null, Evidence());
-        public async Task<JsonArray> Write(JsonElement entries)
+        public async Task<JsonArray> Write(JsonElement entries, string fieldKey = "evidence")
         {
             var port = new Port(Storage.Bookkeeping);
             await KernelTransactionBoundary.ExecutePreparedAsync(async token => new KernelCommand<JsonArray>(Evidence().Operation,
-                await Runtime.ResolveWriteAsync(Field, entries, new("tenant"), new("record", "evidence"), Evidence(port.Session), token), Evidence().Audit), port);
+                await Runtime.ResolveWriteAsync(Field, entries, new("tenant"), new("record", fieldKey), Evidence(port.Session), token), Evidence().Audit), port);
             return port.Saved!;
         }
     }
