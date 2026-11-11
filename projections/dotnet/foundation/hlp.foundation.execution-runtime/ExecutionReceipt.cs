@@ -178,25 +178,28 @@ public sealed class InMemoryExecutionReceiptStore : IExecutionReceiptStore
         lock (_gate)
         {
             var key = (tenantId, runId);
-            if (!_traces.TryGetValue(key, out var steps))
-            {
-                steps = [];
-                _traces[key] = steps;
-            }
-
-            if (traceStep.Ordinal <= steps.Count && steps[traceStep.Ordinal - 1] == traceStep)
+            var stored = _traces.GetValueOrDefault(key);
+            var count = stored?.Count ?? 0;
+            if (stored is not null && traceStep.Ordinal <= count && stored[traceStep.Ordinal - 1] == traceStep)
             {
                 return ValueTask.CompletedTask;
             }
 
-            if (traceStep.Ordinal != steps.Count + 1)
+            if (traceStep.Ordinal != count + 1)
             {
                 throw new ExecutionRuntimeRefusedException(
                     ExecutionRuntimeRefusals.TraceStepOutOfOrder,
-                    $"Run '{runId}' expects trace ordinal {steps.Count + 1}, not {traceStep.Ordinal}.");
+                    $"Run '{runId}' expects trace ordinal {count + 1}, not {traceStep.Ordinal}.");
             }
 
-            steps.Add(traceStep);
+            if (stored is null)
+            {
+                _traces[key] = [traceStep];
+            }
+            else
+            {
+                stored.Add(traceStep);
+            }
         }
 
         return ValueTask.CompletedTask;
@@ -219,9 +222,10 @@ internal static class ExecutionReceiptRules
 {
     internal static void RequireTenant(TenantId tenantId)
     {
-        if (string.IsNullOrWhiteSpace(tenantId.Value))
+        if (tenantId.IsSystemSentinel)
         {
-            throw new ArgumentException("An execution receipt or trace requires a tenant.", nameof(tenantId));
+            throw new ArgumentException(
+                "An execution receipt or trace requires a tenant; a default or system sentinel tenant is refused.", nameof(tenantId));
         }
     }
 

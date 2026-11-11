@@ -17,6 +17,11 @@ public sealed class ExecutionReceiptTests
     private static readonly Guid Opaque = new("16300000-0000-0000-0000-000000000163");
     private const string DecisionId = "audit.decision.16300000-0000-0000-0000-000000000001";
     private static readonly int[] FirstTwoOrdinals = [1, 2];
+    private static readonly string[] TenantAPhases = ["submitted", "approval"];
+    private static readonly string[] TenantBStatuses = ["running", "cancelled"];
+
+    /// <summary>Every case drives the adapter through the port, as a durable adapter's conformance run would.</summary>
+    public static IExecutionReceiptStore NewPort() => new InMemoryExecutionReceiptStore();
     private static readonly string[] ReceiptFields = ["AccessDecisionId", "RunId", "Status", "TenantId"];
     private static readonly string[] TraceStepFields = ["Ordinal", "Phase", "Status"];
 
@@ -25,7 +30,7 @@ public sealed class ExecutionReceiptTests
     {
         // Oracle: DES-0056 ck-2/ck-3 rows (run identity, status, decision identity only) and the Layout fixture's
         // present and null decisions. Mutation: store `AccessDecisionId ?? ""` in the ExecutionReceipt constructor.
-        var store = new InMemoryExecutionReceiptStore();
+        var store = NewPort();
         var linked = new RunId(WorkflowRun, Opaque);
         var unlinked = new RunId(WorkflowRun, Guid.Parse("16300000-0000-0000-0000-000000000002"));
         await store.PutReceiptAsync(new ExecutionReceipt(TenantA, linked, RunStatus.Succeeded, DecisionId));
@@ -53,7 +58,7 @@ public sealed class ExecutionReceiptTests
     {
         // Oracle: slice acceptance 1-2 and DES-0056 ck-3 (durable tenant data under the run identity).
         // Mutation: key InMemoryExecutionReceiptStore receipts by run alone (drop the tenant from GetReceiptAsync's key).
-        var store = new InMemoryExecutionReceiptStore();
+        var store = NewPort();
         var run = new RunId(WorkflowRun, Opaque);
         await store.PutReceiptAsync(new ExecutionReceipt(TenantA, run, RunStatus.Running, DecisionId));
 
@@ -85,7 +90,7 @@ public sealed class ExecutionReceiptTests
     {
         // Oracle: slice acceptance 2 and the Layout fixture's 1-based ordinals (submitted, approval, posted).
         // Mutation: drop the `step.Ordinal != steps.Count + 1` refusal in AppendTraceStepAsync.
-        var store = new InMemoryExecutionReceiptStore();
+        var store = NewPort();
         var run = new RunId(WorkflowRun, Opaque);
         await store.AppendTraceStepAsync(TenantA, run, new ExecutionTraceStep(1, "submitted", "succeeded"));
         await store.AppendTraceStepAsync(TenantA, run, new ExecutionTraceStep(2, "approval", "succeeded"));
@@ -121,7 +126,7 @@ public sealed class ExecutionReceiptTests
     {
         // Oracle: M11 ruling on PR 484 (guard 1: AccessDecisionId is fixed after the first write) and slice acceptance 2
         // ("an absent decision stays absent"). Mutation: drop the AccessDecisionId comparison in PutReceiptAsync.
-        var store = new InMemoryExecutionReceiptStore();
+        var store = NewPort();
         var linked = new RunId(WorkflowRun, Opaque);
         var unlinked = new RunId(WorkflowRun, Guid.Parse("16300000-0000-0000-0000-000000000002"));
         await store.PutReceiptAsync(new ExecutionReceipt(TenantA, linked, RunStatus.Running, DecisionId));
@@ -150,7 +155,7 @@ public sealed class ExecutionReceiptTests
         // Oracle: M11 ruling on PR 484 (guard 2) and DES-0056's six-status table as literals: pending -> running ->
         // succeeded is legal; succeeded -> running and pending -> succeeded are not. Mutation: drop the
         // RunStatusTransitions.Require call in PutReceiptAsync.
-        var store = new InMemoryExecutionReceiptStore();
+        var store = NewPort();
         var run = new RunId(WorkflowRun, Opaque);
         await store.PutReceiptAsync(new ExecutionReceipt(TenantA, run, RunStatus.Pending, DecisionId));
 
@@ -175,7 +180,7 @@ public sealed class ExecutionReceiptTests
     {
         // Oracle: M11 ruling on PR 484 (replayed append after a crash) and DES-0056 ck-11 / "recovery or audit may repeat
         // it". Mutation: drop the exact-repeat early return in AppendTraceStepAsync.
-        var store = new InMemoryExecutionReceiptStore();
+        var store = NewPort();
         var run = new RunId(WorkflowRun, Opaque);
         await store.AppendTraceStepAsync(TenantA, run, new ExecutionTraceStep(1, "submitted", "succeeded"));
         await store.AppendTraceStepAsync(TenantA, run, new ExecutionTraceStep(2, "approval", "succeeded"));
@@ -204,7 +209,7 @@ public sealed class ExecutionReceiptTests
         registry.Register(WorkflowRun, "workflows");
         var runs = new InMemoryRunStore();
         var lifecycle = new RunLifecycle(registry, runs, TimeProvider.System);
-        var port = new InMemoryExecutionReceiptStore();
+        var port = NewPort();
 
         var run = await lifecycle.StartAsync(new StartRun(WorkflowRun, TenantA,
             new CapabilityRetryPolicy(RetryProfileName.ImmediateOrFail, [RetryProfileName.ImmediateOrFail])));
@@ -213,8 +218,15 @@ public sealed class ExecutionReceiptTests
         await port.AppendTraceStepAsync(TenantA, run.Id, new ExecutionTraceStep(1, "submitted", "succeeded"));
 
         var read = await port.GetTraceAsync(TenantA, run.Id);
-        if (read is IList<ExecutionTraceStep> list && !list.IsReadOnly) list.Clear();
-        Assert.Single(await port.GetTraceAsync(TenantA, run.Id));
+        if (read is IList<ExecutionTraceStep> list)
+        {
+            // An array or list handed back by reference would let the reader rewrite the stored trace.
+            try { list[0] = new ExecutionTraceStep(1, "tampered", "tampered"); } catch (NotSupportedException) { }
+            try { list.Clear(); } catch (NotSupportedException) { }
+        }
+
+        var reread = Assert.Single(await port.GetTraceAsync(TenantA, run.Id));
+        Assert.Equal((1, "submitted", "succeeded"), (reread.Ordinal, reread.Phase, reread.Status));
 
         run = await lifecycle.SucceedAsync(TenantA, run.Id);
         await port.PutReceiptAsync(new ExecutionReceipt(TenantA, run.Id, run.Status, DecisionId));
@@ -237,12 +249,113 @@ public sealed class ExecutionReceiptTests
         Assert.Equal(2, (await port.GetTraceAsync(TenantA, run.Id)).Count);
     }
 
+    [Fact(DisplayName = "execution-runtime-eng-1: the port refuses default and system sentinel tenants on construction, reads and appends")]
+    public async Task Sentinel_tenants_refused()
+    {
+        // Oracle: hlp.contracts.identities interface ("a default TenantId and every reserved-prefix TenantId are system
+        // sentinels and must be rejected by tenant-scoped operations"). Mutation: RequireTenant checks
+        // string.IsNullOrWhiteSpace(tenantId.Value) instead of IsSystemSentinel.
+        var port = NewPort();
+        var run = new RunId(WorkflowRun, Opaque);
+        foreach (var sentinel in new[] { TenantId.System, default })
+        {
+            Assert.Throws<ArgumentException>(() => new ExecutionReceipt(sentinel, run, RunStatus.Running, null));
+            await Assert.ThrowsAsync<ArgumentException>(() => port.GetReceiptAsync(sentinel, run).AsTask());
+            await Assert.ThrowsAsync<ArgumentException>(
+                () => port.AppendTraceStepAsync(sentinel, run, new ExecutionTraceStep(1, "submitted", "succeeded")).AsTask());
+            await Assert.ThrowsAsync<ArgumentException>(() => port.GetTraceAsync(sentinel, run).AsTask());
+        }
+    }
+
+    [Fact(DisplayName = "execution-runtime-ck-3 execution-runtime-ck-4: two tenants writing the same run identity keep separate receipts and traces")]
+    public async Task Two_tenants_same_run()
+    {
+        // Oracle: DES-0056 ck-3/ck-4 (durable tenant data) and the identities contract's tenant scoping, as literals.
+        // Mutation: key the trace store by run alone (default tenant) in AppendTraceStepAsync and GetTraceAsync.
+        var port = NewPort();
+        var run = new RunId(WorkflowRun, Opaque);
+        await port.PutReceiptAsync(new ExecutionReceipt(TenantA, run, RunStatus.Pending, DecisionId));
+        await port.PutReceiptAsync(new ExecutionReceipt(TenantB, run, RunStatus.Pending, null));
+        await port.AppendTraceStepAsync(TenantA, run, new ExecutionTraceStep(1, "submitted", "succeeded"));
+        await port.AppendTraceStepAsync(TenantB, run, new ExecutionTraceStep(1, "rebuild", "running"));
+
+        await port.PutReceiptAsync(new ExecutionReceipt(TenantA, run, RunStatus.Running, DecisionId));
+        await port.AppendTraceStepAsync(TenantA, run, new ExecutionTraceStep(2, "approval", "succeeded"));
+        var b = (await port.GetReceiptAsync(TenantB, run))!;
+        Assert.Equal((RunStatus.Pending, (string?)null), (b.Status, b.AccessDecisionId));
+        Assert.Equal("rebuild", Assert.Single(await port.GetTraceAsync(TenantB, run)).Phase);
+
+        await port.PutReceiptAsync(new ExecutionReceipt(TenantB, run, RunStatus.Cancelled, null));
+        await port.AppendTraceStepAsync(TenantB, run, new ExecutionTraceStep(2, "rebuild", "cancelled"));
+        var a = (await port.GetReceiptAsync(TenantA, run))!;
+        Assert.Equal((RunStatus.Running, DecisionId), (a.Status, a.AccessDecisionId));
+        Assert.Equal(TenantAPhases, (await port.GetTraceAsync(TenantA, run)).Select(s => s.Phase));
+        Assert.Equal(TenantBStatuses, (await port.GetTraceAsync(TenantB, run)).Select(s => s.Status));
+    }
+
+    [Fact(DisplayName = "execution-runtime-ck-4: writers racing for one ordinal leave exactly one winner and a valid trace")]
+    public async Task Racing_appends()
+    {
+        // Oracle: slice acceptance 2 (trace steps keep their order) as a stated property: one step per ordinal.
+        // Mutation: remove the lock around AppendTraceStepAsync's check-and-insert.
+        const int Rounds = 200;
+        const int Writers = 8;
+        var port = NewPort();
+        for (var round = 0; round < Rounds; round++)
+        {
+            var run = new RunId(WorkflowRun, Guid.NewGuid());
+            using var start = new ManualResetEventSlim();
+            var attempts = Enumerable.Range(0, Writers).Select(writer => Task.Run(async () =>
+            {
+                start.Wait();
+                try
+                {
+                    await port.AppendTraceStepAsync(TenantA, run, new ExecutionTraceStep(1, $"writer-{writer}", "succeeded"));
+                    return writer;
+                }
+                catch (ExecutionRuntimeRefusedException refused) when (refused.Code == "execution.trace_step_out_of_order")
+                {
+                    return -1;
+                }
+            })).ToArray();
+            start.Set();
+            var winners = (await Task.WhenAll(attempts)).Where(writer => writer >= 0).ToArray();
+
+            var winner = Assert.Single(winners);
+            var stored = Assert.Single(await port.GetTraceAsync(TenantA, run));
+            Assert.Equal((1, $"writer-{winner}"), (stored.Ordinal, stored.Phase));
+        }
+    }
+
+    [Fact(DisplayName = "execution-runtime-ck-4: refused first appends leave no trace entry behind")]
+    public async Task Refused_first_append_leaves_nothing()
+    {
+        // Oracle: Terra pre-pass finding 3 as a stated property: a refused write stores nothing. The entry count is read
+        // from the reference adapter's private map, since the port deliberately has no enumeration.
+        // Mutation: create the run's empty list before the ordinal check in AppendTraceStepAsync.
+        var port = NewPort();
+        var store = (InMemoryExecutionReceiptStore)port;
+        for (var i = 0; i < 50; i++)
+        {
+            var run = new RunId(WorkflowRun, Guid.NewGuid());
+            var refused = await Assert.ThrowsAsync<ExecutionRuntimeRefusedException>(
+                () => port.AppendTraceStepAsync(TenantA, run, new ExecutionTraceStep(2, "approval", "succeeded")).AsTask());
+            Assert.Equal("execution.trace_step_out_of_order", refused.Code);
+            Assert.Empty(await port.GetTraceAsync(TenantA, run));
+        }
+
+        var traces = (System.Collections.ICollection)typeof(InMemoryExecutionReceiptStore)
+            .GetField("_traces", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!
+            .GetValue(store)!;
+        Assert.Empty(traces);
+    }
+
     [Fact(DisplayName = "execution-runtime-cc-1: receipts and traces of two run kinds sharing an opaque value never merge")]
     public async Task Kinds_never_merge()
     {
         // Oracle: DES-0056 cc-1 with cc-5 (identities never merge; the kind is part of the run identity).
         // Mutation: key the in-memory receipt store by RunId.Value (the Guid) instead of the kind-qualified RunId.
-        var store = new InMemoryExecutionReceiptStore();
+        var store = NewPort();
         var workflow = new RunId(WorkflowRun, Opaque);
         var plan = new RunId(PlanRun, Opaque);
         await store.PutReceiptAsync(new ExecutionReceipt(TenantA, workflow, RunStatus.Succeeded, DecisionId));
