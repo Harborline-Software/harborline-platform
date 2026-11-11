@@ -75,7 +75,7 @@
     "specs/modules/blocks/hlp.blocks.workflow/interface.yaml": "4a7256eeb6f4f702adb99d47bf333006584f27bc667f69229fde1a6bf50330e4",
     "tests/package-consumers/workflow-npm/exercise.mjs": "b568834ec0e73b22dd4ceb32c43dd588c65a3bd72fa3dd2d743d830c62ff7ef4",
     "tests/package-consumers/workflow-npm/package.json": "c608aa6a839cf1a24f62d6c3959de372b48eeb36eaa83d60a2d2451a7250c207",
-    "tests/package-consumers/workflow-nuget/Consumer.csproj": "a9fdd23856b203b72af941cd00b82a54ed47a0c6e65cc83945268017a5165aaf",
+    "tests/package-consumers/workflow-nuget/Consumer.csproj": "58009b64876ea91eb8d74831f018769f6724ff959296060169e0735ce13f361b",
     "tests/package-consumers/workflow-nuget/Program.cs": "f89f8f26c101a404f09419e06a8cb81f65379c5c9d834e53974f722e209fd148",
     "projections/dotnet/blocks/hlp.blocks.workflow.tests/WorkflowGateIntentTests.cs": "4c9fc3684f46cbadf7e4949cd726ed121a739da6daab2fe8ff477e046dac10e8",
     "projections/dotnet/blocks/hlp.blocks.workflow/Durable/IWorkflowGateAccess.cs": "b070bf07f3d211e7d3131ad26ff869c2d6cf0f3e80baf7a3dc4885e2a41d3873"

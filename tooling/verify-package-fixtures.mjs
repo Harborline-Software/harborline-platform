@@ -974,8 +974,8 @@ function verifyNuget() {
     ['microsoft.extensions.dependencyinjection.abstractions', '10.0.10'],
     ['microsoft.extensions.dependencyinjection', '10.0.10'],
     ['microsoft.extensions.logging.abstractions', '10.0.10'],
-    ['microsoft.extensions.dependencyinjection.abstractions', '11.0.0-rc.1.26425.128'],
-    ['microsoft.extensions.dependencyinjection', '11.0.0-rc.1.26425.128'],
+    ['microsoft.extensions.dependencyinjection.abstractions', '11.0.0'],
+    ['microsoft.extensions.dependencyinjection', '11.0.0'],
   ]) {
     const packagePath = resolve(globalNugetPackages, id, version, `${id}.${version}.nupkg`)
     const artifactPath = resolve(nugetArtifacts, `${id}.${version}.nupkg`)

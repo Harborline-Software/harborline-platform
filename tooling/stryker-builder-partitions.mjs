@@ -76,7 +76,7 @@ function configuration() {
   const floor = fullModeBreak(repo.baselines[selector], config)
   requireThat(Number.isFinite(floor) && floor >= 74 && floor <= 100, 'Builder floor must be at least 74')
   const sdk = json(regular('global.json')).sdk, tool = json(regular('.config/dotnet-tools.json')).tools?.['dotnet-stryker']
-  same(sdk, {version: '11.0.100-rc.1.26425.128', rollForward: 'disable'}, 'Unsupported SDK pin')
+  same(sdk, {version: '11.0.100', rollForward: 'disable'}, 'Unsupported SDK pin')
   requireThat(tool?.version === '5.0.0' && tool.rollForward === false, 'Unsupported Stryker pin')
   same(sourceDirectories(target, repo.readFile(target)), [path.posix.dirname(target)], 'Linked Builder source is unsupported')
   return {repo, config, floor, sdk, tool}
