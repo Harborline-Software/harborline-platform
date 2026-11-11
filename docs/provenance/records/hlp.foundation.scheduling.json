@@ -4,7 +4,7 @@
   "sourceExtracted": true,
   "sourceState": "Scheduling Wave A: the bounded RRULE expansion engine and derived due-queue query ported verbatim (19 + 6 pinned cases green under their pinned names), plus the writer-lane-authored source-agnostic due-occurrence seam (IDueOccurrenceSource / RruleDueOccurrenceSource / CompositeDueOccurrenceSource, 3 seam tests) required by the user ruling of 2026-08-16 so the ticket-086 relative-chain generator lands behind the same port later. The pinned DI extension is retained without an explicit M.E.DI.Abstractions reference (implicit on net11-preview). ADR-0117/0123 moves the due seam and queue to hlp.blocks.scheduling, leaving the RRULE producer and shared NodaTime wall-clock resolver here.",
   "contentHashes": {
-    "projections/dotnet/foundation/hlp.foundation.scheduling/DependencyInjection/SchedulingServiceCollectionExtensions.cs": "b28d0a3b6061d1a867f25aa6f8f21c2bf2923f2a6760fece57f7733672bc57fe",
+    "projections/dotnet/foundation/hlp.foundation.scheduling/DependencyInjection/SchedulingServiceCollectionExtensions.cs": "be05df8d15e7815a66b0935a5b993e4e1d6e22ead387731ad4542f01d363754f",
     "projections/dotnet/foundation/hlp.foundation.scheduling/README.md": "aff2f4712e5a452b39b83599d6a65bb742db1c529e3b483a53dd47fc21c91812",
     "projections/dotnet/foundation/hlp.foundation.scheduling/Services/IRruleExpansionService.cs": "6dc75b8024b81696ba3c691857694394095fbf371d9e5f825a0d655ae046c453",
     "projections/dotnet/foundation/hlp.foundation.scheduling/Services/InMemoryRruleExpansionService.cs": "23687ac2633e25a0dfdf5542312b0319f411cbe764e64b950269f013a7937350",

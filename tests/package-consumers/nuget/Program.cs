@@ -414,8 +414,12 @@ if (packedFirstOfMonth.Count != 3 || packedFirstOfMonth[2] != new DateOnly(2026,
 if (typeof(Harborline.Blocks.Scheduling.IDueOccurrenceSource).Assembly.GetName().Name != "Harborline.Blocks.Scheduling"
     || typeof(Harborline.Foundation.Scheduling.IRruleExpansionService).Assembly.GetType("Harborline.Foundation.Scheduling.IDueOccurrenceSource") is not null)
     throw new InvalidOperationException("Packed due seam is not owned exclusively by Scheduling.");
-var packedDueQueue = new Harborline.Blocks.Scheduling.RruleDueQueueQueryService(packedRrule,
-    new Harborline.Kernel.Core.KernelClock(new PackedSchedulingClock()));
+var packedDueServices = new ServiceCollection();
+packedDueServices.AddSingleton<Harborline.Foundation.Scheduling.IRruleExpansionService>(packedRrule);
+packedDueServices.AddSingleton(new Harborline.Kernel.Core.KernelClock(new PackedSchedulingClock()));
+Harborline.Blocks.Scheduling.DependencyInjection.ServiceCollectionExtensions.AddHarborlineSchedulingDueQueries(packedDueServices);
+using var packedDueProvider = packedDueServices.BuildServiceProvider(new ServiceProviderOptions { ValidateOnBuild = true, ValidateScopes = true });
+var packedDueQueue = packedDueProvider.GetRequiredService<Harborline.Blocks.Scheduling.IDueQueueQueryService>();
 var packedDueDefinition = new Harborline.Blocks.Scheduling.Definitions.ScheduleDefinition(null, "Daily",
     new(Harborline.Blocks.Scheduling.Definitions.ScheduleStartKind.Form, "inspection"),
     Basis: new Harborline.Blocks.Scheduling.Definitions.FixedCalendarBasis("FREQ=DAILY;COUNT=2"));

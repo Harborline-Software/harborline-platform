@@ -6,7 +6,7 @@
   "contentHashes": {
     "projections/dotnet/blocks/hlp.blocks.scheduling.restart-probe/Program.cs": "0ce14e9a33f6fdc3773ee880b2fcfdeddb9203cd91fd382d96841d4392796c24",
     "projections/dotnet/blocks/hlp.blocks.scheduling.restart-probe/Harborline.Blocks.Scheduling.RestartProbe.csproj": "a691564564535e1ccb409392bb3c287616d7dd923164cb3f63b6586805eb04ee",
-    "projections/dotnet/blocks/hlp.blocks.scheduling/DependencyInjection/ServiceCollectionExtensions.cs": "99da8ba1e2d1aa25026c3d740b153b52d711fddae1403b3f22621135acad7f59",
+    "projections/dotnet/blocks/hlp.blocks.scheduling/DependencyInjection/ServiceCollectionExtensions.cs": "07251652d696bf8150f49e4aa61d8f7c0cd7de7a8c974b476b0b7ee2766b3d8c",
     "projections/dotnet/blocks/hlp.blocks.scheduling/Definitions/ScheduleDefinition.cs": "1605a6cd9e4158b2614938ab001e7784a5c4c77f52047787b8f5b84a83a91c51",
     "projections/dotnet/blocks/hlp.blocks.scheduling/Definitions/ScheduleDefinitionAdmission.cs": "213ec1193d7339c95f04bd813e9d4fc7d8681402bbce4c2809d05bb6d5f2718c",
     "projections/dotnet/blocks/hlp.blocks.scheduling/Definitions/ScheduleDefinitionCatalogue.cs": "09bf80ee3ec0226087bb3174abe73d2add3e8734b03f0b4b1c65262754caf383",
@@ -32,7 +32,7 @@
     "projections/dotnet/blocks/hlp.blocks.scheduling/Planning/Fixtures/medical-pregnancy.unsatisfied.json": "681c9c431d668f082d464d696381cb92de06e7f4f835be0d58a373db65a855bd",
     "projections/dotnet/blocks/hlp.blocks.scheduling/Planning/PlanningModel.cs": "bc37da36b8ec5d885f7a07032356b30720969e4bccaef7470c0b6b01e21c0b7e",
     "projections/dotnet/blocks/hlp.blocks.scheduling/Planning/PlanningSolvers.cs": "8c086fa2c32dd8f4cede8786403ddd73bbc4856057541fdf41e39ce4f45dadda",
-    "projections/dotnet/blocks/hlp.blocks.scheduling/README.md": "2938b3d80d5db5de0ae00fb642ebbc859113aa6f7033bd8f31c9df0ad4f743ad",
+    "projections/dotnet/blocks/hlp.blocks.scheduling/README.md": "76c785114e5cc37ac77c79fbaba5d088ca9091fed49ca02abfdfc222c984de1d",
     "projections/dotnet/blocks/hlp.blocks.scheduling/ScheduleReservationCoordinator.cs": "454d8534626301cac45fa455c0ee509e49de9a274786ba61b2b6d72a5f8b8901",
     "projections/dotnet/blocks/hlp.blocks.scheduling/SchedulingDurableRecords.cs": "3464c54e346b0a22938dc21a25b9d1a00f13e01950ba31b36105f9dbaf4f139c",
     "projections/dotnet/blocks/hlp.blocks.scheduling/Telemetry/SchedulingTelemetry.cs": "37288941b4989594928b3fe777dd0bb29c373808a56411aec8494927381e8e05",

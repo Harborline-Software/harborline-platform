@@ -11,7 +11,7 @@ public static class SchedulingServiceCollectionExtensions
     /// <summary>
     /// Register the RRULE expansion producer. Idempotent via
     /// <see cref="ServiceCollectionDescriptorExtensions.TryAddSingleton{TService, TImplementation}(IServiceCollection)"/>
-    /// — re-invocation does not double-register.
+    /// - re-invocation does not double-register.
     /// </summary>
     public static IServiceCollection AddFoundationScheduling(this IServiceCollection services)
     {

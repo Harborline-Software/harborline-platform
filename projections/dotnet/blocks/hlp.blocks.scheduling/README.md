@@ -22,6 +22,8 @@ Harborline compatibility module for lease-serialized slot reservations and deter
 
 ## Due occurrences (T-491/occurrence-generation)
 
+`AddHarborlineSchedulingDueQueries` opts a host into due queries separately from reservation registration. The host registers its `KernelClock` and calls `AddFoundationScheduling` for the shared producer; Scheduling supplies no default clock.
+
 `IDueQueueQueryService.Query` reads the kernel clock once and dispatches the lone due date or the declared basis through `IDueOccurrenceSource`. Occurrences carry an instant-valued due point, optional earliest/latest, actual completion time, distinct on-time/early/late/void classification, and a stable identity. A late tolerance is not the validity deadline. A no-window occurrence never becomes void.
 
 - Fixed calendar binds a local start and IANA zone on each record's series and calls the shared RRULE producer; EXDATE wins over an override. Identity is series id plus the original local recurrence date-time, excluding the instant and node.

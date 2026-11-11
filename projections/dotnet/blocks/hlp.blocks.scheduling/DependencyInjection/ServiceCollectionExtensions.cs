@@ -10,8 +10,15 @@ public static class ServiceCollectionExtensions
     public static IServiceCollection AddHarborlineBlocksScheduling(this IServiceCollection services)
     {
         ArgumentNullException.ThrowIfNull(services);
-        services.TryAddSingleton<IDueQueueQueryService, RruleDueQueueQueryService>();
         services.TryAddSingleton<IScheduleReservationCoordinator, ScheduleReservationCoordinator>();
+        return services;
+    }
+
+    /// <summary>Registers due queries. The host must supply IRruleExpansionService and its authoritative KernelClock.</summary>
+    public static IServiceCollection AddHarborlineSchedulingDueQueries(this IServiceCollection services)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        services.TryAddSingleton<IDueQueueQueryService, RruleDueQueueQueryService>();
         return services;
     }
 }
