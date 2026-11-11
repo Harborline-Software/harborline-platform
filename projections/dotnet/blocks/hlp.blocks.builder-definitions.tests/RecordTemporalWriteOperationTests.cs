@@ -140,7 +140,7 @@ public sealed class RecordTemporalWriteOperationTests
         var outcome = await fixture.Writer.AmendAsync(new(Tenant, Actor), request);
         Assert.Equal(RecordTemporalWriteStatus.InvalidTemporalInput, outcome.Status);
         Assert.Equal(new[] { pointer }, outcome.Pointers);
-        Assert.Null(outcome.Decision);
+        Assert.Same(Assert.Single(fixture.Access.Evidence), outcome.Decision);
         Assert.Single(fixture.Access.Requests);
         Assert.True(Assert.Single(fixture.Access.Evidence).Allowed);
         Assert.Equal(0, fixture.Storage.ReceiptLookups);
@@ -455,6 +455,7 @@ public sealed class RecordTemporalWriteOperationTests
             Assert.Equal(new[] { "/operation_id" }, outcome.Pointers);
             Assert.Single(fixture.Access.Requests);
             Assert.True(Assert.Single(fixture.Access.Evidence).Allowed);
+            Assert.Same(Assert.Single(fixture.Access.Evidence), outcome.Decision);
             Assert.Equal(0, fixture.Storage.ReceiptLookups);
             Assert.Empty(fixture.Storage.Events);
             Assert.False(File.Exists(fixture.PathName));

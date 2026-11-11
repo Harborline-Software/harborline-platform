@@ -770,16 +770,16 @@ public sealed class RecordWriteOperation
             return TemporalRefused(new(AuthorizeStage, access.Check.Reason, [])) with { Decision = access.Evidence };
         var evidence = access.Evidence ?? throw new InvalidOperationException("The gate allowed without its evidence.");
         // RW-1 / records-eng-2: request-shape refusals follow the gate, before any store read.
-        if (!IsOperationId(operationId)) return TemporalRefused(new(ValidateStage, OperationIdInvalid, [OperationIdPointer]));
+        if (!IsOperationId(operationId)) return TemporalRefused(new(ValidateStage, OperationIdInvalid, [OperationIdPointer])) with { Decision = evidence };
         if (to is { } end && end.UtcTicks <= from.UtcTicks)
-            return TemporalStatus(RecordTemporalWriteStatus.InvalidTemporalInput, "/effective_to");
+            return TemporalStatus(RecordTemporalWriteStatus.InvalidTemporalInput, "/effective_to") with { Decision = evidence };
         if (kind == RecordTemporalCommandKind.Amend && (basis is null || basis.Revision <= 0 || basis.Revision == long.MaxValue
             || !RecordWriteJournalBinding.IsHash(basis.Hash)))
-            return TemporalStatus(RecordTemporalWriteStatus.InvalidTemporalInput, "/expected_predecessor");
+            return TemporalStatus(RecordTemporalWriteStatus.InvalidTemporalInput, "/expected_predecessor") with { Decision = evidence };
         if (kind == RecordTemporalCommandKind.Amend && TemporalBlank(reason))
-            return TemporalStatus(RecordTemporalWriteStatus.InvalidTemporalInput, "/reason");
+            return TemporalStatus(RecordTemporalWriteStatus.InvalidTemporalInput, "/reason") with { Decision = evidence };
         if (version is not null && TemporalBlank(version))
-            return TemporalStatus(RecordTemporalWriteStatus.InvalidTemporalInput, "/version");
+            return TemporalStatus(RecordTemporalWriteStatus.InvalidTemporalInput, "/version") with { Decision = evidence };
         JsonObject body;
         try
         {
@@ -792,7 +792,7 @@ public sealed class RecordWriteOperation
             if (reason is not null) _ = RecordWriteIntent.Strict.GetByteCount(reason);
         }
         catch (Exception error) when (error is EncoderFallbackException or InvalidOperationException or FormatException or ArgumentException)
-        { return TemporalRefused(new(ValidateStage, BodyInvalid, [])); }
+        { return TemporalRefused(new(ValidateStage, BodyInvalid, [])) with { Decision = evidence }; }
         basis = basis is null ? null : new(basis.Revision, basis.Hash);
         var key = new RecordWriteOperationKey(scope.Tenant, scope.ActorId, operationId);
         RecordTemporalTarget? metadata = null;

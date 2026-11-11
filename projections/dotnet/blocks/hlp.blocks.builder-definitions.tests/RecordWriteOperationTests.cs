@@ -247,11 +247,13 @@ public sealed class RecordWriteOperationTests
             new(first.Receipt.RecordId, "bad-amend", RecordTemporalWriteOperationTests.Basis(first), body,
                 RecordTemporalWriteOperationTests.GateAt, null, "reviewed"));
 
+        Assert.Same(fixture.Access.Evidence.ElementAt(1), created.Decision);
+        Assert.Same(fixture.Access.Evidence.ElementAt(2), amended.Decision);
         foreach (var refused in new[] { created, amended })
         {
             Assert.Equal(("validate", "entity.validation.body_invalid"), (refused.Refusal!.Stage, refused.Refusal.Code));
             Assert.Empty(refused.Pointers);
-            Assert.Null(refused.Decision);
+            Assert.True(refused.Decision!.Allowed);
         }
         Assert.Equal(requests + 2, fixture.Access.Requests.Count);
         Assert.Equal(lookups, fixture.Storage.ReceiptLookups);

@@ -67,6 +67,9 @@ public sealed class FileJournalRecordTemporalTests
         fixture.Access.Allow = true;
         var allowed = await Write();
         Assert.Equal(2, fixture.Access.Requests.Count);
+        // The fixture decider is the independent oracle for the exact evidence returned to the host.
+        Assert.Same(fixture.Access.Evidence.Last(), allowed.Decision);
+        Assert.True(allowed.Decision!.Allowed);
         if (invalid is "operation" or "body")
         {
             Assert.Equal(RecordTemporalWriteStatus.Refused, allowed.Status);
