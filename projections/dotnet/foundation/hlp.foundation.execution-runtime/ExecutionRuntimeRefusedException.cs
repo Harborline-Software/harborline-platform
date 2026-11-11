@@ -29,6 +29,9 @@ public static class ExecutionRuntimeRefusals
     /// <summary>A run identity is stored twice.</summary>
     public const string RunDuplicate = "execution.run_duplicate";
 
+    /// <summary>A run contains more than one wait for the same step identity.</summary>
+    public const string WaitDuplicate = "execution.wait_duplicate";
+
     /// <summary>A run identity is not in the tenant's store.</summary>
     public const string RunUnknown = "execution.run_unknown";
 
