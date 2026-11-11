@@ -35,4 +35,4 @@ Harborline compatibility module for lease-serialized slot reservations and deter
 
 ### Breaking pre-release package change
 
-The due seam, queue, completion models, generators and chain ledger types now live in `Harborline.Blocks.Scheduling`, rather than `Harborline.Foundation.Scheduling` or `Harborline.Blocks.RelativeChains`. There is no forwarding shim. The old RelativeChains project remains an empty build shell pending Chris's `validate.yml` wiring change; its 24 authored cases moved into Scheduling and remain linked into the old test runner target.
+The due seam, queue, completion models, generators and chain ledger types live in `Harborline.Blocks.Scheduling`. There is no forwarding shim.
