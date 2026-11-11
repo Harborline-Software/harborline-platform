@@ -93,6 +93,36 @@ public sealed class AttachmentWriteTests
         if (!expected) { Assert.Equal("field.evidence_required", outcome.Refusal!.Code); Assert.Equal("rules", outcome.Refusal.Stage); Assert.Equal(["/evidence"], outcome.Refusal.Pointers); Assert.Empty(fixture.Port.Rows); Assert.Equal(0, fixture.Store.CommittedCount); }
     }
 
+    // content-store-cc-2: Records evaluates an evidence condition through the shared Rules compiler on every write, so
+    // admission compiles it the same way. A condition the compiler refuses cannot reach a published generation.
+    [Theory]
+    [InlineData("""{"unsupported_operator":[]}""")]
+    [InlineData("""{">":[{"agg":["sum","rows","amount"]},0]}""")]
+    [InlineData("""{"==":[{"var":"caller.id"},"x"]}""")]
+    public async Task Content_store_cc_2_an_evidence_condition_the_rules_compiler_refuses_is_refused_at_admission(string expression)
+    {
+        var fixture = await Fixture.Create(condition: true);
+        var head = (await fixture.Records.GetPublishedHeadAsync("tenant-a", "eam.evidence"))!;
+        var bad = head with { Fields = [head.Fields[0] with { RequiredCondition = JsonSerializer.Deserialize<JsonElement>(expression) }, .. head.Fields.Skip(1)] };
+
+        var preflight = await fixture.Records.PreflightAsync("tenant-a", bad);
+        var previewed = Assert.Single(preflight.Refusals);
+        Assert.Equal("field.required_condition_invalid", previewed.Code);
+        Assert.Equal("/fields/0/required_condition", previewed.Pointer);
+        Assert.Null(preflight.JsonSchemaText);
+
+        var refused = await Assert.ThrowsAsync<DefinitionRefusalException>(async () =>
+            await fixture.Records.SaveDraftAsync("eam.evidence", bad, "1.0.1", 2, "bad-condition"));
+        var saved = Assert.Single(refused.Refusals);
+        Assert.Equal("field.required_condition_invalid", saved.Code);
+        Assert.Equal("/fields/0/required_condition", saved.Pointer);
+
+        // The working generation is untouched and still writable.
+        var body = List(await fixture.Upload("evidence"));
+        body["status"] = "closed";
+        Assert.True((await fixture.Write("still-writable", body)).Committed);
+    }
+
     [Fact]
     public async Task Kept_and_new_entries_round_trip_in_order_through_one_enclosing_write()
     {
