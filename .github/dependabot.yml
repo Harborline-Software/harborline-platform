@@ -2,15 +2,16 @@ version: 2
 updates:
   - package-ecosystem: "nuget"
     directory: "/"
-    # The Microsoft .NET 11 preview package set moves by hand as one reviewed change (control ticket 243):
-    # the preview.7 Blazor analyzers add BL0016 across the Blazor projections under warnings-as-errors.
     ignore:
       - dependency-name: "Microsoft.*"
+        update-types: ["version-update:semver-major"]
     schedule:
       interval: "weekly"
       day: "monday"
     open-pull-requests-limit: 5
     groups:
+      dotnet:
+        patterns: ["Microsoft.*", "System.*"]
       minor-and-patch:
         update-types: ["minor", "patch"]
   - package-ecosystem: "npm"
