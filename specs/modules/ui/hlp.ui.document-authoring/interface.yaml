@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.document-authoring",
+  "interfaceRevision": 1,
+  "semantics": {
+    "operation": "Author a local Documents template through a host supplied shared shell and request only non-minting server preview.",
+    "hostSeam": "The host owns the envelope, record-type binding, Layout surface/page-layout pin, persistence and authoritative DocumentRuntime.PreviewAsync. PageFlow is a supplied contract fixture; computing live page flow is held.",
+    "grammar": "Name, document type, document locale policy and masthead style; ordered blocks and lines of Layout literal/field runs with fallbacks; sm/md/lg collapse tokens; Layout first/left/right master region assignments and break-before, break-after and break-inside.",
+    "pendingEdits": "Identity or revision replaces a clean draft. A dirty replacement waits for Keep edits or Discard edits. Repeated offers of a kept revision do not re-prompt. Local generations fence server denials.",
+    "preview": "The request carries mode preview, draft, supplied page flow and an explicit record or labelled sample target. No issuance operation exists. Missing authority, unresolved replacements, malformed minted responses and failed requests refuse; stale asynchronous completions are ignored.",
+    "readOnly": "All authored controls, preview and pending-edit decisions are disabled; event handlers emit no changes.",
+    "held": "No block-label, per-run canonical format or live page-flow authoring is added."
+  },
+  "dependencies": [
+    "hlp.ui.button"
+  ],
+  "invariants": [
+    "Both lanes emit the shared literal fixture from an empty draft.",
+    "Host options accept strings and labelled objects; absent sections and unoffered current values remain explicit.",
+    "Document locale is not authoring UI locale. No client locale formatting occurs.",
+    "No UI adapter references Harborline.Foundation.Documents.",
+    "Geometry and numeric admission stay in Layout; window classes never choose container tokens."
+  ],
+  "presentation": {
+    "disposition": "required"
+  },
+  "cases": [
+    {
+      "id": "document-authoring.from-nothing"
+    }
+  ]
+}

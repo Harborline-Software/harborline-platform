@@ -93,3 +93,5 @@ export type {ControlArgs, ControlRegistry, ControlRenderer, RuleGraphLike, Schem
 export {projectRuleOutcomes, useFormRuleGraph, ReactiveSchemaForm} from '../../hlp.ui.use-form-rule-graph/src/index'
 export type {UseFormRuleGraphResult, ReactiveSchemaFormProps} from '../../hlp.ui.use-form-rule-graph/src/index'
 export * from '../../hlp.ui.confirm-dialog/src/index'
+
+export * from '../../hlp.ui.document-authoring/src/index'
