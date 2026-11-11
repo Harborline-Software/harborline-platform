@@ -5,7 +5,12 @@ using System.Text.Json;
 namespace Harborline.Blocks.BuilderDefinitions;
 
 /// <summary>A role the fixture's actor holds, and the scope it is held in.</summary>
-public sealed record VerificationGrant(string RoleKey, string Scope);
+/// <param name="RoleKey">The granted role.</param>
+/// <param name="Scope">The scope it is held in.</param>
+/// <param name="EffectiveFrom">Optional inclusive start of validity.</param>
+/// <param name="EffectiveTo">Optional exclusive end of validity.</param>
+public sealed record VerificationGrant(string RoleKey, string Scope,
+    DateTimeOffset? EffectiveFrom = null, DateTimeOffset? EffectiveTo = null);
 
 /// <summary>A registered external port and the deterministic simulator standing in for it.</summary>
 /// <param name="PortId">The port the candidate may reach.</param>
@@ -246,16 +251,34 @@ public sealed class VerificationSuite
             element.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.Array
                 ? value.EnumerateArray() : default;
 
+        var invalidInstants = new List<VerificationRefusal>();
+        DateTimeOffset? GrantInstant(JsonElement grant, string name, string fixtureId)
+        {
+            if (!grant.TryGetProperty(name, out var value)) return null;
+            if (value.ValueKind == JsonValueKind.String && DateTimeOffset.TryParse(value.GetString(),
+                    CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var instant)) return instant;
+            invalidInstants.Add(new("verification-fixture-grant-invalid", fixtureId,
+                $"Fixture {fixtureId} grant {Text(grant, "roleKey")}@{Text(grant, "scope")} has an invalid {name} instant."));
+            return null;
+        }
+
         var fixtures = Items(root, "fixtures").Select(fixture => new VerificationFixture(
             Text(fixture, "fixtureId"),
             DateTimeOffset.TryParse(Text(fixture, "instant"), CultureInfo.InvariantCulture,
                 DateTimeStyles.RoundtripKind, out var instant) ? instant : default,
             Text(fixture, "timeZone"), Text(fixture, "locale"), Text(fixture, "identifierSeed"),
             Text(fixture, "ordering"), Text(fixture, "actor"),
-            Items(fixture, "grants").Select(grant => new VerificationGrant(Text(grant, "roleKey"), Text(grant, "scope"))).ToArray(),
+            Items(fixture, "grants").Select(grant => new VerificationGrant(Text(grant, "roleKey"), Text(grant, "scope"),
+                GrantInstant(grant, "effectiveFrom", Text(fixture, "fixtureId")),
+                GrantInstant(grant, "effectiveTo", Text(fixture, "fixtureId")))).ToArray(),
             Items(fixture, "ports").Select(port => new VerificationPort(Text(port, "portId"), Text(port, "simulator"))).ToArray(),
             Items(fixture, "facts").Select(fact => new VerificationFact(Text(fact, "recordType"), Text(fact, "body"))).ToArray()))
             .ToArray();
+        if (invalidInstants.Count > 0)
+        {
+            refusals = invalidInstants.AsReadOnly();
+            return null;
+        }
         var cases = Items(root, "cases").Select(item => new VerificationCase(
             Text(item, "caseId"), Text(item, "title"), Text(item, "fixtureId"), Text(item, "actionId"),
             Map(item, "inputs"),
@@ -304,6 +327,10 @@ public sealed class VerificationSuite
             try { using var _ = JsonDocument.Parse(fact.BodyJson ?? string.Empty); }
             catch (JsonException) { refuse("verification-fixture-fact-invalid", target, "A seed fact body is not valid JSON."); }
         }
+        foreach (var grant in fixture.Grants ?? [])
+            if (grant.EffectiveFrom is { } from && grant.EffectiveTo is { } to && to <= from)
+                refuse("verification-fixture-grant-invalid", target,
+                    $"Fixture {fixture.FixtureId} grant {grant.RoleKey}@{grant.Scope} must have effectiveTo after effectiveFrom.");
         foreach (var port in fixture.Ports ?? [])
             if (string.IsNullOrWhiteSpace(port.PortId) || string.IsNullOrWhiteSpace(port.Simulator))
                 refuse("verification-fixture-port-invalid", target, "A declared port must name a port and its simulator.");
@@ -411,6 +438,10 @@ public sealed class VerificationSuite
             writer.WriteStartObject();
             writer.WriteString("roleKey", grant.RoleKey);
             writer.WriteString("scope", grant.Scope);
+            if (grant.EffectiveFrom is { } from)
+                writer.WriteString("effectiveFrom", from.ToUniversalTime().ToString("O", CultureInfo.InvariantCulture));
+            if (grant.EffectiveTo is { } to)
+                writer.WriteString("effectiveTo", to.ToUniversalTime().ToString("O", CultureInfo.InvariantCulture));
             writer.WriteEndObject();
         }
         writer.WriteEndArray();
