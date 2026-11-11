@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.blocks.workflow",
-  "interfaceRevision": 11,
+  "interfaceRevision": 12,
   "status": "frozen",
   "purpose": "Own the workflow engine core — the typed state-machine runtime, the provider-neutral durable-execution seams (store port, dispatcher, admission gate, effect broker, definition-store port, typed step handlers), and the built-in durable file-journal store — without importing an entity store, an EF/SQLite host topology, a financial cluster, or a UI framework.",
   "dependencies": ["hlp.contracts.identities", "hlp.foundation.definitions"],
@@ -47,7 +47,8 @@
     "The built-in durable workflow adapter holds one exclusive process lock for its lifetime and is a single-process/single-node adapter; it does not claim distributed leases or multi-node high availability.",
     "The durable store registration refuses layering over an already-registered store.",
     "Route-level semantics narrow to the engine seams: cross-tenant and absent instances are indistinguishable at the caller interface, admission refusals fail closed before persistence, and real HTTP status mapping is proven by the package-only loopback host.",
-    "Revision 7 (T-1176 Q1, owner ruling 2026-11-07): admission refuses a RequiredRoles or RequiredStandings gate on a transition whose trigger is not HumanAction, or on an action that fires without a HumanAction gating it, with workflow.admission.gate_on_autonomous_step; autonomy is the CP fence's own test. IWorkflowGateAccess is the host port a role gate is decided through: the engine asks with a WorkflowGateIntent built from the pinned definition and the verified dispatch principal, and refuses an answer that does not bind it (workflow.gate.answer_unbound) or is not satisfied (workflow.gate.denied). IDeclarativeWorkflowInterpreter gains an overload taking the verified WorkflowDispatchAuthority, which the dispatcher calls."
+    "Revision 7 (T-1176 Q1, owner ruling 2026-11-07): admission refuses a RequiredRoles or RequiredStandings gate on a transition whose trigger is not HumanAction, or on an action that fires without a HumanAction gating it, with workflow.admission.gate_on_autonomous_step; autonomy is the CP fence's own test. IWorkflowGateAccess is the host port a role gate is decided through: the engine asks with a WorkflowGateIntent built from the pinned definition and the verified dispatch principal, and refuses an answer that does not bind it (workflow.gate.answer_unbound) or is not satisfied (workflow.gate.denied). IDeclarativeWorkflowInterpreter gains an overload taking the verified WorkflowDispatchAuthority, which the dispatcher calls.",
+    "Revision 12 (T-1176/platform-gate-instant): WorkflowGateIntent carries DateTimeOffset DecidedAt and Binds compares it. The interpreter requires the host TimeProvider through RequireClock, reads GetUtcNow once on the verified WorkflowDispatchAuthority overload per act, and carries that same instant to its human transition and effecting action gates. Trigger payload time is evidence only and cannot supply the instant; an answer at another instant is workflow.gate.answer_unbound. The store event clock remains separate."
   ],
   "errors": [
     "workflow.admission.action_unclassified",
