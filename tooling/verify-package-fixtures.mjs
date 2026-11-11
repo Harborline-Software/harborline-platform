@@ -1510,10 +1510,12 @@ function verifyReportsCapability() {
       'Harborline.Foundation.Authorization', 'Harborline.Foundation.MultiTenancy',
       // T-489 S4a: ReportDefinitionEnvelope carries the shared DefinitionContractVersion (T-572), and admission
       // reports its stage with the shared DefinitionAdmissionPhase, both from Foundation.Definitions.
-      'Harborline.Foundation.Definitions'],
+      'Harborline.Foundation.Definitions', 'Harborline.Blocks.BuilderDefinitions',
+      'Harborline.Foundation.RuleAuthoring', 'Harborline.Foundation.RuleEngine', 'Harborline.Foundation.Taxonomy',
+      'Harborline.Kernel.Core', 'Harborline.Kernel.SchemaValidation'],
     'Reports',
     // T-732: see the identical note in verifySchedulingCapability.
-    /(?:Financial|Tax|Forms|Workflows|EntityViews|Kernel(?!\.SchemaValidation\b)|Blazor|React)/i,
+    /(?:Financial|Tax(?!onomy\b)|Forms|Workflows|EntityViews|Kernel(?!\.(?:SchemaValidation|Core)\b)|Blazor|React)/i,
   )
 
   return { id: 'reports-capability-vertical', status: 'PASS', anchors: 162, hostRows: 12, clientRows: 3, crossLanePairs: 0, corpusSha256: sha256(corpusSource), directPackageReferences: direct, packageClosure: closure, sourceOrProjectDependencies: 0, packageProof, capabilityProof }
