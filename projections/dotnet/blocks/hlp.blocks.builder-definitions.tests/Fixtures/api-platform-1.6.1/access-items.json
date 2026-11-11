@@ -1,0 +1,24 @@
+{
+  "_source": {
+    "repository": "Harborline-Software/harborline-api",
+    "commit": "0a7a163c73c48779e8264f2ebeefe0b77915d4bc",
+    "path": "_shared/packs/platform/platform-pack.export.json",
+    "version": "1.6.1"
+  },
+  "platform.role.administrator": {
+    "kind": "RoleDefinition",
+    "content": {"role": "administrator", "displayName": "Administrator"}
+  },
+  "platform.role.auditor": {
+    "kind": "RoleDefinition",
+    "content": {"role": "auditor", "displayName": "Auditor"}
+  },
+  "platform.binding.catalogue-read": {
+    "kind": "AuthorizationCapabilityBinding",
+    "content": {"operation": "catalogue:read", "scope": "/", "offeredRoles": ["sys.platform-roles/administrator"]}
+  },
+  "platform.binding.records-read": {
+    "kind": "AuthorizationCapabilityBinding",
+    "content": {"operation": "records:read", "scope": "/", "offeredRoles": ["sys.platform-roles/administrator"]}
+  }
+}
