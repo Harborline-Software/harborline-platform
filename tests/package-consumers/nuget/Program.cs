@@ -536,7 +536,7 @@ if (!BuilderDefinitions.PlatformPackageReplayer.Validate(platformManifest).Succe
     throw new InvalidOperationException("Packed Builder Definitions platform manifest validation failed.");
 if (!BuilderDefinitions.PlatformPackageSeed.VerifyCheckedInExport())
     throw new InvalidOperationException("Packed Builder Definitions canonical platform export differs from its producer.");
-if (BuilderDefinitions.PlatformPackageSeed.Manifest.Items.Count != 19)
+if (BuilderDefinitions.PlatformPackageSeed.Manifest.Items.Count != 63)
     throw new InvalidOperationException("Packed Builder Definitions canonical platform seed inventory is incomplete.");
 var generationReference = new BuilderDefinitions.ConfigurationReference("platform", "1.0.0", new string('a', 64));
 var generationInput = new BuilderDefinitions.ResolvedConfiguration("tenant-a", ["platform"],

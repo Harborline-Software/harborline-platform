@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.document-authoring",
+  "fixtureRevision": 1,
+  "description": "Literal oracle from DES-0021 authoring and LayoutTextRun/LayoutPageMasterDefinition; never captured from editor output. Page flow is supplied by the host, not computed here.",
+  "cases": [
+    {
+      "id": "document-authoring.from-nothing",
+      "input": {
+        "steps": [
+          {"set":"Template name","value":"template.invoice"},
+          {"set":"Document type","value":"invoice"},
+          {"set":"Locale policy","value":"fixed"},
+          {"set":"Document locale","value":"fr-FR"},
+          {"set":"Brand name","value":"Harborline"},
+          {"set":"Logo asset reference","value":"sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"},
+          {"set":"first centerRegion","value":"masthead"},
+          {"set":"left leftRegion","value":"folio"},
+          {"set":"right rightRegion","value":"folio"},
+          {"click":"Add block"},
+          {"set":"Block 1 container token","value":"md"},
+          {"check":"Block 1 break before"},
+          {"check":"Block 1 break after"},
+          {"set":"Block 1 break inside","value":"avoid_page"},
+          {"click":"Add line to block 1"},
+          {"click":"Add literal to line 1 in block 1"},
+          {"set":"Block 1 line 1 run 1 literal","value":"Total: "},
+          {"click":"Add merge to line 1 in block 1"},
+          {"set":"Block 1 line 1 run 2 field","value":"record.total"},
+          {"set":"Block 1 line 1 run 2 fallback","value":"Not supplied"}
+        ]
+      },
+      "expected": {
+        "identity":"","revision":null,"name":"template.invoice","documentType":"invoice",
+        "locale":{"kind":"fixed","tag":"fr-FR"},"style":{"brandName":"Harborline","logoAssetRef":"sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"},
+        "blocks":[{"id":"block-1","collapseBelow":"md","breakBefore":true,"breakAfter":true,"breakInside":"avoid_page","lines":[{"runs":[{"text":"Total: "},{"fieldPath":"record.total","fallback":"Not supplied"}]}]}],
+        "masters":{"first":{"centerRegion":"masthead"},"left":{"leftRegion":"folio"},"right":{"rightRegion":"folio"}}
+      }
+    }
+  ]
+}
