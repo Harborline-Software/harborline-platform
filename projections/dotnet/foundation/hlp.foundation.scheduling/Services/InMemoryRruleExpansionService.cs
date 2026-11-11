@@ -23,6 +23,16 @@ namespace Harborline.Foundation.Scheduling;
 /// </remarks>
 public sealed class InMemoryRruleExpansionService : IRruleExpansionService
 {
+    /// <summary>Validates author-time RRULE grammar without inventing a series start or expanding dates.</summary>
+    /// <exception cref="ArgumentException">The rule is blank.</exception>
+    /// <exception cref="FormatException">A rule part is malformed.</exception>
+    /// <exception cref="NotSupportedException">A rule part is outside the bounded subset.</exception>
+    public static void ValidateRule(string rrule)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(rrule);
+        _ = RruleSubset.Parse(rrule);
+    }
+
     /// <summary>Hard cap on occurrences per call, matching the ui-react <c>expandRecurrence</c> 1 000-occurrence guard.</summary>
     private const int OccurrenceCap = 1_000;
 

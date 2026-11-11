@@ -268,7 +268,7 @@ public sealed class ScheduleDefinitionCatalogueTests
             JsonSerializer.SerializeToElement(new { pack = "general" }), "standard", false, [], new DefinitionContractVersion(1, 0)),
         name,
         new ScheduleStarts(ScheduleStartKind.Form, "forms.inspection"),
-        Window: new("2027-01-01T00:00:00Z", "2027-01-31T00:00:00Z"));
+        DueDate: "2027-01-01T00:00:00Z", Window: new("2027-01-01T00:00:00Z", "2027-01-31T00:00:00Z"));
 
     private Task<DefinitionRevision> SaveRawAsync(string body)
         => _store.SaveDraftAsync(new DefinitionDocument(Key, "inspection.quarterly@1.0.0", "1.0.0", body), 0, "draft").AsTask();

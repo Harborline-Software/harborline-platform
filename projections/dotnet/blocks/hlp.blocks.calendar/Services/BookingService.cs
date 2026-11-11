@@ -166,13 +166,13 @@ public sealed class BookingService : IBookingService
         EventPadding padding)
     {
         var tz = TimezoneResolver.Resolve(timezone);
-        var localStart = TimeZoneInfo.ConvertTime(startUtc, tz);
-        var localEnd = TimeZoneInfo.ConvertTime(endUtc, tz);
+        var localStart = Harborline.Foundation.Scheduling.WallClockResolver.ToLocalDateTime(startUtc, TimezoneResolver.IanaId(tz));
+        var localEnd = Harborline.Foundation.Scheduling.WallClockResolver.ToLocalDateTime(endUtc, TimezoneResolver.IanaId(tz));
 
-        var startDate = DateOnly.FromDateTime(localStart.DateTime);
-        var endDate = DateOnly.FromDateTime(localEnd.DateTime);
-        var startTime = TimeOnly.FromDateTime(localStart.DateTime);
-        var endTime = TimeOnly.FromDateTime(localEnd.DateTime);
+        var startDate = DateOnly.FromDateTime(localStart);
+        var endDate = DateOnly.FromDateTime(localEnd);
+        var startTime = TimeOnly.FromDateTime(localStart);
+        var endTime = TimeOnly.FromDateTime(localEnd);
 
         var ev = CalendarEvent.Create(
             tenantId:  tenantId,

@@ -17,6 +17,16 @@ namespace Harborline.Foundation.Scheduling;
 /// </remarks>
 public static class WallClockResolver
 {
+    /// <summary>Converts a kernel instant to the series' local date and time using the same IANA database as resolution.</summary>
+    /// <exception cref="ArgumentException">Thrown when the zone is unknown.</exception>
+    public static DateTime ToLocalDateTime(DateTimeOffset instant, string timezone)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(timezone);
+        var zone = DateTimeZoneProviders.Tzdb.GetZoneOrNull(timezone)
+            ?? throw new ArgumentException($"'{timezone}' is not an IANA time zone id.", nameof(timezone));
+        return Instant.FromDateTimeOffset(instant).InZone(zone).LocalDateTime.ToDateTimeUnspecified();
+    }
+
     /// <summary>Resolves <paramref name="date"/> at <paramref name="time"/> in <paramref name="timezone"/> to a UTC instant.</summary>
     /// <exception cref="ArgumentException">Thrown when <paramref name="timezone"/> is not an IANA time zone id.</exception>
     public static DateTimeOffset ToUtcInstant(DateOnly date, TimeOnly time, string timezone)

@@ -1,5 +1,7 @@
 # Harborline.Blocks.RelativeChains
 
-Wave-1 deterministic generator substrate for ticket 086. It expands immutable external anchors and predecessor dependencies into append-only, date/revision-versioned occurrences, emits explicit supersession records, reports typed failures, and adapts only successful current occurrences to `IDueOccurrenceSource`.
+## Retired implementation — T-491/occurrence-generation
 
-Persistence, compare-and-append serialization, booking, medical policy, repair commits, and ambient clock/timezone reads are outside this package. Consumers persist the rich ledger and enforce `ExpectedPriorLedgerVersion` atomically.
+The generator, validation, versioned occurrence ledger and supersession evidence moved to `Harborline.Blocks.Scheduling`, behind its instant-valued due seam. Chains use one external anchor, ISO duration offsets and per-node validity windows and tolerance. Consume Scheduling for all chain work.
+
+This empty build/package shell remains only because `.github/workflows/validate.yml` wiring is reserved for Chris. All 24 authored cases have their canonical source under Scheduling tests and remain linked into the old test target until that wiring changes.
