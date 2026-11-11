@@ -8,7 +8,7 @@
     "projections/dotnet/contracts/hlp.contracts.identities/EntityId.cs": "00b43910d1f8d87d3929caa1b019d3bf47adf37953f429cc525e70dae23b6825",
     "projections/dotnet/contracts/hlp.contracts.identities.tests/IdentityContractTests.cs": "f309427a4625ef94e0b75dc332f1b11565e4c1fad17dae74b9c4f6cda9523a98",
     "conformance/hlp.contracts.identities/fixtures.yaml": "cebf3b224b25f1a43b45d45e9ec22e88fd889d33790e66b6078f5c06ce3ef2c8",
-    "specs/modules/contracts/hlp.contracts.identities/interface.yaml": "f94332cff85bf60d95b7b1af98490313905dda5a4e1df4693713fcc07a96b534",
+    "specs/modules/contracts/hlp.contracts.identities/interface.yaml": "df85ffea5a555e0a95c270371ed256c7f39c67a4f22c3c168dbbfd2052a12274",
     "projections/dotnet/contracts/hlp.contracts.identities/Fields/FieldDefinitions.cs": "884c6f770a959a42bc80e523e75a692b4077c209391061afc0b3316f6c77dc0f"
   },
   "nextGate": "Consume through the completed tenancy package and continue the next dependency-ready Wave-0 contract without changing aggregate authority."

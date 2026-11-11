@@ -29,7 +29,6 @@
   ],
   "invariants": [
     "TemporalFormat is absent or exactly date, date-time or time, legal only on ValueShape Text. FieldScalarValueShape remains Text, Boolean, Integer, Number.",
-    "FieldKindRegistry refuses invalid temporal declarations at registration with field.kind_registration_invalid at the root pointer; failed construction exposes no registry. Resolve retains the format on the immutable exact KindId@Version snapshot.",
     "Temporal meaning is declared once on the kind revision, separate from display configuration. No Records body, view, schema-validation or RFC 3339 value check is added; temporal values remain JSON strings.",
     "TenantId and EntityId are not interchangeable despite both having string wire forms.",
     "A default TenantId and every reserved-prefix TenantId are system sentinels and must be rejected by tenant-scoped operations.",
