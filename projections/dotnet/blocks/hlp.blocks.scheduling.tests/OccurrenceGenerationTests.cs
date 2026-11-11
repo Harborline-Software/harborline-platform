@@ -98,15 +98,15 @@ public sealed class OccurrenceGenerationTests
         {
             LocalStart = L("2026-07-01T09:00:00"), Timezone = "UTC",
             ExceptionDates = new HashSet<DateTime> { L("2026-07-02T09:00:00") },
-            Overrides = new Dictionary<DateTime, DateTime> { [L("2026-07-03T09:00:00")] = L("2026-07-04T11:00:00") },
+            Overrides = new Dictionary<DateTime, DateTime> { [L("2026-07-03T09:00:00")] = L("2026-07-14T11:00:00") },
         } };
         var occurrences = Query(request);
-        Assert.Equal([I("2026-07-01T09:00:00Z"), I("2026-07-04T11:00:00Z")], occurrences.Select(o => o.Due));
+        Assert.Equal([I("2026-07-01T09:00:00Z"), I("2026-07-14T11:00:00Z")], occurrences.Select(o => o.Due));
         Assert.Equal("series/2026-07-03T09%3A00%3A00.0000000", occurrences[1].OccurrenceId);
         Assert.Equal(occurrences.Select(o => o.OccurrenceId), Query(request).Select(o => o.OccurrenceId));
         var changedZone = Query(request with { Series = request.Series with { Timezone = "Pacific/Auckland" } });
         Assert.Equal(occurrences.Select(o => o.OccurrenceId), changedZone.Select(o => o.OccurrenceId));
-        var clipped = Query(request with { From = I("2026-07-04T00:00:00Z"), To = I("2026-07-04T23:00:00Z") });
+        var clipped = Query(request with { From = I("2026-07-14T00:00:00Z"), To = I("2026-07-14T23:00:00Z") });
         Assert.Equal(occurrences[1].OccurrenceId, Assert.Single(clipped).OccurrenceId);
     }
 
@@ -126,6 +126,40 @@ public sealed class OccurrenceGenerationTests
         Assert.Equal(I(latest), occurrence.Latest);
         Assert.Equal("series/completion/after/done", occurrence.OccurrenceId);
         Assert.Equal(occurrence.OccurrenceId, Assert.Single(Query(request, "2026-12-31T00:00:00Z")).OccurrenceId);
+    }
+
+    [Theory]
+    [InlineData("2026-01-02T00:00:00Z", "2028-09-26T23:59:00Z", 999, "2026-01-02T09:00:00Z", "2028-09-26T09:00:00Z")]
+    [InlineData("2026-01-01T00:00:00Z", "2028-09-26T23:59:00Z", 1000, "2026-01-01T09:00:00Z", "2028-09-26T09:00:00Z")]
+    [InlineData("2026-01-01T10:00:00Z", "2028-09-27T08:00:00Z", 999, "2026-01-02T09:00:00Z", "2028-09-26T09:00:00Z")]
+    [InlineData("2026-01-01T10:00:00Z", "2028-09-28T08:00:00Z", 1000, "2026-01-02T09:00:00Z", "2028-09-27T09:00:00Z")]
+    public void PaddingDoesNotSpendTheSupportedQueryOccurrenceBudget(string from, string to, int count, string firstDue, string lastDue)
+    {
+        var request = Request(Definition(new FixedCalendarBasis("FREQ=DAILY")));
+        request = request with { Series = request.Series with { LocalStart = L("2026-01-01T09:00:00"), Timezone = "UTC" },
+            From = I(from), To = I(to) };
+        var occurrences = Query(request);
+        Assert.Equal(count, occurrences.Count);
+        Assert.Equal(I(firstDue), occurrences[0].Due);
+        Assert.Equal(I(lastDue), occurrences[^1].Due);
+    }
+
+    [Fact]
+    public void AQueryActuallyExceedingThousandOccurrencesStillRefuses()
+    {
+        var request = Request(Definition(new FixedCalendarBasis("FREQ=DAILY")));
+        request = request with { Series = request.Series with { LocalStart = L("2026-01-01T09:00:00"), Timezone = "UTC" },
+            From = I("2026-01-01T00:00:00Z"), To = I("2028-09-27T23:59:00Z") };
+        Assert.Equal("scheduling.occurrence.occurrence_cap_exceeded", Assert.Throws<OccurrenceRefusalException>(() => Query(request)).Code);
+    }
+
+    [Fact]
+    public void MergedGapOccurrencesStillRespectTheThousandOccurrenceLimit()
+    {
+        var request = Request(Definition(new FixedCalendarBasis("FREQ=DAILY")));
+        request = request with { Series = request.Series with { LocalStart = L("2026-03-28T23:30:00"), Timezone = "America/Nuuk" },
+            From = I("2026-03-29T01:00:00Z"), To = I("2028-12-23T01:59:00Z") };
+        Assert.Equal("scheduling.occurrence.occurrence_cap_exceeded", Assert.Throws<OccurrenceRefusalException>(() => Query(request)).Code);
     }
 
     [Fact]

@@ -58,6 +58,8 @@ public sealed class LoneDueOccurrenceSource : IDueOccurrenceSource
 /// <summary>The fixed-calendar generator owns exclusions and overrides above the shared RRULE producer.</summary>
 public sealed class RruleDueOccurrenceSource(IRruleExpansionService rrule) : IDueOccurrenceSource
 {
+    private const int OccurrenceLimit = 1_000;
+
     /// <inheritdoc />
     public IReadOnlyList<SchedulingOccurrence> DeriveDue(DueOccurrenceRequest request, DateTimeOffset kernelInstant)
     {
@@ -67,27 +69,38 @@ public sealed class RruleDueOccurrenceSource(IRruleExpansionService rrule) : IDu
         var basis = (FixedCalendarBasis)series.Definition.Basis!;
         var from = DateOnly.FromDateTime(WallClockResolver.ToLocalDateTime(request.From, zone));
         var to = DateOnly.FromDateTime(WallClockResolver.ToLocalDateTime(request.To, zone));
-        // A gap can carry a nominal recurrence into the next local date; resolve first, then filter the instant.
         if (from > DateOnly.MinValue) from = from.AddDays(-1);
         if (to < DateOnly.MaxValue) to = to.AddDays(1);
         var time = TimeOnly.FromDateTime(start);
-        var dates = rrule.ExpandZonedOccurrences(basis.Rrule, DateOnly.FromDateTime(start), time, zone, to, 0, 0, from);
-        var originals = dates.Select(d => d.ToDateTime(time)).ToHashSet();
-        // An override can move an original from outside the query horizon into it, retaining the original identity.
-        foreach (var original in (series.Overrides ?? new Dictionary<DateTime, DateTime>()).Keys)
+        IReadOnlyList<DateOnly> Expand(DateOnly first, DateOnly last) =>
+            rrule.ExpandZonedOccurrences(basis.Rrule, DateOnly.FromDateTime(start), time, zone, last, 0, 0, first);
+        IEnumerable<DateTime> Originals()
         {
-            if (original < start || TimeOnly.FromDateTime(original) != time) continue;
-            var date = DateOnly.FromDateTime(original);
-            if (rrule.ExpandZonedOccurrences(basis.Rrule, DateOnly.FromDateTime(start), time, zone, date, 0, 0, date).Contains(date))
-                originals.Add(original);
+            // The bounded subset emits at most one date per day; paging keeps padding out of the result budget.
+            for (var first = from; first <= to;)
+            {
+                var last = DateOnly.FromDayNumber(Math.Min(to.DayNumber, first.DayNumber + OccurrenceLimit - 1));
+                foreach (var date in Expand(first, last)) yield return date.ToDateTime(time);
+                if (last == to) break;
+                first = last.AddDays(1);
+            }
+            // An override can move an original from outside the expanded range into the query, keeping its identity.
+            foreach (var original in (series.Overrides?.Keys ?? Enumerable.Empty<DateTime>()).Order())
+            {
+                if (original < start || TimeOnly.FromDateTime(original) != time) continue;
+                var date = DateOnly.FromDateTime(original);
+                if (date >= from && date <= to) continue;
+                if (Expand(date, date).Contains(date)) yield return original;
+            }
         }
         var result = new List<SchedulingOccurrence>();
-        foreach (var original in originals.Order())
+        foreach (var original in Originals())
         {
             if (series.ExceptionDates?.Contains(original) == true) continue;
             var local = series.Overrides is { } overrides && overrides.TryGetValue(original, out var moved) ? moved : original;
             var due = WallClockResolver.ToUtcInstant(DateOnly.FromDateTime(local), TimeOnly.FromDateTime(local), zone);
             if (!OccurrenceTime.InRange(request, due)) continue;
+            if (result.Count == OccurrenceLimit) throw new OccurrenceRefusalException("scheduling.occurrence.occurrence_cap_exceeded");
             var identity = OccurrenceTime.Key(series.SeriesId, original.ToString("yyyy-MM-dd'T'HH:mm:ss.fffffff", System.Globalization.CultureInfo.InvariantCulture));
             result.Add(OccurrenceTime.Create(request, kernelInstant, identity, due, series.Definition.Window, series.Definition.Tolerance, original));
         }

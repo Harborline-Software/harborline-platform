@@ -37,7 +37,8 @@
     "Scheduling definitions carry semantic-version heads on the shared versioned-definition store (scheduling-ck-20); a published version is immutable, restore registers a new draft whose publication moves the head (scheduling-ck-21), and a consumer resolves only an exact published pin (scheduling-eng-1). L491's integer revisions are retired: a non-semantic version, a body revision member, a numeric body version or a version id not derived from the semantic version refuses, and a journal still holding a draft frame refuses at startup.",
     "A no-basis schedule carries its own due instant and may carry a window; a basis carries no lone due date. Every window contains due; chain windows sit on nodes.",
     "Calendar identity is series id plus original local recurrence date-time, without instant or node; completion-offset identity uses the completion id (or first), threshold uses the triggering reading and re-arm completion, chain uses its immutable node-ledger revision.",
-    "Initial markers and caller completion ids have disjoint identity shapes; resolved instants are filtered only after padded nominal-date expansion handles midnight-crossing gaps."
+    "Initial markers and caller completion ids have disjoint identity shapes; resolved instants are filtered only after padded nominal-date expansion handles midnight-crossing gaps.",
+    "Fixed-calendar expansion streams padded nominal dates in pages of at most 1000 days, then filters exact instants and exceptions before enforcing the merged 1000-occurrence cap. Padding and partial-day boundaries do not consume the result budget; each producer call keeps its own unchanged 1000-occurrence cap. Neither path returns a partial result."
   ],
   "errors": [
     "scheduling.unassigned.resource-capacity",
@@ -81,7 +82,8 @@
     "scheduling.occurrence.chain_DeletedAnchor",
     "scheduling.occurrence.chain_DateArithmeticOverflow",
     "scheduling.occurrence.chain_AmbiguousCurrentOccurrence",
-    "scheduling.occurrence.chain_CorruptLedger"
+    "scheduling.occurrence.chain_CorruptLedger",
+    "scheduling.occurrence.occurrence_cap_exceeded"
   ],
   "publicSeams": [
     "lease provider port (local compatibility shape pending a platform lease kernel)",
@@ -92,7 +94,7 @@
   ],
   "conformance": {
     "nativeTests": {
-      "dotnet": 351
+      "dotnet": 357
     },
     "nativeTestNote": "Reservation/planning coverage plus due generation, literal window classification, admission, per-series kernel clock, all four identities and migrated authored chain/ledger cases."
   },
