@@ -7,7 +7,8 @@ legal transitions, the substrate's named retry profiles, the dead-letter path, a
 receipt per logical effect, its closed effect-status vocabulary, and ambiguity reconciliation evidence.
 
 Each engine registers its run kind and keeps its own state in its own store; the substrate holds
-identity, status, attempts, retry profile, dead-letter and `caused_by` only. Effect receipts retain
+identity, status, attempts, retry profile, dead-letter, `caused_by` and waits (step id, reason, registration
+time, timer wake-up and claim) only. Effect receipts retain
 their required non-secret references and evidence but never engine payloads or secret values. Engine
 adoption, the execution trace and the observe channel are later T-528 slices. The package is local
 and distribution-blocked.

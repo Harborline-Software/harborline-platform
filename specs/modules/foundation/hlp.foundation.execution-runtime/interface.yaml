@@ -27,7 +27,7 @@
       "EffectReceipt.CompensatesEffectId -> optional backlink attesting to the one original effect this compensation was executed for; the workflow engine supplies it from declared compensating-step execution context; a present id is valid and non-self, and may coexist with the receipt's own forward CompensationEffectId",
       "EffectReceiptLedger.CheckCompensationAsync(tenant, originalEffectId) -> a read-only pair check; compensated and compensation-failed originals require a target with the requested tenant and forward identity whose CompensatesEffectId equals the original effect id; missing/inconsistent receipt evidence refuses execution.effect_receipt_invalid naming the known effects, while malformed effect identities retain execution.effect_identity_invalid; a missing original is refused by its own id, and other original statuses impose no compensation check",
       "DueRunDispatcher(registry, store, clock, dispatcherId, lease = five minutes).DispatchAsync(tenant) -> one serialized tenant pass; before its first pass for a tenant clears only its stable node id timer claims; returns due run ids missing handlers without claiming them; retry claims use BeginAttemptAsync, timer claims write owner and expiry through UpdateAsync; handler errors propagate",
-      "RunRecord.Waits -> parallel pending RunWait entries with immutable step id, closed RunWaitReason (human-task, timer, dependency), UTC BeganUtc and timer-only fixed UTC WakeUpUtc; Hold()/Release() preserve registration data; IsHeld excludes dispatch; timer claims expose ClaimDispatcherId and ClaimExpiresUtc"
+      "RunRecord.Waits -> parallel pending RunWait entries with unique immutable step ids per run (duplicate ids on CreateAsync or UpdateAsync refuse execution.wait_duplicate), closed RunWaitReason (human-task, timer, dependency), UTC BeganUtc and timer-only fixed UTC WakeUpUtc; Hold()/Release() preserve registration data; IsHeld excludes dispatch; timer claims expose ClaimDispatcherId and ClaimExpiresUtc"
     ],
     "context": "Each engine registers its run kind and keeps its engine state in its own store (owner ruling 2026-09-29). The substrate also holds one non-secret effect receipt per logical effect. T-1028's owner-approved backlink is producer-attested linkage, not proof of external compensation correctness. T-488 must later stamp the backlink and call the pair checker after both receipts are durable, including recovery after a crash between recording and checking; recovery/audit may repeat it. That engine integration and the execution trace, Access decision link and authorized observe wiring are not claimed by this slice."
   },
@@ -49,6 +49,7 @@
     "execution.run_kind_duplicate",
     "execution.run_kind_unregistered",
     "execution.run_duplicate",
+    "execution.wait_duplicate",
     "execution.run_unknown",
     "execution.run_concurrency_conflict",
     "execution.caused_by_invalid",

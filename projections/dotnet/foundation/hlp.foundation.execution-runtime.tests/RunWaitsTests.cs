@@ -30,6 +30,40 @@ public sealed class RunWaitsTests
         Assert.Equal("approval", (await store.GetAsync(run.TenantId, run.Id))!.Waits[0].StepId);
     }
 
+    [Fact]
+    public async Task Add_refuses_duplicate_step_ids_so_a_held_first_wait_cannot_starve_a_later_due_timer()
+    {
+        // Oracle: M11 ruling on PR #470: one step id identifies one wait per run.
+        var now = new DateTimeOffset(2026, 11, 10, 12, 0, 0, TimeSpan.Zero);
+        var run = new RunRecord { Id = RunId.New(new RunKind("workflow-run")), TenantId = new TenantId("one"), Status = RunStatus.Running, RetryProfile = RetryProfileName.ExternalApiStandard, CreatedUtc = now, UpdatedUtc = now,
+            Waits = [new RunWait("step", RunWaitReason.HumanTask, now).Hold(), new("step", RunWaitReason.Timer, now, now)] };
+        var store = new InMemoryRunStore();
+
+        var refusal = await Assert.ThrowsAsync<ExecutionRuntimeRefusedException>(() => store.CreateAsync(run).AsTask());
+
+        Assert.Equal("execution.wait_duplicate", refusal.Code);
+        Assert.Null(await store.GetAsync(run.TenantId, run.Id));
+    }
+
+    [Fact]
+    public async Task Update_refuses_duplicate_step_ids_so_a_held_first_wait_cannot_starve_a_later_due_timer()
+    {
+        // Oracle: M11 ruling on PR #470; a refused update must preserve the saved wait and version.
+        var now = new DateTimeOffset(2026, 11, 10, 12, 0, 0, TimeSpan.Zero);
+        var first = new RunWait("step", RunWaitReason.Timer, now, now).Hold();
+        var run = new RunRecord { Id = RunId.New(new RunKind("workflow-run")), TenantId = new TenantId("one"), Status = RunStatus.Running, RetryProfile = RetryProfileName.ExternalApiStandard, CreatedUtc = now, UpdatedUtc = now, Waits = [first] };
+        var store = new InMemoryRunStore();
+        await store.CreateAsync(run);
+        var update = run with { Version = 2, Waits = [first, new("step", RunWaitReason.Timer, now, now)] };
+
+        var refusal = await Assert.ThrowsAsync<ExecutionRuntimeRefusedException>(() => store.UpdateAsync(update, 1).AsTask());
+
+        Assert.Equal("execution.wait_duplicate", refusal.Code);
+        var saved = (await store.GetAsync(run.TenantId, run.Id))!;
+        Assert.Equal(1, saved.Version);
+        Assert.Equal(first, Assert.Single(saved.Waits));
+    }
+
     [Fact(DisplayName = "execution-runtime-ck-14: malformed waits are refused at registration")]
     public void Invalid_waits()
     {
