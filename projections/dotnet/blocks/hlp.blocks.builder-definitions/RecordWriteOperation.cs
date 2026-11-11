@@ -1398,6 +1398,9 @@ public sealed class RecordWriteOperation
         string tenant, string actor, string recordId, string operationId, string fingerprint, DateTimeOffset instant,
         AuthorizationDecisionEvidence evidence, IContentBookkeepingSession? session, CancellationToken cancellationToken)
     {
+        // Resolve every attachment field first, so each evidence condition reads the final candidate the write commits:
+        // a condition on an earlier field never sees a later field's staged entries (content-store-cc-2).
+        var conditioned = new List<(string FieldKey, JsonElement Condition, string Pointer)>();
         foreach (var field in definition.Fields)
         {
             var binding = field.Binding;
@@ -1418,15 +1421,20 @@ public sealed class RecordWriteOperation
                     candidate[field.FieldKey] = await Attachments.ResolveWriteAsync(attachment, JsonSerializer.SerializeToElement(entries),
                         Harborline.Foundation.Assets.Common.TenantId.FromString(tenant), new(recordId, field.FieldKey), write, cancellationToken).ConfigureAwait(false);
                 }
-                var condition = field.RequiredCondition;
-                if (condition.HasValue)
-                {
-                    var hasEvidence = candidate[field.FieldKey] is JsonArray { Count: > 0 };
-                    if (BindEvidenceRule(definition.RecordTypeId, field.FieldKey, condition.Value, hasEvidence).Evaluate(candidate, instant, cancellationToken) is not null)
-                        throw new RefusedWriteException(new("rules", "field.evidence_required", [pointer]));
-                }
+                if (field.RequiredCondition is { } condition) conditioned.Add((field.FieldKey, condition, pointer));
             }
             catch (Exception invalid) when (invalid is FieldAdmissionException or ArgumentException or RuleCompilationException)
+            { throw new RefusedWriteException(new(ValidateStage, BodyInvalid, [pointer])); }
+        }
+        foreach (var (fieldKey, condition, pointer) in conditioned)
+        {
+            try
+            {
+                var hasEvidence = candidate[fieldKey] is JsonArray { Count: > 0 };
+                if (BindEvidenceRule(definition.RecordTypeId, fieldKey, condition, hasEvidence).Evaluate(candidate, instant, cancellationToken) is not null)
+                    throw new RefusedWriteException(new("rules", "field.evidence_required", [pointer]));
+            }
+            catch (Exception invalid) when (invalid is ArgumentException or RuleCompilationException)
             { throw new RefusedWriteException(new(ValidateStage, BodyInvalid, [pointer])); }
         }
     }
