@@ -1,6 +1,6 @@
 # Harborline.Foundation.ExecutionRuntime
 
-Revision 3 of `hlp.foundation.execution-runtime`, the execution runtime substrate (DES-0056, T-528
+Revision 4 of `hlp.foundation.execution-runtime`, the execution runtime substrate (DES-0056, T-528
 slice 1): run-kind registration, one kind-qualified run identity, a closed run status vocabulary with
 legal transitions, the substrate's named retry profiles, the dead-letter path, and a tenant-scoped
 `IRunStore` port with an in-memory reference implementation. Slice 2 adds one tenant-scoped effect
@@ -10,7 +10,7 @@ Each engine registers its run kind and keeps its own state in its own store; the
 identity, status, attempts, retry profile, dead-letter, `caused_by` and waits (step id, reason, registration
 time, timer wake-up and claim) only. Effect receipts retain
 their required non-secret references and evidence but never engine payloads or secret values. Engine
-adoption, the execution trace and the observe channel are later T-528 slices. The package is local
+adoption, durable storage and the observe channel are later T-528 slices. The package is local
 and distribution-blocked.
 
 T-1028 adds the owner-approved compensation association. The original receipt's
@@ -63,3 +63,19 @@ Contract source: control `2c983d1e3`, ADR-0118, ADR-0132, ADR-0143 and ADR-0147.
 `DueRunDispatcherTests.cs` and `RunWaitsTests.cs` in the adjacent test project. Each test records its oracle
 and named mutation target; measured mutation evidence is reported separately and is never inferred from
 those comments.
+
+## Execution receipt and trace (revision 4)
+
+`ExecutionReceipt` is a run's execution receipt (DES-0056 `execution-runtime-ck-3`): tenant, kind-qualified
+`RunId`, `RunStatus` and the applicable Access decision's opaque stable identity. The receipt links that
+decision and never carries or recomputes Access's evidence (`ck-2`); with no decision it is null and stays
+null. `ExecutionTraceStep` is one step of the run's own progress (`ck-4`): a 1-based `Ordinal`, a `Phase` and a
+verbatim `Status`, distinct from Access's four-stage trace. Both validate on construction and expose get-only
+properties. The field names match Layout's `LayoutExecutionReceipt` consumer shape.
+
+Engines emit both through `IExecutionReceiptStore` (`eng-1`, `cc-1`): `PutReceiptAsync` stores or replaces the
+tenant's receipt for a run, `AppendTraceStepAsync` accepts only the next ordinal, and the reads return the
+receipt (or null) and the steps in order (or empty). Every key is tenant plus kind-qualified run identity.
+`InMemoryExecutionReceiptStore` is the reference implementation. The durable adapter and restart proof
+(`T-528/durable-run-store`), the authorized observe read (`T-528/observe-read`) and engine emitting are later
+slices. Acceptance tests: `ExecutionReceiptTests.cs`.

@@ -70,4 +70,13 @@ public static class ExecutionRuntimeRefusals
 
     /// <summary>A compensation is recorded while the original effect remains ambiguous.</summary>
     public const string BlindCompensationRefused = "execution.blind_compensation_refused";
+
+    /// <summary>An execution receipt lacks its run identity, carries a status outside the vocabulary, or a blank Access decision identity.</summary>
+    public const string ExecutionReceiptInvalid = "execution.execution_receipt_invalid";
+
+    /// <summary>An execution trace step lacks its run identity, has an ordinal below 1, or a blank phase or status.</summary>
+    public const string TraceStepInvalid = "execution.trace_step_invalid";
+
+    /// <summary>An execution trace step's ordinal is not exactly one past the run's last stored step.</summary>
+    public const string TraceStepOutOfOrder = "execution.trace_step_out_of_order";
 }
