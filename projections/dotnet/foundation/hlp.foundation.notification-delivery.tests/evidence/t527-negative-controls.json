@@ -1,0 +1,125 @@
+{
+  "scope": "T-527/channel-classification-and-dismiss supplemental negative controls; not Stryker evidence",
+  "oracle": "DES-0055 ck-1, ck-7, ck-8 and ruling 7, clarified by control PR 1263",
+  "sourceSha256": {
+    "projections/dotnet/foundation/hlp.foundation.notification-delivery/DeliveryChannels.cs": "90bb18620fed29f9c11148e8f39197b2fd9db09676853f8d984f0288579aa250",
+    "projections/dotnet/foundation/hlp.foundation.notification-delivery/InboxChannel.cs": "2362b71b1130d6ea56c382a5ef8e1748b6fa90ad55b83be95a1c7b8af77c796b",
+    "projections/dotnet/foundation/hlp.foundation.notification-delivery.tests/ClassificationAndDismissTests.cs": "e7eb16b6776c85fcca57b34d301fb4831ca8eb598566365be23c9a2a542f6357"
+  },
+  "controls": [
+    {
+      "mutation": "outcome-added",
+      "file": "projections/dotnet/foundation/hlp.foundation.notification-delivery/DeliveryChannels.cs",
+      "before": "Permanent = 3,",
+      "after": "Permanent = 3,\n    /// <summary>Negative control.</summary>\n    Unexpected = 4,",
+      "killingTest": "Outcome_vocabulary_is_closed",
+      "failedDisplayNames": [
+        "notification-delivery-ck-8: outcome vocabulary is closed"
+      ],
+      "exitCode": 1
+    },
+    {
+      "mutation": "classifier-unset",
+      "file": "projections/dotnet/foundation/hlp.foundation.notification-delivery/DeliveryChannels.cs",
+      "before": "classifyResult is null",
+      "after": "false",
+      "killingTest": "Unset_classifier_refuses",
+      "failedDisplayNames": [
+        "notification-delivery-ck-1: unset outcome classification refuses"
+      ],
+      "exitCode": 1
+    },
+    {
+      "mutation": "diagnostic-replaced",
+      "file": "projections/dotnet/foundation/hlp.foundation.notification-delivery/DeliveryChannels.cs",
+      "before": "new DeliveryOutcome(classification, result.Diagnostic)",
+      "after": "new DeliveryOutcome(classification, string.Empty)",
+      "killingTest": "Declared_classifier_preserves_diagnostic",
+      "failedDisplayNames": [
+        "notification-delivery-ck-1 notification-delivery-ck-8: declared classifier preserves diagnostic verbatim(expected: Accepted)",
+        "notification-delivery-ck-1 notification-delivery-ck-8: declared classifier preserves diagnostic verbatim(expected: Permanent)",
+        "notification-delivery-ck-1 notification-delivery-ck-8: declared classifier preserves diagnostic verbatim(expected: Delivered)",
+        "notification-delivery-ck-1 notification-delivery-ck-8: declared classifier preserves diagnostic verbatim(expected: Transient)"
+      ],
+      "exitCode": 1
+    },
+    {
+      "mutation": "unknown-admitted",
+      "file": "projections/dotnet/foundation/hlp.foundation.notification-delivery/DeliveryChannels.cs",
+      "before": "!Enum.IsDefined(classification)",
+      "after": "false",
+      "killingTest": "Undefined_outcome_refuses",
+      "failedDisplayNames": [
+        "notification-delivery-ck-8: undefined classifier outcome refuses"
+      ],
+      "exitCode": 1
+    },
+    {
+      "mutation": "inbox-inverted",
+      "file": "projections/dotnet/foundation/hlp.foundation.notification-delivery/DeliveryChannels.cs",
+      "before": "result.Succeeded ? DeliveryOutcomeClass.Delivered",
+      "after": "!result.Succeeded ? DeliveryOutcomeClass.Delivered",
+      "killingTest": "Inbox_classifies_write_completion",
+      "failedDisplayNames": [
+        "notification-delivery-ck-1 notification-delivery-ck-8: inbox classifies committed and failed writes without retry(fail: False, expected: Delivered)",
+        "notification-delivery-ck-1 notification-delivery-ck-8: inbox classifies committed and failed writes without retry(fail: True, expected: Permanent)"
+      ],
+      "exitCode": 1
+    },
+    {
+      "mutation": "mark-read-undismiss",
+      "file": "projections/dotnet/foundation/hlp.foundation.notification-delivery/InboxChannel.cs",
+      "before": "entry.ReadState == InboxReadState.Unread",
+      "after": "true",
+      "killingTest": "Dismiss_changes_only_one_delivery",
+      "failedDisplayNames": [
+        "notification-delivery-ck-7: dismiss changes only one scoped delivery"
+      ],
+      "exitCode": 1
+    },
+    {
+      "mutation": "dismiss-read",
+      "file": "projections/dotnet/foundation/hlp.foundation.notification-delivery/InboxChannel.cs",
+      "before": "ReadState = InboxReadState.Dismissed",
+      "after": "ReadState = InboxReadState.Read",
+      "killingTest": "Dismiss_changes_only_one_delivery",
+      "failedDisplayNames": [
+        "notification-delivery-ck-7: dismiss changes only one scoped delivery"
+      ],
+      "exitCode": 1
+    },
+    {
+      "mutation": "dismiss-tenant",
+      "file": "projections/dotnet/foundation/hlp.foundation.notification-delivery/InboxChannel.cs",
+      "before": " || entry.Tenant != tenant",
+      "after": "",
+      "killingTest": "Dismiss_refuses_foreign_or_unknown",
+      "failedDisplayNames": [
+        "notification-delivery-ck-7: dismissal refuses unknown and foreign deliveries(tenant: \"tenant-b\", recipient: \"person-a\", missing: False)"
+      ],
+      "exitCode": 1
+    },
+    {
+      "mutation": "dismiss-recipient",
+      "file": "projections/dotnet/foundation/hlp.foundation.notification-delivery/InboxChannel.cs",
+      "before": " || entry.Recipient != recipient",
+      "after": "",
+      "killingTest": "Dismiss_refuses_foreign_or_unknown",
+      "failedDisplayNames": [
+        "notification-delivery-ck-7: dismissal refuses unknown and foreign deliveries(tenant: \"tenant-a\", recipient: \"person-b\", missing: False)"
+      ],
+      "exitCode": 1
+    },
+    {
+      "mutation": "dismiss-cancellation",
+      "file": "projections/dotnet/foundation/hlp.foundation.notification-delivery/InboxChannel.cs",
+      "before": "cancellationToken.ThrowIfCancellationRequested();",
+      "after": "",
+      "killingTest": "Cancelled_dismissal_leaves_delivery_unchanged",
+      "failedDisplayNames": [
+        "notification-delivery-ck-7: cancelled dismissal leaves delivery unchanged"
+      ],
+      "exitCode": 1
+    }
+  ]
+}

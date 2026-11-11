@@ -1,7 +1,8 @@
+using Harborline.Blocks.Scheduling.Definitions;
 using System.Security.Cryptography;
 using System.Text;
 
-namespace Harborline.Blocks.RelativeChains;
+namespace Harborline.Blocks.Scheduling;
 
 /// <summary>A persistence-free deterministic reconciler for an explicitly supplied chain ledger.</summary>
 public sealed class InMemoryRelativeChainExpansionService : IRelativeChainExpansionService
@@ -26,15 +27,15 @@ public sealed class InMemoryRelativeChainExpansionService : IRelativeChainExpans
 
         foreach (var node in order)
         {
-            DateOnly basisDate;
+            DateTimeOffset basisDate;
             string basisRef;
             int basisRevision;
             SupersessionReasonCode terminalReason;
             string trigger;
-            if (node.Anchor.Kind == RelativeChainAnchorKind.External)
+            if (node.AfterNodeId is null)
             {
-                trigger = $"anchor/{node.Anchor.Reference}";
-                if (!anchors.TryGetValue(node.Anchor.Reference, out var anchor))
+                trigger = $"anchor/{(node.AfterNodeId ?? request.Definition.Anchor)}";
+                if (!anchors.TryGetValue((node.AfterNodeId ?? request.Definition.Anchor), out var anchor))
                 {
                     failures.Add(Fail(RelativeChainFailureCode.MissingAnchor, trigger, NodeRef(request, node.NodeId)));
                     unavailable.Add(node.NodeId); continue;
@@ -50,8 +51,8 @@ public sealed class InMemoryRelativeChainExpansionService : IRelativeChainExpans
             }
             else
             {
-                trigger = $"predecessor/{node.Anchor.Reference}";
-                if (unavailable.Contains(node.Anchor.Reference) || !projected.TryGetValue(node.Anchor.Reference, out var predecessor))
+                trigger = $"predecessor/{(node.AfterNodeId ?? request.Definition.Anchor)}";
+                if (unavailable.Contains((node.AfterNodeId ?? request.Definition.Anchor)) || !projected.TryGetValue((node.AfterNodeId ?? request.Definition.Anchor), out var predecessor))
                 {
                     failures.Add(Fail(RelativeChainFailureCode.DeletedAnchor, trigger, NodeRef(request, node.NodeId)));
                     unavailable.Add(node.NodeId); terminalReason = SupersessionReasonCode.AnchorDeleted;
@@ -60,11 +61,16 @@ public sealed class InMemoryRelativeChainExpansionService : IRelativeChainExpans
                 basisDate = predecessor.DueDate; basisRef = predecessor.OccurrenceId.ToString(); basisRevision = predecessor.OccurrenceId.OccurrenceRevision;
             }
 
-            DateOnly due;
-            DateOnly earliest;
-            DateOnly latest;
-            try { due = basisDate.AddDays(node.OffsetDays); earliest = due.AddDays(-node.Tolerance.EarlyDays); latest = due.AddDays(node.Tolerance.LateDays); }
-            catch (ArgumentOutOfRangeException)
+            DateTimeOffset due;
+            DateTimeOffset? earliest;
+            DateTimeOffset? latest;
+            try
+            {
+                due = OccurrenceTime.Add(basisDate, node.Offset, request.TimezoneId);
+                earliest = node.Window is null ? null : OccurrenceTime.Add(due, node.Window.Earliest, request.TimezoneId);
+                latest = node.Window is null ? null : OccurrenceTime.Add(due, node.Window.Latest, request.TimezoneId);
+            }
+            catch (Exception exception) when (exception is ArgumentOutOfRangeException or OverflowException)
             {
                 failures.Add(Fail(RelativeChainFailureCode.DateArithmeticOverflow, NodeRef(request, node.NodeId))); unavailable.Add(node.NodeId); continue;
             }
@@ -76,11 +82,11 @@ public sealed class InMemoryRelativeChainExpansionService : IRelativeChainExpans
             }
             var nextRevision = NextRevision(request.PriorLedger, node.NodeId);
             var id = new RelativeChainOccurrenceId(request.ChainInstanceId, node.NodeId, due, nextRevision);
-            var occurrence = new RelativeChainOccurrence(id, request.Definition.DefinitionRevision, basisRef, basisRevision, due, earliest, latest, request.SubjectRef, node.ProviderRef, node.ResourceRef, fingerprint, [NodeRef(request, node.NodeId), trigger]);
+            var occurrence = new RelativeChainOccurrence(id, request.Definition.DefinitionRevision, basisRef, basisRevision, due, earliest, latest, request.SubjectRef, fingerprint, [NodeRef(request, node.NodeId), trigger]);
             appended.Add(occurrence); projected[node.NodeId] = occurrence;
             if (old is not null)
             {
-                var reason = Reason(old, occurrence, node.Anchor.Kind);
+                var reason = Reason(old, occurrence, node.AfterNodeId is not null);
                 edges.Add(Edge(old, occurrence, reason, trigger, request.RecordedAt));
             }
         }
@@ -98,7 +104,7 @@ public sealed class InMemoryRelativeChainExpansionService : IRelativeChainExpans
 
     private static RelativeChainFailure? ValidateLedger(RelativeChainExpansionRequest request)
     {
-        if (request.PriorLedger.LedgerVersion < 0) return Fail(RelativeChainFailureCode.CorruptLedger, "ledger/version");
+        if (request.PriorLedger.Occurrences.Any(o => o.OccurrenceId.ChainInstanceId != request.ChainInstanceId) || request.PriorLedger.LedgerVersion < 0) return Fail(RelativeChainFailureCode.CorruptLedger, "ledger/version");
         var ids = request.PriorLedger.Occurrences.Select(item => item.OccurrenceId).ToHashSet();
         if (ids.Count != request.PriorLedger.Occurrences.Count) return Fail(RelativeChainFailureCode.CorruptLedger, "ledger/duplicate-occurrence");
         var superseded = new HashSet<RelativeChainOccurrenceId>();
@@ -117,18 +123,18 @@ public sealed class InMemoryRelativeChainExpansionService : IRelativeChainExpans
         var superseded = ledger.Supersessions.Select(edge => edge.SupersededOccurrenceId).ToHashSet();
         return ledger.Occurrences.Where(item => !superseded.Contains(item.OccurrenceId)).OrderBy(item => item.OccurrenceId.NodeId, StringComparer.Ordinal).ToArray();
     }
-    private static bool Equivalent(RelativeChainOccurrence old, RelativeChainExpansionRequest request, RelativeChainNode node, string basisRef, int basisRevision, DateOnly due, DateOnly earliest, DateOnly latest, string fingerprint) =>
-        StringComparer.Ordinal.Equals(old.BasisRef, basisRef) && old.BasisRevision == basisRevision && old.DueDate == due && old.EarliestDate == earliest && old.LatestDate == latest && StringComparer.Ordinal.Equals(old.SubjectRef, request.SubjectRef) && StringComparer.Ordinal.Equals(old.ProviderRef, node.ProviderRef) && StringComparer.Ordinal.Equals(old.ResourceRef, node.ResourceRef) && StringComparer.Ordinal.Equals(old.DerivationFingerprint, fingerprint);
+    private static bool Equivalent(RelativeChainOccurrence old, RelativeChainExpansionRequest request, ScheduleChainNode node, string basisRef, int basisRevision, DateTimeOffset due, DateTimeOffset? earliest, DateTimeOffset? latest, string fingerprint) =>
+        StringComparer.Ordinal.Equals(old.BasisRef, basisRef) && old.BasisRevision == basisRevision && old.DueDate == due && old.EarliestDate == earliest && old.LatestDate == latest && StringComparer.Ordinal.Equals(old.SubjectRef, request.SubjectRef) && StringComparer.Ordinal.Equals(old.DerivationFingerprint, fingerprint);
     private static int NextRevision(RelativeChainLedger ledger, string nodeId)
     {
         var maximum = ledger.Occurrences.Where(item => StringComparer.Ordinal.Equals(item.OccurrenceId.NodeId, nodeId)).Select(item => item.OccurrenceId.OccurrenceRevision).DefaultIfEmpty(0).Max();
         return checked(maximum + 1);
     }
-    private static SupersessionReasonCode Reason(RelativeChainOccurrence old, RelativeChainOccurrence next, RelativeChainAnchorKind kind)
+    private static SupersessionReasonCode Reason(RelativeChainOccurrence old, RelativeChainOccurrence next, bool predecessor)
     {
-        if (!StringComparer.Ordinal.Equals(old.SubjectRef, next.SubjectRef) || !StringComparer.Ordinal.Equals(old.ProviderRef, next.ProviderRef) || !StringComparer.Ordinal.Equals(old.ResourceRef, next.ResourceRef)) return SupersessionReasonCode.BindingRevised;
+        if (!StringComparer.Ordinal.Equals(old.SubjectRef, next.SubjectRef)) return SupersessionReasonCode.BindingRevised;
         if (!StringComparer.Ordinal.Equals(old.DerivationFingerprint, next.DerivationFingerprint)) return SupersessionReasonCode.DefinitionRevised;
-        if (kind == RelativeChainAnchorKind.Predecessor) return SupersessionReasonCode.PredecessorRevised;
+        if (predecessor) return SupersessionReasonCode.PredecessorRevised;
         return old.DueDate == next.DueDate ? SupersessionReasonCode.AnchorRevised : SupersessionReasonCode.AnchorMoved;
     }
     private static void Terminal(string nodeId, SupersessionReasonCode reason, string trigger, RelativeChainExpansionRequest request, IReadOnlyDictionary<string, RelativeChainOccurrence> current, ICollection<OccurrenceSupersession> edges)
@@ -140,9 +146,9 @@ public sealed class InMemoryRelativeChainExpansionService : IRelativeChainExpans
         var id = "rcs1/" + Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(material))).ToLowerInvariant();
         return new(id, old.OccurrenceId.ChainInstanceId, old.OccurrenceId.NodeId, old.OccurrenceId, successor, reason, trigger, at, [$"occurrence/{old.OccurrenceId}", trigger]);
     }
-    private static string Fingerprint(RelativeChainNode node)
+    private static string Fingerprint(ScheduleChainNode node)
     {
-        var material = $"{(int)node.Anchor.Kind}|{RelativeChainReferenceCodec.Escape(node.Anchor.Reference)}|{node.OffsetDays}|{node.Tolerance.EarlyDays}|{node.Tolerance.LateDays}";
+        var material = System.Text.Json.JsonSerializer.Serialize(node);
         return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(material))).ToLowerInvariant();
     }
     private static string NodeRef(RelativeChainExpansionRequest request, string nodeId) => $"definition/{request.Definition.ChainDefinitionId}/r{request.Definition.DefinitionRevision}/node/{nodeId}";

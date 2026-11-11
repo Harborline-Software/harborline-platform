@@ -681,7 +681,7 @@ public sealed class DataExchangeCommitter(
                 "A canonical Records command exceeds the bounded payload size.");
     }
 
-    private static bool EffectsEqual(IReadOnlyList<ProposedEffect> approved, IReadOnlyList<ProposedEffect> current)
+    internal static bool EffectsEqual(IReadOnlyList<ProposedEffect> approved, IReadOnlyList<ProposedEffect> current)
         => approved.Count == current.Count
             && approved.OrderBy(effect => effect.SourceOrdinal).Zip(
                 current.OrderBy(effect => effect.SourceOrdinal),

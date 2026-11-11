@@ -1,3 +1,5 @@
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using Harborline.Blocks.BuilderDefinitions;
 using Harborline.Foundation.Definitions;
 
@@ -43,7 +45,14 @@ public static class ReportDefinitionCodes
 /// <param name="Version">The definition version.</param>
 /// <param name="Tenant">The owning tenant.</param>
 /// <param name="Contract">The declared application-contract version.</param>
-public sealed record ReportDefinitionEnvelope(string Identity, string Version, string Tenant, DefinitionContractVersion? Contract);
+/// <param name="CascadeLayer">The contributing cascade layer.</param>
+/// <param name="Provenance">Producer provenance as a JSON object.</param>
+/// <param name="RetentionClass">The governed retention class.</param>
+/// <param name="LegalHold">Whether legal hold applies.</param>
+/// <param name="Requires">Required platform capabilities.</param>
+public sealed record ReportDefinitionEnvelope(string Identity, string Version, string Tenant, DefinitionContractVersion? Contract,
+    [property: JsonRequired] LayoutCascadeLayer CascadeLayer, JsonElement? Provenance, string RetentionClass,
+    [property: JsonRequired] bool LegalHold, IReadOnlyList<LayoutDefinitionRequirement> Requires);
 
 /// <summary>
 /// One measure the report reads, named by its stable catalogue path such as <c>finance.trial-balance</c>. The path
@@ -71,6 +80,12 @@ public enum ReportParameterType
 /// A typed parameter default. Its internal constructor closes the grammar: callers can use only the five public
 /// concrete forms below, never an arbitrary object payload.
 /// </summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "kind")]
+[JsonDerivedType(typeof(BooleanReportParameterDefault), "boolean")]
+[JsonDerivedType(typeof(DateTimeReportParameterDefault), "datetime")]
+[JsonDerivedType(typeof(IntegerReportParameterDefault), "integer")]
+[JsonDerivedType(typeof(FloatReportParameterDefault), "float")]
+[JsonDerivedType(typeof(StringReportParameterDefault), "string")]
 public abstract record ReportParameterDefault
 {
     internal ReportParameterDefault()
