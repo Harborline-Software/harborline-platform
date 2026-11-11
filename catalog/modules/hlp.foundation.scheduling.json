@@ -8,7 +8,7 @@
     "moduleKind": "runtime",
     "presentation": {
       "disposition": "not-applicable",
-      "rationale": "RRULE expansion and due-queue derivation produce date sequences and queue items consumed by packs and daemons; the module renders nothing."
+      "rationale": "RRULE expansion and shared wall-clock conversion produce date sequences and resolved instants; the foundation owns no due occurrences and renders nothing."
     },
     "owner": "platform-foundation",
     "dependencies": [],
@@ -18,7 +18,7 @@
       "deletionTest": "PASS",
       "redistributedComplexity": [
         "the bounded cross-tier RRULE subset, occurrence caps, lead-day and window semantics reimplemented (and drifting) in every consumer of recurring schedules",
-        "due-queue completion diffing and overdue-first ordering re-expressed per pack, with the ticket-086 relative-chain seam lost"
+        "IANA wall-clock resolution and kernel-instant projection would otherwise drift between calendar, availability and Scheduling."
       ]
     },
     "projections": {

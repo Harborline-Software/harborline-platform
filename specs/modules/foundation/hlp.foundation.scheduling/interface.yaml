@@ -23,7 +23,7 @@
     "Every admitted selector applies under every FREQ it is admitted with (RFC 5545 s3.3.10): BYDAY and BYMONTHDAY limit DAILY, intersect under MONTHLY, and expand YEARLY day by day; an out-of-bound or malformed value of an admitted part is refused naming the part, never dropped.",
     "No expansion call ever yields more than 1000 occurrences.",
     "Occurrences are returned only when every occurrence relevant to the requested range has been evaluated: a walk that reaches the 1000-occurrence candidate limit with range left to cover refuses with a dedicated domain type rather than returning an unmarked partial, and a rule bounded by COUNT or UNTIL that ends before the limit succeeds normally (DES-0057 s10 ruling 3).",
-    "UNTIL wins over COUNT when both are present; BYMONTHDAY is capped at 28 to avoid month-end ambiguity."
+    "COUNT and UNTIL are mutually exclusive; BYMONTHDAY is capped at 28."
   ],
   "errors": [
     "FormatException (missing FREQ; a part given twice; COUNT with UNTIL; out-of-bound or malformed value of an admitted part)",
@@ -44,8 +44,8 @@
   "selectedDesign": {
     "choice": "Ical.Net (MIT) expands behind IRruleExpansionService, with the bounded subset kept as a validator in front and NodaTime (Apache-2.0) as the zone engine (ADR-0122, the owner's ruling of 2026-11-07 on R-0146 call 5). Superseded: verbatim port of the pinned foundation-scheduling engine with one additive seam above the pinned query.",
     "rejected": [
-      "Generalizing the pinned DueQueueSchedule model to carry non-RRULE schedule kinds (breaks pinned-suite fidelity).",
-      "Building the relative-chain generator inside this wave (nothing at the pin implements it; the gate flips on pin-parity)."
+      "Reintroducing due generators into the recurrence substrate (ADR-0117).",
+      "A foundation-to-block forwarding shim for the moved due API (reverses the tier dependency)."
     ],
     "reason": "Three maintained engines give RFC 5545's answers where the hand-written walker did not (month ends, leap days, yearly ordinals, zoned UNTIL, ambiguous local times); the subset stays the contract either way (R-0146 call 5). Earlier reason: Pin-parity for the 25 pinned rows plus the user-ruled open seam, at zero breaking-change cost."
   },
