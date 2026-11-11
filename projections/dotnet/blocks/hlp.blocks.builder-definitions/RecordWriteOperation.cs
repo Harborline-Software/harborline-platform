@@ -896,14 +896,7 @@ public sealed class RecordWriteOperation
         catch (RefusedWriteException refusal) { return TemporalRefused(refusal.Refusal) with { Decision = evidence }; }
         catch (ContentRefusedException refusal)
         {
-            // A concurrent winner may consume the stage before our host reaches operation settlement. The boundary has
-            // rolled back and disposed our transaction; only now consult that winner's tenant/caller-scoped operation.
-            if (refusal.Code == "content.staging-expired")
-            {
-                var raced = await _temporalReceipts.FindTemporalOperationAsync(key, ct).ConfigureAwait(false);
-                if (raced is not null) return SettleTemporal(raced, key, type!, target, digest) with { Decision = evidence };
-            }
-            return TemporalRefused(ContentRefusal(refusal)) with { Decision = evidence };
+            return await RecoverTemporalContentRefusalAsync(refusal, key, type!, target, digest, evidence, ct).ConfigureAwait(false);
         }
     }
 
@@ -1270,13 +1263,7 @@ public sealed class RecordWriteOperation
         }
         catch (ContentRefusedException refused)
         {
-            // Resolve an operation whose concurrent winner consumed these stages only after our transaction rolled back.
-            if (refused.Code == "content.staging-expired")
-            {
-                var raced = await _receipts.FindAsync(key, cancellationToken).ConfigureAwait(false);
-                if (raced is not null) return (Settle(raced, key, request.RecordTypeId, intentDigest), false);
-            }
-            return (new RecordWriteOutcome(null, false, ContentRefusal(refused)), false);
+            return (await RecoverContentRefusalAsync(refused, key, request.RecordTypeId, intentDigest, cancellationToken).ConfigureAwait(false), false);
         }
 
 
@@ -1368,6 +1355,31 @@ public sealed class RecordWriteOperation
 
     private static RecordWriteRefusal ContentRefusal(ContentRefusedException refused)
         => new(ValidateStage, refused.Code, []) { Detail = refused.Detail };
+
+    // These recoveries run only after the boundary has rolled back and disposed the losing transaction. A concurrent
+    // winner may consume the same stages before our host reaches operation settlement; reuse the exact scoped settlement.
+    private async ValueTask<RecordWriteOutcome> RecoverContentRefusalAsync(ContentRefusedException refused,
+        RecordWriteOperationKey key, string type, string digest, CancellationToken cancellationToken)
+    {
+        if (refused.Code == "content.staging-expired")
+        {
+            var raced = await _receipts.FindAsync(key, cancellationToken).ConfigureAwait(false);
+            if (raced is not null) return Settle(raced, key, type, digest);
+        }
+        return new(null, false, ContentRefusal(refused));
+    }
+
+    private async ValueTask<RecordTemporalWriteOutcome> RecoverTemporalContentRefusalAsync(ContentRefusedException refused,
+        RecordWriteOperationKey key, string type, string? target, string digest,
+        AuthorizationDecisionEvidence evidence, CancellationToken cancellationToken)
+    {
+        if (refused.Code == "content.staging-expired")
+        {
+            var raced = await _temporalReceipts!.FindTemporalOperationAsync(key, cancellationToken).ConfigureAwait(false);
+            if (raced is not null) return SettleTemporal(raced, key, type, target, digest) with { Decision = evidence };
+        }
+        return TemporalRefused(ContentRefusal(refused)) with { Decision = evidence };
+    }
 
     private async ValueTask ResolveAttachmentsAsync(RecordTypeDocument definition, JsonObject candidate,
         string tenant, string actor, string recordId, string operationId, string fingerprint, DateTimeOffset instant,

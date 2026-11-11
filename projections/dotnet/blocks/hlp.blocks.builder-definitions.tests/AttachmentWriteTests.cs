@@ -150,9 +150,11 @@ public sealed class AttachmentWriteTests
         var loser = fixture.WriteEither(temporal, "same-operation", loserBody);
         await entered.Task.WaitAsync(TimeSpan.FromSeconds(30));
         var winner = await fixture.WriteEither(temporal, "same-operation", List(stage));
-        Assert.True(winner.Committed); Assert.False(winner.Replayed);
+        Assert.True(winner.Committed); Assert.False(winner.Replayed); Assert.Null(winner.Decision);
         release.SetResult();
         var settled = await loser.WaitAsync(TimeSpan.FromSeconds(30));
+        Assert.True(settled.Decision!.Allowed);
+        Assert.NotEqual(winner.Receipt!.RecordId, settled.Decision.RecordId);
         if (divergent)
         {
             Assert.False(settled.Committed);
@@ -169,6 +171,58 @@ public sealed class AttachmentWriteTests
         Assert.Equal(1, fixture.Port.Rollbacks);
         Assert.Equal(1, fixture.Store.CommittedCount);
         Assert.Equal(0, fixture.Store.StagedCount);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Raced_replay_does_not_capture_a_callers_context_during_receipt_IO(bool temporal)
+    {
+        var fixture = await Fixture.Create(temporalMode: temporal);
+        var stage = await fixture.Upload("evidence");
+        var original = await fixture.WriteEither(temporal, "receipt-io", List(stage));
+        Assert.True(original.Committed);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var entered = false;
+        fixture.Port.HideNextLookup = true;
+        fixture.Port.BeforeNextLookup = async () => { entered = true; await release.Task.ConfigureAwait(false); };
+        var context = new CountingContext(); var previous = SynchronizationContext.Current;
+        Task<RecordWriteOutcome> pending;
+        try
+        {
+            SynchronizationContext.SetSynchronizationContext(context);
+            pending = fixture.WriteEither(temporal, "receipt-io", List(stage));
+        }
+        finally { SynchronizationContext.SetSynchronizationContext(previous); }
+        Assert.True(entered); Assert.False(pending.IsCompleted);
+        release.SetResult();
+        var replay = await pending.WaitAsync(TimeSpan.FromSeconds(30));
+        Assert.True(replay.Replayed, replay.Refusal?.Code);
+        Assert.Equal(original.Receipt, replay.Receipt);
+        Assert.Equal(0, context.Posts);
+        Assert.Equal(1, fixture.Port.Rollbacks);
+        Assert.Single(fixture.Port.Rows);
+    }
+
+    [Theory]
+    [InlineData(false, 0)]
+    [InlineData(true, 1)]
+    public async Task Temporal_unknown_or_consumed_stages_under_a_new_operation_remain_refusals(bool consumed, int rows)
+    {
+        var fixture = await Fixture.Create(temporalMode: true);
+        var stage = consumed ? await fixture.Upload("evidence") : Guid.Parse("11111111-1111-1111-1111-111111111111");
+        if (consumed) Assert.True((await fixture.WriteEither(true, "first-operation", List(stage))).Committed);
+        var outcome = await fixture.Operation.CreateEffectiveAsync(new("tenant-a", "operator-7"),
+            new("eam.evidence", "new-operation", List(stage), DateTimeOffset.UnixEpoch, null));
+        Assert.Equal(RecordTemporalWriteStatus.Refused, outcome.Status);
+        Assert.Equal("validate", outcome.Refusal!.Stage);
+        Assert.Equal("content.staging-expired", outcome.Refusal.Code);
+        Assert.Empty(outcome.Refusal.Detail);
+        Assert.True(outcome.Decision!.Allowed);
+        Assert.Equal(rows, fixture.Port.Rows.Count);
+        Assert.Equal(rows, fixture.Store.CommittedCount);
+        Assert.Equal(0, fixture.Store.StagedCount);
+        Assert.Equal(1, fixture.Port.Rollbacks);
     }
 
     [Theory]
@@ -274,9 +328,9 @@ public sealed class AttachmentWriteTests
         public ValueTask<Guid> Upload(string text) => Runtime.PutAsync(Attachment, new("tenant-a"), "evidence", new MemoryStream(Encoding.UTF8.GetBytes(text)), "text/plain", null, Evidence());
         public async Task<RecordWriteOutcome> WriteEither(bool temporal, string operation, JsonObject body)
         {
-            if (!temporal) return await Write(operation, body);
-            var outcome = await Operation.CreateEffectiveAsync(new("tenant-a", "operator-7"), new("eam.evidence", operation, body, DateTimeOffset.UnixEpoch, null));
-            return new(outcome.Receipt?.Receipt, outcome.Status == RecordTemporalWriteStatus.Replayed, outcome.Refusal);
+            if (!temporal) return await Write(operation, body).ConfigureAwait(false);
+            var outcome = await Operation.CreateEffectiveAsync(new("tenant-a", "operator-7"), new("eam.evidence", operation, body, DateTimeOffset.UnixEpoch, null)).ConfigureAwait(false);
+            return new(outcome.Receipt?.Receipt, outcome.Status == RecordTemporalWriteStatus.Replayed, outcome.Refusal) { Decision = outcome.Decision };
         }
         public ValueTask<RecordWriteOutcome> Write(string operation, JsonObject body) => Operation.CreateAsync(new("tenant-a", "operator-7"), new("eam.evidence", operation, body));
     }
@@ -293,14 +347,15 @@ public sealed class AttachmentWriteTests
         public Func<IContentBookkeepingSession, IContentBookkeepingSession>? DecorateSession { get; set; }
         public List<RecordWriteRow> Rows { get; } = [];
         public Func<ValueTask>? BeforeNextLookup { get; set; }
+        public bool HideNextLookup { get; set; }
         public int Rollbacks { get; private set; }
         public bool HasAuthorityClock => true;
         private readonly Dictionary<string, RecordTemporalCommittedOperation> temporalReceipts = new(StringComparer.Ordinal);
         private readonly Dictionary<string, RecordWriteCommittedOperation> receipts = new(StringComparer.Ordinal);
         public async ValueTask<RecordWriteCommittedOperation?> FindAsync(RecordWriteOperationKey key, CancellationToken cancellationToken = default)
-        { var prior = receipts.GetValueOrDefault(key.IdempotencyKey); await PauseLookupAsync(); return prior; }
+        { var prior = receipts.GetValueOrDefault(key.IdempotencyKey); if (HideNextLookup) { HideNextLookup = false; return null; } await PauseLookupAsync().ConfigureAwait(false); return prior; }
         public async ValueTask<RecordTemporalCommittedOperation?> FindTemporalOperationAsync(RecordWriteOperationKey key, CancellationToken cancellationToken = default)
-        { var prior = temporalReceipts.GetValueOrDefault(key.IdempotencyKey); await PauseLookupAsync(); return prior; }
+        { var prior = temporalReceipts.GetValueOrDefault(key.IdempotencyKey); if (HideNextLookup) { HideNextLookup = false; return null; } await PauseLookupAsync().ConfigureAwait(false); return prior; }
         private async ValueTask PauseLookupAsync()
         { var pause = BeforeNextLookup; BeforeNextLookup = null; if (pause is not null) await pause().ConfigureAwait(false); }
         public ValueTask<RecordWriteRow?> FindAsync(string tenant, string recordId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
