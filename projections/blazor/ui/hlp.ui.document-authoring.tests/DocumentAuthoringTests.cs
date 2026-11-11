@@ -21,7 +21,11 @@ public sealed class DocumentAuthoringTests : BunitContext
     private IRenderedComponent<HarborlineDocumentAuthoringEditor> Editor(List<DocumentDraftChange> changes, DocumentDraft? value = null, bool readOnly = false, bool canPreview = true, DocumentCatalogue? catalogue = null, Func<DocumentPreviewRequest, Task<DocumentPreviewResult>>? preview = null, DocumentDenial? denial = null)
         => Render<HarborlineDocumentAuthoringEditor>(parameters => parameters.Add(component => component.Value, value ?? DocumentDraft.Empty).Add(component => component.PageFlow, Flow).Add(component => component.Catalogue, catalogue ?? Catalogue).Add(component => component.ReadOnly, readOnly).Add(component => component.CanPreview, canPreview).Add(component => component.Preview, preview ?? (_ => Task.FromResult(Result))).Add(component => component.Denial, denial).Add(component => component.DraftChanged, (DocumentDraftChange change) => changes.Add(change)));
     private static IElement Labelled(IRenderedComponent<HarborlineDocumentAuthoringEditor> cut, string label) => cut.Find($"[aria-label='{label}']");
-    private static void Type(IRenderedComponent<HarborlineDocumentAuthoringEditor> cut, string label, string value) => Labelled(cut, label).Change(value);
+    private static void Type(IRenderedComponent<HarborlineDocumentAuthoringEditor> cut, string label, string value)
+    {
+        var element = Labelled(cut, label);
+        if (element.TagName == "INPUT") element.Input(value); else element.Change(value);
+    }
     private static IElement Button(IRenderedComponent<HarborlineDocumentAuthoringEditor> cut, string label) => cut.FindAll("button").Single(button => button.TextContent.Trim() == label);
     private static void Replay(IRenderedComponent<HarborlineDocumentAuthoringEditor> cut)
     {
@@ -110,6 +114,24 @@ public sealed class DocumentAuthoringTests : BunitContext
         Button(cut, "Keep edits").Click(); cut.Render(parameters => parameters.Add(component => component.Value, incoming with { })); Assert.Empty(cut.FindAll("[role='alert']"));
         incoming = incoming with { Identity = "new", Revision = "4" }; cut.Render(parameters => parameters.Add(component => component.Value, incoming).Add(component => component.ReadOnly, true)); Button(cut, "Discard edits").Click(); Button(cut, "Keep edits").Click(); Assert.Equal("Local", Labelled(cut, "Template name").GetAttribute("value")); Assert.True(Button(cut, "Discard edits").HasAttribute("disabled"));
         cut.Render(parameters => parameters.Add(component => component.ReadOnly, false)); Button(cut, "Discard edits").Click(); Assert.Equal(incoming, changes[^1].Draft); Assert.Equal("Remote", Labelled(cut, "Template name").GetAttribute("value"));
+    }
+
+    [Theory(DisplayName = "T-594 item 4: text input without blur survives incoming identity or revision and offers Keep Discard")]
+    [InlineData("replacement", null)]
+    [InlineData("", "2")]
+    public void UnblurredTextSurvivesIncomingDraft(string identity, string? revision)
+    {
+        var changes = new List<DocumentDraftChange>(); var cut = Editor(changes);
+        Labelled(cut, "Template name").Input("Typing without blur");
+        var incoming = DocumentDraft.Empty with { Identity = identity, Revision = revision, Name = "Remote" };
+        cut.Render(parameters => parameters.Add(component => component.Value, incoming));
+        Assert.Equal("Typing without blur", Labelled(cut, "Template name").GetAttribute("value"));
+        Assert.Equal("Typing without blur", Assert.Single(changes).Draft.Name);
+        Assert.Single(cut.FindAll("[role='alert']"));
+        Assert.False(Button(cut, "Keep edits").HasAttribute("disabled"));
+        Assert.False(Button(cut, "Discard edits").HasAttribute("disabled"));
+        Button(cut, "Discard edits").Click(); Assert.Equal(incoming, changes[^1].Draft);
+        Assert.Equal("Remote", Labelled(cut, "Template name").GetAttribute("value"));
     }
 
     [Fact(DisplayName = "documents-eng-21: server denials are fenced to identity revision and local generation")]

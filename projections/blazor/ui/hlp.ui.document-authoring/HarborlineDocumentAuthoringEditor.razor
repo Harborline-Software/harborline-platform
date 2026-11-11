@@ -113,6 +113,6 @@
     catch { if (ticket == Serial && !ReadOnly && CanPreview) Status = "Preview refused."; }
   }
   private static string Text(ChangeEventArgs eventArgs) => eventArgs.Value?.ToString() ?? "";
-  private RenderFragment Input(string label, string? value, Func<string, Task> update, string? caption = null) => @<label>@(caption ?? label)<input aria-label="@label" value="@(value ?? "")" @onchange="eventArgs => update(Text(eventArgs))" /></label>;
+  private RenderFragment Input(string label, string? value, Func<string, Task> update, string? caption = null) => @<label>@(caption ?? label)<input aria-label="@label" value="@(value ?? "")" @oninput="eventArgs => update(Text(eventArgs))" /></label>;
   private RenderFragment Select(string label, string? value, IReadOnlyList<DocumentOption> options, Func<string, Task> update) => @<label>@label @if (options.Count == 0) { <span>No options offered.</span> }<select aria-label="@label" value="@(value ?? "")" @onchange="eventArgs => update(Text(eventArgs))"><option value="">Not set</option>@if (!string.IsNullOrEmpty(value) && !options.Any(option => option.Id == value)) { <option value="@value">@value (not offered)</option> }@foreach (var option in options) { <option value="@option.Id">@option.Label</option> }</select></label>;
 }

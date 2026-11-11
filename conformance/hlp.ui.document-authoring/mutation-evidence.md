@@ -13,6 +13,13 @@ Report digests (JSON reports are local build output, not source):
 - React full run 2: SHA-256 `3079dea91114cf26faf051c051161681ca231afdd4ae81d28c7a3518c1ab8a99`.
 - Blazor changed-file run: SHA-256 `8bf10def09960018ae1f1f82f5bd51e92b967074accf6a61b1ff8a385121981f`.
 
+## Review regression: text input before blur
+
+- Test: `T-594 item 4: text input without blur survives incoming identity or revision and offers Keep Discard` (`UnblurredTextSurvivesIncomingDraft`), independently exercising replacement identity and replacement revision. Only `input` is dispatched; no `change` or blur precedes the host parameter update. Literal `Typing without blur` must remain visible and emitted, both pending-edit actions must be enabled, and explicit Discard must adopt the incoming draft.
+- Named mutation: **text-input-delayed-until-change** — replace the shared text helper's `@oninput` with `@onchange`, the original implementation at `091113df04de03d725dc80f2672a01c6511e02cf`. Before the fix, both cases fail with `MissingEventHandlerException` for `oninput`; the component is not tracking input events. Both pass with immediate input handling. This is targeted mutation evidence, not a remeasurement of the aggregate scores above.
+- The existing Blazor test driver now dispatches `input` for text controls and `change` for selects. Existing `ReadOnly`, `PendingEdits` and `StalePreview` tests therefore also exercise immediate text editing, including preview invalidation before blur.
+- Oracle: the review's no-data-loss requirement and independent literal text, incoming identity/revision and visible Keep/Discard actions; no private component state or production constants supply expected values.
+
 ## React killing tests
 
 Test file: `projections/react/ui/hlp.ui.document-authoring/src/DocumentAuthoringEditor.test.tsx`. Each row records one killed Stryker mutant, except the explicitly named reversible seeded faults where Stryker stopped at an earlier overlapping killing test. Source positions identify mutants without relying on unstable numeric IDs.
