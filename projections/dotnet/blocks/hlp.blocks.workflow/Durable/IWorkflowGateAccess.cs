@@ -41,6 +41,7 @@ public enum WorkflowGateElement
 /// <param name="DefinitionVersion">The pinned definition's version.</param>
 /// <param name="Element">Whether the gate guards a transition or an action.</param>
 /// <param name="ElementId">The gated element's id.</param>
+/// <param name="DecidedAt">The act's decision instant, read once from the host kernel clock.</param>
 /// <param name="RequiredRoles">The declared roles, any of which admits (workflows-auth-10).</param>
 public sealed record WorkflowGateIntent(
     string Tenant,
@@ -50,7 +51,8 @@ public sealed record WorkflowGateIntent(
     string DefinitionVersion,
     WorkflowGateElement Element,
     string ElementId,
-    IReadOnlyList<RoleReference> RequiredRoles)
+    IReadOnlyList<RoleReference> RequiredRoles,
+    DateTimeOffset DecidedAt)
 {
     /// <summary>Whether <paramref name="other"/> names exactly this question, roles compared in order.</summary>
     public bool Binds(WorkflowGateIntent? other) =>
@@ -62,6 +64,7 @@ public sealed record WorkflowGateIntent(
         && DefinitionVersion == other.DefinitionVersion
         && Element == other.Element
         && ElementId == other.ElementId
+        && DecidedAt == other.DecidedAt
         && RequiredRoles.SequenceEqual(other.RequiredRoles);
 }
 

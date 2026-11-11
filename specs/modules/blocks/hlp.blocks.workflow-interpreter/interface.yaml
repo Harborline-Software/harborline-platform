@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.blocks.workflow-interpreter",
-  "interfaceRevision": 4,
+  "interfaceRevision": 5,
   "status": "frozen",
   "purpose": "Execute any authored, admitted, persisted workflow definition through the engine core as the dispatcher's fallback, reaching every side-effect only through the public effect broker, in a separate assembly so broker-only effect reach is a compile-time fact.",
   "dependencies": [
@@ -26,7 +26,8 @@
     "A reject onto a terminal state records exactly one override and builds nothing.",
     "The interpreter composes only the public broker and catalog seams; it cannot name the internal effect-factory surface.",
     "Revision 2: a selected transition or an applied effecting action that declares a required role or standing is refused with workflow.interpreter.gate_unenforced before anything is selected, built or recorded, until the authorization gate that decides it is wired (DES-0019 workflows-eng-13 and section 6, L422; deny by default, CWE-862). Ungated elements execute as in revision 1.",
-    "Revision 3 (T-1176/platform-role-gate): a role gate on a HumanAction transition, or on the effecting action it fires, is decided through the composed IWorkflowGateAccess for the verified dispatch principal before the step, send-back, override or effect, in DES-0032's order (act kind, roles in force, standings, intersect, then the guard-bound step, then effects); a denied or unbound answer refuses with nothing selected, built or recorded. workflow.interpreter.gate_unenforced stays the backstop for a declared standing, an autonomous element, no composed port, or no verified authority."
+    "Revision 3 (T-1176/platform-role-gate): a role gate on a HumanAction transition, or on the effecting action it fires, is decided through the composed IWorkflowGateAccess for the verified dispatch principal before the step, send-back, override or effect, in DES-0032's order (act kind, roles in force, standings, intersect, then the guard-bound step, then effects); a denied or unbound answer refuses with nothing selected, built or recorded. workflow.interpreter.gate_unenforced stays the backstop for a declared standing, an autonomous element, no composed port, or no verified authority.",
+    "Revision 5 (T-1176/platform-gate-instant): WorkflowGateIntent carries DateTimeOffset DecidedAt and Binds compares it. The interpreter requires the host TimeProvider through RequireClock, reads GetUtcNow once on the verified WorkflowDispatchAuthority overload per act, and carries that same instant to its human transition and effecting action gates. Trigger payload time is evidence only and cannot supply the instant; an answer at another instant is workflow.gate.answer_unbound. The store event clock remains separate."
   ],
   "errors": [
     "workflow.admission.classification_mismatch",
