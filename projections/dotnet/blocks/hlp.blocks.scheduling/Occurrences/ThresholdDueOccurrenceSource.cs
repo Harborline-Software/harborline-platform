@@ -20,7 +20,7 @@ public sealed class ThresholdDueOccurrenceSource : IDueOccurrenceSource
             .ThenBy(e => e.Reading?.ReadingId ?? e.Completion!.CompletionId, StringComparer.Ordinal);
         var result = new List<SchedulingOccurrence>();
         string? open = null;
-        string armedBy = "initial";
+        string? armedBy = null;
         ScheduleReading? current = null;
         bool Past() => current is not null && (basis.Crossing == ThresholdCrossing.Above ? current.Value > basis.Value : current.Value < basis.Value);
         foreach (var item in events)
@@ -32,7 +32,8 @@ public sealed class ThresholdDueOccurrenceSource : IDueOccurrenceSource
                 armedBy = completion.CompletionId;
             }
             if (open is not null || !Past()) continue;
-            open = OccurrenceTime.Key(series.SeriesId, "threshold", current!.ReadingId, armedBy);
+            open = armedBy is null ? OccurrenceTime.Key(series.SeriesId, "threshold", current!.ReadingId, "initial")
+                : OccurrenceTime.Key(series.SeriesId, "threshold", current!.ReadingId, "after", armedBy);
             if (OccurrenceTime.InRange(request, item.At))
                 result.Add(OccurrenceTime.Create(request, kernelInstant, open, item.At, series.Definition.Window, series.Definition.Tolerance));
         }

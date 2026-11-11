@@ -13,7 +13,8 @@ public sealed class CompletionOffsetDueOccurrenceSource : IDueOccurrenceSource
             .OrderByDescending(c => c.CompletedAt).ThenBy(c => c.CompletionId, StringComparer.Ordinal).FirstOrDefault();
         var due = last is null ? series.FirstDue ?? throw new OccurrenceRefusalException("scheduling.occurrence.first_due_required")
             : OccurrenceTime.Add(last.CompletedAt, ((CompletionOffsetBasis)series.Definition.Basis!).Offset, series.Timezone);
-        var key = OccurrenceTime.Key(series.SeriesId, "completion", last?.CompletionId ?? "first");
+        var key = last is null ? OccurrenceTime.Key(series.SeriesId, "completion", "first")
+            : OccurrenceTime.Key(series.SeriesId, "completion", "after", last.CompletionId);
         return OccurrenceTime.InRange(request, due)
             ? [OccurrenceTime.Create(request, kernelInstant, key, due, series.Definition.Window, series.Definition.Tolerance)] : [];
     }

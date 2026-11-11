@@ -67,6 +67,9 @@ public sealed class RruleDueOccurrenceSource(IRruleExpansionService rrule) : IDu
         var basis = (FixedCalendarBasis)series.Definition.Basis!;
         var from = DateOnly.FromDateTime(WallClockResolver.ToLocalDateTime(request.From, zone));
         var to = DateOnly.FromDateTime(WallClockResolver.ToLocalDateTime(request.To, zone));
+        // A gap can carry a nominal recurrence into the next local date; resolve first, then filter the instant.
+        if (from > DateOnly.MinValue) from = from.AddDays(-1);
+        if (to < DateOnly.MaxValue) to = to.AddDays(1);
         var time = TimeOnly.FromDateTime(start);
         var dates = rrule.ExpandZonedOccurrences(basis.Rrule, DateOnly.FromDateTime(start), time, zone, to, 0, 0, from);
         var originals = dates.Select(d => d.ToDateTime(time)).ToHashSet();

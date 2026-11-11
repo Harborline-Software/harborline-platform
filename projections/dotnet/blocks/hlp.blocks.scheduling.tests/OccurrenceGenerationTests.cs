@@ -124,8 +124,47 @@ public sealed class OccurrenceGenerationTests
         Assert.Equal(I(expected), occurrence.Due);
         Assert.Equal(I(earliest), occurrence.Earliest);
         Assert.Equal(I(latest), occurrence.Latest);
-        Assert.Equal("series/completion/done", occurrence.OccurrenceId);
+        Assert.Equal("series/completion/after/done", occurrence.OccurrenceId);
         Assert.Equal(occurrence.OccurrenceId, Assert.Single(Query(request, "2026-12-31T00:00:00Z")).OccurrenceId);
+    }
+
+    [Fact]
+    public void MidnightCrossingGapKeepsTheNominalRecurrenceInsideAnInstantQuery()
+    {
+        var request = Request(Definition(new FixedCalendarBasis("FREQ=DAILY;COUNT=1")));
+        request = request with { Series = request.Series with { LocalStart = L("2026-03-28T23:30:00"), Timezone = "America/Nuuk" },
+            From = I("2026-03-29T01:00:00Z"), To = I("2026-03-29T02:00:00Z") };
+        var occurrence = Assert.Single(Query(request));
+        Assert.Equal(I("2026-03-29T01:30:00Z"), occurrence.Due);
+        Assert.Equal(L("2026-03-28T23:30:00"), occurrence.RecurrenceLocal);
+        Assert.Equal("series/2026-03-28T23%3A30%3A00.0000000", occurrence.OccurrenceId);
+    }
+
+    [Fact]
+    public void CompletionIdFirstCannotCompleteTheNextOffsetOccurrence()
+    {
+        var request = Request(Definition(new CompletionOffsetBasis("P1D")));
+        request = request with { Series = request.Series with { FirstDue = I("2026-07-01T08:00:00Z") } };
+        var initial = Assert.Single(Query(request));
+        request = request with { Completions = [new("first", "series", initial.OccurrenceId, I("2026-07-01T09:00:00Z"))] };
+        var next = Assert.Single(Query(request, "2026-07-03T20:00:00Z"));
+        Assert.Equal("series/completion/after/first", next.OccurrenceId);
+        Assert.Equal(I("2026-07-02T09:00:00Z"), next.Due);
+        Assert.Null(next.CompletedAt);
+        Assert.True(next.IsDue);
+    }
+
+    [Fact]
+    public void CompletionIdInitialCannotCompleteTheRearmedThresholdOccurrence()
+    {
+        var request = Request(Definition(new ThresholdBasis("hours", ThresholdCrossing.Above, 100)));
+        request = request with { Readings = [new("a", "series", "hours", I("2026-07-01T08:00:00Z"), 101)],
+            Completions = [new("initial", "series", "series/threshold/a/initial", I("2026-07-01T09:00:00Z"))] };
+        var occurrences = Query(request);
+        Assert.Equal(["series/threshold/a/initial", "series/threshold/a/after/initial"], occurrences.Select(o => o.OccurrenceId));
+        Assert.Equal(I("2026-07-01T09:00:00Z"), occurrences[1].Due);
+        Assert.Null(occurrences[1].CompletedAt);
+        Assert.True(occurrences[1].IsDue);
     }
 
     [Fact]
@@ -186,7 +225,7 @@ public sealed class OccurrenceGenerationTests
         request = request with { Completions = [new("done", "series", first.OccurrenceId, I("2026-07-01T11:00:00Z"))] };
         var occurrences = Query(request);
         Assert.Equal([I("2026-07-01T08:00:00Z"), I("2026-07-01T11:00:00Z")], occurrences.Select(o => o.Due));
-        Assert.Equal("series/threshold/c/done", occurrences[1].OccurrenceId);
+        Assert.Equal("series/threshold/c/after/done", occurrences[1].OccurrenceId);
         Assert.Equal(occurrences.Select(o => o.OccurrenceId), Query(request).Select(o => o.OccurrenceId));
     }
 
