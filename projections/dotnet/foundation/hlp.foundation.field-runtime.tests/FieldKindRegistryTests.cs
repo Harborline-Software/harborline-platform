@@ -9,18 +9,20 @@ public sealed class FieldKindRegistryTests
     public void Temporal_formats_resolve_only_on_the_exact_revision_and_survive_snapshotting()
     {
         // Oracle: T-1177 and JSON Schema 2020-12 section 7.3.1; RFC 3339 section 5.6.
+        var capabilities = new List<FieldKindCapability> { FieldKindCapability.RetentionClock };
         var supplied = new List<AdmittedFieldKind>
         {
-            new("temporal", "1", null, TemporalFormat: "date"),
+            new("temporal", "1", null, Capabilities: capabilities, TemporalFormat: "date"),
             new("temporal", "2", null, TemporalFormat: "date-time"),
             new("temporal", "3", null, TemporalFormat: "time"),
             new("plain", "1", null),
         };
         var registry = new FieldKindRegistry(supplied);
-        supplied[0] = supplied[0] with { TemporalFormat = "time" };
+        capabilities.Clear();
         supplied.Clear();
 
         Assert.Equal("date", Resolve("temporal", "1").TemporalFormat);
+        Assert.Equal(new[] { FieldKindCapability.RetentionClock }, Resolve("temporal", "1").Capabilities);
         Assert.Equal("date-time", Resolve("temporal", "2").TemporalFormat);
         Assert.Equal("time", Resolve("temporal", "3").TemporalFormat);
         Assert.Null(Resolve("plain", "1").TemporalFormat);
@@ -48,14 +50,13 @@ public sealed class FieldKindRegistryTests
     [InlineData(FieldScalarValueShape.Number, "date")]
     [InlineData(FieldScalarValueShape.Number, "date-time")]
     [InlineData(FieldScalarValueShape.Number, "time")]
-    public void Invalid_temporal_declarations_refuse_registration_without_a_registry(
+    public void Invalid_temporal_declarations_refuse_before_duplicate_registration(
         FieldScalarValueShape shape, string format)
     {
-        // Oracle: T-1177 registration refusal; registration uses the existing root pointer.
-        FieldKindRegistry? registry = null;
-        var error = Assert.Throws<FieldAdmissionException>(() => registry = new FieldKindRegistry(
-            [new("plain", "1", null), new("temporal", "1", null, shape, TemporalFormat: format)]));
-        Assert.Null(registry);
+        // Oracle: T-1177 invalid declarations refuse at registration, before duplicate insertion; root pointer is the registry contract.
+        var error = Assert.Throws<FieldAdmissionException>(() => new FieldKindRegistry(
+            [new("temporal", "1", null, TemporalFormat: "date"),
+                new("temporal", "1", null, shape, TemporalFormat: format)]));
         var refusal = Assert.Single(error.Refusals);
         Assert.Equal("field.kind_registration_invalid", refusal.Code);
         Assert.Equal("", refusal.JsonPointer);
@@ -68,10 +69,24 @@ public sealed class FieldKindRegistryTests
     [InlineData(FieldScalarValueShape.Number)]
     public void An_absent_temporal_format_preserves_every_existing_shape(FieldScalarValueShape shape)
     {
+        // Oracle: T-1177 preserves the four existing scalar shapes when temporal semantics are absent.
         var registry = new FieldKindRegistry([new("plain", "1", null, shape)]);
         var kind = registry.Resolve(new("plain", "1", new Dictionary<string, string>()), "/kind");
         Assert.Null(kind.TemporalFormat);
         Assert.Equal(shape, kind.ValueShape);
+    }
+
+    [Fact]
+    public void Different_temporal_formats_cannot_register_the_same_kind_revision_twice()
+    {
+        // Oracle: exact KindId@Version is unique regardless of format; the registry's duplicate code and root pointer are literal.
+        var error = Assert.Throws<FieldAdmissionException>(() => new FieldKindRegistry(
+            [new("temporal", "1", null, TemporalFormat: "date"),
+                new("temporal", "1", null, TemporalFormat: "time")]));
+
+        var refusal = Assert.Single(error.Refusals);
+        Assert.Equal("field.kind_registration_duplicate", refusal.Code);
+        Assert.Equal("", refusal.JsonPointer);
     }
 
     [Fact]

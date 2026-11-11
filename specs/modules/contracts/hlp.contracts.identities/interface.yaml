@@ -1,11 +1,10 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.contracts.identities",
-  "interfaceRevision": 3,
+  "interfaceRevision": 2,
   "status": "frozen",
   "purpose": "Own the typed tenant and entity identities used at every tenant-scoped Platform seam without importing the broad Foundation aggregate.",
   "types": {
-    "AdmittedFieldKind": {"members":["KindId","Version","GovernanceDefaults","ValueShape","Capabilities","TemporalFormat"],"temporalFormat":"Optional trailing nullable string, default null; date, date-time or time only on Text (JSON Schema 2020-12 Validation section 7.3.1, RFC 3339 section 5.6). Immutable kind-revision semantics, not display configuration."},
     "TenantId": {
       "wireType": "string",
       "construction": "non-empty caller tenant ids only",
@@ -28,8 +27,6 @@
     {"id": "entity.serialize", "input": "EntityId", "result": "canonical string"}
   ],
   "invariants": [
-    "TemporalFormat is absent or exactly date, date-time or time, legal only on ValueShape Text. FieldScalarValueShape remains Text, Boolean, Integer, Number.",
-    "Temporal meaning is declared once on the kind revision, separate from display configuration. No Records body, view, schema-validation or RFC 3339 value check is added; temporal values remain JSON strings.",
     "TenantId and EntityId are not interchangeable despite both having string wire forms.",
     "A default TenantId and every reserved-prefix TenantId are system sentinels and must be rejected by tenant-scoped operations.",
     "Public TenantId construction rejects null, empty, whitespace-only, and reserved-prefix values.",

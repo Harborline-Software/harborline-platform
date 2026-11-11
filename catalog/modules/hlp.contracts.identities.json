@@ -3,7 +3,7 @@
   "module": {
     "interface": {
       "path": "specs/modules/contracts/hlp.contracts.identities/interface.yaml",
-      "revision": 3
+      "revision": 2
     },
     "moduleKind": "runtime",
     "presentation": {
@@ -18,8 +18,7 @@
       "deletionTest": "PASS",
       "redistributedComplexity": [
         "reserved and default tenant sentinel rejection at every tenant-scoped caller",
-        "canonical entity parsing, serialization, and malformed-wire rejection in every transport and store",
-        "temporal semantics declared once per immutable field-kind revision, distinct from scalar shape and display configuration"
+        "canonical entity parsing, serialization, and malformed-wire rejection in every transport and store"
       ]
     },
     "projections": {

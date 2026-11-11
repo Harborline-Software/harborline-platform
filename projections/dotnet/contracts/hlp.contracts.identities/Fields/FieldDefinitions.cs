@@ -65,7 +65,7 @@ public enum FieldKindCapability
 {
     /// <summary>
     /// The kind's value may start a Record Type's retention clock (DES-0015 records-ck-38, ADR 0095 ruling 3).
-    /// Records checks only that the bound revision declares it; the kind's schema owns the date/time meaning.
+    /// Records checks only that the bound revision declares it; TemporalFormat separately declares the kind's temporal meaning.
     /// </summary>
     RetentionClock,
 }
