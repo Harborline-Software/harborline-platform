@@ -76,12 +76,14 @@ public enum FieldKindCapability
 /// <param name="GovernanceDefaults">The governance values copied into a newly created field.</param>
 /// <param name="ValueShape">The JSON scalar shape produced by this exact kind revision.</param>
 /// <param name="Capabilities">The typed capabilities this exact revision declares; none when absent.</param>
+/// <param name="TemporalFormat">Optional date, date-time or time semantics (RFC 3339 section 5.6), only for Text; not a display pattern.</param>
 public sealed record AdmittedFieldKind(
     string KindId,
     string Version,
     FieldGovernanceDefinition? GovernanceDefaults,
     FieldScalarValueShape ValueShape = FieldScalarValueShape.Text,
-    IReadOnlyList<FieldKindCapability>? Capabilities = null);
+    IReadOnlyList<FieldKindCapability>? Capabilities = null,
+    string? TemporalFormat = null);
 
 /// <summary>Constraints shared by fields and the declarations that narrow them.</summary>
 /// <param name="Required">Whether a value is always required at this floor.</param>

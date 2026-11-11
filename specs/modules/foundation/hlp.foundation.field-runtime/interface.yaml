@@ -1,13 +1,13 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.foundation.field-runtime",
-  "interfaceRevision": 1,
+  "interfaceRevision": 2,
   "status": "draft",
   "purpose": "Own shared field-kind admission, authority-aware three-source value-domain resolution, narrowing, kind limits and domain-driven editor selection under DES-0030 and T-621.",
   "dependencies": ["hlp.contracts.fields", "hlp.contracts.identities", "hlp.foundation.rule-runtime"],
   "types": {
     "FieldKindReference": ["KindId", "Version", "Parameters"],
-    "AdmittedFieldKind": ["KindId", "Version", "GovernanceDefaults", "ValueShape"],
+    "AdmittedFieldKind": ["KindId", "Version", "GovernanceDefaults", "ValueShape", "Capabilities", "TemporalFormat"],
     "ValueDomainDefinition": ["LiteralValues", "TaxonomyScheme", "RecordQuery"],
     "FieldConstraintDefinition": ["Required", "MinimumCount", "MaximumCount", "ReadRoleIds", "ValueDomain"],
     "FieldRefusal": ["Code", "JsonPointer", "Message"]
@@ -35,6 +35,9 @@
     {"id": "constraints.narrow", "input": "declared floor, complete consumer declaration, tenant/principal and authored pointer", "result": "resolved non-widening proof or member-neutral refusal"}
   ],
   "invariants": [
+    "TemporalFormat is absent or exactly date, date-time or time, legal only on ValueShape Text. FieldScalarValueShape remains Text, Boolean, Integer, Number.",
+    "FieldKindRegistry refuses invalid temporal declarations at registration with field.kind_registration_invalid at the root pointer; failed construction exposes no registry. Resolve retains the format on the immutable exact KindId@Version snapshot.",
+    "Temporal meaning is declared once on the kind revision, separate from display configuration. No Records body, view, schema-validation or RFC 3339 value check is added; temporal values remain JSON strings.",
     "Exactly one domain source is authored: literals, an immutable Taxonomy scheme, or a record query with a predicate.",
     "Field-kind binding names an exact admitted version, never a latest-version or kind-name fallback.",
     "The generated schema retains exact kind identity, revision and every parameter in x-harborline-field-kind metadata so runtime-only limits participate in canonical identity and execution.",
