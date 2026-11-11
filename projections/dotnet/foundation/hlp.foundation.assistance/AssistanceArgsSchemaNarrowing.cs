@@ -10,8 +10,31 @@ public static class AssistanceArgsSchemaNarrowing
     {
         if (candidate.ValueKind != JsonValueKind.Object || baseline.ValueKind != JsonValueKind.Object) return false;
         if (candidate.GetRawText().Length > 65536 || baseline.GetRawText().Length > 65536) return false;
+        var shapeBudget = 4096;
+        var hasReferences = false;
+        if (!HasUniqueNames(candidate, 0, ref shapeBudget, ref hasReferences) || !HasUniqueNames(baseline, 0, ref shapeBudget, ref hasReferences)) return false;
+        // A nested reference can observe a sibling change with negative polarity.
+        if (hasReferences) return JsonElement.DeepEquals(candidate, baseline);
         var budget = 4096;
         return Compare(candidate, baseline, 0, ref budget);
+    }
+
+    private static bool HasUniqueNames(JsonElement value, int depth, ref int budget, ref bool hasReferences)
+    {
+        if (depth > 64 || --budget < 0) return false;
+        if (value.ValueKind == JsonValueKind.Object)
+        {
+            var names = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var property in value.EnumerateObject())
+            {
+                if (property.Name is "$ref" or "$dynamicRef") hasReferences = true;
+                if (!names.Add(property.Name) || !HasUniqueNames(property.Value, depth + 1, ref budget, ref hasReferences)) return false;
+            }
+        }
+        else if (value.ValueKind == JsonValueKind.Array)
+            foreach (var item in value.EnumerateArray())
+                if (!HasUniqueNames(item, depth + 1, ref budget, ref hasReferences)) return false;
+        return true;
     }
 
     private static bool Compare(JsonElement candidate, JsonElement baseline, int depth, ref int budget)

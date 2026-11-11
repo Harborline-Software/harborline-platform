@@ -212,7 +212,7 @@ public static class AssistanceDefinitionAdmission
             if (command.Classification.Tier < entry.Tier) refusals.Add(new("definition.tier_below_catalogue", pointer + "/classification/tier"));
             if (!AssistanceArgsSchemaNarrowing.IsAtLeastAsStrict(command.ArgsSchema, entry.ArgsSchema)) refusals.Add(new("definition.args_schema_looser_than_catalogue", pointer + "/args_schema"));
             for (var recipient = 0; recipient < recipients.Count; recipient++)
-                if (!entry.PermittedRecipients.Contains(recipients[recipient], StringComparer.Ordinal))
+                if (entry.PermittedRecipients is null || !entry.PermittedRecipients.Contains(recipients[recipient], StringComparer.Ordinal))
                 {
                     var refusal = new AssistanceRefusal("definition.recipient_outside_target_permission", $"/recipients/{recipient}");
                     if (!refusals.Contains(refusal)) refusals.Add(refusal);

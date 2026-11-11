@@ -49,6 +49,7 @@ public sealed class CatalogueNarrowingTests
     // Literal schema pairs follow JSON Schema 2020-12 Validation §§6.1–6.5 and the slice's conservative rules.
     private static IEnumerable<(string Strict, string Loose)> SchemaPairs()
     {
+        yield return ("{\"properties\":{\"x\":{\"not\":{\"$ref\":\"#/properties/y\"}},\"y\":{\"type\":\"string\"}}}", "{\"properties\":{\"x\":{\"not\":{\"$ref\":\"#/properties/y\"}},\"y\":{\"type\":\"string\",\"enum\":[\"a\"]}}}");
         yield return ("{\"required\":[\"id\"]}", "{\"required\":[]}");
         yield return ("{\"additionalProperties\":false}", "{\"additionalProperties\":true}");
         yield return ("{\"additionalProperties\":false}", "{}");
@@ -66,6 +67,7 @@ public sealed class CatalogueNarrowingTests
         yield return ("{\"custom\":1}", "{\"custom\":2}");
         yield return ("{}", "{\"custom\":1}");
         yield return ("{\"properties\":{\"x\":{\"maximum\":1}}}", "{\"properties\":{\"x\":{\"maximum\":2}}}");
+        yield return ("{\"properties\":{\"x\":{\"maximum\":1}}}", "{\"properties\":{\"x\":{},\"x\":{\"maximum\":1}}}");
         yield return ("{\"items\":{\"maxLength\":1}}", "{\"items\":{\"maxLength\":2}}");
     }
 
@@ -82,7 +84,7 @@ public sealed class CatalogueNarrowingTests
             Assert.Equal([new AssistanceRefusal("definition.args_schema_looser_than_catalogue", "/commands/0/args_schema")], AssistanceDefinitionAdmission.Validate(Binding(Command("ap", schema: loose)), phase, Window, registry));
             Assert.Empty(AssistanceDefinitionAdmission.Validate(Binding(Command("ap", schema: strict)), phase, Window, registry));
         }
-        foreach (var (strict, loose) in SchemaPairs().Where(pair => !pair.Strict.Contains("pattern", StringComparison.Ordinal) && !pair.Strict.Contains("type", StringComparison.Ordinal) && !pair.Strict.Contains("custom", StringComparison.Ordinal) && !pair.Loose.Contains("custom", StringComparison.Ordinal) && !pair.Loose.Contains("extra", StringComparison.Ordinal)))
+        foreach (var (strict, loose) in SchemaPairs().Where(pair => !pair.Strict.Contains("pattern", StringComparison.Ordinal) && !pair.Strict.Contains("type", StringComparison.Ordinal) && !pair.Strict.Contains("custom", StringComparison.Ordinal) && !pair.Loose.Contains("custom", StringComparison.Ordinal) && !pair.Loose.Contains("extra", StringComparison.Ordinal) && !pair.Loose.Contains("\"x\":{},\"x\"", StringComparison.Ordinal)))
         {
             registry.Replace(registry.Resolve("ap")! with { ArgsSchema = Json(loose) });
             Assert.Empty(AssistanceDefinitionAdmission.Validate(Binding(Command("ap", schema: strict)), phase, Window, registry));
@@ -103,6 +105,10 @@ public sealed class CatalogueNarrowingTests
         Assert.True(AssistanceArgsSchemaNarrowing.IsAtLeastAsStrict(Json("{\"properties\":{\"x\":{\"type\":\"string\"}},\"additionalProperties\":false}"), Json("{\"additionalProperties\":{\"type\":\"string\"}}")));
         Assert.False(AssistanceArgsSchemaNarrowing.IsAtLeastAsStrict(Json("{\"unevaluatedProperties\":false,\"properties\":{\"x\":{}}}"), Json("{\"unevaluatedProperties\":false}")));
         Assert.True(AssistanceArgsSchemaNarrowing.IsAtLeastAsStrict(Json("{\"$ref\":\"#/$defs/x\"}"), Json("{\"$ref\":\"#/$defs/x\"}")));
+        var opaqueDuplicate = Json("{\"allOf\":[{\"properties\":{\"x\":{},\"x\":{}}}]}");
+        Assert.False(AssistanceArgsSchemaNarrowing.IsAtLeastAsStrict(opaqueDuplicate, opaqueDuplicate));
+        var wide = "{\"enum\":[" + string.Join(',', Enumerable.Range(0, 4096)) + "]}";
+        Assert.False(AssistanceArgsSchemaNarrowing.IsAtLeastAsStrict(Json(wide), Json(wide)));
         var deep = "{}";
         for (var i = 0; i < 34; i++) deep = "{\"items\":" + deep + "}";
         Assert.False(AssistanceArgsSchemaNarrowing.IsAtLeastAsStrict(Json(deep), Json(deep)));
@@ -122,6 +128,8 @@ public sealed class CatalogueNarrowingTests
         Assert.Empty(AssistanceDefinitionAdmission.Validate(mixed, phase, Window, registry));
         Assert.Empty(AssistanceDefinitionAdmission.Validate(Binding(Command("ap")) with { Recipients = ["alice", "bob"] }, phase, Window, registry));
         Assert.Equal([new AssistanceRefusal("definition.recipient_outside_target_permission", "/recipients/0")], AssistanceDefinitionAdmission.Validate(mixed with { Recipients = ["outsider"] }, phase, Window, registry));
+        registry.Replace(registry.Resolve("ap")! with { PermittedRecipients = null! });
+        Assert.Equal([new AssistanceRefusal("definition.recipient_outside_target_permission", "/recipients/0")], AssistanceDefinitionAdmission.Validate(Binding(Command("ap")), phase, Window, registry));
     }
 
     [Theory(DisplayName = "pilot-auth-10 pilot-ck-6: previous maximum removal refuses in every phase")]
