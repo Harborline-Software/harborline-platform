@@ -28,7 +28,7 @@ public interface IWorkflowStore
     /// <summary>Loads an instance by id, or <see langword="null"/> if unknown.</summary>
     Task<WorkflowInstanceRecord?> LoadAsync(string instanceId, CancellationToken ct = default);
 
-    /// <summary>Creates a new instance row (the start of a Process). Single write.</summary>
+    /// <summary>Persists a new instance row. Authored-run hosts use WorkflowInstanceCreator to validate the subject first.</summary>
     Task CreateInstanceAsync(WorkflowInstanceRecord instance, CancellationToken ct = default);
 
     /// <summary>

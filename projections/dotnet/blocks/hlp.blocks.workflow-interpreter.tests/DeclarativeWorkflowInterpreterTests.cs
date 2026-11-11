@@ -19,7 +19,7 @@ namespace Harborline.Blocks.Workflow.Interpreter.Tests;
 /// refused; reject records an override with no effect; send-back loops back; the CP effect request is
 /// re-derived from the pinned definition, not the confirm payload.
 /// </summary>
-public sealed class DeclarativeWorkflowInterpreterTests
+public sealed partial class DeclarativeWorkflowInterpreterTests
 {
     private const string Tenant = "tenant:acme";
     private const string CpKey = "vendor-invoice-approval.v1";
