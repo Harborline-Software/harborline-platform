@@ -42,6 +42,20 @@ public sealed class DocumentAuthoringTests : BunitContext
         Assert.True(JsonNode.DeepEquals(Fixture["expected"], actual), actual.ToJsonString());
     }
 
+    [Fact(DisplayName = "documents-auth-1 documents-auth-3 T-594 item 4: fresh defaults and null text preserve the draft contract and edit generation")]
+    public void FreshDefaultsAndNullText()
+    {
+        var value = DocumentDraft.Empty;
+        Assert.Equal("", value.Identity); Assert.Null(value.Revision); Assert.Equal("", value.Name); Assert.Equal("", value.DocumentType);
+        Assert.Equal(new("from_instance"), value.Locale); Assert.Equal(new(), value.Style); Assert.Empty(value.Blocks);
+        var changes = new List<DocumentDraftChange>(); var cut = Editor(changes, value);
+        Assert.Equal("hl-document-authoring", cut.Find("form").GetAttribute("class"));
+        Assert.Contains("Local draft. Preview does not issue a document.", cut.Markup, StringComparison.Ordinal);
+        Labelled(cut, "Template name").Input(new Microsoft.AspNetCore.Components.ChangeEventArgs());
+        Assert.Equal("", Assert.Single(changes).Draft.Name); Assert.Equal(1, changes[0].Generation);
+        Type(cut, "Template name", "Next"); Assert.Equal(2, changes[^1].Generation);
+    }
+
     [Fact(DisplayName = "documents-eng-21 documents-auth-1 documents-auth-3 documents-auth-4 documents-auth-5 documents-auth-7 documents-auth-10 documents-auth-15 documents-auth-16 documents-ck-5 documents-ck-6 documents-ck-23 layout-ck-43: author from nothing matches the independent literal fixture")]
     public void AuthorsFromNothing()
     {
@@ -50,15 +64,49 @@ public sealed class DocumentAuthoringTests : BunitContext
         Assert.DoesNotContain("Block label", cut.Markup, StringComparison.Ordinal);
     }
 
+    [Fact(DisplayName = "documents-auth-16: clearing a pinned logo produces no logo and passes authoritative admission")]
+    public void ClearsLogo()
+    {
+        var changes = new List<DocumentDraftChange>(); var cut = Editor(changes);
+        Type(cut, "Logo asset reference", "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"); Type(cut, "Logo asset reference", "");
+        Assert.Null(changes[^1].Draft.Style.LogoAssetRef);
+        var template = Fixtures.Template() with { Style = new(LogoAssetRef: changes[^1].Draft.Style.LogoAssetRef) };
+        Assert.Empty(Producer.TemplateDefinitionAdmission.Validate(template, Fixtures.Surfaces()));
+    }
+
+    [Fact(DisplayName = "documents-auth-5 layout-ck-43: action names identify their block line and run, and edits stay isolated")]
+    public void UniqueActionsAndIsolatedEdits()
+    {
+        var value = DocumentDraft.Empty with { Blocks = [new("first", [new([new(Text: "first")])]), new("second", [new([new(Text: "second")])])] };
+        var changes = new List<DocumentDraftChange>(); var cut = Editor(changes, value);
+        var names = cut.FindAll("button").Select(element => element.TextContent).ToArray(); Assert.Equal(names.Length, names.Distinct().Count());
+        Assert.Equal("Literal", Labelled(cut, "Block 2 line 1 run 1 literal").ParentElement!.TextContent);
+        Type(cut, "Block 2 line 1 run 1 literal", "Second edited");
+        Assert.Equal("first", changes[^1].Draft.Blocks[0].Lines[0].Runs[0].Text); Assert.Equal("Second edited", changes[^1].Draft.Blocks[1].Lines[0].Runs[0].Text);
+        Button(cut, "Remove run 1 from line 1 in block 2").Click();
+        Assert.Equal("first", changes[^1].Draft.Blocks[0].Lines[0].Runs[0].Text); Assert.Empty(changes[^1].Draft.Blocks[1].Lines[0].Runs);
+    }
+
+    [Fact(DisplayName = "documents-auth-5 T-594 item 4: duplicate block ids are refused without discarding data and a valid revision recovers")]
+    public void DuplicateBlocksRefuse()
+    {
+        var changes = new List<DocumentDraftChange>(); var requests = new List<DocumentPreviewRequest>();
+        var cut = Editor(changes, DocumentDraft.Empty with { Blocks = [new("duplicate", []), new("duplicate", [])] }, preview: request => { requests.Add(request); return Task.FromResult(Result); });
+        Assert.Equal("Duplicate block ids. The host must supply unique block ids.", cut.Find("[role='alert']").TextContent);
+        Assert.Empty(cut.FindAll("form")); Assert.Empty(changes); Assert.Empty(requests);
+        cut.Render(parameters => parameters.Add(component => component.Value, DocumentDraft.Empty with { Revision = "2" }));
+        Assert.Empty(cut.FindAll("[role='alert']")); Assert.Single(cut.FindAll("form"));
+    }
+
     [Fact(DisplayName = "documents-auth-5 layout-ck-43: ordered blocks, lines and runs remove exactly the selected item")]
     public void OrdersAndRemoves()
     {
         var changes = new List<DocumentDraftChange>(); var cut = Editor(changes); Replay(cut); Button(cut, "Add block").Click(); Button(cut, "Move block 2 up").Click();
         Assert.Equal(["block-2", "block-1"], changes[^1].Draft.Blocks.Select(block => block.Id));
         Button(cut, "Remove block 1").Click(); Button(cut, "Add block").Click(); Assert.Equal(["block-1", "block-2"], changes[^1].Draft.Blocks.Select(block => block.Id));
-        Button(cut, "Add line to block 1").Click(); Button(cut, "Add literal to line 2").Click(); Type(cut, "Block 1 line 2 run 1 literal", "Second line"); Button(cut, "Remove line 1").Click();
+        Button(cut, "Add line to block 1").Click(); Button(cut, "Add literal to line 2 in block 1").Click(); Type(cut, "Block 1 line 2 run 1 literal", "Second line"); Button(cut, "Remove line 1 from block 1").Click();
         Assert.Equal("Second line", Assert.Single(Assert.Single(changes[^1].Draft.Blocks[0].Lines).Runs).Text);
-        Button(cut, "Add merge to line 1").Click(); Button(cut, "Remove run 1").Click(); Assert.Equal("", Assert.Single(changes[^1].Draft.Blocks[0].Lines[0].Runs).FieldPath);
+        Button(cut, "Add merge to line 1 in block 1").Click(); Button(cut, "Remove run 1 from line 1 in block 1").Click(); Assert.Equal("", Assert.Single(changes[^1].Draft.Blocks[0].Lines[0].Runs).FieldPath);
         Button(cut, "Remove block 2").Click(); Assert.Equal("block-1", Assert.Single(changes[^1].Draft.Blocks).Id);
     }
 
@@ -67,6 +115,7 @@ public sealed class DocumentAuthoringTests : BunitContext
     {
         var changes = new List<DocumentDraftChange>(); var cut = Editor(changes); Replay(cut);
         Assert.Equal(["", "sm", "md", "lg"], Labelled(cut, "Block 1 container token").QuerySelectorAll("option").Select(option => option.GetAttribute("value")));
+        Assert.True(changes[^1].Draft.Blocks[0].BreakBefore); Assert.True(changes[^1].Draft.Blocks[0].BreakAfter); Assert.Equal("avoid_page", changes[^1].Draft.Blocks[0].BreakInside);
         foreach (var token in new[] { "sm", "md", "lg", "" }) { Type(cut, "Block 1 container token", token); Assert.Equal(token.Length == 0 ? null : token, changes[^1].Draft.Blocks[0].CollapseBelow); }
         Labelled(cut, "Block 1 break before").Change(false); Labelled(cut, "Block 1 break after").Change(false); Type(cut, "Block 1 break inside", "auto");
         Assert.False(changes[^1].Draft.Blocks[0].BreakBefore); Assert.False(changes[^1].Draft.Blocks[0].BreakAfter); Assert.Equal("auto", changes[^1].Draft.Blocks[0].BreakInside);
@@ -152,6 +201,23 @@ public sealed class DocumentAuthoringTests : BunitContext
         Type(cut, "Preview source", "record"); Assert.True(Button(cut, "Render preview").HasAttribute("disabled")); Type(cut, "Preview target", "record.1"); Button(cut, "Render preview").Click(); Assert.Equal(new("record", "record.1"), requests[^1].Target);
     }
 
+    [Fact(DisplayName = "documents-auth-17 documents-run-2: preview options follow their source and pending and completed status are explicit")]
+    public async Task PreviewOptionsAndStatus()
+    {
+        var pending = new TaskCompletionSource<DocumentPreviewResult>(); var cut = Editor([], preview: _ => pending.Task);
+        Assert.Single(Labelled(cut, "Preview target").QuerySelectorAll("option[value='example']"));
+        Assert.Empty(Labelled(cut, "Preview target").QuerySelectorAll("option[value='record.1']"));
+        Type(cut, "Preview source", "record");
+        Assert.Single(Labelled(cut, "Preview target").QuerySelectorAll("option[value='record.1']"));
+        Assert.Empty(Labelled(cut, "Preview target").QuerySelectorAll("option[value='example']"));
+        Type(cut, "Preview target", "record.1");
+        Assert.Single(Labelled(cut, "Preview target").QuerySelectorAll("option[value='record.1']"));
+        var click = Button(cut, "Render preview").ClickAsync(new());
+        Assert.Equal("Rendering preview…", cut.Find("[role='status']").TextContent); Assert.True(Button(cut, "Render preview").HasAttribute("disabled"));
+        pending.SetResult(Result); await click;
+        Assert.Equal("Preview only. No document issued.", cut.Find("[role='status']").TextContent); Assert.False(Button(cut, "Render preview").HasAttribute("disabled"));
+    }
+
     [Fact(DisplayName = "documents-run-2: denied authority failure retry and minted responses fail closed")]
     public void PreviewDenial()
     {
@@ -219,6 +285,7 @@ public sealed class DocumentAuthoringTests : BunitContext
     public void LayoutAdmission(string token)
     {
         var changes = new List<DocumentDraftChange>(); var cut = Editor(changes); Replay(cut); Type(cut, "Block 1 container token", token); var surface = Surface(changes[^1].Draft);
+        Assert.Equal(token, changes[^1].Draft.Blocks[0].CollapseBelow);
         LayoutDefinitionAdmission.ValidateForPublish(surface, Harborline.Foundation.Documents.Tests.GrantsAllAuthor.Instance);
         var invalid = surface with { Blocks = [surface.Blocks[0] with { Container = surface.Blocks[0].Container! with { ColumnCount = 0 } }, .. surface.Blocks.Skip(1)] };
         Assert.Throws<DefinitionRefusalException>(() => LayoutDefinitionAdmission.ValidateForPublish(invalid, Harborline.Foundation.Documents.Tests.GrantsAllAuthor.Instance));

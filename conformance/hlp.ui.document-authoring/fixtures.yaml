@@ -23,9 +23,9 @@
           {"check":"Block 1 break after"},
           {"set":"Block 1 break inside","value":"avoid_page"},
           {"click":"Add line to block 1"},
-          {"click":"Add literal to line 1"},
+          {"click":"Add literal to line 1 in block 1"},
           {"set":"Block 1 line 1 run 1 literal","value":"Total: "},
-          {"click":"Add merge to line 1"},
+          {"click":"Add merge to line 1 in block 1"},
           {"set":"Block 1 line 1 run 2 field","value":"record.total"},
           {"set":"Block 1 line 1 run 2 fallback","value":"Not supplied"}
         ]

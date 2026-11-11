@@ -6,4 +6,6 @@ Text lines carry LayoutTextRun's text or fieldPath/fallback shape; masters carry
 
 Changes carry a local generation, never a persisted revision. Denials must match identity, revision and generation. Incoming identity/revision changes wait behind Keep/Discard when dirty. Read-only disables every authoring, preview and pending decision. The host must still reauthorize every server request. Samples are explicitly labelled, and the request exposes preview only.
 
+Clearing the logo field means no logo: the optional reference is absent in React and null in Blazor, never an empty reference for admission. Hosts must supply unique block ids. Both lanes refuse a draft with duplicate ids with the same alert instead of dropping blocks or rendering ambiguous keys; a subsequent valid identity/revision can replace it. Run and line action names include their block and line context.
+
 Oracle: conformance/hlp.ui.document-authoring/fixtures.yaml is a literal contract fixture shared by both native suites. The Blazor test-only host composes the authored Layout surface and calls DocumentRuntime with no published lookup or issued store. It exercises both en-US and fr-FR while the UI locale differs. Gallery previews are explicitly labelled contract fixtures, not a live server.

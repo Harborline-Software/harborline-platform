@@ -20,6 +20,45 @@ function replay() { for (const step of fixture.input.steps) { if (step.set) type
 const last = (change: ReturnType<typeof vi.fn>) => change.mock.calls.at(-1)![0] as DocumentDraft
 
 describe('Document authoring', () => {
+  it('documents-eng-21: gallery component styles precede import maps and host overrides', () => {
+    for (const file of ['index.html', 'iframe.html']) {
+      const markup = readFileSync(resolve(import.meta.dirname, `../../../../../gallery/projections/blazor/wwwroot/${file}`), 'utf8')
+      const position = markup.indexOf('href="_content/Harborline.UIAdapters.Blazor/document-authoring.css"')
+      expect(position).toBeGreaterThan(0); expect(position).toBeLessThan(markup.indexOf('<script type="importmap"'))
+      if (file === 'iframe.html') expect(position).toBeLessThan(markup.indexOf('href="gallery.css"'))
+    }
+  })
+
+  it('documents-auth-16: clearing a pinned logo omits the optional asset reference', () => {
+    const { props } = editor(); type('Logo asset reference', 'sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef')
+    type('Logo asset reference', '')
+    expect(last(props.onDraftChange).style.logoAssetRef).toBeUndefined()
+    expect(JSON.parse(JSON.stringify(last(props.onDraftChange))).style).not.toHaveProperty('logoAssetRef')
+  })
+
+  it('documents-auth-5 layout-ck-43: action names identify their block line and run, and edits stay isolated', () => {
+    const value = { ...emptyDocumentDraft(), blocks: ['first', 'second'].map(id => ({ id, breakBefore: false, breakAfter: false, breakInside: 'auto' as const, lines: [{ runs: [{ text: id }] }] })) }
+    const { props } = editor({ value })
+    const names = screen.getAllByRole('button').map(element => element.textContent)
+    expect(new Set(names).size).toBe(names.length)
+    type('Block 2 line 1 run 1 literal', 'Second edited')
+    expect(last(props.onDraftChange).blocks[0].lines[0].runs).toEqual([{ text: 'first' }])
+    expect(last(props.onDraftChange).blocks[1].lines[0].runs).toEqual([{ text: 'Second edited' }])
+    button('Remove run 1 from line 1 in block 2')
+    expect(last(props.onDraftChange).blocks[0].lines[0].runs).toEqual([{ text: 'first' }])
+    expect(last(props.onDraftChange).blocks[1].lines[0].runs).toEqual([])
+  })
+
+  it('documents-auth-5 T-594 item 4: duplicate block ids are refused without discarding data and a valid revision recovers', () => {
+    const value = { ...emptyDocumentDraft(), blocks: [1, 2].map(() => ({ id: 'duplicate', breakBefore: false, breakAfter: false, breakInside: 'auto' as const, lines: [] })) }
+    const { props, rerender } = editor({ value })
+    expect(screen.getByRole('alert').textContent).toBe('Duplicate block ids. The host must supply unique block ids.')
+    expect(screen.queryByRole('form')).toBeNull()
+    expect(props.onDraftChange).not.toHaveBeenCalled(); expect(props.onPreview).not.toHaveBeenCalled()
+    rerender(<DocumentAuthoringEditor {...props} value={{ ...emptyDocumentDraft(), revision: '2' }} />)
+    expect(screen.queryByRole('alert')).toBeNull(); expect(screen.getByRole('form')).toBeDefined()
+  })
+
   it('documents-eng-21 documents-auth-1 documents-auth-3 documents-auth-4 documents-auth-5 documents-auth-7 documents-auth-10 documents-auth-15 documents-auth-16 documents-ck-5 documents-ck-6 documents-ck-23 layout-ck-43: creates the exact literal contract oracle from nothing', () => {
     const { props } = editor(); replay()
     expect(last(props.onDraftChange)).toEqual(fixture.expected)
@@ -29,9 +68,9 @@ describe('Document authoring', () => {
     const { props } = editor(); replay(); button('Add block'); button('Move block 2 up')
     expect(last(props.onDraftChange).blocks.map(value => value.id)).toEqual(['block-2', 'block-1'])
     button('Remove block 1'); button('Add block'); expect(last(props.onDraftChange).blocks.map(value => value.id)).toEqual(['block-1', 'block-2'])
-    button('Add line to block 1'); button('Add literal to line 2'); type('Block 1 line 2 run 1 literal', 'Second line')
-    button('Remove line 1'); expect(last(props.onDraftChange).blocks[0].lines).toEqual([{ runs: [{ text: 'Second line' }] }])
-    button('Add merge to line 1'); button('Remove run 1'); expect(last(props.onDraftChange).blocks[0].lines[0].runs).toEqual([{ fieldPath: '' }])
+    button('Add line to block 1'); button('Add literal to line 2 in block 1'); type('Block 1 line 2 run 1 literal', 'Second line')
+    button('Remove line 1 from block 1'); expect(last(props.onDraftChange).blocks[0].lines).toEqual([{ runs: [{ text: 'Second line' }] }])
+    button('Add merge to line 1 in block 1'); button('Remove run 1 from line 1 in block 1'); expect(last(props.onDraftChange).blocks[0].lines[0].runs).toEqual([{ fieldPath: '' }])
     button('Remove block 2'); expect(last(props.onDraftChange).blocks.map(value => value.id)).toEqual(['block-1'])
   })
   it('T-594 item 4 documents-ck-23: only container sm/md/lg, no chrome window class, and booleans can be cleared', () => {
