@@ -756,6 +756,12 @@ public sealed class RecordWriteOperation
         ct.ThrowIfCancellationRequested();
         if (_temporalPort is null || _temporalReceipts is null || _temporalRecords is null)
             return TemporalStatus(RecordTemporalWriteStatus.TemporalStoreUnavailable);
+        // Detach caller-owned values before the asynchronous gate can yield. Cloning is not validation:
+        // even a clone failure is refused only after the gate allows, so a denial reveals no shape detail.
+        JsonObject? bodySnapshot;
+        try { bodySnapshot = (JsonObject)suppliedBody.DeepClone(); }
+        catch (Exception error) when (error is EncoderFallbackException or InvalidOperationException or FormatException or ArgumentException)
+        { bodySnapshot = null; }
         var instant = _clock.GetUtcNow();
         var recordId = target ?? MintRecordId();
         // RW-1 and the owner's ruling of 2026-11-05 (T-616, "Option A"): an amend is decided before any read, on an untyped
@@ -770,29 +776,35 @@ public sealed class RecordWriteOperation
             return TemporalRefused(new(AuthorizeStage, access.Check.Reason, [])) with { Decision = access.Evidence };
         var evidence = access.Evidence ?? throw new InvalidOperationException("The gate allowed without its evidence.");
         // RW-1 / records-eng-2: request-shape refusals follow the gate, before any store read.
-        if (!IsOperationId(operationId)) return TemporalRefused(new(ValidateStage, OperationIdInvalid, [OperationIdPointer])) with { Decision = evidence };
-        if (to is { } end && end.UtcTicks <= from.UtcTicks)
-            return TemporalStatus(RecordTemporalWriteStatus.InvalidTemporalInput, "/effective_to") with { Decision = evidence };
-        if (kind == RecordTemporalCommandKind.Amend && (basis is null || basis.Revision <= 0 || basis.Revision == long.MaxValue
-            || !RecordWriteJournalBinding.IsHash(basis.Hash)))
-            return TemporalStatus(RecordTemporalWriteStatus.InvalidTemporalInput, "/expected_predecessor") with { Decision = evidence };
-        if (kind == RecordTemporalCommandKind.Amend && TemporalBlank(reason))
-            return TemporalStatus(RecordTemporalWriteStatus.InvalidTemporalInput, "/reason") with { Decision = evidence };
-        if (version is not null && TemporalBlank(version))
-            return TemporalStatus(RecordTemporalWriteStatus.InvalidTemporalInput, "/version") with { Decision = evidence };
-        JsonObject body;
-        try
+        // Compose the current decision once, for every shape refusal, without duplicating evidence plumbing.
+        RecordTemporalWriteOutcome? ShapeRefusal()
         {
-            body = (JsonObject)suppliedBody.DeepClone();
-            _ = RecordWriteIntent.Encode(type ?? "temporal-target", version, body);
-            _ = RecordWriteIntent.Strict.GetByteCount(scope.Tenant);
-            _ = RecordWriteIntent.Strict.GetByteCount(scope.ActorId);
-            if (target is not null) _ = RecordWriteIntent.Strict.GetByteCount(target);
-            if (version is not null) _ = RecordWriteIntent.Strict.GetByteCount(version);
-            if (reason is not null) _ = RecordWriteIntent.Strict.GetByteCount(reason);
+            if (!IsOperationId(operationId)) return TemporalRefused(new(ValidateStage, OperationIdInvalid, [OperationIdPointer]));
+            if (to is { } end && end.UtcTicks <= from.UtcTicks)
+                return TemporalStatus(RecordTemporalWriteStatus.InvalidTemporalInput, "/effective_to");
+            if (kind == RecordTemporalCommandKind.Amend && (basis is null || basis.Revision <= 0 || basis.Revision == long.MaxValue
+                || !RecordWriteJournalBinding.IsHash(basis.Hash)))
+                return TemporalStatus(RecordTemporalWriteStatus.InvalidTemporalInput, "/expected_predecessor");
+            if (kind == RecordTemporalCommandKind.Amend && TemporalBlank(reason))
+                return TemporalStatus(RecordTemporalWriteStatus.InvalidTemporalInput, "/reason");
+            if (version is not null && TemporalBlank(version))
+                return TemporalStatus(RecordTemporalWriteStatus.InvalidTemporalInput, "/version");
+            if (bodySnapshot is not { } snapshot) return TemporalRefused(new(ValidateStage, BodyInvalid, []));
+            try
+            {
+                _ = RecordWriteIntent.Encode(type ?? "temporal-target", version, snapshot);
+                _ = RecordWriteIntent.Strict.GetByteCount(scope.Tenant);
+                _ = RecordWriteIntent.Strict.GetByteCount(scope.ActorId);
+                if (target is not null) _ = RecordWriteIntent.Strict.GetByteCount(target);
+                if (version is not null) _ = RecordWriteIntent.Strict.GetByteCount(version);
+                if (reason is not null) _ = RecordWriteIntent.Strict.GetByteCount(reason);
+            }
+            catch (Exception error) when (error is EncoderFallbackException or InvalidOperationException or FormatException or ArgumentException)
+            { return TemporalRefused(new(ValidateStage, BodyInvalid, [])); }
+            return null;
         }
-        catch (Exception error) when (error is EncoderFallbackException or InvalidOperationException or FormatException or ArgumentException)
-        { return TemporalRefused(new(ValidateStage, BodyInvalid, [])) with { Decision = evidence }; }
+        if (ShapeRefusal() is { } shapeRefusal) return shapeRefusal with { Decision = evidence };
+        var body = bodySnapshot!; // ShapeRefusal accepted the detached snapshot, including its encoding.
         basis = basis is null ? null : new(basis.Revision, basis.Hash);
         var key = new RecordWriteOperationKey(scope.Tenant, scope.ActorId, operationId);
         RecordTemporalTarget? metadata = null;

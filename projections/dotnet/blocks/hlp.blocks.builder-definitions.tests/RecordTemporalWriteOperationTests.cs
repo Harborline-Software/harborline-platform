@@ -21,6 +21,151 @@ namespace Harborline.Blocks.BuilderDefinitions.Tests;
 /// <summary>Accepted SPEC/API controls W/A through real producer, access, schema, field and prepared journal paths.</summary>
 public sealed class RecordTemporalWriteOperationTests
 {
+    // Oracles: RW-1 / DES-0015 records-eng-2 require authorize first. Authorized refusal literals
+    // pin the pre-fix contract; journal bytes and untouched stage counters prove no persistence or target/receipt reads.
+    [Theory]
+    [InlineData("operation", false)]
+    [InlineData("interval", false)]
+    [InlineData("version", false)]
+    [InlineData("body", false)]
+    [InlineData("operation", true)]
+    [InlineData("interval", true)]
+    [InlineData("predecessor", true)]
+    [InlineData("reason", true)]
+    [InlineData("version", true)]
+    [InlineData("body", true)]
+    [Trait("Holds", "records-eng-2")]
+    public async Task Temporal_request_shape_is_refused_only_after_the_gate_allows(string invalid, bool amend)
+    {
+        using var fixture = await Fixture.Create();
+        var first = Committed(await fixture.CreateEvent());
+        var before = fixture.Bytes();
+        var lookups = fixture.Storage.ReceiptLookups;
+        var targetLookups = fixture.Storage.TargetLookups;
+        fixture.Storage.Events.Clear();
+        fixture.Access.Requests.Clear();
+        var body = Body();
+        if (invalid == "body") body["status"] = "bad\ud800";
+        var operation = invalid == "operation" ? "" : "bad-input";
+        var from = GateAt;
+        DateTimeOffset? to = invalid == "interval" ? from : null;
+        var basis = invalid == "predecessor" ? new RecordTemporalBasis(0, new string('a', 64)) : Basis(first);
+        var reason = invalid == "reason" ? " " : "reviewed";
+        var version = invalid == "version" ? " " : null;
+        async Task<RecordTemporalWriteOutcome> Write() => amend
+            ? await fixture.Writer.AmendAsync(new(Tenant, Actor),
+                new(first.Receipt.RecordId, operation, basis, body, from, to, reason, version))
+            : await fixture.Writer.CreateEffectiveAsync(new(Tenant, Actor),
+                new(RecordTemporalWriteOperationTests.Type, operation, body, from, to, version));
+
+        fixture.Access.Allow = false;
+        var denied = await Write();
+        Assert.Equal(RecordTemporalWriteStatus.Refused, denied.Status);
+        Assert.Equal(("authorize", "TemporalDenied"), (denied.Refusal!.Stage, denied.Refusal.Code));
+        Assert.Empty(denied.Pointers);
+        Assert.False(denied.Decision!.Allowed);
+        Assert.Null(denied.Receipt);
+        var asked = Assert.Single(fixture.Access.Requests);
+        Assert.Equal(amend ? null : RecordTemporalWriteOperationTests.Type, asked.Record.RecordTypeId);
+        Assert.Empty(asked.Record.Fields);
+        Assert.Equal(before, fixture.Bytes());
+        Assert.Empty(fixture.Storage.Events);
+        Assert.Equal(lookups, fixture.Storage.ReceiptLookups);
+        Assert.Equal(targetLookups, fixture.Storage.TargetLookups);
+
+        fixture.Access.Allow = true;
+        var allowed = await Write();
+        Assert.Equal(2, fixture.Access.Requests.Count);
+        // The fixture decider is the independent oracle for the exact evidence returned to the host.
+        Assert.Same(fixture.Access.Evidence.Last(), allowed.Decision);
+        Assert.True(allowed.Decision!.Allowed);
+        if (invalid is "operation" or "body")
+        {
+            Assert.Equal(RecordTemporalWriteStatus.Refused, allowed.Status);
+            Assert.Equal("validate", allowed.Refusal!.Stage);
+            Assert.Equal(invalid == "operation" ? "records.write.operation_id_invalid" : "entity.validation.body_invalid",
+                allowed.Refusal.Code);
+            Assert.Equal(invalid == "operation" ? new[] { "/operation_id" } : [], allowed.Pointers);
+        }
+        else
+        {
+            Assert.Equal(RecordTemporalWriteStatus.InvalidTemporalInput, allowed.Status);
+            Assert.Null(allowed.Refusal);
+            Assert.Equal(new[] { invalid switch
+            {
+                "interval" => "/effective_to", "predecessor" => "/expected_predecessor",
+                "reason" => "/reason", _ => "/version",
+            } }, allowed.Pointers);
+        }
+        Assert.Null(allowed.Receipt);
+        Assert.Equal(before, fixture.Bytes());
+        Assert.Empty(fixture.Storage.Events);
+        Assert.Equal(lookups, fixture.Storage.ReceiptLookups);
+        Assert.Equal(targetLookups, fixture.Storage.TargetLookups);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    [Trait("Holds", "records-eng-2")]
+    public async Task An_async_gate_cannot_change_the_body_snapshot_that_is_validated_and_committed(bool amend)
+    {
+        using var fixture = await Fixture.Create();
+        var first = Committed(await fixture.CreateEvent());
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        fixture.Access.BeforeDecision = async ct =>
+        {
+            entered.SetResult();
+            await release.Task.WaitAsync(ct);
+        };
+        var supplied = Body(20);
+        var write = amend
+            ? fixture.Writer.AmendAsync(new(Tenant, Actor), new(first.Receipt.RecordId, "snapshot-amend",
+                Basis(first), supplied, GateAt, null, "reviewed")).AsTask()
+            : fixture.Writer.CreateEffectiveAsync(new(Tenant, Actor),
+                new(Type, "snapshot-create", supplied, GateAt, null)).AsTask();
+        await entered.Task.WaitAsync(TimeSpan.FromSeconds(10));
+        // Oracle: 20 was supplied when the operation began; 99 belongs only to the caller's later mutation.
+        supplied["value"] = 99;
+        release.SetResult();
+        _ = Committed(await write);
+
+        Assert.Equal(99, supplied["value"]!.GetValue<int>());
+        Assert.Equal(20, JsonNode.Parse(fixture.Schemas.Validated.Last())!["value"]!.GetValue<int>());
+        Assert.Equal(20, JsonNode.Parse(fixture.Storage.Staged!.Row.Body.Span)!["value"]!.GetValue<int>());
+        Assert.Equal(2, fixture.Entries());
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    [Trait("Holds", "records-eng-2")]
+    public async Task An_amend_target_with_a_lone_surrogate_reaches_the_gate_before_encoding_refuses(bool allow)
+    {
+        using var fixture = await Fixture.Create();
+        fixture.Access.Allow = allow;
+        const string target = "bad\ud800";
+        var outcome = await fixture.Writer.AmendAsync(new(Tenant, Actor), new(target, "bad-target",
+            new(1, new string('a', 64)), Body(), GateAt, null, "reviewed"));
+
+        var asked = Assert.Single(fixture.Access.Requests);
+        Assert.Equal(target, asked.Record.Id);
+        Assert.Null(asked.Record.RecordTypeId);
+        Assert.Empty(asked.Record.Fields);
+        Assert.Equal(RecordTemporalWriteStatus.Refused, outcome.Status);
+        Assert.Equal(allow ? ("validate", "entity.validation.body_invalid") : ("authorize", "TemporalDenied"),
+            (outcome.Refusal!.Stage, outcome.Refusal.Code));
+        Assert.Empty(outcome.Pointers);
+        Assert.Null(outcome.Receipt);
+        Assert.Same(Assert.Single(fixture.Access.Evidence), outcome.Decision);
+        Assert.Equal(allow, outcome.Decision!.Allowed);
+        Assert.Equal(0, fixture.Storage.TargetLookups);
+        Assert.Equal(0, fixture.Storage.ReceiptLookups);
+        Assert.Empty(fixture.Storage.Events);
+        Assert.False(File.Exists(fixture.PathName));
+    }
+
     [Fact]
     public async Task Explicit_temporal_create_preserves_three_distinct_instants()
     {
@@ -117,19 +262,27 @@ public sealed class RecordTemporalWriteOperationTests
     }
 
     [Theory]
-    [InlineData("equal-to", "/effective_to")]
-    [InlineData("reverse-to", "/effective_to")]
-    [InlineData("basis-zero", "/expected_predecessor")]
-    [InlineData("basis-upper", "/expected_predecessor")]
-    [InlineData("basis-overflow", "/expected_predecessor")]
-    [InlineData("reason-space", "/reason")]
-    [InlineData("reason-nbsp", "/reason")]
-    [InlineData("version-space", "/version")]
+    [InlineData("equal-to", "/effective_to", false)]
+    [InlineData("equal-to", "/effective_to", true)]
+    [InlineData("reverse-to", "/effective_to", false)]
+    [InlineData("reverse-to", "/effective_to", true)]
+    [InlineData("basis-zero", "/expected_predecessor", false)]
+    [InlineData("basis-zero", "/expected_predecessor", true)]
+    [InlineData("basis-upper", "/expected_predecessor", false)]
+    [InlineData("basis-upper", "/expected_predecessor", true)]
+    [InlineData("basis-overflow", "/expected_predecessor", false)]
+    [InlineData("basis-overflow", "/expected_predecessor", true)]
+    [InlineData("reason-space", "/reason", false)]
+    [InlineData("reason-space", "/reason", true)]
+    [InlineData("reason-nbsp", "/reason", false)]
+    [InlineData("reason-nbsp", "/reason", true)]
+    [InlineData("version-space", "/version", false)]
+    [InlineData("version-space", "/version", true)]
     [Trait("Holds", "records-eng-2")]
-    public async Task Temporal_inputs_refuse_after_gate_allows_and_before_write(string fault, string pointer)
+    public async Task Temporal_inputs_refuse_after_gate_allows_and_before_write(string fault, string pointer, bool allow)
     {
         using var fixture = await Fixture.Create();
-        fixture.Access.Allow = true; // Reach shape validation only after the gate authorizes this caller.
+        fixture.Access.Allow = allow;
         var from = Date("2031-04-01T00:00:00+00:00");
         var basis = new RecordTemporalBasis(fault == "basis-zero" ? 0 : fault == "basis-overflow" ? long.MaxValue : 1,
             new string(fault == "basis-upper" ? 'A' : 'a', 64));
@@ -138,6 +291,22 @@ public sealed class RecordTemporalWriteOperationTests
             fault == "reason-space" ? " \t" : fault == "reason-nbsp" ? "\u00a0\u3000" : "reviewed",
             fault == "version-space" ? " " : null);
         var outcome = await fixture.Writer.AmendAsync(new(Tenant, Actor), request);
+        if (!allow)
+        {
+            Assert.Equal(RecordTemporalWriteStatus.Refused, outcome.Status);
+            Assert.Equal(("authorize", "TemporalDenied"), (outcome.Refusal!.Stage, outcome.Refusal.Code));
+            Assert.Empty(outcome.Pointers);
+            Assert.Null(outcome.Receipt);
+            Assert.Single(fixture.Access.Requests);
+            Assert.Same(Assert.Single(fixture.Access.Evidence), outcome.Decision);
+            Assert.False(outcome.Decision!.Allowed);
+            Assert.Equal(0, fixture.Storage.TargetLookups);
+            Assert.Equal(0, fixture.Storage.ReceiptLookups);
+            Assert.Empty(fixture.Storage.Events);
+            Assert.False(File.Exists(fixture.PathName));
+            return;
+        }
+
         Assert.Equal(RecordTemporalWriteStatus.InvalidTemporalInput, outcome.Status);
         Assert.Equal(new[] { pointer }, outcome.Pointers);
         Assert.Same(Assert.Single(fixture.Access.Evidence), outcome.Decision);
@@ -421,17 +590,23 @@ public sealed class RecordTemporalWriteOperationTests
     }
 
     [Theory]
-    [InlineData("empty", false)]
-    [InlineData("ascii-boundary", true)]
-    [InlineData("unicode-boundary", true)]
-    [InlineData("ascii-over", false)]
-    [InlineData("unicode-over", false)]
-    [InlineData("invalid-scalar", false)]
+    [InlineData("empty", false, false)]
+    [InlineData("empty", false, true)]
+    [InlineData("ascii-boundary", true, false)]
+    [InlineData("ascii-boundary", true, true)]
+    [InlineData("unicode-boundary", true, false)]
+    [InlineData("unicode-boundary", true, true)]
+    [InlineData("ascii-over", false, false)]
+    [InlineData("ascii-over", false, true)]
+    [InlineData("unicode-over", false, false)]
+    [InlineData("unicode-over", false, true)]
+    [InlineData("invalid-scalar", false, false)]
+    [InlineData("invalid-scalar", false, true)]
     [Trait("Holds", "records-eng-2")]
-    public async Task Temporal_operation_id_utf8_boundaries_are_enforced_after_gate_allows(string kind, bool lawful)
+    public async Task Temporal_operation_id_utf8_boundaries_are_enforced_after_gate_allows(string kind, bool lawful, bool allow)
     {
         using var fixture = await Fixture.Create();
-        fixture.Access.Allow = true; // Reach shape validation only after the gate authorizes this caller.
+        fixture.Access.Allow = allow;
         var operation = kind switch
         {
             "empty" => "",
@@ -442,6 +617,22 @@ public sealed class RecordTemporalWriteOperationTests
             _ => "bad\ud800",
         };
         var outcome = await fixture.CreateEvent(operation);
+        if (!allow)
+        {
+            Assert.Equal(RecordTemporalWriteStatus.Refused, outcome.Status);
+            Assert.Equal(("authorize", "TemporalDenied"), (outcome.Refusal!.Stage, outcome.Refusal.Code));
+            Assert.Empty(outcome.Pointers);
+            Assert.Null(outcome.Receipt);
+            Assert.Single(fixture.Access.Requests);
+            Assert.Same(Assert.Single(fixture.Access.Evidence), outcome.Decision);
+            Assert.False(outcome.Decision!.Allowed);
+            Assert.Equal(0, fixture.Storage.TargetLookups);
+            Assert.Equal(0, fixture.Storage.ReceiptLookups);
+            Assert.Empty(fixture.Storage.Events);
+            Assert.False(File.Exists(fixture.PathName));
+            return;
+        }
+
         if (lawful)
         {
             _ = Committed(outcome);
@@ -615,19 +806,21 @@ public sealed class RecordTemporalWriteOperationTests
         internal bool Allow { get; set; } = true;
         internal Func<AccessRequest, bool>? Predicate { get; set; }
         internal bool ForeignContext { get; set; }
+        internal Func<CancellationToken, ValueTask>? BeforeDecision { get; set; }
         internal ConcurrentQueue<AccessRequest> Requests { get; } = new();
         internal ConcurrentQueue<AuthorizationDecisionEvidence> Evidence { get; } = new();
-        public ValueTask<AuthorizationDecisionEvidence> DecideAsync(AccessRequest request, CancellationToken cancellationToken = default)
+        public async ValueTask<AuthorizationDecisionEvidence> DecideAsync(AccessRequest request, CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
             Requests.Enqueue(request);
+            if (BeforeDecision is { } before) await before(cancellationToken);
             var allowed = Allow && (Predicate?.Invoke(request) ?? true);
             var context = ForeignContext ? new AccessRequest(request.Operation, request.Principal, "another-tenant",
                 request.Record, request.At) : request;
             var evidence = new AuthorizationDecisionEvidence(context, allowed, allowed ? "None" : "TemporalDenied",
                 "temporal-fixture-binding", [], []);
             Evidence.Enqueue(evidence);
-            return ValueTask.FromResult(evidence);
+            return evidence;
         }
     }
 
@@ -709,6 +902,7 @@ public sealed class RecordTemporalWriteOperationTests
         internal FileJournalRecordWriteStore Inner { get; } = inner;
         internal ConcurrentQueue<string> Events { get; } = new();
         internal int ReceiptLookups { get; private set; }
+        internal int TargetLookups { get; private set; }
         internal int HiddenLookups { get; set; }
         internal string? FaultAt { get; set; }
         internal Exception Fault { get; set; } = new IOException("fixture-stage-fault");
@@ -728,7 +922,10 @@ public sealed class RecordTemporalWriteOperationTests
         public ValueTask<RecordTemporalHistory> HistoryAsync(string tenant, string recordId, CancellationToken cancellationToken = default)
             => Inner.HistoryAsync(tenant, recordId, cancellationToken);
         public ValueTask<RecordTemporalTarget?> FindTemporalTargetAsync(string tenant, string recordId, CancellationToken cancellationToken = default)
-            => Inner.FindTemporalTargetAsync(tenant, recordId, cancellationToken);
+        {
+            TargetLookups++;
+            return Inner.FindTemporalTargetAsync(tenant, recordId, cancellationToken);
+        }
         public async ValueTask<RecordTemporalCommittedOperation?> FindTemporalOperationAsync(RecordWriteOperationKey key, CancellationToken cancellationToken = default)
         {
             ReceiptLookups++;
