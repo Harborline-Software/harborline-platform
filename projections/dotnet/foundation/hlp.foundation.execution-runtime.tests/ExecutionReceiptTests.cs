@@ -116,6 +116,84 @@ public sealed class ExecutionReceiptTests
             () => store.AppendTraceStepAsync(TenantA, default, new ExecutionTraceStep(1, "submitted", "succeeded")).AsTask())).Code);
     }
 
+    [Fact(DisplayName = "execution-runtime-ck-2: a replace that adds, removes or changes the Access decision link is refused and the stored link stands")]
+    public async Task Decision_link_fixed_after_first_write()
+    {
+        // Oracle: M11 ruling on PR 484 (guard 1: AccessDecisionId is fixed after the first write) and slice acceptance 2
+        // ("an absent decision stays absent"). Mutation: drop the AccessDecisionId comparison in PutReceiptAsync.
+        var store = new InMemoryExecutionReceiptStore();
+        var linked = new RunId(WorkflowRun, Opaque);
+        var unlinked = new RunId(WorkflowRun, Guid.Parse("16300000-0000-0000-0000-000000000002"));
+        await store.PutReceiptAsync(new ExecutionReceipt(TenantA, linked, RunStatus.Running, DecisionId));
+        await store.PutReceiptAsync(new ExecutionReceipt(TenantA, unlinked, RunStatus.Running, null));
+
+        foreach (var (run, decision) in new[] { (linked, "audit.decision.other"), (linked, (string?)null), (unlinked, DecisionId) })
+        {
+            var refused = await Assert.ThrowsAsync<ExecutionRuntimeRefusedException>(
+                () => store.PutReceiptAsync(new ExecutionReceipt(TenantA, run, RunStatus.Succeeded, decision)).AsTask());
+            Assert.Equal("execution.access_decision_changed", refused.Code);
+        }
+
+        var keptLink = (await store.GetReceiptAsync(TenantA, linked))!;
+        Assert.Equal((RunStatus.Running, DecisionId), (keptLink.Status, keptLink.AccessDecisionId));
+        var keptAbsent = (await store.GetReceiptAsync(TenantA, unlinked))!;
+        Assert.Equal((RunStatus.Running, (string?)null), (keptAbsent.Status, keptAbsent.AccessDecisionId));
+
+        // Another tenant's receipt for the same run identity is its own first write, not a replace.
+        await store.PutReceiptAsync(new ExecutionReceipt(TenantB, linked, RunStatus.Running, null));
+        Assert.Null((await store.GetReceiptAsync(TenantB, linked))!.AccessDecisionId);
+    }
+
+    [Fact(DisplayName = "execution-runtime-ck-3: a replace keeps the status or moves it along the run transition table, and a stale writer cannot move it back")]
+    public async Task Status_moves_along_transition_table()
+    {
+        // Oracle: M11 ruling on PR 484 (guard 2) and DES-0056's six-status table as literals: pending -> running ->
+        // succeeded is legal; succeeded -> running and pending -> succeeded are not. Mutation: drop the
+        // RunStatusTransitions.Require call in PutReceiptAsync.
+        var store = new InMemoryExecutionReceiptStore();
+        var run = new RunId(WorkflowRun, Opaque);
+        await store.PutReceiptAsync(new ExecutionReceipt(TenantA, run, RunStatus.Pending, DecisionId));
+
+        var skipped = await Assert.ThrowsAsync<ExecutionRuntimeRefusedException>(
+            () => store.PutReceiptAsync(new ExecutionReceipt(TenantA, run, RunStatus.Succeeded, DecisionId)).AsTask());
+        Assert.Equal("execution.transition_illegal", skipped.Code);
+        Assert.Equal(RunStatus.Pending, (await store.GetReceiptAsync(TenantA, run))!.Status);
+
+        await store.PutReceiptAsync(new ExecutionReceipt(TenantA, run, RunStatus.Running, DecisionId));
+        await store.PutReceiptAsync(new ExecutionReceipt(TenantA, run, RunStatus.Running, DecisionId));
+        await store.PutReceiptAsync(new ExecutionReceipt(TenantA, run, RunStatus.Succeeded, DecisionId));
+        await store.PutReceiptAsync(new ExecutionReceipt(TenantA, run, RunStatus.Succeeded, DecisionId));
+
+        var stale = await Assert.ThrowsAsync<ExecutionRuntimeRefusedException>(
+            () => store.PutReceiptAsync(new ExecutionReceipt(TenantA, run, RunStatus.Running, DecisionId)).AsTask());
+        Assert.Equal("execution.transition_illegal", stale.Code);
+        Assert.Equal(RunStatus.Succeeded, (await store.GetReceiptAsync(TenantA, run))!.Status);
+    }
+
+    [Fact(DisplayName = "execution-runtime-ck-4: an exact repeat of a stored step is a no-op, and a different step at a taken ordinal is refused")]
+    public async Task Exact_repeat_is_a_no_op()
+    {
+        // Oracle: M11 ruling on PR 484 (replayed append after a crash) and DES-0056 ck-11 / "recovery or audit may repeat
+        // it". Mutation: drop the exact-repeat early return in AppendTraceStepAsync.
+        var store = new InMemoryExecutionReceiptStore();
+        var run = new RunId(WorkflowRun, Opaque);
+        await store.AppendTraceStepAsync(TenantA, run, new ExecutionTraceStep(1, "submitted", "succeeded"));
+        await store.AppendTraceStepAsync(TenantA, run, new ExecutionTraceStep(2, "approval", "succeeded"));
+
+        await store.AppendTraceStepAsync(TenantA, run, new ExecutionTraceStep(2, "approval", "succeeded"));
+        await store.AppendTraceStepAsync(TenantA, run, new ExecutionTraceStep(1, "submitted", "succeeded"));
+        var differentPhase = await Assert.ThrowsAsync<ExecutionRuntimeRefusedException>(
+            () => store.AppendTraceStepAsync(TenantA, run, new ExecutionTraceStep(1, "approval", "succeeded")).AsTask());
+        Assert.Equal("execution.trace_step_out_of_order", differentPhase.Code);
+        var differentStatus = await Assert.ThrowsAsync<ExecutionRuntimeRefusedException>(
+            () => store.AppendTraceStepAsync(TenantA, run, new ExecutionTraceStep(2, "approval", "failed")).AsTask());
+        Assert.Equal("execution.trace_step_out_of_order", differentStatus.Code);
+
+        await store.AppendTraceStepAsync(TenantA, run, new ExecutionTraceStep(3, "posted", "succeeded"));
+        Assert.Equal(new[] { (1, "submitted", "succeeded"), (2, "approval", "succeeded"), (3, "posted", "succeeded") },
+            (await store.GetTraceAsync(TenantA, run)).Select(s => (s.Ordinal, s.Phase, s.Status)));
+    }
+
     [Fact(DisplayName = "execution-runtime-eng-1: an engine emits a receipt and trace through the tenant-scoped port, and a read returns a copy the reader cannot change")]
     public async Task Engine_emits_through_port()
     {

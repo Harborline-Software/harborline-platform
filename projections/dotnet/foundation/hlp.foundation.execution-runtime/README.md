@@ -73,9 +73,12 @@ null. `ExecutionTraceStep` is one step of the run's own progress (`ck-4`): a 1-b
 verbatim `Status`, distinct from Access's four-stage trace. Both validate on construction and expose get-only
 properties. The field names match Layout's `LayoutExecutionReceipt` consumer shape.
 
-Engines emit both through `IExecutionReceiptStore` (`eng-1`, `cc-1`): `PutReceiptAsync` stores or replaces the
-tenant's receipt for a run, `AppendTraceStepAsync` accepts only the next ordinal, and the reads return the
-receipt (or null) and the steps in order (or empty). Every key is tenant plus kind-qualified run identity.
+Engines emit both through `IExecutionReceiptStore` (`eng-1`, `cc-1`). `PutReceiptAsync` stores or replaces the
+tenant's one current receipt for a run. A replace may not add, remove or change the Access decision link
+(`execution.access_decision_changed`), and its status must stay the same or move along the run transition table
+(`execution.transition_illegal`). `AppendTraceStepAsync` accepts only the next ordinal. An exact repeat of a
+stored step is a no-op, so a replayed append after a crash does not fail; a different step at a taken ordinal is
+refused. The reads return the receipt (or null) and the steps in order (or empty). Every key is tenant plus kind-qualified run identity.
 `InMemoryExecutionReceiptStore` is the reference implementation. The durable adapter and restart proof
 (`T-528/durable-run-store`), the authorized observe read (`T-528/observe-read`) and engine emitting are later
 slices. Acceptance tests: `ExecutionReceiptTests.cs`.

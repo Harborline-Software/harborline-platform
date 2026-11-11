@@ -77,6 +77,9 @@ public static class ExecutionRuntimeRefusals
     /// <summary>An execution trace step lacks its run identity, has an ordinal below 1, or a blank phase or status.</summary>
     public const string TraceStepInvalid = "execution.trace_step_invalid";
 
-    /// <summary>An execution trace step's ordinal is not exactly one past the run's last stored step.</summary>
+    /// <summary>An execution trace step's ordinal is not exactly one past the run's last stored step, and the step is not an exact repeat of the one stored there.</summary>
     public const string TraceStepOutOfOrder = "execution.trace_step_out_of_order";
+
+    /// <summary>A replaced execution receipt links a different Access decision than the stored one, including adding or removing a link.</summary>
+    public const string AccessDecisionChanged = "execution.access_decision_changed";
 }

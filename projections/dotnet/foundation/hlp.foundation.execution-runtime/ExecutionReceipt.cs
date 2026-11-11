@@ -98,7 +98,12 @@ public sealed record ExecutionTraceStep
 /// </summary>
 public interface IExecutionReceiptStore
 {
-    /// <summary>Stores the tenant's receipt for its run, replacing any earlier receipt for that run.</summary>
+    /// <summary>
+    /// Stores the tenant's receipt for its run, replacing any earlier receipt for that run (one current receipt per
+    /// run). The run identity is the key, so it never changes. A replace that changes the Access decision link
+    /// refuses <c>execution.access_decision_changed</c>; a replace whose status is neither the stored status nor a
+    /// legal move from it under <see cref="RunStatusTransitions"/> refuses <c>execution.transition_illegal</c>.
+    /// </summary>
     ValueTask PutReceiptAsync(ExecutionReceipt receipt, CancellationToken cancellationToken = default);
 
     /// <summary>The tenant's receipt for a run, or null when none is stored.</summary>
@@ -106,9 +111,11 @@ public interface IExecutionReceiptStore
 
     /// <summary>
     /// Appends a step to the tenant's trace for a run; refuses <c>execution.trace_step_out_of_order</c> unless
-    /// the step's ordinal is exactly one past the last stored step (1 for the first).
+    /// the step's ordinal is exactly one past the last stored step (1 for the first). An exact repeat of a step
+    /// already stored at its ordinal is a no-op, so a replayed append after a crash does not fail; a different step
+    /// at a taken ordinal is refused.
     /// </summary>
-    ValueTask AppendTraceStepAsync(TenantId tenantId, RunId runId, ExecutionTraceStep step, CancellationToken cancellationToken = default);
+    ValueTask AppendTraceStepAsync(TenantId tenantId, RunId runId, ExecutionTraceStep traceStep, CancellationToken cancellationToken = default);
 
     /// <summary>The tenant's trace for a run in ordinal order; empty when no step is stored.</summary>
     ValueTask<IReadOnlyList<ExecutionTraceStep>> GetTraceAsync(TenantId tenantId, RunId runId, CancellationToken cancellationToken = default);
@@ -128,7 +135,23 @@ public sealed class InMemoryExecutionReceiptStore : IExecutionReceiptStore
         cancellationToken.ThrowIfCancellationRequested();
         lock (_gate)
         {
-            _receipts[(receipt.TenantId, receipt.RunId)] = receipt;
+            var key = (receipt.TenantId, receipt.RunId);
+            if (_receipts.TryGetValue(key, out var stored))
+            {
+                if (!string.Equals(stored.AccessDecisionId, receipt.AccessDecisionId, StringComparison.Ordinal))
+                {
+                    throw new ExecutionRuntimeRefusedException(
+                        ExecutionRuntimeRefusals.AccessDecisionChanged,
+                        $"Run '{receipt.RunId}' already links Access decision '{stored.AccessDecisionId ?? "(none)"}'.");
+                }
+
+                if (stored.Status != receipt.Status)
+                {
+                    RunStatusTransitions.Require(stored.Status, receipt.Status);
+                }
+            }
+
+            _receipts[key] = receipt;
         }
 
         return ValueTask.CompletedTask;
@@ -146,11 +169,11 @@ public sealed class InMemoryExecutionReceiptStore : IExecutionReceiptStore
     }
 
     /// <inheritdoc />
-    public ValueTask AppendTraceStepAsync(TenantId tenantId, RunId runId, ExecutionTraceStep step, CancellationToken cancellationToken = default)
+    public ValueTask AppendTraceStepAsync(TenantId tenantId, RunId runId, ExecutionTraceStep traceStep, CancellationToken cancellationToken = default)
     {
         ExecutionReceiptRules.RequireTenant(tenantId);
         ExecutionReceiptRules.RequireRun(runId, ExecutionRuntimeRefusals.TraceStepInvalid);
-        ArgumentNullException.ThrowIfNull(step);
+        ArgumentNullException.ThrowIfNull(traceStep);
         cancellationToken.ThrowIfCancellationRequested();
         lock (_gate)
         {
@@ -161,14 +184,19 @@ public sealed class InMemoryExecutionReceiptStore : IExecutionReceiptStore
                 _traces[key] = steps;
             }
 
-            if (step.Ordinal != steps.Count + 1)
+            if (traceStep.Ordinal <= steps.Count && steps[traceStep.Ordinal - 1] == traceStep)
+            {
+                return ValueTask.CompletedTask;
+            }
+
+            if (traceStep.Ordinal != steps.Count + 1)
             {
                 throw new ExecutionRuntimeRefusedException(
                     ExecutionRuntimeRefusals.TraceStepOutOfOrder,
-                    $"Run '{runId}' expects trace ordinal {steps.Count + 1}, not {step.Ordinal}.");
+                    $"Run '{runId}' expects trace ordinal {steps.Count + 1}, not {traceStep.Ordinal}.");
             }
 
-            steps.Add(step);
+            steps.Add(traceStep);
         }
 
         return ValueTask.CompletedTask;
