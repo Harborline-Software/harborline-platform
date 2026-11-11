@@ -7,24 +7,37 @@ namespace Harborline.Blocks.Scheduling;
 /// <summary>Dispatches all concern-one generators under one kernel clock.</summary>
 public sealed class RruleDueQueueQueryService(IRruleExpansionService rrule, KernelClock clock) : IDueQueueQueryService
 {
+    private readonly IRruleExpansionService producer = rrule ?? throw new ArgumentNullException(nameof(rrule));
+    private readonly KernelClock kernelClock = clock ?? throw new ArgumentNullException(nameof(clock));
     /// <inheritdoc />
     public IReadOnlyList<SchedulingOccurrence> Query(DueOccurrenceRequest request)
     {
         ArgumentNullException.ThrowIfNull(request);
+        ArgumentNullException.ThrowIfNull(request.Series);
+        ArgumentNullException.ThrowIfNull(request.Series.Definition);
+        ArgumentNullException.ThrowIfNull(request.Completions);
+        ArgumentNullException.ThrowIfNull(request.Readings);
         if (request.To < request.From) throw new ArgumentException("Query end precedes start.", nameof(request));
         ArgumentException.ThrowIfNullOrWhiteSpace(request.Series.SeriesId);
         ArgumentException.ThrowIfNullOrWhiteSpace(request.Series.SubjectRef);
-        var now = clock.GetUtcNow();
+        var refusals = new List<Harborline.Blocks.BuilderDefinitions.DefinitionRefusal>();
+        ScheduleDefinitionAdmission.Generation(request.Series.Definition, refusals);
+        if (refusals.Count != 0) throw new OccurrenceRefusalException(refusals[0].Code);
+        var now = kernelClock.GetUtcNow();
         IDueOccurrenceSource source = request.Series.Definition.Basis switch
         {
             null => new LoneDueOccurrenceSource(),
-            FixedCalendarBasis => new RruleDueOccurrenceSource(rrule),
+            FixedCalendarBasis => new RruleDueOccurrenceSource(producer),
             CompletionOffsetBasis => new CompletionOffsetDueOccurrenceSource(),
             ThresholdBasis => new ThresholdDueOccurrenceSource(),
             EventAnchoredChainBasis => new RelativeChainDueOccurrenceSource(),
             _ => throw new OccurrenceRefusalException("scheduling.occurrence.basis_invalid"),
         };
-        return source.DeriveDue(request, now).OrderBy(o => o.Due).ThenBy(o => o.OccurrenceId, StringComparer.Ordinal).ToArray();
+        try { return source.DeriveDue(request, now).OrderBy(o => o.Due).ThenBy(o => o.OccurrenceId, StringComparer.Ordinal).ToArray(); }
+        catch (Exception exception) when (exception is ArgumentOutOfRangeException or OverflowException)
+        {
+            throw new OccurrenceRefusalException("scheduling.occurrence.date_arithmetic_overflow");
+        }
     }
 }
 

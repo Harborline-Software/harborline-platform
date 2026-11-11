@@ -91,7 +91,7 @@ public sealed class ScheduleDefinitionTests
             await RefusalsAsync(Body("\"" + $$"""due_date":"2027-01-01T00:00:00Z","window":{{Instants}},"problem_class":{{literal}}""")));
 
     [Theory(DisplayName = "scheduling-ck-4, scheduling-auth-2: each of the four generators round-trips with its own members")]
-    [InlineData("""{"kind":"fixed_calendar","rrule":"FREQ=NOSUCH"}""", typeof(FixedCalendarBasis))]
+    [InlineData("""{"kind":"fixed_calendar","rrule":"FREQ=DAILY"}""", typeof(FixedCalendarBasis))]
     [InlineData("""{"kind":"completion_offset","offset":"P90D"}""", typeof(CompletionOffsetBasis))]
     [InlineData("""{"kind":"threshold","reading":"hours_run","crossing":"above","value":500.5}""", typeof(ThresholdBasis))]
     public async Task EachGeneratorRoundTrips(string basis, Type expected)

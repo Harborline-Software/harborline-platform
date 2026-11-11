@@ -55,11 +55,13 @@ public sealed class SchedulingOccurrenceArchitectureTests
         Assert.Equal(ProducerAllowList.Keys.Order(StringComparer.Ordinal), callers);
     }
 
-    [Fact]
-    public void DirectProducerFenceRejectsPlantedCallerOffAllowList()
+    [Theory]
+    [InlineData("sealed class Bad(IRruleExpansionService producer) { void Run() { producer.ExpandOccurrences(); } }")]
+    [InlineData("var producer = new InMemoryRruleExpansionService(); producer.ExpandOccurrences();")]
+    public void DirectProducerFenceRejectsPlantedCallerOffAllowList(string caller)
     {
         const string path = "projections/dotnet/blocks/planted/SecondDueGenerator.cs";
-        Assert.True(ReferencesProducer("sealed class Bad(IRruleExpansionService producer) { void Run() { producer.ExpandOccurrences(); } }"));
+        Assert.True(ReferencesProducer(caller));
         Assert.False(ProducerAllowList.ContainsKey(path));
         Assert.False(ReferencesProducer("// IRruleExpansionService is not a call\nsealed class Innocent {}"));
     }
@@ -67,7 +69,7 @@ public sealed class SchedulingOccurrenceArchitectureTests
     private static bool IsDueSource(Type type) => type.IsClass && !type.IsAbstract && typeof(IDueOccurrenceSource).IsAssignableFrom(type);
     private static bool IsOffender(Type type) => IsDueSource(type) && type.Assembly.GetName().Name != Owner;
     private static bool ReferencesProducer(string source) => Regex.IsMatch(
-        Regex.Replace(source, @"//[^\r\n]*|/\*[\s\S]*?\*/", ""), @"\bIRruleExpansionService\b");
+        Regex.Replace(source, @"//[^\r\n]*|/\*[\s\S]*?\*/", ""), @"\b(?:IRruleExpansionService|InMemoryRruleExpansionService)\b");
     private static string RepositoryRoot()
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);

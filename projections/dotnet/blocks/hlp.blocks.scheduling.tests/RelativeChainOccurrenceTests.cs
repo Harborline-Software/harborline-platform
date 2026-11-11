@@ -108,6 +108,7 @@ public sealed class RelativeChainOccurrenceTests
 
     [Theory]
     [InlineData("-PT1H", null)]
+    [InlineData("-P10675199DT2H48M5.4775808S", null)]
     [InlineData("P36501D", null)]
     [InlineData("PT1H", "missing")]
     [InlineData("PT1H", "a")]

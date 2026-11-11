@@ -129,6 +129,40 @@ public sealed class OccurrenceGenerationTests
     }
 
     [Fact]
+    public void CalendarOffsetUsesTheCompletionOffsetWhenNoNamedZoneIsDeclared()
+    {
+        var request = Request(Definition(new CompletionOffsetBasis("P1M")));
+        request = request with { Completions = [new("done", "series", "prior", I("2026-03-01T00:30:00+14:00"))] };
+        Assert.Equal(I("2026-03-31T10:30:00Z"), Assert.Single(Query(request)).Due);
+    }
+
+    [Theory]
+    [InlineData("-P1D", "P2D", "2026-07-01T12:30:00Z", OccurrenceClassification.OnTime)]
+    [InlineData("-P1D", "P2D", "2026-07-01T10:00:00Z", OccurrenceClassification.Early)]
+    [InlineData("-P1D", "P2D", "2026-07-01T14:00:00Z", OccurrenceClassification.Late)]
+    [InlineData("-P1D", "P2D", "2026-06-29T12:00:00Z", OccurrenceClassification.Void)]
+    public void RecurringWindowHasLiteralBoundsAndCompletionClassification(string from, string to, string completed, OccurrenceClassification expected)
+    {
+        var request = Request(Definition(new FixedCalendarBasis("FREQ=DAILY;COUNT=1"), new(from, to)));
+        request = request with { Series = request.Series with { LocalStart = L("2026-07-01T12:00:00"), Timezone = "UTC" },
+            Completions = [new("done", "series", "series/2026-07-01T12%3A00%3A00.0000000", I(completed))] };
+        var occurrence = Assert.Single(Query(request));
+        Assert.Equal(I("2026-07-01T12:00:00Z"), occurrence.Due);
+        Assert.Equal(I("2026-06-30T12:00:00Z"), occurrence.Earliest);
+        Assert.Equal(I("2026-07-03T12:00:00Z"), occurrence.Latest);
+        Assert.Equal(expected, occurrence.Classification);
+    }
+
+    [Fact]
+    public void QueryRefusesGenerationInputsThatCouldOtherwiseBypassAdmission()
+    {
+        var request = Request(Definition(new FixedCalendarBasis("FREQ=DAILY")) with { DueDate = "2026-07-01T12:00:00Z" });
+        Assert.Equal("scheduling.definition.due_date_invalid", Assert.Throws<OccurrenceRefusalException>(() => Query(request)).Code);
+        var inverted = Request(Definition()) with { From = I("2027-01-01T00:00:00Z"), To = I("2026-01-01T00:00:00Z") };
+        Assert.Throws<ArgumentException>(() => Query(inverted));
+    }
+
+    [Fact]
     public void CompletionOffsetRequiresFirstDueAndUsesItUntilACompletionExists()
     {
         var request = Request(Definition(new CompletionOffsetBasis("P1W")));

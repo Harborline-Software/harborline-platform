@@ -11,6 +11,7 @@ public sealed class RelativeChainDueOccurrenceSource : IDueOccurrenceSource
         var chain = request.Chain ?? throw new OccurrenceRefusalException("scheduling.occurrence.anchor_required");
         var basis = (EventAnchoredChainBasis)request.Series.Definition.Basis!;
         if (chain.ChainInstanceId != request.Series.SeriesId || chain.SubjectRef != request.Series.SubjectRef
+            || chain.TimezoneId != (request.Series.Timezone ?? "UTC")
             || chain.Definition.Anchor != basis.Anchor || !chain.Definition.Nodes.SequenceEqual(basis.Nodes))
             throw new OccurrenceRefusalException("scheduling.occurrence.chain_binding_invalid");
         var result = new InMemoryRelativeChainExpansionService().Expand(chain with { RecordedAt = kernelInstant });
