@@ -123,6 +123,32 @@ public sealed class AttachmentFieldRuntimeTests
         Assert.False(InMemoryContentStore.MediaTypeFits("application/pdf", "text/plain"));
     }
 
+    [Fact]
+    public async Task A_kept_reference_cannot_change_its_prior_media_type_to_fit_a_narrowed_field()
+    {
+        var f = new Fixture();
+        var prior = await f.Write(JsonSerializer.SerializeToElement(new[] { new { stage_id = await f.Upload("one"), display_name = "one.txt" } }));
+        prior[0]!["media_type"] = "text/csv";
+        var csvOnly = (ICompiledAttachmentFieldKind)new FieldKindRuntime(new FieldKindRegistry([new("attachment", "1.0.0", null, FieldScalarValueShape.ContentReference)]), 100)
+            .Bind(new("attachment", "1.0.0", new Dictionary<string, string> { ["accepted_media_types"] = "[\"text/csv\"]" }), "/kind");
+        var error = await Assert.ThrowsAsync<ContentRefusedException>(async () => await f.Write(JsonSerializer.SerializeToElement(prior), field: csvOnly));
+        Assert.Equal("content.media-type-mismatch", error.Code);
+        Assert.Equal(1, f.Store.CommittedCount);
+    }
+
+    [Fact]
+    public async Task A_kept_reference_may_change_only_its_display_name()
+    {
+        var f = new Fixture();
+        var prior = await f.Write(JsonSerializer.SerializeToElement(new[] { new { stage_id = await f.Upload("one"), display_name = "one.txt" } }));
+        prior[0]!["display_name"] = "renamed.txt";
+        var saved = await f.Write(JsonSerializer.SerializeToElement(prior));
+        Assert.Equal("renamed.txt", saved[0]!["display_name"]!.GetValue<string>());
+        Assert.Equal("text/plain", saved[0]!["media_type"]!.GetValue<string>());
+        Assert.Equal(3, saved[0]!["length"]!.GetValue<long>());
+        Assert.Equal(1, f.Store.CommittedCount);
+    }
+
     [Theory]
     [InlineData("{}")]
     [InlineData("null")]
@@ -159,12 +185,12 @@ public sealed class AttachmentFieldRuntimeTests
     }
 
     [Theory]
-    [InlineData("record")]
-    [InlineData("element")]
-    [InlineData("length")]
-    [InlineData("media_type")]
-    [InlineData("content_id")]
-    public async Task Kept_reference_must_match_the_same_record_field_and_store_metadata(string member)
+    [InlineData("record", "content.staging-expired")]
+    [InlineData("element", "content.staging-expired")]
+    [InlineData("length", "content.staging-expired")]
+    [InlineData("media_type", "content.media-type-mismatch")]
+    [InlineData("content_id", "content.staging-expired")]
+    public async Task Kept_reference_must_match_the_same_record_field_and_prior_reference(string member, string code)
     {
         var f = new Fixture();
         var saved = await f.Write(JsonSerializer.SerializeToElement(new[] { new { stage_id = await f.Upload("one"), display_name = "one.txt" } }));
@@ -172,7 +198,8 @@ public sealed class AttachmentFieldRuntimeTests
         else if (member == "length") saved[0]![member] = 4;
         else if (member == "media_type") saved[0]![member] = "image/png";
         else saved[0]![member] = "hmac-sha256:" + new string('f',64);
-        await Assert.ThrowsAsync<FieldAdmissionException>(async () => await f.Write(JsonSerializer.SerializeToElement(saved)));
+        var refusal = await Assert.ThrowsAsync<ContentRefusedException>(async () => await f.Write(JsonSerializer.SerializeToElement(saved)));
+        Assert.Equal(code, refusal.Code);
         Assert.Equal(1, f.Store.CommittedCount);
     }
 
@@ -181,8 +208,8 @@ public sealed class AttachmentFieldRuntimeTests
     {
         var f = new Fixture();
         var entries = JsonSerializer.Deserialize<JsonElement>("[]");
-        var write = await Assert.ThrowsAsync<ArgumentException>(async () => await f.Runtime.ResolveWriteAsync(f.Field, entries, new("tenant"), new("record", "evidence"), Evidence()));
-        var remove = await Assert.ThrowsAsync<ArgumentException>(async () => await f.Runtime.RemoveAsync(entries, new("tenant"), HoldStatus.None, "purge", Evidence()));
+        var write = await Assert.ThrowsAsync<ArgumentException>(async () => await f.Runtime.ResolveWriteAsync(f.Field, entries, new("tenant"), new("record", "evidence"), Evidence(), default));
+        var remove = await Assert.ThrowsAsync<ArgumentException>(async () => await f.Runtime.RemoveAsync(entries, new("tenant"), HoldStatus.None, "purge", Evidence(), default));
         Assert.Contains("transaction", write.Message, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("transaction", remove.Message, StringComparison.OrdinalIgnoreCase);
     }
@@ -227,7 +254,7 @@ public sealed class AttachmentFieldRuntimeTests
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
         var write = KernelTransactionBoundary.ExecutePreparedAsync(async token =>
             new KernelCommand<JsonArray>(Evidence().Operation,
-                await f.Runtime.ResolveWriteAsync(f.Field, entries, new("tenant"), new("record", "evidence"), Evidence(writer.Session), token),
+                await f.Runtime.ResolveWriteAsync(f.Field, entries, new("tenant"), new("record", "evidence"), Evidence(writer.Session), default, token),
                 Evidence().Audit), writer, timeout.Token).AsTask();
         var move = KernelTransactionBoundary.ExecutePreparedAsync(async token =>
         {
@@ -329,7 +356,7 @@ public sealed class AttachmentFieldRuntimeTests
         var entries = JsonSerializer.SerializeToElement(new[] { new { stage_id = stage, display_name = "evidence.txt" } });
         var port = new Port(f.Storage.Bookkeeping);
         var error = await Assert.ThrowsAsync<ContentRefusedException>(async () => await KernelTransactionBoundary.ExecutePreparedAsync(async token =>
-            new KernelCommand<JsonArray>(Evidence().Operation, await f.Runtime.ResolveWriteAsync(field, entries, new("tenant"), new("record", "evidence"), Evidence(port.Session), token), Evidence().Audit), port));
+            new KernelCommand<JsonArray>(Evidence().Operation, await f.Runtime.ResolveWriteAsync(field, entries, new("tenant"), new("record", "evidence"), Evidence(port.Session), default, token), Evidence().Audit), port));
         Assert.Equal(code, error.Code);
         Assert.False(string.IsNullOrWhiteSpace(error.Message));
         Assert.Equal("evidence", error.Definition);
@@ -350,7 +377,8 @@ public sealed class AttachmentFieldRuntimeTests
         var entries = JsonSerializer.SerializeToElement(new[] { new
         { content_id = reference.ContentId.Value, length = reference.Length, media_type = reference.MediaType, display_name = reference.DisplayName,
           owner = new { record = reference.Owner.Record, element = reference.Owner.Element } } });
-        await Assert.ThrowsAsync<FieldAdmissionException>(async () => await f.Write(entries));
+        var refusal = await Assert.ThrowsAsync<ContentRefusedException>(async () => await f.Write(entries));
+        Assert.Equal("content.staging-expired", refusal.Code);
         Assert.Equal(1, f.Store.CommittedCount);
     }
 
@@ -371,7 +399,7 @@ public sealed class AttachmentFieldRuntimeTests
         using var cancelled = new CancellationTokenSource(); cancelled.Cancel();
         await Assert.ThrowsAnyAsync<OperationCanceledException>(async () => await KernelTransactionBoundary.ExecutePreparedAsync(async token =>
             new KernelCommand<JsonArray>(Evidence().Operation,
-                await f.Runtime.ResolveWriteAsync(f.Field, JsonSerializer.Deserialize<JsonElement>("[{}]"), new("tenant"), new("record", "evidence"), Evidence(port.Session), cancelled.Token),
+                await f.Runtime.ResolveWriteAsync(f.Field, JsonSerializer.Deserialize<JsonElement>("[{}]"), new("tenant"), new("record", "evidence"), Evidence(port.Session), default, cancelled.Token),
                 Evidence().Audit), port));
         Assert.Equal(0, f.Store.CommittedCount);
     }
@@ -397,7 +425,7 @@ public sealed class AttachmentFieldRuntimeTests
             {
                 JsonArray resolved = [];
                 if (operation == "remove") await f.Runtime.RemoveAsync(entries, new("tenant"), HoldStatus.None, "record-purge", Evidence(port.Session), token).ConfigureAwait(false);
-                else resolved = await f.Runtime.ResolveWriteAsync(f.Field, entries, new("tenant"), new("record", "evidence"), Evidence(port.Session), token).ConfigureAwait(false);
+                else resolved = await f.Runtime.ResolveWriteAsync(f.Field, entries, new("tenant"), new("record", "evidence"), Evidence(port.Session), JsonSerializer.SerializeToElement(initial), token).ConfigureAwait(false);
                 return new KernelCommand<JsonArray>(Evidence().Operation, resolved, Evidence().Audit);
             }, port).AsTask();
         }
@@ -469,11 +497,13 @@ public sealed class AttachmentFieldRuntimeTests
                 .Bind(new("attachment", "1.0.0", new Dictionary<string,string> { ["item_limit_bytes"] = "50" }), "/kind");
         }
         public ValueTask<Guid> Upload(string text) => Runtime.PutAsync(Field, new("tenant"), "evidence", new MemoryStream(Encoding.UTF8.GetBytes(text)), "text/plain", null, Evidence());
+        private readonly Dictionary<string, JsonElement> prior = new(StringComparer.Ordinal);
         public async Task<JsonArray> Write(JsonElement entries, string fieldKey = "evidence", ICompiledAttachmentFieldKind? field = null)
         {
             var port = new Port(Storage.Bookkeeping);
             await KernelTransactionBoundary.ExecutePreparedAsync(async token => new KernelCommand<JsonArray>(Evidence().Operation,
-                await Runtime.ResolveWriteAsync(field ?? Field, entries, new("tenant"), new("record", fieldKey), Evidence(port.Session), token), Evidence().Audit), port);
+                await Runtime.ResolveWriteAsync(field ?? Field, entries, new("tenant"), new("record", fieldKey), Evidence(port.Session), prior.GetValueOrDefault(fieldKey), token), Evidence().Audit), port);
+            prior[fieldKey] = JsonSerializer.SerializeToElement(port.Saved!);
             return port.Saved!;
         }
     }

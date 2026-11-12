@@ -3,7 +3,7 @@
   "module": {
     "interface": {
       "path": "specs/modules/blocks/hlp.blocks.builder-definitions/interface.yaml",
-      "revision": 34
+      "revision": 35
     },
     "verificationGrantValidity": "Optional EffectiveFrom/effectiveFrom and EffectiveTo/effectiveTo offset instants; from-inclusive, to-exclusive. Absent bounds are omitted from canonical JSON, preserving legacy bytes and SHA-256 digests; invalid windows are refused naming the fixture and grant.",
     "moduleKind": "runtime",

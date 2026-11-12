@@ -20,18 +20,24 @@ public sealed class AttachmentFieldRuntime(InMemoryContentStore store)
 
     /// <summary>
     /// Preserves kept references and order, promotes stages once, and returns references only. The host supplies the
-    /// content session belonging to the enclosing record transaction; this method never opens or commits another one.
+    /// content session belonging to the enclosing record transaction and the field's references from its prior committed
+    /// version (undefined on create); this method never opens or commits another transaction.
     /// </summary>
     public async ValueTask<JsonArray> ResolveWriteAsync(ICompiledAttachmentFieldKind field, JsonElement entries,
-        TenantId tenant, ContentOwner owner, ContentStoreWrite evidence, CancellationToken cancellationToken = default)
+        TenantId tenant, ContentOwner owner, ContentStoreWrite evidence, JsonElement priorReferences, CancellationToken cancellationToken = default)
     {
         if (evidence.Transaction is null) throw new ArgumentException("Attachment resolution requires the Records transaction.", nameof(evidence));
         if (entries.ValueKind != JsonValueKind.Array) throw Invalid();
         await LockEntriesAsync([entries], tenant, evidence, cancellationToken).ConfigureAwait(false);
+        IEnumerable<ContentReference> prior = priorReferences.ValueKind == JsonValueKind.Array
+            ? priorReferences.EnumerateArray().Select(FromJson) : [];
+        var priorByIdentity = prior.ToLookup(value => (value.ContentId, value.Length, value.Owner));
         var resolved = new JsonArray();
+        var index = 0;
         foreach (var entry in entries.EnumerateArray())
         {
             cancellationToken.ThrowIfCancellationRequested();
+            var entryPointer = FieldPointer(owner.Element) + "/" + (index++).ToString(System.Globalization.CultureInfo.InvariantCulture);
             JsonElement stage = default, display = default;
             Guid stageId = Guid.Empty;
             if (entry.ValueKind == JsonValueKind.Object && entry.TryGetProperty("stage_id", out stage))
@@ -51,14 +57,18 @@ public sealed class AttachmentFieldRuntime(InMemoryContentStore store)
             }
             else
             {
-                ValidateReference(field, entry, owner.Element);
                 var reference = FromJson(entry);
+                var matches = priorByIdentity[(reference.ContentId, reference.Length, reference.Owner)];
+                if (!matches.Any()) throw MissingKept(entryPointer);
+                if (!matches.Any(value => value.MediaType == reference.MediaType))
+                    throw new ContentRefusedException(ContentRefusals.MediaTypeMismatch, "The kept reference's media type changed.", owner.Element) { JsonPointer = entryPointer };
+                ValidateReference(field, entry, owner.Element);
                 var item = await evidence.Transaction.FindItemForUpdateAsync(new(tenant, reference.ContentId), cancellationToken).ConfigureAwait(false);
                 // The final separator precedes the opaque slot; field keys themselves may contain separators.
                 var fieldEnd = reference.Owner.Element.LastIndexOf('/');
                 if (reference.Owner.Record != owner.Record || fieldEnd < 0 || reference.Owner.Element[..fieldEnd] != owner.Element
-                    || item is null || !item.Owners.Contains(reference.Owner) || item.Length != reference.Length || !InMemoryContentStore.MediaTypeFits(item.MediaType, reference.MediaType))
-                    throw Invalid();
+                    || item is null || !item.Owners.Contains(reference.Owner) || item.Length != reference.Length)
+                    throw MissingKept(entryPointer);
                 resolved.Add(JsonNode.Parse(entry.GetRawText()));
             }
         }
@@ -133,11 +143,16 @@ public sealed class AttachmentFieldRuntime(InMemoryContentStore store)
         if (refusals.Count == 0) return;
         if (refusals[0].Code == "content.too-large")
             throw new ContentRefusedException("content.too-large", "The item exceeds the effective field limit.", declaration,
-                new Dictionary<string, long> { ["limit"] = field.EffectiveLimitBytes, ["observed"] = value.GetProperty("length").GetInt64() });
+                new Dictionary<string, long> { ["limit"] = field.EffectiveLimitBytes, ["observed"] = value.GetProperty("length").GetInt64() }) { JsonPointer = FieldPointer(declaration) };
         if (refusals[0].Code == "content.field-media-type-not-allowed")
-            throw new ContentRefusedException("content.field-media-type-not-allowed", "The field does not accept this media type.", declaration);
+            throw new ContentRefusedException("content.field-media-type-not-allowed", "The field does not accept this media type.", declaration) { JsonPointer = FieldPointer(declaration) };
         throw Invalid();
     }
+
+    private static string FieldPointer(string field) => "/" + field.Replace("~", "~0", StringComparison.Ordinal).Replace("/", "~1", StringComparison.Ordinal);
+
+    private static ContentRefusedException MissingKept(string pointer) =>
+        new(ContentRefusals.StagingExpired, "The staged item is no longer available.", InMemoryContentStore.StoreDeclaration) { JsonPointer = pointer };
 
     private static FieldAdmissionException Invalid() => new([new("field.value_type_mismatch", "", "An attachment write requires kept references or staged entries.")]);
 

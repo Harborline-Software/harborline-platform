@@ -169,6 +169,30 @@ public sealed class ContentStoreStagedPrincipalTests
         Assert.Equal(put ? 0 : 1, store.CommittedCount);
     }
 
+    [Fact]
+    public async Task Staging_sweep_locks_expired_rows_in_ordinal_stage_id_order()
+    {
+        var storage = new InMemoryContentStoreStorage();
+        var store = Store(storage);
+        await using (var setup = await storage.Bookkeeping.BeginTransactionAsync())
+        {
+            foreach (var id in new[] { "22222222-2222-2222-2222-222222222222", "11111111-1111-1111-1111-111111111111" })
+                await setup.AddStagedAsync(new(Guid.Parse(id), new("tenant-a"), new("hmac-sha256:" + new string('a', 64)),
+                    1, "text/plain", DateTimeOffset.UnixEpoch, [], [], [], [], 1, Guid.Empty) { StagingPrincipal = "uploader" });
+            await setup.CommitAsync();
+        }
+        var port = new ContextPort(storage.Bookkeeping, "");
+        var result = await KernelTransactionBoundary.ExecutePreparedAsync(async token =>
+        {
+            Assert.Equal(2, await store.SweepExpiredAsync("sweep", ContentStoreWriteEvidence.New("sys.scheduler", port.Session), token));
+            var evidence = ContentStoreWriteEvidence.New("sys.scheduler");
+            return new KernelCommand<string>(evidence.Operation, "sweep", evidence.Audit);
+        }, port);
+        Assert.True(result.Committed);
+        Assert.Equal([Guid.Parse("11111111-1111-1111-1111-111111111111"), Guid.Parse("22222222-2222-2222-2222-222222222222")], port.Delay.RemovedStages);
+        Assert.Equal(0, store.StagedCount);
+    }
+
     private sealed class CountingContext : SynchronizationContext
     {
         private int posts;
@@ -183,10 +207,12 @@ public sealed class ContentStoreStagedPrincipalTests
         public IContentBookkeepingSession Inner { get; set; } = null!;
         public string Method { get; set; } = "";
         public bool Entered { get; private set; }
+        public List<Guid> RemovedStages { get; } = [];
         public TaskCompletionSource Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         protected override object? Invoke(MethodInfo? targetMethod, object?[]? args)
         {
-            var result = targetMethod!.Invoke(Inner, args);
+            if (targetMethod!.Name == "RemoveStagedAsync") RemovedStages.Add((Guid)args![0]!);
+            var result = targetMethod.Invoke(Inner, args);
             if (targetMethod.Name != Method) return result;
             Entered = true;
             return Method == "AddStagedAsync" ? Delay((ValueTask)result!) : DelayFind((ValueTask<ContentStoreItem?>)result!);

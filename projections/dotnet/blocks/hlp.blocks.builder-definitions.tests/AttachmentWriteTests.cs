@@ -136,6 +136,100 @@ public sealed class AttachmentWriteTests
         Assert.False(row.RootElement.GetProperty("documents")[0].TryGetProperty("stage_id", out _));
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Caller_mutation_after_hashing_cannot_change_the_promoted_stage(bool accepted)
+    {
+        var fixture = accepted ? await Fixture.CreateFormOnly() : await Fixture.Create();
+        var actor = accepted ? "alice" : "operator-7";
+        var first = await fixture.UploadAs("first", actor);
+        var replacement = await fixture.UploadAs("replacement", actor);
+        var body = List(first);
+        fixture.Port.BeforeNextLookup = () =>
+        {
+            body["evidence"] = List(replacement)["evidence"]!.DeepClone();
+            return ValueTask.CompletedTask;
+        };
+        var result = accepted
+            ? await fixture.Operation.CompleteAcceptedAsync(new("tenant-a", "sys.records-worker"), Accepted("alice", body))
+            : await fixture.Write("snapshot", body);
+        Assert.True(result.Committed, result.Refusal?.Code);
+        using var stored = JsonDocument.Parse(Assert.Single(fixture.Port.Rows).Body);
+        Assert.Equal(5, stored.RootElement.GetProperty("evidence")[0].GetProperty("length").GetInt64());
+        Assert.Equal(1, fixture.Store.CommittedCount);
+        Assert.Equal(1, fixture.Store.StagedCount);
+        Assert.Equal(replacement, Assert.Single(await fixture.Storage.Bookkeeping.StagedCreatedAtOrBeforeAsync(DateTimeOffset.MaxValue)).StageId);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task A_field_size_refusal_names_the_escaped_destination_pointer(bool temporal)
+    {
+        var fixture = await Fixture.Create(fieldKey: "photos/~", temporalMode: temporal, fieldLimit: 2);
+        var stage = await fixture.Store.PutAsync(new("tenant-a"), new MemoryStream("abc"u8.ToArray()), "text/plain", null, Evidence());
+        var result = await fixture.WriteEither(temporal, "field-limit", new JsonObject { ["photos/~"] = new JsonArray(Stage(stage, "evidence.txt")) });
+        Assert.False(result.Committed);
+        Assert.Equal("content.too-large", result.Refusal!.Code);
+        Assert.Equal(["/photos~1~0"], result.Refusal.Pointers);
+        Assert.Equal(2, result.Refusal.Detail["limit"]);
+        Assert.Equal(3, result.Refusal.Detail["observed"]);
+        Assert.Empty(fixture.Port.Rows);
+        Assert.Equal(0, fixture.Store.CommittedCount);
+        Assert.Equal(1, fixture.Store.StagedCount);
+    }
+
+    [Fact]
+    public async Task A_create_cannot_keep_another_records_reference()
+    {
+        var fixture = await Fixture.Create();
+        Assert.True((await fixture.Write("first-record", List(await fixture.Upload("first")))).Committed);
+        var prior = JsonNode.Parse(Assert.Single(fixture.Port.Rows).Body.Span)!.AsObject();
+        var result = await fixture.Write("another-record", prior);
+        Assert.False(result.Committed);
+        Assert.Equal("content.staging-expired", result.Refusal!.Code);
+        Assert.Equal(["/evidence/0"], result.Refusal.Pointers);
+        Assert.Single(fixture.Port.Rows);
+    }
+
+    [Theory]
+    [InlineData("rename")]
+    [InlineData("retype")]
+    [InlineData("foreign")]
+    public async Task A_temporal_kept_entry_uses_the_prior_committed_field_reference(string change)
+    {
+        var fixture = await Fixture.Create(temporalMode: true);
+        var created = await fixture.Operation.CreateEffectiveAsync(new("tenant-a", "operator-7"),
+            new("eam.evidence", "initial", List(await fixture.Upload("first")), DateTimeOffset.UnixEpoch, null));
+        Assert.Equal(RecordTemporalWriteStatus.Created, created.Status);
+        var prior = JsonNode.Parse(Assert.Single(fixture.Port.Rows).Body.Span)!.AsObject();
+        if (change == "rename") prior["evidence"]![0]!["display_name"] = "renamed.txt";
+        if (change == "retype") prior["evidence"]![0]!["media_type"] = "text/csv";
+        if (change == "foreign")
+        {
+            var other = await fixture.Write("foreign-record", List(await fixture.Upload("other")));
+            Assert.True(other.Committed);
+            prior["evidence"] = JsonNode.Parse(fixture.Port.Rows[^1].Body.Span)!["evidence"]!.DeepClone();
+        }
+        var result = await fixture.Operation.AmendAsync(new("tenant-a", "operator-7"), new(created.Receipt!.Receipt.RecordId, "amend",
+            new(created.Receipt.Temporal.Revision, created.Receipt.BindingHash), prior, DateTimeOffset.UnixEpoch.AddDays(1), null, "rename evidence"));
+        if (change == "rename")
+        {
+            Assert.Equal(RecordTemporalWriteStatus.Created, result.Status);
+            var saved = JsonNode.Parse(fixture.Port.Rows[^1].Body.Span)!;
+            Assert.Equal("renamed.txt", saved["evidence"]![0]!["display_name"]!.GetValue<string>());
+            Assert.Equal("text/plain", saved["evidence"]![0]!["media_type"]!.GetValue<string>());
+            Assert.Equal(5, saved["evidence"]![0]!["length"]!.GetValue<long>());
+        }
+        else
+        {
+            Assert.NotNull(result.Refusal);
+            Assert.Equal(change == "retype" ? "content.media-type-mismatch" : "content.staging-expired", result.Refusal.Code);
+            Assert.Equal(["/evidence/0"], result.Refusal.Pointers);
+        }
+    }
+
     // content-store-cc-2, ADR-0142 decision 3 (Terra P1-2): an accepted command is the submitter's write completed by a
     // worker. The submitter's own stage promotes with the worker as audit actor; another principal's stage still refuses.
     [Fact]
@@ -318,7 +412,7 @@ public sealed class AttachmentWriteTests
         await KernelTransactionBoundary.ExecutePreparedAsync(async token =>
         {
             resolved = await fixture.Runtime.ResolveWriteAsync(fixture.Attachment, mixed, new("tenant-a"), new(created.Receipt!.RecordId, "evidence"),
-                Evidence(port.Session), token);
+                Evidence(port.Session), saved.RootElement.GetProperty("evidence"), token);
             return new KernelCommand<JsonArray>(new("mixed", "mixed", "literal-fingerprint"), resolved, Evidence().Audit);
         }, port);
         var read = Assert.IsType<JsonArray>(port.Saved);
@@ -554,12 +648,12 @@ public sealed class AttachmentWriteTests
         public Port Port { get; }
         public RecordWriteOperation Operation { get; }
         public RecordTypePublication Publication { get; }
-        private Fixture(bool condition, bool composeRuntime, bool exposeSession, string fieldKey, bool temporalMode, string? conditionJson = null, bool formOnly = false, string? statusCondition = null)
+        private Fixture(bool condition, bool composeRuntime, bool exposeSession, string fieldKey, bool temporalMode, string? conditionJson = null, bool formOnly = false, string? statusCondition = null, long fieldLimit = 200)
         {
             Store = new(new(100, 1000, 10000, TimeSpan.FromHours(1)), new Keys(), TimeProvider.System, Storage);
             Runtime = new(Store);
             var kinds = new FieldKindRuntime(new FieldKindRegistry([new("attachment", "1.0.0", null, FieldScalarValueShape.ContentReference)]), Store.ItemLimitBytes);
-            var kind = new FieldKindReference("attachment", "1.0.0", new Dictionary<string, string> { ["item_limit_bytes"] = "200" });
+            var kind = new FieldKindReference("attachment", "1.0.0", new Dictionary<string, string> { ["item_limit_bytes"] = fieldLimit.ToString(System.Globalization.CultureInfo.InvariantCulture) });
             Attachment = (ICompiledAttachmentFieldKind)kinds.Bind(kind, "/kind");
             var validator = new RecordsIntentValidator();
             var compiler = new RecordTypeSchemaCompiler(validator, kinds, new SharedValueDomainAdmission());
@@ -585,7 +679,7 @@ public sealed class AttachmentWriteTests
         public static Task<Fixture> CreateWithStatusCondition(string statusCondition) => Task.FromResult(new Fixture(false, true, true, "evidence", false, statusCondition: statusCondition));
         public ValueTask<Guid> UploadAs(string text, string actor) => Runtime.PutAsync(Attachment, new("tenant-a"), "evidence", new MemoryStream(Encoding.UTF8.GetBytes(text)), "text/plain", null, Evidence(actor: actor));
         public static Task<Fixture> CreateWithLaterAttachment(string conditionJson) => Task.FromResult(new Fixture(false, true, true, "evidence", false, conditionJson));
-        public static Task<Fixture> Create(bool condition = false, bool composeRuntime = true, bool exposeSession = true, string fieldKey = "evidence", bool temporalMode = false) => Task.FromResult(new Fixture(condition, composeRuntime, exposeSession, fieldKey, temporalMode));
+        public static Task<Fixture> Create(bool condition = false, bool composeRuntime = true, bool exposeSession = true, string fieldKey = "evidence", bool temporalMode = false, long fieldLimit = 200) => Task.FromResult(new Fixture(condition, composeRuntime, exposeSession, fieldKey, temporalMode, fieldLimit: fieldLimit));
         public ValueTask<Guid> Upload(string text) => Runtime.PutAsync(Attachment, new("tenant-a"), "evidence", new MemoryStream(Encoding.UTF8.GetBytes(text)), "text/plain", null, Evidence());
         public async Task<RecordWriteOutcome> WriteEither(bool temporal, string operation, JsonObject body)
         {
@@ -608,6 +702,7 @@ public sealed class AttachmentWriteTests
         public bool FailCommit { get; set; }
         public Func<IContentBookkeepingSession, IContentBookkeepingSession>? DecorateSession { get; set; }
         public List<RecordWriteRow> Rows { get; } = [];
+        public List<RecordTemporalVersion> Versions { get; } = [];
         public Func<ValueTask>? BeforeNextLookup { get; set; }
         public bool HideNextLookup { get; set; }
         public int Rollbacks { get; private set; }
@@ -622,8 +717,10 @@ public sealed class AttachmentWriteTests
         { var pause = BeforeNextLookup; BeforeNextLookup = null; if (pause is not null) await pause().ConfigureAwait(false); }
         public ValueTask<RecordWriteRow?> FindAsync(string tenant, string recordId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public ValueTask<RecordTemporalLookup> FindAtAsync(string tenant, string recordId, DateTimeOffset effectiveAt, CancellationToken cancellationToken = default) => throw new NotSupportedException();
-        public ValueTask<RecordTemporalHistory> HistoryAsync(string tenant, string recordId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
-        public ValueTask<RecordTemporalTarget?> FindTemporalTargetAsync(string tenant, string recordId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public ValueTask<RecordTemporalHistory> HistoryAsync(string tenant, string recordId, CancellationToken cancellationToken = default)
+            => ValueTask.FromResult(new RecordTemporalHistory(RecordTemporalHistoryKind.Temporal, Versions.Where(v => v.Row.Tenant == tenant && v.Row.RecordId == recordId).ToArray()));
+        public ValueTask<RecordTemporalTarget?> FindTemporalTargetAsync(string tenant, string recordId, CancellationToken cancellationToken = default)
+            => ValueTask.FromResult(Versions.FirstOrDefault(v => v.Row.Tenant == tenant && v.Row.RecordId == recordId) is { } prior ? new RecordTemporalTarget(prior.Row.RecordTypeId, true) : null);
         async ValueTask<IKernelPreparedTransaction<RecordTemporalWrite, RecordTemporalCommit>> IKernelPreparedTransactionPort<RecordTemporalWrite, RecordTemporalCommit>.BeginAsync(CancellationToken cancellationToken)
             => new TemporalTransaction(this, await bookkeeping.BeginTransactionAsync(cancellationToken));
         private sealed class TemporalTransaction(Port owner, IContentBookkeepingTransaction content) : IKernelPreparedTransaction<RecordTemporalWrite, RecordTemporalCommit>, IRecordContentTransaction
@@ -638,10 +735,11 @@ public sealed class AttachmentWriteTests
             public async ValueTask<RecordTemporalCommit> CommitAsync(CancellationToken cancellationToken = default)
             {
                 var row = write.Row;
-                var temporal = new RecordTemporalEvidence(1, null, [], write.EffectiveFrom, write.EffectiveTo, null, DateTimeOffset.UnixEpoch);
+                var temporal = new RecordTemporalEvidence((write.ExpectedPredecessor?.Revision ?? 0) + 1, write.ExpectedPredecessor, [], write.EffectiveFrom, write.EffectiveTo, write.Reason, DateTimeOffset.UnixEpoch);
                 var receipt = new RecordTemporalReceipt(new(row.RecordId, row.OperationId, row.RecordTypeId, row.Version, row.DefinitionDigest, row.Schema, row.RecordedAt),
                     temporal, RecordTemporalJournalBinding.HashBinding(operation.IdempotencyKey, operation, row, audit, temporal));
                 await content.CommitAsync(cancellationToken);
+                owner.Versions.Add(new(row, temporal, receipt.BindingHash));
                 owner.Rows.Add(row); owner.temporalReceipts.Add(operation.IdempotencyKey, new(row.IntentEncodingVersion, row.IntentDigest, receipt));
                 return new(RecordTemporalCommitDisposition.Created, receipt);
             }

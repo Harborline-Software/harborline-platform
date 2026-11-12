@@ -112,6 +112,9 @@ public sealed class ContentRefusedException : InvalidOperationException
     /// <summary>The declaration that set the limit: <see cref="InMemoryContentStore.StoreDeclaration"/> or the field's declaration.</summary>
     public string Definition { get; }
 
+    /// <summary>The optional RFC 6901 location of a field or entry refusal.</summary>
+    public string? JsonPointer { get; init; }
+
     /// <summary>C3's optional detail; <c>limit</c> and <c>observed</c> on every size and quota refusal.</summary>
     public IReadOnlyDictionary<string, long> Detail { get; }
 }
@@ -1698,7 +1701,7 @@ public sealed class InMemoryContentStore
         // Deleting orphans changes state, so even a sweep that finds nothing else carries its actor and audit row.
         var outcome = await RunAsync(ContentStoreOperation.SweepExpired, write, async (session, token) =>
         {
-            foreach (var item in expired)
+            foreach (var item in expired.OrderBy(item => item.StageId.ToString("N"), StringComparer.Ordinal))
             {
                 if (await ReclaimStagedAsync(session, item, "staging-expired", run, token).ConfigureAwait(false)) reclaimed.Add(item);
             }

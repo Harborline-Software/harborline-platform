@@ -44,10 +44,11 @@ public sealed class AttachmentFieldKindTests
     [InlineData("accepted_media_types", "[\"text/plain\",\"text/plain\"]", "content.field-media-type-not-allowed")]
     [InlineData("accepted_media_types", "[\"application/exe\"]", "content.field-media-type-not-allowed")]
     [InlineData("accepted_media_types", "null", "field.kind_parameter_invalid")]
+    [InlineData("accepted_media_types", null, "field.kind_parameter_invalid")]
     [InlineData("maximum_count", "1", "field.kind_parameter_unknown")]
-    public void Invalid_or_widening_parameters_refuse_at_binding(string name, string value, string code)
+    public void Invalid_or_widening_parameters_refuse_at_binding(string name, string? value, string code)
     {
-        var refusal = Assert.Single(Assert.Throws<FieldAdmissionException>(() => Bind(new() { [name] = value })).Refusals);
+        var refusal = Assert.Single(Assert.Throws<FieldAdmissionException>(() => Bind(new() { [name] = value! })).Refusals);
         Assert.Equal(code, refusal.Code);
         Assert.Equal("/fields/0/kind/parameters/" + name, refusal.JsonPointer);
         Assert.False(string.IsNullOrWhiteSpace(refusal.Message));

@@ -32,6 +32,7 @@ internal sealed class AttachmentFieldKind : ICompiledAttachmentFieldKind
         if (parameters.ContainsKey("accepted_media_types"))
         {
             var media = parameters["accepted_media_types"];
+            if (media is null) throw Refuse("field.kind_parameter_invalid", pointer + "/parameters/accepted_media_types");
             try { mediaTypes = JsonSerializer.Deserialize<string[]>(media) ?? throw new JsonException(); }
             catch (JsonException) { throw Refuse("field.kind_parameter_invalid", pointer + "/parameters/accepted_media_types"); }
             if (mediaTypes.Length == 0 || mediaTypes.Distinct(StringComparer.Ordinal).Count() != mediaTypes.Length

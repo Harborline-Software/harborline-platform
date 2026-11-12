@@ -3,7 +3,7 @@
   "module": {
     "interface": {
       "path": "specs/modules/foundation/hlp.foundation.content-store/interface.yaml",
-      "revision": 6
+      "revision": 7
     },
     "moduleKind": "runtime",
     "presentation": {
