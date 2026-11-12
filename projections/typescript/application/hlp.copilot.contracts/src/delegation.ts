@@ -68,7 +68,7 @@ function object(value: unknown, members: readonly string[]): Record<string, unkn
 }
 
 function text(value: unknown): string {
-  if (typeof value !== 'string' || value.trim() === '') throw new TypeError('required-wire-string')
+  if (typeof value !== 'string' || value.trim() === '' || /[\uD800-\uDFFF]/u.test(value)) throw new TypeError('required-wire-string')
   return value
 }
 
@@ -82,7 +82,8 @@ function instant(value: unknown): string {
   const result = text(value)
   const parsed = new Date(result)
   if (result !== result.trim() || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,7})?(?:Z|\+00:00)$/.test(result)
-    || !Number.isFinite(parsed.getTime()) || parsed.toISOString().slice(0, 19) !== result.slice(0, 19)) throw new TypeError('required-utc-instant')
+    || !Number.isFinite(parsed.getTime()) || parsed.getUTCFullYear() === 0
+    || parsed.toISOString().slice(0, 19) !== result.slice(0, 19)) throw new TypeError('required-utc-instant')
   return result
 }
 

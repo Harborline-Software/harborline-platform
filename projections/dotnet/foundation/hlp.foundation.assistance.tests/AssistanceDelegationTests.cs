@@ -135,7 +135,7 @@ public sealed class AssistanceDelegationTests
         using var escaped = JsonDocument.Parse("\"\\u0001\\b\\t\\n\\f\\r\\\"\\\\\\u2028\\ud83d\\ude00\"");
         Assert.Equal("{\"args\":\"\\u0001\\b\\t\\n\\f\\r\\\"\\\\\u2028😀\",\"command\":\"draft.edit\",\"schema\":\"pilot.proposal/3\",\"surface\":\"forms.builder\"}",
             Encoding.UTF8.GetString(AssistanceDelegationJson.SerializeCanonical(proposal with { Args = escaped.RootElement.Clone() })));
-        foreach (var args in new[] { "{\"duplicate\":1,\"duplicate\":2}", "1e999" })
+        foreach (var args in new[] { "{\"duplicate\":1,\"duplicate\":2}", "1e999", "\"\\ud800\"" })
         {
             using var invalid = JsonDocument.Parse(args);
             Assert.Throws<JsonException>(() => AssistanceDelegationJson.SerializeCanonical(proposal with { Args = invalid.RootElement.Clone() }));
@@ -152,7 +152,7 @@ public sealed class AssistanceDelegationTests
             approval["expires_at"] = instant;
             RoundTrip<AssistanceStandingApproval>(approval);
         }
-        foreach (var instant in new[] { "2026-12-31T23:59:59.Z", "2026-12-31T23:59:59-00:00", "2026-12-31T23:59:59Z\n" })
+        foreach (var instant in new[] { "0000-12-31T23:59:59Z", "2026-12-31T23:59:59.Z", "2026-12-31T23:59:59-00:00", "2026-12-31T23:59:59Z\n" })
         {
             var approval = Fixture()["standing_approvals"]![0]!.DeepClone();
             approval["expires_at"] = instant;

@@ -107,10 +107,11 @@ test('pilot-ck-21: exact UTC spelling and accessor refusal; oracle: shared UTC w
   for (const expires_at of ['2026-12-31T23:59:59+00:00', '2026-12-31T23:59:59.1234567Z']) {
     assert.equal(contracts.parseStandingApproval({ ...approval, expires_at }).expires_at, expires_at)
   }
-  for (const expires_at of ['2026-12-31T23:59:59.Z', '2026-12-31T23:59:59-00:00', '2026-12-31T23:59:59Z\n']) {
+  for (const expires_at of ['0000-12-31T23:59:59Z', '2026-12-31T23:59:59.Z', '2026-12-31T23:59:59-00:00', '2026-12-31T23:59:59Z\n']) {
     assert.throws(() => contracts.parseStandingApproval({ ...approval, expires_at }))
   }
   const commands = ['draft.edit']
   Object.defineProperty(commands, '0', { get() { throw new Error('must not be read') }, enumerable: true })
   assert.throws(() => contracts.parseStandingApproval({ ...approval, scope: { surface: 'forms.builder', commands } }), /invalid-args/)
+  assert.throws(() => contracts.parseStandingApproval({ ...approval, approver: '\ud800' }))
 })
