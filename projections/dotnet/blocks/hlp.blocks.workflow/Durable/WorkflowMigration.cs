@@ -23,6 +23,9 @@ public sealed class WorkflowMigration(IWorkflowStore store, IWorkflowDefinitionE
             throw new UnauthorizedAccessException("The migration authorization decision does not match this instance.");
         if (instance.Status is not (WorkflowStatus.Running or WorkflowStatus.Parked))
             throw new InvalidOperationException("Only active workflow instances can be migrated.");
+        if (targetVersion == instance.DefinitionVersion)
+            throw new InvalidOperationException("Migration requires another definition version.");
+        map = new Dictionary<string, string>(map, StringComparer.Ordinal);
         if (!map.TryGetValue(instance.CurrentStep, out var targetStep) || string.IsNullOrWhiteSpace(targetStep))
             throw new InvalidOperationException($"No mapping for active step '{instance.CurrentStep}'.");
         var definition = await definitions.GetAdmittedAsync(instance.TenantId, instance.DefinitionKey, targetVersion, ct)
