@@ -11,6 +11,7 @@ public sealed class ContentStoreStagedPrincipalTests
 {
     [Theory]
     [InlineData("tenant-a", "another-principal")]
+    [InlineData("tenant-a", "sys.records-worker")]
     [InlineData("tenant-b", "uploader")]
     public async Task Another_principal_or_tenant_gets_staging_expired_and_leaves_the_stage_untouched(string tenant, string actor)
     {
@@ -37,6 +38,22 @@ public sealed class ContentStoreStagedPrincipalTests
         using (delivery.Body)
         using (var body = new StreamReader(delivery.Body))
             Assert.Equal("evidence", await body.ReadToEndAsync());
+        Assert.Equal(0, store.StagedCount);
+        Assert.Equal(1, store.CommittedCount);
+    }
+
+    [Fact]
+    public async Task An_originator_bound_write_keeps_the_worker_as_content_audit_actor()
+    {
+        var storage = new InMemoryContentStoreStorage();
+        var store = Store(storage);
+        var stage = await store.PutAsync(new("tenant-a"), new MemoryStream("evidence"u8.ToArray()), "text/plain", null,
+            ContentStoreWriteEvidence.New("alice"));
+        await store.CommitReferenceAsync(new("tenant-a"), stage, new("record", "evidence"), "evidence.txt",
+            ContentStoreWriteEvidence.New("sys.records-worker") with { Originator = "alice" });
+        var audit = ((InMemoryContentBookkeeping)storage.Bookkeeping).Snapshot().Audits[^1];
+        Assert.Equal("sys.records-worker", audit.ActorId);
+        Assert.Equal("alice", audit.OriginatorId);
         Assert.Equal(0, store.StagedCount);
         Assert.Equal(1, store.CommittedCount);
     }

@@ -321,7 +321,11 @@ public readonly record struct ContentQuotaReservation(ContentQuotaGrain? Refused
 /// The caller's open transaction, when the write runs inside the caller's boundary execution (ck-6). Null means the store
 /// executes its own; inside an open execution that is refused as <see cref="KernelTransactionErrors.NestedExecution"/>.
 /// </param>
-public sealed record ContentStoreWrite(KernelOperationIdentity Operation, KernelAuditEvidence Audit, IContentBookkeepingSession? Transaction = null);
+public sealed record ContentStoreWrite(KernelOperationIdentity Operation, KernelAuditEvidence Audit, IContentBookkeepingSession? Transaction = null)
+{
+    /// <summary>The server-bound on-behalf-of principal; null for a direct write. Never replaces the audit actor or its authority.</summary>
+    public string? Originator { get; init; }
+}
 
 /// <summary>
 /// The bookkeeping reads and writes inside one open transaction, with no commit or rollback, so a caller can hand it to the
@@ -1389,7 +1393,7 @@ public sealed class InMemoryContentStore
             // Held from here, so a rewrap can't change the wrap this promotion carries into the committed item.
             var staged = await session.FindStagedForUpdateAsync(stageId, token).ConfigureAwait(false);
             if (staged is null) throw StagingExpiredRefusal();
-            if (staged.Tenant != tenant || !StringComparer.Ordinal.Equals(staged.StagingPrincipal, write.Audit.ActorId))
+            if (staged.Tenant != tenant || !StringComparer.Ordinal.Equals(staged.StagingPrincipal, write.Originator ?? write.Audit.ActorId))
                 throw StagingExpiredRefusal();
             if (StagedCutoff() >= staged.CreatedUtc)
             {
@@ -1507,7 +1511,7 @@ public sealed class InMemoryContentStore
     private async ValueTask<WriteOutcome> RunAsync(ContentStoreOperation operation, ContentStoreWrite write,
         Func<IContentBookkeepingSession, CancellationToken, ValueTask<bool>> writes, CancellationToken cancellationToken)
     {
-        var command = new KernelCommand<ContentStoreOperation>(write.Operation, operation, write.Audit);
+        var command = new KernelCommand<ContentStoreOperation>(write.Operation, operation, write.Audit with { OriginatorId = write.Originator });
         if (write.Transaction is { } session)
         {
             var joined = new JoinedWrite(session, writes);

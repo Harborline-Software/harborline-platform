@@ -143,8 +143,28 @@ public sealed class AttachmentWriteTests
     {
         var fixture = await Fixture.CreateFormOnly();
         var own = await fixture.UploadAs("alice evidence", "alice");
-        var completed = await fixture.Operation.CompleteAcceptedAsync(new("tenant-a", "sys.records-worker"), Accepted("alice", List(own)));
+        var audits = new List<KernelAuditEvidence>();
+        fixture.Port.DecorateSession = inner =>
+        {
+            var proxy = DispatchProxy.Create<IContentBookkeepingSession, AuditSession>();
+            ((AuditSession)proxy).Inner = inner;
+            ((AuditSession)proxy).Audits = audits;
+            return proxy;
+        };
+        var body = List(own);
+        body["originator"] = "mallory";
+        var completed = await fixture.Operation.CompleteAcceptedAsync(new("tenant-a", "sys.records-worker"), Accepted("alice", body));
         Assert.True(completed.Committed, completed.Refusal?.Code);
+        var audit = Assert.Single(audits);
+        Assert.Equal("sys.records-worker", audit.ActorId);
+        Assert.Equal("alice", audit.OriginatorId);
+        var snapshot = AuthoritySnapshotEncoding.TryDecode(audit.AuthoritySnapshot.Span);
+        Assert.NotNull(snapshot);
+        Assert.Equal("sys.records-worker", snapshot.Principal);
+        Assert.Equal("records:complete-accepted", AuthoritySnapshotEncoding.Fact(snapshot, "act", "act:"));
+        var written = Assert.Single(fixture.Port.Rows);
+        Assert.Equal("sys.records-worker", written.ActorId);
+        Assert.Equal("alice", written.OriginatorId);
         using var row = JsonDocument.Parse(Assert.Single(fixture.Port.Rows).Body);
         Assert.False(row.RootElement.GetProperty("evidence")[0].TryGetProperty("stage_id", out _));
         Assert.Equal(1, fixture.Store.CommittedCount);
@@ -157,8 +177,36 @@ public sealed class AttachmentWriteTests
         Assert.Single(fixture.Port.Rows);
     }
 
+    [Theory]
+    [InlineData("sys.records-worker")]
+    [InlineData("bob")]
+    public async Task A_direct_writer_cannot_promote_alices_stage_by_supplying_an_originator_in_the_body(string actor)
+    {
+        var fixture = await Fixture.Create();
+        var stage = await fixture.UploadAs("alice evidence", "alice");
+        var body = List(stage);
+        body["originator"] = "alice";
+        var outcome = await fixture.Operation.CreateAsync(new("tenant-a", actor), new("eam.evidence", "spoof-originator", body));
+        Assert.False(outcome.Committed);
+        Assert.Equal("content.staging-expired", outcome.Refusal!.Code);
+        Assert.Empty(fixture.Port.Rows);
+        Assert.Equal(1, fixture.Store.StagedCount);
+        Assert.Equal(0, fixture.Store.CommittedCount);
+    }
+
+    public class AuditSession : DispatchProxy
+    {
+        public IContentBookkeepingSession Inner { get; set; } = null!;
+        public List<KernelAuditEvidence> Audits { get; set; } = null!;
+        protected override object? Invoke(MethodInfo? targetMethod, object?[]? args)
+        {
+            if (targetMethod!.Name == "StageAuditAsync") Audits.Add((KernelAuditEvidence)args![0]!);
+            return targetMethod.Invoke(Inner, args);
+        }
+    }
+
     // ADR-0142 decision 3 (M11 ruling on Terra P1-2): the principal the store sees at commit is the accepted command's
-    // submitter, never the worker. Bob's accepted command naming Alice's stage refuses content.staging-expired, and the
+    // server-bound submitter, while the audit actor stays the worker. Bob's accepted command naming Alice's stage refuses content.staging-expired, and the
     // stage stays for Alice's own command.
     [Fact]
     public async Task Adr_0142_another_submitters_accepted_command_naming_a_stage_refuses_staging_expired()
@@ -526,6 +574,7 @@ public sealed class AttachmentWriteTests
             { RequiredCondition = conditionJson is not null ? JsonSerializer.Deserialize<JsonElement>(conditionJson) : condition ? JsonSerializer.Deserialize<JsonElement>("""{"==":[{"var":"status"},"closed"]}""") : null };
             var status = new FieldDefinition("status", "Status") { RequiredCondition = statusCondition is null ? null : JsonSerializer.Deserialize<JsonElement>(statusCondition) };
             FieldDefinition[] fields = conditionJson is null ? [field, status] : [field, status, new("documents", "Documents", new(kind, new(false, 0, null, [], null)))];
+            fields = [.. fields, new("originator", "Client-supplied data, not identity")];
             Records.CreateDraftAsync(new("tenant-a", "eam", "Evidence", "1.0.0", fields, new(1, 0),
                 ClassId: "eam.equipment", RecordClass: RecordClass.Master, PackageId: "eam-core", CreationGate: formOnly ? RecordCreationGate.FormOnly : RecordCreationGate.Role, CreationRoleId: formOnly ? null : "asset-author") { AmendmentPolicy = new(true) { Mode = temporalMode ? RecordAmendmentMode.Supersession : null } }, "type").AsTask().GetAwaiter().GetResult();
             Publication = Records.PublishAsync("tenant-a", "eam.evidence", "1.0.0", 1, "publish").AsTask().GetAwaiter().GetResult();

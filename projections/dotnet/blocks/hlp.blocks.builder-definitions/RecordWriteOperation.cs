@@ -1419,13 +1419,10 @@ public sealed class RecordWriteOperation
         {
             if (Attachments is null || session is null)
                 throw new RefusedWriteException(new(BindStage, "content.transaction-required", [lists[0].Pointer]));
-            // ADR-0142 decision 3: a stage commits only for the principal that staged it. Each content write carries its own
-            // actor and audit (T-521 ruling), and for an accepted command that actor is the submitter the command carries,
-            // never the worker's service identity; the record's own audit keeps the worker as its actor.
-            var principal = originator ?? actor;
+            // ADR-0110 d4 / ADR-0142 d3: the worker acts; the command's server-bound submitter is provenance only.
             ContentStoreWrite Write() => new(new(recordId, operationId, fingerprint),
-                new(Guid.NewGuid().ToString("N"), principal, instant, ReadOnlyMemory<byte>.Empty)
-                { AuthoritySnapshot = AuthoritySnapshotOf(evidence) }, session);
+                new(Guid.NewGuid().ToString("N"), actor, instant, ReadOnlyMemory<byte>.Empty)
+                { AuthoritySnapshot = AuthoritySnapshotOf(evidence) }, session) { Originator = originator };
             // Every row this write promotes or keeps is locked first, across all its fields, in one canonical order, so two
             // writes naming the same content in opposite orders cannot wait on each other (content-store-cc-2).
             try
