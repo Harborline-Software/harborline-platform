@@ -33,7 +33,7 @@ describe('DataExchangeAuthoringEditor React projection', () => {
     expect(evidence).toHaveTextContent('Applied 11; skipped 2; conflicted 3; rejected 5; failed 7; halted 0')
     expect(evidence).toHaveTextContent('source.changed')
     expect(evidence).toHaveTextContent('standard-7y')
-    for (const identity of ['review-81', 'commit-12', 'batch-12', 'effect-3', 'attempt-2']) expect(evidence).toHaveTextContent(identity)
+    for (const [label, identity] of Object.entries({ 'Dry run': 'review-81', 'Commit run': 'commit-12', 'Batch identity': 'batch-12', 'Effect identity': 'effect-3', 'Attempt identity': 'attempt-2' })) expect([...evidence.querySelectorAll('dt')].find(term => term.textContent === label)?.nextElementSibling?.textContent).toBe(identity)
     expect(evidence.querySelectorAll('input, select, textarea, button, [contenteditable]')).toHaveLength(0)
   })
 
@@ -89,7 +89,7 @@ describe('DataExchangeAuthoringEditor React projection', () => {
       mappings: [{ sourceColumn: 'CustomerNumber', canonicalTarget: 'records.customer/v1', targetPointer: '/customerNumber', datatype: 'string', required: true, nullValue: '', defaultValue: '', separator: '', transform: 'trimToNull' }],
     }
     const staleRun: DataExchangeRunSummary = {
-      dryRunId: 'dry-7', status: 'Ready', stale: true, candidateCheckpoint: 'cursor:7',
+      dryRunId: 'dry-7', status: 'Completed', stale: true, candidateCheckpoint: 'cursor:7',
       census: { applied: 0, skipped: 0, conflicted: 0, rejected: 0, failed: 0, halted: 0 },
       refusals: ['mapping.changed'],
     }

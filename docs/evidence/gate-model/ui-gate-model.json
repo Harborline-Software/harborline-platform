@@ -1743,8 +1743,8 @@
         },
         {
           "id": "assertVisualParity",
-          "status": "PASS",
-          "note": "4 visual-parity scenario(s), lane vs lane, pixelmatch"
+          "status": "PARTIAL",
+          "note": "Only 2 scenarios are covered by the gallery receipt at tree 7486f460; data-exchange.partial-failure and data-exchange.from-empty visual parity remain unmeasured by that receipt until Chris queues a refresh covering the new tree."
         },
         {
           "id": "assertFunctionalParity",
@@ -1778,8 +1778,8 @@
         },
         {
           "id": "assertResponsiveQuality",
-          "status": "PASS",
-          "note": "reflow measured at 320px and 200% text in both lanes, with no horizontal overflow"
+          "status": "PARTIAL",
+          "note": "320px and 200% text reflow in both lanes remain unmeasured by a gallery receipt covering the new tree; the receipt at tree 7486f460 contains no reflow case. Chris queues the receipt refresh."
         },
         {
           "id": "assertEmptyAndErrorStates",
@@ -6485,8 +6485,8 @@
     }
   ],
   "tally": {
-    "PASS": 676,
-    "PARTIAL": 105,
+    "PASS": 674,
+    "PARTIAL": 107,
     "UNBUILT": 206,
     "NOT-APPLICABLE": 159,
     "FAIL": 2

@@ -18,7 +18,7 @@ function Section({ name, children }: { readonly name: string; readonly children:
 }
 
 const revisionKey = (value: DataExchangeAuthoringDraft) => `${value.identity ?? ''}\u0000${value.expectedRevision ?? ''}`
-const authoredContent = ({ identity: _identity, expectedRevision: _revision, ...content }: DataExchangeAuthoringDraft) => JSON.stringify(content)
+const authoredContent = ({ identity: _identity, expectedRevision: _revision, ...content }: DataExchangeAuthoringDraft) => JSON.stringify(content, (_key, entry) => entry && typeof entry === 'object' && !Array.isArray(entry) ? Object.fromEntries(Object.keys(entry).sort().map(key => [key, entry[key]])) : entry)
 
 const emptyMapping = (sourceColumn = ''): DataExchangeMappingRow => ({ sourceColumn, canonicalTarget: '', targetPointer: '', datatype: 'string', required: false, nullValue: '', defaultValue: '', separator: '', transform: '' })
 const columnExtensions = ['hl:operation', 'hl:entityType', 'hl:identity', 'hl:role', 'hl:matchPolicy', 'hl:onInvalid', 'hl:onMissing', 'hl:errorPolicy'] as const
@@ -26,14 +26,15 @@ const columnExtensions = ['hl:operation', 'hl:entityType', 'hl:identity', 'hl:ro
 export function DataExchangeAuthoringEditor({ value: host, catalogue, run, canCommit, canPublish = false, readOnly = false, authoringRefusals = [], onChange, onDiscoverSource, onDryRun, onCommit, onSaveDraft, onPublish }: DataExchangeAuthoringEditorProps) {
   const [value, setValue] = useState(host)
   const [incoming, setIncoming] = useState<DataExchangeAuthoringDraft>()
+  const [externalKeyText, setExternalKeyText] = useState<string>()
   const loaded = useRef(host)
   const dirty = useRef(false)
   // ADR 0096 pending edits: a new identity or revision never silently overwrites local edits.
   useEffect(() => {
     const revisionChanged = revisionKey(host) !== revisionKey(loaded.current)
     loaded.current = host
-    if (revisionChanged && dirty.current && authoredContent(host) !== authoredContent(value)) { setIncoming(host); return }
-    if (revisionChanged) dirty.current = false
+    if (revisionChanged && dirty.current && (externalKeyText !== undefined || authoredContent(host) !== authoredContent(value))) { setIncoming(host); return }
+    if (revisionChanged) { dirty.current = false; setExternalKeyText(undefined) }
     setIncoming(undefined)
     setValue(host)
   }, [host])
@@ -46,14 +47,14 @@ export function DataExchangeAuthoringEditor({ value: host, catalogue, run, canCo
     setValue(draft)
     onChange(draft)
   }
-  const keepEdits = () => setIncoming(undefined)
-  const discardEdits = () => { if (!incoming) return; dirty.current = false; setValue(incoming); setIncoming(undefined); onChange(incoming) }
+  const keepEdits = () => { if (!readOnly) setIncoming(undefined) }
+  const discardEdits = () => { if (readOnly || !incoming) return; dirty.current = false; setExternalKeyText(undefined); setValue(incoming); setIncoming(undefined); onChange(incoming) }
   const replaceMapping = (index: number, mapping: DataExchangeMappingRow) => set('mappings', value.mappings.map((current, position) => position === index ? mapping : current))
-  const commitEnabled = intentsEnabled && canCommit && run?.status === 'Ready' && !run.stale
+  const commitEnabled = intentsEnabled && canCommit && (run?.status === 'Completed' || run?.status === 'CompletedWithRefusals') && !run.stale
   const publishEnabled = intentsEnabled && canPublish && authoringRefusals.length === 0
   const formats = catalogue.formats ?? [{ id: 'csv', label: 'CSV' }]
   return <form className="hl-data-exchange-authoring" onSubmit={event => event.preventDefault()}>
-    {incoming && <aside role="alert">Revision changed.<button type="button" onClick={keepEdits}>Keep edits</button><button type="button" onClick={discardEdits}>Discard edits</button></aside>}
+    {incoming && <aside role="alert">Revision changed.<button type="button" disabled={readOnly} onClick={keepEdits}>Keep edits</button><button type="button" disabled={readOnly} onClick={discardEdits}>Discard edits</button></aside>}
     <label>Definition name<input disabled={readOnly} aria-label="Definition name" value={value.name} onChange={event => set('name', event.currentTarget.value)} /></label>
     <label>Exchange record type<select disabled={readOnly} aria-label="Exchange record type" value={value.recordType} onChange={event => set('recordType', event.currentTarget.value)}><option value="">Choose a record type</option><Options values={catalogue.canonicalTargets} /></select></label>
     <Section name="Source">
@@ -85,7 +86,7 @@ export function DataExchangeAuthoringEditor({ value: host, catalogue, run, canCo
       </div>)}
       <button type="button" disabled={readOnly} onClick={() => set('mappings', [...value.mappings, emptyMapping(value.discoveredColumns.find(column => column.selected)?.name)])}>Add mapping</button>
     </Section>
-    <label>External key columns<input disabled={readOnly} aria-label="External key columns" value={value.externalKeyColumns.join(', ')} onChange={event => set('externalKeyColumns', event.currentTarget.value.split(',').map(item => item.trim()).filter(Boolean))} /></label>
+    <label>External key columns<input disabled={readOnly} aria-label="External key columns" value={externalKeyText ?? value.externalKeyColumns.join(', ')} onChange={event => { if (!readOnly) { dirty.current = true; setExternalKeyText(event.currentTarget.value) } }} onBlur={event => { if (!readOnly && externalKeyText !== undefined) { set('externalKeyColumns', event.currentTarget.value.split(',').map(item => item.trim()).filter(Boolean)); setExternalKeyText(undefined) } }} /></label>
     <label>Replay policy<select disabled={readOnly} aria-label="Replay policy" value={value.replayPolicy} onChange={event => set('replayPolicy', event.currentTarget.value as DataExchangeAuthoringDraft['replayPolicy'])}><option value="append">Append</option><option value="overwrite">Overwrite</option><option value="append_dedup">Append and deduplicate</option></select></label>
     <label>Schedule reference<select disabled={readOnly} aria-label="Schedule reference" value={value.scheduleReference} onChange={event => set('scheduleReference', event.currentTarget.value)}><option value="">Manual only</option><Options values={catalogue.schedules} /></select></label>
     <Section name="Reference set deliveries">

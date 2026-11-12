@@ -22,15 +22,82 @@ const catalogue: DataExchangeAuthoringCatalogue = {
 }
 const intents = () => ({ onChange: vi.fn(), onDiscoverSource: vi.fn(), onDryRun: vi.fn(), onCommit: vi.fn(), onSaveDraft: vi.fn(), onPublish: vi.fn() })
 const evidenceSection = () => screen.getByRole('group', { name: 'Persisted run evidence' })
+const authoredDraft = ({ identity, expectedRevision, ...draft }: DataExchangeAuthoringDraft) => ({
+  ...draft,
+  ...(identity ? { identity } : {}),
+  ...(expectedRevision ? { expectedRevision } : {}),
+  mappings: draft.mappings.map(({ extensions, ...mapping }) => ({ ...mapping, ...(extensions && Object.keys(extensions).length ? { extensions } : {}) })),
+})
 
 describe('DataExchangeAuthoringEditor ADR 0096 lane conformance (React)', () => {
+  it('retains a composite external key typed one character at a time until blur', () => {
+    const handlers = intents()
+    const initial = emptyDataExchangeDraft()
+    const view = render(<DataExchangeAuthoringEditor value={initial} catalogue={catalogue} canCommit={false} {...handlers} />)
+    const control = screen.getByLabelText('External key columns') as HTMLInputElement
+    fireEvent.focus(control)
+    for (const character of 'CustomerNumber,Email') fireEvent.change(control, { target: { value: control.value + character } })
+    expect(control).toHaveValue('CustomerNumber,Email')
+    expect(handlers.onChange).not.toHaveBeenCalled()
+    view.rerender(<DataExchangeAuthoringEditor value={{ ...initial, expectedRevision: '2' }} catalogue={catalogue} canCommit={false} {...handlers} />)
+    expect(screen.getByRole('alert')).toHaveTextContent('Revision changed.')
+    expect(control).toHaveValue('CustomerNumber,Email')
+    fireEvent.click(screen.getByRole('button', { name: 'Keep edits' }))
+    fireEvent.blur(control)
+    expect(handlers.onChange.mock.lastCall![0].externalKeyColumns).toEqual(['CustomerNumber', 'Email'])
+  })
+
+  it('read-only pending revision resolution cannot emit or discard edits', () => {
+    const { input } = fixtureCase('data-exchange.pending-revision')
+    const handlers = intents()
+    const initial = draftOf(input.value)
+    const incoming = draftOf(input.incoming)
+    const view = render(<DataExchangeAuthoringEditor value={initial} catalogue={catalogue} canCommit={false} {...handlers} />)
+    fireEvent.change(screen.getByLabelText('Definition name'), { target: { value: input.edit.name } })
+    view.rerender(<DataExchangeAuthoringEditor value={incoming} catalogue={catalogue} canCommit={false} readOnly {...handlers} />)
+    handlers.onChange.mockClear()
+    for (const label of ['Keep edits', 'Discard edits']) {
+      expect(screen.getByRole('button', { name: label })).toBeDisabled()
+      fireEvent.click(screen.getByRole('button', { name: label }))
+    }
+    expect(handlers.onChange).not.toHaveBeenCalled()
+    expect(screen.getByRole('alert')).toHaveTextContent('Revision changed.')
+    expect(screen.getByLabelText('Definition name')).toHaveValue(input.edit.name)
+  })
+
+  it('adopts a saved revision with reordered extension keys without a false conflict', () => {
+    const row = fixtureCase('data-exchange.from-empty').expected.draft.mappings[0]
+    const initial = draftOf({ identity: 'exchange-1', expectedRevision: '1', mappings: [{ ...row, extensions: { 'hl:operation': 'append', 'hl:identity': 'external' } }] })
+    const handlers = intents()
+    const view = render(<DataExchangeAuthoringEditor value={initial} catalogue={catalogue} canCommit={false} {...handlers} />)
+    fireEvent.change(screen.getByLabelText('Mapping 1 hl:operation'), { target: { value: 'upsert' } })
+    const saved = { ...initial, expectedRevision: '2', mappings: [{ ...row, extensions: { 'hl:identity': 'external', 'hl:operation': 'upsert' } }] }
+    view.rerender(<DataExchangeAuthoringEditor value={saved} catalogue={catalogue} canCommit={false} {...handlers} />)
+    expect(screen.queryByRole('alert')).toBeNull()
+    expect(screen.getByLabelText('Mapping 1 hl:operation')).toHaveValue('upsert')
+    view.rerender(<DataExchangeAuthoringEditor value={{ ...saved, expectedRevision: '3', name: 'Next revision' }} catalogue={catalogue} canCommit={false} {...handlers} />)
+    expect(screen.getByLabelText('Definition name')).toHaveValue('Next revision')
+  })
+  it.each([['Completed', true], ['CompletedWithRefusals', true], ['Halted', false], ['Ready', false]] as const)('commit admits only a safely closed server status: %s', (status, enabled) => {
+    const handlers = intents()
+    const run = { ...fixtureCase('data-exchange.run-evidence').input.run, status }
+    render(<DataExchangeAuthoringEditor value={emptyDataExchangeDraft()} catalogue={catalogue} run={run} canCommit {...handlers} />)
+    expect(screen.getByRole('button', { name: 'Commit reviewed run' }).hasAttribute('disabled')).toBe(!enabled)
+    fireEvent.click(screen.getByRole('button', { name: 'Commit reviewed run' }))
+    expect(handlers.onCommit).toHaveBeenCalledTimes(enabled ? 1 : 0)
+    expect(within(evidenceSection()).getByText(status)).toBeInTheDocument()
+  })
   it('exports the shared authored-content oracle from nothing (data-exchange-eng-22, data-exchange-auth-1, data-exchange-auth-5, data-exchange-auth-6, data-exchange-auth-7, data-exchange-auth-8, data-exchange-auth-12)', () => {
     const { input, expected } = fixtureCase('data-exchange.from-empty')
-    let authored: DataExchangeAuthoringDraft = { ...emptyDataExchangeDraft(), identity: '', expectedRevision: '' }
+    let authored = emptyDataExchangeDraft()
     let saved: DataExchangeAuthoringDraft | undefined
     const handlers = { ...intents(), onChange: (next: DataExchangeAuthoringDraft) => { authored = next }, onSaveDraft: () => { saved = authored } }
     const view = render(<DataExchangeAuthoringEditor value={authored} catalogue={catalogue} canCommit={false} {...handlers} />)
     expect(screen.queryByLabelText('Mapping 1 source column')).toBeNull()
+    expect(authoredDraft(authored)).toEqual(expected.emptyDraft)
+    fireEvent.click(screen.getByRole('button', { name: 'Add mapping', exact: true }))
+    expect(authoredDraft(authored)).toEqual(expected.sparseDraft)
+    fireEvent.click(screen.getByRole('button', { name: 'Remove mapping 1', exact: true }))
     for (const step of input.steps) {
       if (step.button) {
         fireEvent.click(screen.getByRole('button', { name: step.button, exact: true }))
@@ -38,11 +105,11 @@ describe('DataExchangeAuthoringEditor ADR 0096 lane conformance (React)', () => 
       } else {
         const control = screen.getByLabelText(step.label)
         if (typeof step.value === 'boolean') fireEvent.click(control)
-        else fireEvent.change(control, { target: { value: step.value } })
+        else { fireEvent.change(control, { target: { value: step.value } }); fireEvent.blur(control) }
       }
     }
     expect(handlers.onDiscoverSource).toHaveBeenCalledOnce()
-    expect(saved).toEqual(expected.draft)
+    expect(authoredDraft(saved!)).toEqual(expected.draft)
   })
 
   it('readOnly_admission_disables_every_input_and_publish (data-exchange-auth-9)', () => {
@@ -107,6 +174,7 @@ describe('DataExchangeAuthoringEditor ADR 0096 lane conformance (React)', () => 
       expect(last().mappings[0][key]).toBe(next)
     }
     fireEvent.change(screen.getByRole('textbox', { name: 'External key columns' }), { target: { value: ' A , ,B ' } })
+    fireEvent.blur(screen.getByRole('textbox', { name: 'External key columns' }))
     expect(last().externalKeyColumns).toEqual(['A', 'B'])
     fireEvent.click(screen.getByRole('button', { name: 'Add mapping' }))
     // Ignored was selected above, so it is now the first selected column the new row defaults to.
@@ -212,7 +280,7 @@ describe('DataExchangeAuthoringEditor ADR 0096 lane conformance (React)', () => 
     const section = evidenceSection()
     expect(within(section).getByText(expected.staleness)).toBeInTheDocument()
     if (expected.census) expect(within(section).getByText(expected.census)).toBeInTheDocument()
-    for (const value of expected.evidence ?? []) expect(within(section).getByText(value)).toBeInTheDocument()
+    for (const [label, value] of Object.entries(expected.evidence)) expect(within(section).getByText(label, { selector: 'dt' }).nextElementSibling?.textContent).toBe(value)
     expect(section.querySelectorAll('input, select, textarea, button, [contenteditable]')).toHaveLength(0)
     expect(screen.getByRole('button', { name: 'Commit reviewed run' }).hasAttribute('disabled')).toBe(!expected.commitEnabled)
   })
@@ -240,7 +308,7 @@ describe('DataExchangeAuthoringEditor ADR 0096 lane conformance (React)', () => 
     expect(screen.getByLabelText('Mapping 1 source column')).toHaveValue('')
   })
 
-  it('commit stays closed for a current run that is not Ready', () => {
+  it('commit stays closed for a current run that has not closed safely', () => {
     const { input } = fixtureCase('data-exchange.run-evidence')
     render(<DataExchangeAuthoringEditor value={emptyDataExchangeDraft()} catalogue={catalogue} run={{ ...input.run, status: 'Pending' }} canCommit {...intents()} />)
     expect(screen.getByRole('button', { name: 'Commit reviewed run' })).toBeDisabled()
