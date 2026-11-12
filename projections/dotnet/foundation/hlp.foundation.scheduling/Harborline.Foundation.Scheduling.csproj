@@ -11,6 +11,11 @@
   </PropertyGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Harborline.Foundation.Scheduling.Tests" />
+    <InternalsVisibleTo Include="Harborline.Blocks.Calendar" />
+    <InternalsVisibleTo Include="Harborline.Blocks.Calendar.Tests" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../contracts/hlp.contracts.identities/Harborline.Contracts.csproj" />
   </ItemGroup>
   <ItemGroup>
     <!-- ADR-0122: RRULE expansion runs on Ical.Net behind IRruleExpansionService; NodaTime is its zone engine and the

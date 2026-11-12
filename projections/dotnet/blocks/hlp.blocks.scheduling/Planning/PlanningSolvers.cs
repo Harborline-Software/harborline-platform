@@ -4,7 +4,10 @@ namespace Harborline.Blocks.Scheduling.Planning;
 public sealed class DeterministicExhaustiveProofSolver : IPlanningSolver
 {
     /// <summary>Stable identifier used in proposal ids and telemetry.</summary>
-    public string SolverId => "prototype.exhaustive-proof.v2";
+    public string SolverId => Backend.Id;
+
+    /// <inheritdoc />
+    public SolverBackend Backend { get; } = SolverBackend.Finite("prototype.exhaustive-proof.v2", SolverGuarantee.FeasibleProof);
 
     /// <summary>This solver proves feasibility or infeasibility when its search completes.</summary>
     public SolverGuarantee Guarantee => SolverGuarantee.FeasibleProof;
@@ -187,7 +190,10 @@ public sealed class DeterministicExhaustiveProofSolver : IPlanningSolver
 public sealed class GreedyFirstFitSolver : IPlanningSolver
 {
     /// <summary>Stable identifier used in proposal ids and telemetry.</summary>
-    public string SolverId => "prototype.greedy-first-fit.v1";
+    public string SolverId => Backend.Id;
+
+    /// <inheritdoc />
+    public SolverBackend Backend { get; } = SolverBackend.Finite("prototype.greedy-first-fit.v1", SolverGuarantee.BoundedHeuristic);
 
     /// <summary>This solver provides a bounded heuristic result rather than a proof of optimality.</summary>
     public SolverGuarantee Guarantee => SolverGuarantee.BoundedHeuristic;

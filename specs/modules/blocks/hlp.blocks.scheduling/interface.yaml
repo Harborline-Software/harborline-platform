@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.blocks.scheduling",
-  "interfaceRevision": 7,
+  "interfaceRevision": 8,
   "status": "frozen",
   "purpose": "Own schedule reservation coordination (caller-supplied stable reservation ids with global idempotency, exactly-one-wins under concurrency, fail-closed quorum-unavailable, lease-guarded writes) and the harvested planning seed: the prototype's finite-candidate compiler, validators, complete-pinned-fact admission, and constructive/exhaustive/greedy solvers with the 12-fixture authored corpus (ticket 084 dispositions). T-491 concern one: lone due date and four basis generators, distinct tolerance and validity windows, stable occurrence identities, and the moved append-only chain ledger.",
   "dependencies": [
@@ -21,7 +21,11 @@
       "Typed definition (revision 5, T-491/typed-definition, DES-0022 section 2): SaveDraftAsync takes a ScheduleDefinition and every catalogue read returns ScheduleDefinitionRevision(Revision, Definition) in place of an opaque body. ScheduleDefinition carries ScheduleDefinitionEnvelope (required past authoring, with a required Contract), name, starts (form, workflow or work_item), on_type_id, one basis (fixed_calendar with its RRULE text checked by the shared bounded-subset validator, completion_offset, threshold or event_anchored_chain with one external anchor), window, tolerance, grace, missed_behaviour (record_and_replan or window_closed), escalation, problem_class (None by default, or Workforce, Timetabling, ProtocolAdmission, Project, JobShop, Mobility or CompositeRecovery), modules and legality_ref. A window and a form with no basis are complete and name no solver (L1445). The window is two instants with no basis and two durations from the generated due point with one; a chain's nodes carry their own tolerance instead. Unknown members, kinds and literals refuse scheduling.definition.body_invalid; the named scheduling.definition.* codes refuse at their member's pointer. The store's document version is the one source of the envelope version: a stored envelope omits it and the catalogue fills it in on read, so a restored draft publishes under its own version. SchedulableTrait states the sealed trait, its three slots and AdmitsToPlanning. ScheduleDefinitionCatalogue.ContentKind reads kind 11 from PackContentKindRegistry.",
       "IDueQueueQueryService.Query(DueOccurrenceRequest) -> instant-valued SchedulingOccurrences, using KernelClock once; per-series local start/zone; actual completion timestamps; explicit missing-reading and missing-first-due refusals.",
       "IRelativeChainExpansionService.Expand -> current and appended immutable revisions, explicit supersessions and failures, expected prior ledger version. One external anchor; ISO duration offsets and per-node validity windows.",
-      "AddHarborlineSchedulingDueQueries registers IDueQueueQueryService independently of reservation coordination; the host supplies IRruleExpansionService via AddFoundationScheduling and its KernelClock."
+      "AddHarborlineSchedulingDueQueries registers IDueQueueQueryService independently of reservation coordination; the host supplies IRruleExpansionService via AddFoundationScheduling and its KernelClock.",
+      "ConstraintModuleAdmission: elicited -> shape-candidate -> admitted -> backend-supported -> certified, one rung per Advance. The four admitted names are time_windows, resource_requirements, no_overlap and precedence. Unknown names or parameters refuse MODULE_UNSUPPORTED; precedence parameters are {constraints:[{id,beforeActivityId,afterActivityId,minimumGapSlots}]}. Other modules accept only absent or empty parameters. Authoring and publish refuse scheduling.definition.module_unsupported at /modules/{i}/module.",
+      "FiniteCandidateCompiler.Compile(profile, definition, backend, guarantee, deterministicWorkBudget) compiles the Harborline-ruled Project or JobShop problem class into typed modules. Both built-in finite backends implement all four modules, with FeasibleProof or BoundedHeuristic respectively and an int.MaxValue maximum deterministic work budget. Unsupported problem classes, guarantees, budgets or modules refuse before enumeration, naming what is missing and required. The seven authored problem-class names are Harborline rulings, not an industry taxonomy.",
+      "No module reaches certified. Advance to certified refuses MODULE_CERTIFICATE_UNDEFINED pending DES-0022 open ruling 3; nothing reports a module or proposal as certified. Execution requires backend-supported for the chosen backend. Existing proposal status and guarantee semantics are independent of certification.",
+      "SchedulePlanner.PlanAsync resolves an exact published ScheduleDefinitionPin, admits modules before enumeration or runtime reads, binds the explicit slot time axis and one distinct exclusive resource without buffers per resource id, then asks the shared IAvailabilityRuntime for each candidate full interval. Caller AvailableSlots are replaced; runtime refusals propagate and unavailable candidates are excluded. Scheduling never composes supply or references the calendar block. AddHarborlineSchedulingPlanner registers both existing backends and the planner; the host supplies ScheduleDefinitionCatalogue and IAvailabilityRuntime."
     ],
     "context": "The lease dependency is carried as a LOCAL narrow compatibility port under the Harborline.Kernel.Lease namespace because no lease kernel module exists in the platform catalog yet; composition replaces it with the ratified platform lease contract when one lands (recorded deviation, not a design endorsement). The planning seed is the ticket-084 harvest: corpus + solver seed, never a matrix module; the authored corpus carries the six unsatisfied-reason classes."
   },
@@ -83,18 +87,31 @@
     "scheduling.occurrence.chain_DateArithmeticOverflow",
     "scheduling.occurrence.chain_AmbiguousCurrentOccurrence",
     "scheduling.occurrence.chain_CorruptLedger",
-    "scheduling.occurrence.occurrence_cap_exceeded"
+    "scheduling.occurrence.occurrence_cap_exceeded",
+    "scheduling.definition.module_unsupported",
+    "MODULE_UNSUPPORTED",
+    "MODULE_ADMISSION_SKIP",
+    "MODULE_CERTIFICATE_UNDEFINED",
+    "PROBLEM_CLASS_UNSUPPORTED",
+    "GUARANTEE_UNSUPPORTED",
+    "WORK_BUDGET_UNSUPPORTED",
+    "BACKEND_UNSUPPORTED",
+    "TIME_AXIS_UNSUPPORTED",
+    "RESOURCE_BINDING_UNSUPPORTED",
+    "AVAILABILITY_UNSUPPORTED"
   ],
   "publicSeams": [
     "lease provider port (local compatibility shape pending a platform lease kernel)",
     "injected clock",
     "durable file-journal store (r4: FileJournalSchedulingStore — versioned authenticated checksummed frames for the calendar rows, recovery truncation, exclusive lock, single-process adapter honestly declared; proven by a genuine process-kill restart probe. The r2 integer-revision definition draft and its co-committed audit are retired by DES-0022 ruling 8: definitions bind to the shared versioned-definition store, and a journal holding a retired draft frame refuses at startup)",
     "shared versioned-definition store (IVersionedDefinitionStore from hlp.blocks.builder-definitions, DefinitionKind.Schedules)",
-    "named at-rest seam (r2 deferral: the journal frames are authenticated/checksummed but carry no content-encryption key seam — the two pinned encryption-at-rest rows are deferred to a future host at-rest seam, and the four pinned SQL/EF migration rows are unmappable at this narrowed seam by design; recorded in the scheduling behavior-map addendum)"
+    "named at-rest seam (r2 deferral: the journal frames are authenticated/checksummed but carry no content-encryption key seam — the two pinned encryption-at-rest rows are deferred to a future host at-rest seam, and the four pinned SQL/EF migration rows are unmappable at this narrowed seam by design; recorded in the scheduling behavior-map addendum)",
+    "named module admission and declared solver backend capabilities",
+    "catalogue planner consuming the foundation IAvailabilityRuntime"
   ],
   "conformance": {
     "nativeTests": {
-      "dotnet": 357
+      "dotnet": 371
     },
     "nativeTestNote": "Reservation/planning coverage plus due generation, literal window classification, admission, per-series kernel clock, all four identities and migrated authored chain/ledger cases."
   },

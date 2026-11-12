@@ -36,3 +36,21 @@ Harborline compatibility module for lease-serialized slot reservations and deter
 ### Breaking pre-release package change
 
 The due seam, queue, completion models, generators and chain ledger types now live in `Harborline.Blocks.Scheduling`, rather than `Harborline.Foundation.Scheduling` or `Harborline.Blocks.RelativeChains`. There is no forwarding shim. The old RelativeChains project remains an empty build shell pending Chris's `validate.yml` wiring change; its 24 authored cases moved into Scheduling and remain linked into the old test runner target.
+
+## Typed module admission and planning (T-491/module-admission)
+
+`AddHarborlineSchedulingPlanner` registers `SchedulePlanner` and the two existing finite backends. The host supplies `ScheduleDefinitionCatalogue` and `Harborline.Foundation.Scheduling.Services.IAvailabilityRuntime`. Reservation and due-query registrations remain independent.
+
+`PlanAsync` resolves an exact published `ScheduleDefinitionPin`. The declared `Project` or `JobShop` class compiles to `time_windows`, `resource_requirements`, `no_overlap` and `precedence`; the seven authored class names are Harborline rulings (DES-0022 open item 6), not a standard taxonomy. Other classes refuse. Every module advances `Elicited -> ShapeCandidate -> Admitted -> BackendSupported`, and every nonadjacent transition refuses `MODULE_ADMISSION_SKIP`. Unknown modules and parameter members refuse `MODULE_UNSUPPORTED` before candidate enumeration. Save and publish use the same admitted set and refuse `scheduling.definition.module_unsupported` at `/modules/{i}/module`, recording nothing.
+
+The first three modules take absent or empty parameters. Precedence optionally adds typed constraints:
+
+```json
+{"module":"precedence","parameters":{"constraints":[{"id":"after","beforeActivityId":"a","afterActivityId":"b","minimumGapSlots":1}]}}
+```
+
+The backend declares its supported module kinds, problem classes, guarantees and maximum deterministic work budget. The existing exhaustive solver offers `FeasibleProof`; first-fit offers `BoundedHeuristic`. Both accept nonnegative `int` work budgets, retaining their existing proposal status, incomplete-fact and budget-exhaustion semantics and stable solver IDs. Unsupported class, guarantee or budget requests name what is missing and required.
+
+`Certified` exists as a typed rung but is unreachable: an attempt refuses `MODULE_CERTIFICATE_UNDEFINED` pending DES-0022 open ruling 3. This slice defines no evidence type or certification flag. Running requires backend support; proposals retain their independent status and guarantee and make no certification claim.
+
+The planner takes an explicit UTC epoch and slot duration, plus one distinct exclusive `ResourceCapacity` without buffers per resource id. It replaces caller-supplied `AvailableSlots` and asks the shared runtime about each candidate's full interval and complete resource set. Runtime refusals propagate; an unavailable candidate is excluded. Pool and buffered bindings refuse rather than approximate the finite solver's exclusive-resource model. The calendar block retains all supply, occupancy, exception and buffer composition.

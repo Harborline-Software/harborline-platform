@@ -1,8 +1,38 @@
+using Harborline.Blocks.Scheduling.Definitions;
+
 namespace Harborline.Blocks.Scheduling.Planning;
 
 /// <summary>Validates a scheduling profile and expands it into a finite candidate problem.</summary>
 public sealed class FiniteCandidateCompiler
 {
+    /// <summary>Checks every named module and backend requirement before enumerating candidates.</summary>
+    public CompiledPlanningProblem Compile(SchedulingProfile profile, ScheduleDefinition definition,
+        SolverBackend backend, SolverGuarantee guarantee, int deterministicWorkBudget)
+    {
+        var modules = AdmitModules(definition, backend, guarantee, deterministicWorkBudget);
+        var precedence = profile.Precedence.Concat(modules.SelectMany(module => module.Precedence)).ToArray();
+        return Compile(profile with { Precedence = precedence }) with { Modules = modules };
+    }
+
+    /// <summary>Compiles a Harborline problem-class profile to the finite engine's typed constraint vocabulary.</summary>
+    public static IReadOnlyList<ConstraintModuleAdmission> AdmitModules(ScheduleDefinition definition,
+        SolverBackend backend, SolverGuarantee guarantee, int deterministicWorkBudget)
+    {
+        ArgumentNullException.ThrowIfNull(definition);
+        ArgumentNullException.ThrowIfNull(backend);
+        var declarations = definition.Modules ?? [];
+        if (declarations.Any(module => module is null) || declarations.Select(module => module.Module).Distinct(StringComparer.Ordinal).Count() != declarations.Count)
+            throw new UnsupportedProfileException("MODULE_UNSUPPORTED: required: unique, non-null module declarations.");
+        var names = new[] { "time_windows", "resource_requirements", "no_overlap", "precedence" };
+        var all = names.Where(name => !declarations.Any(module => module.Module == name))
+            .Select(name => new ScheduleConstraintModule(name)).Concat(declarations);
+        var modules = all.Select(module => ConstraintModuleAdmission.Elicit(module)
+            .Advance(ConstraintModuleStage.ShapeCandidate).Advance(ConstraintModuleStage.Admitted)
+            .Advance(ConstraintModuleStage.BackendSupported, backend)).OrderBy(module => module.Kind).ToArray();
+        backend.Validate(definition.ProblemClass, guarantee, deterministicWorkBudget);
+        return modules;
+    }
+
     /// <summary>Compiles every valid start/resource combination in deterministic order.</summary>
     /// <param name="profile">Profile whose activities, windows, resources, and constraints are compiled.</param>
     /// <returns>A solver-ready problem with candidates keyed by activity id.</returns>

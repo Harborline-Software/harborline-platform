@@ -154,6 +154,8 @@ internal static class ScheduleDefinitionAdmission
         foreach (var (module, index) in modules.Select((value, index) => (value, index)))
             if (module is null) refusals.Add(new(ScheduleDefinitionCodes.ModuleInvalid, $"/modules/{index}"));
             else if (string.IsNullOrWhiteSpace(module.Module)) refusals.Add(new(ScheduleDefinitionCodes.ModuleInvalid, $"/modules/{index}/module"));
+            else if (!Planning.ConstraintModuleAdmission.IsAdmitted(module))
+                refusals.Add(new("scheduling.definition.module_unsupported", $"/modules/{index}/module"));
     }
 
     private static void Duration(string? value, string pointer, List<DefinitionRefusal> refusals)

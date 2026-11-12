@@ -11,6 +11,26 @@ namespace Harborline.Architecture.Tests;
 /// </summary>
 public sealed partial class AvailabilityCompositionArchitectureTests
 {
+    [Fact]
+    public void Scheduling_consumes_foundation_availability_without_referencing_calendar()
+    {
+        var root = new DirectoryInfo(AppContext.BaseDirectory);
+        while (root is not null && !File.Exists(Path.Combine(root.FullName, "repository.yaml"))) root = root.Parent;
+        Assert.NotNull(root);
+        var scheduling = Path.Combine(root.FullName, "projections/dotnet/blocks/hlp.blocks.scheduling");
+        Assert.DoesNotContain("hlp.blocks.calendar", File.ReadAllText(Path.Combine(scheduling, "Harborline.Blocks.Scheduling.csproj")), StringComparison.Ordinal);
+        var sources = Directory.EnumerateFiles(scheduling, "*.cs", SearchOption.AllDirectories)
+            .Where(path => !path.Split(Path.DirectorySeparatorChar).Any(part => part is "obj" or "bin"))
+            .Select(File.ReadAllText).ToArray();
+        Assert.All(sources, text =>
+        {
+            Assert.DoesNotContain("Harborline.Blocks.Calendar", text, StringComparison.Ordinal);
+            Assert.False(ComposesSupply(text));
+        });
+        Assert.Contains(sources, text => text.Contains("Harborline.Foundation.Scheduling.Services", StringComparison.Ordinal)
+            && text.Contains("IAvailabilityRuntime", StringComparison.Ordinal));
+    }
+
     // The composition site, the layer implementations it composes, and the DI file that registers them.
     private static readonly string[] CompositionFiles =
     [
