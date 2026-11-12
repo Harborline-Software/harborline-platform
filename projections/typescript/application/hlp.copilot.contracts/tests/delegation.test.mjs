@@ -12,6 +12,16 @@ for (const envelope of cases.envelopes) {
   })
 }
 
+test('pilot-ck-15 pilot-ck-18: unsafe integers refuse before digesting; oracle: M11 2026-11-12 ruling and RFC 7493 section 2.2 fixture', async () => {
+  for (const item of cases.integer_refusals) {
+    const json = '{"schema":"pilot.proposal/3","surface":"forms.builder","command":"draft.edit","args":' + item.args + '}'
+    const proposal = JSON.parse(json)
+    assert.throws(() => contracts.deserializeProposalEnvelope(json), { message: item.refusal })
+    assert.throws(() => contracts.serializeProposalCanonical(proposal), { message: item.refusal })
+    await assert.rejects(contracts.proposalDigest(proposal), { message: item.refusal })
+  }
+})
+
 test('pilot-ck-17 pilot-ck-18 pilot-ck-19 pilot-ck-21: delegation round trips; oracle: DES-0026 fixture, ADR-0090/0091 and L609/L1645', () => {
   for (const record of cases.delegations) {
     assert.deepEqual(contracts.parseDelegationRecord(JSON.parse(JSON.stringify(record))), record)
@@ -74,8 +84,8 @@ test('pilot-ck-21: missing approver, expiry and empty commands refuse; oracle: A
 test('pilot-ck-15 pilot-ck-18: canonical escaping, UTF-16 order and number spelling; oracle: RFC 8785 sections 3.2.2 and 3.2.3', () => {
   const proposal = { schema: 'pilot.proposal/3', surface: 'forms.builder', command: 'draft.edit', args: { '\ufb33': 1, '😀': 2, '\r': 3, '€': 4 } }
   assert.equal(contracts.serializeProposalCanonical(proposal), '{"args":{"\\r":3,"€":4,"😀":2,"דּ":1},"command":"draft.edit","schema":"pilot.proposal/3","surface":"forms.builder"}')
-  assert.equal(contracts.serializeProposalCanonical({ ...proposal, args: [0, -0, 1e-7, 1e-6, 1e20, 1e21, -1.25] }),
-    '{"args":[0,0,1e-7,0.000001,100000000000000000000,1e+21,-1.25],"command":"draft.edit","schema":"pilot.proposal/3","surface":"forms.builder"}')
+  assert.equal(contracts.serializeProposalCanonical({ ...proposal, args: [0, -0, 1e-7, 1e-6, -1.25] }),
+    '{"args":[0,0,1e-7,0.000001,-1.25],"command":"draft.edit","schema":"pilot.proposal/3","surface":"forms.builder"}')
   for (const args of [undefined, NaN, Infinity, 1n, () => {}, Symbol(), '\ud800']) {
     assert.throws(() => contracts.serializeProposalCanonical({ ...proposal, args }))
   }

@@ -17,7 +17,29 @@
       "value": { "command": "draft.edit", "args": {}, "surface": "forms.builder", "schema": "pilot.proposal/3" },
       "canonical": "{\"args\":{},\"command\":\"draft.edit\",\"schema\":\"pilot.proposal/3\",\"surface\":\"forms.builder\"}",
       "digest": "sha256:e9090668397c0ecf3bb91cd8bff3a980aa81b3d5755148a6c4566172d95b0aea"
+    },
+    {
+      "name": "M11 I-JSON maximum integer",
+      "value": { "schema": "pilot.proposal/3", "surface": "forms.builder", "command": "draft.edit", "args": { "integer": 9007199254740991 } },
+      "canonical": "{\"args\":{\"integer\":9007199254740991},\"command\":\"draft.edit\",\"schema\":\"pilot.proposal/3\",\"surface\":\"forms.builder\"}",
+      "digest": "sha256:01f127498747a2b64c334388dd2ac4de6ea870022bfac97e294f5da25d82414e"
+    },
+    {
+      "name": "M11 I-JSON minimum integer",
+      "value": { "schema": "pilot.proposal/3", "surface": "forms.builder", "command": "draft.edit", "args": { "integer": -9007199254740991 } },
+      "canonical": "{\"args\":{\"integer\":-9007199254740991},\"command\":\"draft.edit\",\"schema\":\"pilot.proposal/3\",\"surface\":\"forms.builder\"}",
+      "digest": "sha256:b6b51566f760b3dd642bac00190505be6ddba3bd727fbf67e01f2cf02815ccb5"
     }
+  ],
+  "integer_refusals": [
+    { "args": "9007199254740992", "refusal": "args-integer-out-of-range" },
+    { "args": "9007199254740993", "refusal": "args-integer-out-of-range" },
+    { "args": "-9007199254740992", "refusal": "args-integer-out-of-range" },
+    { "args": "{\"nested\":[9007199254740992]}", "refusal": "args-integer-out-of-range" },
+    { "args": "9007199254740992.0", "refusal": "args-integer-out-of-range" },
+    { "args": "9.007199254740992e15", "refusal": "args-integer-out-of-range" },
+    { "args": "1e20", "refusal": "args-integer-out-of-range" },
+    { "args": "1e21", "refusal": "args-integer-out-of-range" }
   ],
   "delegations": [
     {

@@ -47,6 +47,21 @@ public sealed class AssistanceDelegationTests
         Assert.Throws<JsonException>(() => AssistanceDelegationJson.Deserialize<AssistanceProposalEnvelope>("{\"schema\":\"pilot.proposal/3\",\"schema\":\"pilot.proposal/3\",\"surface\":\"s\",\"command\":\"c\",\"args\":{}}"));
     }
 
+    [Fact(DisplayName = "pilot-ck-15 pilot-ck-18: unsafe integers refuse before digesting; oracle: M11 2026-11-12 ruling and RFC 7493 section 2.2 fixture")]
+    public void Unsafe_args_integers_refuse_at_deserialization_and_digest()
+    {
+        foreach (var item in Fixture()["integer_refusals"]!.AsArray())
+        {
+            var json = "{\"schema\":\"pilot.proposal/3\",\"surface\":\"forms.builder\",\"command\":\"draft.edit\",\"args\":" + item!["args"]!.GetValue<string>() + "}";
+            var refusal = item["refusal"]!.GetValue<string>();
+            Assert.Equal(refusal, Assert.Throws<JsonException>(() => AssistanceDelegationJson.Deserialize<AssistanceProposalEnvelope>(json)).Message);
+            using var document = JsonDocument.Parse(json);
+            var proposal = new AssistanceProposalEnvelope("pilot.proposal/3", "forms.builder", "draft.edit", document.RootElement.GetProperty("args").Clone());
+            Assert.Equal(refusal, Assert.Throws<JsonException>(() => AssistanceDelegationJson.SerializeCanonical(proposal)).Message);
+            Assert.Equal(refusal, Assert.Throws<JsonException>(() => AssistanceProposalDigest.Compute(proposal)).Message);
+        }
+    }
+
     [Fact(DisplayName = "pilot-ck-17 pilot-ck-18 pilot-ck-19 pilot-ck-21: delegation fixture round trips; oracle: DES-0026, ADR-0090/0091 and L609/L1645")]
     public void Delegations_round_trip_and_actor_has_exactly_five_members()
     {
@@ -120,8 +135,8 @@ public sealed class AssistanceDelegationTests
     {
         var proposal = AssistanceDelegationJson.Deserialize<AssistanceProposalEnvelope>("{\"schema\":\"pilot.proposal/3\",\"surface\":\"forms.builder\",\"command\":\"draft.edit\",\"args\":{\"דּ\":1,\"😀\":2,\"\\r\":3,\"€\":4}}");
         Assert.Equal("{\"args\":{\"\\r\":3,\"€\":4,\"😀\":2,\"דּ\":1},\"command\":\"draft.edit\",\"schema\":\"pilot.proposal/3\",\"surface\":\"forms.builder\"}", Encoding.UTF8.GetString(AssistanceDelegationJson.SerializeCanonical(proposal)));
-        using var numbers = JsonDocument.Parse("[0,-0,1e-7,1e-6,1e20,1e21,-1.25]");
-        Assert.Equal("{\"args\":[0,0,1e-7,0.000001,100000000000000000000,1e+21,-1.25],\"command\":\"draft.edit\",\"schema\":\"pilot.proposal/3\",\"surface\":\"forms.builder\"}",
+        using var numbers = JsonDocument.Parse("[0,-0,1e-7,1e-6,-1.25]");
+        Assert.Equal("{\"args\":[0,0,1e-7,0.000001,-1.25],\"command\":\"draft.edit\",\"schema\":\"pilot.proposal/3\",\"surface\":\"forms.builder\"}",
             Encoding.UTF8.GetString(AssistanceDelegationJson.SerializeCanonical(proposal with { Args = numbers.RootElement.Clone() })));
     }
 
