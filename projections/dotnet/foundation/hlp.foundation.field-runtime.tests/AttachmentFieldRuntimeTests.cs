@@ -135,6 +135,74 @@ public sealed class AttachmentFieldRuntimeTests
         Assert.Contains("transaction", remove.Message, StringComparison.OrdinalIgnoreCase);
     }
 
+    // content-store-cc-2 (Codex P2 on a6760bba; same ruling as Terra P1-4): two disposals that remove the same two items
+    // listed in opposite orders lock their rows in one canonical order, so both finish instead of waiting forever.
+    [Fact]
+    public async Task Content_store_cc_2_opposite_order_removals_of_shared_content_both_finish()
+    {
+        var f = new Fixture();
+        var a = await f.Write(JsonSerializer.SerializeToElement(new[] { new { stage_id = await f.Upload("x-bytes"), display_name = "x.txt" }, new { stage_id = await f.Upload("y-bytes"), display_name = "y.txt" } }), "a");
+        var b = await f.Write(JsonSerializer.SerializeToElement(new[] { new { stage_id = await f.Upload("y-bytes"), display_name = "y.txt" }, new { stage_id = await f.Upload("x-bytes"), display_name = "x.txt" } }), "b");
+        Assert.Equal(2, f.Store.CommittedCount);
+        var first = new RendezvousPort(f.Storage.Bookkeeping);
+        var second = new RendezvousPort(f.Storage.Bookkeeping);
+        (first.Partner, second.Partner) = (second, first);
+        Task<KernelTransactionResult<bool>> Remove(RendezvousPort port, JsonArray references) => KernelTransactionBoundary.ExecutePreparedAsync(async token =>
+        {
+            await f.Runtime.RemoveAsync(JsonSerializer.SerializeToElement(references), new("tenant"), HoldStatus.None, "record-purge", Evidence(port.Session), token).ConfigureAwait(false);
+            return new KernelCommand<JsonArray>(Evidence().Operation, new(), Evidence().Audit);
+        }, port).AsTask();
+        var results = await Task.WhenAll(Remove(first, a), Remove(second, b)).WaitAsync(TimeSpan.FromSeconds(20));
+        Assert.All(results, result => Assert.True(result.Committed));
+        Assert.Equal(0, f.Store.CommittedCount);
+    }
+
+    // Meets its partner after its first committed-row lock, so a lock-order inversion deadlocks deterministically; a
+    // transaction whose partner is blocked waits out the bound and carries on.
+    public class RendezvousSession : DispatchProxy
+    {
+        public IContentBookkeepingSession Inner { get; set; } = null!;
+        public TaskCompletionSource Arrived { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public RendezvousSession Partner { get; set; } = null!;
+        private int met;
+        protected override object? Invoke(MethodInfo? targetMethod, object?[]? args)
+        {
+            var result = targetMethod!.Invoke(Inner, args);
+            if (targetMethod.Name != "FindItemForUpdateAsync" || Interlocked.Exchange(ref met, 1) == 1) return result;
+            return Meet((ValueTask<ContentStoreItem?>)result!);
+        }
+        private async ValueTask<ContentStoreItem?> Meet(ValueTask<ContentStoreItem?> operation)
+        {
+            var item = await operation.ConfigureAwait(false);
+            Arrived.TrySetResult();
+            try { await Partner.Arrived.Task.WaitAsync(TimeSpan.FromSeconds(1)).ConfigureAwait(false); }
+            catch (TimeoutException) { }
+            return item;
+        }
+    }
+
+    private sealed class RendezvousPort(IContentBookkeeping bookkeeping) : IKernelPreparedTransactionPort<JsonArray, bool>
+    {
+        private readonly RendezvousSession proxy = (RendezvousSession)(object)DispatchProxy.Create<IContentBookkeepingSession, RendezvousSession>();
+        public RendezvousPort Partner { set => proxy.Partner = value.proxy; }
+        public IContentBookkeepingSession Session => (IContentBookkeepingSession)(object)proxy;
+        public async ValueTask<IKernelPreparedTransaction<JsonArray, bool>> BeginAsync(CancellationToken cancellationToken = default)
+        {
+            var transaction = await bookkeeping.BeginTransactionAsync(cancellationToken);
+            proxy.Inner = transaction;
+            return new Transaction(transaction);
+        }
+        private sealed class Transaction(IContentBookkeepingTransaction content) : IKernelPreparedTransaction<JsonArray, bool>
+        {
+            public ValueTask StageOperationAsync(KernelOperationIdentity operation, CancellationToken cancellationToken = default) => ((IContentBookkeepingSession)content).StageOperationAsync(operation, cancellationToken);
+            public ValueTask StageRecordAsync(JsonArray record, CancellationToken cancellationToken = default) => ValueTask.CompletedTask;
+            public ValueTask StageAuditAsync(KernelAuditEvidence audit, CancellationToken cancellationToken = default) => ((IContentBookkeepingSession)content).StageAuditAsync(audit, cancellationToken);
+            public async ValueTask<bool> CommitAsync(CancellationToken cancellationToken = default) { await content.CommitAsync(cancellationToken); return true; }
+            public ValueTask RollbackAsync(CancellationToken cancellationToken = default) => content.RollbackAsync(cancellationToken);
+            public ValueTask DisposeAsync() => content.DisposeAsync();
+        }
+    }
+
     [Theory]
     [InlineData(HoldStatus.None, 0)]
     [InlineData(HoldStatus.Held, 1)]

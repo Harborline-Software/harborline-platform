@@ -534,6 +534,11 @@ public sealed class RecordTypeSchemaCompiler
                     "The declared field multiplicity has no permitted value count."));
             }
 
+            // records-ck-8: every field's condition is an expression, bound or not.
+            if (field.RequiredCondition is { ValueKind: not JsonValueKind.Object })
+                refusals.Add(new("field.required_condition_invalid", $"/fields/{index}/required_condition",
+                    "A required condition is a Rules expression, never a boolean."));
+
             if (compiledField.HasValue)
             {
                 // A plain local keeps the attachment admission branches independently mutable.
@@ -541,10 +546,6 @@ public sealed class RecordTypeSchemaCompiler
                 if (compiled.Kind.ValueShape == FieldScalarValueShape.ContentReference && bounds?.MaximumCount is not null)
                     refusals.Add(new("field.attachment_count_cap", $"/fields/{index}/binding/constraints/maximum_count",
                         "Attachment fields are many-valued without a count cap."));
-                if (field.RequiredCondition is { ValueKind: not JsonValueKind.Object })
-                    refusals.Add(new("field.required_condition_invalid", $"/fields/{index}/required_condition",
-                        "A required condition is a Rules expression, never a boolean."));
-
                 boundKinds.TryAdd(field.FieldKey, compiled.Kind);
                 var constraints = field.Binding!.Constraints;
                 if (refusals.Count == 0)

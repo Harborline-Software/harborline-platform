@@ -109,6 +109,8 @@ public sealed class AttachmentFieldRuntime(InMemoryContentStore store)
         ContentStoreWrite evidence, CancellationToken cancellationToken = default)
     {
         if (evidence.Transaction is null) throw new ArgumentException("Attachment removal requires the Records transaction.", nameof(evidence));
+        // The same canonical row order as a write, so two disposals sharing content cannot wait on each other.
+        await LockEntriesAsync([references], tenant, evidence, cancellationToken).ConfigureAwait(false);
         foreach (var reference in references.EnumerateArray())
             await store.RemoveReferenceAsync(tenant, FromJson(reference), hold, run, evidence with
             {

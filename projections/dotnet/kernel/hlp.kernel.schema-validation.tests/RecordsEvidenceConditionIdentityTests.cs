@@ -37,6 +37,22 @@ public sealed class RecordsEvidenceConditionIdentityTests
         Assert.Null(compiled.JsonSchemaText);
     }
 
+    // records-ck-8 (Codex P2 on a6760bba): a required_condition is an expression on any field, so the shape check covers
+    // an unbound field too; a boolean there must refuse rather than publish and be read as a literal at write time.
+    [Theory]
+    [InlineData("false")]
+    [InlineData("true")]
+    [InlineData("[]")]
+    public async Task Records_ck_8_an_unbound_fields_condition_must_be_an_expression(string expression)
+    {
+        var field = new FieldDefinition("status", "Status") { RequiredCondition = JsonSerializer.Deserialize<JsonElement>(expression) };
+        var compiled = await Compiler().CompileAsync(new("case", [Field(), field]), null);
+        var refusal = Assert.Single(compiled.Refusals);
+        Assert.Equal("field.required_condition_invalid", refusal.Code);
+        Assert.Equal("/fields/1/required_condition", refusal.JsonPointer);
+        Assert.Null(compiled.JsonSchemaText);
+    }
+
     [Fact]
     public async Task An_attachment_field_has_no_finite_count_cap()
     {
