@@ -37,6 +37,10 @@
       "digest": "sha256:84feac55b8b756a630a83b3b395b5ce58957a5c3b5a6e7b15e94a5a0d1befb7b"
     }
   ],
+  "blank_strings": [
+    { "name": "U+0085 is not ECMA-262 blank", "value": "\u0085", "admitted": true },
+    { "name": "U+FEFF is ECMA-262 blank", "value": "\uFEFF", "admitted": false }
+  ],
   "runtime_canonical": [
     { "shape": "delegation", "json": "{\"subject\":\"alice\",\"actor\":null,\"disposition\":{\"kind\":\"approve\"}}", "canonical": "{\"actor\":null,\"disposition\":{\"kind\":\"approve\"},\"subject\":\"alice\"}" },
     { "shape": "delegation", "json": "{\"subject\":\"alice\",\"actor\":{\"binding_key\":\"b\",\"binding_version\":\"1\",\"provider_id\":\"p\",\"model_version\":\"m\",\"proposal_digest\":\"sha256:84feac55b8b756a630a83b3b395b5ce58957a5c3b5a6e7b15e94a5a0d1befb7b\"},\"disposition\":{\"kind\":\"dismiss\"}}", "canonical": "{\"actor\":{\"binding_key\":\"b\",\"binding_version\":\"1\",\"model_version\":\"m\",\"proposal_digest\":\"sha256:84feac55b8b756a630a83b3b395b5ce58957a5c3b5a6e7b15e94a5a0d1befb7b\",\"provider_id\":\"p\"},\"disposition\":{\"kind\":\"dismiss\"},\"subject\":\"alice\"}" },

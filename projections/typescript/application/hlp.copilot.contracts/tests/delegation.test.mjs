@@ -5,6 +5,18 @@ import * as contracts from '../dist/index.js'
 
 const cases = JSON.parse(readFileSync(new URL('../../../../../conformance/hlp.copilot/delegation-cases.json', import.meta.url), 'utf8'))
 
+for (const item of cases.blank_strings) {
+  test(`pilot-ck-17 pilot-ck-18: ${item.name}; oracle: M11 control 1378, T-1107 and R-0125 fixture literals`, () => {
+    for (const member of ['subject', 'binding_key', 'binding_version', 'provider_id', 'model_version']) {
+      const record = structuredClone(cases.delegations[0])
+      if (member === 'subject') record[member] = item.value
+      else record.actor[member] = item.value
+      if (item.admitted) assert.deepEqual(contracts.deserializeDelegationRecord(JSON.stringify(record)), record)
+      else assert.throws(() => contracts.deserializeDelegationRecord(JSON.stringify(record)), { message: 'required-wire-string' })
+    }
+  })
+}
+
 test('pilot-ck-17 pilot-ck-19 pilot-ck-21: runtime shapes have cross-lane canonical bytes; oracle: hand-ordered RFC 8785 fixture literals', () => {
   const codecs = {
     delegation: [contracts.deserializeDelegationRecord, contracts.serializeDelegationRecordCanonical],

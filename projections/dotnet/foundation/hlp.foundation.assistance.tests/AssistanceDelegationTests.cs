@@ -10,6 +10,28 @@ public sealed class AssistanceDelegationTests
 {
     private static JsonNode Fixture() => JsonNode.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "delegation-cases.json")))!;
 
+    [Theory(DisplayName = "pilot-ck-17 pilot-ck-18: shared blank set preserves NEL and refuses BOM; oracle: M11 control 1378, T-1107 and R-0125 fixture literals")]
+    [InlineData(0)]
+    [InlineData(1)]
+    public void Identity_strings_use_the_shared_blank_set(int caseIndex)
+    {
+        var item = Fixture()["blank_strings"]![caseIndex]!;
+        var value = item["value"]!.GetValue<string>();
+        foreach (var member in new[] { "subject", "binding_key", "binding_version", "provider_id", "model_version" })
+        {
+            var record = Fixture()["delegations"]![0]!.DeepClone();
+            if (member == "subject") record[member] = value;
+            else record["actor"]![member] = value;
+            if (item["admitted"]!.GetValue<bool>())
+            {
+                var parsed = AssistanceDelegationJson.Deserialize<AssistanceDelegationRecord>(record.ToJsonString());
+                var actual = JsonNode.Parse(AssistanceDelegationJson.SerializeCanonical(parsed))!;
+                Assert.Equal(value, (member == "subject" ? actual[member] : actual["actor"]![member])!.GetValue<string>());
+            }
+            else Assert.Throws<JsonException>(() => AssistanceDelegationJson.Deserialize<AssistanceDelegationRecord>(record.ToJsonString()));
+        }
+    }
+
     [Fact(DisplayName = "pilot-ck-17 pilot-ck-19 pilot-ck-21: runtime shapes have cross-lane canonical bytes; oracle: hand-ordered RFC 8785 fixture literals")]
     public void Runtime_shapes_match_canonical_byte_literals()
     {
