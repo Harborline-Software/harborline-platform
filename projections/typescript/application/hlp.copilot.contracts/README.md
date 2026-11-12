@@ -8,6 +8,8 @@ Applications implement `PilotEffectAdapter`; see the ticket draft’s top-level 
 
 `serializeProposalCanonical(ProposalEnvelope)` emits compact JSON with RFC 8785 ordinal UTF-16 key ordering at every depth, unchanged array order and no newline. `await proposalDigest(proposal)` uses Web Crypto SHA-256 over its UTF-8 bytes and returns `sha256:` plus lowercase hex. The existing `ProposalEnvelope` type is unchanged.
 
+`deserializeProposalEnvelope(string)` validates the wire envelope and returns a detached snapshot without resolving aliases or classifying commands. Per the M11 2026-11-12 ruling and RFC 7493 section 2.2, integers anywhere in `args` must be between `-9007199254740991` and `9007199254740991`. Deserialization, serialization and digesting refuse larger integers with `args-integer-out-of-range`. Larger values must travel as schema-admitted strings, never coerced arguments.
+
 `parseDelegationRecord(unknown)`, `parseDelegationDisposition(unknown)` and `parseStandingApproval(unknown)` refuse missing, extra or invalid members and return detached wire values:
 
 - `DelegationRecord`: `{subject, actor, disposition}`. Actor is null for a hand-performed act, otherwise exactly `{binding_key, binding_version, provider_id, model_version, proposal_digest}`. No proposal content or context is an actor member.

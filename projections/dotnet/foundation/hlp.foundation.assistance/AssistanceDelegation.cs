@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Numerics;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -135,7 +136,7 @@ public static class AssistanceDelegationJson
         JsonValueKind.Object => CanonicalObject(value),
         JsonValueKind.Array => "[" + string.Join(",", value.EnumerateArray().Select(Canonical)) + "]",
         JsonValueKind.String => Quote(value.GetString()!),
-        JsonValueKind.Number => Number(value.GetDouble()),
+        JsonValueKind.Number => Number(value),
         JsonValueKind.True => "true",
         JsonValueKind.False => "false",
         JsonValueKind.Null => "null",
@@ -171,6 +172,25 @@ public static class AssistanceDelegationJson
             });
         }
         return result.Append('"').ToString();
+    }
+
+    private static string Number(JsonElement value)
+    {
+        var raw = value.GetRawText();
+        var exponentIndex = raw.IndexOfAny(['e', 'E']);
+        var mantissa = exponentIndex < 0 ? raw : raw[..exponentIndex];
+        var exponent = exponentIndex < 0 ? BigInteger.Zero : BigInteger.Parse(raw[(exponentIndex + 1)..], CultureInfo.InvariantCulture);
+        var point = mantissa.IndexOf('.', StringComparison.Ordinal);
+        var fractionLength = point < 0 ? 0 : mantissa.Length - point - 1;
+        var digits = mantissa.Replace(".", "", StringComparison.Ordinal).TrimStart('-', '0');
+        if (digits.Length == 0) return "0";
+        var significant = digits.TrimEnd('0');
+        var power = exponent - fractionLength + digits.Length - significant.Length;
+        if (power < 0) return Number(value.GetDouble());
+        if (significant.Length + power > 16) throw new JsonException("args-integer-out-of-range");
+        var integer = long.Parse(significant + new string('0', (int)power), CultureInfo.InvariantCulture);
+        if (integer > 9007199254740991L) throw new JsonException("args-integer-out-of-range");
+        return (raw[0] == '-' ? "-" : "") + integer.ToString(CultureInfo.InvariantCulture);
     }
 
     private static string Number(double value)

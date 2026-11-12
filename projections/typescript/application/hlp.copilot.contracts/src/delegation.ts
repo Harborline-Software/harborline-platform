@@ -87,6 +87,12 @@ function instant(value: unknown): string {
   return result
 }
 
+export function deserializeProposalEnvelope(json: string): ProposalEnvelope {
+  const proposal = JSON.parse(json) as ProposalEnvelope
+  serializeProposalCanonical(proposal)
+  return freezeArgs(proposal) as ProposalEnvelope
+}
+
 export function serializeProposalCanonical(proposal: ProposalEnvelope): string {
   const snapshot = object(proposal, ['args', 'command', 'schema', 'surface'])
   if (snapshot.schema !== 'pilot.proposal/3' || typeof snapshot.surface !== 'string' || typeof snapshot.command !== 'string') {
@@ -108,7 +114,10 @@ function canonical(value: unknown, depth = 0): string {
     if (/[\uD800-\uDFFF]/u.test(value)) throw new TypeError('invalid-json-string')
     return JSON.stringify(value)
   }
-  if (typeof value === 'number' && Number.isFinite(value)) return JSON.stringify(value)
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    if (Number.isInteger(value) && !Number.isSafeInteger(value)) throw new TypeError('args-integer-out-of-range')
+    return JSON.stringify(value)
+  }
   if (Array.isArray(value)) {
     if (Object.keys(value).length !== value.length || Reflect.ownKeys(value).length !== value.length + 1) throw new TypeError('invalid-json-array')
     return '[' + Object.keys(value).map((key, index) => {

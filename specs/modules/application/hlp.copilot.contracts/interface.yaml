@@ -35,8 +35,9 @@
       ]
     },
     "delegationWire": {
-      "operations": ["serializeProposalCanonical", "proposalDigest", "parseDelegationRecord", "parseDelegationDisposition", "parseStandingApproval"],
+      "operations": ["deserializeProposalEnvelope", "serializeProposalCanonical", "proposalDigest", "parseDelegationRecord", "parseDelegationDisposition", "parseStandingApproval"],
       "digest": "sha256: plus lowercase hex SHA-256, using Web Crypto subtle.digest, of compact UTF-8 proposal JSON with RFC 8785 ordinal UTF-16 object-key ordering at every depth, unchanged array order and no trailing newline",
+      "integers": "Integers anywhere in args must be within -9007199254740991 through 9007199254740991; deserializeProposalEnvelope, serializeProposalCanonical and proposalDigest refuse outside that range with args-integer-out-of-range before hashing. Admitted integers digest exactly; larger values travel as schema-admitted strings, never coerced arguments (M11 2026-11-12, RFC 7493 section 2.2). Non-integer agreement remains deferred.",
       "record": "{subject, actor, disposition}; actor is null for a hand-performed act or exactly {binding_key, binding_version, provider_id, model_version, proposal_digest}, never proposal content or context",
       "disposition": "{kind: approve|dismiss|clarify|reject} or {kind: standing, approval_id, approver, scope, expires_at}; independent of the existing classifier ProposalDisposition",
       "standingApproval": "{id, approver, binding_key, scope: {surface, commands[]}, schedule, expires_at, revoked_at}; required approver, nonempty commands and UTC ISO 8601 expiry; revoked_at is a UTC instant or null; schedule is a nonempty RRULE string or null, stored without expansion",

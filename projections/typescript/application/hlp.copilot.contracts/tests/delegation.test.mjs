@@ -7,6 +7,7 @@ const cases = JSON.parse(readFileSync(new URL('../../../../../conformance/hlp.co
 
 for (const envelope of cases.envelopes) {
   test(`pilot-ck-15 pilot-ck-18: ${envelope.name}; oracle: RFC 8785 fixture bytes and independent shasum literal`, async () => {
+    assert.deepEqual(contracts.deserializeProposalEnvelope(JSON.stringify(envelope.value)), envelope.value)
     assert.equal(contracts.serializeProposalCanonical(envelope.value), envelope.canonical)
     assert.equal(await contracts.proposalDigest(envelope.value), envelope.digest)
   })
