@@ -68,10 +68,10 @@ public static class AssistanceArgsSchemaNarrowing
                     break;
                 case "minimum": case "minLength": case "minItems":
                 case "maximum": case "maxLength": case "maxItems":
-                    if (!hasNew || next.ValueKind != JsonValueKind.Number || !next.TryGetDecimal(out var number)) return false;
+                    if (!hasNew || !TryGetExactDecimal(next, out var number)) return false;
                     if (hasOld)
                     {
-                        if (old.ValueKind != JsonValueKind.Number || !old.TryGetDecimal(out var floor)) return false;
+                        if (!TryGetExactDecimal(old, out var floor)) return false;
                         if (name.StartsWith("min", StringComparison.Ordinal) ? number < floor : number > floor) return false;
                     }
                     break;
@@ -114,6 +114,14 @@ public static class AssistanceArgsSchemaNarrowing
             }
         }
         return true;
+    }
+
+    private static bool TryGetExactDecimal(JsonElement value, out decimal number)
+    {
+        number = default;
+        // DeepEquals compares the original JSON number without rounding.
+        return value.ValueKind == JsonValueKind.Number && value.TryGetDecimal(out number) &&
+            JsonElement.DeepEquals(value, JsonSerializer.SerializeToElement(number));
     }
 
     private static bool StringSet(JsonElement value, out HashSet<string> result)

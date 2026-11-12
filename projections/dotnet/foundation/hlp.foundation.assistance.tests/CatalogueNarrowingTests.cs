@@ -91,6 +91,34 @@ public sealed class CatalogueNarrowingTests
         }
     }
 
+    [Theory(DisplayName = "pilot-auth-3 pilot-ck-6: rounded numeric bounds refuse in every phase")]
+    [InlineData(AssistanceAdmissionPhase.Author)]
+    [InlineData(AssistanceAdmissionPhase.Publish)]
+    [InlineData(AssistanceAdmissionPhase.Install)]
+    public void RoundedBounds(AssistanceAdmissionPhase phase)
+    {
+        var registry = new FixtureCommandCatalogueRegistry();
+        registry.Replace(registry.Resolve("ap")! with { ArgsSchema = Json("""{"properties":{"x":{"minimum":1e-29}}}""") });
+        Assert.Equal([new AssistanceRefusal("definition.args_schema_looser_than_catalogue", "/commands/0/args_schema")],
+            AssistanceDefinitionAdmission.Validate(Binding(Command("ap", schema: """{"properties":{"x":{"minimum":0}}}""")), phase, Window, registry));
+        Assert.False(AssistanceArgsSchemaNarrowing.IsAtLeastAsStrict(Json("""{"maximum":1e-29}"""), Json("""{"maximum":0}""")));
+    }
+
+    [Fact(DisplayName = "pilot-auth-3 pilot-ck-6: exact decimal bounds still narrow")]
+    public void ExactBounds()
+    {
+        Assert.True(AssistanceArgsSchemaNarrowing.IsAtLeastAsStrict(
+            Json("""{"properties":{"x":{"minimum":2e-28}}}"""), Json("""{"properties":{"x":{"minimum":1e-28}}}""")));
+    }
+
+    [Fact(DisplayName = "pilot-auth-3 pilot-ck-6: negated reference observes narrowed sibling")]
+    public void NegatedSiblingReference()
+    {
+        Assert.False(AssistanceArgsSchemaNarrowing.IsAtLeastAsStrict(
+            Json("""{"properties":{"x":{"not":{"$ref":"#/properties/y"}},"y":{"type":"string","enum":["a"]}}}"""),
+            Json("""{"properties":{"x":{"not":{"$ref":"#/properties/y"}},"y":{"type":"string"}}}""")));
+    }
+
     [Fact(DisplayName = "pilot-auth-3 pilot-ck-6: bounded checker fails closed and compares nested constraints")]
     public void CheckerBoundaries()
     {
