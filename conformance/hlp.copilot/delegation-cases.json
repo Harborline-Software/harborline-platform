@@ -29,6 +29,12 @@
       "value": { "schema": "pilot.proposal/3", "surface": "forms.builder", "command": "draft.edit", "args": { "integer": -9007199254740991 } },
       "canonical": "{\"args\":{\"integer\":-9007199254740991},\"command\":\"draft.edit\",\"schema\":\"pilot.proposal/3\",\"surface\":\"forms.builder\"}",
       "digest": "sha256:b6b51566f760b3dd642bac00190505be6ddba3bd727fbf67e01f2cf02815ccb5"
+    },
+    {
+      "name": "M11 alias as received",
+      "value": { "schema": "pilot.proposal/3", "surface": "forms.builder", "command": "draft.alias", "args": {} },
+      "canonical": "{\"args\":{},\"command\":\"draft.alias\",\"schema\":\"pilot.proposal/3\",\"surface\":\"forms.builder\"}",
+      "digest": "sha256:84feac55b8b756a630a83b3b395b5ce58957a5c3b5a6e7b15e94a5a0d1befb7b"
     }
   ],
   "integer_refusals": [

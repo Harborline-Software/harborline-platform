@@ -1,4 +1,5 @@
 import type { ProposalEnvelope } from './types.js'
+import type { ParseOk } from './proposal.js'
 import { freezeArgs } from './receipt.js'
 
 export interface DelegationActor {
@@ -101,8 +102,8 @@ export function serializeProposalCanonical(proposal: ProposalEnvelope): string {
   return canonical(snapshot)
 }
 
-export async function proposalDigest(proposal: ProposalEnvelope): Promise<string> {
-  const bytes = new TextEncoder().encode(serializeProposalCanonical(proposal))
+export async function proposalDigest(proposal: ProposalEnvelope | ParseOk): Promise<string> {
+  const bytes = new TextEncoder().encode(serializeProposalCanonical('received' in proposal ? proposal.received : proposal))
   const digest = await globalThis.crypto.subtle.digest('SHA-256', bytes)
   return 'sha256:' + Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('')
 }

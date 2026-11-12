@@ -2,7 +2,7 @@ import type { CommandSpec, ProposalDisposition, ProposalEnvelope } from './types
 import { freezeArgs, mintReceipt, type MintInput } from './receipt.js'
 export const PILOT_PROPOSAL_SCHEMA = 'pilot.proposal/3' as const
 export type ProposalRejectCode = 'not-object' | 'missing-schema' | 'unsupported-schema' | 'missing-surface' | 'unknown-surface' | 'unknown-command' | 'invalid-args'
-export type ParseOk = { ok: true; proposal: ProposalEnvelope; spec: CommandSpec }
+export type ParseOk = { ok: true; proposal: ProposalEnvelope; received: ProposalEnvelope; spec: CommandSpec }
 export type ParseResult = ParseOk | { ok: false; code: ProposalRejectCode }
 /**
  * Module-private provenance AND the mint inputs snapshotted at parse time. The value, not the
@@ -21,6 +21,10 @@ export function parseProposal(raw: unknown, surface: string, specs: readonly Com
   if (typeof raw.command !== 'string') return { ok: false, code: 'unknown-command' }
   const spec = specs.find(s => s.id === raw.command || s.aliases?.includes(raw.command as string))
   if (!spec) return { ok: false, code: 'unknown-command' }
+  let received: ProposalEnvelope
+  try {
+    received = freezeArgs(raw) as ProposalEnvelope
+  } catch { return { ok: false, code: 'invalid-args' } }
   const args = spec.argsSchema(raw.args ?? {})
   if (!args.ok) return { ok: false, code: 'invalid-args' }
   // The freeze is the module's own untrusted-input boundary: a provider payload that cannot be frozen
@@ -28,7 +32,7 @@ export function parseProposal(raw: unknown, surface: string, specs: readonly Com
   // args, never an exception escaping parse (110 slice 2 review 1).
   let frozenArgs: unknown
   try { frozenArgs = freezeArgs(args.args) } catch { return { ok: false, code: 'invalid-args' } }
-  const result: ParseOk = Object.freeze({ ok: true, proposal: Object.freeze({ schema: PILOT_PROPOSAL_SCHEMA, surface, command: spec.id, args: frozenArgs }), spec })
+  const result: ParseOk = Object.freeze({ ok: true, proposal: Object.freeze({ schema: PILOT_PROPOSAL_SCHEMA, surface, command: spec.id, args: frozenArgs }), received, spec })
   parsed.set(result, Object.freeze({ surface, command: spec.id, args: frozenArgs, tier: spec.classification.tier }))
   return result
 }
