@@ -98,6 +98,11 @@ public sealed class WorkflowTriggerDispatcher : IWorkflowTriggerDispatcher
             return WorkflowDispatchResult.Terminal;
         }
 
+        if (instance.HasMigrated && trigger.Step != instance.CurrentStep)
+        {
+            return WorkflowDispatchResult.Discarded;
+        }
+
         // ── IDEMPOTENCY GUARD ──
         // The step key is per (instance, iteration, step). The iteration is the instance's DURABLE counter,
         // READ BACK from the loaded instance — never recomputed (bug-1337 class). A step re-entered via a

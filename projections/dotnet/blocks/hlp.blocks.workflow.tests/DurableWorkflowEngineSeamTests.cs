@@ -31,6 +31,43 @@ public sealed class DurableWorkflowEngineSeamTests
     private static readonly IWorkflowDefinitionExecutionStore AdmittedDefinitionStore = new AlwaysAdmittedDefinitionStore();
 
     [Fact]
+    public async Task Migrated_wait_keeps_state_and_resumes_at_target_while_stale_source_neither_runs_nor_replays()
+    {
+        using var fixture = new JournalFixture();
+        using var store = fixture.Open();
+        await store.CreateInstanceAsync(new WorkflowInstanceRecord
+        {
+            Id = "migrating", TenantId = Tenant, DefinitionKey = "invoice-approval", DefinitionVersion = "1.0.0",
+            CurrentStep = "old", Status = WorkflowStatus.Running,
+            StateJson = "{\"due\":\"2026-11-12T12:00:00Z\",\"correlation\":\"event-1\"}",
+        });
+        await store.AdvanceAsync(new WorkflowStepKey("migrating", 0, "old"), null, "{}", "Advanced", "{}", "other", WorkflowStatus.Running);
+        await store.ParkAsync("migrating", "old", "{}");
+        var staleTrigger = WorkflowTrigger.For(WorkflowTriggerKind.Event, "migrating", "old");
+        await new WorkflowMigration(store, new MigrationDefinitions()).MigrateAsync("migrating", "2.0.0",
+            new Dictionary<string, string> { ["old"] = "new" },
+            new WorkflowMigrationAuthority("operator", Tenant, "workflow:migrate", "workflow-instance", "migrating", true));
+        var dispatcher = new WorkflowTriggerDispatcher(store, new[] { new AdvanceOnceHandler() }, definitionStore: AdmittedDefinitionStore);
+        Assert.Equal(WorkflowDispatchResult.Discarded, await dispatcher.DispatchAsync(staleTrigger, Authorized("migrating")));
+        Assert.Empty(await store.CommittedEffectPayloadsAsync("migrating"));
+        Assert.Equal("{\"due\":\"2026-11-12T12:00:00Z\",\"correlation\":\"event-1\"}", (await store.LoadAsync("migrating"))!.StateJson);
+        Assert.Equal(WorkflowDispatchResult.Advanced, await dispatcher.DispatchAsync(
+            WorkflowTrigger.For(WorkflowTriggerKind.Event, "migrating", "new"), Authorized("migrating")));
+        Assert.NotNull(await store.FindStepResultAsync(new WorkflowStepKey("migrating", 0, "new")));
+        Assert.Single(await store.CommittedEffectPayloadsAsync("migrating"));
+    }
+
+    private sealed class MigrationDefinitions : IWorkflowDefinitionExecutionStore
+    {
+        public ValueTask<WorkflowDefinitionRecord?> GetAdmittedCurrentPublishedAsync(string tenant, string key, CancellationToken ct = default)
+            => throw new NotSupportedException();
+
+        public ValueTask<WorkflowDefinitionRecord> GetAdmittedAsync(string tenant, string key, string version, CancellationToken ct = default)
+            => ValueTask.FromResult(new WorkflowDefinitionRecord(tenant, key, version, WorkflowDefinitionStatus.Published,
+                JsonDocument.Parse("{\"initialState\":\"new\",\"states\":[{\"id\":\"new\"}]}").RootElement.Clone()));
+    }
+
+    [Fact]
     public async Task Interpreter_decision_failure_commits_the_actual_step_reason_and_event_once()
     {
         // ADR-0141 D1 is the oracle: fail once as not-retryable at the state reached,

@@ -455,6 +455,7 @@ public sealed class FileJournalWorkflowStore : IWorkflowStore, IDisposable
         _events.Add(FromDto(dto.Event));
         instance.DefinitionVersion = dto.TargetVersion;
         instance.CurrentStep = dto.TargetStep;
+        instance.HasMigrated = true;
         instance.UpdatedAt = Parse(dto.At);
     }
 
@@ -475,6 +476,7 @@ public sealed class FileJournalWorkflowStore : IWorkflowStore, IDisposable
         DefinitionKey = source.DefinitionKey,
         DefinitionVersion = source.DefinitionVersion,
         CurrentStep = source.CurrentStep,
+        HasMigrated = source.HasMigrated,
         Iteration = source.Iteration,
         Status = source.Status,
         StateJson = source.StateJson,
