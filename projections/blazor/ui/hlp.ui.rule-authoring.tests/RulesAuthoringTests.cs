@@ -59,6 +59,16 @@ public sealed class RulesAuthoringTests : BunitContext
         var story = File.ReadAllText(Path.Combine(root, "gallery", "projections", "blazor", "Stories", "RuleAuthoringScenario.razor"));
         Assert.Contains("GetManifestResourceStream(\"rule-authoring-lineage.json\")", story, StringComparison.Ordinal);
         Assert.DoesNotContain("\"lineage.json\"", story, StringComparison.Ordinal);
+        var lifecycleFixture = Path.GetFullPath(Path.Combine(root, "conformance", "hlp.blocks.builder-definitions", "rules-editor-contract-fixtures.json"));
+        var lifecycleEmbedded = System.Xml.Linq.XDocument.Load(galleryProject).Descendants("EmbeddedResource")
+            .Where(item => string.Equals(Path.GetFullPath(Path.Combine(Path.GetDirectoryName(galleryProject)!, item.Attribute("Include")!.Value.Replace('\\', Path.DirectorySeparatorChar))), lifecycleFixture, StringComparison.OrdinalIgnoreCase))
+            .Select(item => item.Attribute("LogicalName")?.Value ?? "")
+            .ToArray();
+        Assert.Equal(new[] { "rules-editor-contract-fixtures.json" }, lifecycleEmbedded);
+        Assert.Contains("GetManifestResourceStream(\"rules-editor-contract-fixtures.json\")", story, StringComparison.Ordinal);
+        Assert.DoesNotContain("Directory", story, StringComparison.Ordinal);
+        Assert.DoesNotContain("File.", story, StringComparison.Ordinal);
+        Assert.DoesNotContain("Path.", story, StringComparison.Ordinal);
     }
 
     private static (RulesDraft[] Rules, RulesLineageView View) LineageFixture()
