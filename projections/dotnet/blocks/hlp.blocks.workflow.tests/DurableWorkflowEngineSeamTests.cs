@@ -31,6 +31,39 @@ public sealed class DurableWorkflowEngineSeamTests
     private static readonly IWorkflowDefinitionExecutionStore AdmittedDefinitionStore = new AlwaysAdmittedDefinitionStore();
 
     [Fact]
+    public async Task Trigger_issued_before_migration_cannot_commit_after_position_moves()
+    {
+        using var fixture = new JournalFixture();
+        using var store = fixture.Open();
+        await CreateAsync(store, "race", step: "old");
+        var handler = new PausingHandler();
+        var dispatcher = new WorkflowTriggerDispatcher(store, new[] { handler }, definitionStore: AdmittedDefinitionStore);
+        var dispatch = dispatcher.DispatchAsync(WorkflowTrigger.For(WorkflowTriggerKind.Event, "race", "old"), Authorized("race"));
+        await handler.Entered.Task;
+        await new WorkflowMigration(store, new MigrationDefinitions()).MigrateAsync("race", "2.0.0",
+            new Dictionary<string, string> { ["old"] = "new" },
+            new WorkflowMigrationAuthority("operator", Tenant, "workflow:migrate", "workflow-instance", "race", true));
+        handler.Continue.SetResult();
+        Assert.Equal(WorkflowDispatchResult.Discarded, await dispatch);
+        Assert.Equal("new", (await store.LoadAsync("race"))!.CurrentStep);
+        Assert.Empty(await store.CommittedEffectPayloadsAsync("race"));
+        Assert.Null(await store.FindStepResultAsync(new WorkflowStepKey("race", 0, "old")));
+    }
+
+    private sealed class PausingHandler : IWorkflowStepHandler
+    {
+        public string DefinitionKey => "invoice-approval";
+        public TaskCompletionSource Entered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public TaskCompletionSource Continue { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public async ValueTask<WorkflowStepOutcome> DecideAsync(WorkflowInstanceRecord instance, WorkflowTrigger trigger, CancellationToken ct = default)
+        {
+            Entered.SetResult();
+            await Continue.Task;
+            return WorkflowStepOutcome.Advance("bad", Effect("stale"));
+        }
+    }
+
+    [Fact]
     public async Task Migrated_wait_keeps_state_and_resumes_at_target_while_stale_source_neither_runs_nor_replays()
     {
         using var fixture = new JournalFixture();

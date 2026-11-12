@@ -31,6 +31,8 @@ public sealed class WorkflowMigration(IWorkflowStore store, IWorkflowDefinitionE
         if (!model.States.Any(state => state.Id == targetStep))
             throw new InvalidOperationException($"Target for active step '{instance.CurrentStep}' does not exist.");
         var data = JsonSerializer.Serialize(new { principal = authority.Principal, sourceVersion = instance.DefinitionVersion, targetVersion, map });
-        await store.MigrateAsync(instance, targetVersion, targetStep, data, ct).ConfigureAwait(false);
+        var migrationStore = store as IWorkflowMigrationStore
+            ?? throw new NotSupportedException("The workflow store does not support fenced migration.");
+        await migrationStore.MigrateAsync(instance, targetVersion, targetStep, data, ct).ConfigureAwait(false);
     }
 }

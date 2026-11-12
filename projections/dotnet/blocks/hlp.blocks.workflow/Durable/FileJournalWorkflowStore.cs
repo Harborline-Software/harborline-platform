@@ -69,7 +69,7 @@ public sealed class FileJournalWorkflowUnitOfWork
 /// startup with <see cref="InvalidDataException"/> — fail-closed, never a silent skip.
 /// </para>
 /// </remarks>
-public sealed class FileJournalWorkflowStore : IWorkflowStore, IDisposable
+public sealed class FileJournalWorkflowStore : IWorkflowMigrationStore, IDisposable
 {
     private const uint Magic = 0x4A574C48; // HLWJ in little-endian byte order.
     private const byte FormatVersion = 1;
@@ -157,12 +157,24 @@ public sealed class FileJournalWorkflowStore : IWorkflowStore, IDisposable
     public async Task AdvanceAsync(
         WorkflowStepKey key, WorkflowEffect? effect, string resultJson, string eventType,
         string eventDataJson, string nextStep, WorkflowStatus nextStatus, CancellationToken ct = default)
+        => await AdvanceCoreAsync(null, key, effect, resultJson, eventType, eventDataJson, nextStep, nextStatus, ct).ConfigureAwait(false);
+
+    /// <inheritdoc />
+    public Task<bool> AdvanceIfCurrentAsync(WorkflowInstanceRecord expected, WorkflowStepKey key, WorkflowEffect? effect,
+        string resultJson, string eventType, string eventDataJson, string nextStep, WorkflowStatus nextStatus, CancellationToken ct = default)
+        => AdvanceCoreAsync(expected, key, effect, resultJson, eventType, eventDataJson, nextStep, nextStatus, ct);
+
+    private async Task<bool> AdvanceCoreAsync(WorkflowInstanceRecord? expected,
+        WorkflowStepKey key, WorkflowEffect? effect, string resultJson, string eventType,
+        string eventDataJson, string nextStep, WorkflowStatus nextStatus, CancellationToken ct)
     {
         await EnterAsync(ct).ConfigureAwait(false);
         try
         {
             if (!_instances.TryGetValue(key.InstanceId, out var instance))
                 throw new KeyNotFoundException($"No workflow instance '{key.InstanceId}' exists.");
+            if (expected is not null && instance.MigrationGeneration != expected.MigrationGeneration)
+                return false;
             if (_steps.ContainsKey(key.Value))
                 throw new InvalidOperationException($"Workflow step '{key.Value}' already advanced (idempotency row exists).");
 
@@ -183,18 +195,28 @@ public sealed class FileJournalWorkflowStore : IWorkflowStore, IDisposable
                 nextStep, (int)nextStatus, Format(now));
             await AppendAsync(JournalRecordType.Advanced, dto, ct).ConfigureAwait(false);
             ApplyAdvance(dto);
+            return true;
         }
         finally { _gate.Release(); }
     }
 
     /// <inheritdoc />
     public async Task ParkAsync(string instanceId, string step, string reasonJson, int iteration = 0, CancellationToken ct = default)
+        => await ParkCoreAsync(null, instanceId, step, reasonJson, iteration, ct).ConfigureAwait(false);
+
+    /// <inheritdoc />
+    public Task<bool> ParkIfCurrentAsync(WorkflowInstanceRecord expected, string step, string reasonJson, int iteration, CancellationToken ct = default)
+        => ParkCoreAsync(expected, expected.Id, step, reasonJson, iteration, ct);
+
+    private async Task<bool> ParkCoreAsync(WorkflowInstanceRecord? expected, string instanceId, string step, string reasonJson, int iteration, CancellationToken ct)
     {
         await EnterAsync(ct).ConfigureAwait(false);
         try
         {
-            if (!_instances.ContainsKey(instanceId))
+            if (!_instances.TryGetValue(instanceId, out var instance))
                 throw new KeyNotFoundException($"No workflow instance '{instanceId}' exists.");
+            if (expected is not null && instance.MigrationGeneration != expected.MigrationGeneration)
+                return false;
             var now = _clock.GetUtcNow();
             var dto = new ParkDto(
                 instanceId, step, iteration,
@@ -202,6 +224,7 @@ public sealed class FileJournalWorkflowStore : IWorkflowStore, IDisposable
                 Format(now));
             await AppendAsync(JournalRecordType.Parked, dto, ct).ConfigureAwait(false);
             ApplyPark(dto);
+            return true;
         }
         finally { _gate.Release(); }
     }
@@ -215,7 +238,8 @@ public sealed class FileJournalWorkflowStore : IWorkflowStore, IDisposable
         {
             if (!_instances.TryGetValue(expected.Id, out var current)
                 || current.DefinitionVersion != expected.DefinitionVersion || current.CurrentStep != expected.CurrentStep
-                || current.Iteration != expected.Iteration || current.Status != expected.Status || current.UpdatedAt != expected.UpdatedAt)
+                || current.Iteration != expected.Iteration || current.Status != expected.Status || current.UpdatedAt != expected.UpdatedAt
+                || current.MigrationGeneration != expected.MigrationGeneration)
                 throw new InvalidOperationException("Workflow instance changed during migration.");
             var now = _clock.GetUtcNow();
             var dto = new MigrationDto(expected.Id, targetVersion, targetStep,
@@ -456,6 +480,7 @@ public sealed class FileJournalWorkflowStore : IWorkflowStore, IDisposable
         instance.DefinitionVersion = dto.TargetVersion;
         instance.CurrentStep = dto.TargetStep;
         instance.HasMigrated = true;
+        instance.MigrationGeneration++;
         instance.UpdatedAt = Parse(dto.At);
     }
 
@@ -477,6 +502,7 @@ public sealed class FileJournalWorkflowStore : IWorkflowStore, IDisposable
         DefinitionVersion = source.DefinitionVersion,
         CurrentStep = source.CurrentStep,
         HasMigrated = source.HasMigrated,
+        MigrationGeneration = source.MigrationGeneration,
         Iteration = source.Iteration,
         Status = source.Status,
         StateJson = source.StateJson,

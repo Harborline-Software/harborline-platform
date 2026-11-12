@@ -30,6 +30,21 @@ public interface IWorkflowStore
         string eventDataJson, CancellationToken ct = default)
         => throw new NotSupportedException("This workflow store does not support migration.");
 
+    /// <summary>Commits an advance only if migration has not changed the loaded instance.</summary>
+    async Task<bool> AdvanceIfCurrentAsync(WorkflowInstanceRecord expected, WorkflowStepKey key, WorkflowEffect? effect,
+        string resultJson, string eventType, string eventDataJson, string nextStep, WorkflowStatus nextStatus, CancellationToken ct = default)
+    {
+        await AdvanceAsync(key, effect, resultJson, eventType, eventDataJson, nextStep, nextStatus, ct).ConfigureAwait(false);
+        return true;
+    }
+
+    /// <summary>Commits a park only if migration has not changed the loaded instance.</summary>
+    async Task<bool> ParkIfCurrentAsync(WorkflowInstanceRecord expected, string step, string reasonJson, int iteration, CancellationToken ct = default)
+    {
+        await ParkAsync(expected.Id, step, reasonJson, iteration, ct).ConfigureAwait(false);
+        return true;
+    }
+
     /// <summary>Loads an instance by id, or <see langword="null"/> if unknown.</summary>
     Task<WorkflowInstanceRecord?> LoadAsync(string instanceId, CancellationToken ct = default);
 
@@ -94,6 +109,21 @@ public interface IWorkflowStore
     /// </param>
     /// <param name="ct">Cancellation token.</param>
     Task ParkAsync(string instanceId, string step, string reasonJson, int iteration = 0, CancellationToken ct = default);
+}
+
+/// <summary>A migration-capable store must atomically fence in-flight dispatch when migrating.</summary>
+public interface IWorkflowMigrationStore : IWorkflowStore
+{
+    /// <inheritdoc />
+    new Task MigrateAsync(WorkflowInstanceRecord expected, string targetVersion, string targetStep,
+        string eventDataJson, CancellationToken ct = default);
+
+    /// <inheritdoc />
+    new Task<bool> AdvanceIfCurrentAsync(WorkflowInstanceRecord expected, WorkflowStepKey key, WorkflowEffect? effect,
+        string resultJson, string eventType, string eventDataJson, string nextStep, WorkflowStatus nextStatus, CancellationToken ct = default);
+
+    /// <inheritdoc />
+    new Task<bool> ParkIfCurrentAsync(WorkflowInstanceRecord expected, string step, string reasonJson, int iteration, CancellationToken ct = default);
 }
 
 /// <summary>

@@ -47,6 +47,9 @@ public sealed class WorkflowInstanceRecord
     /// <summary>Whether this instance has been explicitly migrated.</summary>
     public bool HasMigrated { get; set; }
 
+    /// <summary>Monotonic migration generation used to fence in-flight dispatch.</summary>
+    public long MigrationGeneration { get; set; }
+
     /// <summary>
     /// The instance's CURRENT iteration counter (ADR 0135 A0 — real iteration). The
     /// <see cref="WorkflowStepKey"/> for an advancing step is derived from THIS value, so a step that
