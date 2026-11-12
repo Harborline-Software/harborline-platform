@@ -20,7 +20,7 @@
     "projections/dotnet/blocks/hlp.blocks.entity-views.tests/AccessViewFilterTests.cs": "a506dee30f2096049ddaadd22317fd832043a0bd4f41947bb3c3eb944527a06e",
     "projections/dotnet/blocks/hlp.blocks.entity-views.tests/ViewQueryRuntimeTests.cs": "624f2565333246453446d84962972a52134f12ab7ce095d3952ab93b8aae1626",
     "specs/modules/blocks/hlp.blocks.entity-views/interface.yaml": "6797b0a45e18f0f3ee8e066982edfe1852e1aabd5dd6f43f8a275602a143546c",
-    "tests/package-consumers/views-nuget/Program.cs": "6f9462860c6ab69f83aea6ff5cec1971469e47d5340f04f0410a937a30346c93",
+    "tests/package-consumers/views-nuget/Program.cs": "41e447d2c52dd40c67db9aa41ad69162979cfa3296dd0bcfd45c96a1cc0ca557",
     "tests/package-consumers/views-nuget/AccessContractProof.cs": "398058eee7e2d1997ea3961b0781f7c8086fd06c686d69517edc3ab2a0436a49",
     "projections/dotnet/blocks/hlp.blocks.entity-views/CatalogueViewMeasures.cs": "adbe71355a40402425bc5bad1f3440c62b218ceda27629e529d864e00bc5af86"
   },

@@ -62,8 +62,8 @@ beside its id (L1426), plus the version where the reference is pinned.
 
 Edges are written by the store, not by member code after it. A host registers a
 `DefinitionDependencyDerivation` for a registry beside its admission:
-`RecordTypeDefinitionStore.Dependencies` for `Records` and `ClassDefinitionStore.Dependencies` for
-`Classes`. The in-memory store runs the derivation under the same lock that commits the
+`RecordTypeDefinitionStore.Dependencies` for `Records`, `ClassDefinitionStore.Dependencies` for
+`Classes`, and `ViewDefinitionCatalogue.Dependencies(registers)` for `Views`. The in-memory store runs the derivation under the same lock that commits the
 publication. The derivation sees that commit's published heads and no store handle, and the store
 keeps its edges with the published version. So:
 

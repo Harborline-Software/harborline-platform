@@ -116,6 +116,29 @@ public sealed class ViewShapeRoleCommitTests
         Assert.Equal("1.0.1", (await shared.GetPublishedHeadAsync(Key))!.Document.VersionId);
     }
 
+    [Fact(DisplayName = "views-auth-15: each commit reads the Record Type head current at that commit, as the head changes")]
+    public async Task EachCommitReadsTheCurrentRecordTypeHead()
+    {
+        var shared = Store();
+        var title = Roles((ViewShapeRole.Title, "title"));
+        await shared.SaveDraftAsync(Document(Draft(title)), 0, "first");
+        await shared.PublishAsync(Key, "1.0.0", 1, "publish-first");
+
+        ViewStores.PublishRecordType(shared, Tenant, "timed-item", [("title", "test.integer", "1.0.0")], "2.0.0", 2);
+        await shared.SaveDraftAsync(Document(Draft(title, version: "1.0.1")), 2, "second");
+        var refused = await Assert.ThrowsAsync<DefinitionRefusalException>(async () =>
+            await shared.PublishAsync(Key, "1.0.1", 3, "publish-second"));
+        var headAfterRefusal = (await shared.GetPublishedHeadAsync(Key))!.Document.VersionId;
+
+        ViewStores.PublishRecordType(shared, Tenant, "timed-item", [("title", "test.text", "1.0.0")], "3.0.0", 4);
+        await shared.SaveDraftAsync(Document(Draft(title, version: "1.0.2")), 3, "third");
+        await shared.PublishAsync(Key, "1.0.2", 4, "publish-third");
+
+        Assert.Equal([new DefinitionRefusal(Incompatible, "/binding/shapeRoles/title")], refused.Refusals);
+        Assert.Equal("1.0.0", headAfterRefusal);
+        Assert.Equal("1.0.2", (await shared.GetPublishedHeadAsync(Key))!.Document.VersionId);
+    }
+
     [Fact(DisplayName = "views-auth-4, views-auth-12: column treatment and density never change a compatibility result")]
     public async Task DisplaySettingsNeverChangeCompatibility()
     {

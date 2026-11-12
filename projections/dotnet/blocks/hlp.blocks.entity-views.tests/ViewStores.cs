@@ -8,7 +8,7 @@ namespace Harborline.Blocks.EntityViews.Tests;
 
 /// <summary>
 /// A shared definition store composed as a host composes it for Views: <see cref="ViewDefinitionCatalogue.Admission"/> and
-/// <see cref="ViewDefinitionCatalogue.Dependencies"/> for <see cref="DefinitionKind.Views"/>, and a pass-through Records
+/// <see cref="ViewDefinitionCatalogue.Dependencies(ViewAdmissionRegisters)"/> for <see cref="DefinitionKind.Views"/>, and a pass-through Records
 /// registry holding a published <c>work-item</c> Record Type in each tenant the tests use. Each work-item field pins one of
 /// the admitted test field kinds, as a Records field binds a kind revision (T-1177).
 /// </summary>
@@ -73,9 +73,12 @@ internal static class ViewStores
         IEnumerable<(string Field, string? Kind)> fields) =>
         PublishRecordType(shared, tenant, recordTypeId, fields.Select(field => (field.Field, field.Kind, (string?)KindVersion)));
 
-    /// <summary>Publishes a Record Type whose fields pin an exact kind revision, or no kind when the kind is null.</summary>
+    /// <summary>
+    /// Publishes a Record Type version whose fields pin an exact kind revision, or no kind when the kind is null. A later
+    /// version passes the stream's current revision, so it becomes the new published head.
+    /// </summary>
     public static void PublishRecordType(IVersionedDefinitionStore shared, string tenant, string recordTypeId,
-        IEnumerable<(string Field, string? Kind, string? Version)> fields)
+        IEnumerable<(string Field, string? Kind, string? Version)> fields, string version = "1.0.0", long revision = 0)
     {
         var document = new RecordTypeDocument(
             new RecordsDefinitionEnvelope(tenant, "operations", new DefinitionContractVersion(1, 0)),
@@ -88,8 +91,8 @@ internal static class ViewStores
                     new FieldConstraintDefinition(false, 0, 1, [], null)))).ToArray());
         var key = RecordTypeDefinitionStore.KeyOf(tenant, recordTypeId);
         var body = Encoding.UTF8.GetString(RecordTypeDefinitionJson.SerializeCanonical(document));
-        shared.SaveDraftAsync(new DefinitionDocument(key, "1.0.0", "1.0.0", body), 0, $"seed-{tenant}-{recordTypeId}")
+        shared.SaveDraftAsync(new DefinitionDocument(key, version, version, body), revision, $"seed-{tenant}-{recordTypeId}-{version}")
             .AsTask().GetAwaiter().GetResult();
-        shared.PublishAsync(key, "1.0.0", 1, $"publish-{tenant}-{recordTypeId}").AsTask().GetAwaiter().GetResult();
+        shared.PublishAsync(key, version, revision + 1, $"publish-{tenant}-{recordTypeId}-{version}").AsTask().GetAwaiter().GetResult();
     }
 }
