@@ -195,6 +195,30 @@ public sealed class ViewQueryRuntimeTests
         Assert.Equal(["resolve", "open", "kind", "record-type"], calls);
     }
 
+    [Fact(DisplayName = "views-auth-15: the read-time check stays the fail-closed backstop for a Title bound to a non-text field")]
+    public async Task AnIncompatibleShapeRoleStillRefusesAtReadTime()
+    {
+        var calls = new List<string>();
+        var request = Request() with
+        {
+            Binding = new("layout.table", new Dictionary<ViewShapeRole, string> { [ViewShapeRole.Title] = "priority" }),
+        };
+        var runtime = new ViewQueryRuntime(
+            new RecordingDefinitions(calls, Definition()),
+            new RecordingOpenGate(calls, new ViewAuthority(CanOpen: true, Actions: [])),
+            new RecordingKinds(calls, IsRegistered: true),
+            new RecordingRecordTypes(calls),
+            new RecordingAccessFilter(calls),
+            new RecordingRows(calls),
+            new RecordingMeasures(calls),
+            new FixedTimeProvider(DateTimeOffset.UnixEpoch));
+
+        var error = await Assert.ThrowsAsync<ViewQueryException>(async () => await runtime.ExecuteAsync(request));
+
+        Assert.Equal("view_definition.shape_role_field_incompatible", error.Code);
+        Assert.Equal(["resolve", "open", "kind", "record-type"], calls);
+    }
+
     [Fact(DisplayName = "open authority and Access filtering precede every row read")]
     public async Task OpenAuthorityAndAccessFilteringPrecedeEveryRowRead()
     {

@@ -4,6 +4,7 @@ using System.Reflection;
 using System.Text.Json;
 using Harborline.Blocks.BuilderDefinitions;
 using Harborline.Blocks.EntityViews;
+using Harborline.Contracts.Fields;
 using Harborline.Kernel.SchemaValidation.Records;
 using Harborline.Foundation.Authorization;
 
@@ -64,20 +65,26 @@ async Task ProveAuthoredAndBoundQuery()
             "state",
             new("work.count", new Dictionary<string, string> { ["format"] = "integer" })));
     // Views lives in the shared definition store (views-eng-16): its admission and record-type dependency are registered
-    // there, so the publish below is re-admitted inside the store, and the record type it reads is published first.
+    // there over the same registers, so the publish below is re-admitted inside the store, and the record type it reads is
+    // published first. Its fields pin the host's admitted text kind, so the Title role is checked at the commit (T-1177).
+    var registers = new ViewAdmissionRegisters(
+        await kinds.ListAsync(), [new("work.count", ["format"])], new ViewExpressionFunctionRegistry(), [], ["work.open"], [],
+        [QueryFieldKinds.Text]);
     var shared = new InMemoryVersionedDefinitionStore(
         new Dictionary<DefinitionKind, DefinitionAdmission>
         {
-            [DefinitionKind.Views] = ViewDefinitionCatalogue.Admission(new ViewAdmissionRegisters(
-                await kinds.ListAsync(), [new("work.count", ["format"])], new ViewExpressionFunctionRegistry(), [], ["work.open"], [])),
+            [DefinitionKind.Views] = ViewDefinitionCatalogue.Admission(registers),
             [DefinitionKind.Records] = (_, _) => [],
         },
-        new Dictionary<DefinitionKind, DefinitionDependencyDerivation> { [DefinitionKind.Views] = ViewDefinitionCatalogue.Dependencies });
+        new Dictionary<DefinitionKind, DefinitionDependencyDerivation> { [DefinitionKind.Views] = ViewDefinitionCatalogue.Dependencies(registers) });
     var workItem = RecordTypeDefinitionStore.KeyOf("team-a", "work-item");
+    var textBinding = new FieldBindingDefinition(
+        new FieldKindReference(QueryFieldKinds.Text.KindId, QueryFieldKinds.Text.Version, new Dictionary<string, string>()),
+        new FieldConstraintDefinition(false, 0, 1, [], null));
     await shared.SaveDraftAsync(new DefinitionDocument(workItem, "1.0.0", "1.0.0", System.Text.Encoding.UTF8.GetString(
         RecordTypeDefinitionJson.SerializeCanonical(new RecordTypeDocument(
             new RecordsDefinitionEnvelope("team-a", "operations", new(1, 0)), "work-item", "work-item",
-            [new("title", "title"), new("assignee", "assignee"), new("state", "state")])))), 0, "seed-work-item");
+            [new("title", "title", textBinding), new("assignee", "assignee", textBinding), new("state", "state", textBinding)])))), 0, "seed-work-item");
     await shared.PublishAsync(workItem, "1.0.0", 1, "publish-work-item");
     var store = new ViewDefinitionCatalogue(shared);
     var authoring = new ViewDefinitionAuthoring(
@@ -365,6 +372,13 @@ sealed class ThrowingStore : IEntityReadStore
     }
 }
 
+/// <summary>The host's admitted field kinds, as its FieldKindRegistry admits them.</summary>
+static class QueryFieldKinds
+{
+    public static readonly AdmittedFieldKind Text = new("records.text", "1.0.0", null);
+}
+
+// The host describes each bound field through the one Views mapping, so authoring, the commit and the read agree (T-1177).
 sealed class QueryRecordTypes : IViewRecordTypeRegistry
 {
     public ValueTask<ViewRecordTypeDescriptor?> ResolveAsync(string recordType, CancellationToken cancellationToken = default) =>
@@ -372,9 +386,9 @@ sealed class QueryRecordTypes : IViewRecordTypeRegistry
             recordType,
             new Dictionary<string, ViewRecordFieldKind>
             {
-                ["title"] = ViewRecordFieldKind.Text,
-                ["assignee"] = ViewRecordFieldKind.Text,
-                ["state"] = ViewRecordFieldKind.Text,
+                ["title"] = ViewBindingCompatibility.KindOf(QueryFieldKinds.Text)!.Value,
+                ["assignee"] = ViewBindingCompatibility.KindOf(QueryFieldKinds.Text)!.Value,
+                ["state"] = ViewBindingCompatibility.KindOf(QueryFieldKinds.Text)!.Value,
             }));
 }
 
