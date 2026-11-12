@@ -1,0 +1,43 @@
+[
+  {
+    "command_id": "ap",
+    "exporting_package": "fixture.workflow",
+    "exported": true,
+    "tier": "ap",
+    "args_schema": {},
+    "permitted_recipients": [
+      "alice",
+      "bob"
+    ]
+  },
+  {
+    "command_id": "cp",
+    "exporting_package": "fixture.workflow",
+    "exported": true,
+    "tier": "cp",
+    "args_schema": {},
+    "permitted_recipients": [
+      "alice"
+    ]
+  },
+  {
+    "command_id": "never",
+    "exporting_package": "fixture.workflow",
+    "exported": true,
+    "tier": "never",
+    "args_schema": {},
+    "permitted_recipients": [
+      "alice"
+    ]
+  },
+  {
+    "command_id": "private",
+    "exporting_package": "fixture.workflow",
+    "exported": false,
+    "tier": "ap",
+    "args_schema": {},
+    "permitted_recipients": [
+      "alice"
+    ]
+  }
+]
