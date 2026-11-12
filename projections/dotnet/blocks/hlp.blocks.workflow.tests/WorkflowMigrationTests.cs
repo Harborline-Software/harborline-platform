@@ -8,6 +8,42 @@ namespace Harborline.Blocks.Workflow.Tests;
 public sealed class WorkflowMigrationTests
 {
     [Theory]
+    [InlineData("missing")]
+    [InlineData("denied")]
+    [InlineData("principal")]
+    [InlineData("tenant")]
+    [InlineData("operation")]
+    [InlineData("kind")]
+    [InlineData("run")]
+    public async Task Missing_denied_or_mismatched_host_decision_moves_and_records_nothing(string invalid)
+    {
+        using var fixture = new JournalFixture();
+        using var store = fixture.Open();
+        await store.CreateInstanceAsync(new WorkflowInstanceRecord
+        {
+            Id = "run-1", TenantId = "tenant-1", DefinitionKey = "flow", DefinitionVersion = "1.0.0",
+            CurrentStep = "old", Status = WorkflowStatus.Running,
+        });
+        var authority = new WorkflowMigrationAuthority("operator-1", "tenant-1", "workflow:migrate", "workflow-instance", "run-1", true);
+        authority = invalid switch
+        {
+            "missing" => null!,
+            "denied" => authority with { Allowed = false },
+            "principal" => authority with { Principal = "" },
+            "tenant" => authority with { Tenant = "other" },
+            "operation" => authority with { Operation = "other" },
+            "kind" => authority with { RecordKind = "other" },
+            _ => authority with { RecordId = "other" },
+        };
+        var error = await Record.ExceptionAsync(() => new WorkflowMigration(store, new Definitions()).MigrateAsync(
+            "run-1", "2.0.0", new Dictionary<string, string> { ["old"] = "new" }, authority));
+        Assert.True(error is UnauthorizedAccessException or ArgumentNullException);
+        Assert.Equal("1.0.0", (await store.LoadAsync("run-1"))!.DefinitionVersion);
+        Assert.Equal("old", (await store.LoadAsync("run-1"))!.CurrentStep);
+        Assert.Empty(await store.EventsAsync("run-1"));
+    }
+
+    [Theory]
     [InlineData(false)]
     [InlineData(true)]
     public async Task Missing_mapping_or_missing_target_refuses_without_moving_and_names_source_step(bool missingTarget)
