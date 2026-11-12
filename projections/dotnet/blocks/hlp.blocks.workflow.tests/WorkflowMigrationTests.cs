@@ -7,6 +7,31 @@ namespace Harborline.Blocks.Workflow.Tests;
 
 public sealed class WorkflowMigrationTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Missing_mapping_or_missing_target_refuses_without_moving_and_names_source_step(bool missingTarget)
+    {
+        using var fixture = new JournalFixture();
+        using var store = fixture.Open();
+        await store.CreateInstanceAsync(new WorkflowInstanceRecord
+        {
+            Id = "run-1", TenantId = "tenant-1", DefinitionKey = "flow", DefinitionVersion = "1.0.0",
+            CurrentStep = "old", Status = WorkflowStatus.Parked, StateJson = "{\"wait\":true}",
+        });
+        var map = new Dictionary<string, string>();
+        if (missingTarget) map.Add("old", "missing");
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() => new WorkflowMigration(store, new Definitions())
+            .MigrateAsync("run-1", "2.0.0", map,
+                new WorkflowMigrationAuthority("operator-1", "tenant-1", "workflow:migrate", "workflow-instance", "run-1", true)));
+        Assert.Contains("old", error.Message, StringComparison.Ordinal);
+        var run = (await store.LoadAsync("run-1"))!;
+        Assert.Equal("1.0.0", run.DefinitionVersion);
+        Assert.Equal("old", run.CurrentStep);
+        Assert.Equal("{\"wait\":true}", run.StateJson);
+        Assert.Empty(await store.EventsAsync("run-1"));
+    }
+
     [Fact]
     public async Task Authorized_operator_migrates_named_run_with_explicit_map_and_records_history()
     {
