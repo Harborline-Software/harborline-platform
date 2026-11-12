@@ -43,6 +43,24 @@ public sealed class RulesAuthoringTests : BunitContext
         Assert.Equal(nameInput, ((ElementReference)JSInterop.VerifyFocusAsyncInvoke(2)[1].Arguments[0]!).Id);
     }
 
+    // The gallery runs as Blazor WebAssembly, so the story can only reach the fixture as a resource
+    // embedded from the one shared file; the repository's folders do not exist in the browser.
+    [Fact(DisplayName = "rules-auth-19: the Blazor gallery story reads the shared lineage fixture as an embedded resource")]
+    public void GalleryStoryEmbedsSharedLineage()
+    {
+        var fixture = Path.GetFullPath(FindFixture("lineage.json", "hlp.ui.rule-authoring"));
+        var root = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(fixture)!, "..", ".."));
+        var galleryProject = Path.Combine(root, "gallery", "projections", "blazor", "Harborline.Gallery.Blazor.csproj");
+        var embedded = System.Xml.Linq.XDocument.Load(galleryProject).Descendants("EmbeddedResource")
+            .Where(item => string.Equals(Path.GetFullPath(Path.Combine(Path.GetDirectoryName(galleryProject)!, item.Attribute("Include")!.Value.Replace('\\', Path.DirectorySeparatorChar))), fixture, StringComparison.OrdinalIgnoreCase))
+            .Select(item => item.Attribute("LogicalName")?.Value ?? "")
+            .ToArray();
+        Assert.Equal(new[] { "rule-authoring-lineage.json" }, embedded);
+        var story = File.ReadAllText(Path.Combine(root, "gallery", "projections", "blazor", "Stories", "RuleAuthoringScenario.razor"));
+        Assert.Contains("GetManifestResourceStream(\"rule-authoring-lineage.json\")", story, StringComparison.Ordinal);
+        Assert.DoesNotContain("\"lineage.json\"", story, StringComparison.Ordinal);
+    }
+
     private static (RulesDraft[] Rules, RulesLineageView View) LineageFixture()
     {
         using var fixture = JsonDocument.Parse(File.ReadAllText(FindFixture("lineage.json", "hlp.ui.rule-authoring")));
