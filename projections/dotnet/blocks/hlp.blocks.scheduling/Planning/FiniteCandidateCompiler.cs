@@ -10,7 +10,12 @@ public sealed class FiniteCandidateCompiler
         SolverBackend backend, SolverGuarantee guarantee, int deterministicWorkBudget)
     {
         var modules = AdmitModules(definition, backend, guarantee, deterministicWorkBudget);
-        return Compile(profile, modules, useCallerAvailability: true);
+        return Compile(profile, modules, useCallerAvailability: true) with
+        {
+            DefinitionPin = definition.Envelope is { Version: { } version } envelope
+                ? new(envelope.Tenant, envelope.Identity, ScheduleDefinitionCatalogue.VersionIdFor(envelope.Identity, version))
+                : null,
+        };
     }
 
     internal CompiledPlanningProblem Compile(SchedulingProfile profile,

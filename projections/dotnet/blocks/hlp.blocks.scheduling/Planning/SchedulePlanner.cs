@@ -37,7 +37,7 @@ public sealed class SchedulePlanner
             throw new UnsupportedProfileException("RESOURCE_BINDING_UNSUPPORTED: required: one distinct exclusive resource without buffers for every resource id.");
 
         // The shared runtime filters candidate intervals; caller supply must not prune them here.
-        var problem = new FiniteCandidateCompiler().Compile(facts, modules, useCallerAvailability: false);
+        var problem = new FiniteCandidateCompiler().Compile(facts, modules, useCallerAvailability: false) with { DefinitionPin = pin };
         var candidates = new Dictionary<string, IReadOnlyList<AssignmentCandidate>>(StringComparer.Ordinal);
         foreach (var (activityId, placements) in problem.CandidatesByActivity)
         {
@@ -58,6 +58,15 @@ public sealed class SchedulePlanner
             }
             candidates.Add(activityId, available);
         }
-        return backend.Solve(problem with { CandidatesByActivity = candidates }, deterministicWorkBudget);
+        var proposal = backend.Solve(problem with { CandidatesByActivity = candidates }, deterministicWorkBudget);
+        // Runtime answers have no fact versions; DES-0022 open ruling 4 owns their pinning contract.
+        return proposal.Status == SolveStatus.ProvenInfeasible
+            ? proposal with
+            {
+                Status = SolveStatus.Indeterminate,
+                ReasonCode = "UNPINNED_AVAILABILITY_READS",
+                ProposalId = AssignmentRules.ProposalId(backend.SolverId, problem, SolveStatus.Indeterminate),
+            }
+            : proposal;
     }
 }

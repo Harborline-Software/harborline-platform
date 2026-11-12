@@ -151,10 +151,11 @@ internal static class ScheduleDefinitionAdmission
         // None names no planner (L1149), so there is nothing for a module to compile into.
         if (modules.Count > 0 && definition.ProblemClass == ScheduleProblemClass.None)
             refusals.Add(new(ScheduleDefinitionCodes.ModulesWithoutProblemClass, "/modules"));
+        var names = new HashSet<string>(StringComparer.Ordinal);
         foreach (var (module, index) in modules.Select((value, index) => (value, index)))
             if (module is null) refusals.Add(new(ScheduleDefinitionCodes.ModuleInvalid, $"/modules/{index}"));
             else if (string.IsNullOrWhiteSpace(module.Module)) refusals.Add(new(ScheduleDefinitionCodes.ModuleInvalid, $"/modules/{index}/module"));
-            else if (!Planning.ConstraintModuleAdmission.IsAdmitted(module))
+            else if (!names.Add(module.Module) || !Planning.ConstraintModuleAdmission.IsAdmitted(module))
                 refusals.Add(new("scheduling.definition.module_unsupported", $"/modules/{index}/module"));
     }
 

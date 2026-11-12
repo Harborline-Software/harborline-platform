@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using System.Xml.Linq;
 using Xunit;
 
 namespace Harborline.Architecture.Tests;
@@ -18,7 +19,7 @@ public sealed partial class AvailabilityCompositionArchitectureTests
         while (root is not null && !File.Exists(Path.Combine(root.FullName, "repository.yaml"))) root = root.Parent;
         Assert.NotNull(root);
         var scheduling = Path.Combine(root.FullName, "projections/dotnet/blocks/hlp.blocks.scheduling");
-        Assert.DoesNotContain("hlp.blocks.calendar", File.ReadAllText(Path.Combine(scheduling, "Harborline.Blocks.Scheduling.csproj")), StringComparison.Ordinal);
+        Assert.False(ReferencesCalendar(File.ReadAllText(Path.Combine(scheduling, "Harborline.Blocks.Scheduling.csproj"))));
         var sources = Directory.EnumerateFiles(scheduling, "*.cs", SearchOption.AllDirectories)
             .Where(path => !path.Split(Path.DirectorySeparatorChar).Any(part => part is "obj" or "bin"))
             .Select(File.ReadAllText).ToArray();
@@ -64,6 +65,24 @@ public sealed partial class AvailabilityCompositionArchitectureTests
     [Fact]
     public void Reading_through_the_runtime_remains_permitted() => Assert.False(ComposesSupply(
         "var read = await _runtime.Read(tenantId, new AvailabilityRequest(startUtc, endUtc, [ResourceCapacity.Exclusive(resourceRef, padding)]), ct);"));
+
+    [Theory]
+    [InlineData("<Project><ItemGroup><ProjectReference Include='../HLP.BLOCKS.CALENDAR/HARBORLINE.BLOCKS.CALENDAR.CSPROJ'/></ItemGroup></Project>", true)]
+    [InlineData("<Project><ItemGroup><PackageReference Include='Harborline.Blocks.Calendar' Version='1.0.0'/></ItemGroup></Project>", true)]
+    [InlineData("<Project xmlns='http://schemas.microsoft.com/developer/msbuild/2003'><ItemGroup><packagereference Include='HARBORLINE.BLOCKS.CALENDAR'/></ItemGroup></Project>", true)]
+    [InlineData("<Project><ItemGroup><ProjectReference Include='..\\hlp.blocks.calendar\\Harborline.Blocks.Calendar.csproj'/></ItemGroup></Project>", true)]
+    [InlineData("<Project><!-- hlp.blocks.calendar --><ItemGroup><PackageReference Include='Harborline.Foundation.Scheduling'/></ItemGroup></Project>", false)]
+    public void Calendar_reference_fence_checks_project_and_package_items(string project, bool expected)
+        => Assert.Equal(expected, ReferencesCalendar(project));
+
+    private static bool ReferencesCalendar(string project) => XDocument.Parse(project).Descendants().Any(item =>
+    {
+        var reference = (string?)item.Attribute("Include");
+        if (item.Name.LocalName.Equals("ProjectReference", StringComparison.OrdinalIgnoreCase))
+            return string.Equals(Path.GetFileName(reference?.Replace('\\', '/')), "Harborline.Blocks.Calendar.csproj", StringComparison.OrdinalIgnoreCase);
+        return item.Name.LocalName.Equals("PackageReference", StringComparison.OrdinalIgnoreCase)
+            && string.Equals(reference, "Harborline.Blocks.Calendar", StringComparison.OrdinalIgnoreCase);
+    });
 
     private static bool ComposesSupply(string text) => SecondComposition().IsMatch(text);
 

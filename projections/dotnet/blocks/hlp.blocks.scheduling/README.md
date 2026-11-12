@@ -43,7 +43,7 @@ The due seam, queue, completion models, generators and chain ledger types now li
 
 `PlanAsync` resolves an exact published `ScheduleDefinitionPin`. The declared `Project` or `JobShop` class compiles to `time_windows`, `resource_requirements`, `no_overlap` and `precedence`; the seven authored class names are Harborline rulings (DES-0022 open item 6), not a standard taxonomy. Other classes refuse. Every module advances `Elicited -> ShapeCandidate -> Admitted -> BackendSupported`, and every nonadjacent transition refuses `MODULE_ADMISSION_SKIP`. Unknown modules and parameter members refuse `MODULE_UNSUPPORTED` before candidate enumeration. Save and publish use the same admitted set and refuse `scheduling.definition.module_unsupported` at `/modules/{i}/module`, recording nothing.
 
-The first three modules take absent or empty parameters. Precedence optionally adds typed constraints:
+The first three modules take absent or empty parameters. Precedence optionally adds typed constraints; every constraint requires `minimumGapSlots`, including an explicit zero:
 
 ```json
 {"module":"precedence","parameters":{"constraints":[{"id":"after","beforeActivityId":"a","afterActivityId":"b","minimumGapSlots":1}]}}
@@ -51,6 +51,8 @@ The first three modules take absent or empty parameters. Precedence optionally a
 
 The backend declares its supported module kinds, problem classes, guarantees and maximum deterministic work budget. The existing exhaustive solver offers `FeasibleProof`; first-fit offers `BoundedHeuristic`. Both accept nonnegative `int` work budgets, retaining their existing proposal status, incomplete-fact and budget-exhaustion semantics and stable solver IDs. Unsupported class, guarantee or budget requests name what is missing and required.
 
-`Certified` exists as a typed rung but is unreachable: an attempt refuses `MODULE_CERTIFICATE_UNDEFINED` pending DES-0022 open ruling 3. This slice defines no evidence type or certification flag. Running requires backend support; proposals retain their independent status and guarantee and make no certification claim.
+`Certified` exists as a typed rung but is unreachable: an attempt refuses `MODULE_CERTIFICATE_UNDEFINED` pending DES-0022 open ruling 3. This slice defines no evidence type or certification flag. Both solvers refuse any module that has not reached `BackendSupported` for that solver. Running requires backend support; proposals retain their independent status and guarantee and make no certification claim.
 
 The planner takes an explicit UTC epoch and slot duration, plus one distinct exclusive `ResourceCapacity` without buffers per resource id. It ignores caller-supplied `AvailableSlots` without materializing intervening slots between activity windows and asks the shared runtime about each candidate's full interval and complete resource set. Runtime refusals propagate; an unavailable candidate is excluded. Pool and buffered bindings refuse rather than approximate the finite solver's exclusive-resource model. The calendar block retains all supply, occupancy, exception and buffer composition.
+
+Planner search exhaustion returns `Indeterminate` with `UNPINNED_AVAILABILITY_READS`, because runtime answers carry no fact version. A found assignment remains a proposal; commit re-reads availability (C8). DES-0022 open ruling 4, owned by proposal-and-certificate, defines the future fact-pinning contract. Direct finite profiles retain their existing complete-pinned-fact proof behavior. Definition-backed proposal IDs include tenant, schedule identity and exact version; profiles without a definition pin retain the legacy ID.

@@ -174,7 +174,7 @@ public sealed class DeterministicExhaustiveProofSolver : IPlanningSolver
         string reasonCode,
         IReadOnlyList<string>? incompleteFactSets = null) =>
         new(
-            $"{SolverId}:{problem.ProfileId}:{problem.InputVersion}:{status}",
+            AssignmentRules.ProposalId(SolverId, problem, status),
             problem.ProfileId,
             problem.InputVersion,
             SolverId,
@@ -268,7 +268,7 @@ public sealed class GreedyFirstFitSolver : IPlanningSolver
         int workUnits,
         string reasonCode) =>
         new(
-            $"{SolverId}:{problem.ProfileId}:{problem.InputVersion}:{status}",
+            AssignmentRules.ProposalId(SolverId, problem, status),
             problem.ProfileId,
             problem.InputVersion,
             SolverId,
@@ -282,11 +282,22 @@ public sealed class GreedyFirstFitSolver : IPlanningSolver
 
 internal static class AssignmentRules
 {
+    public static string ProposalId(string solverId, CompiledPlanningProblem problem, SolveStatus status)
+    {
+        var legacyId = $"{solverId}:{problem.ProfileId}:{problem.InputVersion}:{status}";
+        return problem.DefinitionPin is { } pin
+            ? $"{legacyId}:{Uri.EscapeDataString(pin.Tenant)}:{Uri.EscapeDataString(pin.DefinitionId)}:{Uri.EscapeDataString(pin.VersionId ?? "")}"
+            : legacyId;
+    }
+
     public static SchedulingProposal MeasureSolve(
         string solverId,
         CompiledPlanningProblem problem,
         Func<SchedulingProposal> solve)
     {
+        foreach (var module in problem.Modules)
+            if (module.Stage != ConstraintModuleStage.BackendSupported || !StringComparer.Ordinal.Equals(module.BackendId, solverId))
+                throw new UnsupportedProfileException($"MODULE_UNSUPPORTED: {module.Declaration.Module}; required: backend-supported admission for backend {solverId}.");
         var stopwatch = System.Diagnostics.Stopwatch.StartNew();
         var proposal = solve();
         stopwatch.Stop();
@@ -315,14 +326,14 @@ internal static class AssignmentRules
         {
             if (constraint.BeforeActivityId == candidate.ActivityId &&
                 assignments.TryGetValue(constraint.AfterActivityId, out var after) &&
-                candidate.EndSlotExclusive + constraint.MinimumGapSlots > after.StartSlot)
+                (long)candidate.EndSlotExclusive + constraint.MinimumGapSlots > after.StartSlot)
             {
                 return false;
             }
 
             if (constraint.AfterActivityId == candidate.ActivityId &&
                 assignments.TryGetValue(constraint.BeforeActivityId, out var before) &&
-                before.EndSlotExclusive + constraint.MinimumGapSlots > candidate.StartSlot)
+                (long)before.EndSlotExclusive + constraint.MinimumGapSlots > candidate.StartSlot)
             {
                 return false;
             }

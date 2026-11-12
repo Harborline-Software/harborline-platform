@@ -40,6 +40,7 @@ public sealed class ConstraintModuleAdmission
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow,
+        RespectRequiredConstructorParameters = true,
     };
     private ConstraintModuleAdmission(ScheduleConstraintModule declaration, ConstraintModuleStage stage,
         ConstraintModuleKind? kind = null, IReadOnlyList<PrecedenceConstraint>? precedence = null, string? backendId = null)
