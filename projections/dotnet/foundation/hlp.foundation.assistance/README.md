@@ -10,6 +10,8 @@ Undefined command classification tiers refuse as `definition.body_invalid` for t
 
 ## Runtime wire shapes (T-610)
 
+The digest covers the strictly validated envelope as received, including its command alias and unchanged arguments (M11, merged control #1373). `AssistanceDelegationJson.SerializeCanonical<T>` also provides canonical bytes for delegation, disposition and standing-approval records; the shared fixture pins these bytes alongside raw-JSON duplicate-name refusals in both lanes.
+
 `AssistanceDelegationJson.Deserialize<T>` and `SerializeCanonical<T>` validate `AssistanceProposalEnvelope`, `AssistanceDelegationRecord`, `AssistanceDisposition` and `AssistanceStandingApproval`. Unknown, duplicate, missing and invalid members refuse with `JsonException`. Use these codecs at the wire boundary, not an unconfigured `JsonSerializer`.
 
 - A proposal remains `{schema: "pilot.proposal/3", surface, command, args}`. Canonical UTF-8 sorts object names ordinally at every depth (RFC 8785 section 3.2.3), preserves array order and has no trailing newline. `AssistanceProposalDigest.Compute` returns `sha256:` followed by lowercase hex SHA-256.

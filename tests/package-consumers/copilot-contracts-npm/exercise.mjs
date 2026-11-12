@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { buildManifest, parseProposal, deserializeProposalEnvelope, serializeProposalCanonical, proposalDigest, parseDelegationRecord, parseDelegationDisposition, parseStandingApproval } from '@harborline-software/copilot-contracts'
+import { buildManifest, parseProposal, classifyProposal, assertDispatched, deserializeProposalEnvelope, serializeProposalCanonical, proposalDigest, parseDelegationRecord, parseDelegationDisposition, parseStandingApproval, deserializeDelegationRecord, deserializeDelegationDisposition, deserializeStandingApproval, serializeDelegationRecordCanonical, serializeDelegationDispositionCanonical, serializeStandingApprovalCanonical } from '@harborline-software/copilot-contracts'
 const specs=[{id:'draft.edit',summary:'Edit a draft',argsHint:'{}',argsSchema:x=>({ok:true,args:x}),classification:{tier:'ap'},undoable:true}]
 if (!parseProposal({schema:'pilot.proposal/3',surface:'forms.builder',command:'draft.edit',args:{}},'forms.builder',specs).ok) throw new Error('packed parser failed')
 if (!buildManifest('forms.builder',specs).includes('draft.edit')) throw new Error('packed manifest failed')
@@ -25,4 +25,16 @@ assert.throws(() => parseDelegationDisposition({ kind: 'hide' }))
 assert.throws(() => parseStandingApproval({ ...approval, expires_at: undefined }))
 assert.throws(() => parseStandingApproval({ ...approval, approver: undefined }))
 assert.throws(() => parseStandingApproval({ ...approval, scope: { surface: 'forms.builder', commands: [] } }))
+
+const alias = parseProposal({ ...proposal, command: 'draft.alias' }, 'forms.builder', [{ ...specs[0], aliases: ['draft.alias'] }])
+assert.equal(alias.ok, true)
+assert.equal(await proposalDigest(alias), 'sha256:84feac55b8b756a630a83b3b395b5ce58957a5c3b5a6e7b15e94a5a0d1befb7b')
+assert.equal(assertDispatched(classifyProposal(alias, 'form#1').receipt, 'form#1').command, 'draft.edit')
+assert.throws(() => deserializeDelegationRecord('{"subject":"mallory","subject":"alice","actor":null,"disposition":{"kind":"approve"}}'), { message: 'duplicate-wire-member' })
+assert.deepEqual(deserializeDelegationRecord(JSON.stringify(record)), record)
+assert.deepEqual(deserializeDelegationDisposition(JSON.stringify(standing)), standing)
+assert.deepEqual(deserializeStandingApproval(JSON.stringify(approval)), approval)
+assert.equal(serializeDelegationRecordCanonical({ subject: 'alice', actor: null, disposition: { kind: 'approve' } }), '{"actor":null,"disposition":{"kind":"approve"},"subject":"alice"}')
+assert.equal(serializeDelegationDispositionCanonical({ kind: 'dismiss' }), '{"kind":"dismiss"}')
+assert.equal(serializeStandingApprovalCanonical(approval), '{"approver":"alice","binding_key":"assistance.forms","expires_at":"2026-12-31T23:59:59Z","id":"approval-a","revoked_at":null,"schedule":"FREQ=WEEKLY;BYDAY=MO,WE","scope":{"commands":["draft.edit"],"surface":"forms.builder"}}')
 

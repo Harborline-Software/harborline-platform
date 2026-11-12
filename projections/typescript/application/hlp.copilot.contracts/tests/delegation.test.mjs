@@ -5,6 +5,28 @@ import * as contracts from '../dist/index.js'
 
 const cases = JSON.parse(readFileSync(new URL('../../../../../conformance/hlp.copilot/delegation-cases.json', import.meta.url), 'utf8'))
 
+test('pilot-ck-17 pilot-ck-19 pilot-ck-21: runtime shapes have cross-lane canonical bytes; oracle: hand-ordered RFC 8785 fixture literals', () => {
+  const codecs = {
+    delegation: [contracts.deserializeDelegationRecord, contracts.serializeDelegationRecordCanonical],
+    disposition: [contracts.deserializeDelegationDisposition, contracts.serializeDelegationDispositionCanonical],
+    standing: [contracts.deserializeStandingApproval, contracts.serializeStandingApprovalCanonical]
+  }
+  for (const item of cases.runtime_canonical) {
+    const [deserialize, serialize] = codecs[item.shape]
+    assert.equal(serialize(deserialize(item.json)), item.canonical)
+    assert.equal(serialize(deserialize(item.canonical)), item.canonical)
+  }
+})
+
+test('pilot-ck-15 pilot-ck-17 pilot-ck-19 pilot-ck-21: raw JSON refuses duplicate names before they disappear; oracle: RFC 7493 section 2.3 shared literals', () => {
+  const deserialize = { proposal: contracts.deserializeProposalEnvelope, delegation: contracts.deserializeDelegationRecord,
+    disposition: contracts.deserializeDelegationDisposition, standing: contracts.deserializeStandingApproval }
+  for (const item of cases.raw_json_cases) {
+    if (item.valid) assert.deepEqual(deserialize[item.shape](item.json), JSON.parse(item.json))
+    else assert.throws(() => deserialize[item.shape](item.json), { message: 'duplicate-wire-member' })
+  }
+})
+
 for (const envelope of cases.envelopes) {
   test(`pilot-ck-15 pilot-ck-18: ${envelope.name}; oracle: RFC 8785 fixture bytes and independent shasum literal`, async () => {
     assert.deepEqual(contracts.deserializeProposalEnvelope(JSON.stringify(envelope.value)), envelope.value)

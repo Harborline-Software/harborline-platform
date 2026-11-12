@@ -37,6 +37,21 @@
       "digest": "sha256:84feac55b8b756a630a83b3b395b5ce58957a5c3b5a6e7b15e94a5a0d1befb7b"
     }
   ],
+  "runtime_canonical": [
+    { "shape": "delegation", "json": "{\"subject\":\"alice\",\"actor\":null,\"disposition\":{\"kind\":\"approve\"}}", "canonical": "{\"actor\":null,\"disposition\":{\"kind\":\"approve\"},\"subject\":\"alice\"}" },
+    { "shape": "delegation", "json": "{\"subject\":\"alice\",\"actor\":{\"binding_key\":\"b\",\"binding_version\":\"1\",\"provider_id\":\"p\",\"model_version\":\"m\",\"proposal_digest\":\"sha256:84feac55b8b756a630a83b3b395b5ce58957a5c3b5a6e7b15e94a5a0d1befb7b\"},\"disposition\":{\"kind\":\"dismiss\"}}", "canonical": "{\"actor\":{\"binding_key\":\"b\",\"binding_version\":\"1\",\"model_version\":\"m\",\"proposal_digest\":\"sha256:84feac55b8b756a630a83b3b395b5ce58957a5c3b5a6e7b15e94a5a0d1befb7b\",\"provider_id\":\"p\"},\"disposition\":{\"kind\":\"dismiss\"},\"subject\":\"alice\"}" },
+    { "shape": "disposition", "json": "{\"kind\":\"standing\",\"approval_id\":\"a\",\"approver\":\"alice\",\"scope\":{\"surface\":\"s\",\"commands\":[\"c\"]},\"expires_at\":\"2026-12-31T23:59:59Z\"}", "canonical": "{\"approval_id\":\"a\",\"approver\":\"alice\",\"expires_at\":\"2026-12-31T23:59:59Z\",\"kind\":\"standing\",\"scope\":{\"commands\":[\"c\"],\"surface\":\"s\"}}" },
+    { "shape": "standing", "json": "{\"id\":\"a\",\"approver\":\"alice\",\"binding_key\":\"b\",\"scope\":{\"surface\":\"s\",\"commands\":[\"c\"]},\"schedule\":null,\"expires_at\":\"2026-12-31T23:59:59Z\",\"revoked_at\":null}", "canonical": "{\"approver\":\"alice\",\"binding_key\":\"b\",\"expires_at\":\"2026-12-31T23:59:59Z\",\"id\":\"a\",\"revoked_at\":null,\"schedule\":null,\"scope\":{\"commands\":[\"c\"],\"surface\":\"s\"}}" }
+  ],
+  "raw_json_cases": [
+    { "shape": "delegation", "json": "{\"subject\":\"mallory\",\"subject\":\"alice\",\"actor\":null,\"disposition\":{\"kind\":\"approve\"}}", "valid": false },
+    { "shape": "delegation", "json": "{\"subject\":\"mallory\",\"subj\\u0065ct\":\"alice\",\"actor\":null,\"disposition\":{\"kind\":\"approve\"}}", "valid": false },
+    { "shape": "disposition", "json": "{\"kind\":\"reject\",\"kind\":\"approve\"}", "valid": false },
+    { "shape": "standing", "json": "{\"id\":\"a\",\"approver\":\"mallory\",\"approver\":\"alice\",\"binding_key\":\"b\",\"scope\":{\"surface\":\"s\",\"commands\":[\"c\"]},\"schedule\":null,\"expires_at\":\"2026-12-31T23:59:59Z\",\"revoked_at\":null}", "valid": false },
+    { "shape": "proposal", "json": "{\"schema\":\"pilot.proposal/3\",\"surface\":\"s\",\"command\":\"c\",\"args\":{\"nested\":[{\"x\":1,\"x\":2}]}}", "valid": false },
+    { "shape": "proposal", "json": "{\"schema\":\"pilot.proposal/3\",\"surface\":\"s\",\"command\":\"c\",\"args\":{\"x\":1,\"\\u0078\":2}}", "valid": false },
+    { "shape": "proposal", "json": "{\"schema\":\"pilot.proposal/3\",\"surface\":\"s\",\"command\":\"c\",\"args\":[{\"x\":1},{\"x\":2,\"text\":\"\\\"x\\\":{[]}\"}]}", "valid": true }
+  ],
   "integer_refusals": [
     { "args": "9007199254740992", "refusal": "args-integer-out-of-range" },
     { "args": "9007199254740993", "refusal": "args-integer-out-of-range" },

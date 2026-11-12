@@ -1,6 +1,6 @@
 import type { CommandSpec, ProposalDisposition, ProposalEnvelope } from './types.js'
 import { freezeArgs, mintReceipt, type MintInput } from './receipt.js'
-import { serializeProposalCanonical } from './delegation.js'
+import { deserializeProposalEnvelope, serializeProposalCanonical } from './delegation.js'
 export const PILOT_PROPOSAL_SCHEMA = 'pilot.proposal/3' as const
 export type ProposalRejectCode = 'not-object' | 'missing-schema' | 'unsupported-schema' | 'missing-surface' | 'unknown-surface' | 'unknown-command' | 'invalid-args'
 export type ParseOk = { ok: true; proposal: ProposalEnvelope; received: ProposalEnvelope; spec: CommandSpec }
@@ -71,5 +71,9 @@ export class ProposalTextSplitter {
 export function parseJsonObject(text: string): unknown | null {
   const body = text.match(/```(?:json)?\s*([\s\S]*?)```/i)?.[1] ?? text
   const a = body.indexOf('{'), b = body.lastIndexOf('}'); if (a < 0 || b <= a) return null
-  try { return JSON.parse(body.slice(a, b + 1)) as unknown } catch { return null }
+  try {
+    const json = body.slice(a, b + 1)
+    const value: unknown = JSON.parse(json)
+    return object(value) && value.schema === PILOT_PROPOSAL_SCHEMA ? deserializeProposalEnvelope(json) : value
+  } catch { return null }
 }

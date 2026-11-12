@@ -89,9 +89,57 @@ function instant(value: unknown): string {
 }
 
 export function deserializeProposalEnvelope(json: string): ProposalEnvelope {
-  const proposal = JSON.parse(json) as ProposalEnvelope
+  const proposal = parseWireJson(json) as ProposalEnvelope
   serializeProposalCanonical(proposal)
   return freezeArgs(proposal) as ProposalEnvelope
+}
+
+export function deserializeDelegationRecord(json: string): DelegationRecord {
+  return parseDelegationRecord(parseWireJson(json))
+}
+
+export function deserializeDelegationDisposition(json: string): DelegationDisposition {
+  return parseDelegationDisposition(parseWireJson(json))
+}
+
+export function deserializeStandingApproval(json: string): StandingApproval {
+  return parseStandingApproval(parseWireJson(json))
+}
+
+export function serializeDelegationRecordCanonical(record: DelegationRecord): string {
+  return canonical(parseDelegationRecord(record))
+}
+
+export function serializeDelegationDispositionCanonical(disposition: DelegationDisposition): string {
+  return canonical(parseDelegationDisposition(disposition))
+}
+
+export function serializeStandingApprovalCanonical(approval: StandingApproval): string {
+  return canonical(parseStandingApproval(approval))
+}
+
+function parseWireJson(json: string): unknown {
+  const value: unknown = JSON.parse(json)
+  const open: Array<Set<string> | null> = []
+  for (let index = 0; index < json.length; index++) {
+    const unit = json.charCodeAt(index)
+    if (unit === 0x7b) open.push(new Set())
+    else if (unit === 0x5b) open.push(null)
+    else if (unit === 0x7d || unit === 0x5d) open.pop()
+    else if (unit === 0x22) {
+      const start = index
+      for (index++; json.charCodeAt(index) !== 0x22; index++) if (json.charCodeAt(index) === 0x5c) index++
+      const names = open[open.length - 1]
+      if (!names) continue
+      let next = index + 1
+      while (/[ \t\n\r]/.test(json[next] ?? '')) next++
+      if (json[next] !== ':') continue
+      const name = JSON.parse(json.slice(start, index + 1)) as string
+      if (names.has(name)) throw new TypeError('duplicate-wire-member')
+      names.add(name)
+    }
+  }
+  return value
 }
 
 export function serializeProposalCanonical(proposal: ProposalEnvelope): string {

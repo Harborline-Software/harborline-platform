@@ -10,6 +10,45 @@ public sealed class AssistanceDelegationTests
 {
     private static JsonNode Fixture() => JsonNode.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "delegation-cases.json")))!;
 
+    [Fact(DisplayName = "pilot-ck-17 pilot-ck-19 pilot-ck-21: runtime shapes have cross-lane canonical bytes; oracle: hand-ordered RFC 8785 fixture literals")]
+    public void Runtime_shapes_match_canonical_byte_literals()
+    {
+        foreach (var item in Fixture()["runtime_canonical"]!.AsArray())
+        {
+            var expected = Encoding.UTF8.GetBytes(item!["canonical"]!.GetValue<string>());
+            foreach (var json in new[] { item["json"]!.GetValue<string>(), item["canonical"]!.GetValue<string>() })
+            {
+                var actual = item["shape"]!.GetValue<string>() switch
+                {
+                    "delegation" => AssistanceDelegationJson.SerializeCanonical(AssistanceDelegationJson.Deserialize<AssistanceDelegationRecord>(json)),
+                    "disposition" => AssistanceDelegationJson.SerializeCanonical(AssistanceDelegationJson.Deserialize<AssistanceDisposition>(json)),
+                    "standing" => AssistanceDelegationJson.SerializeCanonical(AssistanceDelegationJson.Deserialize<AssistanceStandingApproval>(json)),
+                    _ => throw new InvalidOperationException("Unknown fixture shape."),
+                };
+                Assert.Equal(expected, actual);
+            }
+        }
+    }
+
+    [Fact(DisplayName = "pilot-ck-15 pilot-ck-17 pilot-ck-19 pilot-ck-21: raw JSON duplicate names refuse; oracle: RFC 7493 section 2.3 shared literals")]
+    public void Raw_json_preserves_duplicate_name_refusals()
+    {
+        foreach (var item in Fixture()["raw_json_cases"]!.AsArray())
+        {
+            var json = item!["json"]!.GetValue<string>();
+            Action deserialize = item["shape"]!.GetValue<string>() switch
+            {
+                "proposal" => () => AssistanceDelegationJson.Deserialize<AssistanceProposalEnvelope>(json),
+                "delegation" => () => AssistanceDelegationJson.Deserialize<AssistanceDelegationRecord>(json),
+                "disposition" => () => AssistanceDelegationJson.Deserialize<AssistanceDisposition>(json),
+                "standing" => () => AssistanceDelegationJson.Deserialize<AssistanceStandingApproval>(json),
+                _ => throw new InvalidOperationException("Unknown fixture shape."),
+            };
+            if (item["valid"]!.GetValue<bool>()) deserialize();
+            else Assert.Throws<JsonException>(deserialize);
+        }
+    }
+
     [Fact(DisplayName = "pilot-ck-15 pilot-ck-18: canonical bytes and digest; oracle: RFC 8785 fixture bytes and independent shasum literals")]
     public void Proposal_canonical_bytes_and_digest_match_the_shared_oracle()
     {

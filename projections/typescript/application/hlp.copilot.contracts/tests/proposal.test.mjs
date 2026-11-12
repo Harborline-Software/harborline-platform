@@ -1,6 +1,6 @@
 import test from 'node:test'; import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { assertDispatched, buildManifest, classifyProposal, parseProposal, proposalDigest, ProposalTextSplitter } from '../dist/index.js'
+import { assertDispatched, buildManifest, classifyProposal, parseJsonObject, parseProposal, proposalDigest, ProposalTextSplitter } from '../dist/index.js'
 const schema = raw => raw && typeof raw === 'object' && !Array.isArray(raw) ? { ok: true, args: raw } : { ok: false, code: 'object' }
 const specs = [
   { id:'draft.edit', summary:'edit', argsHint:'{}', argsSchema:schema, classification:{tier:'ap'}, undoable:true },
@@ -59,4 +59,8 @@ test('pilot-ck-15 pilot-ck-16: invalid wire envelopes never reach a permissive c
     assert.deepEqual(parseProposal(raw, 'forms.builder', permissive), { ok: false, code: 'invalid-args' })
   }
   assert.equal(calls, 0)
+})
+
+test('pilot-ck-15: provider JSON cannot erase duplicate args before parse; oracle: RFC 7493 section 2.3', () => {
+  assert.equal(parseJsonObject('{"schema":"pilot.proposal/3","surface":"forms.builder","command":"draft.edit","args":{"x":1,"x":2}}'), null)
 })

@@ -10,6 +10,12 @@ Applications implement `PilotEffectAdapter`; see the ticket draft’s top-level 
 
 `deserializeProposalEnvelope(string)` validates the wire envelope and returns a detached snapshot without resolving aliases or classifying commands. Per the M11 2026-11-12 ruling and RFC 7493 section 2.2, integers anywhere in `args` must be between `-9007199254740991` and `9007199254740991`. Deserialization, serialization and digesting refuse larger integers with `args-integer-out-of-range`. Larger values must travel as schema-admitted strings, never coerced arguments.
 
+`parseProposal` validates that same strict wire shape before invoking the catalogue argument schema. A successful `ParseOk` keeps a deeply frozen `received` envelope beside the unchanged catalogue-resolved `proposal` snapshot used to mint receipts. `proposalDigest(result)` (or `proposalDigest(result.received)`) hashes the received alias and arguments, not the resolved command id (M11, merged control #1373).
+
+For JSON text, use `deserializeDelegationRecord`, `deserializeDelegationDisposition` and `deserializeStandingApproval`. All four text deserializers refuse duplicate member names, including escaped and nested duplicates, with `duplicate-wire-member` before an object validator can lose them. The `parse…(unknown)` functions validate already-parsed values; they cannot recover duplicates erased by an earlier `JSON.parse`.
+
+`serializeDelegationRecordCanonical`, `serializeDelegationDispositionCanonical` and `serializeStandingApprovalCanonical` validate their wire values and emit the same RFC 8785-ordered JSON bytes as the .NET codec, including hand-performed records with `actor: null`.
+
 `parseDelegationRecord(unknown)`, `parseDelegationDisposition(unknown)` and `parseStandingApproval(unknown)` refuse missing, extra or invalid members and return detached wire values:
 
 - `DelegationRecord`: `{subject, actor, disposition}`. Actor is null for a hand-performed act, otherwise exactly `{binding_key, binding_version, provider_id, model_version, proposal_digest}`. No proposal content or context is an actor member.
