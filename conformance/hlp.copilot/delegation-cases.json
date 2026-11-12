@@ -1,0 +1,22 @@
+{
+  "oracle": "Canonical JSON transcribed from RFC 8785 section 3.2.3 and pilot-ck-15; digest literals computed independently with printf '%s' '<canonical>' | shasum -a 256, without a trailing newline.",
+  "envelopes": [
+    {
+      "name": "nested objects, ordered arrays, ordinal numeric keys and UTF-8",
+      "value": {
+        "schema": "pilot.proposal/3",
+        "surface": "forms.builder",
+        "command": "draft.edit",
+        "args": { "label": "café <&>", "items": [{ "z": null, "a": true }, [3, 2, 1]], "2": "two", "10": "ten" }
+      },
+      "canonical": "{\"args\":{\"10\":\"ten\",\"2\":\"two\",\"items\":[{\"a\":true,\"z\":null},[3,2,1]],\"label\":\"café <&>\"},\"command\":\"draft.edit\",\"schema\":\"pilot.proposal/3\",\"surface\":\"forms.builder\"}",
+      "digest": "sha256:52b37c016567d4f433f827bcd50db4248ac4855e7fec27b4ef4b10adbaaa967b"
+    },
+    {
+      "name": "empty arguments",
+      "value": { "command": "draft.edit", "args": {}, "surface": "forms.builder", "schema": "pilot.proposal/3" },
+      "canonical": "{\"args\":{},\"command\":\"draft.edit\",\"schema\":\"pilot.proposal/3\",\"surface\":\"forms.builder\"}",
+      "digest": "sha256:e9090668397c0ecf3bb91cd8bff3a980aa81b3d5755148a6c4566172d95b0aea"
+    }
+  ]
+}
