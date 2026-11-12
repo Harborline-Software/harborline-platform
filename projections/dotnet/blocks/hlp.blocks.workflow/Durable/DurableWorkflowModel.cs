@@ -50,6 +50,9 @@ public sealed class WorkflowInstanceRecord
     /// <summary>Monotonic migration generation used to fence in-flight dispatch.</summary>
     public long MigrationGeneration { get; set; }
 
+    /// <summary>Monotonic journal generation for conditional migration commits.</summary>
+    public long StoreGeneration { get; set; }
+
     /// <summary>
     /// The instance's CURRENT iteration counter (ADR 0135 A0 — real iteration). The
     /// <see cref="WorkflowStepKey"/> for an advancing step is derived from THIS value, so a step that

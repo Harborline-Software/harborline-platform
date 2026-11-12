@@ -239,7 +239,7 @@ public sealed class FileJournalWorkflowStore : IWorkflowMigrationStore, IDisposa
             if (!_instances.TryGetValue(expected.Id, out var current)
                 || current.DefinitionVersion != expected.DefinitionVersion || current.CurrentStep != expected.CurrentStep
                 || current.Iteration != expected.Iteration || current.Status != expected.Status || current.UpdatedAt != expected.UpdatedAt
-                || current.MigrationGeneration != expected.MigrationGeneration)
+                || current.MigrationGeneration != expected.MigrationGeneration || current.StoreGeneration != expected.StoreGeneration)
                 throw new InvalidOperationException("Workflow instance changed during migration.");
             var now = _clock.GetUtcNow();
             var dto = new MigrationDto(expected.Id, targetVersion, targetStep,
@@ -456,6 +456,7 @@ public sealed class FileJournalWorkflowStore : IWorkflowMigrationStore, IDisposa
         }
         instance.CurrentStep = dto.NextStep;
         instance.Status = (WorkflowStatus)dto.NextStatus;
+        instance.StoreGeneration++;
         instance.UpdatedAt = Parse(dto.At);
     }
 
@@ -466,6 +467,7 @@ public sealed class FileJournalWorkflowStore : IWorkflowMigrationStore, IDisposa
         _events.Add(FromDto(dto.Event));
         instance.CurrentStep = dto.Step;
         instance.Status = WorkflowStatus.Parked;
+        instance.StoreGeneration++;
         // The durable iteration counter (ADR 0135 A0): persisted with the park, read back verbatim
         // on resume — never recomputed (bug-1337 class).
         instance.Iteration = dto.Iteration;
@@ -481,6 +483,7 @@ public sealed class FileJournalWorkflowStore : IWorkflowMigrationStore, IDisposa
         instance.CurrentStep = dto.TargetStep;
         instance.HasMigrated = true;
         instance.MigrationGeneration++;
+        instance.StoreGeneration++;
         instance.UpdatedAt = Parse(dto.At);
     }
 
@@ -503,6 +506,7 @@ public sealed class FileJournalWorkflowStore : IWorkflowMigrationStore, IDisposa
         CurrentStep = source.CurrentStep,
         HasMigrated = source.HasMigrated,
         MigrationGeneration = source.MigrationGeneration,
+        StoreGeneration = source.StoreGeneration,
         Iteration = source.Iteration,
         Status = source.Status,
         StateJson = source.StateJson,

@@ -8,6 +8,48 @@ namespace Harborline.Blocks.Workflow.Tests;
 public sealed class WorkflowMigrationTests
 {
     [Fact]
+    public async Task Migration_refuses_if_the_instance_changes_while_the_target_is_loaded_even_at_the_same_clock_instant()
+    {
+        using var fixture = new JournalFixture();
+        using var store = fixture.Open(new FixedClock());
+        await store.CreateInstanceAsync(new WorkflowInstanceRecord
+        {
+            Id = "run-1", TenantId = "tenant-1", DefinitionKey = "flow", DefinitionVersion = "1.0.0",
+            CurrentStep = "old", Status = WorkflowStatus.Parked, UpdatedAt = DateTimeOffset.Parse("2026-11-12T12:00:00Z"),
+        });
+        var definitions = new PausedDefinitions();
+        var migrating = new WorkflowMigration(store, definitions).MigrateAsync("run-1", "2.0.0",
+            new Dictionary<string, string> { ["old"] = "new" },
+            new WorkflowMigrationAuthority("operator-1", "tenant-1", "workflow:migrate", "workflow-instance", "run-1", true));
+        await definitions.Entered.Task;
+        await store.ParkAsync("run-1", "old", "{}");
+        definitions.Continue.SetResult();
+        await Assert.ThrowsAsync<InvalidOperationException>(() => migrating);
+        Assert.Equal("1.0.0", (await store.LoadAsync("run-1"))!.DefinitionVersion);
+        Assert.Equal("old", (await store.LoadAsync("run-1"))!.CurrentStep);
+        Assert.Equal("Parked", Assert.Single(await store.EventsAsync("run-1")).EventType);
+    }
+
+    private sealed class FixedClock : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow() => DateTimeOffset.Parse("2026-11-12T12:00:00Z");
+    }
+
+    private sealed class PausedDefinitions : IWorkflowDefinitionExecutionStore
+    {
+        public TaskCompletionSource Entered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public TaskCompletionSource Continue { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public ValueTask<WorkflowDefinitionRecord?> GetAdmittedCurrentPublishedAsync(string tenant, string key, CancellationToken ct = default)
+            => throw new NotSupportedException();
+        public async ValueTask<WorkflowDefinitionRecord> GetAdmittedAsync(string tenant, string key, string version, CancellationToken ct = default)
+        {
+            Entered.SetResult();
+            await Continue.Task;
+            return await new Definitions().GetAdmittedAsync(tenant, key, version, ct);
+        }
+    }
+
+    [Fact]
     public async Task Migration_requires_another_version_without_moving_or_recording()
     {
         using var fixture = new JournalFixture();
