@@ -1803,7 +1803,9 @@ public sealed class InMemoryContentStore
                         toKey = OpenEpoch(tenant, subkey, to);
                     }
 
-                    foreach (var item in items)
+                    // Match attachment writes: staged ids first, then committed content ids, both ordinal.
+                    foreach (var item in items.OrderBy(item => item.State != ContentLifecycleState.Staged)
+                        .ThenBy(item => item.State == ContentLifecycleState.Staged ? item.StageId.ToString("N") : item.ContentId.Value, StringComparer.Ordinal))
                     {
                         // The row is held before its wrap is opened: the listing is a snapshot, and a removal that committed since then zeroed that wrap.
                         var held = item.State == ContentLifecycleState.Staged

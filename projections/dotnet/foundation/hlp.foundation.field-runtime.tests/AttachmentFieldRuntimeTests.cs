@@ -209,20 +209,62 @@ public sealed class AttachmentFieldRuntimeTests
         Assert.Equal(0, f.Store.CommittedCount);
     }
 
-    // Meets its partner after its first committed-row lock, so a lock-order inversion deadlocks deterministically; a
+    [Fact]
+    public async Task Attachment_promotion_and_epoch_rewrap_lock_stages_in_the_same_order()
+    {
+        var f = new Fixture();
+        var a = await f.Upload("one");
+        var b = await f.Upload("two");
+        var rotation = await f.Store.RotateEpochAsync(new("tenant"), Evidence());
+        var entries = JsonSerializer.SerializeToElement(new[] {
+            new { stage_id = a, display_name = "one.txt" },
+            new { stage_id = b, display_name = "two.txt" } });
+        var writer = new RendezvousPort(f.Storage.Bookkeeping);
+        var rewrap = new RendezvousPort(f.Storage.Bookkeeping);
+        (writer.Partner, rewrap.Partner) = (rewrap, writer);
+        writer.LockMethod = rewrap.LockMethod = "FindStagedForUpdateAsync";
+        rewrap.ReverseEpochListing = true;
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        var write = KernelTransactionBoundary.ExecutePreparedAsync(async token =>
+            new KernelCommand<JsonArray>(Evidence().Operation,
+                await f.Runtime.ResolveWriteAsync(f.Field, entries, new("tenant"), new("record", "evidence"), Evidence(writer.Session), token),
+                Evidence().Audit), writer, timeout.Token).AsTask();
+        var move = KernelTransactionBoundary.ExecutePreparedAsync(async token =>
+        {
+            await f.Store.RewrapEpochAsync(new("tenant"), rotation.From!.Value, rotation.To, 10, Evidence(rewrap.Session), token);
+            return new KernelCommand<JsonArray>(Evidence().Operation, new(), Evidence().Audit);
+        }, rewrap, timeout.Token).AsTask();
+
+        var results = await Task.WhenAll(write, move).WaitAsync(TimeSpan.FromSeconds(20));
+        Assert.All(results, result => Assert.True(result.Committed));
+        Assert.Equal(2, f.Store.CommittedCount);
+        Assert.Equal(0, f.Store.StagedCount);
+        await using var read = await f.Storage.Bookkeeping.BeginTransactionAsync();
+        var references = await read.ItemsUnderEpochAsync(new("tenant"), rotation.To, 10);
+        Assert.Equal(2, references.Count);
+        Assert.All(references, item => Assert.Equal(rotation.To, item.EpochId));
+    }
+
+    // Meets its partner after its first selected row lock, so a lock-order inversion deadlocks deterministically; a
     // transaction whose partner is blocked waits out the bound and carries on.
     public class RendezvousSession : DispatchProxy
     {
         public IContentBookkeepingSession Inner { get; set; } = null!;
         public TaskCompletionSource Arrived { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public RendezvousSession Partner { get; set; } = null!;
+        public string LockMethod { get; set; } = "FindItemForUpdateAsync";
+        public bool ReverseEpochListing { get; set; }
         private int met;
         protected override object? Invoke(MethodInfo? targetMethod, object?[]? args)
         {
             var result = targetMethod!.Invoke(Inner, args);
-            if (targetMethod.Name != "FindItemForUpdateAsync" || Interlocked.Exchange(ref met, 1) == 1) return result;
+            if (targetMethod.Name == "ItemsUnderEpochAsync" && ReverseEpochListing)
+                return Reverse((ValueTask<IReadOnlyList<ContentStoreItem>>)result!);
+            if (targetMethod.Name != LockMethod || Interlocked.Exchange(ref met, 1) == 1) return result;
             return Meet((ValueTask<ContentStoreItem?>)result!);
         }
+        private static async ValueTask<IReadOnlyList<ContentStoreItem>> Reverse(ValueTask<IReadOnlyList<ContentStoreItem>> operation)
+            => (await operation.ConfigureAwait(false)).OrderByDescending(item => item.StageId.ToString("N"), StringComparer.Ordinal).ToArray();
         private async ValueTask<ContentStoreItem?> Meet(ValueTask<ContentStoreItem?> operation)
         {
             var item = await operation.ConfigureAwait(false);
@@ -237,6 +279,8 @@ public sealed class AttachmentFieldRuntimeTests
     {
         private readonly RendezvousSession proxy = (RendezvousSession)(object)DispatchProxy.Create<IContentBookkeepingSession, RendezvousSession>();
         public RendezvousPort Partner { set => proxy.Partner = value.proxy; }
+        public string LockMethod { set => proxy.LockMethod = value; }
+        public bool ReverseEpochListing { set => proxy.ReverseEpochListing = value; }
         public IContentBookkeepingSession Session => (IContentBookkeepingSession)(object)proxy;
         public async ValueTask<IKernelPreparedTransaction<JsonArray, bool>> BeginAsync(CancellationToken cancellationToken = default)
         {
