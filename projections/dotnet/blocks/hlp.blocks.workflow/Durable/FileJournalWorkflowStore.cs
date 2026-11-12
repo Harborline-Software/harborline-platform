@@ -206,6 +206,26 @@ public sealed class FileJournalWorkflowStore : IWorkflowStore, IDisposable
         finally { _gate.Release(); }
     }
 
+    /// <inheritdoc />
+    public async Task MigrateAsync(WorkflowInstanceRecord expected, string targetVersion, string targetStep,
+        string eventDataJson, CancellationToken ct = default)
+    {
+        await EnterAsync(ct).ConfigureAwait(false);
+        try
+        {
+            if (!_instances.TryGetValue(expected.Id, out var current)
+                || current.DefinitionVersion != expected.DefinitionVersion || current.CurrentStep != expected.CurrentStep
+                || current.Iteration != expected.Iteration || current.Status != expected.Status || current.UpdatedAt != expected.UpdatedAt)
+                throw new InvalidOperationException("Workflow instance changed during migration.");
+            var now = _clock.GetUtcNow();
+            var dto = new MigrationDto(expected.Id, targetVersion, targetStep,
+                new EventDto(expected.Id, NextSeq(expected.Id), expected.CurrentStep, "Migrated", eventDataJson, Format(now)), Format(now));
+            await AppendAsync(JournalRecordType.Migrated, dto, ct).ConfigureAwait(false);
+            ApplyMigration(dto);
+        }
+        finally { _gate.Release(); }
+    }
+
     /// <summary>The append-only per-instance event log (monotonic Seq), for durable-history proofs.</summary>
     public async Task<IReadOnlyList<WorkflowEventRecord>> EventsAsync(string instanceId, CancellationToken ct = default)
     {
@@ -374,6 +394,9 @@ public sealed class FileJournalWorkflowStore : IWorkflowStore, IDisposable
             case JournalRecordType.Parked:
                 ApplyPark(Deserialize<ParkDto>(payload));
                 break;
+            case JournalRecordType.Migrated:
+                ApplyMigration(Deserialize<MigrationDto>(payload));
+                break;
             default:
                 throw new InvalidDataException("The workflow journal record type is unsupported.");
         }
@@ -422,6 +445,16 @@ public sealed class FileJournalWorkflowStore : IWorkflowStore, IDisposable
         // The durable iteration counter (ADR 0135 A0): persisted with the park, read back verbatim
         // on resume — never recomputed (bug-1337 class).
         instance.Iteration = dto.Iteration;
+        instance.UpdatedAt = Parse(dto.At);
+    }
+
+    private void ApplyMigration(MigrationDto dto)
+    {
+        if (!_instances.TryGetValue(dto.InstanceId, out var instance))
+            throw new InvalidDataException("Migration record names no existing instance.");
+        _events.Add(FromDto(dto.Event));
+        instance.DefinitionVersion = dto.TargetVersion;
+        instance.CurrentStep = dto.TargetStep;
         instance.UpdatedAt = Parse(dto.At);
     }
 
@@ -487,11 +520,12 @@ public sealed class FileJournalWorkflowStore : IWorkflowStore, IDisposable
     private static string Format(DateTimeOffset value) => value.ToString("O", CultureInfo.InvariantCulture);
     private static DateTimeOffset Parse(string value) => DateTimeOffset.ParseExact(value, "O", CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind);
 
-    private enum JournalRecordType : byte { InstanceCreated = 1, Advanced = 2, Parked = 3 }
+    private enum JournalRecordType : byte { InstanceCreated = 1, Advanced = 2, Parked = 3, Migrated = 4 }
     private sealed record InstanceDto(string Id, string TenantId, string DefinitionKey, string DefinitionVersion, string CurrentStep, int Iteration, int Status, string StateJson, string CreatedAt, string UpdatedAt, WorkflowSubjectRecordReference? SubjectRecord = null);
     private sealed record EventDto(string InstanceId, long Seq, string Step, string EventType, string DataJson, string At);
     private sealed record AdvanceDto(string InstanceId, int Iteration, string Step, string Key, string[] EffectPayloads, string ResultJson, EventDto Event, string NextStep, int NextStatus, string At);
     private sealed record ParkDto(string InstanceId, string Step, int Iteration, EventDto Event, string At);
+    private sealed record MigrationDto(string InstanceId, string TargetVersion, string TargetStep, EventDto Event, string At);
 }
 
 /// <summary>DI registration for the durable file-journal workflow store.</summary>

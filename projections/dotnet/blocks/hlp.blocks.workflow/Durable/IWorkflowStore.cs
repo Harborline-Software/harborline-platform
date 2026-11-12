@@ -25,6 +25,11 @@ namespace Harborline.Blocks.Workflow.Durable;
 /// </remarks>
 public interface IWorkflowStore
 {
+    /// <summary>Atomically re-pins an unchanged instance and records the migration.</summary>
+    Task MigrateAsync(WorkflowInstanceRecord expected, string targetVersion, string targetStep,
+        string eventDataJson, CancellationToken ct = default)
+        => throw new NotSupportedException("This workflow store does not support migration.");
+
     /// <summary>Loads an instance by id, or <see langword="null"/> if unknown.</summary>
     Task<WorkflowInstanceRecord?> LoadAsync(string instanceId, CancellationToken ct = default);
 
