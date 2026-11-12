@@ -35,5 +35,6 @@
   </ItemGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Harborline.Blocks.BuilderDefinitions.Tests" />
+    <InternalsVisibleTo Include="Harborline.Blocks.Scheduling" />
   </ItemGroup>
 </Project>
