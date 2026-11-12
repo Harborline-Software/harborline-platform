@@ -1443,7 +1443,8 @@ public sealed class RecordWriteOperation
 
         // Every required_condition (records-ck-8) is evaluated after every attachment resolved, against the final candidate:
         // a condition never reads a later field's staged entries. An attachment field needs a non-empty list
-        // (field.evidence_required); any other field needs a present, non-null, non-empty value (field.required).
+        // (field.evidence_required); any other field needs a value under the shared runtime's absence rule, the same one
+        // Required uses: undefined, null and an empty list are absent, any other value (an empty string too) is present.
         foreach (var field in definition.Fields)
         {
             if (field.RequiredCondition is not { } condition) continue;
