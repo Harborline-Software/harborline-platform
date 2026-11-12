@@ -46,6 +46,13 @@ public sealed record RulesFieldBinding(string Key, string Label);
 /// <summary>The shared catalogue of ordinary editable Rules drafts.</summary>
 public sealed record RulesRuleCatalogue(IReadOnlyList<RulesDraft> Rules);
 
+/// <summary>A host-supplied producer lineage result, refreshed when drafts change.</summary>
+public sealed record RulesLineageView(IReadOnlyDictionary<string, IReadOnlyList<string>> ConsumersOf, IReadOnlyDictionary<string, IReadOnlyList<string>> CalculationsReadBy, IReadOnlyList<string> DeadWeight)
+{
+    /// <summary>Wraps the producer result without recalculating lineage.</summary>
+    public static RulesLineageView From(RulesLineage lineage) => new(lineage.ConsumersOf, lineage.CalculationsReadBy, lineage.DeadWeight);
+}
+
 /// <summary>The outcome of a rules operation or test: kind, input, clock, value, code and rule or member involved.</summary>
 public sealed record RulesOutcome(string Kind, string InputLabel, string ClockUtc, string? Value = null, string? Code = null, string? RuleName = null, string? MemberName = null, string? RequestId = null, string? Identity = null, string? ExpectedRevision = null, int? Generation = null, string? Validity = null, string? Visibility = null, string? Presentation = null);
 /// <summary>A request to run an operation on a rules draft, with the identity, expected revision and generation.</summary>
