@@ -24,9 +24,9 @@
     "dist/style.css"
   ],
   "dependencies": {
-    "@radix-ui/react-slot": "1.3.3",
+    "@radix-ui/react-slot": "1.5.0",
     "clsx": "2.1.1",
-    "tailwind-merge": "3.6.0"
+    "tailwind-merge": "3.7.0"
   },
   "peerDependencies": {
     "@harborline-software/contracts": "0.0.0-alpha.0",
@@ -135,19 +135,19 @@
     "test:scheduler": "vitest run --config ../hlp.ui.scheduler/vitest.config.ts --root ../hlp.ui.scheduler -t \"^(?!.*\\[PerfBudget\\])\""
   },
   "devDependencies": {
-    "@stryker-mutator/core": "10.0.0",
-    "@stryker-mutator/vitest-runner": "10.0.0",
-    "@testing-library/dom": "10.4.1",
+    "@stryker-mutator/core": "10.1.1",
+    "@stryker-mutator/vitest-runner": "10.1.1",
+    "@testing-library/dom": "10.4.2",
     "@testing-library/jest-dom": "6.9.1",
-    "@testing-library/react": "16.3.2",
-    "@testing-library/user-event": "14.6.3",
-    "@types/node": "24.13.3",
-    "@types/react": "19.2.18",
-    "@types/react-dom": "19.2.4",
-    "esbuild": "0.28.1",
+    "@testing-library/react": "16.3.3",
+    "@testing-library/user-event": "14.6.9",
+    "@types/node": "24.19.2",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "esbuild": "0.28.2",
     "jsdom": "29.1.1",
-    "react": "19.2.8",
-    "react-dom": "19.2.8",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
     "typescript": "5.9.3",
     "vitest": "4.1.12"
   },

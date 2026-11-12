@@ -1,3 +1,4 @@
+using Harborline.Foundation.Scheduling.Models;
 using Harborline.Foundation.Assets.Common;
 
 namespace Harborline.Blocks.Calendar.Models;

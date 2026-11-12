@@ -1,4 +1,4 @@
-namespace Harborline.Blocks.Calendar.Models;
+namespace Harborline.Foundation.Scheduling.Models;
 
 /// <summary>
 /// The two capacity kinds (ADR 0052; DES-0033 guarantee 4). <see cref="Exclusive"/>: two overlapping

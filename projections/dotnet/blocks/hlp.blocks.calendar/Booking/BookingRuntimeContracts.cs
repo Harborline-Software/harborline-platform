@@ -1,3 +1,4 @@
+using Harborline.Foundation.Scheduling.Models;
 using Harborline.Blocks.Calendar.Models;
 
 namespace Harborline.Blocks.Calendar.Booking;

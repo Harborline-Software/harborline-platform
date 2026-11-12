@@ -1,3 +1,5 @@
+using Harborline.Foundation.Scheduling.Services;
+using Harborline.Foundation.Scheduling.Models;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Harborline.Blocks.Calendar.Models;

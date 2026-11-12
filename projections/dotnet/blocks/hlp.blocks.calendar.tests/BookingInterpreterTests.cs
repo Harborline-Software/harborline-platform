@@ -1,3 +1,5 @@
+using Harborline.Foundation.Scheduling.Services;
+using Harborline.Foundation.Scheduling.Models;
 using System.Text.Json.Nodes;
 using Harborline.Blocks.BuilderDefinitions;
 using Harborline.Blocks.Calendar.Booking;

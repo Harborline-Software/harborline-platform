@@ -1,4 +1,4 @@
-namespace Harborline.Blocks.Calendar.Models;
+namespace Harborline.Foundation.Scheduling.Models;
 
 /// <summary>Why one resource cannot hold the requested window; <see cref="None"/> when it can.</summary>
 public enum Unavailability
