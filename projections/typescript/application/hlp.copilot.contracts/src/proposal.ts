@@ -1,5 +1,6 @@
 import type { CommandSpec, ProposalDisposition, ProposalEnvelope } from './types.js'
 import { freezeArgs, mintReceipt, type MintInput } from './receipt.js'
+import { serializeProposalCanonical } from './delegation.js'
 export const PILOT_PROPOSAL_SCHEMA = 'pilot.proposal/3' as const
 export type ProposalRejectCode = 'not-object' | 'missing-schema' | 'unsupported-schema' | 'missing-surface' | 'unknown-surface' | 'unknown-command' | 'invalid-args'
 export type ParseOk = { ok: true; proposal: ProposalEnvelope; received: ProposalEnvelope; spec: CommandSpec }
@@ -24,8 +25,9 @@ export function parseProposal(raw: unknown, surface: string, specs: readonly Com
   let received: ProposalEnvelope
   try {
     received = freezeArgs(raw) as ProposalEnvelope
+    serializeProposalCanonical(received)
   } catch { return { ok: false, code: 'invalid-args' } }
-  const args = spec.argsSchema(raw.args ?? {})
+  const args = spec.argsSchema(raw.args)
   if (!args.ok) return { ok: false, code: 'invalid-args' }
   // The freeze is the module's own untrusted-input boundary: a provider payload that cannot be frozen
   // (accessors, functions, foreign prototypes, or nesting deep enough to exhaust the stack) is invalid

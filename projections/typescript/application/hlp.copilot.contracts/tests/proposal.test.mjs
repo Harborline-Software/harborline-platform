@@ -49,3 +49,14 @@ test('pilot-ck-15 pilot-ck-16 pilot-ck-18: alias digest covers received envelope
   assert.equal(assertDispatched(disposition.receipt, 'form#1').command, 'draft.edit')
   assert.deepEqual(disposition.receipt.args, {})
 })
+
+test('pilot-ck-15 pilot-ck-16: invalid wire envelopes never reach a permissive catalogue schema or mint; oracle: DES-0026 pilot-ck-6 and strict four-member wire shape', () => {
+  let calls = 0
+  const permissive = [{ ...specs[0], argsSchema: raw => { calls++; return { ok: true, args: raw ?? {} } } }]
+  const envelope = { schema: 'pilot.proposal/3', surface: 'forms.builder', command: 'draft.edit', args: {} }
+  const missingArgs = { schema: 'pilot.proposal/3', surface: 'forms.builder', command: 'draft.edit' }
+  for (const raw of [missingArgs, { ...envelope, content: 'secret' }, { ...envelope, args: { integer: 9007199254740992 } }]) {
+    assert.deepEqual(parseProposal(raw, 'forms.builder', permissive), { ok: false, code: 'invalid-args' })
+  }
+  assert.equal(calls, 0)
+})
