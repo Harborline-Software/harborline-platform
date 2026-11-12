@@ -174,9 +174,6 @@ public sealed record ScheduleStarts([property: JsonRequired] ScheduleStartKind K
 /// <param name="Modules">The constraint modules the problem class compiles into.</param>
 /// <param name="DueDate">The lone due instant with an offset; required only without a basis.</param>
 /// <param name="LegalityRef">A citation to a Legality Rule Set that Scheduling never interprets (scheduling-ck-12).</param>
-/// <param name="RecoveryReplanning">An explicit recovery request, refused at validate (scheduling-auth-21); ordinary missed-behaviour replanning is distinct.</param>
-/// <param name="RegulatorRuleSetRequirement">A requested regulatory compliance obligation, refused at validate (scheduling-auth-23); legality citations remain admitted.</param>
-/// <param name="InputPlanId">An upstream plan whose output would feed this plan, refused at validate (scheduling-auth-24); within-plan precedence remains admitted.</param>
 public sealed record ScheduleDefinition(
     ScheduleDefinitionEnvelope? Envelope,
     string Name,
@@ -191,10 +188,17 @@ public sealed record ScheduleDefinition(
     ScheduleProblemClass ProblemClass = ScheduleProblemClass.None,
     IReadOnlyList<ScheduleConstraintModule>? Modules = null,
     string? LegalityRef = null,
-    string? DueDate = null,
-    bool? RecoveryReplanning = null,
-    string? RegulatorRuleSetRequirement = null,
-    string? InputPlanId = null);
+    string? DueDate = null)
+{
+    /// <summary>An explicit recovery request, refused at validate (scheduling-auth-21); ordinary missed-behaviour replanning is distinct.</summary>
+    public bool? RecoveryReplanning { get; init; }
+
+    /// <summary>A requested regulatory compliance obligation, refused at validate (scheduling-auth-23); legality citations remain admitted.</summary>
+    public string? RegulatorRuleSetRequirement { get; init; }
+
+    /// <summary>An upstream plan whose output would feed this plan, refused at validate (scheduling-auth-24); within-plan precedence remains admitted.</summary>
+    public string? InputPlanId { get; init; }
+}
 
 /// <summary>The sealed trait that admits a type to planning (scheduling-ck-22, L482, L1084).</summary>
 public static class SchedulableTrait

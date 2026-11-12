@@ -11,6 +11,51 @@ public sealed class SchedulingAuthoringRefusalTests
 {
     private static readonly JsonSerializerOptions Options = new(JsonSerializerDefaults.Web);
 
+    // Oracle: the 14-member public constructor/Deconstruct at origin/main 7d44f547 (typed-definition).
+    [Theory(DisplayName = "scheduling-auth-21/23/24: intent fields preserve the existing CLR record signature")]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void LegacyRecordSignature(bool deconstruct)
+    {
+        Type[] signature = [typeof(ScheduleDefinitionEnvelope), typeof(string), typeof(ScheduleStarts),
+            typeof(string), typeof(ScheduleBasis), typeof(ScheduleWindow), typeof(ScheduleTolerance),
+            typeof(string), typeof(ScheduleMissedBehaviour?), typeof(ScheduleEscalation),
+            typeof(ScheduleProblemClass), typeof(IReadOnlyList<ScheduleConstraintModule>), typeof(string), typeof(string)];
+        if (deconstruct)
+        {
+            var method = typeof(ScheduleDefinition).GetMethod("Deconstruct", signature.Select(type => type.MakeByRefType()).ToArray());
+            Assert.NotNull(method);
+            var values = new object?[14];
+            method.Invoke(new ScheduleDefinition(null, "Inspection", new(ScheduleStartKind.Form, "forms.inspection"),
+                DueDate: "2027-01-01T00:00:00Z"), values);
+            Assert.Equal("Inspection", values[1]);
+            Assert.Equal("2027-01-01T00:00:00Z", values[13]);
+        }
+        else
+        {
+            var constructor = typeof(ScheduleDefinition).GetConstructor(signature);
+            Assert.NotNull(constructor);
+            var definition = Assert.IsType<ScheduleDefinition>(constructor.Invoke([null, "Inspection",
+                new ScheduleStarts(ScheduleStartKind.Form, "forms.inspection"), null, null, null, null,
+                null, null, null, ScheduleProblemClass.None, null, null, "2027-01-01T00:00:00Z"]));
+            Assert.Equal("Inspection", definition.Name);
+            Assert.Equal("2027-01-01T00:00:00Z", definition.DueDate);
+        }
+    }
+
+    [Theory(DisplayName = "scheduling-auth-21/23/24: intent properties retain wire literals and record value semantics")]
+    [InlineData("recovery-replanning", "recovery_replanning", "true")]
+    [InlineData("regulator-rule-set", "regulator_rule_set_requirement", "\"regulator.roster\"")]
+    [InlineData("upstream-plan", "input_plan_id", "\"plan.upstream\"")]
+    public void IntentProperties(string id, string member, string literal)
+    {
+        var definition = ScheduleDefinitionJson.Deserialize(Case(id).GetProperty("definition").GetRawText());
+        using var wire = JsonDocument.Parse(ScheduleDefinitionJson.Serialize(definition));
+        Assert.Equal(literal, wire.RootElement.GetProperty(member).GetRawText());
+        Assert.Equal(definition, definition with { });
+        Assert.NotEqual(definition, definition with { RecoveryReplanning = null, RegulatorRuleSetRequirement = null, InputPlanId = null });
+    }
+
     [Theory(DisplayName = "scheduling-auth-17: unsupported configuration refuses before storage")]
     [InlineData("unsupported-configuration")]
     public Task UnsupportedConfiguration(string id) => CheckWriteAsync(id);
@@ -25,10 +70,12 @@ public sealed class SchedulingAuthoringRefusalTests
 
     [Theory(DisplayName = "scheduling-auth-23: a regulator-rule-set requirement refuses before storage")]
     [InlineData("regulator-rule-set")]
+    [InlineData("regulator-rule-set-empty")]
     public Task RegulatorRuleSet(string id) => CheckWriteAsync(id);
 
     [Theory(DisplayName = "scheduling-auth-24: another plan's output refuses before storage")]
     [InlineData("upstream-plan")]
+    [InlineData("upstream-plan-empty")]
     public Task UpstreamPlan(string id) => CheckWriteAsync(id);
 
     [Theory(DisplayName = "scheduling-auth-25: within-plan operation dependencies and ordinary replanning admit")]
@@ -100,7 +147,7 @@ public sealed class SchedulingAuthoringRefusalTests
             Assert.Empty(await store.ListHistoryAsync(key));
             Assert.Null(await store.GetPublishedHeadAsync(key));
             Reasons(fixture);
-            if (id is "recovery-replanning" or "regulator-rule-set" or "upstream-plan")
+            if (id is "recovery-replanning" or "regulator-rule-set" or "regulator-rule-set-empty" or "upstream-plan" or "upstream-plan-empty")
             {
                 var typed = ScheduleDefinitionJson.Deserialize(body);
                 var typedRefusal = await Assert.ThrowsAsync<DefinitionRefusalException>(() =>

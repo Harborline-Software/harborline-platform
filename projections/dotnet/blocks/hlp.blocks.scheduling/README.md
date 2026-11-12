@@ -15,7 +15,7 @@ Harborline compatibility module for lease-serialized slot reservations and deter
 
 The shared catalogue validator refuses before storing a draft. Unsupported JSON configurations retain `scheduling.definition.body_invalid`; unadmitted modules retain `scheduling.definition.module_unsupported`. A `fixed_calendar` rule is checked at save by the recurrence producer's own `ValidateRule` parser (DES-0057 ck-1/cc-1).
 
-Three optional intent members make excluded planning requests explicit, with stable codes at their own pointers:
+Three nullable init-only intent properties preserve the existing 14-argument constructor and `Deconstruct`, participate in record equality and round-trip under the same JSON wire names. They make excluded planning requests explicit, with stable codes at their own pointers:
 
 - `recovery_replanning: true` refuses `scheduling.definition.recovery_replanning_unsupported` (auth-21, L463). Absent/false leaves ordinary `record_and_replan` admitted.
 - Any non-null `regulator_rule_set_requirement` refuses `scheduling.definition.regulator_rule_set_unsupported` (auth-23, L465). `legality_ref` remains an uninterpreted citation.

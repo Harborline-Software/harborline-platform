@@ -44,7 +44,7 @@
     "Calendar identity is series id plus original local recurrence date-time, without instant or node; completion-offset identity uses the completion id (or first), threshold uses the triggering reading and re-arm completion, chain uses its immutable node-ledger revision.",
     "Initial markers and caller completion ids have disjoint identity shapes; resolved instants are filtered only after padded nominal-date expansion handles midnight-crossing gaps.",
     "Fixed-calendar expansion streams padded nominal dates in pages of at most 1000 days, then filters exact instants and exceptions before enforcing the merged 1000-occurrence cap. Padding and partial-day boundaries do not consume the result budget; each producer call keeps its own unchanged 1000-occurrence cap. Neither path returns a partial result.",
-    "Revision 9 (T-491/schedule-refusals, DES-0022 section 4): recovery_replanning=true, any non-null regulator_rule_set_requirement and any non-null input_plan_id refuse at validate before draft history changes, at their member pointers. These optional typed intent members distinguish unsupported recovery, regulator-compliance obligations and plan-output input from admitted record_and_replan, legality_ref citations and within-plan precedence. False/absent recovery and absent unsupported requirements preserve existing definitions. The shared store callback applies these gates to raw and typed writes and every admission phase. Unknown configurations retain body_invalid; module_unsupported uses the existing ConstraintModuleAdmission set. fixed_calendar continues to use InMemoryRruleExpansionService.ValidateRule at save (DES-0057 ck-1/cc-1).",
+    "Revision 9 (T-491/schedule-refusals, DES-0022 section 4): recovery_replanning=true, any non-null regulator_rule_set_requirement and any non-null input_plan_id refuse at validate before draft history changes, at their member pointers. These nullable init-only intent properties preserve the existing 14-argument CLR constructor and Deconstruct, participate in record equality and retain their JSON wire names. They distinguish unsupported recovery, regulator-compliance obligations and plan-output input from admitted record_and_replan, legality_ref citations and within-plan precedence. False/absent recovery and absent unsupported requirements preserve existing definitions. The shared store callback applies these gates to raw and typed writes and every admission phase. Unknown configurations retain body_invalid; module_unsupported uses the existing ConstraintModuleAdmission set. fixed_calendar continues to use InMemoryRruleExpansionService.ValidateRule at save (DES-0057 ck-1/cc-1).",
     "The shared authoring-refusals.json corpus carries literal stable codes and RFC 6901 pointers with missing/required reasons for both editor lanes; tests execute those inputs through production admission or the K9 facade. It is data for consumers, not a second validator. Codes and pointers are localizable shared refusal envelopes; Target retains its existing exposed-definition-only meaning."
   ],
   "errors": [
@@ -120,9 +120,9 @@
   ],
   "conformance": {
     "nativeTests": {
-      "dotnet": 411
+      "dotnet": 418
     },
-    "nativeTestNote": "Reservation/planning coverage plus due generation, literal window classification, admission, per-series kernel clock, all four identities and migrated authored chain/ledger cases. Revision 9 adds 22 authoring/K9 cases (all owned item IDs) consuming conformance/hlp.blocks.scheduling/authoring-refusals.json."
+    "nativeTestNote": "Reservation/planning coverage plus due generation, literal window classification, admission, per-series kernel clock, all four identities and migrated authored chain/ledger cases. Revision 9 adds 29 authoring/K9 and compatibility cases (all owned item IDs) consuming conformance/hlp.blocks.scheduling/authoring-refusals.json."
   },
   "selectedDesign": {
     "choice": "Port the reservation coordinator engine verbatim minus the Razor/localization UI surface, and land the harvested planning seed beside it with the authored corpus executable.",
@@ -163,7 +163,7 @@
       },
       "ledgerVersion": {
         "minimum": 0,
-        "maximum": 9223372036854776000
+        "maximum": 9223372036854775807
       }
     }
   }
