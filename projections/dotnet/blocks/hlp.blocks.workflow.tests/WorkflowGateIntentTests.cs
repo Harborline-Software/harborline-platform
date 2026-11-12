@@ -48,4 +48,21 @@ public sealed class WorkflowGateIntentTests
         };
         Assert.False(asked.Binds(answer));
     }
+    [Fact]
+    [Trait("Holds", "workflows-auth-11")]
+    public void workflows_auth_11_binding_compares_every_standing_and_both_subject_identity_parts()
+    {
+        var asked = Intent() with
+        {
+            RequiredStandings = [new("assigned-approver"), new("independent-reviewer")],
+            SubjectRecord = new("invoice", "42"),
+        };
+        Assert.True(asked.Binds(asked with { RequiredStandings = [new("assigned-approver"), new("independent-reviewer")], SubjectRecord = new("invoice", "42") }));
+        Assert.False(asked.Binds(asked with { RequiredStandings = [new("assigned-approver")] }));
+        Assert.False(asked.Binds(asked with { RequiredStandings = [new("independent-reviewer"), new("assigned-approver")] }));
+        Assert.False(asked.Binds(asked with { RequiredStandings = null }));
+        Assert.False(asked.Binds(asked with { SubjectRecord = new("invoice", "43") }));
+        Assert.False(asked.Binds(asked with { SubjectRecord = new("other", "42") }));
+        Assert.False(asked.Binds(asked with { SubjectRecord = null }));
+    }
 }

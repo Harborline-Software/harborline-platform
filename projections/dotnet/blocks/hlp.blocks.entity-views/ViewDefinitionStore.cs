@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.Json;
 using Harborline.Blocks.BuilderDefinitions;
+using Harborline.Contracts.Fields;
 using Harborline.Foundation.Definitions;
 
 namespace Harborline.Blocks.EntityViews;
@@ -84,18 +85,23 @@ public static class ViewDefinitionPackExporter
 /// <param name="Widgets">Every registered widget.</param>
 /// <param name="RowActions">Every registered row action.</param>
 /// <param name="WorkflowTransitions">Every registered board-move workflow transition.</param>
+/// <param name="FieldKinds">
+/// Every admitted field-kind revision, as the host's <c>FieldKindRegistry</c> admits them. The publish derivation resolves
+/// each shape-role field's pinned kind revision here (T-1177).
+/// </param>
 public sealed record ViewAdmissionRegisters(
     IReadOnlyList<ViewKindDescriptor> Kinds,
     IReadOnlyList<ViewMeasureDescriptor> Measures,
     IViewExpressionFunctionRegistry Functions,
     IReadOnlyList<ViewWidgetDescriptor> Widgets,
     IReadOnlyList<string> RowActions,
-    IReadOnlyList<string> WorkflowTransitions);
+    IReadOnlyList<string> WorkflowTransitions,
+    IReadOnlyList<AdmittedFieldKind> FieldKinds);
 
 /// <summary>
 /// The Views member of the shared definition store (T-620): each view definition is a <see cref="DefinitionKind.Views"/>
 /// document whose body is the <see cref="ViewDefinitionDraftJson"/> wire, and whose version id is its semantic version.
-/// The host registers <see cref="Admission"/> and <see cref="Dependencies"/> for <see cref="DefinitionKind.Views"/> when it
+/// The host registers <see cref="Admission"/> and <see cref="Dependencies"/>, over the same registers, for <see cref="DefinitionKind.Views"/> when it
 /// composes the store, so every draft save and every publish passes Views admission inside the store, whoever calls it
 /// (ADR 0071 decision 1; DES-0017 <c>views-eng-16</c>).
 /// </summary>
@@ -150,15 +156,25 @@ public sealed class ViewDefinitionCatalogue(IVersionedDefinitionStore store) : I
 
     /// <summary>
     /// The store's dependency derivation for <see cref="DefinitionKind.Views"/> (DES-0004 §2), registered beside
-    /// <see cref="Admission"/>. A published view depends on the Record Type it reads (<c>record_type</c>). A record type with
-    /// no published head refuses <see cref="ViewDefinitionCodes.RecordTypeUnresolved"/>, and a column, sort, grouping, filter
-    /// or shape-role field the head does not declare refuses <see cref="ViewDefinitionCodes.FieldUnknown"/> or
-    /// <see cref="ViewDefinitionCodes.ShapeRoleFieldMissing"/> at its pointer, as Records refuses its own references.
+    /// <see cref="Admission"/> over the same fixed <paramref name="registers"/>, and pure as the store's contract requires. A
+    /// published view depends on the Record Type it reads (<c>record_type</c>). A record type with no published head refuses
+    /// <see cref="ViewDefinitionCodes.RecordTypeUnresolved"/>, and a column, sort, grouping, filter or shape-role field the
+    /// head does not declare refuses <see cref="ViewDefinitionCodes.FieldUnknown"/> or
+    /// <see cref="ViewDefinitionCodes.ShapeRoleFieldMissing"/> at its pointer, as Records refuses its own references. A
+    /// shape-role field that pins no kind, pins a kind revision not in <see cref="ViewAdmissionRegisters.FieldKinds"/>, or
+    /// whose kind (<see cref="ViewBindingCompatibility.KindOf"/>) does not suit its role refuses
+    /// <see cref="ViewDefinitionCodes.ShapeRoleFieldIncompatible"/> at <c>/binding/shapeRoles/{role}</c> (T-1177).
     /// </summary>
-    public static DefinitionDependencyDerivation Dependencies { get; } = DeriveDependencies;
+    public static DefinitionDependencyDerivation Dependencies(ViewAdmissionRegisters registers)
+    {
+        ArgumentNullException.ThrowIfNull(registers);
+        var fieldKinds = registers.FieldKinds.ToDictionary(kind => (kind.KindId, kind.Version));
+        return (published, publishedHead) => DeriveDependencies(published, publishedHead, fieldKinds);
+    }
 
     private static IReadOnlyList<DefinitionDependency> DeriveDependencies(DefinitionDocument published,
-        Func<DefinitionKey, DefinitionRevision?> publishedHead)
+        Func<DefinitionKey, DefinitionRevision?> publishedHead,
+        Dictionary<(string KindId, string Version), AdmittedFieldKind> fieldKinds)
     {
         if (!TryDecode(published, out var draft))
         {
@@ -171,18 +187,31 @@ public sealed class ViewDefinitionCatalogue(IVersionedDefinitionStore store) : I
             throw new DefinitionRefusalException(DefinitionAdmissionPhase.Publish,
                 [new(ViewDefinitionCodes.RecordTypeUnresolved, "/definition/recordType")]);
         }
-        var declared = RecordTypeDefinitionJson.Deserialize(Encoding.UTF8.GetBytes(head.Document.BodyJson)).Fields
-            .Select(field => field.FieldKey)
-            .ToHashSet(StringComparer.Ordinal);
+        var fields = RecordTypeDefinitionJson.Deserialize(Encoding.UTF8.GetBytes(head.Document.BodyJson)).Fields
+            .Where(field => field.FieldKey is not null)
+            .DistinctBy(field => field.FieldKey, StringComparer.Ordinal)
+            .ToDictionary(field => field.FieldKey, StringComparer.Ordinal);
+        var declared = fields.Keys.ToHashSet(StringComparer.Ordinal);
         var refusals = ViewDefinitionAdmission.ReferencedFields(definition)
             .Where(reference => !declared.Contains(reference.Field))
             .Select(reference => new DefinitionRefusal(ViewDefinitionCodes.FieldUnknown, reference.Pointer))
             .ToList();
         foreach (var (role, field) in draft.Binding.ShapeRoles.OrderBy(role => role.Key))
         {
-            if (!declared.Contains(field))
+            var pointer = $"/binding/shapeRoles/{JsonNamingPolicy.CamelCase.ConvertName(role.ToString())}";
+            if (field is null || !fields.TryGetValue(field, out var declaration))
             {
-                refusals.Add(new(ViewDefinitionCodes.ShapeRoleFieldMissing, $"/binding/shapeRoles/{JsonNamingPolicy.CamelCase.ConvertName(role.ToString())}"));
+                refusals.Add(new(ViewDefinitionCodes.ShapeRoleFieldMissing, pointer));
+                continue;
+            }
+            // T-1177: the kind is read only from the revision the head pins; a field that pins none has no kind to guess.
+            var kind = declaration.Binding?.Kind is { } pinned
+                && fieldKinds.TryGetValue((pinned.KindId, pinned.Version), out var admitted)
+                ? ViewBindingCompatibility.KindOf(admitted)
+                : null;
+            if (kind is not { } viewKind || !ViewBindingCompatibility.IsCompatible(role, viewKind))
+            {
+                refusals.Add(new(ViewDefinitionCodes.ShapeRoleFieldIncompatible, pointer));
             }
         }
         if (refusals.Count > 0)

@@ -261,7 +261,7 @@ public sealed class DeclarativeWorkflowInterpreter : IDeclarativeWorkflowInterpr
         // guard-bound step runs and before any effect. The decision:<verb> sentinel only SELECTED the transition (the
         // v1 selector, not a guard expression), so nothing has acted yet.
         await GateAsync(WorkflowGateElement.Transition, transition.Id, transition.RequiredRoles, transition.RequiredStandings,
-            instance, authority, decidedAt, ct).ConfigureAwait(false);
+            instance, definition.Subject, authority, decidedAt, ct).ConfigureAwait(false);
 
         // send-back → a bounded loop-back (the dispatcher bumps the iteration + enforces the cap).
         if (string.Equals(verb, SendBackVerb, StringComparison.Ordinal))
@@ -276,7 +276,7 @@ public sealed class DeclarativeWorkflowInterpreter : IDeclarativeWorkflowInterpr
         if (effecting is not null)
         {
             await GateAsync(WorkflowGateElement.Action, effecting.Id, effecting.RequiredRoles, effecting.RequiredStandings,
-                instance, authority, decidedAt, ct).ConfigureAwait(false);
+                instance, definition.Subject, authority, decidedAt, ct).ConfigureAwait(false);
             var confirmer = await _confirmation.ResolveConfirmerAsync(ct).ConfigureAwait(false);
             return ApplyEffect(
                 instance, effecting, nextStep: transition.To,
@@ -395,7 +395,7 @@ public sealed class DeclarativeWorkflowInterpreter : IDeclarativeWorkflowInterpr
 
     // T-1176/platform-role-gate: a role gate on a human-performed element is decided by the host through the gate port,
     // for the verified dispatch principal, before the step and its effects run. The interim refusal below stays the
-    // backstop wherever the port cannot decide: a declared standing (T-1176/platform-standing-gate), an autonomous
+    // backstop wherever the port cannot decide: no single bound subject record for a standing, an autonomous
     // element (refused at admission since T-1176 Q1; this catches one a non-admitting store hands over), no port
     // composed, or no verified authority passed.
     private async ValueTask GateAsync(
@@ -404,13 +404,16 @@ public sealed class DeclarativeWorkflowInterpreter : IDeclarativeWorkflowInterpr
         IReadOnlyList<RoleReference> roles,
         IReadOnlyList<RecordStandingReference> standings,
         WorkflowInstanceRecord instance,
+        WorkflowSubjectDef? subject,
         WorkflowDispatchAuthority? authority,
         DateTimeOffset decidedAt,
         CancellationToken ct)
     {
         if (roles.Count == 0 && standings.Count == 0) return;
         var kind = element == WorkflowGateElement.Transition ? "transition" : "action";
-        if (standings.Count > 0 || _gate is null || authority is null)
+        if (_gate is null || authority is null
+            || (standings.Count > 0 && (subject?.Kind != WorkflowSubjectKind.Record
+                || instance.SubjectRecord is null || instance.SubjectRecord.RecordType != subject.RecordType)))
         {
             RefuseUnenforcedGate(kind, id, roles, standings, instance);
             return;
@@ -418,14 +421,14 @@ public sealed class DeclarativeWorkflowInterpreter : IDeclarativeWorkflowInterpr
 
         var intent = new WorkflowGateIntent(
             instance.TenantId, authority.Principal, instance.Id, instance.DefinitionKey, instance.DefinitionVersion,
-            element, id, roles, decidedAt);
+            element, id, roles, decidedAt, standings, instance.SubjectRecord);
         var answer = await _gate.DecideAsync(intent, ct).ConfigureAwait(false);
         if (answer is null || !intent.Binds(answer.Intent))
             throw new WorkflowGateRefusedException(WorkflowGateCodes.AnswerUnbound,
                 $"Interpreter: the gate answer for {kind} '{id}' (instance '{instance.Id}') does not bind the asked intent.");
         if (!answer.Satisfied)
             throw new WorkflowGateRefusedException(WorkflowGateCodes.Denied,
-                $"Interpreter: principal '{authority.Principal}' does not hold a role {kind} '{id}' requires (instance '{instance.Id}').");
+                $"Interpreter: principal '{authority.Principal}' does not satisfy the gate {kind} '{id}' requires (instance '{instance.Id}').");
     }
 
     // DES-0019 workflows-eng-13 and section 6 (L422): the authorization gate resolves before any guard or effect

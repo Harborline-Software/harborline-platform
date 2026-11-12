@@ -8,7 +8,7 @@ public sealed class RefusalContractTests
     private static readonly DefinitionDocument Draft = new(new("tenant-a", DefinitionKind.Rules, "rule-a"), "v1", "1.0.0", "{}");
 
     private static InMemoryVersionedDefinitionStore Store(DefinitionAdmission admission)
-        => new(Enum.GetValues<DefinitionKind>().ToDictionary(kind => kind, _ => admission));
+        => new(new Dictionary<DefinitionKind, DefinitionAdmission> { [DefinitionKind.Rules] = admission });
 
     [Fact(DisplayName = "DES-0018 §7 refusal stage: the envelope names the admission stage it refused at, author or publish, with every refusal the member returned")]
     public async Task Refusal_envelope_carries_its_stage()

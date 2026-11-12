@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.blocks.workflow",
-  "interfaceRevision": 12,
+  "interfaceRevision": 13,
   "status": "frozen",
   "purpose": "Own the workflow engine core — the typed state-machine runtime, the provider-neutral durable-execution seams (store port, dispatcher, admission gate, effect broker, definition-store port, typed step handlers), and the built-in durable file-journal store — without importing an entity store, an EF/SQLite host topology, a financial cluster, or a UI framework.",
   "dependencies": ["hlp.contracts.identities", "hlp.foundation.definitions"],
@@ -20,6 +20,7 @@
     "context": "All durable state lives behind the IWorkflowStore seam a host supplies. The engine composes ports, never a persistence backend. Confirmer and proposer identities are server-derived, never payload-supplied."
   },
   "invariants": [
+    "Revision 13 (T-1176/platform-standing-gate, owner ruling 2026-11-11): WorkflowInstanceCreator loads the admitted pinned definition and refuses a missing or mismatched record-subject reference before persistence. A subjectless or set definition takes no single-record reference. Hosts supply immutable WorkflowSubjectRecordReference (RecordType, RecordId) at creation; the journal persists it and reads it back unchanged. WorkflowGateIntent carries RequiredStandings (every one must hold, decided only by the host) and the stored SubjectRecord; Binds compares every standing and both identity parts. StateJson, trigger payload and dispatch authority never supply the subject. Event-trigger-start supplies the committed event record at creation in its own slice; frozen set membership remains outside this slice.",
     "ADR-0141: a typed WorkflowInterpreterDecisionException names the actual failing step; the dispatcher converts only this interpreter decision error into WorkflowStepOutcome.InterpreterFailure and commits Failed with reason not-retryable, no effect and no retry through its existing atomic advance. Admission, authorization refusals, cancellation and action exceptions propagate unchanged.",
     "Revision 10 adds typed state field requirements, lock scope and escalation schedule, and a notification declaration on a Notify action (ADR-0057, DES-0055).",
     "Revision 9 (T-488/autonomous-trigger-match; R-0155 D1, control 1227): a trigger that matches no transition is discarded. The step handler returns WorkflowStepOutcome.Discard, the dispatcher commits nothing (no event, no step result, no position change) and returns WorkflowDispatchResult.Discarded, so the same step can still advance on a later matching trigger. A trigger that has already taken an edge in this dispatch is not discarded: its progress commits and the run rests at the first state whose edge it does not match.",
