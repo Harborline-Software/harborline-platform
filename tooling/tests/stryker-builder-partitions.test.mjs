@@ -429,7 +429,7 @@ test('collect uses the weighted house gate at 74 and a higher configured floor',
 const routeChange = (fixture, test) => test === builderTest ? [`${sourceDirectory}/A.cs`]
   : [`${path.posix.dirname(fixture.routes.find(route => route.test === test).target)}/Route.cs`]
 
-test('PR mutates the changed files of all 37 changed projects natively, Builder included, without changing policy bytes', async () => {
+test('PR mutates the changed files of all 36 changed projects natively, Builder included, without changing policy bytes', async () => {
   const fixture = await checkout({changed: 'all', mode: 'normal'})
   try {
     assert.equal(fixture.plan.selected, false)
@@ -442,8 +442,8 @@ test('PR mutates the changed files of all 37 changed projects natively, Builder 
       return {outcome: {kind: 'completed'}, status: 0, signal: null, report: {files: {'Route.cs': {mutants: [{status: 'Killed'}]}}}, razor: false}
     }, () => assert.fail('a normal PR never observes Control'))
     assert.equal(result, 0)
-    assert.equal(calls.length, 37)
-    assert.equal(new Set(calls).size, 37)
+    assert.equal(calls.length, 36)
+    assert.equal(new Set(calls).size, 36)
     assert.equal(calls.includes(builderTest), true)
     policyFiles.forEach((file, index) => assert.deepEqual(readFileSync(path.join(fixture.directory, file)), before[index]))
     await assert.rejects(fixture.adapter.main(['shard', fixture.manifest, '1'], () => assert.fail('normal PR runs no partition')), /unselected/)
@@ -460,7 +460,7 @@ test('normal no-Builder-change requires no Control or quartet and keeps all othe
       calls.push(test); assert.deepEqual(changed, routeChange(fixture, test)); assert.deepEqual(args, ['--log-to-file'])
       return {outcome: {kind: 'completed'}, status: 0, signal: null, report: {files: {'Route.cs': {mutants: [{status: 'Killed'}]}}}, razor: false}
     }, () => assert.fail('unselected Builder cannot observe Control'))
-    assert.equal(result, 0); assert.equal(calls.length, 36); assert.equal(calls.includes(builderTest), false)
+    assert.equal(result, 0); assert.equal(calls.length, 35); assert.equal(calls.includes(builderTest), false)
     await assert.rejects(fixture.adapter.main(['shard', fixture.manifest, '1'], () => assert.fail('unselected native callback')), /unselected/)
     await assert.rejects(fixture.adapter.main(['collect', fixture.manifest, 'does-not-exist']), /unselected/)
   } finally { fixture.restore() }
@@ -485,7 +485,7 @@ test('fresh checkout keeps the planned base and complete project selection after
         return {outcome: {kind: 'completed'}, status: 0, signal: null, report: {files: {'Route.cs': {mutants: [{status: 'Killed'}]}}}, razor: false}
       })
       assert.equal(result, 0)
-      assert.equal(calls.length, changed === 'all' ? 37 : 36)
+      assert.equal(calls.length, changed === 'all' ? 36 : 35)
       assert.equal(calls.includes(builderTest), changed === 'all')
       assert.equal(git(directory, 'rev-parse', 'origin/main'), advanced)
       assert.match(readFileSync(fixture.env.GITHUB_OUTPUT, 'utf8'), new RegExp(`^base=${fixture.base}$`, 'm'))
