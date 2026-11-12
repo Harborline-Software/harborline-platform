@@ -41,7 +41,7 @@ public sealed class LayoutFormReferenceResolutionTests
     private static async Task<IVersionedDefinitionStore> StoreWithTwoPublishedVersions()
     {
         IVersionedDefinitionStore store = new InMemoryVersionedDefinitionStore(
-            Enum.GetValues<DefinitionKind>().ToDictionary(kind => kind, _ => (DefinitionAdmission)((_, _) => [])));
+            new Dictionary<DefinitionKind, DefinitionAdmission> { [DefinitionKind.Forms] = (_, _) => [] });
         await store.SaveDraftAsync(new(Form, "form.customer@2.1.0", "2.1.0", "{}"), 0, "draft-2.1.0");
         await store.PublishAsync(Form, "form.customer@2.1.0", 1, "publish-2.1.0");
         await store.SaveDraftAsync(new(Form, "form.customer@3.0.0", "3.0.0", "{}"), 2, "draft-3.0.0");
