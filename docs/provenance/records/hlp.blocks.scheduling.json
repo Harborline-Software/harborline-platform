@@ -32,7 +32,7 @@
     "projections/dotnet/blocks/hlp.blocks.scheduling/Planning/Fixtures/medical-pregnancy.unsatisfied.json": "681c9c431d668f082d464d696381cb92de06e7f4f835be0d58a373db65a855bd",
     "projections/dotnet/blocks/hlp.blocks.scheduling/Planning/PlanningModel.cs": "5cafbb352e9156d678651aef45680e3dec8189d8e152d2bb43d76983b828be9f",
     "projections/dotnet/blocks/hlp.blocks.scheduling/Planning/PlanningSolvers.cs": "2a90360a38fca2c6c897c21ad458d65f362e4a5407d04f60428c35e666d0337a",
-    "projections/dotnet/blocks/hlp.blocks.scheduling/README.md": "008a6ba4bf21ba9ba43994468be20a23ba68245b1676018b345fcad24017a719",
+    "projections/dotnet/blocks/hlp.blocks.scheduling/README.md": "ef5b38d51b28db72f4649b26598edd2263c6d6a43d9c68e4ebfae9a8630d1fa1",
     "projections/dotnet/blocks/hlp.blocks.scheduling/ScheduleReservationCoordinator.cs": "454d8534626301cac45fa455c0ee509e49de9a274786ba61b2b6d72a5f8b8901",
     "projections/dotnet/blocks/hlp.blocks.scheduling/SchedulingDurableRecords.cs": "3464c54e346b0a22938dc21a25b9d1a00f13e01950ba31b36105f9dbaf4f139c",
     "projections/dotnet/blocks/hlp.blocks.scheduling/Telemetry/SchedulingTelemetry.cs": "37288941b4989594928b3fe777dd0bb29c373808a56411aec8494927381e8e05",
