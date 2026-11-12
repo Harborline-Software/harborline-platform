@@ -5,8 +5,10 @@ and revision-1 Rules, Text, Presentation and Authorization contributions. Author
 preserves the API's qualified role and owner shapes, validates the two admitted vocabularies, and
 exposes pure fail-closed role-gate resolution without I/O, grants, or standing derivation.
 
-The draft `hlp.contracts.fields` contribution carries the shared field-kind, governance,
+The revision-2 draft `hlp.contracts.fields` contribution carries the shared field-kind, governance,
 three-source value-domain, constraint and refusal declarations under `Harborline.Contracts.Fields`.
+Kind revisions declare optional `date`, `date-time` or `time` semantics on the Text scalar shape
+through `TemporalFormat`, separate from display configuration and the `RetentionClock` capability.
 Its enforcement lives in `Harborline.Foundation.FieldRuntime`, not in this assembly. Keeping
 the declarations here lets kernel Records consume the vocabulary without an outward dependency.
 

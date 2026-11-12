@@ -15,7 +15,12 @@ public sealed class CanonicalPlatformPackageSeedTests
     [
         "platform-package-ck-1", "platform-package-ck-2", "platform-package-ck-3", "platform-package-ck-4",
         "platform-package-ck-5", "platform-package-ck-6", "platform.workshop", "platform.navigation.workshop",
-        "platform-package-ck-7", "platform-package-ck-8", "platform-package-ck-9", "platform-package-ck-10",
+        "platform-package-ck-7",
+        .. new[] { "asset-types", "forms", "workflows", "standards", "defaults", "terminology", "documents", "taxonomies",
+            "reports", "data-exchanges", "standing-rules", "schedules", "views" }
+            .SelectMany(pillar => new[] { "list", "health", "browse" }.Select(kind => $"platform.{kind}.{pillar}")),
+        "platform-package-ck-8", "platform-package-ck-9", "platform.role.administrator", "platform.role.auditor",
+        "platform-package-ck-10", "platform.binding.catalogue-read", "platform.binding.records-read", "platform.binding.audit-read",
         "platform-package-ck-11", "platform-package-ck-12", "platform.detail.form", "platform.pack.author",
         "platform-package-ck-13", "platform-package-ck-14", "platform.defaults.pack-author",
     ];
@@ -51,7 +56,7 @@ public sealed class CanonicalPlatformPackageSeedTests
             RecordWriteJournalBindingTests.Fixture("pillar-view-bodies/api-0a7a163c.json")))!.AsArray();
         var members = Members("platform-package-ck-7").EnumerateArray().ToArray();
         var expectedIds = expected.Select(item => item!["key"]!.GetValue<string>()).ToArray();
-        var actualIds = members.Select(member => member.GetProperty("id").GetString()!).ToArray();
+        var actualIds = members.Select(member => member.GetString()!).ToArray();
 
         Assert.Equal(39, expectedIds.Length);
         Assert.Equal(39, expectedIds.Distinct(StringComparer.Ordinal).Count());
@@ -59,8 +64,8 @@ public sealed class CanonicalPlatformPackageSeedTests
         foreach (var item in expected)
         {
             var id = item!["key"]!.GetValue<string>();
-            var member = Assert.Single(members, value => value.GetProperty("id").GetString() == id);
-            Assert.True(JsonNode.DeepEquals(item["content"], JsonNode.Parse(member.GetProperty("body").GetRawText())), id);
+            Assert.Single(members, value => value.GetString() == id);
+            Assert.True(JsonNode.DeepEquals(item["content"], Body(id)), id);
         }
     }
 
@@ -242,12 +247,13 @@ public sealed class CanonicalPlatformPackageSeedTests
     [Fact]
     public void Every_seed_member_has_a_stable_unique_id()
     {
-        var memberGroups = new[] { 2, 3, 4, 6, 7, 8 };
+        var memberGroups = new[] { 2, 3, 4, 6, 8 };
         var ids = memberGroups
             .SelectMany(index => Members($"platform-package-ck-{index}").EnumerateArray())
             .Select(member => member.GetProperty("id").GetString()!)
-            .Concat(Payload("platform-package-ck-9").GetProperty("roles").EnumerateArray().Select(member => member.GetProperty("id").GetString()!))
-            .Concat(Payload("platform-package-ck-10").GetProperty("bindings").EnumerateArray().Select(member => member.GetProperty("id").GetString()!))
+            .Concat(Members("platform-package-ck-7").EnumerateArray().Select(member => member.GetString()!))
+            .Concat(Payload("platform-package-ck-9").GetProperty("roles").EnumerateArray().Select(member => member.GetString()!))
+            .Concat(Payload("platform-package-ck-10").GetProperty("bindings").EnumerateArray().Select(member => member.GetString()!))
             .Concat([Payload("platform-package-ck-5").GetProperty("id").GetString()!, Payload("platform-package-ck-11").GetProperty("id").GetString()!])
             .ToArray();
 
@@ -266,10 +272,10 @@ public sealed class CanonicalPlatformPackageSeedTests
         Assert.Equal(["catalogue:read", "records:read", "audit:read"], access.GetProperty("capabilities").EnumerateArray().Select(value => value.GetString()));
         Assert.Equal(
             ["platform.binding.catalogue-read", "platform.binding.records-read", "platform.binding.audit-read"],
-            access.GetProperty("bindings").EnumerateArray().Select(binding => binding.GetProperty("id").GetString()));
+            access.GetProperty("bindings").EnumerateArray().Select(binding => binding.GetString()));
         Assert.Equal(
-            ["platform/administrator", "platform/administrator", "platform/auditor"],
-            access.GetProperty("bindings").EnumerateArray().Select(binding => binding.GetProperty("offeredRoles")[0].GetString()));
+            ["sys.platform-roles/administrator", "sys.platform-roles/administrator", "sys.platform-roles/auditor"],
+            access.GetProperty("bindings").EnumerateArray().Select(binding => Body(binding.GetString()!)["offeredRoles"]![0]!.GetValue<string>()));
     }
 
     [Fact]

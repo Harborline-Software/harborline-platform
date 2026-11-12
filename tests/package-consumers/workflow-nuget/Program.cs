@@ -387,6 +387,34 @@ finally
     try { Directory.Delete(journalDirectory, recursive: true); } catch { }
 }
 
+// ADR-0141: a definition decision error fails once through the packaged dispatcher.
+var ambiguous = JsonNode.Parse(AuthoredDefinition().GetRawText())!;
+ambiguous["transitions"]!.AsArray().Add(JsonNode.Parse(
+    """{"id":"second-issue","from":"Draft","on":"issued","to":"PendingApproval"}"""));
+var ambiguousWire = JsonSerializer.SerializeToElement(ambiguous);
+await store.RegisterAsync(WorkflowDefinitionWireMapper.ToModel(ambiguousWire, Tenant, "ambiguous.v1", Version), ambiguousWire);
+await store.PublishAsync(Tenant, "ambiguous.v1", Version);
+await hostStore.CreateInstanceAsync(new WorkflowInstanceRecord
+{
+    Id = "failed-definition", TenantId = Tenant, DefinitionKey = "ambiguous.v1", DefinitionVersion = Version,
+    CurrentStep = "Draft", Status = WorkflowStatus.Running,
+    CreatedAt = DateTimeOffset.UtcNow, UpdatedAt = DateTimeOffset.UtcNow,
+});
+var failureDispatcher = provider.GetRequiredService<IWorkflowTriggerDispatcher>();
+var failureTrigger = WorkflowTrigger.For(WorkflowTriggerKind.Event, "failed-definition", "Draft");
+if (await failureDispatcher.DispatchAsync(failureTrigger, Authorized("failed-definition")) != WorkflowDispatchResult.Advanced
+    || (await hostStore.LoadAsync("failed-definition"))!.Status != WorkflowStatus.Failed)
+    throw new InvalidOperationException("packaged interpreter decision error did not fail the run");
+var failureResult = await hostStore.FindStepResultAsync(new WorkflowStepKey("failed-definition", 0, "Draft"));
+using (var failure = JsonDocument.Parse(failureResult!.ResultJson))
+{
+    if (failure.RootElement.GetProperty("reason").GetString() != "not-retryable"
+        || failure.RootElement.GetProperty("step").GetString() != "Draft")
+        throw new InvalidOperationException("packaged interpreter failure lost its reason or step");
+}
+if (await failureDispatcher.DispatchAsync(failureTrigger, Authorized("failed-definition")) != WorkflowDispatchResult.Terminal)
+    throw new InvalidOperationException("packaged interpreter failure was retried");
+
 Console.WriteLine("WORKFLOW_PACKAGE_PASS:" + JsonSerializer.Serialize(new
 {
     typedRuntimeTransitions = typedInstance.TransitionCount,

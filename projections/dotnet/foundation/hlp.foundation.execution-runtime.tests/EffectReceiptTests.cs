@@ -11,7 +11,7 @@ public sealed class EffectReceiptTests
     private static readonly EffectId Effect = new("effect:customer-42:email-v1");
     private static readonly DateTimeOffset Started = new(2026, 9, 30, 12, 0, 0, TimeSpan.Zero);
 
-    [Fact(DisplayName = "T-528 S2 ck-5: one effect has exactly one tenant-scoped receipt")]
+    [Fact(DisplayName = "execution-runtime-ck-5: one effect has exactly one tenant-scoped receipt")]
     public async Task One_effect_has_exactly_one_receipt()
     {
         var ledger = new EffectReceiptLedger(new InMemoryEffectReceiptStore());
@@ -25,7 +25,7 @@ public sealed class EffectReceiptTests
         AssertReceiptValues(receipt, await ledger.GetAsync(Tenant, Effect));
     }
 
-    [Fact(DisplayName = "T-528 S2 ck-5: an effect receipt retains the required non-secret execution evidence")]
+    [Fact(DisplayName = "execution-runtime-ck-5: an effect receipt retains the required non-secret execution evidence")]
     public async Task Receipt_retains_required_execution_evidence()
     {
         var ledger = new EffectReceiptLedger(new InMemoryEffectReceiptStore());
@@ -53,7 +53,7 @@ public sealed class EffectReceiptTests
         Assert.Equal(["secret://tenant-a/smtp"], stored.SecretReferenceIds);
     }
 
-    [Fact(DisplayName = "T-528 S2 ck-6: effect status is the closed five-value vocabulary")]
+    [Fact(DisplayName = "execution-runtime-ck-6: effect status is the closed five-value vocabulary")]
     public void Effect_status_vocabulary_is_closed()
     {
         var statuses = Enum.GetValues<EffectStatus>();
@@ -67,7 +67,7 @@ public sealed class EffectReceiptTests
         Assert.Equal("99", EffectStatusVocabulary.WireName((EffectStatus)99));
     }
 
-    [Fact(DisplayName = "T-528 S2 ck-7: ambiguity carries its capability reconciliation and refuses blind compensation")]
+    [Fact(DisplayName = "execution-runtime-ck-7: ambiguity carries its capability reconciliation and refuses blind compensation")]
     public async Task Ambiguity_requires_reconciliation_and_refuses_blind_compensation()
     {
         var ledger = new EffectReceiptLedger(new InMemoryEffectReceiptStore());
@@ -91,7 +91,7 @@ public sealed class EffectReceiptTests
         Assert.Equal("smtp.lookup", ambiguous.Reconciliation!.CapabilityReconciliation);
     }
 
-    [Fact(DisplayName = "T-528 S2 ck-5: a compensated receipt requires its separate compensation effect id")]
+    [Fact(DisplayName = "execution-runtime-ck-5: a compensated receipt requires its separate compensation effect id")]
     public async Task Compensated_receipt_requires_compensation_effect_id()
     {
         var ledger = new EffectReceiptLedger(new InMemoryEffectReceiptStore());
@@ -102,7 +102,7 @@ public sealed class EffectReceiptTests
         Assert.Equal(ExecutionRuntimeRefusals.EffectReceiptInvalid, refused.Code);
     }
 
-    [Fact(DisplayName = "T-528 S2 ck-5: a compensation-failed receipt requires its separate compensation effect id")]
+    [Fact(DisplayName = "execution-runtime-ck-5: a compensation-failed receipt requires its separate compensation effect id")]
     public async Task Compensation_failed_receipt_requires_compensation_effect_id()
     {
         var ledger = new EffectReceiptLedger(new InMemoryEffectReceiptStore());
@@ -113,7 +113,7 @@ public sealed class EffectReceiptTests
         Assert.Equal(ExecutionRuntimeRefusals.EffectReceiptInvalid, refused.Code);
     }
 
-    [Fact(DisplayName = "T-528 S2 ck-5: compensated terminal receipts never self-reference their compensation")]
+    [Fact(DisplayName = "execution-runtime-ck-5: compensated terminal receipts never self-reference their compensation")]
     public async Task Compensated_terminal_receipts_refuse_self_referencing_compensation()
     {
         foreach (var status in new[] { EffectStatus.Compensated, EffectStatus.CompensationFailed })
@@ -127,7 +127,7 @@ public sealed class EffectReceiptTests
         }
     }
 
-    [Fact(DisplayName = "T-528 S2 ck-5: compensated terminal receipts accept a distinct compensation effect")]
+    [Fact(DisplayName = "execution-runtime-ck-5: compensated terminal receipts accept a distinct compensation effect")]
     public async Task Compensated_terminal_receipts_accept_distinct_compensation()
     {
         foreach (var status in new[] { EffectStatus.Compensated, EffectStatus.CompensationFailed })
@@ -141,7 +141,7 @@ public sealed class EffectReceiptTests
         }
     }
 
-    [Fact(DisplayName = "T-528 S2 ck-5: succeeded and failed receipts allow absent or distinct compensation effects")]
+    [Fact(DisplayName = "execution-runtime-ck-5: succeeded and failed receipts allow absent or distinct compensation effects")]
     public async Task Succeeded_and_failed_receipts_allow_absent_or_distinct_compensation()
     {
         foreach (var status in new[] { EffectStatus.Succeeded, EffectStatus.Failed })
@@ -158,7 +158,7 @@ public sealed class EffectReceiptTests
         }
     }
 
-    [Fact(DisplayName = "T-528 S2 ck-5: secret values are refused; receipt evidence accepts opaque secret references only")]
+    [Fact(DisplayName = "execution-runtime-ck-5: secret values are refused; receipt evidence accepts opaque secret references only")]
     public async Task Secret_values_are_refused()
     {
         var ledger = new EffectReceiptLedger(new InMemoryEffectReceiptStore());
@@ -169,7 +169,7 @@ public sealed class EffectReceiptTests
         Assert.Equal(ExecutionRuntimeRefusals.SecretReferenceInvalid, refused.Code);
     }
 
-    [Fact(DisplayName = "T-528 S2 ck-5: a null secret reference id is refused as an invalid secret reference")]
+    [Fact(DisplayName = "execution-runtime-ck-5: a null secret reference id is refused as an invalid secret reference")]
     public async Task A_null_secret_reference_id_is_refused()
     {
         var ledger = new EffectReceiptLedger(new InMemoryEffectReceiptStore());

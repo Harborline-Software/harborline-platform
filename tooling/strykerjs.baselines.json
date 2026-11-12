@@ -311,6 +311,19 @@
       "report": "C:/hl-ab/wt-strykerjs/platform-reports/hlp.ui.dialog/mutation.json",
       "measured": "2026-09-26, winbox, every mutable file (--all), StrykerJS 10.0.0 vitest-runner, 15 workers, sequential"
     },
+    "projections/react/ui/hlp.ui.document-authoring": {
+      "baseline": 82,
+      "break": 82,
+      "score": 82.68,
+      "tested": 381,
+      "observed": [
+        82.68,
+        82.68
+      ],
+      "report": "projections/react/ui/hlp.ui.document-authoring/reports/mutation/mutation.json",
+      "measured": "2026-11-10, Mac mini, every mutable file (--all), StrykerJS 10.0.0 vitest-runner, 11 workers, sequential",
+      "why": "T-594/template-editors: new module measured twice under the 2026-09-26 owner ruling; baseline and break are the floor of the lower full-run score. Both runs tested 381 mutants: 313 killed, 66 survived, 2 timed out. No existing entry changed."
+    },
     "projections/react/ui/hlp.ui.empty-state": {
       "baseline": 66,
       "break": 66,

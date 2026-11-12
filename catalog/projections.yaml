@@ -187,6 +187,8 @@
     {"moduleId":"hlp.ui.data-grid","projection":"blazor","role":"adapter","status":"conformant","path":"projections/blazor/ui/hlp.ui.data-grid"},
     {"moduleId":"hlp.ui.rule-authoring","projection":"react","role":"adapter","status":"conformant","path":"projections/react/ui/hlp.ui.rule-authoring"},
     {"moduleId":"hlp.ui.rule-authoring","projection":"blazor","role":"adapter","status":"conformant","path":"projections/blazor/ui/hlp.ui.rule-authoring"},
+    {"moduleId":"hlp.ui.document-authoring","projection":"react","role":"adapter","status":"conformant","path":"projections/react/ui/hlp.ui.document-authoring"},
+    {"moduleId":"hlp.ui.document-authoring","projection":"blazor","role":"adapter","status":"conformant","path":"projections/blazor/ui/hlp.ui.document-authoring"},
     {"moduleId":"hlp.ui.booking-authoring","projection":"react","role":"adapter","status":"conformant","path":"projections/react/ui/hlp.ui.booking-authoring"},
     {"moduleId":"hlp.ui.booking-authoring","projection":"blazor","role":"adapter","status":"conformant","path":"projections/blazor/ui/hlp.ui.booking-authoring"},
     {"moduleId":"hlp.ui.view-runtime","projection":"react","role":"adapter","status":"conformant","path":"projections/react/ui/hlp.ui.view-runtime"},

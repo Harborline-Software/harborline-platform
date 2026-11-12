@@ -55,6 +55,9 @@ public sealed record RunRecord
     /// <summary>Every attempt made, in order.</summary>
     public IReadOnlyList<RunAttempt> Attempts { get; init; } = [];
 
+    /// <summary>Pending parallel waits; waiting leaves a started run running.</summary>
+    public IReadOnlyList<RunWait> Waits { get; init; } = [];
+
     /// <summary>When an awaiting-retry run's next attempt is due.</summary>
     public DateTimeOffset? NextAttemptDueUtc { get; init; }
 
@@ -69,4 +72,53 @@ public sealed record RunRecord
 
     /// <summary>The optimistic-concurrency version, 1 at creation and advanced by every stored change.</summary>
     public long Version { get; init; } = 1;
+}
+/// <summary>The closed reasons a running step waits.</summary>
+public enum RunWaitReason
+{
+    /// <summary>Wire name human-task.</summary>
+    HumanTask,
+    /// <summary>Wire name timer.</summary>
+    Timer,
+    /// <summary>Wire name dependency.</summary>
+    Dependency,
+}
+
+/// <summary>A pending wait. Fixed registration data survives holds, claims and restarts.</summary>
+public sealed record RunWait
+{
+    /// <summary>Registers a wait, requiring a UTC wake-up time exactly for timers.</summary>
+    public RunWait(string stepId, RunWaitReason reason, DateTimeOffset beganUtc, DateTimeOffset? wakeUpUtc = null)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(stepId);
+        if (!Enum.IsDefined(reason)) throw new ArgumentOutOfRangeException(nameof(reason));
+        if (beganUtc.Offset != TimeSpan.Zero || wakeUpUtc?.Offset != TimeSpan.Zero && wakeUpUtc is not null
+            || (reason == RunWaitReason.Timer) != wakeUpUtc.HasValue)
+        {
+            throw new ArgumentException("Wait times must be UTC and only a timer requires a wake-up time.");
+        }
+        StepId = stepId;
+        Reason = reason;
+        BeganUtc = beganUtc;
+        WakeUpUtc = wakeUpUtc;
+    }
+
+    /// <summary>The engine's step identity.</summary>
+    public string StepId { get; }
+    /// <summary>Why the step is waiting.</summary>
+    public RunWaitReason Reason { get; }
+    /// <summary>When the wait was registered, in UTC.</summary>
+    public DateTimeOffset BeganUtc { get; }
+    /// <summary>The timer's fixed absolute UTC wake-up time.</summary>
+    public DateTimeOffset? WakeUpUtc { get; }
+    /// <summary>A held wait is ineligible for dispatch.</summary>
+    public bool IsHeld { get; private init; }
+    /// <summary>The stable node id holding the timer claim.</summary>
+    public string? ClaimDispatcherId { get; internal init; }
+    /// <summary>When the timer claim expires.</summary>
+    public DateTimeOffset? ClaimExpiresUtc { get; internal init; }
+    /// <summary>Holds this wait without moving its wake-up time.</summary>
+    public RunWait Hold() => this with { IsHeld = true };
+    /// <summary>Releases this wait without moving its wake-up time.</summary>
+    public RunWait Release() => this with { IsHeld = false };
 }

@@ -6,7 +6,7 @@ namespace Harborline.Foundation.NotificationDelivery.Tests;
 public sealed class DeliveryChannelBoundaryTests
 {
     // DES-0055 notification-delivery-ck-1: the R1 transport key is literally "inbox".
-    [Fact]
+    [Fact(DisplayName = "notification-delivery-ck-1: inbox key renders its stable name and default renders empty")]
     public void Notification_delivery_ck_1_inbox_key_renders_its_stable_name_and_default_renders_empty()
     {
         Assert.Equal("inbox", DeliveryChannelKey.Inbox.Value);
@@ -15,7 +15,7 @@ public sealed class DeliveryChannelBoundaryTests
         Assert.Equal(string.Empty, default(DeliveryChannelKey).ToString());
     }
 
-    [Fact]
+    [Fact(DisplayName = "notification-delivery-ck-1: unknown channel refuses with a code and operator explanation")]
     public void Notification_delivery_ck_1_unknown_channel_refuses_with_a_code_and_operator_explanation()
     {
         var exception = Assert.Throws<NotificationDeliveryRefusedException>(() => DeliveryChannels.Require(default));
@@ -25,7 +25,7 @@ public sealed class DeliveryChannelBoundaryTests
     }
 
     // DES-0055 notification-delivery-ck-2: empty secret references are valid for an inbox binding.
-    [Theory]
+    [Theory(DisplayName = "notification-delivery-ck-2: empty binding preserves tenant channel enablement and sender")]
     [InlineData(true, "notification-sender")]
     [InlineData(false, null)]
     public void Notification_delivery_ck_2_empty_binding_preserves_tenant_channel_enablement_and_sender(
@@ -40,7 +40,7 @@ public sealed class DeliveryChannelBoundaryTests
         Assert.Empty(binding.SecretReferenceIds);
     }
 
-    [Fact]
+    [Fact(DisplayName = "notification-delivery-ck-2: binding copies references instead of retaining the callers list")]
     public void Notification_delivery_ck_2_binding_copies_references_instead_of_retaining_the_callers_list()
     {
         var references = new List<string>();
@@ -51,7 +51,7 @@ public sealed class DeliveryChannelBoundaryTests
         Assert.Empty(binding.SecretReferenceIds);
     }
 
-    [Fact]
+    [Fact(DisplayName = "notification-delivery-ck-2: null reference collection is refused before binding")]
     public void Notification_delivery_ck_2_null_reference_collection_is_refused_before_binding()
     {
         var exception = Assert.Throws<ArgumentNullException>(() => new ChannelBinding(
@@ -60,7 +60,7 @@ public sealed class DeliveryChannelBoundaryTests
         Assert.Equal("secretReferenceIds", exception.ParamName);
     }
 
-    [Fact]
+    [Fact(DisplayName = "notification-delivery-ck-2: binding an unknown channel refuses even without secrets")]
     public void Notification_delivery_ck_2_binding_an_unknown_channel_refuses_even_without_secrets()
     {
         var exception = Assert.Throws<NotificationDeliveryRefusedException>(() => new ChannelBinding(
@@ -70,7 +70,7 @@ public sealed class DeliveryChannelBoundaryTests
         Assert.Equal("Channel '' is not registered.", exception.Message);
     }
 
-    [Theory]
+    [Theory(DisplayName = "notification-delivery-ck-2: inbox secrets refuse even when the binding is disabled")]
     [InlineData(true)]
     [InlineData(false)]
     public void Notification_delivery_ck_2_inbox_secrets_refuse_even_when_the_binding_is_disabled(bool enabled)

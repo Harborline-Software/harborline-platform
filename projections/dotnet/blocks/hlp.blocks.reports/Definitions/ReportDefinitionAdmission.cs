@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Harborline.Blocks.BuilderDefinitions;
 using Harborline.Blocks.MeasureCatalogue;
 using Harborline.Foundation.Definitions;
@@ -42,6 +43,13 @@ public static class ReportDefinitionAdmission
             {
                 refusals.Add(new(ReportDefinitionCodes.EnvelopeMismatch, "/envelope"));
             }
+            if (!Enum.IsDefined(envelope.CascadeLayer)) refusals.Add(new("report.envelope_invalid", "/envelope/cascade_layer"));
+            if (envelope.Provenance is not { ValueKind: JsonValueKind.Object }) refusals.Add(new("report.envelope_invalid", "/envelope/provenance"));
+            if (string.IsNullOrWhiteSpace(envelope.RetentionClass)) refusals.Add(new("report.envelope_invalid", "/envelope/retention_class"));
+            if (envelope.Requires is null) refusals.Add(new("report.envelope_invalid", "/envelope/requires"));
+            foreach (var (requirement, index) in (envelope.Requires ?? []).Select((value, index) => (value, index)))
+                if (requirement is null || string.IsNullOrWhiteSpace(requirement.Capability))
+                    refusals.Add(new("report.envelope_invalid", $"/envelope/requires/{index}"));
             // T-572 (rulings 85-88): the contract travels with the envelope, inside the host's window.
             var contract = window.Check(envelope.Contract, null);
             if (contract is not null) refusals.Add(new(contract.Code, contract.Pointer));

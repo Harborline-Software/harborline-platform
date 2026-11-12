@@ -24,9 +24,9 @@
     "dist/style.css"
   ],
   "dependencies": {
-    "@radix-ui/react-slot": "1.3.3",
+    "@radix-ui/react-slot": "1.5.0",
     "clsx": "2.1.1",
-    "tailwind-merge": "3.6.0"
+    "tailwind-merge": "3.7.0"
   },
   "peerDependencies": {
     "@harborline-software/contracts": "0.0.0-alpha.0",
@@ -49,7 +49,7 @@
   "scripts": {
     "build": "node scripts/build.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test:native": "vitest run src/__tests__/Button.native.test.tsx && vitest run --config ../hlp.ui.context-menu/vitest.config.ts --root ../hlp.ui.context-menu && npm run test:aspect-lens && npm run test:cn && npm run test:default-strings && npm run test:accordion && npm run test:card && npm run test:icon-button && npm run test:layers-state && npm run test:separator && npm run test:locale-provider && npm run test:tone-style && npm run test:use-can-show-master-detail && npm run test:use-is-mobile && npm run test:use-nav-collapsed && npm run test:use-scroll-affordance && npm run test:breadcrumb && npm run test:check-box && npm run test:collapsible && npm run test:form-field && npm run test:confirm-dialog && npm run test:schema-form && npm run test:use-form-rule-graph && npm run test:date-field && npm run test:date-time-field && npm run test:number-field && npm run test:popover && npm run test:radio-group && npm run test:sheet && npm run test:spotlight && npm run test:text-area && npm run test:tooltip && npm run test:table && npm run test:window && npm run test:alert && npm run test:badge && npm run test:data-export-button && npm run test:side-nav-group && npm run test:spinner && npm run test:action-menu && npm run test:activity-log && npm run test:chip && npm run test:conversation-list && npm run test:error-card && npm run test:form-view && npm run test:loading-state && npm run test:rail-labels && npm run test:touch-target && npm run test:use-media-query && npm run test:use-outside-click && npm run test:empty-state && npm run test:guarded-control && npm run test:input && npm run test:layers-rail && npm run test:notification-center && npm run test:page && npm run test:search-input && npm run test:segmented-control && npm run test:select-field && npm run test:switch && npm run test:toaster && npm run test:user-menu && npm run test:app-layout && npm run test:app-shell && npm run test:detail-panel && npm run test:chart && npm run test:chat && npm run test:data-grid && npm run test:view-runtime && npm run test:rule-authoring && npm run test:records-authoring && npm run test:booking-authoring && npm run test:layout-runtime && npm run test:data-exchange && npm run test:gantt && npm run test:numeric-text-box && npm run test:scroll-affordance && npm run test:dialog && npm run test:side-nav && npm run test:switch-field && npm run test:text-box && npm run test:scheduler",
+    "test:native": "vitest run src/__tests__/Button.native.test.tsx && vitest run --config ../hlp.ui.context-menu/vitest.config.ts --root ../hlp.ui.context-menu && npm run test:aspect-lens && npm run test:cn && npm run test:default-strings && npm run test:accordion && npm run test:card && npm run test:icon-button && npm run test:layers-state && npm run test:separator && npm run test:locale-provider && npm run test:tone-style && npm run test:use-can-show-master-detail && npm run test:use-is-mobile && npm run test:use-nav-collapsed && npm run test:use-scroll-affordance && npm run test:breadcrumb && npm run test:check-box && npm run test:collapsible && npm run test:form-field && npm run test:confirm-dialog && npm run test:schema-form && npm run test:use-form-rule-graph && npm run test:date-field && npm run test:date-time-field && npm run test:number-field && npm run test:popover && npm run test:radio-group && npm run test:sheet && npm run test:spotlight && npm run test:text-area && npm run test:tooltip && npm run test:table && npm run test:window && npm run test:alert && npm run test:badge && npm run test:data-export-button && npm run test:side-nav-group && npm run test:spinner && npm run test:action-menu && npm run test:activity-log && npm run test:chip && npm run test:conversation-list && npm run test:error-card && npm run test:form-view && npm run test:loading-state && npm run test:rail-labels && npm run test:touch-target && npm run test:use-media-query && npm run test:use-outside-click && npm run test:empty-state && npm run test:guarded-control && npm run test:input && npm run test:layers-rail && npm run test:notification-center && npm run test:page && npm run test:search-input && npm run test:segmented-control && npm run test:select-field && npm run test:switch && npm run test:toaster && npm run test:user-menu && npm run test:app-layout && npm run test:app-shell && npm run test:detail-panel && npm run test:chart && npm run test:chat && npm run test:data-grid && npm run test:view-runtime && npm run test:rule-authoring && npm run test:records-authoring && npm run test:document-authoring && npm run test:booking-authoring && npm run test:layout-runtime && npm run test:data-exchange && npm run test:gantt && npm run test:numeric-text-box && npm run test:scroll-affordance && npm run test:dialog && npm run test:side-nav && npm run test:switch-field && npm run test:text-box && npm run test:scheduler",
     "test:conformance": "vitest run src/__tests__/Button.conformance.test.tsx",
     "test:context-menu": "vitest run --config ../hlp.ui.context-menu/vitest.config.ts --root ../hlp.ui.context-menu",
     "test:aspect-lens": "vitest run --config ../hlp.ui.aspect-lens/vitest.config.ts --root ../hlp.ui.aspect-lens",
@@ -121,6 +121,7 @@
     "test:view-runtime": "vitest run --configLoader runner --config ../hlp.ui.view-runtime/vitest.config.ts --root ../hlp.ui.view-runtime",
     "test:rule-authoring": "vitest run --configLoader runner --config ../hlp.ui.rule-authoring/vitest.config.ts --root ../hlp.ui.rule-authoring",
     "test:records-authoring": "vitest run --configLoader runner --config ../hlp.ui.records-authoring/vitest.config.ts --root ../hlp.ui.records-authoring",
+    "test:document-authoring": "vitest run --configLoader runner --config ../hlp.ui.document-authoring/vitest.config.ts --root ../hlp.ui.document-authoring",
     "test:booking-authoring": "vitest run --configLoader runner --config ../hlp.ui.booking-authoring/vitest.config.ts --root ../hlp.ui.booking-authoring",
     "test:layout-runtime":"vitest run --configLoader runner --config ../hlp.ui.layout-runtime/vitest.config.ts --root ../hlp.ui.layout-runtime",
     "test:data-exchange": "vitest run --configLoader runner --config ../hlp.ui.data-exchange/vitest.config.ts --root ../hlp.ui.data-exchange",
@@ -134,19 +135,19 @@
     "test:scheduler": "vitest run --config ../hlp.ui.scheduler/vitest.config.ts --root ../hlp.ui.scheduler -t \"^(?!.*\\[PerfBudget\\])\""
   },
   "devDependencies": {
-    "@stryker-mutator/core": "10.0.0",
-    "@stryker-mutator/vitest-runner": "10.0.0",
-    "@testing-library/dom": "10.4.1",
+    "@stryker-mutator/core": "10.1.1",
+    "@stryker-mutator/vitest-runner": "10.1.1",
+    "@testing-library/dom": "10.4.2",
     "@testing-library/jest-dom": "6.9.1",
-    "@testing-library/react": "16.3.2",
-    "@testing-library/user-event": "14.6.3",
-    "@types/node": "24.13.3",
-    "@types/react": "19.2.18",
-    "@types/react-dom": "19.2.4",
-    "esbuild": "0.28.1",
+    "@testing-library/react": "16.3.3",
+    "@testing-library/user-event": "14.6.9",
+    "@types/node": "24.19.2",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "esbuild": "0.28.2",
     "jsdom": "29.1.1",
-    "react": "19.2.8",
-    "react-dom": "19.2.8",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
     "typescript": "5.9.3",
     "vitest": "4.1.12"
   },

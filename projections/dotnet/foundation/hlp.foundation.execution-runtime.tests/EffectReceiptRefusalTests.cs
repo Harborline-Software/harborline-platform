@@ -25,7 +25,7 @@ public sealed class EffectReceiptRefusalTests
         Assert.Equal($"{code}: {message}", refused.Message);
     }
 
-    [Fact(DisplayName = "T-528 ck-5: effect identity refuses empty, blank, control and over-long values and accepts 256 characters")]
+    [Fact(DisplayName = "execution-runtime-ck-5: effect identity refuses empty, blank, control and over-long values and accepts 256 characters")]
     public void Effect_identity_bounds()
     {
         const string Message = "An effect identity must be a non-empty, non-control string of at most 256 characters.";
@@ -41,7 +41,7 @@ public sealed class EffectReceiptRefusalTests
         Assert.Equal(string.Empty, default(EffectId).ToString());
     }
 
-    [Fact(DisplayName = "T-528 ck-5: a duplicate receipt refusal names the effect")]
+    [Fact(DisplayName = "execution-runtime-ck-5: a duplicate receipt refusal names the effect")]
     public async Task Duplicate_names_the_effect()
     {
         var ledger = new EffectReceiptLedger(new InMemoryEffectReceiptStore());
@@ -50,7 +50,7 @@ public sealed class EffectReceiptRefusalTests
         Assert.Equal($"{ExecutionRuntimeRefusals.EffectReceiptDuplicate}: Effect 'effect:customer-42:email-v1' already has a receipt for this tenant.", refused.Message);
     }
 
-    [Fact(DisplayName = "T-528 ck-5: the ledger and store guard null receipts, cancellation, missing tenants and missing effect ids")]
+    [Fact(DisplayName = "execution-runtime-ck-5: the ledger and store guard null receipts, cancellation, missing tenants and missing effect ids")]
     public async Task Ledger_and_store_guard_arguments()
     {
         var store = new InMemoryEffectReceiptStore();
@@ -77,14 +77,14 @@ public sealed class EffectReceiptRefusalTests
         await Assert.ThrowsAsync<ExecutionRuntimeRefusedException>(() => ledger.RecordAsync(Receipt() with { EffectId = default }).AsTask());
     }
 
-    [Fact(DisplayName = "T-528 ck-5: the receipt names a workflow-run identity")]
+    [Fact(DisplayName = "execution-runtime-ck-5: the receipt names a workflow-run identity")]
     public async Task Workflow_run_kind_is_required()
     {
         var other = new RunId(new RunKind("exchange-run"), Guid.NewGuid());
         await RefusedWith(Receipt() with { WorkflowRunId = other }, Invalid, "An effect receipt must name its workflow-run identity.");
     }
 
-    [Theory(DisplayName = "T-528 ck-5: action node, capability reference and version are required text")]
+    [Theory(DisplayName = "execution-runtime-ck-5: action node, capability reference and version are required text")]
     [InlineData("action", "action node id")]
     [InlineData("reference", "capability reference")]
     [InlineData("version", "capability version")]
@@ -102,7 +102,7 @@ public sealed class EffectReceiptRefusalTests
         }
     }
 
-    [Fact(DisplayName = "T-528 ck-5: an unknown authority floor or status is refused on its own")]
+    [Fact(DisplayName = "execution-runtime-ck-5: an unknown authority floor or status is refused on its own")]
     public async Task Unknown_enum_values()
     {
         const string Message = "An effect receipt must use known authority and status values.";
@@ -111,14 +111,14 @@ public sealed class EffectReceiptRefusalTests
         await Accepted(Receipt() with { AuthorityFloor = EffectAuthorityFloor.CP });
     }
 
-    [Fact(DisplayName = "T-528 ck-5: an effect may complete at the instant it starts but never before")]
+    [Fact(DisplayName = "execution-runtime-ck-5: an effect may complete at the instant it starts but never before")]
     public async Task Completion_time_boundary()
     {
         await RefusedWith(Receipt() with { CompletedUtc = Started.AddTicks(-1) }, Invalid, "An effect receipt cannot complete before it starts.");
         await Accepted(Receipt() with { CompletedUtc = Started });
     }
 
-    [Theory(DisplayName = "T-528 ck-5: the request fingerprint is exactly sha256: plus 64 lowercase hex characters")]
+    [Theory(DisplayName = "execution-runtime-ck-5: the request fingerprint is exactly sha256: plus 64 lowercase hex characters")]
     [InlineData("sha256:")]
     [InlineData("sha512:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
     [InlineData("sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
@@ -134,7 +134,7 @@ public sealed class EffectReceiptRefusalTests
         await RefusedWith(Receipt() with { RequestFingerprint = fingerprint }, Invalid, "An effect receipt requires a non-secret SHA-256 request fingerprint.");
     }
 
-    [Fact(DisplayName = "T-528 ck-5: fingerprint boundary characters and a null fingerprint")]
+    [Fact(DisplayName = "execution-runtime-ck-5: fingerprint boundary characters and a null fingerprint")]
     public async Task Fingerprint_boundaries()
     {
         await Refused(Receipt() with { RequestFingerprint = null! });
@@ -142,7 +142,7 @@ public sealed class EffectReceiptRefusalTests
         await Accepted(Receipt() with { RequestFingerprint = "sha256:9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f" });
     }
 
-    [Fact(DisplayName = "T-528 ck-5: each attempt-ordering rule refuses alone and equal instants are accepted")]
+    [Fact(DisplayName = "execution-runtime-ck-5: each attempt-ordering rule refuses alone and equal instants are accepted")]
     public async Task Attempt_ordering()
     {
         const string Message = "Effect attempts must be ordered and cannot end before they start.";
@@ -156,7 +156,7 @@ public sealed class EffectReceiptRefusalTests
         await Assert.ThrowsAsync<ArgumentNullException>(() => ledger.RecordAsync(Receipt() with { Attempts = [null!] }).AsTask());
     }
 
-    [Theory(DisplayName = "T-528 ck-5: only opaque secret references are retained")]
+    [Theory(DisplayName = "execution-runtime-ck-5: only opaque secret references are retained")]
     [InlineData("hunter2")]
     [InlineData("secret://")]
     [InlineData("secretref:")]
@@ -170,7 +170,7 @@ public sealed class EffectReceiptRefusalTests
         await RefusedWith(Receipt() with { SecretReferenceIds = [reference] }, ExecutionRuntimeRefusals.SecretReferenceInvalid, "Effect receipts retain opaque secret references, never secret values.");
     }
 
-    [Fact(DisplayName = "T-528 ck-5: every permitted secret reference character is accepted")]
+    [Fact(DisplayName = "execution-runtime-ck-5: every permitted secret reference character is accepted")]
     public async Task Secret_reference_characters()
     {
         await Accepted(Receipt() with { SecretReferenceIds = ["secret://a.b_c:d/e-f9Z", "secretref:a.b_c:d/e-f9Z"] });
@@ -179,7 +179,7 @@ public sealed class EffectReceiptRefusalTests
         await Assert.ThrowsAsync<ArgumentNullException>(() => ledger.RecordAsync(Receipt() with { SecretReferenceIds = null! }).AsTask());
     }
 
-    [Fact(DisplayName = "T-528 ck-7: reconciliation state is required when ambiguous, forbidden otherwise, and its fields are required")]
+    [Fact(DisplayName = "execution-runtime-ck-7: reconciliation state is required when ambiguous, forbidden otherwise, and its fields are required")]
     public async Task Reconciliation_rules()
     {
         var reconciliation = new EffectReconciliation("smtp.lookup", "delivered", Effect);
@@ -192,7 +192,7 @@ public sealed class EffectReceiptRefusalTests
         await Accepted(ambiguous with { Reconciliation = reconciliation });
     }
 
-    [Fact(DisplayName = "T-528 ck-5: compensation refusals carry their contract messages")]
+    [Fact(DisplayName = "execution-runtime-ck-5: compensation refusals carry their contract messages")]
     public async Task Compensation_messages()
     {
         var other = new EffectId("effect:customer-42:email-v1:compensation");

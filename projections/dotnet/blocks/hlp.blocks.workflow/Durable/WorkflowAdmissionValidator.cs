@@ -262,7 +262,7 @@ public sealed class WorkflowAdmissionValidator : IWorkflowAdmissionValidator
         {
             if (a.Notification is { } notification && (a.Kind != WorkflowActionKind.Notify || string.IsNullOrWhiteSpace(notification.EventKey)
                 || !Enum.IsDefined(notification.Tier)
-                || (notification.BatchingWindow is { } window && (notification.Tier == Harborline.Contracts.Workflow.WorkflowNotificationTier.Decision || !System.Text.RegularExpressions.Regex.IsMatch(window, @"^P(?=\d|T\d)(?:\d+D)?(?:T(?=\d)(?:\d+H)?(?:\d+M)?(?:\d+S)?)?$")))))
+                || (notification.BatchingWindow is { } window && (notification.Tier == Harborline.Contracts.Workflow.WorkflowNotificationTier.Decision || !System.Text.RegularExpressions.Regex.IsMatch(window, @"^P(?=[0-9]|T[0-9])(?:[0-9]+D)?(?:T(?=[0-9])(?:[0-9]+H)?(?:[0-9]+M)?(?:[0-9]+S)?)?\z")))))
                 v.Add(new("workflow.invalid_notification", "Invalid notification declaration.", a.Id));
             bool hasState = a.OnState is { Length: > 0 };
             bool hasTransition = a.OnTransition is { Length: > 0 };

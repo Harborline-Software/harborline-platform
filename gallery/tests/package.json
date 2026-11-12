@@ -20,8 +20,8 @@
   },
   "dependencies": {
     "@axe-core/playwright": "4.12.1",
-    "@playwright/test": "1.62.1",
-    "@types/node": "24.13.3",
+    "@playwright/test": "1.65.0",
+    "@types/node": "24.19.2",
     "@types/pngjs": "6.0.5",
     "pixelmatch": "7.2.0",
     "pngjs": "7.0.0",

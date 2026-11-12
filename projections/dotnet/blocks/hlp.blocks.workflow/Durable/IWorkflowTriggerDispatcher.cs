@@ -10,6 +10,8 @@ public interface IWorkflowTriggerDispatcher
     /// <summary>
     /// Dispatches <paramref name="trigger"/>: loads the instance, replays if the step already advanced
     /// (idempotency hit → no-op), else asks the handler for an outcome and commits it atomically.
+    /// Interpreter decision errors commit Failed/not-retryable at the actual step; authorization
+    /// refusals and cancellation propagate without a failure advance (ADR-0141).
     /// </summary>
     /// <param name="trigger">The trigger to dispatch.</param>
     /// <param name="authority">
