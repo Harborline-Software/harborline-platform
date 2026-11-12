@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 
 namespace Harborline.Foundation.Assistance;
@@ -5,6 +6,8 @@ namespace Harborline.Foundation.Assistance;
 /// <summary>A bounded sufficient proof of schema inclusion, not a general JSON Schema solver.</summary>
 public static class AssistanceArgsSchemaNarrowing
 {
+    private static readonly JsonElement EmptySchema = JsonElement.Parse("{}");
+
     /// <summary>Proves that candidate accepts no more values than baseline; uncertainty refuses.</summary>
     public static bool IsAtLeastAsStrict(JsonElement candidate, JsonElement baseline)
     {
@@ -13,15 +16,16 @@ public static class AssistanceArgsSchemaNarrowing
         var shapeBudget = 4096;
         var hasReferences = false;
         if (!HasUniqueNames(candidate, 0, ref shapeBudget, ref hasReferences) || !HasUniqueNames(baseline, 0, ref shapeBudget, ref hasReferences)) return false;
-        // A nested reference can observe a sibling change with negative polarity.
-        if (hasReferences) return JsonElement.DeepEquals(candidate, baseline);
         var budget = 4096;
+        // A nested reference can observe a sibling change with negative polarity.
+        if (hasReferences) return Equal(candidate, baseline, ref budget);
         return Compare(candidate, baseline, 0, ref budget);
     }
 
     private static bool HasUniqueNames(JsonElement value, int depth, ref int budget, ref bool hasReferences)
     {
         if (depth > 64 || --budget < 0) return false;
+        if (value.ValueKind == JsonValueKind.Number && !TryGetExactDecimal(value, out _)) return false;
         if (value.ValueKind == JsonValueKind.Object)
         {
             var names = new HashSet<string>(StringComparer.Ordinal);
@@ -46,7 +50,7 @@ public static class AssistanceArgsSchemaNarrowing
         // Unchanged keyword values alone cannot prove that sibling edits are safe.
         string[] opaque = ["$ref", "$dynamicRef", "$id", "$dynamicAnchor", "unevaluatedProperties", "unevaluatedItems", "allOf", "anyOf", "oneOf", "not", "if", "then", "else", "dependentSchemas"];
         if (opaque.Any(name => candidate.TryGetProperty(name, out _) || baseline.TryGetProperty(name, out _)))
-            return JsonElement.DeepEquals(candidate, baseline);
+            return Equal(candidate, baseline, ref budget);
         var current = candidate.EnumerateObject().ToArray();
         var original = baseline.EnumerateObject().ToArray();
         if (current.Select(p => p.Name).Distinct(StringComparer.Ordinal).Count() != current.Length ||
@@ -64,7 +68,20 @@ public static class AssistanceArgsSchemaNarrowing
                     break;
                 case "enum":
                     if (!hasNew || next.ValueKind != JsonValueKind.Array || next.GetArrayLength() == 0) return false;
-                    if (hasOld && (old.ValueKind != JsonValueKind.Array || next.EnumerateArray().Any(value => !old.EnumerateArray().Any(item => JsonElement.DeepEquals(value, item))))) return false;
+                    if (hasOld)
+                    {
+                        if (old.ValueKind != JsonValueKind.Array) return false;
+                        foreach (var value in next.EnumerateArray())
+                        {
+                            var found = false;
+                            foreach (var item in old.EnumerateArray())
+                            {
+                                if (Equal(value, item, ref budget)) { found = true; break; }
+                                if (budget < 0) return false;
+                            }
+                            if (!found) return false;
+                        }
+                    }
                     break;
                 case "minimum": case "minLength": case "minItems":
                 case "maximum": case "maxLength": case "maxItems":
@@ -87,6 +104,7 @@ public static class AssistanceArgsSchemaNarrowing
                     foreach (var property in next.EnumerateObject())
                     {
                         if (hasOld && old.TryGetProperty(property.Name, out _)) continue;
+                        if (!CompareAdded(property.Value, depth + 1, ref budget)) return false;
                         if (baseline.TryGetProperty("additionalProperties", out var extra))
                         {
                             if (extra.ValueKind == JsonValueKind.False) return false;
@@ -96,32 +114,76 @@ public static class AssistanceArgsSchemaNarrowing
                     break;
                 case "items":
                     if (!hasNew) return false;
-                    if (hasOld && !Compare(next, old, depth + 1, ref budget)) return false;
+                    if (hasOld ? !Compare(next, old, depth + 1, ref budget) : !CompareAdded(next, depth + 1, ref budget)) return false;
                     break;
                 case "additionalProperties":
                     if (!hasNew) return false;
-                    if (!hasOld || old.ValueKind == JsonValueKind.True) break;
+                    if (!hasOld || old.ValueKind == JsonValueKind.True)
+                    {
+                        if (!CompareAdded(next, depth + 1, ref budget)) return false;
+                        break;
+                    }
                     if (next.ValueKind == JsonValueKind.False) break;
                     if (!Compare(next, old, depth + 1, ref budget)) return false;
                     break;
                 case "type": case "pattern":
-                    if (!hasNew || (hasOld && !JsonElement.DeepEquals(next, old))) return false;
+                    if (!hasNew || (hasOld && !Equal(next, old, ref budget))) return false;
                     break;
                 default:
                     // Unsupported keywords (including references and combinators) must be unchanged.
-                    if (!hasNew || !hasOld || !JsonElement.DeepEquals(next, old)) return false;
+                    if (!hasNew || !hasOld || !Equal(next, old, ref budget)) return false;
                     break;
             }
         }
         return true;
     }
 
+    private static bool CompareAdded(JsonElement schema, int depth, ref int budget) =>
+        schema.ValueKind is JsonValueKind.True or JsonValueKind.False || Compare(schema, EmptySchema, depth, ref budget);
+
+    private static bool Equal(JsonElement left, JsonElement right, ref int budget)
+    {
+        if (--budget < 0 || left.ValueKind != right.ValueKind) return false;
+        switch (left.ValueKind)
+        {
+            case JsonValueKind.Object:
+                var leftProperties = left.EnumerateObject().ToArray();
+                var rightProperties = right.EnumerateObject().ToArray();
+                budget -= leftProperties.Length + rightProperties.Length;
+                if (budget < 0 || leftProperties.Length != rightProperties.Length) return false;
+                var properties = rightProperties.ToDictionary(p => p.Name, p => p.Value, StringComparer.Ordinal);
+                foreach (var property in leftProperties)
+                    if (!properties.TryGetValue(property.Name, out var value) || !Equal(property.Value, value, ref budget)) return false;
+                return true;
+            case JsonValueKind.Array:
+                if (left.GetArrayLength() != right.GetArrayLength()) return false;
+                for (var index = 0; index < left.GetArrayLength(); index++)
+                    if (!Equal(left[index], right[index], ref budget)) return false;
+                return true;
+            case JsonValueKind.Number:
+                budget -= left.GetRawText().Length + right.GetRawText().Length;
+                return budget >= 0 && left.GetDecimal() == right.GetDecimal();
+            case JsonValueKind.String:
+                var leftText = left.GetString()!;
+                var rightText = right.GetString()!;
+                budget -= leftText.Length + rightText.Length;
+                return budget >= 0 && leftText == rightText;
+            default:
+                return true;
+        }
+    }
+
     private static bool TryGetExactDecimal(JsonElement value, out decimal number)
     {
         number = default;
-        // DeepEquals compares the original JSON number without rounding.
-        return value.ValueKind == JsonValueKind.Number && value.TryGetDecimal(out number) &&
-            JsonElement.DeepEquals(value, JsonSerializer.SerializeToElement(number));
+        if (value.ValueKind != JsonValueKind.Number || !value.TryGetDecimal(out number)) return false;
+        var raw = value.GetRawText();
+        var exponentIndex = raw.IndexOfAny(['e', 'E']);
+        // An exact nonzero decimal cannot shift farther than its digits plus decimal's 28-place scale.
+        // Refuse even zero at larger exponents before the runtime's int-based exponent normalization.
+        if (exponentIndex >= 0 && (!int.TryParse(raw.AsSpan(exponentIndex + 1), NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out var exponent) ||
+            Math.Abs((long)exponent) > raw.Length + 28)) return false;
+        return JsonElement.DeepEquals(value, JsonSerializer.SerializeToElement(number));
     }
 
     private static bool StringSet(JsonElement value, out HashSet<string> result)

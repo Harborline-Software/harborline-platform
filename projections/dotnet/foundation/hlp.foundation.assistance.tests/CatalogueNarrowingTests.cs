@@ -20,6 +20,96 @@ public sealed class CatalogueNarrowingTests
         "tenant", "binding", "1.0.0", "surface", "/surface", commands, [], ["alice"], new("provider", "model"),
         Envelope: new("binding", "1.0.0", "tenant", AssistanceCascadeLayer.Tenant, Json("{}"), "restricted", false, [], new(1, 0)));
 
+    [Theory(DisplayName = "pilot-auth-3 pilot-ck-6: extreme numeric equality fails closed without throwing")]
+    [InlineData("const", "1e2147483647", "0.1e-2147483648")]
+    [InlineData("enum", "[1e2147483648]", "[1e2147483648]")]
+    public void ExtremeNumbers(string keyword, string baseline, string candidate)
+    {
+        var registry = new FixtureCommandCatalogueRegistry();
+        registry.Replace(registry.Resolve("ap")! with { ArgsSchema = Json($"{{\"{keyword}\":{baseline}}}") });
+        var binding = Binding(Command("ap", schema: $"{{\"{keyword}\":{candidate}}}"));
+        foreach (var phase in new[] { AssistanceAdmissionPhase.Author, AssistanceAdmissionPhase.Publish, AssistanceAdmissionPhase.Install })
+            Assert.Equal([new AssistanceRefusal("definition.args_schema_looser_than_catalogue", "/commands/0/args_schema")],
+                AssistanceDefinitionAdmission.AdmitJson(Encoding.UTF8.GetString(AssistanceDefinitionJson.SerializeCanonical(binding)), phase, Window, registry));
+    }
+
+    [Fact(DisplayName = "pilot-auth-4 pilot-ck-8: undefined tier cannot bypass the catalogue floor")]
+    public void UndefinedTier()
+    {
+        var binding = Binding(Command("never", (AssistanceClassificationTier)3));
+        var json = Encoding.UTF8.GetString(AssistanceDefinitionJson.SerializeCanonical(binding));
+        foreach (var phase in new[] { AssistanceAdmissionPhase.Author, AssistanceAdmissionPhase.Publish, AssistanceAdmissionPhase.Install })
+        {
+            Assert.Equal([new AssistanceRefusal("definition.body_invalid", "/")], AssistanceDefinitionAdmission.Validate(binding, phase, Window, new FixtureCommandCatalogueRegistry()));
+            Assert.Equal([new AssistanceRefusal("definition.body_invalid", "/")], AssistanceDefinitionAdmission.AdmitJson(json, phase, Window, new FixtureCommandCatalogueRegistry()));
+        }
+    }
+
+    [Fact(DisplayName = "pilot-auth-10 pilot-ck-12: recipient refusals remain ordered and unique at scale")]
+    public void ManyRecipients()
+    {
+        var binding = Binding(Command("ap"), Command("cp", AssistanceClassificationTier.Cp)) with { Recipients = Enumerable.Repeat("outsider", 20000).ToArray() };
+        var refusals = AssistanceDefinitionAdmission.Validate(binding, AssistanceAdmissionPhase.Install, Window, new FixtureCommandCatalogueRegistry());
+        Assert.Equal(20000, refusals.Count);
+        Assert.Equal(new AssistanceRefusal("definition.recipient_outside_target_permission", "/recipients/0"), refusals[0]);
+        Assert.Equal(new AssistanceRefusal("definition.recipient_outside_target_permission", "/recipients/19999"), refusals[19999]);
+    }
+
+    [Fact(DisplayName = "pilot-auth-3 pilot-ck-6: enum equality searches consume comparison budget")]
+    public void EnumBudget()
+    {
+        var schema = Json("{\"enum\":[" + string.Join(',', Enumerable.Range(0, 2000)) + "]}");
+        Assert.False(AssistanceArgsSchemaNarrowing.IsAtLeastAsStrict(schema, schema));
+    }
+
+    [Theory(DisplayName = "pilot-auth-3 pilot-ck-6: new subschemas cannot bypass fail-closed checks")]
+    [InlineData("{\"items\":{\"minimum\":1e-29}}")]
+    [InlineData("{\"items\":{\"const\":1}}")]
+    [InlineData("{\"items\":42}")]
+    [InlineData("{\"properties\":{\"x\":{\"minimum\":1e-29}}}")]
+    [InlineData("{\"properties\":{\"x\":{\"const\":1}}}")]
+    [InlineData("{\"properties\":{\"x\":42}}")]
+    public void NewSubschemas(string schema) => Assert.False(AssistanceArgsSchemaNarrowing.IsAtLeastAsStrict(Json(schema), Json("{}")));
+
+    [Fact(DisplayName = "pilot-auth-3 pilot-ck-6: opaque equality cannot bypass exact numeric bounds")]
+    public void OpaqueBounds()
+    {
+        var schema = Json("""{"allOf":[{"minimum":1e-29}]}""");
+        Assert.False(AssistanceArgsSchemaNarrowing.IsAtLeastAsStrict(schema, schema));
+    }
+
+    [Theory(DisplayName = "pilot-auth-3 pilot-ck-6: non-reference opaque applicators observe changed siblings")]
+    [InlineData("not", "{}")]
+    [InlineData("allOf", "[{}]")]
+    [InlineData("anyOf", "[{}]")]
+    [InlineData("oneOf", "[{}]")]
+    [InlineData("if", "{}")]
+    [InlineData("then", "{}")]
+    [InlineData("else", "{}")]
+    [InlineData("dependentSchemas", "{\"x\":{}}")]
+    [InlineData("unevaluatedProperties", "false")]
+    [InlineData("unevaluatedItems", "false")]
+    [InlineData("$id", "\"urn:example:schema\"")]
+    [InlineData("$dynamicAnchor", "\"node\"")]
+    public void OpaqueSiblings(string keyword, string value)
+    {
+        Assert.False(AssistanceArgsSchemaNarrowing.IsAtLeastAsStrict(Json($"{{\"{keyword}\":{value},\"minimum\":1}}"), Json($"{{\"{keyword}\":{value}}}")));
+    }
+
+    [Theory(DisplayName = "pilot-auth-3 pilot-ck-6: unsupported keyword changes refuse")]
+    [InlineData("const", "1", "2")]
+    [InlineData("multipleOf", "2", "3")]
+    [InlineData("exclusiveMinimum", "1", "0")]
+    [InlineData("format", "\"email\"", "\"uri\"")]
+    [InlineData("patternProperties", "{\"^x\":false}", "{}")]
+    [InlineData("prefixItems", "[false]", "[true]")]
+    [InlineData("contains", "false", "true")]
+    [InlineData("minContains", "2", "1")]
+    [InlineData("maxContains", "1", "2")]
+    [InlineData("dependentRequired", "{\"x\":[\"y\"]}", "{}")]
+    public void UnsupportedChanges(string keyword, string baseline, string candidate) =>
+        Assert.False(AssistanceArgsSchemaNarrowing.IsAtLeastAsStrict(Json($"{{\"{keyword}\":{candidate}}}"), Json($"{{\"{keyword}\":{baseline}}}")));
+
     [Theory(DisplayName = "pilot-auth-9 pilot-ck-5: unexported catalogue command refuses in every phase")]
     [InlineData(AssistanceAdmissionPhase.Author)]
     [InlineData(AssistanceAdmissionPhase.Publish)]

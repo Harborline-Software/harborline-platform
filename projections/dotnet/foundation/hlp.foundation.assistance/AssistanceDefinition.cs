@@ -173,7 +173,9 @@ public static class AssistanceDefinitionAdmission
         ArgumentNullException.ThrowIfNull(definition);
         ArgumentNullException.ThrowIfNull(window);
         commands ??= new EmptyCommandCatalogueRegistry();
+        if (definition.Commands.Any(command => !Enum.IsDefined(command.Classification.Tier))) return [new("definition.body_invalid", "/")];
         var refusals = new List<AssistanceRefusal>();
+        var reportedRecipients = new HashSet<int>();
         if (!IsThreePartVersion(definition.Version)) refusals.Add(new("definition.version_invalid", "/version"));
         if (definition.SchemaVersion != 1) refusals.Add(new("definition.schema_version_unsupported", "/schema_version"));
         if (string.IsNullOrWhiteSpace(definition.Surface)) refusals.Add(new("definition.surface_required", "/surface"));
@@ -186,7 +188,7 @@ public static class AssistanceDefinitionAdmission
         if (string.IsNullOrWhiteSpace(definition.Provider.ProviderId)) refusals.Add(new("definition.provider_required", "/provider/provider_id"));
         if (string.IsNullOrWhiteSpace(definition.Provider.ModelId)) refusals.Add(new("definition.model_required", "/provider/model_id"));
         // Registered-provider floors are deferred by DES-0026 open ruling 5.
-        for (var index = 0; index < definition.Commands.Count; index++) ValidateCommand(definition.Commands[index], index, commands, definition.Recipients, refusals);
+        for (var index = 0; index < definition.Commands.Count; index++) ValidateCommand(definition.Commands[index], index, commands, definition.Recipients, refusals, reportedRecipients);
         var seenCommandIds = new HashSet<string>(StringComparer.Ordinal);
         for (var index = 0; index < definition.Commands.Count; index++)
             if (!seenCommandIds.Add(definition.Commands[index].CommandId))
@@ -201,7 +203,7 @@ public static class AssistanceDefinitionAdmission
         if (previous is not null) ValidateNarrowing(definition, previous, refusals);
         return refusals;
     }
-    private static void ValidateCommand(AssistanceCommand command, int index, ICommandCatalogueRegistry commands, IReadOnlyList<string> recipients, List<AssistanceRefusal> refusals)
+    private static void ValidateCommand(AssistanceCommand command, int index, ICommandCatalogueRegistry commands, IReadOnlyList<string> recipients, List<AssistanceRefusal> refusals, HashSet<int> reportedRecipients)
     {
         var pointer = $"/commands/{index}";
         var entry = string.IsNullOrWhiteSpace(command.CommandId) ? null : commands.Resolve(command.CommandId);
@@ -215,7 +217,7 @@ public static class AssistanceDefinitionAdmission
                 if (entry.PermittedRecipients is null || !entry.PermittedRecipients.Contains(recipients[recipient], StringComparer.Ordinal))
                 {
                     var refusal = new AssistanceRefusal("definition.recipient_outside_target_permission", $"/recipients/{recipient}");
-                    if (!refusals.Contains(refusal)) refusals.Add(refusal);
+                    if (reportedRecipients.Add(recipient)) refusals.Add(refusal);
                 }
         }
         if (command.ArgsSchema.ValueKind != JsonValueKind.Object) refusals.Add(new("definition.args_schema_not_object", pointer + "/args_schema"));
