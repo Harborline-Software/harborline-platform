@@ -40,4 +40,11 @@ public interface ICompiledAttachmentFieldKind : ICompiledFieldKind
     IReadOnlyList<string> AcceptedMediaTypes { get; }
     /// <summary>Whether installation must warn that the declared field limit exceeds the store's.</summary>
     bool LimitAboveStore { get; }
+    /// <summary>
+    /// Validates one entry of a write list (ADR-0142 decision 1): a kept content reference, checked as
+    /// <see cref="ICompiledFieldKind.Validate"/> checks it, or a staged entry of exactly a GUID <c>stage_id</c> and a
+    /// non-blank <c>display_name</c>, whose size and media type the store already enforced at its put. Read grammar and
+    /// stored bodies use <see cref="ICompiledFieldKind.Validate"/>, which admits references only.
+    /// </summary>
+    IReadOnlyList<FieldRefusal> ValidateSubmission(JsonElement value, string jsonPointer);
 }

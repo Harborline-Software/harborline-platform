@@ -136,6 +136,105 @@ public sealed class AttachmentWriteTests
         Assert.False(row.RootElement.GetProperty("documents")[0].TryGetProperty("stage_id", out _));
     }
 
+    // content-store-cc-2, ADR-0142 decision 3 (Terra P1-2): an accepted command is the submitter's write completed by a
+    // worker. The submitter's own stage promotes with the worker as audit actor; another principal's stage still refuses.
+    [Fact]
+    public async Task Content_store_cc_2_an_accepted_command_promotes_the_submitters_stage_and_no_one_elses()
+    {
+        var fixture = await Fixture.CreateFormOnly();
+        var own = await fixture.UploadAs("alice evidence", "alice");
+        var completed = await fixture.Operation.CompleteAcceptedAsync(new("tenant-a", "sys.records-worker"), Accepted("alice", List(own)));
+        Assert.True(completed.Committed, completed.Refusal?.Code);
+        using var row = JsonDocument.Parse(Assert.Single(fixture.Port.Rows).Body);
+        Assert.False(row.RootElement.GetProperty("evidence")[0].TryGetProperty("stage_id", out _));
+        Assert.Equal(1, fixture.Store.CommittedCount);
+
+        var other = await fixture.UploadAs("mallory evidence", "mallory");
+        var stolen = await fixture.Operation.CompleteAcceptedAsync(new("tenant-a", "sys.records-worker"),
+            Accepted("alice", List(other)) with { CommandId = "cmd-2", OperationId = "op-accepted-2" });
+        Assert.False(stolen.Committed);
+        Assert.Equal("content.staging-expired", stolen.Refusal!.Code);
+        Assert.Single(fixture.Port.Rows);
+    }
+
+    // content-store-cc-2 with M11's ruling on Terra P1-4: two writes that promote the same content in opposite orders take
+    // their row locks in one canonical order, so neither waits on the other forever.
+    [Fact]
+    public async Task Content_store_cc_2_two_writes_naming_the_same_content_in_opposite_orders_both_commit()
+    {
+        var fixture = await Fixture.Create();
+        var (x1, y1, y2, x2) = (await fixture.Upload("x-bytes"), await fixture.Upload("y-bytes"), await fixture.Upload("y-bytes"), await fixture.Upload("x-bytes"));
+        var first = DispatchProxy.Create<IContentBookkeepingSession, RendezvousSession>();
+        var second = DispatchProxy.Create<IContentBookkeepingSession, RendezvousSession>();
+        ((RendezvousSession)first).Partner = (RendezvousSession)second;
+        ((RendezvousSession)second).Partner = (RendezvousSession)first;
+        var handed = 0;
+        fixture.Port.DecorateSession = inner =>
+        {
+            var proxy = Interlocked.Increment(ref handed) == 1 ? first : second;
+            ((RendezvousSession)proxy).Inner = inner;
+            return proxy;
+        };
+        var writes = Task.WhenAll(fixture.Write("forward", List(x1, y1)).AsTask(), fixture.Write("reverse", List(y2, x2)).AsTask());
+        var outcomes = await writes.WaitAsync(TimeSpan.FromSeconds(20));
+        Assert.All(outcomes, outcome => Assert.True(outcome.Committed, outcome.Refusal?.Code));
+        Assert.Equal(2, fixture.Port.Rows.Count);
+        Assert.Equal(2, fixture.Store.CommittedCount);
+    }
+
+    // T-618 (Terra P2-7): the preview reports a kind that does not bind as a refusal; its warning pass never throws.
+    [Fact]
+    public async Task T_618_preflight_reports_an_unbindable_attachment_kind_instead_of_throwing()
+    {
+        var fixture = await Fixture.Create();
+        var head = (await fixture.Records.GetPublishedHeadAsync("tenant-a", "eam.evidence"))!;
+        var binding = head.Fields[0].Binding!;
+        var bad = head with { Fields = [head.Fields[0] with { Binding = binding with { Kind = binding.Kind with { Parameters = new Dictionary<string, string> { ["item_limit_bytes"] = "lots" } } } }, .. head.Fields.Skip(1)] };
+        var preflight = await fixture.Records.PreflightAsync("tenant-a", bad);
+        Assert.Contains(preflight.Refusals, refusal => refusal.Code == "field.kind_parameter_invalid");
+        Assert.DoesNotContain(preflight.Warnings, warning => warning.Code == "content.field-limit-above-store");
+    }
+
+    // records-ck-8 (Terra P2-8): required_condition is an expression on any field, not only an attachment. A true
+    // condition requires a present, non-null value on the plain status field.
+    [Theory]
+    [InlineData(true, null, false)]
+    [InlineData(true, "open", true)]
+    [InlineData(false, null, true)]
+    public async Task Records_ck_8_a_required_condition_on_a_plain_field_requires_it_exactly_when_true(bool attach, string? status, bool expected)
+    {
+        var fixture = await Fixture.CreateWithStatusCondition("""{"!!":[{"var":"evidence"}]}""");
+        var body = attach ? List(await fixture.Upload("evidence")) : new JsonObject { ["evidence"] = new JsonArray() };
+        if (status is not null) body["status"] = status;
+        var outcome = await fixture.Write("plain-condition", body);
+        Assert.Equal(expected, outcome.Committed);
+        if (!expected)
+        {
+            Assert.Equal("field.required", outcome.Refusal!.Code);
+            Assert.Equal("rules", outcome.Refusal.Stage);
+            Assert.Equal(["/status"], outcome.Refusal.Pointers);
+            Assert.Empty(fixture.Port.Rows);
+            Assert.Equal(0, fixture.Store.CommittedCount);
+        }
+    }
+
+    // content-store-cc-2, ADR 0113 (Terra P2-9): the promotion is part of the record's own commit. When that commit fails,
+    // no reference lands, the stage survives, and the same stage commits on retry.
+    [Fact]
+    public async Task Content_store_cc_2_a_failed_record_commit_leaves_no_promoted_reference()
+    {
+        var fixture = await Fixture.Create();
+        var stage = await fixture.Upload("evidence");
+        fixture.Port.FailCommit = true;
+        await Assert.ThrowsAsync<IOException>(async () => await fixture.Write("commit-fails", List(stage)));
+        Assert.Empty(fixture.Port.Rows);
+        Assert.Equal(0, fixture.Store.CommittedCount);
+        Assert.Equal(1, fixture.Store.StagedCount);
+        fixture.Port.FailCommit = false;
+        Assert.True((await fixture.Write("commit-retry", List(stage))).Committed);
+        Assert.Equal(1, fixture.Store.CommittedCount);
+    }
+
     [Fact]
     public async Task Kept_and_new_entries_round_trip_in_order_through_one_enclosing_write()
     {
@@ -332,7 +431,50 @@ public sealed class AttachmentWriteTests
 
     private static JsonObject List(params Guid[] stages) => new() { ["evidence"] = new JsonArray(stages.Select((stage, index) => (JsonNode)Stage(stage, index == 0 ? "first.txt" : "second.txt")).ToArray()) };
     private static JsonObject Stage(Guid stage, string name) => new() { ["stage_id"] = stage.ToString(), ["display_name"] = name };
-    private static ContentStoreWrite Evidence(IContentBookkeepingSession? session = null) => new(new(Guid.NewGuid().ToString("N"), Guid.NewGuid().ToString("N"), "literal-fingerprint"), new(Guid.NewGuid().ToString("N"), "operator-7", DateTimeOffset.UnixEpoch, ReadOnlyMemory<byte>.Empty), session);
+    private static ContentStoreWrite Evidence(IContentBookkeepingSession? session = null, string actor = "operator-7") => new(new(Guid.NewGuid().ToString("N"), Guid.NewGuid().ToString("N"), "literal-fingerprint"), new(Guid.NewGuid().ToString("N"), actor, DateTimeOffset.UnixEpoch, ReadOnlyMemory<byte>.Empty), session);
+
+    // The acceptance a form's submit gate committed for the submitter, in the shape AcceptedRecordCommandReadings admits.
+    private static AcceptedRecordCreate Accepted(string submitter, JsonObject body)
+    {
+        var at = DateTimeOffset.UtcNow.AddMinutes(-1);
+        var snapshot = AuthoritySnapshotEncoding.Encode(new AuthorizationDecisionEvidence(
+            new AccessRequest("forms:submit-gate", submitter, "tenant-a", new AccessRecord("tenant-a", "form", "capture@1.0.0", new Dictionary<string, JsonNode?>()), at),
+            true, "None", "grant:fixture@1", [], [], kind: "Gate"));
+        var command = new AcceptedRecordCreate("tenant-a", "cmd-1", submitter, "op-accepted-1", "eam.evidence", body,
+            "records-write-intent/1", "", "capture@1.0.0", "acceptance-audit-1", at, at, snapshot);
+        return command with { BodyDigest = RecordWriteIntent.Digest(RecordWriteIntent.Encode(command.RecordTypeId, null, command.Body)) };
+    }
+
+    // Lets two transactions meet after each takes its first committed-row lock, so a lock-order inversion deadlocks
+    // deterministically; a transaction whose partner is blocked waits out the bound and carries on.
+    public class RendezvousSession : DispatchProxy
+    {
+        public IContentBookkeepingSession Inner { get; set; } = null!;
+        public TaskCompletionSource Arrived { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public RendezvousSession Partner { get; set; } = null!;
+        private int met;
+        protected override object? Invoke(MethodInfo? targetMethod, object?[]? args)
+        {
+            var result = targetMethod!.Invoke(Inner, args);
+            // Every call that takes a committed row's lock: a lock-ahead read, a conditional create, or adding an owner.
+            if (targetMethod.Name is not ("FindItemForUpdateAsync" or "TryCreateItemAsync" or "AddOwnerAsync")
+                || Interlocked.Exchange(ref met, 1) == 1) return result;
+            return result switch
+            {
+                ValueTask<ContentStoreItem?> item => Meet(item),
+                ValueTask<bool> added => Meet(added),
+                _ => result,
+            };
+        }
+        private async ValueTask<T> Meet<T>(ValueTask<T> operation)
+        {
+            var value = await operation.ConfigureAwait(false);
+            Arrived.TrySetResult();
+            try { await Partner.Arrived.Task.WaitAsync(TimeSpan.FromSeconds(1)).ConfigureAwait(false); }
+            catch (TimeoutException) { }
+            return value;
+        }
+    }
 
     private sealed class Fixture
     {
@@ -345,7 +487,7 @@ public sealed class AttachmentWriteTests
         public Port Port { get; }
         public RecordWriteOperation Operation { get; }
         public RecordTypePublication Publication { get; }
-        private Fixture(bool condition, bool composeRuntime, bool exposeSession, string fieldKey, bool temporalMode, string? conditionJson = null)
+        private Fixture(bool condition, bool composeRuntime, bool exposeSession, string fieldKey, bool temporalMode, string? conditionJson = null, bool formOnly = false, string? statusCondition = null)
         {
             Store = new(new(100, 1000, 10000, TimeSpan.FromHours(1)), new Keys(), TimeProvider.System, Storage);
             Runtime = new(Store);
@@ -363,13 +505,17 @@ public sealed class AttachmentWriteTests
             Records = new(catalogue, compiler, new(kinds), Registry, Window, roles: CreationRoles);
             var field = new FieldDefinition(fieldKey, "Evidence", new(kind, new(false, 0, null, [], null)))
             { RequiredCondition = conditionJson is not null ? JsonSerializer.Deserialize<JsonElement>(conditionJson) : condition ? JsonSerializer.Deserialize<JsonElement>("""{"==":[{"var":"status"},"closed"]}""") : null };
-            FieldDefinition[] fields = conditionJson is null ? [field, new("status", "Status")] : [field, new("status", "Status"), new("documents", "Documents", new(kind, new(false, 0, null, [], null)))];
+            var status = new FieldDefinition("status", "Status") { RequiredCondition = statusCondition is null ? null : JsonSerializer.Deserialize<JsonElement>(statusCondition) };
+            FieldDefinition[] fields = conditionJson is null ? [field, status] : [field, status, new("documents", "Documents", new(kind, new(false, 0, null, [], null)))];
             Records.CreateDraftAsync(new("tenant-a", "eam", "Evidence", "1.0.0", fields, new(1, 0),
-                ClassId: "eam.equipment", RecordClass: RecordClass.Master, PackageId: "eam-core", CreationGate: RecordCreationGate.Role, CreationRoleId: "asset-author") { AmendmentPolicy = new(true) { Mode = temporalMode ? RecordAmendmentMode.Supersession : null } }, "type").AsTask().GetAwaiter().GetResult();
+                ClassId: "eam.equipment", RecordClass: RecordClass.Master, PackageId: "eam-core", CreationGate: formOnly ? RecordCreationGate.FormOnly : RecordCreationGate.Role, CreationRoleId: formOnly ? null : "asset-author") { AmendmentPolicy = new(true) { Mode = temporalMode ? RecordAmendmentMode.Supersession : null } }, "type").AsTask().GetAwaiter().GetResult();
             Publication = Records.PublishAsync("tenant-a", "eam.evidence", "1.0.0", 1, "publish").AsTask().GetAwaiter().GetResult();
             Port = new(Storage.Bookkeeping) { ExposeSession = exposeSession };
             Operation = new(new AccessProvider(new Gate()), Records, Registry, Port, Port, TimeProvider.System, kinds, RecordWriteFieldRuntimeTests.FixtureDomains(TimeProvider.System), Port, Port, Port) { Attachments = composeRuntime ? Runtime : null };
         }
+        public static Task<Fixture> CreateFormOnly() => Task.FromResult(new Fixture(false, true, true, "evidence", false, formOnly: true));
+        public static Task<Fixture> CreateWithStatusCondition(string statusCondition) => Task.FromResult(new Fixture(false, true, true, "evidence", false, statusCondition: statusCondition));
+        public ValueTask<Guid> UploadAs(string text, string actor) => Runtime.PutAsync(Attachment, new("tenant-a"), "evidence", new MemoryStream(Encoding.UTF8.GetBytes(text)), "text/plain", null, Evidence(actor: actor));
         public static Task<Fixture> CreateWithLaterAttachment(string conditionJson) => Task.FromResult(new Fixture(false, true, true, "evidence", false, conditionJson));
         public static Task<Fixture> Create(bool condition = false, bool composeRuntime = true, bool exposeSession = true, string fieldKey = "evidence", bool temporalMode = false) => Task.FromResult(new Fixture(condition, composeRuntime, exposeSession, fieldKey, temporalMode));
         public ValueTask<Guid> Upload(string text) => Runtime.PutAsync(Attachment, new("tenant-a"), "evidence", new MemoryStream(Encoding.UTF8.GetBytes(text)), "text/plain", null, Evidence());
@@ -391,6 +537,7 @@ public sealed class AttachmentWriteTests
         IRecordTemporalWritePort, IRecordTemporalReceiptReader, IRecordTemporalReadStore
     {
         public bool ExposeSession { get; init; } = true;
+        public bool FailCommit { get; set; }
         public Func<IContentBookkeepingSession, IContentBookkeepingSession>? DecorateSession { get; set; }
         public List<RecordWriteRow> Rows { get; } = [];
         public Func<ValueTask>? BeforeNextLookup { get; set; }
@@ -457,6 +604,8 @@ public sealed class AttachmentWriteTests
             public ValueTask StageAuditAsync(KernelAuditEvidence audit, CancellationToken cancellationToken = default) => ((IContentBookkeepingSession)content).StageAuditAsync(audit, cancellationToken);
             public async ValueTask<RecordWriteCommit> CommitAsync(CancellationToken cancellationToken = default)
             {
+                // The host's one database commit fails as a whole: neither the record nor its content bookkeeping lands.
+                if (owner.FailCommit) throw new IOException("The record store's commit failed.");
                 var receipt = new RecordWriteReceipt(row.RecordId, row.OperationId, row.RecordTypeId, row.Version, row.DefinitionDigest, row.Schema, row.RecordedAt);
                 await content.CommitAsync(cancellationToken);
                 owner.Rows.Add(row); owner.receipts.Add(operation.IdempotencyKey, new(row.IntentEncodingVersion, row.IntentDigest, receipt));

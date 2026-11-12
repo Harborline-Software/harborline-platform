@@ -16,7 +16,7 @@
     "Read failures are status-only; integrity details never reach a client.",
     "Every unstated measurement is a required input with no default.",
     "Quota and duplicates are decided by the backing's conditional writes, never a store lock or copy (CWE-362, CWE-367); a failed write leaves the bookkeeping as the operation found it (CWE-460).",
-    "Bytes are durable before the staged entry that names them, and are never deleted while an entry names them.", "ADR-0142: PutAsync records ContentStoreWrite.Audit.ActorId as ContentStoreItem.StagingPrincipal. CommitReferenceAsync requires that principal and tenant, otherwise content.staging-expired leaves the stage untouched; a consumed stage refuses identically."],
+    "Bytes are durable before the staged entry that names them, and are never deleted while an entry names them.", "ADR-0142: PutAsync records ContentStoreWrite.Audit.OriginatorId, or its ActorId when no executor acts for an originator, as ContentStoreItem.StagingPrincipal. CommitReferenceAsync requires that principal, named the same way, and the tenant, otherwise content.staging-expired leaves the stage untouched; a consumed stage refuses identically."],
   "errors": [
     "content.too-large",
     "content.record-quota",

@@ -867,7 +867,7 @@ public sealed class RecordWriteOperation
         {
             var transaction = await KernelTransactionBoundary.ExecutePreparedAsync(async token =>
             {
-                await ResolveAttachmentsAsync(definition, candidate, scope.Tenant, scope.ActorId, recordId, operationId,
+                await ResolveAttachmentsAsync(definition, candidate, scope.Tenant, scope.ActorId, null, recordId, operationId,
                     digest, instant, evidence, contentPort.Session, token).ConfigureAwait(false);
                 var submitted = Submitted(candidate);
                 SchemaValidationResult validation;
@@ -1204,7 +1204,7 @@ public sealed class RecordWriteOperation
             transaction = await KernelTransactionBoundary.ExecutePreparedAsync(
                 async token =>
                 {
-                    await ResolveAttachmentsAsync(definition, candidate, plan.Tenant, plan.ExecutorId, recordId, request.OperationId,
+                    await ResolveAttachmentsAsync(definition, candidate, plan.Tenant, plan.ExecutorId, plan.OriginatorId, recordId, request.OperationId,
                         intentDigest, instant, evidence, contentPort.Session, token).ConfigureAwait(false);
                     var body = Submitted(candidate);
                     SchemaValidationResult validation;
@@ -1395,48 +1395,70 @@ public sealed class RecordWriteOperation
     }
 
     private async ValueTask ResolveAttachmentsAsync(RecordTypeDocument definition, JsonObject candidate,
-        string tenant, string actor, string recordId, string operationId, string fingerprint, DateTimeOffset instant,
+        string tenant, string actor, string? originator, string recordId, string operationId, string fingerprint, DateTimeOffset instant,
         AuthorizationDecisionEvidence evidence, IContentBookkeepingSession? session, CancellationToken cancellationToken)
     {
-        // Resolve every attachment field first, so each evidence condition reads the final candidate the write commits:
-        // a condition on an earlier field never sees a later field's staged entries (content-store-cc-2).
-        var conditioned = new List<(string FieldKey, JsonElement Condition, string Pointer)>();
+        var contentTenant = Harborline.Foundation.Assets.Common.TenantId.FromString(tenant);
+        var attachmentKeys = new HashSet<string>(StringComparer.Ordinal);
+        var lists = new List<(string FieldKey, ICompiledAttachmentFieldKind Kind, JsonElement Entries, string Pointer)>();
         foreach (var field in definition.Fields)
         {
-            var binding = field.Binding;
-            if (binding is null) continue;
-            var pointer = "/" + field.FieldKey.Replace("~", "~0", StringComparison.Ordinal).Replace("/", "~1", StringComparison.Ordinal);
+            if (field.Binding is not { } binding) continue;
+            var pointer = PointerOf(field.FieldKey);
             try
             {
-                var attachment = _fieldKinds.Bind(binding.Kind, pointer) as ICompiledAttachmentFieldKind;
-                if (attachment is null) continue;
+                if (_fieldKinds.Bind(binding.Kind, pointer) is not ICompiledAttachmentFieldKind attachment) continue;
+                attachmentKeys.Add(field.FieldKey);
                 if (candidate.ContainsKey(field.FieldKey))
-                {
-                    var entries = candidate[field.FieldKey];
-                    if (Attachments is null || session is null)
-                        throw new RefusedWriteException(new(BindStage, "content.transaction-required", [pointer]));
-                    var write = new ContentStoreWrite(new(recordId, operationId, fingerprint),
-                        new(Guid.NewGuid().ToString("N"), actor, instant, ReadOnlyMemory<byte>.Empty)
-                        { AuthoritySnapshot = AuthoritySnapshotOf(evidence) }, session);
-                    candidate[field.FieldKey] = await Attachments.ResolveWriteAsync(attachment, JsonSerializer.SerializeToElement(entries),
-                        Harborline.Foundation.Assets.Common.TenantId.FromString(tenant), new(recordId, field.FieldKey), write, cancellationToken).ConfigureAwait(false);
-                }
-                if (field.RequiredCondition is { } condition) conditioned.Add((field.FieldKey, condition, pointer));
+                    lists.Add((field.FieldKey, attachment, JsonSerializer.SerializeToElement(candidate[field.FieldKey]), pointer));
             }
-            catch (Exception invalid) when (invalid is FieldAdmissionException or ArgumentException or RuleCompilationException)
+            catch (Exception invalid) when (invalid is FieldAdmissionException or ArgumentException)
             { throw new RefusedWriteException(new(ValidateStage, BodyInvalid, [pointer])); }
         }
-        foreach (var (fieldKey, condition, pointer) in conditioned)
+        if (lists.Count > 0)
         {
+            if (Attachments is null || session is null)
+                throw new RefusedWriteException(new(BindStage, "content.transaction-required", [lists[0].Pointer]));
+            // The staging principal is the write's originator: an accepted command's submitter staged its uploads, and the
+            // worker that completes it is the audit actor (ADR-0142 decision 3, ADR-0110).
+            ContentStoreWrite Write() => new(new(recordId, operationId, fingerprint),
+                new(Guid.NewGuid().ToString("N"), actor, instant, ReadOnlyMemory<byte>.Empty)
+                { AuthoritySnapshot = AuthoritySnapshotOf(evidence), OriginatorId = originator }, session);
+            // Every row this write promotes or keeps is locked first, across all its fields, in one canonical order, so two
+            // writes naming the same content in opposite orders cannot wait on each other (content-store-cc-2).
+            await Attachments.LockEntriesAsync([.. lists.Select(list => list.Entries)], contentTenant, Write(), cancellationToken).ConfigureAwait(false);
+            foreach (var (fieldKey, attachment, entries, pointer) in lists)
+            {
+                try
+                {
+                    candidate[fieldKey] = await Attachments.ResolveWriteAsync(attachment, entries, contentTenant, new(recordId, fieldKey), Write(),
+                        cancellationToken).ConfigureAwait(false);
+                }
+                catch (Exception invalid) when (invalid is FieldAdmissionException or ArgumentException)
+                { throw new RefusedWriteException(new(ValidateStage, BodyInvalid, [pointer])); }
+            }
+        }
+
+        // Every required_condition (records-ck-8) is evaluated after every attachment resolved, against the final candidate:
+        // a condition never reads a later field's staged entries. An attachment field needs a non-empty list
+        // (field.evidence_required); any other field needs a present, non-null, non-empty value (field.required).
+        foreach (var field in definition.Fields)
+        {
+            if (field.RequiredCondition is not { } condition) continue;
+            var pointer = PointerOf(field.FieldKey);
+            var attachment = attachmentKeys.Contains(field.FieldKey);
+            var value = candidate[field.FieldKey];
+            var present = attachment ? value is JsonArray { Count: > 0 } : value is not null and not JsonArray { Count: 0 };
             try
             {
-                var hasEvidence = candidate[fieldKey] is JsonArray { Count: > 0 };
-                if (BindEvidenceRule(definition.RecordTypeId, fieldKey, condition, hasEvidence).Evaluate(candidate, instant, cancellationToken) is not null)
-                    throw new RefusedWriteException(new("rules", "field.evidence_required", [pointer]));
+                if (BindEvidenceRule(definition.RecordTypeId, field.FieldKey, condition, present).Evaluate(candidate, instant, cancellationToken) is not null)
+                    throw new RefusedWriteException(new("rules", attachment ? "field.evidence_required" : "field.required", [pointer]));
             }
             catch (Exception invalid) when (invalid is ArgumentException or RuleCompilationException)
             { throw new RefusedWriteException(new(ValidateStage, BodyInvalid, [pointer])); }
         }
+
+        static string PointerOf(string fieldKey) => "/" + fieldKey.Replace("~", "~0", StringComparison.Ordinal).Replace("/", "~1", StringComparison.Ordinal);
     }
 
     /// <summary>

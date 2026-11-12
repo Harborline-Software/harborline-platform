@@ -51,7 +51,8 @@ internal sealed class AttachmentFieldKind : ICompiledAttachmentFieldKind
                "owner":{"type":"object","additionalProperties":false,"required":["record","element"],
                  "properties":{"record":{"type":"string","minLength":1},"element":{"type":"string","minLength":1}}}}}
             """)!.AsObject();
-        schema["properties"]!["length"]!["maximum"] = EffectiveLimitBytes;
+        // The size limit is a write-time check (Validate), never schema identity: the effective limit follows the host's
+        // store limit, and a host change must not alter the identity a committed record was written under.
         schema["properties"]!["media_type"]!["enum"] = JsonSerializer.SerializeToNode(AcceptedMediaTypes);
         schema["x-harborline-field-kind"] = new JsonObject
         {
@@ -85,6 +86,15 @@ internal sealed class AttachmentFieldKind : ICompiledAttachmentFieldKind
             return [new("content.too-large", jsonPointer, "The item exceeds the effective field size limit.")];
         return AcceptedMediaTypes.Contains(media, StringComparer.Ordinal) ? []
             : [new("content.field-media-type-not-allowed", jsonPointer, "The field does not accept this media type.")];
+    }
+
+    public IReadOnlyList<FieldRefusal> ValidateSubmission(JsonElement value, string jsonPointer)
+    {
+        if (value.ValueKind == JsonValueKind.Object && value.TryGetProperty("stage_id", out var stage))
+            return ObjectWith(value, ["stage_id", "display_name"]) && stage.ValueKind == JsonValueKind.String
+                && stage.TryGetGuid(out _) && Text(value, "display_name", out _) ? []
+                : [new("field.value_type_mismatch", jsonPointer, "A staged entry carries exactly a stage id and a display name.")];
+        return Validate(value, jsonPointer);
     }
 
     public IReadOnlyList<FieldRefusal> ValidateJson(string json, string jsonPointer)

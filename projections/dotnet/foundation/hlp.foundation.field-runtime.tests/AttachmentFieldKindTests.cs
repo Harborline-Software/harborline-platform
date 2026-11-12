@@ -67,7 +67,8 @@ public sealed class AttachmentFieldKindTests
         Assert.Equal(["content_id", "length", "media_type", "display_name", "owner"], schema.GetProperty("required").EnumerateArray().Select(item => item.GetString()));
         Assert.Equal("attachment", schema.GetProperty("x-harborline-field-kind").GetProperty("kind_id").GetString());
         Assert.Equal("1.0.0", schema.GetProperty("x-harborline-field-kind").GetProperty("version").GetString());
-        Assert.Equal(100, schema.GetProperty("properties").GetProperty("length").GetProperty("maximum").GetInt64());
+        // M11 ruling on Terra P1-3: the limit is a write-time check, never part of the schema a record is written under.
+        Assert.False(schema.GetProperty("properties").GetProperty("length").TryGetProperty("maximum", out _));
         Assert.Throws<NotSupportedException>(() => ((IList<string>)field.AcceptedMediaTypes)[0] = "application/exe");
     }
 
@@ -159,9 +160,45 @@ public sealed class AttachmentFieldKindTests
         Assert.Equal("field.value_type_mismatch", Assert.Single(Bind(new()).ValidateJson(value.ToJsonString(), "/evidence/0")).Code);
     }
 
-    private static ICompiledAttachmentFieldKind Bind(Dictionary<string, string> parameters)
+    // content-store-ck-7 with M11's ruling on Terra P1-3: a host store-limit change is a write-time fact. The schema a
+    // committed record was written under stays byte-identical, and only new writes see the new limit.
+    [Fact]
+    public void Content_store_ck_7_a_host_store_limit_change_keeps_the_attachment_schema_identity()
+    {
+        var before = Bind(new() { ["item_limit_bytes"] = "80" }, storeLimit: 100);
+        var after = Bind(new() { ["item_limit_bytes"] = "80" }, storeLimit: 50);
+        Assert.Equal(before.JsonSchema.GetRawText(), after.JsonSchema.GetRawText());
+        Assert.Empty(before.ValidateJson(Reference(80), "/evidence/0"));
+        Assert.Equal("content.too-large", Assert.Single(after.ValidateJson(Reference(51), "/evidence/0")).Code);
+    }
+
+    // content-store-cc-1, ADR-0142 decision 1: the write grammar admits kept references and staged entries, so a form
+    // validating its submission through the shared domain runtime accepts a staged upload. The read grammar
+    // (ICompiledFieldKind.Validate) still admits references only.
+    [Fact]
+    public void Content_store_cc_1_a_submitted_list_may_name_a_staged_entry_while_reads_admit_references_only()
+    {
+        var field = Bind(new());
+        var staged = JsonSerializer.Deserialize<JsonElement>("""{"stage_id":"6f9619ff-8b86-d011-b42d-00c04fc964ff","display_name":"photo.png"}""");
+        var list = JsonSerializer.Deserialize<JsonElement>("[" + staged.GetRawText() + "," + Reference(3) + "]");
+        var constraints = new ResolvedFieldConstraints(false, 0, null, [], null, [], "snapshot-1");
+        Assert.Empty(new DomainFixture().Runtime().Validate(constraints, field, list, "/evidence"));
+        Assert.Empty(field.ValidateSubmission(staged, "/evidence/0"));
+        Assert.Equal("field.value_type_mismatch", Assert.Single(field.Validate(staged, "/evidence/0")).Code);
+        foreach (var bad in new[]
+        {
+            """{"stage_id":"not-a-guid","display_name":"photo.png"}""",
+            """{"stage_id":"6f9619ff-8b86-d011-b42d-00c04fc964ff","display_name":" "}""",
+            """{"stage_id":"6f9619ff-8b86-d011-b42d-00c04fc964ff"}""",
+            """{"stage_id":"6f9619ff-8b86-d011-b42d-00c04fc964ff","display_name":"photo.png","owner":"x"}""",
+        })
+            Assert.Equal("field.value_type_mismatch",
+                Assert.Single(field.ValidateSubmission(JsonSerializer.Deserialize<JsonElement>(bad), "/evidence/0")).Code);
+    }
+
+    private static ICompiledAttachmentFieldKind Bind(Dictionary<string, string> parameters, long storeLimit = 100)
         => Assert.IsAssignableFrom<ICompiledAttachmentFieldKind>(new FieldKindRuntime(new FieldKindRegistry([
-            new("attachment", "1.0.0", null, FieldScalarValueShape.ContentReference)]), 100)
+            new("attachment", "1.0.0", null, FieldScalarValueShape.ContentReference)]), storeLimit)
             .Bind(new("attachment", "1.0.0", parameters), "/fields/0/kind"));
 
     private static string Reference(long length) =>

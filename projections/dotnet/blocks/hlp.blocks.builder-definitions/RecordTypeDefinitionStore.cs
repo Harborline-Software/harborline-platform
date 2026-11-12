@@ -904,12 +904,19 @@ public sealed class RecordTypeDefinitionStore
     private IReadOnlyList<RecordTypePolicyWarning> AttachmentWarnings(RecordTypeDocument document)
     {
         var warnings = new List<RecordTypePolicyWarning>();
-        foreach (var (field, index) in document.Fields.Select((field, index) => (field, index)))
-            if (field.Binding is { } binding && _compiler.FieldKinds?.Bind(binding.Kind, $"/fields/{index}/binding/kind")
+        foreach (var (field, index) in (document.Fields ?? []).Select((field, index) => (field, index)))
+            if (field.Binding is { } binding && BindOrNull(binding.Kind, $"/fields/{index}/binding/kind")
                 is ICompiledAttachmentFieldKind { LimitAboveStore: true } attachment)
                 warnings.Add(new("content.field-limit-above-store", $"/fields/{index}/binding/kind/parameters/item_limit_bytes")
                 { FieldKey = field.FieldKey, DeclaredLimitBytes = attachment.DeclaredLimitBytes, StoreLimitBytes = attachment.EffectiveLimitBytes });
         return warnings;
+    }
+
+    // A kind that does not bind is the compile's refusal to report; the warning preview never throws over it (T-618).
+    private ICompiledFieldKind? BindOrNull(FieldKindReference kind, string pointer)
+    {
+        try { return _compiler.FieldKinds?.Bind(kind, pointer); }
+        catch (FieldAdmissionException) { return null; }
     }
 
     private IReadOnlyList<RecordTypePolicyWarning> PublicationPolicyWarnings(DefinitionDocument document)

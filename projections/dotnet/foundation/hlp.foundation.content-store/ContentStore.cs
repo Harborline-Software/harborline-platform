@@ -218,7 +218,10 @@ public sealed record ContentCiphertextSegment(byte[] Ciphertext, byte[] Tag);
 public sealed record ContentStoreItem(Guid StageId, TenantId Tenant, ContentId ContentId, long Length, string MediaType, DateTimeOffset CreatedUtc,
     byte[] WrappedDataKey, byte[] WrapNonce, byte[] WrapTag, byte[] NoncePrefix, int SegmentSize, Guid EpochId)
 {
-    /// <summary>The authenticated put actor allowed to promote this stage (ADR-0142); absent legacy stages cannot commit.</summary>
+    /// <summary>
+    /// The principal allowed to promote this stage (ADR-0142): the put's audit originator when an executor acts for one, otherwise its
+    /// actor. A commit names the same principal the same way. A host backing must persist it; an absent legacy stage cannot commit.
+    /// </summary>
     public string? StagingPrincipal { get; init; }
     /// <summary>The committed owners that currently reference the item.</summary>
     public IReadOnlyList<ContentOwner> Owners { get; init; } = [];
@@ -1334,7 +1337,7 @@ public sealed class InMemoryContentStore
                         try
                         {
                             var (wrapped, wrapNonce, wrapTag) = Wrap(epochKey, dataKey, contentId);
-                            await session.AddStagedAsync(new ContentStoreItem(stageId, tenant, contentId, length, mediaType, createdUtc, wrapped, wrapNonce, wrapTag, noncePrefix, SegmentSizeBytes, epoch.EpochId) { StagingPrincipal = write.Audit.ActorId }, token).ConfigureAwait(false);
+                            await session.AddStagedAsync(new ContentStoreItem(stageId, tenant, contentId, length, mediaType, createdUtc, wrapped, wrapNonce, wrapTag, noncePrefix, SegmentSizeBytes, epoch.EpochId) { StagingPrincipal = write.Audit.OriginatorId ?? write.Audit.ActorId }, token).ConfigureAwait(false);
                             return true;
                         }
                         finally
@@ -1377,7 +1380,7 @@ public sealed class InMemoryContentStore
             // Held from here, so a rewrap can't change the wrap this promotion carries into the committed item.
             var staged = await session.FindStagedForUpdateAsync(stageId, token).ConfigureAwait(false);
             if (staged is null) throw StagingExpiredRefusal();
-            if (staged.Tenant != tenant || !StringComparer.Ordinal.Equals(staged.StagingPrincipal, write.Audit.ActorId))
+            if (staged.Tenant != tenant || !StringComparer.Ordinal.Equals(staged.StagingPrincipal, write.Audit.OriginatorId ?? write.Audit.ActorId))
                 throw StagingExpiredRefusal();
             if (StagedCutoff() >= staged.CreatedUtc)
             {

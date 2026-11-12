@@ -60,6 +60,20 @@ public sealed class RecordsEvidenceConditionIdentityTests
         Assert.True((await registry.ValidateAsync(compiled.Schema!.Id, Encoding.UTF8.GetBytes("{}"))).IsValid);
     }
 
+    // content-store-ck-7 with M11's ruling on Terra P1-3: a committed record stays readable after the host's store limit
+    // changes, because the published record schema identity does not depend on that host fact.
+    [Fact]
+    public async Task Content_store_ck_7_record_schema_identity_does_not_follow_the_host_store_limit()
+    {
+        static RecordTypeSchemaCompiler At(long storeLimit) => new(new RecordsIntentValidator(),
+            new FieldKindRuntime(new FieldKindRegistry([new("attachment", "1.0.0", null, FieldScalarValueShape.ContentReference)]), storeLimit),
+            new SharedValueDomainAdmission());
+        var before = await At(100).CompileAsync(new("case", [Field()]), null);
+        var after = await At(50).CompileAsync(new("case", [Field()]), null);
+        Assert.NotNull(before.JsonSchemaText);
+        Assert.Equal(before.JsonSchemaText, after.JsonSchemaText);
+    }
+
     private static FieldDefinition Field() => new("evidence", "Evidence", new(new("attachment", "1.0.0", new Dictionary<string, string>()), new(false, 0, null, [], null)));
     private static RecordTypeSchemaCompiler Compiler() => new(new RecordsIntentValidator(),
         new FieldKindRuntime(new FieldKindRegistry([new("attachment", "1.0.0", null, FieldScalarValueShape.ContentReference)]), 100), new SharedValueDomainAdmission());

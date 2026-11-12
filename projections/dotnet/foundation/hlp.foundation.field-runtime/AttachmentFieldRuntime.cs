@@ -27,6 +27,7 @@ public sealed class AttachmentFieldRuntime(InMemoryContentStore store)
     {
         if (evidence.Transaction is null) throw new ArgumentException("Attachment resolution requires the Records transaction.", nameof(evidence));
         if (entries.ValueKind != JsonValueKind.Array) throw Invalid();
+        await LockEntriesAsync([entries], tenant, evidence, cancellationToken).ConfigureAwait(false);
         var resolved = new JsonArray();
         foreach (var entry in entries.EnumerateArray())
         {
@@ -62,6 +63,45 @@ public sealed class AttachmentFieldRuntime(InMemoryContentStore store)
             }
         }
         return resolved;
+    }
+
+    /// <summary>
+    /// Locks, in the enclosing transaction, every row the given write lists will promote or keep, in one canonical order:
+    /// staged rows by stage id, then committed rows by content id, both ordinal. That matches the store's own order (a
+    /// promotion and a rewrap lock staged before committed), so two writes naming the same content in opposite orders, in
+    /// one field or across fields, cannot deadlock. Malformed entries are left for resolution to refuse; another tenant's
+    /// stage contributes no content row. Row locks are re-entrant, so resolution re-reads the same rows.
+    /// </summary>
+    public async ValueTask LockEntriesAsync(IReadOnlyList<JsonElement> lists, TenantId tenant, ContentStoreWrite evidence,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(lists);
+        var session = evidence.Transaction ?? throw new ArgumentException("Attachment resolution requires the Records transaction.", nameof(evidence));
+        var stages = new SortedSet<string>(StringComparer.Ordinal);
+        var contents = new SortedSet<string>(StringComparer.Ordinal);
+        foreach (var entry in lists.Where(list => list.ValueKind == JsonValueKind.Array).SelectMany(list => list.EnumerateArray()))
+        {
+            if (entry.ValueKind != JsonValueKind.Object) continue;
+            if (entry.TryGetProperty("stage_id", out var stage))
+            {
+                if (stage.ValueKind == JsonValueKind.String && stage.TryGetGuid(out var stageId)) stages.Add(stageId.ToString("N"));
+            }
+            else if (entry.TryGetProperty("content_id", out var content) && content.ValueKind == JsonValueKind.String
+                && !string.IsNullOrWhiteSpace(content.GetString()))
+                contents.Add(content.GetString()!);
+        }
+        foreach (var stage in stages)
+        {
+            var staged = await session.FindStagedForUpdateAsync(Guid.ParseExact(stage, "N"), cancellationToken).ConfigureAwait(false);
+            if (staged is not null && staged.Tenant == tenant) contents.Add(staged.ContentId.Value);
+        }
+        foreach (var content in contents)
+        {
+            ContentStorageItemKey key;
+            try { key = new(tenant, new(content)); }
+            catch (ArgumentException) { continue; }
+            await session.FindItemForUpdateAsync(key, cancellationToken).ConfigureAwait(false);
+        }
     }
 
     /// <summary>Removes field-owned references through the record's disposal transaction; holds fail toward retention.</summary>

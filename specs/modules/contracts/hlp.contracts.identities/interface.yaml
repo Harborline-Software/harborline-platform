@@ -19,7 +19,7 @@
       "emptySegmentDisposition": "reject"
     },
     "FieldScalarValueShape": "Text | Boolean | Integer | Number | ContentReference (existing ordinal values unchanged)",
-    "ICompiledAttachmentFieldKind": ["DeclaredLimitBytes", "EffectiveLimitBytes", "AcceptedMediaTypes", "LimitAboveStore"]
+    "ICompiledAttachmentFieldKind": ["DeclaredLimitBytes", "EffectiveLimitBytes", "AcceptedMediaTypes", "LimitAboveStore", "ValidateSubmission"]
   },
   "operations": [
     {"id": "tenant.construct", "input": "string", "result": "TenantId or argument error"},
@@ -33,7 +33,7 @@
     "A default TenantId and every reserved-prefix TenantId are system sentinels and must be rejected by tenant-scoped operations.",
     "Public TenantId construction rejects null, empty, whitespace-only, and reserved-prefix values.",
     "EntityId parsing requires non-empty scheme, authority, and localPart segments and round-trips canonically.",
-    "JSON null and malformed identity values fail closed rather than creating default identities.", "An attachment binding exposes the original declared byte limit separately from the effective lower store/field limit."],
+    "JSON null and malformed identity values fail closed rather than creating default identities.", "An attachment binding exposes the original declared byte limit separately from the effective lower store/field limit.", "ICompiledAttachmentFieldKind.ValidateSubmission admits a write-list entry: a content reference as Validate admits it, or exactly a GUID stage_id and a non-blank display_name (ADR-0142 decision 1); Validate, the read grammar, admits references only."],
   "projectionPolicy": {
     "dotnet": "canonical typed implementation",
     "typescript": "opaque branded/wire value",
