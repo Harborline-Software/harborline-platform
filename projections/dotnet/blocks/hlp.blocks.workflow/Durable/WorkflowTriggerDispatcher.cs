@@ -110,7 +110,11 @@ public sealed class WorkflowTriggerDispatcher : IWorkflowTriggerDispatcher
         // DISTINCT key and is not falsely deduped against the earlier pass. If the row already exists, this
         // exact (instance, iteration, step) advanced before: replay (no-op), never re-run the effect.
         var key = new WorkflowStepKey(trigger.InstanceId, instance.Iteration, trigger.Step);
-        var recorded = await _store.FindStepResultAsync(key, ct).ConfigureAwait(false);
+        var (current, recorded) = await _store.FindStepResultIfCurrentAsync(instance, key, ct).ConfigureAwait(false);
+        if (!current)
+        {
+            return WorkflowDispatchResult.Discarded;
+        }
         if (recorded is not null)
         {
             return WorkflowDispatchResult.ReplayedNoOp;

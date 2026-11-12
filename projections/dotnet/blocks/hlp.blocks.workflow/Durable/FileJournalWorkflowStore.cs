@@ -154,6 +154,21 @@ public sealed class FileJournalWorkflowStore : IWorkflowMigrationStore, IDisposa
     }
 
     /// <inheritdoc />
+    public async Task<(bool Current, WorkflowStepIdempotencyRecord? Result)> FindStepResultIfCurrentAsync(
+        WorkflowInstanceRecord expected, WorkflowStepKey key, CancellationToken ct = default)
+    {
+        await EnterAsync(ct).ConfigureAwait(false);
+        try
+        {
+            if (!_instances.TryGetValue(key.InstanceId, out var instance)
+                || instance.MigrationGeneration != expected.MigrationGeneration)
+                return (false, null);
+            return (true, _steps.TryGetValue(key.Value, out var result) ? result : null);
+        }
+        finally { _gate.Release(); }
+    }
+
+    /// <inheritdoc />
     public async Task AdvanceAsync(
         WorkflowStepKey key, WorkflowEffect? effect, string resultJson, string eventType,
         string eventDataJson, string nextStep, WorkflowStatus nextStatus, CancellationToken ct = default)

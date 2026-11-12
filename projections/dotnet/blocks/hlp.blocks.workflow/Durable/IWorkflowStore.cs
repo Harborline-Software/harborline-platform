@@ -58,6 +58,11 @@ public interface IWorkflowStore
     /// </summary>
     Task<WorkflowStepIdempotencyRecord?> FindStepResultAsync(WorkflowStepKey key, CancellationToken ct = default);
 
+    /// <summary>Looks up a replay only if migration has not changed the loaded instance.</summary>
+    async Task<(bool Current, WorkflowStepIdempotencyRecord? Result)> FindStepResultIfCurrentAsync(
+        WorkflowInstanceRecord expected, WorkflowStepKey key, CancellationToken ct = default)
+        => (true, await FindStepResultAsync(key, ct).ConfigureAwait(false));
+
     /// <summary>
     /// <b>ATOMIC ADVANCE (build invariant #1).</b> Co-commits, in ONE store transaction:
     /// <list type="number">
@@ -114,6 +119,10 @@ public interface IWorkflowStore
 /// <summary>A migration-capable store must atomically fence in-flight dispatch when migrating.</summary>
 public interface IWorkflowMigrationStore : IWorkflowStore
 {
+    /// <inheritdoc />
+    new Task<(bool Current, WorkflowStepIdempotencyRecord? Result)> FindStepResultIfCurrentAsync(
+        WorkflowInstanceRecord expected, WorkflowStepKey key, CancellationToken ct = default);
+
     /// <inheritdoc />
     new Task MigrateAsync(WorkflowInstanceRecord expected, string targetVersion, string targetStep,
         string eventDataJson, CancellationToken ct = default);

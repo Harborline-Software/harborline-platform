@@ -31,6 +31,49 @@ public sealed class DurableWorkflowEngineSeamTests
     private static readonly IWorkflowDefinitionExecutionStore AdmittedDefinitionStore = new AlwaysAdmittedDefinitionStore();
 
     [Fact]
+    public async Task Trigger_issued_before_migration_cannot_replay_after_position_moves()
+    {
+        using var fixture = new JournalFixture();
+        using var store = fixture.Open();
+        await CreateAsync(store, "replay-race", step: "old");
+        await store.AdvanceAsync(new WorkflowStepKey("replay-race", 0, "old"), null, "{}", "Advanced", "{}", "other", WorkflowStatus.Running);
+        await store.ParkAsync("replay-race", "old", "{}");
+        var pausing = new PausingReplayStore(store);
+        var dispatcher = new WorkflowTriggerDispatcher(pausing, new[] { new AdvanceOnceHandler() }, definitionStore: AdmittedDefinitionStore);
+        var dispatch = dispatcher.DispatchAsync(WorkflowTrigger.For(WorkflowTriggerKind.Event, "replay-race", "old"), Authorized("replay-race"));
+        await pausing.Entered.Task;
+        await new WorkflowMigration(store, new MigrationDefinitions()).MigrateAsync("replay-race", "2.0.0",
+            new Dictionary<string, string> { ["old"] = "new" },
+            new WorkflowMigrationAuthority("operator", Tenant, "workflow:migrate", "workflow-instance", "replay-race", true));
+        pausing.Continue.SetResult();
+        Assert.Equal(WorkflowDispatchResult.Discarded, await dispatch);
+        Assert.Equal("new", (await store.LoadAsync("replay-race"))!.CurrentStep);
+        Assert.Empty(await store.CommittedEffectPayloadsAsync("replay-race"));
+    }
+
+    private sealed class PausingReplayStore(FileJournalWorkflowStore inner) : IWorkflowStore
+    {
+        public TaskCompletionSource Entered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public TaskCompletionSource Continue { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public Task<WorkflowInstanceRecord?> LoadAsync(string instanceId, CancellationToken ct = default) => inner.LoadAsync(instanceId, ct);
+        public Task CreateInstanceAsync(WorkflowInstanceRecord instance, CancellationToken ct = default) => inner.CreateInstanceAsync(instance, ct);
+        public async Task<WorkflowStepIdempotencyRecord?> FindStepResultAsync(WorkflowStepKey key, CancellationToken ct = default)
+            => await inner.FindStepResultAsync(key, ct);
+        public async Task<(bool Current, WorkflowStepIdempotencyRecord? Result)> FindStepResultIfCurrentAsync(
+            WorkflowInstanceRecord expected, WorkflowStepKey key, CancellationToken ct = default)
+        {
+            Entered.SetResult();
+            await Continue.Task;
+            return await inner.FindStepResultIfCurrentAsync(expected, key, ct);
+        }
+        public Task AdvanceAsync(WorkflowStepKey key, WorkflowEffect? effect, string resultJson, string eventType,
+            string eventDataJson, string nextStep, WorkflowStatus nextStatus, CancellationToken ct = default)
+            => inner.AdvanceAsync(key, effect, resultJson, eventType, eventDataJson, nextStep, nextStatus, ct);
+        public Task ParkAsync(string instanceId, string step, string reasonJson, int iteration = 0, CancellationToken ct = default)
+            => inner.ParkAsync(instanceId, step, reasonJson, iteration, ct);
+    }
+
+    [Fact]
     public async Task Trigger_issued_before_migration_cannot_commit_after_position_moves()
     {
         using var fixture = new JournalFixture();
