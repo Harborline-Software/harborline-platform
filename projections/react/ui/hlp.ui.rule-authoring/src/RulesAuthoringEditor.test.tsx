@@ -30,6 +30,35 @@ describe('Rules authoring React projection', () => {
     expect(screen.getByLabelText('Rule identity')).toHaveTextContent('total')
   })
 
+  const lineageFixture = () => { const parsed = JSON.parse(readFileSync(resolve(process.cwd(), '../../../../conformance/hlp.ui.rule-authoring/lineage.json'), 'utf8')); return { lineage: parsed.lineage, rules: parsed.documents.map((doc: { envelope: { id: string }; name: string; draft: unknown }) => ({ ...emptyRulesDraft(), identity: doc.envelope.id, name: doc.name, draft: doc.draft })) } }
+
+  it('rules-auth-19 states that lineage covers field calculations and names catalogue rules the producer refused', () => {
+    const { lineage, rules } = lineageFixture()
+    render(<RulesAuthoringEditor {...props({ value: rules[0], catalogue: { rules: [...rules, { ...emptyRulesDraft(), identity: 'broken', name: 'Broken' }] }, lineage })} />)
+    expect(screen.getByText('Lineage covers field calculations.')).toBeInTheDocument()
+    expect(screen.getByText('Not counted because the rule is refused: Broken')).toBeInTheDocument()
+  })
+
+  it('rules-auth-19 reads no calculations for an identity the lineage map does not hold, including an Object.prototype name', () => {
+    const { lineage, rules } = lineageFixture()
+    render(<RulesAuthoringEditor {...props({ value: { ...emptyRulesDraft(), identity: 'constructor', name: 'Ctor' }, catalogue: { rules }, lineage })} />)
+    expect(screen.getByRole('heading', { name: 'Calculations read by Ctor' })).toBeInTheDocument()
+  })
+
+  it('rules-auth-19 moves focus to the loaded rule after lineage navigation and after discarding edits', () => {
+    const { lineage, rules } = lineageFixture()
+    render(<RulesAuthoringEditor {...props({ value: rules[1], catalogue: { rules }, lineage })} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Total' }))
+    expect(screen.getByLabelText('Rule identity')).toHaveTextContent('total')
+    expect(screen.getByLabelText('Rule name')).toHaveFocus()
+    fireEvent.change(screen.getByLabelText('Rule name'), { target: { value: 'Total edited' } })
+    screen.getByRole('button', { name: 'Edit calculation Unused' }).focus()
+    fireEvent.click(screen.getByRole('button', { name: 'Edit calculation Unused' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Discard edits' }))
+    expect(screen.getByLabelText('Rule identity')).toHaveTextContent('unused')
+    expect(screen.getByLabelText('Rule name')).toHaveFocus()
+  })
+
   it('replays every supplied producer preview outcome and lifecycle identity from the exact fixture', () => {
     expect(fixture.lifecycle.responses).toHaveLength(6)
     for (const item of fixture.preview.cases) { const expected = item.expected; const empty = emptyRulesDraft(); const { unmount } = render(<RulesAuthoringEditor {...props({ value: { ...empty, identity: expected.ruleName, draft: { ...empty.draft, scopeTarget: expected.memberName } }, outcome: { ...expected, kind: expected.kind as never, inputLabel: fixture.preview.label, clockUtc: fixture.preview.clockUtc } })} />); expect(screen.getByLabelText('Rule identity')).toHaveTextContent(expected.ruleName); expect(screen.getByText(new RegExp(expected.kind === 'Value' ? expected.value! : expected.kind === 'Validity' ? expected.validity! : expected.kind === 'Visibility' ? expected.visibility! : expected.kind === 'Presentation' ? expected.presentation! : expected.kind === 'Pending' ? 'Preview pending' : expected.code!))).toHaveTextContent(expected.ruleName); expect(screen.getByText(new RegExp(fixture.preview.clockUtc))).toBeInTheDocument(); unmount() }

@@ -14,10 +14,38 @@ namespace Harborline.UIAdapters.Blazor.Tests;
 public sealed class RulesAuthoringTests : BunitContext
 {
     [Fact(DisplayName = "rules-auth-19: navigates producer lineage and names unreferenced calculation")]
-    public void NavigatesLineage()
+    public void NavigatesLineage() => AssertLineageNavigation();
+
+    [Fact(DisplayName = "rules-auth-19: states that lineage covers field calculations and names catalogue rules the producer refused")]
+    public void NamesRefusedRules()
     {
-        var path = FindFixture("lineage.json", "hlp.ui.rule-authoring");
-        using var fixture = JsonDocument.Parse(File.ReadAllText(path));
+        var (rules, view) = LineageFixture();
+        var cut = Render<HarborlineRulesAuthoringEditor>(p => p.Add(x => x.Value, rules[0]).Add(x => x.Catalogue, new RulesRuleCatalogue([.. rules, RulesDraft.Empty with { Identity = "broken", Name = "Broken" }])).Add(x => x.Lineage, view));
+        Assert.Contains("<p>Lineage covers field calculations.</p>", cut.Markup, StringComparison.Ordinal);
+        Assert.Contains("<p>Not counted because the rule is refused: Broken</p>", cut.Markup, StringComparison.Ordinal);
+    }
+
+    [Fact(DisplayName = "rules-auth-19: moves focus to the loaded rule after lineage navigation and after discarding edits")]
+    public void FocusesLoadedRule()
+    {
+        var (rules, view) = LineageFixture();
+        var cut = Render<HarborlineRulesAuthoringEditor>(p => p.Add(x => x.Value, rules[1]).Add(x => x.Catalogue, new RulesRuleCatalogue(rules)).Add(x => x.Lineage, view));
+        // bUnit prints the reference id only on the render that created the element, so read it before navigating.
+        var nameInput = cut.Find("input[aria-label='Rule name']").GetAttribute("blazor:elementreference");
+        Assert.False(string.IsNullOrEmpty(nameInput));
+        cut.FindButton("Edit Total").Click();
+        Assert.Equal("total", cut.Find("output[aria-label='Rule identity']").TextContent);
+        Assert.Equal(nameInput, ((ElementReference)JSInterop.VerifyFocusAsyncInvoke(1)[0].Arguments[0]!).Id);
+        cut.Find("input[aria-label='Rule name']").Change("Total edited");
+        cut.FindButton("Edit calculation Unused").Click();
+        cut.FindButton("Discard edits").Click();
+        Assert.Equal("unused", cut.Find("output[aria-label='Rule identity']").TextContent);
+        Assert.Equal(nameInput, ((ElementReference)JSInterop.VerifyFocusAsyncInvoke(2)[1].Arguments[0]!).Id);
+    }
+
+    private static (RulesDraft[] Rules, RulesLineageView View) LineageFixture()
+    {
+        using var fixture = JsonDocument.Parse(File.ReadAllText(FindFixture("lineage.json", "hlp.ui.rule-authoring")));
         var root = fixture.RootElement;
         var rules = root.GetProperty("documents").EnumerateArray().Select(row => {
             var document = RuleIntentValidator.ValidateJson(row.GetRawText(), RuleIntentPhase.Author).Document!;
@@ -25,10 +53,15 @@ public sealed class RulesAuthoringTests : BunitContext
         }).ToArray();
         var lineage = root.GetProperty("lineage");
         static Dictionary<string, IReadOnlyList<string>> Map(JsonElement element) => element.EnumerateObject().ToDictionary(p => p.Name, p => (IReadOnlyList<string>)p.Value.EnumerateArray().Select(x => x.GetString()!).ToArray());
-        var view = new RulesLineageView(Map(lineage.GetProperty("consumersOf")), Map(lineage.GetProperty("calculationsReadBy")), lineage.GetProperty("deadWeight").EnumerateArray().Select(x => x.GetString()!).ToArray());
+        return (rules, new RulesLineageView(Map(lineage.GetProperty("consumersOf")), Map(lineage.GetProperty("calculationsReadBy")), lineage.GetProperty("deadWeight").EnumerateArray().Select(x => x.GetString()!).ToArray()));
+    }
+
+    private void AssertLineageNavigation()
+    {
+        var (rules, view) = LineageFixture();
         var cut = Render<HarborlineRulesAuthoringEditor>(p => p.Add(x => x.Value, rules[0]).Add(x => x.Catalogue, new RulesRuleCatalogue(rules)).Add(x => x.Lineage, view));
-        Assert.Contains("1 consumers", cut.Markup);
-        Assert.Contains("0 consumers — unreferenced calculation", cut.Markup);
+        Assert.Contains("1 consumers", cut.Markup, StringComparison.Ordinal);
+        Assert.Contains("0 consumers — unreferenced calculation", cut.Markup, StringComparison.Ordinal);
         cut.FindButton("Edit calculation Unused").Click();
         Assert.Equal("unused", cut.Find("output[aria-label='Rule identity']").TextContent);
         cut.FindButton("Edit Consumer").Click();
@@ -43,6 +76,8 @@ public sealed class RulesAuthoringTests : BunitContext
     public void Replays_every_producer_lifecycle_and_preview_payload_from_the_exact_shared_fixture(string caseId, string? rawFixture)
     {
         SharedFixtureBatch.Run(caseId, rawFixture, () => {
+            // The lineage case has its own oracle, so it must not pass on the lifecycle replay below.
+            if (caseId == "rule-authoring.lineage") { AssertLineageNavigation(); return; }
             var sharedFixture = SharedFixtureBatch.Current;
             if (!string.IsNullOrWhiteSpace(sharedFixture))
             {
