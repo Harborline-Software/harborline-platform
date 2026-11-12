@@ -16,7 +16,7 @@ public sealed class RulesAuthoringTests : BunitContext
     [Fact(DisplayName = "rules-auth-19: navigates producer lineage and names unreferenced calculation")]
     public void NavigatesLineage()
     {
-        var path = FindFixture().Replace("hlp.blocks.builder-definitions/rules-editor-contract-fixtures.json", "hlp.ui.rule-authoring/lineage.json", StringComparison.Ordinal);
+        var path = FindFixture("lineage.json", "hlp.ui.rule-authoring");
         using var fixture = JsonDocument.Parse(File.ReadAllText(path));
         var root = fixture.RootElement;
         var rules = root.GetProperty("documents").EnumerateArray().Select(row => {
@@ -548,11 +548,11 @@ public sealed class RulesAuthoringTests : BunitContext
         var value = document.RootElement.GetProperty("lifecycle").GetProperty("responses")[4].GetProperty("materialization");
         return JsonSerializer.Deserialize<RulesMaterialization>(value, new JsonSerializerOptions(JsonSerializerDefaults.Web))!;
     }
-    private static string FindFixture(string name = "rules-editor-contract-fixtures.json")
+    private static string FindFixture(string name = "rules-editor-contract-fixtures.json", string module = "hlp.blocks.builder-definitions")
     {
         for (var directory = new DirectoryInfo(Directory.GetCurrentDirectory()); directory is not null; directory = directory.Parent)
         {
-            var candidate = Path.Combine(directory.FullName, "conformance", "hlp.blocks.builder-definitions", name);
+            var candidate = Path.Combine(directory.FullName, "conformance", module, name);
             if (File.Exists(candidate)) return candidate;
         }
         throw new FileNotFoundException($"{name} was not found from the test working directory.");
