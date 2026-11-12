@@ -30,6 +30,12 @@ internal static class ScheduleDefinitionAdmission
             if (string.IsNullOrWhiteSpace(escalation.To)) refusals.Add(new(ScheduleDefinitionCodes.EscalationInvalid, "/escalation/to"));
         }
         Modules(definition, refusals);
+        if (definition.RecoveryReplanning is true)
+            refusals.Add(new(ScheduleDefinitionCodes.RecoveryReplanningUnsupported, "/recovery_replanning"));
+        if (definition.RegulatorRuleSetRequirement is not null)
+            refusals.Add(new(ScheduleDefinitionCodes.RegulatorRuleSetUnsupported, "/regulator_rule_set_requirement"));
+        if (definition.InputPlanId is not null)
+            refusals.Add(new(ScheduleDefinitionCodes.PlanInputUnsupported, "/input_plan_id"));
         if (definition.LegalityRef is { } legality && string.IsNullOrWhiteSpace(legality))
             refusals.Add(new(ScheduleDefinitionCodes.LegalityRefInvalid, "/legality_ref"));
         return refusals;
