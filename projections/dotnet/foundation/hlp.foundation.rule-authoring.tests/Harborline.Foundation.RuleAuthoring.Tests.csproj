@@ -18,5 +18,6 @@
   <ItemGroup>
     <None Include="../../../../conformance/hlp.foundation.rule-authoring/definition-intent-cases.json"
           Link="definition-intent-cases.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../../../conformance/hlp.ui.rule-authoring/lineage.json" Link="lineage.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

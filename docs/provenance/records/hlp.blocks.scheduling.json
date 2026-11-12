@@ -2,14 +2,14 @@
   "moduleId": "hlp.blocks.scheduling",
   "phase4Evidence": "specs/modules/blocks/hlp.blocks.scheduling/interface.yaml",
   "sourceExtracted": true,
-  "sourceState": "Scheduling Wave A: the reservation coordinator ported verbatim minus the Razor/localization UI surface (14 pinned cases — the migration substrate-gap said 16, an over-count vs the verified inventory — plus 2 supplemental non-pinned idempotency invariants), the kernel-lease dependency carried as a LOCAL narrow compatibility port under the Harborline.Kernel.Lease namespace until a platform lease kernel exists, and the ticket-084 harvest landed executable: the Planning solver seed (namespace Harborline.Blocks.Scheduling.Planning) with the 12-fixture authored corpus byte-exact against the pinned blobs, 36 adopted fixture rows, and 3 re-authored invariants (cross-process TZ determinism, explanation-trace refs, static-manifest guard). T-491/occurrence-generation moves the due seam and the versioned chain ledger into Scheduling and adds the lone due date, per-basis generators and distinct validity classification. T-491/module-admission adds typed module admission, backend capability checks and published-pin planning through the shared foundation availability contract, capped below certified pending DES-0022 open ruling 3.",
+  "sourceState": "Scheduling Wave A: the reservation coordinator ported verbatim minus the Razor/localization UI surface (14 pinned cases — the migration substrate-gap said 16, an over-count vs the verified inventory — plus 2 supplemental non-pinned idempotency invariants), the kernel-lease dependency carried as a LOCAL narrow compatibility port under the Harborline.Kernel.Lease namespace until a platform lease kernel exists, and the ticket-084 harvest landed executable: the Planning solver seed (namespace Harborline.Blocks.Scheduling.Planning) with the 12-fixture authored corpus byte-exact against the pinned blobs, 36 adopted fixture rows, and 3 re-authored invariants (cross-process TZ determinism, explanation-trace refs, static-manifest guard). T-491/occurrence-generation moves the due seam and the versioned chain ledger into Scheduling and adds the lone due date, per-basis generators and distinct validity classification. T-491/module-admission adds typed module admission, backend capability checks and published-pin planning through the shared foundation availability contract, capped below certified pending DES-0022 open ruling 3. T-491/schedule-refusals (interface revision 9) adds explicit validate-time recovery/regulator/upstream-plan refusals and the authoring-only host-resolved K9 facade through the shared checker (control PR 1358), with a shared literal refusal corpus.",
   "contentHashes": {
     "projections/dotnet/blocks/hlp.blocks.scheduling.restart-probe/Program.cs": "0ce14e9a33f6fdc3773ee880b2fcfdeddb9203cd91fd382d96841d4392796c24",
     "projections/dotnet/blocks/hlp.blocks.scheduling.restart-probe/Harborline.Blocks.Scheduling.RestartProbe.csproj": "a691564564535e1ccb409392bb3c287616d7dd923164cb3f63b6586805eb04ee",
     "projections/dotnet/blocks/hlp.blocks.scheduling/DependencyInjection/ServiceCollectionExtensions.cs": "ff1c9fa397faa47ff2e73eeec0115a272e5b7f3acf75cbc2cdde9880ec315d29",
-    "projections/dotnet/blocks/hlp.blocks.scheduling/Definitions/ScheduleDefinition.cs": "1605a6cd9e4158b2614938ab001e7784a5c4c77f52047787b8f5b84a83a91c51",
-    "projections/dotnet/blocks/hlp.blocks.scheduling/Definitions/ScheduleDefinitionAdmission.cs": "2d18934a2fd0ec5174a05956ebbb7e75d567a51c2c1b348e7e7c4877c174f3bb",
-    "projections/dotnet/blocks/hlp.blocks.scheduling/Definitions/ScheduleDefinitionCatalogue.cs": "09bf80ee3ec0226087bb3174abe73d2add3e8734b03f0b4b1c65262754caf383",
+    "projections/dotnet/blocks/hlp.blocks.scheduling/Definitions/ScheduleDefinition.cs": "533972631a32e5da85c21e22ebbf2e7083331a175f6c8bb84a01edbf6930cb23",
+    "projections/dotnet/blocks/hlp.blocks.scheduling/Definitions/ScheduleDefinitionAdmission.cs": "3459fe8dfafc0d1c243642f50180896d2dea1a28bd59a582e9608e40e7a5a1bf",
+    "projections/dotnet/blocks/hlp.blocks.scheduling/Definitions/ScheduleDefinitionCatalogue.cs": "c8ade3f2a0cabcc55a8cf163c4d606fa5d6067ffd5b4ea7f39b184080f648cee",
     "projections/dotnet/blocks/hlp.blocks.scheduling/FileJournalSchedulingStore.cs": "eefd0d97f5462c4f60808adcfe91c242afc7ba08df8c45483a2395a12ab3a196",
     "projections/dotnet/blocks/hlp.blocks.scheduling/IScheduleReservationCoordinator.cs": "b752dfcd2a33a29a6a792c173c286338159e081e212f69dc938c69c6bb2de283",
     "projections/dotnet/blocks/hlp.blocks.scheduling/LeaseContracts.cs": "16dd8c98385d004db99f27f5ba8c5d490bbe61a796b2379df5f2e4580d2c3127",
@@ -32,11 +32,11 @@
     "projections/dotnet/blocks/hlp.blocks.scheduling/Planning/Fixtures/medical-pregnancy.unsatisfied.json": "681c9c431d668f082d464d696381cb92de06e7f4f835be0d58a373db65a855bd",
     "projections/dotnet/blocks/hlp.blocks.scheduling/Planning/PlanningModel.cs": "5cafbb352e9156d678651aef45680e3dec8189d8e152d2bb43d76983b828be9f",
     "projections/dotnet/blocks/hlp.blocks.scheduling/Planning/PlanningSolvers.cs": "2a90360a38fca2c6c897c21ad458d65f362e4a5407d04f60428c35e666d0337a",
-    "projections/dotnet/blocks/hlp.blocks.scheduling/README.md": "4b794e342f08105325dc1f7e3582d652342bfd97a0c6a4242dfc08861dec7ea3",
+    "projections/dotnet/blocks/hlp.blocks.scheduling/README.md": "ef5b38d51b28db72f4649b26598edd2263c6d6a43d9c68e4ebfae9a8630d1fa1",
     "projections/dotnet/blocks/hlp.blocks.scheduling/ScheduleReservationCoordinator.cs": "454d8534626301cac45fa455c0ee509e49de9a274786ba61b2b6d72a5f8b8901",
     "projections/dotnet/blocks/hlp.blocks.scheduling/SchedulingDurableRecords.cs": "3464c54e346b0a22938dc21a25b9d1a00f13e01950ba31b36105f9dbaf4f139c",
     "projections/dotnet/blocks/hlp.blocks.scheduling/Telemetry/SchedulingTelemetry.cs": "37288941b4989594928b3fe777dd0bb29c373808a56411aec8494927381e8e05",
-    "projections/dotnet/blocks/hlp.blocks.scheduling/Harborline.Blocks.Scheduling.csproj": "7aea242627d9ef2224d18af55c123b486d015de25112ee32258dcc97069b405c",
+    "projections/dotnet/blocks/hlp.blocks.scheduling/Harborline.Blocks.Scheduling.csproj": "438a05bcf3c6fa1c8808d9241f9472d1e7bd9519cf67338e0f9aaf21f937aad5",
     "projections/dotnet/blocks/hlp.blocks.scheduling/Occurrences/CompletionOffsetDueOccurrenceSource.cs": "f13fa26939a3cd480d339285cef8e80c2b2296e7c2af4ceca26a84d0996233c2",
     "projections/dotnet/blocks/hlp.blocks.scheduling/Occurrences/OccurrenceModels.cs": "a5df38b4eb1f6acea11636323d0a7b3b2c54e6d3eacf4fb87f1c89bcf2a4b5cc",
     "projections/dotnet/blocks/hlp.blocks.scheduling/Occurrences/OccurrenceTime.cs": "618699051bbc2ff384327006ab9ed7b1d8b5b760f3a686f4ce4ae15ba1fe83e1",
@@ -50,7 +50,9 @@
     "projections/dotnet/blocks/hlp.blocks.scheduling/Occurrences/Chains/RelativeChainResults.cs": "3e481265efb750418f9507fe9362d3436fc05a88f416d774eb5d3e894a43e4b4",
     "projections/dotnet/blocks/hlp.blocks.scheduling/Occurrences/Chains/VersionedOccurrences.cs": "4d1922acb627e7ad49b0c9d10b9280c378ec03f9acc7037f584b817fd5b8da34",
     "projections/dotnet/blocks/hlp.blocks.scheduling/Planning/ConstraintModuleAdmission.cs": "b1076fa1665cab1917e21cfaf7183dced297659b329b2d30aecd8af51dbff64e",
-    "projections/dotnet/blocks/hlp.blocks.scheduling/Planning/SchedulePlanner.cs": "d5ec30e4095bfba0e54c900b45946dddbcf979ff30e64693e6a4bae7d74a669d"
+    "projections/dotnet/blocks/hlp.blocks.scheduling/Planning/SchedulePlanner.cs": "d5ec30e4095bfba0e54c900b45946dddbcf979ff30e64693e6a4bae7d74a669d",
+    "projections/dotnet/blocks/hlp.blocks.scheduling/Definitions/SchedulingCrossPackageAuthoring.cs": "86e423f6291891558c4d60be1194224d6b1a1c08efccb3d15f23834ac6fda4ee",
+    "conformance/hlp.blocks.scheduling/authoring-refusals.json": "0f0b69687c33027f37b7d7f47b0840d618445c9d61487d853d87d367610537b0"
   },
   "nextGate": "Kernel-clock due generation and the four declared bases are owned by Scheduling; API chain consumers follow under T-311."
 }

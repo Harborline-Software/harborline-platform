@@ -32,6 +32,7 @@ public static class DurableWorkflowServiceCollectionExtensions
         ArgumentNullException.ThrowIfNull(services);
         services.AddSingleton((options ?? WorkflowEngineOptions.Default).Validated());
         services.AddSingleton<IWorkflowTriggerDispatcher, WorkflowTriggerDispatcher>();
+        services.AddSingleton<WorkflowInstanceCreator>();
         // ADR 0143 (red-team Chain 1+5 / F2): the canonical capability→authority registry the admission
         // validator DERIVES an action's CP/AP class from (single cross-runtime source; unknown⇒CP).
         services.AddSingleton<ICapabilityAuthorityRegistry>(CapabilityAuthorityRegistry.Canonical);

@@ -121,6 +121,44 @@
         ],
         "footer": []
       }
+    },
+    {
+      "id": "rule-authoring.lineage",
+      "name": "Calculation lineage",
+      "surface": "authoring",
+      "sourceCaseIds": [
+        "rule-authoring.lineage"
+      ],
+      "sourceQualityCaseIds": [
+        "rule-authoring.quality.labels",
+        "rule-authoring.quality.reflow",
+        "rule-authoring.quality.visual-parity"
+      ],
+      "content": {
+        "blurb": "Navigate calculations and consumers, including unreferenced calculations.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "preview": "sample"
+        },
+        "state": {
+          "keyboard": true,
+          "narrow": true
+        },
+        "body": [
+          {
+            "control": "calculation-lineage",
+            "react": "<RulesAuthoringEditor lineage={fixture} />",
+            "blazor": "<HarborlineRulesAuthoringEditor Lineage=fixture />",
+            "rationale": "Both lanes render the producer lineage supplied by the host."
+          }
+        ],
+        "footer": []
+      }
     }
   ]
 }
