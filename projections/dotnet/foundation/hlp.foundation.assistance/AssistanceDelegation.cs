@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Globalization;
 using System.Numerics;
 using System.Security.Cryptography;
@@ -42,6 +43,10 @@ public static class AssistanceProposalDigest
 /// <summary>Strict snake_case wire codecs; object keys use RFC 8785 ordinal UTF-16 order.</summary>
 public static class AssistanceDelegationJson
 {
+    // T-1107/R-0125: copied from projections/blazor/ui/hlp.ui.button/Localization/HarborlineBlankText.cs; foundation cannot reference UI.
+    private const string BlankCharacters = "\t\n\v\f\r \u00A0\u1680\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200A\u2028\u2029\u202F\u205F\u3000\uFEFF";
+    private static readonly SearchValues<char> BlankSet = SearchValues.Create(BlankCharacters);
+
     private static readonly JsonSerializerOptions Options = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
@@ -118,7 +123,7 @@ public static class AssistanceDelegationJson
 
     private static void Text(string? value)
     {
-        if (string.IsNullOrWhiteSpace(value)) throw new JsonException("A nonempty wire string is required.");
+        if (value is null || value.AsSpan().IndexOfAnyExcept(BlankSet) < 0) throw new JsonException("A nonempty wire string is required.");
         Quote(value);
     }
 

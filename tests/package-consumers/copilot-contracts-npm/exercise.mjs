@@ -32,6 +32,8 @@ assert.equal(await proposalDigest(alias), 'sha256:84feac55b8b756a630a83b3b395b5c
 assert.equal(assertDispatched(classifyProposal(alias, 'form#1').receipt, 'form#1').command, 'draft.edit')
 assert.throws(() => deserializeDelegationRecord('{"subject":"mallory","subject":"alice","actor":null,"disposition":{"kind":"approve"}}'), { message: 'duplicate-wire-member' })
 assert.deepEqual(deserializeDelegationRecord(JSON.stringify(record)), record)
+assert.equal(deserializeDelegationRecord(JSON.stringify({ ...record, subject: '\u0085' })).subject, '\u0085')
+assert.throws(() => deserializeDelegationRecord(JSON.stringify({ ...record, subject: '\uFEFF' })), { message: 'required-wire-string' })
 assert.deepEqual(deserializeDelegationDisposition(JSON.stringify(standing)), standing)
 assert.deepEqual(deserializeStandingApproval(JSON.stringify(approval)), approval)
 assert.equal(serializeDelegationRecordCanonical({ subject: 'alice', actor: null, disposition: { kind: 'approve' } }), '{"actor":null,"disposition":{"kind":"approve"},"subject":"alice"}')
