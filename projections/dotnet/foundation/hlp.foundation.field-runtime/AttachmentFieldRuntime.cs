@@ -57,7 +57,7 @@ public sealed class AttachmentFieldRuntime(InMemoryContentStore store)
                 // The final separator precedes the opaque slot; field keys themselves may contain separators.
                 var fieldEnd = reference.Owner.Element.LastIndexOf('/');
                 if (reference.Owner.Record != owner.Record || fieldEnd < 0 || reference.Owner.Element[..fieldEnd] != owner.Element
-                    || item is null || !item.Owners.Contains(reference.Owner) || item.Length != reference.Length || item.MediaType != reference.MediaType)
+                    || item is null || !item.Owners.Contains(reference.Owner) || item.Length != reference.Length || !InMemoryContentStore.MediaTypeFits(item.MediaType, reference.MediaType))
                     throw Invalid();
                 resolved.Add(JsonNode.Parse(entry.GetRawText()));
             }

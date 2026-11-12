@@ -36,6 +36,41 @@ public sealed class AttachmentFieldRuntimeTests
         Assert.Equal(50, refusal.Detail["limit"]);
     }
 
+    // DES-0054 ck-3, ck-4, ck-6, eng-4 (Terra P2-6, Codex P2; M11 ruling option 1): identical text bytes are stored once,
+    // but each upload keeps its own declared text subtype on its own reference, so a CSV-only field accepts a CSV upload of
+    // bytes the tenant first stored as text/plain, and each reference is served with its own type. Dedup is never visible.
+    [Fact]
+    public async Task Content_store_ck_6_identical_text_bytes_keep_each_uploads_own_type_on_its_reference()
+    {
+        var f = new Fixture();
+        var csvOnly = (ICompiledAttachmentFieldKind)new FieldKindRuntime(new FieldKindRegistry([new("attachment", "1.0.0", null, FieldScalarValueShape.ContentReference)]), 100)
+            .Bind(new("attachment", "1.0.0", new Dictionary<string, string> { ["accepted_media_types"] = "[\"text/csv\"]" }), "/kind");
+        const string bytes = "a,b\n1,2\n";
+        var plainStage = await f.Runtime.PutAsync(f.Field, new("tenant"), "notes", new MemoryStream(Encoding.UTF8.GetBytes(bytes)), "text/plain", null, Evidence());
+        var notes = await f.Write(JsonSerializer.SerializeToElement(new[] { new { stage_id = plainStage, display_name = "notes.txt" } }), "notes");
+        var csvStage = await f.Runtime.PutAsync(csvOnly, new("tenant"), "sheet", new MemoryStream(Encoding.UTF8.GetBytes(bytes)), "text/csv", null, Evidence());
+        var sheet = await f.Write(JsonSerializer.SerializeToElement(new[] { new { stage_id = csvStage, display_name = "sheet.csv" } }), "sheet", csvOnly);
+
+        Assert.Equal(1, f.Store.CommittedCount);
+        Assert.Equal(notes[0]!["content_id"]!.GetValue<string>(), sheet[0]!["content_id"]!.GetValue<string>());
+        Assert.Equal("text/plain", notes[0]!["media_type"]!.GetValue<string>());
+        Assert.Equal("text/csv", sheet[0]!["media_type"]!.GetValue<string>());
+        var context = new ContentReadContext("trace", "operation", "tenant-opaque", "reader");
+        foreach (var (written, type) in new[] { (notes[0]!, "text/plain"), (sheet[0]!, "text/csv") })
+        {
+            var reference = new ContentReference(new(written["content_id"]!.GetValue<string>()), written["length"]!.GetValue<long>(), written["media_type"]!.GetValue<string>(),
+                written["display_name"]!.GetValue<string>(), new(written["owner"]!["record"]!.GetValue<string>(), written["owner"]!["element"]!.GetValue<string>()));
+            var delivery = await f.Store.ReadAsync(new("tenant"), reference, true, context);
+            await using var body = delivery.Body;
+            Assert.Equal(type, delivery.ContentType);
+            Assert.Equal(bytes, await new StreamReader(body).ReadToEndAsync());
+        }
+        // A kept reference still names its own text subtype; a signature type cannot be relabelled.
+        var kept = await f.Write(JsonSerializer.SerializeToElement(new[] { sheet[0] }), "sheet", csvOnly);
+        Assert.Equal("text/csv", kept[0]!["media_type"]!.GetValue<string>());
+        Assert.False(InMemoryContentStore.MediaTypeFits("application/pdf", "text/plain"));
+    }
+
     [Theory]
     [InlineData("{}")]
     [InlineData("null")]
@@ -270,11 +305,11 @@ public sealed class AttachmentFieldRuntimeTests
                 .Bind(new("attachment", "1.0.0", new Dictionary<string,string> { ["item_limit_bytes"] = "50" }), "/kind");
         }
         public ValueTask<Guid> Upload(string text) => Runtime.PutAsync(Field, new("tenant"), "evidence", new MemoryStream(Encoding.UTF8.GetBytes(text)), "text/plain", null, Evidence());
-        public async Task<JsonArray> Write(JsonElement entries, string fieldKey = "evidence")
+        public async Task<JsonArray> Write(JsonElement entries, string fieldKey = "evidence", ICompiledAttachmentFieldKind? field = null)
         {
             var port = new Port(Storage.Bookkeeping);
             await KernelTransactionBoundary.ExecutePreparedAsync(async token => new KernelCommand<JsonArray>(Evidence().Operation,
-                await Runtime.ResolveWriteAsync(Field, entries, new("tenant"), new("record", fieldKey), Evidence(port.Session), token), Evidence().Audit), port);
+                await Runtime.ResolveWriteAsync(field ?? Field, entries, new("tenant"), new("record", fieldKey), Evidence(port.Session), token), Evidence().Audit), port);
             return port.Saved!;
         }
     }

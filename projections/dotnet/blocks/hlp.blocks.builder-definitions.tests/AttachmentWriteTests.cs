@@ -157,6 +157,25 @@ public sealed class AttachmentWriteTests
         Assert.Single(fixture.Port.Rows);
     }
 
+    // ADR-0142 decision 3 (M11 ruling on Terra P1-2): the principal the store sees at commit is the accepted command's
+    // submitter, never the worker. Bob's accepted command naming Alice's stage refuses content.staging-expired, and the
+    // stage stays for Alice's own command.
+    [Fact]
+    public async Task Adr_0142_another_submitters_accepted_command_naming_a_stage_refuses_staging_expired()
+    {
+        var fixture = await Fixture.CreateFormOnly();
+        var alices = await fixture.UploadAs("alice evidence", "alice");
+        var bobs = await fixture.Operation.CompleteAcceptedAsync(new("tenant-a", "sys.records-worker"), Accepted("bob", List(alices)));
+        Assert.False(bobs.Committed);
+        Assert.Equal("content.staging-expired", bobs.Refusal!.Code);
+        Assert.Empty(fixture.Port.Rows);
+        Assert.Equal(1, fixture.Store.StagedCount);
+        Assert.Equal(0, fixture.Store.CommittedCount);
+        var own = await fixture.Operation.CompleteAcceptedAsync(new("tenant-a", "sys.records-worker"),
+            Accepted("alice", List(alices)) with { CommandId = "cmd-3", OperationId = "op-accepted-3" });
+        Assert.True(own.Committed, own.Refusal?.Code);
+    }
+
     // content-store-cc-2 with M11's ruling on Terra P1-4: two writes that promote the same content in opposite orders take
     // their row locks in one canonical order, so neither waits on the other forever.
     [Fact]
