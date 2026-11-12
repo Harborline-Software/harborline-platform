@@ -387,9 +387,34 @@ public interface IViewInteractionRegistry
         CancellationToken cancellationToken = default);
 }
 
-/// <summary>The single compatibility predicate used by kind offering and admission.</summary>
+/// <summary>
+/// The single compatibility predicate used by kind offering, draft admission, the shared store's publish commit and the
+/// read-time check, and the one mapping from a field kind's declaration to the view kind that predicate reads (T-1177).
+/// </summary>
 public static class ViewBindingCompatibility
 {
+    /// <summary>
+    /// The view kind a field-kind revision declares, from its value shape and temporal format only (T-1177, call F option 1):
+    /// <c>Text</c> with no format is <see cref="ViewRecordFieldKind.Text"/>; <c>Text</c> with <c>date</c>, <c>date-time</c>
+    /// or <c>time</c> (RFC 3339 §5.6) is <see cref="ViewRecordFieldKind.DateTime"/>; <c>Integer</c> and <c>Number</c> are
+    /// <see cref="ViewRecordFieldKind.Ordered"/>; <c>Boolean</c> is <see cref="ViewRecordFieldKind.Scalar"/>. Any other
+    /// declaration has no view kind and returns null, which no shape role accepts. A host that describes a record type to
+    /// <see cref="IViewRecordTypeRegistry"/> derives each bound field's kind here, so there is no second table; display
+    /// settings are never an input.
+    /// </summary>
+    public static ViewRecordFieldKind? KindOf(AdmittedFieldKind kind)
+    {
+        ArgumentNullException.ThrowIfNull(kind);
+        return (kind.ValueShape, kind.TemporalFormat) switch
+        {
+            (FieldScalarValueShape.Text, null) => ViewRecordFieldKind.Text,
+            (FieldScalarValueShape.Text, "date" or "date-time" or "time") => ViewRecordFieldKind.DateTime,
+            (FieldScalarValueShape.Integer or FieldScalarValueShape.Number, null) => ViewRecordFieldKind.Ordered,
+            (FieldScalarValueShape.Boolean, null) => ViewRecordFieldKind.Scalar,
+            _ => null,
+        };
+    }
+
     /// <summary>True when every role the kind requires has at least one compatible field in the record type.</summary>
     public static bool CanOffer(ViewKindDescriptor kind, ViewRecordTypeDescriptor recordType)
     {
@@ -436,7 +461,7 @@ public static class ViewBindingCompatibility
         return null;
     }
 
-    private static bool IsCompatible(ViewShapeRole role, ViewRecordFieldKind fieldKind) => role switch
+    internal static bool IsCompatible(ViewShapeRole role, ViewRecordFieldKind fieldKind) => role switch
     {
         ViewShapeRole.Title => fieldKind == ViewRecordFieldKind.Text,
         ViewShapeRole.PlacedBy => fieldKind is ViewRecordFieldKind.DateTime or ViewRecordFieldKind.Ordered,

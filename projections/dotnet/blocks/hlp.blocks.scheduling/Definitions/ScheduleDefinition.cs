@@ -45,7 +45,7 @@ public abstract record ScheduleBasis
     }
 }
 
-/// <summary>A calendar recurrence. The RRULE text is kept as authored: which subset is the contract is DES-0022 open ruling 1.</summary>
+/// <summary>A calendar recurrence, kept as authored and admitted by the producer's DES-0057 ck-1 subset parser.</summary>
 /// <param name="Rrule">The authored RRULE text.</param>
 public sealed record FixedCalendarBasis(string Rrule) : ScheduleBasis;
 
@@ -188,7 +188,17 @@ public sealed record ScheduleDefinition(
     ScheduleProblemClass ProblemClass = ScheduleProblemClass.None,
     IReadOnlyList<ScheduleConstraintModule>? Modules = null,
     string? LegalityRef = null,
-    string? DueDate = null);
+    string? DueDate = null)
+{
+    /// <summary>An explicit recovery request, refused at validate (scheduling-auth-21); ordinary missed-behaviour replanning is distinct.</summary>
+    public bool? RecoveryReplanning { get; init; }
+
+    /// <summary>A requested regulatory compliance obligation, refused at validate (scheduling-auth-23); legality citations remain admitted.</summary>
+    public string? RegulatorRuleSetRequirement { get; init; }
+
+    /// <summary>An upstream plan whose output would feed this plan, refused at validate (scheduling-auth-24); within-plan precedence remains admitted.</summary>
+    public string? InputPlanId { get; init; }
+}
 
 /// <summary>The sealed trait that admits a type to planning (scheduling-ck-22, L482, L1084).</summary>
 public static class SchedulableTrait

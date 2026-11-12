@@ -30,6 +30,13 @@ public sealed class InMemoryVersionedDefinitionStore : IVersionedDefinitionStore
                 .OrderBy(key => key.DefinitionId, StringComparer.Ordinal).ToArray());
     }
 
+    /// <summary>
+    /// The kinds whose publish is checked at the commit by their dependency derivation, declared once. Admitting one without
+    /// its derivation refuses construction (ADR 0071 decisions 1 and 4). Views refuses an incompatible shape role there
+    /// (T-1177). Records joins under T-1198.
+    /// </summary>
+    private static readonly DefinitionKind[] DerivationRequired = [DefinitionKind.Views];
+
     private readonly IReadOnlyDictionary<DefinitionKind, DefinitionAdmission> _admissions;
     private readonly IReadOnlyDictionary<DefinitionKind, DefinitionDependencyDerivation> _derivations;
     private readonly Dictionary<(DefinitionKey Key, string VersionId), DefinitionRevision> _revisions = [];
@@ -57,6 +64,9 @@ public sealed class InMemoryVersionedDefinitionStore : IVersionedDefinitionStore
         if (admissions.Any(pair => !Enum.IsDefined(pair.Key) || pair.Value is null))
             throw Refuse("definition.registry_unknown", "/registry", DefinitionAdmissionPhase.Author);
         if (dependencies?.Any(pair => !admissions.ContainsKey(pair.Key) || pair.Value is null) == true)
+            throw Refuse("definition.registry_unknown", "/dependencies", DefinitionAdmissionPhase.Author);
+        // ADR 0071 decisions 1 and 4: a kind whose publish is checked by its derivation cannot be admitted without it.
+        if (admissions.Keys.Any(kind => DerivationRequired.Contains(kind) && dependencies?.ContainsKey(kind) != true))
             throw Refuse("definition.registry_unknown", "/dependencies", DefinitionAdmissionPhase.Author);
         _admissions = new Dictionary<DefinitionKind, DefinitionAdmission>(admissions);
         _derivations = new Dictionary<DefinitionKind, DefinitionDependencyDerivation>(

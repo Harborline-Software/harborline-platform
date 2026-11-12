@@ -1,3 +1,49 @@
+.hl-data-exchange-authoring {
+  container: hl-data-exchange / inline-size;
+  display: grid;
+  gap: 1rem;
+  inline-size: 100%;
+  max-inline-size: 100%;
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+
+.hl-data-exchange-authoring :is(fieldset, fieldset > div, label) {
+  display: grid;
+  gap: 0.5rem;
+  grid-template-columns: minmax(0, 1fr);
+  min-inline-size: 0;
+}
+
+.hl-data-exchange-authoring :is(input:not([type="checkbox"]), select) {
+  box-sizing: border-box;
+  inline-size: 100%;
+  max-inline-size: 100%;
+  min-inline-size: 0;
+}
+
+.hl-data-exchange-authoring fieldset > :is(div, p, dl, ul, button) {
+  grid-column: 1 / -1;
+  min-inline-size: 0;
+}
+
+.hl-data-exchange-authoring dd {
+  margin-inline-start: 0;
+  min-inline-size: 0;
+}
+
+@container hl-data-exchange (min-width: 40rem) {
+  .hl-data-exchange-authoring :is(fieldset, fieldset > div) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@container hl-data-exchange (min-width: 64rem) {
+  .hl-data-exchange-authoring :is(fieldset, fieldset > div) {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
 .hl-data-exchange-authoring :is(button, input, select):focus-visible {
   outline: 2px solid var(--hl-button-focus);
   outline-offset: 2px;

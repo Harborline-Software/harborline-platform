@@ -7,7 +7,7 @@
     <RootNamespace>Harborline.Blocks.Scheduling</RootNamespace>
     <Description>CP reservation coordination and deterministic planning substrate for Harborline Platform.</Description>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <PackageReleaseNotes>Internal-only projection; public distribution is not authorized.</PackageReleaseNotes>
+    <PackageReleaseNotes>Interface revision 9: explicit authoring refusals for recovery replanning, regulator-rule-set requirements and upstream-plan inputs; authoring-only K9 facade reusing the shared checker. Internal-only projection; public distribution is not authorized.</PackageReleaseNotes>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../../foundation/hlp.foundation.scheduling/Harborline.Foundation.Scheduling.csproj" />

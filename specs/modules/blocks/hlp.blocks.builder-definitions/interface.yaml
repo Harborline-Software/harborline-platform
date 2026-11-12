@@ -188,7 +188,7 @@
     {"code":"verification-outcome-missing", "when":"The run reports no outcome for a declared case or examples row."},
     {"code":"verification-outcome-unknown", "when":"The run reports an outcome for a case the suite does not declare."},
     {"code":"verification-outcome-duplicate", "when":"Two outcomes answer the same case and row."},
-    {"code":"definition.registry_unknown", "when":"The registry is unknown or has no host-supplied admission, or a dependency derivation names a registry without one or is null (/dependencies)."},
+    {"code":"definition.registry_unknown", "when":"The registry is unknown or has no host-supplied admission, or a dependency derivation names a registry without one or is null (/dependencies), or construction admits a kind whose publish needs its dependency derivation (Views, revision 33, T-1177; ADR 0071 decisions 1 and 4) without registering it (/dependencies), through either constructor."},
     {"code":"definition.dependencies_unsupported", "when":"ReadDependenciesAsync on a store with no dependency derivation registered, or one that does not implement the read (the interface default); pointer /dependencies. It is never answered as no edges."},
     {"code":"definition.type_required", "when":"ReadDependenciesAsync names a blank definition type; pointer /definitionType."},
     {"code":"definition.version_invalid", "when":"The semantic-version label is malformed."},

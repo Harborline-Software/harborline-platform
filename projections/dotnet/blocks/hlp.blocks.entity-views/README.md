@@ -25,8 +25,10 @@ The package also owns the platform definition and execution seams for authored v
 - `IViewDefinitionCatalogue` keeps immutable definition-and-binding snapshots at append-only coordinates;
   publishing selects the highest semantic-version head, while restore creates a new draft.
   `ViewDefinitionCatalogue` binds it to the shared definition store as `DefinitionKind.Views`; the host registers
-  `ViewDefinitionCatalogue.Admission(registers)` and `ViewDefinitionCatalogue.Dependencies`, so admission is
-  structural on every draft save and publish (DES-0017 `views-eng-16`).
+  `ViewDefinitionCatalogue.Admission(registers)` and `ViewDefinitionCatalogue.Dependencies(registers)` over the same
+  `ViewAdmissionRegisters`, so admission is structural on every draft save and publish (DES-0017 `views-eng-16`). The
+  derivation reads the Record Type head current at each commit and checks every shape role against the kind revision its
+  field pins, through `ViewBindingCompatibility.KindOf` and the admitted `FieldKinds` (T-1177).
 - `ViewDefinitionPackExporter` exports published system/public definitions with their authored
   bindings and excludes personal definitions.
 - `ViewQueryRuntime` checks view-open authority and record shape before data access, then applies

@@ -13,7 +13,7 @@ public sealed class VersionedDefinitionStoreTests
         var draft = Document() with { Key = new("tenant-a", DefinitionKind.Rules, "z-rule") };
         var published = Document() with { Key = new("tenant-a", DefinitionKind.Rules, "a-rule") };
         var otherTenant = Document() with { Key = new("tenant-b", DefinitionKind.Rules, "foreign-rule") };
-        var otherKind = Document() with { Key = new("tenant-a", DefinitionKind.Views, "foreign-view") };
+        var otherKind = Document() with { Key = new("tenant-a", DefinitionKind.Reports, "foreign-report") };
         await store.SaveDraftAsync(draft, 0, "draft-z");
         await store.SaveDraftAsync(published, 0, "draft-a");
         await store.PublishAsync(published.Key, published.VersionId, 1, "publish-a");
@@ -24,7 +24,7 @@ public sealed class VersionedDefinitionStoreTests
 
         Assert.Equal(new[] { published.Key, draft.Key }, keys);
         Assert.Empty(await store.ListKeysAsync("absent-tenant", DefinitionKind.Rules));
-        Assert.Equal(otherKind.Key, Assert.Single(await store.ListKeysAsync("tenant-a", DefinitionKind.Views)));
+        Assert.Equal(otherKind.Key, Assert.Single(await store.ListKeysAsync("tenant-a", DefinitionKind.Reports)));
         Assert.Null(await store.GetPublishedHeadAsync(draft.Key));
     }
 
@@ -83,7 +83,6 @@ public sealed class VersionedDefinitionStoreTests
     }
 
     [Theory]
-    [InlineData(DefinitionKind.Views)]
     [InlineData(DefinitionKind.Reports)]
     [InlineData(DefinitionKind.Schedules)]
     [InlineData(DefinitionKind.DataExchange)]
@@ -493,8 +492,26 @@ public sealed class VersionedDefinitionStoreTests
         Assert.Equal(2, (await store.ListHistoryAsync(source.Key)).Count);
     }
 
+    [Fact(DisplayName = "views-eng-16: a store that admits Views without its dependency derivation refuses construction, through either constructor")]
+    public void AStoreAdmittingViewsWithoutItsDerivationRefusesConstruction()
+    {
+        var admissions = new Dictionary<DefinitionKind, DefinitionAdmission>
+        {
+            [DefinitionKind.Views] = (_, _) => [],
+            [DefinitionKind.Classes] = (_, _) => [],
+        };
+
+        var admissionOnly = Assert.Throws<DefinitionRefusalException>(() => new InMemoryVersionedDefinitionStore(admissions));
+        var otherDerivationOnly = Assert.Throws<DefinitionRefusalException>(() => new InMemoryVersionedDefinitionStore(admissions,
+            new Dictionary<DefinitionKind, DefinitionDependencyDerivation> { [DefinitionKind.Classes] = ClassDefinitionStore.Dependencies }));
+
+        AssertRefusal(admissionOnly, "definition.registry_unknown", "/dependencies");
+        AssertRefusal(otherDerivationOnly, "definition.registry_unknown", "/dependencies");
+    }
+
+    // Every kind but Views, whose publish needs its dependency derivation; these tests exercise the store, not Views.
     private static InMemoryVersionedDefinitionStore Store(DefinitionAdmission? admission = null)
-        => new(Enum.GetValues<DefinitionKind>().ToDictionary(kind => kind,
+        => new(Enum.GetValues<DefinitionKind>().Where(kind => kind != DefinitionKind.Views).ToDictionary(kind => kind,
             _ => admission ?? ((_, _) => Array.Empty<DefinitionRefusal>())));
 
     private static DefinitionDocument Document(DefinitionKind kind = DefinitionKind.Rules)
