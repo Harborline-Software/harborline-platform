@@ -11,6 +11,20 @@ Harborline compatibility module for lease-serialized slot reservations and deter
 - **Envelope.** Required past authoring, with a required `Contract` (T-572). The store's document version is the one source of `Version`: a stored envelope omits it and the catalogue fills it in on read, so a restored draft publishes under its own version.
 - **`SchedulableTrait`.** States the sealed trait and its slots `work_calendar`, `qualification_set` and `capacity_slots`, which admit a type to planning (L482, L1084).
 
+## Authoring refusals (T-491/schedule-refusals, interface revision 9)
+
+The shared catalogue validator refuses before storing a draft. Unsupported JSON configurations retain `scheduling.definition.body_invalid`; unadmitted modules retain `scheduling.definition.module_unsupported`. A `fixed_calendar` rule is checked at save by the recurrence producer's own `ValidateRule` parser (DES-0057 ck-1/cc-1).
+
+Three optional intent members make excluded planning requests explicit, with stable codes at their own pointers:
+
+- `recovery_replanning: true` refuses `scheduling.definition.recovery_replanning_unsupported` (auth-21, L463). Absent/false leaves ordinary `record_and_replan` admitted.
+- Any non-null `regulator_rule_set_requirement` refuses `scheduling.definition.regulator_rule_set_unsupported` (auth-23, L465). `legality_ref` remains an uninterpreted citation.
+- Any non-null `input_plan_id` refuses `scheduling.definition.plan_input_unsupported` (auth-24, L478). The admitted `precedence` module still accepts operation dependencies within one plan (auth-25, L479).
+
+`SchedulingCrossPackageAuthoring.Check(consumer, references, exposures)` is the authoring-only K9 facade (auth-28, T-724 ruling 57, [control #1358](https://github.com/Harborline-Software/harborline-control/pull/1358)). The host supplies resolved edges and producer exposures, as for Rules/Layout. The shared checker requires the consumer envelope's `Requires` capability to name the producer package and the producer to expose the target at the requested version and digest. Same-package edges pass. Scheduling codes are `scheduling.reference.dependency_undeclared`, `scheduling.reference.not_exposed` and `scheduling.reference.exposure_incompatible`; a target is disclosed only when exposed. The static admission callback is unchanged; this facade adds no production caller or publication/installation gate (T-615).
+
+`conformance/hlp.blocks.scheduling/authoring-refusals.json` is the shared input/output corpus for both editor lanes, including literal codes, pointers and missing/required reasons. Tests execute each input through the store's production admission or the K9 facade. No second validator or UI implementation is introduced.
+
 ## The constraint-expression environment (T-491/expression-environment, DES-0022 scheduling-ck-23)
 
 `SchedulingExpressionEnvironment.Declaration` states, in Rules' shared `BorrowerEnvironmentDeclaration`, what a constraint expression may read and when it runs. It equals Rules' released `scheduling-ck-23` entry in `conformance/hlp.foundation.rule-runtime/borrower-contracts.json`, canonical form included.

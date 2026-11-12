@@ -1,0 +1,719 @@
+{
+  "schemaVersion": 1,
+  "authority": [
+    "DES-0022 section 4 scheduling-auth-17,18,21,23,24,25,28 and scheduling-eng-22",
+    "DES-0057 recurrence-expansion-ck-1 and cc-1; R-0144 ruling 2",
+    "DES-0014 K9; T-724 ruling 57; control PR 1358"
+  ],
+  "cases": [
+    {
+      "id": "unsupported-configuration",
+      "item": "scheduling-auth-17",
+      "definition": {
+        "name": "Inspection",
+        "starts": {
+          "kind": "form",
+          "target_id": "forms.inspection"
+        },
+        "due_date": "2027-01-01T00:00:00Z",
+        "basis": {
+          "kind": "unsupported_generator"
+        }
+      },
+      "refusals": [
+        {
+          "code": "scheduling.definition.body_invalid",
+          "pointer": ""
+        }
+      ],
+      "missing": "An admitted schedule configuration",
+      "required": "One of the four declared generators and only declared members"
+    },
+    {
+      "id": "unadmitted-module",
+      "item": "scheduling-auth-18",
+      "definition": {
+        "name": "Inspection",
+        "starts": {
+          "kind": "form",
+          "target_id": "forms.inspection"
+        },
+        "due_date": "2027-01-01T00:00:00Z",
+        "problem_class": "Project",
+        "modules": [
+          {
+            "module": "unknown-module"
+          }
+        ]
+      },
+      "refusals": [
+        {
+          "code": "scheduling.definition.module_unsupported",
+          "pointer": "/modules/0/module"
+        }
+      ],
+      "missing": "Admission for unknown-module",
+      "required": "An admitted typed planning module with valid parameters"
+    },
+    {
+      "id": "recovery-replanning",
+      "item": "scheduling-auth-21",
+      "definition": {
+        "name": "Inspection",
+        "starts": {
+          "kind": "form",
+          "target_id": "forms.inspection"
+        },
+        "due_date": "2027-01-01T00:00:00Z",
+        "recovery_replanning": true
+      },
+      "refusals": [
+        {
+          "code": "scheduling.definition.recovery_replanning_unsupported",
+          "pointer": "/recovery_replanning"
+        }
+      ],
+      "missing": "Recovery replanning support",
+      "required": "A schedule within the admitted grammar, without recovery replanning"
+    },
+    {
+      "id": "regulator-rule-set",
+      "item": "scheduling-auth-23",
+      "definition": {
+        "name": "Inspection",
+        "starts": {
+          "kind": "form",
+          "target_id": "forms.inspection"
+        },
+        "due_date": "2027-01-01T00:00:00Z",
+        "regulator_rule_set_requirement": "regulator.roster"
+      },
+      "refusals": [
+        {
+          "code": "scheduling.definition.regulator_rule_set_unsupported",
+          "pointer": "/regulator_rule_set_requirement"
+        }
+      ],
+      "missing": "A regulator-rule-set planning capability",
+      "required": "Legality cited by reference, with compliance interpreted outside Scheduling"
+    },
+    {
+      "id": "upstream-plan",
+      "item": "scheduling-auth-24",
+      "definition": {
+        "name": "Inspection",
+        "starts": {
+          "kind": "form",
+          "target_id": "forms.inspection"
+        },
+        "due_date": "2027-01-01T00:00:00Z",
+        "input_plan_id": "plan.upstream"
+      },
+      "refusals": [
+        {
+          "code": "scheduling.definition.plan_input_unsupported",
+          "pointer": "/input_plan_id"
+        }
+      ],
+      "missing": "Staged planning support",
+      "required": "Inputs independent of another plan output"
+    },
+    {
+      "id": "within-plan-precedence",
+      "item": "scheduling-auth-25",
+      "definition": {
+        "name": "Inspection",
+        "starts": {
+          "kind": "form",
+          "target_id": "forms.inspection"
+        },
+        "due_date": "2027-01-01T00:00:00Z",
+        "problem_class": "Project",
+        "modules": [
+          {
+            "module": "precedence",
+            "parameters": {
+              "constraints": [
+                {
+                  "id": "print-after-layout",
+                  "beforeActivityId": "layout",
+                  "afterActivityId": "print",
+                  "minimumGapSlots": 0
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "refusals": [],
+      "missing": null,
+      "required": null
+    },
+    {
+      "id": "ordinary-replan-and-citation",
+      "item": "scheduling-auth-25",
+      "definition": {
+        "name": "Inspection",
+        "starts": {
+          "kind": "form",
+          "target_id": "forms.inspection"
+        },
+        "due_date": "2027-01-01T00:00:00Z",
+        "recovery_replanning": false,
+        "missed_behaviour": "record_and_replan",
+        "legality_ref": "regulator.roster"
+      },
+      "refusals": [],
+      "missing": null,
+      "required": null
+    },
+    {
+      "id": "rrule-hourly",
+      "item": "recurrence-expansion-cc-1",
+      "definition": {
+        "name": "Inspection",
+        "starts": {
+          "kind": "form",
+          "target_id": "forms.inspection"
+        },
+        "basis": {
+          "kind": "fixed_calendar",
+          "rrule": "FREQ=HOURLY"
+        }
+      },
+      "refusals": [
+        {
+          "code": "scheduling.definition.basis_invalid",
+          "pointer": "/basis/rrule"
+        }
+      ],
+      "missing": "A recurrence in the admitted bounded subset",
+      "required": "A rule accepted by the producer parser (DES-0057 ck-1)"
+    },
+    {
+      "id": "rrule-unknown-part",
+      "item": "recurrence-expansion-cc-1",
+      "definition": {
+        "name": "Inspection",
+        "starts": {
+          "kind": "form",
+          "target_id": "forms.inspection"
+        },
+        "basis": {
+          "kind": "fixed_calendar",
+          "rrule": "FREQ=DAILY;BYHOUR=9"
+        }
+      },
+      "refusals": [
+        {
+          "code": "scheduling.definition.basis_invalid",
+          "pointer": "/basis/rrule"
+        }
+      ],
+      "missing": "A recurrence in the admitted bounded subset",
+      "required": "A rule accepted by the producer parser (DES-0057 ck-1)"
+    },
+    {
+      "id": "rrule-unsupported-month-day",
+      "item": "recurrence-expansion-cc-1",
+      "definition": {
+        "name": "Inspection",
+        "starts": {
+          "kind": "form",
+          "target_id": "forms.inspection"
+        },
+        "basis": {
+          "kind": "fixed_calendar",
+          "rrule": "FREQ=MONTHLY;BYMONTHDAY=31"
+        }
+      },
+      "refusals": [
+        {
+          "code": "scheduling.definition.basis_invalid",
+          "pointer": "/basis/rrule"
+        }
+      ],
+      "missing": "A recurrence in the admitted bounded subset",
+      "required": "A rule accepted by the producer parser (DES-0057 ck-1)"
+    },
+    {
+      "id": "rrule-week-start",
+      "item": "recurrence-expansion-cc-1",
+      "definition": {
+        "name": "Inspection",
+        "starts": {
+          "kind": "form",
+          "target_id": "forms.inspection"
+        },
+        "basis": {
+          "kind": "fixed_calendar",
+          "rrule": "FREQ=WEEKLY;WKST=SU"
+        }
+      },
+      "refusals": [
+        {
+          "code": "scheduling.definition.basis_invalid",
+          "pointer": "/basis/rrule"
+        }
+      ],
+      "missing": "A recurrence in the admitted bounded subset",
+      "required": "A rule accepted by the producer parser (DES-0057 ck-1)"
+    },
+    {
+      "id": "rrule-count-and-until",
+      "item": "recurrence-expansion-cc-1",
+      "definition": {
+        "name": "Inspection",
+        "starts": {
+          "kind": "form",
+          "target_id": "forms.inspection"
+        },
+        "basis": {
+          "kind": "fixed_calendar",
+          "rrule": "FREQ=DAILY;COUNT=2;UNTIL=20270103"
+        }
+      },
+      "refusals": [
+        {
+          "code": "scheduling.definition.basis_invalid",
+          "pointer": "/basis/rrule"
+        }
+      ],
+      "missing": "A recurrence in the admitted bounded subset",
+      "required": "A rule accepted by the producer parser (DES-0057 ck-1)"
+    },
+    {
+      "id": "dependency-undeclared",
+      "item": "scheduling-auth-28",
+      "definition": {
+        "name": "Inspection",
+        "starts": {
+          "kind": "form",
+          "target_id": "forms.inspection"
+        },
+        "due_date": "2027-01-01T00:00:00Z",
+        "envelope": {
+          "identity": "inspection",
+          "tenant": "tenant-a",
+          "cascade_layer": "domain_package",
+          "provenance": {},
+          "retention_class": "standard",
+          "legal_hold": false,
+          "requires": [],
+          "contract": {
+            "major": 1,
+            "minor": 0
+          }
+        }
+      },
+      "references": [
+        {
+          "pointer": "/starts/target_id",
+          "source": {
+            "packageId": "consumer",
+            "definitionId": "inspection",
+            "version": "1.0.0",
+            "digest": "source-digest"
+          },
+          "target": {
+            "packageId": "producer",
+            "definitionId": "forms.inspection",
+            "version": "1.0.0",
+            "digest": "target-digest"
+          }
+        }
+      ],
+      "exposures": [
+        {
+          "packageId": "producer",
+          "exposed": [
+            {
+              "packageId": "producer",
+              "definitionId": "forms.inspection",
+              "version": "1.0.0",
+              "digest": "target-digest"
+            }
+          ]
+        }
+      ],
+      "refusals": [
+        {
+          "code": "scheduling.reference.dependency_undeclared",
+          "pointer": "/starts/target_id",
+          "target": "producer/forms.inspection@1.0.0"
+        }
+      ],
+      "missing": "Consumer dependency and/or compatible producer exposure",
+      "required": "Consumer requires the producer package and producer exposes the exact target version and digest"
+    },
+    {
+      "id": "target-unexposed",
+      "item": "scheduling-auth-28",
+      "definition": {
+        "name": "Inspection",
+        "starts": {
+          "kind": "form",
+          "target_id": "forms.inspection"
+        },
+        "due_date": "2027-01-01T00:00:00Z",
+        "envelope": {
+          "identity": "inspection",
+          "tenant": "tenant-a",
+          "cascade_layer": "domain_package",
+          "provenance": {},
+          "retention_class": "standard",
+          "legal_hold": false,
+          "requires": [
+            {
+              "capability": "producer"
+            }
+          ],
+          "contract": {
+            "major": 1,
+            "minor": 0
+          }
+        }
+      },
+      "references": [
+        {
+          "pointer": "/starts/target_id",
+          "source": {
+            "packageId": "consumer",
+            "definitionId": "inspection",
+            "version": "1.0.0",
+            "digest": "source-digest"
+          },
+          "target": {
+            "packageId": "producer",
+            "definitionId": "forms.inspection",
+            "version": "1.0.0",
+            "digest": "target-digest"
+          }
+        }
+      ],
+      "exposures": [
+        {
+          "packageId": "producer",
+          "exposed": []
+        }
+      ],
+      "refusals": [
+        {
+          "code": "scheduling.reference.not_exposed",
+          "pointer": "/starts/target_id"
+        }
+      ],
+      "missing": "Consumer dependency and/or compatible producer exposure",
+      "required": "Consumer requires the producer package and producer exposes the exact target version and digest"
+    },
+    {
+      "id": "version-mismatch",
+      "item": "scheduling-auth-28",
+      "definition": {
+        "name": "Inspection",
+        "starts": {
+          "kind": "form",
+          "target_id": "forms.inspection"
+        },
+        "due_date": "2027-01-01T00:00:00Z",
+        "envelope": {
+          "identity": "inspection",
+          "tenant": "tenant-a",
+          "cascade_layer": "domain_package",
+          "provenance": {},
+          "retention_class": "standard",
+          "legal_hold": false,
+          "requires": [
+            {
+              "capability": "producer"
+            }
+          ],
+          "contract": {
+            "major": 1,
+            "minor": 0
+          }
+        }
+      },
+      "references": [
+        {
+          "pointer": "/starts/target_id",
+          "source": {
+            "packageId": "consumer",
+            "definitionId": "inspection",
+            "version": "1.0.0",
+            "digest": "source-digest"
+          },
+          "target": {
+            "packageId": "producer",
+            "definitionId": "forms.inspection",
+            "version": "1.0.0",
+            "digest": "target-digest"
+          }
+        }
+      ],
+      "exposures": [
+        {
+          "packageId": "producer",
+          "exposed": [
+            {
+              "packageId": "producer",
+              "definitionId": "forms.inspection",
+              "version": "2.0.0",
+              "digest": "target-digest"
+            }
+          ]
+        }
+      ],
+      "refusals": [
+        {
+          "code": "scheduling.reference.exposure_incompatible",
+          "pointer": "/starts/target_id",
+          "target": "producer/forms.inspection@2.0.0"
+        }
+      ],
+      "missing": "Consumer dependency and/or compatible producer exposure",
+      "required": "Consumer requires the producer package and producer exposes the exact target version and digest"
+    },
+    {
+      "id": "digest-mismatch",
+      "item": "scheduling-auth-28",
+      "definition": {
+        "name": "Inspection",
+        "starts": {
+          "kind": "form",
+          "target_id": "forms.inspection"
+        },
+        "due_date": "2027-01-01T00:00:00Z",
+        "envelope": {
+          "identity": "inspection",
+          "tenant": "tenant-a",
+          "cascade_layer": "domain_package",
+          "provenance": {},
+          "retention_class": "standard",
+          "legal_hold": false,
+          "requires": [
+            {
+              "capability": "producer"
+            }
+          ],
+          "contract": {
+            "major": 1,
+            "minor": 0
+          }
+        }
+      },
+      "references": [
+        {
+          "pointer": "/starts/target_id",
+          "source": {
+            "packageId": "consumer",
+            "definitionId": "inspection",
+            "version": "1.0.0",
+            "digest": "source-digest"
+          },
+          "target": {
+            "packageId": "producer",
+            "definitionId": "forms.inspection",
+            "version": "1.0.0",
+            "digest": "target-digest"
+          }
+        }
+      ],
+      "exposures": [
+        {
+          "packageId": "producer",
+          "exposed": [
+            {
+              "packageId": "producer",
+              "definitionId": "forms.inspection",
+              "version": "1.0.0",
+              "digest": "another-digest"
+            }
+          ]
+        }
+      ],
+      "refusals": [
+        {
+          "code": "scheduling.reference.exposure_incompatible",
+          "pointer": "/starts/target_id",
+          "target": "producer/forms.inspection@1.0.0"
+        }
+      ],
+      "missing": "Consumer dependency and/or compatible producer exposure",
+      "required": "Consumer requires the producer package and producer exposes the exact target version and digest"
+    },
+    {
+      "id": "declared-and-exposed",
+      "item": "scheduling-auth-28",
+      "definition": {
+        "name": "Inspection",
+        "starts": {
+          "kind": "form",
+          "target_id": "forms.inspection"
+        },
+        "due_date": "2027-01-01T00:00:00Z",
+        "envelope": {
+          "identity": "inspection",
+          "tenant": "tenant-a",
+          "cascade_layer": "domain_package",
+          "provenance": {},
+          "retention_class": "standard",
+          "legal_hold": false,
+          "requires": [
+            {
+              "capability": "producer"
+            }
+          ],
+          "contract": {
+            "major": 1,
+            "minor": 0
+          }
+        }
+      },
+      "references": [
+        {
+          "pointer": "/starts/target_id",
+          "source": {
+            "packageId": "consumer",
+            "definitionId": "inspection",
+            "version": "1.0.0",
+            "digest": "source-digest"
+          },
+          "target": {
+            "packageId": "producer",
+            "definitionId": "forms.inspection",
+            "version": "1.0.0",
+            "digest": "target-digest"
+          }
+        }
+      ],
+      "exposures": [
+        {
+          "packageId": "producer",
+          "exposed": [
+            {
+              "packageId": "producer",
+              "definitionId": "forms.inspection",
+              "version": "1.0.0",
+              "digest": "target-digest"
+            }
+          ]
+        }
+      ],
+      "refusals": [],
+      "missing": null,
+      "required": null
+    },
+    {
+      "id": "both-undeclared",
+      "item": "scheduling-auth-28",
+      "definition": {
+        "name": "Inspection",
+        "starts": {
+          "kind": "form",
+          "target_id": "forms.inspection"
+        },
+        "due_date": "2027-01-01T00:00:00Z",
+        "envelope": {
+          "identity": "inspection",
+          "tenant": "tenant-a",
+          "cascade_layer": "domain_package",
+          "provenance": {},
+          "retention_class": "standard",
+          "legal_hold": false,
+          "requires": [],
+          "contract": {
+            "major": 1,
+            "minor": 0
+          }
+        }
+      },
+      "references": [
+        {
+          "pointer": "/starts/target_id",
+          "source": {
+            "packageId": "consumer",
+            "definitionId": "inspection",
+            "version": "1.0.0",
+            "digest": "source-digest"
+          },
+          "target": {
+            "packageId": "producer",
+            "definitionId": "forms.inspection",
+            "version": "1.0.0",
+            "digest": "target-digest"
+          }
+        }
+      ],
+      "exposures": [
+        {
+          "packageId": "producer",
+          "exposed": []
+        }
+      ],
+      "refusals": [
+        {
+          "code": "scheduling.reference.dependency_undeclared",
+          "pointer": "/starts/target_id"
+        },
+        {
+          "code": "scheduling.reference.not_exposed",
+          "pointer": "/starts/target_id"
+        }
+      ],
+      "missing": "Consumer dependency and/or compatible producer exposure",
+      "required": "Consumer requires the producer package and producer exposes the exact target version and digest"
+    },
+    {
+      "id": "same-package",
+      "item": "scheduling-auth-28",
+      "definition": {
+        "name": "Inspection",
+        "starts": {
+          "kind": "form",
+          "target_id": "forms.inspection"
+        },
+        "due_date": "2027-01-01T00:00:00Z",
+        "envelope": {
+          "identity": "inspection",
+          "tenant": "tenant-a",
+          "cascade_layer": "domain_package",
+          "provenance": {},
+          "retention_class": "standard",
+          "legal_hold": false,
+          "requires": [],
+          "contract": {
+            "major": 1,
+            "minor": 0
+          }
+        }
+      },
+      "references": [
+        {
+          "pointer": "/starts/target_id",
+          "source": {
+            "packageId": "producer",
+            "definitionId": "inspection",
+            "version": "1.0.0",
+            "digest": "source-digest"
+          },
+          "target": {
+            "packageId": "producer",
+            "definitionId": "forms.inspection",
+            "version": "1.0.0",
+            "digest": "target-digest"
+          }
+        }
+      ],
+      "exposures": [
+        {
+          "packageId": "producer",
+          "exposed": []
+        }
+      ],
+      "refusals": [],
+      "missing": null,
+      "required": null
+    }
+  ]
+}

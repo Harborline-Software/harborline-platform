@@ -32,6 +32,7 @@
     <None Include="../../../../experiments/scheduling-decision-model/data/corpus-v2/manifest.sha256" Link="corpus-v2/manifest.sha256" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../../../../experiments/scheduling-decision-model/data/corpus-v2/labels.jsonl" Link="corpus-v2/labels.jsonl" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../../../../conformance/hlp.foundation.rule-runtime/borrower-contracts.json" Link="borrower-contracts.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../../../conformance/hlp.blocks.scheduling/authoring-refusals.json" Link="authoring-refusals.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../hlp.blocks.scheduling/Planning/Fixtures/*.json" Link="Planning/Fixtures/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>
