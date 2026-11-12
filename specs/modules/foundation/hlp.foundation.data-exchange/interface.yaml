@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.foundation.data-exchange",
-  "interfaceRevision": 4,
+  "interfaceRevision": 5,
   "status": "frozen",
   "purpose": "Own the inbound-only Data Exchange definition, constrained CSVW mapping profile, immutable tenant run evidence, distinct replay identities, bounded canonical Records command orchestration, target Access gate, effect ledger, and conservative checkpoint promotion required by ADR 0098.",
   "dependencies": [],
@@ -14,6 +14,7 @@
       "IDataExchangeDefinitionResolver.ResolvePublishedHeadAsync -> the published head the interpreter runs, supplied by the host over the shared catalogue",
       "DataExchangeInterpreter.CreateDryRunAsync -> resolve a read-only source capability, discover and validate source shape, stream rows, apply CSVW null/default/type semantics and registered transforms, bind canonical payloads, persist payloads behind protected references, and continue with a closed rejection for an invalid row",
       "DataExchangeRuntime.CreateDryRunAsync -> persist a new immutable tenant review artifact with proposal fingerprints, normalized evidence, census-derived terminal status, candidate checkpoint, protected snapshot reference and policy-owned lifecycle",
+      "DryRunEvidenceReader.ReadAsync -> authorize tenant-scoped run-result access, reevaluate proposal and effects for read-time staleness, and return census, terminal status and retention class without sensitive payloads or artifact mutation",
       "DataExchangeCommitter.CommitAsync(DryRunId, CommitOptions?, CancellationToken) -> reevaluate via IProposalEvaluationPort; stale preimage creates a linked superseding dry run and refuses; resolve mandatory source outcome policy; bounded dispatch and exact census closure",
       "DataExchangePermissions -> closed author, dry-run, commit and read-run-results capability vocabulary; target Access remains independent"
     ],
@@ -67,6 +68,7 @@
     "transform.unregistered",
     "run.not_found",
     "run.stale",
+    "run.forbidden",
     "commit.forbidden",
     "commit.window_exceeded",
     "commit.command_payload_exceeded",

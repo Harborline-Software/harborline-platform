@@ -403,14 +403,14 @@ public class ScheduleReservationCoordinatorTests
     // ------------------------------------------------------------------
 
     [Fact]
-    public void DI_AddHarborlineBlocksScheduling_RegistersCoordinatorAsSingleton()
+    public async Task DI_AddHarborlineBlocksScheduling_RegistersCoordinatorAsSingleton()
     {
         var services = new ServiceCollection();
         services.AddSingleton<LeaseNs.ILeaseCoordinator>(_ => new FakeLeaseCoordinator());
         Harborline.Blocks.Scheduling.DependencyInjection.ServiceCollectionExtensions
             .AddHarborlineBlocksScheduling(services);
 
-        var sp = services.BuildServiceProvider();
+        await using var sp = services.BuildServiceProvider(new ServiceProviderOptions { ValidateOnBuild = true, ValidateScopes = true });
         var a = sp.GetRequiredService<IScheduleReservationCoordinator>();
         var b = sp.GetRequiredService<IScheduleReservationCoordinator>();
 

@@ -3,7 +3,7 @@
   "module": {
     "interface": {
       "path": "specs/modules/contracts/hlp.contracts.fields/interface.yaml",
-      "revision": 1
+      "revision": 2
     },
     "moduleKind": "runtime",
     "presentation": {
@@ -20,7 +20,8 @@
       "deletionTest": "PASS",
       "redistributedComplexity": [
         "kind, governance and scalar-shape declarations copied between the Records compiler and field consumers",
-        "three-source domain, narrowing constraint and refusal shapes independently invented by each member"
+        "three-source domain, narrowing constraint and refusal shapes independently invented by each member",
+        "temporal semantics declared once per immutable field-kind revision, distinct from scalar shape and display configuration"
       ]
     },
     "projections": {

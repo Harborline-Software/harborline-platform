@@ -7,8 +7,9 @@ namespace Harborline.Foundation.ExecutionRuntime;
 /// iteration counter) in its own store; the substrate holds only identity, status, attempts and dead-letter.
 /// </summary>
 /// <param name="Kind">The run kind the engine produces.</param>
+/// <param name="Handler">Receives the claimed run and timer step, or null step for a retry. Timer resolution must use the delivered version.</param>
 /// <param name="OwningEngine">The engine that owns the kind, for operators reading a run.</param>
-public sealed record RunKindRegistration(RunKind Kind, string OwningEngine);
+public sealed record RunKindRegistration(RunKind Kind, string OwningEngine, Func<RunRecord, string?, CancellationToken, ValueTask>? Handler = null);
 
 /// <summary>The run kinds engines have registered. A kind is registered once, by one engine.</summary>
 public sealed class RunKindRegistry
@@ -16,7 +17,7 @@ public sealed class RunKindRegistry
     private readonly ConcurrentDictionary<RunKind, RunKindRegistration> _registrations = new();
 
     /// <summary>Registers a run kind, refusing a kind that is already registered.</summary>
-    public RunKindRegistration Register(RunKind kind, string owningEngine)
+    public RunKindRegistration Register(RunKind kind, string owningEngine, Func<RunRecord, string?, CancellationToken, ValueTask>? handler = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(owningEngine);
         if (kind.Value is null)
@@ -25,7 +26,7 @@ public sealed class RunKindRegistry
                 ExecutionRuntimeRefusals.RunKindInvalid, "A default run kind cannot be registered.");
         }
 
-        var registration = new RunKindRegistration(kind, owningEngine);
+        var registration = new RunKindRegistration(kind, owningEngine, handler);
         if (!_registrations.TryAdd(kind, registration))
         {
             throw new ExecutionRuntimeRefusedException(

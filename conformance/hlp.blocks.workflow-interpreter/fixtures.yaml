@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.blocks.workflow-interpreter",
-  "interfaceRevision": 4,
+  "interfaceRevision": 5,
   "cases": [
     {"id": "interpreter-decision-failure", "expectedStatus": "Failed", "reason": "not-retryable", "step": "actual-failing-state", "effect": null, "retry": false},
     {"id": "autonomous-start-parks", "trigger": "Event", "step": "Draft", "expected": "Park", "expectedStep": "PendingApproval", "basisKind": "cp-approval-basis"},
@@ -15,6 +15,8 @@
     {"id": "role-gated-human-transition-refused", "decision": "approve", "gate": {"transition": "t-approve", "requiredRoles": [{"vocabulary": "sys.roles", "name": "Approver"}]}, "expected": "workflow.interpreter.gate_unenforced", "confirmsRecorded": 0},
     {"id": "standing-gated-autonomous-transition-refused", "trigger": "Event", "gate": {"transition": "t-go", "requiredStandings": ["assigned-approver"]}, "expected": "workflow.interpreter.gate_unenforced"},
     {"id": "role-gated-effecting-action-refused", "trigger": "Event", "gate": {"action": "a-notify", "requiredRoles": [{"vocabulary": "sys.roles", "name": "Author"}]}, "expected": "workflow.interpreter.gate_unenforced", "effect": null},
-    {"id": "ungated-path-beside-a-gate-runs", "decision": "reject", "gate": {"transition": "t-approve", "requiredRoles": [{"vocabulary": "sys.roles", "name": "Approver"}]}, "expected": "Advance", "expectedStep": "Rejected", "overridesRecorded": 1}
+    {"id": "ungated-path-beside-a-gate-runs", "decision": "reject", "gate": {"transition": "t-approve", "requiredRoles": [{"vocabulary": "sys.roles", "name": "Approver"}]}, "expected": "Advance", "expectedStep": "Rejected", "overridesRecorded": 1},
+    {"id": "kernel-core-ck-9", "decidedAt": "2026-11-10T12:34:56+00:00", "payloadDecidedAt": "2000-01-01T00:00:00Z", "gates": ["Transition", "Action"], "clockReads": 1, "expected": "same-kernel-instant-at-both-gates"},
+    {"id": "workflows-auth-10", "answerDecidedAt": "2026-11-10T12:34:56.0000001+00:00", "expected": "workflow.gate.answer_unbound", "confirmsRecorded": 0}
   ]
 }

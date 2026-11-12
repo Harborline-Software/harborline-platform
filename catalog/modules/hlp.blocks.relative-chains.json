@@ -3,17 +3,15 @@
   "module": {
     "interface": {
       "path": "specs/modules/blocks/hlp.blocks.relative-chains/interface.yaml",
-      "revision": 2
+      "revision": 3
     },
     "moduleKind": "runtime",
     "presentation": {
       "disposition": "not-applicable",
-      "rationale": "The generator and due-source adapter own no presentation surface."
+      "rationale": "Retired build shell pending validate.yml wiring; the generator and ledger now belong to Scheduling."
     },
     "owner": "platform-blocks",
-    "dependencies": [
-      "hlp.foundation.scheduling"
-    ],
+    "dependencies": [],
     "status": "draft-native-green",
     "depth": {
       "disposition": "deep-module",
@@ -33,9 +31,6 @@
           "id": "Harborline.Blocks.RelativeChains",
           "assembly": "Harborline.Blocks.RelativeChains",
           "manifest": "projections/dotnet/blocks/hlp.blocks.relative-chains/Harborline.Blocks.RelativeChains.csproj",
-          "dependencies": [
-            "Harborline.Foundation.Scheduling"
-          ],
           "identityAuthority": "Harborline",
           "producerRepository": "harborline-platform",
           "distribution": "internal-only",

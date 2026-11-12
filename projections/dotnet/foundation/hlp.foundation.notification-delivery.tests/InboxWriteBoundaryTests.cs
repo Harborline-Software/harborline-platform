@@ -169,6 +169,8 @@ public sealed class InboxWriteBoundaryTests
             throw new NotSupportedException();
         public Task MarkReadAsync(string tenant, string recipient, Guid entryId, CancellationToken cancellationToken = default) =>
             throw new NotSupportedException();
+        public Task DismissAsync(string tenant, string recipient, Guid entryId, CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
         public Task MarkAllReadAsync(string tenant, string recipient, CancellationToken cancellationToken = default) =>
             throw new NotSupportedException();
     }

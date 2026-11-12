@@ -1,0 +1,14 @@
+@namespace Harborline.UIAdapters.Blazor.Components.DocumentAuthoring
+@if (Shell is not null) { @Shell(Editor) } else { @Editor }
+@code {
+  [Parameter] public RenderFragment<RenderFragment>? Shell { get; set; }
+  [Parameter, EditorRequired] public DocumentDraft Value { get; set; } = DocumentDraft.Empty;
+  [Parameter] public DocumentCatalogue Catalogue { get; set; } = new();
+  [Parameter, EditorRequired] public DocumentPageFlow PageFlow { get; set; } = new([]);
+  [Parameter] public bool ReadOnly { get; set; }
+  [Parameter] public bool CanPreview { get; set; }
+  [Parameter] public DocumentDenial? Denial { get; set; }
+  [Parameter] public EventCallback<DocumentDraftChange> DraftChanged { get; set; }
+  [Parameter, EditorRequired] public Func<DocumentPreviewRequest, Task<DocumentPreviewResult>>? Preview { get; set; }
+  private RenderFragment Editor => @<HarborlineDocumentAuthoringEditor Value="@Value" Catalogue="@Catalogue" PageFlow="@PageFlow" ReadOnly="@ReadOnly" CanPreview="@CanPreview" Preview="@Preview" DraftChanged="@DraftChanged" Denial="@Denial" />;
+}

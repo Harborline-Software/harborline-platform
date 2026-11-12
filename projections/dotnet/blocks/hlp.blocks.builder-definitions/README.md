@@ -750,13 +750,16 @@ can replay without a fresh stamp. `AuthorityRecordedAt` is sampled inside the co
 section after replay and CAS, and differs from the unchanged gate-act `Receipt.RecordedAt`.
 The caller supplies every interval/AsOf value; this library supplies no request-JSON adapter.
 
-Validate and detach the request first. Amendment uses bounded same-journal target metadata to
-establish its tenant/type before current `records:write` authorization. Only after current access
-may an exact operation-key/intent retry return its original detached receipt, without rechecking
+Detach the supplied body before awaiting the current `records:write` gate; validate that snapshot
+only after the gate allows. A gate denial wins over request-shape refusals for the operation id,
+interval, predecessor, reason, version and body/encoding. The gate decides a create on the requested
+Record Type and an amend on an untyped request naming only the record id, before any journal read.
+After authorization, amendment uses bounded same-journal target metadata to resolve its Record Type.
+Only after current access may an exact operation-key/intent retry return its original detached receipt, without rechecking
 publication, temporal policy, basis or head. Unsupported receipts and conflicting intents retain
 the existing refusal codes. A genuinely new write selects one admitted immutable publication,
 requires the explicit temporal policy and validates existing schema/field/domain constraints;
-only creation uses the creation-only gate. The prepared transaction stages the row, operation,
+creation additionally checks the bound creation policy during bind. The prepared transaction stages the row, operation,
 receipt and audit together. Locked replay precedes exact-head CAS and clock allocation; complete
 finished-output validation precedes one atomic replacement. Refusal publishes no partial event,
 audit or stamp; registry side effects can remain. No sidecar journal or post-commit audit is added.
