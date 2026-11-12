@@ -60,11 +60,12 @@ public sealed class RulesAuthoringTests : BunitContext
         Assert.Contains("GetManifestResourceStream(\"rule-authoring-lineage.json\")", story, StringComparison.Ordinal);
         Assert.DoesNotContain("\"lineage.json\"", story, StringComparison.Ordinal);
         var lifecycleFixture = Path.GetFullPath(Path.Combine(root, "conformance", "hlp.blocks.builder-definitions", "rules-editor-contract-fixtures.json"));
-        var lifecycleEmbedded = System.Xml.Linq.XDocument.Load(galleryProject).Descendants("EmbeddedResource")
-            .Where(item => string.Equals(Path.GetFullPath(Path.Combine(Path.GetDirectoryName(galleryProject)!, item.Attribute("Include")!.Value.Replace('\\', Path.DirectorySeparatorChar))), lifecycleFixture, StringComparison.OrdinalIgnoreCase))
+        string[] LifecycleResources(string fixturePath) => System.Xml.Linq.XDocument.Load(galleryProject).Descendants("EmbeddedResource")
+            .Where(item => string.Equals(Path.GetFullPath(Path.Combine(Path.GetDirectoryName(galleryProject)!, item.Attribute("Include")!.Value.Replace('\\', Path.DirectorySeparatorChar))), fixturePath, StringComparison.Ordinal))
             .Select(item => item.Attribute("LogicalName")?.Value ?? "")
             .ToArray();
-        Assert.Equal(new[] { "rules-editor-contract-fixtures.json" }, lifecycleEmbedded);
+        Assert.Equal(new[] { "rules-editor-contract-fixtures.json" }, LifecycleResources(lifecycleFixture));
+        Assert.Empty(LifecycleResources(Path.GetFullPath(Path.Combine(root, "conformance", "hlp.blocks.builder-definitions", "Rules-editor-contract-fixtures.json"))));
         Assert.Contains("GetManifestResourceStream(\"rules-editor-contract-fixtures.json\")", story, StringComparison.Ordinal);
         Assert.DoesNotContain("Directory", story, StringComparison.Ordinal);
         Assert.DoesNotContain("File.", story, StringComparison.Ordinal);
