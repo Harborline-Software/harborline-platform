@@ -18,6 +18,27 @@ using Harborline.Blocks.Reports.Inputs;
 using Harborline.Foundation.Assets.Common;
 using Harborline.Foundation.Crypto;
 
+// T-489: prove that package consumers execute the mandatory shared-store admission path.
+var definitionStore = new Harborline.Blocks.BuilderDefinitions.InMemoryVersionedDefinitionStore(
+    new Dictionary<Harborline.Blocks.BuilderDefinitions.DefinitionKind, Harborline.Blocks.BuilderDefinitions.DefinitionAdmission>
+    {
+        [Harborline.Blocks.BuilderDefinitions.DefinitionKind.Reports] = Harborline.Blocks.Reports.Definitions.ReportDefinitionCatalogue.Admission(
+            new(1, 0, 1), new("consumer", new Harborline.Blocks.MeasureCatalogue.MeasureCatalogue(
+                new Harborline.Foundation.Authorization.AccessProvider(new ConsumerDenyAll()), []))),
+    });
+var definitionCatalogue = new Harborline.Blocks.Reports.Definitions.ReportDefinitionCatalogue(definitionStore);
+var reportDefinition = new Harborline.Blocks.Reports.Definitions.ReportDefinition("consumer", "report", "1.0.0", []);
+await definitionCatalogue.SaveDraftAsync(reportDefinition, 0, "save");
+try
+{
+    await definitionCatalogue.PublishAsync("consumer", "report", "1.0.0", 1, "publish");
+    throw new InvalidOperationException("Packaged report admission was bypassed.");
+}
+catch (Harborline.Blocks.BuilderDefinitions.DefinitionRefusalException error)
+{
+    Check(error.Refusals.Single().Code == "definition.envelope_required", "Reports package publication must run admission");
+}
+
 var json = new JsonSerializerOptions(JsonSerializerDefaults.Web);
 using var corpus = JsonDocument.Parse(await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, "reports-vertical-cases.json")));
 var anchors = corpus.RootElement.GetProperty("anchors");
@@ -129,7 +150,9 @@ Console.WriteLine($"REPORTS_CAPABILITY_PASS:{JsonSerializer.Serialize(new { http
 void ProveFailedConditions()
 {
     var direct = Assembly.GetEntryAssembly()!.GetReferencedAssemblies().Select(x => x.Name!).Where(x => x.StartsWith("Harborline.")).ToArray();
-    Check(direct.All(x => x is "Harborline.Blocks.Reports" or "Harborline.Contracts"), "no financial-cluster or closure pollution");
+    Check(direct.All(x => x is "Harborline.Blocks.Reports" or "Harborline.Contracts"
+        or "Harborline.Blocks.BuilderDefinitions" or "Harborline.Foundation.Definitions"
+        or "Harborline.Blocks.MeasureCatalogue" or "Harborline.Foundation.Authorization"), "no financial-cluster or closure pollution");
     Check(!corpus.RootElement.GetRawText().Contains("tax", StringComparison.OrdinalIgnoreCase) || corpus.RootElement.GetProperty("exclusions").ToString().Contains("tax"), "tax only appears as a recorded exclusion");
     Check(!httpRows.EnumerateArray().Any(x => x.GetProperty("path").GetString()!.Contains("rent-roll")), "RentRoll has no HTTP row");
     Check(corpus.RootElement.GetProperty("crossLanePairs").GetArrayLength() == 0, "no cross-pillar/cross-lane credit");
@@ -182,4 +205,11 @@ sealed class ConsumerReportSource : IReportQuerySource
     public ValueTask<IReadOnlyList<ReportOpenItem>> GetOpenPayablesAsync(TenantId tenant, ChartOfAccountsId chart, DateOnly asOf, CancellationToken ct = default) => ValueTask.FromResult<IReadOnlyList<ReportOpenItem>>(Payables.Where(x => x.TenantId == tenant && x.ChartId == chart).ToArray());
     public ValueTask<IReadOnlyDictionary<PartyId, ReportParty>> GetPartiesAsync(IReadOnlyCollection<PartyId> ids, CancellationToken ct = default) => ValueTask.FromResult<IReadOnlyDictionary<PartyId, ReportParty>>(Parties.Where(x => ids.Contains(x.Key)).ToDictionary());
     public ValueTask<IReadOnlyList<ReportLease>> GetLeasesAsync(TenantId tenant, CancellationToken ct = default) => ValueTask.FromResult<IReadOnlyList<ReportLease>>(Leases.Where(x => x.TenantId == tenant).ToArray());
+}
+
+sealed class ConsumerDenyAll : Harborline.Foundation.Authorization.IAuthorizationDecider
+{
+    public ValueTask<Harborline.Foundation.Authorization.AuthorizationDecisionEvidence> DecideAsync(
+        Harborline.Foundation.Authorization.AccessRequest request, CancellationToken cancellationToken = default)
+        => ValueTask.FromResult(new Harborline.Foundation.Authorization.AuthorizationDecisionEvidence(request, false, "record_not_visible", "grant:0", [], []));
 }

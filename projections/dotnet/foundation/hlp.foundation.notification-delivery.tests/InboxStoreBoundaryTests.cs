@@ -8,7 +8,7 @@ public sealed class InboxStoreBoundaryTests
     private static readonly DateTimeOffset Epoch = new(2026, 9, 30, 12, 0, 0, TimeSpan.Zero);
 
     // DES-0055 notification-delivery-ck-10 and notification-delivery-cc-2: durable tenant data, per person.
-    [Fact]
+    [Fact(DisplayName = "notification-delivery-cc-2: list isolates both tenant and recipient")]
     public async Task Notification_delivery_cc_2_list_isolates_both_tenant_and_recipient()
     {
         var (store, entries) = await MixedInboxAsync();
@@ -22,7 +22,7 @@ public sealed class InboxStoreBoundaryTests
         Assert.Empty(await store.ListAsync("tenant-a", "principal-missing"));
     }
 
-    [Fact]
+    [Fact(DisplayName = "notification-delivery-cc-2: unread count excludes read dismissed and other inboxes")]
     public async Task Notification_delivery_cc_2_unread_count_excludes_read_dismissed_and_other_inboxes()
     {
         var (store, _) = await MixedInboxAsync();
@@ -34,7 +34,7 @@ public sealed class InboxStoreBoundaryTests
         Assert.Equal(0, await store.UnreadCountAsync("tenant-a", "principal-missing"));
     }
 
-    [Fact]
+    [Fact(DisplayName = "notification-delivery-cc-2: entries are newest first even when appended out of order")]
     public async Task Notification_delivery_cc_2_entries_are_newest_first_even_when_appended_out_of_order()
     {
         var store = new InMemoryInboxStore();
@@ -58,7 +58,7 @@ public sealed class InboxStoreBoundaryTests
     }
 
     // DES-0055 notification-delivery-ck-7: reading one item changes only that person's item.
-    [Fact]
+    [Fact(DisplayName = "notification-delivery-ck-7: mark read changes only the named entry and is idempotent")]
     public async Task Notification_delivery_ck_7_mark_read_changes_only_the_named_entry_and_is_idempotent()
     {
         var (store, entries) = await MixedInboxAsync();
@@ -74,7 +74,7 @@ public sealed class InboxStoreBoundaryTests
         }
     }
 
-    [Theory]
+    [Theory(DisplayName = "notification-delivery-ck-7: wrong scope or missing entry refuses without changing any inbox")]
     [InlineData("tenant-b", "principal-a", 1)]
     [InlineData("tenant-a", "principal-b", 1)]
     [InlineData("tenant-b", "principal-b", 1)]
@@ -94,7 +94,7 @@ public sealed class InboxStoreBoundaryTests
         await AssertUnchangedAsync(store, entries);
     }
 
-    [Fact]
+    [Fact(DisplayName = "notification-delivery-ck-7: mark all read changes only scoped unread entries and is idempotent")]
     public async Task Notification_delivery_ck_7_mark_all_read_changes_only_scoped_unread_entries_and_is_idempotent()
     {
         // IInboxStore.MarkAllReadAsync promises unread-only updates; dismissed entries stay dismissed.
@@ -115,7 +115,7 @@ public sealed class InboxStoreBoundaryTests
         }
     }
 
-    [Fact]
+    [Fact(DisplayName = "notification-delivery-ck-7: mark all read of missing scope leaves all inboxes unchanged")]
     public async Task Notification_delivery_ck_7_mark_all_read_of_missing_scope_leaves_all_inboxes_unchanged()
     {
         var (store, entries) = await MixedInboxAsync();
@@ -126,7 +126,7 @@ public sealed class InboxStoreBoundaryTests
         await AssertUnchangedAsync(store, entries);
     }
 
-    [Fact]
+    [Fact(DisplayName = "notification-delivery-ck-10: append rejects null and duplicate ids without losing the first entry")]
     public async Task Notification_delivery_ck_10_append_rejects_null_and_duplicate_ids_without_losing_the_first_entry()
     {
         var store = new InMemoryInboxStore();

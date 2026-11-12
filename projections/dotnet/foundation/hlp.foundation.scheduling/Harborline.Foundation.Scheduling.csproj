@@ -5,7 +5,7 @@
     <PackageId>Harborline.Foundation.Scheduling</PackageId>
     <AssemblyName>Harborline.Foundation.Scheduling</AssemblyName>
     <RootNamespace>Harborline.Foundation.Scheduling</RootNamespace>
-    <Description>Bounded RRULE expansion and derived due-queue services for Harborline Platform.</Description>
+    <Description>Bounded RRULE expansion and shared wall-clock conversion for Harborline Platform.</Description>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageReleaseNotes>Internal-only projection; public distribution is not authorized.</PackageReleaseNotes>
   </PropertyGroup>

@@ -52,13 +52,13 @@ public sealed class AvailabilityExpansionService : IAvailabilityExpansionService
         if (availability.Windows.Count == 0)
             return Array.Empty<TimeInterval>();
 
-        var tz = TimezoneResolver.Resolve(availability.Timezone);
+        var zone = TimezoneResolver.IanaId(TimezoneResolver.Resolve(availability.Timezone));
 
         // The window dates are computed in the resource's local tz. Widen the local-date span by ±1
         // day so a window whose local date sits a day off the UTC bound (due to the offset) is not
         // dropped — the precise UTC clip below re-trims. (Mirrors CalendarEventExpansionService.)
-        var localWindowStart = DateOnly.FromDateTime(windowStartUtc.UtcDateTime).AddDays(-1);
-        var localWindowEnd = DateOnly.FromDateTime(windowEndUtc.UtcDateTime).AddDays(1);
+        var localWindowStart = DateOnly.FromDateTime(WallClockResolver.ToLocalDateTime(windowStartUtc, zone)).AddDays(-1);
+        var localWindowEnd = DateOnly.FromDateTime(WallClockResolver.ToLocalDateTime(windowEndUtc, zone)).AddDays(1);
 
         var intervals = new List<TimeInterval>();
 
@@ -71,7 +71,7 @@ public sealed class AvailabilityExpansionService : IAvailabilityExpansionService
                     rrule:         window.Rrule!,
                     start:         window.AnchorDate,
                     startTime:     window.StartTime,
-                    timezone:      TimezoneResolver.IanaId(tz),
+                    timezone:      zone,
                     end:           localWindowEnd,
                     lookaheadDays: 0,
                     leadDays:      0,
@@ -96,8 +96,8 @@ public sealed class AvailabilityExpansionService : IAvailabilityExpansionService
                 if (availability.IsExcepted(date)) continue;
                 if (additionalExceptionDays is not null && additionalExceptionDays.Contains(date)) continue;
 
-                var startUtc = TimezoneResolver.ToUtcInstant(date, window.StartTime, tz);
-                var endUtc = TimezoneResolver.ToUtcInstant(date, window.EndTime, tz);
+                var startUtc = WallClockResolver.ToUtcInstant(date, window.StartTime, zone);
+                var endUtc = WallClockResolver.ToUtcInstant(date, window.EndTime, zone);
                 if (endUtc <= startUtc) continue;          // defensive (Create already guards within-day span)
 
                 if (IntervalMath.Clip(new TimeInterval(startUtc, endUtc), windowStartUtc, windowEndUtc) is { } clipped)

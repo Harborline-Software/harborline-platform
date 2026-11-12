@@ -1,0 +1,176 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.document-authoring",
+  "sourceFixture": "conformance/hlp.ui.document-authoring/fixtures.yaml",
+  "qualityFixture": "conformance/hlp.ui.document-authoring/quality-fixtures.yaml",
+  "galleryInterface": {
+    "probeAttribute": "data-gallery-probe",
+    "scenarioAttribute": "data-gallery-scenario",
+    "projectionTitles": {
+      "react": "Platform/Document authoring",
+      "blazor": "Platform/Document authoring"
+    }
+  },
+  "scenarios": [
+    {
+      "id": "document-authoring.draft",
+      "name": "Template draft",
+      "surface": "draft",
+      "sourceCaseIds": [
+        "document-authoring.from-nothing"
+      ],
+      "sourceQualityCaseIds": [
+        "document-authoring.quality.labels",
+        "document-authoring.quality.reflow",
+        "document-authoring.quality.visual-parity"
+      ],
+      "content": {
+        "blurb": "A local template with Layout text runs and page controls. Preview uses a labelled host contract fixture; native integration tests use DocumentRuntime.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "kind": "draft"
+        },
+        "state": {
+          "readOnly": false
+        },
+        "body": [
+          {
+            "control": "raw",
+            "react": "<DocumentAuthoringEditor {...host} />",
+            "blazor": "<HarborlineDocumentAuthoringEditor Value=\"@Draft\" PageFlow=\"@Flow\" Preview=\"@Preview\" />",
+            "rationale": "Host supplied draft and page-flow fixture; no issuance and no client rendering engine."
+          }
+        ],
+        "footer": []
+      },
+      "states": [
+        "filled"
+      ]
+    },
+    {
+      "id": "document-authoring.refusals",
+      "name": "Admission refusals",
+      "surface": "refusals",
+      "sourceCaseIds": [
+        "document-authoring.from-nothing"
+      ],
+      "sourceQualityCaseIds": [
+        "document-authoring.quality.labels",
+        "document-authoring.quality.reflow",
+        "document-authoring.quality.visual-parity"
+      ],
+      "content": {
+        "blurb": "A local template with Layout text runs and page controls. Preview uses a labelled host contract fixture; native integration tests use DocumentRuntime.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "kind": "refusals"
+        },
+        "state": {
+          "readOnly": false
+        },
+        "body": [
+          {
+            "control": "raw",
+            "react": "<DocumentAuthoringEditor {...host} />",
+            "blazor": "<HarborlineDocumentAuthoringEditor Value=\"@Draft\" PageFlow=\"@Flow\" Preview=\"@Preview\" />",
+            "rationale": "Host supplied draft and page-flow fixture; no issuance and no client rendering engine."
+          }
+        ],
+        "footer": []
+      },
+      "states": [
+        "invalid"
+      ]
+    },
+    {
+      "id": "document-authoring.read-only",
+      "name": "Read only",
+      "surface": "read-only",
+      "sourceCaseIds": [
+        "document-authoring.from-nothing"
+      ],
+      "sourceQualityCaseIds": [
+        "document-authoring.quality.labels",
+        "document-authoring.quality.reflow",
+        "document-authoring.quality.visual-parity"
+      ],
+      "content": {
+        "blurb": "A local template with Layout text runs and page controls. Preview uses a labelled host contract fixture; native integration tests use DocumentRuntime.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "kind": "read-only"
+        },
+        "state": {
+          "readOnly": true
+        },
+        "body": [
+          {
+            "control": "raw",
+            "react": "<DocumentAuthoringEditor {...host} />",
+            "blazor": "<HarborlineDocumentAuthoringEditor Value=\"@Draft\" PageFlow=\"@Flow\" Preview=\"@Preview\" />",
+            "rationale": "Host supplied draft and page-flow fixture; no issuance and no client rendering engine."
+          }
+        ],
+        "footer": []
+      },
+      "states": [
+        "filled"
+      ]
+    },
+    {
+      "id": "document-authoring.empty",
+      "name": "From empty",
+      "surface": "empty",
+      "sourceCaseIds": [
+        "document-authoring.from-nothing"
+      ],
+      "sourceQualityCaseIds": [
+        "document-authoring.quality.labels",
+        "document-authoring.quality.reflow",
+        "document-authoring.quality.visual-parity"
+      ],
+      "content": {
+        "blurb": "A local template with Layout text runs and page controls. Preview uses a labelled host contract fixture; native integration tests use DocumentRuntime.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "kind": "empty"
+        },
+        "state": {
+          "readOnly": false
+        },
+        "body": [
+          {
+            "control": "raw",
+            "react": "<DocumentAuthoringEditor {...host} />",
+            "blazor": "<HarborlineDocumentAuthoringEditor Value=\"@Draft\" PageFlow=\"@Flow\" Preview=\"@Preview\" />",
+            "rationale": "Host supplied draft and page-flow fixture; no issuance and no client rendering engine."
+          }
+        ],
+        "footer": []
+      },
+      "states": [
+        "empty"
+      ]
+    }
+  ]
+}
