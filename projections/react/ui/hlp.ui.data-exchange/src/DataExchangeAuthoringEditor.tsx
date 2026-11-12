@@ -47,7 +47,12 @@ export function DataExchangeAuthoringEditor({ value: host, catalogue, run, canCo
     setValue(draft)
     onChange(draft)
   }
-  const keepEdits = () => { if (!readOnly) setIncoming(undefined) }
+  const commitExternalKeys = () => {
+    if (readOnly || externalKeyText === undefined) return
+    set('externalKeyColumns', externalKeyText.split(',').map(item => item.trim()).filter(Boolean))
+    setExternalKeyText(undefined)
+  }
+  const keepEdits = () => { if (!readOnly) { setIncoming(undefined); commitExternalKeys() } }
   const discardEdits = () => { if (readOnly || !incoming) return; dirty.current = false; setExternalKeyText(undefined); setValue(incoming); setIncoming(undefined); onChange(incoming) }
   const replaceMapping = (index: number, mapping: DataExchangeMappingRow) => set('mappings', value.mappings.map((current, position) => position === index ? mapping : current))
   const commitEnabled = intentsEnabled && canCommit && (run?.status === 'Completed' || run?.status === 'CompletedWithRefusals') && !run.stale
@@ -86,7 +91,7 @@ export function DataExchangeAuthoringEditor({ value: host, catalogue, run, canCo
       </div>)}
       <button type="button" disabled={readOnly} onClick={() => set('mappings', [...value.mappings, emptyMapping(value.discoveredColumns.find(column => column.selected)?.name)])}>Add mapping</button>
     </Section>
-    <label>External key columns<input disabled={readOnly} aria-label="External key columns" value={externalKeyText ?? value.externalKeyColumns.join(', ')} onChange={event => { if (!readOnly) { dirty.current = true; setExternalKeyText(event.currentTarget.value) } }} onBlur={event => { if (!readOnly && externalKeyText !== undefined) { set('externalKeyColumns', event.currentTarget.value.split(',').map(item => item.trim()).filter(Boolean)); setExternalKeyText(undefined) } }} /></label>
+    <label>External key columns<input disabled={readOnly} aria-label="External key columns" value={externalKeyText ?? value.externalKeyColumns.join(', ')} onChange={event => { if (!readOnly) { dirty.current = true; setExternalKeyText(event.currentTarget.value) } }} onBlur={() => { if (!pending) commitExternalKeys() }} /></label>
     <label>Replay policy<select disabled={readOnly} aria-label="Replay policy" value={value.replayPolicy} onChange={event => set('replayPolicy', event.currentTarget.value as DataExchangeAuthoringDraft['replayPolicy'])}><option value="append">Append</option><option value="overwrite">Overwrite</option><option value="append_dedup">Append and deduplicate</option></select></label>
     <label>Schedule reference<select disabled={readOnly} aria-label="Schedule reference" value={value.scheduleReference} onChange={event => set('scheduleReference', event.currentTarget.value)}><option value="">Manual only</option><Options values={catalogue.schedules} /></select></label>
     <Section name="Reference set deliveries">

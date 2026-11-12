@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { useEffect, useState } from 'react'
+import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { DataExchangeAuthoringEditor, emptyDataExchangeDraft } from '../DataExchangeAuthoringEditor'
 import type { DataExchangeAuthoringCatalogue, DataExchangeAuthoringDraft, DataExchangeRunSummary } from '../DataExchangeAuthoringEditor.types'
@@ -45,6 +46,35 @@ describe('DataExchangeAuthoringEditor ADR 0096 lane conformance (React)', () => 
     fireEvent.click(screen.getByRole('button', { name: 'Keep edits' }))
     fireEvent.blur(control)
     expect(handlers.onChange.mock.lastCall![0].externalKeyColumns).toEqual(['CustomerNumber', 'Email'])
+  })
+
+  it.each(['Keep edits', 'Discard edits'])('external-key blur preserves the incoming revision until %s (data-exchange-eng-22)', resolution => {
+    const { input } = fixtureCase('data-exchange.pending-revision')
+    const initial = draftOf(input.value)
+    const incoming = draftOf(input.incoming)
+    const handlers = intents()
+    function ControlledHost({ revision }: { readonly revision: DataExchangeAuthoringDraft }) {
+      const [value, setValue] = useState(revision)
+      useEffect(() => setValue(revision), [revision])
+      return <DataExchangeAuthoringEditor value={value} catalogue={catalogue} canCommit={false} {...handlers} onChange={next => { handlers.onChange(next); setValue(next) }} />
+    }
+    const view = render(<ControlledHost revision={initial} />)
+    const control = screen.getByLabelText('External key columns') as HTMLInputElement
+    act(() => control.focus())
+    fireEvent.change(control, { target: { value: 'CustomerNumber,Email' } })
+    view.rerender(<ControlledHost revision={incoming} />)
+    expect(screen.getByRole('alert')).toHaveTextContent('Revision changed.')
+    const button = screen.getByRole('button', { name: resolution })
+    fireEvent.mouseDown(button)
+    act(() => control.blur())
+    expect(handlers.onChange).not.toHaveBeenCalled()
+    expect(screen.getByRole('alert')).toHaveTextContent('Revision changed.')
+    fireEvent.mouseUp(button)
+    fireEvent.click(button)
+    expect(handlers.onChange).toHaveBeenCalledOnce()
+    expect(handlers.onChange).toHaveBeenLastCalledWith(resolution === 'Keep edits' ? { ...initial, externalKeyColumns: ['CustomerNumber', 'Email'] } : incoming)
+    expect(screen.queryByRole('alert')).toBeNull()
+    expect(control).toHaveValue(resolution === 'Keep edits' ? 'CustomerNumber, Email' : incoming.externalKeyColumns.join(', '))
   })
 
   it('read-only pending revision resolution cannot emit or discard edits', () => {
