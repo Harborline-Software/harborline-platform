@@ -1466,7 +1466,8 @@ function verifySchedulingCapability() {
   const [packageProof, availabilityProof, capabilityProof] = proofLines(runNugetConsumer(consumer, packageCache), ['SCHEDULING_PACKAGE_PASS:', 'AVAILABILITY_SUBSTRATE_PASS:', 'SCHEDULING_CAPABILITY_PASS:'], 'Scheduling')
   // Derived from the landed csprojs: Calendar -> Contracts + Foundation.Scheduling + Foundation.Authorization
   // (T-568: the booking requester is the kernel's authenticated context), and Authorization ->
-  // MultiTenancy + RuleEngine; Blocks.Scheduling and Foundation.Scheduling add no Harborline package edges.
+  // MultiTenancy + RuleEngine; Foundation.Scheduling -> Contracts (the shared availability contract).
+  // Blocks.Scheduling -> Foundation.Scheduling + Kernel.Core + BuilderDefinitions + RuleEngine.
   // T-605: Calendar -> BuilderDefinitions (Booking definitions bind the shared store) -> RuleAuthoring.
   // T-606 S2: Calendar -> Kernel.Core (the Booking hold effect commits through KernelTransactionBoundary).
   const closure = assertPackageClosure(

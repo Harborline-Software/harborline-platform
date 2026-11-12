@@ -1,7 +1,7 @@
-using Harborline.Blocks.Calendar.Models;
+using Harborline.Foundation.Scheduling.Models;
 using Harborline.Foundation.Assets.Common;
 
-namespace Harborline.Blocks.Calendar.Services;
+namespace Harborline.Foundation.Scheduling.Services;
 
 /// <summary>
 /// The availability substrate contract (DES-0033 §3; ADR 0080; T-626). One composition every member

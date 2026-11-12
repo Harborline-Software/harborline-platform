@@ -3,7 +3,7 @@
   "module": {
     "interface": {
       "path": "specs/modules/foundation/hlp.foundation.scheduling/interface.yaml",
-      "revision": 6
+      "revision": 7
     },
     "moduleKind": "runtime",
     "presentation": {
@@ -11,7 +11,9 @@
       "rationale": "RRULE expansion and shared wall-clock conversion produce date sequences and resolved instants; the foundation owns no due occurrences and renders nothing."
     },
     "owner": "platform-foundation",
-    "dependencies": [],
+    "dependencies": [
+      "hlp.contracts.identities"
+    ],
     "status": "implemented",
     "depth": {
       "disposition": "deep-module",
@@ -35,7 +37,10 @@
           "producerRepository": "harborline-platform",
           "distribution": "internal-only",
           "candidateRole": "new-bounded-package",
-          "registryAvailable": false
+          "registryAvailable": false,
+          "dependencies": [
+            "Harborline.Contracts"
+          ]
         }
       }
     }
