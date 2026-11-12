@@ -51,7 +51,7 @@ public sealed class InMemoryRruleExpansionService : IRruleExpansionService
         // A date-valued series (RFC 5545 DTSTART;VALUE=DATE): UNTIL bounds by date. A DATE-TIME UNTIL keeps its UTC date
         // here, as DES-0057 ck-7's date-granular contract always has; a timed series uses ExpandZonedOccurrences instead.
         var horizon = end ?? today.AddDays(lookaheadDays);
-        var occurrences = RruleCandidateWalker.Walk(rrule, parsed, new CalDateTime(start), EffectiveEnd(horizon, parsed), today.AddDays(leadDays), 50_000).Select(occurrence => occurrence.Date);
+        var occurrences = RruleCandidateWalker.Walk(parsed, new CalDateTime(start), EffectiveEnd(horizon, parsed)).Select(occurrence => occurrence.Date);
         return Collect(rrule, parsed, start, occurrences, horizon, today.AddDays(leadDays),
             static (date, until) => date > until.Date);
     }
@@ -80,7 +80,7 @@ public sealed class InMemoryRruleExpansionService : IRruleExpansionService
         // the zone instead lets the engine shift a spring-forward gap time past midnight (23:30 on 28 March 2026 in Nuuk
         // became 00:30 on the 29th), which would change the occurrence's date.
         var horizon = end ?? today.AddDays(lookaheadDays);
-        var dated = RruleCandidateWalker.Walk(rrule, parsed, new CalDateTime(start, startTime, null), EffectiveEnd(horizon, parsed, timezone), today.AddDays(leadDays), 50_000)
+        var dated = RruleCandidateWalker.Walk(parsed, new CalDateTime(start, startTime, null), EffectiveEnd(horizon, parsed, timezone))
             .Select(occurrence => (occurrence.Date, Instant: WallClockResolver.ToUtcInstant(occurrence.Date, startTime, timezone)));
         var bounded = parsed.Until is { Instant: { } untilInstant }
             ? dated.TakeWhile(occurrence => occurrence.Instant <= untilInstant)
@@ -93,22 +93,33 @@ public sealed class InMemoryRruleExpansionService : IRruleExpansionService
     private static DateOnly EffectiveEnd(DateOnly horizon, ParsedRrule parsed, string? timezone = null)
     {
         if (parsed.Until is not { } until) return horizon;
-        var date = until.Instant is { } instant && timezone is not null
-            ? DateOnly.FromDateTime(WallClockResolver.ToLocalDateTime(instant, timezone)) : until.Date;
+        var date = until.Date;
+        if (until.Instant is { } instant && timezone is not null)
+        {
+            var zone = DateTimeZoneProviders.Tzdb[timezone];
+            var localTicks = instant.UtcTicks + zone.GetUtcOffset(Instant.FromDateTimeOffset(instant)).Ticks;
+            if (localTicks > DateTime.MaxValue.Ticks) return horizon;
+            if (localTicks < DateTime.MinValue.Ticks) return DateOnly.MinValue;
+            date = DateOnly.FromDateTime(new DateTime(localTicks, DateTimeKind.Unspecified));
+        }
         return date < horizon ? date : horizon;
     }
 
     /// <inheritdoc />
     public void VisitZonedOccurrences(string rrule, DateOnly start, TimeOnly startTime, string timezone,
-        DateOnly end, DateOnly requestedRangeStart, Action<DateOnly> visit, int candidateLimit = 50_000)
+        DateOnly end, DateOnly requestedRangeStart, Action<DateOnly> visit, int candidateLimit = 50_000,
+        RruleExpansionBudget? budget = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(rrule);
         ArgumentNullException.ThrowIfNull(visit);
+        budget ??= new RruleExpansionBudget(rrule, start, requestedRangeStart, end, candidateLimit);
+        if (budget.RecurrenceId != rrule || budget.Anchor != start || budget.RequestedRangeStart != requestedRangeStart || budget.RequestedRangeEnd != end)
+            throw new ArgumentException("The work budget belongs to a different expansion.", nameof(budget));
         if (DateTimeZoneProviders.Tzdb.GetZoneOrNull(timezone) is null)
             throw new ArgumentException($"'{timezone}' is not an IANA time zone id.", nameof(timezone));
         var parsed = RruleSubset.Parse(rrule);
-        foreach (var occurrence in RruleCandidateWalker.Walk(rrule, parsed, new CalDateTime(start, startTime, null),
-            EffectiveEnd(end, parsed, timezone), requestedRangeStart, candidateLimit))
+        foreach (var occurrence in RruleCandidateWalker.Walk(parsed, new CalDateTime(start, startTime, null),
+            EffectiveEnd(end, parsed, timezone), budget))
         {
             if (parsed.Until is { Instant: { } instant } && WallClockResolver.ToUtcInstant(occurrence.Date, startTime, timezone) > instant)
                 break;

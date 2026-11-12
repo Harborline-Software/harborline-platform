@@ -7,11 +7,17 @@ namespace Harborline.Foundation.Scheduling;
 // Ical.Net's unmatched-period limit resets after each match. Bound the total walk instead, including empty periods.
 internal static class RruleCandidateWalker
 {
-    public static IEnumerable<CalDateTime> Walk(string rrule, ParsedRrule parsed, CalDateTime anchor,
-        DateOnly horizon, DateOnly earliest, int candidateLimit)
+    public static IEnumerable<CalDateTime> Walk(ParsedRrule parsed, CalDateTime anchor,
+        DateOnly horizon, RruleExpansionBudget? budget = null)
     {
-        ArgumentOutOfRangeException.ThrowIfLessThan(candidateLimit, 1);
-        var rule = new RecurrenceRule((parsed with { Count = null }).ToRuleWithoutUntil());
+        // RFC selectors are sets; normalize once so each period copies only the admitted distinct values.
+        var rule = new RecurrenceRule((parsed with
+        {
+            Count = null,
+            ByDay = parsed.ByDay.Distinct().ToArray(),
+            ByMonthDay = parsed.ByMonthDay.Distinct().ToArray(),
+            ByMonth = parsed.ByMonth.Distinct().ToArray(),
+        }).ToRuleWithoutUntil());
         // Freeze DTSTART defaults before moving the engine's seed to the next period. Selectors remain Ical.Net's.
         if (rule.Frequency == FrequencyType.Weekly && rule.ByDay.Count == 0)
             rule.ByDay.Add(new WeekDay(anchor.DayOfWeek));
@@ -20,19 +26,10 @@ internal static class RruleCandidateWalker
         if (rule.Frequency == FrequencyType.Yearly && rule.ByDay.Count == 0 && rule.ByMonth.Count == 0)
             rule.ByMonth.Add(anchor.Month);
         var seed = anchor;
-        var examined = 0;
         var matched = 0;
-        DateOnly? last = null;
-        void Charge()
-        {
-            if (++examined > candidateLimit)
-                throw new RruleExpansionBudgetExceededException(rrule, anchor.Date, earliest, horizon,
-                    candidateLimit, examined, last, parsed.Until is not null ? RecurrenceBound.Until
-                        : parsed.Count is not null ? RecurrenceBound.Count : RecurrenceBound.None);
-        }
         while (seed.Date <= horizon)
         {
-            Charge();
+            budget?.Charge();
             var first = seed.Date;
             var remaining = rule.Frequency switch
             {
@@ -54,8 +51,8 @@ internal static class RruleCandidateWalker
                 if (!more) break;
                 var candidate = dates.Current.StartTime;
                 if (candidate.Date > end) break;
-                Charge();
-                last = candidate.Date;
+                budget?.Charge();
+                if (budget is not null) budget.LastEvaluatedOccurrence = candidate.Date;
                 yield return candidate;
                 if (++matched == parsed.Count) yield break;
             }

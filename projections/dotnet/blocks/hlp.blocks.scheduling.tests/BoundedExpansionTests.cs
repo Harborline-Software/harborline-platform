@@ -17,6 +17,73 @@ public sealed class BoundedExpansionTests
         new RruleDueQueueQueryService(producer, new KernelClock(TimeProvider.System)).Query(request);
 
     [Fact]
+    public void OverridePreprocessingExhaustsTheSharedBudgetBeforeCallingProducer()
+    {
+        var request = Request("FREQ=DAILY;COUNT=2");
+        request = request with { Series = request.Series with { Overrides = Enumerable.Range(0, 50001).ToDictionary(
+            day => new DateTime(2026, 1, 1, 9, 0, 0).AddDays(day), _ => new DateTime(2026, 1, 2, 11, 0, 0)) } };
+        var producer = new CountingProducer();
+        var refusal = Assert.Throws<OccurrenceRefusalException>(() => Query(request, producer));
+        Assert.Equal("scheduling.occurrence.expansion_budget_exceeded", refusal.Code);
+        Assert.Equal(0, producer.Calls);
+        Assert.Equal("FREQ=DAILY;COUNT=2", refusal.Data["RecurrenceId"]);
+        Assert.Equal(new DateOnly(2026, 1, 1), refusal.Data["Anchor"]);
+        Assert.Equal(new DateOnly(2026, 1, 1), refusal.Data["RequestedRangeStart"]);
+        Assert.Equal(new DateOnly(2026, 1, 3), refusal.Data["RequestedRangeEnd"]);
+        Assert.Equal(50000, refusal.Data["CandidateLimit"]);
+        Assert.Equal(50001, refusal.Data["CandidatesExamined"]);
+        Assert.Null(refusal.Data["LastEvaluatedOccurrence"]);
+        Assert.Equal(RecurrenceBound.Count, refusal.Data["Bound"]);
+    }
+
+    [Fact]
+    public void InvalidOverridesAndProducerWalkConsumeTheSameBudget()
+    {
+        var request = Request();
+        request = request with { Series = request.Series with { Overrides = Enumerable.Range(0, 49986).ToDictionary(
+            day => new DateTime(2026, 1, 1, 8, 0, 0).AddDays(day), _ => new DateTime(2026, 1, 4, 11, 0, 0)) } };
+        var producer = new CountingProducer();
+        var refusal = Assert.Throws<OccurrenceRefusalException>(() => Query(request, producer));
+        Assert.Equal("scheduling.occurrence.expansion_budget_exceeded", refusal.Code);
+        Assert.Equal(1, producer.Calls);
+        Assert.Equal(50000, refusal.Data["CandidateLimit"]);
+        Assert.Equal(50001, refusal.Data["CandidatesExamined"]);
+        Assert.Equal(new DateOnly(2026, 1, 2), refusal.Data["LastEvaluatedOccurrence"]);
+    }
+
+    [Fact]
+    public void RuleTextSpendsBudgetBeforeAdmissionAllocatesSelectorLists()
+    {
+        var request = Request("FREQ=YEARLY;BYMONTH=" + string.Join(',', Enumerable.Repeat("1", 25001)));
+        var producer = new CountingProducer();
+        var refusal = Assert.Throws<OccurrenceRefusalException>(() => Query(request, producer));
+        Assert.Equal("scheduling.occurrence.expansion_budget_exceeded", refusal.Code);
+        Assert.Equal(0, producer.Calls);
+        Assert.Equal(50000, refusal.Data["CandidateLimit"]);
+        Assert.Equal(50001, refusal.Data["CandidatesExamined"]);
+        Assert.Null(refusal.Data["LastEvaluatedOccurrence"]);
+        Assert.Null(refusal.Data["Bound"]);
+    }
+
+    [Theory]
+    [InlineData("FREQ=WEEKLY;BYDAY=MO", "2026-01-06T09:00:00", 0)]
+    [InlineData("FREQ=DAILY;COUNT=3", "2026-01-10T09:00:00", 1)]
+    [InlineData("FREQ=DAILY;UNTIL=20260103", "2026-01-10T09:00:00", 1)]
+    public void CorrectlyTimedOverrideMustNameAnInstanceOfTheRule(string rule, string original, int expected)
+    {
+        var request = Request(rule);
+        request = request with { Series = request.Series with { Overrides = new Dictionary<DateTime, DateTime>
+        {
+            [DateTime.Parse(original, System.Globalization.CultureInfo.InvariantCulture)] = new(2026, 1, 2, 11, 0, 0),
+        } } };
+        var producer = new CountingProducer();
+        var result = Query(request, producer);
+        Assert.Equal(1, producer.Calls);
+        Assert.Equal(expected, result.Count);
+        if (expected == 1) Assert.Equal(new DateTime(2026, 1, 2, 9, 0, 0), result[0].RecurrenceLocal);
+    }
+
+    [Fact]
     public void WidestWindowIsEmptyPromptlyAndOneDayWiderRefusesBeforeExpansion()
     {
         var request = Request("FREQ=MONTHLY;BYDAY=5MO;BYMONTHDAY=1");
@@ -83,11 +150,12 @@ public sealed class BoundedExpansionTests
         public int Calls { get; private set; }
         public DateOnly? End { get; private set; }
         public void VisitZonedOccurrences(string rrule, DateOnly start, TimeOnly startTime, string timezone,
-            DateOnly end, DateOnly requestedRangeStart, Action<DateOnly> visit, int candidateLimit = 50000)
+            DateOnly end, DateOnly requestedRangeStart, Action<DateOnly> visit, int candidateLimit = 50000,
+            RruleExpansionBudget? budget = null)
         {
             Calls++;
             End = end;
-            inner.VisitZonedOccurrences(rrule, start, startTime, timezone, end, requestedRangeStart, visit, candidateLimit);
+            inner.VisitZonedOccurrences(rrule, start, startTime, timezone, end, requestedRangeStart, visit, candidateLimit, budget);
         }
         public IReadOnlyList<DateOnly> ExpandOccurrences(string rrule, DateOnly start, DateOnly? end, int lookaheadDays,
             int leadDays, DateOnly today, string timezone) => throw new NotSupportedException();

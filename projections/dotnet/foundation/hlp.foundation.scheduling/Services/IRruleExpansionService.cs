@@ -21,7 +21,7 @@ namespace Harborline.Foundation.Scheduling;
 ///   <item><description><c>BYDAY</c> — weekday list e.g. <c>MO,WE,FR</c>; under MONTHLY or YEARLY with an ordinal e.g. <c>1MO</c>, <c>-1FR</c> (an ordinal under DAILY or WEEKLY refuses)</description></item>
 ///   <item><description><c>BYMONTHDAY</c> — calendar day 1–28 (capped at 28 to avoid month-end ambiguity across February and 30-day months)</description></item>
 ///   <item><description><c>BYMONTH</c> — month number 1–12</description></item>
-///   <item><description>Hard occurrence cap: 1 000 occurrences per call to prevent runaway expansion</description></item>
+///   <item><description>Hard occurrence cap: 1 000 occurrences per list-returning call</description></item>
 /// </list>
 /// </para>
 /// <para>
@@ -35,21 +35,24 @@ namespace Harborline.Foundation.Scheduling;
 /// still to cover refuses with <see cref="RruleExpansionCapExceededException"/>; it never
 /// returns a partial list, because a caller cannot distinguish one from a complete result
 /// (DES-0057 §10 ruling 3).
-/// The producer also refuses with <see cref="RruleExpansionBudgetExceededException"/> past 50 000 work units,
-/// counting each recurrence period (including empty periods) and each matching date before caller filtering.
+/// The budgeted visitor also refuses with <see cref="RruleExpansionBudgetExceededException"/> past its shared allowance.
+/// Rule characters, supplied overrides, recurrence periods (including empty ones) and matching dates consume it.
+/// The list-returning methods have no work budget; calendar callers retain their existing contract (T-1202).
 /// </para>
 /// </remarks>
 public interface IRruleExpansionService
 {
     /// <summary>
     /// Visits a timed series once from its anchor through end, including dates before requestedRangeStart.
-    /// The caller owns filtering and the final result cap. Work counts every recurrence period, including empty ones,
-    /// and every matching date before caller filtering. A budget refusal aborts the query; callbacks are provisional.
+    /// The caller owns filtering and the final result cap. A shared budget includes rule characters and supplied
+    /// overrides before resolution, plus recurrence periods and matching dates before filtering. When supplied, budget
+    /// carries prior work and its own limit; otherwise candidateLimit creates it. Callbacks are provisional on refusal.
     /// Earlier implementations refuse rather than silently falling back to an unbounded or capped walk.
     /// </summary>
     /// <exception cref="RruleExpansionBudgetExceededException">The complete walk exceeds candidateLimit.</exception>
     void VisitZonedOccurrences(string rrule, DateOnly start, TimeOnly startTime, string timezone,
-        DateOnly end, DateOnly requestedRangeStart, Action<DateOnly> visit, int candidateLimit = 50_000) =>
+        DateOnly end, DateOnly requestedRangeStart, Action<DateOnly> visit, int candidateLimit = 50_000,
+        RruleExpansionBudget? budget = null) =>
         throw new NotSupportedException($"{GetType().Name} does not support budgeted timed visits.");
 
     /// <summary>
