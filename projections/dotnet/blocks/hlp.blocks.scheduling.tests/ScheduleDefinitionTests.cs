@@ -275,15 +275,15 @@ public sealed class ScheduleDefinitionTests
         => Assert.Equal([new DefinitionRefusal(ScheduleDefinitionCodes.BodyInvalid, "")],
             await RefusalsAsync(Body("\"" + $$"""due_date":"2027-01-01T00:00:00Z","window":{{Instants}},"missed_behaviour":"ignore""" + "\"")));
 
-    [Fact(DisplayName = "scheduling-ck-11: modules round-trip with their parameters unread")]
+    [Fact(DisplayName = "scheduling-ck-11: admitted modules round-trip with their typed parameters")]
     public async Task ModulesRoundTrip()
     {
         var definition = (await RoundTripAsync(Body($$"""
-            "due_date":"2027-01-01T00:00:00Z","window":{{Instants}},"problem_class":"Workforce","modules":[{"module":"rest_rule","parameters":{"hours":11} },{"module":"no_overlap"}]
+            "due_date":"2027-01-01T00:00:00Z","window":{{Instants}},"problem_class":"Workforce","modules":[{"module":"precedence","parameters":{"constraints":[{"id":"after","beforeActivityId":"a","afterActivityId":"b","minimumGapSlots":11}]} },{"module":"no_overlap"}]
             """))).Definition;
 
-        Assert.Equal(["rest_rule", "no_overlap"], definition.Modules!.Select(module => module.Module));
-        Assert.Equal(11, definition.Modules![0].Parameters!.Value.GetProperty("hours").GetInt32());
+        Assert.Equal(["precedence", "no_overlap"], definition.Modules!.Select(module => module.Module));
+        Assert.Equal(11, definition.Modules![0].Parameters!.Value.GetProperty("constraints")[0].GetProperty("minimumGapSlots").GetInt32());
         Assert.Null(definition.Modules![1].Parameters);
     }
 

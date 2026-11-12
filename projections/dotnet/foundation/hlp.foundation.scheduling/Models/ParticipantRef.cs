@@ -1,4 +1,4 @@
-namespace Harborline.Blocks.Calendar.Models;
+namespace Harborline.Foundation.Scheduling.Models;
 
 /// <summary>
 /// Which kind of fleet entity a <see cref="ParticipantRef"/> points at — a <b>Party</b> (a person
@@ -18,7 +18,7 @@ public enum ParticipantKind
 }
 
 /// <summary>
-/// A discriminated reference to the entity a <see cref="CalendarParticipation"/> attaches to — a
+/// A discriminated reference to the entity a <c>CalendarParticipation</c> attaches to — a
 /// <b>Party</b> (person / organization) or an <b>Asset</b> (room / equipment). The Slice S2
 /// realization of the participant seam S0 shaped as an opaque <see cref="System.Guid"/>.
 /// </summary>

@@ -1,3 +1,5 @@
+using Harborline.Foundation.Scheduling.Services;
+using Harborline.Foundation.Scheduling.Models;
 using Harborline.Blocks.Calendar.Models;
 using Harborline.Foundation.Assets.Common;
 

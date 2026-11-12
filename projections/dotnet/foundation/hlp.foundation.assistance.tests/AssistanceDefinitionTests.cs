@@ -250,6 +250,6 @@ public sealed class AssistanceDefinitionTests
 
     private sealed class TestCatalogue : ICommandCatalogueRegistry
     {
-        public CommandCatalogueEntry? Resolve(string commandId) => commandId == "customer.update" ? new(commandId) : null;
+        public CommandCatalogueEntry? Resolve(string commandId) => commandId == "customer.update" ? new(commandId, "fixture", true, AssistanceClassificationTier.Ap, Schema(), ["support", "admin"]) : null;
     }
 }

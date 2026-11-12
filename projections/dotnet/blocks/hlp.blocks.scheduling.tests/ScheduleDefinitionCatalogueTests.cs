@@ -26,6 +26,38 @@ public sealed class ScheduleDefinitionCatalogueTests
 
     private static DefinitionKey Key => new(Tenant, DefinitionKind.Schedules, Id);
 
+    [Fact(DisplayName = "scheduling-auth-18: an unadmitted module refuses at authoring")]
+    public async Task UnadmittedModuleRefusesAtAuthoring()
+    {
+        var definition = Definition with
+        {
+            ProblemClass = ScheduleProblemClass.Workforce,
+            Modules = [new("unknown-module")],
+        };
+        var refusal = await Assert.ThrowsAsync<DefinitionRefusalException>(
+            () => Catalogue.SaveDraftAsync(Tenant, Id, "1.0.0", definition, 0, "draft").AsTask());
+        var item = Assert.Single(refusal.Refusals);
+        Assert.Equal("scheduling.definition.module_unsupported", item.Code);
+        Assert.Equal("/modules/0/module", item.Pointer);
+        Assert.Empty(await _store.ListHistoryAsync(Key));
+    }
+
+    [Fact(DisplayName = "scheduling-auth-18: duplicate module names refuse at the duplicate authoring pointer")]
+    public async Task DuplicateModulesRefuseAtAuthoring()
+    {
+        var definition = Definition with
+        {
+            ProblemClass = ScheduleProblemClass.JobShop,
+            Modules = [new("no_overlap"), new("no_overlap")],
+        };
+        var refusal = await Assert.ThrowsAsync<DefinitionRefusalException>(
+            () => Catalogue.SaveDraftAsync(Tenant, Id, "1.0.0", definition, 0, "draft").AsTask());
+        var item = Assert.Single(refusal.Refusals);
+        Assert.Equal("scheduling.definition.module_unsupported", item.Code);
+        Assert.Equal("/modules/1/module", item.Pointer);
+        Assert.Empty(await _store.ListHistoryAsync(Key));
+    }
+
     [Fact(DisplayName = "scheduling-ck-20: a schedule binds to the shared store's Schedules registry, pinned by id and semantic version")]
     public async Task ScheduleBindsToTheSharedStoreSchedulesRegistry()
     {

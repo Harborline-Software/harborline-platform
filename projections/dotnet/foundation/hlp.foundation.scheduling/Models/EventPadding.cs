@@ -1,7 +1,7 @@
-namespace Harborline.Blocks.Calendar.Models;
+namespace Harborline.Foundation.Scheduling.Models;
 
 /// <summary>
-/// The <b>time-footprint envelope</b> of a <see cref="CalendarEvent"/> (the padding slice) — the
+/// The <b>time-footprint envelope</b> of a <c>CalendarEvent</c> (the padding slice) — the
 /// pre- and post-padding durations that separate the event's <i>visible</i> (booked / shown)
 /// interval from its <i>occupied</i> (resource-blocking) interval. An event is <b>not</b> a pure
 /// <c>[start,end]</c> block: the patient sees the visible interval (2:00–2:30); the resource is
@@ -19,7 +19,7 @@ namespace Harborline.Blocks.Calendar.Models;
 /// <b>Common mechanism, configured values.</b> The pre/post <i>fields</i> + the occupied-interval
 /// math are built into the booking substrate (free/busy and no-double-book must reason about the
 /// occupied span — the litmus for a first-class common field). The <i>values</i> come from
-/// configuration: an <see cref="Services.IPaddingPolicy"/> resolves a default per resource /
+/// configuration: an <c>IPaddingPolicy</c> resolves a default per resource /
 /// event-type / domain ("doctor appt = 5 pre + 30 post"), applied at booking, and any single event
 /// can override it. <see cref="None"/> (0 pre + 0 post) is the backward-compatible default: an event
 /// with no padding occupies exactly its visible interval, behaving as before this slice.
