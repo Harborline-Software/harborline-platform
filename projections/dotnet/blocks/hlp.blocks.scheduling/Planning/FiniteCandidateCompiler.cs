@@ -10,8 +10,14 @@ public sealed class FiniteCandidateCompiler
         SolverBackend backend, SolverGuarantee guarantee, int deterministicWorkBudget)
     {
         var modules = AdmitModules(definition, backend, guarantee, deterministicWorkBudget);
+        return Compile(profile, modules, useCallerAvailability: true);
+    }
+
+    internal CompiledPlanningProblem Compile(SchedulingProfile profile,
+        IReadOnlyList<ConstraintModuleAdmission> modules, bool useCallerAvailability)
+    {
         var precedence = profile.Precedence.Concat(modules.SelectMany(module => module.Precedence)).ToArray();
-        return Compile(profile with { Precedence = precedence }) with { Modules = modules };
+        return Compile(profile with { Precedence = precedence }, useCallerAvailability) with { Modules = modules };
     }
 
     /// <summary>Compiles a Harborline problem-class profile to the finite engine's typed constraint vocabulary.</summary>
@@ -36,7 +42,9 @@ public sealed class FiniteCandidateCompiler
     /// <summary>Compiles every valid start/resource combination in deterministic order.</summary>
     /// <param name="profile">Profile whose activities, windows, resources, and constraints are compiled.</param>
     /// <returns>A solver-ready problem with candidates keyed by activity id.</returns>
-    public CompiledPlanningProblem Compile(SchedulingProfile profile)
+    public CompiledPlanningProblem Compile(SchedulingProfile profile) => Compile(profile, useCallerAvailability: true);
+
+    private static CompiledPlanningProblem Compile(SchedulingProfile profile, bool useCallerAvailability)
     {
         Validate(profile);
 
@@ -54,7 +62,7 @@ public sealed class FiniteCandidateCompiler
             {
                 var end = checked(start + activity.DurationSlots);
                 var resourceSelections = requirements
-                    .Select(requirement => SelectResources(profile.Resources, requirement, start, end))
+                    .Select(requirement => SelectResources(profile.Resources, requirement, start, end, useCallerAvailability))
                     .ToArray();
 
                 foreach (var selection in CartesianProduct(resourceSelections))
@@ -94,11 +102,12 @@ public sealed class FiniteCandidateCompiler
         IReadOnlyList<PlanningResource> resources,
         ResourceRequirement requirement,
         int start,
-        int end)
+        int end,
+        bool useCallerAvailability)
     {
         var eligible = resources
             .Where(resource => resource.Capabilities.Contains(requirement.Capability))
-            .Where(resource => Enumerable.Range(start, end - start).All(resource.AvailableSlots.Contains))
+            .Where(resource => !useCallerAvailability || Enumerable.Range(start, end - start).All(resource.AvailableSlots.Contains))
             .OrderBy(resource => resource.Id, StringComparer.Ordinal)
             .Select(resource => resource.Id)
             .ToArray();

@@ -28,7 +28,7 @@ public sealed class SchedulePlanner
         var definition = (await _catalogue.ResolveAsync(pin, cancellationToken).ConfigureAwait(false)).Definition;
         if (!_backends.TryGetValue(backendId, out var backend))
             throw new UnsupportedProfileException($"BACKEND_UNSUPPORTED: {backendId}; required: a registered backend.");
-        _ = FiniteCandidateCompiler.AdmitModules(definition, backend.Backend, guarantee, deterministicWorkBudget);
+        var modules = FiniteCandidateCompiler.AdmitModules(definition, backend.Backend, guarantee, deterministicWorkBudget);
         if (slotDuration <= TimeSpan.Zero)
             throw new UnsupportedProfileException("TIME_AXIS_UNSUPPORTED: required: a positive slot duration.");
         if (facts.Resources.Any(resource => !resources.TryGetValue(resource.Id, out var capacity)
@@ -36,14 +36,8 @@ public sealed class SchedulePlanner
             || resources.Count != facts.Resources.Count || resources.Values.Select(capacity => capacity.Resource).Distinct().Count() != resources.Count)
             throw new UnsupportedProfileException("RESOURCE_BINDING_UNSUPPORTED: required: one distinct exclusive resource without buffers for every resource id.");
 
-        var first = facts.TimeWindows.Count == 0 ? 0 : facts.TimeWindows.Min(window => window.EarliestStartSlot);
-        var last = facts.TimeWindows.Count == 0 ? first : checked(facts.TimeWindows.Max(window => window.LatestStartSlot)
-            + facts.Activities.Max(activity => activity.DurationSlots));
-        var domain = Enumerable.Range(first, checked(last - first)).ToHashSet();
-        var problem = new FiniteCandidateCompiler().Compile(facts with
-        {
-            Resources = facts.Resources.Select(resource => resource with { AvailableSlots = domain }).ToArray(),
-        }, definition, backend.Backend, guarantee, deterministicWorkBudget);
+        // The shared runtime filters candidate intervals; caller supply must not prune them here.
+        var problem = new FiniteCandidateCompiler().Compile(facts, modules, useCallerAvailability: false);
         var candidates = new Dictionary<string, IReadOnlyList<AssignmentCandidate>>(StringComparer.Ordinal);
         foreach (var (activityId, placements) in problem.CandidatesByActivity)
         {

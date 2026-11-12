@@ -57,6 +57,42 @@ public sealed class SchedulePlannerTests
         Assert.Contains("AVAILABILITY_WINDOW_INVERTED", refusal.Message, StringComparison.Ordinal);
     }
 
+    [Fact(DisplayName = "scheduling-eng-17, scheduling-bound-6: disjoint fixed windows do not materialize intervening supply slots")]
+    public async Task PlannerCompilesDisjointWindowsWithoutDenseSupplyDomain()
+    {
+        var store = new InMemoryVersionedDefinitionStore(new Dictionary<DefinitionKind, DefinitionAdmission>
+        {
+            [DefinitionKind.Schedules] = ScheduleDefinitionCatalogue.Admission,
+        });
+        var catalogue = new ScheduleDefinitionCatalogue(store);
+        var definition = ModuleAdmissionTests.Definition() with
+        {
+            Envelope = new("job", "1.0.0", "t", LayoutCascadeLayer.DomainPackage,
+                JsonSerializer.SerializeToElement(new { pack = "general" }), "standard", false, [], new(1, 0)),
+            DueDate = "2096-01-01T00:00:00Z",
+            Window = new("2027-01-01T00:00:00Z", "2096-01-01T00:00:00Z"),
+        };
+        await catalogue.SaveDraftAsync("t", "job", "1.0.0", definition, 0, "draft");
+        await catalogue.PublishAsync("t", "job", "1.0.0", 1, "publish");
+        var runtime = new Availability();
+        var planner = new SchedulePlanner(catalogue, runtime, [new DeterministicExhaustiveProofSolver()]);
+        var facts = ModuleAdmissionTests.Profile() with
+        {
+            Activities = [new("a", 10), new("b", 1)],
+            TimeWindows = [new("a", 0, 0), new("b", 2_147_483_645, 2_147_483_645)],
+            Resources = [new("r", new HashSet<string> { "skill" }, new HashSet<int>())],
+        };
+        var bindings = new Dictionary<string, ResourceCapacity> { ["r"] = ResourceCapacity.Exclusive(ParticipantRef.Asset("room")) };
+        var result = await planner.PlanAsync(new("t", "job", "job@1.0.0"), facts,
+            "prototype.exhaustive-proof.v2", SolverGuarantee.FeasibleProof, 100, Epoch, TimeSpan.FromSeconds(1), bindings);
+        Assert.Equal(SolveStatus.Feasible, result.Status);
+        Assert.Equal(new[] { 0, 2_147_483_645 }, result.Assignments.OrderBy(item => item.ActivityId).Select(item => item.StartSlot));
+        Assert.Equal(2, runtime.Requests.Count);
+        Assert.Equal(new DateTimeOffset?[] { Epoch, Epoch.AddSeconds(2_147_483_645) }, runtime.Requests.Select(request => request.FromUtc));
+        Assert.Equal(new TimeSpan?[] { TimeSpan.FromSeconds(10), TimeSpan.FromSeconds(1) },
+            runtime.Requests.Select(request => request.ToUtc - request.FromUtc));
+    }
+
     private static readonly DateTimeOffset Epoch = DateTimeOffset.Parse("2027-01-01T00:00:00Z");
     private sealed class Availability : IAvailabilityRuntime
     {

@@ -15,7 +15,7 @@
     "projections/dotnet/blocks/hlp.blocks.scheduling/LeaseContracts.cs": "16dd8c98385d004db99f27f5ba8c5d490bbe61a796b2379df5f2e4580d2c3127",
     "projections/dotnet/blocks/hlp.blocks.scheduling/Models/ReservationOutcome.cs": "98c844e82a9417e37dbe750da458339e38d105e4040a4270d25c312eebee5465",
     "projections/dotnet/blocks/hlp.blocks.scheduling/Models/SlotReservation.cs": "0d16e2fec46cd63c0ef25f979534202499bceded2975a562f45e0cd2d3b636f6",
-    "projections/dotnet/blocks/hlp.blocks.scheduling/Planning/FiniteCandidateCompiler.cs": "59e494227eb909a64b1f10cc018f57cc7f4dd6ed1194cab3d3fca36cd3e66447",
+    "projections/dotnet/blocks/hlp.blocks.scheduling/Planning/FiniteCandidateCompiler.cs": "b0d3fa58745fc3e8d26803d9ddcd3d79bf83f462a81ded54bf4a855fabbee090",
     "projections/dotnet/blocks/hlp.blocks.scheduling/Planning/FixturePlanning.cs": "87a5d6b8fb2c7be92e5a90e75220c55b9027939a1acdc976af80c3ae76a71fd0",
     "projections/dotnet/blocks/hlp.blocks.scheduling/Planning/Fixtures/README.md": "56b43ade20114968f07e0173d66244ab0265dc9bbbd0b699888a5f75ef0ad1e5",
     "projections/dotnet/blocks/hlp.blocks.scheduling/Planning/Fixtures/construction-multifamily.feasible.json": "50a44636a1abd756642fa5def7b93b9e2a5c6f0ca700a04cbda7d10260d7906b",
@@ -32,7 +32,7 @@
     "projections/dotnet/blocks/hlp.blocks.scheduling/Planning/Fixtures/medical-pregnancy.unsatisfied.json": "681c9c431d668f082d464d696381cb92de06e7f4f835be0d58a373db65a855bd",
     "projections/dotnet/blocks/hlp.blocks.scheduling/Planning/PlanningModel.cs": "337014cb499c4e724a48d2c6ef8b8eb27ec27135d7746e8f4bd612a6568aeeb3",
     "projections/dotnet/blocks/hlp.blocks.scheduling/Planning/PlanningSolvers.cs": "f94c27e9669b83396c49f0a38bf0ae3482e2b25a8f8e997f278f75cf274f6068",
-    "projections/dotnet/blocks/hlp.blocks.scheduling/README.md": "645ac4837d90dec6ab7f36ea9a96f8b4cffb821dda65d72b563b7e54caa62297",
+    "projections/dotnet/blocks/hlp.blocks.scheduling/README.md": "2a65654567e4dcbbf63c72f816145f5fee1ec7e97dee4119452e2628def0fd5f",
     "projections/dotnet/blocks/hlp.blocks.scheduling/ScheduleReservationCoordinator.cs": "454d8534626301cac45fa455c0ee509e49de9a274786ba61b2b6d72a5f8b8901",
     "projections/dotnet/blocks/hlp.blocks.scheduling/SchedulingDurableRecords.cs": "3464c54e346b0a22938dc21a25b9d1a00f13e01950ba31b36105f9dbaf4f139c",
     "projections/dotnet/blocks/hlp.blocks.scheduling/Telemetry/SchedulingTelemetry.cs": "37288941b4989594928b3fe777dd0bb29c373808a56411aec8494927381e8e05",
@@ -50,7 +50,7 @@
     "projections/dotnet/blocks/hlp.blocks.scheduling/Occurrences/Chains/RelativeChainResults.cs": "3e481265efb750418f9507fe9362d3436fc05a88f416d774eb5d3e894a43e4b4",
     "projections/dotnet/blocks/hlp.blocks.scheduling/Occurrences/Chains/VersionedOccurrences.cs": "4d1922acb627e7ad49b0c9d10b9280c378ec03f9acc7037f584b817fd5b8da34",
     "projections/dotnet/blocks/hlp.blocks.scheduling/Planning/ConstraintModuleAdmission.cs": "69cc636c2d83e0d4d157e54d34f49bb38551c6442671f67155d0b58513049629",
-    "projections/dotnet/blocks/hlp.blocks.scheduling/Planning/SchedulePlanner.cs": "e04da577f1698137688a209993bb508e83332fdf34d7fca3ed560301bf7f0695"
+    "projections/dotnet/blocks/hlp.blocks.scheduling/Planning/SchedulePlanner.cs": "4a170a71039c5eb1e1879feb14b63cb1bfd55390ba18316ac6c6ef32aad2d470"
   },
   "nextGate": "Kernel-clock due generation and the four declared bases are owned by Scheduling; API chain consumers follow under T-311."
 }
