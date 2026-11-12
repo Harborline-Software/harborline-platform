@@ -66,6 +66,10 @@ public sealed class RulesAuthoringTests : BunitContext
             .ToArray();
         Assert.Equal(new[] { "rules-editor-contract-fixtures.json" }, LifecycleResources(lifecycleFixture));
         Assert.Empty(LifecycleResources(Path.GetFullPath(Path.Combine(root, "conformance", "hlp.blocks.builder-definitions", "Rules-editor-contract-fixtures.json"))));
+        var lifecycleItem = System.Xml.Linq.XDocument.Load(galleryProject).Descendants("EmbeddedResource")
+            .Single(item => item.Attribute("LogicalName")?.Value == "rules-editor-contract-fixtures.json");
+        Assert.Null(lifecycleItem.Attribute("Condition"));
+        Assert.Null(lifecycleItem.Parent!.Attribute("Condition"));
         Assert.Contains("GetManifestResourceStream(\"rules-editor-contract-fixtures.json\")", story, StringComparison.Ordinal);
         Assert.DoesNotContain("Directory", story, StringComparison.Ordinal);
         Assert.DoesNotContain("File.", story, StringComparison.Ordinal);
