@@ -15,6 +15,7 @@ export interface DataExchangeMappingRow {
   readonly defaultValue: string
   readonly separator: string
   readonly transform: string
+  readonly extensions?: Readonly<Partial<Record<'hl:operation' | 'hl:entityType' | 'hl:identity' | 'hl:role' | 'hl:matchPolicy' | 'hl:onInvalid' | 'hl:onMissing' | 'hl:errorPolicy', string>>>
 }
 export interface DataExchangeAuthoringDraft {
   /** Server identity of the persisted definition; absent for a new draft. */
@@ -22,6 +23,7 @@ export interface DataExchangeAuthoringDraft {
   /** Server revision the draft was loaded from; a change is a revision change. */
   readonly expectedRevision?: string
   readonly name: string
+  readonly recordType: string
   readonly sourceCapability: string
   readonly connectorVersion: string
   readonly formatCapability: string
@@ -50,6 +52,8 @@ export interface DataExchangeRunSummary {
   readonly commitRunId?: string
   readonly status: string
   readonly stale: boolean
+  readonly retentionClass?: string
+  readonly driftReason?: string | null
   readonly candidateCheckpoint: string
   readonly census: DataExchangeRunCensus
   readonly refusals: readonly string[]

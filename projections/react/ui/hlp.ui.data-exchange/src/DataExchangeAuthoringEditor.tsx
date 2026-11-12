@@ -6,7 +6,7 @@ export const DATA_EXCHANGE_MAPPING_SCHEMA = 'https://schemas.harborline.software
 export const DATA_EXCHANGE_MAPPING_VERSION = '1.0.0'
 
 export function emptyDataExchangeDraft(): DataExchangeAuthoringDraft {
-  return { name: '', sourceCapability: '', connectorVersion: '', formatCapability: 'csv', secretReference: '', discoveredColumns: [], mappings: [], externalKeyColumns: [], replayPolicy: 'append', scheduleReference: '', referenceDataset: '', packDistribution: '', feedDistribution: '' }
+  return { name: '', recordType: '', sourceCapability: '', connectorVersion: '', formatCapability: 'csv', secretReference: '', discoveredColumns: [], mappings: [], externalKeyColumns: [], replayPolicy: 'append', scheduleReference: '', referenceDataset: '', packDistribution: '', feedDistribution: '' }
 }
 
 function Options({ values }: { readonly values: readonly DataExchangeCatalogueOption[] }) {
@@ -18,21 +18,23 @@ function Section({ name, children }: { readonly name: string; readonly children:
 }
 
 const revisionKey = (value: DataExchangeAuthoringDraft) => `${value.identity ?? ''}\u0000${value.expectedRevision ?? ''}`
-const authoredContent = ({ identity: _identity, expectedRevision: _revision, ...content }: DataExchangeAuthoringDraft) => JSON.stringify(content)
+const authoredContent = ({ identity: _identity, expectedRevision: _revision, ...content }: DataExchangeAuthoringDraft) => JSON.stringify(content, (_key, entry) => entry && typeof entry === 'object' && !Array.isArray(entry) ? Object.fromEntries(Object.keys(entry).sort().map(key => [key, entry[key]])) : entry)
 
 const emptyMapping = (sourceColumn = ''): DataExchangeMappingRow => ({ sourceColumn, canonicalTarget: '', targetPointer: '', datatype: 'string', required: false, nullValue: '', defaultValue: '', separator: '', transform: '' })
+const columnExtensions = ['hl:operation', 'hl:entityType', 'hl:identity', 'hl:role', 'hl:matchPolicy', 'hl:onInvalid', 'hl:onMissing', 'hl:errorPolicy'] as const
 
 export function DataExchangeAuthoringEditor({ value: host, catalogue, run, canCommit, canPublish = false, readOnly = false, authoringRefusals = [], onChange, onDiscoverSource, onDryRun, onCommit, onSaveDraft, onPublish }: DataExchangeAuthoringEditorProps) {
   const [value, setValue] = useState(host)
   const [incoming, setIncoming] = useState<DataExchangeAuthoringDraft>()
+  const [externalKeyText, setExternalKeyText] = useState<string>()
   const loaded = useRef(host)
   const dirty = useRef(false)
   // ADR 0096 pending edits: a new identity or revision never silently overwrites local edits.
   useEffect(() => {
     const revisionChanged = revisionKey(host) !== revisionKey(loaded.current)
     loaded.current = host
-    if (revisionChanged && dirty.current && authoredContent(host) !== authoredContent(value)) { setIncoming(host); return }
-    if (revisionChanged) dirty.current = false
+    if (revisionChanged && dirty.current && (externalKeyText !== undefined || authoredContent(host) !== authoredContent(value))) { setIncoming(host); return }
+    if (revisionChanged) { dirty.current = false; setExternalKeyText(undefined) }
     setIncoming(undefined)
     setValue(host)
   }, [host])
@@ -45,15 +47,21 @@ export function DataExchangeAuthoringEditor({ value: host, catalogue, run, canCo
     setValue(draft)
     onChange(draft)
   }
-  const keepEdits = () => setIncoming(undefined)
-  const discardEdits = () => { if (!incoming) return; dirty.current = false; setValue(incoming); setIncoming(undefined); onChange(incoming) }
+  const commitExternalKeys = () => {
+    if (readOnly || externalKeyText === undefined) return
+    set('externalKeyColumns', externalKeyText.split(',').map(item => item.trim()).filter(Boolean))
+    setExternalKeyText(undefined)
+  }
+  const keepEdits = () => { if (!readOnly) { setIncoming(undefined); commitExternalKeys() } }
+  const discardEdits = () => { if (readOnly || !incoming) return; dirty.current = false; setExternalKeyText(undefined); setValue(incoming); setIncoming(undefined); onChange(incoming) }
   const replaceMapping = (index: number, mapping: DataExchangeMappingRow) => set('mappings', value.mappings.map((current, position) => position === index ? mapping : current))
-  const commitEnabled = intentsEnabled && canCommit && run?.status === 'Ready' && !run.stale
+  const commitEnabled = intentsEnabled && canCommit && (run?.status === 'Completed' || run?.status === 'CompletedWithRefusals') && !run.stale
   const publishEnabled = intentsEnabled && canPublish && authoringRefusals.length === 0
   const formats = catalogue.formats ?? [{ id: 'csv', label: 'CSV' }]
   return <form className="hl-data-exchange-authoring" onSubmit={event => event.preventDefault()}>
-    {incoming && <aside role="alert">Revision changed.<button type="button" onClick={keepEdits}>Keep edits</button><button type="button" onClick={discardEdits}>Discard edits</button></aside>}
+    {incoming && <aside role="alert">Revision changed.<button type="button" disabled={readOnly} onClick={keepEdits}>Keep edits</button><button type="button" disabled={readOnly} onClick={discardEdits}>Discard edits</button></aside>}
     <label>Definition name<input disabled={readOnly} aria-label="Definition name" value={value.name} onChange={event => set('name', event.currentTarget.value)} /></label>
+    <label>Exchange record type<select disabled={readOnly} aria-label="Exchange record type" value={value.recordType} onChange={event => set('recordType', event.currentTarget.value)}><option value="">Choose a record type</option><Options values={catalogue.canonicalTargets} /></select></label>
     <Section name="Source">
       <label>Source capability<select disabled={readOnly} aria-label="Source capability" value={value.sourceCapability} onChange={event => set('sourceCapability', event.currentTarget.value)}><option value="">Choose a capability</option><Options values={catalogue.sourceCapabilities} /></select></label>
       <label>Connector version<input disabled={readOnly} aria-label="Connector version" value={value.connectorVersion} onChange={event => set('connectorVersion', event.currentTarget.value)} /></label>
@@ -78,11 +86,12 @@ export function DataExchangeAuthoringEditor({ value: host, catalogue, run, canCo
         <input disabled={readOnly} aria-label={`Mapping ${index + 1} default`} value={mapping.defaultValue} onChange={event => replaceMapping(index, { ...mapping, defaultValue: event.currentTarget.value })} />
         <input disabled={readOnly} aria-label={`Mapping ${index + 1} separator`} value={mapping.separator} onChange={event => replaceMapping(index, { ...mapping, separator: event.currentTarget.value })} />
         <select disabled={readOnly} aria-label={`Mapping ${index + 1} transform`} value={mapping.transform} onChange={event => replaceMapping(index, { ...mapping, transform: event.currentTarget.value })}><option value="">No transform</option><Options values={catalogue.transforms} /></select>
+        {columnExtensions.map(term => <label key={term}>{term}<input disabled={readOnly} aria-label={`Mapping ${index + 1} ${term}`} value={mapping.extensions?.[term] ?? ''} onChange={event => replaceMapping(index, { ...mapping, extensions: { ...mapping.extensions, [term]: event.currentTarget.value } })} /></label>)}
         <button type="button" disabled={readOnly} aria-label={`Remove mapping ${index + 1}`} onClick={() => set('mappings', value.mappings.filter((_, position) => position !== index))}>Remove</button>
       </div>)}
       <button type="button" disabled={readOnly} onClick={() => set('mappings', [...value.mappings, emptyMapping(value.discoveredColumns.find(column => column.selected)?.name)])}>Add mapping</button>
     </Section>
-    <label>External key columns<input disabled={readOnly} aria-label="External key columns" value={value.externalKeyColumns.join(', ')} onChange={event => set('externalKeyColumns', event.currentTarget.value.split(',').map(item => item.trim()).filter(Boolean))} /></label>
+    <label>External key columns<input disabled={readOnly} aria-label="External key columns" value={externalKeyText ?? value.externalKeyColumns.join(', ')} onChange={event => { if (!readOnly) { dirty.current = true; setExternalKeyText(event.currentTarget.value) } }} onBlur={() => { if (!pending) commitExternalKeys() }} /></label>
     <label>Replay policy<select disabled={readOnly} aria-label="Replay policy" value={value.replayPolicy} onChange={event => set('replayPolicy', event.currentTarget.value as DataExchangeAuthoringDraft['replayPolicy'])}><option value="append">Append</option><option value="overwrite">Overwrite</option><option value="append_dedup">Append and deduplicate</option></select></label>
     <label>Schedule reference<select disabled={readOnly} aria-label="Schedule reference" value={value.scheduleReference} onChange={event => set('scheduleReference', event.currentTarget.value)}><option value="">Manual only</option><Options values={catalogue.schedules} /></select></label>
     <Section name="Reference set deliveries">
@@ -93,7 +102,7 @@ export function DataExchangeAuthoringEditor({ value: host, catalogue, run, canCo
     <div><button type="button" disabled={!intentsEnabled} onClick={() => intentsEnabled && onSaveDraft?.()}>Save draft</button><button type="button" disabled={!publishEnabled} onClick={() => publishEnabled && onPublish?.()}>Publish definition</button></div>
     {authoringRefusals.length > 0 && <Section name="Authoring refusals"><ul>{authoringRefusals.map(refusal => <li key={`${refusal.stage}:${refusal.code}`}><span>{refusal.stage}</span>: <a href={refusal.targetHref}>{refusal.code}</a></li>)}</ul></Section>}
     <div><button type="button" disabled={!intentsEnabled} onClick={() => intentsEnabled && onDryRun()}>Create dry run</button><button type="button" aria-label="Commit reviewed run" disabled={!commitEnabled} onClick={() => commitEnabled && onCommit()}>Commit reviewed run</button></div>
-    {run && <Section name="Persisted run evidence"><dl><dt>Dry run</dt><dd>{run.dryRunId}</dd><dt>Commit run</dt><dd>{run.commitRunId ?? 'Not committed'}</dd><dt>Batch identity</dt><dd>{run.batchIdentity ?? 'No batch identity'}</dd><dt>Effect identity</dt><dd>{run.effectIdentity ?? 'Per effect'}</dd><dt>Attempt identity</dt><dd>{run.attemptId ?? 'Per delivery attempt'}</dd><dt>Status</dt><dd>{run.status}</dd><dt>Staleness</dt><dd>{run.stale ? 'Stale' : 'Current'}</dd><dt>Candidate checkpoint</dt><dd>{run.candidateCheckpoint}</dd></dl><p>Applied {run.census.applied}; skipped {run.census.skipped}; conflicted {run.census.conflicted}; rejected {run.census.rejected}; failed {run.census.failed}; halted {run.census.halted}</p><ul>{run.refusals.map(refusal => <li key={refusal}>{refusal}</li>)}</ul></Section>}
+    {run && <Section name="Persisted run evidence"><dl><dt>Dry run</dt><dd>{run.dryRunId}</dd><dt>Commit run</dt><dd>{run.commitRunId ?? 'Not committed'}</dd><dt>Batch identity</dt><dd>{run.batchIdentity ?? 'No batch identity'}</dd><dt>Effect identity</dt><dd>{run.effectIdentity ?? 'Per effect'}</dd><dt>Attempt identity</dt><dd>{run.attemptId ?? 'Per delivery attempt'}</dd><dt>Status</dt><dd>{run.status}</dd><dt>Staleness</dt><dd>{run.stale ? 'Stale' : 'Current'}</dd><dt>Drift reason</dt><dd>{run.driftReason ?? 'None'}</dd><dt>Retention class</dt><dd>{run.retentionClass ?? 'Not supplied'}</dd><dt>Candidate checkpoint</dt><dd>{run.candidateCheckpoint}</dd></dl><p>Applied {run.census.applied}; skipped {run.census.skipped}; conflicted {run.census.conflicted}; rejected {run.census.rejected}; failed {run.census.failed}; halted {run.census.halted}</p><ul>{run.refusals.map(refusal => <li key={refusal}>{refusal}</li>)}</ul></Section>}
     {!run && <Section name="Persisted run evidence"><p>No dry run recorded.</p></Section>}
   </form>
 }

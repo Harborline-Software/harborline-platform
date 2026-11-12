@@ -1,7 +1,8 @@
 @namespace Harborline.Gallery.Blazor.Stories
+<link rel="stylesheet" href="./_content/Harborline.UIAdapters.Blazor/data-exchange.css" />
 <section class="hl-gallery-scene" data-gallery-probe data-gallery-scenario="@ScenarioId">
   <header class="hl-gallery-heading"><h2>@Copy.Title</h2><p>@Copy.Description</p></header>
-  <div class="hl-gallery-stage"><HarborlineDataExchangeAuthoringEditor Value="@Draft" Catalogue="@Catalogue" Run="@Run" CanCommit="true" /></div>
+  <div class="hl-gallery-stage"><HarborlineDataExchangeAuthoringEditor Value="@Current" Catalogue="@Catalogue" Run="@Run" CanCommit="true" ValueChanged="value => Current = value" DiscoverSource="Discover" /></div>
 </section>
 @code {
   [Parameter, EditorRequired] public string ScenarioId { get; set; } = "data-exchange.authoring";
@@ -13,14 +14,32 @@
     [new("CustomerNumber", "records.customer/v1", "/customerNumber", "string", true, "", "", "", "trimToNull")],
     ["CustomerNumber"], "append_dedup", "schedule.daily")
   {
+    RecordType = "records.customer/v1",
     FormatCapability = "csv",
     ReferenceDataset = "dataset.customers",
     PackDistribution = "pack://customers",
     FeedDistribution = "feed://customers",
   };
-  private static readonly DataExchangeRunSummary CurrentRun = new("dry-42", "Ready", false, "row:125", new(0, 0, 0, 0, 0, 0), []);
-  private DataExchangeRunSummary Run => ScenarioId == "data-exchange.stale-review" ? CurrentRun with { Status = "Stale", Stale = true, Refusals = ["mapping.changed"] } : CurrentRun;
-  private (string Title, string Description) Copy => ScenarioId == "data-exchange.stale-review"
-    ? ("Stale review", "A proposal-affecting mapping change leaves the persisted review visible while commit fails closed.")
-    : ("Current review", "A bounded inbound definition maps selected source columns to a canonical Records contract and exposes an approved current review.");
+  private static readonly DataExchangeRunSummary CurrentRun = new("dry-42", "Completed", false, "row:125", new(0, 0, 0, 0, 0, 0), []) { RetentionClass = "standard-7y" };
+  private static readonly DataExchangeRunSummary PartialRun = new("review-81", "CompletedWithRefusals", true, "row:19", new(11, 2, 3, 5, 7, 0), [], "batch-12") { CommitRunId = "commit-12", EffectIdentity = "effect-3", AttemptId = "attempt-2", DriftReason = "source.changed", RetentionClass = "standard-7y" };
+  private DataExchangeRunSummary? Run => ScenarioId switch {
+    "data-exchange.from-empty" => null,
+    "data-exchange.partial-failure" => PartialRun,
+    "data-exchange.stale-review" => CurrentRun with { Stale = true, DriftReason = "proposal.changed", Refusals = ["mapping.changed"] },
+    _ => CurrentRun,
+  };
+  private string? _loadedScenario;
+  private DataExchangeAuthoringDraft Current = DataExchangeAuthoringDraft.Empty;
+  protected override void OnParametersSet() {
+    if (_loadedScenario == ScenarioId) return;
+    _loadedScenario = ScenarioId;
+    Current = ScenarioId == "data-exchange.from-empty" ? DataExchangeAuthoringDraft.Empty : Draft;
+  }
+  private void Discover() => Current = Current with { DiscoveredColumns = Draft.DiscoveredColumns };
+  private (string Title, string Description) Copy => ScenarioId switch {
+    "data-exchange.stale-review" => ("Stale review", "A proposal-affecting mapping change leaves the persisted review visible while commit fails closed."),
+    "data-exchange.partial-failure" => ("Partial failure", "Server review evidence retains its CompletedWithRefusals result, census, staleness, retention class and separate identity scopes as read-only text."),
+    "data-exchange.from-empty" => ("From empty", "An empty exchange authors its record type and all mapping column extensions after host-owned source discovery."),
+    _ => ("Current review", "A bounded inbound definition maps selected source columns to a canonical Records contract and exposes an approved current review."),
+  };
 }
