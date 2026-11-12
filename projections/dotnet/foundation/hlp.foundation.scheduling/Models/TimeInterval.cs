@@ -1,4 +1,4 @@
-namespace Harborline.Blocks.Calendar.Models;
+namespace Harborline.Foundation.Scheduling.Models;
 
 /// <summary>
 /// A half-open UTC time interval <c>[StartUtc, EndUtc)</c> (Slice S3) — the common shape of an

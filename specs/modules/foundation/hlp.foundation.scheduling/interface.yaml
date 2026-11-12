@@ -1,10 +1,12 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.foundation.scheduling",
-  "interfaceRevision": 6,
+  "interfaceRevision": 7,
   "status": "frozen",
   "purpose": "Bounded RRULE date expansion through Ical.Net and the shared NodaTime wall-clock resolver. Due generation belongs to hlp.blocks.scheduling (ADR-0117/0123).",
-  "dependencies": [],
+  "dependencies": [
+    "hlp.contracts.identities"
+  ],
   "callerInterface": {
     "name": "IRruleExpansionService / WallClockResolver",
     "operations": [
@@ -12,7 +14,8 @@
       "ExpandZonedOccurrences(rrule, start, startTime, timezone, end?, lookaheadDays, leadDays, today) -> the local dates of a timed series anchored at start+startTime in an IANA zone; a DATE-TIME UNTIL is a UTC instant bounding the series inclusively (RFC 5545 s3.3.10), a DATE UNTIL bounds by local date; the same subset, cap and exceptions as ExpandOccurrences, plus ArgumentException on a zone that is not an IANA id (ADR-0122 decision 3). A default interface member refuses with NotSupportedException for implementations written before it.",
       "WallClockResolver.ToUtcInstant(date, time, timezone) -> the UTC instant of a local wall-clock time per RFC 5545 s3.3.5 and Errata 4271: an ambiguous time is its first occurrence, a gap time is read at the offset before the gap; ArgumentException on a zone that is not an IANA id. The one resolver the calendar block, the availability runtime and Scheduling share (ADR-0123 decision 4).",
       "WallClockResolver.ToLocalDateTime(kernelInstant, timezone) -> series-local DateTime (Unspecified), using the same NodaTime tzdb provider as ToUtcInstant; ArgumentException for an unknown zone.",
-      "InMemoryRruleExpansionService.ValidateRule(rrule) -> author-time bounded-subset validation, without inventing a series date or expanding occurrences."
+      "InMemoryRruleExpansionService.ValidateRule(rrule) -> author-time bounded-subset validation, without inventing a series date or expanding occurrences.",
+      "IAvailabilityRuntime.Read(TenantId, AvailabilityRequest) -> AvailabilityAnswer. The shared availability contract and its unchanged ParticipantRef, TimeInterval, EventPadding, capacity, request, answer and refusal types live in Harborline.Foundation.Scheduling.Models and .Services. Calendar implements the runtime; Scheduling consumes it. No supply composition moves into foundation (T-491/module-admission, ADR-0080, ADR-0123)."
     ],
     "context": "Producer bounds are explicit inputs; due and overdue use Scheduling and its kernel clock. Breaking pre-release move: no foundation forwarding shim."
   },
@@ -33,11 +36,12 @@
   ],
   "publicSeams": [
     "RRULE date producer",
-    "shared IANA wall-clock resolver"
+    "shared IANA wall-clock resolver",
+    "shared availability contract (IAvailabilityRuntime)"
   ],
   "conformance": {
     "nativeTests": {
-      "dotnet": 186
+      "dotnet": 187
     },
     "nativeTestNote": "RRULE subset, RFC and differential corpus tests plus literal bidirectional timezone and DST cases; due seam tests moved to Scheduling."
   },

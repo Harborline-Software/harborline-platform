@@ -4,7 +4,10 @@ namespace Harborline.Blocks.Scheduling.Planning;
 public sealed class DeterministicExhaustiveProofSolver : IPlanningSolver
 {
     /// <summary>Stable identifier used in proposal ids and telemetry.</summary>
-    public string SolverId => "prototype.exhaustive-proof.v2";
+    public string SolverId => Backend.Id;
+
+    /// <inheritdoc />
+    public SolverBackend Backend { get; } = SolverBackend.Finite("prototype.exhaustive-proof.v2", SolverGuarantee.FeasibleProof);
 
     /// <summary>This solver proves feasibility or infeasibility when its search completes.</summary>
     public SolverGuarantee Guarantee => SolverGuarantee.FeasibleProof;
@@ -171,7 +174,7 @@ public sealed class DeterministicExhaustiveProofSolver : IPlanningSolver
         string reasonCode,
         IReadOnlyList<string>? incompleteFactSets = null) =>
         new(
-            $"{SolverId}:{problem.ProfileId}:{problem.InputVersion}:{status}",
+            AssignmentRules.ProposalId(SolverId, problem, status),
             problem.ProfileId,
             problem.InputVersion,
             SolverId,
@@ -187,7 +190,10 @@ public sealed class DeterministicExhaustiveProofSolver : IPlanningSolver
 public sealed class GreedyFirstFitSolver : IPlanningSolver
 {
     /// <summary>Stable identifier used in proposal ids and telemetry.</summary>
-    public string SolverId => "prototype.greedy-first-fit.v1";
+    public string SolverId => Backend.Id;
+
+    /// <inheritdoc />
+    public SolverBackend Backend { get; } = SolverBackend.Finite("prototype.greedy-first-fit.v1", SolverGuarantee.BoundedHeuristic);
 
     /// <summary>This solver provides a bounded heuristic result rather than a proof of optimality.</summary>
     public SolverGuarantee Guarantee => SolverGuarantee.BoundedHeuristic;
@@ -262,7 +268,7 @@ public sealed class GreedyFirstFitSolver : IPlanningSolver
         int workUnits,
         string reasonCode) =>
         new(
-            $"{SolverId}:{problem.ProfileId}:{problem.InputVersion}:{status}",
+            AssignmentRules.ProposalId(SolverId, problem, status),
             problem.ProfileId,
             problem.InputVersion,
             SolverId,
@@ -276,11 +282,22 @@ public sealed class GreedyFirstFitSolver : IPlanningSolver
 
 internal static class AssignmentRules
 {
+    public static string ProposalId(string solverId, CompiledPlanningProblem problem, SolveStatus status)
+    {
+        var legacyId = $"{solverId}:{problem.ProfileId}:{problem.InputVersion}:{status}";
+        return problem.DefinitionPin is { } pin
+            ? $"{legacyId}:{Uri.EscapeDataString(pin.Tenant)}:{Uri.EscapeDataString(pin.DefinitionId)}:{Uri.EscapeDataString(pin.VersionId ?? "")}"
+            : legacyId;
+    }
+
     public static SchedulingProposal MeasureSolve(
         string solverId,
         CompiledPlanningProblem problem,
         Func<SchedulingProposal> solve)
     {
+        foreach (var module in problem.Modules)
+            if (module.Stage != ConstraintModuleStage.BackendSupported || !StringComparer.Ordinal.Equals(module.BackendId, solverId))
+                throw new UnsupportedProfileException($"MODULE_UNSUPPORTED: {module.Declaration.Module}; required: backend-supported admission for backend {solverId}.");
         var stopwatch = System.Diagnostics.Stopwatch.StartNew();
         var proposal = solve();
         stopwatch.Stop();
@@ -309,14 +326,14 @@ internal static class AssignmentRules
         {
             if (constraint.BeforeActivityId == candidate.ActivityId &&
                 assignments.TryGetValue(constraint.AfterActivityId, out var after) &&
-                candidate.EndSlotExclusive + constraint.MinimumGapSlots > after.StartSlot)
+                (long)candidate.EndSlotExclusive + constraint.MinimumGapSlots > after.StartSlot)
             {
                 return false;
             }
 
             if (constraint.AfterActivityId == candidate.ActivityId &&
                 assignments.TryGetValue(constraint.BeforeActivityId, out var before) &&
-                before.EndSlotExclusive + constraint.MinimumGapSlots > candidate.StartSlot)
+                (long)before.EndSlotExclusive + constraint.MinimumGapSlots > candidate.StartSlot)
             {
                 return false;
             }

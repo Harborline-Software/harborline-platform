@@ -1,12 +1,55 @@
+using Harborline.Blocks.Scheduling.Definitions;
+
 namespace Harborline.Blocks.Scheduling.Planning;
 
 /// <summary>Validates a scheduling profile and expands it into a finite candidate problem.</summary>
 public sealed class FiniteCandidateCompiler
 {
+    /// <summary>Checks every named module and backend requirement before enumerating candidates.</summary>
+    public CompiledPlanningProblem Compile(SchedulingProfile profile, ScheduleDefinition definition,
+        SolverBackend backend, SolverGuarantee guarantee, int deterministicWorkBudget)
+    {
+        var modules = AdmitModules(definition, backend, guarantee, deterministicWorkBudget);
+        return Compile(profile, modules, useCallerAvailability: true) with
+        {
+            DefinitionPin = definition.Envelope is { Version: { } version } envelope
+                ? new(envelope.Tenant, envelope.Identity, ScheduleDefinitionCatalogue.VersionIdFor(envelope.Identity, version))
+                : null,
+        };
+    }
+
+    internal CompiledPlanningProblem Compile(SchedulingProfile profile,
+        IReadOnlyList<ConstraintModuleAdmission> modules, bool useCallerAvailability)
+    {
+        var precedence = profile.Precedence.Concat(modules.SelectMany(module => module.Precedence)).ToArray();
+        return Compile(profile with { Precedence = precedence }, useCallerAvailability) with { Modules = modules };
+    }
+
+    /// <summary>Compiles a Harborline problem-class profile to the finite engine's typed constraint vocabulary.</summary>
+    public static IReadOnlyList<ConstraintModuleAdmission> AdmitModules(ScheduleDefinition definition,
+        SolverBackend backend, SolverGuarantee guarantee, int deterministicWorkBudget)
+    {
+        ArgumentNullException.ThrowIfNull(definition);
+        ArgumentNullException.ThrowIfNull(backend);
+        var declarations = definition.Modules ?? [];
+        if (declarations.Any(module => module is null) || declarations.Select(module => module.Module).Distinct(StringComparer.Ordinal).Count() != declarations.Count)
+            throw new UnsupportedProfileException("MODULE_UNSUPPORTED: required: unique, non-null module declarations.");
+        var names = new[] { "time_windows", "resource_requirements", "no_overlap", "precedence" };
+        var all = names.Where(name => !declarations.Any(module => module.Module == name))
+            .Select(name => new ScheduleConstraintModule(name)).Concat(declarations);
+        var modules = all.Select(module => ConstraintModuleAdmission.Elicit(module)
+            .Advance(ConstraintModuleStage.ShapeCandidate).Advance(ConstraintModuleStage.Admitted)
+            .Advance(ConstraintModuleStage.BackendSupported, backend)).OrderBy(module => module.Kind).ToArray();
+        backend.Validate(definition.ProblemClass, guarantee, deterministicWorkBudget);
+        return modules;
+    }
+
     /// <summary>Compiles every valid start/resource combination in deterministic order.</summary>
     /// <param name="profile">Profile whose activities, windows, resources, and constraints are compiled.</param>
     /// <returns>A solver-ready problem with candidates keyed by activity id.</returns>
-    public CompiledPlanningProblem Compile(SchedulingProfile profile)
+    public CompiledPlanningProblem Compile(SchedulingProfile profile) => Compile(profile, useCallerAvailability: true);
+
+    private static CompiledPlanningProblem Compile(SchedulingProfile profile, bool useCallerAvailability)
     {
         Validate(profile);
 
@@ -24,7 +67,7 @@ public sealed class FiniteCandidateCompiler
             {
                 var end = checked(start + activity.DurationSlots);
                 var resourceSelections = requirements
-                    .Select(requirement => SelectResources(profile.Resources, requirement, start, end))
+                    .Select(requirement => SelectResources(profile.Resources, requirement, start, end, useCallerAvailability))
                     .ToArray();
 
                 foreach (var selection in CartesianProduct(resourceSelections))
@@ -64,11 +107,12 @@ public sealed class FiniteCandidateCompiler
         IReadOnlyList<PlanningResource> resources,
         ResourceRequirement requirement,
         int start,
-        int end)
+        int end,
+        bool useCallerAvailability)
     {
         var eligible = resources
             .Where(resource => resource.Capabilities.Contains(requirement.Capability))
-            .Where(resource => Enumerable.Range(start, end - start).All(resource.AvailableSlots.Contains))
+            .Where(resource => !useCallerAvailability || Enumerable.Range(start, end - start).All(resource.AvailableSlots.Contains))
             .OrderBy(resource => resource.Id, StringComparer.Ordinal)
             .Select(resource => resource.Id)
             .ToArray();
