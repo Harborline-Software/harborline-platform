@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.foundation.scheduling",
-  "interfaceRevision": 7,
+  "interfaceRevision": 8,
   "status": "frozen",
   "purpose": "Bounded RRULE date expansion through Ical.Net and the shared NodaTime wall-clock resolver. Due generation belongs to hlp.blocks.scheduling (ADR-0117/0123).",
   "dependencies": [
@@ -15,7 +15,8 @@
       "WallClockResolver.ToUtcInstant(date, time, timezone) -> the UTC instant of a local wall-clock time per RFC 5545 s3.3.5 and Errata 4271: an ambiguous time is its first occurrence, a gap time is read at the offset before the gap; ArgumentException on a zone that is not an IANA id. The one resolver the calendar block, the availability runtime and Scheduling share (ADR-0123 decision 4).",
       "WallClockResolver.ToLocalDateTime(kernelInstant, timezone) -> series-local DateTime (Unspecified), using the same NodaTime tzdb provider as ToUtcInstant; ArgumentException for an unknown zone.",
       "InMemoryRruleExpansionService.ValidateRule(rrule) -> author-time bounded-subset validation, without inventing a series date or expanding occurrences.",
-      "IAvailabilityRuntime.Read(TenantId, AvailabilityRequest) -> AvailabilityAnswer. The shared availability contract and its unchanged ParticipantRef, TimeInterval, EventPadding, capacity, request, answer and refusal types live in Harborline.Foundation.Scheduling.Models and .Services. Calendar implements the runtime; Scheduling consumes it. No supply composition moves into foundation (T-491/module-admission, ADR-0080, ADR-0123)."
+      "IAvailabilityRuntime.Read(TenantId, AvailabilityRequest) -> AvailabilityAnswer. The shared availability contract and its unchanged ParticipantRef, TimeInterval, EventPadding, capacity, request, answer and refusal types live in Harborline.Foundation.Scheduling.Models and .Services. Calendar implements the runtime; Scheduling consumes it. No supply composition moves into foundation (T-491/module-admission, ADR-0080, ADR-0123).",
+      "VisitZonedOccurrences(rrule, start, startTime, timezone, end, requestedRangeStart, visit, candidateLimit=50000) -> one chronological budgeted walk, including dates before the lower bound. Each recurrence period, including an empty period, costs one work unit; each matched date costs one more, before caller filters. Ical.Net evaluates each bounded period once with DTSTART defaults preserved; COUNT counts matching dates from the original anchor. Callbacks are provisional: a refusal aborts the whole query. The caller filters and caps its final results. Older implementations refuse with NotSupportedException."
     ],
     "context": "Producer bounds are explicit inputs; due and overdue use Scheduling and its kernel clock. Breaking pre-release move: no foundation forwarding shim."
   },
@@ -26,13 +27,15 @@
     "Every admitted selector applies under every FREQ it is admitted with (RFC 5545 s3.3.10): BYDAY and BYMONTHDAY limit DAILY, intersect under MONTHLY, and expand YEARLY day by day; an out-of-bound or malformed value of an admitted part is refused naming the part, never dropped.",
     "No expansion call ever yields more than 1000 occurrences.",
     "Occurrences are returned only when every occurrence relevant to the requested range has been evaluated: a walk that reaches the 1000-occurrence candidate limit with range left to cover refuses with a dedicated domain type rather than returning an unmarked partial, and a rule bounded by COUNT or UNTIL that ends before the limit succeeds normally (DES-0057 s10 ruling 3).",
-    "COUNT and UNTIL are mutually exclusive; BYMONTHDAY is capped at 28."
+    "COUNT and UNTIL are mutually exclusive; BYMONTHDAY is capped at 28.",
+    "All producer entry points bound total work to 50000 units by default. RruleExpansionBudgetExceededException.Code is scheduling.occurrence.expansion_budget_exceeded; its RecurrenceId, Anchor, RequestedRangeStart, RequestedRangeEnd, CandidateLimit, CandidatesExamined, LastEvaluatedOccurrence and Bound diagnose refusal. The budgeted visitor accepts a positive explicit limit; date-list methods retain their separate 1000-result cap and unchanged call sites."
   ],
   "errors": [
     "FormatException (missing FREQ; a part given twice; COUNT with UNTIL; out-of-bound or malformed value of an admitted part)",
     "ArgumentException (blank rule; inverted window; a time zone that is not an IANA id)",
     "NotSupportedException (RRULE component or FREQ outside the bounded subset; BYMONTHDAY under WEEKLY; numeric BYDAY under DAILY or WEEKLY; ExpandZonedOccurrences on an implementation without it)",
-    "RruleExpansionCapExceededException (candidate limit reached before the requested range was fully evaluated)"
+    "RruleExpansionCapExceededException (candidate limit reached before the requested range was fully evaluated)",
+    "RruleExpansionBudgetExceededException (scheduling.occurrence.expansion_budget_exceeded; work budget exceeded; no complete result)"
   ],
   "publicSeams": [
     "RRULE date producer",
@@ -41,7 +44,7 @@
   ],
   "conformance": {
     "nativeTests": {
-      "dotnet": 187
+      "dotnet": 193
     },
     "nativeTestNote": "RRULE subset, RFC and differential corpus tests plus literal bidirectional timezone and DST cases; due seam tests moved to Scheduling."
   },

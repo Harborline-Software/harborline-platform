@@ -2,12 +2,12 @@
   "moduleId": "hlp.foundation.scheduling",
   "phase4Evidence": "specs/modules/foundation/hlp.foundation.scheduling/interface.yaml",
   "sourceExtracted": true,
-  "sourceState": "Scheduling Wave A: the bounded RRULE expansion engine and derived due-queue query ported verbatim (19 + 6 pinned cases green under their pinned names), plus the writer-lane-authored source-agnostic due-occurrence seam (IDueOccurrenceSource / RruleDueOccurrenceSource / CompositeDueOccurrenceSource, 3 seam tests) required by the user ruling of 2026-08-16 so the ticket-086 relative-chain generator lands behind the same port later. The pinned DI extension is retained without an explicit M.E.DI.Abstractions reference (implicit on net11-preview). ADR-0117/0123 moves the due seam and queue to hlp.blocks.scheduling, leaving the RRULE producer and shared NodaTime wall-clock resolver here. T-491/module-admission moves the unchanged shared availability contract and its type closure here; Calendar keeps the interpreter and supply model.",
+  "sourceState": "Scheduling Wave A: the bounded RRULE expansion engine and derived due-queue query ported verbatim (19 + 6 pinned cases green under their pinned names), plus the writer-lane-authored source-agnostic due-occurrence seam (IDueOccurrenceSource / RruleDueOccurrenceSource / CompositeDueOccurrenceSource, 3 seam tests) required by the user ruling of 2026-08-16 so the ticket-086 relative-chain generator lands behind the same port later. The pinned DI extension is retained without an explicit M.E.DI.Abstractions reference (implicit on net11-preview). ADR-0117/0123 moves the due seam and queue to hlp.blocks.scheduling, leaving the RRULE producer and shared NodaTime wall-clock resolver here. T-491/module-admission moves the unchanged shared availability contract and its type closure here; Calendar keeps the interpreter and supply model. T-1197/bounded-expansion (interface revision 8) bounds one chronological Ical.Net-backed walk, including empty recurrence periods, with 50000 work units; Scheduling checks 3660 requested local dates and reuses that walk for override membership (control rulings 1371/1372).",
   "contentHashes": {
     "projections/dotnet/foundation/hlp.foundation.scheduling/DependencyInjection/SchedulingServiceCollectionExtensions.cs": "be05df8d15e7815a66b0935a5b993e4e1d6e22ead387731ad4542f01d363754f",
     "projections/dotnet/foundation/hlp.foundation.scheduling/README.md": "505e8c37ed54ee546bb20411f758fe7f2084585b9287dc5f10ddd9521c3ea127",
-    "projections/dotnet/foundation/hlp.foundation.scheduling/Services/IRruleExpansionService.cs": "6dc75b8024b81696ba3c691857694394095fbf371d9e5f825a0d655ae046c453",
-    "projections/dotnet/foundation/hlp.foundation.scheduling/Services/InMemoryRruleExpansionService.cs": "23687ac2633e25a0dfdf5542312b0319f411cbe764e64b950269f013a7937350",
+    "projections/dotnet/foundation/hlp.foundation.scheduling/Services/IRruleExpansionService.cs": "f4660c38d657e654abd0ba2a6a171d4bb2c43c0910211322219b09123b386dda",
+    "projections/dotnet/foundation/hlp.foundation.scheduling/Services/InMemoryRruleExpansionService.cs": "7559f0dc8244b04e6fc57e14df06dc4f9139408c180badb412087e9165aa1fb7",
     "projections/dotnet/foundation/hlp.foundation.scheduling/Services/RruleExpansionCapExceededException.cs": "b9415a1e1c842a573bb536244ba9eecd4d11a73727c8ae86423ac6ef943a0f91",
     "projections/dotnet/foundation/hlp.foundation.scheduling/Harborline.Foundation.Scheduling.csproj": "2ac98bcbc25a12409f08a3770f81b2ebfc3a2e06a06769b77c066a0b626dd958",
     "projections/dotnet/foundation/hlp.foundation.scheduling/Models/AvailabilityRequest.cs": "9f863293ef25c329a0dd7ef5d816d22e10df96cd893dc49cecb715ba218358c6",
@@ -15,7 +15,9 @@
     "projections/dotnet/foundation/hlp.foundation.scheduling/Models/ParticipantRef.cs": "501fcd5e74f53403b4396df0469d29d549c8906b25c15b43009601be01812d51",
     "projections/dotnet/foundation/hlp.foundation.scheduling/Models/TimeInterval.cs": "3be15d4b6ed8146ff2d93ec62cca44d5e7f3001a2a704b900d6daf7a28e44983",
     "projections/dotnet/foundation/hlp.foundation.scheduling/Models/EventPadding.cs": "25b48279145bf2d5669751a852f4a57b8fa9d665c13b55972a69702dece7d7b6",
-    "projections/dotnet/foundation/hlp.foundation.scheduling/Services/IAvailabilityRuntime.cs": "1b76718afae2665a558ff951d23e07008771d50e7bdd5307a65e3f4045fa5554"
+    "projections/dotnet/foundation/hlp.foundation.scheduling/Services/IAvailabilityRuntime.cs": "1b76718afae2665a558ff951d23e07008771d50e7bdd5307a65e3f4045fa5554",
+    "projections/dotnet/foundation/hlp.foundation.scheduling/Services/RruleCandidateWalker.cs": "47478b258c13662448ca68a274fe26cd3fe1ea9ce4f351baac2967a74b8c2796",
+    "projections/dotnet/foundation/hlp.foundation.scheduling/Services/RruleExpansionBudgetExceededException.cs": "45ab0101b49b3b4d87cee7642280d57cae2f8cc2319bf2006e8dd5a8d22e9597"
   },
   "nextGate": "Wave B ports the calendar domain engine (packages/blocks-calendar, 163 cases); Wave C re-proves the 88 host rows at narrowed seams and flips the scheduling gate only through the scheduling-capability-vertical."
 }

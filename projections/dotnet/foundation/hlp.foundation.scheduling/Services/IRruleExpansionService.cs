@@ -35,10 +35,23 @@ namespace Harborline.Foundation.Scheduling;
 /// still to cover refuses with <see cref="RruleExpansionCapExceededException"/>; it never
 /// returns a partial list, because a caller cannot distinguish one from a complete result
 /// (DES-0057 §10 ruling 3).
+/// The producer also refuses with <see cref="RruleExpansionBudgetExceededException"/> past 50 000 work units,
+/// counting each recurrence period (including empty periods) and each matching date before caller filtering.
 /// </para>
 /// </remarks>
 public interface IRruleExpansionService
 {
+    /// <summary>
+    /// Visits a timed series once from its anchor through end, including dates before requestedRangeStart.
+    /// The caller owns filtering and the final result cap. Work counts every recurrence period, including empty ones,
+    /// and every matching date before caller filtering. A budget refusal aborts the query; callbacks are provisional.
+    /// Earlier implementations refuse rather than silently falling back to an unbounded or capped walk.
+    /// </summary>
+    /// <exception cref="RruleExpansionBudgetExceededException">The complete walk exceeds candidateLimit.</exception>
+    void VisitZonedOccurrences(string rrule, DateOnly start, TimeOnly startTime, string timezone,
+        DateOnly end, DateOnly requestedRangeStart, Action<DateOnly> visit, int candidateLimit = 50_000) =>
+        throw new NotSupportedException($"{GetType().Name} does not support budgeted timed visits.");
+
     /// <summary>
     /// Return all occurrence dates that fall within the configured
     /// window per the parsed <paramref name="rrule"/>.
