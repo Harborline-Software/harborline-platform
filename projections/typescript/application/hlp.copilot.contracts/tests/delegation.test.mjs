@@ -35,7 +35,7 @@ test('pilot-ck-17 pilot-ck-18: content cannot enter actor; oracle: five-member a
     delete record[member]
     assert.throws(() => contracts.parseDelegationRecord(record))
   }
-  for (const digest of ['secret', 'sha256:' + 'A'.repeat(64), 'sha256:' + '0'.repeat(63)]) {
+  for (const digest of ['secret', 'sha256:' + 'A'.repeat(64), 'sha256:' + '0'.repeat(63), 'sha256:' + '0'.repeat(64) + '\n']) {
     const record = structuredClone(cases.delegations[0])
     record.actor.proposal_digest = digest
     assert.throws(() => contracts.parseDelegationRecord(record))
@@ -85,4 +85,32 @@ test('pilot-ck-16: delegation exports add no receipt authority; oracle: runtime-
   assert.equal(contracts.mintReceipt, undefined)
   assert.equal(contracts.parseDispatchReceipt, undefined)
   assert.equal(contracts.serializeDispatchReceipt, undefined)
+})
+
+test('pilot-ck-15 pilot-ck-18: escaping and JSON-only arguments; oracle: RFC 8785 section 3.2.2.2', () => {
+  const proposal = cases.envelopes[0].value
+  assert.equal(contracts.serializeProposalCanonical({ ...proposal, args: '\u0001\b\t\n\f\r"\\\u2028😀' }),
+    '{"args":"\\u0001\\b\\t\\n\\f\\r\\"\\\\\u2028😀","command":"draft.edit","schema":"pilot.proposal/3","surface":"forms.builder"}')
+  const accessor = { get value() { throw new Error('must not be read') } }
+  const foreign = new Date()
+  const extraArray = [1]; extraArray.extra = 2
+  const hidden = {}; Object.defineProperty(hidden, 'value', { value: 1 })
+  const symbolic = { [Symbol('content')]: 'secret' }
+  const cycle = {}; cycle.self = cycle
+  for (const args of [accessor, foreign, extraArray, hidden, symbolic, cycle, Array(1)]) {
+    assert.throws(() => contracts.serializeProposalCanonical({ ...proposal, args }))
+  }
+})
+
+test('pilot-ck-21: exact UTC spelling and accessor refusal; oracle: shared UTC wire contract and ADR-0107', () => {
+  const approval = cases.standing_approvals[0]
+  for (const expires_at of ['2026-12-31T23:59:59+00:00', '2026-12-31T23:59:59.1234567Z']) {
+    assert.equal(contracts.parseStandingApproval({ ...approval, expires_at }).expires_at, expires_at)
+  }
+  for (const expires_at of ['2026-12-31T23:59:59.Z', '2026-12-31T23:59:59-00:00', '2026-12-31T23:59:59Z\n']) {
+    assert.throws(() => contracts.parseStandingApproval({ ...approval, expires_at }))
+  }
+  const commands = ['draft.edit']
+  Object.defineProperty(commands, '0', { get() { throw new Error('must not be read') }, enumerable: true })
+  assert.throws(() => contracts.parseStandingApproval({ ...approval, scope: { surface: 'forms.builder', commands } }), /invalid-args/)
 })

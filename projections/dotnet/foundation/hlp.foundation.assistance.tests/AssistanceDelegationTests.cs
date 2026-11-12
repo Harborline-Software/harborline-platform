@@ -67,7 +67,7 @@ public sealed class AssistanceDelegationTests
             record["actor"]![member] = "secret";
             Assert.Throws<JsonException>(() => AssistanceDelegationJson.Deserialize<AssistanceDelegationRecord>(record.ToJsonString()));
         }
-        foreach (var digest in new[] { "secret", "sha256:" + new string('A', 64), "sha256:" + new string('0', 63) })
+        foreach (var digest in new[] { "secret", "sha256:" + new string('A', 64), "sha256:" + new string('0', 63), "sha256:" + new string('0', 64) + "\n" })
         {
             var record = Fixture()["delegations"]![0]!.DeepClone();
             record["actor"]!["proposal_digest"] = digest;
@@ -127,6 +127,38 @@ public sealed class AssistanceDelegationTests
 
     [Fact(DisplayName = "pilot-ck-16: no .NET receipt wire type exists; oracle: runtime-identity-only receipt contract")]
     public void No_dispatch_receipt_wire_type() => Assert.DoesNotContain(typeof(AssistanceProposalEnvelope).Assembly.GetExportedTypes(), type => type.Name.Contains("DispatchReceipt", StringComparison.Ordinal));
+
+    [Fact(DisplayName = "pilot-ck-15 pilot-ck-18: control escaping and JSON-only arguments; oracle: RFC 8785 section 3.2.2.2")]
+    public void Canonical_escaping_and_invalid_json_values()
+    {
+        var proposal = AssistanceDelegationJson.Deserialize<AssistanceProposalEnvelope>(Fixture()["envelopes"]![0]!["value"]!.ToJsonString());
+        using var escaped = JsonDocument.Parse("\"\\u0001\\b\\t\\n\\f\\r\\\"\\\\\\u2028\\ud83d\\ude00\"");
+        Assert.Equal("{\"args\":\"\\u0001\\b\\t\\n\\f\\r\\\"\\\\\u2028😀\",\"command\":\"draft.edit\",\"schema\":\"pilot.proposal/3\",\"surface\":\"forms.builder\"}",
+            Encoding.UTF8.GetString(AssistanceDelegationJson.SerializeCanonical(proposal with { Args = escaped.RootElement.Clone() })));
+        foreach (var args in new[] { "{\"duplicate\":1,\"duplicate\":2}", "1e999" })
+        {
+            using var invalid = JsonDocument.Parse(args);
+            Assert.Throws<JsonException>(() => AssistanceDelegationJson.SerializeCanonical(proposal with { Args = invalid.RootElement.Clone() }));
+        }
+        Assert.Throws<JsonException>(() => AssistanceDelegationJson.SerializeCanonical(proposal with { Command = "\ud800" }));
+    }
+
+    [Fact(DisplayName = "pilot-ck-21: exact UTC spelling; oracle: shared UTC wire contract and ADR-0107")]
+    public void Standing_approval_utc_spelling_is_preserved_and_strict()
+    {
+        foreach (var instant in new[] { "2026-12-31T23:59:59+00:00", "2026-12-31T23:59:59.1234567Z" })
+        {
+            var approval = Fixture()["standing_approvals"]![0]!.DeepClone();
+            approval["expires_at"] = instant;
+            RoundTrip<AssistanceStandingApproval>(approval);
+        }
+        foreach (var instant in new[] { "2026-12-31T23:59:59.Z", "2026-12-31T23:59:59-00:00", "2026-12-31T23:59:59Z\n" })
+        {
+            var approval = Fixture()["standing_approvals"]![0]!.DeepClone();
+            approval["expires_at"] = instant;
+            Assert.Throws<JsonException>(() => AssistanceDelegationJson.Deserialize<AssistanceStandingApproval>(approval.ToJsonString()));
+        }
+    }
 
     private static void RoundTrip<T>(JsonNode source)
     {

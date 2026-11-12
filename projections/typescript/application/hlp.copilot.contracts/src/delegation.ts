@@ -25,12 +25,12 @@ export interface StandingApproval {
 }
 
 export function parseDelegationRecord(value: unknown): DelegationRecord {
-  const record = object(value, ['subject', 'actor', 'disposition'])
+  const record = object(freezeArgs(value), ['subject', 'actor', 'disposition'])
   let actor: DelegationActor | null = null
   if (record.actor !== null) {
     const source = object(record.actor, ['binding_key', 'binding_version', 'provider_id', 'model_version', 'proposal_digest'])
     const digest = text(source.proposal_digest)
-    if (!/^sha256:[0-9a-f]{64}$/.test(digest)) throw new TypeError('invalid-proposal-digest')
+    if (digest.length !== 71 || !/^sha256:[0-9a-f]{64}$/.test(digest)) throw new TypeError('invalid-proposal-digest')
     actor = { binding_key: text(source.binding_key), binding_version: text(source.binding_version),
       provider_id: text(source.provider_id), model_version: text(source.model_version), proposal_digest: digest }
   }
@@ -38,6 +38,7 @@ export function parseDelegationRecord(value: unknown): DelegationRecord {
 }
 
 export function parseDelegationDisposition(value: unknown): DelegationDisposition {
+  value = freezeArgs(value)
   const kind = value !== null && typeof value === 'object' ? Object.getOwnPropertyDescriptor(value, 'kind')?.value : undefined
   if (kind === 'approve' || kind === 'dismiss' || kind === 'clarify' || kind === 'reject') {
     object(value, ['kind'])
@@ -49,7 +50,7 @@ export function parseDelegationDisposition(value: unknown): DelegationDispositio
 }
 
 export function parseStandingApproval(value: unknown): StandingApproval {
-  const record = object(value, ['id', 'approver', 'binding_key', 'scope', 'schedule', 'expires_at', 'revoked_at'])
+  const record = object(freezeArgs(value), ['id', 'approver', 'binding_key', 'scope', 'schedule', 'expires_at', 'revoked_at'])
   return { id: text(record.id), approver: text(record.approver), binding_key: text(record.binding_key), scope: scope(record.scope),
     schedule: record.schedule === null ? null : text(record.schedule), expires_at: instant(record.expires_at),
     revoked_at: record.revoked_at === null ? null : instant(record.revoked_at) }
@@ -80,16 +81,14 @@ function scope(value: unknown): ApprovalScope {
 function instant(value: unknown): string {
   const result = text(value)
   const parsed = new Date(result)
-  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,7})?(?:Z|\+00:00)$/.test(result)
+  if (result !== result.trim() || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,7})?(?:Z|\+00:00)$/.test(result)
     || !Number.isFinite(parsed.getTime()) || parsed.toISOString().slice(0, 19) !== result.slice(0, 19)) throw new TypeError('required-utc-instant')
   return result
 }
 
 export function serializeProposalCanonical(proposal: ProposalEnvelope): string {
-  const snapshot = freezeArgs(proposal) as ProposalEnvelope
-  if (snapshot === null || typeof snapshot !== 'object' || Array.isArray(snapshot)
-    || Object.keys(snapshot).sort().join(',') !== 'args,command,schema,surface'
-    || snapshot.schema !== 'pilot.proposal/3' || typeof snapshot.surface !== 'string' || typeof snapshot.command !== 'string') {
+  const snapshot = object(proposal, ['args', 'command', 'schema', 'surface'])
+  if (snapshot.schema !== 'pilot.proposal/3' || typeof snapshot.surface !== 'string' || typeof snapshot.command !== 'string') {
     throw new TypeError('invalid-proposal-envelope')
   }
   return canonical(snapshot)
@@ -109,11 +108,23 @@ function canonical(value: unknown, depth = 0): string {
     return JSON.stringify(value)
   }
   if (typeof value === 'number' && Number.isFinite(value)) return JSON.stringify(value)
-  if (Array.isArray(value)) return '[' + Array.from(value, item => canonical(item, depth + 1)).join(',') + ']'
+  if (Array.isArray(value)) {
+    if (Object.keys(value).length !== value.length || Reflect.ownKeys(value).length !== value.length + 1) throw new TypeError('invalid-json-array')
+    return '[' + Object.keys(value).map((key, index) => {
+      const descriptor = Object.getOwnPropertyDescriptor(value, key)!
+      if (key !== String(index) || !('value' in descriptor)) throw new TypeError('invalid-json-array')
+      return canonical(descriptor.value, depth + 1)
+    }).join(',') + ']'
+  }
   if (typeof value === 'object' && value !== null) {
     const keys = Object.keys(value).sort()
-    if (Reflect.ownKeys(value).length !== keys.length) throw new TypeError('invalid-json-members')
-    return '{' + keys.map(key => canonical(key, depth + 1) + ':' + canonical((value as Record<string, unknown>)[key], depth + 1)).join(',') + '}'
+    if ((Object.getPrototypeOf(value) !== Object.prototype && Object.getPrototypeOf(value) !== null)
+      || Reflect.ownKeys(value).length !== keys.length) throw new TypeError('invalid-json-members')
+    return '{' + keys.map(key => {
+      const descriptor = Object.getOwnPropertyDescriptor(value, key)!
+      if (!('value' in descriptor)) throw new TypeError('invalid-json-member')
+      return canonical(key, depth + 1) + ':' + canonical(descriptor.value, depth + 1)
+    }).join(',') + '}'
   }
   throw new TypeError('invalid-json-value')
 }

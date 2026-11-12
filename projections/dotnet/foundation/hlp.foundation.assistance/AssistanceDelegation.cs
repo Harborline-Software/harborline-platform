@@ -3,11 +3,32 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Text.RegularExpressions;
 
 namespace Harborline.Foundation.Assistance;
 
 /// <summary>The untrusted pilot.proposal/3 wire envelope, never a dispatch receipt.</summary>
 public sealed record AssistanceProposalEnvelope(string Schema, string Surface, string Command, JsonElement Args);
+
+/// <summary>Identifies the composing binding and proposal digest, never proposal content or context.</summary>
+public sealed record AssistanceDelegationActor(string BindingKey, string BindingVersion, string ProviderId, string ModelVersion, string ProposalDigest);
+
+/// <summary>The surface and nonempty command scope covered by an approval.</summary>
+public sealed record AssistanceApprovalScope(string Surface, IReadOnlyList<string> Commands);
+
+/// <summary>A per-act decision or the standing approval covering the act.</summary>
+public sealed record AssistanceDisposition(
+    string Kind,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? ApprovalId = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Approver = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] AssistanceApprovalScope? Scope = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? ExpiresAt = null);
+
+/// <summary>Distinguishes delegated acts from hand-performed acts, whose actor is null.</summary>
+public sealed record AssistanceDelegationRecord(string Subject, AssistanceDelegationActor? Actor, AssistanceDisposition Disposition);
+
+/// <summary>A user-owned scoped approval; expiry and revocation coverage are checked at act time, never in a pack.</summary>
+public sealed record AssistanceStandingApproval(string Id, string Approver, string BindingKey, AssistanceApprovalScope Scope, string? Schedule, string ExpiresAt, string? RevokedAt);
 
 /// <summary>Computes a content digest without carrying proposal content into a delegation actor.</summary>
 public static class AssistanceProposalDigest
@@ -32,8 +53,14 @@ public static class AssistanceDelegationJson
     /// <summary>Deserializes a supported wire shape and refuses invalid or unknown members.</summary>
     public static T Deserialize<T>(string json)
     {
+        using var document = JsonDocument.Parse(json);
+        Canonical(document.RootElement);
         var value = JsonSerializer.Deserialize<T>(json, Options) ?? throw new JsonException("A wire value is required.");
         Validate(value);
+        var disposition = value is AssistanceDelegationRecord ? document.RootElement.GetProperty("disposition") : document.RootElement;
+        if ((value is AssistanceDisposition || value is AssistanceDelegationRecord)
+            && disposition.GetProperty("kind").GetString() != "standing" && disposition.EnumerateObject().Count() != 1)
+            throw new JsonException("A per-act disposition carries only kind.");
         return value;
     }
 
@@ -46,15 +73,66 @@ public static class AssistanceDelegationJson
 
     private static void Validate(object? value)
     {
-        if (value is not AssistanceProposalEnvelope proposal || proposal.Schema != "pilot.proposal/3"
-            || proposal.Surface is null || proposal.Command is null || proposal.Args.ValueKind == JsonValueKind.Undefined)
-            throw new JsonException("Invalid proposal envelope.");
+        switch (value)
+        {
+            case AssistanceProposalEnvelope proposal:
+                if (proposal.Schema != "pilot.proposal/3" || proposal.Surface is null || proposal.Command is null || proposal.Args.ValueKind == JsonValueKind.Undefined)
+                    throw new JsonException("Invalid proposal envelope.");
+                Quote(proposal.Surface);
+                Quote(proposal.Command);
+                break;
+            case AssistanceDelegationActor actor:
+                Text(actor.BindingKey); Text(actor.BindingVersion); Text(actor.ProviderId); Text(actor.ModelVersion);
+                if (actor.ProposalDigest is null || !Regex.IsMatch(actor.ProposalDigest, @"\Asha256:[0-9a-f]{64}\z", RegexOptions.CultureInvariant))
+                    throw new JsonException("Invalid proposal digest.");
+                break;
+            case AssistanceApprovalScope scope:
+                Text(scope.Surface);
+                if (scope.Commands is null || scope.Commands.Count == 0) throw new JsonException("Scope commands are required.");
+                foreach (var command in scope.Commands) Text(command);
+                break;
+            case AssistanceDisposition disposition:
+                if (disposition.Kind == "standing")
+                {
+                    Text(disposition.ApprovalId); Text(disposition.Approver); Validate(disposition.Scope); Instant(disposition.ExpiresAt);
+                }
+                else if (disposition.Kind is not ("approve" or "dismiss" or "clarify" or "reject")
+                    || disposition.ApprovalId is not null || disposition.Approver is not null || disposition.Scope is not null || disposition.ExpiresAt is not null)
+                    throw new JsonException("Invalid disposition.");
+                break;
+            case AssistanceDelegationRecord record:
+                Text(record.Subject);
+                if (record.Actor is not null) Validate(record.Actor);
+                Validate(record.Disposition);
+                break;
+            case AssistanceStandingApproval approval:
+                Text(approval.Id); Text(approval.Approver); Text(approval.BindingKey); Validate(approval.Scope); Instant(approval.ExpiresAt);
+                if (approval.Schedule is not null) Text(approval.Schedule);
+                if (approval.RevokedAt is not null) Instant(approval.RevokedAt);
+                break;
+            default:
+                throw new JsonException("A supported wire value is required.");
+        }
+    }
+
+    private static void Text(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) throw new JsonException("A nonempty wire string is required.");
+        Quote(value);
+    }
+
+    private static void Instant(string? value)
+    {
+        if (value is null || !Regex.IsMatch(value, @"\A[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\.[0-9]{1,7})?(?:Z|\+00:00)\z", RegexOptions.CultureInvariant)
+            || !DateTimeOffset.TryParseExact(value,
+            ["yyyy-MM-dd'T'HH:mm:ss'Z'", "yyyy-MM-dd'T'HH:mm:ss.FFFFFFF'Z'", "yyyy-MM-dd'T'HH:mm:sszzz", "yyyy-MM-dd'T'HH:mm:ss.FFFFFFFzzz"],
+            CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var instant) || instant.Offset != TimeSpan.Zero)
+            throw new JsonException("A UTC ISO 8601 instant is required.");
     }
 
     private static string Canonical(JsonElement value) => value.ValueKind switch
     {
-        JsonValueKind.Object => "{" + string.Join(",", value.EnumerateObject().OrderBy(property => property.Name, StringComparer.Ordinal)
-            .Select(property => Quote(property.Name) + ":" + Canonical(property.Value))) + "}",
+        JsonValueKind.Object => CanonicalObject(value),
         JsonValueKind.Array => "[" + string.Join(",", value.EnumerateArray().Select(Canonical)) + "]",
         JsonValueKind.String => Quote(value.GetString()!),
         JsonValueKind.Number => Number(value.GetDouble()),
@@ -63,6 +141,14 @@ public static class AssistanceDelegationJson
         JsonValueKind.Null => "null",
         _ => throw new JsonException("Invalid JSON value."),
     };
+
+    private static string CanonicalObject(JsonElement value)
+    {
+        var members = value.EnumerateObject().OrderBy(property => property.Name, StringComparer.Ordinal).ToArray();
+        if (members.Select(property => property.Name).Distinct(StringComparer.Ordinal).Count() != members.Length)
+            throw new JsonException("Duplicate JSON members refuse.");
+        return "{" + string.Join(",", members.Select(property => Quote(property.Name) + ":" + Canonical(property.Value))) + "}";
+    }
 
     private static string Quote(string value)
     {
@@ -92,10 +178,10 @@ public static class AssistanceDelegationJson
         if (!double.IsFinite(value)) throw new JsonException("A finite JSON number is required.");
         if (value == 0) return "0";
         var text = Math.Abs(value).ToString("R", CultureInfo.InvariantCulture);
-        var exponentIndex = text.IndexOf('E');
+        var exponentIndex = text.IndexOf('E', StringComparison.Ordinal);
         var exponent = exponentIndex < 0 ? 0 : int.Parse(text[(exponentIndex + 1)..], CultureInfo.InvariantCulture);
         var mantissa = exponentIndex < 0 ? text : text[..exponentIndex];
-        var point = mantissa.IndexOf('.');
+        var point = mantissa.IndexOf('.', StringComparison.Ordinal);
         var fractionLength = point < 0 ? 0 : mantissa.Length - point - 1;
         var digits = mantissa.Replace(".", "", StringComparison.Ordinal).TrimStart('0');
         var significant = digits.TrimEnd('0');
