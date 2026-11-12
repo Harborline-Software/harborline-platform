@@ -1511,7 +1511,7 @@ public sealed class InMemoryContentStore
     private async ValueTask<WriteOutcome> RunAsync(ContentStoreOperation operation, ContentStoreWrite write,
         Func<IContentBookkeepingSession, CancellationToken, ValueTask<bool>> writes, CancellationToken cancellationToken)
     {
-        var command = new KernelCommand<ContentStoreOperation>(write.Operation, operation, write.Audit with { OriginatorId = write.Originator });
+        var command = new KernelCommand<ContentStoreOperation>(write.Operation, operation, write.Audit with { OriginatorId = write.Originator ?? write.Audit.OriginatorId });
         if (write.Transaction is { } session)
         {
             var joined = new JoinedWrite(session, writes);

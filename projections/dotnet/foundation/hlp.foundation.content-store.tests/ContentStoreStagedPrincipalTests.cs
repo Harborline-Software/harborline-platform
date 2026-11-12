@@ -59,6 +59,31 @@ public sealed class ContentStoreStagedPrincipalTests
     }
 
     [Fact]
+    public async Task Existing_audit_originator_is_preserved_but_does_not_grant_stage_ownership()
+    {
+        var storage = new InMemoryContentStoreStorage();
+        var store = Store(storage);
+        var alices = await store.PutAsync(new("tenant-a"), new MemoryStream("alice"u8.ToArray()), "text/plain", null,
+            ContentStoreWriteEvidence.New("alice"));
+        ContentStoreWrite Worker()
+        {
+            var write = ContentStoreWriteEvidence.New("sys.records-worker");
+            return write with { Audit = write.Audit with { OriginatorId = "alice" } };
+        }
+        var refused = await Assert.ThrowsAsync<ContentRefusedException>(async () => await store.CommitReferenceAsync(
+            new("tenant-a"), alices, new("record", "evidence"), "alice.txt", Worker()));
+        Assert.Equal("content.staging-expired", refused.Code);
+        var own = await store.PutAsync(new("tenant-a"), new MemoryStream("worker"u8.ToArray()), "text/plain", null, Worker());
+        await store.CommitReferenceAsync(new("tenant-a"), own, new("record", "evidence"), "worker.txt", Worker());
+        var audits = ((InMemoryContentBookkeeping)storage.Bookkeeping).Snapshot().Audits
+            .Where(audit => audit.ActorId == "sys.records-worker").ToArray();
+        Assert.Equal(2, audits.Length);
+        Assert.All(audits, audit => Assert.Equal("alice", audit.OriginatorId));
+        Assert.Equal(1, store.StagedCount);
+        Assert.Equal(1, store.CommittedCount);
+    }
+
+    [Fact]
     public async Task Committed_stage_is_single_use_even_for_the_same_principal()
     {
         var store = Store(new());
