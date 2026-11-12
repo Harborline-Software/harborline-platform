@@ -8,6 +8,34 @@ namespace Harborline.Blocks.Workflow.Tests;
 public sealed class WorkflowMigrationTests
 {
     [Fact]
+    public async Task Publishing_a_version_never_moves_a_run_but_an_authorized_explicit_migration_repins_it()
+    {
+        using var fixture = new JournalFixture();
+        using var store = fixture.Open();
+        var definitions = new InMemoryWorkflowDefinitionStore();
+        var authored = JsonElement.Parse("{\"initialState\":\"new\",\"states\":[{\"id\":\"new\",\"kind\":\"Terminal\"}]}");
+        await definitions.RegisterAsync(new WorkflowDefinition
+        {
+            Tenant = "tenant-1", Key = "flow", Version = "2.0.0", InitialState = "new",
+            States = [new WorkflowStateDef { Id = "new", Kind = WorkflowStateKind.Terminal }],
+        }, authored);
+        await store.CreateInstanceAsync(new WorkflowInstanceRecord
+        {
+            Id = "run-1", TenantId = "tenant-1", DefinitionKey = "flow", DefinitionVersion = "1.0.0",
+            CurrentStep = "old", Status = WorkflowStatus.Parked,
+        });
+        await definitions.PublishAsync("tenant-1", "flow", "2.0.0");
+        Assert.Equal("1.0.0", (await store.LoadAsync("run-1"))!.DefinitionVersion);
+        Assert.Equal("old", (await store.LoadAsync("run-1"))!.CurrentStep);
+        Assert.Empty(await store.EventsAsync("run-1"));
+        await new WorkflowMigration(store, definitions).MigrateAsync("run-1", "2.0.0",
+            new Dictionary<string, string> { ["old"] = "new" },
+            new WorkflowMigrationAuthority("operator-1", "tenant-1", "workflow:migrate", "workflow-instance", "run-1", true));
+        Assert.Equal("2.0.0", (await store.LoadAsync("run-1"))!.DefinitionVersion);
+        Assert.Equal("new", (await store.LoadAsync("run-1"))!.CurrentStep);
+    }
+
+    [Fact]
     public async Task Migration_refuses_if_the_instance_changes_while_the_target_is_loaded_even_at_the_same_clock_instant()
     {
         using var fixture = new JournalFixture();
