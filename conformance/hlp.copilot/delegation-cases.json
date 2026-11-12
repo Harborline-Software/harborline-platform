@@ -18,5 +18,37 @@
       "canonical": "{\"args\":{},\"command\":\"draft.edit\",\"schema\":\"pilot.proposal/3\",\"surface\":\"forms.builder\"}",
       "digest": "sha256:e9090668397c0ecf3bb91cd8bff3a980aa81b3d5755148a6c4566172d95b0aea"
     }
+  ],
+  "delegations": [
+    {
+      "subject": "alice",
+      "actor": { "binding_key": "assistance.forms", "binding_version": "1.0.0", "provider_id": "provider-a", "model_version": "model-2026-11", "proposal_digest": "sha256:52b37c016567d4f433f827bcd50db4248ac4855e7fec27b4ef4b10adbaaa967b" },
+      "disposition": { "kind": "approve" }
+    },
+    {
+      "subject": "alice",
+      "actor": { "binding_key": "assistance.forms", "binding_version": "1.0.0", "provider_id": "provider-a", "model_version": "model-2026-11", "proposal_digest": "sha256:52b37c016567d4f433f827bcd50db4248ac4855e7fec27b4ef4b10adbaaa967b" },
+      "disposition": { "kind": "dismiss" }
+    },
+    {
+      "subject": "alice",
+      "actor": { "binding_key": "assistance.forms", "binding_version": "1.0.0", "provider_id": "provider-a", "model_version": "model-2026-11", "proposal_digest": "sha256:52b37c016567d4f433f827bcd50db4248ac4855e7fec27b4ef4b10adbaaa967b" },
+      "disposition": { "kind": "clarify" }
+    },
+    {
+      "subject": "alice",
+      "actor": { "binding_key": "assistance.forms", "binding_version": "1.0.0", "provider_id": "provider-a", "model_version": "model-2026-11", "proposal_digest": "sha256:52b37c016567d4f433f827bcd50db4248ac4855e7fec27b4ef4b10adbaaa967b" },
+      "disposition": { "kind": "reject" }
+    },
+    {
+      "subject": "alice",
+      "actor": { "binding_key": "assistance.forms", "binding_version": "1.0.0", "provider_id": "provider-a", "model_version": "model-2026-11", "proposal_digest": "sha256:52b37c016567d4f433f827bcd50db4248ac4855e7fec27b4ef4b10adbaaa967b" },
+      "disposition": { "kind": "standing", "approval_id": "approval-a", "approver": "alice", "scope": { "surface": "forms.builder", "commands": ["draft.edit"] }, "expires_at": "2026-12-31T23:59:59Z" }
+    },
+    { "subject": "alice", "actor": null, "disposition": { "kind": "approve" } }
+  ],
+  "standing_approvals": [
+    { "id": "approval-a", "approver": "alice", "binding_key": "assistance.forms", "scope": { "surface": "forms.builder", "commands": ["draft.edit"] }, "schedule": "FREQ=WEEKLY;BYDAY=MO,WE", "expires_at": "2026-12-31T23:59:59Z", "revoked_at": null },
+    { "id": "approval-b", "approver": "bob", "binding_key": "assistance.forms", "scope": { "surface": "forms.builder", "commands": ["draft.edit"] }, "schedule": null, "expires_at": "2026-12-31T23:59:59Z", "revoked_at": "2026-11-01T12:00:00Z" }
   ]
 }
