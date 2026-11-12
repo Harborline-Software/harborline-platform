@@ -18,6 +18,33 @@ namespace Harborline.Blocks.Workflow.Tests;
 /// </summary>
 public sealed class FileJournalWorkflowStoreTests
 {
+    [Fact]
+    public async Task Migration_position_state_and_history_survive_journal_restart()
+    {
+        using var fixture = new JournalFixture();
+        using (var store = fixture.Open())
+        {
+            var instance = new WorkflowInstanceRecord
+            {
+                Id = "migration-restart", TenantId = "tenant-1", DefinitionKey = "flow", DefinitionVersion = "1.0.0",
+                CurrentStep = "old", Status = WorkflowStatus.Parked, StateJson = "{\"due\":\"2026-11-12T12:00:00Z\",\"correlation\":\"c-1\"}",
+            };
+            await store.CreateInstanceAsync(instance);
+            await store.MigrateAsync(instance, "2.0.0", "new", "{\"principal\":\"operator\"}");
+        }
+        using var reopened = fixture.Open();
+        var run = (await reopened.LoadAsync("migration-restart"))!;
+        Assert.Equal("2.0.0", run.DefinitionVersion);
+        Assert.Equal("new", run.CurrentStep);
+        Assert.Equal(WorkflowStatus.Parked, run.Status);
+        Assert.Equal("{\"due\":\"2026-11-12T12:00:00Z\",\"correlation\":\"c-1\"}", run.StateJson);
+        Assert.True(run.HasMigrated);
+        Assert.Equal(1, run.MigrationGeneration);
+        var entry = Assert.Single(await reopened.EventsAsync("migration-restart"));
+        Assert.Equal("Migrated", entry.EventType);
+        Assert.Equal("{\"principal\":\"operator\"}", entry.DataJson);
+    }
+
     private static WorkflowDispatchAuthority Authorized(string instanceId) => new(
         "user:operator", "tenant:acme", WorkflowDispatchAuthority.RequiredOperation,
         WorkflowDispatchAuthority.RequiredRecordKind, instanceId, Allowed: true);
