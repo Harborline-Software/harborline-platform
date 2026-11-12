@@ -13,6 +13,58 @@ namespace Harborline.Foundation.FieldRuntime.Tests;
 
 public sealed class AttachmentFieldRuntimeTests
 {
+    [Theory]
+    [InlineData("null")]
+    [InlineData("{}")]
+    [InlineData("{\"stage_id\":\"11111111-1111-1111-1111-111111111111\",\"display_name\":\" \"}")]
+    [InlineData("{\"content_id\":\"bad\"}")]
+    public async Task Malformed_entry_after_duplicate_ids_takes_no_row_locks(string malformed)
+    {
+        var f = new Fixture();
+        var stage = await f.Upload("one");
+        var kept = await f.Write(JsonSerializer.SerializeToElement(new[] { new { stage_id = await f.Upload("two"), display_name = "two.txt" } }));
+        var valid = JsonSerializer.SerializeToElement(new[] { new { stage_id = stage, display_name = "one.txt" } });
+        await using var transaction = await f.Storage.Bookkeeping.BeginTransactionAsync();
+        var session = DispatchProxy.Create<IContentBookkeepingSession, LockCountingSession>();
+        var counter = (LockCountingSession)session;
+        counter.Inner = transaction;
+        var entries = JsonSerializer.SerializeToElement(new JsonArray(
+            JsonNode.Parse(valid[0].GetRawText()), JsonNode.Parse(valid[0].GetRawText()),
+            kept[0]!.DeepClone(), kept[0]!.DeepClone(), JsonNode.Parse(malformed)));
+
+        var error = await Assert.ThrowsAsync<FieldAdmissionException>(async () =>
+            await f.Runtime.LockEntriesAsync([valid, entries], new("tenant"), Evidence(session)));
+        Assert.Equal("field.value_type_mismatch", Assert.Single(error.Refusals).Code);
+        Assert.Equal(0, counter.Locks);
+    }
+
+    [Fact]
+    public async Task Duplicate_ids_across_lists_lock_each_row_once()
+    {
+        var f = new Fixture();
+        var stage = await f.Upload("one");
+        var entries = JsonSerializer.SerializeToElement(new[] {
+            new { stage_id = stage, display_name = "one.txt" },
+            new { stage_id = stage, display_name = "again.txt" } });
+        await using var transaction = await f.Storage.Bookkeeping.BeginTransactionAsync();
+        var session = DispatchProxy.Create<IContentBookkeepingSession, LockCountingSession>();
+        var counter = (LockCountingSession)session;
+        counter.Inner = transaction;
+        await f.Runtime.LockEntriesAsync([entries, entries], new("tenant"), Evidence(session));
+        Assert.Equal(2, counter.Locks); // One stage row, then its content row.
+    }
+
+    public class LockCountingSession : DispatchProxy
+    {
+        public IContentBookkeepingSession Inner { get; set; } = null!;
+        public int Locks { get; private set; }
+        protected override object? Invoke(MethodInfo? targetMethod, object?[]? args)
+        {
+            if (targetMethod!.Name is "FindStagedForUpdateAsync" or "FindItemForUpdateAsync") Locks++;
+            return targetMethod.Invoke(Inner, args);
+        }
+    }
+
     [Fact]
     public async Task Ordered_mixed_write_keeps_reference_metadata_and_put_enforces_the_field_limit()
     {

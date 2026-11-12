@@ -71,17 +71,10 @@ internal sealed class AttachmentFieldKind : ICompiledAttachmentFieldKind
 
     public IReadOnlyList<FieldRefusal> Validate(JsonElement value, string jsonPointer)
     {
-        string id = string.Empty, media = string.Empty;
-        long length = 0;
-        if (!ObjectWith(value, ["content_id", "length", "media_type", "display_name", "owner"])
-            || !Text(value, "content_id", out id) || id.Length != 76 || !id.StartsWith("hmac-sha256:", StringComparison.Ordinal)
-            || id.AsSpan(12).ContainsAnyExcept("0123456789abcdef")
-            || value.GetProperty("length").ValueKind != JsonValueKind.Number
-            || !value.GetProperty("length").TryGetInt64(out length) || length < 0
-            || !Text(value, "media_type", out media) || !Text(value, "display_name", out _)
-            || !ObjectWith(value.GetProperty("owner"), ["record", "element"])
-            || !Text(value.GetProperty("owner"), "record", out _) || !Text(value.GetProperty("owner"), "element", out _))
+        if (!HasReferenceShape(value))
             return [new("field.value_type_mismatch", jsonPointer, "An attachment value must be a content reference.")];
+        var media = value.GetProperty("media_type").GetString()!;
+        var length = value.GetProperty("length").GetInt64();
         if (length > EffectiveLimitBytes)
             return [new("content.too-large", jsonPointer, "The item exceeds the effective field size limit.")];
         return AcceptedMediaTypes.Contains(media, StringComparer.Ordinal) ? []
@@ -90,11 +83,27 @@ internal sealed class AttachmentFieldKind : ICompiledAttachmentFieldKind
 
     public IReadOnlyList<FieldRefusal> ValidateSubmission(JsonElement value, string jsonPointer)
     {
-        if (value.ValueKind == JsonValueKind.Object && value.TryGetProperty("stage_id", out var stage))
-            return ObjectWith(value, ["stage_id", "display_name"]) && stage.ValueKind == JsonValueKind.String
-                && stage.TryGetGuid(out _) && Text(value, "display_name", out _) ? []
+        if (value.ValueKind == JsonValueKind.Object && value.TryGetProperty("stage_id", out _))
+            return HasStageShape(value) ? []
                 : [new("field.value_type_mismatch", jsonPointer, "A staged entry carries exactly a stage id and a display name.")];
         return Validate(value, jsonPointer);
+    }
+
+    internal static bool HasStageShape(JsonElement value) => ObjectWith(value, ["stage_id", "display_name"]) && value.GetProperty("stage_id").ValueKind == JsonValueKind.String
+                && value.GetProperty("stage_id").TryGetGuid(out _) && Text(value, "display_name", out _);
+
+    internal static bool HasReferenceShape(JsonElement value)
+    {
+        string id = string.Empty, media = string.Empty;
+        long length = 0;
+        return ObjectWith(value, ["content_id", "length", "media_type", "display_name", "owner"])
+            && Text(value, "content_id", out id) && id.Length == 76 && id.StartsWith("hmac-sha256:", StringComparison.Ordinal)
+            && !id.AsSpan(12).ContainsAnyExcept("0123456789abcdef")
+            && value.GetProperty("length").ValueKind == JsonValueKind.Number
+            && value.GetProperty("length").TryGetInt64(out length) && length >= 0
+            && Text(value, "media_type", out media) && Text(value, "display_name", out _)
+            && ObjectWith(value.GetProperty("owner"), ["record", "element"])
+            && Text(value.GetProperty("owner"), "record", out _) && Text(value.GetProperty("owner"), "element", out _);
     }
 
     public IReadOnlyList<FieldRefusal> ValidateJson(string json, string jsonPointer)

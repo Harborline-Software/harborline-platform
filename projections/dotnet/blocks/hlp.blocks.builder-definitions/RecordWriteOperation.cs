@@ -1428,7 +1428,12 @@ public sealed class RecordWriteOperation
                 { AuthoritySnapshot = AuthoritySnapshotOf(evidence) }, session);
             // Every row this write promotes or keeps is locked first, across all its fields, in one canonical order, so two
             // writes naming the same content in opposite orders cannot wait on each other (content-store-cc-2).
-            await Attachments.LockEntriesAsync([.. lists.Select(list => list.Entries)], contentTenant, Write(), cancellationToken).ConfigureAwait(false);
+            try
+            {
+                await Attachments.LockEntriesAsync([.. lists.Select(list => list.Entries)], contentTenant, Write(), cancellationToken).ConfigureAwait(false);
+            }
+            catch (FieldAdmissionException)
+            { throw new RefusedWriteException(new(ValidateStage, BodyInvalid, [.. lists.Select(list => list.Pointer)])); }
             foreach (var (fieldKey, attachment, entries, pointer) in lists)
             {
                 try

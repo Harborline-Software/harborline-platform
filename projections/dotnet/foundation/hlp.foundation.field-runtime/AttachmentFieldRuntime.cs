@@ -69,7 +69,7 @@ public sealed class AttachmentFieldRuntime(InMemoryContentStore store)
     /// Locks, in the enclosing transaction, every row the given write lists will promote or keep, in one canonical order:
     /// staged rows by stage id, then committed rows by content id, both ordinal. That matches the store's own order (a
     /// promotion and a rewrap lock staged before committed), so two writes naming the same content in opposite orders, in
-    /// one field or across fields, cannot deadlock. Malformed entries are left for resolution to refuse; another tenant's
+    /// one field or across fields, cannot deadlock. Every entry is shape-checked before any row lock; another tenant's
     /// stage contributes no content row. Row locks are re-entrant, so resolution re-reads the same rows.
     /// </summary>
     public async ValueTask LockEntriesAsync(IReadOnlyList<JsonElement> lists, TenantId tenant, ContentStoreWrite evidence,
@@ -79,16 +79,24 @@ public sealed class AttachmentFieldRuntime(InMemoryContentStore store)
         var session = evidence.Transaction ?? throw new ArgumentException("Attachment resolution requires the Records transaction.", nameof(evidence));
         var stages = new SortedSet<string>(StringComparer.Ordinal);
         var contents = new SortedSet<string>(StringComparer.Ordinal);
-        foreach (var entry in lists.Where(list => list.ValueKind == JsonValueKind.Array).SelectMany(list => list.EnumerateArray()))
+        foreach (var list in lists)
         {
-            if (entry.ValueKind != JsonValueKind.Object) continue;
-            if (entry.TryGetProperty("stage_id", out var stage))
+            cancellationToken.ThrowIfCancellationRequested();
+            if (list.ValueKind != JsonValueKind.Array) throw Invalid();
+            foreach (var entry in list.EnumerateArray())
             {
-                if (stage.ValueKind == JsonValueKind.String && stage.TryGetGuid(out var stageId)) stages.Add(stageId.ToString("N"));
+                cancellationToken.ThrowIfCancellationRequested();
+                if (entry.ValueKind == JsonValueKind.Object && entry.TryGetProperty("stage_id", out var stage))
+                {
+                    if (!AttachmentFieldKind.HasStageShape(entry)) throw Invalid();
+                    stages.Add(stage.GetGuid().ToString("N"));
+                }
+                else
+                {
+                    if (!AttachmentFieldKind.HasReferenceShape(entry)) throw Invalid();
+                    contents.Add(entry.GetProperty("content_id").GetString()!);
+                }
             }
-            else if (entry.TryGetProperty("content_id", out var content) && content.ValueKind == JsonValueKind.String
-                && !string.IsNullOrWhiteSpace(content.GetString()))
-                contents.Add(content.GetString()!);
         }
         foreach (var stage in stages)
         {
