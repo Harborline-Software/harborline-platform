@@ -283,6 +283,29 @@ public sealed class AttachmentWriteTests
     }
 
     [Theory]
+    [InlineData("create")]
+    [InlineData("accepted")]
+    [InlineData("temporal")]
+    public async Task An_unbindable_calculated_kind_refuses_at_the_field_pointer_and_rolls_back(string path)
+    {
+        var calculation = new NamedCalculation("empty-proof", "1.0.0", "[]");
+        var fixture = await Fixture.CreateWithUnbindableCalculatedKind(calculation, path);
+        var body = new JsonObject();
+        var result = path == "accepted"
+            ? await fixture.Operation.CompleteAcceptedAsync(new("tenant-a", "sys.records-worker"), Accepted("alice", body))
+            : await fixture.WriteEither(path == "temporal", "bad-write-binding", body);
+        Assert.False(result.Committed);
+        Assert.Equal("validate", result.Refusal!.Stage);
+        Assert.Equal("entity.validation.body_invalid", result.Refusal.Code);
+        Assert.Equal(["/proof~1~0"], result.Refusal.Pointers);
+        Assert.Empty(result.Refusal.Detail);
+        Assert.Empty(fixture.Port.Rows);
+        Assert.Equal(1, fixture.Port.Rollbacks);
+        Assert.Equal(0, fixture.Store.CommittedCount);
+        Assert.Equal(0, fixture.Store.StagedCount);
+    }
+
+    [Theory]
     [InlineData(false)]
     [InlineData(true)]
     public async Task Caller_mutation_after_hashing_cannot_change_the_promoted_stage(bool accepted)
@@ -798,7 +821,7 @@ public sealed class AttachmentWriteTests
         public Port Port { get; }
         public RecordWriteOperation Operation { get; }
         public RecordTypePublication Publication { get; }
-        private Fixture(bool condition, bool composeRuntime, bool exposeSession, string fieldKey, bool temporalMode, string? conditionJson = null, bool formOnly = false, string? statusCondition = null, long fieldLimit = 200, NamedCalculation? calculation = null, bool attachmentResult = false)
+        private Fixture(bool condition, bool composeRuntime, bool exposeSession, string fieldKey, bool temporalMode, string? conditionJson = null, bool formOnly = false, string? statusCondition = null, long fieldLimit = 200, NamedCalculation? calculation = null, bool attachmentResult = false, bool failWriteBinding = false)
         {
             Store = new(new(100, 1000, 10000, TimeSpan.FromHours(1)), new Keys(), TimeProvider.System, Storage);
             Runtime = new(Store);
@@ -829,10 +852,14 @@ public sealed class AttachmentWriteTests
                 ClassId: "eam.equipment", RecordClass: RecordClass.Master, PackageId: "eam-core", CreationGate: formOnly ? RecordCreationGate.FormOnly : RecordCreationGate.Role, CreationRoleId: formOnly ? null : "asset-author") { AmendmentPolicy = new(true) { Mode = temporalMode ? RecordAmendmentMode.Supersession : null } }, "type").AsTask().GetAwaiter().GetResult();
             Publication = Records.PublishAsync("tenant-a", "eam.evidence", "1.0.0", 1, "publish").AsTask().GetAwaiter().GetResult();
             Port = new(Storage.Bookkeeping) { ExposeSession = exposeSession };
-            Operation = new(new AccessProvider(new Gate()), Records, Registry, Port, Port, TimeProvider.System, kinds, RecordWriteFieldRuntimeTests.FixtureDomains(TimeProvider.System), Port, Port, Port) { Attachments = composeRuntime ? Runtime : null, Calculations = calculation is null ? null : new([], [calculation]) };
+            var writeKinds = failWriteBinding ? new FieldKindRuntime(new FieldKindRegistry([new("attachment", "1.0.0", null, FieldScalarValueShape.ContentReference)])) : kinds;
+            Operation = new(new AccessProvider(new Gate()), Records, Registry, Port, Port, TimeProvider.System, writeKinds, RecordWriteFieldRuntimeTests.FixtureDomains(TimeProvider.System), Port, Port, Port) { Attachments = composeRuntime ? Runtime : null, Calculations = calculation is null ? null : new([], [calculation]) };
         }
         public static Task<Fixture> CreateWithCalculation(NamedCalculation calculation, bool temporalMode, bool attachmentResult = false, bool addDocuments = false) =>
             Task.FromResult(new Fixture(false, true, true, "evidence", temporalMode, conditionJson: addDocuments ? """{"==":[1,2]}""" : null, calculation: calculation, attachmentResult: attachmentResult));
+        public static Task<Fixture> CreateWithUnbindableCalculatedKind(NamedCalculation calculation, string path) =>
+            Task.FromResult(new Fixture(false, true, true, "proof/~", path == "temporal", formOnly: path == "accepted",
+                calculation: calculation, attachmentResult: true, failWriteBinding: true));
         public static Task<Fixture> CreateFormOnly() => Task.FromResult(new Fixture(false, true, true, "evidence", false, formOnly: true));
         public static Task<Fixture> CreateWithStatusCondition(string statusCondition) => Task.FromResult(new Fixture(false, true, true, "evidence", false, statusCondition: statusCondition));
         public ValueTask<Guid> UploadAs(string text, string actor) => Runtime.PutAsync(Attachment, new("tenant-a"), "evidence", new MemoryStream(Encoding.UTF8.GetBytes(text)), "text/plain", null, Evidence(actor: actor));

@@ -1490,7 +1490,11 @@ public sealed class RecordWriteOperation
         {
             if (field.Calculation is null || field.Binding is not { } binding) continue;
             var pointer = "/" + field.FieldKey.Replace("~", "~0", StringComparison.Ordinal).Replace("/", "~1", StringComparison.Ordinal);
-            if (_fieldKinds.Bind(binding.Kind, pointer) is not ICompiledAttachmentFieldKind attachment) continue;
+            ICompiledAttachmentFieldKind? attachment;
+            try { attachment = _fieldKinds.Bind(binding.Kind, pointer) as ICompiledAttachmentFieldKind; }
+            catch (Exception invalid) when (invalid is FieldAdmissionException or ArgumentException)
+            { throw new RefusedWriteException(new(ValidateStage, BodyInvalid, [pointer])); }
+            if (attachment is null) continue;
             var entries = JsonSerializer.SerializeToElement(candidate[field.FieldKey]);
             // M11 / ADR-0142 d1,d3: calculated stages are probes; only already-locked references are authority.
             if (entries.ValueKind != JsonValueKind.Array
