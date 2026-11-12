@@ -857,15 +857,19 @@ public sealed class RecordWriteOperation
             var refusal = CreationRefusal(RecordCreationPolicy.Of(definition).Gate, false);
             if (refusal is not null) return TemporalRefused(refusal.Refusal!) with { Decision = evidence };
         }
-        if (Mutate(definition, body, instant, out var candidate) is { } mutateRefusal)
-            return TemporalRefused(mutateRefusal) with { Decision = evidence };
+        var candidate = (JsonObject)body.DeepClone();
         var contentPort = new ContentPreparedPort<RecordTemporalWrite, RecordTemporalCommit>(_temporalPort);
         try
         {
             var transaction = await KernelTransactionBoundary.ExecutePreparedAsync(async token =>
             {
-                await ResolveAttachmentsAsync(definition, candidate, scope.Tenant, scope.ActorId, null, recordId, operationId,
+                var lockedReferences = await ResolveAttachmentsAsync(definition, candidate, scope.Tenant, scope.ActorId, null, recordId, operationId,
                     digest, instant, evidence, contentPort.Session, basis, token).ConfigureAwait(false);
+                if (Mutate(definition, candidate, instant, out var derived) is { } mutateRefusal)
+                    throw new RefusedWriteException(mutateRefusal);
+                candidate = derived;
+                ValidateDerivedAttachments(definition, candidate, lockedReferences);
+                ValidateRequiredConditions(definition, candidate, instant, token);
                 var submitted = Submitted(candidate);
                 SchemaValidationResult validation;
                 try { validation = await _registry.ValidateAsync(publication.Schema.Id, submitted, token).ConfigureAwait(false); }
@@ -1202,8 +1206,7 @@ public sealed class RecordWriteOperation
         var gate = RecordCreationPolicy.Of(definition).Gate;
         if (CreationRefusal(gate, plan.AcceptedCommand) is { } creationRefusal) return (creationRefusal, false);
 
-        if (Mutate(definition, bodySnapshot, instant, out var candidate) is { } mutateRefusal)
-            return (Refused(mutateRefusal.Stage, mutateRefusal.Code, mutateRefusal.Pointers), false);
+        var candidate = (JsonObject)bodySnapshot.DeepClone();
         var contentPort = new ContentPreparedPort<RecordWriteRow, RecordWriteCommit>(_port);
         KernelTransactionResult<RecordWriteCommit> transaction;
         try
@@ -1211,8 +1214,13 @@ public sealed class RecordWriteOperation
             transaction = await KernelTransactionBoundary.ExecutePreparedAsync(
                 async token =>
                 {
-                    await ResolveAttachmentsAsync(definition, candidate, plan.Tenant, plan.ExecutorId, plan.OriginatorId, recordId, request.OperationId,
+                    var lockedReferences = await ResolveAttachmentsAsync(definition, candidate, plan.Tenant, plan.ExecutorId, plan.OriginatorId, recordId, request.OperationId,
                         intentDigest, instant, evidence, contentPort.Session, null, token).ConfigureAwait(false);
+                    if (Mutate(definition, candidate, instant, out var derived) is { } mutateRefusal)
+                        throw new RefusedWriteException(mutateRefusal);
+                    candidate = derived;
+                    ValidateDerivedAttachments(definition, candidate, lockedReferences);
+                    ValidateRequiredConditions(definition, candidate, instant, token);
                     var body = Submitted(candidate);
                     SchemaValidationResult validation;
                     try
@@ -1401,21 +1409,20 @@ public sealed class RecordWriteOperation
         return TemporalRefused(ContentRefusal(refused)) with { Decision = evidence };
     }
 
-    private async ValueTask ResolveAttachmentsAsync(RecordTypeDocument definition, JsonObject candidate,
+    private async ValueTask<HashSet<(string, long, string, string, string)>> ResolveAttachmentsAsync(RecordTypeDocument definition, JsonObject candidate,
         string tenant, string actor, string? originator, string recordId, string operationId, string fingerprint, DateTimeOffset instant,
         AuthorizationDecisionEvidence evidence, IContentBookkeepingSession? session, RecordTemporalBasis? priorBasis, CancellationToken cancellationToken)
     {
         var contentTenant = Harborline.Foundation.Assets.Common.TenantId.FromString(tenant);
-        var attachmentKeys = new HashSet<string>(StringComparer.Ordinal);
+        var lockedReferences = new HashSet<(string, long, string, string, string)>();
         var lists = new List<(string FieldKey, ICompiledAttachmentFieldKind Kind, JsonElement Entries, string Pointer)>();
         foreach (var field in definition.Fields)
         {
-            if (field.Binding is not { } binding) continue;
+            if (field.Calculation is not null || field.Binding is not { } binding) continue;
             var pointer = PointerOf(field.FieldKey);
             try
             {
                 if (_fieldKinds.Bind(binding.Kind, pointer) is not ICompiledAttachmentFieldKind attachment) continue;
-                attachmentKeys.Add(field.FieldKey);
                 if (candidate.ContainsKey(field.FieldKey))
                     lists.Add((field.FieldKey, attachment, JsonSerializer.SerializeToElement(candidate[field.FieldKey]), pointer));
             }
@@ -1458,12 +1465,44 @@ public sealed class RecordWriteOperation
                     if (priorBody.ValueKind == JsonValueKind.Object) priorBody.TryGetProperty(fieldKey, out priorEntries);
                     candidate[fieldKey] = await Attachments.ResolveWriteAsync(attachment, entries, contentTenant, new(recordId, fieldKey), Write(),
                         priorEntries, cancellationToken).ConfigureAwait(false);
+                    foreach (var reference in JsonSerializer.SerializeToElement(candidate[fieldKey]).EnumerateArray())
+                        lockedReferences.Add(ReferenceIdentity(reference));
                 }
                 catch (Exception invalid) when (invalid is FieldAdmissionException or ArgumentException)
                 { throw new RefusedWriteException(new(ValidateStage, BodyInvalid, [pointer])); }
             }
         }
 
+        return lockedReferences;
+
+        static string PointerOf(string fieldKey) => "/" + fieldKey.Replace("~", "~0", StringComparison.Ordinal).Replace("/", "~1", StringComparison.Ordinal);
+    }
+
+    private static (string, long, string, string, string) ReferenceIdentity(JsonElement reference) =>
+        (reference.GetProperty("content_id").GetString()!, reference.GetProperty("length").GetInt64(),
+         reference.GetProperty("media_type").GetString()!, reference.GetProperty("owner").GetProperty("record").GetString()!,
+         reference.GetProperty("owner").GetProperty("element").GetString()!);
+
+    private void ValidateDerivedAttachments(RecordTypeDocument definition, JsonObject candidate,
+        IReadOnlySet<(string, long, string, string, string)> lockedReferences)
+    {
+        foreach (var field in definition.Fields)
+        {
+            if (field.Calculation is null || field.Binding is not { } binding) continue;
+            var pointer = "/" + field.FieldKey.Replace("~", "~0", StringComparison.Ordinal).Replace("/", "~1", StringComparison.Ordinal);
+            if (_fieldKinds.Bind(binding.Kind, pointer) is not ICompiledAttachmentFieldKind attachment) continue;
+            var entries = JsonSerializer.SerializeToElement(candidate[field.FieldKey]);
+            // M11 / ADR-0142 d1,d3: calculated stages are probes; only already-locked references are authority.
+            if (entries.ValueKind != JsonValueKind.Array
+                || entries.EnumerateArray().Any(entry => attachment.Validate(entry, pointer).Count != 0
+                    || !lockedReferences.Contains(ReferenceIdentity(entry))))
+                throw new RefusedWriteException(new(MutateStage, "records.mutate.calculation_failed", [pointer]));
+        }
+    }
+
+    private void ValidateRequiredConditions(RecordTypeDocument definition, JsonObject candidate, DateTimeOffset instant,
+        CancellationToken cancellationToken)
+    {
         // Every required_condition (records-ck-8) is evaluated after every attachment resolved, against the final candidate:
         // a condition never reads a later field's staged entries. An attachment field needs a non-empty list
         // (field.evidence_required); any other field needs a value under the shared runtime's absence rule, the same one
@@ -1472,7 +1511,7 @@ public sealed class RecordWriteOperation
         {
             if (field.RequiredCondition is not { } condition) continue;
             var pointer = PointerOf(field.FieldKey);
-            var attachment = attachmentKeys.Contains(field.FieldKey);
+            var attachment = field.Binding is { } binding && _fieldKinds.Bind(binding.Kind, pointer) is ICompiledAttachmentFieldKind;
             var value = candidate[field.FieldKey];
             var present = attachment ? value is JsonArray { Count: > 0 } : value is not null and not JsonArray { Count: 0 };
             try

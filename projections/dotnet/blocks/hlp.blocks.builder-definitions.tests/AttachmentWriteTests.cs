@@ -8,6 +8,7 @@ using Harborline.Foundation.Authorization;
 using Harborline.Foundation.ContentStore;
 using Harborline.Foundation.Definitions;
 using Harborline.Foundation.FieldRuntime;
+using Harborline.Foundation.RuleEngine.References;
 using Harborline.Kernel.Core;
 using Harborline.Kernel.SchemaValidation;
 using Harborline.Kernel.SchemaValidation.Records;
@@ -134,6 +135,151 @@ public sealed class AttachmentWriteTests
         Assert.True(outcome.Committed, outcome.Refusal?.Code);
         using var row = JsonDocument.Parse(Assert.Single(fixture.Port.Rows).Body);
         Assert.False(row.RootElement.GetProperty("documents")[0].TryGetProperty("stage_id", out _));
+    }
+
+    // ADR-0124 d1 / records-eng-5: calculations must describe the committed attachment value.
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task An_attachment_dependent_calculation_reads_committed_references(bool temporal)
+    {
+        var calculation = new NamedCalculation("has-text", "1.0.0", """{"if":[{"in":["text/plain",{"cat":[{"var":"evidence"}]}]},"has text","no text"]}""");
+        var fixture = await Fixture.CreateWithCalculation(calculation, temporal);
+        var body = List(await fixture.Upload("first"));
+        body["status"] = "client";
+        var result = await fixture.WriteEither(temporal, "derive-reference", body);
+        Assert.True(result.Committed, result.Refusal?.Code);
+        using var stored = JsonDocument.Parse(Assert.Single(fixture.Port.Rows).Body);
+        Assert.Equal("text/plain", stored.RootElement.GetProperty("evidence")[0].GetProperty("media_type").GetString());
+        Assert.Equal("has text", stored.RootElement.GetProperty("status").GetString());
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task An_attachment_valued_calculation_replaces_supplied_stage_entries(bool temporal)
+    {
+        var calculation = new NamedCalculation("empty-evidence", "1.0.0", "[]");
+        var fixture = await Fixture.CreateWithCalculation(calculation, temporal, attachmentResult: true);
+        var body = List(Guid.Parse("11111111-1111-1111-1111-111111111111"));
+        var result = await fixture.WriteEither(temporal, "derive-stage", body);
+        Assert.True(result.Committed, result.Refusal?.Code);
+        using var stored = JsonDocument.Parse(Assert.Single(fixture.Port.Rows).Body);
+        Assert.Equal(0, stored.RootElement.GetProperty("evidence").GetArrayLength());
+        Assert.Equal(0, fixture.Store.CommittedCount);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task A_calculated_attachment_cannot_probe_a_stage_absent_from_supplied_fields(bool temporal)
+    {
+        var calculation = new NamedCalculation("constant-stage", "1.0.0",
+            """[{"stage_id":"11111111-1111-1111-1111-111111111111","display_name":"calculated.txt"}]""");
+        var fixture = await Fixture.CreateWithCalculation(calculation, temporal, attachmentResult: true);
+        var locks = new List<Guid>();
+        var calls = new List<string>();
+        fixture.Port.DecorateSession = inner =>
+        {
+            var proxy = DispatchProxy.Create<IContentBookkeepingSession, AuditSession>();
+            var observer = (AuditSession)(object)proxy;
+            observer.Inner = inner;
+            observer.Audits = [];
+            observer.StageLocks = locks;
+            observer.Calls = calls;
+            return proxy;
+        };
+        var result = await fixture.WriteEither(temporal, "calculated-new-lock", new JsonObject());
+        Assert.False(result.Committed);
+        Assert.Equal("records.mutate.calculation_failed", result.Refusal!.Code);
+        Assert.Equal("mutate", result.Refusal.Stage);
+        Assert.Equal(["/evidence"], result.Refusal.Pointers);
+        Assert.Empty(calls);
+        Assert.Empty(locks);
+        Assert.Empty(fixture.Port.Rows);
+        Assert.Equal(0, fixture.Store.CommittedCount);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task A_calculated_foreign_reference_refuses_before_any_content_call(bool temporal)
+    {
+        var foreign = await Fixture.Create();
+        Assert.True((await foreign.Write("foreign", List(await foreign.Upload("foreign")))).Committed);
+        var references = JsonNode.Parse(Assert.Single(foreign.Port.Rows).Body.Span)!["evidence"]!;
+        var calculation = new NamedCalculation("foreign-reference", "1.0.0", references.ToJsonString());
+        var fixture = await Fixture.CreateWithCalculation(calculation, temporal, attachmentResult: true);
+        var calls = new List<string>();
+        fixture.Port.DecorateSession = inner =>
+        {
+            var proxy = DispatchProxy.Create<IContentBookkeepingSession, AuditSession>();
+            var observer = (AuditSession)(object)proxy;
+            observer.Inner = inner; observer.Audits = []; observer.Calls = calls;
+            return proxy;
+        };
+        var result = await fixture.WriteEither(temporal, "calculated-foreign", new JsonObject());
+        Assert.Equal("records.mutate.calculation_failed", result.Refusal!.Code);
+        Assert.Equal(["/evidence"], result.Refusal.Pointers);
+        Assert.Empty(calls);
+        Assert.Empty(fixture.Port.Rows);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Has_a_PDF_agrees_on_create_effective_create_and_amendment(bool temporal)
+    {
+        var calculation = new NamedCalculation("has-pdf", "1.0.0", """{"if":[{"in":["application/pdf",{"cat":[{"var":"evidence"}]}]},"has PDF","no PDF"]}""");
+        var fixture = await Fixture.CreateWithCalculation(calculation, true);
+        var stage = await fixture.Store.PutAsync(new("tenant-a"), new MemoryStream("%PDF-1.7\nfixture"u8.ToArray()), "application/pdf", null, Evidence());
+        if (!temporal)
+        {
+            Assert.True((await fixture.Write("ordinary-pdf", List(stage))).Committed);
+        }
+        else
+        {
+            var first = await fixture.Operation.CreateEffectiveAsync(new("tenant-a", "operator-7"), new("eam.evidence", "effective-pdf", List(stage), DateTimeOffset.UnixEpoch, null));
+            Assert.Equal(RecordTemporalWriteStatus.Created, first.Status);
+            Assert.Equal("has PDF", JsonNode.Parse(fixture.Port.Rows[0].Body.Span)!["status"]!.GetValue<string>());
+            var amendment = await fixture.Operation.AmendAsync(new("tenant-a", "operator-7"), new(first.Receipt!.Receipt.RecordId, "amend-pdf", new(first.Receipt.Temporal.Revision, first.Receipt.BindingHash), JsonNode.Parse(fixture.Port.Rows[0].Body.Span)!.AsObject(), DateTimeOffset.UnixEpoch.AddDays(1), null, "keep PDF"));
+            Assert.Equal(RecordTemporalWriteStatus.Created, amendment.Status);
+        }
+        Assert.All(fixture.Port.Rows, row => Assert.Equal("has PDF", JsonNode.Parse(row.Body.Span)!["status"]!.GetValue<string>()));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task A_mutate_refusal_rolls_back_promoted_inputs(bool temporal)
+    {
+        var calculation = new NamedCalculation("bad-money", "1.0.0", """{"money.add":[{"var":"originator"},4]}""");
+        var fixture = await Fixture.CreateWithCalculation(calculation, temporal);
+        var body = List(await fixture.Upload("first")); body["originator"] = "not money";
+        var result = await fixture.WriteEither(temporal, "bad-calculation", body);
+        Assert.Equal("records.mutate.calculation_failed", result.Refusal!.Code);
+        Assert.Equal(["/status"], result.Refusal.Pointers);
+        Assert.Empty(fixture.Port.Rows);
+        Assert.Equal(0, fixture.Store.CommittedCount);
+        Assert.Equal(1, fixture.Store.StagedCount);
+        Assert.Equal(1, fixture.Port.Rollbacks);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task A_derived_attachment_may_copy_already_locked_references(bool temporal)
+    {
+        var calculation = new NamedCalculation("copy-documents", "1.0.0", """{"var":"documents"}""");
+        var fixture = await Fixture.CreateWithCalculation(calculation, temporal, attachmentResult: true, addDocuments: true);
+        var body = new JsonObject { ["documents"] = List(await fixture.Upload("first"))["evidence"]!.DeepClone() };
+        var result = await fixture.WriteEither(temporal, "copy-locked", body);
+        Assert.True(result.Committed, result.Refusal?.Code);
+        var saved = JsonNode.Parse(Assert.Single(fixture.Port.Rows).Body.Span)!;
+        Assert.Equal("text/plain", saved["evidence"]![0]!["media_type"]!.GetValue<string>());
+        Assert.Equal(5, saved["evidence"]![0]!["length"]!.GetValue<long>());
+        Assert.Equal(1, fixture.Store.CommittedCount);
+        Assert.Equal(0, fixture.Store.StagedCount);
     }
 
     [Theory]
@@ -292,9 +438,13 @@ public sealed class AttachmentWriteTests
     {
         public IContentBookkeepingSession Inner { get; set; } = null!;
         public List<KernelAuditEvidence> Audits { get; set; } = null!;
+        public List<Guid>? StageLocks { get; set; }
+        public List<string>? Calls { get; set; }
         protected override object? Invoke(MethodInfo? targetMethod, object?[]? args)
         {
+            Calls?.Add(targetMethod!.Name);
             if (targetMethod!.Name == "StageAuditAsync") Audits.Add((KernelAuditEvidence)args![0]!);
+            if (targetMethod.Name == "FindStagedForUpdateAsync") StageLocks?.Add((Guid)args![0]!);
             return targetMethod.Invoke(Inner, args);
         }
     }
@@ -648,7 +798,7 @@ public sealed class AttachmentWriteTests
         public Port Port { get; }
         public RecordWriteOperation Operation { get; }
         public RecordTypePublication Publication { get; }
-        private Fixture(bool condition, bool composeRuntime, bool exposeSession, string fieldKey, bool temporalMode, string? conditionJson = null, bool formOnly = false, string? statusCondition = null, long fieldLimit = 200)
+        private Fixture(bool condition, bool composeRuntime, bool exposeSession, string fieldKey, bool temporalMode, string? conditionJson = null, bool formOnly = false, string? statusCondition = null, long fieldLimit = 200, NamedCalculation? calculation = null, bool attachmentResult = false)
         {
             Store = new(new(100, 1000, 10000, TimeSpan.FromHours(1)), new Keys(), TimeProvider.System, Storage);
             Runtime = new(Store);
@@ -667,14 +817,22 @@ public sealed class AttachmentWriteTests
             var field = new FieldDefinition(fieldKey, "Evidence", new(kind, new(false, 0, null, [], null)))
             { RequiredCondition = conditionJson is not null ? JsonSerializer.Deserialize<JsonElement>(conditionJson) : condition ? JsonSerializer.Deserialize<JsonElement>("""{"==":[{"var":"status"},"closed"]}""") : null };
             var status = new FieldDefinition("status", "Status") { RequiredCondition = statusCondition is null ? null : JsonSerializer.Deserialize<JsonElement>(statusCondition) };
+            if (calculation is not null)
+            {
+                var pin = new FieldCalculationPin(calculation.Pin.Name, calculation.Pin.Version, calculation.Pin.Digest);
+                if (attachmentResult) field = field with { Calculation = pin };
+                else status = status with { Calculation = pin };
+            }
             FieldDefinition[] fields = conditionJson is null ? [field, status] : [field, status, new("documents", "Documents", new(kind, new(false, 0, null, [], null)))];
             fields = [.. fields, new("originator", "Client-supplied data, not identity")];
             Records.CreateDraftAsync(new("tenant-a", "eam", "Evidence", "1.0.0", fields, new(1, 0),
                 ClassId: "eam.equipment", RecordClass: RecordClass.Master, PackageId: "eam-core", CreationGate: formOnly ? RecordCreationGate.FormOnly : RecordCreationGate.Role, CreationRoleId: formOnly ? null : "asset-author") { AmendmentPolicy = new(true) { Mode = temporalMode ? RecordAmendmentMode.Supersession : null } }, "type").AsTask().GetAwaiter().GetResult();
             Publication = Records.PublishAsync("tenant-a", "eam.evidence", "1.0.0", 1, "publish").AsTask().GetAwaiter().GetResult();
             Port = new(Storage.Bookkeeping) { ExposeSession = exposeSession };
-            Operation = new(new AccessProvider(new Gate()), Records, Registry, Port, Port, TimeProvider.System, kinds, RecordWriteFieldRuntimeTests.FixtureDomains(TimeProvider.System), Port, Port, Port) { Attachments = composeRuntime ? Runtime : null };
+            Operation = new(new AccessProvider(new Gate()), Records, Registry, Port, Port, TimeProvider.System, kinds, RecordWriteFieldRuntimeTests.FixtureDomains(TimeProvider.System), Port, Port, Port) { Attachments = composeRuntime ? Runtime : null, Calculations = calculation is null ? null : new([], [calculation]) };
         }
+        public static Task<Fixture> CreateWithCalculation(NamedCalculation calculation, bool temporalMode, bool attachmentResult = false, bool addDocuments = false) =>
+            Task.FromResult(new Fixture(false, true, true, "evidence", temporalMode, conditionJson: addDocuments ? """{"==":[1,2]}""" : null, calculation: calculation, attachmentResult: attachmentResult));
         public static Task<Fixture> CreateFormOnly() => Task.FromResult(new Fixture(false, true, true, "evidence", false, formOnly: true));
         public static Task<Fixture> CreateWithStatusCondition(string statusCondition) => Task.FromResult(new Fixture(false, true, true, "evidence", false, statusCondition: statusCondition));
         public ValueTask<Guid> UploadAs(string text, string actor) => Runtime.PutAsync(Attachment, new("tenant-a"), "evidence", new MemoryStream(Encoding.UTF8.GetBytes(text)), "text/plain", null, Evidence(actor: actor));
@@ -725,7 +883,7 @@ public sealed class AttachmentWriteTests
             => new TemporalTransaction(this, await bookkeeping.BeginTransactionAsync(cancellationToken));
         private sealed class TemporalTransaction(Port owner, IContentBookkeepingTransaction content) : IKernelPreparedTransaction<RecordTemporalWrite, RecordTemporalCommit>, IRecordContentTransaction
         {
-            public IContentBookkeepingSession ContentSession => content;
+            public IContentBookkeepingSession ContentSession => owner.DecorateSession?.Invoke(content) ?? content;
             private RecordTemporalWrite write = null!;
             private KernelOperationIdentity operation = null!;
             private KernelAuditEvidence audit = null!;
