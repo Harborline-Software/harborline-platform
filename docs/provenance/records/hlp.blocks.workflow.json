@@ -14,7 +14,7 @@
     "projections/dotnet/blocks/hlp.blocks.workflow.tests/CapabilityAuthorityRegistryTests.cs": "b8b696e1456427e4207afe9c81caf0272ad99dd3cc54a7c0ec06e8daffd5fa97",
     "projections/dotnet/blocks/hlp.blocks.workflow.tests/DemoMaintenanceWorkflowTests.cs": "f8cea8e940828edb9e8353bce3b88637eda5947f526345dd6380f3c3e7362e6c",
     "projections/dotnet/blocks/hlp.blocks.workflow.tests/DurableWorkflowEngineSeamTests.cs": "ad9bdc09cfecdb992ad31dee1bc323ab0aede751ac3291945dfa85f4fb0a915e",
-    "projections/dotnet/blocks/hlp.blocks.workflow.tests/FileJournalWorkflowStoreTests.cs": "049634c0111b41f041681d9d7acd135cef3257f64cec9fc8f3b8d4f1fb097df0",
+    "projections/dotnet/blocks/hlp.blocks.workflow.tests/FileJournalWorkflowStoreTests.cs": "f75334fdf1bbee6d57115f2acb34dd2f35aacc6b4bc0278d4457e70f721ddef3",
     "projections/dotnet/blocks/hlp.blocks.workflow.tests/Fixtures/DemoMaintenanceState.cs": "b9bb26cb44e62e14f90e021494585e9bb6734514f97998b2ab9dd4570a771528",
     "projections/dotnet/blocks/hlp.blocks.workflow.tests/Fixtures/DemoMaintenanceTrigger.cs": "96b2d81a587988269459fbb94dcfe79e0d8671b7dfe407045942ab7691798034",
     "projections/dotnet/blocks/hlp.blocks.workflow.tests/Fixtures/DemoMaintenanceWorkflow.cs": "e6a9ab4b98bf3f6fcd1f593b038d2500a983528228dc45481b320cf0ae7c1083",

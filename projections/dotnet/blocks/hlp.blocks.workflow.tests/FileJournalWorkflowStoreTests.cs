@@ -30,7 +30,7 @@ public sealed class FileJournalWorkflowStoreTests
                 CurrentStep = "old", Status = WorkflowStatus.Parked, StateJson = "{\"due\":\"2026-11-12T12:00:00Z\",\"correlation\":\"c-1\"}",
             };
             await store.CreateInstanceAsync(instance);
-            await store.MigrateAsync(instance, "2.0.0", "new", "{\"principal\":\"operator\"}");
+            await store.MigrateAsync(instance, "2.0.0", "new", "{\"principal\":\"operator\",\"map\":{\"old\":\"new\"}}");
         }
         using var reopened = fixture.Open();
         var run = (await reopened.LoadAsync("migration-restart"))!;
@@ -39,10 +39,11 @@ public sealed class FileJournalWorkflowStoreTests
         Assert.Equal(WorkflowStatus.Parked, run.Status);
         Assert.Equal("{\"due\":\"2026-11-12T12:00:00Z\",\"correlation\":\"c-1\"}", run.StateJson);
         Assert.True(run.HasMigrated);
+        Assert.Contains("old", run.MovedAwaySteps);
         Assert.Equal(1, run.MigrationGeneration);
         var entry = Assert.Single(await reopened.EventsAsync("migration-restart"));
         Assert.Equal("Migrated", entry.EventType);
-        Assert.Equal("{\"principal\":\"operator\"}", entry.DataJson);
+        Assert.Equal("{\"principal\":\"operator\",\"map\":{\"old\":\"new\"}}", entry.DataJson);
     }
 
     private static WorkflowDispatchAuthority Authorized(string instanceId) => new(
