@@ -107,7 +107,7 @@ public sealed class DurableWorkflowEngineSeamTests
     }
 
     [Fact]
-    public async Task Migrated_wait_keeps_state_and_resumes_at_target_while_stale_source_neither_runs_nor_replays()
+    public async Task Migrated_wait_state_is_unchanged_without_another_park_and_stale_source_is_discarded()
     {
         using var fixture = new JournalFixture();
         using var store = fixture.Open();
@@ -119,6 +119,7 @@ public sealed class DurableWorkflowEngineSeamTests
         });
         await store.AdvanceAsync(new WorkflowStepKey("migrating", 0, "old"), null, "{}", "Advanced", "{}", "other", WorkflowStatus.Running);
         await store.ParkAsync("migrating", "old", "{}");
+        Assert.Equal(2, (await store.EventsAsync("migrating")).Count);
         var staleTrigger = WorkflowTrigger.For(WorkflowTriggerKind.Event, "migrating", "old");
         await new WorkflowMigration(store, new MigrationDefinitions(), new WorkflowTriggerDispatcher(store, [])).MigrateAsync("migrating", "2.0.0",
             new Dictionary<string, string> { ["old"] = "new" },
@@ -127,6 +128,10 @@ public sealed class DurableWorkflowEngineSeamTests
         Assert.Equal(WorkflowDispatchResult.Discarded, await dispatcher.DispatchAsync(staleTrigger, Authorized("migrating")));
         Assert.Empty(await store.CommittedEffectPayloadsAsync("migrating"));
         Assert.Equal("{\"due\":\"2026-11-12T12:00:00Z\",\"correlation\":\"event-1\"}", (await store.LoadAsync("migrating"))!.StateJson);
+        var events = await store.EventsAsync("migrating");
+        Assert.Equal(3, events.Count);
+        Assert.Equal("Parked", events[1].EventType);
+        Assert.Equal("Migrated", events[2].EventType);
         Assert.Equal(WorkflowDispatchResult.Advanced, await dispatcher.DispatchAsync(
             WorkflowTrigger.For(WorkflowTriggerKind.Event, "migrating", "new"), Authorized("migrating")));
         Assert.NotNull(await store.FindStepResultAsync(new WorkflowStepKey("migrating", 0, "new")));
