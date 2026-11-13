@@ -87,6 +87,30 @@ public sealed class RulesAuthoringTests : BunitContext
         Assert.Equal("Promoted Amount check.", cut.Find("[aria-label='Promotion status']").TextContent);
     }
 
+    [Fact(DisplayName = "rules-auth-18: promotes the saved snapshot when the catalogue is stale")]
+    public void PromotesSavedSnapshotWithStaleCatalogue()
+    {
+        using var fixture = JsonDocument.Parse(File.ReadAllText(FindFixture("promotion.json", "hlp.ui.rule-authoring")));
+        var doc = RuleDefinitionCodec.Parse(fixture.RootElement.GetProperty("input").GetRawText(), RuleIntentPhase.Author).Document!;
+        var rule = new RulesDraft("amount-check", "1", "Amount check", "Draft", "", doc.Draft);
+        var requests = new List<RulesOperationRequest>(); RulesRuleCatalogue? changed = null;
+        var cut = Render<HarborlineRulesAuthoringEditor>(p => p.Add(x => x.Value, rule).Add(x => x.Catalogue, new RulesRuleCatalogue([rule])).Add(x => x.CatalogueChanged, value => changed = value).Add(x => x.OperationRequested, requests.Add));
+        cut.Find("input[aria-label='Rule name']").Change("Saved check");
+        cut.FindButton("Save draft").Click();
+        var request = requests[0];
+        cut.Render(p => p.Add(x => x.Response, new RulesOperationResponse(request.RequestId, "amount-check", "1", request.Generation, new("amount-check", "2", "Draft"), Materialization: new RulesMaterialization([], "saved", "digest-2"))));
+        cut.FindButton("Promote Amount check").Click();
+        var actual = Assert.Single(changed!.Rules);
+        Assert.Equal("Saved check", actual.Name);
+        Assert.Equal("2", actual.ExpectedRevision);
+        Assert.Equal("digest-2", actual.Materialization!.ContentDigest);
+        Assert.Equal("field.amount", Assert.Single(Assert.IsType<FormulaDraft>(actual.Draft).Inputs).Ref);
+        cut.FindButton("Save draft").Click();
+        Assert.Equal("2", requests[1].Draft.ExpectedRevision);
+        Assert.Equal("digest-2", requests[1].Draft.Materialization!.ContentDigest);
+        Assert.Equal("Saved check", requests[1].Draft.Name);
+    }
+
     [Fact(DisplayName = "rules-auth-18: saves the promoted loaded rule")]
     public void SavesPromotedLoadedRule()
     {

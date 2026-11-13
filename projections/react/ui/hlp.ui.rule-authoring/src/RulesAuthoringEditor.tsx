@@ -143,9 +143,10 @@ export function RulesAuthoringEditor(props: RulesAuthoringEditorProps) {
     if (!props.catalogue || !props.onCatalogueChange) return
     const loaded = rule.identity === latest.current.identity
     if (loaded && dirty.current) { setRefusals([{ code: 'Save or discard unsaved edits before promoting this rule.', pointer: '/draft' }]); return }
-    if (rule.draft.kind === 'Formula' && hasMissingCall(rule.draft.expression)) { setRefusals([{ code: 'Cannot safely promote a check using missing or missing_some.', pointer: '/draft' }]); return }
-    const next = promote(rule)
-    props.onCatalogueChange({ rules: props.catalogue.rules.map(item => item === rule ? next : item) })
+    const source = loaded ? latest.current : rule
+    if (source.draft.kind === 'Formula' && hasMissingCall(source.draft.expression)) { setRefusals([{ code: 'Cannot safely promote a check using missing or missing_some.', pointer: '/draft' }]); return }
+    const next = promote(source)
+    props.onCatalogueChange({ rules: props.catalogue.rules.map(item => item.identity === rule.identity ? next : item) })
     if (loaded) change(next)
     focusName.current = true; setPromotionNotice(`Promoted ${rule.name}.`)
   }

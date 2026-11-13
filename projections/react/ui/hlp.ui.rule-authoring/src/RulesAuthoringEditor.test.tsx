@@ -41,6 +41,22 @@ describe('Rules authoring React projection', () => {
     expect(screen.getByRole('status', { name: 'Promotion status' })).toHaveTextContent('Promoted Amount check.')
   })
 
+  it('rules-auth-18 promotes the saved snapshot when the catalogue is stale', () => {
+    const f = JSON.parse(readFileSync(resolve(process.cwd(), '../../../../conformance/hlp.ui.rule-authoring/promotion.json'), 'utf8'))
+    const rule = { ...emptyRulesDraft(), identity: 'amount-check', expectedRevision: '1', name: 'Amount check', draft: f.input.draft }
+    const requests: RulesOperationRequest[] = []; const changed = vi.fn(); const onChange = vi.fn()
+    const base = props({ value: rule, catalogue: { rules: [rule] }, onCatalogueChange: changed, onChange, onOperation: request => { requests.push(request) } })
+    const view = render(<RulesAuthoringEditor {...base} />)
+    fireEvent.change(screen.getByLabelText('Rule name'), { target: { value: 'Saved check' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save draft' }))
+    const request = requests[0]
+    view.rerender(<RulesAuthoringEditor {...base} response={{ requestId: request.requestId, identity: 'amount-check', expectedRevision: '1', generation: request.generation, authoritative: { identity: 'amount-check', revision: '2', status: 'Draft' }, materialization: { bindings: [], canonicalContent: 'saved', contentDigest: 'digest-2' } }} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Promote Amount check' }))
+    expect(changed).toHaveBeenCalledWith({ rules: [expect.objectContaining({ identity: 'amount-check', name: 'Saved check', expectedRevision: '2', materialization: { bindings: [], canonicalContent: 'saved', contentDigest: 'digest-2' }, draft: expect.objectContaining({ inputs: [{ id: 'field.amount', ref: 'field.amount', type: 'Number' }] }) })] })
+    fireEvent.click(screen.getByRole('button', { name: 'Save draft' }))
+    expect(requests[1].draft).toEqual(expect.objectContaining({ name: 'Saved check', expectedRevision: '2', materialization: { bindings: [], canonicalContent: 'saved', contentDigest: 'digest-2' } }))
+  })
+
   it('rules-auth-18 saves the promoted loaded rule', () => {
     const f = JSON.parse(readFileSync(resolve(process.cwd(), '../../../../conformance/hlp.ui.rule-authoring/promotion.json'), 'utf8'))
     const rule = { ...emptyRulesDraft(), identity: 'amount-check', expectedRevision: '7', name: 'Amount check', materialization: { bindings: [], canonicalContent: 'content', contentDigest: 'digest-1' }, draft: f.input.draft }

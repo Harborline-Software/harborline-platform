@@ -156,11 +156,12 @@
     {
         var loaded = rule.Identity == Current.Identity;
         if (loaded && _dirty) { _refusals = [new("Save or discard unsaved edits before promoting this rule.", "/draft")]; return; }
-        if (rule.Draft is FormulaDraft formula && HasMissingCall(formula.Expression)) { _refusals = [new("Cannot safely promote a check using missing or missing_some.", "/draft")]; return; }
+        var source = loaded ? Current : rule;
+        if (source.Draft is FormulaDraft formula && HasMissingCall(formula.Expression)) { _refusals = [new("Cannot safely promote a check using missing or missing_some.", "/draft")]; return; }
         var envelope = new RuleDefinitionEnvelope(rule.Identity, "", "", "", new System.Text.Json.Nodes.JsonObject(), [], null);
-        var promoted = FieldRuleBindings.Promote(new RuleDefinitionDocument(envelope, rule.Name, RuleDefinitionTier.JsonLogic, rule.Draft));
-        var next = rule with { Draft = promoted.Draft };
-        await CatalogueChanged.InvokeAsync(new RulesRuleCatalogue(Catalogue!.Rules.Select(item => item == rule ? next : item).ToArray()));
+        var promoted = FieldRuleBindings.Promote(new RuleDefinitionDocument(envelope, source.Name, RuleDefinitionTier.JsonLogic, source.Draft));
+        var next = source with { Draft = promoted.Draft };
+        await CatalogueChanged.InvokeAsync(new RulesRuleCatalogue(Catalogue!.Rules.Select(item => item.Identity == rule.Identity ? next : item).ToArray()));
         if (loaded) await Change(next);
         _promotionNotice = $"Promoted {rule.Name}."; _focusName = true;
     }
