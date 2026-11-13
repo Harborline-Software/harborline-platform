@@ -32,6 +32,7 @@ public sealed class WorkflowMigration(IWorkflowStore store, IWorkflowDefinitionE
         var definition = await definitions.GetAdmittedAsync(instance.TenantId, instance.DefinitionKey, targetVersion, ct)
             .ConfigureAwait(false);
         var model = WorkflowDefinitionWireMapper.ToModel(definition.Authored, instance.TenantId, instance.DefinitionKey, targetVersion);
+        WorkflowInstanceCreator.ValidateSubject(model, instance);
         if (!model.States.Any(state => state.Id == targetStep))
             throw new InvalidOperationException($"Target for active step '{instance.CurrentStep}' does not exist.");
         var data = JsonSerializer.Serialize(new { principal = authority.Principal, sourceVersion = instance.DefinitionVersion, targetVersion, map });

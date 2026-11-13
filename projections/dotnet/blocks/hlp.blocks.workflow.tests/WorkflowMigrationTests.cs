@@ -8,6 +8,34 @@ namespace Harborline.Blocks.Workflow.Tests;
 public sealed class WorkflowMigrationTests
 {
     [Fact]
+    public async Task Migration_refuses_a_target_with_a_mismatched_subject_without_recording()
+    {
+        using var fixture = new JournalFixture();
+        using var store = fixture.Open();
+        await store.CreateInstanceAsync(new WorkflowInstanceRecord
+        {
+            Id = "run-1", TenantId = "tenant-1", DefinitionKey = "flow", DefinitionVersion = "1.0.0",
+            CurrentStep = "old", Status = WorkflowStatus.Running, SubjectRecord = new("invoice", "invoice-1"),
+        });
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() => new WorkflowMigration(store, new SubjectDefinitions())
+            .MigrateAsync("run-1", "2.0.0", new Dictionary<string, string> { ["old"] = "new" },
+                new WorkflowMigrationAuthority("operator-1", "tenant-1", "workflow:migrate", "workflow-instance", "run-1", true)));
+        Assert.Contains("subject", error.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal("1.0.0", (await store.LoadAsync("run-1"))!.DefinitionVersion);
+        Assert.Equal("old", (await store.LoadAsync("run-1"))!.CurrentStep);
+        Assert.Empty(await store.EventsAsync("run-1"));
+    }
+
+    private sealed class SubjectDefinitions : IWorkflowDefinitionExecutionStore
+    {
+        public ValueTask<WorkflowDefinitionRecord?> GetAdmittedCurrentPublishedAsync(string tenant, string key, CancellationToken ct = default)
+            => throw new NotSupportedException();
+        public ValueTask<WorkflowDefinitionRecord> GetAdmittedAsync(string tenant, string key, string version, CancellationToken ct = default)
+            => ValueTask.FromResult(new WorkflowDefinitionRecord(tenant, key, version, WorkflowDefinitionStatus.Published,
+                JsonDocument.Parse("{\"initialState\":\"new\",\"states\":[{\"id\":\"new\"}],\"subject\":{\"record\":{\"recordType\":\"purchase-order\"}}}").RootElement.Clone()));
+    }
+
+    [Fact]
     public async Task Absent_and_cross_tenant_runs_have_the_same_migration_refusal()
     {
         using var fixture = new JournalFixture();
