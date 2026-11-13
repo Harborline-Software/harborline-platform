@@ -279,6 +279,18 @@ public sealed class ViewDefinitionAdmissionTests
         Assert.Equal("rule.environment.not_admitted", error.Code);
     }
 
+    [Fact]
+    public async Task Views_ck_14_authoring_refuses_mismatched_evidence()
+    {
+        foreach (var environment in new[] { ViewsExpressionEnvironmentTests.OtherBorrower(), ViewsExpressionEnvironmentTests.OtherDeclaration() })
+        {
+            var admission = new ViewDefinitionAdmission(new Kinds(), new RecordTypes(), new Measures(), new ViewExpressionFunctionRegistry(), new Interactions(), environment);
+            var draft = new ViewDefinitionDraft(Definition(), new ViewBinding("layout.table", new Dictionary<ViewShapeRole, string> { [ViewShapeRole.Title] = "title" }));
+            var error = await Assert.ThrowsAsync<Harborline.Foundation.RuleEngine.Environments.BorrowerEnvironmentException>(async () => await admission.ValidateAsync(draft));
+            Assert.Equal("rule.environment.not_admitted", error.Code);
+        }
+    }
+
     private static ViewDefinitionAdmission Admission() => new(
         new Kinds(),
         new RecordTypes(),

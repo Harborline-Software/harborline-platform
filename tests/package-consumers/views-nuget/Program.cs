@@ -7,6 +7,7 @@ using Harborline.Blocks.EntityViews;
 using Harborline.Contracts.Fields;
 using Harborline.Kernel.SchemaValidation.Records;
 using Harborline.Foundation.Authorization;
+using Harborline.Foundation.RuleEngine.Environments;
 
 const string Building = "entity:preview/building-1";
 const string Bedroom = "entity:preview/bedroom-1";
@@ -81,6 +82,18 @@ async Task ProveAuthoredAndBoundQuery()
     // The host's record-type registry reads the current published head, so the read-time backstop sees what the commit saw.
     var records = new QueryRecordTypes(shared, "team-a", registers.FieldKinds);
     var store = new ViewDefinitionCatalogue(shared);
+    var otherBorrower = BorrowerEnvironmentAdmission.Admit(ViewsExpressionEnvironment.Declaration with { Borrower = "other" });
+    var otherDeclaration = BorrowerEnvironmentAdmission.Admit(ViewsExpressionEnvironment.Declaration with { TimeSource = "other" });
+    foreach (var environment in new[] { otherBorrower, otherDeclaration })
+    {
+        await Refuses(async () => await new ViewDefinitionAdmission(kinds, records, measures, new ViewExpressionFunctionRegistry(),
+            new QueryInteractions(), environment).ValidateAsync(new(definition, binding)), "rule.environment.not_admitted");
+        await Refuses(() => { ViewDefinitionCatalogue.Admission(registers with { Environment = environment }); return Task.CompletedTask; }, "rule.environment.not_admitted");
+    }
+    var storeEvidence = BorrowerEnvironmentAdmission.Admit(ViewsExpressionEnvironment.Declaration);
+    var validate = ViewDefinitionCatalogue.Admission(registers with { Environment = storeEvidence });
+    typeof(AdmittedEnvironment).GetField("<CanonicalJson>k__BackingField", BindingFlags.NonPublic | BindingFlags.Instance)!.SetValue(storeEvidence, "invalid");
+    await Refuses(() => { validate(new(ViewDefinitionCatalogue.KeyOf("team-a", "work.queue"), "1.0.0", "1.0.0", "{}"), DefinitionAdmissionPhase.Author); return Task.CompletedTask; }, "rule.environment.not_admitted");
     var authoring = new ViewDefinitionAuthoring(
         new ViewDefinitionAdmission(
             kinds,
@@ -106,6 +119,7 @@ async Task ProveAuthoredAndBoundQuery()
             QueryRow("visible-2", "C", "party:operator-1", "open"),
             QueryRow("hidden-2", "D", "party:other", "open"),
             QueryRow("visible-3", "E", "party:operator-1", "open"),
+            QueryRow("excluded", "F", "party:operator-1", "closed"),
         ]),
         measures,
         accessClock, environment: ViewsExpressionEnvironment.Admitted.For(Harborline.Foundation.RuleEngine.Environments.EvaluationPhase.Run));
@@ -115,6 +129,23 @@ async Task ProveAuthoredAndBoundQuery()
         "party:operator-1",
         new(1, 2),
         published.Binding));
+
+    var wrongPhase = (EvaluationAdmission)Activator.CreateInstance(typeof(EvaluationAdmission), BindingFlags.NonPublic | BindingFlags.Instance,
+        null, [ViewsExpressionEnvironment.Admitted, EvaluationPhase.Submission], null)!;
+    foreach (var (evidence, code) in new[]
+    {
+        (otherBorrower.For(EvaluationPhase.Run), "rule.environment.not_admitted"),
+        (otherDeclaration.For(EvaluationPhase.Run), "rule.environment.not_admitted"),
+        (wrongPhase, "rule.environment.phase_not_admitted"),
+    })
+    {
+        var badRuntime = new ViewQueryRuntime(store, new AccessViewOpenGate(access, accessClock, ["work.open"]), kinds, records,
+            new AccessViewFilter(access, "records:read"), new UnguardedRows(), measures, accessClock, environment: evidence);
+        await Refuses(async () => await badRuntime.ExecuteAsync(new("team-a", "work.queue", "party:operator-1", new(0, 2), published.Binding)), code);
+        var plan = new ViewQueryPlan("team-a", "work-item", new Dictionary<string, ViewRecordFieldKind>(), [], [], [], null, null, new(0, 2), instant, evidence);
+        await Refuses(async () => await new InMemoryViewRowSource([]).QueryAsync(plan), code);
+        await Refuses(() => { new ViewExpressionFunctionRegistry().Evaluate("contains", ["a", "a"], evidence); return Task.CompletedTask; }, code);
+    }
 
     Check(result.Total == 3 && result.Rows.Select(row => row.Id).SequenceEqual(["visible-2", "visible-3"]), "authored+Access query before paging");
     Check(result.Groups.Single().Count == 3, "only visible rows grouped");
@@ -133,6 +164,13 @@ async Task ProveAuthoredAndBoundQuery()
     await PublishWorkItem(shared, workItem, "2.0.0", 2, QueryFieldKinds.Integer);
     var stale = await Catch(() => runtime.ExecuteAsync(new("team-a", "work.queue", "party:operator-1", new(0, 2), published.Binding)));
     Check(stale == "view_definition.shape_role_field_incompatible", $"read-time backstop follows the current head: {stale}");
+}
+
+static async Task Refuses(Func<Task> action, string code)
+{
+    try { await action(); }
+    catch (BorrowerEnvironmentException error) when (error.Code == code) { return; }
+    throw new Exception($"VIEWS FIXTURE FAILED: expected {code}");
 }
 
 static async Task PublishWorkItem(IVersionedDefinitionStore shared, DefinitionKey workItem, string version, long revision,
@@ -438,6 +476,12 @@ sealed class QueryMeasures : IViewMeasureCatalog
         ValueTask.FromResult<ViewMeasureDescriptor?>(name == "work.count" ? new(name, ["format"]) : null);
     public ValueTask<ViewMeasureResult> EvaluateAsync(ViewMeasureBinding binding, IReadOnlyList<ViewRow> rows, DateTimeOffset evaluatedAt, string tenant, string principal, CancellationToken cancellationToken = default) =>
         ValueTask.FromResult(new ViewMeasureResult(binding.Name, rows.Count));
+}
+
+sealed class UnguardedRows : IViewRowSource
+{
+    public ValueTask<ViewRowPage> QueryAsync(ViewQueryPlan plan, CancellationToken cancellationToken = default) =>
+        ValueTask.FromResult(new ViewRowPage([], 0, [], []));
 }
 
 sealed class QueryInteractions : IViewInteractionRegistry

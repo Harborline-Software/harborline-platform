@@ -133,6 +133,7 @@ public sealed class ViewDefinitionCatalogue(IVersionedDefinitionStore store) : I
         var transitions = registers.WorkflowTransitions.ToHashSet(StringComparer.Ordinal);
         return (document, phase) =>
         {
+            ViewsExpressionEnvironment.Require(registers.Environment);
             if (!TryDecode(document, out var draft))
             {
                 return [new(ViewDefinitionCodes.BodyInvalid, "")];

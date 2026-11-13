@@ -32,7 +32,7 @@ public static class ViewsExpressionEnvironment
 
     internal static void Require(AdmittedEnvironment? environment)
     {
-        if (environment is null || BorrowerEnvironmentAdmission.CanonicalJson(environment.Declaration) != Canonical)
+        if (environment is null || environment.CanonicalJson != Canonical)
             throw new BorrowerEnvironmentException(BorrowerEnvironmentAdmission.NotAdmitted, "The Views expression environment is not admitted.");
     }
 

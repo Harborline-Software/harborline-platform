@@ -30,7 +30,7 @@ public sealed class BorrowerEnvironmentTests
     public void Declarations_are_admitted_or_refused_by_member()
     {
         var good = TestAdmission.Declaration();
-        Assert.Same(good, BorrowerEnvironmentAdmission.Admit(good).Declaration);
+        Assert.Equal(BorrowerEnvironmentAdmission.CanonicalJson(good), BorrowerEnvironmentAdmission.CanonicalJson(BorrowerEnvironmentAdmission.Admit(good).Declaration));
 
         BorrowerEnvironmentDeclaration[] refused =
         [
@@ -51,6 +51,35 @@ public sealed class BorrowerEnvironmentTests
         // Only admission constructs the evidence an entry point requires.
         Assert.Empty(typeof(AdmittedEnvironment).GetConstructors(BindingFlags.Public | BindingFlags.Instance));
         Assert.Empty(typeof(EvaluationAdmission).GetConstructors(BindingFlags.Public | BindingFlags.Instance));
+    }
+
+    [Fact(DisplayName = "rules-eng-26: admission snapshots mutable declarations")]
+    public void Admission_snapshots_declaration_and_evaluation_evidence()
+    {
+        var original = TestAdmission.Declaration(operations: ["var"], variables: ["field"], phases: [EvaluationPhase.Run]);
+        var operations = original.Operations.ToList();
+        var variables = new Dictionary<string, string>(original.Variables);
+        var effects = original.Effects.ToList();
+        var phases = new Dictionary<EvaluationPhase, bool>(original.Phases);
+        var environment = BorrowerEnvironmentAdmission.Admit(original with { Operations = operations, Variables = variables, Effects = effects, Phases = phases });
+        operations.Add("cat");
+        variables["other"] = "other";
+        effects.Clear();
+        phases[EvaluationPhase.Run] = false;
+        phases[EvaluationPhase.Submission] = true;
+
+        Assert.Equal(["var"], environment.Declaration.Operations);
+        Assert.Equal(["field"], environment.Declaration.Variables.Keys);
+        Assert.Equal(["field-read"], environment.Declaration.Effects);
+        Assert.True(environment.Declaration.Phases[EvaluationPhase.Run]);
+        Assert.False(environment.Declaration.Phases[EvaluationPhase.Submission]);
+        Assert.Equal(BorrowerEnvironmentAdmission.CanonicalJson(original), BorrowerEnvironmentAdmission.CanonicalJson(environment.Declaration));
+        Assert.Equal(BorrowerEnvironmentAdmission.CanonicalJson(original), environment.CanonicalJson);
+        var admission = environment.For(EvaluationPhase.Run);
+        Assert.Equal("rule.environment.phase_not_admitted", Assert.Throws<BorrowerEnvironmentException>(() => environment.For(EvaluationPhase.Submission)).Code);
+        var value = Rule("v", "out", """{"cat":["a","b"]}""");
+        var context = RuleContextSnapshot.Capture(new Dictionary<string, JsonNode?>());
+        Assert.Equal("rule.environment.operation_not_admitted", new GuardEvaluator(new FixedClock(Clock)).EvaluateValue(value, context, RuleEvalScope.Root, admission).Error!.Code);
     }
 
     [Fact(DisplayName = "rules-eng-26: a phase the declaration marks inapplicable cannot be presented")]

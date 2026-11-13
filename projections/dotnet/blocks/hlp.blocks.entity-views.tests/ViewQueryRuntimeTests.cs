@@ -515,6 +515,28 @@ public sealed class ViewQueryRuntimeTests
         Assert.DoesNotContain("rows", calls);
     }
 
+    [Fact]
+    public async Task Views_ck_14_query_refuses_mismatched_evidence_and_phase()
+    {
+        foreach (var (environment, code) in new[]
+        {
+            (ViewsExpressionEnvironmentTests.OtherBorrower().For(Harborline.Foundation.RuleEngine.Environments.EvaluationPhase.Run), "rule.environment.not_admitted"),
+            (ViewsExpressionEnvironmentTests.OtherDeclaration().For(Harborline.Foundation.RuleEngine.Environments.EvaluationPhase.Run), "rule.environment.not_admitted"),
+            (ViewsExpressionEnvironmentTests.InapplicablePhase(), "rule.environment.phase_not_admitted"),
+        })
+        {
+            var calls = new List<string>();
+            var runtime = new ViewQueryRuntime(new RecordingDefinitions(calls, Definition()),
+                new RecordingOpenGate(calls, new ViewAuthority(CanOpen: true, Actions: [])),
+                new RecordingKinds(calls, IsRegistered: true), new RecordingRecordTypes(calls),
+                new RecordingAccessFilter(calls), new RecordingRows(calls), new RecordingMeasures(calls),
+                new FixedTimeProvider(DateTimeOffset.UnixEpoch), environment: environment);
+            var error = await Assert.ThrowsAsync<Harborline.Foundation.RuleEngine.Environments.BorrowerEnvironmentException>(async () => await runtime.ExecuteAsync(Request()));
+            Assert.Equal(code, error.Code);
+            Assert.DoesNotContain("rows", calls);
+        }
+    }
+
     private static ViewQueryRuntime RuntimeWithStore(IViewDefinitionCatalogue store, List<string> calls) => new(
         store,
         new RecordingOpenGate(calls, new ViewAuthority(CanOpen: true, Actions: [])),
