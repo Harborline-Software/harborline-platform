@@ -13,16 +13,18 @@
     "projections/dotnet/blocks/hlp.blocks.entity-views/IFormBindingSource.cs": "87cb837d570930180e997ad9824dc75ec37d7b70b4900b809f8f9e2a6a62ce76",
     "projections/dotnet/blocks/hlp.blocks.entity-views/IViewNavigationTargets.cs": "43363c5911b8d9947bdb910b473cd06fcc1187dd08e77e3358c432ecfa8a052e",
     "projections/dotnet/blocks/hlp.blocks.entity-views/InMemoryEntityViewsStore.cs": "c87f95d65c78a089bd656d66f0583bfe7de25971497a4864b03c3f64da75e4d8",
-    "projections/dotnet/blocks/hlp.blocks.entity-views/Harborline.Blocks.EntityViews.csproj": "057c1fd085f2c115e61ff129b6051576d661ac00a3cf43e9201c99bf84b3b6fe",
+    "projections/dotnet/blocks/hlp.blocks.entity-views/Harborline.Blocks.EntityViews.csproj": "444b67fdd5a3dc63b0bd80e7d46560726d16bdbddc60d1f26c329101c3608fcf",
     "projections/dotnet/blocks/hlp.blocks.entity-views/AccessViewFilter.cs": "b73dc6f424e32ba6a7b3e633ac2ea201c406198756c6a47d5ae900e99190a5aa",
     "projections/dotnet/blocks/hlp.blocks.entity-views/InMemoryViewRowSource.cs": "247390e6534361b8f5396d4f31c9e58e6b595a797a569dc03152a098df10b889",
     "projections/dotnet/blocks/hlp.blocks.entity-views/ViewQueryRuntime.cs": "31adae9b85b62235808a0a3d5a094a5677e14d9a6ca671093dc24cd894d781d8",
     "projections/dotnet/blocks/hlp.blocks.entity-views.tests/AccessViewFilterTests.cs": "a506dee30f2096049ddaadd22317fd832043a0bd4f41947bb3c3eb944527a06e",
     "projections/dotnet/blocks/hlp.blocks.entity-views.tests/ViewQueryRuntimeTests.cs": "624f2565333246453446d84962972a52134f12ab7ce095d3952ab93b8aae1626",
-    "specs/modules/blocks/hlp.blocks.entity-views/interface.yaml": "6797b0a45e18f0f3ee8e066982edfe1852e1aabd5dd6f43f8a275602a143546c",
+    "specs/modules/blocks/hlp.blocks.entity-views/interface.yaml": "89e2b8b05a4bf3064549da50f781fdcd8389ec716c864afdac9f06604869096a",
     "tests/package-consumers/views-nuget/Program.cs": "41e447d2c52dd40c67db9aa41ad69162979cfa3296dd0bcfd45c96a1cc0ca557",
     "tests/package-consumers/views-nuget/AccessContractProof.cs": "398058eee7e2d1997ea3961b0781f7c8086fd06c686d69517edc3ab2a0436a49",
-    "projections/dotnet/blocks/hlp.blocks.entity-views/CatalogueViewMeasures.cs": "adbe71355a40402425bc5bad1f3440c62b218ceda27629e529d864e00bc5af86"
+    "projections/dotnet/blocks/hlp.blocks.entity-views/CatalogueViewMeasures.cs": "adbe71355a40402425bc5bad1f3440c62b218ceda27629e529d864e00bc5af86",
+    "projections/dotnet/blocks/hlp.blocks.entity-views/ViewsExpressionEnvironment.cs": "1b8d96f92fad81122a4c616be5a42de360505073d75d62862e90870546ae31fd",
+    "projections/dotnet/blocks/hlp.blocks.entity-views.tests/ViewsExpressionEnvironmentTests.cs": "1e5e830726233e9741fdfcd8709f6ab738e411ac91eb74d510234828c61074c6"
   },
   "nextGate": "Wave B: re-prove the 20 route rows at the narrowed Harborline persistence/API seam (loopback WebApplication) and build the views-capability-vertical package fixture (9 anchors + four-pair fallback/store indistinguishability); only that vertical flips the views gate."
 }

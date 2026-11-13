@@ -16,4 +16,7 @@
     <ProjectReference Include="../hlp.blocks.entity-views/Harborline.Blocks.EntityViews.csproj" />
     <ProjectReference Include="../../foundation/hlp.foundation.field-runtime/Harborline.Foundation.FieldRuntime.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="../../../../conformance/hlp.foundation.rule-runtime/borrower-contracts.json" Link="borrower-contracts.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>

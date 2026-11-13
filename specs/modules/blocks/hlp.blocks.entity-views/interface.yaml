@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.blocks.entity-views",
-  "interfaceRevision": 9,
+  "interfaceRevision": 10,
   "status": "frozen",
   "purpose": "Own the Views read model, authored view-definition lifecycle, and authorized query runtime behind Harborline-owned ports: entity list/type-filter/detail-with-breadcrumb/containment-tree reads with the 404-only-null rule, immutable authored coordinates with draft/publish/restore history, typed filter/shape/interaction admission, Access-first query execution, condition history with provenance, the two previewed writes with typed rejections, breadcrumb resolution below any renderer with the no-raw-id rule, form-binding descriptors and navigation targets over the frozen Forms wire (Design B), and a development preview adapter that fails closed in Production.",
-  "dependencies": [{"moduleId": "hlp.contracts.identities", "minimumRevision": 1}, {"moduleId": "hlp.contracts.forms", "minimumRevision": 4}, {"moduleId": "hlp.contracts.fields", "minimumRevision": 2}, {"moduleId": "hlp.foundation.actor", "minimumRevision": 2}, {"moduleId": "hlp.blocks.measure-catalogue", "minimumRevision": 1}],
+  "dependencies": [{"moduleId": "hlp.contracts.identities", "minimumRevision": 1}, {"moduleId": "hlp.contracts.forms", "minimumRevision": 4}, {"moduleId": "hlp.contracts.fields", "minimumRevision": 2}, {"moduleId": "hlp.foundation.actor", "minimumRevision": 2}, {"moduleId": "hlp.blocks.measure-catalogue", "minimumRevision": 1}, {"moduleId": "hlp.foundation.rule-runtime", "minimumRevision": 6}],
   "callerInterface": {
     "name": "IEntityReadStore / IConditionHistoryStore / IFormBindingSource / IViewNavigationTargets / BreadcrumbResolver / IViewDefinitionCatalogue / ViewDefinitionAuthoring / ViewQueryRuntime / ViewKindRegistry",
     "operations": [
@@ -29,9 +29,10 @@
       "ViewQueryRuntime.ExecuteAsync -> resolve published head (refusing view_definition.not_found when none is published for the tenant), authorize open (a denied open refuses with the same view_definition.not_found, code, message and shape, so a forbidden and a missing view are indistinguishable; views-eng-1, owner ruling 2026-11-07, CWE-203), resolve kind and record shape, prepend the Access predicate, apply authored filtering/sort/group/page, evaluate named measures over current authorized rows, and return transient rows/actions/authority/evaluatedAt",
       "ViewKindRegistry.Platform / new ViewKindRegistry(descriptors) -> the production IViewKindRegistry: an immutable, duplicate-refusing register whose platform instance resolves the canonical layout.table identity to the hlp.ui.data-grid renderer and a Title role contract; the retired Views-era grid spelling resolves to nothing"
     ],
-    "context": "Persistence lives behind the store ports a host supplies; the in-memory store is the test/dev double and the development preview adapter (pinned Harborline App seed tree, injected TimeProvider) throws in Production. The module references only the identity/forms/fields contracts — never a Foundation aggregate, a Kernel, a host, or a UI framework."
+    "context": "Persistence lives behind the store ports a host supplies; the in-memory store is the test/dev double and the development preview adapter (pinned Harborline App seed tree, injected TimeProvider) throws in Production. The module uses the identity/forms/fields contracts and the Rules borrower-environment admission seam; it does not depend on a host or a UI framework."
   },
   "invariants": [
+    "ViewsExpressionEnvironment declares typed record fields, authenticated caller, UTC evaluated-at clock, field-read only, and Render and Run phases through Rules admission.",
     "A bound record-type descriptor carries tenant, SchemaRef and shared field bindings. Selected column domains resolve through IFieldDomainRuntime for the actual tenant and principal after view-open authorization; a missing runtime, mismatched descriptor or missing selected binding refuses rather than returning an unbound result.",
     "ColumnDomains exposes shared readable membership and editor choice only for selected fields whose inherited read-role gate permits access. The host supplies the typed role vocabulary and held roles; domain read authority is not cached across principals.",
     "GetEntityAsync/GetTreeAsync return null for not-found ONLY; every other failure surfaces as a typed EntityViewsException with a stable views.* code — a non-404 failure is never projected as absence.",
