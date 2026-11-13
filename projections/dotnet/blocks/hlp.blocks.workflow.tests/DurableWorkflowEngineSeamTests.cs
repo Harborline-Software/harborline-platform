@@ -661,6 +661,26 @@ public sealed class DurableWorkflowEngineSeamTests
         Assert.Equal(2, (await store.CommittedEffectPayloadsAsync("recurring-migrated")).Count);
     }
 
+    [Fact]
+    public async Task Identity_migration_after_a_recurring_occurrence_preserves_replay_and_generates_the_next_once()
+    {
+        using var fixture = new JournalFixture();
+        using var store = fixture.Open();
+        await CreateAsync(store, "recurring-after", key: "recurring-generation", step: "generate@2026-07-15");
+        var dispatcher = new WorkflowTriggerDispatcher(store, [new RecurringGenerationHandler(new StaticRecurringContext())], definitionStore: AdmittedDefinitionStore);
+        var first = WorkflowTrigger.For(WorkflowTriggerKind.Schedule, "recurring-after", "generate@2026-07-15");
+        var second = WorkflowTrigger.For(WorkflowTriggerKind.Schedule, "recurring-after", "generate@2026-08-15");
+        Assert.Equal(WorkflowDispatchResult.Advanced, await dispatcher.DispatchAsync(first, Authorized("recurring-after")));
+        await new WorkflowMigration(store, new RecurringMigrationDefinitions(), dispatcher).MigrateAsync("recurring-after", "2.0.0",
+            new Dictionary<string, string> { ["generate@2026-07-15"] = "generate@2026-07-15" },
+            new WorkflowMigrationAuthority("operator", Tenant, "workflow:migrate", "workflow-instance", "recurring-after", true));
+        Assert.Equal("2.0.0", (await store.LoadAsync("recurring-after"))!.DefinitionVersion);
+        Assert.Equal(WorkflowDispatchResult.ReplayedNoOp, await dispatcher.DispatchAsync(first, Authorized("recurring-after")));
+        Assert.Equal(WorkflowDispatchResult.Advanced, await dispatcher.DispatchAsync(second, Authorized("recurring-after")));
+        Assert.Equal(WorkflowDispatchResult.ReplayedNoOp, await dispatcher.DispatchAsync(second, Authorized("recurring-after")));
+        Assert.Equal(new[] { "occurrence:2026-07-15", "occurrence:2026-08-15" }, await store.CommittedEffectPayloadsAsync("recurring-after"));
+    }
+
     private sealed class RecurringMigrationDefinitions : IWorkflowDefinitionExecutionStore
     {
         public ValueTask<WorkflowDefinitionRecord?> GetAdmittedCurrentPublishedAsync(string tenant, string key, CancellationToken ct = default) => throw new NotSupportedException();
