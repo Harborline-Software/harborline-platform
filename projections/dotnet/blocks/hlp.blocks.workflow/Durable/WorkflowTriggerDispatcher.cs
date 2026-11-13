@@ -47,6 +47,8 @@ public sealed class WorkflowTriggerDispatcher : IWorkflowTriggerDispatcher
     private readonly IWorkflowDefinitionExecutionStore? _definitionStore;
     private readonly WorkflowEngineOptions _options;
 
+    internal bool HasTypedHandler(string definitionKey) => _handlers.ContainsKey(definitionKey);
+
     /// <summary>
     /// Constructs the dispatcher over the durable store and the registered step handlers (one per
     /// definition key). Duplicate definition keys throw — a definition has exactly one handler.

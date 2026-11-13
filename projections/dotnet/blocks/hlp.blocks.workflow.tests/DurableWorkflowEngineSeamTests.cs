@@ -42,7 +42,7 @@ public sealed class DurableWorkflowEngineSeamTests
         var dispatcher = new WorkflowTriggerDispatcher(pausing, new[] { new AdvanceOnceHandler() }, definitionStore: AdmittedDefinitionStore);
         var dispatch = dispatcher.DispatchAsync(WorkflowTrigger.For(WorkflowTriggerKind.Event, "replay-race", "old"), Authorized("replay-race"));
         await pausing.Entered.Task;
-        await new WorkflowMigration(store, new MigrationDefinitions()).MigrateAsync("replay-race", "2.0.0",
+        await new WorkflowMigration(store, new MigrationDefinitions(), new WorkflowTriggerDispatcher(store, [])).MigrateAsync("replay-race", "2.0.0",
             new Dictionary<string, string> { ["old"] = "new" },
             new WorkflowMigrationAuthority("operator", Tenant, "workflow:migrate", "workflow-instance", "replay-race", true));
         pausing.Continue.SetResult();
@@ -83,7 +83,7 @@ public sealed class DurableWorkflowEngineSeamTests
         var dispatcher = new WorkflowTriggerDispatcher(store, new[] { handler }, definitionStore: AdmittedDefinitionStore);
         var dispatch = dispatcher.DispatchAsync(WorkflowTrigger.For(WorkflowTriggerKind.Event, "race", "old"), Authorized("race"));
         await handler.Entered.Task;
-        await new WorkflowMigration(store, new MigrationDefinitions()).MigrateAsync("race", "2.0.0",
+        await new WorkflowMigration(store, new MigrationDefinitions(), new WorkflowTriggerDispatcher(store, [])).MigrateAsync("race", "2.0.0",
             new Dictionary<string, string> { ["old"] = "new" },
             new WorkflowMigrationAuthority("operator", Tenant, "workflow:migrate", "workflow-instance", "race", true));
         handler.Continue.SetResult();
@@ -120,7 +120,7 @@ public sealed class DurableWorkflowEngineSeamTests
         await store.AdvanceAsync(new WorkflowStepKey("migrating", 0, "old"), null, "{}", "Advanced", "{}", "other", WorkflowStatus.Running);
         await store.ParkAsync("migrating", "old", "{}");
         var staleTrigger = WorkflowTrigger.For(WorkflowTriggerKind.Event, "migrating", "old");
-        await new WorkflowMigration(store, new MigrationDefinitions()).MigrateAsync("migrating", "2.0.0",
+        await new WorkflowMigration(store, new MigrationDefinitions(), new WorkflowTriggerDispatcher(store, [])).MigrateAsync("migrating", "2.0.0",
             new Dictionary<string, string> { ["old"] = "new" },
             new WorkflowMigrationAuthority("operator", Tenant, "workflow:migrate", "workflow-instance", "migrating", true));
         var dispatcher = new WorkflowTriggerDispatcher(store, new[] { new AdvanceOnceHandler() }, definitionStore: AdmittedDefinitionStore);
@@ -637,7 +637,7 @@ public sealed class DurableWorkflowEngineSeamTests
         using var fixture = new JournalFixture();
         using var store = fixture.Open();
         await CreateAsync(store, "recurring-migrated", key: "recurring-generation", step: "generate@2026-07-15");
-        await new WorkflowMigration(store, new RecurringMigrationDefinitions()).MigrateAsync("recurring-migrated", "2.0.0",
+        await new WorkflowMigration(store, new RecurringMigrationDefinitions(), new WorkflowTriggerDispatcher(store, [new RecurringGenerationHandler(new StaticRecurringContext())])).MigrateAsync("recurring-migrated", "2.0.0",
             new Dictionary<string, string> { ["generate@2026-07-15"] = "generate@2026-07-15" },
             new WorkflowMigrationAuthority("operator", Tenant, "workflow:migrate", "workflow-instance", "recurring-migrated", true));
         var dispatcher = new WorkflowTriggerDispatcher(store, new[] { new RecurringGenerationHandler(new StaticRecurringContext()) }, definitionStore: AdmittedDefinitionStore);

@@ -7,6 +7,51 @@ namespace Harborline.Blocks.Workflow.Tests;
 
 public sealed class WorkflowMigrationTests
 {
+    private static WorkflowMigration Migration(IWorkflowStore store, IWorkflowDefinitionExecutionStore definitions)
+        => new(store, definitions, new WorkflowTriggerDispatcher(store, [], definitionStore: definitions));
+    [Theory]
+    [InlineData("new", false)]
+    [InlineData("old", true)]
+    public async Task Typed_handler_migration_refuses_renamed_active_steps_and_admits_identity(string target, bool accepted)
+    {
+        using var fixture = new JournalFixture();
+        using var store = fixture.Open();
+        await store.CreateInstanceAsync(new WorkflowInstanceRecord
+        {
+            Id = "run-1", TenantId = "tenant-1", DefinitionKey = "flow", DefinitionVersion = "1.0.0",
+            CurrentStep = "old", Status = WorkflowStatus.Running,
+        });
+        var definitions = new TypedDefinitions();
+        var dispatcher = new WorkflowTriggerDispatcher(store, [new TypedHandler()], definitionStore: definitions);
+        var migration = new WorkflowMigration(store, definitions, dispatcher);
+        var authority = new WorkflowMigrationAuthority("operator-1", "tenant-1", "workflow:migrate", "workflow-instance", "run-1", true);
+        if (accepted)
+            await migration.MigrateAsync("run-1", "2.0.0", new Dictionary<string, string> { ["old"] = target }, authority);
+        else
+        {
+            var error = await Assert.ThrowsAsync<InvalidOperationException>(() => migration.MigrateAsync("run-1", "2.0.0", new Dictionary<string, string> { ["old"] = target }, authority));
+            Assert.Contains("old", error.Message, StringComparison.Ordinal);
+        }
+        Assert.Equal(accepted ? "2.0.0" : "1.0.0", (await store.LoadAsync("run-1"))!.DefinitionVersion);
+        Assert.Equal("old", (await store.LoadAsync("run-1"))!.CurrentStep);
+        Assert.Equal(accepted ? 1 : 0, (await store.EventsAsync("run-1")).Count);
+    }
+
+    private sealed class TypedHandler : IWorkflowStepHandler
+    {
+        public string DefinitionKey => "flow";
+        public ValueTask<WorkflowStepOutcome> DecideAsync(WorkflowInstanceRecord instance, WorkflowTrigger trigger, CancellationToken ct = default)
+            => throw new NotSupportedException();
+    }
+
+    private sealed class TypedDefinitions : IWorkflowDefinitionExecutionStore
+    {
+        public ValueTask<WorkflowDefinitionRecord?> GetAdmittedCurrentPublishedAsync(string tenant, string key, CancellationToken ct = default) => throw new NotSupportedException();
+        public ValueTask<WorkflowDefinitionRecord> GetAdmittedAsync(string tenant, string key, string version, CancellationToken ct = default)
+            => ValueTask.FromResult(new WorkflowDefinitionRecord(tenant, key, version, WorkflowDefinitionStatus.Published,
+                JsonElement.Parse("{\"initialState\":\"old\",\"states\":[{\"id\":\"old\"},{\"id\":\"new\"}]}")));
+    }
+
     [Fact]
     public async Task Migration_refuses_a_target_with_a_mismatched_subject_without_recording()
     {
@@ -17,7 +62,7 @@ public sealed class WorkflowMigrationTests
             Id = "run-1", TenantId = "tenant-1", DefinitionKey = "flow", DefinitionVersion = "1.0.0",
             CurrentStep = "old", Status = WorkflowStatus.Running, SubjectRecord = new("invoice", "invoice-1"),
         });
-        var error = await Assert.ThrowsAsync<InvalidOperationException>(() => new WorkflowMigration(store, new SubjectDefinitions())
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() => Migration(store, new SubjectDefinitions())
             .MigrateAsync("run-1", "2.0.0", new Dictionary<string, string> { ["old"] = "new" },
                 new WorkflowMigrationAuthority("operator-1", "tenant-1", "workflow:migrate", "workflow-instance", "run-1", true)));
         Assert.Contains("subject", error.Message, StringComparison.OrdinalIgnoreCase);
@@ -45,7 +90,7 @@ public sealed class WorkflowMigrationTests
             Id = "run-1", TenantId = "other", DefinitionKey = "flow", DefinitionVersion = "1.0.0",
             CurrentStep = "old", Status = WorkflowStatus.Running,
         });
-        var migration = new WorkflowMigration(store, new Definitions());
+        var migration = Migration(store, new Definitions());
         var authority = new WorkflowMigrationAuthority("operator-1", "tenant-1", "workflow:migrate", "workflow-instance", "run-1", true);
         var existing = await Assert.ThrowsAsync<UnauthorizedAccessException>(() => migration.MigrateAsync("run-1", "2.0.0", new Dictionary<string, string>(), authority));
         var absent = await Assert.ThrowsAsync<UnauthorizedAccessException>(() => migration.MigrateAsync("missing", "2.0.0", new Dictionary<string, string>(), authority with { RecordId = "missing" }));
@@ -64,7 +109,7 @@ public sealed class WorkflowMigrationTests
             CurrentStep = "new", Status = WorkflowStatus.Running,
         });
         await store.AdvanceAsync(new WorkflowStepKey("run-1", 0, "new"), null, "{}", "Advanced", "{}", "old", WorkflowStatus.Running);
-        var error = await Assert.ThrowsAsync<InvalidOperationException>(() => new WorkflowMigration(store, new Definitions())
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() => Migration(store, new Definitions())
             .MigrateAsync("run-1", "2.0.0", new Dictionary<string, string> { ["old"] = "new" },
                 new WorkflowMigrationAuthority("operator-1", "tenant-1", "workflow:migrate", "workflow-instance", "run-1", true)));
         Assert.Contains("new", error.Message, StringComparison.Ordinal);
@@ -96,7 +141,7 @@ public sealed class WorkflowMigrationTests
         Assert.Equal("1.0.0", (await store.LoadAsync("run-1"))!.DefinitionVersion);
         Assert.Equal("old", (await store.LoadAsync("run-1"))!.CurrentStep);
         Assert.Empty(await store.EventsAsync("run-1"));
-        await new WorkflowMigration(store, definitions).MigrateAsync("run-1", "2.0.0",
+        await Migration(store, definitions).MigrateAsync("run-1", "2.0.0",
             new Dictionary<string, string> { ["old"] = "new" },
             new WorkflowMigrationAuthority("operator-1", "tenant-1", "workflow:migrate", "workflow-instance", "run-1", true));
         Assert.Equal("2.0.0", (await store.LoadAsync("run-1"))!.DefinitionVersion);
@@ -114,7 +159,7 @@ public sealed class WorkflowMigrationTests
             CurrentStep = "old", Status = WorkflowStatus.Parked, UpdatedAt = DateTimeOffset.Parse("2026-11-12T12:00:00Z"),
         });
         var definitions = new PausedDefinitions();
-        var migrating = new WorkflowMigration(store, definitions).MigrateAsync("run-1", "2.0.0",
+        var migrating = Migration(store, definitions).MigrateAsync("run-1", "2.0.0",
             new Dictionary<string, string> { ["old"] = "new" },
             new WorkflowMigrationAuthority("operator-1", "tenant-1", "workflow:migrate", "workflow-instance", "run-1", true));
         await definitions.Entered.Task;
@@ -155,7 +200,7 @@ public sealed class WorkflowMigrationTests
             Id = "run-1", TenantId = "tenant-1", DefinitionKey = "flow", DefinitionVersion = "1.0.0",
             CurrentStep = "old", Status = WorkflowStatus.Running,
         });
-        await Assert.ThrowsAsync<InvalidOperationException>(() => new WorkflowMigration(store, new Definitions()).MigrateAsync(
+        await Assert.ThrowsAsync<InvalidOperationException>(() => Migration(store, new Definitions()).MigrateAsync(
             "run-1", "1.0.0", new Dictionary<string, string> { ["old"] = "new" },
             new WorkflowMigrationAuthority("operator-1", "tenant-1", "workflow:migrate", "workflow-instance", "run-1", true)));
         Assert.Equal("1.0.0", (await store.LoadAsync("run-1"))!.DefinitionVersion);
@@ -191,7 +236,7 @@ public sealed class WorkflowMigrationTests
             "kind" => authority with { RecordKind = "other" },
             _ => authority with { RecordId = "other" },
         };
-        var error = await Record.ExceptionAsync(() => new WorkflowMigration(store, new Definitions()).MigrateAsync(
+        var error = await Record.ExceptionAsync(() => Migration(store, new Definitions()).MigrateAsync(
             "run-1", "2.0.0", new Dictionary<string, string> { ["old"] = "new" }, authority));
         Assert.True(error is UnauthorizedAccessException or ArgumentNullException);
         Assert.Equal("1.0.0", (await store.LoadAsync("run-1"))!.DefinitionVersion);
@@ -213,7 +258,7 @@ public sealed class WorkflowMigrationTests
         });
         var map = new Dictionary<string, string>();
         if (missingTarget) map.Add("old", "missing");
-        var error = await Assert.ThrowsAsync<InvalidOperationException>(() => new WorkflowMigration(store, new Definitions())
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() => Migration(store, new Definitions())
             .MigrateAsync("run-1", "2.0.0", map,
                 new WorkflowMigrationAuthority("operator-1", "tenant-1", "workflow:migrate", "workflow-instance", "run-1", true)));
         Assert.Contains("old", error.Message, StringComparison.Ordinal);
@@ -235,7 +280,7 @@ public sealed class WorkflowMigrationTests
             CurrentStep = "old", Status = WorkflowStatus.Parked,
             StateJson = "{\"due\":\"2026-11-12T12:00:00Z\",\"correlation\":\"event-1\"}",
         });
-        var migration = new WorkflowMigration(store, new Definitions());
+        var migration = Migration(store, new Definitions());
         await migration.MigrateAsync("run-1", "2.0.0", new Dictionary<string, string> { ["old"] = "new" },
             new WorkflowMigrationAuthority("operator-1", "tenant-1", "workflow:migrate", "workflow-instance", "run-1", true));
 
