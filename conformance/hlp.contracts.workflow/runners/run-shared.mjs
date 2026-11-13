@@ -27,7 +27,7 @@ const gated = value => {
   return value.transitions.find(transition => human.has(transition.on))
 }
 const mutate = (value, mutation = {}) => {
-  if (mutation.stateDeclarations) Object.assign(value.states.find(state => state.kind === 'Normal'), {fieldRequirements: [{field: 'invoice.amount', condition: 'required.amount'}], locks: 'dates only', escalation: {schedule: 'review-overdue'}})
+  if (mutation.stateDeclarations) Object.assign(value.states.find(state => state.kind === 'Normal'), clone(mutation.stateDeclarations))
   if (mutation.actionTransition) value.actions[0].on = {transition: mutation.actionTransition}
   if (mutation.actionClassification) value.actions[0].classification = mutation.actionClassification
   if (mutation.transitionGuard) value.transitions[0].guard = mutation.transitionGuard
@@ -61,6 +61,10 @@ for (const row of fixture.cases) {
     else assert.deepEqual(wire.readWorkflowWire(row.type, input(row)), row.expected === 'same' ? input(row) : row.expected)
   } else {
     const definition = wire.readWorkflowWire('WorkflowDefinition', mutate(input(row), row.mutation))
+    if (row.mutation?.stateDeclarations) {
+      const state = definition.states.find(state => state.kind === 'Normal')
+      for (const [key, expected] of Object.entries(row.mutation.stateDeclarations)) assert.deepEqual(state[key], expected, row.id)
+    }
     const result = wire.validateWorkflowAdmission(definition, authority, roleVocabulary, row.window ? fixture.contractWindow : undefined)
     assert.equal(result.isValid, row.expected.isValid, row.id)
     assert.deepEqual([...new Set(result.violations.map(violation => violation.code))].sort(), [...row.expected.codes].sort(), row.id)

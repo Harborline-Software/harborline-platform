@@ -42,6 +42,9 @@ public sealed class WorkflowStateDeclarationsTests
     [
         [new WorkflowStateDef { Id = "Open", FieldRequirements = [new("", "condition")] }, "workflow.invalid_field_requirement"],
         [new WorkflowStateDef { Id = "Open", FieldRequirements = [new("field", "")] }, "workflow.invalid_field_requirement"],
+        [new WorkflowStateDef { Id = "Open", FieldRequirements = [new(" ", "condition")] }, "workflow.invalid_field_requirement"],
+        [new WorkflowStateDef { Id = "Open", FieldRequirements = [new("field", " ")] }, "workflow.invalid_field_requirement"],
+        [new WorkflowStateDef { Id = "Open", Escalation = new(" ") }, "workflow.invalid_escalation"],
         [new WorkflowStateDef { Id = "Open", FieldRequirements = [null!] }, "workflow.invalid_field_requirement"],
         [new WorkflowStateDef { Id = "Open", Locks = (Harborline.Contracts.Workflow.WorkflowLockScope)999 }, "workflow.invalid_field_lock"],
         [new WorkflowStateDef { Id = "Open", Escalation = new("") }, "workflow.invalid_escalation"],
