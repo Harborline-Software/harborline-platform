@@ -317,7 +317,7 @@ public sealed class WorkflowModelParityTests
         Assert.Equal([WorkflowAdmissionCodes.InvalidStanding], Codes(Admit(built)));
     }
 
-    [Fact(DisplayName = "workflows-ck-2, workflows-ck-15, workflows-auth-10, workflows-auth-11: both validators return the fixture verdict on every shared row")]
+    [Fact(DisplayName = "workflows-ck-2, workflows-ck-15, workflows-ck-20, workflows-auth-10, workflows-auth-11: both validators return the fixture verdict on every shared row")]
     public void Workflows_ck_2_ck_15_auth_10_auth_11_both_validators_return_the_fixture_verdict_on_every_shared_row()
     {
         using var fixture = JsonDocument.Parse(File.ReadAllText(FindFixture()));
@@ -342,8 +342,15 @@ public sealed class WorkflowModelParityTests
             var text = authored.ToJsonString();
             var expected = row.GetProperty("expected").GetProperty("codes").EnumerateArray().Select(code => code.GetString()!).Order(StringComparer.Ordinal).ToArray();
 
-            var wire = Wire.WorkflowAdmissionValidator.Validate(
-                (Wire.WorkflowDefinition)Wire.WorkflowWire.Deserialize("WorkflowDefinition", text), wireAuthority, roles, windowed ? wireWindow : null);
+            var wireModel = (Wire.WorkflowDefinition)Wire.WorkflowWire.Deserialize("WorkflowDefinition", text);
+            if (row.TryGetProperty("mutation", out var declarationMutation) && declarationMutation.TryGetProperty("stateDeclarations", out var declarations))
+            {
+                var state = wireModel.States.First(s => s.Kind == Wire.WorkflowStateKind.Normal);
+                var actual = JsonNode.Parse(Wire.WorkflowWire.Serialize("WorkflowState", state))!;
+                foreach (var member in declarations.EnumerateObject())
+                    Assert.True(JsonNode.DeepEquals(JsonNode.Parse(member.Value.GetRawText()), actual[member.Name]), $"{id} wire: {member.Name}");
+            }
+            var wire = Wire.WorkflowAdmissionValidator.Validate(wireModel, wireAuthority, roles, windowed ? wireWindow : null);
             Assert.True(expected.SequenceEqual(wire.Violations.Select(violation => violation.Code).Distinct().Order(StringComparer.Ordinal)), $"{id} wire: {string.Join(",", wire.Violations.Select(violation => violation.Code))}");
 
             using var document = JsonDocument.Parse(text);
@@ -356,6 +363,17 @@ public sealed class WorkflowModelParityTests
             else
             {
                 var model = WorkflowDefinitionWireMapper.ToModel(document.RootElement, Tenant, Key, Version);
+                if (row.TryGetProperty("mutation", out var engineMutation) && engineMutation.TryGetProperty("stateDeclarations", out var engineDeclarations))
+                {
+                    var state = model.States.First(s => s.Kind == WorkflowStateKind.Normal);
+                    var requirement = Assert.Single(state.FieldRequirements);
+                    var expectedRequirement = engineDeclarations.GetProperty("fieldRequirements")[0];
+                    Assert.Equal(expectedRequirement.GetProperty("field").GetString(), requirement.Field);
+                    Assert.Equal(expectedRequirement.GetProperty("condition").GetString(), requirement.Condition);
+                    Assert.Equal("dates only", engineDeclarations.GetProperty("locks").GetString());
+                    Assert.Equal(Wire.WorkflowLockScope.DatesOnly, state.Locks);
+                    Assert.Equal(engineDeclarations.GetProperty("escalation").GetProperty("schedule").GetString(), state.Escalation?.Schedule);
+                }
                 var engine = new WorkflowAdmissionValidator(engineAuthority, null, roles, windowed ? engineWindow : null).Validate(model);
                 Assert.True(expected.SequenceEqual(engine.Violations.Select(violation => violation.Code).Distinct().Order(StringComparer.Ordinal)), $"{id} engine: {string.Join(",", engine.Violations.Select(violation => violation.Code))}");
             }
@@ -398,6 +416,11 @@ public sealed class WorkflowModelParityTests
         var humanTriggers = definition["triggers"]!.AsArray().Where(t => (string?)t!["kind"] == "HumanAction").Select(t => (string?)t!["id"]).ToHashSet();
         var gated = definition["transitions"]!.AsArray().First(t => humanTriggers.Contains((string?)t!["on"]))!.AsObject();
         JsonNode Missing() => new JsonObject { ["vocabulary"] = "tax.roles", ["name"] = "Missing" };
+        if (mutation.TryGetProperty("stateDeclarations", out var declarations))
+        {
+            var state = definition["states"]!.AsArray().First(s => (string?)s!["kind"] == "Normal")!.AsObject();
+            foreach (var member in declarations.EnumerateObject()) state[member.Name] = JsonNode.Parse(member.Value.GetRawText());
+        }
         if (mutation.TryGetProperty("actionTransition", out var actionTransition)) action["on"] = new JsonObject { ["transition"] = actionTransition.GetString() };
         if (mutation.TryGetProperty("actionClassification", out var classification)) action["classification"] = classification.GetString();
         if (mutation.TryGetProperty("transitionGuard", out var guard)) transition["guard"] = guard.GetString();

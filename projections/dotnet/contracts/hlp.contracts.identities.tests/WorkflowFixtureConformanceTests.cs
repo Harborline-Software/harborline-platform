@@ -47,6 +47,13 @@ public sealed class WorkflowFixtureConformanceTests
             var node = JsonNode.Parse(input)!.AsObject();
             ApplyMutation(node, row, root);
             var definition = (WorkflowDefinition)WorkflowWire.Deserialize("WorkflowDefinition", node.ToJsonString());
+            if (row.TryGetProperty("mutation", out var mutation) && mutation.TryGetProperty("stateDeclarations", out var declarations))
+            {
+                var state = definition.States.First(s => s.Kind == WorkflowStateKind.Normal);
+                var actual = JsonNode.Parse(WorkflowWire.Serialize("WorkflowState", state))!;
+                foreach (var member in declarations.EnumerateObject())
+                    Assert.True(JsonNode.DeepEquals(JsonNode.Parse(member.Value.GetRawText()), actual[member.Name]), $"{row.GetProperty("id").GetString()}: {member.Name}");
+            }
             var window = row.TryGetProperty("window", out _) ? JsonSerializer.Deserialize<WorkflowContractWindow>(root.GetProperty("contractWindow").GetRawText(), new JsonSerializerOptions(JsonSerializerDefaults.Web)) : null;
             var result = WorkflowAdmissionValidator.Validate(definition, resolver, roleVocabulary, window);
             var expectedResult = row.GetProperty("expected");
@@ -60,7 +67,7 @@ public sealed class WorkflowFixtureConformanceTests
                 $"{row.GetProperty("id").GetString()}: expected [{string.Join(", ", expectedCodes)}], got [{string.Join(", ", actualCodes)}]");
         }
 
-        Assert.Equal(89, cases.Length);
+        Assert.Equal(90, cases.Length);
         Assert.Equal(ActionClassification.CP, resolver.AuthorityOf("unregistered.capability"));
         Assert.Throws<ArgumentOutOfRangeException>(() => new ImmutableWorkflowAuthorityResolver(
             new Dictionary<string, ActionClassification> { ["invalid"] = (ActionClassification)99 }));
@@ -98,6 +105,11 @@ public sealed class WorkflowFixtureConformanceTests
         // autonomous transition is its own refusal (gate_on_autonomous_step), tested by the autonomous* keys.
         var humanTriggers = definition["triggers"]!.AsArray().Where(t => (string?)t!["kind"] == "HumanAction").Select(t => (string?)t!["id"]).ToHashSet();
         var gated = definition["transitions"]!.AsArray().First(t => humanTriggers.Contains((string?)t!["on"]))!.AsObject();
+        if (mutation.TryGetProperty("stateDeclarations", out var declarations))
+        {
+            var state = definition["states"]!.AsArray().First(s => (string?)s!["kind"] == "Normal")!.AsObject();
+            foreach (var member in declarations.EnumerateObject()) state[member.Name] = JsonNode.Parse(member.Value.GetRawText());
+        }
         if (mutation.TryGetProperty("actionTransition", out var actionTransition))
             action["on"] = new JsonObject { ["transition"] = actionTransition.GetString() };
         if (mutation.TryGetProperty("actionClassification", out var classification)) action["classification"] = classification.GetString();
