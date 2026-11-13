@@ -32,6 +32,44 @@ public sealed class RulesAuthoringTests : BunitContext
         Assert.Equal("field.amount", Assert.IsType<FormulaExpr.Ref>(Assert.IsType<FormulaExpr.Call>(formula.Expression).Args[0]).Name);
     }
 
+    [Fact(DisplayName = "rules-auth-18: saves the promoted loaded rule")]
+    public void SavesPromotedLoadedRule()
+    {
+        using var fixture = JsonDocument.Parse(File.ReadAllText(FindFixture("promotion.json", "hlp.ui.rule-authoring")));
+        var doc = RuleDefinitionCodec.Parse(fixture.RootElement.GetProperty("input").GetRawText(), RuleIntentPhase.Author).Document!;
+        var rule = new RulesDraft("amount-check", "7", "Amount check", "Draft", "", doc.Draft) { Materialization = new RulesMaterialization([], "content", "digest-1") };
+        RulesOperationRequest? requested = null;
+        var cut = Render<HarborlineRulesAuthoringEditor>(p => p.Add(x => x.Value, rule).Add(x => x.Catalogue, new RulesRuleCatalogue([rule])).Add(x => x.CatalogueChanged, _ => { }).Add(x => x.OperationRequested, value => requested = value));
+        cut.FindButton("Promote Amount check").Click();
+        cut.FindButton("Save draft").Click();
+        Assert.Equal("amount-check", requested!.Identity);
+        Assert.Equal("7", requested.ExpectedRevision);
+        Assert.Equal("amount-check", requested.Draft.Identity);
+        Assert.Equal("7", requested.Draft.ExpectedRevision);
+        Assert.Equal("digest-1", requested.Draft.Materialization!.ContentDigest);
+        Assert.Equal("amount", requested.Draft.Draft.ScopeTarget);
+        var formula = Assert.IsType<FormulaDraft>(requested.Draft.Draft);
+        var input = Assert.Single(formula.Inputs);
+        Assert.Equal("field.amount", input.Id);
+        Assert.Equal("field.amount", input.Ref);
+        Assert.Equal("field.amount", Assert.IsType<FormulaExpr.Ref>(Assert.IsType<FormulaExpr.Call>(formula.Expression).Args[0]).Name);
+    }
+
+    [Fact(DisplayName = "rules-auth-18: refuses to promote a loaded rule with unsaved edits")]
+    public void RefusesDirtyPromotion()
+    {
+        using var fixture = JsonDocument.Parse(File.ReadAllText(FindFixture("promotion.json", "hlp.ui.rule-authoring")));
+        var doc = RuleDefinitionCodec.Parse(fixture.RootElement.GetProperty("input").GetRawText(), RuleIntentPhase.Author).Document!;
+        var rule = new RulesDraft("amount-check", "", "Amount check", "Draft", "", doc.Draft);
+        RulesRuleCatalogue? changed = null;
+        var cut = Render<HarborlineRulesAuthoringEditor>(p => p.Add(x => x.Value, rule).Add(x => x.Catalogue, new RulesRuleCatalogue([rule])).Add(x => x.CatalogueChanged, value => changed = value));
+        cut.Find("input[aria-label='Rule name']").Change("Edited");
+        cut.FindButton("Promote Amount check").Click();
+        Assert.Null(changed);
+        Assert.Equal("Edited", cut.Find("input[aria-label='Rule name']").GetAttribute("value"));
+        Assert.Contains("Save or discard unsaved edits before promoting this rule.", cut.Find("[aria-label='Refusals']").TextContent, StringComparison.Ordinal);
+    }
+
     [Fact(DisplayName = "rules-auth-19: navigates producer lineage and names unreferenced calculation")]
     public void NavigatesLineage() => AssertLineageNavigation();
 

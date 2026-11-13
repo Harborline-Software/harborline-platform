@@ -135,11 +135,15 @@
         if (eventArgs.Value is true) rules.Add(new RulesDraft(identity, "", $"{field.Label} {checkbox.Action}", "Draft", "", new FormulaDraft { Scope = RuleScope.Field, ScopeTarget = field.Key, OutputType = checkbox.Action, Inputs = [], Expression = new FormulaExpr.Literal(checkbox.Value, ColumnValueType.Boolean) }));
         return CatalogueChanged.InvokeAsync(new RulesRuleCatalogue(rules));
     }
-    private Task Promote(RulesDraft rule)
+    private async Task Promote(RulesDraft rule)
     {
+        var loaded = rule.Identity == Current.Identity;
+        if (loaded && _dirty) { _refusals = [new("Save or discard unsaved edits before promoting this rule.", "/draft")]; return; }
         var envelope = new RuleDefinitionEnvelope(rule.Identity, "", "", "", new System.Text.Json.Nodes.JsonObject(), [], null);
         var promoted = FieldRuleBindings.Promote(new RuleDefinitionDocument(envelope, rule.Name, RuleDefinitionTier.JsonLogic, rule.Draft));
-        return CatalogueChanged.InvokeAsync(new RulesRuleCatalogue(Catalogue!.Rules.Select(item => item == rule ? item with { Draft = promoted.Draft } : item).ToArray()));
+        var next = rule with { Draft = promoted.Draft };
+        await CatalogueChanged.InvokeAsync(new RulesRuleCatalogue(Catalogue!.Rules.Select(item => item == rule ? next : item).ToArray()));
+        if (loaded) await Change(next);
     }
     private Task Save() => Request("save-draft"); private Task Preview() => Request("preview"); private Task Publish() => Request("publish"); private Task Archive() => Request("archive");
     // Without an authority the host gates elsewhere; with one, an ungranted operation's control renders disabled. The producer still enforces the gate (T-591).

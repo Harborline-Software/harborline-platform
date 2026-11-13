@@ -13,6 +13,28 @@ const contracts = [{ site: 'rule', returnContract: 'typed value', executionTimeC
 const props = (overrides: Partial<React.ComponentProps<typeof RulesAuthoringEditor>> = {}) => ({ value: emptyRulesDraft(), expressionContracts: contracts, previewKind: 'real' as const, onChange: vi.fn(), onOperation: vi.fn(), ...overrides })
 
 describe('Rules authoring React projection', () => {
+  it('rules-auth-18 saves the promoted loaded rule', () => {
+    const f = JSON.parse(readFileSync(resolve(process.cwd(), '../../../../conformance/hlp.ui.rule-authoring/promotion.json'), 'utf8'))
+    const rule = { ...emptyRulesDraft(), identity: 'amount-check', expectedRevision: '7', name: 'Amount check', materialization: { bindings: [], canonicalContent: 'content', contentDigest: 'digest-1' }, draft: f.input.draft }
+    const requested = vi.fn()
+    render(<RulesAuthoringEditor {...props({ value: rule, catalogue: { rules: [rule] }, onCatalogueChange: vi.fn(), onOperation: requested })} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Promote Amount check' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save draft' }))
+    expect(requested).toHaveBeenCalledWith(expect.objectContaining({ identity: 'amount-check', expectedRevision: '7', draft: expect.objectContaining({ identity: 'amount-check', expectedRevision: '7', materialization: expect.objectContaining({ contentDigest: 'digest-1' }), draft: expect.objectContaining({ scopeTarget: 'amount', inputs: [{ id: 'field.amount', ref: 'field.amount', type: 'Number' }], expression: { kind: 'Call', op: '>=', args: [{ kind: 'Ref', name: 'field.amount' }, { kind: 'Literal', value: '0', valueType: 'Number' }] } }) }) }))
+  })
+
+  it('rules-auth-18 refuses to promote a loaded rule with unsaved edits', () => {
+    const f = JSON.parse(readFileSync(resolve(process.cwd(), '../../../../conformance/hlp.ui.rule-authoring/promotion.json'), 'utf8'))
+    const rule = { ...emptyRulesDraft(), identity: 'amount-check', name: 'Amount check', draft: f.input.draft }
+    const changed = vi.fn()
+    render(<RulesAuthoringEditor {...props({ value: rule, catalogue: { rules: [rule] }, onCatalogueChange: changed })} />)
+    fireEvent.change(screen.getByLabelText('Rule name'), { target: { value: 'Edited' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Promote Amount check' }))
+    expect(changed).not.toHaveBeenCalled()
+    expect(screen.getByLabelText('Rule name')).toHaveValue('Edited')
+    expect(screen.getByLabelText('Refusals')).toHaveTextContent('Save or discard unsaved edits before promoting this rule.')
+  })
+
   it('rules-auth-18 promotes a field check in the shared catalogue', () => {
     const fixture = JSON.parse(readFileSync(resolve(process.cwd(), '../../../../conformance/hlp.ui.rule-authoring/promotion.json'), 'utf8'))
     const doc = fixture.input
