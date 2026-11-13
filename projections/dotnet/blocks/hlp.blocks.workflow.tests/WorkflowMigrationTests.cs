@@ -8,6 +8,24 @@ namespace Harborline.Blocks.Workflow.Tests;
 public sealed class WorkflowMigrationTests
 {
     [Fact]
+    public async Task Absent_and_cross_tenant_runs_have_the_same_migration_refusal()
+    {
+        using var fixture = new JournalFixture();
+        using var store = fixture.Open();
+        await store.CreateInstanceAsync(new WorkflowInstanceRecord
+        {
+            Id = "run-1", TenantId = "other", DefinitionKey = "flow", DefinitionVersion = "1.0.0",
+            CurrentStep = "old", Status = WorkflowStatus.Running,
+        });
+        var migration = new WorkflowMigration(store, new Definitions());
+        var authority = new WorkflowMigrationAuthority("operator-1", "tenant-1", "workflow:migrate", "workflow-instance", "run-1", true);
+        var existing = await Assert.ThrowsAsync<UnauthorizedAccessException>(() => migration.MigrateAsync("run-1", "2.0.0", new Dictionary<string, string>(), authority));
+        var absent = await Assert.ThrowsAsync<UnauthorizedAccessException>(() => migration.MigrateAsync("missing", "2.0.0", new Dictionary<string, string>(), authority with { RecordId = "missing" }));
+        Assert.Equal(existing.Message, absent.Message);
+        Assert.Empty(await store.EventsAsync("run-1"));
+    }
+
+    [Fact]
     public async Task Migration_refuses_an_already_advanced_target_without_moving_or_recording()
     {
         using var fixture = new JournalFixture();

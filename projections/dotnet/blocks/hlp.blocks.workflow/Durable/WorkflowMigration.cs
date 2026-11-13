@@ -15,11 +15,12 @@ public sealed class WorkflowMigration(IWorkflowStore store, IWorkflowDefinitionE
     {
         ArgumentNullException.ThrowIfNull(authority);
         ArgumentNullException.ThrowIfNull(map);
-        var instance = await store.LoadAsync(instanceId, ct).ConfigureAwait(false)
-            ?? throw new KeyNotFoundException($"No workflow instance '{instanceId}' exists.");
         if (!authority.Allowed || string.IsNullOrWhiteSpace(authority.Principal)
-            || authority.Tenant != instance.TenantId || authority.Operation != "workflow:migrate"
-            || authority.RecordKind != "workflow-instance" || authority.RecordId != instance.Id)
+            || string.IsNullOrWhiteSpace(authority.Tenant) || authority.Operation != "workflow:migrate"
+            || authority.RecordKind != "workflow-instance" || authority.RecordId != instanceId)
+            throw new UnauthorizedAccessException("The migration authorization decision does not match this instance.");
+        var instance = await store.LoadAsync(instanceId, ct).ConfigureAwait(false);
+        if (instance is null || authority.Tenant != instance.TenantId)
             throw new UnauthorizedAccessException("The migration authorization decision does not match this instance.");
         if (instance.Status is not (WorkflowStatus.Running or WorkflowStatus.Parked))
             throw new InvalidOperationException("Only active workflow instances can be migrated.");
