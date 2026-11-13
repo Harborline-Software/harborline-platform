@@ -41,7 +41,7 @@ public sealed class DurableWorkflowEngineSeamTests
         var pausing = new PausingReplayStore(store);
         var dispatcher = new WorkflowTriggerDispatcher(pausing, new[] { new AdvanceOnceHandler() }, definitionStore: AdmittedDefinitionStore);
         var dispatch = dispatcher.DispatchAsync(WorkflowTrigger.For(WorkflowTriggerKind.Event, "replay-race", "old"), Authorized("replay-race"));
-        await pausing.Entered.Task;
+        await pausing.Entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
         await new WorkflowMigration(store, new MigrationDefinitions(), new WorkflowTriggerDispatcher(store, [])).MigrateAsync("replay-race", "2.0.0",
             new Dictionary<string, string> { ["old"] = "new" },
             new WorkflowMigrationAuthority("operator", Tenant, "workflow:migrate", "workflow-instance", "replay-race", true));
@@ -51,7 +51,7 @@ public sealed class DurableWorkflowEngineSeamTests
         Assert.Empty(await store.CommittedEffectPayloadsAsync("replay-race"));
     }
 
-    private sealed class PausingReplayStore(FileJournalWorkflowStore inner) : IWorkflowStore
+    private sealed class PausingReplayStore(FileJournalWorkflowStore inner) : IWorkflowMigrationStore
     {
         public TaskCompletionSource Entered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public TaskCompletionSource Continue { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -59,8 +59,8 @@ public sealed class DurableWorkflowEngineSeamTests
         public Task CreateInstanceAsync(WorkflowInstanceRecord instance, CancellationToken ct = default) => inner.CreateInstanceAsync(instance, ct);
         public async Task<WorkflowStepIdempotencyRecord?> FindStepResultAsync(WorkflowStepKey key, CancellationToken ct = default)
             => await inner.FindStepResultAsync(key, ct);
-        public async Task<(bool Current, WorkflowStepIdempotencyRecord? Result)> FindStepResultIfCurrentAsync(
-            WorkflowInstanceRecord expected, WorkflowStepKey key, CancellationToken ct = default)
+        async Task<(bool Current, WorkflowStepIdempotencyRecord? Result)> IWorkflowStore.FindStepResultIfCurrentAsync(
+            WorkflowInstanceRecord expected, WorkflowStepKey key, CancellationToken ct)
         {
             Entered.SetResult();
             await Continue.Task;
@@ -71,6 +71,13 @@ public sealed class DurableWorkflowEngineSeamTests
             => inner.AdvanceAsync(key, effect, resultJson, eventType, eventDataJson, nextStep, nextStatus, ct);
         public Task ParkAsync(string instanceId, string step, string reasonJson, int iteration = 0, CancellationToken ct = default)
             => inner.ParkAsync(instanceId, step, reasonJson, iteration, ct);
+        Task IWorkflowMigrationStore.MigrateAsync(WorkflowInstanceRecord expected, string targetVersion, string targetStep, string eventDataJson, CancellationToken ct)
+            => inner.MigrateAsync(expected, targetVersion, targetStep, eventDataJson, ct);
+        Task<bool> IWorkflowStore.AdvanceIfCurrentAsync(WorkflowInstanceRecord expected, WorkflowStepKey key, WorkflowEffect? effect,
+            string resultJson, string eventType, string eventDataJson, string nextStep, WorkflowStatus nextStatus, CancellationToken ct)
+            => inner.AdvanceIfCurrentAsync(expected, key, effect, resultJson, eventType, eventDataJson, nextStep, nextStatus, ct);
+        Task<bool> IWorkflowStore.ParkIfCurrentAsync(WorkflowInstanceRecord expected, string step, string reasonJson, int iteration, CancellationToken ct)
+            => inner.ParkIfCurrentAsync(expected, step, reasonJson, iteration, ct);
     }
 
     [Fact]
