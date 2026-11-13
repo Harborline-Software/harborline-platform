@@ -64,3 +64,9 @@ zero failures and zero skips, including FieldRuntime 165, SchemaValidation 44,
 Forms.Engine 198, EntityViews 69, React 1437 and the architecture fences 25. The headless platform gate
 (`HARBORLINE_GATE_HEADLESS=1 node tooling/run-phase-4-gate.mjs`) is the landing path
 and runs in full on the merge queue.
+
+### Attachment fields
+
+Register the exact attachment revision with `FieldScalarValueShape.ContentReference`, and supply the host store's `ItemLimitBytes` to `FieldKindRuntime`. Bind `item_limit_bytes` as positive decimal text and `accepted_media_types` as a JSON array in the string parameter map. `ICompiledAttachmentFieldKind` retains the declared limit and exposes the effective limit and over-store warning.
+
+`AttachmentFieldRuntime` uses that same store for put and stage promotion. A write list may contain kept references and `{stage_id, display_name}` entries. `ResolveWriteAsync` requires the enclosing Records transaction's content session and that field's prior committed references (undefined on create), and emits references only, in order. Under control 1363, kept id, length, media type and owner match that prior field; only display name may change. A missing prior match refuses `content.staging-expired`, a changed media type refuses `content.media-type-mismatch`, both at the entry pointer. Field limits carry the field pointer. The deduplicated item is not prior-type authority. A Records host exposes that session through `IRecordContentTransaction`; the boundary owns its commit and rollback. Reference removal uses the same transaction and the record lifecycle's hold decision. There is no independent upload or disposal store.

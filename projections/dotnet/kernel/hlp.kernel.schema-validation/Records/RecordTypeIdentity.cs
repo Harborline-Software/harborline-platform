@@ -42,6 +42,12 @@ public sealed record FieldDefinition(
     RecordReferenceDefinition? Reference = null)
 {
     /// <summary>
+    /// The Rules expression over the record that requires this field when true (records-ck-8, records-ck-42).
+    /// Absent on a new field; attachment evidence conditions have no implicit default.
+    /// </summary>
+    public JsonElement? RequiredCondition { get; init; }
+
+    /// <summary>
     /// How an offline conflict on this field is settled (records-ck-16, L1011), declared independently of network
     /// conditions. Null means <see cref="FieldConflictPolicy.Ask"/>, the default. This is the declaration only: raising and
     /// settling the conflict belongs to the offline runtime (records-eng-25).
@@ -488,6 +494,8 @@ public sealed class RecordTypeSchemaCompiler
         return new(schema, []);
     }
 
+    internal IFieldKindRuntime? FieldKinds => _fieldKindRuntime;
+
     /// <summary>
     /// Validates and compiles a candidate without touching any registry, so an admission can collect every
     /// refusal before the caller commits anything. Registering the returned text yields the same schema
@@ -526,8 +534,18 @@ public sealed class RecordTypeSchemaCompiler
                     "The declared field multiplicity has no permitted value count."));
             }
 
-            if (compiledField is { } compiled)
+            // records-ck-8: every field's condition is an expression, bound or not.
+            if (field.RequiredCondition is { ValueKind: not JsonValueKind.Object })
+                refusals.Add(new("field.required_condition_invalid", $"/fields/{index}/required_condition",
+                    "A required condition is a Rules expression, never a boolean."));
+
+            if (compiledField.HasValue)
             {
+                // A plain local keeps the attachment admission branches independently mutable.
+                var compiled = compiledField.Value;
+                if (compiled.Kind.ValueShape == FieldScalarValueShape.ContentReference && bounds?.MaximumCount is not null)
+                    refusals.Add(new("field.attachment_count_cap", $"/fields/{index}/binding/constraints/maximum_count",
+                        "Attachment fields are many-valued without a count cap."));
                 boundKinds.TryAdd(field.FieldKey, compiled.Kind);
                 var constraints = field.Binding!.Constraints;
                 if (refusals.Count == 0)
@@ -535,7 +553,8 @@ public sealed class RecordTypeSchemaCompiler
                     // IFieldDomainRuntime counts absence/null as zero, a scalar as one and an array
                     // by its length. Keep the admitted kind executable on every original scalar.
                     var shapes = new List<object>();
-                    if (minimum <= 1 && (constraints.MaximumCount is null || constraints.MaximumCount >= 1))
+                    if (compiled.Kind.ValueShape != FieldScalarValueShape.ContentReference
+                        && minimum <= 1 && (constraints.MaximumCount is null || constraints.MaximumCount >= 1))
                     {
                         shapes.Add(compiled.Schema);
                     }
@@ -550,11 +569,11 @@ public sealed class RecordTypeSchemaCompiler
                         repeated["maxItems"] = maximum;
                     }
                     shapes.Add(repeated);
-                    if (minimum == 0)
+                    if (minimum == 0 && compiled.Kind.ValueShape != FieldScalarValueShape.ContentReference)
                     {
                         shapes.Add(new Dictionary<string, string> { ["type"] = "null" });
                     }
-                    else
+                    else if (minimum > 0)
                     {
                         required.Add(field.FieldKey);
                     }

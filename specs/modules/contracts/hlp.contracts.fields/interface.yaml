@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.contracts.fields",
-  "interfaceRevision": 2,
+  "interfaceRevision": 3,
   "status": "draft",
   "purpose": "Carry the shared field-kind, domain and constraint vocabulary across the kernel Records and foundation field-runtime seam without an outward kernel dependency.",
   "dependencies": ["hlp.contracts.identities"],
@@ -15,6 +15,8 @@
     "FieldAdmissionException": ["Refusals"],
     "IFieldKindRuntime": ["Bind"],
     "ICompiledFieldKind": ["Kind", "JsonSchema", "Validate", "ValidateJson"],
+    "ICompiledAttachmentFieldKind": ["DeclaredLimitBytes", "EffectiveLimitBytes", "AcceptedMediaTypes", "LimitAboveStore", "ValidateSubmission"],
+    "FieldScalarValueShape": ["Text", "Boolean", "Integer", "Number", "ContentReference"],
     "FieldDomainScope": ["Tenant", "Principal"],
     "ValueDomainSourceKind": ["LiteralSet", "TaxonomyScheme", "RecordQuery"],
     "FieldEditorKind": ["None", "SingleValue", "ChoiceList", "TaxonomyPicker", "RecordPicker", "RadioGroup"],
@@ -24,7 +26,7 @@
     "IFieldDomainRuntime": ["Validate", "ResolveAsync", "IntersectAsync", "NarrowAsync"]
   },
   "invariants": [
-    "TemporalFormat is an optional trailing nullable string, default null, absent or exactly date, date-time or time, legal only on ValueShape Text (JSON Schema 2020-12 Validation section 7.3.1; RFC 3339 section 5.6). FieldScalarValueShape remains Text, Boolean, Integer, Number.",
+    "TemporalFormat is an optional trailing nullable string, default null, absent or exactly date, date-time or time, legal only on ValueShape Text (JSON Schema 2020-12 Validation section 7.3.1; RFC 3339 section 5.6). TemporalFormat adds no FieldScalarValueShape member.", "Revision 3 (T-521/attachment-field-kind): FieldScalarValueShape is Text, Boolean, Integer, Number, ContentReference; existing ordinal values are unchanged and ContentReference is only the attachment kind's shape. ICompiledAttachmentFieldKind exposes DeclaredLimitBytes, EffectiveLimitBytes, AcceptedMediaTypes, LimitAboveStore and ValidateSubmission, which admits a write-list staged entry the read-grammar Validate refuses.",
     "Temporal meaning is declared once on the immutable kind revision, separate from display configuration. No Records field restates it, and temporal values remain JSON strings; this declaration does not add RFC 3339 value validation.",
     "One shared vocabulary is promoted from the T-615 declarations; members do not redeclare it.",
     "Contracts contain declarations, not the field-runtime enforcement implementation.",
