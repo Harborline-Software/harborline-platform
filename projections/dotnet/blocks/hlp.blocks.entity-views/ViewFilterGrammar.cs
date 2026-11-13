@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Harborline.Foundation.RuleEngine.Environments;
 
 namespace Harborline.Blocks.EntityViews;
 
@@ -129,7 +130,7 @@ public interface IViewExpressionFunctionRegistry
     bool IsRegistered(string name, int arity);
 
     /// <summary>Evaluates the named function on the arguments; throws <see cref="ViewQueryException"/> with view.filter.function_unknown when the name or arity is not registered.</summary>
-    bool Evaluate(string name, IReadOnlyList<object?> arguments);
+    bool Evaluate(string name, IReadOnlyList<object?> arguments, EvaluationAdmission? admission);
 }
 
 /// <summary>Composes the canonical kernel functions with developer-supplied pack functions.</summary>
@@ -164,8 +165,9 @@ public sealed class ViewExpressionFunctionRegistry : IViewExpressionFunctionRegi
         _functions.TryGetValue(name, out var function) && function.Arity == arity;
 
     /// <summary>Runs the function's delegate; throws <see cref="ViewQueryException"/> with view.filter.function_unknown for an unregistered name or an argument count that differs from its arity.</summary>
-    public bool Evaluate(string name, IReadOnlyList<object?> arguments)
+    public bool Evaluate(string name, IReadOnlyList<object?> arguments, EvaluationAdmission? admission)
     {
+        ViewsExpressionEnvironment.Require(admission);
         if (!_functions.TryGetValue(name, out var function) || function.Arity != arguments.Count)
         {
             throw new ViewQueryException(ViewQueryCodes.FilterFunctionUnknown, "The view filter function is not registered.");

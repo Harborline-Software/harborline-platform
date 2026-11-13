@@ -20,7 +20,7 @@ public sealed class DocumentsExpressionEnvironmentTests
             .AsArray().Single(entry => entry!["declaration"]?["borrower"]?.GetValue<string>() == "documents-ck-25")!;
 
         Assert.Equal(fixture["canonical"]!.GetValue<string>(), BorrowerEnvironmentAdmission.CanonicalJson(DocumentsExpressionEnvironment.Declaration));
-        Assert.Same(DocumentsExpressionEnvironment.Declaration, DocumentsExpressionEnvironment.Admitted.Declaration);
+        Assert.Equal(BorrowerEnvironmentAdmission.CanonicalJson(DocumentsExpressionEnvironment.Declaration), DocumentsExpressionEnvironment.Admitted.CanonicalJson);
     }
 
     [Fact(DisplayName = "documents-ck-25: a document guard evaluates only under the admitted environment; an undeclared variable, an inapplicable phase or an unauthorized declaration refuses")]
