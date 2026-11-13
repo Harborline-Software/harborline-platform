@@ -1,7 +1,10 @@
+using Harborline.Foundation.Scheduling.Services;
+using Harborline.Foundation.Scheduling.Models;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Harborline.Blocks.Calendar.Models;
 using Harborline.Blocks.Calendar.Services;
+using Harborline.Blocks.Calendar.Booking;
 
 
 namespace Harborline.Blocks.Calendar.DependencyInjection;
@@ -73,6 +76,8 @@ public static class CalendarServiceCollectionExtensions
         // request-bound IPartyContext (the kernel's authenticated context), which the host registers; a
         // singleton would capture one request's principal for every booking.
         services.TryAddScoped<IBookingService, BookingService>();
+        services.TryAddScoped<BookableClaimService>();
+        services.TryAddScoped<IBookingInterpreter, BookingInterpreter>();
         return services;
     }
 }

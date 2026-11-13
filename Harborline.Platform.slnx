@@ -17,8 +17,6 @@
   <Project Path="projections/dotnet/blocks/hlp.blocks.aggregates.tests/Harborline.Blocks.Aggregates.Tests.csproj" />
   <Project Path="projections/dotnet/blocks/hlp.blocks.measure-catalogue/Harborline.Blocks.MeasureCatalogue.csproj" />
   <Project Path="projections/dotnet/blocks/hlp.blocks.measure-catalogue.tests/Harborline.Blocks.MeasureCatalogue.Tests.csproj" />
-  <Project Path="projections/dotnet/blocks/hlp.blocks.relative-chains/Harborline.Blocks.RelativeChains.csproj" />
-  <Project Path="projections/dotnet/blocks/hlp.blocks.relative-chains.tests/Harborline.Blocks.RelativeChains.Tests.csproj" />
   <Project Path="projections/dotnet/blocks/hlp.blocks.workflow/Harborline.Blocks.Workflow.csproj" />
   <Project Path="projections/dotnet/blocks/hlp.blocks.workflow.tests/Harborline.Blocks.Workflow.Tests.csproj" />
   <Project Path="projections/dotnet/blocks/hlp.blocks.workflow.restart-probe/Harborline.Blocks.Workflow.RestartProbe.csproj" />

@@ -15,4 +15,7 @@
   <ItemGroup>
     <ProjectReference Include="../hlp.foundation.assistance/Harborline.Foundation.Assistance.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="../../../../conformance/hlp.foundation.assistance/catalogue-fixture.json" Link="catalogue-fixture.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>

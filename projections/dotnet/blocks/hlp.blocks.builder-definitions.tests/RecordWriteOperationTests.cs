@@ -232,12 +232,14 @@ public sealed class RecordWriteOperationTests
 
     [Fact]
     [Trait("Holds", "records-eng-8")]
-    public async Task an_unencodable_temporal_body_refuses_before_the_gate_on_both_entries()
+    [Trait("Holds", "records-eng-2")]
+    public async Task an_unencodable_temporal_body_refuses_after_the_gate_on_both_entries()
     {
         using var fixture = await RecordTemporalWriteOperationTests.Fixture.Create();
         var first = RecordTemporalWriteOperationTests.Committed(await fixture.CreateEvent());
         var requests = fixture.Access.Requests.Count;
         var lookups = fixture.Storage.ReceiptLookups;
+        fixture.Access.Evidence.Clear();
         var body = RecordTemporalWriteOperationTests.Body(20);
         body["status"] = "bad\ud800"; // A lone surrogate is not Unicode text, so it has no intent.
 
@@ -247,13 +249,17 @@ public sealed class RecordWriteOperationTests
             new(first.Receipt.RecordId, "bad-amend", RecordTemporalWriteOperationTests.Basis(first), body,
                 RecordTemporalWriteOperationTests.GateAt, null, "reviewed"));
 
+        var decisions = fixture.Access.Evidence.ToArray();
+        Assert.Collection(decisions,
+            decision => Assert.Same(decision, created.Decision),
+            decision => Assert.Same(decision, amended.Decision));
         foreach (var refused in new[] { created, amended })
         {
             Assert.Equal(("validate", "entity.validation.body_invalid"), (refused.Refusal!.Stage, refused.Refusal.Code));
             Assert.Empty(refused.Pointers);
-            Assert.Null(refused.Decision);
+            Assert.True(refused.Decision!.Allowed);
         }
-        Assert.Equal(requests, fixture.Access.Requests.Count);
+        Assert.Equal(requests + 2, fixture.Access.Requests.Count);
         Assert.Equal(lookups, fixture.Storage.ReceiptLookups);
     }
 

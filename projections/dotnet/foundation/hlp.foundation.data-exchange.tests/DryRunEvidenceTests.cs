@@ -42,6 +42,7 @@ public sealed class DryRunEvidenceTests
     }
 
     [Fact]
+    [Trait("Holds", "data-exchange-eng-11")]
     public async Task Dry_run_persists_immutable_policy_owned_evidence_outside_the_definition()
     {
         var store = new InMemoryExchangeRunStore();
@@ -68,6 +69,59 @@ public sealed class DryRunEvidenceTests
             () => store.SaveDryRunAsync(first).AsTask());
     }
 
+    [Theory]
+    [InlineData("source")]
+    [InlineData("definition")]
+    [InlineData("effect")]
+    [Trait("Holds", "data-exchange-eng-12")]
+    [Trait("Holds", "data-exchange-run-4")]
+    [Trait("Holds", "data-exchange-auth-10")]
+    public async Task Evidence_read_reports_drift_without_changing_stored_artifact(string drift)
+    {
+        var store = new InMemoryExchangeRunStore();
+        var request = Fixtures.DryRunRequest();
+        var run = await new DataExchangeRuntime(store, TimeProvider.System, new FakeLifecyclePolicy()).CreateDryRunAsync(request);
+        var before = System.Text.Json.JsonSerializer.Serialize(await store.GetDryRunAsync(run.Id));
+        var evaluator = new FakeProposalEvaluator();
+        var reader = new DryRunEvidenceReader(store, evaluator, new ReadAuthority(true));
+        var fresh = await reader.ReadAsync("tenant-a", run.Id);
+        Assert.NotNull(fresh);
+        Assert.False(fresh.IsStale);
+        Assert.Null(fresh.DriftReason);
+        Assert.Equal(2, fresh.Census.Applied);
+        Assert.Equal(ExchangeRunTerminalStatus.Completed, fresh.TerminalStatus);
+        Assert.Equal("standard-7y", fresh.RetentionClass);
+        Assert.Null(await reader.ReadAsync("tenant-b", run.Id));
+        Assert.Null(await reader.ReadAsync("tenant-a", new DryRunId("missing")));
+        var denied = new DryRunEvidenceReader(store, evaluator, new ReadAuthority(false));
+        var refusal = await Assert.ThrowsAsync<DataExchangeCommitRefusedException>(() => denied.ReadAsync("tenant-a", run.Id).AsTask());
+        Assert.Equal("run.forbidden", refusal.Code);
+        evaluator.Current = drift switch
+        {
+            "source" => request with { Proposal = request.Proposal with { SourceFingerprint = "changed" } },
+            "definition" => request with { Proposal = request.Proposal with { DefinitionVersion = "changed" } },
+            _ => request with { Effects = request.Effects.Select((e, i) => i == 0 ? e with { BoundaryAfter = "changed" } : e).ToArray() },
+        };
+        var stale = await reader.ReadAsync("tenant-a", run.Id);
+        Assert.True(stale!.IsStale);
+        Assert.Equal(drift == "effect" ? "effects.changed" : drift + ".changed", stale.DriftReason);
+        Assert.Equal(before, System.Text.Json.JsonSerializer.Serialize(await store.GetDryRunAsync(run.Id)));
+        var json = System.Text.Json.JsonSerializer.Serialize(stale);
+        Assert.DoesNotContain("snapshot://", json);
+        Assert.DoesNotContain("customer-42", json);
+    }
+    [Fact]
+    public async Task Evidence_read_detects_other_proposal_and_evaluated_effect_drift()
+    {
+        var store = new InMemoryExchangeRunStore();
+        var request = Fixtures.DryRunRequest();
+        var run = await new DataExchangeRuntime(store, TimeProvider.System, new FakeLifecyclePolicy()).CreateDryRunAsync(request);
+        var evaluator = new FakeProposalEvaluator { Current = request with { Proposal = request.Proposal with { MappingDigest = "changed" } } };
+        var reader = new DryRunEvidenceReader(store, evaluator, new ReadAuthority(true));
+        Assert.Equal("proposal.changed", (await reader.ReadAsync("tenant-a", run.Id))!.DriftReason);
+        evaluator.Current = request with { Evaluations = request.Effects.Select(e => new DryRunEffectEvaluation(e with { BoundaryAfter = "changed" }, new(ExchangeEffectStatus.Applied, "fixture"))).ToArray() };
+        Assert.Equal("effects.changed", (await reader.ReadAsync("tenant-a", run.Id))!.DriftReason);
+    }
     [Fact]
     public async Task Supersession_cannot_cross_tenants()
     {
@@ -126,4 +180,10 @@ internal static partial class Fixtures
         "snapshot://protected/source-1",
         "auth-context://review-7",
         "standard-7y");
+}
+
+internal sealed class ReadAuthority(bool allowed) : IExchangeRunReadAuthority
+{
+    public ValueTask<bool> CanReadAsync(DryRunArtifact run, CancellationToken cancellationToken = default)
+        => ValueTask.FromResult(allowed);
 }

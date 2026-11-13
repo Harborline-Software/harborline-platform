@@ -13,7 +13,31 @@ const catalogue: DataExchangeAuthoringCatalogue = {
 }
 
 describe('DataExchangeAuthoringEditor React projection', () => {
-  it('authors the bounded inbound definition without accepting credential values', () => {
+  it.each(['hl:operation', 'hl:entityType', 'hl:identity', 'hl:role', 'hl:matchPolicy', 'hl:onInvalid', 'hl:onMissing', 'hl:errorPolicy'])('authors the admitted %s column extension without changing the others (data-exchange-auth-6)', term => {
+    const changed = vi.fn()
+    render(<DataExchangeAuthoringEditor value={emptyDataExchangeDraft()} catalogue={catalogue} canCommit={false} onChange={changed} onDiscoverSource={vi.fn()} onDryRun={vi.fn()} onCommit={vi.fn()} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Add mapping' }))
+    fireEvent.change(screen.getByRole('textbox', { name: `Mapping 1 ${term}` }), { target: { value: 'profile-value' } })
+    expect(changed).toHaveBeenLastCalledWith(expect.objectContaining({ mappings: [expect.objectContaining({ extensions: { [term]: 'profile-value' }, targetPointer: '', transform: '' })] }))
+  })
+
+  it('renders server partial-failure evidence and distinct read-only scopes (data-exchange-auth-9, data-exchange-auth-10)', () => {
+    const run = {
+      dryRunId: 'review-81', commitRunId: 'commit-12', batchIdentity: 'batch-12', effectIdentity: 'effect-3', attemptId: 'attempt-2',
+      status: 'CompletedWithRefusals', stale: true, driftReason: 'source.changed', retentionClass: 'standard-7y', candidateCheckpoint: 'row:19',
+      census: { applied: 11, skipped: 2, conflicted: 3, rejected: 5, failed: 7, halted: 0 }, refusals: [],
+    }
+    render(<DataExchangeAuthoringEditor value={emptyDataExchangeDraft()} catalogue={catalogue} run={run} canCommit={false} onChange={vi.fn()} onDiscoverSource={vi.fn()} onDryRun={vi.fn()} onCommit={vi.fn()} />)
+    const evidence = screen.getByRole('group', { name: 'Persisted run evidence' })
+    expect(evidence).toHaveTextContent('CompletedWithRefusals')
+    expect(evidence).toHaveTextContent('Applied 11; skipped 2; conflicted 3; rejected 5; failed 7; halted 0')
+    expect(evidence).toHaveTextContent('source.changed')
+    expect(evidence).toHaveTextContent('standard-7y')
+    for (const [label, identity] of Object.entries({ 'Dry run': 'review-81', 'Commit run': 'commit-12', 'Batch identity': 'batch-12', 'Effect identity': 'effect-3', 'Attempt identity': 'attempt-2' })) expect([...evidence.querySelectorAll('dt')].find(term => term.textContent === label)?.nextElementSibling?.textContent).toBe(identity)
+    expect(evidence.querySelectorAll('input, select, textarea, button, [contenteditable]')).toHaveLength(0)
+  })
+
+  it('authors the exchange record type independently of column mappings (data-exchange-auth-1)', () => {
     const changed = vi.fn()
     const discover = vi.fn()
     const dryRun = vi.fn()
@@ -46,6 +70,8 @@ describe('DataExchangeAuthoringEditor React projection', () => {
 
     fireEvent.change(screen.getByRole('textbox', { name: 'Definition name' }), { target: { value: 'Customer import' } })
     expect(changed).toHaveBeenLastCalledWith(expect.objectContaining({ name: 'Customer import' }))
+    fireEvent.change(screen.getByRole('combobox', { name: 'Exchange record type' }), { target: { value: 'records.customer/v1' } })
+    expect(changed).toHaveBeenLastCalledWith(expect.objectContaining({ name: 'Customer import', recordType: 'records.customer/v1', mappings: [] }))
     fireEvent.click(screen.getByRole('button', { name: 'Discover source' }))
     fireEvent.click(screen.getByRole('button', { name: 'Create dry run' }))
     expect(discover).toHaveBeenCalledOnce()
@@ -63,7 +89,7 @@ describe('DataExchangeAuthoringEditor React projection', () => {
       mappings: [{ sourceColumn: 'CustomerNumber', canonicalTarget: 'records.customer/v1', targetPointer: '/customerNumber', datatype: 'string', required: true, nullValue: '', defaultValue: '', separator: '', transform: 'trimToNull' }],
     }
     const staleRun: DataExchangeRunSummary = {
-      dryRunId: 'dry-7', status: 'Ready', stale: true, candidateCheckpoint: 'cursor:7',
+      dryRunId: 'dry-7', status: 'Completed', stale: true, candidateCheckpoint: 'cursor:7',
       census: { applied: 0, skipped: 0, conflicted: 0, rejected: 0, failed: 0, halted: 0 },
       refusals: ['mapping.changed'],
     }

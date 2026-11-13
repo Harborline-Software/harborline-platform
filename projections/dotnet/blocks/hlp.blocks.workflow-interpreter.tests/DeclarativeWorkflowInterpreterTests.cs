@@ -19,7 +19,7 @@ namespace Harborline.Blocks.Workflow.Interpreter.Tests;
 /// refused; reject records an override with no effect; send-back loops back; the CP effect request is
 /// re-derived from the pinned definition, not the confirm payload.
 /// </summary>
-public sealed class DeclarativeWorkflowInterpreterTests
+public sealed partial class DeclarativeWorkflowInterpreterTests
 {
     private const string Tenant = "tenant:acme";
     private const string CpKey = "vendor-invoice-approval.v1";
@@ -28,6 +28,32 @@ public sealed class DeclarativeWorkflowInterpreterTests
 
     private static readonly Guid EngineParty = Guid.Parse("e0000000-0000-0000-0000-0000000000e1");
     private static readonly Guid HumanParty = Guid.Parse("40000000-0000-0000-0000-000000000001");
+
+    [Theory]
+    [InlineData("dead-end", "B")]
+    [InlineData("ambiguous", "B")]
+    [InlineData("cycle", "A")]
+    public async Task Definition_decision_errors_are_typed_and_name_the_state_reached(string kind, string expectedStep)
+    {
+        // ADR-0141 D1. Raw execution-store backstop also exercises shapes admission normally refuses.
+        var authored = JsonNode.Parse(ChainAuthored().GetRawText())!;
+        var transitions = authored["transitions"]!.AsArray();
+        if (kind == "dead-end") transitions.RemoveAt(1);
+        else if (kind == "ambiguous") transitions.Add(JsonNode.Parse(
+            """{"id":"other","from":"B","on":"issued","to":"C"}"""));
+        else
+        {
+            transitions[1]!["to"] = "A";
+            transitions[1]!["on"] = "issued";
+        }
+        using var provider = BuildProvider(HumanConfirmer(), (ChainKey, JsonSerializer.SerializeToElement(authored)));
+        var instance = CpInstance("decision-1", "A");
+        instance.DefinitionKey = ChainKey;
+        var error = await Assert.ThrowsAsync<WorkflowInterpreterDecisionException>(async () =>
+            await provider.GetRequiredService<IDeclarativeWorkflowInterpreter>().DecideAsync(
+                instance, WorkflowTrigger.For(WorkflowTriggerKind.Event, "decision-1", "A")));
+        Assert.Equal(expectedStep, error.Step);
+    }
 
     // ── AUTONOMOUS: a CP workflow parks on the human-task carrying the CP basis ──
 
@@ -351,6 +377,8 @@ public sealed class DeclarativeWorkflowInterpreterTests
     // ── T-1176/platform-role-gate: the host gate port decides a role gate where a person acts ──
 
     [Fact]
+    [Trait("Holds", "workflows-auth-10")]
+    [Trait("Holds", "workflows-eng-13")]
     public async Task A_role_gated_human_transition_the_actor_does_not_hold_is_refused_before_any_effect()
     {
         var gate = new RecordingGate(satisfied: false);
@@ -371,6 +399,8 @@ public sealed class DeclarativeWorkflowInterpreterTests
     }
 
     [Fact]
+    [Trait("Holds", "workflows-auth-10")]
+    [Trait("Holds", "workflows-eng-13")]
     public async Task A_role_gated_human_transition_the_actor_holds_runs_and_builds_its_effect()
     {
         var gate = new RecordingGate(satisfied: true);
@@ -387,6 +417,8 @@ public sealed class DeclarativeWorkflowInterpreterTests
     }
 
     [Fact]
+    [Trait("Holds", "workflows-auth-10")]
+    [Trait("Holds", "workflows-eng-13")]
     public async Task A_role_named_only_in_the_trigger_payload_changes_nothing()
     {
         var gate = new RecordingGate(satisfied: false);
@@ -404,6 +436,8 @@ public sealed class DeclarativeWorkflowInterpreterTests
     }
 
     [Fact]
+    [Trait("Holds", "workflows-auth-10")]
+    [Trait("Holds", "workflows-eng-13")]
     public async Task An_answer_for_a_different_intent_is_refused()
     {
         var sp = BuildProvider(HumanConfirmer(), gate: new RecordingGate(satisfied: true, rebind: i => i with { Principal = "someone-else" }));
@@ -417,6 +451,8 @@ public sealed class DeclarativeWorkflowInterpreterTests
     }
 
     [Fact]
+    [Trait("Holds", "workflows-auth-10")]
+    [Trait("Holds", "workflows-eng-13")]
     public async Task A_role_gated_effecting_action_the_actor_does_not_hold_is_refused_before_the_broker_builds_it()
     {
         var gate = new RecordingGate(satisfied: false);
@@ -432,6 +468,8 @@ public sealed class DeclarativeWorkflowInterpreterTests
     }
 
     [Fact]
+    [Trait("Holds", "workflows-auth-10")]
+    [Trait("Holds", "workflows-eng-13")]
     public async Task Without_a_verified_authority_or_for_a_standing_gate_the_interim_refusal_stands()
     {
         var gate = new RecordingGate(satisfied: true);
@@ -448,6 +486,57 @@ public sealed class DeclarativeWorkflowInterpreterTests
             await Interpreter(standing).DecideAsync(CpInstance("role-7", "PendingApproval"), Human("role-7", "PendingApproval", "approve"), Authority("role-7")));
 
         Assert.Empty(gate.Asked);
+    }
+
+    [Fact]
+    [Trait("Holds", "kernel-core-ck-9")]
+    [Trait("Holds", "access-eng-4")]
+    public async Task Kernel_clock_instant_is_shared_by_transition_and_action_once_per_act_despite_payload_time()
+    {
+        // Oracle: literal server instant, deliberately different from the untrusted payload.
+        var instant = new DateTimeOffset(2026, 11, 10, 12, 34, 56, TimeSpan.Zero);
+        var clock = new AdvancingClock(instant);
+        var readsAtGates = new List<int>();
+        var gate = new RecordingGate(satisfied: true, rebind: i => { readsAtGates.Add(clock.Reads); return i; });
+        var sp = BuildProvider(HumanConfirmer(), gate: gate, clock: clock);
+        var authored = Gate(CpAuthored(), "transitions", "t-approve", "requiredRoles", ApproverRole());
+        authored = Gate(authored, "actions", "a-post-je", "requiredRoles", ApproverRole());
+        await PersistAndPublishAsync(sp, authored, CpKey);
+        var trigger = WorkflowTrigger.For(WorkflowTriggerKind.HumanAction, "instant-1", "PendingApproval",
+            "{\"decision\":\"approve\",\"decidedAt\":\"2000-01-01T00:00:00Z\",\"captured_at\":\"2000-01-01T00:00:00Z\"}");
+
+        var outcome = await Interpreter(sp).DecideAsync(CpInstance("instant-1", "PendingApproval"), trigger, Authority("instant-1"));
+
+        Assert.NotNull(outcome.Effect);
+        Assert.Equal(2, gate.Asked.Count);
+        Assert.Equal(WorkflowGateElement.Transition, gate.Asked[0].Element);
+        Assert.Equal(WorkflowGateElement.Action, gate.Asked[1].Element);
+        Assert.All(gate.Asked, intent => Assert.Equal(instant, intent.DecidedAt));
+        // The broker later stamps its own confirmation evidence; measure the interpreter at its ports.
+        Assert.Equal([1, 1], readsAtGates);
+    }
+
+    [Fact]
+    [Trait("Holds", "workflows-auth-10")]
+    [Trait("Holds", "workflows-eng-13")]
+    public async Task An_answer_at_a_different_decision_instant_is_unbound_before_any_effect()
+    {
+        var clock = new AdvancingClock(new DateTimeOffset(2026, 11, 10, 12, 34, 56, TimeSpan.Zero));
+        var gate = new RecordingGate(satisfied: true, rebind: i => i with { DecidedAt = i.DecidedAt.AddTicks(1) });
+        var sp = BuildProvider(HumanConfirmer(), gate: gate, clock: clock);
+        await PersistAndPublishAsync(sp, Gate(CpAuthored(), "transitions", "t-approve", "requiredRoles", ApproverRole()), CpKey);
+
+        var refusal = await Assert.ThrowsAsync<WorkflowGateRefusedException>(async () =>
+            await Interpreter(sp).DecideAsync(CpInstance("instant-2", "PendingApproval"), Human("instant-2", "PendingApproval", "approve"), Authority("instant-2")));
+
+        Assert.Equal("workflow.gate.answer_unbound", refusal.Code);
+        Assert.Equal(0, sp.GetRequiredService<CountingWorkflowApprovalDecisionSink>().ConfirmedCount);
+    }
+
+    private sealed class AdvancingClock(DateTimeOffset instant) : TimeProvider
+    {
+        public int Reads { get; private set; }
+        public override DateTimeOffset GetUtcNow() => instant.AddSeconds(Reads++);
     }
 
     private const string DispatchPrincipal = "dispatch-principal";
@@ -523,10 +612,10 @@ public sealed class DeclarativeWorkflowInterpreterTests
     }
 
     private static ServiceProvider BuildProvider(
-        WorkflowConfirmerIdentity confirmer, (string Key, JsonElement Authored)? rawDefinition = null, IWorkflowGateAccess? gate = null)
+        WorkflowConfirmerIdentity confirmer, (string Key, JsonElement Authored)? rawDefinition = null, IWorkflowGateAccess? gate = null, TimeProvider? clock = null)
     {
         var services = new ServiceCollection();
-        services.AddSingleton(TimeProvider.System);
+        services.AddSingleton(clock ?? TimeProvider.System);
         services.AddDurableWorkflowEngine();
 
         // Delegate-registered effect factories (SC2 F-1 Owed #2 mechanism): the host hands in a build closure;

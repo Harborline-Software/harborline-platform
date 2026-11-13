@@ -143,14 +143,32 @@ public sealed class WorkflowTriggerDispatcher : IWorkflowTriggerDispatcher
         // kg handlers). The general A1 interpreter is the FALLBACK: consulted only when no typed handler
         // matches, it executes the instance's pinned, re-admitted declarative definition. With neither a
         // handler nor an interpreter, an unhandled definition throws (the pre-A1 posture — unchanged).
-        var outcome = _handlers.TryGetValue(instance.DefinitionKey, out var handler)
-            ? await handler.DecideAsync(instance, trigger, ct).ConfigureAwait(false)
-            : _interpreter is not null
-                ? await _interpreter.DecideAsync(instance, trigger, authority, ct).ConfigureAwait(false)
-                : throw new InvalidOperationException(
-                    $"No {nameof(IWorkflowStepHandler)} registered for definition '{instance.DefinitionKey}' " +
-                    $"(instance '{trigger.InstanceId}') and no {nameof(IDeclarativeWorkflowInterpreter)} fallback " +
-                    "is configured.");
+        WorkflowStepOutcome outcome;
+        if (_handlers.TryGetValue(instance.DefinitionKey, out var handler))
+        {
+            outcome = await handler.DecideAsync(instance, trigger, ct).ConfigureAwait(false);
+        }
+        else if (_interpreter is not null)
+        {
+            try
+            {
+                outcome = await _interpreter.DecideAsync(instance, trigger, authority, ct).ConfigureAwait(false);
+            }
+            catch (WorkflowInterpreterDecisionException error)
+            {
+                // Only the interpreter's typed definition error becomes a terminal failure.
+                // Gate refusals, cancellation, admission and action errors retain their semantics.
+                ct.ThrowIfCancellationRequested();
+                outcome = WorkflowStepOutcome.InterpreterFailure(error.Step);
+            }
+        }
+        else
+        {
+            throw new InvalidOperationException(
+                $"No {nameof(IWorkflowStepHandler)} registered for definition '{instance.DefinitionKey}' " +
+                $"(instance '{trigger.InstanceId}') and no {nameof(IDeclarativeWorkflowInterpreter)} fallback " +
+                "is configured.");
+        }
 
         if (outcome.Kind == WorkflowStepOutcomeKind.Discard)
         {

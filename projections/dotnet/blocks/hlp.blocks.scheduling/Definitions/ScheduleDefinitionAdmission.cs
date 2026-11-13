@@ -22,9 +22,7 @@ internal static class ScheduleDefinitionAdmission
         if (string.IsNullOrWhiteSpace(definition.Name)) refusals.Add(new(ScheduleDefinitionCodes.NameRequired, "/name"));
         if (definition.Starts is null || string.IsNullOrWhiteSpace(definition.Starts.TargetId))
             refusals.Add(new(ScheduleDefinitionCodes.StartsRequired, "/starts"));
-        if (definition.Basis is not null) Basis(definition.Basis, refusals);
-        Window(definition, refusals);
-        if (definition.Tolerance is { } tolerance) Tolerance(tolerance, "/tolerance", refusals);
+        Generation(definition, refusals);
         if (definition.Grace is { } grace) Duration(grace, "/grace", refusals);
         if (definition.Escalation is { } escalation)
         {
@@ -32,9 +30,24 @@ internal static class ScheduleDefinitionAdmission
             if (string.IsNullOrWhiteSpace(escalation.To)) refusals.Add(new(ScheduleDefinitionCodes.EscalationInvalid, "/escalation/to"));
         }
         Modules(definition, refusals);
+        if (definition.RecoveryReplanning is true)
+            refusals.Add(new(ScheduleDefinitionCodes.RecoveryReplanningUnsupported, "/recovery_replanning"));
+        if (definition.RegulatorRuleSetRequirement is not null)
+            refusals.Add(new(ScheduleDefinitionCodes.RegulatorRuleSetUnsupported, "/regulator_rule_set_requirement"));
+        if (definition.InputPlanId is not null)
+            refusals.Add(new(ScheduleDefinitionCodes.PlanInputUnsupported, "/input_plan_id"));
         if (definition.LegalityRef is { } legality && string.IsNullOrWhiteSpace(legality))
             refusals.Add(new(ScheduleDefinitionCodes.LegalityRefInvalid, "/legality_ref"));
         return refusals;
+    }
+
+    internal static void Generation(ScheduleDefinition definition, List<DefinitionRefusal> refusals)
+    {
+        if (definition.Basis is not null) Basis(definition.Basis, refusals);
+        if (definition.Basis is null ? Instant(definition.DueDate) is null : definition.DueDate is not null)
+            refusals.Add(new(ScheduleDefinitionCodes.DueDateInvalid, "/due_date"));
+        Window(definition, refusals);
+        if (definition.Tolerance is { } tolerance) Tolerance(tolerance, "/tolerance", refusals);
     }
 
     private static void Envelope(ScheduleDefinitionEnvelope? envelope, DefinitionDocument document, DefinitionAdmissionPhase phase,
@@ -63,8 +76,12 @@ internal static class ScheduleDefinitionAdmission
     {
         switch (basis)
         {
-            case FixedCalendarBasis calendar when string.IsNullOrWhiteSpace(calendar.Rrule):
-                refusals.Add(new(ScheduleDefinitionCodes.BasisInvalid, "/basis/rrule"));
+            case FixedCalendarBasis calendar:
+                try { Harborline.Foundation.Scheduling.InMemoryRruleExpansionService.ValidateRule(calendar.Rrule); }
+                catch (Exception exception) when (exception is ArgumentException or FormatException or NotSupportedException)
+                {
+                    refusals.Add(new(ScheduleDefinitionCodes.BasisInvalid, "/basis/rrule"));
+                }
                 break;
             case CompletionOffsetBasis completion:
                 Duration(completion.Offset, "/basis/offset", refusals);
@@ -78,7 +95,7 @@ internal static class ScheduleDefinitionAdmission
         }
     }
 
-    private static void Chain(EventAnchoredChainBasis chain, List<DefinitionRefusal> refusals)
+    internal static void Chain(EventAnchoredChainBasis chain, List<DefinitionRefusal> refusals)
     {
         if (string.IsNullOrWhiteSpace(chain.Anchor)) refusals.Add(new(ScheduleDefinitionCodes.BasisInvalid, "/basis/anchor"));
         if (chain.Nodes is not { Count: > 0 })
@@ -86,6 +103,8 @@ internal static class ScheduleDefinitionAdmission
             refusals.Add(new(ScheduleDefinitionCodes.BasisInvalid, "/basis/nodes"));
             return;
         }
+        if (chain.Nodes.Count > RelativeChainValidator.MaximumNodeCount)
+            refusals.Add(new(ScheduleDefinitionCodes.BasisInvalid, "/basis/nodes"));
         var earlier = new HashSet<string>(StringComparer.Ordinal);
         foreach (var (node, index) in chain.Nodes.Select((value, index) => (value, index)))
         {
@@ -101,25 +120,30 @@ internal static class ScheduleDefinitionAdmission
             if (node.AfterNodeId is { } after && !earlier.Contains(after))
                 refusals.Add(new(ScheduleDefinitionCodes.BasisInvalid, pointer + "/after_node_id"));
             Duration(node.Offset, pointer + "/offset", refusals);
+            foreach (var (duration, member) in new[] { (node.Offset, "/offset"), (node.Tolerance?.Early, "/tolerance/early"), (node.Tolerance?.Late, "/tolerance/late"), (node.Window?.Earliest, "/window"), (node.Window?.Latest, "/window") })
+                if (SignedDuration(duration) is { } magnitude && (magnitude < -TimeSpan.FromDays(RelativeChainValidator.MaximumDays) || magnitude > TimeSpan.FromDays(RelativeChainValidator.MaximumDays)))
+                    refusals.Add(new(ScheduleDefinitionCodes.DurationInvalid, pointer + member));
             if (node.Tolerance is null) refusals.Add(new(ScheduleDefinitionCodes.BasisInvalid, pointer + "/tolerance"));
             else Tolerance(node.Tolerance, pointer + "/tolerance", refusals);
+            if (node.Window is { } nodeWindow && !RelativeWindowValid(nodeWindow))
+                refusals.Add(new(ScheduleDefinitionCodes.WindowInvalid, pointer + "/window"));
             if (node.NodeId is not null) earlier.Add(node.NodeId);
         }
     }
 
     private static void Window(ScheduleDefinition definition, List<DefinitionRefusal> refusals)
     {
-        if (definition.Window is not { } window)
-        {
-            if (definition.Basis is not EventAnchoredChainBasis) refusals.Add(new(ScheduleDefinitionCodes.WindowRequired, "/window"));
-            return;
-        }
-        // A window is an interval: an equal or reversed pair is the single point L483 refuses.
+        if (definition.Window is not { } window) return;
         var ordered = definition.Basis is null
-            ? Instant(window.Earliest) is { } opens && Instant(window.Latest) is { } closes && opens < closes
-            : SignedDuration(window.Earliest) is { } from && SignedDuration(window.Latest) is { } to && from < to;
+            ? Instant(window.Earliest) is { } opens && Instant(window.Latest) is { } closes
+                && Instant(definition.DueDate) is { } due && opens < closes && opens <= due && due <= closes
+            : definition.Basis is not EventAnchoredChainBasis && RelativeWindowValid(window);
         if (!ordered) refusals.Add(new(ScheduleDefinitionCodes.WindowInvalid, "/window"));
     }
+
+    internal static bool RelativeWindowValid(ScheduleWindow window)
+        => SignedDuration(window.Earliest) is { } from && SignedDuration(window.Latest) is { } to
+            && from <= TimeSpan.Zero && to >= TimeSpan.Zero && from < to;
 
     private static void Tolerance(ScheduleTolerance tolerance, string pointer, List<DefinitionRefusal> refusals)
     {
@@ -133,9 +157,12 @@ internal static class ScheduleDefinitionAdmission
         // None names no planner (L1149), so there is nothing for a module to compile into.
         if (modules.Count > 0 && definition.ProblemClass == ScheduleProblemClass.None)
             refusals.Add(new(ScheduleDefinitionCodes.ModulesWithoutProblemClass, "/modules"));
+        var names = new HashSet<string>(StringComparer.Ordinal);
         foreach (var (module, index) in modules.Select((value, index) => (value, index)))
             if (module is null) refusals.Add(new(ScheduleDefinitionCodes.ModuleInvalid, $"/modules/{index}"));
             else if (string.IsNullOrWhiteSpace(module.Module)) refusals.Add(new(ScheduleDefinitionCodes.ModuleInvalid, $"/modules/{index}/module"));
+            else if (!names.Add(module.Module) || !Planning.ConstraintModuleAdmission.IsAdmitted(module))
+                refusals.Add(new("scheduling.definition.module_unsupported", $"/modules/{index}/module"));
     }
 
     private static void Duration(string? value, string pointer, List<DefinitionRefusal> refusals)
@@ -148,7 +175,7 @@ internal static class ScheduleDefinitionAdmission
     // comparison belongs with the occurrence generator that owns dates.
     // One unpadded spelling (R-0144 ruling 5): xs:duration collapses whitespace, which would store two texts for one value.
     // A week stands alone as PnW (RFC 5545 section 3.3.6). xs:duration has no W, so XmlConvert reads it as days.
-    private static TimeSpan? SignedDuration(string? value)
+    internal static TimeSpan? SignedDuration(string? value)
     {
         if (string.IsNullOrEmpty(value) || value.Any(char.IsWhiteSpace)) return null;
         var week = WeekDuration.Match(value);
@@ -159,7 +186,7 @@ internal static class ScheduleDefinitionAdmission
         catch (Exception exception) when (exception is FormatException or OverflowException) { return null; }
     }
 
-    private static DateTimeOffset? Instant(string? value)
+    internal static DateTimeOffset? Instant(string? value)
         => DateTimeOffset.TryParseExact(value, InstantFormats, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var instant)
             ? instant
             : null;

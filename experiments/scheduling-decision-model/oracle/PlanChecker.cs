@@ -205,5 +205,5 @@ public sealed class PlanChecker
     }
 
     public static bool PrecedenceHolds(AssignmentCandidate before, AssignmentCandidate after, int gap) =>
-        before.EndSlotExclusive + gap <= after.StartSlot;
+        (long)before.EndSlotExclusive + gap <= after.StartSlot;
 }

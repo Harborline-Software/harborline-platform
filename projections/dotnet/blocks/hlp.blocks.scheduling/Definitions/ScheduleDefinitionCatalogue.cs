@@ -9,6 +9,18 @@ namespace Harborline.Blocks.Scheduling.Definitions;
 /// <summary>Stable refusal codes of Scheduling definition binding (DES-0022 scheduling-ck-20, scheduling-eng-1).</summary>
 public static class ScheduleDefinitionCodes
 {
+    /// <summary>Recovery replanning is outside the admitted grammar (L463).</summary>
+    public const string RecoveryReplanningUnsupported = "scheduling.definition.recovery_replanning_unsupported";
+    /// <summary>Scheduling cannot require a plan to satisfy a regulator's rule set (L465).</summary>
+    public const string RegulatorRuleSetUnsupported = "scheduling.definition.regulator_rule_set_unsupported";
+    /// <summary>Another plan's output cannot feed this plan (L478).</summary>
+    public const string PlanInputUnsupported = "scheduling.definition.plan_input_unsupported";
+    /// <summary>The consumer does not require the referenced producer package.</summary>
+    public const string ReferenceDependencyUndeclared = "scheduling.reference.dependency_undeclared";
+    /// <summary>The producer does not expose the referenced definition.</summary>
+    public const string ReferenceNotExposed = "scheduling.reference.not_exposed";
+    /// <summary>The producer exposes another version or digest of the definition.</summary>
+    public const string ReferenceExposureIncompatible = "scheduling.reference.exposure_incompatible";
     /// <summary>The body is not a JSON object.</summary>
     public const string BodyInvalid = "scheduling.definition.body_invalid";
     /// <summary>The body carries an integer revision, retired by DES-0022 ruling 8 (L491 reversed by L783).</summary>
@@ -27,8 +39,8 @@ public static class ScheduleDefinitionCodes
     public const string NameRequired = "scheduling.definition.name_required";
     /// <summary>The definition does not name what it starts.</summary>
     public const string StartsRequired = "scheduling.definition.starts_required";
-    /// <summary>A definition that is not an event-anchored chain has no validity window.</summary>
-    public const string WindowRequired = "scheduling.definition.window_required";
+    /// <summary>A lone due instant is missing, unreadable, or supplied alongside a basis.</summary>
+    public const string DueDateInvalid = "scheduling.definition.due_date_invalid";
     /// <summary>The window's bounds are unreadable, or do not open before they close.</summary>
     public const string WindowInvalid = "scheduling.definition.window_invalid";
     /// <summary>A generator is missing a member or breaks its own rules.</summary>

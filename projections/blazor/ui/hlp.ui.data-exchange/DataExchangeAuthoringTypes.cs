@@ -18,7 +18,11 @@ public sealed record DataExchangeMappingRow(
     string NullValue,
     string DefaultValue,
     string Separator,
-    string Transform);
+    string Transform)
+{
+    /// <summary>The admitted column extensions other than the separately authored target and transform.</summary>
+    public IReadOnlyDictionary<string, string> Extensions { get; init; } = System.Collections.Immutable.ImmutableDictionary<string, string>.Empty;
+}
 
 /// <summary>The draft of a data exchange being authored: source, connector, mappings, key columns, replay policy and schedule.</summary>
 public sealed record DataExchangeAuthoringDraft(
@@ -32,6 +36,8 @@ public sealed record DataExchangeAuthoringDraft(
     string ReplayPolicy,
     string ScheduleReference)
 {
+    /// <summary>The canonical Records contract selected for the exchange, independent of individual columns.</summary>
+    public string RecordType { get; init; } = "";
     /// <summary>Server identity of the persisted definition; empty for a new draft.</summary>
     public string Identity { get; init; } = "";
     /// <summary>Server revision the draft was loaded from; a change is a revision change.</summary>
@@ -73,6 +79,12 @@ public sealed record DataExchangeRunSummary(
     IReadOnlyList<string> Refusals,
     string? BatchIdentity = null)
 {
+    /// <summary>The server-owned retention policy class, never authored by this editor.</summary>
+    public string? RetentionClass { get; init; }
+
+    /// <summary>The server's proposal drift reason, absent for a current review.</summary>
+    public string? DriftReason { get; init; }
+
     /// <summary>Identifies the immutable commit that promoted this reviewed run, when one exists.</summary>
     public string? CommitRunId { get; init; }
 

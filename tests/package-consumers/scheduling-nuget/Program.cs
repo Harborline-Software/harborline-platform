@@ -8,6 +8,8 @@ using Harborline.Blocks.Calendar.Services;
 using Harborline.Foundation.Assets.Common;
 using Harborline.Foundation.Authorization;
 using Harborline.Foundation.Scheduling;
+using Harborline.Foundation.Scheduling.Models;
+using Harborline.Foundation.Scheduling.Services;
 
 var json = new JsonSerializerOptions(JsonSerializerDefaults.Web);
 using var corpus = JsonDocument.Parse(await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, "scheduling-vertical-cases.json")));

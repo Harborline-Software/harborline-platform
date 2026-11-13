@@ -63,7 +63,7 @@ public sealed record AssistanceDefinition(
     AssistanceProvider Provider, int SchemaVersion = 1, AssistanceDefinitionEnvelope? Envelope = null);
 
 /// <summary>An entry in the host command catalogue.</summary>
-public sealed record CommandCatalogueEntry(string CommandId);
+public sealed record CommandCatalogueEntry(string CommandId, string ExportingPackage, bool Exported, AssistanceClassificationTier Tier, JsonElement ArgsSchema, IReadOnlyList<string> PermittedRecipients);
 /// <summary>Resolves command identifiers against a host catalogue.</summary>
 public interface ICommandCatalogueRegistry
 {
@@ -173,7 +173,9 @@ public static class AssistanceDefinitionAdmission
         ArgumentNullException.ThrowIfNull(definition);
         ArgumentNullException.ThrowIfNull(window);
         commands ??= new EmptyCommandCatalogueRegistry();
+        if (definition.Commands.Any(command => !Enum.IsDefined(command.Classification.Tier))) return [new("definition.body_invalid", "/")];
         var refusals = new List<AssistanceRefusal>();
+        var reportedRecipients = new HashSet<int>();
         if (!IsThreePartVersion(definition.Version)) refusals.Add(new("definition.version_invalid", "/version"));
         if (definition.SchemaVersion != 1) refusals.Add(new("definition.schema_version_unsupported", "/schema_version"));
         if (string.IsNullOrWhiteSpace(definition.Surface)) refusals.Add(new("definition.surface_required", "/surface"));
@@ -186,7 +188,7 @@ public static class AssistanceDefinitionAdmission
         if (string.IsNullOrWhiteSpace(definition.Provider.ProviderId)) refusals.Add(new("definition.provider_required", "/provider/provider_id"));
         if (string.IsNullOrWhiteSpace(definition.Provider.ModelId)) refusals.Add(new("definition.model_required", "/provider/model_id"));
         // Registered-provider floors are deferred by DES-0026 open ruling 5.
-        for (var index = 0; index < definition.Commands.Count; index++) ValidateCommand(definition.Commands[index], index, commands, refusals);
+        for (var index = 0; index < definition.Commands.Count; index++) ValidateCommand(definition.Commands[index], index, commands, definition.Recipients, refusals, reportedRecipients);
         var seenCommandIds = new HashSet<string>(StringComparer.Ordinal);
         for (var index = 0; index < definition.Commands.Count; index++)
             if (!seenCommandIds.Add(definition.Commands[index].CommandId))
@@ -201,10 +203,23 @@ public static class AssistanceDefinitionAdmission
         if (previous is not null) ValidateNarrowing(definition, previous, refusals);
         return refusals;
     }
-    private static void ValidateCommand(AssistanceCommand command, int index, ICommandCatalogueRegistry commands, List<AssistanceRefusal> refusals)
+    private static void ValidateCommand(AssistanceCommand command, int index, ICommandCatalogueRegistry commands, IReadOnlyList<string> recipients, List<AssistanceRefusal> refusals, HashSet<int> reportedRecipients)
     {
         var pointer = $"/commands/{index}";
-        if (string.IsNullOrWhiteSpace(command.CommandId) || commands.Resolve(command.CommandId) is null) refusals.Add(new("definition.command_unregistered", pointer + "/command_id"));
+        var entry = string.IsNullOrWhiteSpace(command.CommandId) ? null : commands.Resolve(command.CommandId);
+        if (entry is null) refusals.Add(new("definition.command_unregistered", pointer + "/command_id"));
+        else
+        {
+            if (!entry.Exported) refusals.Add(new("definition.command_not_exported", pointer + "/command_id"));
+            if (command.Classification.Tier < entry.Tier) refusals.Add(new("definition.tier_below_catalogue", pointer + "/classification/tier"));
+            if (!AssistanceArgsSchemaNarrowing.IsAtLeastAsStrict(command.ArgsSchema, entry.ArgsSchema)) refusals.Add(new("definition.args_schema_looser_than_catalogue", pointer + "/args_schema"));
+            for (var recipient = 0; recipient < recipients.Count; recipient++)
+                if (entry.PermittedRecipients is null || !entry.PermittedRecipients.Contains(recipients[recipient], StringComparer.Ordinal))
+                {
+                    var refusal = new AssistanceRefusal("definition.recipient_outside_target_permission", $"/recipients/{recipient}");
+                    if (reportedRecipients.Add(recipient)) refusals.Add(refusal);
+                }
+        }
         if (command.ArgsSchema.ValueKind != JsonValueKind.Object) refusals.Add(new("definition.args_schema_not_object", pointer + "/args_schema"));
         if (command.Classification.Tier != AssistanceClassificationTier.Never) return;
         if (string.IsNullOrWhiteSpace(command.Classification.Archetype)) refusals.Add(new("definition.never_archetype_required", pointer + "/classification/archetype"));
@@ -224,15 +239,9 @@ public static class AssistanceDefinitionAdmission
             if (!oldCommands.TryGetValue(command.CommandId, out var old)) continue;
             var pointer = $"/commands/{index}";
             if (command.Classification.Tier < old.Classification.Tier) refusals.Add(new("definition.tier_lowered", pointer + "/classification/tier"));
-            // This deliberately narrow proxy is not a JSON-Schema subset checker.
-            if (command.ArgsSchema.GetRawText() != old.ArgsSchema.GetRawText() && RequiredEntries(old.ArgsSchema).Except(RequiredEntries(command.ArgsSchema), StringComparer.Ordinal).Any()) refusals.Add(new("definition.args_schema_widened", pointer + "/args_schema"));
+            if (!AssistanceArgsSchemaNarrowing.IsAtLeastAsStrict(command.ArgsSchema, old.ArgsSchema)) refusals.Add(new("definition.args_schema_widened", pointer + "/args_schema"));
         }
         if (definition.Recipients.Except(previous.Recipients, StringComparer.Ordinal).Any()) refusals.Add(new("definition.recipients_widened", "/recipients"));
-    }
-    private static IReadOnlySet<string> RequiredEntries(JsonElement schema)
-    {
-        if (schema.ValueKind != JsonValueKind.Object || !schema.TryGetProperty("required", out var required) || required.ValueKind != JsonValueKind.Array) return new HashSet<string>(StringComparer.Ordinal);
-        return required.EnumerateArray().Where(item => item.ValueKind == JsonValueKind.String).Select(item => item.GetString()!).ToHashSet(StringComparer.Ordinal);
     }
     private static bool IsThreePartVersion(string? version)
     {

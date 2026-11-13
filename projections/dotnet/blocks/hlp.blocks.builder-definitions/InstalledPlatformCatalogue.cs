@@ -99,6 +99,7 @@ public sealed class InstalledPlatformCatalogue : IPlatformPackageReplayTarget, I
     {
         using var access = Read("platform-package-ck-10");
         return [.. access.RootElement.GetProperty("bindings").EnumerateArray()
+            .Select(binding => DefinitionBody(binding.GetString()!))
             .Where(binding => binding.GetProperty("operation").GetString() == capability)
             .SelectMany(binding => binding.GetProperty("offeredRoles").EnumerateArray().Select(role => role.GetString()!))];
     }
@@ -106,9 +107,18 @@ public sealed class InstalledPlatformCatalogue : IPlatformPackageReplayTarget, I
     private HashSet<string> GrantedRoles()
     {
         using var access = Read("platform-package-ck-9");
+        var roles = access.RootElement.GetProperty("roles").EnumerateArray()
+            .Select(role => $"sys.platform-roles/{DefinitionBody(role.GetString()!).GetProperty("role").GetString()}")
+            .ToHashSet(StringComparer.Ordinal);
         return [.. access.RootElement.GetProperty("grants").EnumerateArray()
             .Select(grant => grant.TryGetProperty("role", out var role) ? role.GetString() : null)
-            .OfType<string>()];
+            .OfType<string>().Where(roles.Contains)];
+    }
+
+    private JsonElement DefinitionBody(string itemId)
+    {
+        using var item = Read(itemId);
+        return item.RootElement.GetProperty("body").Clone();
     }
 
     private string[] Members(string itemId)

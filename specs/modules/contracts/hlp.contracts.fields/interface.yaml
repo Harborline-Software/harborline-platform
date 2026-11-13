@@ -1,13 +1,13 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.contracts.fields",
-  "interfaceRevision": 1,
+  "interfaceRevision": 2,
   "status": "draft",
   "purpose": "Carry the shared field-kind, domain and constraint vocabulary across the kernel Records and foundation field-runtime seam without an outward kernel dependency.",
   "dependencies": ["hlp.contracts.identities"],
   "types": {
     "FieldKindReference": ["KindId", "Version", "Parameters"],
-    "AdmittedFieldKind": ["KindId", "Version", "GovernanceDefaults", "ValueShape"],
+    "AdmittedFieldKind": ["KindId", "Version", "GovernanceDefaults", "ValueShape", "Capabilities", "TemporalFormat"],
     "ValueDomainDefinition": ["LiteralValues", "TaxonomyScheme", "RecordQuery"],
     "FieldConstraintDefinition": ["Required", "MinimumCount", "MaximumCount", "ReadRoleIds", "ValueDomain"],
     "FieldBindingDefinition": ["Kind", "Constraints"],
@@ -24,6 +24,8 @@
     "IFieldDomainRuntime": ["Validate", "ResolveAsync", "IntersectAsync", "NarrowAsync"]
   },
   "invariants": [
+    "TemporalFormat is an optional trailing nullable string, default null, absent or exactly date, date-time or time, legal only on ValueShape Text (JSON Schema 2020-12 Validation section 7.3.1; RFC 3339 section 5.6). FieldScalarValueShape remains Text, Boolean, Integer, Number.",
+    "Temporal meaning is declared once on the immutable kind revision, separate from display configuration. No Records field restates it, and temporal values remain JSON strings; this declaration does not add RFC 3339 value validation.",
     "One shared vocabulary is promoted from the T-615 declarations; members do not redeclare it.",
     "Contracts contain declarations, not the field-runtime enforcement implementation.",
     "FieldDomainScope carries the authenticated actor's exact nonblank string identity and a non-sentinel tenant; a missing principal refuses before source access.",

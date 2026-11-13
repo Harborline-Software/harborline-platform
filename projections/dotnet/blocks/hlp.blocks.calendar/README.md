@@ -284,3 +284,7 @@ S0/S1 left these `null`/empty; **S2 (below) populates them** — the participati
 No reference to `blocks-scheduling` (the reservation primitive) — calendar events are not
 slot-reservations; that CP-gated path is wired separately if a calendar event ever needs to hold a
 resource slot.
+
+## Shared availability contract (T-491/module-admission)
+
+`IAvailabilityRuntime` now lives in `Harborline.Foundation.Scheduling.Services`. Its request, answer, refusal and capacity types, `ParticipantRef`, `TimeInterval` and `EventPadding` live in `Harborline.Foundation.Scheduling.Models`. Import these namespaces in consumers. This is a breaking pre-release namespace and assembly move with no forwarding shim; public signatures and guards are unchanged. `FreeBusyService`, the supply model, stores and all availability composition stay in the calendar block. Scheduling consumes the foundation contract and does not reference Calendar.

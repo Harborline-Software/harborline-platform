@@ -1,0 +1,125 @@
+@namespace Harborline.UIAdapters.Blazor.Components.DocumentAuthoring
+@using Harborline.UIAdapters.Blazor.Components.Buttons
+@if (Current.Blocks.Select(block => block.Id).Distinct().Count() != Current.Blocks.Count)
+{
+  <p role="alert">Duplicate block ids. The host must supply unique block ids.</p>
+}
+else
+{
+<form class="hl-document-authoring" aria-label="Document template draft" @onsubmit:preventDefault>
+  <p>Local draft. Preview does not issue a document.</p>
+  <fieldset disabled="@ReadOnly"><legend>Template</legend>
+    @Input("Template name", Current.Name, value => Change(Current with { Name = value }))
+    @Input("Document type", Current.DocumentType, value => Change(Current with { DocumentType = value }))
+    <label>Locale policy<select aria-label="Locale policy" value="@Current.Locale.Kind" @onchange='eventArgs => Change(Current with { Locale = new(Text(eventArgs)) })'><option value="fixed">Fixed</option><option value="from_record">From record</option><option value="from_instance">From instance</option></select></label>
+    @if (Current.Locale.Kind == "fixed") { @Input("Document locale", Current.Locale.Tag, value => Change(Current with { Locale = Current.Locale with { Tag = value } })) }
+    @Input("Brand name", Current.Style.BrandName, value => Change(Current with { Style = Current.Style with { BrandName = value } }))
+    @Input("Logo asset reference", Current.Style.LogoAssetRef, value => Change(Current with { Style = Current.Style with { LogoAssetRef = value.Length == 0 ? null : value } }))
+    <fieldset><legend>Page masters</legend>@foreach (var variant in Variants) { <fieldset><legend>@variant</legend>@foreach (var region in Regions) { <div>@Select($"{variant} {region}", Region(Master(variant), region), Catalogue.Regions, value => SetMaster(variant, region, value))</div> }</fieldset> }</fieldset>
+    @if (Current.Blocks.Count == 0) { <p>No blocks authored.</p> }
+    @for (var position = 0; position < Current.Blocks.Count; position++)
+    {
+      var index = position; var block = Current.Blocks[index];
+      <fieldset @key="block.Id"><legend>Block @(index + 1)</legend>
+        @Select($"Block {index + 1} container token", block.CollapseBelow, Tokens, value => Block(index, block with { CollapseBelow = value.Length == 0 ? null : value }))
+        <label><input type="checkbox" aria-label="@($"Block {index + 1} break before")" checked="@block.BreakBefore" @onchange="eventArgs => Block(index, block with { BreakBefore = eventArgs.Value is true })" />Break before</label>
+        <label><input type="checkbox" aria-label="@($"Block {index + 1} break after")" checked="@block.BreakAfter" @onchange="eventArgs => Block(index, block with { BreakAfter = eventArgs.Value is true })" />Break after</label>
+        <label>Break inside<select aria-label="@($"Block {index + 1} break inside")" value="@block.BreakInside" @onchange="eventArgs => Block(index, block with { BreakInside = Text(eventArgs) })"><option value="auto">Auto</option><option value="avoid_page">Avoid page</option></select></label>
+        @for (var linePosition = 0; linePosition < block.Lines.Count; linePosition++)
+        {
+          var lineIndex = linePosition; var line = block.Lines[lineIndex];
+          <fieldset><legend>Line @(lineIndex + 1)</legend>
+            @for (var runPosition = 0; runPosition < line.Runs.Count; runPosition++)
+            {
+              var runIndex = runPosition; var run = line.Runs[runIndex]; var prefix = $"Block {index + 1} line {lineIndex + 1} run {runIndex + 1}";
+              <fieldset><legend>Run @(runIndex + 1)</legend>
+                @if (run.Text is not null) { @Input($"{prefix} literal", run.Text, value => Run(index, lineIndex, runIndex, new(Text: value)), "Literal") }
+                else { @Select($"{prefix} field", run.FieldPath, Catalogue.Fields, value => Run(index, lineIndex, runIndex, run with { FieldPath = value })) @Input($"{prefix} fallback", run.Fallback, value => Run(index, lineIndex, runIndex, run with { Fallback = value }), "Fallback") }
+                <HarborlineButton ButtonType="ButtonType.Button" OnClick="() => Line(index, lineIndex, new(line.Runs.Where((_, ordinal) => ordinal != runIndex).ToArray()))">Remove run @(runIndex + 1) from line @(lineIndex + 1) in block @(index + 1)</HarborlineButton>
+              </fieldset>
+            }
+            <HarborlineButton ButtonType="ButtonType.Button" OnClick='() => Line(index, lineIndex, new([.. line.Runs, new(Text: "")]))'>Add literal to line @(lineIndex + 1) in block @(index + 1)</HarborlineButton>
+            <HarborlineButton ButtonType="ButtonType.Button" OnClick='() => Line(index, lineIndex, new([.. line.Runs, new(FieldPath: "")]))'>Add merge to line @(lineIndex + 1) in block @(index + 1)</HarborlineButton>
+            <HarborlineButton ButtonType="ButtonType.Button" OnClick="() => Block(index, block with { Lines = block.Lines.Where((_, ordinal) => ordinal != lineIndex).ToArray() })">Remove line @(lineIndex + 1) from block @(index + 1)</HarborlineButton>
+          </fieldset>
+        }
+        <HarborlineButton ButtonType="ButtonType.Button" OnClick="() => Block(index, block with { Lines = [.. block.Lines, new([])] })">Add line to block @(index + 1)</HarborlineButton>
+        <HarborlineButton ButtonType="ButtonType.Button" Enabled="@(index != 0)" OnClick="() => MoveUp(index)">Move block @(index + 1) up</HarborlineButton>
+        <HarborlineButton ButtonType="ButtonType.Button" OnClick="() => Change(Current with { Blocks = Current.Blocks.Where((_, ordinal) => ordinal != index).ToArray() })">Remove block @(index + 1)</HarborlineButton>
+      </fieldset>
+    }
+    <HarborlineButton ButtonType="ButtonType.Button" OnClick="AddBlock">Add block</HarborlineButton>
+    <fieldset><legend>Server preview</legend><label>Preview source<select aria-label="Preview source" value="@TargetKind" @onchange="SourceChanged"><option value="record">Record</option><option value="sample">Labelled sample</option></select></label>@Select("Preview target", TargetId, TargetKind == "record" ? Catalogue.Records : Catalogue.Samples, TargetChanged)<HarborlineButton ButtonType="ButtonType.Button" Enabled='@(CanPreview && TargetId.Length > 0 && Incoming is null && Status != "Rendering preview…")' OnClick="RenderPreview">Render preview</HarborlineButton></fieldset>
+  </fieldset>
+  @if (Incoming is not null) { <aside role="alert">A different template or revision arrived while you have local edits.<HarborlineButton ButtonType="ButtonType.Button" Enabled="@(!ReadOnly)" OnClick="Keep">Keep edits</HarborlineButton><HarborlineButton ButtonType="ButtonType.Button" Enabled="@(!ReadOnly)" OnClick="Discard">Discard edits</HarborlineButton></aside> }
+  @if (Denial is not null && Denial.Identity == Current.Identity && Denial.Revision == Current.Revision && Denial.Generation == Generation) { <ul aria-label="Admission refusals">@foreach (var diagnostic in Denial.Diagnostics) { <li>@diagnostic.Code at @diagnostic.Pointer</li> }</ul> }
+  <p role="status">@Status</p>
+  @if (Result is not null) { <section aria-label="Document preview" lang="@Result.LocaleTag">@foreach (var block in Result.Blocks) { <p>@block.Content</p> }</section> }
+</form>
+}
+@code {
+  [Parameter, EditorRequired] public DocumentDraft Value { get; set; } = DocumentDraft.Empty;
+  [Parameter] public DocumentCatalogue Catalogue { get; set; } = new();
+  [Parameter, EditorRequired] public DocumentPageFlow PageFlow { get; set; } = new([]);
+  [Parameter] public bool ReadOnly { get; set; }
+  [Parameter] public bool CanPreview { get; set; }
+  [Parameter] public DocumentDenial? Denial { get; set; }
+  [Parameter] public EventCallback<DocumentDraftChange> DraftChanged { get; set; }
+  [Parameter, EditorRequired] public Func<DocumentPreviewRequest, Task<DocumentPreviewResult>>? Preview { get; set; }
+  private static readonly string[] Variants = ["first", "left", "right"];
+  private static readonly string[] Regions = ["leftRegion", "centerRegion", "rightRegion"];
+  private static readonly DocumentOption[] Tokens = ["sm", "md", "lg"];
+  private DocumentDraft Current = DocumentDraft.Empty;
+  private DocumentDraft? Incoming;
+  private DocumentDraft? Held;
+  private bool Initialized;
+  private bool Dirty;
+  private int Generation;
+  private int Serial;
+  private string TargetKind = "sample";
+  private string TargetId = "";
+  private string Status = "";
+  private DocumentPreviewResult? Result;
+  private DocumentPageFlow? PreviousFlow;
+  private static bool Same(DocumentDraft left, DocumentDraft right) => left.Identity == right.Identity && left.Revision == right.Revision;
+  protected override void OnParametersSet()
+  {
+    if (ReadOnly || !CanPreview || !ReferenceEquals(PageFlow, PreviousFlow)) ResetPreview();
+    PreviousFlow = PageFlow;
+    if (!Initialized) { Current = Value; Initialized = true; return; }
+    if (Same(Value, Current)) { Held = null; Incoming = null; return; }
+    if (Held is not null && Same(Value, Held)) return;
+    if (Dirty) { Held = Value; Incoming = Value; ResetPreview(); } else Adopt(Value);
+  }
+  private void ResetPreview() { Serial++; Result = null; Status = ""; }
+  private void Adopt(DocumentDraft next) { Current = next; Dirty = false; Held = null; Incoming = null; Generation++; ResetPreview(); }
+  private async Task Change(DocumentDraft next) { if (ReadOnly) return; Current = next; Dirty = true; Generation++; ResetPreview(); await DraftChanged.InvokeAsync(new(next, Generation)); }
+  private Task Block(int index, DocumentBlock next) => Change(Current with { Blocks = Current.Blocks.Select((value, ordinal) => ordinal == index ? next : value).ToArray() });
+  private Task Line(int index, int lineIndex, DocumentLine next) => Block(index, Current.Blocks[index] with { Lines = Current.Blocks[index].Lines.Select((value, ordinal) => ordinal == lineIndex ? next : value).ToArray() });
+  private Task Run(int index, int lineIndex, int runIndex, DocumentRun next) => Line(index, lineIndex, new(Current.Blocks[index].Lines[lineIndex].Runs.Select((value, ordinal) => ordinal == runIndex ? next : value).ToArray()));
+  private Task AddBlock() { var identity = 1; while (Current.Blocks.Any(block => block.Id == $"block-{identity}")) identity++; return Change(Current with { Blocks = [.. Current.Blocks, new($"block-{identity}", [])] }); }
+  private Task MoveUp(int index) { var blocks = Current.Blocks.ToArray(); (blocks[index - 1], blocks[index]) = (blocks[index], blocks[index - 1]); return Change(Current with { Blocks = blocks }); }
+  private DocumentMasterVariant Master(string variant) => variant switch { "first" => Current.Masters.First, "left" => Current.Masters.Left, _ => Current.Masters.Right };
+  private static string? Region(DocumentMasterVariant master, string region) => region switch { "leftRegion" => master.LeftRegion, "centerRegion" => master.CenterRegion, _ => master.RightRegion };
+  private Task SetMaster(string variant, string region, string value)
+  {
+    var text = value.Length == 0 ? null : value; var master = Master(variant);
+    master = region switch { "leftRegion" => master with { LeftRegion = text }, "centerRegion" => master with { CenterRegion = text }, _ => master with { RightRegion = text } };
+    var masters = variant switch { "first" => Current.Masters with { First = master }, "left" => Current.Masters with { Left = master }, _ => Current.Masters with { Right = master } };
+    return Change(Current with { Masters = masters });
+  }
+  private void Keep() { if (!ReadOnly) Incoming = null; }
+  private Task Discard() { if (ReadOnly || Incoming is null) return Task.CompletedTask; Adopt(Incoming); return DraftChanged.InvokeAsync(new(Current, Generation)); }
+  private void SourceChanged(ChangeEventArgs eventArgs) { TargetKind = Text(eventArgs); TargetId = ""; ResetPreview(); }
+  private Task TargetChanged(string value) { TargetId = value; ResetPreview(); return Task.CompletedTask; }
+  private async Task RenderPreview()
+  {
+    if (ReadOnly || !CanPreview || TargetId.Length == 0 || Incoming is not null || Preview is null) return;
+    var ticket = ++Serial; Result = null; Status = "Rendering preview…";
+    try { var result = await Preview(new("preview", Current, PageFlow, new(TargetKind, TargetId))); if (ticket != Serial || ReadOnly || !CanPreview) return; if (result.Minted) { Status = "Preview refused."; return; } Result = result; Status = "Preview only. No document issued."; }
+    catch { if (ticket == Serial && !ReadOnly && CanPreview) Status = "Preview refused."; }
+  }
+  private static string Text(ChangeEventArgs eventArgs) => eventArgs.Value?.ToString() ?? "";
+  private RenderFragment Input(string label, string? value, Func<string, Task> update, string? caption = null) => @<label>@(caption ?? label)<input aria-label="@label" value="@(value ?? "")" @oninput="eventArgs => update(Text(eventArgs))" /></label>;
+  private RenderFragment Select(string label, string? value, IReadOnlyList<DocumentOption> options, Func<string, Task> update) => @<label>@label @if (options.Count == 0) { <span>No options offered.</span> }<select aria-label="@label" value="@(value ?? "")" @onchange="eventArgs => update(Text(eventArgs))"><option value="">Not set</option>@if (!string.IsNullOrEmpty(value) && !options.Any(option => option.Id == value)) { <option value="@value">@value (not offered)</option> }@foreach (var option in options) { <option value="@option.Id">@option.Label</option> }</select></label>;
+}

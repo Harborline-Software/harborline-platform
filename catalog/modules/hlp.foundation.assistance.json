@@ -17,7 +17,7 @@
       "disposition": "deep-module",
       "deletionTest": "PASS",
       "redistributedComplexity": [
-        "command-narrowing (tier, args schema, recipients), NEVER-archetype and context-allowlist admission reimplemented by every host that authors or installs an Assistance binding",
+        "catalogue and previous-version command narrowing (export status, tier, bounded fail-closed args schema, intersection of permitted recipients), NEVER-archetype and context-allowlist admission reimplemented by every host that authors or installs an Assistance binding",
         "canonical envelope shape and the reserved DefinitionKind.Pilot namespace allowed to drift between the definition producer and the shared builder-definitions catalogue"
       ]
     },

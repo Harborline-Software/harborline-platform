@@ -88,6 +88,37 @@ public sealed record DryRunArtifact(
     public ExchangeRunTerminalStatus TerminalStatus => ExchangeRunClosure.TerminalStatus(Census);
 }
 
+/// <summary>Payload-free view of a dry run and its current staleness.</summary>
+public sealed record DryRunEvidence(DryRunId Id, ExchangeCensus Census, ExchangeRunTerminalStatus TerminalStatus,
+    string RetentionClass, bool IsStale, string? DriftReason);
+
+/// <summary>Decides whether the caller may read a run result.</summary>
+public interface IExchangeRunReadAuthority
+{
+    /// <summary>Returns whether the caller may read this run.</summary>
+    ValueTask<bool> CanReadAsync(DryRunArtifact run, CancellationToken cancellationToken = default);
+}
+
+/// <summary>Reads tenant-scoped evidence and evaluates drift without changing the stored artifact.</summary>
+public sealed class DryRunEvidenceReader(IExchangeRunStore runs, IProposalEvaluationPort proposals, IExchangeRunReadAuthority authority)
+{
+    /// <summary>Returns evidence for the tenant, or null when the run is absent or belongs to another tenant.</summary>
+    public async ValueTask<DryRunEvidence?> ReadAsync(string tenantId, DryRunId id, CancellationToken cancellationToken = default)
+    {
+        var run = await runs.GetDryRunAsync(id, cancellationToken).ConfigureAwait(false);
+        if (run is null || !StringComparer.Ordinal.Equals(run.TenantId, tenantId)) return null;
+        if (!await authority.CanReadAsync(run, cancellationToken).ConfigureAwait(false))
+            throw new DataExchangeCommitRefusedException("run.forbidden", "Reading run results was refused.");
+        var current = await proposals.EvaluateAsync(run, cancellationToken).ConfigureAwait(false);
+        var effects = current.Evaluations?.Select(evaluation => evaluation.Effect).ToArray() ?? current.Effects.ToArray();
+        var reason = !StringComparer.Ordinal.Equals(run.Proposal.SourceFingerprint, current.Proposal.SourceFingerprint) ? "source.changed"
+            : !StringComparer.Ordinal.Equals(run.Proposal.DefinitionId, current.Proposal.DefinitionId) || !StringComparer.Ordinal.Equals(run.Proposal.DefinitionVersion, current.Proposal.DefinitionVersion) ? "definition.changed"
+            : BatchIdentityInputs.From(run.TenantId, run.Proposal) != BatchIdentityInputs.From(current.TenantId, current.Proposal)
+            ? "proposal.changed"
+            : !DataExchangeCommitter.EffectsEqual(run.NormalizedEffects, effects) ? "effects.changed" : null;
+        return new(run.Id, run.Census, run.TerminalStatus, run.RetentionClass, reason is not null, reason);
+    }
+}
 /// <summary>Whether a commit run's checkpoint promotion has completed.</summary>
 public enum CheckpointFinalizationStatus
 {

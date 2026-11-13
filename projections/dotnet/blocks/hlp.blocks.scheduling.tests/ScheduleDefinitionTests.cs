@@ -32,7 +32,12 @@ public sealed class ScheduleDefinitionTests
         """;
 
     // A body with an envelope, a name and a form, plus the given members.
-    private static string Body(string members) => $$"""{"envelope":{{Envelope}},"name":"Quarterly","starts":{{Form}},{{members}}}""";
+    private static string Body(string members)
+    {
+        var body = System.Text.Json.Nodes.JsonNode.Parse($$"""{"envelope":{{Envelope}},"name":"Quarterly","starts":{{Form}},{{members}}}""")!;
+        if (body["basis"] is null) body["due_date"] = "2027-01-01T00:00:00Z";
+        return body.ToJsonString();
+    }
 
     private async Task<IReadOnlyList<DefinitionRefusal>> RefusalsAsync(string body)
     {
@@ -55,7 +60,7 @@ public sealed class ScheduleDefinitionTests
     [Fact(DisplayName = "L1445, scheduling-ck-10, scheduling-auth-11: a due date and a form are valid, default to no problem class and name no solver")]
     public async Task DueDateAndFormIsValidAndNamesNoSolver()
     {
-        var resolved = (await RoundTripAsync(Body("\"" + $$"""window":{{Instants}}"""))).Definition;
+        var resolved = (await RoundTripAsync(Body("\"" + $$"""due_date":"2027-01-01T00:00:00Z","window":{{Instants}}"""))).Definition;
 
         Assert.Equal(ScheduleProblemClass.None, resolved.ProblemClass);
         Assert.Null(resolved.Basis);
@@ -73,7 +78,7 @@ public sealed class ScheduleDefinitionTests
     [InlineData("CompositeRecovery", ScheduleProblemClass.CompositeRecovery)]
     public async Task SevenProblemClassesRoundTrip(string literal, ScheduleProblemClass expected)
     {
-        var resolved = await RoundTripAsync(Body("\"" + $$"""window":{{Instants}},"problem_class":"{{literal}}","modules":[{"module":"no_overlap"}]"""));
+        var resolved = await RoundTripAsync(Body("\"" + $$"""due_date":"2027-01-01T00:00:00Z","window":{{Instants}},"problem_class":"{{literal}}","modules":[{"module":"no_overlap"}]"""));
         Assert.Equal(expected, resolved.Definition.ProblemClass);
     }
 
@@ -83,10 +88,10 @@ public sealed class ScheduleDefinitionTests
     [InlineData("1")]
     public async Task UnknownProblemClassRefuses(string literal)
         => Assert.Equal([new DefinitionRefusal(ScheduleDefinitionCodes.BodyInvalid, "")],
-            await RefusalsAsync(Body("\"" + $$"""window":{{Instants}},"problem_class":{{literal}}""")));
+            await RefusalsAsync(Body("\"" + $$"""due_date":"2027-01-01T00:00:00Z","window":{{Instants}},"problem_class":{{literal}}""")));
 
     [Theory(DisplayName = "scheduling-ck-4, scheduling-auth-2: each of the four generators round-trips with its own members")]
-    [InlineData("""{"kind":"fixed_calendar","rrule":"FREQ=NOSUCH"}""", typeof(FixedCalendarBasis))]
+    [InlineData("""{"kind":"fixed_calendar","rrule":"FREQ=DAILY"}""", typeof(FixedCalendarBasis))]
     [InlineData("""{"kind":"completion_offset","offset":"P90D"}""", typeof(CompletionOffsetBasis))]
     [InlineData("""{"kind":"threshold","reading":"hours_run","crossing":"above","value":500.5}""", typeof(ThresholdBasis))]
     public async Task EachGeneratorRoundTrips(string basis, Type expected)
@@ -120,12 +125,13 @@ public sealed class ScheduleDefinitionTests
     public async Task WeekDurationIsAdmitted(string offset)
         => Assert.Equal(offset, Assert.IsType<CompletionOffsetBasis>((await RoundTripAsync(Body("\"" + $$"""basis":{"kind":"completion_offset","offset":"{{offset}}"},"window":{{Offsets}}"""))).Definition.Basis).Offset);
 
-    [Theory(DisplayName = "scheduling-ck-5: a week counts seven days when bounds are ordered")]
+    [Theory(DisplayName = "scheduling-ck-5: ordered bounds that exclude due refuse under ADR-0149")]
     [InlineData("""{"earliest":"P6D","latest":"P1W"}""")]
     [InlineData("""{"earliest":"P1W","latest":"P8D"}""")]
     [InlineData("""{"earliest":"-P1W","latest":"-P6D"}""")]
-    public async Task WeekOrdersAsSevenDays(string window)
-        => Assert.IsType<FixedCalendarBasis>((await RoundTripAsync(Body("\"" + $$"""basis":{"kind":"fixed_calendar","rrule":"FREQ=DAILY"},"window":{{window}}"""))).Definition.Basis);
+    public async Task WindowExcludingDueRefuses(string window)
+        => Assert.Equal([new DefinitionRefusal("scheduling.definition.window_invalid", "/window")],
+            await RefusalsAsync(Body("\"" + $$"""basis":{"kind":"fixed_calendar","rrule":"FREQ=DAILY"},"window":{{window}}""")));
 
     [Theory(DisplayName = "scheduling-ck-5: a week that is not seven days past the other bound does not order")]
     [InlineData("""{"earliest":"P1W","latest":"P7D"}""")]
@@ -195,7 +201,7 @@ public sealed class ScheduleDefinitionTests
     [Fact(DisplayName = "scheduling-ck-5, scheduling-auth-3: the window keeps earliest and latest apart")]
     public async Task WindowRoundTrips()
     {
-        var window = (await RoundTripAsync(Body("\"" + $$"""window":{{Instants}}"""))).Definition.Window;
+        var window = (await RoundTripAsync(Body("\"" + $$"""due_date":"2027-01-01T00:00:00Z","window":{{Instants}}"""))).Definition.Window;
         Assert.Equal(new ScheduleWindow("2027-01-01T00:00:00Z", "2027-01-31T00:00:00+02:00"), window);
     }
 
@@ -216,16 +222,16 @@ public sealed class ScheduleDefinitionTests
         => Assert.Equal([new DefinitionRefusal(ScheduleDefinitionCodes.WindowInvalid, "/window")],
             await RefusalsAsync(Body("\"" + $$"""basis":{"kind":"fixed_calendar","rrule":"FREQ=DAILY"},"window":{{window}}""")));
 
-    [Fact(DisplayName = "scheduling-ck-5: a schedule that is not a chain must have a window")]
-    public async Task WindowIsRequired()
-        => Assert.Equal([new DefinitionRefusal(ScheduleDefinitionCodes.WindowRequired, "/window")],
+    [Fact(DisplayName = "scheduling-ck-5: a schedule without a basis requires its own due instant")]
+    public async Task LoneDueDateIsRequired()
+        => Assert.Equal([new DefinitionRefusal("scheduling.definition.due_date_invalid", "/due_date")],
             await RefusalsAsync($$"""{"envelope":{{Envelope}},"name":"n","starts":{{Form}}}"""));
 
     [Fact(DisplayName = "scheduling-ck-6, scheduling-ck-7, scheduling-ck-8, scheduling-ck-9, scheduling-auth-4, scheduling-auth-5: tolerance, grace, missed behaviour and escalation are separate members")]
     public async Task ToleranceGraceMissedAndEscalationAreSeparate()
     {
         var definition = (await RoundTripAsync(Body($$"""
-            "window":{{Instants}},"tolerance":{"early":"PT1H","late":"PT2H"},"grace":"P3D","missed_behaviour":"window_closed","escalation":{"after":"P4D","to":"roles.supervisor"}
+            "due_date":"2027-01-01T00:00:00Z","window":{{Instants}},"tolerance":{"early":"PT1H","late":"PT2H"},"grace":"P3D","missed_behaviour":"window_closed","escalation":{"after":"P4D","to":"roles.supervisor"}
             """))).Definition;
 
         Assert.Equal(new ScheduleTolerance("PT1H", "PT2H"), definition.Tolerance);
@@ -237,7 +243,7 @@ public sealed class ScheduleDefinitionTests
     [Fact(DisplayName = "scheduling-ck-8, scheduling-auth-5: record and re-plan is the other missed-behaviour kind")]
     public async Task RecordAndReplanRoundTrips()
     {
-        var resolved = await RoundTripAsync(Body("\"" + $$"""window":{{Instants}},"missed_behaviour":"record_and_replan""" + "\""));
+        var resolved = await RoundTripAsync(Body("\"" + $$"""due_date":"2027-01-01T00:00:00Z","window":{{Instants}},"missed_behaviour":"record_and_replan""" + "\""));
         Assert.Equal(ScheduleMissedBehaviour.RecordAndReplan, resolved.Definition.MissedBehaviour);
         Assert.Contains("\"missed_behaviour\":\"record_and_replan\"", ScheduleDefinitionJson.Serialize(resolved.Definition), StringComparison.Ordinal);
     }
@@ -262,46 +268,46 @@ public sealed class ScheduleDefinitionTests
         "escalation":{"after":"P1D","to":" "}
         """, "scheduling.definition.escalation_invalid", "/escalation/to")]
     public async Task MemberRefusals(string members, string code, string pointer)
-        => Assert.Equal([new DefinitionRefusal(code, pointer)], await RefusalsAsync(Body("\"" + $$"""window":{{Instants}},{{members.Trim()}}""")));
+        => Assert.Equal([new DefinitionRefusal(code, pointer)], await RefusalsAsync(Body("\"" + $$"""due_date":"2027-01-01T00:00:00Z","window":{{Instants}},{{members.Trim()}}""")));
 
     [Fact(DisplayName = "scheduling-ck-8: a missed behaviour outside the two kinds refuses")]
     public async Task UnknownMissedBehaviourRefuses()
         => Assert.Equal([new DefinitionRefusal(ScheduleDefinitionCodes.BodyInvalid, "")],
-            await RefusalsAsync(Body("\"" + $$"""window":{{Instants}},"missed_behaviour":"ignore""" + "\"")));
+            await RefusalsAsync(Body("\"" + $$"""due_date":"2027-01-01T00:00:00Z","window":{{Instants}},"missed_behaviour":"ignore""" + "\"")));
 
-    [Fact(DisplayName = "scheduling-ck-11: modules round-trip with their parameters unread")]
+    [Fact(DisplayName = "scheduling-ck-11: admitted modules round-trip with their typed parameters")]
     public async Task ModulesRoundTrip()
     {
         var definition = (await RoundTripAsync(Body($$"""
-            "window":{{Instants}},"problem_class":"Workforce","modules":[{"module":"rest_rule","parameters":{"hours":11} },{"module":"no_overlap"}]
+            "due_date":"2027-01-01T00:00:00Z","window":{{Instants}},"problem_class":"Workforce","modules":[{"module":"precedence","parameters":{"constraints":[{"id":"after","beforeActivityId":"a","afterActivityId":"b","minimumGapSlots":11}]} },{"module":"no_overlap"}]
             """))).Definition;
 
-        Assert.Equal(["rest_rule", "no_overlap"], definition.Modules!.Select(module => module.Module));
-        Assert.Equal(11, definition.Modules![0].Parameters!.Value.GetProperty("hours").GetInt32());
+        Assert.Equal(["precedence", "no_overlap"], definition.Modules!.Select(module => module.Module));
+        Assert.Equal(11, definition.Modules![0].Parameters!.Value.GetProperty("constraints")[0].GetProperty("minimumGapSlots").GetInt32());
         Assert.Null(definition.Modules![1].Parameters);
     }
 
     [Fact(DisplayName = "scheduling-ck-11, L1149: None names no planner, so modules with no problem class refuse")]
     public async Task ModulesNeedAProblemClass()
         => Assert.Equal([new DefinitionRefusal(ScheduleDefinitionCodes.ModulesWithoutProblemClass, "/modules")],
-            await RefusalsAsync(Body("\"" + $$"""window":{{Instants}},"modules":[{"module":"no_overlap"}]""")));
+            await RefusalsAsync(Body("\"" + $$"""due_date":"2027-01-01T00:00:00Z","window":{{Instants}},"modules":[{"module":"no_overlap"}]""")));
 
     [Fact(DisplayName = "scheduling-ck-11: a module with no name refuses")]
     public async Task BlankModuleRefuses()
         => Assert.Equal([new DefinitionRefusal(ScheduleDefinitionCodes.ModuleInvalid, "/modules/0/module")],
-            await RefusalsAsync(Body("\"" + $$"""window":{{Instants}},"problem_class":"Project","modules":[{"module":" "}]""")));
+            await RefusalsAsync(Body("\"" + $$"""due_date":"2027-01-01T00:00:00Z","window":{{Instants}},"problem_class":"Project","modules":[{"module":" "}]""")));
 
     [Fact(DisplayName = "scheduling-ck-12, scheduling-auth-13: the legality rule set is cited by reference, verbatim and uninterpreted")]
     public async Task LegalityRefIsACitation()
     {
-        var resolved = await RoundTripAsync(Body("\"" + $$"""window":{{Instants}},"legality_ref":"rules.eu-561@2026""" + "\""));
+        var resolved = await RoundTripAsync(Body("\"" + $$"""due_date":"2027-01-01T00:00:00Z","window":{{Instants}},"legality_ref":"rules.eu-561@2026""" + "\""));
         Assert.Equal("rules.eu-561@2026", resolved.Definition.LegalityRef);
     }
 
     [Fact(DisplayName = "scheduling-ck-12: a blank citation refuses")]
     public async Task BlankLegalityRefRefuses()
         => Assert.Equal([new DefinitionRefusal(ScheduleDefinitionCodes.LegalityRefInvalid, "/legality_ref")],
-            await RefusalsAsync(Body("\"" + $$"""window":{{Instants}},"legality_ref":" """ + "\"")));
+            await RefusalsAsync(Body("\"" + $$"""due_date":"2027-01-01T00:00:00Z","window":{{Instants}},"legality_ref":" """ + "\"")));
 
     [Theory(DisplayName = "scheduling-ck-13, scheduling-auth-1, scheduling-auth-12: a schedule names its type and starts a form, workflow or work item")]
     [InlineData("form", ScheduleStartKind.Form)]
@@ -310,7 +316,7 @@ public sealed class ScheduleDefinitionTests
     public async Task StartsAndOnTypeRoundTrip(string kind, ScheduleStartKind expected)
     {
         var definition = (await RoundTripAsync($$"""
-            {"envelope":{{Envelope}},"name":"Quarterly","on_type_id":"types.boiler","starts":{"kind":"{{kind}}","target_id":"targets.a"},"window":{{Instants}}}
+            {"envelope":{{Envelope}},"name":"Quarterly","on_type_id":"types.boiler","starts":{"kind":"{{kind}}","target_id":"targets.a"},"due_date":"2027-01-01T00:00:00Z","window":{{Instants}}}
             """)).Definition;
 
         Assert.Equal("Quarterly", definition.Name);
@@ -319,21 +325,21 @@ public sealed class ScheduleDefinitionTests
     }
 
     [Theory(DisplayName = "scheduling-ck-13, scheduling-auth-1, scheduling-auth-12: a schedule with no name or nothing to start refuses")]
-    [InlineData("""{"starts":{"kind":"form","target_id":"f"},"window":{"earliest":"2027-01-01T00:00:00Z","latest":"2027-01-02T00:00:00Z"}}""", "scheduling.definition.name_required", "/name")]
-    [InlineData("""{"name":"n","window":{"earliest":"2027-01-01T00:00:00Z","latest":"2027-01-02T00:00:00Z"}}""", "scheduling.definition.starts_required", "/starts")]
-    [InlineData("""{"name":"n","starts":{"kind":"form","target_id":" "},"window":{"earliest":"2027-01-01T00:00:00Z","latest":"2027-01-02T00:00:00Z"}}""", "scheduling.definition.starts_required", "/starts")]
+    [InlineData("""{"starts":{"kind":"form","target_id":"f"},"due_date":"2027-01-01T00:00:00Z","window":{"earliest":"2027-01-01T00:00:00Z","latest":"2027-01-02T00:00:00Z"}}""", "scheduling.definition.name_required", "/name")]
+    [InlineData("""{"name":"n","due_date":"2027-01-01T00:00:00Z","window":{"earliest":"2027-01-01T00:00:00Z","latest":"2027-01-02T00:00:00Z"}}""", "scheduling.definition.starts_required", "/starts")]
+    [InlineData("""{"name":"n","starts":{"kind":"form","target_id":" "},"due_date":"2027-01-01T00:00:00Z","window":{"earliest":"2027-01-01T00:00:00Z","latest":"2027-01-02T00:00:00Z"}}""", "scheduling.definition.starts_required", "/starts")]
     public async Task NameAndStartsAreRequired(string body, string code, string pointer)
         => Assert.Equal([new DefinitionRefusal(code, pointer)], await RefusalsAsync(body));
 
     [Fact(DisplayName = "scheduling-ck-13: a schedule never does the work itself, and a body member it does not define refuses")]
     public async Task AnUnknownMemberRefuses()
         => Assert.Equal([new DefinitionRefusal(ScheduleDefinitionCodes.BodyInvalid, "")],
-            await RefusalsAsync(Body("\"" + $$"""window":{{Instants}},"action":"run""" + "\"")));
+            await RefusalsAsync(Body("\"" + $$"""due_date":"2027-01-01T00:00:00Z","window":{{Instants}},"action":"run""" + "\"")));
 
     [Fact(DisplayName = "scheduling-ck-19: every envelope member round-trips, and the version is the document's")]
     public async Task EnvelopeRoundTrips()
     {
-        var envelope = (await RoundTripAsync(Body("\"" + $$"""window":{{Instants}}"""))).Definition.Envelope!;
+        var envelope = (await RoundTripAsync(Body("\"" + $$"""due_date":"2027-01-01T00:00:00Z","window":{{Instants}}"""))).Definition.Envelope!;
 
         Assert.Equal(Id, envelope.Identity);
         Assert.Equal("1.0.0", envelope.Version);
@@ -349,7 +355,7 @@ public sealed class ScheduleDefinitionTests
     [Fact(DisplayName = "scheduling-ck-19: the catalogue stores no envelope version, so a restored draft publishes under its own")]
     public async Task RestoredDraftPublishesUnderItsOwnVersion()
     {
-        var definition = ScheduleDefinitionJson.Deserialize(Body("\"" + $$"""window":{{Instants}}"""));
+        var definition = ScheduleDefinitionJson.Deserialize(Body("\"" + $$"""due_date":"2027-01-01T00:00:00Z","window":{{Instants}}"""));
         var withVersion = definition with { Envelope = definition.Envelope! with { Version = "1.0.0" } };
         var saved = await Catalogue.SaveDraftAsync(Tenant, Id, "1.0.0", withVersion, 0, "draft");
         Assert.DoesNotContain("\"version\"", saved.Revision.Document.BodyJson, StringComparison.Ordinal);
@@ -364,7 +370,7 @@ public sealed class ScheduleDefinitionTests
     [Fact(DisplayName = "scheduling-ck-19: a save whose envelope version disagrees refuses")]
     public async Task EnvelopeVersionMismatchRefuses()
     {
-        var definition = ScheduleDefinitionJson.Deserialize(Body("\"" + $$"""window":{{Instants}}"""));
+        var definition = ScheduleDefinitionJson.Deserialize(Body("\"" + $$"""due_date":"2027-01-01T00:00:00Z","window":{{Instants}}"""));
         var refused = await Assert.ThrowsAsync<DefinitionRefusalException>(() => Catalogue.SaveDraftAsync(Tenant, Id, "1.0.0",
             definition with { Envelope = definition.Envelope! with { Version = "9.9.9" } }, 0, "draft").AsTask());
         Assert.Equal([new DefinitionRefusal(ScheduleDefinitionCodes.VersionMismatch, "/envelope/version")], refused.Refusals);
@@ -374,7 +380,7 @@ public sealed class ScheduleDefinitionTests
     public async Task EnvelopeIsRequiredPastAuthoring()
     {
         await Catalogue.SaveDraftAsync(Tenant, Id, "1.0.0", new(null, "n", new(ScheduleStartKind.Form, "f"),
-            Window: new("2027-01-01T00:00:00Z", "2027-01-02T00:00:00Z")), 0, "draft");
+            DueDate: "2027-01-01T00:00:00Z", Window: new("2027-01-01T00:00:00Z", "2027-01-02T00:00:00Z")), 0, "draft");
 
         var refused = await Assert.ThrowsAsync<DefinitionRefusalException>(() => Catalogue.PublishAsync(Tenant, Id, "1.0.0", 1, "publish").AsTask());
 
@@ -388,7 +394,7 @@ public sealed class ScheduleDefinitionTests
     public async Task EnvelopeCoordinatesMustAgree(string identity, string tenant)
     {
         var refusals = await RefusalsAsync($$"""
-            {"envelope":{"identity":"{{identity}}","tenant":"{{tenant}}","cascade_layer":"tenant_configuration","provenance":{},"retention_class":"r","legal_hold":false,"requires":[],"contract":{"major":1,"minor":0} },"name":"n","starts":{{Form}},"window":{{Instants}}}
+            {"envelope":{"identity":"{{identity}}","tenant":"{{tenant}}","cascade_layer":"tenant_configuration","provenance":{},"retention_class":"r","legal_hold":false,"requires":[],"contract":{"major":1,"minor":0} },"name":"n","starts":{{Form}},"due_date":"2027-01-01T00:00:00Z","window":{{Instants}}}
             """);
         Assert.Equal([new DefinitionRefusal("definition.envelope_mismatch", "/envelope")], refusals);
     }
@@ -409,7 +415,7 @@ public sealed class ScheduleDefinitionTests
     public async Task EnvelopeMembersAreRequired(string members, string pointer)
     {
         var refusals = await RefusalsAsync($$"""
-            {"envelope":{"identity":"{{Id}}","tenant":"{{Tenant}}","cascade_layer":"tenant_configuration",{{members.Trim()}},"legal_hold":false,"contract":{"major":1,"minor":0} },"name":"n","starts":{{Form}},"window":{{Instants}}}
+            {"envelope":{"identity":"{{Id}}","tenant":"{{Tenant}}","cascade_layer":"tenant_configuration",{{members.Trim()}},"legal_hold":false,"contract":{"major":1,"minor":0} },"name":"n","starts":{{Form}},"due_date":"2027-01-01T00:00:00Z","window":{{Instants}}}
             """);
         Assert.Equal([new DefinitionRefusal("scheduling.definition.envelope_invalid", pointer)], refusals);
     }
@@ -418,7 +424,7 @@ public sealed class ScheduleDefinitionTests
     public async Task EnvelopeContractIsRequired()
     {
         var refusals = await RefusalsAsync($$"""
-            {"envelope":{"identity":"{{Id}}","tenant":"{{Tenant}}","cascade_layer":"tenant_configuration","provenance":{},"retention_class":"r","legal_hold":false,"requires":[] },"name":"n","starts":{{Form}},"window":{{Instants}}}
+            {"envelope":{"identity":"{{Id}}","tenant":"{{Tenant}}","cascade_layer":"tenant_configuration","provenance":{},"retention_class":"r","legal_hold":false,"requires":[] },"name":"n","starts":{{Form}},"due_date":"2027-01-01T00:00:00Z","window":{{Instants}}}
             """);
         Assert.Equal("/envelope/contract", Assert.Single(refusals).Pointer);
     }
@@ -442,7 +448,7 @@ public sealed class ScheduleDefinitionTests
     public async Task EnvelopeNeedsCascadeLayerAndLegalHold(string member)
         => Assert.Equal([new DefinitionRefusal(ScheduleDefinitionCodes.BodyInvalid, "")], await RefusalsAsync(
             "{\"envelope\":{\"identity\":\"" + Id + "\",\"tenant\":\"" + Tenant + "\"," + member
-            + ",\"provenance\":{},\"retention_class\":\"r\",\"requires\":[],\"contract\":{\"major\":1,\"minor\":0}},\"name\":\"n\",\"starts\":" + Form + ",\"window\":" + Instants + "}"));
+            + ",\"provenance\":{},\"retention_class\":\"r\",\"requires\":[],\"contract\":{\"major\":1,\"minor\":0}},\"name\":\"n\",\"starts\":" + Form + ",\"due_date\":\"2027-01-01T00:00:00Z\",\"window\":" + Instants + "}"));
 
     [Theory(DisplayName = "scheduling-ck-4, scheduling-ck-11: a null list entry refuses at its index")]
     [InlineData("\"basis\":{\"kind\":\"event_anchored_chain\",\"anchor\":\"e\",\"nodes\":[null]}", "scheduling.definition.basis_invalid", "/basis/nodes/0")]
@@ -456,7 +462,7 @@ public sealed class ScheduleDefinitionTests
     public async Task EnvelopeRequirementRefuses(string requirement)
         => Assert.Equal([new DefinitionRefusal("scheduling.definition.envelope_invalid", "/envelope/requires/0")], await RefusalsAsync(
             "{\"envelope\":{\"identity\":\"" + Id + "\",\"tenant\":\"" + Tenant + "\",\"cascade_layer\":\"tenant_configuration\",\"legal_hold\":false"
-            + ",\"provenance\":{},\"retention_class\":\"r\",\"requires\":[" + requirement + "],\"contract\":{\"major\":1,\"minor\":0}},\"name\":\"n\",\"starts\":" + Form + ",\"window\":" + Instants + "}"));
+            + ",\"provenance\":{},\"retention_class\":\"r\",\"requires\":[" + requirement + "],\"contract\":{\"major\":1,\"minor\":0}},\"name\":\"n\",\"starts\":" + Form + ",\"due_date\":\"2027-01-01T00:00:00Z\",\"window\":" + Instants + "}"));
 
     [Fact(DisplayName = "scheduling-ck-22: the sealed Schedulable trait and its three slots agree with the seed, and only it admits a type to planning")]
     public void SchedulableTraitAgreesWithTheSeed()

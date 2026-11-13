@@ -410,17 +410,26 @@ var packedFirstOfMonth = packedRrule.ExpandOccurrences(
     "FREQ=MONTHLY;BYMONTHDAY=1", new DateOnly(2026, 1, 1), new DateOnly(2026, 3, 31), 365, 0, new DateOnly(2026, 1, 1), "UTC");
 if (packedFirstOfMonth.Count != 3 || packedFirstOfMonth[2] != new DateOnly(2026, 3, 1))
     throw new InvalidOperationException("Packed RRULE expander lost the monthly BYMONTHDAY semantics.");
-var packedDueQueue = new Harborline.Foundation.Scheduling.RruleDueQueueQueryService(packedRrule);
-var packedDueSeam = new Harborline.Foundation.Scheduling.CompositeDueOccurrenceSource(
-[
-    new Harborline.Foundation.Scheduling.RruleDueOccurrenceSource(packedDueQueue,
-    [
-        new Harborline.Foundation.Scheduling.DueQueueSchedule("subject:consumer", "schedule:daily", "FREQ=DAILY", new DateOnly(2026, 7, 1), null, "UTC", true),
-    ]),
-]);
-var packedDueItems = packedDueSeam.DeriveDue([], new DateOnly(2026, 7, 1), new DateOnly(2026, 7, 2), new DateOnly(2026, 7, 2));
-if (packedDueItems.Count != 2 || packedDueItems[0].OverdueDays < packedDueItems[^1].OverdueDays)
-    throw new InvalidOperationException("Packed due-occurrence seam lost the overdue-first queue ordering.");
+// ADR-0117: the pre-release due seam moved from Foundation.Scheduling into Blocks.Scheduling, without a forwarding shim.
+if (typeof(Harborline.Blocks.Scheduling.IDueOccurrenceSource).Assembly.GetName().Name != "Harborline.Blocks.Scheduling"
+    || typeof(Harborline.Foundation.Scheduling.IRruleExpansionService).Assembly.GetType("Harborline.Foundation.Scheduling.IDueOccurrenceSource") is not null)
+    throw new InvalidOperationException("Packed due seam is not owned exclusively by Scheduling.");
+var packedDueServices = new ServiceCollection();
+packedDueServices.AddSingleton<Harborline.Foundation.Scheduling.IRruleExpansionService>(packedRrule);
+packedDueServices.AddSingleton(new Harborline.Kernel.Core.KernelClock(new PackedSchedulingClock()));
+Harborline.Blocks.Scheduling.DependencyInjection.ServiceCollectionExtensions.AddHarborlineSchedulingDueQueries(packedDueServices);
+using var packedDueProvider = packedDueServices.BuildServiceProvider(new ServiceProviderOptions { ValidateOnBuild = true, ValidateScopes = true });
+var packedDueQueue = packedDueProvider.GetRequiredService<Harborline.Blocks.Scheduling.IDueQueueQueryService>();
+var packedDueDefinition = new Harborline.Blocks.Scheduling.Definitions.ScheduleDefinition(null, "Daily",
+    new(Harborline.Blocks.Scheduling.Definitions.ScheduleStartKind.Form, "inspection"),
+    Basis: new Harborline.Blocks.Scheduling.Definitions.FixedCalendarBasis("FREQ=DAILY;COUNT=2"));
+var packedDueItems = packedDueQueue.Query(new(new("consumer-series", "subject:consumer", packedDueDefinition,
+    LocalStart: new DateTime(2026, 7, 1, 9, 0, 0), Timezone: "UTC"),
+    new DateTimeOffset(2026, 7, 1, 0, 0, 0, TimeSpan.Zero), new DateTimeOffset(2026, 7, 2, 23, 0, 0, TimeSpan.Zero), [], []));
+if (packedDueItems.Count != 2 || packedDueItems[0].Due != new DateTimeOffset(2026, 7, 1, 9, 0, 0, TimeSpan.Zero)
+    || packedDueItems[0].Overdue != TimeSpan.FromHours(27)
+    || packedDueItems[1].OccurrenceId != "consumer-series/2026-07-02T09%3A00%3A00.0000000")
+    throw new InvalidOperationException("Packed Scheduling lost its instant-valued due seam, kernel clock or local recurrence identity.");
 if (typeof(Harborline.Blocks.Calendar.Services.CalendarContextQuery).Assembly.GetName().Name != "Harborline.Blocks.Calendar")
     throw new InvalidOperationException("Blocks Calendar assembly identity changed.");
 if (typeof(Harborline.Blocks.Reports.IReportRunner).Assembly.GetName().Name != "Harborline.Blocks.Reports")
@@ -536,7 +545,7 @@ if (!BuilderDefinitions.PlatformPackageReplayer.Validate(platformManifest).Succe
     throw new InvalidOperationException("Packed Builder Definitions platform manifest validation failed.");
 if (!BuilderDefinitions.PlatformPackageSeed.VerifyCheckedInExport())
     throw new InvalidOperationException("Packed Builder Definitions canonical platform export differs from its producer.");
-if (BuilderDefinitions.PlatformPackageSeed.Manifest.Items.Count != 19)
+if (BuilderDefinitions.PlatformPackageSeed.Manifest.Items.Count != 63)
     throw new InvalidOperationException("Packed Builder Definitions canonical platform seed inventory is incomplete.");
 var generationReference = new BuilderDefinitions.ConfigurationReference("platform", "1.0.0", new string('a', 64));
 var generationInput = new BuilderDefinitions.ResolvedConfiguration("tenant-a", ["platform"],
@@ -857,4 +866,9 @@ sealed class ConsumerPartyResolver(
         CancellationToken cancellationToken = default) =>
         ValueTask.FromResult<Guid?>(
             userId == expectedUser && tenantId == expectedTenant ? partyId : null);
+}
+
+sealed class PackedSchedulingClock : TimeProvider
+{
+    public override DateTimeOffset GetUtcNow() => new(2026, 7, 2, 12, 0, 0, TimeSpan.Zero);
 }

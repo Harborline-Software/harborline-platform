@@ -1,3 +1,5 @@
+using Harborline.Blocks.Scheduling.Definitions;
+
 namespace Harborline.Blocks.Scheduling.Planning;
 
 /// <summary>Outcome of a deterministic planning attempt.</summary>
@@ -153,6 +155,10 @@ public sealed record CompiledPlanningProblem(
     IReadOnlyList<PrecedenceConstraint> Precedence,
     IReadOnlyList<PlanningFactSetPin> FactSetPins)
 {
+    /// <summary>Typed modules admitted for the chosen backend; legacy finite profiles carry none.</summary>
+    public IReadOnlyList<ConstraintModuleAdmission> Modules { get; init; } = [];
+    /// <summary>The authored definition identity and exact version, when this problem comes from a definition.</summary>
+    public ScheduleDefinitionPin? DefinitionPin { get; init; }
     /// <summary>Fact-set names that are absent or marked incomplete in this problem.</summary>
     public IReadOnlyList<string> IncompleteFactSets => PlanningFactSets.Required
         .Where(required => !FactSetPins.Any(pin =>
@@ -186,6 +192,8 @@ public sealed record SchedulingProposal(
 /// <summary>Contract for deterministic solvers operating on compiled planning problems.</summary>
 public interface IPlanningSolver
 {
+    /// <summary>The modules, problem classes, guarantees and work budget this backend offers.</summary>
+    SolverBackend Backend { get; }
     /// <summary>Stable identifier for this solver implementation.</summary>
     string SolverId { get; }
 

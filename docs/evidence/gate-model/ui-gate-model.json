@@ -1738,18 +1738,18 @@
         },
         {
           "id": "assertAccessible",
-          "status": "PASS",
-          "note": "axe-core over 2 scenarios x 2 lanes in gallery-gate"
+          "status": "PARTIAL",
+          "note": "axe-core over 2 scenarios x 2 lanes in the recorded gallery-gate; 2 added since it was recorded are unscanned until it is re-recorded: data-exchange.partial-failure, data-exchange.from-empty"
         },
         {
           "id": "assertVisualParity",
-          "status": "PASS",
-          "note": "2 visual-parity scenario(s), lane vs lane, pixelmatch"
+          "status": "PARTIAL",
+          "note": "Only 2 scenarios are covered by the gallery receipt at tree 7486f460; data-exchange.partial-failure and data-exchange.from-empty visual parity remain unmeasured by that receipt until Chris queues a refresh covering the new tree."
         },
         {
           "id": "assertFunctionalParity",
           "status": "PASS",
-          "note": "5 conformance case(s) across both lanes"
+          "note": "7 conformance case(s) across both lanes"
         },
         {
           "id": "assertInternationalization",
@@ -1779,7 +1779,7 @@
         {
           "id": "assertResponsiveQuality",
           "status": "PARTIAL",
-          "note": "no scenario declares a reflow case, so WCAG 1.4.10 reflow is unmeasured for this module"
+          "note": "320px and 200% text reflow in both lanes remain unmeasured by a gallery receipt covering the new tree; the receipt at tree 7486f460 contains no reflow case. Chris queues the receipt refresh."
         },
         {
           "id": "assertEmptyAndErrorStates",
@@ -6485,8 +6485,8 @@
     }
   ],
   "tally": {
-    "PASS": 676,
-    "PARTIAL": 105,
+    "PASS": 674,
+    "PARTIAL": 107,
     "UNBUILT": 206,
     "NOT-APPLICABLE": 159,
     "FAIL": 2

@@ -58,14 +58,13 @@ export function memberShellAndExportFindings({pack, exportDocuments}) {
   const members = register.map(member => String(member.id))
   const workspace = payload(pack, WORKSPACE_ITEM)?.id
   const catalogue = payload(pack, CATALOGUE_VIEW_ITEM)
-  const views = new Map((catalogue?.members ?? []).map(view => [String(view.id), view]))
+  const views = new Set((pack.items ?? []).map(item => item.content?.payload)
+    .filter(view => view?.contentKind === 'ViewDefinition').map(view => view.definitionKey))
 
   for (const member of members) {
     for (const kind of CATALOGUE_VIEW_KINDS) {
       const id = `platform.${kind}.${member}`
-      const view = views.get(id)
-      if (!view) findings.push(`member ${member}: no ${kind} view ${id} on the shared export path (${CATALOGUE_VIEW_ITEM})`)
-      else if (String(view.pillar) !== member) findings.push(`member ${member}: view ${id} is exported under pillar ${view.pillar}`)
+      if (!views.has(id)) findings.push(`member ${member}: no ${kind} ViewDefinition ${id} on the shared export path`)
     }
   }
 
