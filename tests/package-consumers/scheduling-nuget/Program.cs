@@ -27,6 +27,21 @@ var daily = recurrence.ExpandOccurrences("FREQ=DAILY;COUNT=3", new(2026, 3, 1), 
 Check(daily.SequenceEqual(new[] { new DateOnly(2026, 3, 1), new DateOnly(2026, 3, 2), new DateOnly(2026, 3, 3) }), "RRULE package anchor");
 var weekly = recurrence.ExpandOccurrences("FREQ=WEEKLY;BYDAY=MO,WE,FR;COUNT=4", new(2026, 3, 2), null, 30, 0, new(2026, 3, 2), "America/New_York");
 Check(weekly.Count == 4 && weekly[1] == new DateOnly(2026, 3, 4), "BYDAY package anchor");
+var visited = new List<DateOnly>();
+recurrence.VisitZonedOccurrences("FREQ=DAILY;COUNT=3", new(2026, 1, 1), new(9, 0), "UTC",
+    new(2026, 1, 10), new(2026, 1, 4), visited.Add, 24);
+Check(visited.SequenceEqual(new[] { new DateOnly(2026, 1, 1), new DateOnly(2026, 1, 2), new DateOnly(2026, 1, 3) }), "budgeted visitor package anchor");
+try
+{
+    recurrence.VisitZonedOccurrences("FREQ=MONTHLY;BYDAY=5MO;BYMONTHDAY=1", new(2026, 1, 1), new(9, 0), "UTC",
+        new(2026, 4, 1), new(2026, 1, 1), _ => { }, 38);
+    throw new InvalidOperationException("empty periods must consume the packaged work budget");
+}
+catch (RruleExpansionBudgetExceededException refusal)
+{
+    Check(refusal.Code == "scheduling.occurrence.expansion_budget_exceeded" && refusal.CandidateLimit == 38
+        && refusal.CandidatesExamined == 39 && refusal.LastEvaluatedOccurrence is null, "packaged budget refusal fields");
+}
 Check(typeof(Harborline.Blocks.Calendar.Services.ICalendarStore).Assembly.GetName().Name == "Harborline.Blocks.Calendar", "calendar package interface");
 Check(typeof(Harborline.Blocks.Scheduling.IScheduleReservationCoordinator).Assembly.GetName().Name == "Harborline.Blocks.Scheduling", "scheduling package interface");
 await ProveAvailabilitySubstrate();

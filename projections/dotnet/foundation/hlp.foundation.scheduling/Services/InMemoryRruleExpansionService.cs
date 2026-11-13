@@ -1,5 +1,4 @@
 using Ical.Net.DataTypes;
-using Ical.Net.Evaluation;
 using NodaTime;
 
 namespace Harborline.Foundation.Scheduling;
@@ -52,7 +51,7 @@ public sealed class InMemoryRruleExpansionService : IRruleExpansionService
         // A date-valued series (RFC 5545 DTSTART;VALUE=DATE): UNTIL bounds by date. A DATE-TIME UNTIL keeps its UTC date
         // here, as DES-0057 ck-7's date-granular contract always has; a timed series uses ExpandZonedOccurrences instead.
         var horizon = end ?? today.AddDays(lookaheadDays);
-        var occurrences = Evaluate(parsed, new CalDateTime(start), SearchEnd(horizon, null, parsed)).Select(occurrence => occurrence.Date);
+        var occurrences = RruleCandidateWalker.Walk(parsed, new CalDateTime(start), EffectiveEnd(horizon, parsed)).Select(occurrence => occurrence.Date);
         return Collect(rrule, parsed, start, occurrences, horizon, today.AddDays(leadDays),
             static (date, until) => date > until.Date);
     }
@@ -81,7 +80,7 @@ public sealed class InMemoryRruleExpansionService : IRruleExpansionService
         // the zone instead lets the engine shift a spring-forward gap time past midnight (23:30 on 28 March 2026 in Nuuk
         // became 00:30 on the 29th), which would change the occurrence's date.
         var horizon = end ?? today.AddDays(lookaheadDays);
-        var dated = Evaluate(parsed, new CalDateTime(start, startTime, null), SearchEnd(horizon, TimeOnly.MaxValue, parsed))
+        var dated = RruleCandidateWalker.Walk(parsed, new CalDateTime(start, startTime, null), EffectiveEnd(horizon, parsed, timezone))
             .Select(occurrence => (occurrence.Date, Instant: WallClockResolver.ToUtcInstant(occurrence.Date, startTime, timezone)));
         var bounded = parsed.Until is { Instant: { } untilInstant }
             ? dated.TakeWhile(occurrence => occurrence.Instant <= untilInstant)
@@ -91,56 +90,45 @@ public sealed class InMemoryRruleExpansionService : IRruleExpansionService
             static (date, until) => until.Instant is null && date > until.Date);
     }
 
-    /// <summary>
-    /// The engine's search end, set as the engine rule's UNTIL: the walk's horizon plus one whole interval period. The
-    /// engine stops searching at its UNTIL (Ical.Net 5.2.4 <c>GetSearchEndDate</c>), so a sparse rule still returns what
-    /// lies in range, and a subset rule whose parts can never all match (a fifth Monday that must also be the 1st) ends
-    /// empty near the horizon instead of searching without end. The period of padding is there because the engine compares
-    /// each interval's lower limit, which follows the anchor (a YEARLY rule without BYMONTH starts each year at the anchor's
-    /// month), with that search end before it expands the interval: a bound at the horizon itself would cut off an
-    /// interval whose early matches lie inside the window (FREQ=YEARLY;BYDAY=MO from 1 June, asked for January). Collect
-    /// applies the exact horizon. Every occurrence on or before the horizon is produced, so COUNT, which counts from the
-    /// anchor, is unaffected; the rule's own UNTIL is applied by the caller. Clamped one day short of the last DateOnly,
-    /// because the engine pads its search end by a day.
-    /// </summary>
-    private static CalDateTime SearchEnd(DateOnly horizon, TimeOnly? time, ParsedRrule parsed)
+    private static DateOnly EffectiveEnd(DateOnly horizon, ParsedRrule parsed, string? timezone = null)
     {
-        var last = DateOnly.MaxValue.AddDays(-1);
-        var periods = parsed.Interval + 1L;
-        var room = parsed.Freq switch
+        if (parsed.Until is not { } until) return horizon;
+        var date = until.Date;
+        if (until.Instant is { } instant && timezone is not null)
         {
-            "YEARLY" => periods * 366,
-            "MONTHLY" => periods * 31,
-            "WEEKLY" => periods * 7,
-            _ => periods,
-        };
-        var day = room >= last.DayNumber - horizon.DayNumber ? last : horizon.AddDays((int)room);
-        return time is { } at ? new CalDateTime(day, at, null) : new CalDateTime(day);
+            var zone = DateTimeZoneProviders.Tzdb[timezone];
+            var localTicks = instant.UtcTicks + zone.GetUtcOffset(Instant.FromDateTimeOffset(instant)).Ticks;
+            if (localTicks > DateTime.MaxValue.Ticks) return horizon;
+            if (localTicks < DateTime.MinValue.Ticks) return DateOnly.MinValue;
+            date = DateOnly.FromDateTime(new DateTime(localTicks, DateTimeKind.Unspecified));
+        }
+        return date < horizon ? date : horizon;
     }
 
-    private static IEnumerable<CalDateTime> Evaluate(ParsedRrule parsed, CalDateTime dtStart, CalDateTime searchEnd)
+    /// <inheritdoc />
+    public void VisitZonedOccurrences(string rrule, DateOnly start, TimeOnly startTime, string timezone,
+        DateOnly end, DateOnly requestedRangeStart, Action<DateOnly> visit, int candidateLimit = 50_000,
+        RruleExpansionBudget? budget = null)
     {
-        var rule = new RecurrenceRule(parsed.ToRuleWithoutUntil()) { Until = searchEnd };
-        using var periods = new RecurrencePatternEvaluator(rule).Evaluate(dtStart, null, null).GetEnumerator();
-        while (true)
+        ArgumentException.ThrowIfNullOrWhiteSpace(rrule);
+        ArgumentNullException.ThrowIfNull(visit);
+        budget ??= new RruleExpansionBudget(rrule, start, requestedRangeStart, end, candidateLimit);
+        if (budget.RecurrenceId != rrule || budget.Anchor != start || budget.RequestedRangeStart != requestedRangeStart || budget.RequestedRangeEnd != end)
+            throw new ArgumentException("The work budget belongs to a different expansion.", nameof(budget));
+        if (DateTimeZoneProviders.Tzdb.GetZoneOrNull(timezone) is null)
+            throw new ArgumentException($"'{timezone}' is not an IANA time zone id.", nameof(timezone));
+        var parsed = RruleSubset.Parse(rrule);
+        foreach (var occurrence in RruleCandidateWalker.Walk(parsed, new CalDateTime(start, startTime, null),
+            EffectiveEnd(end, parsed, timezone), budget))
         {
-            try
-            {
-                if (!periods.MoveNext())
-                    yield break;
-            }
-            catch (EvaluationOutOfRangeException)
-            {
-                // The next occurrence would fall after year 9999, which no DateOnly horizon reaches: the series has ended.
-                yield break;
-            }
-
-            yield return periods.Current.StartTime;
+            if (parsed.Until is { Instant: { } instant } && WallClockResolver.ToUtcInstant(occurrence.Date, startTime, timezone) > instant)
+                break;
+            visit(occurrence.Date);
         }
     }
 
     /// <summary>
-    /// Walks ascending occurrences from the anchor. COUNT is applied by the engine and counts from the anchor; UNTIL, the
+    /// Walks ascending occurrences from the anchor. COUNT counts matches across engine periods from the anchor; UNTIL, the
     /// explicit end, the lookahead horizon and the lead filter bound the walk here, exactly as DES-0057 ck-4 to ck-6 state.
     /// </summary>
     private static List<DateOnly> Collect(
