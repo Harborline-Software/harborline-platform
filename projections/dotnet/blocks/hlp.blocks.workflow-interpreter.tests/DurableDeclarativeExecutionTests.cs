@@ -74,6 +74,61 @@ public sealed class DurableDeclarativeExecutionTests : IDisposable
         Assert.Single(await store.CommittedEffectPayloadsAsync("decl-1"));
     }
 
+    [Theory]
+    [InlineData("approve")]
+    [InlineData("reject")]
+    public async Task Migration_before_human_action_commit_records_no_approval_decision(string decision)
+    {
+        await using var provider = await BuildAsync();
+        var store = provider.GetRequiredService<FileJournalWorkflowStore>();
+        var definitions = provider.GetRequiredService<IWorkflowDefinitionStore>();
+        var authored = Authored();
+        await definitions.RegisterAsync(WorkflowDefinitionWireMapper.ToModel(authored, Tenant, Key, "2.0.0"), authored);
+        await definitions.PublishAsync(Tenant, Key, "2.0.0");
+        await CreateInstanceAsync(store, "approval-race");
+        var regularDispatcher = provider.GetRequiredService<IWorkflowTriggerDispatcher>();
+        Assert.Equal(WorkflowDispatchResult.Parked, await regularDispatcher.DispatchAsync(
+            WorkflowTrigger.For(WorkflowTriggerKind.Event, "approval-race", "Draft"), Authorized("approval-race")));
+        var pausing = new PausingAdvanceStore(store);
+        var dispatcher = new WorkflowTriggerDispatcher(pausing, [], interpreter: provider.GetRequiredService<IDeclarativeWorkflowInterpreter>(),
+            definitionStore: provider.GetRequiredService<IWorkflowDefinitionExecutionStore>());
+        var dispatch = dispatcher.DispatchAsync(WorkflowTrigger.For(WorkflowTriggerKind.HumanAction, "approval-race",
+            "PendingApproval", $"{{\"decision\":\"{decision}\"}}"), Authorized("approval-race"));
+        await pausing.Entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        var sink = provider.GetRequiredService<CountingWorkflowApprovalDecisionSink>();
+        try
+        {
+            Assert.Equal(0, sink.TotalCount);
+            await new WorkflowMigration(store, provider.GetRequiredService<IWorkflowDefinitionExecutionStore>(), dispatcher)
+                .MigrateAsync("approval-race", "2.0.0", new Dictionary<string, string> { ["PendingApproval"] = "PendingApproval" },
+                    new WorkflowMigrationAuthority("operator", Tenant, "workflow:migrate", "workflow-instance", "approval-race", true));
+        }
+        finally { pausing.Continue.SetResult(); }
+        Assert.Equal(WorkflowDispatchResult.Discarded, await dispatch);
+        Assert.Equal(0, sink.TotalCount);
+        Assert.Empty(await store.CommittedEffectPayloadsAsync("approval-race"));
+    }
+
+    private sealed class PausingAdvanceStore(FileJournalWorkflowStore inner) : IWorkflowStore
+    {
+        public TaskCompletionSource Entered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public TaskCompletionSource Continue { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public Task<WorkflowInstanceRecord?> LoadAsync(string id, CancellationToken ct = default) => inner.LoadAsync(id, ct);
+        public Task CreateInstanceAsync(WorkflowInstanceRecord instance, CancellationToken ct = default) => inner.CreateInstanceAsync(instance, ct);
+        public Task<WorkflowStepIdempotencyRecord?> FindStepResultAsync(WorkflowStepKey key, CancellationToken ct = default) => inner.FindStepResultAsync(key, ct);
+        public Task<(bool Current, WorkflowStepIdempotencyRecord? Result)> FindStepResultIfCurrentAsync(WorkflowInstanceRecord expected, WorkflowStepKey key, CancellationToken ct = default) => inner.FindStepResultIfCurrentAsync(expected, key, ct);
+        public Task AdvanceAsync(WorkflowStepKey key, WorkflowEffect? effect, string resultJson, string eventType, string eventDataJson, string nextStep, WorkflowStatus nextStatus, CancellationToken ct = default)
+            => inner.AdvanceAsync(key, effect, resultJson, eventType, eventDataJson, nextStep, nextStatus, ct);
+        public async Task<bool> AdvanceIfCurrentAsync(WorkflowInstanceRecord expected, WorkflowStepKey key, WorkflowEffect? effect, string resultJson, string eventType, string eventDataJson, string nextStep, WorkflowStatus nextStatus, CancellationToken ct = default)
+        {
+            Entered.SetResult();
+            await Continue.Task;
+            return await inner.AdvanceIfCurrentAsync(expected, key, effect, resultJson, eventType, eventDataJson, nextStep, nextStatus, ct);
+        }
+        public Task ParkAsync(string id, string step, string reasonJson, int iteration = 0, CancellationToken ct = default) => inner.ParkAsync(id, step, reasonJson, iteration, ct);
+        public Task<bool> ParkIfCurrentAsync(WorkflowInstanceRecord expected, string step, string reasonJson, int iteration, CancellationToken ct = default) => inner.ParkIfCurrentAsync(expected, step, reasonJson, iteration, ct);
+    }
+
     [Fact]
     public async Task Unmatched_trigger_commits_nothing_and_matching_trigger_can_advance()
     {

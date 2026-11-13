@@ -154,6 +154,7 @@ public sealed class WorkflowTriggerDispatcher : IWorkflowTriggerDispatcher
         // kg handlers). The general A1 interpreter is the FALLBACK: consulted only when no typed handler
         // matches, it executes the instance's pinned, re-admitted declarative definition. With neither a
         // handler nor an interpreter, an unhandled definition throws (the pre-A1 posture — unchanged).
+        using var approvalDecisions = new WorkflowApprovalDecisionScope();
         WorkflowStepOutcome outcome;
         if (_handlers.TryGetValue(instance.DefinitionKey, out var handler))
         {
@@ -204,6 +205,8 @@ public sealed class WorkflowTriggerDispatcher : IWorkflowTriggerDispatcher
             nextStatus: outcome.NextStatus,
             ct: ct).ConfigureAwait(false);
 
+        if (committed)
+            approvalDecisions.Commit();
         return committed ? WorkflowDispatchResult.Advanced : WorkflowDispatchResult.Discarded;
     }
 
