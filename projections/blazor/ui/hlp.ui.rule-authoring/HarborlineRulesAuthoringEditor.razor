@@ -39,7 +39,7 @@
         <section aria-label="Rule catalogue"><h2>Rule catalogue</h2><ul aria-label="Rule catalogue">@foreach (var rule in Catalogue.Rules) { <li data-rule-id="@rule.Identity">@rule.Name<HarborlineButton ButtonType="ButtonType.Button" Variant="ButtonVariant.Secondary" Size="ButtonSize.Small" OnClick="() => Edit(rule)">Edit @rule.Name</HarborlineButton></li> }</ul></section>
     }
     <div role="status" aria-label="Promotion status">@_promotionNotice</div>
-    @if (Catalogue is not null) { <section aria-label="Field check promotion">@foreach (var rule in Catalogue.Rules.Where(rule => rule.Draft is FormulaDraft { Scope: RuleScope.Field, OutputType: RuleActionKind.Validate } formula && ReadsSelf(formula.Expression))) { <HarborlineButton ButtonType="ButtonType.Button" Variant="ButtonVariant.Secondary" Size="ButtonSize.Small" Enabled="@CatalogueChanged.HasDelegate" OnClick="() => Promote(rule)">Promote @rule.Name</HarborlineButton> }</section> }
+    @if (Catalogue is not null) { <section aria-label="Field check promotion">@foreach (var rule in Catalogue.Rules.Where(rule => IsFieldCheck(rule.Draft))) { <HarborlineButton ButtonType="ButtonType.Button" Variant="ButtonVariant.Secondary" Size="ButtonSize.Small" Enabled="@CatalogueChanged.HasDelegate" OnClick="() => Promote(rule)">Promote @rule.Name</HarborlineButton> }</section> }
     @if (Lineage is not null && Catalogue is not null)
     {
         <section aria-label="Calculation lineage"><h2>Calculation lineage</h2><p>Lineage covers field calculations.</p>@if (Catalogue.Rules.Where(rule => !Lineage.CalculationsReadBy.ContainsKey(rule.Identity)).ToArray() is { Length: > 0 } refused) { <p>Not counted because the rule is refused: @string.Join(", ", refused.Select(rule => rule.Name == "" ? rule.Identity : rule.Name))</p> }
@@ -144,6 +144,7 @@
         FormulaExpr.If conditional => ReadsSelf(conditional.When.Left) || ReadsSelf(conditional.When.Right) || ReadsSelf(conditional.Then) || ReadsSelf(conditional.Else),
         _ => false,
     };
+    private static bool IsFieldCheck(RuleDraft draft) => draft is FormulaDraft { Scope: RuleScope.Field, OutputType: RuleActionKind.Validate } formula && ReadsSelf(formula.Expression);
     private static bool HasMissingCall(FormulaExpr? expression) => expression switch
     {
         FormulaExpr.Call call => call.Op is "missing" or "missing_some" || call.Args.Any(HasMissingCall),
@@ -155,9 +156,10 @@
     private async Task Promote(RulesDraft rule)
     {
         var loaded = rule.Identity == Current.Identity;
-        if (loaded && _dirty) { _refusals = [new("Save or discard unsaved edits before promoting this rule.", "/draft")]; return; }
+        if (loaded && _dirty) { _refusals = [new("rule.promote.unsaved_edits", "/draft")]; return; }
         var source = loaded ? Current : rule;
-        if (source.Draft is FormulaDraft formula && HasMissingCall(formula.Expression)) { _refusals = [new("Cannot safely promote a check using missing or missing_some.", "/draft")]; return; }
+        if (!IsFieldCheck(source.Draft)) { _refusals = [new("rule.promote.ineligible", "/draft")]; return; }
+        if (source.Draft is FormulaDraft formula && HasMissingCall(formula.Expression)) { _refusals = [new("rule.promote.missing_call", "/draft")]; return; }
         var envelope = new RuleDefinitionEnvelope(rule.Identity, "", "", "", new System.Text.Json.Nodes.JsonObject(), [], null);
         var promoted = FieldRuleBindings.Promote(new RuleDefinitionDocument(envelope, source.Name, RuleDefinitionTier.JsonLogic, source.Draft));
         var next = source with { Draft = promoted.Draft };

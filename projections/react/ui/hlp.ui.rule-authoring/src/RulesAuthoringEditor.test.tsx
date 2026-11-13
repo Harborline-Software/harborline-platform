@@ -20,7 +20,7 @@ describe('Rules authoring React projection', () => {
     render(<RulesAuthoringEditor {...props({ value: rule, catalogue: { rules: [rule] }, onCatalogueChange: changed })} />)
     fireEvent.click(screen.getByRole('button', { name: 'Promote Check' }))
     expect(changed).not.toHaveBeenCalled()
-    expect(screen.getByLabelText('Refusals')).toHaveTextContent('Cannot safely promote a check using missing or missing_some.')
+    expect(screen.getByLabelText('Refusals')).toHaveTextContent('rule.promote.missing_call')
   })
 
   it('rules-auth-18 retains the promoted reference as an option', () => {
@@ -39,6 +39,26 @@ describe('Rules authoring React projection', () => {
     button.focus(); await userEvent.keyboard('{Enter}')
     expect(screen.getByLabelText('Rule name')).toHaveFocus()
     expect(screen.getByRole('status', { name: 'Promotion status' })).toHaveTextContent('Promoted Amount check.')
+  })
+
+  it('rules-auth-18 refuses each saved ineligible snapshot from the shared fixture', () => {
+    const fixture = JSON.parse(readFileSync(resolve(process.cwd(), '../../../../conformance/hlp.ui.rule-authoring/promotion.json'), 'utf8'))
+    for (const row of fixture.refused) {
+      const rule = { ...emptyRulesDraft(), identity: 'amount-check', expectedRevision: '1', name: 'Amount check', draft: fixture.input.draft }
+      const requests: RulesOperationRequest[] = []; const changed = vi.fn()
+      const base = props({ value: rule, catalogue: { rules: [rule] }, onCatalogueChange: changed, onOperation: request => { requests.push(request) } })
+      const view = render(<RulesAuthoringEditor {...base} />)
+      if (row.edit === 'compute') fireEvent.change(screen.getByLabelText('Rule action'), { target: { value: 'Compute' } })
+      else fireEvent.change(screen.getByLabelText('Rule expression shape'), { target: { value: 'Literal' } })
+      fireEvent.click(screen.getByRole('button', { name: 'Save draft' }))
+      const request = requests[0]
+      view.rerender(<RulesAuthoringEditor {...base} response={{ requestId: request.requestId, identity: 'amount-check', expectedRevision: '1', generation: request.generation, authoritative: { identity: 'amount-check', revision: '2', status: 'Draft' } }} />)
+      fireEvent.click(screen.getByRole('button', { name: 'Promote Amount check' }))
+      expect(changed).not.toHaveBeenCalled()
+      expect(screen.getByLabelText('Refusals')).toHaveTextContent('rule.promote.ineligible at /draft')
+      expect(screen.queryByText('Promoted Amount check.')).toBeNull()
+      view.unmount()
+    }
   })
 
   it('rules-auth-18 promotes the saved snapshot when the catalogue is stale', () => {
@@ -76,7 +96,7 @@ describe('Rules authoring React projection', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Promote Amount check' }))
     expect(changed).not.toHaveBeenCalled()
     expect(screen.getByLabelText('Rule name')).toHaveValue('Edited')
-    expect(screen.getByLabelText('Refusals')).toHaveTextContent('Save or discard unsaved edits before promoting this rule.')
+    expect(screen.getByLabelText('Refusals')).toHaveTextContent('rule.promote.unsaved_edits')
   })
 
   it('rules-auth-18 offers promotion only for the shared field-check cases', () => {

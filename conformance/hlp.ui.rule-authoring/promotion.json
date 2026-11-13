@@ -299,5 +299,17 @@
       },
       "eligible": false
     }
+  ],
+  "refused": [
+    {
+      "edit": "compute",
+      "code": "rule.promote.ineligible",
+      "pointer": "/draft"
+    },
+    {
+      "edit": "no-self",
+      "code": "rule.promote.ineligible",
+      "pointer": "/draft"
+    }
   ]
 }
