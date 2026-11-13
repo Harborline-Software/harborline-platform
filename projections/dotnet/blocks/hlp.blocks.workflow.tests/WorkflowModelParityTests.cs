@@ -398,6 +398,13 @@ public sealed class WorkflowModelParityTests
         var humanTriggers = definition["triggers"]!.AsArray().Where(t => (string?)t!["kind"] == "HumanAction").Select(t => (string?)t!["id"]).ToHashSet();
         var gated = definition["transitions"]!.AsArray().First(t => humanTriggers.Contains((string?)t!["on"]))!.AsObject();
         JsonNode Missing() => new JsonObject { ["vocabulary"] = "tax.roles", ["name"] = "Missing" };
+        if (mutation.TryGetProperty("stateDeclarations", out _))
+        {
+            var state = definition["states"]!.AsArray().First(s => (string?)s!["kind"] == "Normal")!.AsObject();
+            state["fieldRequirements"] = new JsonArray(new JsonObject { ["field"] = "invoice.amount", ["condition"] = "required.amount" });
+            state["locks"] = "dates only";
+            state["escalation"] = new JsonObject { ["schedule"] = "review-overdue" };
+        }
         if (mutation.TryGetProperty("actionTransition", out var actionTransition)) action["on"] = new JsonObject { ["transition"] = actionTransition.GetString() };
         if (mutation.TryGetProperty("actionClassification", out var classification)) action["classification"] = classification.GetString();
         if (mutation.TryGetProperty("transitionGuard", out var guard)) transition["guard"] = guard.GetString();

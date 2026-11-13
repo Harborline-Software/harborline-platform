@@ -27,6 +27,7 @@ const gated = value => {
   return value.transitions.find(transition => human.has(transition.on))
 }
 const mutate = (value, mutation = {}) => {
+  if (mutation.stateDeclarations) Object.assign(value.states.find(state => state.kind === 'Normal'), {fieldRequirements: [{field: 'invoice.amount', condition: 'required.amount'}], locks: 'dates only', escalation: {schedule: 'review-overdue'}})
   if (mutation.actionTransition) value.actions[0].on = {transition: mutation.actionTransition}
   if (mutation.actionClassification) value.actions[0].classification = mutation.actionClassification
   if (mutation.transitionGuard) value.transitions[0].guard = mutation.transitionGuard

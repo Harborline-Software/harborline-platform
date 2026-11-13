@@ -78,6 +78,7 @@
     {"id": "workflows-ck-12-record-subject-with-empty-record-type-rejected", "operation": "wire.read", "type": "WorkflowSubject", "input": {"record": {"recordType": ""}}, "expectedError": "invalid-string"},
     {"id": "workflows-ck-12-set-subject-with-empty-record-type-rejected", "operation": "wire.read", "type": "WorkflowSubject", "input": {"set": {"recordType": ""}}, "expectedError": "invalid-string"},
     {"id": "workflows-ck-12-set-subject-without-record-type-rejected", "operation": "wire.read", "type": "WorkflowSubject", "input": {"set": {}}, "expectedError": "missing-required-property"},
+    {"id": "workflows-ck-20-state-declarations-admit", "operation": "admission.mutate", "input": "$canonical", "mutation": {"stateDeclarations": true}, "expected": {"isValid": true, "codes": []}},
     {"id": "canonical-admits", "operation": "admission.validate", "input": "$canonical", "expected": {"isValid": true, "codes": []}},
     {"id": "autonomous-cp-refused", "operation": "admission.mutate", "input": "$canonical", "mutation": {"actionTransition": "t-issue"}, "expected": {"isValid": false, "codes": ["workflow.admission.cp_reachable_without_human_task", "workflow.admission.gate_on_autonomous_step"]}},
     {"id": "classification-mismatch-refused", "operation": "admission.mutate", "input": "$canonical", "mutation": {"actionClassification": "AP"}, "expected": {"isValid": false, "codes": ["workflow.admission.classification_mismatch"]}},
