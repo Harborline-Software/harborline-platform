@@ -177,7 +177,7 @@ public sealed class ViewDefinitionAdmissionTests
             new RecordTypes(),
             new Measures(),
             new ViewExpressionFunctionRegistry(),
-            new Interactions());
+            new Interactions(), ViewsExpressionEnvironment.Admitted);
 
         var offered = await admission.ListOfferedKindsAsync("work-item");
 
@@ -219,7 +219,7 @@ public sealed class ViewDefinitionAdmissionTests
             new RecordTypes(),
             new Measures(),
             new ViewExpressionFunctionRegistry(),
-            new KnownInteractions());
+            new KnownInteractions(), ViewsExpressionEnvironment.Admitted);
         var draft = new ViewDefinitionDraft(
             Definition(),
             new ViewBinding(
@@ -270,12 +270,21 @@ public sealed class ViewDefinitionAdmissionTests
                 .Select(refusal => refusal.Pointer));
     }
 
+    [Fact]
+    public async Task Views_ck_14_authoring_refuses_missing_environment()
+    {
+        var admission = new ViewDefinitionAdmission(new Kinds(), new RecordTypes(), new Measures(), new ViewExpressionFunctionRegistry(), new Interactions());
+        var draft = new ViewDefinitionDraft(Definition(), new ViewBinding("layout.table", new Dictionary<ViewShapeRole, string> { [ViewShapeRole.Title] = "title" }));
+        var error = await Assert.ThrowsAsync<Harborline.Foundation.RuleEngine.Environments.BorrowerEnvironmentException>(async () => await admission.ValidateAsync(draft));
+        Assert.Equal("rule.environment.not_admitted", error.Code);
+    }
+
     private static ViewDefinitionAdmission Admission() => new(
         new Kinds(),
         new RecordTypes(),
         new Measures(),
         new ViewExpressionFunctionRegistry(),
-        new Interactions());
+        new Interactions(), ViewsExpressionEnvironment.Admitted);
 
     private static ViewDefinition Definition(
         ViewMeasureBinding? measure = null,

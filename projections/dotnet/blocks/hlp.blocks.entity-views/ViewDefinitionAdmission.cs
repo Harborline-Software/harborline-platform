@@ -1,5 +1,6 @@
 using Harborline.Blocks.BuilderDefinitions;
 using Harborline.Foundation.Definitions;
+using Harborline.Foundation.RuleEngine.Environments;
 
 namespace Harborline.Blocks.EntityViews;
 
@@ -44,7 +45,8 @@ public sealed class ViewDefinitionAdmission(
     IViewRecordTypeRegistry recordTypes,
     IViewMeasureCatalog measures,
     IViewExpressionFunctionRegistry functions,
-    IViewInteractionRegistry interactions)
+    IViewInteractionRegistry interactions,
+    AdmittedEnvironment? environment = null)
 {
     private const string Stage = "definition.validate";
     private readonly IViewKindRegistry _kinds = kinds ?? throw new ArgumentNullException(nameof(kinds));
@@ -59,6 +61,7 @@ public sealed class ViewDefinitionAdmission(
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(draft);
+        ViewsExpressionEnvironment.Require(environment);
         // Every host fact the rules need is read first; the rules themselves are the one synchronous check the shared
         // definition store also runs (ViewDefinitionCatalogue.Admission), so author time and the store cannot disagree.
         var kind = await _kinds.ResolveAsync(draft.Binding.Kind, cancellationToken).ConfigureAwait(false);

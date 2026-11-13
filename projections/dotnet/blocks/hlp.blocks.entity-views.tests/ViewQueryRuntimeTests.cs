@@ -68,7 +68,7 @@ public sealed class ViewQueryRuntimeTests
             new RecordingAccessFilter(forbiddenCalls),
             new RecordingRows(forbiddenCalls),
             new RecordingMeasures(forbiddenCalls),
-            new FixedTimeProvider(DateTimeOffset.UnixEpoch));
+            new FixedTimeProvider(DateTimeOffset.UnixEpoch), environment: ViewsExpressionEnvironment.Admitted.For(Harborline.Foundation.RuleEngine.Environments.EvaluationPhase.Run));
 
         var whenMissing = await Assert.ThrowsAsync<ViewQueryException>(async () => await missing.ExecuteAsync(Request()));
         var whenForbidden = await Assert.ThrowsAsync<ViewQueryException>(async () => await forbidden.ExecuteAsync(Request()));
@@ -134,7 +134,7 @@ public sealed class ViewQueryRuntimeTests
             new RecordingAccessFilter(calls),
             new RecordingRows(calls),
             new RecordingMeasures(calls),
-            new FixedTimeProvider(DateTimeOffset.UnixEpoch));
+            new FixedTimeProvider(DateTimeOffset.UnixEpoch), environment: ViewsExpressionEnvironment.Admitted.For(Harborline.Foundation.RuleEngine.Environments.EvaluationPhase.Run));
 
         var error = await Assert.ThrowsAsync<ViewQueryException>(async () =>
             await runtime.ExecuteAsync(Request()));
@@ -155,7 +155,7 @@ public sealed class ViewQueryRuntimeTests
             new RecordingAccessFilter(calls),
             new RecordingRows(calls),
             new RecordingMeasures(calls),
-            new FixedTimeProvider(DateTimeOffset.UnixEpoch));
+            new FixedTimeProvider(DateTimeOffset.UnixEpoch), environment: ViewsExpressionEnvironment.Admitted.For(Harborline.Foundation.RuleEngine.Environments.EvaluationPhase.Run));
 
         var error = await Assert.ThrowsAsync<ViewQueryException>(async () =>
             await runtime.ExecuteAsync(Request()));
@@ -186,7 +186,7 @@ public sealed class ViewQueryRuntimeTests
             new RecordingAccessFilter(calls),
             new RecordingRows(calls),
             new RecordingMeasures(calls),
-            new FixedTimeProvider(DateTimeOffset.UnixEpoch));
+            new FixedTimeProvider(DateTimeOffset.UnixEpoch), environment: ViewsExpressionEnvironment.Admitted.For(Harborline.Foundation.RuleEngine.Environments.EvaluationPhase.Run));
 
         var error = await Assert.ThrowsAsync<ViewQueryException>(async () =>
             await runtime.ExecuteAsync(request));
@@ -211,7 +211,7 @@ public sealed class ViewQueryRuntimeTests
             new RecordingAccessFilter(calls),
             new RecordingRows(calls),
             new RecordingMeasures(calls),
-            new FixedTimeProvider(DateTimeOffset.UnixEpoch));
+            new FixedTimeProvider(DateTimeOffset.UnixEpoch), environment: ViewsExpressionEnvironment.Admitted.For(Harborline.Foundation.RuleEngine.Environments.EvaluationPhase.Run));
 
         var error = await Assert.ThrowsAsync<ViewQueryException>(async () => await runtime.ExecuteAsync(request));
 
@@ -236,7 +236,7 @@ public sealed class ViewQueryRuntimeTests
             new RecordingAccessFilter(calls),
             rows,
             new RecordingMeasures(calls),
-            new FixedTimeProvider(DateTimeOffset.Parse("2026-09-17T12:00:00Z")));
+            new FixedTimeProvider(DateTimeOffset.Parse("2026-09-17T12:00:00Z")), environment: ViewsExpressionEnvironment.Admitted.For(Harborline.Foundation.RuleEngine.Environments.EvaluationPhase.Run));
 
         var result = await runtime.ExecuteAsync(Request());
 
@@ -267,7 +267,7 @@ public sealed class ViewQueryRuntimeTests
             new RecordingAccessFilter(calls),
             rows,
             new RecordingMeasures(calls),
-            new FixedTimeProvider(DateTimeOffset.UnixEpoch));
+            new FixedTimeProvider(DateTimeOffset.UnixEpoch), environment: ViewsExpressionEnvironment.Admitted.For(Harborline.Foundation.RuleEngine.Environments.EvaluationPhase.Run));
 
         var result = await runtime.ExecuteAsync(Request() with { Page = new(Offset: 1, Limit: 1) });
 
@@ -290,7 +290,7 @@ public sealed class ViewQueryRuntimeTests
                 Row("visible", "B", "1", "open"),
             ]),
             new RecordingMeasures(calls),
-            new FixedTimeProvider(DateTimeOffset.UnixEpoch));
+            new FixedTimeProvider(DateTimeOffset.UnixEpoch), environment: ViewsExpressionEnvironment.Admitted.For(Harborline.Foundation.RuleEngine.Environments.EvaluationPhase.Run));
 
         var result = await runtime.ExecuteAsync(Request() with { Principal = "1" });
 
@@ -320,7 +320,7 @@ public sealed class ViewQueryRuntimeTests
                 RichRow("two", "B", 2, []),
             ]),
             new RecordingMeasures(calls),
-            new FixedTimeProvider(DateTimeOffset.UnixEpoch));
+            new FixedTimeProvider(DateTimeOffset.UnixEpoch), environment: ViewsExpressionEnvironment.Admitted.For(Harborline.Foundation.RuleEngine.Environments.EvaluationPhase.Run));
 
         var result = await runtime.ExecuteAsync(Request() with { Page = new(0, 1) });
 
@@ -346,7 +346,7 @@ public sealed class ViewQueryRuntimeTests
                 Row("closed", "C", "party:operator-1", "closed"),
             ]),
             measures,
-            new FixedTimeProvider(DateTimeOffset.UnixEpoch));
+            new FixedTimeProvider(DateTimeOffset.UnixEpoch), environment: ViewsExpressionEnvironment.Admitted.For(Harborline.Foundation.RuleEngine.Environments.EvaluationPhase.Run));
 
         var result = await runtime.ExecuteAsync(Request());
 
@@ -381,7 +381,7 @@ public sealed class ViewQueryRuntimeTests
                 RichRow("wrong-tag", "pump replacement", 3, ["planned"]),
             ]),
             new RecordingMeasures(calls),
-            new FixedTimeProvider(DateTimeOffset.UnixEpoch));
+            new FixedTimeProvider(DateTimeOffset.UnixEpoch), environment: ViewsExpressionEnvironment.Admitted.For(Harborline.Foundation.RuleEngine.Environments.EvaluationPhase.Run));
 
         var result = await runtime.ExecuteAsync(Request());
 
@@ -411,7 +411,7 @@ public sealed class ViewQueryRuntimeTests
                 Row("routine", "B", "party:operator-1", "routine"),
             ], functions),
             new RecordingMeasures(calls),
-            new FixedTimeProvider(DateTimeOffset.UnixEpoch));
+            new FixedTimeProvider(DateTimeOffset.UnixEpoch), environment: ViewsExpressionEnvironment.Admitted.For(Harborline.Foundation.RuleEngine.Environments.EvaluationPhase.Run));
 
         var result = await runtime.ExecuteAsync(Request());
 
@@ -501,6 +501,20 @@ public sealed class ViewQueryRuntimeTests
         Assert.NotNull(nonMatching.Measure);
     }
 
+    [Fact]
+    public async Task Views_ck_14_query_refuses_missing_environment()
+    {
+        var calls = new List<string>();
+        var runtime = new ViewQueryRuntime(new RecordingDefinitions(calls, Definition()),
+            new RecordingOpenGate(calls, new ViewAuthority(CanOpen: true, Actions: [])),
+            new RecordingKinds(calls, IsRegistered: true), new RecordingRecordTypes(calls),
+            new RecordingAccessFilter(calls), new RecordingRows(calls), new RecordingMeasures(calls),
+            new FixedTimeProvider(DateTimeOffset.UnixEpoch));
+        var error = await Assert.ThrowsAsync<Harborline.Foundation.RuleEngine.Environments.BorrowerEnvironmentException>(async () => await runtime.ExecuteAsync(Request()));
+        Assert.Equal("rule.environment.not_admitted", error.Code);
+        Assert.DoesNotContain("rows", calls);
+    }
+
     private static ViewQueryRuntime RuntimeWithStore(IViewDefinitionCatalogue store, List<string> calls) => new(
         store,
         new RecordingOpenGate(calls, new ViewAuthority(CanOpen: true, Actions: [])),
@@ -509,7 +523,7 @@ public sealed class ViewQueryRuntimeTests
         new RecordingAccessFilter(calls),
         new RecordingRows(calls),
         new RecordingMeasures(calls),
-        new FixedTimeProvider(DateTimeOffset.UnixEpoch));
+        new FixedTimeProvider(DateTimeOffset.UnixEpoch), environment: ViewsExpressionEnvironment.Admitted.For(Harborline.Foundation.RuleEngine.Environments.EvaluationPhase.Run));
 
     private static ViewQueryRuntime Runtime(
         ViewAuthority authority,
@@ -525,7 +539,7 @@ public sealed class ViewQueryRuntimeTests
             new RecordingAccessFilter(calls),
             new InMemoryViewRowSource(rows),
             new RecordingMeasures(calls),
-            new FixedTimeProvider(DateTimeOffset.UnixEpoch));
+            new FixedTimeProvider(DateTimeOffset.UnixEpoch), environment: ViewsExpressionEnvironment.Admitted.For(Harborline.Foundation.RuleEngine.Environments.EvaluationPhase.Run));
     }
 
     private static ViewDefinition Definition(

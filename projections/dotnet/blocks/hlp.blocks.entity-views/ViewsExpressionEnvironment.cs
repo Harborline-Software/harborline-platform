@@ -28,4 +28,18 @@ public static class ViewsExpressionEnvironment
 
     /// <summary>The environment admitted by Rules.</summary>
     public static AdmittedEnvironment Admitted { get; } = BorrowerEnvironmentAdmission.Admit(Declaration);
+    private static readonly string Canonical = BorrowerEnvironmentAdmission.CanonicalJson(Declaration);
+
+    internal static void Require(AdmittedEnvironment? environment)
+    {
+        if (environment is null || BorrowerEnvironmentAdmission.CanonicalJson(environment.Declaration) != Canonical)
+            throw new BorrowerEnvironmentException(BorrowerEnvironmentAdmission.NotAdmitted, "The Views expression environment is not admitted.");
+    }
+
+    internal static void Require(EvaluationAdmission? admission)
+    {
+        Require(admission?.Environment);
+        if (admission!.Phase is not (EvaluationPhase.Render or EvaluationPhase.Run))
+            throw new BorrowerEnvironmentException(BorrowerEnvironmentAdmission.PhaseNotAdmitted, "The Views evaluation phase is not admitted.");
+    }
 }

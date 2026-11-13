@@ -68,7 +68,7 @@ async Task ProveAuthoredAndBoundQuery()
     // published first. Its fields pin the host's admitted text kind, so the Title role is checked at the commit (T-1177).
     var registers = new ViewAdmissionRegisters(
         await kinds.ListAsync(), [new("work.count", ["format"])], new ViewExpressionFunctionRegistry(), [], ["work.open"], [],
-        [QueryFieldKinds.Text, QueryFieldKinds.Integer]);
+        [QueryFieldKinds.Text, QueryFieldKinds.Integer], ViewsExpressionEnvironment.Admitted);
     var shared = new InMemoryVersionedDefinitionStore(
         new Dictionary<DefinitionKind, DefinitionAdmission>
         {
@@ -87,7 +87,7 @@ async Task ProveAuthoredAndBoundQuery()
             records,
             measures,
             new ViewExpressionFunctionRegistry(),
-            new QueryInteractions()),
+            new QueryInteractions(), ViewsExpressionEnvironment.Admitted),
         store);
     await authoring.CreateDraftAsync(new(definition, binding));
     var published = await store.PublishAsync("team-a", "work.queue", "1.0.0");
@@ -108,7 +108,7 @@ async Task ProveAuthoredAndBoundQuery()
             QueryRow("visible-3", "E", "party:operator-1", "open"),
         ]),
         measures,
-        accessClock);
+        accessClock, environment: ViewsExpressionEnvironment.Admitted.For(Harborline.Foundation.RuleEngine.Environments.EvaluationPhase.Run));
     var result = await runtime.ExecuteAsync(new(
         "team-a",
         "work.queue",

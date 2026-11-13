@@ -3,6 +3,7 @@ using System.Text.Json;
 using Harborline.Blocks.BuilderDefinitions;
 using Harborline.Contracts.Fields;
 using Harborline.Foundation.Definitions;
+using Harborline.Foundation.RuleEngine.Environments;
 
 namespace Harborline.Blocks.EntityViews;
 
@@ -89,6 +90,7 @@ public static class ViewDefinitionPackExporter
 /// Every admitted field-kind revision, as the host's <c>FieldKindRegistry</c> admits them. The publish derivation resolves
 /// each shape-role field's pinned kind revision here (T-1177).
 /// </param>
+/// <param name="Environment">The admitted Views expression environment.</param>
 public sealed record ViewAdmissionRegisters(
     IReadOnlyList<ViewKindDescriptor> Kinds,
     IReadOnlyList<ViewMeasureDescriptor> Measures,
@@ -96,7 +98,8 @@ public sealed record ViewAdmissionRegisters(
     IReadOnlyList<ViewWidgetDescriptor> Widgets,
     IReadOnlyList<string> RowActions,
     IReadOnlyList<string> WorkflowTransitions,
-    IReadOnlyList<AdmittedFieldKind> FieldKinds);
+    IReadOnlyList<AdmittedFieldKind> FieldKinds,
+    AdmittedEnvironment? Environment = null);
 
 /// <summary>
 /// The Views member of the shared definition store (T-620): each view definition is a <see cref="DefinitionKind.Views"/>
@@ -122,6 +125,7 @@ public sealed class ViewDefinitionCatalogue(IVersionedDefinitionStore store) : I
     public static DefinitionAdmission Admission(ViewAdmissionRegisters registers)
     {
         ArgumentNullException.ThrowIfNull(registers);
+        ViewsExpressionEnvironment.Require(registers.Environment);
         var kinds = registers.Kinds.ToDictionary(kind => kind.Kind, StringComparer.Ordinal);
         var measures = registers.Measures.ToDictionary(measure => measure.Name, StringComparer.Ordinal);
         var widgets = registers.Widgets.ToDictionary(widget => widget.Widget, StringComparer.Ordinal);
