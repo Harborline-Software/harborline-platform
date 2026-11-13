@@ -13,6 +13,25 @@ namespace Harborline.UIAdapters.Blazor.Tests;
 
 public sealed class RulesAuthoringTests : BunitContext
 {
+    [Fact(DisplayName = "rules-auth-18: promotes the shared field check in the catalogue using the producer")]
+    public void PromotesFieldCheck()
+    {
+        using var fixture = JsonDocument.Parse(File.ReadAllText(FindFixture("promotion.json", "hlp.ui.rule-authoring")));
+        var input = RuleDefinitionCodec.Parse(fixture.RootElement.GetProperty("input").GetRawText(), RuleIntentPhase.Author).Document!;
+        var expected = JsonNode.Parse(fixture.RootElement.GetProperty("expected").GetRawText());
+        Assert.True(JsonNode.DeepEquals(expected, JsonNode.Parse(RuleDefinitionCodec.SerializeCanonical(FieldRuleBindings.Promote(input)))));
+        var rule = new RulesDraft(input.Envelope.Id, "", input.Name, "Draft", "", input.Draft);
+        RulesRuleCatalogue? changed = null;
+        var cut = Render<HarborlineRulesAuthoringEditor>(p => p.Add(x => x.Value, rule).Add(x => x.Catalogue, new RulesRuleCatalogue([rule])).Add(x => x.CatalogueChanged, value => changed = value));
+        cut.FindButton("Promote Amount check").Click();
+        var actual = Assert.Single(changed!.Rules);
+        Assert.Equal("amount-check", actual.Identity);
+        Assert.Equal("amount", actual.Draft.ScopeTarget);
+        var formula = Assert.IsType<FormulaDraft>(actual.Draft);
+        Assert.Equal("field.amount", Assert.Single(formula.Inputs).Ref);
+        Assert.Equal("field.amount", Assert.IsType<FormulaExpr.Ref>(Assert.IsType<FormulaExpr.Call>(formula.Expression).Args[0]).Name);
+    }
+
     [Fact(DisplayName = "rules-auth-19: navigates producer lineage and names unreferenced calculation")]
     public void NavigatesLineage() => AssertLineageNavigation();
 
@@ -111,6 +130,7 @@ public sealed class RulesAuthoringTests : BunitContext
         SharedFixtureBatch.Run(caseId, rawFixture, () => {
             // The lineage case has its own oracle, so it must not pass on the lifecycle replay below.
             if (caseId == "rule-authoring.lineage") { AssertLineageNavigation(); return; }
+            if (caseId == "rule-authoring.promotion") { PromotesFieldCheck(); return; }
             var sharedFixture = SharedFixtureBatch.Current;
             if (!string.IsNullOrWhiteSpace(sharedFixture))
             {

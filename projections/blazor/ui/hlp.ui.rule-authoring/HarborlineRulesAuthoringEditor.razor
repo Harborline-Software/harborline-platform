@@ -38,6 +38,7 @@
         <fieldset><legend>Field properties</legend>@foreach (var field in FieldBindings) { <div>@foreach (var checkbox in FieldCheckboxes) { <label><input aria-label="@($"{field.Label} is {checkbox.Label}")" type="checkbox" checked="@Checked(field, checkbox)" disabled="@(!CatalogueChanged.HasDelegate)" @onchange="eventArgs => ChangeFieldCheckbox(field, checkbox, eventArgs)" />@field.Label is @checkbox.Label</label> }</div> }</fieldset>
         <section aria-label="Rule catalogue"><h2>Rule catalogue</h2><ul aria-label="Rule catalogue">@foreach (var rule in Catalogue.Rules) { <li data-rule-id="@rule.Identity">@rule.Name<HarborlineButton ButtonType="ButtonType.Button" Variant="ButtonVariant.Secondary" Size="ButtonSize.Small" OnClick="() => Edit(rule)">Edit @rule.Name</HarborlineButton></li> }</ul></section>
     }
+    @if (Catalogue is not null) { <section aria-label="Field check promotion">@foreach (var rule in Catalogue.Rules.Where(rule => rule.Draft is FormulaDraft { Scope: RuleScope.Field } formula && formula.Inputs.Any(input => input.Ref == "self"))) { <HarborlineButton ButtonType="ButtonType.Button" Variant="ButtonVariant.Secondary" Size="ButtonSize.Small" Enabled="@CatalogueChanged.HasDelegate" OnClick="() => Promote(rule)">Promote @rule.Name</HarborlineButton> }</section> }
     @if (Lineage is not null && Catalogue is not null)
     {
         <section aria-label="Calculation lineage"><h2>Calculation lineage</h2><p>Lineage covers field calculations.</p>@if (Catalogue.Rules.Where(rule => !Lineage.CalculationsReadBy.ContainsKey(rule.Identity)).ToArray() is { Length: > 0 } refused) { <p>Not counted because the rule is refused: @string.Join(", ", refused.Select(rule => rule.Name == "" ? rule.Identity : rule.Name))</p> }
@@ -133,6 +134,12 @@
         var rules = Catalogue.Rules.Where(rule => rule.Identity != identity).ToList();
         if (eventArgs.Value is true) rules.Add(new RulesDraft(identity, "", $"{field.Label} {checkbox.Action}", "Draft", "", new FormulaDraft { Scope = RuleScope.Field, ScopeTarget = field.Key, OutputType = checkbox.Action, Inputs = [], Expression = new FormulaExpr.Literal(checkbox.Value, ColumnValueType.Boolean) }));
         return CatalogueChanged.InvokeAsync(new RulesRuleCatalogue(rules));
+    }
+    private Task Promote(RulesDraft rule)
+    {
+        var envelope = new RuleDefinitionEnvelope(rule.Identity, "", "", "", new System.Text.Json.Nodes.JsonObject(), [], null);
+        var promoted = FieldRuleBindings.Promote(new RuleDefinitionDocument(envelope, rule.Name, RuleDefinitionTier.JsonLogic, rule.Draft));
+        return CatalogueChanged.InvokeAsync(new RulesRuleCatalogue(Catalogue!.Rules.Select(item => item == rule ? item with { Draft = promoted.Draft } : item).ToArray()));
     }
     private Task Save() => Request("save-draft"); private Task Preview() => Request("preview"); private Task Publish() => Request("publish"); private Task Archive() => Request("archive");
     // Without an authority the host gates elsewhere; with one, an ungranted operation's control renders disabled. The producer still enforces the gate (T-591).

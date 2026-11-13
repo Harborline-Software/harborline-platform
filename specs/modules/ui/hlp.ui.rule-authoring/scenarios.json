@@ -159,6 +159,44 @@
         ],
         "footer": []
       }
+    },
+    {
+      "id": "rule-authoring.promotion",
+      "name": "Field check promotion",
+      "surface": "authoring",
+      "sourceCaseIds": [
+        "rule-authoring.promotion"
+      ],
+      "sourceQualityCaseIds": [
+        "rule-authoring.quality.labels",
+        "rule-authoring.quality.reflow",
+        "rule-authoring.quality.visual-parity"
+      ],
+      "content": {
+        "blurb": "Promote a field check to its stable field key.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "preview": "sample"
+        },
+        "state": {
+          "keyboard": true,
+          "narrow": true
+        },
+        "body": [
+          {
+            "control": "field-check-promotion",
+            "react": "<RulesAuthoringEditor catalogue={fixture} />",
+            "blazor": "<HarborlineRulesAuthoringEditor Catalogue=fixture />",
+            "rationale": "Both lanes promote the ordinary field check in the shared catalogue."
+          }
+        ],
+        "footer": []
+      }
     }
   ]
 }

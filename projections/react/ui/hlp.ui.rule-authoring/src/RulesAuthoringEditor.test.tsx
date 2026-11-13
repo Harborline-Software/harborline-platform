@@ -13,6 +13,16 @@ const contracts = [{ site: 'rule', returnContract: 'typed value', executionTimeC
 const props = (overrides: Partial<React.ComponentProps<typeof RulesAuthoringEditor>> = {}) => ({ value: emptyRulesDraft(), expressionContracts: contracts, previewKind: 'real' as const, onChange: vi.fn(), onOperation: vi.fn(), ...overrides })
 
 describe('Rules authoring React projection', () => {
+  it('rules-auth-18 promotes a field check in the shared catalogue', () => {
+    const fixture = JSON.parse(readFileSync(resolve(process.cwd(), '../../../../conformance/hlp.ui.rule-authoring/promotion.json'), 'utf8'))
+    const doc = fixture.input
+    const rule = { ...emptyRulesDraft(), identity: doc.envelope.id, name: doc.name, draft: doc.draft }
+    const changed = vi.fn()
+    render(<RulesAuthoringEditor {...props({ value: rule, catalogue: { rules: [rule] }, onCatalogueChange: changed })} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Promote Amount check' }))
+    expect(changed).toHaveBeenCalledWith({ rules: [{ ...rule, draft: fixture.expected.draft }] })
+  })
+
   it('rules-auth-19 navigates consumer and calculation and names dead weight from producer lineage', () => {
     const fixture = JSON.parse(readFileSync(resolve(process.cwd(), '../../../../conformance/hlp.ui.rule-authoring/lineage.json'), 'utf8'))
     const rules = fixture.documents.map((doc: { envelope: { id: string }; name: string; draft: unknown }) => ({ ...emptyRulesDraft(), identity: doc.envelope.id, name: doc.name, draft: doc.draft }))

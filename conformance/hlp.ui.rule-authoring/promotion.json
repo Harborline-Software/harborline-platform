@@ -1,0 +1,100 @@
+{
+  "input": {
+    "envelope": {
+      "id": "amount-check",
+      "version": "1.2.3",
+      "tenant": "tenant-a",
+      "cascadeLayer": "domain-package",
+      "provenance": {
+        "kind": "package",
+        "id": "finance"
+      },
+      "requires": [
+        "records.invoice@2.0.0"
+      ],
+      "contract": {
+        "major": 1,
+        "minor": 0
+      }
+    },
+    "name": "Amount check",
+    "tier": "JsonLogic",
+    "draft": {
+      "kind": "Formula",
+      "scope": "Field",
+      "scopeTarget": "amount",
+      "outputType": "Validate",
+      "inputs": [
+        {
+          "id": "self",
+          "ref": "self",
+          "type": "Number"
+        }
+      ],
+      "expression": {
+        "kind": "Call",
+        "op": ">=",
+        "args": [
+          {
+            "kind": "Ref",
+            "name": "self"
+          },
+          {
+            "kind": "Literal",
+            "value": "0",
+            "valueType": "Number"
+          }
+        ]
+      }
+    }
+  },
+  "expected": {
+    "envelope": {
+      "id": "amount-check",
+      "version": "1.2.3",
+      "tenant": "tenant-a",
+      "cascadeLayer": "domain-package",
+      "provenance": {
+        "kind": "package",
+        "id": "finance"
+      },
+      "requires": [
+        "records.invoice@2.0.0"
+      ],
+      "contract": {
+        "major": 1,
+        "minor": 0
+      }
+    },
+    "name": "Amount check",
+    "tier": "JsonLogic",
+    "draft": {
+      "kind": "Formula",
+      "scope": "Field",
+      "scopeTarget": "amount",
+      "outputType": "Validate",
+      "inputs": [
+        {
+          "id": "field.amount",
+          "ref": "field.amount",
+          "type": "Number"
+        }
+      ],
+      "expression": {
+        "kind": "Call",
+        "op": ">=",
+        "args": [
+          {
+            "kind": "Ref",
+            "name": "field.amount"
+          },
+          {
+            "kind": "Literal",
+            "value": "0",
+            "valueType": "Number"
+          }
+        ]
+      }
+    }
+  }
+}

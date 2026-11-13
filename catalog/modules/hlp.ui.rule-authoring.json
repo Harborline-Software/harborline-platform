@@ -24,7 +24,8 @@
       "deletionTest": "PASS",
       "redistributedComplexity": [
         "closed formula and decision-table drafting repeated by every Rules host",
-        "dirty replacement decisions, immutable materialization, and stale lifecycle response fencing drifting between React and Blazor"
+        "dirty replacement decisions, immutable materialization, and stale lifecycle response fencing drifting between React and Blazor",
+        "field check promotion preserves the field key and rule identity across lanes"
       ]
     },
     "projections": {
