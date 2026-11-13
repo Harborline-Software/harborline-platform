@@ -111,6 +111,24 @@ public sealed class RulesAuthoringTests : BunitContext
         Assert.Equal("Saved check", requests[1].Draft.Name);
     }
 
+    [Fact(DisplayName = "rules-auth-18: an edit during pending catalogue promotion is not overwritten")]
+    public async Task PendingPromotionPreservesNewerEdit()
+    {
+        using var fixture = JsonDocument.Parse(File.ReadAllText(FindFixture("promotion.json", "hlp.ui.rule-authoring")));
+        var doc = RuleDefinitionCodec.Parse(fixture.RootElement.GetProperty("input").GetRawText(), RuleIntentPhase.Author).Document!;
+        var rule = new RulesDraft("amount-check", "1", "Amount check", "Draft", "", doc.Draft);
+        var pending = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var requests = new List<RulesOperationRequest>();
+        var cut = Render<HarborlineRulesAuthoringEditor>(p => p.Add(x => x.Value, rule).Add(x => x.Catalogue, new RulesRuleCatalogue([rule])).Add(x => x.CatalogueChanged, _ => pending.Task).Add(x => x.OperationRequested, requests.Add));
+        var promoting = cut.FindButton("Promote Amount check").ClickAsync(new Microsoft.AspNetCore.Components.Web.MouseEventArgs());
+        cut.Find("input[aria-label='Rule name']").Change("Newer edit");
+        pending.SetResult();
+        await promoting;
+        cut.FindButton("Save draft").Click();
+        Assert.Equal("Newer edit", requests[^1].Draft.Name);
+        Assert.Equal("1", requests[^1].Draft.ExpectedRevision);
+    }
+
     [Fact(DisplayName = "rules-auth-18: saves the promoted loaded rule")]
     public void SavesPromotedLoadedRule()
     {

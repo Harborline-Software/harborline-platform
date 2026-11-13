@@ -161,8 +161,8 @@
         var envelope = new RuleDefinitionEnvelope(rule.Identity, "", "", "", new System.Text.Json.Nodes.JsonObject(), [], null);
         var promoted = FieldRuleBindings.Promote(new RuleDefinitionDocument(envelope, source.Name, RuleDefinitionTier.JsonLogic, source.Draft));
         var next = source with { Draft = promoted.Draft };
-        await CatalogueChanged.InvokeAsync(new RulesRuleCatalogue(Catalogue!.Rules.Select(item => item.Identity == rule.Identity ? next : item).ToArray()));
         if (loaded) await Change(next);
+        await CatalogueChanged.InvokeAsync(new RulesRuleCatalogue(Catalogue!.Rules.Select(item => item.Identity == rule.Identity ? next : item).ToArray()));
         _promotionNotice = $"Promoted {rule.Name}."; _focusName = true;
     }
     private Task Save() => Request("save-draft"); private Task Preview() => Request("preview"); private Task Publish() => Request("publish"); private Task Archive() => Request("archive");
