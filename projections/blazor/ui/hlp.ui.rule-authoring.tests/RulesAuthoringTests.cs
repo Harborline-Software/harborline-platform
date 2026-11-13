@@ -13,6 +13,22 @@ namespace Harborline.UIAdapters.Blazor.Tests;
 
 public sealed class RulesAuthoringTests : BunitContext
 {
+    [Fact(DisplayName = "rules-auth-18: offers promotion only for the shared field-check cases")]
+    public void FieldCheckEligibility()
+    {
+        using var fixture = JsonDocument.Parse(File.ReadAllText(FindFixture("promotion.json", "hlp.ui.rule-authoring")));
+        var rules = fixture.RootElement.GetProperty("eligibility").EnumerateArray().Select(row => {
+            var doc = RuleDefinitionCodec.Parse(row.GetProperty("document").GetRawText(), RuleIntentPhase.Author).Document!;
+            return new RulesDraft(doc.Envelope.Id, "", doc.Name, "Draft", "", doc.Draft);
+        }).ToArray();
+        var cut = Render<HarborlineRulesAuthoringEditor>(p => p.Add(x => x.Value, rules[0]).Add(x => x.Catalogue, new RulesRuleCatalogue(rules)).Add(x => x.CatalogueChanged, _ => { }));
+        Assert.Contains("Promote eligible", cut.Markup, StringComparison.Ordinal);
+        Assert.DoesNotContain("Promote calculation", cut.Markup, StringComparison.Ordinal);
+        Assert.DoesNotContain("Promote no-self", cut.Markup, StringComparison.Ordinal);
+        Assert.DoesNotContain("Promote toggle", cut.Markup, StringComparison.Ordinal);
+        Assert.DoesNotContain("Promote toggle-real", cut.Markup, StringComparison.Ordinal);
+    }
+
     [Fact(DisplayName = "rules-auth-18: promotes the shared field check in the catalogue using the producer")]
     public void PromotesFieldCheck()
     {

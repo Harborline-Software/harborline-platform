@@ -96,5 +96,208 @@
         ]
       }
     }
-  }
+  },
+  "eligibility": [
+    {
+      "document": {
+        "envelope": {
+          "id": "eligible",
+          "version": "1.2.3",
+          "tenant": "tenant-a",
+          "cascadeLayer": "domain-package",
+          "provenance": {
+            "kind": "package",
+            "id": "finance"
+          },
+          "requires": [
+            "records.invoice@2.0.0"
+          ],
+          "contract": {
+            "major": 1,
+            "minor": 0
+          }
+        },
+        "name": "eligible",
+        "tier": "JsonLogic",
+        "draft": {
+          "kind": "Formula",
+          "scope": "Field",
+          "scopeTarget": "amount",
+          "outputType": "Validate",
+          "inputs": [
+            {
+              "id": "self",
+              "ref": "self",
+              "type": "Number"
+            }
+          ],
+          "expression": {
+            "kind": "Ref",
+            "name": "self"
+          }
+        }
+      },
+      "eligible": true
+    },
+    {
+      "document": {
+        "envelope": {
+          "id": "calculation",
+          "version": "1.2.3",
+          "tenant": "tenant-a",
+          "cascadeLayer": "domain-package",
+          "provenance": {
+            "kind": "package",
+            "id": "finance"
+          },
+          "requires": [
+            "records.invoice@2.0.0"
+          ],
+          "contract": {
+            "major": 1,
+            "minor": 0
+          }
+        },
+        "name": "calculation",
+        "tier": "JsonLogic",
+        "draft": {
+          "kind": "Formula",
+          "scope": "Field",
+          "scopeTarget": "amount",
+          "outputType": "Compute",
+          "inputs": [
+            {
+              "id": "self",
+              "ref": "self",
+              "type": "Number"
+            }
+          ],
+          "expression": {
+            "kind": "Ref",
+            "name": "self"
+          }
+        }
+      },
+      "eligible": false
+    },
+    {
+      "document": {
+        "envelope": {
+          "id": "no-self",
+          "version": "1.2.3",
+          "tenant": "tenant-a",
+          "cascadeLayer": "domain-package",
+          "provenance": {
+            "kind": "package",
+            "id": "finance"
+          },
+          "requires": [
+            "records.invoice@2.0.0"
+          ],
+          "contract": {
+            "major": 1,
+            "minor": 0
+          }
+        },
+        "name": "no-self",
+        "tier": "JsonLogic",
+        "draft": {
+          "kind": "Formula",
+          "scope": "Field",
+          "scopeTarget": "amount",
+          "outputType": "Validate",
+          "inputs": [
+            {
+              "id": "self",
+              "ref": "self",
+              "type": "Number"
+            }
+          ],
+          "expression": {
+            "kind": "Literal",
+            "value": "true",
+            "valueType": "Boolean"
+          }
+        }
+      },
+      "eligible": false
+    },
+    {
+      "document": {
+        "envelope": {
+          "id": "toggle",
+          "version": "1.2.3",
+          "tenant": "tenant-a",
+          "cascadeLayer": "domain-package",
+          "provenance": {
+            "kind": "package",
+            "id": "finance"
+          },
+          "requires": [
+            "records.invoice@2.0.0"
+          ],
+          "contract": {
+            "major": 1,
+            "minor": 0
+          }
+        },
+        "name": "toggle",
+        "tier": "JsonLogic",
+        "draft": {
+          "kind": "Formula",
+          "scope": "Field",
+          "scopeTarget": "amount",
+          "outputType": "Required",
+          "inputs": [
+            {
+              "id": "self",
+              "ref": "self",
+              "type": "Number"
+            }
+          ],
+          "expression": {
+            "kind": "Ref",
+            "name": "self"
+          }
+        }
+      },
+      "eligible": false
+    },
+    {
+      "document": {
+        "envelope": {
+          "id": "toggle-real",
+          "version": "1.2.3",
+          "tenant": "tenant-a",
+          "cascadeLayer": "domain-package",
+          "provenance": {
+            "kind": "package",
+            "id": "finance"
+          },
+          "requires": [
+            "records.invoice@2.0.0"
+          ],
+          "contract": {
+            "major": 1,
+            "minor": 0
+          }
+        },
+        "name": "toggle-real",
+        "tier": "JsonLogic",
+        "draft": {
+          "kind": "Formula",
+          "scope": "Field",
+          "scopeTarget": "amount",
+          "outputType": "Required",
+          "inputs": [],
+          "expression": {
+            "kind": "Literal",
+            "value": "true",
+            "valueType": "Boolean"
+          }
+        }
+      },
+      "eligible": false
+    }
+  ]
 }

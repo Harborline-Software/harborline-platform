@@ -2,7 +2,7 @@
 @using Harborline.Foundation.RuleAuthoring
 @using Harborline.Contracts.Rules
 @using System.Text.Json
-<section class="hl-gallery-scene" data-gallery-probe data-gallery-scenario="@ScenarioId"><header class="hl-gallery-heading"><h2>Rule authoring</h2><p>Build a closed formula or decision table without authoring raw JSON.</p></header><div class="hl-gallery-stage"><HarborlineRulesAuthoringEditor Value="@Draft" ValueChanged="value => Draft = value" ExpressionContracts="@(ScenarioId == "rule-authoring.promotion" ? PromotionContracts : Contracts)" PreviewKind="sample" Catalogue="@Catalogue" CatalogueChanged="value => Catalogue = value" Lineage="@Lineage" Outcome="@PreviewOutcome" Response="@Response" OperationRequested="Operate" /></div></section>
+<section class="hl-gallery-scene" data-gallery-probe data-gallery-scenario="@ScenarioId"><header class="hl-gallery-heading"><h2>Rule authoring</h2><p>Build a closed formula or decision table without authoring raw JSON.</p></header><div class="hl-gallery-stage"><HarborlineRulesAuthoringEditor Value="@Draft" ValueChanged="value => Draft = value" ExpressionContracts="@(ScenarioId == "rule-authoring.promotion" ? PromotionContracts : Contracts)" PreviewKind="sample" Catalogue="@Catalogue" CatalogueChanged="value => Catalogue = value" Lineage="@Lineage" Outcome="@PreviewOutcome" Response="@Response" OperationRequested="Operate" />@if (ScenarioId == "rule-authoring.promotion") { <output aria-label="Stored rule reference">@((Catalogue?.Rules.FirstOrDefault()?.Draft as FormulaDraft)?.Inputs.FirstOrDefault()?.Ref)</output> }</div></section>
 @code {
     [Parameter] public string ScenarioId { get; set; } = "rule-authoring.from-empty";
     private RulesDraft Draft = RulesDraft.Empty;

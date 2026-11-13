@@ -6,7 +6,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { useState } from 'react'
 import { formulaCallOps, generatePalette, serializeRuleDefinition, validateRuleDefinitionJson, type RecordFieldSet, type RuleDefinitionExpression } from '@harborline-software/rule-authoring'
 import type { RuleScope } from '@harborline-software/rule-engine'
-import { GuidedExpressionEditor, RulesAuthoringEditor, emptyRulesDraft, type RulesEditorAuthority, type RulesMaterialization, type RulesOperationRequest, type RulesRefusal } from './RulesAuthoringEditor'
+import { GuidedExpressionEditor, RulesAuthoringEditor, emptyRulesDraft, type RulesDraft, type RulesEditorAuthority, type RulesMaterialization, type RulesOperationRequest, type RulesRefusal } from './RulesAuthoringEditor'
 
 const fixture = JSON.parse(readFileSync(resolve(process.cwd(), '../../../../conformance/hlp.blocks.builder-definitions/rules-editor-contract-fixtures.json'), 'utf8')) as { lifecycle: { responses: readonly { materialization?: RulesMaterialization }[] }; preview: { clockUtc: string; label: string; outcomeKinds: readonly string[]; cases: readonly { expected: { kind: string; value?: string; validity?: string; visibility?: string; presentation?: string; code?: string; ruleName: string; memberName: string } }[] }; referenceForms: { palette: readonly { id: string; label: string; valueType: 'Number' | 'Text' | 'Boolean' }[]; cases: readonly { id: string; ref: string; action: string; scope: string; scopeTarget: string; lowered: unknown }[] } }
 const authorityFixture = JSON.parse(readFileSync(resolve(process.cwd(), '../../../../conformance/hlp.blocks.builder-definitions/rules-editor-authority-fixtures.json'), 'utf8')) as { denyAll: { authority: RulesEditorAuthority }; threeRefusals: { authority: RulesEditorAuthority; operation: RulesOperationRequest['operation']; refusals: readonly RulesRefusal[] }; grantCases: readonly { granted: readonly string[]; enabled: readonly string[] }[] }
@@ -61,6 +61,17 @@ describe('Rules authoring React projection', () => {
     expect(changed).not.toHaveBeenCalled()
     expect(screen.getByLabelText('Rule name')).toHaveValue('Edited')
     expect(screen.getByLabelText('Refusals')).toHaveTextContent('Save or discard unsaved edits before promoting this rule.')
+  })
+
+  it('rules-auth-18 offers promotion only for the shared field-check cases', () => {
+    const fixture = JSON.parse(readFileSync(resolve(process.cwd(), '../../../../conformance/hlp.ui.rule-authoring/promotion.json'), 'utf8'))
+    const rules = fixture.eligibility.map((row: { document: { envelope: { id: string }; name: string; draft: RulesDraft['draft'] } }) => ({ ...emptyRulesDraft(), identity: row.document.envelope.id, name: row.document.name, draft: row.document.draft }))
+    render(<RulesAuthoringEditor {...props({ catalogue: { rules }, onCatalogueChange: vi.fn() })} />)
+    expect(screen.getByRole('button', { name: 'Promote eligible' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Promote calculation' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Promote no-self' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Promote toggle' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Promote toggle-real' })).toBeNull()
   })
 
   it('rules-auth-18 promotes a field check in the shared catalogue', () => {

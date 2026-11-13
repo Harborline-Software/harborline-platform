@@ -64,6 +64,16 @@ const renameSelf = (expression: RulesExpression, key: string): RulesExpression =
     default: return expression
   }
 }
+const readsSelf = (expression: RulesExpression | null): boolean => {
+  if (!expression) return false
+  switch (expression.kind) {
+    case 'Ref': return expression.name === 'self'
+    case 'Call': return expression.args.some(arg => readsSelf(arg) || ((expression.op === 'missing' || expression.op === 'missing_some') && arg.kind === 'Literal' && arg.valueType === 'Text' && arg.value === 'self'))
+    case 'Binary': return readsSelf(expression.left) || readsSelf(expression.right)
+    case 'If': return readsSelf(expression.when.left) || readsSelf(expression.when.right) || readsSelf(expression.then) || readsSelf(expression.else)
+    default: return false
+  }
+}
 const hasMissingCall = (expression: RulesExpression | null): boolean => {
   if (!expression) return false
   switch (expression.kind) {
@@ -149,7 +159,7 @@ export function RulesAuthoringEditor(props: RulesAuthoringEditorProps) {
     {formula && <FormulaEditor value={formula} contract={contract} onChange={updateDraft} />}{table && <DecisionTableEditor value={table} contract={contract} onChange={updateDraft} />}
     {props.catalogue && props.fieldBindings && <><fieldset><legend>Field properties</legend>{props.fieldBindings.map(field => <div key={field.key}>{fieldCheckboxes.map(checkbox => <label key={checkbox.id}><input aria-label={`${field.label} is ${checkbox.label}`} type="checkbox" checked={props.catalogue!.rules.some(rule => rule.identity === fieldRuleIdentity(field, checkbox))} disabled={!props.onCatalogueChange} onChange={event => toggleFieldCheckbox(field, checkbox, event.currentTarget.checked)} />{field.label} is {checkbox.label}</label>)}</div>)}</fieldset><section aria-label="Rule catalogue"><h2>Rule catalogue</h2><ul aria-label="Rule catalogue">{props.catalogue.rules.map(rule => <li key={rule.identity} data-rule-id={rule.identity}>{rule.name}<Button type="button" intent="secondary" size="sm" onClick={() => editRule(rule)}>Edit {rule.name}</Button></li>)}</ul></section></>}
     <div role="status" aria-label="Promotion status">{promotionNotice}</div>
-    {props.catalogue && <section aria-label="Field check promotion">{props.catalogue.rules.filter(rule => rule.draft.kind === 'Formula' && rule.draft.scope === 'Field' && rule.draft.inputs.some(input => input.ref === 'self')).map(rule => <Button key={rule.identity} type="button" intent="secondary" size="sm" disabled={!props.onCatalogueChange} onClick={() => promoteRule(rule)}>Promote {rule.name}</Button>)}</section>}
+    {props.catalogue && <section aria-label="Field check promotion">{props.catalogue.rules.filter(rule => rule.draft.kind === 'Formula' && rule.draft.scope === 'Field' && rule.draft.outputType === 'Validate' && readsSelf(rule.draft.expression)).map(rule => <Button key={rule.identity} type="button" intent="secondary" size="sm" disabled={!props.onCatalogueChange} onClick={() => promoteRule(rule)}>Promote {rule.name}</Button>)}</section>}
     {props.lineage && props.catalogue && <section aria-label="Calculation lineage"><h2>Calculation lineage</h2><p>Lineage covers field calculations.</p>{(() => { const refused = props.catalogue!.rules.filter(rule => !Object.hasOwn(props.lineage!.calculationsReadBy, rule.identity)); return refused.length > 0 && <p>Not counted because the rule is refused: {refused.map(rule => rule.name || rule.identity).join(', ')}</p> })()}{Object.entries(props.lineage.consumersOf).map(([id, consumers]) => { const calculation = props.catalogue!.rules.find(rule => rule.identity === id); return <div key={id}><h3>{calculation?.name ?? id}</h3>{calculation && <Button type="button" intent="secondary" size="sm" onClick={() => editRule(calculation)}>Edit calculation {calculation.name}</Button>}<p>{consumers.length} consumers{props.lineage!.deadWeight.includes(id) ? ' — unreferenced calculation' : ''}</p><ul>{consumers.map(consumer => { const rule = props.catalogue!.rules.find(item => item.identity === consumer); return <li key={consumer}>{rule ? <Button type="button" intent="secondary" size="sm" onClick={() => editRule(rule)}>Edit {rule.name}</Button> : consumer}</li> })}</ul></div> })}<h3>Calculations read by {value.name || value.identity}</h3><ul>{(Object.hasOwn(props.lineage.calculationsReadBy, value.identity) ? props.lineage.calculationsReadBy[value.identity] : []).map(id => { const rule = props.catalogue!.rules.find(item => item.identity === id); return <li key={id}>{rule ? <Button type="button" intent="secondary" size="sm" onClick={() => editRule(rule)}>Edit {rule.name}</Button> : id}</li> })}</ul></section>}
   </>
   return <form className="hl-rules-authoring" data-read-only={readOnly ? '' : undefined} onSubmit={event => event.preventDefault()}>
