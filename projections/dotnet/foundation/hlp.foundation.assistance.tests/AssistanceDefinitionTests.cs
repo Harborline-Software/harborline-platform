@@ -12,6 +12,19 @@ public sealed class AssistanceDefinitionTests
     private const string Tenant = "tenant-a";
     private const string Key = "assistance.customer";
 
+    [Fact(DisplayName = "pilot-ck-15 pilot-ck-17 pilot-ck-18 pilot-ck-19 pilot-ck-21: no runtime wire members travel in a pack; oracle: DES-0026 section 7")]
+    public void Runtime_contracts_never_travel_in_the_definition_pack()
+    {
+        var binding = AssistanceDefinitionJson.Deserialize(AssistanceDefinitionJson.SerializeCanonical(Definition()));
+        var exported = AssistanceDefinitionPackExporter.Export(binding, ContractWindow, Catalogue());
+        var json = System.Text.Encoding.UTF8.GetString(exported.Content.Span);
+        foreach (var member in new[] { "subject", "actor", "disposition", "proposal_digest", "approver", "expires_at" })
+            Assert.DoesNotContain("\"" + member + "\":", json, StringComparison.Ordinal);
+        Assert.DoesNotContain(typeof(AssistanceDefinition).GetProperties(), property => property.PropertyType == typeof(AssistanceProposalEnvelope)
+            || property.PropertyType == typeof(AssistanceDelegationRecord) || property.PropertyType == typeof(AssistanceDisposition)
+            || property.PropertyType == typeof(AssistanceStandingApproval));
+    }
+
     [Fact(DisplayName = "T-572 slice 2: the envelope contract survives canonical serialize and deserialize; an absent one still parses")]
     public void Envelope_contract_survives_canonical_round_trip()
     {
