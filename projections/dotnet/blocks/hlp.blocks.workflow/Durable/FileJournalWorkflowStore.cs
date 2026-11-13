@@ -256,6 +256,8 @@ public sealed class FileJournalWorkflowStore : IWorkflowMigrationStore, IDisposa
                 || current.Iteration != expected.Iteration || current.Status != expected.Status || current.UpdatedAt != expected.UpdatedAt
                 || current.MigrationGeneration != expected.MigrationGeneration || current.StoreGeneration != expected.StoreGeneration)
                 throw new InvalidOperationException("Workflow instance changed during migration.");
+            if (_steps.ContainsKey(new WorkflowStepKey(current.Id, current.Iteration, targetStep).Value))
+                throw new InvalidOperationException($"Target step '{targetStep}' already advanced at the current iteration.");
             var now = _clock.GetUtcNow();
             var dto = new MigrationDto(expected.Id, targetVersion, targetStep,
                 new EventDto(expected.Id, NextSeq(expected.Id), expected.CurrentStep, "Migrated", eventDataJson, Format(now)), Format(now));

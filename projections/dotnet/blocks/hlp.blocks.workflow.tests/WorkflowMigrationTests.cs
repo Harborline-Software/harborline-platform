@@ -8,6 +8,28 @@ namespace Harborline.Blocks.Workflow.Tests;
 public sealed class WorkflowMigrationTests
 {
     [Fact]
+    public async Task Migration_refuses_an_already_advanced_target_without_moving_or_recording()
+    {
+        using var fixture = new JournalFixture();
+        using var store = fixture.Open();
+        await store.CreateInstanceAsync(new WorkflowInstanceRecord
+        {
+            Id = "run-1", TenantId = "tenant-1", DefinitionKey = "flow", DefinitionVersion = "1.0.0",
+            CurrentStep = "new", Status = WorkflowStatus.Running,
+        });
+        await store.AdvanceAsync(new WorkflowStepKey("run-1", 0, "new"), null, "{}", "Advanced", "{}", "old", WorkflowStatus.Running);
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() => new WorkflowMigration(store, new Definitions())
+            .MigrateAsync("run-1", "2.0.0", new Dictionary<string, string> { ["old"] = "new" },
+                new WorkflowMigrationAuthority("operator-1", "tenant-1", "workflow:migrate", "workflow-instance", "run-1", true)));
+        Assert.Contains("new", error.Message, StringComparison.Ordinal);
+        var run = (await store.LoadAsync("run-1"))!;
+        Assert.Equal("old", run.CurrentStep);
+        Assert.Equal("1.0.0", run.DefinitionVersion);
+        Assert.Equal(0, run.Iteration);
+        Assert.Equal("Advanced", Assert.Single(await store.EventsAsync("run-1")).EventType);
+    }
+
+    [Fact]
     public async Task Publishing_a_version_never_moves_a_run_but_an_authorized_explicit_migration_repins_it()
     {
         using var fixture = new JournalFixture();
