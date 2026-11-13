@@ -34,6 +34,86 @@ public sealed class VerificationSuiteTests
         Assert.Equal(expected.EnumerateObject().Count(), bound.Count);
     }
 
+    // T-1056 oracles: literal offset instants and canonical UTC text; the pre-existing
+    // conformance suite and its recorded SHA-256 are independent of this implementation.
+    [Theory]
+    [InlineData(true, true)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    public void Grant_validity_bounds_round_trip_independently(bool hasFrom, bool hasTo)
+    {
+        var document = JsonNode.Parse(Fixture().GetProperty("suite").GetRawText())!;
+        var grant = document["fixtures"]![0]!["grants"]![0]!;
+        if (hasFrom) grant["effectiveFrom"] = "2026-09-20T10:00:00+01:00";
+        if (hasTo) grant["effectiveTo"] = "2026-09-20T11:00:00+01:00";
+        var suite = VerificationSuite.Parse(document.ToJsonString(), out var refusals);
+        Assert.Empty(refusals);
+        Assert.NotNull(suite);
+        var actual = suite.Fixtures[0].Grants[0];
+        Assert.Equal(hasFrom ? DateTimeOffset.Parse("2026-09-20T09:00:00Z") : (DateTimeOffset?)null, actual.EffectiveFrom);
+        Assert.Equal(hasTo ? DateTimeOffset.Parse("2026-09-20T10:00:00Z") : (DateTimeOffset?)null, actual.EffectiveTo);
+        using var canonical = JsonDocument.Parse(suite.Document);
+        var written = canonical.RootElement.GetProperty("fixtures")[0].GetProperty("grants")[0];
+        Assert.Equal(hasFrom, written.TryGetProperty("effectiveFrom", out var from));
+        Assert.Equal(hasTo, written.TryGetProperty("effectiveTo", out var to));
+        if (hasFrom) Assert.Equal("2026-09-20T09:00:00.0000000+00:00", from.GetString());
+        if (hasTo) Assert.Equal("2026-09-20T10:00:00.0000000+00:00", to.GetString());
+        var parsed = VerificationSuite.Parse(System.Text.Encoding.UTF8.GetString(suite.Document.Span), out refusals);
+        Assert.Empty(refusals);
+        Assert.Equal(suite.Document.ToArray(), parsed!.Document.ToArray());
+        Assert.Equal(actual, parsed.Fixtures[0].Grants[0]);
+    }
+
+    [Fact]
+    public void Grants_without_windows_keep_the_existing_canonical_bytes_and_digest()
+    {
+        var suite = VerificationSuite.Parse(Fixture().GetProperty("suite").GetRawText(), out var refusals);
+        Assert.Empty(refusals);
+        Assert.Equal(VerificationExample.Suite.Document.ToArray(), suite!.Document.ToArray());
+        Assert.Equal("70a748fe8128ed7e7e1fc6565af79762f7cccd993c715b159a5a8da8b6215adb", suite.Digest);
+        Assert.DoesNotContain("effectiveFrom", System.Text.Encoding.UTF8.GetString(suite.Document.Span));
+        Assert.DoesNotContain("effectiveTo", System.Text.Encoding.UTF8.GetString(suite.Document.Span));
+        Assert.All(suite.Fixtures.SelectMany(fixture => fixture.Grants), grant =>
+        {
+            Assert.Null(grant.EffectiveFrom);
+            Assert.Null(grant.EffectiveTo);
+        });
+    }
+
+    [Theory]
+    [InlineData("2026-09-20T10:00:00+01:00")]
+    [InlineData("2026-09-20T08:59:59Z")]
+    public void Equal_or_earlier_grant_ends_are_refused_with_fixture_and_grant(string end)
+    {
+        var document = JsonNode.Parse(Fixture().GetProperty("suite").GetRawText())!;
+        var grant = document["fixtures"]![0]!["grants"]![0]!;
+        grant["effectiveFrom"] = "2026-09-20T09:00:00Z";
+        grant["effectiveTo"] = end;
+        Assert.Null(VerificationSuite.Parse(document.ToJsonString(), out var refusals));
+        var refusal = Assert.Single(refusals);
+        Assert.Equal("verification-fixture-grant-invalid", refusal.Code);
+        Assert.Equal("approver", refusal.Target);
+        Assert.Equal("Fixture approver grant invoice.approver@/ must have effectiveTo after effectiveFrom.", refusal.Message);
+    }
+
+    [Theory]
+    [InlineData("effectiveFrom", "not-an-instant")]
+    [InlineData("effectiveTo", "not-an-instant")]
+    [InlineData("effectiveFrom", null)]
+    [InlineData("effectiveFrom", "2026-09-20T10:00:00")]
+    [InlineData("effectiveTo", "10:00:00+01:00")]
+    [InlineData("effectiveFrom", "2026-09-20")]
+    [InlineData("effectiveTo", "2026-09-20 10:00:00+01:00")]
+    public void Malformed_present_grant_instants_are_refused(string key, string? value)
+    {
+        var document = JsonNode.Parse(Fixture().GetProperty("suite").GetRawText())!;
+        document["fixtures"]![0]!["grants"]![0]![key] = value;
+        Assert.Null(VerificationSuite.Parse(document.ToJsonString(), out var refusals));
+        var refusal = Assert.Single(refusals);
+        Assert.Equal("verification-fixture-grant-invalid", refusal.Code);
+        Assert.Equal($"Fixture approver grant invoice.approver@/ has an invalid {key} instant.", refusal.Message);
+    }
+
     // Acceptance 1: one invariant and one parameterized examples table, without executable scripts.
     [Fact]
     public void The_suite_is_one_invariant_and_one_examples_table_and_carries_no_executable_content()

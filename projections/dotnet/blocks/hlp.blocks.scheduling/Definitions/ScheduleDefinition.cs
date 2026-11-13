@@ -45,7 +45,7 @@ public abstract record ScheduleBasis
     }
 }
 
-/// <summary>A calendar recurrence. The RRULE text is kept as authored: which subset is the contract is DES-0022 open ruling 1.</summary>
+/// <summary>A calendar recurrence, kept as authored and admitted by the producer's DES-0057 ck-1 subset parser.</summary>
 /// <param name="Rrule">The authored RRULE text.</param>
 public sealed record FixedCalendarBasis(string Rrule) : ScheduleBasis;
 
@@ -81,7 +81,8 @@ public sealed record EventAnchoredChainBasis(string Anchor, IReadOnlyList<Schedu
 /// <param name="AfterNodeId">The earlier node this one follows, or null to follow the chain's anchor.</param>
 /// <param name="Offset">A non-negative ISO 8601 duration after what it follows.</param>
 /// <param name="Tolerance">This node's own on-time band.</param>
-public sealed record ScheduleChainNode(string NodeId, string? AfterNodeId, string Offset, ScheduleTolerance Tolerance);
+/// <param name="Window">This node's optional validity window.</param>
+public sealed record ScheduleChainNode(string NodeId, string? AfterNodeId, string Offset, ScheduleTolerance Tolerance, ScheduleWindow? Window = null);
 
 /// <summary>
 /// A validity window, never a single due point (scheduling-ck-5, L483). With no basis each bound is an ISO 8601 instant
@@ -171,6 +172,7 @@ public sealed record ScheduleStarts([property: JsonRequired] ScheduleStartKind K
 /// <param name="Escalation">Who hears about a miss.</param>
 /// <param name="ProblemClass">The planning problem.</param>
 /// <param name="Modules">The constraint modules the problem class compiles into.</param>
+/// <param name="DueDate">The lone due instant with an offset; required only without a basis.</param>
 /// <param name="LegalityRef">A citation to a Legality Rule Set that Scheduling never interprets (scheduling-ck-12).</param>
 public sealed record ScheduleDefinition(
     ScheduleDefinitionEnvelope? Envelope,
@@ -185,7 +187,18 @@ public sealed record ScheduleDefinition(
     ScheduleEscalation? Escalation = null,
     ScheduleProblemClass ProblemClass = ScheduleProblemClass.None,
     IReadOnlyList<ScheduleConstraintModule>? Modules = null,
-    string? LegalityRef = null);
+    string? LegalityRef = null,
+    string? DueDate = null)
+{
+    /// <summary>An explicit recovery request, refused at validate (scheduling-auth-21); ordinary missed-behaviour replanning is distinct.</summary>
+    public bool? RecoveryReplanning { get; init; }
+
+    /// <summary>A requested regulatory compliance obligation, refused at validate (scheduling-auth-23); legality citations remain admitted.</summary>
+    public string? RegulatorRuleSetRequirement { get; init; }
+
+    /// <summary>An upstream plan whose output would feed this plan, refused at validate (scheduling-auth-24); within-plan precedence remains admitted.</summary>
+    public string? InputPlanId { get; init; }
+}
 
 /// <summary>The sealed trait that admits a type to planning (scheduling-ck-22, L482, L1084).</summary>
 public static class SchedulableTrait

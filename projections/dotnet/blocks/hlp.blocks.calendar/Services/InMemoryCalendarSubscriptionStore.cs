@@ -1,3 +1,4 @@
+using Harborline.Foundation.Scheduling.Models;
 using System.Collections.Concurrent;
 using Harborline.Blocks.Calendar.Models;
 using Harborline.Foundation.Assets.Common;

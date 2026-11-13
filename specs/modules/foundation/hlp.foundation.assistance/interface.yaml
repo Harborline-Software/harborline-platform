@@ -10,9 +10,10 @@
     "operations": [
       "AssistanceDefinitionJson.SerializeCanonical / Deserialize -> canonical snake_case, ordinal-sorted, newline-terminated UTF-8 JSON; unknown members refuse; a missing or null required member refuses at deserialize rather than reaching admission",
       "AssistanceDefinitionAdmission.Validate(definition, phase, window, commands, previous) / AdmitJson(body, phase, window, commands, catalogue, previous) -> the complete refusal list at the Author, Publish and Install boundaries against the required host DefinitionContractWindow: an envelope contract that is missing or outside the host window (definition.contract.missing or definition.contract.out_of_window at /envelope/contract, T-572), unresolved command references, a lowered classification tier or a widened args schema/recipient set against `previous`, an invalid or missing NEVER archetype/justification, a duplicate command id, and envelope/version/schema-version shape",
-      "AssistanceDefinitionPackExporter.Export(definition, window, commands) -> the reserved content-kind pack entry of canonical bytes after Publish admission"
+      "AssistanceDefinitionPackExporter.Export(definition, window, commands) -> the reserved content-kind pack entry of canonical bytes after Publish admission",
+      "Catalogue comparison at Author, Publish and Install: refuse unexported entries, tiers below the catalogue, argument schemas not provably at least as strict, and recipients outside the intersection of all referenced entries permitted sets. Previous-version schema narrowing uses the same bounded fail-closed checker."
     ],
-    "context": "Bindings are portable pack content stored in the shared builder-definitions catalogue; this package owns their typed shape, canonical JSON and structural admission, never a store, never the Workflows-owned action catalogue, and never a provider or proposal runtime. Command references are resolved through an injected ICommandCatalogueRegistry seam; no released Workflows command-authority digest is consumed yet (ADR 0096 ruling 5f is future work). The proposal/receipt/delegation wire and runtime contracts already exist at projections/typescript/application/hlp.copilot.contracts and are out of this module's scope. This foundation package carries no adapter into the shared builder-definitions catalogue's DefinitionAdmission delegate: foundation must not reference blocks (the repository's own tier-direction fence), so that adapter belongs in the blocks tier once a host consumes Pilot definitions, mirroring DataExchange's own unwired foundation package."
+    "context": "Bindings are portable pack content stored in the shared builder-definitions catalogue; this package owns their typed shape, canonical JSON and structural admission, never a store, never the Workflows-owned action catalogue, and never a provider or proposal runtime. Command references are resolved through injected ICommandCatalogueRegistry entries carrying CommandId, ExportingPackage, Exported, Tier, ArgsSchema and PermittedRecipients. This entry shape is the seam T-612 fills from the released command-authority artifact (ADR 0096 ruling 5f); this module does not read that artifact. The proposal/receipt/delegation wire and runtime contracts already exist at projections/typescript/application/hlp.copilot.contracts and are out of this module's scope. This foundation package carries no adapter into the shared builder-definitions catalogue's DefinitionAdmission delegate: foundation must not reference blocks (the repository's own tier-direction fence), so that adapter belongs in the blocks tier once a host consumes Pilot definitions, mirroring DataExchange's own unwired foundation package."
   },
   "invariants": [
     "Assistance owns no primitive row in DES-0002 and creates no second action catalogue or interpreter (pilot-ck-1).",
@@ -44,7 +45,11 @@
     "definition.context_field_required",
     "definition.recipient_required",
     "definition.recipients_widened",
-    "definition.catalogue_mismatch"
+    "definition.catalogue_mismatch",
+    "definition.command_not_exported",
+    "definition.tier_below_catalogue",
+    "definition.args_schema_looser_than_catalogue",
+    "definition.recipient_outside_target_permission"
   ],
   "publicSeams": [
     "definition intent admission (Author, Publish, Install) and canonical JSON",

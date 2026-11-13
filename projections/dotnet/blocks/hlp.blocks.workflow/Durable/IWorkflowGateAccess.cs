@@ -3,7 +3,7 @@ using Harborline.Contracts.Authorization;
 namespace Harborline.Blocks.Workflow.Durable;
 
 /// <summary>
-/// The host's answer to one workflow role gate (T-1176, DES-0019 workflows-eng-13 and workflows-auth-10). The engine
+/// The host's answer to one workflow role or standing gate (T-1176, DES-0019 workflows-eng-13 and workflows-auth-10). The engine
 /// owns no decider (see <see cref="WorkflowDispatchAuthority"/>): it asks, the host decides with its one authorization
 /// gate, and the engine refuses any answer that does not bind the exact intent it asked. The same shape Forms uses for
 /// its submit gate (<c>IFormSubmitGateAccess</c>) and Layout for its surface (<c>ILayoutSubmitAccess</c>).
@@ -16,7 +16,7 @@ namespace Harborline.Blocks.Workflow.Durable;
 /// </remarks>
 public interface IWorkflowGateAccess
 {
-    /// <summary>Decides one role gate for one intent. The answer's <see cref="WorkflowGateAnswer.Intent"/> must bind it.</summary>
+    /// <summary>Decides one role or standing gate for one intent. The answer's <see cref="WorkflowGateAnswer.Intent"/> must bind it.</summary>
     ValueTask<WorkflowGateAnswer> DecideAsync(WorkflowGateIntent intent, CancellationToken ct = default);
 }
 
@@ -41,7 +41,10 @@ public enum WorkflowGateElement
 /// <param name="DefinitionVersion">The pinned definition's version.</param>
 /// <param name="Element">Whether the gate guards a transition or an action.</param>
 /// <param name="ElementId">The gated element's id.</param>
+/// <param name="DecidedAt">The act's decision instant, read once from the host kernel clock.</param>
 /// <param name="RequiredRoles">The declared roles, any of which admits (workflows-auth-10).</param>
+/// <param name="RequiredStandings">Declared standings, every one of which the host must decide holds.</param>
+/// <param name="SubjectRecord">The instance's stored subject record reference.</param>
 public sealed record WorkflowGateIntent(
     string Tenant,
     string Principal,
@@ -50,9 +53,12 @@ public sealed record WorkflowGateIntent(
     string DefinitionVersion,
     WorkflowGateElement Element,
     string ElementId,
-    IReadOnlyList<RoleReference> RequiredRoles)
+    IReadOnlyList<RoleReference> RequiredRoles,
+    DateTimeOffset DecidedAt,
+    IReadOnlyList<RecordStandingReference>? RequiredStandings = null,
+    WorkflowSubjectRecordReference? SubjectRecord = null)
 {
-    /// <summary>Whether <paramref name="other"/> names exactly this question, roles compared in order.</summary>
+    /// <summary>Whether <paramref name="other"/> names exactly this question, roles and standings compared in order.</summary>
     public bool Binds(WorkflowGateIntent? other) =>
         other is not null
         && Tenant == other.Tenant
@@ -62,19 +68,22 @@ public sealed record WorkflowGateIntent(
         && DefinitionVersion == other.DefinitionVersion
         && Element == other.Element
         && ElementId == other.ElementId
-        && RequiredRoles.SequenceEqual(other.RequiredRoles);
+        && DecidedAt == other.DecidedAt
+        && RequiredRoles.SequenceEqual(other.RequiredRoles)
+        && (RequiredStandings ?? []).SequenceEqual(other.RequiredStandings ?? [])
+        && SubjectRecord == other.SubjectRecord;
 }
 
 /// <summary>The host's answer: the intent it decided, whether the actor satisfies the gate, and its own evidence.</summary>
 /// <param name="Intent">The intent this answer decides; it must bind the asked intent.</param>
-/// <param name="Satisfied">Whether the actor's effective roles intersect the gate.</param>
+/// <param name="Satisfied">Whether the actor satisfies the role gate and every declared standing.</param>
 /// <param name="Evidence">The host decider's evidence, unchanged, or <see langword="null"/>.</param>
 public sealed record WorkflowGateAnswer(WorkflowGateIntent Intent, bool Satisfied, object? Evidence = null);
 
 /// <summary>Stable codes a refused workflow gate carries.</summary>
 public static class WorkflowGateCodes
 {
-    /// <summary>The host's gate says the actor does not satisfy the declared roles.</summary>
+    /// <summary>The host's gate says the actor does not satisfy the declared roles and standings.</summary>
     public const string Denied = "workflow.gate.denied";
 
     /// <summary>The host returned an answer for a different question than the one asked.</summary>

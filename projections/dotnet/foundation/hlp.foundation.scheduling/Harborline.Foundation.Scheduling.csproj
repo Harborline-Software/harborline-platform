@@ -5,12 +5,17 @@
     <PackageId>Harborline.Foundation.Scheduling</PackageId>
     <AssemblyName>Harborline.Foundation.Scheduling</AssemblyName>
     <RootNamespace>Harborline.Foundation.Scheduling</RootNamespace>
-    <Description>Bounded RRULE expansion and derived due-queue services for Harborline Platform.</Description>
+    <Description>Bounded RRULE expansion and shared wall-clock conversion for Harborline Platform.</Description>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageReleaseNotes>Internal-only projection; public distribution is not authorized.</PackageReleaseNotes>
   </PropertyGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Harborline.Foundation.Scheduling.Tests" />
+    <InternalsVisibleTo Include="Harborline.Blocks.Calendar" />
+    <InternalsVisibleTo Include="Harborline.Blocks.Calendar.Tests" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../contracts/hlp.contracts.identities/Harborline.Contracts.csproj" />
   </ItemGroup>
   <ItemGroup>
     <!-- ADR-0122: RRULE expansion runs on Ical.Net behind IRruleExpansionService; NodaTime is its zone engine and the

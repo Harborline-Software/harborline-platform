@@ -62,8 +62,8 @@ beside its id (L1426), plus the version where the reference is pinned.
 
 Edges are written by the store, not by member code after it. A host registers a
 `DefinitionDependencyDerivation` for a registry beside its admission:
-`RecordTypeDefinitionStore.Dependencies` for `Records` and `ClassDefinitionStore.Dependencies` for
-`Classes`. The in-memory store runs the derivation under the same lock that commits the
+`RecordTypeDefinitionStore.Dependencies` for `Records`, `ClassDefinitionStore.Dependencies` for
+`Classes`, and `ViewDefinitionCatalogue.Dependencies(registers)` for `Views`. The in-memory store runs the derivation under the same lock that commits the
 publication. The derivation sees that commit's published heads and no store handle, and the store
 keeps its edges with the published version. So:
 
@@ -137,15 +137,19 @@ bytes while reconstructing source with the new shared identity and version metad
 ## Views catalogue (T-486, DES-0017 views-eng-16)
 
 Register `DefinitionKind.Views` (2) with `ViewDefinitionCatalogue.Admission(registers)` and its
-dependency derivation `ViewDefinitionCatalogue.Dependencies` (both in `hlp.blocks.entity-views`), then
-bind one `ViewDefinitionCatalogue` over the store. The body is the `ViewDefinitionDraftJson` wire and
+dependency derivation `ViewDefinitionCatalogue.Dependencies(registers)`, over the same registers (both in
+`hlp.blocks.entity-views`), then bind one `ViewDefinitionCatalogue` over the store. The body is the `ViewDefinitionDraftJson` wire and
 the version id is the definition's semantic version. Admission is pure and synchronous: the wire, the
 catalogue key, and every structural rule over the host's fixed `ViewAdmissionRegisters` (kinds,
-catalogue measures, filter functions, widgets, row actions, workflow transitions). As Records does, the
+catalogue measures, filter functions, widgets, row actions, workflow transitions, and the admitted field
+kinds the host's `FieldKindRegistry` holds, as an `IReadOnlyList<AdmittedFieldKind>`). As Records does, the
 record type is checked in the derivation at publication, against its published head:
 `view_definition.record_type_unresolved` at `/definition/recordType`, or `view_definition.field_unknown`
-and `view_definition.shape_role_field_missing` at the naming member. Each publish stores the `record_type`
-edge. A caller that writes through the store directly is refused the same way.
+and `view_definition.shape_role_field_missing` at the naming member. Each shape-role field's view kind is
+derived from the kind revision the head pins (T-1177): a field with no bound kind, or one whose kind does not
+suit the role, refuses `view_definition.shape_role_field_incompatible` at `/binding/shapeRoles/{role}`.
+Each publish stores the `record_type` edge. A caller that writes through the store directly is refused the
+same way.
 
 ## Taxonomy catalogue (T-493 S7, DES-0024)
 
@@ -750,13 +754,16 @@ can replay without a fresh stamp. `AuthorityRecordedAt` is sampled inside the co
 section after replay and CAS, and differs from the unchanged gate-act `Receipt.RecordedAt`.
 The caller supplies every interval/AsOf value; this library supplies no request-JSON adapter.
 
-Validate and detach the request first. Amendment uses bounded same-journal target metadata to
-establish its tenant/type before current `records:write` authorization. Only after current access
-may an exact operation-key/intent retry return its original detached receipt, without rechecking
+Detach the supplied body before awaiting the current `records:write` gate; validate that snapshot
+only after the gate allows. A gate denial wins over request-shape refusals for the operation id,
+interval, predecessor, reason, version and body/encoding. The gate decides a create on the requested
+Record Type and an amend on an untyped request naming only the record id, before any journal read.
+After authorization, amendment uses bounded same-journal target metadata to resolve its Record Type.
+Only after current access may an exact operation-key/intent retry return its original detached receipt, without rechecking
 publication, temporal policy, basis or head. Unsupported receipts and conflicting intents retain
 the existing refusal codes. A genuinely new write selects one admitted immutable publication,
 requires the explicit temporal policy and validates existing schema/field/domain constraints;
-only creation uses the creation-only gate. The prepared transaction stages the row, operation,
+creation additionally checks the bound creation policy during bind. The prepared transaction stages the row, operation,
 receipt and audit together. Locked replay precedes exact-head CAS and clock allocation; complete
 finished-output validation precedes one atomic replacement. Refusal publishes no partial event,
 audit or stamp; registry side effects can remain. No sidecar journal or post-commit audit is added.

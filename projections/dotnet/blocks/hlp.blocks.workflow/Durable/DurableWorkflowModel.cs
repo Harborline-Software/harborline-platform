@@ -65,6 +65,9 @@ public sealed class WorkflowInstanceRecord
     /// <summary>Lifecycle status.</summary>
     public WorkflowStatus Status { get; set; }
 
+    /// <summary>The host-bound subject at creation; never derived from working state or a trigger.</summary>
+    public WorkflowSubjectRecordReference? SubjectRecord { get; init; }
+
     /// <summary>Opaque JSON working state carried by the instance.</summary>
     public string StateJson { get; set; } = "{}";
 

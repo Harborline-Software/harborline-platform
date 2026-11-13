@@ -1,4 +1,5 @@
 using System;
+using System.Text.Json;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -231,7 +232,7 @@ public sealed class ReportDefinitionAdmissionTests
         var contract = major is null ? null : new DefinitionContractVersion(major.Value, minor!.Value);
         var definition = Definition("finance.trial-balance") with
         {
-            Envelope = new ReportDefinitionEnvelope("rent-review", "1.0.0", "tenant-r", contract),
+            Envelope = new ReportDefinitionEnvelope("rent-review", "1.0.0", "tenant-r", contract, LayoutCascadeLayer.TenantConfiguration, JsonSerializer.SerializeToElement(new { producer = "test" }), "business", false, []),
         };
 
         foreach (var phase in Enum.GetValues<DefinitionAdmissionPhase>())
@@ -263,7 +264,7 @@ public sealed class ReportDefinitionAdmissionTests
     {
         var definition = Definition("finance.trial-balance") with
         {
-            Envelope = new ReportDefinitionEnvelope(identity, version, tenant, Contract),
+            Envelope = new ReportDefinitionEnvelope(identity, version, tenant, Contract, LayoutCascadeLayer.TenantConfiguration, JsonSerializer.SerializeToElement(new { producer = "test" }), "business", false, []),
         };
 
         var report = await ReportDefinitionAdmission.AdmitAsync(definition, DefinitionAdmissionPhase.Author, Window, Shipped());
@@ -287,7 +288,7 @@ public sealed class ReportDefinitionAdmissionTests
         "rent-review",
         "1.0.0",
         [.. measures.Select(measure => new ReportMeasureReference(measure))],
-        new ReportDefinitionEnvelope("rent-review", "1.0.0", "tenant-r", Contract));
+        new ReportDefinitionEnvelope("rent-review", "1.0.0", "tenant-r", Contract, LayoutCascadeLayer.TenantConfiguration, JsonSerializer.SerializeToElement(new { producer = "test" }), "business", false, []));
 
     // The shipped catalogue over the production AccessProvider. Resolution never binds the filter, so a gate that
     // refuses every record proves admission reads no row.

@@ -4,6 +4,7 @@ using System.Reflection;
 using System.Text.Json;
 using Harborline.Blocks.BuilderDefinitions;
 using Harborline.Blocks.EntityViews;
+using Harborline.Contracts.Fields;
 using Harborline.Kernel.SchemaValidation.Records;
 using Harborline.Foundation.Authorization;
 
@@ -38,7 +39,6 @@ Console.WriteLine($"VIEWS_AUTHORED_BOUND_PASS:{JsonSerializer.Serialize(new { au
 async Task ProveAuthoredAndBoundQuery()
 {
     var kinds = ViewKindRegistry.Platform;
-    var records = new QueryRecordTypes();
     var measures = new QueryMeasures();
     var binding = new ViewBinding(
         ViewKindIds.Table,
@@ -64,21 +64,22 @@ async Task ProveAuthoredAndBoundQuery()
             "state",
             new("work.count", new Dictionary<string, string> { ["format"] = "integer" })));
     // Views lives in the shared definition store (views-eng-16): its admission and record-type dependency are registered
-    // there, so the publish below is re-admitted inside the store, and the record type it reads is published first.
+    // there over the same registers, so the publish below is re-admitted inside the store, and the record type it reads is
+    // published first. Its fields pin the host's admitted text kind, so the Title role is checked at the commit (T-1177).
+    var registers = new ViewAdmissionRegisters(
+        await kinds.ListAsync(), [new("work.count", ["format"])], new ViewExpressionFunctionRegistry(), [], ["work.open"], [],
+        [QueryFieldKinds.Text, QueryFieldKinds.Integer]);
     var shared = new InMemoryVersionedDefinitionStore(
         new Dictionary<DefinitionKind, DefinitionAdmission>
         {
-            [DefinitionKind.Views] = ViewDefinitionCatalogue.Admission(new ViewAdmissionRegisters(
-                await kinds.ListAsync(), [new("work.count", ["format"])], new ViewExpressionFunctionRegistry(), [], ["work.open"], [])),
+            [DefinitionKind.Views] = ViewDefinitionCatalogue.Admission(registers),
             [DefinitionKind.Records] = (_, _) => [],
         },
-        new Dictionary<DefinitionKind, DefinitionDependencyDerivation> { [DefinitionKind.Views] = ViewDefinitionCatalogue.Dependencies });
+        new Dictionary<DefinitionKind, DefinitionDependencyDerivation> { [DefinitionKind.Views] = ViewDefinitionCatalogue.Dependencies(registers) });
     var workItem = RecordTypeDefinitionStore.KeyOf("team-a", "work-item");
-    await shared.SaveDraftAsync(new DefinitionDocument(workItem, "1.0.0", "1.0.0", System.Text.Encoding.UTF8.GetString(
-        RecordTypeDefinitionJson.SerializeCanonical(new RecordTypeDocument(
-            new RecordsDefinitionEnvelope("team-a", "operations", new(1, 0)), "work-item", "work-item",
-            [new("title", "title"), new("assignee", "assignee"), new("state", "state")])))), 0, "seed-work-item");
-    await shared.PublishAsync(workItem, "1.0.0", 1, "publish-work-item");
+    await PublishWorkItem(shared, workItem, "1.0.0", 0, QueryFieldKinds.Text);
+    // The host's record-type registry reads the current published head, so the read-time backstop sees what the commit saw.
+    var records = new QueryRecordTypes(shared, "team-a", registers.FieldKinds);
     var store = new ViewDefinitionCatalogue(shared);
     var authoring = new ViewDefinitionAuthoring(
         new ViewDefinitionAdmission(
@@ -126,6 +127,39 @@ async Task ProveAuthoredAndBoundQuery()
     ]);
     Check(export.Select(item => item.Definition.Key).SequenceEqual(["work.queue"]), "personal views never travel");
     Check(export.Single().Binding.ShapeRoles[ViewShapeRole.Title] == "title", "authored binding travels with the definition");
+
+    // T-1177: when the Record Type head moves on and pins an integer kind to title, the read-time backstop refuses the
+    // already-published view from the new head rather than from kinds fixed when the host was built.
+    await PublishWorkItem(shared, workItem, "2.0.0", 2, QueryFieldKinds.Integer);
+    var stale = await Catch(() => runtime.ExecuteAsync(new("team-a", "work.queue", "party:operator-1", new(0, 2), published.Binding)));
+    Check(stale == "view_definition.shape_role_field_incompatible", $"read-time backstop follows the current head: {stale}");
+}
+
+static async Task PublishWorkItem(IVersionedDefinitionStore shared, DefinitionKey workItem, string version, long revision,
+    AdmittedFieldKind titleKind)
+{
+    FieldBindingDefinition Bind(AdmittedFieldKind kind) => new(
+        new FieldKindReference(kind.KindId, kind.Version, new Dictionary<string, string>()),
+        new FieldConstraintDefinition(false, 0, 1, [], null));
+    await shared.SaveDraftAsync(new DefinitionDocument(workItem, version, version, System.Text.Encoding.UTF8.GetString(
+        RecordTypeDefinitionJson.SerializeCanonical(new RecordTypeDocument(
+            new RecordsDefinitionEnvelope("team-a", "operations", new(1, 0)), "work-item", "work-item",
+            [new("title", "title", Bind(titleKind)), new("assignee", "assignee", Bind(QueryFieldKinds.Text)),
+             new("state", "state", Bind(QueryFieldKinds.Text))])))), revision, $"seed-work-item-{version}");
+    await shared.PublishAsync(workItem, version, revision + 1, $"publish-work-item-{version}");
+}
+
+static async Task<string?> Catch(Func<ValueTask<ViewQueryResult>> run)
+{
+    try
+    {
+        await run();
+        return null;
+    }
+    catch (ViewQueryException refused)
+    {
+        return refused.Code;
+    }
 }
 
 ViewRow QueryRow(string id, string title, string assignee, string state) => new(
@@ -365,17 +399,37 @@ sealed class ThrowingStore : IEntityReadStore
     }
 }
 
-sealed class QueryRecordTypes : IViewRecordTypeRegistry
+/// <summary>The host's admitted field kinds, as its FieldKindRegistry admits them.</summary>
+static class QueryFieldKinds
+{
+    public static readonly AdmittedFieldKind Text = new("records.text", "1.0.0", null);
+    public static readonly AdmittedFieldKind Integer = new("records.integer", "1.0.0", null, FieldScalarValueShape.Integer);
+}
+
+// The host describes the record type from its current published head: each field's pinned kind revision, resolved in the
+// admitted kinds and mapped through the one Views mapping, so authoring, the commit and the read agree (T-1177). A field
+// with no bound or admitted kind is left out, so a shape role on it refuses rather than being given a kind.
+sealed class QueryRecordTypes(IVersionedDefinitionStore store, string tenant, IReadOnlyList<AdmittedFieldKind> kinds)
+    : IViewRecordTypeRegistry
 {
     public ValueTask<ViewRecordTypeDescriptor?> ResolveAsync(string recordType, CancellationToken cancellationToken = default) =>
-        ValueTask.FromResult<ViewRecordTypeDescriptor?>(new(
-            recordType,
-            new Dictionary<string, ViewRecordFieldKind>
-            {
-                ["title"] = ViewRecordFieldKind.Text,
-                ["assignee"] = ViewRecordFieldKind.Text,
-                ["state"] = ViewRecordFieldKind.Text,
-            }));
+        ResolveAsync(tenant, recordType, cancellationToken);
+
+    public async ValueTask<ViewRecordTypeDescriptor?> ResolveAsync(string tenant, string recordType,
+        CancellationToken cancellationToken = default)
+    {
+        var head = await store.GetPublishedHeadAsync(RecordTypeDefinitionStore.KeyOf(tenant, recordType), cancellationToken);
+        if (head is null) return null;
+        var fields = new Dictionary<string, ViewRecordFieldKind>(StringComparer.Ordinal);
+        foreach (var field in RecordTypeDefinitionJson.Deserialize(System.Text.Encoding.UTF8.GetBytes(head.Document.BodyJson)).Fields)
+        {
+            var admitted = field.Binding?.Kind is { } pinned
+                ? kinds.FirstOrDefault(kind => kind.KindId == pinned.KindId && kind.Version == pinned.Version)
+                : null;
+            if (admitted is not null && ViewBindingCompatibility.KindOf(admitted) is { } kind) fields[field.FieldKey] = kind;
+        }
+        return new(recordType, fields);
+    }
 }
 
 sealed class QueryMeasures : IViewMeasureCatalog

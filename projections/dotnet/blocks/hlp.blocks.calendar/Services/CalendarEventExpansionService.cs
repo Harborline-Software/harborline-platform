@@ -52,14 +52,14 @@ public sealed class CalendarEventExpansionService : ICalendarEventExpansionServi
         if (calendarEvent.Status == CalendarEventStatus.Cancelled)
             return Array.Empty<OccurrenceInstant>();
 
-        var tz = TimezoneResolver.Resolve(calendarEvent.Timezone);
+        var zone = TimezoneResolver.IanaId(TimezoneResolver.Resolve(calendarEvent.Timezone));
 
         // The date-granular Expand filters by LOCAL date; the requested window is UTC. Widen the
         // local-date window by ±1 day so a local occurrence whose instant lands just inside the UTC
         // window (but whose local date sits a day off due to the tz offset) is not dropped at the
         // edges. We re-filter precisely against the UTC window after resolving instants.
-        var localWindowStart = DateOnly.FromDateTime(windowStartUtc.UtcDateTime).AddDays(-1);
-        var localWindowEnd = DateOnly.FromDateTime(windowEndUtc.UtcDateTime).AddDays(1);
+        var localWindowStart = DateOnly.FromDateTime(WallClockResolver.ToLocalDateTime(windowStartUtc, zone)).AddDays(-1);
+        var localWindowEnd = DateOnly.FromDateTime(WallClockResolver.ToLocalDateTime(windowEndUtc, zone)).AddDays(1);
 
         var dateOccurrences = Expand(calendarEvent, localWindowStart, localWindowEnd);
 
@@ -71,8 +71,8 @@ public sealed class CalendarEventExpansionService : ICalendarEventExpansionServi
             // Expand; here we only attach the time-of-day and resolve to UTC.)
             var (startTime, endTime) = ResolveOccurrenceTimes(calendarEvent, occ);
 
-            var startUtc = TimezoneResolver.ToUtcInstant(occ.Start, startTime, tz);
-            var endUtc = TimezoneResolver.ToUtcInstant(occ.End, endTime, tz);
+            var startUtc = WallClockResolver.ToUtcInstant(occ.Start, startTime, zone);
+            var endUtc = WallClockResolver.ToUtcInstant(occ.End, endTime, zone);
 
             // Precise UTC-window filter (inclusive bounds). Keep an instant that overlaps the window.
             if (endUtc < windowStartUtc || startUtc > windowEndUtc)
@@ -159,7 +159,7 @@ public sealed class CalendarEventExpansionService : ICalendarEventExpansionServi
                 lookaheadDays:  0,
                 leadDays:       0,
                 today:          earliest,
-                timezone:       ev.Timezone)
+                timezone:       TimezoneResolver.IanaId(TimezoneResolver.Resolve(ev.Timezone)))
             : _rrule.ExpandZonedOccurrences(
                 rrule:          ev.Rrule!,
                 start:          ev.Start,

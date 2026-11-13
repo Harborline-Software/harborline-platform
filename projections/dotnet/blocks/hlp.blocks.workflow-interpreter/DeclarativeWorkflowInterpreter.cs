@@ -64,16 +64,19 @@ public sealed class DeclarativeWorkflowInterpreter : IDeclarativeWorkflowInterpr
     private readonly IWorkflowEffectCatalog _catalog;
     private readonly IWorkflowConfirmationContext _confirmation;
     private readonly IWorkflowGateAccess? _gate;
+    private readonly TimeProvider _clock;
 
     /// <summary>
     /// Constructs the interpreter over the re-validating execution store (the ONLY definition-load seam it may
-    /// take — SC2 F-2), the broker-PEP, the effect catalog (metadata), and the server-side confirmation context.
+    /// take — SC2 F-2), the broker-PEP, the effect catalog (metadata), the server-side confirmation context,
+    /// and the host's kernel clock.
     /// </summary>
     public DeclarativeWorkflowInterpreter(
         IWorkflowDefinitionExecutionStore executionStore,
         IWorkflowEffectBroker broker,
         IWorkflowEffectCatalog catalog,
         IWorkflowConfirmationContext confirmation,
+        TimeProvider clock,
         IWorkflowGateAccess? gate = null)
     {
         _executionStore = executionStore ?? throw new ArgumentNullException(nameof(executionStore));
@@ -81,13 +84,14 @@ public sealed class DeclarativeWorkflowInterpreter : IDeclarativeWorkflowInterpr
         _catalog = catalog ?? throw new ArgumentNullException(nameof(catalog));
         _confirmation = confirmation ?? throw new ArgumentNullException(nameof(confirmation));
         _gate = gate;
+        _clock = clock ?? throw new ArgumentNullException(nameof(clock));
     }
 
     /// <inheritdoc />
     public ValueTask<WorkflowStepOutcome> DecideAsync(
         WorkflowInstanceRecord instance,
         WorkflowTrigger trigger,
-        CancellationToken ct = default) => DecideCoreAsync(instance, trigger, authority: null, ct);
+        CancellationToken ct = default) => DecideCoreAsync(instance, trigger, authority: null, decidedAt: default, ct);
 
     /// <inheritdoc />
     public ValueTask<WorkflowStepOutcome> DecideAsync(
@@ -97,13 +101,14 @@ public sealed class DeclarativeWorkflowInterpreter : IDeclarativeWorkflowInterpr
         CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(authority);
-        return DecideCoreAsync(instance, trigger, authority, ct);
+        return DecideCoreAsync(instance, trigger, authority, _clock.GetUtcNow(), ct);
     }
 
     private async ValueTask<WorkflowStepOutcome> DecideCoreAsync(
         WorkflowInstanceRecord instance,
         WorkflowTrigger trigger,
         WorkflowDispatchAuthority? authority,
+        DateTimeOffset decidedAt,
         CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(instance);
@@ -124,7 +129,7 @@ public sealed class DeclarativeWorkflowInterpreter : IDeclarativeWorkflowInterpr
         var triggerKinds = definition.Triggers.ToDictionary(t => t.Id, t => t.Kind, StringComparer.Ordinal);
 
         return trigger.Kind == WorkflowTriggerKind.HumanAction
-            ? await DecideHumanActionAsync(instance, definition, triggerKinds, trigger, authority, ct).ConfigureAwait(false)
+            ? await DecideHumanActionAsync(instance, definition, triggerKinds, trigger, authority, decidedAt, ct).ConfigureAwait(false)
             : DecideAutonomous(instance, definition, triggerKinds, trigger);
     }
 
@@ -229,6 +234,7 @@ public sealed class DeclarativeWorkflowInterpreter : IDeclarativeWorkflowInterpr
         IReadOnlyDictionary<string, WorkflowTriggerKind> triggerKinds,
         WorkflowTrigger trigger,
         WorkflowDispatchAuthority? authority,
+        DateTimeOffset decidedAt,
         CancellationToken ct)
     {
         var state = trigger.Step;
@@ -255,7 +261,7 @@ public sealed class DeclarativeWorkflowInterpreter : IDeclarativeWorkflowInterpr
         // guard-bound step runs and before any effect. The decision:<verb> sentinel only SELECTED the transition (the
         // v1 selector, not a guard expression), so nothing has acted yet.
         await GateAsync(WorkflowGateElement.Transition, transition.Id, transition.RequiredRoles, transition.RequiredStandings,
-            instance, authority, ct).ConfigureAwait(false);
+            instance, definition.Subject, authority, decidedAt, ct).ConfigureAwait(false);
 
         // send-back → a bounded loop-back (the dispatcher bumps the iteration + enforces the cap).
         if (string.Equals(verb, SendBackVerb, StringComparison.Ordinal))
@@ -270,7 +276,7 @@ public sealed class DeclarativeWorkflowInterpreter : IDeclarativeWorkflowInterpr
         if (effecting is not null)
         {
             await GateAsync(WorkflowGateElement.Action, effecting.Id, effecting.RequiredRoles, effecting.RequiredStandings,
-                instance, authority, ct).ConfigureAwait(false);
+                instance, definition.Subject, authority, decidedAt, ct).ConfigureAwait(false);
             var confirmer = await _confirmation.ResolveConfirmerAsync(ct).ConfigureAwait(false);
             return ApplyEffect(
                 instance, effecting, nextStep: transition.To,
@@ -389,7 +395,7 @@ public sealed class DeclarativeWorkflowInterpreter : IDeclarativeWorkflowInterpr
 
     // T-1176/platform-role-gate: a role gate on a human-performed element is decided by the host through the gate port,
     // for the verified dispatch principal, before the step and its effects run. The interim refusal below stays the
-    // backstop wherever the port cannot decide: a declared standing (T-1176/platform-standing-gate), an autonomous
+    // backstop wherever the port cannot decide: no single bound subject record for a standing, an autonomous
     // element (refused at admission since T-1176 Q1; this catches one a non-admitting store hands over), no port
     // composed, or no verified authority passed.
     private async ValueTask GateAsync(
@@ -398,12 +404,16 @@ public sealed class DeclarativeWorkflowInterpreter : IDeclarativeWorkflowInterpr
         IReadOnlyList<RoleReference> roles,
         IReadOnlyList<RecordStandingReference> standings,
         WorkflowInstanceRecord instance,
+        WorkflowSubjectDef? subject,
         WorkflowDispatchAuthority? authority,
+        DateTimeOffset decidedAt,
         CancellationToken ct)
     {
         if (roles.Count == 0 && standings.Count == 0) return;
         var kind = element == WorkflowGateElement.Transition ? "transition" : "action";
-        if (standings.Count > 0 || _gate is null || authority is null)
+        if (_gate is null || authority is null
+            || (standings.Count > 0 && (subject?.Kind != WorkflowSubjectKind.Record
+                || instance.SubjectRecord is null || instance.SubjectRecord.RecordType != subject.RecordType)))
         {
             RefuseUnenforcedGate(kind, id, roles, standings, instance);
             return;
@@ -411,14 +421,14 @@ public sealed class DeclarativeWorkflowInterpreter : IDeclarativeWorkflowInterpr
 
         var intent = new WorkflowGateIntent(
             instance.TenantId, authority.Principal, instance.Id, instance.DefinitionKey, instance.DefinitionVersion,
-            element, id, roles);
+            element, id, roles, decidedAt, standings, instance.SubjectRecord);
         var answer = await _gate.DecideAsync(intent, ct).ConfigureAwait(false);
         if (answer is null || !intent.Binds(answer.Intent))
             throw new WorkflowGateRefusedException(WorkflowGateCodes.AnswerUnbound,
                 $"Interpreter: the gate answer for {kind} '{id}' (instance '{instance.Id}') does not bind the asked intent.");
         if (!answer.Satisfied)
             throw new WorkflowGateRefusedException(WorkflowGateCodes.Denied,
-                $"Interpreter: principal '{authority.Principal}' does not hold a role {kind} '{id}' requires (instance '{instance.Id}').");
+                $"Interpreter: principal '{authority.Principal}' does not satisfy the gate {kind} '{id}' requires (instance '{instance.Id}').");
     }
 
     // DES-0019 workflows-eng-13 and section 6 (L422): the authorization gate resolves before any guard or effect

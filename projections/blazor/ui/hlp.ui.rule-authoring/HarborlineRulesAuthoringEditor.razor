@@ -6,7 +6,7 @@
 
 @{ RenderFragment body = @<text>
     <header class="hl-rules-authoring__header">
-        <label>Rule name<input aria-label="Rule name" value="@Current.Name" @onchange="ChangeName" /></label>
+        <label>Rule name<input @ref="_nameInput" aria-label="Rule name" value="@Current.Name" @onchange="ChangeName" /></label>
         <label>Target<input aria-label="Target" value="@Current.Draft.ScopeTarget" @onchange="ChangeTarget" /></label>
         <label>Action<select aria-label="Rule action" value="@Current.Draft.OutputType" @onchange="ChangeAction">@foreach (var action in Enum.GetValues<RuleActionKind>()) { <option>@action</option> }</select></label>
         <label>Scope<select aria-label="Rule scope" value="@Current.Draft.Scope" @onchange="ChangeScope">@foreach (var scope in Enum.GetValues<RuleScope>()) { <option>@scope</option> }</select></label>
@@ -38,6 +38,12 @@
         <fieldset><legend>Field properties</legend>@foreach (var field in FieldBindings) { <div>@foreach (var checkbox in FieldCheckboxes) { <label><input aria-label="@($"{field.Label} is {checkbox.Label}")" type="checkbox" checked="@Checked(field, checkbox)" disabled="@(!CatalogueChanged.HasDelegate)" @onchange="eventArgs => ChangeFieldCheckbox(field, checkbox, eventArgs)" />@field.Label is @checkbox.Label</label> }</div> }</fieldset>
         <section aria-label="Rule catalogue"><h2>Rule catalogue</h2><ul aria-label="Rule catalogue">@foreach (var rule in Catalogue.Rules) { <li data-rule-id="@rule.Identity">@rule.Name<HarborlineButton ButtonType="ButtonType.Button" Variant="ButtonVariant.Secondary" Size="ButtonSize.Small" OnClick="() => Edit(rule)">Edit @rule.Name</HarborlineButton></li> }</ul></section>
     }
+    @if (Lineage is not null && Catalogue is not null)
+    {
+        <section aria-label="Calculation lineage"><h2>Calculation lineage</h2><p>Lineage covers field calculations.</p>@if (Catalogue.Rules.Where(rule => !Lineage.CalculationsReadBy.ContainsKey(rule.Identity)).ToArray() is { Length: > 0 } refused) { <p>Not counted because the rule is refused: @string.Join(", ", refused.Select(rule => rule.Name == "" ? rule.Identity : rule.Name))</p> }
+        @foreach (var entry in Lineage.ConsumersOf) { var calculation = Catalogue.Rules.FirstOrDefault(rule => rule.Identity == entry.Key); <div><h3>@(calculation?.Name ?? entry.Key)</h3>@if (calculation is not null) { <HarborlineButton ButtonType="ButtonType.Button" Variant="ButtonVariant.Secondary" Size="ButtonSize.Small" OnClick="() => Edit(calculation)">Edit calculation @calculation.Name</HarborlineButton> }<p>@entry.Value.Count consumers@(Lineage.DeadWeight.Contains(entry.Key) ? " — unreferenced calculation" : "")</p><ul>@foreach (var id in entry.Value) { var rule = Catalogue.Rules.FirstOrDefault(item => item.Identity == id); <li>@if (rule is not null) { <HarborlineButton ButtonType="ButtonType.Button" Variant="ButtonVariant.Secondary" Size="ButtonSize.Small" OnClick="() => Edit(rule)">Edit @rule.Name</HarborlineButton> } else { @id }</li> }</ul></div> }
+        <h3>Calculations read by @(Current.Name == "" ? Current.Identity : Current.Name)</h3><ul>@foreach (var id in Lineage.CalculationsReadBy.GetValueOrDefault(Current.Identity) ?? []) { var rule = Catalogue.Rules.FirstOrDefault(item => item.Identity == id); <li>@if (rule is not null) { <HarborlineButton ButtonType="ButtonType.Button" Variant="ButtonVariant.Secondary" Size="ButtonSize.Small" OnClick="() => Edit(rule)">Edit @rule.Name</HarborlineButton> } else { @id }</li> }</ul></section>
+    }
 </text>; }
 <form class="hl-rules-authoring" data-read-only="@(ReadOnly ? "" : null)" @onsubmit:preventDefault="true">
     @if (ReadOnly) { <fieldset class="hl-rules-authoring__read-only" disabled>@body</fieldset> } else { @body }
@@ -58,6 +64,8 @@
     [Parameter] public RulesEditorAuthority? Authority { get; set; }
     /// <summary>Fields whose ordinary Rules can be authored through property checkboxes.</summary>
     [Parameter] public IReadOnlyList<RulesFieldBinding> FieldBindings { get; set; } = [];
+    /// <summary>The host-supplied producer lineage result.</summary>
+    [Parameter] public RulesLineageView? Lineage { get; set; }
     /// <summary>The shared catalogue read by the rule editor and written by field-property controls.</summary>
     [Parameter] public RulesRuleCatalogue? Catalogue { get; set; }
     /// <summary>Receives the replacement shared catalogue after a field-property control changes it.</summary>
@@ -134,6 +142,9 @@
     private Task Keep() { _incoming = null; return Task.CompletedTask; }
     private Task Discard() => _incoming is null ? Task.CompletedTask : Load(_incoming);
     // A clean replacement: the loaded draft is the new baseline, so the host's echo is not a revision change and nothing earlier survives.
-    private Task Load(RulesDraft value) { Current = value; _incoming = null; _dirty = false; _generation++; _outcome = null; _refusals = []; _outstanding.Clear(); _intentIds.Clear(); _revision = RevisionKey(value); return ValueChanged.InvokeAsync(value); }
+    // Loading replaces the controls the author used to get here (T-730 Terra finding 5), so focus moves to the loaded rule's name.
+    private ElementReference _nameInput; private bool _focusName;
+    protected override async Task OnAfterRenderAsync(bool firstRender) { if (_focusName) { _focusName = false; await _nameInput.FocusAsync(); } }
+    private Task Load(RulesDraft value) { _focusName = true; Current = value; _incoming = null; _dirty = false; _generation++; _outcome = null; _refusals = []; _outstanding.Clear(); _intentIds.Clear(); _revision = RevisionKey(value); return ValueChanged.InvokeAsync(value); }
     private sealed record FieldCheckbox(string Id, string Label, RuleActionKind Action, string Value);
 }
