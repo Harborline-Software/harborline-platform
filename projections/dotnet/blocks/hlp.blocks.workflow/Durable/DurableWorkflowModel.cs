@@ -47,6 +47,9 @@ public sealed class WorkflowInstanceRecord
     /// <summary>Whether this instance has been explicitly migrated.</summary>
     public bool HasMigrated { get; set; }
 
+    /// <summary>Step identifiers left behind by migration maps.</summary>
+    public HashSet<string> MovedAwaySteps { get; set; } = new(StringComparer.Ordinal);
+
     /// <summary>Monotonic migration generation used to fence in-flight dispatch.</summary>
     public long MigrationGeneration { get; set; }
 

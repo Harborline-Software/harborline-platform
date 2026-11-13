@@ -98,7 +98,7 @@ public sealed class WorkflowTriggerDispatcher : IWorkflowTriggerDispatcher
             return WorkflowDispatchResult.Terminal;
         }
 
-        if (instance.HasMigrated && trigger.Step != instance.CurrentStep)
+        if (trigger.Step != instance.CurrentStep && instance.MovedAwaySteps.Contains(trigger.Step))
         {
             return WorkflowDispatchResult.Discarded;
         }

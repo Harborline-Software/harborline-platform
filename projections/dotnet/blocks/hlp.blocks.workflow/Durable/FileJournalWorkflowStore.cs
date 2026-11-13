@@ -496,6 +496,10 @@ public sealed class FileJournalWorkflowStore : IWorkflowMigrationStore, IDisposa
         if (!_instances.TryGetValue(dto.InstanceId, out var instance))
             throw new InvalidDataException("Migration record names no existing instance.");
         _events.Add(FromDto(dto.Event));
+        using var data = JsonDocument.Parse(dto.Event.DataJson);
+        foreach (var mapping in data.RootElement.GetProperty("map").EnumerateObject())
+            if (mapping.Name != mapping.Value.GetString())
+                instance.MovedAwaySteps.Add(mapping.Name);
         instance.DefinitionVersion = dto.TargetVersion;
         instance.CurrentStep = dto.TargetStep;
         instance.HasMigrated = true;
@@ -522,6 +526,7 @@ public sealed class FileJournalWorkflowStore : IWorkflowMigrationStore, IDisposa
         DefinitionVersion = source.DefinitionVersion,
         CurrentStep = source.CurrentStep,
         HasMigrated = source.HasMigrated,
+        MovedAwaySteps = new HashSet<string>(source.MovedAwaySteps, StringComparer.Ordinal),
         MigrationGeneration = source.MigrationGeneration,
         StoreGeneration = source.StoreGeneration,
         Iteration = source.Iteration,

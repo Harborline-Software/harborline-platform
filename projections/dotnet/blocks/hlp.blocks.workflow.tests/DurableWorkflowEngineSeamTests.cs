@@ -632,6 +632,32 @@ public sealed class DurableWorkflowEngineSeamTests
     // ── Recurring-generation rows (Handler B) ──
 
     [Fact]
+    public async Task Migrated_recurring_run_accepts_two_occurrences_once_each()
+    {
+        using var fixture = new JournalFixture();
+        using var store = fixture.Open();
+        await CreateAsync(store, "recurring-migrated", key: "recurring-generation", step: "generate@2026-07-15");
+        await new WorkflowMigration(store, new RecurringMigrationDefinitions()).MigrateAsync("recurring-migrated", "2.0.0",
+            new Dictionary<string, string> { ["generate@2026-07-15"] = "generate@2026-07-15" },
+            new WorkflowMigrationAuthority("operator", Tenant, "workflow:migrate", "workflow-instance", "recurring-migrated", true));
+        var dispatcher = new WorkflowTriggerDispatcher(store, new[] { new RecurringGenerationHandler(new StaticRecurringContext()) }, definitionStore: AdmittedDefinitionStore);
+        var first = WorkflowTrigger.For(WorkflowTriggerKind.Schedule, "recurring-migrated", "generate@2026-07-15");
+        var second = WorkflowTrigger.For(WorkflowTriggerKind.Schedule, "recurring-migrated", "generate@2026-08-15");
+        Assert.Equal(WorkflowDispatchResult.Advanced, await dispatcher.DispatchAsync(first, Authorized("recurring-migrated")));
+        Assert.Equal(WorkflowDispatchResult.Advanced, await dispatcher.DispatchAsync(second, Authorized("recurring-migrated")));
+        Assert.Equal(WorkflowDispatchResult.ReplayedNoOp, await dispatcher.DispatchAsync(second, Authorized("recurring-migrated")));
+        Assert.Equal(2, (await store.CommittedEffectPayloadsAsync("recurring-migrated")).Count);
+    }
+
+    private sealed class RecurringMigrationDefinitions : IWorkflowDefinitionExecutionStore
+    {
+        public ValueTask<WorkflowDefinitionRecord?> GetAdmittedCurrentPublishedAsync(string tenant, string key, CancellationToken ct = default) => throw new NotSupportedException();
+        public ValueTask<WorkflowDefinitionRecord> GetAdmittedAsync(string tenant, string key, string version, CancellationToken ct = default)
+            => ValueTask.FromResult(new WorkflowDefinitionRecord(tenant, key, version, WorkflowDefinitionStatus.Published,
+                JsonElement.Parse("{\"initialState\":\"generate@2026-07-15\",\"states\":[{\"id\":\"generate@2026-07-15\"}]}")));
+    }
+
+    [Fact]
     public async Task HandlerB_DistinctOccurrences_EachPostOnce()
     {
         using var fixture = new JournalFixture();
