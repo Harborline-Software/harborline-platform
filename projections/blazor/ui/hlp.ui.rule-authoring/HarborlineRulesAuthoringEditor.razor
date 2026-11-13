@@ -19,7 +19,7 @@
     <fieldset><legend>Rule shape</legend><label><input aria-label="Formula" type="radio" name="rule-shape" checked="@(Formula is not null)" @onchange="ChooseFormula" />Formula</label><label><input aria-label="Decision table" type="radio" name="rule-shape" checked="@(Table is not null)" @onchange="ChooseTable" />Decision table</label></fieldset>
     @if (Formula is { } formula)
     {
-        <fieldset><legend>Declared inputs</legend>@for (var index = 0; index < formula.Inputs.Count; index++) { var current = index; var input = formula.Inputs[current]; <div><label>Input @(current + 1) reference<select aria-label="@($"Input {current + 1} reference")" value="@input.Ref" @onchange="eventArgs => ChangeInputRef(current, eventArgs)">@foreach (var item in RuleContract?.Palette ?? []) { <option value="@item.Id">@item.Label</option> }</select></label><label>Input @(current + 1) type<select aria-label="@($"Input {current + 1} type")" value="@input.Type" @onchange="eventArgs => ChangeInputType(current, eventArgs)"><option>Number</option><option>Text</option><option>Boolean</option></select></label></div> }<HarborlineButton ButtonType="ButtonType.Button" Variant="ButtonVariant.Secondary" Size="ButtonSize.Small" OnClick="AddInput">Add declared input</HarborlineButton></fieldset>
+        <fieldset><legend>Declared inputs</legend>@for (var index = 0; index < formula.Inputs.Count; index++) { var current = index; var input = formula.Inputs[current]; <div><label>Input @(current + 1) reference<select aria-label="@($"Input {current + 1} reference")" value="@input.Ref" @onchange="eventArgs => ChangeInputRef(current, eventArgs)">@if (input.Ref != "" && !(RuleContract?.Palette.Any(item => item.Id == input.Ref) ?? false)) { <option value="@input.Ref">@input.Ref</option> }@foreach (var item in RuleContract?.Palette ?? []) { <option value="@item.Id">@item.Label</option> }</select></label><label>Input @(current + 1) type<select aria-label="@($"Input {current + 1} type")" value="@input.Type" @onchange="eventArgs => ChangeInputType(current, eventArgs)"><option>Number</option><option>Text</option><option>Boolean</option></select></label></div> }<HarborlineButton ButtonType="ButtonType.Button" Variant="ButtonVariant.Secondary" Size="ButtonSize.Small" OnClick="AddInput">Add declared input</HarborlineButton></fieldset>
         <HarborlineGuidedExpressionEditor Site="rule" Value="@(formula.Expression ?? EmptyLiteral())" ValueChanged="ChangeExpression" Contract="@RuleContract" />
     }
     else if (Table is { } table)
@@ -38,6 +38,7 @@
         <fieldset><legend>Field properties</legend>@foreach (var field in FieldBindings) { <div>@foreach (var checkbox in FieldCheckboxes) { <label><input aria-label="@($"{field.Label} is {checkbox.Label}")" type="checkbox" checked="@Checked(field, checkbox)" disabled="@(!CatalogueChanged.HasDelegate)" @onchange="eventArgs => ChangeFieldCheckbox(field, checkbox, eventArgs)" />@field.Label is @checkbox.Label</label> }</div> }</fieldset>
         <section aria-label="Rule catalogue"><h2>Rule catalogue</h2><ul aria-label="Rule catalogue">@foreach (var rule in Catalogue.Rules) { <li data-rule-id="@rule.Identity">@rule.Name<HarborlineButton ButtonType="ButtonType.Button" Variant="ButtonVariant.Secondary" Size="ButtonSize.Small" OnClick="() => Edit(rule)">Edit @rule.Name</HarborlineButton></li> }</ul></section>
     }
+    <div role="status" aria-label="Promotion status">@_promotionNotice</div>
     @if (Catalogue is not null) { <section aria-label="Field check promotion">@foreach (var rule in Catalogue.Rules.Where(rule => rule.Draft is FormulaDraft { Scope: RuleScope.Field } formula && formula.Inputs.Any(input => input.Ref == "self"))) { <HarborlineButton ButtonType="ButtonType.Button" Variant="ButtonVariant.Secondary" Size="ButtonSize.Small" Enabled="@CatalogueChanged.HasDelegate" OnClick="() => Promote(rule)">Promote @rule.Name</HarborlineButton> }</section> }
     @if (Lineage is not null && Catalogue is not null)
     {
@@ -135,15 +136,25 @@
         if (eventArgs.Value is true) rules.Add(new RulesDraft(identity, "", $"{field.Label} {checkbox.Action}", "Draft", "", new FormulaDraft { Scope = RuleScope.Field, ScopeTarget = field.Key, OutputType = checkbox.Action, Inputs = [], Expression = new FormulaExpr.Literal(checkbox.Value, ColumnValueType.Boolean) }));
         return CatalogueChanged.InvokeAsync(new RulesRuleCatalogue(rules));
     }
+    private static bool HasMissingCall(FormulaExpr? expression) => expression switch
+    {
+        FormulaExpr.Call call => call.Op is "missing" or "missing_some" || call.Args.Any(HasMissingCall),
+        FormulaExpr.Binary binary => HasMissingCall(binary.Left) || HasMissingCall(binary.Right),
+        FormulaExpr.If conditional => HasMissingCall(conditional.When.Left) || HasMissingCall(conditional.When.Right) || HasMissingCall(conditional.Then) || HasMissingCall(conditional.Else),
+        _ => false,
+    };
+    private string _promotionNotice = "";
     private async Task Promote(RulesDraft rule)
     {
         var loaded = rule.Identity == Current.Identity;
         if (loaded && _dirty) { _refusals = [new("Save or discard unsaved edits before promoting this rule.", "/draft")]; return; }
+        if (rule.Draft is FormulaDraft formula && HasMissingCall(formula.Expression)) { _refusals = [new("Cannot safely promote a check using missing or missing_some.", "/draft")]; return; }
         var envelope = new RuleDefinitionEnvelope(rule.Identity, "", "", "", new System.Text.Json.Nodes.JsonObject(), [], null);
         var promoted = FieldRuleBindings.Promote(new RuleDefinitionDocument(envelope, rule.Name, RuleDefinitionTier.JsonLogic, rule.Draft));
         var next = rule with { Draft = promoted.Draft };
         await CatalogueChanged.InvokeAsync(new RulesRuleCatalogue(Catalogue!.Rules.Select(item => item == rule ? next : item).ToArray()));
         if (loaded) await Change(next);
+        _promotionNotice = $"Promoted {rule.Name}."; _focusName = true;
     }
     private Task Save() => Request("save-draft"); private Task Preview() => Request("preview"); private Task Publish() => Request("publish"); private Task Archive() => Request("archive");
     // Without an authority the host gates elsewhere; with one, an ungranted operation's control renders disabled. The producer still enforces the gate (T-591).

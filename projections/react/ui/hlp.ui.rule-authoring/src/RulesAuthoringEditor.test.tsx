@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react'
+import userEvent from '../../hlp.ui.button/node_modules/@testing-library/user-event/dist/esm/index.js'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
@@ -13,6 +14,33 @@ const contracts = [{ site: 'rule', returnContract: 'typed value', executionTimeC
 const props = (overrides: Partial<React.ComponentProps<typeof RulesAuthoringEditor>> = {}) => ({ value: emptyRulesDraft(), expressionContracts: contracts, previewKind: 'real' as const, onChange: vi.fn(), onOperation: vi.fn(), ...overrides })
 
 describe('Rules authoring React projection', () => {
+  it('rules-auth-18 refuses unsafe missing calls', () => {
+    const rule = { ...emptyRulesDraft(), identity: 'check', name: 'Check', draft: { kind: 'Formula' as const, scope: 'Field' as const, scopeTarget: 'amount', outputType: 'Validate' as const, inputs: [{ id: 'self', ref: 'self', type: 'Number' as const }], expression: { kind: 'Call' as const, op: '!' as const, args: [{ kind: 'Call' as const, op: 'missing' as const, args: [{ kind: 'Literal' as const, value: 'self', valueType: 'Text' as const }] }] } } }
+    const changed = vi.fn()
+    render(<RulesAuthoringEditor {...props({ value: rule, catalogue: { rules: [rule] }, onCatalogueChange: changed })} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Promote Check' }))
+    expect(changed).not.toHaveBeenCalled()
+    expect(screen.getByLabelText('Refusals')).toHaveTextContent('Cannot safely promote a check using missing or missing_some.')
+  })
+
+  it('rules-auth-18 retains the promoted reference as an option', () => {
+    const rule = { ...emptyRulesDraft(), identity: 'check', name: 'Check', draft: { kind: 'Formula' as const, scope: 'Field' as const, scopeTarget: 'amount', outputType: 'Validate' as const, inputs: [{ id: 'field.amount', ref: 'field.amount', type: 'Number' as const }], expression: { kind: 'Ref' as const, name: 'field.amount' } } }
+    render(<RulesAuthoringEditor {...props({ value: rule })} />)
+    expect(screen.getByLabelText('Input 1 reference')).toHaveValue('field.amount')
+    expect(screen.getByLabelText('Rule reference')).toHaveValue('field.amount')
+    expect(screen.getAllByRole('option', { name: 'field.amount' })).toHaveLength(2)
+  })
+
+  it('rules-auth-18 returns focus and announces promotion', async () => {
+    const f = JSON.parse(readFileSync(resolve(process.cwd(), '../../../../conformance/hlp.ui.rule-authoring/promotion.json'), 'utf8'))
+    const rule = { ...emptyRulesDraft(), identity: 'amount-check', name: 'Amount check', draft: f.input.draft }
+    render(<RulesAuthoringEditor {...props({ value: rule, catalogue: { rules: [rule] }, onCatalogueChange: vi.fn() })} />)
+    const button = screen.getByRole('button', { name: 'Promote Amount check' })
+    button.focus(); await userEvent.keyboard('{Enter}')
+    expect(screen.getByLabelText('Rule name')).toHaveFocus()
+    expect(screen.getByRole('status', { name: 'Promotion status' })).toHaveTextContent('Promoted Amount check.')
+  })
+
   it('rules-auth-18 saves the promoted loaded rule', () => {
     const f = JSON.parse(readFileSync(resolve(process.cwd(), '../../../../conformance/hlp.ui.rule-authoring/promotion.json'), 'utf8'))
     const rule = { ...emptyRulesDraft(), identity: 'amount-check', expectedRevision: '7', name: 'Amount check', materialization: { bindings: [], canonicalContent: 'content', contentDigest: 'digest-1' }, draft: f.input.draft }

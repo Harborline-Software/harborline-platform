@@ -20,16 +20,55 @@ public sealed class RulesAuthoringTests : BunitContext
         var input = RuleDefinitionCodec.Parse(fixture.RootElement.GetProperty("input").GetRawText(), RuleIntentPhase.Author).Document!;
         var expected = JsonNode.Parse(fixture.RootElement.GetProperty("expected").GetRawText());
         Assert.True(JsonNode.DeepEquals(expected, JsonNode.Parse(RuleDefinitionCodec.SerializeCanonical(FieldRuleBindings.Promote(input)))));
-        var rule = new RulesDraft(input.Envelope.Id, "", input.Name, "Draft", "", input.Draft);
+        var rule = new RulesDraft(input.Envelope.Id, "7", input.Name, "Draft", "", input.Draft) { Materialization = new RulesMaterialization([], "content", "digest-1") };
         RulesRuleCatalogue? changed = null;
         var cut = Render<HarborlineRulesAuthoringEditor>(p => p.Add(x => x.Value, rule).Add(x => x.Catalogue, new RulesRuleCatalogue([rule])).Add(x => x.CatalogueChanged, value => changed = value));
         cut.FindButton("Promote Amount check").Click();
         var actual = Assert.Single(changed!.Rules);
+        Assert.True(JsonNode.DeepEquals(expected, JsonNode.Parse(RuleDefinitionCodec.SerializeCanonical(input with { Draft = actual.Draft }))));
+        Assert.Equal("Amount check", actual.Name);
+        Assert.Equal("Draft", actual.VersionSelection);
+        Assert.Equal("", actual.PinnedVersionId);
+        Assert.Equal("7", actual.ExpectedRevision);
+        Assert.Equal("digest-1", actual.Materialization!.ContentDigest);
         Assert.Equal("amount-check", actual.Identity);
         Assert.Equal("amount", actual.Draft.ScopeTarget);
         var formula = Assert.IsType<FormulaDraft>(actual.Draft);
         Assert.Equal("field.amount", Assert.Single(formula.Inputs).Ref);
         Assert.Equal("field.amount", Assert.IsType<FormulaExpr.Ref>(Assert.IsType<FormulaExpr.Call>(formula.Expression).Args[0]).Name);
+    }
+
+    [Fact(DisplayName = "rules-auth-18: refuses unsafe missing calls")]
+    public void RefusesMissingPromotion()
+    {
+        var rule = new RulesDraft("check", "", "Check", "Draft", "", new FormulaDraft { Scope = RuleScope.Field, ScopeTarget = "amount", OutputType = RuleActionKind.Validate, Inputs = [new("self", "self", ColumnValueType.Number)], Expression = new FormulaExpr.Call("!", [new FormulaExpr.Call("missing", [new FormulaExpr.Literal("self", ColumnValueType.Text)])]) });
+        RulesRuleCatalogue? changed = null;
+        var cut = Render<HarborlineRulesAuthoringEditor>(p => p.Add(x => x.Value, rule).Add(x => x.Catalogue, new RulesRuleCatalogue([rule])).Add(x => x.CatalogueChanged, value => changed = value));
+        cut.FindButton("Promote Check").Click();
+        Assert.Null(changed);
+        Assert.Contains("Cannot safely promote a check using missing or missing_some.", cut.Find("[aria-label='Refusals']").TextContent, StringComparison.Ordinal);
+    }
+
+    [Fact(DisplayName = "rules-auth-18: retains the promoted reference as an option")]
+    public void RetainsPromotedOption()
+    {
+        var rule = new RulesDraft("check", "", "Check", "Draft", "", new FormulaDraft { Scope = RuleScope.Field, ScopeTarget = "amount", OutputType = RuleActionKind.Validate, Inputs = [new("field.amount", "field.amount", ColumnValueType.Number)], Expression = new FormulaExpr.Ref("field.amount") });
+        var cut = Render<HarborlineRulesAuthoringEditor>(p => p.Add(x => x.Value, rule));
+        Assert.Equal("field.amount", cut.Find("[aria-label='Input 1 reference'] option").GetAttribute("value"));
+        Assert.Equal("field.amount", cut.Find("[aria-label='Rule reference'] option").GetAttribute("value"));
+    }
+
+    [Fact(DisplayName = "rules-auth-18: returns focus and announces promotion")]
+    public void FocusesAfterPromotion()
+    {
+        using var fixture = JsonDocument.Parse(File.ReadAllText(FindFixture("promotion.json", "hlp.ui.rule-authoring")));
+        var doc = RuleDefinitionCodec.Parse(fixture.RootElement.GetProperty("input").GetRawText(), RuleIntentPhase.Author).Document!;
+        var rule = new RulesDraft("amount-check", "", "Amount check", "Draft", "", doc.Draft);
+        var cut = Render<HarborlineRulesAuthoringEditor>(p => p.Add(x => x.Value, rule).Add(x => x.Catalogue, new RulesRuleCatalogue([rule])).Add(x => x.CatalogueChanged, _ => { }));
+        var name = cut.Find("input[aria-label='Rule name']").GetAttribute("blazor:elementreference");
+        cut.FindButton("Promote Amount check").Click();
+        Assert.Equal(name, ((ElementReference)JSInterop.VerifyFocusAsyncInvoke(1)[0].Arguments[0]!).Id);
+        Assert.Equal("Promoted Amount check.", cut.Find("[aria-label='Promotion status']").TextContent);
     }
 
     [Fact(DisplayName = "rules-auth-18: saves the promoted loaded rule")]
