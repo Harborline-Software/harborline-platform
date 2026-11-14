@@ -39,6 +39,26 @@ public sealed class WorkflowEffectBrokerTests
         }
     }
 
+    private sealed class ThrowingDecisionSink : IWorkflowApprovalDecisionSink
+    {
+        public void Record(WorkflowApprovalDecision decision) => throw new InvalidOperationException("metric unavailable");
+    }
+
+    [Fact]
+    public void Metric_failure_cannot_block_or_unblock_a_security_decision()
+    {
+        var factory = new FakeEffectFactory(PostJe, WorkflowEffectReach.Internal);
+        var authority = CapabilityAuthorityRegistry.FromMap(new Dictionary<string, ActionClassification> { [PostJe] = ActionClassification.CP });
+        var broker = new WorkflowEffectBroker(new WorkflowEffectFactoryRegistry([factory]), authority, new ThrowingDecisionSink(), TimeProvider.System);
+        Assert.Throws<WorkflowSodViolationException>(() => broker.ConfirmAndBuildEffect(
+            Req(PostJe), new WorkflowProposerIdentity(Agent, false), new WorkflowConfirmerIdentity(Agent, false)));
+        Assert.Equal(0, factory.BuildCount);
+        Assert.NotNull(broker.ConfirmAndBuildEffect(
+            Req(PostJe), new WorkflowProposerIdentity(Agent, false), new WorkflowConfirmerIdentity(Alice, true)));
+        broker.RecordOverride(Req(PostJe), new WorkflowConfirmerIdentity(Alice, true));
+        Assert.Equal(1, factory.BuildCount);
+    }
+
     private static (WorkflowEffectBroker broker, CountingWorkflowApprovalDecisionSink sink,
         FakeEffectFactory je, FakeEffectFactory email, FakeEffectFactory webhook) NewBroker()
     {

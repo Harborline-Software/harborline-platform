@@ -1,0 +1,101 @@
+{
+  "oracle": "Canonical JSON transcribed from RFC 8785 section 3.2.3 and pilot-ck-15; digest literals computed independently with printf '%s' '<canonical>' | shasum -a 256, without a trailing newline.",
+  "envelopes": [
+    {
+      "name": "nested objects, ordered arrays, ordinal numeric keys and UTF-8",
+      "value": {
+        "schema": "pilot.proposal/3",
+        "surface": "forms.builder",
+        "command": "draft.edit",
+        "args": { "label": "café <&>", "items": [{ "z": null, "a": true }, [3, 2, 1]], "2": "two", "10": "ten" }
+      },
+      "canonical": "{\"args\":{\"10\":\"ten\",\"2\":\"two\",\"items\":[{\"a\":true,\"z\":null},[3,2,1]],\"label\":\"café <&>\"},\"command\":\"draft.edit\",\"schema\":\"pilot.proposal/3\",\"surface\":\"forms.builder\"}",
+      "digest": "sha256:52b37c016567d4f433f827bcd50db4248ac4855e7fec27b4ef4b10adbaaa967b"
+    },
+    {
+      "name": "empty arguments",
+      "value": { "command": "draft.edit", "args": {}, "surface": "forms.builder", "schema": "pilot.proposal/3" },
+      "canonical": "{\"args\":{},\"command\":\"draft.edit\",\"schema\":\"pilot.proposal/3\",\"surface\":\"forms.builder\"}",
+      "digest": "sha256:e9090668397c0ecf3bb91cd8bff3a980aa81b3d5755148a6c4566172d95b0aea"
+    },
+    {
+      "name": "M11 I-JSON maximum integer",
+      "value": { "schema": "pilot.proposal/3", "surface": "forms.builder", "command": "draft.edit", "args": { "integer": 9007199254740991 } },
+      "canonical": "{\"args\":{\"integer\":9007199254740991},\"command\":\"draft.edit\",\"schema\":\"pilot.proposal/3\",\"surface\":\"forms.builder\"}",
+      "digest": "sha256:01f127498747a2b64c334388dd2ac4de6ea870022bfac97e294f5da25d82414e"
+    },
+    {
+      "name": "M11 I-JSON minimum integer",
+      "value": { "schema": "pilot.proposal/3", "surface": "forms.builder", "command": "draft.edit", "args": { "integer": -9007199254740991 } },
+      "canonical": "{\"args\":{\"integer\":-9007199254740991},\"command\":\"draft.edit\",\"schema\":\"pilot.proposal/3\",\"surface\":\"forms.builder\"}",
+      "digest": "sha256:b6b51566f760b3dd642bac00190505be6ddba3bd727fbf67e01f2cf02815ccb5"
+    },
+    {
+      "name": "M11 alias as received",
+      "value": { "schema": "pilot.proposal/3", "surface": "forms.builder", "command": "draft.alias", "args": {} },
+      "canonical": "{\"args\":{},\"command\":\"draft.alias\",\"schema\":\"pilot.proposal/3\",\"surface\":\"forms.builder\"}",
+      "digest": "sha256:84feac55b8b756a630a83b3b395b5ce58957a5c3b5a6e7b15e94a5a0d1befb7b"
+    }
+  ],
+  "blank_strings": [
+    { "name": "U+0085 is not ECMA-262 blank", "value": "\u0085", "admitted": true },
+    { "name": "U+FEFF is ECMA-262 blank", "value": "\uFEFF", "admitted": false }
+  ],
+  "runtime_canonical": [
+    { "shape": "delegation", "json": "{\"subject\":\"alice\",\"actor\":null,\"disposition\":{\"kind\":\"approve\"}}", "canonical": "{\"actor\":null,\"disposition\":{\"kind\":\"approve\"},\"subject\":\"alice\"}" },
+    { "shape": "delegation", "json": "{\"subject\":\"alice\",\"actor\":{\"binding_key\":\"b\",\"binding_version\":\"1\",\"provider_id\":\"p\",\"model_version\":\"m\",\"proposal_digest\":\"sha256:84feac55b8b756a630a83b3b395b5ce58957a5c3b5a6e7b15e94a5a0d1befb7b\"},\"disposition\":{\"kind\":\"dismiss\"}}", "canonical": "{\"actor\":{\"binding_key\":\"b\",\"binding_version\":\"1\",\"model_version\":\"m\",\"proposal_digest\":\"sha256:84feac55b8b756a630a83b3b395b5ce58957a5c3b5a6e7b15e94a5a0d1befb7b\",\"provider_id\":\"p\"},\"disposition\":{\"kind\":\"dismiss\"},\"subject\":\"alice\"}" },
+    { "shape": "disposition", "json": "{\"kind\":\"standing\",\"approval_id\":\"a\",\"approver\":\"alice\",\"scope\":{\"surface\":\"s\",\"commands\":[\"c\"]},\"expires_at\":\"2026-12-31T23:59:59Z\"}", "canonical": "{\"approval_id\":\"a\",\"approver\":\"alice\",\"expires_at\":\"2026-12-31T23:59:59Z\",\"kind\":\"standing\",\"scope\":{\"commands\":[\"c\"],\"surface\":\"s\"}}" },
+    { "shape": "standing", "json": "{\"id\":\"a\",\"approver\":\"alice\",\"binding_key\":\"b\",\"scope\":{\"surface\":\"s\",\"commands\":[\"c\"]},\"schedule\":null,\"expires_at\":\"2026-12-31T23:59:59Z\",\"revoked_at\":null}", "canonical": "{\"approver\":\"alice\",\"binding_key\":\"b\",\"expires_at\":\"2026-12-31T23:59:59Z\",\"id\":\"a\",\"revoked_at\":null,\"schedule\":null,\"scope\":{\"commands\":[\"c\"],\"surface\":\"s\"}}" }
+  ],
+  "raw_json_cases": [
+    { "shape": "delegation", "json": "{\"subject\":\"mallory\",\"subject\":\"alice\",\"actor\":null,\"disposition\":{\"kind\":\"approve\"}}", "valid": false },
+    { "shape": "delegation", "json": "{\"subject\":\"mallory\",\"subj\\u0065ct\":\"alice\",\"actor\":null,\"disposition\":{\"kind\":\"approve\"}}", "valid": false },
+    { "shape": "disposition", "json": "{\"kind\":\"reject\",\"kind\":\"approve\"}", "valid": false },
+    { "shape": "standing", "json": "{\"id\":\"a\",\"approver\":\"mallory\",\"approver\":\"alice\",\"binding_key\":\"b\",\"scope\":{\"surface\":\"s\",\"commands\":[\"c\"]},\"schedule\":null,\"expires_at\":\"2026-12-31T23:59:59Z\",\"revoked_at\":null}", "valid": false },
+    { "shape": "proposal", "json": "{\"schema\":\"pilot.proposal/3\",\"surface\":\"s\",\"command\":\"c\",\"args\":{\"nested\":[{\"x\":1,\"x\":2}]}}", "valid": false },
+    { "shape": "proposal", "json": "{\"schema\":\"pilot.proposal/3\",\"surface\":\"s\",\"command\":\"c\",\"args\":{\"x\":1,\"\\u0078\":2}}", "valid": false },
+    { "shape": "proposal", "json": "{\"schema\":\"pilot.proposal/3\",\"surface\":\"s\",\"command\":\"c\",\"args\":[{\"x\":1},{\"x\":2,\"text\":\"\\\"x\\\":{[]}\"}]}", "valid": true }
+  ],
+  "integer_refusals": [
+    { "args": "9007199254740992", "refusal": "args-integer-out-of-range" },
+    { "args": "9007199254740993", "refusal": "args-integer-out-of-range" },
+    { "args": "-9007199254740992", "refusal": "args-integer-out-of-range" },
+    { "args": "{\"nested\":[9007199254740992]}", "refusal": "args-integer-out-of-range" },
+    { "args": "9007199254740992.0", "refusal": "args-integer-out-of-range" },
+    { "args": "9.007199254740992e15", "refusal": "args-integer-out-of-range" },
+    { "args": "1e20", "refusal": "args-integer-out-of-range" },
+    { "args": "1e21", "refusal": "args-integer-out-of-range" }
+  ],
+  "delegations": [
+    {
+      "subject": "alice",
+      "actor": { "binding_key": "assistance.forms", "binding_version": "1.0.0", "provider_id": "provider-a", "model_version": "model-2026-11", "proposal_digest": "sha256:52b37c016567d4f433f827bcd50db4248ac4855e7fec27b4ef4b10adbaaa967b" },
+      "disposition": { "kind": "approve" }
+    },
+    {
+      "subject": "alice",
+      "actor": { "binding_key": "assistance.forms", "binding_version": "1.0.0", "provider_id": "provider-a", "model_version": "model-2026-11", "proposal_digest": "sha256:52b37c016567d4f433f827bcd50db4248ac4855e7fec27b4ef4b10adbaaa967b" },
+      "disposition": { "kind": "dismiss" }
+    },
+    {
+      "subject": "alice",
+      "actor": { "binding_key": "assistance.forms", "binding_version": "1.0.0", "provider_id": "provider-a", "model_version": "model-2026-11", "proposal_digest": "sha256:52b37c016567d4f433f827bcd50db4248ac4855e7fec27b4ef4b10adbaaa967b" },
+      "disposition": { "kind": "clarify" }
+    },
+    {
+      "subject": "alice",
+      "actor": { "binding_key": "assistance.forms", "binding_version": "1.0.0", "provider_id": "provider-a", "model_version": "model-2026-11", "proposal_digest": "sha256:52b37c016567d4f433f827bcd50db4248ac4855e7fec27b4ef4b10adbaaa967b" },
+      "disposition": { "kind": "reject" }
+    },
+    {
+      "subject": "alice",
+      "actor": { "binding_key": "assistance.forms", "binding_version": "1.0.0", "provider_id": "provider-a", "model_version": "model-2026-11", "proposal_digest": "sha256:52b37c016567d4f433f827bcd50db4248ac4855e7fec27b4ef4b10adbaaa967b" },
+      "disposition": { "kind": "standing", "approval_id": "approval-a", "approver": "alice", "scope": { "surface": "forms.builder", "commands": ["draft.edit"] }, "expires_at": "2026-12-31T23:59:59Z" }
+    },
+    { "subject": "alice", "actor": null, "disposition": { "kind": "approve" } }
+  ],
+  "standing_approvals": [
+    { "id": "approval-a", "approver": "alice", "binding_key": "assistance.forms", "scope": { "surface": "forms.builder", "commands": ["draft.edit"] }, "schedule": "FREQ=WEEKLY;BYDAY=MO,WE", "expires_at": "2026-12-31T23:59:59Z", "revoked_at": null },
+    { "id": "approval-b", "approver": "bob", "binding_key": "assistance.forms", "scope": { "surface": "forms.builder", "commands": ["draft.edit"] }, "schedule": null, "expires_at": "2026-12-31T23:59:59Z", "revoked_at": "2026-11-01T12:00:00Z" }
+  ]
+}

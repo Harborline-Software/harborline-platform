@@ -17,7 +17,7 @@ public sealed class SharedFieldCrossCallerTests
         var runtime = new ValueDomainRuntime(fields, fields, TimeProvider.System);
         var viewHost = new ViewHost(fields);
         var views = new ViewQueryRuntime(viewHost, viewHost, viewHost, viewHost, viewHost,
-            new InMemoryViewRowSource([new("1", new Dictionary<string, object?> { ["name"] = "allowed" })]), viewHost, TimeProvider.System, runtime);
+            new InMemoryViewRowSource([new("1", new Dictionary<string, object?> { ["name"] = "allowed" })]), viewHost, TimeProvider.System, runtime, ViewsExpressionEnvironment.Admitted.For(Harborline.Foundation.RuleEngine.Environments.EvaluationPhase.Run));
         var rendered = await form.Engine.RenderAsync(form.Definition.Id, null);
         var result = await views.ExecuteAsync(new("tenant-engine", "view", "alice", new(0, 10), new("table", new Dictionary<ViewShapeRole, string>())));
         Assert.Equal(new[] { "allowed" }, rendered.Sections[0].Fields[0].PermittedValues.Value);
