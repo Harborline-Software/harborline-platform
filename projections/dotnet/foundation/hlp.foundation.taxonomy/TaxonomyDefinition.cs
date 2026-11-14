@@ -213,6 +213,7 @@ public static class TaxonomyDefinitionAdmission
         if (definition.SchemaVersion != 1) refusals.Add(new("definition.schema_version_unsupported", "/schema_version"));
         if (definition.Envelope is null) { if (phase != TaxonomyAdmissionPhase.Author) refusals.Add(new("definition.envelope_required", "/envelope")); }
         else if (definition.Envelope.Identity != definition.DefinitionId.ToString() || definition.Envelope.Version != definition.Version || definition.Envelope.Tenant != definition.Tenant) refusals.Add(new("definition.envelope_mismatch", "/envelope"));
+        if (definition.Envelope is not null && string.IsNullOrWhiteSpace(definition.Envelope.RetentionClass)) refusals.Add(new("definition.envelope_invalid", "/envelope/retention_class"));
         // T-572 (rulings 85-88, Q6): the contract travels with the envelope, inside the host's window.
         var contract = definition.Envelope is null ? null : window.Check(definition.Envelope.Contract, null);
         if (contract is not null) refusals.Add(new(contract.Code, contract.Pointer));

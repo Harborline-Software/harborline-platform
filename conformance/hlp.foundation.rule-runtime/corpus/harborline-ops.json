@@ -6,8 +6,8 @@
     "system": "asset-class",
     "definitionId": "vendor.domain.asset",
     "version": "1.0.0",
-    "definitionSha256": "b21015c1098b83f1deb9addf42e10b84438c54a61d4f558d36bd3ceaa712fc87",
-    "definitionJsonText": "{\"definition_id\":\"vendor.domain.asset\",\"envelope\":{\"cascade_layer\":\"tenant\",\"contract\":{\"major\":1,\"minor\":0},\"identity\":\"vendor.domain.asset\",\"provenance\":{},\"requires\":[],\"tenant\":\"tenant-a\",\"version\":\"1.0.0\"},\"governance\":\"civilian\",\"nodes\":[{\"code\":\"root\",\"description\":\"root\",\"display\":\"root\",\"display_history_entries\":[],\"status\":\"active\"},{\"code\":\"child\",\"description\":\"child\",\"display\":\"child\",\"display_history_entries\":[],\"parent_code\":\"root\",\"status\":\"active\"},{\"code\":\"leaf\",\"description\":\"leaf\",\"display\":\"leaf\",\"display_history_entries\":[],\"parent_code\":\"child\",\"status\":\"active\"}],\"owner\":\"author\",\"schema_version\":1,\"tenant\":\"tenant-a\",\"version\":\"1.0.0\"}\n",
+    "definitionSha256": "0f61c4681d455872e4c008eca8c63a5cb328fd09ac78946bdfe6406ece0ab75e",
+    "definitionJsonText": "{\"definition_id\":\"vendor.domain.asset\",\"envelope\":{\"cascade_layer\":\"tenant\",\"contract\":{\"major\":1,\"minor\":0},\"identity\":\"vendor.domain.asset\",\"legal_hold\":false,\"provenance\":{},\"requires\":[],\"retention_class\":\"business\",\"tenant\":\"tenant-a\",\"version\":\"1.0.0\"},\"governance\":\"civilian\",\"nodes\":[{\"code\":\"root\",\"description\":\"root\",\"display\":\"root\",\"display_history_entries\":[],\"status\":\"active\"},{\"code\":\"child\",\"description\":\"child\",\"display\":\"child\",\"display_history_entries\":[],\"parent_code\":\"root\",\"status\":\"active\"},{\"code\":\"leaf\",\"description\":\"leaf\",\"display\":\"leaf\",\"display_history_entries\":[],\"parent_code\":\"child\",\"status\":\"active\"}],\"owner\":\"author\",\"schema_version\":1,\"tenant\":\"tenant-a\",\"version\":\"1.0.0\"}\n",
     "queries": [
       [
         "asset-class",
@@ -45,16 +45,16 @@
         "root"
       ]
     ],
-    "expectedBindingsJsonText": "[\"harborline-taxonomy-coding-bindings/1\",\"tenant-a\",[[\"asset-class\",\"vendor.domain.asset\",\"1.0.0\",\"b21015c1098b83f1deb9addf42e10b84438c54a61d4f558d36bd3ceaa712fc87\"]]]\n",
-    "answersJsonText": "[\"harborline-taxonomy-coding-answers/1\",\"tenant-a\",[[\"asset-class\",\"vendor.domain.asset\",\"1.0.0\",\"b21015c1098b83f1deb9addf42e10b84438c54a61d4f558d36bd3ceaa712fc87\"]],[[\"asset-class\",\"child\",\"leaf\",true],[\"asset-class\",\"leaf\",\"leaf\",true],[\"asset-class\",\"leaf\",\"root\",false],[\"asset-class\",\"root\",\"child\",true],[\"asset-class\",\"root\",\"leaf\",true],[\"asset-class\",\"root\",\"missing\",false],[\"asset-class\",\"root\",\"root\",true]]]\n",
+    "expectedBindingsJsonText": "[\"harborline-taxonomy-coding-bindings/1\",\"tenant-a\",[[\"asset-class\",\"vendor.domain.asset\",\"1.0.0\",\"0f61c4681d455872e4c008eca8c63a5cb328fd09ac78946bdfe6406ece0ab75e\"]]]\n",
+    "answersJsonText": "[\"harborline-taxonomy-coding-answers/1\",\"tenant-a\",[[\"asset-class\",\"vendor.domain.asset\",\"1.0.0\",\"0f61c4681d455872e4c008eca8c63a5cb328fd09ac78946bdfe6406ece0ab75e\"]],[[\"asset-class\",\"child\",\"leaf\",true],[\"asset-class\",\"leaf\",\"leaf\",true],[\"asset-class\",\"leaf\",\"root\",false],[\"asset-class\",\"root\",\"child\",true],[\"asset-class\",\"root\",\"leaf\",true],[\"asset-class\",\"root\",\"missing\",false],[\"asset-class\",\"root\",\"root\",true]]]\n",
     "alternative": {
       "oracle": "Literal version2 has root and child as separate roots, leaf below child. root does not subsume leaf. No latest-version selection.",
       "tenant": "tenant-a",
       "system": "asset-class",
       "definitionId": "vendor.domain.asset",
       "version": "2.0.0",
-      "definitionSha256": "3dad23b793520641a115907c07587e405ad05952433cf362a93f49df5fb14676",
-      "definitionJsonText": "{\"definition_id\":\"vendor.domain.asset\",\"envelope\":{\"cascade_layer\":\"tenant\",\"contract\":{\"major\":1,\"minor\":0},\"identity\":\"vendor.domain.asset\",\"provenance\":{},\"requires\":[],\"tenant\":\"tenant-a\",\"version\":\"2.0.0\"},\"governance\":\"civilian\",\"nodes\":[{\"code\":\"root\",\"description\":\"root\",\"display\":\"root\",\"display_history_entries\":[],\"status\":\"active\"},{\"code\":\"child\",\"description\":\"child\",\"display\":\"child\",\"display_history_entries\":[],\"status\":\"active\"},{\"code\":\"leaf\",\"description\":\"leaf\",\"display\":\"leaf\",\"display_history_entries\":[],\"parent_code\":\"child\",\"status\":\"active\"}],\"owner\":\"author\",\"schema_version\":1,\"tenant\":\"tenant-a\",\"version\":\"2.0.0\"}\n",
+      "definitionSha256": "2dee8fdddc491044ee7c8a19870209a8b395bb0a04d529b749d3e3fe74ecb238",
+      "definitionJsonText": "{\"definition_id\":\"vendor.domain.asset\",\"envelope\":{\"cascade_layer\":\"tenant\",\"contract\":{\"major\":1,\"minor\":0},\"identity\":\"vendor.domain.asset\",\"legal_hold\":false,\"provenance\":{},\"requires\":[],\"retention_class\":\"business\",\"tenant\":\"tenant-a\",\"version\":\"2.0.0\"},\"governance\":\"civilian\",\"nodes\":[{\"code\":\"root\",\"description\":\"root\",\"display\":\"root\",\"display_history_entries\":[],\"status\":\"active\"},{\"code\":\"child\",\"description\":\"child\",\"display\":\"child\",\"display_history_entries\":[],\"status\":\"active\"},{\"code\":\"leaf\",\"description\":\"leaf\",\"display\":\"leaf\",\"display_history_entries\":[],\"parent_code\":\"child\",\"status\":\"active\"}],\"owner\":\"author\",\"schema_version\":1,\"tenant\":\"tenant-a\",\"version\":\"2.0.0\"}\n",
       "queries": [
         [
           "asset-class",
@@ -92,8 +92,8 @@
           "root"
         ]
       ],
-      "expectedBindingsJsonText": "[\"harborline-taxonomy-coding-bindings/1\",\"tenant-a\",[[\"asset-class\",\"vendor.domain.asset\",\"2.0.0\",\"3dad23b793520641a115907c07587e405ad05952433cf362a93f49df5fb14676\"]]]\n",
-      "answersJsonText": "[\"harborline-taxonomy-coding-answers/1\",\"tenant-a\",[[\"asset-class\",\"vendor.domain.asset\",\"2.0.0\",\"3dad23b793520641a115907c07587e405ad05952433cf362a93f49df5fb14676\"]],[[\"asset-class\",\"child\",\"leaf\",true],[\"asset-class\",\"leaf\",\"leaf\",true],[\"asset-class\",\"leaf\",\"root\",false],[\"asset-class\",\"root\",\"child\",false],[\"asset-class\",\"root\",\"leaf\",false],[\"asset-class\",\"root\",\"missing\",false],[\"asset-class\",\"root\",\"root\",true]]]\n"
+      "expectedBindingsJsonText": "[\"harborline-taxonomy-coding-bindings/1\",\"tenant-a\",[[\"asset-class\",\"vendor.domain.asset\",\"2.0.0\",\"2dee8fdddc491044ee7c8a19870209a8b395bb0a04d529b749d3e3fe74ecb238\"]]]\n",
+      "answersJsonText": "[\"harborline-taxonomy-coding-answers/1\",\"tenant-a\",[[\"asset-class\",\"vendor.domain.asset\",\"2.0.0\",\"2dee8fdddc491044ee7c8a19870209a8b395bb0a04d529b749d3e3fe74ecb238\"]],[[\"asset-class\",\"child\",\"leaf\",true],[\"asset-class\",\"leaf\",\"leaf\",true],[\"asset-class\",\"leaf\",\"root\",false],[\"asset-class\",\"root\",\"child\",false],[\"asset-class\",\"root\",\"leaf\",false],[\"asset-class\",\"root\",\"missing\",false],[\"asset-class\",\"root\",\"root\",true]]]\n"
     }
   },
   "cases": [

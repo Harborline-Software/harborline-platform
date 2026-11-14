@@ -32,6 +32,20 @@ public sealed class TaxonomyDefinitionTests
         Assert.True(envelope["legal_hold"]!.GetValue<bool>());
     }
 
+    [Theory(DisplayName = "taxonomy-ck-21: blank retention class refuses an invalid envelope")]
+    [InlineData("")]
+    [InlineData(" ")]
+    public void taxonomy_ck_21_blank_retention_refuses(string retention)
+    {
+        var definition = Definition() with { Envelope = Envelope() with { RetentionClass = retention } };
+        foreach (var phase in new[] { TaxonomyAdmissionPhase.Author, TaxonomyAdmissionPhase.Publish, TaxonomyAdmissionPhase.Install })
+        {
+            var refusal = Assert.Single(TaxonomyDefinitionAdmission.Validate(definition, phase, ContractWindow));
+            Assert.Equal("definition.envelope_invalid", refusal.Code);
+            Assert.Equal("/envelope/retention_class", refusal.Pointer);
+        }
+    }
+
     private static byte[] WithContract(byte[] canonical, bool present = true)
     {
         var node = System.Text.Json.Nodes.JsonNode.Parse(canonical)!;
