@@ -138,8 +138,8 @@ public sealed class RecordReferenceTests
     }
 
     [Fact]
-    [Trait("Holds", "records-auth-34")]
-    public async Task a_target_type_must_declare_the_required_trait()
+    [Trait("Holds", "records-ck-11")]
+    public async Task records_ck_11_a_target_type_must_declare_the_required_trait_to_publish()
     {
         var host = Host();
         await Create(host, "Site", [], traits: [new("locatable", "1.0.0", [])]);
@@ -171,8 +171,8 @@ public sealed class RecordReferenceTests
     }
 
     [Fact]
-    [Trait("Holds", "records-auth-34")]
-    public async Task a_self_reference_with_no_declared_traits_refuses_its_required_trait()
+    [Trait("Holds", "records-ck-11")]
+    public async Task records_ck_11_a_self_reference_with_no_declared_traits_refuses_its_required_trait_at_publication()
     {
         var host = Host();
         await Create(host, "Space", Reference("within", "eam.space", null, ReferenceCardinality.One,
@@ -181,7 +181,7 @@ public sealed class RecordReferenceTests
         var refused = await Assert.ThrowsAsync<DefinitionRefusalException>(() =>
             host.Records.PublishAsync(Tenant, "eam.space", "1.0.0", 1, "publish").AsTask());
 
-        // records-auth-34 applies to the authored self target too: absent traits cannot satisfy a requirement.
+        // records-ck-11 applies to the authored self target too: absent traits cannot satisfy a requirement.
         Assert.Equal(DefinitionAdmissionPhase.Publish, refused.Stage);
         Assert.Equal([("records.reference.trait_absent", "/fields/0/reference/required_trait_id")], Pairs(refused));
         Assert.Null(await host.Catalogue.GetPublishedHeadAsync(RecordTypeDefinitionStore.KeyOf(Tenant, "eam.space")));
