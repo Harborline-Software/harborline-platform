@@ -40,6 +40,9 @@ public sealed class WorkflowMigration
         map = new Dictionary<string, string>(map, StringComparer.Ordinal);
         if (!map.TryGetValue(instance.CurrentStep, out var targetStep) || string.IsNullOrWhiteSpace(targetStep))
             throw new InvalidOperationException($"No mapping for active step '{instance.CurrentStep}'.");
+        foreach (var sourceStep in map.Keys)
+            if (sourceStep != instance.CurrentStep)
+                throw new InvalidOperationException($"Mapping contains non-active step '{sourceStep}'.");
         if (dispatcher.HasTypedHandler(instance.DefinitionKey) && targetStep != instance.CurrentStep)
             throw new InvalidOperationException($"Typed handler cannot migrate active step '{instance.CurrentStep}' to '{targetStep}'.");
         var definition = await definitions.GetAdmittedAsync(instance.TenantId, instance.DefinitionKey, targetVersion, ct)

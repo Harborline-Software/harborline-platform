@@ -310,6 +310,26 @@ public sealed class WorkflowMigrationTests
     }
 
     [Fact]
+    public async Task Extra_invalid_map_entry_is_refused_without_moving_or_recording()
+    {
+        using var fixture = new JournalFixture();
+        using var store = fixture.Open();
+        await store.CreateInstanceAsync(new WorkflowInstanceRecord
+        {
+            Id = "run-1", TenantId = "tenant-1", DefinitionKey = "flow", DefinitionVersion = "1.0.0",
+            CurrentStep = "old", Status = WorkflowStatus.Parked,
+        });
+        var before = new FileInfo(fixture.JournalPath).Length;
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() => Migration(store, new Definitions()).MigrateAsync(
+            "run-1", "2.0.0", new Dictionary<string, string> { ["old"] = "new", ["other"] = "missing" },
+            new WorkflowMigrationAuthority("operator-1", "tenant-1", "workflow:migrate", "workflow-instance", "run-1", true)));
+        Assert.Contains("other", error.Message, StringComparison.Ordinal);
+        Assert.Equal(before, new FileInfo(fixture.JournalPath).Length);
+        Assert.Equal("1.0.0", (await store.LoadAsync("run-1"))!.DefinitionVersion);
+        Assert.Empty(await store.EventsAsync("run-1"));
+    }
+
+    [Fact]
     public async Task Authorized_operator_migrates_named_run_with_explicit_map_and_records_history()
     {
         using var fixture = new JournalFixture();

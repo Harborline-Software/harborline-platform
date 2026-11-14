@@ -658,6 +658,25 @@ public sealed class DurableWorkflowEngineSeamTests
     // ── Recurring-generation rows (Handler B) ──
 
     [Fact]
+    public async Task Extra_recurring_map_entry_is_refused_without_fencing_the_next_occurrence()
+    {
+        using var fixture = new JournalFixture();
+        using var store = fixture.Open();
+        await CreateAsync(store, "recurring-extra", key: "recurring-generation", step: "generate@2026-07-15");
+        var dispatcher = new WorkflowTriggerDispatcher(store, [new RecurringGenerationHandler(new StaticRecurringContext())], definitionStore: AdmittedDefinitionStore);
+        var before = new FileInfo(fixture.JournalPath).Length;
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() => new WorkflowMigration(store, new RecurringMigrationDefinitions(), dispatcher).MigrateAsync(
+            "recurring-extra", "2.0.0", new Dictionary<string, string> { ["generate@2026-07-15"] = "generate@2026-07-15", ["generate@2026-08-15"] = "x" },
+            new WorkflowMigrationAuthority("operator", Tenant, "workflow:migrate", "workflow-instance", "recurring-extra", true)));
+        Assert.Contains("generate@2026-08-15", error.Message, StringComparison.Ordinal);
+        Assert.Equal(before, new FileInfo(fixture.JournalPath).Length);
+        Assert.Empty((await store.LoadAsync("recurring-extra"))!.MovedAwaySteps);
+        Assert.Empty(await store.EventsAsync("recurring-extra"));
+        Assert.Equal(WorkflowDispatchResult.Advanced, await dispatcher.DispatchAsync(
+            WorkflowTrigger.For(WorkflowTriggerKind.Schedule, "recurring-extra", "generate@2026-08-15"), Authorized("recurring-extra")));
+    }
+
+    [Fact]
     public async Task Migrated_recurring_run_accepts_two_occurrences_once_each()
     {
         using var fixture = new JournalFixture();
