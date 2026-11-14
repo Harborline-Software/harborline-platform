@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.copilot.contracts",
-  "interfaceRevision": 1,
+  "interfaceRevision": 2,
   "status": "draft",
   "purpose": "Provider-neutral Pilot proposal safety and descriptor contracts: envelope validation, classification, manifest generation, context-key fencing, and the descriptor/executor import fence.",
   "dependencies": [],
@@ -33,6 +33,21 @@
         "Validate the complete envelope before classification.",
         "Never coerce, partially accept, or execute during parsing."
       ]
+    },
+    "delegationWire": {
+      "operations": ["deserializeProposalEnvelope", "serializeProposalCanonical", "proposalDigest", "parseDelegationRecord", "parseDelegationDisposition", "parseStandingApproval", "deserializeDelegationRecord", "deserializeDelegationDisposition", "deserializeStandingApproval", "serializeDelegationRecordCanonical", "serializeDelegationDispositionCanonical", "serializeStandingApprovalCanonical"],
+      "receivedSnapshot": "ParseOk.received is a deeply frozen copy of the strictly validated envelope as received, including command alias and unchanged args. proposalDigest accepts the envelope or ParseOk and hashes received, never the catalogue-resolved proposal used by the unchanged receipt mint path (M11, merged control 1373). Strict wire validation precedes argsSchema and classification.",
+      "rawJson": "Text deserializers reject duplicate member names at every depth, after decoding escapes, with duplicate-wire-member. parse functions validate already-parsed objects, not raw JSON. Runtime shape serializers use the same canonical key ordering as proposal serialization and the .NET codec.",
+      "digest": "sha256: plus lowercase hex SHA-256, using Web Crypto subtle.digest, of compact UTF-8 proposal JSON with RFC 8785 ordinal UTF-16 object-key ordering at every depth, unchanged array order and no trailing newline",
+      "integers": "Integers anywhere in args must be within -9007199254740991 through 9007199254740991; deserializeProposalEnvelope, serializeProposalCanonical and proposalDigest refuse outside that range with args-integer-out-of-range before hashing. Admitted integers digest exactly; larger values travel as schema-admitted strings, never coerced arguments (M11 2026-11-12, RFC 7493 section 2.2). Non-integer agreement remains deferred.",
+      "record": "{subject, actor, disposition}; actor is null for a hand-performed act or exactly {binding_key, binding_version, provider_id, model_version, proposal_digest}, never proposal content or context",
+      "actorIdentity": "proposal_digest refuses at parse unless it is sha256: plus exactly 64 lowercase hex digits. No shared grammar or length bound is added to the other four fields: T-613 host minting copies binding identity/version and registered-floor provider/model literals and checks actor-to-binding matching (M11 control 1378).",
+      "blankStrings": "Required nonblank strings use the platform's ECMA-262 WhiteSpace plus LineTerminator set: the 25 characters trim strips (T-1107, R-0125). U+0085 alone admits unchanged; U+FEFF alone refuses. The shared fixture pins both literal outcomes.",
+      "disposition": "{kind: approve|dismiss|clarify|reject} or {kind: standing, approval_id, approver, scope, expires_at}; independent of the existing classifier ProposalDisposition",
+      "standingApproval": "{id, approver, binding_key, scope: {surface, commands[]}, schedule, expires_at, revoked_at}; required approver, nonempty commands and UTC ISO 8601 expiry; revoked_at is a UTC instant or null; schedule is a nonempty RRULE string or null, stored without expansion",
+      "validation": "Parsers accept unknown, refuse extra or missing members and invalid values, and return detached wire values. UTC instants use Z or +00:00 with up to seven fractional digits. Recurrence expansion and act-time expiry/revocation coverage belong to T-613.",
+      "transport": "No dispatch-receipt wire codec or authority is added. None of these shapes travels in AssistanceDefinition pack content.",
+      "conformance": "conformance/hlp.copilot/delegation-cases.json, shared with hlp.foundation.assistance; canonical bytes and independently computed digest literals are test oracles"
     },
     "classifications": {
       "ap": "reversible, draft-local, visible and undoable; may auto-apply only after revalidation.",
