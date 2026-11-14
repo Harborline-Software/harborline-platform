@@ -319,3 +319,25 @@ it('reports-auth-8 refuses a datetime outside the Reports wire format', () => {
   fireEvent.click(screen.getByRole('button', { name: 'Add parameter' }))
   expect(change).not.toHaveBeenCalled()
 })
+
+it('reports-auth-12 accepts an echoed identity edit while parameter input is pending', () => {
+  const original = { tenant: 't', key: 'old', version: '1', measures: [] }
+  const change = vi.fn()
+  const props = { onCreate: () => {}, onChange: change }
+  const view = render(<ReportAuthoringEditor {...props} value={original} revision="a" />)
+  fireEvent.change(screen.getByLabelText('Parameter name'), { target: { value: 'pending' } })
+  fireEvent.change(screen.getByLabelText('Report key'), { target: { value: 'new' } })
+  view.rerender(<ReportAuthoringEditor {...props} value={{ ...original, key: 'new' }} revision="a" />)
+  expect(screen.queryByRole('button', { name: 'Keep editing' })).not.toBeInTheDocument()
+})
+
+it('reports-bound-9 closes the picker on a clean replacement while a lookup is in flight', async () => {
+  let finish!: (value: string[]) => void
+  const resolver = () => new Promise<string[]>(resolve => { finish = resolve })
+  const props = { onCreate: () => {}, onChange: () => {}, resolveMeasures: resolver }
+  const view = render(<ReportAuthoringEditor {...props} value={{ tenant: 't', key: 'old', version: '1', measures: [] }} />)
+  fireEvent.click(screen.getByRole('button', { name: 'Choose measure' }))
+  view.rerender(<ReportAuthoringEditor {...props} value={{ tenant: 't', key: 'new', version: '1', measures: [] }} />)
+  finish(['finance.old'])
+  expect(screen.queryByRole('listbox', { name: 'Measures' })).not.toBeInTheDocument()
+})

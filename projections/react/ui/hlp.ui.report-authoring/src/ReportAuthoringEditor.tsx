@@ -6,6 +6,7 @@ export type MeasureOption = string | { id: string; label: string }
 export interface ReportRefusal { code: string; pointer: string; measure?: string; catalogue?: string }
 export interface ReportAuthoringEditorProps { value: ReportDraft | null; resolveMeasures?: (query: string) => Promise<readonly MeasureOption[]>; onCreate: (draft: ReportDraft) => void; onChange: (value: ReportDraft) => void; refusals?: readonly ReportRefusal[]; readOnly?: boolean; revision?: string | null }
 export function ReportAuthoringEditor({ value, onCreate, onChange, resolveMeasures, refusals = [], readOnly = false, revision = null }: ReportAuthoringEditorProps) {
+  const emittedIdentity = useRef<{ tenant: string; key: string; version: string; revision: string | null } | null>(null)
   const previous = useRef(value)
   const previousRevision = useRef(revision)
   const ignoredRevision = useRef<string | null>(null)
@@ -24,12 +25,14 @@ export function ReportAuthoringEditor({ value, onCreate, onChange, resolveMeasur
   const [options, setOptions] = useState<readonly MeasureOption[]>([])
   useEffect(() => {
     const old = previous.current
-    if (!value) { if (old) { setParameterName(''); setParameterDefault(''); setEffectiveType(''); setParameterType('boolean'); setOpen(false); setQuery(''); setSelected(''); setOptions([]); setResolverError(false); setInvalidDefault(false); setIncoming(false); setKept(null); ignored.current = null; ignoredRevision.current = null; previous.current = null; previousRevision.current = null } return }
+    if (!value) { if (old) { setParameterName(''); setParameterDefault(''); setEffectiveType(''); setParameterType('boolean'); setOpen(false); setQuery(''); setSelected(''); setOptions([]); setResolverError(false); setInvalidDefault(false); setIncoming(false); setKept(null); ignored.current = null; ignoredRevision.current = null; emittedIdentity.current = null; previous.current = null; previousRevision.current = null } return }
     if (!old && value) { previous.current = value; previousRevision.current = revision; return }
+    const echo = emittedIdentity.current
+    if (echo && echo.tenant === value.tenant && echo.key === value.key && echo.version === value.version && echo.revision === revision) { emittedIdentity.current = null; previous.current = value; previousRevision.current = revision; return }
     if (ignored.current && value && ignored.current.key === value.key && ignored.current.version === value.version && ignored.current.tenant === value.tenant && ignoredRevision.current === revision) return
     if (old && value && (old.key !== value.key || old.version !== value.version || old.tenant !== value.tenant || previousRevision.current !== revision)) {
       if (parameterName || parameterDefault || effectiveType || selected) setIncoming(true)
-      else { previous.current = value; previousRevision.current = revision }
+      else { setOpen(false); setQuery(''); setSelected(''); setOptions([]); setResolverError(false); emittedIdentity.current = null; previous.current = value; previousRevision.current = revision }
     } else if (!incoming && !kept) { previous.current = value; previousRevision.current = revision }
   }, [value, revision, parameterName, parameterDefault, effectiveType, selected, incoming, kept])
   useEffect(() => {
@@ -43,7 +46,7 @@ export function ReportAuthoringEditor({ value, onCreate, onChange, resolveMeasur
   }, [open, query, resolveMeasures])
   if (!value) return <button type="button" disabled={readOnly} onClick={() => onCreate({ tenant: '', key: '', version: '', measures: [], parameters: [] })}>Create report</button>
   const active = kept ?? (incoming ? previous.current : value) ?? value
-  const change = (next: ReportDraft) => { if (kept) { setKept(next); previous.current = next } onChange(next) }
+  const change = (next: ReportDraft) => { if (next.tenant !== active.tenant || next.key !== active.key || next.version !== active.version) emittedIdentity.current = { tenant: next.tenant, key: next.key, version: next.version, revision }; if (kept) { setKept(next); previous.current = next } onChange(next) }
   const addParameter = () => {
     const text = parameterDefault.trim()
     const valid = parameterType === 'boolean' ? text === 'true' || text === 'false'

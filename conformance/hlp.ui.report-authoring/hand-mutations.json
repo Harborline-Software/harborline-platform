@@ -4,11 +4,11 @@
   "method": "One source edit per assertion; targeted test failed at the recorded assertion, source restored byte-identically, and the restored suite passed. Full mutation runs remain paused under T-1172.",
   "oracle": "DES-0020 sections 2, 4 and 6 and DES-0002 section 15; literal conformance fixtures and stated pending-edit, read-only and resolver properties.",
   "sourceSha256": {
-    "projections/blazor/ui/hlp.ui.report-authoring/HarborlineReportAuthoringEditor.razor": "d908d5f6044a99fb5968a0b2bccc5a83e4ee5c382d7efb53c178be8ee9493825",
+    "projections/blazor/ui/hlp.ui.report-authoring/HarborlineReportAuthoringEditor.razor": "7f050eceae2c20487f59ab25bc6a867848aee1de8db9f8ab6b73c11bc18caa83",
     "projections/blazor/ui/hlp.ui.report-authoring/HarborlineReportAuthoringScreen.razor": "152e5da0b867f2eb4bacbfcc77803acca178025e5a3c6091c09323a1629e2eb6",
     "projections/blazor/ui/hlp.ui.report-authoring/ReportDraft.cs": "5c8070a1e19ddbc1de6a02f9adf2ab2bb04dd13df28039a894520a00cb7222e8",
     "projections/blazor/ui/hlp.ui.report-authoring/ReportDraftCodec.cs": "2efc4254bc143faca02e41e1f97ba9f56196a63450d489d09fecd240faf38c2c",
-    "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringEditor.tsx": "5e37f29ef752fc7c3bb48f58f682b4492b30a94d72ae1cada84bd971bc0a91da",
+    "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringEditor.tsx": "cc5eb5a03ceaf964c9580cc9ab02dfc622932506f5b042e08aadf42f2b3e92cc",
     "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringScreen.tsx": "297f2cd40d8512c84622b8381c30bffef24729d2d6f7f131f42189f4bc0e8ffe"
   },
   "react": [
@@ -1082,6 +1082,32 @@
       "result": "targeted test failed; production restored byte-identically",
       "evidence": "pre-fix red and post-fix hand mutation",
       "productionEdit": "Removed wire-format regular expression check"
+    }
+  ],
+  "reviewMutationsEcho": [
+    {
+      "name": "react-echo",
+      "productionEdit": "disable matching emitted identity echo",
+      "test": "reports-auth-12 accepts an echoed identity edit while parameter input is pending",
+      "result": "targeted test failed; production restored byte-identically"
+    },
+    {
+      "name": "react-picker",
+      "productionEdit": "remove clean replacement picker reset",
+      "test": "reports-bound-9 closes the picker on a clean replacement while a lookup is in flight",
+      "result": "targeted test failed; production restored byte-identically"
+    },
+    {
+      "name": "blazor-echo",
+      "productionEdit": "disable matching emitted identity echo",
+      "test": "EchoedIdentityIsAccepted",
+      "result": "targeted test failed; production restored byte-identically"
+    },
+    {
+      "name": "blazor-picker",
+      "productionEdit": "remove clean replacement picker reset and generation increment",
+      "test": "CleanReplacementClosesPicker",
+      "result": "targeted test failed; production restored byte-identically"
     }
   ]
 }

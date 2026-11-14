@@ -35,7 +35,8 @@ else {
     [Parameter] public Func<string, Task<IReadOnlyList<MeasureOption>>>? ResolveMeasures { get; set; }
     [Parameter] public IReadOnlyList<ReportRefusal> Refusals { get; set; } = [];
     private static readonly string[] Types = ["boolean", "date_time", "integer", "float", "string"];
-    private ReportDraft? previous, kept, ignored;
+    private ReportDraft? previous, kept, ignored, emittedIdentity;
+    private string? emittedRevision;
     private string? previousRevision, ignoredRevision;
     private bool incoming;
     private ReportDraft? Draft => kept ?? (incoming ? previous : Value);
@@ -46,15 +47,16 @@ else {
     private static string Text(ChangeEventArgs e) => e.Value?.ToString() ?? "";
     protected override void OnParametersSet() {
         if (Value is null) { Discard(); invalidDefault = false; return; }
+        if (emittedIdentity is not null && Same(emittedIdentity, Value) && emittedRevision == Revision) { emittedIdentity = null; previous = Value; previousRevision = Revision; return; }
         if (ignored is not null && Same(ignored, Value) && ignoredRevision == Revision) return;
         if (previous is not null && (!Same(previous, Value) || previousRevision != Revision) && (parameterName.Length > 0 || parameterDefault.Length > 0 || effectiveType.Length > 0 || selected.Length > 0)) incoming = true;
-        else if (!incoming) { previous = Value; previousRevision = Revision; }
+        else if (!incoming) { if (previous is not null && (!Same(previous, Value) || previousRevision != Revision)) { open = false; query = selected = ""; options = []; resolverError = false; generation++; emittedIdentity = null; } previous = Value; previousRevision = Revision; }
     }
     private static bool Same(ReportDraft a, ReportDraft b) => a.Tenant == b.Tenant && a.Key == b.Key && a.Version == b.Version;
-    private void Discard() { parameterName = parameterDefault = effectiveType = ""; parameterType = "boolean"; open = false; query = selected = ""; options = []; resolverError = false; generation++; previous = Value; previousRevision = Revision; kept = ignored = null; ignoredRevision = null; incoming = false; }
+    private void Discard() { emittedIdentity = null; emittedRevision = null; parameterName = parameterDefault = effectiveType = ""; parameterType = "boolean"; open = false; query = selected = ""; options = []; resolverError = false; generation++; previous = Value; previousRevision = Revision; kept = ignored = null; ignoredRevision = null; incoming = false; }
     private void Keep() { kept = previous; ignored = Value; ignoredRevision = Revision; incoming = false; }
     private Task Create() => Created.InvokeAsync(ReportDraft.Empty);
-    private Task Change(ReportDraft value) { if (ReadOnly || incoming) return Task.CompletedTask; if (kept is not null) { kept = value; previous = value; } return ValueChanged.InvokeAsync(value); }
+    private Task Change(ReportDraft value) { if (ReadOnly || incoming) return Task.CompletedTask; if (Draft is { } current && !Same(current, value)) { emittedIdentity = value; emittedRevision = Revision; } if (kept is not null) { kept = value; previous = value; } return ValueChanged.InvokeAsync(value); }
     private Task RemoveParameter(int index) => Draft is not { } draft ? Task.CompletedTask : Change(draft with { Parameters = draft.Parameters.Where((_, i) => i != index).ToArray() });
     private Task RemoveMeasure(int index) => Draft is not { } draft ? Task.CompletedTask : Change(draft with { Measures = draft.Measures.Where((_, i) => i != index).ToArray() });
     private Task AddMeasure() => Draft is not { } draft ? Task.CompletedTask : Change(draft with { Measures = [.. draft.Measures, new(selected)] });
