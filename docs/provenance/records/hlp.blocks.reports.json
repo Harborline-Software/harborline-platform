@@ -30,7 +30,7 @@
     "projections/dotnet/blocks/hlp.blocks.reports.tests/ReportExecutionContextTests.cs": "3ea42ed3b8bcb6b23976f17189b11c7eec8cd71e88528cf4f05dc1f75f7d1d7f",
     "projections/dotnet/blocks/hlp.blocks.reports.tests/ReportKindTests.cs": "b9eb93db12f782067a9ec43de10e54c515ab9888ec088e87b1790693bec77aec",
     "projections/dotnet/blocks/hlp.blocks.reports.tests/ReportRunnerTests.cs": "1071b371fd1473e4e17a79010c082194182598da8a4ac1b59295514937f13605",
-    "projections/dotnet/blocks/hlp.blocks.reports.tests/Harborline.Blocks.Reports.Tests.csproj": "98e4b0985f789d5dbdf6d7ea0efb8e90af9665494911aaedf7da6cffdee0adc8",
+    "projections/dotnet/blocks/hlp.blocks.reports.tests/Harborline.Blocks.Reports.Tests.csproj": "244637592b58353eda3255a5e22577cb1af369bcc462ea7f9140840745ef12f5",
     "projections/dotnet/blocks/hlp.blocks.reports.tests/TrialBalanceCartridgeTests.cs": "d7a60fb9ee641e3252870562caa3a976da0e5763b37219bbab3153192df3eae7",
     "projections/dotnet/blocks/hlp.blocks.reports.tests/TrialBalanceDeterminismTests.cs": "02d35447ff062de4dca1b289692d7ec5759a2c202365fb54003792d8dbcded3c",
     "projections/dotnet/blocks/hlp.blocks.reports/Cartridges/ApAgingSummary/ApAgingSummaryCartridge.cs": "ff657b8c94309de40009f964b9e72d70d5ee974dccc44036352896c26ab3e8a7",

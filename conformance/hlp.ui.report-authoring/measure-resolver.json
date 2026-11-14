@@ -1,0 +1,33 @@
+{
+  "source": "DES-0020 section 6, reports-auth-13, reports-bound-9; DES-0002 section 15",
+  "domain": "record_query",
+  "opens": [
+    {
+      "query": "",
+      "results": [
+        "finance.balance"
+      ]
+    },
+    {
+      "query": "",
+      "results": [
+        "finance.balance",
+        "finance.rent"
+      ]
+    },
+    {
+      "query": "no-match",
+      "results": []
+    }
+  ],
+  "unknown": {
+    "code": "report.measure_unknown",
+    "pointer": "/measures/0/measure",
+    "measure": "finance.missing",
+    "catalogue": "Main catalogue"
+  },
+  "labelled": {
+    "id": "finance.rent",
+    "label": "Rent"
+  }
+}

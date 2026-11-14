@@ -1,0 +1,169 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.report-authoring",
+  "profileRevision": 1,
+  "riskTier": "B",
+  "fixture": "conformance/hlp.ui.report-authoring/quality-fixtures.yaml",
+  "dimensions": {
+    "accessibility": {
+      "disposition": "required",
+      "caseIds": [
+        "report-authoring.quality.labels"
+      ]
+    },
+    "internationalization": {
+      "disposition": "required",
+      "caseIds": [
+        "report-authoring.quality.reflow"
+      ],
+      "localeSensitiveFormatting": {
+        "disposition": "not-applicable",
+        "rationale": "The editor stores typed values and leaves locale-sensitive presentation to the host."
+      }
+    },
+    "theming": {
+      "disposition": "required",
+      "caseIds": [
+        "report-authoring.quality.visual-parity"
+      ]
+    },
+    "keyboard": {
+      "disposition": "required",
+      "caseIds": [
+        "report-authoring.quality.labels"
+      ]
+    },
+    "focus": {
+      "disposition": "required",
+      "caseIds": [
+        "report-authoring.quality.labels"
+      ]
+    },
+    "dismissal": {
+      "disposition": "not-applicable",
+      "rationale": "The editor owns no modal, popover, or other transient dismissal surface."
+    },
+    "rtl": {
+      "disposition": "not-applicable",
+      "rationale": "The editor uses logical flow and declares no directional geometry or navigation semantics."
+    },
+    "reduced-motion": {
+      "disposition": "not-applicable",
+      "rationale": "The editor creates no animation or motion-dependent state transition."
+    },
+    "workflow": {
+      "disposition": "required",
+      "caseIds": [
+        "report-authoring.quality.pending-edits"
+      ]
+    },
+    "state": {
+      "disposition": "required",
+      "caseIds": [
+        "report-authoring.quality.pending-edits"
+      ]
+    },
+    "performance": {
+      "disposition": "not-applicable",
+      "rationale": "The host bounds a single template draft and its catalogues."
+    },
+    "largeData": {
+      "disposition": "required",
+      "caseIds": [
+        "report-authoring.quality.live-query"
+      ]
+    }
+  },
+  "componentStages": [
+    {
+      "id": "contract",
+      "dimensions": [
+        "accessibility",
+        "internationalization",
+        "theming",
+        "keyboard",
+        "focus",
+        "dismissal",
+        "rtl",
+        "reduced-motion",
+        "workflow",
+        "state",
+        "performance",
+        "largeData"
+      ],
+      "gate": "profile and neutral fixture validation"
+    },
+    {
+      "id": "projection-native",
+      "dimensions": [
+        "accessibility",
+        "internationalization",
+        "theming",
+        "keyboard",
+        "focus",
+        "dismissal",
+        "rtl",
+        "reduced-motion",
+        "workflow",
+        "state",
+        "performance",
+        "largeData"
+      ],
+      "gate": "public React and Blazor native tests"
+    },
+    {
+      "id": "package-consumer",
+      "dimensions": [
+        "accessibility",
+        "internationalization",
+        "theming",
+        "keyboard",
+        "focus",
+        "dismissal",
+        "rtl",
+        "reduced-motion",
+        "workflow",
+        "state",
+        "performance",
+        "largeData"
+      ],
+      "gate": "packed package consumer tests"
+    },
+    {
+      "id": "gallery",
+      "dimensions": [
+        "accessibility",
+        "internationalization",
+        "theming",
+        "keyboard",
+        "focus",
+        "dismissal",
+        "rtl",
+        "reduced-motion",
+        "workflow",
+        "state",
+        "performance",
+        "largeData"
+      ],
+      "gate": "Axe, reflow, and visual parity"
+    },
+    {
+      "id": "clean-clone",
+      "dimensions": [
+        "accessibility",
+        "internationalization",
+        "theming",
+        "keyboard",
+        "focus",
+        "dismissal",
+        "rtl",
+        "reduced-motion",
+        "workflow",
+        "state",
+        "performance",
+        "largeData"
+      ],
+      "gate": "complete repository gate from the recorded implementation commit"
+    }
+  ]
+}

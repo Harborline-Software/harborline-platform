@@ -1,0 +1,176 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.report-authoring",
+  "sourceFixture": "conformance/hlp.ui.report-authoring/fixtures.yaml",
+  "qualityFixture": "conformance/hlp.ui.report-authoring/quality-fixtures.yaml",
+  "galleryInterface": {
+    "probeAttribute": "data-gallery-probe",
+    "scenarioAttribute": "data-gallery-scenario",
+    "projectionTitles": {
+      "react": "Platform/Report authoring",
+      "blazor": "Platform/Report authoring"
+    }
+  },
+  "scenarios": [
+    {
+      "id": "report-authoring.draft",
+      "name": "Report draft",
+      "surface": "draft",
+      "sourceCaseIds": [
+        "report-authoring.from-nothing"
+      ],
+      "sourceQualityCaseIds": [
+        "report-authoring.quality.labels",
+        "report-authoring.quality.reflow",
+        "report-authoring.quality.visual-parity"
+      ],
+      "content": {
+        "blurb": "A report draft with typed parameters and catalogue measure references.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "kind": "draft"
+        },
+        "state": {
+          "readOnly": false
+        },
+        "body": [
+          {
+            "control": "raw",
+            "react": "<ReportAuthoringEditor {...host} />",
+            "blazor": "<HarborlineReportAuthoringEditor Value=\"@Draft\" />",
+            "rationale": "The host supplies the report draft and measure resolver."
+          }
+        ],
+        "footer": []
+      },
+      "states": [
+        "filled"
+      ]
+    },
+    {
+      "id": "report-authoring.refusals",
+      "name": "Admission refusals",
+      "surface": "refusals",
+      "sourceCaseIds": [
+        "report-authoring.from-nothing"
+      ],
+      "sourceQualityCaseIds": [
+        "report-authoring.quality.labels",
+        "report-authoring.quality.reflow",
+        "report-authoring.quality.visual-parity"
+      ],
+      "content": {
+        "blurb": "A report draft with typed parameters and catalogue measure references.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "kind": "refusals"
+        },
+        "state": {
+          "readOnly": false
+        },
+        "body": [
+          {
+            "control": "raw",
+            "react": "<ReportAuthoringEditor {...host} />",
+            "blazor": "<HarborlineReportAuthoringEditor Value=\"@Draft\" />",
+            "rationale": "The host supplies the report draft and measure resolver."
+          }
+        ],
+        "footer": []
+      },
+      "states": [
+        "invalid"
+      ]
+    },
+    {
+      "id": "report-authoring.read-only",
+      "name": "Read only",
+      "surface": "read-only",
+      "sourceCaseIds": [
+        "report-authoring.from-nothing"
+      ],
+      "sourceQualityCaseIds": [
+        "report-authoring.quality.labels",
+        "report-authoring.quality.reflow",
+        "report-authoring.quality.visual-parity"
+      ],
+      "content": {
+        "blurb": "A report draft with typed parameters and catalogue measure references.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "kind": "read-only"
+        },
+        "state": {
+          "readOnly": true
+        },
+        "body": [
+          {
+            "control": "raw",
+            "react": "<ReportAuthoringEditor {...host} />",
+            "blazor": "<HarborlineReportAuthoringEditor Value=\"@Draft\" />",
+            "rationale": "The host supplies the report draft and measure resolver."
+          }
+        ],
+        "footer": []
+      },
+      "states": [
+        "filled"
+      ]
+    },
+    {
+      "id": "report-authoring.empty",
+      "name": "From empty",
+      "surface": "empty",
+      "sourceCaseIds": [
+        "report-authoring.from-nothing"
+      ],
+      "sourceQualityCaseIds": [
+        "report-authoring.quality.labels",
+        "report-authoring.quality.reflow",
+        "report-authoring.quality.visual-parity"
+      ],
+      "content": {
+        "blurb": "A report draft with typed parameters and catalogue measure references.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "kind": "empty"
+        },
+        "state": {
+          "readOnly": false
+        },
+        "body": [
+          {
+            "control": "raw",
+            "react": "<ReportAuthoringEditor {...host} />",
+            "blazor": "<HarborlineReportAuthoringEditor Value=\"@Draft\" />",
+            "rationale": "The host supplies the report draft and measure resolver."
+          }
+        ],
+        "footer": []
+      },
+      "states": [
+        "empty"
+      ]
+    }
+  ]
+}

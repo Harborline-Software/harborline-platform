@@ -935,6 +935,10 @@
       ],
       "report": "C:/hl-ab/rb-reports/platform/hlp.foundation.rule-runtime/run1.json",
       "measured": "2026-09-30, winbox, T-1020 full run at e381df5a (every mutable file, StrykerJS 10.0.0, default concurrency), 3898 Killed / 13 Timeout / 1234 Survived / 275 NoCoverage / 2 RuntimeError; break raised 59 to 72 with 8 mutants of headroom (ruling T-724 95). The 2026-09-26 observations above are the older, lower floor."
+    },
+    "projections/react/ui/hlp.ui.report-authoring": {
+      "pending": true,
+      "why": "T-1172 pauses full mutation runs; hand mutations are recorded in the draft PR until a measured baseline can be recorded."
     }
   }
 }

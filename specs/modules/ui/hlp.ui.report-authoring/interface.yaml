@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.report-authoring",
+  "interfaceRevision": 1,
+  "semantics": {
+    "operation": "author a report's typed parameters and catalogue measure references",
+    "measureResolver": "The host supplies an authorized record-query resolver. Resolve on every picker opening and query change; do not cache across openings. An empty result is an empty picker. Results may be paths or labelled path options; the path is the stored value.",
+    "revision": "The host supplies a revision independently of the definition version. Pending edits are held for a keep or discard decision when identity or revision changes."
+  },
+  "dependencies": [
+    "hlp.ui.button"
+  ],
+  "invariants": [
+    "The adapters reference no Reports package.",
+    "A measure reference is a catalogue path, not an aggregation.",
+    "The five parameter types and their defaults are closed and typed.",
+    "The as_at parameter names an effective-dated type.",
+    "Located refusals are rendered at their fields.",
+    "A pending edit is not submitted against another identity or revision."
+  ],
+  "presentation": {
+    "disposition": "required"
+  },
+  "cases": [
+    {
+      "id": "report-authoring.from-nothing"
+    }
+  ]
+}

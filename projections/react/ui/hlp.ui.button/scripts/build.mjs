@@ -102,6 +102,7 @@ const contributions = [
   ['rule-authoring', resolve(root, '../hlp.ui.rule-authoring'), true],
   ['records-authoring', resolve(root, '../hlp.ui.records-authoring'), true],
   ['document-authoring', resolve(root, '../hlp.ui.document-authoring'), true],
+  ['report-authoring', resolve(root, '../hlp.ui.report-authoring'), true],
   ['booking-authoring', resolve(root, '../hlp.ui.booking-authoring'), true],
   ['layout-runtime', resolve(root, '../hlp.ui.layout-runtime'), true],
   ['data-exchange', resolve(root, '../hlp.ui.data-exchange'), true],
