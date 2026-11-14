@@ -18,6 +18,32 @@ namespace Harborline.Blocks.Workflow.Tests;
 /// </summary>
 public sealed class FileJournalWorkflowStoreTests
 {
+    [Theory]
+    [InlineData("{\"principal\":\"operator\"}")]
+    [InlineData("not JSON")]
+    public async Task Invalid_migration_data_is_refused_before_journal_or_history_changes(string data)
+    {
+        using var fixture = new JournalFixture();
+        long length;
+        using (var store = fixture.Open())
+        {
+            var instance = new WorkflowInstanceRecord
+            {
+                Id = "run-1", TenantId = "tenant-1", DefinitionKey = "flow", DefinitionVersion = "1.0.0",
+                CurrentStep = "old", Status = WorkflowStatus.Parked,
+            };
+            await store.CreateInstanceAsync(instance);
+            length = new FileInfo(fixture.JournalPath).Length;
+            await Assert.ThrowsAnyAsync<Exception>(() => store.MigrateAsync(instance, "2.0.0", "new", data));
+            Assert.Empty(await store.EventsAsync("run-1"));
+            Assert.Equal(length, new FileInfo(fixture.JournalPath).Length);
+        }
+        using var reopened = fixture.Open();
+        Assert.Empty(await reopened.EventsAsync("run-1"));
+        Assert.Equal("1.0.0", (await reopened.LoadAsync("run-1"))!.DefinitionVersion);
+        Assert.Equal("old", (await reopened.LoadAsync("run-1"))!.CurrentStep);
+    }
+
     [Fact]
     public async Task Migration_position_state_and_history_survive_journal_restart()
     {

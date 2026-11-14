@@ -258,6 +258,7 @@ public sealed class FileJournalWorkflowStore : IWorkflowMigrationStore, IDisposa
                 throw new InvalidOperationException("Workflow instance changed during migration.");
             if (targetStep != current.CurrentStep && _steps.ContainsKey(new WorkflowStepKey(current.Id, current.Iteration, targetStep).Value))
                 throw new InvalidOperationException($"Target step '{targetStep}' already advanced at the current iteration.");
+            _ = MovedAwaySteps(eventDataJson);
             var now = _clock.GetUtcNow();
             var dto = new MigrationDto(expected.Id, targetVersion, targetStep,
                 new EventDto(expected.Id, NextSeq(expected.Id), expected.CurrentStep, "Migrated", eventDataJson, Format(now)), Format(now));
@@ -495,17 +496,23 @@ public sealed class FileJournalWorkflowStore : IWorkflowMigrationStore, IDisposa
     {
         if (!_instances.TryGetValue(dto.InstanceId, out var instance))
             throw new InvalidDataException("Migration record names no existing instance.");
+        var movedAway = MovedAwaySteps(dto.Event.DataJson);
         _events.Add(FromDto(dto.Event));
-        using var data = JsonDocument.Parse(dto.Event.DataJson);
-        foreach (var mapping in data.RootElement.GetProperty("map").EnumerateObject())
-            if (mapping.Name != mapping.Value.GetString())
-                instance.MovedAwaySteps.Add(mapping.Name);
+        instance.MovedAwaySteps.UnionWith(movedAway);
         instance.DefinitionVersion = dto.TargetVersion;
         instance.CurrentStep = dto.TargetStep;
         instance.HasMigrated = true;
         instance.MigrationGeneration++;
         instance.StoreGeneration++;
         instance.UpdatedAt = Parse(dto.At);
+    }
+
+    private static string[] MovedAwaySteps(string eventDataJson)
+    {
+        using var data = JsonDocument.Parse(eventDataJson);
+        return data.RootElement.GetProperty("map").EnumerateObject()
+            .Where(mapping => mapping.Name != mapping.Value.GetString())
+            .Select(mapping => mapping.Name).ToArray();
     }
 
     private void TruncateTail(long start)
