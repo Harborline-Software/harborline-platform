@@ -45,9 +45,9 @@
   ],
   "conformance": {
     "nativeTests": {
-      "dotnet": 204
+      "dotnet": 205
     },
-    "nativeTestNote": "RRULE subset, RFC and differential corpus tests plus literal bidirectional timezone and DST cases; due seam tests moved to Scheduling. T-1197/bounded-expansion adds literal override-sharing input accounting, unbudgeted list compatibility beyond 50000 units, both out-of-range UNTIL offset directions, selector normalization and budget identity checks (Terra pre-pass; control PR 1378), plus a 100000000-byte allocation regression guard for the unchanged single-evaluator list path over 104 years."
+    "nativeTestNote": "RRULE subset, RFC and differential corpus tests plus literal bidirectional timezone and DST cases; due seam tests moved to Scheduling. T-1197/bounded-expansion adds literal override-sharing input accounting, unbudgeted list compatibility beyond 50000 units, both out-of-range UNTIL offset directions, selector normalization and budget identity checks (Terra pre-pass; control PR 1378), plus a 100000000-byte allocation regression guard for the unchanged single-evaluator list path over 104 years. Literal visitor coverage pins YEARLY with BYMONTHDAY and no BYMONTH across all months with COUNT from the anchor."
   },
   "selectedDesign": {
     "choice": "Ical.Net (MIT) expands behind IRruleExpansionService, with the bounded subset kept as a validator in front and NodaTime (Apache-2.0) as the zone engine (ADR-0122, the owner's ruling of 2026-11-07 on R-0146 call 5). Superseded: verbatim port of the pinned foundation-scheduling engine with one additive seam above the pinned query.",

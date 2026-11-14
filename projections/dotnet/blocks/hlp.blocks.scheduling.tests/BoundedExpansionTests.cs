@@ -8,6 +8,23 @@ namespace Harborline.Blocks.Scheduling.Tests;
 
 public sealed class BoundedExpansionTests
 {
+    [Fact]
+    public void YearlyMonthDayWithoutMonthPreservesFebruaryAndMarchDueDates()
+    {
+        var request = Request("FREQ=YEARLY;BYMONTHDAY=15;COUNT=3") with
+        {
+            From = new(2026, 2, 1, 0, 0, 0, TimeSpan.Zero),
+            To = new(2026, 3, 31, 23, 59, 59, TimeSpan.Zero),
+        };
+        var producer = new CountingProducer();
+        var result = Query(request, producer);
+        Assert.Equal([new DateTimeOffset(2026, 2, 15, 9, 0, 0, TimeSpan.Zero),
+            new(2026, 3, 15, 9, 0, 0, TimeSpan.Zero)], result.Select(occurrence => occurrence.Due));
+        Assert.Equal([new DateTime(2026, 2, 15, 9, 0, 0), new(2026, 3, 15, 9, 0, 0)],
+            result.Select(occurrence => occurrence.RecurrenceLocal));
+        Assert.Equal(1, producer.Calls);
+    }
+
     [Theory]
     [InlineData("Asia/Tokyo", "0001-01-01T00:00:00")]
     [InlineData("America/Los_Angeles", "9999-12-31T23:59:59")]

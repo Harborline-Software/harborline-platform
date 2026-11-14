@@ -5,6 +5,15 @@ namespace Harborline.Foundation.Scheduling.Tests;
 
 public sealed class ExpansionBudgetTests
 {
+    [Fact]
+    public void YearlyMonthDayWithoutMonthVisitsEveryMonthAndCountsFromAnchor()
+    {
+        var result = new List<DateOnly>();
+        new InMemoryRruleExpansionService().VisitZonedOccurrences("FREQ=YEARLY;BYMONTHDAY=15;COUNT=3",
+            new(2026, 1, 1), new(9, 0), "UTC", new(2030, 12, 31), new(2026, 2, 1), result.Add);
+        Assert.Equal([new DateOnly(2026, 1, 15), new(2026, 2, 15), new(2026, 3, 15)], result);
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
