@@ -1,0 +1,12 @@
+@namespace Harborline.UIAdapters.Blazor.Components.ReportAuthoring
+@if (Shell is not null) { @Shell(Editor) } else { @Editor }
+@code {
+    [Parameter] public RenderFragment<RenderFragment>? Shell { get; set; }
+    [Parameter] public ReportDraft? Value { get; set; }
+    [Parameter] public bool ReadOnly { get; set; }
+    [Parameter] public EventCallback<ReportDraft> Created { get; set; }
+    [Parameter] public EventCallback<ReportDraft> ValueChanged { get; set; }
+    [Parameter] public Func<string, Task<IReadOnlyList<MeasureOption>>>? ResolveMeasures { get; set; }
+    [Parameter] public IReadOnlyList<ReportRefusal> Refusals { get; set; } = [];
+    private RenderFragment Editor => @<HarborlineReportAuthoringEditor Value="@Value" ReadOnly="@ReadOnly" Created="@Created" ValueChanged="@ValueChanged" ResolveMeasures="@ResolveMeasures" Refusals="@Refusals" />;
+}

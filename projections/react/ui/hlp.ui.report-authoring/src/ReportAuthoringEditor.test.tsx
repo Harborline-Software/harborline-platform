@@ -220,3 +220,27 @@ it('reports-bound-9 presents a host labelled option while binding its path', asy
   fireEvent.click(screen.getByRole('button', { name: 'Add measure' }))
   expect(changed).toHaveBeenCalledWith({ tenant: 't', key: 'r', version: '1', measures: [{ measure: 'finance.rent' }] })
 })
+
+it('identity replacement closes the old measure picker after discarding edits', async () => {
+  const props = { value: { tenant: 't', key: 'r', version: '1', measures: [] }, resolveMeasures: async () => ['finance.old'], onCreate: vi.fn(), onChange: vi.fn() }
+  const view = render(<ReportAuthoringEditor {...props} />)
+  fireEvent.change(screen.getByLabelText('Parameter name'), { target: { value: 'pending' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Choose measure' }))
+  await screen.findByRole('option', { name: 'finance.old' })
+  view.rerender(<ReportAuthoringEditor {...props} value={{ ...props.value, key: 'other' }} />)
+  fireEvent.click(screen.getByRole('button', { name: 'Discard edits and load' }))
+  expect(screen.queryByLabelText('Measures')).toBeNull()
+})
+
+it('pending replacement hides refusals belonging to the incoming revision', () => {
+  const props = { value: { tenant: 't', key: 'r', version: '1', measures: [{ measure: 'finance.old' }] }, onCreate: vi.fn(), onChange: vi.fn() }
+  const view = render(<ReportAuthoringEditor {...props} />)
+  fireEvent.change(screen.getByLabelText('Parameter name'), { target: { value: 'pending' } })
+  view.rerender(<ReportAuthoringEditor {...props} value={{ ...props.value, version: '2', measures: [{ measure: 'finance.new' }] }} refusals={[{ code: 'report.measure_unknown', pointer: '/measures/0/measure', measure: 'finance.new', catalogue: 'Main' }]} />)
+  expect(screen.queryByLabelText('Measure 1 refusal')).toBeNull()
+})
+
+it('the report screen renders without a host shell', () => {
+  render(<ReportAuthoringScreen value={null} onCreate={() => {}} onChange={() => {}} />)
+  expect(screen.getByRole('button', { name: 'Create report' })).toBeInTheDocument()
+})

@@ -1,0 +1,8 @@
+@namespace Harborline.Gallery.Blazor.Stories
+@attribute [Stories("Platform/Report authoring")]
+<Stories TComponent="ReportAuthoringScenario">
+  <Story Name="Report draft"><Arguments><Arg For="_ => _.ScenarioId" Value='"report-authoring.draft"' /></Arguments><Template><ReportAuthoringScenario @attributes="context.Args" /></Template></Story>
+  <Story Name="Admission refusals"><Arguments><Arg For="_ => _.ScenarioId" Value='"report-authoring.refusals"' /></Arguments><Template><ReportAuthoringScenario @attributes="context.Args" /></Template></Story>
+  <Story Name="Read only"><Arguments><Arg For="_ => _.ScenarioId" Value='"report-authoring.read-only"' /></Arguments><Template><ReportAuthoringScenario @attributes="context.Args" /></Template></Story>
+  <Story Name="From empty"><Arguments><Arg For="_ => _.ScenarioId" Value='"report-authoring.empty"' /></Arguments><Template><ReportAuthoringScenario @attributes="context.Args" /></Template></Story>
+</Stories>

@@ -1,0 +1,10 @@
+@namespace Harborline.Gallery.Blazor.Stories
+<section class="hl-gallery-scene" data-gallery-probe data-gallery-scenario="@ScenarioId"><header class="hl-gallery-heading"><h2>@Title</h2><p>A report draft with typed parameters and catalogue measure references.</p></header><div class="hl-gallery-stage"><HarborlineReportAuthoringEditor Value='@(Kind == "empty" ? null : Draft)' ReadOnly='@(Kind == "read-only")' Refusals='@(Kind == "refusals" ? Refusal : [])' ResolveMeasures="@Resolve" /></div></section>
+@code {
+  [Parameter] public string ScenarioId { get; set; } = "report-authoring.draft";
+  private string Kind => ScenarioId switch { "report-authoring.refusals" => "refusals", "report-authoring.read-only" => "read-only", "report-authoring.empty" => "empty", _ => "draft" };
+  private string Title => Kind switch { "refusals" => "Admission refusals", "read-only" => "Read only", "empty" => "From empty", _ => "Report draft" };
+  private static readonly ReportDraft Draft = new("tenant-r", "report-a", "1.0.0", [new("finance.rent")], [new("count", "integer", new("integer", 42, "integer", true))]);
+  private static readonly IReadOnlyList<ReportRefusal> Refusal = [new("report.measure_unknown", "/measures/0/measure", "finance.rent", "Main catalogue")];
+  private static Task<IReadOnlyList<MeasureOption>> Resolve(string query) => Task.FromResult<IReadOnlyList<MeasureOption>>([new("finance.rent", "finance.rent")]);
+}

@@ -6,7 +6,9 @@
     "operation": "author a report's typed parameters and catalogue measure references",
     "measureResolver": "The host supplies an authorized record-query resolver. Resolve on every picker opening and query change; do not cache across openings. An empty result is an empty picker. Results may be paths or labelled path options; the path is the stored value."
   },
-  "dependencies": [],
+  "dependencies": [
+    "hlp.ui.button"
+  ],
   "invariants": [
     "The adapters reference no Reports package.",
     "A measure reference is a catalogue path, not an aggregation.",
