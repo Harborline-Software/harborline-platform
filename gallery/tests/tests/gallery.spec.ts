@@ -293,6 +293,11 @@ function scenarioName(catalog: Catalog, id: string) {
 
 async function prepareScenario(page: Page, scenario: Scenario) {
   if (!scenario.interaction) return
+  if (scenario.id === 'rule-authoring.promotion') {
+    await page.getByRole('button', { name: 'Promote Amount check' }).click()
+    await expect(page.getByLabel('Stored rule reference')).toHaveText('field.amount')
+    return
+  }
   if (scenario.id.startsWith('action-menu.')) {
     const trigger = page.locator('.hl-action-menu__trigger').first()
     await trigger.focus()

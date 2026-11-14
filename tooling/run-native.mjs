@@ -54,6 +54,7 @@ const DOTNET_SUITES = [
   ['assistance', 'foundation-assistance-native', "projections/dotnet/foundation/hlp.foundation.assistance.tests/Harborline.Foundation.Assistance.Tests.csproj"],
   ['documents', 'foundation-documents-native', "projections/dotnet/foundation/hlp.foundation.documents.tests/Harborline.Foundation.Documents.Tests.csproj"],
   ['foundationDefinitions', 'foundation-definitions-native', "projections/dotnet/foundation/hlp.foundation.definitions.tests/Harborline.Foundation.Definitions.Tests.csproj"],
+  ['taxonomy', 'foundation-taxonomy-native', "projections/dotnet/foundation/hlp.foundation.taxonomy.tests/Harborline.Foundation.Taxonomy.Tests.csproj"],
   ['foundationScheduling', 'foundation-scheduling-native', "projections/dotnet/foundation/hlp.foundation.scheduling.tests/Harborline.Foundation.Scheduling.Tests.csproj"],
   ['executionRuntime', 'foundation-execution-runtime-native', "projections/dotnet/foundation/hlp.foundation.execution-runtime.tests/Harborline.Foundation.ExecutionRuntime.Tests.csproj"],
   ['contentStore', 'foundation-content-store-native', "projections/dotnet/foundation/hlp.foundation.content-store.tests/Harborline.Foundation.ContentStore.Tests.csproj"],

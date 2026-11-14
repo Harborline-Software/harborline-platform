@@ -13,6 +13,185 @@ namespace Harborline.UIAdapters.Blazor.Tests;
 
 public sealed class RulesAuthoringTests : BunitContext
 {
+    [Fact(DisplayName = "rules-auth-18: offers promotion only for the shared field-check cases")]
+    public void FieldCheckEligibility()
+    {
+        using var fixture = JsonDocument.Parse(File.ReadAllText(FindFixture("promotion.json", "hlp.ui.rule-authoring")));
+        var rules = fixture.RootElement.GetProperty("eligibility").EnumerateArray().Select(row => {
+            var doc = RuleDefinitionCodec.Parse(row.GetProperty("document").GetRawText(), RuleIntentPhase.Author).Document!;
+            return new RulesDraft(doc.Envelope.Id, "", doc.Name, "Draft", "", doc.Draft);
+        }).ToArray();
+        var cut = Render<HarborlineRulesAuthoringEditor>(p => p.Add(x => x.Value, rules[0]).Add(x => x.Catalogue, new RulesRuleCatalogue(rules)).Add(x => x.CatalogueChanged, _ => { }));
+        Assert.Contains("Promote eligible", cut.Markup, StringComparison.Ordinal);
+        Assert.DoesNotContain("Promote calculation", cut.Markup, StringComparison.Ordinal);
+        Assert.DoesNotContain("Promote no-self", cut.Markup, StringComparison.Ordinal);
+        Assert.DoesNotContain("Promote toggle", cut.Markup, StringComparison.Ordinal);
+        Assert.DoesNotContain("Promote toggle-real", cut.Markup, StringComparison.Ordinal);
+    }
+
+    [Fact(DisplayName = "rules-auth-18: promotes the shared field check in the catalogue using the producer")]
+    public void PromotesFieldCheck()
+    {
+        using var fixture = JsonDocument.Parse(File.ReadAllText(FindFixture("promotion.json", "hlp.ui.rule-authoring")));
+        var input = RuleDefinitionCodec.Parse(fixture.RootElement.GetProperty("input").GetRawText(), RuleIntentPhase.Author).Document!;
+        var expected = JsonNode.Parse(fixture.RootElement.GetProperty("expected").GetRawText());
+        Assert.True(JsonNode.DeepEquals(expected, JsonNode.Parse(RuleDefinitionCodec.SerializeCanonical(FieldRuleBindings.Promote(input)))));
+        var rule = new RulesDraft(input.Envelope.Id, "7", input.Name, "Draft", "", input.Draft) { Materialization = new RulesMaterialization([], "content", "digest-1") };
+        RulesRuleCatalogue? changed = null;
+        var cut = Render<HarborlineRulesAuthoringEditor>(p => p.Add(x => x.Value, rule).Add(x => x.Catalogue, new RulesRuleCatalogue([rule])).Add(x => x.CatalogueChanged, value => changed = value));
+        cut.FindButton("Promote Amount check").Click();
+        var actual = Assert.Single(changed!.Rules);
+        Assert.True(JsonNode.DeepEquals(expected, JsonNode.Parse(RuleDefinitionCodec.SerializeCanonical(input with { Draft = actual.Draft }))));
+        Assert.Equal("Amount check", actual.Name);
+        Assert.Equal("Draft", actual.VersionSelection);
+        Assert.Equal("", actual.PinnedVersionId);
+        Assert.Equal("7", actual.ExpectedRevision);
+        Assert.Equal("digest-1", actual.Materialization!.ContentDigest);
+        Assert.Equal("amount-check", actual.Identity);
+        Assert.Equal("amount", actual.Draft.ScopeTarget);
+        var formula = Assert.IsType<FormulaDraft>(actual.Draft);
+        Assert.Equal("field.amount", Assert.Single(formula.Inputs).Ref);
+        Assert.Equal("field.amount", Assert.IsType<FormulaExpr.Ref>(Assert.IsType<FormulaExpr.Call>(formula.Expression).Args[0]).Name);
+    }
+
+    [Fact(DisplayName = "rules-auth-18: refuses unsafe missing calls")]
+    public void RefusesMissingPromotion()
+    {
+        var rule = new RulesDraft("check", "", "Check", "Draft", "", new FormulaDraft { Scope = RuleScope.Field, ScopeTarget = "amount", OutputType = RuleActionKind.Validate, Inputs = [new("self", "self", ColumnValueType.Number)], Expression = new FormulaExpr.Call("!", [new FormulaExpr.Call("missing", [new FormulaExpr.Literal("self", ColumnValueType.Text)])]) });
+        RulesRuleCatalogue? changed = null;
+        var cut = Render<HarborlineRulesAuthoringEditor>(p => p.Add(x => x.Value, rule).Add(x => x.Catalogue, new RulesRuleCatalogue([rule])).Add(x => x.CatalogueChanged, value => changed = value));
+        cut.FindButton("Promote Check").Click();
+        Assert.Null(changed);
+        Assert.Contains("rule.promote.missing_call", cut.Find("[aria-label='Refusals']").TextContent, StringComparison.Ordinal);
+    }
+
+    [Fact(DisplayName = "rules-auth-18: retains the promoted reference as an option")]
+    public void RetainsPromotedOption()
+    {
+        var rule = new RulesDraft("check", "", "Check", "Draft", "", new FormulaDraft { Scope = RuleScope.Field, ScopeTarget = "amount", OutputType = RuleActionKind.Validate, Inputs = [new("field.amount", "field.amount", ColumnValueType.Number)], Expression = new FormulaExpr.Ref("field.amount") });
+        var cut = Render<HarborlineRulesAuthoringEditor>(p => p.Add(x => x.Value, rule));
+        Assert.Equal("field.amount", cut.Find("[aria-label='Input 1 reference'] option").GetAttribute("value"));
+        Assert.Equal("field.amount", cut.Find("[aria-label='Rule reference'] option").GetAttribute("value"));
+    }
+
+    [Fact(DisplayName = "rules-auth-18: returns focus and announces promotion")]
+    public void FocusesAfterPromotion()
+    {
+        using var fixture = JsonDocument.Parse(File.ReadAllText(FindFixture("promotion.json", "hlp.ui.rule-authoring")));
+        var doc = RuleDefinitionCodec.Parse(fixture.RootElement.GetProperty("input").GetRawText(), RuleIntentPhase.Author).Document!;
+        var rule = new RulesDraft("amount-check", "", "Amount check", "Draft", "", doc.Draft);
+        var cut = Render<HarborlineRulesAuthoringEditor>(p => p.Add(x => x.Value, rule).Add(x => x.Catalogue, new RulesRuleCatalogue([rule])).Add(x => x.CatalogueChanged, _ => { }));
+        var name = cut.Find("input[aria-label='Rule name']").GetAttribute("blazor:elementreference");
+        cut.FindButton("Promote Amount check").Click();
+        Assert.Equal(name, ((ElementReference)JSInterop.VerifyFocusAsyncInvoke(1)[0].Arguments[0]!).Id);
+        Assert.Equal("Promoted Amount check.", cut.Find("[aria-label='Promotion status']").TextContent);
+    }
+
+    [Fact(DisplayName = "rules-auth-18: refuses each saved ineligible snapshot from the shared fixture")]
+    public void RefusesSavedIneligibleSnapshots()
+    {
+        using var fixture = JsonDocument.Parse(File.ReadAllText(FindFixture("promotion.json", "hlp.ui.rule-authoring")));
+        var doc = RuleDefinitionCodec.Parse(fixture.RootElement.GetProperty("input").GetRawText(), RuleIntentPhase.Author).Document!;
+        foreach (var row in fixture.RootElement.GetProperty("refused").EnumerateArray())
+        {
+            var rule = new RulesDraft("amount-check", "1", "Amount check", "Draft", "", doc.Draft);
+            var requests = new List<RulesOperationRequest>(); RulesRuleCatalogue? changed = null;
+            var cut = Render<HarborlineRulesAuthoringEditor>(p => p.Add(x => x.Value, rule).Add(x => x.Catalogue, new RulesRuleCatalogue([rule])).Add(x => x.CatalogueChanged, value => changed = value).Add(x => x.OperationRequested, requests.Add));
+            if (row.GetProperty("edit").GetString() == "compute") cut.Find("[aria-label='Rule action']").Change("Compute");
+            else cut.Find("[aria-label='Rule expression shape']").Change("Literal");
+            cut.FindButton("Save draft").Click();
+            var request = requests[0];
+            cut.Render(p => p.Add(x => x.Response, new RulesOperationResponse(request.RequestId, "amount-check", "1", request.Generation, new("amount-check", "2", "Draft"))));
+            cut.FindButton("Promote Amount check").Click();
+            Assert.Null(changed);
+            var refusal = Assert.Single(cut.FindAll("[aria-label='Refusals'] li"));
+            Assert.Equal("rule.promote.ineligible", refusal.GetAttribute("data-code"));
+            Assert.Equal("/draft", refusal.GetAttribute("data-pointer"));
+            Assert.DoesNotContain("Promoted Amount check.", cut.Markup, StringComparison.Ordinal);
+            cut.Dispose();
+        }
+    }
+
+    [Fact(DisplayName = "rules-auth-18: promotes the saved snapshot when the catalogue is stale")]
+    public void PromotesSavedSnapshotWithStaleCatalogue()
+    {
+        using var fixture = JsonDocument.Parse(File.ReadAllText(FindFixture("promotion.json", "hlp.ui.rule-authoring")));
+        var doc = RuleDefinitionCodec.Parse(fixture.RootElement.GetProperty("input").GetRawText(), RuleIntentPhase.Author).Document!;
+        var rule = new RulesDraft("amount-check", "1", "Amount check", "Draft", "", doc.Draft);
+        var requests = new List<RulesOperationRequest>(); RulesRuleCatalogue? changed = null;
+        var cut = Render<HarborlineRulesAuthoringEditor>(p => p.Add(x => x.Value, rule).Add(x => x.Catalogue, new RulesRuleCatalogue([rule])).Add(x => x.CatalogueChanged, value => changed = value).Add(x => x.OperationRequested, requests.Add));
+        cut.Find("input[aria-label='Rule name']").Change("Saved check");
+        cut.FindButton("Save draft").Click();
+        var request = requests[0];
+        cut.Render(p => p.Add(x => x.Response, new RulesOperationResponse(request.RequestId, "amount-check", "1", request.Generation, new("amount-check", "2", "Draft"), Materialization: new RulesMaterialization([], "saved", "digest-2"))));
+        cut.FindButton("Promote Amount check").Click();
+        var actual = Assert.Single(changed!.Rules);
+        Assert.Equal("Saved check", actual.Name);
+        Assert.Equal("2", actual.ExpectedRevision);
+        Assert.Equal("digest-2", actual.Materialization!.ContentDigest);
+        Assert.Equal("field.amount", Assert.Single(Assert.IsType<FormulaDraft>(actual.Draft).Inputs).Ref);
+        cut.FindButton("Save draft").Click();
+        Assert.Equal("2", requests[1].Draft.ExpectedRevision);
+        Assert.Equal("digest-2", requests[1].Draft.Materialization!.ContentDigest);
+        Assert.Equal("Saved check", requests[1].Draft.Name);
+    }
+
+    [Fact(DisplayName = "rules-auth-18: an edit during pending catalogue promotion is not overwritten")]
+    public async Task PendingPromotionPreservesNewerEdit()
+    {
+        using var fixture = JsonDocument.Parse(File.ReadAllText(FindFixture("promotion.json", "hlp.ui.rule-authoring")));
+        var doc = RuleDefinitionCodec.Parse(fixture.RootElement.GetProperty("input").GetRawText(), RuleIntentPhase.Author).Document!;
+        var rule = new RulesDraft("amount-check", "1", "Amount check", "Draft", "", doc.Draft);
+        var pending = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var requests = new List<RulesOperationRequest>();
+        var cut = Render<HarborlineRulesAuthoringEditor>(p => p.Add(x => x.Value, rule).Add(x => x.Catalogue, new RulesRuleCatalogue([rule])).Add(x => x.CatalogueChanged, _ => pending.Task).Add(x => x.OperationRequested, requests.Add));
+        var promoting = cut.FindButton("Promote Amount check").ClickAsync(new Microsoft.AspNetCore.Components.Web.MouseEventArgs());
+        cut.Find("input[aria-label='Rule name']").Change("Newer edit");
+        pending.SetResult();
+        await promoting;
+        cut.FindButton("Save draft").Click();
+        Assert.Equal("Newer edit", requests[^1].Draft.Name);
+        Assert.Equal("1", requests[^1].Draft.ExpectedRevision);
+    }
+
+    [Fact(DisplayName = "rules-auth-18: saves the promoted loaded rule")]
+    public void SavesPromotedLoadedRule()
+    {
+        using var fixture = JsonDocument.Parse(File.ReadAllText(FindFixture("promotion.json", "hlp.ui.rule-authoring")));
+        var doc = RuleDefinitionCodec.Parse(fixture.RootElement.GetProperty("input").GetRawText(), RuleIntentPhase.Author).Document!;
+        var rule = new RulesDraft("amount-check", "7", "Amount check", "Draft", "", doc.Draft) { Materialization = new RulesMaterialization([], "content", "digest-1") };
+        RulesOperationRequest? requested = null;
+        var cut = Render<HarborlineRulesAuthoringEditor>(p => p.Add(x => x.Value, rule).Add(x => x.Catalogue, new RulesRuleCatalogue([rule])).Add(x => x.CatalogueChanged, _ => { }).Add(x => x.OperationRequested, value => requested = value));
+        cut.FindButton("Promote Amount check").Click();
+        cut.FindButton("Save draft").Click();
+        Assert.Equal("amount-check", requested!.Identity);
+        Assert.Equal("7", requested.ExpectedRevision);
+        Assert.Equal("amount-check", requested.Draft.Identity);
+        Assert.Equal("7", requested.Draft.ExpectedRevision);
+        Assert.Equal("digest-1", requested.Draft.Materialization!.ContentDigest);
+        Assert.Equal("amount", requested.Draft.Draft.ScopeTarget);
+        var formula = Assert.IsType<FormulaDraft>(requested.Draft.Draft);
+        var input = Assert.Single(formula.Inputs);
+        Assert.Equal("field.amount", input.Id);
+        Assert.Equal("field.amount", input.Ref);
+        Assert.Equal("field.amount", Assert.IsType<FormulaExpr.Ref>(Assert.IsType<FormulaExpr.Call>(formula.Expression).Args[0]).Name);
+    }
+
+    [Fact(DisplayName = "rules-auth-18: refuses to promote a loaded rule with unsaved edits")]
+    public void RefusesDirtyPromotion()
+    {
+        using var fixture = JsonDocument.Parse(File.ReadAllText(FindFixture("promotion.json", "hlp.ui.rule-authoring")));
+        var doc = RuleDefinitionCodec.Parse(fixture.RootElement.GetProperty("input").GetRawText(), RuleIntentPhase.Author).Document!;
+        var rule = new RulesDraft("amount-check", "", "Amount check", "Draft", "", doc.Draft);
+        RulesRuleCatalogue? changed = null;
+        var cut = Render<HarborlineRulesAuthoringEditor>(p => p.Add(x => x.Value, rule).Add(x => x.Catalogue, new RulesRuleCatalogue([rule])).Add(x => x.CatalogueChanged, value => changed = value));
+        cut.Find("input[aria-label='Rule name']").Change("Edited");
+        cut.FindButton("Promote Amount check").Click();
+        Assert.Null(changed);
+        Assert.Equal("Edited", cut.Find("input[aria-label='Rule name']").GetAttribute("value"));
+        Assert.Contains("rule.promote.unsaved_edits", cut.Find("[aria-label='Refusals']").TextContent, StringComparison.Ordinal);
+    }
+
     [Fact(DisplayName = "rules-auth-19: navigates producer lineage and names unreferenced calculation")]
     public void NavigatesLineage() => AssertLineageNavigation();
 
@@ -59,6 +238,21 @@ public sealed class RulesAuthoringTests : BunitContext
         var story = File.ReadAllText(Path.Combine(root, "gallery", "projections", "blazor", "Stories", "RuleAuthoringScenario.razor"));
         Assert.Contains("GetManifestResourceStream(\"rule-authoring-lineage.json\")", story, StringComparison.Ordinal);
         Assert.DoesNotContain("\"lineage.json\"", story, StringComparison.Ordinal);
+        var lifecycleFixture = Path.GetFullPath(Path.Combine(root, "conformance", "hlp.blocks.builder-definitions", "rules-editor-contract-fixtures.json"));
+        string[] LifecycleResources(string fixturePath) => System.Xml.Linq.XDocument.Load(galleryProject).Descendants("EmbeddedResource")
+            .Where(item => string.Equals(Path.GetFullPath(Path.Combine(Path.GetDirectoryName(galleryProject)!, item.Attribute("Include")!.Value.Replace('\\', Path.DirectorySeparatorChar))), fixturePath, StringComparison.Ordinal))
+            .Select(item => item.Attribute("LogicalName")?.Value ?? "")
+            .ToArray();
+        Assert.Equal(new[] { "rules-editor-contract-fixtures.json" }, LifecycleResources(lifecycleFixture));
+        Assert.Empty(LifecycleResources(Path.GetFullPath(Path.Combine(root, "conformance", "hlp.blocks.builder-definitions", "Rules-editor-contract-fixtures.json"))));
+        var lifecycleItem = System.Xml.Linq.XDocument.Load(galleryProject).Descendants("EmbeddedResource")
+            .Single(item => item.Attribute("LogicalName")?.Value == "rules-editor-contract-fixtures.json");
+        Assert.Null(lifecycleItem.Attribute("Condition"));
+        Assert.Null(lifecycleItem.Parent!.Attribute("Condition"));
+        Assert.Contains("GetManifestResourceStream(\"rules-editor-contract-fixtures.json\")", story, StringComparison.Ordinal);
+        Assert.DoesNotContain("Directory", story, StringComparison.Ordinal);
+        Assert.DoesNotContain("File.", story, StringComparison.Ordinal);
+        Assert.DoesNotContain("Path.", story, StringComparison.Ordinal);
     }
 
     private static (RulesDraft[] Rules, RulesLineageView View) LineageFixture()
@@ -96,6 +290,7 @@ public sealed class RulesAuthoringTests : BunitContext
         SharedFixtureBatch.Run(caseId, rawFixture, () => {
             // The lineage case has its own oracle, so it must not pass on the lifecycle replay below.
             if (caseId == "rule-authoring.lineage") { AssertLineageNavigation(); return; }
+            if (caseId == "rule-authoring.promotion") { PromotesFieldCheck(); RefusesSavedIneligibleSnapshots(); return; }
             var sharedFixture = SharedFixtureBatch.Current;
             if (!string.IsNullOrWhiteSpace(sharedFixture))
             {
