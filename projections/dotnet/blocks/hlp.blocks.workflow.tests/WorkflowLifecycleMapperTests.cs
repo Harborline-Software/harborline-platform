@@ -12,37 +12,55 @@ public sealed class WorkflowLifecycleMapperTests
         DataJson = "{\"name\":\"flow.example\",\"suspendedAt\":\"2024-07-26T16:59:57-05:00\",\"private\":\"secret\"}",
     };
 
-    [Fact]
-    public void Terminal_task_fact_maps_to_distinct_task_and_workflow_completion_events()
+    [Theory]
+    [InlineData("TaskCompleted", "completed", "completedAt", "io.serverlessworkflow.task.completed.v1", "io.serverlessworkflow.workflow.completed.v1")]
+    [InlineData("TaskFaulted", "faulted", "faultedAt", "io.serverlessworkflow.task.faulted.v1", "io.serverlessworkflow.workflow.faulted.v1")]
+    public void Run_ending_task_fact_maps_ordered_distinct_deterministic_events(string kind, string status, string time, string taskType, string workflowType)
     {
         var fact = new WorkflowEventRecord
         {
-            InstanceId = "run", Seq = 7, Step = "step", EventType = "TaskCompleted",
-            DataJson = "{\"workflow\":\"flow.example\",\"task\":\"/do/1/finish\",\"completedAt\":\"2024-07-26T16:59:57-05:00\",\"workflowCompletion\":{\"name\":\"flow.example\",\"completedAt\":\"2024-07-26T16:59:58-05:00\",\"private\":\"secret\"}}",
+            InstanceId = "run", Seq = 7, Step = "step", EventType = kind,
+            DataJson = "{\"workflow\":\"flow.example\",\"task\":\"/do/1/finish\",\"" + time + "\":\"2024-07-26T16:59:57-05:00\",\"workflowStatus\":\"" + status + "\",\"error\":{\"type\":\"failure\",\"status\":500,\"private\":\"secret\"},\"private\":\"secret\"}",
         };
         var events = WorkflowLifecycleProjection.Map(fact, new("store", "tenant"));
         Assert.Equal(2, events.Count);
-        Assert.Equal("io.serverlessworkflow.task.completed.v1", events[0].Type);
-        Assert.Equal("io.serverlessworkflow.workflow.completed.v1", events[1].Type);
+        Assert.Equal(taskType, events[0].Type);
+        Assert.Equal(workflowType, events[1].Type);
         Assert.Equal(events[0].Source, events[1].Source);
         Assert.NotEqual(events[0].Id, events[1].Id);
         Assert.Equal("flow.example", events[1].Data.GetProperty("name").GetString());
-        Assert.Equal("2024-07-26T16:59:58-05:00", events[1].Data.GetProperty("completedAt").GetString());
-        Assert.False(events[1].Data.TryGetProperty("private", out _));
+        Assert.Equal("2024-07-26T16:59:57-05:00", events[1].Data.GetProperty(time).GetString());
+        Assert.Equal(status == "faulted" ? 3 : 2, events[1].Data.EnumerateObject().Count());
+        if (status == "faulted")
+        {
+            Assert.Equal("failure", events[1].Data.GetProperty("error").GetProperty("type").GetString());
+            Assert.Equal(500, events[1].Data.GetProperty("error").GetProperty("status").GetInt32());
+            Assert.False(events[1].Data.GetProperty("error").TryGetProperty("private", out _));
+        }
+        Assert.False(events[0].Data.TryGetProperty("workflowStatus", out _));
         Assert.Equal(JsonSerializer.Serialize(events), JsonSerializer.Serialize(WorkflowLifecycleProjection.Map(fact, new("store", "tenant"))));
     }
 
     [Theory]
-    [InlineData("null")]
-    [InlineData("{}")]
-    [InlineData("{\"name\":\"other.example\",\"completedAt\":\"2024-07-26T16:59:58-05:00\"}")]
-    public void Terminal_task_refuses_invalid_pinned_workflow_completion(string completion)
+    [InlineData("TaskCompleted", "completedAt")]
+    [InlineData("TaskFaulted", "faultedAt")]
+    public void Task_fact_without_workflow_status_yields_only_task_event(string kind, string time)
     {
-        var fact = new WorkflowEventRecord
-        {
-            InstanceId = "run", Seq = 7, Step = "step", EventType = "TaskCompleted",
-            DataJson = "{\"workflow\":\"flow.example\",\"task\":\"/do/1/finish\",\"completedAt\":\"2024-07-26T16:59:57-05:00\",\"workflowCompletion\":" + completion + "}",
-        };
+        var fact = new WorkflowEventRecord { InstanceId = "run", Seq = 7, Step = "step", EventType = kind,
+            DataJson = "{\"workflow\":\"flow.example\",\"task\":\"task\",\"" + time + "\":\"2024-07-26T16:59:57-05:00\",\"error\":{\"type\":\"failure\",\"status\":500}}" };
+        Assert.Single(WorkflowLifecycleProjection.Map(fact, new("store", "tenant")));
+    }
+
+    [Theory]
+    [InlineData("TaskCompleted", "completedAt", "\"faulted\"")]
+    [InlineData("TaskFaulted", "faultedAt", "\"completed\"")]
+    [InlineData("TaskCompleted", "completedAt", "\"running\"")]
+    [InlineData("TaskCompleted", "completedAt", "null")]
+    [InlineData("TaskFaulted", "faultedAt", "42")]
+    public void Terminal_task_refuses_other_workflow_status_values(string kind, string time, string status)
+    {
+        var fact = new WorkflowEventRecord { InstanceId = "run", Seq = 7, Step = "step", EventType = kind,
+            DataJson = "{\"workflow\":\"flow.example\",\"task\":\"task\",\"" + time + "\":\"2024-07-26T16:59:57-05:00\",\"workflowStatus\":" + status + ",\"error\":{\"type\":\"failure\",\"status\":500}}" };
         Assert.Throws<WorkflowLifecycleMappingException>(() => WorkflowLifecycleProjection.Map(fact, new("store", "tenant")));
     }
 

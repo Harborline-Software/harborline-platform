@@ -24,7 +24,7 @@ public sealed class WorkflowLifecycleMappingException(string message) : Exceptio
 /// WorkflowCorrelationCompleted, WorkflowCancelled, WorkflowTerminated, WorkflowFaulted, WorkflowCompleted,
 /// TaskCreated, TaskStarted, TaskSuspended, TaskResumed, TaskRetried, TaskCancelled, TaskFaulted and
 /// TaskCompleted. Its JSON data carries the corresponding v1.0.0 event payload; termination also carries reason.
-/// A terminal TaskCompleted fact carries workflowCompletion with the completed workflow's name and completedAt.
+/// A run-ending task fact carries workflowStatus identifying the resulting workflow outcome.
 /// Other history entries are not lifecycle events.
 /// </remarks>
 public static class WorkflowLifecycleProjection
@@ -119,17 +119,18 @@ public static class WorkflowLifecycleProjection
         var source = $"urn:harborline:workflow:{Uri.EscapeDataString(metadata.StoreNamespace)}:{Uri.EscapeDataString(metadata.TenantNamespace)}";
         var id = $"{Uri.EscapeDataString(entry.InstanceId)}/{entry.Seq.ToString(System.Globalization.CultureInfo.InvariantCulture)}/{Uri.EscapeDataString(type)}";
         var taskEvent = new WorkflowLifecycleEvent("1.0", id, source, type, JsonSerializer.SerializeToElement(allowed));
-        if (entry.EventType != "TaskCompleted" || !data.TryGetPropertyValue("workflowCompletion", out var completion))
+        if (entry.EventType is not ("TaskCompleted" or "TaskFaulted") || !data.TryGetPropertyValue("workflowStatus", out var result))
             return [taskEvent];
-        if (completion is not JsonObject workflow)
-            throw new WorkflowLifecycleMappingException("Terminal task history requires workflow completion data.");
-        RequireString(workflow, "name");
-        if (workflow["name"]!.GetValue<string>() != data["workflow"]!.GetValue<string>())
-            throw new WorkflowLifecycleMappingException("Task and workflow completion must name the same workflow.");
+        var expected = entry.EventType == "TaskCompleted" ? "completed" : "faulted";
+        if (result is not JsonValue statusValue || !statusValue.TryGetValue<string>(out var workflowStatus) || workflowStatus != expected)
+            throw new WorkflowLifecycleMappingException("Terminal task history has an invalid workflow status.");
+        var workflow = new JsonObject { ["name"] = data["workflow"]!.DeepClone(), [time] = data[time]!.DeepClone() };
+        if (entry.EventType == "TaskFaulted") workflow["error"] = allowed["error"]!.DeepClone();
         var workflowFact = new WorkflowEventRecord
         {
             InstanceId = entry.InstanceId, Seq = entry.Seq, Step = entry.Step,
-            EventType = "WorkflowCompleted", DataJson = workflow.ToJsonString(), OccurredAt = entry.OccurredAt,
+            EventType = entry.EventType == "TaskCompleted" ? "WorkflowCompleted" : "WorkflowFaulted",
+            DataJson = workflow.ToJsonString(), OccurredAt = entry.OccurredAt,
         };
         var workflowEvent = Map(workflowFact, metadata).Single();
         return [taskEvent, workflowEvent];
