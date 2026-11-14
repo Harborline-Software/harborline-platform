@@ -121,6 +121,16 @@ public sealed class ReportAuthoringTests : BunitContext
         Assert.Empty(cut.FindAll("[role='alert']"));
     }
 
+    [Fact(DisplayName = "reports-bound-9: selected measure fences replacement")]
+    public async Task SelectedMeasureFencesReplacement()
+    {
+        var cut = Render<HarborlineReportAuthoringEditor>(p => p.Add(x => x.Value, new ReportDraft("t", "old", "1", [], [])).Add(x => x.ResolveMeasures, _ => Task.FromResult<IReadOnlyList<MeasureOption>>([new("finance.rent", "finance.rent")])));
+        await cut.Find("[aria-label='Choose measure']").ClickAsync(new());
+        cut.Find("[aria-label='Measures']").Change("finance.rent");
+        cut.Render(p => p.Add(x => x.Value, new ReportDraft("t", "new", "1", [], [])));
+        Assert.Single(cut.FindAll("[aria-label='Discard edits and load']"));
+    }
+
     [Fact(DisplayName = "readOnly prevents report changes")]
     public void ReadOnly()
     {

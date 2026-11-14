@@ -47,7 +47,7 @@ else {
     protected override void OnParametersSet() {
         if (Value is null) { if (!incoming) previous = null; return; }
         if (ignored is not null && Same(ignored, Value) && ignoredRevision == Revision) return;
-        if (previous is not null && (!Same(previous, Value) || previousRevision != Revision) && (parameterName.Length > 0 || parameterDefault.Length > 0 || effectiveType.Length > 0)) incoming = true;
+        if (previous is not null && (!Same(previous, Value) || previousRevision != Revision) && (parameterName.Length > 0 || parameterDefault.Length > 0 || effectiveType.Length > 0 || selected.Length > 0)) incoming = true;
         else if (!incoming) { previous = Value; previousRevision = Revision; }
     }
     private static bool Same(ReportDraft a, ReportDraft b) => a.Tenant == b.Tenant && a.Key == b.Key && a.Version == b.Version;

@@ -4,11 +4,11 @@
   "method": "One source edit per assertion; targeted test failed at the recorded assertion, source restored byte-identically, and the restored suite passed. Full mutation runs remain paused under T-1172.",
   "oracle": "DES-0020 sections 2, 4 and 6 and DES-0002 section 15; literal conformance fixtures and stated pending-edit, read-only and resolver properties.",
   "sourceSha256": {
-    "projections/blazor/ui/hlp.ui.report-authoring/HarborlineReportAuthoringEditor.razor": "7764c6daa78563aa26783405ffd1d5b3f9b94219c3daabddc24f71da10431efc",
+    "projections/blazor/ui/hlp.ui.report-authoring/HarborlineReportAuthoringEditor.razor": "a89f1e621d071284c9a90212c54a4c73f602a6a834456aa4429c33b3f7d98458",
     "projections/blazor/ui/hlp.ui.report-authoring/HarborlineReportAuthoringScreen.razor": "152e5da0b867f2eb4bacbfcc77803acca178025e5a3c6091c09323a1629e2eb6",
     "projections/blazor/ui/hlp.ui.report-authoring/ReportDraft.cs": "5c8070a1e19ddbc1de6a02f9adf2ab2bb04dd13df28039a894520a00cb7222e8",
     "projections/blazor/ui/hlp.ui.report-authoring/ReportDraftCodec.cs": "2efc4254bc143faca02e41e1f97ba9f56196a63450d489d09fecd240faf38c2c",
-    "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringEditor.tsx": "d5bbf1dcd38c081a798a1fbaaa53190a85f87273bc78b6e749a129f64ce37b7f",
+    "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringEditor.tsx": "e21aaa461292b25c0a21c03027f10e81ae6e38088714d7ef6cc48e1d225fd58f",
     "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringScreen.tsx": "297f2cd40d8512c84622b8381c30bffef24729d2d6f7f131f42189f4bc0e8ffe"
   },
   "react": [
@@ -506,6 +506,28 @@
       "assertionLine": 266,
       "exit": 1,
       "hit": true
+    },
+    {
+      "name": "review-retained-echo",
+      "file": "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringEditor.tsx",
+      "old": "} else if (!incoming && !kept) { previous.current = value; previousRevision.current = revision }",
+      "new": "}",
+      "test": "reports-auth-12 retains echoed declarations",
+      "assertionLine": 84,
+      "exit": 1,
+      "hit": true,
+      "testFile": "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringEditor.test.tsx"
+    },
+    {
+      "name": "review-selection-fence",
+      "file": "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringEditor.tsx",
+      "old": "parameterName || parameterDefault || effectiveType || selected",
+      "new": "parameterName || parameterDefault || effectiveType",
+      "test": "reports-bound-9 fences a selected measure",
+      "assertionLine": 288,
+      "exit": 1,
+      "hit": true,
+      "testFile": "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringEditor.test.tsx"
     }
   ],
   "blazor": [
@@ -970,6 +992,17 @@
       "assertionLine": 258,
       "exit": 1,
       "hit": true
+    },
+    {
+      "name": "review-selection-fence",
+      "file": "projections/blazor/ui/hlp.ui.report-authoring/HarborlineReportAuthoringEditor.razor",
+      "old": "effectiveType.Length > 0 || selected.Length > 0",
+      "new": "effectiveType.Length > 0",
+      "test": "SelectedMeasureFencesReplacement",
+      "assertionLine": 131,
+      "exit": 1,
+      "hit": true,
+      "testFile": "projections/blazor/ui/hlp.ui.report-authoring.tests/ReportAuthoringTests.cs"
     }
   ],
   "producerAdmission": [

@@ -265,3 +265,25 @@ it('a created draft fences a later host revision when edits are pending', () => 
   view.rerender(<ReportAuthoringEditor {...props} value={value} revision="2" />)
   expect(screen.getByRole('button', { name: 'Add parameter' })).toBeDisabled()
 })
+
+it('reports-auth-12 retains echoed declarations when a revision arrives during editing', () => {
+  const initial = { tenant: 't', key: 'r', version: '1', measures: [] }
+  const echoed = { ...initial, measures: [{ measure: 'finance.rent' }] }
+  const props = { onCreate: () => {}, onChange: () => {} }
+  const view = render(<ReportAuthoringEditor {...props} value={initial} revision="a" />)
+  view.rerender(<ReportAuthoringEditor {...props} value={echoed} revision="a" />)
+  fireEvent.change(screen.getByLabelText('Parameter name'), { target: { value: 'pending' } })
+  view.rerender(<ReportAuthoringEditor {...props} value={initial} revision="b" />)
+  fireEvent.click(screen.getByRole('button', { name: 'Keep editing' }))
+  expect(screen.getByText('finance.rent')).toBeInTheDocument()
+})
+
+it('reports-bound-9 fences a selected measure when the report is replaced', async () => {
+  const props = { onCreate: () => {}, onChange: () => {}, resolveMeasures: async () => ['finance.rent'] }
+  const view = render(<ReportAuthoringEditor {...props} value={{ tenant: 't', key: 'r', version: '1', measures: [] }} />)
+  fireEvent.click(screen.getByRole('button', { name: 'Choose measure' }))
+  await screen.findByRole('option', { name: 'finance.rent' })
+  fireEvent.change(screen.getByLabelText('Measures'), { target: { value: 'finance.rent' } })
+  view.rerender(<ReportAuthoringEditor {...props} value={{ tenant: 't', key: 'next', version: '1', measures: [] }} />)
+  expect(screen.getByRole('button', { name: 'Discard edits and load' })).toBeInTheDocument()
+})

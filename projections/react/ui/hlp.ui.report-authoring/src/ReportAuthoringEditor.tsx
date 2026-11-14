@@ -27,10 +27,10 @@ export function ReportAuthoringEditor({ value, onCreate, onChange, resolveMeasur
     if (!old && value) { previous.current = value; previousRevision.current = revision; return }
     if (ignored.current && value && ignored.current.key === value.key && ignored.current.version === value.version && ignored.current.tenant === value.tenant && ignoredRevision.current === revision) return
     if (old && value && (old.key !== value.key || old.version !== value.version || old.tenant !== value.tenant || previousRevision.current !== revision)) {
-      if (parameterName || parameterDefault || effectiveType) setIncoming(true)
+      if (parameterName || parameterDefault || effectiveType || selected) setIncoming(true)
       else { previous.current = value; previousRevision.current = revision }
-    }
-  }, [value, revision, parameterName, parameterDefault, effectiveType])
+    } else if (!incoming && !kept) { previous.current = value; previousRevision.current = revision }
+  }, [value, revision, parameterName, parameterDefault, effectiveType, selected, incoming, kept])
   useEffect(() => {
     if (!open || !resolveMeasures) return
     let current = true
