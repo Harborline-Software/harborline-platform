@@ -56,6 +56,78 @@ public sealed class RecordsFieldBindingTests
     }
 
     [Fact]
+    [Trait("Holds", "records-ck-6")]
+    public async Task records_ck_6_a_value_domain_names_exactly_one_of_a_literal_set_a_taxonomy_scheme_or_a_record_query()
+    {
+        // Oracle: DES-0015 records-ck-6 lists the three sources; the code and pointer are the slice record's literals.
+        var literal = new ValueDomainDefinition(LiteralValues: ["open", "closed"]);
+        var scheme = new ValueDomainDefinition(TaxonomyScheme: new("status", "1.0.0"));
+        var query = new ValueDomainDefinition(RecordQuery: new("eam.site", "active"));
+        foreach (var domain in new[] { literal, scheme, query })
+        {
+            var registry = new InMemorySchemaRegistry(fieldKindRuntime: Kinds());
+            var admitted = await Compiler(Kinds()).CompileAndRegisterAsync(Status(domain), null, registry);
+            Assert.Empty(admitted.Refusals);
+            Assert.NotNull(admitted.Schema);
+        }
+
+        var twoSources = new[]
+        {
+            new ValueDomainDefinition(literal.LiteralValues, scheme.TaxonomyScheme),
+            new ValueDomainDefinition(literal.LiteralValues, RecordQuery: query.RecordQuery),
+            new ValueDomainDefinition(TaxonomyScheme: scheme.TaxonomyScheme, RecordQuery: query.RecordQuery),
+        };
+        foreach (var domain in twoSources)
+        {
+            var registry = new InMemorySchemaRegistry(fieldKindRuntime: Kinds());
+            var refused = await Compiler(Kinds()).CompileAndRegisterAsync(Status(domain), null, registry);
+            Assert.Null(refused.Schema);
+            Assert.Equal([("field.value_domain_source_count", "/fields/0/binding/constraints/value_domain")],
+                refused.Refusals.Select(refusal => (refusal.Code, refusal.JsonPointer)));
+            Assert.Empty(await Registered(registry));
+        }
+    }
+
+    [Fact]
+    [Trait("Holds", "records-ck-6")]
+    public void records_ck_6_the_value_domain_declares_only_the_three_sources_so_a_catalogue_coordinate_is_not_a_fourth()
+    {
+        // ADR-0103 decision 1, mitigated by construction: the declaration has no member a CatalogueFieldSource
+        // coordinate could occupy. Oracle: the three source names of DES-0015 records-ck-6, spelled here.
+        Assert.Equal(
+            ["LiteralValues", "RecordQuery", "TaxonomyScheme"],
+            typeof(ValueDomainDefinition).GetProperties().Select(property => property.Name).Order(StringComparer.Ordinal));
+    }
+
+    [Fact]
+    [Trait("Holds", "records-eng-4")]
+    public async Task records_eng_4_every_structural_refusal_of_a_definition_is_returned_in_field_order()
+    {
+        var kinds = Kinds();
+        var registry = new InMemorySchemaRegistry(fieldKindRuntime: kinds);
+        var candidate = new RecordTypeDefinition("order",
+        [
+            new("code", "Code", Binding(new("missing", "1.0.0", new Dictionary<string, string>()))),
+            new("status", "Status", Binding(
+                new("text", "1.0.0", new Dictionary<string, string>()),
+                new ValueDomainDefinition(["open", "closed"], new TaxonomySchemeReference("status", "1.0.0")))),
+            new("lines", "Lines", new(new("count", "1.0.0", new Dictionary<string, string>()),
+                new FieldConstraintDefinition(false, 2, 1, [], null))),
+        ]);
+
+        var result = await Compiler(kinds).CompileAndRegisterAsync(candidate, null, registry);
+
+        Assert.Null(result.Schema);
+        Assert.Equal(
+        [
+            ("field.kind_unresolved", "/fields/0/binding/kind"),
+            ("field.value_domain_source_count", "/fields/1/binding/constraints/value_domain"),
+            ("field.constraint_intersection_empty", "/fields/2/binding/constraints"),
+        ], result.Refusals.Select(refusal => (refusal.Code, refusal.JsonPointer)));
+        Assert.Empty(await Registered(registry));
+    }
+
+    [Fact]
     public async Task records_ck_5_unresolved_kind_refuses_before_registration()
     {
         var kinds = Kinds();
@@ -122,6 +194,9 @@ public sealed class RecordsFieldBindingTests
 
     private static RecordTypeSchemaCompiler Compiler(IFieldKindRuntime kinds)
         => new(new RecordsIntentValidator(), kinds, new SharedValueDomainAdmission());
+
+    private static RecordTypeDefinition Status(ValueDomainDefinition domain)
+        => new("order", [new("status", "Status", Binding(new("text", "1.0.0", new Dictionary<string, string>()), domain))]);
 
     private static FieldBindingDefinition Binding(FieldKindReference kind, ValueDomainDefinition? domain = null)
         => new(kind, new FieldConstraintDefinition(false, 0, 1, [], domain));

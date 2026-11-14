@@ -60,6 +60,24 @@ public sealed class RecordsGovernanceTests
         Assert.Null(missing.JsonSchemaText);
     }
 
+    [Fact]
+    [Trait("Holds", "records-ck-21")]
+    public async Task records_ck_21_only_the_type_names_its_retention_clock_and_it_must_be_one_of_its_own_fields()
+    {
+        var compiler = new RecordTypeSchemaCompiler(new RecordsIntentValidator(), Kinds(), new SharedValueDomainAdmission());
+
+        var foreign = await compiler.CompileAsync(Clocked(Binding("date", "1.0.0"), "order.placed_on"), null);
+
+        // Oracle: the code and pointer are the slice record's literals.
+        Assert.Equal(("records.retention.clock_field_unresolved", "/retention_clock_field_id"), Single(foreign));
+        Assert.Null(foreign.JsonSchemaText);
+        // DES-0015 records-ck-21: retention is a type property; a field has no retention member of its own.
+        Assert.Contains("RetentionClockFieldId",
+            typeof(RecordTypeDefinition).GetProperties().Select(property => property.Name));
+        Assert.DoesNotContain(typeof(FieldDefinition).GetProperties(),
+            property => property.Name.Contains("Retention", StringComparison.OrdinalIgnoreCase));
+    }
+
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
