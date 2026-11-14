@@ -29,6 +29,24 @@ public sealed class ScheduleDefinitionCatalogueTests
 
     private static DefinitionKey Key => new(Tenant, DefinitionKind.Schedules, Id);
 
+    [Theory(DisplayName = "scheduling-ck-26: exact draft save replay precedes changed backend admission")]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Scheduling_ck_26_DraftReplaySurvivesRegistryChange(bool removeBackend)
+    {
+        var definition = Definition with { ProblemClass = ScheduleProblemClass.Project,
+            Solver = new("prototype.exhaustive-proof.v2", JsonSerializer.SerializeToElement(new { }), SolverGuarantee.FeasibleProof, 100) };
+        var saved = await Catalogue.SaveDraftAsync(Tenant, Id, "1.0.0", definition, 0, "save");
+        var changed = new ScheduleDefinitionCatalogue(_store, removeBackend ? [] : [new LimitedSolver()]);
+        var replay = await changed.SaveDraftAsync(Tenant, Id, "1.0.0", definition, 0, "save");
+        Assert.Equal(saved.Revision, replay.Revision);
+        var refusal = await Assert.ThrowsAsync<DefinitionRefusalException>(() => changed.SaveDraftAsync(Tenant, Id, "1.0.0", definition, 1, "new-save").AsTask());
+        Assert.Equal(removeBackend ? "scheduling.definition.backend_unsupported" : "scheduling.definition.work_budget_unsupported", Assert.Single(refusal.Refusals).Code);
+        var conflict = await Assert.ThrowsAsync<DefinitionRefusalException>(() => changed.SaveDraftAsync(Tenant, Id, "1.0.0", definition with { Name = "changed" }, 0, "save").AsTask());
+        Assert.Equal("definition.replay_conflict", Assert.Single(conflict.Refusals).Code);
+        Assert.Single(await _store.ListHistoryAsync(Key));
+    }
+
     [Theory(DisplayName = "scheduling-ck-26: catalogue refuses unsupported solver bindings on save and publish")]
     [InlineData("missing", ScheduleProblemClass.Project, SolverGuarantee.FeasibleProof, 10, "scheduling.definition.backend_unsupported", "/solver/backend_id")]
     [InlineData("prototype.exhaustive-proof.v2", ScheduleProblemClass.Workforce, SolverGuarantee.FeasibleProof, 10, "scheduling.definition.problem_class_unsupported", "/solver")]

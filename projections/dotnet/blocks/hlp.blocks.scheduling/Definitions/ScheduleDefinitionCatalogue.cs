@@ -127,10 +127,14 @@ public sealed class ScheduleDefinitionCatalogue
                 [new DefinitionRefusal(ScheduleDefinitionCodes.BodyInvalid, "")]);
         }
         var document = new DefinitionDocument(Key(tenant, definitionId), VersionIdFor(definitionId, version), version, body);
-        var structural = Validate(document, DefinitionAdmissionPhase.Author);
-        if (structural.Count == 0) ValidateSolver(stored, DefinitionAdmissionPhase.Author);
         try
         {
+            if (stored.Solver is not null && Validate(document, DefinitionAdmissionPhase.Author).Count == 0)
+            {
+                var history = await _store.ListHistoryAsync(document.Key, cancellationToken).ConfigureAwait(false);
+                if (history.Count == 0 || history[^1].Revision <= expectedRevision)
+                    ValidateSolver(stored, DefinitionAdmissionPhase.Author);
+            }
             return Typed(await _store.SaveDraftAsync(document, expectedRevision, requestId, cancellationToken).ConfigureAwait(false));
         }
         catch (DefinitionRefusalException refusal) when (refusal.Refusals.Any(item => item.Code == "definition.revision_conflict"))

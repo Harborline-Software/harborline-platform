@@ -9,7 +9,7 @@
     "projections/dotnet/blocks/hlp.blocks.scheduling/DependencyInjection/ServiceCollectionExtensions.cs": "9b965ffadd3983452530e6b23830b4de0675e143e7e269eff12f7939eabd169b",
     "projections/dotnet/blocks/hlp.blocks.scheduling/Definitions/ScheduleDefinition.cs": "b8d899cae50421547d31d52c9dea6e8b16f41cc6f4f15f7ee260bce740b57869",
     "projections/dotnet/blocks/hlp.blocks.scheduling/Definitions/ScheduleDefinitionAdmission.cs": "de0736d5309b5ce98e9a9b5129016601943efd97a64d977526241daec2380452",
-    "projections/dotnet/blocks/hlp.blocks.scheduling/Definitions/ScheduleDefinitionCatalogue.cs": "b59dee3f76c1f8aef7c42ce82e263e063b73f9dfb6c0e698ed9ed268b85a2a29",
+    "projections/dotnet/blocks/hlp.blocks.scheduling/Definitions/ScheduleDefinitionCatalogue.cs": "b1cf86b09f827db3a95b2d6352845c4ddfd53c82b513cb337917a61ac590dd93",
     "projections/dotnet/blocks/hlp.blocks.scheduling/FileJournalSchedulingStore.cs": "eefd0d97f5462c4f60808adcfe91c242afc7ba08df8c45483a2395a12ab3a196",
     "projections/dotnet/blocks/hlp.blocks.scheduling/IScheduleReservationCoordinator.cs": "b752dfcd2a33a29a6a792c173c286338159e081e212f69dc938c69c6bb2de283",
     "projections/dotnet/blocks/hlp.blocks.scheduling/LeaseContracts.cs": "16dd8c98385d004db99f27f5ba8c5d490bbe61a796b2379df5f2e4580d2c3127",
