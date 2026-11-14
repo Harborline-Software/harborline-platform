@@ -18,6 +18,32 @@ namespace Harborline.Blocks.Workflow.Tests;
 /// </summary>
 public sealed class FileJournalWorkflowStoreTests
 {
+    [Fact]
+    public async Task Created_and_migrated_fencing_state_survives_journal_restart()
+    {
+        using var fixture = new JournalFixture();
+        using (var store = fixture.Open())
+        {
+            var instance = new WorkflowInstanceRecord
+            {
+                Id = "fence-1", TenantId = "tenant-1", DefinitionKey = "flow", DefinitionVersion = "1.0.0",
+                CurrentStep = "old", Status = WorkflowStatus.Running, MovedAwaySteps = new() { "earlier" },
+                MigrationGeneration = 4, StoreGeneration = 7,
+            };
+            await store.CreateInstanceAsync(instance);
+            await store.MigrateAsync(instance, "2.0.0", "new", "{\"map\":{\"old\":\"new\"}}");
+            var current = (await store.LoadAsync("fence-1"))!;
+            Assert.Equal(5, current.MigrationGeneration);
+            Assert.Equal(8, current.StoreGeneration);
+            Assert.Equal(new[] { "earlier", "old" }, current.MovedAwaySteps.Order().ToArray());
+        }
+        using var reopened = fixture.Open();
+        var restored = (await reopened.LoadAsync("fence-1"))!;
+        Assert.Equal(5, restored.MigrationGeneration);
+        Assert.Equal(8, restored.StoreGeneration);
+        Assert.Equal(new[] { "earlier", "old" }, restored.MovedAwaySteps.Order().ToArray());
+    }
+
     [Theory]
     [InlineData("{\"principal\":\"operator\"}")]
     [InlineData("not JSON")]

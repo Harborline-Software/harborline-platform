@@ -546,7 +546,8 @@ public sealed class FileJournalWorkflowStore : IWorkflowMigrationStore, IDisposa
 
     private static InstanceDto ToDto(WorkflowInstanceRecord value) => new(
         value.Id, value.TenantId, value.DefinitionKey, value.DefinitionVersion, value.CurrentStep,
-        value.Iteration, (int)value.Status, value.StateJson, Format(value.CreatedAt), Format(value.UpdatedAt), value.SubjectRecord);
+        value.Iteration, (int)value.Status, value.StateJson, Format(value.CreatedAt), Format(value.UpdatedAt), value.SubjectRecord,
+        value.MovedAwaySteps.ToArray(), value.MigrationGeneration, value.StoreGeneration);
 
     private static WorkflowInstanceRecord FromDto(InstanceDto value)
     {
@@ -563,6 +564,9 @@ public sealed class FileJournalWorkflowStore : IWorkflowMigrationStore, IDisposa
             Status = (WorkflowStatus)value.Status,
             StateJson = value.StateJson,
             SubjectRecord = value.SubjectRecord,
+            MovedAwaySteps = new HashSet<string>(value.MovedAwaySteps ?? [], StringComparer.Ordinal),
+            MigrationGeneration = value.MigrationGeneration,
+            StoreGeneration = value.StoreGeneration,
             CreatedAt = Parse(value.CreatedAt),
             UpdatedAt = Parse(value.UpdatedAt),
         };
@@ -582,7 +586,7 @@ public sealed class FileJournalWorkflowStore : IWorkflowMigrationStore, IDisposa
     private static DateTimeOffset Parse(string value) => DateTimeOffset.ParseExact(value, "O", CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind);
 
     private enum JournalRecordType : byte { InstanceCreated = 1, Advanced = 2, Parked = 3, Migrated = 4 }
-    private sealed record InstanceDto(string Id, string TenantId, string DefinitionKey, string DefinitionVersion, string CurrentStep, int Iteration, int Status, string StateJson, string CreatedAt, string UpdatedAt, WorkflowSubjectRecordReference? SubjectRecord = null);
+    private sealed record InstanceDto(string Id, string TenantId, string DefinitionKey, string DefinitionVersion, string CurrentStep, int Iteration, int Status, string StateJson, string CreatedAt, string UpdatedAt, WorkflowSubjectRecordReference? SubjectRecord = null, string[]? MovedAwaySteps = null, long MigrationGeneration = 0, long StoreGeneration = 0);
     private sealed record EventDto(string InstanceId, long Seq, string Step, string EventType, string DataJson, string At);
     private sealed record AdvanceDto(string InstanceId, int Iteration, string Step, string Key, string[] EffectPayloads, string ResultJson, EventDto Event, string NextStep, int NextStatus, string At);
     private sealed record ParkDto(string InstanceId, string Step, int Iteration, EventDto Event, string At);
