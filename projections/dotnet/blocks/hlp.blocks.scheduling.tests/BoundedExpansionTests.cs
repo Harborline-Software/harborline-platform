@@ -8,6 +8,35 @@ namespace Harborline.Blocks.Scheduling.Tests;
 
 public sealed class BoundedExpansionTests
 {
+    [Theory]
+    [InlineData("Asia/Tokyo", "0001-01-01T00:00:00")]
+    [InlineData("America/Los_Angeles", "9999-12-31T23:59:59")]
+    public void NonInstanceOverrideWithUnrepresentableMovedInstantIsIgnored(string zone, string moved)
+    {
+        var request = Request("FREQ=WEEKLY;BYDAY=MO");
+        request = request with { Series = request.Series with { Timezone = zone, Overrides = new Dictionary<DateTime, DateTime>
+        {
+            [new(2026, 1, 6, 9, 0, 0)] = DateTime.Parse(moved, System.Globalization.CultureInfo.InvariantCulture),
+        } } };
+        var producer = new CountingProducer();
+        Assert.Empty(Query(request, producer));
+        Assert.Equal(1, producer.Calls);
+    }
+
+    [Theory]
+    [InlineData("Asia/Tokyo", "0001-01-01T00:00:00")]
+    [InlineData("America/Los_Angeles", "9999-12-31T23:59:59")]
+    public void RuleInstanceOverrideWithUnrepresentableMovedInstantStillRefuses(string zone, string moved)
+    {
+        var request = Request();
+        request = request with { Series = request.Series with { Timezone = zone, Overrides = new Dictionary<DateTime, DateTime>
+        {
+            [new(2026, 1, 2, 9, 0, 0)] = DateTime.Parse(moved, System.Globalization.CultureInfo.InvariantCulture),
+        } } };
+        var refusal = Assert.Throws<OccurrenceRefusalException>(() => Query(request, new CountingProducer()));
+        Assert.Equal("scheduling.occurrence.date_arithmetic_overflow", refusal.Code);
+    }
+
     private static DueOccurrenceRequest Request(string rule = "FREQ=DAILY") => new(
         new("series", "asset", new(null, "Inspection", new(ScheduleStartKind.Form, "inspection"),
             Basis: new FixedCalendarBasis(rule)), new(2026, 1, 1, 9, 0, 0), "UTC"),

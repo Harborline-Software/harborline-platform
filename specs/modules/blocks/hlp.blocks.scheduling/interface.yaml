@@ -122,9 +122,9 @@
   ],
   "conformance": {
     "nativeTests": {
-      "dotnet": 429
+      "dotnet": 433
     },
-    "nativeTestNote": "Reservation/planning coverage plus due generation, literal window classification, admission, per-series kernel clock, all four identities and migrated authored chain/ledger cases. Revision 9 adds 29 authoring/K9 and compatibility cases (all owned item IDs) consuming conformance/hlp.blocks.scheduling/authoring-refusals.json. Revision 10 adds four literal window, override horizon and work-budget cases; all existing occurrence tests remain unchanged. Revision 11 adds six literal preprocessing/shared-budget and invalid rule-instance override cases; calendar composers remain untouched and off the work budget (control PR 1378; T-1202)."
+    "nativeTestNote": "Reservation/planning coverage plus due generation, literal window classification, admission, per-series kernel clock, all four identities and migrated authored chain/ledger cases. Revision 9 adds 29 authoring/K9 and compatibility cases (all owned item IDs) consuming conformance/hlp.blocks.scheduling/authoring-refusals.json. T-1197/bounded-expansion adds literal window, override-horizon, work-budget, shared-preprocessing and rule-membership coverage, including both UTC range overflow directions for overrides. Calendar composers remain untouched and off the work budget (control PR 1378; T-1202)."
   },
   "selectedDesign": {
     "choice": "Port the reservation coordinator engine verbatim minus the Razor/localization UI surface, and land the harvested planning seed beside it with the authored corpus executable.",

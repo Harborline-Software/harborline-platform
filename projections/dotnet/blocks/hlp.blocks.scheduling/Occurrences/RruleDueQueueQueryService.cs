@@ -97,7 +97,13 @@ public sealed class RruleDueOccurrenceSource(IRruleExpansionService rrule, Rrule
         {
             work.Charge();
             if (original < start || TimeOnly.FromDateTime(original) != time) continue;
-            var due = WallClockResolver.ToUtcInstant(DateOnly.FromDateTime(moved), TimeOnly.FromDateTime(moved), zone);
+            DateTimeOffset due;
+            try { due = WallClockResolver.ToUtcInstant(DateOnly.FromDateTime(moved), TimeOnly.FromDateTime(moved), zone); }
+            catch (Exception exception) when (exception is ArgumentOutOfRangeException or OverflowException)
+            {
+                // No representable query contains this instant; the visitor still validates an actual in-range original.
+                continue;
+            }
             if (!OccurrenceTime.InRange(request, due)) continue;
             relevantOverrides.Add(original);
             var date = DateOnly.FromDateTime(original);

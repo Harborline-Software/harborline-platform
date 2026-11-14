@@ -5,6 +5,23 @@ namespace Harborline.Foundation.Scheduling.Tests;
 
 public sealed class ExpansionBudgetTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void DefaultListPathRetainsItsOldAnchorAllocationCost(bool zoned)
+    {
+        var service = new InMemoryRruleExpansionService();
+        var before = GC.GetAllocatedBytesForCurrentThread();
+        var result = zoned
+            ? service.ExpandZonedOccurrences("FREQ=DAILY", new(2026, 1, 1), new(9, 0), "UTC", new(2130, 1, 7), 0, 0, new(2130, 1, 1))
+            : service.ExpandOccurrences("FREQ=DAILY", new(2026, 1, 1), new(2130, 1, 7), 0, 0, new(2130, 1, 1), "UTC");
+        var allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+        Assert.Equal([new DateOnly(2130, 1, 1), new(2130, 1, 2), new(2130, 1, 3), new(2130, 1, 4),
+            new(2130, 1, 5), new(2130, 1, 6), new(2130, 1, 7)], result);
+        // Baseline measured 57.5 MB; 100 MB leaves headroom but catches the 230 MB per-period rewrite.
+        Assert.True(allocated < 100_000_000, $"Default list expansion allocated {allocated} bytes.");
+    }
+
     [Fact]
     public void RepeatedSelectorsRemainOneDateWithinTheExactInputAndWalkBudget()
     {
