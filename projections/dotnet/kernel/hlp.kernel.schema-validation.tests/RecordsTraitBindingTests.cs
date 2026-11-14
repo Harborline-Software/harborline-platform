@@ -48,7 +48,9 @@ public sealed class RecordsTraitBindingTests
     }
 
     [Fact]
-    public async Task records_ck_37_and_39_narrower_slot_binding_is_admitted_by_the_field_runtime()
+    [Trait("Holds", "records-ck-36")]
+    [Trait("Holds", "records-ck-39")]
+    public async Task records_ck_36_37_and_39_narrower_slot_binding_compiles_the_fields_narrowed_constraints()
     {
         var domains = new NarrowingDomainRuntime();
         var registry = Registry();
@@ -59,8 +61,16 @@ public sealed class RecordsTraitBindingTests
         var result = await compiler.CompileAndRegisterAsync(Candidate(declared, narrowed), null, registry, Scope);
 
         Assert.Empty(result.Refusals);
-        Assert.NotNull(result.Schema);
+        var schema = Assert.IsType<Schema>(result.Schema);
         Assert.Equal((declared, narrowed, "/traits/0/slot_bindings/0"), Assert.Single(domains.NarrowCalls));
+        // Oracle: the field's own (required, 1 to 1), not the slot's (not required, 0 to 5); slice record literals.
+        using var document = JsonDocument.Parse(schema.JsonSchemaText);
+        Assert.Equal(["street_address"], document.RootElement.GetProperty("required").EnumerateArray().Select(key => key.GetString()));
+        var shapes = document.RootElement.GetProperty("properties").GetProperty("street_address").GetProperty("anyOf").EnumerateArray().ToArray();
+        var repeated = Assert.Single(shapes, shape => shape.GetProperty("type").GetString() == "array");
+        Assert.Equal(1, repeated.GetProperty("minItems").GetInt32());
+        Assert.Equal(1, repeated.GetProperty("maxItems").GetInt32());
+        Assert.DoesNotContain(shapes, shape => shape.GetProperty("type").GetString() == "null");
     }
 
     [Fact]
