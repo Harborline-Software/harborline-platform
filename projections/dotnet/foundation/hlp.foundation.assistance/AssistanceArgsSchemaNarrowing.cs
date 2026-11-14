@@ -12,8 +12,8 @@ public static class AssistanceArgsSchemaNarrowing
     public static bool IsAtLeastAsStrict(JsonElement candidate, JsonElement baseline)
     {
         if (candidate.ValueKind != JsonValueKind.Object || baseline.ValueKind != JsonValueKind.Object) return false;
-        if ((candidate.TryGetProperty("$schema", out var candidateDialect) && !candidateDialect.ValueEquals("https://json-schema.org/draft/2020-12/schema")) ||
-            (baseline.TryGetProperty("$schema", out var baselineDialect) && !baselineDialect.ValueEquals("https://json-schema.org/draft/2020-12/schema"))) return false;
+        if ((candidate.TryGetProperty("$schema", out var candidateDialect) && (candidateDialect.ValueKind != JsonValueKind.String || !candidateDialect.ValueEquals("https://json-schema.org/draft/2020-12/schema"))) ||
+            (baseline.TryGetProperty("$schema", out var baselineDialect) && (baselineDialect.ValueKind != JsonValueKind.String || !baselineDialect.ValueEquals("https://json-schema.org/draft/2020-12/schema")))) return false;
         if (candidate.GetRawText().Length > 65536 || baseline.GetRawText().Length > 65536) return false;
         var shapeBudget = 4096;
         var hasReferences = false;

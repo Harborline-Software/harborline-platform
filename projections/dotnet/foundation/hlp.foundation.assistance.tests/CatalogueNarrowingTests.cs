@@ -124,6 +124,8 @@ public sealed class CatalogueNarrowingTests
     [Fact(DisplayName = "pilot-auth-3 pilot-ck-6: unsupported root dialects cannot prove inclusion")]
     public void RootDialect()
     {
+        Assert.False(AssistanceArgsSchemaNarrowing.IsAtLeastAsStrict(Json("""{"$schema":1}"""), Json("{}")));
+        Assert.False(AssistanceArgsSchemaNarrowing.IsAtLeastAsStrict(Json("{}"), Json("""{"$schema":null}""")));
         foreach (var uri in new[] { "http://json-schema.org/draft-07/schema#", "https://json-schema.org/draft/2019-09/schema" })
         {
             var baseline = Json($$"""{"$schema":"{{uri}}"}""");
