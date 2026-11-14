@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Harborline.Blocks.Workflow.Durable;
+using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 using static Harborline.Blocks.Workflow.Tests.FileJournalWorkflowStoreTests;
 
@@ -7,6 +8,32 @@ namespace Harborline.Blocks.Workflow.Tests;
 
 public sealed class WorkflowMigrationTests
 {
+    [Fact]
+    public async Task Registered_typed_handler_refuses_a_renamed_step_through_host_migration()
+    {
+        using var fixture = new JournalFixture();
+        using var store = fixture.Open();
+        await store.CreateInstanceAsync(new WorkflowInstanceRecord
+        {
+            Id = "run-1", TenantId = "tenant-1", DefinitionKey = "flow", DefinitionVersion = "1.0.0",
+            CurrentStep = "old", Status = WorkflowStatus.Running,
+        });
+        var services = new ServiceCollection();
+        services.AddSingleton<IWorkflowStore>(store);
+        services.AddSingleton<IWorkflowDefinitionExecutionStore>(new TypedDefinitions());
+        services.AddSingleton<IWorkflowStepHandler>(new TypedHandler());
+        services.AddDurableWorkflowEngine();
+        using var provider = services.BuildServiceProvider();
+        Assert.Empty(typeof(WorkflowMigration).GetConstructors());
+        var migration = provider.GetRequiredService<WorkflowMigration>();
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() => migration.MigrateAsync("run-1", "2.0.0",
+            new Dictionary<string, string> { ["old"] = "new" },
+            new WorkflowMigrationAuthority("operator-1", "tenant-1", "workflow:migrate", "workflow-instance", "run-1", true)));
+        Assert.Contains("old", error.Message, StringComparison.Ordinal);
+        Assert.Equal("1.0.0", (await store.LoadAsync("run-1"))!.DefinitionVersion);
+        Assert.Empty(await store.EventsAsync("run-1"));
+    }
+
     private static WorkflowMigration Migration(IWorkflowStore store, IWorkflowDefinitionExecutionStore definitions)
         => new(store, definitions, new WorkflowTriggerDispatcher(store, [], definitionStore: definitions));
     [Theory]

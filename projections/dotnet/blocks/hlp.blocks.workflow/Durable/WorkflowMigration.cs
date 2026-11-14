@@ -7,8 +7,19 @@ public sealed record WorkflowMigrationAuthority(
     string Principal, string Tenant, string Operation, string RecordKind, string RecordId, bool Allowed);
 
 /// <summary>Migrates an instance to an admitted version without recomputing its state.</summary>
-public sealed class WorkflowMigration(IWorkflowStore store, IWorkflowDefinitionExecutionStore definitions, WorkflowTriggerDispatcher dispatcher)
+public sealed class WorkflowMigration
 {
+    private readonly IWorkflowStore store;
+    private readonly IWorkflowDefinitionExecutionStore definitions;
+    private readonly WorkflowTriggerDispatcher dispatcher;
+
+    internal WorkflowMigration(IWorkflowStore store, IWorkflowDefinitionExecutionStore definitions, WorkflowTriggerDispatcher dispatcher)
+    {
+        this.store = store;
+        this.definitions = definitions;
+        this.dispatcher = dispatcher;
+    }
+
     /// <summary>Migrates a named instance using the host's authorization decision and an explicit step map.</summary>
     public async Task MigrateAsync(string instanceId, string targetVersion, IReadOnlyDictionary<string, string> map,
         WorkflowMigrationAuthority authority, CancellationToken ct = default)

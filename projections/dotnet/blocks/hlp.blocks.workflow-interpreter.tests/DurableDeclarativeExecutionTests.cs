@@ -99,7 +99,7 @@ public sealed class DurableDeclarativeExecutionTests : IDisposable
         try
         {
             Assert.Equal(0, sink.TotalCount);
-            await new WorkflowMigration(store, provider.GetRequiredService<IWorkflowDefinitionExecutionStore>(), dispatcher)
+            await provider.GetRequiredService<WorkflowMigration>()
                 .MigrateAsync("approval-race", "2.0.0", new Dictionary<string, string> { ["PendingApproval"] = "PendingApproval" },
                     new WorkflowMigrationAuthority("operator", Tenant, "workflow:migrate", "workflow-instance", "approval-race", true));
         }
