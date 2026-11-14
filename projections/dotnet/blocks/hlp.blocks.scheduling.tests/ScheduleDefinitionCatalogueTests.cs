@@ -26,6 +26,34 @@ public sealed class ScheduleDefinitionCatalogueTests
 
     private static DefinitionKey Key => new(Tenant, DefinitionKind.Schedules, Id);
 
+    [Fact(DisplayName = "scheduling-ck-26: a solver choice survives definition serialization")]
+    public async Task Scheduling_ck_26_SolverChoiceSurvivesSerialization()
+    {
+        var json = ScheduleDefinitionJson.Serialize(Definition);
+        json = json.Insert(json.Length - 1, ",\"solver\":{\"backend_id\":\"prototype.exhaustive-proof.v2\",\"parameters\":{\"limit\":4},\"guarantee\":\"feasible_proof\",\"work_budget\":10}");
+        var definition = ScheduleDefinitionJson.Deserialize(json);
+        using var roundTrip = JsonDocument.Parse(ScheduleDefinitionJson.Serialize(definition));
+        var solver = roundTrip.RootElement.GetProperty("solver");
+        Assert.Equal("prototype.exhaustive-proof.v2", solver.GetProperty("backend_id").GetString());
+        Assert.Equal(4, solver.GetProperty("parameters").GetProperty("limit").GetInt32());
+        Assert.Equal("feasible_proof", solver.GetProperty("guarantee").GetString());
+        Assert.Equal(10, solver.GetProperty("work_budget").GetInt32());
+        await Catalogue.SaveDraftAsync(Tenant, Id, "1.0.0", definition, 0, "solver-draft");
+        await Catalogue.PublishAsync(Tenant, Id, "1.0.0", 1, "solver-publish");
+        var pin = await Catalogue.PinHeadAsync(Tenant, Id);
+        await Catalogue.RestoreAsDraftAsync(Tenant, Id, "1.0.0", "2.0.0", 2, "solver-restore");
+        await Catalogue.PublishAsync(Tenant, Id, "2.0.0", 3, "solver-publish-restored");
+        foreach (var version in new[] { pin, await Catalogue.PinHeadAsync(Tenant, Id) })
+        {
+            var resolved = await Catalogue.ResolveAsync(version);
+            using var body = JsonDocument.Parse(ScheduleDefinitionJson.Serialize(resolved.Definition));
+            Assert.Equal("prototype.exhaustive-proof.v2", body.RootElement.GetProperty("solver").GetProperty("backend_id").GetString());
+            Assert.Equal(4, body.RootElement.GetProperty("solver").GetProperty("parameters").GetProperty("limit").GetInt32());
+            Assert.Equal("feasible_proof", body.RootElement.GetProperty("solver").GetProperty("guarantee").GetString());
+            Assert.Equal(10, body.RootElement.GetProperty("solver").GetProperty("work_budget").GetInt32());
+        }
+    }
+
     [Fact(DisplayName = "scheduling-auth-18: an unadmitted module refuses at authoring")]
     public async Task UnadmittedModuleRefusesAtAuthoring()
     {
