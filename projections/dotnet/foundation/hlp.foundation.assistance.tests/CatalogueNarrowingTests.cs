@@ -96,6 +96,56 @@ public sealed class CatalogueNarrowingTests
         Assert.False(AssistanceArgsSchemaNarrowing.IsAtLeastAsStrict(Json($"{{\"{keyword}\":{value},\"minimum\":1}}"), Json($"{{\"{keyword}\":{value}}}")));
     }
 
+    [Fact(DisplayName = "pilot-auth-3 pilot-ck-6: root recursive reference observes siblings")]
+    public void OpaqueSiblingsRecursiveRef()
+    {
+        Assert.False(AssistanceArgsSchemaNarrowing.IsAtLeastAsStrict(Json("""{"$recursiveRef":"#","required":["b"]}"""), Json("""{"$recursiveRef":"#"}""")));
+        Assert.True(AssistanceArgsSchemaNarrowing.IsAtLeastAsStrict(Json("""{"$recursiveRef":"#"}"""), Json("""{"$recursiveRef":"#"}""")));
+    }
+
+    [Fact(DisplayName = "pilot-auth-3 pilot-auth-10 pilot-ck-6: nested recursive reference refuses catalogue and previous widening")]
+    public void OpaqueSiblingsNestedRecursiveRef()
+    {
+        const string baseline = """{"properties":{"a":{"not":{"$recursiveRef":"#"}}}}""";
+        const string candidate = """{"properties":{"a":{"not":{"$recursiveRef":"#"}}},"required":["b"]}""";
+        var registry = new FixtureCommandCatalogueRegistry();
+        registry.Replace(registry.Resolve("ap")! with { ArgsSchema = Json(baseline) });
+        Assert.Equal([new AssistanceRefusal("definition.args_schema_looser_than_catalogue", "/commands/0/args_schema")], AssistanceDefinitionAdmission.Validate(Binding(Command("ap", schema: candidate)), AssistanceAdmissionPhase.Author, Window, registry));
+        registry.Replace(registry.Resolve("ap")! with { ArgsSchema = Json(candidate) });
+        Assert.Equal([new AssistanceRefusal("definition.args_schema_widened", "/commands/0/args_schema")], AssistanceDefinitionAdmission.Validate(Binding(Command("ap", schema: candidate)), AssistanceAdmissionPhase.Author, Window, registry, Binding(Command("ap", schema: baseline))));
+    }
+
+    [Fact(DisplayName = "pilot-auth-3 pilot-ck-6: recursive anchor observes siblings")]
+    public void OpaqueSiblingsRecursiveAnchor()
+    {
+        Assert.False(AssistanceArgsSchemaNarrowing.IsAtLeastAsStrict(Json("""{"$recursiveAnchor":true,"required":["b"]}"""), Json("""{"$recursiveAnchor":true}""")));
+    }
+
+    [Fact(DisplayName = "pilot-auth-3 pilot-ck-6: unsupported root dialects cannot prove inclusion")]
+    public void RootDialect()
+    {
+        foreach (var uri in new[] { "http://json-schema.org/draft-07/schema#", "https://json-schema.org/draft/2019-09/schema" })
+        {
+            var baseline = Json($$"""{"$schema":"{{uri}}"}""");
+            var tighter = Json($$"""{"$schema":"{{uri}}","required":["b"]}""");
+            Assert.False(AssistanceArgsSchemaNarrowing.IsAtLeastAsStrict(baseline, baseline));
+            Assert.False(AssistanceArgsSchemaNarrowing.IsAtLeastAsStrict(tighter, baseline));
+            Assert.False(AssistanceArgsSchemaNarrowing.IsAtLeastAsStrict(tighter, Json("{}")));
+            Assert.False(AssistanceArgsSchemaNarrowing.IsAtLeastAsStrict(Json("{}"), baseline));
+        }
+        Assert.True(AssistanceArgsSchemaNarrowing.IsAtLeastAsStrict(Json("""{"$schema":"https://json-schema.org/draft/2020-12/schema","required":["b"]}"""), Json("""{"$schema":"https://json-schema.org/draft/2020-12/schema"}""")));
+        Assert.True(AssistanceArgsSchemaNarrowing.IsAtLeastAsStrict(Json("""{"required":["b"]}"""), Json("{}")));
+    }
+
+    [Fact(DisplayName = "pilot-auth-10 pilot-ck-6: undefined catalogue tier does not resolve in any phase")]
+    public void UndefinedCatalogueTier()
+    {
+        var registry = new FixtureCommandCatalogueRegistry();
+        registry.Replace(registry.Resolve("ap")! with { Tier = (AssistanceClassificationTier)(-1) });
+        foreach (var phase in new[] { AssistanceAdmissionPhase.Author, AssistanceAdmissionPhase.Publish, AssistanceAdmissionPhase.Install })
+            Assert.Equal([new AssistanceRefusal("definition.command_unregistered", "/commands/0/command_id")], AssistanceDefinitionAdmission.Validate(Binding(Command("ap")), phase, Window, registry));
+    }
+
     [Theory(DisplayName = "pilot-auth-3 pilot-ck-6: unsupported keyword changes refuse")]
     [InlineData("const", "1", "2")]
     [InlineData("multipleOf", "2", "3")]
