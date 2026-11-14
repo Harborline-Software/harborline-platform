@@ -33,6 +33,7 @@
     <EmbeddedResource Include="..\..\..\conformance\hlp.ui.app-shell\rev6\state-scenarios.json" LogicalName="app-shell-rev6-state-scenarios.json" />
     <!-- The Rule Authoring lineage story reads the one shared lineage fixture the lineage tests read (T-730). -->
     <EmbeddedResource Include="..\..\..\conformance\hlp.ui.rule-authoring\lineage.json" LogicalName="rule-authoring-lineage.json" />
+    <EmbeddedResource Include="..\..\..\conformance\hlp.blocks.builder-definitions\rules-editor-contract-fixtures.json" LogicalName="rules-editor-contract-fixtures.json" />
     <Content Include="..\..\..\projections\shared\ui\hlp.ui.app-shell\rev6\tab-identity-state.mjs" Link="wwwroot\rev6\tab-identity-state.mjs" ContentRoot="$(MSBuildThisFileDirectory)..\..\..\projections\shared\ui\hlp.ui.app-shell\" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
   <ItemGroup>

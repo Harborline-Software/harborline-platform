@@ -1,11 +1,12 @@
 import { fireEvent, render, screen } from '@testing-library/react'
+import userEvent from '../../hlp.ui.button/node_modules/@testing-library/user-event/dist/esm/index.js'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
 import { useState } from 'react'
 import { formulaCallOps, generatePalette, serializeRuleDefinition, validateRuleDefinitionJson, type RecordFieldSet, type RuleDefinitionExpression } from '@harborline-software/rule-authoring'
 import type { RuleScope } from '@harborline-software/rule-engine'
-import { GuidedExpressionEditor, RulesAuthoringEditor, emptyRulesDraft, type RulesEditorAuthority, type RulesMaterialization, type RulesOperationRequest, type RulesRefusal } from './RulesAuthoringEditor'
+import { GuidedExpressionEditor, RulesAuthoringEditor, emptyRulesDraft, type RulesDraft, type RulesEditorAuthority, type RulesMaterialization, type RulesOperationRequest, type RulesRefusal } from './RulesAuthoringEditor'
 
 const fixture = JSON.parse(readFileSync(resolve(process.cwd(), '../../../../conformance/hlp.blocks.builder-definitions/rules-editor-contract-fixtures.json'), 'utf8')) as { lifecycle: { responses: readonly { materialization?: RulesMaterialization }[] }; preview: { clockUtc: string; label: string; outcomeKinds: readonly string[]; cases: readonly { expected: { kind: string; value?: string; validity?: string; visibility?: string; presentation?: string; code?: string; ruleName: string; memberName: string } }[] }; referenceForms: { palette: readonly { id: string; label: string; valueType: 'Number' | 'Text' | 'Boolean' }[]; cases: readonly { id: string; ref: string; action: string; scope: string; scopeTarget: string; lowered: unknown }[] } }
 const authorityFixture = JSON.parse(readFileSync(resolve(process.cwd(), '../../../../conformance/hlp.blocks.builder-definitions/rules-editor-authority-fixtures.json'), 'utf8')) as { denyAll: { authority: RulesEditorAuthority }; threeRefusals: { authority: RulesEditorAuthority; operation: RulesOperationRequest['operation']; refusals: readonly RulesRefusal[] }; grantCases: readonly { granted: readonly string[]; enabled: readonly string[] }[] }
@@ -13,6 +14,112 @@ const contracts = [{ site: 'rule', returnContract: 'typed value', executionTimeC
 const props = (overrides: Partial<React.ComponentProps<typeof RulesAuthoringEditor>> = {}) => ({ value: emptyRulesDraft(), expressionContracts: contracts, previewKind: 'real' as const, onChange: vi.fn(), onOperation: vi.fn(), ...overrides })
 
 describe('Rules authoring React projection', () => {
+  it('rules-auth-18 refuses unsafe missing calls', () => {
+    const rule = { ...emptyRulesDraft(), identity: 'check', name: 'Check', draft: { kind: 'Formula' as const, scope: 'Field' as const, scopeTarget: 'amount', outputType: 'Validate' as const, inputs: [{ id: 'self', ref: 'self', type: 'Number' as const }], expression: { kind: 'Call' as const, op: '!' as const, args: [{ kind: 'Call' as const, op: 'missing' as const, args: [{ kind: 'Literal' as const, value: 'self', valueType: 'Text' as const }] }] } } }
+    const changed = vi.fn()
+    render(<RulesAuthoringEditor {...props({ value: rule, catalogue: { rules: [rule] }, onCatalogueChange: changed })} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Promote Check' }))
+    expect(changed).not.toHaveBeenCalled()
+    expect(screen.getByLabelText('Refusals')).toHaveTextContent('rule.promote.missing_call')
+  })
+
+  it('rules-auth-18 retains the promoted reference as an option', () => {
+    const rule = { ...emptyRulesDraft(), identity: 'check', name: 'Check', draft: { kind: 'Formula' as const, scope: 'Field' as const, scopeTarget: 'amount', outputType: 'Validate' as const, inputs: [{ id: 'field.amount', ref: 'field.amount', type: 'Number' as const }], expression: { kind: 'Ref' as const, name: 'field.amount' } } }
+    render(<RulesAuthoringEditor {...props({ value: rule })} />)
+    expect(screen.getByLabelText('Input 1 reference')).toHaveValue('field.amount')
+    expect(screen.getByLabelText('Rule reference')).toHaveValue('field.amount')
+    expect(screen.getAllByRole('option', { name: 'field.amount' })).toHaveLength(2)
+  })
+
+  it('rules-auth-18 returns focus and announces promotion', async () => {
+    const f = JSON.parse(readFileSync(resolve(process.cwd(), '../../../../conformance/hlp.ui.rule-authoring/promotion.json'), 'utf8'))
+    const rule = { ...emptyRulesDraft(), identity: 'amount-check', name: 'Amount check', draft: f.input.draft }
+    render(<RulesAuthoringEditor {...props({ value: rule, catalogue: { rules: [rule] }, onCatalogueChange: vi.fn() })} />)
+    const button = screen.getByRole('button', { name: 'Promote Amount check' })
+    button.focus(); await userEvent.keyboard('{Enter}')
+    expect(screen.getByLabelText('Rule name')).toHaveFocus()
+    expect(screen.getByRole('status', { name: 'Promotion status' })).toHaveTextContent('Promoted Amount check.')
+  })
+
+  it('rules-auth-18 refuses each saved ineligible snapshot from the shared fixture', () => {
+    const fixture = JSON.parse(readFileSync(resolve(process.cwd(), '../../../../conformance/hlp.ui.rule-authoring/promotion.json'), 'utf8'))
+    for (const row of fixture.refused) {
+      const rule = { ...emptyRulesDraft(), identity: 'amount-check', expectedRevision: '1', name: 'Amount check', draft: fixture.input.draft }
+      const requests: RulesOperationRequest[] = []; const changed = vi.fn()
+      const base = props({ value: rule, catalogue: { rules: [rule] }, onCatalogueChange: changed, onOperation: request => { requests.push(request) } })
+      const view = render(<RulesAuthoringEditor {...base} />)
+      if (row.edit === 'compute') fireEvent.change(screen.getByLabelText('Rule action'), { target: { value: 'Compute' } })
+      else fireEvent.change(screen.getByLabelText('Rule expression shape'), { target: { value: 'Literal' } })
+      fireEvent.click(screen.getByRole('button', { name: 'Save draft' }))
+      const request = requests[0]
+      view.rerender(<RulesAuthoringEditor {...base} response={{ requestId: request.requestId, identity: 'amount-check', expectedRevision: '1', generation: request.generation, authoritative: { identity: 'amount-check', revision: '2', status: 'Draft' } }} />)
+      fireEvent.click(screen.getByRole('button', { name: 'Promote Amount check' }))
+      expect(changed).not.toHaveBeenCalled()
+      expect(screen.getByLabelText('Refusals')).toHaveTextContent('rule.promote.ineligible at /draft')
+      expect(screen.queryByText('Promoted Amount check.')).toBeNull()
+      view.unmount()
+    }
+  })
+
+  it('rules-auth-18 promotes the saved snapshot when the catalogue is stale', () => {
+    const f = JSON.parse(readFileSync(resolve(process.cwd(), '../../../../conformance/hlp.ui.rule-authoring/promotion.json'), 'utf8'))
+    const rule = { ...emptyRulesDraft(), identity: 'amount-check', expectedRevision: '1', name: 'Amount check', draft: f.input.draft }
+    const requests: RulesOperationRequest[] = []; const changed = vi.fn(); const onChange = vi.fn()
+    const base = props({ value: rule, catalogue: { rules: [rule] }, onCatalogueChange: changed, onChange, onOperation: request => { requests.push(request) } })
+    const view = render(<RulesAuthoringEditor {...base} />)
+    fireEvent.change(screen.getByLabelText('Rule name'), { target: { value: 'Saved check' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save draft' }))
+    const request = requests[0]
+    view.rerender(<RulesAuthoringEditor {...base} response={{ requestId: request.requestId, identity: 'amount-check', expectedRevision: '1', generation: request.generation, authoritative: { identity: 'amount-check', revision: '2', status: 'Draft' }, materialization: { bindings: [], canonicalContent: 'saved', contentDigest: 'digest-2' } }} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Promote Amount check' }))
+    expect(changed).toHaveBeenCalledWith({ rules: [expect.objectContaining({ identity: 'amount-check', name: 'Saved check', expectedRevision: '2', materialization: { bindings: [], canonicalContent: 'saved', contentDigest: 'digest-2' }, draft: expect.objectContaining({ inputs: [{ id: 'field.amount', ref: 'field.amount', type: 'Number' }] }) })] })
+    fireEvent.click(screen.getByRole('button', { name: 'Save draft' }))
+    expect(requests[1].draft).toEqual(expect.objectContaining({ name: 'Saved check', expectedRevision: '2', materialization: { bindings: [], canonicalContent: 'saved', contentDigest: 'digest-2' } }))
+  })
+
+  it('rules-auth-18 saves the promoted loaded rule', () => {
+    const f = JSON.parse(readFileSync(resolve(process.cwd(), '../../../../conformance/hlp.ui.rule-authoring/promotion.json'), 'utf8'))
+    const rule = { ...emptyRulesDraft(), identity: 'amount-check', expectedRevision: '7', name: 'Amount check', materialization: { bindings: [], canonicalContent: 'content', contentDigest: 'digest-1' }, draft: f.input.draft }
+    const requested = vi.fn()
+    render(<RulesAuthoringEditor {...props({ value: rule, catalogue: { rules: [rule] }, onCatalogueChange: vi.fn(), onOperation: requested })} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Promote Amount check' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save draft' }))
+    expect(requested).toHaveBeenCalledWith(expect.objectContaining({ identity: 'amount-check', expectedRevision: '7', draft: expect.objectContaining({ identity: 'amount-check', expectedRevision: '7', materialization: expect.objectContaining({ contentDigest: 'digest-1' }), draft: expect.objectContaining({ scopeTarget: 'amount', inputs: [{ id: 'field.amount', ref: 'field.amount', type: 'Number' }], expression: { kind: 'Call', op: '>=', args: [{ kind: 'Ref', name: 'field.amount' }, { kind: 'Literal', value: '0', valueType: 'Number' }] } }) }) }))
+  })
+
+  it('rules-auth-18 refuses to promote a loaded rule with unsaved edits', () => {
+    const f = JSON.parse(readFileSync(resolve(process.cwd(), '../../../../conformance/hlp.ui.rule-authoring/promotion.json'), 'utf8'))
+    const rule = { ...emptyRulesDraft(), identity: 'amount-check', name: 'Amount check', draft: f.input.draft }
+    const changed = vi.fn()
+    render(<RulesAuthoringEditor {...props({ value: rule, catalogue: { rules: [rule] }, onCatalogueChange: changed })} />)
+    fireEvent.change(screen.getByLabelText('Rule name'), { target: { value: 'Edited' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Promote Amount check' }))
+    expect(changed).not.toHaveBeenCalled()
+    expect(screen.getByLabelText('Rule name')).toHaveValue('Edited')
+    expect(screen.getByLabelText('Refusals')).toHaveTextContent('rule.promote.unsaved_edits')
+  })
+
+  it('rules-auth-18 offers promotion only for the shared field-check cases', () => {
+    const fixture = JSON.parse(readFileSync(resolve(process.cwd(), '../../../../conformance/hlp.ui.rule-authoring/promotion.json'), 'utf8'))
+    const rules = fixture.eligibility.map((row: { document: { envelope: { id: string }; name: string; draft: RulesDraft['draft'] } }) => ({ ...emptyRulesDraft(), identity: row.document.envelope.id, name: row.document.name, draft: row.document.draft }))
+    render(<RulesAuthoringEditor {...props({ catalogue: { rules }, onCatalogueChange: vi.fn() })} />)
+    expect(screen.getByRole('button', { name: 'Promote eligible' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Promote calculation' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Promote no-self' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Promote toggle' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Promote toggle-real' })).toBeNull()
+  })
+
+  it('rules-auth-18 promotes a field check in the shared catalogue', () => {
+    const fixture = JSON.parse(readFileSync(resolve(process.cwd(), '../../../../conformance/hlp.ui.rule-authoring/promotion.json'), 'utf8'))
+    const doc = fixture.input
+    const rule = { ...emptyRulesDraft(), identity: doc.envelope.id, name: doc.name, draft: doc.draft }
+    const changed = vi.fn()
+    render(<RulesAuthoringEditor {...props({ value: rule, catalogue: { rules: [rule] }, onCatalogueChange: changed })} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Promote Amount check' }))
+    expect(changed).toHaveBeenCalledWith({ rules: [{ ...rule, draft: fixture.expected.draft }] })
+  })
+
   it('rules-auth-19 navigates consumer and calculation and names dead weight from producer lineage', () => {
     const fixture = JSON.parse(readFileSync(resolve(process.cwd(), '../../../../conformance/hlp.ui.rule-authoring/lineage.json'), 'utf8'))
     const rules = fixture.documents.map((doc: { envelope: { id: string }; name: string; draft: unknown }) => ({ ...emptyRulesDraft(), identity: doc.envelope.id, name: doc.name, draft: doc.draft }))

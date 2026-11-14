@@ -33,6 +33,12 @@ public sealed class WorkflowInstanceCreator(IWorkflowDefinitionExecutionStore de
             instance.TenantId, instance.DefinitionKey, instance.DefinitionVersion, ct).ConfigureAwait(false);
         var definition = WorkflowDefinitionWireMapper.ToModel(
             admitted.Authored, instance.TenantId, instance.DefinitionKey, instance.DefinitionVersion);
+        ValidateSubject(definition, instance);
+        await store.CreateInstanceAsync(instance, ct).ConfigureAwait(false);
+    }
+
+    internal static void ValidateSubject(WorkflowDefinition definition, WorkflowInstanceRecord instance)
+    {
         if (definition.Subject?.Kind == WorkflowSubjectKind.Record)
         {
             if (instance.SubjectRecord is null || instance.SubjectRecord.RecordType != definition.Subject.RecordType)
@@ -40,6 +46,5 @@ public sealed class WorkflowInstanceCreator(IWorkflowDefinitionExecutionStore de
         }
         else if (instance.SubjectRecord is not null)
             throw new InvalidOperationException("A run without a single record subject cannot carry a record reference.");
-        await store.CreateInstanceAsync(instance, ct).ConfigureAwait(false);
     }
 }

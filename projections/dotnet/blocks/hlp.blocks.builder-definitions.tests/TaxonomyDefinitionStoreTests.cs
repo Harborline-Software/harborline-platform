@@ -22,6 +22,7 @@ public sealed class TaxonomyDefinitionStoreTests
 
     [Fact]
     [Trait("Holds", "taxonomy-eng-1")]
+    [Trait("Holds", "taxonomy-ck-3")]
     public async Task published_version_is_immutable_and_an_unpinned_authoritative_reference_is_unresolvable()
     {
         var (catalogue, taxonomy) = Store();
@@ -56,6 +57,8 @@ public sealed class TaxonomyDefinitionStoreTests
 
     [Fact]
     [Trait("Holds", "taxonomy-eng-1")]
+    [Trait("Holds", "taxonomy-ck-1")]
+    [Trait("Holds", "taxonomy-ck-3")]
     public async Task a_pinned_version_resolves_exactly_and_a_missing_or_draft_version_refuses()
     {
         var (_, taxonomy) = Store();
@@ -109,6 +112,7 @@ public sealed class TaxonomyDefinitionStoreTests
     [InlineData(Tenant, "not-a-taxonomy-id", "1.0.0", "/definition_id")]
     [InlineData(Tenant, "acme.health.icd", "1.0.1", "/version")]
     [Trait("Holds", "taxonomy-auth-11")]
+    [Trait("Holds", "taxonomy-ck-21")]
     public async Task publish_refuses_catalogue_coordinates_that_disagree_with_the_body(
         string tenant, string definitionId, string version, string pointer)
     {

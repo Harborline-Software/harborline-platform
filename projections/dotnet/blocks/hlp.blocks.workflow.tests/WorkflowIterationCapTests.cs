@@ -49,6 +49,23 @@ public sealed class WorkflowIterationCapTests
         public Task<WorkflowStepIdempotencyRecord?> FindStepResultAsync(WorkflowStepKey key, CancellationToken ct = default)
             => Task.FromResult(_idem.TryGetValue(key.Value, out var r) ? r : null);
 
+        public async Task<(bool Current, WorkflowStepIdempotencyRecord? Result)> FindStepResultIfCurrentAsync(
+            WorkflowInstanceRecord expected, WorkflowStepKey key, CancellationToken ct = default)
+            => (true, await FindStepResultAsync(key, ct));
+
+        public async Task<bool> AdvanceIfCurrentAsync(WorkflowInstanceRecord expected, WorkflowStepKey key, WorkflowEffect? effect,
+            string resultJson, string eventType, string eventDataJson, string nextStep, WorkflowStatus nextStatus, CancellationToken ct = default)
+        {
+            await AdvanceAsync(key, effect, resultJson, eventType, eventDataJson, nextStep, nextStatus, ct);
+            return true;
+        }
+
+        public async Task<bool> ParkIfCurrentAsync(WorkflowInstanceRecord expected, string step, string reasonJson, int iteration, CancellationToken ct = default)
+        {
+            await ParkAsync(expected.Id, step, reasonJson, iteration, ct);
+            return true;
+        }
+
         public Task AdvanceAsync(
             WorkflowStepKey key, WorkflowEffect? effect, string resultJson, string eventType,
             string eventDataJson, string nextStep, WorkflowStatus nextStatus, CancellationToken ct = default)
