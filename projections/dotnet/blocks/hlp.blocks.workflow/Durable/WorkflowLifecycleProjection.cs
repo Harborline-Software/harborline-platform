@@ -24,6 +24,7 @@ public sealed class WorkflowLifecycleMappingException(string message) : Exceptio
 /// WorkflowCorrelationCompleted, WorkflowCancelled, WorkflowTerminated, WorkflowFaulted, WorkflowCompleted,
 /// TaskCreated, TaskStarted, TaskSuspended, TaskResumed, TaskRetried, TaskCancelled, TaskFaulted and
 /// TaskCompleted. Its JSON data carries the corresponding v1.0.0 event payload; termination also carries reason.
+/// A terminal TaskCompleted fact carries workflowCompletion with the completed workflow's name and completedAt.
 /// Other history entries are not lifecycle events.
 /// </remarks>
 public static class WorkflowLifecycleProjection
@@ -117,7 +118,21 @@ public static class WorkflowLifecycleProjection
             foreach (var key in errorData.Select(pair => pair.Key).Except(["type", "title", "status", "detail", "instance"]).ToArray()) errorData.Remove(key);
         var source = $"urn:harborline:workflow:{Uri.EscapeDataString(metadata.StoreNamespace)}:{Uri.EscapeDataString(metadata.TenantNamespace)}";
         var id = $"{Uri.EscapeDataString(entry.InstanceId)}/{entry.Seq.ToString(System.Globalization.CultureInfo.InvariantCulture)}/{Uri.EscapeDataString(type)}";
-        return [new WorkflowLifecycleEvent("1.0", id, source, type, JsonSerializer.SerializeToElement(allowed))];
+        var taskEvent = new WorkflowLifecycleEvent("1.0", id, source, type, JsonSerializer.SerializeToElement(allowed));
+        if (entry.EventType != "TaskCompleted" || !data.TryGetPropertyValue("workflowCompletion", out var completion))
+            return [taskEvent];
+        if (completion is not JsonObject workflow)
+            throw new WorkflowLifecycleMappingException("Terminal task history requires workflow completion data.");
+        RequireString(workflow, "name");
+        if (workflow["name"]!.GetValue<string>() != data["workflow"]!.GetValue<string>())
+            throw new WorkflowLifecycleMappingException("Task and workflow completion must name the same workflow.");
+        var workflowFact = new WorkflowEventRecord
+        {
+            InstanceId = entry.InstanceId, Seq = entry.Seq, Step = entry.Step,
+            EventType = "WorkflowCompleted", DataJson = workflow.ToJsonString(), OccurredAt = entry.OccurredAt,
+        };
+        var workflowEvent = Map(workflowFact, metadata).Single();
+        return [taskEvent, workflowEvent];
     }
 
     private static void RequireString(JsonObject data, string property)

@@ -13,6 +13,40 @@ public sealed class WorkflowLifecycleMapperTests
     };
 
     [Fact]
+    public void Terminal_task_fact_maps_to_distinct_task_and_workflow_completion_events()
+    {
+        var fact = new WorkflowEventRecord
+        {
+            InstanceId = "run", Seq = 7, Step = "step", EventType = "TaskCompleted",
+            DataJson = "{\"workflow\":\"flow.example\",\"task\":\"/do/1/finish\",\"completedAt\":\"2024-07-26T16:59:57-05:00\",\"workflowCompletion\":{\"name\":\"flow.example\",\"completedAt\":\"2024-07-26T16:59:58-05:00\",\"private\":\"secret\"}}",
+        };
+        var events = WorkflowLifecycleProjection.Map(fact, new("store", "tenant"));
+        Assert.Equal(2, events.Count);
+        Assert.Equal("io.serverlessworkflow.task.completed.v1", events[0].Type);
+        Assert.Equal("io.serverlessworkflow.workflow.completed.v1", events[1].Type);
+        Assert.Equal(events[0].Source, events[1].Source);
+        Assert.NotEqual(events[0].Id, events[1].Id);
+        Assert.Equal("flow.example", events[1].Data.GetProperty("name").GetString());
+        Assert.Equal("2024-07-26T16:59:58-05:00", events[1].Data.GetProperty("completedAt").GetString());
+        Assert.False(events[1].Data.TryGetProperty("private", out _));
+        Assert.Equal(JsonSerializer.Serialize(events), JsonSerializer.Serialize(WorkflowLifecycleProjection.Map(fact, new("store", "tenant"))));
+    }
+
+    [Theory]
+    [InlineData("null")]
+    [InlineData("{}")]
+    [InlineData("{\"name\":\"other.example\",\"completedAt\":\"2024-07-26T16:59:58-05:00\"}")]
+    public void Terminal_task_refuses_invalid_pinned_workflow_completion(string completion)
+    {
+        var fact = new WorkflowEventRecord
+        {
+            InstanceId = "run", Seq = 7, Step = "step", EventType = "TaskCompleted",
+            DataJson = "{\"workflow\":\"flow.example\",\"task\":\"/do/1/finish\",\"completedAt\":\"2024-07-26T16:59:57-05:00\",\"workflowCompletion\":" + completion + "}",
+        };
+        Assert.Throws<WorkflowLifecycleMappingException>(() => WorkflowLifecycleProjection.Map(fact, new("store", "tenant")));
+    }
+
+    [Fact]
     public void Repeated_mapping_is_byte_identical_and_drops_unlisted_data()
     {
         var fact = Fact();
