@@ -244,3 +244,24 @@ it('the report screen renders without a host shell', () => {
   render(<ReportAuthoringScreen value={null} onCreate={() => {}} onChange={() => {}} />)
   expect(screen.getByRole('button', { name: 'Create report' })).toBeInTheDocument()
 })
+
+it('a new host revision of the same definition waits for pending edits', () => {
+  const value = { tenant: 't', key: 'r', version: '1.0.0', measures: [] }
+  const props = { value, onCreate: vi.fn(), onChange: vi.fn() }
+  const view = render(<ReportAuthoringEditor {...props} revision="1" />)
+  fireEvent.change(screen.getByLabelText('Parameter name'), { target: { value: 'pending' } })
+  view.rerender(<ReportAuthoringEditor {...props} revision="2" />)
+  expect(screen.getByRole('button', { name: 'Add parameter' })).toBeDisabled()
+  fireEvent.click(screen.getByRole('button', { name: 'Discard edits and load' }))
+  expect(screen.getByLabelText('Parameter name')).toHaveValue('')
+})
+
+it('a created draft fences a later host revision when edits are pending', () => {
+  const value = { tenant: 't', key: 'r', version: '1.0.0', measures: [] }
+  const props = { onCreate: vi.fn(), onChange: vi.fn() }
+  const view = render(<ReportAuthoringEditor {...props} value={null} revision={null} />)
+  view.rerender(<ReportAuthoringEditor {...props} value={value} revision="1" />)
+  fireEvent.change(screen.getByLabelText('Parameter name'), { target: { value: 'pending' } })
+  view.rerender(<ReportAuthoringEditor {...props} value={value} revision="2" />)
+  expect(screen.getByRole('button', { name: 'Add parameter' })).toBeDisabled()
+})

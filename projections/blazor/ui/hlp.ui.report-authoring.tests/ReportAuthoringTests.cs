@@ -236,4 +236,25 @@ public sealed class ReportAuthoringTests : BunitContext
         Assert.True(cut.Find("[aria-label='Keep editing']").HasAttribute("disabled"));
         Assert.True(cut.Find("[aria-label='Discard edits and load']").HasAttribute("disabled"));
     }
+    [Fact(DisplayName = "a new host revision of the same definition waits for pending edits")]
+    public void SameDefinitionNewRevision()
+    {
+        var value = new ReportDraft("t", "r", "1.0.0", [], []);
+        var cut = Render<HarborlineReportAuthoringEditor>(p => p.Add(x => x.Value, value).Add(x => x.Revision, "1"));
+        cut.Find("[aria-label='Parameter name']").Change("pending");
+        cut.Render(p => p.Add(x => x.Revision, "2"));
+        Assert.True(cut.Find("[aria-label='Add parameter']").HasAttribute("disabled"));
+        cut.Find("[aria-label='Discard edits and load']").Click();
+        Assert.Equal("", cut.Find("[aria-label='Parameter name']").GetAttribute("value"));
+    }
+    [Fact(DisplayName = "a created draft fences a later host revision when edits are pending")]
+    public void CreatedDraftRevision()
+    {
+        var value = new ReportDraft("t", "r", "1.0.0", [], []);
+        var cut = Render<HarborlineReportAuthoringEditor>();
+        cut.Render(p => p.Add(x => x.Value, value).Add(x => x.Revision, "1"));
+        cut.Find("[aria-label='Parameter name']").Change("pending");
+        cut.Render(p => p.Add(x => x.Revision, "2"));
+        Assert.True(cut.Find("[aria-label='Add parameter']").HasAttribute("disabled"));
+    }
 }

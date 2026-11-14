@@ -4,11 +4,11 @@
   "method": "One source edit per assertion; targeted test failed at the recorded assertion, source restored byte-identically, and the restored suite passed. Full mutation runs remain paused under T-1172.",
   "oracle": "DES-0020 sections 2, 4 and 6 and DES-0002 section 15; literal conformance fixtures and stated pending-edit, read-only and resolver properties.",
   "sourceSha256": {
-    "projections/blazor/ui/hlp.ui.report-authoring/HarborlineReportAuthoringEditor.razor": "77ae32425e4ff47f8dae35e3eef892c90677efe7cc7adee2481381bb208aea09",
-    "projections/blazor/ui/hlp.ui.report-authoring/HarborlineReportAuthoringScreen.razor": "30b1cccc89091f248fcb56e82be717699749f49b2bfa05e0c07d7ff60c529994",
+    "projections/blazor/ui/hlp.ui.report-authoring/HarborlineReportAuthoringEditor.razor": "7764c6daa78563aa26783405ffd1d5b3f9b94219c3daabddc24f71da10431efc",
+    "projections/blazor/ui/hlp.ui.report-authoring/HarborlineReportAuthoringScreen.razor": "152e5da0b867f2eb4bacbfcc77803acca178025e5a3c6091c09323a1629e2eb6",
     "projections/blazor/ui/hlp.ui.report-authoring/ReportDraft.cs": "5c8070a1e19ddbc1de6a02f9adf2ab2bb04dd13df28039a894520a00cb7222e8",
     "projections/blazor/ui/hlp.ui.report-authoring/ReportDraftCodec.cs": "2efc4254bc143faca02e41e1f97ba9f56196a63450d489d09fecd240faf38c2c",
-    "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringEditor.tsx": "4fa8c81daeb48901e112a22da2a026034d412e20933e9b0137ad472411504352",
+    "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringEditor.tsx": "d5bbf1dcd38c081a798a1fbaaa53190a85f87273bc78b6e749a129f64ce37b7f",
     "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringScreen.tsx": "297f2cd40d8512c84622b8381c30bffef24729d2d6f7f131f42189f4bc0e8ffe"
   },
   "react": [
@@ -398,17 +398,6 @@
       "testFile": "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringEditor.test.tsx"
     },
     {
-      "name": "stale-refusal",
-      "file": "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringEditor.tsx",
-      "old": "(incoming || kept ? [] : refusals).filter(r => r.pointer === `/measures/",
-      "new": "refusals.filter(r => r.pointer === `/measures/",
-      "test": "pending replacement hides refusals",
-      "assertionLine": 240,
-      "exit": 1,
-      "hit": true,
-      "testFile": "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringEditor.test.tsx"
-    },
-    {
       "name": "screen-fallback",
       "file": "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringScreen.tsx",
       "old": "shell ? shell.render(body) : body",
@@ -473,6 +462,50 @@
       "exit": 1,
       "hit": true,
       "testFile": "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringEditor.test.tsx"
+    },
+    {
+      "name": "stale-refusal",
+      "file": "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringEditor.tsx",
+      "old": "(incoming || kept ? [] : refusals).filter(r => r.pointer === `/measures/",
+      "new": "refusals.filter(r => r.pointer === `/measures/",
+      "test": "pending replacement hides refusals",
+      "testFile": "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringEditor.test.tsx",
+      "assertionLine": 240,
+      "exit": 1,
+      "hit": true
+    },
+    {
+      "name": "revision-fence",
+      "file": "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringEditor.tsx",
+      "old": " || previousRevision.current !== revision",
+      "new": "",
+      "test": "a new host revision",
+      "testFile": "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringEditor.test.tsx",
+      "assertionLine": 254,
+      "exit": 1,
+      "hit": true
+    },
+    {
+      "name": "revision-discard",
+      "file": "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringEditor.tsx",
+      "old": "setParameterName(''); setParameterDefault('');",
+      "new": "setParameterName('pending'); setParameterDefault('');",
+      "test": "a new host revision",
+      "testFile": "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringEditor.test.tsx",
+      "assertionLine": 256,
+      "exit": 1,
+      "hit": true
+    },
+    {
+      "name": "created-revision",
+      "file": "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringEditor.tsx",
+      "old": "    if (!old && value) { previous.current = value; previousRevision.current = revision; return }\n",
+      "new": "",
+      "test": "a created draft fences",
+      "testFile": "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringEditor.test.tsx",
+      "assertionLine": 266,
+      "exit": 1,
+      "hit": true
     }
   ],
   "blazor": [
@@ -743,7 +776,7 @@
     {
       "name": "discard-new",
       "file": "projections/blazor/ui/hlp.ui.report-authoring/HarborlineReportAuthoringEditor.razor",
-      "old": "previous = Value; kept = ignored = null; incoming = false;",
+      "old": "previous = Value; previousRevision = Revision; kept = ignored = null; ignoredRevision = null; incoming = false;",
       "new": "kept = previous; ignored = Value; incoming = false;",
       "test": "PendingRevision",
       "assertionLine": 143,
@@ -904,6 +937,39 @@
       "exit": 1,
       "hit": true,
       "testFile": "projections/blazor/ui/hlp.ui.report-authoring.tests/ReportAuthoringTests.cs"
+    },
+    {
+      "name": "revision-fence",
+      "file": "projections/blazor/ui/hlp.ui.report-authoring/HarborlineReportAuthoringEditor.razor",
+      "old": " || previousRevision != Revision",
+      "new": "",
+      "test": "SameDefinitionNewRevision",
+      "assertionLine": 246,
+      "exit": 1,
+      "hit": true,
+      "testFile": "projections/blazor/ui/hlp.ui.report-authoring.tests/ReportAuthoringTests.cs"
+    },
+    {
+      "name": "revision-discard",
+      "file": "projections/blazor/ui/hlp.ui.report-authoring/HarborlineReportAuthoringEditor.razor",
+      "old": "parameterName = parameterDefault = effectiveType = \"\";",
+      "new": "parameterName = \"pending\"; parameterDefault = effectiveType = \"\";",
+      "test": "SameDefinitionNewRevision",
+      "assertionLine": 248,
+      "exit": 1,
+      "hit": true,
+      "testFile": "projections/blazor/ui/hlp.ui.report-authoring.tests/ReportAuthoringTests.cs"
+    },
+    {
+      "name": "created-revision",
+      "file": "projections/blazor/ui/hlp.ui.report-authoring/HarborlineReportAuthoringEditor.razor",
+      "old": "else if (!incoming) { previous = Value;",
+      "new": "else if (!incoming && previous is not null) { previous = Value;",
+      "test": "CreatedDraftRevision",
+      "testFile": "projections/blazor/ui/hlp.ui.report-authoring.tests/ReportAuthoringTests.cs",
+      "assertionLine": 258,
+      "exit": 1,
+      "hit": true
     }
   ],
   "producerAdmission": [

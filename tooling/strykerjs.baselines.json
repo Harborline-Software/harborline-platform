@@ -938,7 +938,7 @@
     },
     "projections/react/ui/hlp.ui.report-authoring": {
       "pending": true,
-      "why": "T-1172 pauses full mutation runs; hand mutations will be recorded in the draft PR until a measured baseline can be recorded."
+      "why": "T-1172 pauses full mutation runs; hand mutations are recorded in the draft PR until a measured baseline can be recorded."
     }
   }
 }
