@@ -39,7 +39,7 @@
     "projections/dotnet/blocks/hlp.blocks.workflow/Durable/CapabilityAuthorityRegistry.cs": "d6c75603d544d779cec8c2f4cb282b54323fdb3c8264381c9c986f92b9ec6b90",
     "projections/dotnet/blocks/hlp.blocks.workflow/Durable/DurableWorkflowModel.cs": "969fdc506b7609737a128c4471ab62205460450a8401e77103fcf78dd7b2e49e",
     "projections/dotnet/blocks/hlp.blocks.workflow/Durable/DurableWorkflowServiceCollectionExtensions.cs": "1c66e1307fb5e902134ad944ea84f098f54c9ac9e976892565d986e3a45da58a",
-    "projections/dotnet/blocks/hlp.blocks.workflow/Durable/FileJournalWorkflowStore.cs": "a26ef8c99392f9367385ae806f8f87f5e0e3d9544340e2c598e7e12558e2843b",
+    "projections/dotnet/blocks/hlp.blocks.workflow/Durable/FileJournalWorkflowStore.cs": "b661155e0eee9df11edb5ed5c946e5f115d5bc74cd56bfa7fc978130f55b1d31",
     "projections/dotnet/blocks/hlp.blocks.workflow/Durable/GraphRagProposalHandler.cs": "bfcc15bdc294c0e6fd532aa6ae12bab93d7922e865d8a08710a6d4f09f345ead",
     "projections/dotnet/blocks/hlp.blocks.workflow/Durable/HumanApprovalHandlerBase.cs": "b15ee97966358781bd8b81993784e3bcc9304c84c7208146344a7af3f7546433",
     "projections/dotnet/blocks/hlp.blocks.workflow/Durable/IDeclarativeWorkflowInterpreter.cs": "7bfd5e4bc2cef0a5a4cf610cc3f02550734403003ecd10bd9fe7674ea34e72a2",
@@ -47,7 +47,7 @@
     "projections/dotnet/blocks/hlp.blocks.workflow/Durable/IWorkflowDefinitionStore.cs": "5c56882898fe9853ebd390cde60336a19afab8a12a42bd47cdf7414f16f3a716",
     "projections/dotnet/blocks/hlp.blocks.workflow/Durable/IWorkflowScheduleSource.cs": "da387c869fcbf0fa4264f796f044aaad99dd06065c27a1236c214f90190dc030",
     "projections/dotnet/blocks/hlp.blocks.workflow/Durable/IWorkflowStepHandler.cs": "c4e0acc31f88d026fabc626dc1c4a25e2d6ebe37dd2cda6a1eaafafaba3abeca",
-    "projections/dotnet/blocks/hlp.blocks.workflow/Durable/IWorkflowStore.cs": "6e61e7f51a21365d115e8bb1f1302349702381c4e73fb5e0e91a3c2c53657e7b",
+    "projections/dotnet/blocks/hlp.blocks.workflow/Durable/IWorkflowStore.cs": "e72ae7413973dadecd14bf2ef8e950be2298cbe93840d64ba99dc7360314b1b0",
     "projections/dotnet/blocks/hlp.blocks.workflow/Durable/IWorkflowTriggerDispatcher.cs": "286e84b0c75bb36ff6918651b92619d6b58b1fcf8821620b3171591bf1995e16",
     "projections/dotnet/blocks/hlp.blocks.workflow/Durable/InMemoryWorkflowDefinitionStore.cs": "69e42612ea9fc38483e8e2497cb4e48ad63c80b298c4491707b212d3c57144fe",
     "projections/dotnet/blocks/hlp.blocks.workflow/Durable/InvoiceApprovalHandler.cs": "fa8039757d650bb4af85796b7623e240d3e4bf4d7c79240fcabe1be9f57e1362",
@@ -84,7 +84,8 @@
     "projections/dotnet/blocks/hlp.blocks.workflow/Durable/WorkflowInstanceCreator.cs": "667978a8bc7f9e3cf8249aa7e35e9e01af320eec268b88753c249f0adf19695e",
     "projections/dotnet/blocks/hlp.blocks.workflow.tests/WorkflowSubjectCreationTests.cs": "040af2c4e85440806ed4d0242ef45dbfe8d03e7672c05e1a78197f988ea37b82",
     "projections/dotnet/blocks/hlp.blocks.workflow/Durable/WorkflowLifecycleStatus.cs": "99b9df9951d0f2b17fa5aeaf8cb6991296989a66955cfaaf24f9f4b9565da82e",
-    "projections/dotnet/blocks/hlp.blocks.workflow.tests/WorkflowLifecycleStatusTests.cs": "8ee409b641f20489f64bcad2f0be2d2c319f0a3961f56572b86e00ec11fa5432"
+    "projections/dotnet/blocks/hlp.blocks.workflow.tests/WorkflowLifecycleStatusTests.cs": "8ee409b641f20489f64bcad2f0be2d2c319f0a3961f56572b86e00ec11fa5432",
+    "projections/dotnet/blocks/hlp.blocks.workflow.tests/WorkflowLifecycleHistoryTests.cs": "101fba545ef92a4695ef0b4dba95f024a8a7dd88f1ccb5ff5932f6865bea08ac"
   },
   "nextGate": "Build the Workflows package-only capability vertical (ticket 074): a Carrier-derived ledger definition driven define-admit-trigger-transition-complete through packaged interfaces with the 13-pair client/server admission-mirror cross-check; do not interpret engine substrate as completion of the workflows capability gate."
 }
