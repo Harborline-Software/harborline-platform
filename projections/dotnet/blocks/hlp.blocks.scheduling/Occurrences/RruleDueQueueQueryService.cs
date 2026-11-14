@@ -90,45 +90,48 @@ public sealed class RruleDueOccurrenceSource(IRruleExpansionService rrule, Rrule
         if (from > DateOnly.MinValue) from = from.AddDays(-1);
         if (to < DateOnly.MaxValue) to = to.AddDays(1);
         var time = TimeOnly.FromDateTime(start);
-        var work = budget ?? CreateBudget(request);
-        var end = to;
-        var relevantOverrides = new HashSet<DateTime>();
-        foreach (var (original, moved) in series.Overrides ?? new Dictionary<DateTime, DateTime>())
+        try
         {
-            work.Charge();
-            if (original < start || TimeOnly.FromDateTime(original) != time) continue;
-            DateTimeOffset due;
-            try { due = WallClockResolver.ToUtcInstant(DateOnly.FromDateTime(moved), TimeOnly.FromDateTime(moved), zone); }
-            catch (Exception exception) when (exception is ArgumentOutOfRangeException or OverflowException)
+            var work = budget ?? CreateBudget(request);
+            var end = to;
+            var relevantOverrides = new HashSet<DateTime>();
+            foreach (var (original, moved) in series.Overrides ?? new Dictionary<DateTime, DateTime>())
             {
-                // No representable query contains this instant; the visitor still validates an actual in-range original.
-                continue;
+                work.Charge();
+                if (original < start || TimeOnly.FromDateTime(original) != time) continue;
+                DateTimeOffset due;
+                try { due = WallClockResolver.ToUtcInstant(DateOnly.FromDateTime(moved), TimeOnly.FromDateTime(moved), zone); }
+                catch (Exception exception) when (exception is ArgumentOutOfRangeException or OverflowException)
+                {
+                    // No representable query contains this instant; the visitor still validates an actual in-range original.
+                    continue;
+                }
+                if (!OccurrenceTime.InRange(request, due)) continue;
+                relevantOverrides.Add(original);
+                var date = DateOnly.FromDateTime(original);
+                if (date > end) end = date;
             }
-            if (!OccurrenceTime.InRange(request, due)) continue;
-            relevantOverrides.Add(original);
-            var date = DateOnly.FromDateTime(original);
-            if (date > end) end = date;
+            work.RequestedRangeEnd = end;
+            var result = new List<SchedulingOccurrence>();
+            void Visit(DateOnly date)
+            {
+                var original = date.ToDateTime(time);
+                if ((date < from || date > to) && !relevantOverrides.Contains(original)) return;
+                if (series.ExceptionDates?.Contains(original) == true) return;
+                var local = series.Overrides is { } overrides && overrides.TryGetValue(original, out var moved) ? moved : original;
+                var due = WallClockResolver.ToUtcInstant(DateOnly.FromDateTime(local), TimeOnly.FromDateTime(local), zone);
+                if (!OccurrenceTime.InRange(request, due)) return;
+                if (result.Count == OccurrenceLimit) throw new OccurrenceRefusalException("scheduling.occurrence.occurrence_cap_exceeded");
+                var identity = OccurrenceTime.Key(series.SeriesId, original.ToString("yyyy-MM-dd'T'HH:mm:ss.fffffff", System.Globalization.CultureInfo.InvariantCulture));
+                result.Add(OccurrenceTime.Create(request, kernelInstant, identity, due, series.Definition.Window, series.Definition.Tolerance, original));
+            }
+            rrule.VisitZonedOccurrences(basis.Rrule, DateOnly.FromDateTime(start), time, zone, end, from, Visit, budget: work);
+            return result;
         }
-        work.RequestedRangeEnd = end;
-        var result = new List<SchedulingOccurrence>();
-        void Visit(DateOnly date)
-        {
-            var original = date.ToDateTime(time);
-            if ((date < from || date > to) && !relevantOverrides.Contains(original)) return;
-            if (series.ExceptionDates?.Contains(original) == true) return;
-            var local = series.Overrides is { } overrides && overrides.TryGetValue(original, out var moved) ? moved : original;
-            var due = WallClockResolver.ToUtcInstant(DateOnly.FromDateTime(local), TimeOnly.FromDateTime(local), zone);
-            if (!OccurrenceTime.InRange(request, due)) return;
-            if (result.Count == OccurrenceLimit) throw new OccurrenceRefusalException("scheduling.occurrence.occurrence_cap_exceeded");
-            var identity = OccurrenceTime.Key(series.SeriesId, original.ToString("yyyy-MM-dd'T'HH:mm:ss.fffffff", System.Globalization.CultureInfo.InvariantCulture));
-            result.Add(OccurrenceTime.Create(request, kernelInstant, identity, due, series.Definition.Window, series.Definition.Tolerance, original));
-        }
-        try { rrule.VisitZonedOccurrences(basis.Rrule, DateOnly.FromDateTime(start), time, zone, end, from, Visit, budget: work); }
         catch (RruleExpansionBudgetExceededException exception)
         {
             throw BudgetRefusal(exception);
         }
-        return result;
     }
 
     internal static OccurrenceRefusalException BudgetRefusal(RruleExpansionBudgetExceededException exception)

@@ -8,6 +8,33 @@ namespace Harborline.Blocks.Scheduling.Tests;
 
 public sealed class BoundedExpansionTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void DirectSourcePreprocessingMapsEveryBudgetFailureToStructuredRefusal(bool oversizedRule)
+    {
+        var rule = oversizedRule
+            ? "FREQ=YEARLY;BYMONTH=" + string.Join(',', Enumerable.Repeat("1", 25001))
+            : "FREQ=DAILY;COUNT=2";
+        var request = Request(rule);
+        if (!oversizedRule)
+            request = request with { Series = request.Series with { Overrides = Enumerable.Range(0, 50001).ToDictionary(
+                day => new DateTime(2026, 1, 1, 9, 0, 0).AddDays(day), _ => new DateTime(2026, 1, 2, 11, 0, 0)) } };
+        var producer = new CountingProducer();
+        var refusal = Assert.Throws<OccurrenceRefusalException>(() => new RruleDueOccurrenceSource(producer).DeriveDue(
+            request, new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero)));
+        Assert.Equal("scheduling.occurrence.expansion_budget_exceeded", refusal.Code);
+        Assert.Equal(0, producer.Calls);
+        Assert.Equal(rule, refusal.Data["RecurrenceId"]);
+        Assert.Equal(new DateOnly(2026, 1, 1), refusal.Data["Anchor"]);
+        Assert.Equal(new DateOnly(2026, 1, 1), refusal.Data["RequestedRangeStart"]);
+        Assert.Equal(new DateOnly(2026, 1, 3), refusal.Data["RequestedRangeEnd"]);
+        Assert.Equal(50000, refusal.Data["CandidateLimit"]);
+        Assert.Equal(50001, refusal.Data["CandidatesExamined"]);
+        Assert.Null(refusal.Data["LastEvaluatedOccurrence"]);
+        Assert.Equal(oversizedRule ? null : (object)RecurrenceBound.Count, refusal.Data["Bound"]);
+    }
+
     [Fact]
     public void UtcUntilRollbackKeepsTheFollowingLocalDateInTheDueQuery()
     {
