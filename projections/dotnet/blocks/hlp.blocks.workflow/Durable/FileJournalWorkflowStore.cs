@@ -501,7 +501,6 @@ public sealed class FileJournalWorkflowStore : IWorkflowMigrationStore, IDisposa
         instance.MovedAwaySteps.UnionWith(movedAway);
         instance.DefinitionVersion = dto.TargetVersion;
         instance.CurrentStep = dto.TargetStep;
-        instance.HasMigrated = true;
         instance.MigrationGeneration++;
         instance.StoreGeneration++;
         instance.UpdatedAt = Parse(dto.At);
@@ -532,7 +531,6 @@ public sealed class FileJournalWorkflowStore : IWorkflowMigrationStore, IDisposa
         DefinitionKey = source.DefinitionKey,
         DefinitionVersion = source.DefinitionVersion,
         CurrentStep = source.CurrentStep,
-        HasMigrated = source.HasMigrated,
         MovedAwaySteps = new HashSet<string>(source.MovedAwaySteps, StringComparer.Ordinal),
         MigrationGeneration = source.MigrationGeneration,
         StoreGeneration = source.StoreGeneration,

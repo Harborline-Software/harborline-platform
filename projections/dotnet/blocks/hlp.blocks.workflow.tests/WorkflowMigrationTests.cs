@@ -9,6 +9,10 @@ namespace Harborline.Blocks.Workflow.Tests;
 public sealed class WorkflowMigrationTests
 {
     [Fact]
+    public void Migration_state_does_not_expose_an_unused_has_migrated_flag()
+        => Assert.Null(typeof(WorkflowInstanceRecord).GetProperty("HasMigrated"));
+
+    [Fact]
     public void Legacy_store_conditional_members_have_defaults_and_migration_does_not_hide_the_base_member()
     {
         Assert.False(typeof(IWorkflowStore).GetMethod("FindStepResultIfCurrentAsync")!.IsAbstract);

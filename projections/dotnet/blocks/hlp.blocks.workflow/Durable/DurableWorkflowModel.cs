@@ -44,9 +44,6 @@ public sealed class WorkflowInstanceRecord
     /// <summary>The step the instance is parked at / about to run. Single-owner serialized.</summary>
     public required string CurrentStep { get; set; }
 
-    /// <summary>Whether this instance has been explicitly migrated.</summary>
-    public bool HasMigrated { get; set; }
-
     /// <summary>Step identifiers left behind by migration maps.</summary>
     public HashSet<string> MovedAwaySteps { get; set; } = new(StringComparer.Ordinal);
 

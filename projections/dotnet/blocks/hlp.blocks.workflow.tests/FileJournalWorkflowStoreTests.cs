@@ -90,7 +90,6 @@ public sealed class FileJournalWorkflowStoreTests
         Assert.Equal("new", run.CurrentStep);
         Assert.Equal(WorkflowStatus.Parked, run.Status);
         Assert.Equal("{\"due\":\"2026-11-12T12:00:00Z\",\"correlation\":\"c-1\"}", run.StateJson);
-        Assert.True(run.HasMigrated);
         Assert.Contains("old", run.MovedAwaySteps);
         Assert.Equal(1, run.MigrationGeneration);
         var entry = Assert.Single(await reopened.EventsAsync("migration-restart"));
