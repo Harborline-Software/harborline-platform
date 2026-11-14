@@ -93,7 +93,7 @@ public sealed class ReportAuthoringTests : BunitContext
         await cut.Find("[aria-label='Add measure']").ClickAsync();
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
         while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "conformance/hlp.ui.report-authoring/definition.json"))) directory = directory.Parent;
-        Assert.NotNull(directory);
+        if (directory is null) throw new InvalidOperationException("Shared fixture not found.");
         var expected = SharedFixtureBatch.Current is { } raw ? JsonNode.Parse(raw)!["expected"] : JsonNode.Parse(File.ReadAllText(Path.Combine(directory.FullName, "conformance/hlp.ui.report-authoring/definition.json")));
         var options = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull };
         Assert.True(JsonNode.DeepEquals(expected, JsonSerializer.SerializeToNode(current, options)));

@@ -1,6 +1,8 @@
 using System;
 using System.IO;
 using System.Text.Json;
+using System.Text.Json.Nodes;
+using Harborline.UIAdapters.Blazor.Components.ReportAuthoring;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using Harborline.Blocks.MeasureCatalogue;
@@ -19,14 +21,16 @@ public sealed class ReportAuthoringConformanceTests
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
         while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "conformance/hlp.ui.report-authoring/definition.json"))) directory = directory.Parent;
-        Assert.NotNull(directory);
+        if (directory is null) throw new InvalidOperationException("Shared fixture not found.");
         var json = File.ReadAllText(Path.Combine(directory.FullName, "conformance/hlp.ui.report-authoring/definition.json"));
         var options = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower, Converters = { new JsonStringEnumConverter(JsonNamingPolicy.SnakeCaseLower, false) } };
-        var definition = JsonSerializer.Deserialize<ReportDefinition>(json, options);
-        Assert.NotNull(definition);
+        var draft = JsonSerializer.Deserialize<ReportDraft>(json, options) ?? throw new InvalidOperationException("Invalid authoring fixture.");
+        var authoredJson = ReportDraftCodec.Serialize(draft);
+        var definition = JsonSerializer.Deserialize<ReportDefinition>(authoredJson, options) ?? throw new InvalidOperationException("Invalid authored report.");
         var result = await ReportDefinitionAdmission.AdmitAsync(definition, DefinitionAdmissionPhase.Author, new(1, 0, 1), new("fixture", new FixtureCatalogue()));
         Assert.Empty(result.Refusals);
         Assert.Equal(5, definition.Parameters!.Count);
+        Assert.True(JsonNode.DeepEquals(JsonNode.Parse(json), JsonNode.Parse(authoredJson)));
     }
 
     private sealed class FixtureCatalogue : IMeasureCatalogue
