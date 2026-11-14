@@ -523,7 +523,7 @@ public sealed class CodingSubsumptionTests
     [Theory]
     [InlineData(1, "vendor.domain.asset", "vendor.domain.other")]
     [InlineData(2, "1.0.0", "2.0.0")]
-    [InlineData(3, "b21015c1098b83f1deb9addf42e10b84438c54a61d4f558d36bd3ceaa712fc87", "0000000000000000000000000000000000000000000000000000000000000000")]
+    [InlineData(3, "0f61c4681d455872e4c008eca8c63a5cb328fd09ac78946bdfe6406ece0ab75e", "0000000000000000000000000000000000000000000000000000000000000000")]
     public void Expected_binding_definition_version_and_digest_are_independently_exact(int tupleIndex, string original, string mismatch)
     {
         var fixture = Fixture;
