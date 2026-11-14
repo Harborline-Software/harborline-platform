@@ -1,0 +1,13 @@
+{
+  "tenant": "tenant-r",
+  "key": "report-a",
+  "version": "1.0.0",
+  "measures": [{ "measure": "finance.rent" }],
+  "parameters": [
+    { "name": "enabled", "type": "boolean", "default": { "kind": "boolean", "value": true, "type": "boolean", "is_valid": true } },
+    { "name": "as_at", "type": "date_time", "default": { "kind": "datetime", "value": "2026-01-01T00:00:00+00:00", "type": "date_time", "is_valid": true }, "effective_dated_type": "lease" },
+    { "name": "count", "type": "integer", "default": { "kind": "integer", "value": 42, "type": "integer", "is_valid": true } },
+    { "name": "ratio", "type": "float", "default": { "kind": "float", "value": 2.5, "type": "float", "is_valid": true } },
+    { "name": "label", "type": "string", "default": { "kind": "string", "value": "hello", "type": "string", "is_valid": true } }
+  ]
+}
