@@ -18,6 +18,85 @@ namespace Harborline.Blocks.Workflow.Tests;
 /// </summary>
 public sealed class FileJournalWorkflowStoreTests
 {
+    [Fact]
+    public async Task Created_and_migrated_fencing_state_survives_journal_restart()
+    {
+        using var fixture = new JournalFixture();
+        using (var store = fixture.Open())
+        {
+            var instance = new WorkflowInstanceRecord
+            {
+                Id = "fence-1", TenantId = "tenant-1", DefinitionKey = "flow", DefinitionVersion = "1.0.0",
+                CurrentStep = "old", Status = WorkflowStatus.Running, MovedAwaySteps = new() { "earlier" },
+                MigrationGeneration = 4, StoreGeneration = 7,
+            };
+            await store.CreateInstanceAsync(instance);
+            await store.MigrateAsync(instance, "2.0.0", "new", "{\"map\":{\"old\":\"new\"}}");
+            var current = (await store.LoadAsync("fence-1"))!;
+            Assert.Equal(5, current.MigrationGeneration);
+            Assert.Equal(8, current.StoreGeneration);
+            Assert.Equal(new[] { "earlier", "old" }, current.MovedAwaySteps.Order().ToArray());
+        }
+        using var reopened = fixture.Open();
+        var restored = (await reopened.LoadAsync("fence-1"))!;
+        Assert.Equal(5, restored.MigrationGeneration);
+        Assert.Equal(8, restored.StoreGeneration);
+        Assert.Equal(new[] { "earlier", "old" }, restored.MovedAwaySteps.Order().ToArray());
+    }
+
+    [Theory]
+    [InlineData("{\"principal\":\"operator\"}")]
+    [InlineData("not JSON")]
+    public async Task Invalid_migration_data_is_refused_before_journal_or_history_changes(string data)
+    {
+        using var fixture = new JournalFixture();
+        long length;
+        using (var store = fixture.Open())
+        {
+            var instance = new WorkflowInstanceRecord
+            {
+                Id = "run-1", TenantId = "tenant-1", DefinitionKey = "flow", DefinitionVersion = "1.0.0",
+                CurrentStep = "old", Status = WorkflowStatus.Parked,
+            };
+            await store.CreateInstanceAsync(instance);
+            length = new FileInfo(fixture.JournalPath).Length;
+            await Assert.ThrowsAnyAsync<Exception>(() => store.MigrateAsync(instance, "2.0.0", "new", data));
+            Assert.Empty(await store.EventsAsync("run-1"));
+            Assert.Equal(length, new FileInfo(fixture.JournalPath).Length);
+        }
+        using var reopened = fixture.Open();
+        Assert.Empty(await reopened.EventsAsync("run-1"));
+        Assert.Equal("1.0.0", (await reopened.LoadAsync("run-1"))!.DefinitionVersion);
+        Assert.Equal("old", (await reopened.LoadAsync("run-1"))!.CurrentStep);
+    }
+
+    [Fact]
+    public async Task Migration_position_state_and_history_survive_journal_restart()
+    {
+        using var fixture = new JournalFixture();
+        using (var store = fixture.Open())
+        {
+            var instance = new WorkflowInstanceRecord
+            {
+                Id = "migration-restart", TenantId = "tenant-1", DefinitionKey = "flow", DefinitionVersion = "1.0.0",
+                CurrentStep = "old", Status = WorkflowStatus.Parked, StateJson = "{\"due\":\"2026-11-12T12:00:00Z\",\"correlation\":\"c-1\"}",
+            };
+            await store.CreateInstanceAsync(instance);
+            await store.MigrateAsync(instance, "2.0.0", "new", "{\"principal\":\"operator\",\"map\":{\"old\":\"new\"}}");
+        }
+        using var reopened = fixture.Open();
+        var run = (await reopened.LoadAsync("migration-restart"))!;
+        Assert.Equal("2.0.0", run.DefinitionVersion);
+        Assert.Equal("new", run.CurrentStep);
+        Assert.Equal(WorkflowStatus.Parked, run.Status);
+        Assert.Equal("{\"due\":\"2026-11-12T12:00:00Z\",\"correlation\":\"c-1\"}", run.StateJson);
+        Assert.Contains("old", run.MovedAwaySteps);
+        Assert.Equal(1, run.MigrationGeneration);
+        var entry = Assert.Single(await reopened.EventsAsync("migration-restart"));
+        Assert.Equal("Migrated", entry.EventType);
+        Assert.Equal("{\"principal\":\"operator\",\"map\":{\"old\":\"new\"}}", entry.DataJson);
+    }
+
     private static WorkflowDispatchAuthority Authorized(string instanceId) => new(
         "user:operator", "tenant:acme", WorkflowDispatchAuthority.RequiredOperation,
         WorkflowDispatchAuthority.RequiredRecordKind, instanceId, Allowed: true);

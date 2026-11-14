@@ -69,7 +69,7 @@ public sealed class FileJournalWorkflowUnitOfWork
 /// startup with <see cref="InvalidDataException"/> — fail-closed, never a silent skip.
 /// </para>
 /// </remarks>
-public sealed class FileJournalWorkflowStore : IWorkflowStore, IDisposable
+public sealed class FileJournalWorkflowStore : IWorkflowMigrationStore, IDisposable
 {
     private const uint Magic = 0x4A574C48; // HLWJ in little-endian byte order.
     private const byte FormatVersion = 1;
@@ -154,15 +154,42 @@ public sealed class FileJournalWorkflowStore : IWorkflowStore, IDisposable
     }
 
     /// <inheritdoc />
+    public async Task<(bool Current, WorkflowStepIdempotencyRecord? Result)> FindStepResultIfCurrentAsync(
+        WorkflowInstanceRecord expected, WorkflowStepKey key, CancellationToken ct = default)
+    {
+        await EnterAsync(ct).ConfigureAwait(false);
+        try
+        {
+            if (!_instances.TryGetValue(key.InstanceId, out var instance)
+                || instance.MigrationGeneration != expected.MigrationGeneration)
+                return (false, null);
+            return (true, _steps.TryGetValue(key.Value, out var result) ? result : null);
+        }
+        finally { _gate.Release(); }
+    }
+
+    /// <inheritdoc />
     public async Task AdvanceAsync(
         WorkflowStepKey key, WorkflowEffect? effect, string resultJson, string eventType,
         string eventDataJson, string nextStep, WorkflowStatus nextStatus, CancellationToken ct = default)
+        => await AdvanceCoreAsync(null, key, effect, resultJson, eventType, eventDataJson, nextStep, nextStatus, ct).ConfigureAwait(false);
+
+    /// <inheritdoc />
+    public Task<bool> AdvanceIfCurrentAsync(WorkflowInstanceRecord expected, WorkflowStepKey key, WorkflowEffect? effect,
+        string resultJson, string eventType, string eventDataJson, string nextStep, WorkflowStatus nextStatus, CancellationToken ct = default)
+        => AdvanceCoreAsync(expected, key, effect, resultJson, eventType, eventDataJson, nextStep, nextStatus, ct);
+
+    private async Task<bool> AdvanceCoreAsync(WorkflowInstanceRecord? expected,
+        WorkflowStepKey key, WorkflowEffect? effect, string resultJson, string eventType,
+        string eventDataJson, string nextStep, WorkflowStatus nextStatus, CancellationToken ct)
     {
         await EnterAsync(ct).ConfigureAwait(false);
         try
         {
             if (!_instances.TryGetValue(key.InstanceId, out var instance))
                 throw new KeyNotFoundException($"No workflow instance '{key.InstanceId}' exists.");
+            if (expected is not null && instance.MigrationGeneration != expected.MigrationGeneration)
+                return false;
             if (_steps.ContainsKey(key.Value))
                 throw new InvalidOperationException($"Workflow step '{key.Value}' already advanced (idempotency row exists).");
 
@@ -183,18 +210,28 @@ public sealed class FileJournalWorkflowStore : IWorkflowStore, IDisposable
                 nextStep, (int)nextStatus, Format(now));
             await AppendAsync(JournalRecordType.Advanced, dto, ct).ConfigureAwait(false);
             ApplyAdvance(dto);
+            return true;
         }
         finally { _gate.Release(); }
     }
 
     /// <inheritdoc />
     public async Task ParkAsync(string instanceId, string step, string reasonJson, int iteration = 0, CancellationToken ct = default)
+        => await ParkCoreAsync(null, instanceId, step, reasonJson, iteration, ct).ConfigureAwait(false);
+
+    /// <inheritdoc />
+    public Task<bool> ParkIfCurrentAsync(WorkflowInstanceRecord expected, string step, string reasonJson, int iteration, CancellationToken ct = default)
+        => ParkCoreAsync(expected, expected.Id, step, reasonJson, iteration, ct);
+
+    private async Task<bool> ParkCoreAsync(WorkflowInstanceRecord? expected, string instanceId, string step, string reasonJson, int iteration, CancellationToken ct)
     {
         await EnterAsync(ct).ConfigureAwait(false);
         try
         {
-            if (!_instances.ContainsKey(instanceId))
+            if (!_instances.TryGetValue(instanceId, out var instance))
                 throw new KeyNotFoundException($"No workflow instance '{instanceId}' exists.");
+            if (expected is not null && instance.MigrationGeneration != expected.MigrationGeneration)
+                return false;
             var now = _clock.GetUtcNow();
             var dto = new ParkDto(
                 instanceId, step, iteration,
@@ -202,6 +239,31 @@ public sealed class FileJournalWorkflowStore : IWorkflowStore, IDisposable
                 Format(now));
             await AppendAsync(JournalRecordType.Parked, dto, ct).ConfigureAwait(false);
             ApplyPark(dto);
+            return true;
+        }
+        finally { _gate.Release(); }
+    }
+
+    /// <inheritdoc />
+    public async Task MigrateAsync(WorkflowInstanceRecord expected, string targetVersion, string targetStep,
+        string eventDataJson, CancellationToken ct = default)
+    {
+        await EnterAsync(ct).ConfigureAwait(false);
+        try
+        {
+            if (!_instances.TryGetValue(expected.Id, out var current)
+                || current.DefinitionVersion != expected.DefinitionVersion || current.CurrentStep != expected.CurrentStep
+                || current.Iteration != expected.Iteration || current.Status != expected.Status || current.UpdatedAt != expected.UpdatedAt
+                || current.MigrationGeneration != expected.MigrationGeneration || current.StoreGeneration != expected.StoreGeneration)
+                throw new InvalidOperationException("Workflow instance changed during migration.");
+            if (targetStep != current.CurrentStep && _steps.ContainsKey(new WorkflowStepKey(current.Id, current.Iteration, targetStep).Value))
+                throw new InvalidOperationException($"Target step '{targetStep}' already advanced at the current iteration.");
+            _ = MovedAwaySteps(eventDataJson);
+            var now = _clock.GetUtcNow();
+            var dto = new MigrationDto(expected.Id, targetVersion, targetStep,
+                new EventDto(expected.Id, NextSeq(expected.Id), expected.CurrentStep, "Migrated", eventDataJson, Format(now)), Format(now));
+            await AppendAsync(JournalRecordType.Migrated, dto, ct).ConfigureAwait(false);
+            ApplyMigration(dto);
         }
         finally { _gate.Release(); }
     }
@@ -374,6 +436,9 @@ public sealed class FileJournalWorkflowStore : IWorkflowStore, IDisposable
             case JournalRecordType.Parked:
                 ApplyPark(Deserialize<ParkDto>(payload));
                 break;
+            case JournalRecordType.Migrated:
+                ApplyMigration(Deserialize<MigrationDto>(payload));
+                break;
             default:
                 throw new InvalidDataException("The workflow journal record type is unsupported.");
         }
@@ -409,6 +474,7 @@ public sealed class FileJournalWorkflowStore : IWorkflowStore, IDisposable
         }
         instance.CurrentStep = dto.NextStep;
         instance.Status = (WorkflowStatus)dto.NextStatus;
+        instance.StoreGeneration++;
         instance.UpdatedAt = Parse(dto.At);
     }
 
@@ -419,10 +485,33 @@ public sealed class FileJournalWorkflowStore : IWorkflowStore, IDisposable
         _events.Add(FromDto(dto.Event));
         instance.CurrentStep = dto.Step;
         instance.Status = WorkflowStatus.Parked;
+        instance.StoreGeneration++;
         // The durable iteration counter (ADR 0135 A0): persisted with the park, read back verbatim
         // on resume — never recomputed (bug-1337 class).
         instance.Iteration = dto.Iteration;
         instance.UpdatedAt = Parse(dto.At);
+    }
+
+    private void ApplyMigration(MigrationDto dto)
+    {
+        if (!_instances.TryGetValue(dto.InstanceId, out var instance))
+            throw new InvalidDataException("Migration record names no existing instance.");
+        var movedAway = MovedAwaySteps(dto.Event.DataJson);
+        _events.Add(FromDto(dto.Event));
+        instance.MovedAwaySteps.UnionWith(movedAway);
+        instance.DefinitionVersion = dto.TargetVersion;
+        instance.CurrentStep = dto.TargetStep;
+        instance.MigrationGeneration++;
+        instance.StoreGeneration++;
+        instance.UpdatedAt = Parse(dto.At);
+    }
+
+    private static string[] MovedAwaySteps(string eventDataJson)
+    {
+        using var data = JsonDocument.Parse(eventDataJson);
+        return data.RootElement.GetProperty("map").EnumerateObject()
+            .Where(mapping => mapping.Name != mapping.Value.GetString())
+            .Select(mapping => mapping.Name).ToArray();
     }
 
     private void TruncateTail(long start)
@@ -442,6 +531,9 @@ public sealed class FileJournalWorkflowStore : IWorkflowStore, IDisposable
         DefinitionKey = source.DefinitionKey,
         DefinitionVersion = source.DefinitionVersion,
         CurrentStep = source.CurrentStep,
+        MovedAwaySteps = new HashSet<string>(source.MovedAwaySteps, StringComparer.Ordinal),
+        MigrationGeneration = source.MigrationGeneration,
+        StoreGeneration = source.StoreGeneration,
         Iteration = source.Iteration,
         Status = source.Status,
         StateJson = source.StateJson,
@@ -452,7 +544,8 @@ public sealed class FileJournalWorkflowStore : IWorkflowStore, IDisposable
 
     private static InstanceDto ToDto(WorkflowInstanceRecord value) => new(
         value.Id, value.TenantId, value.DefinitionKey, value.DefinitionVersion, value.CurrentStep,
-        value.Iteration, (int)value.Status, value.StateJson, Format(value.CreatedAt), Format(value.UpdatedAt), value.SubjectRecord);
+        value.Iteration, (int)value.Status, value.StateJson, Format(value.CreatedAt), Format(value.UpdatedAt), value.SubjectRecord,
+        value.MovedAwaySteps.ToArray(), value.MigrationGeneration, value.StoreGeneration);
 
     private static WorkflowInstanceRecord FromDto(InstanceDto value)
     {
@@ -469,6 +562,9 @@ public sealed class FileJournalWorkflowStore : IWorkflowStore, IDisposable
             Status = (WorkflowStatus)value.Status,
             StateJson = value.StateJson,
             SubjectRecord = value.SubjectRecord,
+            MovedAwaySteps = new HashSet<string>(value.MovedAwaySteps ?? [], StringComparer.Ordinal),
+            MigrationGeneration = value.MigrationGeneration,
+            StoreGeneration = value.StoreGeneration,
             CreatedAt = Parse(value.CreatedAt),
             UpdatedAt = Parse(value.UpdatedAt),
         };
@@ -487,11 +583,12 @@ public sealed class FileJournalWorkflowStore : IWorkflowStore, IDisposable
     private static string Format(DateTimeOffset value) => value.ToString("O", CultureInfo.InvariantCulture);
     private static DateTimeOffset Parse(string value) => DateTimeOffset.ParseExact(value, "O", CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind);
 
-    private enum JournalRecordType : byte { InstanceCreated = 1, Advanced = 2, Parked = 3 }
-    private sealed record InstanceDto(string Id, string TenantId, string DefinitionKey, string DefinitionVersion, string CurrentStep, int Iteration, int Status, string StateJson, string CreatedAt, string UpdatedAt, WorkflowSubjectRecordReference? SubjectRecord = null);
+    private enum JournalRecordType : byte { InstanceCreated = 1, Advanced = 2, Parked = 3, Migrated = 4 }
+    private sealed record InstanceDto(string Id, string TenantId, string DefinitionKey, string DefinitionVersion, string CurrentStep, int Iteration, int Status, string StateJson, string CreatedAt, string UpdatedAt, WorkflowSubjectRecordReference? SubjectRecord = null, string[]? MovedAwaySteps = null, long MigrationGeneration = 0, long StoreGeneration = 0);
     private sealed record EventDto(string InstanceId, long Seq, string Step, string EventType, string DataJson, string At);
     private sealed record AdvanceDto(string InstanceId, int Iteration, string Step, string Key, string[] EffectPayloads, string ResultJson, EventDto Event, string NextStep, int NextStatus, string At);
     private sealed record ParkDto(string InstanceId, string Step, int Iteration, EventDto Event, string At);
+    private sealed record MigrationDto(string InstanceId, string TargetVersion, string TargetStep, EventDto Event, string At);
 }
 
 /// <summary>DI registration for the durable file-journal workflow store.</summary>

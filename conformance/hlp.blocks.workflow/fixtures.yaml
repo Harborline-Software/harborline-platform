@@ -1,8 +1,12 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.blocks.workflow",
-  "interfaceRevision": 13,
+  "interfaceRevision": 14,
   "durableCases": [
+    {"id": "operator-migration", "expect": "authorized explicit map atomically re-pins and records principal versions and map; state survives recovery"},
+    {"id": "operator-migration-refusal", "expect": "missing source map or target refuses without changes and names the source step"},
+    {"id": "operator-migration-recurring-identity", "expect": "an already-completed occurrence retains its replay row after identity migration and the next occurrence generates once"},
+    {"id": "operator-migration-dispatch-fence", "expect": "conditional replay and advance refuse a migrated snapshot"},
     {"id": "atomic-advance-crash-rolls-back", "expect": "staging-throw-appends-nothing; resume posts exactly once"},
     {"id": "advance-survives-process-restart", "probe": "write-crash", "expect": "effect committed exactly once after kill without dispose"},
     {"id": "park-survives-restart", "probe": "write-crash", "expect": "Parked at approve, iteration read back verbatim, resume advances once"},
@@ -13,6 +17,7 @@
     {"id": "single-node-disclaimer", "expect": "no distributed-lease or multi-node claim"}
   ],
   "dispatchCases": [
+    {"id": "migrated-wait", "expect": "preserved state resumes at mapped step; stale source neither runs nor replays"},
     {"id": "interpreter-decision-failure", "expectedStatus": "Failed", "reason": "not-retryable", "step": "actual-failing-state", "effect": null, "retry": false},
     {"id": "autonomous-event-parks-cp", "trigger": "Event", "step": "Draft", "expected": "Parked", "expectedStep": "PendingApproval"},
     {"id": "human-approve-advances-with-effect", "trigger": "HumanAction", "step": "PendingApproval", "decision": "approve", "expected": "Advanced", "expectedStep": "Posted", "expectedStatus": "Completed", "effectsStaged": 1},

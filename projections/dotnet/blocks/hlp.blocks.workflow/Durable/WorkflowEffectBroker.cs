@@ -208,7 +208,7 @@ internal sealed class WorkflowEffectBroker : IWorkflowEffectBroker
         // SoD passed — this is a genuine human confirmation. Build the effect via the registered factory
         // (the ONLY place IWorkflowEffectFactory.Build is called) and record the D-INV-7 metric.
         var effect = factory.Build(request);
-        _decisions.Record(new WorkflowApprovalDecision(
+        WorkflowApprovalDecisionScope.Record(_decisions, new WorkflowApprovalDecision(
             request.CapabilityRef, request.Instance.Id, confirmer.PartyId,
             WorkflowApprovalOutcome.Confirmed, _time.GetUtcNow()));
         return effect;
@@ -216,7 +216,7 @@ internal sealed class WorkflowEffectBroker : IWorkflowEffectBroker
 
     /// <inheritdoc />
     public void RecordOverride(WorkflowEffectRequest request, WorkflowConfirmerIdentity confirmer)
-        => _decisions.Record(new WorkflowApprovalDecision(
+        => WorkflowApprovalDecisionScope.Record(_decisions, new WorkflowApprovalDecision(
             request.CapabilityRef, request.Instance.Id, confirmer.PartyId,
             WorkflowApprovalOutcome.Overridden, _time.GetUtcNow()));
 
@@ -229,4 +229,36 @@ internal sealed class WorkflowEffectBroker : IWorkflowEffectBroker
                 $"no effect factory is registered for capability '{capabilityRef}' — the broker cannot build " +
                 "an effect it has no factory for (fail-closed). Register an IWorkflowEffectFactory for it.");
     }
+}
+
+internal sealed class WorkflowApprovalDecisionScope : IDisposable
+{
+    private static readonly AsyncLocal<WorkflowApprovalDecisionScope?> Current = new();
+    private readonly WorkflowApprovalDecisionScope? _previous = Current.Value;
+    private readonly List<(IWorkflowApprovalDecisionSink Sink, WorkflowApprovalDecision Decision)> _pending = [];
+
+    internal WorkflowApprovalDecisionScope() => Current.Value = this;
+
+    internal static void Record(IWorkflowApprovalDecisionSink sink, WorkflowApprovalDecision decision)
+    {
+        if (Current.Value is { } scope)
+            scope._pending.Add((sink, decision));
+        else
+            TryRecord(sink, decision);
+    }
+
+    internal void Commit()
+    {
+        foreach (var (sink, decision) in _pending)
+            TryRecord(sink, decision);
+        _pending.Clear();
+    }
+
+    private static void TryRecord(IWorkflowApprovalDecisionSink sink, WorkflowApprovalDecision decision)
+    {
+        try { sink.Record(decision); }
+        catch { }
+    }
+
+    public void Dispose() => Current.Value = _previous;
 }
