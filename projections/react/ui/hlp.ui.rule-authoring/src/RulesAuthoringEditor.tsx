@@ -55,6 +55,41 @@ type FieldCheckbox = typeof fieldCheckboxes[number]
 const fieldRuleIdentity = (field: RulesFieldBinding, checkbox: FieldCheckbox) => `field.${field.key}.${checkbox.id}`
 const fieldCheckboxRule = (field: RulesFieldBinding, checkbox: FieldCheckbox): RulesDraft => ({ identity: fieldRuleIdentity(field, checkbox), expectedRevision: '', name: `${field.label} ${checkbox.action}`, versionSelection: 'Draft', pinnedVersionId: '', draft: { kind: 'Formula', scope: 'Field', scopeTarget: field.key, outputType: checkbox.action, inputs: [], expression: { kind: 'Literal', value: checkbox.value, valueType: 'Boolean' } } })
 
+const renameSelf = (expression: RulesExpression, key: string): RulesExpression => {
+  switch (expression.kind) {
+    case 'Ref': return expression.name === 'self' ? { ...expression, name: key } : expression
+    case 'Binary': return { ...expression, left: renameSelf(expression.left, key), right: renameSelf(expression.right, key) }
+    case 'Call': return { ...expression, args: expression.args.map(arg => renameSelf(arg, key)) }
+    case 'If': return { ...expression, when: { ...expression.when, left: renameSelf(expression.when.left, key), right: renameSelf(expression.when.right, key) }, then: renameSelf(expression.then, key), else: renameSelf(expression.else, key) }
+    default: return expression
+  }
+}
+const readsSelf = (expression: RulesExpression | null): boolean => {
+  if (!expression) return false
+  switch (expression.kind) {
+    case 'Ref': return expression.name === 'self'
+    case 'Call': return expression.args.some(arg => readsSelf(arg) || ((expression.op === 'missing' || expression.op === 'missing_some') && arg.kind === 'Literal' && arg.valueType === 'Text' && arg.value === 'self'))
+    case 'Binary': return readsSelf(expression.left) || readsSelf(expression.right)
+    case 'If': return readsSelf(expression.when.left) || readsSelf(expression.when.right) || readsSelf(expression.then) || readsSelf(expression.else)
+    default: return false
+  }
+}
+const isFieldCheck = (draft: RulesRuleDraft): boolean => draft.kind === 'Formula' && draft.scope === 'Field' && draft.outputType === 'Validate' && readsSelf(draft.expression)
+const hasMissingCall = (expression: RulesExpression | null): boolean => {
+  if (!expression) return false
+  switch (expression.kind) {
+    case 'Call': return expression.op === 'missing' || expression.op === 'missing_some' || expression.args.some(hasMissingCall)
+    case 'Binary': return hasMissingCall(expression.left) || hasMissingCall(expression.right)
+    case 'If': return hasMissingCall(expression.when.left) || hasMissingCall(expression.when.right) || hasMissingCall(expression.then) || hasMissingCall(expression.else)
+    default: return false
+  }
+}
+const promote = (rule: RulesDraft): RulesDraft => {
+  if (rule.draft.kind !== 'Formula' || rule.draft.scope !== 'Field') return rule
+  const key = `field.${rule.draft.scopeTarget}`
+  return { ...rule, draft: { ...rule.draft, inputs: rule.draft.inputs.map(input => input.ref === 'self' ? { ...input, id: key, ref: key } : input), expression: rule.draft.expression && renameSelf(rule.draft.expression, key) } }
+}
+
 /** Shared guided expression control used by rule, accept-when, and default-value hosts. */
 export function GuidedExpressionEditor({ site, value, contract, onChange, label: suppliedLabel }: GuidedExpressionEditorProps) {
   const label = suppliedLabel ?? (site === 'accept-when' ? 'Accept when' : site === 'default' ? 'Default value' : 'Rule')
@@ -64,7 +99,7 @@ export function GuidedExpressionEditor({ site, value, contract, onChange, label:
     <legend>{label} expression</legend><p>Returns {contract?.returnContract ?? 'a producer value'}; runs at {contract?.executionTimeContract ?? 'producer time'}.</p>
     <label>{label} expression shape<select aria-label={`${label} expression shape`} value={expression.kind} onChange={event => setShape(event.currentTarget.value)}><option value="Literal">Typed literal</option><option value="Ref">Declared reference</option><option value="Call">Closed operator call</option><option value="Binary">Binary operator</option><option value="If">Conditional</option></select></label>
     {expression.kind === 'Literal' && <><label>Literal value<input aria-label={`${label} literal value`} value={expression.value} onChange={event => onChange({ ...expression, value: event.currentTarget.value })} /></label><label>Literal type<select aria-label={`${label} literal type`} value={expression.valueType} onChange={event => onChange({ ...expression, valueType: event.currentTarget.value as RuleDefinitionValueType })}>{(['Text', 'Number', 'Boolean'] as const).map(type => <option key={type}>{type}</option>)}</select></label></>}
-    {expression.kind === 'Ref' && <label>Reference<select aria-label={`${label} reference`} value={expression.name} onChange={event => onChange({ ...expression, name: event.currentTarget.value })}>{(contract?.palette ?? []).map(item => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label>}
+    {expression.kind === 'Ref' && <label>Reference<select aria-label={`${label} reference`} value={expression.name} onChange={event => onChange({ ...expression, name: event.currentTarget.value })}>{expression.name && !contract?.palette.some(item => item.id === expression.name) && <option value={expression.name}>{expression.name}</option>}{(contract?.palette ?? []).map(item => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label>}
     {expression.kind === 'Call' && <><label>Formula operator<select aria-label={`${label} formula operator`} value={expression.op} onChange={event => onChange({ ...expression, op: event.currentTarget.value as FormulaCallOp })}>{formulaOperators.map(operator => <option key={operator}>{operator}</option>)}</select></label><div aria-label={`${label} call arguments`}>{expression.args.map((argument, index) => <div key={index}><GuidedExpressionEditor site={site} label={`${label} argument ${index + 1}`} value={argument} contract={contract} onChange={next => onChange({ ...expression, args: expression.args.map((item, current) => current === index ? next : item) })} /><Button type="button" intent="secondary" size="sm" onClick={() => onChange({ ...expression, args: expression.args.filter((_, current) => current !== index) })}>Remove {label} argument {index + 1}</Button></div>)}</div><Button type="button" intent="secondary" size="sm" onClick={() => onChange({ ...expression, args: [...expression.args, literal()] })}>Add argument</Button></>}
     {expression.kind === 'Binary' && <><label>Binary operator<select aria-label={`${label} binary operator`} value={expression.op} onChange={event => onChange({ ...expression, op: event.currentTarget.value as typeof expression.op })}>{(['+', '-', '*', '/'] as const).map(operator => <option key={operator}>{operator}</option>)}</select></label><GuidedExpressionEditor site={site} label={`${label} left operand`} value={expression.left} contract={contract} onChange={left => onChange({ ...expression, left })} /><GuidedExpressionEditor site={site} label={`${label} right operand`} value={expression.right} contract={contract} onChange={right => onChange({ ...expression, right })} /></>}
     {expression.kind === 'If' && <><label>Condition operator<select aria-label={`${label} condition operator`} value={expression.when.op} onChange={event => onChange({ ...expression, when: { ...expression.when, op: event.currentTarget.value as typeof expression.when.op } })}>{compareOperators.map(operator => <option key={operator}>{operator}</option>)}</select></label><GuidedExpressionEditor site={site} label={`${label} condition left`} value={expression.when.left} contract={contract} onChange={left => onChange({ ...expression, when: { ...expression.when, left } })} /><GuidedExpressionEditor site={site} label={`${label} condition right`} value={expression.when.right} contract={contract} onChange={right => onChange({ ...expression, when: { ...expression.when, right } })} /><GuidedExpressionEditor site={site} label={`${label} then branch`} value={expression.then} contract={contract} onChange={then => onChange({ ...expression, then })} /><GuidedExpressionEditor site={site} label={`${label} else branch`} value={expression.else} contract={contract} onChange={next => onChange({ ...expression, else: next })} /></>}
@@ -73,7 +108,7 @@ export function GuidedExpressionEditor({ site, value, contract, onChange, label:
 
 export function RulesAuthoringEditor(props: RulesAuthoringEditorProps) {
   const [value, setValue] = useState(props.value); const [incoming, setIncoming] = useState<{ draft: RulesDraft; reason: string }>(); const [result, setResult] = useState<RulesOutcome | undefined>(props.outcome); const [refusals, setRefusals] = useState(noRefusals)
-  const nameInput = useRef<HTMLInputElement>(null); const focusName = useRef(false)
+  const nameInput = useRef<HTMLInputElement>(null); const focusName = useRef(false); const [promotionNotice, setPromotionNotice] = useState('')
   useEffect(() => { if (focusName.current) { focusName.current = false; nameInput.current?.focus() } })
   const dirty = useRef(false); const generation = useRef(0); const latest = useRef(value); const intentIds = useRef(new Map<string, string>()); const outstanding = useRef(new Set<string>())
   useEffect(() => { latest.current = value }, [value])
@@ -105,6 +140,18 @@ export function RulesAuthoringEditor(props: RulesAuthoringEditorProps) {
     const without = props.catalogue.rules.filter(rule => rule.identity !== identity)
     props.onCatalogueChange({ rules: checked ? [...without, fieldCheckboxRule(field, checkbox)] : without })
   }
+  const promoteRule = (rule: RulesDraft) => {
+    if (!props.catalogue || !props.onCatalogueChange) return
+    const loaded = rule.identity === latest.current.identity
+    if (loaded && dirty.current) { setRefusals([{ code: 'rule.promote.unsaved_edits', pointer: '/draft' }]); return }
+    const source = loaded ? latest.current : rule
+    if (!isFieldCheck(source.draft)) { setRefusals([{ code: 'rule.promote.ineligible', pointer: '/draft' }]); return }
+    if (source.draft.kind === 'Formula' && hasMissingCall(source.draft.expression)) { setRefusals([{ code: 'rule.promote.missing_call', pointer: '/draft' }]); return }
+    const next = promote(source)
+    props.onCatalogueChange({ rules: props.catalogue.rules.map(item => item.identity === rule.identity ? next : item) })
+    if (loaded) change(next)
+    focusName.current = true; setPromotionNotice(`Promoted ${rule.name}.`)
+  }
   // Without an authority the host gates elsewhere; with one, an ungranted operation's control renders disabled. The producer still enforces the gate (T-591).
   const allowed = (operation: RulesOperationRequest['operation']) => !props.authority || operationPermissions[operation].every(permission => props.authority!.granted.includes(permission))
   const readOnly = !allowed('save-draft')
@@ -114,6 +161,8 @@ export function RulesAuthoringEditor(props: RulesAuthoringEditorProps) {
     <fieldset><legend>Rule shape</legend><label><input aria-label="Formula" type="radio" name="rule-shape" checked={!!formula} onChange={() => updateDraft({ ...emptyFormula(), scope: value.draft.scope, scopeTarget: value.draft.scopeTarget, outputType: value.draft.outputType })} />Formula</label><label><input aria-label="Decision table" type="radio" name="rule-shape" checked={!!table} onChange={() => updateDraft({ ...emptyTable(), scope: value.draft.scope, scopeTarget: value.draft.scopeTarget, outputType: value.draft.outputType })} />Decision table</label></fieldset>
     {formula && <FormulaEditor value={formula} contract={contract} onChange={updateDraft} />}{table && <DecisionTableEditor value={table} contract={contract} onChange={updateDraft} />}
     {props.catalogue && props.fieldBindings && <><fieldset><legend>Field properties</legend>{props.fieldBindings.map(field => <div key={field.key}>{fieldCheckboxes.map(checkbox => <label key={checkbox.id}><input aria-label={`${field.label} is ${checkbox.label}`} type="checkbox" checked={props.catalogue!.rules.some(rule => rule.identity === fieldRuleIdentity(field, checkbox))} disabled={!props.onCatalogueChange} onChange={event => toggleFieldCheckbox(field, checkbox, event.currentTarget.checked)} />{field.label} is {checkbox.label}</label>)}</div>)}</fieldset><section aria-label="Rule catalogue"><h2>Rule catalogue</h2><ul aria-label="Rule catalogue">{props.catalogue.rules.map(rule => <li key={rule.identity} data-rule-id={rule.identity}>{rule.name}<Button type="button" intent="secondary" size="sm" onClick={() => editRule(rule)}>Edit {rule.name}</Button></li>)}</ul></section></>}
+    <div role="status" aria-label="Promotion status">{promotionNotice}</div>
+    {props.catalogue && <section aria-label="Field check promotion">{props.catalogue.rules.filter(rule => isFieldCheck(rule.draft)).map(rule => <Button key={rule.identity} type="button" intent="secondary" size="sm" disabled={!props.onCatalogueChange} onClick={() => promoteRule(rule)}>Promote {rule.name}</Button>)}</section>}
     {props.lineage && props.catalogue && <section aria-label="Calculation lineage"><h2>Calculation lineage</h2><p>Lineage covers field calculations.</p>{(() => { const refused = props.catalogue!.rules.filter(rule => !Object.hasOwn(props.lineage!.calculationsReadBy, rule.identity)); return refused.length > 0 && <p>Not counted because the rule is refused: {refused.map(rule => rule.name || rule.identity).join(', ')}</p> })()}{Object.entries(props.lineage.consumersOf).map(([id, consumers]) => { const calculation = props.catalogue!.rules.find(rule => rule.identity === id); return <div key={id}><h3>{calculation?.name ?? id}</h3>{calculation && <Button type="button" intent="secondary" size="sm" onClick={() => editRule(calculation)}>Edit calculation {calculation.name}</Button>}<p>{consumers.length} consumers{props.lineage!.deadWeight.includes(id) ? ' — unreferenced calculation' : ''}</p><ul>{consumers.map(consumer => { const rule = props.catalogue!.rules.find(item => item.identity === consumer); return <li key={consumer}>{rule ? <Button type="button" intent="secondary" size="sm" onClick={() => editRule(rule)}>Edit {rule.name}</Button> : consumer}</li> })}</ul></div> })}<h3>Calculations read by {value.name || value.identity}</h3><ul>{(Object.hasOwn(props.lineage.calculationsReadBy, value.identity) ? props.lineage.calculationsReadBy[value.identity] : []).map(id => { const rule = props.catalogue!.rules.find(item => item.identity === id); return <li key={id}>{rule ? <Button type="button" intent="secondary" size="sm" onClick={() => editRule(rule)}>Edit {rule.name}</Button> : id}</li> })}</ul></section>}
   </>
   return <form className="hl-rules-authoring" data-read-only={readOnly ? '' : undefined} onSubmit={event => event.preventDefault()}>
@@ -125,7 +174,7 @@ export function RulesAuthoringEditor(props: RulesAuthoringEditorProps) {
 }
 
 function FormulaEditor({ value, contract, onChange }: { value: RuleDefinitionFormula; contract?: RulesExpressionContract; onChange: (value: RuleDefinitionFormula) => void }) {
-  return <><fieldset><legend>Declared inputs</legend>{value.inputs.map((input, index) => <div key={input.id}><label>Input {index + 1} reference<select aria-label={`Input ${index + 1} reference`} value={input.ref} onChange={event => onChange({ ...value, inputs: value.inputs.map((item, current) => current === index ? { ...item, ref: event.currentTarget.value } : item) })}>{(contract?.palette ?? []).map(item => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label><label>Input {index + 1} type<select aria-label={`Input ${index + 1} type`} value={input.type} onChange={event => onChange({ ...value, inputs: value.inputs.map((item, current) => current === index ? { ...item, type: event.currentTarget.value as RuleDefinitionValueType } : item) })}>{(['Number', 'Text', 'Boolean'] as const).map(type => <option key={type}>{type}</option>)}</select></label></div>)}<Button type="button" intent="secondary" size="sm" onClick={() => onChange({ ...value, inputs: [...value.inputs, { id: contract?.palette[0]?.id ?? `input-${value.inputs.length + 1}`, ref: contract?.palette[0]?.id ?? '', type: contract?.palette[0]?.valueType ?? 'Number' }] })}>Add declared input</Button></fieldset><GuidedExpressionEditor site="rule" value={value.expression} contract={contract} onChange={expression => onChange({ ...value, expression })} /></>
+  return <><fieldset><legend>Declared inputs</legend>{value.inputs.map((input, index) => <div key={input.id}><label>Input {index + 1} reference<select aria-label={`Input ${index + 1} reference`} value={input.ref} onChange={event => onChange({ ...value, inputs: value.inputs.map((item, current) => current === index ? { ...item, ref: event.currentTarget.value } : item) })}>{input.ref && !contract?.palette.some(item => item.id === input.ref) && <option value={input.ref}>{input.ref}</option>}{(contract?.palette ?? []).map(item => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label><label>Input {index + 1} type<select aria-label={`Input ${index + 1} type`} value={input.type} onChange={event => onChange({ ...value, inputs: value.inputs.map((item, current) => current === index ? { ...item, type: event.currentTarget.value as RuleDefinitionValueType } : item) })}>{(['Number', 'Text', 'Boolean'] as const).map(type => <option key={type}>{type}</option>)}</select></label></div>)}<Button type="button" intent="secondary" size="sm" onClick={() => onChange({ ...value, inputs: [...value.inputs, { id: contract?.palette[0]?.id ?? `input-${value.inputs.length + 1}`, ref: contract?.palette[0]?.id ?? '', type: contract?.palette[0]?.valueType ?? 'Number' }] })}>Add declared input</Button></fieldset><GuidedExpressionEditor site="rule" value={value.expression} contract={contract} onChange={expression => onChange({ ...value, expression })} /></>
 }
 
 function DecisionTableEditor({ value, contract, onChange }: { value: RuleDefinitionTable; contract?: RulesExpressionContract; onChange: (value: RuleDefinitionTable) => void }) {

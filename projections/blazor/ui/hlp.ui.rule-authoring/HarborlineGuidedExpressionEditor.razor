@@ -18,7 +18,7 @@
     }
     else if (Value is FormulaExpr.Ref reference)
     {
-        <label>Reference<select aria-label="@($"{Label} reference")" value="@reference.Name" @onchange="ChangeReference">@foreach (var item in Contract?.Palette ?? []) { <option value="@item.Id">@item.Label</option> }</select></label>
+        <label>Reference<select aria-label="@($"{Label} reference")" value="@reference.Name" @onchange="ChangeReference">@if (reference.Name != "" && !(Contract?.Palette.Any(item => item.Id == reference.Name) ?? false)) { <option value="@reference.Name">@reference.Name</option> }@foreach (var item in Contract?.Palette ?? []) { <option value="@item.Id">@item.Label</option> }</select></label>
     }
     else if (Value is FormulaExpr.Call call)
     {
