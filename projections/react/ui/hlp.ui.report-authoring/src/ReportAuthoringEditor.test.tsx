@@ -287,3 +287,35 @@ it('reports-bound-9 fences a selected measure when the report is replaced', asyn
   view.rerender(<ReportAuthoringEditor {...props} value={{ tenant: 't', key: 'next', version: '1', measures: [] }} />)
   expect(screen.getByRole('button', { name: 'Discard edits and load' })).toBeInTheDocument()
 })
+
+it('reports-auth-12 keeps subsequent edits across repeated replacement decisions', () => {
+  const value = { tenant: 't', key: 'r', version: '1', measures: [] }
+  const props = { onCreate: () => {}, onChange: () => {} }
+  const view = render(<ReportAuthoringEditor {...props} value={value} revision="a" />)
+  fireEvent.change(screen.getByLabelText('Parameter name'), { target: { value: 'first' } })
+  view.rerender(<ReportAuthoringEditor {...props} value={value} revision="b" />)
+  fireEvent.click(screen.getByRole('button', { name: 'Keep editing' }))
+  fireEvent.change(screen.getByLabelText('Parameter default'), { target: { value: 'true' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Add parameter' }))
+  view.rerender(<ReportAuthoringEditor {...props} value={value} revision="c" />)
+  fireEvent.click(screen.getByRole('button', { name: 'Keep editing' }))
+  expect(screen.getByText('first')).toBeInTheDocument()
+})
+
+it('reports-auth-12 clears pending input when the report is removed', () => {
+  const props = { onCreate: () => {}, onChange: () => {} }
+  const view = render(<ReportAuthoringEditor {...props} value={{ tenant: 't', key: 'old', version: '1', measures: [] }} />)
+  fireEvent.change(screen.getByLabelText('Parameter name'), { target: { value: 'old input' } })
+  view.rerender(<ReportAuthoringEditor {...props} value={null} />)
+  view.rerender(<ReportAuthoringEditor {...props} value={{ tenant: 't', key: 'new', version: '1', measures: [] }} />)
+  expect(screen.getByLabelText('Parameter name')).toHaveValue('')
+})
+
+it('reports-auth-8 refuses a datetime outside the Reports wire format', () => {
+  const change = vi.fn()
+  render(<ReportAuthoringEditor value={{ tenant: 't', key: 'r', version: '1', measures: [] }} onCreate={() => {}} onChange={change} />)
+  fireEvent.change(screen.getByLabelText('Parameter type'), { target: { value: 'date_time' } })
+  fireEvent.change(screen.getByLabelText('Parameter default'), { target: { value: '2026-01-01 00:00:00Z' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Add parameter' }))
+  expect(change).not.toHaveBeenCalled()
+})

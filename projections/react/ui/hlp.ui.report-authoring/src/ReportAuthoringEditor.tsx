@@ -24,6 +24,7 @@ export function ReportAuthoringEditor({ value, onCreate, onChange, resolveMeasur
   const [options, setOptions] = useState<readonly MeasureOption[]>([])
   useEffect(() => {
     const old = previous.current
+    if (!value) { if (old) { setParameterName(''); setParameterDefault(''); setEffectiveType(''); setParameterType('boolean'); setOpen(false); setQuery(''); setSelected(''); setOptions([]); setResolverError(false); setInvalidDefault(false); setIncoming(false); setKept(null); ignored.current = null; ignoredRevision.current = null; previous.current = null; previousRevision.current = null } return }
     if (!old && value) { previous.current = value; previousRevision.current = revision; return }
     if (ignored.current && value && ignored.current.key === value.key && ignored.current.version === value.version && ignored.current.tenant === value.tenant && ignoredRevision.current === revision) return
     if (old && value && (old.key !== value.key || old.version !== value.version || old.tenant !== value.tenant || previousRevision.current !== revision)) {
@@ -42,13 +43,13 @@ export function ReportAuthoringEditor({ value, onCreate, onChange, resolveMeasur
   }, [open, query, resolveMeasures])
   if (!value) return <button type="button" disabled={readOnly} onClick={() => onCreate({ tenant: '', key: '', version: '', measures: [], parameters: [] })}>Create report</button>
   const active = kept ?? (incoming ? previous.current : value) ?? value
-  const change = (next: ReportDraft) => { if (kept) setKept(next); onChange(next) }
+  const change = (next: ReportDraft) => { if (kept) { setKept(next); previous.current = next } onChange(next) }
   const addParameter = () => {
     const text = parameterDefault.trim()
     const valid = parameterType === 'boolean' ? text === 'true' || text === 'false'
       : parameterType === 'integer' ? /^-?\d+$/.test(text) && Number.isSafeInteger(Number(text))
       : parameterType === 'float' ? text.length > 0 && Number.isFinite(Number(text))
-      : parameterType === 'date_time' ? /(?:Z|[+-]\d{2}:\d{2})$/.test(text) && !Number.isNaN(Date.parse(text)) : true
+      : parameterType === 'date_time' ? /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,7})?(?:Z|[+-]\d{2}:\d{2})$/.test(text) && !Number.isNaN(Date.parse(text)) : true
     if (!valid) { setInvalidDefault(true); return }
     setInvalidDefault(false)
     change({ ...active, parameters: [...(active.parameters ?? []), { name: parameterName, type: parameterType, default: { kind: parameterType === 'date_time' ? 'datetime' : parameterType, type: parameterType, is_valid: true, value: parameterType === 'boolean' ? text === 'true' : parameterType === 'integer' || parameterType === 'float' ? Number(text) : parameterDefault }, ...(parameterName === 'as_at' ? { effective_dated_type: effectiveType } : {}) }] })

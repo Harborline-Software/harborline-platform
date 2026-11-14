@@ -45,7 +45,7 @@ else {
     private int generation;
     private static string Text(ChangeEventArgs e) => e.Value?.ToString() ?? "";
     protected override void OnParametersSet() {
-        if (Value is null) { if (!incoming) previous = null; return; }
+        if (Value is null) { Discard(); invalidDefault = false; return; }
         if (ignored is not null && Same(ignored, Value) && ignoredRevision == Revision) return;
         if (previous is not null && (!Same(previous, Value) || previousRevision != Revision) && (parameterName.Length > 0 || parameterDefault.Length > 0 || effectiveType.Length > 0 || selected.Length > 0)) incoming = true;
         else if (!incoming) { previous = Value; previousRevision = Revision; }
@@ -54,7 +54,7 @@ else {
     private void Discard() { parameterName = parameterDefault = effectiveType = ""; parameterType = "boolean"; open = false; query = selected = ""; options = []; resolverError = false; generation++; previous = Value; previousRevision = Revision; kept = ignored = null; ignoredRevision = null; incoming = false; }
     private void Keep() { kept = previous; ignored = Value; ignoredRevision = Revision; incoming = false; }
     private Task Create() => Created.InvokeAsync(ReportDraft.Empty);
-    private Task Change(ReportDraft value) { if (ReadOnly || incoming) return Task.CompletedTask; if (kept is not null) kept = value; return ValueChanged.InvokeAsync(value); }
+    private Task Change(ReportDraft value) { if (ReadOnly || incoming) return Task.CompletedTask; if (kept is not null) { kept = value; previous = value; } return ValueChanged.InvokeAsync(value); }
     private Task RemoveParameter(int index) => Draft is not { } draft ? Task.CompletedTask : Change(draft with { Parameters = draft.Parameters.Where((_, i) => i != index).ToArray() });
     private Task RemoveMeasure(int index) => Draft is not { } draft ? Task.CompletedTask : Change(draft with { Measures = draft.Measures.Where((_, i) => i != index).ToArray() });
     private Task AddMeasure() => Draft is not { } draft ? Task.CompletedTask : Change(draft with { Measures = [.. draft.Measures, new(selected)] });
@@ -64,7 +64,7 @@ else {
             "boolean" when bool.TryParse(parameterDefault, out var b) => b,
             "integer" when long.TryParse(parameterDefault, NumberStyles.Integer, CultureInfo.InvariantCulture, out var i) && i is >= -9007199254740991 and <= 9007199254740991 => i,
             "float" when double.TryParse(parameterDefault, NumberStyles.Float, CultureInfo.InvariantCulture, out var d) && double.IsFinite(d) => d,
-            "date_time" when DateTimeOffset.TryParse(parameterDefault, CultureInfo.InvariantCulture, DateTimeStyles.None, out _) && (parameterDefault.EndsWith('Z') || parameterDefault.LastIndexOf('+') > 9 || parameterDefault.LastIndexOf('-') > 9) => parameterDefault,
+            "date_time" when System.Text.RegularExpressions.Regex.IsMatch(parameterDefault, @"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,7})?(?:Z|[+-]\d{2}:\d{2})$") && DateTimeOffset.TryParse(parameterDefault, CultureInfo.InvariantCulture, DateTimeStyles.None, out _) => parameterDefault,
             "string" => parameterDefault,
             _ => null,
         };

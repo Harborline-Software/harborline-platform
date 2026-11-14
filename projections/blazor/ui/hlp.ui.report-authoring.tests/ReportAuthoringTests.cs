@@ -131,6 +131,39 @@ public sealed class ReportAuthoringTests : BunitContext
         Assert.Single(cut.FindAll("[aria-label='Discard edits and load']"));
     }
 
+    [Fact(DisplayName = "reports-auth-12 keeps subsequent edits across replacements")]
+    public void RepeatedKeep()
+    {
+        var draft = new ReportDraft("t", "r", "1", [], []);
+        var cut = Render<HarborlineReportAuthoringEditor>(p => p.Add(x => x.Value, draft).Add(x => x.Revision, "a"));
+        cut.Find("[aria-label='Parameter name']").Change("first");
+        cut.Render(p => p.Add(x => x.Revision, "b"));
+        cut.Find("[aria-label='Keep editing']").Click();
+        cut.Find("[aria-label='Parameter default']").Change("true");
+        cut.Find("[aria-label='Add parameter']").Click();
+        cut.Render(p => p.Add(x => x.Revision, "c"));
+        cut.Find("[aria-label='Keep editing']").Click();
+        Assert.Single(cut.FindAll("[aria-label='Remove parameter first']"));
+    }
+    [Fact(DisplayName = "reports-auth-12 clears input when report is removed")]
+    public void NullClearsInput()
+    {
+        var cut = Render<HarborlineReportAuthoringEditor>(p => p.Add(x => x.Value, new ReportDraft("t", "old", "1", [], [])));
+        cut.Find("[aria-label='Parameter name']").Change("old input");
+        cut.Render(p => p.Add(x => x.Value, null));
+        cut.Render(p => p.Add(x => x.Value, new ReportDraft("t", "new", "1", [], [])));
+        Assert.Equal("", cut.Find("[aria-label='Parameter name']").GetAttribute("value"));
+    }
+    [Fact(DisplayName = "reports-auth-8 refuses non-wire datetime")]
+    public void RejectsNonWireDatetime()
+    {
+        var cut = Render<HarborlineReportAuthoringEditor>(p => p.Add(x => x.Value, ReportDraft.Empty));
+        cut.Find("[aria-label='Parameter type']").Change("date_time");
+        cut.Find("[aria-label='Parameter default']").Change("2026-01-01 00:00:00Z");
+        cut.Find("[aria-label='Add parameter']").Click();
+        Assert.Single(cut.FindAll("[role='alert']"));
+    }
+
     [Fact(DisplayName = "readOnly prevents report changes")]
     public void ReadOnly()
     {
