@@ -3,6 +3,7 @@ using System.Text.Json;
 using Harborline.Contracts.Fields;
 using Harborline.Contracts.Authorization;
 using Harborline.Foundation.Definitions;
+using Harborline.Foundation.RuleEngine.Environments;
 
 namespace Harborline.Blocks.EntityViews;
 
@@ -287,7 +288,8 @@ public sealed record ViewQueryPlan(
     string? GroupBy,
     ViewMeasureBinding? Measure,
     ViewPage Page,
-    DateTimeOffset EvaluatedAt);
+    DateTimeOffset EvaluatedAt,
+    EvaluationAdmission? Environment = null);
 
 /// <summary>One result row. Values retain their declared record-field names.</summary>
 public sealed record ViewRow(string Id, IReadOnlyDictionary<string, object?> Values);
@@ -523,6 +525,7 @@ public sealed class ViewQueryRuntime
     private readonly IViewMeasureCatalog _measures;
     private readonly TimeProvider _clock;
     private readonly IFieldDomainRuntime? _fieldDomains;
+    private readonly EvaluationAdmission? _environment;
 
     /// <summary>Wires the pipeline's ports; throws <see cref="ArgumentNullException"/> for any null except the optional field-domain runtime.</summary>
     public ViewQueryRuntime(
@@ -534,7 +537,8 @@ public sealed class ViewQueryRuntime
         IViewRowSource rows,
         IViewMeasureCatalog measures,
         TimeProvider clock,
-        IFieldDomainRuntime? fieldDomains = null)
+        IFieldDomainRuntime? fieldDomains = null,
+        EvaluationAdmission? environment = null)
     {
         _definitions = definitions ?? throw new ArgumentNullException(nameof(definitions));
         _openGate = openGate ?? throw new ArgumentNullException(nameof(openGate));
@@ -545,6 +549,7 @@ public sealed class ViewQueryRuntime
         _measures = measures ?? throw new ArgumentNullException(nameof(measures));
         _clock = clock ?? throw new ArgumentNullException(nameof(clock));
         _fieldDomains = fieldDomains;
+        _environment = environment;
     }
 
     /// <summary>Resolves the published definition, checks the open gate, binding and field domains, then queries with the Access predicate first and the authored filter second. Throws <see cref="ViewQueryException"/> with <see cref="ViewDefinitionCodes.NotFound"/> both when no definition is published and when the principal may not open it, indistinguishably (views-eng-1), or for an unknown kind or incompatible binding, and a field-admission error for an unresolved column binding. Returns not-modified (no rows) when the ETag matches.</summary>
@@ -613,6 +618,7 @@ public sealed class ViewQueryRuntime
             predicates.Add(new(ViewPredicateSource.Authored, authored));
         }
 
+        ViewsExpressionEnvironment.Require(_environment);
         var plan = new ViewQueryPlan(
             request.Tenant,
             definition.RecordType,
@@ -623,7 +629,8 @@ public sealed class ViewQueryRuntime
             definition.Parameters.GroupBy,
             definition.Parameters.Measure,
             request.Page,
-            evaluatedAt);
+            evaluatedAt,
+            _environment);
         var page = await _rows.QueryAsync(plan, cancellationToken).ConfigureAwait(false);
         var measure = definition.Parameters.Measure is { } binding
             ? await _measures

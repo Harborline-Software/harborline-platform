@@ -16,7 +16,7 @@ public sealed class AccessViewFilterTests
         ViewRow[] rows = [Row("1", "alice", 10), Row("2", "bob", 1000), Row("3", "alice", 20), Row("4", "bob", 2000), Row("5", "alice", 30)];
         var source = new InMemoryViewRowSource(rows);
         var plan = new ViewQueryPlan("a", "work", new Dictionary<string, ViewRecordFieldKind>(), [],
-            [new(ViewPredicateSource.Access, filter)], [], "owner", null, new(1, 2), instant);
+            [new(ViewPredicateSource.Access, filter)], [], "owner", null, new(1, 2), instant, ViewsExpressionEnvironment.Admitted.For(Harborline.Foundation.RuleEngine.Environments.EvaluationPhase.Run));
         var page = await source.QueryAsync(plan);
         Assert.Equal(3, page.Total);
         Assert.Equal(new[] { "3", "5" }, page.Rows.Select(row => row.Id));
