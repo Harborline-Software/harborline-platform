@@ -146,7 +146,8 @@ public sealed class InMemoryRruleExpansionService : IRruleExpansionService
         if (until.Instant is { } instant && timezone is not null)
         {
             var zone = DateTimeZoneProviders.Tzdb[timezone];
-            var localTicks = instant.UtcTicks + zone.GetUtcOffset(Instant.FromDateTimeOffset(instant)).Ticks;
+            // A pre-rollback occurrence can have a later local date; MaxOffset bounds every possible nominal date.
+            var localTicks = instant.UtcTicks + zone.MaxOffset.Ticks;
             if (localTicks > DateTime.MaxValue.Ticks) return horizon;
             if (localTicks < DateTime.MinValue.Ticks) return DateOnly.MinValue;
             date = DateOnly.FromDateTime(new DateTime(localTicks, DateTimeKind.Unspecified));

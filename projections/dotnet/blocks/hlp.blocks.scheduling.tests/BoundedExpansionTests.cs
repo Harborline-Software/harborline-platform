@@ -9,6 +9,23 @@ namespace Harborline.Blocks.Scheduling.Tests;
 public sealed class BoundedExpansionTests
 {
     [Fact]
+    public void UtcUntilRollbackKeepsTheFollowingLocalDateInTheDueQuery()
+    {
+        var request = Request("FREQ=DAILY;UNTIL=20100304T153000Z");
+        request = request with
+        {
+            Series = request.Series with { LocalStart = new(2010, 3, 3, 0, 30, 0), Timezone = "Antarctica/Casey" },
+            From = new(2010, 3, 4, 13, 0, 0, TimeSpan.Zero),
+            To = new(2010, 3, 4, 14, 0, 0, TimeSpan.Zero),
+        };
+        var producer = new CountingProducer();
+        var result = Assert.Single(Query(request, producer));
+        Assert.Equal(new DateTimeOffset(2010, 3, 4, 13, 30, 0, TimeSpan.Zero), result.Due);
+        Assert.Equal(new DateTime(2010, 3, 5, 0, 30, 0), result.RecurrenceLocal);
+        Assert.Equal(1, producer.Calls);
+    }
+
+    [Fact]
     public void YearlyMonthDayWithoutMonthPreservesFebruaryAndMarchDueDates()
     {
         var request = Request("FREQ=YEARLY;BYMONTHDAY=15;COUNT=3") with

@@ -5,6 +5,23 @@ namespace Harborline.Foundation.Scheduling.Tests;
 
 public sealed class ExpansionBudgetTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void UtcUntilKeepsNextLocalDateAcrossMidnightRollback(bool visitor)
+    {
+        const string rule = "FREQ=DAILY;UNTIL=20100304T153000Z";
+        var service = new InMemoryRruleExpansionService();
+        var result = new List<DateOnly>();
+        if (visitor)
+            service.VisitZonedOccurrences(rule, new(2010, 3, 3), new(0, 30), "Antarctica/Casey",
+                new(2010, 3, 6), new(2010, 3, 3), result.Add);
+        else
+            result.AddRange(service.ExpandZonedOccurrences(rule, new(2010, 3, 3), new(0, 30), "Antarctica/Casey",
+                new(2010, 3, 6), 0, 0, new(2010, 3, 3)));
+        Assert.Equal([new DateOnly(2010, 3, 3), new(2010, 3, 4), new(2010, 3, 5)], result);
+    }
+
     [Fact]
     public void YearlyMonthDayWithoutMonthVisitsEveryMonthAndCountsFromAnchor()
     {
