@@ -9,6 +9,15 @@ namespace Harborline.Blocks.Workflow.Tests;
 public sealed class WorkflowMigrationTests
 {
     [Fact]
+    public void Legacy_store_conditional_members_have_defaults_and_migration_does_not_hide_the_base_member()
+    {
+        Assert.False(typeof(IWorkflowStore).GetMethod("FindStepResultIfCurrentAsync")!.IsAbstract);
+        Assert.False(typeof(IWorkflowStore).GetMethod("AdvanceIfCurrentAsync")!.IsAbstract);
+        Assert.False(typeof(IWorkflowStore).GetMethod("ParkIfCurrentAsync")!.IsAbstract);
+        Assert.DoesNotContain(typeof(IWorkflowMigrationStore).GetMethods(), method => method.Name == "MigrateAsync");
+    }
+
+    [Fact]
     public async Task Registered_typed_handler_refuses_a_renamed_step_through_host_migration()
     {
         using var fixture = new JournalFixture();

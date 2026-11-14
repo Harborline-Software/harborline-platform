@@ -31,6 +31,20 @@ public sealed class DurableWorkflowEngineSeamTests
     private static readonly IWorkflowDefinitionExecutionStore AdmittedDefinitionStore = new AlwaysAdmittedDefinitionStore();
 
     [Fact]
+    public async Task Explicit_base_migration_implementation_is_used_by_migration_capable_store()
+    {
+        using var fixture = new JournalFixture();
+        using var store = fixture.Open();
+        await CreateAsync(store, "explicit-migration", step: "old");
+        var decorator = new PausingReplayStore(store);
+        var migration = new WorkflowMigration(decorator, new MigrationDefinitions(), new WorkflowTriggerDispatcher(decorator, []));
+        await migration.MigrateAsync("explicit-migration", "2.0.0", new Dictionary<string, string> { ["old"] = "new" },
+            new WorkflowMigrationAuthority("operator", Tenant, "workflow:migrate", "workflow-instance", "explicit-migration", true));
+        Assert.Equal("new", (await store.LoadAsync("explicit-migration"))!.CurrentStep);
+        Assert.Equal("2.0.0", (await store.LoadAsync("explicit-migration"))!.DefinitionVersion);
+    }
+
+    [Fact]
     public async Task Trigger_issued_before_migration_cannot_replay_after_position_moves()
     {
         using var fixture = new JournalFixture();
@@ -71,7 +85,7 @@ public sealed class DurableWorkflowEngineSeamTests
             => inner.AdvanceAsync(key, effect, resultJson, eventType, eventDataJson, nextStep, nextStatus, ct);
         public Task ParkAsync(string instanceId, string step, string reasonJson, int iteration = 0, CancellationToken ct = default)
             => inner.ParkAsync(instanceId, step, reasonJson, iteration, ct);
-        Task IWorkflowMigrationStore.MigrateAsync(WorkflowInstanceRecord expected, string targetVersion, string targetStep, string eventDataJson, CancellationToken ct)
+        Task IWorkflowStore.MigrateAsync(WorkflowInstanceRecord expected, string targetVersion, string targetStep, string eventDataJson, CancellationToken ct)
             => inner.MigrateAsync(expected, targetVersion, targetStep, eventDataJson, ct);
         Task<bool> IWorkflowStore.AdvanceIfCurrentAsync(WorkflowInstanceRecord expected, WorkflowStepKey key, WorkflowEffect? effect,
             string resultJson, string eventType, string eventDataJson, string nextStep, WorkflowStatus nextStatus, CancellationToken ct)
