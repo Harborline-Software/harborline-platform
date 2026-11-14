@@ -7,7 +7,7 @@
     "projections/dotnet/foundation/hlp.foundation.scheduling/DependencyInjection/SchedulingServiceCollectionExtensions.cs": "be05df8d15e7815a66b0935a5b993e4e1d6e22ead387731ad4542f01d363754f",
     "projections/dotnet/foundation/hlp.foundation.scheduling/README.md": "505e8c37ed54ee546bb20411f758fe7f2084585b9287dc5f10ddd9521c3ea127",
     "projections/dotnet/foundation/hlp.foundation.scheduling/Services/IRruleExpansionService.cs": "8405117b7710754b283171c4493412c5c822a4ec753f330436860522ccacb6c1",
-    "projections/dotnet/foundation/hlp.foundation.scheduling/Services/InMemoryRruleExpansionService.cs": "c5fb6f1c0666ed97ce97446e2bfe381454be726ee5b6196e02c4d8162bc5d594",
+    "projections/dotnet/foundation/hlp.foundation.scheduling/Services/InMemoryRruleExpansionService.cs": "e43ea1836167d830ae5da02fc114820c81b833cdc548e411700bf9ebcdfa1a7d",
     "projections/dotnet/foundation/hlp.foundation.scheduling/Services/RruleExpansionCapExceededException.cs": "b9415a1e1c842a573bb536244ba9eecd4d11a73727c8ae86423ac6ef943a0f91",
     "projections/dotnet/foundation/hlp.foundation.scheduling/Harborline.Foundation.Scheduling.csproj": "2ac98bcbc25a12409f08a3770f81b2ebfc3a2e06a06769b77c066a0b626dd958",
     "projections/dotnet/foundation/hlp.foundation.scheduling/Models/AvailabilityRequest.cs": "9f863293ef25c329a0dd7ef5d816d22e10df96cd893dc49cecb715ba218358c6",
