@@ -20,6 +20,18 @@ public sealed class TaxonomyDefinitionTests
         Assert.Null(ContractOf(TaxonomyDefinitionJson.SerializeCanonical(TaxonomyDefinitionJson.Deserialize(WithContract(canonical, present: false)))));
     }
 
+    [Fact(DisplayName = "taxonomy-ck-21: retention class and legal hold survive the envelope round trip")]
+    public void taxonomy_ck_21_retention_and_hold_round_trip()
+    {
+        var json = System.Text.Json.Nodes.JsonNode.Parse(TaxonomyDefinitionJson.SerializeCanonical(Definition()))!;
+        json["envelope"]!["retention_class"] = "regulated";
+        json["envelope"]!["legal_hold"] = true;
+        var parsed = TaxonomyDefinitionJson.Deserialize(json.ToJsonString());
+        var envelope = System.Text.Json.Nodes.JsonNode.Parse(TaxonomyDefinitionJson.SerializeCanonical(parsed))!["envelope"]!;
+        Assert.Equal("regulated", envelope["retention_class"]!.GetValue<string>());
+        Assert.True(envelope["legal_hold"]!.GetValue<bool>());
+    }
+
     private static byte[] WithContract(byte[] canonical, bool present = true)
     {
         var node = System.Text.Json.Nodes.JsonNode.Parse(canonical)!;
@@ -324,7 +336,7 @@ public sealed class TaxonomyDefinitionTests
 
     private static readonly TaxonomyDefinitionId Id = new("acme", "health", "icd");
     private static TaxonomyDefinition Definition(IReadOnlyList<TaxonomyNode>? nodes = null) => new("tenant-a", Id, "1.0.0", TaxonomyGovernanceRegime.Civilian, "author", nodes ?? [Node("root")], Envelope: Envelope(), DerivedFrom: new("source", "0.9.0", "author", DateTimeOffset.UnixEpoch, "derivation"));
-    private static TaxonomyDefinitionEnvelope Envelope(string? identity = null) => new(identity ?? Id.ToString(), "1.0.0", "tenant-a", TaxonomyCascadeLayer.Tenant, JsonDocument.Parse("{\"source\":\"tenant\"}").RootElement.Clone(), [], new(1, 0));
+    private static TaxonomyDefinitionEnvelope Envelope(string? identity = null) => new(identity ?? Id.ToString(), "1.0.0", "tenant-a", TaxonomyCascadeLayer.Tenant, JsonDocument.Parse("{\"source\":\"tenant\"}").RootElement.Clone(), "regulated", false, [], new(1, 0));
     private static TaxonomyNode Node(string code, string? parent = null, TaxonomyNodeStatus status = TaxonomyNodeStatus.Active, string? successor = null, string? reason = "retired", IReadOnlyList<DisplayHistoryEntry>? history = null) => new(code, $"Display {code}", $"Description {code}", status, history ?? [new($"Display {code}", $"Description {code}", DateTimeOffset.UnixEpoch)], ParentCode: parent, PublishedAt: DateTimeOffset.UnixEpoch, TombstonedAt: status == TaxonomyNodeStatus.Tombstoned ? DateTimeOffset.UnixEpoch : null, SuccessorCode: successor, DeprecationReason: reason);
     private static void RefusesThenAdmits(TaxonomyDefinition refused, string code, TaxonomyAdmissionPhase phase = TaxonomyAdmissionPhase.Author, TaxonomyDefinition? previous = null, TaxonomyDefinition? admitted = null)
     {
