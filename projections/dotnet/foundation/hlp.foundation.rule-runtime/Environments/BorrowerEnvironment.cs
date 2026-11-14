@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -71,12 +72,16 @@ public sealed class AdmittedEnvironment
     internal AdmittedEnvironment(BorrowerEnvironmentDeclaration declaration)
     {
         Declaration = declaration;
+        CanonicalJson = BorrowerEnvironmentAdmission.CanonicalJson(declaration);
         _operations = new HashSet<string>(declaration.Operations, StringComparer.Ordinal);
         _variables = new HashSet<string>(declaration.Variables.Keys, StringComparer.Ordinal);
     }
 
     /// <summary>The admitted declaration.</summary>
     public BorrowerEnvironmentDeclaration Declaration { get; }
+
+    /// <summary>The canonical declaration captured at admission.</summary>
+    public string CanonicalJson { get; }
 
     /// <summary>Evidence for one evaluation phase; refuses a phase the declaration marks inapplicable.</summary>
     public EvaluationAdmission For(EvaluationPhase phase) => Declaration.Phases.TryGetValue(phase, out var applicable) && applicable
@@ -159,6 +164,15 @@ public static class BorrowerEnvironmentAdmission
     public static AdmittedEnvironment Admit(BorrowerEnvironmentDeclaration declaration)
     {
         ArgumentNullException.ThrowIfNull(declaration);
+        if (declaration.Variables is null || declaration.Operations is null || declaration.Effects is null || declaration.Phases is null)
+            throw new BorrowerEnvironmentException(DeclarationRefused, $"{declaration.Borrower}: missing collection");
+        declaration = declaration with
+        {
+            Variables = declaration.Variables.ToImmutableDictionary(StringComparer.Ordinal),
+            Operations = declaration.Operations.ToImmutableArray(),
+            Effects = declaration.Effects.ToImmutableArray(),
+            Phases = declaration.Phases.ToImmutableDictionary(),
+        };
         string? reason =
             Blank(declaration.Borrower) ? "borrower" :
             declaration.Grammar != Grammar ? "grammar" :

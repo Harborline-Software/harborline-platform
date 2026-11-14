@@ -37,7 +37,7 @@ public sealed class SchedulingExpressionEnvironmentTests
     public void Scheduling_ck_23_declaration_matches_the_released_borrower_contract()
     {
         Assert.Equal(Fixture["canonical"]!.GetValue<string>(), BorrowerEnvironmentAdmission.CanonicalJson(SchedulingExpressionEnvironment.Declaration));
-        Assert.Same(SchedulingExpressionEnvironment.Declaration, SchedulingExpressionEnvironment.Admitted.Declaration);
+        Assert.Equal(BorrowerEnvironmentAdmission.CanonicalJson(SchedulingExpressionEnvironment.Declaration), SchedulingExpressionEnvironment.Admitted.CanonicalJson);
     }
 
     [Fact(DisplayName = "scheduling-auth-14: a constraint expression is admitted in the Run phase and refused in every other phase")]

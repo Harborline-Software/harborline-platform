@@ -186,6 +186,41 @@ public sealed class TaxonomyDefinitionTests
         Assert.False(typeof(System.Collections.IEnumerable).IsAssignableFrom(parent.PropertyType) && parent.PropertyType != typeof(string));
     }
 
+    [Theory(DisplayName = "taxonomy-auth-15: a previous active or tombstoned concept must be tombstoned, not deleted")]
+    [InlineData(TaxonomyNodeStatus.Active)]
+    [InlineData(TaxonomyNodeStatus.Tombstoned)]
+    public void taxonomy_auth_15_dropped_concept_is_refused(TaxonomyNodeStatus status)
+    {
+        var previous = Definition([Node("kept"), Node("dropped", status: status)]);
+        var refusals = TaxonomyDefinitionAdmission.Validate(Definition([Node("kept")]), TaxonomyAdmissionPhase.Author, ContractWindow, previous);
+        var refusal = Assert.Single(refusals);
+        Assert.Equal(("definition.concept_deleted", "/previous/nodes/1/code"), (refusal.Code, refusal.Pointer));
+        Assert.Equal("The concept must be tombstoned, not deleted.", refusal.Message);
+    }
+
+    [Fact(DisplayName = "taxonomy-auth-17: a three-version chain cannot drop or reuse a retired code")]
+    public void taxonomy_auth_17_retired_code_cannot_be_reused_across_versions()
+    {
+        var first = Definition([Node("kept"), Node("retired")]) with { Envelope = null, Version = "1.0.0" };
+        var dropped = Definition([Node("kept")]) with { Envelope = null, Version = "2.0.0" };
+        var tombstoned = Definition([Node("kept"), Node("retired", status: TaxonomyNodeStatus.Tombstoned)]) with { Envelope = null, Version = "2.0.0" };
+        var reactivated = Definition([Node("kept"), Node("retired")]) with { Envelope = null, Version = "3.0.0" };
+        var readded = Definition([Node("kept"), Node("retired") with { Display = "A new concept" }]) with { Envelope = null, Version = "3.0.0" };
+
+        Assert.Equal([("definition.concept_deleted", "/previous/nodes/1/code")], TaxonomyDefinitionAdmission.Validate(dropped, TaxonomyAdmissionPhase.Author, ContractWindow, first).Select(r => (r.Code, r.Pointer)));
+        Assert.Empty(TaxonomyDefinitionAdmission.Validate(tombstoned, TaxonomyAdmissionPhase.Author, ContractWindow, first));
+        Assert.Equal([("definition.tombstone_reactivated", "/nodes/1/status")], TaxonomyDefinitionAdmission.Validate(reactivated, TaxonomyAdmissionPhase.Author, ContractWindow, tombstoned).Select(r => (r.Code, r.Pointer)));
+        Assert.Equal([("definition.tombstone_reactivated", "/nodes/1/status")], TaxonomyDefinitionAdmission.Validate(readded, TaxonomyAdmissionPhase.Author, ContractWindow, tombstoned).Select(r => (r.Code, r.Pointer)));
+    }
+
+    [Fact(DisplayName = "taxonomy-auth-25: the dropped concept refusal names its reason")]
+    public void taxonomy_auth_25_drop_refusal_names_its_reason()
+    {
+        var previous = Definition([Node("kept"), Node("retired")]);
+        var refusal = Assert.Single(TaxonomyDefinitionAdmission.Validate(Definition([Node("kept")]), TaxonomyAdmissionPhase.Author, ContractWindow, previous));
+        Assert.Equal("definition.concept_deleted", refusal.Code);
+    }
+
     [Fact(DisplayName = "taxonomy-auth-25: independent structural refusals are accumulated in one list")]
     public void Independent_refusals_are_accumulated()
     {
