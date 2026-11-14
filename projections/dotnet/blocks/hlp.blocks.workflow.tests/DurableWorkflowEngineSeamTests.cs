@@ -31,6 +31,145 @@ public sealed class DurableWorkflowEngineSeamTests
     private static readonly IWorkflowDefinitionExecutionStore AdmittedDefinitionStore = new AlwaysAdmittedDefinitionStore();
 
     [Fact]
+    public async Task Explicit_base_migration_implementation_is_used_by_migration_capable_store()
+    {
+        using var fixture = new JournalFixture();
+        using var store = fixture.Open();
+        await CreateAsync(store, "explicit-migration", step: "old");
+        var decorator = new PausingReplayStore(store);
+        var migration = new WorkflowMigration(decorator, new MigrationDefinitions(), new WorkflowTriggerDispatcher(decorator, []));
+        await migration.MigrateAsync("explicit-migration", "2.0.0", new Dictionary<string, string> { ["old"] = "new" },
+            new WorkflowMigrationAuthority("operator", Tenant, "workflow:migrate", "workflow-instance", "explicit-migration", true));
+        Assert.Equal("new", (await store.LoadAsync("explicit-migration"))!.CurrentStep);
+        Assert.Equal("2.0.0", (await store.LoadAsync("explicit-migration"))!.DefinitionVersion);
+    }
+
+    [Fact]
+    public async Task Trigger_issued_before_migration_cannot_replay_after_position_moves()
+    {
+        using var fixture = new JournalFixture();
+        using var store = fixture.Open();
+        await CreateAsync(store, "replay-race", step: "old");
+        await store.AdvanceAsync(new WorkflowStepKey("replay-race", 0, "old"), null, "{}", "Advanced", "{}", "other", WorkflowStatus.Running);
+        await store.ParkAsync("replay-race", "old", "{}");
+        var pausing = new PausingReplayStore(store);
+        var dispatcher = new WorkflowTriggerDispatcher(pausing, new[] { new AdvanceOnceHandler() }, definitionStore: AdmittedDefinitionStore);
+        var dispatch = dispatcher.DispatchAsync(WorkflowTrigger.For(WorkflowTriggerKind.Event, "replay-race", "old"), Authorized("replay-race"));
+        await pausing.Entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        await new WorkflowMigration(store, new MigrationDefinitions(), new WorkflowTriggerDispatcher(store, [])).MigrateAsync("replay-race", "2.0.0",
+            new Dictionary<string, string> { ["old"] = "new" },
+            new WorkflowMigrationAuthority("operator", Tenant, "workflow:migrate", "workflow-instance", "replay-race", true));
+        pausing.Continue.SetResult();
+        Assert.Equal(WorkflowDispatchResult.Discarded, await dispatch);
+        Assert.Equal("new", (await store.LoadAsync("replay-race"))!.CurrentStep);
+        Assert.Empty(await store.CommittedEffectPayloadsAsync("replay-race"));
+    }
+
+    private sealed class PausingReplayStore(FileJournalWorkflowStore inner) : IWorkflowMigrationStore
+    {
+        public TaskCompletionSource Entered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public TaskCompletionSource Continue { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public Task<WorkflowInstanceRecord?> LoadAsync(string instanceId, CancellationToken ct = default) => inner.LoadAsync(instanceId, ct);
+        public Task CreateInstanceAsync(WorkflowInstanceRecord instance, CancellationToken ct = default) => inner.CreateInstanceAsync(instance, ct);
+        public async Task<WorkflowStepIdempotencyRecord?> FindStepResultAsync(WorkflowStepKey key, CancellationToken ct = default)
+            => await inner.FindStepResultAsync(key, ct);
+        async Task<(bool Current, WorkflowStepIdempotencyRecord? Result)> IWorkflowStore.FindStepResultIfCurrentAsync(
+            WorkflowInstanceRecord expected, WorkflowStepKey key, CancellationToken ct)
+        {
+            Entered.SetResult();
+            await Continue.Task;
+            return await inner.FindStepResultIfCurrentAsync(expected, key, ct);
+        }
+        public Task AdvanceAsync(WorkflowStepKey key, WorkflowEffect? effect, string resultJson, string eventType,
+            string eventDataJson, string nextStep, WorkflowStatus nextStatus, CancellationToken ct = default)
+            => inner.AdvanceAsync(key, effect, resultJson, eventType, eventDataJson, nextStep, nextStatus, ct);
+        public Task ParkAsync(string instanceId, string step, string reasonJson, int iteration = 0, CancellationToken ct = default)
+            => inner.ParkAsync(instanceId, step, reasonJson, iteration, ct);
+        Task IWorkflowStore.MigrateAsync(WorkflowInstanceRecord expected, string targetVersion, string targetStep, string eventDataJson, CancellationToken ct)
+            => inner.MigrateAsync(expected, targetVersion, targetStep, eventDataJson, ct);
+        Task<bool> IWorkflowStore.AdvanceIfCurrentAsync(WorkflowInstanceRecord expected, WorkflowStepKey key, WorkflowEffect? effect,
+            string resultJson, string eventType, string eventDataJson, string nextStep, WorkflowStatus nextStatus, CancellationToken ct)
+            => inner.AdvanceIfCurrentAsync(expected, key, effect, resultJson, eventType, eventDataJson, nextStep, nextStatus, ct);
+        Task<bool> IWorkflowStore.ParkIfCurrentAsync(WorkflowInstanceRecord expected, string step, string reasonJson, int iteration, CancellationToken ct)
+            => inner.ParkIfCurrentAsync(expected, step, reasonJson, iteration, ct);
+    }
+
+    [Fact]
+    public async Task Trigger_issued_before_migration_cannot_commit_after_position_moves()
+    {
+        using var fixture = new JournalFixture();
+        using var store = fixture.Open();
+        await CreateAsync(store, "race", step: "old");
+        var handler = new PausingHandler();
+        var dispatcher = new WorkflowTriggerDispatcher(store, new[] { handler }, definitionStore: AdmittedDefinitionStore);
+        var dispatch = dispatcher.DispatchAsync(WorkflowTrigger.For(WorkflowTriggerKind.Event, "race", "old"), Authorized("race"));
+        await handler.Entered.Task;
+        await new WorkflowMigration(store, new MigrationDefinitions(), new WorkflowTriggerDispatcher(store, [])).MigrateAsync("race", "2.0.0",
+            new Dictionary<string, string> { ["old"] = "new" },
+            new WorkflowMigrationAuthority("operator", Tenant, "workflow:migrate", "workflow-instance", "race", true));
+        handler.Continue.SetResult();
+        Assert.Equal(WorkflowDispatchResult.Discarded, await dispatch);
+        Assert.Equal("new", (await store.LoadAsync("race"))!.CurrentStep);
+        Assert.Empty(await store.CommittedEffectPayloadsAsync("race"));
+        Assert.Null(await store.FindStepResultAsync(new WorkflowStepKey("race", 0, "old")));
+    }
+
+    private sealed class PausingHandler : IWorkflowStepHandler
+    {
+        public string DefinitionKey => "invoice-approval";
+        public TaskCompletionSource Entered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public TaskCompletionSource Continue { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public async ValueTask<WorkflowStepOutcome> DecideAsync(WorkflowInstanceRecord instance, WorkflowTrigger trigger, CancellationToken ct = default)
+        {
+            Entered.SetResult();
+            await Continue.Task;
+            return WorkflowStepOutcome.Advance("bad", Effect("stale"));
+        }
+    }
+
+    [Fact]
+    public async Task Migrated_wait_state_is_unchanged_without_another_park_and_stale_source_is_discarded()
+    {
+        using var fixture = new JournalFixture();
+        using var store = fixture.Open();
+        await store.CreateInstanceAsync(new WorkflowInstanceRecord
+        {
+            Id = "migrating", TenantId = Tenant, DefinitionKey = "invoice-approval", DefinitionVersion = "1.0.0",
+            CurrentStep = "old", Status = WorkflowStatus.Running,
+            StateJson = "{\"due\":\"2026-11-12T12:00:00Z\",\"correlation\":\"event-1\"}",
+        });
+        await store.AdvanceAsync(new WorkflowStepKey("migrating", 0, "old"), null, "{}", "Advanced", "{}", "other", WorkflowStatus.Running);
+        await store.ParkAsync("migrating", "old", "{}");
+        Assert.Equal(2, (await store.EventsAsync("migrating")).Count);
+        var staleTrigger = WorkflowTrigger.For(WorkflowTriggerKind.Event, "migrating", "old");
+        await new WorkflowMigration(store, new MigrationDefinitions(), new WorkflowTriggerDispatcher(store, [])).MigrateAsync("migrating", "2.0.0",
+            new Dictionary<string, string> { ["old"] = "new" },
+            new WorkflowMigrationAuthority("operator", Tenant, "workflow:migrate", "workflow-instance", "migrating", true));
+        var dispatcher = new WorkflowTriggerDispatcher(store, new[] { new AdvanceOnceHandler() }, definitionStore: AdmittedDefinitionStore);
+        Assert.Equal(WorkflowDispatchResult.Discarded, await dispatcher.DispatchAsync(staleTrigger, Authorized("migrating")));
+        Assert.Empty(await store.CommittedEffectPayloadsAsync("migrating"));
+        Assert.Equal("{\"due\":\"2026-11-12T12:00:00Z\",\"correlation\":\"event-1\"}", (await store.LoadAsync("migrating"))!.StateJson);
+        var events = await store.EventsAsync("migrating");
+        Assert.Equal(3, events.Count);
+        Assert.Equal("Parked", events[1].EventType);
+        Assert.Equal("Migrated", events[2].EventType);
+        Assert.Equal(WorkflowDispatchResult.Advanced, await dispatcher.DispatchAsync(
+            WorkflowTrigger.For(WorkflowTriggerKind.Event, "migrating", "new"), Authorized("migrating")));
+        Assert.NotNull(await store.FindStepResultAsync(new WorkflowStepKey("migrating", 0, "new")));
+        Assert.Single(await store.CommittedEffectPayloadsAsync("migrating"));
+    }
+
+    private sealed class MigrationDefinitions : IWorkflowDefinitionExecutionStore
+    {
+        public ValueTask<WorkflowDefinitionRecord?> GetAdmittedCurrentPublishedAsync(string tenant, string key, CancellationToken ct = default)
+            => throw new NotSupportedException();
+
+        public ValueTask<WorkflowDefinitionRecord> GetAdmittedAsync(string tenant, string key, string version, CancellationToken ct = default)
+            => ValueTask.FromResult(new WorkflowDefinitionRecord(tenant, key, version, WorkflowDefinitionStatus.Published,
+                JsonDocument.Parse("{\"initialState\":\"new\",\"states\":[{\"id\":\"new\"}]}").RootElement.Clone()));
+    }
+
+    [Fact]
     public async Task Interpreter_decision_failure_commits_the_actual_step_reason_and_event_once()
     {
         // ADR-0141 D1 is the oracle: fail once as not-retryable at the state reached,
@@ -517,6 +656,71 @@ public sealed class DurableWorkflowEngineSeamTests
     }
 
     // ── Recurring-generation rows (Handler B) ──
+
+    [Fact]
+    public async Task Extra_recurring_map_entry_is_refused_without_fencing_the_next_occurrence()
+    {
+        using var fixture = new JournalFixture();
+        using var store = fixture.Open();
+        await CreateAsync(store, "recurring-extra", key: "recurring-generation", step: "generate@2026-07-15");
+        var dispatcher = new WorkflowTriggerDispatcher(store, [new RecurringGenerationHandler(new StaticRecurringContext())], definitionStore: AdmittedDefinitionStore);
+        var before = new FileInfo(fixture.JournalPath).Length;
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() => new WorkflowMigration(store, new RecurringMigrationDefinitions(), dispatcher).MigrateAsync(
+            "recurring-extra", "2.0.0", new Dictionary<string, string> { ["generate@2026-07-15"] = "generate@2026-07-15", ["generate@2026-08-15"] = "x" },
+            new WorkflowMigrationAuthority("operator", Tenant, "workflow:migrate", "workflow-instance", "recurring-extra", true)));
+        Assert.Contains("generate@2026-08-15", error.Message, StringComparison.Ordinal);
+        Assert.Equal(before, new FileInfo(fixture.JournalPath).Length);
+        Assert.Empty((await store.LoadAsync("recurring-extra"))!.MovedAwaySteps);
+        Assert.Empty(await store.EventsAsync("recurring-extra"));
+        Assert.Equal(WorkflowDispatchResult.Advanced, await dispatcher.DispatchAsync(
+            WorkflowTrigger.For(WorkflowTriggerKind.Schedule, "recurring-extra", "generate@2026-08-15"), Authorized("recurring-extra")));
+    }
+
+    [Fact]
+    public async Task Migrated_recurring_run_accepts_two_occurrences_once_each()
+    {
+        using var fixture = new JournalFixture();
+        using var store = fixture.Open();
+        await CreateAsync(store, "recurring-migrated", key: "recurring-generation", step: "generate@2026-07-15");
+        await new WorkflowMigration(store, new RecurringMigrationDefinitions(), new WorkflowTriggerDispatcher(store, [new RecurringGenerationHandler(new StaticRecurringContext())])).MigrateAsync("recurring-migrated", "2.0.0",
+            new Dictionary<string, string> { ["generate@2026-07-15"] = "generate@2026-07-15" },
+            new WorkflowMigrationAuthority("operator", Tenant, "workflow:migrate", "workflow-instance", "recurring-migrated", true));
+        var dispatcher = new WorkflowTriggerDispatcher(store, new[] { new RecurringGenerationHandler(new StaticRecurringContext()) }, definitionStore: AdmittedDefinitionStore);
+        var first = WorkflowTrigger.For(WorkflowTriggerKind.Schedule, "recurring-migrated", "generate@2026-07-15");
+        var second = WorkflowTrigger.For(WorkflowTriggerKind.Schedule, "recurring-migrated", "generate@2026-08-15");
+        Assert.Equal(WorkflowDispatchResult.Advanced, await dispatcher.DispatchAsync(first, Authorized("recurring-migrated")));
+        Assert.Equal(WorkflowDispatchResult.Advanced, await dispatcher.DispatchAsync(second, Authorized("recurring-migrated")));
+        Assert.Equal(WorkflowDispatchResult.ReplayedNoOp, await dispatcher.DispatchAsync(second, Authorized("recurring-migrated")));
+        Assert.Equal(2, (await store.CommittedEffectPayloadsAsync("recurring-migrated")).Count);
+    }
+
+    [Fact]
+    public async Task Identity_migration_after_a_recurring_occurrence_preserves_replay_and_generates_the_next_once()
+    {
+        using var fixture = new JournalFixture();
+        using var store = fixture.Open();
+        await CreateAsync(store, "recurring-after", key: "recurring-generation", step: "generate@2026-07-15");
+        var dispatcher = new WorkflowTriggerDispatcher(store, [new RecurringGenerationHandler(new StaticRecurringContext())], definitionStore: AdmittedDefinitionStore);
+        var first = WorkflowTrigger.For(WorkflowTriggerKind.Schedule, "recurring-after", "generate@2026-07-15");
+        var second = WorkflowTrigger.For(WorkflowTriggerKind.Schedule, "recurring-after", "generate@2026-08-15");
+        Assert.Equal(WorkflowDispatchResult.Advanced, await dispatcher.DispatchAsync(first, Authorized("recurring-after")));
+        await new WorkflowMigration(store, new RecurringMigrationDefinitions(), dispatcher).MigrateAsync("recurring-after", "2.0.0",
+            new Dictionary<string, string> { ["generate@2026-07-15"] = "generate@2026-07-15" },
+            new WorkflowMigrationAuthority("operator", Tenant, "workflow:migrate", "workflow-instance", "recurring-after", true));
+        Assert.Equal("2.0.0", (await store.LoadAsync("recurring-after"))!.DefinitionVersion);
+        Assert.Equal(WorkflowDispatchResult.ReplayedNoOp, await dispatcher.DispatchAsync(first, Authorized("recurring-after")));
+        Assert.Equal(WorkflowDispatchResult.Advanced, await dispatcher.DispatchAsync(second, Authorized("recurring-after")));
+        Assert.Equal(WorkflowDispatchResult.ReplayedNoOp, await dispatcher.DispatchAsync(second, Authorized("recurring-after")));
+        Assert.Equal(new[] { "occurrence:2026-07-15", "occurrence:2026-08-15" }, await store.CommittedEffectPayloadsAsync("recurring-after"));
+    }
+
+    private sealed class RecurringMigrationDefinitions : IWorkflowDefinitionExecutionStore
+    {
+        public ValueTask<WorkflowDefinitionRecord?> GetAdmittedCurrentPublishedAsync(string tenant, string key, CancellationToken ct = default) => throw new NotSupportedException();
+        public ValueTask<WorkflowDefinitionRecord> GetAdmittedAsync(string tenant, string key, string version, CancellationToken ct = default)
+            => ValueTask.FromResult(new WorkflowDefinitionRecord(tenant, key, version, WorkflowDefinitionStatus.Published,
+                JsonElement.Parse("{\"initialState\":\"generate@2026-07-15\",\"states\":[{\"id\":\"generate@2026-07-15\"}]}")));
+    }
 
     [Fact]
     public async Task HandlerB_DistinctOccurrences_EachPostOnce()

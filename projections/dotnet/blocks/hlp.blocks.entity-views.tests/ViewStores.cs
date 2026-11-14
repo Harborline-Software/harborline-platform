@@ -40,7 +40,8 @@ internal static class ViewStores
         [new("helm.counter", ["measure"])],
         [],
         [],
-        FieldKinds);
+        FieldKinds,
+        ViewsExpressionEnvironment.Admitted);
 
     public static (ViewDefinitionCatalogue Catalogue, IVersionedDefinitionStore Shared) Create(
         ViewAdmissionRegisters? registers = null,

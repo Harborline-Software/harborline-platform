@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.foundation.execution-runtime",
-  "interfaceRevision": 3,
+  "interfaceRevision": 4,
   "status": "frozen",
-  "purpose": "Own the execution runtime substrate (DES-0056, T-528): run-kind registration, run identity and lifecycle, named retry profiles, dead-letter, tenant-scoped run and effect receipt storage, and T-1028's independently checked compensation association.",
+  "purpose": "Own the execution runtime substrate (DES-0056, T-528): run-kind registration, run identity and lifecycle, named retry profiles, dead-letter, tenant-scoped run and effect receipt storage, T-1028's independently checked compensation association, and the tenant-scoped execution receipt and trace port (revision 4).",
   "dependencies": [
     {
       "moduleId": "hlp.contracts.identities",
@@ -11,7 +11,7 @@
     }
   ],
   "callerInterface": {
-    "name": "RunKindRegistry / RunLifecycle / DueRunDispatcher / IRunStore / EffectReceiptLedger / IEffectReceiptStore",
+    "name": "RunKindRegistry / RunLifecycle / DueRunDispatcher / IRunStore / EffectReceiptLedger / IEffectReceiptStore / IExecutionReceiptStore",
     "operations": [
       "RunKindRegistry.Register(kind, owningEngine, handler = null) -> registers a kind and optional async handler receiving the claimed run, timer step id (null for retries), and cancellation token; existing callers remain valid",
       "RunLifecycle.StartAsync(StartRun) -> a pending run under a fresh RunId of the request's kind; an unregistered kind, a retry profile outside the capability's allowed set, and a caused_by naming no run the tenant holds all refuse",
@@ -27,9 +27,13 @@
       "EffectReceipt.CompensatesEffectId -> optional backlink attesting to the one original effect this compensation was executed for; the workflow engine supplies it from declared compensating-step execution context; a present id is valid and non-self, and may coexist with the receipt's own forward CompensationEffectId",
       "EffectReceiptLedger.CheckCompensationAsync(tenant, originalEffectId) -> a read-only pair check; compensated and compensation-failed originals require a target with the requested tenant and forward identity whose CompensatesEffectId equals the original effect id; missing/inconsistent receipt evidence refuses execution.effect_receipt_invalid naming the known effects, while malformed effect identities retain execution.effect_identity_invalid; a missing original is refused by its own id, and other original statuses impose no compensation check",
       "DueRunDispatcher(registry, store, clock, dispatcherId, lease = five minutes).DispatchAsync(tenant) -> one serialized tenant pass; before its first pass for a tenant clears only its stable node id timer claims; returns due run ids missing handlers without claiming them; retry claims use BeginAttemptAsync, timer claims write owner and expiry through UpdateAsync; handler errors propagate",
-      "RunRecord.Waits -> parallel pending RunWait entries with unique immutable step ids per run (duplicate ids on CreateAsync or UpdateAsync refuse execution.wait_duplicate), closed RunWaitReason (human-task, timer, dependency), UTC BeganUtc and timer-only fixed UTC WakeUpUtc; Hold()/Release() preserve registration data; IsHeld excludes dispatch; timer claims expose ClaimDispatcherId and ClaimExpiresUtc"
+      "RunRecord.Waits -> parallel pending RunWait entries with unique immutable step ids per run (duplicate ids on CreateAsync or UpdateAsync refuse execution.wait_duplicate), closed RunWaitReason (human-task, timer, dependency), UTC BeganUtc and timer-only fixed UTC WakeUpUtc; Hold()/Release() preserve registration data; IsHeld excludes dispatch; timer claims expose ClaimDispatcherId and ClaimExpiresUtc",
+      "ExecutionReceipt(tenant, runId, status, accessDecisionId) -> the execution receipt kind (DES-0056 execution-runtime-ck-3): kind-qualified run identity, a status of the closed run vocabulary and the applicable Access decision's opaque stable identity, null when none applies; a missing run identity, an undefined status or a present-but-blank decision identity refuses execution.execution_receipt_invalid, and a default or system sentinel tenant is an argument error",
+      "ExecutionTraceStep(ordinal, phase, status) -> one execution trace step (execution-runtime-ck-4): a 1-based ordinal, the engine's phase and its status recorded verbatim; an ordinal below 1 or a blank phase or status refuses execution.trace_step_invalid",
+      "IExecutionReceiptStore.PutReceiptAsync / GetReceiptAsync(tenant, runId) -> tenant-scoped receipt storage keyed by the kind-qualified run identity, one current receipt per run; a put replaces the tenant's earlier receipt for that run, refusing execution.access_decision_changed when the replacement adds, removes or changes the Access decision link and execution.transition_illegal when its status is neither the stored status nor a legal move from it under the run transition table; a read returns the receipt or null",
+      "IExecutionReceiptStore.AppendTraceStepAsync(tenant, runId, traceStep) / GetTraceAsync(tenant, runId) -> tenant-scoped append-only trace; an exact repeat of a step already stored at its ordinal is a no-op, otherwise an append whose ordinal is not exactly one past the last stored step (1 for the first) refuses execution.trace_step_out_of_order and stores nothing; every read and append refuses a default or system sentinel tenant as an argument error; a read returns the steps in ordinal order or empty; InMemoryExecutionReceiptStore is the reference implementation"
     ],
-    "context": "Each engine registers its run kind and keeps its engine state in its own store (owner ruling 2026-09-29). The substrate also holds one non-secret effect receipt per logical effect. T-1028's owner-approved backlink is producer-attested linkage, not proof of external compensation correctness. T-488 must later stamp the backlink and call the pair checker after both receipts are durable, including recovery after a crash between recording and checking; recovery/audit may repeat it. That engine integration and the execution trace, Access decision link and authorized observe wiring are not claimed by this slice."
+    "context": "Each engine registers its run kind and keeps its engine state in its own store (owner ruling 2026-09-29). The substrate also holds one non-secret effect receipt per logical effect. T-1028's owner-approved backlink is producer-attested linkage, not proof of external compensation correctness. T-488 must later stamp the backlink and call the pair checker after both receipts are durable, including recovery after a crash between recording and checking; recovery/audit may repeat it. That engine integration is not claimed. Revision 4 (T-528/execution-receipt-and-trace) adds the execution receipt and trace kinds and the tenant-scoped port a durable adapter implements; the durable adapter and restart proof (T-528/durable-run-store), the authorized observe read (T-528/observe-read) and engine emitting (exchange-run-adoption, workflow-run-adoption) remain later slices."
   },
   "invariants": [
     "A RunId carries its RunKind, so runs of two kinds never share an identity even when their opaque values coincide; caused_by correlates runs and never merges them.",
@@ -42,7 +46,10 @@
     "The original's forward CompensationEffectId and the target's reverse CompensatesEffectId are distinct associations. A compensation attests to one original and may itself have a separate compensation. The checker validates only the requested pair; it infers no target-status or same-workflow rule and does not traverse chains.",
     "Recording validates compensation-link shape without requiring either linked receipt to exist. Checking is separate and changes neither receipt.",
     "Ordinary and legacy receipts may omit CompensatesEffectId and remain recordable/readable. A legacy target without that backlink fails association verification; no inferred backfill or additional storage registry exists.",
-    "Only due awaiting-retry runs and running runs with due, unheld timers without a live claim are dispatched. Retry claims start an attempt without a lease. Timer resolution belongs to the engine and must use the delivered run version; repeated resolved steps are no-ops. Stable dispatcher ids are unique among live nodes. No lease renewal or attempt timeout is built here."
+    "Only due awaiting-retry runs and running runs with due, unheld timers without a live claim are dispatched. Retry claims start an attempt without a lease. Timer resolution belongs to the engine and must use the delivered run version; repeated resolved steps are no-ops. Stable dispatcher ids are unique among live nodes. No lease renewal or attempt timeout is built here.",
+    "An execution receipt carries only the run identity, status and the applicable Access decision's stable identity; it links that decision and never carries or recomputes Access's authorization evidence. An absent decision is null and stays null; a present one is never blank. After the first write the run identity (the key) and the decision link are fixed, and the status only stays or moves along the run transition table, so a stale writer cannot move a terminal run back (DES-0056 execution-runtime-ck-2, ck-3; M11 ruling on PR 484).",
+    "An execution trace records the run's progress, distinct from Access's four-stage authorization trace; its ordinals start at 1, are consecutive per tenant and run, and are read back in recorded order. A replayed exact repeat of a stored step is a no-op; a different step at a taken ordinal is refused (execution-runtime-ck-4; M11 ruling on PR 484).",
+    "Execution receipts and traces are tenant-scoped (a default or system sentinel tenant is refused, per the identities contract) and keyed by the kind-qualified run identity: another tenant reads nothing, and two kinds sharing an opaque value never share a receipt or a trace (execution-runtime-eng-1, cc-1)."
   ],
   "errors": [
     "execution.run_kind_invalid",
@@ -62,14 +69,19 @@
     "execution.effect_receipt_invalid",
     "execution.secret_reference_invalid",
     "execution.effect_reconciliation_required",
-    "execution.blind_compensation_refused"
+    "execution.blind_compensation_refused",
+    "execution.execution_receipt_invalid",
+    "execution.trace_step_invalid",
+    "execution.trace_step_out_of_order",
+    "execution.access_decision_changed"
   ],
   "publicSeams": [
     "run-kind registration for every engine that runs something",
     "the run lifecycle (start, attempt, succeed, fail, cancel) and the dead-letter read",
     "the IRunStore port a durable host adapter implements",
     "EffectReceiptLedger recording, reading and separate compensation-pair checking over the unchanged tenant-scoped IEffectReceiptStore port",
-    "DueRunDispatcher and optional registered handler; immutable waits carried by RunRecord"
+    "DueRunDispatcher and optional registered handler; immutable waits carried by RunRecord",
+    "the IExecutionReceiptStore port through which engines emit execution receipts and traces and a durable host adapter keeps them"
   ],
   "conformance": {
     "nativeTests": {
@@ -94,6 +106,24 @@
         "Checker_uses_two_tenant_scoped_reads_without_writes"
       ],
       "validation": "Candidate 95e3351fd4d2406fa6c29898c70bdf9cf975dc2b: hosted mutation 37720377170 scores 94.02 against unchanged floor 94; named missing-target facts kill mutants 52 and 53 separately. Hosted PR verify 37720364564 passed the native summary. These historical reports bind the receipt/test/config bytes; full protected merge-group qualification and landing remain pending."
+    },
+    "executionReceiptAndTrace": {
+      "source": "projections/dotnet/foundation/hlp.foundation.execution-runtime.tests/ExecutionReceiptTests.cs",
+      "oracle": "DES-0056 rows execution-runtime-ck-2, ck-3, ck-4, eng-1 and cc-1 (ADR 0096 ruling 6e) and the Layout consumer fixture _shared/layout/execution-observation.json (decision identity, null decision, 1-based ordinals); literals only; M11 ruling on PR 484 for the replace guards and the exact-repeat no-op",
+      "cases": [
+        "Access_decision_link",
+        "Receipt_round_trip",
+        "Trace_order",
+        "Decision_link_fixed_after_first_write",
+        "Status_moves_along_transition_table",
+        "Exact_repeat_is_a_no_op",
+        "Engine_emits_through_port",
+        "Kinds_never_merge",
+        "Sentinel_tenants_refused",
+        "Two_tenants_same_run",
+        "Racing_appends",
+        "Refused_first_append_leaves_nothing"
+      ]
     }
   },
   "selectedDesign": {

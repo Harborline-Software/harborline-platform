@@ -25,6 +25,35 @@ namespace Harborline.Blocks.Workflow.Durable;
 /// </remarks>
 public interface IWorkflowStore
 {
+    /// <summary>Atomically re-pins an unchanged instance and records the migration.</summary>
+    Task MigrateAsync(WorkflowInstanceRecord expected, string targetVersion, string targetStep,
+        string eventDataJson, CancellationToken ct = default)
+        => throw new NotSupportedException("This workflow store does not support migration.");
+
+    /// <summary>Commits an advance only if migration has not changed the loaded instance.</summary>
+    Task<bool> AdvanceIfCurrentAsync(WorkflowInstanceRecord expected, WorkflowStepKey key, WorkflowEffect? effect,
+        string resultJson, string eventType, string eventDataJson, string nextStep, WorkflowStatus nextStatus, CancellationToken ct = default)
+        => this is IWorkflowMigrationStore ? throw new NotSupportedException("Migration-capable stores must fence advances.")
+            : AdvanceLegacyAsync(key, effect, resultJson, eventType, eventDataJson, nextStep, nextStatus, ct);
+
+    private async Task<bool> AdvanceLegacyAsync(WorkflowStepKey key, WorkflowEffect? effect, string resultJson,
+        string eventType, string eventDataJson, string nextStep, WorkflowStatus nextStatus, CancellationToken ct)
+    {
+        await AdvanceAsync(key, effect, resultJson, eventType, eventDataJson, nextStep, nextStatus, ct).ConfigureAwait(false);
+        return true;
+    }
+
+    /// <summary>Commits a park only if migration has not changed the loaded instance.</summary>
+    Task<bool> ParkIfCurrentAsync(WorkflowInstanceRecord expected, string step, string reasonJson, int iteration, CancellationToken ct = default)
+        => this is IWorkflowMigrationStore ? throw new NotSupportedException("Migration-capable stores must fence parks.")
+            : ParkLegacyAsync(expected.Id, step, reasonJson, iteration, ct);
+
+    private async Task<bool> ParkLegacyAsync(string instanceId, string step, string reasonJson, int iteration, CancellationToken ct)
+    {
+        await ParkAsync(instanceId, step, reasonJson, iteration, ct).ConfigureAwait(false);
+        return true;
+    }
+
     /// <summary>Loads an instance by id, or <see langword="null"/> if unknown.</summary>
     Task<WorkflowInstanceRecord?> LoadAsync(string instanceId, CancellationToken ct = default);
 
@@ -37,6 +66,15 @@ public interface IWorkflowStore
     /// <see langword="null"/>.
     /// </summary>
     Task<WorkflowStepIdempotencyRecord?> FindStepResultAsync(WorkflowStepKey key, CancellationToken ct = default);
+
+    /// <summary>Looks up a replay only if migration has not changed the loaded instance.</summary>
+    Task<(bool Current, WorkflowStepIdempotencyRecord? Result)> FindStepResultIfCurrentAsync(
+        WorkflowInstanceRecord expected, WorkflowStepKey key, CancellationToken ct = default)
+        => this is IWorkflowMigrationStore ? throw new NotSupportedException("Migration-capable stores must fence replays.")
+            : FindLegacyAsync(key, ct);
+
+    private async Task<(bool Current, WorkflowStepIdempotencyRecord? Result)> FindLegacyAsync(WorkflowStepKey key, CancellationToken ct)
+        => (true, await FindStepResultAsync(key, ct).ConfigureAwait(false));
 
     /// <summary>
     /// <b>ATOMIC ADVANCE (build invariant #1).</b> Co-commits, in ONE store transaction:
@@ -89,6 +127,11 @@ public interface IWorkflowStore
     /// </param>
     /// <param name="ct">Cancellation token.</param>
     Task ParkAsync(string instanceId, string step, string reasonJson, int iteration = 0, CancellationToken ct = default);
+}
+
+/// <summary>A migration-capable store must atomically fence in-flight dispatch when migrating.</summary>
+public interface IWorkflowMigrationStore : IWorkflowStore
+{
 }
 
 /// <summary>

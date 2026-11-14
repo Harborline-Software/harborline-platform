@@ -3,7 +3,7 @@
   "module": {
     "interface": {
       "path": "specs/modules/blocks/hlp.blocks.entity-views/interface.yaml",
-      "revision": 9
+      "revision": 10
     },
     "moduleKind": "runtime",
     "presentation": {
@@ -16,7 +16,8 @@
       "hlp.contracts.forms",
       "hlp.contracts.fields",
       "hlp.foundation.actor",
-      "hlp.blocks.measure-catalogue"
+      "hlp.blocks.measure-catalogue",
+      "hlp.foundation.rule-runtime"
     ],
     "status": "implemented",
     "depth": {
@@ -40,7 +41,8 @@
           "dependencies": [
             "Harborline.Contracts",
             "Harborline.Foundation.Authorization",
-            "Harborline.Blocks.MeasureCatalogue"
+            "Harborline.Blocks.MeasureCatalogue",
+            "Harborline.Foundation.RuleEngine"
           ],
           "identityAuthority": "Harborline",
           "producerRepository": "harborline-platform",
