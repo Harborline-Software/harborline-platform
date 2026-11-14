@@ -49,6 +49,39 @@ public sealed class WorkflowMigrationTests
 
     private static WorkflowMigration Migration(IWorkflowStore store, IWorkflowDefinitionExecutionStore definitions)
         => new(store, definitions, new WorkflowTriggerDispatcher(store, [], definitionStore: definitions));
+
+    [Fact]
+    public async Task Replaced_dispatcher_keeps_registered_typed_handler_migration_fence()
+    {
+        using var fixture = new JournalFixture();
+        using var store = fixture.Open();
+        await store.CreateInstanceAsync(new WorkflowInstanceRecord
+        {
+            Id = "run-1", TenantId = "tenant-1", DefinitionKey = "flow", DefinitionVersion = "1.0.0",
+            CurrentStep = "old", Status = WorkflowStatus.Running,
+        });
+        var services = new ServiceCollection();
+        services.AddSingleton<IWorkflowStore>(store);
+        services.AddSingleton<IWorkflowDefinitionExecutionStore>(new TypedDefinitions());
+        services.AddSingleton<IWorkflowStepHandler>(new TypedHandler());
+        services.AddDurableWorkflowEngine();
+        services.AddSingleton<IWorkflowTriggerDispatcher, ReplacementDispatcher>();
+        using var provider = services.BuildServiceProvider();
+        var migration = provider.GetRequiredService<WorkflowMigration>();
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() => migration.MigrateAsync("run-1", "2.0.0",
+            new Dictionary<string, string> { ["old"] = "new" },
+            new WorkflowMigrationAuthority("operator-1", "tenant-1", "workflow:migrate", "workflow-instance", "run-1", true)));
+        Assert.Contains("old", error.Message, StringComparison.Ordinal);
+        Assert.Equal("1.0.0", (await store.LoadAsync("run-1"))!.DefinitionVersion);
+        Assert.Empty(await store.EventsAsync("run-1"));
+    }
+
+    private sealed class ReplacementDispatcher : IWorkflowTriggerDispatcher
+    {
+        public Task<WorkflowDispatchResult> DispatchAsync(WorkflowTrigger trigger, WorkflowDispatchAuthority authority, CancellationToken ct = default)
+            => throw new NotSupportedException();
+    }
+
     [Theory]
     [InlineData("new", false)]
     [InlineData("old", true)]
