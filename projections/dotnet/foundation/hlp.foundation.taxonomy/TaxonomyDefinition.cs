@@ -113,7 +113,11 @@ public enum TaxonomyAdmissionPhase
 public sealed record TaxonomyCatalogueCoordinates(string Tenant, TaxonomyDefinitionId DefinitionId, string Version);
 /// <summary>Names a validation refusal and its JSON pointer.</summary>
 /// <param name="Code">Stable refusal identifier.</param><param name="Pointer">JSON pointer to the rejected field.</param>
-public sealed record TaxonomyRefusal(string Code, string Pointer);
+public sealed record TaxonomyRefusal(string Code, string Pointer)
+{
+    /// <summary>Human-readable reason when the refusal needs one.</summary>
+    public string? Message { get; init; }
+}
 /// <summary>Raised when a definition fails admission and exposes every refusal.</summary>
 public sealed class TaxonomyAdmissionException(IReadOnlyList<TaxonomyRefusal> refusals) : Exception("The Taxonomy definition was refused.")
 {
@@ -239,7 +243,7 @@ public static class TaxonomyDefinitionAdmission
             if (node.SuccessorCode is not null) { if (!byCode.TryGetValue(node.SuccessorCode, out var successor)) refusals.Add(new("definition.successor_unknown", $"/nodes/{index}/successor_code")); else if (definition.Nodes[successor].Status == TaxonomyNodeStatus.Tombstoned) refusals.Add(new("definition.successor_tombstoned", $"/nodes/{index}/successor_code")); }
         }
         ValidateCollections(definition.Collections, byCode, refusals);
-        ValidateParents(definition.Nodes, byCode, refusals); if (previous is not null) ValidatePrevious(definition, previous, refusals);
+        ValidateParents(definition.Nodes, byCode, refusals); if (previous is not null) ValidatePrevious(definition, previous, byCode, refusals);
         if (vendor is not null && definition.Overlay is not null) ValidateOverlayAgainstVendor(definition, vendor, refusals);
         return refusals;
     }
@@ -327,7 +331,7 @@ public static class TaxonomyDefinitionAdmission
             }
         }
     }
-    private static void ValidatePrevious(TaxonomyDefinition definition, TaxonomyDefinition previous, List<TaxonomyRefusal> refusals)
+    private static void ValidatePrevious(TaxonomyDefinition definition, TaxonomyDefinition previous, IReadOnlyDictionary<string, int> byCode, List<TaxonomyRefusal> refusals)
     {
         if (previous.Nodes is null) { refusals.Add(new("definition.body_invalid", "/previous/nodes")); return; }
         var priorNodes = new Dictionary<string, TaxonomyNode>(StringComparer.Ordinal);
@@ -337,12 +341,13 @@ public static class TaxonomyDefinitionAdmission
             if (priorNode is null) { refusals.Add(new("definition.body_invalid", $"/previous/nodes/{index}")); continue; }
             if (priorNode.Code is null) { refusals.Add(new("definition.body_invalid", $"/previous/nodes/{index}/code")); continue; }
             if (!priorNodes.TryAdd(priorNode.Code, priorNode)) refusals.Add(new("definition.body_invalid", $"/previous/nodes/{index}/code"));
+            if (!byCode.ContainsKey(priorNode.Code)) refusals.Add(new("definition.concept_deleted", $"/previous/nodes/{index}/code") { Message = "The concept must be tombstoned, not deleted." });
         }
         for (var index = 0; index < definition.Nodes.Count; index++)
         {
             var node = definition.Nodes[index];
             if (node is null || node.Code is null || !priorNodes.TryGetValue(node.Code, out var prior)) continue;
-            // This is the producer-level proxy for never reusing a retired code; general identity reuse requires durable node history.
+            // Admitted versions retain every code, so the previous version covers their history; earlier gaps are not re-checked.
             if (prior.Status == TaxonomyNodeStatus.Tombstoned && node.Status == TaxonomyNodeStatus.Active) refusals.Add(new("definition.tombstone_reactivated", $"/nodes/{index}/status"));
             if (node.DisplayHistoryEntries.Count < prior.DisplayHistoryEntries.Count || !prior.DisplayHistoryEntries.SequenceEqual(node.DisplayHistoryEntries.Take(prior.DisplayHistoryEntries.Count))) refusals.Add(new("definition.display_history_not_append_only", $"/nodes/{index}/display_history_entries"));
         }
