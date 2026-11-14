@@ -2,6 +2,7 @@ using System.Text.Json;
 
 using Harborline.Blocks.BuilderDefinitions;
 using Harborline.Blocks.Scheduling.Definitions;
+using Harborline.Blocks.Scheduling.Planning;
 using Harborline.Foundation.Definitions;
 
 namespace Harborline.Blocks.Scheduling.Tests;
@@ -63,6 +64,40 @@ public sealed class SchedulingAuthoringRefusalTests
     [Theory(DisplayName = "scheduling-auth-18: authoring reads the engine's admitted module set")]
     [InlineData("unadmitted-module")]
     public Task UnadmittedModule(string id) => CheckWriteAsync(id);
+
+    [Theory(DisplayName = "scheduling-ck-26: solver refusal cases name the missing and required configuration")]
+    [InlineData("solver-unregistered")]
+    [InlineData("solver-problem-class")]
+    [InlineData("solver-guarantee")]
+    [InlineData("solver-work-budget")]
+    [InlineData("solver-required")]
+    [InlineData("solver-invalid")]
+    [InlineData("solver-invalid-parameters")]
+    [InlineData("solver-invalid-object")]
+    [InlineData("solver-invalid-guarantee")]
+    [InlineData("solver-invalid-budget")]
+    public async Task Scheduling_ck_26_SolverCases(string id)
+    {
+        var fixture = Case(id);
+        var store = new InMemoryVersionedDefinitionStore(new Dictionary<DefinitionKind, DefinitionAdmission>
+        {
+            [DefinitionKind.Schedules] = ScheduleDefinitionCatalogue.Admission,
+        });
+        var catalogue = new ScheduleDefinitionCatalogue(store, [new DeterministicExhaustiveProofSolver()]);
+        var body = fixture.GetProperty("definition").GetRawText();
+        if (id.StartsWith("solver-invalid", StringComparison.Ordinal))
+        {
+            var document = new DefinitionDocument(new("tenant-a", DefinitionKind.Schedules, "inspection"), "inspection@1.0.0", "1.0.0", body);
+            Assert.Equal(Expected(fixture), ScheduleDefinitionCatalogue.Admission(document, DefinitionAdmissionPhase.Author));
+        }
+        else
+        {
+            var definition = ScheduleDefinitionJson.Deserialize(body);
+            var refusal = await Assert.ThrowsAsync<DefinitionRefusalException>(() => catalogue.SaveDraftAsync("tenant-a", "inspection", "1.0.0", definition, 0, "draft").AsTask());
+            Assert.Equal(Expected(fixture), refusal.Refusals);
+        }
+        Reasons(fixture);
+    }
 
     [Theory(DisplayName = "scheduling-auth-21: recovery replanning refuses before storage")]
     [InlineData("recovery-replanning")]

@@ -78,7 +78,7 @@ public sealed class ScheduleDefinitionTests
     [InlineData("CompositeRecovery", ScheduleProblemClass.CompositeRecovery)]
     public async Task SevenProblemClassesRoundTrip(string literal, ScheduleProblemClass expected)
     {
-        var resolved = await RoundTripAsync(Body("\"" + $$"""due_date":"2027-01-01T00:00:00Z","window":{{Instants}},"problem_class":"{{literal}}","modules":[{"module":"no_overlap"}]"""));
+        var resolved = await RoundTripAsync(Body("\"" + $$"""due_date":"2027-01-01T00:00:00Z","window":{{Instants}},"problem_class":"{{literal}}","solver":{"backend_id":"example","parameters":{},"guarantee":"feasible_proof","work_budget":10},"modules":[{"module":"no_overlap"}]"""));
         Assert.Equal(expected, resolved.Definition.ProblemClass);
     }
 
@@ -279,7 +279,7 @@ public sealed class ScheduleDefinitionTests
     public async Task ModulesRoundTrip()
     {
         var definition = (await RoundTripAsync(Body($$"""
-            "due_date":"2027-01-01T00:00:00Z","window":{{Instants}},"problem_class":"Workforce","modules":[{"module":"precedence","parameters":{"constraints":[{"id":"after","beforeActivityId":"a","afterActivityId":"b","minimumGapSlots":11}]} },{"module":"no_overlap"}]
+            "due_date":"2027-01-01T00:00:00Z","window":{{Instants}},"problem_class":"Workforce","solver":{"backend_id":"example","parameters":{},"guarantee":"feasible_proof","work_budget":10},"modules":[{"module":"precedence","parameters":{"constraints":[{"id":"after","beforeActivityId":"a","afterActivityId":"b","minimumGapSlots":11}]} },{"module":"no_overlap"}]
             """))).Definition;
 
         Assert.Equal(["precedence", "no_overlap"], definition.Modules!.Select(module => module.Module));
@@ -295,7 +295,7 @@ public sealed class ScheduleDefinitionTests
     [Fact(DisplayName = "scheduling-ck-11: a module with no name refuses")]
     public async Task BlankModuleRefuses()
         => Assert.Equal([new DefinitionRefusal(ScheduleDefinitionCodes.ModuleInvalid, "/modules/0/module")],
-            await RefusalsAsync(Body("\"" + $$"""due_date":"2027-01-01T00:00:00Z","window":{{Instants}},"problem_class":"Project","modules":[{"module":" "}]""")));
+            await RefusalsAsync(Body("\"" + $$"""due_date":"2027-01-01T00:00:00Z","window":{{Instants}},"problem_class":"Project","solver":{"backend_id":"example","parameters":{},"guarantee":"feasible_proof","work_budget":10},"modules":[{"module":" "}]""")));
 
     [Fact(DisplayName = "scheduling-ck-12, scheduling-auth-13: the legality rule set is cited by reference, verbatim and uninterpreted")]
     public async Task LegalityRefIsACitation()
@@ -452,7 +452,7 @@ public sealed class ScheduleDefinitionTests
 
     [Theory(DisplayName = "scheduling-ck-4, scheduling-ck-11: a null list entry refuses at its index")]
     [InlineData("\"basis\":{\"kind\":\"event_anchored_chain\",\"anchor\":\"e\",\"nodes\":[null]}", "scheduling.definition.basis_invalid", "/basis/nodes/0")]
-    [InlineData("\"window\":{\"earliest\":\"2027-01-01T00:00:00Z\",\"latest\":\"2027-01-02T00:00:00Z\"},\"problem_class\":\"Project\",\"modules\":[null]", "scheduling.definition.module_invalid", "/modules/0")]
+    [InlineData("\"window\":{\"earliest\":\"2027-01-01T00:00:00Z\",\"latest\":\"2027-01-02T00:00:00Z\"},\"problem_class\":\"Project\",\"solver\":{\"backend_id\":\"example\",\"parameters\":{},\"guarantee\":\"feasible_proof\",\"work_budget\":10},\"modules\":[null]", "scheduling.definition.module_invalid", "/modules/0")]
     public async Task NullListEntryRefuses(string members, string code, string pointer)
         => Assert.Equal([new DefinitionRefusal(code, pointer)], await RefusalsAsync(Body(members)));
 

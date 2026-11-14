@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Harborline.Blocks.Scheduling.Planning;
+using Harborline.Blocks.Scheduling.Definitions;
 
 namespace Harborline.Blocks.Scheduling.DependencyInjection;
 
@@ -15,12 +16,13 @@ public static class ServiceCollectionExtensions
         return services;
     }
 
-    /// <summary>Registers planning. The host supplies ScheduleDefinitionCatalogue and IAvailabilityRuntime.</summary>
+    /// <summary>Registers planning. The host supplies IVersionedDefinitionStore and IAvailabilityRuntime.</summary>
     public static IServiceCollection AddHarborlineSchedulingPlanner(this IServiceCollection services)
     {
         ArgumentNullException.ThrowIfNull(services);
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IPlanningSolver, DeterministicExhaustiveProofSolver>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IPlanningSolver, GreedyFirstFitSolver>());
+        services.TryAddSingleton<ScheduleDefinitionCatalogue>();
         services.TryAddSingleton<SchedulePlanner>();
         return services;
     }

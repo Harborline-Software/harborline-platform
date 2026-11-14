@@ -6,10 +6,10 @@
   "contentHashes": {
     "projections/dotnet/blocks/hlp.blocks.scheduling.restart-probe/Program.cs": "0ce14e9a33f6fdc3773ee880b2fcfdeddb9203cd91fd382d96841d4392796c24",
     "projections/dotnet/blocks/hlp.blocks.scheduling.restart-probe/Harborline.Blocks.Scheduling.RestartProbe.csproj": "a691564564535e1ccb409392bb3c287616d7dd923164cb3f63b6586805eb04ee",
-    "projections/dotnet/blocks/hlp.blocks.scheduling/DependencyInjection/ServiceCollectionExtensions.cs": "ff1c9fa397faa47ff2e73eeec0115a272e5b7f3acf75cbc2cdde9880ec315d29",
-    "projections/dotnet/blocks/hlp.blocks.scheduling/Definitions/ScheduleDefinition.cs": "533972631a32e5da85c21e22ebbf2e7083331a175f6c8bb84a01edbf6930cb23",
-    "projections/dotnet/blocks/hlp.blocks.scheduling/Definitions/ScheduleDefinitionAdmission.cs": "3459fe8dfafc0d1c243642f50180896d2dea1a28bd59a582e9608e40e7a5a1bf",
-    "projections/dotnet/blocks/hlp.blocks.scheduling/Definitions/ScheduleDefinitionCatalogue.cs": "c8ade3f2a0cabcc55a8cf163c4d606fa5d6067ffd5b4ea7f39b184080f648cee",
+    "projections/dotnet/blocks/hlp.blocks.scheduling/DependencyInjection/ServiceCollectionExtensions.cs": "9b965ffadd3983452530e6b23830b4de0675e143e7e269eff12f7939eabd169b",
+    "projections/dotnet/blocks/hlp.blocks.scheduling/Definitions/ScheduleDefinition.cs": "b8d899cae50421547d31d52c9dea6e8b16f41cc6f4f15f7ee260bce740b57869",
+    "projections/dotnet/blocks/hlp.blocks.scheduling/Definitions/ScheduleDefinitionAdmission.cs": "de0736d5309b5ce98e9a9b5129016601943efd97a64d977526241daec2380452",
+    "projections/dotnet/blocks/hlp.blocks.scheduling/Definitions/ScheduleDefinitionCatalogue.cs": "b59dee3f76c1f8aef7c42ce82e263e063b73f9dfb6c0e698ed9ed268b85a2a29",
     "projections/dotnet/blocks/hlp.blocks.scheduling/FileJournalSchedulingStore.cs": "eefd0d97f5462c4f60808adcfe91c242afc7ba08df8c45483a2395a12ab3a196",
     "projections/dotnet/blocks/hlp.blocks.scheduling/IScheduleReservationCoordinator.cs": "b752dfcd2a33a29a6a792c173c286338159e081e212f69dc938c69c6bb2de283",
     "projections/dotnet/blocks/hlp.blocks.scheduling/LeaseContracts.cs": "16dd8c98385d004db99f27f5ba8c5d490bbe61a796b2379df5f2e4580d2c3127",
@@ -32,7 +32,7 @@
     "projections/dotnet/blocks/hlp.blocks.scheduling/Planning/Fixtures/medical-pregnancy.unsatisfied.json": "681c9c431d668f082d464d696381cb92de06e7f4f835be0d58a373db65a855bd",
     "projections/dotnet/blocks/hlp.blocks.scheduling/Planning/PlanningModel.cs": "5cafbb352e9156d678651aef45680e3dec8189d8e152d2bb43d76983b828be9f",
     "projections/dotnet/blocks/hlp.blocks.scheduling/Planning/PlanningSolvers.cs": "2a90360a38fca2c6c897c21ad458d65f362e4a5407d04f60428c35e666d0337a",
-    "projections/dotnet/blocks/hlp.blocks.scheduling/README.md": "ef5b38d51b28db72f4649b26598edd2263c6d6a43d9c68e4ebfae9a8630d1fa1",
+    "projections/dotnet/blocks/hlp.blocks.scheduling/README.md": "c92f5dac200fe776c0929962b4fac9801d040a88956a7cee4f749a20674578c2",
     "projections/dotnet/blocks/hlp.blocks.scheduling/ScheduleReservationCoordinator.cs": "454d8534626301cac45fa455c0ee509e49de9a274786ba61b2b6d72a5f8b8901",
     "projections/dotnet/blocks/hlp.blocks.scheduling/SchedulingDurableRecords.cs": "3464c54e346b0a22938dc21a25b9d1a00f13e01950ba31b36105f9dbaf4f139c",
     "projections/dotnet/blocks/hlp.blocks.scheduling/Telemetry/SchedulingTelemetry.cs": "37288941b4989594928b3fe777dd0bb29c373808a56411aec8494927381e8e05",
@@ -52,7 +52,7 @@
     "projections/dotnet/blocks/hlp.blocks.scheduling/Planning/ConstraintModuleAdmission.cs": "b1076fa1665cab1917e21cfaf7183dced297659b329b2d30aecd8af51dbff64e",
     "projections/dotnet/blocks/hlp.blocks.scheduling/Planning/SchedulePlanner.cs": "d5ec30e4095bfba0e54c900b45946dddbcf979ff30e64693e6a4bae7d74a669d",
     "projections/dotnet/blocks/hlp.blocks.scheduling/Definitions/SchedulingCrossPackageAuthoring.cs": "86e423f6291891558c4d60be1194224d6b1a1c08efccb3d15f23834ac6fda4ee",
-    "conformance/hlp.blocks.scheduling/authoring-refusals.json": "0f0b69687c33027f37b7d7f47b0840d618445c9d61487d853d87d367610537b0"
+    "conformance/hlp.blocks.scheduling/authoring-refusals.json": "23684286716a484e78990dfd16b4ce7ed8d81b789d576974f37c270f20ea7c19"
   },
   "nextGate": "Kernel-clock due generation and the four declared bases are owned by Scheduling; API chain consumers follow under T-311."
 }
