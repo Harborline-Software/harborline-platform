@@ -15,6 +15,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../hlp.blocks.workflow/Harborline.Blocks.Workflow.csproj" />
+    <ProjectReference Include="../../foundation/hlp.foundation.execution-runtime/Harborline.Foundation.ExecutionRuntime.csproj" />
     <!-- Build-order only: the restart probe is launched as a CHILD PROCESS by
          FileJournalWorkflowStoreTests; its assembly must never leak into the test closure. -->
     <ProjectReference Include="../hlp.blocks.workflow.restart-probe/Harborline.Blocks.Workflow.RestartProbe.csproj" ReferenceOutputAssembly="false" />
