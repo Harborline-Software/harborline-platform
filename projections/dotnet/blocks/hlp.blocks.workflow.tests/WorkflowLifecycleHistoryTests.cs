@@ -21,14 +21,14 @@ public sealed class WorkflowLifecycleHistoryTests
                     Id = "run", TenantId = "tenant", DefinitionKey = "flow", DefinitionVersion = "1",
                     CurrentStep = "step", Status = WorkflowStatus.Running,
                 });
-                await store.AppendHistoryAsync("run", "step", "WorkflowSuspended", "{\"principal\":\"user\"}");
-                await store.AppendHistoryAsync("run", "step", "WorkflowResumed", "{}");
+                await store.AdvanceAsync(new WorkflowStepKey("run", 0, "step"), null, "{}", "Advanced", "{\"principal\":\"user\"}", "next", WorkflowStatus.Running);
+                await store.ParkAsync("run", "next", "{}");
             }
             using var reopenedJournal = new FileJournalWorkflowStore(options, TimeProvider.System);
             IWorkflowStore reopened = reopenedJournal;
             var events = await reopened.EventsAsync("run");
             Assert.Equal(new long[] { 1, 2 }, events.Select(e => e.Seq));
-            Assert.Equal(new[] { "WorkflowSuspended", "WorkflowResumed" }, events.Select(e => e.EventType));
+            Assert.Equal(new[] { "Advanced", "Parked" }, events.Select(e => e.EventType));
             Assert.Equal("{\"principal\":\"user\"}", events[0].DataJson);
         }
         finally { Directory.Delete(directory, recursive: true); }

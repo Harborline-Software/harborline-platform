@@ -269,25 +269,6 @@ public sealed class FileJournalWorkflowStore : IWorkflowMigrationStore, IDisposa
     }
 
     /// <inheritdoc />
-    public async Task AppendHistoryAsync(string instanceId, string step, string eventType, string dataJson, CancellationToken ct = default)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(instanceId);
-        ArgumentException.ThrowIfNullOrWhiteSpace(step);
-        ArgumentException.ThrowIfNullOrWhiteSpace(eventType);
-        ArgumentNullException.ThrowIfNull(dataJson);
-        await EnterAsync(ct).ConfigureAwait(false);
-        try
-        {
-            if (!_instances.ContainsKey(instanceId))
-                throw new KeyNotFoundException($"No workflow instance '{instanceId}' exists.");
-            var entry = new EventDto(instanceId, NextSeq(instanceId), step, eventType, dataJson, Format(_clock.GetUtcNow()));
-            await AppendAsync(JournalRecordType.History, entry, ct).ConfigureAwait(false);
-            ApplyHistory(entry);
-        }
-        finally { _gate.Release(); }
-    }
-
-    /// <inheritdoc />
     public async Task<IReadOnlyList<WorkflowEventRecord>> EventsAsync(string instanceId, CancellationToken ct = default)
     {
         await EnterAsync(ct).ConfigureAwait(false);
@@ -458,20 +439,11 @@ public sealed class FileJournalWorkflowStore : IWorkflowMigrationStore, IDisposa
             case JournalRecordType.Migrated:
                 ApplyMigration(Deserialize<MigrationDto>(payload));
                 break;
-            case JournalRecordType.History:
-                ApplyHistory(Deserialize<EventDto>(payload));
-                break;
             default:
                 throw new InvalidDataException("The workflow journal record type is unsupported.");
         }
     }
 
-    private void ApplyHistory(EventDto entry)
-    {
-        if (!_instances.ContainsKey(entry.InstanceId) || entry.Seq != NextSeq(entry.InstanceId))
-            throw new InvalidDataException("History record has an unknown instance or invalid sequence.");
-        _events.Add(FromDto(entry));
-    }
 
     private void ApplyAdvance(AdvanceDto dto)
     {
@@ -612,7 +584,7 @@ public sealed class FileJournalWorkflowStore : IWorkflowMigrationStore, IDisposa
     private static string Format(DateTimeOffset value) => value.ToString("O", CultureInfo.InvariantCulture);
     private static DateTimeOffset Parse(string value) => DateTimeOffset.ParseExact(value, "O", CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind);
 
-    private enum JournalRecordType : byte { InstanceCreated = 1, Advanced = 2, Parked = 3, Migrated = 4, History = 5 }
+    private enum JournalRecordType : byte { InstanceCreated = 1, Advanced = 2, Parked = 3, Migrated = 4 }
     private sealed record InstanceDto(string Id, string TenantId, string DefinitionKey, string DefinitionVersion, string CurrentStep, int Iteration, int Status, string StateJson, string CreatedAt, string UpdatedAt, WorkflowSubjectRecordReference? SubjectRecord = null, string[]? MovedAwaySteps = null, long MigrationGeneration = 0, long StoreGeneration = 0);
     private sealed record EventDto(string InstanceId, long Seq, string Step, string EventType, string DataJson, string At);
     private sealed record AdvanceDto(string InstanceId, int Iteration, string Step, string Key, string[] EffectPayloads, string ResultJson, EventDto Event, string NextStep, int NextStatus, string At);
