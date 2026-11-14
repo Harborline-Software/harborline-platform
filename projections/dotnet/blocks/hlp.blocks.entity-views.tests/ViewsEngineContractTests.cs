@@ -166,6 +166,12 @@ public sealed class ViewsEngineContractTests
         Assert.Equal(wire, field.GetValue(null));
     }
 
+    [Fact(DisplayName = "views-eng-1: the field binding refusal has a named constant with its wire spelling")]
+    public void Views_eng_1_FieldBindingRefusalHasNamedConstant()
+    {
+        Assert.Equal("field.binding_unresolved", typeof(ViewQueryCodes).GetField("BindingUnresolved")?.GetRawConstantValue());
+    }
+
     [Fact(DisplayName = "T-486 engine-gaps: the evaluation-time and admission-time unknown-function codes stay distinct")]
     public void TheTwoUnknownFunctionCodesStayDistinct()
     {
