@@ -23,7 +23,7 @@ public sealed class ScheduleDefinitionTests
         [DefinitionKind.Schedules] = ScheduleDefinitionCatalogue.Admission,
     });
 
-    private ScheduleDefinitionCatalogue Catalogue => new(_store);
+    private ScheduleDefinitionCatalogue Catalogue => new(_store, []);
 
     private static DefinitionKey Key => new(Tenant, DefinitionKind.Schedules, Id);
 

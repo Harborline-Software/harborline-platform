@@ -55,7 +55,7 @@ The due seam, queue, completion models, generators and chain ledger types live i
 
 ## Typed module admission and planning (T-491/module-admission)
 
-`AddHarborlineSchedulingPlanner` registers `SchedulePlanner` and the two existing finite backends. The host supplies `ScheduleDefinitionCatalogue` and `Harborline.Foundation.Scheduling.Services.IAvailabilityRuntime`. Reservation and due-query registrations remain independent.
+`AddHarborlineSchedulingPlanner` registers `ScheduleDefinitionCatalogue`, `SchedulePlanner` and the two existing finite backends. The host supplies the versioned definition store and `Harborline.Foundation.Scheduling.Services.IAvailabilityRuntime`. Direct catalogue construction requires the host's solver set. Reservation and due-query registrations remain independent.
 
 `PlanAsync` resolves an exact published `ScheduleDefinitionPin`. The declared `Project` or `JobShop` class compiles to `time_windows`, `resource_requirements`, `no_overlap` and `precedence`; the seven authored class names are Harborline rulings (DES-0022 open item 6), not a standard taxonomy. Other classes refuse. Every module advances `Elicited -> ShapeCandidate -> Admitted -> BackendSupported`, and every nonadjacent transition refuses `MODULE_ADMISSION_SKIP`. Unknown modules and parameter members refuse `MODULE_UNSUPPORTED` before candidate enumeration. Save and publish use the same admitted set and refuse `scheduling.definition.module_unsupported` at `/modules/{i}/module`, recording nothing.
 

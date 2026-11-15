@@ -86,10 +86,6 @@ public sealed class ScheduleDefinitionCatalogue
     private readonly IVersionedDefinitionStore _store;
     private readonly IReadOnlyDictionary<string, IPlanningSolver> _backends;
 
-    /// <summary>Binds the catalogue to the shared store.</summary>
-    public ScheduleDefinitionCatalogue(IVersionedDefinitionStore store)
-        : this(store, []) { }
-
     /// <summary>Binds the catalogue to the host's registered planning solvers.</summary>
     public ScheduleDefinitionCatalogue(IVersionedDefinitionStore store, IEnumerable<IPlanningSolver> backends)
     {

@@ -186,7 +186,7 @@ public sealed class SchedulingAuthoringRefusalTests
             {
                 var typed = ScheduleDefinitionJson.Deserialize(body);
                 var typedRefusal = await Assert.ThrowsAsync<DefinitionRefusalException>(() =>
-                    new ScheduleDefinitionCatalogue(store).SaveDraftAsync("tenant-a", "inspection", "1.0.0", typed, 0, "typed").AsTask());
+                    new ScheduleDefinitionCatalogue(store, []).SaveDraftAsync("tenant-a", "inspection", "1.0.0", typed, 0, "typed").AsTask());
                 Assert.Equal(expected, typedRefusal.Refusals);
                 Assert.Empty(await store.ListHistoryAsync(key));
             }

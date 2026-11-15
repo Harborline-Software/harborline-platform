@@ -29,6 +29,13 @@ public sealed class ScheduleDefinitionCatalogueTests
 
     private static DefinitionKey Key => new(Tenant, DefinitionKind.Schedules, Id);
 
+    [Fact(DisplayName = "scheduling-ck-26: catalogue construction requires an explicit solver registry")]
+    public void Scheduling_ck_26_CatalogueRequiresSolverRegistry()
+    {
+        Assert.Null(typeof(ScheduleDefinitionCatalogue).GetConstructor([typeof(IVersionedDefinitionStore)]));
+        Assert.NotNull(typeof(ScheduleDefinitionCatalogue).GetConstructor([typeof(IVersionedDefinitionStore), typeof(IEnumerable<IPlanningSolver>)]));
+    }
+
     [Theory(DisplayName = "scheduling-ck-26: exact draft save replay precedes changed backend admission")]
     [InlineData(false)]
     [InlineData(true)]
@@ -50,6 +57,7 @@ public sealed class ScheduleDefinitionCatalogueTests
     [Theory(DisplayName = "scheduling-ck-26: catalogue refuses unsupported solver bindings on save and publish")]
     [InlineData("missing", ScheduleProblemClass.Project, SolverGuarantee.FeasibleProof, 10, "scheduling.definition.backend_unsupported", "/solver/backend_id")]
     [InlineData("prototype.exhaustive-proof.v2", ScheduleProblemClass.Workforce, SolverGuarantee.FeasibleProof, 10, "scheduling.definition.problem_class_unsupported", "/solver")]
+    [InlineData("prototype.exhaustive-proof.v2", ScheduleProblemClass.None, SolverGuarantee.FeasibleProof, 10, "scheduling.definition.problem_class_unsupported", "/solver")]
     [InlineData("prototype.exhaustive-proof.v2", ScheduleProblemClass.Project, SolverGuarantee.OptimalProof, 10, "scheduling.definition.guarantee_unsupported", "/solver/guarantee")]
     [InlineData("prototype.exhaustive-proof.v2", ScheduleProblemClass.Project, SolverGuarantee.FeasibleProof, -1, "scheduling.definition.work_budget_unsupported", "/solver/work_budget")]
     [InlineData("prototype.exhaustive-proof.v2", ScheduleProblemClass.Project, SolverGuarantee.FeasibleProof, 11, "scheduling.definition.work_budget_unsupported", "/solver/work_budget")]
@@ -410,7 +418,7 @@ public sealed class ScheduleDefinitionCatalogueTests
                 return ScheduleDefinitionCatalogue.Admission(document, phase);
             },
         });
-        var catalogue = new ScheduleDefinitionCatalogue(store);
+        var catalogue = new ScheduleDefinitionCatalogue(store, []);
         await catalogue.SaveDraftAsync(Tenant, Id, "1.0.0", Definition, 0, "draft");
         await catalogue.PublishAsync(Tenant, Id, "1.0.0", 1, "publish");
         Assert.Equal([DefinitionAdmissionPhase.Author, DefinitionAdmissionPhase.Publish], phases);
@@ -422,7 +430,7 @@ public sealed class ScheduleDefinitionCatalogueTests
 
     [Fact(DisplayName = "the catalogue requires a store")]
     public void CatalogueRequiresAStore()
-        => Assert.Throws<ArgumentNullException>(() => new ScheduleDefinitionCatalogue(null!));
+        => Assert.Throws<ArgumentNullException>(() => new ScheduleDefinitionCatalogue(null!, []));
 
     [Fact(DisplayName = "resolution requires a pin")]
     public async Task ResolutionRequiresAPin()

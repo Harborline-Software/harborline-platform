@@ -185,7 +185,7 @@ public sealed class SchedulingTelemetryTests
     {
         using var measurements = new SchedulingMeterMeasurements();
         var catalogue = new ScheduleDefinitionCatalogue(new InMemoryVersionedDefinitionStore(
-            new Dictionary<DefinitionKind, DefinitionAdmission> { [DefinitionKind.Schedules] = ScheduleDefinitionCatalogue.Admission }));
+            new Dictionary<DefinitionKind, DefinitionAdmission> { [DefinitionKind.Schedules] = ScheduleDefinitionCatalogue.Admission }), []);
         await catalogue.SaveDraftAsync("tenant-a", "definition-1", "1.0.0", DueDateAndForm, 0, "first");
         var stale = await Assert.ThrowsAsync<DefinitionRefusalException>(
             () => catalogue.SaveDraftAsync("tenant-a", "definition-1", "1.0.1", DueDateAndForm, 0, "second").AsTask());
@@ -201,7 +201,7 @@ public sealed class SchedulingTelemetryTests
     {
         using var measurements = new SchedulingMeterMeasurements();
         var catalogue = new ScheduleDefinitionCatalogue(new InMemoryVersionedDefinitionStore(
-            new Dictionary<DefinitionKind, DefinitionAdmission> { [DefinitionKind.Schedules] = ScheduleDefinitionCatalogue.Admission }));
+            new Dictionary<DefinitionKind, DefinitionAdmission> { [DefinitionKind.Schedules] = ScheduleDefinitionCatalogue.Admission }), []);
         await Assert.ThrowsAsync<DefinitionRefusalException>(
             () => catalogue.SaveDraftAsync("tenant-a", "definition-1", "3", DueDateAndForm, 0, "first").AsTask());
         Assert.Empty(measurements.ForInstrument("scheduling.commit.stale_refusals"));
@@ -211,7 +211,7 @@ public sealed class SchedulingTelemetryTests
     public async Task A_refusal_naming_no_fence_conflict_records_no_commit_refusal()
     {
         using var measurements = new SchedulingMeterMeasurements();
-        var catalogue = new ScheduleDefinitionCatalogue(new RefusingStore());
+        var catalogue = new ScheduleDefinitionCatalogue(new RefusingStore(), []);
         await Assert.ThrowsAsync<DefinitionRefusalException>(
             () => catalogue.SaveDraftAsync("tenant-a", "definition-1", "1.0.0", DueDateAndForm, 0, "first").AsTask());
         Assert.Empty(measurements.ForInstrument("scheduling.commit.stale_refusals"));
