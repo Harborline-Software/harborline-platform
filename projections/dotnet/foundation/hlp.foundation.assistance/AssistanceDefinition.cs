@@ -3,6 +3,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
+using Harborline.Contracts.Fields;
 using Harborline.Foundation.Definitions;
 
 namespace Harborline.Foundation.Assistance;
@@ -76,6 +77,12 @@ public sealed class EmptyCommandCatalogueRegistry : ICommandCatalogueRegistry
     /// <summary>Returns null because this registry declares no commands.</summary>
     public CommandCatalogueEntry? Resolve(string commandId) => null;
 }
+/// <summary>Resolves the Records governance declared on a context-allowlist field (DES-0015 records-ck-13). Field definitions live in the host's store; T-612 supplies the adapter.</summary>
+public interface IAssistanceFieldGovernance
+{
+    /// <summary>Returns the field's governance, or null when the host does not know the field.</summary>
+    FieldGovernanceDefinition? Resolve(string definition, string field);
+}
 /// <summary>Indicates the lifecycle phase at which a definition is admitted.</summary>
 public enum AssistanceAdmissionPhase
 {
@@ -144,7 +151,7 @@ public static class AssistanceDefinitionAdmission
 {
     private static readonly HashSet<string> NeverArchetypes = new(StringComparer.Ordinal) { "irreversible-bulk", "security-access-control", "engine-parked", "human-authority-gate", "agent-self-repoint" };
     /// <summary>Admits a canonical JSON body. <paramref name="window"/> is the host's application-contract window from the platform seed (T-572), required at every phase, install included.</summary>
-    public static IReadOnlyList<AssistanceRefusal> AdmitJson(string bodyJson, AssistanceAdmissionPhase phase, DefinitionContractWindow window, ICommandCatalogueRegistry? commands = null, AssistanceCatalogueCoordinates? catalogue = null, AssistanceDefinition? previous = null)
+    public static IReadOnlyList<AssistanceRefusal> AdmitJson(string bodyJson, AssistanceAdmissionPhase phase, DefinitionContractWindow window, ICommandCatalogueRegistry? commands = null, AssistanceCatalogueCoordinates? catalogue = null, AssistanceDefinition? previous = null, IAssistanceFieldGovernance? fields = null)
     {
         try { using var document = JsonDocument.Parse(bodyJson); if (document.RootElement.ValueKind != JsonValueKind.Object) return [new("definition.settings_not_object", "/")]; }
         catch (JsonException) { return [new("definition.body_invalid", "/")]; }
@@ -152,7 +159,7 @@ public static class AssistanceDefinitionAdmission
         AssistanceDefinition definition;
         try { definition = AssistanceDefinitionJson.Deserialize(bodyJson); }
         catch (JsonException) { return [new("definition.body_invalid", "/")]; }
-        var refusals = Validate(definition, phase, window, commands, previous).ToList();
+        var refusals = Validate(definition, phase, window, commands, previous, fields).ToList();
         if (catalogue is not null && phase != AssistanceAdmissionPhase.Author)
         {
             if (definition.Tenant != catalogue.Tenant) refusals.Add(new("definition.catalogue_mismatch", "/tenant"));
@@ -162,13 +169,13 @@ public static class AssistanceDefinitionAdmission
         return refusals;
     }
     /// <summary>Returns the definition when valid; otherwise throws with all refusals.</summary>
-    public static AssistanceDefinition Require(AssistanceDefinition definition, AssistanceAdmissionPhase phase, DefinitionContractWindow window, ICommandCatalogueRegistry? commands = null, AssistanceDefinition? previous = null)
+    public static AssistanceDefinition Require(AssistanceDefinition definition, AssistanceAdmissionPhase phase, DefinitionContractWindow window, ICommandCatalogueRegistry? commands = null, AssistanceDefinition? previous = null, IAssistanceFieldGovernance? fields = null)
     {
-        var refusals = Validate(definition, phase, window, commands, previous);
+        var refusals = Validate(definition, phase, window, commands, previous, fields);
         return refusals.Count == 0 ? definition : throw new AssistanceAdmissionException(refusals);
     }
     /// <summary>Validates a definition and returns machine-readable refusal codes and pointers.</summary>
-    public static IReadOnlyList<AssistanceRefusal> Validate(AssistanceDefinition definition, AssistanceAdmissionPhase phase, DefinitionContractWindow window, ICommandCatalogueRegistry? commands = null, AssistanceDefinition? previous = null)
+    public static IReadOnlyList<AssistanceRefusal> Validate(AssistanceDefinition definition, AssistanceAdmissionPhase phase, DefinitionContractWindow window, ICommandCatalogueRegistry? commands = null, AssistanceDefinition? previous = null, IAssistanceFieldGovernance? fields = null)
     {
         ArgumentNullException.ThrowIfNull(definition);
         ArgumentNullException.ThrowIfNull(window);
@@ -198,6 +205,13 @@ public static class AssistanceDefinitionAdmission
             var entry = definition.ContextAllowlist[index];
             if (string.IsNullOrWhiteSpace(entry.Definition)) refusals.Add(new("definition.context_definition_required", $"/context_allowlist/{index}/definition"));
             if (string.IsNullOrWhiteSpace(entry.Field)) refusals.Add(new("definition.context_field_required", $"/context_allowlist/{index}/field"));
+            // ADR-0146 (pilot-auth-10, pilot-ck-11): an unknown field is absent, never included; governance only refuses
+            // (DES-0015 §2). Without a port, Author skips the check and Publish and Install know no field.
+            if (fields is null && phase == AssistanceAdmissionPhase.Author) continue;
+            var governance = string.IsNullOrWhiteSpace(entry.Definition) || string.IsNullOrWhiteSpace(entry.Field) ? null : fields?.Resolve(entry.Definition, entry.Field);
+            if (governance is null) refusals.Add(new("definition.context_field_unknown", $"/context_allowlist/{index}"));
+            else if (entry.Redaction == AssistanceContextRedaction.Value && (governance.PersonalData || governance.Confidential || governance.Masked))
+                refusals.Add(new("definition.context_field_value_forbidden", $"/context_allowlist/{index}/redaction"));
         }
         for (var index = 0; index < definition.Recipients.Count; index++) if (string.IsNullOrWhiteSpace(definition.Recipients[index])) refusals.Add(new("definition.recipient_required", $"/recipients/{index}"));
         if (previous is not null) ValidateNarrowing(definition, previous, refusals);
@@ -266,9 +280,9 @@ public sealed record AssistanceDefinitionPackageEntry(string DefinitionId, strin
 public static class AssistanceDefinitionPackExporter
 {
     /// <summary>Validates and exports a definition as canonical package bytes.</summary>
-    public static AssistanceDefinitionPackageEntry Export(AssistanceDefinition definition, DefinitionContractWindow window, ICommandCatalogueRegistry? commands = null)
+    public static AssistanceDefinitionPackageEntry Export(AssistanceDefinition definition, DefinitionContractWindow window, ICommandCatalogueRegistry? commands = null, IAssistanceFieldGovernance? fields = null)
     {
-        AssistanceDefinitionAdmission.Require(definition, AssistanceAdmissionPhase.Publish, window, commands);
+        AssistanceDefinitionAdmission.Require(definition, AssistanceAdmissionPhase.Publish, window, commands, fields: fields);
         return new(definition.Key, definition.Version, AssistanceDefinitionJson.SerializeCanonical(definition));
     }
 }
