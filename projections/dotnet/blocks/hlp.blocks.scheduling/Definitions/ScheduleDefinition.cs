@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 
 using Harborline.Blocks.BuilderDefinitions;
+using Harborline.Blocks.Scheduling.Planning;
 using Harborline.Foundation.Definitions;
 
 namespace Harborline.Blocks.Scheduling.Definitions;
@@ -156,6 +157,10 @@ public enum ScheduleStartKind
 /// <param name="TargetId">The definition it names.</param>
 public sealed record ScheduleStarts([property: JsonRequired] ScheduleStartKind Kind, string TargetId);
 
+/// <summary>The author's solver binding, kept with the definition (scheduling-ck-26).</summary>
+public sealed record ScheduleSolver(string BackendId, JsonElement Parameters,
+    [property: JsonRequired] SolverGuarantee Guarantee, [property: JsonRequired] int WorkBudget);
+
 /// <summary>
 /// The Scheduling definition, content kind 11 (scheduling-ck-1, DES-0022 section 2). A due date and a form are a complete
 /// schedule: the basis and every planning member are optional, and <see cref="ProblemClass"/> defaults to no solver (L1445).
@@ -190,6 +195,9 @@ public sealed record ScheduleDefinition(
     string? LegalityRef = null,
     string? DueDate = null)
 {
+    /// <summary>The authored solver choice for this definition revision.</summary>
+    public ScheduleSolver? Solver { get; init; }
+
     /// <summary>An explicit recovery request, refused at validate (scheduling-auth-21); ordinary missed-behaviour replanning is distinct.</summary>
     public bool? RecoveryReplanning { get; init; }
 
