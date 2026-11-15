@@ -47,7 +47,7 @@ public sealed class WorkflowLifecycleMapperTests
     public void Task_fact_without_workflow_status_yields_only_task_event(string kind, string time)
     {
         var fact = new WorkflowEventRecord { InstanceId = "run", Seq = 7, Step = "step", EventType = kind,
-            DataJson = "{\"workflow\":\"flow.example\",\"task\":\"task\",\"" + time + "\":\"2024-07-26T16:59:57-05:00\",\"error\":{\"type\":\"failure\",\"status\":500}}" };
+            DataJson = "{\"workflow\":\"flow.example\",\"task\":\"/do/1/finish\",\"" + time + "\":\"2024-07-26T16:59:57-05:00\",\"error\":{\"type\":\"failure\",\"status\":500}}" };
         Assert.Single(WorkflowLifecycleProjection.Map(fact, new("store", "tenant")));
     }
 
@@ -60,7 +60,7 @@ public sealed class WorkflowLifecycleMapperTests
     public void Terminal_task_refuses_other_workflow_status_values(string kind, string time, string status)
     {
         var fact = new WorkflowEventRecord { InstanceId = "run", Seq = 7, Step = "step", EventType = kind,
-            DataJson = "{\"workflow\":\"flow.example\",\"task\":\"task\",\"" + time + "\":\"2024-07-26T16:59:57-05:00\",\"workflowStatus\":" + status + ",\"error\":{\"type\":\"failure\",\"status\":500}}" };
+            DataJson = "{\"workflow\":\"flow.example\",\"task\":\"/do/1/finish\",\"" + time + "\":\"2024-07-26T16:59:57-05:00\",\"workflowStatus\":" + status + ",\"error\":{\"type\":\"failure\",\"status\":500}}" };
         Assert.Throws<WorkflowLifecycleMappingException>(() => WorkflowLifecycleProjection.Map(fact, new("store", "tenant")));
     }
 

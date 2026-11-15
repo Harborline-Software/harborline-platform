@@ -68,7 +68,12 @@ public static class WorkflowLifecycleProjection
         catch (System.Text.Json.JsonException) { throw new WorkflowLifecycleMappingException("Lifecycle history data is invalid JSON."); }
         var task = entry.EventType.StartsWith("Task", StringComparison.Ordinal);
         RequireString(data, task ? "workflow" : "name");
-        if (task) RequireString(data, "task");
+        if (task)
+        {
+            RequireString(data, "task");
+            if (!Matches(data["task"]!.GetValue<string>(), JsonPointer))
+                throw new WorkflowLifecycleMappingException("Task history requires 'task' to be a JSON Pointer.");
+        }
         var time = entry.EventType switch
         {
             "WorkflowStarted" or "WorkflowCorrelationStarted" or "TaskStarted" => "startedAt",
@@ -92,6 +97,8 @@ public static class WorkflowLifecycleProjection
             RequireString(definition, "name");
             RequireString(definition, "namespace");
             RequireString(definition, "version");
+            if (!Matches(definition["version"]!.GetValue<string>(), SemanticVersion))
+                throw new WorkflowLifecycleMappingException("Workflow start history requires a semantic definition version.");
         }
         if (entry.EventType is "WorkflowFaulted" or "TaskFaulted")
         {
@@ -141,6 +148,15 @@ public static class WorkflowLifecycleProjection
         var workflowEvent = Map(workflowFact, metadata).Single();
         return [taskEvent, workflowEvent];
     }
+
+    // SemVer 2.0.0, as the CNCF Serverless Workflow v1.0.0 schema pins document.version; [0-9] and \z keep Unicode digits and a trailing newline out.
+    private const string SemanticVersion = @"\A(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:-((?:0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?\z";
+
+    // RFC 6901 section 3: each reference token is "/" then unescaped characters or "~0" / "~1".
+    private const string JsonPointer = @"\A(?:/(?:[^~/]|~[01])*)*\z";
+
+    private static bool Matches(string value, string pattern)
+        => Regex.IsMatch(value, pattern, RegexOptions.CultureInvariant, TimeSpan.FromSeconds(1));
 
     private static void RequireString(JsonObject data, string property)
     {

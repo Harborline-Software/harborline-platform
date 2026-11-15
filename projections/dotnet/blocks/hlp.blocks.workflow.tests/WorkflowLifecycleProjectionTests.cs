@@ -23,6 +23,12 @@ public sealed class WorkflowLifecycleProjectionTests
     [InlineData("TaskCancelled", "io.serverlessworkflow.task.cancelled.v1", "{\"workflow\":\"flow-1.example\",\"task\":\"/do/1/initialize\",\"cancelledAt\":\"2024-07-26T16:59:57-05:00\"}")]
     [InlineData("TaskFaulted", "io.serverlessworkflow.task.faulted.v1", "{\"workflow\":\"flow-1.example\",\"task\":\"/do/1/initialize\",\"faultedAt\":\"2024-07-26T16:59:57-05:00\",\"error\":{\"type\":\"https://serverlessworkflow.io/spec/1.0.0/errors/communication\",\"title\":\"Service Not Available\",\"status\":503}}")]
     [InlineData("TaskCompleted", "io.serverlessworkflow.task.completed.v1", "{\"workflow\":\"flow-1.example\",\"task\":\"/do/1/initialize\",\"completedAt\":\"2024-07-26T16:59:57-05:00\"}")]
+    [InlineData("WorkflowStarted", "io.serverlessworkflow.workflow.started.v1", "{\"name\":\"flow-1.example\",\"definition\":{\"name\":\"flow\",\"namespace\":\"example\",\"version\":\"1.0.0-rc.1+build.5\"},\"startedAt\":\"2024-07-26T16:59:57-05:00\"}")]
+    [InlineData("WorkflowStarted", "io.serverlessworkflow.workflow.started.v1", "{\"name\":\"flow-1.example\",\"definition\":{\"name\":\"flow\",\"namespace\":\"example\",\"version\":\"0.10.2-alpha-1.0\"},\"startedAt\":\"2024-07-26T16:59:57-05:00\"}")]
+    [InlineData("WorkflowStarted", "io.serverlessworkflow.workflow.started.v1", "{\"name\":\"flow-1.example\",\"definition\":{\"name\":\"flow\",\"namespace\":\"example\",\"version\":\"2.0.0+sha.5114f85\"},\"startedAt\":\"2024-07-26T16:59:57-05:00\"}")]
+    [InlineData("TaskStarted", "io.serverlessworkflow.task.started.v1", "{\"workflow\":\"flow-1.example\",\"task\":\"/do/0/a~0b~1c\",\"startedAt\":\"2024-07-26T16:59:57-05:00\"}")]
+    [InlineData("TaskStarted", "io.serverlessworkflow.task.started.v1", "{\"workflow\":\"flow-1.example\",\"task\":\"/\",\"startedAt\":\"2024-07-26T16:59:57-05:00\"}")]
+    [InlineData("TaskStarted", "io.serverlessworkflow.task.started.v1", "{\"workflow\":\"flow-1.example\",\"task\":\"/do//x\",\"startedAt\":\"2024-07-26T16:59:57-05:00\"}")]
     public void Projects_workflow_and_task_history_with_the_CNCF_type_and_payload(string kind, string type, string payload)
     {
         var fact = new WorkflowEventRecord { InstanceId = "run", Seq = 2, Step = "step", EventType = kind, DataJson = payload };
@@ -49,6 +55,19 @@ public sealed class WorkflowLifecycleProjectionTests
     [InlineData("WorkflowFaulted", "{\"name\":\"flow-1.example\",\"faultedAt\":\"2024-07-26T16:59:57-05:00\",\"error\":{}}")]
     [InlineData("TaskStarted", "{\"workflow\":\"flow-1.example\",\"startedAt\":\"2024-07-26T16:59:57-05:00\"}")]
     [InlineData("WorkflowTerminated", "{\"name\":\"flow-1.example\",\"cancelledAt\":\"2024-07-26T16:59:57-05:00\"}")]
+    [InlineData("WorkflowStarted", "{\"name\":\"flow-1.example\",\"definition\":{\"name\":\"flow\",\"namespace\":\"example\",\"version\":\"latest\"},\"startedAt\":\"2024-07-26T16:59:57-05:00\"}")]
+    [InlineData("WorkflowStarted", "{\"name\":\"flow-1.example\",\"definition\":{\"name\":\"flow\",\"namespace\":\"example\",\"version\":\"1.0\"},\"startedAt\":\"2024-07-26T16:59:57-05:00\"}")]
+    [InlineData("WorkflowStarted", "{\"name\":\"flow-1.example\",\"definition\":{\"name\":\"flow\",\"namespace\":\"example\",\"version\":\"01.0.0\"},\"startedAt\":\"2024-07-26T16:59:57-05:00\"}")]
+    [InlineData("WorkflowStarted", "{\"name\":\"flow-1.example\",\"definition\":{\"name\":\"flow\",\"namespace\":\"example\",\"version\":\"1.0.0-\"},\"startedAt\":\"2024-07-26T16:59:57-05:00\"}")]
+    [InlineData("WorkflowStarted", "{\"name\":\"flow-1.example\",\"definition\":{\"name\":\"flow\",\"namespace\":\"example\",\"version\":\"1.0.0-01\"},\"startedAt\":\"2024-07-26T16:59:57-05:00\"}")]
+    [InlineData("WorkflowStarted", "{\"name\":\"flow-1.example\",\"definition\":{\"name\":\"flow\",\"namespace\":\"example\",\"version\":\"1.0.0+\"},\"startedAt\":\"2024-07-26T16:59:57-05:00\"}")]
+    [InlineData("WorkflowStarted", "{\"name\":\"flow-1.example\",\"definition\":{\"name\":\"flow\",\"namespace\":\"example\",\"version\":\"v1.0.0\"},\"startedAt\":\"2024-07-26T16:59:57-05:00\"}")]
+    [InlineData("WorkflowStarted", "{\"name\":\"flow-1.example\",\"definition\":{\"name\":\"flow\",\"namespace\":\"example\",\"version\":\"1.0.0\\n\"},\"startedAt\":\"2024-07-26T16:59:57-05:00\"}")]
+    [InlineData("TaskStarted", "{\"workflow\":\"flow-1.example\",\"task\":\"task\",\"startedAt\":\"2024-07-26T16:59:57-05:00\"}")]
+    [InlineData("TaskStarted", "{\"workflow\":\"flow-1.example\",\"task\":\"do/0\",\"startedAt\":\"2024-07-26T16:59:57-05:00\"}")]
+    [InlineData("TaskStarted", "{\"workflow\":\"flow-1.example\",\"task\":\"/do/~2\",\"startedAt\":\"2024-07-26T16:59:57-05:00\"}")]
+    [InlineData("TaskStarted", "{\"workflow\":\"flow-1.example\",\"task\":\"/do/~\",\"startedAt\":\"2024-07-26T16:59:57-05:00\"}")]
+    [InlineData("TaskStarted", "{\"workflow\":\"flow-1.example\",\"task\":\"/do/a~b\",\"startedAt\":\"2024-07-26T16:59:57-05:00\"}")]
     public void Refuses_lifecycle_history_missing_required_payload(string kind, string payload)
     {
         var fact = new WorkflowEventRecord { InstanceId = "run", Seq = 1, Step = "step", EventType = kind, DataJson = payload };

@@ -86,9 +86,9 @@
     "projections/dotnet/blocks/hlp.blocks.workflow/Durable/WorkflowLifecycleStatus.cs": "99b9df9951d0f2b17fa5aeaf8cb6991296989a66955cfaaf24f9f4b9565da82e",
     "projections/dotnet/blocks/hlp.blocks.workflow.tests/WorkflowLifecycleStatusTests.cs": "8ee409b641f20489f64bcad2f0be2d2c319f0a3961f56572b86e00ec11fa5432",
     "projections/dotnet/blocks/hlp.blocks.workflow.tests/WorkflowLifecycleHistoryTests.cs": "3592c1797116066ecf70b9090586d807216e859207ce2ba0b4a2aa5fca708cc0",
-    "projections/dotnet/blocks/hlp.blocks.workflow/Durable/WorkflowLifecycleProjection.cs": "ba0546f13000be6b04ebc5e5cf0da54ad0cdb6fda456151a69ae3ab1d4938722",
-    "projections/dotnet/blocks/hlp.blocks.workflow.tests/WorkflowLifecycleProjectionTests.cs": "ef8050358b32ca1d819b6174bcab3da17581476ed9453b101309b2266cc85209",
-    "projections/dotnet/blocks/hlp.blocks.workflow.tests/WorkflowLifecycleMapperTests.cs": "8c0abcdcd79600c8101d301a4283006a6c496288a81cd079900f440693e9eb35"
+    "projections/dotnet/blocks/hlp.blocks.workflow/Durable/WorkflowLifecycleProjection.cs": "a98139537b1cca1dfe58f6472eb3fa118cc4163f10913d621eeeb17b553dda4b",
+    "projections/dotnet/blocks/hlp.blocks.workflow.tests/WorkflowLifecycleProjectionTests.cs": "de6ce145ef37c19836f8370656355960aa6d5426f86906591896d130db30a2b3",
+    "projections/dotnet/blocks/hlp.blocks.workflow.tests/WorkflowLifecycleMapperTests.cs": "fb368d14ddd1116268839a0a4061bad247faaa695d23ac794b6756c4b58ac2c8"
   },
   "nextGate": "Build the Workflows package-only capability vertical (ticket 074): a Carrier-derived ledger definition driven define-admit-trigger-transition-complete through packaged interfaces with the 13-pair client/server admission-mirror cross-check; do not interpret engine substrate as completion of the workflows capability gate."
 }
