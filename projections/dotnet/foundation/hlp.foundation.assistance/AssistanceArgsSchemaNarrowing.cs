@@ -12,6 +12,8 @@ public static class AssistanceArgsSchemaNarrowing
     public static bool IsAtLeastAsStrict(JsonElement candidate, JsonElement baseline)
     {
         if (candidate.ValueKind != JsonValueKind.Object || baseline.ValueKind != JsonValueKind.Object) return false;
+        if ((candidate.TryGetProperty("$schema", out var candidateDialect) && (candidateDialect.ValueKind != JsonValueKind.String || !candidateDialect.ValueEquals("https://json-schema.org/draft/2020-12/schema"))) ||
+            (baseline.TryGetProperty("$schema", out var baselineDialect) && (baselineDialect.ValueKind != JsonValueKind.String || !baselineDialect.ValueEquals("https://json-schema.org/draft/2020-12/schema")))) return false;
         if (candidate.GetRawText().Length > 65536 || baseline.GetRawText().Length > 65536) return false;
         var shapeBudget = 4096;
         var hasReferences = false;
@@ -31,7 +33,7 @@ public static class AssistanceArgsSchemaNarrowing
             var names = new HashSet<string>(StringComparer.Ordinal);
             foreach (var property in value.EnumerateObject())
             {
-                if (property.Name is "$ref" or "$dynamicRef") hasReferences = true;
+                if (property.Name is "$ref" or "$dynamicRef" or "$recursiveRef") hasReferences = true;
                 if (!names.Add(property.Name) || !HasUniqueNames(property.Value, depth + 1, ref budget, ref hasReferences)) return false;
             }
         }
@@ -48,7 +50,7 @@ public static class AssistanceArgsSchemaNarrowing
         if (candidate.ValueKind != JsonValueKind.Object || baseline.ValueKind != JsonValueKind.Object) return false;
         // Opaque applicators/references can observe evaluated properties or change scope.
         // Unchanged keyword values alone cannot prove that sibling edits are safe.
-        string[] opaque = ["$ref", "$dynamicRef", "$id", "$dynamicAnchor", "unevaluatedProperties", "unevaluatedItems", "allOf", "anyOf", "oneOf", "not", "if", "then", "else", "dependentSchemas"];
+        string[] opaque = ["$ref", "$dynamicRef", "$recursiveRef", "$id", "$dynamicAnchor", "$recursiveAnchor", "unevaluatedProperties", "unevaluatedItems", "allOf", "anyOf", "oneOf", "not", "if", "then", "else", "dependentSchemas"];
         if (opaque.Any(name => candidate.TryGetProperty(name, out _) || baseline.TryGetProperty(name, out _)))
             return Equal(candidate, baseline, ref budget);
         var current = candidate.EnumerateObject().ToArray();
