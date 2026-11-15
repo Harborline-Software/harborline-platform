@@ -6,7 +6,6 @@ using Harborline.Contracts.Rules;
 using Harborline.Foundation.RuleEngine;
 using Harborline.Foundation.RuleEngine.Compilation;
 using Harborline.Foundation.RuleEngine.Environments;
-using Harborline.Foundation.RuleEngine.Functions;
 using Harborline.Foundation.RuleEngine.Graph;
 using Harborline.Foundation.RuleEngine.Skins;
 
@@ -24,8 +23,8 @@ namespace Harborline.Blocks.Workflow.Tests;
 /// <see cref="InvoiceApprovalHandler"/> off the table. In-flight ADR 0135 D7 pins stay against the
 /// pre-migration table (no retroactive re-pin). The production consumer cutover — resolving the rule-versioned
 /// table through the named registry (ADR 0146 D5, PR #1829) and pinning via its <c>RulePin</c> — lands in the
-/// wave that merges the registry and clears the D11 CP-safety re-review. The reference to
-/// foundation-rule-engine here is TEST-ONLY (production blocks-workflow takes no rule-engine dependency).</para>
+/// wave that merges the registry and clears the D11 CP-safety re-review. The graph runs under the admitted
+/// <see cref="WorkflowsExpressionEnvironment"/> (DES-0019 workflows-ck-29) in the Run phase.</para>
 /// </summary>
 public sealed class ThresholdDecisionTableMigrationTests
 {
@@ -91,7 +90,7 @@ public sealed class ThresholdDecisionTableMigrationTests
     {
         var rule = DecisionTableCompiler.Compile(skin);
         var compiled = RuleCompiler.Compile(new[] { rule });
-        var graph = new FormRuleGraph(compiled, TimeProvider.System, WorkflowTestAdmission.Any, RuleEngineLimits.Default);
+        var graph = new FormRuleGraph(compiled, TimeProvider.System, WorkflowsExpressionEnvironment.Admitted.For(EvaluationPhase.Run), RuleEngineLimits.Default);
         var instance = RuleInstance.FromJson(new JsonObject { ["amount"] = JsonValue.Create(amount) });
         var result = graph.EvaluateInstance(instance);
         var outcome = result.ByRule[skin.RuleId];
@@ -128,16 +127,4 @@ public sealed class ThresholdDecisionTableMigrationTests
         var actual = EvaluateSkin(ToSkin(version, "invoice.approval"), amount);
         Assert.Equal(expected, actual);
     }
-}
-
-/// <summary>The workflow decision borrower's environment (DES-0019 workflows-ck-29) as this migration probe declares it.</summary>
-internal static class WorkflowTestAdmission
-{
-    internal static EvaluationAdmission Any { get; } = BorrowerEnvironmentAdmission.Admit(new BorrowerEnvironmentDeclaration(
-        "workflows-ck-29", BorrowerEnvironmentAdmission.Grammar,
-        new Dictionary<string, string> { ["field"] = "case subject field", ["wf"] = "run identity", ["timer"] = "run timer" },
-        [.. BuiltInFunctionRegister.Functions.Select(function => function.Key)], [BorrowerEnvironmentAdmission.FieldRead],
-        "missing-field-reads-null", "evaluated-at", "utc",
-        Enum.GetValues<EvaluationPhase>().ToDictionary(phase => phase, phase => phase == EvaluationPhase.Run),
-        "deterministic-over-run-clock")).For(EvaluationPhase.Run);
 }

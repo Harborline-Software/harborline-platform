@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.blocks.workflow",
-  "interfaceRevision": 15,
+  "interfaceRevision": 16,
   "durableCases": [
     {"id": "lifecycle-events-history-order", "expect": "EventsAsync returns committed per-run history in sequence order after reopening", "test": "WorkflowLifecycleJournalReadbackTests.Lifecycle_history_is_ordered_and_survives_reopening_the_journal"},
     {"id": "lifecycle-projection", "expect": "committed workflow and task facts map to their CNCF lifecycle types and payloads", "test": "WorkflowLifecycleProjectionTests.Projects_workflow_and_task_history_with_the_CNCF_type_and_payload"},
@@ -35,7 +35,8 @@
     {"id": "cp-on-autonomous-edge", "expected": "workflow.admission.cp_reachable_without_human_task"},
     {"id": "declared-ap-registry-cp", "expected": "workflow.admission.classification_mismatch"},
     {"id": "unknown-capability-refused", "expected": "workflow.admission.unknown_capability"},
-    {"id": "cp-on-human-approve-transition", "expected": "admitted"}
+    {"id": "cp-on-human-approve-transition", "expected": "admitted"},
+    {"id": "expression-environment-missing-or-foreign", "expected": "rule.environment.not_admitted", "test": "WorkflowsExpressionEnvironmentTests.Workflows_ck_29_admission_requires_the_admitted_environment"}
   ],
   "definitionStore": {
     "registerAdmitsFailClosed": true,
