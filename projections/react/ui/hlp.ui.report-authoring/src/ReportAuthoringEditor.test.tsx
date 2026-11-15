@@ -266,16 +266,12 @@ it('a created draft fences a later host revision when edits are pending', () => 
   expect(screen.getByRole('button', { name: 'Add parameter' })).toBeDisabled()
 })
 
-it('reports-auth-12 retains echoed declarations when a revision arrives during editing', () => {
+it('reports-auth-8 same-revision host echo does not overwrite the current draft', () => {
   const initial = { tenant: 't', key: 'r', version: '1', measures: [] }
-  const echoed = { ...initial, measures: [{ measure: 'finance.rent' }] }
   const props = { onCreate: () => {}, onChange: () => {} }
   const view = render(<ReportAuthoringEditor {...props} value={initial} revision="a" />)
-  view.rerender(<ReportAuthoringEditor {...props} value={echoed} revision="a" />)
-  fireEvent.change(screen.getByLabelText('Parameter name'), { target: { value: 'pending' } })
-  view.rerender(<ReportAuthoringEditor {...props} value={initial} revision="b" />)
-  fireEvent.click(screen.getByRole('button', { name: 'Keep editing' }))
-  expect(screen.getByText('finance.rent')).toBeInTheDocument()
+  view.rerender(<ReportAuthoringEditor {...props} value={{ ...initial, measures: [{ measure: 'finance.rent' }] }} revision="a" />)
+  expect(screen.queryByText('finance.rent')).not.toBeInTheDocument()
 })
 
 it('reports-bound-9 fences a selected measure when the report is replaced', async () => {
@@ -379,4 +375,29 @@ it('reports-auth-12 keeps retained snapshot when an identity echo arrives while 
   view.rerender(<ReportAuthoringEditor {...props} value={{ ...original, key: 'third' }} revision="c" />)
   fireEvent.click(screen.getByRole('button', { name: 'Keep editing' }))
   expect(screen.queryByText('host.other')).not.toBeInTheDocument()
+})
+
+it('reports-bound-9 tenant edit invalidates old tenant lookup', async () => {
+  let finish!: (value: string[]) => void
+  const props = { onCreate: () => {}, onChange: vi.fn(), resolveMeasures: () => new Promise<string[]>(r => { finish = r }) }
+  const view = render(<ReportAuthoringEditor {...props} value={{ tenant: 'old', key: 'r', version: '1', measures: [] }} />)
+  fireEvent.click(screen.getByRole('button', { name: 'Choose measure' }))
+  fireEvent.change(screen.getByLabelText('Tenant'), { target: { value: 'new' } })
+  view.rerender(<ReportAuthoringEditor {...props} value={{ tenant: 'new', key: 'r', version: '1', measures: [] }} />)
+  finish(['finance.old'])
+  expect(screen.queryByLabelText('Measures')).not.toBeInTheDocument()
+})
+
+it('reports-auth-8 parameter echo of kept draft does not reopen replacement', () => {
+  const props = { onCreate: () => {}, onChange: vi.fn() }
+  const old = { tenant: 't', key: 'old', version: '1', measures: [], parameters: [] }
+  const view = render(<ReportAuthoringEditor {...props} value={old} revision="a" />)
+  fireEvent.change(screen.getByLabelText('Parameter name'), { target: { value: 'limit' } })
+  view.rerender(<ReportAuthoringEditor {...props} value={{ ...old, key: 'new' }} revision="b" />)
+  fireEvent.click(screen.getByRole('button', { name: 'Keep editing' }))
+  fireEvent.change(screen.getByLabelText('Parameter default'), { target: { value: 'true' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Add parameter' }))
+  const emitted = props.onChange.mock.lastCall![0]
+  view.rerender(<ReportAuthoringEditor {...props} value={emitted} revision="b" />)
+  expect(screen.queryByRole('button', { name: 'Keep editing' })).not.toBeInTheDocument()
 })

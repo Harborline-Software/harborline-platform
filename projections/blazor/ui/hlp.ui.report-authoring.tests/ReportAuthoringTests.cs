@@ -224,6 +224,32 @@ public sealed class ReportAuthoringTests : BunitContext
         Assert.Empty(cut.FindAll("[aria-label='Remove measure host.other']"));
     }
 
+    [Fact(DisplayName = "reports-bound-9 tenant edit invalidates old lookup")]
+    public async Task TenantEditInvalidatesLookup()
+    {
+        var pending = new TaskCompletionSource<IReadOnlyList<MeasureOption>>();
+        var cut = Render<HarborlineReportAuthoringEditor>(p => p.Add(x => x.Value, new ReportDraft("old", "r", "1", [], [])).Add(x => x.ResolveMeasures, _ => pending.Task));
+        var click = cut.Find("[aria-label='Choose measure']").ClickAsync(new());
+        cut.Find("[aria-label='Tenant']").Change("new");
+        cut.Render(p => p.Add(x => x.Value, new ReportDraft("new", "r", "1", [], [])));
+        pending.SetResult([new("finance.old", "Old")]);
+        await click;
+        Assert.Empty(cut.FindAll("[aria-label='Measures']"));
+    }
+    [Fact(DisplayName = "reports-auth-8 parameter echo on kept draft does not reopen decision")]
+    public void KeptParameterEcho()
+    {
+        ReportDraft? changed = null;
+        var cut = Render<HarborlineReportAuthoringEditor>(p => p.Add(x => x.Value, new ReportDraft("t", "old", "1", [], [])).Add(x => x.Revision, "a").Add(x => x.ValueChanged, v => changed = v));
+        cut.Find("[aria-label='Parameter name']").Change("limit");
+        cut.Render(p => p.Add(x => x.Value, new ReportDraft("t", "new", "1", [], [])).Add(x => x.Revision, "b"));
+        cut.Find("[aria-label='Keep editing']").Click();
+        cut.Find("[aria-label='Parameter default']").Change("true");
+        cut.Find("[aria-label='Add parameter']").Click();
+        cut.Render(p => p.Add(x => x.Value, changed).Add(x => x.Revision, "b"));
+        Assert.Empty(cut.FindAll("[aria-label='Keep editing']"));
+    }
+
     [Fact(DisplayName = "readOnly prevents report changes")]
     public void ReadOnly()
     {
