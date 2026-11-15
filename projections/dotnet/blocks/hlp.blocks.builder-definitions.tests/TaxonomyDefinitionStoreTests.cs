@@ -217,6 +217,6 @@ public sealed class TaxonomyDefinitionStoreTests
         return new(Tenant, definitionId, version, TaxonomyGovernanceRegime.Enterprise, "author",
             [new("root", display, "Description root", TaxonomyNodeStatus.Active, [new(display, "Description root", DateTimeOffset.UnixEpoch)])],
             Envelope: new(definitionId.ToString(), version, Tenant, TaxonomyCascadeLayer.Tenant,
-                JsonSerializer.SerializeToElement(new { source = "tenant" }), [], new(1, 0)));
+                JsonSerializer.SerializeToElement(new { source = "tenant" }), "regulated", false, [], new(1, 0)));
     }
 }
