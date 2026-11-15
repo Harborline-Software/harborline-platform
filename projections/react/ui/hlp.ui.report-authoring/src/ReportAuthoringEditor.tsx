@@ -27,12 +27,13 @@ export function ReportAuthoringEditor({ value, onCreate, onChange, resolveMeasur
     const old = previous.current
     if (!value) { if (old) { setParameterName(''); setParameterDefault(''); setEffectiveType(''); setParameterType('boolean'); setOpen(false); setQuery(''); setSelected(''); setOptions([]); setResolverError(false); setInvalidDefault(false); setIncoming(false); setKept(null); ignored.current = null; ignoredRevision.current = null; emittedIdentity.current = null; previous.current = null; previousRevision.current = null } return }
     if (!old && value) { previous.current = value; previousRevision.current = revision; return }
+    if (incoming) return
     const echo = emittedIdentity.current
-    if (echo && echo.tenant === value.tenant && echo.key === value.key && echo.version === value.version && echo.revision === revision) { emittedIdentity.current = null; previous.current = value; previousRevision.current = revision; return }
+    if (echo && echo.tenant === value.tenant && echo.key === value.key && echo.version === value.version && echo.revision === revision) { emittedIdentity.current = null; if (!kept) { previous.current = value; previousRevision.current = revision } return }
     if (ignored.current && value && ignored.current.key === value.key && ignored.current.version === value.version && ignored.current.tenant === value.tenant && ignoredRevision.current === revision) return
     if (old && value && (old.key !== value.key || old.version !== value.version || old.tenant !== value.tenant || previousRevision.current !== revision)) {
-      if (parameterName || parameterDefault || effectiveType || selected) setIncoming(true)
-      else { setOpen(false); setQuery(''); setSelected(''); setOptions([]); setResolverError(false); emittedIdentity.current = null; previous.current = value; previousRevision.current = revision }
+      if (kept || parameterName || parameterDefault || effectiveType || selected) setIncoming(true)
+      else { setOpen(false); setQuery(''); setSelected(''); setOptions([]); setResolverError(false); setKept(null); ignored.current = null; ignoredRevision.current = null; emittedIdentity.current = null; previous.current = value; previousRevision.current = revision }
     } else if (!incoming && !kept) { previous.current = value; previousRevision.current = revision }
   }, [value, revision, parameterName, parameterDefault, effectiveType, selected, incoming, kept])
   useEffect(() => {

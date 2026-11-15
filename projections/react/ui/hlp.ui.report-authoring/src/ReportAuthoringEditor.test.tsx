@@ -341,3 +341,42 @@ it('reports-bound-9 closes the picker on a clean replacement while a lookup is i
   finish(['finance.old'])
   expect(screen.queryByRole('listbox', { name: 'Measures' })).not.toBeInTheDocument()
 })
+
+it('reports-auth-12 decision open preserves the retained report after picker query changes', async () => {
+  const props = { onCreate: () => {}, onChange: () => {}, resolveMeasures: async () => ['finance.rent'] }
+  const old = { tenant: 't', key: 'old', version: '1', measures: [] }
+  const view = render(<ReportAuthoringEditor {...props} value={old} />)
+  fireEvent.click(screen.getByRole('button', { name: 'Choose measure' }))
+  await screen.findByRole('option', { name: 'finance.rent' })
+  fireEvent.change(screen.getByLabelText('Measures'), { target: { value: 'finance.rent' } })
+  view.rerender(<ReportAuthoringEditor {...props} value={{ ...old, key: 'new' }} />)
+  fireEvent.change(screen.getByLabelText('Search measures'), { target: { value: 'x' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Keep editing' }))
+  expect(screen.getByLabelText('Report key')).toHaveValue('old')
+})
+
+it('reports-auth-12 keeps fencing a retained draft when a further host replacement arrives', () => {
+  const props = { onCreate: () => {}, onChange: () => {} }
+  const old = { tenant: 't', key: 'old', version: '1', measures: [] }
+  const view = render(<ReportAuthoringEditor {...props} value={old} revision="a" />)
+  fireEvent.change(screen.getByLabelText('Parameter name'), { target: { value: 'pending' } })
+  view.rerender(<ReportAuthoringEditor {...props} value={{ ...old, key: 'new' }} revision="b" />)
+  fireEvent.click(screen.getByRole('button', { name: 'Keep editing' }))
+  fireEvent.change(screen.getByLabelText('Parameter name'), { target: { value: '' } })
+  view.rerender(<ReportAuthoringEditor {...props} value={{ ...old, key: 'third' }} revision="c" />)
+  expect(screen.getByRole('button', { name: 'Discard edits and load' })).toBeInTheDocument()
+})
+
+it('reports-auth-12 keeps retained snapshot when an identity echo arrives while kept', () => {
+  const props = { onCreate: () => {}, onChange: () => {} }
+  const original = { tenant: 't', key: 'old', version: '1', measures: [] }
+  const view = render(<ReportAuthoringEditor {...props} value={original} revision="a" />)
+  fireEvent.change(screen.getByLabelText('Parameter name'), { target: { value: 'pending' } })
+  view.rerender(<ReportAuthoringEditor {...props} value={{ ...original, key: 'new' }} revision="b" />)
+  fireEvent.click(screen.getByRole('button', { name: 'Keep editing' }))
+  fireEvent.change(screen.getByLabelText('Report key'), { target: { value: 'edited' } })
+  view.rerender(<ReportAuthoringEditor {...props} value={{ ...original, key: 'edited', measures: [{ measure: 'host.other' }] }} revision="b" />)
+  view.rerender(<ReportAuthoringEditor {...props} value={{ ...original, key: 'third' }} revision="c" />)
+  fireEvent.click(screen.getByRole('button', { name: 'Keep editing' }))
+  expect(screen.queryByText('host.other')).not.toBeInTheDocument()
+})

@@ -187,6 +187,43 @@ public sealed class ReportAuthoringTests : BunitContext
         Assert.Empty(cut.FindAll("[aria-label='Measures']"));
     }
 
+    [Fact(DisplayName = "reports-auth-12 decision preserves retained report during picker query")]
+    public async Task DecisionKeepsSnapshotOnQuery()
+    {
+        var cut = Render<HarborlineReportAuthoringEditor>(p => p.Add(x => x.Value, new ReportDraft("t", "old", "1", [], [])).Add(x => x.ResolveMeasures, _ => Task.FromResult<IReadOnlyList<MeasureOption>>([new("finance.rent", "Rent")])));
+        await cut.Find("[aria-label='Choose measure']").ClickAsync(new());
+        cut.Find("[aria-label='Measures']").Change("finance.rent");
+        cut.Render(p => p.Add(x => x.Value, new ReportDraft("t", "new", "1", [], [])));
+        await cut.Find("[aria-label='Search measures']").InputAsync(new Microsoft.AspNetCore.Components.ChangeEventArgs { Value = "x" });
+        cut.Find("[aria-label='Keep editing']").Click();
+        Assert.Equal("old", cut.Find("[aria-label='Report key']").GetAttribute("value"));
+    }
+    [Fact(DisplayName = "reports-auth-12 retained draft fences further host replacement")]
+    public void KeptFencesFurtherReplacement()
+    {
+        var cut = Render<HarborlineReportAuthoringEditor>(p => p.Add(x => x.Value, new ReportDraft("t", "old", "1", [], [])).Add(x => x.Revision, "a"));
+        cut.Find("[aria-label='Parameter name']").Change("pending");
+        cut.Render(p => p.Add(x => x.Value, new ReportDraft("t", "new", "1", [], [])).Add(x => x.Revision, "b"));
+        cut.Find("[aria-label='Keep editing']").Click();
+        cut.Find("[aria-label='Parameter name']").Change("");
+        cut.Render(p => p.Add(x => x.Value, new ReportDraft("t", "third", "1", [], [])).Add(x => x.Revision, "c"));
+        Assert.Single(cut.FindAll("[aria-label='Discard edits and load']"));
+    }
+
+    [Fact(DisplayName = "reports-auth-12 keeps retained snapshot on identity echo while kept")]
+    public void KeptIdentityEchoPreservesSnapshot()
+    {
+        var cut = Render<HarborlineReportAuthoringEditor>(p => p.Add(x => x.Value, new ReportDraft("t", "old", "1", [], [])).Add(x => x.Revision, "a"));
+        cut.Find("[aria-label='Parameter name']").Change("pending");
+        cut.Render(p => p.Add(x => x.Value, new ReportDraft("t", "new", "1", [], [])).Add(x => x.Revision, "b"));
+        cut.Find("[aria-label='Keep editing']").Click();
+        cut.Find("[aria-label='Report key']").Change("edited");
+        cut.Render(p => p.Add(x => x.Value, new ReportDraft("t", "edited", "1", [new("host.other")], [])).Add(x => x.Revision, "b"));
+        cut.Render(p => p.Add(x => x.Value, new ReportDraft("t", "third", "1", [], [])).Add(x => x.Revision, "c"));
+        cut.Find("[aria-label='Keep editing']").Click();
+        Assert.Empty(cut.FindAll("[aria-label='Remove measure host.other']"));
+    }
+
     [Fact(DisplayName = "readOnly prevents report changes")]
     public void ReadOnly()
     {
