@@ -1346,6 +1346,10 @@ function verifyCalculationsCapability() {
     'Harborline.Foundation.Authorization',
     'Harborline.Foundation.MultiTenancy',
     'Harborline.Kernel.Core',
+    // T-521: BuilderDefinitions' attachment field kind binds through FieldRuntime, which stages through ContentStore on ExecutionRuntime.
+    'Harborline.Foundation.FieldRuntime',
+    'Harborline.Foundation.ContentStore',
+    'Harborline.Foundation.ExecutionRuntime',
   ], 'Calculations engine')
 
   return {
