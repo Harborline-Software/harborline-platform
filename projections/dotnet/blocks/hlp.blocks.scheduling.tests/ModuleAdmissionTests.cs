@@ -218,7 +218,8 @@ public sealed class ModuleAdmissionTests
     }
 
     internal static ScheduleDefinition Definition(params ScheduleConstraintModule[] modules) => new(null, "Job shop",
-        new(ScheduleStartKind.Form, "form"), ProblemClass: ScheduleProblemClass.JobShop, Modules: modules);
+        new(ScheduleStartKind.Form, "form"), ProblemClass: ScheduleProblemClass.JobShop, Modules: modules)
+        { Solver = new("prototype.exhaustive-proof.v2", System.Text.Json.JsonSerializer.SerializeToElement(new { }), SolverGuarantee.FeasibleProof, 100) };
 
     internal static SchedulingProfile Profile() => new("p", "v1", [new("a", 1), new("b", 1)],
         [new("a", 0, 0), new("b", 1, 2)], [new("r", new HashSet<string> { "skill" }, new HashSet<int> { 0, 1, 2 })],

@@ -2,7 +2,10 @@ using Harborline.Blocks.BuilderDefinitions;
 using System.Text.Json;
 
 using Harborline.Blocks.Scheduling.Definitions;
+using Harborline.Blocks.Scheduling.Planning;
 using Harborline.Foundation.Definitions;
+using Harborline.Blocks.Scheduling.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Harborline.Blocks.Scheduling.Tests;
 
@@ -22,9 +25,172 @@ public sealed class ScheduleDefinitionCatalogueTests
         [DefinitionKind.Schedules] = ScheduleDefinitionCatalogue.Admission,
     });
 
-    private ScheduleDefinitionCatalogue Catalogue => new(_store);
+    private ScheduleDefinitionCatalogue Catalogue => new(_store, [new DeterministicExhaustiveProofSolver()]);
 
     private static DefinitionKey Key => new(Tenant, DefinitionKind.Schedules, Id);
+
+    [Fact(DisplayName = "scheduling-ck-26: catalogue construction requires an explicit solver registry")]
+    public void Scheduling_ck_26_CatalogueRequiresSolverRegistry()
+    {
+        Assert.Null(typeof(ScheduleDefinitionCatalogue).GetConstructor([typeof(IVersionedDefinitionStore)]));
+        Assert.NotNull(typeof(ScheduleDefinitionCatalogue).GetConstructor([typeof(IVersionedDefinitionStore), typeof(IEnumerable<IPlanningSolver>)]));
+    }
+
+    [Theory(DisplayName = "scheduling-ck-26: exact draft save replay precedes changed backend admission")]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Scheduling_ck_26_DraftReplaySurvivesRegistryChange(bool removeBackend)
+    {
+        var definition = Definition with { ProblemClass = ScheduleProblemClass.Project,
+            Solver = new("prototype.exhaustive-proof.v2", JsonSerializer.SerializeToElement(new { }), SolverGuarantee.FeasibleProof, 100) };
+        var saved = await Catalogue.SaveDraftAsync(Tenant, Id, "1.0.0", definition, 0, "save");
+        var changed = new ScheduleDefinitionCatalogue(_store, removeBackend ? [] : [new LimitedSolver()]);
+        var replay = await changed.SaveDraftAsync(Tenant, Id, "1.0.0", definition, 0, "save");
+        Assert.Equal(saved.Revision, replay.Revision);
+        var refusal = await Assert.ThrowsAsync<DefinitionRefusalException>(() => changed.SaveDraftAsync(Tenant, Id, "1.0.0", definition, 1, "new-save").AsTask());
+        Assert.Equal(removeBackend ? "scheduling.definition.backend_unsupported" : "scheduling.definition.work_budget_unsupported", Assert.Single(refusal.Refusals).Code);
+        var conflict = await Assert.ThrowsAsync<DefinitionRefusalException>(() => changed.SaveDraftAsync(Tenant, Id, "1.0.0", definition with { Name = "changed" }, 0, "save").AsTask());
+        Assert.Equal("definition.replay_conflict", Assert.Single(conflict.Refusals).Code);
+        Assert.Single(await _store.ListHistoryAsync(Key));
+    }
+
+    [Theory(DisplayName = "scheduling-ck-26: catalogue refuses unsupported solver bindings on save and publish")]
+    [InlineData("missing", ScheduleProblemClass.Project, SolverGuarantee.FeasibleProof, 10, "scheduling.definition.backend_unsupported", "/solver/backend_id")]
+    [InlineData("prototype.exhaustive-proof.v2", ScheduleProblemClass.Workforce, SolverGuarantee.FeasibleProof, 10, "scheduling.definition.problem_class_unsupported", "/solver")]
+    [InlineData("prototype.exhaustive-proof.v2", ScheduleProblemClass.None, SolverGuarantee.FeasibleProof, 10, "scheduling.definition.problem_class_unsupported", "/solver")]
+    [InlineData("prototype.exhaustive-proof.v2", ScheduleProblemClass.Project, SolverGuarantee.OptimalProof, 10, "scheduling.definition.guarantee_unsupported", "/solver/guarantee")]
+    [InlineData("prototype.exhaustive-proof.v2", ScheduleProblemClass.Project, SolverGuarantee.FeasibleProof, -1, "scheduling.definition.work_budget_unsupported", "/solver/work_budget")]
+    [InlineData("prototype.exhaustive-proof.v2", ScheduleProblemClass.Project, SolverGuarantee.FeasibleProof, 11, "scheduling.definition.work_budget_unsupported", "/solver/work_budget")]
+    public async Task Scheduling_ck_26_UnsupportedSolverRefuses(string backend, ScheduleProblemClass problem,
+        SolverGuarantee guarantee, int budget, string code, string pointer)
+    {
+        var definition = Definition with { ProblemClass = problem, Solver = new(backend, JsonSerializer.SerializeToElement(new { }), guarantee, budget) };
+        var solvers = new IPlanningSolver[] { new LimitedSolver() };
+        var catalogue = new ScheduleDefinitionCatalogue(_store, solvers);
+        var save = await Assert.ThrowsAsync<DefinitionRefusalException>(() => catalogue.SaveDraftAsync(Tenant, Id, "1.0.0", definition, 0, "save").AsTask());
+        Assert.Equal([new DefinitionRefusal(code, pointer)], save.Refusals);
+        Assert.Empty(await _store.ListHistoryAsync(Key));
+        var document = new DefinitionDocument(Key, Id + "@1.0.0", "1.0.0", ScheduleDefinitionJson.Serialize(definition with { Envelope = definition.Envelope! with { Version = null } }));
+        await _store.SaveDraftAsync(document, 0, "raw");
+        var publish = await Assert.ThrowsAsync<DefinitionRefusalException>(() => catalogue.PublishAsync(Tenant, Id, "1.0.0", 1, "publish").AsTask());
+        Assert.Equal([new DefinitionRefusal(code, pointer)], publish.Refusals);
+        Assert.Null(await _store.GetPublishedHeadAsync(Key));
+    }
+
+    [Theory(DisplayName = "scheduling-ck-26: both backend budget boundaries are admitted")]
+    [InlineData(0)]
+    [InlineData(10)]
+    public async Task Scheduling_ck_26_BudgetBoundaries(int budget)
+    {
+        var definition = Definition with { ProblemClass = ScheduleProblemClass.Project,
+            Solver = new("prototype.exhaustive-proof.v2", JsonSerializer.SerializeToElement(new { }), SolverGuarantee.FeasibleProof, budget) };
+        var catalogue = new ScheduleDefinitionCatalogue(_store, [new LimitedSolver()]);
+        await catalogue.SaveDraftAsync(Tenant, Id, "1.0.0", definition, 0, "save");
+        await catalogue.PublishAsync(Tenant, Id, "1.0.0", 1, "publish");
+        Assert.Equal(budget, (await catalogue.ResolveAsync(await catalogue.PinHeadAsync(Tenant, Id))).Definition.Solver!.WorkBudget);
+    }
+
+    private sealed class LimitedSolver : IPlanningSolver
+    {
+        private readonly DeterministicExhaustiveProofSolver _inner = new();
+        public SolverBackend Backend => _inner.Backend with { MaximumWorkBudget = 10 };
+        public string SolverId => _inner.SolverId;
+        public SolverGuarantee Guarantee => _inner.Guarantee;
+        public SchedulingProposal Solve(CompiledPlanningProblem problem, int deterministicWorkBudget)
+            => _inner.Solve(problem, deterministicWorkBudget);
+    }
+
+    [Fact(DisplayName = "scheduling-ck-26: a planning problem requires a solver in static admission")]
+    public void Scheduling_ck_26_PlanningRequiresSolver()
+    {
+        var definition = Definition with { ProblemClass = ScheduleProblemClass.Project };
+        var document = new DefinitionDocument(Key, Id + "@1.0.0", "1.0.0", ScheduleDefinitionJson.Serialize(definition));
+        Assert.Contains(new DefinitionRefusal("scheduling.definition.solver_required", "/solver"), ScheduleDefinitionCatalogue.Admission(document, DefinitionAdmissionPhase.Author));
+    }
+
+    [Theory(DisplayName = "scheduling-ck-26: static admission locates malformed solver members")]
+    [InlineData("{}", "/solver/backend_id")]
+    [InlineData("{\"backend_id\":\"id\",\"guarantee\":\"feasible_proof\",\"work_budget\":1}", "/solver/parameters")]
+    [InlineData("{\"backend_id\":\"id\",\"parameters\":{},\"work_budget\":1}", "/solver/guarantee")]
+    [InlineData("{\"backend_id\":\"id\",\"parameters\":{},\"guarantee\":\"feasible_proof\"}", "/solver/work_budget")]
+    public void Scheduling_ck_26_SolverShape(string solver, string pointer)
+    {
+        var json = ScheduleDefinitionJson.Serialize(Definition with { ProblemClass = ScheduleProblemClass.Project });
+        json = json.Insert(json.Length - 1, ",\"solver\":" + solver);
+        var document = new DefinitionDocument(Key, Id + "@1.0.0", "1.0.0", json);
+        Assert.Contains(new DefinitionRefusal("scheduling.definition.solver_invalid", pointer), ScheduleDefinitionCatalogue.Admission(document, DefinitionAdmissionPhase.Author));
+    }
+
+    [Fact(DisplayName = "scheduling-ck-26: dependency injection uses the planner's registered solvers")]
+    public async Task Scheduling_ck_26_HostRegistry()
+    {
+        var services = new ServiceCollection();
+        services.AddSingleton<IVersionedDefinitionStore>(_store);
+        services.AddHarborlineSchedulingPlanner();
+        await using var provider = services.BuildServiceProvider();
+        var catalogue = provider.GetRequiredService<ScheduleDefinitionCatalogue>();
+        var definition = Definition with { ProblemClass = ScheduleProblemClass.Project,
+            Solver = new("prototype.exhaustive-proof.v2", JsonSerializer.SerializeToElement(new { }), SolverGuarantee.FeasibleProof, 10) };
+        await catalogue.SaveDraftAsync(Tenant, Id, "1.0.0", definition, 0, "save");
+        await catalogue.PublishAsync(Tenant, Id, "1.0.0", 1, "publish");
+        Assert.Equal("prototype.exhaustive-proof.v2", (await catalogue.ResolveAsync(await catalogue.PinHeadAsync(Tenant, Id))).Definition.Solver!.BackendId);
+    }
+
+    [Fact(DisplayName = "scheduling-ck-26: a pin keeps its model and solver when the head changes")]
+    public async Task Scheduling_ck_26_PinKeepsModelAndSolver()
+    {
+        var catalogue = new ScheduleDefinitionCatalogue(_store, [new DeterministicExhaustiveProofSolver(), new GreedyFirstFitSolver()]);
+        var first = Definition with { ProblemClass = ScheduleProblemClass.Project,
+            Solver = new("prototype.exhaustive-proof.v2", JsonSerializer.SerializeToElement(new { value = 1 }), SolverGuarantee.FeasibleProof, 10) };
+        await catalogue.SaveDraftAsync(Tenant, Id, "1.0.0", first, 0, "first-save");
+        await catalogue.PublishAsync(Tenant, Id, "1.0.0", 1, "first-publish");
+        var pin = await catalogue.PinHeadAsync(Tenant, Id);
+        var second = first with { ProblemClass = ScheduleProblemClass.JobShop,
+            Solver = new("prototype.greedy-first-fit.v1", JsonSerializer.SerializeToElement(new { value = 2 }), SolverGuarantee.BoundedHeuristic, 20) };
+        await catalogue.SaveDraftAsync(Tenant, Id, "2.0.0", second with { Envelope = second.Envelope! with { Version = "2.0.0" } }, 2, "second-save");
+        await catalogue.PublishAsync(Tenant, Id, "2.0.0", 3, "second-publish");
+        var pinned = (await catalogue.ResolveAsync(pin)).Definition;
+        var head = (await catalogue.ResolveAsync(await catalogue.PinHeadAsync(Tenant, Id))).Definition;
+        Assert.Equal(ScheduleProblemClass.Project, pinned.ProblemClass);
+        Assert.Equal("prototype.exhaustive-proof.v2", pinned.Solver!.BackendId);
+        Assert.Equal(SolverGuarantee.FeasibleProof, pinned.Solver.Guarantee);
+        Assert.Equal(1, pinned.Solver!.Parameters.GetProperty("value").GetInt32());
+        Assert.Equal(10, pinned.Solver.WorkBudget);
+        Assert.Equal(ScheduleProblemClass.JobShop, head.ProblemClass);
+        Assert.Equal("prototype.greedy-first-fit.v1", head.Solver!.BackendId);
+        Assert.Equal(SolverGuarantee.BoundedHeuristic, head.Solver.Guarantee);
+        Assert.Equal(2, head.Solver!.Parameters.GetProperty("value").GetInt32());
+        Assert.Equal(20, head.Solver.WorkBudget);
+    }
+
+
+    [Fact(DisplayName = "scheduling-ck-26: a solver choice survives definition serialization")]
+    public async Task Scheduling_ck_26_SolverChoiceSurvivesSerialization()
+    {
+        var json = ScheduleDefinitionJson.Serialize(Definition);
+        json = json.Insert(json.Length - 1, ",\"solver\":{\"backend_id\":\"prototype.exhaustive-proof.v2\",\"parameters\":{\"limit\":4},\"guarantee\":\"feasible_proof\",\"work_budget\":10}");
+        var definition = ScheduleDefinitionJson.Deserialize(json) with { ProblemClass = ScheduleProblemClass.Project };
+        using var roundTrip = JsonDocument.Parse(ScheduleDefinitionJson.Serialize(definition));
+        var solver = roundTrip.RootElement.GetProperty("solver");
+        Assert.Equal("prototype.exhaustive-proof.v2", solver.GetProperty("backend_id").GetString());
+        Assert.Equal(4, solver.GetProperty("parameters").GetProperty("limit").GetInt32());
+        Assert.Equal("feasible_proof", solver.GetProperty("guarantee").GetString());
+        Assert.Equal(10, solver.GetProperty("work_budget").GetInt32());
+        await Catalogue.SaveDraftAsync(Tenant, Id, "1.0.0", definition, 0, "solver-draft");
+        await Catalogue.PublishAsync(Tenant, Id, "1.0.0", 1, "solver-publish");
+        var pin = await Catalogue.PinHeadAsync(Tenant, Id);
+        await Catalogue.RestoreAsDraftAsync(Tenant, Id, "1.0.0", "2.0.0", 2, "solver-restore");
+        await Catalogue.PublishAsync(Tenant, Id, "2.0.0", 3, "solver-publish-restored");
+        foreach (var version in new[] { pin, await Catalogue.PinHeadAsync(Tenant, Id) })
+        {
+            var resolved = await Catalogue.ResolveAsync(version);
+            using var body = JsonDocument.Parse(ScheduleDefinitionJson.Serialize(resolved.Definition));
+            Assert.Equal("prototype.exhaustive-proof.v2", body.RootElement.GetProperty("solver").GetProperty("backend_id").GetString());
+            Assert.Equal(4, body.RootElement.GetProperty("solver").GetProperty("parameters").GetProperty("limit").GetInt32());
+            Assert.Equal("feasible_proof", body.RootElement.GetProperty("solver").GetProperty("guarantee").GetString());
+            Assert.Equal(10, body.RootElement.GetProperty("solver").GetProperty("work_budget").GetInt32());
+        }
+    }
 
     [Fact(DisplayName = "scheduling-auth-18: an unadmitted module refuses at authoring")]
     public async Task UnadmittedModuleRefusesAtAuthoring()
@@ -32,6 +198,7 @@ public sealed class ScheduleDefinitionCatalogueTests
         var definition = Definition with
         {
             ProblemClass = ScheduleProblemClass.Workforce,
+            Solver = new("unused", JsonSerializer.SerializeToElement(new { }), SolverGuarantee.FeasibleProof, 1),
             Modules = [new("unknown-module")],
         };
         var refusal = await Assert.ThrowsAsync<DefinitionRefusalException>(
@@ -48,6 +215,7 @@ public sealed class ScheduleDefinitionCatalogueTests
         var definition = Definition with
         {
             ProblemClass = ScheduleProblemClass.JobShop,
+            Solver = new("unused", JsonSerializer.SerializeToElement(new { }), SolverGuarantee.FeasibleProof, 1),
             Modules = [new("no_overlap"), new("no_overlap")],
         };
         var refusal = await Assert.ThrowsAsync<DefinitionRefusalException>(
@@ -250,7 +418,7 @@ public sealed class ScheduleDefinitionCatalogueTests
                 return ScheduleDefinitionCatalogue.Admission(document, phase);
             },
         });
-        var catalogue = new ScheduleDefinitionCatalogue(store);
+        var catalogue = new ScheduleDefinitionCatalogue(store, []);
         await catalogue.SaveDraftAsync(Tenant, Id, "1.0.0", Definition, 0, "draft");
         await catalogue.PublishAsync(Tenant, Id, "1.0.0", 1, "publish");
         Assert.Equal([DefinitionAdmissionPhase.Author, DefinitionAdmissionPhase.Publish], phases);
@@ -262,7 +430,7 @@ public sealed class ScheduleDefinitionCatalogueTests
 
     [Fact(DisplayName = "the catalogue requires a store")]
     public void CatalogueRequiresAStore()
-        => Assert.Throws<ArgumentNullException>(() => new ScheduleDefinitionCatalogue(null!));
+        => Assert.Throws<ArgumentNullException>(() => new ScheduleDefinitionCatalogue(null!, []));
 
     [Fact(DisplayName = "resolution requires a pin")]
     public async Task ResolutionRequiresAPin()
