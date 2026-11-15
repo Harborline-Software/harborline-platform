@@ -31,13 +31,14 @@ public sealed class InMemoryViewRowSource : IViewRowSource
     {
         ArgumentNullException.ThrowIfNull(plan);
         cancellationToken.ThrowIfCancellationRequested();
+        ViewsExpressionEnvironment.Require(plan.Environment);
 
         IEnumerable<ViewRow> query = _rows;
         foreach (var predicate in plan.Predicates)
         {
             query = predicate.Filter is ViewAccessPredicate access
                 ? await access.FilterAsync(query, cancellationToken).ConfigureAwait(false)
-                : query.Where(row => Matches(row, predicate.Filter, plan.FieldKinds));
+                : query.Where(row => Matches(row, predicate.Filter, plan.FieldKinds, plan.Environment));
         }
 
         IOrderedEnumerable<ViewRow>? ordered = null;
@@ -70,25 +71,27 @@ public sealed class InMemoryViewRowSource : IViewRowSource
     private bool Matches(
         ViewRow row,
         ViewFilter filter,
-        IReadOnlyDictionary<string, ViewRecordFieldKind> fieldKinds) => filter switch
+        IReadOnlyDictionary<string, ViewRecordFieldKind> fieldKinds,
+        Harborline.Foundation.RuleEngine.Environments.EvaluationAdmission? admission) => filter switch
     {
         ViewComparisonFilter comparison => Compare(
             Read(row, comparison.Field),
             comparison.Operator,
             FromJson(comparison.Value),
             FieldKind(fieldKinds, comparison.Field)),
-        ViewAllFilter all => all.Filters.All(item => Matches(row, item, fieldKinds)),
-        ViewAnyOfFilter any => any.Filters.Any(item => Matches(row, item, fieldKinds)),
-        ViewNotFilter not => !Matches(row, not.Filter, fieldKinds),
-        ViewFunctionFilter function => Call(row, function),
-        ViewCollectionFilter collection => Quantify(row, collection, fieldKinds),
+        ViewAllFilter all => all.Filters.All(item => Matches(row, item, fieldKinds, admission)),
+        ViewAnyOfFilter any => any.Filters.Any(item => Matches(row, item, fieldKinds, admission)),
+        ViewNotFilter not => !Matches(row, not.Filter, fieldKinds, admission),
+        ViewFunctionFilter function => Call(row, function, admission),
+        ViewCollectionFilter collection => Quantify(row, collection, fieldKinds, admission),
         _ => throw new ViewQueryException(ViewQueryCodes.FilterKindUnknown, "The view filter kind is not registered."),
     };
 
     private bool Quantify(
         ViewRow row,
         ViewCollectionFilter collection,
-        IReadOnlyDictionary<string, ViewRecordFieldKind> fieldKinds)
+        IReadOnlyDictionary<string, ViewRecordFieldKind> fieldKinds,
+        Harborline.Foundation.RuleEngine.Environments.EvaluationAdmission? admission)
     {
         if (Read(row, collection.Field) is not System.Collections.IEnumerable values
             || values is string)
@@ -96,16 +99,16 @@ public sealed class InMemoryViewRowSource : IViewRowSource
             return false;
         }
         var matches = values.Cast<object?>()
-            .Select(value => Matches(Element(value), collection.Predicate, fieldKinds));
+            .Select(value => Matches(Element(value), collection.Predicate, fieldKinds, admission));
         return collection.Quantifier == ViewCollectionQuantifier.Any
             ? matches.Any(value => value)
             : matches.All(value => value);
     }
 
-    private bool Call(ViewRow row, ViewFunctionFilter function)
+    private bool Call(ViewRow row, ViewFunctionFilter function, Harborline.Foundation.RuleEngine.Environments.EvaluationAdmission? admission)
     {
         var arguments = function.Arguments.Select(argument => Operand(row, argument)).ToArray();
-        return _functions.Evaluate(function.Function, arguments);
+        return _functions.Evaluate(function.Function, arguments, admission);
     }
 
     private static object? Operand(ViewRow row, ViewFilterOperand operand) => operand switch

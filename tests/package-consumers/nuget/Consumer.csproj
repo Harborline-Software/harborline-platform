@@ -16,7 +16,6 @@
     <PackageReference Include="Harborline.Kernel.WorkItems" Version="$(HarborlinePackedVersion)" />
     <PackageReference Include="Harborline.Blocks.InspectionReview" Version="$(HarborlinePackedVersion)" />
     <PackageReference Include="Harborline.Blocks.Aggregates" Version="$(HarborlinePackedVersion)" />
-    <PackageReference Include="Harborline.Blocks.RelativeChains" Version="$(HarborlinePackedVersion)" />
     <PackageReference Include="Harborline.Blocks.Workflow" Version="$(HarborlinePackedVersion)" />
     <PackageReference Include="Harborline.Blocks.Workflow.Interpreter" Version="$(HarborlinePackedVersion)" />
     <PackageReference Include="Harborline.Blocks.EntityViews" Version="$(HarborlinePackedVersion)" />

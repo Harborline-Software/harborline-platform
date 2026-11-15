@@ -99,16 +99,6 @@
     "measured": "2026-09-26",
     "commit": "c09cfcacf303b1944afadf7e891428ecc9d737cb"
   },
-  "projections/dotnet/blocks/hlp.blocks.relative-chains.tests/Harborline.Blocks.RelativeChains.Tests.csproj": {
-    "break": 51,
-    "score": 51.4,
-    "tested": 198,
-    "total": 322,
-    "detected": 110,
-    "undetected": 104,
-    "measured": "2026-09-26",
-    "commit": "c09cfcacf303b1944afadf7e891428ecc9d737cb"
-  },
   "projections/dotnet/blocks/hlp.blocks.reports.tests/Harborline.Blocks.Reports.Tests.csproj": {
     "break": 58,
     "score": 58.22,

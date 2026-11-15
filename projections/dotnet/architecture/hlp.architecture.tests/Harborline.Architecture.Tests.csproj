@@ -44,7 +44,6 @@
     <ProjectReference Include="../../blocks/hlp.blocks.inspection-review/Harborline.Blocks.InspectionReview.csproj" />
     <ProjectReference Include="../../blocks/hlp.blocks.layout-runtime/Harborline.Blocks.LayoutRuntime.csproj" />
     <ProjectReference Include="../../blocks/hlp.blocks.measure-catalogue/Harborline.Blocks.MeasureCatalogue.csproj" />
-    <ProjectReference Include="../../blocks/hlp.blocks.relative-chains/Harborline.Blocks.RelativeChains.csproj" />
     <ProjectReference Include="../../blocks/hlp.blocks.reports/Harborline.Blocks.Reports.csproj" />
     <ProjectReference Include="../../blocks/hlp.blocks.scheduling/Harborline.Blocks.Scheduling.csproj" />
     <ProjectReference Include="../../blocks/hlp.blocks.workflow/Harborline.Blocks.Workflow.csproj" />

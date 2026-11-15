@@ -17,8 +17,6 @@
   <Project Path="projections/dotnet/blocks/hlp.blocks.aggregates.tests/Harborline.Blocks.Aggregates.Tests.csproj" />
   <Project Path="projections/dotnet/blocks/hlp.blocks.measure-catalogue/Harborline.Blocks.MeasureCatalogue.csproj" />
   <Project Path="projections/dotnet/blocks/hlp.blocks.measure-catalogue.tests/Harborline.Blocks.MeasureCatalogue.Tests.csproj" />
-  <Project Path="projections/dotnet/blocks/hlp.blocks.relative-chains/Harborline.Blocks.RelativeChains.csproj" />
-  <Project Path="projections/dotnet/blocks/hlp.blocks.relative-chains.tests/Harborline.Blocks.RelativeChains.Tests.csproj" />
   <Project Path="projections/dotnet/blocks/hlp.blocks.workflow/Harborline.Blocks.Workflow.csproj" />
   <Project Path="projections/dotnet/blocks/hlp.blocks.workflow.tests/Harborline.Blocks.Workflow.Tests.csproj" />
   <Project Path="projections/dotnet/blocks/hlp.blocks.workflow.restart-probe/Harborline.Blocks.Workflow.RestartProbe.csproj" />
@@ -31,6 +29,8 @@
   <Project Path="projections/dotnet/foundation/hlp.foundation.assistance/Harborline.Foundation.Assistance.csproj" />
   <Project Path="projections/dotnet/foundation/hlp.foundation.assistance.tests/Harborline.Foundation.Assistance.Tests.csproj" />
   <Project Path="projections/dotnet/foundation/hlp.foundation.definitions/Harborline.Foundation.Definitions.csproj" />
+  <Project Path="projections/dotnet/foundation/hlp.foundation.taxonomy/Harborline.Foundation.Taxonomy.csproj" />
+  <Project Path="projections/dotnet/foundation/hlp.foundation.taxonomy.tests/Harborline.Foundation.Taxonomy.Tests.csproj" />
   <Project Path="projections/dotnet/foundation/hlp.foundation.documents/Harborline.Foundation.Documents.csproj" />
   <Project Path="projections/dotnet/foundation/hlp.foundation.documents.tests/Harborline.Foundation.Documents.Tests.csproj" />
   <Project Path="projections/dotnet/foundation/hlp.foundation.scheduling/Harborline.Foundation.Scheduling.csproj" />
