@@ -31,6 +31,19 @@ public sealed class RruleDifferentialCorpusTests
         Assert.Equal(Dates(item), actual);
     }
 
+    [Theory(DisplayName = "T-1197 corpus: the budgeted visitor matches every recorded python-dateutil rule")]
+    [MemberData(nameof(DateutilCases))]
+    public void VisitorMatchesDateutil(string id)
+    {
+        var item = Case("dateutil-cases.json", (index, _) => $"dateutil #{index}", id);
+        var start = Day(item.GetProperty("start"));
+        var actual = new List<DateOnly>();
+        Sut.VisitZonedOccurrences(item.GetProperty("rule").GetString()!, start, TimeOnly.MinValue, "UTC",
+            Day(item.GetProperty("end")), start, actual.Add);
+
+        Assert.Equal(Dates(item), actual);
+    }
+
     [Theory(DisplayName = "T-1175 corpus: the producer matches libical v4.0.7's icalrecur_test.txt on each in-subset rule")]
     [MemberData(nameof(LibicalCases))]
     public void MatchesLibical(string id)
@@ -47,6 +60,24 @@ public sealed class RruleDifferentialCorpusTests
             ? Sut.ExpandZonedOccurrences(rule, start, TimeOnly.ParseExact(time.GetString()!, "HH:mm:ss", CultureInfo.InvariantCulture), "UTC",
                 end: end, lookaheadDays: 0, leadDays: 0, today: start)
             : Sut.ExpandOccurrences(rule, start, end, lookaheadDays: 0, leadDays: 0, today: start, timezone: "UTC");
+
+        Assert.Equal(expected, actual);
+    }
+
+    [Theory(DisplayName = "T-1197 corpus: the budgeted visitor matches every recorded in-subset libical rule")]
+    [MemberData(nameof(LibicalCases))]
+    public void VisitorMatchesLibical(string id)
+    {
+        var item = Case("libical-cases.json", (_, value) => $"libical line {value.GetProperty("line").GetInt32()}", id);
+        var rule = item.GetProperty("rule").GetString()!;
+        var start = Day(item.GetProperty("start"));
+        var expected = Dates(item);
+        var bounded = rule.Contains("COUNT=", StringComparison.OrdinalIgnoreCase) || rule.Contains("UNTIL=", StringComparison.OrdinalIgnoreCase);
+        var end = bounded ? expected[^1].AddYears(2) : expected[^1];
+        var at = item.TryGetProperty("startTime", out var time)
+            ? TimeOnly.ParseExact(time.GetString()!, "HH:mm:ss", CultureInfo.InvariantCulture) : TimeOnly.MinValue;
+        var actual = new List<DateOnly>();
+        Sut.VisitZonedOccurrences(rule, start, at, "UTC", end, start, actual.Add);
 
         Assert.Equal(expected, actual);
     }

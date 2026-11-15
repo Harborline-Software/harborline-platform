@@ -207,7 +207,7 @@ public static class AssistanceDefinitionAdmission
     {
         var pointer = $"/commands/{index}";
         var entry = string.IsNullOrWhiteSpace(command.CommandId) ? null : commands.Resolve(command.CommandId);
-        if (entry is null) refusals.Add(new("definition.command_unregistered", pointer + "/command_id"));
+        if (entry is null || !Enum.IsDefined(entry.Tier)) refusals.Add(new("definition.command_unregistered", pointer + "/command_id"));
         else
         {
             if (!entry.Exported) refusals.Add(new("definition.command_not_exported", pointer + "/command_id"));
