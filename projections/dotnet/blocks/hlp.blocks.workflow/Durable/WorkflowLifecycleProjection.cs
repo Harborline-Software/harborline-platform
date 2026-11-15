@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
+using System.Text.RegularExpressions;
 
 namespace Harborline.Blocks.Workflow.Durable;
 
@@ -80,7 +81,8 @@ public static class WorkflowLifecycleProjection
             _ => "completedAt",
         };
         RequireString(data, time);
-        if (!DateTimeOffset.TryParse(data[time]!.GetValue<string>(), System.Globalization.CultureInfo.InvariantCulture,
+        if (!Regex.IsMatch(data[time]!.GetValue<string>(), @"\A[0-9]{4}-[0-9]{2}-[0-9]{2}[Tt][0-9]{2}:[0-9]{2}:[0-9]{2}(?:\.[0-9]+)?(?:[Zz]|[+-][0-9]{2}:[0-9]{2})\z", RegexOptions.CultureInvariant, TimeSpan.FromSeconds(1))
+            || !DateTimeOffset.TryParse(data[time]!.GetValue<string>(), System.Globalization.CultureInfo.InvariantCulture,
             System.Globalization.DateTimeStyles.None, out _))
             throw new WorkflowLifecycleMappingException("Lifecycle history has an invalid timestamp.");
         if (entry.EventType == "WorkflowStarted")
@@ -96,6 +98,10 @@ public static class WorkflowLifecycleProjection
             if (data["error"] is not JsonObject error)
                 throw new WorkflowLifecycleMappingException("Fault history must include its error.");
             RequireString(error, "type");
+            foreach (var field in new[] { "title", "detail", "instance" })
+                if (error.TryGetPropertyValue(field, out var value)
+                    && (value is not JsonValue optional || !optional.TryGetValue<string>(out _)))
+                    throw new WorkflowLifecycleMappingException($"Fault history has an invalid '{field}'.");
             if (error["status"] is not JsonValue status || !status.TryGetValue<int>(out _))
                 throw new WorkflowLifecycleMappingException("Fault history requires an integer status.");
         }

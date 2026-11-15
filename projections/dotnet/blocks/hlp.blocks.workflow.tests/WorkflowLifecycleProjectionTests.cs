@@ -44,6 +44,8 @@ public sealed class WorkflowLifecycleProjectionTests
     [InlineData("WorkflowStarted", "{}")]
     [InlineData("WorkflowStarted", "{\"name\":\"flow-1.example\",\"startedAt\":\"2024-07-26T16:59:57-05:00\",\"definition\":{}}")]
     [InlineData("WorkflowSuspended", "{\"name\":\"flow-1.example\",\"suspendedAt\":\"not-a-time\"}")]
+    [InlineData("WorkflowSuspended", "{\"name\":\"flow-1.example\",\"suspendedAt\":\"07/26/2024\"}")]
+    [InlineData("WorkflowFaulted", "{\"name\":\"flow-1.example\",\"faultedAt\":\"2024-07-26T16:59:57-05:00\",\"error\":{\"type\":\"urn:error\",\"status\":503,\"title\":{\"internal\":\"value\"}}}")]
     [InlineData("WorkflowFaulted", "{\"name\":\"flow-1.example\",\"faultedAt\":\"2024-07-26T16:59:57-05:00\",\"error\":{}}")]
     [InlineData("TaskStarted", "{\"workflow\":\"flow-1.example\",\"startedAt\":\"2024-07-26T16:59:57-05:00\"}")]
     [InlineData("WorkflowTerminated", "{\"name\":\"flow-1.example\",\"cancelledAt\":\"2024-07-26T16:59:57-05:00\"}")]

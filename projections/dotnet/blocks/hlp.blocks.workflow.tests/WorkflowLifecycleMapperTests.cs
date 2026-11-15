@@ -70,8 +70,6 @@ public sealed class WorkflowLifecycleMapperTests
         var fact = Fact();
         var metadata = new WorkflowLifecycleMetadata("store-a", "tenant-a");
         var first = WorkflowLifecycleProjection.Map(fact, metadata);
-        var run = new WorkflowInstanceRecord { Id = "run", TenantId = "tenant-a", DefinitionKey = "flow", DefinitionVersion = "1", CurrentStep = "step", Status = WorkflowStatus.Suspended };
-        run.Status = WorkflowStatus.Running;
         Assert.Equal(JsonSerializer.Serialize(first), JsonSerializer.Serialize(WorkflowLifecycleProjection.Map(fact, metadata)));
         var envelope = Assert.Single(first);
         Assert.Equal("1.0", envelope.SpecVersion);

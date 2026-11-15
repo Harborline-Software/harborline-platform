@@ -3,7 +3,7 @@ using Xunit;
 
 namespace Harborline.Blocks.Workflow.Tests;
 
-public sealed class WorkflowLifecycleHistoryTests
+public sealed class WorkflowLifecycleJournalReadbackTests
 {
     [Fact]
     public async Task Lifecycle_history_is_ordered_and_survives_reopening_the_journal()
