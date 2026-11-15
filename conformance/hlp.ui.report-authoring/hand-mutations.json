@@ -8,7 +8,7 @@
     "projections/blazor/ui/hlp.ui.report-authoring/HarborlineReportAuthoringScreen.razor": "152e5da0b867f2eb4bacbfcc77803acca178025e5a3c6091c09323a1629e2eb6",
     "projections/blazor/ui/hlp.ui.report-authoring/ReportDraft.cs": "5c8070a1e19ddbc1de6a02f9adf2ab2bb04dd13df28039a894520a00cb7222e8",
     "projections/blazor/ui/hlp.ui.report-authoring/ReportDraftCodec.cs": "2efc4254bc143faca02e41e1f97ba9f56196a63450d489d09fecd240faf38c2c",
-    "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringEditor.tsx": "eda61f8f3e9d725937a55ad7a49f1130365bc4e117300a9ce88057a364deb9ce",
+    "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringEditor.tsx": "f4e310aef0356c23a89cb1d502ba5f1f6b15385b8b2858e490bce48328cfdc67",
     "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringScreen.tsx": "297f2cd40d8512c84622b8381c30bffef24729d2d6f7f131f42189f4bc0e8ffe"
   },
   "react": [
@@ -1177,6 +1177,20 @@
       "name": "blazor-kept",
       "productionEdit": "omit current revision update on draft change",
       "test": "KeptParameterEcho",
+      "result": "targeted test failed; source restored byte-identically"
+    }
+  ],
+  "reviewMutationsRefusals": [
+    {
+      "name": "react-held-refusals",
+      "productionEdit": "remove hasHeld from refusal suppression",
+      "test": "reports-auth-15 hides held replacement refusals after keeping until the host reconciles",
+      "result": "targeted test failed; source restored byte-identically"
+    },
+    {
+      "name": "blazor-held-refusals",
+      "productionEdit": "remove held from refusal suppression",
+      "test": "HeldRefusalsHiddenUntilReconciled",
       "result": "targeted test failed; source restored byte-identically"
     }
   ]

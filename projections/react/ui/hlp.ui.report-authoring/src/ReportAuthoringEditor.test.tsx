@@ -401,3 +401,16 @@ it('reports-auth-8 parameter echo of kept draft does not reopen replacement', ()
   view.rerender(<ReportAuthoringEditor {...props} value={emitted} revision="b" />)
   expect(screen.queryByRole('button', { name: 'Keep editing' })).not.toBeInTheDocument()
 })
+
+it('reports-auth-15 hides held replacement refusals after keeping until the host reconciles', () => {
+  const old = { tenant: 't', key: 'old', version: '1', measures: [{ measure: 'finance.old' }] }
+  const props = { onCreate: () => {}, onChange: () => {} }
+  const refusal = [{ code: 'report.measure_unknown', pointer: '/measures/0/measure', measure: 'finance.new', catalogue: 'Main' }]
+  const view = render(<ReportAuthoringEditor {...props} value={old} revision="a" />)
+  fireEvent.change(screen.getByLabelText('Parameter name'), { target: { value: 'pending' } })
+  view.rerender(<ReportAuthoringEditor {...props} value={{ ...old, key: 'new' }} revision="b" refusals={refusal} />)
+  fireEvent.click(screen.getByRole('button', { name: 'Keep editing' }))
+  expect(screen.queryByLabelText('Measure 1 refusal')).not.toBeInTheDocument()
+  view.rerender(<ReportAuthoringEditor {...props} value={old} revision="a" refusals={refusal} />)
+  expect(screen.getByLabelText('Measure 1 refusal')).toHaveTextContent('report.measure_unknown')
+})

@@ -250,6 +250,20 @@ public sealed class ReportAuthoringTests : BunitContext
         Assert.Empty(cut.FindAll("[aria-label='Keep editing']"));
     }
 
+    [Fact(DisplayName = "reports-auth-15 held replacement refusals stay hidden until reconciliation")]
+    public void HeldRefusalsHiddenUntilReconciled()
+    {
+        var old = new ReportDraft("t", "old", "1", [new("finance.old")], []);
+        var refusals = new[] { new ReportRefusal("report.measure_unknown", "/measures/0/measure", "finance.new", "Main") };
+        var cut = Render<HarborlineReportAuthoringEditor>(p => p.Add(x => x.Value, old).Add(x => x.Revision, "a"));
+        cut.Find("[aria-label='Parameter name']").Change("pending");
+        cut.Render(p => p.Add(x => x.Value, old with { Key = "new" }).Add(x => x.Revision, "b").Add(x => x.Refusals, refusals));
+        cut.Find("[aria-label='Keep editing']").Click();
+        Assert.Empty(cut.FindAll("[aria-label='Measure 1 refusal']"));
+        cut.Render(p => p.Add(x => x.Value, old).Add(x => x.Revision, "a"));
+        Assert.Single(cut.FindAll("[aria-label='Measure 1 refusal']"));
+    }
+
     [Fact(DisplayName = "readOnly prevents report changes")]
     public void ReadOnly()
     {
