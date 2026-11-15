@@ -210,7 +210,7 @@ public static class AssistanceDefinitionAdmission
             if (fields is null && phase == AssistanceAdmissionPhase.Author) continue;
             var governance = string.IsNullOrWhiteSpace(entry.Definition) || string.IsNullOrWhiteSpace(entry.Field) ? null : fields?.Resolve(entry.Definition, entry.Field);
             if (governance is null) refusals.Add(new("definition.context_field_unknown", $"/context_allowlist/{index}"));
-            else if (entry.Redaction == AssistanceContextRedaction.Value && (governance.PersonalData || governance.Confidential || governance.Masked))
+            else if (entry.Redaction is not (AssistanceContextRedaction.Presence or AssistanceContextRedaction.Bucket) && (governance.PersonalData || governance.Confidential || governance.Masked))
                 refusals.Add(new("definition.context_field_value_forbidden", $"/context_allowlist/{index}/redaction"));
         }
         for (var index = 0; index < definition.Recipients.Count; index++) if (string.IsNullOrWhiteSpace(definition.Recipients[index])) refusals.Add(new("definition.recipient_required", $"/recipients/{index}"));

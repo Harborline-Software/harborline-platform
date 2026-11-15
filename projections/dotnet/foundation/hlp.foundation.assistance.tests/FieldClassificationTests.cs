@@ -47,6 +47,19 @@ public sealed class FieldClassificationTests
         }
     }
 
+    [Fact(DisplayName = "pilot-auth-10: a governed field admits only presence or bucket, so an undefined redaction (an integer in the JSON body) refuses as a value")]
+    public void Undefined_redaction_on_a_governed_field_refuses()
+    {
+        var definition = Definition(Entry("email", (AssistanceContextRedaction)7));
+        var body = Encoding.UTF8.GetString(AssistanceDefinitionJson.SerializeCanonical(Definition(Entry("email", AssistanceContextRedaction.Value)))).Replace("\"redaction\":\"value\"", "\"redaction\":7", StringComparison.Ordinal);
+        foreach (var phase in EveryPhase)
+        {
+            Assert.Equal([("definition.context_field_value_forbidden", "/context_allowlist/0/redaction")], Refusals(definition, phase, new FixtureFieldGovernance()));
+            Assert.Equal([("definition.context_field_value_forbidden", "/context_allowlist/0/redaction")],
+                AssistanceDefinitionAdmission.AdmitJson(body, phase, ContractWindow, fields: new FixtureFieldGovernance()).Select(refusal => (refusal.Code, refusal.Pointer)));
+        }
+    }
+
     [Fact(DisplayName = "pilot-auth-10: a value entry on an ungoverned field admits at author, publish and install")]
     public void Value_entry_on_an_ungoverned_field_admits()
     {
