@@ -91,6 +91,38 @@ public sealed class EffectReceiptTests
         Assert.Equal("smtp.lookup", ambiguous.Reconciliation!.CapabilityReconciliation);
     }
 
+    [Fact(DisplayName = "execution-runtime-ck-7: an ambiguous effect refuses a second receipt and retains reconciliation")]
+    public async Task Ambiguous_effect_refuses_second_receipt()
+    {
+        var ledger = new EffectReceiptLedger(new InMemoryEffectReceiptStore());
+        var ambiguous = Receipt() with
+        {
+            Status = EffectStatus.Ambiguous,
+            Reconciliation = new("smtp.lookup", "pending", new EffectId("effect:resolution")),
+            Attempts = [new(1, Started, Started.AddSeconds(1), "smtp-812", "timeout")],
+        };
+        await ledger.RecordAsync(ambiguous);
+
+        var retry = Receipt() with
+        {
+            Attempts = [new(1, Started, Started.AddSeconds(1), "smtp-812", "timeout"),
+                        new(2, Started.AddSeconds(2), Started.AddSeconds(3), "smtp-813", "202")],
+            CompletedUtc = Started.AddSeconds(3),
+        };
+        var refused = await Assert.ThrowsAsync<ExecutionRuntimeRefusedException>(() => ledger.RecordAsync(retry).AsTask());
+        Assert.Equal("execution.effect_receipt_duplicate", refused.Code);
+
+        var stored = Assert.IsType<EffectReceipt>(await ledger.GetAsync(Tenant, Effect));
+        Assert.Equal("ambiguous", EffectStatusVocabulary.WireName(stored.Status));
+        var reconciliation = Assert.IsType<EffectReconciliation>(stored.Reconciliation);
+        Assert.Equal("smtp.lookup", reconciliation.CapabilityReconciliation);
+        Assert.Equal("pending", reconciliation.Outcome);
+        Assert.Equal("effect:resolution", reconciliation.ResolvesToReceiptId.Value);
+
+        var other = await ledger.RecordAsync(Receipt() with { EffectId = new("effect:other") });
+        Assert.Equal("effect:other", other.EffectId.Value);
+    }
+
     [Fact(DisplayName = "execution-runtime-ck-5: a compensated receipt requires its separate compensation effect id")]
     public async Task Compensated_receipt_requires_compensation_effect_id()
     {
