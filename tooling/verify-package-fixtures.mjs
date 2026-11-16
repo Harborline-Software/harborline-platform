@@ -1039,7 +1039,7 @@ function verifyNuget() {
   const formsEngineConsumerProject = readFileSync(resolve(formsEngineConsumer, 'Consumer.csproj'), 'utf8')
   const formsEngineDirectReferences = [...formsEngineConsumerProject.matchAll(/<PackageReference\s+Include="([^"]+)"/g)]
     .map(match => match[1])
-  if (JSON.stringify(formsEngineDirectReferences) !== JSON.stringify(['Harborline.Foundation.Forms.Engine'])) {
+  if (JSON.stringify(formsEngineDirectReferences) !== JSON.stringify(['Harborline.Foundation.Forms.Engine', 'Harborline.Foundation.FieldRuntime'])) {
     throw new Error(`Forms Engine consumer must reference only Harborline.Foundation.Forms.Engine: ${JSON.stringify(formsEngineDirectReferences)}`)
   }
   const formsEngineConsumerOutputText = runNugetConsumer(formsEngineConsumer, formsEnginePackageCache).output
@@ -1059,6 +1059,7 @@ function verifyNuget() {
     .filter(key => /^Harborline\./.test(key))
     .sort()
   const formsEngineExpectedIds = [
+    'Harborline.Foundation.FieldRuntime',
     'Harborline.Foundation.Definitions',
     'Harborline.Foundation.Forms.Engine',
     'Harborline.Foundation.MultiTenancy',
