@@ -49,43 +49,51 @@ test('this repository: the overlay scenarios merged after the recorded gate are 
 // The visual-parity and reflow rows read the same recorded gallery-gate, so they are bound to its
 // tested tree the same way (platform #497, Terra "gallery rows claim a run that was not recorded").
 // A parity or reflow scenario merged after the gate was recorded was never compared or measured.
+// contextFor derives uncomparedParity and unmeasuredReflow (null when the tree is unreadable).
 const parity = model.verdictOf('assertVisualParity')
 const reflow = model.verdictOf('assertResponsiveQuality')
 const withCase = (ids, suffix) => ({scenarios: ids.map(id => ({id, sourceQualityCaseIds: [`m.${id}${suffix}`]}))})
 
-test('visual parity: every parity scenario in the recorded tree is PASS', () => {
-  const [status, note] = parity({gallery: true, catalog: withCase(['a'], '.quality.visual-parity'), recordedScenarios: new Set(['a'])})
+test('visual parity: no parity scenario outside the recorded tree is PASS', () => {
+  const [status, note] = parity({gallery: true, catalog: withCase(['a'], '.quality.visual-parity'), uncomparedParity: []})
   assert.equal(status, 'PASS')
   assert.equal(note, '1 visual-parity scenario(s), lane vs lane, pixelmatch')
 })
 
 test('visual parity: a parity scenario added after the recorded gate is PARTIAL and named', () => {
-  const [status, note] = parity({gallery: true, catalog: withCase(['a', 'b'], '.quality.visual-parity'), recordedScenarios: new Set(['a'])})
+  const [status, note] = parity({gallery: true, catalog: withCase(['a', 'b'], '.quality.visual-parity'), uncomparedParity: ['b']})
   assert.equal(status, 'PARTIAL')
   assert.equal(note, '1 visual-parity scenario(s) compared in the recorded gallery-gate; 1 added since it was recorded are uncompared until it is re-recorded: b')
 })
 
 test('visual parity: an unreadable recorded tree is PARTIAL', () => {
-  assert.equal(parity({gallery: true, catalog: withCase(['a'], '.quality.visual-parity'), recordedScenarios: null})[0], 'PARTIAL')
+  assert.equal(parity({gallery: true, catalog: withCase(['a'], '.quality.visual-parity'), uncomparedParity: null})[0], 'PARTIAL')
 })
 
-test('reflow: a drawn reflow scenario in the recorded tree is PASS', () => {
-  const [status] = reflow({gallery: true, rendersReflow: true, declaresReflow: true, catalog: withCase(['a'], '.quality.reflow'), recordedScenarios: new Set(['a'])})
-  assert.equal(status, 'PASS')
+test('reflow: a drawn reflow scenario with none outside the recorded tree is PASS', () => {
+  assert.equal(reflow({gallery: true, rendersReflow: true, declaresReflow: true, unmeasuredReflow: []})[0], 'PASS')
 })
 
 test('reflow: a reflow scenario added after the recorded gate is PARTIAL and named', () => {
-  const [status, note] = reflow({gallery: true, rendersReflow: true, declaresReflow: true, catalog: withCase(['a'], '.quality.reflow'), recordedScenarios: new Set()})
+  const [status, note] = reflow({gallery: true, rendersReflow: true, declaresReflow: true, unmeasuredReflow: ['a']})
   assert.equal(status, 'PARTIAL')
   assert.equal(note, 'reflow is unmeasured for 1 scenario(s) added since the recorded gallery-gate, until it is re-recorded: a')
 })
 
 test('reflow: an unreadable recorded tree is PARTIAL', () => {
-  assert.equal(reflow({gallery: true, rendersReflow: true, declaresReflow: true, catalog: withCase(['a'], '.quality.reflow'), recordedScenarios: null})[0], 'PARTIAL')
+  assert.equal(reflow({gallery: true, rendersReflow: true, declaresReflow: true, unmeasuredReflow: null})[0], 'PARTIAL')
 })
 
-test('this repository: the schedule editor scenarios are newer than the recorded gate, so parity and reflow are PARTIAL', () => {
+test('this repository: the schedule editor scenarios are newer than the recorded gate, so parity and reflow are PARTIAL and named', () => {
   const ctx = model.contextFor('hlp.ui.scheduling-authoring')
+  assert.deepEqual(ctx.uncomparedParity, ['scheduling-authoring.chain', 'scheduling-authoring.solver', 'scheduling-authoring.refusals'])
+  assert.deepEqual(ctx.unmeasuredReflow, ['scheduling-authoring.chain'])
   assert.equal(parity(ctx)[0], 'PARTIAL')
   assert.equal(reflow(ctx)[0], 'PARTIAL')
+})
+
+test('this repository: a module whose scenarios all predate the recorded gate has none outside it', () => {
+  const ctx = model.contextFor('hlp.ui.toaster')
+  assert.deepEqual(ctx.uncomparedParity, [])
+  assert.deepEqual(ctx.unmeasuredReflow, [])
 })

@@ -156,10 +156,6 @@ export function createGateModel(platformRoot, designReviewOptions = {}) {
 
   // Every Tier-1 gate from ticket 098's model, with the evidence that would settle it.
 
-  const unmeasuredReflow = ctx => (ctx.catalog?.scenarios ?? [])
-    .filter(s => s.sourceQualityCaseIds?.some(id => id.endsWith('.quality.reflow')) && !ctx.recordedScenarios.has(s.id))
-    .map(s => s.id)
-
   const GATES = [
     {
       id: 'assertDeterminism',
@@ -205,17 +201,17 @@ export function createGateModel(platformRoot, designReviewOptions = {}) {
       id: 'assertVisualParity',
       verdict: ctx => {
         if (!ctx.gallery) return ['UNBUILT', 'no recorded gallery-gate evidence']
-        const parity = (ctx.catalog?.scenarios ?? []).filter(s =>
-          s.sourceQualityCaseIds?.some(id => id.endsWith('.quality.visual-parity'))).map(s => s.id)
-        if (parity.length === 0) return ['PARTIAL', 'module declares NO visual-parity scenario; the gate cannot fire for it']
+        const parity = ctx.catalog?.scenarios.filter(s =>
+          s.sourceQualityCaseIds?.some(id => id.endsWith('.quality.visual-parity'))).length ?? 0
+        if (parity === 0) return ['PARTIAL', 'module declares NO visual-parity scenario; the gate cannot fire for it']
         // Like assertAccessible: only scenarios in the recorded gate's tested tree were compared.
-        if (!ctx.recordedScenarios) {
+        if (!ctx.uncomparedParity) {
           return ['PARTIAL', "the recorded gallery-gate's tested tree is not readable here, so no compared scenario can be counted"]
         }
-        const uncompared = parity.filter(id => !ctx.recordedScenarios.has(id))
+        const uncompared = ctx.uncomparedParity
         return uncompared.length === 0
-          ? ['PASS', `${parity.length} visual-parity scenario(s), lane vs lane, pixelmatch`]
-          : ['PARTIAL', `${parity.length - uncompared.length} visual-parity scenario(s) compared in the recorded gallery-gate; `
+          ? ['PASS', `${parity} visual-parity scenario(s), lane vs lane, pixelmatch`]
+          : ['PARTIAL', `${parity - uncompared.length} visual-parity scenario(s) compared in the recorded gallery-gate; `
             + `${uncompared.length} added since it was recorded are uncompared until it is re-recorded: ${uncompared.join(', ')}`]
       },
     },
@@ -293,12 +289,12 @@ export function createGateModel(platformRoot, designReviewOptions = {}) {
         // text with no horizontal overflow, measured on the rendered page. Declared-but-undrawn earns
         // nothing, the same rule the empty/error, content and state gates take.
         // A reflow scenario outside the recorded gate's tested tree was never measured, however it draws now.
-        ? (ctx.rendersReflow && !ctx.recordedScenarios
-            ? ['PARTIAL', "the recorded gallery-gate's tested tree is not readable here, so no measured reflow can be counted"]
-          : ctx.rendersReflow && unmeasuredReflow(ctx).length > 0
-            ? ['PARTIAL', `reflow is unmeasured for ${unmeasuredReflow(ctx).length} scenario(s) added since the recorded gallery-gate, until it is re-recorded: ${unmeasuredReflow(ctx).join(', ')}`]
-          : ctx.rendersReflow
-            ? ['PASS', 'reflow measured at 320px and 200% text in both lanes, with no horizontal overflow']
+        ? (ctx.rendersReflow
+            ? (!ctx.unmeasuredReflow
+                ? ['PARTIAL', "the recorded gallery-gate's tested tree is not readable here, so no measured reflow can be counted"]
+                : ctx.unmeasuredReflow.length > 0
+                  ? ['PARTIAL', `reflow is unmeasured for ${ctx.unmeasuredReflow.length} scenario(s) added since the recorded gallery-gate, until it is re-recorded: ${ctx.unmeasuredReflow.join(', ')}`]
+                  : ['PASS', 'reflow measured at 320px and 200% text in both lanes, with no horizontal overflow'])
             : ctx.declaresReflow
               ? ['PARTIAL', 'a reflow case is declared but no lane draws the scenario, so nothing measured it']
               : ['PARTIAL', 'no scenario declares a reflow case, so WCAG 1.4.10 reflow is unmeasured for this module'])
@@ -403,6 +399,12 @@ export function createGateModel(platformRoot, designReviewOptions = {}) {
     const scenarios = catalog?.scenarios ?? []
     const surfaces = scenarios.map(s => String(s.surface ?? ''))
     const fixturePath = `conformance/${moduleId}/fixtures.yaml`
+    const recordedScenarios = recordedScenarioIds(moduleId)
+    // The scenarios carrying a quality case that the recorded gallery-gate never ran, because they are
+    // outside its tested tree; null when that tree is unreadable, as recordedScenarios is.
+    const outsideRecorded = suffix => recordedScenarios && scenarios
+      .filter(s => s.sourceQualityCaseIds?.some(id => id.endsWith(suffix)) && !recordedScenarios.has(s.id))
+      .map(s => s.id)
     return {
       moduleId,
       catalog,
@@ -410,7 +412,9 @@ export function createGateModel(platformRoot, designReviewOptions = {}) {
       qualityProfile: profileFor(moduleId),
       conformanceCases: existsSync(resolve(platformRoot, fixturePath)) ? read(fixturePath).cases.length : 0,
       gallery: Boolean(gate?.results?.find(r => r.id === 'gallery-gate')?.passed),
-      recordedScenarios: recordedScenarioIds(moduleId),
+      recordedScenarios,
+      uncomparedParity: outsideRecorded('.quality.visual-parity'),
+      unmeasuredReflow: outsideRecorded('.quality.reflow'),
       determinism: scannerRows('scan-scenario-determinism.mjs', moduleId),
       focus: (scannerRows('scan-focus-quality.mjs', moduleId) ?? [])[0] ?? null,
       tokens: tokenSummary(moduleId),
