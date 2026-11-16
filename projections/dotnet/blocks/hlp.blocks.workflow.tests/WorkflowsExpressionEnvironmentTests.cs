@@ -14,15 +14,38 @@ namespace Harborline.Blocks.Workflow.Tests;
 /// through Rules' shared borrower type, and admission and guard evaluation require it. The oracle is Rules' released
 /// borrower fixture (<c>conformance/hlp.foundation.rule-runtime/borrower-contracts.json</c>), which this slice does not
 /// change and production does not read: its canonical form, admitted and inapplicable phases, and admitted and refused cases.
+/// Refusal codes are pinned as literal wire codes, never read from Rules' constants (T-724 ruling 121).
 /// </summary>
 public sealed class WorkflowsExpressionEnvironmentTests
 {
     private static readonly JsonNode Fixture = JsonNode.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "borrower-contracts.json")))!["borrowers"]!
         .AsArray().Single(entry => entry!["declaration"]?["borrower"]?.GetValue<string>() == "workflows-ck-29")!;
 
-    private static Harborline.Foundation.RuleEngine.Model.Validity Evaluate(JsonNode expression, JsonObject context, EvaluationPhase phase) =>
+    private const string NotAdmitted = "rule.environment.not_admitted";
+    private const string PhaseNotAdmitted = "rule.environment.phase_not_admitted";
+    private const string DeclarationRefused = "rule.environment.declaration_refused";
+
+    /// <summary>Counts clock reads: the evaluator reads the evaluated-at instant once on entry, before any context value.</summary>
+    private sealed class CountingClock : TimeProvider
+    {
+        public int Reads;
+
+        public override DateTimeOffset GetUtcNow()
+        {
+            Reads++;
+            return base.GetUtcNow();
+        }
+
+        public override long GetTimestamp()
+        {
+            Reads++;
+            return base.GetTimestamp();
+        }
+    }
+
+    private static Harborline.Foundation.RuleEngine.Model.Validity Evaluate(JsonNode expression, JsonObject context, EvaluationPhase phase, TimeProvider? clock = null) =>
         WorkflowsExpressionEnvironment.EvaluateGuard(
-            new GuardEvaluator(TimeProvider.System),
+            new GuardEvaluator(clock ?? TimeProvider.System),
             "fixture",
             expression.ToJsonString(),
             RuleContextSnapshot.Capture(context.ToDictionary(pair => pair.Key, pair => pair.Value?.DeepClone())),
@@ -63,7 +86,7 @@ public sealed class WorkflowsExpressionEnvironmentTests
         foreach (var phase in new[] { EvaluationPhase.AuthoringValidation, EvaluationPhase.PublishValidation, EvaluationPhase.Render, EvaluationPhase.Submission, EvaluationPhase.SignOff })
         {
             Assert.False(WorkflowsExpressionEnvironment.Declaration.Phases[phase]);
-            Assert.Equal(BorrowerEnvironmentAdmission.PhaseNotAdmitted,
+            Assert.Equal(PhaseNotAdmitted,
                 Assert.Throws<BorrowerEnvironmentException>(() => WorkflowsExpressionEnvironment.Admitted.For(phase)).Code);
         }
     }
@@ -71,12 +94,12 @@ public sealed class WorkflowsExpressionEnvironmentTests
     [Fact(DisplayName = "workflows-ck-29: a declaration that widens its effects or leaves a phase unmarked is refused by Rules' admission")]
     public void Workflows_ck_29_widened_or_unmarked_declaration_is_refused()
     {
-        Assert.Equal(BorrowerEnvironmentAdmission.DeclarationRefused, Assert.Throws<BorrowerEnvironmentException>(
+        Assert.Equal(DeclarationRefused, Assert.Throws<BorrowerEnvironmentException>(
             () => BorrowerEnvironmentAdmission.Admit(WorkflowsExpressionEnvironment.Declaration with
             {
                 Effects = [BorrowerEnvironmentAdmission.FieldRead, "network"],
             })).Code);
-        Assert.Equal(BorrowerEnvironmentAdmission.DeclarationRefused, Assert.Throws<BorrowerEnvironmentException>(
+        Assert.Equal(DeclarationRefused, Assert.Throws<BorrowerEnvironmentException>(
             () => BorrowerEnvironmentAdmission.Admit(WorkflowsExpressionEnvironment.Declaration with
             {
                 Phases = new Dictionary<EvaluationPhase, bool> { [EvaluationPhase.Run] = true },
@@ -97,8 +120,18 @@ public sealed class WorkflowsExpressionEnvironmentTests
     public void Workflows_ck_29_guard_evaluation_refuses_an_inapplicable_phase()
     {
         Assert.Equal("Render", Fixture["inapplicablePhase"]!.GetValue<string>());
-        Assert.Equal(BorrowerEnvironmentAdmission.PhaseNotAdmitted, Assert.Throws<BorrowerEnvironmentException>(
-            () => Evaluate(Fixture["admitted"]!["expression"]!, Fixture["admitted"]!["context"]!.AsObject(), EvaluationPhase.Render)).Code);
+        var expression = Fixture["admitted"]!["expression"]!;
+        var context = Fixture["admitted"]!["context"]!.AsObject();
+
+        // Positive control: an admitted Run evaluation reads the clock, so a zero count below means the evaluator was not entered.
+        var run = new CountingClock();
+        Assert.True(Evaluate(expression, context, EvaluationPhase.Run, run).Ok);
+        Assert.True(run.Reads > 0);
+
+        var render = new CountingClock();
+        Assert.Equal(PhaseNotAdmitted, Assert.Throws<BorrowerEnvironmentException>(
+            () => Evaluate(expression, context, EvaluationPhase.Render, render)).Code);
+        Assert.Equal(0, render.Reads);
     }
 
     [Fact(DisplayName = "workflows-ck-29: admission requires the admitted Workflows environment and refuses missing or foreign evidence")]
@@ -110,9 +143,38 @@ public sealed class WorkflowsExpressionEnvironmentTests
         var foreign = BorrowerEnvironmentAdmission.Admit(WorkflowsExpressionEnvironment.Declaration with { Borrower = "scheduling-ck-23" });
         foreach (var evidence in new[] { null, foreign })
         {
-            Assert.Equal(BorrowerEnvironmentAdmission.NotAdmitted, Assert.Throws<BorrowerEnvironmentException>(
+            Assert.Equal(NotAdmitted, Assert.Throws<BorrowerEnvironmentException>(
                 () => ValidatorWith(evidence).Validate(Approval())).Code);
-            Assert.Equal(BorrowerEnvironmentAdmission.NotAdmitted, Assert.Throws<BorrowerEnvironmentException>(
+            Assert.Equal(NotAdmitted, Assert.Throws<BorrowerEnvironmentException>(
+                () => ValidatorWith(evidence).EnsureAdmissible(Approval())).Code);
+        }
+    }
+
+    [Fact(DisplayName = "workflows-ck-29: admission refuses evidence that keeps the workflows-ck-29 borrower id but admits a different declaration")]
+    public void Workflows_ck_29_admission_refuses_same_borrower_evidence_with_changed_contents()
+    {
+        var renderEnabled = WorkflowsExpressionEnvironment.Declaration.Phases.ToDictionary();
+        renderEnabled[EvaluationPhase.Render] = true;
+        var altered = new[]
+        {
+            BorrowerEnvironmentAdmission.Admit(WorkflowsExpressionEnvironment.Declaration with { Phases = renderEnabled }),
+            BorrowerEnvironmentAdmission.Admit(WorkflowsExpressionEnvironment.Declaration with
+            {
+                Operations = [.. WorkflowsExpressionEnvironment.Declaration.Operations.Where(op => op != "date.today")],
+            }),
+            BorrowerEnvironmentAdmission.Admit(WorkflowsExpressionEnvironment.Declaration with
+            {
+                Variables = WorkflowsExpressionEnvironment.Declaration.Variables.Where(v => v.Key != "timer").ToDictionary(),
+            }),
+        };
+
+        foreach (var evidence in altered)
+        {
+            Assert.Equal("workflows-ck-29", evidence.Declaration.Borrower);
+            Assert.NotEqual(Fixture["canonical"]!.GetValue<string>(), evidence.CanonicalJson);
+            Assert.Equal(NotAdmitted, Assert.Throws<BorrowerEnvironmentException>(
+                () => ValidatorWith(evidence).Validate(Approval())).Code);
+            Assert.Equal(NotAdmitted, Assert.Throws<BorrowerEnvironmentException>(
                 () => ValidatorWith(evidence).EnsureAdmissible(Approval())).Code);
         }
     }
