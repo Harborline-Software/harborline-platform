@@ -103,7 +103,7 @@ public sealed class ScheduleDefinitionCatalogue
     /// <summary>The immutable version id of one semantic version of a definition.</summary>
     public static string VersionIdFor(string definitionId, string version) => definitionId + "@" + version;
 
-    /// <summary>Appends a draft of <paramref name="version"/>. A stale fence counts as a stale commit refusal.</summary>
+    /// <summary>Appends a draft of <paramref name="version"/>. A stale fence counts as a stale commit refusal; an author-phase refusal counts by its code.</summary>
     public async ValueTask<ScheduleDefinitionRevision> SaveDraftAsync(string tenant, string definitionId, string version,
         ScheduleDefinition definition, long expectedRevision, string requestId, CancellationToken cancellationToken = default)
     {
@@ -112,19 +112,19 @@ public sealed class ScheduleDefinitionCatalogue
         var stored = definition.Envelope is { } envelope && envelope.Version == version
             ? definition with { Envelope = envelope with { Version = null } }
             : definition;
-        string body;
         try
         {
-            body = ScheduleDefinitionJson.Serialize(stored);
-        }
-        catch (Exception exception) when (exception is JsonException or InvalidOperationException)
-        {
-            throw new DefinitionRefusalException(DefinitionAdmissionPhase.Author,
-                [new DefinitionRefusal(ScheduleDefinitionCodes.BodyInvalid, "")]);
-        }
-        var document = new DefinitionDocument(Key(tenant, definitionId), VersionIdFor(definitionId, version), version, body);
-        try
-        {
+            string body;
+            try
+            {
+                body = ScheduleDefinitionJson.Serialize(stored);
+            }
+            catch (Exception exception) when (exception is JsonException or InvalidOperationException)
+            {
+                throw new DefinitionRefusalException(DefinitionAdmissionPhase.Author,
+                    [new DefinitionRefusal(ScheduleDefinitionCodes.BodyInvalid, "")]);
+            }
+            var document = new DefinitionDocument(Key(tenant, definitionId), VersionIdFor(definitionId, version), version, body);
             if (stored.Solver is not null && Validate(document, DefinitionAdmissionPhase.Author).Count == 0)
             {
                 var history = await _store.ListHistoryAsync(document.Key, cancellationToken).ConfigureAwait(false);
@@ -136,6 +136,12 @@ public sealed class ScheduleDefinitionCatalogue
         catch (DefinitionRefusalException refusal) when (refusal.Refusals.Any(item => item.Code == "definition.revision_conflict"))
         {
             SchedulingTelemetry.RecordStaleCommitRefusal();
+            throw;
+        }
+        // L1271: the author-time half of the admission ladder, counted by code. Codes only; never a body value.
+        catch (DefinitionRefusalException refusal) when (refusal.Stage == DefinitionAdmissionPhase.Author)
+        {
+            foreach (var item in refusal.Refusals) SchedulingTelemetry.RecordAuthorRefusal(definitionId, item.Code);
             throw;
         }
     }

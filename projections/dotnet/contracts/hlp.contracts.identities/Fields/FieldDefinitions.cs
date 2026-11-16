@@ -58,6 +58,8 @@ public enum FieldScalarValueShape
     Integer,
     /// <summary>A JSON number, including non-integral values.</summary>
     Number,
+    /// <summary>An immutable content-store reference (DES-0054 ck-3).</summary>
+    ContentReference,
 }
 
 /// <summary>A typed capability an admitted field-kind revision declares to the primitives that bind it.</summary>

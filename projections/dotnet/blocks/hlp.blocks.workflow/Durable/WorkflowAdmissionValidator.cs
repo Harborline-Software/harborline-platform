@@ -3,6 +3,7 @@ using System.Text.Json;
 using Harborline.Contracts.Authorization;
 using Harborline.Contracts.Workflow;
 using Harborline.Foundation.Definitions;
+using Harborline.Foundation.RuleEngine.Environments;
 
 namespace Harborline.Blocks.Workflow.Durable;
 
@@ -156,6 +157,7 @@ public sealed class WorkflowAdmissionValidator : IWorkflowAdmissionValidator
     private readonly IWorkflowEffectCatalog? _effectCatalog;
     private readonly RoleVocabulary? _roleVocabulary;
     private readonly DefinitionContractWindow? _contractWindow;
+    private readonly AdmittedEnvironment? _environment;
 
     /// <summary>Constructs the validator over the CANONICAL capability→authority registry (ADR 0143).</summary>
     public WorkflowAdmissionValidator()
@@ -197,11 +199,27 @@ public sealed class WorkflowAdmissionValidator : IWorkflowAdmissionValidator
         IWorkflowEffectCatalog? effectCatalog,
         RoleVocabulary? roleVocabulary,
         DefinitionContractWindow? contractWindow)
+        : this(registry, effectCatalog, roleVocabulary, contractWindow, WorkflowsExpressionEnvironment.Admitted)
+    {
+    }
+
+    /// <summary>
+    /// Constructs the full gate over explicit expression-environment evidence (DES-0019 workflows-ck-29). Admission
+    /// refuses with <c>rule.environment.not_admitted</c> unless <paramref name="environment"/> is the admitted
+    /// <see cref="WorkflowsExpressionEnvironment"/>; the public overloads always present it.
+    /// </summary>
+    internal WorkflowAdmissionValidator(
+        ICapabilityAuthorityRegistry registry,
+        IWorkflowEffectCatalog? effectCatalog,
+        RoleVocabulary? roleVocabulary,
+        DefinitionContractWindow? contractWindow,
+        AdmittedEnvironment? environment)
     {
         _registry = registry ?? throw new ArgumentNullException(nameof(registry));
         _effectCatalog = effectCatalog;
         _roleVocabulary = roleVocabulary;
         _contractWindow = contractWindow;
+        _environment = environment;
     }
 
     /// <inheritdoc />
@@ -216,6 +234,8 @@ public sealed class WorkflowAdmissionValidator : IWorkflowAdmissionValidator
     public WorkflowAdmissionResult Validate(WorkflowDefinition definition)
     {
         ArgumentNullException.ThrowIfNull(definition);
+        // workflows-ck-29: admission requires evidence of the declared expression environment.
+        WorkflowsExpressionEnvironment.Require(_environment);
         var v = new List<WorkflowAdmissionViolation>();
 
         // ── Indices + duplicate-id detection ─────────────────────────────────

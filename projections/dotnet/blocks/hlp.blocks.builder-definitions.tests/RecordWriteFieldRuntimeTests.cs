@@ -395,7 +395,7 @@ public sealed class RecordWriteFieldRuntimeTests
     [Theory]
     [Trait("Holds", "records-eng-5")]
     [MemberData(nameof(UnresolvedCases))]
-    public async Task records_eng_5_a_calculation_that_does_not_resolve_refuses_at_mutate_before_anything_is_staged(bool accepted, bool composed)
+    public async Task records_eng_5_a_calculation_that_does_not_resolve_refuses_at_mutate_and_rolls_back(bool accepted, bool composed)
     {
         // Composed with a closure whose line-total is another expression (a digest mismatch), or with none at all.
         var other = new NamedCalculation("line-total", "1.0.0", """{"+":[{"var":"price"},{"var":"qty"}]}""");
@@ -407,7 +407,7 @@ public sealed class RecordWriteFieldRuntimeTests
         Assert.Null(outcome.Receipt);
         Assert.Equal(("mutate", "records.mutate.calculation_unresolved"), (outcome.Refusal!.Stage, outcome.Refusal.Code));
         Assert.Equal(["/total"], outcome.Refusal.Pointers);
-        Assert.Empty(fixture.Port.Events);
+        Assert.Equal(["begin", "rollback", "dispose"], fixture.Port.Events);
         Assert.Empty(fixture.Port.Rows);
     }
 
@@ -415,7 +415,7 @@ public sealed class RecordWriteFieldRuntimeTests
     [Trait("Holds", "records-eng-5")]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task records_eng_5_a_body_over_the_rule_context_envelope_refuses_at_mutate_before_anything_is_staged(bool accepted)
+    public async Task records_eng_5_a_body_over_the_rule_context_envelope_refuses_at_mutate_and_rolls_back(bool accepted)
     {
         // A string of 256 KiB + 1 that the calculation never reads still exceeds the rule context's UTF-8 envelope.
         var fixture = await Fixture.CreateAsync(accepted: accepted, derived: LineTotal, calculations: new([], [LineTotal]));
@@ -427,7 +427,7 @@ public sealed class RecordWriteFieldRuntimeTests
         Assert.Null(outcome.Receipt);
         Assert.Equal(("mutate", "records.mutate.calculation_failed"), (outcome.Refusal!.Stage, outcome.Refusal.Code));
         Assert.Equal(["/total"], outcome.Refusal.Pointers);
-        Assert.Empty(fixture.Port.Events);
+        Assert.Equal(["begin", "rollback", "dispose"], fixture.Port.Events);
         Assert.Empty(fixture.Port.Rows);
     }
 
