@@ -1,3 +1,6 @@
+using System.Text.Json;
+using System.Text.Json.Nodes;
+
 using Harborline.Contracts.Rules;
 using Harborline.Foundation.RuleEngine;
 using Harborline.Foundation.RuleEngine.Context;
@@ -16,7 +19,10 @@ namespace Harborline.Blocks.Workflow;
 public static class WorkflowsExpressionEnvironment
 {
     /// <summary>The declaration as Workflows states it.</summary>
-    public static BorrowerEnvironmentDeclaration Declaration { get; } = new(
+    public static BorrowerEnvironmentDeclaration Declaration => Admitted.Declaration;
+
+    /// <summary>The admitted environment workflow admission and every guard evaluation present.</summary>
+    public static AdmittedEnvironment Admitted { get; } = BorrowerEnvironmentAdmission.Admit(new(
         Borrower: "workflows-ck-29",
         Grammar: BorrowerEnvironmentAdmission.Grammar,
         Variables: new Dictionary<string, string>
@@ -46,10 +52,7 @@ public static class WorkflowsExpressionEnvironment
             [EvaluationPhase.Run] = true,
             [EvaluationPhase.SignOff] = false,
         },
-        Replay: "deterministic");
-
-    /// <summary>The admitted environment workflow admission and every guard evaluation present.</summary>
-    public static AdmittedEnvironment Admitted { get; } = BorrowerEnvironmentAdmission.Admit(Declaration);
+        Replay: "deterministic"));
 
     private static readonly string Canonical = BorrowerEnvironmentAdmission.CanonicalJson(Declaration);
 
@@ -72,13 +75,16 @@ public static class WorkflowsExpressionEnvironment
     {
         ArgumentNullException.ThrowIfNull(evaluator);
         var admission = Admitted.For(phase);
+        string verdict;
+        try { verdict = new JsonObject { ["==="] = new JsonArray(JsonNode.Parse(expression), JsonValue.Create(true)) }.ToJsonString(); }
+        catch (JsonException) { verdict = expression; }
         var rule = new RuleDefinition
         {
             Id = $"workflow.guard.{guardId}",
             Tier = RuleTier.JsonLogic,
             Scope = RuleScope.Schema,
             ScopeTarget = guardId,
-            Expression = expression,
+            Expression = verdict,
             Action = RuleActionKind.Validate,
         };
         return evaluator.EvaluateGuard(rule, context, RuleEvalScope.Root, admission, cancellationToken);

@@ -35,8 +35,7 @@
     {"id": "cp-on-autonomous-edge", "expected": "workflow.admission.cp_reachable_without_human_task"},
     {"id": "declared-ap-registry-cp", "expected": "workflow.admission.classification_mismatch"},
     {"id": "unknown-capability-refused", "expected": "workflow.admission.unknown_capability"},
-    {"id": "cp-on-human-approve-transition", "expected": "admitted"},
-    {"id": "expression-environment-missing-or-foreign", "expected": "rule.environment.not_admitted", "test": "WorkflowsExpressionEnvironmentTests.Workflows_ck_29_admission_requires_the_admitted_environment"}
+    {"id": "cp-on-human-approve-transition", "expected": "admitted"}
   ],
   "definitionStore": {
     "registerAdmitsFailClosed": true,

@@ -116,6 +116,27 @@ public sealed class WorkflowsExpressionEnvironmentTests
         Assert.Equal(Fixture["refused"]!["code"]!.GetValue<string>(), refused.Error?.Code);
     }
 
+    [Theory(DisplayName = "workflows-ck-29: only a JSON true verdict passes")]
+    [InlineData("\"false\"")]
+    [InlineData("[false]")]
+    [InlineData("{\"+\":[1,1]}")]
+    [InlineData("{\"==\":[1,2],\"note\":\"x\"}")]
+    [InlineData("{\"table.sum\":[\"a\"],\"agg\":[\"sum\",\"s\",\"c\"]}")]
+    public void Workflows_ck_29_non_boolean_verdict_is_refused(string expression)
+    {
+        Assert.False(Evaluate(JsonNode.Parse(expression)!, new JsonObject(), EvaluationPhase.Run).Ok);
+    }
+
+    [Fact(DisplayName = "workflows-ck-29: declaration dictionaries cannot be mutated")]
+    public void Workflows_ck_29_declaration_dictionaries_are_read_only()
+    {
+        var phases = (IDictionary<EvaluationPhase, bool>)WorkflowsExpressionEnvironment.Declaration.Phases;
+        var variables = (IDictionary<string, string>)WorkflowsExpressionEnvironment.Declaration.Variables;
+        Assert.Throws<NotSupportedException>(() => phases[EvaluationPhase.Render] = true);
+        Assert.Throws<NotSupportedException>(() => variables["candidate"] = "secret");
+        Assert.False(BorrowerEnvironmentAdmission.Admit(WorkflowsExpressionEnvironment.Declaration).Declaration.Phases[EvaluationPhase.Render]);
+    }
+
     [Fact(DisplayName = "workflows-ck-29: guard evaluation in an inapplicable phase is refused before any value is read")]
     public void Workflows_ck_29_guard_evaluation_refuses_an_inapplicable_phase()
     {
