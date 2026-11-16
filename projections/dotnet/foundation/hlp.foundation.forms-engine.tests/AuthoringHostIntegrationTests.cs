@@ -337,6 +337,60 @@ public sealed class AuthoringHostIntegrationTests
         Assert.Null(await store.GetCurrentPublishedAsync(draft.Tenant, draft.Id));
     }
 
+    [Theory]
+    [InlineData("pages", "form.pages.duplicate_page_id", "/overlay/pages")]
+    [InlineData("guard", "form.rules.guard_uncompilable", "/overlay/pages")]
+    [InlineData("layout", "form.layout.unknown_density", "/overlay/sections")]
+    [InlineData("checks", "form.checks.bad_id", "/overlay/asyncChecks")]
+    [InlineData("sensitive", "aspect.sensitive_input_unacknowledged", "/overlay/asyncChecks")]
+    [InlineData("submit-gate", "form.submit_gate.form_invalid", "/submit_gate")]
+    public async Task Validation_refusal_points_at_the_overlay_member_its_code_names(string fault, string code, string pointer)
+    {
+        await using var provider = BuildHost();
+        await using var scope = provider.CreateAsyncScope();
+        var publisher = scope.ServiceProvider.GetRequiredService<IFormDefinitionAuthoringPublisher>();
+        var definition = Definition("pointer-" + fault, "true");
+        var overlay = definition.Overlay;
+        var title = InternationalizedText.FromInvariant("P");
+        if (fault == "sensitive")
+            overlay = WithFieldAspect(definition, new AspectOverlay(new ClassificationAspect(
+                [new Tag(DefaultFormFieldGovernanceResolver.DataClassificationSystem, "pii")]))).Overlay;
+        definition = fault switch
+        {
+            "pages" => definition with { Overlay = overlay with { Pages = [new("p1", title, ["main"]), new("p1", title, ["main"])] } },
+            "guard" => definition with { Overlay = overlay with { Pages = [new("p1", title, ["main"], "{not-json")] } },
+            "layout" => definition with { Overlay = overlay with { Sections =
+                [overlay.Sections[0] with { Layout = new SectionLayout(SectionLayoutKind.Stack, Density: "bogus") }] } },
+            "checks" => definition with { Overlay = overlay with { AsyncChecks = [new AsyncValidationCheck("", "registry", "a", "lookup.failed")] } },
+            "sensitive" => definition with { Overlay = overlay with { AsyncChecks = [new AsyncValidationCheck("lookup", "registry", "a", "lookup.failed")] } },
+            "submit-gate" => definition with { SubmitGate = new Harborline.Contracts.Authorization.SubmitGate() },
+            _ => throw new InvalidOperationException("Unknown fault."),
+        };
+
+        var error = await Assert.ThrowsAsync<DefinitionRefusalException>(() => publisher.RegisterAndPublishAsync(definition).AsTask());
+
+        var refusal = Assert.Single(error.Refusals);
+        Assert.Equal(code, refusal.Code);
+        Assert.Equal(pointer, refusal.Pointer);
+    }
+
+    [Fact]
+    public async Task Page_id_shaped_like_a_pointer_is_not_echoed_as_the_pointer()
+    {
+        await using var provider = BuildHost();
+        await using var scope = provider.CreateAsyncScope();
+        var publisher = scope.ServiceProvider.GetRequiredService<IFormDefinitionAuthoringPublisher>();
+        var definition = Definition("pointer-shaped-page", "true");
+        definition = definition with { Overlay = definition.Overlay with
+            { Pages = [new("/submit_gate", InternationalizedText.FromInvariant("P"), ["main"], "{not-json")] } };
+
+        var error = await Assert.ThrowsAsync<DefinitionRefusalException>(() => publisher.CreateAsync(definition).AsTask());
+
+        var refusal = Assert.Single(error.Refusals);
+        Assert.Equal("form.rules.guard_uncompilable", refusal.Code);
+        Assert.Equal("/overlay/pages", refusal.Pointer);
+    }
+
     [Fact]
     public async Task AuthoringHost_RejectsUnknownClassificationBeforeDefinitionPersistence()
     {

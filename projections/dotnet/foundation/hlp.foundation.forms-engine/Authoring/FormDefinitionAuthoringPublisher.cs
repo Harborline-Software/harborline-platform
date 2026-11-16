@@ -76,11 +76,14 @@ public sealed class FormDefinitionAuthoringPublisher(
     private static DefinitionRefusalException ValidationRefusal(DefinitionAdmissionPhase phase, FormDefinitionValidationException exception)
     {
         var code = exception.Code ?? "form_definition.validation_refused";
-        var pointer = exception.Target?.StartsWith('/') == true ? exception.Target
-            : code.StartsWith("form.pages.", StringComparison.Ordinal) || code == "form.rules.guard_uncompilable" ? "/overlay/pages"
+        // Target holds a pointer only where the submit-gate and record-type checks throw; elsewhere it is an
+        // author-chosen node id, so the code picks the pointer and Target is never echoed for those codes.
+        var pointer = code.StartsWith("form.pages.", StringComparison.Ordinal) || code == "form.rules.guard_uncompilable" ? "/overlay/pages"
             : code.StartsWith("form.rules.", StringComparison.Ordinal) ? "/overlay/rules"
             : code.StartsWith("form.tree.", StringComparison.Ordinal) || code.StartsWith("form.layout.", StringComparison.Ordinal) ? "/overlay/sections"
             : code.StartsWith("form.checks.", StringComparison.Ordinal) || code == "aspect.sensitive_input_unacknowledged" ? "/overlay/asyncChecks"
+            : (code.StartsWith("form.submit_gate.", StringComparison.Ordinal) || code.StartsWith("form.record_type.", StringComparison.Ordinal))
+                && exception.Target?.StartsWith('/') == true ? exception.Target
             : "/overlay";
         return new(phase, [new(code, pointer)]);
     }
