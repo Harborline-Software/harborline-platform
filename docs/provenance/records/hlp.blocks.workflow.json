@@ -90,7 +90,7 @@
     "projections/dotnet/blocks/hlp.blocks.workflow.tests/WorkflowLifecycleProjectionTests.cs": "de6ce145ef37c19836f8370656355960aa6d5426f86906591896d130db30a2b3",
     "projections/dotnet/blocks/hlp.blocks.workflow.tests/WorkflowLifecycleMapperTests.cs": "fb368d14ddd1116268839a0a4061bad247faaa695d23ac794b6756c4b58ac2c8",
     "projections/dotnet/blocks/hlp.blocks.workflow/WorkflowsExpressionEnvironment.cs": "913a6547979603da5a8f932831862ad78a4bf85bf3dd5c46bf2525e8b86f1501",
-    "projections/dotnet/blocks/hlp.blocks.workflow.tests/WorkflowsExpressionEnvironmentTests.cs": "5394f5855fdc6989f38f2b283bb0b4431c0069405f5236a67d73f8466b144178"
+    "projections/dotnet/blocks/hlp.blocks.workflow.tests/WorkflowsExpressionEnvironmentTests.cs": "aa0a02ef25f10e58cbcd6fe80a1059473e6ca172eb257320c8260abb78c770f6"
   },
   "nextGate": "Build the Workflows package-only capability vertical (ticket 074): a Carrier-derived ledger definition driven define-admit-trigger-transition-complete through packaged interfaces with the 13-pair client/server admission-mirror cross-check; do not interpret engine substrate as completion of the workflows capability gate."
 }
