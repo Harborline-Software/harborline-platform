@@ -1486,7 +1486,9 @@ function verifySchedulingCapability() {
       'Harborline.Kernel.Core',
       'Harborline.Blocks.BuilderDefinitions', 'Harborline.Foundation.Definitions', 'Harborline.Foundation.RuleAuthoring',
       // T-493 S7: BuilderDefinitions binds DefinitionKind.Taxonomy through Foundation.Taxonomy.
-      'Harborline.Foundation.Taxonomy'],
+      'Harborline.Foundation.Taxonomy',
+      // T-521: BuilderDefinitions' attachment field kind binds through FieldRuntime, which stages through ContentStore on ExecutionRuntime.
+      'Harborline.Foundation.ContentStore', 'Harborline.Foundation.ExecutionRuntime', 'Harborline.Foundation.FieldRuntime'],
     'Scheduling',
     // T-732: RuleEngine's own Kernel.SchemaValidation dependency (compiling the JsonSchema tier
     // against the kernel's dialect) is now an expected, always-present part of the RuleEngine
@@ -1525,7 +1527,9 @@ function verifyReportsCapability() {
       // reports its stage with the shared DefinitionAdmissionPhase, both from Foundation.Definitions.
       'Harborline.Foundation.Definitions', 'Harborline.Blocks.BuilderDefinitions',
       'Harborline.Foundation.RuleAuthoring', 'Harborline.Foundation.RuleEngine', 'Harborline.Foundation.Taxonomy',
-      'Harborline.Kernel.Core', 'Harborline.Kernel.SchemaValidation'],
+      'Harborline.Kernel.Core', 'Harborline.Kernel.SchemaValidation',
+      // T-521: BuilderDefinitions' attachment field kind binds through FieldRuntime, which stages through ContentStore on ExecutionRuntime.
+      'Harborline.Foundation.ContentStore', 'Harborline.Foundation.ExecutionRuntime', 'Harborline.Foundation.FieldRuntime'],
     'Reports',
     // T-732: see the identical note in verifySchedulingCapability.
     /(?:Financial|Tax(?!onomy\b)|Forms|Workflows|EntityViews|Kernel(?!\.(?:SchemaValidation|Core)\b)|Blazor|React)/i,
