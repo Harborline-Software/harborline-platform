@@ -219,7 +219,7 @@
     private static JsonNode? Txt(string raw) => raw == "" ? null : JsonValue.Create(raw);
     // Numbers are read with the JSON number grammar, invariantly; anything else leaves the draft unchanged.
     private static JsonNode? Decimal(string raw) => Regex.IsMatch(raw.Trim(), @"^-?(0|[1-9]\d*)(\.\d+)?([eE][-+]?\d+)?$") && double.TryParse(raw.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out var number) && double.IsFinite(number) ? JsonValue.Create(number) : null;
-    private static JsonNode? Whole(string raw) => Regex.IsMatch(raw.Trim(), @"^-?(0|[1-9]\d*)$") && long.TryParse(raw.Trim(), NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out var number) && Math.Abs(number) <= 9007199254740991 ? JsonValue.Create(number) : null;
+    private static JsonNode? Whole(string raw) => Regex.IsMatch(raw.Trim(), @"^-?(0|[1-9]\d*)$") && long.TryParse(raw.Trim(), NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out var number) && number >= -9007199254740991 && number <= 9007199254740991 ? JsonValue.Create(number) : null;
 
     private Task Change(SchedulingDraft next) { if (ReadOnly || !Adopted) return Task.CompletedTask; Current = next; _dirty = true; _generation++; return DraftChanged.InvokeAsync(new SchedulingDraftChange(next, _generation)); }
     // Every edit works on a copy, so the host's body is never mutated and unedited members (envelope, grace, escalation) survive.

@@ -39,15 +39,15 @@ export function SchedulingAuthoringEditor(props: SchedulingAuthoringEditorProps)
   const [hasDraft, setHasDraft] = useState(() => hasAcceptableSchedulingRevision(props.value))
   const [value, setValue] = useState(() => hasDraft ? props.value : emptySchedulingDraft()); const [generation, setGeneration] = useState(0); const [incoming, setIncoming] = useState<SchedulingDraft>()
   const dirty = useRef(false); const latest = useRef(value); const counter = useRef(0); const held = useRef(''); const adopted = useRef(hasDraft)
+  // Text a field cannot commit yet (a half-typed number or JSON object) stays in its input until the draft value under it changes, or a replacement draft is adopted.
+  const [typed, setTyped] = useState<Readonly<Record<string, { readonly text: string; readonly under: string }>>>({})
   // A host echo of the same identity, version and revision is not a replacement; a different one replaces a clean draft and waits
   // behind Keep or Discard on a dirty one, so a new identity or revision never silently overwrites local edits.
-  useEffect(() => { if (!hasAcceptableSchedulingRevision(props.value)) return; if (!adopted.current) { adopted.current = true; latest.current = props.value; setValue(props.value); setHasDraft(true); return } const key = lifecycleKey(props.value); if (key === lifecycleKey(latest.current)) { held.current = ''; setIncoming(undefined); return } if (key === held.current) return; if (dirty.current) { held.current = key; setIncoming(props.value) } else { counter.current++; latest.current = props.value; setValue(props.value); setGeneration(counter.current) } }, [props.value])
+  useEffect(() => { if (!hasAcceptableSchedulingRevision(props.value)) return; if (!adopted.current) { adopted.current = true; latest.current = props.value; setValue(props.value); setHasDraft(true); return } const key = lifecycleKey(props.value); if (key === lifecycleKey(latest.current)) { held.current = ''; setIncoming(undefined); return } if (key === held.current) return; if (dirty.current) { held.current = key; setIncoming(props.value) } else { counter.current++; latest.current = props.value; setValue(props.value); setGeneration(counter.current); setTyped({}) } }, [props.value])
   const change = (next: SchedulingDraft) => { if (props.readOnly || !adopted.current) return; dirty.current = true; counter.current++; latest.current = next; setValue(next); setGeneration(counter.current); props.onDraftChange({ draft: next, generation: counter.current }) }
-  const discard = (next: SchedulingDraft) => { if (props.readOnly) return; dirty.current = false; held.current = ''; counter.current++; latest.current = next; setValue(next); setGeneration(counter.current); setIncoming(undefined); props.onDraftChange({ draft: next, generation: counter.current }) }
+  const discard = (next: SchedulingDraft) => { if (props.readOnly) return; dirty.current = false; held.current = ''; counter.current++; latest.current = next; setValue(next); setGeneration(counter.current); setIncoming(undefined); setTyped({}); props.onDraftChange({ draft: next, generation: counter.current }) }
   const keep = () => { if (props.readOnly) return; setIncoming(undefined) }
 
-  // Text a field cannot commit yet (a half-typed number or JSON object) stays in its input until the draft value under it changes.
-  const [typed, setTyped] = useState<Readonly<Record<string, { readonly text: string; readonly under: string }>>>({})
   const remember = (field: string, raw: string, under: unknown) => { if (!props.readOnly && adopted.current) setTyped(previous => ({ ...previous, [field]: { text: raw, under: JSON.stringify(under ?? null) } })) }
   const shown = (field: string, under: unknown, fallback: string) => { const entry = typed[field]; return entry !== undefined && entry.under === JSON.stringify(under ?? null) ? entry.text : fallback }
 

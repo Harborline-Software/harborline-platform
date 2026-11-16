@@ -334,6 +334,18 @@ public sealed class SchedulingAuthoringTests : BunitContext
         Same(JsonNode.Parse("""{"backend_id":"prototype.exhaustive-proof.v2","parameters":{},"work_budget":12}"""), changes[^1].Draft.Body["solver"]);
     }
 
+    [Fact(DisplayName = "scheduling-bound-2: Int64.MinValue typed as a work budget or a minimum gap is refused as out of range, not thrown")]
+    [Trait("Holds", "scheduling-bound-2")]
+    public void WholeNumberBelowTheSafeRangeIsRefused()
+    {
+        var changes = new List<SchedulingDraftChange>();
+        var cut = Editor(Draft("""{"problem_class":"Project","solver":{"backend_id":"prototype.exhaustive-proof.v2","parameters":{},"work_budget":10},"modules":[{"module":"precedence","parameters":{"constraints":[{"id":"print-after-layout","beforeActivityId":"layout","afterActivityId":"print","minimumGapSlots":0}]}}]}"""), changes);
+        Type(cut, "Work budget", "-9223372036854775808");
+        Type(cut, "Precedence 1 minimum gap slots", "-9223372036854775808");
+
+        Assert.Empty(changes);
+    }
+
     [Fact(DisplayName = "scheduling-bound-2: changing the module drops its parameters, other modules are kept, and removing the last constraint removes the parameters")]
     [Trait("Holds", "scheduling-bound-2")]
     public void ModuleEditsKeepOtherModules()

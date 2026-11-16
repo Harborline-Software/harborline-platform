@@ -301,6 +301,26 @@ describe('hlp.ui.scheduling-authoring (T-491/schedule-editor)', () => {
     expect(changes.map(change => change.generation)).toEqual([2, 3])
   })
 
+  it('scheduling-eng-19: adopting a clean replacement clears text a field could not commit, so the field shows the new draft', () => {
+    const value = draft({ problem_class: 'Project', solver: { backend_id: 'prototype.exhaustive-proof.v2', parameters: {} } })
+    const { view, onDraftChange } = editor(value)
+    type('Backend parameters', '{"seed":')
+    view.rerender(<SchedulingAuthoringEditor value={{ ...value, expectedRevision: '4' }} catalogue={catalogue} onDraftChange={onDraftChange} />)
+
+    expect(screen.getByLabelText('Backend parameters')).toHaveValue('{}')
+  })
+
+  it('scheduling-eng-19: discarding edits for a replacement clears text a field could not commit, so the field shows the new draft', () => {
+    const value = draft({ name: 'Inspection', problem_class: 'Project', solver: { backend_id: 'prototype.exhaustive-proof.v2', parameters: {}, work_budget: 5 } })
+    const { view, onDraftChange } = editor(value)
+    type('Name', 'Mine')
+    type('Work budget', 'abc')
+    view.rerender(<SchedulingAuthoringEditor value={{ ...value, expectedRevision: '5' }} catalogue={catalogue} onDraftChange={onDraftChange} />)
+    click('Discard edits')
+
+    expect(screen.getByLabelText('Work budget')).toHaveValue('5')
+  })
+
   it('scheduling-eng-19: a host draft whose revision is not canonical is refused, never repaired', () => {
     editor(draft({ name: 'Inspection' }, { expectedRevision: '03' }))
 
