@@ -68,6 +68,7 @@ public sealed class FormDefinitionAuthoringPublisher : IFormDefinitionAuthoringP
     {
         try
         {
+            Caller(tenant);
             var source = await store.GetAsync(tenant, id, version, cancellationToken).ConfigureAwait(false);
             await ValidateAsync(source with { Status = FormDefinitionStatus.Draft }, cancellationToken).ConfigureAwait(false);
             return await store.RestoreAsDraftAsync(tenant, id, version, cancellationToken).ConfigureAwait(false);
@@ -82,6 +83,7 @@ public sealed class FormDefinitionAuthoringPublisher : IFormDefinitionAuthoringP
     {
         try
         {
+            Caller(tenant);
             var draft = await store.GetAsync(tenant, id, version, cancellationToken).ConfigureAwait(false);
             await ValidateAsync(draft, cancellationToken).ConfigureAwait(false);
             return await store.PublishAsync(tenant, id, version, cancellationToken).ConfigureAwait(false);
@@ -172,18 +174,21 @@ public sealed class FormDefinitionAuthoringPublisher : IFormDefinitionAuthoringP
         // Harborline App's FormDefinitionPublishAdmission call in the authoring endpoint.
         RuleCompileAdmission.ValidateOrThrow(definition);
         policyAdmission.ValidateOrThrow(definition);
-        {
-            if (string.IsNullOrWhiteSpace(actor?.UserId))
-                throw FormFieldBinding.Refuse("field.value_domain_principal_required", "");
-            var tenant = actor.Tenant;
-            if (tenant is null || tenant.Id.IsSystemSentinel || tenant.Status != TenantStatus.Active)
-                throw FormFieldBinding.Refuse("field.value_domain_tenant_required", "");
-            if (tenant.Id != definition.Tenant)
-                throw FormFieldBinding.Refuse("field.value_domain_tenant_mismatch", "");
-            await new FormFieldBinding(fieldBindings, fieldKinds, fieldDomains)
-                .ResolveAsync(new FieldDomainScope(tenant.Id, actor.UserId), definition, cancellationToken).ConfigureAwait(false);
-        }
+        await new FormFieldBinding(fieldBindings, fieldKinds, fieldDomains)
+            .ResolveAsync(Caller(definition.Tenant), definition, cancellationToken).ConfigureAwait(false);
+    }
 
+    // Stored-entry paths call this before the store read, so a refused caller cannot tell a stored entry from a missing one.
+    private FieldDomainScope Caller(TenantId tenant)
+    {
+        if (string.IsNullOrWhiteSpace(actor?.UserId))
+            throw FormFieldBinding.Refuse("field.value_domain_principal_required", "");
+        var current = actor.Tenant;
+        if (current is null || current.Id.IsSystemSentinel || current.Status != TenantStatus.Active)
+            throw FormFieldBinding.Refuse("field.value_domain_tenant_required", "");
+        if (current.Id != tenant)
+            throw FormFieldBinding.Refuse("field.value_domain_tenant_mismatch", "");
+        return new FieldDomainScope(current.Id, actor.UserId);
     }
 
 }

@@ -640,6 +640,31 @@ public sealed class AuthoringHostIntegrationTests
         Assert.Null(await store.GetCurrentPublishedAsync(definition.Tenant, definition.Id));
     }
 
+    [Theory]
+    [InlineData("restore", "author", true)]
+    [InlineData("restore", "author", false)]
+    [InlineData("publish", "publish", true)]
+    [InlineData("publish", "publish", false)]
+    public async Task Foreign_tenant_caller_gets_one_refusal_whether_or_not_the_entry_exists(string operation, string phase, bool exists)
+    {
+        await using var provider = BuildHost();
+        await using var scope = provider.CreateAsyncScope();
+        var publisher = scope.ServiceProvider.GetRequiredService<IFormDefinitionAuthoringPublisher>();
+        var store = provider.GetRequiredService<IFormDefinitionStore>();
+        var foreign = Definition("foreign-entry", "{not-json") with { Tenant = new TenantId("tenant-other") };
+        if (exists) await store.CreateAsync(foreign);
+
+        var error = await Assert.ThrowsAsync<DefinitionRefusalException>(() =>
+            (operation == "restore"
+                ? publisher.RestoreAsDraftAsync(foreign.Tenant, foreign.Id, foreign.Version)
+                : publisher.PublishAsync(foreign.Tenant, foreign.Id, foreign.Version)).AsTask());
+
+        Assert.Equal(phase, error.Stage.ToString().ToLowerInvariant());
+        var refusal = Assert.Single(error.Refusals);
+        Assert.Equal("field.value_domain_tenant_mismatch", refusal.Code);
+        Assert.Equal("", refusal.Pointer);
+    }
+
     [Fact]
     public async Task Plain_store_invalid_operation_propagates_unchanged()
     {
