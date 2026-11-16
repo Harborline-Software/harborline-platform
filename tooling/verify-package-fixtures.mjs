@@ -1420,7 +1420,9 @@ function verifyViewsCapability() {
     // platform seed's window (BuilderDefinitions' PlatformPackageSeed, which brings RuleAuthoring).
     // T-493 S7: BuilderDefinitions binds DefinitionKind.Taxonomy through Foundation.Taxonomy.
     // T-616: BuilderDefinitions' Records write commits through Kernel.Core.
-    ['Harborline.Blocks.EntityViews', 'Harborline.Blocks.MeasureCatalogue', 'Harborline.Blocks.Aggregates', 'Harborline.Blocks.BuilderDefinitions', 'Harborline.Foundation.Taxonomy', 'Harborline.Contracts', 'Harborline.Foundation.Authorization', 'Harborline.Foundation.Definitions', 'Harborline.Foundation.MultiTenancy', 'Harborline.Foundation.RuleAuthoring', 'Harborline.Foundation.RuleEngine', 'Harborline.Kernel.Core', 'Harborline.Kernel.SchemaValidation'],
+    // T-521: BuilderDefinitions' attachment field kind binds through FieldRuntime, which stages
+    // through ContentStore on ExecutionRuntime.
+    ['Harborline.Blocks.Aggregates', 'Harborline.Blocks.BuilderDefinitions', 'Harborline.Blocks.EntityViews', 'Harborline.Blocks.MeasureCatalogue', 'Harborline.Contracts', 'Harborline.Foundation.Authorization', 'Harborline.Foundation.ContentStore', 'Harborline.Foundation.Definitions', 'Harborline.Foundation.ExecutionRuntime', 'Harborline.Foundation.FieldRuntime', 'Harborline.Foundation.MultiTenancy', 'Harborline.Foundation.RuleAuthoring', 'Harborline.Foundation.RuleEngine', 'Harborline.Foundation.Taxonomy', 'Harborline.Kernel.Core', 'Harborline.Kernel.SchemaValidation'],
     'Views engine',
     /Forms.*(?:Builder|Authoring)|(?:Builder|Authoring).*Forms/i,
   )
