@@ -20,7 +20,7 @@ public sealed class SchedulePlannerTests
         {
             [DefinitionKind.Schedules] = ScheduleDefinitionCatalogue.Admission,
         });
-        var catalogue = new ScheduleDefinitionCatalogue(store);
+        var catalogue = new ScheduleDefinitionCatalogue(store, [new DeterministicExhaustiveProofSolver()]);
         var definition = ModuleAdmissionTests.Definition() with
         {
             Envelope = new("job", "1.0.0", "t", LayoutCascadeLayer.DomainPackage,
@@ -65,7 +65,7 @@ public sealed class SchedulePlannerTests
         {
             [DefinitionKind.Schedules] = ScheduleDefinitionCatalogue.Admission,
         });
-        var catalogue = new ScheduleDefinitionCatalogue(store);
+        var catalogue = new ScheduleDefinitionCatalogue(store, [new DeterministicExhaustiveProofSolver()]);
         var definition = ModuleAdmissionTests.Definition() with
         {
             Envelope = new("job", "1.0.0", "t", LayoutCascadeLayer.DomainPackage,
@@ -159,7 +159,7 @@ public sealed class SchedulePlannerTests
         {
             [DefinitionKind.Schedules] = ScheduleDefinitionCatalogue.Admission,
         });
-        var catalogue = new ScheduleDefinitionCatalogue(store);
+        var catalogue = new ScheduleDefinitionCatalogue(store, [new DeterministicExhaustiveProofSolver()]);
         var definition = ModuleAdmissionTests.Definition(new ScheduleConstraintModule("no_overlap")) with
         {
             Envelope = new(id, version, tenant, LayoutCascadeLayer.DomainPackage,

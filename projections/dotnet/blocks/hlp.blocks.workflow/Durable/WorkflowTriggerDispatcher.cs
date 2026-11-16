@@ -95,9 +95,14 @@ public sealed class WorkflowTriggerDispatcher : IWorkflowTriggerDispatcher
             return WorkflowDispatchResult.UnknownInstance;
         }
 
-        if (instance.Status is WorkflowStatus.Completed or WorkflowStatus.Failed)
+        if (instance.Status is WorkflowStatus.Completed or WorkflowStatus.Failed or WorkflowStatus.Cancelled or WorkflowStatus.Terminated)
         {
             return WorkflowDispatchResult.Terminal;
+        }
+
+        if (instance.Status == WorkflowStatus.Suspended)
+        {
+            return WorkflowDispatchResult.Discarded;
         }
 
         if (trigger.Step != instance.CurrentStep && instance.MovedAwaySteps.Contains(trigger.Step))

@@ -1,11 +1,71 @@
 {
   "schemaVersion": 1,
   "authority": [
-    "DES-0022 section 4 scheduling-auth-17,18,21,23,24,25,28 and scheduling-eng-22",
+    "DES-0022 scheduling-ck-26, scheduling-bound-1, scheduling-bound-4 and section 4 scheduling-auth-17,18,21,23,24,25,28 and scheduling-eng-22",
     "DES-0057 recurrence-expansion-ck-1 and cc-1; R-0144 ruling 2",
     "DES-0014 K9; T-724 ruling 57; control PR 1358"
   ],
   "cases": [
+    {
+      "id": "solver-unregistered", "item": "scheduling-ck-26",
+      "definition": {"name":"Inspection","starts":{"kind":"form","target_id":"forms.inspection"},"due_date":"2027-01-01T00:00:00Z","problem_class":"Project","solver":{"backend_id":"missing","parameters":{},"guarantee":"feasible_proof","work_budget":10}},
+      "refusals": [{"code":"scheduling.definition.backend_unsupported","pointer":"/solver/backend_id"}],
+      "missing": "The backend missing is not registered", "required": "A registered solver backend"
+    },
+    {
+      "id": "solver-problem-class", "item": "scheduling-ck-26",
+      "definition": {"name":"Inspection","starts":{"kind":"form","target_id":"forms.inspection"},"due_date":"2027-01-01T00:00:00Z","problem_class":"Workforce","solver":{"backend_id":"prototype.exhaustive-proof.v2","parameters":{},"guarantee":"feasible_proof","work_budget":10}},
+      "refusals": [{"code":"scheduling.definition.problem_class_unsupported","pointer":"/solver"}],
+      "missing": "The backend does not support Workforce", "required": "A backend supporting the authored problem class"
+    },
+    {
+      "id": "solver-guarantee", "item": "scheduling-ck-26",
+      "definition": {"name":"Inspection","starts":{"kind":"form","target_id":"forms.inspection"},"due_date":"2027-01-01T00:00:00Z","problem_class":"Project","solver":{"backend_id":"prototype.exhaustive-proof.v2","parameters":{},"guarantee":"optimal_proof","work_budget":10}},
+      "refusals": [{"code":"scheduling.definition.guarantee_unsupported","pointer":"/solver/guarantee"}],
+      "missing": "The backend does not offer optimal proof", "required": "A guarantee offered by the backend, feasible proof"
+    },
+    {
+      "id": "solver-work-budget", "item": "scheduling-ck-26",
+      "definition": {"name":"Inspection","starts":{"kind":"form","target_id":"forms.inspection"},"due_date":"2027-01-01T00:00:00Z","problem_class":"Project","solver":{"backend_id":"prototype.exhaustive-proof.v2","parameters":{},"guarantee":"feasible_proof","work_budget":-1}},
+      "refusals": [{"code":"scheduling.definition.work_budget_unsupported","pointer":"/solver/work_budget"}],
+      "missing": "Work budget -1 is outside the backend range", "required": "A work budget from 0 through 2147483647"
+    },
+    {
+      "id": "solver-required", "item": "scheduling-ck-26",
+      "definition": {"name":"Inspection","starts":{"kind":"form","target_id":"forms.inspection"},"due_date":"2027-01-01T00:00:00Z","problem_class":"Project"},
+      "refusals": [{"code":"scheduling.definition.solver_required","pointer":"/solver"}],
+      "missing": "The planning problem has no solver", "required": "An authored solver binding"
+    },
+    {
+      "id": "solver-invalid", "item": "scheduling-ck-26",
+      "definition": {"name":"Inspection","starts":{"kind":"form","target_id":"forms.inspection"},"due_date":"2027-01-01T00:00:00Z","problem_class":"Project","solver":{"backend_id":" ","parameters":{},"guarantee":"feasible_proof","work_budget":10}},
+      "refusals": [{"code":"scheduling.definition.solver_invalid","pointer":"/solver/backend_id"}],
+      "missing": "A nonblank backend id", "required": "A named backend"
+    },
+    {
+      "id": "solver-invalid-parameters", "item": "scheduling-ck-26",
+      "definition": {"name":"Inspection","starts":{"kind":"form","target_id":"forms.inspection"},"due_date":"2027-01-01T00:00:00Z","problem_class":"Project","solver":{"backend_id":"example","guarantee":"feasible_proof","work_budget":10}},
+      "refusals": [{"code":"scheduling.definition.solver_invalid","pointer":"/solver/parameters"}],
+      "missing": "Solver parameters", "required": "A parameters object"
+    },
+    {
+      "id": "solver-invalid-object", "item": "scheduling-ck-26",
+      "definition": {"name":"Inspection","starts":{"kind":"form","target_id":"forms.inspection"},"due_date":"2027-01-01T00:00:00Z","problem_class":"Project","solver":"invalid"},
+      "refusals": [{"code":"scheduling.definition.solver_invalid","pointer":"/solver"}],
+      "missing": "A solver binding object", "required": "A solver object with its declared members"
+    },
+    {
+      "id": "solver-invalid-guarantee", "item": "scheduling-ck-26",
+      "definition": {"name":"Inspection","starts":{"kind":"form","target_id":"forms.inspection"},"due_date":"2027-01-01T00:00:00Z","problem_class":"Project","solver":{"backend_id":"example","parameters":{},"work_budget":10}},
+      "refusals": [{"code":"scheduling.definition.solver_invalid","pointer":"/solver/guarantee"}],
+      "missing": "A guarantee", "required": "An authored guarantee"
+    },
+    {
+      "id": "solver-invalid-budget", "item": "scheduling-ck-26",
+      "definition": {"name":"Inspection","starts":{"kind":"form","target_id":"forms.inspection"},"due_date":"2027-01-01T00:00:00Z","problem_class":"Project","solver":{"backend_id":"example","parameters":{},"guarantee":"feasible_proof"}},
+      "refusals": [{"code":"scheduling.definition.solver_invalid","pointer":"/solver/work_budget"}],
+      "missing": "A work budget", "required": "An integer work budget"
+    },
     {
       "id": "unsupported-configuration",
       "item": "scheduling-auth-17",
@@ -40,6 +100,7 @@
         },
         "due_date": "2027-01-01T00:00:00Z",
         "problem_class": "Project",
+        "solver": {"backend_id": "example", "parameters": {}, "guarantee": "feasible_proof", "work_budget": 10},
         "modules": [
           {
             "module": "unknown-module"
@@ -171,6 +232,7 @@
         },
         "due_date": "2027-01-01T00:00:00Z",
         "problem_class": "Project",
+        "solver": {"backend_id": "example", "parameters": {}, "guarantee": "feasible_proof", "work_budget": 10},
         "modules": [
           {
             "module": "precedence",

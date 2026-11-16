@@ -65,8 +65,8 @@ public enum TaxonomyCascadeLayer
 /// <param name="Capability">The required capability identifier.</param><param name="MinimumPlatformVersion">The minimum platform version, when applicable.</param>
 public sealed record TaxonomyDefinitionRequirement(string Capability, string? MinimumPlatformVersion = null);
 /// <summary>Envelope metadata required to bind a definition to its tenant and contract window.</summary>
-/// <param name="Identity">The serialized definition coordinates.</param><param name="Version">The definition version.</param><param name="Tenant">The owning tenant.</param><param name="CascadeLayer">The cascade layer.</param><param name="Provenance">Producer provenance JSON.</param><param name="Requires">Capability requirements.</param><param name="Contract">The contract version, when present.</param>
-public sealed record TaxonomyDefinitionEnvelope(string Identity, string Version, string Tenant, TaxonomyCascadeLayer CascadeLayer, JsonElement Provenance, IReadOnlyList<TaxonomyDefinitionRequirement> Requires, DefinitionContractVersion? Contract);
+/// <param name="Identity">The serialized definition coordinates.</param><param name="Version">The definition version.</param><param name="Tenant">The owning tenant.</param><param name="CascadeLayer">The cascade layer.</param><param name="Provenance">Producer provenance JSON.</param><param name="RetentionClass">The governed retention class.</param><param name="LegalHold">Whether legal hold applies.</param><param name="Requires">Capability requirements.</param><param name="Contract">The contract version, when present.</param>
+public sealed record TaxonomyDefinitionEnvelope(string Identity, string Version, string Tenant, TaxonomyCascadeLayer CascadeLayer, JsonElement Provenance, string RetentionClass, bool LegalHold, IReadOnlyList<TaxonomyDefinitionRequirement> Requires, DefinitionContractVersion? Contract);
 /// <summary>Records the source and actor that derived a definition version.</summary>
 /// <param name="Source">The source definition or process.</param><param name="AncestorVersion">The ancestor version.</param><param name="DerivingActor">The actor that produced the derivation.</param><param name="Time">The derivation timestamp.</param><param name="Reason">The reason for derivation.</param>
 public sealed record TaxonomyLineage(string Source, string AncestorVersion, string DerivingActor, DateTimeOffset Time, string Reason);
@@ -213,6 +213,7 @@ public static class TaxonomyDefinitionAdmission
         if (definition.SchemaVersion != 1) refusals.Add(new("definition.schema_version_unsupported", "/schema_version"));
         if (definition.Envelope is null) { if (phase != TaxonomyAdmissionPhase.Author) refusals.Add(new("definition.envelope_required", "/envelope")); }
         else if (definition.Envelope.Identity != definition.DefinitionId.ToString() || definition.Envelope.Version != definition.Version || definition.Envelope.Tenant != definition.Tenant) refusals.Add(new("definition.envelope_mismatch", "/envelope"));
+        if (definition.Envelope is not null && string.IsNullOrWhiteSpace(definition.Envelope.RetentionClass)) refusals.Add(new("definition.envelope_invalid", "/envelope/retention_class"));
         // T-572 (rulings 85-88, Q6): the contract travels with the envelope, inside the host's window.
         var contract = definition.Envelope is null ? null : window.Check(definition.Envelope.Contract, null);
         if (contract is not null) refusals.Add(new(contract.Code, contract.Pointer));
