@@ -90,7 +90,7 @@
                         @Input($"Precedence {n} id", Str(row?["id"]) ?? "", raw => SetConstraint(current, target => target["id"] = raw))
                         @Input($"Precedence {n} before activity", Str(row?["beforeActivityId"]) ?? "", raw => SetConstraint(current, target => target["beforeActivityId"] = raw))
                         @Input($"Precedence {n} after activity", Str(row?["afterActivityId"]) ?? "", raw => SetConstraint(current, target => target["afterActivityId"] = raw))
-                        @Input($"Precedence {n} minimum gap slots", NumberText(row?["minimumGapSlots"]), raw => Whole(raw) is { } gap ? SetConstraint(current, target => target["minimumGapSlots"] = gap) : Task.CompletedTask, "numeric")
+                        @Input($"Precedence {n} minimum gap slots", NumberText(row?["minimumGapSlots"]), raw => raw.Trim() == "" ? SetConstraint(current, target => target.Remove("minimumGapSlots")) : Whole(raw) is { } gap ? SetConstraint(current, target => target["minimumGapSlots"] = gap) : Task.CompletedTask, "numeric")
                         <HarborlineButton ButtonType="ButtonType.Button" Variant="ButtonVariant.Secondary" Size="ButtonSize.Small" Enabled="!ReadOnly" OnClick="() => EditConstraints(list => list.RemoveAt(current))">@($"Remove precedence constraint {n}")</HarborlineButton>
                     </div>
                 }

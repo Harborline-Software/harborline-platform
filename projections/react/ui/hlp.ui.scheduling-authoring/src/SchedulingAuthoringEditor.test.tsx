@@ -258,6 +258,14 @@ describe('hlp.ui.scheduling-authoring (T-491/schedule-editor)', () => {
     expect(last().draft.body.modules).toEqual([{ module: 'no_overlap' }])
   })
 
+  it('scheduling-bound-2: clearing a precedence minimum gap removes the member from the draft', () => {
+    const { last } = editor(draft({ problem_class: 'Project', modules: [{ module: 'precedence', parameters: { constraints: [{ id: 'p', beforeActivityId: 'a', afterActivityId: 'b', minimumGapSlots: 2 }] } }] }))
+    type('Precedence 1 minimum gap slots', '')
+
+    expect(last().draft.body.modules).toEqual([{ module: 'precedence', parameters: { constraints: [{ id: 'p', beforeActivityId: 'a', afterActivityId: 'b' }] } }])
+    expect(screen.getByLabelText('Precedence 1 minimum gap slots')).toHaveValue('')
+  })
+
   it('scheduling-auth-13: the legality rule set is cited by id; one the host does not offer is shown as not offered', () => {
     const { last } = editor(draft({ legality_ref: 'legality.retired' }))
 

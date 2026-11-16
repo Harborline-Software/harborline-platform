@@ -361,6 +361,18 @@ public sealed class SchedulingAuthoringTests : BunitContext
         Same(JsonNode.Parse("""[{"module":"no_overlap"}]"""), changes[^1].Draft.Body["modules"]);
     }
 
+    [Fact(DisplayName = "scheduling-bound-2: clearing a precedence minimum gap removes the member from the draft")]
+    [Trait("Holds", "scheduling-bound-2")]
+    public void ClearedMinimumGapIsRemoved()
+    {
+        var changes = new List<SchedulingDraftChange>();
+        var cut = Editor(Draft("""{"problem_class":"Project","modules":[{"module":"precedence","parameters":{"constraints":[{"id":"p","beforeActivityId":"a","afterActivityId":"b","minimumGapSlots":2}]}}]}"""), changes);
+        Type(cut, "Precedence 1 minimum gap slots", "");
+
+        Assert.NotEmpty(changes);
+        Same(JsonNode.Parse("""[{"module":"precedence","parameters":{"constraints":[{"id":"p","beforeActivityId":"a","afterActivityId":"b"}]}}]"""), changes[^1].Draft.Body["modules"]);
+    }
+
     [Fact(DisplayName = "scheduling-auth-13: the legality rule set is cited by id; one the host does not offer is shown as not offered")]
     [Trait("Holds", "scheduling-auth-13")]
     public void LegalityIsCitedById()

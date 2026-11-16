@@ -140,7 +140,7 @@ export function SchedulingAuthoringEditor(props: SchedulingAuthoringEditorProps)
           {input(`Precedence ${n} id`, text(row.id) ?? '', raw => setConstraint(index, 'id', raw))}
           {input(`Precedence ${n} before activity`, text(row.beforeActivityId) ?? '', raw => setConstraint(index, 'beforeActivityId', raw))}
           {input(`Precedence ${n} after activity`, text(row.afterActivityId) ?? '', raw => setConstraint(index, 'afterActivityId', raw))}
-          {input(gapField, shown(gapField, row.minimumGapSlots, typeof row.minimumGapSlots === 'number' ? String(row.minimumGapSlots) : ''), raw => { const number = whole(raw); if (number !== undefined) setConstraint(index, 'minimumGapSlots', number); remember(gapField, raw, number ?? obj(constraints()[index])?.minimumGapSlots) }, 'numeric')}
+          {input(gapField, shown(gapField, row.minimumGapSlots, typeof row.minimumGapSlots === 'number' ? String(row.minimumGapSlots) : ''), raw => { const number = whole(raw); if (raw.trim() === '') setConstraint(index, 'minimumGapSlots', undefined); else if (number !== undefined) setConstraint(index, 'minimumGapSlots', number); remember(gapField, raw, raw.trim() === '' ? undefined : number ?? obj(constraints()[index])?.minimumGapSlots) }, 'numeric')}
           <Button type="button" intent="secondary" size="sm" onClick={() => setConstraints(constraints().filter((_, position) => position !== index))}>{`Remove precedence constraint ${n}`}</Button>
         </div> })}
       <Button type="button" intent="secondary" size="sm" onClick={() => setConstraints([...constraints(), { id: '', beforeActivityId: '', afterActivityId: '', minimumGapSlots: 0 }])}>Add precedence constraint</Button>
