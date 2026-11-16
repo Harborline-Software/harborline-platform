@@ -5,12 +5,12 @@ else {
 <section aria-label="Report authoring" style="overflow-wrap:anywhere">
   @if (incoming) { <div role="alert">A different revision is available. <button type="button" aria-label="Discard edits and load" disabled="@ReadOnly" @onclick="Discard">Discard edits and load</button><button type="button" aria-label="Keep editing" disabled="@ReadOnly" @onclick="Keep">Keep editing</button></div> }
   <fieldset disabled="@(ReadOnly || incoming)"><legend>Report identity</legend><label>Tenant<input aria-label="Tenant" value="@draft.Tenant" @onchange="e => Change(draft with { Tenant = Text(e) })" /></label><label>Report key<input aria-label="Report key" value="@draft.Key" @onchange="e => Change(draft with { Key = Text(e) })" /></label><label>Version<input aria-label="Version" value="@draft.Version" @onchange="e => Change(draft with { Version = Text(e) })" /></label></fieldset>
-  @for (var i = 0; i < draft.Parameters.Count; i++) { var index = i; var item = draft.Parameters[index]; <div>@item.Name<button type="button" aria-label="@($"Remove parameter {item.Name}")" disabled="@(ReadOnly || incoming)" @onclick="() => RemoveParameter(index)">Remove parameter @item.Name</button>@foreach (var refusal in (incoming || held is not null ? [] : Refusals).Where(r => r.Pointer == $"/parameters/{index}" || r.Pointer.StartsWith($"/parameters/{index}/", StringComparison.Ordinal))) { <span aria-label="@($"Parameter {index + 1} refusal")">@refusal.Code</span> }</div> }
+  @for (var i = 0; i < draft.Parameters.Count; i++) { var index = i; var item = draft.Parameters[index]; <div>@item.Name<button type="button" aria-label="@($"Remove parameter {item.Name}")" disabled="@(ReadOnly || incoming)" @onclick="() => RemoveParameter(index)">Remove parameter @item.Name</button>@foreach (var refusal in Located.Where(r => r.Pointer == $"/parameters/{index}" || r.Pointer.StartsWith($"/parameters/{index}/", StringComparison.Ordinal))) { <span aria-label="@($"Parameter {index + 1} refusal")">@refusal.Code</span> }</div> }
   <label>Parameter name<input aria-label="Parameter name" disabled="@(ReadOnly || incoming)" value="@parameterName" @onchange="e => Edit(() => parameterName = Text(e))" /></label><label>Parameter type<select aria-label="Parameter type" disabled="@(ReadOnly || incoming)" value="@parameterType" @onchange="e => Edit(() => parameterType = Text(e))">@foreach (var type in Types) { <option value="@type">@type</option> }</select></label><label>Parameter default<input aria-label="Parameter default" disabled="@(ReadOnly || incoming)" value="@parameterDefault" @onchange="e => Edit(() => parameterDefault = Text(e))" /></label>
   @if (parameterName == "as_at") { <label>Effective-dated type<input aria-label="Effective-dated type" disabled="@(ReadOnly || incoming)" value="@effectiveType" @onchange="e => Edit(() => effectiveType = Text(e))" /></label> }
   @if (invalidDefault) { <p role="alert">Enter a valid default.</p> }
   <button type="button" aria-label="Add parameter" disabled="@(ReadOnly || incoming)" @onclick="AddParameter">Add parameter</button>
-  @for (var i = 0; i < draft.Measures.Count; i++) { var index = i; var item = draft.Measures[index]; <div>@item.Measure<button type="button" aria-label="@($"Remove measure {item.Measure}")" disabled="@(ReadOnly || incoming)" @onclick="() => RemoveMeasure(index)">Remove measure @item.Measure</button>@foreach (var refusal in (incoming || held is not null ? [] : Refusals).Where(r => r.Pointer == $"/measures/{index}/measure")) { <span aria-label="@($"Measure {index + 1} refusal")">@string.Join(" ", new[] { refusal.Code, refusal.Measure, refusal.Catalogue }.Where(x => !string.IsNullOrEmpty(x)))</span> }</div> }
+  @for (var i = 0; i < draft.Measures.Count; i++) { var index = i; var item = draft.Measures[index]; <div>@item.Measure<button type="button" aria-label="@($"Remove measure {item.Measure}")" disabled="@(ReadOnly || incoming)" @onclick="() => RemoveMeasure(index)">Remove measure @item.Measure</button>@foreach (var refusal in Located.Where(r => r.Pointer == $"/measures/{index}/measure")) { <span aria-label="@($"Measure {index + 1} refusal")">@string.Join(" ", new[] { refusal.Code, refusal.Measure, refusal.Catalogue }.Where(x => !string.IsNullOrEmpty(x)))</span> }</div> }
   <button type="button" aria-label="@(open ? "Close measure picker" : "Choose measure")" @onclick="Toggle">@(open ? "Close measure picker" : "Choose measure")</button>
   @if (open) {
     @if (resolverError) { <p role="alert">Measures could not be loaded. Close and reopen to retry.</p> }
@@ -28,6 +28,8 @@ else {
     [Parameter] public IReadOnlyList<ReportRefusal> Refusals { get; set; } = [];
     private static readonly string[] Types = ["boolean", "date_time", "integer", "float", "string"];
     private ReportDraft? current, held;
+    private IReadOnlyList<ReportRefusal>? staleRefusals;
+    private IReadOnlyList<ReportRefusal> Located => incoming || held is not null || ReferenceEquals(Refusals, staleRefusals) ? [] : Refusals;
     private string? currentRevision, heldRevision;
     private bool incoming, dirty;
     private ReportDraft? Draft => current;
@@ -38,7 +40,7 @@ else {
     private static string Text(ChangeEventArgs e) => e.Value?.ToString() ?? "";
     private static bool Same(ReportDraft a, ReportDraft b) => a.Tenant == b.Tenant && a.Key == b.Key && a.Version == b.Version;
     private void ResetPicker() { generation++; open = false; query = selected = ""; options = []; resolverError = false; }
-    private void Adopt(ReportDraft? value) { current = value; currentRevision = Revision; dirty = false; held = null; heldRevision = null; incoming = false; draftGeneration++; parameterName = parameterDefault = effectiveType = ""; parameterType = "boolean"; invalidDefault = false; ResetPicker(); }
+    private void Adopt(ReportDraft? value) { current = value; staleRefusals = null; currentRevision = Revision; dirty = false; held = null; heldRevision = null; incoming = false; draftGeneration++; parameterName = parameterDefault = effectiveType = ""; parameterType = "boolean"; invalidDefault = false; ResetPicker(); }
     protected override void OnParametersSet() {
         if (Value is null) { Adopt(null); return; }
         if (current is null) { Adopt(Value); return; }
@@ -50,8 +52,8 @@ else {
     private void Keep() => incoming = false;
     private Task Create() => Created.InvokeAsync(ReportDraft.Empty);
     private void Edit(Action update) { dirty = true; draftGeneration++; update(); ResetPicker(); }
-    private void SelectMeasure(string value) { selected = value; dirty = true; }
-    private Task Change(ReportDraft value) { if (ReadOnly || incoming) return Task.CompletedTask; current = value; currentRevision = Revision; dirty = true; draftGeneration++; ResetPicker(); return ValueChanged.InvokeAsync(value); }
+    private void SelectMeasure(string value) { selected = value; if (!ReadOnly) dirty = true; }
+    private Task Change(ReportDraft value) { if (ReadOnly || incoming) return Task.CompletedTask; current = value; staleRefusals = Refusals; currentRevision = Revision; dirty = true; draftGeneration++; ResetPicker(); return ValueChanged.InvokeAsync(value); }
     private Task RemoveParameter(int index) => Draft is not { } draft ? Task.CompletedTask : Change(draft with { Parameters = draft.Parameters.Where((_, i) => i != index).ToArray() });
     private Task RemoveMeasure(int index) => Draft is not { } draft ? Task.CompletedTask : Change(draft with { Measures = draft.Measures.Where((_, i) => i != index).ToArray() });
     private Task AddMeasure() => Draft is not { } draft ? Task.CompletedTask : Change(draft with { Measures = [.. draft.Measures, new(selected)] });

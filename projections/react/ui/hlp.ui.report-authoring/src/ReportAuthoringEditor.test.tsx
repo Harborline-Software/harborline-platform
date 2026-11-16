@@ -414,3 +414,53 @@ it('reports-auth-15 hides held replacement refusals after keeping until the host
   view.rerender(<ReportAuthoringEditor {...props} value={old} revision="a" refusals={refusal} />)
   expect(screen.getByLabelText('Measure 1 refusal')).toHaveTextContent('report.measure_unknown')
 })
+
+it.each(['2026-02-30T00:00:00Z', '2026-02-29T00:00:00Z', '2026-04-31T00:00:00Z', '2100-02-29T00:00:00Z', '2026-01-01T00:00:00+14:01'])('reports-auth-8 refuses the impossible calendar datetime %s', text => {
+  const change = vi.fn()
+  render(<ReportAuthoringEditor value={{ tenant: 't', key: 'r', version: '1', measures: [] }} onCreate={() => {}} onChange={change} />)
+  fireEvent.change(screen.getByLabelText('Parameter type'), { target: { value: 'date_time' } })
+  fireEvent.change(screen.getByLabelText('Parameter default'), { target: { value: text } })
+  fireEvent.click(screen.getByRole('button', { name: 'Add parameter' }))
+  expect(change).not.toHaveBeenCalled()
+  expect(screen.getByRole('alert')).toHaveTextContent('Enter a valid default.')
+})
+
+it.each(['2028-02-29T00:00:00Z', '2000-02-29T00:00:00Z', '2026-12-31T23:59:59+14:00'])('reports-auth-8 accepts the real calendar datetime %s', text => {
+  const change = vi.fn()
+  render(<ReportAuthoringEditor value={{ tenant: 't', key: 'r', version: '1', measures: [] }} onCreate={() => {}} onChange={change} />)
+  fireEvent.change(screen.getByLabelText('Parameter type'), { target: { value: 'date_time' } })
+  fireEvent.change(screen.getByLabelText('Parameter default'), { target: { value: text } })
+  fireEvent.click(screen.getByRole('button', { name: 'Add parameter' }))
+  expect(change.mock.lastCall![0].parameters[0].default).toEqual({ kind: 'datetime', value: text, type: 'date_time', is_valid: true })
+})
+
+it('reports-auth-15 removing a declaration hides the old verdict until fresh refusals arrive', () => {
+  const declared = (name: string) => ({ name, type: 'string' as const, default: { kind: 'string' as const, value: 'x', type: 'string' as const, is_valid: true } })
+  const value: ReportDraft = { tenant: 't', key: 'r', version: '1', measures: [{ measure: 'finance.missing' }, { measure: 'finance.rent' }], parameters: [declared('bad'), declared('good')] }
+  const verdict = [{ code: 'report.parameter_default_type_mismatch', pointer: '/parameters/0' }, { code: 'report.measure_unknown', pointer: '/measures/0/measure', measure: 'finance.missing', catalogue: 'Main' }]
+  const onChange = vi.fn()
+  const view = render(<ReportAuthoringEditor value={value} onCreate={() => {}} onChange={onChange} refusals={verdict} />)
+  expect(screen.getByLabelText('Parameter 1 refusal')).toHaveTextContent('report.parameter_default_type_mismatch')
+  fireEvent.click(screen.getByRole('button', { name: 'Remove parameter bad' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Remove measure finance.missing' }))
+  expect(screen.queryByLabelText('Parameter 1 refusal')).toBeNull()
+  expect(screen.queryByLabelText('Measure 1 refusal')).toBeNull()
+  const echoed = onChange.mock.lastCall![0]
+  view.rerender(<ReportAuthoringEditor value={echoed} onCreate={() => {}} onChange={onChange} refusals={verdict} />)
+  expect(screen.queryByLabelText('Parameter 1 refusal')).toBeNull()
+  expect(screen.queryByLabelText('Measure 1 refusal')).toBeNull()
+  view.rerender(<ReportAuthoringEditor value={echoed} onCreate={() => {}} onChange={onChange} refusals={[{ code: 'report.measure_unknown', pointer: '/measures/0/measure', measure: 'finance.rent', catalogue: 'Main' }]} />)
+  expect(screen.getByLabelText('Measure 1 refusal')).toHaveTextContent('report.measure_unknown finance.rent Main')
+})
+
+it('reports-bound-9 a read-only measure selection does not fence a host replacement', async () => {
+  const props = { onCreate: () => {}, onChange: () => {}, readOnly: true, resolveMeasures: async () => ['finance.rent'] }
+  const view = render(<ReportAuthoringEditor {...props} value={{ tenant: 't', key: 'old', version: '1', measures: [{ measure: 'finance.old' }] }} />)
+  fireEvent.click(screen.getByRole('button', { name: 'Choose measure' }))
+  await screen.findByRole('option', { name: 'finance.rent' })
+  fireEvent.change(screen.getByLabelText('Measures'), { target: { value: 'finance.rent' } })
+  view.rerender(<ReportAuthoringEditor {...props} value={{ tenant: 't', key: 'new', version: '1', measures: [{ measure: 'finance.new' }] }} />)
+  expect(screen.getByText('finance.new')).toBeInTheDocument()
+  expect(screen.queryByText('finance.old')).toBeNull()
+  expect(screen.queryByRole('button', { name: 'Keep editing' })).toBeNull()
+})

@@ -400,4 +400,67 @@ public sealed class ReportAuthoringTests : BunitContext
         cut.Render(p => p.Add(x => x.Revision, "2"));
         Assert.True(cut.Find("[aria-label='Add parameter']").HasAttribute("disabled"));
     }
+
+    [Theory(DisplayName = "reports-auth-8 refuses an impossible calendar datetime")]
+    [InlineData("2026-02-30T00:00:00Z")]
+    [InlineData("2026-02-29T00:00:00Z")]
+    [InlineData("2026-04-31T00:00:00Z")]
+    [InlineData("2100-02-29T00:00:00Z")]
+    [InlineData("2026-01-01T00:00:00+14:01")]
+    public void RejectsImpossibleCalendarDatetime(string text)
+    {
+        ReportDraft? changed = null;
+        var cut = Render<HarborlineReportAuthoringEditor>(p => p.Add(x => x.Value, ReportDraft.Empty).Add(x => x.ValueChanged, value => changed = value));
+        cut.Find("[aria-label='Parameter type']").Change("date_time");
+        cut.Find("[aria-label='Parameter default']").Change(text);
+        cut.Find("[aria-label='Add parameter']").Click();
+        Assert.Null(changed);
+        Assert.Equal("Enter a valid default.", cut.Find("[role='alert']").TextContent);
+    }
+
+    [Theory(DisplayName = "reports-auth-8 accepts a real calendar datetime")]
+    [InlineData("2028-02-29T00:00:00Z")]
+    [InlineData("2000-02-29T00:00:00Z")]
+    [InlineData("2026-12-31T23:59:59+14:00")]
+    public void AcceptsRealCalendarDatetime(string text)
+    {
+        ReportDraft? changed = null;
+        var cut = Render<HarborlineReportAuthoringEditor>(p => p.Add(x => x.Value, ReportDraft.Empty).Add(x => x.ValueChanged, value => changed = value));
+        cut.Find("[aria-label='Parameter type']").Change("date_time");
+        cut.Find("[aria-label='Parameter default']").Change(text);
+        cut.Find("[aria-label='Add parameter']").Click();
+        Assert.Equal(new ReportParameterDefault("datetime", text, "date_time", true), Assert.Single(changed!.Parameters).Default);
+    }
+
+    [Fact(DisplayName = "reports-auth-15 removing a declaration hides the old verdict until fresh refusals arrive")]
+    public void RemovalInvalidatesVerdict()
+    {
+        ReportDraft? changed = null;
+        static ReportParameter Declared(string name) => new(name, "string", new("string", "x", "string", true));
+        var value = new ReportDraft("t", "r", "1", [new("finance.missing"), new("finance.rent")], [Declared("bad"), Declared("good")]);
+        var verdict = new[] { new ReportRefusal("report.parameter_default_type_mismatch", "/parameters/0"), new ReportRefusal("report.measure_unknown", "/measures/0/measure", "finance.missing", "Main") };
+        var cut = Render<HarborlineReportAuthoringEditor>(p => p.Add(x => x.Value, value).Add(x => x.Refusals, verdict).Add(x => x.ValueChanged, result => changed = result));
+        Assert.Contains("report.parameter_default_type_mismatch", cut.Find("[aria-label='Parameter 1 refusal']").TextContent);
+        cut.Find("[aria-label='Remove parameter bad']").Click();
+        cut.Find("[aria-label='Remove measure finance.missing']").Click();
+        Assert.Empty(cut.FindAll("[aria-label='Parameter 1 refusal']"));
+        Assert.Empty(cut.FindAll("[aria-label='Measure 1 refusal']"));
+        cut.Render(p => p.Add(x => x.Value, changed));
+        Assert.Empty(cut.FindAll("[aria-label='Parameter 1 refusal']"));
+        Assert.Empty(cut.FindAll("[aria-label='Measure 1 refusal']"));
+        cut.Render(p => p.Add(x => x.Refusals, new[] { new ReportRefusal("report.measure_unknown", "/measures/0/measure", "finance.rent", "Main") }));
+        Assert.Equal("report.measure_unknown finance.rent Main", cut.Find("[aria-label='Measure 1 refusal']").TextContent);
+    }
+
+    [Fact(DisplayName = "reports-bound-9 a read-only measure selection does not fence a host replacement")]
+    public async Task ReadOnlySelectionDoesNotFence()
+    {
+        var cut = Render<HarborlineReportAuthoringEditor>(p => p.Add(x => x.Value, new ReportDraft("t", "old", "1", [new("finance.old")], [])).Add(x => x.ReadOnly, true).Add(x => x.ResolveMeasures, _ => Task.FromResult<IReadOnlyList<MeasureOption>>([new("finance.rent", "finance.rent")])));
+        await cut.Find("[aria-label='Choose measure']").ClickAsync(new());
+        cut.Find("[aria-label='Measures']").Change("finance.rent");
+        cut.Render(p => p.Add(x => x.Value, new ReportDraft("t", "new", "1", [new("finance.new")], [])));
+        Assert.Contains("finance.new", cut.Markup);
+        Assert.DoesNotContain("finance.old", cut.Markup);
+        Assert.Empty(cut.FindAll("[aria-label='Keep editing']"));
+    }
 }
