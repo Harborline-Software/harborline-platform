@@ -99,8 +99,12 @@ public sealed class FormDefinitionKeystoneTests
         await registry.RegisterAsync(schema);
         await registry.WithdrawAsync(TenantA, schema.Id, schema.Version);
 
-        await Assert.ThrowsAsync<InvalidOperationException>(
+        var refusal = await Assert.ThrowsAsync<FormDefinitionLifecycleException>(
             () => registry.PublishAsync(TenantA, schema.Id, schema.Version).AsTask());
+        Assert.Equal("form.lifecycle.transition_illegal", refusal.Code);
+        Assert.Equal(schema.Id, refusal.SchemaId);
+        Assert.Equal(new SemanticVersion(1, 0, 0), refusal.Version);
+        Assert.IsAssignableFrom<InvalidOperationException>(refusal);
     }
 
     [Fact]

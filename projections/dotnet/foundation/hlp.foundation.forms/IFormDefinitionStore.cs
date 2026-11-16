@@ -105,16 +105,19 @@ public interface IFormDefinitionStore
     /// Withdrawn (forward-only transitions; rollback registers a new
     /// version with the desired state).
     /// </summary>
+    /// <exception cref="FormDefinitionLifecycleException">The revision cannot transition to Published.</exception>
     ValueTask<FormDefinition> PublishAsync(TenantId tenant, FormDefinitionId id, SemanticVersion version, CancellationToken ct = default);
 
     /// <summary>
     /// Transitions a Published revision to <see cref="FormDefinitionStatus.Deprecated"/>.
     /// </summary>
+    /// <exception cref="FormDefinitionLifecycleException">The revision cannot transition to Deprecated.</exception>
     ValueTask<FormDefinition> DeprecateAsync(TenantId tenant, FormDefinitionId id, SemanticVersion version, CancellationToken ct = default);
 
     /// <summary>
     /// Transitions a revision to <see cref="FormDefinitionStatus.Withdrawn"/>.
     /// </summary>
+    /// <exception cref="FormDefinitionLifecycleException">The revision cannot transition to Withdrawn.</exception>
     ValueTask<FormDefinition> WithdrawAsync(TenantId tenant, FormDefinitionId id, SemanticVersion version, CancellationToken ct = default);
 
     /// <summary>
@@ -143,7 +146,7 @@ public interface IFormDefinitionStore
     /// <exception cref="FormDefinitionNotFoundException">No revision of this id at this version exists in the
     /// tenant.</exception>
     /// <exception cref="FormDefinitionValidationException">The restored Draft violates a definition invariant.</exception>
-    /// <exception cref="InvalidOperationException">The revision is System-owned.</exception>
+    /// <exception cref="FormDefinitionLifecycleException">The revision is System-owned.</exception>
     ValueTask<FormDefinition> RestoreAsDraftAsync(
         TenantId tenant, FormDefinitionId id, SemanticVersion version, CancellationToken ct = default)
         => throw new NotSupportedException($"{GetType().Name} does not restore form definition revisions.");

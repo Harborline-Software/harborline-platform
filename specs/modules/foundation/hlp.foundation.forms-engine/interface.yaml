@@ -9,7 +9,7 @@
     {"moduleId": "hlp.contracts.identities", "minimumRevision": 1},
     {"moduleId": "hlp.contracts.fields", "minimumRevision": 1},
     {"moduleId": "hlp.foundation.actor", "minimumRevision": 6},
-    {"moduleId": "hlp.foundation.forms", "minimumRevision": 7},
+    {"moduleId": "hlp.foundation.forms", "minimumRevision": 11},
     {"moduleId": "hlp.foundation.definitions", "minimumRevision": 1},
     {"moduleId": "hlp.foundation.rule-runtime", "minimumRevision": 2},
     {"moduleId": "hlp.foundation.tenancy", "minimumRevision": 1},
@@ -37,7 +37,7 @@
       "RegisterAndPublishAsync(draftDefinition, cancellationToken) -> publishedDefinition",
       "RegisterAndPublishWithImpactAsync(draftDefinition, FormPublicationAssessmentContext(basis, schemas, surfaces), cancellationToken) -> FormDefinitionPublicationResult(publishedDefinition, FormPublicationAssessment) (revision 18; a default interface member, so an existing implementation stays source-compatible and answers the assessment Unavailable)"
     ],
-    "context": "The authoring host routes draft creation, save, restoration and publication through one validate step before the store write. It compiles every Tier-2 rule and page guard, validates classification/lifecycle/access/residency/connector policy, and admits required shared field bindings under the authenticated caller and matching active tenant. Field and Forms validation refusals use the shared definition envelope with author or publish phase; message-only store lifecycle exceptions still require a typed refusal to distinguish them from adapter failures. Register-and-publish retains its atomic store operation. Publication authorization remains host-owned. The revision-18 impact entry runs the same boundary and the same atomic operation and computes its compute-only ADR 0099 decision 7 assessment after admission and before the commit; the assessment never refuses, alters or follows up the publication."
+    "context": "The authoring host routes draft creation, save, restoration and publication through one validate step before the store write. It compiles every Tier-2 rule and page guard, validates classification/lifecycle/access/residency/connector policy, and admits required shared field bindings under the authenticated caller and matching active tenant. Field, Forms validation and typed lifecycle refusals use the shared definition envelope with author or publish phase; unrelated store exceptions propagate. Register-and-publish retains its atomic store operation. Publication authorization remains host-owned. The revision-18 impact entry runs the same boundary and the same atomic operation and computes its compute-only ADR 0099 decision 7 assessment after admission and before the commit; the assessment never refuses, alters or follows up the publication."
   },
   "ownedPorts": {
     "submitGate": "IFormSubmitGateAccess.DecideAsync answers the form's own gate for one FormSubmitIntent (tenant, submitter, form id and version, schema reference, record_type_id target, operation id, decision instant, the evaluated Gate, and the request's CaseReference) with the host decider's own AuthorizationDecisionEvidence. AccessProviderFormSubmitGateAccess decides through AccessProvider.CheckWithEvidenceAsync on the FormSubmitGateAuthority request (provisional act forms:submit-gate on record kind form, id {formId}@{version}). The bool SatisfiesAsync member remains; the default DecideAsync answers from it with no evidence.",

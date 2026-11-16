@@ -496,6 +496,59 @@ public sealed class AuthoringHostIntegrationTests
         Assert.Equal(published, await store.GetCurrentPublishedAsync(definition.Tenant, definition.Id));
     }
 
+    [Theory]
+    [InlineData("restore", "author", "form.lifecycle.system_owned")]
+    [InlineData("publish", "publish", "form.lifecycle.transition_illegal")]
+    public async Task Lifecycle_store_refusals_keep_code_and_phase(string operation, string phase, string code)
+    {
+        await using var provider = BuildHost();
+        await using var scope = provider.CreateAsyncScope();
+        var publisher = scope.ServiceProvider.GetRequiredService<IFormDefinitionAuthoringPublisher>();
+        var store = provider.GetRequiredService<IFormDefinitionStore>();
+        var definition = Definition("lifecycle-refusal", "true");
+        await store.CreateAsync(definition);
+        if (operation == "publish") await store.WithdrawAsync(definition.Tenant, definition.Id, definition.Version);
+        var error = await Assert.ThrowsAsync<DefinitionRefusalException>(() =>
+            (operation == "restore"
+                ? publisher.RestoreAsDraftAsync(definition.Tenant, definition.Id, definition.Version)
+                : publisher.PublishAsync(definition.Tenant, definition.Id, definition.Version)).AsTask());
+        Assert.Equal(phase, error.Stage.ToString().ToLowerInvariant());
+        var refusal = Assert.Single(error.Refusals);
+        Assert.Equal(code, refusal.Code);
+        Assert.Equal("", refusal.Pointer);
+        Assert.Null(await store.GetCurrentPublishedAsync(definition.Tenant, definition.Id));
+    }
+
+    [Fact]
+    public async Task Plain_store_invalid_operation_propagates_unchanged()
+    {
+        var failure = new InvalidOperationException("adapter failure");
+        var services = new ServiceCollection();
+        services.AddSingleton<IFormDefinitionStore>(new FailureStore(failure));
+        AuthoringFieldFixture.Add(services, new("tenant-authoring-host"), "sha256:authoring-host", "a", "b");
+        services.AddHarborlineFormsAuthoringPublisher();
+        await using var provider = services.BuildServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() => scope.ServiceProvider
+            .GetRequiredService<IFormDefinitionAuthoringPublisher>().CreateAsync(Definition("adapter-failure", "true")).AsTask());
+        Assert.Same(failure, error);
+    }
+
+    private sealed class FailureStore(InvalidOperationException failure) : IFormDefinitionStore
+    {
+        public ValueTask<FormDefinition> CreateAsync(FormDefinition definition, CancellationToken ct = default) => throw failure;
+        public ValueTask<FormDefinition> GetAsync(TenantId tenant, FormDefinitionId id, SemanticVersion version, CancellationToken ct = default) => throw new NotSupportedException();
+        public ValueTask<FormDefinition?> GetCurrentPublishedAsync(TenantId tenant, FormDefinitionId id, CancellationToken ct = default) => throw new NotSupportedException();
+        public ValueTask<FormDefinition> RegisterAsync(FormDefinition definition, CancellationToken ct = default) => throw new NotSupportedException();
+        public ValueTask<FormDefinition> RegisterAndPublishAsync(FormDefinition definition, CancellationToken ct = default) => throw new NotSupportedException();
+        public ValueTask<FormDefinition> PublishAsync(TenantId tenant, FormDefinitionId id, SemanticVersion version, CancellationToken ct = default) => throw new NotSupportedException();
+        public ValueTask<FormDefinition> DeprecateAsync(TenantId tenant, FormDefinitionId id, SemanticVersion version, CancellationToken ct = default) => throw new NotSupportedException();
+        public ValueTask<FormDefinition> WithdrawAsync(TenantId tenant, FormDefinitionId id, SemanticVersion version, CancellationToken ct = default) => throw new NotSupportedException();
+        public ValueTask<FormDefinition> RestorePackProjectionAsync(TenantId tenant, FormDefinitionId id, SemanticVersion version, CancellationToken ct = default) => throw new NotSupportedException();
+        public IAsyncEnumerable<FormDefinition> ListByTenantAsync(TenantId tenant, CancellationToken ct = default) => throw new NotSupportedException();
+        public IAsyncEnumerable<FormDefinition> ListCurrentPublishedByTenantAsync(TenantId tenant, CancellationToken ct = default) => throw new NotSupportedException();
+    }
+
     private static ServiceProvider BuildHost()
     {
         var services = new ServiceCollection();

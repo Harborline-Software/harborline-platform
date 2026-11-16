@@ -40,6 +40,7 @@ public sealed class FormDefinitionAuthoringPublisher(
             await ValidateAsync(definition, cancellationToken).ConfigureAwait(false);
             return await write(definition, cancellationToken).ConfigureAwait(false);
         }
+        catch (FormDefinitionLifecycleException exception) { throw new DefinitionRefusalException(DefinitionAdmissionPhase.Author, [new(exception.Code, "")]); }
         catch (FieldAdmissionException exception) { throw FieldRefusal(DefinitionAdmissionPhase.Author, exception); }
         catch (FormDefinitionValidationException exception) { throw ValidationRefusal(DefinitionAdmissionPhase.Author, exception); }
     }
@@ -53,6 +54,7 @@ public sealed class FormDefinitionAuthoringPublisher(
             await ValidateAsync(source with { Status = FormDefinitionStatus.Draft }, cancellationToken).ConfigureAwait(false);
             return await store.RestoreAsDraftAsync(tenant, id, version, cancellationToken).ConfigureAwait(false);
         }
+        catch (FormDefinitionLifecycleException exception) { throw new DefinitionRefusalException(DefinitionAdmissionPhase.Author, [new(exception.Code, "")]); }
         catch (FieldAdmissionException exception) { throw FieldRefusal(DefinitionAdmissionPhase.Author, exception); }
         catch (FormDefinitionValidationException exception) { throw ValidationRefusal(DefinitionAdmissionPhase.Author, exception); }
     }
@@ -66,6 +68,7 @@ public sealed class FormDefinitionAuthoringPublisher(
             await ValidateAsync(draft, cancellationToken).ConfigureAwait(false);
             return await store.PublishAsync(tenant, id, version, cancellationToken).ConfigureAwait(false);
         }
+        catch (FormDefinitionLifecycleException exception) { throw new DefinitionRefusalException(DefinitionAdmissionPhase.Publish, [new(exception.Code, "")]); }
         catch (FieldAdmissionException exception) { throw FieldRefusal(DefinitionAdmissionPhase.Publish, exception); }
         catch (FormDefinitionValidationException exception) { throw ValidationRefusal(DefinitionAdmissionPhase.Publish, exception); }
     }
@@ -104,6 +107,10 @@ public sealed class FormDefinitionAuthoringPublisher(
         FormPublicationAssessmentContext? context, CancellationToken cancellationToken)
     {
         try { return await PublishCoreAsync(definition, context, cancellationToken).ConfigureAwait(false); }
+        catch (FormDefinitionLifecycleException exception)
+        {
+            throw new DefinitionRefusalException(DefinitionAdmissionPhase.Publish, [new(exception.Code, "")]);
+        }
         catch (FieldAdmissionException exception)
         {
             throw FieldRefusal(DefinitionAdmissionPhase.Publish, exception);
