@@ -13,9 +13,9 @@ namespace Harborline.Foundation.Forms.Engine.Authoring;
 public sealed class FormDefinitionAuthoringPublisher(
     IFormDefinitionStore store,
     IFormDefinitionPolicyAdmission policyAdmission,
-    IFormFieldBindingSource? fieldBindings = null,
-    IFieldKindRuntime? fieldKinds = null,
-    IFieldDomainRuntime? fieldDomains = null,
+    IFormFieldBindingSource fieldBindings,
+    IFieldKindRuntime fieldKinds,
+    IFieldDomainRuntime fieldDomains,
     IAuthenticatedActorContext? actor = null)
     : IFormDefinitionAuthoringPublisher
 {
@@ -51,10 +51,7 @@ public sealed class FormDefinitionAuthoringPublisher(
         // Harborline App's FormDefinitionPublishAdmission call in the authoring endpoint.
         RuleCompileAdmission.ValidateOrThrow(definition);
         policyAdmission.ValidateOrThrow(definition);
-        if (fieldBindings is not null || fieldKinds is not null || fieldDomains is not null)
         {
-            if (fieldBindings is null || fieldKinds is null || fieldDomains is null)
-                throw FormFieldBinding.Refuse("field.binding_unresolved", "");
             if (string.IsNullOrWhiteSpace(actor?.UserId))
                 throw FormFieldBinding.Refuse("field.value_domain_principal_required", "");
             var tenant = actor.Tenant;
