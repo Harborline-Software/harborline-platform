@@ -1,4 +1,5 @@
 using System.Text.Json.Nodes;
+using Harborline.Blocks.BuilderDefinitions;
 using Microsoft.Extensions.DependencyInjection;
 using Harborline.Foundation.Assets.Common;
 using Harborline.Foundation.Forms;
@@ -183,7 +184,7 @@ public sealed class AuthoringHostIntegrationTests
         await using var provider = services.BuildServiceProvider();
         await using var scope = provider.CreateAsyncScope();
         var publisher = scope.ServiceProvider.GetRequiredService<IFormDefinitionAuthoringPublisher>();
-        await Assert.ThrowsAsync<FormDefinitionValidationException>(() => publisher.RegisterAndPublishWithImpactAsync(definition,
+        await Assert.ThrowsAsync<DefinitionRefusalException>(() => publisher.RegisterAndPublishWithImpactAsync(definition,
             fixture.Context with { Surfaces = source }).AsTask());
         Assert.False(read);
         var store = provider.GetRequiredService<IFormDefinitionStore>();
@@ -264,10 +265,10 @@ public sealed class AuthoringHostIntegrationTests
         var store = provider.GetRequiredService<IFormDefinitionStore>();
         var definition = Definition("malformed", "{not-json");
 
-        var exception = await Assert.ThrowsAsync<FormDefinitionValidationException>(
+        var exception = await Assert.ThrowsAsync<DefinitionRefusalException>(
             () => publisher.RegisterAndPublishAsync(definition).AsTask());
 
-        Assert.Equal(FormDefinitionCodes.RulesUncompilable, exception.Code);
+        Assert.Equal("form.rules.uncompilable", Assert.Single(exception.Refusals).Code);
         Assert.Null(await store.GetCurrentPublishedAsync(definition.Tenant, definition.Id));
         await Assert.ThrowsAsync<FormDefinitionNotFoundException>(
             () => store.GetAsync(definition.Tenant, definition.Id, definition.Version).AsTask());
@@ -285,10 +286,10 @@ public sealed class AuthoringHostIntegrationTests
             """{"var":"b"}""",
             new RuleDefinition("compute-b", RuleTier.JsonLogic, RuleScope.Field, "b", """{"var":"a"}""", RuleActionKind.Compute));
 
-        var exception = await Assert.ThrowsAsync<FormDefinitionValidationException>(
+        var exception = await Assert.ThrowsAsync<DefinitionRefusalException>(
             () => publisher.RegisterAndPublishAsync(definition).AsTask());
 
-        Assert.Equal(FormDefinitionCodes.RulesUncompilable, exception.Code);
+        Assert.Equal("form.rules.uncompilable", Assert.Single(exception.Refusals).Code);
         await Assert.ThrowsAsync<FormDefinitionNotFoundException>(
             () => store.GetAsync(definition.Tenant, definition.Id, definition.Version).AsTask());
     }
@@ -302,7 +303,7 @@ public sealed class AuthoringHostIntegrationTests
         var store = provider.GetRequiredService<IFormDefinitionStore>();
         var definition = Definition("already-published", "true") with { Status = FormDefinitionStatus.Published };
 
-        await Assert.ThrowsAsync<FormDefinitionValidationException>(
+        await Assert.ThrowsAsync<DefinitionRefusalException>(
             () => publisher.RegisterAndPublishAsync(definition).AsTask());
 
         await Assert.ThrowsAsync<FormDefinitionNotFoundException>(
@@ -321,10 +322,10 @@ public sealed class AuthoringHostIntegrationTests
             new AspectOverlay(new ClassificationAspect(
                 [new Tag(DefaultFormFieldGovernanceResolver.DataClassificationSystem, "piii")])));
 
-        var exception = await Assert.ThrowsAsync<FormDefinitionValidationException>(
+        var exception = await Assert.ThrowsAsync<DefinitionRefusalException>(
             () => publisher.RegisterAndPublishAsync(definition).AsTask());
 
-        Assert.Contains("aspect.policy_unresolved", exception.Message, StringComparison.Ordinal);
+        Assert.Equal("aspect.policy_unresolved", Assert.Single(exception.Refusals).Code);
         await Assert.ThrowsAsync<FormDefinitionNotFoundException>(
             () => store.GetAsync(definition.Tenant, definition.Id, definition.Version).AsTask());
     }
@@ -348,10 +349,10 @@ public sealed class AuthoringHostIntegrationTests
             },
         };
 
-        var exception = await Assert.ThrowsAsync<FormDefinitionValidationException>(
+        var exception = await Assert.ThrowsAsync<DefinitionRefusalException>(
             () => publisher.RegisterAndPublishAsync(definition).AsTask());
 
-        Assert.Contains("aspect.sensitive_input_unacknowledged", exception.Message, StringComparison.Ordinal);
+        Assert.Equal("aspect.sensitive_input_unacknowledged", Assert.Single(exception.Refusals).Code);
         await Assert.ThrowsAsync<FormDefinitionNotFoundException>(
             () => store.GetAsync(definition.Tenant, definition.Id, definition.Version).AsTask());
     }
@@ -378,10 +379,10 @@ public sealed class AuthoringHostIntegrationTests
             },
         };
 
-        var exception = await Assert.ThrowsAsync<FormDefinitionValidationException>(
+        var exception = await Assert.ThrowsAsync<DefinitionRefusalException>(
             () => publisher.RegisterAndPublishAsync(definition).AsTask());
 
-        Assert.Contains("aspect.relax_forbidden", exception.Message, StringComparison.Ordinal);
+        Assert.Equal("aspect.relax_forbidden", Assert.Single(exception.Refusals).Code);
         await Assert.ThrowsAsync<FormDefinitionNotFoundException>(
             () => store.GetAsync(definition.Tenant, definition.Id, definition.Version).AsTask());
     }
@@ -408,12 +409,91 @@ public sealed class AuthoringHostIntegrationTests
             },
         };
 
-        var exception = await Assert.ThrowsAsync<FormDefinitionValidationException>(
+        var exception = await Assert.ThrowsAsync<DefinitionRefusalException>(
             () => publisher.RegisterAndPublishAsync(definition).AsTask());
 
-        Assert.Contains("aspect.residency_unsatisfiable", exception.Message, StringComparison.Ordinal);
+        Assert.Equal("aspect.residency_unsatisfiable", Assert.Single(exception.Refusals).Code);
         await Assert.ThrowsAsync<FormDefinitionNotFoundException>(
             () => store.GetAsync(definition.Tenant, definition.Id, definition.Version).AsTask());
+    }
+
+    [Theory]
+    [InlineData("author", "rule", "form.rules.uncompilable", "/overlay/rules")]
+    [InlineData("publish", "rule", "form.rules.uncompilable", "/overlay/rules")]
+    [InlineData("author", "policy", "aspect.policy_unresolved", "/overlay")]
+    [InlineData("publish", "policy", "aspect.policy_unresolved", "/overlay")]
+    [InlineData("author", "reference", "field.binding_unresolved", "")]
+    [InlineData("publish", "reference", "field.binding_unresolved", "")]
+    public async Task Every_validate_gate_refuses_before_write_with_its_boundary(string phase, string gate, string code, string pointer)
+    {
+        await using var provider = BuildHost();
+        await using var scope = provider.CreateAsyncScope();
+        var publisher = scope.ServiceProvider.GetRequiredService<IFormDefinitionAuthoringPublisher>();
+        var store = provider.GetRequiredService<IFormDefinitionStore>();
+        var definition = Definition("gate-test", gate == "rule" ? "{not-json" : "true");
+        if (gate == "policy") definition = WithFieldAspect(definition,
+            new AspectOverlay(new ClassificationAspect([new Tag(DefaultFormFieldGovernanceResolver.DataClassificationSystem, "piii")])));
+        if (gate == "reference") definition = definition with { SchemaRef = new("sha256:unknown") };
+        var method = typeof(IFormDefinitionAuthoringPublisher).GetMethod(phase == "author" ? "CreateAsync" : "RegisterAndPublishAsync");
+        Assert.NotNull(method);
+        var error = await Assert.ThrowsAsync<DefinitionRefusalException>(async () =>
+            await ((ValueTask<FormDefinition>)method.Invoke(publisher, [definition, CancellationToken.None])!).AsTask());
+        Assert.Equal(phase, error.Stage.ToString().ToLowerInvariant());
+        var refusal = Assert.Single(error.Refusals);
+        Assert.Equal(code, refusal.Code);
+        Assert.Equal(pointer, refusal.Pointer);
+        await Assert.ThrowsAsync<FormDefinitionNotFoundException>(() => store.GetAsync(definition.Tenant, definition.Id, definition.Version).AsTask());
+        Assert.Null(await store.GetCurrentPublishedAsync(definition.Tenant, definition.Id));
+    }
+
+    [Theory]
+    [InlineData("author")]
+    [InlineData("publish")]
+    public async Task Store_invariant_refusal_uses_boundary_phase_without_a_write(string phase)
+    {
+        await using var provider = BuildHost();
+        await using var scope = provider.CreateAsyncScope();
+        var publisher = scope.ServiceProvider.GetRequiredService<IFormDefinitionAuthoringPublisher>();
+        var store = provider.GetRequiredService<IFormDefinitionStore>();
+        var original = Definition("duplicate-section", "true");
+        var definition = original with { Overlay = original.Overlay with { Sections = [original.Overlay.Sections[0], original.Overlay.Sections[0]] } };
+        var method = typeof(IFormDefinitionAuthoringPublisher).GetMethod(phase == "author" ? "CreateAsync" : "RegisterAndPublishAsync");
+        Assert.NotNull(method);
+        var error = await Assert.ThrowsAsync<DefinitionRefusalException>(async () =>
+            await ((ValueTask<FormDefinition>)method.Invoke(publisher, [definition, CancellationToken.None])!).AsTask());
+        Assert.Equal(phase, error.Stage.ToString().ToLowerInvariant());
+        var refusal = Assert.Single(error.Refusals);
+        Assert.Equal("form_definition.validation_refused", refusal.Code);
+        Assert.Equal("/overlay", refusal.Pointer);
+        await Assert.ThrowsAsync<FormDefinitionNotFoundException>(() => store.GetAsync(definition.Tenant, definition.Id, definition.Version).AsTask());
+    }
+
+    [Fact]
+    public async Task Authoring_lifecycle_saves_publishes_and_restores_without_rewriting_history()
+    {
+        await using var provider = BuildHost();
+        await using var scope = provider.CreateAsyncScope();
+        var publisher = scope.ServiceProvider.GetRequiredService<IFormDefinitionAuthoringPublisher>();
+        var store = provider.GetRequiredService<IFormDefinitionStore>();
+        var definition = Definition("lifecycle", "true") with { Owner = new("user", "alice") };
+        async Task<FormDefinition> Invoke(string name, params object?[] args)
+        {
+            var method = typeof(IFormDefinitionAuthoringPublisher).GetMethod(name);
+            Assert.NotNull(method);
+            return await ((ValueTask<FormDefinition>)method.Invoke(publisher, args)!).AsTask();
+        }
+        var first = await Invoke("CreateAsync", definition, CancellationToken.None);
+        var second = await Invoke("SaveNextAsync", definition, CancellationToken.None);
+        Assert.Equal("1.0.0", first.Version.ToString());
+        Assert.Equal("1.0.1", second.Version.ToString());
+        var published = await Invoke("PublishAsync", definition.Tenant, definition.Id, second.Version, CancellationToken.None);
+        Assert.Equal(FormDefinitionStatus.Published, published.Status);
+        var restored = await Invoke("RestoreAsDraftAsync", definition.Tenant, definition.Id, first.Version, CancellationToken.None);
+        Assert.Equal("1.0.2", restored.Version.ToString());
+        Assert.Equal(FormDefinitionStatus.Draft, restored.Status);
+        Assert.Equal("1.0.0", restored.DerivedFrom!.ToString());
+        Assert.Equal(first, await store.GetAsync(definition.Tenant, definition.Id, first.Version));
+        Assert.Equal(published, await store.GetCurrentPublishedAsync(definition.Tenant, definition.Id));
     }
 
     private static ServiceProvider BuildHost()

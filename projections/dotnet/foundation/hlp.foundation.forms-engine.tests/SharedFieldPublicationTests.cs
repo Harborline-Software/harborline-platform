@@ -176,6 +176,52 @@ public sealed class SharedFieldPublicationTests
         await Assert.ThrowsAsync<FormDefinitionNotFoundException>(() => store.GetAsync(definition.Tenant, definition.Id, definition.Version).AsTask());
     }
 
+    [Theory]
+    [InlineData("CreateAsync", "author")]
+    [InlineData("SaveNextAsync", "author")]
+    [InlineData("RestoreAsDraftAsync", "author")]
+    [InlineData("PublishAsync", "publish")]
+    public async Task Lifecycle_entries_refuse_dropped_requirement_without_writing(string operation, string phase)
+    {
+        var host = new FieldHost { SchemaRef = "sha256:publication-fields" };
+        var definition = Harness.CreateDefinition(host.SchemaRef, host.Tenant) with
+        {
+            Status = FormDefinitionStatus.Draft,
+            SubmitGate = new Harborline.Contracts.Authorization.SubmitGate(
+                Role: Harborline.Contracts.Authorization.RoleReference.Domain("admin")),
+            Authoring = new(new Dictionary<string, FormFieldAuthoringMetadata> { ["name"] = new("text", false), ["secret"] = new("text", false) }),
+        };
+        var services = new ServiceCollection();
+        services.AddFormGateRegisters();
+        services.AddSingleton<IFormDefinitionStore, InMemoryFormDefinitionStore>();
+        services.AddSingleton<IAuthenticatedActorContext>(new PublicationActor(host.Tenant));
+        services.AddSingleton<IFormFieldBindingSource>(host);
+        services.AddSingleton<IFieldKindRuntime>(new FieldKindRuntime(new FieldKindRegistry([new("declared", "1", null)])));
+        services.AddSingleton<IFieldDomainRuntime>(new ValueDomainRuntime(host, host, TimeProvider.System));
+        services.AddHarborlineFormsAuthoringPublisher();
+        await using var provider = services.BuildServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+        var store = provider.GetRequiredService<IFormDefinitionStore>();
+        var seeded = operation is "RestoreAsDraftAsync" or "PublishAsync";
+        if (seeded) await store.CreateAsync(definition);
+        var publisher = scope.ServiceProvider.GetRequiredService<IFormDefinitionAuthoringPublisher>();
+        var method = typeof(IFormDefinitionAuthoringPublisher).GetMethod(operation);
+        Assert.NotNull(method);
+        object?[] arguments = seeded
+            ? [definition.Tenant, definition.Id, definition.Version, CancellationToken.None]
+            : [definition, CancellationToken.None];
+        var error = await Assert.ThrowsAsync<DefinitionRefusalException>(async () =>
+            await ((ValueTask<FormDefinition>)method.Invoke(publisher, arguments)!).AsTask());
+        Assert.Equal(phase, error.Stage.ToString().ToLowerInvariant());
+        var refusal = Assert.Single(error.Refusals);
+        Assert.Equal("field.requirement_dropped", refusal.Code);
+        Assert.Equal("/name", refusal.Pointer);
+        var revisions = new List<FormDefinition>();
+        await foreach (var revision in store.ListByTenantAsync(definition.Tenant)) revisions.Add(revision);
+        Assert.Equal(seeded ? 1 : 0, revisions.Count);
+        Assert.Null(await store.GetCurrentPublishedAsync(definition.Tenant, definition.Id));
+    }
+
     private sealed class PublicationActor(TenantId tenant, string userId = "alice", string scenario = "") : IAuthenticatedActorContext
     {
         public string UserId => userId;

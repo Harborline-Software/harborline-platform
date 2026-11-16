@@ -1,5 +1,6 @@
 using Harborline.Blocks.BuilderDefinitions;
 using Harborline.Foundation.Forms;
+using Harborline.Foundation.Assets.Common;
 using Harborline.Foundation.Forms.Exceptions;
 using Harborline.Foundation.Forms.Models;
 using Harborline.Contracts.Fields;
@@ -21,6 +22,70 @@ public sealed class FormDefinitionAuthoringPublisher(
     : IFormDefinitionAuthoringPublisher
 {
     /// <inheritdoc />
+    public ValueTask<FormDefinition> CreateAsync(FormDefinition definition, CancellationToken cancellationToken = default)
+        => SaveAsync(definition, store.CreateAsync, cancellationToken);
+
+    /// <inheritdoc />
+    public ValueTask<FormDefinition> SaveNextAsync(FormDefinition definition, CancellationToken cancellationToken = default)
+        => SaveAsync(definition, store.SaveNextAsync, cancellationToken);
+
+    private async ValueTask<FormDefinition> SaveAsync(FormDefinition definition,
+        Func<FormDefinition, CancellationToken, ValueTask<FormDefinition>> write, CancellationToken cancellationToken)
+    {
+        try
+        {
+            ArgumentNullException.ThrowIfNull(definition);
+            if (definition.Status != FormDefinitionStatus.Draft)
+                throw new FormDefinitionValidationException(definition.Id, "authoring save requires a Draft definition.");
+            await ValidateAsync(definition, cancellationToken).ConfigureAwait(false);
+            return await write(definition, cancellationToken).ConfigureAwait(false);
+        }
+        catch (FieldAdmissionException exception) { throw FieldRefusal(DefinitionAdmissionPhase.Author, exception); }
+        catch (FormDefinitionValidationException exception) { throw ValidationRefusal(DefinitionAdmissionPhase.Author, exception); }
+    }
+
+    /// <inheritdoc />
+    public async ValueTask<FormDefinition> RestoreAsDraftAsync(TenantId tenant, FormDefinitionId id, SemanticVersion version, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var source = await store.GetAsync(tenant, id, version, cancellationToken).ConfigureAwait(false);
+            await ValidateAsync(source with { Status = FormDefinitionStatus.Draft }, cancellationToken).ConfigureAwait(false);
+            return await store.RestoreAsDraftAsync(tenant, id, version, cancellationToken).ConfigureAwait(false);
+        }
+        catch (FieldAdmissionException exception) { throw FieldRefusal(DefinitionAdmissionPhase.Author, exception); }
+        catch (FormDefinitionValidationException exception) { throw ValidationRefusal(DefinitionAdmissionPhase.Author, exception); }
+    }
+
+    /// <inheritdoc />
+    public async ValueTask<FormDefinition> PublishAsync(TenantId tenant, FormDefinitionId id, SemanticVersion version, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var draft = await store.GetAsync(tenant, id, version, cancellationToken).ConfigureAwait(false);
+            await ValidateAsync(draft, cancellationToken).ConfigureAwait(false);
+            return await store.PublishAsync(tenant, id, version, cancellationToken).ConfigureAwait(false);
+        }
+        catch (FieldAdmissionException exception) { throw FieldRefusal(DefinitionAdmissionPhase.Publish, exception); }
+        catch (FormDefinitionValidationException exception) { throw ValidationRefusal(DefinitionAdmissionPhase.Publish, exception); }
+    }
+
+    private static DefinitionRefusalException ValidationRefusal(DefinitionAdmissionPhase phase, FormDefinitionValidationException exception)
+    {
+        var code = exception.Code ?? "form_definition.validation_refused";
+        var pointer = exception.Target?.StartsWith('/') == true ? exception.Target
+            : code.StartsWith("form.pages.", StringComparison.Ordinal) || code == "form.rules.guard_uncompilable" ? "/overlay/pages"
+            : code.StartsWith("form.rules.", StringComparison.Ordinal) ? "/overlay/rules"
+            : code.StartsWith("form.tree.", StringComparison.Ordinal) || code.StartsWith("form.layout.", StringComparison.Ordinal) ? "/overlay/sections"
+            : code.StartsWith("form.checks.", StringComparison.Ordinal) || code == "aspect.sensitive_input_unacknowledged" ? "/overlay/asyncChecks"
+            : "/overlay";
+        return new(phase, [new(code, pointer)]);
+    }
+
+    private static DefinitionRefusalException FieldRefusal(DefinitionAdmissionPhase phase, FieldAdmissionException exception)
+        => new(phase, exception.Refusals.Select(refusal => new DefinitionRefusal(refusal.Code, refusal.JsonPointer)));
+
+    /// <inheritdoc />
     public async ValueTask<FormDefinition> RegisterAndPublishAsync(
         FormDefinition definition,
         CancellationToken cancellationToken = default)
@@ -41,8 +106,11 @@ public sealed class FormDefinitionAuthoringPublisher(
         try { return await PublishCoreAsync(definition, context, cancellationToken).ConfigureAwait(false); }
         catch (FieldAdmissionException exception)
         {
-            throw new DefinitionRefusalException(DefinitionAdmissionPhase.Publish,
-                exception.Refusals.Select(refusal => new DefinitionRefusal(refusal.Code, refusal.JsonPointer)));
+            throw FieldRefusal(DefinitionAdmissionPhase.Publish, exception);
+        }
+        catch (FormDefinitionValidationException exception)
+        {
+            throw ValidationRefusal(DefinitionAdmissionPhase.Publish, exception);
         }
     }
 
@@ -59,6 +127,19 @@ public sealed class FormDefinitionAuthoringPublisher(
                 $"authoring publication requires a Draft definition, but '{definition.Id}' v{definition.Version} is {definition.Status}.");
         }
 
+        await ValidateAsync(definition, cancellationToken).ConfigureAwait(false);
+
+        var assessment = context is null ? FormPublicationAssessment.Unavailable("publication_basis_unavailable")
+            : await new FormPublicationImpactAssessment().AssessAsync(definition, store, context, cancellationToken)
+                .ConfigureAwait(false);
+        cancellationToken.ThrowIfCancellationRequested();
+        var published = await store.RegisterAndPublishAsync(definition, cancellationToken).ConfigureAwait(false);
+        return new(published, assessment);
+    }
+    private async ValueTask ValidateAsync(FormDefinition definition, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(definition);
+        cancellationToken.ThrowIfCancellationRequested();
         // This must remain before the first store mutation. It is the destination equivalent of
         // Harborline App's FormDefinitionPublishAdmission call in the authoring endpoint.
         RuleCompileAdmission.ValidateOrThrow(definition);
@@ -75,11 +156,6 @@ public sealed class FormDefinitionAuthoringPublisher(
                 .ResolveAsync(new FieldDomainScope(tenant.Id, actor.UserId), definition, cancellationToken).ConfigureAwait(false);
         }
 
-        var assessment = context is null ? FormPublicationAssessment.Unavailable("publication_basis_unavailable")
-            : await new FormPublicationImpactAssessment().AssessAsync(definition, store, context, cancellationToken)
-                .ConfigureAwait(false);
-        cancellationToken.ThrowIfCancellationRequested();
-        var published = await store.RegisterAndPublishAsync(definition, cancellationToken).ConfigureAwait(false);
-        return new(published, assessment);
     }
+
 }

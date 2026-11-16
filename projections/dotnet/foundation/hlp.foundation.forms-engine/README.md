@@ -61,6 +61,12 @@ unacknowledged sensitive connector inputs. A disposable minimal HTTP authoring h
 the seven-artifact transitive Harborline closure, and proves zero source/project fallback or assembly
 ambiguity.
 
+Revision 21 routes draft creation, saving, restoration and stored-draft publication through the
+same rule, policy and field validation as new-definition publication, before the store write.
+The publisher requires the host's field-binding source and both field runtimes. Field and Forms validation refusals use the shared definition refusal envelope with an explicit
+author or publish phase. Store lifecycle invariants that raise message-only InvalidOperationException
+still need a typed refusal before they can be distinguished from adapter failures. The host supplies the authenticated actor and matching active tenant.
+
 Revision 16 adds durably accepted Records commands (plan W6/W7, ADR-0110 accepted 2026-10-12; its readings
 are isolated in `FormAcceptedCommandReadings`). A submit whose published head targets a `form_only` Record Type is
 accepted, not delivered: its submit gate is decided inside the acceptance transaction, and the one existing atomic
