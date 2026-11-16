@@ -266,7 +266,7 @@ public static class WorkflowDefinitionWireMapper
 
     private static void ValidateDeclarations(JsonElement source, bool action)
     {
-        var names = action ? new[] { "notification" } : new[] { "notification", "fieldRequirements", "locks", "escalation" };
+        var names = action ? new[] { "notification", "escalation" } : new[] { "notification", "fieldRequirements", "locks", "escalation" };
         if (!names.Any(name => source.TryGetProperty(name, out _))) return;
         var json = action
             ? JsonNode.Parse("""{"id":"probe","on":{"state":"probe"},"kind":"Notify","capabilityRef":"probe","classification":"AP"}""")!.AsObject()
