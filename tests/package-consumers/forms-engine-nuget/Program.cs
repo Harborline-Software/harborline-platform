@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.Extensions.DependencyInjection;
+using Harborline.Blocks.BuilderDefinitions;
 using Harborline.Foundation.Assets.Common;
 using Harborline.Foundation.Forms;
 using Harborline.Foundation.Forms.Engine.Authoring;
@@ -33,9 +34,13 @@ app.MapPut("/api/forms/{id}", async (
             cancellationToken);
         return Results.Ok(new { id = published.Id.Value, status = published.Status.ToString() });
     }
-    catch (FormDefinitionValidationException exception)
+    catch (DefinitionRefusalException exception)
     {
-        return Results.UnprocessableEntity(new { code = exception.Code, error = exception.Message });
+        return Results.UnprocessableEntity(new
+        {
+            phase = exception.Stage.ToString(),
+            refusals = exception.Refusals.Select(refusal => new { code = refusal.Code, pointer = refusal.Pointer }),
+        });
     }
 });
 
