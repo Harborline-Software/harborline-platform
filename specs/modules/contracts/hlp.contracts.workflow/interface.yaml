@@ -24,7 +24,7 @@
   "invariants": [
     "Revision 3 borrows RuleDefinition from Rules and InternationalizedText from Text in the existing Contracts artifacts. IdentityRef and SubjectFormRef ownership remain unchanged. JSON fields, requiredness, optional/null semantics, closed values, and admission are unchanged; CLR namespace identities migrate with source consumers.",
     "The 16-declaration TypeScript authoring surface retains the pinned shape plus revision-2 qualified requiredRoles gates on transitions and actions, resolved through hlp.contracts.authorization.",
-    "Unknown closed enum values, missing required members, and action bindings naming both or neither state/transition fail closed; additive object members are ignored.",
+    "Unknown closed enum values, missing required members, and action bindings naming both or neither state/transition fail closed; additive object members are ignored except escalation on notifications or action bindings, which is refused (tickets/T-488-workflows-authored-and-bound-in-the-domain-builder/slices/escalation-off-notifications.md).",
     "Admission detects duplicate ids, dangling state/trigger/guard/action references, unreachable states, terminal outgoing edges, and reachable non-terminal dead ends.",
     "Action classification is derived from the injected immutable registry; an unknown capability is refused and an authored mismatch is refused.",
     "A CP action fires only on a HumanAction transition or on entry to a non-initial state whose every incoming transition is HumanAction.",
