@@ -1059,6 +1059,7 @@ function verifyNuget() {
     .filter(key => /^Harborline\./.test(key))
     .sort()
   const formsEngineExpectedIds = [
+    'Harborline.Foundation.Definitions',
     'Harborline.Foundation.Forms.Engine',
     'Harborline.Foundation.MultiTenancy',
     'Harborline.Foundation.RuleEngine',
@@ -1103,6 +1104,7 @@ function verifyNuget() {
     .sort()
   const inspectionReviewExpectedIds = [
     'Harborline.Blocks.InspectionReview',
+    'Harborline.Foundation.Definitions',
     'Harborline.Foundation.Forms.Engine',
     'Harborline.Foundation.MultiTenancy',
     'Harborline.Foundation.RuleEngine',
@@ -1224,6 +1226,7 @@ function verifyDynamicFormsCapability() {
   const engineDirectReferences = assertDirectPackageReferences(engineConsumer, ['Harborline.Foundation.Forms.Engine'], 'Dynamic Forms engine')
   const [engineBehavior] = proofLines(runNugetConsumer(engineConsumer, enginePackageCache), ['DYNAMIC_FORMS_PACKAGE_PASS:'], 'Dynamic Forms package-only engine vertical')
   const engineHarborlineNodes = assertPackageClosure(engineConsumer, [
+    'Harborline.Foundation.Definitions',
     'Harborline.Foundation.Forms.Engine',
     'Harborline.Foundation.MultiTenancy',
     'Harborline.Foundation.RuleEngine',
