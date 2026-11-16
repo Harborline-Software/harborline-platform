@@ -76,8 +76,14 @@ public static class WorkflowsExpressionEnvironment
         ArgumentNullException.ThrowIfNull(evaluator);
         var admission = Admitted.For(phase);
         string verdict;
-        try { verdict = new JsonObject { ["==="] = new JsonArray(JsonNode.Parse(expression), JsonValue.Create(true)) }.ToJsonString(); }
+        try
+        {
+            var parsed = JsonNode.Parse(expression);
+            if (!HasValidObjects(parsed)) return Validity.Invalid(RuleError.Of(RuleEngineCodes.CompileInvalidExpression));
+            verdict = new JsonObject { ["==="] = new JsonArray(parsed, JsonValue.Create(true)) }.ToJsonString();
+        }
         catch (JsonException) { verdict = expression; }
+        catch (ArgumentException) { return Validity.Invalid(RuleError.Of(RuleEngineCodes.CompileInvalidExpression)); }
         var rule = new RuleDefinition
         {
             Id = $"workflow.guard.{guardId}",
@@ -89,4 +95,11 @@ public static class WorkflowsExpressionEnvironment
         };
         return evaluator.EvaluateGuard(rule, context, RuleEvalScope.Root, admission, cancellationToken);
     }
+
+    private static bool HasValidObjects(JsonNode? node) => node switch
+    {
+        JsonObject obj => obj.Count == 1 && obj.All(entry => HasValidObjects(entry.Value)),
+        JsonArray array => array.All(HasValidObjects),
+        _ => true,
+    };
 }

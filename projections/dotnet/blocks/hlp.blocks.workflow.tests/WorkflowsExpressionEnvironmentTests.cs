@@ -127,6 +127,19 @@ public sealed class WorkflowsExpressionEnvironmentTests
         Assert.False(Evaluate(JsonNode.Parse(expression)!, new JsonObject(), EvaluationPhase.Run).Ok);
     }
 
+    [Theory(DisplayName = "workflows-ck-29: malformed objects in guards are invalid expressions")]
+    [InlineData("{\"and\":[{\"==\":[1,2],\"note\":\"x\"},true]}")]
+    [InlineData("{\"!!\":[{\"table.sum\":[\"a\"],\"agg\":[\"sum\",\"s\",\"c\"]}]}")]
+    [InlineData("{\"==\":[1,1],\"==\":[1,1]}")]
+    [InlineData("{\"and\":[[{}],true]}")]
+    public void Workflows_ck_29_malformed_objects_are_invalid_expressions(string expression)
+    {
+        var result = WorkflowsExpressionEnvironment.EvaluateGuard(new GuardEvaluator(TimeProvider.System), "test", expression,
+            RuleContextSnapshot.Capture(new Dictionary<string, JsonNode?>()), EvaluationPhase.Run);
+        Assert.False(result.Ok);
+        Assert.Equal("rule.compile.invalid_expression", result.Error?.Code);
+    }
+
     [Fact(DisplayName = "workflows-ck-29: declaration dictionaries cannot be mutated")]
     public void Workflows_ck_29_declaration_dictionaries_are_read_only()
     {
