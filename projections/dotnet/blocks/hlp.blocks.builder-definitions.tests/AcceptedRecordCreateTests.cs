@@ -491,6 +491,34 @@ public sealed class AcceptedRecordCreateTests
             new RecordWriteOperationKey("tenant-a", "operator-7", "op-116:accepted-command").IdempotencyKey);
     }
 
+    // T-616/postcommit-reactions (ADR-0154 decision 1, ADR 0131 decision 2, ADR-0110 decision 4): the committed event of an
+    // accepted command's create names the submitter as its principal and carries the worker as executor, both read from
+    // the committed journal row, so a redelivery from a reopened journal names the same two. Oracles: the literal submitter,
+    // worker, operation id and key bytes this class's command uses; the event type ADR 0124 decision 2 names.
+    [Fact]
+    [Trait("Proves", "platform")]
+    public async Task The_committed_event_of_an_accepted_create_names_the_submitter_as_principal_and_the_worker_as_executor()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), "t616-accepted-event-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        try
+        {
+            var path = Path.Combine(directory, "records.json");
+            var fixture = await Fixture.CreateAsync(journal: new FileJournalRecordWriteStore(path));
+            var outcome = await fixture.Operation.CompleteAcceptedAsync(new(Tenant, Worker), Command());
+            Assert.True(outcome.Committed);
+
+            var delivered = Assert.Single(await new FileJournalRecordWriteStore(path).ReadCommittedAsync(Tenant, 0));
+            var redelivered = Assert.Single(await new FileJournalRecordWriteStore(path).ReadCommittedAsync(Tenant, 0));
+
+            Assert.Equal(("records.record.created", "eam.asset-class", outcome.Receipt!.RecordId, "1.0.0", "op-accepted-1", "alice", "sys.records-worker"),
+                (delivered.EventType, delivered.RecordTypeId, delivered.RecordId, delivered.Version, delivered.OperationId, delivered.Principal, delivered.Executor));
+            Assert.Equal("8:tenant-a5:alice13:op-accepted-116:accepted-command", delivered.EventId);
+            Assert.Equal(delivered, redelivered);
+        }
+        finally { Directory.Delete(directory, true); }
+    }
+
     private static JsonObject Body() => JsonNode.Parse(ValidBody)!.AsObject();
 
     // The accepted command as the accepting store holds it: acceptance audit, form revision, the decision at acceptance and
@@ -520,7 +548,7 @@ public sealed class AcceptedRecordCreateTests
         public RecordWriteOperation Operation { get; }
 
         // The test host with three published types: the form_only asset class, a role-gated meter and an engine ledger line.
-        public static async Task<Fixture> CreateAsync(string[]? workers = null)
+        public static async Task<Fixture> CreateAsync(string[]? workers = null, FileJournalRecordWriteStore? journal = null)
         {
             var host = Host();
             await PublishAsync(host, AssetClass("1.0.0"), "eam.asset-class");
@@ -529,8 +557,11 @@ public sealed class AcceptedRecordCreateTests
             var gate = new WorkerGate(workers ?? [Worker, Delegate]);
             var port = new AcceptedCommandPort();
             var clock = new FixedClock(At);
-            return new(gate, port, new RecordWriteOperation(new AccessProvider(gate), host.Records, host.Registry, port, port, clock,
-                RecordWriteFieldRuntimeTests.FixtureKinds(), RecordWriteFieldRuntimeTests.FixtureDomains(clock)));
+            return new(gate, port, journal is null
+                ? new RecordWriteOperation(new AccessProvider(gate), host.Records, host.Registry, port, port, clock,
+                    RecordWriteFieldRuntimeTests.FixtureKinds(), RecordWriteFieldRuntimeTests.FixtureDomains(clock))
+                : new RecordWriteOperation(new AccessProvider(gate), host.Records, host.Registry, journal, journal, clock,
+                    RecordWriteFieldRuntimeTests.FixtureKinds(), RecordWriteFieldRuntimeTests.FixtureDomains(clock)));
         }
 
         private static async Task PublishAsync(TestHost host, NewRecordType type, string expectedId)
