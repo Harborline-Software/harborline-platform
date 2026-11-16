@@ -1743,8 +1743,8 @@
         },
         {
           "id": "assertVisualParity",
-          "status": "PASS",
-          "note": "4 visual-parity scenario(s), lane vs lane, pixelmatch"
+          "status": "PARTIAL",
+          "note": "2 visual-parity scenario(s) compared in the recorded gallery-gate; 2 added since it was recorded are uncompared until it is re-recorded: data-exchange.partial-failure, data-exchange.from-empty"
         },
         {
           "id": "assertFunctionalParity",
@@ -1778,8 +1778,8 @@
         },
         {
           "id": "assertResponsiveQuality",
-          "status": "PASS",
-          "note": "reflow measured at 320px and 200% text in both lanes, with no horizontal overflow"
+          "status": "PARTIAL",
+          "note": "reflow is unmeasured for 2 scenario(s) added since the recorded gallery-gate, until it is re-recorded: data-exchange.partial-failure, data-exchange.from-empty"
         },
         {
           "id": "assertEmptyAndErrorStates",
@@ -4083,8 +4083,8 @@
         },
         {
           "id": "assertVisualParity",
-          "status": "PASS",
-          "note": "5 visual-parity scenario(s), lane vs lane, pixelmatch"
+          "status": "PARTIAL",
+          "note": "3 visual-parity scenario(s) compared in the recorded gallery-gate; 2 added since it was recorded are uncompared until it is re-recorded: rule-authoring.lineage, rule-authoring.promotion"
         },
         {
           "id": "assertFunctionalParity",
@@ -4118,8 +4118,8 @@
         },
         {
           "id": "assertResponsiveQuality",
-          "status": "PASS",
-          "note": "reflow measured at 320px and 200% text in both lanes, with no horizontal overflow"
+          "status": "PARTIAL",
+          "note": "reflow is unmeasured for 2 scenario(s) added since the recorded gallery-gate, until it is re-recorded: rule-authoring.lineage, rule-authoring.promotion"
         },
         {
           "id": "assertEmptyAndErrorStates",
@@ -4239,8 +4239,8 @@
         },
         {
           "id": "assertVisualParity",
-          "status": "PASS",
-          "note": "3 visual-parity scenario(s), lane vs lane, pixelmatch"
+          "status": "PARTIAL",
+          "note": "0 visual-parity scenario(s) compared in the recorded gallery-gate; 3 added since it was recorded are uncompared until it is re-recorded: scheduling-authoring.chain, scheduling-authoring.solver, scheduling-authoring.refusals"
         },
         {
           "id": "assertFunctionalParity",
@@ -4274,8 +4274,8 @@
         },
         {
           "id": "assertResponsiveQuality",
-          "status": "PASS",
-          "note": "reflow measured at 320px and 200% text in both lanes, with no horizontal overflow"
+          "status": "PARTIAL",
+          "note": "reflow is unmeasured for 1 scenario(s) added since the recorded gallery-gate, until it is re-recorded: scheduling-authoring.chain"
         },
         {
           "id": "assertEmptyAndErrorStates",
@@ -6641,8 +6641,8 @@
     }
   ],
   "tally": {
-    "PASS": 690,
-    "PARTIAL": 105,
+    "PASS": 684,
+    "PARTIAL": 111,
     "UNBUILT": 220,
     "NOT-APPLICABLE": 159,
     "FAIL": 2
