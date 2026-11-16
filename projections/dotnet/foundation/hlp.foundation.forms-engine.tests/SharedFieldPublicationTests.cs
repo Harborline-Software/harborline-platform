@@ -59,10 +59,17 @@ public sealed class SharedFieldPublicationTests
             new FieldKindRuntime(new FieldKindRegistry([new("declared", "1", null)])));
         if (scenario != "missing-domains") services.AddSingleton<IFieldDomainRuntime>(new ValueDomainRuntime(host, host, TimeProvider.System));
         services.AddHarborlineFormsAuthoringPublisher();
-        await using var provider = services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true, ValidateOnBuild = true });
+        await using var provider = services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true });
         await using var scope = provider.CreateAsyncScope();
-        var publisher = scope.ServiceProvider.GetRequiredService<IFormDefinitionAuthoringPublisher>();
         var store = provider.GetRequiredService<IFormDefinitionStore>();
+        if (scenario is "missing-bindings" or "missing-kinds" or "missing-domains")
+        {
+            Assert.Throws<InvalidOperationException>(() => scope.ServiceProvider.GetRequiredService<IFormDefinitionAuthoringPublisher>());
+            Assert.Null(await store.GetCurrentPublishedAsync(host.Tenant, definition.Id));
+            await Assert.ThrowsAsync<FormDefinitionNotFoundException>(() => store.GetAsync(host.Tenant, definition.Id, definition.Version).AsTask());
+            return;
+        }
+        var publisher = scope.ServiceProvider.GetRequiredService<IFormDefinitionAuthoringPublisher>();
         if (code is null)
         {
             var published = await publisher.RegisterAndPublishAsync(definition);

@@ -21,6 +21,7 @@ public sealed class AuthoringHostIntegrationTests
         services.AddSingleton<IFormDefinitionStore>(fixture.Store);
         services.AddSingleton<Harborline.Kernel.SchemaValidation.ISchemaRegistry>(fixture.Schemas);
         services.AddSingleton<IFormPublishedSurfaceSource>(fixture.Context.Surfaces);
+        AuthoringFieldFixture.Add(services, fixture.Candidate.Tenant, fixture.Candidate.SchemaRef.Value, "name");
         services.AddHarborlineFormsAuthoringPublisher();
         await using var provider = services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true, ValidateOnBuild = true });
         await using var scope = provider.CreateAsyncScope();
@@ -162,6 +163,7 @@ public sealed class AuthoringHostIntegrationTests
         services.AddSingleton<IFormDefinitionStore>(fixture.Store);
         services.AddSingleton<Harborline.Kernel.SchemaValidation.ISchemaRegistry>(fixture.Schemas);
         services.AddSingleton<IFormPublishedSurfaceSource>(fixture.Context.Surfaces);
+        AuthoringFieldFixture.Add(services, fixture.Candidate.Tenant, fixture.Candidate.SchemaRef.Value, "name");
         services.AddHarborlineFormsAuthoringPublisher();
         return services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true, ValidateOnBuild = true });
     }
@@ -176,6 +178,7 @@ public sealed class AuthoringHostIntegrationTests
         var source = new ImpactFixture.Source(_ => { read = true; return ValueTask.FromResult<FormPublishedSurfaceRead>(new FormPublishedSurfaceRead.Complete("tenant-a", [])); });
         var services = new ServiceCollection();
         services.AddSingleton<IFormDefinitionStore>(fixture.Store);
+        AuthoringFieldFixture.Add(services, fixture.Candidate.Tenant, fixture.Candidate.SchemaRef.Value, "name");
         services.AddHarborlineFormsAuthoringPublisher();
         await using var provider = services.BuildServiceProvider();
         await using var scope = provider.CreateAsyncScope();
@@ -197,6 +200,7 @@ public sealed class AuthoringHostIntegrationTests
         await fixture.Store.RegisterAndPublishAsync(conflicting);
         var services = new ServiceCollection();
         services.AddSingleton<IFormDefinitionStore>(fixture.Store);
+        AuthoringFieldFixture.Add(services, fixture.Candidate.Tenant, fixture.Candidate.SchemaRef.Value, "name");
         services.AddHarborlineFormsAuthoringPublisher();
         await using var provider = services.BuildServiceProvider();
         await using var scope = provider.CreateAsyncScope();
@@ -214,6 +218,7 @@ public sealed class AuthoringHostIntegrationTests
         var fixture = await ImpactFixture.CreateAsync();
         var services = new ServiceCollection();
         services.AddSingleton<IFormDefinitionStore>(fixture.Store);
+        AuthoringFieldFixture.Add(services, fixture.Candidate.Tenant, fixture.Candidate.SchemaRef.Value, "name");
         services.AddHarborlineFormsAuthoringPublisher();
         await using var provider = services.BuildServiceProvider();
         await using var scope = provider.CreateAsyncScope();
@@ -416,6 +421,7 @@ public sealed class AuthoringHostIntegrationTests
         var services = new ServiceCollection();
         services.AddFormGateRegisters();
         services.AddSingleton<IFormDefinitionStore, InMemoryFormDefinitionStore>();
+        AuthoringFieldFixture.Add(services, new("tenant-authoring-host"), "sha256:authoring-host", "a", "b");
         services.AddHarborlineFormsAuthoringPublisher();
         return services.BuildServiceProvider(
             new ServiceProviderOptions { ValidateScopes = true, ValidateOnBuild = true });

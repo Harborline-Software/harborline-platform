@@ -4,6 +4,11 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using Harborline.Blocks.BuilderDefinitions;
 using Harborline.Contracts.Authorization;
+using Harborline.Contracts.Fields;
+using Harborline.Foundation.Authorization;
+using Harborline.Foundation.FieldRuntime;
+using Harborline.Foundation.Forms.Engine;
+using Harborline.Foundation.MultiTenancy;
 using Harborline.Foundation.Assets.Common;
 using Harborline.Foundation.Forms;
 using Harborline.Foundation.Forms.Engine.Authoring;
@@ -33,6 +38,7 @@ public sealed class LayoutFormPublicationImpactTests
         services.AddSingleton<IVersionedDefinitionStore>(new ReadFaultStore(fixture.Shared));
         services.AddSingleton<IFormDefinitionStore>(fixture.Forms);
         services.AddSingleton<ISchemaRegistry>(fixture.Schemas);
+        AuthoringFieldFixture.Add(services, candidate.Tenant, candidate.SchemaRef.Value, "name");
         services.AddHarborlineFormsAuthoringPublisher();
         services.AddHarborlineLayoutFormPublicationSource();
         await using var provider = services.BuildServiceProvider();
@@ -74,6 +80,7 @@ public sealed class LayoutFormPublicationImpactTests
         services.AddSingleton<IVersionedDefinitionStore>(new ReadFaultStore(fixture.Shared));
         services.AddSingleton<IFormDefinitionStore>(fixture.Forms);
         services.AddSingleton<ISchemaRegistry>(fixture.Schemas);
+        AuthoringFieldFixture.Add(services, fixture.Candidate.Tenant, fixture.Candidate.SchemaRef.Value, "name");
         services.AddHarborlineFormsAuthoringPublisher();
         services.AddHarborlineLayoutFormPublicationSource();
         await using var provider = services.BuildServiceProvider();
@@ -210,6 +217,7 @@ public sealed class LayoutFormPublicationImpactTests
         services.AddSingleton<IVersionedDefinitionStore>(fixture.Shared);
         services.AddSingleton<IFormDefinitionStore>(fixture.Forms);
         services.AddSingleton<ISchemaRegistry>(fixture.Schemas);
+        AuthoringFieldFixture.Add(services, fixture.Candidate.Tenant, fixture.Candidate.SchemaRef.Value, "name");
         services.AddHarborlineFormsAuthoringPublisher();
         services.AddHarborlineLayoutFormPublicationSource();
         await using var provider = services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true, ValidateOnBuild = true });
@@ -379,5 +387,40 @@ public sealed class LayoutFormPublicationImpactTests
         public ValueTask<DefinitionRevision> SaveDraftAsync(DefinitionDocument document, long expectedRevision, string requestId, CancellationToken cancellationToken = default) => throw new InvalidOperationException("source must not write");
         public ValueTask<DefinitionRevision> PublishAsync(DefinitionKey key, string versionId, long expectedRevision, string requestId, CancellationToken cancellationToken = default) => throw new InvalidOperationException("source must not publish");
         public ValueTask<DefinitionRevision> RestoreAsDraftAsync(DefinitionKey key, string sourceVersionId, string draftVersionId, string draftVersion, long expectedRevision, string requestId, CancellationToken cancellationToken = default) => throw new InvalidOperationException("source must not restore");
+    }
+}
+
+internal sealed class AuthoringFieldFixture(TenantId tenant, string schema, params string[] names)
+    : IFormFieldBindingSource, IFieldDomainSource, IFieldDomainSnapshot, IFieldDomainReadAuthority, IAuthenticatedActorContext
+{
+    public string UserId => "author";
+    public IReadOnlyList<string> Roles => ["author"];
+    public TenantMetadata Tenant { get; } = new() { Id = tenant, Name = "Test tenant", Status = TenantStatus.Active };
+
+    public ValueTask<FormSchemaFieldBindings?> ResolveAsync(TenantId requestedTenant, string schemaRef, CancellationToken cancellationToken = default)
+    {
+        if (requestedTenant != tenant || schemaRef != schema) return ValueTask.FromResult<FormSchemaFieldBindings?>(null);
+        var fields = names.ToDictionary(name => name, _ => new FieldBindingDefinition(
+            new("text", "1", new Dictionary<string, string>()), new(false, 0, 1, [], null)), StringComparer.Ordinal);
+        return ValueTask.FromResult<FormSchemaFieldBindings?>(new(tenant, schema, fields));
+    }
+
+    TenantId IFieldDomainSnapshot.Tenant => tenant;
+    public string Revision => "fixture-1";
+    public bool IsComplete => true;
+    public IReadOnlyList<FieldDomainMember>? GetTaxonomyScheme(TaxonomySchemeReference scheme) => null;
+    public IReadOnlyList<FieldDomainMember>? GetRecords(string recordTypeId) => null;
+    public ValueTask<IFieldDomainSnapshot> OpenSnapshotAsync(TenantId requestedTenant, CancellationToken cancellationToken = default)
+        => requestedTenant == tenant ? ValueTask.FromResult<IFieldDomainSnapshot>(this) : throw new InvalidOperationException("Unexpected tenant.");
+    public ValueTask<bool> CanReadAsync(FieldDomainScope scope, ValueDomainDefinition domain, FieldDomainMember member, CancellationToken cancellationToken = default)
+        => throw new InvalidOperationException("This fixture declares no value domains.");
+
+    public static void Add(IServiceCollection services, TenantId tenant, string schema, params string[] names)
+    {
+        var fixture = new AuthoringFieldFixture(tenant, schema, names);
+        services.AddSingleton<IAuthenticatedActorContext>(fixture);
+        services.AddSingleton<IFormFieldBindingSource>(fixture);
+        services.AddSingleton<IFieldKindRuntime>(new FieldKindRuntime(new FieldKindRegistry([new("text", "1", null)])));
+        services.AddSingleton<IFieldDomainRuntime>(new ValueDomainRuntime(fixture, fixture, TimeProvider.System));
     }
 }
